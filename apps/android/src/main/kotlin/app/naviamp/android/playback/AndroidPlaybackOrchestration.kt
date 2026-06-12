@@ -11,9 +11,11 @@ import app.naviamp.domain.playback.PlaybackProgress
 import app.naviamp.domain.playback.PlaybackAudioAssetRepository
 import app.naviamp.domain.playback.PlaybackQueueController
 import app.naviamp.domain.playback.PlaybackReplayGain
-import app.naviamp.domain.playback.PlaybackRequest
 import app.naviamp.domain.playback.PlaybackState
 import app.naviamp.domain.playback.PlaybackStreamMetadata
+import app.naviamp.domain.playback.PlaybackTrackStartEffectApplier
+import app.naviamp.domain.playback.applyPlaybackTrackStartEffects
+import app.naviamp.domain.playback.planPlaylistTrackStartWork
 import app.naviamp.domain.playback.planPlaybackProgressUpdate
 import app.naviamp.domain.playback.planPlaybackStart
 import app.naviamp.domain.playback.planPlaybackTrackStartEffects
@@ -23,6 +25,12 @@ import app.naviamp.domain.playback.ReplayGainSource
 import app.naviamp.domain.playback.playbackStreamUrl
 import app.naviamp.domain.playback.resolvePlaybackAudioSource
 import app.naviamp.domain.queue.PlaybackQueue
+import app.naviamp.domain.radio.InternetRadioStartApplier
+import app.naviamp.domain.radio.InternetRadioMetadataUpdateApplier
+import app.naviamp.domain.radio.applyInternetRadioStart
+import app.naviamp.domain.radio.applyInternetRadioMetadataUpdate
+import app.naviamp.domain.radio.planInternetRadioMetadataUpdate
+import app.naviamp.domain.radio.planInternetRadioPlaybackRequest
 import app.naviamp.domain.radio.planInternetRadioStart
 import app.naviamp.provider.navidrome.NavidromeProvider
 import kotlinx.coroutines.CoroutineScope
@@ -124,12 +132,6 @@ fun playAndroidTrack(
                     startPlan = startPlan,
                     keepRadioQueueActive = keepRadioQueueActive,
                 )
-                if (effectsPlan.presentation.clearShuffleSnapshot) shuffledUpNextSnapshot = null
-                if (effectsPlan.clearRadioContinuation) {
-                    radioQueueActive = false
-                    radioRefilling = false
-                    lastRadioRefillSeedId = null
-                }
                 val sessionToken = beginAndroidPlaybackSession(
                     state = state,
                     playbackQueueController = playbackQueueController,
@@ -149,45 +151,65 @@ fun playAndroidTrack(
                     AndroidPlaybackNotificationControls.positionMillis = null
                     AndroidPlaybackNotificationControls.durationMillis = track.durationSeconds?.toDouble()?.secondsToMillis()
                 }
-                nowPlaying = track
-                AndroidPlaybackNotificationControls.canFavorite = effectsPlan.presentation.canFavoriteTrack
-                AndroidPlaybackNotificationControls.isFavorite = effectsPlan.presentation.isFavoriteTrack
-                if (effectsPlan.presentation.clearInternetRadioNowPlaying) nowPlayingStation = null
-                if (effectsPlan.presentation.resetStreamMetadata) nowPlayingStreamMetadata = PlaybackStreamMetadata()
-                if (effectsPlan.savePlaybackSession) savePlaybackSessionThrottled(true)
-                if (effectsPlan.presentation.shouldOpenNowPlaying) {
-                    nowPlayingOpen = true
-                }
-                if (effectsPlan.presentation.shouldReportNowPlaying) reportNowPlaying(track)
-                if (effectsPlan.refillRadioQueue) {
-                    refillAndroidRadioIfNeeded(
-                        scope = scope,
-                        state = state,
-                        queue = playbackQueue,
-                        queueController = playbackQueueController,
-                    )
-                }
-                if (effectsPlan.loadRelatedTracks) loadRelatedTracks(track)
-                loadAudioTags(track)
-                if (effectsPlan.presentation.shouldLoadLyrics) loadLyrics(track)
-                if (effectsPlan.startAudioPrefetch) startAudioPrefetch(sessionToken, activeProvider, playbackQueue)
-                if (effectsPlan.startSidecarPrep) startSidecarPrep(sessionToken, activeProvider, playbackQueue)
-                if (effectsPlan.updateNotificationMetadata) {
-                    playbackEngine.updateNotificationMetadata(
-                        title = effectsPlan.notificationTitle,
-                        subtitle = effectsPlan.notificationSubtitle,
-                        coverArtUrl = track.coverArtUrl(activeProvider),
-                    )
-                }
+                val trackStartWork = planPlaylistTrackStartWork(
+                    sessionId = sessionToken,
+                    track = track,
+                    playbackSource = audioSourcePlan.source,
+                    streamUrl = streamUrl,
+                    replayGainMode = playbackSettings.replayGainMode,
+                    replayGain = track.replayGain?.let { PlaybackReplayGain(it, ReplayGainSource.Provider) },
+                    supportsReplayGain = playbackEngine.supportsReplayGain,
+                    engineStartPositionSeconds = effectsPlan.engineStartPositionSeconds,
+                    coverArtUrl = track.coverArtUrl(activeProvider),
+                    startAudioPrefetch = effectsPlan.startAudioPrefetch,
+                    startSidecarPrep = effectsPlan.startSidecarPrep,
+                )
+                applyPlaybackTrackStartEffects(
+                    track = trackStartWork.track,
+                    coverArtUrl = trackStartWork.coverArtUrl,
+                    effects = effectsPlan,
+                    applier = PlaybackTrackStartEffectApplier(
+                        clearShuffleSnapshot = { shuffledUpNextSnapshot = null },
+                        clearRadioContinuation = {
+                            radioQueueActive = false
+                            radioRefilling = false
+                            lastRadioRefillSeedId = null
+                        },
+                        clearInternetRadioNowPlaying = { nowPlayingStation = null },
+                        resetStreamMetadata = { nowPlayingStreamMetadata = PlaybackStreamMetadata() },
+                        setNowPlayingTrack = { startedTrack -> nowPlaying = startedTrack },
+                        applyFavoriteState = { canFavorite, isFavorite ->
+                            AndroidPlaybackNotificationControls.canFavorite = canFavorite
+                            AndroidPlaybackNotificationControls.isFavorite = isFavorite
+                        },
+                        savePlaybackSession = { savePlaybackSessionThrottled(true) },
+                        openNowPlaying = { nowPlayingOpen = true },
+                        reportNowPlaying = reportNowPlaying,
+                        refillRadioQueue = {
+                            refillAndroidRadioIfNeeded(
+                                scope = scope,
+                                state = state,
+                                queue = playbackQueue,
+                                queueController = playbackQueueController,
+                            )
+                        },
+                        loadRelatedTracks = loadRelatedTracks,
+                        loadAudioTags = loadAudioTags,
+                        loadLyrics = loadLyrics,
+                        startAudioPrefetch = { startAudioPrefetch(sessionToken, activeProvider, playbackQueue) },
+                        startSidecarPrep = { startSidecarPrep(sessionToken, activeProvider, playbackQueue) },
+                        updateNotificationMetadata = { title, subtitle, cover ->
+                            playbackEngine.updateNotificationMetadata(
+                                title = title,
+                                subtitle = subtitle,
+                                coverArtUrl = cover,
+                            )
+                        },
+                    ),
+                )
                 playbackEngine.play(
                     scope = scope,
-                    request = PlaybackRequest(
-                        url = streamUrl,
-                        mediaId = effectsPlan.engineMediaId,
-                        replayGainMode = playbackSettings.replayGainMode,
-                        replayGain = track.replayGain?.let { PlaybackReplayGain(it, ReplayGainSource.Provider) },
-                        startPositionSeconds = effectsPlan.engineStartPositionSeconds,
-                    ),
+                    request = trackStartWork.request,
                     onStateChanged = { playbackState ->
                         state.playbackState = playbackState
                         when (playbackState) {
@@ -225,44 +247,54 @@ fun playAndroidInternetRadioStation(
         recentStations = state.homeState.recentInternetRadioStations,
         recentSavedStations = settingsStore.loadRecentInternetRadioStations(),
     )
-    settingsStore.saveRecentInternetRadioStations(plan.recentSavedStations)
-    state.homeState = state.homeState.copy(recentInternetRadioStations = plan.recentStations)
-    if (plan.clearShuffleSnapshot) state.shuffledUpNextSnapshot = null
-    if (plan.clearRadioContinuation) {
-        state.radioQueueActive = false
-        state.radioRefilling = false
-        state.lastRadioRefillSeedId = null
-    }
-    state.nowPlaying = plan.nowPlayingTrack
-    AndroidPlaybackNotificationControls.canFavorite = plan.canFavorite
-    AndroidPlaybackNotificationControls.isFavorite = plan.isFavorite
-    state.nowPlayingStation = plan.station
-    state.nowPlayingStreamMetadata = plan.streamMetadata
-    state.playbackProgress = plan.playbackProgress
-    playbackQueueController.clear()
-    state.playbackQueue = plan.playbackQueue
-    if (plan.openNowPlaying) state.nowPlayingOpen = true
-    state.status = plan.status
-    if (plan.savePlaybackSession) {
-        savePlaybackSessionThrottled(true)
-    }
-    playbackEngine.applyTlsSettings(state.activeTlsSettings)
-    playbackEngine.updateNotificationMetadata(
-        title = plan.notificationTitle,
-        subtitle = plan.notificationSubtitle,
-        coverArtUrl = plan.notificationCoverArtUrl,
+    applyInternetRadioStart(
+        plan = plan,
+        applier = InternetRadioStartApplier(
+            saveRecentStations = settingsStore::saveRecentInternetRadioStations,
+            setRecentStations = { recentStations ->
+                state.homeState = state.homeState.copy(recentInternetRadioStations = recentStations)
+            },
+            clearRadioContinuation = {
+                state.radioQueueActive = false
+                state.radioRefilling = false
+                state.lastRadioRefillSeedId = null
+            },
+            clearShuffleSnapshot = { state.shuffledUpNextSnapshot = null },
+            clearPlaybackQueue = { playbackQueueController.clear() },
+            setNowPlayingTrack = { track -> state.nowPlaying = track },
+            applyFavoriteState = { canFavorite, isFavorite ->
+                AndroidPlaybackNotificationControls.canFavorite = canFavorite
+                AndroidPlaybackNotificationControls.isFavorite = isFavorite
+            },
+            setNowPlayingStation = { startedStation -> state.nowPlayingStation = startedStation },
+            setStreamMetadata = { metadata -> state.nowPlayingStreamMetadata = metadata },
+            setPlaybackProgress = { progress -> state.playbackProgress = progress },
+            setPlaybackQueue = { queue -> state.playbackQueue = queue },
+            setStatus = { status -> state.status = status },
+            savePlaybackSession = { savePlaybackSessionThrottled(true) },
+            openNowPlaying = { state.nowPlayingOpen = true },
+            updateNotificationMetadata = { title, subtitle, coverArtUrl ->
+                playbackEngine.updateNotificationMetadata(
+                    title = title,
+                    subtitle = subtitle,
+                    coverArtUrl = coverArtUrl,
+                )
+            },
+        ),
     )
+    playbackEngine.applyTlsSettings(state.activeTlsSettings)
     scope.launch {
         runCatching {
             resolveInternetRadioStreamUrl(station.streamUrl.trim())
         }.onSuccess { streamUrl ->
+            val requestPlan = planInternetRadioPlaybackRequest(
+                startPlan = plan,
+                streamUrl = streamUrl,
+                replayGainMode = state.playbackSettings.replayGainMode,
+            )
             playbackEngine.play(
                 scope = scope,
-                request = PlaybackRequest(
-                    url = streamUrl,
-                    mediaId = plan.engineMediaId,
-                    replayGainMode = if (plan.replayGainOff) ReplayGainMode.Off else state.playbackSettings.replayGainMode,
-                ),
+                request = requestPlan.request,
                 onStateChanged = { playbackState ->
                     state.playbackState = playbackState
                     if (playbackState is PlaybackState.Error) {
@@ -271,14 +303,22 @@ fun playAndroidInternetRadioStation(
                 },
                 onProgressChanged = { progress -> handlePlaybackProgressChanged(sessionToken, progress) },
                 onMetadataChanged = { metadata ->
-                    state.nowPlayingStreamMetadata = metadata
-                    metadata.title?.takeIf { it.isNotBlank() }?.let { streamTitle ->
-                        playbackEngine.updateNotificationMetadata(
-                            title = streamTitle,
-                            subtitle = station.name,
-                            coverArtUrl = null,
-                        )
-                    }
+                    applyInternetRadioMetadataUpdate(
+                        plan = planInternetRadioMetadataUpdate(
+                            station = station,
+                            metadata = metadata,
+                        ),
+                        applier = InternetRadioMetadataUpdateApplier(
+                            setStreamMetadata = { streamMetadata -> state.nowPlayingStreamMetadata = streamMetadata },
+                            updateNotificationMetadata = { title, subtitle, coverArtUrl ->
+                                playbackEngine.updateNotificationMetadata(
+                                    title = title,
+                                    subtitle = subtitle,
+                                    coverArtUrl = coverArtUrl,
+                                )
+                            },
+                        ),
+                    )
                 },
             )
         }.onFailure { error ->

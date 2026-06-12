@@ -45,6 +45,11 @@ This checklist tracks the first feature set for the `new-features` branch. Keep 
 - [x] Add a sleep timer.
   - Stop after a duration, current track, current album, or queue end.
   - Shared UI and shared timer state, with platform playback adapters.
+- [ ] Add `Naviamp Connect` style remote renderer support.
+  - Long-term feature track.
+  - Phone app acts as controller; TV app acts as remote playback renderer.
+  - MVP target is Android TV / Google TV / Fire TV, not Roku.
+  - See `docs/naviamp-connect-roadmap.md`.
 - [ ] Add queue rules as settings.
   - Candidate rules: shuffle upcoming only, remove played tracks, keep radio queue filled, start radio when queue ends.
 - [x] Add `Save queue as playlist` to the now-playing hamburger menu.

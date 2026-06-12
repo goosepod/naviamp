@@ -1,10 +1,7 @@
 package app.naviamp.desktop
 
-import app.naviamp.domain.Playlist
 import app.naviamp.domain.Track
 import app.naviamp.domain.provider.MediaProvider
-import app.naviamp.domain.provider.PlaylistTrackMutationResult
-import app.naviamp.domain.provider.createPlaylistOrAddTracks
 
 suspend fun resolveAddToPlaylistTargetTracks(
     provider: MediaProvider,
@@ -18,16 +15,3 @@ suspend fun resolveAddToPlaylistTargetTracks(
         }
         is AddToPlaylistTarget.PlaylistTarget -> provider.playlistTracks(target.playlist.id)
     }
-
-suspend fun addTargetTracksToPlaylist(
-    provider: MediaProvider,
-    target: AddToPlaylistTarget,
-    playlist: Playlist?,
-    newPlaylistName: String?,
-): PlaylistTrackMutationResult {
-    return provider.createPlaylistOrAddTracks(
-        playlistId = playlist?.id,
-        newPlaylistName = newPlaylistName,
-        tracks = resolveAddToPlaylistTargetTracks(provider, target),
-    )
-}

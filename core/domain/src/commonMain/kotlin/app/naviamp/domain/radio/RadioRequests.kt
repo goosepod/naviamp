@@ -22,6 +22,127 @@ data class SeededRadioRequest(
     val loadRest: suspend (RadioService) -> List<Track>,
 )
 
+sealed interface RadioRequestStartResult {
+    data class Ready(
+        val firstTrack: Track,
+        val queue: List<Track>,
+        val recentRadioStream: RecentRadioStream?,
+    ) : RadioRequestStartResult
+
+    data object Empty : RadioRequestStartResult
+
+    data class Failed(
+        val error: Throwable,
+    ) : RadioRequestStartResult
+}
+
+sealed interface SeededRadioBuildResult {
+    data class Ready(
+        val queue: List<Track>,
+        val recentRadioStream: RecentRadioStream?,
+    ) : SeededRadioBuildResult
+
+    data class Failed(
+        val error: Throwable,
+    ) : SeededRadioBuildResult
+}
+
+sealed interface SeededRadioExpansionResult {
+    data class Ready(
+        val fetchedTracks: List<Track>,
+    ) : SeededRadioExpansionResult
+
+    data class Failed(
+        val error: Throwable,
+    ) : SeededRadioExpansionResult
+}
+
+suspend fun radioRequestStartResult(
+    request: RadioRequest,
+    radioService: RadioService,
+    deduplicateTracks: Boolean = false,
+): RadioRequestStartResult =
+    radioRequestStartResult(
+        radioService = radioService,
+        recentRadioStream = request.recentRadioStream,
+        deduplicateTracks = deduplicateTracks,
+        loadTracks = request.loadTracks,
+    )
+
+suspend fun radioRequestStartResult(
+    radioService: RadioService,
+    recentRadioStream: RecentRadioStream?,
+    deduplicateTracks: Boolean = false,
+    loadTracks: suspend (RadioService) -> List<Track>,
+): RadioRequestStartResult =
+    runCatching {
+        val tracks = loadTracks(radioService)
+            .let { loadedTracks ->
+                if (deduplicateTracks) {
+                    loadedTracks.distinctBy { track -> track.id }
+                } else {
+                    loadedTracks
+                }
+            }
+        val firstTrack = tracks.firstOrNull() ?: return@runCatching RadioRequestStartResult.Empty
+        RadioRequestStartResult.Ready(
+            firstTrack = firstTrack,
+            queue = tracks,
+            recentRadioStream = recentRadioStream?.withRadioCoverArtIds(tracks),
+        )
+    }.getOrElse { error ->
+        RadioRequestStartResult.Failed(error)
+    }
+
+suspend fun seededRadioBuildResult(
+    request: SeededRadioRequest,
+    radioService: RadioService,
+): SeededRadioBuildResult =
+    seededRadioBuildResult(
+        seedTrack = request.seedTrack,
+        recentRadioStream = request.recentRadioStream,
+        radioService = radioService,
+        loadRest = request.loadRest,
+    )
+
+suspend fun seededRadioBuildResult(
+    seedTrack: Track,
+    recentRadioStream: RecentRadioStream?,
+    radioService: RadioService,
+    loadRest: suspend (RadioService) -> List<Track>,
+): SeededRadioBuildResult =
+    runCatching {
+        val queue = generatedRadioQueue(
+            seedTrack = seedTrack,
+            fetchedTracks = loadRest(radioService),
+        )
+        SeededRadioBuildResult.Ready(
+            queue = queue,
+            recentRadioStream = recentRadioStream?.withRadioCoverArtIds(queue),
+        )
+    }.getOrElse { error ->
+        SeededRadioBuildResult.Failed(error)
+    }
+
+suspend fun seededRadioExpansionResult(
+    request: SeededRadioRequest,
+    radioService: RadioService,
+): SeededRadioExpansionResult =
+    seededRadioExpansionResult(
+        radioService = radioService,
+        loadRest = request.loadRest,
+    )
+
+suspend fun seededRadioExpansionResult(
+    radioService: RadioService,
+    loadRest: suspend (RadioService) -> List<Track>,
+): SeededRadioExpansionResult =
+    runCatching {
+        SeededRadioExpansionResult.Ready(loadRest(radioService))
+    }.getOrElse { error ->
+        SeededRadioExpansionResult.Failed(error)
+    }
+
 fun libraryRadioRequest(): RadioRequest =
     RadioRequest(
         label = "Library radio",

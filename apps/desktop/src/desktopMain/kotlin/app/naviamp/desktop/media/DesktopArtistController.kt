@@ -1,5 +1,8 @@
 package app.naviamp.desktop
 
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import app.naviamp.domain.Artist
 import app.naviamp.domain.ArtistDetails
 import app.naviamp.domain.Track
@@ -10,13 +13,14 @@ import app.naviamp.domain.media.ArtistDetailPopularTracksDisplayLimit
 import app.naviamp.domain.media.ArtistDetailPopularTracksFetchLimit
 import app.naviamp.domain.media.ArtistDetailSimilarArtistsDisplayLimit
 import app.naviamp.domain.media.ArtistDetailSimilarArtistsFetchLimit
-import app.naviamp.domain.media.artistPopularTracksUpdate
+import app.naviamp.domain.media.ArtistDetailFlowCoordinator
+import app.naviamp.domain.media.ArtistDetailFlowRequest
+import app.naviamp.domain.media.connectedDetailStatusAsNull
 import app.naviamp.domain.media.loadingPopularTracksStatus
 import app.naviamp.domain.media.loadingSimilarArtistsStatus
-import app.naviamp.domain.media.missingPopularTracksSourceStatus
-import app.naviamp.domain.media.popularTracksUnavailableStatus
-import app.naviamp.domain.media.similarArtistsUnavailableStatus
-import app.naviamp.domain.media.similarArtistsUpdate
+import app.naviamp.domain.media.loadArtistPopularTracksUpdate
+import app.naviamp.domain.media.loadSimilarArtistsUpdate
+import app.naviamp.domain.media.trackArtist
 import app.naviamp.domain.popular.ArtistPopularTracksService
 import app.naviamp.domain.popular.SimilarArtistMatch
 import app.naviamp.domain.popular.SimilarArtistsService
@@ -37,24 +41,32 @@ class DesktopArtistController(
     private val currentRoute: () -> DesktopAppRoute,
     private val lastContentRoute: () -> DesktopAppRoute,
     private val setRoute: (DesktopAppRoute) -> Unit,
-    private val selectedArtist: () -> Artist?,
-    private val setSelectedArtist: (Artist?) -> Unit,
-    private val setSelectedArtistDetails: (ArtistDetails?) -> Unit,
-    private val setSelectedArtistStatus: (String?) -> Unit,
-    private val setSelectedArtistPopularTracks: (List<Track>) -> Unit,
-    private val setSelectedArtistPopularTracksStatus: (String?) -> Unit,
-    private val selectedArtistSimilarArtists: () -> List<SimilarArtistMatch>,
-    private val selectedArtistSimilarArtistsStatus: () -> String?,
-    private val setSelectedArtistSimilarArtists: (List<SimilarArtistMatch>) -> Unit,
-    private val setSelectedArtistSimilarArtistsStatus: (String?) -> Unit,
-    private val artistDetailBackRoute: () -> DesktopAppRoute,
-    private val setArtistDetailBackRoute: (DesktopAppRoute) -> Unit,
-    private val artistDetailBackStack: () -> List<Artist>,
-    private val setArtistDetailBackStack: (List<Artist>) -> Unit,
     private val popularTracksService: ArtistPopularTracksService,
     private val similarArtistsService: SimilarArtistsService,
 ) {
     private val providerResponseService = ProviderResponseService(providerResponseCacheRepository)
+
+    var selectedArtist by mutableStateOf<Artist?>(null)
+        private set
+    var selectedArtistDetails by mutableStateOf<ArtistDetails?>(null)
+        private set
+    var selectedArtistStatus by mutableStateOf<String?>(null)
+        private set
+    var selectedArtistPopularTracks by mutableStateOf<List<Track>>(emptyList())
+        private set
+    var selectedArtistPopularTracksStatus by mutableStateOf<String?>(null)
+        private set
+    var selectedArtistSimilarArtists by mutableStateOf<List<SimilarArtistMatch>>(emptyList())
+        private set
+    var selectedArtistSimilarArtistsStatus by mutableStateOf<String?>(null)
+        private set
+    var artistDetailBackRoute by mutableStateOf(DesktopAppRoute.Search)
+        private set
+    private var artistDetailBackStack by mutableStateOf<List<Artist>>(emptyList())
+
+    fun updateSelectedArtistDetails(details: ArtistDetails?) {
+        selectedArtistDetails = details
+    }
 
     fun openExternalArtistUrl(url: String) {
         runCatching {
@@ -62,40 +74,34 @@ class DesktopArtistController(
                 Desktop.getDesktop().browse(URI.create(url))
             }
         }.onFailure { error ->
-            setSelectedArtistSimilarArtistsStatus("Could not open external artist page: ${error.message ?: "unknown error"}")
+            selectedArtistSimilarArtistsStatus = "Could not open external artist page: ${error.message ?: "unknown error"}"
         }
     }
 
     fun toggleSimilarArtists(artist: Artist) {
-        if (selectedArtistSimilarArtists().isNotEmpty() || selectedArtistSimilarArtistsStatus() != null) {
-            setSelectedArtistSimilarArtists(emptyList())
-            setSelectedArtistSimilarArtistsStatus(null)
+        if (selectedArtistSimilarArtists.isNotEmpty() || selectedArtistSimilarArtistsStatus != null) {
+            selectedArtistSimilarArtists = emptyList()
+            selectedArtistSimilarArtistsStatus = null
             return
         }
         findSimilarArtists(artist)
     }
 
     private fun findSimilarArtists(artist: Artist) {
-        setSelectedArtistSimilarArtistsStatus(loadingSimilarArtistsStatus())
-        setSelectedArtistSimilarArtists(emptyList())
+        selectedArtistSimilarArtistsStatus = loadingSimilarArtistsStatus()
+        selectedArtistSimilarArtists = emptyList()
         scope.launch {
-            runCatching {
-                withContext(Dispatchers.IO) {
-                    similarArtistsService.similarArtists(
-                        artistName = artist.name,
-                        limit = ArtistDetailSimilarArtistsFetchLimit,
-                    )
-                }
-            }.onSuccess { artists ->
-                if (selectedArtist()?.id == artist.id) {
-                    val update = similarArtistsUpdate(artists, ArtistDetailSimilarArtistsDisplayLimit)
-                    setSelectedArtistSimilarArtists(update.artists)
-                    setSelectedArtistSimilarArtistsStatus(update.status)
-                }
-            }.onFailure { error ->
-                if (selectedArtist()?.id == artist.id) {
-                    setSelectedArtistSimilarArtistsStatus(similarArtistsUnavailableStatus(error))
-                }
+            val update = withContext(Dispatchers.IO) {
+                loadSimilarArtistsUpdate(
+                    artistName = artist.name,
+                    fetchLimit = ArtistDetailSimilarArtistsFetchLimit,
+                    displayLimit = ArtistDetailSimilarArtistsDisplayLimit,
+                    loadSimilarArtists = similarArtistsService::similarArtists,
+                )
+            }
+            if (selectedArtist?.id == artist.id) {
+                selectedArtistSimilarArtists = update.artists
+                selectedArtistSimilarArtistsStatus = update.status
             }
         }
     }
@@ -108,33 +114,38 @@ class DesktopArtistController(
         val activeProvider = provider() ?: return
         val navigation = artistDetailNavigation(
             artist = artist,
-            currentArtist = selectedArtist(),
+            currentArtist = selectedArtist,
             currentRoute = currentRoute(),
-            currentBackStack = artistDetailBackStack(),
-            currentBackRoute = artistDetailBackRoute(),
+            currentBackStack = artistDetailBackStack,
+            currentBackRoute = artistDetailBackRoute,
             lastContentRoute = lastContentRoute(),
             backRouteOverride = backRouteOverride,
             pushCurrentArtist = pushCurrentArtist,
         )
-        setArtistDetailBackStack(navigation.backStack)
-        setArtistDetailBackRoute(navigation.backRoute)
-        setSelectedArtist(artist)
-        setSelectedArtistDetails(null)
-        setSelectedArtistPopularTracks(emptyList())
-        setSelectedArtistPopularTracksStatus(null)
-        setSelectedArtistSimilarArtists(emptyList())
-        setSelectedArtistSimilarArtistsStatus(null)
-        setSelectedArtistStatus("Loading...")
+        artistDetailBackStack = navigation.backStack
+        artistDetailBackRoute = navigation.backRoute
+        selectedArtist = artist
+        selectedArtistDetails = null
+        selectedArtistPopularTracks = emptyList()
+        selectedArtistPopularTracksStatus = null
+        selectedArtistSimilarArtists = emptyList()
+        selectedArtistSimilarArtistsStatus = null
         setRoute(DesktopAppRoute.ArtistDetail)
         scope.launch {
-            try {
-                val details = loadArtistDetails(libraryIndexRepository, providerResponseService, activeProvider, artist, sourceId())
-                setSelectedArtistDetails(details)
-                setSelectedArtistStatus(null)
-                loadPopularTracks(artist, details)
-            } catch (exception: Exception) {
-                setSelectedArtistStatus(artistLoadErrorStatus(exception))
-            }
+            ArtistDetailFlowCoordinator(
+                setStatus = { status -> selectedArtistStatus = connectedDetailStatusAsNull(status) },
+                applyDetail = { details -> selectedArtistDetails = details },
+            ).load(
+                request = ArtistDetailFlowRequest(
+                    libraryIndexRepository = libraryIndexRepository,
+                    providerResponseService = providerResponseService,
+                    provider = activeProvider,
+                    artistId = artist.id,
+                    fallbackName = artist.name,
+                    sourceId = sourceId(),
+                ),
+                afterLoaded = { details -> loadPopularTracks(artist, details) },
+            )
         }
     }
 
@@ -143,42 +154,31 @@ class DesktopArtistController(
     }
 
     fun closeArtistDetails() {
-        val previousArtist = artistDetailBackStack().lastOrNull()
+        val previousArtist = artistDetailBackStack.lastOrNull()
         if (previousArtist != null) {
-            setArtistDetailBackStack(artistDetailBackStack().dropLast(1))
+            artistDetailBackStack = artistDetailBackStack.dropLast(1)
             openArtistDetails(
                 artist = previousArtist,
-                backRouteOverride = artistDetailBackRoute(),
+                backRouteOverride = artistDetailBackRoute,
                 pushCurrentArtist = false,
             )
         } else {
-            setRoute(artistDetailBackRoute())
+            setRoute(artistDetailBackRoute)
         }
     }
 
     private suspend fun loadPopularTracks(artist: Artist, details: ArtistDetails) {
-        val activeSourceId = sourceId()
-        if (activeSourceId == null) {
-            setSelectedArtistPopularTracksStatus(missingPopularTracksSourceStatus())
-            return
-        }
-        setSelectedArtistPopularTracksStatus(loadingPopularTracksStatus())
-        runCatching {
-            popularTracksService.popularTracks(
-                sourceId = activeSourceId,
-                artist = details.artist,
-                limit = ArtistDetailPopularTracksFetchLimit,
-            )
-        }.onSuccess { matches ->
-            if (selectedArtist()?.id == artist.id) {
-                val update = artistPopularTracksUpdate(matches, ArtistDetailPopularTracksDisplayLimit)
-                setSelectedArtistPopularTracks(update.tracks)
-                setSelectedArtistPopularTracksStatus(update.status)
-            }
-        }.onFailure { error ->
-            if (selectedArtist()?.id == artist.id) {
-                setSelectedArtistPopularTracksStatus(popularTracksUnavailableStatus(error))
-            }
+        selectedArtistPopularTracksStatus = loadingPopularTracksStatus()
+        val update = loadArtistPopularTracksUpdate(
+            sourceId = sourceId(),
+            artist = details.artist,
+            fetchLimit = ArtistDetailPopularTracksFetchLimit,
+            displayLimit = ArtistDetailPopularTracksDisplayLimit,
+            loadPopularTracks = popularTracksService::popularTracks,
+        )
+        if (selectedArtist?.id == artist.id) {
+            selectedArtistPopularTracks = update.tracks
+            selectedArtistPopularTracksStatus = update.status
         }
     }
 }

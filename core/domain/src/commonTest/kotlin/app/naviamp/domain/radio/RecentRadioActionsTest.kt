@@ -7,6 +7,10 @@ import app.naviamp.domain.ArtistId
 import app.naviamp.domain.Genre
 import app.naviamp.domain.Track
 import app.naviamp.domain.TrackId
+import app.naviamp.domain.home.HomeStationLibrary
+import app.naviamp.domain.home.HomeStationRandomAlbum
+import app.naviamp.domain.home.homeDecadeStationId
+import app.naviamp.domain.home.homeGenreStationId
 import app.naviamp.domain.settings.RecentRadioKind
 import app.naviamp.domain.settings.RecentRadioStream
 import kotlin.test.Test
@@ -88,6 +92,25 @@ class RecentRadioActionsTest {
                 ),
             ),
         )
+    }
+
+    @Test
+    fun resolvesHomeStationRadioActions() {
+        assertEquals(RecentRadioAction.PlayLibrary, homeStationRadioAction(HomeStationLibrary))
+        assertEquals(RecentRadioAction.PlayRandomAlbum, homeStationRadioAction(HomeStationRandomAlbum))
+
+        val genre = assertIs<RecentRadioAction.PlayGenre>(
+            homeStationRadioAction(homeGenreStationId("Shoegaze")),
+        )
+        assertEquals("Shoegaze", genre.genre.name)
+
+        val decade = assertIs<RecentRadioAction.PlayDecade>(
+            homeStationRadioAction(homeDecadeStationId(1990, 1999)),
+        )
+        assertEquals(1990, decade.fromYear)
+        assertEquals(1999, decade.toYear)
+
+        assertNull(homeStationRadioAction("unknown"))
     }
 
     private fun artist(): Artist =

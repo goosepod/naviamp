@@ -12,10 +12,14 @@ import app.naviamp.domain.playback.PlaybackReplayGainAdjustment
 import app.naviamp.domain.playback.PlaybackVisualizerFrame
 import app.naviamp.domain.playback.VisualizerBandCount
 import app.naviamp.domain.playback.VisualizerPlaybackEngine
+import app.naviamp.domain.playback.BassPlaybackCleanupReset
+import app.naviamp.domain.playback.BassPlaybackActivationUpdate
+import app.naviamp.domain.playback.BassPlaybackCreationPlan
+import app.naviamp.domain.playback.BassPlaybackStartPolicy
+import app.naviamp.domain.playback.PreparedPlaybackMetadataReset
+import app.naviamp.domain.playback.PreparedBassPlaybackStateUpdate
+import app.naviamp.domain.playback.PlaybackStreamStateReset
 import app.naviamp.domain.bass.BassAudioBackend
-import app.naviamp.domain.bass.BassStreamHandle
-import app.naviamp.domain.bass.BassActiveState
-import app.naviamp.domain.bass.activeState
 import app.naviamp.domain.bass.adoptPreparedBassSource
 import app.naviamp.domain.bass.applyBassPlaybackVolume
 import app.naviamp.domain.bass.applyEqualizer
@@ -34,20 +38,23 @@ import app.naviamp.domain.bass.seekBassPlaybackSource
 import app.naviamp.domain.bass.setEndSync
 import app.naviamp.domain.bass.stopAndReleaseBassPlayback
 import app.naviamp.domain.playback.bassPlaybackFeatureSupport
-import app.naviamp.domain.playback.canPrepareBassMixerSource
+import app.naviamp.domain.playback.BassPlaybackPollingState
+import app.naviamp.domain.playback.BassPlaybackPollingPolicy
+import app.naviamp.domain.playback.bassPlaybackActivated
+import app.naviamp.domain.playback.clearBassPlaybackCleanupState
 import app.naviamp.domain.playback.clearPreparedPlaybackMetadata
-import app.naviamp.domain.playback.clearPlaybackStreamState
-import app.naviamp.domain.playback.failedPreparedPlaybackMetadata
 import app.naviamp.domain.playback.normalizedCrossfadeDurationSeconds
-import app.naviamp.domain.playback.planPreparedPlaybackAdoption
+import app.naviamp.domain.playback.PreparedBassPlaybackPlan
+import app.naviamp.domain.playback.planBassPlaybackPollingUpdate
+import app.naviamp.domain.playback.planBassPlaybackCreation
+import app.naviamp.domain.playback.planBassPlaybackStart
+import app.naviamp.domain.playback.planPreparedBassPlayback
+import app.naviamp.domain.playback.planPreparedBassPlaybackAdoption
 import app.naviamp.domain.playback.playbackSourceHandle
-import app.naviamp.domain.playback.playbackReplayGainAdjustment
-import app.naviamp.domain.playback.playbackStartSeekPosition
-import app.naviamp.domain.playback.playbackStateForBassActiveState
 import app.naviamp.domain.playback.playbackUserVolumeFactor
-import app.naviamp.domain.playback.shouldContinueBassPlaybackPolling
-import app.naviamp.domain.playback.shouldReusePreparedPlayback
-import app.naviamp.domain.playback.shouldUseBassMixerPlayback
+import app.naviamp.domain.playback.preparedBassPlaybackAdopted
+import app.naviamp.domain.playback.preparedBassPlaybackFailed
+import app.naviamp.domain.playback.preparedBassPlaybackSucceeded
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -124,17 +131,18 @@ class DesktopBassPlaybackEngine(
         }
 
         job = scope.launch(Dispatchers.IO) {
-            var createdPlayback: CreatedPlayback? = null
+            var createdPlayback: BassPlaybackActivationUpdate? = null
             try {
                 ensureInitialized(bass)
+                val creationPlan = planBassPlaybackCreation(
+                    request = request,
+                    supportsMixer = bass.supportsMixer,
+                    requireMediaId = false,
+                )
                 createdPlayback = createPlayback(
                     bass = bass,
                     request = request,
-                    useMixer = shouldUseBassMixerPlayback(
-                        request = request,
-                        supportsMixer = bass.supportsMixer,
-                        requireMediaId = false,
-                    ),
+                    plan = creationPlan,
                 ).getOrThrow()
                 if (!isCurrentPlayback(currentPlaybackId)) {
                     freeCreatedPlayback(bass, createdPlayback)
@@ -149,39 +157,36 @@ class DesktopBassPlaybackEngine(
                 createdPlayback = null
                 applyOutputVolume(bass)
                 applyEqualizer(bass)
-                playbackStartSeekPosition(request.startPositionSeconds)
-                    ?.let { seekCurrentSource(bass, it) }
+                val startPlan = planBassPlaybackStart(
+                    request = request,
+                    policy = BassPlaybackStartPolicy.DesktopEngine,
+                )
+                if (startPlan.shouldSeekBeforePlay) {
+                    startPlan.startSeekSeconds?.let { seekCurrentSource(bass, it) }
+                }
                 bass.play(playbackHandle)
                     .getOrThrow()
                 onStateChanged(PlaybackState.Playing)
 
-                var lastProgress = PlaybackProgress.Unknown
-                var lastMetadata = PlaybackStreamMetadata()
-                var lastActiveState: Int? = null
-                while (
-                    isCurrentPlayback(currentPlaybackId) &&
-                    shouldContinueBassPlaybackPolling(bass.activeState(playbackHandle))
-                ) {
+                var pollingState = BassPlaybackPollingState()
+                while (isCurrentPlayback(currentPlaybackId)) {
                     val snapshot = bass.bassPlaybackSnapshot(playbackHandle, currentSourceStream)
-                    val activeState = snapshot.activeState
-                    if (activeState != lastActiveState) {
-                        lastActiveState = activeState
-                        playbackStateForBassActiveState(activeState)?.let(onStateChanged)
+                    val update = planBassPlaybackPollingUpdate(
+                        snapshot = snapshot,
+                        previous = pollingState,
+                        policy = BassPlaybackPollingPolicy.DesktopEngine,
+                    )
+                    pollingState = update.state
+                    update.playbackState?.let(onStateChanged)
+                    update.progress?.let(onProgressChanged)
+                    update.metadata?.let(onMetadataChanged)
+                    if (!update.shouldContinue) {
+                        break
                     }
-                    val progress = snapshot.progress
-                    if (progress != lastProgress) {
-                        lastProgress = progress
-                        onProgressChanged(progress)
-                    }
-                    val metadata = snapshot.metadata
-                    if (metadata != lastMetadata) {
-                        lastMetadata = metadata
-                        onMetadataChanged(metadata)
-                    }
-                    delay(PlaybackStatusPollIntervalMillis)
+                    delay(BassPlaybackPollingPolicy.DesktopEngine.pollIntervalMillis)
                 }
 
-                if (isCurrentPlayback(currentPlaybackId)) {
+                if (BassPlaybackPollingPolicy.DesktopEngine.finishWhenPollingStops && isCurrentPlayback(currentPlaybackId)) {
                     onStateChanged(PlaybackState.Finished)
                 }
             } catch (exception: Throwable) {
@@ -193,12 +198,8 @@ class DesktopBassPlaybackEngine(
                 }
             } finally {
                 if (isCurrentPlayback(currentPlaybackId)) {
-                    freeAllStreams(bass)
-                    val reset = clearPlaybackStreamState()
-                    stream = reset.stream
-                    currentSourceStream = reset.currentSourceStream
-                    currentReplayGainAdjustment = reset.replayGainAdjustment
-                    currentVisualizerFrame = null
+                    val reset = freeAllStreams(bass)
+                    applyStreamReset(reset.stream)
                     onProgressChanged(PlaybackProgress.Unknown)
                 }
             }
@@ -260,49 +261,66 @@ class DesktopBassPlaybackEngine(
 
     override fun prepareNext(request: PlaybackRequest) {
         val bass = backend ?: return
-        if (shouldReusePreparedPlayback(preparedRequest, preparedStream != 0, request)) return
+        val plan = planPreparedBassPlayback(
+            playbackHandle = stream,
+            currentSourceHandle = currentSourceStream,
+            preparedRequest = preparedRequest,
+            preparedHandle = preparedStream,
+            supportsMixer = bass.supportsMixer,
+            request = request,
+            allowDirectFallback = true,
+        )
+        if (plan == PreparedBassPlaybackPlan.ReusePrepared) return
         freePreparedStream()
+        if (plan == PreparedBassPlaybackPlan.NotSupported) return
         runCatching {
             ensureInitialized(bass)
-            if (
-                canPrepareBassMixerSource(
-                    playbackHandle = stream,
-                    currentSourceHandle = currentSourceStream,
-                    supportsMixer = bass.supportsMixer,
-                )
-            ) {
-                val adjustment = replayGainAdjustment(request)
-                val localFile = localFileFromUrl(request.url)
-                val prepared = bass.prepareNextBassMixerSource(
-                    localPath = localFile?.absolutePath,
-                    url = request.url,
-                    mixer = stream,
-                    currentSource = currentSourceStream,
-                    currentSourceVolumeFactor = currentReplayGainAdjustment.volumeFactor,
-                    crossfadeDurationSeconds = crossfadeDurationSeconds,
-                    replayGainFactor = adjustment.volumeFactor,
-                    playbackDecode = true,
-                ).getOrThrow()
-                crossfadeActive = prepared.crossfadeActive
-                attachEndSync(bass, prepared.sourceHandle, playbackId)
-                preparedReplayGainAdjustment = adjustment
-                prepared.sourceHandle
-            } else {
-                createPlayback(bass, request, useMixer = false).getOrThrow().playbackHandle.also {
-                    preparedReplayGainAdjustment = replayGainAdjustment(request)
+            when (plan) {
+                is PreparedBassPlaybackPlan.PrepareMixer -> {
+                    val localFile = if (plan.isLocalFileUrl) localFileFromUrl(request.url) else null
+                    val prepared = bass.prepareNextBassMixerSource(
+                        localPath = localFile?.absolutePath,
+                        url = request.url,
+                        mixer = stream,
+                        currentSource = currentSourceStream,
+                        currentSourceVolumeFactor = currentReplayGainAdjustment.volumeFactor,
+                        crossfadeDurationSeconds = crossfadeDurationSeconds,
+                        replayGainFactor = plan.replayGainFactor,
+                        playbackDecode = true,
+                    ).getOrThrow()
+                    crossfadeActive = prepared.crossfadeActive
+                    attachEndSync(bass, prepared.sourceHandle, playbackId)
+                    preparedBassPlaybackSucceeded(
+                        preparedHandle = prepared.sourceHandle,
+                        request = request,
+                        replayGainAdjustment = plan.replayGainAdjustment,
+                    )
                 }
+                is PreparedBassPlaybackPlan.PrepareDirect -> {
+                    val handle = createPlayback(
+                        bass = bass,
+                        request = request,
+                        plan = BassPlaybackCreationPlan(
+                            useMixer = false,
+                            replayGainAdjustment = plan.replayGainAdjustment,
+                            isLocalFileUrl = plan.isLocalFileUrl,
+                        ),
+                    ).getOrThrow().playbackHandle
+                    preparedBassPlaybackSucceeded(
+                        preparedHandle = handle,
+                        request = request,
+                        replayGainAdjustment = plan.replayGainAdjustment,
+                    )
+                }
+                PreparedBassPlaybackPlan.NotSupported,
+                PreparedBassPlaybackPlan.ReusePrepared,
+                -> error("Unsupported prepared playback plan: $plan")
             }
-        }.onSuccess { handle ->
-            preparedStream = handle
-            preparedRequest = request
-            preparedError = null
+        }.onSuccess { update ->
+            applyPreparedUpdate(update)
         }.onFailure { error ->
-            val reset = failedPreparedPlaybackMetadata(error)
-            preparedError = reset.error
+            applyPreparedUpdate(preparedBassPlaybackFailed(error))
             lastError = preparedError
-            preparedStream = 0
-            preparedRequest = reset.request
-            preparedReplayGainAdjustment = reset.replayGainAdjustment
         }
     }
 
@@ -312,15 +330,12 @@ class DesktopBassPlaybackEngine(
         job = null
         val handle = stream
         val bass = backend
-        if (bass != null && handle != 0) {
+        val cleanupReset = if (bass != null && handle != 0) {
             freeAllStreams(bass)
+        } else {
+            clearBassPlaybackCleanupState()
         }
-        val reset = clearPlaybackStreamState()
-        stream = reset.stream
-        currentSourceStream = reset.currentSourceStream
-        crossfadeActive = reset.crossfadeActive
-        currentReplayGainAdjustment = reset.replayGainAdjustment
-        currentVisualizerFrame = null
+        applyStreamReset(cleanupReset.stream)
         endSyncCallbacks.clear()
     }
 
@@ -390,67 +405,57 @@ class DesktopBassPlaybackEngine(
         onMetadataChanged: (PlaybackStreamMetadata) -> Unit,
     ): Boolean {
         val bass = backend ?: return false
-        val queuedSource = preparedStream
-        val plan = planPreparedPlaybackAdoption(
-            hasActiveStream = stream != 0,
+        val plan = planPreparedBassPlaybackAdoption(
+            playbackHandle = stream,
             preparedRequest = preparedRequest,
-            hasPreparedStream = queuedSource != 0,
+            preparedHandle = preparedStream,
             supportsMixer = bass.supportsMixer,
             request = request,
         )
-        if (!plan.shouldAdopt) return false
+        val update = preparedBassPlaybackAdopted(
+            adoption = plan,
+            replayGainAdjustment = preparedReplayGainAdjustment ?: PlaybackReplayGainAdjustment.off(),
+        ) ?: return false
+        val queuedSource = update.currentSourceHandle
         job?.cancel()
         job = null
         val currentPlaybackId = nextPlaybackId()
-        val adjustment = preparedReplayGainAdjustment ?: PlaybackReplayGainAdjustment.off()
         bass.adoptPreparedBassSource(
             playbackHandle = stream,
             currentSourceHandle = currentSourceStream,
             nextSourceHandle = queuedSource,
             userVolumeFactor = outputVolumeFactor(),
-            replayGainFactor = adjustment.volumeFactor,
+            replayGainFactor = update.replayGainFactor,
         ).forEach { result -> result.onFailure { lastError = it.message } }
-        currentSourceStream = queuedSource
-        currentReplayGainAdjustment = adjustment
+        currentSourceStream = update.currentSourceHandle
+        currentReplayGainAdjustment = update.replayGainAdjustment
         applyEqualizer(bass)
         crossfadeActive = false
         attachEndSync(bass, queuedSource, currentPlaybackId, onStateChanged)
-        val reset = clearPreparedPlaybackMetadata()
-        preparedStream = 0
-        preparedRequest = reset.request
-        preparedReplayGainAdjustment = reset.replayGainAdjustment
-        preparedError = reset.error
+        applyPreparedReset(update.preparedReset)
         onProgressChanged(PlaybackProgress.Unknown)
         onStateChanged(PlaybackState.Playing)
         job = scope.launch(Dispatchers.IO) {
-            var lastProgress = PlaybackProgress.Unknown
-            var lastMetadata = PlaybackStreamMetadata()
-            var lastActiveState: Int? = null
+            var pollingState = BassPlaybackPollingState()
             try {
-                while (
-                    isCurrentPlayback(currentPlaybackId) &&
-                    shouldContinueBassPlaybackPolling(bass.activeState(stream))
-                ) {
+                while (isCurrentPlayback(currentPlaybackId)) {
                     val snapshot = bass.bassPlaybackSnapshot(stream, currentSourceStream)
-                    val activeState = snapshot.activeState
-                    if (activeState != lastActiveState) {
-                        lastActiveState = activeState
-                        playbackStateForBassActiveState(activeState)?.let(onStateChanged)
+                    val update = planBassPlaybackPollingUpdate(
+                        snapshot = snapshot,
+                        previous = pollingState,
+                        policy = BassPlaybackPollingPolicy.DesktopEngine,
+                    )
+                    pollingState = update.state
+                    update.playbackState?.let(onStateChanged)
+                    update.progress?.let(onProgressChanged)
+                    update.metadata?.let(onMetadataChanged)
+                    if (!update.shouldContinue) {
+                        break
                     }
-                    val progress = snapshot.progress
-                    if (progress != lastProgress) {
-                        lastProgress = progress
-                        onProgressChanged(progress)
-                    }
-                    val metadata = snapshot.metadata
-                    if (metadata != lastMetadata) {
-                        lastMetadata = metadata
-                        onMetadataChanged(metadata)
-                    }
-                    delay(PlaybackStatusPollIntervalMillis)
+                    delay(BassPlaybackPollingPolicy.DesktopEngine.pollIntervalMillis)
                 }
 
-                if (isCurrentPlayback(currentPlaybackId)) {
+                if (BassPlaybackPollingPolicy.DesktopEngine.finishWhenPollingStops && isCurrentPlayback(currentPlaybackId)) {
                     onStateChanged(PlaybackState.Finished)
                 }
             } catch (exception: Throwable) {
@@ -461,12 +466,8 @@ class DesktopBassPlaybackEngine(
                 }
             } finally {
                 if (isCurrentPlayback(currentPlaybackId)) {
-                    freeAllStreams(bass)
-                    val streamReset = clearPlaybackStreamState()
-                    stream = streamReset.stream
-                    currentSourceStream = streamReset.currentSourceStream
-                    currentReplayGainAdjustment = streamReset.replayGainAdjustment
-                    currentVisualizerFrame = null
+                    val reset = freeAllStreams(bass)
+                    applyStreamReset(reset.stream)
                     onProgressChanged(PlaybackProgress.Unknown)
                 }
             }
@@ -481,34 +482,23 @@ class DesktopBassPlaybackEngine(
             bass.releaseBassStream(handle)
                 .onFailure { lastError = it.message }
         }
-        val reset = clearPreparedPlaybackMetadata()
-        preparedStream = 0
-        preparedRequest = reset.request
-        preparedReplayGainAdjustment = reset.replayGainAdjustment
-        preparedError = reset.error
+        applyPreparedReset(clearPreparedPlaybackMetadata())
     }
 
     private fun createPlayback(
         bass: BassAudioBackend,
         request: PlaybackRequest,
-        useMixer: Boolean,
-    ): Result<CreatedPlayback> {
-        val adjustment = replayGainAdjustment(request)
-        val localFile = localFileFromUrl(request.url)
+        plan: BassPlaybackCreationPlan,
+    ): Result<BassPlaybackActivationUpdate> {
+        val localFile = if (plan.isLocalFileUrl) localFileFromUrl(request.url) else null
         return bass.createBassPlayback(
             localPath = localFile?.absolutePath,
             url = request.url,
-            useMixer = useMixer,
+            useMixer = plan.useMixer,
             crossfadeDurationSeconds = crossfadeDurationSeconds,
-            replayGainFactor = adjustment.volumeFactor,
-            playbackDecode = useMixer,
-        ).map { playback ->
-            CreatedPlayback(
-                playbackHandle = playback.playbackHandle,
-                sourceHandle = playback.sourceHandle,
-                replayGainAdjustment = adjustment,
-            )
-        }
+            replayGainFactor = plan.replayGainFactor,
+            playbackDecode = plan.useMixer,
+        ).map { playback -> bassPlaybackActivated(playback, plan.replayGainAdjustment) }
     }
 
     private fun attachEndSync(
@@ -542,9 +532,6 @@ class DesktopBassPlaybackEngine(
             ?.onFailure { lastError = it.message }
     }
 
-    private fun replayGainAdjustment(request: PlaybackRequest): PlaybackReplayGainAdjustment =
-        playbackReplayGainAdjustment(request)
-
     private fun outputVolumeFactor(): Float =
         playbackUserVolumeFactor(volumePercent)
 
@@ -565,22 +552,41 @@ class DesktopBassPlaybackEngine(
             .onFailure { lastError = it.message }
     }
 
-    private fun freeAllStreams(bass: BassAudioBackend) {
+    private fun freeAllStreams(bass: BassAudioBackend): BassPlaybackCleanupReset {
         bass.stopAndReleaseBassPlayback(stream, currentSourceStream, preparedStream)
             .forEach { result -> result.onFailure { lastError = it.message } }
-        val streamReset = clearPlaybackStreamState()
-        crossfadeActive = streamReset.crossfadeActive
-        val preparedReset = clearPreparedPlaybackMetadata()
-        preparedStream = 0
-        preparedRequest = preparedReset.request
-        preparedReplayGainAdjustment = preparedReset.replayGainAdjustment
-        preparedError = preparedReset.error
+        val reset = clearBassPlaybackCleanupState()
+        crossfadeActive = reset.stream.crossfadeActive
+        applyPreparedReset(reset.prepared)
         currentVisualizerFrame = null
+        return reset
+    }
+
+    private fun applyStreamReset(reset: PlaybackStreamStateReset) {
+        stream = reset.stream
+        currentSourceStream = reset.currentSourceStream
+        crossfadeActive = reset.crossfadeActive
+        currentReplayGainAdjustment = reset.replayGainAdjustment
+        currentVisualizerFrame = null
+    }
+
+    private fun applyPreparedReset(reset: PreparedPlaybackMetadataReset) {
+        preparedStream = 0
+        preparedRequest = reset.request
+        preparedReplayGainAdjustment = reset.replayGainAdjustment
+        preparedError = reset.error
+    }
+
+    private fun applyPreparedUpdate(update: PreparedBassPlaybackStateUpdate) {
+        preparedStream = update.preparedHandle
+        preparedRequest = update.preparedRequest
+        preparedReplayGainAdjustment = update.replayGainAdjustment
+        preparedError = update.error
     }
 
     private fun freeCreatedPlayback(
         bass: BassAudioBackend,
-        created: CreatedPlayback,
+        created: BassPlaybackActivationUpdate,
     ) {
         bass.releaseBassStreams(created.playbackHandle, created.sourceHandle)
             .forEach { result -> result.onFailure { lastError = it.message } }
@@ -614,12 +620,6 @@ private val PlaybackReplayGainAdjustment.clippingGuardLabel: String
         else -> "No clipping risk detected"
     }
 
-private data class CreatedPlayback(
-    val playbackHandle: Int,
-    val sourceHandle: Int,
-    val replayGainAdjustment: PlaybackReplayGainAdjustment,
-)
-
 private fun Double.formatDb(): String =
     "%+.2f".format(this)
 
@@ -631,5 +631,3 @@ private fun Double.formatPeak(): String =
 
 private fun EqualizerSettings.bandsForBackend(): List<Float> =
     if (enabled) bandsDb else emptyList()
-
-private const val PlaybackStatusPollIntervalMillis = 250L

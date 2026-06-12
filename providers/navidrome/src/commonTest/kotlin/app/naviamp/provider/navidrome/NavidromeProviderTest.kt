@@ -921,6 +921,55 @@ class NavidromeProviderTest {
     }
 
     @Test
+    fun sonicSimilarTracksUsesOpenSubsonicSonicMatchEntriesAndFiltersSeedTrack() = runTest {
+        val httpClient = RecordingResponseHttpClient(
+            """
+            {
+              "subsonic-response": {
+                "status": "ok",
+                "sonicMatch": [
+                  {
+                    "entry": {
+                      "id": "seed-track",
+                      "title": "Seed",
+                      "artist": "New Order"
+                    },
+                    "similarity": 1.0
+                  },
+                  {
+                    "entry": {
+                      "id": "track-4",
+                      "title": "Your Silent Face",
+                      "artistId": "artist-1",
+                      "artist": "New Order",
+                      "albumId": "album-1",
+                      "album": "Power, Corruption & Lies",
+                      "duration": 359,
+                      "coverArt": "cover-1"
+                    },
+                    "similarity": 0.92
+                  }
+                ]
+              }
+            }
+            """.trimIndent(),
+        )
+        val provider = NavidromeProvider(
+            connection = connection("https://music.example.test"),
+            httpClient = httpClient,
+        )
+
+        val tracks = provider.sonicSimilarTracks(TrackId("seed-track"), count = 12)
+
+        assertEquals(
+            "https://music.example.test/rest/getSonicSimilarTracks.view?u=demo&t=token&s=salt&v=1.16.1&c=Naviamp&f=json&id=seed-track&count=12",
+            httpClient.urls.single(),
+        )
+        assertEquals(listOf("track-4"), tracks.map { it.id.value })
+        assertEquals("Your Silent Face", tracks.single().title)
+    }
+
+    @Test
     fun lyricsUsesGetLyricsBySongId() = runTest {
         val httpClient = RecordingResponseHttpClient(
             """

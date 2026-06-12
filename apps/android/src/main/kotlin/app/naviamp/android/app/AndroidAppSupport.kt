@@ -49,12 +49,9 @@ import app.naviamp.ui.NaviampNowPlayingItemUi
 import app.naviamp.ui.NaviampPlaylistChoiceUi
 import app.naviamp.ui.NaviampSharedAppShell
 import app.naviamp.ui.NaviampSleepTimerUi
-import app.naviamp.ui.NaviampVisualizer
-import app.naviamp.ui.NowPlayingRadioUiConfig
-import app.naviamp.ui.NowPlayingTrackUiConfig
+import app.naviamp.ui.NowPlayingSectionItemIds
 import app.naviamp.ui.NowPlayingUi
-import app.naviamp.ui.radioArtworkUrl
-import app.naviamp.ui.radioTrackArtworkKey
+import app.naviamp.ui.effectiveNowPlayingCoverArtUrl
 import app.naviamp.ui.SharedAlbumDetailUi
 import app.naviamp.ui.SharedArtistDetailUi
 import app.naviamp.ui.SharedHomeStationUi
@@ -66,10 +63,10 @@ import app.naviamp.ui.SharedRoute
 import app.naviamp.ui.SharedSearchResultsUi
 import app.naviamp.ui.SharedSimilarArtistUi
 import app.naviamp.ui.toDownloadedTrackUi
-import app.naviamp.ui.toNowPlayingItemUi
-import app.naviamp.ui.toNowPlayingStationUi
-import app.naviamp.ui.toNowPlayingUi
+import app.naviamp.ui.nowPlayingSectionsUi
+import app.naviamp.ui.toTrackNowPlayingUi
 import app.naviamp.ui.toPlaylistChoiceUi
+import app.naviamp.ui.toRadioNowPlayingUi
 import app.naviamp.ui.toSharedAlbumDetailUi
 import app.naviamp.ui.toSharedArtistDetailUi
 import app.naviamp.ui.toSharedHomeUi
@@ -77,6 +74,7 @@ import app.naviamp.ui.toSharedMediaItemUi
 import app.naviamp.ui.toSharedPlaylistDetailUi
 import app.naviamp.ui.toSharedSearchResultsUi
 import app.naviamp.ui.toSharedRoute
+import app.naviamp.ui.nowPlayingTrackCapabilities
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -299,75 +297,76 @@ fun androidNowPlayingUi(
     canSaveQueueAsPlaylist: Boolean,
     sleepTimer: NaviampSleepTimerUi,
     relatedTracks: List<Track>,
+    sonicSimilarityEnabled: Boolean,
     radioTrackArtworkByKey: Map<String, String?>,
     radioStations: List<InternetRadioStation>,
 ): NowPlayingUi? =
     nowPlaying?.let { track ->
-        val currentIndex = knownTracks.indexOfFirst { it.id == track.id }
         val coverArtUrl: (String?) -> String? = { coverArtId -> coverArtId?.let { provider?.coverArtUrl(it) } }
-        track.toNowPlayingUi(
-            NowPlayingTrackUiConfig(
-                stateLabel = "${playbackState.label()} ${playbackProgress.positionSeconds?.toInt() ?: 0}s",
-                coverArtUrl = track.coverArtUrl(provider),
-                waveform = waveformByTrackId[track.id.value],
-                visualizerAvailable = (playbackEngine as? VisualizerPlaybackEngine)?.supportsVisualizer == true,
-                visualizerVisible = visualizerVisible,
-                positionSeconds = playbackProgress.positionSeconds,
-                durationSeconds = playbackProgress.durationSeconds,
-                volumePercent = volumePercent,
-                isPlaying = playbackState == PlaybackState.Playing,
-                isPaused = playbackState == PlaybackState.Paused,
-                canSeek = true,
-                canChangeVolume = false,
-                hasPrevious = currentIndex > 0 || (repeatMode == RepeatMode.Queue && knownTracks.size > 1),
-                hasNext = (currentIndex >= 0 && currentIndex < knownTracks.lastIndex) ||
-                    (repeatMode == RepeatMode.Queue && knownTracks.size > 1),
-                shuffleEnabled = knownTracks.drop(currentIndex + 1).size > 1,
-                shuffleActive = shuffledUpNextSnapshot != null,
-                repeatMode = repeatMode,
-                canRepeat = knownTracks.isNotEmpty(),
-                canStartRadio = provider?.capabilities?.supportsTrackRadio == true,
-                canAddToPlaylist = true,
-                canSaveQueueAsPlaylist = canSaveQueueAsPlaylist,
-                sleepTimer = sleepTimer,
-                canFavorite = provider?.capabilities?.supportsTrackFavorites == true,
-                canRate = provider?.capabilities?.supportsTrackRatings == true,
-                lyricsAvailable = true,
-                lyricsVisible = lyricsVisible && nowPlayingOpen,
-                lyricsStatus = lyricsStatusByTrackId[track.id.value],
-                lyrics = lyricsByTrackId[track.id.value],
-                menuEnabled = true,
-                streamQuality = streamQuality,
-                embeddedTags = audioTagsByTrackId[track.id.value]?.map { it.key to it.value }
-                    ?: listOf("Status" to "Loading from cached audio"),
-                playlistChoices = playlistChoices,
-                playlistActionStatus = playlistActionStatus,
-                backTo = knownTracks
-                    .take(currentIndex.coerceAtLeast(0))
-                    .asReversed()
-                    .map { it.toNowPlayingItemUi(coverArtUrl) },
-                upNext = if (currentIndex >= 0) {
-                    knownTracks.drop(currentIndex + 1).map { it.toNowPlayingItemUi(coverArtUrl) }
-                } else {
-                    emptyList()
-                },
-                related = relatedTracks.map { it.toNowPlayingItemUi(coverArtUrl) },
-            ),
+        val trackCoverArtUrl: (Track) -> String? = { item -> coverArtUrl(item.coverArtId) }
+        val sections = nowPlayingSectionsUi(
+            tracks = knownTracks,
+            currentTrack = track,
+            relatedTracks = relatedTracks,
+            coverArtUrl = trackCoverArtUrl,
+            sonicSimilarityEnabled = sonicSimilarityEnabled,
+            repeatMode = repeatMode,
+            itemIds = NowPlayingSectionItemIds.TrackIds,
+        )
+        val capabilities = nowPlayingTrackCapabilities(
+            isLiveStream = false,
+            playbackState = playbackState,
+            supportsSeek = true,
+            supportsSoftwareVolume = false,
+            supportsTrackRadio = provider?.capabilities?.supportsTrackRadio == true,
+            supportsTrackFavorites = provider?.capabilities?.supportsTrackFavorites == true,
+            supportsTrackRatings = provider?.capabilities?.supportsTrackRatings == true,
+            canRepeatQueue = knownTracks.isNotEmpty(),
+            canSaveQueueAsPlaylist = canSaveQueueAsPlaylist,
+        )
+        val resolvedCoverArtUrl = effectiveNowPlayingCoverArtUrl(
+            currentCoverArtUrl = track.coverArtUrl(provider),
+            nowPlayingTrack = track,
+            nowPlayingStation = nowPlayingStation,
+            streamMetadata = nowPlayingStreamMetadata,
+            radioTrackArtworkByKey = radioTrackArtworkByKey,
+        )
+        track.toTrackNowPlayingUi(
+            stateLabel = "${playbackState.label()} ${playbackProgress.positionSeconds?.toInt() ?: 0}s",
+            coverArtUrl = resolvedCoverArtUrl,
+            playbackProgress = playbackProgress,
+            playbackState = playbackState,
+            capabilities = capabilities,
+            hasPrevious = sections.hasPrevious,
+            hasNext = sections.hasNext,
+            shuffleEnabled = sections.shuffleEnabled,
+            shuffleActive = shuffledUpNextSnapshot != null,
+            repeatMode = repeatMode,
+            sleepTimer = sleepTimer,
+            relatedLabels = sections.relatedLabels,
+            waveform = waveformByTrackId[track.id.value],
+            visualizerAvailable = (playbackEngine as? VisualizerPlaybackEngine)?.supportsVisualizer == true,
+            visualizerVisible = visualizerVisible,
+            lyricsVisible = lyricsVisible && nowPlayingOpen,
+            lyricsStatus = lyricsStatusByTrackId[track.id.value],
+            lyrics = lyricsByTrackId[track.id.value],
+            streamQuality = streamQuality,
+            embeddedTags = audioTagsByTrackId[track.id.value]?.map { it.key to it.value },
+            playlistChoices = playlistChoices,
+            playlistActionStatus = playlistActionStatus,
+            backTo = sections.backTo,
+            upNext = sections.upNext,
+            related = sections.related,
+            volumePercent = volumePercent,
         )
     } ?: nowPlayingStation?.let { station ->
-        val trackArtworkUrl = radioTrackArtworkKey(station, nowPlayingStreamMetadata.title)
-            ?.let { radioTrackArtworkByKey[it] }
-        station.toNowPlayingUi(
-            NowPlayingRadioUiConfig(
-                streamTitle = nowPlayingStreamMetadata.title,
-                coverArtUrl = radioArtworkUrl(station, nowPlayingStreamMetadata.properties, trackArtworkUrl),
-                stateLabel = playbackState.label(),
-                volumePercent = volumePercent,
-                isPlaying = playbackState == PlaybackState.Playing,
-                isPaused = playbackState == PlaybackState.Paused,
-                canChangeVolume = false,
-                radioStations = radioStations.map { it.toNowPlayingStationUi() },
-            ),
+        station.toRadioNowPlayingUi(
+            streamMetadata = nowPlayingStreamMetadata,
+            playbackState = playbackState,
+            volumePercent = volumePercent,
+            radioStations = radioStations,
+            radioTrackArtworkByKey = radioTrackArtworkByKey,
+            canChangeVolume = false,
         )
     }
 

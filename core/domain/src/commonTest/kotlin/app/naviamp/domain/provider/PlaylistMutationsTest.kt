@@ -11,6 +11,8 @@ import app.naviamp.domain.ProviderId
 import app.naviamp.domain.StreamRequest
 import app.naviamp.domain.Track
 import app.naviamp.domain.TrackId
+import app.naviamp.domain.home.HomeContent
+import app.naviamp.domain.smartplaylist.SmartPlaylistDefinition
 import app.naviamp.domain.smartplaylist.SmartPlaylistTemplates
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -29,6 +31,33 @@ class PlaylistMutationsTest {
                 playlists = listOf(beta, recent, alpha),
                 recentPlaylistIds = listOf("recent"),
             ),
+        )
+        assertEquals(
+            listOf(recent, alpha),
+            HomeContent().withPlaylists(listOf(beta, recent, alpha), recentPlaylistIds = listOf("recent"))
+                .playlists
+                .take(2),
+        )
+        assertEquals(
+            PlaylistListApplication(
+                playlists = listOf(beta, recent, alpha),
+                homeContent = HomeContent().copy(playlists = listOf(beta, recent, alpha)),
+            ),
+            playlistListApplication(
+                playlists = listOf(beta, recent, alpha),
+                currentHomeContent = HomeContent(),
+                recentPlaylistIds = listOf("recent"),
+                projection = PlaylistHomeProjection.All,
+            ),
+        )
+        assertEquals(
+            listOf(recent, alpha, beta),
+            playlistListApplication(
+                playlists = listOf(beta, recent, alpha),
+                currentHomeContent = HomeContent(),
+                recentPlaylistIds = listOf("recent"),
+                projection = PlaylistHomeProjection.RecentLimited,
+            ).homeContent.playlists,
         )
     }
 
@@ -115,6 +144,64 @@ class PlaylistMutationsTest {
                 requestedPlaylistId = "one",
             ).selectedPlaylist,
         )
+        assertEquals(
+            PlaylistDetailsOpenPlan(
+                recentPlaylistIds = listOf("one", "two"),
+                loadingStatus = "Loading Old...",
+            ),
+            playlistDetailsOpenPlan(current, recentPlaylistIds = listOf("two"), recentPlaylistLimit = 2),
+        )
+        assertEquals("Connected.", playlistDetailsLoadedStatus())
+        assertEquals("Playlist failed to load.", playlistDetailsErrorMessage(Exception()))
+        assertEquals(
+            PlaylistDetailsApplicationUpdate(
+                playlists = listOf(refreshed, other),
+                playlistTracksById = mapOf("one" to tracks),
+                selectionApplication = PlaylistDetailsSelectionApplication(
+                    playlist = refreshed,
+                    tracks = tracks,
+                    status = "Connected.",
+                ),
+            ),
+            playlistDetailsApplicationUpdate(
+                currentSelectedPlaylist = current,
+                currentSelectedPlaylistTracks = emptyList(),
+                currentPlaylistTracksById = emptyMap(),
+                refresh = refresh,
+                requestedPlaylistId = "one",
+                status = playlistDetailsLoadedStatus(),
+            ),
+        )
+    }
+
+    @Test
+    fun refreshPlaylistDetailsApplicationLoadsAndPlansState() = kotlinx.coroutines.test.runTest {
+        val stalePlaylist = playlist("one", "Old")
+        val refreshedPlaylist = playlist("one", "New")
+        val tracks = listOf(track("one"))
+        val provider = FakePlaylistProvider(
+            playlists = listOf(refreshedPlaylist),
+            playlistTracks = tracks,
+        )
+
+        assertEquals(
+            PlaylistDetailsApplicationUpdate(
+                playlists = listOf(refreshedPlaylist.copy(trackCount = 1)),
+                playlistTracksById = mapOf("one" to tracks),
+                selectionApplication = PlaylistDetailsSelectionApplication(
+                    playlist = refreshedPlaylist.copy(trackCount = 1),
+                    tracks = tracks,
+                    status = "Connected.",
+                ),
+            ),
+            provider.refreshPlaylistDetailsApplication(
+                playlist = stalePlaylist,
+                currentSelectedPlaylist = stalePlaylist,
+                currentSelectedPlaylistTracks = emptyList(),
+                currentPlaylistTracksById = emptyMap(),
+                status = playlistDetailsLoadedStatus(),
+            ),
+        )
     }
 
     @Test
@@ -131,6 +218,78 @@ class PlaylistMutationsTest {
             playlistsNeedingTrackPreload(
                 playlists = listOf(one, two),
                 playlistTracksById = mapOf("one" to listOf(track("one"))),
+            ),
+        )
+    }
+
+    @Test
+    fun playlistListRefreshPlansTrackPreloadsFromKnownTracks() {
+        val one = playlist("one", "One")
+        val two = playlist("two", "Two")
+        val knownTracks = mapOf("one" to listOf(track("one")))
+
+        assertEquals(
+            PlaylistListRefresh(
+                playlists = listOf(one, two),
+                playlistsToPreload = listOf(two),
+            ),
+            playlistListRefresh(
+                playlists = listOf(one, two),
+                playlistTracksById = knownTracks,
+            ),
+        )
+        assertEquals(
+            PlaylistListStateUpdate(
+                playlists = listOf(one, two),
+                playlistsToPreload = listOf(two),
+                status = null,
+            ),
+            playlistListStateUpdate(playlistListRefresh(listOf(one, two), knownTracks)),
+        )
+        assertEquals(listOf(two), playlistPreloadTargets(listOf(one, two), knownTracks))
+        assertEquals("Loading playlists...", playlistListLoadingStatus())
+        assertEquals("Could not load playlists.", playlistListErrorMessage(Exception()))
+    }
+
+    @Test
+    fun refreshPlaylistsAndPlanPreloadLoadsPlaylistsAndPreloadTargets() = kotlinx.coroutines.test.runTest {
+        val one = playlist("one", "One")
+        val two = playlist("two", "Two")
+        val provider = FakePlaylistProvider(playlists = listOf(one, two), playlistTracks = listOf(track("two")))
+
+        val refresh = provider.refreshPlaylistsAndPlanPreload(
+            playlistTracksById = mapOf("one" to listOf(track("one"))),
+        )
+
+        assertEquals(listOf(one, two), refresh.playlists)
+        assertEquals(listOf(two), refresh.playlistsToPreload)
+        assertEquals(listOf(track("two")), provider.loadPlaylistTracksForPreload(two))
+        assertEquals(
+            PlaylistListStateUpdate(
+                playlists = listOf(one, two),
+                playlistsToPreload = listOf(two),
+                status = null,
+            ),
+            provider.refreshPlaylistListState(
+                playlistTracksById = mapOf("one" to listOf(track("one"))),
+            ),
+        )
+        assertEquals(
+            PlaylistTrackPreloadStateUpdate(
+                playlistTracksById = mapOf("one" to listOf(track("one")), "two" to listOf(track("two"))),
+            ),
+            provider.loadPlaylistTrackPreloadState(
+                playlist = two,
+                currentPlaylistTracksById = mapOf("one" to listOf(track("one"))),
+            ),
+        )
+        assertEquals(
+            PlaylistTrackPreloadStateUpdate(
+                playlistTracksById = mapOf("one" to listOf(track("one")), "two" to listOf(track("two"))),
+            ),
+            provider.preloadPlaylistTracksStateUpdate(
+                playlists = listOf(one, two),
+                currentPlaylistTracksById = mapOf("one" to listOf(track("one"))),
             ),
         )
     }
@@ -210,6 +369,310 @@ class PlaylistMutationsTest {
     }
 
     @Test
+    fun playlistPlaybackPlansStartTrackLoadingAndReadyQueue() {
+        val playlist = playlist("one", "Road Mix")
+        val selectedTracks = listOf(track("selected"))
+        val loadedTracks = listOf(track("loaded"))
+        val pending = PendingPlaybackAction("other", "Already starting...")
+
+        assertEquals(
+            PlaylistPlaybackStartPlan(
+                action = PendingPlaybackAction("playlist:one:play", "Loading Road Mix..."),
+                shouldStart = true,
+                status = "Loading Road Mix...",
+            ),
+            playlistPlaybackStartPlan(playlist, shuffle = false, pending = null),
+        )
+        assertEquals(
+            PlaylistPlaybackStartPlan(
+                action = PendingPlaybackAction("playlist:one:play", "Loading Road Mix..."),
+                shouldStart = false,
+                status = "Already starting...",
+            ),
+            playlistPlaybackStartPlan(playlist, shuffle = false, pending = pending),
+        )
+        assertEquals(
+            PlaylistPlaybackStartApplication(
+                pendingPlaybackAction = PendingPlaybackAction("playlist:one:play", "Loading Road Mix..."),
+                status = "Loading Road Mix...",
+            ),
+            playlistPlaybackStartApplication(playlistPlaybackStartPlan(playlist, shuffle = false, pending = null)),
+        )
+        assertEquals(
+            PlaylistPlaybackStartApplication(
+                pendingPlaybackAction = null,
+                status = "Already starting...",
+            ),
+            playlistPlaybackStartApplication(playlistPlaybackStartPlan(playlist, shuffle = false, pending = pending)),
+        )
+        assertEquals(
+            PlaylistPlaybackCompletionApplication(pendingPlaybackAction = null),
+            playlistPlaybackCompletionApplication(
+                pending = PendingPlaybackAction("playlist:one:play", "Loading Road Mix..."),
+                completed = PendingPlaybackAction("playlist:one:play", "Loading Road Mix..."),
+            ),
+        )
+        assertEquals(
+            PlaylistPlaybackTrackLoadPlan(shouldLoadTracks = false),
+            playlistPlaybackTrackLoadPlan(playlist, selectedTracks, playlist),
+        )
+        assertEquals(
+            PlaylistPlaybackTrackLoadPlan(shouldLoadTracks = true),
+            playlistPlaybackTrackLoadPlan(null, emptyList(), playlist),
+        )
+
+        val selectedPlan = playlistPlaybackReadyPlan(
+            playlist = playlist,
+            shuffle = false,
+            selectedPlaylist = playlist,
+            selectedPlaylistTracks = selectedTracks,
+            loadedTracks = loadedTracks,
+            recentPlaylistIds = listOf("two", "one"),
+            recentPlaylistLimit = 2,
+        )
+        assertEquals(selectedTracks, selectedPlan.tracks)
+        assertEquals(track("selected"), selectedPlan.firstTrack)
+        assertEquals(listOf("one", "two"), selectedPlan.recentPlaylistIds)
+
+        val emptyPlan = playlistPlaybackReadyPlan(
+            playlist = playlist,
+            shuffle = false,
+            selectedPlaylist = null,
+            selectedPlaylistTracks = emptyList(),
+            loadedTracks = emptyList(),
+            recentPlaylistIds = emptyList(),
+            recentPlaylistLimit = 2,
+            emptyStatus = "Road Mix did not return any tracks.",
+        )
+        assertEquals(null, emptyPlan.firstTrack)
+        assertEquals("Road Mix did not return any tracks.", emptyPlan.emptyStatus)
+    }
+
+    @Test
+    fun preparePlaylistPlaybackLoadsOrReusesTracks() = kotlinx.coroutines.test.runTest {
+        val playlist = playlist("one", "Road Mix")
+        val selectedTracks = listOf(track("selected"))
+        val provider = FakePlaylistProvider(
+            playlists = listOf(playlist),
+            playlistTracks = listOf(track("loaded")),
+        )
+
+        val loaded = provider.preparePlaylistPlayback(
+            playlist = playlist,
+            shuffle = false,
+            selectedPlaylist = null,
+            selectedPlaylistTracks = emptyList(),
+            recentPlaylistIds = listOf("two"),
+            recentPlaylistLimit = 2,
+        )
+        assertEquals(true, loaded.shouldStoreLoadedTracks)
+        assertEquals(listOf(track("loaded")), loaded.loadedTracks)
+        assertEquals(listOf(track("loaded")), loaded.readyPlan.tracks)
+        assertEquals(listOf("one", "two"), loaded.readyPlan.recentPlaylistIds)
+
+        val reused = provider.preparePlaylistPlayback(
+            playlist = playlist,
+            shuffle = false,
+            selectedPlaylist = playlist,
+            selectedPlaylistTracks = selectedTracks,
+            recentPlaylistIds = emptyList(),
+            recentPlaylistLimit = 2,
+        )
+        assertEquals(false, reused.shouldStoreLoadedTracks)
+        assertEquals(emptyList(), reused.loadedTracks)
+        assertEquals(selectedTracks, reused.readyPlan.tracks)
+    }
+
+    @Test
+    fun playlistPlaybackApplicationUpdateStoresLoadedTracksAndReportsEmptyState() {
+        val playlist = playlist("one", "Road Mix")
+        val loadedTrack = track("loaded")
+        val currentTracks = mapOf("other" to listOf(track("other")))
+        val playableUpdate = PlaylistPlaybackApplicationUpdate(
+            playlistTracksById = currentTracks + ("one" to listOf(loadedTrack)),
+            loadedTracksToStore = listOf(loadedTrack),
+            firstTrack = loadedTrack,
+            playbackTracks = listOf(loadedTrack),
+            recentPlaylistIds = listOf("one", "two"),
+            status = null,
+        )
+
+        assertEquals(
+            playableUpdate,
+            playlistPlaybackApplicationUpdate(
+                playlist = playlist,
+                preparation = PlaylistPlaybackPreparation(
+                    loadedTracks = listOf(loadedTrack),
+                    shouldStoreLoadedTracks = true,
+                    readyPlan = PlaylistPlaybackReadyPlan(
+                        tracks = listOf(loadedTrack),
+                        firstTrack = loadedTrack,
+                        recentPlaylistIds = listOf("one", "two"),
+                        emptyStatus = "Road Mix did not return any tracks.",
+                    ),
+                ),
+                currentPlaylistTracksById = currentTracks,
+            ),
+        )
+        assertEquals(
+            PlaylistPlaybackPreparedApplication(
+                playlistTracksById = currentTracks + ("one" to listOf(loadedTrack)),
+                loadedTracksToStore = listOf(loadedTrack),
+                playbackWork = PlaylistPlaybackWork(
+                    firstTrack = loadedTrack,
+                    playbackTracks = listOf(loadedTrack),
+                    playbackIndex = 0,
+                    recentPlaylistIds = listOf("one", "two"),
+                ),
+                status = null,
+            ),
+            playlistPlaybackPreparedApplication(playableUpdate),
+        )
+        val emptyUpdate = PlaylistPlaybackApplicationUpdate(
+            playlistTracksById = currentTracks,
+            loadedTracksToStore = null,
+            firstTrack = null,
+            playbackTracks = emptyList(),
+            recentPlaylistIds = emptyList(),
+            status = "Road Mix did not return any tracks.",
+        )
+
+        assertEquals(
+            emptyUpdate,
+            playlistPlaybackApplicationUpdate(
+                playlist = playlist,
+                preparation = PlaylistPlaybackPreparation(
+                    loadedTracks = emptyList(),
+                    shouldStoreLoadedTracks = false,
+                    readyPlan = PlaylistPlaybackReadyPlan(
+                        tracks = emptyList(),
+                        firstTrack = null,
+                        recentPlaylistIds = emptyList(),
+                        emptyStatus = "Road Mix did not return any tracks.",
+                    ),
+                ),
+                currentPlaylistTracksById = currentTracks,
+            ),
+        )
+        assertEquals(
+            PlaylistPlaybackPreparedApplication(
+                playlistTracksById = currentTracks,
+                loadedTracksToStore = null,
+                playbackWork = null,
+                status = "Road Mix did not return any tracks.",
+            ),
+            playlistPlaybackPreparedApplication(emptyUpdate),
+        )
+        assertEquals("Could not play Road Mix.", playlistPlaybackErrorMessage(Exception(), playlist))
+    }
+
+    @Test
+    fun preparePlaylistPlaybackApplicationLoadsAndAppliesTrackMap() = kotlinx.coroutines.test.runTest {
+        val playlist = playlist("one", "Road Mix")
+        val provider = FakePlaylistProvider(
+            playlists = listOf(playlist),
+            playlistTracks = listOf(track("loaded")),
+        )
+
+        assertEquals(
+            PlaylistPlaybackApplicationUpdate(
+                playlistTracksById = mapOf("one" to listOf(track("loaded"))),
+                loadedTracksToStore = listOf(track("loaded")),
+                firstTrack = track("loaded"),
+                playbackTracks = listOf(track("loaded")),
+                recentPlaylistIds = listOf("one", "two"),
+                status = null,
+            ),
+            provider.preparePlaylistPlaybackApplication(
+                playlist = playlist,
+                shuffle = false,
+                selectedPlaylist = null,
+                selectedPlaylistTracks = emptyList(),
+                recentPlaylistIds = listOf("two"),
+                recentPlaylistLimit = 2,
+                currentPlaylistTracksById = emptyMap(),
+            ),
+        )
+    }
+
+    @Test
+    fun preparePlaylistDetailPlaybackApplicationLoadsMissingTracksAndCoercesIndex() = kotlinx.coroutines.test.runTest {
+        val playlist = playlist("one", "Road Mix")
+        val loadedTracks = listOf(track("loaded-one"), track("loaded-two"))
+        val provider = FakePlaylistProvider(
+            playlists = listOf(playlist),
+            playlistTracks = loadedTracks,
+        )
+        val update = PlaylistDetailPlaybackApplicationUpdate(
+            playlistTracksById = mapOf("one" to loadedTracks),
+            loadedTracksToStore = loadedTracks,
+            firstTrack = loadedTracks.first(),
+            playbackTracks = loadedTracks,
+            playbackIndex = 1,
+            recentPlaylistIds = listOf("one", "two"),
+            status = null,
+        )
+
+        assertEquals(
+            update,
+            provider.preparePlaylistDetailPlaybackApplication(
+                playlist = playlist,
+                shuffle = false,
+                selectedPlaylistTracks = emptyList(),
+                recentPlaylistIds = listOf("two"),
+                recentPlaylistLimit = 2,
+                currentPlaylistTracksById = emptyMap(),
+                requestedIndex = 99,
+            ),
+        )
+        assertEquals(
+            PlaylistPlaybackPreparedApplication(
+                playlistTracksById = mapOf("one" to loadedTracks),
+                loadedTracksToStore = loadedTracks,
+                playbackWork = PlaylistPlaybackWork(
+                    firstTrack = loadedTracks.first(),
+                    playbackTracks = loadedTracks,
+                    playbackIndex = 1,
+                    recentPlaylistIds = listOf("one", "two"),
+                ),
+                status = null,
+            ),
+            playlistDetailPlaybackPreparedApplication(update),
+        )
+    }
+
+    @Test
+    fun preparePlaylistDetailPlaybackApplicationUsesLoadedSelectionWithoutProviderFetch() = kotlinx.coroutines.test.runTest {
+        val playlist = playlist("one", "Road Mix")
+        val selectedTracks = listOf(track("selected-one"), track("selected-two"))
+        val provider = FakePlaylistProvider(
+            playlists = listOf(playlist),
+            playlistTracks = listOf(track("provider")),
+        )
+
+        assertEquals(
+            PlaylistDetailPlaybackApplicationUpdate(
+                playlistTracksById = emptyMap(),
+                loadedTracksToStore = null,
+                firstTrack = selectedTracks.first(),
+                playbackTracks = selectedTracks,
+                playbackIndex = 1,
+                recentPlaylistIds = listOf("one", "two"),
+                status = null,
+            ),
+            provider.preparePlaylistDetailPlaybackApplication(
+                playlist = playlist,
+                shuffle = false,
+                selectedPlaylistTracks = selectedTracks,
+                recentPlaylistIds = listOf("two"),
+                recentPlaylistLimit = 2,
+                currentPlaylistTracksById = emptyMap(),
+                requestedIndex = 1,
+            ),
+        )
+    }
+
+    @Test
     fun addToPlaylistMutationUpdateReportsNoTracks() {
         assertEquals(
             AddToPlaylistMutationUpdate(
@@ -227,6 +690,9 @@ class PlaylistMutationsTest {
                 playlistName = null,
             ),
         )
+        assertEquals("Adding track to playlist...", addToPlaylistLoadingStatus("track"))
+        assertEquals("Loading tracks...", addToPlaylistResolvingTracksStatus())
+        assertEquals("Could not add track to playlist.", addToPlaylistErrorMessage(Exception(), "track"))
     }
 
     @Test
@@ -251,6 +717,16 @@ class PlaylistMutationsTest {
 
     @Test
     fun addToPlaylistMutationUpdateClosesDialogWhenTracksAdded() {
+        val refresh = AddToPlaylistRefresh(
+            update = AddToPlaylistMutationUpdate(
+                closeDialog = true,
+                addToPlaylistStatus = null,
+                connectionStatus = "Added 2 tracks to playlist.",
+                refreshPlaylists = true,
+            ),
+            playlists = listOf(playlist("one", "One")),
+        )
+
         assertEquals(
             AddToPlaylistMutationUpdate(
                 closeDialog = true,
@@ -267,12 +743,43 @@ class PlaylistMutationsTest {
                 playlistName = "Playlist",
             ),
         )
+        assertEquals(
+            AddToPlaylistStateUpdate(
+                playlists = listOf(playlist("one", "One")),
+                closeDialog = true,
+                addToPlaylistStatus = null,
+                connectionStatus = "Added 2 tracks to playlist.",
+            ),
+            addToPlaylistStateUpdate(refresh),
+        )
+        assertEquals(
+            AddToPlaylistApplication(
+                closeDialog = true,
+                addToPlaylistStatus = null,
+                connectionStatus = "Added 2 tracks to playlist.",
+                playlistListApplication = PlaylistListApplication(
+                    playlists = listOf(playlist("one", "One")),
+                    homeContent = HomeContent(playlists = listOf(playlist("one", "One"))),
+                ),
+            ),
+            addToPlaylistApplication(
+                update = addToPlaylistStateUpdate(refresh),
+                currentHomeContent = HomeContent(),
+                recentPlaylistIds = listOf("one"),
+                projection = PlaylistHomeProjection.RecentLimited,
+            ),
+        )
     }
 
     @Test
     fun playlistRenameDeleteHelpersNormalizeStatusAndSelection() {
         val current = playlist("one", "Old")
         val renamed = playlist("one", "New")
+        val renameRefresh = PlaylistRenameRefresh(
+            requestedName = "New",
+            playlists = listOf(renamed),
+        )
+        val deleteRefresh = PlaylistDeleteRefresh(playlists = listOf(playlist("two", "Two")))
 
         assertEquals("New", normalizedPlaylistName("  New  "))
         assertEquals("Renaming Old...", playlistRenameLoadingStatus(current))
@@ -284,8 +791,50 @@ class PlaylistMutationsTest {
             playlist("one", "Fallback"),
             renamedSelectedPlaylist(current, "one", "Fallback", emptyList()),
         )
+        assertEquals(
+            PlaylistRenameStateUpdate(
+                playlists = listOf(renamed),
+                selectionApplication = PlaylistRenameSelectionApplication(renamed),
+                status = "Renamed playlist.",
+            ),
+            playlistRenameStateUpdate(current, renameRefresh, playlistId = "one"),
+        )
+        assertEquals(
+            null,
+            playlistRenameStateUpdate(
+                currentSelectedPlaylist = playlist("other", "Other"),
+                refresh = renameRefresh,
+                playlistId = "one",
+            ).selectionApplication,
+        )
+        assertEquals(
+            PlaylistRenameApplication(
+                playlistListApplication = PlaylistListApplication(
+                    playlists = listOf(renamed),
+                    homeContent = HomeContent(playlists = listOf(renamed)),
+                ),
+                selectionApplication = PlaylistRenameSelectionApplication(renamed),
+                status = "Renamed playlist.",
+            ),
+            playlistRenameApplication(
+                update = playlistRenameStateUpdate(current, renameRefresh, playlistId = "one"),
+                currentHomeContent = HomeContent(),
+                recentPlaylistIds = listOf("one"),
+                projection = PlaylistHomeProjection.RecentLimited,
+            ),
+        )
         assertEquals(null, selectedPlaylistAfterDelete(current, "one"))
         assertEquals(listOf("two"), recentPlaylistIdsAfterDelete(listOf("one", "two"), "one"))
+        val deleteUpdate = PlaylistDeleteApplicationUpdate(
+            playlists = listOf(playlist("two", "Two")),
+            playlistTracksById = emptyMap(),
+            recentPlaylistIds = listOf("two"),
+            selectionApplication = PlaylistDeleteSelectionApplication(
+                selectedPlaylist = null,
+                selectedPlaylistTracks = emptyList(),
+            ),
+            status = "Deleted playlist.",
+        )
         assertEquals(
             PlaylistDeleteStateUpdate(
                 selectedPlaylist = null,
@@ -302,12 +851,63 @@ class PlaylistMutationsTest {
                 deletedPlaylistId = "one",
             ),
         )
+        assertEquals(
+            deleteUpdate,
+            playlistDeleteApplicationUpdate(
+                refresh = deleteRefresh,
+                currentSelectedPlaylist = current,
+                currentSelectedPlaylistTracks = listOf(track("one")),
+                currentPlaylistTracksById = mapOf("one" to listOf(track("one"))),
+                currentRecentPlaylistIds = listOf("one", "two"),
+                deletedPlaylistId = "one",
+            ),
+        )
+        assertEquals(
+            PlaylistDeleteApplication(
+                playlistListApplication = PlaylistListApplication(
+                    playlists = listOf(playlist("two", "Two")),
+                    homeContent = HomeContent(playlists = listOf(playlist("two", "Two"))),
+                ),
+                playlistTracksById = emptyMap(),
+                recentPlaylistIds = listOf("two"),
+                selectionApplication = PlaylistDeleteSelectionApplication(
+                    selectedPlaylist = null,
+                    selectedPlaylistTracks = emptyList(),
+                ),
+                status = "Deleted playlist.",
+            ),
+            playlistDeleteApplication(
+                update = deleteUpdate,
+                currentHomeContent = HomeContent(),
+                projection = PlaylistHomeProjection.RecentLimited,
+            ),
+        )
+        assertEquals(
+            null,
+            playlistDeleteApplicationUpdate(
+                refresh = deleteRefresh,
+                currentSelectedPlaylist = playlist("other", "Other"),
+                currentSelectedPlaylistTracks = listOf(track("other")),
+                currentPlaylistTracksById = mapOf(
+                    "one" to listOf(track("one")),
+                    "other" to listOf(track("other")),
+                ),
+                currentRecentPlaylistIds = listOf("one", "other"),
+                deletedPlaylistId = "one",
+            ).selectionApplication,
+        )
     }
 
     @Test
-    fun smartPlaylistStatusMessagesIncludeTrackCount() {
+    fun smartPlaylistStatusMessagesIncludeTrackCount() = kotlinx.coroutines.test.runTest {
         val playlist = playlist("smart", "Smart")
         val definition = SmartPlaylistTemplates.favorites().copy(name = "Smart")
+        val tracks = listOf(track("one"), track("two"))
+        val refresh = PlaylistDetailsRefresh(
+            playlists = listOf(playlist.copy(trackCount = 2)),
+            displayPlaylist = playlist.copy(trackCount = 2),
+            tracks = tracks,
+        )
 
         assertEquals("Saving Smart...", smartPlaylistSavingStatus(definition))
         assertEquals("Updating Smart...", smartPlaylistUpdatingStatus(definition))
@@ -320,6 +920,65 @@ class PlaylistMutationsTest {
             "Updated smart playlist Smart with 4 tracks.",
             smartPlaylistUpdatedStatus(playlist, trackCount = 4),
         )
+        assertEquals(
+            SmartPlaylistMutationStateUpdate(
+                playlists = refresh.playlists,
+                displayPlaylist = playlist.copy(trackCount = 2),
+                tracks = tracks,
+                playlistTracksById = mapOf("smart" to tracks),
+                selectionApplication = null,
+                status = "Saved smart playlist Smart with 2 tracks.",
+            ),
+            smartPlaylistSaveStateUpdate(refresh, currentPlaylistTracksById = emptyMap()),
+        )
+        assertEquals(
+            SmartPlaylistMutationStateUpdate(
+                playlists = refresh.playlists,
+                displayPlaylist = playlist.copy(trackCount = 2),
+                tracks = tracks,
+                playlistTracksById = mapOf("smart" to tracks),
+                selectionApplication = PlaylistDetailsSelectionApplication(
+                    playlist = playlist.copy(trackCount = 2),
+                    tracks = tracks,
+                    status = null,
+                ),
+                status = "Updated smart playlist Smart with 2 tracks.",
+            ),
+            smartPlaylistUpdateStateUpdate(
+                refresh = refresh,
+                currentSelectedPlaylist = playlist,
+                currentPlaylistTracksById = emptyMap(),
+            ),
+        )
+        assertEquals(
+            null,
+            smartPlaylistUpdateStateUpdate(
+                refresh = refresh,
+                currentSelectedPlaylist = playlist("other", "Other"),
+                currentPlaylistTracksById = emptyMap(),
+            ).selectionApplication,
+        )
+        val provider = FakePlaylistProvider(playlists = listOf(playlist), playlistTracks = tracks)
+        assertEquals(
+            "Saved smart playlist Smart with 2 tracks.",
+            saveSmartPlaylistStateUpdate(
+                provider = provider,
+                definition = definition,
+                currentPlaylistTracksById = emptyMap(),
+            ).status,
+        )
+        assertEquals(
+            "Updated smart playlist Smart with 2 tracks.",
+            updateSmartPlaylistStateUpdate(
+                provider = provider,
+                playlist = playlist,
+                definition = definition,
+                currentSelectedPlaylist = playlist,
+                currentPlaylistTracksById = emptyMap(),
+            ).status,
+        )
+        assertEquals(definition, provider.loadSmartPlaylistDefinition(playlist))
+        assertEquals("smart", provider.loadedSmartPlaylistId)
     }
 
     @Test
@@ -366,6 +1025,178 @@ class PlaylistMutationsTest {
 
         assertEquals(QueuePlaylistSaveResult(playlist("created", "Queue Mix").copy(trackCount = 1), 1), refresh.result)
         assertEquals(listOf(existingPlaylist, playlist("created", "Queue Mix").copy(trackCount = 1)), refresh.playlists)
+        assertEquals(
+            QueuePlaylistSaveStateUpdate(
+                playlists = refresh.playlists,
+                status = "Saved Queue Mix with 1 tracks.",
+            ),
+            queuePlaylistSaveStateUpdate(refresh),
+        )
+        assertEquals(
+            QueuePlaylistSaveStateUpdate(
+                playlists = listOf(
+                    existingPlaylist,
+                    playlist("created", "Second Mix").copy(trackCount = 1),
+                ),
+                status = "Saved Second Mix with 1 tracks.",
+            ),
+            provider.saveQueueAsPlaylistStateUpdate("Second Mix", listOf(track("two"))),
+        )
+    }
+
+    @Test
+    fun saveQueueAsPlaylistApplicationBuildsPlaylistListApplication() = kotlinx.coroutines.test.runTest {
+        val provider = FakePlaylistProvider(playlists = emptyList(), playlistTracks = emptyList())
+
+        val application = provider.saveQueueAsPlaylistApplication(
+            name = "Road Mix",
+            tracks = listOf(track("one")),
+            currentHomeContent = HomeContent(),
+            recentPlaylistIds = emptyList(),
+            projection = PlaylistHomeProjection.All,
+        )
+
+        val savedPlaylist = playlist("created", "Road Mix").copy(trackCount = 1)
+        assertEquals("Saved Road Mix with 1 tracks.", application.status)
+        assertEquals(listOf(savedPlaylist), application.playlistListApplication.playlists)
+        assertEquals(listOf(savedPlaylist), application.playlistListApplication.homeContent.playlists)
+    }
+
+    @Test
+    fun renamePlaylistAndRefreshNormalizesNameAndReturnsUpdatedPlaylists() = kotlinx.coroutines.test.runTest {
+        val existingPlaylist = playlist("existing", "Existing")
+        val provider = FakePlaylistProvider(playlists = listOf(existingPlaylist), playlistTracks = emptyList())
+
+        val refresh = provider.renamePlaylistAndRefresh(existingPlaylist, "  Renamed  ")
+
+        assertEquals("Renamed", refresh.requestedName)
+        assertEquals("existing", provider.renamedPlaylistId)
+        assertEquals("Renamed", provider.renamedPlaylistName)
+        assertEquals(listOf(playlist("existing", "Renamed")), refresh.playlists)
+    }
+
+    @Test
+    fun deletePlaylistAndRefreshReturnsRemainingPlaylists() = kotlinx.coroutines.test.runTest {
+        val deleted = playlist("deleted", "Deleted")
+        val kept = playlist("kept", "Kept")
+        val provider = FakePlaylistProvider(playlists = listOf(deleted, kept), playlistTracks = emptyList())
+
+        val refresh = provider.deletePlaylistAndRefresh(deleted)
+
+        assertEquals("deleted", provider.deletedPlaylistId)
+        assertEquals(listOf(kept), refresh.playlists)
+    }
+
+    @Test
+    fun addTracksToPlaylistAndRefreshCreatesPlaylistAndReturnsSharedUpdate() = kotlinx.coroutines.test.runTest {
+        val existingPlaylist = playlist("existing", "Existing")
+        val provider = FakePlaylistProvider(playlists = listOf(existingPlaylist), playlistTracks = emptyList())
+
+        val refresh = provider.addTracksToPlaylistAndRefresh(
+            playlistId = null,
+            playlistName = null,
+            newPlaylistName = "New Mix",
+            tracks = listOf(track("one"), track("one")),
+        )
+
+        assertEquals("New Mix", provider.createdPlaylistName)
+        assertEquals(listOf(TrackId("one")), provider.createdPlaylistTrackIds)
+        assertEquals(
+            AddToPlaylistMutationUpdate(
+                closeDialog = true,
+                addToPlaylistStatus = null,
+                connectionStatus = "Added 1 track to playlist.",
+                refreshPlaylists = true,
+            ),
+            refresh.update,
+        )
+        assertEquals(listOf(existingPlaylist, playlist("created", "New Mix").copy(trackCount = 1)), refresh.playlists)
+
+        assertEquals(
+            AddToPlaylistStateUpdate(
+                playlists = null,
+                closeDialog = false,
+                addToPlaylistStatus = "No tracks found.",
+                connectionStatus = null,
+            ),
+            provider.addTracksToPlaylistStateUpdate(
+                playlistId = null,
+                playlistName = null,
+                newPlaylistName = "Empty",
+                tracks = emptyList(),
+            ),
+        )
+    }
+
+    @Test
+    fun addTracksToPlaylistAndRefreshAddsMissingTracksToExistingPlaylist() = kotlinx.coroutines.test.runTest {
+        val existingPlaylist = playlist("existing", "Existing")
+        val provider = FakePlaylistProvider(
+            playlists = listOf(existingPlaylist),
+            playlistTracks = listOf(track("one")),
+        )
+
+        val refresh = provider.addTracksToPlaylistAndRefresh(
+            playlistId = existingPlaylist.id,
+            playlistName = existingPlaylist.name,
+            newPlaylistName = null,
+            tracks = listOf(track("one"), track("two")),
+        )
+
+        assertEquals(existingPlaylist.id, provider.addedPlaylistId)
+        assertEquals(listOf(TrackId("two")), provider.addedTrackIds)
+        assertEquals(
+            AddToPlaylistMutationUpdate(
+                closeDialog = true,
+                addToPlaylistStatus = null,
+                connectionStatus = "Added 1 track to playlist.",
+                refreshPlaylists = true,
+            ),
+            refresh.update,
+        )
+        assertEquals(listOf(existingPlaylist), refresh.playlists)
+        assertEquals(
+            AddToPlaylistStateUpdate(
+                playlists = listOf(existingPlaylist),
+                closeDialog = true,
+                addToPlaylistStatus = null,
+                connectionStatus = "Added 1 track to playlist.",
+            ),
+            provider.addTracksToPlaylistStateUpdate(
+                playlistId = existingPlaylist.id,
+                playlistName = existingPlaylist.name,
+                newPlaylistName = null,
+                tracks = listOf(track("one"), track("two"), track("two")),
+            ),
+        )
+    }
+
+    @Test
+    fun addTracksToPlaylistApplicationBuildsHomePlaylistApplication() = kotlinx.coroutines.test.runTest {
+        val existingPlaylist = playlist("existing", "Existing")
+        val provider = FakePlaylistProvider(playlists = listOf(existingPlaylist), playlistTracks = emptyList())
+
+        val application = provider.addTracksToPlaylistApplication(
+            playlistId = null,
+            playlistName = null,
+            newPlaylistName = "New Mix",
+            tracks = listOf(track("one")),
+            currentHomeContent = HomeContent(),
+            recentPlaylistIds = emptyList(),
+            projection = PlaylistHomeProjection.All,
+        )
+
+        assertEquals(true, application.closeDialog)
+        assertEquals(null, application.addToPlaylistStatus)
+        assertEquals("Added 1 track to playlist.", application.connectionStatus)
+        assertEquals(
+            listOf(existingPlaylist, playlist("created", "New Mix").copy(trackCount = 1)),
+            application.playlistListApplication?.playlists,
+        )
+        assertEquals(
+            listOf(existingPlaylist, playlist("created", "New Mix").copy(trackCount = 1)),
+            application.playlistListApplication?.homeContent?.playlists,
+        )
     }
 
     private fun playlist(id: String, name: String): Playlist =
@@ -424,9 +1255,6 @@ class PlaylistMutationsTest {
         override suspend fun search(query: String, limit: Int): MediaSearchResults =
             MediaSearchResults()
 
-        override suspend fun playlists(limit: Int): List<Playlist> =
-            createdPlaylistName?.let { playlists + Playlist("created", it, createdPlaylistTrackIds.size) } ?: playlists
-
         override suspend fun playlistTracks(playlistId: String): List<Track> =
             playlistTracks
 
@@ -434,12 +1262,61 @@ class PlaylistMutationsTest {
             private set
         var createdPlaylistTrackIds: List<TrackId> = emptyList()
             private set
+        var addedPlaylistId: String? = null
+            private set
+        var addedTrackIds: List<TrackId> = emptyList()
+            private set
+        var renamedPlaylistId: String? = null
+            private set
+        var renamedPlaylistName: String? = null
+            private set
+        var deletedPlaylistId: String? = null
+            private set
+        var loadedSmartPlaylistId: String? = null
+            private set
 
         override suspend fun createPlaylist(name: String, trackIds: List<TrackId>): Playlist {
             createdPlaylistName = name
             createdPlaylistTrackIds = trackIds
             return Playlist(id = "created", name = name, trackCount = trackIds.size)
         }
+
+        override suspend fun addTracksToPlaylist(playlistId: String, trackIds: List<TrackId>) {
+            addedPlaylistId = playlistId
+            addedTrackIds = trackIds
+        }
+
+        override suspend fun renamePlaylist(playlistId: String, name: String) {
+            renamedPlaylistId = playlistId
+            renamedPlaylistName = name
+        }
+
+        override suspend fun deletePlaylist(playlistId: String) {
+            deletedPlaylistId = playlistId
+        }
+
+        override suspend fun createSmartPlaylist(definition: SmartPlaylistDefinition): Playlist =
+            Playlist(id = "smart", name = definition.name, trackCount = playlistTracks.size)
+
+        override suspend fun updateSmartPlaylist(playlistId: String, definition: SmartPlaylistDefinition) {
+            renamedPlaylistId = playlistId
+            renamedPlaylistName = definition.name
+        }
+
+        override suspend fun smartPlaylistDefinition(playlistId: String): SmartPlaylistDefinition {
+            loadedSmartPlaylistId = playlistId
+            return SmartPlaylistTemplates.favorites().copy(name = "Smart")
+        }
+
+        override suspend fun playlists(limit: Int): List<Playlist> =
+            when {
+                createdPlaylistName != null -> playlists + Playlist("created", createdPlaylistName.orEmpty(), createdPlaylistTrackIds.size)
+                renamedPlaylistId != null -> playlists.map { playlist ->
+                    if (playlist.id == renamedPlaylistId) playlist.copy(name = renamedPlaylistName.orEmpty()) else playlist
+                }
+                deletedPlaylistId != null -> playlists.filterNot { it.id == deletedPlaylistId }
+                else -> playlists
+            }
 
         override suspend fun streamUrl(request: StreamRequest): String =
             ""

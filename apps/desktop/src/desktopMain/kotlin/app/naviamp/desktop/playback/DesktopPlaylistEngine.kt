@@ -14,28 +14,31 @@ import app.naviamp.domain.playback.PlaybackEngine
 import app.naviamp.domain.playback.PlaybackAudioAssetRepository
 import app.naviamp.domain.playback.PlaybackProgress
 import app.naviamp.domain.playback.PlaybackQueueController
+import app.naviamp.domain.playback.PlaybackQueueManager
 import app.naviamp.domain.playback.PlaybackQueueSelection
 import app.naviamp.domain.playback.PlaybackReplayGain
-import app.naviamp.domain.playback.PlaybackRequest
 import app.naviamp.domain.playback.AudioPrefetchStats
 import app.naviamp.domain.playback.CacheRuntimeStats
 import app.naviamp.domain.playback.DefaultAudioPrefetchDepth
 import app.naviamp.domain.playback.PlaybackSidecarPrepResult
 import app.naviamp.domain.playback.PlaybackSource
 import app.naviamp.domain.playback.PlaybackState
+import app.naviamp.domain.playback.PreparedNextPlaybackCoordinator
+import app.naviamp.domain.playback.PreparedNextPlaybackSettings
 import app.naviamp.domain.playback.QueueAwarePlaybackEngine
 import app.naviamp.domain.playback.ReplayGainMode
 import app.naviamp.domain.playback.ReplayGainSource
 import app.naviamp.domain.playback.PlaybackSidecarService
-import app.naviamp.domain.playback.audioPrefetchTracks
+import app.naviamp.domain.playback.currentTrackSidecarWork
 import app.naviamp.domain.playback.emptyPlaybackAudioAssetRepository
 import app.naviamp.domain.playback.finished
 import app.naviamp.domain.playback.initialAudioPrefetchStats
-import app.naviamp.domain.playback.planPrepareNextQueuePlayback
-import app.naviamp.domain.playback.preparedNextPlaybackRequest
+import app.naviamp.domain.playback.planPlaylistTrackStartWork
+import app.naviamp.domain.playback.planAudioPrefetchWork
 import app.naviamp.domain.playback.playbackStreamUrl
 import app.naviamp.domain.playback.resolvePlaybackAudioSource
 import app.naviamp.domain.playback.runAudioPrefetch
+import app.naviamp.domain.playback.runCurrentTrackSidecars
 import app.naviamp.domain.queue.PlaybackQueue
 import app.naviamp.domain.queue.RepeatMode
 import kotlinx.coroutines.CoroutineScope
@@ -66,6 +69,16 @@ class DesktopPlaylistEngine(
     private val queueController = PlaybackQueueController()
     private var playbackSource: PlaybackSource = PlaybackSource.Unknown
     private var audioPrefetchStats = AudioPrefetchStats()
+    private val preparedNextPlaybackCoordinator = PreparedNextPlaybackCoordinator(
+        provider = { provider },
+        sourceId = sourceIdProvider,
+        quality = { streamQuality },
+        audioCachingEnabled = audioCachingEnabledProvider,
+        audioAssets = this.playbackAudioAssets,
+        replayGainMode = { replayGainMode },
+        supportsReplayGain = { playbackEngine.supportsReplayGain },
+        replayGainForTrack = ::replayGainForTrack,
+    )
 
     val queue: PlaybackQueue
         get() = queueController.queue
@@ -157,6 +170,19 @@ class DesktopPlaylistEngine(
         }
     }
 
+    fun replaceQueue(
+        queue: PlaybackQueue,
+        incrementSession: Boolean = false,
+        clearPreparedNext: Boolean = true,
+    ) {
+        queueController.replaceQueue(
+            queue = queue,
+            incrementSession = incrementSession,
+            clearPreparedNext = clearPreparedNext,
+        )
+        callbacks?.onQueueChanged(queue)
+    }
+
     fun replaceUpcomingTracks(
         currentTrack: Track,
         upcomingTracks: List<Track>,
@@ -219,9 +245,11 @@ class DesktopPlaylistEngine(
     }
 
     fun toggleUpcomingShuffle(shuffledSnapshot: List<Track>?): List<Track>? {
-        val result = queueController.toggleUpcomingShuffle(shuffledSnapshot) ?: return shuffledSnapshot
-        callbacks?.onQueueChanged(result.queue)
-        return result.shuffledSnapshot
+        val update = PlaybackQueueManager().toggleUpcomingShuffle(queueController.queue, shuffledSnapshot)
+        if (!update.changed) return shuffledSnapshot
+        queueController.replaceQueue(update.queue)
+        callbacks?.onQueueChanged(update.queue)
+        return update.shuffledSnapshot
     }
 
     private fun playQueueSelection(
@@ -245,21 +273,26 @@ class DesktopPlaylistEngine(
         scope.launch {
             try {
                 val playbackTarget = playbackTarget(currentProvider, track, currentQuality, startPositionSeconds)
-                playbackSource = playbackTarget.source
                 val replayGain = replayGainForTrack(track, currentQuality)
                 val coverArtUrl = track.coverArtId?.let { currentProvider.coverArtUrl(it) }
-                currentCallbacks.onTrackStarted(track, coverArtUrl)
-                startCurrentTrackSidecars(scope, activeSessionId, track)
-                startAudioPrefetch(scope, activeSessionId)
+                val trackStartWork = planPlaylistTrackStartWork(
+                    sessionId = activeSessionId,
+                    track = track,
+                    playbackSource = playbackTarget.source,
+                    streamUrl = playbackTarget.url,
+                    replayGainMode = replayGainMode,
+                    replayGain = replayGain,
+                    supportsReplayGain = playbackEngine.supportsReplayGain,
+                    engineStartPositionSeconds = playbackTarget.engineStartPositionSeconds,
+                    coverArtUrl = coverArtUrl,
+                )
+                playbackSource = trackStartWork.playbackSource
+                currentCallbacks.onTrackStarted(trackStartWork.track, trackStartWork.coverArtUrl)
+                if (trackStartWork.startSidecarPrep) startCurrentTrackSidecars(scope, activeSessionId, trackStartWork.track)
+                if (trackStartWork.startAudioPrefetch) startAudioPrefetch(scope, activeSessionId)
                 playbackEngine.play(
                     scope = scope,
-                    request = PlaybackRequest(
-                        url = playbackTarget.url,
-                        mediaId = track.id.value,
-                        replayGainMode = replayGainMode.forEngine(playbackEngine),
-                        replayGain = replayGain,
-                        startPositionSeconds = startPositionSeconds?.takeIf { it > 0.0 },
-                    ),
+                    request = trackStartWork.request,
                     onStateChanged = { state ->
                         scope.launch {
                             handlePlaybackState(scope, state, activeSessionId)
@@ -310,6 +343,7 @@ class DesktopPlaylistEngine(
                 providerStreamUrl = { target -> provider.streamUrl(target.providerStreamRequest) },
             ),
             source = plan.source,
+            engineStartPositionSeconds = plan.target.engineStartPositionSeconds,
         )
     }
 
@@ -321,38 +355,53 @@ class DesktopPlaylistEngine(
         if (!audioCachingEnabledProvider()) return
         val audioCache = audioCacheRepository ?: return
         val sidecars = sidecarService ?: return
-        val sourceId = sourceIdProvider() ?: return
-        val currentProvider = provider ?: return
-        val currentQuality = streamQuality ?: return
+        val work = currentTrackSidecarWork(
+            sourceId = sourceIdProvider(),
+            provider = provider,
+            track = track,
+            quality = streamQuality,
+            audioCachingEnabled = audioCachingEnabledProvider(),
+            onlineLyricsEnabled = true,
+            lyricsVisible = false,
+        ) ?: return
+        val sourceId = work.sourceId ?: return
 
         currentTrackSidecarJob?.cancel()
         currentTrackSidecarJob = scope.launch {
-            runCatching {
-                val cachedAudio = audioCache.cacheAudioTrack(
-                    sourceId = sourceId,
-                    provider = currentProvider,
-                    track = track,
-                    quality = currentQuality,
-                )
-                if (activeSessionId == queueController.playbackSessionId) {
+            runCurrentTrackSidecars(
+                work = work,
+                isActive = { activeSessionId == queueController.playbackSessionId },
+                prepareAudio = { sidecarWork ->
+                    audioCache.cacheAudioTrack(
+                        sourceId = sourceId,
+                        provider = sidecarWork.provider,
+                        track = sidecarWork.track,
+                        quality = sidecarWork.quality,
+                    )
+                },
+                prepareWaveform = { sidecarWork ->
                     sidecars.prepareWaveform(
                         sourceId = sourceId,
-                        provider = currentProvider,
-                        track = track,
-                        quality = currentQuality,
-                        audioCachingEnabled = audioCachingEnabledProvider(),
+                        provider = sidecarWork.provider,
+                        track = sidecarWork.track,
+                        quality = sidecarWork.quality,
+                        audioCachingEnabled = sidecarWork.audioCachingEnabled,
                     )
-                    if (activeSessionId == queueController.playbackSessionId) {
-                        callbacks?.onCurrentTrackSidecarsReady(track)
-                    }
-                    runMetadataSidecars(
-                        sidecarService = sidecars,
+                },
+                prepareLyrics = { sidecarWork ->
+                    sidecars.prepareLyrics(
                         sourceId = sourceId,
-                        provider = currentProvider,
-                        track = track,
+                        provider = sidecarWork.provider,
+                        track = sidecarWork.track,
+                        quality = sidecarWork.quality,
+                        audioCachingEnabled = sidecarWork.audioCachingEnabled,
+                        onlineLyricsEnabled = sidecarWork.onlineLyricsEnabled,
                     )
-                }
-            }
+                },
+                onWaveformReady = {
+                    callbacks?.onCurrentTrackSidecarsReady(work.track)
+                },
+            )
         }
     }
 
@@ -364,39 +413,37 @@ class DesktopPlaylistEngine(
         if (!audioCachingEnabledProvider()) return
         val audioCache = audioCacheRepository ?: return
         val sidecars = sidecarService ?: return
-        val sourceId = sourceIdProvider() ?: return
-        val currentProvider = provider ?: return
-        val currentQuality = streamQuality ?: return
-        val prefetchDepth = audioPrefetchStats.configuredDepth
-        if (prefetchDepth <= 0) return
-        val upcoming = audioPrefetchTracks(
+        val work = planAudioPrefetchWork(
+            sourceId = sourceIdProvider(),
+            provider = provider,
+            quality = streamQuality,
             queue = queue,
-            depth = prefetchDepth,
+            enabled = audioPrefetchStats.enabled,
+            configuredDepth = audioPrefetchStats.configuredDepth,
             includeCurrentTrack = false,
-        )
-        if (upcoming.isEmpty()) return
+        ) ?: return
 
         audioPrefetchJob?.cancel()
         audioPrefetchJob = scope.launch {
             audioPrefetchStats = runAudioPrefetch(
-                stats = audioPrefetchStats,
-                tracks = upcoming,
+                stats = work.stats,
+                tracks = work.tracks,
                 isActive = { activeSessionId == queueController.playbackSessionId },
                 cacheAudio = { track ->
                     audioCache.cacheAudioTrack(
-                        sourceId = sourceId,
-                        provider = currentProvider,
+                        sourceId = work.sourceId,
+                        provider = work.provider,
                         track = track,
-                        quality = currentQuality,
+                        quality = work.quality,
                     )
                 },
                 prepareSidecars = { track, _ ->
                     runPrefetchSidecars(
                         sidecarService = sidecars,
-                        sourceId = sourceId,
-                        provider = currentProvider,
+                        sourceId = work.sourceId,
+                        provider = work.provider,
                         track = track,
-                        quality = currentQuality,
+                        quality = work.quality,
                     )
                 },
                 onStatsChanged = { stats -> audioPrefetchStats = stats },
@@ -433,25 +480,6 @@ class DesktopPlaylistEngine(
         )
     }
 
-    private suspend fun runMetadataSidecars(
-        sidecarService: PlaybackSidecarService,
-        sourceId: String,
-        provider: MediaProvider,
-        track: Track,
-    ) {
-        val quality = streamQuality ?: return
-        runCatching {
-            sidecarService.prepareLyrics(
-                sourceId = sourceId,
-                provider = provider,
-                track = track,
-                quality = quality,
-                audioCachingEnabled = audioCachingEnabledProvider(),
-                onlineLyricsEnabled = true,
-            )
-        }
-    }
-
     private fun handlePlaybackState(
         scope: CoroutineScope,
         state: PlaybackState,
@@ -478,35 +506,25 @@ class DesktopPlaylistEngine(
     ) {
         val queueAwareEngine = playbackEngine as? QueueAwarePlaybackEngine ?: return
         val nextIndex = queueController.nextGaplessQueueIndex() ?: return
-        val currentProvider = provider ?: return
-        val currentQuality = streamQuality ?: return
-        val plan = planPrepareNextQueuePlayback(
+        val work = preparedNextPlaybackCoordinator.work(
             queue = queue,
             progress = progress,
             nextQueueIndex = nextIndex,
-            alreadyPreparedNext = !queueController.shouldPrepareNext(nextIndex),
-            gaplessEnabled = gaplessEnabled,
-            supportsGapless = playbackEngine.supportsGapless,
-            crossfadeDurationSeconds = crossfadeSettings.durationSeconds,
-            supportsCrossfade = playbackEngine.supportsCrossfade,
-            gaplessPrepareWindowSeconds = GaplessPrepareWindowSeconds,
+            preparedNextIndex = queueController.preparedNextIndex,
+            settings = PreparedNextPlaybackSettings(
+                gaplessEnabled = gaplessEnabled,
+                supportsGapless = playbackEngine.supportsGapless,
+                crossfadeDurationSeconds = crossfadeSettings.durationSeconds,
+                supportsCrossfade = playbackEngine.supportsCrossfade,
+                gaplessPrepareWindowSeconds = GaplessPrepareWindowSeconds,
+            ),
         ) ?: return
-        queueController.markPreparedNext(plan.nextQueueIndex)
+        queueController.markPreparedNext(work.markPreparedNextIndex)
 
         scope.launch {
             if (activeSessionId != queueController.playbackSessionId) return@launch
             try {
-                val prepared = preparedNextPlaybackRequest(
-                    plan = plan,
-                    provider = currentProvider,
-                    sourceId = sourceIdProvider(),
-                    quality = currentQuality,
-                    audioCachingEnabled = audioCachingEnabledProvider(),
-                    audioAssets = playbackAudioAssets,
-                    replayGainMode = replayGainMode,
-                    supportsReplayGain = playbackEngine.supportsReplayGain,
-                    replayGainForTrack = ::replayGainForTrack,
-                )
+                val prepared = preparedNextPlaybackCoordinator.request(work) ?: return@launch
                 if (activeSessionId == queueController.playbackSessionId) {
                     withContext(Dispatchers.IO) {
                         queueAwareEngine.prepareNext(prepared.request)
@@ -540,6 +558,7 @@ class DesktopPlaylistEngine(
 private data class PlaybackTarget(
     val url: String,
     val source: PlaybackSource,
+    val engineStartPositionSeconds: Double?,
 )
 
 data class PlaylistCallbacks(
@@ -550,9 +569,6 @@ data class PlaylistCallbacks(
     val onMetadataChanged: (app.naviamp.domain.playback.PlaybackStreamMetadata) -> Unit = {},
     val onCurrentTrackSidecarsReady: (Track) -> Unit = {},
 )
-
-private fun ReplayGainMode.forEngine(playbackEngine: PlaybackEngine): ReplayGainMode =
-    if (playbackEngine.supportsReplayGain) this else ReplayGainMode.Off
 
 private fun ReplayGain.hasAnyValue(): Boolean =
     trackGainDb != null || albumGainDb != null || trackPeak != null || albumPeak != null

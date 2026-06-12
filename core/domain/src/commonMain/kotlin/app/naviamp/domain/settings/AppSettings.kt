@@ -37,6 +37,7 @@ data class PlaybackSettings(
     val volumePercent: Int = 100,
     val debugLoggingEnabled: Boolean = false,
     val lrclibLyricsEnabled: Boolean = false,
+    val sonicSimilarityEnabled: Boolean = false,
     val previousButtonBehavior: PreviousButtonBehavior = PreviousButtonBehavior.RestartThenPrevious,
     val upNextSelectionBehavior: UpNextSelectionBehavior = UpNextSelectionBehavior.MoveSelectedToCurrent,
     val wifiStreamingQuality: StreamQualityPreference = StreamQualityPreference(),
@@ -90,6 +91,33 @@ fun playbackSettingsChange(
         settings = effective,
         shouldReloadLyricsSidecars = previous?.lrclibLyricsEnabled != effective.lrclibLyricsEnabled,
     )
+}
+
+class PlaybackSettingsMaintenanceController(
+    private val playbackEngine: PlaybackEngine,
+    private val playbackSettings: () -> PlaybackSettings,
+    private val setPlaybackSettings: (PlaybackSettings) -> Unit,
+    private val savePlaybackSettings: (PlaybackSettings) -> Unit,
+    private val reloadLyricsSidecars: () -> Unit,
+    private val downloadedTracks: () -> List<Track> = { emptyList() },
+    private val redownloadTracks: (List<Track>, String) -> Unit = { _, _ -> },
+) {
+    fun applyPlaybackSettings(settings: PlaybackSettings) {
+        val change = playbackSettingsChange(settings, playbackEngine, previous = playbackSettings())
+        setPlaybackSettings(change.settings)
+        savePlaybackSettings(change.settings)
+        if (change.shouldReloadLyricsSidecars) {
+            reloadLyricsSidecars()
+        }
+    }
+
+    fun applyPlaybackSettingsAndRedownload(settings: PlaybackSettings) {
+        val tracksToRedownload = downloadedTracks()
+        applyPlaybackSettings(settings)
+        if (tracksToRedownload.isNotEmpty()) {
+            redownloadTracks(tracksToRedownload, "downloads")
+        }
+    }
 }
 
 @Serializable

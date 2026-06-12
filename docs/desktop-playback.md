@@ -141,6 +141,14 @@ apps/desktop/build/compose/distributions/Naviamp-windows-x64-release.zip
 
 Avoid Compose Desktop's `createReleaseDistributable`, `runRelease`, and `packageReleaseDistributionForCurrentOS` tasks for Naviamp deploy testing. The desktop app uses Compose Desktop plus native JNI playback bindings, and ProGuard can break runtime-only paths such as native method lookup, callback dispatch, and generated Compose bytecode even when compilation succeeds.
 
+For Windows installer artifacts, use the Makefile wrapper instead of the zip task:
+
+```powershell
+make windows-installer
+```
+
+That target calls Compose Desktop's installer packaging path intentionally, after the app-image and native-resource packaging setup has been wired into Gradle. It requires WiX Toolset 3.x on `PATH` because `jpackage` uses WiX to create MSI/EXE installers. Keep using `packageReleaseDistributable` / `make windows-standalone` for deployable app-image zip testing.
+
 ## macOS Local Build Workflow
 
 For local macOS testing, use the same normal Compose distributable path as Windows:

@@ -18,6 +18,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import app.naviamp.ui.DownloadedTrackAction
+import app.naviamp.ui.DownloadedTrackActionRequest
 import app.naviamp.ui.NaviampAction
 import app.naviamp.ui.NaviampDownloadedTrackUi
 import app.naviamp.ui.downloadRowActions
@@ -30,9 +32,7 @@ fun DesktopDownloadsPanel(
     status: String?,
     downloadBytes: Long,
     maxDownloadBytes: Long,
-    onTrackSelected: (NaviampDownloadedTrackUi) -> Unit,
-    onRemoveDownload: (NaviampDownloadedTrackUi) -> Unit,
-    onTrackAddToPlaylist: (NaviampDownloadedTrackUi) -> Unit,
+    onDownloadAction: (DownloadedTrackActionRequest) -> Unit,
 ) {
     Column(
         verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -77,7 +77,7 @@ fun DesktopDownloadsPanel(
                 val removeAction = rowActions.first { it.action == NaviampAction.RemoveDownload }
                 DesktopMediaRow(
                     appColors = appColors,
-                    onClick = { onTrackSelected(download) },
+                    onClick = { onDownloadAction(DownloadedTrackActionRequest(download, DownloadedTrackAction.Select)) },
                     verticalPadding = 3.dp,
                 ) {
                     DesktopCoverArtThumb(
@@ -111,7 +111,7 @@ fun DesktopDownloadsPanel(
                     )
                     Spacer(modifier = Modifier.width(2.dp))
                     IconButton(
-                        onClick = { onRemoveDownload(download) },
+                        onClick = { onDownloadAction(DownloadedTrackActionRequest(download, DownloadedTrackAction.Remove)) },
                         modifier = Modifier.size(28.dp),
                     ) {
                         Icon(
@@ -126,7 +126,9 @@ fun DesktopDownloadsPanel(
                         items = rowActions.mapNotNull { action ->
                             when (action.action) {
                                 NaviampAction.AddToPlaylist -> DesktopRowMenuItem(action.label, action.icon, {
-                                    onTrackAddToPlaylist(download)
+                                    onDownloadAction(
+                                        DownloadedTrackActionRequest(download, DownloadedTrackAction.AddToPlaylist),
+                                    )
                                 }, action.enabled)
                                 else -> null
                             }

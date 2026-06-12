@@ -62,6 +62,7 @@ class NavidromeProvider(
             supportsTrackRatings = true,
             supportsPlayReporting = true,
             supportsSmartPlaylists = true,
+            supportsSonicSimilarity = true,
         )
 
     private val json = Json { ignoreUnknownKeys = true }
@@ -470,6 +471,26 @@ class NavidromeProvider(
             .ifEmpty {
                 trackRadioFallback(trackId, count)
             }
+
+    override suspend fun sonicSimilarTracks(trackId: TrackId, count: Int): List<Track> =
+        runCatching {
+            val response = get(
+                endpoint = "getSonicSimilarTracks.view",
+                params = mapOf(
+                    "id" to trackId.value,
+                    "count" to count.coerceAtLeast(1).toString(),
+                ),
+            )
+            response.subsonicResponse()
+                .arrayValue("sonicMatch")
+                .mapNotNull { match ->
+                    (match as? JsonObject)
+                        ?.get("entry")
+                        ?.jsonObject
+                        ?.toTrack()
+                }
+                .filterNot { it.id == trackId }
+        }.getOrDefault(emptyList())
 
     override suspend fun lyrics(trackId: TrackId): Lyrics? {
         val response = runCatching {

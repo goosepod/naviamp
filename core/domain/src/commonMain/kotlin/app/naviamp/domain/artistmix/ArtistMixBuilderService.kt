@@ -2,8 +2,11 @@ package app.naviamp.domain.artistmix
 
 import app.naviamp.domain.Artist
 import app.naviamp.domain.Track
+import app.naviamp.domain.home.HomeContent
+import app.naviamp.domain.home.mixBuilderArtistCandidates
 import app.naviamp.domain.popular.ArtistPopularTracksService
 import app.naviamp.domain.popular.SimilarArtistsService
+import app.naviamp.domain.provider.MediaProvider
 
 class ArtistMixBuilderService(
     private val sourceId: () -> String?,
@@ -61,6 +64,32 @@ class ArtistMixBuilderService(
             .distinctBy { it.id }
     }
 }
+
+fun artistMixBuilderService(
+    sourceId: () -> String?,
+    provider: () -> MediaProvider?,
+    homeContent: () -> HomeContent,
+    localArtistSearch: suspend (sourceId: String, query: String, limit: Long) -> List<Artist>,
+    popularTracksService: ArtistPopularTracksService,
+    similarArtistsService: SimilarArtistsService,
+): ArtistMixBuilderService =
+    ArtistMixBuilderService(
+        sourceId = sourceId,
+        artistSearch = { query, limit ->
+            sourceId()
+                ?.let { activeSourceId -> localArtistSearch(activeSourceId, query, limit) }
+                .orEmpty()
+                .ifEmpty { provider()?.search(query, limit.toInt())?.artists.orEmpty() }
+        },
+        randomArtists = { limit ->
+            homeContent().mixBuilderArtistCandidates()
+                .shuffled()
+                .take(limit.toInt())
+                .ifEmpty { provider()?.artists(limit.toInt())?.shuffled().orEmpty() }
+        },
+        popularTracksService = popularTracksService,
+        similarArtistsService = similarArtistsService,
+    )
 
 fun List<Artist>.artistMixSuggestions(
     selectedArtists: List<Artist>,

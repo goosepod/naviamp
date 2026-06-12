@@ -3,22 +3,21 @@ package app.naviamp.desktop
 import androidx.compose.runtime.Composable
 import app.naviamp.domain.InternetRadioStation
 import app.naviamp.ui.InternetRadioContent
+import app.naviamp.ui.StationRowActionRequest
 
 @Composable
 fun DesktopInternetRadioPanel(
     appColors: DesktopAppColors,
     stations: List<InternetRadioStation>,
     status: String?,
-    onPlayStation: (InternetRadioStation) -> Unit,
+    onStationAction: (StationRowActionRequest) -> Unit,
     onSaveStation: (InternetRadioStation) -> Unit,
-    onDeleteStation: (InternetRadioStation) -> Unit,
 ) {
     InternetRadioContent(
         colors = appColors,
         stations = stations,
         status = status,
-        onStationSelected = onPlayStation,
+        onStationAction = onStationAction,
         onSaveStation = onSaveStation,
-        onDeleteStation = onDeleteStation,
     )
 }

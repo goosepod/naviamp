@@ -1,5 +1,9 @@
 package app.naviamp.desktop
 
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import app.naviamp.domain.Album
 import app.naviamp.domain.Playlist
 import app.naviamp.domain.Track
@@ -7,10 +11,14 @@ import app.naviamp.domain.cache.DownloadReplacementRepository
 import app.naviamp.domain.cache.DownloadRepository
 import app.naviamp.domain.cache.DownloadService
 import app.naviamp.domain.cache.DownloadTracksResult
+import app.naviamp.domain.cache.CacheMaintenanceRepository
 import app.naviamp.domain.cache.ProviderResponseCacheRepository
 import app.naviamp.domain.cache.ProviderResponseService
+import app.naviamp.domain.cache.StorageCacheStats
 import app.naviamp.domain.cache.downloadConnectionRequiredStatus
+import app.naviamp.domain.cache.downloadTracksWithRefresh
 import app.naviamp.domain.cache.downloadedTrackRemovedStatus
+import app.naviamp.domain.cache.redownloadTracksWithRefresh
 import app.naviamp.domain.playback.PlaybackEngine
 import app.naviamp.domain.provider.MediaProvider
 import app.naviamp.domain.settings.CacheSettings
@@ -26,6 +34,7 @@ class DesktopDownloadsController(
     private val scope: CoroutineScope,
     private val downloadRepository: DownloadRepository<DownloadedAudioFile, DownloadedTrack>,
     private val downloadReplacementRepository: DownloadReplacementRepository<DownloadedAudioFile>,
+    private val cacheMaintenanceRepository: CacheMaintenanceRepository<StorageCacheStats>,
     providerResponseCacheRepository: ProviderResponseCacheRepository,
     private val playbackEngine: PlaybackEngine,
     private val playbackSettings: () -> PlaybackSettings,
@@ -37,10 +46,18 @@ class DesktopDownloadsController(
     private val setOpenPlayerOnTrackStart: (Boolean) -> Unit,
     private val playlistEngine: DesktopPlaylistEngine,
     private val playlistCallbacks: () -> PlaylistCallbacks,
-    private val setDownloadStatus: (String?) -> Unit,
-    private val incrementDownloadRefreshToken: () -> Unit,
+    private val setCacheStats: (StorageCacheStats) -> Unit = {},
 ) {
+    var status by mutableStateOf<String?>(null)
+        private set
+    var refreshToken by mutableIntStateOf(0)
+        private set
+
     private val providerResponseService = ProviderResponseService(providerResponseCacheRepository)
+
+    private fun incrementRefreshToken() {
+        refreshToken += 1
+    }
 
     fun downloadTracks(label: String, tracks: List<Track>) {
         val activeProvider = provider()
@@ -49,17 +66,19 @@ class DesktopDownloadsController(
         scope.launch {
             val quality = playbackSettings().streamQuality(playbackEngine)
             val maxDownloadBytes = cacheSettings().maxDownloadBytes
-            val result = downloadService.downloadTracksWithStatus(
+            val result = downloadService.downloadTracksWithRefresh(
                 label = label,
                 tracks = tracks,
                 sourceId = activeSourceId,
                 provider = activeProvider,
                 quality = quality,
                 maxDownloadBytes = maxDownloadBytes,
-                setStatus = setDownloadStatus,
+                setStatus = { downloadStatus -> status = downloadStatus },
+                shouldRefreshDownloads = { it !is DownloadTracksResult.Blocked },
+                loadStats = {},
             )
-            if (result !is DownloadTracksResult.Blocked) {
-                incrementDownloadRefreshToken()
+            if (result.refreshDownloads) {
+                incrementRefreshToken()
             }
         }
     }
@@ -68,12 +87,34 @@ class DesktopDownloadsController(
         downloadTracks(track.title, listOf(track))
     }
 
+    fun redownloadTracks(tracks: List<Track>, label: String = "downloads") {
+        val activeProvider = provider()
+        val activeSourceId = sourceId()
+        val downloadService = DownloadService(downloadRepository, downloadReplacementRepository)
+        scope.launch {
+            val quality = playbackSettings().streamQuality(playbackEngine)
+            val result = downloadService.redownloadTracksWithRefresh(
+                tracks = tracks,
+                sourceId = activeSourceId,
+                provider = activeProvider,
+                quality = quality,
+                maxDownloadBytes = cacheSettings().maxDownloadBytes,
+                setStatus = { downloadStatus -> status = downloadStatus },
+                loadStats = { withContext(Dispatchers.IO) { cacheMaintenanceRepository.stats() } },
+            )
+            if (result.refreshDownloads) {
+                incrementRefreshToken()
+                result.stats?.let(setCacheStats)
+            }
+        }
+    }
+
     fun downloadAlbum(album: Album) {
         val activeProvider = provider() ?: run {
-            setDownloadStatus(downloadConnectionRequiredStatus())
+            status = downloadConnectionRequiredStatus()
             return
         }
-        setDownloadStatus("Loading ${album.title}...")
+        status = "Loading ${album.title}..."
         scope.launch {
             try {
                 val tracks = withContext(Dispatchers.IO) {
@@ -81,17 +122,17 @@ class DesktopDownloadsController(
                 }
                 downloadTracks(album.title, tracks)
             } catch (exception: Exception) {
-                setDownloadStatus(exception.message ?: "Could not load ${album.title}.")
+                status = exception.message ?: "Could not load ${album.title}."
             }
         }
     }
 
     fun downloadPlaylist(playlist: Playlist) {
         val activeProvider = provider() ?: run {
-            setDownloadStatus(downloadConnectionRequiredStatus())
+            status = downloadConnectionRequiredStatus()
             return
         }
-        setDownloadStatus("Loading ${playlist.name}...")
+        status = "Loading ${playlist.name}..."
         scope.launch {
             try {
                 val tracks = withContext(Dispatchers.IO) {
@@ -99,7 +140,7 @@ class DesktopDownloadsController(
                 }
                 downloadTracks(playlist.name, tracks)
             } catch (exception: Exception) {
-                setDownloadStatus(exception.message ?: "Could not load ${playlist.name}.")
+                status = exception.message ?: "Could not load ${playlist.name}."
             }
         }
     }
@@ -107,8 +148,8 @@ class DesktopDownloadsController(
     fun removeDownloadedTrack(download: DownloadedTrack) {
         val activeSourceId = sourceId() ?: return
         downloadRepository.removeDownloadedAudio(activeSourceId, download.track.id)
-        incrementDownloadRefreshToken()
-        setDownloadStatus(downloadedTrackRemovedStatus(download.track.title))
+        incrementRefreshToken()
+        status = downloadedTrackRemovedStatus(download.track.title)
     }
 
     fun playDownloadedTrack(downloads: List<DownloadedTrack>, index: Int) {

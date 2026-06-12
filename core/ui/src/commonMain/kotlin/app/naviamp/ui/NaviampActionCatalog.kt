@@ -13,6 +13,7 @@ enum class NaviampAction(
     DownloadAlbum("Download album", NaviampIcons.Downloads),
     DownloadPlaylist("Download playlist", NaviampIcons.Downloads),
     RemoveDownload("Remove download", NaviampIcons.Trash),
+    PlayNext("Play next", NaviampIcons.Player),
     AddToQueue("Add to queue", NaviampIcons.Queue),
     AddToPlaylist("Add to playlist", NaviampIcons.Playlist),
     SaveQueueAsPlaylist("Save queue as playlist", NaviampIcons.Playlist),
@@ -63,6 +64,12 @@ fun queueRowActions(): List<NaviampActionSpec> =
         canDownload = true,
         canAddToPlaylist = true,
     )
+
+fun relatedTrackRowActions(): List<NaviampActionSpec> =
+    listOf(
+        NaviampAction.PlayNext.toSpec(),
+        NaviampAction.AddToQueue.toSpec(),
+    ) + queueRowActions()
 
 fun albumRowActions(
     canStartRadio: Boolean = false,

@@ -21,17 +21,12 @@ import app.naviamp.domain.Album
 import app.naviamp.domain.AlbumDetails
 import app.naviamp.domain.Artist
 import app.naviamp.domain.ArtistDetails
-import app.naviamp.domain.Genre
 import app.naviamp.domain.InternetRadioStation
 import app.naviamp.domain.Playlist
 import app.naviamp.domain.Track
 import app.naviamp.domain.cache.LibrarySnapshot
 import app.naviamp.domain.cache.StorageCacheStats
 import app.naviamp.domain.home.HomeContent
-import app.naviamp.domain.home.HomeStationLibrary
-import app.naviamp.domain.home.HomeStationRandomAlbum
-import app.naviamp.domain.home.parseHomeDecadeStationId
-import app.naviamp.domain.home.parseHomeGenreStationId
 import app.naviamp.domain.playback.EqualizerPlaybackEngine
 import app.naviamp.domain.playback.PlaybackEngine
 import app.naviamp.domain.popular.SimilarArtistMatch
@@ -45,12 +40,14 @@ import app.naviamp.ui.SharedArtistMixBuilderUi
 import app.naviamp.ui.SharedGenreMixBuilderUi
 import app.naviamp.ui.SharedGenreMixItemUi
 import app.naviamp.ui.SharedHome
-import app.naviamp.ui.SharedHomeStationUi
+import app.naviamp.ui.SharedMediaItemAction
 import app.naviamp.ui.SharedMediaItemUi
 import app.naviamp.ui.SharedMixBuilderUi
+import app.naviamp.ui.SharedTrackGroupAction
+import app.naviamp.ui.SharedTrackGroupActionRequest
+import app.naviamp.ui.SharedTrackRowAction
+import app.naviamp.ui.StationRowAction
 import app.naviamp.ui.toSharedHomeUi
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.launch
 
 @Composable
 fun ColumnScope.DesktopAppRouteContent(
@@ -66,7 +63,6 @@ fun ColumnScope.DesktopAppRouteContent(
     libraryController: DesktopLibraryController,
     searchController: DesktopSearchController,
     smartPlaylistsController: DesktopSmartPlaylistsController,
-    coroutineScope: CoroutineScope,
     onRouteSelected: (DesktopAppRoute) -> Unit,
     onOpenArtistMixBuilder: () -> Unit,
     onOpenAlbumMixBuilder: () -> Unit,
@@ -100,7 +96,6 @@ fun ColumnScope.DesktopAppRouteContent(
     isLibrarySyncing: Boolean,
     libraryListState: LazyListState,
     onLibraryQueryChanged: (String) -> Unit,
-    onLibraryTabSelected: (DesktopLibraryTab) -> Unit,
     searchQuery: String,
     searchResults: MediaSearchResults,
     searchStatus: String?,
@@ -162,59 +157,131 @@ fun ColumnScope.DesktopAppRouteContent(
         playlistTracksById = playlistTracksById,
         canFavoriteAlbums = true,
     )
-    val homeAlbums = (
-        homeContent.recentlyAddedAlbums +
-            homeContent.mixAlbums +
-            homeContent.recentAlbums +
-            homeContent.frequentAlbums +
-            homeContent.randomAlbums +
-            homeContent.genreSpotlightAlbums +
-            homeContent.decadeAlbums
-        ).distinctBy { it.id }
-    val homePlaylists = (homeContent.playlists + playlists).distinctBy { it.id }
-    val homeInternetRadioStations = (
-        homeContent.recentInternetRadioStations +
-            homeContent.radioStations +
-            internetRadioStations
-        ).distinctBy { it.id }
-
-    fun openHomeAlbum(item: SharedMediaItemUi) {
-        homeAlbums.firstOrNull { it.id.value == item.id }?.let(appActions::openAlbumDetails)
-    }
-
-    fun openHomePlaylist(item: SharedMediaItemUi) {
-        homePlaylists.firstOrNull { it.id == item.id }?.let(appActions::openPlaylistDetails)
-    }
-
-    fun playHomeRecentRadio(item: SharedMediaItemUi) {
-        homeContent.recentRadioStreams.firstOrNull { it.id == item.id }?.let(appActions::playRecentRadio)
-    }
-
-    fun playHomeInternetRadio(item: SharedMediaItemUi) {
-        homeInternetRadioStations.firstOrNull { it.id == item.id }?.let(internetRadioController::playStation)
-    }
-
-    fun playHomeStation(station: SharedHomeStationUi) {
-        when (station.id) {
-            HomeStationLibrary -> appActions.playLibraryRadio()
-            HomeStationRandomAlbum -> appActions.playRandomAlbumRadio()
-            else -> {
-                parseHomeGenreStationId(station.id)?.let { genre ->
-                    appActions.playGenreRadio(Genre(genre))
-                    return
-                }
-                parseHomeDecadeStationId(station.id)?.let { decade ->
-                    appActions.playDecadeRadio(decade.fromYear, decade.toYear)
-                }
-            }
-        }
-    }
-
     fun openMixBuilder(builder: SharedMixBuilderUi) {
         when (builder.id) {
             "artist" -> onOpenArtistMixBuilder()
             "album" -> onOpenAlbumMixBuilder()
             "genre" -> onRouteSelected(DesktopAppRoute.GenreMix)
+        }
+    }
+    fun handleArtistMediaAction(
+        requestAction: SharedMediaItemAction,
+        artist: Artist,
+    ) {
+        when (requestAction) {
+            SharedMediaItemAction.Select -> appActions.openArtistDetails(artist)
+            SharedMediaItemAction.StartRadio -> appActions.playArtistRadio(artist)
+            SharedMediaItemAction.FindSimilar -> appActions.findSimilarArtists(artist)
+            SharedMediaItemAction.AddToQueue -> playlistsController.addArtistToQueue(artist)
+            SharedMediaItemAction.AddToPlaylist -> playlistsController.openArtistAddToPlaylist(artist)
+            SharedMediaItemAction.ToggleFavorite -> appActions.toggleArtistFavorite(artist)
+            SharedMediaItemAction.Play,
+            SharedMediaItemAction.Shuffle,
+            SharedMediaItemAction.Download,
+            SharedMediaItemAction.CreatePlaylistAndAdd,
+            SharedMediaItemAction.Rename,
+            SharedMediaItemAction.EditSmartPlaylist,
+            SharedMediaItemAction.Delete,
+            SharedMediaItemAction.EditStation,
+            SharedMediaItemAction.DeleteStation,
+            -> Unit
+        }
+    }
+    fun handleAlbumMediaAction(
+        requestAction: SharedMediaItemAction,
+        album: Album,
+    ) {
+        when (requestAction) {
+            SharedMediaItemAction.Select -> appActions.openAlbumDetails(album)
+            SharedMediaItemAction.StartRadio -> appActions.playAlbumRadio(album)
+            SharedMediaItemAction.Download -> appActions.downloadAlbum(album)
+            SharedMediaItemAction.AddToQueue -> playlistsController.addAlbumToQueue(album)
+            SharedMediaItemAction.AddToPlaylist -> playlistsController.openAlbumAddToPlaylist(album)
+            SharedMediaItemAction.ToggleFavorite -> appActions.toggleAlbumFavorite(album)
+            SharedMediaItemAction.Play,
+            SharedMediaItemAction.Shuffle,
+            SharedMediaItemAction.FindSimilar,
+            SharedMediaItemAction.CreatePlaylistAndAdd,
+            SharedMediaItemAction.Rename,
+            SharedMediaItemAction.EditSmartPlaylist,
+            SharedMediaItemAction.Delete,
+            SharedMediaItemAction.EditStation,
+            SharedMediaItemAction.DeleteStation,
+            -> Unit
+        }
+    }
+    fun handleSelectedAlbumMediaAction(requestAction: SharedMediaItemAction) {
+        when (requestAction) {
+            SharedMediaItemAction.Play -> appActions.playAlbumDetails()
+            SharedMediaItemAction.Shuffle -> appActions.playAlbumDetails(shuffle = true)
+            SharedMediaItemAction.StartRadio -> appActions.playCurrentAlbumRadio()
+            SharedMediaItemAction.Download -> appActions.downloadCurrentAlbum()
+            SharedMediaItemAction.AddToQueue -> appActions.addCurrentAlbumToQueue()
+            SharedMediaItemAction.AddToPlaylist -> appActions.openCurrentAlbumAddToPlaylist()
+            SharedMediaItemAction.ToggleFavorite -> (selectedAlbumDetails?.album ?: selectedAlbum)?.let {
+                appActions.toggleAlbumFavorite(it)
+            }
+            SharedMediaItemAction.Select,
+            SharedMediaItemAction.FindSimilar,
+            SharedMediaItemAction.CreatePlaylistAndAdd,
+            SharedMediaItemAction.Rename,
+            SharedMediaItemAction.EditSmartPlaylist,
+            SharedMediaItemAction.Delete,
+            SharedMediaItemAction.EditStation,
+            SharedMediaItemAction.DeleteStation,
+            -> Unit
+        }
+    }
+    fun handlePlaylistMediaAction(
+        requestAction: SharedMediaItemAction,
+        playlist: Playlist,
+        shuffle: Boolean = false,
+    ) {
+        when (requestAction) {
+            SharedMediaItemAction.Select -> appActions.openPlaylistDetails(playlist)
+            SharedMediaItemAction.Play -> appActions.playPlaylist(playlist, shuffle)
+            SharedMediaItemAction.Shuffle -> appActions.playPlaylist(playlist, shuffle = true)
+            SharedMediaItemAction.Download -> appActions.downloadPlaylist(playlist)
+            SharedMediaItemAction.AddToQueue -> playlistsController.addPlaylistToQueue(playlist)
+            SharedMediaItemAction.AddToPlaylist -> playlistsController.openPlaylistAddToPlaylist(playlist)
+            SharedMediaItemAction.Rename -> onPlaylistRenameRequested(playlist)
+            SharedMediaItemAction.Delete -> onPlaylistDeleteRequested(playlist)
+            SharedMediaItemAction.StartRadio,
+            SharedMediaItemAction.FindSimilar,
+            SharedMediaItemAction.ToggleFavorite,
+            SharedMediaItemAction.CreatePlaylistAndAdd,
+            SharedMediaItemAction.EditSmartPlaylist,
+            SharedMediaItemAction.EditStation,
+            SharedMediaItemAction.DeleteStation,
+            -> Unit
+        }
+    }
+    fun handleSelectedPlaylistMediaAction(requestAction: SharedMediaItemAction) {
+        when (requestAction) {
+            SharedMediaItemAction.Play -> appActions.playPlaylistDetails()
+            SharedMediaItemAction.Shuffle -> appActions.playPlaylistDetails(shuffle = true)
+            SharedMediaItemAction.Rename -> playlistsController.requestSelectedPlaylistRename()
+            SharedMediaItemAction.Delete -> playlistsController.requestSelectedPlaylistDelete()
+            SharedMediaItemAction.Download -> appActions.downloadSelectedPlaylist()
+            SharedMediaItemAction.AddToQueue -> playlistsController.addSelectedPlaylistToQueue()
+            SharedMediaItemAction.AddToPlaylist -> playlistsController.openSelectedPlaylistAddToPlaylist()
+            SharedMediaItemAction.Select,
+            SharedMediaItemAction.StartRadio,
+            SharedMediaItemAction.FindSimilar,
+            SharedMediaItemAction.ToggleFavorite,
+            SharedMediaItemAction.CreatePlaylistAndAdd,
+            SharedMediaItemAction.EditSmartPlaylist,
+            SharedMediaItemAction.EditStation,
+            SharedMediaItemAction.DeleteStation,
+            -> Unit
+        }
+    }
+    fun handlePopularTracksGroupAction(request: SharedTrackGroupActionRequest) {
+        if (request.tracks.isEmpty()) return
+        when (request.action) {
+            SharedTrackGroupAction.Play -> appActions.playPopularTracks(selectedArtistPopularTracks)
+            SharedTrackGroupAction.StartRadio -> appActions.playPopularTracksRadio(selectedArtistPopularTracks)
+            SharedTrackGroupAction.AddToQueue -> appActions.addPopularTracksToQueue(selectedArtistPopularTracks)
         }
     }
 
@@ -247,16 +314,14 @@ fun ColumnScope.DesktopAppRouteContent(
                 DesktopAppRoute.Home -> SharedHome(
                     colors = appColors,
                     home = sharedHome,
-                    onAlbumSelected = ::openHomeAlbum,
-                    onAlbumFavoriteToggled = { item ->
-                        homeAlbums.firstOrNull { it.id.value == item.id }?.let(appActions::toggleAlbumFavorite)
-                    },
-                    onMixAlbumSelected = ::openHomeAlbum,
-                    onPlaylistSelected = ::openHomePlaylist,
-                    onRecentRadioSelected = ::playHomeRecentRadio,
-                    onInternetRadioStationSelected = ::playHomeInternetRadio,
+                    onAlbumSelected = { item -> appActions.openHomeAlbum(item.id) },
+                    onAlbumFavoriteToggled = { item -> appActions.toggleHomeAlbumFavorite(item.id) },
+                    onMixAlbumSelected = { item -> appActions.openHomeAlbum(item.id) },
+                    onPlaylistSelected = { item -> appActions.openHomePlaylist(item.id) },
+                    onRecentRadioSelected = { item -> appActions.playHomeRecentRadio(item.id) },
+                    onInternetRadioStationSelected = { item -> appActions.playHomeInternetRadio(item.id) },
                     onMixBuilderSelected = ::openMixBuilder,
-                    onHomeStationSelected = ::playHomeStation,
+                    onHomeStationSelected = { station -> appActions.playHomeStation(station.id) },
                 )
                 DesktopAppRoute.AlbumDetail -> DesktopAlbumDetailPanel(
                     appColors = appColors,
@@ -268,39 +333,20 @@ fun ColumnScope.DesktopAppRouteContent(
                         )?.let(coverArtUrl),
                     popularTrackIds = selectedArtistPopularTracks.map { it.id.value }.toSet(),
                     onBack = { onRouteSelected(albumDetailBackRoute) },
-                    onPlayAlbum = { appActions.playAlbumDetails() },
-                    onShuffleAlbum = { appActions.playAlbumDetails(shuffle = true) },
-                    onAlbumRadio = {
-                        selectedAlbumDetails?.album?.let(appActions::playAlbumRadio)
-                            ?: selectedAlbum?.let(appActions::playAlbumRadio)
-                    },
-                    onDownloadAlbum = {
-                        selectedAlbumDetails?.let { appActions.downloadTracks(it.album.title, it.tracks) }
-                            ?: selectedAlbum?.let(appActions::downloadAlbum)
-                    },
-                    onAddAlbumToQueue = {
-                        selectedAlbumDetails?.album?.let {
-                            playlistsController.addTargetToQueue(AddToPlaylistTarget.AlbumTarget(it))
-                        } ?: selectedAlbum?.let {
-                            playlistsController.addTargetToQueue(AddToPlaylistTarget.AlbumTarget(it))
+                    onAlbumAction = { request -> handleSelectedAlbumMediaAction(request.action) },
+                    onTrackAction = { request ->
+                        val index = selectedAlbumDetails?.tracks?.indexOfFirst { track -> track.id.value == request.track.id } ?: -1
+                        val track = selectedAlbumDetails?.tracks?.getOrNull(index)
+                        if (track != null) {
+                            when (request.action) {
+                                SharedTrackRowAction.Select -> appActions.playAlbumDetails(index = index)
+                                SharedTrackRowAction.StartRadio -> appActions.playTrackRadio(track)
+                                SharedTrackRowAction.Download -> appActions.downloadTrack(track)
+                                SharedTrackRowAction.AddToQueue -> playlistsController.addTrackToQueue(track)
+                                SharedTrackRowAction.AddToPlaylist -> playlistsController.openTrackAddToPlaylist(track)
+                                SharedTrackRowAction.CreatePlaylistAndAdd -> Unit
+                            }
                         }
-                    },
-                    onPlayTrack = { index -> appActions.playAlbumDetails(index = index) },
-                    onTrackRadio = appActions::playTrackRadio,
-                    onDownloadTrack = appActions::downloadTrack,
-                    onAddTrackToQueue = { track ->
-                        playlistsController.addTargetToQueue(AddToPlaylistTarget.TrackTarget(track))
-                    },
-                    onAddAlbumToPlaylist = {
-                        selectedAlbumDetails?.album?.let {
-                            playlistsController.openAddToPlaylist(AddToPlaylistTarget.AlbumTarget(it))
-                        } ?: selectedAlbum?.let {
-                            playlistsController.openAddToPlaylist(AddToPlaylistTarget.AlbumTarget(it))
-                        }
-                    },
-                    onAlbumFavoriteToggle = appActions::toggleAlbumFavorite,
-                    onAddTrackToPlaylist = { track ->
-                        playlistsController.openAddToPlaylist(AddToPlaylistTarget.TrackTarget(track))
                     },
                     onArtistSelected = { track ->
                         appActions.openTrackArtistDetails(track, backRouteOverride = DesktopAppRoute.AlbumDetail)
@@ -317,37 +363,33 @@ fun ColumnScope.DesktopAppRouteContent(
                     similarArtistsStatus = selectedArtistSimilarArtistsStatus,
                     coverArtUrl = coverArtUrl,
                     onBack = appActions::closeArtistDetails,
-                    onArtistRadio = appActions::playArtistRadio,
-                    onFindSimilarArtists = appActions::findSimilarArtists,
                     onSimilarArtistSelected = appActions::openArtistDetails,
                     onSimilarArtistExternalSelected = appActions::openExternalArtistUrl,
-                    onPopularTracksPlay = appActions::playPopularTracks,
-                    onPopularTracksRadio = appActions::playPopularTracksRadio,
-                    onPopularTracksAddToQueue = appActions::addPopularTracksToQueue,
-                    onPopularTrackSelected = { track ->
-                        val index = selectedArtistPopularTracks.indexOfFirst { it.id == track.id }.coerceAtLeast(0)
-                        appActions.playPopularTracks(selectedArtistPopularTracks, index)
+                    onArtistAction = { request ->
+                        (selectedArtistDetails?.artist ?: selectedArtist)
+                            ?.let { artist -> handleArtistMediaAction(request.action, artist) }
                     },
-                    onPopularTrackAddToQueue = { track ->
-                        playlistsController.addTargetToQueue(AddToPlaylistTarget.TrackTarget(track))
+                    onPopularTracksAction = ::handlePopularTracksGroupAction,
+                    onPopularTrackAction = { request ->
+                        selectedArtistPopularTracks
+                            .firstOrNull { track -> track.id.value == request.track.id }
+                            ?.let { track ->
+                                when (request.action) {
+                                    SharedTrackRowAction.Select -> appActions.playSelectedPopularTrack(track)
+                                    SharedTrackRowAction.StartRadio -> appActions.playPopularTracksRadio(listOf(track))
+                                    SharedTrackRowAction.AddToQueue -> playlistsController.addTrackToQueue(track)
+                                    SharedTrackRowAction.Download,
+                                    SharedTrackRowAction.AddToPlaylist,
+                                    SharedTrackRowAction.CreatePlaylistAndAdd,
+                                    -> Unit
+                                }
+                            }
                     },
-                    onAddArtistToQueue = { artist ->
-                        playlistsController.addTargetToQueue(AddToPlaylistTarget.ArtistTarget(artist))
+                    onAlbumAction = { request ->
+                        selectedArtistDetails?.albums
+                            ?.firstOrNull { album -> album.id.value == request.item.id }
+                            ?.let { album -> handleAlbumMediaAction(request.action, album) }
                     },
-                    onAddArtistToPlaylist = { artist ->
-                        playlistsController.openAddToPlaylist(AddToPlaylistTarget.ArtistTarget(artist))
-                    },
-                    onArtistFavoriteToggle = appActions::toggleArtistFavorite,
-                    onAlbumSelected = appActions::openAlbumDetails,
-                    onAlbumRadioSelected = appActions::playAlbumRadio,
-                    onAlbumDownloadSelected = appActions::downloadAlbum,
-                    onAlbumAddToQueue = { album ->
-                        playlistsController.addTargetToQueue(AddToPlaylistTarget.AlbumTarget(album))
-                    },
-                    onAlbumAddToPlaylist = { album ->
-                        playlistsController.openAddToPlaylist(AddToPlaylistTarget.AlbumTarget(album))
-                    },
-                    onAlbumFavoriteToggle = appActions::toggleAlbumFavorite,
                 )
                 DesktopAppRoute.Playlists -> DesktopPlaylistsPanel(
                     appColors = appColors,
@@ -358,16 +400,10 @@ fun ColumnScope.DesktopAppRouteContent(
                     status = playlistStatus ?: connectionStatus,
                     coverArtUrl = coverArtUrl,
                     onSortModeChanged = onPlaylistSortModeChanged,
-                    onPlaylistSelected = appActions::openPlaylistDetails,
-                    onPlayPlaylist = appActions::playPlaylist,
-                    onRenamePlaylist = onPlaylistRenameRequested,
-                    onDeletePlaylist = onPlaylistDeleteRequested,
-                    onDownloadPlaylist = appActions::downloadPlaylist,
-                    onAddPlaylistToQueue = { playlist ->
-                        playlistsController.addTargetToQueue(AddToPlaylistTarget.PlaylistTarget(playlist))
-                    },
-                    onAddPlaylistToPlaylist = { playlist ->
-                        playlistsController.openAddToPlaylist(AddToPlaylistTarget.PlaylistTarget(playlist))
+                    onPlaylistAction = { request ->
+                        playlists
+                            .firstOrNull { playlist -> playlist.id == request.item.id }
+                            ?.let { playlist -> handlePlaylistMediaAction(request.action, playlist, request.shuffle) }
                     },
                     onSmartPlaylistSave = smartPlaylistsController::saveSmartPlaylist,
                     onSmartPlaylistUpdate = smartPlaylistsController::updateSmartPlaylist,
@@ -381,31 +417,20 @@ fun ColumnScope.DesktopAppRouteContent(
                     playlistCoverArtUrl = selectedPlaylist?.coverArtId?.let(coverArtUrl),
                     coverArtUrl = coverArtUrl,
                     onBack = { onRouteSelected(DesktopAppRoute.Playlists) },
-                    onPlayPlaylist = { appActions.playPlaylistDetails() },
-                    onShufflePlaylist = { appActions.playPlaylistDetails(shuffle = true) },
-                    onRenamePlaylist = { selectedPlaylist?.let(onPlaylistRenameRequested) },
-                    onDeletePlaylist = { selectedPlaylist?.let(onPlaylistDeleteRequested) },
-                    onDownloadPlaylist = {
-                        selectedPlaylist?.let { appActions.downloadTracks(it.name, selectedPlaylistTracks) }
-                    },
-                    onAddPlaylistToQueue = {
-                        selectedPlaylist?.let {
-                            playlistsController.addTargetToQueue(AddToPlaylistTarget.PlaylistTarget(it))
+                    onPlaylistAction = { request -> handleSelectedPlaylistMediaAction(request.action) },
+                    onTrackAction = { request ->
+                        val index = selectedPlaylistTracks.indexOfFirst { track -> track.id.value == request.track.id }
+                        val track = selectedPlaylistTracks.getOrNull(index)
+                        if (track != null) {
+                            when (request.action) {
+                                SharedTrackRowAction.Select -> appActions.playPlaylistDetails(index = index)
+                                SharedTrackRowAction.StartRadio -> appActions.playTrackRadio(track)
+                                SharedTrackRowAction.Download -> appActions.downloadTrack(track)
+                                SharedTrackRowAction.AddToQueue -> playlistsController.addTrackToQueue(track)
+                                SharedTrackRowAction.AddToPlaylist -> playlistsController.openTrackAddToPlaylist(track)
+                                SharedTrackRowAction.CreatePlaylistAndAdd -> Unit
+                            }
                         }
-                    },
-                    onAddPlaylistToPlaylist = {
-                        selectedPlaylist?.let {
-                            playlistsController.openAddToPlaylist(AddToPlaylistTarget.PlaylistTarget(it))
-                        }
-                    },
-                    onPlayTrack = { index -> appActions.playPlaylistDetails(index = index) },
-                    onTrackRadio = appActions::playTrackRadio,
-                    onDownloadTrack = appActions::downloadTrack,
-                    onAddTrackToQueue = { track ->
-                        playlistsController.addTargetToQueue(AddToPlaylistTarget.TrackTarget(track))
-                    },
-                    onAddTrackToPlaylist = { track ->
-                        playlistsController.openAddToPlaylist(AddToPlaylistTarget.TrackTarget(track))
                     },
                 )
                 DesktopAppRoute.Library -> {
@@ -425,34 +450,17 @@ fun ColumnScope.DesktopAppRouteContent(
                         listState = libraryListState,
                         coverArtUrl = coverArtUrl,
                         onQueryChanged = onLibraryQueryChanged,
-                        onTabSelected = { tab ->
-                            onLibraryTabSelected(tab)
-                            libraryController.refreshLibrarySnapshot()
-                            coroutineScope.launch {
-                                libraryListState.scrollToItem(0)
-                            }
-                        },
+                        onTabSelected = libraryController::selectLibraryTab,
                         onLoadMore = libraryController::loadMoreLibraryRows,
                         onJumpToLetter = libraryController::jumpLibraryToLetter,
-                        onArtistSelected = appActions::openArtistDetails,
-                        onArtistRadioSelected = appActions::playArtistRadio,
-                        onArtistAddToQueue = { artist ->
-                            playlistsController.addTargetToQueue(AddToPlaylistTarget.ArtistTarget(artist))
+                        onMediaItemAction = { request ->
+                            librarySnapshot.artists
+                                .firstOrNull { artist -> artist.id.value == request.item.id }
+                                ?.let { artist -> handleArtistMediaAction(request.action, artist) }
+                                ?: librarySnapshot.albums
+                                    .firstOrNull { album -> album.id.value == request.item.id }
+                                    ?.let { album -> handleAlbumMediaAction(request.action, album) }
                         },
-                        onArtistAddToPlaylist = { artist ->
-                            playlistsController.openAddToPlaylist(AddToPlaylistTarget.ArtistTarget(artist))
-                        },
-                        onArtistFavoriteToggle = appActions::toggleArtistFavorite,
-                        onAlbumSelected = appActions::openAlbumDetails,
-                        onAlbumRadioSelected = appActions::playAlbumRadio,
-                        onAlbumDownloadSelected = appActions::downloadAlbum,
-                        onAlbumAddToQueue = { album ->
-                            playlistsController.addTargetToQueue(AddToPlaylistTarget.AlbumTarget(album))
-                        },
-                        onAlbumAddToPlaylist = { album ->
-                            playlistsController.openAddToPlaylist(AddToPlaylistTarget.AlbumTarget(album))
-                        },
-                        onAlbumFavoriteToggle = appActions::toggleAlbumFavorite,
                         onRefreshLibrary = { libraryController.startLibrarySync(force = true) },
                     )
                 }
@@ -465,40 +473,25 @@ fun ColumnScope.DesktopAppRouteContent(
                     coverArtUrl = coverArtUrl,
                     onQueryChanged = searchController::updateQuery,
                     onClearSearch = searchController::clearSearch,
-                    onArtistSelected = appActions::openArtistDetails,
-                    onArtistRadioSelected = appActions::playArtistRadio,
-                    onArtistAddToQueue = { artist ->
-                        playlistsController.addTargetToQueue(AddToPlaylistTarget.ArtistTarget(artist))
+                    onMediaItemAction = { request ->
+                        searchResults.artists
+                            .firstOrNull { artist -> artist.id.value == request.item.id }
+                            ?.let { artist -> handleArtistMediaAction(request.action, artist) }
+                            ?: searchResults.albums
+                                .firstOrNull { album -> album.id.value == request.item.id }
+                                ?.let { album -> handleAlbumMediaAction(request.action, album) }
                     },
-                    onArtistAddToPlaylist = { artist ->
-                        playlistsController.openAddToPlaylist(AddToPlaylistTarget.ArtistTarget(artist))
-                    },
-                    onArtistFavoriteToggle = appActions::toggleArtistFavorite,
-                    onAlbumSelected = appActions::openAlbumDetails,
-                    onAlbumRadioSelected = appActions::playAlbumRadio,
-                    onAlbumDownloadSelected = appActions::downloadAlbum,
-                    onAlbumAddToQueue = { album ->
-                        playlistsController.addTargetToQueue(AddToPlaylistTarget.AlbumTarget(album))
-                    },
-                    onAlbumAddToPlaylist = { album ->
-                        playlistsController.openAddToPlaylist(AddToPlaylistTarget.AlbumTarget(album))
-                    },
-                    onAlbumFavoriteToggle = appActions::toggleAlbumFavorite,
-                    onTrackSelected = appActions::playSearchTrack,
-                    onTrackRadioSelected = { index ->
-                        searchResults.tracks.getOrNull(index)?.let(appActions::playTrackRadio)
-                    },
-                    onTrackDownloadSelected = { index ->
-                        searchResults.tracks.getOrNull(index)?.let(appActions::downloadTrack)
-                    },
-                    onTrackAddToQueue = { index ->
-                        searchResults.tracks.getOrNull(index)?.let {
-                            playlistsController.addTargetToQueue(AddToPlaylistTarget.TrackTarget(it))
-                        }
-                    },
-                    onTrackAddToPlaylist = { index ->
-                        searchResults.tracks.getOrNull(index)?.let {
-                            playlistsController.openAddToPlaylist(AddToPlaylistTarget.TrackTarget(it))
+                    onTrackAction = { request ->
+                        val index = searchResults.tracks.indexOfFirst { track -> track.id.value == request.track.id }
+                        if (index >= 0) {
+                            when (request.action) {
+                                SharedTrackRowAction.Select -> appActions.playSearchTrack(index)
+                                SharedTrackRowAction.StartRadio -> appActions.playSearchTrackRadio(index)
+                                SharedTrackRowAction.Download -> appActions.downloadSearchTrack(index)
+                                SharedTrackRowAction.AddToQueue -> appActions.addSearchTrackToQueue(index)
+                                SharedTrackRowAction.AddToPlaylist -> appActions.openSearchTrackAddToPlaylist(index)
+                                SharedTrackRowAction.CreatePlaylistAndAdd -> Unit
+                            }
                         }
                     },
                 )
@@ -609,9 +602,16 @@ fun ColumnScope.DesktopAppRouteContent(
                         appColors = appColors,
                         stations = internetRadioStations,
                         status = internetRadioStatus ?: connectionStatus,
-                        onPlayStation = internetRadioController::playStation,
+                        onStationAction = { request ->
+                            internetRadioStations.firstOrNull { station -> station.id == request.station.id }?.let { station ->
+                                when (request.action) {
+                                    StationRowAction.Select -> internetRadioController.playStation(station)
+                                    StationRowAction.Edit -> Unit
+                                    StationRowAction.Delete -> onDeleteInternetRadioStation(station)
+                                }
+                            }
+                        },
                         onSaveStation = onSaveInternetRadioStation,
-                        onDeleteStation = onDeleteInternetRadioStation,
                     )
                 }
                 DesktopAppRoute.Downloads -> DesktopDownloadsRoute(
@@ -627,7 +627,7 @@ fun ColumnScope.DesktopAppRouteContent(
                     onPlayDownloadedTrack = appActions::playDownloadedTrack,
                     onRemoveDownloadedTrack = appActions::removeDownloadedTrack,
                     onAddDownloadedTrackToPlaylist = { download ->
-                        playlistsController.openAddToPlaylist(AddToPlaylistTarget.TrackTarget(download.track))
+                        playlistsController.openTrackAddToPlaylist(download.track)
                     },
                 )
                 DesktopAppRoute.Settings -> DesktopSettingsPanel(

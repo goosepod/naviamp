@@ -15,6 +15,20 @@ data class TrackPlaybackSelection(
     val index: Int,
 )
 
+data class MediaTrackLookupSources(
+    val primaryTracks: List<Track> = emptyList(),
+    val selectedPlaylistTracks: List<Track> = emptyList(),
+    val relatedTracks: List<Track> = emptyList(),
+    val artistPopularTracks: List<Track> = emptyList(),
+    val extraTracks: List<Track> = emptyList(),
+    val fallbackTracks: List<Track> = emptyList(),
+)
+
+data class SelectedTrackPlayback(
+    val track: Track,
+    val tracks: List<Track>,
+)
+
 fun trackPlaybackSelection(
     tracks: List<Track>,
     index: Int,
@@ -26,6 +40,40 @@ fun trackPlaybackSelection(
         index = if (shuffle) 0 else index,
     )
 }
+
+fun knownTracksForMediaActions(sources: MediaTrackLookupSources): List<Track> =
+    sources.primaryTracks +
+        sources.selectedPlaylistTracks +
+        sources.relatedTracks +
+        sources.artistPopularTracks +
+        sources.extraTracks +
+        sources.fallbackTracks
+
+fun findKnownTrack(
+    trackId: String,
+    sources: MediaTrackLookupSources,
+): Track? =
+    knownTracksForMediaActions(sources).firstOrNull { track -> track.id.value == trackId }
+
+fun selectedTrackPlayback(
+    trackId: String,
+    sources: MediaTrackLookupSources,
+): SelectedTrackPlayback? {
+    val currentTracks = sources.primaryTracks.takeIf { tracks -> tracks.any { it.id.value == trackId } }
+        ?: sources.relatedTracks.takeIf { tracks -> tracks.any { it.id.value == trackId } }
+        ?: sources.artistPopularTracks.takeIf { tracks -> tracks.any { it.id.value == trackId } }
+        ?: sources.fallbackTracks
+    val track = currentTracks.firstOrNull { it.id.value == trackId }
+        ?: findKnownTrack(trackId, sources)
+        ?: return null
+    return SelectedTrackPlayback(track = track, tracks = currentTracks)
+}
+
+fun searchOrAlbumTracksForMediaActions(
+    searchResults: MediaSearchResults,
+    albumDetail: AlbumDetails?,
+): List<Track> =
+    albumDetail?.tracks ?: searchResults.tracks
 
 fun Track?.withUpdatedTrack(updatedTrack: Track): Track? =
     this?.let { track ->

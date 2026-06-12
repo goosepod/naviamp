@@ -1,12 +1,12 @@
 package app.naviamp.desktop
 
-import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import app.naviamp.domain.Playlist
 import app.naviamp.domain.Track
 import app.naviamp.domain.app.shouldRefreshStorageStats
 import app.naviamp.domain.cache.StorageCacheStats
+import app.naviamp.domain.home.HomeContent
 import app.naviamp.domain.playback.PlaybackEngine
 import app.naviamp.domain.provider.PlaylistDetailRefreshIntervalMillis
 import app.naviamp.domain.provider.playlistDetailAutoRefreshTarget
@@ -19,12 +19,12 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 
 @Composable
-fun DesktopAppControllerEffects(
+internal fun DesktopAppControllerEffects(
     nowPlayingController: DesktopNowPlayingController,
     playlistsController: DesktopPlaylistsController,
     searchController: DesktopSearchController,
     libraryController: DesktopLibraryController,
-    libraryListState: LazyListState,
+    mixBuilderController: DesktopMixBuilderController,
     hasSavedConnection: Boolean,
     connectToServer: () -> Unit,
     nowPlayingTrack: Track?,
@@ -37,9 +37,7 @@ fun DesktopAppControllerEffects(
     nowPlayingLyricsVisible: Boolean,
     appRoute: DesktopAppRoute,
     selectedPlaylist: Playlist?,
-    searchQuery: String,
-    libraryQuery: String,
-    setLibraryLimit: (Int) -> Unit,
+    homeContent: HomeContent,
     showStatsForNerds: Boolean,
     statsForNerdsRefreshTick: Int,
     incrementStatsForNerdsRefreshTick: () -> Unit,
@@ -62,7 +60,12 @@ fun DesktopAppControllerEffects(
         nowPlayingController.loadNowPlayingAnalysis()
     }
 
-    LaunchedEffect(nowPlayingTrack?.id, connectedSourceId) {
+    LaunchedEffect(
+        nowPlayingTrack?.id,
+        connectedSourceId,
+        connectedProvider,
+        playbackSettings.sonicSimilarityEnabled,
+    ) {
         nowPlayingController.loadRelatedTracks()
     }
 
@@ -96,14 +99,30 @@ fun DesktopAppControllerEffects(
         }
     }
 
-    LaunchedEffect(searchQuery, connectedProvider) {
-        searchController.loadSearchResults(searchQuery)
+    LaunchedEffect(searchController.query, connectedProvider) {
+        searchController.loadSearchResults(searchController.query)
     }
 
-    LaunchedEffect(libraryQuery, connectedSourceId) {
-        setLibraryLimit(LibraryPageSize)
-        libraryController.refreshLibrarySnapshot()
-        libraryListState.scrollToItem(0)
+    LaunchedEffect(libraryController.query, connectedSourceId) {
+        libraryController.refreshAfterQueryOrSourceChange()
+    }
+
+    LaunchedEffect(connectedSourceId, homeContent.artists) {
+        if (connectedSourceId != null && mixBuilderController.artistSuggestionsEmpty) {
+            mixBuilderController.refreshArtistInitialSuggestions()
+        }
+    }
+
+    LaunchedEffect(connectedSourceId, homeContent.randomAlbums, homeContent.mixAlbums) {
+        if (connectedSourceId != null && mixBuilderController.albumSuggestionsEmpty) {
+            mixBuilderController.refreshAlbumInitialSuggestions()
+        }
+    }
+
+    LaunchedEffect(connectedSourceId, homeContent.genres) {
+        if (connectedSourceId != null && mixBuilderController.genreSuggestionsEmpty) {
+            mixBuilderController.refreshGenreSuggestions()
+        }
     }
 
     LaunchedEffect(showStatsForNerds) {

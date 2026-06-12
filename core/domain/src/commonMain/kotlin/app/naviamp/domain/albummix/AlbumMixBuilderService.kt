@@ -3,7 +3,11 @@ package app.naviamp.domain.albummix
 import app.naviamp.domain.Album
 import app.naviamp.domain.Artist
 import app.naviamp.domain.Track
+import app.naviamp.domain.home.HomeContent
+import app.naviamp.domain.home.mixBuilderAlbumCandidates
 import app.naviamp.domain.popular.SimilarArtistsService
+import app.naviamp.domain.provider.AlbumListType
+import app.naviamp.domain.provider.MediaProvider
 
 class AlbumMixBuilderService(
     private val albumSearch: suspend (String, Long) -> List<Album>,
@@ -70,6 +74,50 @@ fun List<Album>.albumMixSuggestions(
         .filterNot { it.id in selectedIds }
         .take(limit)
 }
+
+fun albumMixBuilderService(
+    sourceId: () -> String?,
+    provider: () -> MediaProvider?,
+    homeContent: () -> HomeContent,
+    localAlbumSearch: suspend (sourceId: String, query: String, limit: Long) -> List<Album>,
+    localAlbumTracks: suspend (sourceId: String, album: Album, limit: Long) -> List<Track>,
+    providerAlbumTracks: suspend (provider: MediaProvider, album: Album) -> List<Track>,
+    similarArtistsService: SimilarArtistsService,
+): AlbumMixBuilderService =
+    AlbumMixBuilderService(
+        albumSearch = { query, limit ->
+            sourceId()
+                ?.let { activeSourceId -> localAlbumSearch(activeSourceId, query, limit) }
+                .orEmpty()
+                .ifEmpty { provider()?.search(query, limit.toInt())?.albums.orEmpty() }
+        },
+        randomAlbums = { limit ->
+            homeContent().mixBuilderAlbumCandidates()
+                .shuffled()
+                .take(limit.toInt())
+                .ifEmpty {
+                    provider()?.albumList(AlbumListType.Random, limit.toInt())?.shuffled().orEmpty()
+                }
+        },
+        albumsForArtist = { artist, limit ->
+            sourceId()
+                ?.let { activeSourceId -> localAlbumSearch(activeSourceId, artist.name, limit) }
+                .orEmpty()
+                .filter { album -> album.artistName.equals(artist.name, ignoreCase = true) }
+        },
+        albumTracks = { album, limit ->
+            val localTracks = sourceId()
+                ?.let { activeSourceId -> localAlbumTracks(activeSourceId, album, limit) }
+                .orEmpty()
+            val providerTracks = provider()
+                ?.let { activeProvider ->
+                    runCatching { providerAlbumTracks(activeProvider, album) }.getOrDefault(emptyList())
+                }
+                .orEmpty()
+            providerTracks.ifEmpty { localTracks }.take(limit.toInt())
+        },
+        similarArtistsService = similarArtistsService,
+    )
 
 fun albumMixSelectedAlbumsAfterSelect(
     selectedAlbums: List<Album>,

@@ -50,6 +50,21 @@ fun TrackRow(
     onAddToQueue: ((SharedTrackRowUi) -> Unit)? = null,
     onDownload: ((SharedTrackRowUi) -> Unit)? = null,
     onAddToPlaylist: ((SharedTrackRowUi) -> Unit)? = null,
+    canSelect: Boolean = onTrackSelected != null,
+    canStartRadio: Boolean = onStartRadio != null,
+    canAddToQueue: Boolean = onAddToQueue != null,
+    canDownload: Boolean = onDownload != null,
+    canAddToPlaylist: Boolean = onAddToPlaylist != null,
+    onTrackAction: (SharedTrackRowActionRequest) -> Unit = { request ->
+        when (request.action) {
+            SharedTrackRowAction.Select -> onTrackSelected?.invoke(request.track)
+            SharedTrackRowAction.StartRadio -> onStartRadio?.invoke(request.track)
+            SharedTrackRowAction.AddToQueue -> onAddToQueue?.invoke(request.track)
+            SharedTrackRowAction.Download -> onDownload?.invoke(request.track)
+            SharedTrackRowAction.AddToPlaylist -> onAddToPlaylist?.invoke(request.track)
+            SharedTrackRowAction.CreatePlaylistAndAdd -> Unit
+        }
+    },
     reservePopularIndicatorSpace: Boolean = false,
     modifier: Modifier = Modifier,
     background: Boolean = false,
@@ -80,7 +95,13 @@ fun TrackRow(
                 },
             )
             .let { rowModifier ->
-                if (onTrackSelected != null) rowModifier.clickable { onTrackSelected(track) } else rowModifier
+                if (canSelect) {
+                    rowModifier.clickable {
+                        onTrackAction(SharedTrackRowActionRequest(track, SharedTrackRowAction.Select))
+                    }
+                } else {
+                    rowModifier
+                }
             }
             .padding(horizontal = horizontalPadding, vertical = verticalPadding),
         verticalAlignment = Alignment.CenterVertically,
@@ -117,24 +138,52 @@ fun TrackRow(
         }
         trailingContent?.invoke(this)
         val rowActions = trackRowActions(
-            canStartRadio = onStartRadio != null,
-            canDownload = onDownload != null,
-            canAddToQueue = onAddToQueue != null,
-            canAddToPlaylist = onAddToPlaylist != null,
+            canStartRadio = canStartRadio,
+            canDownload = canDownload,
+            canAddToQueue = canAddToQueue,
+            canAddToPlaylist = canAddToPlaylist,
             canShowDetails = track.detailSections.isNotEmpty(),
         ).mapNotNull { action ->
             when (action.action) {
-                NaviampAction.StartTrackRadio -> onStartRadio?.let { startRadio ->
-                    NaviampRowMenuItem(action.label, action.icon, { startRadio(track) }, action.enabled)
+                NaviampAction.StartTrackRadio -> if (canStartRadio) {
+                    NaviampRowMenuItem(
+                        action.label,
+                        action.icon,
+                        { onTrackAction(SharedTrackRowActionRequest(track, SharedTrackRowAction.StartRadio)) },
+                        action.enabled,
+                    )
+                } else {
+                    null
                 }
-                NaviampAction.DownloadTrack -> onDownload?.let { download ->
-                    NaviampRowMenuItem(action.label, action.icon, { download(track) }, action.enabled)
+                NaviampAction.DownloadTrack -> if (canDownload) {
+                    NaviampRowMenuItem(
+                        action.label,
+                        action.icon,
+                        { onTrackAction(SharedTrackRowActionRequest(track, SharedTrackRowAction.Download)) },
+                        action.enabled,
+                    )
+                } else {
+                    null
                 }
-                NaviampAction.AddToQueue -> onAddToQueue?.let { addToQueue ->
-                    NaviampRowMenuItem(action.label, action.icon, { addToQueue(track) }, action.enabled)
+                NaviampAction.AddToQueue -> if (canAddToQueue) {
+                    NaviampRowMenuItem(
+                        action.label,
+                        action.icon,
+                        { onTrackAction(SharedTrackRowActionRequest(track, SharedTrackRowAction.AddToQueue)) },
+                        action.enabled,
+                    )
+                } else {
+                    null
                 }
-                NaviampAction.AddToPlaylist -> onAddToPlaylist?.let { addToPlaylist ->
-                    NaviampRowMenuItem(action.label, action.icon, { addToPlaylist(track) }, action.enabled)
+                NaviampAction.AddToPlaylist -> if (canAddToPlaylist) {
+                    NaviampRowMenuItem(
+                        action.label,
+                        action.icon,
+                        { onTrackAction(SharedTrackRowActionRequest(track, SharedTrackRowAction.AddToPlaylist)) },
+                        action.enabled,
+                    )
+                } else {
+                    null
                 }
                 NaviampAction.TrackDetails -> NaviampRowMenuItem(
                     action.label,
@@ -268,6 +317,7 @@ internal fun HomeSection(
     colors: NaviampColors,
     onItemSelected: ((SharedMediaItemUi) -> Unit)? = null,
     onFavoriteToggled: ((SharedMediaItemUi) -> Unit)? = null,
+    itemKind: SharedMediaItemKind = SharedMediaItemKind.Unknown,
     stationStyle: Boolean = false,
     emptyText: String? = null,
 ) {
@@ -290,6 +340,7 @@ internal fun HomeSection(
                     SharedMediaRow(
                         item = item,
                         colors = colors,
+                        itemKind = itemKind,
                         onClick = onItemSelected?.let { { it(item) } },
                         onFavoriteToggled = onFavoriteToggled,
                     )
@@ -306,6 +357,7 @@ internal fun MediaSection(
     colors: NaviampColors,
     onItemSelected: ((SharedMediaItemUi) -> Unit)? = null,
     onFavoriteToggled: ((SharedMediaItemUi) -> Unit)? = null,
+    itemKind: SharedMediaItemKind = SharedMediaItemKind.Unknown,
 ) {
     if (items.isEmpty()) return
 
@@ -315,6 +367,7 @@ internal fun MediaSection(
             SharedMediaRow(
                 item = item,
                 colors = colors,
+                itemKind = itemKind,
                 onClick = onItemSelected?.let { { it(item) } },
                 onFavoriteToggled = onFavoriteToggled,
             )
@@ -329,6 +382,18 @@ fun SharedMediaRow(
     onClick: (() -> Unit)? = null,
     menuItems: List<NaviampRowMenuItem> = emptyList(),
     onFavoriteToggled: ((SharedMediaItemUi) -> Unit)? = null,
+    canSelect: Boolean = onClick != null,
+    canToggleFavorite: Boolean = item.canFavorite && onFavoriteToggled != null,
+    itemKind: SharedMediaItemKind = SharedMediaItemKind.Unknown,
+    onItemAction: (SharedMediaItemActionRequest) -> Unit = { request ->
+        handleSharedMediaItemAction(
+            request,
+            SharedMediaItemActionHandlers(
+                onSelect = { onClick?.invoke() },
+                onToggleFavorite = { selectedItem -> onFavoriteToggled?.invoke(selectedItem) },
+            ),
+        )
+    },
     coverArtSize: Dp = 44.dp,
     coverArtCornerRadius: Dp = 5.dp,
     verticalPadding: Dp = 7.dp,
@@ -340,7 +405,15 @@ fun SharedMediaRow(
             .clip(RoundedCornerShape(5.dp))
             .background(Color.Black.copy(alpha = 0.12f))
             .let { rowModifier ->
-                if (onClick != null) rowModifier.clickable(onClick = onClick) else rowModifier
+                if (canSelect) {
+                    rowModifier.clickable {
+                        onItemAction(
+                            item.actionRequest(SharedMediaItemAction.Select, kind = itemKind),
+                        )
+                    }
+                } else {
+                    rowModifier
+                }
             }
             .padding(horizontal = 8.dp, vertical = verticalPadding),
         verticalAlignment = Alignment.CenterVertically,
@@ -363,11 +436,15 @@ fun SharedMediaRow(
                 modifier = Modifier.size(15.dp),
             )
         }
-        val favoriteMenuItem = if (item.canFavorite && onFavoriteToggled != null) {
+        val favoriteMenuItem = if (canToggleFavorite) {
             NaviampRowMenuItem(
                 label = if (item.favoriteActive) "Remove favorite" else "Favorite",
                 icon = NaviampTransportIcons.Heart,
-                onClick = { onFavoriteToggled(item) },
+                onClick = {
+                    onItemAction(
+                        item.actionRequest(SharedMediaItemAction.ToggleFavorite, kind = itemKind),
+                    )
+                },
             )
         } else {
             null
@@ -776,13 +853,23 @@ fun InternetRadioContent(
     colors: NaviampColors,
     stations: List<InternetRadioStation>,
     status: String?,
-    onStationSelected: (InternetRadioStation) -> Unit,
+    onStationAction: (StationRowActionRequest) -> Unit,
     onSaveStation: ((InternetRadioStation) -> Unit)? = null,
-    onDeleteStation: ((InternetRadioStation) -> Unit)? = null,
 ) {
     var stationBeingEdited by remember { mutableStateOf<InternetRadioStation?>(null) }
     var stationBeingDeleted by remember { mutableStateOf<InternetRadioStation?>(null) }
     var creatingStation by remember { mutableStateOf(false) }
+    val stationById = remember(stations) { stations.associateBy { station -> station.id } }
+    val handleStationAction: (StationRowActionRequest) -> Unit = { request ->
+        handleStationRowAction(
+            request,
+            StationRowActionHandlers(
+                onSelect = { onStationAction(request) },
+                onEdit = { item -> stationBeingEdited = stationById[item.id] },
+                onDelete = { item -> stationBeingDeleted = stationById[item.id] },
+            ),
+        )
+    }
 
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Row(
@@ -802,25 +889,48 @@ fun InternetRadioContent(
             Text("Saved internet radio stations will appear here.", color = colors.secondaryText, fontSize = 12.sp)
         }
         stations.sortedBy { it.name.lowercase() }.forEach { station ->
+            val stationItem = station.toSharedMediaItemUi()
             SharedMediaRow(
-                item = station.toSharedMediaItemUi(),
+                item = stationItem,
                 colors = colors,
-                onClick = { onStationSelected(station) },
+                itemKind = SharedMediaItemKind.RadioStation,
+                onClick = {
+                    handleStationAction(StationRowActionRequest(stationItem, StationRowAction.Select))
+                },
+                onItemAction = { request ->
+                    when (request.action) {
+                        SharedMediaItemAction.Select ->
+                            handleStationAction(StationRowActionRequest(stationItem, StationRowAction.Select))
+                        else ->
+                            handleSharedMediaItemAction(
+                                request,
+                                SharedMediaItemActionHandlers(
+                                    onSelect = {
+                                        handleStationAction(StationRowActionRequest(stationItem, StationRowAction.Select))
+                                    },
+                                ),
+                            )
+                    }
+                },
                 menuItems = stationRowActions(
                     canEdit = onSaveStation != null,
-                    canDelete = onDeleteStation != null,
+                    canDelete = true,
                 ).mapNotNull { action ->
                     when (action.action) {
                         NaviampAction.EditStation -> NaviampRowMenuItem(
                             label = action.label,
                             icon = action.icon,
-                            onClick = { stationBeingEdited = station },
+                            onClick = {
+                                handleStationAction(StationRowActionRequest(stationItem, StationRowAction.Edit))
+                            },
                             enabled = action.enabled,
                         )
                         NaviampAction.DeleteStation -> NaviampRowMenuItem(
                             label = action.label,
                             icon = action.icon,
-                            onClick = { stationBeingDeleted = station },
+                            onClick = {
+                                handleStationAction(StationRowActionRequest(stationItem, StationRowAction.Delete))
+                            },
                             enabled = action.enabled,
                         )
                         else -> null
@@ -861,7 +971,12 @@ fun InternetRadioContent(
                 TextButton(
                     onClick = {
                         stationBeingDeleted = null
-                        onDeleteStation?.invoke(station)
+                        onStationAction(
+                            StationRowActionRequest(
+                                station = station.toSharedMediaItemUi(),
+                                action = StationRowAction.Delete,
+                            ),
+                        )
                     },
                 ) {
                     Text("Delete")

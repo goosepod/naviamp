@@ -2,12 +2,9 @@ package app.naviamp.android
 
 import app.naviamp.domain.cache.LocalLibraryIndexRepository
 import app.naviamp.domain.cache.MediaSourceRepository
-import app.naviamp.domain.library.LibraryFreshness
-import app.naviamp.domain.library.evaluateLibraryFreshness
+import app.naviamp.domain.library.LibrarySyncCoordinator
+import app.naviamp.domain.library.libraryFreshnessUpdate
 import app.naviamp.domain.library.librarySyncCompletedStatus
-import app.naviamp.domain.library.librarySyncErrorStatus
-import app.naviamp.domain.library.librarySyncStartingStatus
-import app.naviamp.domain.library.shouldAutoSyncLibrary
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -19,45 +16,50 @@ fun startAndroidLibrarySync(
     libraryIndexRepository: LocalLibraryIndexRepository,
     force: Boolean = false,
 ) {
-    val activeProvider = state.provider ?: return
-    val sourceId = state.activeSourceId ?: return
-    if (state.isLibrarySyncing) return
-    if (!force && !shouldAutoSyncLibrary(libraryIndexRepository.libraryIndexStats(sourceId))) {
-        state.libraryStatus = null
-        return
-    }
-    state.isLibrarySyncing = true
-    state.libraryStatus = librarySyncStartingStatus()
+    val coordinator = androidLibrarySyncCoordinator(state, libraryIndexRepository)
     scope.launch {
-        runCatching {
-            withContext(Dispatchers.IO) {
-                syncAndroidLibrary(sourceId, activeProvider, libraryIndexRepository) { progress ->
-                    withContext(Dispatchers.Main) {
-                        if (progress.artists != null) {
-                            state.homeState = state.homeState.copy(artists = progress.artists)
-                        }
-                        state.libraryStatus = progress.label
-                        if (state.nowPlaying == null && state.nowPlayingStation == null) {
-                            state.status = progress.label
+        coordinator.startSync(
+            force = force,
+            sync = { sourceId, activeProvider, setProgressStatus ->
+                withContext(Dispatchers.IO) {
+                    syncAndroidLibrary(sourceId, activeProvider, libraryIndexRepository) { progress ->
+                        withContext(Dispatchers.Main) {
+                            if (progress.artists != null) {
+                                state.homeState = state.homeState.copy(artists = progress.artists)
+                            }
+                            setProgressStatus(progress.label)
+                            if (state.nowPlaying == null && state.nowPlayingStation == null) {
+                                state.status = progress.label
+                            }
                         }
                     }
                 }
-                activeProvider.libraryScanStatus()?.signature?.let { signature ->
-                    libraryIndexRepository.markLibraryScanChecked(sourceId, signature)
+            },
+            onCompleted = {
+                if (state.nowPlaying == null && state.nowPlayingStation == null) {
+                    state.status = librarySyncCompletedStatus()
                 }
-            }
-        }.onSuccess {
-            state.libraryStatus = null
-            if (state.nowPlaying == null && state.nowPlayingStation == null) {
-                state.status = librarySyncCompletedStatus()
-            }
-        }.onFailure { error ->
-            state.libraryStatus = librarySyncErrorStatus(error)
-            state.status = state.libraryStatus.orEmpty()
-        }
-        state.isLibrarySyncing = false
+            },
+            onFailed = { status -> state.status = status },
+        )
     }
 }
+
+private fun androidLibrarySyncCoordinator(
+    state: AndroidAppState,
+    libraryIndexRepository: LocalLibraryIndexRepository,
+    mediaSourceRepository: MediaSourceRepository? = null,
+): LibrarySyncCoordinator =
+    LibrarySyncCoordinator(
+        provider = { state.provider },
+        sourceId = { state.activeSourceId },
+        syncing = { state.isLibrarySyncing },
+        setSyncing = { syncing -> state.isLibrarySyncing = syncing },
+        status = { state.libraryStatus },
+        setStatus = { status -> state.libraryStatus = status },
+        libraryIndexRepository = libraryIndexRepository,
+        mediaSourceRepository = mediaSourceRepository,
+    )
 
 fun checkAndroidLibraryFreshness(
     scope: CoroutineScope,
@@ -65,29 +67,24 @@ fun checkAndroidLibraryFreshness(
     mediaSourceRepository: MediaSourceRepository,
     libraryIndexRepository: LocalLibraryIndexRepository,
 ) {
-    val activeProvider = state.provider ?: return
-    val sourceId = state.activeSourceId ?: return
-    if (state.isLibrarySyncing) return
+    val coordinator = androidLibrarySyncCoordinator(state, libraryIndexRepository, mediaSourceRepository)
     scope.launch {
-        val freshness = withContext(Dispatchers.IO) {
-            val scanStatus = activeProvider.libraryScanStatus()
-            LibraryFreshness(
-                signature = scanStatus?.signature,
-                previousSignature = mediaSourceRepository.mediaSource(sourceId)?.lastLibraryScanSignature,
-                scanning = scanStatus?.scanning == true,
-            )
-        }
-        val update = freshness.evaluateLibraryFreshness(state.libraryStatus)
-        update.signatureToMarkChecked?.let { signature ->
-            withContext(Dispatchers.IO) {
-                libraryIndexRepository.markLibraryScanChecked(sourceId, signature)
-            }
-        }
-        update.status?.let { status ->
-            state.libraryStatus = status
-        }
-        if (update.clearStatus) {
-            state.libraryStatus = null
-        }
+        coordinator.checkFreshness(
+            loadFreshness = { sourceId, activeProvider, currentStatus ->
+                withContext(Dispatchers.IO) {
+                    libraryFreshnessUpdate(
+                        sourceId = sourceId,
+                        provider = activeProvider,
+                        mediaSourceRepository = mediaSourceRepository,
+                        currentStatus = currentStatus,
+                    )
+                }
+            },
+            markScanChecked = { sourceId, signature ->
+                withContext(Dispatchers.IO) {
+                    libraryIndexRepository.markLibraryScanChecked(sourceId, signature)
+                }
+            },
+        )
     }
 }

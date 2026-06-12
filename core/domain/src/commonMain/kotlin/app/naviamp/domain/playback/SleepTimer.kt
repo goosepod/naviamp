@@ -39,6 +39,12 @@ sealed interface SleepTimerRequest {
     data object QueueEnd : SleepTimerRequest
 }
 
+data class SleepTimerSelection(
+    val timer: SleepTimerState,
+    val nowEpochMillis: Long,
+    val status: String,
+)
+
 fun sleepTimerState(
     request: SleepTimerRequest,
     nowEpochMillis: Long,
@@ -92,6 +98,29 @@ fun sleepTimerStateForPlayback(
         ),
         queueLastTrackId = playbackQueue.tracks.lastOrNull()?.id?.value,
     )
+
+fun sleepTimerSelection(
+    request: SleepTimerRequest,
+    nowEpochMillis: Long,
+    nowPlaying: Track?,
+    playbackQueue: PlaybackQueue,
+    playbackProgress: PlaybackProgress,
+    playbackState: PlaybackState,
+): SleepTimerSelection {
+    val timer = sleepTimerStateForPlayback(
+        request = request,
+        nowEpochMillis = nowEpochMillis,
+        nowPlaying = nowPlaying,
+        playbackQueue = playbackQueue,
+        playbackProgress = playbackProgress,
+        playbackState = playbackState,
+    )
+    return SleepTimerSelection(
+        timer = timer,
+        nowEpochMillis = nowEpochMillis,
+        status = sleepTimerDisplayLabel(timer, nowEpochMillis),
+    )
+}
 
 fun sleepTimerPlaybackSnapshot(
     nowPlaying: Track?,
@@ -164,6 +193,56 @@ fun shouldExpireSleepTimer(
             )
         SleepTimerTarget.QueueEnd -> timer.trackId != null &&
             snapshot.isCurrentTrackEnding(timer.trackId)
+    }
+}
+
+class SleepTimerController(
+    private val nowPlaying: () -> Track?,
+    private val playbackQueue: () -> PlaybackQueue,
+    private val playbackProgress: () -> PlaybackProgress,
+    private val playbackState: () -> PlaybackState,
+    private val setSleepTimer: (SleepTimerState?) -> Unit,
+    private val setSleepTimerNowEpochMillis: (Long) -> Unit,
+    private val setStatus: (String) -> Unit,
+    private val stopPlayback: () -> Unit,
+    private val nowEpochMillis: () -> Long,
+) {
+    fun snapshot(): SleepTimerPlaybackSnapshot =
+        sleepTimerPlaybackSnapshot(
+            nowPlaying = nowPlaying(),
+            playbackQueue = playbackQueue(),
+            playbackProgress = playbackProgress(),
+            playbackState = playbackState(),
+        )
+
+    fun select(request: SleepTimerRequest) {
+        val nowMillis = nowEpochMillis()
+        val selection = sleepTimerSelection(
+            request = request,
+            nowEpochMillis = nowMillis,
+            nowPlaying = nowPlaying(),
+            playbackQueue = playbackQueue(),
+            playbackProgress = playbackProgress(),
+            playbackState = playbackState(),
+        )
+        setSleepTimer(selection.timer)
+        setSleepTimerNowEpochMillis(selection.nowEpochMillis)
+        setStatus(selection.status)
+    }
+
+    fun cancel() {
+        setSleepTimer(null)
+        setStatus("Sleep timer canceled.")
+    }
+
+    fun tick(nowMillis: Long) {
+        setSleepTimerNowEpochMillis(nowMillis)
+    }
+
+    fun expire() {
+        stopPlayback()
+        setSleepTimer(null)
+        setStatus("Sleep timer stopped playback.")
     }
 }
 

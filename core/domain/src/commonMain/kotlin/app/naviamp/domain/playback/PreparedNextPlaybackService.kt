@@ -11,6 +11,118 @@ data class PreparedNextPlaybackRequest(
     val request: PlaybackRequest,
 )
 
+data class PreparedNextPlaybackWork(
+    val markPreparedNextIndex: Int,
+    val plan: PrepareNextQueuePlaybackPlan,
+)
+
+data class PreparedNextPlaybackSettings(
+    val gaplessEnabled: Boolean,
+    val supportsGapless: Boolean,
+    val crossfadeDurationSeconds: Int,
+    val supportsCrossfade: Boolean,
+    val gaplessPrepareWindowSeconds: Double,
+)
+
+class PreparedNextPlaybackCoordinator(
+    private val provider: () -> MediaProvider?,
+    private val sourceId: () -> String?,
+    private val quality: () -> StreamQuality?,
+    private val audioCachingEnabled: () -> Boolean,
+    private val audioAssets: PlaybackAudioAssetRepository,
+    private val replayGainMode: () -> ReplayGainMode,
+    private val supportsReplayGain: () -> Boolean,
+    private val replayGainForTrack: suspend (Track, StreamQuality) -> PlaybackReplayGain?,
+) {
+    fun plan(
+        queue: PlaybackQueue,
+        progress: PlaybackProgress,
+        nextQueueIndex: Int?,
+        preparedNextIndex: Int?,
+        settings: PreparedNextPlaybackSettings,
+    ): PrepareNextQueuePlaybackPlan? =
+        planPreparedNextQueuePlayback(
+            queue = queue,
+            progress = progress,
+            nextQueueIndex = nextQueueIndex,
+            preparedNextIndex = preparedNextIndex,
+            settings = settings,
+        )
+
+    fun work(
+        queue: PlaybackQueue,
+        progress: PlaybackProgress,
+        nextQueueIndex: Int?,
+        preparedNextIndex: Int?,
+        settings: PreparedNextPlaybackSettings,
+    ): PreparedNextPlaybackWork? =
+        preparedNextPlaybackWork(
+            queue = queue,
+            progress = progress,
+            nextQueueIndex = nextQueueIndex,
+            preparedNextIndex = preparedNextIndex,
+            settings = settings,
+        )
+
+    suspend fun request(work: PreparedNextPlaybackWork): PreparedNextPlaybackRequest? =
+        request(work.plan)
+
+    suspend fun request(plan: PrepareNextQueuePlaybackPlan): PreparedNextPlaybackRequest? {
+        val currentProvider = provider() ?: return null
+        val currentQuality = quality() ?: return null
+        return preparedNextPlaybackRequest(
+            plan = plan,
+            provider = currentProvider,
+            sourceId = sourceId(),
+            quality = currentQuality,
+            audioCachingEnabled = audioCachingEnabled(),
+            audioAssets = audioAssets,
+            replayGainMode = replayGainMode(),
+            supportsReplayGain = supportsReplayGain(),
+            replayGainForTrack = replayGainForTrack,
+        )
+    }
+}
+
+fun preparedNextPlaybackWork(
+    queue: PlaybackQueue,
+    progress: PlaybackProgress,
+    nextQueueIndex: Int?,
+    preparedNextIndex: Int?,
+    settings: PreparedNextPlaybackSettings,
+): PreparedNextPlaybackWork? {
+    val plan = planPreparedNextQueuePlayback(
+        queue = queue,
+        progress = progress,
+        nextQueueIndex = nextQueueIndex,
+        preparedNextIndex = preparedNextIndex,
+        settings = settings,
+    ) ?: return null
+    return PreparedNextPlaybackWork(
+        markPreparedNextIndex = plan.nextQueueIndex,
+        plan = plan,
+    )
+}
+
+fun planPreparedNextQueuePlayback(
+    queue: PlaybackQueue,
+    progress: PlaybackProgress,
+    nextQueueIndex: Int?,
+    preparedNextIndex: Int?,
+    settings: PreparedNextPlaybackSettings,
+): PrepareNextQueuePlaybackPlan? =
+    planPrepareNextQueuePlayback(
+        queue = queue,
+        progress = progress,
+        nextQueueIndex = nextQueueIndex,
+        alreadyPreparedNext = preparedNextIndex == nextQueueIndex,
+        gaplessEnabled = settings.gaplessEnabled,
+        supportsGapless = settings.supportsGapless,
+        crossfadeDurationSeconds = settings.crossfadeDurationSeconds,
+        supportsCrossfade = settings.supportsCrossfade,
+        gaplessPrepareWindowSeconds = settings.gaplessPrepareWindowSeconds,
+    )
+
 suspend fun prepareNextPlaybackRequest(
     queue: PlaybackQueue,
     progress: PlaybackProgress,

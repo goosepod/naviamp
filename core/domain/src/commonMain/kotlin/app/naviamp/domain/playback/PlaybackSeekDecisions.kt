@@ -36,3 +36,7 @@ fun shouldReplayTranscodedSeek(
     shouldReplayTranscodedStream: Boolean,
 ): Boolean =
     shouldReplayTranscodedStream && streamQuality is StreamQuality.Transcoded
+
+fun shouldReplayCurrentForSeek(playbackSource: PlaybackSource): Boolean =
+    playbackSource == PlaybackSource.ProviderStream ||
+        playbackSource == PlaybackSource.ProviderStreamCacheDisabled

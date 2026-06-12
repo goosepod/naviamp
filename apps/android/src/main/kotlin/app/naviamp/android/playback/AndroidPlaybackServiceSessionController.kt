@@ -6,7 +6,8 @@ import app.naviamp.domain.Album
 import app.naviamp.domain.Track
 import app.naviamp.domain.cache.MediaSourceRepository
 import app.naviamp.domain.queue.PlaybackQueue
-import app.naviamp.domain.settings.restoredTrackSession
+import app.naviamp.domain.settings.PlaybackSessionRestorePlan
+import app.naviamp.domain.settings.planPlaybackSessionRestore
 import app.naviamp.provider.navidrome.NavidromeProvider
 import app.naviamp.provider.navidrome.toNavidromeConnection
 
@@ -23,9 +24,10 @@ internal class AndroidPlaybackServiceSessionController(
         val storage = storage()
         val sourceId = storage.latestNavidromeSource()?.id ?: return false
         val session = storage.loadPlaybackSession(sourceId) ?: return false
-        val restoredSession = session.restoredTrackSession() ?: return false
-        val track = restoredSession.currentTrack
-        syncQueue(PlaybackQueue(restoredSession.tracks, restoredSession.currentIndex))
+        val restorePlan = planPlaybackSessionRestore(session)
+        if (restorePlan !is PlaybackSessionRestorePlan.TrackSession) return false
+        val track = restorePlan.currentTrack
+        syncQueue(restorePlan.playbackQueue)
         val coverArtUrl = storage.savedCoverArtUrl(track)
         val metadata = AndroidPlaybackNotificationMetadata(
             title = track.title,
@@ -33,7 +35,7 @@ internal class AndroidPlaybackServiceSessionController(
             coverArtUrl = coverArtUrl,
         )
         setCurrentMetadata(metadata)
-        AndroidPlaybackNotificationControls.positionMillis = session.positionSeconds
+        AndroidPlaybackNotificationControls.positionMillis = restorePlan.restoredStartPositionSeconds
             ?.takeIf { it > 0.0 }
             ?.let { (it * 1_000.0).toLong() }
         AndroidPlaybackNotificationControls.durationMillis = track.durationSeconds
@@ -43,7 +45,7 @@ internal class AndroidPlaybackServiceSessionController(
         coverArtUrl?.let { loadCoverArt(it, metadata) }
         Log.i(
             "NaviampSession",
-            "Hydrated Android Auto session source=$sourceId title=${track.title} position=${session.positionSeconds}",
+            "Hydrated Android Auto session source=$sourceId title=${track.title} position=${restorePlan.restoredStartPositionSeconds}",
         )
         return true
     }

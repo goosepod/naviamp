@@ -65,6 +65,7 @@ class AndroidSettingsStore(
             equalizer = loadEqualizerSettings(),
             debugLoggingEnabled = preferences.getBoolean(KeyDebugLoggingEnabled, false),
             lrclibLyricsEnabled = preferences.getBoolean(KeyLrclibLyricsEnabled, false),
+            sonicSimilarityEnabled = preferences.getBoolean(KeySonicSimilarityEnabled, false),
             previousButtonBehavior = enumPreference(
                 KeyPreviousButtonBehavior,
                 PreviousButtonBehavior.RestartThenPrevious,
@@ -106,6 +107,7 @@ class AndroidSettingsStore(
             .putEqualizerSettings(settings.equalizer)
             .putBoolean(KeyDebugLoggingEnabled, settings.debugLoggingEnabled)
             .putBoolean(KeyLrclibLyricsEnabled, settings.lrclibLyricsEnabled)
+            .putBoolean(KeySonicSimilarityEnabled, settings.sonicSimilarityEnabled)
             .putString(KeyPreviousButtonBehavior, settings.previousButtonBehavior.name)
             .putString(KeyUpNextSelectionBehavior, settings.upNextSelectionBehavior.name)
             .putStreamQualityPreference(
@@ -257,6 +259,7 @@ private const val KeyEqualizerProfiles = "equalizer_profiles"
 private const val KeyEqualizerBandPrefix = "equalizer_band"
 private const val KeyDebugLoggingEnabled = "debug_logging_enabled"
 private const val KeyLrclibLyricsEnabled = "lrclib_lyrics_enabled"
+private const val KeySonicSimilarityEnabled = "sonic_similarity_enabled"
 private const val KeyPreviousButtonBehavior = "previous_button_behavior"
 private const val KeyUpNextSelectionBehavior = "up_next_selection_behavior"
 private const val KeyWifiStreamQualityMode = "wifi_stream_quality_mode"

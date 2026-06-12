@@ -1,5 +1,6 @@
 package app.naviamp.domain.settings
 
+import app.naviamp.domain.InternetRadioStation
 import app.naviamp.domain.Track
 import app.naviamp.domain.TrackId
 import app.naviamp.domain.playback.PlaybackProgress
@@ -84,6 +85,126 @@ class PlaybackSessionMappingTest {
         assertEquals(null, next?.positionSeconds)
         assertEquals(0, previous?.currentIndex)
         assertEquals(2, clamped?.currentIndex)
+    }
+
+    @Test
+    fun playbackSessionSavePlanPrefersStationSession() {
+        val station = InternetRadioStation(
+            id = "station",
+            name = "Station",
+            streamUrl = "https://example.com/stream",
+        )
+
+        val plan = planPlaybackSessionSave(
+            activeSourceId = "source",
+            station = station,
+            currentTrack = track("ignored"),
+            playbackQueue = PlaybackQueue(),
+            progressPositionSeconds = 10.0,
+            notificationPositionSeconds = null,
+            existingSession = null,
+        )
+
+        val save = plan as PlaybackSessionSavePlan.Save
+        assertEquals(PlaybackSessionSavePlan.Kind.InternetRadio, save.kind)
+        assertEquals(station, save.session.internetRadioStation?.toStation())
+    }
+
+    @Test
+    fun playbackSessionSavePlanFallsBackToExistingTrackPosition() {
+        val currentTrack = track("current")
+        val existing = playbackSessionFromCurrentTrack(
+            currentTrack = currentTrack,
+            queue = PlaybackQueue(tracks = listOf(currentTrack), currentIndex = 0),
+            positionSeconds = 42.0,
+        )
+
+        val plan = planPlaybackSessionSave(
+            activeSourceId = "source",
+            station = null,
+            currentTrack = currentTrack,
+            playbackQueue = PlaybackQueue(tracks = listOf(currentTrack), currentIndex = 0),
+            progressPositionSeconds = null,
+            notificationPositionSeconds = null,
+            existingSession = existing,
+        )
+
+        val save = plan as PlaybackSessionSavePlan.Save
+        assertEquals(PlaybackSessionSavePlan.Kind.Track, save.kind)
+        assertEquals(42.0, save.session.positionSeconds)
+    }
+
+    @Test
+    fun playbackSessionRestorePlanBuildsStationAndTrackPlans() {
+        val station = InternetRadioStation(
+            id = "station",
+            name = "Station",
+            streamUrl = "https://example.com/stream",
+        )
+        val stationPlan = planPlaybackSessionRestore(
+            PlaybackSessionSettings.fromInternetRadioStation(station),
+        )
+        assertEquals(station, (stationPlan as PlaybackSessionRestorePlan.InternetRadio).station)
+        assertEquals("Restored Station. Press play to resume.", stationPlan.status)
+
+        val trackSession = PlaybackSessionSettings.fromTracks(
+            tracks = listOf(track("one"), track("two")),
+            currentIndex = 1,
+            positionSeconds = 12.0,
+        )
+        val trackPlan = planPlaybackSessionRestore(trackSession)
+        val restoredTrack = trackPlan as PlaybackSessionRestorePlan.TrackSession
+        assertEquals(TrackId("two"), restoredTrack.currentTrack.id)
+        assertEquals(12.0, restoredTrack.restoredStartPositionSeconds)
+        assertEquals("Restored Track two. Press play to resume.", restoredTrack.status)
+    }
+
+    @Test
+    fun playbackSessionThrottleRequiresSourceTargetAndElapsedIntervalUnlessForced() {
+        assertEquals(
+            true,
+            shouldThrottlePlaybackSessionSave(
+                activeSourceId = null,
+                hasPlaybackTarget = true,
+                force = true,
+                nowMillis = 10_000L,
+                lastSavedAtMillis = 9_000L,
+                saveIntervalMillis = 5_000L,
+            ),
+        )
+        assertEquals(
+            true,
+            shouldThrottlePlaybackSessionSave(
+                activeSourceId = "source",
+                hasPlaybackTarget = false,
+                force = true,
+                nowMillis = 10_000L,
+                lastSavedAtMillis = 9_000L,
+                saveIntervalMillis = 5_000L,
+            ),
+        )
+        assertEquals(
+            true,
+            shouldThrottlePlaybackSessionSave(
+                activeSourceId = "source",
+                hasPlaybackTarget = true,
+                force = false,
+                nowMillis = 10_000L,
+                lastSavedAtMillis = 8_000L,
+                saveIntervalMillis = 5_000L,
+            ),
+        )
+        assertEquals(
+            false,
+            shouldThrottlePlaybackSessionSave(
+                activeSourceId = "source",
+                hasPlaybackTarget = true,
+                force = true,
+                nowMillis = 10_000L,
+                lastSavedAtMillis = 8_000L,
+                saveIntervalMillis = 5_000L,
+            ),
+        )
     }
 
     private fun track(

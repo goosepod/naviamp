@@ -11,6 +11,7 @@ import app.naviamp.domain.TrackId
 import kotlinx.coroutines.runBlocking
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertIs
 
 class RadioSeedsTest {
     @Test
@@ -83,6 +84,25 @@ class RadioSeedsTest {
                 albumDetails = { AlbumDetails(album = album, tracks = listOf(albumTrack)) },
             ),
         )
+    }
+
+    @Test
+    fun radioSeedResultClassifiesReadyMissingAndFailed() = runBlocking {
+        val seedTrack = track("seed")
+        assertEquals(
+            RadioSeedResult.Ready(seedTrack),
+            radioSeedResult { seedTrack },
+        )
+        assertEquals(
+            RadioSeedResult.Missing,
+            radioSeedResult { null },
+        )
+
+        val error = IllegalStateException("seed failed")
+        val failed = assertIs<RadioSeedResult.Failed>(
+            radioSeedResult { throw error },
+        )
+        assertEquals(error, failed.error)
     }
 
     private fun artist(): Artist =

@@ -1,36 +1,55 @@
 package app.naviamp.desktop
 
-import app.naviamp.domain.InternetRadioStation
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import app.naviamp.domain.Album
+import app.naviamp.domain.Artist
 import app.naviamp.domain.Playlist
 import app.naviamp.domain.Track
 import app.naviamp.domain.cache.ProviderResponseService
 import app.naviamp.domain.home.HomeContent
 import app.naviamp.domain.playback.PlaybackEngine
 import app.naviamp.domain.provider.MediaProvider
-import app.naviamp.domain.provider.addToPlaylistMutationUpdate
-import app.naviamp.domain.provider.clearPendingPlaybackAction
-import app.naviamp.domain.provider.homePlaylists
-import app.naviamp.domain.provider.normalizedPlaylistName
+import app.naviamp.domain.provider.PlaylistListApplication
+import app.naviamp.domain.provider.addToPlaylistErrorMessage
+import app.naviamp.domain.provider.addToPlaylistResolvingTracksStatus
+import app.naviamp.domain.provider.addTracksToPlaylistApplication
 import app.naviamp.domain.provider.PendingPlaybackAction
+import app.naviamp.domain.provider.playlistDeleteApplication
 import app.naviamp.domain.provider.playlistDeleteErrorMessage
 import app.naviamp.domain.provider.playlistDeleteLoadingStatus
-import app.naviamp.domain.provider.playlistDeleteStateUpdate
-import app.naviamp.domain.provider.playlistDeletedStatus
-import app.naviamp.domain.provider.playlistDetailsStateUpdate
-import app.naviamp.domain.provider.playlistPlaybackAction
-import app.naviamp.domain.provider.playlistPlaybackTracks
+import app.naviamp.domain.provider.playlistDeleteApplicationUpdate
+import app.naviamp.domain.provider.deletePlaylistAndRefresh
+import app.naviamp.domain.provider.playlistDetailsErrorMessage
+import app.naviamp.domain.provider.playlistDetailsLoadingStatus
+import app.naviamp.domain.provider.PlaylistHomeProjection
+import app.naviamp.domain.provider.playlistListApplication
+import app.naviamp.domain.provider.playlistListErrorMessage
+import app.naviamp.domain.provider.playlistListLoadingStatus
+import app.naviamp.domain.provider.playlistPlaybackCompletionApplication
+import app.naviamp.domain.provider.playlistPlaybackErrorMessage
+import app.naviamp.domain.provider.playlistPlaybackPreparedApplication
+import app.naviamp.domain.provider.playlistPlaybackStartApplication
+import app.naviamp.domain.provider.playlistPlaybackStartPlan
+import app.naviamp.domain.provider.playlistDetailPlaybackPreparedApplication
+import app.naviamp.domain.provider.preparePlaylistDetailPlaybackApplication
+import app.naviamp.domain.provider.preparePlaylistPlaybackApplication
+import app.naviamp.domain.provider.playlistRenameApplication
 import app.naviamp.domain.provider.playlistRenameErrorMessage
 import app.naviamp.domain.provider.playlistRenameLoadingStatus
-import app.naviamp.domain.provider.playlistRenamedStatus
-import app.naviamp.domain.provider.playlistsNeedingTrackPreload
-import app.naviamp.domain.provider.queueAppendPlan
+import app.naviamp.domain.provider.playlistRenameStateUpdate
+import app.naviamp.domain.provider.queuePlaylistSaveErrorMessage
+import app.naviamp.domain.provider.queuePlaylistSaveLoadingStatus
 import app.naviamp.domain.provider.recentPlaylistIdsAfterPlayed
-import app.naviamp.domain.provider.refreshPlaylistDetails
-import app.naviamp.domain.provider.renamedSelectedPlaylist
-import app.naviamp.domain.provider.saveQueueAsPlaylistAndRefresh
-import app.naviamp.domain.provider.shouldStartPlaybackAction
+import app.naviamp.domain.provider.refreshPlaylistDetailsApplication
+import app.naviamp.domain.provider.refreshPlaylistListState
+import app.naviamp.domain.provider.renamePlaylistAndRefresh
+import app.naviamp.domain.provider.saveQueueAsPlaylistApplication
+import app.naviamp.domain.provider.preloadPlaylistTracksStateUpdate
+import app.naviamp.domain.playback.PlaybackQueueManager
+import app.naviamp.domain.playback.applyPlaybackQueueUpdate
 import app.naviamp.domain.settings.PlaybackSettings
-import app.naviamp.domain.settings.RecentRadioStream
 import app.naviamp.desktop.playback.PlaylistCallbacks
 import app.naviamp.desktop.playback.DesktopPlaylistEngine
 import app.naviamp.desktop.settings.DesktopSettingsStore
@@ -48,64 +67,102 @@ class DesktopPlaylistsController(
     private val provider: () -> MediaProvider?,
     private val playbackSettings: () -> PlaybackSettings,
     private val playlistCallbacks: () -> PlaylistCallbacks,
-    private val playlists: () -> List<Playlist>,
-    private val setPlaylists: (List<Playlist>) -> Unit,
-    private val recentPlaylistIds: () -> List<String>,
-    private val setRecentPlaylistIds: (List<String>) -> Unit,
+    initialRecentPlaylistIds: List<String>,
     private val homeContent: () -> HomeContent,
     private val setHomeContent: (HomeContent) -> Unit,
-    private val recentRadioStreams: () -> List<RecentRadioStream>,
-    private val recentInternetRadioStations: () -> List<InternetRadioStation>,
-    private val playlistTracksById: () -> Map<String, List<Track>>,
-    private val setPlaylistTracksById: (Map<String, List<Track>>) -> Unit,
-    private val selectedPlaylist: () -> Playlist?,
-    private val setSelectedPlaylist: (Playlist?) -> Unit,
-    private val selectedPlaylistTracks: () -> List<Track>,
-    private val setSelectedPlaylistTracks: (List<Track>) -> Unit,
-    private val pendingPlaybackAction: () -> PendingPlaybackAction?,
-    private val setPendingPlaybackAction: (PendingPlaybackAction?) -> Unit,
-    private val setSelectedPlaylistStatus: (String?) -> Unit,
-    private val setPlaylistStatus: (String?) -> Unit,
-    private val setAddToPlaylistTarget: (AddToPlaylistTarget?) -> Unit,
-    private val setAddToPlaylistStatus: (String?) -> Unit,
-    private val setPlaylistPendingRename: (Playlist?) -> Unit,
-    private val setPlaylistPendingDelete: (Playlist?) -> Unit,
     private val setConnectionStatus: (String?) -> Unit,
     private val setAppRoute: (DesktopAppRoute) -> Unit,
     private val stopRadioContinuation: () -> Unit,
     private val clearShuffleSnapshot: () -> Unit,
     private val setOpenPlayerOnTrackStart: (Boolean) -> Unit,
 ) {
+    var playlists by mutableStateOf<List<Playlist>>(emptyList())
+        private set
+    var status by mutableStateOf<String?>(null)
+        private set
+    var pendingPlaybackAction by mutableStateOf<PendingPlaybackAction?>(null)
+        private set
+    var sortMode by mutableStateOf(DesktopPlaylistSortMode.Alphabetical)
+        private set
+    var recentPlaylistIds by mutableStateOf(initialRecentPlaylistIds)
+        private set
+    var selectedPlaylist by mutableStateOf<Playlist?>(null)
+        private set
+    var selectedPlaylistTracks by mutableStateOf<List<Track>>(emptyList())
+        private set
+    var playlistTracksById by mutableStateOf<Map<String, List<Track>>>(emptyMap())
+        private set
+    var selectedPlaylistStatus by mutableStateOf<String?>(null)
+        private set
+    var pendingRename by mutableStateOf<Playlist?>(null)
+        private set
+    var pendingDelete by mutableStateOf<Playlist?>(null)
+        private set
+    var addToPlaylistTarget by mutableStateOf<AddToPlaylistTarget?>(null)
+        private set
+    var addToPlaylistStatus by mutableStateOf<String?>(null)
+        private set
+
+    fun updateSortMode(mode: DesktopPlaylistSortMode) {
+        sortMode = mode
+    }
+
+    fun dismissAddToPlaylist() {
+        addToPlaylistTarget = null
+        addToPlaylistStatus = null
+    }
+
+    fun dismissRename() {
+        pendingRename = null
+    }
+
+    fun dismissDelete() {
+        pendingDelete = null
+    }
+
+    fun updateStatus(status: String?) {
+        this.status = status
+    }
+
+    fun updatePlaylistTracksById(tracksById: Map<String, List<Track>>) {
+        playlistTracksById = tracksById
+    }
+
+    fun applySelectedPlaylistDetails(playlist: Playlist?, tracks: List<Track>, status: String?) {
+        selectedPlaylist = playlist
+        selectedPlaylistTracks = tracks
+        selectedPlaylistStatus = status
+    }
+
+    fun applyRefreshedPlaylists(refreshedPlaylists: List<Playlist>) {
+        applyPlaylistListApplication(refreshedPlaylists)
+    }
+
     fun refreshPlaylists(useCache: Boolean = true) {
         val activeProvider = provider() ?: return
-        setPlaylistStatus("Loading playlists...")
+        status = playlistListLoadingStatus()
         scope.launch {
             try {
-                val refreshedPlaylists = withContext(Dispatchers.IO) {
-                    if (useCache) {
-                        providerResponseService.playlists(activeProvider, limit = 500)
-                    } else {
-                        activeProvider.playlists(limit = 500)
-                    }
+                val update = withContext(Dispatchers.IO) {
+                    activeProvider.refreshPlaylistListState(
+                        providerResponseService = providerResponseService,
+                        useCache = useCache,
+                        playlistTracksById = playlistTracksById,
+                    )
                 }
-                setPlaylists(refreshedPlaylists)
-                setPlaylistStatus(null)
-                refreshHomePlaylists(refreshedPlaylists)
-                playlistsNeedingTrackPreload(refreshedPlaylists, playlistTracksById()).forEach { playlist ->
-                    runCatching {
-                        withContext(Dispatchers.IO) {
-                            if (useCache) {
-                                providerResponseService.playlistTracks(activeProvider, playlist.id)
-                            } else {
-                                activeProvider.playlistTracks(playlist.id)
-                            }
-                        }
-                    }.onSuccess { tracks ->
-                        setPlaylistTracksById(playlistTracksById() + (playlist.id to tracks))
-                    }
+                applyPlaylistListApplication(update.playlists)
+                status = update.status
+                val preloadUpdate = withContext(Dispatchers.IO) {
+                    activeProvider.preloadPlaylistTracksStateUpdate(
+                        playlists = update.playlistsToPreload,
+                        currentPlaylistTracksById = playlistTracksById,
+                        providerResponseService = providerResponseService,
+                        useCache = useCache,
+                    )
                 }
+                playlistTracksById = preloadUpdate.playlistTracksById
             } catch (exception: Exception) {
-                setPlaylistStatus(exception.message ?: "Could not load playlists.")
+                status = playlistListErrorMessage(exception)
             }
         }
     }
@@ -115,56 +172,70 @@ class DesktopPlaylistsController(
         playlist: Playlist,
         showLoadingStatus: Boolean,
     ) {
-        if (showLoadingStatus) setSelectedPlaylistStatus("Loading ${playlist.name}...")
-        val refresh = withContext(Dispatchers.IO) {
-            activeProvider.refreshPlaylistDetails(
+        if (showLoadingStatus) selectedPlaylistStatus = playlistDetailsLoadingStatus(playlist)
+        val update = withContext(Dispatchers.IO) {
+            activeProvider.refreshPlaylistDetailsApplication(
                 playlist = playlist,
+                currentSelectedPlaylist = selectedPlaylist,
+                currentSelectedPlaylistTracks = selectedPlaylistTracks,
+                currentPlaylistTracksById = playlistTracksById,
                 providerResponseService = providerResponseService,
             )
         }
-        val update = playlistDetailsStateUpdate(
-            currentSelectedPlaylist = selectedPlaylist(),
-            currentSelectedPlaylistTracks = selectedPlaylistTracks(),
-            currentPlaylistTracksById = playlistTracksById(),
-            refresh = refresh,
-            requestedPlaylistId = playlist.id,
-        )
-        setPlaylists(update.playlists)
-        refreshHomePlaylists(update.playlists)
-        setPlaylistTracksById(update.playlistTracksById)
-        if (selectedPlaylist()?.id == playlist.id) {
-            setSelectedPlaylist(update.selectedPlaylist)
-            setSelectedPlaylistTracks(update.selectedPlaylistTracks)
-            setSelectedPlaylistStatus(null)
+        applyPlaylistListApplication(update.playlists)
+        playlistTracksById = update.playlistTracksById
+        update.selectionApplication?.let { selection ->
+            selectedPlaylist = selection.playlist
+            selectedPlaylistTracks = selection.tracks
+            selectedPlaylistStatus = selection.status
         }
     }
 
     fun openAddToPlaylist(target: AddToPlaylistTarget) {
-        setAddToPlaylistTarget(target)
-        setAddToPlaylistStatus(null)
-        if (playlists().isEmpty()) refreshPlaylists()
+        addToPlaylistTarget = target
+        addToPlaylistStatus = null
+        if (playlists.isEmpty()) refreshPlaylists()
+    }
+
+    fun openTrackAddToPlaylist(track: Track) {
+        openAddToPlaylist(AddToPlaylistTarget.TrackTarget(track))
+    }
+
+    fun openAlbumAddToPlaylist(album: Album) {
+        openAddToPlaylist(AddToPlaylistTarget.AlbumTarget(album))
+    }
+
+    fun openArtistAddToPlaylist(artist: Artist) {
+        openAddToPlaylist(AddToPlaylistTarget.ArtistTarget(artist))
+    }
+
+    fun openPlaylistAddToPlaylist(playlist: Playlist) {
+        openAddToPlaylist(AddToPlaylistTarget.PlaylistTarget(playlist))
     }
 
     fun addTargetToPlaylist(target: AddToPlaylistTarget, playlist: Playlist?, newPlaylistName: String? = null) {
         val activeProvider = provider() ?: return
-        setAddToPlaylistStatus("Loading tracks...")
+        addToPlaylistStatus = addToPlaylistResolvingTracksStatus()
         scope.launch {
             try {
-                val result = withContext(Dispatchers.IO) {
-                    addTargetTracksToPlaylist(activeProvider, target, playlist, newPlaylistName)
+                val application = withContext(Dispatchers.IO) {
+                    activeProvider.addTracksToPlaylistApplication(
+                        playlistId = playlist?.id,
+                        playlistName = playlist?.name,
+                        newPlaylistName = newPlaylistName,
+                        tracks = resolveAddToPlaylistTargetTracks(activeProvider, target),
+                        currentHomeContent = homeContent(),
+                        recentPlaylistIds = recentPlaylistIds,
+                        projection = PlaylistHomeProjection.RecentLimited,
+                        providerResponseService = providerResponseService,
+                    )
                 }
-                val update = addToPlaylistMutationUpdate(result, playlist?.name)
-                if (update.closeDialog) setAddToPlaylistTarget(null)
-                setAddToPlaylistStatus(update.addToPlaylistStatus)
-                update.connectionStatus?.let(setConnectionStatus)
-                if (update.refreshPlaylists) {
-                    playlist?.let {
-                        providerResponseService.invalidatePlaylistResponses(activeProvider, it.id)
-                    } ?: providerResponseService.invalidatePlaylists(activeProvider)
-                    refreshPlaylists()
-                }
+                if (application.closeDialog) addToPlaylistTarget = null
+                addToPlaylistStatus = application.addToPlaylistStatus
+                application.connectionStatus?.let(setConnectionStatus)
+                application.playlistListApplication?.let(::applyPlaylistListApplication)
             } catch (exception: Exception) {
-                setAddToPlaylistStatus(exception.message ?: "Could not add to playlist.")
+                addToPlaylistStatus = addToPlaylistErrorMessage(exception, "tracks")
             }
         }
     }
@@ -177,170 +248,300 @@ class DesktopPlaylistsController(
                 val tracksToAdd = withContext(Dispatchers.IO) {
                     resolveAddToPlaylistTargetTracks(activeProvider, target)
                 }
-                val plan = queueAppendPlan(tracksToAdd)
-                setConnectionStatus(plan.status)
-                if (plan.tracks.isEmpty()) {
-                    return@launch
-                }
-                playlistEngine.appendTracks(plan.tracks)
+                val update = PlaybackQueueManager().appendTracks(
+                    currentQueue = playlistEngine.queue,
+                    tracksToAdd = tracksToAdd,
+                )
+                applyPlaybackQueueUpdate(
+                    update = update,
+                    setStatus = setConnectionStatus,
+                    replaceQueue = playlistEngine::replaceQueue,
+                )
             } catch (exception: Exception) {
                 setConnectionStatus(exception.message ?: "Could not add to queue.")
             }
         }
     }
 
+    fun addTrackToQueue(track: Track) {
+        addTargetToQueue(AddToPlaylistTarget.TrackTarget(track))
+    }
+
+    fun addAlbumToQueue(album: Album) {
+        addTargetToQueue(AddToPlaylistTarget.AlbumTarget(album))
+    }
+
+    fun addArtistToQueue(artist: Artist) {
+        addTargetToQueue(AddToPlaylistTarget.ArtistTarget(artist))
+    }
+
+    fun addPlaylistToQueue(playlist: Playlist) {
+        addTargetToQueue(AddToPlaylistTarget.PlaylistTarget(playlist))
+    }
+
+    fun addSelectedPlaylistToQueue() {
+        selectedPlaylist?.let(::addPlaylistToQueue)
+    }
+
+    fun openSelectedPlaylistAddToPlaylist() {
+        selectedPlaylist?.let(::openPlaylistAddToPlaylist)
+    }
+
+    fun requestSelectedPlaylistRename() {
+        selectedPlaylist?.let { playlist -> pendingRename = playlist }
+    }
+
+    fun requestSelectedPlaylistDelete() {
+        selectedPlaylist?.let { playlist -> pendingDelete = playlist }
+    }
+
+    fun requestPlaylistRename(playlist: Playlist) {
+        pendingRename = playlist
+    }
+
+    fun requestPlaylistDelete(playlist: Playlist) {
+        pendingDelete = playlist
+    }
+
+    fun playNext(track: Track) {
+        val update = PlaybackQueueManager().playNextTracks(
+            currentQueue = playlistEngine.queue,
+            tracksToAdd = listOf(track),
+        )
+        applyPlaybackQueueUpdate(
+            update = update,
+            setStatus = setConnectionStatus,
+            replaceQueue = playlistEngine::replaceQueue,
+        )
+    }
+
     fun saveQueueAsPlaylist(name: String) {
         val activeProvider = provider() ?: return
         val queueTracks = playlistEngine.queue.tracks
-        setConnectionStatus("Saving queue as playlist...")
+        setConnectionStatus(queuePlaylistSaveLoadingStatus())
         scope.launch {
             try {
-                val refresh = withContext(Dispatchers.IO) {
-                    activeProvider.saveQueueAsPlaylistAndRefresh(
+                val application = withContext(Dispatchers.IO) {
+                    activeProvider.saveQueueAsPlaylistApplication(
                         name = name,
                         tracks = queueTracks,
+                        currentHomeContent = homeContent(),
+                        recentPlaylistIds = recentPlaylistIds,
+                        projection = PlaylistHomeProjection.RecentLimited,
                         providerResponseService = providerResponseService,
                     )
                 }
-                val result = refresh.result
-                setConnectionStatus("Saved ${result.playlist.name} with ${result.trackCount} tracks.")
-                setPlaylists(refresh.playlists)
-                refreshHomePlaylists(refresh.playlists)
+                setConnectionStatus(application.status)
+                applyPlaylistListApplication(application.playlistListApplication)
             } catch (exception: Exception) {
-                setConnectionStatus(exception.message ?: "Could not save queue as playlist.")
+                setConnectionStatus(queuePlaylistSaveErrorMessage(exception))
             }
         }
     }
 
-    fun markPlaylistPlayed(playlist: Playlist) {
-        val updatedRecentIds = recentPlaylistIdsAfterPlayed(recentPlaylistIds(), playlist.id, limit = 50)
-        setRecentPlaylistIds(updatedRecentIds)
+    fun markPlaylistPlayed(
+        playlist: Playlist,
+        recentPlaylistIdsAfterPlayback: List<String> = recentPlaylistIdsAfterPlayed(recentPlaylistIds, playlist.id, limit = 50),
+    ) {
+        val updatedRecentIds = recentPlaylistIdsAfterPlayback
+        recentPlaylistIds = updatedRecentIds
         settingsStore.saveRecentPlaylistIds(updatedRecentIds)
     }
 
     fun playPlaylist(playlist: Playlist, shuffle: Boolean = false) {
         val activeProvider = provider() ?: return
-        val playbackAction = playlistPlaybackAction(playlist, shuffle)
-        if (!shouldStartPlaybackAction(pendingPlaybackAction())) {
-            pendingPlaybackAction()?.status?.let(setConnectionStatus)
+        val startPlan = playlistPlaybackStartPlan(playlist, shuffle, pendingPlaybackAction)
+        val startApplication = playlistPlaybackStartApplication(startPlan)
+        if (!startPlan.shouldStart) {
+            setConnectionStatus(startApplication.status)
             return
         }
-        setPendingPlaybackAction(playbackAction)
-        setConnectionStatus(playbackAction.status)
+        pendingPlaybackAction = startApplication.pendingPlaybackAction
+        setConnectionStatus(startApplication.status)
         scope.launch {
             try {
-                val loadedTracks = withContext(Dispatchers.IO) {
-                    providerResponseService.playlistTracks(activeProvider, playlist.id)
+                val update = withContext(Dispatchers.IO) {
+                    activeProvider.preparePlaylistPlaybackApplication(
+                        playlist = playlist,
+                        shuffle = shuffle,
+                        selectedPlaylist = null,
+                        selectedPlaylistTracks = emptyList(),
+                        recentPlaylistIds = recentPlaylistIds,
+                        recentPlaylistLimit = 50,
+                        currentPlaylistTracksById = playlistTracksById,
+                        providerResponseService = providerResponseService,
+                        emptyStatus = "${playlist.name} did not return any tracks.",
+                    )
                 }
-                setPlaylistTracksById(playlistTracksById() + (playlist.id to loadedTracks))
-                val tracks = playlistPlaybackTracks(loadedTracks, shuffle)
-                if (tracks.isEmpty()) {
-                    setConnectionStatus("${playlist.name} did not return any tracks.")
+                val prepared = playlistPlaybackPreparedApplication(update)
+                playlistTracksById = prepared.playlistTracksById
+                val work = prepared.playbackWork
+                if (work == null) {
+                    setConnectionStatus(prepared.status)
                     return@launch
                 }
-                setConnectionStatus(null)
-                setPendingPlaybackAction(clearPendingPlaybackAction(pendingPlaybackAction(), playbackAction))
-                playTracks(playlist, activeProvider, tracks, index = 0)
+                setConnectionStatus(prepared.status)
+                pendingPlaybackAction =
+                    playlistPlaybackCompletionApplication(
+                        pending = pendingPlaybackAction,
+                        completed = startPlan.action,
+                    ).pendingPlaybackAction
+                playTracks(
+                    playlist = playlist,
+                    activeProvider = activeProvider,
+                    tracks = work.playbackTracks,
+                    index = work.playbackIndex,
+                    recentPlaylistIdsAfterPlayback = work.recentPlaylistIds,
+                )
             } catch (exception: Exception) {
-                setConnectionStatus(exception.message ?: "Could not play ${playlist.name}.")
+                setConnectionStatus(playlistPlaybackErrorMessage(exception, playlist))
             } finally {
-                setPendingPlaybackAction(clearPendingPlaybackAction(pendingPlaybackAction(), playbackAction))
+                pendingPlaybackAction =
+                    playlistPlaybackCompletionApplication(
+                        pending = pendingPlaybackAction,
+                        completed = startPlan.action,
+                    ).pendingPlaybackAction
             }
         }
     }
 
     fun openPlaylistDetails(playlist: Playlist) {
         val activeProvider = provider() ?: return
-        setSelectedPlaylist(playlist)
-        setSelectedPlaylistTracks(emptyList())
-        setSelectedPlaylistStatus("Loading ${playlist.name}...")
+        selectedPlaylist = playlist
+        selectedPlaylistTracks = emptyList()
+        selectedPlaylistStatus = playlistDetailsLoadingStatus(playlist)
         setAppRoute(DesktopAppRoute.PlaylistDetail)
         scope.launch {
             try {
                 refreshPlaylistDetailsFromServer(activeProvider, playlist, showLoadingStatus = false)
             } catch (exception: Exception) {
-                setSelectedPlaylistStatus(exception.message ?: "Could not load ${playlist.name}.")
+                selectedPlaylistStatus = playlistDetailsErrorMessage(exception)
             }
         }
     }
 
     fun playPlaylistDetails(index: Int = 0, shuffle: Boolean = false) {
         val activeProvider = provider() ?: return
-        val playlist = selectedPlaylist() ?: return
-        val playbackAction = playlistPlaybackAction(playlist, shuffle)
-        if (!shouldStartPlaybackAction(pendingPlaybackAction())) {
-            pendingPlaybackAction()?.status?.let(setSelectedPlaylistStatus)
+        val playlist = selectedPlaylist ?: return
+        val startPlan = playlistPlaybackStartPlan(playlist, shuffle, pendingPlaybackAction)
+        val startApplication = playlistPlaybackStartApplication(startPlan)
+        if (!startPlan.shouldStart) {
+            selectedPlaylistStatus = startApplication.status
             return
         }
-        val tracks = playlistPlaybackTracks(selectedPlaylistTracks(), shuffle)
-        if (tracks.isEmpty()) return
-        setPendingPlaybackAction(playbackAction)
-        setSelectedPlaylistStatus(playbackAction.status)
-        playTracks(
-            playlist = playlist,
-            activeProvider = activeProvider,
-            tracks = tracks,
-            index = index.coerceIn(tracks.indices),
-        )
-        setSelectedPlaylistStatus(null)
-        setPendingPlaybackAction(clearPendingPlaybackAction(pendingPlaybackAction(), playbackAction))
+        pendingPlaybackAction = startApplication.pendingPlaybackAction
+        selectedPlaylistStatus = startApplication.status
+        scope.launch {
+            try {
+                val update = withContext(Dispatchers.IO) {
+                    activeProvider.preparePlaylistDetailPlaybackApplication(
+                        playlist = playlist,
+                        shuffle = shuffle,
+                        selectedPlaylistTracks = selectedPlaylistTracks,
+                        recentPlaylistIds = recentPlaylistIds,
+                        recentPlaylistLimit = 50,
+                        currentPlaylistTracksById = playlistTracksById,
+                        providerResponseService = providerResponseService,
+                        requestedIndex = index,
+                    )
+                }
+                val prepared = playlistDetailPlaybackPreparedApplication(update)
+                playlistTracksById = prepared.playlistTracksById
+                prepared.loadedTracksToStore?.let { loadedTracks ->
+                    selectedPlaylistTracks = loadedTracks
+                }
+                val work = prepared.playbackWork
+                if (work == null) {
+                    selectedPlaylistStatus = prepared.status
+                    return@launch
+                }
+                playTracks(
+                    playlist = playlist,
+                    activeProvider = activeProvider,
+                    tracks = work.playbackTracks,
+                    index = work.playbackIndex,
+                    recentPlaylistIdsAfterPlayback = work.recentPlaylistIds,
+                )
+                selectedPlaylistStatus = null
+            } catch (exception: Exception) {
+                selectedPlaylistStatus = playlistPlaybackErrorMessage(exception, playlist)
+            } finally {
+                pendingPlaybackAction =
+                    playlistPlaybackCompletionApplication(
+                        pending = pendingPlaybackAction,
+                        completed = startPlan.action,
+                    ).pendingPlaybackAction
+            }
+        }
     }
 
     fun renamePlaylist(playlist: Playlist, name: String) {
         val activeProvider = provider() ?: return
-        val requestedName = normalizedPlaylistName(name)
-        setPlaylistStatus(playlistRenameLoadingStatus(playlist))
+        status = playlistRenameLoadingStatus(playlist)
         scope.launch {
             try {
-                withContext(Dispatchers.IO) {
-                    activeProvider.renamePlaylist(playlist.id, requestedName)
+                val refresh = withContext(Dispatchers.IO) {
+                    activeProvider.renamePlaylistAndRefresh(
+                        playlist = playlist,
+                        name = name,
+                        providerResponseService = providerResponseService,
+                    )
                 }
-                providerResponseService.invalidatePlaylistResponses(activeProvider, playlist.id)
-                setPlaylistPendingRename(null)
-                setPlaylistStatus(playlistRenamedStatus())
-                setSelectedPlaylist(
-                    renamedSelectedPlaylist(
-                        current = selectedPlaylist(),
-                        playlistId = playlist.id,
-                        requestedName = requestedName,
-                        refreshedPlaylists = emptyList(),
-                    ),
+                val update = playlistRenameStateUpdate(selectedPlaylist, refresh, playlist.id)
+                val application = playlistRenameApplication(
+                    update = update,
+                    currentHomeContent = homeContent(),
+                    recentPlaylistIds = recentPlaylistIds,
+                    projection = PlaylistHomeProjection.RecentLimited,
                 )
-                refreshPlaylists()
+                applyPlaylistListApplication(application.playlistListApplication)
+                pendingRename = null
+                status = application.status
+                application.selectionApplication?.let { selection ->
+                    selectedPlaylist = selection.selectedPlaylist
+                }
             } catch (exception: Exception) {
-                setPlaylistStatus(playlistRenameErrorMessage(exception))
+                status = playlistRenameErrorMessage(exception)
             }
         }
     }
 
     fun deletePlaylist(playlist: Playlist) {
         val activeProvider = provider() ?: return
-        setPlaylistStatus(playlistDeleteLoadingStatus(playlist))
+        status = playlistDeleteLoadingStatus(playlist)
         scope.launch {
             try {
-                withContext(Dispatchers.IO) {
-                    activeProvider.deletePlaylist(playlist.id)
+                val refresh = withContext(Dispatchers.IO) {
+                    activeProvider.deletePlaylistAndRefresh(
+                        playlist = playlist,
+                        providerResponseService = providerResponseService,
+                    )
                 }
-                providerResponseService.invalidatePlaylistResponses(activeProvider, playlist.id)
-                setPlaylistPendingDelete(null)
-                val update = playlistDeleteStateUpdate(
-                    currentSelectedPlaylist = selectedPlaylist(),
-                    currentSelectedPlaylistTracks = selectedPlaylistTracks(),
-                    currentPlaylistTracksById = playlistTracksById(),
-                    currentRecentPlaylistIds = recentPlaylistIds(),
+                pendingDelete = null
+                val update = playlistDeleteApplicationUpdate(
+                    refresh = refresh,
+                    currentSelectedPlaylist = selectedPlaylist,
+                    currentSelectedPlaylistTracks = selectedPlaylistTracks,
+                    currentPlaylistTracksById = playlistTracksById,
+                    currentRecentPlaylistIds = recentPlaylistIds,
                     deletedPlaylistId = playlist.id,
                 )
-                setSelectedPlaylist(update.selectedPlaylist)
-                setSelectedPlaylistTracks(update.selectedPlaylistTracks)
-                if (update.deletedSelectedPlaylist) {
+                val application = playlistDeleteApplication(
+                    update = update,
+                    currentHomeContent = homeContent(),
+                    projection = PlaylistHomeProjection.RecentLimited,
+                )
+                applyPlaylistListApplication(application.playlistListApplication)
+                application.selectionApplication?.let { selection ->
+                    selectedPlaylist = selection.selectedPlaylist
+                    selectedPlaylistTracks = selection.selectedPlaylistTracks
                     setAppRoute(DesktopAppRoute.Playlists)
                 }
-                setPlaylistTracksById(update.playlistTracksById)
-                setRecentPlaylistIds(update.recentPlaylistIds)
-                setPlaylistStatus(playlistDeletedStatus())
-                refreshPlaylists()
+                playlistTracksById = application.playlistTracksById
+                recentPlaylistIds = application.recentPlaylistIds
+                status = application.status
             } catch (exception: Exception) {
-                setPlaylistStatus(playlistDeleteErrorMessage(exception))
+                status = playlistDeleteErrorMessage(exception)
             }
         }
     }
@@ -350,8 +551,13 @@ class DesktopPlaylistsController(
         activeProvider: MediaProvider,
         tracks: List<Track>,
         index: Int,
+        recentPlaylistIdsAfterPlayback: List<String>? = null,
     ) {
-        markPlaylistPlayed(playlist)
+        markPlaylistPlayed(
+            playlist = playlist,
+            recentPlaylistIdsAfterPlayback = recentPlaylistIdsAfterPlayback
+                ?: recentPlaylistIdsAfterPlayed(recentPlaylistIds, playlist.id, limit = 50),
+        )
         stopRadioContinuation()
         clearShuffleSnapshot()
         setOpenPlayerOnTrackStart(true)
@@ -366,13 +572,18 @@ class DesktopPlaylistsController(
         )
     }
 
-    private fun refreshHomePlaylists(refreshedPlaylists: List<Playlist>) {
-        setHomeContent(
-            homeContent().copy(
-                playlists = homePlaylists(refreshedPlaylists, recentPlaylistIds()),
-                recentRadioStreams = recentRadioStreams(),
-                recentInternetRadioStations = recentInternetRadioStations(),
-            ),
+    private fun applyPlaylistListApplication(application: PlaylistListApplication) {
+        playlists = application.playlists
+        setHomeContent(application.homeContent)
+    }
+
+    private fun applyPlaylistListApplication(refreshedPlaylists: List<Playlist>) {
+        val application = playlistListApplication(
+            playlists = refreshedPlaylists,
+            currentHomeContent = homeContent(),
+            recentPlaylistIds = recentPlaylistIds,
+            projection = PlaylistHomeProjection.RecentLimited,
         )
+        applyPlaylistListApplication(application)
     }
 }

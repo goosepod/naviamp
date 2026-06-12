@@ -17,6 +17,7 @@ import app.naviamp.domain.queue.PlaybackQueue
 import app.naviamp.domain.settings.PlaybackSessionSettings
 import app.naviamp.domain.settings.connectionFormError
 import app.naviamp.domain.source.SavedMediaSource
+import app.naviamp.domain.source.connectionFailureStatus
 import app.naviamp.domain.source.deletedMediaSourceUpdate
 import app.naviamp.desktop.playback.PlaylistCallbacks
 import app.naviamp.desktop.playback.DesktopPlaylistEngine
@@ -100,11 +101,34 @@ class DesktopConnectionLifecycleController(
     private val savedConnectionForLogin: () -> NavidromeConnection?,
     private val setSavedConnectionForLogin: (NavidromeConnection?) -> Unit,
     private val incrementMediaSourcesRevision: () -> Unit,
+    private val applyConnectionFormState: (DesktopConnectionFormState) -> Unit,
     private val setConnectionFormOpen: (Boolean) -> Unit,
-    private val setConnectionStatus: (String) -> Unit,
+    private val setConnectionStatus: (String?) -> Unit,
     private val setAppRoute: (DesktopAppRoute) -> Unit,
     private val appRoute: () -> DesktopAppRoute,
 ) {
+    fun openNewConnectionForm() {
+        applyConnectionFormState(newDesktopConnectionFormState())
+        setConnectionFormOpen(true)
+        setConnectionStatus(null)
+    }
+
+    fun openSavedConnectionForm(source: SavedMediaSource) {
+        applyConnectionFormState(savedDesktopConnectionFormState(source))
+        setConnectionFormOpen(true)
+        setConnectionStatus("Editing saved connection. Leave password blank to reuse it.")
+    }
+
+    fun connectSavedConnection(source: SavedMediaSource) {
+        applyConnectionFormState(savedDesktopConnectionFormState(source))
+        setConnectionFormOpen(false)
+        connectToServer()
+    }
+
+    fun closeConnectionForm() {
+        setConnectionFormOpen(false)
+    }
+
     fun connectToServer(restoreSavedSession: Boolean = false) {
         if (isConnecting()) return
         val formError = connectionFormError(
@@ -192,7 +216,7 @@ class DesktopConnectionLifecycleController(
             } catch (exception: Exception) {
                 setConnectedProvider(null)
                 setAppRoute(DesktopAppRoute.Settings)
-                setConnectionStatus(exception.message ?: "Could not connect to Navidrome.")
+                setConnectionStatus(connectionFailureStatus(exception, fallback = "Could not connect to Navidrome."))
             } finally {
                 setConnecting(false)
             }

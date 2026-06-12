@@ -24,11 +24,19 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import app.naviamp.domain.Album
 import app.naviamp.domain.Artist
 import app.naviamp.domain.ArtistDetails
 import app.naviamp.domain.Track
 import app.naviamp.domain.popular.SimilarArtistMatch
+import app.naviamp.ui.SharedMediaItemAction
+import app.naviamp.ui.SharedMediaItemActionRequest
+import app.naviamp.ui.SharedMediaItemKind
+import app.naviamp.ui.SharedTrackGroupAction
+import app.naviamp.ui.SharedTrackGroupActionRequest
+import app.naviamp.ui.SharedTrackRowActionRequest
+import app.naviamp.ui.actionRequest
+import app.naviamp.ui.toSharedMediaItemUi
+import app.naviamp.ui.toSharedTrackRowUi
 
 @Composable
 fun DesktopArtistDetailPanel(
@@ -42,24 +50,12 @@ fun DesktopArtistDetailPanel(
     similarArtistsStatus: String?,
     coverArtUrl: (String?) -> String?,
     onBack: () -> Unit,
-    onArtistRadio: (Artist) -> Unit,
-    onFindSimilarArtists: (Artist) -> Unit,
     onSimilarArtistSelected: (Artist) -> Unit,
     onSimilarArtistExternalSelected: (String) -> Unit,
-    onPopularTracksPlay: (List<Track>) -> Unit,
-    onPopularTracksRadio: (List<Track>) -> Unit,
-    onPopularTracksAddToQueue: (List<Track>) -> Unit,
-    onPopularTrackSelected: (Track) -> Unit,
-    onPopularTrackAddToQueue: (Track) -> Unit,
-    onAddArtistToPlaylist: (Artist) -> Unit,
-    onAddArtistToQueue: (Artist) -> Unit,
-    onArtistFavoriteToggle: (Artist) -> Unit,
-    onAlbumSelected: (Album) -> Unit,
-    onAlbumRadioSelected: (Album) -> Unit,
-    onAlbumDownloadSelected: (Album) -> Unit,
-    onAlbumAddToQueue: (Album) -> Unit,
-    onAlbumAddToPlaylist: (Album) -> Unit,
-    onAlbumFavoriteToggle: (Album) -> Unit,
+    onArtistAction: (SharedMediaItemActionRequest) -> Unit,
+    onPopularTracksAction: (SharedTrackGroupActionRequest) -> Unit,
+    onPopularTrackAction: (SharedTrackRowActionRequest) -> Unit,
+    onAlbumAction: (SharedMediaItemActionRequest) -> Unit,
 ) {
     val effectiveArtist = artistDetails?.artist ?: artist
     val imageUrl = artistDetails?.info?.largeImageUrl
@@ -67,6 +63,23 @@ fun DesktopArtistDetailPanel(
         ?: artistDetails?.info?.smallImageUrl
     var biographyExpanded by remember(effectiveArtist?.id) { mutableStateOf(false) }
     val similarArtistsVisible = similarArtists.isNotEmpty() || similarArtistsStatus != null
+    val artistItem = effectiveArtist?.toSharedMediaItemUi(
+        coverArtUrl = { imageUrl },
+        canFavorite = true,
+    )
+    fun requestArtistAction(action: SharedMediaItemAction) {
+        artistItem?.let { item ->
+            onArtistAction(item.actionRequest(action, kind = SharedMediaItemKind.Artist))
+        }
+    }
+    fun requestPopularTracksAction(action: SharedTrackGroupAction) {
+        onPopularTracksAction(
+            SharedTrackGroupActionRequest(
+                tracks = popularTracks.map { track -> track.toSharedTrackRowUi(coverArtUrl) },
+                action = action,
+            ),
+        )
+    }
 
     Column(
         verticalArrangement = Arrangement.spacedBy(6.dp),
@@ -134,21 +147,21 @@ fun DesktopArtistDetailPanel(
                             icon = TransportIcons.Radio,
                             contentDescription = "Start artist radio",
                             enabled = details.albums.isNotEmpty(),
-                            onClick = { effectiveArtist?.let(onArtistRadio) },
+                            onClick = { requestArtistAction(SharedMediaItemAction.StartRadio) },
                         )
                         DetailActionIconButton(
                             appColors = appColors,
                             icon = DesktopNavigationIcons.Queue,
                             contentDescription = "Add artist to queue",
                             enabled = details.albums.isNotEmpty(),
-                            onClick = { effectiveArtist?.let(onAddArtistToQueue) },
+                            onClick = { requestArtistAction(SharedMediaItemAction.AddToQueue) },
                         )
                         DetailActionIconButton(
                             appColors = appColors,
                             icon = DesktopNavigationIcons.Playlist,
                             contentDescription = "Add artist to playlist",
                             enabled = details.albums.isNotEmpty(),
-                            onClick = { effectiveArtist?.let(onAddArtistToPlaylist) },
+                            onClick = { requestArtistAction(SharedMediaItemAction.AddToPlaylist) },
                         )
                         DetailActionIconButton(
                             appColors = appColors,
@@ -159,21 +172,21 @@ fun DesktopArtistDetailPanel(
                                 "Favorite artist"
                             },
                             enabled = effectiveArtist != null,
-                            onClick = { effectiveArtist?.let(onArtistFavoriteToggle) },
+                            onClick = { requestArtistAction(SharedMediaItemAction.ToggleFavorite) },
                         )
                         DetailActionIconButton(
                             appColors = appColors,
                             icon = TransportIcons.Play,
                             contentDescription = "Play popular tracks",
                             enabled = popularTracks.isNotEmpty(),
-                            onClick = { onPopularTracksPlay(popularTracks) },
+                            onClick = { requestPopularTracksAction(SharedTrackGroupAction.Play) },
                         )
                         DetailActionIconButton(
                             appColors = appColors,
                             icon = DesktopNavigationIcons.Artist,
                             contentDescription = if (similarArtistsVisible) "Hide similar artists" else "Find similar artists",
                             enabled = effectiveArtist != null,
-                            onClick = { effectiveArtist?.let(onFindSimilarArtists) },
+                            onClick = { requestArtistAction(SharedMediaItemAction.FindSimilar) },
                         )
                     }
                     details.info?.biography
@@ -230,7 +243,7 @@ fun DesktopArtistDetailPanel(
                             icon = DesktopNavigationIcons.Artist,
                             contentDescription = "Hide similar artists",
                             enabled = effectiveArtist != null,
-                            onClick = { effectiveArtist?.let(onFindSimilarArtists) },
+                            onClick = { requestArtistAction(SharedMediaItemAction.FindSimilar) },
                         )
                     }
                     similarArtistsStatus?.let {
@@ -261,21 +274,21 @@ fun DesktopArtistDetailPanel(
                                 icon = TransportIcons.Play,
                                 contentDescription = "Play popular tracks",
                                 enabled = true,
-                                onClick = { onPopularTracksPlay(popularTracks) },
+                                onClick = { requestPopularTracksAction(SharedTrackGroupAction.Play) },
                             )
                             DetailActionIconButton(
                                 appColors = appColors,
                                 icon = TransportIcons.Radio,
                                 contentDescription = "Start popular tracks radio",
                                 enabled = true,
-                                onClick = { onPopularTracksRadio(popularTracks) },
+                                onClick = { requestPopularTracksAction(SharedTrackGroupAction.StartRadio) },
                             )
                             DetailActionIconButton(
                                 appColors = appColors,
                                 icon = DesktopNavigationIcons.Queue,
                                 contentDescription = "Add popular tracks to queue",
                                 enabled = true,
-                                onClick = { onPopularTracksAddToQueue(popularTracks) },
+                                onClick = { requestPopularTracksAction(SharedTrackGroupAction.AddToQueue) },
                             )
                         }
                     }
@@ -289,10 +302,10 @@ fun DesktopArtistDetailPanel(
                                 track = track,
                                 coverArtUrl = coverArtUrl(track.coverArtId),
                                 showCoverArt = true,
-                                onClick = { onPopularTrackSelected(track) },
-                                onStartRadio = { onPopularTracksRadio(listOf(track)) },
-                                onDownload = {},
-                                onAddToQueue = { onPopularTrackAddToQueue(track) },
+                                canStartRadio = true,
+                                canDownload = false,
+                                canAddToQueue = true,
+                                onTrackAction = onPopularTrackAction,
                             )
                         }
                     }
@@ -309,12 +322,12 @@ fun DesktopArtistDetailPanel(
                             appColors = appColors,
                             album = album,
                             coverArtUrl = coverArtUrl(album.coverArtId),
-                            onClick = { onAlbumSelected(album) },
-                            onStartRadio = { onAlbumRadioSelected(album) },
-                            onDownload = { onAlbumDownloadSelected(album) },
-                            onAddToQueue = { onAlbumAddToQueue(album) },
-                            onAddToPlaylist = { onAlbumAddToPlaylist(album) },
-                            onFavoriteToggle = { onAlbumFavoriteToggle(album) },
+                            canStartRadio = true,
+                            canDownload = true,
+                            canAddToQueue = true,
+                            canAddToPlaylist = true,
+                            canFavorite = true,
+                            onItemAction = onAlbumAction,
                         )
                     }
                 }

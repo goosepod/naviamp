@@ -279,6 +279,94 @@ class PlaybackProgressTest {
     }
 
     @Test
+    fun progressUpdatePlanCanUseStableDesktopMergeAndUiGate() {
+        val plan = planPlaybackProgressUpdate(
+            sessionToken = 1,
+            activeSessionToken = 1,
+            incomingProgress = PlaybackProgress(positionSeconds = 0.0, durationSeconds = null),
+            currentProgress = PlaybackProgress(positionSeconds = 42.0, durationSeconds = 180.0),
+            pendingSeekPositionSeconds = null,
+            pendingSeekIssuedAtMillis = null,
+            pendingRestoreStartPositionSeconds = null,
+            nowMillis = 2_000,
+            lastExternalProgressPublishAtMillis = 0,
+            externalProgressPublishIntervalMillis = Long.MAX_VALUE,
+            resetUnknownProgress = false,
+            keepPreviousOnLargeBackwardProgressJump = true,
+            savePlaybackPosition = true,
+            prepareNext = false,
+            lastUiUpdateMillis = 1_000,
+            positionThresholdSeconds = 0.45,
+            uiUpdateIntervalMillis = 500,
+        )
+
+        assertEquals(42.0, plan.progress?.positionSeconds)
+        assertEquals(180.0, plan.progress?.durationSeconds)
+        assertEquals(true, plan.shouldSavePlaybackPosition)
+        assertEquals(true, plan.shouldReportPlayed)
+        assertEquals(true, plan.shouldUpdateUi)
+        assertEquals(false, plan.shouldPublishExternalProgress)
+        assertEquals(false, plan.shouldPrepareNext)
+    }
+
+    @Test
+    fun progressUpdatePlanCanKeepUnknownProgressForStableMergeConsumers() {
+        val plan = planPlaybackProgressUpdate(
+            sessionToken = 1,
+            activeSessionToken = 1,
+            incomingProgress = PlaybackProgress.Unknown,
+            currentProgress = PlaybackProgress(positionSeconds = 12.0, durationSeconds = 180.0),
+            pendingSeekPositionSeconds = null,
+            pendingSeekIssuedAtMillis = null,
+            pendingRestoreStartPositionSeconds = null,
+            nowMillis = 1_000,
+            lastExternalProgressPublishAtMillis = 0,
+            externalProgressPublishIntervalMillis = Long.MAX_VALUE,
+            resetUnknownProgress = false,
+            keepPreviousOnLargeBackwardProgressJump = true,
+            savePlaybackPosition = true,
+            prepareNext = false,
+            lastUiUpdateMillis = 900,
+            positionThresholdSeconds = 0.45,
+            uiUpdateIntervalMillis = 500,
+        )
+
+        assertEquals(false, plan.resetToUnknown)
+        assertEquals(12.0, plan.progress?.positionSeconds)
+        assertEquals(180.0, plan.progress?.durationSeconds)
+        assertEquals(false, plan.shouldUpdateUi)
+    }
+
+    @Test
+    fun progressUpdatePlanCanPreserveIncomingLiveStreamProgress() {
+        val plan = planPlaybackProgressUpdate(
+            sessionToken = 1,
+            activeSessionToken = 1,
+            incomingProgress = PlaybackProgress(positionSeconds = 8.0, durationSeconds = null),
+            currentProgress = PlaybackProgress(positionSeconds = 7.5, durationSeconds = 180.0),
+            pendingSeekPositionSeconds = null,
+            pendingSeekIssuedAtMillis = null,
+            pendingRestoreStartPositionSeconds = null,
+            nowMillis = 2_000,
+            lastExternalProgressPublishAtMillis = 0,
+            externalProgressPublishIntervalMillis = Long.MAX_VALUE,
+            resetUnknownProgress = false,
+            mergeMissingProgressFields = false,
+            reportPlayed = false,
+            prepareNext = false,
+            lastUiUpdateMillis = 1_000,
+            positionThresholdSeconds = 0.45,
+            uiUpdateIntervalMillis = 500,
+        )
+
+        assertEquals(8.0, plan.progress?.positionSeconds)
+        assertEquals(null, plan.progress?.durationSeconds)
+        assertEquals(false, plan.shouldReportPlayed)
+        assertEquals(true, plan.shouldUpdateUi)
+        assertEquals(false, plan.shouldPrepareNext)
+    }
+
+    @Test
     fun progressUpdatePlanClearsPendingRestoreWhenIncomingProgressReachesStart() {
         val plan = planPlaybackProgressUpdate(
             sessionToken = 1,

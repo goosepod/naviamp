@@ -2,6 +2,7 @@ package app.naviamp.ui
 
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import app.naviamp.domain.playback.PlaybackState
 import app.naviamp.domain.playback.PlaybackVisualizerFrame
 import app.naviamp.domain.waveform.AudioWaveform
 
@@ -63,6 +64,17 @@ enum class NaviampVisualizer(val label: String) {
     VinylGroove("Vinyl groove"),
 }
 
+fun naviampVisualizerFromName(name: String?): NaviampVisualizer =
+    NaviampVisualizer.entries.firstOrNull { visualizer -> visualizer.name == name }
+        ?: NaviampVisualizer.AudioSphere
+
+fun isNaviampVisualizerVisible(
+    requestedVisible: Boolean,
+    playbackState: PlaybackState,
+): Boolean =
+    requestedVisible &&
+        (playbackState == PlaybackState.Playing || playbackState == PlaybackState.Loading)
+
 typealias ConnectionFormState = app.naviamp.domain.settings.ConnectionFormState
 typealias PlaybackSettings = app.naviamp.domain.settings.PlaybackSettings
 
@@ -76,11 +88,96 @@ data class SharedTrackRowUi(
     val detailSections: List<NaviampDetailSectionUi> = emptyList(),
 )
 
+enum class SharedTrackRowAction {
+    Select,
+    StartRadio,
+    AddToQueue,
+    Download,
+    AddToPlaylist,
+    CreatePlaylistAndAdd,
+}
+
+data class SharedTrackRowActionRequest(
+    val track: SharedTrackRowUi,
+    val action: SharedTrackRowAction,
+    val playlistChoice: NaviampPlaylistChoiceUi? = null,
+    val playlistName: String? = null,
+)
+
+enum class SharedTrackGroupAction {
+    Play,
+    StartRadio,
+    AddToQueue,
+}
+
+data class SharedTrackGroupActionRequest(
+    val tracks: List<SharedTrackRowUi>,
+    val action: SharedTrackGroupAction,
+)
+
+data class SharedTrackRowActionHandlers(
+    val onSelect: (SharedTrackRowUi) -> Unit = {},
+    val onStartRadio: (SharedTrackRowUi) -> Unit = {},
+    val onAddToQueue: (SharedTrackRowUi) -> Unit = {},
+    val onDownload: (SharedTrackRowUi) -> Unit = {},
+    val onAddToPlaylist: (SharedTrackRowUi, NaviampPlaylistChoiceUi?) -> Unit = { _, _ -> },
+    val onCreatePlaylistAndAdd: (SharedTrackRowUi, String) -> Unit = { _, _ -> },
+)
+
+fun handleSharedTrackRowAction(
+    request: SharedTrackRowActionRequest,
+    handlers: SharedTrackRowActionHandlers,
+) {
+    when (request.action) {
+        SharedTrackRowAction.Select -> handlers.onSelect(request.track)
+        SharedTrackRowAction.StartRadio -> handlers.onStartRadio(request.track)
+        SharedTrackRowAction.AddToQueue -> handlers.onAddToQueue(request.track)
+        SharedTrackRowAction.Download -> handlers.onDownload(request.track)
+        SharedTrackRowAction.AddToPlaylist -> handlers.onAddToPlaylist(request.track, request.playlistChoice)
+        SharedTrackRowAction.CreatePlaylistAndAdd ->
+            request.playlistName?.let { name -> handlers.onCreatePlaylistAndAdd(request.track, name) }
+    }
+}
+
 data class NaviampDownloadedTrackUi(
     val id: String,
     val track: SharedTrackRowUi,
     val sizeBytes: Long,
 )
+
+enum class DownloadedTrackAction {
+    Select,
+    AddToPlaylist,
+    CreatePlaylistAndAdd,
+    Remove,
+}
+
+data class DownloadedTrackActionRequest(
+    val download: NaviampDownloadedTrackUi,
+    val action: DownloadedTrackAction,
+    val playlistChoice: NaviampPlaylistChoiceUi? = null,
+    val playlistName: String? = null,
+)
+
+data class DownloadedTrackActionHandlers(
+    val onSelect: (NaviampDownloadedTrackUi) -> Unit = {},
+    val onAddToPlaylist: (NaviampDownloadedTrackUi, NaviampPlaylistChoiceUi?) -> Unit = { _, _ -> },
+    val onCreatePlaylistAndAdd: (NaviampDownloadedTrackUi, String) -> Unit = { _, _ -> },
+    val onRemove: (NaviampDownloadedTrackUi) -> Unit = {},
+)
+
+fun handleDownloadedTrackAction(
+    request: DownloadedTrackActionRequest,
+    handlers: DownloadedTrackActionHandlers,
+) {
+    when (request.action) {
+        DownloadedTrackAction.Select -> handlers.onSelect(request.download)
+        DownloadedTrackAction.AddToPlaylist -> handlers.onAddToPlaylist(request.download, request.playlistChoice)
+        DownloadedTrackAction.CreatePlaylistAndAdd ->
+            request.playlistName?.let { name -> handlers.onCreatePlaylistAndAdd(request.download, name) }
+        DownloadedTrackAction.Remove -> handlers.onRemove(request.download)
+    }
+}
 
 data class SharedMediaItemUi(
     val id: String,
@@ -93,6 +190,122 @@ data class SharedMediaItemUi(
     val favoriteActive: Boolean = false,
     val canFavorite: Boolean = false,
 )
+
+enum class SharedMediaItemKind {
+    Unknown,
+    Album,
+    Artist,
+    Playlist,
+    RadioStation,
+    MixBuilder,
+}
+
+enum class SharedMediaItemAction {
+    Select,
+    Play,
+    Shuffle,
+    StartRadio,
+    FindSimilar,
+    AddToQueue,
+    Download,
+    AddToPlaylist,
+    CreatePlaylistAndAdd,
+    ToggleFavorite,
+    Rename,
+    EditSmartPlaylist,
+    Delete,
+    EditStation,
+    DeleteStation,
+}
+
+data class SharedMediaItemActionRequest(
+    val item: SharedMediaItemUi,
+    val action: SharedMediaItemAction,
+    val kind: SharedMediaItemKind = SharedMediaItemKind.Unknown,
+    val playlistChoice: NaviampPlaylistChoiceUi? = null,
+    val playlistName: String? = null,
+    val textValue: String? = null,
+    val shuffle: Boolean = false,
+)
+
+fun sharedMediaItemActionRequest(
+    item: SharedMediaItemUi,
+    action: SharedMediaItemAction,
+    kind: SharedMediaItemKind = SharedMediaItemKind.Unknown,
+    playlistChoice: NaviampPlaylistChoiceUi? = null,
+    playlistName: String? = null,
+    textValue: String? = null,
+    shuffle: Boolean = action == SharedMediaItemAction.Shuffle,
+): SharedMediaItemActionRequest =
+    SharedMediaItemActionRequest(
+        item = item,
+        action = action,
+        kind = kind,
+        playlistChoice = playlistChoice,
+        playlistName = playlistName,
+        textValue = textValue,
+        shuffle = shuffle,
+    )
+
+fun SharedMediaItemUi.actionRequest(
+    action: SharedMediaItemAction,
+    kind: SharedMediaItemKind = SharedMediaItemKind.Unknown,
+    playlistChoice: NaviampPlaylistChoiceUi? = null,
+    playlistName: String? = null,
+    textValue: String? = null,
+    shuffle: Boolean = action == SharedMediaItemAction.Shuffle,
+): SharedMediaItemActionRequest =
+    sharedMediaItemActionRequest(
+        item = this,
+        action = action,
+        kind = kind,
+        playlistChoice = playlistChoice,
+        playlistName = playlistName,
+        textValue = textValue,
+        shuffle = shuffle,
+    )
+
+data class SharedMediaItemActionHandlers(
+    val onSelect: (SharedMediaItemUi) -> Unit = {},
+    val onPlay: (SharedMediaItemUi, Boolean) -> Unit = { _, _ -> },
+    val onStartRadio: (SharedMediaItemUi) -> Unit = {},
+    val onFindSimilar: (SharedMediaItemUi) -> Unit = {},
+    val onAddToQueue: (SharedMediaItemUi) -> Unit = {},
+    val onDownload: (SharedMediaItemUi) -> Unit = {},
+    val onAddToPlaylist: (SharedMediaItemUi, NaviampPlaylistChoiceUi?) -> Unit = { _, _ -> },
+    val onCreatePlaylistAndAdd: (SharedMediaItemUi, String) -> Unit = { _, _ -> },
+    val onToggleFavorite: (SharedMediaItemUi) -> Unit = {},
+    val onRename: (SharedMediaItemUi, String) -> Unit = { _, _ -> },
+    val onEditSmartPlaylist: (SharedMediaItemUi) -> Unit = {},
+    val onDelete: (SharedMediaItemUi) -> Unit = {},
+    val onEditStation: (SharedMediaItemUi) -> Unit = {},
+    val onDeleteStation: (SharedMediaItemUi) -> Unit = {},
+)
+
+fun handleSharedMediaItemAction(
+    request: SharedMediaItemActionRequest,
+    handlers: SharedMediaItemActionHandlers,
+) {
+    when (request.action) {
+        SharedMediaItemAction.Select -> handlers.onSelect(request.item)
+        SharedMediaItemAction.Play -> handlers.onPlay(request.item, false)
+        SharedMediaItemAction.Shuffle -> handlers.onPlay(request.item, true)
+        SharedMediaItemAction.StartRadio -> handlers.onStartRadio(request.item)
+        SharedMediaItemAction.FindSimilar -> handlers.onFindSimilar(request.item)
+        SharedMediaItemAction.AddToQueue -> handlers.onAddToQueue(request.item)
+        SharedMediaItemAction.Download -> handlers.onDownload(request.item)
+        SharedMediaItemAction.AddToPlaylist -> handlers.onAddToPlaylist(request.item, request.playlistChoice)
+        SharedMediaItemAction.CreatePlaylistAndAdd ->
+            request.playlistName?.let { name -> handlers.onCreatePlaylistAndAdd(request.item, name) }
+        SharedMediaItemAction.ToggleFavorite -> handlers.onToggleFavorite(request.item)
+        SharedMediaItemAction.Rename ->
+            request.textValue?.let { name -> handlers.onRename(request.item, name) }
+        SharedMediaItemAction.EditSmartPlaylist -> handlers.onEditSmartPlaylist(request.item)
+        SharedMediaItemAction.Delete -> handlers.onDelete(request.item)
+        SharedMediaItemAction.EditStation -> handlers.onEditStation(request.item)
+        SharedMediaItemAction.DeleteStation -> handlers.onDeleteStation(request.item)
+    }
+}
 
 data class SharedAlbumDetailUi(
     val album: SharedMediaItemUi,
@@ -166,6 +379,34 @@ data class SharedHomeStationUi(
     val title: String,
     val subtitle: String,
 )
+
+enum class StationRowAction {
+    Select,
+    Edit,
+    Delete,
+}
+
+data class StationRowActionRequest(
+    val station: SharedMediaItemUi,
+    val action: StationRowAction,
+)
+
+data class StationRowActionHandlers(
+    val onSelect: (SharedMediaItemUi) -> Unit = {},
+    val onEdit: (SharedMediaItemUi) -> Unit = {},
+    val onDelete: (SharedMediaItemUi) -> Unit = {},
+)
+
+fun handleStationRowAction(
+    request: StationRowActionRequest,
+    handlers: StationRowActionHandlers,
+) {
+    when (request.action) {
+        StationRowAction.Select -> handlers.onSelect(request.station)
+        StationRowAction.Edit -> handlers.onEdit(request.station)
+        StationRowAction.Delete -> handlers.onDelete(request.station)
+    }
+}
 
 data class SharedSearchResultsUi(
     val artists: List<SharedMediaItemUi> = emptyList(),
@@ -254,6 +495,8 @@ data class NowPlayingUi(
     val backTo: List<NaviampNowPlayingItemUi> = emptyList(),
     val upNext: List<NaviampNowPlayingItemUi> = emptyList(),
     val related: List<NaviampNowPlayingItemUi> = emptyList(),
+    val relatedTabLabel: String = "RELATED",
+    val relatedEmptyLabel: String = "Related tracks are not loaded.",
     val radioStations: List<NaviampNowPlayingItemUi> = emptyList(),
 )
 

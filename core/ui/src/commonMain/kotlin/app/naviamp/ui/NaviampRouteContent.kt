@@ -67,17 +67,36 @@ fun SharedHome(
             emptyText = "Start a radio station to build this list.",
         )
         MixBuilderSection(home.mixBuilders, colors, onMixBuilderSelected)
-        HomeSection("Recently Added In Music", home.recentlyAddedAlbums, colors, onAlbumSelected, onAlbumFavoriteToggled)
-        HomeSection("Recent Playlists", home.playlists, colors, onPlaylistSelected)
-        HomeSection("Recent Internet Radio", home.radioStations, colors, onInternetRadioStationSelected)
+        HomeSection(
+            "Recently Added In Music",
+            home.recentlyAddedAlbums,
+            colors,
+            onAlbumSelected,
+            onAlbumFavoriteToggled,
+            SharedMediaItemKind.Album,
+        )
+        HomeSection(
+            "Recent Playlists",
+            home.playlists,
+            colors,
+            onPlaylistSelected,
+            itemKind = SharedMediaItemKind.Playlist,
+        )
+        HomeSection(
+            "Recent Internet Radio",
+            home.radioStations,
+            colors,
+            onInternetRadioStationSelected,
+            itemKind = SharedMediaItemKind.RadioStation,
+        )
         HomeStationSection(home.stations, colors, onHomeStationSelected)
-        HomeSection("Recent Albums", home.recentAlbums, colors, onAlbumSelected, onAlbumFavoriteToggled)
-        HomeSection("Frequently Played Albums", home.frequentAlbums, colors, onAlbumSelected, onAlbumFavoriteToggled)
-        HomeSection("Random Albums", home.randomAlbums, colors, onAlbumSelected, onAlbumFavoriteToggled)
+        HomeSection("Recent Albums", home.recentAlbums, colors, onAlbumSelected, onAlbumFavoriteToggled, SharedMediaItemKind.Album)
+        HomeSection("Frequently Played Albums", home.frequentAlbums, colors, onAlbumSelected, onAlbumFavoriteToggled, SharedMediaItemKind.Album)
+        HomeSection("Random Albums", home.randomAlbums, colors, onAlbumSelected, onAlbumFavoriteToggled, SharedMediaItemKind.Album)
         home.genreSpotlightTitle?.let { title ->
-            HomeSection("More In $title", home.genreSpotlightAlbums, colors, onAlbumSelected, onAlbumFavoriteToggled)
+            HomeSection("More In $title", home.genreSpotlightAlbums, colors, onAlbumSelected, onAlbumFavoriteToggled, SharedMediaItemKind.Album)
         }
-        HomeSection("From ${home.decadeLabel}", home.decadeAlbums, colors, onAlbumSelected, onAlbumFavoriteToggled)
+        HomeSection("From ${home.decadeLabel}", home.decadeAlbums, colors, onAlbumSelected, onAlbumFavoriteToggled, SharedMediaItemKind.Album)
     }
 }
 
@@ -99,6 +118,7 @@ private fun MixBuilderSection(
                 ),
                 colors = colors,
                 onClick = { onBuilderSelected(builder) },
+                itemKind = SharedMediaItemKind.MixBuilder,
             )
         }
     }
@@ -119,6 +139,15 @@ internal fun SearchContent(
     onArtistFavoriteToggled: (SharedMediaItemUi) -> Unit = {},
     onAlbumFavoriteToggled: (SharedMediaItemUi) -> Unit = {},
 ) {
+    val handleTrackAction: (SharedTrackRowActionRequest) -> Unit = { request ->
+        handleSharedTrackRowAction(
+            request,
+            SharedTrackRowActionHandlers(
+                onSelect = onTrackSelected,
+                onAddToQueue = onTrackAddToQueue,
+            ),
+        )
+    }
     Column(
         verticalArrangement = Arrangement.spacedBy(12.dp),
         modifier = Modifier.fillMaxSize(),
@@ -145,12 +174,18 @@ internal fun SearchContent(
         if (query.isNotBlank() && results.isEmpty) {
             Text("No matches found.", color = colors.secondaryText, fontSize = 12.sp)
         }
-        MediaSection("Artists", results.artists, colors, onArtistSelected, onArtistFavoriteToggled)
-        MediaSection("Albums", results.albums, colors, onAlbumSelected, onAlbumFavoriteToggled)
+        MediaSection("Artists", results.artists, colors, onArtistSelected, onArtistFavoriteToggled, SharedMediaItemKind.Artist)
+        MediaSection("Albums", results.albums, colors, onAlbumSelected, onAlbumFavoriteToggled, SharedMediaItemKind.Album)
         if (results.tracks.isNotEmpty()) {
             SectionHeader("TRACKS", colors)
             results.tracks.forEach { track ->
-                TrackRow(track, colors, onTrackSelected, onAddToQueue = onTrackAddToQueue)
+                TrackRow(
+                    track,
+                    colors,
+                    onTrackSelected,
+                    onAddToQueue = onTrackAddToQueue,
+                    onTrackAction = handleTrackAction,
+                )
             }
         }
     }
@@ -163,6 +198,7 @@ internal fun MediaListContent(
     items: List<SharedMediaItemUi>,
     emptyText: String,
     onItemSelected: ((SharedMediaItemUi) -> Unit)? = null,
+    itemKind: SharedMediaItemKind = SharedMediaItemKind.Unknown,
 ) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -184,6 +220,7 @@ internal fun MediaListContent(
                 item = item,
                 colors = colors,
                 onClick = onItemSelected?.let { { it(item) } },
+                itemKind = itemKind,
             )
         }
     }
@@ -281,6 +318,7 @@ internal fun LibraryContent(
                 colors = colors,
                 onClick = { onArtistSelected(item) },
                 onFavoriteToggled = onArtistFavoriteToggled,
+                itemKind = SharedMediaItemKind.Artist,
             )
         }
     }
@@ -293,14 +331,24 @@ internal fun DownloadsContent(
     status: String?,
     downloadBytes: Long,
     maxDownloadBytes: Long,
-    onTrackSelected: (NaviampDownloadedTrackUi) -> Unit,
     playlistChoices: List<NaviampPlaylistChoiceUi>,
     playlistActionStatus: String?,
-    onAddToPlaylist: (NaviampDownloadedTrackUi, NaviampPlaylistChoiceUi?) -> Unit,
-    onCreatePlaylistAndAdd: (NaviampDownloadedTrackUi, String) -> Unit,
-    onRemoveDownload: (NaviampDownloadedTrackUi) -> Unit,
+    onDownloadAction: (DownloadedTrackActionRequest) -> Unit,
 ) {
     var downloadForPlaylist by remember { mutableStateOf<NaviampDownloadedTrackUi?>(null) }
+    val handleDownloadAction: (DownloadedTrackActionRequest) -> Unit = { request ->
+        handleDownloadedTrackAction(
+            request,
+            DownloadedTrackActionHandlers(
+                onSelect = { onDownloadAction(request) },
+                onAddToPlaylist = { download, playlist ->
+                    if (playlist == null) downloadForPlaylist = download else onDownloadAction(request)
+                },
+                onCreatePlaylistAndAdd = { _, _ -> onDownloadAction(request) },
+                onRemove = { onDownloadAction(request) },
+            ),
+        )
+    }
     val remainingBytes = (maxDownloadBytes - downloadBytes).coerceAtLeast(0L)
     val usedPercent = if (maxDownloadBytes > 0L) {
         ((downloadBytes.toDouble() / maxDownloadBytes.toDouble()) * 100.0).coerceIn(0.0, 100.0)
@@ -343,7 +391,9 @@ internal fun DownloadsContent(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clickable { onTrackSelected(download) }
+                    .clickable {
+                        handleDownloadAction(DownloadedTrackActionRequest(download, DownloadedTrackAction.Select))
+                    }
                     .padding(vertical = 6.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -361,13 +411,21 @@ internal fun DownloadsContent(
                             NaviampAction.AddToPlaylist -> NaviampRowMenuItem(
                                 label = action.label,
                                 icon = action.icon,
-                                onClick = { downloadForPlaylist = download },
+                                onClick = {
+                                    handleDownloadAction(
+                                        DownloadedTrackActionRequest(download, DownloadedTrackAction.AddToPlaylist),
+                                    )
+                                },
                                 enabled = action.enabled,
                             )
                             NaviampAction.RemoveDownload -> NaviampRowMenuItem(
                                 label = action.label,
                                 icon = action.icon,
-                                onClick = { onRemoveDownload(download) },
+                                onClick = {
+                                    handleDownloadAction(
+                                        DownloadedTrackActionRequest(download, DownloadedTrackAction.Remove),
+                                    )
+                                },
                                 enabled = action.enabled,
                             )
                             else -> null
@@ -387,11 +445,23 @@ internal fun DownloadsContent(
             onDismissRequest = { downloadForPlaylist = null },
             onAddToExisting = { playlist ->
                 downloadForPlaylist = null
-                onAddToPlaylist(download, playlist)
+                handleDownloadAction(
+                    DownloadedTrackActionRequest(
+                        download = download,
+                        action = DownloadedTrackAction.AddToPlaylist,
+                        playlistChoice = playlist,
+                    ),
+                )
             },
             onCreateAndAdd = { name ->
                 downloadForPlaylist = null
-                onCreatePlaylistAndAdd(download, name)
+                handleDownloadAction(
+                    DownloadedTrackActionRequest(
+                        download = download,
+                        action = DownloadedTrackAction.CreatePlaylistAndAdd,
+                        playlistName = name,
+                    ),
+                )
             },
         )
     }

@@ -16,7 +16,7 @@ help:
 	@printf "Windows, run on a Windows runner or shell:\n"
 	@printf "  make windows-test        Build and stage the Windows test app\n"
 	@printf "  make windows-standalone  Build Windows release zip\n"
-	@printf "  make windows-installer   Reserved for the future Windows installer task\n\n"
+	@printf "  make windows-installer   Build Windows MSI/EXE installer\n\n"
 	@printf "Android:\n"
 	@printf "  make android-debug       Build debug APK\n"
 	@printf "  make android-release     Build release APK/AAB tasks configured by Gradle\n\n"
@@ -67,8 +67,16 @@ windows-standalone windows-release:
 
 .PHONY: windows-installer
 windows-installer:
-	@printf "No Windows installer task exists yet. Use 'make windows-standalone' for the current release zip.\n"
-	@exit 1
+	@if uname -s | grep -Eq 'MINGW|MSYS|CYGWIN|Windows'; then \
+		if ! command -v candle.exe >/dev/null 2>&1 || ! command -v light.exe >/dev/null 2>&1; then \
+			printf "windows-installer requires WiX Toolset 3.x on PATH so jpackage can create MSI/EXE installers.\n"; \
+			exit 1; \
+		fi; \
+		$(GRADLEW_BAT) $(GRADLE_COMMON) "$(WINDOWS_DESKTOP_PROPS)" :apps:desktop:packageReleaseDistributionForCurrentOS; \
+	else \
+		printf "windows-installer must run on Windows so jpackage can create a Windows installer.\n"; \
+		exit 1; \
+	fi
 
 .PHONY: android-debug
 android-debug:

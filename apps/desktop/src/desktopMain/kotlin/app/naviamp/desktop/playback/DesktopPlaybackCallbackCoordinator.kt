@@ -6,12 +6,11 @@ import app.naviamp.domain.audio.AudioTag
 import app.naviamp.domain.playback.PlaybackProgress
 import app.naviamp.domain.playback.PlaybackState
 import app.naviamp.domain.playback.PlaybackStreamMetadata
-import app.naviamp.domain.playback.mergeWith
+import app.naviamp.domain.playback.PlaybackTrackStartEffectApplier
+import app.naviamp.domain.playback.applyPlaybackTrackStartEffects
+import app.naviamp.domain.playback.planPlaybackProgressUpdate
 import app.naviamp.domain.playback.planPlaybackTrackStartEffects
 import app.naviamp.domain.playback.planPlaybackTrackStarted
-import app.naviamp.domain.playback.shouldClearPendingSeek
-import app.naviamp.domain.playback.shouldIgnoreProgressForPendingSeek
-import app.naviamp.domain.playback.shouldUpdatePlaybackProgressUi
 import app.naviamp.domain.provider.MediaProvider
 import app.naviamp.domain.queue.PlaybackQueue
 import app.naviamp.domain.waveform.AudioWaveform
@@ -70,29 +69,32 @@ fun desktopPlaylistCallbacks(
                 presentation = trackStartedPlan,
                 keepRadioQueueActive = true,
             )
-            if (effectsPlan.presentation.clearShuffleSnapshot) {
-                clearShuffleSnapshot()
-            }
-            if (effectsPlan.presentation.clearInternetRadioNowPlaying) setNowPlayingInternetRadioStation(null)
-            if (effectsPlan.presentation.resetStreamMetadata) setNowPlayingStreamMetadata(PlaybackStreamMetadata())
-            setNowPlayingTrack(track)
-            setNowPlayingCoverArtUrl(coverArtUrl)
-            incrementPlayReportSessionId()
-            clearSubmittedPlayReportSessionId()
-            if (effectsPlan.presentation.shouldReportNowPlaying) reportNowPlaying(track)
-            if (effectsPlan.presentation.resetSidecars) {
-                setNowPlayingWaveform(null)
-                setNowPlayingWaveformStatus("Waiting")
-                setNowPlayingAudioTags(null)
-                setNowPlayingLyrics(null)
-                setNowPlayingLyricsStatus(null)
-                incrementNowPlayingWaveformReloadToken()
-            }
-            if (effectsPlan.presentation.resetProgress) setPlaybackProgress(PlaybackProgress.Unknown)
-            if (effectsPlan.refillRadioQueue) refillRadioIfNeeded(activeQueue())
-            if (effectsPlan.presentation.shouldOpenNowPlaying) {
-                setAppRoute(DesktopAppRoute.Player)
-            }
+            applyPlaybackTrackStartEffects(
+                track = track,
+                coverArtUrl = coverArtUrl,
+                effects = effectsPlan,
+                applier = PlaybackTrackStartEffectApplier(
+                    clearShuffleSnapshot = clearShuffleSnapshot,
+                    clearInternetRadioNowPlaying = { setNowPlayingInternetRadioStation(null) },
+                    resetStreamMetadata = { setNowPlayingStreamMetadata(PlaybackStreamMetadata()) },
+                    setNowPlayingTrack = { startedTrack -> setNowPlayingTrack(startedTrack) },
+                    setNowPlayingCoverArtUrl = setNowPlayingCoverArtUrl,
+                    incrementPlayReportSession = incrementPlayReportSessionId,
+                    clearSubmittedPlayReportSession = clearSubmittedPlayReportSessionId,
+                    openNowPlaying = { setAppRoute(DesktopAppRoute.Player) },
+                    reportNowPlaying = reportNowPlaying,
+                    resetSidecars = {
+                        setNowPlayingWaveform(null)
+                        setNowPlayingWaveformStatus("Waiting")
+                        setNowPlayingAudioTags(null)
+                        setNowPlayingLyrics(null)
+                        setNowPlayingLyricsStatus(null)
+                        incrementNowPlayingWaveformReloadToken()
+                    },
+                    resetProgress = { setPlaybackProgress(PlaybackProgress.Unknown) },
+                    refillRadioQueue = { refillRadioIfNeeded(activeQueue()) },
+                ),
+            )
         },
         onQueueChanged = { queue ->
             setPlaybackQueue(queue)
@@ -103,31 +105,35 @@ fun desktopPlaylistCallbacks(
         },
         onPlaybackProgressChanged = progressChanged@{ progress ->
             val pendingSeek = pendingSeekPositionSeconds()
-            val pendingSeekIssuedAt = pendingSeekIssuedAtMillis()
-            val progressPosition = progress.positionSeconds
             val now = System.currentTimeMillis()
-            if (shouldIgnoreProgressForPendingSeek(pendingSeek, pendingSeekIssuedAt, progressPosition, now)) {
-                return@progressChanged
-            }
-            if (shouldClearPendingSeek(pendingSeek, pendingSeekIssuedAt, progressPosition, now)) {
+            val plan = planPlaybackProgressUpdate(
+                sessionToken = 1,
+                activeSessionToken = 1,
+                incomingProgress = progress,
+                currentProgress = playbackProgress(),
+                pendingSeekPositionSeconds = pendingSeek,
+                pendingSeekIssuedAtMillis = pendingSeekIssuedAtMillis(),
+                pendingRestoreStartPositionSeconds = null,
+                nowMillis = now,
+                lastExternalProgressPublishAtMillis = 0,
+                externalProgressPublishIntervalMillis = Long.MAX_VALUE,
+                resetUnknownProgress = false,
+                keepPreviousOnLargeBackwardProgressJump = true,
+                savePlaybackPosition = true,
+                prepareNext = false,
+                lastUiUpdateMillis = lastPlaybackProgressUiUpdateMillis(),
+                positionThresholdSeconds = PlaybackProgressUiUpdateThresholdSeconds,
+                uiUpdateIntervalMillis = PlaybackProgressUiUpdateIntervalMillis,
+            )
+            if (plan.ignore) return@progressChanged
+            if (plan.clearPendingSeek) {
                 setPendingSeekPositionSeconds(null)
                 setPendingSeekIssuedAtMillis(null)
             }
-            val currentProgress = playbackProgress()
-            val mergedProgress = progress.mergeWith(currentProgress)
-            maybeSavePlaybackPosition(mergedProgress)
-            maybeReportPlayed(mergedProgress)
-            if (
-                shouldUpdatePlaybackProgressUi(
-                    pendingSeekPositionSeconds = pendingSeek,
-                    currentProgress = currentProgress,
-                    mergedProgress = mergedProgress,
-                    nowMillis = now,
-                    lastUiUpdateMillis = lastPlaybackProgressUiUpdateMillis(),
-                    positionThresholdSeconds = PlaybackProgressUiUpdateThresholdSeconds,
-                    updateIntervalMillis = PlaybackProgressUiUpdateIntervalMillis,
-                )
-            ) {
+            val mergedProgress = plan.progress ?: return@progressChanged
+            if (plan.shouldSavePlaybackPosition) maybeSavePlaybackPosition(mergedProgress)
+            if (plan.shouldReportPlayed) maybeReportPlayed(mergedProgress)
+            if (plan.shouldUpdateUi) {
                 setPlaybackProgress(mergedProgress)
                 setLastPlaybackProgressUiUpdateMillis(now)
             }

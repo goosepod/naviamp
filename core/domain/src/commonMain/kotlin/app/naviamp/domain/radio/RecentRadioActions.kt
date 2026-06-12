@@ -4,6 +4,10 @@ import app.naviamp.domain.Album
 import app.naviamp.domain.Artist
 import app.naviamp.domain.Genre
 import app.naviamp.domain.Track
+import app.naviamp.domain.home.HomeStationLibrary
+import app.naviamp.domain.home.HomeStationRandomAlbum
+import app.naviamp.domain.home.parseHomeDecadeStationId
+import app.naviamp.domain.home.parseHomeGenreStationId
 import app.naviamp.domain.settings.RecentRadioKind
 import app.naviamp.domain.settings.RecentRadioStream
 
@@ -38,4 +42,16 @@ fun recentRadioAction(stream: RecentRadioStream): RecentRadioAction? =
             stream.album?.toAlbum()?.let { RecentRadioAction.PlayAlbum(it) }
         RecentRadioKind.Track ->
             stream.track?.toTrack()?.let { RecentRadioAction.PlayTrack(it) }
+    }
+
+fun homeStationRadioAction(stationId: String): RecentRadioAction? =
+    when (stationId) {
+        HomeStationLibrary -> RecentRadioAction.PlayLibrary
+        HomeStationRandomAlbum -> RecentRadioAction.PlayRandomAlbum
+        else -> {
+            parseHomeGenreStationId(stationId)
+                ?.let { RecentRadioAction.PlayGenre(Genre(it)) }
+                ?: parseHomeDecadeStationId(stationId)
+                    ?.let { RecentRadioAction.PlayDecade(it.fromYear, it.toYear) }
+        }
     }

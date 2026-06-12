@@ -5,12 +5,26 @@ import app.naviamp.domain.AlbumDetails
 import app.naviamp.domain.AlbumId
 import app.naviamp.domain.Artist
 import app.naviamp.domain.ArtistId
+import app.naviamp.domain.ProviderId
+import app.naviamp.domain.StreamRequest
 import app.naviamp.domain.Track
 import app.naviamp.domain.TrackId
+import app.naviamp.domain.cache.LocalLibraryIndexRepository
+import app.naviamp.domain.cache.LibraryAlbumYear
+import app.naviamp.domain.cache.LibraryIndexStats
+import app.naviamp.domain.cache.LibrarySnapshot
+import app.naviamp.domain.cache.ProviderResponseCacheRepository
+import app.naviamp.domain.cache.ProviderResponseService
 import app.naviamp.domain.popular.ArtistPopularTrackCandidate
 import app.naviamp.domain.popular.ArtistPopularTrackMatch
 import app.naviamp.domain.popular.SimilarArtistCandidate
 import app.naviamp.domain.popular.SimilarArtistMatch
+import app.naviamp.domain.provider.ConnectionValidation
+import app.naviamp.domain.provider.MediaProvider
+import app.naviamp.domain.provider.MediaSearchResults
+import app.naviamp.domain.provider.ProviderCapabilities
+import app.naviamp.domain.source.SavedMediaSource
+import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
@@ -169,6 +183,33 @@ class MediaDetailFallbacksTest {
     }
 
     @Test
+    fun loadArtistPopularTracksUpdateHandlesMissingSourceAndFailure() = runTest {
+        val artist = Artist(ArtistId("artist"), "Artist")
+        assertEquals(
+            ArtistPopularTracksUpdate(
+                tracks = emptyList(),
+                status = "Popular tracks unavailable: no connected media source.",
+            ),
+            loadArtistPopularTracksUpdate(
+                sourceId = null,
+                artist = artist,
+                loadPopularTracks = { _, _, _ -> error("Should not load without source") },
+            ),
+        )
+        assertEquals(
+            ArtistPopularTracksUpdate(
+                tracks = emptyList(),
+                status = "Popular tracks unavailable: failed",
+            ),
+            loadArtistPopularTracksUpdate(
+                sourceId = "source",
+                artist = artist,
+                loadPopularTracks = { _, _, _ -> throw RuntimeException("failed") },
+            ),
+        )
+    }
+
+    @Test
     fun similarArtistsUpdateLimitsArtistsAndReportsEmptyMatches() {
         val artists = listOf(similarArtist("one"), similarArtist("two"), similarArtist("three"))
 
@@ -191,12 +232,99 @@ class MediaDetailFallbacksTest {
     }
 
     @Test
+    fun loadSimilarArtistsUpdateHandlesFailure() = runTest {
+        assertEquals(
+            SimilarArtistsUpdate(
+                artists = emptyList(),
+                status = "Similar artists unavailable: failed",
+            ),
+            loadSimilarArtistsUpdate(
+                artistName = "Artist",
+                loadSimilarArtists = { _, _ -> throw RuntimeException("failed") },
+            ),
+        )
+    }
+
+    @Test
     fun albumDetailStatusHelpersMatchSharedCopy() {
         assertEquals("Loading album...", albumDetailLoadingStatus(null))
         assertEquals("Loading Album...", albumDetailLoadingStatus("Album"))
         assertEquals("Connected.", albumDetailLoadedStatus())
         assertEquals("Could not load album.", albumDetailLoadErrorStatus(RuntimeException()))
         assertEquals("network failed", albumDetailLoadErrorStatus(RuntimeException("network failed")))
+    }
+
+    @Test
+    fun artistDetailFlowCoordinatorPublishesLoadingLoadedAndAfterLoaded() = runTest {
+        val statuses = mutableListOf<String?>()
+        var appliedDetail: app.naviamp.domain.ArtistDetails? = null
+        var afterLoadedArtist: Artist? = null
+        val detail = app.naviamp.domain.ArtistDetails(
+            artist = Artist(ArtistId("artist"), "Artist"),
+            albums = listOf(album("album")),
+            info = null,
+        )
+
+        ArtistDetailFlowCoordinator(
+            setStatus = { statuses += it },
+            applyDetail = { appliedDetail = it },
+        ).load(
+            request = artistDetailFlowRequest("Artist"),
+            loadDetails = { detail },
+            afterLoaded = { afterLoadedArtist = it.artist },
+        )
+
+        assertEquals(listOf<String?>("Loading Artist...", "Connected."), statuses)
+        assertEquals(detail, appliedDetail)
+        assertEquals(detail.artist, afterLoadedArtist)
+    }
+
+    @Test
+    fun artistDetailFlowCoordinatorPublishesFailureStatus() = runTest {
+        val statuses = mutableListOf<String?>()
+        var appliedDetail: app.naviamp.domain.ArtistDetails? = null
+
+        ArtistDetailFlowCoordinator(
+            setStatus = { statuses += it },
+            applyDetail = { appliedDetail = it },
+        ).load(
+            request = artistDetailFlowRequest("Artist"),
+            loadDetails = { throw RuntimeException("artist failed") },
+        )
+
+        assertEquals(listOf<String?>("Loading Artist...", "artist failed"), statuses)
+        assertNull(appliedDetail)
+    }
+
+    @Test
+    fun albumDetailFlowCoordinatorPublishesLoadingLoadedAndFailure() = runTest {
+        val successStatuses = mutableListOf<String?>()
+        var appliedDetail: AlbumDetails? = null
+        val detail = AlbumDetails(
+            album = album("album"),
+            tracks = listOf(track("one", albumId = "album", albumTitle = "Album", releaseYear = 2020)),
+        )
+
+        AlbumDetailFlowCoordinator(
+            setStatus = { successStatuses += it },
+            applyDetail = { appliedDetail = it },
+        ).load(
+            request = albumDetailFlowRequest("Album"),
+            loadDetails = { detail },
+        )
+
+        val failureStatuses = mutableListOf<String?>()
+        AlbumDetailFlowCoordinator(
+            setStatus = { failureStatuses += it },
+            applyDetail = {},
+        ).load(
+            request = albumDetailFlowRequest("Album"),
+            loadDetails = { throw RuntimeException("album failed") },
+        )
+
+        assertEquals(listOf<String?>("Loading Album...", "Connected."), successStatuses)
+        assertEquals(detail, appliedDetail)
+        assertEquals(listOf<String?>("Loading Album...", "album failed"), failureStatuses)
     }
 
     private fun track(
@@ -217,6 +345,15 @@ class MediaDetailFallbacksTest {
             coverArtId = "cover-$id",
             audioInfo = null,
             replayGain = null,
+        )
+
+    private fun album(id: String): Album =
+        Album(
+            id = AlbumId(id),
+            title = "Album",
+            artistName = "Artist",
+            coverArtId = null,
+            recentlyAddedAtIso8601 = null,
         )
 
     private fun popularMatch(id: String): ArtistPopularTrackMatch =
@@ -240,4 +377,99 @@ class MediaDetailFallbacksTest {
             ),
             matchedArtist = Artist(ArtistId(id), "Artist $id"),
         )
+
+    private fun artistDetailFlowRequest(fallbackName: String?): ArtistDetailFlowRequest =
+        ArtistDetailFlowRequest(
+            libraryIndexRepository = FakeLibraryIndexRepository(),
+            providerResponseService = fakeProviderResponseService(),
+            provider = FakeFlowProvider(),
+            artistId = ArtistId("artist"),
+            fallbackName = fallbackName,
+            sourceId = "source",
+        )
+
+    private fun albumDetailFlowRequest(fallbackTitle: String?): AlbumDetailFlowRequest =
+        AlbumDetailFlowRequest(
+            libraryIndexRepository = FakeLibraryIndexRepository(),
+            providerResponseService = fakeProviderResponseService(),
+            provider = FakeFlowProvider(),
+            albumId = AlbumId("album"),
+            fallbackTitle = fallbackTitle,
+            fallbackArtistName = "Artist",
+            sourceId = "source",
+        )
+
+    private fun fakeProviderResponseService(): ProviderResponseService =
+        ProviderResponseService(
+            object : ProviderResponseCacheRepository {
+                override suspend fun <T> cachedProviderResponse(
+                    provider: MediaProvider,
+                    resourceType: String,
+                    resourceId: String,
+                    decode: (String) -> T,
+                    encode: (T) -> String,
+                    fetch: suspend () -> T,
+                ): T = fetch()
+
+                override fun invalidateProviderResponses(provider: MediaProvider, resourceType: String) = Unit
+
+                override fun invalidateProviderResponse(provider: MediaProvider, resourceType: String, resourceId: String) = Unit
+            },
+        )
+
+    private class FakeLibraryIndexRepository : LocalLibraryIndexRepository {
+        override fun mediaSource(sourceId: String): SavedMediaSource? = error("unused")
+        override fun markLibraryScanChecked(sourceId: String, signature: String) = Unit
+        override fun markLibrarySyncStarted(sourceId: String) = Unit
+        override fun markLibrarySyncCompleted(sourceId: String) = Unit
+        override fun upsertLibraryArtists(sourceId: String, artists: List<Artist>) = Unit
+        override fun upsertLibraryAlbums(sourceId: String, albums: List<Album>) = Unit
+        override fun upsertLibraryTracks(sourceId: String, tracks: List<Track>) = Unit
+        override fun librarySnapshot(sourceId: String, limit: Long, offset: Long): LibrarySnapshot = error("unused")
+        override fun searchLibrary(sourceId: String, query: String, limit: Long, offset: Long): LibrarySnapshot = error("unused")
+        override fun randomLibraryTrackForAlbum(sourceId: String, albumId: AlbumId): Track? = error("unused")
+        override fun libraryTracksForAlbum(sourceId: String, albumId: AlbumId, limit: Long): List<Track> = emptyList()
+        override fun randomLibraryTrackForArtist(sourceId: String, artistId: ArtistId): Track? = error("unused")
+        override fun libraryTracksForArtist(sourceId: String, artistId: ArtistId, limit: Long): List<Track> = emptyList()
+        override fun libraryTracksForArtistName(sourceId: String, artistName: String, limit: Long): List<Track> = emptyList()
+        override fun relatedLibraryTracks(sourceId: String, track: Track, limit: Long): List<Track> = emptyList()
+        override fun libraryIndexStats(sourceId: String): LibraryIndexStats = error("unused")
+        override fun libraryAlbumYears(sourceId: String): List<LibraryAlbumYear> = emptyList()
+        override fun clearLibraryData(sourceId: String?) = Unit
+        override fun artistPopularTracks(sourceId: String, artistId: ArtistId, source: String): List<ArtistPopularTrackMatch> =
+            emptyList()
+
+        override fun replaceArtistPopularTracks(
+            sourceId: String,
+            artistId: ArtistId,
+            source: String,
+            candidates: List<ArtistPopularTrackCandidate>,
+            matchedTracksBySourceTrackId: Map<String, Track>,
+            fetchedAtEpochMillis: Long,
+        ) = Unit
+    }
+
+    private class FakeFlowProvider : MediaProvider {
+        override val id: ProviderId = ProviderId("fake")
+        override val displayName: String = "Fake"
+        override val capabilities: ProviderCapabilities = ProviderCapabilities(
+            supportsStreamingTranscode = false,
+            supportsDownloadTranscode = false,
+            supportsArtistRadio = false,
+            supportsAlbumRadio = false,
+            supportsTrackRadio = false,
+        )
+
+        override suspend fun validateConnection(): ConnectionValidation =
+            ConnectionValidation(serverVersion = null, apiVersion = null)
+
+        override suspend fun recentlyAddedAlbums(limit: Int): List<Album> = emptyList()
+        override suspend fun album(albumId: AlbumId): AlbumDetails = error("unused")
+        override suspend fun artist(artistId: ArtistId): app.naviamp.domain.ArtistDetails = error("unused")
+        override suspend fun artists(limit: Int): List<Artist> = emptyList()
+        override suspend fun tracks(limit: Int): List<Track> = emptyList()
+        override suspend fun search(query: String, limit: Int): MediaSearchResults = MediaSearchResults()
+        override suspend fun streamUrl(request: StreamRequest): String = error("unused")
+        override fun coverArtUrl(coverArtId: String): String = "https://example.test/$coverArtId"
+    }
 }

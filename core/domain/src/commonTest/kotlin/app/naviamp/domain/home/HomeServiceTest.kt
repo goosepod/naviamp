@@ -15,9 +15,11 @@ import app.naviamp.domain.provider.ConnectionValidation
 import app.naviamp.domain.provider.MediaProvider
 import app.naviamp.domain.provider.MediaSearchResults
 import app.naviamp.domain.provider.ProviderCapabilities
+import app.naviamp.domain.radio.libraryRecentRadioStream
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNull
 
 class HomeServiceTest {
     @Test
@@ -55,6 +57,108 @@ class HomeServiceTest {
         ).load()
 
         assertEquals(HomeDefaultArtistLimit, provider.artistLimit)
+    }
+
+    @Test
+    fun loadHomeContentUsesRequestInputs() = runTest {
+        val provider = FakeHomeProvider()
+
+        val recentRadioStream = libraryRecentRadioStream()
+        val home = loadHomeContent(
+            HomeContentLoadRequest(
+                provider = provider,
+                date = HomeDate(year = 2026, dayOfYear = 1),
+                recentRadioStreams = listOf(recentRadioStream),
+                recentInternetRadioStations = listOf(radioStation("recent")),
+                artistLimit = 321,
+            ),
+        )
+
+        assertEquals(321, provider.artistLimit)
+        assertEquals(listOf(recentRadioStream), home.recentRadioStreams)
+        assertEquals(listOf(radioStation("recent")), home.recentInternetRadioStations)
+    }
+
+    @Test
+    fun homeContentCoordinatorPublishesLoadingSuccessAndClearStatus() = runTest {
+        val statuses = mutableListOf<String?>()
+        var content = HomeContent()
+        val coordinator = HomeContentCoordinator(
+            setHomeContent = { content = it },
+            setHomeStatus = { statuses += it },
+        )
+
+        coordinator.load(
+            HomeContentLoadRequest(
+                provider = FakeHomeProvider(),
+                date = HomeDate(year = 2026, dayOfYear = 1),
+            ),
+        )
+
+        assertEquals(listOf<String?>(HomeLoadingStatus, null), statuses)
+        assertEquals(listOf(album("newest")), content.recentlyAddedAlbums)
+    }
+
+    @Test
+    fun homeContentCoordinatorPublishesFailureStatusAndLeavesContentUnchanged() = runTest {
+        val statuses = mutableListOf<String?>()
+        var content = HomeContent(recentlyAddedAlbums = listOf(album("existing")))
+        val coordinator = HomeContentCoordinator(
+            setHomeContent = { content = it },
+            setHomeStatus = { statuses += it },
+        )
+
+        coordinator.load(
+            request = HomeContentLoadRequest(
+                provider = FakeHomeProvider(),
+                date = HomeDate(year = 2026, dayOfYear = 1),
+            ),
+            loadContent = { error("home failed") },
+        )
+
+        assertEquals(listOf<String?>(HomeLoadingStatus, "home failed"), statuses)
+        assertEquals(listOf(album("existing")), content.recentlyAddedAlbums)
+    }
+
+    @Test
+    fun homeLoadFailureStatusUsesFallbackWhenMessageIsMissing() {
+        assertEquals(HomeLoadFailureFallbackStatus, homeLoadFailureStatus(Throwable()))
+        assertNull(Throwable().message)
+    }
+
+    @Test
+    fun mixBuilderAlbumCandidatesUseHomeMixSourcesWithStableDeduping() {
+        val shared = album("shared")
+        val home = HomeContent(
+            randomAlbums = listOf(album("random"), shared),
+            mixAlbums = listOf(shared, album("mix")),
+            recentAlbums = listOf(album("recent")),
+            frequentAlbums = listOf(album("frequent"), album("random")),
+            recentlyAddedAlbums = listOf(album("newest")),
+            genreSpotlightAlbums = listOf(album("genre")),
+            decadeAlbums = listOf(album("decade")),
+        )
+
+        assertEquals(
+            listOf("random", "shared", "mix", "recent", "frequent"),
+            home.mixBuilderAlbumCandidates().map { it.id.value },
+        )
+    }
+
+    @Test
+    fun mixBuilderArtistCandidatesUseHomeArtistsWithStableDeduping() {
+        val home = HomeContent(
+            artists = listOf(
+                Artist(ArtistId("artist-1"), "New Order"),
+                Artist(ArtistId("artist-1"), "New Order duplicate"),
+                Artist(ArtistId("artist-2"), "Slowdive"),
+            ),
+        )
+
+        assertEquals(
+            listOf("artist-1", "artist-2"),
+            home.mixBuilderArtistCandidates().map { it.id.value },
+        )
     }
 
     private class FakeHomeProvider : MediaProvider {

@@ -4,6 +4,7 @@ import app.naviamp.domain.InternetRadioStation
 import app.naviamp.domain.internetRadioTrackId
 import app.naviamp.domain.playback.PlaybackProgress
 import app.naviamp.domain.playback.PlaybackStreamMetadata
+import app.naviamp.domain.playback.ReplayGainMode
 import app.naviamp.domain.network.SharedHttpClient
 import app.naviamp.domain.network.SharedHttpResponse
 import app.naviamp.domain.queue.PlaybackQueue
@@ -64,6 +65,35 @@ class InternetRadioPlaybackTest {
     }
 
     @Test
+    fun rememberInternetRadioStationApplierRunsSharedRecentUpdates() {
+        val calls = mutableListOf<String>()
+        val selected = station("two")
+        val plan = planRememberInternetRadioStation(
+            station = selected,
+            recentStations = listOf(station("one"), selected.copy(name = "Old Name")),
+            recentSavedStations = listOf(SavedInternetRadioStation.fromStation(station("one"))),
+        )
+
+        applyRememberInternetRadioStation(
+            plan = plan,
+            applier = InternetRadioRecentStationApplier(
+                saveRecentStations = { calls += "save:${it.map { station -> station.id }}" },
+                setRecentStations = { calls += "set:${it.map { station -> station.id }}" },
+            ),
+        )
+
+        assertEquals(listOf("two", "one"), plan.recentStations.map { it.id })
+        assertEquals(listOf("two", "one"), plan.recentSavedStations.map { it.id })
+        assertEquals(
+            listOf(
+                "save:[two, one]",
+                "set:[two, one]",
+            ),
+            calls,
+        )
+    }
+
+    @Test
     fun internetRadioStartPlanBuildsRecentStateAndPlaybackEffects() {
         val selected = station("two")
         val plan = planInternetRadioStart(
@@ -91,6 +121,181 @@ class InternetRadioPlaybackTest {
         assertEquals(null, plan.notificationCoverArtUrl)
         assertEquals("two", plan.engineMediaId)
         assertEquals(true, plan.replayGainOff)
+    }
+
+    @Test
+    fun internetRadioStartApplierRunsSharedStartEffects() {
+        val calls = mutableListOf<String>()
+        val selected = station("two")
+        val plan = planInternetRadioStart(
+            station = selected,
+            recentStations = listOf(station("one")),
+            recentSavedStations = listOf(SavedInternetRadioStation.fromStation(station("one"))),
+        )
+
+        applyInternetRadioStart(
+            plan = plan,
+            applier = InternetRadioStartApplier(
+                saveRecentStations = { calls += "save-recent:${it.map { station -> station.id }}" },
+                setRecentStations = { calls += "set-recent:${it.map { station -> station.id }}" },
+                clearRadioContinuation = { calls += "clear-radio" },
+                clearShuffleSnapshot = { calls += "clear-shuffle" },
+                clearPlaybackQueue = { calls += "clear-queue" },
+                setNowPlayingTrack = { calls += "track:${it?.id?.value}" },
+                setNowPlayingCoverArtUrl = { calls += "cover:$it" },
+                resetNowPlayingSidecars = { calls += "reset-sidecars" },
+                applyFavoriteState = { canFavorite, isFavorite -> calls += "favorite:$canFavorite:$isFavorite" },
+                setNowPlayingStation = { calls += "station:${it.id}" },
+                setStreamMetadata = { calls += "metadata:${it.title}" },
+                setPlaybackProgress = { calls += "progress:${it.positionSeconds}" },
+                setPlaybackQueue = { calls += "queue:${it.tracks.size}" },
+                setStatus = { calls += "status:$it" },
+                savePlaybackSession = { calls += "save-session" },
+                openNowPlaying = { calls += "open" },
+                updateNotificationMetadata = { title, subtitle, cover -> calls += "notification:$title:$subtitle:$cover" },
+            ),
+        )
+
+        assertEquals(
+            listOf(
+                "save-recent:[two, one]",
+                "set-recent:[two, one]",
+                "clear-radio",
+                "clear-shuffle",
+                "clear-queue",
+                "track:null",
+                "cover:null",
+                "reset-sidecars",
+                "favorite:false:false",
+                "station:two",
+                "metadata:null",
+                "progress:null",
+                "queue:0",
+                "status:Loading Station two...",
+                "save-session",
+                "open",
+                "notification:Station two:Internet radio:null",
+            ),
+            calls,
+        )
+    }
+
+    @Test
+    fun internetRadioStartApplierCanUsePresentationTrackOverride() {
+        val station = station("kexp", name = "KEXP")
+        val track = internetRadioTrack(station)
+        var nowPlayingTrackId: String? = null
+
+        applyInternetRadioStart(
+            plan = planInternetRadioStart(
+                station = station,
+                recentStations = emptyList(),
+                recentSavedStations = emptyList(),
+            ),
+            nowPlayingTrack = track,
+            applier = InternetRadioStartApplier(
+                setNowPlayingTrack = { nowPlayingTrackId = it?.id?.value },
+            ),
+        )
+
+        assertEquals(track.id.value, nowPlayingTrackId)
+    }
+
+    @Test
+    fun internetRadioMetadataUpdatePlansStreamMetadataAndNotificationTitle() {
+        val station = station("kexp", name = "KEXP")
+        val metadata = PlaybackStreamMetadata(title = "Artist - Song")
+
+        val plan = planInternetRadioMetadataUpdate(
+            station = station,
+            metadata = metadata,
+        )
+
+        assertEquals(metadata, plan.metadata)
+        assertEquals(null, plan.nowPlayingTrack)
+        assertEquals(true, plan.updateNotificationMetadata)
+        assertEquals("Artist - Song", plan.notificationTitle)
+        assertEquals("KEXP", plan.notificationSubtitle)
+        assertEquals(null, plan.notificationCoverArtUrl)
+    }
+
+    @Test
+    fun internetRadioMetadataUpdateCanBuildPresentationTrack() {
+        val station = station("kexp", name = "KEXP")
+        val fallback = internetRadioTrack(station)
+
+        val plan = planInternetRadioMetadataUpdate(
+            station = station,
+            metadata = PlaybackStreamMetadata(title = "Artist - Song"),
+            fallbackTrack = fallback,
+            updateNotificationMetadata = false,
+        )
+
+        assertEquals("Artist - Song", plan.nowPlayingTrack?.title)
+        assertEquals("KEXP", plan.nowPlayingTrack?.artistName)
+        assertEquals(false, plan.updateNotificationMetadata)
+    }
+
+    @Test
+    fun internetRadioMetadataUpdateSkipsBlankNotificationTitleAndTrackChange() {
+        val station = station("kexp", name = "KEXP")
+        val fallback = internetRadioTrack(station)
+
+        val plan = planInternetRadioMetadataUpdate(
+            station = station,
+            metadata = PlaybackStreamMetadata(title = " "),
+            fallbackTrack = fallback,
+        )
+
+        assertEquals(fallback, plan.nowPlayingTrack)
+        assertEquals(false, plan.updateNotificationMetadata)
+        assertEquals(null, plan.notificationTitle)
+    }
+
+    @Test
+    fun internetRadioMetadataUpdateApplierRunsSharedEffects() {
+        val calls = mutableListOf<String>()
+        val station = station("kexp", name = "KEXP")
+        val plan = planInternetRadioMetadataUpdate(
+            station = station,
+            metadata = PlaybackStreamMetadata(title = "Artist - Song"),
+            fallbackTrack = internetRadioTrack(station),
+        )
+
+        applyInternetRadioMetadataUpdate(
+            plan = plan,
+            applier = InternetRadioMetadataUpdateApplier(
+                setStreamMetadata = { calls += "metadata:${it.title}" },
+                setNowPlayingTrack = { calls += "track:${it?.title}" },
+                updateNotificationMetadata = { title, subtitle, cover -> calls += "notification:$title:$subtitle:$cover" },
+            ),
+        )
+
+        assertEquals(
+            listOf(
+                "metadata:Artist - Song",
+                "track:Artist - Song",
+                "notification:Artist - Song:KEXP:null",
+            ),
+            calls,
+        )
+    }
+
+    @Test
+    fun internetRadioPlaybackRequestUsesResolvedStreamUrlAndStartPlanMediaId() {
+        val requestPlan = planInternetRadioPlaybackRequest(
+            startPlan = planInternetRadioStart(
+                station = station("kexp", name = "KEXP"),
+                recentStations = emptyList(),
+                recentSavedStations = emptyList(),
+            ),
+            streamUrl = "https://cdn.example/live.mp3",
+            replayGainMode = ReplayGainMode.Track,
+        )
+
+        assertEquals("https://cdn.example/live.mp3", requestPlan.request.url)
+        assertEquals("kexp", requestPlan.request.mediaId)
+        assertEquals(ReplayGainMode.Off, requestPlan.request.replayGainMode)
     }
 
     @Test

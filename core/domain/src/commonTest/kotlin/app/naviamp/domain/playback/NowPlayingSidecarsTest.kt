@@ -6,13 +6,16 @@ import app.naviamp.domain.LyricsSource
 import app.naviamp.domain.StreamQuality
 import app.naviamp.domain.Track
 import app.naviamp.domain.TrackId
+import app.naviamp.domain.audio.AudioTag
 import app.naviamp.domain.cache.SidecarStatusRepository
 import app.naviamp.domain.internetRadioTrackId
 import app.naviamp.domain.queue.PlaybackQueue
+import app.naviamp.domain.waveform.AudioWaveform
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
+import kotlinx.coroutines.test.runTest
 
 class NowPlayingSidecarsTest {
     @Test
@@ -124,6 +127,176 @@ class NowPlayingSidecarsTest {
     }
 
     @Test
+    fun currentTrackSidecarWorkBuildsSharedWork() {
+        val one = track("one")
+        val work = currentTrackSidecarWork(
+            sourceId = "source",
+            provider = "provider",
+            queue = PlaybackQueue(tracks = listOf(one), currentIndex = 0),
+            quality = StreamQuality.Original,
+            audioCachingEnabled = true,
+            onlineLyricsEnabled = false,
+            lyricsVisible = true,
+        )
+
+        requireNotNull(work)
+        assertEquals("source", work.sourceId)
+        assertEquals("provider", work.provider)
+        assertEquals(one, work.track)
+        assertEquals(StreamQuality.Original, work.quality)
+        assertTrue(work.audioCachingEnabled)
+        assertFalse(work.onlineLyricsEnabled)
+        assertTrue(work.loadLyrics)
+    }
+
+    @Test
+    fun currentTrackSidecarWorkSkipsMissingOrRadioTracks() {
+        val queue = PlaybackQueue(tracks = listOf(track("one")), currentIndex = 0)
+        val radioQueue = PlaybackQueue(tracks = listOf(track(internetRadioTrackId("station").value)), currentIndex = 0)
+
+        assertEquals(
+            null,
+            currentTrackSidecarWork(
+                sourceId = "source",
+                provider = null,
+                queue = queue,
+                quality = StreamQuality.Original,
+                audioCachingEnabled = true,
+                onlineLyricsEnabled = false,
+                lyricsVisible = false,
+            ),
+        )
+        assertEquals(
+            null,
+            currentTrackSidecarWork(
+                sourceId = "source",
+                provider = "provider",
+                queue = queue,
+                quality = null,
+                audioCachingEnabled = true,
+                onlineLyricsEnabled = false,
+                lyricsVisible = false,
+            ),
+        )
+        assertEquals(
+            null,
+            currentTrackSidecarWork(
+                sourceId = "source",
+                provider = "provider",
+                queue = PlaybackQueue(),
+                quality = StreamQuality.Original,
+                audioCachingEnabled = true,
+                onlineLyricsEnabled = false,
+                lyricsVisible = false,
+            ),
+        )
+        assertEquals(
+            null,
+            currentTrackSidecarWork(
+                sourceId = "source",
+                provider = "provider",
+                queue = radioQueue,
+                quality = StreamQuality.Original,
+                audioCachingEnabled = true,
+                onlineLyricsEnabled = false,
+                lyricsVisible = false,
+            ),
+        )
+    }
+
+    @Test
+    fun runCurrentTrackSidecarsRunsSharedSequence() = runTest {
+        val events = mutableListOf<String>()
+        val work = currentSidecarWork(loadLyrics = true)
+
+        runCurrentTrackSidecars(
+            work = work,
+            isActive = { true },
+            prepareAudio = {
+                events += "audio"
+            },
+            prepareWaveform = {
+                events += "waveform"
+                AudioWaveform(listOf(0.1f))
+            },
+            prepareAudioTags = {
+                events += "tags"
+                listOf(AudioTag("Title", "Track one"))
+            },
+            prepareLyrics = {
+                events += "lyrics"
+                Lyrics(LyricsSource.Provider, synced = false, lines = emptyList())
+            },
+            onWaveformReady = {
+                events += "waveform-ready"
+            },
+            onAudioTagsReady = {
+                events += "tags-ready:${it.size}"
+            },
+            onLyricsReady = {
+                events += "lyrics-ready"
+            },
+        )
+
+        assertEquals(
+            listOf("audio", "waveform", "waveform-ready", "tags", "tags-ready:1", "lyrics", "lyrics-ready"),
+            events,
+        )
+    }
+
+    @Test
+    fun runCurrentTrackSidecarsSkipsLyricsWhenWorkDoesNotLoadLyrics() = runTest {
+        val events = mutableListOf<String>()
+
+        runCurrentTrackSidecars(
+            work = currentSidecarWork(loadLyrics = false),
+            isActive = { true },
+            prepareWaveform = {
+                events += "waveform"
+                null
+            },
+            prepareLyrics = {
+                events += "lyrics"
+                null
+            },
+            onWaveformReady = {
+                events += "waveform-ready"
+            },
+        )
+
+        assertEquals(listOf("waveform", "waveform-ready"), events)
+    }
+
+    @Test
+    fun runCurrentTrackSidecarsStopsWhenInactiveOrAudioPrepFails() = runTest {
+        val inactiveEvents = mutableListOf<String>()
+        runCurrentTrackSidecars(
+            work = currentSidecarWork(loadLyrics = true),
+            isActive = { false },
+            prepareWaveform = {
+                inactiveEvents += "waveform"
+                null
+            },
+        )
+        assertEquals(emptyList(), inactiveEvents)
+
+        val failedAudioEvents = mutableListOf<String>()
+        runCurrentTrackSidecars(
+            work = currentSidecarWork(loadLyrics = true),
+            isActive = { true },
+            prepareAudio = {
+                failedAudioEvents += "audio"
+                error("cache failed")
+            },
+            prepareWaveform = {
+                failedAudioEvents += "waveform"
+                null
+            },
+        )
+        assertEquals(listOf("audio"), failedAudioEvents)
+    }
+
+    @Test
     fun coverArtPreloadUrlsIncludeCurrentHistoryAndUpcomingWindows() {
         val one = track("one", coverArtId = "art-one")
         val two = track("two", coverArtId = "art-two")
@@ -159,6 +332,17 @@ class NowPlayingSidecarsTest {
             coverArtId = coverArtId,
             audioInfo = null,
             replayGain = null,
+        )
+
+    private fun currentSidecarWork(loadLyrics: Boolean): CurrentTrackSidecarWork<String> =
+        CurrentTrackSidecarWork(
+            sourceId = "source",
+            provider = "provider",
+            track = track("one"),
+            quality = StreamQuality.Original,
+            audioCachingEnabled = true,
+            onlineLyricsEnabled = loadLyrics,
+            loadLyrics = loadLyrics,
         )
 }
 

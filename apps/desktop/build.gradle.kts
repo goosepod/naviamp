@@ -2,6 +2,7 @@ import org.gradle.api.tasks.Copy
 import org.gradle.api.tasks.Exec
 import org.gradle.api.tasks.Sync
 import org.gradle.api.tasks.bundling.Zip
+import org.jetbrains.compose.desktop.application.dsl.TargetFormat
 
 plugins {
     alias(libs.plugins.kotlin.multiplatform)
@@ -96,16 +97,7 @@ val desktopReleaseAppDir = desktopPackagedAppName.flatMap { appName ->
 }
 
 kotlin {
-    jvm("desktop") {
-        compilerOptions {
-            freeCompilerArgs.addAll(
-                "-Xlambdas=indy",
-                "-Xno-call-assertions",
-                "-Xno-param-assertions",
-                "-Xno-receiver-assertions",
-            )
-        }
-    }
+    jvm("desktop")
 
     sourceSets {
         val desktopMain by getting {
@@ -174,6 +166,7 @@ compose.desktop {
             packageVersion = "1.0.0"
             appResourcesRootDir.set(generatedDesktopBassAppResources)
             modules("java.net.http", "java.sql")
+            targetFormats(TargetFormat.Msi, TargetFormat.Exe)
 
             windows {
                 iconFile.set(project.file("src/desktopMain/resources/icons/naviamp.ico"))

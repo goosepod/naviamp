@@ -23,6 +23,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
@@ -94,39 +95,86 @@ data class NaviampNowPlayingItemUi(
 )
 
 data class NaviampNowPlayingActions(
-    val onPause: () -> Unit = {},
-    val onResume: () -> Unit = {},
-    val onPlayCurrent: () -> Unit = {},
-    val onSeek: (Double) -> Unit = {},
-    val onPrevious: () -> Unit = {},
-    val onNext: () -> Unit = {},
-    val onToggleShuffle: () -> Unit = {},
-    val onCycleRepeatMode: () -> Unit = {},
-    val onVolumeChanged: (Int) -> Unit = {},
-    val onToggleLyrics: () -> Unit = {},
-    val onLyricsOffsetChanged: (Int) -> Unit = {},
-    val onTrackRadio: () -> Unit = {},
-    val onAddToPlaylist: (NaviampPlaylistChoiceUi?) -> Unit = {},
-    val onCreatePlaylistAndAdd: (String) -> Unit = {},
-    val onSaveQueueAsPlaylist: (String) -> Unit = {},
-    val onSleepTimerSelected: (SleepTimerRequest) -> Unit = {},
-    val onCancelSleepTimer: () -> Unit = {},
-    val onDownloadTrack: () -> Unit = {},
-    val onToggleVisualizer: () -> Unit = {},
-    val onGoToAlbum: () -> Unit = {},
-    val onGoToArtist: () -> Unit = {},
-    val onToggleFavorite: () -> Unit = {},
-    val onRatingSelected: (Int?) -> Unit = {},
-    val onCollapse: () -> Unit = {},
-    val onQueueItemSelected: (NaviampNowPlayingItemUi) -> Unit = {},
-    val onRelatedItemSelected: (NaviampNowPlayingItemUi) -> Unit = {},
-    val onRadioStationSelected: (NaviampNowPlayingItemUi) -> Unit = {},
-    val onQueueItemRadio: (NaviampNowPlayingItemUi) -> Unit = {},
-    val onQueueItemAddToPlaylist: (NaviampNowPlayingItemUi, NaviampPlaylistChoiceUi?) -> Unit = { _, _ -> },
-    val onQueueItemCreatePlaylistAndAdd: (NaviampNowPlayingItemUi, String) -> Unit = { _, _ -> },
-    val onQueueItemDownload: (NaviampNowPlayingItemUi) -> Unit = {},
-    val onVisualizerSelected: (NaviampVisualizer) -> Unit = {},
-)
+    val onPlaybackAction: (NowPlayingPlaybackActionRequest) -> Unit = {},
+    val onDisplayAction: (NowPlayingDisplayActionRequest) -> Unit = {},
+    val onCurrentTrackAction: (NowPlayingCurrentTrackUiActionRequest) -> Unit = {},
+    val onQueueAction: (NowPlayingQueueActionRequest) -> Unit = {},
+    val onSleepTimerAction: (NowPlayingSleepTimerActionRequest) -> Unit = {},
+    val onSelectionAction: (NowPlayingSelectionActionRequest) -> Unit = {},
+    val onQueueItemAction: (NowPlayingItemActionRequest) -> Unit = { request ->
+    },
+) {
+    fun playback(action: NowPlayingPlaybackAction) {
+        onPlaybackAction(NowPlayingPlaybackActionRequest(action))
+    }
+
+    fun seek(seconds: Double) {
+        onPlaybackAction(NowPlayingPlaybackActionRequest(NowPlayingPlaybackAction.Seek, seekSeconds = seconds))
+    }
+
+    fun changeVolume(volumePercent: Int) {
+        onPlaybackAction(
+            NowPlayingPlaybackActionRequest(
+                NowPlayingPlaybackAction.ChangeVolume,
+                volumePercent = volumePercent,
+            ),
+        )
+    }
+
+    fun display(action: NowPlayingDisplayAction) {
+        onDisplayAction(NowPlayingDisplayActionRequest(action))
+    }
+
+    fun changeLyricsOffset(offsetMillis: Int) {
+        onDisplayAction(
+            NowPlayingDisplayActionRequest(
+                NowPlayingDisplayAction.ChangeLyricsOffset,
+                lyricsOffsetMillis = offsetMillis,
+            ),
+        )
+    }
+
+    fun selectVisualizer(visualizer: NaviampVisualizer) {
+        onDisplayAction(
+            NowPlayingDisplayActionRequest(
+                NowPlayingDisplayAction.SelectVisualizer,
+                visualizer = visualizer,
+            ),
+        )
+    }
+
+    fun currentTrack(
+        action: NowPlayingCurrentTrackAction,
+        playlistChoice: NaviampPlaylistChoiceUi? = null,
+        playlistName: String? = null,
+        rating: Int? = null,
+    ) {
+        onCurrentTrackAction(
+            NowPlayingCurrentTrackUiActionRequest(
+                action = action,
+                playlistChoice = playlistChoice,
+                playlistName = playlistName,
+                rating = rating,
+            ),
+        )
+    }
+
+    fun saveQueueAsPlaylist(name: String) {
+        onQueueAction(NowPlayingQueueActionRequest(NowPlayingQueueAction.SaveQueueAsPlaylist, name))
+    }
+
+    fun selectSleepTimer(request: SleepTimerRequest) {
+        onSleepTimerAction(NowPlayingSleepTimerActionRequest(NowPlayingSleepTimerAction.Select, request))
+    }
+
+    fun cancelSleepTimer() {
+        onSleepTimerAction(NowPlayingSleepTimerActionRequest(NowPlayingSleepTimerAction.Cancel))
+    }
+
+    fun selectItem(item: NaviampNowPlayingItemUi, action: NowPlayingSelectionAction) {
+        onSelectionAction(NowPlayingSelectionActionRequest(item, action))
+    }
+}
 
 @Composable
 fun NaviampNowPlayingPanel(
@@ -192,8 +240,8 @@ fun NaviampNowPlayingPanel(
                         selectedVisualizer = selectedVisualizer,
                         visualizerColors = visualizerColors,
                         visualizerActive = nowPlaying.isPlaying,
-                        onToggleVisualizer = actions.onToggleVisualizer,
-                        onVisualizerSelected = actions.onVisualizerSelected,
+                        onToggleVisualizer = { actions.display(NowPlayingDisplayAction.ToggleVisualizer) },
+                        onVisualizerSelected = actions::selectVisualizer,
                     )
                     NowPlayingDetails(
                         nowPlaying = nowPlaying,
@@ -230,16 +278,8 @@ fun NaviampNowPlayingPanel(
                 coroutineScope.launch { scrollState.animateScrollTo(0) }
             }
             val itemActions = actions.copy(
-                onQueueItemSelected = {
-                    actions.onQueueItemSelected(it)
-                    scrollToPlayer()
-                },
-                onRelatedItemSelected = {
-                    actions.onRelatedItemSelected(it)
-                    scrollToPlayer()
-                },
-                onRadioStationSelected = {
-                    actions.onRadioStationSelected(it)
+                onSelectionAction = {
+                    actions.onSelectionAction(it)
                     scrollToPlayer()
                 },
             )
@@ -263,8 +303,8 @@ fun NaviampNowPlayingPanel(
                             LyricsPanel(
                                 nowPlaying = nowPlaying,
                                 colors = colors,
-                                onSeek = actions.onSeek,
-                                onOffsetChanged = actions.onLyricsOffsetChanged,
+                                onSeek = actions::seek,
+                                onOffsetChanged = actions::changeLyricsOffset,
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .height(artSize),
@@ -281,8 +321,8 @@ fun NaviampNowPlayingPanel(
                                 selectedVisualizer = selectedVisualizer,
                                 visualizerColors = visualizerColors,
                                 visualizerActive = nowPlaying.isPlaying,
-                                onToggleVisualizer = actions.onToggleVisualizer,
-                                onVisualizerSelected = actions.onVisualizerSelected,
+                                onToggleVisualizer = { actions.display(NowPlayingDisplayAction.ToggleVisualizer) },
+                                onVisualizerSelected = actions::selectVisualizer,
                             )
                         }
                         NowPlayingDetails(
@@ -311,8 +351,8 @@ fun NaviampNowPlayingPanel(
                             LyricsPanel(
                                 nowPlaying = nowPlaying,
                                 colors = colors,
-                                onSeek = actions.onSeek,
-                                onOffsetChanged = actions.onLyricsOffsetChanged,
+                                onSeek = actions::seek,
+                                onOffsetChanged = actions::changeLyricsOffset,
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .height(artSize),
@@ -329,8 +369,8 @@ fun NaviampNowPlayingPanel(
                                 selectedVisualizer = selectedVisualizer,
                                 visualizerColors = visualizerColors,
                                 visualizerActive = nowPlaying.isPlaying,
-                                onToggleVisualizer = actions.onToggleVisualizer,
-                                onVisualizerSelected = actions.onVisualizerSelected,
+                                onToggleVisualizer = { actions.display(NowPlayingDisplayAction.ToggleVisualizer) },
+                                onVisualizerSelected = actions::selectVisualizer,
                             )
                         }
                     }
@@ -492,17 +532,17 @@ private fun NowPlayingDetails(
     fun cycleTrackPreference() {
         when {
             nowPlaying.favoriteActive -> {
-                if (nowPlaying.canFavorite) actions.onToggleFavorite()
-                if (nowPlaying.canRate) actions.onRatingSelected(1)
+                if (nowPlaying.canFavorite) actions.currentTrack(NowPlayingCurrentTrackAction.ToggleFavorite)
+                if (nowPlaying.canRate) actions.currentTrack(NowPlayingCurrentTrackAction.SetRating, rating = 1)
             }
             nowPlaying.userRating == 1 && nowPlaying.canRate -> {
-                actions.onRatingSelected(null)
+                actions.currentTrack(NowPlayingCurrentTrackAction.SetRating, rating = null)
             }
             nowPlaying.canFavorite -> {
-                actions.onToggleFavorite()
+                actions.currentTrack(NowPlayingCurrentTrackAction.ToggleFavorite)
             }
             nowPlaying.canRate -> {
-                actions.onRatingSelected(5)
+                actions.currentTrack(NowPlayingCurrentTrackAction.SetRating, rating = 5)
             }
         }
     }
@@ -565,7 +605,7 @@ private fun NowPlayingDetails(
                     },
                     onValueChangeFinished = { seekFraction ->
                         scrubberValue = seekFraction
-                        seekSecondsForFraction(seekFraction, nowPlaying.durationSeconds)?.let(actions.onSeek)
+                        seekSecondsForFraction(seekFraction, nowPlaying.durationSeconds)?.let(actions::seek)
                         isScrubbing = false
                     },
                     modifier = Modifier
@@ -612,7 +652,10 @@ private fun NowPlayingDetails(
                         textAlign = TextAlign.Center,
                         fontSize = 13.sp,
                         lineHeight = 14.sp,
-                        modifier = Modifier.clickable(enabled = !nowPlaying.isLive, onClick = actions.onGoToArtist),
+                        modifier = Modifier.clickable(
+                            enabled = !nowPlaying.isLive,
+                            onClick = { actions.currentTrack(NowPlayingCurrentTrackAction.GoToArtist) },
+                        ),
                     )
                     Text(
                         if (nowPlaying.isLive) "Live stream" else nowPlaying.albumLine.ifBlank { nowPlaying.stateLabel },
@@ -639,8 +682,10 @@ private fun NowPlayingDetails(
                             rating = nowPlaying.userRating,
                             canRate = nowPlaying.canRate,
                             colors = colors,
-                            onToggleFavorite = actions.onToggleFavorite,
-                            onRatingSelected = actions.onRatingSelected,
+                            onToggleFavorite = { actions.currentTrack(NowPlayingCurrentTrackAction.ToggleFavorite) },
+                            onRatingSelected = { rating ->
+                                actions.currentTrack(NowPlayingCurrentTrackAction.SetRating, rating = rating)
+                            },
                             modifier = Modifier.fillMaxWidth(),
                         )
                     }
@@ -666,7 +711,7 @@ private fun NowPlayingDetails(
                 isChangingVolume = { isChangingVolume = it },
                 onValueChanged = {
                     volumeValue = it
-                    actions.onVolumeChanged((it * 100).toInt().coerceIn(0, 100))
+                    actions.changeVolume((it * 100).toInt().coerceIn(0, 100))
                 },
                 colors = controlColors,
             )
@@ -689,14 +734,14 @@ private fun NowPlayingDetails(
                 selected = nowPlaying.shuffleActive,
                 buttonSize = 28.dp,
                 iconSize = 16.dp,
-                onClick = actions.onToggleShuffle,
+                onClick = { actions.playback(NowPlayingPlaybackAction.ToggleShuffle) },
             )
             NaviampTransportIconButton(
                 enabled = nowPlaying.hasPrevious,
                 icon = NaviampTransportIcons.Previous,
                 contentDescription = "Previous",
                 colors = controlColors,
-                onClick = actions.onPrevious,
+                onClick = { actions.playback(NowPlayingPlaybackAction.Previous) },
             )
             NaviampTransportIconButton(
                 enabled = canTogglePlayback,
@@ -706,9 +751,9 @@ private fun NowPlayingDetails(
                 prominent = true,
                 onClick = {
                     when {
-                        nowPlaying.isPlaying -> actions.onPause()
-                        nowPlaying.isPaused -> actions.onResume()
-                        else -> actions.onPlayCurrent()
+                        nowPlaying.isPlaying -> actions.playback(NowPlayingPlaybackAction.Pause)
+                        nowPlaying.isPaused -> actions.playback(NowPlayingPlaybackAction.Resume)
+                        else -> actions.playback(NowPlayingPlaybackAction.PlayCurrent)
                     }
                 },
             )
@@ -717,7 +762,7 @@ private fun NowPlayingDetails(
                 icon = NaviampTransportIcons.Next,
                 contentDescription = "Next",
                 colors = controlColors,
-                onClick = actions.onNext,
+                onClick = { actions.playback(NowPlayingPlaybackAction.Next) },
             )
             NaviampTransportIconButton(
                 enabled = nowPlaying.canRepeat,
@@ -732,7 +777,7 @@ private fun NowPlayingDetails(
                 buttonSize = 28.dp,
                 iconSize = 16.dp,
                 centerText = if (nowPlaying.repeatMode == NaviampRepeatMode.Track) "1" else null,
-                onClick = actions.onCycleRepeatMode,
+                onClick = { actions.playback(NowPlayingPlaybackAction.CycleRepeatMode) },
             )
         }
 
@@ -754,7 +799,7 @@ private fun NowPlayingDetails(
                     colors = colors,
                     buttonSize = 44.dp,
                     iconSize = 26.dp,
-                    onClick = actions.onTrackRadio,
+                    onClick = { actions.currentTrack(NowPlayingCurrentTrackAction.StartRadio) },
                 )
                 NaviampTransportIconButton(
                     enabled = nowPlaying.canAddToPlaylist,
@@ -772,13 +817,13 @@ private fun NowPlayingDetails(
                                 coverArtUrl = nowPlaying.coverArtUrl,
                             )
                         } else {
-                            actions.onAddToPlaylist(null)
+                            actions.currentTrack(NowPlayingCurrentTrackAction.AddToPlaylist)
                         }
                     },
                 )
             }
             IconButton(
-                onClick = actions.onCollapse,
+                onClick = { actions.display(NowPlayingDisplayAction.Collapse) },
                 modifier = Modifier
                     .size(44.dp)
                     .align(Alignment.Center),
@@ -803,7 +848,7 @@ private fun NowPlayingDetails(
                     selected = nowPlaying.lyricsVisible,
                     buttonSize = 44.dp,
                     iconSize = 26.dp,
-                    onClick = actions.onToggleLyrics,
+                    onClick = { actions.display(NowPlayingDisplayAction.ToggleLyrics) },
                 )
                 Box(modifier = Modifier.size(44.dp), contentAlignment = Alignment.Center) {
                     NaviampTransportIconButton(
@@ -842,16 +887,20 @@ private fun NowPlayingDetails(
                                     actionMenuExpanded = false
                                     when (action.action) {
                                         NaviampAction.ShowLyrics,
-                                        NaviampAction.HideLyrics -> actions.onToggleLyrics()
+                                        NaviampAction.HideLyrics -> actions.display(NowPlayingDisplayAction.ToggleLyrics)
                                         NaviampAction.ShowVisualizer,
-                                        NaviampAction.HideVisualizer -> actions.onToggleVisualizer()
+                                        NaviampAction.HideVisualizer -> actions.display(NowPlayingDisplayAction.ToggleVisualizer)
                                         NaviampAction.ChangeVisualizer -> visualizerMenuExpanded = true
-                                        NaviampAction.DownloadTrack -> actions.onDownloadTrack()
+                                        NaviampAction.DownloadTrack ->
+                                            actions.currentTrack(NowPlayingCurrentTrackAction.Download)
                                         NaviampAction.TrackDetails -> trackDetailsOpen = true
                                         NaviampAction.TrackPreference -> cycleTrackPreference()
-                                        NaviampAction.StartTrackRadio -> actions.onTrackRadio()
-                                        NaviampAction.GoToAlbum -> actions.onGoToAlbum()
-                                        NaviampAction.GoToArtist -> actions.onGoToArtist()
+                                        NaviampAction.StartTrackRadio ->
+                                            actions.currentTrack(NowPlayingCurrentTrackAction.StartRadio)
+                                        NaviampAction.GoToAlbum ->
+                                            actions.currentTrack(NowPlayingCurrentTrackAction.GoToAlbum)
+                                        NaviampAction.GoToArtist ->
+                                            actions.currentTrack(NowPlayingCurrentTrackAction.GoToArtist)
                                         NaviampAction.AddToPlaylist -> {
                                             if (nowPlaying.useInlinePlaylistPicker) {
                                                 playlistDialogOpen = null
@@ -862,7 +911,7 @@ private fun NowPlayingDetails(
                                                     coverArtUrl = nowPlaying.coverArtUrl,
                                                 )
                                             } else {
-                                                actions.onAddToPlaylist(null)
+                                                actions.currentTrack(NowPlayingCurrentTrackAction.AddToPlaylist)
                                             }
                                         }
                                         NaviampAction.SaveQueueAsPlaylist -> saveQueueDialogOpen = true
@@ -882,7 +931,7 @@ private fun NowPlayingDetails(
                             selectedVisualizer = selectedVisualizer,
                             onVisualizerSelected = {
                                 visualizerMenuExpanded = false
-                                actions.onVisualizerSelected(it)
+                                actions.selectVisualizer(it)
                             },
                         )
                     }
@@ -905,7 +954,7 @@ private fun NowPlayingDetails(
             onDismissRequest = { saveQueueDialogOpen = false },
             onSave = { name ->
                 saveQueueDialogOpen = false
-                actions.onSaveQueueAsPlaylist(name)
+                actions.saveQueueAsPlaylist(name)
             },
         )
     }
@@ -916,11 +965,11 @@ private fun NowPlayingDetails(
             onDismissRequest = { sleepTimerDialogOpen = false },
             onTimerSelected = { request ->
                 sleepTimerDialogOpen = false
-                actions.onSleepTimerSelected(request)
+                actions.selectSleepTimer(request)
             },
             onCancelTimer = {
                 sleepTimerDialogOpen = false
-                actions.onCancelSleepTimer()
+                actions.cancelSleepTimer()
             },
         )
     }
@@ -934,17 +983,35 @@ private fun NowPlayingDetails(
             onAddToExisting = { playlist ->
                 playlistDialogOpen = null
                 if (item.id == nowPlaying.id) {
-                    actions.onAddToPlaylist(playlist)
+                    actions.currentTrack(
+                        NowPlayingCurrentTrackAction.AddToPlaylist,
+                        playlistChoice = playlist,
+                    )
                 } else {
-                    actions.onQueueItemAddToPlaylist(item, playlist)
+                    actions.onQueueItemAction(
+                        nowPlayingItemActionRequest(
+                            item,
+                            NowPlayingItemAction.AddToPlaylist,
+                            playlistChoice = playlist,
+                        ),
+                    )
                 }
             },
             onCreateAndAdd = { name ->
                 playlistDialogOpen = null
                 if (item.id == nowPlaying.id) {
-                    actions.onCreatePlaylistAndAdd(name)
+                    actions.currentTrack(
+                        NowPlayingCurrentTrackAction.CreatePlaylistAndAdd,
+                        playlistName = name,
+                    )
                 } else {
-                    actions.onQueueItemCreatePlaylistAndAdd(item, name)
+                    actions.onQueueItemAction(
+                        nowPlayingItemActionRequest(
+                            item,
+                            NowPlayingItemAction.CreatePlaylistAndAdd,
+                            playlistName = name,
+                        ),
+                    )
                 }
             },
         )
@@ -1226,15 +1293,25 @@ private fun VolumeRow(
                 cap = StrokeCap.Round,
             )
             drawCircle(
+                color = Color.Black.copy(alpha = 0.32f),
+                radius = thumbRadius + 2f,
+                center = Offset(endX, centerY),
+            )
+            drawCircle(
                 color = volumeColor,
                 radius = thumbRadius,
+                center = Offset(endX, centerY),
+            )
+            drawCircle(
+                color = colors.primaryText.copy(alpha = 0.86f),
+                radius = thumbRadius * 0.42f,
                 center = Offset(endX, centerY),
             )
         }
     }
 }
 
-private val VolumeThumbRadius = 5.dp
+private val VolumeThumbRadius = 6.dp
 
 @Composable
 private fun NowPlayingSidePanel(
@@ -1261,12 +1338,17 @@ private fun NowPlayingSidePanel(
                 colors = colors,
                 currentId = nowPlaying.id,
                 showActions = false,
-                onClick = actions.onRadioStationSelected,
+                onClick = { item ->
+                    actions.selectItem(item, NowPlayingSelectionAction.SelectRadioStation)
+                },
                 modifier = Modifier.weight(1f),
             )
             return@Column
         }
 
+        val backToListState = remember(nowPlaying.id, nowPlaying.isLive) { LazyListState() }
+        val upNextListState = remember(nowPlaying.id, nowPlaying.isLive) { LazyListState() }
+        val relatedListState = remember(nowPlaying.id, nowPlaying.isLive) { LazyListState() }
         Row(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier.fillMaxWidth(),
@@ -1282,7 +1364,7 @@ private fun NowPlayingSidePanel(
                 }
             }
             Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.CenterEnd) {
-                NowPlayingTabButton("RELATED", selectedTab == NaviampNowPlayingTab.Related, colors) {
+                NowPlayingTabButton(nowPlaying.relatedTabLabel, selectedTab == NaviampNowPlayingTab.Related, colors) {
                     onTabSelected(NaviampNowPlayingTab.Related)
                 }
             }
@@ -1294,32 +1376,44 @@ private fun NowPlayingSidePanel(
             NaviampNowPlayingTab.Related -> nowPlaying.related
         }
         val onClick = when (selectedTab) {
-            NaviampNowPlayingTab.Related -> actions.onRelatedItemSelected
-            else -> actions.onQueueItemSelected
+            NaviampNowPlayingTab.Related -> { item: NaviampNowPlayingItemUi ->
+                actions.selectItem(item, NowPlayingSelectionAction.SelectRelatedItem)
+            }
+            else -> { item: NaviampNowPlayingItemUi ->
+                actions.selectItem(item, NowPlayingSelectionAction.SelectQueueItem)
+            }
+        }
+        val rowActions = when (selectedTab) {
+            NaviampNowPlayingTab.Related -> relatedTrackRowActions()
+            else -> queueRowActions()
+        }
+        val listState = when (selectedTab) {
+            NaviampNowPlayingTab.BackTo -> backToListState
+            NaviampNowPlayingTab.UpNext -> upNextListState
+            NaviampNowPlayingTab.Related -> relatedListState
         }
         NowPlayingItemList(
             items = items,
             colors = colors,
+            listState = listState,
             emptyLabel = when (selectedTab) {
                 NaviampNowPlayingTab.BackTo -> "Playback history will appear here."
                 NaviampNowPlayingTab.UpNext -> "Queue is empty."
-                NaviampNowPlayingTab.Related -> "Related tracks are not loaded."
+                NaviampNowPlayingTab.Related -> nowPlaying.relatedEmptyLabel
             },
             playlistChoices = nowPlaying.playlistChoices,
             useInlinePlaylistPicker = nowPlaying.useInlinePlaylistPicker,
             onClick = onClick,
-            onRadio = actions.onQueueItemRadio,
-            onAddToPlaylist = actions.onQueueItemAddToPlaylist,
-            onCreatePlaylistAndAdd = actions.onQueueItemCreatePlaylistAndAdd,
-            onDownload = actions.onQueueItemDownload,
+            rowActions = rowActions,
+            onAction = actions.onQueueItemAction,
             modifier = Modifier.weight(if (showLyrics) 0.62f else 1f),
         )
         if (showLyrics) {
             LyricsPanel(
                 nowPlaying = nowPlaying,
                 colors = colors,
-                onSeek = actions.onSeek,
-                onOffsetChanged = actions.onLyricsOffsetChanged,
+                onSeek = actions::seek,
+                onOffsetChanged = actions::changeLyricsOffset,
                 modifier = Modifier.weight(0.38f),
             )
         }
@@ -1723,16 +1817,15 @@ private fun NowPlayingItemList(
     items: List<NaviampNowPlayingItemUi>,
     colors: NaviampColors,
     modifier: Modifier = Modifier,
+    listState: LazyListState = rememberLazyListState(),
     currentId: String? = null,
     emptyLabel: String = "Nothing here yet.",
     playlistChoices: List<NaviampPlaylistChoiceUi> = emptyList(),
     useInlinePlaylistPicker: Boolean = true,
     showActions: Boolean = true,
     onClick: (NaviampNowPlayingItemUi) -> Unit,
-    onRadio: (NaviampNowPlayingItemUi) -> Unit = {},
-    onAddToPlaylist: (NaviampNowPlayingItemUi, NaviampPlaylistChoiceUi?) -> Unit = { _, _ -> },
-    onCreatePlaylistAndAdd: (NaviampNowPlayingItemUi, String) -> Unit = { _, _ -> },
-    onDownload: (NaviampNowPlayingItemUi) -> Unit = {},
+    rowActions: List<NaviampActionSpec> = queueRowActions(),
+    onAction: (NowPlayingItemActionRequest) -> Unit = {},
 ) {
     if (items.isEmpty()) {
         Box(modifier = modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
@@ -1740,7 +1833,11 @@ private fun NowPlayingItemList(
         }
         return
     }
-    LazyColumn(verticalArrangement = Arrangement.spacedBy(5.dp), modifier = modifier.fillMaxWidth()) {
+    LazyColumn(
+        state = listState,
+        verticalArrangement = Arrangement.spacedBy(5.dp),
+        modifier = modifier.fillMaxWidth(),
+    ) {
         items(items, key = { it.id }) { item ->
             val selected = item.id == currentId
             var menuExpanded by remember { mutableStateOf(false) }
@@ -1775,7 +1872,7 @@ private fun NowPlayingItemList(
                         expanded = menuExpanded,
                         onDismissRequest = { menuExpanded = false },
                     ) {
-                        queueRowActions().forEach { action ->
+                        rowActions.forEach { action ->
                             NaviampDropdownMenuItem(
                                 label = action.label,
                                 icon = action.icon,
@@ -1783,13 +1880,19 @@ private fun NowPlayingItemList(
                                 onClick = {
                                     menuExpanded = false
                                     when (action.action) {
-                                        NaviampAction.StartTrackRadio -> onRadio(item)
-                                        NaviampAction.DownloadTrack -> onDownload(item)
+                                        NaviampAction.PlayNext ->
+                                            onAction(nowPlayingItemActionRequest(item, NowPlayingItemAction.PlayNext))
+                                        NaviampAction.AddToQueue ->
+                                            onAction(nowPlayingItemActionRequest(item, NowPlayingItemAction.AddToQueue))
+                                        NaviampAction.StartTrackRadio ->
+                                            onAction(nowPlayingItemActionRequest(item, NowPlayingItemAction.StartRadio))
+                                        NaviampAction.DownloadTrack ->
+                                            onAction(nowPlayingItemActionRequest(item, NowPlayingItemAction.Download))
                                         NaviampAction.AddToPlaylist -> {
                                             if (useInlinePlaylistPicker) {
                                                 playlistDialogOpen = true
                                             } else {
-                                                onAddToPlaylist(item, null)
+                                                onAction(nowPlayingItemActionRequest(item, NowPlayingItemAction.AddToPlaylist))
                                             }
                                         }
                                         else -> Unit
@@ -1810,11 +1913,23 @@ private fun NowPlayingItemList(
                     onDismissRequest = { playlistDialogOpen = false },
                     onAddToExisting = { playlist ->
                         playlistDialogOpen = false
-                        onAddToPlaylist(item, playlist)
+                        onAction(
+                            nowPlayingItemActionRequest(
+                                item = item,
+                                action = NowPlayingItemAction.AddToPlaylist,
+                                playlistChoice = playlist,
+                            ),
+                        )
                     },
                     onCreateAndAdd = { name ->
                         playlistDialogOpen = false
-                        onCreatePlaylistAndAdd(item, name)
+                        onAction(
+                            nowPlayingItemActionRequest(
+                                item = item,
+                                action = NowPlayingItemAction.CreatePlaylistAndAdd,
+                                playlistName = name,
+                            ),
+                        )
                     },
                 )
             }

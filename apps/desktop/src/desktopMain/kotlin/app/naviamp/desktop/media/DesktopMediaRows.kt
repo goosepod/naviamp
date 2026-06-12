@@ -31,10 +31,16 @@ import app.naviamp.ui.NaviampActionSpec
 import app.naviamp.ui.NaviampIcons
 import app.naviamp.ui.NaviampRowMenuItem
 import app.naviamp.ui.NaviampRowOverflowMenu
+import app.naviamp.ui.SharedMediaItemKind
+import app.naviamp.ui.SharedMediaItemAction
+import app.naviamp.ui.SharedMediaItemActionRequest
 import app.naviamp.ui.SharedMediaItemUi
 import app.naviamp.ui.SharedMediaRow
+import app.naviamp.ui.SharedTrackRowAction
+import app.naviamp.ui.SharedTrackRowActionRequest
 import app.naviamp.ui.SharedTrackRowUi
 import app.naviamp.ui.TrackRow
+import app.naviamp.ui.actionRequest
 import app.naviamp.ui.albumRowActions
 import app.naviamp.ui.artistRowActions
 import app.naviamp.ui.compactFavoriteRatingLabel
@@ -89,31 +95,94 @@ fun DesktopArtistRow(
     onAddToQueue: (() -> Unit)? = null,
     onAddToPlaylist: (() -> Unit)? = null,
     onFavoriteToggle: (() -> Unit)? = null,
+    canStartRadio: Boolean = onStartRadio != null,
+    canAddToQueue: Boolean = onAddToQueue != null,
+    canAddToPlaylist: Boolean = onAddToPlaylist != null,
+    canFavorite: Boolean = onFavoriteToggle != null,
+    onItemAction: ((SharedMediaItemActionRequest) -> Unit)? = null,
 ) {
+    val item = SharedMediaItemUi(
+        id = artist.id.value,
+        title = artist.name,
+        subtitle = "Artist",
+        coverArtUrl = coverArtUrl.takeIf { showCoverArt },
+        favoriteActive = artist.favoritedAtIso8601 != null,
+        canFavorite = canFavorite,
+    )
+    val handleItemAction = onItemAction ?: { request: SharedMediaItemActionRequest ->
+        when (request.action) {
+            SharedMediaItemAction.Select -> {
+                onClick?.invoke()
+                Unit
+            }
+            SharedMediaItemAction.StartRadio -> {
+                onStartRadio?.invoke()
+                Unit
+            }
+            SharedMediaItemAction.AddToQueue -> {
+                onAddToQueue?.invoke()
+                Unit
+            }
+            SharedMediaItemAction.AddToPlaylist -> {
+                onAddToPlaylist?.invoke()
+                Unit
+            }
+            SharedMediaItemAction.ToggleFavorite -> {
+                onFavoriteToggle?.invoke()
+                Unit
+            }
+            SharedMediaItemAction.Play,
+            SharedMediaItemAction.Shuffle,
+            SharedMediaItemAction.FindSimilar,
+            SharedMediaItemAction.Download,
+            SharedMediaItemAction.CreatePlaylistAndAdd,
+            SharedMediaItemAction.Rename,
+            SharedMediaItemAction.EditSmartPlaylist,
+            SharedMediaItemAction.Delete,
+            SharedMediaItemAction.EditStation,
+            SharedMediaItemAction.DeleteStation,
+            -> Unit
+        }
+    }
     SharedMediaRow(
-        item = SharedMediaItemUi(
-            id = artist.id.value,
-            title = artist.name,
-            subtitle = "Artist",
-            coverArtUrl = coverArtUrl.takeIf { showCoverArt },
-            favoriteActive = artist.favoritedAtIso8601 != null,
-            canFavorite = onFavoriteToggle != null,
-        ),
+        item = item,
         colors = appColors,
         onClick = onClick,
+        itemKind = SharedMediaItemKind.Artist,
+        onItemAction = handleItemAction,
         menuItems = artistRowActions(
-            canStartRadio = onStartRadio != null,
-            canAddToQueue = onAddToQueue != null,
-            canAddToPlaylist = onAddToPlaylist != null,
+            canStartRadio = canStartRadio,
+            canAddToQueue = canAddToQueue,
+            canAddToPlaylist = canAddToPlaylist,
         ).mapNotNull { action ->
             when (action.action) {
-                NaviampAction.StartArtistRadio -> onStartRadio?.let { action.toRowMenuItem(it).toSharedMenuItem() }
-                NaviampAction.AddToQueue -> onAddToQueue?.let { action.toRowMenuItem(it).toSharedMenuItem() }
-                NaviampAction.AddToPlaylist -> onAddToPlaylist?.let { action.toRowMenuItem(it).toSharedMenuItem() }
+                NaviampAction.StartArtistRadio -> if (canStartRadio) {
+                    action.toRowMenuItem {
+                        handleItemAction(item.actionRequest(SharedMediaItemAction.StartRadio, kind = SharedMediaItemKind.Artist))
+                    }.toSharedMenuItem()
+                } else {
+                    null
+                }
+                NaviampAction.AddToQueue -> if (canAddToQueue) {
+                    action.toRowMenuItem {
+                        handleItemAction(item.actionRequest(SharedMediaItemAction.AddToQueue, kind = SharedMediaItemKind.Artist))
+                    }.toSharedMenuItem()
+                } else {
+                    null
+                }
+                NaviampAction.AddToPlaylist -> if (canAddToPlaylist) {
+                    action.toRowMenuItem {
+                        handleItemAction(item.actionRequest(SharedMediaItemAction.AddToPlaylist, kind = SharedMediaItemKind.Artist))
+                    }.toSharedMenuItem()
+                } else {
+                    null
+                }
                 else -> null
             }
         },
         onFavoriteToggled = onFavoriteToggle?.let { toggle -> { toggle() } },
+        canSelect = onClick != null || onItemAction != null,
+        canToggleFavorite = canFavorite,
         coverArtSize = coverArtSize,
         coverArtCornerRadius = coverArtSize / 2,
         modifier = modifier,
@@ -134,37 +203,110 @@ fun DesktopAlbumRow(
     onAddToQueue: (() -> Unit)? = null,
     onAddToPlaylist: (() -> Unit)? = null,
     onFavoriteToggle: (() -> Unit)? = null,
+    canStartRadio: Boolean = onStartRadio != null,
+    canDownload: Boolean = onDownload != null,
+    canAddToQueue: Boolean = onAddToQueue != null,
+    canAddToPlaylist: Boolean = onAddToPlaylist != null,
+    canFavorite: Boolean = onFavoriteToggle != null,
+    onItemAction: ((SharedMediaItemActionRequest) -> Unit)? = null,
 ) {
+    val item = SharedMediaItemUi(
+        id = album.id.value,
+        title = album.title,
+        subtitle = album.artistName,
+        meta = listOfNotNull(
+            "Album",
+            album.releaseYear?.toString(),
+        ).joinToString(" "),
+        coverArtUrl = coverArtUrl,
+        favoriteActive = album.favoritedAtIso8601 != null,
+        canFavorite = canFavorite,
+    )
+    val handleItemAction = onItemAction ?: { request: SharedMediaItemActionRequest ->
+        when (request.action) {
+            SharedMediaItemAction.Select -> {
+                onClick?.invoke()
+                Unit
+            }
+            SharedMediaItemAction.StartRadio -> {
+                onStartRadio?.invoke()
+                Unit
+            }
+            SharedMediaItemAction.Download -> {
+                onDownload?.invoke()
+                Unit
+            }
+            SharedMediaItemAction.AddToQueue -> {
+                onAddToQueue?.invoke()
+                Unit
+            }
+            SharedMediaItemAction.AddToPlaylist -> {
+                onAddToPlaylist?.invoke()
+                Unit
+            }
+            SharedMediaItemAction.ToggleFavorite -> {
+                onFavoriteToggle?.invoke()
+                Unit
+            }
+            SharedMediaItemAction.Play,
+            SharedMediaItemAction.Shuffle,
+            SharedMediaItemAction.FindSimilar,
+            SharedMediaItemAction.CreatePlaylistAndAdd,
+            SharedMediaItemAction.Rename,
+            SharedMediaItemAction.EditSmartPlaylist,
+            SharedMediaItemAction.Delete,
+            SharedMediaItemAction.EditStation,
+            SharedMediaItemAction.DeleteStation,
+            -> Unit
+        }
+    }
     SharedMediaRow(
-        item = SharedMediaItemUi(
-            id = album.id.value,
-            title = album.title,
-            subtitle = album.artistName,
-            meta = listOfNotNull(
-                "Album",
-                album.releaseYear?.toString(),
-            ).joinToString(" "),
-            coverArtUrl = coverArtUrl,
-            favoriteActive = album.favoritedAtIso8601 != null,
-            canFavorite = onFavoriteToggle != null,
-        ),
+        item = item,
         colors = appColors,
         onClick = onClick,
+        itemKind = SharedMediaItemKind.Album,
+        onItemAction = handleItemAction,
         menuItems = albumRowActions(
-            canStartRadio = onStartRadio != null,
-            canDownload = onDownload != null,
-            canAddToQueue = onAddToQueue != null,
-            canAddToPlaylist = onAddToPlaylist != null,
+            canStartRadio = canStartRadio,
+            canDownload = canDownload,
+            canAddToQueue = canAddToQueue,
+            canAddToPlaylist = canAddToPlaylist,
         ).mapNotNull { action ->
             when (action.action) {
-                NaviampAction.StartAlbumRadio -> onStartRadio?.let { action.toRowMenuItem(it).toSharedMenuItem() }
-                NaviampAction.DownloadAlbum -> onDownload?.let { action.toRowMenuItem(it).toSharedMenuItem() }
-                NaviampAction.AddToQueue -> onAddToQueue?.let { action.toRowMenuItem(it).toSharedMenuItem() }
-                NaviampAction.AddToPlaylist -> onAddToPlaylist?.let { action.toRowMenuItem(it).toSharedMenuItem() }
+                NaviampAction.StartAlbumRadio -> if (canStartRadio) {
+                    action.toRowMenuItem {
+                        handleItemAction(item.actionRequest(SharedMediaItemAction.StartRadio, kind = SharedMediaItemKind.Album))
+                    }.toSharedMenuItem()
+                } else {
+                    null
+                }
+                NaviampAction.DownloadAlbum -> if (canDownload) {
+                    action.toRowMenuItem {
+                        handleItemAction(item.actionRequest(SharedMediaItemAction.Download, kind = SharedMediaItemKind.Album))
+                    }.toSharedMenuItem()
+                } else {
+                    null
+                }
+                NaviampAction.AddToQueue -> if (canAddToQueue) {
+                    action.toRowMenuItem {
+                        handleItemAction(item.actionRequest(SharedMediaItemAction.AddToQueue, kind = SharedMediaItemKind.Album))
+                    }.toSharedMenuItem()
+                } else {
+                    null
+                }
+                NaviampAction.AddToPlaylist -> if (canAddToPlaylist) {
+                    action.toRowMenuItem {
+                        handleItemAction(item.actionRequest(SharedMediaItemAction.AddToPlaylist, kind = SharedMediaItemKind.Album))
+                    }.toSharedMenuItem()
+                } else {
+                    null
+                }
                 else -> null
             }
         },
         onFavoriteToggled = onFavoriteToggle?.let { toggle -> { toggle() } },
+        canSelect = onClick != null || onItemAction != null,
+        canToggleFavorite = canFavorite,
         coverArtSize = coverArtSize,
         coverArtCornerRadius = 4.dp,
         verticalPadding = verticalPadding,
@@ -197,6 +339,11 @@ fun DesktopTrackRow(
     onDownload: (() -> Unit)? = null,
     onAddToQueue: (() -> Unit)? = null,
     onAddToPlaylist: (() -> Unit)? = null,
+    canStartRadio: Boolean = onStartRadio != null,
+    canDownload: Boolean = onDownload != null,
+    canAddToQueue: Boolean = onAddToQueue != null,
+    canAddToPlaylist: Boolean = onAddToPlaylist != null,
+    onTrackAction: ((SharedTrackRowActionRequest) -> Unit)? = null,
     onClick: (() -> Unit)? = null,
 ) {
     val sharedTrack = SharedTrackRowUi(
@@ -216,6 +363,36 @@ fun DesktopTrackRow(
         onDownload = onDownload?.let { download -> { _: SharedTrackRowUi -> download() } },
         onAddToQueue = onAddToQueue?.let { addToQueue -> { _: SharedTrackRowUi -> addToQueue() } },
         onAddToPlaylist = onAddToPlaylist?.let { addToPlaylist -> { _: SharedTrackRowUi -> addToPlaylist() } },
+        canSelect = onClick != null || onTrackAction != null,
+        canStartRadio = canStartRadio,
+        canDownload = canDownload,
+        canAddToQueue = canAddToQueue,
+        canAddToPlaylist = canAddToPlaylist,
+        onTrackAction = onTrackAction ?: { request ->
+            when (request.action) {
+                SharedTrackRowAction.Select -> {
+                    onClick?.invoke()
+                    Unit
+                }
+                SharedTrackRowAction.StartRadio -> {
+                    onStartRadio?.invoke()
+                    Unit
+                }
+                SharedTrackRowAction.AddToQueue -> {
+                    onAddToQueue?.invoke()
+                    Unit
+                }
+                SharedTrackRowAction.Download -> {
+                    onDownload?.invoke()
+                    Unit
+                }
+                SharedTrackRowAction.AddToPlaylist -> {
+                    onAddToPlaylist?.invoke()
+                    Unit
+                }
+                SharedTrackRowAction.CreatePlaylistAndAdd -> Unit
+            }
+        },
         modifier = modifier,
         background = background,
         horizontalPadding = horizontalPadding,

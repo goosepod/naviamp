@@ -2,9 +2,12 @@ package app.naviamp.domain.playback
 
 import app.naviamp.domain.Track
 import app.naviamp.domain.TrackId
+import app.naviamp.domain.StreamQuality
+import app.naviamp.domain.queue.PlaybackQueue
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlinx.coroutines.test.runTest
 
@@ -50,6 +53,64 @@ class PlaybackPrefetchTest {
     @Test
     fun finishedClearsRunningFlag() {
         assertFalse(AudioPrefetchStats(running = true).finished().running)
+    }
+
+    @Test
+    fun planAudioPrefetchWorkBuildsSharedWork() {
+        val work = planAudioPrefetchWork(
+            sourceId = "server",
+            provider = "provider",
+            quality = StreamQuality.Original,
+            queue = PlaybackQueue(
+                tracks = listOf(prefetchTrack("current"), prefetchTrack("next-1"), prefetchTrack("next-2")),
+                currentIndex = 0,
+            ),
+            enabled = true,
+            configuredDepth = 1,
+        )
+
+        requireNotNull(work)
+        assertEquals("server", work.sourceId)
+        assertEquals("provider", work.provider)
+        assertEquals(StreamQuality.Original, work.quality)
+        assertEquals(listOf("next-1"), work.tracks.map { it.id.value })
+        assertEquals(1, work.stats.configuredDepth)
+    }
+
+    @Test
+    fun planAudioPrefetchWorkSkipsMissingRequirements() {
+        val queue = PlaybackQueue(tracks = listOf(prefetchTrack("current"), prefetchTrack("next")), currentIndex = 0)
+
+        assertNull(
+            planAudioPrefetchWork(
+                sourceId = null,
+                provider = "provider",
+                quality = StreamQuality.Original,
+                queue = queue,
+                enabled = true,
+                configuredDepth = 1,
+            ),
+        )
+        assertNull(
+            planAudioPrefetchWork(
+                sourceId = "server",
+                provider = "provider",
+                quality = StreamQuality.Original,
+                queue = queue,
+                enabled = false,
+                configuredDepth = 1,
+            ),
+        )
+        assertNull(
+            planAudioPrefetchWork(
+                sourceId = "server",
+                provider = "provider",
+                quality = StreamQuality.Original,
+                queue = queue,
+                enabled = true,
+                configuredDepth = 0,
+            ),
+        )
     }
 
     @Test

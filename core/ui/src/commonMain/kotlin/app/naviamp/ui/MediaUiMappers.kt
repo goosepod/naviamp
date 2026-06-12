@@ -10,13 +10,20 @@ import app.naviamp.domain.Lyrics
 import app.naviamp.domain.Playlist
 import app.naviamp.domain.StreamQuality
 import app.naviamp.domain.Track
+import app.naviamp.domain.isInternetRadioTrack
 import app.naviamp.domain.home.HomeContent
 import app.naviamp.domain.home.homeStations
+import app.naviamp.domain.playback.PlaybackProgress
+import app.naviamp.domain.playback.PlaybackState
+import app.naviamp.domain.playback.PlaybackStreamMetadata
 import app.naviamp.domain.playback.PlaybackVisualizerFrame
+import app.naviamp.domain.playback.SleepTimerRequest
+import app.naviamp.domain.playback.label
 import app.naviamp.domain.playback.SleepTimerState
 import app.naviamp.domain.playback.sleepTimerDisplayLabel
 import app.naviamp.domain.provider.MediaSearchResults
 import app.naviamp.domain.popular.SimilarArtistMatch
+import app.naviamp.domain.queue.PlaybackQueue
 import app.naviamp.domain.queue.RepeatMode
 import app.naviamp.domain.waveform.AudioWaveform
 import kotlin.math.absoluteValue
@@ -176,6 +183,433 @@ fun Track.toNowPlayingItemUi(
         coverArtUrl = coverArtUrl,
     )
 
+fun List<Track>.toNowPlayingItemUis(
+    coverArtUrl: (Track) -> String?,
+    id: (index: Int, track: Track) -> String = { _, track -> track.id.value },
+    meta: (Track) -> String = { track -> track.durationSeconds?.durationLabel().orEmpty() },
+): List<NaviampNowPlayingItemUi> =
+    mapIndexed { index, track ->
+        track.toNowPlayingItemUi(
+            id = id(index, track),
+            coverArtUrl = coverArtUrl(track),
+            meta = meta(track),
+        )
+    }
+
+enum class NowPlayingSectionItemIds {
+    TrackIds,
+    QueueAndRelatedIndexes,
+}
+
+data class NowPlayingSectionsUi(
+    val backTo: List<NaviampNowPlayingItemUi>,
+    val upNext: List<NaviampNowPlayingItemUi>,
+    val related: List<NaviampNowPlayingItemUi>,
+    val relatedLabels: NowPlayingRelatedUiLabels,
+    val hasPrevious: Boolean,
+    val hasNext: Boolean,
+    val shuffleEnabled: Boolean,
+)
+
+fun nowPlayingSectionsUi(
+    tracks: List<Track>,
+    currentTrack: Track?,
+    relatedTracks: List<Track>,
+    coverArtUrl: (Track) -> String?,
+    sonicSimilarityEnabled: Boolean,
+    repeatMode: RepeatMode,
+    itemIds: NowPlayingSectionItemIds = NowPlayingSectionItemIds.TrackIds,
+): NowPlayingSectionsUi {
+    val currentIndex = currentTrack?.let { track -> tracks.indexOfFirst { it.id == track.id } } ?: -1
+    return nowPlayingSectionsUi(
+        tracks = tracks,
+        currentIndex = currentIndex,
+        relatedTracks = relatedTracks,
+        coverArtUrl = coverArtUrl,
+        sonicSimilarityEnabled = sonicSimilarityEnabled,
+        repeatMode = repeatMode,
+        itemIds = itemIds,
+    )
+}
+
+fun PlaybackQueue.toNowPlayingSectionsUi(
+    relatedTracks: List<Track>,
+    coverArtUrl: (Track) -> String?,
+    sonicSimilarityEnabled: Boolean,
+    repeatMode: RepeatMode,
+    itemIds: NowPlayingSectionItemIds = NowPlayingSectionItemIds.QueueAndRelatedIndexes,
+): NowPlayingSectionsUi =
+    nowPlayingSectionsUi(
+        tracks = tracks,
+        currentIndex = currentIndex,
+        relatedTracks = relatedTracks,
+        coverArtUrl = coverArtUrl,
+        sonicSimilarityEnabled = sonicSimilarityEnabled,
+        repeatMode = repeatMode,
+        itemIds = itemIds,
+    )
+
+private fun nowPlayingSectionsUi(
+    tracks: List<Track>,
+    currentIndex: Int,
+    relatedTracks: List<Track>,
+    coverArtUrl: (Track) -> String?,
+    sonicSimilarityEnabled: Boolean,
+    repeatMode: RepeatMode,
+    itemIds: NowPlayingSectionItemIds,
+): NowPlayingSectionsUi {
+    val hasCurrent = currentIndex in tracks.indices
+    val firstBackToQueueIndex = currentIndex - 1
+    val firstUpNextQueueIndex = currentIndex + 1
+    val backTo = if (hasCurrent) tracks.take(currentIndex).asReversed() else emptyList()
+    val upNext = if (hasCurrent) tracks.drop(currentIndex + 1) else emptyList()
+    val queueItemId: (Int, Int, Track) -> String = { index, queueIndex, track ->
+        when (itemIds) {
+            NowPlayingSectionItemIds.TrackIds -> track.id.value
+            NowPlayingSectionItemIds.QueueAndRelatedIndexes -> nowPlayingQueueItemId(queueIndex)
+        }
+    }
+    val relatedItemId: (Int, Track) -> String = { index, track ->
+        when (itemIds) {
+            NowPlayingSectionItemIds.TrackIds -> track.id.value
+            NowPlayingSectionItemIds.QueueAndRelatedIndexes -> nowPlayingRelatedItemId(index)
+        }
+    }
+
+    return NowPlayingSectionsUi(
+        backTo = backTo.toNowPlayingItemUis(
+            coverArtUrl = coverArtUrl,
+            id = { index, track -> queueItemId(index, firstBackToQueueIndex - index, track) },
+            meta = { "" },
+        ),
+        upNext = upNext.toNowPlayingItemUis(
+            coverArtUrl = coverArtUrl,
+            id = { index, track -> queueItemId(index, firstUpNextQueueIndex + index, track) },
+            meta = { "" },
+        ),
+        related = relatedTracks.toNowPlayingItemUis(
+            coverArtUrl = coverArtUrl,
+            id = relatedItemId,
+            meta = { "" },
+        ),
+        relatedLabels = nowPlayingRelatedUiLabels(sonicSimilarityEnabled),
+        hasPrevious = currentIndex > 0 || (repeatMode == RepeatMode.Queue && tracks.size > 1),
+        hasNext = (hasCurrent && currentIndex < tracks.lastIndex) ||
+            (repeatMode == RepeatMode.Queue && tracks.size > 1),
+        shuffleEnabled = upNext.size > 1,
+    )
+}
+
+sealed interface NowPlayingItemTarget {
+    data class QueueIndex(val index: Int) : NowPlayingItemTarget
+    data class RelatedIndex(val index: Int) : NowPlayingItemTarget
+    data class TrackId(val id: String) : NowPlayingItemTarget
+}
+
+enum class NowPlayingItemAction {
+    StartRadio,
+    PlayNext,
+    AddToQueue,
+    AddToPlaylist,
+    CreatePlaylistAndAdd,
+    Download,
+}
+
+enum class NowPlayingItemSource {
+    Queue,
+    Related,
+    TrackId,
+}
+
+enum class NowPlayingCurrentTrackAction {
+    StartRadio,
+    AddToPlaylist,
+    CreatePlaylistAndAdd,
+    Download,
+    GoToAlbum,
+    GoToArtist,
+    ToggleFavorite,
+    SetRating,
+}
+
+data class NowPlayingCurrentTrackActionRequest(
+    val track: Track,
+    val action: NowPlayingCurrentTrackAction,
+    val playlistChoice: NaviampPlaylistChoiceUi? = null,
+    val playlistName: String? = null,
+    val rating: Int? = null,
+)
+
+data class NowPlayingCurrentTrackUiActionRequest(
+    val action: NowPlayingCurrentTrackAction,
+    val playlistChoice: NaviampPlaylistChoiceUi? = null,
+    val playlistName: String? = null,
+    val rating: Int? = null,
+)
+
+enum class NowPlayingPlaybackAction {
+    Pause,
+    Resume,
+    PlayCurrent,
+    Seek,
+    Previous,
+    Next,
+    ToggleShuffle,
+    CycleRepeatMode,
+    ChangeVolume,
+}
+
+data class NowPlayingPlaybackActionRequest(
+    val action: NowPlayingPlaybackAction,
+    val seekSeconds: Double? = null,
+    val volumePercent: Int? = null,
+)
+
+enum class NowPlayingDisplayAction {
+    ToggleLyrics,
+    ChangeLyricsOffset,
+    ToggleVisualizer,
+    SelectVisualizer,
+    Collapse,
+}
+
+data class NowPlayingDisplayActionRequest(
+    val action: NowPlayingDisplayAction,
+    val lyricsOffsetMillis: Int? = null,
+    val visualizer: NaviampVisualizer? = null,
+)
+
+enum class NowPlayingQueueAction {
+    SaveQueueAsPlaylist,
+}
+
+data class NowPlayingQueueActionRequest(
+    val action: NowPlayingQueueAction,
+    val playlistName: String,
+)
+
+enum class NowPlayingSleepTimerAction {
+    Select,
+    Cancel,
+}
+
+data class NowPlayingSleepTimerActionRequest(
+    val action: NowPlayingSleepTimerAction,
+    val request: SleepTimerRequest? = null,
+)
+
+enum class NowPlayingSelectionAction {
+    SelectQueueItem,
+    SelectRelatedItem,
+    SelectRadioStation,
+}
+
+data class NowPlayingSelectionActionRequest(
+    val item: NaviampNowPlayingItemUi,
+    val action: NowPlayingSelectionAction,
+)
+
+data class NowPlayingItemActionRequest(
+    val item: NaviampNowPlayingItemUi,
+    val target: NowPlayingItemTarget,
+    val action: NowPlayingItemAction,
+    val playlistChoice: NaviampPlaylistChoiceUi? = null,
+    val playlistName: String? = null,
+)
+
+data class ResolvedNowPlayingItemAction(
+    val request: NowPlayingItemActionRequest,
+    val source: NowPlayingItemSource,
+    val track: Track?,
+) {
+    val item: NaviampNowPlayingItemUi
+        get() = request.item
+
+    val action: NowPlayingItemAction
+        get() = request.action
+
+    val playlistChoice: NaviampPlaylistChoiceUi?
+        get() = request.playlistChoice
+
+    val playlistName: String?
+        get() = request.playlistName
+
+    val isRelated: Boolean
+        get() = source == NowPlayingItemSource.Related
+}
+
+fun nowPlayingQueueItemId(index: Int): String = "queue:$index"
+
+fun nowPlayingRelatedItemId(index: Int): String = "related:$index"
+
+fun nowPlayingItemTarget(item: NaviampNowPlayingItemUi): NowPlayingItemTarget =
+    item.id.removePrefix("queue:")
+        .takeIf { it != item.id }
+        ?.toIntOrNull()
+        ?.let(NowPlayingItemTarget::QueueIndex)
+        ?: item.id.removePrefix("related:")
+            .takeIf { it != item.id }
+            ?.toIntOrNull()
+            ?.let(NowPlayingItemTarget::RelatedIndex)
+        ?: NowPlayingItemTarget.TrackId(item.id)
+
+fun nowPlayingQueueIndex(item: NaviampNowPlayingItemUi): Int? =
+    (nowPlayingItemTarget(item) as? NowPlayingItemTarget.QueueIndex)?.index
+
+fun nowPlayingRelatedIndex(item: NaviampNowPlayingItemUi): Int? =
+    (nowPlayingItemTarget(item) as? NowPlayingItemTarget.RelatedIndex)?.index
+
+fun nowPlayingItemActionRequest(
+    item: NaviampNowPlayingItemUi,
+    action: NowPlayingItemAction,
+    playlistChoice: NaviampPlaylistChoiceUi? = null,
+    playlistName: String? = null,
+): NowPlayingItemActionRequest =
+    NowPlayingItemActionRequest(
+        item = item,
+        target = nowPlayingItemTarget(item),
+        action = action,
+        playlistChoice = playlistChoice,
+        playlistName = playlistName,
+    )
+
+fun resolveNowPlayingItemTrack(
+    item: NaviampNowPlayingItemUi,
+    queueTracks: List<Track> = emptyList(),
+    relatedTracks: List<Track> = emptyList(),
+    knownTracks: List<Track> = emptyList(),
+): Track? =
+    resolveNowPlayingTargetTrack(nowPlayingItemTarget(item), queueTracks, relatedTracks, knownTracks)
+
+fun NowPlayingItemActionRequest.resolveTrack(
+    queueTracks: List<Track> = emptyList(),
+    relatedTracks: List<Track> = emptyList(),
+    knownTracks: List<Track> = emptyList(),
+): Track? =
+    resolveNowPlayingTargetTrack(target, queueTracks, relatedTracks, knownTracks)
+
+fun NowPlayingItemActionRequest.resolveAction(
+    queueTracks: List<Track> = emptyList(),
+    relatedTracks: List<Track> = emptyList(),
+    knownTracks: List<Track> = emptyList(),
+    fallbackTrack: Track? = null,
+): ResolvedNowPlayingItemAction =
+    ResolvedNowPlayingItemAction(
+        request = this,
+        source = target.source,
+        track = resolveTrack(queueTracks, relatedTracks, knownTracks) ?: fallbackTrack,
+    )
+
+private val NowPlayingItemTarget.source: NowPlayingItemSource
+    get() = when (this) {
+        is NowPlayingItemTarget.QueueIndex -> NowPlayingItemSource.Queue
+        is NowPlayingItemTarget.RelatedIndex -> NowPlayingItemSource.Related
+        is NowPlayingItemTarget.TrackId -> NowPlayingItemSource.TrackId
+    }
+
+data class ResolvedSharedTrackRowAction(
+    val request: SharedTrackRowActionRequest,
+    val track: Track?,
+) {
+    val action: SharedTrackRowAction
+        get() = request.action
+
+    val row: SharedTrackRowUi
+        get() = request.track
+
+    val playlistChoice: NaviampPlaylistChoiceUi?
+        get() = request.playlistChoice
+
+    val playlistName: String?
+        get() = request.playlistName
+}
+
+fun SharedTrackRowActionRequest.resolveAction(
+    knownTracks: List<Track> = emptyList(),
+    fallbackTrack: Track? = null,
+): ResolvedSharedTrackRowAction =
+    ResolvedSharedTrackRowAction(
+        request = this,
+        track = knownTracks.firstOrNull { track -> track.id.value == this.track.id } ?: fallbackTrack,
+    )
+
+private fun resolveNowPlayingTargetTrack(
+    target: NowPlayingItemTarget,
+    queueTracks: List<Track>,
+    relatedTracks: List<Track>,
+    knownTracks: List<Track>,
+): Track? =
+    when (target) {
+        is NowPlayingItemTarget.QueueIndex -> queueTracks.getOrNull(target.index)
+        is NowPlayingItemTarget.RelatedIndex -> relatedTracks.getOrNull(target.index)
+        is NowPlayingItemTarget.TrackId ->
+            (knownTracks + queueTracks + relatedTracks).firstOrNull { track -> track.id.value == target.id }
+    }
+
+data class NowPlayingRelatedUiLabels(
+    val tabLabel: String,
+    val emptyLabel: String,
+)
+
+fun nowPlayingRelatedUiLabels(sonicSimilarityEnabled: Boolean): NowPlayingRelatedUiLabels =
+    if (sonicSimilarityEnabled) {
+        NowPlayingRelatedUiLabels(
+            tabLabel = "SONIC",
+            emptyLabel = "Sonic matches are not loaded.",
+        )
+    } else {
+        NowPlayingRelatedUiLabels(
+            tabLabel = "RELATED",
+            emptyLabel = "Related tracks are not loaded.",
+        )
+    }
+
+data class NowPlayingTrackCapabilities(
+    val canPlayPause: Boolean,
+    val canSeek: Boolean,
+    val canChangeVolume: Boolean,
+    val canRepeat: Boolean,
+    val canStartRadio: Boolean,
+    val canAddToPlaylist: Boolean,
+    val canSaveQueueAsPlaylist: Boolean,
+    val canFavorite: Boolean,
+    val canRate: Boolean,
+    val lyricsAvailable: Boolean,
+)
+
+fun nowPlayingTrackCapabilities(
+    isLiveStream: Boolean,
+    playbackState: PlaybackState,
+    hasPlaybackTarget: Boolean = true,
+    supportsPause: Boolean = true,
+    supportsSeek: Boolean = true,
+    supportsSoftwareVolume: Boolean = false,
+    supportsTrackRadio: Boolean = false,
+    supportsTrackFavorites: Boolean = false,
+    supportsTrackRatings: Boolean = false,
+    canRepeatQueue: Boolean = false,
+    canSaveQueueAsPlaylist: Boolean = false,
+    canAddToPlaylist: Boolean = true,
+): NowPlayingTrackCapabilities =
+    NowPlayingTrackCapabilities(
+        canPlayPause = hasPlaybackTarget &&
+            playbackState != PlaybackState.Loading &&
+            playbackState !is PlaybackState.Error &&
+            (supportsPause || playbackState != PlaybackState.Playing),
+        canSeek = supportsSeek && !isLiveStream,
+        canChangeVolume = supportsSoftwareVolume,
+        canRepeat = canRepeatQueue && !isLiveStream,
+        canStartRadio = supportsTrackRadio && !isLiveStream,
+        canAddToPlaylist = canAddToPlaylist && !isLiveStream,
+        canSaveQueueAsPlaylist = canSaveQueueAsPlaylist && !isLiveStream,
+        canFavorite = supportsTrackFavorites && !isLiveStream,
+        canRate = supportsTrackRatings && !isLiveStream,
+        lyricsAvailable = !isLiveStream,
+    )
+
+fun nowPlayingEmbeddedTagRows(tags: List<Pair<String, String>>?): List<Pair<String, String>> =
+    tags ?: listOf("Status" to "Loading from cached audio")
+
 fun Track.compactFavoriteRatingLabel(): String? {
     val parts = listOfNotNull(
         favoritedAtIso8601?.let { "♥" },
@@ -315,6 +749,8 @@ data class NowPlayingTrackUiConfig(
     val backTo: List<NaviampNowPlayingItemUi> = emptyList(),
     val upNext: List<NaviampNowPlayingItemUi> = emptyList(),
     val related: List<NaviampNowPlayingItemUi> = emptyList(),
+    val relatedTabLabel: String = "RELATED",
+    val relatedEmptyLabel: String = "Related tracks are not loaded.",
 )
 
 data class NowPlayingRadioUiConfig(
@@ -392,6 +828,85 @@ fun Track.toNowPlayingUi(config: NowPlayingTrackUiConfig): NowPlayingUi =
         backTo = config.backTo,
         upNext = config.upNext,
         related = config.related,
+        relatedTabLabel = config.relatedTabLabel,
+        relatedEmptyLabel = config.relatedEmptyLabel,
+    )
+
+fun Track.toTrackNowPlayingUi(
+    stateLabel: String,
+    coverArtUrl: String?,
+    playbackProgress: PlaybackProgress,
+    playbackState: PlaybackState,
+    capabilities: NowPlayingTrackCapabilities,
+    hasPrevious: Boolean,
+    hasNext: Boolean,
+    shuffleEnabled: Boolean,
+    shuffleActive: Boolean,
+    repeatMode: RepeatMode,
+    sleepTimer: NaviampSleepTimerUi,
+    relatedLabels: NowPlayingRelatedUiLabels,
+    playbackEngineName: String? = null,
+    waveform: AudioWaveform? = null,
+    visualizerAvailable: Boolean = false,
+    visualizerVisible: Boolean = false,
+    durationSeconds: Double? = playbackProgress.durationSeconds,
+    lyricsVisible: Boolean = false,
+    lyricsStatus: String? = null,
+    lyrics: Lyrics? = null,
+    streamQuality: StreamQuality? = null,
+    embeddedTags: List<Pair<String, String>>? = null,
+    playlistChoices: List<NaviampPlaylistChoiceUi> = emptyList(),
+    useInlinePlaylistPicker: Boolean = true,
+    playlistActionStatus: String? = null,
+    backTo: List<NaviampNowPlayingItemUi> = emptyList(),
+    upNext: List<NaviampNowPlayingItemUi> = emptyList(),
+    related: List<NaviampNowPlayingItemUi> = emptyList(),
+    volumePercent: Int = 100,
+): NowPlayingUi =
+    toNowPlayingUi(
+        NowPlayingTrackUiConfig(
+            stateLabel = stateLabel,
+            coverArtUrl = coverArtUrl,
+            playbackEngineName = playbackEngineName,
+            waveform = waveform,
+            visualizerAvailable = visualizerAvailable,
+            visualizerVisible = visualizerVisible,
+            positionSeconds = playbackProgress.positionSeconds,
+            durationSeconds = durationSeconds,
+            volumePercent = volumePercent,
+            isPlaying = playbackState == PlaybackState.Playing,
+            isPaused = playbackState == PlaybackState.Paused,
+            canPlayPause = capabilities.canPlayPause,
+            canSeek = capabilities.canSeek,
+            canChangeVolume = capabilities.canChangeVolume,
+            hasPrevious = hasPrevious,
+            hasNext = hasNext,
+            shuffleEnabled = shuffleEnabled,
+            shuffleActive = shuffleActive,
+            repeatMode = repeatMode,
+            canRepeat = capabilities.canRepeat,
+            canStartRadio = capabilities.canStartRadio,
+            canAddToPlaylist = capabilities.canAddToPlaylist,
+            canSaveQueueAsPlaylist = capabilities.canSaveQueueAsPlaylist,
+            sleepTimer = sleepTimer,
+            canFavorite = capabilities.canFavorite,
+            canRate = capabilities.canRate,
+            lyricsAvailable = capabilities.lyricsAvailable,
+            lyricsVisible = lyricsVisible,
+            lyricsStatus = lyricsStatus,
+            lyrics = lyrics,
+            menuEnabled = true,
+            streamQuality = streamQuality,
+            embeddedTags = nowPlayingEmbeddedTagRows(embeddedTags),
+            playlistChoices = playlistChoices,
+            useInlinePlaylistPicker = useInlinePlaylistPicker,
+            playlistActionStatus = playlistActionStatus,
+            backTo = backTo,
+            upNext = upNext,
+            related = related,
+            relatedTabLabel = relatedLabels.tabLabel,
+            relatedEmptyLabel = relatedLabels.emptyLabel,
+        ),
     )
 
 fun InternetRadioStation.toNowPlayingUi(config: NowPlayingRadioUiConfig): NowPlayingUi {
@@ -416,6 +931,34 @@ fun InternetRadioStation.toNowPlayingUi(config: NowPlayingRadioUiConfig): NowPla
         canAddToPlaylist = false,
         menuEnabled = false,
         radioStations = config.radioStations,
+    )
+}
+
+fun InternetRadioStation.toRadioNowPlayingUi(
+    streamMetadata: PlaybackStreamMetadata,
+    playbackState: PlaybackState,
+    volumePercent: Int,
+    radioStations: List<InternetRadioStation>,
+    radioTrackArtworkByKey: Map<String, String?>,
+    canPlayPause: Boolean = true,
+    canChangeVolume: Boolean = false,
+): NowPlayingUi {
+    val trackArtworkUrl = radioTrackArtworkKey(this, streamMetadata.title)
+        ?.let(radioTrackArtworkByKey::get)
+    return toNowPlayingUi(
+        NowPlayingRadioUiConfig(
+            streamTitle = streamMetadata.title,
+            coverArtUrl = radioArtworkUrl(this, streamMetadata.properties, trackArtworkUrl),
+            stateLabel = playbackState.label(),
+            volumePercent = volumePercent,
+            isPlaying = playbackState == PlaybackState.Playing,
+            isPaused = playbackState == PlaybackState.Paused,
+            canPlayPause = canPlayPause,
+            canChangeVolume = canChangeVolume,
+            radioStations = radioStations
+                .sortedBy { station -> station.name.lowercase() }
+                .map { station -> station.toNowPlayingStationUi() },
+        ),
     )
 }
 
@@ -532,6 +1075,26 @@ fun radioArtworkUrl(
     streamMetadataArtworkUrl(streamMetadataProperties)
         ?: trackArtworkUrl
         ?: radioStationArtworkUrl(station)
+
+fun effectiveNowPlayingCoverArtUrl(
+    currentCoverArtUrl: String?,
+    nowPlayingTrack: Track?,
+    nowPlayingStation: InternetRadioStation?,
+    streamMetadata: PlaybackStreamMetadata,
+    radioTrackArtworkByKey: Map<String, String?>,
+): String? {
+    val station = nowPlayingStation ?: return currentCoverArtUrl
+    if (nowPlayingTrack?.isInternetRadioTrack() != true && nowPlayingTrack != null) {
+        return currentCoverArtUrl
+    }
+    val trackArtworkUrl = radioTrackArtworkKey(station, streamMetadata.title)
+        ?.let(radioTrackArtworkByKey::get)
+    return radioArtworkUrl(
+        station = station,
+        streamMetadataProperties = streamMetadata.properties,
+        trackArtworkUrl = trackArtworkUrl,
+    )
+}
 
 fun radioArtworkNeedsTrackLookup(
     station: InternetRadioStation,

@@ -216,6 +216,63 @@ class PlaybackTargetPlanTest {
         assertEquals(null, effects.engineStartPositionSeconds)
     }
 
+    @Test
+    fun playlistTrackStartWorkBuildsSharedPlaybackRequest() {
+        val target = track("one")
+        val replayGain = PlaybackReplayGain(
+            app.naviamp.domain.ReplayGain(
+                trackGainDb = -4.0,
+                albumGainDb = null,
+                trackPeak = null,
+                albumPeak = null,
+            ),
+            ReplayGainSource.Provider,
+        )
+        val work = planPlaylistTrackStartWork(
+            sessionId = 7,
+            track = target,
+            playbackSource = PlaybackSource.ProviderStream,
+            streamUrl = "https://server/stream",
+            replayGainMode = ReplayGainMode.Track,
+            replayGain = replayGain,
+            supportsReplayGain = true,
+            engineStartPositionSeconds = 12.0,
+            coverArtUrl = "cover",
+            startAudioPrefetch = false,
+            startSidecarPrep = true,
+        )
+
+        assertEquals(7, work.sessionId)
+        assertEquals(target, work.track)
+        assertEquals(PlaybackSource.ProviderStream, work.playbackSource)
+        assertEquals("cover", work.coverArtUrl)
+        assertEquals("https://server/stream", work.request.url)
+        assertEquals("one", work.request.mediaId)
+        assertEquals(ReplayGainMode.Track, work.request.replayGainMode)
+        assertEquals(replayGain, work.request.replayGain)
+        assertEquals(12.0, work.request.startPositionSeconds)
+        assertEquals(false, work.startAudioPrefetch)
+        assertEquals(true, work.startSidecarPrep)
+    }
+
+    @Test
+    fun playlistTrackStartWorkDisablesReplayGainWhenEngineDoesNotSupportIt() {
+        val work = planPlaylistTrackStartWork(
+            sessionId = "session",
+            track = track("one"),
+            playbackSource = PlaybackSource.CachedFile,
+            streamUrl = "file:///song.mp3",
+            replayGainMode = ReplayGainMode.Album,
+            replayGain = null,
+            supportsReplayGain = false,
+            engineStartPositionSeconds = 0.0,
+            coverArtUrl = null,
+        )
+
+        assertEquals(ReplayGainMode.Off, work.request.replayGainMode)
+        assertEquals(null, work.request.startPositionSeconds)
+    }
+
     private fun track(id: String): Track =
         Track(
             id = TrackId(id),

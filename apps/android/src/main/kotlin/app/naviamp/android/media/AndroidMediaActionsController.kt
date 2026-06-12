@@ -8,22 +8,29 @@ import app.naviamp.domain.Track
 import app.naviamp.domain.cache.ProviderResponseCacheRepository
 import app.naviamp.domain.cache.ProviderResponseService
 import app.naviamp.domain.media.MediaMetadataMutationController
-import app.naviamp.domain.media.MediaMetadataStateUpdater
-import app.naviamp.domain.media.MediaTrackMetadataStateUpdater
-import app.naviamp.domain.media.knownAlbumsForMetadata
-import app.naviamp.domain.media.knownArtistsForMetadata
+import app.naviamp.domain.media.MediaTrackLookupSources
+import app.naviamp.domain.media.findKnownTrack
+import app.naviamp.domain.media.mediaMetadataMutationController
+import app.naviamp.domain.media.searchOrAlbumTracksForMediaActions
+import app.naviamp.domain.media.selectedTrackPlayback
 import app.naviamp.domain.media.withUpdatedAlbum
 import app.naviamp.domain.media.withUpdatedArtist
 import app.naviamp.domain.playback.PlaybackQueueController
-import app.naviamp.domain.provider.addToPlaylistMutationUpdate
-import app.naviamp.domain.provider.allKnownTracks
-import app.naviamp.domain.provider.createPlaylistOrAddTracks
-import app.naviamp.domain.provider.queueAppendPlan
-import app.naviamp.domain.queue.PlaybackQueue
+import app.naviamp.domain.playback.PlaybackQueueManager
+import app.naviamp.domain.playback.applyPlaybackQueueUpdate
+import app.naviamp.domain.provider.addToPlaylistErrorMessage
+import app.naviamp.domain.provider.addToPlaylistLoadingStatus
+import app.naviamp.domain.provider.addTracksToPlaylistApplication
+import app.naviamp.domain.provider.PlaylistHomeProjection
 import app.naviamp.ui.SharedTrackRowUi
+import app.naviamp.ui.SharedTrackRowAction
+import app.naviamp.ui.SharedTrackRowActionRequest
+import app.naviamp.ui.DownloadedTrackAction
+import app.naviamp.ui.DownloadedTrackActionRequest
 import app.naviamp.ui.NaviampDownloadedTrackUi
 import app.naviamp.ui.NaviampPlaylistChoiceUi
 import app.naviamp.ui.SharedMediaItemUi
+import app.naviamp.ui.resolveAction
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
@@ -32,28 +39,27 @@ fun findAndroidKnownTrack(
     trackId: String,
     activeQueue: List<Track>,
 ): Track? =
-    (
-        activeQueue +
-            state.selectedPlaylistTracks +
-            state.relatedTracks +
-            state.artistPopularTracksByArtistId.values.flatten() +
-            allKnownTracks(state.searchResults, state.albumDetail)
-        ).firstOrNull { it.id.value == trackId }
+    findKnownTrack(trackId, androidTrackLookupSources(state, activeQueue))
 
 fun selectedAndroidTrackPlayback(
     state: AndroidAppState,
     trackId: String,
     activeQueue: List<Track>,
-): Pair<Track, List<Track>>? {
-    val currentTracks = activeQueue.takeIf { queue -> queue.any { it.id.value == trackId } }
-        ?: state.relatedTracks.takeIf { queue -> queue.any { it.id.value == trackId } }
-        ?: state.artistPopularTracksByArtistId.values.flatten().takeIf { queue -> queue.any { it.id.value == trackId } }
-        ?: allKnownTracks(state.searchResults, state.albumDetail)
-    val track = currentTracks.firstOrNull { it.id.value == trackId }
-        ?: findAndroidKnownTrack(state, trackId, activeQueue)
-        ?: return null
-    return track to currentTracks
-}
+): Pair<Track, List<Track>>? =
+    selectedTrackPlayback(trackId, androidTrackLookupSources(state, activeQueue))
+        ?.let { playback -> playback.track to playback.tracks }
+
+private fun androidTrackLookupSources(
+    state: AndroidAppState,
+    activeQueue: List<Track>,
+): MediaTrackLookupSources =
+    MediaTrackLookupSources(
+        primaryTracks = activeQueue,
+        selectedPlaylistTracks = state.selectedPlaylistTracks,
+        relatedTracks = state.relatedTracks,
+        artistPopularTracks = state.artistPopularTracksByArtistId.values.flatten(),
+        fallbackTracks = searchOrAlbumTracksForMediaActions(state.searchResults, state.albumDetail),
+    )
 
 fun appendAndroidTracksToQueue(
     state: AndroidAppState,
@@ -61,20 +67,20 @@ fun appendAndroidTracksToQueue(
     tracksToAdd: List<Track>,
     label: String = "tracks",
 ) {
-    val plan = queueAppendPlan(tracks = tracksToAdd, label = label)
-    state.status = plan.status
-    if (plan.tracks.isEmpty()) {
-        return
-    }
-    playbackQueueController.replaceQueue(state.playbackQueue)
-    if (state.playbackQueue.currentIndex < 0 && state.playbackQueue.tracks.isEmpty()) {
-        playbackQueueController.replaceQueue(PlaybackQueue(plan.tracks, currentIndex = 0))
-        state.playbackQueue = playbackQueueController.queue
-    } else {
-        playbackQueueController.appendTracks(plan.tracks)?.let { queue ->
-            state.playbackQueue = queue
-        }
-    }
+    val update = PlaybackQueueManager().appendTracks(
+        currentQueue = state.playbackQueue,
+        tracksToAdd = tracksToAdd,
+        label = label,
+    )
+    applyPlaybackQueueUpdate(
+        update = update,
+        setStatus = { status -> state.status = status },
+        replaceQueue = { queue ->
+            playbackQueueController.replaceQueue(state.playbackQueue)
+            playbackQueueController.replaceQueue(queue)
+            state.playbackQueue = playbackQueueController.queue
+        },
+    )
 }
 
 fun withAndroidKnownTrack(
@@ -148,16 +154,22 @@ fun appendAndroidArtistPopularTracksToQueue(
         state.status = "No popular tracks matched your library."
         return
     }
-    val plan = queueAppendPlan(
-        tracks = popularTracks,
+    val update = PlaybackQueueManager().appendTracks(
+        currentQueue = state.playbackQueue,
+        tracksToAdd = popularTracks,
         label = "popular tracks",
         existingTracks = state.playbackQueue.tracks,
         deduplicateExisting = true,
     )
-    state.status = plan.status
-    if (plan.tracks.isNotEmpty()) {
-        appendAndroidTracksToQueue(state, playbackQueueController, plan.tracks, "popular tracks")
-    }
+    applyPlaybackQueueUpdate(
+        update = update,
+        setStatus = { status -> state.status = status },
+        replaceQueue = { queue ->
+            playbackQueueController.replaceQueue(state.playbackQueue)
+            playbackQueueController.replaceQueue(queue)
+            state.playbackQueue = playbackQueueController.queue
+        },
+    )
 }
 
 fun updateAndroidNotificationFavoriteState(state: AndroidAppState, track: Track? = state.nowPlaying) {
@@ -171,50 +183,21 @@ fun applyAndroidTrackMetadataUpdate(
     playbackEngine: AndroidPlaybackEngine,
     updatedTrack: Track,
 ) {
-    val updatedNowPlaying = androidTrackMetadataStateUpdater(state).applyTrackUpdate(updatedTrack)
-    if (updatedNowPlaying?.id == updatedTrack.id) {
-        updateAndroidNotificationFavoriteState(state, updatedNowPlaying)
-        playbackEngine.updateNotificationMetadata(
-            title = updatedNowPlaying.title,
-            subtitle = updatedNowPlaying.artistName,
-            coverArtUrl = state.provider?.let { updatedNowPlaying.coverArtUrl(it) },
-        )
-    }
+    androidMediaMetadataMutationController(state, playbackEngine).applyTrackUpdateResult(updatedTrack)
 }
-
-private fun androidKnownArtists(
-    state: AndroidAppState,
-): List<Artist> =
-    knownArtistsForMetadata(
-        homeContent = state.homeState,
-        searchResults = state.searchResults,
-        artistDetails = state.artistDetail,
-        extraArtists = state.artistMixSelectedArtists + state.artistMixSuggestions,
-    )
-
-private fun androidKnownAlbums(
-    state: AndroidAppState,
-): List<Album> =
-    knownAlbumsForMetadata(
-        homeContent = state.homeState,
-        searchResults = state.searchResults,
-        albumDetails = state.albumDetail,
-        artistDetails = state.artistDetail,
-        extraAlbums = state.albumMixSelectedAlbums + state.albumMixSuggestions,
-    )
 
 fun applyAndroidArtistMetadataUpdate(
     state: AndroidAppState,
     updatedArtist: Artist,
 ) {
-    androidMediaMetadataStateUpdater(state).applyArtistUpdate(updatedArtist)
+    androidMediaMetadataMutationController(state, playbackEngine = null).applyArtistUpdateResult(updatedArtist)
 }
 
 fun applyAndroidAlbumMetadataUpdate(
     state: AndroidAppState,
     updatedAlbum: Album,
 ) {
-    androidMediaMetadataStateUpdater(state).applyAlbumUpdate(updatedAlbum)
+    androidMediaMetadataMutationController(state, playbackEngine = null).applyAlbumUpdateResult(updatedAlbum)
 }
 
 fun toggleAndroidArtistFavorite(
@@ -246,8 +229,8 @@ fun toggleAndroidCurrentFavorite(
     scope.launch {
         val favorite = currentTrack.favoritedAtIso8601 == null
         AndroidPlaybackNotificationControls.isFavorite = favorite
-        val updated = androidMediaMetadataMutationController(state, playbackEngine).toggleTrackFavorite(currentTrack)
-        if (!updated) {
+        val result = androidMediaMetadataMutationController(state, playbackEngine).toggleTrackFavoriteResult(currentTrack)
+        if (!result.shouldRunPlatformSideEffects) {
             AndroidPlaybackNotificationControls.isFavorite = !favorite
         }
     }
@@ -269,42 +252,17 @@ private fun androidMediaMetadataMutationController(
     state: AndroidAppState,
     playbackEngine: AndroidPlaybackEngine?,
 ): MediaMetadataMutationController =
-    MediaMetadataMutationController(
+    mediaMetadataMutationController(
         provider = { state.provider },
         favoritedAtIso8601 = { "local" },
         setStatus = { status -> state.status = status },
-        knownTracks = { state.playbackQueue.tracks + state.tracks + allKnownTracks(state.searchResults, state.albumDetail) },
-        knownArtists = { androidKnownArtists(state) },
-        knownAlbums = { androidKnownAlbums(state) },
-        applyTrackUpdate = { updatedTrack ->
-            if (playbackEngine != null) {
-                applyAndroidTrackMetadataUpdate(state, playbackEngine, updatedTrack)
-            } else {
-                androidTrackMetadataStateUpdater(state).applyTrackUpdate(updatedTrack)
-            }
+        trackLookupSources = {
+            MediaTrackLookupSources(
+                primaryTracks = state.playbackQueue.tracks,
+                extraTracks = state.tracks,
+                fallbackTracks = searchOrAlbumTracksForMediaActions(state.searchResults, state.albumDetail),
+            )
         },
-        applyArtistUpdate = { updatedArtist -> applyAndroidArtistMetadataUpdate(state, updatedArtist) },
-        applyAlbumUpdate = { updatedAlbum -> applyAndroidAlbumMetadataUpdate(state, updatedAlbum) },
-    )
-
-private fun androidTrackMetadataStateUpdater(
-    state: AndroidAppState,
-): MediaTrackMetadataStateUpdater =
-    MediaTrackMetadataStateUpdater(
-        nowPlayingTrack = { state.nowPlaying },
-        setNowPlayingTrack = { track -> state.nowPlaying = track },
-        searchResults = { state.searchResults },
-        setSearchResults = { results -> state.contentState = state.contentState.copy(searchResults = results) },
-        albumDetails = { state.albumDetail },
-        setAlbumDetails = { details -> state.contentState = state.contentState.copy(albumDetail = details) },
-        tracks = { state.tracks },
-        setTracks = { tracks -> state.tracks = tracks },
-    )
-
-private fun androidMediaMetadataStateUpdater(
-    state: AndroidAppState,
-): MediaMetadataStateUpdater =
-    MediaMetadataStateUpdater(
         homeContent = { state.homeState },
         setHomeContent = { content -> state.homeState = content },
         searchResults = { state.searchResults },
@@ -313,6 +271,12 @@ private fun androidMediaMetadataStateUpdater(
         setAlbumDetails = { details -> state.contentState = state.contentState.copy(albumDetail = details) },
         artistDetails = { state.artistDetail },
         setArtistDetails = { details -> state.contentState = state.contentState.copy(artistDetail = details) },
+        nowPlayingTrack = { state.nowPlaying },
+        setNowPlayingTrack = { track -> state.nowPlaying = track },
+        tracks = { state.tracks },
+        setTracks = { tracks -> state.tracks = tracks },
+        extraKnownArtists = { state.artistMixSelectedArtists + state.artistMixSuggestions },
+        extraKnownAlbums = { state.albumMixSelectedAlbums + state.albumMixSuggestions },
         updateExtraArtistCollections = { artist ->
             state.artistMixSelectedArtists = state.artistMixSelectedArtists.withUpdatedArtist(artist)
             state.artistMixSuggestions = state.artistMixSuggestions.withUpdatedArtist(artist)
@@ -320,6 +284,16 @@ private fun androidMediaMetadataStateUpdater(
         updateExtraAlbumCollections = { album ->
             state.albumMixSelectedAlbums = state.albumMixSelectedAlbums.withUpdatedAlbum(album)
             state.albumMixSuggestions = state.albumMixSuggestions.withUpdatedAlbum(album)
+        },
+        afterTrackUpdate = { updatedTrack, updatedNowPlaying ->
+            if (playbackEngine != null && updatedNowPlaying?.id == updatedTrack.id) {
+                updateAndroidNotificationFavoriteState(state, updatedNowPlaying)
+                playbackEngine.updateNotificationMetadata(
+                    title = updatedNowPlaying.title,
+                    subtitle = updatedNowPlaying.artistName,
+                    coverArtUrl = state.provider?.let { updatedNowPlaying.coverArtUrl(it) },
+                )
+            }
         },
     )
 
@@ -353,40 +327,107 @@ fun addAndroidTracksToPlaylist(
 ) {
     val activeProvider = state.provider ?: return
     val providerResponseService = providerResponseCacheRepository?.let { ProviderResponseService(it) }
-    val uniqueTracks = tracksToAdd.distinctBy { it.id }
-    if (uniqueTracks.isEmpty()) {
-        state.status = "No tracks found."
-        return
-    }
-    state.playlistActionStatus = "Adding $label to playlist..."
+    state.playlistActionStatus = addToPlaylistLoadingStatus(label)
     scope.launch {
         with(state) {
             runCatching {
-                val result = activeProvider.createPlaylistOrAddTracks(
+                activeProvider.addTracksToPlaylistApplication(
                     playlistId = playlist?.id,
+                    playlistName = playlist?.name,
                     newPlaylistName = newPlaylistName,
-                    tracks = uniqueTracks,
+                    tracks = tracksToAdd,
+                    currentHomeContent = homeState,
+                    recentPlaylistIds = recentPlaylistIds,
+                    projection = PlaylistHomeProjection.All,
+                    providerResponseService = providerResponseService,
                 )
-                val update = addToPlaylistMutationUpdate(result, playlist?.name)
-                val playlists = if (update.refreshPlaylists) {
-                    providerResponseService?.invalidatePlaylistResponses(activeProvider, playlist?.id)
-                    providerResponseService?.playlists(activeProvider, limit = 500)
-                        ?: activeProvider.playlists(limit = 500)
-                } else {
-                    null
+            }.onSuccess { application ->
+                application.playlistListApplication?.let { update ->
+                    homeState = update.homeContent
                 }
-                update to playlists
-            }.onSuccess { (update, playlists) ->
-                if (playlists != null) {
-                    homeState = homeState.copy(playlists = playlists)
-                }
-                playlistActionStatus = update.addToPlaylistStatus
-                update.connectionStatus?.let { status = it }
-                    ?: update.addToPlaylistStatus?.let { status = it }
+                playlistActionStatus = application.addToPlaylistStatus
+                application.connectionStatus?.let { status = it }
+                    ?: application.addToPlaylistStatus?.let { status = it }
             }.onFailure { error ->
-                playlistActionStatus = error.message ?: "Could not add $label to playlist."
+                playlistActionStatus = addToPlaylistErrorMessage(error, label)
                 status = playlistActionStatus.orEmpty()
             }
         }
+    }
+}
+
+internal class AndroidTrackActionController(
+    private val state: AndroidAppState,
+    private val activeQueue: () -> List<Track>,
+    private val findKnownTrack: (String) -> Track?,
+    private val playTrack: (Track, List<Track>?) -> Unit,
+    private val appendTracksToQueue: (List<Track>, String) -> Unit,
+    private val downloadTrack: (Track) -> Unit,
+    private val addTrackToPlaylist: (Track, NaviampPlaylistChoiceUi?, String?) -> Unit,
+    private val removeDownload: (NaviampDownloadedTrackUi) -> Unit,
+) {
+    fun handleDownloadedTrackSelected(download: NaviampDownloadedTrackUi) {
+        playAndroidDownloadedTrack(state, download) { track, queue -> playTrack(track, queue) }
+    }
+
+    fun handleDownloadedTrackAddToPlaylist(download: NaviampDownloadedTrackUi, playlist: NaviampPlaylistChoiceUi?) {
+        withAndroidDownloadedTrack(state, download) { track -> addTrackToPlaylist(track, playlist, null) }
+    }
+
+    fun handleDownloadedTrackCreatePlaylistAndAdd(download: NaviampDownloadedTrackUi, name: String) {
+        withAndroidDownloadedTrack(state, download) { track -> addTrackToPlaylist(track, null, name) }
+    }
+
+    fun handleDownloadedTrackAction(request: DownloadedTrackActionRequest) {
+        when (request.action) {
+            DownloadedTrackAction.Select -> handleDownloadedTrackSelected(request.download)
+            DownloadedTrackAction.AddToPlaylist ->
+                handleDownloadedTrackAddToPlaylist(request.download, request.playlistChoice)
+            DownloadedTrackAction.CreatePlaylistAndAdd ->
+                request.playlistName?.let { name -> handleDownloadedTrackCreatePlaylistAndAdd(request.download, name) }
+            DownloadedTrackAction.Remove -> removeDownload(request.download)
+        }
+    }
+
+    fun handleTrackAction(request: SharedTrackRowActionRequest) {
+        val resolved = request.resolveAction(
+            knownTracks = activeQueue(),
+            fallbackTrack = findKnownTrack(request.track.id),
+        )
+        val track = resolved.track
+        if (track == null) {
+            state.status = "Track not found."
+            return
+        }
+        when (resolved.action) {
+            SharedTrackRowAction.Select,
+            SharedTrackRowAction.StartRadio,
+            -> Unit
+            SharedTrackRowAction.AddToQueue -> appendTracksToQueue(listOf(track), "track")
+            SharedTrackRowAction.Download -> downloadTrack(track)
+            SharedTrackRowAction.AddToPlaylist -> addTrackToPlaylist(track, resolved.playlistChoice, null)
+            SharedTrackRowAction.CreatePlaylistAndAdd ->
+                resolved.playlistName?.let { name -> addTrackToPlaylist(track, null, name) }
+        }
+    }
+
+    fun handlePlaylistTrackSelected(selectedTrack: SharedTrackRowUi) {
+        val track = state.selectedPlaylistTracks.firstOrNull { it.id.value == selectedTrack.id }
+            ?: findKnownTrack(selectedTrack.id)
+        if (track == null) {
+            state.status = "Track not found."
+            return
+        }
+        playTrack(track, state.selectedPlaylistTracks.ifEmpty { listOf(track) })
+    }
+
+    fun handleNowPlayingAddToPlaylist(playlist: NaviampPlaylistChoiceUi?) {
+        val currentTrack = state.nowPlaying ?: return
+        addTrackToPlaylist(currentTrack, playlist, null)
+    }
+
+    fun handleNowPlayingCreatePlaylistAndAdd(name: String) {
+        val currentTrack = state.nowPlaying ?: return
+        addTrackToPlaylist(currentTrack, null, name)
     }
 }

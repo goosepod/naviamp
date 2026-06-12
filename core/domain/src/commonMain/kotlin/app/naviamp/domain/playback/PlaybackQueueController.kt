@@ -7,6 +7,8 @@ import app.naviamp.domain.queue.RepeatMode
 class PlaybackQueueController(
     initialQueue: PlaybackQueue = PlaybackQueue(),
 ) {
+    private val queueManager = PlaybackQueueManager()
+
     var queue: PlaybackQueue = initialQueue
         private set
 
@@ -23,26 +25,28 @@ class PlaybackQueueController(
         tracks: List<Track>,
         index: Int,
     ): PlaybackQueueSelection? {
-        val selectedIndex = index.takeIf { it in tracks.indices } ?: return null
+        val update = queueManager.startQueue(tracks, index)
+        if (!update.changed) return null
         playbackSessionId += 1
-        return selectQueueIndex(tracks, selectedIndex, playbackSessionId)
+        applyMutation(update)
+        return PlaybackQueueSelection(queue = queue, sessionId = playbackSessionId)
     }
 
     fun restore(
         tracks: List<Track>,
         index: Int,
     ): Boolean {
-        if (tracks.isEmpty() || index !in tracks.indices) return false
+        val update = queueManager.restoreQueue(tracks, index)
+        if (!update.changed) return false
         playbackSessionId += 1
-        queue = PlaybackQueue(tracks = tracks, currentIndex = index)
-        preparedNextIndex = null
+        applyMutation(update)
         return true
     }
 
     fun clear() {
+        val update = queueManager.clearQueue()
         playbackSessionId += 1
-        queue = PlaybackQueue()
-        preparedNextIndex = null
+        applyMutation(update)
     }
 
     fun replaceQueue(
@@ -56,21 +60,24 @@ class PlaybackQueueController(
     }
 
     fun updateTrack(updatedTrack: Track): PlaybackQueue? {
-        val updatedTracks = queue.tracks.map { track ->
-            if (track.id == updatedTrack.id) updatedTrack else track
-        }
-        if (updatedTracks == queue.tracks) return null
-        queue = queue.copy(tracks = updatedTracks)
-        return queue
+        val update = queueManager.updateTrack(queue, updatedTrack)
+        if (!update.changed) return null
+        applyMutation(update)
+        return update.queue
     }
 
     fun appendTracks(
         tracks: List<Track>,
         maxHistory: Int? = null,
     ): PlaybackQueue? {
-        if (tracks.isEmpty()) return null
-        queue = queue.appendTracks(tracks, maxHistory)
-        return queue
+        val update = queueManager.appendQueueTracks(
+            currentQueue = queue,
+            tracksToAdd = tracks,
+            maxHistory = maxHistory,
+        )
+        if (!update.changed) return null
+        applyMutation(update)
+        return update.queue
     }
 
     fun replaceUpcomingTracks(
@@ -78,9 +85,14 @@ class PlaybackQueueController(
         upcomingTracks: List<Track>,
         maxHistory: Int? = null,
     ): PlaybackQueue {
-        queue = queue.replaceUpcomingTracks(currentTrack, upcomingTracks, maxHistory)
-        preparedNextIndex = null
-        return queue
+        val update = queueManager.replaceUpcomingTracks(
+            currentQueue = queue,
+            currentTrack = currentTrack,
+            upcomingTracks = upcomingTracks,
+            maxHistory = maxHistory,
+        )
+        applyMutation(update)
+        return update.queue
     }
 
     fun setRepeatMode(mode: RepeatMode) {
@@ -88,66 +100,80 @@ class PlaybackQueueController(
     }
 
     fun next(): PlaybackQueueSelection? {
-        val nextIndex = queue.nextIndex(repeatMode = repeatMode, repeatTrack = false) ?: return null
+        val update = queueManager.selectNext(queue, repeatMode)
+        if (!update.changed) return null
         playbackSessionId += 1
-        return selectQueueIndex(queue.tracks, nextIndex, playbackSessionId)
+        return selectQueueIndex(update.queue.tracks, update.queue.currentIndex, playbackSessionId)
     }
 
     fun playCurrent(): PlaybackQueueSelection? {
-        if (queue.currentIndex !in queue.tracks.indices) return null
+        val update = queueManager.selectCurrent(queue)
+        if (!update.changed) return null
         playbackSessionId += 1
-        return selectQueueIndex(queue.tracks, queue.currentIndex, playbackSessionId)
+        return selectQueueIndex(update.queue.tracks, update.queue.currentIndex, playbackSessionId)
     }
 
     fun jumpTo(
         index: Int,
         moveSelectedToCurrent: Boolean = true,
     ): PlaybackQueueSelection? {
-        if (index !in queue.tracks.indices || index == queue.currentIndex) return null
+        val update = queueManager.selectJump(
+            queue = queue,
+            index = index,
+            moveSelectedToCurrent = moveSelectedToCurrent,
+        )
+        if (!update.changed) return null
         playbackSessionId += 1
-        val nextQueue = queue.jumpTo(index, moveSelectedToCurrent)
-        return selectQueueIndex(nextQueue.tracks, nextQueue.currentIndex, playbackSessionId)
+        return selectQueueIndex(update.queue.tracks, update.queue.currentIndex, playbackSessionId)
     }
 
     fun previous(): PlaybackQueueSelection? {
-        val previousIndex = queue.previousIndex(
-            repeatMode = repeatMode,
-            repeatTrack = false,
-            wrapQueue = false,
-        ) ?: return null
+        val update = queueManager.selectPrevious(queue, repeatMode)
+        if (!update.changed) return null
         playbackSessionId += 1
-        return selectQueueIndex(queue.tracks, previousIndex, playbackSessionId)
+        return selectQueueIndex(update.queue.tracks, update.queue.currentIndex, playbackSessionId)
     }
 
     fun adjacent(
         offset: Int,
         wrapQueue: Boolean = true,
     ): PlaybackQueueSelection? {
-        val nextIndex = queue.adjacentIndex(
+        val update = queueManager.selectAdjacent(
+            queue = queue,
             offset = offset,
             repeatMode = repeatMode,
-            repeatTrack = false,
             wrapQueue = wrapQueue,
-        ) ?: return null
+        )
+        if (!update.changed) return null
         playbackSessionId += 1
-        return selectQueueIndex(queue.tracks, nextIndex, playbackSessionId)
+        return selectQueueIndex(update.queue.tracks, update.queue.currentIndex, playbackSessionId)
     }
 
     fun toggleUpcomingShuffle(shuffledSnapshot: List<Track>?): PlaybackShuffleToggle? {
-        val result = queue.toggleUpcomingShuffle(shuffledSnapshot) ?: return null
-        queue = result.queue
-        preparedNextIndex = null
-        return PlaybackShuffleToggle(queue = queue, shuffledSnapshot = result.shuffledSnapshot)
+        val update = queueManager.toggleUpcomingShuffle(queue, shuffledSnapshot)
+        if (!update.changed) return null
+        applyMutation(
+            PlaybackQueueMutationUpdate(
+                queue = update.queue,
+                changed = true,
+                clearPreparedNext = true,
+            ),
+        )
+        return PlaybackShuffleToggle(queue = queue, shuffledSnapshot = update.shuffledSnapshot)
     }
 
     fun finishedSelection(): PlaybackQueueSelection? {
-        val nextIndex = queue.nextIndex(repeatMode = repeatMode) ?: return null
+        val update = queueManager.finishCurrentTrack(
+            queue = queue,
+            repeatMode = repeatMode,
+        )
+        if (!update.shouldPlay) return null
         playbackSessionId += 1
-        return selectQueueIndex(queue.tracks, nextIndex, playbackSessionId)
+        return selectQueueIndex(update.queue.tracks, update.queue.currentIndex, playbackSessionId)
     }
 
     fun nextGaplessQueueIndex(): Int? =
-        queue.nextIndex(repeatMode = repeatMode)
+        queueManager.nextPreparedQueueIndex(queue, repeatMode)
 
     fun nextGaplessQueueIndexForExternalQueue(
         tracks: List<Track>,
@@ -166,7 +192,10 @@ class PlaybackQueueController(
     }
 
     fun shouldPrepareNext(index: Int): Boolean =
-        preparedNextIndex != index
+        queueManager.shouldPrepareNextQueueIndex(
+            preparedNextIndex = preparedNextIndex,
+            nextQueueIndex = index,
+        )
 
     fun markPreparedNext(index: Int) {
         preparedNextIndex = index
@@ -185,6 +214,11 @@ class PlaybackQueueController(
         queue = PlaybackQueue(tracks = tracks, currentIndex = index)
         preparedNextIndex = null
         return PlaybackQueueSelection(queue = queue, sessionId = sessionId)
+    }
+
+    private fun applyMutation(update: PlaybackQueueMutationUpdate) {
+        queue = update.queue
+        if (update.clearPreparedNext) preparedNextIndex = null
     }
 }
 

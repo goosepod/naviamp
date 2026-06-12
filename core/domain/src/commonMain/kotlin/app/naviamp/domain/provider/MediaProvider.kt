@@ -83,6 +83,7 @@ interface MediaProvider {
     suspend fun artistRadio(artistId: ArtistId, count: Int = 50): List<Track> = emptyList()
     suspend fun albumRadio(albumId: AlbumId, count: Int = 50): List<Track> = emptyList()
     suspend fun trackRadio(trackId: TrackId, count: Int = 50): List<Track> = emptyList()
+    suspend fun sonicSimilarTracks(trackId: TrackId, count: Int = 50): List<Track> = emptyList()
     suspend fun lyrics(trackId: TrackId): Lyrics? = null
     suspend fun reportNowPlaying(trackId: TrackId) = Unit
     suspend fun reportPlayed(trackId: TrackId, playedAtEpochMillis: Long) = Unit
@@ -138,6 +139,7 @@ data class ProviderCapabilities(
     val supportsTrackRatings: Boolean = false,
     val supportsPlayReporting: Boolean = false,
     val supportsSmartPlaylists: Boolean = false,
+    val supportsSonicSimilarity: Boolean = false,
 )
 
 data class ConnectionValidation(

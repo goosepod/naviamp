@@ -8,10 +8,8 @@ import android.net.Uri
 import android.os.Build
 import android.os.PowerManager
 import android.util.Log
-import app.naviamp.domain.bass.BassActiveState
 import app.naviamp.domain.bass.BassAudioBackend
 import app.naviamp.domain.bass.BassCreatedPlayback
-import app.naviamp.domain.bass.BassStreamHandle
 import app.naviamp.domain.bass.activeState
 import app.naviamp.domain.bass.adoptPreparedBassSource
 import app.naviamp.domain.bass.applyBassPlaybackVolume
@@ -29,7 +27,6 @@ import app.naviamp.domain.bass.seekBassPlaybackSource
 import app.naviamp.domain.bass.setBassPlaybackMuted
 import app.naviamp.domain.bass.stopAndReleaseBassPlayback
 import app.naviamp.domain.playback.bassPlaybackFeatureSupport
-import app.naviamp.domain.playback.canPrepareBassMixerSource
 import app.naviamp.domain.playback.PlaybackProgress
 import app.naviamp.domain.playback.PlaybackRequest
 import app.naviamp.domain.playback.PlaybackState
@@ -40,20 +37,29 @@ import app.naviamp.domain.playback.EqualizerPlaybackEngine
 import app.naviamp.domain.playback.EqualizerSettings
 import app.naviamp.domain.playback.VisualizerBandCount
 import app.naviamp.domain.playback.VisualizerPlaybackEngine
+import app.naviamp.domain.playback.BassPlaybackPollingState
+import app.naviamp.domain.playback.BassPlaybackPollingPolicy
+import app.naviamp.domain.playback.BassPlaybackCleanupReset
+import app.naviamp.domain.playback.BassPlaybackCreationPlan
+import app.naviamp.domain.playback.BassPlaybackStartPolicy
+import app.naviamp.domain.playback.PreparedPlaybackMetadataReset
+import app.naviamp.domain.playback.PreparedBassPlaybackStateUpdate
+import app.naviamp.domain.playback.bassPlaybackActivated
+import app.naviamp.domain.playback.clearBassPlaybackCleanupState
 import app.naviamp.domain.playback.clearPreparedPlaybackMetadata
-import app.naviamp.domain.playback.clearPlaybackStreamState
-import app.naviamp.domain.playback.failedPreparedPlaybackMetadata
 import app.naviamp.domain.playback.normalizedCrossfadeDurationSeconds
-import app.naviamp.domain.playback.planPreparedPlaybackAdoption
-import app.naviamp.domain.playback.playbackReplayGainFactor
+import app.naviamp.domain.playback.PreparedBassPlaybackPlan
+import app.naviamp.domain.playback.planBassPlaybackPollingUpdate
+import app.naviamp.domain.playback.planBassPlaybackCreation
+import app.naviamp.domain.playback.planPreparedBassPlayback
+import app.naviamp.domain.playback.planPreparedBassPlaybackAdoption
+import app.naviamp.domain.playback.planBassPlaybackPrePlay
+import app.naviamp.domain.playback.planBassPlaybackStart
 import app.naviamp.domain.playback.playbackSourceHandle
-import app.naviamp.domain.playback.playbackStartSeekPosition
-import app.naviamp.domain.playback.playbackStateForBassActiveState
 import app.naviamp.domain.playback.playbackUserVolumeFactor
-import app.naviamp.domain.playback.shouldContinueBassPlaybackPolling
-import app.naviamp.domain.playback.shouldFinishPlaybackForBassState
-import app.naviamp.domain.playback.shouldReusePreparedPlayback
-import app.naviamp.domain.playback.shouldUseBassMixerPlayback
+import app.naviamp.domain.playback.preparedBassPlaybackAdopted
+import app.naviamp.domain.playback.preparedBassPlaybackFailed
+import app.naviamp.domain.playback.preparedBassPlaybackSucceeded
 import app.naviamp.provider.navidrome.NavidromeTlsSettings
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -202,31 +208,44 @@ class AndroidBassPlaybackEngine(
                 Log.i(Tag, "Opening BASS stream verifyNet=$verifyNet url=${request.url.sanitizedForLog()}")
                 bass.setVerifyNet(verifyNet).getOrThrow()
                 bass.configureInternetStreams().getOrThrow()
+                val creationPlan = planBassPlaybackCreation(
+                    request = request,
+                    supportsMixer = bass.supportsMixer,
+                    requireMediaId = true,
+                )
                 val playback = createPlayback(
                     request = request,
-                    useMixer = shouldUseBassMixerPlayback(
-                        request = request,
-                        supportsMixer = bass.supportsMixer,
-                        requireMediaId = true,
-                    ),
+                    plan = creationPlan,
                 ).also { createdPlayback = it }
                 if (!isCurrentPlayback(currentPlaybackId)) {
                     releaseCreatedPlayback(playback)
                     createdPlayback = null
                     return@launch
                 }
-                val handle = playback.playbackHandle
-                stream = playback.playbackHandle
-                currentSourceStream = playback.sourceHandle
-                replayGainFactor = playback.replayGainFactor
+                val activation = bassPlaybackActivated(playback, creationPlan.replayGainAdjustment)
+                val handle = activation.playbackHandle
+                stream = activation.playbackHandle
+                currentSourceStream = activation.sourceHandle
+                replayGainFactor = activation.replayGainFactor
                 createdPlayback = null
                 Log.i(Tag, "BASS stream handle=$handle source=$currentSourceStream error=${bass.lastErrorCode}")
                 check(handle != 0) { errorMessage("BASS stream creation failed") }
                 applyVolume()
                 applyEqualizer()
-                val startPositionSeconds = playbackStartSeekPosition(request.startPositionSeconds)
-                val seekedBeforePlay = startPositionSeconds?.let { seekStreamPosition(it) } ?: false
-                if (startPositionSeconds != null && !seekedBeforePlay) {
+                val startPlan = planBassPlaybackStart(
+                    request = request,
+                    policy = BassPlaybackStartPolicy.AndroidService,
+                )
+                val seekedBeforePlay = if (startPlan.shouldSeekBeforePlay) {
+                    startPlan.startSeekSeconds?.let { seekStreamPosition(it) } ?: false
+                } else {
+                    false
+                }
+                val prePlayPlan = planBassPlaybackPrePlay(
+                    start = startPlan,
+                    seekedBeforePlay = seekedBeforePlay,
+                )
+                if (prePlayPlan.shouldMuteBeforePlay) {
                     setPlaybackMuted(true)
                 }
                 check(bass.play(handle).isSuccess) { errorMessage("BASS_ChannelPlay failed") }
@@ -234,7 +253,8 @@ class AndroidBassPlaybackEngine(
                     releaseCreatedPlayback(playback)
                     return@launch
                 }
-                if (startPositionSeconds != null && !seekedBeforePlay) {
+                if (prePlayPlan.shouldRetrySeekAfterPlay) {
+                    val startPositionSeconds = requireNotNull(startPlan.startSeekSeconds)
                     val seekedAfterPlay = retryStartSeek(handle, currentPlaybackId, startPositionSeconds)
                     setPlaybackMuted(false)
                     if (!seekedAfterPlay) {
@@ -367,22 +387,23 @@ class AndroidBassPlaybackEngine(
     }
 
     override fun prepareNext(request: PlaybackRequest) {
-        if (shouldReusePreparedPlayback(preparedRequest, preparedStream != 0, request)) return
+        val plan = planPreparedBassPlayback(
+            playbackHandle = stream,
+            currentSourceHandle = currentSourceStream,
+            preparedRequest = preparedRequest,
+            preparedHandle = preparedStream,
+            supportsMixer = bass.supportsMixer,
+            request = request,
+            allowDirectFallback = false,
+        )
+        if (plan == PreparedBassPlaybackPlan.ReusePrepared) return
         freePreparedStream()
+        if (plan == PreparedBassPlaybackPlan.NotSupported) return
+        val mixerPlan = plan as PreparedBassPlaybackPlan.PrepareMixer
         runCatching {
             bass.init().getOrThrow()
-            if (
-                !canPrepareBassMixerSource(
-                    playbackHandle = stream,
-                    currentSourceHandle = currentSourceStream,
-                    supportsMixer = bass.supportsMixer,
-                )
-            ) {
-                return
-            }
             val mixer = stream
-            val nextReplayGain = playbackReplayGainFactor(request)
-            val file = localFileFromUrl(request.url)
+            val file = if (mixerPlan.isLocalFileUrl) localFileFromUrl(request.url) else null
             val prepared = bass.prepareNextBassMixerSource(
                 localPath = file?.absolutePath,
                 url = request.url,
@@ -390,33 +411,34 @@ class AndroidBassPlaybackEngine(
                 currentSource = currentSourceStream,
                 currentSourceVolumeFactor = replayGainFactor,
                 crossfadeDurationSeconds = crossfadeDurationSeconds,
-                replayGainFactor = nextReplayGain,
+                replayGainFactor = mixerPlan.replayGainFactor,
             ).getOrThrow()
-            preparedReplayGainFactor = nextReplayGain
             prepared.sourceHandle
         }.onSuccess { handle ->
-            preparedStream = handle
-            preparedRequest = request
+            applyPreparedUpdate(
+                preparedBassPlaybackSucceeded(
+                    preparedHandle = handle,
+                    request = request,
+                    replayGainAdjustment = mixerPlan.replayGainAdjustment,
+                ),
+            )
         }.onFailure { error ->
             Log.w(Tag, error.message ?: "Could not prepare next BASS stream.", error)
-            val reset = failedPreparedPlaybackMetadata(error)
-            preparedStream = 0
-            preparedRequest = reset.request
-            preparedReplayGainFactor = reset.replayGainFactor
+            applyPreparedUpdate(preparedBassPlaybackFailed(error))
         }
     }
 
     private fun createPlayback(
         request: PlaybackRequest,
-        useMixer: Boolean,
+        plan: BassPlaybackCreationPlan,
     ): BassCreatedPlayback {
-        val file = localFileFromUrl(request.url)
+        val file = if (plan.isLocalFileUrl) localFileFromUrl(request.url) else null
         return bass.createBassPlayback(
             localPath = file?.absolutePath,
             url = request.url,
-            useMixer = useMixer,
+            useMixer = plan.useMixer,
             crossfadeDurationSeconds = crossfadeDurationSeconds,
-            replayGainFactor = playbackReplayGainFactor(request),
+            replayGainFactor = plan.replayGainFactor,
         ).getOrThrow()
     }
 
@@ -427,37 +449,39 @@ class AndroidBassPlaybackEngine(
     ) {
         progressJob?.cancel()
         progressJob = scope.launch {
-            var lastMetadata = PlaybackStreamMetadata()
-            var lastActiveState: Int? = null
+            var pollingState = BassPlaybackPollingState()
             while (isActive && stream == handle && isCurrentPlayback(currentPlaybackId)) {
                 val snapshot = bass.bassPlaybackSnapshot(handle, currentSourceStream)
-                val active = snapshot.activeState
-                val progress = snapshot.progress
-                if (active != lastActiveState) {
-                    lastActiveState = active
+                val update = planBassPlaybackPollingUpdate(
+                    snapshot = snapshot,
+                    previous = pollingState,
+                    policy = BassPlaybackPollingPolicy.AndroidService,
+                )
+                pollingState = update.state
+                if (update.activeStateChanged) {
                     Log.i(
                         Tag,
-                        "BASS active=${bassActiveStateLabel(active)} handle=$handle source=${playbackSourceHandle(handle, currentSourceStream)} " +
-                            "position=${progress.positionSeconds} duration=${progress.durationSeconds}",
+                        "BASS active=${bassActiveStateLabel(snapshot.activeState)} handle=$handle source=${playbackSourceHandle(handle, currentSourceStream)} " +
+                            "position=${snapshot.progress.positionSeconds} duration=${snapshot.progress.durationSeconds}",
                     )
                 }
-                onProgressChanged?.invoke(progress)
-                val metadata = snapshot.metadata
-                if (metadata != lastMetadata) {
-                    lastMetadata = metadata
-                    onMetadataChanged?.invoke(metadata)
-                }
-                if (shouldFinishPlaybackForBassState(active, progress, snapshot.sourceActiveState)) {
-                    Log.i(Tag, "BASS source reached end position=${progress.positionSeconds} duration=${progress.durationSeconds}")
+                update.progress?.let { onProgressChanged?.invoke(it) }
+                update.metadata?.let { onMetadataChanged?.invoke(it) }
+                if (update.finished) {
+                    Log.i(
+                        Tag,
+                        "BASS source reached end position=${snapshot.progress.positionSeconds} duration=${snapshot.progress.durationSeconds}",
+                    )
                     handlePlaybackFinished()
-                    onStateChanged?.invoke(PlaybackState.Finished)
+                }
+                update.playbackState?.let { onStateChanged?.invoke(it) }
+                if (update.finished) {
                     return@launch
                 }
-                if (!shouldContinueBassPlaybackPolling(active)) {
+                if (!update.shouldContinue) {
                     return@launch
                 }
-                playbackStateForBassActiveState(active)?.let { onStateChanged?.invoke(it) }
-                delay(100)
+                delay(BassPlaybackPollingPolicy.AndroidService.pollIntervalMillis)
             }
         }
     }
@@ -483,15 +507,7 @@ class AndroidBassPlaybackEngine(
         if (handle != 0) {
             bass.stopAndReleaseBassPlayback(handle, currentSourceStream, preparedStream)
         }
-        val streamReset = clearPlaybackStreamState()
-        stream = streamReset.stream
-        currentSourceStream = streamReset.currentSourceStream
-        currentVisualizerFrame = null
-        val preparedReset = clearPreparedPlaybackMetadata()
-        preparedStream = 0
-        preparedRequest = preparedReset.request
-        preparedReplayGainFactor = preparedReset.replayGainFactor
-        replayGainFactor = streamReset.replayGainFactor
+        applyCleanupReset(clearBassPlaybackCleanupState())
     }
 
     private fun handlePlaybackFinished() {
@@ -617,15 +633,18 @@ class AndroidBassPlaybackEngine(
         onStateChanged: (PlaybackState) -> Unit,
         onProgressChanged: (PlaybackProgress) -> Unit,
     ): Boolean {
-        val source = preparedStream
-        val plan = planPreparedPlaybackAdoption(
-            hasActiveStream = stream != 0,
+        val plan = planPreparedBassPlaybackAdoption(
+            playbackHandle = stream,
             preparedRequest = preparedRequest,
-            hasPreparedStream = source != 0,
+            preparedHandle = preparedStream,
             supportsMixer = bass.supportsMixer,
             request = request,
         )
-        if (!plan.shouldAdopt) return false
+        val update = preparedBassPlaybackAdopted(
+            adoption = plan,
+            replayGainFactor = preparedReplayGainFactor,
+        ) ?: return false
+        val source = update.currentSourceHandle
         val currentPlaybackId = nextPlaybackId()
         bass.adoptPreparedBassSource(
             playbackHandle = stream,
@@ -635,15 +654,12 @@ class AndroidBassPlaybackEngine(
                 volumePercent = volumePercent,
                 transientDuckFactor = if (duckedForFocusLoss) FocusDuckVolumeFactor else 1f,
             ),
-            replayGainFactor = preparedReplayGainFactor,
+            replayGainFactor = update.replayGainFactor,
         )
-        currentSourceStream = source
-        replayGainFactor = preparedReplayGainFactor
+        currentSourceStream = update.currentSourceHandle
+        replayGainFactor = update.replayGainFactor
         applyEqualizer()
-        val reset = clearPreparedPlaybackMetadata()
-        preparedStream = 0
-        preparedRequest = reset.request
-        preparedReplayGainFactor = reset.replayGainFactor
+        applyPreparedReset(update.preparedReset)
         onProgressChanged(PlaybackProgress.Unknown)
         onStateChanged(PlaybackState.Playing)
         startProgressPolling(scope, stream, currentPlaybackId)
@@ -654,10 +670,27 @@ class AndroidBassPlaybackEngine(
         preparedStream.takeIf { it != 0 }?.let {
             bass.releaseBassStream(it)
         }
-        val reset = clearPreparedPlaybackMetadata()
+        applyPreparedReset(clearPreparedPlaybackMetadata())
+    }
+
+    private fun applyCleanupReset(reset: BassPlaybackCleanupReset) {
+        stream = reset.stream.stream
+        currentSourceStream = reset.stream.currentSourceStream
+        replayGainFactor = reset.stream.replayGainFactor
+        currentVisualizerFrame = null
+        applyPreparedReset(reset.prepared)
+    }
+
+    private fun applyPreparedReset(reset: PreparedPlaybackMetadataReset) {
         preparedStream = 0
         preparedRequest = reset.request
         preparedReplayGainFactor = reset.replayGainFactor
+    }
+
+    private fun applyPreparedUpdate(update: PreparedBassPlaybackStateUpdate) {
+        preparedStream = update.preparedHandle
+        preparedRequest = update.preparedRequest
+        preparedReplayGainFactor = update.replayGainFactor
     }
 
     private fun errorMessage(prefix: String): String =

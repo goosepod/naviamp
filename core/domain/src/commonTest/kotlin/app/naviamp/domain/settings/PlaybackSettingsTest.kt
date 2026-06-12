@@ -1,5 +1,7 @@
 package app.naviamp.domain.settings
 
+import app.naviamp.domain.Track
+import app.naviamp.domain.TrackId
 import app.naviamp.domain.playback.PlaybackEngine
 import app.naviamp.domain.playback.PlaybackProgress
 import app.naviamp.domain.playback.PlaybackRequest
@@ -90,6 +92,57 @@ class PlaybackSettingsTest {
         assertEquals(true, changed.shouldReloadLyricsSidecars)
     }
 
+    @Test
+    fun maintenanceControllerSavesEffectiveSettingsAndReloadsLyricsSidecars() {
+        var current = PlaybackSettings(lrclibLyricsEnabled = false)
+        var saved: PlaybackSettings? = null
+        var reloadCount = 0
+
+        PlaybackSettingsMaintenanceController(
+            playbackEngine = FakePlaybackEngine(supportsSoftwareVolume = false),
+            playbackSettings = { current },
+            setPlaybackSettings = { settings -> current = settings },
+            savePlaybackSettings = { settings -> saved = settings },
+            reloadLyricsSidecars = { reloadCount += 1 },
+        ).applyPlaybackSettings(
+            PlaybackSettings(
+                lrclibLyricsEnabled = true,
+                volumePercent = 25,
+            ),
+        )
+
+        assertEquals(100, current.volumePercent)
+        assertEquals(current, saved)
+        assertEquals(1, reloadCount)
+    }
+
+    @Test
+    fun maintenanceControllerRedownloadsExistingDownloadsAfterApplyingSettings() {
+        var current = PlaybackSettings()
+        val downloaded = listOf(track("one"), track("two"))
+        var redownloadedTracks = emptyList<Track>()
+        var redownloadLabel: String? = null
+
+        PlaybackSettingsMaintenanceController(
+            playbackEngine = FakePlaybackEngine(),
+            playbackSettings = { current },
+            setPlaybackSettings = { settings -> current = settings },
+            savePlaybackSettings = { _ -> },
+            reloadLyricsSidecars = {},
+            downloadedTracks = { downloaded },
+            redownloadTracks = { tracks, label ->
+                redownloadedTracks = tracks
+                redownloadLabel = label
+            },
+        ).applyPlaybackSettingsAndRedownload(
+            PlaybackSettings(downloadQuality = StreamQualityPreference(bitrateKbps = 128)),
+        )
+
+        assertEquals(128, current.downloadQuality.bitrateKbps)
+        assertEquals(downloaded, redownloadedTracks)
+        assertEquals("downloads", redownloadLabel)
+    }
+
     private class FakePlaybackEngine(
         override val supportsGapless: Boolean = true,
         override val supportsCrossfade: Boolean = true,
@@ -115,4 +168,16 @@ class PlaybackSettingsTest {
         override fun setVolume(percent: Int) = Unit
         override fun stop() = Unit
     }
+
+    private fun track(id: String): Track =
+        Track(
+            id = TrackId(id),
+            title = id,
+            artistName = "Artist",
+            albumTitle = "Album",
+            durationSeconds = 180,
+            coverArtId = null,
+            audioInfo = null,
+            replayGain = null,
+        )
 }

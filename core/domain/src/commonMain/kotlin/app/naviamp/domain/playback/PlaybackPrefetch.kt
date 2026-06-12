@@ -1,5 +1,9 @@
 package app.naviamp.domain.playback
 
+import app.naviamp.domain.StreamQuality
+import app.naviamp.domain.Track
+import app.naviamp.domain.queue.PlaybackQueue
+
 data class CacheRuntimeStats(
     val playbackSource: PlaybackSource = PlaybackSource.Unknown,
     val prefetch: AudioPrefetchStats = AudioPrefetchStats(),
@@ -16,6 +20,14 @@ data class AudioPrefetchStats(
     val sidecarFailed: Int = 0,
     val lastError: String? = null,
     val lastSidecarError: String? = null,
+)
+
+data class AudioPrefetchWork<Provider>(
+    val sourceId: String,
+    val provider: Provider,
+    val quality: StreamQuality,
+    val tracks: List<Track>,
+    val stats: AudioPrefetchStats,
 )
 
 fun initialAudioPrefetchStats(
@@ -56,16 +68,48 @@ fun AudioPrefetchStats.audioFailure(error: Throwable?): AudioPrefetchStats =
         lastError = error?.message,
     )
 
+fun <Provider> planAudioPrefetchWork(
+    sourceId: String?,
+    provider: Provider?,
+    quality: StreamQuality?,
+    queue: PlaybackQueue,
+    enabled: Boolean,
+    configuredDepth: Int,
+    includeCurrentTrack: Boolean = false,
+): AudioPrefetchWork<Provider>? {
+    val stats = initialAudioPrefetchStats(
+        enabled = enabled,
+        configuredDepth = configuredDepth,
+    )
+    if (!stats.enabled || stats.configuredDepth <= 0) return null
+    val activeSourceId = sourceId ?: return null
+    val activeProvider = provider ?: return null
+    val activeQuality = quality ?: return null
+    val tracks = audioPrefetchTracks(
+        queue = queue,
+        depth = stats.configuredDepth,
+        includeCurrentTrack = includeCurrentTrack,
+    )
+    if (tracks.isEmpty()) return null
+    return AudioPrefetchWork(
+        sourceId = activeSourceId,
+        provider = activeProvider,
+        quality = activeQuality,
+        tracks = tracks,
+        stats = stats,
+    )
+}
+
 suspend fun <CachedAudio> runAudioPrefetch(
     stats: AudioPrefetchStats,
-    tracks: List<app.naviamp.domain.Track>,
+    tracks: List<Track>,
     isActive: () -> Boolean,
-    cacheAudio: suspend (app.naviamp.domain.Track) -> CachedAudio?,
-    prepareSidecars: suspend (app.naviamp.domain.Track, CachedAudio?) -> PlaybackSidecarPrepResult = { _, _ ->
+    cacheAudio: suspend (Track) -> CachedAudio?,
+    prepareSidecars: suspend (Track, CachedAudio?) -> PlaybackSidecarPrepResult = { _, _ ->
         PlaybackSidecarPrepResult()
     },
-    onTrackCached: suspend (app.naviamp.domain.Track, CachedAudio?) -> Unit = { _, _ -> },
-    onTrackFailed: suspend (app.naviamp.domain.Track, Throwable) -> Unit = { _, _ -> },
+    onTrackCached: suspend (Track, CachedAudio?) -> Unit = { _, _ -> },
+    onTrackFailed: suspend (Track, Throwable) -> Unit = { _, _ -> },
     onStatsChanged: (AudioPrefetchStats) -> Unit = {},
 ): AudioPrefetchStats {
     var currentStats = stats.started(tracks.size)

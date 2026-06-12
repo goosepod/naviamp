@@ -8,6 +8,28 @@ import app.naviamp.domain.ArtistDetails
 import app.naviamp.domain.ArtistId
 import app.naviamp.domain.Track
 
+sealed interface RadioSeedResult {
+    data class Ready(
+        val seedTrack: Track,
+    ) : RadioSeedResult
+
+    data object Missing : RadioSeedResult
+
+    data class Failed(
+        val error: Throwable,
+    ) : RadioSeedResult
+}
+
+suspend fun radioSeedResult(
+    loadSeed: suspend () -> Track?,
+): RadioSeedResult =
+    runCatching {
+        loadSeed()?.let { seedTrack -> RadioSeedResult.Ready(seedTrack) }
+            ?: RadioSeedResult.Missing
+    }.getOrElse { error ->
+        RadioSeedResult.Failed(error)
+    }
+
 suspend fun selectArtistRadioSeedTrack(
     artist: Artist,
     sourceId: String?,

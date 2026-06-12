@@ -8,10 +8,11 @@ import app.naviamp.domain.cache.CacheMaintenanceRepository
 import app.naviamp.domain.cache.DownloadReplacementRepository
 import app.naviamp.domain.cache.DownloadRepository
 import app.naviamp.domain.cache.DownloadService
-import app.naviamp.domain.cache.DownloadTracksResult
 import app.naviamp.domain.cache.downloadRemoveErrorStatus
+import app.naviamp.domain.cache.downloadTracksWithRefresh
 import app.naviamp.domain.cache.downloadedTrackRemovedStatus
-import app.naviamp.domain.cache.shouldRefreshDownloadsAfter
+import app.naviamp.domain.cache.redownloadTracksWithRefresh
+import app.naviamp.domain.Playlist
 import app.naviamp.domain.settings.downloadStreamQuality
 import app.naviamp.ui.NaviampDownloadedTrackUi
 import kotlinx.coroutines.CoroutineScope
@@ -34,7 +35,7 @@ fun downloadAndroidTrack(
     scope.launch {
         with(state) {
             val quality = playbackSettings.downloadStreamQuality()
-            val result = downloadService.downloadTracksWithStatus(
+            val result = downloadService.downloadTracksWithRefresh(
                 label = track.title,
                 tracks = listOf(track),
                 sourceId = sourceId,
@@ -48,13 +49,11 @@ fun downloadAndroidTrack(
                     downloadStatus = message
                     status = message
                 },
+                loadStats = { withContext(Dispatchers.IO) { cacheMaintenanceRepository.stats() } },
             )
-            if (result is DownloadTracksResult.Completed) {
+            if (result.refreshDownloads) {
                 downloadRefreshToken += 1
-                storageStats = withContext(Dispatchers.IO) { cacheMaintenanceRepository.stats() }
-            } else if (result is DownloadTracksResult.Failed && result.completed > 0) {
-                downloadRefreshToken += 1
-                storageStats = withContext(Dispatchers.IO) { cacheMaintenanceRepository.stats() }
+                result.stats?.let { storageStats = it }
             }
         }
     }
@@ -76,7 +75,7 @@ fun downloadAndroidTracks(
     scope.launch {
         with(state) {
             val quality = playbackSettings.downloadStreamQuality()
-            val result = downloadService.downloadTracksWithStatus(
+            val result = downloadService.downloadTracksWithRefresh(
                 label = label,
                 tracks = tracksToDownload,
                 sourceId = sourceId,
@@ -89,13 +88,11 @@ fun downloadAndroidTracks(
                     downloadStatus = message
                     status = message
                 },
+                loadStats = { withContext(Dispatchers.IO) { cacheMaintenanceRepository.stats() } },
             )
-            if (result is DownloadTracksResult.Completed) {
+            if (result.refreshDownloads) {
                 downloadRefreshToken += 1
-                storageStats = withContext(Dispatchers.IO) { cacheMaintenanceRepository.stats() }
-            } else if (result is DownloadTracksResult.Failed && result.completed > 0) {
-                downloadRefreshToken += 1
-                storageStats = withContext(Dispatchers.IO) { cacheMaintenanceRepository.stats() }
+                result.stats?.let { storageStats = it }
             }
         }
     }
@@ -117,7 +114,7 @@ fun redownloadAndroidTracks(
     scope.launch {
         with(state) {
             val quality = playbackSettings.downloadStreamQuality()
-            val result = downloadService.redownloadTracksWithStatus(
+            val result = downloadService.redownloadTracksWithRefresh(
                 tracks = tracksToDownload,
                 sourceId = sourceId,
                 provider = activeProvider,
@@ -129,10 +126,11 @@ fun redownloadAndroidTracks(
                     downloadStatus = message
                     status = message
                 },
+                loadStats = { withContext(Dispatchers.IO) { cacheMaintenanceRepository.stats() } },
             )
-            if (shouldRefreshDownloadsAfter(result)) {
+            if (result.refreshDownloads) {
                 downloadRefreshToken += 1
-                storageStats = withContext(Dispatchers.IO) { cacheMaintenanceRepository.stats() }
+                result.stats?.let { storageStats = it }
             }
         }
     }
@@ -166,5 +164,66 @@ fun removeAndroidDownload(
                 status = downloadStatus.orEmpty()
             }
         }
+    }
+}
+
+internal class AndroidDownloadActionController(
+    private val context: Context,
+    private val scope: CoroutineScope,
+    private val state: AndroidAppState,
+    private val storage: AndroidStorageDependencies,
+    private val findKnownTrack: (String) -> Track?,
+) {
+    fun downloadTrack(track: Track) {
+        downloadAndroidTrack(
+            context = context,
+            scope = scope,
+            state = state,
+            downloadRepository = storage,
+            downloadReplacementRepository = storage,
+            cacheMaintenanceRepository = storage,
+            track = track,
+        )
+    }
+
+    fun downloadTracks(tracksToDownload: List<Track>, label: String = "tracks") {
+        downloadAndroidTracks(
+            context = context,
+            scope = scope,
+            state = state,
+            downloadRepository = storage,
+            downloadReplacementRepository = storage,
+            cacheMaintenanceRepository = storage,
+            tracksToDownload = tracksToDownload,
+            label = label,
+        )
+    }
+
+    fun redownloadTracks(tracksToDownload: List<Track>, label: String = "downloads") {
+        redownloadAndroidTracks(
+            context = context,
+            scope = scope,
+            state = state,
+            downloadRepository = storage,
+            downloadReplacementRepository = storage,
+            cacheMaintenanceRepository = storage,
+            tracksToDownload = tracksToDownload,
+            label = label,
+        )
+    }
+
+    fun downloadPlaylist(playlist: Playlist) {
+        downloadAndroidPlaylist(scope, state, playlist, storage, ::downloadTracks)
+    }
+
+    fun removeDownload(download: NaviampDownloadedTrackUi) {
+        removeAndroidDownload(
+            scope = scope,
+            state = state,
+            downloadRepository = storage,
+            cacheMaintenanceRepository = storage,
+            download = download,
+            findKnownTrack = findKnownTrack,
+        )
     }
 }

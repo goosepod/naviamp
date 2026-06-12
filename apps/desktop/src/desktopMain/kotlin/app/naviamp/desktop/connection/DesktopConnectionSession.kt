@@ -5,10 +5,12 @@ import app.naviamp.domain.Track
 import app.naviamp.domain.cache.CacheMaintenanceRepository
 import app.naviamp.domain.cache.ProviderMediaSourceConnection
 import app.naviamp.domain.cache.ProviderMediaSourceRepository
-import app.naviamp.domain.provider.ConnectionValidation
 import app.naviamp.domain.settings.PlaybackSessionSettings
 import app.naviamp.domain.settings.RestoredPlaybackSession
 import app.naviamp.domain.settings.restoredTrackSession
+import app.naviamp.domain.source.ProviderConnectionLifecycleRequest
+import app.naviamp.domain.source.ProviderConnectionSession
+import app.naviamp.domain.source.openProviderConnectionSession
 import app.naviamp.provider.navidrome.NavidromeConnection
 import app.naviamp.provider.navidrome.NavidromeConnectionLoginRequest
 import app.naviamp.provider.navidrome.NavidromeProvider
@@ -17,13 +19,7 @@ import app.naviamp.provider.navidrome.NavidromeTlsSettings
 import app.naviamp.provider.navidrome.prepareNavidromeConnection
 import app.naviamp.provider.navidrome.resolvedDisplayName
 
-data class DesktopConnectionSession(
-    val connection: NavidromeConnection,
-    val provider: NavidromeProvider,
-    val sourceId: String,
-    val validation: ConnectionValidation,
-    val smartPlaylistAuthWarning: String?,
-)
+typealias DesktopConnectionSession = ProviderConnectionSession<NavidromeConnection, NavidromeProvider>
 
 sealed interface DesktopRestoredPlaybackSession {
     data class InternetRadio(
@@ -48,45 +44,40 @@ suspend fun openDesktopConnectionSession(
     providerMediaSourceRepository: ProviderMediaSourceRepository,
     clearProviderData: Boolean,
 ): DesktopConnectionSession {
-    val preparedConnection = prepareNavidromeConnection(
-        NavidromeConnectionLoginRequest(
-            baseUrl = serverUrl,
-            username = username,
-            password = password,
-            displayName = displayName,
-            tlsSettings = tlsSettings,
-            savedConnectionForLogin = savedConnectionForLogin,
-            nativeAuthRequired = true,
+    return openProviderConnectionSession(
+        request = ProviderConnectionLifecycleRequest(
+            connection = NavidromeConnectionLoginRequest(
+                baseUrl = serverUrl,
+                username = username,
+                password = password,
+                displayName = displayName,
+                tlsSettings = tlsSettings,
+                savedConnectionForLogin = savedConnectionForLogin,
+                nativeAuthRequired = true,
+            ),
+            prepareConnection = { request -> prepareNavidromeConnection(request) },
+            preparedConnection = { prepared -> prepared.connection },
+            provider = { connection -> NavidromeProvider(connection) },
+            mediaSourceConnection = { connection -> connection.toProviderMediaSourceConnection() },
+            applyTlsDefaults = { connection -> NavidromeTls.applyJvmDefaults(connection.tlsSettings) },
+            smartPlaylistAuthWarning = { prepared -> prepared.nativeAuthErrorMessage },
+            clearProviderData = clearProviderData,
         ),
-    )
-    val connection = preparedConnection.connection
-    NavidromeTls.applyJvmDefaults(connection.tlsSettings)
-    val provider = NavidromeProvider(connection)
-    val validation = provider.validateConnection()
-    if (clearProviderData) {
-        cacheMaintenanceRepository.clearProviderData()
-    }
-    val sourceId = providerMediaSourceRepository.upsertProviderMediaSource(
-        connection = ProviderMediaSourceConnection(
-            displayName = connection.resolvedDisplayName(),
-            baseUrl = connection.baseUrl,
-            username = connection.username,
-            token = connection.token,
-            salt = connection.salt,
-            nativeToken = connection.nativeToken,
-            tlsSettings = connection.tlsSettings,
-        ),
-        cacheNamespace = provider.cacheNamespace,
-        providerId = provider.id.value,
-    ).id
-    return DesktopConnectionSession(
-        connection = connection,
-        provider = provider,
-        sourceId = sourceId,
-        validation = validation,
-        smartPlaylistAuthWarning = preparedConnection.nativeAuthErrorMessage,
+        cacheMaintenanceRepository = cacheMaintenanceRepository,
+        providerMediaSourceRepository = providerMediaSourceRepository,
     )
 }
+
+private fun NavidromeConnection.toProviderMediaSourceConnection(): ProviderMediaSourceConnection =
+    ProviderMediaSourceConnection(
+        displayName = resolvedDisplayName(),
+        baseUrl = baseUrl,
+        username = username,
+        token = token,
+        salt = salt,
+        nativeToken = nativeToken,
+        tlsSettings = tlsSettings,
+    )
 
 fun restoredDesktopPlaybackSession(
     savedPlaybackSession: PlaybackSessionSettings?,

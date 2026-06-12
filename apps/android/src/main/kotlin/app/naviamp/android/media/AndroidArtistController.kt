@@ -4,36 +4,38 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import app.naviamp.domain.Album
-import app.naviamp.domain.AlbumDetails
 import app.naviamp.domain.AlbumId
+import app.naviamp.domain.Artist
 import app.naviamp.domain.ArtistId
 import app.naviamp.domain.app.NaviampRoute
 import app.naviamp.domain.cache.LocalLibraryIndexRepository
 import app.naviamp.domain.cache.ProviderResponseCacheRepository
 import app.naviamp.domain.cache.ProviderResponseService
 import app.naviamp.domain.media.albumDetailLoadErrorStatus
-import app.naviamp.domain.media.albumDetailLoadedStatus
 import app.naviamp.domain.media.albumDetailLoadingStatus
-import app.naviamp.domain.media.albumDetailsFromLibraryTracks
+import app.naviamp.domain.media.AlbumDetailFlowCoordinator
+import app.naviamp.domain.media.AlbumDetailFlowRequest
 import app.naviamp.domain.media.ArtistDetailPopularTracksDisplayLimit
 import app.naviamp.domain.media.ArtistDetailPopularTracksFetchLimit
 import app.naviamp.domain.media.ArtistDetailSimilarArtistsDisplayLimit
 import app.naviamp.domain.media.ArtistDetailSimilarArtistsFetchLimit
-import app.naviamp.domain.media.artistPopularTracksUpdate
-import app.naviamp.domain.media.artistDetailLoadErrorStatus
+import app.naviamp.domain.media.ArtistDetailFlowCoordinator
+import app.naviamp.domain.media.ArtistDetailFlowRequest
 import app.naviamp.domain.media.artistDetailLoadedStatus
-import app.naviamp.domain.media.artistDetailLoadingStatus
-import app.naviamp.domain.media.artistDetailsFromLibraryTracks
 import app.naviamp.domain.media.loadingPopularTracksStatus
 import app.naviamp.domain.media.loadingSimilarArtistsStatus
-import app.naviamp.domain.media.missingPopularTracksSourceStatus
-import app.naviamp.domain.media.popularTracksUnavailableStatus
-import app.naviamp.domain.media.similarArtistsUnavailableStatus
-import app.naviamp.domain.media.similarArtistsUpdate
+import app.naviamp.domain.media.loadAlbumDetails
+import app.naviamp.domain.media.loadArtistPopularTracksUpdate
+import app.naviamp.domain.media.loadSimilarArtistsUpdate
 import app.naviamp.domain.popular.ArtistPopularTracksService
 import app.naviamp.domain.popular.SimilarArtistsService
 import app.naviamp.domain.Track
+import app.naviamp.domain.playback.PlaybackQueueController
+import app.naviamp.domain.settings.RecentRadioStream
+import app.naviamp.ui.SharedArtistDetailUi
 import app.naviamp.ui.SharedMediaItemUi
+import app.naviamp.ui.SharedSimilarArtistUi
+import app.naviamp.ui.SharedTrackRowUi
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -62,54 +64,43 @@ fun openAndroidArtistDetails(
     }
     scope.launch {
         with(state) {
-            status = artistDetailLoadingStatus(fallbackName)
-            runCatching { providerResponseService.artist(activeProvider, artistId) }
-                .recoverCatching { error ->
-                    val fallbackDetail = sourceId?.let {
-                        artistDetailsFromLibraryTracks(
-                            artistId = artistId,
-                            fallbackName = fallbackName,
-                            tracks = libraryIndexRepository.libraryTracksForArtist(it, artistId, limit = 1_000),
-                        )
-                    }
-                    fallbackDetail ?: throw error
-                }
-                .onSuccess { detail ->
+            ArtistDetailFlowCoordinator(
+                setStatus = { nextStatus -> status = nextStatus.orEmpty() },
+                applyDetail = { detail ->
                     contentState = contentState.showArtist(detail)
                     nowPlayingOpen = false
                     navigationState = navigationState.copy(route = NaviampRoute.Library)
-                    status = artistDetailLoadedStatus(detail)
-                    if (sourceId != null) {
-                        artistPopularTracksStatusByArtistId =
-                            artistPopularTracksStatusByArtistId + (artistId.value to loadingPopularTracksStatus())
-                        scope.launch(Dispatchers.IO) {
-                            runCatching {
-                                popularTracksService.popularTracks(
-                                    sourceId = sourceId,
-                                    artist = detail.artist,
-                                    limit = ArtistDetailPopularTracksFetchLimit,
-                                )
-                            }.onSuccess { matches ->
-                                val update = artistPopularTracksUpdate(matches, ArtistDetailPopularTracksDisplayLimit)
-                                withContext(Dispatchers.Main) {
-                                    artistPopularTracksByArtistId =
-                                        artistPopularTracksByArtistId + (artistId.value to update.tracks)
-                                    artistPopularTracksStatusByArtistId =
-                                        artistPopularTracksStatusByArtistId + (artistId.value to update.status)
-                                }
-                            }.onFailure { error ->
-                                withContext(Dispatchers.Main) {
-                                    artistPopularTracksStatusByArtistId =
-                                        artistPopularTracksStatusByArtistId + (artistId.value to popularTracksUnavailableStatus(error))
-                                }
-                            }
+                },
+                loadedStatus = ::artistDetailLoadedStatus,
+            ).load(
+                request = ArtistDetailFlowRequest(
+                    libraryIndexRepository = libraryIndexRepository,
+                    providerResponseService = providerResponseService,
+                    provider = activeProvider,
+                    artistId = artistId,
+                    fallbackName = fallbackName,
+                    sourceId = sourceId,
+                ),
+                afterLoaded = { detail ->
+                    artistPopularTracksStatusByArtistId =
+                        artistPopularTracksStatusByArtistId + (artistId.value to loadingPopularTracksStatus())
+                    scope.launch(Dispatchers.IO) {
+                        val update = loadArtistPopularTracksUpdate(
+                            sourceId = sourceId,
+                            artist = detail.artist,
+                            fetchLimit = ArtistDetailPopularTracksFetchLimit,
+                            displayLimit = ArtistDetailPopularTracksDisplayLimit,
+                            loadPopularTracks = popularTracksService::popularTracks,
+                        )
+                        withContext(Dispatchers.Main) {
+                            artistPopularTracksByArtistId =
+                                artistPopularTracksByArtistId + (artistId.value to update.tracks)
+                            artistPopularTracksStatusByArtistId =
+                                artistPopularTracksStatusByArtistId + (artistId.value to update.status)
                         }
-                    } else {
-                        artistPopularTracksStatusByArtistId =
-                            artistPopularTracksStatusByArtistId + (artistId.value to missingPopularTracksSourceStatus())
                     }
-                }
-                .onFailure { error -> status = artistDetailLoadErrorStatus(error) }
+                },
+            )
         }
     }
 }
@@ -135,24 +126,18 @@ fun findAndroidSimilarArtists(
     }
     scope.launch {
         with(state) {
-            runCatching {
-                similarArtistsService.similarArtists(
-                    artistName = artistName,
-                    limit = ArtistDetailSimilarArtistsFetchLimit,
+            val update = loadSimilarArtistsUpdate(
+                artistName = artistName,
+                fetchLimit = ArtistDetailSimilarArtistsFetchLimit,
+                displayLimit = ArtistDetailSimilarArtistsDisplayLimit,
+                loadSimilarArtists = similarArtistsService::similarArtists,
+            )
+            artistSimilarArtistsByArtistId = artistSimilarArtistsByArtistId + (
+                artistId.value to update.artists
                 )
-            }.onSuccess { artists ->
-                val update = similarArtistsUpdate(artists, ArtistDetailSimilarArtistsDisplayLimit)
-                artistSimilarArtistsByArtistId = artistSimilarArtistsByArtistId + (
-                    artistId.value to update.artists
-                    )
-                artistSimilarArtistsStatusByArtistId = artistSimilarArtistsStatusByArtistId + (
-                    artistId.value to update.status
-                    )
-            }.onFailure { error ->
-                artistSimilarArtistsStatusByArtistId = artistSimilarArtistsStatusByArtistId + (
-                    artistId.value to similarArtistsUnavailableStatus(error)
-                    )
-            }
+            artistSimilarArtistsStatusByArtistId = artistSimilarArtistsStatusByArtistId + (
+                artistId.value to update.status
+                )
         }
     }
 }
@@ -181,44 +166,68 @@ fun openAndroidAlbumDetails(
     val providerResponseService = ProviderResponseService(providerResponseCacheRepository)
     scope.launch {
         with(state) {
-            status = albumDetailLoadingStatus(selectedAlbum.title)
-            runCatching {
-                providerResponseService.album(activeProvider, AlbumId(selectedAlbum.id))
-            }.recoverCatching { error ->
-                val fallbackDetail = sourceId?.let {
-                    albumDetailsFromLibraryTracks(
-                        albumId = AlbumId(selectedAlbum.id),
-                        fallbackTitle = selectedAlbum.title,
-                        fallbackArtistName = selectedAlbum.subtitle,
-                        tracks = libraryIndexRepository.libraryTracksForAlbum(it, AlbumId(selectedAlbum.id), limit = 1_000),
-                    )
-                }
-                fallbackDetail ?: throw error
-            }.onSuccess { detail ->
-                contentState = contentState.showAlbum(detail)
-                tracks = detail.tracks
-                nowPlayingOpen = false
-                status = albumDetailLoadedStatus()
-            }.onFailure { error ->
-                status = albumDetailLoadErrorStatus(error)
-            }
+            AlbumDetailFlowCoordinator(
+                setStatus = { nextStatus -> status = nextStatus.orEmpty() },
+                applyDetail = { detail ->
+                    contentState = contentState.showAlbum(detail)
+                    tracks = detail.tracks
+                    nowPlayingOpen = false
+                },
+            ).load(
+                AlbumDetailFlowRequest(
+                    libraryIndexRepository = libraryIndexRepository,
+                    providerResponseService = providerResponseService,
+                    provider = activeProvider,
+                    albumId = AlbumId(selectedAlbum.id),
+                    fallbackTitle = selectedAlbum.title,
+                    fallbackArtistName = selectedAlbum.subtitle,
+                    sourceId = sourceId,
+                ),
+            )
         }
     }
 }
 
-fun albumDetailsFromAndroidTrackFallback(
+fun openAndroidNowPlayingAlbumDetails(
+    scope: CoroutineScope,
+    state: AndroidAppState,
     libraryIndexRepository: LocalLibraryIndexRepository,
-    sourceId: String,
-    albumId: AlbumId,
-    fallbackTitle: String?,
-    fallbackArtistName: String?,
-): AlbumDetails? =
-    albumDetailsFromLibraryTracks(
-        albumId = albumId,
-        fallbackTitle = fallbackTitle,
-        fallbackArtistName = fallbackArtistName,
-        tracks = libraryIndexRepository.libraryTracksForAlbum(sourceId, albumId, limit = 1_000),
-    )
+    providerResponseCacheRepository: ProviderResponseCacheRepository,
+) {
+    val activeProvider = state.provider ?: return
+    val albumId = state.nowPlaying?.albumId ?: return
+    val sourceId = state.activeSourceId
+    val fallbackTitle = state.nowPlaying?.albumTitle
+    val fallbackArtistName = state.nowPlaying?.artistName
+    val providerResponseService = ProviderResponseService(providerResponseCacheRepository)
+    scope.launch {
+        with(state) {
+            AlbumDetailFlowCoordinator(
+                setStatus = { nextStatus ->
+                    if (nextStatus != albumDetailLoadingStatus(fallbackTitle)) {
+                        nextStatus?.let { status = it }
+                    }
+                },
+                applyDetail = { detail ->
+                    contentState = contentState.showAlbum(detail)
+                    nowPlayingOpen = false
+                    navigationState = navigationState.copy(route = NaviampRoute.Library)
+                },
+                loadedStatus = { null },
+            ).load(
+                AlbumDetailFlowRequest(
+                    libraryIndexRepository = libraryIndexRepository,
+                    providerResponseService = providerResponseService,
+                    provider = activeProvider,
+                    albumId = albumId,
+                    fallbackTitle = fallbackTitle,
+                    fallbackArtistName = fallbackArtistName,
+                    sourceId = sourceId,
+                ),
+            )
+        }
+    }
+}
 
 fun loadAndroidArtistTracks(
     scope: CoroutineScope,
@@ -252,15 +261,17 @@ fun loadAndroidArtistAlbumTracks(
     val providerResponseService = ProviderResponseService(providerResponseCacheRepository)
     scope.launch {
         state.status = albumDetailLoadingStatus(selectedAlbum.title)
-        runCatching { providerResponseService.album(activeProvider, AlbumId(selectedAlbum.id)).tracks }
-            .recoverCatching { error ->
-                sourceId
-                    ?.let { storageSourceId ->
-                        libraryIndexRepository.libraryTracksForAlbum(storageSourceId, AlbumId(selectedAlbum.id), limit = 1_000)
-                    }
-                    ?.takeIf { it.isNotEmpty() }
-                    ?: throw error
-            }
+        runCatching {
+            loadAlbumDetails(
+                libraryIndexRepository = libraryIndexRepository,
+                providerResponseService = providerResponseService,
+                provider = activeProvider,
+                albumId = AlbumId(selectedAlbum.id),
+                fallbackTitle = selectedAlbum.title,
+                fallbackArtistName = selectedAlbum.subtitle,
+                sourceId = sourceId,
+            ).tracks
+        }
             .onSuccess(action)
             .onFailure { error -> state.status = albumDetailLoadErrorStatus(error) }
     }
@@ -280,5 +291,112 @@ fun startAndroidArtistAlbumRadio(
         runCatching { providerResponseService.album(activeProvider, AlbumId(selectedAlbum.id)) }
             .onSuccess { detail -> startAlbumRadio(detail.album, detail.tracks) }
             .onFailure { error -> state.status = error.message ?: "Could not start album radio." }
+    }
+}
+
+internal class AndroidArtistActionController(
+    private val context: Context,
+    private val scope: CoroutineScope,
+    private val state: AndroidAppState,
+    private val queueController: PlaybackQueueController,
+    private val libraryIndexRepository: LocalLibraryIndexRepository,
+    private val providerResponseCacheRepository: ProviderResponseCacheRepository,
+    private val similarArtistsService: SimilarArtistsService,
+    private val activeQueue: () -> List<Track>,
+    private val openArtistDetails: (ArtistId, String?) -> Unit,
+    private val playTrack: (Track, List<Track>) -> Unit,
+    private val playRadioTrack: (Track, List<Track>) -> Unit,
+    private val startTrackRadio: (Track) -> Unit,
+    private val startAlbumRadio: (Album, List<Track>) -> Unit,
+    private val rememberRecentRadioStream: (RecentRadioStream) -> Unit,
+) {
+    fun findSimilarArtists(artistId: ArtistId, artistName: String) {
+        findAndroidSimilarArtists(scope, state, similarArtistsService, artistId, artistName)
+    }
+
+    fun openExternalArtistUrl(url: String) {
+        openAndroidExternalArtistUrl(context, state, url)
+    }
+
+    fun handleShellArtistRadio(detail: SharedArtistDetailUi) {
+        val artistId = ArtistId(detail.artist.id)
+        startAndroidArtistRadio(
+            scope = scope,
+            state = state,
+            queueController = queueController,
+            artistId = artistId,
+            artistTitle = detail.artist.title,
+            artist = state.artistDetail?.artist ?: Artist(artistId, detail.artist.title),
+            playTrack = playRadioTrack,
+            providerResponseCacheRepository = providerResponseCacheRepository,
+            rememberRecentRadioStream = rememberRecentRadioStream,
+        )
+    }
+
+    fun loadArtistTracks(action: (List<Track>) -> Unit) {
+        loadAndroidArtistTracks(scope, state, providerResponseCacheRepository, action)
+    }
+
+    fun handleShellArtistShuffle() {
+        loadArtistTracks { artistTracks ->
+            val queue = artistTracks.distinctBy { it.id }.shuffled()
+            queue.firstOrNull()?.let { playTrack(it, queue) }
+                ?: run { state.status = "No artist tracks found." }
+        }
+    }
+
+    fun handleShellArtistPopularRadio(detail: SharedArtistDetailUi) {
+        startAndroidPopularTracksRadio(
+            scope = scope,
+            state = state,
+            queueController = queueController,
+            artistTitle = detail.artist.title,
+            popularTracks = state.artistPopularTracksByArtistId[detail.artist.id].orEmpty(),
+            playTrack = playRadioTrack,
+            providerResponseCacheRepository = providerResponseCacheRepository,
+            rememberRecentRadioStream = rememberRecentRadioStream,
+        )
+    }
+
+    fun handleArtistPopularPlay(detail: SharedArtistDetailUi) {
+        playAndroidArtistPopularTracks(state, detail.artist.id, playTrack)
+    }
+
+    fun handleArtistPopularTrackSelected(selectedTrack: SharedTrackRowUi) {
+        startAndroidArtistPopularTrackRadio(state, selectedTrack.id, activeQueue(), startTrackRadio)
+    }
+
+    fun handleArtistPopularAddToQueue(detail: SharedArtistDetailUi) {
+        appendAndroidArtistPopularTracksToQueue(state, queueController, detail.artist.id)
+    }
+
+    fun handleSimilarArtistSelected(similarArtist: SharedSimilarArtistUi) {
+        val artistId = similarArtist.localArtistId
+        if (artistId == null) {
+            state.status = "Artist is not in your library."
+        } else {
+            openArtistDetails(ArtistId(artistId), similarArtist.title)
+        }
+    }
+
+    fun loadArtistAlbumTracks(selectedAlbum: SharedMediaItemUi, action: (List<Track>) -> Unit) {
+        loadAndroidArtistAlbumTracks(
+            scope = scope,
+            state = state,
+            libraryIndexRepository = libraryIndexRepository,
+            providerResponseCacheRepository = providerResponseCacheRepository,
+            selectedAlbum = selectedAlbum,
+            action = action,
+        )
+    }
+
+    fun handleArtistAlbumRadio(selectedAlbum: SharedMediaItemUi) {
+        startAndroidArtistAlbumRadio(
+            scope = scope,
+            state = state,
+            selectedAlbum = selectedAlbum,
+            startAlbumRadio = startAlbumRadio,
+            providerResponseCacheRepository = providerResponseCacheRepository,
+        )
     }
 }

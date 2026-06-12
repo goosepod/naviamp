@@ -13,6 +13,8 @@ import app.naviamp.domain.cache.MediaSourceRepository
 import app.naviamp.domain.cache.PlaybackSessionRepository
 import app.naviamp.domain.playback.PlaybackProgress
 import app.naviamp.domain.playback.PlaybackQueueController
+import app.naviamp.domain.playback.PlaybackQueueFinishedCommand
+import app.naviamp.domain.playback.PlaybackQueueManager
 import app.naviamp.domain.playback.PlaybackRequest
 import app.naviamp.domain.playback.PlaybackState
 import app.naviamp.domain.playback.hasPendingSeekReachedTarget
@@ -23,7 +25,8 @@ import app.naviamp.domain.queue.PlaybackQueue
 import app.naviamp.domain.queue.RepeatMode
 import app.naviamp.domain.settings.PlaybackSessionSettings
 import app.naviamp.domain.settings.adjacentTrackSession
-import app.naviamp.domain.settings.restoredTrackSession
+import app.naviamp.domain.settings.PlaybackSessionRestorePlan
+import app.naviamp.domain.settings.planPlaybackSessionRestore
 import app.naviamp.domain.settings.withPlaybackPosition
 import app.naviamp.provider.navidrome.NavidromeProvider
 import app.naviamp.provider.navidrome.toNavidromeConnection
@@ -37,7 +40,6 @@ internal class AndroidServicePlaybackRuntimeController(
     private val currentQueueIndex: () -> Int,
     private val syncQueue: (PlaybackQueue) -> Unit,
     private val repeatMode: () -> RepeatMode,
-    private val repeatOne: () -> Boolean,
     private val setCurrentMetadata: (AndroidPlaybackNotificationMetadata) -> Unit,
     private val updateMediaSession: (AndroidPlaybackNotificationMetadata) -> Unit,
     private val updateMediaSessionPlaybackState: () -> Unit,
@@ -45,6 +47,7 @@ internal class AndroidServicePlaybackRuntimeController(
     private val playTrackQueue: (PlaybackSessionRepository, String, List<Track>, Int) -> Unit,
     private val playInternetRadioStation: (MediaSourceRepository, PlaybackSessionRepository, String, InternetRadioStation) -> Unit,
 ) {
+    private val queueManager = PlaybackQueueManager()
     private var serviceOwnedPlayback = false
     private var lastServiceSessionSaveAtMillis = 0L
     private var lastServicePlaybackState: PlaybackState? = null
@@ -113,10 +116,12 @@ internal class AndroidServicePlaybackRuntimeController(
 
     fun playServiceOwnedAdjacent(delta: Int): Boolean {
         if (!serviceOwnedPlayback) return false
-        queueController.replaceQueue(PlaybackQueue(currentQueue(), currentQueueIndex()))
-        queueController.setRepeatMode(repeatMode())
-        val selection = queueController.adjacent(offset = delta)
-        if (selection == null) {
+        val update = queueManager.selectAdjacent(
+            queue = PlaybackQueue(currentQueue(), currentQueueIndex()),
+            offset = delta,
+            repeatMode = repeatMode(),
+        )
+        if (!update.changed) {
             Log.i(
                 "NaviampAutoCommand",
                 "Service-owned queue has no adjacent track delta=$delta index=${currentQueueIndex()} size=${currentQueue().size}",
@@ -129,9 +134,10 @@ internal class AndroidServicePlaybackRuntimeController(
         val sourceId = storage.latestNavidromeSource()?.id ?: return false
         Log.i(
             "NaviampAutoCommand",
-            "Service-owned queue advancing delta=$delta from=${currentQueueIndex()} to=${selection.queue.currentIndex} size=${selection.queue.tracks.size}",
+            "Service-owned queue advancing delta=$delta from=${currentQueueIndex()} to=${update.queue.currentIndex} size=${update.queue.tracks.size}",
         )
-        playTrackQueue(storage, sourceId, selection.queue.tracks, selection.queue.currentIndex)
+        queueController.replaceQueue(update.queue)
+        playTrackQueue(storage, sourceId, update.queue.tracks, update.queue.currentIndex)
         return true
     }
 
@@ -139,20 +145,21 @@ internal class AndroidServicePlaybackRuntimeController(
         val storage = storage()
         val source = storage.latestNavidromeSource() ?: return
         val session = existingSession ?: storage.loadPlaybackSession(source.id) ?: return
-        session.internetRadioStation?.let { station ->
-            playInternetRadioStation(storage, storage, source.id, station.toStation())
+        val restorePlan = planPlaybackSessionRestore(session)
+        if (restorePlan is PlaybackSessionRestorePlan.InternetRadio) {
+            playInternetRadioStation(storage, storage, source.id, restorePlan.station)
             return
         }
-        val restoredSession = session.restoredTrackSession() ?: return
-        val track = restoredSession.currentTrack
-        syncQueue(PlaybackQueue(restoredSession.tracks, restoredSession.currentIndex))
+        if (restorePlan !is PlaybackSessionRestorePlan.TrackSession) return
+        val track = restorePlan.currentTrack
+        syncQueue(restorePlan.playbackQueue)
         val connection = source.toNavidromeConnection()
         val provider = NavidromeProvider(connection)
         val runtime = AndroidPlaybackRuntime.get(context)
         val playbackSettings = AndroidSettingsStore(context).loadPlaybackSettings()
         val audioAssets = AndroidPlaybackAudioAssets(storage, storage)
         val quality = StreamQuality.Original
-        val startPositionSeconds = session.positionSeconds?.takeIf { it > 0.0 }
+        val startPositionSeconds = restorePlan.restoredStartPositionSeconds?.takeIf { it > 0.0 }
 
         runtime.playbackEngine.applyTlsSettings(connection.tlsSettings)
         AndroidPlaybackNotificationControls.canFavorite = provider.capabilities.supportsTrackFavorites
@@ -293,17 +300,24 @@ internal class AndroidServicePlaybackRuntimeController(
     }
 
     private fun handleTrackFinished() {
-        if (repeatOne()) {
-            queueController.replaceQueue(PlaybackQueue(currentQueue(), currentQueueIndex()))
-            val selection = queueController.playCurrent()
-            if (selection != null) {
+        val update = queueManager.finishCurrentTrack(
+            queue = PlaybackQueue(currentQueue(), currentQueueIndex()),
+            repeatMode = repeatMode(),
+        )
+        when (update.command) {
+            PlaybackQueueFinishedCommand.None -> {
+                AndroidPlaybackNotificationControls.isPlaying = false
+                updateMediaSessionPlaybackState()
+            }
+            PlaybackQueueFinishedCommand.ReplayCurrent,
+            PlaybackQueueFinishedCommand.PlayNext,
+            -> {
+                queueController.replaceQueue(update.queue)
                 val storage = storage()
                 val sourceId = storage.latestNavidromeSource()?.id ?: return
-                playTrackQueue(storage, sourceId, selection.queue.tracks, selection.queue.currentIndex)
-                return
+                playTrackQueue(storage, sourceId, update.queue.tracks, update.queue.currentIndex)
             }
         }
-        playServiceOwnedAdjacent(1)
     }
 
     private companion object {

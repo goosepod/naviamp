@@ -1,6 +1,8 @@
 package app.naviamp.domain.library
 
 import app.naviamp.domain.cache.LibraryIndexStats
+import app.naviamp.domain.cache.MediaSourceRepository
+import app.naviamp.domain.provider.MediaProvider
 
 const val LibraryFreshnessCheckIntervalMillis = 60_000L
 
@@ -31,6 +33,21 @@ fun LibraryFreshness.evaluateLibraryFreshness(currentStatus: String?): LibraryFr
             currentStatus?.startsWith("Navidrome is scanning") == true -> LibraryFreshnessUpdate(clearStatus = true)
         else -> LibraryFreshnessUpdate()
     }
+}
+
+suspend fun libraryFreshnessUpdate(
+    sourceId: String,
+    provider: MediaProvider,
+    mediaSourceRepository: MediaSourceRepository,
+    currentStatus: String?,
+): LibraryFreshnessUpdate {
+    val scanStatus = provider.libraryScanStatus()
+    val source = mediaSourceRepository.mediaSource(sourceId)
+    return LibraryFreshness(
+        signature = scanStatus?.signature,
+        previousSignature = source?.lastLibraryScanSignature,
+        scanning = scanStatus?.scanning == true,
+    ).evaluateLibraryFreshness(currentStatus)
 }
 
 fun shouldAutoSyncLibrary(indexStats: LibraryIndexStats): Boolean =

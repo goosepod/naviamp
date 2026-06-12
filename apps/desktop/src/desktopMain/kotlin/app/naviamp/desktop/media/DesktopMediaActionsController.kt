@@ -8,14 +8,13 @@ import app.naviamp.domain.Track
 import app.naviamp.domain.cache.TrackMetadataRepository
 import app.naviamp.domain.home.HomeContent
 import app.naviamp.domain.media.MediaMetadataMutationController
-import app.naviamp.domain.media.MediaMetadataStateUpdater
-import app.naviamp.domain.media.MediaTrackMetadataStateUpdater
-import app.naviamp.domain.media.knownAlbumsForMetadata
-import app.naviamp.domain.media.knownArtistsForMetadata
+import app.naviamp.domain.media.MediaTrackLookupSources
+import app.naviamp.domain.media.mediaMetadataMutationController
 import app.naviamp.domain.media.trackPlaybackSelection
 import app.naviamp.domain.playback.PlaybackEngine
+import app.naviamp.domain.playback.PlaybackQueueManager
+import app.naviamp.domain.playback.applyPlaybackQueueUpdate
 import app.naviamp.domain.provider.MediaSearchResults
-import app.naviamp.domain.provider.queueAppendPlan
 import app.naviamp.desktop.playback.PlaylistCallbacks
 import app.naviamp.desktop.playback.DesktopPlaylistEngine
 import app.naviamp.desktop.settings.PlaybackSettings
@@ -62,6 +61,9 @@ class DesktopMediaActionsController(
         playTracks(searchTracks(), index = index)
     }
 
+    fun searchTrackAt(index: Int): Track? =
+        searchTracks().getOrNull(index)
+
     fun playRelatedTrack(index: Int) {
         playTracks(relatedTracks(), index = index)
     }
@@ -71,31 +73,30 @@ class DesktopMediaActionsController(
     }
 
     fun addPopularTracksToQueue(tracks: List<Track>) {
-        val plan = queueAppendPlan(
-            tracks = tracks,
+        val update = PlaybackQueueManager().appendTracks(
+            currentQueue = playlistEngine.queue,
+            tracksToAdd = tracks,
             label = "popular tracks",
             existingTracks = playlistEngine.queue.tracks,
             deduplicateExisting = true,
         )
-        if (tracks.isEmpty()) return
-        if (plan.tracks.isNotEmpty()) {
-            playlistEngine.appendTracks(plan.tracks)
-        }
-        setConnectionStatus(plan.status)
+        applyPlaybackQueueUpdate(
+            update = update,
+            setStatus = setConnectionStatus,
+            replaceQueue = playlistEngine::replaceQueue,
+        )
     }
 
     fun applyTrackMetadataUpdate(updatedTrack: Track) {
-        trackMetadataStateUpdater().applyTrackUpdate(updatedTrack)
-        playlistEngine.updateTrack(updatedTrack)
-        trackMetadataRepository.updateTrack(updatedTrack)
+        metadataMutationController().applyTrackUpdateResult(updatedTrack)
     }
 
     fun applyArtistMetadataUpdate(updatedArtist: Artist) {
-        metadataStateUpdater().applyArtistUpdate(updatedArtist)
+        metadataMutationController().applyArtistUpdateResult(updatedArtist)
     }
 
     fun applyAlbumMetadataUpdate(updatedAlbum: Album) {
-        metadataStateUpdater().applyAlbumUpdate(updatedAlbum)
+        metadataMutationController().applyAlbumUpdateResult(updatedAlbum)
     }
 
     fun toggleTrackFavorite(track: Track) {
@@ -123,33 +124,16 @@ class DesktopMediaActionsController(
     }
 
     private fun metadataMutationController(): MediaMetadataMutationController =
-        MediaMetadataMutationController(
+        mediaMetadataMutationController(
             provider = provider,
             favoritedAtIso8601 = { Instant.now().toString() },
             setStatus = setConnectionStatus,
-            knownTracks = { playlistEngine.queue.tracks + albumTracks() + searchTracks() + relatedTracks() },
-            knownArtists = {
-                knownArtistsForMetadata(
-                    homeContent = homeContent(),
-                    searchResults = searchResults(),
-                    artistDetails = selectedArtistDetails(),
+            trackLookupSources = {
+                MediaTrackLookupSources(
+                    primaryTracks = playlistEngine.queue.tracks,
+                    extraTracks = albumTracks() + searchTracks() + relatedTracks(),
                 )
             },
-            knownAlbums = {
-                knownAlbumsForMetadata(
-                    homeContent = homeContent(),
-                    searchResults = searchResults(),
-                    albumDetails = selectedAlbumDetails(),
-                    artistDetails = selectedArtistDetails(),
-                )
-            },
-            applyTrackUpdate = ::applyTrackMetadataUpdate,
-            applyArtistUpdate = ::applyArtistMetadataUpdate,
-            applyAlbumUpdate = ::applyAlbumMetadataUpdate,
-        )
-
-    private fun metadataStateUpdater(): MediaMetadataStateUpdater =
-        MediaMetadataStateUpdater(
             homeContent = homeContent,
             setHomeContent = setHomeContent,
             searchResults = searchResults,
@@ -158,6 +142,8 @@ class DesktopMediaActionsController(
             setAlbumDetails = setSelectedAlbumDetails,
             artistDetails = selectedArtistDetails,
             setArtistDetails = setSelectedArtistDetails,
+            nowPlayingTrack = nowPlayingTrack,
+            setNowPlayingTrack = setNowPlayingTrack,
             updateExtraArtistCollections = { artist ->
                 setArtistMixSelectedArtists?.invoke(artist)
                 setArtistMixSuggestions?.invoke(artist)
@@ -166,16 +152,10 @@ class DesktopMediaActionsController(
                 setAlbumMixSelectedAlbums?.invoke(album)
                 setAlbumMixSuggestions?.invoke(album)
             },
-        )
-
-    private fun trackMetadataStateUpdater(): MediaTrackMetadataStateUpdater =
-        MediaTrackMetadataStateUpdater(
-            nowPlayingTrack = nowPlayingTrack,
-            setNowPlayingTrack = setNowPlayingTrack,
-            searchResults = searchResults,
-            setSearchResults = setSearchResults,
-            albumDetails = selectedAlbumDetails,
-            setAlbumDetails = setSelectedAlbumDetails,
+            afterTrackUpdate = { updatedTrack, _ ->
+                playlistEngine.updateTrack(updatedTrack)
+                trackMetadataRepository.updateTrack(updatedTrack)
+            },
         )
 
     private fun playTracks(

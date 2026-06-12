@@ -4,6 +4,9 @@ import app.naviamp.domain.Playlist
 import app.naviamp.domain.Track
 import app.naviamp.domain.TrackId
 import app.naviamp.domain.cache.ProviderResponseService
+import app.naviamp.domain.home.HomeContent
+import app.naviamp.domain.playback.appendableTracks
+import app.naviamp.domain.playback.queueAppendStatus
 import app.naviamp.domain.smartplaylist.SmartPlaylistDefinition
 
 data class PlaylistTrackMutationResult(
@@ -22,11 +25,95 @@ data class QueuePlaylistSaveRefresh(
     val playlists: List<Playlist>,
 )
 
+data class QueuePlaylistSaveStateUpdate(
+    val playlists: List<Playlist>,
+    val status: String,
+)
+
+data class QueuePlaylistSaveApplication(
+    val playlistListApplication: PlaylistListApplication,
+    val status: String,
+)
+
+data class PlaylistRenameRefresh(
+    val requestedName: String,
+    val playlists: List<Playlist>,
+)
+
+data class PlaylistRenameSelectionApplication(
+    val selectedPlaylist: Playlist?,
+)
+
+data class PlaylistRenameStateUpdate(
+    val playlists: List<Playlist>,
+    val selectionApplication: PlaylistRenameSelectionApplication?,
+    val status: String,
+)
+
+data class PlaylistRenameApplication(
+    val playlistListApplication: PlaylistListApplication,
+    val selectionApplication: PlaylistRenameSelectionApplication?,
+    val status: String,
+)
+
+data class PlaylistDeleteRefresh(
+    val playlists: List<Playlist>,
+)
+
+data class PlaylistDeleteSelectionApplication(
+    val selectedPlaylist: Playlist?,
+    val selectedPlaylistTracks: List<Track>,
+)
+
+data class PlaylistDeleteApplicationUpdate(
+    val playlists: List<Playlist>,
+    val playlistTracksById: Map<String, List<Track>>,
+    val recentPlaylistIds: List<String>,
+    val selectionApplication: PlaylistDeleteSelectionApplication?,
+    val status: String,
+)
+
+data class PlaylistDeleteApplication(
+    val playlistListApplication: PlaylistListApplication,
+    val playlistTracksById: Map<String, List<Track>>,
+    val recentPlaylistIds: List<String>,
+    val selectionApplication: PlaylistDeleteSelectionApplication?,
+    val status: String,
+)
+
+data class SmartPlaylistMutationStateUpdate(
+    val playlists: List<Playlist>,
+    val displayPlaylist: Playlist,
+    val tracks: List<Track>,
+    val playlistTracksById: Map<String, List<Track>>,
+    val selectionApplication: PlaylistDetailsSelectionApplication?,
+    val status: String,
+)
+
 data class AddToPlaylistMutationUpdate(
     val closeDialog: Boolean,
     val addToPlaylistStatus: String?,
     val connectionStatus: String?,
     val refreshPlaylists: Boolean,
+)
+
+data class AddToPlaylistRefresh(
+    val update: AddToPlaylistMutationUpdate,
+    val playlists: List<Playlist>?,
+)
+
+data class AddToPlaylistStateUpdate(
+    val playlists: List<Playlist>?,
+    val closeDialog: Boolean,
+    val addToPlaylistStatus: String?,
+    val connectionStatus: String?,
+)
+
+data class AddToPlaylistApplication(
+    val closeDialog: Boolean,
+    val addToPlaylistStatus: String?,
+    val connectionStatus: String?,
+    val playlistListApplication: PlaylistListApplication?,
 )
 
 data class PlaylistDetailsRefresh(
@@ -42,6 +129,23 @@ data class PlaylistDetailsStateUpdate(
     val playlistTracksById: Map<String, List<Track>>,
 )
 
+data class PlaylistDetailsOpenPlan(
+    val recentPlaylistIds: List<String>,
+    val loadingStatus: String,
+)
+
+data class PlaylistDetailsSelectionApplication(
+    val playlist: Playlist,
+    val tracks: List<Track>,
+    val status: String?,
+)
+
+data class PlaylistDetailsApplicationUpdate(
+    val playlists: List<Playlist>,
+    val playlistTracksById: Map<String, List<Track>>,
+    val selectionApplication: PlaylistDetailsSelectionApplication?,
+)
+
 data class PlaylistDetailAutoRefreshTarget<Provider : Any>(
     val provider: Provider,
     val playlist: Playlist,
@@ -53,6 +157,31 @@ data class PlaylistDeleteStateUpdate(
     val playlistTracksById: Map<String, List<Track>>,
     val recentPlaylistIds: List<String>,
     val deletedSelectedPlaylist: Boolean,
+)
+
+data class PlaylistListRefresh(
+    val playlists: List<Playlist>,
+    val playlistsToPreload: List<Playlist>,
+)
+
+data class PlaylistListStateUpdate(
+    val playlists: List<Playlist>,
+    val playlistsToPreload: List<Playlist>,
+    val status: String?,
+)
+
+enum class PlaylistHomeProjection {
+    All,
+    RecentLimited,
+}
+
+data class PlaylistListApplication(
+    val playlists: List<Playlist>,
+    val homeContent: HomeContent,
+)
+
+data class PlaylistTrackPreloadStateUpdate(
+    val playlistTracksById: Map<String, List<Track>>,
 )
 
 const val PlaylistDetailRefreshIntervalMillis = 60_000L
@@ -67,6 +196,71 @@ data class PendingPlaybackAction(
     val status: String,
 )
 
+data class PlaylistPlaybackStartPlan(
+    val action: PendingPlaybackAction,
+    val shouldStart: Boolean,
+    val status: String,
+)
+
+data class PlaylistPlaybackStartApplication(
+    val pendingPlaybackAction: PendingPlaybackAction?,
+    val status: String,
+)
+
+data class PlaylistPlaybackCompletionApplication(
+    val pendingPlaybackAction: PendingPlaybackAction?,
+)
+
+data class PlaylistPlaybackTrackLoadPlan(
+    val shouldLoadTracks: Boolean,
+)
+
+data class PlaylistPlaybackReadyPlan(
+    val tracks: List<Track>,
+    val firstTrack: Track?,
+    val recentPlaylistIds: List<String>,
+    val emptyStatus: String,
+)
+
+data class PlaylistPlaybackPreparation(
+    val loadedTracks: List<Track>,
+    val shouldStoreLoadedTracks: Boolean,
+    val readyPlan: PlaylistPlaybackReadyPlan,
+)
+
+data class PlaylistPlaybackApplicationUpdate(
+    val playlistTracksById: Map<String, List<Track>>,
+    val loadedTracksToStore: List<Track>?,
+    val firstTrack: Track?,
+    val playbackTracks: List<Track>,
+    val recentPlaylistIds: List<String>,
+    val status: String?,
+)
+
+data class PlaylistDetailPlaybackApplicationUpdate(
+    val playlistTracksById: Map<String, List<Track>>,
+    val loadedTracksToStore: List<Track>?,
+    val firstTrack: Track?,
+    val playbackTracks: List<Track>,
+    val playbackIndex: Int,
+    val recentPlaylistIds: List<String>,
+    val status: String?,
+)
+
+data class PlaylistPlaybackWork(
+    val firstTrack: Track,
+    val playbackTracks: List<Track>,
+    val playbackIndex: Int,
+    val recentPlaylistIds: List<String>,
+)
+
+data class PlaylistPlaybackPreparedApplication(
+    val playlistTracksById: Map<String, List<Track>>,
+    val loadedTracksToStore: List<Track>?,
+    val playbackWork: PlaylistPlaybackWork?,
+    val status: String?,
+)
+
 fun homePlaylists(
     playlists: List<Playlist>,
     recentPlaylistIds: List<String>,
@@ -79,12 +273,54 @@ fun homePlaylists(
         }.thenBy { it.name.lowercase() },
     ).take(limit)
 
+fun HomeContent.withPlaylists(
+    playlists: List<Playlist>,
+    recentPlaylistIds: List<String>,
+): HomeContent =
+    copy(playlists = homePlaylists(playlists, recentPlaylistIds))
+
+fun HomeContent.withAllPlaylists(playlists: List<Playlist>): HomeContent =
+    copy(playlists = playlists)
+
+fun playlistListApplication(
+    playlists: List<Playlist>,
+    currentHomeContent: HomeContent,
+    recentPlaylistIds: List<String>,
+    projection: PlaylistHomeProjection,
+): PlaylistListApplication =
+    PlaylistListApplication(
+        playlists = playlists,
+        homeContent = when (projection) {
+            PlaylistHomeProjection.All -> currentHomeContent.withAllPlaylists(playlists)
+            PlaylistHomeProjection.RecentLimited -> currentHomeContent.withPlaylists(playlists, recentPlaylistIds)
+        },
+    )
+
 fun recentPlaylistIdsAfterPlayed(
     recentPlaylistIds: List<String>,
     playlistId: String,
     limit: Int,
 ): List<String> =
     (listOf(playlistId) + recentPlaylistIds.filterNot { it == playlistId }).take(limit)
+
+fun playlistDetailsLoadingStatus(playlist: Playlist): String =
+    "Loading ${playlist.name}..."
+
+fun playlistDetailsLoadedStatus(): String =
+    "Connected."
+
+fun playlistDetailsErrorMessage(error: Throwable): String =
+    error.message ?: "Playlist failed to load."
+
+fun playlistDetailsOpenPlan(
+    playlist: Playlist,
+    recentPlaylistIds: List<String>,
+    recentPlaylistLimit: Int,
+): PlaylistDetailsOpenPlan =
+    PlaylistDetailsOpenPlan(
+        recentPlaylistIds = recentPlaylistIdsAfterPlayed(recentPlaylistIds, playlist.id, recentPlaylistLimit),
+        loadingStatus = playlistDetailsLoadingStatus(playlist),
+    )
 
 fun playlistsNeedingTrackPreload(
     playlists: List<Playlist>,
@@ -94,6 +330,148 @@ fun playlistsNeedingTrackPreload(
     playlists.take(limit).filter { playlist ->
         playlistTracksById[playlist.id].isNullOrEmpty()
     }
+
+fun playlistListRefresh(
+    playlists: List<Playlist>,
+    playlistTracksById: Map<String, List<Track>>,
+    preloadLimit: Int = 100,
+): PlaylistListRefresh =
+    PlaylistListRefresh(
+        playlists = playlists,
+        playlistsToPreload = playlistsNeedingTrackPreload(
+            playlists = playlists,
+            playlistTracksById = playlistTracksById,
+            limit = preloadLimit,
+        ),
+    )
+
+fun playlistListLoadingStatus(): String =
+    "Loading playlists..."
+
+fun playlistListErrorMessage(error: Throwable): String =
+    error.message ?: "Could not load playlists."
+
+fun playlistListStateUpdate(refresh: PlaylistListRefresh): PlaylistListStateUpdate =
+    PlaylistListStateUpdate(
+        playlists = refresh.playlists,
+        playlistsToPreload = refresh.playlistsToPreload,
+        status = null,
+    )
+
+fun playlistPreloadTargets(
+    playlists: List<Playlist>,
+    playlistTracksById: Map<String, List<Track>>,
+    preloadLimit: Int = 100,
+): List<Playlist> =
+    playlistListRefresh(
+        playlists = playlists,
+        playlistTracksById = playlistTracksById,
+        preloadLimit = preloadLimit,
+    ).playlistsToPreload
+
+fun playlistTrackPreloadStateUpdate(
+    currentPlaylistTracksById: Map<String, List<Track>>,
+    playlist: Playlist,
+    tracks: List<Track>,
+): PlaylistTrackPreloadStateUpdate =
+    PlaylistTrackPreloadStateUpdate(
+        playlistTracksById = currentPlaylistTracksById + (playlist.id to tracks),
+    )
+
+suspend fun MediaProvider.refreshPlaylistsAndPlanPreload(
+    providerResponseService: ProviderResponseService? = null,
+    useCache: Boolean = true,
+    playlistLimit: Int = 500,
+    preloadLimit: Int = 100,
+    playlistTracksById: Map<String, List<Track>> = emptyMap(),
+): PlaylistListRefresh {
+    val refreshedPlaylists = if (useCache) {
+        providerResponseService?.playlists(this, limit = playlistLimit)
+            ?: playlists(limit = playlistLimit)
+    } else {
+        playlists(limit = playlistLimit)
+    }
+    return playlistListRefresh(
+        playlists = refreshedPlaylists,
+        playlistTracksById = playlistTracksById,
+        preloadLimit = preloadLimit,
+    )
+}
+
+suspend fun MediaProvider.refreshPlaylistListState(
+    providerResponseService: ProviderResponseService? = null,
+    useCache: Boolean = true,
+    playlistLimit: Int = 500,
+    preloadLimit: Int = 100,
+    playlistTracksById: Map<String, List<Track>> = emptyMap(),
+): PlaylistListStateUpdate =
+    playlistListStateUpdate(
+        refreshPlaylistsAndPlanPreload(
+            providerResponseService = providerResponseService,
+            useCache = useCache,
+            playlistLimit = playlistLimit,
+            preloadLimit = preloadLimit,
+            playlistTracksById = playlistTracksById,
+        ),
+    )
+
+suspend fun MediaProvider.loadPlaylistTracksForPreload(
+    playlist: Playlist,
+    providerResponseService: ProviderResponseService? = null,
+    useCache: Boolean = true,
+): List<Track> =
+    if (useCache) {
+        providerResponseService?.playlistTracks(this, playlist.id)
+            ?: playlistTracks(playlist.id)
+    } else {
+        playlistTracks(playlist.id)
+    }
+
+suspend fun MediaProvider.loadPlaylistTrackPreloadState(
+    playlist: Playlist,
+    currentPlaylistTracksById: Map<String, List<Track>>,
+    providerResponseService: ProviderResponseService? = null,
+    useCache: Boolean = true,
+): PlaylistTrackPreloadStateUpdate =
+    playlistTrackPreloadStateUpdate(
+        currentPlaylistTracksById = currentPlaylistTracksById,
+        playlist = playlist,
+        tracks = loadPlaylistTracksForPreload(
+            playlist = playlist,
+            providerResponseService = providerResponseService,
+            useCache = useCache,
+        ),
+    )
+
+suspend fun MediaProvider.preloadPlaylistTracksStateUpdate(
+    playlists: List<Playlist>,
+    currentPlaylistTracksById: Map<String, List<Track>>,
+    providerResponseService: ProviderResponseService? = null,
+    useCache: Boolean = true,
+    preloadLimit: Int = 100,
+): PlaylistTrackPreloadStateUpdate {
+    var playlistTracksById = currentPlaylistTracksById
+    playlistPreloadTargets(
+        playlists = playlists,
+        playlistTracksById = playlistTracksById,
+        preloadLimit = preloadLimit,
+    ).forEach { playlist ->
+        runCatching {
+            loadPlaylistTracksForPreload(
+                playlist = playlist,
+                providerResponseService = providerResponseService,
+                useCache = useCache,
+            )
+        }.onSuccess { tracks ->
+            playlistTracksById = playlistTrackPreloadStateUpdate(
+                currentPlaylistTracksById = playlistTracksById,
+                playlist = playlist,
+                tracks = tracks,
+            ).playlistTracksById
+        }
+    }
+    return PlaylistTrackPreloadStateUpdate(playlistTracksById)
+}
 
 fun <Provider : Any> playlistDetailAutoRefreshTarget(
     provider: Provider?,
@@ -155,6 +533,61 @@ fun playlistDetailsStateUpdate(
     )
 }
 
+fun playlistDetailsApplicationUpdate(
+    currentSelectedPlaylist: Playlist?,
+    currentSelectedPlaylistTracks: List<Track>,
+    currentPlaylistTracksById: Map<String, List<Track>>,
+    refresh: PlaylistDetailsRefresh,
+    requestedPlaylistId: String,
+    status: String? = null,
+): PlaylistDetailsApplicationUpdate {
+    val selectedPlaylistChanged = currentSelectedPlaylist?.id == requestedPlaylistId
+    val stateUpdate = playlistDetailsStateUpdate(
+        currentSelectedPlaylist = currentSelectedPlaylist,
+        currentSelectedPlaylistTracks = currentSelectedPlaylistTracks,
+        currentPlaylistTracksById = currentPlaylistTracksById,
+        refresh = refresh,
+        requestedPlaylistId = requestedPlaylistId,
+    )
+    return PlaylistDetailsApplicationUpdate(
+        playlists = stateUpdate.playlists,
+        playlistTracksById = stateUpdate.playlistTracksById,
+        selectionApplication = if (selectedPlaylistChanged) {
+            PlaylistDetailsSelectionApplication(
+                playlist = requireNotNull(stateUpdate.selectedPlaylist),
+                tracks = stateUpdate.selectedPlaylistTracks,
+                status = status,
+            )
+        } else {
+            null
+        },
+    )
+}
+
+suspend fun MediaProvider.refreshPlaylistDetailsApplication(
+    playlist: Playlist,
+    currentSelectedPlaylist: Playlist?,
+    currentSelectedPlaylistTracks: List<Track>,
+    currentPlaylistTracksById: Map<String, List<Track>>,
+    providerResponseService: ProviderResponseService? = null,
+    playlistLimit: Int = 500,
+    status: String? = null,
+): PlaylistDetailsApplicationUpdate {
+    val refresh = refreshPlaylistDetails(
+        playlist = playlist,
+        playlistLimit = playlistLimit,
+        providerResponseService = providerResponseService,
+    )
+    return playlistDetailsApplicationUpdate(
+        currentSelectedPlaylist = currentSelectedPlaylist,
+        currentSelectedPlaylistTracks = currentSelectedPlaylistTracks,
+        currentPlaylistTracksById = currentPlaylistTracksById,
+        refresh = refresh,
+        requestedPlaylistId = playlist.id,
+        status = status,
+    )
+}
+
 fun playlistPlaybackTracks(
     tracks: List<Track>,
     shuffle: Boolean,
@@ -174,14 +607,43 @@ fun playlistPlaybackAction(
         },
     )
 
+fun playlistPlaybackStartPlan(
+    playlist: Playlist,
+    shuffle: Boolean,
+    pending: PendingPlaybackAction?,
+): PlaylistPlaybackStartPlan {
+    val action = playlistPlaybackAction(playlist, shuffle)
+    return PlaylistPlaybackStartPlan(
+        action = action,
+        shouldStart = shouldStartPlaybackAction(pending),
+        status = pending?.status ?: action.status,
+    )
+}
+
 fun shouldStartPlaybackAction(pending: PendingPlaybackAction?): Boolean =
     pending == null
+
+fun playlistPlaybackStartApplication(
+    plan: PlaylistPlaybackStartPlan,
+): PlaylistPlaybackStartApplication =
+    PlaylistPlaybackStartApplication(
+        pendingPlaybackAction = plan.action.takeIf { plan.shouldStart },
+        status = plan.status,
+    )
 
 fun clearPendingPlaybackAction(
     pending: PendingPlaybackAction?,
     completed: PendingPlaybackAction,
 ): PendingPlaybackAction? =
     pending?.takeUnless { it.key == completed.key }
+
+fun playlistPlaybackCompletionApplication(
+    pending: PendingPlaybackAction?,
+    completed: PendingPlaybackAction,
+): PlaylistPlaybackCompletionApplication =
+    PlaylistPlaybackCompletionApplication(
+        pendingPlaybackAction = clearPendingPlaybackAction(pending, completed),
+    )
 
 fun selectedPlaylistTracksForPlayback(
     selectedPlaylist: Playlist?,
@@ -194,6 +656,217 @@ fun selectedPlaylistTracksForPlayback(
     } else {
         loadedTracks
     }
+
+fun playlistPlaybackTrackLoadPlan(
+    selectedPlaylist: Playlist?,
+    selectedPlaylistTracks: List<Track>,
+    playlist: Playlist,
+): PlaylistPlaybackTrackLoadPlan =
+    PlaylistPlaybackTrackLoadPlan(
+        shouldLoadTracks = selectedPlaylist?.id != playlist.id || selectedPlaylistTracks.isEmpty(),
+    )
+
+suspend fun MediaProvider.loadPlaylistTracksForPlayback(
+    playlist: Playlist,
+    providerResponseService: ProviderResponseService? = null,
+): List<Track> =
+    providerResponseService?.playlistTracks(this, playlist.id)
+        ?: playlistTracks(playlist.id)
+
+suspend fun MediaProvider.preparePlaylistPlayback(
+    playlist: Playlist,
+    shuffle: Boolean,
+    selectedPlaylist: Playlist?,
+    selectedPlaylistTracks: List<Track>,
+    recentPlaylistIds: List<String>,
+    recentPlaylistLimit: Int,
+    providerResponseService: ProviderResponseService? = null,
+    emptyStatus: String = "Playlist is empty.",
+): PlaylistPlaybackPreparation {
+    val loadPlan = playlistPlaybackTrackLoadPlan(selectedPlaylist, selectedPlaylistTracks, playlist)
+    val loadedTracks = if (loadPlan.shouldLoadTracks) {
+        loadPlaylistTracksForPlayback(playlist, providerResponseService)
+    } else {
+        emptyList()
+    }
+    return PlaylistPlaybackPreparation(
+        loadedTracks = loadedTracks,
+        shouldStoreLoadedTracks = loadPlan.shouldLoadTracks,
+        readyPlan = playlistPlaybackReadyPlan(
+            playlist = playlist,
+            shuffle = shuffle,
+            selectedPlaylist = selectedPlaylist,
+            selectedPlaylistTracks = selectedPlaylistTracks,
+            loadedTracks = loadedTracks,
+            recentPlaylistIds = recentPlaylistIds,
+            recentPlaylistLimit = recentPlaylistLimit,
+            emptyStatus = emptyStatus,
+        ),
+    )
+}
+
+fun playlistPlaybackApplicationUpdate(
+    playlist: Playlist,
+    preparation: PlaylistPlaybackPreparation,
+    currentPlaylistTracksById: Map<String, List<Track>>,
+): PlaylistPlaybackApplicationUpdate {
+    val playlistTracksById = if (preparation.shouldStoreLoadedTracks) {
+        currentPlaylistTracksById + (playlist.id to preparation.loadedTracks)
+    } else {
+        currentPlaylistTracksById
+    }
+    val readyPlan = preparation.readyPlan
+    return PlaylistPlaybackApplicationUpdate(
+        playlistTracksById = playlistTracksById,
+        loadedTracksToStore = preparation.loadedTracks.takeIf { preparation.shouldStoreLoadedTracks },
+        firstTrack = readyPlan.firstTrack,
+        playbackTracks = readyPlan.tracks,
+        recentPlaylistIds = readyPlan.recentPlaylistIds,
+        status = if (readyPlan.firstTrack == null) readyPlan.emptyStatus else null,
+    )
+}
+
+fun playlistPlaybackPreparedApplication(
+    update: PlaylistPlaybackApplicationUpdate,
+    playbackIndex: Int = 0,
+): PlaylistPlaybackPreparedApplication =
+    PlaylistPlaybackPreparedApplication(
+        playlistTracksById = update.playlistTracksById,
+        loadedTracksToStore = update.loadedTracksToStore,
+        playbackWork = update.firstTrack?.let { firstTrack ->
+            PlaylistPlaybackWork(
+                firstTrack = firstTrack,
+                playbackTracks = update.playbackTracks,
+                playbackIndex = playbackIndex,
+                recentPlaylistIds = update.recentPlaylistIds,
+            )
+        },
+        status = update.status,
+    )
+
+fun playlistPlaybackErrorMessage(error: Throwable, playlist: Playlist): String =
+    error.message ?: "Could not play ${playlist.name}."
+
+suspend fun MediaProvider.preparePlaylistPlaybackApplication(
+    playlist: Playlist,
+    shuffle: Boolean,
+    selectedPlaylist: Playlist?,
+    selectedPlaylistTracks: List<Track>,
+    recentPlaylistIds: List<String>,
+    recentPlaylistLimit: Int,
+    currentPlaylistTracksById: Map<String, List<Track>>,
+    providerResponseService: ProviderResponseService? = null,
+    emptyStatus: String = "Playlist is empty.",
+): PlaylistPlaybackApplicationUpdate =
+    playlistPlaybackApplicationUpdate(
+        playlist = playlist,
+        preparation = preparePlaylistPlayback(
+            playlist = playlist,
+            shuffle = shuffle,
+            selectedPlaylist = selectedPlaylist,
+            selectedPlaylistTracks = selectedPlaylistTracks,
+            recentPlaylistIds = recentPlaylistIds,
+            recentPlaylistLimit = recentPlaylistLimit,
+            providerResponseService = providerResponseService,
+            emptyStatus = emptyStatus,
+        ),
+        currentPlaylistTracksById = currentPlaylistTracksById,
+    )
+
+fun playlistDetailPlaybackApplicationUpdate(
+    playlist: Playlist,
+    preparation: PlaylistPlaybackPreparation,
+    currentPlaylistTracksById: Map<String, List<Track>>,
+    requestedIndex: Int = 0,
+): PlaylistDetailPlaybackApplicationUpdate {
+    val update = playlistPlaybackApplicationUpdate(
+        playlist = playlist,
+        preparation = preparation,
+        currentPlaylistTracksById = currentPlaylistTracksById,
+    )
+    return PlaylistDetailPlaybackApplicationUpdate(
+        playlistTracksById = update.playlistTracksById,
+        loadedTracksToStore = update.loadedTracksToStore,
+        firstTrack = update.firstTrack,
+        playbackTracks = update.playbackTracks,
+        playbackIndex = if (update.playbackTracks.isEmpty()) 0 else requestedIndex.coerceIn(update.playbackTracks.indices),
+        recentPlaylistIds = update.recentPlaylistIds,
+        status = update.status,
+    )
+}
+
+fun playlistDetailPlaybackPreparedApplication(
+    update: PlaylistDetailPlaybackApplicationUpdate,
+): PlaylistPlaybackPreparedApplication =
+    PlaylistPlaybackPreparedApplication(
+        playlistTracksById = update.playlistTracksById,
+        loadedTracksToStore = update.loadedTracksToStore,
+        playbackWork = update.firstTrack?.let { firstTrack ->
+            PlaylistPlaybackWork(
+                firstTrack = firstTrack,
+                playbackTracks = update.playbackTracks,
+                playbackIndex = update.playbackIndex,
+                recentPlaylistIds = update.recentPlaylistIds,
+            )
+        },
+        status = update.status,
+    )
+
+suspend fun MediaProvider.preparePlaylistDetailPlaybackApplication(
+    playlist: Playlist,
+    shuffle: Boolean,
+    selectedPlaylistTracks: List<Track>,
+    recentPlaylistIds: List<String>,
+    recentPlaylistLimit: Int,
+    currentPlaylistTracksById: Map<String, List<Track>>,
+    providerResponseService: ProviderResponseService? = null,
+    requestedIndex: Int = 0,
+    emptyStatus: String = "Playlist is empty.",
+): PlaylistDetailPlaybackApplicationUpdate =
+    playlistDetailPlaybackApplicationUpdate(
+        playlist = playlist,
+        preparation = preparePlaylistPlayback(
+            playlist = playlist,
+            shuffle = shuffle,
+            selectedPlaylist = playlist,
+            selectedPlaylistTracks = selectedPlaylistTracks,
+            recentPlaylistIds = recentPlaylistIds,
+            recentPlaylistLimit = recentPlaylistLimit,
+            providerResponseService = providerResponseService,
+            emptyStatus = emptyStatus,
+        ),
+        currentPlaylistTracksById = currentPlaylistTracksById,
+        requestedIndex = requestedIndex,
+    )
+
+fun playlistPlaybackReadyPlan(
+    playlist: Playlist,
+    shuffle: Boolean,
+    selectedPlaylist: Playlist?,
+    selectedPlaylistTracks: List<Track>,
+    loadedTracks: List<Track>,
+    recentPlaylistIds: List<String>,
+    recentPlaylistLimit: Int,
+    emptyStatus: String = "Playlist is empty.",
+): PlaylistPlaybackReadyPlan {
+    val playbackTracks = selectedPlaylistTracksForPlayback(
+        selectedPlaylist = selectedPlaylist,
+        selectedPlaylistTracks = selectedPlaylistTracks,
+        playlist = playlist,
+        loadedTracks = loadedTracks,
+    )
+    val tracks = playlistPlaybackTracks(playbackTracks, shuffle)
+    return PlaylistPlaybackReadyPlan(
+        tracks = tracks,
+        firstTrack = tracks.firstOrNull(),
+        recentPlaylistIds = recentPlaylistIdsAfterPlayed(
+            recentPlaylistIds = recentPlaylistIds,
+            playlistId = playlist.id,
+            limit = recentPlaylistLimit,
+        ),
+        emptyStatus = emptyStatus,
+    )
+}
 
 suspend fun MediaProvider.createPlaylistOrAddMissingTracks(
     playlistId: String?,
@@ -241,6 +914,87 @@ suspend fun MediaProvider.createPlaylistOrAddTracks(
         trackIds = tracks.map { it.id }.distinct(),
     )
 
+suspend fun MediaProvider.addTracksToPlaylistAndRefresh(
+    playlistId: String?,
+    playlistName: String?,
+    newPlaylistName: String?,
+    tracks: List<Track>,
+    providerResponseService: ProviderResponseService? = null,
+    playlistLimit: Int = 500,
+): AddToPlaylistRefresh {
+    val result = createPlaylistOrAddTracks(
+        playlistId = playlistId,
+        newPlaylistName = newPlaylistName,
+        tracks = tracks.distinctBy { it.id },
+    )
+    val update = addToPlaylistMutationUpdate(result, playlistName)
+    val playlists = if (update.refreshPlaylists) {
+        if (playlistId != null) {
+            providerResponseService?.invalidatePlaylistResponses(this, playlistId)
+        } else {
+            providerResponseService?.invalidatePlaylists(this)
+        }
+        providerResponseService?.playlists(this, limit = playlistLimit)
+            ?: playlists(limit = playlistLimit)
+    } else {
+        null
+    }
+    return AddToPlaylistRefresh(update = update, playlists = playlists)
+}
+
+suspend fun MediaProvider.addTracksToPlaylistStateUpdate(
+    playlistId: String?,
+    playlistName: String?,
+    newPlaylistName: String?,
+    tracks: List<Track>,
+    providerResponseService: ProviderResponseService? = null,
+    playlistLimit: Int = 500,
+): AddToPlaylistStateUpdate {
+    val uniqueTracks = tracks.distinctBy { it.id }
+    if (uniqueTracks.isEmpty()) {
+        return AddToPlaylistStateUpdate(
+            playlists = null,
+            closeDialog = false,
+            addToPlaylistStatus = "No tracks found.",
+            connectionStatus = null,
+        )
+    }
+    val refresh = addTracksToPlaylistAndRefresh(
+        playlistId = playlistId,
+        playlistName = playlistName,
+        newPlaylistName = newPlaylistName,
+        tracks = uniqueTracks,
+        providerResponseService = providerResponseService,
+        playlistLimit = playlistLimit,
+    )
+    return addToPlaylistStateUpdate(refresh)
+}
+
+suspend fun MediaProvider.addTracksToPlaylistApplication(
+    playlistId: String?,
+    playlistName: String?,
+    newPlaylistName: String?,
+    tracks: List<Track>,
+    currentHomeContent: HomeContent,
+    recentPlaylistIds: List<String>,
+    projection: PlaylistHomeProjection,
+    providerResponseService: ProviderResponseService? = null,
+    playlistLimit: Int = 500,
+): AddToPlaylistApplication =
+    addToPlaylistApplication(
+        update = addTracksToPlaylistStateUpdate(
+            playlistId = playlistId,
+            playlistName = playlistName,
+            newPlaylistName = newPlaylistName,
+            tracks = tracks,
+            providerResponseService = providerResponseService,
+            playlistLimit = playlistLimit,
+        ),
+        currentHomeContent = currentHomeContent,
+        recentPlaylistIds = recentPlaylistIds,
+        projection = projection,
+    )
+
 suspend fun MediaProvider.createQueuePlaylist(
     name: String,
     tracks: List<Track>,
@@ -265,30 +1019,115 @@ suspend fun MediaProvider.saveQueueAsPlaylistAndRefresh(
     return QueuePlaylistSaveRefresh(result = result, playlists = playlists)
 }
 
+suspend fun MediaProvider.saveQueueAsPlaylistStateUpdate(
+    name: String,
+    tracks: List<Track>,
+    providerResponseService: ProviderResponseService? = null,
+    playlistLimit: Int = 500,
+): QueuePlaylistSaveStateUpdate =
+    queuePlaylistSaveStateUpdate(
+        saveQueueAsPlaylistAndRefresh(
+            name = name,
+            tracks = tracks,
+            providerResponseService = providerResponseService,
+            playlistLimit = playlistLimit,
+        ),
+    )
+
+fun queuePlaylistSaveApplication(
+    update: QueuePlaylistSaveStateUpdate,
+    currentHomeContent: HomeContent,
+    recentPlaylistIds: List<String>,
+    projection: PlaylistHomeProjection,
+): QueuePlaylistSaveApplication =
+    QueuePlaylistSaveApplication(
+        playlistListApplication = playlistListApplication(
+            playlists = update.playlists,
+            currentHomeContent = currentHomeContent,
+            recentPlaylistIds = recentPlaylistIds,
+            projection = projection,
+        ),
+        status = update.status,
+    )
+
+suspend fun MediaProvider.saveQueueAsPlaylistApplication(
+    name: String,
+    tracks: List<Track>,
+    currentHomeContent: HomeContent,
+    recentPlaylistIds: List<String>,
+    projection: PlaylistHomeProjection,
+    providerResponseService: ProviderResponseService? = null,
+    playlistLimit: Int = 500,
+): QueuePlaylistSaveApplication =
+    queuePlaylistSaveApplication(
+        update = saveQueueAsPlaylistStateUpdate(
+            name = name,
+            tracks = tracks,
+            providerResponseService = providerResponseService,
+            playlistLimit = playlistLimit,
+        ),
+        currentHomeContent = currentHomeContent,
+        recentPlaylistIds = recentPlaylistIds,
+        projection = projection,
+    )
+
+fun queuePlaylistSaveLoadingStatus(): String =
+    "Saving queue as playlist..."
+
+fun queuePlaylistSaveErrorMessage(error: Throwable): String =
+    error.message ?: "Could not save queue as playlist."
+
+fun queuePlaylistSaveStateUpdate(refresh: QueuePlaylistSaveRefresh): QueuePlaylistSaveStateUpdate =
+    QueuePlaylistSaveStateUpdate(
+        playlists = refresh.playlists,
+        status = "Saved ${refresh.result.playlist.name} with ${refresh.result.trackCount} tracks.",
+    )
+
+suspend fun MediaProvider.renamePlaylistAndRefresh(
+    playlist: Playlist,
+    name: String,
+    providerResponseService: ProviderResponseService? = null,
+    playlistLimit: Int = 500,
+): PlaylistRenameRefresh {
+    val requestedName = normalizedPlaylistName(name)
+    renamePlaylist(playlist.id, requestedName)
+    providerResponseService?.invalidatePlaylistResponses(this, playlist.id)
+    val playlists = providerResponseService?.playlists(this, limit = playlistLimit)
+        ?: playlists(limit = playlistLimit)
+    return PlaylistRenameRefresh(requestedName = requestedName, playlists = playlists)
+}
+
+suspend fun MediaProvider.deletePlaylistAndRefresh(
+    playlist: Playlist,
+    providerResponseService: ProviderResponseService? = null,
+    playlistLimit: Int = 500,
+): PlaylistDeleteRefresh {
+    deletePlaylist(playlist.id)
+    providerResponseService?.invalidatePlaylistResponses(this, playlist.id)
+    val playlists = providerResponseService?.playlists(this, limit = playlistLimit)
+        ?: playlists(limit = playlistLimit)
+    return PlaylistDeleteRefresh(playlists = playlists)
+}
+
 fun queueAppendPlan(
     tracks: List<Track>,
     label: String = "tracks",
     existingTracks: List<Track> = emptyList(),
     deduplicateExisting: Boolean = false,
 ): QueueAppendPlan {
-    val tracksToAdd = if (deduplicateExisting) {
-        val existingIds = existingTracks.map { it.id }.toSet()
-        tracks.filterNot { it.id in existingIds }
-    } else {
-        tracks
-    }
+    val tracksToAdd = appendableTracks(
+        tracksToAdd = tracks,
+        existingTracks = existingTracks,
+        deduplicateExisting = deduplicateExisting,
+    )
     return QueueAppendPlan(
         tracks = tracksToAdd,
-        status = if (tracksToAdd.isEmpty()) {
-            if (deduplicateExisting && tracks.isNotEmpty()) {
-                "${label.replaceFirstChar { it.uppercase() }} are already in the queue."
-            } else {
-                "No tracks found."
-            }
-        } else {
-            val displayLabel = if (tracksToAdd.size == 1 && label == "tracks") "track" else label
-            "Added ${tracksToAdd.size} $displayLabel to queue."
-        },
+        status = queueAppendStatus(
+            originalTracks = tracks,
+            tracksToAdd = tracksToAdd,
+            label = label,
+            deduplicateExisting = deduplicateExisting,
+        ),
     )
 }
 
@@ -320,6 +1159,43 @@ fun addToPlaylistMutationUpdate(
             refreshPlaylists = true,
         )
     }
+
+fun addToPlaylistStateUpdate(refresh: AddToPlaylistRefresh): AddToPlaylistStateUpdate =
+    AddToPlaylistStateUpdate(
+        playlists = refresh.playlists,
+        closeDialog = refresh.update.closeDialog,
+        addToPlaylistStatus = refresh.update.addToPlaylistStatus,
+        connectionStatus = refresh.update.connectionStatus,
+    )
+
+fun addToPlaylistApplication(
+    update: AddToPlaylistStateUpdate,
+    currentHomeContent: HomeContent,
+    recentPlaylistIds: List<String>,
+    projection: PlaylistHomeProjection,
+): AddToPlaylistApplication =
+    AddToPlaylistApplication(
+        closeDialog = update.closeDialog,
+        addToPlaylistStatus = update.addToPlaylistStatus,
+        connectionStatus = update.connectionStatus,
+        playlistListApplication = update.playlists?.let { playlists ->
+            playlistListApplication(
+                playlists = playlists,
+                currentHomeContent = currentHomeContent,
+                recentPlaylistIds = recentPlaylistIds,
+                projection = projection,
+            )
+        },
+    )
+
+fun addToPlaylistLoadingStatus(label: String): String =
+    "Adding $label to playlist..."
+
+fun addToPlaylistResolvingTracksStatus(): String =
+    "Loading tracks..."
+
+fun addToPlaylistErrorMessage(error: Throwable, label: String): String =
+    error.message ?: "Could not add $label to playlist."
 
 fun normalizedPlaylistName(name: String): String =
     name.trim()
@@ -353,6 +1229,46 @@ fun renamedSelectedPlaylist(
         ?: current.copy(name = requestedName)
 }
 
+fun playlistRenameStateUpdate(
+    currentSelectedPlaylist: Playlist?,
+    refresh: PlaylistRenameRefresh,
+    playlistId: String,
+): PlaylistRenameStateUpdate {
+    val selectedPlaylistChanged = currentSelectedPlaylist?.id == playlistId
+    val selectedPlaylist = renamedSelectedPlaylist(
+        current = currentSelectedPlaylist,
+        playlistId = playlistId,
+        requestedName = refresh.requestedName,
+        refreshedPlaylists = refresh.playlists,
+    )
+    return PlaylistRenameStateUpdate(
+        playlists = refresh.playlists,
+        selectionApplication = if (selectedPlaylistChanged) {
+            PlaylistRenameSelectionApplication(selectedPlaylist)
+        } else {
+            null
+        },
+        status = playlistRenamedStatus(),
+    )
+}
+
+fun playlistRenameApplication(
+    update: PlaylistRenameStateUpdate,
+    currentHomeContent: HomeContent,
+    recentPlaylistIds: List<String>,
+    projection: PlaylistHomeProjection,
+): PlaylistRenameApplication =
+    PlaylistRenameApplication(
+        playlistListApplication = playlistListApplication(
+            playlists = update.playlists,
+            currentHomeContent = currentHomeContent,
+            recentPlaylistIds = recentPlaylistIds,
+            projection = projection,
+        ),
+        selectionApplication = update.selectionApplication,
+        status = update.status,
+    )
+
 fun selectedPlaylistAfterDelete(
     current: Playlist?,
     deletedPlaylistId: String,
@@ -382,12 +1298,63 @@ fun playlistDeleteStateUpdate(
     )
 }
 
+fun playlistDeleteApplicationUpdate(
+    refresh: PlaylistDeleteRefresh,
+    currentSelectedPlaylist: Playlist?,
+    currentSelectedPlaylistTracks: List<Track>,
+    currentPlaylistTracksById: Map<String, List<Track>>,
+    currentRecentPlaylistIds: List<String>,
+    deletedPlaylistId: String,
+): PlaylistDeleteApplicationUpdate {
+    val stateUpdate = playlistDeleteStateUpdate(
+        currentSelectedPlaylist = currentSelectedPlaylist,
+        currentSelectedPlaylistTracks = currentSelectedPlaylistTracks,
+        currentPlaylistTracksById = currentPlaylistTracksById,
+        currentRecentPlaylistIds = currentRecentPlaylistIds,
+        deletedPlaylistId = deletedPlaylistId,
+    )
+    return PlaylistDeleteApplicationUpdate(
+        playlists = refresh.playlists,
+        playlistTracksById = stateUpdate.playlistTracksById,
+        recentPlaylistIds = stateUpdate.recentPlaylistIds,
+        selectionApplication = if (stateUpdate.deletedSelectedPlaylist) {
+            PlaylistDeleteSelectionApplication(
+                selectedPlaylist = stateUpdate.selectedPlaylist,
+                selectedPlaylistTracks = stateUpdate.selectedPlaylistTracks,
+            )
+        } else {
+            null
+        },
+        status = playlistDeletedStatus(),
+    )
+}
+
+fun playlistDeleteApplication(
+    update: PlaylistDeleteApplicationUpdate,
+    currentHomeContent: HomeContent,
+    projection: PlaylistHomeProjection,
+): PlaylistDeleteApplication =
+    PlaylistDeleteApplication(
+        playlistListApplication = playlistListApplication(
+            playlists = update.playlists,
+            currentHomeContent = currentHomeContent,
+            recentPlaylistIds = update.recentPlaylistIds,
+            projection = projection,
+        ),
+        playlistTracksById = update.playlistTracksById,
+        recentPlaylistIds = update.recentPlaylistIds,
+        selectionApplication = update.selectionApplication,
+        status = update.status,
+    )
+
 suspend fun saveSmartPlaylistAndRefresh(
     provider: MediaProvider,
     definition: SmartPlaylistDefinition,
+    providerResponseService: ProviderResponseService? = null,
     playlistLimit: Int = 500,
 ): PlaylistDetailsRefresh {
     val playlist = provider.createSmartPlaylist(definition)
+    providerResponseService?.invalidatePlaylistResponses(provider, playlist.id)
     val refreshedPlaylists = provider.playlists(limit = playlistLimit)
     val refreshedPlaylist = refreshedPlaylists.firstOrNull { it.id == playlist.id }
         ?: refreshedPlaylists.firstOrNull { it.name == playlist.name }
@@ -406,9 +1373,11 @@ suspend fun updateSmartPlaylistAndRefresh(
     provider: MediaProvider,
     playlist: Playlist,
     definition: SmartPlaylistDefinition,
+    providerResponseService: ProviderResponseService? = null,
     playlistLimit: Int = 500,
 ): PlaylistDetailsRefresh {
     provider.updateSmartPlaylist(playlist.id, definition)
+    providerResponseService?.invalidatePlaylistResponses(provider, playlist.id)
     val refreshedPlaylists = provider.playlists(limit = playlistLimit)
     val refreshedPlaylist = refreshedPlaylists.firstOrNull { it.id == playlist.id }
         ?: playlist.copy(name = definition.name)
@@ -421,6 +1390,86 @@ suspend fun updateSmartPlaylistAndRefresh(
         tracks = refreshedTracks,
     )
 }
+
+fun smartPlaylistSaveStateUpdate(
+    refresh: PlaylistDetailsRefresh,
+    currentPlaylistTracksById: Map<String, List<Track>>,
+): SmartPlaylistMutationStateUpdate =
+    SmartPlaylistMutationStateUpdate(
+        playlists = refresh.playlists,
+        displayPlaylist = refresh.displayPlaylist,
+        tracks = refresh.tracks,
+        playlistTracksById = currentPlaylistTracksById + (refresh.displayPlaylist.id to refresh.tracks),
+        selectionApplication = null,
+        status = smartPlaylistSavedStatus(refresh.displayPlaylist, refresh.tracks.size),
+    )
+
+suspend fun saveSmartPlaylistStateUpdate(
+    provider: MediaProvider,
+    definition: SmartPlaylistDefinition,
+    currentPlaylistTracksById: Map<String, List<Track>>,
+    providerResponseService: ProviderResponseService? = null,
+    playlistLimit: Int = 500,
+): SmartPlaylistMutationStateUpdate =
+    smartPlaylistSaveStateUpdate(
+        refresh = saveSmartPlaylistAndRefresh(
+            provider = provider,
+            definition = definition,
+            providerResponseService = providerResponseService,
+            playlistLimit = playlistLimit,
+        ),
+        currentPlaylistTracksById = currentPlaylistTracksById,
+    )
+
+fun smartPlaylistUpdateStateUpdate(
+    refresh: PlaylistDetailsRefresh,
+    currentSelectedPlaylist: Playlist?,
+    currentPlaylistTracksById: Map<String, List<Track>>,
+): SmartPlaylistMutationStateUpdate {
+    val selectedPlaylistChanged = currentSelectedPlaylist?.id == refresh.displayPlaylist.id
+    return SmartPlaylistMutationStateUpdate(
+        playlists = refresh.playlists,
+        displayPlaylist = refresh.displayPlaylist,
+        tracks = refresh.tracks,
+        playlistTracksById = currentPlaylistTracksById + (refresh.displayPlaylist.id to refresh.tracks),
+        selectionApplication = if (selectedPlaylistChanged) {
+            PlaylistDetailsSelectionApplication(
+                playlist = refresh.displayPlaylist,
+                tracks = refresh.tracks,
+                status = null,
+            )
+        } else {
+            null
+        },
+        status = smartPlaylistUpdatedStatus(refresh.displayPlaylist, refresh.tracks.size),
+    )
+}
+
+suspend fun updateSmartPlaylistStateUpdate(
+    provider: MediaProvider,
+    playlist: Playlist,
+    definition: SmartPlaylistDefinition,
+    currentSelectedPlaylist: Playlist?,
+    currentPlaylistTracksById: Map<String, List<Track>>,
+    providerResponseService: ProviderResponseService? = null,
+    playlistLimit: Int = 500,
+): SmartPlaylistMutationStateUpdate =
+    smartPlaylistUpdateStateUpdate(
+        refresh = updateSmartPlaylistAndRefresh(
+            provider = provider,
+            playlist = playlist,
+            definition = definition,
+            providerResponseService = providerResponseService,
+            playlistLimit = playlistLimit,
+        ),
+        currentSelectedPlaylist = currentSelectedPlaylist,
+        currentPlaylistTracksById = currentPlaylistTracksById,
+    )
+
+suspend fun MediaProvider.loadSmartPlaylistDefinition(
+    playlist: Playlist,
+): SmartPlaylistDefinition =
+    smartPlaylistDefinition(playlist.id)
 
 fun smartPlaylistSaveErrorMessage(error: Throwable): String =
     if (error.message == "Reconnect to Navidrome with your password before saving smart playlists.") {
