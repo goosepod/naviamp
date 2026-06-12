@@ -3,12 +3,11 @@ package app.naviamp.android
 import app.naviamp.android.playback.AndroidPlaybackNotificationControls
 import app.naviamp.domain.Track
 import app.naviamp.domain.cache.PlaybackSessionRepository
-import app.naviamp.domain.playback.PlaybackProgress
-import app.naviamp.domain.playback.PlaybackStreamMetadata
-import app.naviamp.domain.queue.PlaybackQueue
-import app.naviamp.domain.settings.PlaybackSessionSettings
-import app.naviamp.domain.settings.playbackSessionFromCurrentTrack
-import app.naviamp.domain.settings.restoredTrackSession
+import app.naviamp.domain.settings.PlaybackSessionRestorePlan
+import app.naviamp.domain.settings.PlaybackSessionSavePlan
+import app.naviamp.domain.settings.planPlaybackSessionRestore
+import app.naviamp.domain.settings.planPlaybackSessionSave
+import app.naviamp.domain.settings.shouldThrottlePlaybackSessionSave
 
 fun saveAndroidPlaybackSession(
     state: AndroidAppState,
@@ -16,36 +15,27 @@ fun saveAndroidPlaybackSession(
 ) {
     with(state) {
         val sourceId = activeSourceId ?: return
-        val station = nowPlayingStation
-        if (station != null) {
-            playbackSessionRepository.savePlaybackSession(
-                session = PlaybackSessionSettings.fromInternetRadioStation(station),
-                sourceId = sourceId,
+        val plan = planPlaybackSessionSave(
+            activeSourceId = sourceId,
+            station = nowPlayingStation,
+            currentTrack = nowPlaying,
+            playbackQueue = playbackQueue,
+            progressPositionSeconds = playbackProgress.positionSeconds,
+            notificationPositionSeconds = AndroidPlaybackNotificationControls.positionMillis?.let { it / 1_000.0 },
+            existingSession = playbackSessionRepository.loadPlaybackSession(sourceId),
+        )
+        if (plan !is PlaybackSessionSavePlan.Save) return
+        playbackSessionRepository.savePlaybackSession(session = plan.session, sourceId = sourceId)
+        when (plan.kind) {
+            PlaybackSessionSavePlan.Kind.InternetRadio -> android.util.Log.i(
+                "NaviampSession",
+                "Saved station source=$sourceId name=${nowPlayingStation?.name.orEmpty()}",
             )
-            android.util.Log.i("NaviampSession", "Saved station source=$sourceId name=${station.name}")
-            return
+            PlaybackSessionSavePlan.Kind.Track -> android.util.Log.i(
+                "NaviampSession",
+                "Saved track source=$sourceId title=${nowPlaying?.title.orEmpty()} queue=${playbackQueue.tracks.size} index=${playbackQueue.currentIndex} position=${plan.session.positionSeconds}",
+            )
         }
-
-        val currentTrack = nowPlaying ?: return
-        val existingPositionSeconds = activeSourceId
-            ?.let { source -> playbackSessionRepository.loadPlaybackSession(source) }
-            ?.takeIf { session -> session.currentTrack()?.id == currentTrack.id }
-            ?.positionSeconds
-        val positionSeconds = playbackProgress.positionSeconds
-            ?: AndroidPlaybackNotificationControls.positionMillis?.let { it / 1_000.0 }
-            ?: existingPositionSeconds
-        playbackSessionRepository.savePlaybackSession(
-            session = playbackSessionFromCurrentTrack(
-                currentTrack = currentTrack,
-                queue = playbackQueue,
-                positionSeconds = positionSeconds,
-            ),
-            sourceId = sourceId,
-        )
-        android.util.Log.i(
-            "NaviampSession",
-            "Saved track source=$sourceId title=${currentTrack.title} queue=${playbackQueue.tracks.size} index=${playbackQueue.currentIndex} position=$positionSeconds",
-        )
     }
 }
 
@@ -55,9 +45,19 @@ fun saveAndroidPlaybackSessionThrottled(
     force: Boolean = false,
 ) {
     with(state) {
-        if (activeSourceId == null || (nowPlaying == null && nowPlayingStation == null)) return
         val now = System.currentTimeMillis()
-        if (!force && now - lastPlaybackSessionSaveAtMillis < AndroidPlaybackSessionSaveIntervalMillis) return
+        if (
+            shouldThrottlePlaybackSessionSave(
+                activeSourceId = activeSourceId,
+                hasPlaybackTarget = nowPlaying != null || nowPlayingStation != null,
+                force = force,
+                nowMillis = now,
+                lastSavedAtMillis = lastPlaybackSessionSaveAtMillis,
+                saveIntervalMillis = AndroidPlaybackSessionSaveIntervalMillis,
+            )
+        ) {
+            return
+        }
         lastPlaybackSessionSaveAtMillis = now
         saveAndroidPlaybackSession(state, playbackSessionRepository)
     }
@@ -71,44 +71,48 @@ fun restoreAndroidPlaybackSession(
 ): Boolean {
     with(state) {
         val session = playbackSessionRepository.loadPlaybackSession(sourceId)
-        if (session == null) {
-            android.util.Log.i("NaviampSession", "No playback session for source=$sourceId")
-            return false
+        val plan = planPlaybackSessionRestore(session)
+        when (plan) {
+            PlaybackSessionRestorePlan.None -> {
+                if (session == null) {
+                    android.util.Log.i("NaviampSession", "No playback session for source=$sourceId")
+                } else {
+                    android.util.Log.i(
+                        "NaviampSession",
+                        "Playback session had no current track source=$sourceId tracks=${session.tracks.size} index=${session.currentIndex}",
+                    )
+                }
+                return false
+            }
+            is PlaybackSessionRestorePlan.InternetRadio -> {
+                nowPlaying = null
+                nowPlayingStation = plan.station
+                nowPlayingStreamMetadata = plan.streamMetadata
+                playbackQueue = plan.playbackQueue
+                playbackProgress = plan.playbackProgress
+                restoredStartPositionSeconds = null
+                nowPlayingOpen = true
+                android.util.Log.i("NaviampSession", "Restored station source=$sourceId name=${plan.station.name}")
+                status = plan.status
+                return true
+            }
+            is PlaybackSessionRestorePlan.TrackSession -> {
+                playbackQueue = plan.playbackQueue
+                tracks = plan.tracks
+                nowPlaying = plan.currentTrack
+                nowPlayingStation = null
+                nowPlayingStreamMetadata = plan.streamMetadata
+                nowPlayingOpen = true
+                playbackProgress = plan.playbackProgress
+                restoredStartPositionSeconds = plan.restoredStartPositionSeconds
+                loadRelatedTracks(plan.currentTrack)
+                android.util.Log.i(
+                    "NaviampSession",
+                    "Restored track source=$sourceId title=${plan.currentTrack.title} queue=${plan.tracks.size} position=${plan.restoredStartPositionSeconds}",
+                )
+                status = plan.status
+                return true
+            }
         }
-        session.internetRadioStation?.toStation()?.let { station ->
-            nowPlaying = null
-            nowPlayingStation = station
-            nowPlayingStreamMetadata = PlaybackStreamMetadata()
-            playbackQueue = PlaybackQueue()
-            playbackProgress = PlaybackProgress.Unknown
-            restoredStartPositionSeconds = null
-            nowPlayingOpen = true
-            android.util.Log.i("NaviampSession", "Restored station source=$sourceId name=${station.name}")
-            status = "Restored ${station.name}. Press play to resume."
-            return true
-        }
-
-        val restoredSession = session.restoredTrackSession() ?: run {
-            android.util.Log.i(
-                "NaviampSession",
-                "Playback session had no current track source=$sourceId tracks=${session.tracks.size} index=${session.currentIndex}",
-            )
-            return false
-        }
-        playbackQueue = restoredSession.playbackQueue
-        tracks = restoredSession.tracks
-        nowPlaying = restoredSession.currentTrack
-        nowPlayingStation = null
-        nowPlayingStreamMetadata = PlaybackStreamMetadata()
-        nowPlayingOpen = true
-        playbackProgress = restoredSession.playbackProgress
-        restoredStartPositionSeconds = session.positionSeconds
-        loadRelatedTracks(restoredSession.currentTrack)
-        android.util.Log.i(
-            "NaviampSession",
-            "Restored track source=$sourceId title=${restoredSession.currentTrack.title} queue=${restoredSession.tracks.size} position=${session.positionSeconds}",
-        )
-        status = "Restored ${restoredSession.currentTrack.title}. Press play to resume."
-        return true
     }
 }

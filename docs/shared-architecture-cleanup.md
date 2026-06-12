@@ -589,8 +589,16 @@ Phase 4 close-out:
 - [x] Define a shared playback command surface for play, pause, resume, seek, previous, next, shuffle, repeat, and volume.
 - [x] Keep BASS interaction behind the existing playback engine boundary.
 - [x] Move sleep timer expiry and playback command decisions into shared domain/application code.
-- [ ] Reduce platform playback controllers to lifecycle/audio-session/notification adapters.
+- [x] Reduce platform playback controllers to lifecycle/audio-session/notification adapters.
 - [x] Add tests for sleep timer, repeat/shuffle, seek gating, and previous/next decisions.
+
+Phase 5 close-out:
+
+- Shared playback orchestration now covers command decisions, seek gating, previous/next/repeat/shuffle queue decisions, sleep timer decisions, track-start effect planning, playback progress decisions, prepared-next work, and saved-session save/restore planning.
+- Android playback session restore/save logic now uses shared `PlaybackSessionRestorePlan` and `PlaybackSessionSavePlan`; Android app/service controllers apply the plans to platform state, notification controls, media session metadata, repository I/O, and logging.
+- Desktop playback remains adapter-shaped around shared decisions: it delegates command/seek/queue/report decisions to domain helpers while keeping desktop engine, playlist engine, persistence, and UI state writes local.
+- Platform-only responsibilities that intentionally remain: BASS engine calls, Android foreground service/media session/notification updates, Android Auto browse/play command routing, desktop playlist-engine execution, coroutine/lifecycle ownership, and repository reads/writes.
+- Shared coverage includes playback command, seek, progress, queue manager, sleep timer, target/effect planning, prepared-next, playback report, and playback session mapping/planning tests.
 
 ## Phase 6: Shared App Orchestration
 

@@ -25,7 +25,8 @@ import app.naviamp.domain.queue.PlaybackQueue
 import app.naviamp.domain.queue.RepeatMode
 import app.naviamp.domain.settings.PlaybackSessionSettings
 import app.naviamp.domain.settings.adjacentTrackSession
-import app.naviamp.domain.settings.restoredTrackSession
+import app.naviamp.domain.settings.PlaybackSessionRestorePlan
+import app.naviamp.domain.settings.planPlaybackSessionRestore
 import app.naviamp.domain.settings.withPlaybackPosition
 import app.naviamp.provider.navidrome.NavidromeProvider
 import app.naviamp.provider.navidrome.toNavidromeConnection
@@ -144,20 +145,21 @@ internal class AndroidServicePlaybackRuntimeController(
         val storage = storage()
         val source = storage.latestNavidromeSource() ?: return
         val session = existingSession ?: storage.loadPlaybackSession(source.id) ?: return
-        session.internetRadioStation?.let { station ->
-            playInternetRadioStation(storage, storage, source.id, station.toStation())
+        val restorePlan = planPlaybackSessionRestore(session)
+        if (restorePlan is PlaybackSessionRestorePlan.InternetRadio) {
+            playInternetRadioStation(storage, storage, source.id, restorePlan.station)
             return
         }
-        val restoredSession = session.restoredTrackSession() ?: return
-        val track = restoredSession.currentTrack
-        syncQueue(PlaybackQueue(restoredSession.tracks, restoredSession.currentIndex))
+        if (restorePlan !is PlaybackSessionRestorePlan.TrackSession) return
+        val track = restorePlan.currentTrack
+        syncQueue(restorePlan.playbackQueue)
         val connection = source.toNavidromeConnection()
         val provider = NavidromeProvider(connection)
         val runtime = AndroidPlaybackRuntime.get(context)
         val playbackSettings = AndroidSettingsStore(context).loadPlaybackSettings()
         val audioAssets = AndroidPlaybackAudioAssets(storage, storage)
         val quality = StreamQuality.Original
-        val startPositionSeconds = session.positionSeconds?.takeIf { it > 0.0 }
+        val startPositionSeconds = restorePlan.restoredStartPositionSeconds?.takeIf { it > 0.0 }
 
         runtime.playbackEngine.applyTlsSettings(connection.tlsSettings)
         AndroidPlaybackNotificationControls.canFavorite = provider.capabilities.supportsTrackFavorites
