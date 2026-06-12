@@ -25,15 +25,13 @@ import app.naviamp.ui.NaviampPlayerColors
 import app.naviamp.ui.NaviampSleepTimerUi
 import app.naviamp.ui.NaviampVisualizer
 import app.naviamp.ui.MiniNowPlayingUiConfig
-import app.naviamp.ui.NowPlayingRadioUiConfig
 import app.naviamp.ui.NowPlayingTrackUiConfig
 import app.naviamp.ui.NowPlayingUi
-import app.naviamp.ui.radioArtworkUrl
-import app.naviamp.ui.radioTrackArtworkKey
 import app.naviamp.ui.toNowPlayingItemUi
 import app.naviamp.ui.toNowPlayingStationUi
 import app.naviamp.ui.toNowPlayingUi
 import app.naviamp.ui.toMiniNowPlayingUi
+import app.naviamp.ui.toRadioNowPlayingUi
 
 @Composable
 fun DesktopNowPlayingPanel(
@@ -214,23 +212,14 @@ fun DesktopNowPlayingPanel(
         )
     } else {
         internetRadioStations.firstOrNull { it.id == currentInternetRadioStationId }?.let { station ->
-            station.toNowPlayingUi(
-            NowPlayingRadioUiConfig(
-                streamTitle = nowPlayingStreamMetadata.title,
-                coverArtUrl = radioArtworkUrl(
-                    station = station,
-                    streamMetadataProperties = nowPlayingStreamMetadata.properties,
-                    trackArtworkUrl = radioTrackArtworkKey(station, nowPlayingStreamMetadata.title)
-                        ?.let { radioTrackArtworkByKey[it] },
-                ),
-                stateLabel = playbackState.label(),
+            station.toRadioNowPlayingUi(
+                streamMetadata = nowPlayingStreamMetadata,
+                playbackState = playbackState,
                 volumePercent = volumePercent,
-                isPlaying = playbackState == PlaybackState.Playing,
-                isPaused = playbackState == PlaybackState.Paused,
+                radioStations = internetRadioStations,
+                radioTrackArtworkByKey = radioTrackArtworkByKey,
                 canPlayPause = canTogglePlayback,
                 canChangeVolume = supportsSoftwareVolume,
-                radioStations = radioStations,
-            ),
             )
         } ?: NowPlayingUi(
             title = "Queue will appear here after connection",

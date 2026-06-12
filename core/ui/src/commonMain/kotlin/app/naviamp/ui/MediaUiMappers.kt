@@ -13,8 +13,10 @@ import app.naviamp.domain.Track
 import app.naviamp.domain.isInternetRadioTrack
 import app.naviamp.domain.home.HomeContent
 import app.naviamp.domain.home.homeStations
+import app.naviamp.domain.playback.PlaybackState
 import app.naviamp.domain.playback.PlaybackStreamMetadata
 import app.naviamp.domain.playback.PlaybackVisualizerFrame
+import app.naviamp.domain.playback.label
 import app.naviamp.domain.playback.SleepTimerState
 import app.naviamp.domain.playback.sleepTimerDisplayLabel
 import app.naviamp.domain.provider.MediaSearchResults
@@ -422,6 +424,34 @@ fun InternetRadioStation.toNowPlayingUi(config: NowPlayingRadioUiConfig): NowPla
         canAddToPlaylist = false,
         menuEnabled = false,
         radioStations = config.radioStations,
+    )
+}
+
+fun InternetRadioStation.toRadioNowPlayingUi(
+    streamMetadata: PlaybackStreamMetadata,
+    playbackState: PlaybackState,
+    volumePercent: Int,
+    radioStations: List<InternetRadioStation>,
+    radioTrackArtworkByKey: Map<String, String?>,
+    canPlayPause: Boolean = true,
+    canChangeVolume: Boolean = false,
+): NowPlayingUi {
+    val trackArtworkUrl = radioTrackArtworkKey(this, streamMetadata.title)
+        ?.let(radioTrackArtworkByKey::get)
+    return toNowPlayingUi(
+        NowPlayingRadioUiConfig(
+            streamTitle = streamMetadata.title,
+            coverArtUrl = radioArtworkUrl(this, streamMetadata.properties, trackArtworkUrl),
+            stateLabel = playbackState.label(),
+            volumePercent = volumePercent,
+            isPlaying = playbackState == PlaybackState.Playing,
+            isPaused = playbackState == PlaybackState.Paused,
+            canPlayPause = canPlayPause,
+            canChangeVolume = canChangeVolume,
+            radioStations = radioStations
+                .sortedBy { station -> station.name.lowercase() }
+                .map { station -> station.toNowPlayingStationUi() },
+        ),
     )
 }
 

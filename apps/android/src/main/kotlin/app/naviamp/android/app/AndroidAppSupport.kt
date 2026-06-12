@@ -49,13 +49,9 @@ import app.naviamp.ui.NaviampNowPlayingItemUi
 import app.naviamp.ui.NaviampPlaylistChoiceUi
 import app.naviamp.ui.NaviampSharedAppShell
 import app.naviamp.ui.NaviampSleepTimerUi
-import app.naviamp.ui.NaviampVisualizer
-import app.naviamp.ui.NowPlayingRadioUiConfig
 import app.naviamp.ui.NowPlayingTrackUiConfig
 import app.naviamp.ui.NowPlayingUi
 import app.naviamp.ui.effectiveNowPlayingCoverArtUrl
-import app.naviamp.ui.radioArtworkUrl
-import app.naviamp.ui.radioTrackArtworkKey
 import app.naviamp.ui.SharedAlbumDetailUi
 import app.naviamp.ui.SharedArtistDetailUi
 import app.naviamp.ui.SharedHomeStationUi
@@ -68,9 +64,9 @@ import app.naviamp.ui.SharedSearchResultsUi
 import app.naviamp.ui.SharedSimilarArtistUi
 import app.naviamp.ui.toDownloadedTrackUi
 import app.naviamp.ui.toNowPlayingItemUi
-import app.naviamp.ui.toNowPlayingStationUi
 import app.naviamp.ui.toNowPlayingUi
 import app.naviamp.ui.toPlaylistChoiceUi
+import app.naviamp.ui.toRadioNowPlayingUi
 import app.naviamp.ui.toSharedAlbumDetailUi
 import app.naviamp.ui.toSharedArtistDetailUi
 import app.naviamp.ui.toSharedHomeUi
@@ -370,19 +366,13 @@ fun androidNowPlayingUi(
             ),
         )
     } ?: nowPlayingStation?.let { station ->
-        val trackArtworkUrl = radioTrackArtworkKey(station, nowPlayingStreamMetadata.title)
-            ?.let { radioTrackArtworkByKey[it] }
-        station.toNowPlayingUi(
-            NowPlayingRadioUiConfig(
-                streamTitle = nowPlayingStreamMetadata.title,
-                coverArtUrl = radioArtworkUrl(station, nowPlayingStreamMetadata.properties, trackArtworkUrl),
-                stateLabel = playbackState.label(),
-                volumePercent = volumePercent,
-                isPlaying = playbackState == PlaybackState.Playing,
-                isPaused = playbackState == PlaybackState.Paused,
-                canChangeVolume = false,
-                radioStations = radioStations.map { it.toNowPlayingStationUi() },
-            ),
+        station.toRadioNowPlayingUi(
+            streamMetadata = nowPlayingStreamMetadata,
+            playbackState = playbackState,
+            volumePercent = volumePercent,
+            radioStations = radioStations,
+            radioTrackArtworkByKey = radioTrackArtworkByKey,
+            canChangeVolume = false,
         )
     }
 
