@@ -22,6 +22,7 @@ import app.naviamp.domain.playback.SleepTimerState
 import app.naviamp.domain.playback.sleepTimerDisplayLabel
 import app.naviamp.domain.provider.MediaSearchResults
 import app.naviamp.domain.popular.SimilarArtistMatch
+import app.naviamp.domain.queue.PlaybackQueue
 import app.naviamp.domain.queue.RepeatMode
 import app.naviamp.domain.waveform.AudioWaveform
 import kotlin.math.absoluteValue
@@ -193,6 +194,110 @@ fun List<Track>.toNowPlayingItemUis(
             meta = meta(track),
         )
     }
+
+enum class NowPlayingSectionItemIds {
+    TrackIds,
+    QueueAndRelatedIndexes,
+}
+
+data class NowPlayingSectionsUi(
+    val backTo: List<NaviampNowPlayingItemUi>,
+    val upNext: List<NaviampNowPlayingItemUi>,
+    val related: List<NaviampNowPlayingItemUi>,
+    val relatedLabels: NowPlayingRelatedUiLabels,
+    val hasPrevious: Boolean,
+    val hasNext: Boolean,
+    val shuffleEnabled: Boolean,
+)
+
+fun nowPlayingSectionsUi(
+    tracks: List<Track>,
+    currentTrack: Track?,
+    relatedTracks: List<Track>,
+    coverArtUrl: (Track) -> String?,
+    sonicSimilarityEnabled: Boolean,
+    repeatMode: RepeatMode,
+    itemIds: NowPlayingSectionItemIds = NowPlayingSectionItemIds.TrackIds,
+): NowPlayingSectionsUi {
+    val currentIndex = currentTrack?.let { track -> tracks.indexOfFirst { it.id == track.id } } ?: -1
+    return nowPlayingSectionsUi(
+        tracks = tracks,
+        currentIndex = currentIndex,
+        relatedTracks = relatedTracks,
+        coverArtUrl = coverArtUrl,
+        sonicSimilarityEnabled = sonicSimilarityEnabled,
+        repeatMode = repeatMode,
+        itemIds = itemIds,
+    )
+}
+
+fun PlaybackQueue.toNowPlayingSectionsUi(
+    relatedTracks: List<Track>,
+    coverArtUrl: (Track) -> String?,
+    sonicSimilarityEnabled: Boolean,
+    repeatMode: RepeatMode,
+    itemIds: NowPlayingSectionItemIds = NowPlayingSectionItemIds.QueueAndRelatedIndexes,
+): NowPlayingSectionsUi =
+    nowPlayingSectionsUi(
+        tracks = tracks,
+        currentIndex = currentIndex,
+        relatedTracks = relatedTracks,
+        coverArtUrl = coverArtUrl,
+        sonicSimilarityEnabled = sonicSimilarityEnabled,
+        repeatMode = repeatMode,
+        itemIds = itemIds,
+    )
+
+private fun nowPlayingSectionsUi(
+    tracks: List<Track>,
+    currentIndex: Int,
+    relatedTracks: List<Track>,
+    coverArtUrl: (Track) -> String?,
+    sonicSimilarityEnabled: Boolean,
+    repeatMode: RepeatMode,
+    itemIds: NowPlayingSectionItemIds,
+): NowPlayingSectionsUi {
+    val hasCurrent = currentIndex in tracks.indices
+    val firstBackToQueueIndex = currentIndex - 1
+    val firstUpNextQueueIndex = currentIndex + 1
+    val backTo = if (hasCurrent) tracks.take(currentIndex).asReversed() else emptyList()
+    val upNext = if (hasCurrent) tracks.drop(currentIndex + 1) else emptyList()
+    val queueItemId: (Int, Int, Track) -> String = { index, queueIndex, track ->
+        when (itemIds) {
+            NowPlayingSectionItemIds.TrackIds -> track.id.value
+            NowPlayingSectionItemIds.QueueAndRelatedIndexes -> nowPlayingQueueItemId(queueIndex)
+        }
+    }
+    val relatedItemId: (Int, Track) -> String = { index, track ->
+        when (itemIds) {
+            NowPlayingSectionItemIds.TrackIds -> track.id.value
+            NowPlayingSectionItemIds.QueueAndRelatedIndexes -> nowPlayingRelatedItemId(index)
+        }
+    }
+
+    return NowPlayingSectionsUi(
+        backTo = backTo.toNowPlayingItemUis(
+            coverArtUrl = coverArtUrl,
+            id = { index, track -> queueItemId(index, firstBackToQueueIndex - index, track) },
+            meta = { "" },
+        ),
+        upNext = upNext.toNowPlayingItemUis(
+            coverArtUrl = coverArtUrl,
+            id = { index, track -> queueItemId(index, firstUpNextQueueIndex + index, track) },
+            meta = { "" },
+        ),
+        related = relatedTracks.toNowPlayingItemUis(
+            coverArtUrl = coverArtUrl,
+            id = relatedItemId,
+            meta = { "" },
+        ),
+        relatedLabels = nowPlayingRelatedUiLabels(sonicSimilarityEnabled),
+        hasPrevious = currentIndex > 0 || (repeatMode == RepeatMode.Queue && tracks.size > 1),
+        hasNext = (hasCurrent && currentIndex < tracks.lastIndex) ||
+            (repeatMode == RepeatMode.Queue && tracks.size > 1),
+        shuffleEnabled = upNext.size > 1,
+    )
+}
 
 sealed interface NowPlayingItemTarget {
     data class QueueIndex(val index: Int) : NowPlayingItemTarget

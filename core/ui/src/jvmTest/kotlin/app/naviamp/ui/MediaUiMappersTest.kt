@@ -6,6 +6,8 @@ import app.naviamp.domain.ArtistId
 import app.naviamp.domain.ArtistInfo
 import app.naviamp.domain.Track
 import app.naviamp.domain.TrackId
+import app.naviamp.domain.queue.PlaybackQueue
+import app.naviamp.domain.queue.RepeatMode
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
@@ -104,6 +106,50 @@ class MediaUiMappersTest {
         assertEquals(NowPlayingItemAction.CreatePlaylistAndAdd, request.action)
         assertEquals(NowPlayingItemTarget.RelatedIndex(2), request.target)
         assertEquals("Road Mix", request.playlistName)
+    }
+
+    @Test
+    fun nowPlayingSectionsUseTrackIdsForTrackListSources() {
+        val tracks = listOf(track("one"), track("two"), track("three"))
+        val related = listOf(track("related"))
+
+        val sections = nowPlayingSectionsUi(
+            tracks = tracks,
+            currentTrack = tracks[1],
+            relatedTracks = related,
+            coverArtUrl = { "cover://${it.id.value}" },
+            sonicSimilarityEnabled = false,
+            repeatMode = RepeatMode.Off,
+            itemIds = NowPlayingSectionItemIds.TrackIds,
+        )
+
+        assertEquals(listOf("one"), sections.backTo.map { it.id })
+        assertEquals(listOf("three"), sections.upNext.map { it.id })
+        assertEquals(listOf("related"), sections.related.map { it.id })
+        assertEquals(true, sections.hasPrevious)
+        assertEquals(true, sections.hasNext)
+        assertEquals(false, sections.shuffleEnabled)
+        assertEquals("RELATED", sections.relatedLabels.tabLabel)
+    }
+
+    @Test
+    fun nowPlayingSectionsUseQueueAndRelatedIndexesForQueueSources() {
+        val tracks = listOf(track("one"), track("two"), track("three"), track("four"))
+
+        val sections = PlaybackQueue(tracks = tracks, currentIndex = 2).toNowPlayingSectionsUi(
+            relatedTracks = listOf(track("related")),
+            coverArtUrl = { "cover://${it.id.value}" },
+            sonicSimilarityEnabled = true,
+            repeatMode = RepeatMode.Queue,
+        )
+
+        assertEquals(listOf(nowPlayingQueueItemId(1), nowPlayingQueueItemId(0)), sections.backTo.map { it.id })
+        assertEquals(listOf(nowPlayingQueueItemId(3)), sections.upNext.map { it.id })
+        assertEquals(listOf(nowPlayingRelatedItemId(0)), sections.related.map { it.id })
+        assertEquals(true, sections.hasPrevious)
+        assertEquals(true, sections.hasNext)
+        assertEquals(false, sections.shuffleEnabled)
+        assertEquals("SONIC", sections.relatedLabels.tabLabel)
     }
 
     private fun item(id: String): NaviampNowPlayingItemUi =

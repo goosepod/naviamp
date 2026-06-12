@@ -49,6 +49,7 @@ import app.naviamp.ui.NaviampNowPlayingItemUi
 import app.naviamp.ui.NaviampPlaylistChoiceUi
 import app.naviamp.ui.NaviampSharedAppShell
 import app.naviamp.ui.NaviampSleepTimerUi
+import app.naviamp.ui.NowPlayingSectionItemIds
 import app.naviamp.ui.NowPlayingUi
 import app.naviamp.ui.effectiveNowPlayingCoverArtUrl
 import app.naviamp.ui.SharedAlbumDetailUi
@@ -62,7 +63,7 @@ import app.naviamp.ui.SharedRoute
 import app.naviamp.ui.SharedSearchResultsUi
 import app.naviamp.ui.SharedSimilarArtistUi
 import app.naviamp.ui.toDownloadedTrackUi
-import app.naviamp.ui.toNowPlayingItemUis
+import app.naviamp.ui.nowPlayingSectionsUi
 import app.naviamp.ui.toTrackNowPlayingUi
 import app.naviamp.ui.toPlaylistChoiceUi
 import app.naviamp.ui.toRadioNowPlayingUi
@@ -73,7 +74,6 @@ import app.naviamp.ui.toSharedMediaItemUi
 import app.naviamp.ui.toSharedPlaylistDetailUi
 import app.naviamp.ui.toSharedSearchResultsUi
 import app.naviamp.ui.toSharedRoute
-import app.naviamp.ui.nowPlayingRelatedUiLabels
 import app.naviamp.ui.nowPlayingTrackCapabilities
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -302,10 +302,17 @@ fun androidNowPlayingUi(
     radioStations: List<InternetRadioStation>,
 ): NowPlayingUi? =
     nowPlaying?.let { track ->
-        val currentIndex = knownTracks.indexOfFirst { it.id == track.id }
         val coverArtUrl: (String?) -> String? = { coverArtId -> coverArtId?.let { provider?.coverArtUrl(it) } }
         val trackCoverArtUrl: (Track) -> String? = { item -> coverArtUrl(item.coverArtId) }
-        val relatedLabels = nowPlayingRelatedUiLabels(sonicSimilarityEnabled)
+        val sections = nowPlayingSectionsUi(
+            tracks = knownTracks,
+            currentTrack = track,
+            relatedTracks = relatedTracks,
+            coverArtUrl = trackCoverArtUrl,
+            sonicSimilarityEnabled = sonicSimilarityEnabled,
+            repeatMode = repeatMode,
+            itemIds = NowPlayingSectionItemIds.TrackIds,
+        )
         val capabilities = nowPlayingTrackCapabilities(
             isLiveStream = false,
             playbackState = playbackState,
@@ -330,14 +337,13 @@ fun androidNowPlayingUi(
             playbackProgress = playbackProgress,
             playbackState = playbackState,
             capabilities = capabilities,
-            hasPrevious = currentIndex > 0 || (repeatMode == RepeatMode.Queue && knownTracks.size > 1),
-            hasNext = (currentIndex >= 0 && currentIndex < knownTracks.lastIndex) ||
-                (repeatMode == RepeatMode.Queue && knownTracks.size > 1),
-            shuffleEnabled = knownTracks.drop(currentIndex + 1).size > 1,
+            hasPrevious = sections.hasPrevious,
+            hasNext = sections.hasNext,
+            shuffleEnabled = sections.shuffleEnabled,
             shuffleActive = shuffledUpNextSnapshot != null,
             repeatMode = repeatMode,
             sleepTimer = sleepTimer,
-            relatedLabels = relatedLabels,
+            relatedLabels = sections.relatedLabels,
             waveform = waveformByTrackId[track.id.value],
             visualizerAvailable = (playbackEngine as? VisualizerPlaybackEngine)?.supportsVisualizer == true,
             visualizerVisible = visualizerVisible,
@@ -348,16 +354,9 @@ fun androidNowPlayingUi(
             embeddedTags = audioTagsByTrackId[track.id.value]?.map { it.key to it.value },
             playlistChoices = playlistChoices,
             playlistActionStatus = playlistActionStatus,
-            backTo = knownTracks
-                .take(currentIndex.coerceAtLeast(0))
-                .asReversed()
-                .toNowPlayingItemUis(trackCoverArtUrl),
-            upNext = if (currentIndex >= 0) {
-                knownTracks.drop(currentIndex + 1).toNowPlayingItemUis(trackCoverArtUrl)
-            } else {
-                emptyList()
-            },
-            related = relatedTracks.toNowPlayingItemUis(trackCoverArtUrl),
+            backTo = sections.backTo,
+            upNext = sections.upNext,
+            related = sections.related,
             volumePercent = volumePercent,
         )
     } ?: nowPlayingStation?.let { station ->

@@ -29,16 +29,13 @@ import app.naviamp.ui.NowPlayingItemAction
 import app.naviamp.ui.NowPlayingItemTarget
 import app.naviamp.ui.NowPlayingUi
 import app.naviamp.ui.nowPlayingQueueIndex
-import app.naviamp.ui.nowPlayingQueueItemId
 import app.naviamp.ui.nowPlayingRelatedIndex
-import app.naviamp.ui.nowPlayingRelatedItemId
-import app.naviamp.ui.toNowPlayingItemUis
 import app.naviamp.ui.toNowPlayingStationUi
 import app.naviamp.ui.toMiniNowPlayingUi
 import app.naviamp.ui.toRadioNowPlayingUi
-import app.naviamp.ui.nowPlayingRelatedUiLabels
 import app.naviamp.ui.nowPlayingTrackCapabilities
 import app.naviamp.ui.resolveTrack
+import app.naviamp.ui.toNowPlayingSectionsUi
 import app.naviamp.ui.toTrackNowPlayingUi
 
 @Composable
@@ -120,11 +117,14 @@ fun DesktopNowPlayingPanel(
     val isLiveStream = currentInternetRadioStationId != null
     val effectiveDurationSeconds = nowPlayingTrack?.durationSeconds?.toDouble()
         ?: playbackProgress.durationSeconds
-    val backTo = playbackQueue.backTo()
-    val upNext = playbackQueue.upNext()
-    val firstBackToQueueIndex = playbackQueue.currentIndex - 1
-    val firstUpNextQueueIndex = playbackQueue.currentIndex + 1
-    val relatedLabels = nowPlayingRelatedUiLabels(sonicSimilarityEnabled)
+    val sections = remember(playbackQueue, relatedTracks, coverArtUrlForTrack, sonicSimilarityEnabled, repeatMode) {
+        playbackQueue.toNowPlayingSectionsUi(
+            relatedTracks = relatedTracks,
+            coverArtUrl = coverArtUrlForTrack,
+            sonicSimilarityEnabled = sonicSimilarityEnabled,
+            repeatMode = repeatMode,
+        )
+    }
     val trackCapabilities = nowPlayingTrackCapabilities(
         isLiveStream = isLiveStream,
         playbackState = playbackState,
@@ -138,27 +138,6 @@ fun DesktopNowPlayingPanel(
         canRepeatQueue = true,
         canSaveQueueAsPlaylist = true,
     )
-    val backToItems = remember(backTo, firstBackToQueueIndex, coverArtUrlForTrack) {
-        backTo.toNowPlayingItemUis(
-            coverArtUrl = coverArtUrlForTrack,
-            id = { index, _ -> nowPlayingQueueItemId(firstBackToQueueIndex - index) },
-            meta = { "" },
-        )
-    }
-    val upNextItems = remember(upNext, firstUpNextQueueIndex, coverArtUrlForTrack) {
-        upNext.toNowPlayingItemUis(
-            coverArtUrl = coverArtUrlForTrack,
-            id = { index, _ -> nowPlayingQueueItemId(firstUpNextQueueIndex + index) },
-            meta = { "" },
-        )
-    }
-    val relatedItems = remember(relatedTracks, coverArtUrlForTrack) {
-        relatedTracks.toNowPlayingItemUis(
-            coverArtUrl = coverArtUrlForTrack,
-            id = { index, _ -> nowPlayingRelatedItemId(index) },
-            meta = { "" },
-        )
-    }
     val radioStations = remember(internetRadioStations) {
         internetRadioStations
             .sortedBy { it.name.lowercase() }
@@ -173,11 +152,11 @@ fun DesktopNowPlayingPanel(
             capabilities = trackCapabilities,
             hasPrevious = hasPrevious,
             hasNext = hasNext,
-            shuffleEnabled = upNext.size > 1,
+            shuffleEnabled = sections.shuffleEnabled,
             shuffleActive = shuffleActive,
             repeatMode = repeatMode,
             sleepTimer = sleepTimer,
-            relatedLabels = relatedLabels,
+            relatedLabels = sections.relatedLabels,
             playbackEngineName = playbackEngineName,
             waveform = nowPlayingWaveform,
             visualizerAvailable = visualizerAvailable,
@@ -189,9 +168,9 @@ fun DesktopNowPlayingPanel(
             streamQuality = streamQuality,
             embeddedTags = nowPlayingAudioTags?.map { it.key to it.value },
             useInlinePlaylistPicker = false,
-            backTo = backToItems,
-            upNext = upNextItems,
-            related = relatedItems,
+            backTo = sections.backTo,
+            upNext = sections.upNext,
+            related = sections.related,
             volumePercent = volumePercent,
         ).copy(
             isLive = isLiveStream,
