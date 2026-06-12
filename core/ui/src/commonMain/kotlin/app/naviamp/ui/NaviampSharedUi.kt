@@ -1141,13 +1141,18 @@ private fun AlbumDetailContent(
     var addAlbumToPlaylistOpen by remember(detail.album.id) { mutableStateOf(false) }
     var trackForPlaylist by remember(detail.album.id) { mutableStateOf<SharedTrackRowUi?>(null) }
     val handleTrackAction: (SharedTrackRowActionRequest) -> Unit = { request ->
-        when (request.action) {
-            SharedTrackRowAction.Select -> onTrackSelected(request.track)
-            SharedTrackRowAction.AddToQueue -> onTrackAddToQueue(request.track)
-            SharedTrackRowAction.Download -> onTrackDownload(request.track)
-            SharedTrackRowAction.AddToPlaylist -> trackForPlaylist = request.track
-            SharedTrackRowAction.StartRadio -> Unit
-        }
+        handleSharedTrackRowAction(
+            request,
+            SharedTrackRowActionHandlers(
+                onSelect = onTrackSelected,
+                onAddToQueue = onTrackAddToQueue,
+                onDownload = onTrackDownload,
+                onAddToPlaylist = { track, playlist ->
+                    if (playlist == null) trackForPlaylist = track else onTrackAddToPlaylist(track, playlist)
+                },
+                onCreatePlaylistAndAdd = onTrackCreatePlaylistAndAdd,
+            ),
+        )
     }
 
     Column(
@@ -1250,11 +1255,23 @@ private fun AlbumDetailContent(
             onDismissRequest = { trackForPlaylist = null },
             onAddToExisting = { playlist ->
                 trackForPlaylist = null
-                onTrackAddToPlaylist(track, playlist)
+                handleTrackAction(
+                    SharedTrackRowActionRequest(
+                        track = track,
+                        action = SharedTrackRowAction.AddToPlaylist,
+                        playlistChoice = playlist,
+                    ),
+                )
             },
             onCreateAndAdd = { name ->
                 trackForPlaylist = null
-                onTrackCreatePlaylistAndAdd(track, name)
+                handleTrackAction(
+                    SharedTrackRowActionRequest(
+                        track = track,
+                        action = SharedTrackRowAction.CreatePlaylistAndAdd,
+                        playlistName = name,
+                    ),
+                )
             },
         )
     }
@@ -1297,13 +1314,18 @@ private fun ArtistDetailContent(
     var albumForPlaylist by remember(detail.artist.id) { mutableStateOf<SharedMediaItemUi?>(null) }
     var biographyExpanded by remember(detail.artist.id) { mutableStateOf(false) }
     val handlePopularTrackAction: (SharedTrackRowActionRequest) -> Unit = { request ->
-        when (request.action) {
-            SharedTrackRowAction.Select -> onPopularTrackSelected(request.track)
-            SharedTrackRowAction.AddToQueue -> onPopularTrackAddToQueue(request.track)
-            SharedTrackRowAction.Download -> onPopularTrackDownload(request.track)
-            SharedTrackRowAction.AddToPlaylist -> popularTrackForPlaylist = request.track
-            SharedTrackRowAction.StartRadio -> Unit
-        }
+        handleSharedTrackRowAction(
+            request,
+            SharedTrackRowActionHandlers(
+                onSelect = onPopularTrackSelected,
+                onAddToQueue = onPopularTrackAddToQueue,
+                onDownload = onPopularTrackDownload,
+                onAddToPlaylist = { track, playlist ->
+                    if (playlist == null) popularTrackForPlaylist = track else onPopularTrackAddToPlaylist(track, playlist)
+                },
+                onCreatePlaylistAndAdd = onPopularTrackCreatePlaylistAndAdd,
+            ),
+        )
     }
     val similarArtistsVisible = detail.similarArtists.isNotEmpty() || detail.similarArtistsStatus != null
 
@@ -1493,11 +1515,23 @@ private fun ArtistDetailContent(
             onDismissRequest = { popularTrackForPlaylist = null },
             onAddToExisting = { playlist ->
                 popularTrackForPlaylist = null
-                onPopularTrackAddToPlaylist(track, playlist)
+                handlePopularTrackAction(
+                    SharedTrackRowActionRequest(
+                        track = track,
+                        action = SharedTrackRowAction.AddToPlaylist,
+                        playlistChoice = playlist,
+                    ),
+                )
             },
             onCreateAndAdd = { name ->
                 popularTrackForPlaylist = null
-                onPopularTrackCreatePlaylistAndAdd(track, name)
+                handlePopularTrackAction(
+                    SharedTrackRowActionRequest(
+                        track = track,
+                        action = SharedTrackRowAction.CreatePlaylistAndAdd,
+                        playlistName = name,
+                    ),
+                )
             },
         )
     }

@@ -418,6 +418,32 @@ private val NowPlayingItemTarget.source: NowPlayingItemSource
         is NowPlayingItemTarget.TrackId -> NowPlayingItemSource.TrackId
     }
 
+data class ResolvedSharedTrackRowAction(
+    val request: SharedTrackRowActionRequest,
+    val track: Track?,
+) {
+    val action: SharedTrackRowAction
+        get() = request.action
+
+    val row: SharedTrackRowUi
+        get() = request.track
+
+    val playlistChoice: NaviampPlaylistChoiceUi?
+        get() = request.playlistChoice
+
+    val playlistName: String?
+        get() = request.playlistName
+}
+
+fun SharedTrackRowActionRequest.resolveAction(
+    knownTracks: List<Track> = emptyList(),
+    fallbackTrack: Track? = null,
+): ResolvedSharedTrackRowAction =
+    ResolvedSharedTrackRowAction(
+        request = this,
+        track = knownTracks.firstOrNull { track -> track.id.value == this.track.id } ?: fallbackTrack,
+    )
+
 private fun resolveNowPlayingTargetTrack(
     target: NowPlayingItemTarget,
     queueTracks: List<Track>,

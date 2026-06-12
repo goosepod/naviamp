@@ -139,6 +139,36 @@ class MediaUiMappersTest {
     }
 
     @Test
+    fun sharedTrackRowActionResolvesKnownTrackAndPlaylistData() {
+        val request = SharedTrackRowActionRequest(
+            track = SharedTrackRowUi(id = "track-two", title = "Track Two", subtitle = "Artist"),
+            action = SharedTrackRowAction.AddToPlaylist,
+            playlistChoice = NaviampPlaylistChoiceUi(id = "playlist-1", name = "Road Mix"),
+        )
+
+        val action = request.resolveAction(knownTracks = listOf(track("track-one"), track("track-two")))
+
+        assertEquals(SharedTrackRowAction.AddToPlaylist, action.action)
+        assertEquals("track-two", action.track?.id?.value)
+        assertEquals("Road Mix", action.playlistChoice?.name)
+    }
+
+    @Test
+    fun sharedTrackRowActionUsesFallbackTrack() {
+        val fallbackTrack = track("fallback-track")
+        val request = SharedTrackRowActionRequest(
+            track = SharedTrackRowUi(id = "missing-track", title = "Missing", subtitle = "Artist"),
+            action = SharedTrackRowAction.CreatePlaylistAndAdd,
+            playlistName = "New Mix",
+        )
+
+        val action = request.resolveAction(fallbackTrack = fallbackTrack)
+
+        assertEquals(fallbackTrack, action.track)
+        assertEquals("New Mix", action.playlistName)
+    }
+
+    @Test
     fun nowPlayingSectionsUseTrackIdsForTrackListSources() {
         val tracks = listOf(track("one"), track("two"), track("three"))
         val related = listOf(track("related"))

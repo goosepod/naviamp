@@ -57,6 +57,7 @@ fun TrackRow(
             SharedTrackRowAction.AddToQueue -> onAddToQueue?.invoke(request.track)
             SharedTrackRowAction.Download -> onDownload?.invoke(request.track)
             SharedTrackRowAction.AddToPlaylist -> onAddToPlaylist?.invoke(request.track)
+            SharedTrackRowAction.CreatePlaylistAndAdd -> Unit
         }
     },
     reservePopularIndicatorSpace: Boolean = false,

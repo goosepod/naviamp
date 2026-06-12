@@ -332,14 +332,13 @@ internal fun PlaylistDetailContent(
     var deleteOpen by remember { mutableStateOf(false) }
     var addToPlaylistOpen by remember { mutableStateOf(false) }
     val handleTrackAction: (SharedTrackRowActionRequest) -> Unit = { request ->
-        when (request.action) {
-            SharedTrackRowAction.Select -> onTrackSelected(request.track)
-            SharedTrackRowAction.AddToQueue -> onTrackAddToQueue(request.track)
-            SharedTrackRowAction.StartRadio,
-            SharedTrackRowAction.Download,
-            SharedTrackRowAction.AddToPlaylist,
-            -> Unit
-        }
+        handleSharedTrackRowAction(
+            request,
+            SharedTrackRowActionHandlers(
+                onSelect = onTrackSelected,
+                onAddToQueue = onTrackAddToQueue,
+            ),
+        )
     }
 
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {

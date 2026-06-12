@@ -94,12 +94,39 @@ enum class SharedTrackRowAction {
     AddToQueue,
     Download,
     AddToPlaylist,
+    CreatePlaylistAndAdd,
 }
 
 data class SharedTrackRowActionRequest(
     val track: SharedTrackRowUi,
     val action: SharedTrackRowAction,
+    val playlistChoice: NaviampPlaylistChoiceUi? = null,
+    val playlistName: String? = null,
 )
+
+data class SharedTrackRowActionHandlers(
+    val onSelect: (SharedTrackRowUi) -> Unit = {},
+    val onStartRadio: (SharedTrackRowUi) -> Unit = {},
+    val onAddToQueue: (SharedTrackRowUi) -> Unit = {},
+    val onDownload: (SharedTrackRowUi) -> Unit = {},
+    val onAddToPlaylist: (SharedTrackRowUi, NaviampPlaylistChoiceUi?) -> Unit = { _, _ -> },
+    val onCreatePlaylistAndAdd: (SharedTrackRowUi, String) -> Unit = { _, _ -> },
+)
+
+fun handleSharedTrackRowAction(
+    request: SharedTrackRowActionRequest,
+    handlers: SharedTrackRowActionHandlers,
+) {
+    when (request.action) {
+        SharedTrackRowAction.Select -> handlers.onSelect(request.track)
+        SharedTrackRowAction.StartRadio -> handlers.onStartRadio(request.track)
+        SharedTrackRowAction.AddToQueue -> handlers.onAddToQueue(request.track)
+        SharedTrackRowAction.Download -> handlers.onDownload(request.track)
+        SharedTrackRowAction.AddToPlaylist -> handlers.onAddToPlaylist(request.track, request.playlistChoice)
+        SharedTrackRowAction.CreatePlaylistAndAdd ->
+            request.playlistName?.let { name -> handlers.onCreatePlaylistAndAdd(request.track, name) }
+    }
+}
 
 data class NaviampDownloadedTrackUi(
     val id: String,

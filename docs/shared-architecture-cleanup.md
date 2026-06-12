@@ -1449,6 +1449,8 @@ Progress notes:
 - Verification passed: `.\gradlew.bat --configure-on-demand "-Pnaviamp.bass.platform=windows-x64" :core:ui:jvmTest :apps:desktop:compileKotlinDesktop :apps:android:compileDebugKotlin`.
 - Added shared resolved now-playing item actions with source and track resolution. Android and Desktop now consume the same `ResolvedNowPlayingItemAction` shape for queue/related/raw-track actions instead of each platform parsing targets or carrying separate related-item checks.
 - Verification passed: `.\gradlew.bat --configure-on-demand "-Pnaviamp.bass.platform=windows-x64" :core:ui:jvmTest :apps:desktop:compileKotlinDesktop :apps:android:compileDebugKotlin`.
+- Extended shared track-row action requests with playlist payloads and a shared dispatcher/resolver. Album and artist popular track dialogs now route playlist add/create through the same typed request path, and Android's album/popular/search track queue/download/playlist wrappers now delegate to one `handleTrackAction` implementation.
+- Verification passed: `.\gradlew.bat --configure-on-demand "-Pnaviamp.bass.platform=windows-x64" :core:ui:jvmTest :apps:desktop:compileKotlinDesktop :apps:android:compileDebugKotlin`.
 
 Success criteria for the first slice:
 

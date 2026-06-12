@@ -25,9 +25,12 @@ import app.naviamp.domain.provider.addToPlaylistLoadingStatus
 import app.naviamp.domain.provider.addTracksToPlaylistApplication
 import app.naviamp.domain.provider.PlaylistHomeProjection
 import app.naviamp.ui.SharedTrackRowUi
+import app.naviamp.ui.SharedTrackRowAction
+import app.naviamp.ui.SharedTrackRowActionRequest
 import app.naviamp.ui.NaviampDownloadedTrackUi
 import app.naviamp.ui.NaviampPlaylistChoiceUi
 import app.naviamp.ui.SharedMediaItemUi
+import app.naviamp.ui.resolveAction
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
@@ -419,33 +422,77 @@ internal class AndroidTrackActionController(
     }
 
     fun handleAlbumTrackDownload(selectedTrack: SharedTrackRowUi) {
-        withAndroidKnownTrack(state, selectedTrack, activeQueue(), downloadTrack)
+        handleTrackAction(SharedTrackRowActionRequest(selectedTrack, SharedTrackRowAction.Download))
     }
 
     fun handleAlbumTrackAddToPlaylist(selectedTrack: SharedTrackRowUi, playlist: NaviampPlaylistChoiceUi?) {
-        withAndroidKnownTrack(state, selectedTrack, activeQueue()) { track -> addTrackToPlaylist(track, playlist, null) }
+        handleTrackAction(
+            SharedTrackRowActionRequest(
+                track = selectedTrack,
+                action = SharedTrackRowAction.AddToPlaylist,
+                playlistChoice = playlist,
+            ),
+        )
     }
 
     fun handleAlbumTrackCreatePlaylistAndAdd(selectedTrack: SharedTrackRowUi, name: String) {
-        withAndroidKnownTrack(state, selectedTrack, activeQueue()) { track -> addTrackToPlaylist(track, null, name) }
+        handleTrackAction(
+            SharedTrackRowActionRequest(
+                track = selectedTrack,
+                action = SharedTrackRowAction.CreatePlaylistAndAdd,
+                playlistName = name,
+            ),
+        )
     }
 
     fun handleTrackAddToQueue(selectedTrack: SharedTrackRowUi) {
-        withAndroidKnownTrack(state, selectedTrack, activeQueue()) { track ->
-            appendTracksToQueue(listOf(track), "track")
-        }
+        handleTrackAction(SharedTrackRowActionRequest(selectedTrack, SharedTrackRowAction.AddToQueue))
     }
 
     fun handleTrackDownload(selectedTrack: SharedTrackRowUi) {
-        withAndroidKnownTrack(state, selectedTrack, activeQueue(), downloadTrack)
+        handleTrackAction(SharedTrackRowActionRequest(selectedTrack, SharedTrackRowAction.Download))
     }
 
     fun handleTrackAddToPlaylist(selectedTrack: SharedTrackRowUi, playlist: NaviampPlaylistChoiceUi?) {
-        withAndroidKnownTrack(state, selectedTrack, activeQueue()) { track -> addTrackToPlaylist(track, playlist, null) }
+        handleTrackAction(
+            SharedTrackRowActionRequest(
+                track = selectedTrack,
+                action = SharedTrackRowAction.AddToPlaylist,
+                playlistChoice = playlist,
+            ),
+        )
     }
 
     fun handleTrackCreatePlaylistAndAdd(selectedTrack: SharedTrackRowUi, name: String) {
-        withAndroidKnownTrack(state, selectedTrack, activeQueue()) { track -> addTrackToPlaylist(track, null, name) }
+        handleTrackAction(
+            SharedTrackRowActionRequest(
+                track = selectedTrack,
+                action = SharedTrackRowAction.CreatePlaylistAndAdd,
+                playlistName = name,
+            ),
+        )
+    }
+
+    fun handleTrackAction(request: SharedTrackRowActionRequest) {
+        val resolved = request.resolveAction(
+            knownTracks = activeQueue(),
+            fallbackTrack = findKnownTrack(request.track.id),
+        )
+        val track = resolved.track
+        if (track == null) {
+            state.status = "Track not found."
+            return
+        }
+        when (resolved.action) {
+            SharedTrackRowAction.Select,
+            SharedTrackRowAction.StartRadio,
+            -> Unit
+            SharedTrackRowAction.AddToQueue -> appendTracksToQueue(listOf(track), "track")
+            SharedTrackRowAction.Download -> downloadTrack(track)
+            SharedTrackRowAction.AddToPlaylist -> addTrackToPlaylist(track, resolved.playlistChoice, null)
+            SharedTrackRowAction.CreatePlaylistAndAdd ->
+                resolved.playlistName?.let { name -> addTrackToPlaylist(track, null, name) }
+        }
     }
 
     fun handlePlaylistTrackSelected(selectedTrack: SharedTrackRowUi) {

@@ -120,14 +120,13 @@ internal fun SearchContent(
     onAlbumFavoriteToggled: (SharedMediaItemUi) -> Unit = {},
 ) {
     val handleTrackAction: (SharedTrackRowActionRequest) -> Unit = { request ->
-        when (request.action) {
-            SharedTrackRowAction.Select -> onTrackSelected(request.track)
-            SharedTrackRowAction.AddToQueue -> onTrackAddToQueue(request.track)
-            SharedTrackRowAction.StartRadio,
-            SharedTrackRowAction.Download,
-            SharedTrackRowAction.AddToPlaylist,
-            -> Unit
-        }
+        handleSharedTrackRowAction(
+            request,
+            SharedTrackRowActionHandlers(
+                onSelect = onTrackSelected,
+                onAddToQueue = onTrackAddToQueue,
+            ),
+        )
     }
     Column(
         verticalArrangement = Arrangement.spacedBy(12.dp),
