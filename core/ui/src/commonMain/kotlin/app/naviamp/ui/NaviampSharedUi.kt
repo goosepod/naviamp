@@ -1371,6 +1371,22 @@ private fun ArtistDetailContent(
     var popularTrackForPlaylist by remember(detail.artist.id) { mutableStateOf<SharedTrackRowUi?>(null) }
     var albumForPlaylist by remember(detail.artist.id) { mutableStateOf<SharedMediaItemUi?>(null) }
     var biographyExpanded by remember(detail.artist.id) { mutableStateOf(false) }
+    val handleAlbumAction: (SharedMediaItemActionRequest) -> Unit = { request ->
+        handleSharedMediaItemAction(
+            request,
+            SharedMediaItemActionHandlers(
+                onSelect = onAlbumSelected,
+                onStartRadio = onAlbumRadio,
+                onAddToQueue = onAlbumAddToQueue,
+                onDownload = onAlbumDownload,
+                onAddToPlaylist = { album, playlist ->
+                    if (playlist == null) albumForPlaylist = album else onAlbumAddToPlaylist(album, playlist)
+                },
+                onCreatePlaylistAndAdd = onAlbumCreatePlaylistAndAdd,
+                onToggleFavorite = onAlbumFavoriteToggled,
+            ),
+        )
+    }
     val handlePopularTrackAction: (SharedTrackRowActionRequest) -> Unit = { request ->
         handleSharedTrackRowAction(
             request,
@@ -1523,6 +1539,7 @@ private fun ArtistDetailContent(
                         item = album,
                         colors = colors,
                         onClick = { onAlbumSelected(album) },
+                        onItemAction = handleAlbumAction,
                         menuItems = albumRowActions(
                             canStartRadio = true,
                             canDownload = true,
@@ -1532,11 +1549,36 @@ private fun ArtistDetailContent(
                             favoriteActive = album.favoriteActive,
                         ).mapNotNull { action ->
                             when (action.action) {
-                                NaviampAction.StartAlbumRadio -> NaviampRowMenuItem(action.label, action.icon, { onAlbumRadio(album) }, action.enabled)
-                                NaviampAction.DownloadAlbum -> NaviampRowMenuItem(action.label, action.icon, { onAlbumDownload(album) }, action.enabled)
-                                NaviampAction.AddToQueue -> NaviampRowMenuItem(action.label, action.icon, { onAlbumAddToQueue(album) }, action.enabled)
-                                NaviampAction.AddToPlaylist -> NaviampRowMenuItem(action.label, action.icon, { albumForPlaylist = album }, action.enabled)
-                                NaviampAction.ToggleFavorite -> NaviampRowMenuItem(action.label, action.icon, { onAlbumFavoriteToggled(album) }, action.enabled)
+                                NaviampAction.StartAlbumRadio -> NaviampRowMenuItem(
+                                    action.label,
+                                    action.icon,
+                                    { handleAlbumAction(SharedMediaItemActionRequest(album, SharedMediaItemAction.StartRadio)) },
+                                    action.enabled,
+                                )
+                                NaviampAction.DownloadAlbum -> NaviampRowMenuItem(
+                                    action.label,
+                                    action.icon,
+                                    { handleAlbumAction(SharedMediaItemActionRequest(album, SharedMediaItemAction.Download)) },
+                                    action.enabled,
+                                )
+                                NaviampAction.AddToQueue -> NaviampRowMenuItem(
+                                    action.label,
+                                    action.icon,
+                                    { handleAlbumAction(SharedMediaItemActionRequest(album, SharedMediaItemAction.AddToQueue)) },
+                                    action.enabled,
+                                )
+                                NaviampAction.AddToPlaylist -> NaviampRowMenuItem(
+                                    action.label,
+                                    action.icon,
+                                    { handleAlbumAction(SharedMediaItemActionRequest(album, SharedMediaItemAction.AddToPlaylist)) },
+                                    action.enabled,
+                                )
+                                NaviampAction.ToggleFavorite -> NaviampRowMenuItem(
+                                    action.label,
+                                    action.icon,
+                                    { handleAlbumAction(SharedMediaItemActionRequest(album, SharedMediaItemAction.ToggleFavorite)) },
+                                    action.enabled,
+                                )
                                 else -> null
                             }
                         },
@@ -1603,11 +1645,23 @@ private fun ArtistDetailContent(
             onDismissRequest = { albumForPlaylist = null },
             onAddToExisting = { playlist ->
                 albumForPlaylist = null
-                onAlbumAddToPlaylist(album, playlist)
+                handleAlbumAction(
+                    SharedMediaItemActionRequest(
+                        item = album,
+                        action = SharedMediaItemAction.AddToPlaylist,
+                        playlistChoice = playlist,
+                    ),
+                )
             },
             onCreateAndAdd = { name ->
                 albumForPlaylist = null
-                onAlbumCreatePlaylistAndAdd(album, name)
+                handleAlbumAction(
+                    SharedMediaItemActionRequest(
+                        item = album,
+                        action = SharedMediaItemAction.CreatePlaylistAndAdd,
+                        playlistName = name,
+                    ),
+                )
             },
         )
     }

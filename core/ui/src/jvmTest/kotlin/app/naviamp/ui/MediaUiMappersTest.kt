@@ -169,6 +169,28 @@ class MediaUiMappersTest {
     }
 
     @Test
+    fun sharedMediaItemActionDispatchesPlaylistPayload() {
+        var received: Pair<String, String?>? = null
+        val playlist = SharedMediaItemUi(id = "playlist-1", title = "Playlist", subtitle = "4 tracks")
+        val choice = NaviampPlaylistChoiceUi(id = "target-1", name = "Target")
+
+        handleSharedMediaItemAction(
+            SharedMediaItemActionRequest(
+                item = playlist,
+                action = SharedMediaItemAction.AddToPlaylist,
+                playlistChoice = choice,
+            ),
+            SharedMediaItemActionHandlers(
+                onAddToPlaylist = { item, playlistChoice ->
+                    received = item.id to playlistChoice?.id
+                },
+            ),
+        )
+
+        assertEquals("playlist-1" to "target-1", received)
+    }
+
+    @Test
     fun nowPlayingSectionsUseTrackIdsForTrackListSources() {
         val tracks = listOf(track("one"), track("two"), track("three"))
         val related = listOf(track("related"))

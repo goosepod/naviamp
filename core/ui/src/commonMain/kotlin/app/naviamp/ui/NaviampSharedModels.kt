@@ -146,6 +146,72 @@ data class SharedMediaItemUi(
     val canFavorite: Boolean = false,
 )
 
+enum class SharedMediaItemAction {
+    Select,
+    Play,
+    Shuffle,
+    StartRadio,
+    AddToQueue,
+    Download,
+    AddToPlaylist,
+    CreatePlaylistAndAdd,
+    ToggleFavorite,
+    Rename,
+    EditSmartPlaylist,
+    Delete,
+    EditStation,
+    DeleteStation,
+}
+
+data class SharedMediaItemActionRequest(
+    val item: SharedMediaItemUi,
+    val action: SharedMediaItemAction,
+    val playlistChoice: NaviampPlaylistChoiceUi? = null,
+    val playlistName: String? = null,
+    val textValue: String? = null,
+    val shuffle: Boolean = false,
+)
+
+data class SharedMediaItemActionHandlers(
+    val onSelect: (SharedMediaItemUi) -> Unit = {},
+    val onPlay: (SharedMediaItemUi, Boolean) -> Unit = { _, _ -> },
+    val onStartRadio: (SharedMediaItemUi) -> Unit = {},
+    val onAddToQueue: (SharedMediaItemUi) -> Unit = {},
+    val onDownload: (SharedMediaItemUi) -> Unit = {},
+    val onAddToPlaylist: (SharedMediaItemUi, NaviampPlaylistChoiceUi?) -> Unit = { _, _ -> },
+    val onCreatePlaylistAndAdd: (SharedMediaItemUi, String) -> Unit = { _, _ -> },
+    val onToggleFavorite: (SharedMediaItemUi) -> Unit = {},
+    val onRename: (SharedMediaItemUi, String) -> Unit = { _, _ -> },
+    val onEditSmartPlaylist: (SharedMediaItemUi) -> Unit = {},
+    val onDelete: (SharedMediaItemUi) -> Unit = {},
+    val onEditStation: (SharedMediaItemUi) -> Unit = {},
+    val onDeleteStation: (SharedMediaItemUi) -> Unit = {},
+)
+
+fun handleSharedMediaItemAction(
+    request: SharedMediaItemActionRequest,
+    handlers: SharedMediaItemActionHandlers,
+) {
+    when (request.action) {
+        SharedMediaItemAction.Select -> handlers.onSelect(request.item)
+        SharedMediaItemAction.Play -> handlers.onPlay(request.item, false)
+        SharedMediaItemAction.Shuffle -> handlers.onPlay(request.item, true)
+        SharedMediaItemAction.StartRadio -> handlers.onStartRadio(request.item)
+        SharedMediaItemAction.AddToQueue -> handlers.onAddToQueue(request.item)
+        SharedMediaItemAction.Download -> handlers.onDownload(request.item)
+        SharedMediaItemAction.AddToPlaylist -> handlers.onAddToPlaylist(request.item, request.playlistChoice)
+        SharedMediaItemAction.CreatePlaylistAndAdd ->
+            request.playlistName?.let { name -> handlers.onCreatePlaylistAndAdd(request.item, name) }
+        SharedMediaItemAction.ToggleFavorite -> handlers.onToggleFavorite(request.item)
+        SharedMediaItemAction.Rename ->
+            request.textValue?.let { name -> handlers.onRename(request.item, name) }
+        SharedMediaItemAction.EditSmartPlaylist -> handlers.onEditSmartPlaylist(request.item)
+        SharedMediaItemAction.Delete -> handlers.onDelete(request.item)
+        SharedMediaItemAction.EditStation -> handlers.onEditStation(request.item)
+        SharedMediaItemAction.DeleteStation -> handlers.onDeleteStation(request.item)
+    }
+}
+
 data class SharedAlbumDetailUi(
     val album: SharedMediaItemUi,
     val tracks: List<SharedTrackRowUi>,

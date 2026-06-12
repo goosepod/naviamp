@@ -365,6 +365,15 @@ fun SharedMediaRow(
     onClick: (() -> Unit)? = null,
     menuItems: List<NaviampRowMenuItem> = emptyList(),
     onFavoriteToggled: ((SharedMediaItemUi) -> Unit)? = null,
+    onItemAction: (SharedMediaItemActionRequest) -> Unit = { request ->
+        handleSharedMediaItemAction(
+            request,
+            SharedMediaItemActionHandlers(
+                onSelect = { onClick?.invoke() },
+                onToggleFavorite = { selectedItem -> onFavoriteToggled?.invoke(selectedItem) },
+            ),
+        )
+    },
     coverArtSize: Dp = 44.dp,
     coverArtCornerRadius: Dp = 5.dp,
     verticalPadding: Dp = 7.dp,
@@ -376,7 +385,13 @@ fun SharedMediaRow(
             .clip(RoundedCornerShape(5.dp))
             .background(Color.Black.copy(alpha = 0.12f))
             .let { rowModifier ->
-                if (onClick != null) rowModifier.clickable(onClick = onClick) else rowModifier
+                if (onClick != null) {
+                    rowModifier.clickable {
+                        onItemAction(SharedMediaItemActionRequest(item, SharedMediaItemAction.Select))
+                    }
+                } else {
+                    rowModifier
+                }
             }
             .padding(horizontal = 8.dp, vertical = verticalPadding),
         verticalAlignment = Alignment.CenterVertically,
@@ -403,7 +418,7 @@ fun SharedMediaRow(
             NaviampRowMenuItem(
                 label = if (item.favoriteActive) "Remove favorite" else "Favorite",
                 icon = NaviampTransportIcons.Heart,
-                onClick = { onFavoriteToggled(item) },
+                onClick = { onItemAction(SharedMediaItemActionRequest(item, SharedMediaItemAction.ToggleFavorite)) },
             )
         } else {
             null
