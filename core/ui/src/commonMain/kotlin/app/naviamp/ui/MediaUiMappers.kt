@@ -13,6 +13,7 @@ import app.naviamp.domain.Track
 import app.naviamp.domain.isInternetRadioTrack
 import app.naviamp.domain.home.HomeContent
 import app.naviamp.domain.home.homeStations
+import app.naviamp.domain.playback.PlaybackProgress
 import app.naviamp.domain.playback.PlaybackState
 import app.naviamp.domain.playback.PlaybackStreamMetadata
 import app.naviamp.domain.playback.PlaybackVisualizerFrame
@@ -477,6 +478,83 @@ fun Track.toNowPlayingUi(config: NowPlayingTrackUiConfig): NowPlayingUi =
         related = config.related,
         relatedTabLabel = config.relatedTabLabel,
         relatedEmptyLabel = config.relatedEmptyLabel,
+    )
+
+fun Track.toTrackNowPlayingUi(
+    stateLabel: String,
+    coverArtUrl: String?,
+    playbackProgress: PlaybackProgress,
+    playbackState: PlaybackState,
+    capabilities: NowPlayingTrackCapabilities,
+    hasPrevious: Boolean,
+    hasNext: Boolean,
+    shuffleEnabled: Boolean,
+    shuffleActive: Boolean,
+    repeatMode: RepeatMode,
+    sleepTimer: NaviampSleepTimerUi,
+    relatedLabels: NowPlayingRelatedUiLabels,
+    playbackEngineName: String? = null,
+    waveform: AudioWaveform? = null,
+    visualizerAvailable: Boolean = false,
+    visualizerVisible: Boolean = false,
+    durationSeconds: Double? = playbackProgress.durationSeconds,
+    lyricsVisible: Boolean = false,
+    lyricsStatus: String? = null,
+    lyrics: Lyrics? = null,
+    streamQuality: StreamQuality? = null,
+    embeddedTags: List<Pair<String, String>>? = null,
+    playlistChoices: List<NaviampPlaylistChoiceUi> = emptyList(),
+    useInlinePlaylistPicker: Boolean = true,
+    playlistActionStatus: String? = null,
+    backTo: List<NaviampNowPlayingItemUi> = emptyList(),
+    upNext: List<NaviampNowPlayingItemUi> = emptyList(),
+    related: List<NaviampNowPlayingItemUi> = emptyList(),
+    volumePercent: Int = 100,
+): NowPlayingUi =
+    toNowPlayingUi(
+        NowPlayingTrackUiConfig(
+            stateLabel = stateLabel,
+            coverArtUrl = coverArtUrl,
+            playbackEngineName = playbackEngineName,
+            waveform = waveform,
+            visualizerAvailable = visualizerAvailable,
+            visualizerVisible = visualizerVisible,
+            positionSeconds = playbackProgress.positionSeconds,
+            durationSeconds = durationSeconds,
+            volumePercent = volumePercent,
+            isPlaying = playbackState == PlaybackState.Playing,
+            isPaused = playbackState == PlaybackState.Paused,
+            canPlayPause = capabilities.canPlayPause,
+            canSeek = capabilities.canSeek,
+            canChangeVolume = capabilities.canChangeVolume,
+            hasPrevious = hasPrevious,
+            hasNext = hasNext,
+            shuffleEnabled = shuffleEnabled,
+            shuffleActive = shuffleActive,
+            repeatMode = repeatMode,
+            canRepeat = capabilities.canRepeat,
+            canStartRadio = capabilities.canStartRadio,
+            canAddToPlaylist = capabilities.canAddToPlaylist,
+            canSaveQueueAsPlaylist = capabilities.canSaveQueueAsPlaylist,
+            sleepTimer = sleepTimer,
+            canFavorite = capabilities.canFavorite,
+            canRate = capabilities.canRate,
+            lyricsAvailable = capabilities.lyricsAvailable,
+            lyricsVisible = lyricsVisible,
+            lyricsStatus = lyricsStatus,
+            lyrics = lyrics,
+            menuEnabled = true,
+            streamQuality = streamQuality,
+            embeddedTags = nowPlayingEmbeddedTagRows(embeddedTags),
+            playlistChoices = playlistChoices,
+            useInlinePlaylistPicker = useInlinePlaylistPicker,
+            playlistActionStatus = playlistActionStatus,
+            backTo = backTo,
+            upNext = upNext,
+            related = related,
+            relatedTabLabel = relatedLabels.tabLabel,
+            relatedEmptyLabel = relatedLabels.emptyLabel,
+        ),
     )
 
 fun InternetRadioStation.toNowPlayingUi(config: NowPlayingRadioUiConfig): NowPlayingUi {

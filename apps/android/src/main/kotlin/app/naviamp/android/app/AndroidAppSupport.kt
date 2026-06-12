@@ -49,7 +49,6 @@ import app.naviamp.ui.NaviampNowPlayingItemUi
 import app.naviamp.ui.NaviampPlaylistChoiceUi
 import app.naviamp.ui.NaviampSharedAppShell
 import app.naviamp.ui.NaviampSleepTimerUi
-import app.naviamp.ui.NowPlayingTrackUiConfig
 import app.naviamp.ui.NowPlayingUi
 import app.naviamp.ui.effectiveNowPlayingCoverArtUrl
 import app.naviamp.ui.SharedAlbumDetailUi
@@ -64,7 +63,7 @@ import app.naviamp.ui.SharedSearchResultsUi
 import app.naviamp.ui.SharedSimilarArtistUi
 import app.naviamp.ui.toDownloadedTrackUi
 import app.naviamp.ui.toNowPlayingItemUis
-import app.naviamp.ui.toNowPlayingUi
+import app.naviamp.ui.toTrackNowPlayingUi
 import app.naviamp.ui.toPlaylistChoiceUi
 import app.naviamp.ui.toRadioNowPlayingUi
 import app.naviamp.ui.toSharedAlbumDetailUi
@@ -74,7 +73,6 @@ import app.naviamp.ui.toSharedMediaItemUi
 import app.naviamp.ui.toSharedPlaylistDetailUi
 import app.naviamp.ui.toSharedSearchResultsUi
 import app.naviamp.ui.toSharedRoute
-import app.naviamp.ui.nowPlayingEmbeddedTagRows
 import app.naviamp.ui.nowPlayingRelatedUiLabels
 import app.naviamp.ui.nowPlayingTrackCapabilities
 import kotlinx.coroutines.Dispatchers
@@ -326,56 +324,41 @@ fun androidNowPlayingUi(
             streamMetadata = nowPlayingStreamMetadata,
             radioTrackArtworkByKey = radioTrackArtworkByKey,
         )
-        track.toNowPlayingUi(
-            NowPlayingTrackUiConfig(
-                stateLabel = "${playbackState.label()} ${playbackProgress.positionSeconds?.toInt() ?: 0}s",
-                coverArtUrl = resolvedCoverArtUrl,
-                waveform = waveformByTrackId[track.id.value],
-                visualizerAvailable = (playbackEngine as? VisualizerPlaybackEngine)?.supportsVisualizer == true,
-                visualizerVisible = visualizerVisible,
-                positionSeconds = playbackProgress.positionSeconds,
-                durationSeconds = playbackProgress.durationSeconds,
-                volumePercent = volumePercent,
-                isPlaying = playbackState == PlaybackState.Playing,
-                isPaused = playbackState == PlaybackState.Paused,
-                canPlayPause = capabilities.canPlayPause,
-                canSeek = capabilities.canSeek,
-                canChangeVolume = capabilities.canChangeVolume,
-                hasPrevious = currentIndex > 0 || (repeatMode == RepeatMode.Queue && knownTracks.size > 1),
-                hasNext = (currentIndex >= 0 && currentIndex < knownTracks.lastIndex) ||
-                    (repeatMode == RepeatMode.Queue && knownTracks.size > 1),
-                shuffleEnabled = knownTracks.drop(currentIndex + 1).size > 1,
-                shuffleActive = shuffledUpNextSnapshot != null,
-                repeatMode = repeatMode,
-                canRepeat = capabilities.canRepeat,
-                canStartRadio = capabilities.canStartRadio,
-                canAddToPlaylist = capabilities.canAddToPlaylist,
-                canSaveQueueAsPlaylist = capabilities.canSaveQueueAsPlaylist,
-                sleepTimer = sleepTimer,
-                canFavorite = capabilities.canFavorite,
-                canRate = capabilities.canRate,
-                lyricsAvailable = capabilities.lyricsAvailable,
-                lyricsVisible = lyricsVisible && nowPlayingOpen,
-                lyricsStatus = lyricsStatusByTrackId[track.id.value],
-                lyrics = lyricsByTrackId[track.id.value],
-                menuEnabled = true,
-                streamQuality = streamQuality,
-                embeddedTags = nowPlayingEmbeddedTagRows(audioTagsByTrackId[track.id.value]?.map { it.key to it.value }),
-                playlistChoices = playlistChoices,
-                playlistActionStatus = playlistActionStatus,
-                backTo = knownTracks
-                    .take(currentIndex.coerceAtLeast(0))
-                    .asReversed()
-                    .toNowPlayingItemUis(trackCoverArtUrl),
-                upNext = if (currentIndex >= 0) {
-                    knownTracks.drop(currentIndex + 1).toNowPlayingItemUis(trackCoverArtUrl)
-                } else {
-                    emptyList()
-                },
-                related = relatedTracks.toNowPlayingItemUis(trackCoverArtUrl),
-                relatedTabLabel = relatedLabels.tabLabel,
-                relatedEmptyLabel = relatedLabels.emptyLabel,
-            ),
+        track.toTrackNowPlayingUi(
+            stateLabel = "${playbackState.label()} ${playbackProgress.positionSeconds?.toInt() ?: 0}s",
+            coverArtUrl = resolvedCoverArtUrl,
+            playbackProgress = playbackProgress,
+            playbackState = playbackState,
+            capabilities = capabilities,
+            hasPrevious = currentIndex > 0 || (repeatMode == RepeatMode.Queue && knownTracks.size > 1),
+            hasNext = (currentIndex >= 0 && currentIndex < knownTracks.lastIndex) ||
+                (repeatMode == RepeatMode.Queue && knownTracks.size > 1),
+            shuffleEnabled = knownTracks.drop(currentIndex + 1).size > 1,
+            shuffleActive = shuffledUpNextSnapshot != null,
+            repeatMode = repeatMode,
+            sleepTimer = sleepTimer,
+            relatedLabels = relatedLabels,
+            waveform = waveformByTrackId[track.id.value],
+            visualizerAvailable = (playbackEngine as? VisualizerPlaybackEngine)?.supportsVisualizer == true,
+            visualizerVisible = visualizerVisible,
+            lyricsVisible = lyricsVisible && nowPlayingOpen,
+            lyricsStatus = lyricsStatusByTrackId[track.id.value],
+            lyrics = lyricsByTrackId[track.id.value],
+            streamQuality = streamQuality,
+            embeddedTags = audioTagsByTrackId[track.id.value]?.map { it.key to it.value },
+            playlistChoices = playlistChoices,
+            playlistActionStatus = playlistActionStatus,
+            backTo = knownTracks
+                .take(currentIndex.coerceAtLeast(0))
+                .asReversed()
+                .toNowPlayingItemUis(trackCoverArtUrl),
+            upNext = if (currentIndex >= 0) {
+                knownTracks.drop(currentIndex + 1).toNowPlayingItemUis(trackCoverArtUrl)
+            } else {
+                emptyList()
+            },
+            related = relatedTracks.toNowPlayingItemUis(trackCoverArtUrl),
+            volumePercent = volumePercent,
         )
     } ?: nowPlayingStation?.let { station ->
         station.toRadioNowPlayingUi(

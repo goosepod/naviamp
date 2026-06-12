@@ -1437,6 +1437,8 @@ Progress notes:
 - Moved track now-playing capability decisions and embedded-tag fallback rows into shared `core/ui`, including play/pause eligibility, live-stream gating, seek/volume, repeat, track radio, playlist actions, favorite/rating support, lyrics availability, and the cached-audio loading row.
 - Desktop now passes provider track-radio capability into the shared mapper instead of assuming track radio locally; Android and Desktop still supply their platform-specific queue/save/engine capability inputs.
 - Verification passed: `.\gradlew.bat --configure-on-demand "-Pnaviamp.bass.platform=windows-x64" :core:ui:jvmTest :apps:desktop:compileKotlinDesktop :apps:android:compileDebugKotlin`.
+- Moved shared track now-playing UI assembly into `Track.toTrackNowPlayingUi`, so Android and Desktop no longer hand-fill the large `NowPlayingTrackUiConfig` in parallel. Platform code now computes platform-specific inputs such as queue IDs, engine support, lyrics state, and playlist choices, then passes them into the shared mapper.
+- Verification passed: `.\gradlew.bat --configure-on-demand "-Pnaviamp.bass.platform=windows-x64" :core:ui:jvmTest :apps:desktop:compileKotlinDesktop :apps:android:compileDebugKotlin`.
 
 Success criteria for the first slice:
 

@@ -25,16 +25,14 @@ import app.naviamp.ui.NaviampPlayerColors
 import app.naviamp.ui.NaviampSleepTimerUi
 import app.naviamp.ui.NaviampVisualizer
 import app.naviamp.ui.MiniNowPlayingUiConfig
-import app.naviamp.ui.NowPlayingTrackUiConfig
 import app.naviamp.ui.NowPlayingUi
 import app.naviamp.ui.toNowPlayingItemUis
 import app.naviamp.ui.toNowPlayingStationUi
-import app.naviamp.ui.toNowPlayingUi
 import app.naviamp.ui.toMiniNowPlayingUi
 import app.naviamp.ui.toRadioNowPlayingUi
-import app.naviamp.ui.nowPlayingEmbeddedTagRows
 import app.naviamp.ui.nowPlayingRelatedUiLabels
 import app.naviamp.ui.nowPlayingTrackCapabilities
+import app.naviamp.ui.toTrackNowPlayingUi
 
 @Composable
 fun DesktopNowPlayingPanel(
@@ -167,48 +165,34 @@ fun DesktopNowPlayingPanel(
             .map { station -> station.toNowPlayingStationUi() }
     }
     val nowPlayingUi = if (nowPlayingTrack != null) {
-        nowPlayingTrack.toNowPlayingUi(
-            NowPlayingTrackUiConfig(
-                stateLabel = playbackState.label(),
-                coverArtUrl = coverArtUrl,
-                playbackEngineName = playbackEngineName,
-                waveform = nowPlayingWaveform,
-                visualizerAvailable = visualizerAvailable,
-                visualizerVisible = visualizerVisible,
-                positionSeconds = playbackProgress.positionSeconds,
-                durationSeconds = effectiveDurationSeconds,
-                volumePercent = volumePercent,
-                isPlaying = playbackState == PlaybackState.Playing,
-                isPaused = playbackState == PlaybackState.Paused,
-                canPlayPause = trackCapabilities.canPlayPause,
-                canSeek = trackCapabilities.canSeek,
-                canChangeVolume = trackCapabilities.canChangeVolume,
-                hasPrevious = hasPrevious,
-                hasNext = hasNext,
-                shuffleEnabled = upNext.size > 1,
-                shuffleActive = shuffleActive,
-                repeatMode = repeatMode,
-                canRepeat = trackCapabilities.canRepeat,
-                canStartRadio = trackCapabilities.canStartRadio,
-                canAddToPlaylist = trackCapabilities.canAddToPlaylist,
-                canSaveQueueAsPlaylist = trackCapabilities.canSaveQueueAsPlaylist,
-                sleepTimer = sleepTimer,
-                canFavorite = trackCapabilities.canFavorite,
-                canRate = trackCapabilities.canRate,
-                lyricsAvailable = trackCapabilities.lyricsAvailable,
-                lyricsVisible = lyricsVisible,
-                lyricsStatus = nowPlayingLyricsStatus,
-                lyrics = nowPlayingLyrics,
-                menuEnabled = true,
-                streamQuality = streamQuality,
-                embeddedTags = nowPlayingEmbeddedTagRows(nowPlayingAudioTags?.map { it.key to it.value }),
-                useInlinePlaylistPicker = false,
-                backTo = backToItems,
-                upNext = upNextItems,
-                related = relatedItems,
-                relatedTabLabel = relatedLabels.tabLabel,
-                relatedEmptyLabel = relatedLabels.emptyLabel,
-            ),
+        nowPlayingTrack.toTrackNowPlayingUi(
+            stateLabel = playbackState.label(),
+            coverArtUrl = coverArtUrl,
+            playbackProgress = playbackProgress,
+            playbackState = playbackState,
+            capabilities = trackCapabilities,
+            hasPrevious = hasPrevious,
+            hasNext = hasNext,
+            shuffleEnabled = upNext.size > 1,
+            shuffleActive = shuffleActive,
+            repeatMode = repeatMode,
+            sleepTimer = sleepTimer,
+            relatedLabels = relatedLabels,
+            playbackEngineName = playbackEngineName,
+            waveform = nowPlayingWaveform,
+            visualizerAvailable = visualizerAvailable,
+            visualizerVisible = visualizerVisible,
+            durationSeconds = effectiveDurationSeconds,
+            lyricsVisible = lyricsVisible,
+            lyricsStatus = nowPlayingLyricsStatus,
+            lyrics = nowPlayingLyrics,
+            streamQuality = streamQuality,
+            embeddedTags = nowPlayingAudioTags?.map { it.key to it.value },
+            useInlinePlaylistPicker = false,
+            backTo = backToItems,
+            upNext = upNextItems,
+            related = relatedItems,
+            volumePercent = volumePercent,
         ).copy(
             isLive = isLiveStream,
             radioStations = radioStations,

@@ -49,7 +49,6 @@ import app.naviamp.ui.NaviampLibrarySyncStatusUi
 import app.naviamp.ui.NaviampSharedAppShell
 import app.naviamp.ui.NaviampRadioArtworkLookupEffect
 import app.naviamp.ui.naviampVisualizerFromName
-import app.naviamp.ui.NowPlayingTrackUiConfig
 import app.naviamp.ui.NowPlayingUi
 import app.naviamp.ui.SharedAlbumDetailUi
 import app.naviamp.ui.SharedHomeUi
@@ -60,7 +59,6 @@ import app.naviamp.ui.SharedRoute
 import app.naviamp.ui.SharedSearchResultsUi
 import app.naviamp.ui.toSharedTrackRowUi
 import app.naviamp.ui.toNowPlayingItemUi
-import app.naviamp.ui.toNowPlayingUi
 import app.naviamp.ui.toPlaylistChoiceUi
 import app.naviamp.ui.toSharedAlbumDetailUi
 import app.naviamp.ui.toSharedArtistDetailUi
