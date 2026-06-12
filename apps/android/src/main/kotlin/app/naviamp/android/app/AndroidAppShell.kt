@@ -313,7 +313,7 @@ fun androidAppShellActions(
     handleShellQueueItemRadio: (NaviampNowPlayingItemUi) -> Unit,
     handleQueueItemPlayNext: (NaviampNowPlayingItemUi) -> Unit,
     handleQueueItemAddToQueue: (NaviampNowPlayingItemUi) -> Unit,
-    findKnownTrack: (String) -> Track?,
+    resolveNowPlayingItemTrack: (NaviampNowPlayingItemUi) -> Track?,
     addTrackToPlaylist: (Track, NaviampPlaylistChoiceUi?, String?) -> Unit,
     toggleCurrentFavorite: () -> Unit,
     handleShellRatingSelected: (Int?) -> Unit,
@@ -530,12 +530,12 @@ fun androidAppShellActions(
             onQueueItemPlayNext = handleQueueItemPlayNext,
             onQueueItemAddToQueue = handleQueueItemAddToQueue,
             onQueueItemAddToPlaylist = { item, playlist ->
-                findKnownTrack(item.id)?.let { addTrackToPlaylist(it, playlist, null) }
+                resolveNowPlayingItemTrack(item)?.let { addTrackToPlaylist(it, playlist, null) }
             },
             onQueueItemCreatePlaylistAndAdd = { item, name ->
-                findKnownTrack(item.id)?.let { addTrackToPlaylist(it, null, name) }
+                resolveNowPlayingItemTrack(item)?.let { addTrackToPlaylist(it, null, name) }
             },
-            onQueueItemDownload = { item -> findKnownTrack(item.id)?.let(downloadTrack) },
+            onQueueItemDownload = { item -> resolveNowPlayingItemTrack(item)?.let(downloadTrack) },
             onToggleFavorite = { toggleCurrentFavorite() },
             onRatingSelected = handleShellRatingSelected,
         )

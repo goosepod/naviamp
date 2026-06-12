@@ -194,6 +194,46 @@ fun List<Track>.toNowPlayingItemUis(
         )
     }
 
+sealed interface NowPlayingItemTarget {
+    data class QueueIndex(val index: Int) : NowPlayingItemTarget
+    data class RelatedIndex(val index: Int) : NowPlayingItemTarget
+    data class TrackId(val id: String) : NowPlayingItemTarget
+}
+
+fun nowPlayingQueueItemId(index: Int): String = "queue:$index"
+
+fun nowPlayingRelatedItemId(index: Int): String = "related:$index"
+
+fun nowPlayingItemTarget(item: NaviampNowPlayingItemUi): NowPlayingItemTarget =
+    item.id.removePrefix("queue:")
+        .takeIf { it != item.id }
+        ?.toIntOrNull()
+        ?.let(NowPlayingItemTarget::QueueIndex)
+        ?: item.id.removePrefix("related:")
+            .takeIf { it != item.id }
+            ?.toIntOrNull()
+            ?.let(NowPlayingItemTarget::RelatedIndex)
+        ?: NowPlayingItemTarget.TrackId(item.id)
+
+fun nowPlayingQueueIndex(item: NaviampNowPlayingItemUi): Int? =
+    (nowPlayingItemTarget(item) as? NowPlayingItemTarget.QueueIndex)?.index
+
+fun nowPlayingRelatedIndex(item: NaviampNowPlayingItemUi): Int? =
+    (nowPlayingItemTarget(item) as? NowPlayingItemTarget.RelatedIndex)?.index
+
+fun resolveNowPlayingItemTrack(
+    item: NaviampNowPlayingItemUi,
+    queueTracks: List<Track> = emptyList(),
+    relatedTracks: List<Track> = emptyList(),
+    knownTracks: List<Track> = emptyList(),
+): Track? =
+    when (val target = nowPlayingItemTarget(item)) {
+        is NowPlayingItemTarget.QueueIndex -> queueTracks.getOrNull(target.index)
+        is NowPlayingItemTarget.RelatedIndex -> relatedTracks.getOrNull(target.index)
+        is NowPlayingItemTarget.TrackId ->
+            (knownTracks + queueTracks + relatedTracks).firstOrNull { track -> track.id.value == target.id }
+    }
+
 data class NowPlayingRelatedUiLabels(
     val tabLabel: String,
     val emptyLabel: String,

@@ -8,6 +8,7 @@ import app.naviamp.domain.playback.PlaybackState
 import app.naviamp.domain.queue.PlaybackQueue
 import app.naviamp.domain.settings.RecentRadioStream
 import app.naviamp.ui.NaviampNowPlayingItemUi
+import app.naviamp.ui.resolveNowPlayingItemTrack
 import kotlinx.coroutines.CoroutineScope
 
 internal class AndroidShellPlaybackController(
@@ -16,7 +17,6 @@ internal class AndroidShellPlaybackController(
     private val playbackEngine: AndroidPlaybackEngine,
     private val playbackQueueController: PlaybackQueueController,
     private val activeQueue: () -> List<Track>,
-    private val findKnownTrack: (String) -> Track?,
     private val playTrack: (Track, List<Track>?, Boolean, Double?, Boolean) -> Unit,
     private val playInternetRadioStation: (app.naviamp.domain.InternetRadioStation) -> Unit,
     private val rememberRecentRadioStream: (RecentRadioStream) -> Unit,
@@ -77,6 +77,11 @@ internal class AndroidShellPlaybackController(
     }
 
     fun startQueueItemRadio(item: NaviampNowPlayingItemUi) {
-        findKnownTrack(item.id)?.let { track -> startTrackRadioQueue(track, playSeed = true) }
+        resolveNowPlayingItemTrack(
+            item = item,
+            queueTracks = state.playbackQueue.tracks,
+            relatedTracks = state.relatedTracks,
+            knownTracks = activeQueue(),
+        )?.let { track -> startTrackRadioQueue(track, playSeed = true) }
     }
 }

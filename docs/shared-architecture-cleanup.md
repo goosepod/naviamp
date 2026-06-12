@@ -1439,6 +1439,8 @@ Progress notes:
 - Verification passed: `.\gradlew.bat --configure-on-demand "-Pnaviamp.bass.platform=windows-x64" :core:ui:jvmTest :apps:desktop:compileKotlinDesktop :apps:android:compileDebugKotlin`.
 - Moved shared track now-playing UI assembly into `Track.toTrackNowPlayingUi`, so Android and Desktop no longer hand-fill the large `NowPlayingTrackUiConfig` in parallel. Platform code now computes platform-specific inputs such as queue IDs, engine support, lyrics state, and playlist choices, then passes them into the shared mapper.
 - Verification passed: `.\gradlew.bat --configure-on-demand "-Pnaviamp.bass.platform=windows-x64" :core:ui:jvmTest :apps:desktop:compileKotlinDesktop :apps:android:compileDebugKotlin`.
+- Moved now-playing row target IDs and item-to-track resolution into shared `core/ui` helpers. Desktop no longer parses `queue:`/`related:` IDs or builds a local item-track map in the panel, and Android now-playing row actions resolve through the same target helper instead of assuming raw track IDs at each callback.
+- Verification passed: `.\gradlew.bat --configure-on-demand "-Pnaviamp.bass.platform=windows-x64" :core:ui:jvmTest :apps:desktop:compileKotlinDesktop :apps:android:compileDebugKotlin`.
 
 Success criteria for the first slice:
 

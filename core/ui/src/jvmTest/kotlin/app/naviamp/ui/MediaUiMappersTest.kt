@@ -8,6 +8,7 @@ import app.naviamp.domain.Track
 import app.naviamp.domain.TrackId
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNull
 
 class MediaUiMappersTest {
     @Test
@@ -56,4 +57,54 @@ class MediaUiMappersTest {
         assertEquals("https://images.test/large.jpg", ui.artist.coverArtUrl)
         assertEquals("Artist biography", ui.biography)
     }
+
+    @Test
+    fun nowPlayingItemTargetResolvesQueueRelatedAndTrackIds() {
+        val queueTrack = track("queue-track")
+        val relatedTrack = track("related-track")
+        val knownTrack = track("known-track")
+
+        assertEquals(
+            queueTrack,
+            resolveNowPlayingItemTrack(
+                item = item(nowPlayingQueueItemId(1)),
+                queueTracks = listOf(track("before"), queueTrack),
+            ),
+        )
+        assertEquals(
+            relatedTrack,
+            resolveNowPlayingItemTrack(
+                item = item(nowPlayingRelatedItemId(0)),
+                relatedTracks = listOf(relatedTrack),
+            ),
+        )
+        assertEquals(
+            knownTrack,
+            resolveNowPlayingItemTrack(
+                item = item("known-track"),
+                knownTracks = listOf(knownTrack),
+            ),
+        )
+        assertNull(
+            resolveNowPlayingItemTrack(
+                item = item(nowPlayingQueueItemId(4)),
+                queueTracks = listOf(queueTrack),
+            ),
+        )
+    }
+
+    private fun item(id: String): NaviampNowPlayingItemUi =
+        NaviampNowPlayingItemUi(id = id, title = id, subtitle = "")
+
+    private fun track(id: String): Track =
+        Track(
+            id = TrackId(id),
+            title = id,
+            artistName = "Artist",
+            albumTitle = "Album",
+            durationSeconds = 125,
+            coverArtId = "cover-1",
+            audioInfo = null,
+            replayGain = null,
+        )
 }

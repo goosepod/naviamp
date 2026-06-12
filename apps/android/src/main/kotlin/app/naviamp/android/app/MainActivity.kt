@@ -458,7 +458,6 @@ private fun NaviampAndroidApp(
             playbackEngine = playbackEngine,
             playbackQueueController = playbackQueueController,
             activeQueue = mediaAppController::activeQueue,
-            findKnownTrack = mediaAppController::findKnownTrack,
             playTrack = playbackAppController::playTrack,
             playInternetRadioStation = playbackAppController::playInternetRadioStation,
             rememberRecentRadioStream = playbackAppController::rememberRecentRadioStream,

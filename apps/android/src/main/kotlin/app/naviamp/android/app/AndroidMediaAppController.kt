@@ -8,6 +8,8 @@ import app.naviamp.domain.playback.PlaybackQueueController
 import app.naviamp.domain.playback.PlaybackQueueManager
 import app.naviamp.domain.playback.applyPlaybackQueueUpdate
 import app.naviamp.domain.popular.ArtistPopularTracksService
+import app.naviamp.ui.NaviampNowPlayingItemUi
+import app.naviamp.ui.resolveNowPlayingItemTrack as resolveNowPlayingItemTrackUi
 import kotlinx.coroutines.CoroutineScope
 
 internal class AndroidMediaAppController(
@@ -23,6 +25,14 @@ internal class AndroidMediaAppController(
 
     fun findKnownTrack(trackId: String): Track? =
         findAndroidKnownTrack(state, trackId, activeQueue())
+
+    fun resolveNowPlayingItemTrack(item: NaviampNowPlayingItemUi): Track? =
+        resolveNowPlayingItemTrackUi(
+            item = item,
+            queueTracks = state.playbackQueue.tracks,
+            relatedTracks = state.relatedTracks,
+            knownTracks = activeQueue(),
+        ) ?: findKnownTrack(item.id)
 
     fun appendTracksToQueue(tracksToAdd: List<Track>, label: String = "tracks") {
         appendAndroidTracksToQueue(state, queueController, tracksToAdd, label)

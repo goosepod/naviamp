@@ -26,12 +26,17 @@ import app.naviamp.ui.NaviampSleepTimerUi
 import app.naviamp.ui.NaviampVisualizer
 import app.naviamp.ui.MiniNowPlayingUiConfig
 import app.naviamp.ui.NowPlayingUi
+import app.naviamp.ui.nowPlayingQueueIndex
+import app.naviamp.ui.nowPlayingQueueItemId
+import app.naviamp.ui.nowPlayingRelatedIndex
+import app.naviamp.ui.nowPlayingRelatedItemId
 import app.naviamp.ui.toNowPlayingItemUis
 import app.naviamp.ui.toNowPlayingStationUi
 import app.naviamp.ui.toMiniNowPlayingUi
 import app.naviamp.ui.toRadioNowPlayingUi
 import app.naviamp.ui.nowPlayingRelatedUiLabels
 import app.naviamp.ui.nowPlayingTrackCapabilities
+import app.naviamp.ui.resolveNowPlayingItemTrack
 import app.naviamp.ui.toTrackNowPlayingUi
 
 @Composable
@@ -134,30 +139,23 @@ fun DesktopNowPlayingPanel(
     val backToItems = remember(backTo, firstBackToQueueIndex, coverArtUrlForTrack) {
         backTo.toNowPlayingItemUis(
             coverArtUrl = coverArtUrlForTrack,
-            id = { index, _ -> "queue:${firstBackToQueueIndex - index}" },
+            id = { index, _ -> nowPlayingQueueItemId(firstBackToQueueIndex - index) },
             meta = { "" },
         )
     }
     val upNextItems = remember(upNext, firstUpNextQueueIndex, coverArtUrlForTrack) {
         upNext.toNowPlayingItemUis(
             coverArtUrl = coverArtUrlForTrack,
-            id = { index, _ -> "queue:${firstUpNextQueueIndex + index}" },
+            id = { index, _ -> nowPlayingQueueItemId(firstUpNextQueueIndex + index) },
             meta = { "" },
         )
     }
     val relatedItems = remember(relatedTracks, coverArtUrlForTrack) {
         relatedTracks.toNowPlayingItemUis(
             coverArtUrl = coverArtUrlForTrack,
-            id = { index, _ -> "related:$index" },
+            id = { index, _ -> nowPlayingRelatedItemId(index) },
             meta = { "" },
         )
-    }
-    val itemTracks = remember(backTo, upNext, relatedTracks, firstBackToQueueIndex, firstUpNextQueueIndex) {
-        buildMap {
-            backTo.forEachIndexed { index, track -> put("queue:${firstBackToQueueIndex - index}", track) }
-            upNext.forEachIndexed { index, track -> put("queue:${firstUpNextQueueIndex + index}", track) }
-            relatedTracks.forEachIndexed { index, track -> put("related:$index", track) }
-        }
     }
     val radioStations = remember(internetRadioStations) {
         internetRadioStations
@@ -257,17 +255,17 @@ fun DesktopNowPlayingPanel(
             onRatingSelected = { rating -> nowPlayingTrack?.let { onTrackRatingSelected(it, rating) } },
             onCollapse = onCollapseToHome,
             onQueueItemSelected = { item ->
-                item.id.removePrefix("queue:").toIntOrNull()?.let(onQueueIndexSelected)
+                nowPlayingQueueIndex(item)?.let(onQueueIndexSelected)
             },
             onRelatedItemSelected = { item ->
-                item.id.removePrefix("related:").toIntOrNull()?.let(onRelatedTrackSelected)
+                nowPlayingRelatedIndex(item)?.let(onRelatedTrackSelected)
             },
             onRadioStationSelected = { item ->
                 internetRadioStations.firstOrNull { it.id == item.id }?.let(onInternetRadioStationSelected)
             },
             onQueueItemRadio = { item ->
-                itemTracks[item.id]?.let {
-                    if (item.id.startsWith("related:")) {
+                resolveNowPlayingItemTrack(item, playbackQueue.tracks, relatedTracks)?.let {
+                    if (nowPlayingRelatedIndex(item) != null) {
                         onRelatedTrackRadioSelected(it)
                     } else {
                         onUpNextTrackRadioSelected(it)
@@ -275,14 +273,18 @@ fun DesktopNowPlayingPanel(
                 }
             },
             onQueueItemPlayNext = { item ->
-                itemTracks[item.id]?.takeIf { item.id.startsWith("related:") }?.let(onRelatedTrackPlayNext)
+                nowPlayingRelatedIndex(item)
+                    ?.let { relatedTracks.getOrNull(it) }
+                    ?.let(onRelatedTrackPlayNext)
             },
             onQueueItemAddToQueue = { item ->
-                itemTracks[item.id]?.takeIf { item.id.startsWith("related:") }?.let(onRelatedTrackAddToQueue)
+                nowPlayingRelatedIndex(item)
+                    ?.let { relatedTracks.getOrNull(it) }
+                    ?.let(onRelatedTrackAddToQueue)
             },
             onQueueItemAddToPlaylist = { item, _ ->
-                itemTracks[item.id]?.let {
-                    if (item.id.startsWith("related:")) {
+                resolveNowPlayingItemTrack(item, playbackQueue.tracks, relatedTracks)?.let {
+                    if (nowPlayingRelatedIndex(item) != null) {
                         onRelatedTrackAddToPlaylist(it)
                     } else {
                         onUpNextTrackAddToPlaylist(it)
@@ -290,8 +292,8 @@ fun DesktopNowPlayingPanel(
                 }
             },
             onQueueItemDownload = { item ->
-                itemTracks[item.id]?.let {
-                    if (item.id.startsWith("related:")) {
+                resolveNowPlayingItemTrack(item, playbackQueue.tracks, relatedTracks)?.let {
+                    if (nowPlayingRelatedIndex(item) != null) {
                         onRelatedTrackDownloadSelected(it)
                     } else {
                         onUpNextTrackDownloadSelected(it)
