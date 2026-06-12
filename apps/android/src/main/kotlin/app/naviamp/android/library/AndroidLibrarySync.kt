@@ -1,36 +1,39 @@
 package app.naviamp.android
 
 import app.naviamp.domain.Artist
+import app.naviamp.domain.InternetRadioStation
 import app.naviamp.domain.cache.LocalLibraryIndexRepository
 import app.naviamp.domain.cache.ProviderResponseCacheRepository
 import app.naviamp.domain.cache.ProviderResponseService
 import app.naviamp.domain.home.HomeContent
+import app.naviamp.domain.home.HomeContentLoadRequest
 import app.naviamp.domain.home.HomeDate
-import app.naviamp.domain.home.HomeService
+import app.naviamp.domain.home.loadHomeContent
 import app.naviamp.domain.library.LibrarySyncProgress
 import app.naviamp.domain.library.LibrarySyncProgressPhase
 import app.naviamp.domain.library.syncLibraryIndexAndMarkScanChecked
 import app.naviamp.domain.provider.MediaProvider
+import app.naviamp.domain.settings.RecentRadioStream
 import app.naviamp.provider.navidrome.NavidromeProvider
 import java.time.LocalDate
 
 suspend fun loadBrowseState(
     provider: NavidromeProvider,
     providerResponseCacheRepository: ProviderResponseCacheRepository? = null,
-    recentRadioStreams: List<app.naviamp.domain.settings.RecentRadioStream> = emptyList(),
-    recentInternetRadioStations: List<app.naviamp.domain.InternetRadioStation> = emptyList(),
+    recentRadioStreams: List<RecentRadioStream> = emptyList(),
+    recentInternetRadioStations: List<InternetRadioStation> = emptyList(),
 ): HomeContent {
     val today = LocalDate.now()
-    val home = HomeService(
-        provider = provider,
-        providerResponseService = providerResponseCacheRepository?.let { ProviderResponseService(it) },
-        date = HomeDate(year = today.year, dayOfYear = today.dayOfYear),
-    ).load(
-        recentRadioStreams = recentRadioStreams,
-        recentInternetRadioStations = recentInternetRadioStations,
-        artistLimit = AndroidLibraryArtistLimit,
+    return loadHomeContent(
+        HomeContentLoadRequest(
+            provider = provider,
+            providerResponseService = providerResponseCacheRepository?.let { ProviderResponseService(it) },
+            date = HomeDate(year = today.year, dayOfYear = today.dayOfYear),
+            recentRadioStreams = recentRadioStreams,
+            recentInternetRadioStations = recentInternetRadioStations,
+            artistLimit = AndroidLibraryArtistLimit,
+        ),
     )
-    return home
 }
 
 suspend fun syncAndroidLibrary(

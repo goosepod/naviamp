@@ -15,9 +15,11 @@ import app.naviamp.domain.provider.ConnectionValidation
 import app.naviamp.domain.provider.MediaProvider
 import app.naviamp.domain.provider.MediaSearchResults
 import app.naviamp.domain.provider.ProviderCapabilities
+import app.naviamp.domain.radio.libraryRecentRadioStream
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNull
 
 class HomeServiceTest {
     @Test
@@ -55,6 +57,73 @@ class HomeServiceTest {
         ).load()
 
         assertEquals(HomeDefaultArtistLimit, provider.artistLimit)
+    }
+
+    @Test
+    fun loadHomeContentUsesRequestInputs() = runTest {
+        val provider = FakeHomeProvider()
+
+        val recentRadioStream = libraryRecentRadioStream()
+        val home = loadHomeContent(
+            HomeContentLoadRequest(
+                provider = provider,
+                date = HomeDate(year = 2026, dayOfYear = 1),
+                recentRadioStreams = listOf(recentRadioStream),
+                recentInternetRadioStations = listOf(radioStation("recent")),
+                artistLimit = 321,
+            ),
+        )
+
+        assertEquals(321, provider.artistLimit)
+        assertEquals(listOf(recentRadioStream), home.recentRadioStreams)
+        assertEquals(listOf(radioStation("recent")), home.recentInternetRadioStations)
+    }
+
+    @Test
+    fun homeContentCoordinatorPublishesLoadingSuccessAndClearStatus() = runTest {
+        val statuses = mutableListOf<String?>()
+        var content = HomeContent()
+        val coordinator = HomeContentCoordinator(
+            setHomeContent = { content = it },
+            setHomeStatus = { statuses += it },
+        )
+
+        coordinator.load(
+            HomeContentLoadRequest(
+                provider = FakeHomeProvider(),
+                date = HomeDate(year = 2026, dayOfYear = 1),
+            ),
+        )
+
+        assertEquals(listOf<String?>(HomeLoadingStatus, null), statuses)
+        assertEquals(listOf(album("newest")), content.recentlyAddedAlbums)
+    }
+
+    @Test
+    fun homeContentCoordinatorPublishesFailureStatusAndLeavesContentUnchanged() = runTest {
+        val statuses = mutableListOf<String?>()
+        var content = HomeContent(recentlyAddedAlbums = listOf(album("existing")))
+        val coordinator = HomeContentCoordinator(
+            setHomeContent = { content = it },
+            setHomeStatus = { statuses += it },
+        )
+
+        coordinator.load(
+            request = HomeContentLoadRequest(
+                provider = FakeHomeProvider(),
+                date = HomeDate(year = 2026, dayOfYear = 1),
+            ),
+            loadContent = { error("home failed") },
+        )
+
+        assertEquals(listOf<String?>(HomeLoadingStatus, "home failed"), statuses)
+        assertEquals(listOf(album("existing")), content.recentlyAddedAlbums)
+    }
+
+    @Test
+    fun homeLoadFailureStatusUsesFallbackWhenMessageIsMissing() {
+        assertEquals(HomeLoadFailureFallbackStatus, homeLoadFailureStatus(Throwable()))
+        assertNull(Throwable().message)
     }
 
     @Test

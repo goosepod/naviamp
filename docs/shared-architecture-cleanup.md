@@ -604,7 +604,7 @@ Phase 5 close-out:
 
 - [x] Extract shared coordinators for connection/provider lifecycle.
 - [x] Extract shared coordinators for library sync/freshness.
-- [ ] Extract shared coordinators for home loading and refresh.
+- [x] Extract shared coordinators for home loading and refresh.
 - [ ] Extract shared coordinators for artist, album, playlist, search, downloads, and internet radio flows.
 - [ ] Extract shared coordinators for artist mix, album mix, genre mix, and future generated queues.
 - [ ] Make Android/Desktop app shells compose shared coordinators rather than owning equivalent orchestration.
@@ -620,6 +620,13 @@ Library sync/freshness close-out:
 - Shared domain now owns library sync/freshness orchestration in `LibraryOrchestration.kt`: provider/source/syncing guards, auto-sync skip behavior, starting/progress/error/final status handling, and freshness signature/status application.
 - Android and desktop library controllers both compose `LibrarySyncCoordinator`; platform code supplies only coroutine dispatching, platform-specific sync work, Android home artist updates, desktop snapshot refresh, and UI status mirroring.
 - Shared tests cover start-plan decisions, completed sync state finalization, skipped auto-sync, failure status propagation, and freshness update application.
+
+Home loading/refresh close-out:
+
+- Shared domain now owns home loading request composition in `HomeContentLoadRequest`, the common `loadHomeContent` entry point, and `HomeContentCoordinator` status transitions for loading, success, and failure.
+- Desktop home refresh now delegates provider/cache/library/source/recent-radio inputs to the shared coordinator while keeping coroutine dispatching and JVM date lookup local.
+- Android browse-state loading now uses the same shared home request/loader path as desktop, preserving the Android artist-limit setting as a platform input.
+- Shared tests cover request input propagation and coordinator success/failure status behavior.
 
 ## Phase 7: Platform Root Decomposition
 
