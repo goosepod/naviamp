@@ -1471,6 +1471,8 @@ Progress notes:
 - Verification passed: `.\gradlew.bat --configure-on-demand "-Pnaviamp.bass.platform=windows-x64" :core:ui:jvmTest :apps:desktop:compileKotlinDesktop :apps:android:compileDebugKotlin`.
 - Collapsed the remaining desktop detail row clusters onto typed shared actions. Album-detail, artist-detail popular-track, artist-detail album, and playlist-detail track rows now leave their panels as `SharedTrackRowActionRequest` or `SharedMediaItemActionRequest`, with desktop route content doing the thin lookup into selected detail state before invoking platform actions.
 - Verification passed: `.\gradlew.bat --configure-on-demand "-Pnaviamp.bass.platform=windows-x64" :core:ui:jvmTest :apps:desktop:compileKotlinDesktop :apps:android:compileDebugKotlin`.
+- Collapsed desktop now-playing queue and related item menu callbacks onto `NowPlayingItemActionRequest`. `DesktopNowPlayingPanel` now exposes one typed queue-item action callback and `DesktopNaviampApp` resolves it against queue/related tracks before invoking the existing platform actions.
+- Verification passed: `.\gradlew.bat --configure-on-demand "-Pnaviamp.bass.platform=windows-x64" :core:ui:jvmTest :apps:desktop:compileKotlinDesktop :apps:android:compileDebugKotlin`.
 
 Success criteria for the first slice:
 

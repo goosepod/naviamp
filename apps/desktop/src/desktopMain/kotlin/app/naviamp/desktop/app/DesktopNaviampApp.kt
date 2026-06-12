@@ -55,6 +55,8 @@ import app.naviamp.provider.navidrome.toNavidromeConnection
 import app.naviamp.provider.navidrome.withNativeTokenFromPassword
 import app.naviamp.ui.NaviampSleepTimerUi
 import app.naviamp.ui.NaviampSleepTimerExpiryEffect
+import app.naviamp.ui.NowPlayingItemAction
+import app.naviamp.ui.resolveAction
 import app.naviamp.ui.toNaviampSleepTimerUi
 
 @Composable
@@ -864,15 +866,28 @@ fun NaviampApp(
                             onCancelSleepTimer = sleepTimerController::cancel,
                             onInternetRadioStationSelected = internetRadioController::playStation,
                             onQueueIndexSelected = ::handleQueueIndexSelected,
-                            onUpNextTrackRadioSelected = appActions::playTrackRadio,
-                            onUpNextTrackDownloadSelected = appActions::downloadTrack,
-                            onUpNextTrackAddToPlaylist = playlistsController::openTrackAddToPlaylist,
                             onRelatedTrackSelected = appActions::playRelatedTrack,
-                            onRelatedTrackPlayNext = playlistsController::playNext,
-                            onRelatedTrackAddToQueue = playlistsController::addTrackToQueue,
-                            onRelatedTrackRadioSelected = appActions::playTrackRadio,
-                            onRelatedTrackDownloadSelected = appActions::downloadTrack,
-                            onRelatedTrackAddToPlaylist = playlistsController::openTrackAddToPlaylist,
+                            onQueueItemAction = { request ->
+                                val action = request.resolveAction(
+                                    queueTracks = playbackQueue.tracks,
+                                    relatedTracks = nowPlayingController.relatedTracks,
+                                )
+                                when (action.action) {
+                                    NowPlayingItemAction.StartRadio ->
+                                        action.track?.let(appActions::playTrackRadio)
+                                    NowPlayingItemAction.PlayNext -> {
+                                        if (action.isRelated) action.track?.let(playlistsController::playNext)
+                                    }
+                                    NowPlayingItemAction.AddToQueue -> {
+                                        if (action.isRelated) action.track?.let(playlistsController::addTrackToQueue)
+                                    }
+                                    NowPlayingItemAction.AddToPlaylist ->
+                                        action.track?.let(playlistsController::openTrackAddToPlaylist)
+                                    NowPlayingItemAction.CreatePlaylistAndAdd -> Unit
+                                    NowPlayingItemAction.Download ->
+                                        action.track?.let(appActions::downloadTrack)
+                                }
+                            },
                             onCollapseToHome = { appRoute = lastContentRoute },
                         )
                     } else {
