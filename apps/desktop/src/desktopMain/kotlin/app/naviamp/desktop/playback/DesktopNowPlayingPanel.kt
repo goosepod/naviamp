@@ -27,11 +27,12 @@ import app.naviamp.ui.NaviampVisualizer
 import app.naviamp.ui.MiniNowPlayingUiConfig
 import app.naviamp.ui.NowPlayingTrackUiConfig
 import app.naviamp.ui.NowPlayingUi
-import app.naviamp.ui.toNowPlayingItemUi
+import app.naviamp.ui.toNowPlayingItemUis
 import app.naviamp.ui.toNowPlayingStationUi
 import app.naviamp.ui.toNowPlayingUi
 import app.naviamp.ui.toMiniNowPlayingUi
 import app.naviamp.ui.toRadioNowPlayingUi
+import app.naviamp.ui.nowPlayingRelatedUiLabels
 
 @Composable
 fun DesktopNowPlayingPanel(
@@ -115,36 +116,31 @@ fun DesktopNowPlayingPanel(
     val upNext = playbackQueue.upNext()
     val firstBackToQueueIndex = playbackQueue.currentIndex - 1
     val firstUpNextQueueIndex = playbackQueue.currentIndex + 1
+    val relatedLabels = nowPlayingRelatedUiLabels(sonicSimilarityEnabled)
     val canTogglePlayback = nowPlayingTrack != null &&
         playbackState != PlaybackState.Loading &&
         playbackState !is PlaybackState.Error &&
         (supportsPause || playbackState != PlaybackState.Playing)
     val backToItems = remember(backTo, firstBackToQueueIndex, coverArtUrlForTrack) {
-        backTo.mapIndexed { index, track ->
-            track.toNowPlayingItemUi(
-                id = "queue:${firstBackToQueueIndex - index}",
-                coverArtUrl = coverArtUrlForTrack(track),
-                meta = "",
-            )
-        }
+        backTo.toNowPlayingItemUis(
+            coverArtUrl = coverArtUrlForTrack,
+            id = { index, _ -> "queue:${firstBackToQueueIndex - index}" },
+            meta = { "" },
+        )
     }
     val upNextItems = remember(upNext, firstUpNextQueueIndex, coverArtUrlForTrack) {
-        upNext.mapIndexed { index, track ->
-            track.toNowPlayingItemUi(
-                id = "queue:${firstUpNextQueueIndex + index}",
-                coverArtUrl = coverArtUrlForTrack(track),
-                meta = "",
-            )
-        }
+        upNext.toNowPlayingItemUis(
+            coverArtUrl = coverArtUrlForTrack,
+            id = { index, _ -> "queue:${firstUpNextQueueIndex + index}" },
+            meta = { "" },
+        )
     }
     val relatedItems = remember(relatedTracks, coverArtUrlForTrack) {
-        relatedTracks.mapIndexed { index, track ->
-            track.toNowPlayingItemUi(
-                id = "related:$index",
-                coverArtUrl = coverArtUrlForTrack(track),
-                meta = "",
-            )
-        }
+        relatedTracks.toNowPlayingItemUis(
+            coverArtUrl = coverArtUrlForTrack,
+            id = { index, _ -> "related:$index" },
+            meta = { "" },
+        )
     }
     val itemTracks = remember(backTo, upNext, relatedTracks, firstBackToQueueIndex, firstUpNextQueueIndex) {
         buildMap {
@@ -199,12 +195,8 @@ fun DesktopNowPlayingPanel(
                 backTo = backToItems,
                 upNext = upNextItems,
                 related = relatedItems,
-                relatedTabLabel = if (sonicSimilarityEnabled) "SONIC" else "RELATED",
-                relatedEmptyLabel = if (sonicSimilarityEnabled) {
-                    "Sonic matches are not loaded."
-                } else {
-                    "Related tracks are not loaded."
-                },
+                relatedTabLabel = relatedLabels.tabLabel,
+                relatedEmptyLabel = relatedLabels.emptyLabel,
             ),
         ).copy(
             isLive = isLiveStream,

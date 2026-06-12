@@ -1432,6 +1432,8 @@ Progress notes:
 - Verification passed: `.\gradlew.bat --configure-on-demand "-Pnaviamp.bass.platform=windows-x64" :core:ui:jvmTest :apps:desktop:compileKotlinDesktop :apps:android:compileDebugKotlin`.
 - Moved radio now-playing UI construction into shared `InternetRadioStation.toRadioNowPlayingUi`, so Android and Desktop share stream-title, artwork, state-label, station-list, and radio playback-state mapping while still passing platform capabilities such as volume and play/pause support.
 - Verification passed: `.\gradlew.bat --configure-on-demand "-Pnaviamp.bass.platform=windows-x64" :core:ui:jvmTest :apps:desktop:compileKotlinDesktop :apps:android:compileDebugKotlin`.
+- Moved shared now-playing item-list and related-tab label mapping into `core/ui`, so Android and Desktop share back-to/up-next/related row construction and Sonic/Related empty-state copy while preserving platform-specific item IDs.
+- Verification passed: `.\gradlew.bat --configure-on-demand "-Pnaviamp.bass.platform=windows-x64" :core:ui:jvmTest :apps:desktop:compileKotlinDesktop :apps:android:compileDebugKotlin`.
 
 Success criteria for the first slice:
 

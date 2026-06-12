@@ -63,7 +63,7 @@ import app.naviamp.ui.SharedRoute
 import app.naviamp.ui.SharedSearchResultsUi
 import app.naviamp.ui.SharedSimilarArtistUi
 import app.naviamp.ui.toDownloadedTrackUi
-import app.naviamp.ui.toNowPlayingItemUi
+import app.naviamp.ui.toNowPlayingItemUis
 import app.naviamp.ui.toNowPlayingUi
 import app.naviamp.ui.toPlaylistChoiceUi
 import app.naviamp.ui.toRadioNowPlayingUi
@@ -74,6 +74,7 @@ import app.naviamp.ui.toSharedMediaItemUi
 import app.naviamp.ui.toSharedPlaylistDetailUi
 import app.naviamp.ui.toSharedSearchResultsUi
 import app.naviamp.ui.toSharedRoute
+import app.naviamp.ui.nowPlayingRelatedUiLabels
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -303,6 +304,8 @@ fun androidNowPlayingUi(
     nowPlaying?.let { track ->
         val currentIndex = knownTracks.indexOfFirst { it.id == track.id }
         val coverArtUrl: (String?) -> String? = { coverArtId -> coverArtId?.let { provider?.coverArtUrl(it) } }
+        val trackCoverArtUrl: (Track) -> String? = { item -> coverArtUrl(item.coverArtId) }
+        val relatedLabels = nowPlayingRelatedUiLabels(sonicSimilarityEnabled)
         val resolvedCoverArtUrl = effectiveNowPlayingCoverArtUrl(
             currentCoverArtUrl = track.coverArtUrl(provider),
             nowPlayingTrack = track,
@@ -350,19 +353,15 @@ fun androidNowPlayingUi(
                 backTo = knownTracks
                     .take(currentIndex.coerceAtLeast(0))
                     .asReversed()
-                    .map { it.toNowPlayingItemUi(coverArtUrl) },
+                    .toNowPlayingItemUis(trackCoverArtUrl),
                 upNext = if (currentIndex >= 0) {
-                    knownTracks.drop(currentIndex + 1).map { it.toNowPlayingItemUi(coverArtUrl) }
+                    knownTracks.drop(currentIndex + 1).toNowPlayingItemUis(trackCoverArtUrl)
                 } else {
                     emptyList()
                 },
-                related = relatedTracks.map { it.toNowPlayingItemUi(coverArtUrl) },
-                relatedTabLabel = if (sonicSimilarityEnabled) "SONIC" else "RELATED",
-                relatedEmptyLabel = if (sonicSimilarityEnabled) {
-                    "Sonic matches are not loaded."
-                } else {
-                    "Related tracks are not loaded."
-                },
+                related = relatedTracks.toNowPlayingItemUis(trackCoverArtUrl),
+                relatedTabLabel = relatedLabels.tabLabel,
+                relatedEmptyLabel = relatedLabels.emptyLabel,
             ),
         )
     } ?: nowPlayingStation?.let { station ->

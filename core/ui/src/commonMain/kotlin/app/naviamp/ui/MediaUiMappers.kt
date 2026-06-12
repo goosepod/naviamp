@@ -180,6 +180,37 @@ fun Track.toNowPlayingItemUi(
         coverArtUrl = coverArtUrl,
     )
 
+fun List<Track>.toNowPlayingItemUis(
+    coverArtUrl: (Track) -> String?,
+    id: (index: Int, track: Track) -> String = { _, track -> track.id.value },
+    meta: (Track) -> String = { track -> track.durationSeconds?.durationLabel().orEmpty() },
+): List<NaviampNowPlayingItemUi> =
+    mapIndexed { index, track ->
+        track.toNowPlayingItemUi(
+            id = id(index, track),
+            coverArtUrl = coverArtUrl(track),
+            meta = meta(track),
+        )
+    }
+
+data class NowPlayingRelatedUiLabels(
+    val tabLabel: String,
+    val emptyLabel: String,
+)
+
+fun nowPlayingRelatedUiLabels(sonicSimilarityEnabled: Boolean): NowPlayingRelatedUiLabels =
+    if (sonicSimilarityEnabled) {
+        NowPlayingRelatedUiLabels(
+            tabLabel = "SONIC",
+            emptyLabel = "Sonic matches are not loaded.",
+        )
+    } else {
+        NowPlayingRelatedUiLabels(
+            tabLabel = "RELATED",
+            emptyLabel = "Related tracks are not loaded.",
+        )
+    }
+
 fun Track.compactFavoriteRatingLabel(): String? {
     val parts = listOfNotNull(
         favoritedAtIso8601?.let { "♥" },
