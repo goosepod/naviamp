@@ -1451,6 +1451,8 @@ Progress notes:
 - Verification passed: `.\gradlew.bat --configure-on-demand "-Pnaviamp.bass.platform=windows-x64" :core:ui:jvmTest :apps:desktop:compileKotlinDesktop :apps:android:compileDebugKotlin`.
 - Extended shared track-row action requests with playlist payloads and a shared dispatcher/resolver. Album and artist popular track dialogs now route playlist add/create through the same typed request path, and Android's album/popular/search track queue/download/playlist wrappers now delegate to one `handleTrackAction` implementation.
 - Verification passed: `.\gradlew.bat --configure-on-demand "-Pnaviamp.bass.platform=windows-x64" :core:ui:jvmTest :apps:desktop:compileKotlinDesktop :apps:android:compileDebugKotlin`.
+- Threaded `SharedTrackRowActionRequest` through the shared app shell boundary. Android's shell contracts/content/top-level wiring now expose one typed track-action callback for album, artist popular, search, and playlist row actions, while route-specific selection remains separate.
+- Verification passed: `.\gradlew.bat --configure-on-demand "-Pnaviamp.bass.platform=windows-x64" :core:ui:jvmTest :apps:desktop:compileKotlinDesktop :apps:android:compileDebugKotlin`.
 
 Success criteria for the first slice:
 

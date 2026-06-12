@@ -196,6 +196,18 @@ fun NaviampSharedAppShell(
     onPlaylistBack: () -> Unit = {},
     onPlaylistTrackSelected: (SharedTrackRowUi) -> Unit = {},
     onTrackAddToQueue: (SharedTrackRowUi) -> Unit = {},
+    onTrackAction: (SharedTrackRowActionRequest) -> Unit = { request ->
+        handleSharedTrackRowAction(
+            request,
+            SharedTrackRowActionHandlers(
+                onSelect = onTrackSelected,
+                onAddToQueue = onTrackAddToQueue,
+                onDownload = onAlbumTrackDownload,
+                onAddToPlaylist = onAlbumTrackAddToPlaylist,
+                onCreatePlaylistAndAdd = onAlbumTrackCreatePlaylistAndAdd,
+            ),
+        )
+    },
     onRecentRadioSelected: (SharedMediaItemUi) -> Unit = {},
     onMixBuilderSelected: (SharedMixBuilderUi) -> Unit = {},
     onRadioStationSelected: (InternetRadioStation) -> Unit,
@@ -455,6 +467,7 @@ fun NaviampSharedAppShell(
                             onPlaylistBack = onPlaylistBack,
                             onPlaylistTrackSelected = onPlaylistTrackSelected,
                             onTrackAddToQueue = onTrackAddToQueue,
+                            onTrackAction = onTrackAction,
                             onRecentRadioSelected = onRecentRadioSelected,
                             onMixBuilderSelected = onMixBuilderSelected,
                             onRadioStationSelected = onRadioStationSelected,
@@ -780,6 +793,7 @@ private fun ConnectedContent(
     onPlaylistBack: () -> Unit,
     onPlaylistTrackSelected: (SharedTrackRowUi) -> Unit,
     onTrackAddToQueue: (SharedTrackRowUi) -> Unit,
+    onTrackAction: (SharedTrackRowActionRequest) -> Unit,
     onRecentRadioSelected: (SharedMediaItemUi) -> Unit,
     onMixBuilderSelected: (SharedMixBuilderUi) -> Unit,
     onRadioStationSelected: (InternetRadioStation) -> Unit,
@@ -903,10 +917,30 @@ private fun ConnectedContent(
             onAlbumCreatePlaylistAndAdd = { name -> onAlbumCreatePlaylistAndAdd(albumDetail, name) },
             onAlbumFavoriteToggled = { onAlbumFavoriteToggled(albumDetail.album) },
             onTrackSelected = onAlbumTrackSelected,
-            onTrackAddToQueue = onTrackAddToQueue,
-            onTrackDownload = onAlbumTrackDownload,
-            onTrackAddToPlaylist = onAlbumTrackAddToPlaylist,
-            onTrackCreatePlaylistAndAdd = onAlbumTrackCreatePlaylistAndAdd,
+            onTrackAddToQueue = { track ->
+                onTrackAction(SharedTrackRowActionRequest(track, SharedTrackRowAction.AddToQueue))
+            },
+            onTrackDownload = { track ->
+                onTrackAction(SharedTrackRowActionRequest(track, SharedTrackRowAction.Download))
+            },
+            onTrackAddToPlaylist = { track, playlist ->
+                onTrackAction(
+                    SharedTrackRowActionRequest(
+                        track = track,
+                        action = SharedTrackRowAction.AddToPlaylist,
+                        playlistChoice = playlist,
+                    ),
+                )
+            },
+            onTrackCreatePlaylistAndAdd = { track, name ->
+                onTrackAction(
+                    SharedTrackRowActionRequest(
+                        track = track,
+                        action = SharedTrackRowAction.CreatePlaylistAndAdd,
+                        playlistName = name,
+                    ),
+                )
+            },
             playlistChoices = playlistChoices,
             playlistActionStatus = playlistActionStatus,
         )
@@ -924,10 +958,30 @@ private fun ConnectedContent(
             onPopularRadio = { onArtistPopularRadio(artistDetail) },
             onPopularAddToQueue = { onArtistPopularAddToQueue(artistDetail) },
             onPopularTrackSelected = onArtistPopularTrackSelected,
-            onPopularTrackAddToQueue = onArtistPopularTrackAddToQueue,
-            onPopularTrackDownload = onArtistPopularTrackDownload,
-            onPopularTrackAddToPlaylist = onArtistPopularTrackAddToPlaylist,
-            onPopularTrackCreatePlaylistAndAdd = onArtistPopularTrackCreatePlaylistAndAdd,
+            onPopularTrackAddToQueue = { track ->
+                onTrackAction(SharedTrackRowActionRequest(track, SharedTrackRowAction.AddToQueue))
+            },
+            onPopularTrackDownload = { track ->
+                onTrackAction(SharedTrackRowActionRequest(track, SharedTrackRowAction.Download))
+            },
+            onPopularTrackAddToPlaylist = { track, playlist ->
+                onTrackAction(
+                    SharedTrackRowActionRequest(
+                        track = track,
+                        action = SharedTrackRowAction.AddToPlaylist,
+                        playlistChoice = playlist,
+                    ),
+                )
+            },
+            onPopularTrackCreatePlaylistAndAdd = { track, name ->
+                onTrackAction(
+                    SharedTrackRowActionRequest(
+                        track = track,
+                        action = SharedTrackRowAction.CreatePlaylistAndAdd,
+                        playlistName = name,
+                    ),
+                )
+            },
             onFindSimilarArtists = { onFindSimilarArtists(artistDetail) },
             onSimilarArtistSelected = onSimilarArtistSelected,
             onSimilarArtistExternalSelected = onSimilarArtistExternalSelected,
@@ -954,7 +1008,9 @@ private fun ConnectedContent(
             onRenamePlaylist = onPlaylistRename,
             onDeletePlaylist = onPlaylistDelete,
             onTrackSelected = onPlaylistTrackSelected,
-            onTrackAddToQueue = onTrackAddToQueue,
+            onTrackAddToQueue = { track ->
+                onTrackAction(SharedTrackRowActionRequest(track, SharedTrackRowAction.AddToQueue))
+            },
             playlistChoices = playlistChoices,
         )
         else -> when (selectedRoute) {
@@ -1010,7 +1066,9 @@ private fun ConnectedContent(
                 onSearch = onSearch,
                 onClearSearch = onClearSearch,
                 onTrackSelected = onTrackSelected,
-                onTrackAddToQueue = onTrackAddToQueue,
+                onTrackAddToQueue = { track ->
+                    onTrackAction(SharedTrackRowActionRequest(track, SharedTrackRowAction.AddToQueue))
+                },
                 onAlbumSelected = onAlbumSelected,
                 onArtistSelected = onArtistSelected,
                 onArtistFavoriteToggled = onArtistFavoriteToggled,

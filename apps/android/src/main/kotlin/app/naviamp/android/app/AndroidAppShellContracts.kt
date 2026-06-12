@@ -31,6 +31,7 @@ import app.naviamp.ui.SharedPlaylistSortMode
 import app.naviamp.ui.SharedRoute
 import app.naviamp.ui.SharedSearchResultsUi
 import app.naviamp.ui.SharedSimilarArtistUi
+import app.naviamp.ui.SharedTrackRowActionRequest
 import app.naviamp.ui.SharedTrackRowUi
 
 data class AndroidAppShellUiState(
@@ -126,9 +127,7 @@ data class AndroidAppShellActions(
     val onAlbumDownload: (SharedAlbumDetailUi) -> Unit,
     val onAlbumAddToPlaylist: (SharedAlbumDetailUi, NaviampPlaylistChoiceUi?) -> Unit,
     val onAlbumCreatePlaylistAndAdd: (SharedAlbumDetailUi, String) -> Unit,
-    val onAlbumTrackDownload: (SharedTrackRowUi) -> Unit,
-    val onAlbumTrackAddToPlaylist: (SharedTrackRowUi, NaviampPlaylistChoiceUi?) -> Unit,
-    val onAlbumTrackCreatePlaylistAndAdd: (SharedTrackRowUi, String) -> Unit,
+    val onTrackAction: (SharedTrackRowActionRequest) -> Unit,
     val onArtistRadio: (SharedArtistDetailUi) -> Unit,
     val onArtistShuffle: (SharedArtistDetailUi) -> Unit,
     val onArtistAddToQueue: (SharedArtistDetailUi) -> Unit,
@@ -138,10 +137,6 @@ data class AndroidAppShellActions(
     val onArtistPopularRadio: (SharedArtistDetailUi) -> Unit,
     val onArtistPopularTrackSelected: (SharedTrackRowUi) -> Unit,
     val onArtistPopularAddToQueue: (SharedArtistDetailUi) -> Unit,
-    val onArtistPopularTrackAddToQueue: (SharedTrackRowUi) -> Unit,
-    val onArtistPopularTrackDownload: (SharedTrackRowUi) -> Unit,
-    val onArtistPopularTrackAddToPlaylist: (SharedTrackRowUi, NaviampPlaylistChoiceUi?) -> Unit,
-    val onArtistPopularTrackCreatePlaylistAndAdd: (SharedTrackRowUi, String) -> Unit,
     val onFindSimilarArtists: (SharedArtistDetailUi) -> Unit,
     val onSimilarArtistSelected: (SharedSimilarArtistUi) -> Unit,
     val onSimilarArtistExternalSelected: (String) -> Unit,
@@ -169,7 +164,6 @@ data class AndroidAppShellActions(
     val onSmartPlaylistLoad: suspend (SharedMediaItemUi) -> SmartPlaylistDefinition,
     val onPlaylistBack: () -> Unit,
     val onPlaylistTrackSelected: (SharedTrackRowUi) -> Unit,
-    val onTrackAddToQueue: (SharedTrackRowUi) -> Unit,
     val onRecentRadioSelected: (SharedMediaItemUi) -> Unit,
     val onMixBuilderSelected: (SharedMixBuilderUi) -> Unit,
     val onRadioStationSelected: (InternetRadioStation) -> Unit,

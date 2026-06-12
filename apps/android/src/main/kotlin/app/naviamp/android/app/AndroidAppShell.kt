@@ -45,6 +45,7 @@ import app.naviamp.ui.SharedPlaylistSortMode
 import app.naviamp.ui.SharedRoute
 import app.naviamp.ui.SharedSearchResultsUi
 import app.naviamp.ui.SharedSimilarArtistUi
+import app.naviamp.ui.SharedTrackRowActionRequest
 import app.naviamp.ui.resolveAction
 import app.naviamp.ui.toNaviampRoute
 import app.naviamp.ui.toSharedGenreMixItemUi
@@ -258,9 +259,7 @@ fun androidAppShellActions(
     appendTracksToQueue: (List<Track>, String) -> Unit,
     downloadTracks: (List<Track>, String) -> Unit,
     addTracksToPlaylist: (List<Track>, NaviampPlaylistChoiceUi?, String?, String) -> Unit,
-    handleAlbumTrackDownload: (SharedTrackRowUi) -> Unit,
-    handleAlbumTrackAddToPlaylist: (SharedTrackRowUi, NaviampPlaylistChoiceUi?) -> Unit,
-    handleAlbumTrackCreatePlaylistAndAdd: (SharedTrackRowUi, String) -> Unit,
+    handleTrackAction: (SharedTrackRowActionRequest) -> Unit,
     handleShellArtistRadio: (SharedArtistDetailUi) -> Unit,
     handleShellArtistShuffle: () -> Unit,
     loadArtistTracks: ((List<Track>) -> Unit) -> Unit,
@@ -268,10 +267,6 @@ fun androidAppShellActions(
     handleShellArtistPopularRadio: (SharedArtistDetailUi) -> Unit,
     handleArtistPopularTrackSelected: (SharedTrackRowUi) -> Unit,
     handleArtistPopularAddToQueue: (SharedArtistDetailUi) -> Unit,
-    handleTrackAddToQueue: (SharedTrackRowUi) -> Unit,
-    handleTrackDownload: (SharedTrackRowUi) -> Unit,
-    handleTrackAddToPlaylist: (SharedTrackRowUi, NaviampPlaylistChoiceUi?) -> Unit,
-    handleTrackCreatePlaylistAndAdd: (SharedTrackRowUi, String) -> Unit,
     findSimilarArtists: (app.naviamp.domain.ArtistId, String) -> Unit,
     handleSimilarArtistSelected: (SharedSimilarArtistUi) -> Unit,
     openExternalArtistUrl: (String) -> Unit,
@@ -398,9 +393,7 @@ fun androidAppShellActions(
             onAlbumCreatePlaylistAndAdd = { _, name ->
                 addTracksToPlaylist(albumDetail?.tracks.orEmpty(), null, name, "album")
             },
-            onAlbumTrackDownload = handleAlbumTrackDownload,
-            onAlbumTrackAddToPlaylist = handleAlbumTrackAddToPlaylist,
-            onAlbumTrackCreatePlaylistAndAdd = handleAlbumTrackCreatePlaylistAndAdd,
+            onTrackAction = handleTrackAction,
             onArtistRadio = handleShellArtistRadio,
             onArtistShuffle = { handleShellArtistShuffle() },
             onArtistAddToQueue = { loadArtistTracks { appendTracksToQueue(it, "artist tracks") } },
@@ -410,10 +403,6 @@ fun androidAppShellActions(
             onArtistPopularRadio = handleShellArtistPopularRadio,
             onArtistPopularTrackSelected = handleArtistPopularTrackSelected,
             onArtistPopularAddToQueue = handleArtistPopularAddToQueue,
-            onArtistPopularTrackAddToQueue = handleTrackAddToQueue,
-            onArtistPopularTrackDownload = handleTrackDownload,
-            onArtistPopularTrackAddToPlaylist = handleTrackAddToPlaylist,
-            onArtistPopularTrackCreatePlaylistAndAdd = handleTrackCreatePlaylistAndAdd,
             onFindSimilarArtists = { detail ->
                 findSimilarArtists(app.naviamp.domain.ArtistId(detail.artist.id), detail.artist.title)
             },
@@ -485,7 +474,6 @@ fun androidAppShellActions(
             },
             onPlaylistBack = { closeActivePlaylist() },
             onPlaylistTrackSelected = handlePlaylistTrackSelected,
-            onTrackAddToQueue = handleTrackAddToQueue,
             onRecentRadioSelected = handleRecentRadioSelected,
             onMixBuilderSelected = handleMixBuilderSelected,
             onRadioStationSelected = handleRadioStationSelected,

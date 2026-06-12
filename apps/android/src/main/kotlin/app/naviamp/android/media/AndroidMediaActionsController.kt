@@ -421,58 +421,6 @@ internal class AndroidTrackActionController(
         withAndroidDownloadedTrack(state, download) { track -> addTrackToPlaylist(track, null, name) }
     }
 
-    fun handleAlbumTrackDownload(selectedTrack: SharedTrackRowUi) {
-        handleTrackAction(SharedTrackRowActionRequest(selectedTrack, SharedTrackRowAction.Download))
-    }
-
-    fun handleAlbumTrackAddToPlaylist(selectedTrack: SharedTrackRowUi, playlist: NaviampPlaylistChoiceUi?) {
-        handleTrackAction(
-            SharedTrackRowActionRequest(
-                track = selectedTrack,
-                action = SharedTrackRowAction.AddToPlaylist,
-                playlistChoice = playlist,
-            ),
-        )
-    }
-
-    fun handleAlbumTrackCreatePlaylistAndAdd(selectedTrack: SharedTrackRowUi, name: String) {
-        handleTrackAction(
-            SharedTrackRowActionRequest(
-                track = selectedTrack,
-                action = SharedTrackRowAction.CreatePlaylistAndAdd,
-                playlistName = name,
-            ),
-        )
-    }
-
-    fun handleTrackAddToQueue(selectedTrack: SharedTrackRowUi) {
-        handleTrackAction(SharedTrackRowActionRequest(selectedTrack, SharedTrackRowAction.AddToQueue))
-    }
-
-    fun handleTrackDownload(selectedTrack: SharedTrackRowUi) {
-        handleTrackAction(SharedTrackRowActionRequest(selectedTrack, SharedTrackRowAction.Download))
-    }
-
-    fun handleTrackAddToPlaylist(selectedTrack: SharedTrackRowUi, playlist: NaviampPlaylistChoiceUi?) {
-        handleTrackAction(
-            SharedTrackRowActionRequest(
-                track = selectedTrack,
-                action = SharedTrackRowAction.AddToPlaylist,
-                playlistChoice = playlist,
-            ),
-        )
-    }
-
-    fun handleTrackCreatePlaylistAndAdd(selectedTrack: SharedTrackRowUi, name: String) {
-        handleTrackAction(
-            SharedTrackRowActionRequest(
-                track = selectedTrack,
-                action = SharedTrackRowAction.CreatePlaylistAndAdd,
-                playlistName = name,
-            ),
-        )
-    }
-
     fun handleTrackAction(request: SharedTrackRowActionRequest) {
         val resolved = request.resolveAction(
             knownTracks = activeQueue(),
