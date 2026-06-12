@@ -86,6 +86,8 @@ internal fun ColumnScope.DesktopPlayerRouteContent(
         currentInternetRadioStationId = nowPlayingInternetRadioStationId ?: nowPlayingTrack.internetRadioStationId(),
         radioTrackArtworkByKey = nowPlayingPresentation.radioTrackArtworkByKey,
         relatedTracks = nowPlayingController.relatedTracks,
+        relatedTracksSource = nowPlayingController.relatedTracksSource,
+        relatedSimilarityByTrackId = nowPlayingController.relatedSimilarityByTrackId,
         coverArtUrlForTrack = { track -> track.coverArtId?.let { connectedProvider?.coverArtUrl(it) } },
         hasPrevious = playbackController.canUsePreviousButton(),
         hasNext = playbackController.canUseNextButton(),

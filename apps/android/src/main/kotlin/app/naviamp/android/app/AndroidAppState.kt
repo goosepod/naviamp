@@ -20,6 +20,7 @@ import app.naviamp.domain.TrackId
 import app.naviamp.domain.app.NaviampContentState
 import app.naviamp.domain.app.NaviampNavigationState
 import app.naviamp.domain.audio.AudioTag
+import app.naviamp.domain.media.RelatedTracksSource
 import app.naviamp.domain.playback.PlaybackProgress
 import app.naviamp.domain.playback.PlaybackState
 import app.naviamp.domain.playback.PlaybackStreamMetadata
@@ -124,6 +125,8 @@ class AndroidAppState(
     var lastRadioRefillSeedId by mutableStateOf<TrackId?>(null)
     var radioTrackArtworkByKey by mutableStateOf<Map<String, String?>>(emptyMap())
     var relatedTracks by mutableStateOf<List<Track>>(emptyList())
+    var relatedTracksSource by mutableStateOf(RelatedTracksSource.None)
+    var relatedSimilarityByTrackId by mutableStateOf(emptyMap<TrackId, Double>())
     var artistPopularTracksByArtistId by mutableStateOf<Map<String, List<Track>>>(emptyMap())
     var artistPopularTracksStatusByArtistId by mutableStateOf<Map<String, String?>>(emptyMap())
     var artistSimilarArtistsByArtistId by mutableStateOf<Map<String, List<SimilarArtistMatch>>>(emptyMap())

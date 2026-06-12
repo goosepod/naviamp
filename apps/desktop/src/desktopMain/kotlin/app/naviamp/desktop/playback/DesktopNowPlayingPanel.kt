@@ -6,8 +6,10 @@ import androidx.compose.ui.Modifier
 import app.naviamp.domain.InternetRadioStation
 import app.naviamp.domain.Lyrics
 import app.naviamp.domain.StreamQuality
+import app.naviamp.domain.TrackId
 import app.naviamp.domain.Track
 import app.naviamp.domain.audio.AudioTag
+import app.naviamp.domain.media.RelatedTracksSource
 import app.naviamp.domain.playback.PlaybackProgress
 import app.naviamp.domain.playback.PlaybackState
 import app.naviamp.domain.playback.PlaybackStreamMetadata
@@ -67,6 +69,8 @@ fun DesktopNowPlayingPanel(
     currentInternetRadioStationId: String?,
     radioTrackArtworkByKey: Map<String, String?>,
     relatedTracks: List<Track>,
+    relatedTracksSource: RelatedTracksSource,
+    relatedSimilarityByTrackId: Map<TrackId, Double>,
     coverArtUrlForTrack: (Track) -> String?,
     hasPrevious: Boolean,
     hasNext: Boolean,
@@ -89,11 +93,21 @@ fun DesktopNowPlayingPanel(
     val isLiveStream = currentInternetRadioStationId != null
     val effectiveDurationSeconds = nowPlayingTrack?.durationSeconds?.toDouble()
         ?: playbackProgress.durationSeconds
-    val sections = remember(playbackQueue, relatedTracks, coverArtUrlForTrack, sonicSimilarityEnabled, repeatMode) {
+    val sections = remember(
+        playbackQueue,
+        relatedTracks,
+        relatedTracksSource,
+        relatedSimilarityByTrackId,
+        coverArtUrlForTrack,
+        sonicSimilarityEnabled,
+        repeatMode,
+    ) {
         playbackQueue.toNowPlayingSectionsUi(
             relatedTracks = relatedTracks,
             coverArtUrl = coverArtUrlForTrack,
             sonicSimilarityEnabled = sonicSimilarityEnabled,
+            relatedTracksSource = relatedTracksSource,
+            relatedSimilarityByTrackId = relatedSimilarityByTrackId,
             repeatMode = repeatMode,
         )
     }

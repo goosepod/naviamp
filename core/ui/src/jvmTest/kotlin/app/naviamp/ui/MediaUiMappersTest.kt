@@ -6,6 +6,7 @@ import app.naviamp.domain.ArtistId
 import app.naviamp.domain.ArtistInfo
 import app.naviamp.domain.Track
 import app.naviamp.domain.TrackId
+import app.naviamp.domain.media.RelatedTracksSource
 import app.naviamp.domain.queue.PlaybackQueue
 import app.naviamp.domain.queue.RepeatMode
 import kotlin.test.Test
@@ -272,6 +273,8 @@ class MediaUiMappersTest {
             relatedTracks = listOf(track("related")),
             coverArtUrl = { "cover://${it.id.value}" },
             sonicSimilarityEnabled = true,
+            relatedTracksSource = RelatedTracksSource.SonicSimilarity,
+            relatedSimilarityByTrackId = mapOf(TrackId("related") to 0.92),
             repeatMode = RepeatMode.Queue,
         )
 
@@ -282,6 +285,24 @@ class MediaUiMappersTest {
         assertEquals(true, sections.hasNext)
         assertEquals(false, sections.shuffleEnabled)
         assertEquals("SONIC", sections.relatedLabels.tabLabel)
+        assertEquals("92% match", sections.related.single().meta)
+    }
+
+    @Test
+    fun nowPlayingSectionsLabelFallbackRelatedTracksByActualSource() {
+        val tracks = listOf(track("one"), track("two"))
+
+        val sections = PlaybackQueue(tracks = tracks, currentIndex = 0).toNowPlayingSectionsUi(
+            relatedTracks = listOf(track("related")),
+            coverArtUrl = { "cover://${it.id.value}" },
+            sonicSimilarityEnabled = true,
+            relatedTracksSource = RelatedTracksSource.ProviderRadio,
+            relatedSimilarityByTrackId = mapOf(TrackId("related") to 0.92),
+            repeatMode = RepeatMode.Queue,
+        )
+
+        assertEquals("RELATED", sections.relatedLabels.tabLabel)
+        assertEquals("", sections.related.single().meta)
     }
 
     private fun item(id: String): NaviampNowPlayingItemUi =

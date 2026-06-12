@@ -10,9 +10,11 @@ import app.naviamp.domain.Lyrics
 import app.naviamp.domain.Playlist
 import app.naviamp.domain.StreamQuality
 import app.naviamp.domain.Track
+import app.naviamp.domain.TrackId
 import app.naviamp.domain.isInternetRadioTrack
 import app.naviamp.domain.home.HomeContent
 import app.naviamp.domain.home.homeStations
+import app.naviamp.domain.media.RelatedTracksSource
 import app.naviamp.domain.playback.PlaybackProgress
 import app.naviamp.domain.playback.PlaybackState
 import app.naviamp.domain.playback.PlaybackStreamMetadata
@@ -217,6 +219,8 @@ fun nowPlayingSectionsUi(
     relatedTracks: List<Track>,
     coverArtUrl: (Track) -> String?,
     sonicSimilarityEnabled: Boolean,
+    relatedTracksSource: RelatedTracksSource = relatedTracksSourceForPreference(sonicSimilarityEnabled),
+    relatedSimilarityByTrackId: Map<TrackId, Double> = emptyMap(),
     repeatMode: RepeatMode,
     itemIds: NowPlayingSectionItemIds = NowPlayingSectionItemIds.TrackIds,
 ): NowPlayingSectionsUi {
@@ -227,6 +231,8 @@ fun nowPlayingSectionsUi(
         relatedTracks = relatedTracks,
         coverArtUrl = coverArtUrl,
         sonicSimilarityEnabled = sonicSimilarityEnabled,
+        relatedTracksSource = relatedTracksSource,
+        relatedSimilarityByTrackId = relatedSimilarityByTrackId,
         repeatMode = repeatMode,
         itemIds = itemIds,
     )
@@ -236,6 +242,8 @@ fun PlaybackQueue.toNowPlayingSectionsUi(
     relatedTracks: List<Track>,
     coverArtUrl: (Track) -> String?,
     sonicSimilarityEnabled: Boolean,
+    relatedTracksSource: RelatedTracksSource = relatedTracksSourceForPreference(sonicSimilarityEnabled),
+    relatedSimilarityByTrackId: Map<TrackId, Double> = emptyMap(),
     repeatMode: RepeatMode,
     itemIds: NowPlayingSectionItemIds = NowPlayingSectionItemIds.QueueAndRelatedIndexes,
 ): NowPlayingSectionsUi =
@@ -245,6 +253,8 @@ fun PlaybackQueue.toNowPlayingSectionsUi(
         relatedTracks = relatedTracks,
         coverArtUrl = coverArtUrl,
         sonicSimilarityEnabled = sonicSimilarityEnabled,
+        relatedTracksSource = relatedTracksSource,
+        relatedSimilarityByTrackId = relatedSimilarityByTrackId,
         repeatMode = repeatMode,
         itemIds = itemIds,
     )
@@ -255,6 +265,8 @@ private fun nowPlayingSectionsUi(
     relatedTracks: List<Track>,
     coverArtUrl: (Track) -> String?,
     sonicSimilarityEnabled: Boolean,
+    relatedTracksSource: RelatedTracksSource = relatedTracksSourceForPreference(sonicSimilarityEnabled),
+    relatedSimilarityByTrackId: Map<TrackId, Double> = emptyMap(),
     repeatMode: RepeatMode,
     itemIds: NowPlayingSectionItemIds,
 ): NowPlayingSectionsUi {
@@ -290,9 +302,9 @@ private fun nowPlayingSectionsUi(
         related = relatedTracks.toNowPlayingItemUis(
             coverArtUrl = coverArtUrl,
             id = relatedItemId,
-            meta = { "" },
+            meta = { track -> relatedTrackMeta(track, relatedTracksSource, relatedSimilarityByTrackId) },
         ),
-        relatedLabels = nowPlayingRelatedUiLabels(sonicSimilarityEnabled),
+        relatedLabels = nowPlayingRelatedUiLabels(relatedTracksSource),
         hasPrevious = currentIndex > 0 || (repeatMode == RepeatMode.Queue && tracks.size > 1),
         hasNext = (hasCurrent && currentIndex < tracks.lastIndex) ||
             (repeatMode == RepeatMode.Queue && tracks.size > 1),
@@ -552,16 +564,37 @@ data class NowPlayingRelatedUiLabels(
 )
 
 fun nowPlayingRelatedUiLabels(sonicSimilarityEnabled: Boolean): NowPlayingRelatedUiLabels =
-    if (sonicSimilarityEnabled) {
-        NowPlayingRelatedUiLabels(
+    nowPlayingRelatedUiLabels(relatedTracksSourceForPreference(sonicSimilarityEnabled))
+
+fun nowPlayingRelatedUiLabels(source: RelatedTracksSource): NowPlayingRelatedUiLabels =
+    when (source) {
+        RelatedTracksSource.SonicSimilarity -> NowPlayingRelatedUiLabels(
             tabLabel = "SONIC",
             emptyLabel = "Sonic matches are not loaded.",
         )
-    } else {
-        NowPlayingRelatedUiLabels(
+        RelatedTracksSource.None,
+        RelatedTracksSource.LocalLibrary,
+        RelatedTracksSource.ProviderRadio,
+        -> NowPlayingRelatedUiLabels(
             tabLabel = "RELATED",
             emptyLabel = "Related tracks are not loaded.",
         )
+    }
+
+private fun relatedTracksSourceForPreference(sonicSimilarityEnabled: Boolean): RelatedTracksSource =
+    if (sonicSimilarityEnabled) RelatedTracksSource.SonicSimilarity else RelatedTracksSource.LocalLibrary
+
+private fun relatedTrackMeta(
+    track: Track,
+    source: RelatedTracksSource,
+    similarityByTrackId: Map<TrackId, Double>,
+): String =
+    if (source == RelatedTracksSource.SonicSimilarity) {
+        similarityByTrackId[track.id]?.let { similarity ->
+            "${(similarity.coerceIn(0.0, 1.0) * 100).toInt()}% match"
+        }.orEmpty()
+    } else {
+        ""
     }
 
 data class NowPlayingTrackCapabilities(

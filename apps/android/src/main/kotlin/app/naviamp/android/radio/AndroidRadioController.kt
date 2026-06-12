@@ -12,6 +12,9 @@ import app.naviamp.domain.cache.LocalLibraryIndexRepository
 import app.naviamp.domain.cache.ProviderResponseCacheRepository
 import app.naviamp.domain.cache.ProviderResponseService
 import app.naviamp.domain.playback.PlaybackQueueController
+import app.naviamp.domain.media.RelatedTracksResult
+import app.naviamp.domain.media.RelatedTracksSource
+import app.naviamp.domain.media.relatedTracksResult
 import app.naviamp.domain.provider.AlbumListType
 import app.naviamp.domain.queue.PlaybackQueue
 import app.naviamp.domain.radio.InternetRadioStationManager
@@ -230,25 +233,35 @@ fun loadAndroidRelatedTracks(
     track: Track,
 ) {
     val activeProvider = state.provider ?: return
-    if (!activeProvider.capabilities.supportsTrackRadio) {
-        state.relatedTracks = emptyList()
+    val canUseSonicSimilarity = state.playbackSettings.sonicSimilarityEnabled &&
+        activeProvider.capabilities.supportsSonicSimilarity
+    if (!canUseSonicSimilarity && !activeProvider.capabilities.supportsTrackRadio) {
+        applyAndroidRelatedTracksResult(state, RelatedTracksResult.Empty)
         return
     }
     scope.launch {
         runCatching {
-            if (
-                state.playbackSettings.sonicSimilarityEnabled &&
-                activeProvider.capabilities.supportsSonicSimilarity
-            ) {
-                activeProvider.sonicSimilarTracks(track.id, count = 20)
-                    .ifEmpty { RadioService(activeProvider, count = 20).trackRadio(track.id) }
-            } else {
-                RadioService(activeProvider, count = 20).trackRadio(track.id)
+            withContext(Dispatchers.IO) {
+                relatedTracksResult(
+                    seedTrack = track,
+                    activeSourceId = state.activeSourceId,
+                    provider = activeProvider,
+                    localLibraryIndexRepository = null,
+                    preferSonicSimilarity = state.playbackSettings.sonicSimilarityEnabled,
+                    limit = 20,
+                    fallbackSources = listOf(RelatedTracksSource.ProviderRadio),
+                )
             }
         }
-            .onSuccess { tracks -> state.relatedTracks = tracks }
-            .onFailure { state.relatedTracks = emptyList() }
+            .onSuccess { result -> applyAndroidRelatedTracksResult(state, result) }
+            .onFailure { applyAndroidRelatedTracksResult(state, RelatedTracksResult.Empty) }
     }
+}
+
+private fun applyAndroidRelatedTracksResult(state: AndroidAppState, result: RelatedTracksResult) {
+    state.relatedTracks = result.tracks
+    state.relatedTracksSource = result.source
+    state.relatedSimilarityByTrackId = result.similarityByTrackId
 }
 
 fun saveAndroidInternetRadioStation(
@@ -668,6 +681,8 @@ fun startAndroidTrackRadioQueue(
                         queueController.replaceQueue(PlaybackQueue(tracks = queue, currentIndex = 0))
                         playbackQueue = queueController.queue
                         relatedTracks = queue.drop(1)
+                        relatedTracksSource = RelatedTracksSource.ProviderRadio
+                        relatedSimilarityByTrackId = emptyMap()
                         shuffledUpNextSnapshot = null
                     }
                     status = "Building ${track.title} radio queue..."

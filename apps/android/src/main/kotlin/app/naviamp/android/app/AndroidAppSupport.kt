@@ -20,11 +20,13 @@ import app.naviamp.domain.Lyrics
 import app.naviamp.domain.Playlist
 import app.naviamp.domain.StreamQuality
 import app.naviamp.domain.Track
+import app.naviamp.domain.TrackId
 import app.naviamp.domain.app.NaviampRoute
 import app.naviamp.domain.app.NaviampContentState
 import app.naviamp.domain.app.NaviampNavigationState
 import app.naviamp.domain.audio.AudioTag
 import app.naviamp.domain.home.HomeContent
+import app.naviamp.domain.media.RelatedTracksSource
 import app.naviamp.domain.playback.PlaybackProgress
 import app.naviamp.domain.playback.PlaybackState
 import app.naviamp.domain.playback.PlaybackStreamMetadata
@@ -297,6 +299,8 @@ fun androidNowPlayingUi(
     canSaveQueueAsPlaylist: Boolean,
     sleepTimer: NaviampSleepTimerUi,
     relatedTracks: List<Track>,
+    relatedTracksSource: RelatedTracksSource,
+    relatedSimilarityByTrackId: Map<TrackId, Double>,
     sonicSimilarityEnabled: Boolean,
     radioTrackArtworkByKey: Map<String, String?>,
     radioStations: List<InternetRadioStation>,
@@ -310,6 +314,8 @@ fun androidNowPlayingUi(
             relatedTracks = relatedTracks,
             coverArtUrl = trackCoverArtUrl,
             sonicSimilarityEnabled = sonicSimilarityEnabled,
+            relatedTracksSource = relatedTracksSource,
+            relatedSimilarityByTrackId = relatedSimilarityByTrackId,
             repeatMode = repeatMode,
             itemIds = NowPlayingSectionItemIds.TrackIds,
         )

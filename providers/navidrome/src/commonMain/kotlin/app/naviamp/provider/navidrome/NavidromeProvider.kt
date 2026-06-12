@@ -27,6 +27,7 @@ import app.naviamp.domain.provider.LibraryScanStatus
 import app.naviamp.domain.provider.MediaProvider
 import app.naviamp.domain.provider.MediaSearchResults
 import app.naviamp.domain.provider.ProviderCapabilities
+import app.naviamp.domain.provider.SonicSimilarTrack
 import app.naviamp.domain.network.SharedHttpClient
 import app.naviamp.domain.smartplaylist.SmartPlaylistDefinition
 import kotlinx.serialization.json.Json
@@ -481,6 +482,9 @@ class NavidromeProvider(
             }
 
     override suspend fun sonicSimilarTracks(trackId: TrackId, count: Int): List<Track> =
+        sonicSimilarTrackMatches(trackId, count).map { match -> match.track }
+
+    override suspend fun sonicSimilarTrackMatches(trackId: TrackId, count: Int): List<SonicSimilarTrack> =
         runCatching {
             val response = get(
                 endpoint = "getSonicSimilarTracks.view",
@@ -492,12 +496,18 @@ class NavidromeProvider(
             response.subsonicResponse()
                 .arrayValue("sonicMatch")
                 .mapNotNull { match ->
-                    (match as? JsonObject)
-                        ?.get("entry")
+                    val obj = match as? JsonObject ?: return@mapNotNull null
+                    obj.get("entry")
                         ?.jsonObject
                         ?.toTrack()
+                        ?.let { track ->
+                            SonicSimilarTrack(
+                                track = track,
+                                similarity = obj.doubleValue("similarity"),
+                            )
+                        }
                 }
-                .filterNot { it.id == trackId }
+                .filterNot { it.track.id == trackId }
         }.getOrDefault(emptyList())
 
     override suspend fun lyrics(trackId: TrackId): Lyrics? {

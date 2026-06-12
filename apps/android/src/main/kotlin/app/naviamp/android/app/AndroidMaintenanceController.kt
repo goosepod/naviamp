@@ -19,6 +19,7 @@ import app.naviamp.domain.Track
 import app.naviamp.domain.settings.ConnectionFormState
 import app.naviamp.domain.settings.PlaybackSettings
 import app.naviamp.domain.settings.PlaybackSettingsMaintenanceController
+import app.naviamp.domain.media.RelatedTracksSource
 import app.naviamp.provider.navidrome.NavidromeTlsSettings
 import app.naviamp.android.playback.AndroidPlaybackEngine
 import java.io.File
@@ -30,6 +31,8 @@ fun clearAndroidDerivedMediaState(state: AndroidAppState) {
     state.lyricsStatusByTrackId = emptyMap()
     state.radioTrackArtworkByKey = emptyMap()
     state.relatedTracks = emptyList()
+    state.relatedTracksSource = RelatedTracksSource.None
+    state.relatedSimilarityByTrackId = emptyMap()
     state.artistPopularTracksByArtistId = emptyMap()
     state.artistPopularTracksStatusByArtistId = emptyMap()
     state.artistSimilarArtistsByArtistId = emptyMap()

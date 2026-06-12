@@ -1,6 +1,6 @@
 # Sonic Similarity Roadmap
 
-Status: first implementation slice in progress
+Status: Phase 2 complete
 
 ## Why this exists
 
@@ -41,11 +41,11 @@ The first product rule is that sonic features are server capabilities, not only 
 
 ### Phase 2: Related Tracks 2.0
 
-- [ ] Keep current Related tab behavior but label sonic-backed results clearly.
-- [ ] Preserve fallback to local related tracks or provider track radio when sonic results are empty.
-- [ ] Introduce a shared result model that can carry similarity scores.
-- [ ] Add track-row actions for `Play next`, `Add to queue`, and `Start radio from this` where missing.
-- [ ] Add tests around fallback ordering and seed-track filtering.
+- [x] Keep current Related tab behavior but label sonic-backed results clearly.
+- [x] Preserve fallback to local related tracks or provider track radio when sonic results are empty.
+- [x] Introduce a shared result model that can carry similarity scores.
+- [x] Add track-row actions for `Play next`, `Add to queue`, and `Start radio from this` where missing.
+- [x] Add tests around fallback ordering and seed-track filtering.
 
 ### Phase 3: Play More Like This
 

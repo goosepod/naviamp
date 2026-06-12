@@ -5,12 +5,16 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import app.naviamp.domain.Lyrics
 import app.naviamp.domain.Track
+import app.naviamp.domain.TrackId
 import app.naviamp.domain.audio.AudioMetadataSidecarService
 import app.naviamp.domain.cache.LyricsOffsetRepository
 import app.naviamp.domain.cache.LocalLibraryIndexRepository
 import app.naviamp.domain.isInternetRadioTrack
 import app.naviamp.domain.lyrics.LyricsOffsetController
 import app.naviamp.domain.lyrics.LyricsSidecarService
+import app.naviamp.domain.media.RelatedTracksResult
+import app.naviamp.domain.media.RelatedTracksSource
+import app.naviamp.domain.media.relatedTracksResult
 import app.naviamp.domain.playback.PlaybackAudioAssetRepository
 import app.naviamp.domain.playback.PlaybackEngine
 import app.naviamp.domain.playback.coverArtPreloadUrls
@@ -59,6 +63,10 @@ class DesktopNowPlayingController(
     var lyricsStatus by mutableStateOf<String?>(null)
         private set
     var relatedTracks by mutableStateOf<List<Track>>(emptyList())
+        private set
+    var relatedTracksSource by mutableStateOf(RelatedTracksSource.None)
+        private set
+    var relatedSimilarityByTrackId by mutableStateOf(emptyMap<TrackId, Double>())
         private set
 
     fun updateWaveform(waveform: AudioWaveform?) {
@@ -192,23 +200,29 @@ class DesktopNowPlayingController(
     suspend fun loadRelatedTracks() {
         val track = nowPlayingTrack()
         val activeSourceId = sourceId()
-        if (track == null || activeSourceId == null || track.isInternetRadioTrack()) {
-            relatedTracks = emptyList()
+        if (track == null || track.isInternetRadioTrack()) {
+            applyRelatedTracksResult(RelatedTracksResult.Empty)
             return
         }
         val activeProvider = provider()
-        if (
-            playbackSettings().sonicSimilarityEnabled &&
-            activeProvider?.capabilities?.supportsSonicSimilarity == true
-        ) {
-            relatedTracks = withContext(Dispatchers.IO) {
-                activeProvider.sonicSimilarTracks(track.id, count = RelatedTracksLimit.toInt())
-            }
-            if (relatedTracks.isNotEmpty()) return
+        val result = withContext(Dispatchers.IO) {
+            relatedTracksResult(
+                seedTrack = track,
+                activeSourceId = activeSourceId,
+                provider = activeProvider,
+                localLibraryIndexRepository = localLibraryIndexRepository,
+                preferSonicSimilarity = playbackSettings().sonicSimilarityEnabled,
+                limit = RelatedTracksLimit.toInt(),
+                fallbackSources = listOf(RelatedTracksSource.LocalLibrary),
+            )
         }
-        relatedTracks = withContext(Dispatchers.IO) {
-            localLibraryIndexRepository.relatedLibraryTracks(activeSourceId, track, limit = RelatedTracksLimit)
-        }
+        applyRelatedTracksResult(result)
+    }
+
+    private fun applyRelatedTracksResult(result: RelatedTracksResult) {
+        relatedTracks = result.tracks
+        relatedTracksSource = result.source
+        relatedSimilarityByTrackId = result.similarityByTrackId
     }
 
     suspend fun preloadCoverArt() {

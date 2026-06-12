@@ -1066,14 +1066,16 @@ class NavidromeProviderTest {
             httpClient = httpClient,
         )
 
-        val tracks = provider.sonicSimilarTracks(TrackId("seed-track"), count = 12)
+        val matches = provider.sonicSimilarTrackMatches(TrackId("seed-track"), count = 12)
 
         assertEquals(
             "https://music.example.test/rest/getSonicSimilarTracks.view?u=demo&t=token&s=salt&v=1.16.1&c=Naviamp&f=json&id=seed-track&count=12",
             httpClient.urls.single(),
         )
+        val tracks = matches.map { it.track }
         assertEquals(listOf("track-4"), tracks.map { it.id.value })
         assertEquals("Your Silent Face", tracks.single().title)
+        assertEquals(0.92, matches.single().similarity)
     }
 
     @Test
