@@ -13,11 +13,10 @@ import app.naviamp.domain.cache.CacheMaintenanceRepository
 import app.naviamp.domain.cache.LocalLibraryIndexRepository
 import app.naviamp.domain.cache.LibrarySnapshot
 import app.naviamp.domain.cache.MediaSourceRepository
+import app.naviamp.domain.library.LibrarySyncCoordinator
 import app.naviamp.domain.library.libraryConnectionRequiredStatus
 import app.naviamp.domain.library.libraryFreshnessUpdate
 import app.naviamp.domain.library.libraryLimitForOffset
-import app.naviamp.domain.library.librarySyncErrorStatus
-import app.naviamp.domain.library.librarySyncStartingStatus
 import app.naviamp.domain.provider.MediaProvider
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -104,63 +103,61 @@ class DesktopLibraryController(
     }
 
     fun startLibrarySync(force: Boolean = false) {
-        val activeProvider = provider() ?: return
-        val activeSourceId = sourceId() ?: return
-        if (syncing) return
-        if (!force && !shouldAutoSyncLibrary(activeSourceId, libraryIndexRepository)) {
-            status = null
-            return
-        }
-        syncing = true
-        status = librarySyncStartingStatus()
+        val coordinator = librarySyncCoordinator()
         scope.launch {
             val uiContext = coroutineContext
-            try {
-                withContext(Dispatchers.IO) {
-                    librarySync.syncAndMarkScanChecked(
-                        sourceId = activeSourceId,
-                        provider = activeProvider,
-                        onProgress = { progress ->
-                            withContext(uiContext) {
-                                status = progress.label()
-                            }
-                        },
-                    )
-                }
-                refreshLibrarySnapshot()
-                status = null
-            } catch (exception: Exception) {
-                status = librarySyncErrorStatus(exception)
-            } finally {
-                syncing = false
-            }
+            coordinator.startSync(
+                force = force,
+                sync = { sourceId, provider, setProgressStatus ->
+                    withContext(Dispatchers.IO) {
+                        librarySync.syncAndMarkScanChecked(
+                            sourceId = sourceId,
+                            provider = provider,
+                            onProgress = { progress ->
+                                withContext(uiContext) {
+                                    setProgressStatus(progress.label())
+                                }
+                            },
+                        )
+                    }
+                },
+                onCompleted = { refreshLibrarySnapshot() },
+            )
         }
     }
 
+    private fun librarySyncCoordinator(): LibrarySyncCoordinator =
+        LibrarySyncCoordinator(
+            provider = provider,
+            sourceId = sourceId,
+            syncing = { syncing },
+            setSyncing = { nextSyncing -> syncing = nextSyncing },
+            status = { status },
+            setStatus = { nextStatus -> status = nextStatus },
+            libraryIndexRepository = libraryIndexRepository,
+            mediaSourceRepository = mediaSourceRepository,
+        )
+
     fun checkLibraryFreshness() {
-        val activeProvider = provider() ?: return
-        val activeSourceId = sourceId() ?: return
-        if (syncing) return
+        val coordinator = librarySyncCoordinator()
         scope.launch {
-            val freshness = withContext(Dispatchers.IO) {
-                libraryFreshnessUpdate(
-                    sourceId = activeSourceId,
-                    provider = activeProvider,
-                    mediaSourceRepository = mediaSourceRepository,
-                    currentStatus = status,
-                )
-            }
-            freshness.signatureToMarkChecked?.let { signature ->
-                withContext(Dispatchers.IO) {
-                    libraryIndexRepository.markLibraryScanChecked(activeSourceId, signature)
-                }
-            }
-            freshness.status?.let { status ->
-                this@DesktopLibraryController.status = status
-            }
-            if (freshness.clearStatus) {
-                status = null
-            }
+            coordinator.checkFreshness(
+                loadFreshness = { sourceId, provider, currentStatus ->
+                    withContext(Dispatchers.IO) {
+                        libraryFreshnessUpdate(
+                            sourceId = sourceId,
+                            provider = provider,
+                            mediaSourceRepository = mediaSourceRepository,
+                            currentStatus = currentStatus,
+                        )
+                    }
+                },
+                markScanChecked = { sourceId, signature ->
+                    withContext(Dispatchers.IO) {
+                        libraryIndexRepository.markLibraryScanChecked(sourceId, signature)
+                    }
+                },
+            )
         }
     }
 

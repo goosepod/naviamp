@@ -603,7 +603,7 @@ Phase 5 close-out:
 ## Phase 6: Shared App Orchestration
 
 - [x] Extract shared coordinators for connection/provider lifecycle.
-- [ ] Extract shared coordinators for library sync/freshness.
+- [x] Extract shared coordinators for library sync/freshness.
 - [ ] Extract shared coordinators for home loading and refresh.
 - [ ] Extract shared coordinators for artist, album, playlist, search, downloads, and internet radio flows.
 - [ ] Extract shared coordinators for artist mix, album mix, genre mix, and future generated queues.
@@ -614,6 +614,12 @@ Connection/provider lifecycle close-out:
 - Shared domain now owns the provider connection lifecycle order in `ProviderConnectionLifecycle.kt`: prepare connection, apply platform TLS defaults, instantiate provider, validate, optionally clear provider cache data, upsert the media source, and return a typed active session.
 - Android and desktop connection controllers both compose that shared lifecycle while keeping platform-specific work local: Navidrome login request construction, Android/Desktop TLS application, home loading, playlist preload, route changes, saved-session restore, library sync/freshness kicks, and UI status state.
 - Shared tests cover lifecycle ordering, validation, media-source upsert, optional provider-cache clearing, auth-warning propagation, and connection failure status fallback.
+
+Library sync/freshness close-out:
+
+- Shared domain now owns library sync/freshness orchestration in `LibraryOrchestration.kt`: provider/source/syncing guards, auto-sync skip behavior, starting/progress/error/final status handling, and freshness signature/status application.
+- Android and desktop library controllers both compose `LibrarySyncCoordinator`; platform code supplies only coroutine dispatching, platform-specific sync work, Android home artist updates, desktop snapshot refresh, and UI status mirroring.
+- Shared tests cover start-plan decisions, completed sync state finalization, skipped auto-sync, failure status propagation, and freshness update application.
 
 ## Phase 7: Platform Root Decomposition
 

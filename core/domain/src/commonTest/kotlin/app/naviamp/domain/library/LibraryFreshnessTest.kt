@@ -10,7 +10,11 @@ import app.naviamp.domain.ProviderId
 import app.naviamp.domain.StreamRequest
 import app.naviamp.domain.Track
 import app.naviamp.domain.cache.LibraryIndexStats
+import app.naviamp.domain.cache.LibrarySnapshot
+import app.naviamp.domain.cache.LocalLibraryIndexRepository
 import app.naviamp.domain.cache.MediaSourceRepository
+import app.naviamp.domain.popular.ArtistPopularTrackCandidate
+import app.naviamp.domain.popular.ArtistPopularTrackMatch
 import app.naviamp.domain.provider.ConnectionValidation
 import app.naviamp.domain.provider.LibraryScanStatus
 import app.naviamp.domain.provider.MediaProvider
@@ -98,6 +102,113 @@ class LibraryFreshnessTest {
         assertEquals(false, update.clearStatus)
     }
 
+    @Test
+    fun librarySyncStartPlanHandlesMissingSyncingSkippedAndStartStates() {
+        val provider = FakeFreshnessProvider(signature = null, scanning = false)
+        assertEquals(
+            LibrarySyncStartPlan.MissingConnection,
+            librarySyncStartPlan(provider = null, sourceId = "source", syncing = false, force = false) { true },
+        )
+        assertEquals(
+            LibrarySyncStartPlan.AlreadySyncing,
+            librarySyncStartPlan(provider = provider, sourceId = "source", syncing = true, force = false) { true },
+        )
+        assertEquals(
+            LibrarySyncStartPlan.SkipAutoSync,
+            librarySyncStartPlan(provider = provider, sourceId = "source", syncing = false, force = false) { false },
+        )
+        assertEquals(
+            LibrarySyncStartPlan.Start(sourceId = "source", provider = provider),
+            librarySyncStartPlan(provider = provider, sourceId = "source", syncing = false, force = true) { false },
+        )
+    }
+
+    @Test
+    fun librarySyncCoordinatorRunsSyncAndFinalizesState() = kotlinx.coroutines.test.runTest {
+        var syncing = false
+        var status: String? = null
+        var completed = false
+        val progress = mutableListOf<String>()
+        val provider = FakeFreshnessProvider(signature = null, scanning = false)
+        val coordinator = LibrarySyncCoordinator(
+            provider = { provider },
+            sourceId = { "source" },
+            syncing = { syncing },
+            setSyncing = { syncing = it },
+            status = { status },
+            setStatus = { status = it },
+            libraryIndexRepository = FakeLibraryIndexRepository(hasUsableIndex = false),
+            mediaSourceRepository = FakeMediaSourceRepository(previousSignature = null),
+        )
+
+        coordinator.startSync(
+            force = false,
+            sync = { sourceId, activeProvider, setProgressStatus ->
+                assertEquals("source", sourceId)
+                assertEquals(provider, activeProvider)
+                setProgressStatus("Progress")
+                progress += status.orEmpty()
+            },
+            onCompleted = { completed = true },
+        )
+
+        assertEquals(false, syncing)
+        assertEquals(null, status)
+        assertEquals(true, completed)
+        assertEquals(listOf("Progress"), progress)
+    }
+
+    @Test
+    fun librarySyncCoordinatorSkipsAutoSyncAndReportsFailures() = kotlinx.coroutines.test.runTest {
+        var syncing = false
+        var status: String? = "Existing"
+        var failedStatus: String? = null
+        val coordinator = LibrarySyncCoordinator(
+            provider = { FakeFreshnessProvider(signature = null, scanning = false) },
+            sourceId = { "source" },
+            syncing = { syncing },
+            setSyncing = { syncing = it },
+            status = { status },
+            setStatus = { status = it },
+            libraryIndexRepository = FakeLibraryIndexRepository(hasUsableIndex = true),
+            mediaSourceRepository = FakeMediaSourceRepository(previousSignature = null),
+        )
+
+        coordinator.startSync(force = false, sync = { _, _, _ -> error("should not run") })
+
+        assertEquals(null, status)
+        coordinator.startSync(
+            force = true,
+            sync = { _, _, _ -> throw IllegalStateException("Nope") },
+            onFailed = { failedStatus = it },
+        )
+
+        assertEquals(false, syncing)
+        assertEquals("Nope", status)
+        assertEquals("Nope", failedStatus)
+    }
+
+    @Test
+    fun librarySyncCoordinatorAppliesFreshnessUpdates() = kotlinx.coroutines.test.runTest {
+        var status: String? = null
+        val indexRepository = FakeLibraryIndexRepository(hasUsableIndex = true)
+        val coordinator = LibrarySyncCoordinator(
+            provider = { FakeFreshnessProvider(signature = "scan-2", scanning = false) },
+            sourceId = { "source" },
+            syncing = { false },
+            setSyncing = {},
+            status = { status },
+            setStatus = { status = it },
+            libraryIndexRepository = indexRepository,
+            mediaSourceRepository = FakeMediaSourceRepository(previousSignature = "scan-1"),
+        )
+
+        coordinator.checkFreshness()
+
+        assertEquals("Library changed on server. Refresh library to import updates.", status)
+        assertEquals(null, indexRepository.checkedScanSignature)
+    }
+
     private class FakeFreshnessProvider(
         private val signature: String?,
         private val scanning: Boolean,
@@ -170,5 +281,54 @@ class LibraryFreshnessTest {
             )
 
         override fun deleteMediaSource(sourceId: String) = Unit
+    }
+
+    private class FakeLibraryIndexRepository(
+        private val hasUsableIndex: Boolean,
+    ) : LocalLibraryIndexRepository {
+        var checkedScanSignature: String? = null
+
+        override fun mediaSource(sourceId: String): SavedMediaSource? = null
+
+        override fun markLibraryScanChecked(sourceId: String, signature: String) {
+            checkedScanSignature = signature
+        }
+
+        override fun markLibrarySyncStarted(sourceId: String) = Unit
+        override fun markLibrarySyncCompleted(sourceId: String) = Unit
+        override fun upsertLibraryArtists(sourceId: String, artists: List<Artist>) = Unit
+        override fun upsertLibraryAlbums(sourceId: String, albums: List<Album>) = Unit
+        override fun upsertLibraryTracks(sourceId: String, tracks: List<Track>) = Unit
+        override fun librarySnapshot(sourceId: String, limit: Long, offset: Long): LibrarySnapshot = LibrarySnapshot()
+        override fun searchLibrary(sourceId: String, query: String, limit: Long, offset: Long): LibrarySnapshot =
+            LibrarySnapshot()
+        override fun randomLibraryTrackForAlbum(sourceId: String, albumId: AlbumId): Track? = null
+        override fun libraryTracksForAlbum(sourceId: String, albumId: AlbumId, limit: Long): List<Track> = emptyList()
+        override fun randomLibraryTrackForArtist(sourceId: String, artistId: ArtistId): Track? = null
+        override fun libraryTracksForArtist(sourceId: String, artistId: ArtistId, limit: Long): List<Track> = emptyList()
+        override fun libraryTracksForArtistName(sourceId: String, artistName: String, limit: Long): List<Track> =
+            emptyList()
+        override fun relatedLibraryTracks(sourceId: String, track: Track, limit: Long): List<Track> = emptyList()
+        override fun libraryIndexStats(sourceId: String): LibraryIndexStats =
+            LibraryIndexStats(
+                artistCount = if (hasUsableIndex) 1 else 0,
+                albumCount = 0,
+                trackCount = 0,
+            )
+        override fun libraryAlbumYears(sourceId: String): List<app.naviamp.domain.cache.LibraryAlbumYear> = emptyList()
+        override fun clearLibraryData(sourceId: String?) = Unit
+        override fun artistPopularTracks(
+            sourceId: String,
+            artistId: ArtistId,
+            source: String,
+        ): List<ArtistPopularTrackMatch> = emptyList()
+        override fun replaceArtistPopularTracks(
+            sourceId: String,
+            artistId: ArtistId,
+            source: String,
+            candidates: List<ArtistPopularTrackCandidate>,
+            matchedTracksBySourceTrackId: Map<String, Track>,
+            fetchedAtEpochMillis: Long,
+        ) = Unit
     }
 }
