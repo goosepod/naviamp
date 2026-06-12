@@ -55,6 +55,7 @@ import app.naviamp.provider.navidrome.toNavidromeConnection
 import app.naviamp.provider.navidrome.withNativeTokenFromPassword
 import app.naviamp.ui.NaviampSleepTimerUi
 import app.naviamp.ui.NaviampSleepTimerExpiryEffect
+import app.naviamp.ui.NowPlayingCurrentTrackAction
 import app.naviamp.ui.NowPlayingItemAction
 import app.naviamp.ui.resolveAction
 import app.naviamp.ui.toNaviampSleepTimerUi
@@ -854,19 +855,31 @@ fun NaviampApp(
                                     VisualizerSettings(selectedVisualizer = visualizer.name),
                                 )
                             },
-                            onToggleTrackFavorite = appActions::toggleTrackFavorite,
-                            onTrackRatingSelected = appActions::setTrackRating,
-                            onArtistSelected = appActions::openTrackArtistDetails,
-                            onAlbumSelected = appActions::openTrackAlbumDetails,
-                            onTrackRadioSelected = appActions::convertCurrentTrackToRadio,
-                            onDownloadTrackSelected = appActions::downloadTrack,
-                            onAddTrackToPlaylist = playlistsController::openTrackAddToPlaylist,
                             onSaveQueueAsPlaylist = playlistsController::saveQueueAsPlaylist,
                             onSleepTimerSelected = sleepTimerController::select,
                             onCancelSleepTimer = sleepTimerController::cancel,
                             onInternetRadioStationSelected = internetRadioController::playStation,
                             onQueueIndexSelected = ::handleQueueIndexSelected,
                             onRelatedTrackSelected = appActions::playRelatedTrack,
+                            onCurrentTrackAction = { request ->
+                                when (request.action) {
+                                    NowPlayingCurrentTrackAction.StartRadio ->
+                                        appActions.convertCurrentTrackToRadio(request.track)
+                                    NowPlayingCurrentTrackAction.AddToPlaylist ->
+                                        playlistsController.openTrackAddToPlaylist(request.track)
+                                    NowPlayingCurrentTrackAction.CreatePlaylistAndAdd -> Unit
+                                    NowPlayingCurrentTrackAction.Download ->
+                                        appActions.downloadTrack(request.track)
+                                    NowPlayingCurrentTrackAction.GoToAlbum ->
+                                        appActions.openTrackAlbumDetails(request.track)
+                                    NowPlayingCurrentTrackAction.GoToArtist ->
+                                        appActions.openTrackArtistDetails(request.track)
+                                    NowPlayingCurrentTrackAction.ToggleFavorite ->
+                                        appActions.toggleTrackFavorite(request.track)
+                                    NowPlayingCurrentTrackAction.SetRating ->
+                                        appActions.setTrackRating(request.track, request.rating)
+                                }
+                            },
                             onQueueItemAction = { request ->
                                 val action = request.resolveAction(
                                     queueTracks = playbackQueue.tracks,

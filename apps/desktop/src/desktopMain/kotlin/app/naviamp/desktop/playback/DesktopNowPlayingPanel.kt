@@ -25,6 +25,8 @@ import app.naviamp.ui.NaviampPlayerColors
 import app.naviamp.ui.NaviampSleepTimerUi
 import app.naviamp.ui.NaviampVisualizer
 import app.naviamp.ui.MiniNowPlayingUiConfig
+import app.naviamp.ui.NowPlayingCurrentTrackAction
+import app.naviamp.ui.NowPlayingCurrentTrackActionRequest
 import app.naviamp.ui.NowPlayingItemActionRequest
 import app.naviamp.ui.NowPlayingUi
 import app.naviamp.ui.nowPlayingQueueIndex
@@ -89,19 +91,13 @@ fun DesktopNowPlayingPanel(
     onLyricsOffsetChanged: (Int) -> Unit,
     onToggleVisualizer: () -> Unit,
     onVisualizerSelected: (NaviampVisualizer) -> Unit,
-    onToggleTrackFavorite: (Track) -> Unit,
-    onTrackRatingSelected: (Track, Int?) -> Unit,
-    onArtistSelected: (Track) -> Unit,
-    onAlbumSelected: (Track) -> Unit,
-    onTrackRadioSelected: (Track) -> Unit,
-    onDownloadTrackSelected: (Track) -> Unit,
-    onAddTrackToPlaylist: (Track) -> Unit,
     onSaveQueueAsPlaylist: (String) -> Unit,
     onSleepTimerSelected: (SleepTimerRequest) -> Unit,
     onCancelSleepTimer: () -> Unit,
     onInternetRadioStationSelected: (InternetRadioStation) -> Unit,
     onQueueIndexSelected: (Int) -> Unit,
     onRelatedTrackSelected: (Int) -> Unit,
+    onCurrentTrackAction: (NowPlayingCurrentTrackActionRequest) -> Unit,
     onQueueItemAction: (NowPlayingItemActionRequest) -> Unit,
     onCollapseToHome: () -> Unit,
 ) {
@@ -215,16 +211,77 @@ fun DesktopNowPlayingPanel(
             onLyricsOffsetChanged = onLyricsOffsetChanged,
             onToggleVisualizer = onToggleVisualizer,
             onVisualizerSelected = onVisualizerSelected,
-            onTrackRadio = { nowPlayingTrack?.let(onTrackRadioSelected) },
-            onAddToPlaylist = { nowPlayingTrack?.let(onAddTrackToPlaylist) },
+            onTrackRadio = {
+                nowPlayingTrack?.let { track ->
+                    onCurrentTrackAction(
+                        NowPlayingCurrentTrackActionRequest(track, NowPlayingCurrentTrackAction.StartRadio),
+                    )
+                }
+            },
+            onAddToPlaylist = { playlistChoice ->
+                nowPlayingTrack?.let { track ->
+                    onCurrentTrackAction(
+                        NowPlayingCurrentTrackActionRequest(
+                            track = track,
+                            action = NowPlayingCurrentTrackAction.AddToPlaylist,
+                            playlistChoice = playlistChoice,
+                        ),
+                    )
+                }
+            },
+            onCreatePlaylistAndAdd = { name ->
+                nowPlayingTrack?.let { track ->
+                    onCurrentTrackAction(
+                        NowPlayingCurrentTrackActionRequest(
+                            track = track,
+                            action = NowPlayingCurrentTrackAction.CreatePlaylistAndAdd,
+                            playlistName = name,
+                        ),
+                    )
+                }
+            },
             onSaveQueueAsPlaylist = onSaveQueueAsPlaylist,
             onSleepTimerSelected = onSleepTimerSelected,
             onCancelSleepTimer = onCancelSleepTimer,
-            onDownloadTrack = { nowPlayingTrack?.let(onDownloadTrackSelected) },
-            onGoToAlbum = { nowPlayingTrack?.let(onAlbumSelected) },
-            onGoToArtist = { nowPlayingTrack?.let(onArtistSelected) },
-            onToggleFavorite = { nowPlayingTrack?.let(onToggleTrackFavorite) },
-            onRatingSelected = { rating -> nowPlayingTrack?.let { onTrackRatingSelected(it, rating) } },
+            onDownloadTrack = {
+                nowPlayingTrack?.let { track ->
+                    onCurrentTrackAction(
+                        NowPlayingCurrentTrackActionRequest(track, NowPlayingCurrentTrackAction.Download),
+                    )
+                }
+            },
+            onGoToAlbum = {
+                nowPlayingTrack?.let { track ->
+                    onCurrentTrackAction(
+                        NowPlayingCurrentTrackActionRequest(track, NowPlayingCurrentTrackAction.GoToAlbum),
+                    )
+                }
+            },
+            onGoToArtist = {
+                nowPlayingTrack?.let { track ->
+                    onCurrentTrackAction(
+                        NowPlayingCurrentTrackActionRequest(track, NowPlayingCurrentTrackAction.GoToArtist),
+                    )
+                }
+            },
+            onToggleFavorite = {
+                nowPlayingTrack?.let { track ->
+                    onCurrentTrackAction(
+                        NowPlayingCurrentTrackActionRequest(track, NowPlayingCurrentTrackAction.ToggleFavorite),
+                    )
+                }
+            },
+            onRatingSelected = { rating ->
+                nowPlayingTrack?.let { track ->
+                    onCurrentTrackAction(
+                        NowPlayingCurrentTrackActionRequest(
+                            track = track,
+                            action = NowPlayingCurrentTrackAction.SetRating,
+                            rating = rating,
+                        ),
+                    )
+                }
+            },
             onCollapse = onCollapseToHome,
             onQueueItemSelected = { item ->
                 nowPlayingQueueIndex(item)?.let(onQueueIndexSelected)

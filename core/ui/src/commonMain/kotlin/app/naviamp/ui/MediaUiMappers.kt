@@ -320,6 +320,25 @@ enum class NowPlayingItemSource {
     TrackId,
 }
 
+enum class NowPlayingCurrentTrackAction {
+    StartRadio,
+    AddToPlaylist,
+    CreatePlaylistAndAdd,
+    Download,
+    GoToAlbum,
+    GoToArtist,
+    ToggleFavorite,
+    SetRating,
+}
+
+data class NowPlayingCurrentTrackActionRequest(
+    val track: Track,
+    val action: NowPlayingCurrentTrackAction,
+    val playlistChoice: NaviampPlaylistChoiceUi? = null,
+    val playlistName: String? = null,
+    val rating: Int? = null,
+)
+
 data class NowPlayingItemActionRequest(
     val item: NaviampNowPlayingItemUi,
     val target: NowPlayingItemTarget,
