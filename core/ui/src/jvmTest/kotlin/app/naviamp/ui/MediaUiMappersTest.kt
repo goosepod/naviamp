@@ -109,6 +109,36 @@ class MediaUiMappersTest {
     }
 
     @Test
+    fun nowPlayingItemActionResolvesSourceAndTrack() {
+        val relatedTrack = track("related-track")
+        val request = nowPlayingItemActionRequest(
+            item = item(nowPlayingRelatedItemId(0)),
+            action = NowPlayingItemAction.Download,
+        )
+
+        val action = request.resolveAction(relatedTracks = listOf(relatedTrack))
+
+        assertEquals(NowPlayingItemSource.Related, action.source)
+        assertEquals(NowPlayingItemAction.Download, action.action)
+        assertEquals(relatedTrack, action.track)
+        assertEquals(true, action.isRelated)
+    }
+
+    @Test
+    fun nowPlayingItemActionUsesFallbackTrackWhenPlatformResolverAlreadyResolvedItem() {
+        val fallbackTrack = track("fallback-track")
+        val request = nowPlayingItemActionRequest(
+            item = item(nowPlayingQueueItemId(3)),
+            action = NowPlayingItemAction.AddToPlaylist,
+        )
+
+        val action = request.resolveAction(fallbackTrack = fallbackTrack)
+
+        assertEquals(NowPlayingItemSource.Queue, action.source)
+        assertEquals(fallbackTrack, action.track)
+    }
+
+    @Test
     fun nowPlayingSectionsUseTrackIdsForTrackListSources() {
         val tracks = listOf(track("one"), track("two"), track("three"))
         val related = listOf(track("related"))

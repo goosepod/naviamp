@@ -45,6 +45,7 @@ import app.naviamp.ui.SharedPlaylistSortMode
 import app.naviamp.ui.SharedRoute
 import app.naviamp.ui.SharedSearchResultsUi
 import app.naviamp.ui.SharedSimilarArtistUi
+import app.naviamp.ui.resolveAction
 import app.naviamp.ui.toNaviampRoute
 import app.naviamp.ui.toSharedGenreMixItemUi
 import app.naviamp.ui.toSharedMediaItemUi
@@ -318,15 +319,15 @@ fun androidAppShellActions(
     resolveNowPlayingItemTrack: (NaviampNowPlayingItemUi) -> Track?,
     addTrackToPlaylist: (Track, NaviampPlaylistChoiceUi?, String?) -> Unit,
     handleQueueItemAction: (NowPlayingItemActionRequest) -> Unit = { request ->
-        val track = resolveNowPlayingItemTrack(request.item)
-        when (request.action) {
-            NowPlayingItemAction.StartRadio -> handleShellQueueItemRadio(request.item)
-            NowPlayingItemAction.PlayNext -> handleQueueItemPlayNext(request.item)
-            NowPlayingItemAction.AddToQueue -> handleQueueItemAddToQueue(request.item)
-            NowPlayingItemAction.AddToPlaylist -> track?.let { addTrackToPlaylist(it, request.playlistChoice, null) }
+        val action = request.resolveAction(fallbackTrack = resolveNowPlayingItemTrack(request.item))
+        when (action.action) {
+            NowPlayingItemAction.StartRadio -> handleShellQueueItemRadio(action.item)
+            NowPlayingItemAction.PlayNext -> handleQueueItemPlayNext(action.item)
+            NowPlayingItemAction.AddToQueue -> handleQueueItemAddToQueue(action.item)
+            NowPlayingItemAction.AddToPlaylist -> action.track?.let { addTrackToPlaylist(it, action.playlistChoice, null) }
             NowPlayingItemAction.CreatePlaylistAndAdd ->
-                track?.let { addTrackToPlaylist(it, null, request.playlistName) }
-            NowPlayingItemAction.Download -> track?.let(downloadTrack)
+                action.track?.let { addTrackToPlaylist(it, null, action.playlistName) }
+            NowPlayingItemAction.Download -> action.track?.let(downloadTrack)
         }
     },
     toggleCurrentFavorite: () -> Unit,

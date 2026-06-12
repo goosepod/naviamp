@@ -314,6 +314,12 @@ enum class NowPlayingItemAction {
     Download,
 }
 
+enum class NowPlayingItemSource {
+    Queue,
+    Related,
+    TrackId,
+}
+
 data class NowPlayingItemActionRequest(
     val item: NaviampNowPlayingItemUi,
     val target: NowPlayingItemTarget,
@@ -321,6 +327,27 @@ data class NowPlayingItemActionRequest(
     val playlistChoice: NaviampPlaylistChoiceUi? = null,
     val playlistName: String? = null,
 )
+
+data class ResolvedNowPlayingItemAction(
+    val request: NowPlayingItemActionRequest,
+    val source: NowPlayingItemSource,
+    val track: Track?,
+) {
+    val item: NaviampNowPlayingItemUi
+        get() = request.item
+
+    val action: NowPlayingItemAction
+        get() = request.action
+
+    val playlistChoice: NaviampPlaylistChoiceUi?
+        get() = request.playlistChoice
+
+    val playlistName: String?
+        get() = request.playlistName
+
+    val isRelated: Boolean
+        get() = source == NowPlayingItemSource.Related
+}
 
 fun nowPlayingQueueItemId(index: Int): String = "queue:$index"
 
@@ -371,6 +398,25 @@ fun NowPlayingItemActionRequest.resolveTrack(
     knownTracks: List<Track> = emptyList(),
 ): Track? =
     resolveNowPlayingTargetTrack(target, queueTracks, relatedTracks, knownTracks)
+
+fun NowPlayingItemActionRequest.resolveAction(
+    queueTracks: List<Track> = emptyList(),
+    relatedTracks: List<Track> = emptyList(),
+    knownTracks: List<Track> = emptyList(),
+    fallbackTrack: Track? = null,
+): ResolvedNowPlayingItemAction =
+    ResolvedNowPlayingItemAction(
+        request = this,
+        source = target.source,
+        track = resolveTrack(queueTracks, relatedTracks, knownTracks) ?: fallbackTrack,
+    )
+
+private val NowPlayingItemTarget.source: NowPlayingItemSource
+    get() = when (this) {
+        is NowPlayingItemTarget.QueueIndex -> NowPlayingItemSource.Queue
+        is NowPlayingItemTarget.RelatedIndex -> NowPlayingItemSource.Related
+        is NowPlayingItemTarget.TrackId -> NowPlayingItemSource.TrackId
+    }
 
 private fun resolveNowPlayingTargetTrack(
     target: NowPlayingItemTarget,

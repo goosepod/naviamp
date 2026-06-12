@@ -26,7 +26,6 @@ import app.naviamp.ui.NaviampSleepTimerUi
 import app.naviamp.ui.NaviampVisualizer
 import app.naviamp.ui.MiniNowPlayingUiConfig
 import app.naviamp.ui.NowPlayingItemAction
-import app.naviamp.ui.NowPlayingItemTarget
 import app.naviamp.ui.NowPlayingUi
 import app.naviamp.ui.nowPlayingQueueIndex
 import app.naviamp.ui.nowPlayingRelatedIndex
@@ -34,7 +33,7 @@ import app.naviamp.ui.toNowPlayingStationUi
 import app.naviamp.ui.toMiniNowPlayingUi
 import app.naviamp.ui.toRadioNowPlayingUi
 import app.naviamp.ui.nowPlayingTrackCapabilities
-import app.naviamp.ui.resolveTrack
+import app.naviamp.ui.resolveAction
 import app.naviamp.ui.toNowPlayingSectionsUi
 import app.naviamp.ui.toTrackNowPlayingUi
 
@@ -245,24 +244,23 @@ fun DesktopNowPlayingPanel(
                 internetRadioStations.firstOrNull { it.id == item.id }?.let(onInternetRadioStationSelected)
             },
             onQueueItemAction = { request ->
-                val track = request.resolveTrack(queueTracks = playbackQueue.tracks, relatedTracks = relatedTracks)
-                val related = request.target is NowPlayingItemTarget.RelatedIndex
-                when (request.action) {
-                    NowPlayingItemAction.StartRadio -> track?.let {
-                        if (related) onRelatedTrackRadioSelected(it) else onUpNextTrackRadioSelected(it)
+                val action = request.resolveAction(queueTracks = playbackQueue.tracks, relatedTracks = relatedTracks)
+                when (action.action) {
+                    NowPlayingItemAction.StartRadio -> action.track?.let {
+                        if (action.isRelated) onRelatedTrackRadioSelected(it) else onUpNextTrackRadioSelected(it)
                     }
                     NowPlayingItemAction.PlayNext -> {
-                        if (related) track?.let(onRelatedTrackPlayNext)
+                        if (action.isRelated) action.track?.let(onRelatedTrackPlayNext)
                     }
                     NowPlayingItemAction.AddToQueue -> {
-                        if (related) track?.let(onRelatedTrackAddToQueue)
+                        if (action.isRelated) action.track?.let(onRelatedTrackAddToQueue)
                     }
-                    NowPlayingItemAction.AddToPlaylist -> track?.let {
-                        if (related) onRelatedTrackAddToPlaylist(it) else onUpNextTrackAddToPlaylist(it)
+                    NowPlayingItemAction.AddToPlaylist -> action.track?.let {
+                        if (action.isRelated) onRelatedTrackAddToPlaylist(it) else onUpNextTrackAddToPlaylist(it)
                     }
                     NowPlayingItemAction.CreatePlaylistAndAdd -> Unit
-                    NowPlayingItemAction.Download -> track?.let {
-                        if (related) onRelatedTrackDownloadSelected(it) else onUpNextTrackDownloadSelected(it)
+                    NowPlayingItemAction.Download -> action.track?.let {
+                        if (action.isRelated) onRelatedTrackDownloadSelected(it) else onUpNextTrackDownloadSelected(it)
                     }
                 }
             },
