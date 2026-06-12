@@ -496,6 +496,7 @@ private fun NaviampAndroidApp(
             appendTracksToQueue = mediaAppController::appendTracksToQueue,
             downloadTrack = downloadActionController::downloadTrack,
             addTrackToPlaylist = playlistActionController::addTrackToPlaylist,
+            removeDownload = downloadActionController::removeDownload,
         )
     }
 

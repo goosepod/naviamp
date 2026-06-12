@@ -20,6 +20,7 @@ import app.naviamp.domain.playback.EqualizerPlaybackEngine
 import app.naviamp.domain.settings.streamQualityForNetwork
 import app.naviamp.domain.smartplaylist.SmartPlaylistDefinition
 import app.naviamp.ui.SharedTrackRowUi
+import app.naviamp.ui.DownloadedTrackActionRequest
 import app.naviamp.ui.NaviampDiagnosticsUi
 import app.naviamp.ui.NaviampDownloadedTrackUi
 import app.naviamp.ui.NaviampLibrarySyncStatusUi
@@ -48,6 +49,8 @@ import app.naviamp.ui.SharedPlaylistSortMode
 import app.naviamp.ui.SharedRoute
 import app.naviamp.ui.SharedSearchResultsUi
 import app.naviamp.ui.SharedSimilarArtistUi
+import app.naviamp.ui.StationRowAction
+import app.naviamp.ui.StationRowActionRequest
 import app.naviamp.ui.SharedTrackRowActionRequest
 import app.naviamp.ui.resolveAction
 import app.naviamp.ui.toNaviampRoute
@@ -249,10 +252,7 @@ fun androidAppShellActions(
     handleGenreMixPlay: () -> Unit,
     startAndroidLibrarySync: (Boolean) -> Unit,
     handleShellTrackSelected: (SharedTrackRowUi) -> Unit,
-    handleDownloadedTrackSelected: (NaviampDownloadedTrackUi) -> Unit,
-    handleDownloadedTrackAddToPlaylist: (NaviampDownloadedTrackUi, NaviampPlaylistChoiceUi?) -> Unit,
-    handleDownloadedTrackCreatePlaylistAndAdd: (NaviampDownloadedTrackUi, String) -> Unit,
-    removeDownload: (NaviampDownloadedTrackUi) -> Unit,
+    handleDownloadedTrackAction: (DownloadedTrackActionRequest) -> Unit,
     handleShellAlbumSelected: (SharedMediaItemUi) -> Unit,
     handleAlbumFavoriteToggled: (SharedMediaItemUi) -> Unit,
     handleMixAlbumSelected: (SharedMediaItemUi) -> Unit,
@@ -294,6 +294,15 @@ fun androidAppShellActions(
     handleRadioStationSelected: (InternetRadioStation) -> Unit,
     saveInternetRadioStation: (InternetRadioStation) -> Unit,
     deleteInternetRadioStation: (InternetRadioStation) -> Unit,
+    handleStationAction: (StationRowActionRequest) -> Unit = { request ->
+        state.homeState.radioStations.firstOrNull { it.id == request.station.id }?.let { station ->
+            when (request.action) {
+                StationRowAction.Select -> handleRadioStationSelected(station)
+                StationRowAction.Edit -> Unit
+                StationRowAction.Delete -> deleteInternetRadioStation(station)
+            }
+        } ?: run { state.status = "Station not found." }
+    },
     handleShellHomeStationSelected: (SharedHomeStationUi) -> Unit,
     closeActiveDetail: () -> Unit,
     handleShellResume: () -> Unit,
@@ -378,10 +387,7 @@ fun androidAppShellActions(
             onLibraryQueryChanged = { libraryQuery = it },
             onRefreshLibrary = { startAndroidLibrarySync(true) },
             onTrackSelected = handleShellTrackSelected,
-            onDownloadedTrackSelected = handleDownloadedTrackSelected,
-            onDownloadedTrackAddToPlaylist = handleDownloadedTrackAddToPlaylist,
-            onDownloadedTrackCreatePlaylistAndAdd = handleDownloadedTrackCreatePlaylistAndAdd,
-            onRemoveDownload = removeDownload,
+            onDownloadedTrackAction = handleDownloadedTrackAction,
             onAlbumSelected = handleShellAlbumSelected,
             onAlbumFavoriteToggled = handleAlbumFavoriteToggled,
             onMixAlbumSelected = handleMixAlbumSelected,
@@ -538,7 +544,7 @@ fun androidAppShellActions(
             onMixBuilderSelected = handleMixBuilderSelected,
             onRadioStationSelected = handleRadioStationSelected,
             onRadioStationSave = saveInternetRadioStation,
-            onRadioStationDelete = deleteInternetRadioStation,
+            onStationAction = handleStationAction,
             onHomeStationSelected = handleShellHomeStationSelected,
             onOpenNowPlaying = { nowPlayingOpen = true },
             onCloseNowPlaying = {

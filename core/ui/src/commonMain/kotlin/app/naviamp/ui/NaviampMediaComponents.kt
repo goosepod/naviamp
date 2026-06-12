@@ -846,9 +846,8 @@ fun InternetRadioContent(
     colors: NaviampColors,
     stations: List<InternetRadioStation>,
     status: String?,
-    onStationSelected: (InternetRadioStation) -> Unit,
+    onStationAction: (StationRowActionRequest) -> Unit,
     onSaveStation: ((InternetRadioStation) -> Unit)? = null,
-    onDeleteStation: ((InternetRadioStation) -> Unit)? = null,
 ) {
     var stationBeingEdited by remember { mutableStateOf<InternetRadioStation?>(null) }
     var stationBeingDeleted by remember { mutableStateOf<InternetRadioStation?>(null) }
@@ -858,7 +857,7 @@ fun InternetRadioContent(
         handleStationRowAction(
             request,
             StationRowActionHandlers(
-                onSelect = { item -> stationById[item.id]?.let(onStationSelected) },
+                onSelect = { onStationAction(request) },
                 onEdit = { item -> stationBeingEdited = stationById[item.id] },
                 onDelete = { item -> stationBeingDeleted = stationById[item.id] },
             ),
@@ -888,7 +887,9 @@ fun InternetRadioContent(
                 item = stationItem,
                 colors = colors,
                 itemKind = SharedMediaItemKind.RadioStation,
-                onClick = { onStationSelected(station) },
+                onClick = {
+                    handleStationAction(StationRowActionRequest(stationItem, StationRowAction.Select))
+                },
                 onItemAction = { request ->
                     when (request.action) {
                         SharedMediaItemAction.Select ->
@@ -896,13 +897,17 @@ fun InternetRadioContent(
                         else ->
                             handleSharedMediaItemAction(
                                 request,
-                                SharedMediaItemActionHandlers(onSelect = { onStationSelected(station) }),
+                                SharedMediaItemActionHandlers(
+                                    onSelect = {
+                                        handleStationAction(StationRowActionRequest(stationItem, StationRowAction.Select))
+                                    },
+                                ),
                             )
                     }
                 },
                 menuItems = stationRowActions(
                     canEdit = onSaveStation != null,
-                    canDelete = onDeleteStation != null,
+                    canDelete = true,
                 ).mapNotNull { action ->
                     when (action.action) {
                         NaviampAction.EditStation -> NaviampRowMenuItem(
@@ -959,7 +964,12 @@ fun InternetRadioContent(
                 TextButton(
                     onClick = {
                         stationBeingDeleted = null
-                        onDeleteStation?.invoke(station)
+                        onStationAction(
+                            StationRowActionRequest(
+                                station = station.toSharedMediaItemUi(),
+                                action = StationRowAction.Delete,
+                            ),
+                        )
                     },
                 ) {
                     Text("Delete")

@@ -27,6 +27,8 @@ import app.naviamp.domain.provider.PlaylistHomeProjection
 import app.naviamp.ui.SharedTrackRowUi
 import app.naviamp.ui.SharedTrackRowAction
 import app.naviamp.ui.SharedTrackRowActionRequest
+import app.naviamp.ui.DownloadedTrackAction
+import app.naviamp.ui.DownloadedTrackActionRequest
 import app.naviamp.ui.NaviampDownloadedTrackUi
 import app.naviamp.ui.NaviampPlaylistChoiceUi
 import app.naviamp.ui.SharedMediaItemUi
@@ -408,6 +410,7 @@ internal class AndroidTrackActionController(
     private val appendTracksToQueue: (List<Track>, String) -> Unit,
     private val downloadTrack: (Track) -> Unit,
     private val addTrackToPlaylist: (Track, NaviampPlaylistChoiceUi?, String?) -> Unit,
+    private val removeDownload: (NaviampDownloadedTrackUi) -> Unit,
 ) {
     fun handleDownloadedTrackSelected(download: NaviampDownloadedTrackUi) {
         playAndroidDownloadedTrack(state, download) { track, queue -> playTrack(track, queue) }
@@ -419,6 +422,17 @@ internal class AndroidTrackActionController(
 
     fun handleDownloadedTrackCreatePlaylistAndAdd(download: NaviampDownloadedTrackUi, name: String) {
         withAndroidDownloadedTrack(state, download) { track -> addTrackToPlaylist(track, null, name) }
+    }
+
+    fun handleDownloadedTrackAction(request: DownloadedTrackActionRequest) {
+        when (request.action) {
+            DownloadedTrackAction.Select -> handleDownloadedTrackSelected(request.download)
+            DownloadedTrackAction.AddToPlaylist ->
+                handleDownloadedTrackAddToPlaylist(request.download, request.playlistChoice)
+            DownloadedTrackAction.CreatePlaylistAndAdd ->
+                request.playlistName?.let { name -> handleDownloadedTrackCreatePlaylistAndAdd(request.download, name) }
+            DownloadedTrackAction.Remove -> removeDownload(request.download)
+        }
     }
 
     fun handleTrackAction(request: SharedTrackRowActionRequest) {

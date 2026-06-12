@@ -331,24 +331,21 @@ internal fun DownloadsContent(
     status: String?,
     downloadBytes: Long,
     maxDownloadBytes: Long,
-    onTrackSelected: (NaviampDownloadedTrackUi) -> Unit,
     playlistChoices: List<NaviampPlaylistChoiceUi>,
     playlistActionStatus: String?,
-    onAddToPlaylist: (NaviampDownloadedTrackUi, NaviampPlaylistChoiceUi?) -> Unit,
-    onCreatePlaylistAndAdd: (NaviampDownloadedTrackUi, String) -> Unit,
-    onRemoveDownload: (NaviampDownloadedTrackUi) -> Unit,
+    onDownloadAction: (DownloadedTrackActionRequest) -> Unit,
 ) {
     var downloadForPlaylist by remember { mutableStateOf<NaviampDownloadedTrackUi?>(null) }
     val handleDownloadAction: (DownloadedTrackActionRequest) -> Unit = { request ->
         handleDownloadedTrackAction(
             request,
             DownloadedTrackActionHandlers(
-                onSelect = onTrackSelected,
+                onSelect = { onDownloadAction(request) },
                 onAddToPlaylist = { download, playlist ->
-                    if (playlist == null) downloadForPlaylist = download else onAddToPlaylist(download, playlist)
+                    if (playlist == null) downloadForPlaylist = download else onDownloadAction(request)
                 },
-                onCreatePlaylistAndAdd = onCreatePlaylistAndAdd,
-                onRemove = onRemoveDownload,
+                onCreatePlaylistAndAdd = { _, _ -> onDownloadAction(request) },
+                onRemove = { onDownloadAction(request) },
             ),
         )
     }

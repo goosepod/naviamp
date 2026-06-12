@@ -14,6 +14,7 @@ import app.naviamp.ui.NaviampLibrarySyncStatusUi
 import app.naviamp.ui.NaviampNowPlayingItemUi
 import app.naviamp.ui.NaviampPlaylistChoiceUi
 import app.naviamp.ui.NaviampVisualizer
+import app.naviamp.ui.DownloadedTrackActionRequest
 import app.naviamp.ui.NowPlayingItemActionRequest
 import app.naviamp.ui.NowPlayingUi
 import app.naviamp.ui.SharedAlbumDetailUi
@@ -32,6 +33,7 @@ import app.naviamp.ui.SharedPlaylistSortMode
 import app.naviamp.ui.SharedRoute
 import app.naviamp.ui.SharedSearchResultsUi
 import app.naviamp.ui.SharedSimilarArtistUi
+import app.naviamp.ui.StationRowActionRequest
 import app.naviamp.ui.SharedTrackRowActionRequest
 import app.naviamp.ui.SharedTrackRowUi
 
@@ -114,10 +116,7 @@ data class AndroidAppShellActions(
     val onLibraryQueryChanged: (String) -> Unit,
     val onRefreshLibrary: () -> Unit,
     val onTrackSelected: (SharedTrackRowUi) -> Unit,
-    val onDownloadedTrackSelected: (NaviampDownloadedTrackUi) -> Unit,
-    val onDownloadedTrackAddToPlaylist: (NaviampDownloadedTrackUi, NaviampPlaylistChoiceUi?) -> Unit,
-    val onDownloadedTrackCreatePlaylistAndAdd: (NaviampDownloadedTrackUi, String) -> Unit,
-    val onRemoveDownload: (NaviampDownloadedTrackUi) -> Unit,
+    val onDownloadedTrackAction: (DownloadedTrackActionRequest) -> Unit,
     val onAlbumSelected: (SharedMediaItemUi) -> Unit,
     val onAlbumFavoriteToggled: (SharedMediaItemUi) -> Unit,
     val onMixAlbumSelected: (SharedMediaItemUi) -> Unit,
@@ -161,7 +160,7 @@ data class AndroidAppShellActions(
     val onMixBuilderSelected: (SharedMixBuilderUi) -> Unit,
     val onRadioStationSelected: (InternetRadioStation) -> Unit,
     val onRadioStationSave: (InternetRadioStation) -> Unit,
-    val onRadioStationDelete: (InternetRadioStation) -> Unit,
+    val onStationAction: (StationRowActionRequest) -> Unit,
     val onHomeStationSelected: (SharedHomeStationUi) -> Unit,
     val onOpenNowPlaying: () -> Unit,
     val onCloseNowPlaying: () -> Unit,

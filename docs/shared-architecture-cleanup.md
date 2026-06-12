@@ -1461,6 +1461,8 @@ Progress notes:
 - Verification passed: `.\gradlew.bat --configure-on-demand "-Pnaviamp.bass.platform=windows-x64" :core:ui:jvmTest :apps:desktop:compileKotlinDesktop :apps:android:compileDebugKotlin`.
 - Removed the redundant shared-shell and Android action fields for artist-album row actions and playlist-list item actions now covered by `onMediaItemAction`. The shared playlist screen and artist detail album rows require the typed media-item dispatcher, shrinking the platform callback surface while preserving playlist-detail actions that still need full detail context.
 - Verification passed: `.\gradlew.bat --configure-on-demand "-Pnaviamp.bass.platform=windows-x64" :core:ui:jvmTest :apps:desktop:compileKotlinDesktop :apps:android:compileDebugKotlin`.
+- Collapsed downloaded-track and internet-radio station row actions into typed shell dispatchers. Shared downloads now emit `DownloadedTrackActionRequest`, shared radio rows emit `StationRowActionRequest` for select/delete while keeping create/edit save as the dialog result, and Android consumes those requests through thin platform lookup handlers instead of separate row callback fields.
+- Verification passed: `.\gradlew.bat --configure-on-demand "-Pnaviamp.bass.platform=windows-x64" :core:ui:jvmTest :apps:desktop:compileKotlinDesktop :apps:android:compileDebugKotlin`.
 
 Success criteria for the first slice:
 
