@@ -654,12 +654,20 @@ Phase 6 close-out:
 
 - [ ] Split `DesktopNaviampApp.kt` into smaller state holders and route coordinators.
 - [ ] Split oversized Android app shell/activity responsibilities using the same boundaries.
-- [ ] Extract connection/provider setup into a desktop adapter plus shared connection coordinator.
-- [ ] Extract library sync/freshness orchestration.
-- [ ] Extract now-playing/session restoration orchestration.
-- [ ] Extract mix-builder state wiring into shared application state where possible.
+- [x] Extract connection/provider setup into a desktop adapter plus shared connection coordinator.
+- [x] Extract library sync/freshness orchestration.
+- [x] Extract now-playing/session restoration orchestration.
+- [x] Extract mix-builder state wiring into shared application state where possible.
 - [ ] Remove desktop Compose compiler bytecode workaround once root composables are small enough.
 - [ ] Verify desktop compile fails no method-size limits without workaround.
+
+Phase 7 audit:
+
+- Connection/provider setup is already adapter-shaped: desktop uses `DesktopConnectionLifecycleController` and shared `ProviderConnectionLifecycleRequest`; Android uses the same shared provider lifecycle path through `AndroidConnectionSessionController`.
+- Library sync/freshness is already shared through `LibrarySyncCoordinator` and platform controllers only provide dispatching, persistence adapters, and UI state updates.
+- Now-playing/session restoration orchestration is already shared through playback session save/restore plans and platform playback/session controllers; remaining now-playing root variables are state placement work, not missing shared session planning.
+- Mix-builder behavior moved into shared `MixBuilderFlowCoordinator` and platform `remember*MixBuilderController` helpers; Android and desktop roots now consume controller boundaries instead of building the equivalent service graph inline.
+- Still open: `DesktopNaviampApp.kt`, `AndroidAppShell.kt`, and `MainActivity.kt` remain large root/shell files, and the desktop compiler workaround in `apps/desktop/build.gradle.kts` is still present. Those should be handled before closing the remaining Phase 7 items.
 
 ## Phase 8: Shared UI and Route Contracts
 
