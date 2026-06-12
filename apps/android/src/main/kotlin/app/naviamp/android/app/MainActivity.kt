@@ -48,6 +48,8 @@ import app.naviamp.ui.NaviampDiagnosticsUi
 import app.naviamp.ui.NaviampLibrarySyncStatusUi
 import app.naviamp.ui.NaviampSharedAppShell
 import app.naviamp.ui.NaviampVisualizer
+import app.naviamp.ui.NaviampRadioArtworkLookupEffect
+import app.naviamp.ui.naviampVisualizerFromName
 import app.naviamp.ui.NowPlayingRadioUiConfig
 import app.naviamp.ui.NowPlayingTrackUiConfig
 import app.naviamp.ui.NowPlayingUi
@@ -181,10 +183,7 @@ private fun NaviampAndroidApp(
         initialOpenNowPlayingRequest = openNowPlayingRequest,
         initialAutoPlayMediaIdRequest = autoPlayMediaIdRequest,
         initialAutoCommandRequest = autoCommandRequest,
-        initialSelectedVisualizer = NaviampVisualizer.entries.firstOrNull {
-            it.name == settingsStore.loadVisualizerSettings().selectedVisualizer
-        }
-            ?: NaviampVisualizer.AudioSphere,
+        initialSelectedVisualizer = naviampVisualizerFromName(settingsStore.loadVisualizerSettings().selectedVisualizer),
     )
     val playbackQueueController = remember { PlaybackQueueController(appState.playbackQueue) }
     with(appState) {
@@ -249,7 +248,7 @@ private fun NaviampAndroidApp(
 
     val searchController = remember(appState, storage) { AndroidSearchController(appState, storage) }
 
-    AndroidRadioArtworkLookupEffect(
+    NaviampRadioArtworkLookupEffect(
         station = nowPlayingStation,
         streamMetadata = nowPlayingStreamMetadata,
         provider = provider,

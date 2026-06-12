@@ -1,18 +1,15 @@
-package app.naviamp.android
+package app.naviamp.ui
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import app.naviamp.domain.InternetRadioStation
 import app.naviamp.domain.playback.PlaybackStreamMetadata
 import app.naviamp.domain.provider.MediaProvider
-import app.naviamp.ui.radioArtworkNeedsTrackLookup
-import app.naviamp.ui.radioTrackArtworkKey
-import app.naviamp.ui.radioTrackArtworkQuery
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 @Composable
-internal fun AndroidRadioArtworkLookupEffect(
+fun NaviampRadioArtworkLookupEffect(
     station: InternetRadioStation?,
     streamMetadata: PlaybackStreamMetadata,
     provider: MediaProvider?,

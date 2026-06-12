@@ -39,6 +39,7 @@ import app.naviamp.provider.navidrome.NavidromeTlsSettings
 import app.naviamp.ui.NaviampVisualizer
 import app.naviamp.ui.SharedPlaylistSortMode
 import app.naviamp.ui.SharedRoute
+import app.naviamp.ui.isNaviampVisualizerVisible
 import app.naviamp.ui.toSharedRoute
 import kotlinx.coroutines.Job
 
@@ -104,8 +105,7 @@ class AndroidAppState(
     var visualizerRequestedVisible by mutableStateOf(false)
     var selectedVisualizer by mutableStateOf(initialSelectedVisualizer)
     val visualizerVisible: Boolean
-        get() = visualizerRequestedVisible &&
-            (playbackState == PlaybackState.Playing || playbackState == PlaybackState.Loading)
+        get() = isNaviampVisualizerVisible(visualizerRequestedVisible, playbackState)
     var pendingSeekPositionSeconds by mutableStateOf<Double?>(null)
     var pendingSeekIssuedAtMillis by mutableStateOf<Long?>(null)
     var pendingRestoreStartPositionSeconds by mutableStateOf<Double?>(null)

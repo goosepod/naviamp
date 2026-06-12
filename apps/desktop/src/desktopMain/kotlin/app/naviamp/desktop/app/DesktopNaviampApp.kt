@@ -2,9 +2,6 @@ package app.naviamp.desktop
 
 import app.naviamp.domain.cache.StorageCacheStats
 
-import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
@@ -33,7 +30,6 @@ import app.naviamp.domain.isInternetRadioTrack
 import app.naviamp.domain.cache.ImageCacheRepository
 import app.naviamp.domain.cache.ProviderResponseService
 import app.naviamp.domain.playback.PlaybackProgress
-import app.naviamp.domain.playback.PlaybackVisualizerFrame
 import app.naviamp.domain.playback.VisualizerPlaybackEngine
 import app.naviamp.desktop.playback.PlaylistCallbacks
 import app.naviamp.desktop.playback.desktopPlaylistCallbacks
@@ -57,16 +53,8 @@ import app.naviamp.domain.settings.restoredTrackSession
 import app.naviamp.provider.navidrome.NavidromeProvider
 import app.naviamp.provider.navidrome.toNavidromeConnection
 import app.naviamp.provider.navidrome.withNativeTokenFromPassword
-import app.naviamp.ui.NaviampPlayerColors
 import app.naviamp.ui.NaviampSleepTimerUi
 import app.naviamp.ui.NaviampSleepTimerExpiryEffect
-import app.naviamp.ui.NaviampVisualizer
-import app.naviamp.ui.effectiveNowPlayingCoverArtUrl
-import app.naviamp.ui.radioArtworkUrl
-import app.naviamp.ui.radioArtworkNeedsTrackLookup
-import app.naviamp.ui.radioTrackArtworkKey
-import app.naviamp.ui.radioTrackArtworkQuery
-import app.naviamp.ui.rememberPlatformCoverArtPlayerColors
 import app.naviamp.ui.toNaviampSleepTimerUi
 
 @Composable
@@ -144,22 +132,10 @@ fun NaviampApp(
     }
     var nowPlayingTrack by remember { mutableStateOf(restoredTrack) }
     var nowPlayingCoverArtUrl by remember { mutableStateOf<String?>(null) }
-    var nowPlayingVisualizerFrame by remember { mutableStateOf<PlaybackVisualizerFrame?>(null) }
-    var nowPlayingVisualizerRequestedVisible by remember { mutableStateOf(false) }
-    var selectedVisualizer by remember {
-        mutableStateOf(
-            NaviampVisualizer.entries.firstOrNull { visualizer ->
-                visualizer.name == savedVisualizer.selectedVisualizer
-            } ?: NaviampVisualizer.AudioSphere,
-        )
-    }
     var nowPlayingLyricsVisible by remember { mutableStateOf(false) }
     var nowPlayingInternetRadioStation by remember { mutableStateOf(restoredInternetRadioStation) }
     var nowPlayingStreamMetadata by remember { mutableStateOf(PlaybackStreamMetadata()) }
-    var radioTrackArtworkByKey by remember { mutableStateOf<Map<String, String?>>(emptyMap()) }
     var playbackState by remember { mutableStateOf<PlaybackState>(PlaybackState.Idle) }
-    val nowPlayingVisualizerVisible = nowPlayingVisualizerRequestedVisible &&
-        (playbackState == PlaybackState.Playing || playbackState == PlaybackState.Loading)
     var playbackProgress by remember { mutableStateOf(PlaybackProgress.Unknown) }
     var playbackQueue by remember {
         mutableStateOf(savedPlaybackSession?.restoredPlaybackQueue() ?: PlaybackQueue())
@@ -189,43 +165,16 @@ fun NaviampApp(
     var lastPlaybackProgressUiUpdateMillis by remember { mutableLongStateOf(0L) }
     var playReportSessionId by remember { mutableStateOf(0) }
     var submittedPlayReportSessionId by remember { mutableStateOf<Int?>(null) }
-    val effectiveNowPlayingCoverArtUrl = effectiveNowPlayingCoverArtUrl(
+    val nowPlayingPresentation = rememberDesktopNowPlayingPresentationState(
+        initialVisualizerSettings = savedVisualizer,
+        appColors = appColors,
         currentCoverArtUrl = nowPlayingCoverArtUrl,
         nowPlayingTrack = nowPlayingTrack,
         nowPlayingStation = nowPlayingInternetRadioStation,
         streamMetadata = nowPlayingStreamMetadata,
-        radioTrackArtworkByKey = radioTrackArtworkByKey,
-    )
-    val coverArtPlayerColors = rememberPlatformCoverArtPlayerColors(effectiveNowPlayingCoverArtUrl, appColors)
-    val targetBackgroundColors = if (nowPlayingTrack != null) {
-        coverArtPlayerColors
-    } else {
-        NaviampPlayerColors.solid(appColors.background)
-    }
-    DesktopRadioArtworkLookupEffect(
-        station = nowPlayingInternetRadioStation,
-        streamMetadata = nowPlayingStreamMetadata,
         provider = connectedProvider,
-        artworkByKey = radioTrackArtworkByKey,
-        onArtworkResolved = { key, artworkUrl ->
-            radioTrackArtworkByKey = radioTrackArtworkByKey + (key to artworkUrl)
-        },
     )
-    val backgroundStart by animateColorAsState(
-        targetValue = targetBackgroundColors.backgroundStart,
-        animationSpec = tween(durationMillis = 180, easing = LinearEasing),
-        label = "backgroundStart",
-    )
-    val backgroundMid by animateColorAsState(
-        targetValue = targetBackgroundColors.backgroundMid,
-        animationSpec = tween(durationMillis = 180, easing = LinearEasing),
-        label = "backgroundMid",
-    )
-    val backgroundEnd by animateColorAsState(
-        targetValue = targetBackgroundColors.backgroundEnd,
-        animationSpec = tween(durationMillis = 180, easing = LinearEasing),
-        label = "backgroundEnd",
-    )
+    val nowPlayingVisualizerVisible = nowPlayingPresentation.isVisualizerVisible(playbackState)
 
     val playbackController = remember {
         DesktopPlaybackController(
@@ -293,13 +242,7 @@ fun NaviampApp(
         playbackQueue = { playbackQueue },
         nowPlayingTrack = { nowPlayingTrack },
         nowPlayingCoverArtUrl = {
-            effectiveNowPlayingCoverArtUrl(
-                currentCoverArtUrl = nowPlayingCoverArtUrl,
-                nowPlayingTrack = nowPlayingTrack,
-                nowPlayingStation = nowPlayingInternetRadioStation,
-                streamMetadata = nowPlayingStreamMetadata,
-                radioTrackArtworkByKey = radioTrackArtworkByKey,
-            )
+            nowPlayingPresentation.effectiveCoverArtUrl
         },
     )
     }
@@ -760,7 +703,7 @@ fun NaviampApp(
         artistDetailBackRoute = artistController.artistDetailBackRoute,
         lastContentRoute = lastContentRoute,
         setLastContentRoute = { route -> lastContentRoute = route },
-        setNowPlayingVisualizerFrame = { frame -> nowPlayingVisualizerFrame = frame },
+        setNowPlayingVisualizerFrame = nowPlayingPresentation::updateVisualizerFrame,
         updateAudioCacheLimit = { maxBytes -> storage.updateAudioCacheLimit(maxBytes) },
         cancelAudioPrefetch = { playlistEngine.cancelAudioPrefetch() },
         saveNavigationSettings = settingsStore::saveNavigationSettings,
@@ -829,10 +772,10 @@ fun NaviampApp(
             colorScheme = colorScheme,
             appColors = appColors,
             statsForNerdsInfo = statsForNerdsInfo,
-            backgroundStart = backgroundStart,
-            backgroundMid = backgroundMid,
-            backgroundEnd = backgroundEnd,
-            targetBackgroundColors = targetBackgroundColors,
+            backgroundStart = nowPlayingPresentation.backgroundStart,
+            backgroundMid = nowPlayingPresentation.backgroundMid,
+            backgroundEnd = nowPlayingPresentation.backgroundEnd,
+            targetBackgroundColors = nowPlayingPresentation.targetBackgroundColors,
             onCloseStatsForNerds = { showStatsForNerds = false },
     ) {
             Column(
@@ -854,9 +797,9 @@ fun NaviampApp(
                             supportsTrackRatings = connectedProvider?.capabilities?.supportsTrackRatings == true,
                             nowPlayingTrack = nowPlayingTrack,
                             nowPlayingWaveform = nowPlayingController.waveform,
-                            visualizerFrame = nowPlayingVisualizerFrame,
-                            selectedVisualizer = selectedVisualizer,
-                            visualizerColors = targetBackgroundColors,
+                            visualizerFrame = nowPlayingPresentation.visualizerFrame,
+                            selectedVisualizer = nowPlayingPresentation.selectedVisualizer,
+                            visualizerColors = nowPlayingPresentation.targetBackgroundColors,
                             nowPlayingAudioTags = nowPlayingController.audioTags,
                             nowPlayingLyrics = nowPlayingController.lyrics,
                             nowPlayingLyricsStatus = nowPlayingController.lyricsStatus,
@@ -864,12 +807,12 @@ fun NaviampApp(
                             lyricsVisible = nowPlayingLyricsVisible,
                             visualizerAvailable = (playbackEngine as? VisualizerPlaybackEngine)?.supportsVisualizer == true,
                             visualizerVisible = nowPlayingVisualizerVisible,
-                            coverArtUrl = effectiveNowPlayingCoverArtUrl,
+                            coverArtUrl = nowPlayingPresentation.effectiveCoverArtUrl,
                             playbackQueue = playbackQueue,
                             internetRadioStations = internetRadioController.stations,
                             currentInternetRadioStationId =
                                 nowPlayingInternetRadioStation?.id ?: nowPlayingTrack?.internetRadioStationId(),
-                            radioTrackArtworkByKey = radioTrackArtworkByKey,
+                            radioTrackArtworkByKey = nowPlayingPresentation.radioTrackArtworkByKey,
                             relatedTracks = nowPlayingController.relatedTracks,
                             coverArtUrlForTrack = { track -> track.coverArtId?.let { connectedProvider?.coverArtUrl(it) } },
                             hasPrevious = playbackController.canUsePreviousButton(),
@@ -901,15 +844,12 @@ fun NaviampApp(
                             },
                             onToggleLyrics = { nowPlayingLyricsVisible = !nowPlayingLyricsVisible },
                             onLyricsOffsetChanged = nowPlayingController::handleLyricsOffsetChanged,
-                            onToggleVisualizer = {
-                                nowPlayingVisualizerRequestedVisible = !nowPlayingVisualizerRequestedVisible
-                            },
+                            onToggleVisualizer = nowPlayingPresentation::toggleVisualizer,
                             onVisualizerSelected = { visualizer ->
-                                selectedVisualizer = visualizer
+                                nowPlayingPresentation.selectVisualizer(visualizer)
                                 settingsStore.saveVisualizerSettings(
                                     VisualizerSettings(selectedVisualizer = visualizer.name),
                                 )
-                                nowPlayingVisualizerRequestedVisible = true
                             },
                             onToggleTrackFavorite = appActions::toggleTrackFavorite,
                             onTrackRatingSelected = appActions::setTrackRating,
@@ -1071,7 +1011,7 @@ fun NaviampApp(
                             DesktopMiniPlayerPanel(
                                 appColors = appColors,
                                 nowPlayingTrack = nowPlayingTrack,
-                                coverArtUrl = effectiveNowPlayingCoverArtUrl,
+                                coverArtUrl = nowPlayingPresentation.effectiveCoverArtUrl,
                                 hasPrevious = playbackController.canUsePreviousButton(),
                                 hasNext = playbackQueue.hasNext(),
                                 playbackState = playbackState,

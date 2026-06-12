@@ -2,6 +2,7 @@ package app.naviamp.ui
 
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import app.naviamp.domain.playback.PlaybackState
 import app.naviamp.domain.playback.PlaybackVisualizerFrame
 import app.naviamp.domain.waveform.AudioWaveform
 
@@ -62,6 +63,17 @@ enum class NaviampVisualizer(val label: String) {
     WaveInterference("Wave interference"),
     VinylGroove("Vinyl groove"),
 }
+
+fun naviampVisualizerFromName(name: String?): NaviampVisualizer =
+    NaviampVisualizer.entries.firstOrNull { visualizer -> visualizer.name == name }
+        ?: NaviampVisualizer.AudioSphere
+
+fun isNaviampVisualizerVisible(
+    requestedVisible: Boolean,
+    playbackState: PlaybackState,
+): Boolean =
+    requestedVisible &&
+        (playbackState == PlaybackState.Playing || playbackState == PlaybackState.Loading)
 
 typealias ConnectionFormState = app.naviamp.domain.settings.ConnectionFormState
 typealias PlaybackSettings = app.naviamp.domain.settings.PlaybackSettings

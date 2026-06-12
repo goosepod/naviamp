@@ -1425,6 +1425,11 @@ Progress notes:
 - Moved desktop now-playing analysis sidecar state into `DesktopNowPlayingController`, including waveform, audio tags, lyrics/status, related tracks, and waveform reload token.
 - `DesktopNaviampApp.kt` is now 1,053 lines after the playlist/detail/now-playing state cleanup.
 - Verification passed: `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :apps:desktop:compileKotlinDesktop`.
+- Moved desktop now-playing presentation state into `DesktopNowPlayingPresentationState`, covering visualizer selection/visibility, visualizer frame, resolved cover-art URL, radio track artwork lookup cache, and animated player background colors.
+- Moved duplicated Android/Desktop radio artwork lookup effects into shared `NaviampRadioArtworkLookupEffect`, and moved visualizer setting lookup/visibility gating into shared UI helpers so both platforms use the same small rules.
+- This slice keeps platform helpers limited to shell/presentation state; duplicated Android/Desktop product behavior should continue moving into `core/domain` or `core/ui`, not into platform-only helpers.
+- `DesktopNaviampApp.kt` is now 1,047 lines after the now-playing presentation state cleanup; `DesktopNowPlayingPresentationState.kt` is 141 lines.
+- Verification passed: `.\gradlew.bat --configure-on-demand "-Pnaviamp.bass.platform=windows-x64" :core:ui:jvmTest :apps:desktop:compileKotlinDesktop :apps:android:compileDebugKotlin`.
 
 Success criteria for the first slice:
 
