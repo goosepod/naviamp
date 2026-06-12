@@ -605,7 +605,7 @@ Phase 5 close-out:
 - [x] Extract shared coordinators for connection/provider lifecycle.
 - [x] Extract shared coordinators for library sync/freshness.
 - [x] Extract shared coordinators for home loading and refresh.
-- [ ] Extract shared coordinators for artist, album, playlist, search, downloads, and internet radio flows.
+- [x] Extract shared coordinators for artist, album, playlist, search, downloads, and internet radio flows.
 - [ ] Extract shared coordinators for artist mix, album mix, genre mix, and future generated queues.
 - [ ] Make Android/Desktop app shells compose shared coordinators rather than owning equivalent orchestration.
 
@@ -627,6 +627,15 @@ Home loading/refresh close-out:
 - Desktop home refresh now delegates provider/cache/library/source/recent-radio inputs to the shared coordinator while keeping coroutine dispatching and JVM date lookup local.
 - Android browse-state loading now uses the same shared home request/loader path as desktop, preserving the Android artist-limit setting as a platform input.
 - Shared tests cover request input propagation and coordinator success/failure status behavior.
+
+Flow coordinator close-out:
+
+- Shared domain now owns artist and album detail loading status orchestration in `MediaDetailFlowCoordinator.kt`; Android and desktop detail controllers supply platform state updates and route changes while sharing request construction, loading, loaded, and failure behavior.
+- Playlist flows already compose shared provider application models for list refresh, details refresh, playback preparation, rename/delete, add-to-playlist, smart playlists, queue-save, recent playlist state, and home projection updates.
+- Search flows already compose `SearchSessionController` on Android and desktop, with shared query normalization, disconnected handling, searching status, result status, and failure mapping.
+- Download flows already compose `DownloadService` and shared download plans/statuses for blocking, progress, completed/failed refresh decisions, and stats refresh; platforms only supply mobile-data policy, max-size settings, repository adapters, and UI refresh tokens.
+- Internet radio flows already compose `InternetRadioStationManager`, station recents helpers, internet-radio playback planners, and metadata planners; platforms only apply playback engine/session state and screen-specific station lists.
+- Shared tests now cover media detail coordinator success/failure sequencing in addition to the existing playlist, search, download, and internet-radio service tests.
 
 ## Phase 7: Platform Root Decomposition
 

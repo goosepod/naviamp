@@ -12,19 +12,19 @@ import app.naviamp.domain.cache.LocalLibraryIndexRepository
 import app.naviamp.domain.cache.ProviderResponseCacheRepository
 import app.naviamp.domain.cache.ProviderResponseService
 import app.naviamp.domain.media.albumDetailLoadErrorStatus
-import app.naviamp.domain.media.albumDetailLoadedStatus
 import app.naviamp.domain.media.albumDetailLoadingStatus
+import app.naviamp.domain.media.AlbumDetailFlowCoordinator
+import app.naviamp.domain.media.AlbumDetailFlowRequest
 import app.naviamp.domain.media.ArtistDetailPopularTracksDisplayLimit
 import app.naviamp.domain.media.ArtistDetailPopularTracksFetchLimit
 import app.naviamp.domain.media.ArtistDetailSimilarArtistsDisplayLimit
 import app.naviamp.domain.media.ArtistDetailSimilarArtistsFetchLimit
-import app.naviamp.domain.media.artistDetailLoadErrorStatus
+import app.naviamp.domain.media.ArtistDetailFlowCoordinator
+import app.naviamp.domain.media.ArtistDetailFlowRequest
 import app.naviamp.domain.media.artistDetailLoadedStatus
-import app.naviamp.domain.media.artistDetailLoadingStatus
 import app.naviamp.domain.media.loadingPopularTracksStatus
 import app.naviamp.domain.media.loadingSimilarArtistsStatus
 import app.naviamp.domain.media.loadAlbumDetails
-import app.naviamp.domain.media.loadArtistDetails
 import app.naviamp.domain.media.loadArtistPopularTracksUpdate
 import app.naviamp.domain.media.loadSimilarArtistsUpdate
 import app.naviamp.domain.popular.ArtistPopularTracksService
@@ -64,22 +64,24 @@ fun openAndroidArtistDetails(
     }
     scope.launch {
         with(state) {
-            status = artistDetailLoadingStatus(fallbackName)
-            runCatching {
-                loadArtistDetails(
+            ArtistDetailFlowCoordinator(
+                setStatus = { nextStatus -> status = nextStatus.orEmpty() },
+                applyDetail = { detail ->
+                    contentState = contentState.showArtist(detail)
+                    nowPlayingOpen = false
+                    navigationState = navigationState.copy(route = NaviampRoute.Library)
+                },
+                loadedStatus = ::artistDetailLoadedStatus,
+            ).load(
+                request = ArtistDetailFlowRequest(
                     libraryIndexRepository = libraryIndexRepository,
                     providerResponseService = providerResponseService,
                     provider = activeProvider,
                     artistId = artistId,
                     fallbackName = fallbackName,
                     sourceId = sourceId,
-                )
-            }
-                .onSuccess { detail ->
-                    contentState = contentState.showArtist(detail)
-                    nowPlayingOpen = false
-                    navigationState = navigationState.copy(route = NaviampRoute.Library)
-                    status = artistDetailLoadedStatus(detail)
+                ),
+                afterLoaded = { detail ->
                     artistPopularTracksStatusByArtistId =
                         artistPopularTracksStatusByArtistId + (artistId.value to loadingPopularTracksStatus())
                     scope.launch(Dispatchers.IO) {
@@ -97,8 +99,8 @@ fun openAndroidArtistDetails(
                                 artistPopularTracksStatusByArtistId + (artistId.value to update.status)
                         }
                     }
-                }
-                .onFailure { error -> status = artistDetailLoadErrorStatus(error) }
+                },
+            )
         }
     }
 }
@@ -164,9 +166,15 @@ fun openAndroidAlbumDetails(
     val providerResponseService = ProviderResponseService(providerResponseCacheRepository)
     scope.launch {
         with(state) {
-            status = albumDetailLoadingStatus(selectedAlbum.title)
-            runCatching {
-                loadAlbumDetails(
+            AlbumDetailFlowCoordinator(
+                setStatus = { nextStatus -> status = nextStatus.orEmpty() },
+                applyDetail = { detail ->
+                    contentState = contentState.showAlbum(detail)
+                    tracks = detail.tracks
+                    nowPlayingOpen = false
+                },
+            ).load(
+                AlbumDetailFlowRequest(
                     libraryIndexRepository = libraryIndexRepository,
                     providerResponseService = providerResponseService,
                     provider = activeProvider,
@@ -174,15 +182,8 @@ fun openAndroidAlbumDetails(
                     fallbackTitle = selectedAlbum.title,
                     fallbackArtistName = selectedAlbum.subtitle,
                     sourceId = sourceId,
-                )
-            }.onSuccess { detail ->
-                contentState = contentState.showAlbum(detail)
-                tracks = detail.tracks
-                nowPlayingOpen = false
-                status = albumDetailLoadedStatus()
-            }.onFailure { error ->
-                status = albumDetailLoadErrorStatus(error)
-            }
+                ),
+            )
         }
     }
 }
@@ -201,8 +202,20 @@ fun openAndroidNowPlayingAlbumDetails(
     val providerResponseService = ProviderResponseService(providerResponseCacheRepository)
     scope.launch {
         with(state) {
-            runCatching {
-                loadAlbumDetails(
+            AlbumDetailFlowCoordinator(
+                setStatus = { nextStatus ->
+                    if (nextStatus != albumDetailLoadingStatus(fallbackTitle)) {
+                        nextStatus?.let { status = it }
+                    }
+                },
+                applyDetail = { detail ->
+                    contentState = contentState.showAlbum(detail)
+                    nowPlayingOpen = false
+                    navigationState = navigationState.copy(route = NaviampRoute.Library)
+                },
+                loadedStatus = { null },
+            ).load(
+                AlbumDetailFlowRequest(
                     libraryIndexRepository = libraryIndexRepository,
                     providerResponseService = providerResponseService,
                     provider = activeProvider,
@@ -210,14 +223,8 @@ fun openAndroidNowPlayingAlbumDetails(
                     fallbackTitle = fallbackTitle,
                     fallbackArtistName = fallbackArtistName,
                     sourceId = sourceId,
-                )
-            }
-                .onSuccess { detail ->
-                    contentState = contentState.showAlbum(detail)
-                    nowPlayingOpen = false
-                    navigationState = navigationState.copy(route = NaviampRoute.Library)
-                }
-                .onFailure { error -> status = albumDetailLoadErrorStatus(error) }
+                ),
+            )
         }
     }
 }

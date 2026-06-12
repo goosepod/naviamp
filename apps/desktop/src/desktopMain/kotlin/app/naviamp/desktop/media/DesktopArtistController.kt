@@ -13,10 +13,11 @@ import app.naviamp.domain.media.ArtistDetailPopularTracksDisplayLimit
 import app.naviamp.domain.media.ArtistDetailPopularTracksFetchLimit
 import app.naviamp.domain.media.ArtistDetailSimilarArtistsDisplayLimit
 import app.naviamp.domain.media.ArtistDetailSimilarArtistsFetchLimit
-import app.naviamp.domain.media.artistDetailLoadErrorStatus
+import app.naviamp.domain.media.ArtistDetailFlowCoordinator
+import app.naviamp.domain.media.ArtistDetailFlowRequest
+import app.naviamp.domain.media.connectedDetailStatusAsNull
 import app.naviamp.domain.media.loadingPopularTracksStatus
 import app.naviamp.domain.media.loadingSimilarArtistsStatus
-import app.naviamp.domain.media.loadArtistDetails
 import app.naviamp.domain.media.loadArtistPopularTracksUpdate
 import app.naviamp.domain.media.loadSimilarArtistsUpdate
 import app.naviamp.domain.media.trackArtist
@@ -129,17 +130,22 @@ class DesktopArtistController(
         selectedArtistPopularTracksStatus = null
         selectedArtistSimilarArtists = emptyList()
         selectedArtistSimilarArtistsStatus = null
-        selectedArtistStatus = "Loading..."
         setRoute(DesktopAppRoute.ArtistDetail)
         scope.launch {
-            try {
-                val details = loadArtistDetails(libraryIndexRepository, providerResponseService, activeProvider, artist, sourceId())
-                selectedArtistDetails = details
-                selectedArtistStatus = null
-                loadPopularTracks(artist, details)
-            } catch (exception: Exception) {
-                selectedArtistStatus = artistDetailLoadErrorStatus(exception)
-            }
+            ArtistDetailFlowCoordinator(
+                setStatus = { status -> selectedArtistStatus = connectedDetailStatusAsNull(status) },
+                applyDetail = { details -> selectedArtistDetails = details },
+            ).load(
+                request = ArtistDetailFlowRequest(
+                    libraryIndexRepository = libraryIndexRepository,
+                    providerResponseService = providerResponseService,
+                    provider = activeProvider,
+                    artistId = artist.id,
+                    fallbackName = artist.name,
+                    sourceId = sourceId(),
+                ),
+                afterLoaded = { details -> loadPopularTracks(artist, details) },
+            )
         }
     }
 

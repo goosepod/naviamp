@@ -9,8 +9,9 @@ import app.naviamp.domain.Track
 import app.naviamp.domain.cache.LocalLibraryIndexRepository
 import app.naviamp.domain.cache.ProviderResponseCacheRepository
 import app.naviamp.domain.cache.ProviderResponseService
-import app.naviamp.domain.media.albumDetailLoadErrorStatus
-import app.naviamp.domain.media.loadAlbumDetails
+import app.naviamp.domain.media.AlbumDetailFlowCoordinator
+import app.naviamp.domain.media.AlbumDetailFlowRequest
+import app.naviamp.domain.media.connectedDetailStatusAsNull
 import app.naviamp.domain.media.trackAlbum
 import app.naviamp.domain.provider.MediaProvider
 import kotlinx.coroutines.CoroutineScope
@@ -52,15 +53,22 @@ class DesktopAlbumController(
             )
         selectedAlbum = album
         selectedAlbumDetails = null
-        selectedAlbumStatus = "Loading..."
         setRoute(DesktopAppRoute.AlbumDetail)
         scope.launch {
-            try {
-                selectedAlbumDetails = loadAlbumDetails(libraryIndexRepository, providerResponseService, activeProvider, album, sourceId())
-                selectedAlbumStatus = null
-            } catch (exception: Exception) {
-                selectedAlbumStatus = albumDetailLoadErrorStatus(exception)
-            }
+            AlbumDetailFlowCoordinator(
+                setStatus = { status -> selectedAlbumStatus = connectedDetailStatusAsNull(status) },
+                applyDetail = { details -> selectedAlbumDetails = details },
+            ).load(
+                AlbumDetailFlowRequest(
+                    libraryIndexRepository = libraryIndexRepository,
+                    providerResponseService = providerResponseService,
+                    provider = activeProvider,
+                    albumId = album.id,
+                    fallbackTitle = album.title,
+                    fallbackArtistName = album.artistName,
+                    sourceId = sourceId(),
+                ),
+            )
         }
     }
 
