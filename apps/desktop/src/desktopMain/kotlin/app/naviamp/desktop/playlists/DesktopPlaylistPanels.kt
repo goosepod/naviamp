@@ -34,10 +34,14 @@ import app.naviamp.domain.smartplaylist.SmartPlaylistDefinition
 import app.naviamp.domain.smartplaylist.SmartPlaylistDraft
 import app.naviamp.ui.NaviampAction
 import app.naviamp.ui.NaviampActionSpec
+import app.naviamp.ui.SharedMediaItemAction
+import app.naviamp.ui.SharedMediaItemActionRequest
+import app.naviamp.ui.SharedMediaItemKind
 import app.naviamp.ui.SharedTrackRowActionRequest
 import app.naviamp.ui.SmartPlaylistBuilderDialog
 import app.naviamp.ui.playlistRowActions
 import app.naviamp.ui.toSpec
+import app.naviamp.ui.toSharedMediaItemUi
 import kotlinx.coroutines.launch
 
 enum class DesktopPlaylistSortMode(val label: String) {
@@ -55,13 +59,7 @@ fun DesktopPlaylistsPanel(
     status: String?,
     coverArtUrl: (String?) -> String?,
     onSortModeChanged: (DesktopPlaylistSortMode) -> Unit,
-    onPlaylistSelected: (Playlist) -> Unit,
-    onPlayPlaylist: (Playlist, Boolean) -> Unit,
-    onRenamePlaylist: (Playlist) -> Unit,
-    onDeletePlaylist: (Playlist) -> Unit,
-    onDownloadPlaylist: (Playlist) -> Unit,
-    onAddPlaylistToQueue: (Playlist) -> Unit,
-    onAddPlaylistToPlaylist: (Playlist) -> Unit,
+    onPlaylistAction: (SharedMediaItemActionRequest) -> Unit,
     onSmartPlaylistSave: suspend (SmartPlaylistDefinition) -> Unit,
     onSmartPlaylistUpdate: suspend (Playlist, SmartPlaylistDefinition) -> Unit,
     onSmartPlaylistLoad: suspend (Playlist) -> SmartPlaylistDefinition,
@@ -139,14 +137,7 @@ fun DesktopPlaylistsPanel(
                 coverArtUrl = coverArtUrl,
                 playlistCoverArtUrl = coverArtUrl(playlist.coverArtId),
                 tracks = playlistTracks(playlist),
-                onClick = { onPlaylistSelected(playlist) },
-                onPlay = { onPlayPlaylist(playlist, false) },
-                onShuffle = { onPlayPlaylist(playlist, true) },
-                onRename = { onRenamePlaylist(playlist) },
-                onDelete = { onDeletePlaylist(playlist) },
-                onDownload = { onDownloadPlaylist(playlist) },
-                onAddToQueue = { onAddPlaylistToQueue(playlist) },
-                onAddToPlaylist = { onAddPlaylistToPlaylist(playlist) },
+                onPlaylistAction = onPlaylistAction,
                 onEditSmartPlaylist = {
                     coroutineScope.launch {
                         runCatching {
@@ -197,17 +188,21 @@ private fun PlaylistListRow(
     coverArtUrl: (String?) -> String?,
     playlistCoverArtUrl: String?,
     tracks: List<Track>,
-    onClick: () -> Unit,
-    onPlay: () -> Unit,
-    onShuffle: () -> Unit,
-    onRename: () -> Unit,
-    onDelete: () -> Unit,
-    onDownload: () -> Unit,
-    onAddToQueue: () -> Unit,
-    onAddToPlaylist: () -> Unit,
+    onPlaylistAction: (SharedMediaItemActionRequest) -> Unit,
     onEditSmartPlaylist: () -> Unit,
 ) {
-    DesktopMediaRow(appColors = appColors, onClick = onClick) {
+    val playlistItem = playlist.toSharedMediaItemUi(coverArtUrl, tracks)
+    fun request(action: SharedMediaItemAction, shuffle: Boolean = false) {
+        onPlaylistAction(
+            SharedMediaItemActionRequest(
+                item = playlistItem,
+                action = action,
+                kind = SharedMediaItemKind.Playlist,
+                shuffle = shuffle,
+            ),
+        )
+    }
+    DesktopMediaRow(appColors = appColors, onClick = { request(SharedMediaItemAction.Select) }) {
         if (playlistCoverArtUrl != null) {
             DesktopCoverArtThumb(appColors = appColors, coverArtUrl = playlistCoverArtUrl, size = 38.dp, cornerRadius = 4.dp)
         } else {
@@ -234,8 +229,12 @@ private fun PlaylistListRow(
             }
             Text(playlist.summaryLabel(), color = appColors.secondaryText, fontSize = 11.sp)
         }
-        DetailActionIconButton(appColors, TransportIcons.Play, "Play playlist", true, onPlay)
-        DetailActionIconButton(appColors, TransportIcons.Shuffle, "Play playlist in random order", playlist.trackCount > 1, onShuffle)
+        DetailActionIconButton(appColors, TransportIcons.Play, "Play playlist", true) {
+            request(SharedMediaItemAction.Play)
+        }
+        DetailActionIconButton(appColors, TransportIcons.Shuffle, "Play playlist in random order", playlist.trackCount > 1) {
+            request(SharedMediaItemAction.Shuffle, shuffle = true)
+        }
         DesktopRowOverflowMenu(
             appColors = appColors,
             items = playlistRowActions(
@@ -247,12 +246,22 @@ private fun PlaylistListRow(
                 canDelete = true,
             ).mapNotNull { action ->
                 when (action.action) {
-                    NaviampAction.RenamePlaylist -> action.toPlaylistRowMenuItem(onRename)
+                    NaviampAction.RenamePlaylist -> action.toPlaylistRowMenuItem {
+                        request(SharedMediaItemAction.Rename)
+                    }
                     NaviampAction.EditSmartPlaylist -> action.toPlaylistRowMenuItem(onEditSmartPlaylist)
-                    NaviampAction.DeletePlaylist -> action.toPlaylistRowMenuItem(onDelete)
-                    NaviampAction.DownloadPlaylist -> action.toPlaylistRowMenuItem(onDownload)
-                    NaviampAction.AddToQueue -> action.toPlaylistRowMenuItem(onAddToQueue)
-                    NaviampAction.AddPlaylistToPlaylist -> action.toPlaylistRowMenuItem(onAddToPlaylist)
+                    NaviampAction.DeletePlaylist -> action.toPlaylistRowMenuItem {
+                        request(SharedMediaItemAction.Delete)
+                    }
+                    NaviampAction.DownloadPlaylist -> action.toPlaylistRowMenuItem {
+                        request(SharedMediaItemAction.Download)
+                    }
+                    NaviampAction.AddToQueue -> action.toPlaylistRowMenuItem {
+                        request(SharedMediaItemAction.AddToQueue)
+                    }
+                    NaviampAction.AddPlaylistToPlaylist -> action.toPlaylistRowMenuItem {
+                        request(SharedMediaItemAction.AddToPlaylist)
+                    }
                     else -> null
                 }
             },
@@ -269,13 +278,7 @@ fun DesktopPlaylistDetailPanel(
     playlistCoverArtUrl: String?,
     coverArtUrl: (String?) -> String?,
     onBack: () -> Unit,
-    onPlayPlaylist: () -> Unit,
-    onShufflePlaylist: () -> Unit,
-    onRenamePlaylist: () -> Unit,
-    onDeletePlaylist: () -> Unit,
-    onDownloadPlaylist: () -> Unit,
-    onAddPlaylistToQueue: () -> Unit,
-    onAddPlaylistToPlaylist: () -> Unit,
+    onPlaylistAction: (SharedMediaItemActionRequest) -> Unit,
     onTrackAction: (SharedTrackRowActionRequest) -> Unit,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -315,6 +318,19 @@ fun DesktopPlaylistDetailPanel(
                 Text(playlist?.summaryLabel() ?: "${tracks.size} tracks", color = appColors.secondaryText, fontSize = 12.sp)
                 status?.let { Text(it, color = appColors.secondaryText, fontSize = 11.sp) }
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    val playlistItem = playlist?.toSharedMediaItemUi(coverArtUrl, tracks)
+                    fun request(action: SharedMediaItemAction, shuffle: Boolean = false) {
+                        playlistItem?.let { item ->
+                            onPlaylistAction(
+                                SharedMediaItemActionRequest(
+                                    item = item,
+                                    action = action,
+                                    kind = SharedMediaItemKind.Playlist,
+                                    shuffle = shuffle,
+                                ),
+                            )
+                        }
+                    }
                     val playlistActions = playlistRowActions(
                         canDownload = tracks.isNotEmpty(),
                         canAddToQueue = tracks.isNotEmpty(),
@@ -327,13 +343,27 @@ fun DesktopPlaylistDetailPanel(
                     val downloadAction = playlistActions.playlistAction(NaviampAction.DownloadPlaylist)
                     val addToQueueAction = playlistActions.playlistAction(NaviampAction.AddToQueue)
                     val addToPlaylistAction = playlistActions.playlistAction(NaviampAction.AddPlaylistToPlaylist)
-                    DetailActionIconButton(appColors, TransportIcons.Play, "Play playlist", tracks.isNotEmpty(), onPlayPlaylist)
-                    DetailActionIconButton(appColors, TransportIcons.Shuffle, "Play playlist in random order", tracks.size > 1, onShufflePlaylist)
-                    DetailActionIconButton(appColors, renameAction.icon, renameAction.label, renameAction.enabled, onRenamePlaylist)
-                    DetailActionIconButton(appColors, deleteAction.icon, deleteAction.label, deleteAction.enabled, onDeletePlaylist)
-                    DetailActionIconButton(appColors, downloadAction.icon, downloadAction.label, downloadAction.enabled, onDownloadPlaylist)
-                    DetailActionIconButton(appColors, addToQueueAction.icon, addToQueueAction.label, addToQueueAction.enabled, onAddPlaylistToQueue)
-                    DetailActionIconButton(appColors, addToPlaylistAction.icon, addToPlaylistAction.label, addToPlaylistAction.enabled, onAddPlaylistToPlaylist)
+                    DetailActionIconButton(appColors, TransportIcons.Play, "Play playlist", tracks.isNotEmpty()) {
+                        request(SharedMediaItemAction.Play)
+                    }
+                    DetailActionIconButton(appColors, TransportIcons.Shuffle, "Play playlist in random order", tracks.size > 1) {
+                        request(SharedMediaItemAction.Shuffle, shuffle = true)
+                    }
+                    DetailActionIconButton(appColors, renameAction.icon, renameAction.label, renameAction.enabled) {
+                        request(SharedMediaItemAction.Rename)
+                    }
+                    DetailActionIconButton(appColors, deleteAction.icon, deleteAction.label, deleteAction.enabled) {
+                        request(SharedMediaItemAction.Delete)
+                    }
+                    DetailActionIconButton(appColors, downloadAction.icon, downloadAction.label, downloadAction.enabled) {
+                        request(SharedMediaItemAction.Download)
+                    }
+                    DetailActionIconButton(appColors, addToQueueAction.icon, addToQueueAction.label, addToQueueAction.enabled) {
+                        request(SharedMediaItemAction.AddToQueue)
+                    }
+                    DetailActionIconButton(appColors, addToPlaylistAction.icon, addToPlaylistAction.label, addToPlaylistAction.enabled) {
+                        request(SharedMediaItemAction.AddToPlaylist)
+                    }
                 }
             }
         }

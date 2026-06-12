@@ -25,7 +25,11 @@ import androidx.compose.ui.unit.sp
 import app.naviamp.domain.Album
 import app.naviamp.domain.AlbumDetails
 import app.naviamp.domain.Track
+import app.naviamp.ui.SharedMediaItemAction
+import app.naviamp.ui.SharedMediaItemActionRequest
+import app.naviamp.ui.SharedMediaItemKind
 import app.naviamp.ui.SharedTrackRowActionRequest
+import app.naviamp.ui.toSharedMediaItemUi
 
 @Composable
 fun DesktopAlbumDetailPanel(
@@ -36,13 +40,7 @@ fun DesktopAlbumDetailPanel(
     coverArtUrl: String?,
     popularTrackIds: Set<String> = emptySet(),
     onBack: () -> Unit,
-    onPlayAlbum: () -> Unit,
-    onShuffleAlbum: () -> Unit,
-    onAlbumRadio: () -> Unit,
-    onDownloadAlbum: () -> Unit,
-    onAddAlbumToQueue: () -> Unit,
-    onAddAlbumToPlaylist: () -> Unit,
-    onAlbumFavoriteToggle: (Album) -> Unit,
+    onAlbumAction: (SharedMediaItemActionRequest) -> Unit,
     onTrackAction: (SharedTrackRowActionRequest) -> Unit,
     onArtistSelected: (Track) -> Unit,
 ) {
@@ -124,47 +122,63 @@ fun DesktopAlbumDetailPanel(
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     val effectiveAlbum = albumDetails?.album ?: album
+                    val albumItem = effectiveAlbum?.toSharedMediaItemUi(
+                        coverArtUrl = { coverArtUrl },
+                        canFavorite = true,
+                    )
+                    fun request(action: SharedMediaItemAction, shuffle: Boolean = false) {
+                        albumItem?.let { item ->
+                            onAlbumAction(
+                                SharedMediaItemActionRequest(
+                                    item = item,
+                                    action = action,
+                                    kind = SharedMediaItemKind.Album,
+                                    shuffle = shuffle,
+                                ),
+                            )
+                        }
+                    }
                     DetailActionIconButton(
                         appColors = appColors,
                         icon = TransportIcons.Play,
                         contentDescription = "Play album",
                         enabled = albumDetails?.tracks?.isNotEmpty() == true,
-                        onClick = onPlayAlbum,
+                        onClick = { request(SharedMediaItemAction.Play) },
                     )
                     DetailActionIconButton(
                         appColors = appColors,
                         icon = TransportIcons.Shuffle,
                         contentDescription = "Shuffle album",
                         enabled = (albumDetails?.tracks?.size ?: 0) > 1,
-                        onClick = onShuffleAlbum,
+                        onClick = { request(SharedMediaItemAction.Shuffle, shuffle = true) },
                     )
                     DetailActionIconButton(
                         appColors = appColors,
                         icon = TransportIcons.Radio,
                         contentDescription = "Start album radio",
                         enabled = albumDetails?.tracks?.isNotEmpty() == true,
-                        onClick = onAlbumRadio,
+                        onClick = { request(SharedMediaItemAction.StartRadio) },
                     )
                     DetailActionIconButton(
                         appColors = appColors,
                         icon = DesktopNavigationIcons.Downloads,
                         contentDescription = "Download album",
                         enabled = albumDetails?.tracks?.isNotEmpty() == true,
-                        onClick = onDownloadAlbum,
+                        onClick = { request(SharedMediaItemAction.Download) },
                     )
                     DetailActionIconButton(
                         appColors = appColors,
                         icon = DesktopNavigationIcons.Queue,
                         contentDescription = "Add album to queue",
                         enabled = albumDetails?.tracks?.isNotEmpty() == true,
-                        onClick = onAddAlbumToQueue,
+                        onClick = { request(SharedMediaItemAction.AddToQueue) },
                     )
                     DetailActionIconButton(
                         appColors = appColors,
                         icon = DesktopNavigationIcons.Playlist,
                         contentDescription = "Add album to playlist",
                         enabled = albumDetails?.tracks?.isNotEmpty() == true,
-                        onClick = onAddAlbumToPlaylist,
+                        onClick = { request(SharedMediaItemAction.AddToPlaylist) },
                     )
                     DetailActionIconButton(
                         appColors = appColors,
@@ -175,7 +189,7 @@ fun DesktopAlbumDetailPanel(
                             "Favorite album"
                         },
                         enabled = effectiveAlbum != null,
-                        onClick = { effectiveAlbum?.let(onAlbumFavoriteToggle) },
+                        onClick = { request(SharedMediaItemAction.ToggleFavorite) },
                     )
                 }
             }

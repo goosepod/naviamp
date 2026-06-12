@@ -1473,6 +1473,8 @@ Progress notes:
 - Verification passed: `.\gradlew.bat --configure-on-demand "-Pnaviamp.bass.platform=windows-x64" :core:ui:jvmTest :apps:desktop:compileKotlinDesktop :apps:android:compileDebugKotlin`.
 - Collapsed desktop now-playing queue and related item menu callbacks onto `NowPlayingItemActionRequest`. `DesktopNowPlayingPanel` now exposes one typed queue-item action callback and `DesktopNaviampApp` resolves it against queue/related tracks before invoking the existing platform actions.
 - Verification passed: `.\gradlew.bat --configure-on-demand "-Pnaviamp.bass.platform=windows-x64" :core:ui:jvmTest :apps:desktop:compileKotlinDesktop :apps:android:compileDebugKotlin`.
+- Collapsed desktop album-detail header actions plus playlist list/detail header actions onto `SharedMediaItemActionRequest`. Album and playlist header/list UI now emits typed media-item requests for play, shuffle, radio, favorite, download, queue, playlist-add, rename, and delete actions, with desktop route content acting as the thin selected-state/platform adapter.
+- Verification passed: `.\gradlew.bat --configure-on-demand "-Pnaviamp.bass.platform=windows-x64" :core:ui:jvmTest :apps:desktop:compileKotlinDesktop :apps:android:compileDebugKotlin`.
 
 Success criteria for the first slice:
 
