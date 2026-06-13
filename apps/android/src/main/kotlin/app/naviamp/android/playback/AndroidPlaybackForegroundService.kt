@@ -141,9 +141,7 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
     private val noisyAudioReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
             if (intent.action != AudioManager.ACTION_AUDIO_BECOMING_NOISY) return
-            if (!AndroidPlaybackNotificationControls.isPlaying) return
-            handleAutoPlayPause()
-            refreshNotification(null)
+            pausePlaybackForRouteDisconnect("audio becoming noisy")
         }
     }
 
@@ -156,7 +154,7 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
     }
 
     override fun onDestroy() {
-        pauseServiceOwnedPlayback("service destroyed")
+        pausePlaybackForRouteDisconnect("service destroyed")
         runCatching { unregisterReceiver(noisyAudioReceiver) }
         mediaSession?.release()
         mediaSession = null
@@ -167,11 +165,17 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
     }
 
     override fun onUnbind(intent: Intent?): Boolean {
-        pauseServiceOwnedPlayback("Android Auto browser unbound")
+        pausePlaybackForRouteDisconnect("Android Auto browser unbound")
         return super.onUnbind(intent)
     }
 
     override fun onTaskRemoved(rootIntent: Intent?) {
+        if (servicePlaybackRuntimeController.ownsPlayback()) {
+            Log.i("NaviampAutoCommand", "Phone task removed while service owns playback; keeping Auto session alive")
+            updateMediaSessionPlaybackState()
+            super.onTaskRemoved(rootIntent)
+            return
+        }
         stopPlaybackAndService("task removed")
         super.onTaskRemoved(rootIntent)
     }
@@ -417,6 +421,20 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
 
     private fun pauseServiceOwnedPlayback(reason: String) {
         servicePlaybackRuntimeController.pause(reason)
+    }
+
+    private fun pausePlaybackForRouteDisconnect(reason: String) {
+        if (!AndroidPlaybackNotificationControls.isPlaying) return
+        Log.i("NaviampAutoCommand", "Pausing playback after route disconnect: $reason")
+        if (servicePlaybackRuntimeController.ownsPlayback()) {
+            pauseServiceOwnedPlayback(reason)
+        } else {
+            AndroidPlaybackNotificationControls.onPlayPause?.invoke()
+                ?: pauseServiceOwnedPlayback(reason)
+        }
+        AndroidPlaybackNotificationControls.isPlaying = false
+        updateMediaSessionPlaybackState()
+        refreshNotification(null)
     }
 
     private fun stopServiceOwnedPlayback(reason: String) {

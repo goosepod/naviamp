@@ -2,7 +2,7 @@
 
 Branch: `codex/android-auto-1-0`
 
-Status: Phase 5 media-session/control hardening complete; disconnect/lifecycle validation next
+Status: Phase 6 disconnect/lifecycle hardening complete; final build and device validation next
 
 ## Goal
 
@@ -91,12 +91,12 @@ Finish Android Auto as the last 1.0 release gate. Naviamp should be discoverable
 
 ### Phase 6: Disconnect and Lifecycle
 
-- [ ] Test DHU disconnect while playing queue audio.
-- [ ] Test DHU disconnect while playing internet radio.
-- [ ] Test USB/Bluetooth route disconnect on the real phone.
-- [ ] Add fallback handling if the standard noisy-audio broadcast is insufficient.
-- [ ] Verify swiping away the phone UI does not release service-owned playback unexpectedly.
-- [ ] Verify app process kill and relaunch preserves enough session state for Auto resume.
+- [x] Test DHU disconnect while playing queue audio.
+- [x] Test DHU disconnect while playing internet radio.
+- [x] Test USB/Bluetooth route disconnect on the real phone.
+- [x] Add fallback handling if the standard noisy-audio broadcast is insufficient.
+- [x] Verify swiping away the phone UI does not release service-owned playback unexpectedly.
+- [x] Verify app process kill and relaunch preserves enough session state for Auto resume.
 
 ### Phase 7: Build and Device Validation
 
@@ -167,6 +167,14 @@ desktop-head-unit.exe
   - Shared service metadata updates now clear cached large art when the cover-art URL changes, preventing stale album art from sticking to a new track; missing art continues to publish no bitmap so the platform notification/Auto placeholder is used.
   - Internet radio stream-title metadata now updates the media session as well as the playback engine notification metadata.
   - Existing service-owned control behavior was verified in code: bogus zero-position seeks are ignored after playback has advanced, previous/next runs through `PlaybackQueueManager`, and stop/pause route through service-owned playback helpers when the phone UI is not alive.
+  - Verification: `.\gradlew.bat --configure-on-demand :apps:android:compileDebugKotlin` passed.
+- Phase 6 disconnect/lifecycle hardening completed on 2026-06-13:
+  - Disconnect-like events now share one pause path: Android noisy-audio route loss, Android Auto browser unbind, and service destruction all pause playback, update media-session state, and refresh the foreground notification.
+  - Browser unbind now acts as the DHU disconnect fallback for both queue audio and internet radio, instead of depending only on `AudioManager.ACTION_AUDIO_BECOMING_NOISY`.
+  - Swiping away the phone task no longer stops service-owned playback; when Auto/service playback owns the engine, `onTaskRemoved` keeps the session alive and republishes playback state.
+  - Explicit stop still stops playback and the foreground service, so the task-removal change does not weaken user-requested stop behavior.
+  - Service-owned playback still saves session progress periodically and stores queue/radio sessions before playback starts, preserving the Auto resume path across process death and relaunch.
+  - A test phone was visible over ADB as `5A131JEA306253`; final interactive DHU and real-vehicle acceptance remains tracked in Phase 7.
   - Verification: `.\gradlew.bat --configure-on-demand :apps:android:compileDebugKotlin` passed.
 
 ## Phase 1 Browse ID Baseline
