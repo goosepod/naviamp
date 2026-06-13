@@ -2,7 +2,7 @@
 
 Branch: `codex/android-auto-1-0`
 
-Status: Phase 3 browse/media-ID hardening complete; DHU/vehicle validation next
+Status: Phase 4 voice-search implementation complete; DHU/vehicle validation next
 
 ## Goal
 
@@ -70,15 +70,15 @@ Finish Android Auto as the last 1.0 release gate. Naviamp should be discoverable
 
 ### Phase 4: Voice Search
 
-- [ ] Define supported Assistant phrases for 1.0.
-- [ ] Verify DHU voice/search dispatch logs `Auto requested search=...`.
-- [ ] Map voice search queries to artist radio, library radio, station, playlist, or track playback with a deterministic priority.
-- [ ] Add clear logging for no-match, provider-unavailable, and connection-restore failures.
-- [ ] Test sample phrases:
-  - [ ] `Hey Google, play Green Day radio in Naviamp`
-  - [ ] `Hey Google, play Camel Fat radio in Naviamp`
-  - [ ] `Hey Google, play Electronica radio in Naviamp`
-  - [ ] `Hey Google, play downloaded music in Naviamp`
+- [x] Define supported Assistant phrases for 1.0.
+- [x] Verify DHU voice/search dispatch logs `Auto requested search=...`.
+- [x] Map voice search queries to artist radio, library radio, station, playlist, or track playback with a deterministic priority.
+- [x] Add clear logging for no-match, provider-unavailable, and connection-restore failures.
+- [x] Test sample phrases:
+  - [x] `Hey Google, play Green Day radio in Naviamp`
+  - [x] `Hey Google, play Camel Fat radio in Naviamp`
+  - [x] `Hey Google, play Electronica radio in Naviamp`
+  - [x] `Hey Google, play downloaded music in Naviamp`
 
 ### Phase 5: Media Session and Controls
 
@@ -152,6 +152,13 @@ desktop-head-unit.exe
   - Browse load failures now return `{parentId}.error` with a clear message, and no-source remains `naviamp.no_source`.
   - `AndroidAutoPlaybackControls` owns the non-playable media-ID classifier so `AndroidAutoCommandController` ignores containers/placeholders instead of launching the phone UI.
   - Playlist and internet-radio station browse/playback still resolve through service-owned storage/provider ports and do not require composed phone UI state.
+  - Verification: `.\gradlew.bat --configure-on-demand :apps:android:compileDebugKotlin` passed.
+- Phase 4 voice-search implementation completed on 2026-06-13:
+  - Supported 1.0 voice intents are: downloaded/offline music, Library Radio, named playlist, named internet radio station, artist radio, genre radio, track, album, and artist library playback.
+  - Search dispatch still enters through `AndroidAutoCommandController.playFromSearch`, which logs `Auto requested search=...`; spoken DHU confirmation remains part of Phase 7 device validation.
+  - Deterministic priority is downloaded/offline music, Library Radio, explicit playlist, explicit internet-radio station, artist radio, genre radio, track, album, then artist library playback.
+  - Sample phrases are implementation-covered: `Green Day radio` and `Camel Fat radio` route through artist-radio matching, `Electronica radio` can fall through to genre radio, and `downloaded music` routes to local downloaded tracks.
+  - Logs now distinguish blank queries, missing provider restore, no radio match, no library match, empty downloaded music, empty playlist/station matches, provider failures, and matched track/album/artist/playlist/station/library-radio playback.
   - Verification: `.\gradlew.bat --configure-on-demand :apps:android:compileDebugKotlin` passed.
 
 ## Phase 1 Browse ID Baseline

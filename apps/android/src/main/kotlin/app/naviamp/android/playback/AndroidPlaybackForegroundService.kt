@@ -699,16 +699,39 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
 
     private fun handleServicePlaySearch(query: String): Boolean {
         val trimmedQuery = query.trim()
-        if (trimmedQuery.isBlank()) return false
+        if (trimmedQuery.isBlank()) {
+            Log.w("NaviampAutoCommand", "Ignoring blank Auto voice search")
+            return false
+        }
         val storage = serviceStorage
-        val source = storage.latestNavidromeSource() ?: return false
+        val source = storage.latestNavidromeSource()
+        if (source == null) {
+            Log.w("NaviampAutoCommand", "Auto voice search has no saved provider query=$trimmedQuery")
+            return false
+        }
+        val voiceQuery = trimmedQuery.autoVoiceQuery()
+        if (voiceQuery.isDownloadedMusicQuery()) {
+            return playServiceDownloadedMusicSearch(storage, source.id, trimmedQuery)
+        }
+        if (voiceQuery.isLibraryRadioQuery()) {
+            return playServiceLibraryRadioSearch(storage, storage, source.id, trimmedQuery)
+        }
+        if (voiceQuery.isPlaylistQuery()) {
+            return playServicePlaylistVoiceSearch(storage, source.id, voiceQuery.playlistSearchQuery(), trimmedQuery)
+        }
+        if (voiceQuery.isInternetRadioStationQuery()) {
+            return playServiceInternetRadioVoiceSearch(storage, source.id, voiceQuery.stationSearchQuery(), trimmedQuery)
+        }
         val radioQuery = trimmedQuery.radioSearchQuery()
         if (radioQuery != null) {
             if (playServiceArtistRadioSearch(storage, storage, storage, source.id, radioQuery)) return true
             if (playServiceGenreRadioSearch(storage, storage, source.id, radioQuery)) return true
+            Log.w("NaviampAutoCommand", "No Auto radio match for query=$trimmedQuery normalized=$radioQuery")
+            return false
         }
         val snapshot = storage.searchLibrary(source.id, trimmedQuery, AndroidAutoBrowseLimit.toLong(), 0)
         snapshot.tracks.firstOrNull()?.let { track ->
+            Log.i("NaviampAutoCommand", "Auto voice search matched track=${track.title}")
             val queue = serviceQueueForLibraryTrack(storage, source.id, track)
             playServiceTrackQueue(storage, source.id, queue, queue.indexOfFirst { it.id == track.id }.coerceAtLeast(0))
             return true
@@ -717,19 +740,162 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
             val tracks = storage.libraryTracksForAlbum(source.id, album.id, 200)
                 .ifEmpty { storage.libraryTracksForAlbumTitle(source.id, album.title, album.artistName, 200) }
             if (tracks.isNotEmpty()) {
+                Log.i("NaviampAutoCommand", "Auto voice search matched album=${album.title}")
                 playServiceTrackQueue(storage, source.id, tracks, 0)
                 return true
             }
+            Log.w("NaviampAutoCommand", "Auto voice album match had no tracks album=${album.title}")
         }
         snapshot.artists.firstOrNull()?.let { artist ->
             val tracks = storage.libraryTracksForArtist(source.id, artist.id, 200)
                 .ifEmpty { storage.libraryTracksForArtistName(source.id, artist.name, 200) }
             if (tracks.isNotEmpty()) {
+                Log.i("NaviampAutoCommand", "Auto voice search matched artist=${artist.name}")
                 playServiceTrackQueue(storage, source.id, tracks, 0)
                 return true
             }
+            Log.w("NaviampAutoCommand", "Auto voice artist match had no tracks artist=${artist.name}")
         }
+        Log.w("NaviampAutoCommand", "No Auto voice search match query=$trimmedQuery")
         return false
+    }
+
+    private fun playServiceDownloadedMusicSearch(
+        storage: AndroidStorageDependencies,
+        sourceId: String,
+        originalQuery: String,
+    ): Boolean {
+        val downloads = storage.downloadedTracks(sourceId)
+            .filter { it.file.exists() }
+            .take(AndroidAutoBrowseLimit)
+            .map { it.track }
+        if (downloads.isEmpty()) {
+            Log.w("NaviampAutoCommand", "Auto voice downloaded music had no local downloads query=$originalQuery")
+            return false
+        }
+        Log.i("NaviampAutoCommand", "Auto voice playing downloaded music count=${downloads.size}")
+        playServiceTrackQueue(storage, sourceId, downloads, currentIndex = 0)
+        return true
+    }
+
+    private fun playServiceLibraryRadioSearch(
+        mediaSourceRepository: MediaSourceRepository,
+        playbackSessionRepository: PlaybackSessionRepository,
+        sourceId: String,
+        originalQuery: String,
+    ): Boolean {
+        val source = mediaSourceRepository.latestMediaSource()
+        if (source == null) {
+            Log.w("NaviampAutoCommand", "Auto voice Library Radio has no provider query=$originalQuery")
+            return false
+        }
+        val provider = NavidromeProvider(source.toNavidromeConnection())
+        val recent = RecentRadioStream(
+            id = AndroidAutoPlaybackControls.MediaIdRadioLibrary,
+            label = "Library Radio",
+            kind = RecentRadioKind.Library,
+        )
+        AndroidPlaybackRuntime.get(applicationContext).scope.launch {
+            runCatching { withContext(Dispatchers.IO) { RadioService(provider).libraryRadio() } }
+                .onSuccess { tracks ->
+                    if (tracks.isEmpty()) {
+                        Log.w("NaviampAutoCommand", "Auto voice Library Radio returned no tracks query=$originalQuery")
+                        return@onSuccess
+                    }
+                    Log.i("NaviampAutoCommand", "Auto voice playing Library Radio count=${tracks.size}")
+                    rememberRecentRadioStream(recent.withRadioCoverArtIds(tracks))
+                    playServiceTrackQueue(playbackSessionRepository, sourceId, tracks, currentIndex = 0)
+                }
+                .onFailure { error ->
+                    Log.w("NaviampAutoCommand", "Could not start Auto voice Library Radio query=$originalQuery", error)
+                    AndroidPlaybackNotificationControls.isPlaying = false
+                    updateMediaSessionPlaybackState()
+                }
+        }
+        return true
+    }
+
+    private fun playServicePlaylistVoiceSearch(
+        storage: AndroidStorageDependencies,
+        sourceId: String,
+        playlistQuery: String,
+        originalQuery: String,
+    ): Boolean {
+        if (playlistQuery.isBlank()) {
+            Log.w("NaviampAutoCommand", "Auto voice playlist search had no playlist name query=$originalQuery")
+            return false
+        }
+        val source = storage.latestNavidromeSource()
+        if (source == null) {
+            Log.w("NaviampAutoCommand", "Auto voice playlist search has no provider query=$originalQuery")
+            return false
+        }
+        val provider = NavidromeProvider(source.toNavidromeConnection())
+        AndroidPlaybackRuntime.get(applicationContext).scope.launch {
+            runCatching {
+                withContext(Dispatchers.IO) {
+                    val responseService = providerResponseService(storage)
+                    val playlist = responseService.playlists(provider, AndroidAutoBrowseLimit)
+                        .bestVoiceNameMatch(playlistQuery) { it.name }
+                    playlist to playlist?.let { responseService.playlistTracks(provider, it.id) }.orEmpty()
+                }
+            }.onSuccess { (playlist, tracks) ->
+                if (playlist == null) {
+                    Log.w("NaviampAutoCommand", "No Auto voice playlist match query=$originalQuery normalized=$playlistQuery")
+                    return@onSuccess
+                }
+                if (tracks.isEmpty()) {
+                    Log.w("NaviampAutoCommand", "Auto voice playlist matched empty playlist=${playlist.name}")
+                    return@onSuccess
+                }
+                Log.i("NaviampAutoCommand", "Auto voice playing playlist=${playlist.name} count=${tracks.size}")
+                playServiceTrackQueue(storage, sourceId, tracks, currentIndex = 0)
+            }.onFailure { error ->
+                Log.w("NaviampAutoCommand", "Could not start Auto voice playlist query=$originalQuery", error)
+                AndroidPlaybackNotificationControls.isPlaying = false
+                updateMediaSessionPlaybackState()
+            }
+        }
+        return true
+    }
+
+    private fun playServiceInternetRadioVoiceSearch(
+        storage: AndroidStorageDependencies,
+        sourceId: String,
+        stationQuery: String,
+        originalQuery: String,
+    ): Boolean {
+        if (stationQuery.isBlank()) {
+            Log.w("NaviampAutoCommand", "Auto voice station search had no station name query=$originalQuery")
+            return false
+        }
+        val source = storage.latestNavidromeSource()
+        if (source == null) {
+            Log.w("NaviampAutoCommand", "Auto voice station search has no provider query=$originalQuery")
+            return false
+        }
+        val provider = NavidromeProvider(source.toNavidromeConnection())
+        AndroidPlaybackRuntime.get(applicationContext).scope.launch {
+            runCatching {
+                withContext(Dispatchers.IO) {
+                    providerResponseService(storage)
+                        .internetRadioStations(provider)
+                        .bestVoiceNameMatch(stationQuery) { it.name }
+                }
+            }.onSuccess { station ->
+                if (station == null) {
+                    Log.w("NaviampAutoCommand", "No Auto voice station match query=$originalQuery normalized=$stationQuery")
+                    return@onSuccess
+                }
+                Log.i("NaviampAutoCommand", "Auto voice playing internet radio station=${station.name}")
+                playServiceInternetRadioStation(storage, storage, sourceId, station)
+            }.onFailure { error ->
+                Log.w("NaviampAutoCommand", "Could not start Auto voice station query=$originalQuery", error)
+                AndroidPlaybackNotificationControls.isPlaying = false
+                updateMediaSessionPlaybackState()
+            }
+        }
+        return true
     }
 
     private fun playServiceArtistRadioSearch(
@@ -1475,6 +1641,69 @@ private fun String.decodedMediaId(): String =
 
 private fun String.mediaIdParts(): List<String> =
     split("|").map { Uri.decode(it) }
+
+private data class AutoVoiceQuery(
+    val original: String,
+    val normalized: String,
+) {
+    fun isDownloadedMusicQuery(): Boolean =
+        normalized.contains("downloaded") ||
+            normalized.contains("downloads") ||
+            normalized.contains("offline")
+
+    fun isLibraryRadioQuery(): Boolean =
+        normalized.contains("library radio") ||
+            normalized.contains("my library radio")
+
+    fun isPlaylistQuery(): Boolean =
+        normalized.contains("playlist")
+
+    fun isInternetRadioStationQuery(): Boolean =
+        normalized.contains("internet radio") ||
+            normalized.contains("station")
+
+    fun playlistSearchQuery(): String =
+        original.voiceIntentTarget()
+            .replace(Regex("\\bplaylist\\b", RegexOption.IGNORE_CASE), " ")
+            .normalizedVoiceTarget()
+
+    fun stationSearchQuery(): String =
+        original.voiceIntentTarget()
+            .replace(Regex("\\binternet radio\\b", RegexOption.IGNORE_CASE), " ")
+            .replace(Regex("\\bradio station\\b", RegexOption.IGNORE_CASE), " ")
+            .replace(Regex("\\bstation\\b", RegexOption.IGNORE_CASE), " ")
+            .normalizedVoiceTarget()
+}
+
+private fun String.autoVoiceQuery(): AutoVoiceQuery =
+    AutoVoiceQuery(
+        original = trim(),
+        normalized = lowercase().replace(Regex("\\s+"), " ").trim(),
+    )
+
+private fun String.voiceIntentTarget(): String =
+    replace(Regex("\\b(play|start|listen to|listen|some|an|a|the|my)\\b", RegexOption.IGNORE_CASE), " ")
+        .replace(Regex("\\bon naviamp\\b", RegexOption.IGNORE_CASE), " ")
+        .normalizedVoiceTarget()
+
+private fun String.normalizedVoiceTarget(): String =
+    replace(Regex("\\s+"), " ")
+        .trim()
+
+private fun <T> List<T>.bestVoiceNameMatch(
+    query: String,
+    name: (T) -> String,
+): T? {
+    val queryKey = query.voiceSearchKey()
+    if (queryKey.isBlank()) return null
+    return mapNotNull { item ->
+        val score = voiceArtistMatchScore(queryKey, name(item).voiceSearchKey())
+        if (score == null) null else item to score
+    }
+        .sortedWith(compareBy<Pair<T, Int>> { it.second }.thenBy { name(it.first).length })
+        .firstOrNull()
+        ?.first
+}
 
 private fun String.radioSearchQuery(): String? {
     val normalized = lowercase()
