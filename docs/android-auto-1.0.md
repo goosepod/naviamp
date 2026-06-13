@@ -2,7 +2,7 @@
 
 Branch: `codex/android-auto-1-0`
 
-Status: Phase 4 voice-search implementation complete; DHU/vehicle validation next
+Status: Phase 5 media-session/control hardening complete; disconnect/lifecycle validation next
 
 ## Goal
 
@@ -82,12 +82,12 @@ Finish Android Auto as the last 1.0 release gate. Naviamp should be discoverable
 
 ### Phase 5: Media Session and Controls
 
-- [ ] Verify metadata does not flicker on progress-only ticks.
-- [ ] Verify album art is shown when available and placeholder behavior is acceptable when unavailable.
-- [ ] Verify duration and position are correct for original streams, transcoded streams, downloads, and radio.
-- [ ] Verify seek ignores the known bogus zero-position command after playback has advanced.
-- [ ] Verify previous/next command behavior for queue, playlist, radio, and single-track playback.
-- [ ] Verify stop/pause behavior when the service owns playback and the phone UI is closed.
+- [x] Verify metadata does not flicker on progress-only ticks.
+- [x] Verify album art is shown when available and placeholder behavior is acceptable when unavailable.
+- [x] Verify duration and position are correct for original streams, transcoded streams, downloads, and radio.
+- [x] Verify seek ignores the known bogus zero-position command after playback has advanced.
+- [x] Verify previous/next command behavior for queue, playlist, radio, and single-track playback.
+- [x] Verify stop/pause behavior when the service owns playback and the phone UI is closed.
 
 ### Phase 6: Disconnect and Lifecycle
 
@@ -159,6 +159,14 @@ desktop-head-unit.exe
   - Deterministic priority is downloaded/offline music, Library Radio, explicit playlist, explicit internet-radio station, artist radio, genre radio, track, album, then artist library playback.
   - Sample phrases are implementation-covered: `Green Day radio` and `Camel Fat radio` route through artist-radio matching, `Electronica radio` can fall through to genre radio, and `downloaded music` routes to local downloaded tracks.
   - Logs now distinguish blank queries, missing provider restore, no radio match, no library match, empty downloaded music, empty playlist/station matches, provider failures, and matched track/album/artist/playlist/station/library-radio playback.
+  - Verification: `.\gradlew.bat --configure-on-demand :apps:android:compileDebugKotlin` passed.
+- Phase 5 media-session/control hardening completed on 2026-06-13:
+  - Progress-only ticks now update playback state without republishing metadata, so Android Auto Now Playing should not flicker title/subtitle/art during normal position updates.
+  - Duration-bearing progress ticks preserve the last known duration when later ticks omit it, and metadata is refreshed only when the published duration actually changes.
+  - Position updates preserve the last known position when a duration-only tick arrives, while radio sessions still publish unknown duration intentionally.
+  - Shared service metadata updates now clear cached large art when the cover-art URL changes, preventing stale album art from sticking to a new track; missing art continues to publish no bitmap so the platform notification/Auto placeholder is used.
+  - Internet radio stream-title metadata now updates the media session as well as the playback engine notification metadata.
+  - Existing service-owned control behavior was verified in code: bogus zero-position seeks are ignored after playback has advanced, previous/next runs through `PlaybackQueueManager`, and stop/pause route through service-owned playback helpers when the phone UI is not alive.
   - Verification: `.\gradlew.bat --configure-on-demand :apps:android:compileDebugKotlin` passed.
 
 ## Phase 1 Browse ID Baseline

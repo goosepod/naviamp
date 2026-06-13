@@ -40,6 +40,7 @@ internal class AndroidServicePlaybackRuntimeController(
     private val currentQueueIndex: () -> Int,
     private val syncQueue: (PlaybackQueue) -> Unit,
     private val repeatMode: () -> RepeatMode,
+    private val currentMetadata: () -> AndroidPlaybackNotificationMetadata,
     private val setCurrentMetadata: (AndroidPlaybackNotificationMetadata) -> Unit,
     private val updateMediaSession: (AndroidPlaybackNotificationMetadata) -> Unit,
     private val updateMediaSessionPlaybackState: () -> Unit,
@@ -274,14 +275,21 @@ internal class AndroidServicePlaybackRuntimeController(
         ) {
             pendingServiceSeekPositionSeconds = null
         }
+        val previousPositionMillis = AndroidPlaybackNotificationControls.positionMillis
         val positionMillis = progressPositionSeconds
             ?.takeIf { it >= 0.0 }
             ?.let { (it * 1_000.0).toLong() }
+        val previousDurationMillis = AndroidPlaybackNotificationControls.durationMillis
         val durationMillis = progress.durationSeconds
             ?.takeIf { it > 0.0 }
             ?.let { (it * 1_000.0).toLong() }
-        AndroidPlaybackNotificationControls.positionMillis = positionMillis
-        AndroidPlaybackNotificationControls.durationMillis = durationMillis
+        AndroidPlaybackNotificationControls.positionMillis = positionMillis ?: previousPositionMillis
+        AndroidPlaybackNotificationControls.durationMillis = durationMillis ?: previousDurationMillis
+        if (AndroidPlaybackNotificationControls.durationMillis != previousDurationMillis) {
+            updateMediaSession(currentMetadata())
+        } else {
+            updateMediaSessionPlaybackState()
+        }
         if (now - lastServiceSessionSaveAtMillis >= ServicePlaybackSessionSaveIntervalMillis) {
             lastServiceSessionSaveAtMillis = now
             playbackSessionRepository.savePlaybackSession(

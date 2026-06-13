@@ -110,7 +110,7 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
         AndroidPlaybackServiceSessionController(
             storage = { serviceStorage },
             currentMetadata = { currentMetadata },
-            setCurrentMetadata = { metadata -> currentMetadata = metadata },
+            setCurrentMetadata = ::setCurrentMetadata,
             syncQueue = ::syncAutoQueue,
             updateMediaSession = { metadata -> updateMediaSession(metadata, currentLargeIcon) },
             loadCoverArt = { url, metadata -> loadCoverArtAsync(url, metadata) },
@@ -125,7 +125,8 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
             currentQueueIndex = { currentAutoQueueIndex },
             syncQueue = ::syncAutoQueue,
             repeatMode = { serviceRepeatModeForQueue() },
-            setCurrentMetadata = { metadata -> currentMetadata = metadata },
+            currentMetadata = { currentMetadata },
+            setCurrentMetadata = ::setCurrentMetadata,
             updateMediaSession = { metadata -> updateMediaSession(metadata, currentLargeIcon) },
             updateMediaSessionPlaybackState = { updateMediaSessionPlaybackState() },
             loadCoverArt = { url, metadata -> loadCoverArtAsync(url, metadata) },
@@ -210,11 +211,17 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
                 return START_NOT_STICKY
             }
             ActionProgress -> {
-                AndroidPlaybackNotificationControls.positionMillis =
-                    intent.getLongExtra(ExtraPositionMillis, -1L).takeIf { it >= 0L }
-                AndroidPlaybackNotificationControls.durationMillis =
-                    intent.getLongExtra(ExtraDurationMillis, -1L).takeIf { it > 0L }
-                if (currentMediaSessionDurationMillis != AndroidPlaybackNotificationControls.durationMillis) {
+                val previousDurationMillis = AndroidPlaybackNotificationControls.durationMillis
+                intent.getLongExtra(ExtraPositionMillis, -1L)
+                    .takeIf { it >= 0L }
+                    ?.let { positionMillis ->
+                        AndroidPlaybackNotificationControls.positionMillis = positionMillis
+                    }
+                val incomingDurationMillis = intent.getLongExtra(ExtraDurationMillis, -1L)
+                if (incomingDurationMillis > 0L) {
+                    AndroidPlaybackNotificationControls.durationMillis = incomingDurationMillis
+                }
+                if (previousDurationMillis != AndroidPlaybackNotificationControls.durationMillis) {
                     updateMediaSession(currentMetadata, currentLargeIcon)
                 } else {
                     updateMediaSessionPlaybackState()
@@ -1148,10 +1155,12 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
         AndroidPlaybackNotificationControls.durationMillis = null
         servicePlaybackRuntimeController.markStarted()
         syncAutoQueue(PlaybackQueue())
-        currentMetadata = AndroidPlaybackNotificationMetadata(
-            title = station.name,
-            subtitle = "Internet radio",
-            coverArtUrl = null,
+        setCurrentMetadata(
+            AndroidPlaybackNotificationMetadata(
+                title = station.name,
+                subtitle = "Internet radio",
+                coverArtUrl = null,
+            ),
         )
         updateMediaSession(currentMetadata, currentLargeIcon)
         runtime.scope.launch {
@@ -1178,12 +1187,13 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
                         },
                         onMetadataChanged = { metadata ->
                             metadata.title?.takeIf { it.isNotBlank() }?.let { streamTitle ->
-                                currentMetadata = currentMetadata.copy(title = streamTitle, subtitle = station.name)
+                                setCurrentMetadata(currentMetadata.copy(title = streamTitle, subtitle = station.name))
                                 runtime.playbackEngine.updateNotificationMetadata(
                                     title = streamTitle,
                                     subtitle = station.name,
                                     coverArtUrl = null,
                                 )
+                                updateMediaSession(currentMetadata, currentLargeIcon)
                             }
                         },
                     )
@@ -1494,15 +1504,21 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
 
     private fun Intent?.toMetadata(): AndroidPlaybackNotificationMetadata {
         val nextCoverArtUrl = this?.getStringExtra(ExtraCoverArtUrl) ?: currentMetadata.coverArtUrl
-        if (nextCoverArtUrl != currentMetadata.coverArtUrl) {
-            currentLargeIcon = null
-        }
-        currentMetadata = AndroidPlaybackNotificationMetadata(
-            title = this?.getStringExtra(ExtraTitle) ?: currentMetadata.title,
-            subtitle = this?.getStringExtra(ExtraSubtitle) ?: currentMetadata.subtitle,
-            coverArtUrl = nextCoverArtUrl,
+        setCurrentMetadata(
+            AndroidPlaybackNotificationMetadata(
+                title = this?.getStringExtra(ExtraTitle) ?: currentMetadata.title,
+                subtitle = this?.getStringExtra(ExtraSubtitle) ?: currentMetadata.subtitle,
+                coverArtUrl = nextCoverArtUrl,
+            ),
         )
         return currentMetadata
+    }
+
+    private fun setCurrentMetadata(metadata: AndroidPlaybackNotificationMetadata) {
+        if (metadata.coverArtUrl != currentMetadata.coverArtUrl) {
+            currentLargeIcon = null
+        }
+        currentMetadata = metadata
     }
 
     private fun ensureNotificationChannel() {
