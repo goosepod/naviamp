@@ -58,7 +58,7 @@ internal class AndroidAutoBrowseController(
         val storage = storage()
         val sourceId = storage.latestNavidromeSource()?.id
         if (parentId == AndroidAutoPlaybackControls.MediaIdRadioStations) {
-            loadAsyncChildren(result) {
+            loadAsyncChildren(parentId, result) {
                 val source = storage.latestNavidromeSource() ?: return@loadAsyncChildren noSourceItems()
                 val provider = NavidromeProvider(source.toNavidromeConnection())
                 withContext(Dispatchers.IO) {
@@ -111,7 +111,7 @@ internal class AndroidAutoBrowseController(
             return
         }
         if (parentId == AndroidAutoPlaybackControls.MediaIdPlaylists) {
-            loadAsyncChildren(result) {
+            loadAsyncChildren(parentId, result) {
                 val source = storage.latestNavidromeSource() ?: return@loadAsyncChildren noSourceItems()
                 val provider = NavidromeProvider(source.toNavidromeConnection())
                 withContext(Dispatchers.IO) {
@@ -129,7 +129,7 @@ internal class AndroidAutoBrowseController(
             return
         }
         if (parentId == AndroidAutoPlaybackControls.MediaIdHomeRecentlyAdded) {
-            loadAsyncChildren(result) {
+            loadAsyncChildren(parentId, result) {
                 val source = storage.latestNavidromeSource() ?: return@loadAsyncChildren noSourceItems()
                 val provider = NavidromeProvider(source.toNavidromeConnection())
                 withContext(Dispatchers.IO) {
@@ -141,7 +141,7 @@ internal class AndroidAutoBrowseController(
             return
         }
         if (parentId == AndroidAutoPlaybackControls.MediaIdChartsAlbums) {
-            loadAsyncChildren(result) {
+            loadAsyncChildren(parentId, result) {
                 val source = storage.latestNavidromeSource() ?: return@loadAsyncChildren noSourceItems()
                 val provider = NavidromeProvider(source.toNavidromeConnection())
                 withContext(Dispatchers.IO) {
@@ -156,8 +156,11 @@ internal class AndroidAutoBrowseController(
             AndroidAutoPlaybackControls.MediaIdRoot -> mutableListOf(
                 browsableItem(AndroidAutoPlaybackControls.MediaIdHome, "Home", "Mixes and recent music", iconName = "ic_auto_home"),
                 browsableItem(AndroidAutoPlaybackControls.MediaIdLibrary, "Library", "Browse your collection", iconName = "ic_auto_library"),
+                browsableItem(AndroidAutoPlaybackControls.MediaIdDownloads, "Downloads", "Offline tracks"),
+                browsableItem(AndroidAutoPlaybackControls.MediaIdPlaylists, "Playlists", "Saved Navidrome playlists"),
+                browsableItem(AndroidAutoPlaybackControls.MediaIdRadio, "Radio", "Library and internet radio", iconName = "ic_auto_radio"),
                 browsableItem(AndroidAutoPlaybackControls.MediaIdCharts, "Charts", "Top artists, albums, and tracks", iconName = "ic_auto_charts"),
-                browsableItem(AndroidAutoPlaybackControls.MediaIdRadioStations, "Radio", "Saved internet radio", iconName = "ic_auto_radio"),
+                browsableItem(AndroidAutoPlaybackControls.MediaIdMore, "More", "Queue and shortcuts"),
             )
             AndroidAutoPlaybackControls.MediaIdHome -> mutableListOf(
                 browsableItem(AndroidAutoPlaybackControls.MediaIdHomeMixes, "Mixes For You", "Radio based on your library"),
@@ -267,7 +270,7 @@ internal class AndroidAutoBrowseController(
     ) {
         Log.i("NaviampAutoCommand", "Loading Auto children parent=$parentId options=${options.debugDescription()}")
         options.autoSearchQuery()?.let { query ->
-            loadAsyncChildren(result) { autoSearchResults(query) }
+            loadAsyncChildren(parentId, result) { autoSearchResults(query) }
             return
         }
         loadChildren(parentId, result)
@@ -280,7 +283,7 @@ internal class AndroidAutoBrowseController(
     ) {
         val searchQuery = query.ifBlank { extras?.autoSearchQuery().orEmpty() }
         Log.i("NaviampAutoCommand", "Loading Auto search query=$searchQuery extras=${extras?.debugDescription().orEmpty()}")
-        loadAsyncChildren(result) { autoSearchResults(searchQuery) }
+        loadAsyncChildren(AndroidAutoPlaybackControls.MediaIdRoot, result) { autoSearchResults(searchQuery) }
     }
 
     private fun dynamicChildren(
@@ -303,7 +306,7 @@ internal class AndroidAutoBrowseController(
             }
             parentId.startsWith(AndroidAutoPlaybackControls.MediaIdPlaylistPrefix) -> {
                 val playlistId = Uri.decode(parentId.removePrefix(AndroidAutoPlaybackControls.MediaIdPlaylistPrefix))
-                loadAsyncChildren(result) {
+                loadAsyncChildren(parentId, result) {
                     val source = storage.latestNavidromeSource() ?: return@loadAsyncChildren noSourceItems()
                     val provider = NavidromeProvider(source.toNavidromeConnection())
                     withContext(Dispatchers.IO) {
@@ -327,7 +330,7 @@ internal class AndroidAutoBrowseController(
                 val parts = parentId.removePrefix(AndroidAutoPlaybackControls.MediaIdArtistPrefix).mediaIdParts()
                 val artistId = parts.getOrNull(0).orEmpty()
                 val artistName = parts.getOrNull(1)
-                loadAsyncChildren(result) {
+                loadAsyncChildren(parentId, result) {
                     val source = storage.latestNavidromeSource() ?: return@loadAsyncChildren noSourceItems()
                     val provider = NavidromeProvider(source.toNavidromeConnection())
                     val tracks = loadArtistTracks(storage, storage, source.id, provider, artistId, artistName)
@@ -361,7 +364,7 @@ internal class AndroidAutoBrowseController(
                 val albumId = parts.getOrNull(0).orEmpty()
                 val albumTitle = parts.getOrNull(1)
                 val albumArtist = parts.getOrNull(2)
-                loadAsyncChildren(result) {
+                loadAsyncChildren(parentId, result) {
                     val source = storage.latestNavidromeSource() ?: return@loadAsyncChildren noSourceItems()
                     val provider = NavidromeProvider(source.toNavidromeConnection())
                     val tracks = loadAlbumTracks(storage, storage, source.id, provider, albumId, albumTitle, albumArtist)
@@ -502,10 +505,15 @@ internal class AndroidAutoBrowseController(
 
     private fun noSourceItems(): MutableList<MediaBrowserCompat.MediaItem> =
         mutableListOf(
-            browsableItem("naviamp.no_source", "Connect Naviamp first", "Open the phone app and connect to Navidrome."),
+            browsableItem(
+                AndroidAutoPlaybackControls.MediaIdNoSource,
+                "Connect Naviamp first",
+                "Open the phone app and connect to Navidrome.",
+            ),
         )
 
     private fun loadAsyncChildren(
+        parentId: String,
         result: MediaBrowserServiceCompat.Result<MutableList<MediaBrowserCompat.MediaItem>>,
         load: suspend () -> MutableList<MediaBrowserCompat.MediaItem>,
     ) {
@@ -513,8 +521,8 @@ internal class AndroidAutoBrowseController(
         AndroidPlaybackRuntime.get(context).scope.launch {
             val children = runCatching { load() }
                 .onFailure { error -> Log.w("NaviampAutoCommand", "Could not load Auto children", error) }
-                .getOrDefault(mutableListOf())
-            sendChildren("async", children, result)
+                .getOrDefault(loadErrorItems(parentId))
+            sendChildren(parentId, children, result)
         }
     }
 
@@ -525,16 +533,47 @@ internal class AndroidAutoBrowseController(
     ) {
         result.sendResult(
             children.ifEmpty {
-                mutableListOf(
-                    browsableItem(
-                        "$parentId.empty",
-                        "Nothing here yet",
-                        "Open Naviamp on your phone to refresh the library.",
-                    ),
-                )
+                emptyItems(parentId)
             },
         )
     }
+
+    private fun emptyItems(parentId: String): MutableList<MediaBrowserCompat.MediaItem> {
+        val item = when {
+            parentId == AndroidAutoPlaybackControls.MediaIdDownloads ->
+                browsableItem("$parentId.empty", "No downloads", "Downloaded tracks will appear here.")
+            parentId == AndroidAutoPlaybackControls.MediaIdPlaylists ->
+                browsableItem("$parentId.empty", "No playlists", "Saved Navidrome playlists will appear here.")
+            parentId == AndroidAutoPlaybackControls.MediaIdRadioStations ->
+                browsableItem("$parentId.empty", "No stations", "Saved Navidrome internet radio stations will appear here.")
+            parentId == AndroidAutoPlaybackControls.MediaIdRadioRecent ->
+                browsableItem("$parentId.empty", "No recent radio", "Radio started from Naviamp will appear here.")
+            parentId == AndroidAutoPlaybackControls.MediaIdQueue ->
+                browsableItem("$parentId.empty", "Queue is empty", "Start playback to populate the queue.")
+            parentId == AndroidAutoPlaybackControls.MediaIdLibraryArtists ||
+                parentId == AndroidAutoPlaybackControls.MediaIdLibraryAlbums ||
+                parentId == AndroidAutoPlaybackControls.MediaIdLibraryTracks ->
+                browsableItem("$parentId.empty", "Library not indexed yet", "Open Naviamp on your phone to refresh the library.")
+            parentId.startsWith(AndroidAutoPlaybackControls.MediaIdPlaylistPrefix) ->
+                browsableItem("$parentId.empty", "Playlist is empty", "This playlist has no playable tracks.")
+            parentId.startsWith(AndroidAutoPlaybackControls.MediaIdArtistPrefix) ->
+                browsableItem("$parentId.empty", "No artist tracks", "No playable tracks were found for this artist.")
+            parentId.startsWith(AndroidAutoPlaybackControls.MediaIdAlbumPrefix) ->
+                browsableItem("$parentId.empty", "No album tracks", "No playable tracks were found for this album.")
+            else ->
+                browsableItem("$parentId.empty", "Nothing here yet", "Open Naviamp on your phone to refresh this section.")
+        }
+        return mutableListOf(item)
+    }
+
+    private fun loadErrorItems(parentId: String): MutableList<MediaBrowserCompat.MediaItem> =
+        mutableListOf(
+            browsableItem(
+                "$parentId.error",
+                "Could not load",
+                "Open Naviamp on your phone and refresh this section.",
+            ),
+        )
 
     private fun autoDrawableUri(name: String): String =
         "android.resource://${context.packageName}/drawable/$name"

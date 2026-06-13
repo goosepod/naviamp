@@ -23,6 +23,7 @@ object AndroidAutoPlaybackControls {
     const val MediaIdDownloads = "naviamp.downloads"
     const val MediaIdMore = "naviamp.more"
     const val MediaIdPlaylists = "naviamp.playlists"
+    const val MediaIdNoSource = "naviamp.no_source"
 
     const val MediaIdArtistPrefix = "naviamp.artist:"
     const val MediaIdArtistGroupPrefix = "naviamp.artist.group:"
@@ -42,4 +43,37 @@ object AndroidAutoPlaybackControls {
     const val CommandPlayPause = "play_pause"
     const val CommandPrevious = "previous"
     const val CommandNext = "next"
+
+    fun isNonPlayableMediaId(mediaId: String): Boolean =
+        mediaId == MediaIdNoSource ||
+            mediaId.endsWith(".empty") ||
+            mediaId.endsWith(".error") ||
+            mediaId in nonPlayableContainerIds ||
+            mediaId.startsWith(MediaIdArtistGroupPrefix) ||
+            mediaId.startsWith(MediaIdArtistPrefix) ||
+            mediaId.startsWith(MediaIdAlbumPrefix) ||
+            mediaId.startsWith(MediaIdPlaylistPrefix)
+
+    private val nonPlayableContainerIds = setOf(
+        MediaIdRoot,
+        MediaIdQueue,
+        MediaIdHome,
+        MediaIdHomeMixes,
+        MediaIdHomeRecentPlays,
+        MediaIdHomeRecentlyAdded,
+        MediaIdLibrary,
+        MediaIdLibraryArtists,
+        MediaIdLibraryAlbums,
+        MediaIdLibraryTracks,
+        MediaIdCharts,
+        MediaIdChartsArtists,
+        MediaIdChartsAlbums,
+        MediaIdChartsTracks,
+        MediaIdRadio,
+        MediaIdRadioStations,
+        MediaIdRadioRecent,
+        MediaIdDownloads,
+        MediaIdMore,
+        MediaIdPlaylists,
+    )
 }

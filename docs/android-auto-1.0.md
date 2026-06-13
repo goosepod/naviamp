@@ -2,7 +2,7 @@
 
 Branch: `codex/android-auto-1-0`
 
-Status: Phase 2 service-ownership hardening complete; DHU/vehicle validation next
+Status: Phase 3 browse/media-ID hardening complete; DHU/vehicle validation next
 
 ## Goal
 
@@ -62,11 +62,11 @@ Finish Android Auto as the last 1.0 release gate. Naviamp should be discoverable
 
 ### Phase 3: Browse and Media IDs
 
-- [ ] Review `AndroidAutoBrowseController` for stable IDs, labels, playable/browsable flags, and browse limits.
-- [ ] Make empty/error states explicit for disconnected, restoring, no library index, no downloads, no playlists, and no stations.
-- [ ] Ensure media IDs are documented and round-trip through `AndroidAutoCommandController`.
-- [ ] Verify playlists and stations do not require phone UI state to resolve after cold start.
-- [ ] Keep browse result construction on shared storage/provider ports where possible.
+- [x] Review `AndroidAutoBrowseController` for stable IDs, labels, playable/browsable flags, and browse limits.
+- [x] Make empty/error states explicit for disconnected, restoring, no library index, no downloads, no playlists, and no stations.
+- [x] Ensure media IDs are documented and round-trip through `AndroidAutoCommandController`.
+- [x] Verify playlists and stations do not require phone UI state to resolve after cold start.
+- [x] Keep browse result construction on shared storage/provider ports where possible.
 
 ### Phase 4: Voice Search
 
@@ -145,6 +145,14 @@ desktop-head-unit.exe
   - Service-owned restore path remains in `AndroidServicePlaybackRuntimeController` / `AndroidPlaybackServiceSessionController` for provider, storage, queue, saved session, downloaded-track source resolution, and radio playback.
   - Focused Android unit tests were not added because the Android app module does not currently carry a unit-test source/dependency harness; the practical guard for this pass is compile verification plus explicit service-miss logging for command/media-id paths.
   - Verification: `.\gradlew.bat --configure-on-demand :apps:android:compileDebugKotlin` passed.
+- Phase 3 browse/media-ID pass completed on 2026-06-13:
+  - Browse root now exposes Home, Library, Downloads, Playlists, Radio, Charts, and More as first-level sections.
+  - Async browse loads now preserve their real parent ID, so empty/error placeholders are reported under the branch that was requested instead of a generic async branch.
+  - Empty states are now contextual for no downloads, no playlists, no stations, no recent radio, empty queue, unindexed library branches, empty playlists, artist tracks, and album tracks.
+  - Browse load failures now return `{parentId}.error` with a clear message, and no-source remains `naviamp.no_source`.
+  - `AndroidAutoPlaybackControls` owns the non-playable media-ID classifier so `AndroidAutoCommandController` ignores containers/placeholders instead of launching the phone UI.
+  - Playlist and internet-radio station browse/playback still resolve through service-owned storage/provider ports and do not require composed phone UI state.
+  - Verification: `.\gradlew.bat --configure-on-demand :apps:android:compileDebugKotlin` passed.
 
 ## Phase 1 Browse ID Baseline
 
@@ -154,8 +162,11 @@ Source: `AndroidAutoPlaybackControls` and `AndroidAutoBrowseController`.
 - Root children:
   - Home: `naviamp.home`
   - Library: `naviamp.library`
+  - Downloads: `naviamp.downloads`
+  - Playlists: `naviamp.playlists`
+  - Radio: `naviamp.radio`
   - Charts: `naviamp.charts`
-  - Radio shortcut: `naviamp.radio.stations`
+  - More: `naviamp.more`
 - Home:
   - Mixes For You: `naviamp.home.mixes`
   - Recent Plays: `naviamp.home.recent_plays`
@@ -196,3 +207,4 @@ Source: `AndroidAutoPlaybackControls` and `AndroidAutoBrowseController`.
   - More: `naviamp.more`
   - No saved source placeholder: `naviamp.no_source`
   - Empty placeholder: `{parentId}.empty`
+  - Load-error placeholder: `{parentId}.error`
