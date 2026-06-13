@@ -117,14 +117,6 @@ internal class AndroidAutoAppController(
         }
     }
 
-    fun installMediaIdHandler() {
-        AndroidAutoPlaybackControls.onPlayMediaId = { mediaId ->
-            if (!playMediaId(mediaId)) {
-                state.pendingAutoPlayMediaId = mediaId
-            }
-        }
-    }
-
     fun playMediaId(mediaId: String): Boolean {
         val sourceId = state.activeSourceId
         val handled = when {

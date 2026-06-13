@@ -2,7 +2,7 @@
 
 Branch: `codex/android-auto-1-0`
 
-Status: Phase 1 baseline complete; DHU/vehicle validation next
+Status: Phase 2 service-ownership hardening complete; DHU/vehicle validation next
 
 ## Goal
 
@@ -54,11 +54,11 @@ Finish Android Auto as the last 1.0 release gate. Naviamp should be discoverable
 
 ### Phase 2: Service Ownership
 
-- [ ] Audit where Auto playback still depends on retained phone-app callbacks.
-- [ ] Move any remaining Auto-only playback path that can run service-side into `AndroidPlaybackForegroundService` or service-owned controllers.
-- [ ] Ensure phone UI opening is an optional presentation side effect, not required for playback.
-- [ ] Verify service-owned playback can restore provider, storage, playback session, queue, and radio state without a composed `NaviampAndroidApp`.
-- [ ] Add focused tests or debug-only assertions for media-id classification where practical.
+- [x] Audit where Auto playback still depends on retained phone-app callbacks.
+- [x] Move any remaining Auto-only playback path that can run service-side into `AndroidPlaybackForegroundService` or service-owned controllers.
+- [x] Ensure phone UI opening is an optional presentation side effect, not required for playback.
+- [x] Verify service-owned playback can restore provider, storage, playback session, queue, and radio state without a composed `NaviampAndroidApp`.
+- [x] Add focused tests or debug-only assertions for media-id classification where practical.
 
 ### Phase 3: Browse and Media IDs
 
@@ -137,6 +137,14 @@ desktop-head-unit.exe
   - DHU startup check: `adb forward tcp:5277 tcp:5277` succeeded, DHU `2.0-windows` connected over ADB to `localhost:5277`, and no `NaviampAutoCommand` log lines were emitted during the bounded startup capture.
   - Current DHU failure state: no Naviamp-side DHU failure was captured in Phase 1; the remaining risk is unverified in-DHU browse/play interaction.
   - Real-car validation is not available from this workstation and remains a release-candidate manual gate until a vehicle/head-unit result is recorded.
+- Phase 2 service-ownership pass completed on 2026-06-13:
+  - `AndroidPlaybackForegroundService` now routes play/pause, previous, next, stop, seek, notification actions, noisy-audio pause, and media-session transport callbacks through service-owned helpers.
+  - Once `AndroidServicePlaybackRuntimeController` owns playback, service controls win over retained phone-app callbacks; phone callbacks remain only for normal phone-owned playback.
+  - Auto media-id dispatch no longer uses the global in-process `AndroidAutoPlaybackControls.onPlayMediaId` callback; unhandled media IDs are logged and may open the phone UI for context.
+  - Auto search failure no longer launches the phone app to issue a play/pause command; it now records a clear `NaviampAutoCommand` warning.
+  - Service-owned restore path remains in `AndroidServicePlaybackRuntimeController` / `AndroidPlaybackServiceSessionController` for provider, storage, queue, saved session, downloaded-track source resolution, and radio playback.
+  - Focused Android unit tests were not added because the Android app module does not currently carry a unit-test source/dependency harness; the practical guard for this pass is compile verification plus explicit service-miss logging for command/media-id paths.
+  - Verification: `.\gradlew.bat --configure-on-demand :apps:android:compileDebugKotlin` passed.
 
 ## Phase 1 Browse ID Baseline
 

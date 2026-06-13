@@ -237,7 +237,6 @@ fun NaviampAndroidApp(
         )
     }
     androidAutoController.installNotificationControls()
-    androidAutoController.installMediaIdHandler()
 
     val navigationController = remember(appState) {
         AndroidNavigationController(appState, mediaAppController::openArtistDetails)

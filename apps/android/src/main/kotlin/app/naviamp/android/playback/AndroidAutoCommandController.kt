@@ -8,7 +8,6 @@ internal class AndroidAutoCommandController(
     private val handleServicePlayMediaId: (String) -> Boolean,
     private val handleServicePlaySearch: (String) -> Boolean,
     private val launchMainActivityForAutoMediaId: (String) -> Unit,
-    private val launchMainActivityForAutoCommand: (String) -> Unit,
     private val toggleFavorite: () -> Unit,
     private val toggleShuffle: () -> Unit,
     private val cycleRepeat: () -> Unit,
@@ -28,19 +27,14 @@ internal class AndroidAutoCommandController(
         if (handleServicePlayMediaId(mediaId)) {
             return
         }
-        val handledInProcess = AndroidAutoPlaybackControls.onPlayMediaId?.let { handler ->
-            handler(mediaId)
-            true
-        } ?: false
-        if (!handledInProcess) {
-            launchMainActivityForAutoMediaId(mediaId)
-        }
+        Log.w("NaviampAutoCommand", "Service could not handle Auto mediaId=$mediaId; opening phone UI for context")
+        launchMainActivityForAutoMediaId(mediaId)
     }
 
     fun playFromSearch(query: String, extras: Bundle?) {
         Log.i("NaviampAutoCommand", "Auto requested search=$query extras=${extras?.debugDescription().orEmpty()}")
         if (!handleServicePlaySearch(query)) {
-            launchMainActivityForAutoCommand(AndroidAutoPlaybackControls.CommandPlayPause)
+            Log.w("NaviampAutoCommand", "Service could not handle Auto search=$query")
         }
     }
 

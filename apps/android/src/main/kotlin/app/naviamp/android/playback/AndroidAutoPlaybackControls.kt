@@ -1,13 +1,6 @@
 package app.naviamp.android.playback
 
 object AndroidAutoPlaybackControls {
-    @Volatile
-    var onPlayMediaId: ((String) -> Unit)? = null
-
-    fun clear() {
-        onPlayMediaId = null
-    }
-
     const val MediaIdRoot = "naviamp.root"
     const val MediaIdNowPlaying = "naviamp.now_playing"
     const val MediaIdQueue = "naviamp.queue"

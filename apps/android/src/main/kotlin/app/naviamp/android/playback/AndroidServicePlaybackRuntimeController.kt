@@ -54,6 +54,8 @@ internal class AndroidServicePlaybackRuntimeController(
     private var pendingServiceSeekPositionSeconds: Double? = null
     private var pendingServiceSeekAtMillis = 0L
 
+    fun ownsPlayback(): Boolean = serviceOwnedPlayback
+
     fun handleAutoPlayPause() {
         if (AndroidPlaybackNotificationControls.isPlaying) {
             pause("Auto pause")

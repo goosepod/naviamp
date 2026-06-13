@@ -96,7 +96,6 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
             handleServicePlayMediaId = ::handleServicePlayMediaId,
             handleServicePlaySearch = ::handleServicePlaySearch,
             launchMainActivityForAutoMediaId = ::launchMainActivityForAutoMediaId,
-            launchMainActivityForAutoCommand = ::launchMainActivityForAutoCommand,
             toggleFavorite = { toggleServiceFavorite() },
             toggleShuffle = { toggleServiceShuffle() },
             cycleRepeat = { cycleServiceRepeatMode() },
@@ -142,8 +141,7 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
         override fun onReceive(context: Context, intent: Intent) {
             if (intent.action != AudioManager.ACTION_AUDIO_BECOMING_NOISY) return
             if (!AndroidPlaybackNotificationControls.isPlaying) return
-            AndroidPlaybackNotificationControls.onPlayPause?.invoke()
-                ?: launchMainActivityForAutoCommand(AndroidAutoPlaybackControls.CommandPlayPause)
+            handleAutoPlayPause()
             refreshNotification(null)
         }
     }
@@ -180,24 +178,17 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action) {
             ActionPlayPause -> {
-                AndroidPlaybackNotificationControls.onPlayPause?.invoke()
-                    ?: handleServiceAutoPlayPause()
+                handleAutoPlayPause()
                 refreshNotification(intent)
                 return START_STICKY
             }
             ActionPrevious -> {
-                if (!playServiceOwnedAdjacent(-1)) {
-                    AndroidPlaybackNotificationControls.onPrevious?.invoke()
-                        ?: playSavedSessionAdjacent(-1)
-                }
+                handleAutoPrevious()
                 refreshNotification(intent)
                 return START_STICKY
             }
             ActionNext -> {
-                if (!playServiceOwnedAdjacent(1)) {
-                    AndroidPlaybackNotificationControls.onNext?.invoke()
-                        ?: playSavedSessionAdjacent(1)
-                }
+                handleAutoNext()
                 refreshNotification(intent)
                 return START_STICKY
             }
@@ -368,22 +359,53 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
         }
     }
 
-    private fun launchMainActivityForAutoCommand(command: String) {
-        Log.i("NaviampAutoCommand", "Launching phone app for Auto command=$command")
-        runCatching {
-            startActivity(
-                Intent(this, MainActivity::class.java)
-                    .putExtra(MainActivity.ExtraOpenNowPlaying, true)
-                    .putExtra(MainActivity.ExtraAutoCommand, command)
-                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP),
-            )
-        }.onFailure { error ->
-            Log.w("NaviampAutoCommand", "Could not launch phone app for command=$command", error)
-        }
-    }
-
     private fun handleServiceAutoPlayPause() {
         servicePlaybackRuntimeController.handleAutoPlayPause()
+    }
+
+    private fun handleAutoPlayPause() {
+        if (servicePlaybackRuntimeController.ownsPlayback()) {
+            handleServiceAutoPlayPause()
+            return
+        }
+        AndroidPlaybackNotificationControls.onPlayPause?.invoke()
+            ?: handleServiceAutoPlayPause()
+    }
+
+    private fun handleAutoPrevious() {
+        if (playServiceOwnedAdjacent(-1)) return
+        AndroidPlaybackNotificationControls.onPrevious?.invoke()
+            ?: playSavedSessionAdjacent(-1)
+    }
+
+    private fun handleAutoNext() {
+        if (playServiceOwnedAdjacent(1)) return
+        AndroidPlaybackNotificationControls.onNext?.invoke()
+            ?: playSavedSessionAdjacent(1)
+    }
+
+    private fun handleAutoStop(reason: String) {
+        if (servicePlaybackRuntimeController.ownsPlayback()) {
+            stopServiceOwnedPlayback(reason)
+            return
+        }
+        AndroidPlaybackNotificationControls.onStop?.invoke()
+            ?: stopServiceOwnedPlayback(reason)
+    }
+
+    private fun handleAutoSeek(positionMillis: Long) {
+        if (servicePlaybackRuntimeController.ownsPlayback()) {
+            seekServiceOwnedPlayback(positionMillis)
+            return
+        }
+        val seekCallback = AndroidPlaybackNotificationControls.onSeekTo
+        if (seekCallback != null) {
+            seekCallback(positionMillis)
+            AndroidPlaybackNotificationControls.positionMillis = positionMillis.coerceAtLeast(0L)
+            updateMediaSessionPlaybackState()
+        } else {
+            seekServiceOwnedPlayback(positionMillis)
+        }
     }
 
     private fun pauseServiceOwnedPlayback(reason: String) {
@@ -395,7 +417,11 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
     }
 
     private fun stopPlaybackForUserRequest(reason: String) {
-        servicePlaybackRuntimeController.stopForUserRequest(reason)
+        if (servicePlaybackRuntimeController.ownsPlayback()) {
+            stopServiceOwnedPlayback(reason)
+        } else {
+            servicePlaybackRuntimeController.stopForUserRequest(reason)
+        }
     }
 
     private fun stopPlaybackAndService(reason: String) {
@@ -1045,33 +1071,25 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
                 object : MediaSessionCompat.Callback() {
                     override fun onPlay() {
                         if (!AndroidPlaybackNotificationControls.isPlaying) {
-                            AndroidPlaybackNotificationControls.onPlayPause?.invoke()
-                                ?: handleServiceAutoPlayPause()
+                            handleAutoPlayPause()
                             refreshNotification(null)
                         }
                     }
 
                     override fun onPause() {
                         if (AndroidPlaybackNotificationControls.isPlaying) {
-                            AndroidPlaybackNotificationControls.onPlayPause?.invoke()
-                                ?: handleServiceAutoPlayPause()
+                            handleAutoPlayPause()
                             refreshNotification(null)
                         }
                     }
 
                     override fun onSkipToPrevious() {
-                        if (!playServiceOwnedAdjacent(-1)) {
-                            AndroidPlaybackNotificationControls.onPrevious?.invoke()
-                                ?: playSavedSessionAdjacent(-1)
-                        }
+                        handleAutoPrevious()
                         refreshNotification(null)
                     }
 
                     override fun onSkipToNext() {
-                        if (!playServiceOwnedAdjacent(1)) {
-                            AndroidPlaybackNotificationControls.onNext?.invoke()
-                                ?: playSavedSessionAdjacent(1)
-                        }
+                        handleAutoNext()
                         refreshNotification(null)
                     }
 
@@ -1081,19 +1099,11 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
                     }
 
                     override fun onStop() {
-                        AndroidPlaybackNotificationControls.onStop?.invoke()
-                            ?: stopServiceOwnedPlayback("media session stop")
+                        handleAutoStop("media session stop")
                     }
 
                     override fun onSeekTo(pos: Long) {
-                        val seekCallback = AndroidPlaybackNotificationControls.onSeekTo
-                        if (seekCallback != null) {
-                            seekCallback(pos)
-                            AndroidPlaybackNotificationControls.positionMillis = pos.coerceAtLeast(0L)
-                            updateMediaSessionPlaybackState()
-                        } else {
-                            seekServiceOwnedPlayback(pos)
-                        }
+                        handleAutoSeek(pos)
                     }
 
                     override fun onPlayFromMediaId(mediaId: String, extras: Bundle?) {
