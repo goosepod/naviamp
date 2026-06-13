@@ -2,7 +2,7 @@
 
 Branch: `codex/android-auto-1-0`
 
-Status: planning
+Status: Phase 1 baseline complete; DHU/vehicle validation next
 
 ## Goal
 
@@ -40,17 +40,17 @@ Finish Android Auto as the last 1.0 release gate. Naviamp should be discoverable
 - [ ] Foreground notification and Android Auto session stay in sync across phone UI open/close, service-only playback, and app process cold start.
 - [ ] `.\gradlew.bat --configure-on-demand :apps:android:assembleDebug` passes.
 - [ ] `.\gradlew.bat --configure-on-demand :apps:android:assembleRelease` passes.
-- [ ] Debug build installs and runs on the test phone.
+- [x] Debug build installs and runs on the test phone.
 
 ## Implementation Checklist
 
 ### Phase 1: Baseline Audit
 
-- [ ] Re-run a clean Android debug build and install to the test phone.
-- [ ] Capture DHU startup logs filtered to `NaviampAutoCommand`.
-- [ ] Capture current browse tree IDs from root through tracks, downloads, playlists, radio, and Library Radio.
-- [ ] Document any current DHU failures in this file before changing behavior.
-- [ ] Confirm whether real-car testing is available now or must remain a release-candidate manual gate.
+- [x] Re-run a clean Android debug build and install to the test phone.
+- [x] Capture DHU startup logs filtered to `NaviampAutoCommand`.
+- [x] Capture current browse tree IDs from root through tracks, downloads, playlists, radio, and Library Radio.
+- [x] Document any current DHU failures in this file before changing behavior.
+- [x] Confirm whether real-car testing is available now or must remain a release-candidate manual gate.
 
 ### Phase 2: Service Ownership
 
@@ -128,3 +128,63 @@ desktop-head-unit.exe
 ## Progress Log
 
 - Created this Android Auto 1.0 checklist on branch `codex/android-auto-1-0`.
+- Phase 1 baseline captured on 2026-06-13:
+  - Clean Android install: `.\gradlew.bat --configure-on-demand clean :apps:android:installDebug` passed and installed `android-debug.apk` on `Pixel 10a - 16`.
+  - Phone run check: `adb shell monkey -p app.naviamp.android 1` launched the debug app after install.
+  - Installed package path: `/data/app/~~VjmYXtVyStyCUAKJ-0cv_w==/app.naviamp.android-GWZU3u766vlyRnDqCiFZqg==/base.apk`.
+  - Package/service check: `dumpsys package app.naviamp.android` exposes `.playback.AndroidPlaybackForegroundService` under `android.media.browse.MediaBrowserService`.
+  - DHU location: `C:\Users\ursasmar\AppData\Local\Android\Sdk\extras\google\auto\desktop-head-unit.exe`.
+  - DHU startup check: `adb forward tcp:5277 tcp:5277` succeeded, DHU `2.0-windows` connected over ADB to `localhost:5277`, and no `NaviampAutoCommand` log lines were emitted during the bounded startup capture.
+  - Current DHU failure state: no Naviamp-side DHU failure was captured in Phase 1; the remaining risk is unverified in-DHU browse/play interaction.
+  - Real-car validation is not available from this workstation and remains a release-candidate manual gate until a vehicle/head-unit result is recorded.
+
+## Phase 1 Browse ID Baseline
+
+Source: `AndroidAutoPlaybackControls` and `AndroidAutoBrowseController`.
+
+- Root: `naviamp.root`
+- Root children:
+  - Home: `naviamp.home`
+  - Library: `naviamp.library`
+  - Charts: `naviamp.charts`
+  - Radio shortcut: `naviamp.radio.stations`
+- Home:
+  - Mixes For You: `naviamp.home.mixes`
+  - Recent Plays: `naviamp.home.recent_plays`
+  - Recently Added in Music: `naviamp.home.recently_added`
+- Library:
+  - Artists A-Z: `naviamp.library.artists`
+  - Albums: `naviamp.library.albums`
+  - Tracks: `naviamp.library.tracks`
+- Artist paths:
+  - Artist group: `naviamp.artist.group:{group}`
+  - Artist detail: `naviamp.artist:{artistId}|{artistName}`
+  - Artist shuffle: `naviamp.artist.shuffle:{artistId}|{artistName}`
+  - Artist track: `naviamp.artist.track:{artistId}|{artistName}|{trackId}`
+- Album paths:
+  - Album detail: `naviamp.album:{albumId}|{albumTitle}|{albumArtist}`
+  - Album shuffle: `naviamp.album.shuffle:{albumId}|{albumTitle}|{albumArtist}`
+  - Album track: `naviamp.album.track:{albumId}|{trackId}`
+- Track paths:
+  - Library track: `naviamp.track:{trackId}`
+  - Queue track: `naviamp.queue.track:{queueIndex}`
+- Downloads:
+  - Downloads root: `naviamp.downloads`
+  - Downloaded track: `naviamp.download:{trackId}`
+- Playlists:
+  - Playlists root: `naviamp.playlists`
+  - Playlist detail: `naviamp.playlist:{playlistId}`
+  - Playlist track: `naviamp.playlist.track:{playlistId}|{trackId}`
+- Radio:
+  - Radio root: `naviamp.radio`
+  - Library Radio: `naviamp.radio.library`
+  - Internet Radio stations: `naviamp.radio.stations`
+  - Internet Radio station: `naviamp.radio.station:{stationId}|{stationName}|{streamUrl}|{homePageUrl}`
+  - Recent Radio root: `naviamp.radio.recent`
+  - Recent Radio item: `naviamp.radio.recent:{stationOrStreamId}`
+- Other:
+  - Now Playing / Resume: `naviamp.now_playing`
+  - Current queue: `naviamp.queue`
+  - More: `naviamp.more`
+  - No saved source placeholder: `naviamp.no_source`
+  - Empty placeholder: `{parentId}.empty`
