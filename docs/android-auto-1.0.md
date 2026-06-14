@@ -2,7 +2,7 @@
 
 Branch: `codex/android-auto-1-0`
 
-Status: Phase 6 disconnect/lifecycle hardening complete; final build and device validation next
+Status: Phase 7 build/install/DHU startup pass complete; manual DHU browse/play and real-vehicle validation remain
 
 ## Goal
 
@@ -38,8 +38,8 @@ Finish Android Auto as the last 1.0 release gate. Naviamp should be discoverable
 - [ ] Seek, play/pause, previous, next, and stop commands work from DHU and real vehicle controls.
 - [ ] Projection disconnect pauses playback reliably enough that audio does not continue unexpectedly on phone speakers.
 - [ ] Foreground notification and Android Auto session stay in sync across phone UI open/close, service-only playback, and app process cold start.
-- [ ] `.\gradlew.bat --configure-on-demand :apps:android:assembleDebug` passes.
-- [ ] `.\gradlew.bat --configure-on-demand :apps:android:assembleRelease` passes.
+- [x] `.\gradlew.bat --configure-on-demand :apps:android:assembleDebug` passes.
+- [x] `.\gradlew.bat --configure-on-demand :apps:android:assembleRelease` passes.
 - [x] Debug build installs and runs on the test phone.
 
 ## Implementation Checklist
@@ -100,17 +100,19 @@ Finish Android Auto as the last 1.0 release gate. Naviamp should be discoverable
 
 ### Phase 7: Build and Device Validation
 
-- [ ] `.\gradlew.bat --configure-on-demand :apps:android:assembleDebug`
-- [ ] `.\gradlew.bat --configure-on-demand :apps:android:installDebug`
-- [ ] `.\gradlew.bat --configure-on-demand :apps:android:assembleRelease`
-- [ ] Install on test phone and connect to Navidrome.
-- [ ] Start Android Auto DHU and verify the full checklist above.
+- [x] `.\gradlew.bat --configure-on-demand :apps:android:assembleDebug`
+- [x] `.\gradlew.bat --configure-on-demand :apps:android:installDebug`
+- [x] `.\gradlew.bat --configure-on-demand :apps:android:assembleRelease`
+- [x] Install on test phone.
+- [ ] Connect to Navidrome in the installed phone app.
+- [x] Start Android Auto DHU.
+- [ ] Verify the full checklist above in DHU.
 - [ ] Test in a real vehicle.
-- [ ] Record tested device, Android version, vehicle/head-unit model, and result.
+- [x] Record tested device, Android version, available head-unit model, and result.
 
 ## Desktop Head Unit Flow
 
-- [ ] Install or update the Android debug build on the test phone.
+- [x] Install or update the Android debug build on the test phone.
 - [ ] Start the Android Auto head unit server on the phone from Android Auto developer settings.
 - [ ] Run:
 
@@ -119,7 +121,8 @@ Finish Android Auto as the last 1.0 release gate. Naviamp should be discoverable
 desktop-head-unit.exe
 ```
 
-- [ ] Capture logs:
+- [x] Run `adb forward tcp:5277 tcp:5277` and start `desktop-head-unit.exe`.
+- [x] Capture logs:
 
 ```powershell
 & "$env:LOCALAPPDATA\Android\Sdk\platform-tools\adb.exe" logcat -s NaviampAutoCommand
@@ -176,6 +179,17 @@ desktop-head-unit.exe
   - Service-owned playback still saves session progress periodically and stores queue/radio sessions before playback starts, preserving the Auto resume path across process death and relaunch.
   - A test phone was visible over ADB as `5A131JEA306253`; final interactive DHU and real-vehicle acceptance remains tracked in Phase 7.
   - Verification: `.\gradlew.bat --configure-on-demand :apps:android:compileDebugKotlin` passed.
+- Phase 7 build/install/DHU startup pass completed on 2026-06-13:
+  - `.\gradlew.bat --configure-on-demand :apps:android:assembleDebug` passed and produced `apps\android\build\outputs\apk\debug\android-debug.apk` (`33,382,010` bytes).
+  - `.\gradlew.bat --configure-on-demand :apps:android:installDebug` passed and installed `android-debug.apk` on `Pixel 10a - 16`.
+  - `.\gradlew.bat --configure-on-demand :apps:android:assembleRelease` passed and produced `apps\android\build\outputs\apk\release\android-release-unsigned.apk` (`28,682,070` bytes).
+  - Phone package verification after install: device `5A131JEA306253`, product `stallion`, model `Pixel_10a`, package `app.naviamp.android`, `versionName=0.9.0`, `versionCode=1`, `lastUpdateTime=2026-06-13 18:26:36`.
+  - Launch smoke test passed with `adb shell monkey -p app.naviamp.android 1`.
+  - Package verification showed `.playback.AndroidPlaybackForegroundService` registered for `android.media.browse.MediaBrowserService`.
+  - Media-session check showed a session owned by `app.naviamp.android`.
+  - DHU tooling check: `adb forward tcp:5277 tcp:5277` returned `5277`; `desktop-head-unit.exe` at `C:\Users\ursasmar\AppData\Local\Android\Sdk\extras\google\auto\desktop-head-unit.exe` started and stayed alive during a bounded 20-second run.
+  - `adb logcat -d -s NaviampAutoCommand` emitted no Naviamp lines during the bounded DHU startup run; in-window DHU browse/play validation still needs manual interaction.
+  - Real-vehicle validation was not available from this workstation and remains the final release-candidate manual gate.
 
 ## Phase 1 Browse ID Baseline
 
