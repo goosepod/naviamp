@@ -2,7 +2,7 @@
 
 Branch: `codex/android-auto-1-0`
 
-Status: Phase 7 build/install/DHU startup pass complete; manual DHU browse/play and real-vehicle validation remain
+Status: Phase 7 DHU connection and Now Playing validation complete; manual DHU browse-path and real-vehicle validation remain
 
 ## Goal
 
@@ -24,11 +24,11 @@ Finish Android Auto as the last 1.0 release gate. Naviamp should be discoverable
 
 ## 1.0 Release Criteria
 
-- [ ] Android Auto discovers Naviamp in DHU from a freshly installed debug build.
+- [x] Android Auto discovers Naviamp in DHU from a freshly installed debug build.
 - [ ] Android Auto discovers Naviamp in a real vehicle from a freshly installed build.
 - [ ] Browse root is fast, stable, and never empty when a saved connection exists.
 - [ ] Browse root degrades gracefully when no connection is configured or provider restore fails.
-- [ ] Now Playing / Resume item resumes the last saved queue or radio session from a swiped-away app.
+- [x] Now Playing / Resume item resumes the last saved queue or radio session from a swiped-away app.
 - [ ] Browsed library track playback works from cold service start.
 - [ ] Browsed downloaded-track playback works from cold service start without network.
 - [ ] Browsed playlist playback works from cold service start.
@@ -37,7 +37,7 @@ Finish Android Auto as the last 1.0 release gate. Naviamp should be discoverable
 - [ ] Assistant voice requests reach Naviamp and either play a matching result or fail with a clear log/status.
 - [ ] Seek, play/pause, previous, next, and stop commands work from DHU and real vehicle controls.
 - [ ] Projection disconnect pauses playback reliably enough that audio does not continue unexpectedly on phone speakers.
-- [ ] Foreground notification and Android Auto session stay in sync across phone UI open/close, service-only playback, and app process cold start.
+- [x] Foreground notification and Android Auto session stay in sync across phone UI open/close, service-only playback, and app process cold start.
 - [x] `.\gradlew.bat --configure-on-demand :apps:android:assembleDebug` passes.
 - [x] `.\gradlew.bat --configure-on-demand :apps:android:assembleRelease` passes.
 - [x] Debug build installs and runs on the test phone.
@@ -104,7 +104,7 @@ Finish Android Auto as the last 1.0 release gate. Naviamp should be discoverable
 - [x] `.\gradlew.bat --configure-on-demand :apps:android:installDebug`
 - [x] `.\gradlew.bat --configure-on-demand :apps:android:assembleRelease`
 - [x] Install on test phone.
-- [ ] Connect to Navidrome in the installed phone app.
+- [x] Connect to Navidrome in the installed phone app.
 - [x] Start Android Auto DHU.
 - [ ] Verify the full checklist above in DHU.
 - [ ] Test in a real vehicle.
@@ -113,7 +113,7 @@ Finish Android Auto as the last 1.0 release gate. Naviamp should be discoverable
 ## Desktop Head Unit Flow
 
 - [x] Install or update the Android debug build on the test phone.
-- [ ] Start the Android Auto head unit server on the phone from Android Auto developer settings.
+- [x] Start the Android Auto head unit server on the phone from Android Auto developer settings.
 - [ ] Run:
 
 ```powershell
@@ -190,6 +190,15 @@ desktop-head-unit.exe
   - DHU tooling check: `adb forward tcp:5277 tcp:5277` returned `5277`; `desktop-head-unit.exe` at `C:\Users\ursasmar\AppData\Local\Android\Sdk\extras\google\auto\desktop-head-unit.exe` started and stayed alive during a bounded 20-second run.
   - `adb logcat -d -s NaviampAutoCommand` emitted no Naviamp lines during the bounded DHU startup run; in-window DHU browse/play validation still needs manual interaction.
   - Real-vehicle validation was not available from this workstation and remains the final release-candidate manual gate.
+- Phase 7 interactive DHU connection and Now Playing validation completed on 2026-06-13:
+  - Android Auto developer settings were opened on the phone and the head unit server was started manually.
+  - Restarting DHU after `adb forward tcp:5277 tcp:5277` connected successfully; DHU reported protocol `1.7`, TLS verification `OK`, and rendered the Android Auto home screen.
+  - Naviamp appeared in the Android Auto app row and opened from DHU.
+  - DHU displayed Naviamp Now Playing with album art, title `Nice & Easy (Locoqueen Relive Mix)`, artist `Bassnectar ft. Rodney P`, duration `4:28`, live position around `2:42`, queue access, favorite, previous, pause, next, and overflow controls.
+  - Android `dumpsys media_session` showed active media button session `app.naviamp.android/NaviampPlayback`, state `PLAYING`, metadata `Nice & Easy (Locoqueen Relive Mix), Bassnectar ft. Rodney P`, `queueTitle=Queue`, queue size `54`, and custom actions for Favorite, Shuffle, and Repeat.
+  - Saved phone settings confirmed the installed app has a Navidrome profile for `https://navidrome.goosepod.lan`, and the DHU playback state confirmed that profile is usable for the active session.
+  - `NaviampAutoCommand` produced no app-level command lines during this Now Playing validation; system media-session logs confirmed playback state/metadata updates instead.
+  - Remaining DHU work: explicitly browse root branches and start playback from library tracks, downloads, playlists, internet radio, Library Radio, voice/search, and transport controls from each route.
 
 ## Phase 1 Browse ID Baseline
 
