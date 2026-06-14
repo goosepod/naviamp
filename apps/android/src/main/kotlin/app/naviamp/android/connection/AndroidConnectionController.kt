@@ -9,6 +9,7 @@ import app.naviamp.domain.cache.ProviderMediaSourceRepository
 import app.naviamp.domain.cache.ProviderResponseCacheRepository
 import app.naviamp.domain.InternetRadioStation
 import app.naviamp.domain.Track
+import app.naviamp.domain.provider.PendingProviderActionRepository
 import app.naviamp.domain.settings.RecentRadioStream
 import app.naviamp.domain.settings.ConnectionFormState
 import app.naviamp.domain.settings.connectionFormError
@@ -47,6 +48,7 @@ class AndroidConnectionSessionController(
             connection = connection,
             providerMediaSourceRepository = storage,
             providerResponseCacheRepository = storage,
+            pendingProviderActionRepository = storage,
             playbackEngine = playbackEngine,
             preloadPlaylistTracks = preloadPlaylistTracks,
             restorePlaybackSession = ::restorePlaybackSession,
@@ -108,6 +110,7 @@ fun startNavidromeConnection(
     connection: NavidromeConnection,
     providerMediaSourceRepository: ProviderMediaSourceRepository,
     providerResponseCacheRepository: ProviderResponseCacheRepository,
+    pendingProviderActionRepository: PendingProviderActionRepository,
     playbackEngine: AndroidPlaybackEngine,
     preloadPlaylistTracks: (NavidromeProvider, List<Playlist>) -> Unit,
     restorePlaybackSession: (String) -> Boolean,
@@ -148,6 +151,17 @@ fun startNavidromeConnection(
                 provider = nextProvider
                 activeSourceId = session.sourceId
                 activeTlsSettings = session.connection.tlsSettings
+                syncAndroidPendingProviderActions(
+                    scope = scope,
+                    sourceId = session.sourceId,
+                    provider = nextProvider,
+                    repository = pendingProviderActionRepository,
+                    setStatus = { syncStatus ->
+                        if (nowPlaying == null && nowPlayingStation == null) {
+                            status = syncStatus
+                        }
+                    },
+                )
                 restorePlaybackSession(session.sourceId)
             }.onSuccess {
                 if (nowPlaying == null && nowPlayingStation == null) {

@@ -145,6 +145,8 @@ fun androidDiagnostics(
                     "Provider responses" to storageStats.responseCount.toString(),
                     "Audio cache" to "${storageStats.audioCount} (${storageStats.audioBytes.bytesLabel()})",
                     "Downloads" to "${storageStats.downloadCount} (${storageStats.downloadBytes.bytesLabel()})",
+                    "Pending offline actions" to storageStats.pendingProviderActionCount.toString(),
+                    "Failed offline actions" to storageStats.failedPendingProviderActionCount.toString(),
                     "Waveforms" to "${storageStats.audioWaveformCount} (${storageStats.audioWaveformBytes.bytesLabel()})",
                     "Lyrics" to storageStats.lyricsBytes.bytesLabel(),
                 ),

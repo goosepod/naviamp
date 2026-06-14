@@ -77,6 +77,7 @@ fun isNaviampVisualizerVisible(
 
 typealias ConnectionFormState = app.naviamp.domain.settings.ConnectionFormState
 typealias PlaybackSettings = app.naviamp.domain.settings.PlaybackSettings
+typealias CacheSettings = app.naviamp.domain.settings.CacheSettings
 
 data class SharedTrackRowUi(
     val id: String,

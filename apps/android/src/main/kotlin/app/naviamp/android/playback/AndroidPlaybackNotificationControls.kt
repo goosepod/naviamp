@@ -29,6 +29,9 @@ object AndroidPlaybackNotificationControls {
     var onToggleFavorite: (() -> Unit)? = null
 
     @Volatile
+    var onStartTrackRadio: (() -> Unit)? = null
+
+    @Volatile
     var onStop: (() -> Unit)? = null
 
     @Volatile
@@ -44,6 +47,7 @@ object AndroidPlaybackNotificationControls {
         onPrevious = null
         onNext = null
         onToggleFavorite = null
+        onStartTrackRadio = null
         onStop = null
         onSeekTo = null
     }

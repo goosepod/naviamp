@@ -59,6 +59,24 @@ class PlaybackAudioSourceResolverTest {
     }
 
     @Test
+    fun repositoryOverloadFallsBackToAnyCachedAudioForTrack() = runTest {
+        val plan = resolvePlaybackAudioSource(
+            sourceId = "source",
+            track = track("one"),
+            quality = StreamQuality.Original,
+            audioCachingEnabled = true,
+            audioAssets = fakeAudioAssets(
+                downloaded = null,
+                cached = null,
+                cachedForTrack = "cached-transcode",
+            ),
+        )
+
+        assertEquals(localAudio("cached-transcode"), plan.localAudio)
+        assertEquals(PlaybackSource.CachedFile, plan.source)
+    }
+
+    @Test
     fun emptyRepositoryFallsBackToProviderStream() = runTest {
         val plan = resolvePlaybackAudioSource(
             sourceId = "source",
@@ -204,6 +222,7 @@ class PlaybackAudioSourceResolverTest {
         downloadedForTrack: String? = null,
         downloaded: String? = null,
         cached: String? = null,
+        cachedForTrack: String? = null,
     ): PlaybackAudioAssetRepository =
         object : PlaybackAudioAssetRepository {
             override suspend fun downloadedAudio(
@@ -222,5 +241,10 @@ class PlaybackAudioSourceResolverTest {
                 trackId: TrackId,
                 quality: StreamQuality,
             ): PlaybackLocalAudio? = cached?.let(::localAudio)
+
+            override suspend fun cachedAudio(
+                sourceId: String,
+                trackId: TrackId,
+            ): PlaybackLocalAudio? = cachedForTrack?.let(::localAudio)
         }
 }

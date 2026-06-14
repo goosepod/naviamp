@@ -134,6 +134,27 @@ class PlaybackPrefetchTest {
         assertFalse(changes.last().running)
     }
 
+    @Test
+    fun coverArtWarmFailuresDoNotFailAudioPrefetch() = runTest {
+        val warmed = mutableListOf<String>()
+
+        val result = runAudioPrefetch(
+            stats = initialAudioPrefetchStats(enabled = true, configuredDepth = 1),
+            tracks = listOf(prefetchTrack("ok")),
+            isActive = { true },
+            cacheAudio = { track -> track },
+            warmCoverArt = { track ->
+                warmed += track.id.value
+                error("art failed")
+            },
+        )
+
+        assertEquals(listOf("ok"), warmed)
+        assertEquals(1, result.completed)
+        assertEquals(0, result.failed)
+        assertEquals(null, result.lastError)
+    }
+
     private fun prefetchTrack(id: String): Track =
         Track(
             id = TrackId(id),

@@ -92,9 +92,11 @@ fun NaviampAndroidApp(
                 savedConnection.password.isNotBlank()
             )
     val savedPlaybackSettings = remember { settingsStore.loadPlaybackSettings().effectiveForEngine(playbackEngine) }
+    val savedCacheSettings = remember { settingsStore.loadCacheSettings() }
     val appState = rememberAndroidAppState(
         savedConnection = savedConnection,
         savedPlaybackSettings = savedPlaybackSettings,
+        savedCacheSettings = savedCacheSettings,
         canAutoConnect = canAutoConnect,
         savedSourceId = savedProviderSource?.id,
         initialStorageStats = storage.stats(),
@@ -143,6 +145,7 @@ fun NaviampAndroidApp(
         state = appState,
         bassLoadReport = bassLoadReport,
         playbackEngine = playbackEngine,
+        pendingProviderActions = storage,
         openNowPlayingRequest = openNowPlayingRequest,
         autoPlayMediaIdRequest = autoPlayMediaIdRequest,
         autoCommandRequest = autoCommandRequest,
@@ -160,8 +163,8 @@ fun NaviampAndroidApp(
             currentStreamQuality = playbackQualityController::currentStreamQuality,
         )
     }
-    val playbackReportController = remember(appState) {
-        AndroidPlaybackReportController(scope, appState)
+    val playbackReportController = remember(appState, storage) {
+        AndroidPlaybackReportController(scope, appState, storage)
     }
 
     val searchController = remember(appState, storage) { AndroidSearchController(appState, storage) }
@@ -233,6 +236,7 @@ fun NaviampAndroidApp(
             playAdjacentTrack = playbackAppController::playAdjacentTrack,
             performSeek = playbackAppController::performSeek,
             toggleCurrentFavorite = mediaAppController::toggleCurrentFavorite,
+            startCurrentTrackRadio = { appState.nowPlaying?.let(playbackAppController::startTrackRadio) },
             savePlaybackSessionThrottled = playbackAppController::savePlaybackSessionThrottled,
         )
     }
@@ -345,6 +349,7 @@ fun NaviampAndroidApp(
         state = appState,
         downloadRepository = storage,
         cacheMaintenanceRepository = storage,
+        updateAudioCacheLimit = storage::updateAudioCacheLimit,
         savePlaybackSessionThrottled = playbackAppController::savePlaybackSessionThrottled,
         checkAndroidLibraryFreshness = { checkAndroidLibraryFreshness(scope, appState, storage, storage) },
     )

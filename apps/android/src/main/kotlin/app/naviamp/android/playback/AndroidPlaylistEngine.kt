@@ -43,6 +43,7 @@ class AndroidPlaylistEngine(
     private val scope: CoroutineScope,
     private val state: AndroidAppState,
     waveformRepository: AudioWaveformStorageRepository,
+    private val warmCoverArt: suspend (NavidromeProvider, Track) -> Unit,
     private val cacheAudioTrack: suspend (String, NavidromeProvider, Track, StreamQuality) -> File?,
     private val playbackAudioAssets: PlaybackAudioAssetRepository,
     private val playbackEngine: AndroidPlaybackEngine,
@@ -99,11 +100,17 @@ class AndroidPlaylistEngine(
             quality = quality,
             audioCachingEnabled = true,
             audioAssets = playbackAudioAssets,
-        ).localAudio?.let { return File(it.path) }
+        ).localAudio?.let { localAudio ->
+            warmCoverArt(activeProvider, track)
+            return File(localAudio.path)
+        }
 
         val cacheKey = "${sourceId}:${track.id.value}:$quality"
         if (!audioCacheKeysInFlight.add(cacheKey)) {
-            return playbackAudioAssets.cachedAudio(sourceId, track.id, quality)?.let { File(it.path) }
+            return playbackAudioAssets.cachedAudio(sourceId, track.id, quality)?.let { localAudio ->
+                warmCoverArt(activeProvider, track)
+                File(localAudio.path)
+            }
         }
 
         return try {
@@ -124,8 +131,8 @@ class AndroidPlaylistEngine(
             provider = activeProvider,
             quality = currentStreamQuality(),
             queue = queue,
-            enabled = true,
-            configuredDepth = AndroidAudioPrefetchDepth,
+            enabled = state.cacheSettings.audioCachingEnabled,
+            configuredDepth = state.cacheSettings.audioPrefetchDepth,
             includeCurrentTrack = false,
         ) ?: return
 
@@ -136,6 +143,9 @@ class AndroidPlaylistEngine(
                 isActive = { sessionToken == state.playbackSessionToken },
                 cacheAudio = { track ->
                     cacheAudioTrackForPlayback(work.sourceId, work.provider, track, work.quality)
+                },
+                warmCoverArt = { track ->
+                    warmCoverArt(work.provider, track)
                 },
                 prepareSidecars = { track, _ ->
                     preparePrefetchedSidecars(

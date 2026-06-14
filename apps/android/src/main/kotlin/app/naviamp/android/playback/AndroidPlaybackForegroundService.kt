@@ -30,6 +30,7 @@ import app.naviamp.android.AndroidPlaybackAudioAssets
 import app.naviamp.android.R
 import app.naviamp.android.MainActivity
 import app.naviamp.android.resolveInternetRadioStreamUrl
+import app.naviamp.android.withAndroidPendingActions
 import app.naviamp.domain.Album
 import app.naviamp.domain.AlbumId
 import app.naviamp.domain.Artist
@@ -99,11 +100,13 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
             toggleFavorite = { toggleServiceFavorite() },
             toggleShuffle = { toggleServiceShuffle() },
             cycleRepeat = { cycleServiceRepeatMode() },
+            startTrackRadio = { startServiceCurrentTrackRadio() },
             refreshNotification = { refreshNotification(null) },
             isPlaying = { AndroidPlaybackNotificationControls.isPlaying },
             favoriteAction = ActionFavorite,
             shuffleAction = ActionShuffle,
             repeatAction = ActionRepeat,
+            trackRadioAction = ActionTrackRadio,
         )
     }
     private val serviceSessionController: AndroidPlaybackServiceSessionController by lazy {
@@ -198,11 +201,11 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
                 return START_STICKY
             }
             ActionFavorite -> {
-                if (AndroidPlaybackNotificationControls.canFavorite) {
-                    AndroidPlaybackNotificationControls.isFavorite = !AndroidPlaybackNotificationControls.isFavorite
-                    AndroidPlaybackNotificationControls.onToggleFavorite?.invoke()
-                    refreshNotification(intent)
-                }
+                toggleServiceFavorite()
+                return START_STICKY
+            }
+            ActionTrackRadio -> {
+                startServiceCurrentTrackRadio()
                 return START_STICKY
             }
             ActionStop -> {
@@ -236,6 +239,7 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
                 ensureNotificationChannel()
                 val metadata = intent.toMetadata()
                 startForeground(NotificationId, buildNotification(metadata, largeIcon = null))
+                updateMediaSession(metadata, currentLargeIcon)
                 metadata.coverArtUrl?.let { coverArtUrl ->
                     loadCoverArtAsync(coverArtUrl, metadata)
                 }
@@ -246,7 +250,9 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
 
     private fun refreshNotification(intent: Intent?) {
         val manager = getSystemService(NotificationManager::class.java)
-        manager.notify(NotificationId, buildNotification(intent.toMetadata(), largeIcon = null))
+        val metadata = intent.toMetadata()
+        manager.notify(NotificationId, buildNotification(metadata, largeIcon = null))
+        updateMediaSession(metadata, currentLargeIcon)
     }
 
     private fun buildNotification(
@@ -347,13 +353,20 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
     }
 
     private suspend fun notificationCoverArtBytes(url: String): ByteArray? {
+        serviceStorage.cachedImageBytes(url)?.let { bytes ->
+            Log.i("NaviampAutoCommand", "Loaded notification cover art from cache bytes=${bytes.size}")
+            return bytes
+        }
         val provider = serviceStorage.latestNavidromeSource()
             ?.toNavidromeConnection()
             ?.let(::NavidromeProvider)
-        return provider
-            ?.takeIf { it.ownsUrl(url) }
-            ?.bytes(url)
-            ?: notificationArtHttpClient.getBytes(url)
+        return serviceStorage.imageBytes(url) {
+            provider
+                ?.takeIf { it.ownsUrl(url) }
+                ?.bytes(url)
+                ?: notificationArtHttpClient.getBytes(url)
+                ?: throw IllegalStateException("Could not download notification cover art.")
+        }
     }
 
     private fun launchMainActivityForAutoMediaId(mediaId: String) {
@@ -1417,15 +1430,68 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
 
     private fun toggleServiceFavorite() {
         if (!AndroidPlaybackNotificationControls.canFavorite) return
+        val nextFavorite = !AndroidPlaybackNotificationControls.isFavorite
         AndroidPlaybackNotificationControls.isFavorite =
-            !AndroidPlaybackNotificationControls.isFavorite
-        AndroidPlaybackNotificationControls.onToggleFavorite?.invoke()
+            nextFavorite
+        val phoneCallback = AndroidPlaybackNotificationControls.onToggleFavorite
+        if (phoneCallback != null) {
+            phoneCallback()
+            refreshNotification(null)
+            return
+        }
+        val storage = serviceStorage
+        val source = storage.latestNavidromeSource()
+        val track = currentAutoQueue.getOrNull(currentAutoQueueIndex)
+        if (source != null && track != null) {
+            val provider = NavidromeProvider(source.toNavidromeConnection())
+            val updatedTrack = track.copy(favoritedAtIso8601 = if (nextFavorite) "local" else null)
+            val updatedQueue = currentAutoQueue.toMutableList().also { queue ->
+                queue[currentAutoQueueIndex] = updatedTrack
+            }
+            currentAutoQueue = updatedQueue
+            autoQueueController.replaceQueue(PlaybackQueue(currentAutoQueue, currentAutoQueueIndex))
+            playbackSessionFromQueue(
+                queue = autoQueueController.queue,
+                positionSeconds = AndroidPlaybackNotificationControls.positionMillis?.let { it / 1_000.0 },
+            )?.let { session ->
+                storage.savePlaybackSession(sourceId = source.id, session = session)
+            }
+            AndroidPlaybackRuntime.get(applicationContext).scope.launch {
+                withContext(Dispatchers.IO) {
+                    provider
+                        .withAndroidPendingActions(source.id, storage)
+                        .setTrackFavorite(track.id, nextFavorite)
+                }
+            }
+        }
         refreshNotification(null)
     }
 
     private fun cycleServiceRepeatMode() {
         serviceRepeatMode = serviceRepeatModeFromQueue(nextRepeatMode(serviceRepeatModeForQueue()))
         updateMediaSessionPlaybackState()
+    }
+
+    private fun startServiceCurrentTrackRadio() {
+        AndroidPlaybackNotificationControls.onStartTrackRadio?.let { callback ->
+            Log.i("NaviampAutoCommand", "Starting Auto track radio through phone playback callback")
+            callback()
+            return
+        }
+        val storage = serviceStorage
+        val source = storage.latestNavidromeSource()
+        val track = currentAutoQueue.getOrNull(currentAutoQueueIndex)
+        if (source == null || track == null) {
+            Log.w("NaviampAutoCommand", "Cannot start track radio; source=${source?.id} track=${track?.id?.value}")
+            return
+        }
+        Log.i("NaviampAutoCommand", "Starting Auto track radio for current track=${track.id.value}")
+        playServiceTrackRadio(
+            playbackSessionRepository = storage,
+            sourceId = source.id,
+            provider = NavidromeProvider(source.toNavidromeConnection()),
+            seedTrack = track,
+        )
     }
 
     private fun publishAutoQueue(session: MediaSessionCompat) {
@@ -1500,6 +1566,7 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
                 },
                 R.drawable.ic_repeat_24,
             )
+            .addCustomAction(ActionTrackRadio, "Start song radio", R.drawable.ic_auto_radio)
             .setState(
                 if (AndroidPlaybackNotificationControls.isPlaying) {
                     PlaybackStateCompat.STATE_PLAYING
@@ -1564,6 +1631,7 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
         private const val ActionFavorite = "app.naviamp.android.playback.FAVORITE"
         private const val ActionShuffle = "app.naviamp.android.playback.SHUFFLE"
         private const val ActionRepeat = "app.naviamp.android.playback.REPEAT"
+        private const val ActionTrackRadio = "app.naviamp.android.playback.TRACK_RADIO"
         private const val ActionProgress = "app.naviamp.android.playback.PROGRESS"
         private const val AndroidAutoBrowseLimit = 50
         private const val ExtraTitle = "title"
@@ -1588,10 +1656,14 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
                 .putExtra(ExtraTitle, metadata.title)
                 .putExtra(ExtraSubtitle, metadata.subtitle)
                 .putExtra(ExtraCoverArtUrl, metadata.coverArtUrl)
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                context.startForegroundService(intent)
-            } else {
-                context.startService(intent)
+            runCatching {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    context.startForegroundService(intent)
+                } else {
+                    context.startService(intent)
+                }
+            }.onFailure { error ->
+                Log.w("NaviampAutoCommand", "Could not start playback foreground service", error)
             }
         }
 
@@ -1600,20 +1672,28 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
         }
 
         fun stop(context: Context) {
-            context.startService(
-                Intent(context, AndroidPlaybackForegroundService::class.java)
-                    .setAction(ActionStop)
-                    .putExtra(ExtraFromEngine, true),
-            )
+            runCatching {
+                context.startService(
+                    Intent(context, AndroidPlaybackForegroundService::class.java)
+                        .setAction(ActionStop)
+                        .putExtra(ExtraFromEngine, true),
+                )
+            }.onFailure { error ->
+                Log.w("NaviampAutoCommand", "Could not stop playback foreground service", error)
+            }
         }
 
         fun updateProgress(context: Context, positionMillis: Long?, durationMillis: Long?) {
-            context.startService(
-                Intent(context, AndroidPlaybackForegroundService::class.java)
-                    .setAction(ActionProgress)
-                    .putExtra(ExtraPositionMillis, positionMillis ?: -1L)
-                    .putExtra(ExtraDurationMillis, durationMillis ?: -1L),
-            )
+            runCatching {
+                context.startService(
+                    Intent(context, AndroidPlaybackForegroundService::class.java)
+                        .setAction(ActionProgress)
+                        .putExtra(ExtraPositionMillis, positionMillis ?: -1L)
+                        .putExtra(ExtraDurationMillis, durationMillis ?: -1L),
+                )
+            }.onFailure { error ->
+                Log.w("NaviampAutoCommand", "Could not update playback foreground service progress", error)
+            }
         }
     }
 }

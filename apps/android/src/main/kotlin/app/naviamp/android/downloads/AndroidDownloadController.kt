@@ -41,7 +41,7 @@ fun downloadAndroidTrack(
                 sourceId = sourceId,
                 provider = activeProvider,
                 quality = quality,
-                maxDownloadBytes = AndroidMaxDownloadBytes,
+                maxDownloadBytes = cacheSettings.maxDownloadBytes,
                 isActiveNetworkMobileData = context.isActiveNetworkMobileData(),
                 allowMobileDownloads = playbackSettings.allowMobileDownloads,
                 includeCompletedCount = false,
@@ -81,7 +81,7 @@ fun downloadAndroidTracks(
                 sourceId = sourceId,
                 provider = activeProvider,
                 quality = quality,
-                maxDownloadBytes = AndroidMaxDownloadBytes,
+                maxDownloadBytes = cacheSettings.maxDownloadBytes,
                 isActiveNetworkMobileData = context.isActiveNetworkMobileData(),
                 allowMobileDownloads = playbackSettings.allowMobileDownloads,
                 setStatus = { message ->
@@ -119,7 +119,7 @@ fun redownloadAndroidTracks(
                 sourceId = sourceId,
                 provider = activeProvider,
                 quality = quality,
-                maxDownloadBytes = AndroidMaxDownloadBytes,
+                maxDownloadBytes = cacheSettings.maxDownloadBytes,
                 isActiveNetworkMobileData = context.isActiveNetworkMobileData(),
                 allowMobileDownloads = playbackSettings.allowMobileDownloads,
                 setStatus = { message ->

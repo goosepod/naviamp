@@ -87,7 +87,7 @@ internal class AndroidMediaAppController(
     }
 
     fun toggleCurrentFavorite() {
-        toggleAndroidCurrentFavorite(scope, state, playbackEngine)
+        toggleAndroidCurrentFavorite(scope, state, playbackEngine, storage)
     }
 
     fun openArtistDetails(

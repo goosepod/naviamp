@@ -7,6 +7,7 @@ import app.naviamp.domain.Track
 import app.naviamp.domain.playback.PlaybackQueueManager
 import app.naviamp.domain.playback.playbackVolumeCommand
 import app.naviamp.domain.playback.SleepTimerRequest
+import app.naviamp.domain.settings.CacheSettings
 import app.naviamp.domain.settings.ConnectionFormState
 import app.naviamp.domain.settings.PlaybackSettings
 import app.naviamp.domain.settings.VisualizerSettings
@@ -51,6 +52,7 @@ fun androidAppShellActions(
     connectToNavidrome: () -> Unit,
     handlePlaybackSettingsChanged: (PlaybackSettings) -> Unit,
     handlePlaybackSettingsChangedAndRedownload: (PlaybackSettings) -> Unit,
+    handleCacheSettingsChanged: (CacheSettings) -> Unit,
     handleClearCache: () -> Unit,
     handleClearLibrary: () -> Unit,
     handleResetDatabase: () -> Unit,
@@ -206,6 +208,7 @@ fun androidAppShellActions(
             onCancelEditConnection = { editingConnection = false },
             onPlaybackSettingsChanged = handlePlaybackSettingsChanged,
             onPlaybackSettingsChangedAndRedownload = handlePlaybackSettingsChangedAndRedownload,
+            onCacheSettingsChanged = handleCacheSettingsChanged,
             onClearCache = handleClearCache,
             onClearLibrary = handleClearLibrary,
             onResetDatabase = handleResetDatabase,

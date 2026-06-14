@@ -105,6 +105,7 @@ suspend fun <CachedAudio> runAudioPrefetch(
     tracks: List<Track>,
     isActive: () -> Boolean,
     cacheAudio: suspend (Track) -> CachedAudio?,
+    warmCoverArt: suspend (Track) -> Unit = {},
     prepareSidecars: suspend (Track, CachedAudio?) -> PlaybackSidecarPrepResult = { _, _ ->
         PlaybackSidecarPrepResult()
     },
@@ -119,6 +120,9 @@ suspend fun <CachedAudio> runAudioPrefetch(
         var sidecarResult = PlaybackSidecarPrepResult()
         val result = runCatching {
             val cachedAudio = cacheAudio(track)
+            runCatching {
+                warmCoverArt(track)
+            }
             sidecarResult = prepareSidecars(track, cachedAudio)
             cachedAudio
         }

@@ -80,13 +80,10 @@ fun playAndroidTrack(
     startSidecarPrep: (Long, NavidromeProvider, PlaybackQueue) -> Unit,
     handlePlaybackProgressChanged: (Long, PlaybackProgress) -> Unit,
     playAdjacentTrack: (Int) -> Unit,
+    coverArtUrl: (Track, NavidromeProvider?) -> String? = { item, provider -> item.coverArtUrl(provider) },
 ) {
     android.util.Log.i("NaviampBass", "playTrack requested id=${track.id.value} title=${track.title}")
     val activeProvider = state.provider
-    if (activeProvider == null) {
-        state.status = "Connect before playing a track."
-        return
-    }
     scope.launch {
         with(state) {
             status = "Loading ${track.title}..."
@@ -99,6 +96,10 @@ fun playAndroidTrack(
                 startPositionSeconds = startPositionSeconds,
                 audioAssets = audioAssets,
             )
+            if (activeProvider == null && !audioSourcePlan.hasLocalAudio) {
+                status = "Connect before playing a track."
+                return@with
+            }
             val startPlan = planPlaybackStart(
                 track = track,
                 requestedQueue = queue,
@@ -109,7 +110,10 @@ fun playAndroidTrack(
             )
             runCatching {
                 audioSourcePlan.playbackStreamUrl(
-                    providerStreamUrl = { target -> activeProvider.streamUrl(target.providerStreamRequest) },
+                    providerStreamUrl = { target ->
+                        requireNotNull(activeProvider) { "Connect before playing a track." }
+                            .streamUrl(target.providerStreamRequest)
+                    },
                 )
             }.onSuccess { streamUrl ->
                 playbackEngine.applyTlsSettings(activeTlsSettings)
@@ -124,7 +128,8 @@ fun playAndroidTrack(
                     openNowPlaying = openNowPlaying,
                     nowPlayingOpen = nowPlayingOpen,
                     lyricsVisible = lyricsVisible,
-                    supportsTrackFavorites = activeProvider.capabilities.supportsTrackFavorites,
+                    supportsTrackFavorites = activeProvider?.capabilities?.supportsTrackFavorites
+                        ?: (activeSourceId != null),
                 )
                 val effectsPlan = planPlaybackTrackStartEffects(
                     track = track,
@@ -160,7 +165,7 @@ fun playAndroidTrack(
                     replayGain = track.replayGain?.let { PlaybackReplayGain(it, ReplayGainSource.Provider) },
                     supportsReplayGain = playbackEngine.supportsReplayGain,
                     engineStartPositionSeconds = effectsPlan.engineStartPositionSeconds,
-                    coverArtUrl = track.coverArtUrl(activeProvider),
+                    coverArtUrl = coverArtUrl(track, activeProvider),
                     startAudioPrefetch = effectsPlan.startAudioPrefetch,
                     startSidecarPrep = effectsPlan.startSidecarPrep,
                 )
@@ -193,11 +198,17 @@ fun playAndroidTrack(
                                 queueController = playbackQueueController,
                             )
                         },
-                        loadRelatedTracks = loadRelatedTracks,
+                        loadRelatedTracks = { relatedTrack ->
+                            if (activeProvider != null) loadRelatedTracks(relatedTrack)
+                        },
                         loadAudioTags = loadAudioTags,
                         loadLyrics = loadLyrics,
-                        startAudioPrefetch = { startAudioPrefetch(sessionToken, activeProvider, playbackQueue) },
-                        startSidecarPrep = { startSidecarPrep(sessionToken, activeProvider, playbackQueue) },
+                        startAudioPrefetch = {
+                            activeProvider?.let { provider -> startAudioPrefetch(sessionToken, provider, playbackQueue) }
+                        },
+                        startSidecarPrep = {
+                            activeProvider?.let { provider -> startSidecarPrep(sessionToken, provider, playbackQueue) }
+                        },
                         updateNotificationMetadata = { title, subtitle, cover ->
                             playbackEngine.updateNotificationMetadata(
                                 title = title,

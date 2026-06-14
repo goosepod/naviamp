@@ -23,6 +23,7 @@ internal class AndroidAutoAppController(
     private val playAdjacentTrack: (Int) -> Unit,
     private val performSeek: (Double) -> Unit,
     private val toggleCurrentFavorite: () -> Unit,
+    private val startCurrentTrackRadio: () -> Unit,
     private val savePlaybackSessionThrottled: (Boolean) -> Unit,
 ) {
     fun handlePlayPauseCommand(): Boolean {
@@ -90,6 +91,7 @@ internal class AndroidAutoAppController(
         AndroidPlaybackNotificationControls.onPrevious = { playAdjacentTrack(-1) }
         AndroidPlaybackNotificationControls.onNext = { playAdjacentTrack(1) }
         AndroidPlaybackNotificationControls.onToggleFavorite = { toggleCurrentFavorite() }
+        AndroidPlaybackNotificationControls.onStartTrackRadio = { startCurrentTrackRadio() }
         AndroidPlaybackNotificationControls.onStop = {
             savePlaybackSessionThrottled(true)
             playbackEngine.stop()
@@ -172,7 +174,7 @@ internal class AndroidAutoAppController(
 
     fun consumePendingMediaId(onConsumed: () -> Unit) {
         val mediaId = state.pendingAutoPlayMediaId ?: return
-        if (state.provider == null || state.activeSourceId == null) return
+        if (state.activeSourceId == null) return
         if (playMediaId(mediaId)) {
             state.pendingAutoPlayMediaId = null
             onConsumed()

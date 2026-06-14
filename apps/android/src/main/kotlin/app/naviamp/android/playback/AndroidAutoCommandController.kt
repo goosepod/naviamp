@@ -11,11 +11,13 @@ internal class AndroidAutoCommandController(
     private val toggleFavorite: () -> Unit,
     private val toggleShuffle: () -> Unit,
     private val cycleRepeat: () -> Unit,
+    private val startTrackRadio: () -> Unit,
     private val refreshNotification: () -> Unit,
     private val isPlaying: () -> Boolean,
     private val favoriteAction: String,
     private val shuffleAction: String,
     private val repeatAction: String,
+    private val trackRadioAction: String,
 ) {
     fun playFromMediaId(mediaId: String, extras: Bundle?) {
         Log.i("NaviampAutoCommand", "Auto requested mediaId=$mediaId extras=${extras?.debugDescription().orEmpty()}")
@@ -52,6 +54,10 @@ internal class AndroidAutoCommandController(
             }
             repeatAction -> {
                 cycleRepeat()
+                refreshNotification()
+            }
+            trackRadioAction -> {
+                startTrackRadio()
                 refreshNotification()
             }
         }

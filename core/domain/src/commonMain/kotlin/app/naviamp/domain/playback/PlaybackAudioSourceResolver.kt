@@ -43,6 +43,11 @@ interface PlaybackAudioAssetRepository {
         trackId: TrackId,
         quality: StreamQuality,
     ): PlaybackLocalAudio?
+
+    suspend fun cachedAudio(
+        sourceId: String,
+        trackId: TrackId,
+    ): PlaybackLocalAudio? = null
 }
 
 suspend fun PlaybackAudioSourcePlan.playbackStreamUrl(
@@ -87,6 +92,7 @@ suspend fun resolvePlaybackAudioSource(
         startPositionSeconds = startPositionSeconds,
         downloadedAudio = { id, trackId, _ -> audioAssets.downloadedAudio(id, trackId) },
         cachedAudio = audioAssets::cachedAudio,
+        cachedAudioForTrack = audioAssets::cachedAudio,
     )
 
 suspend fun resolvePlaybackAudioSource(
@@ -97,6 +103,7 @@ suspend fun resolvePlaybackAudioSource(
     startPositionSeconds: Double? = null,
     downloadedAudio: suspend (sourceId: String, trackId: TrackId, quality: StreamQuality) -> PlaybackLocalAudio?,
     cachedAudio: suspend (sourceId: String, trackId: TrackId, quality: StreamQuality) -> PlaybackLocalAudio?,
+    cachedAudioForTrack: suspend (sourceId: String, trackId: TrackId) -> PlaybackLocalAudio? = { _, _ -> null },
 ): PlaybackAudioSourcePlan {
     val downloaded = sourceId?.let { id -> downloadedAudio(id, track.id, quality) }
     if (downloaded != null) {
@@ -111,7 +118,7 @@ suspend fun resolvePlaybackAudioSource(
 
     val cached = sourceId
         ?.takeIf { audioCachingEnabled }
-        ?.let { id -> cachedAudio(id, track.id, quality) }
+        ?.let { id -> cachedAudio(id, track.id, quality) ?: cachedAudioForTrack(id, track.id) }
     if (cached != null) {
         return playbackAudioSourcePlan(
             track = track,

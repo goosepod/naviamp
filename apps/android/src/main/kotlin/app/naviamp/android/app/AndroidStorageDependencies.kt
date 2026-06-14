@@ -21,6 +21,7 @@ import app.naviamp.domain.cache.ProviderMediaSourceRepository
 import app.naviamp.domain.cache.ProviderResponseCacheRepository
 import app.naviamp.domain.cache.SidecarStatusRepository
 import app.naviamp.domain.cache.StorageCacheStats
+import app.naviamp.domain.provider.PendingProviderActionRepository
 import app.naviamp.domain.source.SavedMediaSource
 import app.naviamp.domain.waveform.AudioWaveform
 
@@ -41,6 +42,7 @@ class AndroidStorageDependencies(
     ProviderMediaSourceRepository by storage,
     PlaybackSessionRepository by storage,
     LocalLibraryIndexRepository by storage,
+    PendingProviderActionRepository by storage,
     CacheMaintenanceRepository<StorageCacheStats> by storage,
     SidecarStatusRepository by storage,
     AutoCloseable {
@@ -60,6 +62,12 @@ class AndroidStorageDependencies(
 
     fun libraryTrack(sourceId: String, trackId: TrackId): Track? =
         storage.libraryTrack(sourceId, trackId)
+
+    suspend fun imageBytes(
+        url: String,
+        fetch: suspend () -> ByteArray,
+    ): ByteArray =
+        storage.imageBytes(url, fetch)
 
     override fun close() {
         storage.close()

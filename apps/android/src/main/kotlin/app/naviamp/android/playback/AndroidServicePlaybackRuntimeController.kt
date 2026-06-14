@@ -5,21 +5,27 @@ import android.util.Log
 import app.naviamp.android.AndroidPlaybackAudioAssets
 import app.naviamp.android.AndroidSettingsStore
 import app.naviamp.android.AndroidStorageDependencies
+import app.naviamp.android.withAndroidPendingActions
 import app.naviamp.domain.Album
 import app.naviamp.domain.InternetRadioStation
 import app.naviamp.domain.StreamQuality
 import app.naviamp.domain.Track
 import app.naviamp.domain.cache.MediaSourceRepository
 import app.naviamp.domain.cache.PlaybackSessionRepository
+import app.naviamp.domain.isInternetRadioTrack
 import app.naviamp.domain.playback.PlaybackProgress
 import app.naviamp.domain.playback.PlaybackQueueController
 import app.naviamp.domain.playback.PlaybackQueueFinishedCommand
 import app.naviamp.domain.playback.PlaybackQueueManager
 import app.naviamp.domain.playback.PlaybackRequest
 import app.naviamp.domain.playback.PlaybackState
+import app.naviamp.domain.playback.canReportPlaybackTrack
 import app.naviamp.domain.playback.hasPendingSeekReachedTarget
 import app.naviamp.domain.playback.playbackStreamUrl
+import app.naviamp.domain.playback.planAudioPrefetchWork
 import app.naviamp.domain.playback.resolvePlaybackAudioSource
+import app.naviamp.domain.playback.runAudioPrefetch
+import app.naviamp.domain.playback.shouldSubmitPlayReport
 import app.naviamp.domain.playback.shouldIgnoreProgressForPendingSeek
 import app.naviamp.domain.queue.PlaybackQueue
 import app.naviamp.domain.queue.RepeatMode
@@ -30,7 +36,10 @@ import app.naviamp.domain.settings.planPlaybackSessionRestore
 import app.naviamp.domain.settings.withPlaybackPosition
 import app.naviamp.provider.navidrome.NavidromeProvider
 import app.naviamp.provider.navidrome.toNavidromeConnection
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 internal class AndroidServicePlaybackRuntimeController(
     private val context: Context,
@@ -54,6 +63,9 @@ internal class AndroidServicePlaybackRuntimeController(
     private var lastServicePlaybackState: PlaybackState? = null
     private var pendingServiceSeekPositionSeconds: Double? = null
     private var pendingServiceSeekAtMillis = 0L
+    private var serviceAudioPrefetchJob: Job? = null
+    private var servicePlaybackSessionToken: Long = 0L
+    private var submittedServicePlayReportSessionToken: Long? = null
 
     fun ownsPlayback(): Boolean = serviceOwnedPlayback
 
@@ -78,6 +90,8 @@ internal class AndroidServicePlaybackRuntimeController(
         runCatching { AndroidPlaybackRuntime.get(context).playbackEngine.stop() }
         AndroidPlaybackNotificationControls.isPlaying = false
         serviceOwnedPlayback = false
+        serviceAudioPrefetchJob?.cancel()
+        serviceAudioPrefetchJob = null
         updateMediaSessionPlaybackState()
     }
 
@@ -159,7 +173,9 @@ internal class AndroidServicePlaybackRuntimeController(
         val connection = source.toNavidromeConnection()
         val provider = NavidromeProvider(connection)
         val runtime = AndroidPlaybackRuntime.get(context)
-        val playbackSettings = AndroidSettingsStore(context).loadPlaybackSettings()
+        val settingsStore = AndroidSettingsStore(context)
+        val playbackSettings = settingsStore.loadPlaybackSettings()
+        val cacheSettings = settingsStore.loadCacheSettings()
         val audioAssets = AndroidPlaybackAudioAssets(storage, storage)
         val quality = StreamQuality.Original
         val startPositionSeconds = restorePlan.restoredStartPositionSeconds?.takeIf { it > 0.0 }
@@ -187,6 +203,7 @@ internal class AndroidServicePlaybackRuntimeController(
             "NaviampAutoCommand",
             "Service playing saved session source=${source.id} title=${track.title} position=$startPositionSeconds",
         )
+        reportServiceNowPlaying(storage, source.id, provider, track)
 
         runtime.scope.launch {
             runCatching {
@@ -207,6 +224,17 @@ internal class AndroidServicePlaybackRuntimeController(
                     title = track.title,
                     subtitle = track.artistName,
                     coverArtUrl = storage.savedCoverArtUrl(track),
+                )
+                startServiceAudioPrefetch(
+                    runtime = runtime,
+                    storage = storage,
+                    sourceId = source.id,
+                    provider = provider,
+                    audioAssets = audioAssets,
+                    queue = restorePlan.playbackQueue,
+                    quality = quality,
+                    enabled = cacheSettings.audioCachingEnabled,
+                    configuredDepth = cacheSettings.audioPrefetchDepth,
                 )
                 runtime.playbackEngine.play(
                     scope = runtime.scope,
@@ -229,8 +257,12 @@ internal class AndroidServicePlaybackRuntimeController(
 
     fun markStarted() {
         serviceOwnedPlayback = true
+        servicePlaybackSessionToken = System.nanoTime()
+        submittedServicePlayReportSessionToken = null
         lastServiceSessionSaveAtMillis = 0L
         lastServicePlaybackState = null
+        serviceAudioPrefetchJob?.cancel()
+        serviceAudioPrefetchJob = null
     }
 
     fun handlePlaybackStateChanged(state: PlaybackState, handleFinished: Boolean = false) {
@@ -297,6 +329,60 @@ internal class AndroidServicePlaybackRuntimeController(
                 session = session.withPlaybackPosition(progressPositionSeconds),
             )
         }
+        maybeReportServicePlayed(sourceId, progress)
+    }
+
+    private fun reportServiceNowPlaying(
+        storage: AndroidStorageDependencies,
+        sourceId: String,
+        provider: NavidromeProvider,
+        track: Track,
+    ) {
+        if (
+            !canReportPlaybackTrack(
+                supportsPlayReporting = provider.capabilities.supportsPlayReporting,
+                isInternetRadioTrack = track.isInternetRadioTrack(),
+            )
+        ) {
+            return
+        }
+        AndroidPlaybackRuntime.get(context).scope.launch {
+            withContext(Dispatchers.IO) {
+                provider
+                    .withAndroidPendingActions(sourceId, storage)
+                    .reportNowPlaying(track.id)
+            }
+        }
+    }
+
+    private fun maybeReportServicePlayed(sourceId: String, progress: PlaybackProgress) {
+        val track = currentQueue().getOrNull(currentQueueIndex()) ?: return
+        val storage = storage()
+        val source = storage.latestNavidromeSource() ?: return
+        val provider = NavidromeProvider(source.toNavidromeConnection())
+        val durationSeconds = progress.durationSeconds ?: track.durationSeconds?.toDouble()
+        val activeSessionToken = servicePlaybackSessionToken
+        if (
+            !shouldSubmitPlayReport(
+                supportsPlayReporting = provider.capabilities.supportsPlayReporting,
+                isInternetRadioTrack = track.isInternetRadioTrack(),
+                activeSessionId = activeSessionToken,
+                submittedSessionId = submittedServicePlayReportSessionToken,
+                positionSeconds = progress.positionSeconds,
+                durationSeconds = durationSeconds,
+            )
+        ) {
+            return
+        }
+        val playedAtEpochMillis = System.currentTimeMillis()
+        submittedServicePlayReportSessionToken = activeSessionToken
+        AndroidPlaybackRuntime.get(context).scope.launch {
+            withContext(Dispatchers.IO) {
+                provider
+                    .withAndroidPendingActions(sourceId, storage)
+                    .reportPlayed(track.id, playedAtEpochMillis)
+            }
+        }
     }
 
     private fun savePlaybackPosition(positionSeconds: Double) {
@@ -330,6 +416,52 @@ internal class AndroidServicePlaybackRuntimeController(
         }
     }
 
+    private fun startServiceAudioPrefetch(
+        runtime: AndroidPlaybackRuntime,
+        storage: AndroidStorageDependencies,
+        sourceId: String,
+        provider: NavidromeProvider,
+        audioAssets: AndroidPlaybackAudioAssets,
+        queue: PlaybackQueue,
+        quality: StreamQuality,
+        enabled: Boolean,
+        configuredDepth: Int,
+    ) {
+        val work = planAudioPrefetchWork(
+            sourceId = sourceId,
+            provider = provider,
+            quality = quality,
+            queue = queue,
+            enabled = enabled,
+            configuredDepth = configuredDepth,
+            includeCurrentTrack = false,
+        ) ?: return
+        serviceAudioPrefetchJob?.cancel()
+        serviceAudioPrefetchJob = runtime.scope.launch {
+            runAudioPrefetch(
+                stats = work.stats,
+                tracks = work.tracks,
+                isActive = { serviceOwnedPlayback },
+                cacheAudio = { track ->
+                    val resolved = resolvePlaybackAudioSource(
+                        sourceId = sourceId,
+                        track = track,
+                        quality = quality,
+                        audioCachingEnabled = true,
+                        audioAssets = audioAssets,
+                    )
+                    resolved.localAudio ?: storage.cacheAudioTrack(sourceId, provider, track, quality)
+                },
+                warmCoverArt = { track ->
+                    storage.warmServiceCoverArt(provider, track)
+                },
+                onTrackFailed = { track, error ->
+                    Log.w("NaviampAutoCommand", "Could not prefetch Auto cached track=${track.id.value}", error)
+                },
+            )
+        }
+    }
+
     private companion object {
         const val ServicePlaybackSessionSaveIntervalMillis = 5_000L
         const val ServiceSeekToleranceSeconds = 2.0
@@ -348,4 +480,15 @@ private fun MediaSourceRepository.savedCoverArtUrl(album: Album): String? {
     val coverArtId = album.coverArtId ?: album.id.value
     val connection = latestMediaSource()?.toNavidromeConnection() ?: return null
     return NavidromeProvider(connection).coverArtUrl(coverArtId)
+}
+
+private suspend fun AndroidStorageDependencies.warmServiceCoverArt(
+    provider: NavidromeProvider,
+    track: Track,
+) {
+    val coverArtId = track.coverArtId ?: track.albumId?.value ?: return
+    val url = provider.coverArtUrl(coverArtId)
+    imageBytes(url) {
+        provider.bytes(url) ?: throw IllegalStateException("Could not download cover art.")
+    }
 }

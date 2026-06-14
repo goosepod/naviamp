@@ -37,6 +37,7 @@ internal fun androidMainShellActions(
         connectToNavidrome = connectionSessionController::connectToNavidrome,
         handlePlaybackSettingsChanged = settingsMaintenanceController::handlePlaybackSettingsChanged,
         handlePlaybackSettingsChangedAndRedownload = settingsMaintenanceController::handlePlaybackSettingsChangedAndRedownload,
+        handleCacheSettingsChanged = settingsMaintenanceController::handleCacheSettingsChanged,
         handleClearCache = settingsMaintenanceController::handleClearCache,
         handleClearLibrary = settingsMaintenanceController::handleClearLibrary,
         handleResetDatabase = settingsMaintenanceController::handleResetDatabase,
@@ -83,7 +84,7 @@ internal fun androidMainShellActions(
         handleShellTrackSelected = shellMediaController::handleShellTrackSelected,
         handleDownloadedTrackAction = trackActionController::handleDownloadedTrackAction,
         handleShellAlbumSelected = shellMediaController::handleShellAlbumSelected,
-        handleAlbumFavoriteToggled = { item -> toggleAndroidAlbumFavorite(scope, state, item) },
+        handleAlbumFavoriteToggled = { item -> toggleAndroidAlbumFavorite(scope, state, item, storage) },
         handleMixAlbumSelected = shellMediaController::handleMixAlbumSelected,
         handleShellAlbumPlay = shellMediaController::handleShellAlbumPlay,
         handleShellAlbumTrackSelected = shellMediaController::handleShellAlbumTrackSelected,
@@ -105,7 +106,7 @@ internal fun androidMainShellActions(
         openArtistDetails = { artistId, fallbackName ->
             mediaAppController.openArtistDetails(artistId, fallbackName)
         },
-        handleArtistFavoriteToggled = { item -> toggleAndroidArtistFavorite(scope, state, item) },
+        handleArtistFavoriteToggled = { item -> toggleAndroidArtistFavorite(scope, state, item, storage) },
         handleArtistAlbumRadio = artistActionController::handleArtistAlbumRadio,
         loadArtistAlbumTracks = artistActionController::loadArtistAlbumTracks,
         openPlaylistDetails = playlistActionController::openPlaylistDetails,

@@ -17,6 +17,7 @@ import app.naviamp.domain.playback.PlaybackState
 import app.naviamp.domain.playback.PlaybackStreamMetadata
 import app.naviamp.domain.Track
 import app.naviamp.domain.settings.ConnectionFormState
+import app.naviamp.domain.settings.CacheSettings
 import app.naviamp.domain.settings.PlaybackSettings
 import app.naviamp.domain.settings.PlaybackSettingsMaintenanceController
 import app.naviamp.domain.media.RelatedTracksSource
@@ -158,6 +159,13 @@ internal class AndroidSettingsMaintenanceController(
 
     fun handlePlaybackSettingsChangedAndRedownload(settings: PlaybackSettings) =
         playbackSettingsMaintenanceController.applyPlaybackSettingsAndRedownload(settings)
+
+    fun handleCacheSettingsChanged(settings: CacheSettings) {
+        state.cacheSettings = settings.normalized()
+        settingsStore.saveCacheSettings(state.cacheSettings)
+        storage.updateAudioCacheLimit(state.cacheSettings.maxAudioCacheBytes)
+        state.storageStats = storage.stats()
+    }
 
     fun handleClearCache() {
         handleAndroidClearCache(context, state, storage)

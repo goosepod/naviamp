@@ -17,6 +17,7 @@ import app.naviamp.domain.cache.ProviderMediaSourceRepository
 import app.naviamp.domain.cache.ProviderResponseCacheRepository
 import app.naviamp.domain.cache.SidecarStatusRepository
 import app.naviamp.domain.cache.StorageCacheStats
+import app.naviamp.domain.provider.PendingProviderActionRepository
 import app.naviamp.domain.cache.TrackMetadataRepository
 import app.naviamp.domain.home.HomeAlbumYear
 import app.naviamp.domain.home.HomeLibraryRepository
@@ -38,6 +39,7 @@ class DesktopStorageDependencies(
     MediaSourceRepository by cache,
     ProviderMediaSourceRepository by cache,
     LocalLibraryIndexRepository by cache,
+    PendingProviderActionRepository by cache,
     CacheMaintenanceRepository<StorageCacheStats> by cache,
     TrackMetadataRepository by cache {
 

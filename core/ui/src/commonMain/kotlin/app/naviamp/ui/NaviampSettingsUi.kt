@@ -68,10 +68,12 @@ enum class NaviampSettingsCategory(
 fun NaviampSharedSettingsContent(
     colors: NaviampColors,
     playbackSettings: PlaybackSettings,
+    cacheSettings: CacheSettings = CacheSettings(),
     diagnostics: NaviampDiagnosticsUi = NaviampDiagnosticsUi(),
     onEditConnection: () -> Unit,
     onPlaybackSettingsChanged: (PlaybackSettings) -> Unit,
     onPlaybackSettingsChangedAndRedownload: (PlaybackSettings) -> Unit = onPlaybackSettingsChanged,
+    onCacheSettingsChanged: (CacheSettings) -> Unit = {},
     onClearCache: (() -> Unit)? = null,
     onClearLibrary: (() -> Unit)? = null,
     onResetDatabase: (() -> Unit)? = null,
@@ -113,15 +115,15 @@ fun NaviampSharedSettingsContent(
                     onPlaybackSettingsChanged = onPlaybackSettingsChanged,
                     onPlaybackSettingsChangedAndRedownload = onPlaybackSettingsChangedAndRedownload,
                 )
-                NaviampSettingsCategory.Cache -> NaviampDiagnosticsSettingsSection(
+                NaviampSettingsCategory.Cache -> SharedCacheSettingsSection(
                     colors = colors,
-                    title = "Cache",
+                    cacheSettings = cacheSettings,
                     diagnostics = NaviampDiagnosticsUi(
                         diagnostics.sections.filter { section ->
                             section.title == "Storage" || section.title == "Library sync"
                         },
                     ),
-                    emptyText = "Cache sizes will appear after the app initializes storage.",
+                    onCacheSettingsChanged = onCacheSettingsChanged,
                 )
                 NaviampSettingsCategory.LocalData -> SharedLocalDataActions(
                     colors = colors,
@@ -296,6 +298,153 @@ private fun SharedLocalDataActions(
         )
     }
 }
+
+@Composable
+private fun SharedCacheSettingsSection(
+    colors: NaviampColors,
+    cacheSettings: CacheSettings,
+    diagnostics: NaviampDiagnosticsUi,
+    onCacheSettingsChanged: (CacheSettings) -> Unit,
+) {
+    val normalized = cacheSettings.normalized()
+
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        SettingsSectionTitle("Audio cache", colors)
+        diagnosticRowValue(diagnostics, "Storage", "Audio cache")?.let { value ->
+            Text(value, color = colors.secondaryText, fontSize = 12.sp)
+        }
+        SettingsCheckboxRow(
+            colors = colors,
+            checked = normalized.audioCachingEnabled,
+            label = "Enable audio cache and prefetch",
+            onCheckedChange = { enabled ->
+                onCacheSettingsChanged(normalized.copy(audioCachingEnabled = enabled).normalized())
+            },
+        )
+        DetentIntSettingsSlider(
+            colors = colors,
+            title = "Prefetch depth",
+            value = normalized.audioPrefetchDepth,
+            detents = PrefetchDepthOptions,
+            enabled = normalized.audioCachingEnabled,
+            valueLabel = { depth -> if (depth == 0) "Off" else "$depth tracks" },
+            onValueChanged = { depth ->
+                onCacheSettingsChanged(normalized.copy(audioPrefetchDepth = depth).normalized())
+            },
+        )
+        DetentByteSettingsSlider(
+            colors = colors,
+            title = "Audio cache budget",
+            valueBytes = normalized.maxAudioCacheBytes,
+            detents = AudioCacheBudgetOptions,
+            onValueChanged = { bytes ->
+                onCacheSettingsChanged(normalized.copy(maxAudioCacheBytes = bytes).normalized())
+            },
+        )
+
+        SettingsSectionTitle("Downloads", colors)
+        diagnosticRowValue(diagnostics, "Storage", "Downloads")?.let { value ->
+            Text(value, color = colors.secondaryText, fontSize = 12.sp)
+        }
+        DetentByteSettingsSlider(
+            colors = colors,
+            title = "Download storage budget",
+            valueBytes = normalized.maxDownloadBytes,
+            detents = DownloadBudgetOptions,
+            onValueChanged = { bytes ->
+                onCacheSettingsChanged(normalized.copy(maxDownloadBytes = bytes).normalized())
+            },
+        )
+
+        NaviampDiagnosticsSettingsSection(
+            colors = colors,
+            title = "Storage",
+            diagnostics = diagnostics,
+            emptyText = "Cache sizes will appear after the app initializes storage.",
+        )
+    }
+}
+
+@Composable
+private fun DetentIntSettingsSlider(
+    colors: NaviampColors,
+    title: String,
+    value: Int,
+    detents: List<Int>,
+    enabled: Boolean = true,
+    valueLabel: (Int) -> String,
+    onValueChanged: (Int) -> Unit,
+) {
+    val normalizedDetents = detents.distinct().sorted()
+    val selectedIndex = normalizedDetents.indexOf(value).takeIf { it >= 0 } ?: 0
+    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(title, color = colors.secondaryText, fontSize = 12.sp)
+            Text(valueLabel(normalizedDetents.getOrElse(selectedIndex) { value }), color = colors.primaryText, fontSize = 12.sp)
+        }
+        Slider(
+            enabled = enabled && normalizedDetents.size > 1,
+            value = selectedIndex.toFloat(),
+            onValueChange = { raw ->
+                val index = raw.toInt().coerceIn(normalizedDetents.indices)
+                onValueChanged(normalizedDetents[index])
+            },
+            valueRange = 0f..(normalizedDetents.lastIndex.coerceAtLeast(0)).toFloat(),
+            steps = (normalizedDetents.size - 2).coerceAtLeast(0),
+        )
+    }
+}
+
+@Composable
+private fun DetentByteSettingsSlider(
+    colors: NaviampColors,
+    title: String,
+    valueBytes: Long,
+    detents: List<Long>,
+    onValueChanged: (Long) -> Unit,
+) {
+    val normalizedDetents = detents.distinct().sorted()
+    val selectedIndex = normalizedDetents.indexOf(valueBytes).takeIf { it >= 0 }
+        ?: normalizedDetents.indices.minByOrNull { index ->
+            kotlin.math.abs(normalizedDetents[index] - valueBytes)
+        }
+        ?: 0
+    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(title, color = colors.secondaryText, fontSize = 12.sp)
+            Text(normalizedDetents.getOrElse(selectedIndex) { valueBytes }.storageBytesLabel(), color = colors.primaryText, fontSize = 12.sp)
+        }
+        Slider(
+            enabled = normalizedDetents.size > 1,
+            value = selectedIndex.toFloat(),
+            onValueChange = { raw ->
+                val index = raw.toInt().coerceIn(normalizedDetents.indices)
+                onValueChanged(normalizedDetents[index])
+            },
+            valueRange = 0f..(normalizedDetents.lastIndex.coerceAtLeast(0)).toFloat(),
+            steps = (normalizedDetents.size - 2).coerceAtLeast(0),
+        )
+    }
+}
+
+private fun diagnosticRowValue(
+    diagnostics: NaviampDiagnosticsUi,
+    sectionTitle: String,
+    label: String,
+): String? =
+    diagnostics.sections
+        .firstOrNull { section -> section.title == sectionTitle }
+        ?.rows
+        ?.firstOrNull { row -> row.first == label }
+        ?.second
 
 @Composable
 private fun PrimarySettingsButton(
@@ -898,3 +1047,23 @@ private fun Float.equalizerGainLabel(): String =
     if (this == 0f) "0 dB" else "%+.1f dB".format(this)
 
 private val CrossfadeDurationOptions = listOf(0, 3, 5, 8, 12)
+private val PrefetchDepthOptions = listOf(0, 3, 5, 10, 15, 25)
+private val AudioCacheBudgetOptions = listOf(
+    256L * 1024L * 1024L,
+    512L * 1024L * 1024L,
+    1L * 1024L * 1024L * 1024L,
+    2L * 1024L * 1024L * 1024L,
+    5L * 1024L * 1024L * 1024L,
+    10L * 1024L * 1024L * 1024L,
+    20L * 1024L * 1024L * 1024L,
+)
+private val DownloadBudgetOptions = listOf(
+    512L * 1024L * 1024L,
+    1L * 1024L * 1024L * 1024L,
+    2L * 1024L * 1024L * 1024L,
+    5L * 1024L * 1024L * 1024L,
+    10L * 1024L * 1024L * 1024L,
+    25L * 1024L * 1024L * 1024L,
+    50L * 1024L * 1024L * 1024L,
+    100L * 1024L * 1024L * 1024L,
+)

@@ -5,6 +5,7 @@ import app.naviamp.domain.InternetRadioStation
 import app.naviamp.domain.Playlist
 import app.naviamp.domain.Track
 import app.naviamp.domain.settings.ConnectionFormState
+import app.naviamp.domain.settings.CacheSettings
 import app.naviamp.domain.settings.PlaybackSettings
 import app.naviamp.domain.smartplaylist.SmartPlaylistDefinition
 import app.naviamp.ui.NaviampDiagnosticsUi
@@ -54,6 +55,7 @@ data class AndroidAppShellUiState(
     val restoringConnection: Boolean,
     val connectionForm: ConnectionFormState,
     val playbackSettings: PlaybackSettings,
+    val cacheSettings: CacheSettings,
     val diagnostics: NaviampDiagnosticsUi,
     val supportsReplayGain: Boolean,
     val supportsGapless: Boolean,
@@ -100,6 +102,7 @@ data class AndroidAppShellActions(
     val onCancelEditConnection: () -> Unit,
     val onPlaybackSettingsChanged: (PlaybackSettings) -> Unit,
     val onPlaybackSettingsChangedAndRedownload: (PlaybackSettings) -> Unit,
+    val onCacheSettingsChanged: (CacheSettings) -> Unit,
     val onClearCache: () -> Unit,
     val onClearLibrary: () -> Unit,
     val onResetDatabase: () -> Unit,

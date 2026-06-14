@@ -48,6 +48,8 @@ import app.naviamp.domain.popular.ArtistPopularTrackCandidate
 import app.naviamp.domain.popular.ArtistPopularTrackMatch
 import app.naviamp.domain.provider.MediaProvider
 import app.naviamp.domain.provider.MediaSearchResults
+import app.naviamp.domain.provider.PendingProviderAction
+import app.naviamp.domain.provider.PendingProviderActionRepository
 import app.naviamp.domain.source.MediaSourceIdentity
 import app.naviamp.domain.source.SavedMediaSource
 import app.naviamp.domain.waveform.AudioWaveform
@@ -89,6 +91,7 @@ class DesktopCache(
     MediaSourceRepository,
     ProviderMediaSourceRepository,
     LocalLibraryIndexRepository,
+    PendingProviderActionRepository,
     CacheMaintenanceRepository<StorageCacheStats>,
     TrackMetadataRepository {
     private val json = Json {
@@ -128,6 +131,10 @@ class DesktopCache(
         maxAudioWaveformCacheBytes = maxAudioWaveformCacheBytes,
     )
     private val trackMetadata = DesktopTrackMetadataStore(queries, json)
+    private val pendingProviderActions = DesktopPendingProviderActionStore(
+        queries = queries,
+        nowMillis = ::nowMillis,
+    )
     private val hotImages = DesktopHotImageCache(maxHotImageBytes)
     private val httpClient = KtorSharedHttpClient()
     private val imageByteStoreService = ObjectByteStoreService(
@@ -162,6 +169,16 @@ class DesktopCache(
             val bytes = imageByteStoreService.remoteBytes(url)
             hotImages.put(url, bytes)
             bytes
+        }
+    }
+
+    override suspend fun cachedImageBytes(url: String): ByteArray? {
+        hotImages.get(url)?.let { return it }
+
+        return withContext(Dispatchers.IO + NonCancellable) {
+            imageByteStoreService.cachedBytes(url)?.also { bytes ->
+                hotImages.put(url, bytes)
+            }
         }
     }
 
@@ -249,6 +266,12 @@ class DesktopCache(
         quality: StreamQuality,
     ): CachedAudioFile? =
         audioStore.cachedAudioFile(sourceId, trackId, quality)
+
+    override suspend fun cachedAudioFile(
+        sourceId: String,
+        trackId: TrackId,
+    ): CachedAudioFile? =
+        audioStore.cachedAudioFile(sourceId, trackId)
 
     override suspend fun downloadedAudioFile(
         sourceId: String,
@@ -355,6 +378,35 @@ class DesktopCache(
         errorMessage: String?,
     ) {
         sidecarStatus.recordSidecarStatus(sourceId, trackId, quality, sidecarType, success, errorMessage)
+    }
+
+    override fun enqueuePendingProviderAction(
+        sourceId: String,
+        actionType: String,
+        entityId: String,
+        boolValue: Boolean?,
+        longValue: Long?,
+        replaceMatchingEntityAction: Boolean,
+    ) {
+        pendingProviderActions.enqueuePendingProviderAction(
+            sourceId = sourceId,
+            actionType = actionType,
+            entityId = entityId,
+            boolValue = boolValue,
+            longValue = longValue,
+            replaceMatchingEntityAction = replaceMatchingEntityAction,
+        )
+    }
+
+    override fun pendingProviderActions(sourceId: String, limit: Int): List<PendingProviderAction> =
+        pendingProviderActions.pendingProviderActions(sourceId, limit)
+
+    override fun deletePendingProviderAction(id: Long) {
+        pendingProviderActions.deletePendingProviderAction(id)
+    }
+
+    override fun markPendingProviderActionFailed(id: Long, errorMessage: String?) {
+        pendingProviderActions.markPendingProviderActionFailed(id, errorMessage)
     }
 
     fun recordSidecarStatus(
@@ -661,6 +713,7 @@ private fun createDatabase(path: Path): NaviampStorageDatabase {
     ensureArtistPopularTracksSchema(driver)
     ensureCachedSidecarStatusSchema(driver)
     ensureTrackLyricsOffsetSchema(driver)
+    ensurePendingProviderActionSchema(driver)
     driver.execute(null, "PRAGMA foreign_keys=ON", 0)
     return NaviampStorageDatabase(driver)
 }
@@ -775,6 +828,35 @@ private fun ensureTrackLyricsOffsetSchema(driver: JdbcSqliteDriver) {
           updated_at_epoch_millis INTEGER NOT NULL,
           PRIMARY KEY(source_id, remote_track_id)
         )
+        """.trimIndent(),
+        0,
+    )
+}
+
+private fun ensurePendingProviderActionSchema(driver: JdbcSqliteDriver) {
+    driver.execute(
+        null,
+        """
+        CREATE TABLE IF NOT EXISTS pending_provider_action (
+          id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+          source_id TEXT NOT NULL REFERENCES media_source(id) ON DELETE CASCADE,
+          action_type TEXT NOT NULL,
+          entity_id TEXT NOT NULL,
+          bool_value INTEGER,
+          long_value INTEGER,
+          created_at_epoch_millis INTEGER NOT NULL,
+          last_attempt_at_epoch_millis INTEGER,
+          attempt_count INTEGER NOT NULL DEFAULT 0,
+          last_error TEXT
+        )
+        """.trimIndent(),
+        0,
+    )
+    driver.execute(
+        null,
+        """
+        CREATE INDEX IF NOT EXISTS pending_provider_action_source_created
+        ON pending_provider_action(source_id, created_at_epoch_millis)
         """.trimIndent(),
         0,
     )

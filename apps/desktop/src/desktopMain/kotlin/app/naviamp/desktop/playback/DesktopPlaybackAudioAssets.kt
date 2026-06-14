@@ -32,6 +32,12 @@ class DesktopPlaybackAudioAssets(
         quality: StreamQuality,
     ): PlaybackLocalAudio? =
         audioCacheRepository.cachedAudioFile(sourceId, trackId, quality)?.path?.toPlaybackLocalAudio()
+
+    override suspend fun cachedAudio(
+        sourceId: String,
+        trackId: TrackId,
+    ): PlaybackLocalAudio? =
+        audioCacheRepository.cachedAudioFile(sourceId, trackId)?.path?.toPlaybackLocalAudio()
 }
 
 fun Path.toPlaybackLocalAudio(): PlaybackLocalAudio =

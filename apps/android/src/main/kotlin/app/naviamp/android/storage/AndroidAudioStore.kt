@@ -8,6 +8,8 @@ import app.naviamp.domain.StreamRequest
 import app.naviamp.domain.Track
 import app.naviamp.domain.TrackId
 import app.naviamp.domain.cache.AudioByteStoreService
+import app.naviamp.domain.cache.CachedAudioEvictionCandidate
+import app.naviamp.domain.cache.planAudioCacheEviction
 import app.naviamp.domain.provider.MediaProvider
 import app.naviamp.storage.Downloaded_audio
 import app.naviamp.storage.NaviampStorageQueries
@@ -21,6 +23,7 @@ class AndroidAudioStore(
     private val downloadAudioByteStoreService: AudioByteStoreService,
     private val nowMillis: () -> Long,
     private var maxAudioCacheBytes: Long,
+    private val protectedTrackIds: () -> Set<String> = { emptySet() },
 ) {
     fun updateAudioCacheLimit(maxBytes: Long) {
         maxAudioCacheBytes = maxBytes.coerceAtLeast(0)
@@ -67,6 +70,24 @@ class AndroidAudioStore(
                 return@withContext null
             }
             queries.touchCachedAudio(nowMillis(), sourceId, trackId.value, qualityKey)
+            AndroidCachedAudioFile(file, row.size_bytes, row.content_type)
+        }
+
+    suspend fun cachedAudioFile(
+        sourceId: String,
+        trackId: TrackId,
+    ): AndroidCachedAudioFile? =
+        withContext(Dispatchers.IO) {
+            val row = queries.selectAnyCachedAudio(
+                source_id = sourceId,
+                remote_track_id = trackId.value,
+            ).executeAsOneOrNull() ?: return@withContext null
+            val file = File(row.file_path)
+            if (!file.exists()) {
+                queries.deleteCachedAudio(sourceId, trackId.value, row.quality_key)
+                return@withContext null
+            }
+            queries.touchCachedAudio(nowMillis(), sourceId, trackId.value, row.quality_key)
             AndroidCachedAudioFile(file, row.size_bytes, row.content_type)
         }
 
@@ -245,11 +266,28 @@ class AndroidAudioStore(
     private fun trimAudioStore() {
         var cacheSize = queries.audioCacheSize().executeAsOne()
         if (cacheSize <= maxAudioCacheBytes) return
-        queries.oldestCachedAudio(100).executeAsList().forEach { audio ->
-            if (cacheSize <= maxAudioCacheBytes) return
-            queries.deleteCachedAudio(audio.source_id, audio.remote_track_id, audio.quality_key)
-            audioCacheByteStoreService.deleteAudio(audio.file_path)
-            cacheSize -= audio.size_bytes
+        val oldestAudio = queries.oldestCachedAudio(100).executeAsList()
+        val filePathsByKey = oldestAudio.associate { audio ->
+            Triple(audio.source_id, audio.remote_track_id, audio.quality_key) to audio.file_path
+        }
+        val plan = planAudioCacheEviction(
+            currentSizeBytes = cacheSize,
+            maxSizeBytes = maxAudioCacheBytes,
+            oldestFirstCandidates = oldestAudio.map { audio ->
+                CachedAudioEvictionCandidate(
+                    sourceId = audio.source_id,
+                    trackId = audio.remote_track_id,
+                    qualityKey = audio.quality_key,
+                    sizeBytes = audio.size_bytes,
+                )
+            },
+            protectedTrackIds = protectedTrackIds(),
+        )
+        plan.candidatesToEvict.forEach { audio ->
+            queries.deleteCachedAudio(audio.sourceId, audio.trackId, audio.qualityKey)
+            filePathsByKey[Triple(audio.sourceId, audio.trackId, audio.qualityKey)]
+                ?.let { filePath -> audioCacheByteStoreService.deleteAudio(filePath) }
+            cacheSize -= audio.sizeBytes
         }
     }
 

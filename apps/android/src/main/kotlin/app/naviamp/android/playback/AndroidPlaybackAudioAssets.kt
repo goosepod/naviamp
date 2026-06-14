@@ -31,6 +31,12 @@ class AndroidPlaybackAudioAssets(
         quality: StreamQuality,
     ): PlaybackLocalAudio? =
         audioCacheRepository.cachedAudioFile(sourceId, trackId, quality)?.file?.toPlaybackLocalAudio()
+
+    override suspend fun cachedAudio(
+        sourceId: String,
+        trackId: TrackId,
+    ): PlaybackLocalAudio? =
+        audioCacheRepository.cachedAudioFile(sourceId, trackId)?.file?.toPlaybackLocalAudio()
 }
 
 fun File.toPlaybackLocalAudio(): PlaybackLocalAudio =

@@ -43,8 +43,10 @@ import app.naviamp.domain.settings.ConnectionFormState
 import app.naviamp.domain.settings.PlaybackSettings
 import app.naviamp.domain.settings.streamQualityForNetwork
 import app.naviamp.domain.smartplaylist.SmartPlaylistDefinition
+import app.naviamp.domain.source.SavedMediaSource
 import app.naviamp.domain.waveform.AudioWaveform
 import app.naviamp.provider.navidrome.NavidromeProvider
+import app.naviamp.provider.navidrome.toNavidromeConnection
 import app.naviamp.ui.SharedTrackRowUi
 import app.naviamp.ui.NaviampDownloadedTrackUi
 import app.naviamp.ui.NaviampLibrarySyncStatusUi
@@ -99,6 +101,17 @@ data class AndroidShellModels(
 
 fun Track.coverArtUrl(provider: NavidromeProvider?): String? =
     (coverArtId ?: albumId?.value)?.let { provider?.coverArtUrl(it) }
+
+fun Track.savedCoverArtUrl(
+    provider: NavidromeProvider?,
+    source: SavedMediaSource?,
+): String? {
+    val coverArtId = coverArtId ?: albumId?.value ?: return null
+    return provider?.coverArtUrl(coverArtId)
+        ?: source?.toNavidromeConnection()?.let { connection ->
+            NavidromeProvider(connection).coverArtUrl(coverArtId)
+        }
+}
 
 @Composable
 fun rememberAndroidShellModels(

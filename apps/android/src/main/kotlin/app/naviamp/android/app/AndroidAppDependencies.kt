@@ -98,8 +98,11 @@ class AndroidAppDependencies(
         provider: NavidromeProvider,
         track: Track,
         quality: StreamQuality,
-    ): java.io.File =
-        storage.cacheAudioTrack(sourceId, provider, track, quality).file
+    ): java.io.File {
+        val file = storage.cacheAudioTrack(sourceId, provider, track, quality).file
+        warmCoverArt(provider, track)
+        return file
+    }
 
     fun playlistEngine(
         state: AndroidAppState,
@@ -111,6 +114,7 @@ class AndroidAppDependencies(
             scope = playbackRuntime.scope,
             state = state,
             waveformRepository = storage,
+            warmCoverArt = ::warmCoverArt,
             cacheAudioTrack = ::cacheAudioTrack,
             playbackAudioAssets = playbackAudioAssets,
             playbackEngine = playbackRuntime.playbackEngine,
@@ -122,6 +126,17 @@ class AndroidAppDependencies(
             activeQueue = activeQueue,
             currentStreamQuality = currentStreamQuality,
         )
+
+    private suspend fun warmCoverArt(
+        provider: NavidromeProvider,
+        track: Track,
+    ) {
+        val coverArtId = track.coverArtId ?: track.albumId?.value ?: return
+        val url = provider.coverArtUrl(coverArtId)
+        storage.imageBytes(url) {
+            provider.bytes(url) ?: throw IllegalStateException("Could not download cover art.")
+        }
+    }
 
     override fun close() {
         storage.close()

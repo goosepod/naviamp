@@ -105,6 +105,7 @@ internal class AndroidAutoBrowseController(
                 trackItem(
                     track = track,
                     mediaId = "${AndroidAutoPlaybackControls.MediaIdQueueTrackPrefix}${Uri.encode(index.toString())}",
+                    includeArt = false,
                 )
             }.toMutableList()
             sendChildren(parentId, children, result)
@@ -153,24 +154,17 @@ internal class AndroidAutoBrowseController(
             return
         }
         val children = when (parentId) {
-            AndroidAutoPlaybackControls.MediaIdRoot -> mutableListOf(
-                browsableItem(AndroidAutoPlaybackControls.MediaIdHome, "Home", "Mixes and recent music", iconName = "ic_auto_home"),
-                browsableItem(AndroidAutoPlaybackControls.MediaIdLibrary, "Library", "Browse your collection", iconName = "ic_auto_library"),
-                browsableItem(AndroidAutoPlaybackControls.MediaIdDownloads, "Downloads", "Offline tracks"),
-                browsableItem(AndroidAutoPlaybackControls.MediaIdPlaylists, "Playlists", "Saved Navidrome playlists"),
-                browsableItem(AndroidAutoPlaybackControls.MediaIdRadio, "Radio", "Library and internet radio", iconName = "ic_auto_radio"),
-                browsableItem(AndroidAutoPlaybackControls.MediaIdCharts, "Charts", "Top artists, albums, and tracks", iconName = "ic_auto_charts"),
-                browsableItem(AndroidAutoPlaybackControls.MediaIdMore, "More", "Queue and shortcuts"),
-            )
+            AndroidAutoPlaybackControls.MediaIdRoot -> autoRootItems(storage, sourceId)
             AndroidAutoPlaybackControls.MediaIdHome -> mutableListOf(
-                browsableItem(AndroidAutoPlaybackControls.MediaIdHomeMixes, "Mixes For You", "Radio based on your library"),
+                currentNowPlayingItem(),
+                browsableItem(AndroidAutoPlaybackControls.MediaIdHomeMixes, "Suggested Mixes", "Quick queues from your library"),
+                browsableItem(AndroidAutoPlaybackControls.MediaIdRadioRecent, "Recent Radio", "Radio you started from Naviamp"),
                 browsableItem(AndroidAutoPlaybackControls.MediaIdHomeRecentPlays, "Recent Plays", "Recently played tracks and radio"),
-                browsableItem(AndroidAutoPlaybackControls.MediaIdHomeRecentlyAdded, "Recently Added in Music", "Newest albums"),
             )
             AndroidAutoPlaybackControls.MediaIdLibrary -> mutableListOf(
-                browsableItem(AndroidAutoPlaybackControls.MediaIdLibraryArtists, "Artists A-Z", "Browse indexed artists"),
-                browsableItem(AndroidAutoPlaybackControls.MediaIdLibraryAlbums, "Albums", "Browse indexed albums"),
-                browsableItem(AndroidAutoPlaybackControls.MediaIdLibraryTracks, "Tracks", "Browse indexed tracks"),
+                browsableItem(AndroidAutoPlaybackControls.MediaIdPlaylists, "Playlists", "Saved Navidrome playlists"),
+                browsableItem(AndroidAutoPlaybackControls.MediaIdRadioRecent, "Recent Radio", "Radio you started from Naviamp"),
+                playableItem(AndroidAutoPlaybackControls.MediaIdRadioLibrary, "Library Radio", "Random tracks from your library"),
             )
             AndroidAutoPlaybackControls.MediaIdLibraryArtists -> {
                 sourceId?.let { id ->
@@ -199,13 +193,13 @@ internal class AndroidAutoBrowseController(
                 } ?: noSourceItems()
             }
             AndroidAutoPlaybackControls.MediaIdRadio -> mutableListOf(
-                playableItem(AndroidAutoPlaybackControls.MediaIdRadioLibrary, "Library Radio", "Random tracks from your library"),
-                browsableItem(AndroidAutoPlaybackControls.MediaIdRadioRecent, "Recently Played Radio", "Radio you started from Naviamp"),
+                browsableItem(AndroidAutoPlaybackControls.MediaIdRadioRecent, "Recent Radio", "Radio you started from Naviamp"),
                 browsableItem(AndroidAutoPlaybackControls.MediaIdRadioStations, "Internet Radio", "Saved Navidrome stations"),
+                playableItem(AndroidAutoPlaybackControls.MediaIdRadioLibrary, "Library Radio", "Random tracks from your library"),
             )
             AndroidAutoPlaybackControls.MediaIdHomeMixes -> mutableListOf(
                 playableItem(AndroidAutoPlaybackControls.MediaIdRadioLibrary, "Library Radio", "Random tracks from your library"),
-                browsableItem(AndroidAutoPlaybackControls.MediaIdRadioRecent, "Recently Played Radio", "Radio you started from Naviamp"),
+                browsableItem(AndroidAutoPlaybackControls.MediaIdRadioRecent, "Recent Radio", "Radio you started from Naviamp"),
             )
             AndroidAutoPlaybackControls.MediaIdHomeRecentPlays -> {
                 sourceId?.let { id ->
@@ -255,7 +249,6 @@ internal class AndroidAutoBrowseController(
                 browsableItem(AndroidAutoPlaybackControls.MediaIdQueue, "Current queue", "${currentQueue().size} tracks"),
                 browsableItem(AndroidAutoPlaybackControls.MediaIdPlaylists, "Playlists", "Saved Navidrome playlists"),
                 browsableItem(AndroidAutoPlaybackControls.MediaIdRadioStations, "Internet Radio", "Saved Navidrome stations"),
-                browsableItem(AndroidAutoPlaybackControls.MediaIdLibraryTracks, "All Tracks", "Browse indexed tracks"),
             )
             else -> dynamicChildren(parentId, storage, sourceId, result) ?: mutableListOf()
         }
@@ -396,6 +389,24 @@ internal class AndroidAutoBrowseController(
             else -> mutableListOf()
         }
 
+    private fun autoRootItems(
+        storage: AndroidStorageDependencies,
+        sourceId: String?,
+    ): MutableList<MediaBrowserCompat.MediaItem> =
+        buildList {
+            add(currentNowPlayingItem())
+            add(browsableItem(AndroidAutoPlaybackControls.MediaIdRadioRecent, "Recent Radio", "Radio you started from Naviamp"))
+            add(browsableItem(AndroidAutoPlaybackControls.MediaIdPlaylists, "Playlists", "Saved Navidrome playlists"))
+            add(browsableItem(AndroidAutoPlaybackControls.MediaIdRadio, "Radio", "Internet and library radio", iconName = "ic_auto_radio"))
+            add(browsableItem(AndroidAutoPlaybackControls.MediaIdHome, "Suggested Mixes", "Quick starts from your library", iconName = "ic_auto_home"))
+            if (sourceId != null && storage.downloadedTracks(sourceId).any { it.file.exists() }) {
+                add(browsableItem(AndroidAutoPlaybackControls.MediaIdDownloads, "Downloads", "Offline tracks"))
+            }
+            if (currentQueue().isNotEmpty()) {
+                add(browsableItem(AndroidAutoPlaybackControls.MediaIdQueue, "Current queue", "${currentQueue().size} tracks"))
+            }
+        }.toMutableList()
+
     private fun currentNowPlayingItem(): MediaBrowserCompat.MediaItem {
         val restored = restoredNowPlayingMetadata()
         val title = currentMetadata().title?.takeIf { it.isNotBlank() }
@@ -410,12 +421,13 @@ internal class AndroidAutoBrowseController(
     private fun trackItem(
         track: Track,
         mediaId: String = "${AndroidAutoPlaybackControls.MediaIdTrackPrefix}${Uri.encode(track.id.value)}",
+        includeArt: Boolean = true,
     ): MediaBrowserCompat.MediaItem =
         playableItem(
             mediaId = mediaId,
             title = track.title,
             subtitle = listOfNotNull(track.artistName, track.albumTitle).joinToString(" - "),
-            iconUri = storage().savedCoverArtUrl(track),
+            iconUri = if (includeArt) storage().savedCoverArtUrl(track) else null,
         )
 
     private fun artistItem(artist: Artist): MediaBrowserCompat.MediaItem =

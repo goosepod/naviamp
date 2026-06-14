@@ -229,6 +229,19 @@ CREATE TABLE playback_history (
   PRIMARY KEY(source_id, remote_track_id, played_at_epoch_millis)
 );
 
+CREATE TABLE pending_provider_action (
+  id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+  source_id TEXT NOT NULL REFERENCES media_source(id) ON DELETE CASCADE,
+  action_type TEXT NOT NULL,
+  entity_id TEXT NOT NULL,
+  bool_value INTEGER,
+  long_value INTEGER,
+  created_at_epoch_millis INTEGER NOT NULL,
+  last_attempt_at_epoch_millis INTEGER,
+  attempt_count INTEGER NOT NULL DEFAULT 0,
+  last_error TEXT
+);
+
 CREATE INDEX library_artist_source_name
 ON library_artist(source_id, search_name);
 
@@ -270,6 +283,9 @@ ON cached_sidecar_status(source_id, remote_track_id, quality_key);
 
 CREATE INDEX playback_history_source_played_at
 ON playback_history(source_id, played_at_epoch_millis);
+
+CREATE INDEX pending_provider_action_source_created
+ON pending_provider_action(source_id, created_at_epoch_millis);
 
 selectImage:
 SELECT bytes
@@ -731,6 +747,14 @@ WHERE source_id = ?
 AND remote_track_id = ?
 AND quality_key = ?;
 
+selectAnyCachedAudio:
+SELECT *
+FROM cached_audio
+WHERE source_id = ?
+AND remote_track_id = ?
+ORDER BY last_accessed_epoch_millis DESC
+LIMIT 1;
+
 selectCachedAudioMetadata:
 SELECT *
 FROM cached_audio
@@ -919,6 +943,50 @@ INSERT OR REPLACE INTO playback_history(
   played_at_epoch_millis
 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
 
+insertPendingProviderAction:
+INSERT INTO pending_provider_action(
+  source_id,
+  action_type,
+  entity_id,
+  bool_value,
+  long_value,
+  created_at_epoch_millis,
+  last_attempt_at_epoch_millis,
+  attempt_count,
+  last_error
+) VALUES (?, ?, ?, ?, ?, ?, NULL, 0, NULL);
+
+selectPendingProviderActions:
+SELECT *
+FROM pending_provider_action
+WHERE source_id = ?
+ORDER BY created_at_epoch_millis ASC, id ASC
+LIMIT ?;
+
+deletePendingProviderAction:
+DELETE FROM pending_provider_action
+WHERE id = ?;
+
+deletePendingProviderActionsForEntity:
+DELETE FROM pending_provider_action
+WHERE source_id = ?
+AND action_type = ?
+AND entity_id = ?;
+
+markPendingProviderActionFailed:
+UPDATE pending_provider_action
+SET attempt_count = attempt_count + 1,
+last_attempt_at_epoch_millis = ?,
+last_error = ?
+WHERE id = ?;
+
+pendingProviderActionCount:
+SELECT COUNT(*) FROM pending_provider_action;
+
+failedPendingProviderActionCount:
+SELECT COUNT(*) FROM pending_provider_action
+WHERE attempt_count > 0;
+
 selectCachedLyrics:
 SELECT *
 FROM cached_lyrics
@@ -1072,6 +1140,9 @@ DELETE FROM cached_sidecar_status;
 
 clearPlaybackHistory:
 DELETE FROM playback_history;
+
+clearPendingProviderActions:
+DELETE FROM pending_provider_action;
 
 clearLibraryTracks:
 DELETE FROM library_track;

@@ -58,6 +58,8 @@ class DesktopStorageMaintenanceStore(
             libraryArtistCount = queries.libraryArtistCount().executeAsOne(),
             libraryAlbumCount = queries.libraryAlbumCount().executeAsOne(),
             libraryTrackCount = queries.libraryTrackCount().executeAsOne(),
+            pendingProviderActionCount = queries.pendingProviderActionCount().executeAsOne(),
+            failedPendingProviderActionCount = queries.failedPendingProviderActionCount().executeAsOne(),
             hotImageCount = hotImageCount,
             hotImageBytes = hotImageBytes,
             maxImageBytes = maxImageBytes,

@@ -37,4 +37,16 @@ class ObjectByteStoreServiceTest {
 
         assertContentEquals(byteArrayOf(2), bytes)
     }
+
+    @Test
+    fun cachedBytesReturnsOnlyStoredBytes() = runTest {
+        val store = InMemoryObjectByteStore()
+        val service = ObjectByteStoreService(store)
+
+        assertEquals(null, service.cachedBytes("cover-1"))
+
+        service.bytes("cover-1") { byteArrayOf(7, 8, 9) }
+
+        assertContentEquals(byteArrayOf(7, 8, 9), service.cachedBytes("cover-1"))
+    }
 }

@@ -17,6 +17,8 @@ import app.naviamp.domain.source.SavedMediaSource
 import app.naviamp.domain.waveform.AudioWaveform
 
 interface ImageCacheRepository {
+    suspend fun cachedImageBytes(url: String): ByteArray?
+
     suspend fun imageBytes(url: String): ByteArray
 }
 
@@ -56,6 +58,11 @@ interface AudioCacheRepository<CachedFile, CachedMetadata> {
         trackId: TrackId,
         quality: StreamQuality,
     ): CachedFile?
+
+    suspend fun cachedAudioFile(
+        sourceId: String,
+        trackId: TrackId,
+    ): CachedFile? = null
 
     suspend fun cacheAudioTrack(
         sourceId: String,
@@ -317,6 +324,8 @@ data class StorageCacheStats(
     val libraryArtistCount: Long = 0L,
     val libraryAlbumCount: Long = 0L,
     val libraryTrackCount: Long = 0L,
+    val pendingProviderActionCount: Long = 0L,
+    val failedPendingProviderActionCount: Long = 0L,
     val hotImageCount: Int = 0,
     val hotImageBytes: Long = 0L,
     val maxImageBytes: Long = 0L,

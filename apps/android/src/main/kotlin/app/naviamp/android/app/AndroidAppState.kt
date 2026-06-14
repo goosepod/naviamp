@@ -33,6 +33,7 @@ import app.naviamp.domain.popular.SimilarArtistMatch
 import app.naviamp.domain.queue.PlaybackQueue
 import app.naviamp.domain.queue.RepeatMode
 import app.naviamp.domain.settings.ConnectionFormState
+import app.naviamp.domain.settings.CacheSettings
 import app.naviamp.domain.settings.PlaybackSettings
 import app.naviamp.domain.sonichome.SonicHomeDiscoveryRows
 import app.naviamp.domain.waveform.AudioWaveform
@@ -48,6 +49,7 @@ import kotlinx.coroutines.Job
 class AndroidAppState(
     savedConnection: ConnectionFormState,
     savedPlaybackSettings: PlaybackSettings,
+    savedCacheSettings: CacheSettings,
     canAutoConnect: Boolean,
     savedSourceId: String?,
     initialStorageStats: StorageCacheStats,
@@ -65,6 +67,7 @@ class AndroidAppState(
     var clientCertificatePath by mutableStateOf(savedConnection.clientCertificatePath)
     var clientCertificatePassword by mutableStateOf(savedConnection.clientCertificatePassword)
     var playbackSettings by mutableStateOf(savedPlaybackSettings)
+    var cacheSettings by mutableStateOf(savedCacheSettings.normalized())
     var homeState by mutableStateOf(app.naviamp.domain.home.HomeContent())
     var contentState by mutableStateOf(NaviampContentState())
     val query: String get() = contentState.searchQuery
@@ -166,6 +169,7 @@ class AndroidAppState(
 fun rememberAndroidAppState(
     savedConnection: ConnectionFormState,
     savedPlaybackSettings: PlaybackSettings,
+    savedCacheSettings: CacheSettings,
     canAutoConnect: Boolean,
     savedSourceId: String?,
     initialStorageStats: StorageCacheStats,
@@ -178,6 +182,7 @@ fun rememberAndroidAppState(
         AndroidAppState(
             savedConnection = savedConnection,
             savedPlaybackSettings = savedPlaybackSettings,
+            savedCacheSettings = savedCacheSettings,
             canAutoConnect = canAutoConnect,
             savedSourceId = savedSourceId,
             initialStorageStats = initialStorageStats,

@@ -22,6 +22,9 @@ class ObjectByteStoreService(
     private val store: ObjectByteStore,
     private val httpClient: KtorSharedHttpClient = KtorSharedHttpClient(),
 ) {
+    suspend fun cachedBytes(key: String): ByteArray? =
+        store.objectBytes(key)
+
     suspend fun bytes(
         key: String,
         fetch: suspend () -> ByteArray,

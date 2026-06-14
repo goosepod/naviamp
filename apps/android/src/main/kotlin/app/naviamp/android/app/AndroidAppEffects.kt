@@ -20,6 +20,7 @@ import app.naviamp.domain.playback.PlaybackState
 import app.naviamp.domain.playback.QueueAwarePlaybackEngine
 import app.naviamp.domain.playback.VisualizerPlaybackEngine
 import app.naviamp.domain.playback.shouldReportNowPlaying
+import app.naviamp.domain.provider.PendingProviderActionRepository
 import app.naviamp.ui.SharedRoute
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -30,6 +31,7 @@ fun AndroidAppRuntimeEffects(
     state: AndroidAppState,
     bassLoadReport: AndroidBassLoadReport,
     playbackEngine: AndroidPlaybackEngine,
+    pendingProviderActions: PendingProviderActionRepository,
     openNowPlayingRequest: Int,
     autoPlayMediaIdRequest: String?,
     autoCommandRequest: String?,
@@ -61,7 +63,9 @@ fun AndroidAppRuntimeEffects(
             while (true) {
                 runCatching {
                     withContext(Dispatchers.IO) {
-                        activeProvider.reportNowPlaying(track.id)
+                        activeProvider
+                            .withAndroidPendingActions(activeSourceId, pendingProviderActions)
+                            .reportNowPlaying(track.id)
                     }
                 }
                 delay(DefaultNowPlayingHeartbeatIntervalMillis)
@@ -134,6 +138,7 @@ fun AndroidAppPersistenceEffects(
     state: AndroidAppState,
     downloadRepository: DownloadRepository<AndroidDownloadedAudioFile, AndroidDownloadedTrack>,
     cacheMaintenanceRepository: CacheMaintenanceRepository<StorageCacheStats>,
+    updateAudioCacheLimit: (Long) -> Unit,
     savePlaybackSessionThrottled: (force: Boolean) -> Unit,
     checkAndroidLibraryFreshness: () -> Unit,
 ) {
@@ -145,6 +150,13 @@ fun AndroidAppPersistenceEffects(
             nowPlayingStation?.id,
         ) {
             savePlaybackSessionThrottled(true)
+        }
+
+        LaunchedEffect(cacheSettings.maxAudioCacheBytes) {
+            withContext(Dispatchers.IO) {
+                updateAudioCacheLimit(cacheSettings.maxAudioCacheBytes)
+            }
+            storageStats = withContext(Dispatchers.IO) { cacheMaintenanceRepository.stats() }
         }
 
         LaunchedEffect(

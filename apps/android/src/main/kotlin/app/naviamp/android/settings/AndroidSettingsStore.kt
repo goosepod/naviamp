@@ -7,6 +7,7 @@ import app.naviamp.domain.playback.EqualizerPreset
 import app.naviamp.domain.playback.EqualizerSettings
 import app.naviamp.domain.playback.ReplayGainMode
 import app.naviamp.domain.settings.ConnectionFormState
+import app.naviamp.domain.settings.CacheSettings
 import app.naviamp.domain.settings.PlaybackSettings
 import app.naviamp.domain.settings.PreviousButtonBehavior
 import app.naviamp.domain.settings.RecentRadioStream
@@ -131,6 +132,24 @@ class AndroidSettingsStore(
                 preference = settings.downloadQuality,
             )
             .putBoolean(KeyAllowMobileDownloads, settings.allowMobileDownloads)
+            .apply()
+    }
+
+    fun loadCacheSettings(): CacheSettings =
+        CacheSettings(
+            audioCachingEnabled = preferences.getBoolean(KeyAudioCachingEnabled, true),
+            audioPrefetchDepth = preferences.getInt(KeyAudioPrefetchDepth, CacheSettings().audioPrefetchDepth),
+            maxAudioCacheBytes = preferences.getLong(KeyMaxAudioCacheBytes, CacheSettings().maxAudioCacheBytes),
+            maxDownloadBytes = preferences.getLong(KeyMaxDownloadBytes, CacheSettings().maxDownloadBytes),
+        ).normalized()
+
+    fun saveCacheSettings(settings: CacheSettings) {
+        val normalized = settings.normalized()
+        preferences.edit()
+            .putBoolean(KeyAudioCachingEnabled, normalized.audioCachingEnabled)
+            .putInt(KeyAudioPrefetchDepth, normalized.audioPrefetchDepth)
+            .putLong(KeyMaxAudioCacheBytes, normalized.maxAudioCacheBytes)
+            .putLong(KeyMaxDownloadBytes, normalized.maxDownloadBytes)
             .apply()
     }
 
@@ -275,6 +294,10 @@ private const val KeyDownloadQualityMode = "download_quality_mode"
 private const val KeyDownloadCodec = "download_codec"
 private const val KeyDownloadBitrate = "download_bitrate"
 private const val KeyAllowMobileDownloads = "allow_mobile_downloads"
+private const val KeyAudioCachingEnabled = "audio_caching_enabled"
+private const val KeyAudioPrefetchDepth = "audio_prefetch_depth"
+private const val KeyMaxAudioCacheBytes = "max_audio_cache_bytes"
+private const val KeyMaxDownloadBytes = "max_download_bytes"
 private const val KeySelectedVisualizer = "selected_visualizer"
 private const val KeyRecentRadioStreams = "recent_radio_streams"
 private const val KeyRecentInternetRadioStations = "recent_internet_radio_stations"

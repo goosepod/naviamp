@@ -88,6 +88,7 @@ internal class AndroidPlaybackAppController(
             startSidecarPrep = playlistEngine::startSidecarPrep,
             handlePlaybackProgressChanged = ::handlePlaybackProgressChanged,
             playAdjacentTrack = ::playAdjacentTrack,
+            coverArtUrl = { item, provider -> item.savedCoverArtUrl(provider, storage.latestNavidromeSource()) },
         )
     }
 

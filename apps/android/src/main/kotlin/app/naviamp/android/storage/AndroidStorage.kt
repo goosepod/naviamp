@@ -44,6 +44,8 @@ import app.naviamp.domain.network.KtorSharedHttpClient
 import app.naviamp.domain.popular.ArtistPopularTrackCandidate
 import app.naviamp.domain.popular.ArtistPopularTrackMatch
 import app.naviamp.domain.provider.MediaProvider
+import app.naviamp.domain.provider.PendingProviderAction
+import app.naviamp.domain.provider.PendingProviderActionRepository
 import app.naviamp.domain.settings.PlaybackSessionSettings
 import app.naviamp.domain.source.MediaSourceIdentity
 import app.naviamp.domain.source.SavedMediaSource
@@ -74,6 +76,7 @@ class AndroidStorage(
     ProviderMediaSourceRepository,
     PlaybackSessionRepository,
     LocalLibraryIndexRepository,
+    PendingProviderActionRepository,
     CacheMaintenanceRepository<StorageCacheStats>,
     SidecarStatusRepository,
     AutoCloseable {
@@ -84,6 +87,7 @@ class AndroidStorage(
         name = DatabaseName,
     ).also {
         it.ensureTrackLyricsOffsetSchema()
+        it.ensurePendingProviderActionSchema()
         it.execute(null, "PRAGMA foreign_keys=ON", 0)
     }
     private val database = NaviampStorageDatabase(driver)
@@ -120,6 +124,10 @@ class AndroidStorage(
         json = json,
         nowMillis = ::nowMillis,
     )
+    private val pendingProviderActions = AndroidPendingProviderActionStore(
+        queries = queries,
+        nowMillis = ::nowMillis,
+    )
     private val maintenance = AndroidStorageMaintenanceStore(queries)
     private val audioWaveforms = AndroidAudioWaveformStore(
         queries = queries,
@@ -153,6 +161,7 @@ class AndroidStorage(
         downloadAudioByteStoreService = downloadAudioByteStoreService,
         nowMillis = ::nowMillis,
         maxAudioCacheBytes = maxAudioCacheBytes,
+        protectedTrackIds = ::protectedCachedAudioTrackIds,
     )
     private val fileTreeCleaner = AndroidFileTreeCleaner()
 
@@ -212,9 +221,33 @@ class AndroidStorage(
         savePlaybackSession(session = session, sourceId = sourceId)
     }
 
+    private fun protectedCachedAudioTrackIds(): Set<String> {
+        val sourceId = latestMediaSource()?.id ?: return emptySet()
+        val session = loadPlaybackSession(sourceId) ?: return emptySet()
+        if (session.currentIndex !in session.tracks.indices) return emptySet()
+        return session.tracks
+            .drop(session.currentIndex)
+            .take(ProtectedAudioCacheQueueWindow)
+            .map { track -> track.id }
+            .toSet()
+    }
+
     override suspend fun imageBytes(url: String): ByteArray =
         withContext(Dispatchers.IO) {
             imageByteStoreService.remoteBytes(url)
+        }
+
+    override suspend fun cachedImageBytes(url: String): ByteArray? =
+        withContext(Dispatchers.IO) {
+            imageByteStoreService.cachedBytes(url)
+        }
+
+    suspend fun imageBytes(
+        url: String,
+        fetch: suspend () -> ByteArray,
+    ): ByteArray =
+        withContext(Dispatchers.IO) {
+            imageByteStoreService.bytes(url, fetch)
         }
 
     override suspend fun <T> cachedProviderResponse(
@@ -260,6 +293,12 @@ class AndroidStorage(
         quality: StreamQuality,
     ): AndroidCachedAudioFile? =
         audioStore.cachedAudioFile(sourceId, trackId, quality)
+
+    override suspend fun cachedAudioFile(
+        sourceId: String,
+        trackId: TrackId,
+    ): AndroidCachedAudioFile? =
+        audioStore.cachedAudioFile(sourceId, trackId)
 
     override suspend fun cacheAudioTrack(
         sourceId: String,
@@ -400,6 +439,35 @@ class AndroidStorage(
 
     override fun recordPlaybackHistory(sourceId: String, track: Track, playedAtEpochMillis: Long) {
         playbackStore.recordPlaybackHistory(sourceId, track, playedAtEpochMillis)
+    }
+
+    override fun enqueuePendingProviderAction(
+        sourceId: String,
+        actionType: String,
+        entityId: String,
+        boolValue: Boolean?,
+        longValue: Long?,
+        replaceMatchingEntityAction: Boolean,
+    ) {
+        pendingProviderActions.enqueuePendingProviderAction(
+            sourceId = sourceId,
+            actionType = actionType,
+            entityId = entityId,
+            boolValue = boolValue,
+            longValue = longValue,
+            replaceMatchingEntityAction = replaceMatchingEntityAction,
+        )
+    }
+
+    override fun pendingProviderActions(sourceId: String, limit: Int): List<PendingProviderAction> =
+        pendingProviderActions.pendingProviderActions(sourceId, limit)
+
+    override fun deletePendingProviderAction(id: Long) {
+        pendingProviderActions.deletePendingProviderAction(id)
+    }
+
+    override fun markPendingProviderActionFailed(id: Long, errorMessage: String?) {
+        pendingProviderActions.markPendingProviderActionFailed(id, errorMessage)
     }
 
     override fun markLibrarySyncStarted(sourceId: String) {
@@ -615,5 +683,35 @@ private fun SqlDriver.ensureTrackLyricsOffsetSchema() {
     )
 }
 
+private fun SqlDriver.ensurePendingProviderActionSchema() {
+    execute(
+        null,
+        """
+        CREATE TABLE IF NOT EXISTS pending_provider_action (
+          id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+          source_id TEXT NOT NULL REFERENCES media_source(id) ON DELETE CASCADE,
+          action_type TEXT NOT NULL,
+          entity_id TEXT NOT NULL,
+          bool_value INTEGER,
+          long_value INTEGER,
+          created_at_epoch_millis INTEGER NOT NULL,
+          last_attempt_at_epoch_millis INTEGER,
+          attempt_count INTEGER NOT NULL DEFAULT 0,
+          last_error TEXT
+        )
+        """.trimIndent(),
+        0,
+    )
+    execute(
+        null,
+        """
+        CREATE INDEX IF NOT EXISTS pending_provider_action_source_created
+        ON pending_provider_action(source_id, created_at_epoch_millis)
+        """.trimIndent(),
+        0,
+    )
+}
+
 private const val DatabaseName = "naviamp-storage.db"
 private const val MaxAudioWaveformCacheBytes = 32L * 1024L * 1024L
+private const val ProtectedAudioCacheQueueWindow = 11
