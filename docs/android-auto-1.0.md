@@ -2,7 +2,7 @@
 
 Branch: `codex/android-auto-1-0`
 
-Status: Phase 7 DHU connection and Now Playing validation complete; manual DHU browse-path and real-vehicle validation remain
+Status: Phase 7 DHU browse-root, library playback, queue, and transport validation partially complete; downloads, playlist playback, radio playback, voice/search, and real-vehicle validation remain
 
 ## Goal
 
@@ -26,10 +26,10 @@ Finish Android Auto as the last 1.0 release gate. Naviamp should be discoverable
 
 - [x] Android Auto discovers Naviamp in DHU from a freshly installed debug build.
 - [ ] Android Auto discovers Naviamp in a real vehicle from a freshly installed build.
-- [ ] Browse root is fast, stable, and never empty when a saved connection exists.
+- [x] Browse root is fast, stable, and never empty when a saved connection exists.
 - [ ] Browse root degrades gracefully when no connection is configured or provider restore fails.
 - [x] Now Playing / Resume item resumes the last saved queue or radio session from a swiped-away app.
-- [ ] Browsed library track playback works from cold service start.
+- [x] Browsed library track playback works from cold service start.
 - [ ] Browsed downloaded-track playback works from cold service start without network.
 - [ ] Browsed playlist playback works from cold service start.
 - [ ] Browsed internet-radio playback works from cold service start.
@@ -199,6 +199,22 @@ desktop-head-unit.exe
   - Saved phone settings confirmed the installed app has a Navidrome profile for `https://navidrome.goosepod.lan`, and the DHU playback state confirmed that profile is usable for the active session.
   - `NaviampAutoCommand` produced no app-level command lines during this Now Playing validation; system media-session logs confirmed playback state/metadata updates instead.
   - Remaining DHU work: explicitly browse root branches and start playback from library tracks, downloads, playlists, internet radio, Library Radio, voice/search, and transport controls from each route.
+- Phase 7 DHU browse/control validation continued on 2026-06-13:
+  - Corrected Windows/DHU coordinate scaling for interactive checks: the display was `2560x1440`, while screenshot previews were scaled down.
+  - DHU Back from Now Playing reached Naviamp's Auto browse root.
+  - Browse root loaded quickly with saved Navidrome connection and exposed Home, Library, Downloads, and More tabs.
+  - Home loaded Mixes For You, Recent Plays, and Recently Added in Music.
+  - Library loaded Artists A-Z, Albums, and Tracks.
+  - Library > Tracks loaded playable tracks; selecting `10,000 Days (Wings, Pt 2)` started playback from DHU, and `dumpsys media_session` reported `PLAYING`, metadata `10,000 Days (Wings, Pt 2), Tool`, and queue size `11`.
+  - Queue opened from Now Playing, showed a scrollable list, and selecting `Killa P, Sir Spyro (Original Mix) 140` started playback from DHU; `dumpsys media_session` reported `PLAYING`, metadata `Killa P, Sir Spyro (Original Mix) 140, Start & Stop`, and queue size `54`.
+  - DHU pause and play controls changed media-session state between `PAUSED` and `PLAYING`.
+  - DHU next changed the active queue item to `The Don Dada`; DHU previous returned to `Killa P, Sir Spyro (Original Mix) 140`.
+  - DHU progress-bar seek moved the media-session position from about `29s` to about `138s` while staying `PLAYING`.
+  - DHU overflow exposed Favorite, Shuffle, and Repeat controls, but no visible Stop action. A platform `cmd media_session dispatch stop` command moved Naviamp to `PAUSED`, not a distinct stopped/null state.
+  - Downloads loaded and degraded cleanly with `No downloads / Downloaded tracks will appear here`; downloaded-track playback was not validated because the device had no downloaded tracks.
+  - More loaded Playlists, Radio, and Charts.
+  - Playlists loaded playlist rows; Favorites detail loaded and degraded cleanly with `Playlist is empty / This playlist has no playable tracks`. Playlist playback was not validated in this session because the tested detail had no playable tracks and playlist row selection did not start a new playlist.
+  - Radio branch playback, Library Radio playback, Assistant voice/search, projection disconnect, and real-vehicle validation remain open.
 
 ## Phase 1 Browse ID Baseline
 
