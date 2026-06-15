@@ -1,6 +1,8 @@
 # New Features Roadmap
 
-This checklist tracks the first feature set for the `new-features` branch. Keep the implementation cross-platform by default: shared domain models, shared UI, and platform adapters only where OS/audio/provider access requires it.
+Status: Living feature backlog. The original `new-features` branch work has mostly landed; unchecked items below are follow-up candidates and should be split into focused branches before implementation.
+
+Keep implementation cross-platform by default: shared domain models, shared UI, and platform adapters only where OS/audio/provider access requires it.
 
 ## Lyrics
 

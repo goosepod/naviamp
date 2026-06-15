@@ -20,8 +20,9 @@ Naviamp is a Kotlin Multiplatform / Compose Multiplatform music client currently
 
 Current priorities:
 
-- Windows desktop works and is the main live test path right now.
-- Android is now an active target with BASS-backed playback, shared UI surfaces, cache/sidecar prep, and parity work tracked in the roadmaps.
+- Desktop works on macOS and Windows through the packaged local-test/release paths; use the platform that matches the issue being tested.
+- Android is an active target with BASS-backed playback, shared UI surfaces, cache/sidecar prep, Android Auto service-owned playback, and parity work tracked in the roadmaps.
+- Android Auto 1.0 implementation is merged; remaining work is focused validation and polish tracked in `docs/android-auto-1.0.md`.
 - Naviamp should be truly multiplatform. When new work can be platform-agnostic, implement it in shared/domain/app/UI modules first and keep only OS-bound code in the platform app modules.
 - Default bias: if behavior is not inherently tied to OS APIs, keep it platform-agnostic. Visual behavior, color derivation, layout decisions, screen state, queue/action models, and pure transformations should live in shared modules unless there is a concrete platform API boundary. If platform-specific-looking code is encountered during other work and cannot be moved immediately, add a note here so it is not forgotten.
 - Navidrome is the first provider, but the app should stay provider-oriented.
@@ -46,6 +47,8 @@ Main source areas:
 Useful docs:
 
 - `docs/architecture.md`
+- `docs/android-auto-1.0.md`
+- `docs/android-parity-roadmap.md`
 - `docs/desktop-playback.md`
 - `docs/kotlin-bass-roadmap.md`
 - `docs/roadmap.md`

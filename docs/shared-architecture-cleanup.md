@@ -1,8 +1,8 @@
 # Shared Architecture Cleanup
 
-Status: Discovery complete; first implementation slice selected
+Status: Historical cleanup plan with useful architecture guidance. The major shared-architecture slices have landed; remaining unchecked items are long-term backlog/regression-discipline notes, not an active branch gate.
 
-Branch: `codex/shared-architecture-cleanup`
+Branch: `codex/shared-architecture-cleanup` (merged)
 
 ## Why this exists
 

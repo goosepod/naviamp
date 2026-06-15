@@ -1,8 +1,8 @@
 # Android Auto 1.0 Checklist
 
-Branch: `codex/android-auto-1-0`
+Branch: `codex/android-auto-1-0` (merged to `main` at `d2063959`; follow-up fixes now land on `main`)
 
-Status: Phase 8 cache/offline validation is mostly complete; Auto browse has been simplified for fast music starts, Android now exposes cache-size parity with desktop, service-owned Auto playback uses the configured prefetch depth, shared cover-art cache reads and proactive cover-art warming are wired, offline favorite and play-report sync have been device-validated, cache eviction protects the active drive queue, and the 10-song cached-drive Android Auto endurance gate has passed in DHU after a clean DHU restart
+Status: Implementation is merged. Phase 8 cache/offline validation is mostly complete; Auto browse has been simplified for fast music starts, Android now exposes cache-size parity with desktop, service-owned Auto playback uses the configured prefetch depth, shared cover-art cache reads and proactive cover-art warming are wired, offline favorite and play-report sync have been device-validated, cache eviction protects the active drive queue, and the 10-song cached-drive Android Auto endurance gate has passed in DHU after a clean DHU restart. Remaining work is validation and polish, not branch implementation handoff.
 
 ## Goal
 

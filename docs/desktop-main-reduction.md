@@ -1,8 +1,10 @@
 # Desktop Main Reduction Worksheet
 
+Status: Historical worksheet. The `codex/desktop-main-reduction` work has been merged into `main`; unchecked items below are backlog/architecture guidance, not an active branch gate. Current follow-up architecture work should prefer `docs/shared-storage-cache-architecture.md`, `docs/shared-architecture-cleanup.md`, and issue-specific notes.
+
 This tracks the follow-up branch after the shared-core extraction and first desktop split. The goal is to keep reducing the desktop app composition file while continuing to move duplicated desktop/Android product behavior into shared modules when it is not platform-specific.
 
-Branch: `codex/desktop-main-reduction`
+Branch: `codex/desktop-main-reduction` (merged)
 
 ## Goals
 

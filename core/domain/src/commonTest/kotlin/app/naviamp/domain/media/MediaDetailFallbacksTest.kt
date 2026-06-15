@@ -4,6 +4,7 @@ import app.naviamp.domain.Album
 import app.naviamp.domain.AlbumDetails
 import app.naviamp.domain.AlbumId
 import app.naviamp.domain.Artist
+import app.naviamp.domain.ArtistDetails
 import app.naviamp.domain.ArtistId
 import app.naviamp.domain.ProviderId
 import app.naviamp.domain.StreamRequest
@@ -135,6 +136,122 @@ class MediaDetailFallbacksTest {
                 ),
             ),
             detail?.albums,
+        )
+    }
+
+    @Test
+    fun artistDetailsFromLibraryTracksBuildsUnknownAlbumForAlbumlessTracks() {
+        val detail = artistDetailsFromLibraryTracks(
+            artistId = ArtistId("orchid"),
+            fallbackName = "Orchid",
+            tracks = listOf(
+                track(
+                    "orchid-track",
+                    artistId = "orchid",
+                    artistName = "Orchid",
+                    albumId = null,
+                    albumTitle = null,
+                    releaseYear = null,
+                ),
+            ),
+        )
+
+        assertEquals(Artist(ArtistId("orchid"), "Orchid"), detail?.artist)
+        assertEquals(
+            listOf(
+                Album(
+                    id = AlbumId("artist:orchid:local-album:unknown-album:orchid"),
+                    title = "Unknown Album",
+                    artistName = "Orchid",
+                    coverArtId = "cover-orchid-track",
+                    recentlyAddedAtIso8601 = null,
+                    releaseYear = null,
+                ),
+            ),
+            detail?.albums,
+        )
+    }
+
+    @Test
+    fun loadArtistDetailsBackfillsEmptyProviderAlbumsFromLocalArtistNameMatches() = runTest {
+        val providerDetail = ArtistDetails(
+            artist = Artist(ArtistId("provider-orchid"), "Orchid"),
+            albums = emptyList(),
+            info = null,
+        )
+        val localTrack = track(
+            "orchid-track",
+            artistId = "local-orchid",
+            artistName = "Orchid",
+            albumId = null,
+            albumTitle = null,
+            releaseYear = null,
+        )
+
+        val detail = loadArtistDetails(
+            libraryIndexRepository = FakeLibraryIndexRepository(
+                tracksByArtistName = mapOf("Orchid" to listOf(localTrack)),
+            ),
+            providerResponseService = fakeProviderResponseService(),
+            provider = FakeFlowProvider(artistDetails = providerDetail),
+            artistId = ArtistId("provider-orchid"),
+            fallbackName = "Orchid",
+            sourceId = "source",
+        )
+
+        assertEquals(providerDetail.artist, detail.artist)
+        assertEquals(
+            listOf(
+                Album(
+                    id = AlbumId("artist:provider-orchid:local-album:unknown-album:orchid"),
+                    title = "Unknown Album",
+                    artistName = "Orchid",
+                    coverArtId = "cover-orchid-track",
+                    recentlyAddedAtIso8601 = null,
+                    releaseYear = null,
+                ),
+            ),
+            detail.albums,
+        )
+    }
+
+    @Test
+    fun loadAlbumDetailsBackfillsSyntheticUnknownAlbumFromLocalArtistNameMatches() = runTest {
+        val localTrack = track(
+            "orchid-track",
+            artistId = "local-orchid",
+            artistName = "Orchid",
+            albumId = null,
+            albumTitle = null,
+            releaseYear = null,
+        )
+        val albumId = AlbumId("artist:provider-orchid:local-album:unknown-album:orchid")
+
+        val detail = loadAlbumDetails(
+            libraryIndexRepository = FakeLibraryIndexRepository(
+                tracksByArtistName = mapOf("Orchid" to listOf(localTrack)),
+            ),
+            providerResponseService = fakeProviderResponseService(),
+            provider = FakeFlowProvider(),
+            albumId = albumId,
+            fallbackTitle = "Unknown Album",
+            fallbackArtistName = "Orchid",
+            sourceId = "source",
+        )
+
+        assertEquals(
+            AlbumDetails(
+                album = Album(
+                    id = albumId,
+                    title = "Unknown Album",
+                    artistName = "Orchid",
+                    coverArtId = "cover-orchid-track",
+                    recentlyAddedAtIso8601 = null,
+                    releaseYear = null,
+                ),
+                tracks = listOf(localTrack),
+            ),
+            detail,
         )
     }
 
@@ -329,16 +446,18 @@ class MediaDetailFallbacksTest {
 
     private fun track(
         id: String,
-        albumId: String,
-        albumTitle: String,
+        artistId: String = "artist",
+        artistName: String = "Artist",
+        albumId: String?,
+        albumTitle: String?,
         releaseYear: Int?,
     ): Track =
         Track(
             id = TrackId(id),
             title = "Track $id",
-            artistId = ArtistId("artist"),
-            artistName = "Artist",
-            albumId = AlbumId(albumId),
+            artistId = ArtistId(artistId),
+            artistName = artistName,
+            albumId = albumId?.let(::AlbumId),
             albumTitle = albumTitle,
             albumReleaseYear = releaseYear,
             durationSeconds = 120,
@@ -417,7 +536,10 @@ class MediaDetailFallbacksTest {
             },
         )
 
-    private class FakeLibraryIndexRepository : LocalLibraryIndexRepository {
+    private class FakeLibraryIndexRepository(
+        private val tracksByArtist: Map<ArtistId, List<Track>> = emptyMap(),
+        private val tracksByArtistName: Map<String, List<Track>> = emptyMap(),
+    ) : LocalLibraryIndexRepository {
         override fun mediaSource(sourceId: String): SavedMediaSource? = error("unused")
         override fun markLibraryScanChecked(sourceId: String, signature: String) = Unit
         override fun markLibrarySyncStarted(sourceId: String) = Unit
@@ -430,8 +552,11 @@ class MediaDetailFallbacksTest {
         override fun randomLibraryTrackForAlbum(sourceId: String, albumId: AlbumId): Track? = error("unused")
         override fun libraryTracksForAlbum(sourceId: String, albumId: AlbumId, limit: Long): List<Track> = emptyList()
         override fun randomLibraryTrackForArtist(sourceId: String, artistId: ArtistId): Track? = error("unused")
-        override fun libraryTracksForArtist(sourceId: String, artistId: ArtistId, limit: Long): List<Track> = emptyList()
-        override fun libraryTracksForArtistName(sourceId: String, artistName: String, limit: Long): List<Track> = emptyList()
+        override fun libraryTracksForArtist(sourceId: String, artistId: ArtistId, limit: Long): List<Track> =
+            tracksByArtist[artistId].orEmpty().take(limit.toInt())
+
+        override fun libraryTracksForArtistName(sourceId: String, artistName: String, limit: Long): List<Track> =
+            tracksByArtistName[artistName].orEmpty().take(limit.toInt())
         override fun relatedLibraryTracks(sourceId: String, track: Track, limit: Long): List<Track> = emptyList()
         override fun libraryIndexStats(sourceId: String): LibraryIndexStats = error("unused")
         override fun libraryAlbumYears(sourceId: String): List<LibraryAlbumYear> = emptyList()
@@ -449,7 +574,9 @@ class MediaDetailFallbacksTest {
         ) = Unit
     }
 
-    private class FakeFlowProvider : MediaProvider {
+    private class FakeFlowProvider(
+        private val artistDetails: ArtistDetails? = null,
+    ) : MediaProvider {
         override val id: ProviderId = ProviderId("fake")
         override val displayName: String = "Fake"
         override val capabilities: ProviderCapabilities = ProviderCapabilities(
@@ -465,7 +592,7 @@ class MediaDetailFallbacksTest {
 
         override suspend fun recentlyAddedAlbums(limit: Int): List<Album> = emptyList()
         override suspend fun album(albumId: AlbumId): AlbumDetails = error("unused")
-        override suspend fun artist(artistId: ArtistId): app.naviamp.domain.ArtistDetails = error("unused")
+        override suspend fun artist(artistId: ArtistId): ArtistDetails = artistDetails ?: error("unused")
         override suspend fun artists(limit: Int): List<Artist> = emptyList()
         override suspend fun tracks(limit: Int): List<Track> = emptyList()
         override suspend fun search(query: String, limit: Int): MediaSearchResults = MediaSearchResults()

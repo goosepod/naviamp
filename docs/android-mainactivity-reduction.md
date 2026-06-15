@@ -1,8 +1,10 @@
 # Android MainActivity Reduction Worksheet
 
+Status: Historical worksheet. The original activity-reduction work has mostly moved into the shared architecture, Android parity, and Android Auto documents. Unchecked items here are backlog prompts only; do not treat this file as the current Android release checklist.
+
 This tracks the maintainability pass after the original Android warning-driven split. The release/function-size warning work is complete in `docs/android-mainactivity-split.md`; this worksheet is for getting `MainActivity.kt` out of the business of owning whole feature workflows.
 
-Branch: `codex/desktop-main-reduction`
+Branch: historical `codex/desktop-main-reduction` cleanup thread
 
 ## Baseline
 

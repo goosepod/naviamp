@@ -17,6 +17,7 @@ const val ArtistDetailPopularTracksFetchLimit = 25
 const val ArtistDetailPopularTracksDisplayLimit = 10
 const val ArtistDetailSimilarArtistsFetchLimit = 20
 const val ArtistDetailSimilarArtistsDisplayLimit = 10
+private const val LocalArtistAlbumIdMarker = ":local-album:"
 
 data class ArtistPopularTracksUpdate(
     val tracks: List<Track>,
@@ -62,7 +63,8 @@ fun artistDetailsFromLibraryTracks(
         .groupBy { track -> track.albumId?.value ?: track.albumTitle.orEmpty() }
         .mapNotNull { (_, albumTracks) ->
             val first = albumTracks.firstOrNull() ?: return@mapNotNull null
-            val albumId = first.albumId ?: return@mapNotNull null
+            val albumId = first.albumId
+                ?: localArtistAlbumId(artistId, first.albumTitle, first.artistName)
             Album(
                 id = albumId,
                 title = first.albumTitle ?: "Unknown Album",
@@ -119,16 +121,55 @@ suspend fun loadArtistDetails(
 ): ArtistDetails =
     runCatching {
         providerResponseService.artist(provider, artistId)
+            .withLocalAlbumsWhenEmpty(libraryIndexRepository, sourceId, artistId, fallbackName)
     }.recoverCatching { error ->
         val fallbackDetail = sourceId?.let {
             artistDetailsFromLibraryTracks(
                 artistId = artistId,
                 fallbackName = fallbackName,
-                tracks = libraryIndexRepository.libraryTracksForArtist(it, artistId, limit = 1_000),
+                tracks = libraryIndexRepository.artistDetailFallbackTracks(it, artistId, fallbackName),
             )
         }
         fallbackDetail ?: throw error
     }.getOrThrow()
+
+private fun localArtistAlbumId(artistId: ArtistId, albumTitle: String?, artistName: String): AlbumId =
+    AlbumId(
+        "artist:${artistId.value}$LocalArtistAlbumIdMarker" +
+            "${(albumTitle ?: "unknown-album").lowercase()}:${artistName.lowercase()}",
+    )
+
+private fun ArtistDetails.withLocalAlbumsWhenEmpty(
+    libraryIndexRepository: LocalLibraryIndexRepository,
+    sourceId: String?,
+    artistId: ArtistId,
+    fallbackName: String?,
+): ArtistDetails {
+    if (albums.isNotEmpty() || sourceId == null) return this
+    val localDetail = artistDetailsFromLibraryTracks(
+        artistId = artistId,
+        fallbackName = artist.name.takeIf { it.isNotBlank() } ?: fallbackName,
+        tracks = libraryIndexRepository.artistDetailFallbackTracks(
+            sourceId = sourceId,
+            artistId = artistId,
+            fallbackName = fallbackName ?: artist.name,
+        ),
+    ) ?: return this
+    return copy(albums = localDetail.albums)
+}
+
+private fun LocalLibraryIndexRepository.artistDetailFallbackTracks(
+    sourceId: String,
+    artistId: ArtistId,
+    fallbackName: String?,
+): List<Track> {
+    val idMatches = libraryTracksForArtist(sourceId, artistId, limit = 1_000)
+    if (idMatches.isNotEmpty()) return idMatches
+    return fallbackName
+        ?.takeIf { it.isNotBlank() }
+        ?.let { libraryTracksForArtistName(sourceId, it, limit = 1_000) }
+        .orEmpty()
+}
 
 fun trackArtist(track: Track): Artist? =
     track.artistId?.let { artistId ->
@@ -262,11 +303,30 @@ suspend fun loadAlbumDetails(
                 albumId = albumId,
                 fallbackTitle = fallbackTitle,
                 fallbackArtistName = fallbackArtistName,
-                tracks = libraryIndexRepository.libraryTracksForAlbum(it, albumId, limit = 1_000),
+                tracks = libraryIndexRepository.albumDetailFallbackTracks(
+                    sourceId = it,
+                    albumId = albumId,
+                    fallbackTitle = fallbackTitle,
+                    fallbackArtistName = fallbackArtistName,
+                ),
             )
         }
         fallbackDetail ?: throw error
     }.getOrThrow()
+
+private fun LocalLibraryIndexRepository.albumDetailFallbackTracks(
+    sourceId: String,
+    albumId: AlbumId,
+    fallbackTitle: String?,
+    fallbackArtistName: String?,
+): List<Track> {
+    val albumMatches = libraryTracksForAlbum(sourceId, albumId, limit = 1_000)
+    if (albumMatches.isNotEmpty() || !albumId.value.contains(LocalArtistAlbumIdMarker)) return albumMatches
+    val artistName = fallbackArtistName?.takeIf { it.isNotBlank() } ?: return emptyList()
+    val albumTitle = fallbackTitle ?: "Unknown Album"
+    return libraryTracksForArtistName(sourceId, artistName, limit = 1_000)
+        .filter { track -> track.albumId == null && (track.albumTitle ?: "Unknown Album") == albumTitle }
+}
 
 fun trackAlbum(track: Track): Album? =
     track.albumId?.let { albumId ->

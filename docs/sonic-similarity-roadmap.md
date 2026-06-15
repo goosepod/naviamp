@@ -1,6 +1,6 @@
 # Sonic Similarity Roadmap
 
-Status: Phase 3 complete; consolidating sonic similarity into Track Radio
+Status: Core sonic similarity work is merged through Sonic Autoplay. Remaining unchecked items are follow-up polish, playlist-save integration, and performance/quality validation.
 
 ## Why this exists
 
@@ -126,6 +126,7 @@ Skipped. Naviamp will use Navidrome agent metadata for similar artists and popul
 - [x] Avoid repeating current queue/history.
 - [x] Keep this opt-in and independent from the Related tracks preference.
 
-## Current First Slice
+## Next Follow-Ups
 
-Start with Phase 1. This unlocks all later work because every sonic feature needs a trustworthy answer to "can the current server do this?"
+- Add playlist save for Sonic Path and Sonic Mix once the shared playlist creation/update flow is the right shape for generated queues.
+- Keep validating provider capability detection against real Navidrome/OpenSubsonic plugin combinations before adding new sonic surfaces.

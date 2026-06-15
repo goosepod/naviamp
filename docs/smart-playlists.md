@@ -55,6 +55,6 @@ Current limitations:
 - The builder supports one level of editable rule groups. Deeper nested groups are represented in the shared model, but they are not editable in the UI yet.
 - Playlist membership filters require manually entering the Navidrome playlist ID until playlist-picker integration is added.
 - Custom, user-defined Navidrome tags can be used by the rule model, but the builder does not yet expose an arbitrary custom-field row.
-- Existing saved connections that do not have a native token must reconnect with a password before saving smart playlists.
+- Existing saved connections that do not have a native token must refresh smart-playlist auth with the password once before saving. Refreshed desktop native tokens are persisted in the saved media-source row, so this should not require repeated full sign-in after the token is captured.
 - `.nsp` import currently accepts pasted JSON in the shared builder. A native file picker can wrap the same shared parser per platform.
 - Editing existing smart playlists depends on Navidrome returning editable `rules` through the native playlist API. Regular playlists or smart playlists with unsupported custom fields will show a validation/load error.

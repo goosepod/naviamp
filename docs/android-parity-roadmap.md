@@ -140,12 +140,12 @@ Android already uses the shared Compose UI shell for the main app surface, so ma
   - [x] Pause playback when Android reports the active audio route is disconnecting, so car/DHU disconnects do not intentionally continue on phone speakers.
   - [x] Add Android Auto playlist browsing backed by Navidrome playlist APIs.
   - [x] Add Android Auto internet radio browsing backed by Navidrome station APIs.
+  - [x] Move Android Auto playback ownership into a true long-lived playback service instead of retained activity callbacks.
+    Android Auto now uses `AndroidPlaybackForegroundService`, `AndroidServicePlaybackRuntimeController`, and service-owned session hydration for cold-start playback and controls.
   - [ ] Test Assistant voice routing in DHU/AAE and a real vehicle:
     say `Hey Google, play Green Day radio in Naviamp`, `Hey Google, play Camel Fat radio in Naviamp`, and `Hey Google, play Electronica radio in Naviamp`; verify `NaviampAutoCommand` logs show `Auto requested search=...`.
-  - [ ] Verify cold-start Android Auto playback from a fully swiped-away app in DHU and a real vehicle.
-  - [ ] Verify Android Auto/DHU disconnect pause behavior; some projection disconnects may not send the standard noisy-audio broadcast.
-  - [ ] Move Android Auto playback ownership into a true long-lived playback service instead of retained activity callbacks.
-  - [ ] Verify in Android Auto desktop head unit or a real vehicle once device testing resumes.
+  - [ ] Verify the remaining Android Auto 1.0 release gates in `docs/android-auto-1.0.md`.
+    Current gaps are real-vehicle discovery, no-source/provider-failure browse degradation, downloaded-track offline cold start on a device with downloads, browsed playlist/radio/Library Radio cold starts, Assistant search, transport controls, and projection disconnect behavior.
 
 ## First Implementation Order
 
@@ -181,7 +181,7 @@ Android already uses the shared Compose UI shell for the main app surface, so ma
 - [x] Stats/diagnostics API call list
 - [x] Downloads route lists downloaded tracks
 - [ ] Now Playing portrait and landscape visual check
-- [ ] Android Auto discovers Naviamp
+- [x] Android Auto discovers Naviamp in DHU from a freshly installed debug build
 - [x] Android Auto notification/session controls work
 - [x] Android Auto browse root loads safely
 - [x] Android Auto browses indexed artists, albums, tracks, downloads, and Library Radio
