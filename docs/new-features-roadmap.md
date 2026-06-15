@@ -4,6 +4,45 @@ Status: Living feature backlog. The original `new-features` branch work has most
 
 Keep implementation cross-platform by default: shared domain models, shared UI, and platform adapters only where OS/audio/provider access requires it.
 
+## Prioritized Feature Candidates
+
+These are the current high-value follow-up ideas to consider after Android Auto 1.0 validation settles. Split each into a focused branch before implementation.
+
+### Practical Next Branches
+
+- [ ] Add Offline Mode dashboard.
+  - Show downloaded albums/playlists/tracks, cache health, available-offline status, pending offline actions, failed syncs, and a clear "ready for car/offline" signal.
+  - Tie this to Android Auto/offline validation so cached-drive behavior is visible instead of only diagnostic-log based.
+- [ ] Add smart playlist templates.
+  - Candidate templates: Recently Played, Never Played, High Rated, Favorite Albums, Recently Added but Unplayed, and Long-Unheard Favorites.
+  - Reuse the existing playlist creation/update flow where possible.
+- [ ] Add generated-mix playlist save.
+  - Cover Sonic Path, Sonic Mix, generated radio queues, and other discovery outputs.
+  - Treat this as the durable version of discovery: play now first, then save the good result.
+
+### Product-Defining Bets
+
+- [ ] Add radio tuning controls inspired by Plexamp DJ-style controls.
+  - Candidate controls: familiar/discovery, narrow/broad, same decade/any decade, favorites bias, deep cuts, similar artists, and genre spread.
+  - Persist selected tuning options and pass them into radio/mix generation.
+  - Discuss the exact tuning model before implementation; this is likely large enough for its own planning branch.
+- [ ] Add `Naviamp Connect` style remote renderer support.
+  - Phone/desktop acts as controller; Android TV / Google TV / Fire TV acts as renderer.
+  - See `docs/naviamp-connect-roadmap.md`.
+- [ ] Add cross-device app state sync.
+  - Candidate state: recent radio, recent generated mixes, settings, and possible playback handoff.
+  - First investigate whether Navidrome can store app state; if not, evaluate app-managed sync keyed by server/user plus export/import as a fallback.
+
+### Focused Polish
+
+- [ ] Improve artist-page local-library confidence.
+  - Make source context clearer when provider metadata and local library matches are combined.
+  - Consider showing local library albums, provider bio, similar artists, popular tracks, and a small "matched from your library" signal for ambiguous artist names.
+- [ ] Add queue rules as settings.
+  - Candidate rules: shuffle upcoming only, remove played tracks, keep radio queue filled, start radio when queue ends.
+- [ ] Add a replay gain inspector toggle.
+  - Show track/album gain, peak, selected mode, and active applied gain when available.
+
 ## Lyrics
 
 - [x] Add per-track synced lyrics timing offset.
