@@ -70,6 +70,9 @@ internal fun androidMainShellActions(
         handleSonicPathReset = sonicPathController::reset,
         handleSonicPathPlay = sonicPathController::playPath,
         handleSonicPathAddToQueue = sonicPathController::addPathToQueue,
+        handleSonicPathSaveAsPlaylist = { name ->
+            playlistActionController.saveTracksAsPlaylist(name, sonicPathController.playlistTracks(), "sonic path")
+        },
         handleSonicMixQueryChanged = sonicMixController::updateQuery,
         handleSonicMixSearch = sonicMixController::searchTracks,
         handleSonicMixTrackSelected = sonicMixController::selectTrack,
@@ -80,6 +83,9 @@ internal fun androidMainShellActions(
         handleSonicMixReset = sonicMixController::reset,
         handleSonicMixPlay = sonicMixController::playMix,
         handleSonicMixAddToQueue = sonicMixController::addMixToQueue,
+        handleSonicMixSaveAsPlaylist = { name ->
+            playlistActionController.saveTracksAsPlaylist(name, sonicMixController.playlistTracks(), "sonic mix")
+        },
         startAndroidLibrarySync = { force -> startAndroidLibrarySync(scope, state, storage, force) },
         handleShellTrackSelected = shellMediaController::handleShellTrackSelected,
         handleDownloadedTrackAction = trackActionController::handleDownloadedTrackAction,

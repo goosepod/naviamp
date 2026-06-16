@@ -1703,6 +1703,8 @@ fun AddToPlaylistDialog(
 fun SaveQueueAsPlaylistDialog(
     colors: NaviampColors,
     status: String?,
+    title: String = "Save queue as playlist",
+    description: String = "Save the current queue in order as a server playlist.",
     onDismissRequest: () -> Unit,
     onSave: (String) -> Unit,
 ) {
@@ -1710,10 +1712,10 @@ fun SaveQueueAsPlaylistDialog(
 
     AlertDialog(
         onDismissRequest = onDismissRequest,
-        title = { Text("Save queue as playlist", fontWeight = FontWeight.Bold) },
+        title = { Text(title, fontWeight = FontWeight.Bold) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("Save the current queue in order as a server playlist.", color = colors.secondaryText, fontSize = 12.sp)
+                Text(description, color = colors.secondaryText, fontSize = 12.sp)
                 status?.let { Text(it, color = colors.secondaryText, fontSize = 12.sp) }
                 OutlinedTextField(
                     value = playlistName,

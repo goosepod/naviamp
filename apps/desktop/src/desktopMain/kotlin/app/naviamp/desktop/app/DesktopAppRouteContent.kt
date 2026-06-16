@@ -13,6 +13,10 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import app.naviamp.desktop.settings.CacheSettings
@@ -52,6 +56,7 @@ import app.naviamp.ui.SharedTrackGroupAction
 import app.naviamp.ui.SharedTrackGroupActionRequest
 import app.naviamp.ui.SharedTrackRowAction
 import app.naviamp.ui.SharedTrackRowUi
+import app.naviamp.ui.SaveQueueAsPlaylistDialog
 import app.naviamp.ui.StationRowAction
 import app.naviamp.ui.SonicMixBuilderContent
 import app.naviamp.ui.SonicPathBuilderContent
@@ -144,6 +149,7 @@ fun ColumnScope.DesktopAppRouteContent(
     onSonicPathReset: () -> Unit,
     onSonicPathPlay: () -> Unit,
     onSonicPathAddToQueue: () -> Unit,
+    onSonicPathSaveAsPlaylist: (String) -> Unit,
     sonicMixBuilder: SharedSonicMixBuilderUi,
     onSonicMixQueryChanged: (String) -> Unit,
     onSonicMixSearch: () -> Unit,
@@ -155,6 +161,7 @@ fun ColumnScope.DesktopAppRouteContent(
     onSonicMixReset: () -> Unit,
     onSonicMixPlay: () -> Unit,
     onSonicMixAddToQueue: () -> Unit,
+    onSonicMixSaveAsPlaylist: (String) -> Unit,
     internetRadioStations: List<InternetRadioStation>,
     internetRadioStatus: String?,
     onSaveInternetRadioStation: (InternetRadioStation) -> Unit,
@@ -187,6 +194,8 @@ fun ColumnScope.DesktopAppRouteContent(
     onResetDatabase: () -> Unit,
     onSonicHomeDiscoveryTrackAction: (SharedHomeDiscoveryTrackActionRequest) -> Unit,
 ) {
+    var saveSonicPathDialogOpen by remember { mutableStateOf(false) }
+    var saveSonicMixDialogOpen by remember { mutableStateOf(false) }
     val contentScrollState = rememberScrollState()
     val sharedHome = homeContent.toSharedHomeUi(
         coverArtUrl = coverArtUrl,
@@ -699,6 +708,12 @@ fun ColumnScope.DesktopAppRouteContent(
                             ) {
                                 Text("Add to Queue")
                             }
+                            Button(
+                                onClick = { saveSonicPathDialogOpen = true },
+                                modifier = Modifier.weight(1f),
+                            ) {
+                                Text("Save")
+                            }
                         }
                     }
                 }
@@ -747,6 +762,12 @@ fun ColumnScope.DesktopAppRouteContent(
                                 modifier = Modifier.weight(1f),
                             ) {
                                 Text("Add to Queue")
+                            }
+                            Button(
+                                onClick = { saveSonicMixDialogOpen = true },
+                                modifier = Modifier.weight(1f),
+                            ) {
+                                Text("Save")
                             }
                         }
                     }
@@ -841,5 +862,31 @@ fun ColumnScope.DesktopAppRouteContent(
                 )
             }
         }
+    }
+    if (saveSonicPathDialogOpen) {
+        SaveQueueAsPlaylistDialog(
+            colors = appColors,
+            status = null,
+            title = "Save path as playlist",
+            description = "Save this Sonic Path in order as a server playlist.",
+            onDismissRequest = { saveSonicPathDialogOpen = false },
+            onSave = { name ->
+                onSonicPathSaveAsPlaylist(name)
+                saveSonicPathDialogOpen = false
+            },
+        )
+    }
+    if (saveSonicMixDialogOpen) {
+        SaveQueueAsPlaylistDialog(
+            colors = appColors,
+            status = null,
+            title = "Save mix as playlist",
+            description = "Save this Sonic Mix in order as a server playlist.",
+            onDismissRequest = { saveSonicMixDialogOpen = false },
+            onSave = { name ->
+                onSonicMixSaveAsPlaylist(name)
+                saveSonicMixDialogOpen = false
+            },
+        )
     }
 }

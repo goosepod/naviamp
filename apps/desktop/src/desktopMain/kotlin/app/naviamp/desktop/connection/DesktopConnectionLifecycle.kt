@@ -190,7 +190,7 @@ class DesktopConnectionLifecycleController(
                 if (restoreSavedSession) {
                     restorePlaybackSession(provider)
                 }
-                settingsStore.clearConnection()
+                settingsStore.saveConnection(connection)
                 setSavedConnectionForLogin(connection)
                 if (connection.nativeToken?.isNotBlank() == true) {
                     clearPassword()
@@ -202,9 +202,6 @@ class DesktopConnectionLifecycleController(
                 setConnectionStatus(
                     navidromeConnectionSuccessStatus(
                         validation = session.validation,
-                        connection = connection,
-                        password = password(),
-                        smartPlaylistAuthWarning = session.smartPlaylistAuthWarning,
                     ),
                 )
                 refreshLibrarySnapshot()

@@ -6,44 +6,26 @@ import kotlin.test.assertEquals
 
 class NavidromeConnectionStatusTest {
     @Test
-    fun successStatusIncludesServerVersionAndSmartPlaylistState() {
+    fun successStatusIncludesServerVersionWithoutSmartPlaylistNoise() {
         val validation = ConnectionValidation(serverVersion = "0.55.0", apiVersion = "1.16.1")
 
         assertEquals(
-            "Connected to Navidrome 0.55.0. Smart playlist saves are enabled.",
+            "Connected to Navidrome 0.55.0.",
             navidromeConnectionSuccessStatus(
                 validation = validation,
-                connection = navidromeConnection(nativeToken = "native"),
-                password = "secret",
-                smartPlaylistAuthWarning = null,
             ),
         )
         assertEquals(
-            "Connected to Navidrome 0.55.0. Smart playlist saves are not enabled: native auth unavailable",
+            "Connected to Navidrome 0.55.0.",
             navidromeConnectionSuccessStatus(
                 validation = validation,
-                connection = navidromeConnection(),
-                password = "secret",
-                smartPlaylistAuthWarning = "native auth unavailable",
             ),
         )
         assertEquals(
-            "Connected to Navidrome 0.55.0. Smart playlist saves require editing this connection and entering your password.",
+            "Connected to Navidrome 0.55.0.",
             navidromeConnectionSuccessStatus(
                 validation = validation,
-                connection = navidromeConnection(),
-                password = "",
-                smartPlaylistAuthWarning = null,
             ),
         )
     }
 }
-
-private fun navidromeConnection(nativeToken: String? = null): NavidromeConnection =
-    NavidromeConnection(
-        baseUrl = "https://music.example.test",
-        username = "demo",
-        token = "token",
-        salt = "salt",
-        nativeToken = nativeToken,
-    )

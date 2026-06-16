@@ -442,16 +442,33 @@ fun saveQueueAsPlaylistFromState(
     name: String,
     providerResponseCacheRepository: ProviderResponseCacheRepository? = null,
 ) {
+    saveTracksAsPlaylistFromState(
+        scope = scope,
+        state = state,
+        name = name,
+        tracks = state.playbackQueue.tracks,
+        label = "queue",
+        providerResponseCacheRepository = providerResponseCacheRepository,
+    )
+}
+
+fun saveTracksAsPlaylistFromState(
+    scope: CoroutineScope,
+    state: AndroidAppState,
+    name: String,
+    tracks: List<Track>,
+    label: String,
+    providerResponseCacheRepository: ProviderResponseCacheRepository? = null,
+) {
     val activeProvider = state.provider ?: return
     val providerResponseService = providerResponseCacheRepository?.let { ProviderResponseService(it) }
-    val queueTracks = state.playbackQueue.tracks
-    state.playlistActionStatus = queuePlaylistSaveLoadingStatus()
+    state.playlistActionStatus = queuePlaylistSaveLoadingStatus(label)
     scope.launch {
         with(state) {
             runCatching {
                 activeProvider.saveQueueAsPlaylistApplication(
                     name = name,
-                    tracks = queueTracks,
+                    tracks = tracks,
                     currentHomeContent = homeState,
                     recentPlaylistIds = recentPlaylistIds,
                     projection = PlaylistHomeProjection.All,
@@ -462,7 +479,7 @@ fun saveQueueAsPlaylistFromState(
                 playlistActionStatus = null
                 status = application.status
             }.onFailure { error ->
-                playlistActionStatus = queuePlaylistSaveErrorMessage(error)
+                playlistActionStatus = queuePlaylistSaveErrorMessage(error, label)
                 status = playlistActionStatus.orEmpty()
             }
         }
@@ -602,6 +619,10 @@ internal class AndroidPlaylistActionController(
 
     fun saveQueueAsPlaylist(name: String) {
         saveQueueAsPlaylistFromState(scope, state, name, storage)
+    }
+
+    fun saveTracksAsPlaylist(name: String, tracks: List<Track>, label: String) {
+        saveTracksAsPlaylistFromState(scope, state, name, tracks, label, storage)
     }
 
     fun addPlaylistToQueue(playlist: Playlist) {

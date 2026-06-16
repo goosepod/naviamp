@@ -316,15 +316,18 @@ class DesktopPlaylistsController(
     }
 
     fun saveQueueAsPlaylist(name: String) {
+        saveTracksAsPlaylist(name = name, tracks = playlistEngine.queue.tracks, label = "queue")
+    }
+
+    fun saveTracksAsPlaylist(name: String, tracks: List<Track>, label: String) {
         val activeProvider = provider() ?: return
-        val queueTracks = playlistEngine.queue.tracks
-        setConnectionStatus(queuePlaylistSaveLoadingStatus())
+        setConnectionStatus(queuePlaylistSaveLoadingStatus(label))
         scope.launch {
             try {
                 val application = withContext(Dispatchers.IO) {
                     activeProvider.saveQueueAsPlaylistApplication(
                         name = name,
-                        tracks = queueTracks,
+                        tracks = tracks,
                         currentHomeContent = homeContent(),
                         recentPlaylistIds = recentPlaylistIds,
                         projection = PlaylistHomeProjection.RecentLimited,
@@ -334,7 +337,7 @@ class DesktopPlaylistsController(
                 setConnectionStatus(application.status)
                 applyPlaylistListApplication(application.playlistListApplication)
             } catch (exception: Exception) {
-                setConnectionStatus(queuePlaylistSaveErrorMessage(exception))
+                setConnectionStatus(queuePlaylistSaveErrorMessage(exception, label))
             }
         }
     }

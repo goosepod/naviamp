@@ -48,6 +48,7 @@ import app.naviamp.domain.settings.playbackSettingsChange
 import app.naviamp.domain.settings.restoredPlaybackQueue
 import app.naviamp.domain.settings.restoredTrackSession
 import app.naviamp.domain.sonicautoplay.SonicAutoplayService
+import app.naviamp.provider.navidrome.NavidromeConnection
 import app.naviamp.provider.navidrome.NavidromeProvider
 import app.naviamp.provider.navidrome.toNavidromeConnection
 import app.naviamp.provider.navidrome.withNativeTokenFromPassword
@@ -79,8 +80,11 @@ fun NaviampApp(
     val storage = dependencies.storage
     val imageCacheRepository: ImageCacheRepository = dependencies.imageCacheRepository
     val savedMediaSource = remember { storage.latestMediaSource() }
+    val savedSettingsConnection = remember { settingsStore.loadConnection()?.toConnection() }
     val savedConnection = remember {
-        savedMediaSource?.toNavidromeConnection() ?: settingsStore.loadConnection()?.toConnection()
+        savedMediaSource?.toNavidromeConnection()
+            ?.withNativeTokenFrom(savedSettingsConnection)
+            ?: savedSettingsConnection
     }
     val savedPlaybackSession = remember { settingsStore.loadPlaybackSession() }
     val savedVisualizer = remember { settingsStore.loadVisualizerSettings() }
@@ -657,6 +661,7 @@ fun NaviampApp(
         DesktopSmartPlaylistsController(
         providerMediaSourceRepository = storage,
         providerResponseCacheRepository = storage,
+        settingsStore = settingsStore,
         provider = { connectedProvider },
         setProvider = { provider -> connectedProvider = provider },
         password = { connectionForm.password },
@@ -1055,6 +1060,13 @@ fun NaviampApp(
                             onSonicPathReset = sonicPathController::reset,
                             onSonicPathPlay = sonicPathController::playPath,
                             onSonicPathAddToQueue = sonicPathController::addPathToQueue,
+                            onSonicPathSaveAsPlaylist = { name ->
+                                playlistsController.saveTracksAsPlaylist(
+                                    name = name,
+                                    tracks = sonicPathController.playlistTracks(),
+                                    label = "sonic path",
+                                )
+                            },
                             sonicMixBuilder = sonicMixController.ui(
                                 coverArtUrl = { coverArtId -> coverArtId?.let { connectedProvider?.coverArtUrl(it) } },
                             ),
@@ -1068,6 +1080,13 @@ fun NaviampApp(
                             onSonicMixReset = sonicMixController::reset,
                             onSonicMixPlay = sonicMixController::playMix,
                             onSonicMixAddToQueue = sonicMixController::addMixToQueue,
+                            onSonicMixSaveAsPlaylist = { name ->
+                                playlistsController.saveTracksAsPlaylist(
+                                    name = name,
+                                    tracks = sonicMixController.playlistTracks(),
+                                    label = "sonic mix",
+                                )
+                            },
                             internetRadioStations = internetRadioController.stations,
                             internetRadioStatus = internetRadioController.status,
                             onSaveInternetRadioStation = internetRadioController::saveStation,
@@ -1157,4 +1176,11 @@ fun NaviampApp(
     }
 }
 }
+}
+
+private fun NavidromeConnection.withNativeTokenFrom(fallback: NavidromeConnection?): NavidromeConnection {
+    if (nativeToken?.isNotBlank() == true) return this
+    val fallbackToken = fallback?.nativeToken?.takeIf { it.isNotBlank() } ?: return this
+    val matchesSavedConnection = fallback.baseUrl == baseUrl && fallback.username == username
+    return if (matchesSavedConnection) copy(nativeToken = fallbackToken) else this
 }

@@ -151,6 +151,7 @@ fun NaviampSharedAppShell(
     onSonicPathReset: () -> Unit = {},
     onSonicPathPlay: () -> Unit = {},
     onSonicPathAddToQueue: () -> Unit = {},
+    onSonicPathSaveAsPlaylist: (String) -> Unit = {},
     onSonicMixQueryChanged: (String) -> Unit = {},
     onSonicMixSearch: () -> Unit = {},
     onSonicMixTrackSelected: (SharedTrackRowUi) -> Unit = {},
@@ -161,6 +162,7 @@ fun NaviampSharedAppShell(
     onSonicMixReset: () -> Unit = {},
     onSonicMixPlay: () -> Unit = {},
     onSonicMixAddToQueue: () -> Unit = {},
+    onSonicMixSaveAsPlaylist: (String) -> Unit = {},
     onLibraryQueryChanged: (String) -> Unit = {},
     onRefreshLibrary: () -> Unit = {},
     onTrackSelected: (SharedTrackRowUi) -> Unit,
@@ -455,6 +457,7 @@ fun NaviampSharedAppShell(
             onSonicPathReset = onSonicPathReset,
             onSonicPathPlay = onSonicPathPlay,
             onSonicPathAddToQueue = onSonicPathAddToQueue,
+            onSonicPathSaveAsPlaylist = onSonicPathSaveAsPlaylist,
             onSonicMixQueryChanged = onSonicMixQueryChanged,
             onSonicMixSearch = onSonicMixSearch,
             onSonicMixTrackSelected = onSonicMixTrackSelected,
@@ -465,6 +468,7 @@ fun NaviampSharedAppShell(
             onSonicMixReset = onSonicMixReset,
             onSonicMixPlay = onSonicMixPlay,
             onSonicMixAddToQueue = onSonicMixAddToQueue,
+            onSonicMixSaveAsPlaylist = onSonicMixSaveAsPlaylist,
                             onLibraryQueryChanged = onLibraryQueryChanged,
                             onRefreshLibrary = onRefreshLibrary,
                             onTrackSelected = onTrackSelected,
@@ -765,6 +769,7 @@ private fun ConnectedContent(
     onSonicPathReset: () -> Unit,
     onSonicPathPlay: () -> Unit,
     onSonicPathAddToQueue: () -> Unit,
+    onSonicPathSaveAsPlaylist: (String) -> Unit,
     onSonicMixQueryChanged: (String) -> Unit,
     onSonicMixSearch: () -> Unit,
     onSonicMixTrackSelected: (SharedTrackRowUi) -> Unit,
@@ -775,6 +780,7 @@ private fun ConnectedContent(
     onSonicMixReset: () -> Unit,
     onSonicMixPlay: () -> Unit,
     onSonicMixAddToQueue: () -> Unit,
+    onSonicMixSaveAsPlaylist: (String) -> Unit,
     onLibraryQueryChanged: (String) -> Unit,
     onRefreshLibrary: () -> Unit,
     onTrackSelected: (SharedTrackRowUi) -> Unit,
@@ -840,6 +846,8 @@ private fun ConnectedContent(
     onClearLibrary: () -> Unit,
     onResetDatabase: () -> Unit,
 ) {
+    var saveSonicPathDialogOpen by remember { mutableStateOf(false) }
+    var saveSonicMixDialogOpen by remember { mutableStateOf(false) }
     val nowPlayingPlayerColors = if (nowPlayingOpen && nowPlaying != null) {
         rememberPlatformCoverArtPlayerColors(nowPlaying.coverArtUrl, colors)
     } else {
@@ -1153,6 +1161,9 @@ private fun ConnectedContent(
                         Button(onClick = onSonicPathAddToQueue, modifier = Modifier.weight(1f)) {
                             Text("Add to Queue")
                         }
+                        Button(onClick = { saveSonicPathDialogOpen = true }, modifier = Modifier.weight(1f)) {
+                            Text("Save")
+                        }
                     }
                 }
             }
@@ -1189,6 +1200,9 @@ private fun ConnectedContent(
                         Button(onClick = onSonicMixAddToQueue, modifier = Modifier.weight(1f)) {
                             Text("Add to Queue")
                         }
+                        Button(onClick = { saveSonicMixDialogOpen = true }, modifier = Modifier.weight(1f)) {
+                            Text("Save")
+                        }
                     }
                 }
             }
@@ -1211,6 +1225,32 @@ private fun ConnectedContent(
                 onDownloadAction = onDownloadedTrackAction,
             )
         }
+    }
+    if (saveSonicPathDialogOpen) {
+        SaveQueueAsPlaylistDialog(
+            colors = colors,
+            status = playlistActionStatus,
+            title = "Save path as playlist",
+            description = "Save this Sonic Path in order as a server playlist.",
+            onDismissRequest = { saveSonicPathDialogOpen = false },
+            onSave = { name ->
+                onSonicPathSaveAsPlaylist(name)
+                saveSonicPathDialogOpen = false
+            },
+        )
+    }
+    if (saveSonicMixDialogOpen) {
+        SaveQueueAsPlaylistDialog(
+            colors = colors,
+            status = playlistActionStatus,
+            title = "Save mix as playlist",
+            description = "Save this Sonic Mix in order as a server playlist.",
+            onDismissRequest = { saveSonicMixDialogOpen = false },
+            onSave = { name ->
+                onSonicMixSaveAsPlaylist(name)
+                saveSonicMixDialogOpen = false
+            },
+        )
     }
 }
 

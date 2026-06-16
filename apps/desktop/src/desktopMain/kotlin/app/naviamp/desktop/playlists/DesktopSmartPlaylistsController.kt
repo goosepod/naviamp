@@ -19,12 +19,14 @@ import app.naviamp.provider.navidrome.NavidromeConnection
 import app.naviamp.provider.navidrome.NavidromeProvider
 import app.naviamp.provider.navidrome.resolvedDisplayName
 import app.naviamp.provider.navidrome.withNativeTokenFromPassword
+import app.naviamp.desktop.settings.DesktopSettingsStore
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 class DesktopSmartPlaylistsController(
     private val providerMediaSourceRepository: ProviderMediaSourceRepository,
     providerResponseCacheRepository: ProviderResponseCacheRepository,
+    private val settingsStore: DesktopSettingsStore,
     private val provider: () -> NavidromeProvider?,
     private val setProvider: (NavidromeProvider) -> Unit,
     private val password: () -> String,
@@ -58,6 +60,7 @@ class DesktopSmartPlaylistsController(
                 )
                 setConnectedSourceId(mediaSource.id)
                 setSavedConnectionForLogin(refreshedConnection)
+                settingsStore.saveConnection(refreshedConnection)
                 incrementMediaSourcesRevision()
                 clearPassword()
                 activeProvider = refreshedProvider

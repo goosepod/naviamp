@@ -178,6 +178,8 @@ internal class DesktopSonicMixController(
             replaceQueue = playlistEngine::replaceQueue,
         )
     }
+
+    fun playlistTracks(): List<Track> = mixTracks
 }
 
 private fun SonicMixBias.toSharedUi(): SharedSonicMixBiasUi =

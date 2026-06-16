@@ -1071,11 +1071,11 @@ suspend fun MediaProvider.saveQueueAsPlaylistApplication(
         projection = projection,
     )
 
-fun queuePlaylistSaveLoadingStatus(): String =
-    "Saving queue as playlist..."
+fun queuePlaylistSaveLoadingStatus(label: String = "queue"): String =
+    "Saving $label as playlist..."
 
-fun queuePlaylistSaveErrorMessage(error: Throwable): String =
-    error.message ?: "Could not save queue as playlist."
+fun queuePlaylistSaveErrorMessage(error: Throwable, label: String = "queue"): String =
+    error.message ?: "Could not save $label as playlist."
 
 fun queuePlaylistSaveStateUpdate(refresh: QueuePlaylistSaveRefresh): QueuePlaylistSaveStateUpdate =
     QueuePlaylistSaveStateUpdate(

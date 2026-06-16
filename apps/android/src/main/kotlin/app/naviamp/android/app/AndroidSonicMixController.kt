@@ -158,6 +158,8 @@ internal class AndroidSonicMixController(
             },
         )
     }
+
+    fun playlistTracks(): List<Track> = mixTracks
 }
 
 private fun SonicMixBias.toSharedUi(): SharedSonicMixBiasUi =

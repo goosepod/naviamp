@@ -75,7 +75,7 @@ Outcome: superseded by Phase 3.1. Sonic similarity should behave as the preferre
 - [x] Filter duplicate tracks and preserve start/destination semantics.
 - [x] Keep Sonic Path output as a standard track list that feeds the existing queue handler; do not introduce a distinct queue or playlist type.
 - [x] Add path actions for play and add to queue using the normal queue/playback handlers.
-- [ ] Add playlist save if an existing shared playlist creation pattern emerges.
+- [x] Add playlist save using the shared playlist creation flow.
 - [x] Add tests for request construction, response mapping, and empty-path fallback.
 
 ### Phase 5: Sonic Mix Builder
@@ -88,7 +88,7 @@ Outcome: superseded by Phase 3.1. Sonic similarity should behave as the preferre
 - [x] Reuse existing mix-builder UI patterns where possible.
 - [x] Keep Sonic Mix output as a standard track list that feeds the existing queue handler.
 - [x] Add play and add-to-queue actions using the normal queue/playback handlers.
-- [ ] Add playlist save if an existing shared playlist creation pattern emerges.
+- [x] Add playlist save using the shared playlist creation flow.
 
 ### Phase 6: Home Discovery Rows
 
@@ -128,5 +128,5 @@ Skipped. Naviamp will use Navidrome agent metadata for similar artists and popul
 
 ## Next Follow-Ups
 
-- Add playlist save for Sonic Path and Sonic Mix once the shared playlist creation/update flow is the right shape for generated queues.
+- Consider extending generated playlist save to future generated radio queues once those queues have explicit saved-result surfaces.
 - Keep validating provider capability detection against real Navidrome/OpenSubsonic plugin combinations before adding new sonic surfaces.

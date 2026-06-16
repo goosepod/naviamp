@@ -173,4 +173,6 @@ internal class AndroidSonicPathController(
             },
         )
     }
+
+    fun playlistTracks(): List<Track> = pathTracks
 }

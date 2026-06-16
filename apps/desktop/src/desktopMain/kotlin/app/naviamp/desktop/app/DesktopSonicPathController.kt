@@ -193,4 +193,6 @@ internal class DesktopSonicPathController(
             replaceQueue = playlistEngine::replaceQueue,
         )
     }
+
+    fun playlistTracks(): List<Track> = pathTracks
 }

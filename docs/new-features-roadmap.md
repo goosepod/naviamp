@@ -16,9 +16,10 @@ These are the current high-value follow-up ideas to consider after Android Auto 
 - [ ] Add smart playlist templates.
   - Candidate templates: Recently Played, Never Played, High Rated, Favorite Albums, Recently Added but Unplayed, and Long-Unheard Favorites.
   - Reuse the existing playlist creation/update flow where possible.
-- [ ] Add generated-mix playlist save.
+- [x] Add generated-mix playlist save.
   - Cover Sonic Path, Sonic Mix, generated radio queues, and other discovery outputs.
   - Treat this as the durable version of discovery: play now first, then save the good result.
+  - First implementation covers Sonic Path and Sonic Mix using the shared playlist creation flow.
 
 ### Product-Defining Bets
 
