@@ -148,4 +148,77 @@ class SmartPlaylistDefinitionTest {
 
         assertEquals(3, ratingThreshold)
     }
+
+    @Test
+    fun recommendedTemplatesMatchRoadmapCandidates() {
+        assertEquals(
+            listOf(
+                "Recently Played",
+                "Never Played",
+                "High Rated",
+                "Favorite Albums",
+                "Recently Added but Unplayed",
+                "Long-Unheard Favorites",
+            ),
+            SmartPlaylistTemplates.recommended.map { it.title },
+        )
+    }
+
+    @Test
+    fun buildsRecentlyAddedButUnplayedTemplate() {
+        val json = SmartPlaylistTemplates.recentlyAddedButUnplayed(days = 90, limit = 250).toJsonElement()
+        val rules = json["all"]?.jsonArray.orEmpty()
+
+        assertEquals(90, rules[0].jsonObject["inTheLast"]?.jsonObject?.get("dateadded")?.jsonPrimitive?.int)
+        assertEquals(0, rules[1].jsonObject["is"]?.jsonObject?.get("playcount")?.jsonPrimitive?.int)
+        assertEquals("-dateadded", json["sort"]?.jsonPrimitive?.content)
+        assertEquals(250, json["limit"]?.jsonPrimitive?.int)
+    }
+
+    @Test
+    fun importsV062MissingOperatorForCustomTagOrRoleFields() {
+        val definition = SmartPlaylistDefinition.fromNspJson(
+            """
+            {
+              "name": "Needs Mood",
+              "all": [
+                { "isMissing": { "mood": true } }
+              ]
+            }
+            """.trimIndent(),
+        )
+        val rule = definition.toJsonElement()["all"]
+            ?.jsonArray
+            ?.single()
+            ?.jsonObject
+            ?.get("isMissing")
+            ?.jsonObject
+
+        assertEquals(true, rule?.get("mood")?.jsonPrimitive?.boolean)
+    }
+
+    @Test
+    fun normalizesImportedStringBooleansForBooleanFields() {
+        val definition = SmartPlaylistDefinition.fromNspJson(
+            """
+            {
+              "name": "String Favorite",
+              "all": [
+                { "is": { "loved": "true" } }
+              ]
+            }
+            """.trimIndent(),
+        )
+        val value = definition.toJsonElement()["all"]
+            ?.jsonArray
+            ?.single()
+            ?.jsonObject
+            ?.get("is")
+            ?.jsonObject
+            ?.get("loved")
+            ?.jsonPrimitive
+            ?.boolean
+
+        assertEquals(true, value)
+    }
 }

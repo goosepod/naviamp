@@ -111,7 +111,9 @@ data class SmartPlaylistSortDraft(
 }
 
 private fun SmartPlaylistCondition.toDraft(): SmartPlaylistConditionDraft {
-    val fieldOption = SmartPlaylistFieldCatalog.fields.first { it.field == field }
+    val fieldOption = SmartPlaylistFieldCatalog.fields.firstOrNull { it.field == field }
+        ?: field.smartPlaylistCustomTagFieldOptionOrNull(operator)
+        ?: throw IllegalArgumentException("Imported smart playlist field '$field' is not supported by the builder.")
     return SmartPlaylistConditionDraft(
         field = fieldOption,
         operator = operator,
@@ -171,7 +173,18 @@ data class SmartPlaylistFieldOption(
             "true", "yes", "y", "1", "loved", "favorite", "favorited" -> true
             "false", "no", "n", "0", "unloved", "not favorite", "not favorited" -> false
             else -> null
-        }
+    }
+}
+
+internal fun String.smartPlaylistCustomTagFieldOptionOrNull(operator: SmartPlaylistOperator): SmartPlaylistFieldOption? {
+    if (operator != SmartPlaylistOperator.IsMissing && operator != SmartPlaylistOperator.IsPresent) return null
+    return SmartPlaylistFieldOption(
+        field = this,
+        label = this,
+        valueType = SmartPlaylistValueType.Boolean,
+        operators = listOf(SmartPlaylistOperator.IsMissing, SmartPlaylistOperator.IsPresent),
+        sortable = false,
+    )
 }
 
 enum class SmartPlaylistValueType {
@@ -268,6 +281,30 @@ object SmartPlaylistFieldCatalog {
         SmartPlaylistFieldOption(SmartPlaylistFields.Bpm, "BPM", SmartPlaylistValueType.Integer, comparableOperators),
         SmartPlaylistFieldOption(SmartPlaylistFields.Channels, "Channels", SmartPlaylistValueType.Integer, comparableOperators),
         SmartPlaylistFieldOption(SmartPlaylistFields.Codec, "Codec", SmartPlaylistValueType.Text, textOperators),
+        SmartPlaylistFieldOption(
+            SmartPlaylistFields.ReplayGainAlbumGain,
+            "ReplayGain Album Gain",
+            SmartPlaylistValueType.Decimal,
+            comparableOperators,
+        ),
+        SmartPlaylistFieldOption(
+            SmartPlaylistFields.ReplayGainAlbumPeak,
+            "ReplayGain Album Peak",
+            SmartPlaylistValueType.Decimal,
+            comparableOperators,
+        ),
+        SmartPlaylistFieldOption(
+            SmartPlaylistFields.ReplayGainTrackGain,
+            "ReplayGain Track Gain",
+            SmartPlaylistValueType.Decimal,
+            comparableOperators,
+        ),
+        SmartPlaylistFieldOption(
+            SmartPlaylistFields.ReplayGainTrackPeak,
+            "ReplayGain Track Peak",
+            SmartPlaylistValueType.Decimal,
+            comparableOperators,
+        ),
         SmartPlaylistFieldOption(
             SmartPlaylistFields.Loved,
             "Favorite",

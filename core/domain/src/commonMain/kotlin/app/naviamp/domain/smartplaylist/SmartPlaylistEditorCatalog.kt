@@ -6,6 +6,8 @@ fun SmartPlaylistConditionDraft.valueLabel(): String =
         SmartPlaylistOperator.NotInTheLast -> "Days"
         SmartPlaylistOperator.InPlaylist,
         SmartPlaylistOperator.NotInPlaylist -> "Playlist ID"
+        SmartPlaylistOperator.IsMissing,
+        SmartPlaylistOperator.IsPresent -> "Missing"
         else -> "Value"
     }
 
@@ -26,6 +28,8 @@ fun SmartPlaylistOperator.displayLabel(): String =
         SmartPlaylistOperator.NotInTheLast -> "not in the last"
         SmartPlaylistOperator.InPlaylist -> "in playlist"
         SmartPlaylistOperator.NotInPlaylist -> "not in playlist"
+        SmartPlaylistOperator.IsMissing -> "is missing"
+        SmartPlaylistOperator.IsPresent -> "is present"
     }
 
 fun <T> List<T>.updated(index: Int, value: T): List<T> =

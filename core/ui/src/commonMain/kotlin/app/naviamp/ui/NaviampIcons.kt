@@ -62,7 +62,7 @@ object NaviampIcons {
         moveTo(14.3f, 16.7f)
         lineTo(20.7f, 16.7f)
     }
-    val Brain = icon("Brain") {
+    val Brain = thinIcon("Brain") {
         moveTo(9f, 5.8f)
         curveTo(7.1f, 5.1f, 5.3f, 6.5f, 5.3f, 8.5f)
         curveTo(3.9f, 9.1f, 3.4f, 10.9f, 4.4f, 12.1f)
@@ -379,6 +379,24 @@ object NaviampIcons {
             viewportHeight = Viewport,
         ).apply {
             path(fill = SolidColor(Color.Black)) {
+                block()
+            }
+        }.build()
+
+    private fun thinIcon(name: String, block: androidx.compose.ui.graphics.vector.PathBuilder.() -> Unit): ImageVector =
+        ImageVector.Builder(
+            name = name,
+            defaultWidth = IconSize,
+            defaultHeight = IconSize,
+            viewportWidth = Viewport,
+            viewportHeight = Viewport,
+        ).apply {
+            path(
+                stroke = SolidColor(Color.Black),
+                strokeLineWidth = 1.45f,
+                strokeLineCap = StrokeCap.Round,
+                strokeLineJoin = StrokeJoin.Round,
+            ) {
                 block()
             }
         }.build()

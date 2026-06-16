@@ -19,13 +19,13 @@ fun DetailActionIconButton(
     IconButton(
         enabled = enabled,
         onClick = onClick,
-        modifier = Modifier.size(30.dp),
+        modifier = Modifier.size(36.dp),
     ) {
         Icon(
             imageVector = icon,
             contentDescription = contentDescription,
             tint = if (enabled) appColors.primaryText else appColors.secondaryText.copy(alpha = 0.45f),
-            modifier = Modifier.size(18.dp),
+            modifier = Modifier.size(22.dp),
         )
     }
 }

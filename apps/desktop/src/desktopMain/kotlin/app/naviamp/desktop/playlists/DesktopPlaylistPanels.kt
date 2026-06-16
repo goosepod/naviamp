@@ -94,13 +94,13 @@ fun DesktopPlaylistsPanel(
                         smartPlaylistInitialDraft = SmartPlaylistDraft()
                         smartPlaylistBuilderOpen = true
                     },
-                    modifier = Modifier.size(32.dp),
+                    modifier = Modifier.size(40.dp),
                 ) {
                     Icon(
                         DesktopNavigationIcons.Brain,
                         contentDescription = "Create smart playlist",
                         tint = appColors.primaryText,
-                        modifier = Modifier.size(18.dp),
+                        modifier = Modifier.size(24.dp),
                     )
                 }
                 DesktopPlaylistSortMode.entries.forEach { mode ->
@@ -114,10 +114,10 @@ fun DesktopPlaylistsPanel(
                                     DesktopPlaylistSortMode.RecentlyPlayed -> DesktopNavigationIcons.Clock
                                 },
                                 contentDescription = mode.label,
-                                modifier = Modifier.size(16.dp),
+                                modifier = Modifier.size(20.dp),
                             )
                         },
-                        modifier = Modifier.height(28.dp),
+                        modifier = Modifier.height(34.dp),
                     )
                 }
             }

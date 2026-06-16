@@ -176,6 +176,8 @@ class SmartPlaylistDraftTest {
             SmartPlaylistFields.AlbumLoved,
             SmartPlaylistFields.ArtistPlayCount,
             SmartPlaylistFields.MusicBrainzRecordingId,
+            SmartPlaylistFields.ReplayGainAlbumGain,
+            SmartPlaylistFields.ReplayGainTrackPeak,
             SmartPlaylistFields.LibraryId,
         )
 
@@ -256,5 +258,25 @@ class SmartPlaylistDraftTest {
         }
 
         assertEquals("Imported smart playlist field 'my_custom_tag' is not supported by the builder.", error.message)
+    }
+
+    @Test
+    fun importsMissingCustomTagRulesToEditableDraft() {
+        val definition = SmartPlaylistDefinition.fromNspJson(
+            """
+            {
+              "name": "Needs Mood",
+              "all": [
+                { "isMissing": { "mood": true } }
+              ]
+            }
+            """.trimIndent(),
+        )
+
+        val draft = SmartPlaylistDraft.fromDefinition(definition)
+
+        assertEquals("mood", draft.conditions.single().field.field)
+        assertEquals(SmartPlaylistOperator.IsMissing, draft.conditions.single().operator)
+        assertEquals("true", draft.conditions.single().value)
     }
 }

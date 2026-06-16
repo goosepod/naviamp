@@ -108,13 +108,13 @@ internal fun PlaylistsContent(
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 IconButton(
                     onClick = { smartPlaylistBuilderOpen = true },
-                    modifier = Modifier.size(38.dp),
+                    modifier = Modifier.size(44.dp),
                 ) {
                     Icon(
                         NaviampIcons.Brain,
                         contentDescription = "Create smart playlist",
                         tint = colors.primaryText,
-                        modifier = Modifier.size(20.dp),
+                        modifier = Modifier.size(24.dp),
                     )
                 }
                 SharedPlaylistSortMode.entries.forEach { mode ->
@@ -245,8 +245,8 @@ private fun PlaylistSortIconButton(
     }
     Box(
         modifier = Modifier
-            .size(38.dp)
-            .clip(RoundedCornerShape(19.dp))
+            .size(44.dp)
+            .clip(RoundedCornerShape(22.dp))
             .background(if (selected) colors.accent else colors.controlSurface.copy(alpha = 0.72f))
             .clickable(onClick = onClick),
         contentAlignment = Alignment.Center,
@@ -255,7 +255,7 @@ private fun PlaylistSortIconButton(
             imageVector = icon,
             contentDescription = mode.label,
             tint = if (selected) colors.onAccent else colors.secondaryText,
-            modifier = Modifier.size(18.dp),
+            modifier = Modifier.size(22.dp),
         )
     }
 }

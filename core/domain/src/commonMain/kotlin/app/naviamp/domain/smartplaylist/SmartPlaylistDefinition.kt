@@ -157,6 +157,8 @@ enum class SmartPlaylistOperator(val jsonName: String) {
     NotInTheLast("notInTheLast"),
     InPlaylist("inPlaylist"),
     NotInPlaylist("notInPlaylist"),
+    IsMissing("isMissing"),
+    IsPresent("isPresent"),
 }
 
 sealed interface SmartPlaylistValue {
@@ -259,11 +261,54 @@ object SmartPlaylistFields {
     const val Channels = "channels"
     const val Duration = "duration"
     const val Codec = "codec"
+    const val ReplayGainAlbumGain = "rgalbumgain"
+    const val ReplayGainAlbumPeak = "rgalbumpeak"
+    const val ReplayGainTrackGain = "rgtrackgain"
+    const val ReplayGainTrackPeak = "rgtrackpeak"
     const val LibraryId = "library_id"
     const val Random = "random"
 }
 
+data class SmartPlaylistTemplate(
+    val title: String,
+    val description: String,
+    val definition: SmartPlaylistDefinition,
+)
+
 object SmartPlaylistTemplates {
+    val recommended: List<SmartPlaylistTemplate> = listOf(
+        SmartPlaylistTemplate(
+            title = "Recently Played",
+            description = "Tracks played in the last 30 days.",
+            definition = recentlyPlayed(),
+        ),
+        SmartPlaylistTemplate(
+            title = "Never Played",
+            description = "Tracks with zero plays in random order.",
+            definition = neverPlayed(),
+        ),
+        SmartPlaylistTemplate(
+            title = "High Rated",
+            description = "Four-star-or-better tracks.",
+            definition = highRated(),
+        ),
+        SmartPlaylistTemplate(
+            title = "Favorite Albums",
+            description = "Tracks from favorited albums.",
+            definition = favoriteAlbums(),
+        ),
+        SmartPlaylistTemplate(
+            title = "Recently Added but Unplayed",
+            description = "New library additions that have not been played yet.",
+            definition = recentlyAddedButUnplayed(),
+        ),
+        SmartPlaylistTemplate(
+            title = "Long-Unheard Favorites",
+            description = "Loved tracks not played in the last six months.",
+            definition = longUnheardFavorites(),
+        ),
+    )
+
     fun recentlyPlayed(days: Int = 30, limit: Int = 100): SmartPlaylistDefinition =
         SmartPlaylistDefinition(
             name = "Recently Played",
@@ -290,6 +335,39 @@ object SmartPlaylistTemplates {
                 ),
             ),
             sort = listOf(SmartPlaylistSort(SmartPlaylistFields.DateLoved, descending = true)),
+            limit = limit,
+        )
+
+    fun neverPlayed(limit: Int = 250): SmartPlaylistDefinition =
+        SmartPlaylistDefinition(
+            name = "Never Played",
+            comment = "Tracks that have not been played yet",
+            rules = listOf(
+                SmartPlaylistCondition(
+                    SmartPlaylistOperator.Is,
+                    SmartPlaylistFields.PlayCount,
+                    SmartPlaylistValue.Number(0),
+                ),
+            ),
+            sort = listOf(SmartPlaylistSort(SmartPlaylistFields.Random)),
+            limit = limit,
+        )
+
+    fun favoriteAlbums(limit: Int = 500): SmartPlaylistDefinition =
+        SmartPlaylistDefinition(
+            name = "Favorite Albums",
+            comment = "Tracks from favorited albums",
+            rules = listOf(
+                SmartPlaylistCondition(
+                    SmartPlaylistOperator.Is,
+                    SmartPlaylistFields.AlbumLoved,
+                    SmartPlaylistValue.Flag(true),
+                ),
+            ),
+            sort = listOf(
+                SmartPlaylistSort(SmartPlaylistFields.SortAlbum),
+                SmartPlaylistSort(SmartPlaylistFields.TrackNumber),
+            ),
             limit = limit,
         )
 
@@ -354,6 +432,26 @@ object SmartPlaylistTemplates {
             limit = limit,
         )
 
+    fun recentlyAddedButUnplayed(days: Int = 90, limit: Int = 250): SmartPlaylistDefinition =
+        SmartPlaylistDefinition(
+            name = "Recently Added but Unplayed",
+            comment = "Tracks added in the last $days days that have not been played yet",
+            rules = listOf(
+                SmartPlaylistCondition(
+                    SmartPlaylistOperator.InTheLast,
+                    SmartPlaylistFields.DateAdded,
+                    SmartPlaylistValue.Number(days),
+                ),
+                SmartPlaylistCondition(
+                    SmartPlaylistOperator.Is,
+                    SmartPlaylistFields.PlayCount,
+                    SmartPlaylistValue.Number(0),
+                ),
+            ),
+            sort = listOf(SmartPlaylistSort(SmartPlaylistFields.DateAdded, descending = true)),
+            limit = limit,
+        )
+
     fun highRated(minimumRating: Int = 4, limit: Int = 250): SmartPlaylistDefinition =
         SmartPlaylistDefinition(
             name = "High Rated",
@@ -389,6 +487,26 @@ object SmartPlaylistTemplates {
                 ),
             ),
             sort = listOf(SmartPlaylistSort(SmartPlaylistFields.DateLoved, descending = true)),
+            limit = limit,
+        )
+
+    fun longUnheardFavorites(days: Int = 180, limit: Int = 250): SmartPlaylistDefinition =
+        SmartPlaylistDefinition(
+            name = "Long-Unheard Favorites",
+            comment = "Loved tracks not played in the last $days days",
+            rules = listOf(
+                SmartPlaylistCondition(
+                    SmartPlaylistOperator.Is,
+                    SmartPlaylistFields.Loved,
+                    SmartPlaylistValue.Flag(true),
+                ),
+                SmartPlaylistCondition(
+                    SmartPlaylistOperator.NotInTheLast,
+                    SmartPlaylistFields.LastPlayed,
+                    SmartPlaylistValue.Number(days),
+                ),
+            ),
+            sort = listOf(SmartPlaylistSort(SmartPlaylistFields.LastPlayed)),
             limit = limit,
         )
 
@@ -461,6 +579,7 @@ private fun JsonElement.toSmartPlaylistRule(groupDepth: Int): SmartPlaylistRule 
     require(operand.size == 1) { "Imported smart playlist condition must contain exactly one field." }
     val field = operand.keys.single()
     val fieldOption = SmartPlaylistFieldCatalog.fields.firstOrNull { it.field == field }
+        ?: field.smartPlaylistCustomTagFieldOptionOrNull(operator)
         ?: throw IllegalArgumentException("Imported smart playlist field '$field' is not supported by the builder.")
     require(operator in fieldOption.operators) {
         "Imported smart playlist operator '${operator.jsonName}' is not supported for field '$field'."
@@ -469,20 +588,23 @@ private fun JsonElement.toSmartPlaylistRule(groupDepth: Int): SmartPlaylistRule 
     return SmartPlaylistCondition(
         operator = operator,
         field = field,
-        value = operand.getValue(field).toSmartPlaylistValue(),
+        value = operand.getValue(field).toSmartPlaylistValue(fieldOption),
     )
 }
 
-private fun JsonElement.toSmartPlaylistValue(): SmartPlaylistValue =
+private fun JsonElement.toSmartPlaylistValue(fieldOption: SmartPlaylistFieldOption? = null): SmartPlaylistValue =
     when (this) {
         is JsonArray -> {
             require(size == 2) { "Imported range values must contain exactly two entries." }
-            SmartPlaylistValue.Range(get(0).toSmartPlaylistValue(), get(1).toSmartPlaylistValue())
+            SmartPlaylistValue.Range(get(0).toSmartPlaylistValue(fieldOption), get(1).toSmartPlaylistValue(fieldOption))
         }
         is JsonPrimitive -> {
             booleanOrNull?.let { return SmartPlaylistValue.Flag(it) }
             longOrNull?.let { return SmartPlaylistValue.Number(it) }
             doubleOrNull?.let { return SmartPlaylistValue.Decimal(it) }
+            if (fieldOption?.valueType == SmartPlaylistValueType.Boolean) {
+                fieldOption.parseValue(contentOrNull.orEmpty())?.let { return it }
+            }
             SmartPlaylistValue.Text(content)
         }
         else -> throw IllegalArgumentException("Imported smart playlist value type is not supported.")

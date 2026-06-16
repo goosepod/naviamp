@@ -41,6 +41,7 @@ import app.naviamp.domain.smartplaylist.SmartPlaylistLimitMode
 import app.naviamp.domain.smartplaylist.SmartPlaylistMatch
 import app.naviamp.domain.smartplaylist.SmartPlaylistOperator
 import app.naviamp.domain.smartplaylist.SmartPlaylistSortDraft
+import app.naviamp.domain.smartplaylist.SmartPlaylistTemplates
 import app.naviamp.domain.smartplaylist.SmartPlaylistValueType
 import app.naviamp.domain.smartplaylist.displayLabel
 import app.naviamp.domain.smartplaylist.updated
@@ -95,6 +96,32 @@ fun SmartPlaylistBuilderDialog(
                         label = "Comment",
                         colors = colors,
                     )
+                }
+                SmartPlaylistSection(
+                    title = "Templates",
+                    colors = colors,
+                ) {
+                    SmartPlaylistTemplates.recommended.forEach { template ->
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(template.title, color = colors.primaryText, fontWeight = FontWeight.SemiBold, fontSize = 12.sp)
+                                Text(template.description, color = colors.secondaryText, fontSize = 11.sp)
+                            }
+                            TextButton(
+                                onClick = {
+                                    draft = SmartPlaylistDraft.fromDefinition(template.definition)
+                                    saveMessage = null
+                                    importMessage = null
+                                },
+                            ) {
+                                Text("Use", color = colors.accent)
+                            }
+                        }
+                    }
                 }
                 SmartPlaylistSection(
                     title = "Import",

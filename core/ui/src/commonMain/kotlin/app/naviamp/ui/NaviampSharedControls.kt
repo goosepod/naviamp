@@ -233,13 +233,13 @@ internal fun MiniPlayerIconButton(
     IconButton(
         enabled = enabled,
         onClick = onClick,
-        modifier = Modifier.size(34.dp),
+        modifier = Modifier.size(38.dp),
     ) {
         Icon(
             imageVector = icon,
             contentDescription = contentDescription,
             tint = if (enabled) colors.primaryText else colors.mutedText,
-            modifier = Modifier.size(20.dp),
+            modifier = Modifier.size(22.dp),
         )
     }
 }

@@ -13,9 +13,10 @@ These are the current high-value follow-up ideas to consider after Android Auto 
 - [ ] Add Offline Mode dashboard.
   - Show downloaded albums/playlists/tracks, cache health, available-offline status, pending offline actions, failed syncs, and a clear "ready for car/offline" signal.
   - Tie this to Android Auto/offline validation so cached-drive behavior is visible instead of only diagnostic-log based.
-- [ ] Add smart playlist templates.
+- [x] Add smart playlist templates.
   - Candidate templates: Recently Played, Never Played, High Rated, Favorite Albums, Recently Added but Unplayed, and Long-Unheard Favorites.
   - Reuse the existing playlist creation/update flow where possible.
+  - First implementation adds the templates to the shared smart playlist builder and includes Navidrome 0.62 smart playlist field/operator updates.
 - [x] Add generated-mix playlist save.
   - Cover Sonic Path, Sonic Mix, generated radio queues, and other discovery outputs.
   - Treat this as the durable version of discovery: play now first, then save the good result.
@@ -159,8 +160,9 @@ These are the current high-value follow-up ideas to consider after Android Auto 
 
 ## Playlists
 
-- [ ] Add smart playlist templates.
-  - Candidate templates: Recently Played, Never Played, High Rated, Favorite Albums, Recently Added but Unplayed.
+- [x] Add smart playlist templates.
+  - Candidate templates: Recently Played, Never Played, High Rated, Favorite Albums, Recently Added but Unplayed, and Long-Unheard Favorites.
+  - Shared builder can load each template into an editable draft before save.
 - [ ] Add bulk playlist tools.
   - Deduplicate playlist.
   - Remove unavailable tracks.
