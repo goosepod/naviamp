@@ -81,6 +81,8 @@ CREATE TABLE library_track (
   audio_sampling_rate_hz INTEGER,
   favorited_at_iso8601 TEXT,
   user_rating INTEGER,
+  play_count INTEGER,
+  last_played_at_iso8601 TEXT,
   updated_at_epoch_millis INTEGER NOT NULL,
   PRIMARY KEY(source_id, remote_track_id)
 );
@@ -520,8 +522,10 @@ INSERT OR REPLACE INTO library_track(
   audio_sampling_rate_hz,
   favorited_at_iso8601,
   user_rating,
+  play_count,
+  last_played_at_iso8601,
   updated_at_epoch_millis
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
 
 selectLibraryArtists:
 SELECT *
@@ -551,6 +555,14 @@ FROM library_track
 WHERE source_id = ?
 ORDER BY search_title
 LIMIT ? OFFSET ?;
+
+selectRecentlyPlayedLibraryTracks:
+SELECT *
+FROM library_track
+WHERE source_id = ?
+AND last_played_at_iso8601 IS NOT NULL
+ORDER BY last_played_at_iso8601 DESC, search_title
+LIMIT ?;
 
 selectLibraryTrackById:
 SELECT *
@@ -667,6 +679,8 @@ SELECT
   library_track.audio_sampling_rate_hz,
   library_track.favorited_at_iso8601,
   library_track.user_rating,
+  library_track.play_count,
+  library_track.last_played_at_iso8601,
   library_track.updated_at_epoch_millis
 FROM artist_popular_track
 JOIN library_track

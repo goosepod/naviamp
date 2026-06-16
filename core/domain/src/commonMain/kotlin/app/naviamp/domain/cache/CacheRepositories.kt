@@ -267,6 +267,8 @@ interface LocalLibraryIndexRepository : ArtistPopularTracksRepository {
 
     fun searchLibrary(sourceId: String, query: String, limit: Long = 50, offset: Long = 0): LibrarySnapshot
 
+    fun recentlyPlayedLibraryTracks(sourceId: String, limit: Long = 50): List<Track> = emptyList()
+
     fun randomLibraryTrackForAlbum(sourceId: String, albumId: AlbumId): Track?
 
     fun libraryTracksForAlbum(sourceId: String, albumId: AlbumId, limit: Long = 50): List<Track>

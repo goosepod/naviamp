@@ -131,6 +131,14 @@ fun HomeContent.toSharedHomeUi(
                 coverArtUrls = coverArtUrls,
             )
         },
+        recentlyPlayedTracks = recentlyPlayedTracks.map { track ->
+            track.toSharedTrackRowUi(coverArtUrl).copy(
+                meta = listOfNotNull(
+                    track.lastPlayedAtIso8601?.take(10)?.let { "Played $it" },
+                    track.playCount?.let { count -> "$count plays" },
+                ).joinToString(" - ").ifBlank { track.durationSeconds?.durationLabel().orEmpty() },
+            )
+        },
         radioStations = recentInternetRadioStations.map { it.toSharedMediaItemUi() },
         stations = homeStations(this).map {
             SharedHomeStationUi(id = it.id, title = it.title, subtitle = it.subtitle)

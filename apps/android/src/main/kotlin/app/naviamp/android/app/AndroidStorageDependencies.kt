@@ -21,6 +21,8 @@ import app.naviamp.domain.cache.ProviderMediaSourceRepository
 import app.naviamp.domain.cache.ProviderResponseCacheRepository
 import app.naviamp.domain.cache.SidecarStatusRepository
 import app.naviamp.domain.cache.StorageCacheStats
+import app.naviamp.domain.home.HomeAlbumYear
+import app.naviamp.domain.home.HomeLibraryRepository
 import app.naviamp.domain.provider.PendingProviderActionRepository
 import app.naviamp.domain.source.SavedMediaSource
 import app.naviamp.domain.waveform.AudioWaveform
@@ -62,6 +64,20 @@ class AndroidStorageDependencies(
 
     fun libraryTrack(sourceId: String, trackId: TrackId): Track? =
         storage.libraryTrack(sourceId, trackId)
+
+    fun asHomeLibraryRepository(): HomeLibraryRepository =
+        object : HomeLibraryRepository {
+            override fun albumYears(sourceId: String) =
+                libraryAlbumYears(sourceId).map { year ->
+                    HomeAlbumYear(
+                        year = year.year,
+                        albumCount = year.albumCount,
+                    )
+                }
+
+            override fun recentlyPlayedTracks(sourceId: String, limit: Long) =
+                recentlyPlayedLibraryTracks(sourceId, limit)
+        }
 
     suspend fun imageBytes(
         url: String,

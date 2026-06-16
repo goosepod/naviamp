@@ -365,6 +365,7 @@ data class SharedHomeUi(
     val randomAlbums: List<SharedMediaItemUi> = emptyList(),
     val playlists: List<SharedMediaItemUi> = emptyList(),
     val recentRadioStreams: List<SharedMediaItemUi> = emptyList(),
+    val recentlyPlayedTracks: List<SharedTrackRowUi> = emptyList(),
     val radioStations: List<SharedMediaItemUi> = emptyList(),
     val stations: List<SharedHomeStationUi> = emptyList(),
     val genreSpotlightTitle: String? = null,
@@ -382,6 +383,7 @@ data class SharedHomeUi(
             randomAlbums.isEmpty() &&
             playlists.isEmpty() &&
             recentRadioStreams.isEmpty() &&
+            recentlyPlayedTracks.isEmpty() &&
             radioStations.isEmpty() &&
             stations.isEmpty() &&
             genreSpotlightAlbums.isEmpty() &&

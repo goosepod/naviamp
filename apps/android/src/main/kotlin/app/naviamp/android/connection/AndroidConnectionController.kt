@@ -9,6 +9,7 @@ import app.naviamp.domain.cache.ProviderMediaSourceRepository
 import app.naviamp.domain.cache.ProviderResponseCacheRepository
 import app.naviamp.domain.InternetRadioStation
 import app.naviamp.domain.Track
+import app.naviamp.domain.home.HomeLibraryRepository
 import app.naviamp.domain.provider.PendingProviderActionRepository
 import app.naviamp.domain.settings.RecentRadioStream
 import app.naviamp.domain.settings.ConnectionFormState
@@ -49,6 +50,7 @@ class AndroidConnectionSessionController(
             providerMediaSourceRepository = storage,
             providerResponseCacheRepository = storage,
             pendingProviderActionRepository = storage,
+            homeLibraryRepository = storage.asHomeLibraryRepository(),
             playbackEngine = playbackEngine,
             preloadPlaylistTracks = preloadPlaylistTracks,
             restorePlaybackSession = ::restorePlaybackSession,
@@ -111,6 +113,7 @@ fun startNavidromeConnection(
     providerMediaSourceRepository: ProviderMediaSourceRepository,
     providerResponseCacheRepository: ProviderResponseCacheRepository,
     pendingProviderActionRepository: PendingProviderActionRepository,
+    homeLibraryRepository: HomeLibraryRepository? = null,
     playbackEngine: AndroidPlaybackEngine,
     preloadPlaylistTracks: (NavidromeProvider, List<Playlist>) -> Unit,
     restorePlaybackSession: (String) -> Boolean,
@@ -144,6 +147,8 @@ fun startNavidromeConnection(
                 homeState = loadBrowseState(
                     provider = nextProvider,
                     providerResponseCacheRepository = providerResponseCacheRepository,
+                    libraryRepository = homeLibraryRepository,
+                    sourceId = session.sourceId,
                     recentRadioStreams = recentRadioStreams,
                     recentInternetRadioStations = recentInternetRadioStations,
                 )

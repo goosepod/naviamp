@@ -16,6 +16,7 @@ import app.naviamp.domain.popular.ArtistPopularTrackMatch
 import app.naviamp.storage.Library_track
 import app.naviamp.storage.NaviampStorageQueries
 import app.naviamp.storage.SelectArtistPopularTracks
+import app.naviamp.storage.SelectRecentlyPlayedLibraryTracks
 
 class AndroidLibraryIndexStore(
     private val queries: NaviampStorageQueries,
@@ -90,6 +91,8 @@ class AndroidLibraryIndexStore(
                     audio_sampling_rate_hz = track.audioInfo?.samplingRateHz?.toLong(),
                     favorited_at_iso8601 = track.favoritedAtIso8601,
                     user_rating = track.userRating?.toLong(),
+                    play_count = track.playCount?.toLong(),
+                    last_played_at_iso8601 = track.lastPlayedAtIso8601,
                     updated_at_epoch_millis = now,
                 )
             }
@@ -120,6 +123,9 @@ class AndroidLibraryIndexStore(
                 .map { it.toTrack() },
         )
     }
+
+    override fun recentlyPlayedLibraryTracks(sourceId: String, limit: Long): List<Track> =
+        queries.selectRecentlyPlayedLibraryTracks(sourceId, limit).executeAsList().map { it.toTrack() }
 
     override fun randomLibraryTrackForAlbum(sourceId: String, albumId: AlbumId): Track? =
         queries.selectRandomLibraryTrackForAlbum(sourceId, albumId.value).executeAsOneOrNull()?.toTrack()
@@ -240,6 +246,27 @@ private fun Library_track.toTrack(): Track =
         replayGain = null,
         favoritedAtIso8601 = favorited_at_iso8601,
         userRating = user_rating?.toInt(),
+        playCount = play_count?.toInt(),
+        lastPlayedAtIso8601 = last_played_at_iso8601,
+    )
+
+private fun SelectRecentlyPlayedLibraryTracks.toTrack(): Track =
+    Track(
+        id = TrackId(remote_track_id),
+        title = title,
+        artistId = remote_artist_id?.let { ArtistId(it) },
+        artistName = artist_name,
+        albumId = remote_album_id?.let { AlbumId(it) },
+        albumTitle = album_title,
+        albumReleaseYear = null,
+        durationSeconds = duration_seconds?.toInt(),
+        coverArtId = cover_art_id,
+        audioInfo = audioInfo(audio_codec, audio_bitrate_kbps, audio_content_type, audio_bit_depth, audio_sampling_rate_hz),
+        replayGain = null,
+        favoritedAtIso8601 = favorited_at_iso8601,
+        userRating = user_rating?.toInt(),
+        playCount = play_count?.toInt(),
+        lastPlayedAtIso8601 = last_played_at_iso8601,
     )
 
 private fun SelectArtistPopularTracks.toPopularTrackMatch(): ArtistPopularTrackMatch =
@@ -266,6 +293,8 @@ private fun SelectArtistPopularTracks.toPopularTrackMatch(): ArtistPopularTrackM
             replayGain = null,
             favoritedAtIso8601 = favorited_at_iso8601,
             userRating = user_rating?.toInt(),
+            playCount = play_count?.toInt(),
+            lastPlayedAtIso8601 = last_played_at_iso8601,
         ),
         fetchedAtEpochMillis = fetched_at_epoch_millis,
     )

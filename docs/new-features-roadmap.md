@@ -156,11 +156,10 @@ These are the current high-value follow-up ideas to consider after Android Auto 
 
 ## Listening History
 
-- [ ] Add listening history view if Navidrome exposes enough data.
-  - Investigate provider support first.
-  - If Navidrome does not expose usable history data, leave this item as blocked until there is a provider-backed source.
-  - Decide placement after data availability is known.
-  - Candidate placement: Library tab, Home section, or dedicated History route.
+- [x] Add listening history view if Navidrome exposes enough data.
+  - First pass adds a Home `Recently Played` track section using server-provided `lastPlayed` and `playCount` metadata from the local library index.
+  - This is a summarized track-level history, not a complete scrobble-event log.
+  - A full cross-client event history remains a future enhancement if Navidrome exposes native scrobble history through an API or a companion plugin/service becomes worthwhile.
 
 ## Playlists
 

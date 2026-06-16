@@ -394,6 +394,23 @@ fun ColumnScope.DesktopAppRouteContent(
                     onMixBuilderSelected = ::openMixBuilder,
                     onHomeStationSelected = { station -> appActions.playHomeStation(station.id) },
                     onSonicDiscoveryTrackAction = onSonicHomeDiscoveryTrackAction,
+                    onRecentlyPlayedTrackAction = { request ->
+                        val tracks = homeContent.recentlyPlayedTracks
+                        val index = tracks.indexOfFirst { track -> track.id.value == request.track.id }
+                        val track = tracks.getOrNull(index)
+                        if (track != null) {
+                            when (request.action) {
+                                SharedTrackRowAction.Select -> appActions.playPopularTracks(tracks, index)
+                                SharedTrackRowAction.StartRadio -> appActions.playTrackRadio(track)
+                                SharedTrackRowAction.PlayTrackRadioNext -> appActions.playTrackRadioNext(track)
+                                SharedTrackRowAction.AddTrackRadioToQueue -> appActions.addTrackRadioToQueue(track)
+                                SharedTrackRowAction.Download -> appActions.downloadTrack(track)
+                                SharedTrackRowAction.AddToQueue -> playlistsController.addTrackToQueue(track)
+                                SharedTrackRowAction.AddToPlaylist -> playlistsController.openTrackAddToPlaylist(track)
+                                SharedTrackRowAction.CreatePlaylistAndAdd -> Unit
+                            }
+                        }
+                    },
                 )
                 DesktopAppRoute.AlbumDetail -> DesktopAlbumDetailPanel(
                     appColors = appColors,

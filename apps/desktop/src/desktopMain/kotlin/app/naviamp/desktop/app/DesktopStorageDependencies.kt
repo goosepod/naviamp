@@ -65,5 +65,8 @@ class DesktopStorageDependencies(
                         albumCount = year.albumCount,
                     )
                 }
+
+            override fun recentlyPlayedTracks(sourceId: String, limit: Long) =
+                recentlyPlayedLibraryTracks(sourceId, limit)
         }
 }

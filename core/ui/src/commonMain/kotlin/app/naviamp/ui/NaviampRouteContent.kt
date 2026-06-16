@@ -44,6 +44,7 @@ fun SharedHome(
     onMixBuilderSelected: (SharedMixBuilderUi) -> Unit,
     onHomeStationSelected: (SharedHomeStationUi) -> Unit,
     onSonicDiscoveryTrackAction: (SharedHomeDiscoveryTrackActionRequest) -> Unit = {},
+    onRecentlyPlayedTrackAction: (SharedTrackRowActionRequest) -> Unit = {},
     onAlbumFavoriteToggled: (SharedMediaItemUi) -> Unit = {},
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -71,6 +72,7 @@ fun SharedHome(
             onItemSelected = onRecentRadioSelected,
             emptyText = "Start a radio station to build this list.",
         )
+        RecentPlayedSection(home.recentlyPlayedTracks, colors, onRecentlyPlayedTrackAction)
         MixBuilderSection(home.mixBuilders, colors, onMixBuilderSelected)
         SonicDiscoverySection(home.sonicDiscoveryRows, colors, onSonicDiscoveryTrackAction)
         HomeSection(
@@ -103,6 +105,31 @@ fun SharedHome(
             HomeSection("More In $title", home.genreSpotlightAlbums, colors, onAlbumSelected, onAlbumFavoriteToggled, SharedMediaItemKind.Album)
         }
         HomeSection("From ${home.decadeLabel}", home.decadeAlbums, colors, onAlbumSelected, onAlbumFavoriteToggled, SharedMediaItemKind.Album)
+    }
+}
+
+@Composable
+private fun RecentPlayedSection(
+    tracks: List<SharedTrackRowUi>,
+    colors: NaviampColors,
+    onTrackAction: (SharedTrackRowActionRequest) -> Unit,
+) {
+    if (tracks.isEmpty()) return
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        SectionHeader("RECENTLY PLAYED", colors)
+        tracks.take(8).forEach { track ->
+            TrackRow(
+                track = track,
+                colors = colors,
+                onTrackSelected = {
+                    onTrackAction(SharedTrackRowActionRequest(track, SharedTrackRowAction.Select))
+                },
+                canStartRadio = true,
+                canDownload = true,
+                canAddToQueue = true,
+                onTrackAction = onTrackAction,
+            )
+        }
     }
 }
 

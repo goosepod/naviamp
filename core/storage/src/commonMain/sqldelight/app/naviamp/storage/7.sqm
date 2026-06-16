@@ -1,0 +1,3 @@
+ALTER TABLE library_track ADD COLUMN play_count INTEGER;
+
+ALTER TABLE library_track ADD COLUMN last_played_at_iso8601 TEXT;

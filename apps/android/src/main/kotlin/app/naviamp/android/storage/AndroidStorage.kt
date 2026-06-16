@@ -86,8 +86,10 @@ class AndroidStorage(
         context = appContext,
         name = DatabaseName,
     ).also {
+        it.configureSqliteLockHandling()
         it.ensureTrackLyricsOffsetSchema()
         it.ensurePendingProviderActionSchema()
+        it.ensureLibraryTrackPlayMetadataSchema()
         it.execute(null, "PRAGMA foreign_keys=ON", 0)
     }
     private val database = NaviampStorageDatabase(driver)
@@ -667,6 +669,11 @@ private class AndroidAudioByteStore(
 
 private fun nowMillis(): Long = System.currentTimeMillis()
 
+private fun SqlDriver.configureSqliteLockHandling() {
+    execute(null, "PRAGMA busy_timeout=$SqliteBusyTimeoutMillis", 0)
+    execute(null, "PRAGMA journal_mode=WAL", 0)
+}
+
 private fun SqlDriver.ensureTrackLyricsOffsetSchema() {
     execute(
         null,
@@ -712,6 +719,35 @@ private fun SqlDriver.ensurePendingProviderActionSchema() {
     )
 }
 
+private fun SqlDriver.ensureLibraryTrackPlayMetadataSchema() {
+    if (!tableHasColumn("library_track", "play_count")) {
+        execute(null, "ALTER TABLE library_track ADD COLUMN play_count INTEGER", 0)
+    }
+    if (!tableHasColumn("library_track", "last_played_at_iso8601")) {
+        execute(null, "ALTER TABLE library_track ADD COLUMN last_played_at_iso8601 TEXT", 0)
+    }
+}
+
+private fun SqlDriver.tableHasColumn(tableName: String, columnName: String): Boolean {
+    var found = false
+    executeQuery(
+        identifier = null,
+        sql = "PRAGMA table_info($tableName)",
+        mapper = { cursor ->
+            while (cursor.next().value) {
+                if (cursor.getString(1) == columnName) {
+                    found = true
+                    break
+                }
+            }
+            app.cash.sqldelight.db.QueryResult.Unit
+        },
+        parameters = 0,
+    )
+    return found
+}
+
 private const val DatabaseName = "naviamp-storage.db"
+private const val SqliteBusyTimeoutMillis = 10_000
 private const val MaxAudioWaveformCacheBytes = 32L * 1024L * 1024L
 private const val ProtectedAudioCacheQueueWindow = 11

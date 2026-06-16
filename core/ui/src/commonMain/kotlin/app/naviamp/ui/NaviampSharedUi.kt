@@ -1017,6 +1017,13 @@ private fun ConnectedContent(
                 },
                 onHomeStationSelected = onHomeStationSelected,
                 onSonicDiscoveryTrackAction = onSonicDiscoveryTrackAction,
+                onRecentlyPlayedTrackAction = { request ->
+                    if (request.action == SharedTrackRowAction.Select) {
+                        onTrackSelected(request.track)
+                    } else {
+                        onTrackAction(request)
+                    }
+                },
             )
             SharedRoute.Playlists -> PlaylistsContent(
                 colors = colors,

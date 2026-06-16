@@ -700,6 +700,7 @@ private fun createDatabase(path: Path): NaviampStorageDatabase {
     val exists = path.exists()
     registerSqliteDriver()
     val driver = JdbcSqliteDriver("jdbc:sqlite:${path.toAbsolutePath()}")
+    configureSqliteLockHandling(driver)
     if (!exists) {
         NaviampStorageDatabase.Schema.create(driver)
     } else {
@@ -714,8 +715,14 @@ private fun createDatabase(path: Path): NaviampStorageDatabase {
     ensureCachedSidecarStatusSchema(driver)
     ensureTrackLyricsOffsetSchema(driver)
     ensurePendingProviderActionSchema(driver)
+    ensureLibraryTrackPlayMetadataSchema(driver)
     driver.execute(null, "PRAGMA foreign_keys=ON", 0)
     return NaviampStorageDatabase(driver)
+}
+
+private fun configureSqliteLockHandling(driver: JdbcSqliteDriver) {
+    driver.execute(null, "PRAGMA busy_timeout=$SqliteBusyTimeoutMillis", 0)
+    driver.execute(null, "PRAGMA journal_mode=WAL", 0)
 }
 
 private fun registerSqliteDriver() {
@@ -861,6 +868,17 @@ private fun ensurePendingProviderActionSchema(driver: JdbcSqliteDriver) {
         0,
     )
 }
+
+private fun ensureLibraryTrackPlayMetadataSchema(driver: JdbcSqliteDriver) {
+    if (!driver.tableHasColumn("library_track", "play_count")) {
+        driver.execute(null, "ALTER TABLE library_track ADD COLUMN play_count INTEGER", 0)
+    }
+    if (!driver.tableHasColumn("library_track", "last_played_at_iso8601")) {
+        driver.execute(null, "ALTER TABLE library_track ADD COLUMN last_played_at_iso8601 TEXT", 0)
+    }
+}
+
+private const val SqliteBusyTimeoutMillis = 10_000
 
 private fun defaultCacheDatabasePath(): Path =
     defaultAppDataDirectory().resolve("storage.db")

@@ -63,7 +63,8 @@ private fun androidTrackLookupSources(
         selectedPlaylistTracks = state.selectedPlaylistTracks,
         relatedTracks = state.relatedTracks,
         artistPopularTracks = state.artistPopularTracksByArtistId.values.flatten(),
-        fallbackTracks = searchOrAlbumTracksForMediaActions(state.searchResults, state.albumDetail),
+        fallbackTracks = searchOrAlbumTracksForMediaActions(state.searchResults, state.albumDetail) +
+            state.homeState.recentlyPlayedTracks,
     )
 
 fun appendAndroidTracksToQueue(

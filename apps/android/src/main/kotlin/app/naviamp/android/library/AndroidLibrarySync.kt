@@ -8,6 +8,7 @@ import app.naviamp.domain.cache.ProviderResponseService
 import app.naviamp.domain.home.HomeContent
 import app.naviamp.domain.home.HomeContentLoadRequest
 import app.naviamp.domain.home.HomeDate
+import app.naviamp.domain.home.HomeLibraryRepository
 import app.naviamp.domain.home.loadHomeContent
 import app.naviamp.domain.library.LibrarySyncProgress
 import app.naviamp.domain.library.LibrarySyncProgressPhase
@@ -20,6 +21,8 @@ import java.time.LocalDate
 suspend fun loadBrowseState(
     provider: NavidromeProvider,
     providerResponseCacheRepository: ProviderResponseCacheRepository? = null,
+    libraryRepository: HomeLibraryRepository? = null,
+    sourceId: String? = null,
     recentRadioStreams: List<RecentRadioStream> = emptyList(),
     recentInternetRadioStations: List<InternetRadioStation> = emptyList(),
 ): HomeContent {
@@ -28,6 +31,8 @@ suspend fun loadBrowseState(
         HomeContentLoadRequest(
             provider = provider,
             providerResponseService = providerResponseCacheRepository?.let { ProviderResponseService(it) },
+            libraryRepository = libraryRepository,
+            sourceId = sourceId,
             date = HomeDate(year = today.year, dayOfYear = today.dayOfYear),
             recentRadioStreams = recentRadioStreams,
             recentInternetRadioStations = recentInternetRadioStations,

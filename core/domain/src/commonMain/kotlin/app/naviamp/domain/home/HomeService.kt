@@ -5,6 +5,7 @@ import app.naviamp.domain.Artist
 import app.naviamp.domain.Genre
 import app.naviamp.domain.InternetRadioStation
 import app.naviamp.domain.Playlist
+import app.naviamp.domain.Track
 import app.naviamp.domain.cache.ProviderResponseService
 import app.naviamp.domain.provider.AlbumListType
 import app.naviamp.domain.provider.MediaProvider
@@ -19,6 +20,7 @@ data class HomeContent(
     val artists: List<Artist> = emptyList(),
     val playlists: List<Playlist> = emptyList(),
     val recentRadioStreams: List<RecentRadioStream> = emptyList(),
+    val recentlyPlayedTracks: List<Track> = emptyList(),
     val radioStations: List<InternetRadioStation> = emptyList(),
     val recentInternetRadioStations: List<InternetRadioStation> = emptyList(),
     val genres: List<Genre> = emptyList(),
@@ -38,6 +40,7 @@ data class HomeContent(
             artists.isEmpty() &&
             playlists.isEmpty() &&
             recentRadioStreams.isEmpty() &&
+            recentlyPlayedTracks.isEmpty() &&
             radioStations.isEmpty() &&
             recentInternetRadioStations.isEmpty() &&
             genres.isEmpty() &&
@@ -58,6 +61,8 @@ data class HomeDate(
 
 interface HomeLibraryRepository {
     fun albumYears(sourceId: String): List<HomeAlbumYear>
+
+    fun recentlyPlayedTracks(sourceId: String, limit: Long = 12): List<Track> = emptyList()
 }
 
 data class HomeAlbumYear(
@@ -92,6 +97,9 @@ class HomeService(
             artists = runCatching { artists(limit = artistLimit) }.getOrDefault(emptyList()),
             playlists = runCatching { playlists(limit = 50) }.getOrDefault(emptyList()),
             recentRadioStreams = recentRadioStreams,
+            recentlyPlayedTracks = sourceId
+                ?.let { id -> runCatching { libraryRepository?.recentlyPlayedTracks(id, 12) }.getOrNull() }
+                .orEmpty(),
             radioStations = runCatching { internetRadioStations() }.getOrDefault(emptyList()),
             recentInternetRadioStations = recentInternetRadioStations,
             genres = genres,
