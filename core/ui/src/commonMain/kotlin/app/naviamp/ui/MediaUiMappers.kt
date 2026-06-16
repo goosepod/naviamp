@@ -12,15 +12,22 @@ import app.naviamp.domain.StreamQuality
 import app.naviamp.domain.Track
 import app.naviamp.domain.TrackId
 import app.naviamp.domain.isInternetRadioTrack
+import app.naviamp.domain.audio.AudioTag
+import app.naviamp.domain.audio.replayGainFromAudioTags
 import app.naviamp.domain.home.HomeContent
 import app.naviamp.domain.home.homeStations
 import app.naviamp.domain.media.RelatedTracksSource
 import app.naviamp.domain.playback.PlaybackProgress
+import app.naviamp.domain.playback.PlaybackReplayGain
+import app.naviamp.domain.playback.PlaybackRequest
+import app.naviamp.domain.playback.ReplayGainMode
+import app.naviamp.domain.playback.ReplayGainSource
 import app.naviamp.domain.playback.PlaybackState
 import app.naviamp.domain.playback.PlaybackStreamMetadata
 import app.naviamp.domain.playback.PlaybackVisualizerFrame
 import app.naviamp.domain.playback.SleepTimerRequest
 import app.naviamp.domain.playback.label
+import app.naviamp.domain.playback.playbackReplayGainAdjustment
 import app.naviamp.domain.playback.SleepTimerState
 import app.naviamp.domain.playback.sleepTimerDisplayLabel
 import app.naviamp.domain.provider.MediaSearchResults
@@ -698,6 +705,8 @@ fun Track.nowPlayingAudioInfoLabel(playbackEngineName: String? = null): String =
 fun Track.toNowPlayingDetailSections(
     embeddedTags: List<Pair<String, String>>? = null,
     streamQuality: StreamQuality? = null,
+    replayGainInspectorEnabled: Boolean = false,
+    replayGainMode: ReplayGainMode = ReplayGainMode.Off,
 ): List<NaviampDetailSectionUi> =
     buildList {
         add(
@@ -762,7 +771,15 @@ fun Track.toNowPlayingDetailSections(
                 ),
             ),
         )
-        replayGain?.let { replayGain ->
+        if (replayGainInspectorEnabled && replayGainMode != ReplayGainMode.Off) {
+            add(
+                NaviampDetailSectionUi(
+                    title = "ReplayGain inspector",
+                    rows = replayGainInspectorRows(replayGainMode, embeddedTags),
+                ),
+            )
+        }
+        if (!replayGainInspectorEnabled) replayGain?.let { replayGain ->
             add(
                 NaviampDetailSectionUi(
                     title = "Replay gain",
@@ -776,6 +793,39 @@ fun Track.toNowPlayingDetailSections(
             )
         }
     }.filter { it.rows.isNotEmpty() }
+
+private fun Track.replayGainInspectorRows(
+    replayGainMode: ReplayGainMode,
+    embeddedTags: List<Pair<String, String>>?,
+): List<Pair<String, String>> {
+    val source = replayGain
+        ?.let { PlaybackReplayGain(it, ReplayGainSource.Provider) }
+        ?: embeddedTags?.replayGainFromTagRows()
+            ?.let { PlaybackReplayGain(it, ReplayGainSource.LocalTags) }
+    val adjustment = playbackReplayGainAdjustment(
+        PlaybackRequest(
+            url = "",
+            mediaId = id.value,
+            replayGainMode = replayGainMode,
+            replayGain = source,
+        ),
+    )
+    return buildList {
+        add("Selected mode" to replayGainMode.displayName)
+        add("Source" to (source?.source?.displayName ?: "No ReplayGain metadata"))
+        add("Active gain" to (adjustment.gainDb?.let { "${it.twoDecimalLabel()} dB" } ?: "Not applied"))
+        adjustment.peak?.let { add("Active peak" to it.sixDecimalLabel()) }
+        add("Volume factor" to adjustment.volumeFactor.toDouble().sixDecimalLabel())
+        if (adjustment.clippingPrevented) add("Clipping prevention" to "Reduced gain")
+        source?.replayGain?.trackGainDb?.let { add("Track gain" to "${it.twoDecimalLabel()} dB") }
+        source?.replayGain?.albumGainDb?.let { add("Album gain" to "${it.twoDecimalLabel()} dB") }
+        source?.replayGain?.trackPeak?.let { add("Track peak" to it.sixDecimalLabel()) }
+        source?.replayGain?.albumPeak?.let { add("Album peak" to it.sixDecimalLabel()) }
+    }
+}
+
+private fun List<Pair<String, String>>.replayGainFromTagRows() =
+    replayGainFromAudioTags(map { (key, value) -> AudioTag(key, value) })
 
 data class NowPlayingTrackUiConfig(
     val stateLabel: String,
@@ -812,6 +862,8 @@ data class NowPlayingTrackUiConfig(
     val menuEnabled: Boolean = false,
     val embeddedTags: List<Pair<String, String>>? = null,
     val streamQuality: StreamQuality? = null,
+    val replayGainInspectorEnabled: Boolean = false,
+    val replayGainMode: ReplayGainMode = ReplayGainMode.Off,
     val playlistChoices: List<NaviampPlaylistChoiceUi> = emptyList(),
     val useInlinePlaylistPicker: Boolean = true,
     val playlistActionStatus: String? = null,
@@ -890,6 +942,8 @@ fun Track.toNowPlayingUi(config: NowPlayingTrackUiConfig): NowPlayingUi =
         detailSections = toNowPlayingDetailSections(
             embeddedTags = config.embeddedTags,
             streamQuality = config.streamQuality,
+            replayGainInspectorEnabled = config.replayGainInspectorEnabled,
+            replayGainMode = config.replayGainMode,
         ),
         playlistChoices = config.playlistChoices,
         useInlinePlaylistPicker = config.useInlinePlaylistPicker,
@@ -924,6 +978,8 @@ fun Track.toTrackNowPlayingUi(
     lyrics: Lyrics? = null,
     streamQuality: StreamQuality? = null,
     embeddedTags: List<Pair<String, String>>? = null,
+    replayGainInspectorEnabled: Boolean = false,
+    replayGainMode: ReplayGainMode = ReplayGainMode.Off,
     playlistChoices: List<NaviampPlaylistChoiceUi> = emptyList(),
     useInlinePlaylistPicker: Boolean = true,
     playlistActionStatus: String? = null,
@@ -967,6 +1023,8 @@ fun Track.toTrackNowPlayingUi(
             menuEnabled = true,
             streamQuality = streamQuality,
             embeddedTags = nowPlayingEmbeddedTagRows(embeddedTags),
+            replayGainInspectorEnabled = replayGainInspectorEnabled,
+            replayGainMode = replayGainMode,
             playlistChoices = playlistChoices,
             useInlinePlaylistPicker = useInlinePlaylistPicker,
             playlistActionStatus = playlistActionStatus,
@@ -1100,12 +1158,36 @@ fun ArtistDetails.toSharedArtistDetailUi(
                 ?: coverArtUrl(artist.id.value),
         ),
         albums = albums.map { it.toSharedMediaItemUi(coverArtUrl, canFavoriteAlbums) },
+        sourceContextLabel = artistSourceContextLabel(
+            hasProviderMetadata = info != null,
+            hasLocalLibraryMatches = albums.isNotEmpty() || popularTracks.isNotEmpty(),
+        ),
+        localLibraryLabel = artistLocalLibraryLabel(albums.size, popularTracks.size),
         biography = info?.biography,
         popularTracks = popularTracks.map { it.toSharedTrackRowUi(coverArtUrl) },
         popularTracksStatus = popularTracksStatus,
         similarArtists = similarArtists.map { it.toSharedSimilarArtistUi() },
         similarArtistsStatus = similarArtistsStatus,
     )
+
+private fun artistSourceContextLabel(
+    hasProviderMetadata: Boolean,
+    hasLocalLibraryMatches: Boolean,
+): String =
+    when {
+        hasProviderMetadata && hasLocalLibraryMatches -> "Provider info matched with your library"
+        hasLocalLibraryMatches -> "Matched from your library"
+        hasProviderMetadata -> "Provider info only"
+        else -> "No local library match yet"
+    }
+
+private fun artistLocalLibraryLabel(albumCount: Int, popularTrackCount: Int): String =
+    listOfNotNull(
+        "$albumCount ${if (albumCount == 1) "album" else "albums"}",
+        popularTrackCount.takeIf { it > 0 }?.let {
+            "$it matched popular ${if (it == 1) "track" else "tracks"}"
+        },
+    ).joinToString(" - ")
 
 fun SimilarArtistMatch.toSharedSimilarArtistUi(): SharedSimilarArtistUi =
     SharedSimilarArtistUi(

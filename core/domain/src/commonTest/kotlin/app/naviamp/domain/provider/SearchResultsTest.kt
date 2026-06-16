@@ -7,6 +7,7 @@ import app.naviamp.domain.Artist
 import app.naviamp.domain.ArtistId
 import app.naviamp.domain.Track
 import app.naviamp.domain.TrackId
+import app.naviamp.domain.search.offlineTrackSearchResults
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
@@ -148,12 +149,38 @@ class SearchResultsTest {
         )
     }
 
-    private fun track(id: String): Track =
+    @Test
+    fun offlineTrackSearchMatchesDownloadedTrackMetadata() {
+        val titleMatch = track("title", title = "The Big Song")
+        val artistMatch = track("artist", artistName = "The Selecter")
+        val albumMatch = track("album", albumTitle = "Night Drive")
+        val missed = track("missed", title = "Other")
+
+        assertEquals(
+            listOf(titleMatch),
+            offlineTrackSearchResults(listOf(titleMatch, missed), "big").tracks,
+        )
+        assertEquals(
+            listOf(artistMatch),
+            offlineTrackSearchResults(listOf(artistMatch, missed), "selecter").tracks,
+        )
+        assertEquals(
+            listOf(albumMatch),
+            offlineTrackSearchResults(listOf(albumMatch, missed), "night").tracks,
+        )
+    }
+
+    private fun track(
+        id: String,
+        title: String = "Track $id",
+        artistName: String = "Artist",
+        albumTitle: String = "Album",
+    ): Track =
         Track(
             id = TrackId(id),
-            title = "Track $id",
-            artistName = "Artist",
-            albumTitle = "Album",
+            title = title,
+            artistName = artistName,
+            albumTitle = albumTitle,
             durationSeconds = 180,
             coverArtId = null,
             audioInfo = null,

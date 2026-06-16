@@ -353,6 +353,19 @@ private fun SharedCacheSettingsSection(
         diagnosticRowValue(diagnostics, "Storage", "Downloads")?.let { value ->
             Text(value, color = colors.secondaryText, fontSize = 12.sp)
         }
+        SettingsCheckboxRow(
+            colors = colors,
+            checked = normalized.offlineModeEnabled,
+            label = "Offline Mode",
+            onCheckedChange = { enabled ->
+                onCacheSettingsChanged(normalized.copy(offlineModeEnabled = enabled).normalized())
+            },
+        )
+        Text(
+            "Search only downloaded tracks while Offline Mode is enabled.",
+            color = colors.secondaryText,
+            fontSize = 12.sp,
+        )
         DetentByteSettingsSlider(
             colors = colors,
             title = "Download storage budget",
@@ -658,6 +671,15 @@ private fun ReplayGainSettings(
             )
         }
     }
+    SettingsCheckboxRow(
+        colors = colors,
+        checked = playbackSettings.replayGainInspectorEnabled,
+        enabled = supportsReplayGain,
+        label = "Show ReplayGain inspector in track details",
+        onCheckedChange = { enabled ->
+            onPlaybackSettingsChanged(playbackSettings.copy(replayGainInspectorEnabled = enabled))
+        },
+    )
 }
 
 @Composable

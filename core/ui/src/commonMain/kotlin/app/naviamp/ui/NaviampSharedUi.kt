@@ -1504,7 +1504,20 @@ private fun ArtistDetailContent(
             PlatformCoverArt(detail.artist.coverArtUrl, colors, 64.dp, 32.dp)
             Column(modifier = Modifier.weight(1f)) {
                 Text(detail.artist.title, color = colors.primaryText, fontSize = 20.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                Text("${detail.albums.size} albums", color = colors.secondaryText, fontSize = 13.sp)
+                Text(
+                    detail.localLibraryLabel.ifBlank { "${detail.albums.size} albums" },
+                    color = colors.secondaryText,
+                    fontSize = 13.sp,
+                )
+                detail.sourceContextLabel.takeIf { it.isNotBlank() }?.let { label ->
+                    Text(
+                        label,
+                        color = colors.mutedText,
+                        fontSize = 11.sp,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
                 Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                     MiniPlayerIconButton(colors, detail.albums.isNotEmpty(), NaviampTransportIcons.Radio, "Start artist radio", onArtistRadio)
                     MiniPlayerIconButton(colors, detail.albums.isNotEmpty(), NaviampIcons.Queue, "Add artist to queue", onArtistAddToQueue)

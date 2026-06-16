@@ -335,6 +335,8 @@ data class SharedAlbumDetailUi(
 data class SharedArtistDetailUi(
     val artist: SharedMediaItemUi,
     val albums: List<SharedMediaItemUi>,
+    val sourceContextLabel: String = "",
+    val localLibraryLabel: String = "",
     val biography: String? = null,
     val popularTracks: List<SharedTrackRowUi> = emptyList(),
     val popularTracksStatus: String? = null,

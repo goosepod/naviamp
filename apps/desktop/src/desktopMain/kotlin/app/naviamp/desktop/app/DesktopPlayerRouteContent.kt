@@ -100,6 +100,8 @@ internal fun ColumnScope.DesktopPlayerRouteContent(
         volumePercent = playbackSettings.volumePercent,
         sleepTimer = sleepTimer.toNaviampSleepTimerUi(sleepTimerNowEpochMillis),
         streamQuality = playbackSettings.streamQuality(playbackEngine),
+        replayGainInspectorEnabled = playbackSettings.replayGainInspectorEnabled,
+        replayGainMode = playbackSettings.replayGainMode,
         sonicSimilarityEnabled = playbackSettings.sonicSimilarityEnabled,
         radioDjs = playbackSettings.radioDjs,
         activeRadioDjId = playbackSettings.activeRadioDjId,

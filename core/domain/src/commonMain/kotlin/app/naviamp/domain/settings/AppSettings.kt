@@ -34,6 +34,7 @@ data class ConnectionFormState(
 @Serializable
 data class PlaybackSettings(
     val replayGainMode: ReplayGainMode = ReplayGainMode.Off,
+    val replayGainInspectorEnabled: Boolean = false,
     val gaplessEnabled: Boolean = true,
     val crossfadeDurationSeconds: Int = 0,
     val equalizer: EqualizerSettings = EqualizerSettings(),
@@ -71,6 +72,7 @@ fun PlaybackSettings.effectiveForEngine(playbackEngine: PlaybackEngine): Playbac
         } else {
             ReplayGainMode.Off
         },
+        replayGainInspectorEnabled = playbackEngine.supportsReplayGain && replayGainInspectorEnabled,
         gaplessEnabled = effectiveGapless,
         crossfadeDurationSeconds = if (playbackEngine.supportsCrossfade) {
             if (effectiveGapless) 0 else crossfadeDurationSeconds.coerceIn(0, 12)
@@ -205,6 +207,7 @@ enum class UpNextSelectionBehavior {
 @Serializable
 data class CacheSettings(
     val audioCachingEnabled: Boolean = true,
+    val offlineModeEnabled: Boolean = false,
     val audioPrefetchDepth: Int = 10,
     val maxAudioCacheBytes: Long = 2L * 1024L * 1024L * 1024L,
     val maxDownloadBytes: Long = 10L * 1024L * 1024L * 1024L,

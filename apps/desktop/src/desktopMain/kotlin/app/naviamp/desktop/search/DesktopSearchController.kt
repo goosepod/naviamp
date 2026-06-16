@@ -11,12 +11,16 @@ import app.naviamp.domain.provider.MediaProvider
 import app.naviamp.domain.provider.MediaSearchResults
 import app.naviamp.domain.provider.SearchDebounceMillis
 import app.naviamp.domain.provider.SearchSessionController
+import app.naviamp.domain.search.offlineTrackSearchResults
+import app.naviamp.domain.settings.CacheSettings
 import kotlinx.coroutines.delay
 
 class DesktopSearchController(
     private val settingsStore: DesktopSettingsStore,
     providerResponseCacheRepository: ProviderResponseCacheRepository,
     private val provider: () -> MediaProvider?,
+    private val cacheSettings: () -> CacheSettings,
+    private val downloadedTracks: () -> List<app.naviamp.domain.Track>,
     initialQuery: String,
 ) {
     var query by mutableStateOf(initialQuery)
@@ -58,6 +62,16 @@ class DesktopSearchController(
     }
 
     suspend fun loadSearchResults(query: String) {
+        if (cacheSettings().offlineModeEnabled) {
+            results = offlineTrackSearchResults(downloadedTracks(), query)
+            status = if (results.isEmpty && query.isNotBlank()) {
+                "No downloaded tracks matched."
+            } else {
+                "Offline Mode: downloaded tracks only"
+            }
+            searching = false
+            return
+        }
         searchSessionController.load(query) {
             delay(SearchDebounceMillis)
         }

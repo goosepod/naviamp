@@ -606,6 +606,13 @@ fun NaviampApp(
         settingsStore = settingsStore,
         providerResponseCacheRepository = storage,
         provider = { connectedProvider },
+        cacheSettings = { cacheSettings },
+        downloadedTracks = {
+            connectedSourceId
+                ?.let { storage.downloadedTracks(it) }
+                .orEmpty()
+                .map { it.track }
+        },
         initialQuery = savedSearch.query,
     )
     }

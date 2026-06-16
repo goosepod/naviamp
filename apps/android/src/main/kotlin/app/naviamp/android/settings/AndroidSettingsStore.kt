@@ -65,6 +65,7 @@ class AndroidSettingsStore(
     fun loadPlaybackSettings(): PlaybackSettings =
         PlaybackSettings(
             replayGainMode = enumPreference(KeyReplayGainMode, ReplayGainMode.Off),
+            replayGainInspectorEnabled = preferences.getBoolean(KeyReplayGainInspectorEnabled, false),
             gaplessEnabled = preferences.getBoolean(KeyGaplessEnabled, true),
             crossfadeDurationSeconds = preferences.getInt(KeyCrossfadeDurationSeconds, 0),
             equalizer = loadEqualizerSettings(),
@@ -116,6 +117,7 @@ class AndroidSettingsStore(
     fun savePlaybackSettings(settings: PlaybackSettings) {
         preferences.edit()
             .putString(KeyReplayGainMode, settings.replayGainMode.name)
+            .putBoolean(KeyReplayGainInspectorEnabled, settings.replayGainInspectorEnabled)
             .putBoolean(KeyGaplessEnabled, settings.gaplessEnabled)
             .putInt(KeyCrossfadeDurationSeconds, settings.crossfadeDurationSeconds)
             .putEqualizerSettings(settings.equalizer)
@@ -156,6 +158,7 @@ class AndroidSettingsStore(
     fun loadCacheSettings(): CacheSettings =
         CacheSettings(
             audioCachingEnabled = preferences.getBoolean(KeyAudioCachingEnabled, true),
+            offlineModeEnabled = preferences.getBoolean(KeyOfflineModeEnabled, false),
             audioPrefetchDepth = preferences.getInt(KeyAudioPrefetchDepth, CacheSettings().audioPrefetchDepth),
             maxAudioCacheBytes = preferences.getLong(KeyMaxAudioCacheBytes, CacheSettings().maxAudioCacheBytes),
             maxDownloadBytes = preferences.getLong(KeyMaxDownloadBytes, CacheSettings().maxDownloadBytes),
@@ -165,6 +168,7 @@ class AndroidSettingsStore(
         val normalized = settings.normalized()
         preferences.edit()
             .putBoolean(KeyAudioCachingEnabled, normalized.audioCachingEnabled)
+            .putBoolean(KeyOfflineModeEnabled, normalized.offlineModeEnabled)
             .putInt(KeyAudioPrefetchDepth, normalized.audioPrefetchDepth)
             .putLong(KeyMaxAudioCacheBytes, normalized.maxAudioCacheBytes)
             .putLong(KeyMaxDownloadBytes, normalized.maxDownloadBytes)
@@ -289,6 +293,7 @@ private const val KeyCustomCertificatePath = "custom_certificate_path"
 private const val KeyClientCertificatePath = "client_certificate_path"
 private const val KeyClientCertificatePassword = "client_certificate_password"
 private const val KeyReplayGainMode = "replay_gain_mode"
+private const val KeyReplayGainInspectorEnabled = "replay_gain_inspector_enabled"
 private const val KeyGaplessEnabled = "gapless_enabled"
 private const val KeyCrossfadeDurationSeconds = "crossfade_duration_seconds"
 private const val KeyEqualizerEnabled = "equalizer_enabled"
@@ -319,6 +324,7 @@ private const val KeyDownloadCodec = "download_codec"
 private const val KeyDownloadBitrate = "download_bitrate"
 private const val KeyAllowMobileDownloads = "allow_mobile_downloads"
 private const val KeyAudioCachingEnabled = "audio_caching_enabled"
+private const val KeyOfflineModeEnabled = "offline_mode_enabled"
 private const val KeyAudioPrefetchDepth = "audio_prefetch_depth"
 private const val KeyMaxAudioCacheBytes = "max_audio_cache_bytes"
 private const val KeyMaxDownloadBytes = "max_download_bytes"

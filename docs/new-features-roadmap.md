@@ -20,14 +20,14 @@ Keep implementation cross-platform by default: shared domain models, shared UI, 
 
 ### Focused Polish
 
-- [ ] Improve artist-page local-library confidence.
+- [x] Improve artist-page local-library confidence.
   - Make source context clearer when provider metadata and local library matches are combined.
   - Consider showing local library albums, provider bio, similar artists, popular tracks, and a small "matched from your library" signal for ambiguous artist names.
-- [ ] Add a replay gain inspector toggle.
+- [x] Add a replay gain inspector toggle.
   - Show track/album gain, peak, selected mode, and active applied gain when available.
   - Maybe only show this info if ReplayGain is set to Album or Track.
-- [ ] When Offline Mode is enabled, limit searches to downloaded tracks.
-- [ ] Hold per-source profiles until additional providers like Jellyfin or Plex are active.
+- [x] When Offline Mode is enabled, limit searches to downloaded tracks.
+- [x] Hold per-source profiles until additional providers like Jellyfin or Plex are active.
 
 ### Android Auto
 

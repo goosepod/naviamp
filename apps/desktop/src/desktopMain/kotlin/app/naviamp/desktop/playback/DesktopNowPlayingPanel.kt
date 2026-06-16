@@ -14,6 +14,7 @@ import app.naviamp.domain.playback.PlaybackProgress
 import app.naviamp.domain.playback.PlaybackState
 import app.naviamp.domain.playback.PlaybackStreamMetadata
 import app.naviamp.domain.playback.PlaybackVisualizerFrame
+import app.naviamp.domain.playback.ReplayGainMode
 import app.naviamp.domain.playback.label
 import app.naviamp.domain.radio.RadioDjPreset
 import app.naviamp.domain.queue.PlaybackQueue
@@ -82,6 +83,8 @@ fun DesktopNowPlayingPanel(
     volumePercent: Int,
     sleepTimer: NaviampSleepTimerUi,
     streamQuality: StreamQuality,
+    replayGainInspectorEnabled: Boolean,
+    replayGainMode: ReplayGainMode,
     sonicSimilarityEnabled: Boolean,
     radioDjs: List<RadioDjPreset>,
     activeRadioDjId: String?,
@@ -156,6 +159,8 @@ fun DesktopNowPlayingPanel(
             lyrics = nowPlayingLyrics,
             streamQuality = streamQuality,
             embeddedTags = nowPlayingAudioTags?.map { it.key to it.value },
+            replayGainInspectorEnabled = replayGainInspectorEnabled,
+            replayGainMode = replayGainMode,
             useInlinePlaylistPicker = false,
             backTo = sections.backTo,
             upNext = sections.upNext,

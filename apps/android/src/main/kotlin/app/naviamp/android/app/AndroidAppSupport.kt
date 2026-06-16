@@ -329,6 +329,7 @@ fun androidNowPlayingUi(
     sonicSimilarityEnabled: Boolean,
     radioTrackArtworkByKey: Map<String, String?>,
     radioStations: List<InternetRadioStation>,
+    playbackSettings: PlaybackSettings,
 ): NowPlayingUi? =
     nowPlaying?.let { track ->
         val coverArtUrl: (String?) -> String? = { coverArtId -> coverArtId?.let { provider?.coverArtUrl(it) } }
@@ -383,6 +384,8 @@ fun androidNowPlayingUi(
             lyrics = lyricsByTrackId[track.id.value],
             streamQuality = streamQuality,
             embeddedTags = audioTagsByTrackId[track.id.value]?.map { it.key to it.value },
+            replayGainInspectorEnabled = playbackSettings.replayGainInspectorEnabled,
+            replayGainMode = playbackSettings.replayGainMode,
             playlistChoices = playlistChoices,
             playlistActionStatus = playlistActionStatus,
             backTo = sections.backTo,

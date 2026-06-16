@@ -109,6 +109,7 @@ fun rememberAndroidAppShellUiState(
             sonicSimilarityEnabled = playbackSettings.sonicSimilarityEnabled,
             radioTrackArtworkByKey = radioTrackArtworkByKey,
             radioStations = homeState.radioStations,
+            playbackSettings = playbackSettings,
         )?.copy(
             radioDjs = playbackSettings.radioDjs,
             activeRadioDjId = playbackSettings.activeRadioDjId,
