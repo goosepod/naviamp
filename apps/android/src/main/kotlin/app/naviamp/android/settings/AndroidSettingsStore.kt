@@ -76,6 +76,7 @@ class AndroidSettingsStore(
                 KeyUpNextSelectionBehavior,
                 UpNextSelectionBehavior.MoveSelectedToCurrent,
             ),
+            removePlayedTracksFromQueue = preferences.getBoolean(KeyRemovePlayedTracksFromQueue, false),
             wifiStreamingQuality = loadStreamQualityPreference(
                 modeKey = KeyWifiStreamQualityMode,
                 codecKey = KeyWifiStreamCodec,
@@ -113,6 +114,7 @@ class AndroidSettingsStore(
             .putBoolean(KeySonicAutoplayEnabled, settings.sonicAutoplayEnabled)
             .putString(KeyPreviousButtonBehavior, settings.previousButtonBehavior.name)
             .putString(KeyUpNextSelectionBehavior, settings.upNextSelectionBehavior.name)
+            .putBoolean(KeyRemovePlayedTracksFromQueue, settings.removePlayedTracksFromQueue)
             .putStreamQualityPreference(
                 modeKey = KeyWifiStreamQualityMode,
                 codecKey = KeyWifiStreamCodec,
@@ -284,6 +286,7 @@ private const val KeySonicSimilarityEnabled = "sonic_similarity_enabled"
 private const val KeySonicAutoplayEnabled = "sonic_autoplay_enabled"
 private const val KeyPreviousButtonBehavior = "previous_button_behavior"
 private const val KeyUpNextSelectionBehavior = "up_next_selection_behavior"
+private const val KeyRemovePlayedTracksFromQueue = "remove_played_tracks_from_queue"
 private const val KeyWifiStreamQualityMode = "wifi_stream_quality_mode"
 private const val KeyWifiStreamCodec = "wifi_stream_codec"
 private const val KeyWifiStreamBitrate = "wifi_stream_bitrate"

@@ -396,12 +396,20 @@ internal class AndroidServicePlaybackRuntimeController(
     }
 
     private fun handleTrackFinished() {
+        val removePlayedTracksFromQueue = AndroidSettingsStore(context)
+            .loadPlaybackSettings()
+            .removePlayedTracksFromQueue
         val update = queueManager.finishCurrentTrack(
             queue = PlaybackQueue(currentQueue(), currentQueueIndex()),
             repeatMode = repeatMode(),
+            removePlayedTracksFromQueue = removePlayedTracksFromQueue,
         )
         when (update.command) {
             PlaybackQueueFinishedCommand.None -> {
+                if (update.queue != PlaybackQueue(currentQueue(), currentQueueIndex())) {
+                    queueController.replaceQueue(update.queue)
+                    syncQueue(update.queue)
+                }
                 AndroidPlaybackNotificationControls.isPlaying = false
                 updateMediaSessionPlaybackState()
             }

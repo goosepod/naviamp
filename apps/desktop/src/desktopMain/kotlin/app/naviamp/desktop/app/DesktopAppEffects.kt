@@ -68,7 +68,12 @@ fun DesktopAppEffects(
         }
     }
 
-    LaunchedEffect(playbackEngine, playbackSettings.gaplessEnabled, playbackSettings.crossfadeDurationSeconds) {
+    LaunchedEffect(
+        playbackEngine,
+        playbackSettings.gaplessEnabled,
+        playbackSettings.crossfadeDurationSeconds,
+        playbackSettings.removePlayedTracksFromQueue,
+    ) {
         val crossfadeDurationSeconds = playbackSettings.crossfadeDurationSeconds.coerceIn(0, 12)
         playlistEngine.setPlaybackTransitionSettings(
             gaplessEnabled = playbackSettings.gaplessEnabled,
@@ -76,6 +81,7 @@ fun DesktopAppEffects(
                 enabled = !playbackSettings.gaplessEnabled && crossfadeDurationSeconds > 0,
                 durationSeconds = crossfadeDurationSeconds,
             ),
+            removePlayedTracksFromQueue = playbackSettings.removePlayedTracksFromQueue,
         )
     }
 

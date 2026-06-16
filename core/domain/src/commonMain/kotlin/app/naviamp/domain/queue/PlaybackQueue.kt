@@ -207,6 +207,14 @@ data class PlaybackQueue(
         return copy(tracks = tracks.take(currentIndex + 1))
     }
 
+    fun removePlayedHistory(): PlaybackQueue {
+        if (currentIndex !in tracks.indices || currentIndex <= 0) return this
+        return PlaybackQueue(
+            tracks = tracks.drop(currentIndex),
+            currentIndex = 0,
+        )
+    }
+
     fun jumpTo(
         index: Int,
         moveSelectedToCurrent: Boolean = true,

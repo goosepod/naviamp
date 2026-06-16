@@ -79,7 +79,7 @@ fun playAndroidTrack(
     startAudioPrefetch: (Long, NavidromeProvider, PlaybackQueue) -> Unit,
     startSidecarPrep: (Long, NavidromeProvider, PlaybackQueue) -> Unit,
     handlePlaybackProgressChanged: (Long, PlaybackProgress) -> Unit,
-    playAdjacentTrack: (Int) -> Unit,
+    playAdjacentTrack: (Int, Boolean) -> Unit,
     coverArtUrl: (Track, NavidromeProvider?) -> String? = { item, provider -> item.coverArtUrl(provider) },
 ) {
     android.util.Log.i("NaviampBass", "playTrack requested id=${track.id.value} title=${track.title}")
@@ -224,7 +224,9 @@ fun playAndroidTrack(
                     onStateChanged = { playbackState ->
                         state.playbackState = playbackState
                         when (playbackState) {
-                            PlaybackState.Finished -> effectsPlan.finishedAdjacentOffset?.let(playAdjacentTrack)
+                            PlaybackState.Finished -> effectsPlan.finishedAdjacentOffset?.let { offset ->
+                                playAdjacentTrack(offset, true)
+                            }
                             is PlaybackState.Error -> status = playbackState.message
                             else -> Unit
                         }

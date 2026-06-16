@@ -166,8 +166,13 @@ class PlaybackQueueManager(
     fun finishCurrentTrack(
         queue: PlaybackQueue,
         repeatMode: RepeatMode,
+        removePlayedTracksFromQueue: Boolean = false,
     ): PlaybackQueueFinishedUpdate =
-        selection.finishCurrentTrack(queue, repeatMode)
+        selection.finishCurrentTrack(
+            queue = queue,
+            repeatMode = repeatMode,
+            removePlayedTracksFromQueue = removePlayedTracksFromQueue,
+        )
 
     fun nextPreparedQueueIndex(
         queue: PlaybackQueue,

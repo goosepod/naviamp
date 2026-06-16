@@ -582,6 +582,25 @@ fun NaviampPlaybackSettingsSection(
         onPlaybackSettingsChanged = onPlaybackSettingsChanged,
     )
     if (showQueueBehavior) {
+        Text("Queue rules", color = colors.secondaryText, fontSize = 12.sp)
+        SettingsCheckboxRow(
+            colors = colors,
+            checked = playbackSettings.removePlayedTracksFromQueue,
+            label = "Remove played tracks from Back To",
+            onCheckedChange = { enabled ->
+                onPlaybackSettingsChanged(playbackSettings.copy(removePlayedTracksFromQueue = enabled))
+            },
+        )
+        if (supportsSonicSimilarity) {
+            SettingsCheckboxRow(
+                colors = colors,
+                checked = playbackSettings.sonicAutoplayEnabled,
+                label = "Start Sonic autoplay when queue ends",
+                onCheckedChange = { enabled ->
+                    onPlaybackSettingsChanged(playbackSettings.copy(sonicAutoplayEnabled = enabled))
+                },
+            )
+        }
         Text("Previous button", color = colors.secondaryText, fontSize = 12.sp)
         Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
             PreviousButtonBehavior.entries.forEach { behavior ->
@@ -652,14 +671,6 @@ fun NaviampPlaybackSettingsSection(
             label = "Use Navidrome sonic similarity for Related tracks",
             onCheckedChange = { enabled ->
                 onPlaybackSettingsChanged(playbackSettings.copy(sonicSimilarityEnabled = enabled))
-            },
-        )
-        SettingsCheckboxRow(
-            colors = colors,
-            checked = playbackSettings.sonicAutoplayEnabled,
-            label = "Sonic autoplay",
-            onCheckedChange = { enabled ->
-                onPlaybackSettingsChanged(playbackSettings.copy(sonicAutoplayEnabled = enabled))
             },
         )
     }

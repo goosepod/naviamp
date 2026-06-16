@@ -95,6 +95,17 @@ class PlaybackQueueControllerTest {
     }
 
     @Test
+    fun finishedSelectionCanClearQueueWithoutAdvancingSession() {
+        val tracks = listOf(track("one"))
+        val controller = PlaybackQueueController()
+        controller.start(tracks, index = 0)
+
+        assertNull(controller.finishedSelection(removePlayedTracksFromQueue = true))
+        assertEquals(PlaybackQueue(), controller.queue)
+        assertEquals(1, controller.playbackSessionId)
+    }
+
+    @Test
     fun preparedNextAndShuffleAreTrackedWithQueueChanges() {
         val tracks = listOf(track("one"), track("two"), track("three"))
         val controller = PlaybackQueueController()

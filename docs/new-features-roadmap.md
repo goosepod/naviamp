@@ -41,8 +41,9 @@ These are the current high-value follow-up ideas to consider after Android Auto 
 - [ ] Improve artist-page local-library confidence.
   - Make source context clearer when provider metadata and local library matches are combined.
   - Consider showing local library albums, provider bio, similar artists, popular tracks, and a small "matched from your library" signal for ambiguous artist names.
-- [ ] Add queue rules as settings.
+- [x] Add queue rules as settings.
   - Candidate rules: shuffle upcoming only, remove played tracks, keep radio queue filled, start radio when queue ends.
+  - First implementation adds a Queue rules section with persisted remove-played-tracks behavior and moves Sonic autoplay into the queue rules area.
 - [ ] Add a replay gain inspector toggle.
   - Show track/album gain, peak, selected mode, and active applied gain when available.
 
@@ -94,8 +95,9 @@ These are the current high-value follow-up ideas to consider after Android Auto 
   - Phone app acts as controller; TV app acts as remote playback renderer.
   - MVP target is Android TV / Google TV / Fire TV, not Roku.
   - See `docs/naviamp-connect-roadmap.md`.
-- [ ] Add queue rules as settings.
+- [x] Add queue rules as settings.
   - Candidate rules: shuffle upcoming only, remove played tracks, keep radio queue filled, start radio when queue ends.
+  - First implementation covers remove-played-tracks cleanup plus Sonic autoplay as a queue-end rule.
 - [x] Add `Save queue as playlist` to the now-playing hamburger menu.
   - Open shared playlist-name modal.
   - Save the current active queue in order as a provider playlist, including songs in the Back To list.

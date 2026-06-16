@@ -162,12 +162,22 @@ class PlaybackQueueController(
         return PlaybackShuffleToggle(queue = queue, shuffledSnapshot = update.shuffledSnapshot)
     }
 
-    fun finishedSelection(): PlaybackQueueSelection? {
+    fun finishedSelection(removePlayedTracksFromQueue: Boolean = false): PlaybackQueueSelection? {
         val update = queueManager.finishCurrentTrack(
             queue = queue,
             repeatMode = repeatMode,
+            removePlayedTracksFromQueue = removePlayedTracksFromQueue,
         )
-        if (!update.shouldPlay) return null
+        if (!update.shouldPlay) {
+            if (update.queue != queue) applyMutation(
+                PlaybackQueueMutationUpdate(
+                    queue = update.queue,
+                    changed = true,
+                    clearPreparedNext = true,
+                ),
+            )
+            return null
+        }
         playbackSessionId += 1
         return selectQueueIndex(update.queue.tracks, update.queue.currentIndex, playbackSessionId)
     }

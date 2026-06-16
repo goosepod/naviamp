@@ -54,20 +54,37 @@ class PlaybackQueueSelectionManager(
     fun finishCurrentTrack(
         queue: PlaybackQueue,
         repeatMode: RepeatMode,
+        removePlayedTracksFromQueue: Boolean = false,
     ): PlaybackQueueFinishedUpdate {
         val nextIndex = queue.nextIndex(repeatMode = repeatMode)
             ?: return PlaybackQueueFinishedUpdate(
-                queue = queue,
+                queue = if (removePlayedTracksFromQueue && repeatMode == RepeatMode.Off) {
+                    PlaybackQueue()
+                } else {
+                    queue
+                },
                 command = PlaybackQueueFinishedCommand.None,
             )
+        val command = if (nextIndex == queue.currentIndex) {
+            PlaybackQueueFinishedCommand.ReplayCurrent
+        } else {
+            PlaybackQueueFinishedCommand.PlayNext
+        }
         val nextQueue = queue.copy(currentIndex = nextIndex)
+            .let { updatedQueue ->
+                if (
+                    removePlayedTracksFromQueue &&
+                    repeatMode == RepeatMode.Off &&
+                    command == PlaybackQueueFinishedCommand.PlayNext
+                ) {
+                    updatedQueue.removePlayedHistory()
+                } else {
+                    updatedQueue
+                }
+            }
         return PlaybackQueueFinishedUpdate(
             queue = nextQueue,
-            command = if (nextIndex == queue.currentIndex) {
-                PlaybackQueueFinishedCommand.ReplayCurrent
-            } else {
-                PlaybackQueueFinishedCommand.PlayNext
-            },
+            command = command,
         )
     }
 

@@ -17,6 +17,7 @@ import app.naviamp.domain.playback.PlaybackSource
 import app.naviamp.domain.playback.planPlaybackAdjacentAction
 import app.naviamp.domain.playback.planPlaybackSeek
 import app.naviamp.domain.playback.shouldReplayCurrentForSeek
+import app.naviamp.domain.queue.PlaybackQueue
 import app.naviamp.domain.radio.recentRadioStreamsWith
 import app.naviamp.domain.settings.RecentRadioStream
 import app.naviamp.domain.sonicautoplay.SonicAutoplayService
@@ -139,7 +140,10 @@ internal class AndroidPlaybackAppController(
         playbackEngine.seek(seekPlan.pendingSeekPositionSeconds)
     }
 
-    fun playAdjacentTrack(offset: Int) {
+    fun playAdjacentTrack(
+        offset: Int,
+        finishedTrack: Boolean = false,
+    ) {
         when (
             val action = planPlaybackAdjacentAction(
                 currentTrack = state.nowPlaying,
@@ -155,11 +159,23 @@ internal class AndroidPlaybackAppController(
                 if (offset > 0) appendSonicAutoplayAndAdvance()
             }
             PlaybackAdjacentAction.RestartCurrent -> performSeek(0.0)
-            is PlaybackAdjacentAction.PlayTrack -> playTrack(
-                action.track,
-                action.queue,
-                openNowPlaying = false,
-            )
+            is PlaybackAdjacentAction.PlayTrack -> {
+                val nextQueue = if (
+                    finishedTrack &&
+                    offset > 0 &&
+                    state.playbackSettings.removePlayedTracksFromQueue
+                ) {
+                    val nextIndex = action.queue.indexOfFirst { track -> track.id == action.track.id }
+                    PlaybackQueue(action.queue, nextIndex).removePlayedHistory().tracks
+                } else {
+                    action.queue
+                }
+                playTrack(
+                    action.track,
+                    nextQueue,
+                    openNowPlaying = false,
+                )
+            }
         }
     }
 

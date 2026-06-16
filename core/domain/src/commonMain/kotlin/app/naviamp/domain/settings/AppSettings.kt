@@ -41,6 +41,7 @@ data class PlaybackSettings(
     val sonicAutoplayEnabled: Boolean = false,
     val previousButtonBehavior: PreviousButtonBehavior = PreviousButtonBehavior.RestartThenPrevious,
     val upNextSelectionBehavior: UpNextSelectionBehavior = UpNextSelectionBehavior.MoveSelectedToCurrent,
+    val removePlayedTracksFromQueue: Boolean = false,
     val wifiStreamingQuality: StreamQualityPreference = StreamQualityPreference(),
     val mobileStreamingQuality: StreamQualityPreference = StreamQualityPreference(
         mode = StreamQualityMode.Transcode,

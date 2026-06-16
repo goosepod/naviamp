@@ -1,6 +1,7 @@
 package app.naviamp.desktop
 
 import app.naviamp.domain.playback.PlaybackSource
+import app.naviamp.domain.playback.shouldReplayCurrentForSeek
 import kotlin.test.Test
 import kotlin.test.assertEquals
 

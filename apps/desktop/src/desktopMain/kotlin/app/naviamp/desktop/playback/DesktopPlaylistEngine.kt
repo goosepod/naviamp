@@ -64,6 +64,7 @@ class DesktopPlaylistEngine(
     private var callbacks: PlaylistCallbacks? = null
     private var crossfadeSettings = CrossfadeSettings()
     private var gaplessEnabled = true
+    private var removePlayedTracksFromQueue = false
     private var currentTrackSidecarJob: Job? = null
     private var audioPrefetchJob: Job? = null
     private val queueController = PlaybackQueueController()
@@ -197,9 +198,11 @@ class DesktopPlaylistEngine(
     fun setPlaybackTransitionSettings(
         gaplessEnabled: Boolean,
         crossfadeSettings: CrossfadeSettings,
+        removePlayedTracksFromQueue: Boolean = this.removePlayedTracksFromQueue,
     ) {
         this.gaplessEnabled = gaplessEnabled
         this.crossfadeSettings = crossfadeSettings
+        this.removePlayedTracksFromQueue = removePlayedTracksFromQueue
         (playbackEngine as? QueueAwarePlaybackEngine)?.setCrossfadeDuration(crossfadeSettings.durationSeconds)
     }
 
@@ -493,7 +496,10 @@ class DesktopPlaylistEngine(
         if (activeSessionId != queueController.playbackSessionId) return
 
         if (state == PlaybackState.Finished) {
-            var selection = queueController.finishedSelection()
+            var selection = queueController.finishedSelection(removePlayedTracksFromQueue)
+            if (selection == null && removePlayedTracksFromQueue) {
+                callbacks?.onQueueChanged(queueController.queue)
+            }
             if (selection == null) {
                 val tracks = withContext(Dispatchers.IO) {
                     sonicAutoplayTracks(queueController.queue)
@@ -502,7 +508,7 @@ class DesktopPlaylistEngine(
                 if (tracks.isNotEmpty()) {
                     queueController.appendTracks(tracks)
                     callbacks?.onQueueChanged(queueController.queue)
-                    selection = queueController.finishedSelection()
+                    selection = queueController.finishedSelection(removePlayedTracksFromQueue)
                 }
             }
             if (selection != null) {

@@ -515,6 +515,63 @@ class PlaybackQueueManagerTest {
     }
 
     @Test
+    fun finishCurrentTrackCanRemovePlayedHistory() {
+        val one = track("one")
+        val two = track("two")
+        val three = track("three")
+        val queue = PlaybackQueue(tracks = listOf(one, two, three), currentIndex = 1)
+
+        assertEquals(
+            PlaybackQueueFinishedUpdate(
+                queue = PlaybackQueue(tracks = listOf(three), currentIndex = 0),
+                command = PlaybackQueueFinishedCommand.PlayNext,
+            ),
+            PlaybackQueueManager().finishCurrentTrack(
+                queue = queue,
+                repeatMode = RepeatMode.Off,
+                removePlayedTracksFromQueue = true,
+            ),
+        )
+    }
+
+    @Test
+    fun finishCurrentTrackCanClearQueueAtEndWhenRemovingPlayedTracks() {
+        val one = track("one")
+        val queue = PlaybackQueue(tracks = listOf(one), currentIndex = 0)
+
+        assertEquals(
+            PlaybackQueueFinishedUpdate(
+                queue = PlaybackQueue(),
+                command = PlaybackQueueFinishedCommand.None,
+            ),
+            PlaybackQueueManager().finishCurrentTrack(
+                queue = queue,
+                repeatMode = RepeatMode.Off,
+                removePlayedTracksFromQueue = true,
+            ),
+        )
+    }
+
+    @Test
+    fun finishCurrentTrackDoesNotRemoveHistoryWhenRepeatingQueue() {
+        val one = track("one")
+        val two = track("two")
+        val queue = PlaybackQueue(tracks = listOf(one, two), currentIndex = 1)
+
+        assertEquals(
+            PlaybackQueueFinishedUpdate(
+                queue = PlaybackQueue(tracks = listOf(one, two), currentIndex = 0),
+                command = PlaybackQueueFinishedCommand.PlayNext,
+            ),
+            PlaybackQueueManager().finishCurrentTrack(
+                queue = queue,
+                repeatMode = RepeatMode.Queue,
+                removePlayedTracksFromQueue = true,
+            ),
+        )
+    }
+
+    @Test
     fun preparedNextIndexUsesSharedRepeatModePolicy() {
         val one = track("one")
         val two = track("two")

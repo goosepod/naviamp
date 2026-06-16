@@ -49,6 +49,7 @@ class DesktopSettingsStoreTest {
                 crossfadeDurationSeconds = 5,
                 volumePercent = 72,
                 debugLoggingEnabled = true,
+                removePlayedTracksFromQueue = true,
             ),
         )
 
@@ -66,6 +67,7 @@ class DesktopSettingsStoreTest {
         assertEquals(5, store.loadPlaybackSettings().crossfadeDurationSeconds)
         assertEquals(72, store.loadPlaybackSettings().volumePercent)
         assertEquals(true, store.loadPlaybackSettings().debugLoggingEnabled)
+        assertEquals(true, store.loadPlaybackSettings().removePlayedTracksFromQueue)
         assertEquals("user", store.loadConnection()?.username)
     }
 
@@ -108,6 +110,7 @@ class DesktopSettingsStoreTest {
                 crossfadeDurationSeconds = 8,
                 volumePercent = 64,
                 debugLoggingEnabled = true,
+                removePlayedTracksFromQueue = true,
             ),
         )
 
@@ -116,11 +119,13 @@ class DesktopSettingsStoreTest {
         assertEquals(8, store.loadPlaybackSettings().crossfadeDurationSeconds)
         assertEquals(64, store.loadPlaybackSettings().volumePercent)
         assertEquals(true, store.loadPlaybackSettings().debugLoggingEnabled)
+        assertEquals(true, store.loadPlaybackSettings().removePlayedTracksFromQueue)
         assertEquals(true, path.readText().contains("replayGainMode"))
         assertEquals(true, path.readText().contains("gaplessEnabled"))
         assertEquals(true, path.readText().contains("crossfadeDurationSeconds"))
         assertEquals(true, path.readText().contains("volumePercent"))
         assertEquals(true, path.readText().contains("debugLoggingEnabled"))
+        assertEquals(true, path.readText().contains("removePlayedTracksFromQueue"))
     }
 
     @Test
