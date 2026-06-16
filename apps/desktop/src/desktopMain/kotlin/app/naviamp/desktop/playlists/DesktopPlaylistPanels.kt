@@ -9,11 +9,14 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -275,6 +278,7 @@ fun DesktopPlaylistDetailPanel(
     onPlaylistAction: (SharedMediaItemActionRequest) -> Unit,
     onTrackAction: (SharedTrackRowActionRequest) -> Unit,
 ) {
+    var bulkToolsOpen by remember { mutableStateOf(false) }
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(2.dp)) {
             IconButton(onClick = onBack, modifier = Modifier.size(32.dp)) {
@@ -351,6 +355,9 @@ fun DesktopPlaylistDetailPanel(
                     DetailActionIconButton(appColors, addToPlaylistAction.icon, addToPlaylistAction.label, addToPlaylistAction.enabled) {
                         request(SharedMediaItemAction.AddToPlaylist)
                     }
+                    DetailActionIconButton(appColors, DesktopNavigationIcons.Settings, "Playlist bulk tools", tracks.isNotEmpty()) {
+                        bulkToolsOpen = true
+                    }
                 }
             }
         }
@@ -371,6 +378,90 @@ fun DesktopPlaylistDetailPanel(
             )
         }
     }
+    if (bulkToolsOpen && playlist != null) {
+        DesktopPlaylistBulkToolsDialog(
+            appColors = appColors,
+            playlist = playlist,
+            tracks = tracks,
+            onDismissRequest = { bulkToolsOpen = false },
+            onCopyPlaylist = { name, deduplicate ->
+                bulkToolsOpen = false
+                val action = if (deduplicate) {
+                    SharedMediaItemAction.CopyPlaylistDeduplicated
+                } else {
+                    SharedMediaItemAction.CopyPlaylist
+                }
+                onPlaylistAction(
+                    playlist.toSharedMediaItemUi(coverArtUrl, tracks).actionRequest(
+                        action = action,
+                        kind = SharedMediaItemKind.Playlist,
+                        playlistName = name,
+                    ),
+                )
+            },
+            onCreateAndAdd = { name ->
+                bulkToolsOpen = false
+                onPlaylistAction(
+                    playlist.toSharedMediaItemUi(coverArtUrl, tracks).actionRequest(
+                        action = SharedMediaItemAction.CreatePlaylistAndAdd,
+                        kind = SharedMediaItemKind.Playlist,
+                        playlistName = name,
+                    ),
+                )
+            },
+        )
+    }
+}
+
+@Composable
+private fun DesktopPlaylistBulkToolsDialog(
+    appColors: DesktopAppColors,
+    playlist: Playlist,
+    tracks: List<Track>,
+    onDismissRequest: () -> Unit,
+    onCopyPlaylist: (String, Boolean) -> Unit,
+    onCreateAndAdd: (String) -> Unit,
+) {
+    var copyName by remember { mutableStateOf("${playlist.name} Copy") }
+    val deduplicatedCount = remember(tracks) { tracks.distinctBy { it.id }.size }
+    AlertDialog(
+        onDismissRequest = onDismissRequest,
+        title = { Text("Playlist bulk tools") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text("${tracks.size} tracks - $deduplicatedCount unique", color = appColors.secondaryText, fontSize = 12.sp)
+                OutlinedTextField(
+                    value = copyName,
+                    onValueChange = { copyName = it },
+                    label = { Text("New playlist name") },
+                    singleLine = true,
+                )
+                TextButton(
+                    enabled = tracks.isNotEmpty() && copyName.isNotBlank(),
+                    onClick = { onCopyPlaylist(copyName.trim(), false) },
+                ) {
+                    Text("Copy playlist")
+                }
+                TextButton(
+                    enabled = tracks.isNotEmpty() && copyName.isNotBlank(),
+                    onClick = { onCopyPlaylist(copyName.trim(), true) },
+                ) {
+                    Text("Copy deduplicated playlist")
+                }
+                TextButton(
+                    enabled = tracks.isNotEmpty() && copyName.isNotBlank(),
+                    onClick = { onCreateAndAdd(copyName.trim()) },
+                ) {
+                    Text("Create playlist and add these tracks")
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismissRequest) {
+                Text("Close")
+            }
+        },
+    )
 }
 
 private fun NaviampActionSpec.toPlaylistRowMenuItem(onClick: () -> Unit): DesktopRowMenuItem =

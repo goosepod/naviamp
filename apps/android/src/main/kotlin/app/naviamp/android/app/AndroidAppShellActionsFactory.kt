@@ -322,6 +322,14 @@ fun androidAppShellActions(
                 selectedPlaylist?.let { addPlaylistToPlaylist(it, null, name) }
                     ?: run { status = "Playlist not found." }
             },
+            onPlaylistCopy = { _, name, deduplicate ->
+                val tracks = if (deduplicate) {
+                    selectedPlaylistTracks.distinctBy { track -> track.id }
+                } else {
+                    selectedPlaylistTracks
+                }
+                addTracksToPlaylist(tracks, null, name, "playlist")
+            },
             onPlaylistRename = { selectedPlaylist, name ->
                 homeState.playlists.firstOrNull { it.id == selectedPlaylist.id }?.let { renamePlaylist(it, name) }
                     ?: run { status = "Playlist not found." }
@@ -352,6 +360,8 @@ fun androidAppShellActions(
                             SharedMediaItemAction.Play,
                             SharedMediaItemAction.Shuffle,
                             SharedMediaItemAction.FindSimilar,
+                            SharedMediaItemAction.CopyPlaylist,
+                            SharedMediaItemAction.CopyPlaylistDeduplicated,
                             SharedMediaItemAction.Rename,
                             SharedMediaItemAction.EditSmartPlaylist,
                             SharedMediaItemAction.Delete,
@@ -373,6 +383,8 @@ fun androidAppShellActions(
                             SharedMediaItemAction.Download,
                             SharedMediaItemAction.AddToPlaylist,
                             SharedMediaItemAction.CreatePlaylistAndAdd,
+                            SharedMediaItemAction.CopyPlaylist,
+                            SharedMediaItemAction.CopyPlaylistDeduplicated,
                             SharedMediaItemAction.Rename,
                             SharedMediaItemAction.EditSmartPlaylist,
                             SharedMediaItemAction.Delete,
@@ -396,6 +408,20 @@ fun androidAppShellActions(
                                     addPlaylistToPlaylist(playlist, request.playlistChoice, null)
                                 SharedMediaItemAction.CreatePlaylistAndAdd ->
                                     addPlaylistToPlaylist(playlist, null, request.playlistName)
+                                SharedMediaItemAction.CopyPlaylist ->
+                                    addPlaylistToPlaylist(playlist, null, request.playlistName)
+                                SharedMediaItemAction.CopyPlaylistDeduplicated -> {
+                                    val tracks = if (selectedPlaylist?.id == playlist.id) {
+                                        selectedPlaylistTracks.distinctBy { track -> track.id }
+                                    } else {
+                                        emptyList()
+                                    }
+                                    if (tracks.isNotEmpty()) {
+                                        addTracksToPlaylist(tracks, null, request.playlistName, playlist.name)
+                                    } else {
+                                        status = "Open the playlist before copying a deduplicated version."
+                                    }
+                                }
                                 SharedMediaItemAction.Rename ->
                                     request.textValue?.let { name -> renamePlaylist(playlist, name) }
                                 SharedMediaItemAction.Delete -> deletePlaylist(playlist)

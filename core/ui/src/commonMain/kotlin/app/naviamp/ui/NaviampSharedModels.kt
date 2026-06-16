@@ -223,6 +223,8 @@ enum class SharedMediaItemAction {
     Download,
     AddToPlaylist,
     CreatePlaylistAndAdd,
+    CopyPlaylist,
+    CopyPlaylistDeduplicated,
     ToggleFavorite,
     Rename,
     EditSmartPlaylist,
@@ -310,6 +312,9 @@ fun handleSharedMediaItemAction(
         SharedMediaItemAction.AddToPlaylist -> handlers.onAddToPlaylist(request.item, request.playlistChoice)
         SharedMediaItemAction.CreatePlaylistAndAdd ->
             request.playlistName?.let { name -> handlers.onCreatePlaylistAndAdd(request.item, name) }
+        SharedMediaItemAction.CopyPlaylist,
+        SharedMediaItemAction.CopyPlaylistDeduplicated,
+        -> request.playlistName?.let { name -> handlers.onCreatePlaylistAndAdd(request.item, name) }
         SharedMediaItemAction.ToggleFavorite -> handlers.onToggleFavorite(request.item)
         SharedMediaItemAction.Rename ->
             request.textValue?.let { name -> handlers.onRename(request.item, name) }

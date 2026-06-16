@@ -47,6 +47,7 @@ import app.naviamp.ui.SharedGenreMixItemUi
 import app.naviamp.ui.SharedHome
 import app.naviamp.ui.SharedHomeDiscoveryTrackActionRequest
 import app.naviamp.ui.SharedMediaItemAction
+import app.naviamp.ui.SharedMediaItemActionRequest
 import app.naviamp.ui.SharedMediaItemUi
 import app.naviamp.ui.SharedMixBuilderUi
 import app.naviamp.ui.SharedSonicMixBiasUi
@@ -229,6 +230,8 @@ fun ColumnScope.DesktopAppRouteContent(
             SharedMediaItemAction.Shuffle,
             SharedMediaItemAction.Download,
             SharedMediaItemAction.CreatePlaylistAndAdd,
+            SharedMediaItemAction.CopyPlaylist,
+            SharedMediaItemAction.CopyPlaylistDeduplicated,
             SharedMediaItemAction.Rename,
             SharedMediaItemAction.EditSmartPlaylist,
             SharedMediaItemAction.Delete,
@@ -252,6 +255,8 @@ fun ColumnScope.DesktopAppRouteContent(
             SharedMediaItemAction.Shuffle,
             SharedMediaItemAction.FindSimilar,
             SharedMediaItemAction.CreatePlaylistAndAdd,
+            SharedMediaItemAction.CopyPlaylist,
+            SharedMediaItemAction.CopyPlaylistDeduplicated,
             SharedMediaItemAction.Rename,
             SharedMediaItemAction.EditSmartPlaylist,
             SharedMediaItemAction.Delete,
@@ -274,6 +279,8 @@ fun ColumnScope.DesktopAppRouteContent(
             SharedMediaItemAction.Select,
             SharedMediaItemAction.FindSimilar,
             SharedMediaItemAction.CreatePlaylistAndAdd,
+            SharedMediaItemAction.CopyPlaylist,
+            SharedMediaItemAction.CopyPlaylistDeduplicated,
             SharedMediaItemAction.Rename,
             SharedMediaItemAction.EditSmartPlaylist,
             SharedMediaItemAction.Delete,
@@ -300,14 +307,16 @@ fun ColumnScope.DesktopAppRouteContent(
             SharedMediaItemAction.FindSimilar,
             SharedMediaItemAction.ToggleFavorite,
             SharedMediaItemAction.CreatePlaylistAndAdd,
+            SharedMediaItemAction.CopyPlaylist,
+            SharedMediaItemAction.CopyPlaylistDeduplicated,
             SharedMediaItemAction.EditSmartPlaylist,
             SharedMediaItemAction.EditStation,
             SharedMediaItemAction.DeleteStation,
             -> Unit
         }
     }
-    fun handleSelectedPlaylistMediaAction(requestAction: SharedMediaItemAction) {
-        when (requestAction) {
+    fun handleSelectedPlaylistMediaAction(request: SharedMediaItemActionRequest) {
+        when (request.action) {
             SharedMediaItemAction.Play -> appActions.playPlaylistDetails()
             SharedMediaItemAction.Shuffle -> appActions.playPlaylistDetails(shuffle = true)
             SharedMediaItemAction.Rename -> playlistsController.requestSelectedPlaylistRename()
@@ -315,11 +324,21 @@ fun ColumnScope.DesktopAppRouteContent(
             SharedMediaItemAction.Download -> appActions.downloadSelectedPlaylist()
             SharedMediaItemAction.AddToQueue -> playlistsController.addSelectedPlaylistToQueue()
             SharedMediaItemAction.AddToPlaylist -> playlistsController.openSelectedPlaylistAddToPlaylist()
+            SharedMediaItemAction.CreatePlaylistAndAdd,
+            SharedMediaItemAction.CopyPlaylist,
+            SharedMediaItemAction.CopyPlaylistDeduplicated,
+            -> request.playlistName?.let { name ->
+                val tracks = if (request.action == SharedMediaItemAction.CopyPlaylistDeduplicated) {
+                    selectedPlaylistTracks.distinctBy { track -> track.id }
+                } else {
+                    selectedPlaylistTracks
+                }
+                playlistsController.saveTracksAsPlaylist(name = name, tracks = tracks, label = "playlist")
+            }
             SharedMediaItemAction.Select,
             SharedMediaItemAction.StartRadio,
             SharedMediaItemAction.FindSimilar,
             SharedMediaItemAction.ToggleFavorite,
-            SharedMediaItemAction.CreatePlaylistAndAdd,
             SharedMediaItemAction.EditSmartPlaylist,
             SharedMediaItemAction.EditStation,
             SharedMediaItemAction.DeleteStation,
@@ -474,7 +493,7 @@ fun ColumnScope.DesktopAppRouteContent(
                     playlistCoverArtUrl = selectedPlaylist?.coverArtId?.let(coverArtUrl),
                     coverArtUrl = coverArtUrl,
                     onBack = { onRouteSelected(DesktopAppRoute.Playlists) },
-                    onPlaylistAction = { request -> handleSelectedPlaylistMediaAction(request.action) },
+                    onPlaylistAction = { request -> handleSelectedPlaylistMediaAction(request) },
                     onTrackAction = { request ->
                         val index = selectedPlaylistTracks.indexOfFirst { track -> track.id.value == request.track.id }
                         val track = selectedPlaylistTracks.getOrNull(index)

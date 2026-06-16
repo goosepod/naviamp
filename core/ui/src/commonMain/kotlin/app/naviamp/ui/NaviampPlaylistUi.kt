@@ -376,6 +376,7 @@ internal fun PlaylistDetailContent(
     onDownloadPlaylist: () -> Unit,
     onAddPlaylistToPlaylist: (NaviampPlaylistChoiceUi?) -> Unit,
     onCreatePlaylistAndAddPlaylist: (String) -> Unit,
+    onCopyPlaylist: (String, Boolean) -> Unit,
     onRenamePlaylist: (SharedMediaItemUi, String) -> Unit,
     onDeletePlaylist: (SharedMediaItemUi) -> Unit,
     onTrackSelected: (SharedTrackRowUi) -> Unit,
@@ -385,6 +386,7 @@ internal fun PlaylistDetailContent(
     var renameOpen by remember { mutableStateOf(false) }
     var deleteOpen by remember { mutableStateOf(false) }
     var addToPlaylistOpen by remember { mutableStateOf(false) }
+    var bulkToolsOpen by remember { mutableStateOf(false) }
     val handleTrackAction: (SharedTrackRowActionRequest) -> Unit = { request ->
         handleSharedTrackRowAction(
             request,
@@ -427,6 +429,9 @@ internal fun PlaylistDetailContent(
                     MiniPlayerIconButton(colors, detail.tracks.isNotEmpty(), NaviampIcons.Downloads, "Download playlist", onDownloadPlaylist)
                     MiniPlayerIconButton(colors, detail.tracks.isNotEmpty(), NaviampIcons.Playlist, "Add playlist to playlist") {
                         addToPlaylistOpen = true
+                    }
+                    MiniPlayerIconButton(colors, detail.tracks.isNotEmpty(), NaviampIcons.Settings, "Playlist bulk tools") {
+                        bulkToolsOpen = true
                     }
                     MiniPlayerIconButton(colors, true, NaviampIcons.Edit, "Rename playlist", { renameOpen = true })
                     MiniPlayerIconButton(colors, true, NaviampIcons.Trash, "Delete playlist", { deleteOpen = true })
@@ -483,6 +488,88 @@ internal fun PlaylistDetailContent(
             },
         )
     }
+    if (bulkToolsOpen) {
+        PlaylistBulkToolsDialog(
+            detail = detail,
+            colors = colors,
+            playlists = playlistChoices,
+            onDismissRequest = { bulkToolsOpen = false },
+            onCopyPlaylist = { name, deduplicate ->
+                bulkToolsOpen = false
+                onCopyPlaylist(name, deduplicate)
+            },
+            onAddToExisting = { choice ->
+                bulkToolsOpen = false
+                onAddPlaylistToPlaylist(choice)
+            },
+            onCreateAndAdd = { name ->
+                bulkToolsOpen = false
+                onCreatePlaylistAndAddPlaylist(name)
+            },
+        )
+    }
+}
+
+@Composable
+private fun PlaylistBulkToolsDialog(
+    detail: SharedPlaylistDetailUi,
+    colors: NaviampColors,
+    playlists: List<NaviampPlaylistChoiceUi>,
+    onDismissRequest: () -> Unit,
+    onCopyPlaylist: (String, Boolean) -> Unit,
+    onAddToExisting: (NaviampPlaylistChoiceUi) -> Unit,
+    onCreateAndAdd: (String) -> Unit,
+) {
+    var copyName by remember { mutableStateOf("${detail.playlist.title} Copy") }
+    val deduplicatedCount = remember(detail.tracks) { detail.tracks.distinctBy { it.id }.size }
+    AlertDialog(
+        onDismissRequest = onDismissRequest,
+        title = { Text("Playlist bulk tools") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text(
+                    "${detail.tracks.size} tracks - $deduplicatedCount unique",
+                    color = colors.secondaryText,
+                    fontSize = 12.sp,
+                )
+                OutlinedTextField(
+                    value = copyName,
+                    onValueChange = { copyName = it },
+                    label = { Text("New playlist name") },
+                    singleLine = true,
+                )
+                TextButton(
+                    enabled = detail.tracks.isNotEmpty() && copyName.isNotBlank(),
+                    onClick = { onCopyPlaylist(copyName.trim(), false) },
+                ) {
+                    Text("Copy playlist")
+                }
+                TextButton(
+                    enabled = detail.tracks.isNotEmpty() && copyName.isNotBlank(),
+                    onClick = { onCopyPlaylist(copyName.trim(), true) },
+                ) {
+                    Text("Copy deduplicated playlist")
+                }
+                Text("Merge/copy into another playlist", color = colors.secondaryText, fontSize = 12.sp)
+                playlists.take(6).forEach { playlist ->
+                    TextButton(onClick = { onAddToExisting(playlist) }) {
+                        Text(playlist.name, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    }
+                }
+                TextButton(
+                    enabled = copyName.isNotBlank(),
+                    onClick = { onCreateAndAdd(copyName.trim()) },
+                ) {
+                    Text("Create playlist and add these tracks")
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismissRequest) {
+                Text("Close")
+            }
+        },
+    )
 }
 
 @Composable

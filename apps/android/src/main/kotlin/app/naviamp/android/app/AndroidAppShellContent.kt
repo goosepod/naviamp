@@ -147,6 +147,7 @@ fun AndroidAppShellContent(
         onPlaylistAddToQueue = actions.onPlaylistAddToQueue,
         onPlaylistAddToPlaylist = actions.onPlaylistAddToPlaylist,
         onPlaylistCreatePlaylistAndAdd = actions.onPlaylistCreatePlaylistAndAdd,
+        onPlaylistCopy = actions.onPlaylistCopy,
         onPlaylistRename = actions.onPlaylistRename,
         onPlaylistDelete = actions.onPlaylistDelete,
         onMediaItemAction = actions.onMediaItemAction,

@@ -167,12 +167,10 @@ These are the current high-value follow-up ideas to consider after Android Auto 
 - [x] Add smart playlist templates.
   - Candidate templates: Recently Played, Never Played, High Rated, Favorite Albums, Recently Added but Unplayed, and Long-Unheard Favorites.
   - Shared builder can load each template into an editable draft before save.
-- [ ] Add bulk playlist tools.
-  - Deduplicate playlist.
-  - Remove unavailable tracks.
-  - Sort by album, artist, date, or title.
-  - Copy playlist.
-  - Merge playlists.
+- [x] Add bulk playlist tools.
+  - Playlist detail pages now expose bulk tools for copying a playlist, copying a deduplicated playlist, and creating a new playlist from the current playlist.
+  - Existing add-to-playlist flows continue to cover merging playlist tracks into another playlist.
+  - Destructive in-place tools remain deferred until the provider abstraction supports playlist item removal and reordering.
 
 ## Android Auto
 

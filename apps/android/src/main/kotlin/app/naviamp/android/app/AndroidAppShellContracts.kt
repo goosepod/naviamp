@@ -189,6 +189,7 @@ data class AndroidAppShellActions(
     val onPlaylistAddToQueue: (SharedPlaylistDetailUi) -> Unit,
     val onPlaylistAddToPlaylist: (SharedPlaylistDetailUi, NaviampPlaylistChoiceUi?) -> Unit,
     val onPlaylistCreatePlaylistAndAdd: (SharedPlaylistDetailUi, String) -> Unit,
+    val onPlaylistCopy: (SharedPlaylistDetailUi, String, Boolean) -> Unit,
     val onPlaylistRename: (SharedMediaItemUi, String) -> Unit,
     val onPlaylistDelete: (SharedMediaItemUi) -> Unit,
     val onMediaItemAction: (SharedMediaItemActionRequest) -> Unit,
