@@ -22,6 +22,7 @@ import app.naviamp.domain.radio.RadioRequest
 import app.naviamp.domain.radio.RadioRequestStartResult
 import app.naviamp.domain.radio.RadioService
 import app.naviamp.domain.radio.RadioSeedResult
+import app.naviamp.domain.radio.RadioTuningSettings
 import app.naviamp.domain.radio.SeededRadioRequest
 import app.naviamp.domain.radio.SeededRadioBuildResult
 import app.naviamp.domain.radio.SeededRadioExpansionResult
@@ -74,6 +75,7 @@ class DesktopRadioController(
     private val streamQuality: () -> StreamQuality,
     private val replayGainMode: () -> ReplayGainMode,
     private val preferSonicSimilarity: () -> Boolean,
+    private val radioTuning: () -> RadioTuningSettings,
     private val repeatMode: () -> RepeatMode,
     private val playlistCallbacks: () -> PlaylistCallbacks,
     private val rememberRadioStream: (RecentRadioStream) -> Unit,
@@ -593,6 +595,7 @@ class DesktopRadioController(
         RadioService(
             provider = provider,
             count = count,
+            tuning = radioTuning(),
             providerResponseService = providerResponseService,
         )
 

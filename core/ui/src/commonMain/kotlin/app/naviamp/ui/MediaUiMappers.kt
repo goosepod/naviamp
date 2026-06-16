@@ -413,6 +413,7 @@ enum class NowPlayingDisplayAction {
     ChangeLyricsOffset,
     ToggleVisualizer,
     SelectVisualizer,
+    SelectRadioDj,
     Collapse,
 }
 
@@ -420,6 +421,7 @@ data class NowPlayingDisplayActionRequest(
     val action: NowPlayingDisplayAction,
     val lyricsOffsetMillis: Int? = null,
     val visualizer: NaviampVisualizer? = null,
+    val radioDjId: String? = null,
 )
 
 enum class NowPlayingQueueAction {

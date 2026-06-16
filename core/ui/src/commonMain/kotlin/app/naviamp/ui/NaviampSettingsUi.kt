@@ -35,6 +35,13 @@ import app.naviamp.domain.playback.EqualizerPreset
 import app.naviamp.domain.playback.MaxEqualizerGainDb
 import app.naviamp.domain.playback.MinEqualizerGainDb
 import app.naviamp.domain.playback.ReplayGainMode
+import app.naviamp.domain.radio.MaxArtistRunLength
+import app.naviamp.domain.radio.MinArtistRunLength
+import app.naviamp.domain.radio.RadioArtistSpread
+import app.naviamp.domain.radio.RadioDjPreset
+import app.naviamp.domain.radio.RadioFamiliarity
+import app.naviamp.domain.radio.RadioArtistRunMode
+import app.naviamp.domain.radio.RadioTuningSettings
 import app.naviamp.domain.settings.PlaybackSettings
 import app.naviamp.domain.settings.PreviousButtonBehavior
 import app.naviamp.domain.settings.StreamBitrateKbpsOptions
@@ -502,158 +509,477 @@ fun NaviampPlaybackSettingsSection(
     showMobileNetworkQuality: Boolean = false,
     downloadBytes: Long = 0L,
 ) {
-    var upNextHelpOpen by remember { mutableStateOf(false) }
+    var selectedSection by remember { mutableStateOf<NaviampPlaybackSettingsSection?>(null) }
 
-    SettingsSectionTitle("Playback", colors)
-    StreamingQualitySettings(
-        colors = colors,
-        playbackSettings = playbackSettings,
-        showMobileNetworkQuality = showMobileNetworkQuality,
-        downloadBytes = downloadBytes,
-        onPlaybackSettingsChanged = onPlaybackSettingsChanged,
-        onPlaybackSettingsChangedAndRedownload = onPlaybackSettingsChangedAndRedownload,
-    )
-    if (showReplayGain) {
-        Text(
-            if (supportsReplayGain) "ReplayGain" else "ReplayGain unavailable with this playback engine",
-            color = colors.secondaryText,
-            fontSize = 12.sp,
-        )
-        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-            ReplayGainMode.entries.forEach { mode ->
-                FilterChip(
-                    selected = playbackSettings.replayGainMode == mode,
-                    enabled = supportsReplayGain || mode == ReplayGainMode.Off,
-                    onClick = { onPlaybackSettingsChanged(playbackSettings.copy(replayGainMode = mode)) },
-                    label = { Text(mode.displayName, fontSize = 12.sp) },
-                    modifier = Modifier.height(28.dp),
-                )
-            }
-        }
-    }
-    if (showCrossfade) {
-        Text(
-            if (supportsGapless) "Gapless playback" else "Gapless playback unavailable with this playback engine",
-            color = colors.secondaryText,
-            fontSize = 12.sp,
-        )
-        SettingsCheckboxRow(
-            colors = colors,
-            checked = playbackSettings.gaplessEnabled && playbackSettings.crossfadeDurationSeconds == 0,
-            enabled = supportsGapless,
-            label = "Gapless",
-            onCheckedChange = { enabled ->
-                onPlaybackSettingsChanged(
-                    playbackSettings.copy(
-                        gaplessEnabled = enabled,
-                        crossfadeDurationSeconds = if (enabled) 0 else playbackSettings.crossfadeDurationSeconds,
-                    ),
-                )
-            },
-        )
-        Text(
-            if (supportsCrossfade) "Crossfade" else "Crossfade unavailable with this playback engine",
-            color = colors.secondaryText,
-            fontSize = 12.sp,
-        )
-        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-            CrossfadeDurationOptions.forEach { seconds ->
-                FilterChip(
-                    selected = playbackSettings.crossfadeDurationSeconds == seconds,
-                    enabled = supportsCrossfade || seconds == 0,
-                    onClick = {
-                        onPlaybackSettingsChanged(
-                            playbackSettings.copy(
-                                crossfadeDurationSeconds = seconds,
-                                gaplessEnabled = if (seconds > 0) false else playbackSettings.gaplessEnabled,
-                            ),
-                        )
-                    },
-                    label = { Text(if (seconds == 0) "Off" else "${seconds}s", fontSize = 12.sp) },
-                    modifier = Modifier.height(28.dp),
-                )
-            }
-        }
-    }
-    EqualizerSettings(
-        colors = colors,
-        playbackSettings = playbackSettings,
-        supportsEqualizer = supportsEqualizer,
-        onPlaybackSettingsChanged = onPlaybackSettingsChanged,
-    )
-    if (showQueueBehavior) {
-        Text("Queue rules", color = colors.secondaryText, fontSize = 12.sp)
-        SettingsCheckboxRow(
-            colors = colors,
-            checked = playbackSettings.removePlayedTracksFromQueue,
-            label = "Remove played tracks from Back To",
-            onCheckedChange = { enabled ->
-                onPlaybackSettingsChanged(playbackSettings.copy(removePlayedTracksFromQueue = enabled))
-            },
-        )
-        if (supportsSonicSimilarity) {
-            SettingsCheckboxRow(
+    selectedSection?.let { section ->
+        SettingsSubsectionHeader(section.title, section.subtitle, colors) { selectedSection = null }
+        when (section) {
+            NaviampPlaybackSettingsSection.AudioQuality -> StreamingQualitySettings(
                 colors = colors,
-                checked = playbackSettings.sonicAutoplayEnabled,
-                label = "Start Sonic autoplay when queue ends",
-                onCheckedChange = { enabled ->
-                    onPlaybackSettingsChanged(playbackSettings.copy(sonicAutoplayEnabled = enabled))
-                },
+                playbackSettings = playbackSettings,
+                showMobileNetworkQuality = showMobileNetworkQuality,
+                downloadBytes = downloadBytes,
+                onPlaybackSettingsChanged = onPlaybackSettingsChanged,
+                onPlaybackSettingsChangedAndRedownload = onPlaybackSettingsChangedAndRedownload,
+            )
+            NaviampPlaybackSettingsSection.ReplayGain -> ReplayGainSettings(
+                colors = colors,
+                playbackSettings = playbackSettings,
+                supportsReplayGain = supportsReplayGain,
+                onPlaybackSettingsChanged = onPlaybackSettingsChanged,
+            )
+            NaviampPlaybackSettingsSection.GaplessCrossfade -> GaplessCrossfadeSettings(
+                colors = colors,
+                playbackSettings = playbackSettings,
+                supportsGapless = supportsGapless,
+                supportsCrossfade = supportsCrossfade,
+                onPlaybackSettingsChanged = onPlaybackSettingsChanged,
+            )
+            NaviampPlaybackSettingsSection.Equalizer -> EqualizerSettings(
+                colors = colors,
+                playbackSettings = playbackSettings,
+                supportsEqualizer = supportsEqualizer,
+                onPlaybackSettingsChanged = onPlaybackSettingsChanged,
+            )
+            NaviampPlaybackSettingsSection.QueueRules -> QueueRulesSettings(
+                colors = colors,
+                playbackSettings = playbackSettings,
+                supportsSonicSimilarity = supportsSonicSimilarity,
+                onPlaybackSettingsChanged = onPlaybackSettingsChanged,
+            )
+            NaviampPlaybackSettingsSection.DjBuilder -> RadioDjSettingsSection(
+                colors = colors,
+                playbackSettings = playbackSettings,
+                onPlaybackSettingsChanged = onPlaybackSettingsChanged,
+            )
+            NaviampPlaybackSettingsSection.LyricsRelated -> LyricsRelatedSettings(
+                colors = colors,
+                playbackSettings = playbackSettings,
+                supportsSonicSimilarity = supportsSonicSimilarity,
+                showLrclibLyrics = showLrclibLyrics,
+                onPlaybackSettingsChanged = onPlaybackSettingsChanged,
+            )
+            NaviampPlaybackSettingsSection.Debug -> DebugSettings(
+                colors = colors,
+                playbackSettings = playbackSettings,
+                onPlaybackSettingsChanged = onPlaybackSettingsChanged,
             )
         }
-        Text("Previous button", color = colors.secondaryText, fontSize = 12.sp)
-        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-            PreviousButtonBehavior.entries.forEach { behavior ->
-                FilterChip(
-                    selected = playbackSettings.previousButtonBehavior == behavior,
-                    onClick = {
-                        onPlaybackSettingsChanged(playbackSettings.copy(previousButtonBehavior = behavior))
-                    },
-                    label = { Text(behavior.label, fontSize = 12.sp) },
-                    modifier = Modifier.height(28.dp),
-                )
-            }
-        }
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(4.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text("Up Next selection", color = colors.secondaryText, fontSize = 12.sp)
-            IconButton(
-                onClick = { upNextHelpOpen = true },
-                modifier = Modifier.size(24.dp),
-            ) {
-                Icon(
-                    imageVector = NaviampIcons.Info,
-                    contentDescription = "Up Next selection details",
-                    tint = colors.secondaryText,
-                    modifier = Modifier.size(15.dp),
-                )
-            }
-        }
-        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-            UpNextSelectionBehavior.entries.forEach { behavior ->
-                FilterChip(
-                    selected = playbackSettings.upNextSelectionBehavior == behavior,
-                    onClick = {
-                        onPlaybackSettingsChanged(playbackSettings.copy(upNextSelectionBehavior = behavior))
-                    },
-                    label = { Text(behavior.label, fontSize = 12.sp) },
-                    modifier = Modifier.height(28.dp),
-                )
+    } ?: run {
+        SettingsSectionTitle("Playback", colors)
+        playbackSettingsSections(
+            showReplayGain = showReplayGain,
+            showCrossfade = showCrossfade,
+            showQueueBehavior = showQueueBehavior,
+            showDebugLogging = showDebugLogging,
+        ).forEach { section ->
+            SettingsRow(section.title, section.subtitle, colors) {
+                selectedSection = section
             }
         }
     }
-    if (showDebugLogging) {
+}
+
+private enum class NaviampPlaybackSettingsSection(
+    val title: String,
+    val subtitle: String,
+) {
+    AudioQuality("Audio quality", "Streaming, downloads, and network quality"),
+    ReplayGain("ReplayGain", "Track and album loudness leveling"),
+    GaplessCrossfade("Gapless and crossfade", "Album flow and transition timing"),
+    Equalizer("Equalizer", "10-band EQ and saved profiles"),
+    QueueRules("Queue rules", "Back To, Up Next, and queue-end behavior"),
+    DjBuilder("DJ Builder", "Saved radio personalities and tuning presets"),
+    LyricsRelated("Lyrics and Related", "Lyrics downloads and sonic similarity"),
+    Debug("Debug", "Diagnostic logging"),
+}
+
+private fun playbackSettingsSections(
+    showReplayGain: Boolean,
+    showCrossfade: Boolean,
+    showQueueBehavior: Boolean,
+    showDebugLogging: Boolean,
+): List<NaviampPlaybackSettingsSection> =
+    buildList {
+        add(NaviampPlaybackSettingsSection.AudioQuality)
+        if (showReplayGain) add(NaviampPlaybackSettingsSection.ReplayGain)
+        if (showCrossfade) add(NaviampPlaybackSettingsSection.GaplessCrossfade)
+        add(NaviampPlaybackSettingsSection.Equalizer)
+        if (showQueueBehavior) {
+            add(NaviampPlaybackSettingsSection.QueueRules)
+            add(NaviampPlaybackSettingsSection.DjBuilder)
+        }
+        add(NaviampPlaybackSettingsSection.LyricsRelated)
+        if (showDebugLogging) add(NaviampPlaybackSettingsSection.Debug)
+    }
+
+@Composable
+private fun SettingsSubsectionHeader(
+    title: String,
+    subtitle: String,
+    colors: NaviampColors,
+    onBack: () -> Unit,
+) {
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        IconButton(onClick = onBack, modifier = Modifier.size(34.dp)) {
+            Icon(NaviampIcons.Back, contentDescription = "Back", tint = colors.primaryText)
+        }
+        Column(verticalArrangement = Arrangement.spacedBy(1.dp)) {
+            Text(title, color = colors.primaryText, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+            Text(subtitle, color = colors.secondaryText, fontSize = 12.sp)
+        }
+    }
+}
+
+@Composable
+private fun ReplayGainSettings(
+    colors: NaviampColors,
+    playbackSettings: PlaybackSettings,
+    supportsReplayGain: Boolean,
+    onPlaybackSettingsChanged: (PlaybackSettings) -> Unit,
+) {
+    Text(
+        if (supportsReplayGain) "ReplayGain" else "ReplayGain unavailable with this playback engine",
+        color = colors.secondaryText,
+        fontSize = 12.sp,
+    )
+    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+        ReplayGainMode.entries.forEach { mode ->
+            FilterChip(
+                selected = playbackSettings.replayGainMode == mode,
+                enabled = supportsReplayGain || mode == ReplayGainMode.Off,
+                onClick = { onPlaybackSettingsChanged(playbackSettings.copy(replayGainMode = mode)) },
+                label = { Text(mode.displayName, fontSize = 12.sp) },
+                modifier = Modifier.height(28.dp),
+            )
+        }
+    }
+}
+
+@Composable
+private fun GaplessCrossfadeSettings(
+    colors: NaviampColors,
+    playbackSettings: PlaybackSettings,
+    supportsGapless: Boolean,
+    supportsCrossfade: Boolean,
+    onPlaybackSettingsChanged: (PlaybackSettings) -> Unit,
+) {
+    Text(
+        if (supportsGapless) "Gapless playback" else "Gapless playback unavailable with this playback engine",
+        color = colors.secondaryText,
+        fontSize = 12.sp,
+    )
+    SettingsCheckboxRow(
+        colors = colors,
+        checked = playbackSettings.gaplessEnabled && playbackSettings.crossfadeDurationSeconds == 0,
+        enabled = supportsGapless,
+        label = "Gapless",
+        onCheckedChange = { enabled ->
+            onPlaybackSettingsChanged(
+                playbackSettings.copy(
+                    gaplessEnabled = enabled,
+                    crossfadeDurationSeconds = if (enabled) 0 else playbackSettings.crossfadeDurationSeconds,
+                ),
+            )
+        },
+    )
+    Text(
+        if (supportsCrossfade) "Crossfade" else "Crossfade unavailable with this playback engine",
+        color = colors.secondaryText,
+        fontSize = 12.sp,
+    )
+    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+        CrossfadeDurationOptions.forEach { seconds ->
+            FilterChip(
+                selected = playbackSettings.crossfadeDurationSeconds == seconds,
+                enabled = supportsCrossfade || seconds == 0,
+                onClick = {
+                    onPlaybackSettingsChanged(
+                        playbackSettings.copy(
+                            crossfadeDurationSeconds = seconds,
+                            gaplessEnabled = if (seconds > 0) false else playbackSettings.gaplessEnabled,
+                        ),
+                    )
+                },
+                label = { Text(if (seconds == 0) "Off" else "${seconds}s", fontSize = 12.sp) },
+                modifier = Modifier.height(28.dp),
+            )
+        }
+    }
+}
+
+@Composable
+private fun QueueRulesSettings(
+    colors: NaviampColors,
+    playbackSettings: PlaybackSettings,
+    supportsSonicSimilarity: Boolean,
+    onPlaybackSettingsChanged: (PlaybackSettings) -> Unit,
+) {
+    var upNextHelpOpen by remember { mutableStateOf(false) }
+    SettingsCheckboxRow(
+        colors = colors,
+        checked = playbackSettings.removePlayedTracksFromQueue,
+        label = "Remove played tracks from Back To",
+        onCheckedChange = { enabled ->
+            onPlaybackSettingsChanged(playbackSettings.copy(removePlayedTracksFromQueue = enabled))
+        },
+    )
+    if (supportsSonicSimilarity) {
         SettingsCheckboxRow(
             colors = colors,
-            checked = playbackSettings.debugLoggingEnabled,
-            label = "Debug logging",
+            checked = playbackSettings.sonicAutoplayEnabled,
+            label = "Start Sonic autoplay when queue ends",
             onCheckedChange = { enabled ->
-                onPlaybackSettingsChanged(playbackSettings.copy(debugLoggingEnabled = enabled))
+                onPlaybackSettingsChanged(playbackSettings.copy(sonicAutoplayEnabled = enabled))
             },
         )
     }
+    Text("Previous button", color = colors.secondaryText, fontSize = 12.sp)
+    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+        PreviousButtonBehavior.entries.forEach { behavior ->
+            FilterChip(
+                selected = playbackSettings.previousButtonBehavior == behavior,
+                onClick = {
+                    onPlaybackSettingsChanged(playbackSettings.copy(previousButtonBehavior = behavior))
+                },
+                label = { Text(behavior.label, fontSize = 12.sp) },
+                modifier = Modifier.height(28.dp),
+            )
+        }
+    }
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text("Up Next selection", color = colors.secondaryText, fontSize = 12.sp)
+        IconButton(
+            onClick = { upNextHelpOpen = true },
+            modifier = Modifier.size(24.dp),
+        ) {
+            Icon(
+                imageVector = NaviampIcons.Info,
+                contentDescription = "Up Next selection details",
+                tint = colors.secondaryText,
+                modifier = Modifier.size(15.dp),
+            )
+        }
+    }
+    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+        UpNextSelectionBehavior.entries.forEach { behavior ->
+            FilterChip(
+                selected = playbackSettings.upNextSelectionBehavior == behavior,
+                onClick = {
+                    onPlaybackSettingsChanged(playbackSettings.copy(upNextSelectionBehavior = behavior))
+                },
+                label = { Text(behavior.label, fontSize = 12.sp) },
+                modifier = Modifier.height(28.dp),
+            )
+        }
+    }
+    if (upNextHelpOpen) {
+        AlertDialog(
+            onDismissRequest = { upNextHelpOpen = false },
+            title = { Text("Up Next selection") },
+            text = {
+                Text(
+                    "Move selected plays the clicked song now and keeps the songs before it in Up Next.\n\n" +
+                        "Skip to selected advances through the queue, so skipped songs move into Back To.",
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = { upNextHelpOpen = false }) {
+                    Text("Close")
+                }
+            },
+        )
+    }
+}
+
+@Composable
+private fun RadioTuningControls(
+    colors: NaviampColors,
+    tuning: RadioTuningSettings,
+    onTuningChanged: (RadioTuningSettings) -> Unit,
+) {
+    Text("Familiarity", color = colors.secondaryText, fontSize = 12.sp)
+    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+        RadioFamiliarity.entries.forEach { familiarity ->
+            FilterChip(
+                selected = tuning.familiarity == familiarity,
+                onClick = { onTuningChanged(tuning.copy(familiarity = familiarity)) },
+                label = { Text(familiarity.label, fontSize = 12.sp) },
+                modifier = Modifier.height(28.dp),
+            )
+        }
+    }
+    Text("Artist spread", color = colors.secondaryText, fontSize = 12.sp)
+    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+        RadioArtistSpread.entries.forEach { spread ->
+            FilterChip(
+                selected = tuning.artistSpread == spread,
+                onClick = { onTuningChanged(tuning.copy(artistSpread = spread)) },
+                label = { Text(spread.label, fontSize = 12.sp) },
+                modifier = Modifier.height(28.dp),
+            )
+        }
+    }
+    SettingsCheckboxRow(
+        colors = colors,
+        checked = tuning.sameDecadeOnly,
+        label = "Stay in seed track decade",
+        onCheckedChange = { enabled ->
+            onTuningChanged(tuning.copy(sameDecadeOnly = enabled))
+        },
+    )
+    Text("Artist runs", color = colors.secondaryText, fontSize = 12.sp)
+    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+        RadioArtistRunMode.entries.forEach { mode ->
+            FilterChip(
+                selected = tuning.artistRunMode == mode,
+                onClick = { onTuningChanged(tuning.copy(artistRunMode = mode)) },
+                label = { Text(mode.label, fontSize = 12.sp) },
+                modifier = Modifier.height(28.dp),
+            )
+        }
+    }
+    if (tuning.artistRunMode == RadioArtistRunMode.ArtistBlocks) {
+        SettingsNumberSlider(
+            colors = colors,
+            label = "Same artist run",
+            value = tuning.sameArtistRunLength,
+            onValueChanged = { value -> onTuningChanged(tuning.copy(sameArtistRunLength = value)) },
+        )
+        SettingsNumberSlider(
+            colors = colors,
+            label = "Other artists run",
+            value = tuning.otherArtistRunLength,
+            onValueChanged = { value -> onTuningChanged(tuning.copy(otherArtistRunLength = value)) },
+        )
+    }
+}
+
+@Composable
+private fun SettingsNumberSlider(
+    colors: NaviampColors,
+    label: String,
+    value: Int,
+    onValueChanged: (Int) -> Unit,
+) {
+    val normalized = value.coerceIn(MinArtistRunLength, MaxArtistRunLength)
+    Text("$label: $normalized", color = colors.secondaryText, fontSize = 12.sp)
+    Slider(
+        value = normalized.toFloat(),
+        onValueChange = { onValueChanged(it.toInt().coerceIn(MinArtistRunLength, MaxArtistRunLength)) },
+        valueRange = MinArtistRunLength.toFloat()..MaxArtistRunLength.toFloat(),
+        steps = MaxArtistRunLength - MinArtistRunLength - 1,
+        modifier = Modifier.fillMaxWidth(),
+    )
+}
+
+@Composable
+private fun RadioDjSettingsSection(
+    colors: NaviampColors,
+    playbackSettings: PlaybackSettings,
+    onPlaybackSettingsChanged: (PlaybackSettings) -> Unit,
+) {
+    var editingId by remember { mutableStateOf<String?>(null) }
+    var draftName by remember { mutableStateOf("") }
+    var draftTuning by remember { mutableStateOf(playbackSettings.radioTuning) }
+    val editingPreset = editingId?.let { id -> playbackSettings.radioDjs.firstOrNull { it.id == id } }
+
+    if (playbackSettings.radioDjs.isEmpty()) {
+        Text("No DJs saved yet.", color = colors.secondaryText, fontSize = 12.sp)
+    } else {
+        playbackSettings.radioDjs.forEach { preset ->
+            SettingsRow(preset.name, preset.tuning.summaryLabel(), colors) {
+                editingId = preset.id
+                draftName = preset.name
+                draftTuning = preset.tuning
+            }
+        }
+    }
+    PrimarySettingsButton("New DJ", colors, enabled = true) {
+        editingId = NewRadioDjId
+        draftName = ""
+        draftTuning = playbackSettings.radioTuning
+    }
+
+    if (editingId != null) {
+        SettingsSectionTitle(if (editingPreset == null) "New DJ" else "Edit DJ", colors)
+        OutlinedTextField(
+            value = draftName,
+            onValueChange = { draftName = it },
+            singleLine = true,
+            label = { Text("DJ name") },
+            modifier = Modifier.fillMaxWidth(),
+        )
+        RadioTuningControls(
+            colors = colors,
+            tuning = draftTuning,
+            onTuningChanged = { draftTuning = it },
+        )
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+            TextButton(
+                enabled = draftName.isNotBlank(),
+                onClick = {
+                    val preset = RadioDjPreset(
+                        id = editingPreset?.id ?: radioDjIdFor(draftName, playbackSettings.radioDjs),
+                        name = draftName,
+                        tuning = draftTuning,
+                    ).normalized()
+                    val updated = if (editingPreset == null) {
+                        playbackSettings.radioDjs + preset
+                    } else {
+                        playbackSettings.radioDjs.map { if (it.id == preset.id) preset else it }
+                    }
+                    onPlaybackSettingsChanged(
+                        playbackSettings.copy(
+                            radioDjs = updated,
+                            activeRadioDjId = playbackSettings.activeRadioDjId?.takeIf { id ->
+                                updated.any { it.id == id }
+                            },
+                        ),
+                    )
+                    editingId = null
+                },
+            ) {
+                Text("Save", color = if (draftName.isNotBlank()) colors.primaryText else colors.mutedText)
+            }
+            if (editingPreset != null) {
+                TextButton(
+                    onClick = {
+                        val updated = playbackSettings.radioDjs.filterNot { it.id == editingPreset.id }
+                        onPlaybackSettingsChanged(
+                            playbackSettings.copy(
+                                radioDjs = updated,
+                                activeRadioDjId = playbackSettings.activeRadioDjId?.takeIf { it != editingPreset.id },
+                            ),
+                        )
+                        editingId = null
+                    },
+                ) {
+                    Text("Delete", color = colors.primaryText)
+                }
+            }
+            TextButton(onClick = { editingId = null }) {
+                Text("Cancel", color = colors.secondaryText)
+            }
+        }
+    }
+}
+
+@Composable
+private fun LyricsRelatedSettings(
+    colors: NaviampColors,
+    playbackSettings: PlaybackSettings,
+    supportsSonicSimilarity: Boolean,
+    showLrclibLyrics: Boolean,
+    onPlaybackSettingsChanged: (PlaybackSettings) -> Unit,
+) {
     if (showLrclibLyrics) {
         SettingsCheckboxRow(
             colors = colors,
@@ -674,23 +1000,22 @@ fun NaviampPlaybackSettingsSection(
             },
         )
     }
-    if (upNextHelpOpen) {
-        AlertDialog(
-            onDismissRequest = { upNextHelpOpen = false },
-            title = { Text("Up Next selection") },
-            text = {
-                Text(
-                    "Move selected plays the clicked song now and keeps the songs before it in Up Next.\n\n" +
-                        "Skip to selected advances through the queue, so skipped songs move into Back To.",
-                )
-            },
-            confirmButton = {
-                TextButton(onClick = { upNextHelpOpen = false }) {
-                    Text("Close")
-                }
-            },
-        )
-    }
+}
+
+@Composable
+private fun DebugSettings(
+    colors: NaviampColors,
+    playbackSettings: PlaybackSettings,
+    onPlaybackSettingsChanged: (PlaybackSettings) -> Unit,
+) {
+    SettingsCheckboxRow(
+        colors = colors,
+        checked = playbackSettings.debugLoggingEnabled,
+        label = "Debug logging",
+        onCheckedChange = { enabled ->
+            onPlaybackSettingsChanged(playbackSettings.copy(debugLoggingEnabled = enabled))
+        },
+    )
 }
 
 @Composable
@@ -1051,6 +1376,32 @@ private val StreamingCodec.label: String
         StreamingCodec.Opus -> "Opus"
     }
 
+private fun RadioTuningSettings.summaryLabel(): String =
+    listOf(
+        familiarity.label,
+        artistSpread.label,
+        if (sameDecadeOnly) "same decade" else "any decade",
+        when (artistRunMode) {
+            RadioArtistRunMode.Mixed -> "mixed artists"
+            RadioArtistRunMode.SingleArtist -> "single artist"
+            RadioArtistRunMode.ArtistBlocks -> "${sameArtistRunLength} same / ${otherArtistRunLength} other"
+        },
+    ).joinToString(" / ")
+
+private fun radioDjIdFor(name: String, existing: List<RadioDjPreset>): String {
+    val base = name.trim()
+        .lowercase()
+        .replace(Regex("[^a-z0-9]+"), "-")
+        .trim('-')
+        .ifBlank { "dj" }
+    if (existing.none { it.id == base }) return base
+    var index = 2
+    while (existing.any { it.id == "$base-$index" }) {
+        index += 1
+    }
+    return "$base-$index"
+}
+
 private fun Int.equalizerFrequencyLabel(): String =
     if (this >= 1_000) "${this / 1_000} kHz" else "$this Hz"
 
@@ -1058,6 +1409,7 @@ private fun Float.equalizerGainLabel(): String =
     if (this == 0f) "0 dB" else "%+.1f dB".format(this)
 
 private val CrossfadeDurationOptions = listOf(0, 3, 5, 8, 12)
+private const val NewRadioDjId = "__new_radio_dj__"
 private val PrefetchDepthOptions = listOf(0, 3, 5, 10, 15, 25)
 private val AudioCacheBudgetOptions = listOf(
     256L * 1024L * 1024L,

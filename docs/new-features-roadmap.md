@@ -29,6 +29,10 @@ These are the current high-value follow-up ideas to consider after Android Auto 
   - Candidate controls: familiar/discovery, narrow/broad, same decade/any decade, favorites bias, deep cuts, similar artists, and genre spread.
   - Persist selected tuning options and pass them into radio/mix generation.
   - Discuss the exact tuning model before implementation; this is likely large enough for its own planning branch.
+  - First pass in progress: shared Playback settings now persist familiarity, artist spread, and same-decade tuning; radio queues use the saved tuning across desktop and Android entry points.
+  - Expanded in progress: Playback settings are split into subsections, and saved DJ presets can store radio tuning combinations for later selection from Now Playing.
+  - Current polish: selecting a DJ from Now Playing rebuilds the upcoming radio queue without interrupting the current track; `Default radio` and clicking the active DJ both clear the active preset.
+  - Latest direction: the standalone Radio Tuning subsection is folded into DJ Builder, saved DJs are stored in SQLite, and DJ knobs include mixed artists, single-artist mode, and configurable same-artist/other-artist blocks.
 - [ ] Add `Naviamp Connect` style remote renderer support.
   - Phone/desktop acts as controller; Android TV / Google TV / Fire TV acts as renderer.
   - See `docs/naviamp-connect-roadmap.md`.
@@ -83,6 +87,10 @@ These are the current high-value follow-up ideas to consider after Android Auto 
   - Candidate controls: familiar/discovery, narrow/broad, same decade/any decade, similar artists/genre spread.
   - Persist selected tuning options and pass them into radio generation.
   - Discuss the exact tuning knobs before implementation; this is likely large enough to split into its own branch.
+  - First pass in progress: shared Playback settings now persist familiarity, artist spread, and same-decade tuning; radio queues use the saved tuning across desktop and Android entry points.
+  - Expanded in progress: Playback settings are split into subsections, and saved DJ presets can store radio tuning combinations for later selection from Now Playing.
+  - Current polish: selecting a DJ from Now Playing rebuilds the upcoming radio queue without interrupting the current track; `Default radio` and clicking the active DJ both clear the active preset.
+  - Latest direction: the standalone Radio Tuning subsection is folded into DJ Builder, saved DJs are stored in SQLite, and DJ knobs include mixed artists, single-artist mode, and configurable same-artist/other-artist blocks.
 - [ ] Leave a note that additional Plexamp-style station entries may be added later; Artist Mix Builder, Album Mix Builder, and Genre Mix Radio are first.
 
 ## Playback and Queue

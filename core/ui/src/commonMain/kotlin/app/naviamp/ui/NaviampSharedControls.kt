@@ -325,6 +325,7 @@ fun NaviampDropdownMenuItem(
     label: String,
     icon: ImageVector? = null,
     enabled: Boolean = true,
+    selected: Boolean = false,
     onClick: () -> Unit,
 ) {
     DropdownMenuItem(
@@ -345,6 +346,9 @@ fun NaviampDropdownMenuItem(
             }
         },
         enabled = enabled,
+        modifier = Modifier.background(
+            if (selected) MenuText.copy(alpha = 0.12f) else Color.Transparent,
+        ),
         colors = MenuDefaults.itemColors(
             textColor = MenuText,
             disabledTextColor = MenuText.copy(alpha = 0.42f),

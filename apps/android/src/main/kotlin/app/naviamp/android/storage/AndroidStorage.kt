@@ -46,6 +46,8 @@ import app.naviamp.domain.popular.ArtistPopularTrackMatch
 import app.naviamp.domain.provider.MediaProvider
 import app.naviamp.domain.provider.PendingProviderAction
 import app.naviamp.domain.provider.PendingProviderActionRepository
+import app.naviamp.domain.radio.RadioDjPreset
+import app.naviamp.domain.radio.RadioDjPresetRepository
 import app.naviamp.domain.settings.PlaybackSessionSettings
 import app.naviamp.domain.source.MediaSourceIdentity
 import app.naviamp.domain.source.SavedMediaSource
@@ -77,6 +79,7 @@ class AndroidStorage(
     PlaybackSessionRepository,
     LocalLibraryIndexRepository,
     PendingProviderActionRepository,
+    RadioDjPresetRepository,
     CacheMaintenanceRepository<StorageCacheStats>,
     SidecarStatusRepository,
     AutoCloseable {
@@ -90,6 +93,7 @@ class AndroidStorage(
         it.ensureTrackLyricsOffsetSchema()
         it.ensurePendingProviderActionSchema()
         it.ensureLibraryTrackPlayMetadataSchema()
+        it.ensureRadioDjPresetSchema()
         it.execute(null, "PRAGMA foreign_keys=ON", 0)
     }
     private val database = NaviampStorageDatabase(driver)
@@ -127,6 +131,10 @@ class AndroidStorage(
         nowMillis = ::nowMillis,
     )
     private val pendingProviderActions = AndroidPendingProviderActionStore(
+        queries = queries,
+        nowMillis = ::nowMillis,
+    )
+    private val radioDjPresets = AndroidRadioDjPresetStore(
         queries = queries,
         nowMillis = ::nowMillis,
     )
@@ -472,6 +480,21 @@ class AndroidStorage(
         pendingProviderActions.markPendingProviderActionFailed(id, errorMessage)
     }
 
+    override fun radioDjPresets(): List<RadioDjPreset> =
+        radioDjPresets.radioDjPresets()
+
+    override fun replaceRadioDjPresets(presets: List<RadioDjPreset>) {
+        radioDjPresets.replaceRadioDjPresets(presets)
+    }
+
+    override fun upsertRadioDjPreset(preset: RadioDjPreset) {
+        radioDjPresets.upsertRadioDjPreset(preset)
+    }
+
+    override fun deleteRadioDjPreset(id: String) {
+        radioDjPresets.deleteRadioDjPreset(id)
+    }
+
     override fun markLibrarySyncStarted(sourceId: String) {
         libraryIndex.markLibrarySyncStarted(sourceId)
     }
@@ -726,6 +749,36 @@ private fun SqlDriver.ensureLibraryTrackPlayMetadataSchema() {
     if (!tableHasColumn("library_track", "last_played_at_iso8601")) {
         execute(null, "ALTER TABLE library_track ADD COLUMN last_played_at_iso8601 TEXT", 0)
     }
+}
+
+private fun SqlDriver.ensureRadioDjPresetSchema() {
+    execute(
+        null,
+        """
+        CREATE TABLE IF NOT EXISTS radio_dj_preset (
+          id TEXT NOT NULL PRIMARY KEY,
+          name TEXT NOT NULL,
+          familiarity TEXT NOT NULL,
+          artist_spread TEXT NOT NULL,
+          same_decade_only INTEGER NOT NULL,
+          artist_run_mode TEXT NOT NULL,
+          same_artist_run_length INTEGER NOT NULL,
+          other_artist_run_length INTEGER NOT NULL,
+          sort_order INTEGER NOT NULL,
+          created_at_epoch_millis INTEGER NOT NULL,
+          updated_at_epoch_millis INTEGER NOT NULL
+        )
+        """.trimIndent(),
+        0,
+    )
+    execute(
+        null,
+        """
+        CREATE INDEX IF NOT EXISTS radio_dj_preset_sort
+        ON radio_dj_preset(sort_order, name)
+        """.trimIndent(),
+        0,
+    )
 }
 
 private fun SqlDriver.tableHasColumn(tableName: String, columnName: String): Boolean {

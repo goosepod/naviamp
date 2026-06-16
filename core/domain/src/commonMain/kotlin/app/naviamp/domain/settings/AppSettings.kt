@@ -14,6 +14,9 @@ import app.naviamp.domain.playback.EqualizerSettings
 import app.naviamp.domain.playback.PlaybackEngine
 import app.naviamp.domain.playback.ReplayGainMode
 import app.naviamp.domain.radio.internetRadioTrack
+import app.naviamp.domain.radio.RadioDjPreset
+import app.naviamp.domain.radio.RadioDjPresetRepository
+import app.naviamp.domain.radio.RadioTuningSettings
 import kotlinx.serialization.Serializable
 
 @Serializable
@@ -42,6 +45,9 @@ data class PlaybackSettings(
     val previousButtonBehavior: PreviousButtonBehavior = PreviousButtonBehavior.RestartThenPrevious,
     val upNextSelectionBehavior: UpNextSelectionBehavior = UpNextSelectionBehavior.MoveSelectedToCurrent,
     val removePlayedTracksFromQueue: Boolean = false,
+    val radioTuning: RadioTuningSettings = RadioTuningSettings(),
+    val radioDjs: List<RadioDjPreset> = emptyList(),
+    val activeRadioDjId: String? = null,
     val wifiStreamingQuality: StreamQualityPreference = StreamQualityPreference(),
     val mobileStreamingQuality: StreamQualityPreference = StreamQualityPreference(
         mode = StreamQualityMode.Transcode,
@@ -101,13 +107,24 @@ class PlaybackSettingsMaintenanceController(
     private val setPlaybackSettings: (PlaybackSettings) -> Unit,
     private val savePlaybackSettings: (PlaybackSettings) -> Unit,
     private val reloadLyricsSidecars: () -> Unit,
+    private val radioDjPresetRepository: RadioDjPresetRepository? = null,
     private val downloadedTracks: () -> List<Track> = { emptyList() },
     private val redownloadTracks: (List<Track>, String) -> Unit = { _, _ -> },
 ) {
     fun applyPlaybackSettings(settings: PlaybackSettings) {
         val change = playbackSettingsChange(settings, playbackEngine, previous = playbackSettings())
-        setPlaybackSettings(change.settings)
-        savePlaybackSettings(change.settings)
+        radioDjPresetRepository?.replaceRadioDjPresets(change.settings.radioDjs)
+        val effectiveSettings = radioDjPresetRepository
+            ?.let { change.settings.copy(radioDjs = it.radioDjPresets()) }
+            ?: change.settings
+        setPlaybackSettings(effectiveSettings)
+        savePlaybackSettings(
+            if (radioDjPresetRepository == null) {
+                effectiveSettings
+            } else {
+                effectiveSettings.copy(radioDjs = emptyList())
+            },
+        )
         if (change.shouldReloadLyricsSidecars) {
             reloadLyricsSidecars()
         }

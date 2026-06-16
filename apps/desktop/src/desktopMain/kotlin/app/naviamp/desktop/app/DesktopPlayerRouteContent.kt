@@ -101,6 +101,8 @@ internal fun ColumnScope.DesktopPlayerRouteContent(
         sleepTimer = sleepTimer.toNaviampSleepTimerUi(sleepTimerNowEpochMillis),
         streamQuality = playbackSettings.streamQuality(playbackEngine),
         sonicSimilarityEnabled = playbackSettings.sonicSimilarityEnabled,
+        radioDjs = playbackSettings.radioDjs,
+        activeRadioDjId = playbackSettings.activeRadioDjId,
         supportsSeek = playbackEngine.supportsSeek && !nowPlayingTrack.isInternetRadioTrack(),
         onPlaybackAction = onPlaybackAction,
         onDisplayAction = onDisplayAction,

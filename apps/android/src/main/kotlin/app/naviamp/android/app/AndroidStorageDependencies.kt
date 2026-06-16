@@ -24,6 +24,7 @@ import app.naviamp.domain.cache.StorageCacheStats
 import app.naviamp.domain.home.HomeAlbumYear
 import app.naviamp.domain.home.HomeLibraryRepository
 import app.naviamp.domain.provider.PendingProviderActionRepository
+import app.naviamp.domain.radio.RadioDjPresetRepository
 import app.naviamp.domain.source.SavedMediaSource
 import app.naviamp.domain.waveform.AudioWaveform
 
@@ -45,6 +46,7 @@ class AndroidStorageDependencies(
     PlaybackSessionRepository by storage,
     LocalLibraryIndexRepository by storage,
     PendingProviderActionRepository by storage,
+    RadioDjPresetRepository by storage,
     CacheMaintenanceRepository<StorageCacheStats> by storage,
     SidecarStatusRepository by storage,
     AutoCloseable {

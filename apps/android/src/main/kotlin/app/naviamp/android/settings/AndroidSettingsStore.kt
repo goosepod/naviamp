@@ -6,6 +6,10 @@ import app.naviamp.domain.playback.EqualizerProfile
 import app.naviamp.domain.playback.EqualizerPreset
 import app.naviamp.domain.playback.EqualizerSettings
 import app.naviamp.domain.playback.ReplayGainMode
+import app.naviamp.domain.radio.RadioArtistSpread
+import app.naviamp.domain.radio.RadioDjPreset
+import app.naviamp.domain.radio.RadioFamiliarity
+import app.naviamp.domain.radio.RadioTuningSettings
 import app.naviamp.domain.settings.ConnectionFormState
 import app.naviamp.domain.settings.CacheSettings
 import app.naviamp.domain.settings.PlaybackSettings
@@ -77,6 +81,13 @@ class AndroidSettingsStore(
                 UpNextSelectionBehavior.MoveSelectedToCurrent,
             ),
             removePlayedTracksFromQueue = preferences.getBoolean(KeyRemovePlayedTracksFromQueue, false),
+            radioTuning = RadioTuningSettings(
+                familiarity = enumPreference(KeyRadioFamiliarity, RadioFamiliarity.Balanced),
+                artistSpread = enumPreference(KeyRadioArtistSpread, RadioArtistSpread.Balanced),
+                sameDecadeOnly = preferences.getBoolean(KeyRadioSameDecadeOnly, false),
+            ),
+            radioDjs = decodeList(KeyRadioDjs, RadioDjPreset.serializer()).map { it.normalized() },
+            activeRadioDjId = preferences.getString(KeyActiveRadioDjId, null),
             wifiStreamingQuality = loadStreamQualityPreference(
                 modeKey = KeyWifiStreamQualityMode,
                 codecKey = KeyWifiStreamCodec,
@@ -115,6 +126,11 @@ class AndroidSettingsStore(
             .putString(KeyPreviousButtonBehavior, settings.previousButtonBehavior.name)
             .putString(KeyUpNextSelectionBehavior, settings.upNextSelectionBehavior.name)
             .putBoolean(KeyRemovePlayedTracksFromQueue, settings.removePlayedTracksFromQueue)
+            .putString(KeyRadioFamiliarity, settings.radioTuning.familiarity.name)
+            .putString(KeyRadioArtistSpread, settings.radioTuning.artistSpread.name)
+            .putBoolean(KeyRadioSameDecadeOnly, settings.radioTuning.sameDecadeOnly)
+            .remove(KeyRadioDjs)
+            .putString(KeyActiveRadioDjId, settings.activeRadioDjId)
             .putStreamQualityPreference(
                 modeKey = KeyWifiStreamQualityMode,
                 codecKey = KeyWifiStreamCodec,
@@ -287,6 +303,11 @@ private const val KeySonicAutoplayEnabled = "sonic_autoplay_enabled"
 private const val KeyPreviousButtonBehavior = "previous_button_behavior"
 private const val KeyUpNextSelectionBehavior = "up_next_selection_behavior"
 private const val KeyRemovePlayedTracksFromQueue = "remove_played_tracks_from_queue"
+private const val KeyRadioFamiliarity = "radio_familiarity"
+private const val KeyRadioArtistSpread = "radio_artist_spread"
+private const val KeyRadioSameDecadeOnly = "radio_same_decade_only"
+private const val KeyRadioDjs = "radio_djs"
+private const val KeyActiveRadioDjId = "active_radio_dj_id"
 private const val KeyWifiStreamQualityMode = "wifi_stream_quality_mode"
 private const val KeyWifiStreamCodec = "wifi_stream_codec"
 private const val KeyWifiStreamBitrate = "wifi_stream_bitrate"

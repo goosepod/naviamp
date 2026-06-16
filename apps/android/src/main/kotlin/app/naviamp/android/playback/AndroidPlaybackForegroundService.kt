@@ -527,7 +527,11 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
                     kind = RecentRadioKind.Library,
                 )
                 AndroidPlaybackRuntime.get(applicationContext).scope.launch {
-                    runCatching { withContext(Dispatchers.IO) { RadioService(provider).libraryRadio() } }
+                    val radioService = RadioService(
+                        provider = provider,
+                        tuning = AndroidSettingsStore(applicationContext).loadPlaybackSettings().radioTuning,
+                    )
+                    runCatching { withContext(Dispatchers.IO) { radioService.libraryRadio() } }
                         .onSuccess { tracks ->
                             rememberRecentRadioStream(recent.withRadioCoverArtIds(tracks))
                             playServiceTrackQueue(storage, sourceId, tracks, currentIndex = 0)
@@ -834,7 +838,11 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
             kind = RecentRadioKind.Library,
         )
         AndroidPlaybackRuntime.get(applicationContext).scope.launch {
-            runCatching { withContext(Dispatchers.IO) { RadioService(provider).libraryRadio() } }
+            val radioService = RadioService(
+                provider = provider,
+                tuning = AndroidSettingsStore(applicationContext).loadPlaybackSettings().radioTuning,
+            )
+            runCatching { withContext(Dispatchers.IO) { radioService.libraryRadio() } }
                 .onSuccess { tracks ->
                     if (tracks.isEmpty()) {
                         Log.w("NaviampAutoCommand", "Auto voice Library Radio returned no tracks query=$originalQuery")
@@ -957,7 +965,11 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
             artist = app.naviamp.domain.settings.SavedArtist.fromArtist(artist),
         )
         AndroidPlaybackRuntime.get(applicationContext).scope.launch {
-            runCatching { withContext(Dispatchers.IO) { RadioService(provider).artistRadio(artist.id) } }
+            val radioService = RadioService(
+                provider = provider,
+                tuning = AndroidSettingsStore(applicationContext).loadPlaybackSettings().radioTuning,
+            )
+            runCatching { withContext(Dispatchers.IO) { radioService.artistRadio(artist.id) } }
                 .onSuccess { tracks ->
                     rememberRecentRadioStream(recent.withRadioCoverArtIds(tracks))
                     playServiceTrackQueue(playbackSessionRepository, sourceId, tracks, currentIndex = 0)
@@ -1106,12 +1118,14 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
         )
         rememberRecentRadioStream(recent.withRadioCoverArtIds(listOf(seedTrack)))
         AndroidPlaybackRuntime.get(applicationContext).scope.launch {
-            val preferSonicSimilarity = AndroidSettingsStore(applicationContext)
-                .loadPlaybackSettings()
-                .sonicSimilarityEnabled
+            val playbackSettings = AndroidSettingsStore(applicationContext).loadPlaybackSettings()
+            val preferSonicSimilarity = playbackSettings.sonicSimilarityEnabled
             runCatching {
                 withContext(Dispatchers.IO) {
-                    RadioService(provider).trackRadio(seedTrack, preferSonicSimilarity)
+                    RadioService(
+                        provider = provider,
+                        tuning = playbackSettings.radioTuning,
+                    ).trackRadio(seedTrack, preferSonicSimilarity)
                 }
             }
                 .onSuccess { tracks ->
@@ -1140,19 +1154,25 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
         val source = mediaSourceRepository.latestMediaSource() ?: return
         val provider = NavidromeProvider(source.toNavidromeConnection())
         AndroidPlaybackRuntime.get(applicationContext).scope.launch {
+            val radioService = RadioService(
+                provider = provider,
+                tuning = AndroidSettingsStore(applicationContext).loadPlaybackSettings().radioTuning,
+            )
             runCatching {
                 withContext(Dispatchers.IO) {
                     when (stream.kind) {
-                        RecentRadioKind.Library -> RadioService(provider).libraryRadio()
-                        RecentRadioKind.Artist -> stream.artist?.let { provider.artistRadio(ArtistId(it.id)) }.orEmpty()
-                        RecentRadioKind.Album -> stream.album?.let { provider.albumRadio(AlbumId(it.id)) }.orEmpty()
-                        RecentRadioKind.Track -> stream.track?.let { provider.trackRadio(TrackId(it.id)) }.orEmpty()
-                        RecentRadioKind.Genre -> stream.genre?.let { provider.randomSongs(genre = it) }.orEmpty()
-                        RecentRadioKind.Decade -> provider.randomSongs(
-                            fromYear = stream.fromYear,
-                            toYear = stream.toYear,
+                        RecentRadioKind.Library -> radioService.libraryRadio()
+                        RecentRadioKind.Artist -> stream.artist?.let { radioService.artistRadio(ArtistId(it.id)) }.orEmpty()
+                        RecentRadioKind.Album -> stream.album?.let { radioService.albumRadio(AlbumId(it.id)) }.orEmpty()
+                        RecentRadioKind.Track -> stream.track?.toTrack()
+                            ?.let { radioService.trackRadio(it, AndroidSettingsStore(applicationContext).loadPlaybackSettings().sonicSimilarityEnabled) }
+                            .orEmpty()
+                        RecentRadioKind.Genre -> stream.genre?.let { radioService.genreRadio(it) }.orEmpty()
+                        RecentRadioKind.Decade -> radioService.decadeRadio(
+                            fromYear = stream.fromYear ?: 0,
+                            toYear = stream.toYear ?: 9999,
                         )
-                        RecentRadioKind.RandomAlbum -> provider.randomSongs()
+                        RecentRadioKind.RandomAlbum -> radioService.libraryRadio()
                     }
                 }
             }.onSuccess { tracks ->

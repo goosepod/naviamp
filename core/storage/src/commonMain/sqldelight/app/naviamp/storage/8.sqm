@@ -1,0 +1,16 @@
+CREATE TABLE radio_dj_preset (
+  id TEXT NOT NULL PRIMARY KEY,
+  name TEXT NOT NULL,
+  familiarity TEXT NOT NULL,
+  artist_spread TEXT NOT NULL,
+  same_decade_only INTEGER NOT NULL,
+  artist_run_mode TEXT NOT NULL,
+  same_artist_run_length INTEGER NOT NULL,
+  other_artist_run_length INTEGER NOT NULL,
+  sort_order INTEGER NOT NULL,
+  created_at_epoch_millis INTEGER NOT NULL,
+  updated_at_epoch_millis INTEGER NOT NULL
+);
+
+CREATE INDEX radio_dj_preset_sort
+ON radio_dj_preset(sort_order, name);

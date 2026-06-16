@@ -15,6 +15,7 @@ import app.naviamp.domain.playback.PlaybackState
 import app.naviamp.domain.playback.PlaybackStreamMetadata
 import app.naviamp.domain.playback.PlaybackVisualizerFrame
 import app.naviamp.domain.playback.label
+import app.naviamp.domain.radio.RadioDjPreset
 import app.naviamp.domain.queue.PlaybackQueue
 import app.naviamp.domain.queue.RepeatMode
 import app.naviamp.domain.waveform.AudioWaveform
@@ -82,6 +83,8 @@ fun DesktopNowPlayingPanel(
     sleepTimer: NaviampSleepTimerUi,
     streamQuality: StreamQuality,
     sonicSimilarityEnabled: Boolean,
+    radioDjs: List<RadioDjPreset>,
+    activeRadioDjId: String?,
     onPlaybackAction: (NowPlayingPlaybackActionRequest) -> Unit,
     onDisplayAction: (NowPlayingDisplayActionRequest) -> Unit,
     onQueueAction: (NowPlayingQueueActionRequest) -> Unit,
@@ -161,6 +164,8 @@ fun DesktopNowPlayingPanel(
         ).copy(
             isLive = isLiveStream,
             radioStations = radioStations,
+            radioDjs = radioDjs,
+            activeRadioDjId = activeRadioDjId,
         )
     } else {
         internetRadioStations.firstOrNull { it.id == currentInternetRadioStationId }?.let { station ->
@@ -172,6 +177,9 @@ fun DesktopNowPlayingPanel(
                 radioTrackArtworkByKey = radioTrackArtworkByKey,
                 canPlayPause = trackCapabilities.canPlayPause,
                 canChangeVolume = supportsSoftwareVolume,
+            ).copy(
+                radioDjs = radioDjs,
+                activeRadioDjId = activeRadioDjId,
             )
         } ?: NowPlayingUi(
             title = "Queue will appear here after connection",
@@ -186,6 +194,8 @@ fun DesktopNowPlayingPanel(
             hasPrevious = hasPrevious,
             hasNext = hasNext,
             radioStations = radioStations,
+            radioDjs = radioDjs,
+            activeRadioDjId = activeRadioDjId,
         )
     }
 

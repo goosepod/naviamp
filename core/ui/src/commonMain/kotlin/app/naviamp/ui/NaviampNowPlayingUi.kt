@@ -143,6 +143,15 @@ data class NaviampNowPlayingActions(
         )
     }
 
+    fun selectRadioDj(djId: String?) {
+        onDisplayAction(
+            NowPlayingDisplayActionRequest(
+                NowPlayingDisplayAction.SelectRadioDj,
+                radioDjId = djId,
+            ),
+        )
+    }
+
     fun currentTrack(
         action: NowPlayingCurrentTrackAction,
         playlistChoice: NaviampPlaylistChoiceUi? = null,
@@ -513,6 +522,7 @@ private fun NowPlayingDetails(
 ) {
     var actionMenuExpanded by remember { mutableStateOf(false) }
     var visualizerMenuExpanded by remember { mutableStateOf(false) }
+    var radioDjMenuExpanded by remember { mutableStateOf(false) }
     var trackDetailsOpen by remember { mutableStateOf(false) }
     var playlistDialogOpen by remember { mutableStateOf<NaviampNowPlayingItemUi?>(null) }
     var saveQueueDialogOpen by remember { mutableStateOf(false) }
@@ -785,26 +795,56 @@ private fun NowPlayingDetails(
                     iconSize = 26.dp,
                     onClick = { actions.currentTrack(NowPlayingCurrentTrackAction.StartRadio) },
                 )
-                NaviampTransportIconButton(
-                    enabled = nowPlaying.canAddToPlaylist,
-                    icon = NaviampIcons.Playlist,
-                    contentDescription = "Add track to playlist",
-                    colors = colors,
-                    buttonSize = 44.dp,
-                    iconSize = 26.dp,
-                    onClick = {
-                        if (nowPlaying.useInlinePlaylistPicker) {
-                            playlistDialogOpen = NaviampNowPlayingItemUi(
-                                id = nowPlaying.id,
-                                title = nowPlaying.title,
-                                subtitle = nowPlaying.subtitle,
-                                coverArtUrl = nowPlaying.coverArtUrl,
+                Box(modifier = Modifier.size(44.dp), contentAlignment = Alignment.Center) {
+                    NaviampTransportIconButton(
+                        enabled = true,
+                        icon = NaviampIcons.Turntable,
+                        contentDescription = "DJs",
+                        colors = colors,
+                        selected = nowPlaying.activeRadioDjId != null,
+                        buttonSize = 44.dp,
+                        iconSize = 26.dp,
+                        onClick = { radioDjMenuExpanded = true },
+                    )
+                    NaviampDropdownMenu(
+                        expanded = radioDjMenuExpanded,
+                        onDismissRequest = { radioDjMenuExpanded = false },
+                        offset = DpOffset(0.dp, 6.dp),
+                    ) {
+                        NaviampDropdownMenuItem(
+                            label = "Default radio",
+                            icon = NaviampIcons.Turntable,
+                            enabled = true,
+                            selected = nowPlaying.activeRadioDjId == null,
+                            onClick = {
+                                radioDjMenuExpanded = false
+                                actions.selectRadioDj(null)
+                            },
+                        )
+                        if (nowPlaying.radioDjs.isEmpty()) {
+                            NaviampDropdownMenuItem(
+                                label = "No DJs saved",
+                                icon = NaviampIcons.Turntable,
+                                enabled = false,
+                                onClick = {},
                             )
                         } else {
-                            actions.currentTrack(NowPlayingCurrentTrackAction.AddToPlaylist)
+                            nowPlaying.radioDjs.forEach { dj ->
+                                val selected = dj.id == nowPlaying.activeRadioDjId
+                                NaviampDropdownMenuItem(
+                                    label = dj.name,
+                                    icon = NaviampIcons.Turntable,
+                                    enabled = true,
+                                    selected = selected,
+                                    onClick = {
+                                        radioDjMenuExpanded = false
+                                        actions.selectRadioDj(if (selected) null else dj.id)
+                                    },
+                                )
+                            }
                         }
-                    },
-                )
+                    }
+                }
             }
             IconButton(
                 onClick = { actions.display(NowPlayingDisplayAction.Collapse) },

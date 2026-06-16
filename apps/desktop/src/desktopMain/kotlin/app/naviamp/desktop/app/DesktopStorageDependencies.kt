@@ -21,6 +21,7 @@ import app.naviamp.domain.provider.PendingProviderActionRepository
 import app.naviamp.domain.cache.TrackMetadataRepository
 import app.naviamp.domain.home.HomeAlbumYear
 import app.naviamp.domain.home.HomeLibraryRepository
+import app.naviamp.domain.radio.RadioDjPresetRepository
 import app.naviamp.domain.source.SavedMediaSource
 import app.naviamp.domain.waveform.AudioWaveform
 
@@ -40,6 +41,7 @@ class DesktopStorageDependencies(
     ProviderMediaSourceRepository by cache,
     LocalLibraryIndexRepository by cache,
     PendingProviderActionRepository by cache,
+    RadioDjPresetRepository by cache,
     CacheMaintenanceRepository<StorageCacheStats> by cache,
     TrackMetadataRepository by cache {
 

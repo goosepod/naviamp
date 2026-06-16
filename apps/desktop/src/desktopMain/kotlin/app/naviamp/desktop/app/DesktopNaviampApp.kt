@@ -38,6 +38,7 @@ import app.naviamp.domain.home.HomeContent
 import app.naviamp.domain.queue.PlaybackQueue
 import app.naviamp.domain.queue.RepeatMode
 import app.naviamp.domain.radio.InternetRadioStationManager
+import app.naviamp.domain.radio.RadioTuningSettings
 import app.naviamp.desktop.settings.PlaybackSettings
 import app.naviamp.desktop.settings.PlaybackSessionSettings
 import app.naviamp.desktop.settings.RecentRadioStream
@@ -93,6 +94,16 @@ fun NaviampApp(
     val savedRecentRadioStreams = remember { settingsStore.loadRecentRadioStreams() }
     val savedRecentPlaylistIds = remember { settingsStore.loadRecentPlaylistIds() }
     val savedRecentInternetRadioStations = remember { settingsStore.loadRecentInternetRadioStations() }
+    val savedPlaybackSettings = remember {
+        val settings = settingsStore.loadPlaybackSettings()
+        val storedDjs = storage.radioDjPresets()
+        if (storedDjs.isEmpty() && settings.radioDjs.isNotEmpty()) {
+            storage.replaceRadioDjPresets(settings.radioDjs)
+            settings.copy(radioDjs = storage.radioDjPresets())
+        } else {
+            settings.copy(radioDjs = storedDjs)
+        }
+    }
     var cacheStats by remember { mutableStateOf(StorageCacheStats()) }
     var connectedSourceId by remember { mutableStateOf(savedMediaSource?.id) }
     val desktopPlaybackAudioAssets = dependencies.playbackAudioAssets
@@ -169,7 +180,7 @@ fun NaviampApp(
     var sleepTimer by remember { mutableStateOf<SleepTimerState?>(null) }
     var sleepTimerNowEpochMillis by remember { mutableLongStateOf(System.currentTimeMillis()) }
     var playbackSettings by remember {
-        mutableStateOf(settingsStore.loadPlaybackSettings().effectiveForEngine(playbackEngine))
+        mutableStateOf(savedPlaybackSettings.effectiveForEngine(playbackEngine))
     }
     playlistEngine.setSonicAutoplayTracksProvider { queue ->
         val enabled = playbackSettings.sonicAutoplayEnabled &&
@@ -313,6 +324,7 @@ fun NaviampApp(
         streamQuality = { playbackSettings.streamQuality(playbackEngine) },
         replayGainMode = { playbackSettings.replayGainMode },
         preferSonicSimilarity = { playbackSettings.sonicSimilarityEnabled },
+        radioTuning = { playbackSettings.radioTuning },
         repeatMode = { repeatMode },
         playlistCallbacks = { playlistCallbacksRef.value ?: error("Playlist callbacks are not ready.") },
         rememberRadioStream = ::rememberRadioStream,
@@ -626,6 +638,7 @@ fun NaviampApp(
         setPlaybackSettings = { settings -> playbackSettings = settings },
         savePlaybackSettings = settingsStore::savePlaybackSettings,
         reloadLyricsSidecars = nowPlayingController::clearLyricsAndReloadAnalysis,
+        radioDjPresetRepository = storage,
         downloadedTracks = {
             connectedSourceId
                 ?.let { storage.downloadedTracks(it) }
@@ -867,7 +880,7 @@ fun NaviampApp(
                     playbackEngine = playbackEngine,
                     previous = playbackSettings,
                 ).settings
-                settingsStore.savePlaybackSettings(playbackSettings)
+                settingsStore.savePlaybackSettings(playbackSettings.copy(radioDjs = emptyList()))
             }
         }
     }
@@ -882,6 +895,21 @@ fun NaviampApp(
                 settingsStore.saveVisualizerSettings(
                     VisualizerSettings(selectedVisualizer = visualizer.name),
                 )
+            }
+            NowPlayingDisplayAction.SelectRadioDj -> {
+                val selectedDj = request.radioDjId
+                    ?.let { id -> playbackSettings.radioDjs.firstOrNull { it.id == id } }
+                playbackSettings = playbackSettings.copy(
+                    radioTuning = selectedDj?.tuning ?: RadioTuningSettings(),
+                    activeRadioDjId = selectedDj?.id,
+                )
+                settingsStore.savePlaybackSettings(playbackSettings)
+                nowPlayingTrack?.let { track ->
+                    radioController.convertCurrentTrackToRadio(track, radioController::playTrack)
+                }
+                connectionStatus = selectedDj
+                    ?.let { "Selected ${it.name} DJ. Rebuilding Up Next..." }
+                    ?: "Default radio selected. Rebuilding Up Next..."
             }
             NowPlayingDisplayAction.Collapse -> appRoute = lastContentRoute
         }

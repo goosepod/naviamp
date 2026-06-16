@@ -478,7 +478,11 @@ internal class AndroidTrackActionController(
         scope.launch {
             try {
                 val tracks = withContext(Dispatchers.IO) {
-                    RadioService(provider, count = AndroidInitialSimilarRadioCount)
+                    RadioService(
+                        provider = provider,
+                        count = AndroidInitialSimilarRadioCount,
+                        tuning = state.playbackSettings.radioTuning,
+                    )
                         .trackRadio(track, state.playbackSettings.sonicSimilarityEnabled)
                 }.filterNot { radioTrack -> radioTrack.id == track.id }
                 if (tracks.isEmpty()) {

@@ -50,6 +50,8 @@ import app.naviamp.domain.provider.MediaProvider
 import app.naviamp.domain.provider.MediaSearchResults
 import app.naviamp.domain.provider.PendingProviderAction
 import app.naviamp.domain.provider.PendingProviderActionRepository
+import app.naviamp.domain.radio.RadioDjPreset
+import app.naviamp.domain.radio.RadioDjPresetRepository
 import app.naviamp.domain.source.MediaSourceIdentity
 import app.naviamp.domain.source.SavedMediaSource
 import app.naviamp.domain.waveform.AudioWaveform
@@ -92,6 +94,7 @@ class DesktopCache(
     ProviderMediaSourceRepository,
     LocalLibraryIndexRepository,
     PendingProviderActionRepository,
+    RadioDjPresetRepository,
     CacheMaintenanceRepository<StorageCacheStats>,
     TrackMetadataRepository {
     private val json = Json {
@@ -132,6 +135,10 @@ class DesktopCache(
     )
     private val trackMetadata = DesktopTrackMetadataStore(queries, json)
     private val pendingProviderActions = DesktopPendingProviderActionStore(
+        queries = queries,
+        nowMillis = ::nowMillis,
+    )
+    private val radioDjPresets = DesktopRadioDjPresetStore(
         queries = queries,
         nowMillis = ::nowMillis,
     )
@@ -407,6 +414,21 @@ class DesktopCache(
 
     override fun markPendingProviderActionFailed(id: Long, errorMessage: String?) {
         pendingProviderActions.markPendingProviderActionFailed(id, errorMessage)
+    }
+
+    override fun radioDjPresets(): List<RadioDjPreset> =
+        radioDjPresets.radioDjPresets()
+
+    override fun replaceRadioDjPresets(presets: List<RadioDjPreset>) {
+        radioDjPresets.replaceRadioDjPresets(presets)
+    }
+
+    override fun upsertRadioDjPreset(preset: RadioDjPreset) {
+        radioDjPresets.upsertRadioDjPreset(preset)
+    }
+
+    override fun deleteRadioDjPreset(id: String) {
+        radioDjPresets.deleteRadioDjPreset(id)
     }
 
     fun recordSidecarStatus(
@@ -716,6 +738,7 @@ private fun createDatabase(path: Path): NaviampStorageDatabase {
     ensureTrackLyricsOffsetSchema(driver)
     ensurePendingProviderActionSchema(driver)
     ensureLibraryTrackPlayMetadataSchema(driver)
+    ensureRadioDjPresetSchema(driver)
     driver.execute(null, "PRAGMA foreign_keys=ON", 0)
     return NaviampStorageDatabase(driver)
 }
@@ -876,6 +899,36 @@ private fun ensureLibraryTrackPlayMetadataSchema(driver: JdbcSqliteDriver) {
     if (!driver.tableHasColumn("library_track", "last_played_at_iso8601")) {
         driver.execute(null, "ALTER TABLE library_track ADD COLUMN last_played_at_iso8601 TEXT", 0)
     }
+}
+
+private fun ensureRadioDjPresetSchema(driver: JdbcSqliteDriver) {
+    driver.execute(
+        null,
+        """
+        CREATE TABLE IF NOT EXISTS radio_dj_preset (
+          id TEXT NOT NULL PRIMARY KEY,
+          name TEXT NOT NULL,
+          familiarity TEXT NOT NULL,
+          artist_spread TEXT NOT NULL,
+          same_decade_only INTEGER NOT NULL,
+          artist_run_mode TEXT NOT NULL,
+          same_artist_run_length INTEGER NOT NULL,
+          other_artist_run_length INTEGER NOT NULL,
+          sort_order INTEGER NOT NULL,
+          created_at_epoch_millis INTEGER NOT NULL,
+          updated_at_epoch_millis INTEGER NOT NULL
+        )
+        """.trimIndent(),
+        0,
+    )
+    driver.execute(
+        null,
+        """
+        CREATE INDEX IF NOT EXISTS radio_dj_preset_sort
+        ON radio_dj_preset(sort_order, name)
+        """.trimIndent(),
+        0,
+    )
 }
 
 private const val SqliteBusyTimeoutMillis = 10_000

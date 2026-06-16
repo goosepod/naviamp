@@ -41,6 +41,7 @@ internal fun androidMainShellActions(
         handleClearCache = settingsMaintenanceController::handleClearCache,
         handleClearLibrary = settingsMaintenanceController::handleClearLibrary,
         handleResetDatabase = settingsMaintenanceController::handleResetDatabase,
+        handleCurrentTrackRadioRefresh = shellPlaybackController::startCurrentTrackRadio,
         handleSearch = { searchController.launchSearch(scope) },
         handleArtistMixSearch = mixBuilderController::searchArtistSuggestions,
         handleArtistMixArtistSelected = { item -> mixBuilderController.selectArtistByItemId(item.id) },

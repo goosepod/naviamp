@@ -4,6 +4,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import app.naviamp.domain.playback.PlaybackState
 import app.naviamp.domain.playback.PlaybackVisualizerFrame
+import app.naviamp.domain.radio.RadioDjPreset
 import app.naviamp.domain.waveform.AudioWaveform
 
 data class NaviampColors(
@@ -575,6 +576,8 @@ data class NowPlayingUi(
     val relatedTabLabel: String = "RELATED",
     val relatedEmptyLabel: String = "Related tracks are not loaded.",
     val radioStations: List<NaviampNowPlayingItemUi> = emptyList(),
+    val radioDjs: List<RadioDjPreset> = emptyList(),
+    val activeRadioDjId: String? = null,
 )
 
 data class NaviampSleepTimerUi(

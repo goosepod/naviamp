@@ -15,6 +15,7 @@ fun generatedRadioQueue(seedTrack: Track, fetchedTracks: List<Track>): List<Trac
 class RadioService(
     private val provider: MediaProvider,
     private val count: Int = DefaultRadioCount,
+    private val tuning: RadioTuningSettings = RadioTuningSettings(),
     private val providerResponseService: ProviderResponseService? = null,
 ) {
     suspend fun albumSeed(album: Album, loadedTracks: List<Track> = emptyList()): Track? =
@@ -34,36 +35,44 @@ class RadioService(
     }
 
     suspend fun albumRadio(albumId: AlbumId, fallbackTracks: List<Track> = emptyList()): List<Track> =
-        provider.albumRadio(albumId, count = count).ifEmpty {
+        provider.albumRadio(albumId, count = fetchCount).ifEmpty {
             fallbackTracks.ifEmpty { albumTracks(albumId) }.shuffled()
-        }
+        }.let { tracks -> tunedRadioTracks(seedTrack = tracks.firstOrNull(), tracks = tracks, tuning = tuning, targetCount = count) }
 
     suspend fun artistRadio(artistId: ArtistId): List<Track> =
-        provider.artistRadio(artistId, count = count)
+        provider.artistRadio(artistId, count = fetchCount)
+            .let { tracks -> tunedRadioTracks(seedTrack = tracks.firstOrNull(), tracks = tracks, tuning = tuning, targetCount = count) }
 
     suspend fun trackRadio(trackId: TrackId): List<Track> =
-        provider.trackRadio(trackId, count = count)
+        provider.trackRadio(trackId, count = fetchCount)
+            .let { tracks -> tunedRadioTracks(seedTrack = tracks.firstOrNull(), tracks = tracks, tuning = tuning, targetCount = count) }
 
     suspend fun trackRadio(
         seedTrack: Track,
         preferSonicSimilarity: Boolean,
     ): List<Track> {
         if (preferSonicSimilarity && provider.capabilities.supportsSonicSimilarity) {
-            val sonicTracks = provider.sonicSimilarTracks(seedTrack.id, count = count)
+            val sonicTracks = provider.sonicSimilarTracks(seedTrack.id, count = fetchCount)
                 .filterNot { track -> track.id == seedTrack.id }
-            if (sonicTracks.isNotEmpty()) return sonicTracks
+            if (sonicTracks.isNotEmpty()) {
+                return tunedTrackRadio(seedTrack, sonicTracks)
+            }
         }
-        return trackRadio(seedTrack.id)
+        return provider.trackRadio(seedTrack.id, count = fetchCount)
+            .let { tracks -> tunedTrackRadio(seedTrack, tracks) }
     }
 
     suspend fun libraryRadio(): List<Track> =
-        provider.randomSongs(limit = count)
+        provider.randomSongs(limit = fetchCount)
+            .let { tracks -> tunedRadioTracks(seedTrack = null, tracks = tracks, tuning = tuning, targetCount = count) }
 
     suspend fun genreRadio(genre: String): List<Track> =
-        provider.randomSongs(limit = count, genre = genre)
+        provider.randomSongs(limit = fetchCount, genre = genre)
+            .let { tracks -> tunedRadioTracks(seedTrack = null, tracks = tracks, tuning = tuning, targetCount = count) }
 
     suspend fun decadeRadio(fromYear: Int, toYear: Int): List<Track> =
-        provider.randomSongs(limit = count, fromYear = fromYear, toYear = toYear)
+        provider.randomSongs(limit = fetchCount, fromYear = fromYear, toYear = toYear)
+            .let { tracks -> tunedRadioTracks(seedTrack = null, tracks = tracks, tuning = tuning, targetCount = count) }
 
     fun queue(seedTrack: Track, fetchedTracks: List<Track>): List<Track> =
         generatedRadioQueue(seedTrack, fetchedTracks)
@@ -72,8 +81,44 @@ class RadioService(
         providerResponseService?.album(provider, albumId)?.tracks
             ?: provider.album(albumId).tracks
 
+    private suspend fun tunedTrackRadio(seedTrack: Track, tracks: List<Track>): List<Track> {
+        val candidateTracks = if (tuning.artistRunMode == RadioArtistRunMode.Mixed) {
+            tracks
+        } else {
+            sameArtistTracks(seedTrack) + tracks
+        }
+        return tunedRadioTracks(
+            seedTrack = seedTrack,
+            tracks = candidateTracks.filterNot { it.id == seedTrack.id },
+            tuning = tuning,
+            targetCount = count,
+        )
+    }
+
+    private suspend fun sameArtistTracks(seedTrack: Track): List<Track> {
+        val artistId = seedTrack.artistId ?: return emptyList()
+        val albums = runCatching {
+            providerResponseService?.artist(provider, artistId)?.albums
+                ?: provider.artist(artistId).albums
+        }.getOrElse { return emptyList() }
+        return albums
+            .flatMap { album -> runCatching { albumTracks(album.id) }.getOrDefault(emptyList()) }
+            .filter { track -> track.matchesArtist(artistId, seedTrack.artistName) && track.id != seedTrack.id }
+            .distinctBy { it.id }
+    }
+
+    private val fetchCount: Int
+        get() = when (tuning) {
+            RadioTuningSettings() -> count
+            else -> (count * 3).coerceAtLeast(count)
+        }
+
     private fun Track.matchesArtist(artistId: ArtistId, artistName: String): Boolean =
-        this.artistId == artistId || this.artistName.equals(artistName, ignoreCase = true)
+        if (this.artistId != null) {
+            this.artistId == artistId
+        } else {
+            this.artistName.equals(artistName, ignoreCase = true)
+        }
 
     private companion object {
         const val DefaultRadioCount = 50

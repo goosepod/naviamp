@@ -91,7 +91,17 @@ fun NaviampAndroidApp(
                 savedConnection.username.isNotBlank() &&
                 savedConnection.password.isNotBlank()
             )
-    val savedPlaybackSettings = remember { settingsStore.loadPlaybackSettings().effectiveForEngine(playbackEngine) }
+    val savedPlaybackSettings = remember {
+        val settings = settingsStore.loadPlaybackSettings()
+        val storedDjs = storage.radioDjPresets()
+        val hydrated = if (storedDjs.isEmpty() && settings.radioDjs.isNotEmpty()) {
+            storage.replaceRadioDjPresets(settings.radioDjs)
+            settings.copy(radioDjs = storage.radioDjPresets())
+        } else {
+            settings.copy(radioDjs = storedDjs)
+        }
+        hydrated.effectiveForEngine(playbackEngine)
+    }
     val savedCacheSettings = remember { settingsStore.loadCacheSettings() }
     val appState = rememberAndroidAppState(
         savedConnection = savedConnection,

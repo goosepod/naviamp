@@ -97,7 +97,11 @@ fun refillAndroidRadioIfNeeded(
             when (
                 val result = withContext(Dispatchers.IO) {
                     seededRadioExpansionResult(
-                        radioService = RadioService(activeProvider, count = AndroidRadioRefillCount),
+                        radioService = RadioService(
+                            provider = activeProvider,
+                            count = AndroidRadioRefillCount,
+                            tuning = state.playbackSettings.radioTuning,
+                        ),
                     ) { radioService ->
                         radioService.trackRadio(seedTrack, state.playbackSettings.sonicSimilarityEnabled)
                     }
@@ -161,6 +165,7 @@ fun startAndroidSeededRadio(
                     radioService = RadioService(
                         provider = activeProvider,
                         count = AndroidInitialSimilarRadioCount,
+                        tuning = state.playbackSettings.radioTuning,
                         providerResponseService = providerResponseService,
                     ),
                     loadRest = loadRest,
@@ -188,6 +193,7 @@ fun startAndroidSeededRadio(
                     radioService = RadioService(
                         provider = activeProvider,
                         count = count,
+                        tuning = state.playbackSettings.radioTuning,
                         providerResponseService = providerResponseService,
                     ),
                     loadRest = loadRest,
@@ -328,7 +334,11 @@ fun startAndroidRadioTracks(
 ) {
     val activeProvider = state.provider ?: return
     val providerResponseService = providerResponseCacheRepository?.let { ProviderResponseService(it) }
-    val service = RadioService(activeProvider, providerResponseService = providerResponseService)
+    val service = RadioService(
+        provider = activeProvider,
+        tuning = state.playbackSettings.radioTuning,
+        providerResponseService = providerResponseService,
+    )
     scope.launch {
         state.status = "Starting $statusLabel..."
         when (
@@ -442,6 +452,7 @@ fun startAndroidArtistRadio(
                     RadioService(
                         provider = activeProvider,
                         count = AndroidInitialSimilarRadioCount,
+                        tuning = playbackSettings.radioTuning,
                         providerResponseService = providerResponseService,
                     )
                         .artistSeed(artist, artistDetail?.albums.orEmpty())
@@ -496,6 +507,7 @@ fun startAndroidArtistMixRadio(
                         ?: RadioService(
                             provider = activeProvider,
                             count = AndroidInitialSimilarRadioCount,
+                            tuning = playbackSettings.radioTuning,
                             providerResponseService = providerResponseService,
                         ).artistSeed(distinctArtists.first(), artistDetail?.albums.orEmpty())
                 }
@@ -669,7 +681,11 @@ fun startAndroidTrackRadioQueue(
             when (
                 val result = seededRadioBuildResult(
                     request = request,
-                    radioService = RadioService(activeProvider, count = AndroidInitialSimilarRadioCount),
+                    radioService = RadioService(
+                        provider = activeProvider,
+                        count = AndroidInitialSimilarRadioCount,
+                        tuning = playbackSettings.radioTuning,
+                    ),
                 )
             ) {
                 is SeededRadioBuildResult.Ready -> {
@@ -691,7 +707,11 @@ fun startAndroidTrackRadioQueue(
                         if (nowPlaying?.id != track.id) return@launch
                         val expansionResult = seededRadioExpansionResult(
                             request = request,
-                            radioService = RadioService(activeProvider, count = count),
+                            radioService = RadioService(
+                                provider = activeProvider,
+                                count = count,
+                                tuning = playbackSettings.radioTuning,
+                            ),
                         )
                         if (expansionResult !is SeededRadioExpansionResult.Ready) return@forEach
                         appendAndroidGeneratedRadioTracks(state, queueController, track, expansionResult.fetchedTracks)
@@ -721,7 +741,13 @@ fun startAndroidAlbumRadio(
     rememberRecentRadioStream: (RecentRadioStream) -> Unit = {},
 ) {
     val providerResponseService = providerResponseCacheRepository?.let { ProviderResponseService(it) }
-    val service = state.provider?.let { RadioService(it, providerResponseService = providerResponseService) } ?: return
+    val service = state.provider?.let { provider ->
+        RadioService(
+            provider = provider,
+            tuning = state.playbackSettings.radioTuning,
+            providerResponseService = providerResponseService,
+        )
+    } ?: return
     scope.launch {
         with(state) {
             status = "Starting ${album.title} radio..."

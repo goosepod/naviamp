@@ -6,6 +6,7 @@ import app.naviamp.domain.Playlist
 import app.naviamp.domain.Track
 import app.naviamp.domain.playback.PlaybackQueueManager
 import app.naviamp.domain.playback.playbackVolumeCommand
+import app.naviamp.domain.radio.RadioTuningSettings
 import app.naviamp.domain.playback.SleepTimerRequest
 import app.naviamp.domain.settings.CacheSettings
 import app.naviamp.domain.settings.ConnectionFormState
@@ -56,6 +57,7 @@ fun androidAppShellActions(
     handleClearCache: () -> Unit,
     handleClearLibrary: () -> Unit,
     handleResetDatabase: () -> Unit,
+    handleCurrentTrackRadioRefresh: () -> Unit,
     handleSearch: () -> Unit,
     handleArtistMixSearch: () -> Unit,
     handleArtistMixArtistSelected: (SharedMediaItemUi) -> Unit,
@@ -506,6 +508,20 @@ fun androidAppShellActions(
                     NowPlayingDisplayAction.SelectVisualizer -> request.visualizer?.let { visualizer ->
                         selectedVisualizer = visualizer
                         settingsStore.saveVisualizerSettings(VisualizerSettings(selectedVisualizer = visualizer.name))
+                    }
+                    NowPlayingDisplayAction.SelectRadioDj -> {
+                        val selectedDj = request.radioDjId
+                            ?.let { id -> playbackSettings.radioDjs.firstOrNull { it.id == id } }
+                        handlePlaybackSettingsChanged(
+                            playbackSettings.copy(
+                                radioTuning = selectedDj?.tuning ?: RadioTuningSettings(),
+                                activeRadioDjId = selectedDj?.id,
+                            ),
+                        )
+                        handleCurrentTrackRadioRefresh()
+                        status = selectedDj
+                            ?.let { "Selected ${it.name} DJ. Rebuilding Up Next..." }
+                            ?: "Default radio selected. Rebuilding Up Next..."
                     }
                     NowPlayingDisplayAction.Collapse -> {
                         if (nowPlayingOpen) {

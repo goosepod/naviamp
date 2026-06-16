@@ -146,6 +146,7 @@ internal class AndroidSettingsMaintenanceController(
         setPlaybackSettings = { settings -> state.playbackSettings = settings },
         savePlaybackSettings = settingsStore::savePlaybackSettings,
         reloadLyricsSidecars = reloadVisibleLyrics,
+        radioDjPresetRepository = storage,
         downloadedTracks = { state.downloadedTracks.map { it.track } },
         redownloadTracks = redownloadTracks,
     )
