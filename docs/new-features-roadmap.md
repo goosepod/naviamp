@@ -20,6 +20,12 @@ Keep implementation cross-platform by default: shared domain models, shared UI, 
 
 ### Focused Polish
 
+- [x] Add Forgejo merge-to-main release builds.
+  - Forgejo Actions builds run on pushes to `main` and manual dispatch.
+  - Android produces unsigned APK/AAB release artifacts.
+  - Windows produces a standalone zip plus MSI/EXE installers.
+  - macOS produces a standalone `.app` zip plus DMG installer.
+  - See `docs/release-builds.md`; signing and notarization remain follow-up distribution work.
 - [x] Improve artist-page local-library confidence.
   - Make source context clearer when provider metadata and local library matches are combined.
   - Consider showing local library albums, provider bio, similar artists, popular tracks, and a small "matched from your library" signal for ambiguous artist names.

@@ -12,7 +12,8 @@ help:
 	@printf "macOS:\n"
 	@printf "  make macos-test          Build, stage, and open build/local-test/Naviamp.app\n"
 	@printf "  make macos-standalone    Build release zip at apps/desktop/build/compose/distributions\n"
-	@printf "  make macos-stage         Build and stage build/release/Naviamp.app\n\n"
+	@printf "  make macos-stage         Build and stage build/release/Naviamp.app\n"
+	@printf "  make macos-installer     Build macOS DMG installer\n\n"
 	@printf "Windows, run on a Windows runner or shell:\n"
 	@printf "  make windows-test        Build and stage the Windows test app\n"
 	@printf "  make windows-standalone  Build Windows release zip\n"
@@ -46,6 +47,10 @@ macos-stage:
 .PHONY: macos-standalone macos-release
 macos-standalone macos-release:
 	ANDROID_HOME="$(ANDROID_HOME)" $(GRADLE) $(GRADLE_COMMON) $(MACOS_DESKTOP_PROPS) :apps:desktop:packageReleaseDistributable
+
+.PHONY: macos-installer
+macos-installer:
+	ANDROID_HOME="$(ANDROID_HOME)" $(GRADLE) $(GRADLE_COMMON) $(MACOS_DESKTOP_PROPS) :apps:desktop:packageReleaseDistributionForCurrentOS
 
 .PHONY: windows-test
 windows-test:

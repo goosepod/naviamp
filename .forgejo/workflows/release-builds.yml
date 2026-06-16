@@ -1,0 +1,117 @@
+name: Main release builds
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  GRADLE_COMMON: --configure-on-demand
+  GRADLE_OPTS: -Dorg.gradle.daemon=false -Dorg.gradle.jvmargs=-Xmx4g
+
+jobs:
+  android:
+    name: Android APK and bundle
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android build packages
+        run: sdkmanager "platforms;android-36" "build-tools;36.0.0" "cmake;3.22.1"
+
+      - name: Build Android release artifacts
+        run: ./gradlew $GRADLE_COMMON :apps:android:assembleRelease :apps:android:bundleRelease
+
+      - name: Upload Android artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: naviamp-android-release
+          if-no-files-found: error
+          path: |
+            apps/android/build/outputs/apk/release/*.apk
+            apps/android/build/outputs/bundle/release/*.aab
+
+  windows:
+    name: Windows standalone and installers
+    runs-on: windows-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Install WiX Toolset
+        shell: powershell
+        run: |
+          if (-not (Get-Command candle.exe -ErrorAction SilentlyContinue)) {
+            choco install wixtoolset --version=3.14.1 --no-progress -y
+            "$env:ProgramFiles(x86)\WiX Toolset v3.14\bin" | Out-File -FilePath $env:GITHUB_PATH -Append
+          }
+
+      - name: Build Windows standalone zip and installers
+        shell: powershell
+        run: .\gradlew.bat $env:GRADLE_COMMON "-Pnaviamp.bass.platform=windows-x64" :apps:desktop:packageReleaseDistributable :apps:desktop:packageReleaseDistributionForCurrentOS
+
+      - name: Upload Windows standalone zip
+        uses: actions/upload-artifact@v4
+        with:
+          name: naviamp-windows-standalone
+          if-no-files-found: error
+          path: apps/desktop/build/compose/distributions/Naviamp-windows-x64-release.zip
+
+      - name: Upload Windows installers
+        uses: actions/upload-artifact@v4
+        with:
+          name: naviamp-windows-installers
+          if-no-files-found: error
+          path: |
+            apps/desktop/build/compose/binaries/**/*.msi
+            apps/desktop/build/compose/binaries/**/*.exe
+
+  macos:
+    name: macOS standalone and DMG
+    runs-on: macos-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Build macOS standalone zip and DMG
+        run: ./gradlew $GRADLE_COMMON -Pnaviamp.bass.platform=macos-arm64 -Pcompose.desktop.packaging.checkJdkVendor=false :apps:desktop:packageReleaseDistributable :apps:desktop:packageReleaseDistributionForCurrentOS
+
+      - name: Upload macOS standalone zip
+        uses: actions/upload-artifact@v4
+        with:
+          name: naviamp-macos-standalone
+          if-no-files-found: error
+          path: apps/desktop/build/compose/distributions/Naviamp-macos-arm64-release.zip
+
+      - name: Upload macOS DMG
+        uses: actions/upload-artifact@v4
+        with:
+          name: naviamp-macos-dmg
+          if-no-files-found: error
+          path: apps/desktop/build/compose/binaries/**/*.dmg

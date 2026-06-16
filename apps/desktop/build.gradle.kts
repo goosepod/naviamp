@@ -166,7 +166,7 @@ compose.desktop {
             packageVersion = "1.0.0"
             appResourcesRootDir.set(generatedDesktopBassAppResources)
             modules("java.net.http", "java.sql")
-            targetFormats(TargetFormat.Msi, TargetFormat.Exe)
+            targetFormats(TargetFormat.Dmg, TargetFormat.Msi, TargetFormat.Exe)
 
             windows {
                 iconFile.set(project.file("src/desktopMain/resources/icons/naviamp.ico"))
