@@ -9,6 +9,7 @@ import app.naviamp.domain.Track
 import app.naviamp.domain.playback.EqualizerPlaybackEngine
 import app.naviamp.domain.provider.allKnownTracks
 import app.naviamp.domain.settings.streamQualityForNetwork
+import app.naviamp.ui.NaviampOfflineDashboardUi
 import app.naviamp.ui.SharedAlbumMixBuilderUi
 import app.naviamp.ui.SharedArtistMixBuilderUi
 import app.naviamp.ui.SharedGenreMixBuilderUi
@@ -177,6 +178,11 @@ fun rememberAndroidAppShellUiState(
             downloads = shellModels.downloads,
             downloadBytes = storageStats.downloadBytes,
             maxDownloadBytes = cacheSettings.maxDownloadBytes,
+            offlineDashboard = NaviampOfflineDashboardUi(
+                audioCacheCount = storageStats.audioCount,
+                audioCacheBytes = storageStats.audioBytes,
+                maxAudioCacheBytes = cacheSettings.maxAudioCacheBytes,
+            ),
             downloadStatus = downloadStatus,
             playlistItems = shellModels.playlistItems,
             recentPlaylistIds = recentPlaylistIds,

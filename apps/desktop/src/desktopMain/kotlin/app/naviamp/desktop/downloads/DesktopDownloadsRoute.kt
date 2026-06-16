@@ -13,6 +13,9 @@ fun DesktopDownloadsRoute(
     downloadCount: Long,
     downloadBytes: Long,
     maxDownloadBytes: Long,
+    audioCacheCount: Long,
+    audioCacheBytes: Long,
+    maxAudioCacheBytes: Long,
     status: String?,
     coverArtUrl: (String?) -> String?,
     downloadedTracks: (sourceId: String) -> List<DownloadedTrack>,
@@ -47,6 +50,9 @@ fun DesktopDownloadsRoute(
         status = status,
         downloadBytes = downloadBytes,
         maxDownloadBytes = maxDownloadBytes,
+        audioCacheCount = audioCacheCount,
+        audioCacheBytes = audioCacheBytes,
+        maxAudioCacheBytes = maxAudioCacheBytes,
         onDownloadAction = { request ->
             when (request.action) {
                 DownloadedTrackAction.Select -> {

@@ -1,5 +1,6 @@
 package app.naviamp.ui
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -12,6 +13,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
@@ -23,6 +25,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -381,6 +385,7 @@ internal fun DownloadsContent(
     status: String?,
     downloadBytes: Long,
     maxDownloadBytes: Long,
+    offlineDashboard: NaviampOfflineDashboardUi,
     playlistChoices: List<NaviampPlaylistChoiceUi>,
     playlistActionStatus: String?,
     onDownloadAction: (DownloadedTrackActionRequest) -> Unit,
@@ -411,7 +416,7 @@ internal fun DownloadsContent(
     ) {
         item {
             Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                Text("Downloads", color = colors.primaryText, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                Text("Offline Mode", color = colors.primaryText, fontSize = 20.sp, fontWeight = FontWeight.Bold)
                 Text(
                     "${downloads.size} files - ${downloadBytes.storageBytesLabel()} of ${maxDownloadBytes.storageBytesLabel()}",
                     color = colors.secondaryText,
@@ -423,6 +428,15 @@ internal fun DownloadsContent(
                     fontSize = 11.sp,
                 )
             }
+        }
+        item {
+            OfflineDashboardSummary(
+                colors = colors,
+                downloads = downloads,
+                downloadBytes = downloadBytes,
+                maxDownloadBytes = maxDownloadBytes,
+                offlineDashboard = offlineDashboard,
+            )
         }
         status?.takeIf { it.isNotBlank() }?.let { message ->
             item {
@@ -516,3 +530,86 @@ internal fun DownloadsContent(
         )
     }
 }
+
+@Composable
+private fun OfflineDashboardSummary(
+    colors: NaviampColors,
+    downloads: List<NaviampDownloadedTrackUi>,
+    downloadBytes: Long,
+    maxDownloadBytes: Long,
+    offlineDashboard: NaviampOfflineDashboardUi,
+) {
+    val ready = downloads.isNotEmpty()
+    val readyMessage = if (ready) {
+        "Ready for offline playback and Android Auto Downloads browsing."
+    } else {
+        "Download albums, playlists, or tracks before using offline mode."
+    }
+    val downloadPercent = storagePercentLabel(downloadBytes, maxDownloadBytes)
+    val audioCachePercent = storagePercentLabel(
+        offlineDashboard.audioCacheBytes,
+        offlineDashboard.maxAudioCacheBytes,
+    )
+
+    Column(
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(8.dp))
+            .background(Color.Black.copy(alpha = 0.2f))
+            .padding(12.dp),
+    ) {
+        Text("OFFLINE DASHBOARD", color = colors.primaryText, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+        Text(readyMessage, color = if (ready) colors.primaryText else colors.secondaryText, fontSize = 13.sp)
+        OfflineDashboardMetric(
+            colors = colors,
+            label = "Downloaded tracks",
+            value = downloads.size.toString(),
+            detail = "${downloadBytes.storageBytesLabel()} used - $downloadPercent of download budget",
+        )
+        OfflineDashboardMetric(
+            colors = colors,
+            label = "Playback cache",
+            value = offlineDashboard.audioCacheCount.toString(),
+            detail = "${offlineDashboard.audioCacheBytes.storageBytesLabel()} used - $audioCachePercent of streaming cache",
+        )
+        OfflineDashboardMetric(
+            colors = colors,
+            label = "Pending actions",
+            value = "0",
+            detail = "Downloads are applied immediately; failed sync tracking is not stored yet.",
+        )
+    }
+}
+
+@Composable
+private fun OfflineDashboardMetric(
+    colors: NaviampColors,
+    label: String,
+    value: String,
+    detail: String,
+) {
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        verticalAlignment = Alignment.Top,
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Text(value, color = colors.primaryText, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+        Column(verticalArrangement = Arrangement.spacedBy(1.dp), modifier = Modifier.weight(1f)) {
+            Text(label, color = colors.secondaryText, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+            Text(detail, color = colors.mutedText, fontSize = 11.sp)
+        }
+    }
+}
+
+private fun storagePercentLabel(
+    usedBytes: Long,
+    maxBytes: Long,
+): String =
+    if (maxBytes > 0L) {
+        ((usedBytes.toDouble() / maxBytes.toDouble()) * 100.0)
+            .coerceIn(0.0, 100.0)
+            .oneDecimalLabel() + "%"
+    } else {
+        "0.0%"
+    }

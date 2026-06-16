@@ -41,6 +41,7 @@ fun AndroidAppShellContent(
         downloads = state.downloads,
         downloadBytes = state.downloadBytes,
         maxDownloadBytes = state.maxDownloadBytes,
+        offlineDashboard = state.offlineDashboard,
         downloadStatus = state.downloadStatus,
         playlistItems = state.playlistItems,
         recentPlaylistIds = state.recentPlaylistIds,

@@ -10,9 +10,10 @@ These are the current high-value follow-up ideas to consider after Android Auto 
 
 ### Practical Next Branches
 
-- [ ] Add Offline Mode dashboard.
+- [x] Add Offline Mode dashboard.
   - Show downloaded albums/playlists/tracks, cache health, available-offline status, pending offline actions, failed syncs, and a clear "ready for car/offline" signal.
   - Tie this to Android Auto/offline validation so cached-drive behavior is visible instead of only diagnostic-log based.
+  - First implementation upgrades the Downloads view into an Offline Mode dashboard across desktop and Android/shared UI, showing offline readiness, download storage use, playback cache health, and the current limitation that pending/failed sync actions are not yet persisted.
 - [x] Add smart playlist templates.
   - Candidate templates: Recently Played, Never Played, High Rated, Favorite Albums, Recently Added but Unplayed, and Long-Unheard Favorites.
   - Reuse the existing playlist creation/update flow where possible.
@@ -113,9 +114,10 @@ These are the current high-value follow-up ideas to consider after Android Auto 
 
 ## Offline and Sync
 
-- [ ] Add Offline Mode dashboard.
+- [x] Add Offline Mode dashboard.
   - Dedicated view for downloaded albums/playlists/tracks.
   - Show cache health and available-offline status.
+  - First implementation uses the existing Downloads route and adds offline readiness plus cache-health summary cards.
 - [ ] Add cross-platform settings and recent radio sync.
   - Prioritize recent generated radio streams and recent internet radio stations.
   - Investigate whether Navidrome can store app state.

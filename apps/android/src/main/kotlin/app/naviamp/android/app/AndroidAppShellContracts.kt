@@ -10,6 +10,7 @@ import app.naviamp.domain.settings.PlaybackSettings
 import app.naviamp.domain.smartplaylist.SmartPlaylistDefinition
 import app.naviamp.ui.NaviampDiagnosticsUi
 import app.naviamp.ui.NaviampDownloadedTrackUi
+import app.naviamp.ui.NaviampOfflineDashboardUi
 import app.naviamp.ui.NaviampLibrarySyncStatusUi
 import app.naviamp.ui.NaviampPlaylistChoiceUi
 import app.naviamp.ui.NaviampVisualizer
@@ -79,6 +80,7 @@ data class AndroidAppShellUiState(
     val downloads: List<NaviampDownloadedTrackUi>,
     val downloadBytes: Long,
     val maxDownloadBytes: Long,
+    val offlineDashboard: NaviampOfflineDashboardUi,
     val downloadStatus: String?,
     val playlistItems: List<SharedMediaItemUi>,
     val recentPlaylistIds: List<String>,

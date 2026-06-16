@@ -152,6 +152,12 @@ data class NaviampDownloadedTrackUi(
     val sizeBytes: Long,
 )
 
+data class NaviampOfflineDashboardUi(
+    val audioCacheCount: Long = 0L,
+    val audioCacheBytes: Long = 0L,
+    val maxAudioCacheBytes: Long = 0L,
+)
+
 enum class DownloadedTrackAction {
     Select,
     AddToPlaylist,
