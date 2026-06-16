@@ -693,8 +693,28 @@ private class AndroidAudioByteStore(
 private fun nowMillis(): Long = System.currentTimeMillis()
 
 private fun SqlDriver.configureSqliteLockHandling() {
-    execute(null, "PRAGMA busy_timeout=$SqliteBusyTimeoutMillis", 0)
-    execute(null, "PRAGMA journal_mode=WAL", 0)
+    executeQuery(
+        identifier = null,
+        sql = "PRAGMA busy_timeout=$SqliteBusyTimeoutMillis",
+        mapper = { cursor ->
+            while (cursor.next().value) {
+                // Drain the pragma result row on Android.
+            }
+            app.cash.sqldelight.db.QueryResult.Unit
+        },
+        parameters = 0,
+    )
+    executeQuery(
+        identifier = null,
+        sql = "PRAGMA journal_mode=WAL",
+        mapper = { cursor ->
+            while (cursor.next().value) {
+                // Drain the pragma result row on Android.
+            }
+            app.cash.sqldelight.db.QueryResult.Unit
+        },
+        parameters = 0,
+    )
 }
 
 private fun SqlDriver.ensureTrackLyricsOffsetSchema() {
