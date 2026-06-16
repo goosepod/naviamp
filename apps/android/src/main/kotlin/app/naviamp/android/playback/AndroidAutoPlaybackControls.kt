@@ -6,6 +6,8 @@ object AndroidAutoPlaybackControls {
     const val MediaIdQueue = "naviamp.queue"
     const val MediaIdHome = "naviamp.home"
     const val MediaIdHomeMixes = "naviamp.home.mixes"
+    const val MediaIdHomeDjs = "naviamp.home.djs"
+    const val MediaIdHomeSmartTemplates = "naviamp.home.smart_templates"
     const val MediaIdHomeRecentPlays = "naviamp.home.recent_plays"
     const val MediaIdHomeRecentlyAdded = "naviamp.home.recently_added"
     const val MediaIdLibrary = "naviamp.library"
@@ -23,6 +25,7 @@ object AndroidAutoPlaybackControls {
     const val MediaIdDownloads = "naviamp.downloads"
     const val MediaIdMore = "naviamp.more"
     const val MediaIdPlaylists = "naviamp.playlists"
+    const val MediaIdSmartPlaylists = "naviamp.smart_playlists"
     const val MediaIdNoSource = "naviamp.no_source"
 
     const val MediaIdArtistPrefix = "naviamp.artist:"
@@ -39,6 +42,8 @@ object AndroidAutoPlaybackControls {
     const val MediaIdPlaylistTrackPrefix = "naviamp.playlist.track:"
     const val MediaIdRadioStationPrefix = "naviamp.radio.station:"
     const val MediaIdRecentRadioPrefix = "naviamp.radio.recent:"
+    const val MediaIdRadioDjPrefix = "naviamp.radio.dj:"
+    const val MediaIdSmartTemplatePrefix = "naviamp.smart.template:"
 
     const val CommandPlayPause = "play_pause"
     const val CommandPrevious = "previous"
@@ -52,13 +57,16 @@ object AndroidAutoPlaybackControls {
             mediaId.startsWith(MediaIdArtistGroupPrefix) ||
             mediaId.startsWith(MediaIdArtistPrefix) ||
             mediaId.startsWith(MediaIdAlbumPrefix) ||
-            mediaId.startsWith(MediaIdPlaylistPrefix)
+            mediaId.startsWith(MediaIdPlaylistPrefix) ||
+            mediaId.startsWith(MediaIdSmartPlaylists)
 
     private val nonPlayableContainerIds = setOf(
         MediaIdRoot,
         MediaIdQueue,
         MediaIdHome,
         MediaIdHomeMixes,
+        MediaIdHomeDjs,
+        MediaIdHomeSmartTemplates,
         MediaIdHomeRecentPlays,
         MediaIdHomeRecentlyAdded,
         MediaIdLibrary,
@@ -75,5 +83,6 @@ object AndroidAutoPlaybackControls {
         MediaIdDownloads,
         MediaIdMore,
         MediaIdPlaylists,
+        MediaIdSmartPlaylists,
     )
 }

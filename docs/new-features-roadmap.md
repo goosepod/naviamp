@@ -31,7 +31,7 @@ Keep implementation cross-platform by default: shared domain models, shared UI, 
 
 ### Android Auto
 
-- [ ] Polish Android Auto browse categories.
+- [x] Polish Android Auto browse categories.
   - Surface recent generated radio.
   - Surface saved mixes/DJs if useful in car mode.
   - Surface downloaded music.

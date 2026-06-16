@@ -62,6 +62,7 @@ import app.naviamp.domain.settings.RecentRadioKind
 import app.naviamp.domain.settings.RecentRadioStream
 import app.naviamp.domain.settings.SavedTrack
 import app.naviamp.domain.settings.playbackSessionFromQueue
+import app.naviamp.domain.smartplaylist.SmartPlaylistTemplates
 import app.naviamp.provider.navidrome.NavidromeProvider
 import app.naviamp.provider.navidrome.toNavidromeConnection
 import kotlinx.coroutines.Dispatchers
@@ -71,6 +72,8 @@ import kotlinx.coroutines.withContext
 import kotlin.concurrent.thread
 
 private const val VoiceArtistScanLimit = 5_000L
+private const val AndroidAutoTemplateTrackScanLimit = 5_000L
+private const val AndroidAutoSmartTemplateTrackLimit = 100
 class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
     private var mediaSession: MediaSessionCompat? = null
     private var browserSessionTokenSet = false
@@ -542,6 +545,47 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
                             updateMediaSessionPlaybackState()
                         }
                 }
+                true
+            }
+            mediaId.startsWith(AndroidAutoPlaybackControls.MediaIdRadioDjPrefix) -> {
+                val djId = Uri.decode(mediaId.removePrefix(AndroidAutoPlaybackControls.MediaIdRadioDjPrefix))
+                val dj = storage.radioDjPresets().firstOrNull { it.id == djId } ?: return false
+                val provider = NavidromeProvider(source.toNavidromeConnection())
+                AndroidPlaybackRuntime.get(applicationContext).scope.launch {
+                    val radioService = RadioService(
+                        provider = provider,
+                        tuning = dj.tuning,
+                    )
+                    val recent = RecentRadioStream(
+                        id = "dj:${dj.id}",
+                        label = dj.name,
+                        kind = RecentRadioKind.Library,
+                    )
+                    runCatching { withContext(Dispatchers.IO) { radioService.libraryRadio() } }
+                        .onSuccess { tracks ->
+                            rememberRecentRadioStream(recent.withRadioCoverArtIds(tracks))
+                            playServiceTrackQueue(storage, sourceId, tracks, currentIndex = 0)
+                        }
+                        .onFailure { error ->
+                            Log.w("NaviampAutoCommand", "Could not start Auto DJ=${dj.name}", error)
+                            AndroidPlaybackNotificationControls.isPlaying = false
+                            updateMediaSessionPlaybackState()
+                        }
+                }
+                true
+            }
+            mediaId.startsWith(AndroidAutoPlaybackControls.MediaIdSmartTemplatePrefix) -> {
+                val templateIndex = Uri.decode(mediaId.removePrefix(AndroidAutoPlaybackControls.MediaIdSmartTemplatePrefix))
+                    .toIntOrNull()
+                    ?: return false
+                val template = SmartPlaylistTemplates.recommended.getOrNull(templateIndex) ?: return false
+                val tracks = smartTemplateTracks(storage, sourceId, template.title)
+                if (tracks.isEmpty()) {
+                    Log.w("NaviampAutoCommand", "Auto smart template had no tracks title=${template.title}")
+                    return false
+                }
+                Log.i("NaviampAutoCommand", "Auto playing smart template=${template.title} count=${tracks.size}")
+                playServiceTrackQueue(storage, sourceId, tracks, currentIndex = 0)
                 true
             }
             mediaId.startsWith(AndroidAutoPlaybackControls.MediaIdPlaylistPrefix) -> {
@@ -1043,6 +1087,50 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
         playbackSessionRepository.savePlaybackSession(sourceId = sourceId, session = session)
         playSavedSession(session)
     }
+
+    private fun smartTemplateTracks(
+        storage: AndroidStorageDependencies,
+        sourceId: String,
+        title: String,
+    ): List<Track> {
+        val snapshot = storage.librarySnapshot(sourceId, AndroidAutoTemplateTrackScanLimit, 0)
+        val tracks = snapshot.tracks
+        return when (title) {
+            "Recently Played" -> tracks
+                .filter { it.lastPlayedAtIso8601 != null }
+                .sortedByDescending { it.lastPlayedAtIso8601 }
+            "Never Played" -> tracks
+                .filter { (it.playCount ?: 0) == 0 }
+                .shuffled()
+            "High Rated" -> tracks
+                .filter { (it.userRating ?: 0) >= 4 }
+                .sortedWith(compareByDescending<Track> { it.userRating ?: 0 }.thenBy { it.title.lowercase() })
+            "Favorite Albums" -> {
+                val favoriteAlbumIds = snapshot.albums
+                    .filter { it.favoritedAtIso8601 != null }
+                    .map { it.id }
+                    .toSet()
+                tracks
+                    .filter { track -> track.albumId?.let { it in favoriteAlbumIds } == true }
+                    .sortedWith(compareBy<Track> { it.albumTitle.orEmpty().lowercase() }.thenBy { it.title.lowercase() })
+            }
+            "Recently Added but Unplayed" -> tracks
+                .filter { (it.playCount ?: 0) == 0 }
+                .sortedByDescending { albumRecentlyAddedKey(snapshot.albums, it) }
+            "Long-Unheard Favorites" -> tracks
+                .filter { it.favoritedAtIso8601 != null }
+                .sortedBy { it.lastPlayedAtIso8601 ?: "" }
+            else -> emptyList()
+        }
+            .distinctBy { it.id }
+            .take(AndroidAutoSmartTemplateTrackLimit)
+    }
+
+    private fun albumRecentlyAddedKey(albums: List<Album>, track: Track): String =
+        track.albumId
+            ?.let { albumId -> albums.firstOrNull { it.id == albumId } }
+            ?.recentlyAddedAtIso8601
+            .orEmpty()
 
     private fun playServiceAutoQueueItem(index: Int) {
         val queue = currentAutoQueue

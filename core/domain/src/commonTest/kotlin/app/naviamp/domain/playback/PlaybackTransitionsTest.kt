@@ -83,6 +83,23 @@ class PlaybackTransitionsTest {
     }
 
     @Test
+    fun skipsCrossfadePrepareNextWhenTrackIsShorterThanFadeWindow() {
+        val plan = planPrepareNextPlayback(
+            progress = PlaybackProgress(positionSeconds = 1.0, durationSeconds = 5.0),
+            nextQueueIndex = 1,
+            alreadyPreparedNext = false,
+            gaplessEnabled = false,
+            supportsGapless = true,
+            crossfadeDurationSeconds = 8,
+            supportsCrossfade = true,
+            gaplessPrepareWindowSeconds = 2.0,
+        )
+
+        assertFalse(plan.shouldPrepare)
+        assertEquals(PrepareNextPlaybackReason.NotNeeded, plan.reason)
+    }
+
+    @Test
     fun plansGaplessPrepareNextWhenCrossfadeIsUnavailable() {
         val plan = planPrepareNextPlayback(
             progress = PlaybackProgress(positionSeconds = 99.0, durationSeconds = 100.0),

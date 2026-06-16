@@ -272,13 +272,19 @@ fun planPrepareNextPlayback(
     if (alreadyPreparedNext) return PrepareNextPlaybackPlan(shouldPrepare = false)
     val position = progress.positionSeconds ?: return PrepareNextPlaybackPlan(shouldPrepare = false)
     val duration = progress.durationSeconds ?: return PrepareNextPlaybackPlan(shouldPrepare = false)
-    val reason = if (canPrepareForCrossfade) {
+    val safeCrossfadeDurationSeconds = normalizedCrossfadeDurationSeconds(crossfadeDurationSeconds)
+    val canPrepareForCurrentTrackCrossfade = canPrepareForCrossfade && duration > safeCrossfadeDurationSeconds.toDouble()
+    val canPrepareForCurrentTrackGapless = canPrepareForGapless && !canPrepareForCrossfade
+    if (!canPrepareForCurrentTrackCrossfade && !canPrepareForCurrentTrackGapless) {
+        return PrepareNextPlaybackPlan(shouldPrepare = false)
+    }
+    val reason = if (canPrepareForCurrentTrackCrossfade) {
         PrepareNextPlaybackReason.Crossfade
     } else {
         PrepareNextPlaybackReason.Gapless
     }
     val prepareWindowSeconds = if (reason == PrepareNextPlaybackReason.Crossfade) {
-        normalizedCrossfadeDurationSeconds(crossfadeDurationSeconds).toDouble()
+        safeCrossfadeDurationSeconds.toDouble()
     } else {
         gaplessPrepareWindowSeconds.coerceAtLeast(0.0)
     }

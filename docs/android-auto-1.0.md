@@ -351,6 +351,13 @@ Pass criteria:
   - Verification: `.\gradlew.bat --configure-on-demand :apps:android:compileDebugKotlin :apps:android:installDebug` passed after offline cover-art URL fallback/logging.
   - Verification: `.\gradlew.bat --configure-on-demand :core:domain:allTests :apps:android:compileDebugKotlin` and `.\gradlew.bat --configure-on-demand :apps:android:compileDebugKotlin :apps:android:installDebug` passed after protected cache eviction and phone-owned offline play-report fallback wiring.
   - Verification: `.\gradlew.bat --configure-on-demand :core:domain:allTests :apps:android:compileDebugKotlin "-Pnaviamp.bass.platform=windows-x64" :apps:desktop:compileKotlinDesktop` passed after the final Phase 8 validation pass.
+- Follow-up Android Auto browse polish completed on 2026-06-16:
+  - Suggested Mixes now exposes saved DJs, Smart Playlists, Smart Templates, and Recent Radio as quick-start car-mode entries.
+  - Playlists now separates saved smart playlists from normal provider playlists, and Smart Playlists includes local recommended templates.
+  - Saved DJs start service-owned tuned Library Radio from Android Auto.
+  - Smart template starts build a queue from the local library index for Recently Played, Never Played, High Rated, Favorite Albums, Recently Added but Unplayed, and Long-Unheard Favorites.
+  - Downloads remain surfaced on the root only when local downloaded tracks exist.
+  - Verification: `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :apps:android:compileDebugKotlin` passed.
 
 ## Phase 1 Browse ID Baseline
 
