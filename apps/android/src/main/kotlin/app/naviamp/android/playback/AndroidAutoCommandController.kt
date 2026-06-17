@@ -11,12 +11,14 @@ internal class AndroidAutoCommandController(
     private val toggleFavorite: () -> Unit,
     private val toggleShuffle: () -> Unit,
     private val cycleRepeat: () -> Unit,
+    private val openQueue: () -> Unit,
     private val startTrackRadio: () -> Unit,
     private val refreshNotification: () -> Unit,
     private val isPlaying: () -> Boolean,
     private val favoriteAction: String,
     private val shuffleAction: String,
     private val repeatAction: String,
+    private val queueAction: String,
     private val trackRadioAction: String,
 ) {
     fun playFromMediaId(mediaId: String, extras: Bundle?) {
@@ -56,6 +58,7 @@ internal class AndroidAutoCommandController(
                 cycleRepeat()
                 refreshNotification()
             }
+            queueAction -> openQueue()
             trackRadioAction -> {
                 startTrackRadio()
                 refreshNotification()

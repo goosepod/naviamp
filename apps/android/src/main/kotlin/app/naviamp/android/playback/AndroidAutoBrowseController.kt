@@ -1,6 +1,8 @@
 package app.naviamp.android.playback
 
 import android.content.Context
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.net.Uri
 import android.os.Bundle
 import android.support.v4.media.MediaBrowserCompat
@@ -12,6 +14,7 @@ import app.naviamp.android.AndroidSettingsStore
 import app.naviamp.android.AndroidStorageDependencies
 import app.naviamp.domain.Album
 import app.naviamp.domain.Artist
+import app.naviamp.domain.InternetRadioStation
 import app.naviamp.domain.Playlist
 import app.naviamp.domain.Track
 import app.naviamp.domain.cache.LocalLibraryIndexRepository
@@ -23,14 +26,18 @@ import app.naviamp.domain.provider.AlbumListType
 import app.naviamp.domain.smartplaylist.SmartPlaylistTemplates
 import app.naviamp.provider.navidrome.NavidromeProvider
 import app.naviamp.provider.navidrome.toNavidromeConnection
+import app.naviamp.ui.defaultRadioArtworkUrl
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
+import kotlin.math.max
 
 internal class AndroidAutoBrowseController(
     private val context: Context,
     private val storage: () -> AndroidStorageDependencies,
     private val currentQueue: () -> List<Track>,
+    private val currentQueueIndex: () -> Int,
     private val currentMetadata: () -> AndroidPlaybackNotificationMetadata,
     private val restoredNowPlayingMetadata: () -> AndroidPlaybackNotificationMetadata?,
     private val providerResponseService: (ProviderResponseCacheRepository) -> ProviderResponseService,
@@ -77,6 +84,7 @@ internal class AndroidAutoBrowseController(
                             ).joinToString(MediaIdPartSeparator),
                             title = station.name,
                             subtitle = station.homePageUrl ?: "Internet radio",
+                            iconUri = autoStationArtUri(station),
                         )
                     }
                     .toMutableList()
@@ -90,6 +98,11 @@ internal class AndroidAutoBrowseController(
                     mediaId = "${AndroidAutoPlaybackControls.MediaIdRecentRadioPrefix}${Uri.encode(stream.id)}",
                     title = stream.label,
                     subtitle = "Radio",
+                    iconUri = stream.coverArtIds.firstOrNull()?.let { coverArtId ->
+                        storage.latestMediaSource()
+                            ?.toNavidromeConnection()
+                            ?.let { connection -> NavidromeProvider(connection).coverArtUrl(coverArtId) }
+                    } ?: autoDrawableUri("ic_auto_radio"),
                 )
             }
             val recentStations = settingsStore.loadRecentInternetRadioStations().map { station ->
@@ -97,17 +110,21 @@ internal class AndroidAutoBrowseController(
                     mediaId = "${AndroidAutoPlaybackControls.MediaIdRecentRadioPrefix}${Uri.encode(station.id)}",
                     title = station.name,
                     subtitle = station.homePageUrl ?: "Internet radio",
+                    iconUri = autoStationArtUri(station.toStation()),
                 )
             }
             sendChildren(parentId, (recentStreams + recentStations).toMutableList(), result)
             return
         }
         if (parentId == AndroidAutoPlaybackControls.MediaIdQueue) {
-            val children = currentQueue().mapIndexed { index, track ->
+            val queue = currentQueue()
+            val startIndex = currentQueueIndex().takeIf { it in queue.indices } ?: 0
+            val children = queue.indices.map { offset ->
+                val index = (startIndex + offset) % queue.size
+                val track = queue[index]
                 trackItem(
                     track = track,
                     mediaId = "${AndroidAutoPlaybackControls.MediaIdQueueTrackPrefix}${Uri.encode(index.toString())}",
-                    includeArt = false,
                 )
             }.toMutableList()
             sendChildren(parentId, children, result)
@@ -347,9 +364,7 @@ internal class AndroidAutoBrowseController(
                 loadAsyncChildren(parentId, result) {
                     val source = storage.latestNavidromeSource() ?: return@loadAsyncChildren noSourceItems()
                     val provider = NavidromeProvider(source.toNavidromeConnection())
-                    withContext(Dispatchers.IO) {
-                        providerResponseService(storage).playlistTracks(provider, playlistId)
-                    }
+                    loadPlaylistTracks(provider, storage, playlistId)
                         .take(AndroidAutoBrowseLimit)
                         .map { track ->
                             trackItem(
@@ -483,6 +498,7 @@ internal class AndroidAutoBrowseController(
             ).joinToString(MediaIdPartSeparator),
             title = artist.name,
             subtitle = "Artist",
+            iconUri = storage().savedCoverArtUrl(artist),
         )
 
     private fun albumItem(album: Album): MediaBrowserCompat.MediaItem =
@@ -506,6 +522,7 @@ internal class AndroidAutoBrowseController(
             } else {
                 "${playlist.trackCount} tracks"
             },
+            iconUri = storage().savedCoverArtUrl(playlist),
         )
 
     private suspend fun autoSearchResults(query: String): MutableList<MediaBrowserCompat.MediaItem> =
@@ -543,8 +560,12 @@ internal class AndroidAutoBrowseController(
                 .setTitle(title)
                 .setSubtitle(subtitle)
                 .apply {
-                    iconName?.let { setIconUri(Uri.parse(autoDrawableUri(it))) }
-                    iconUri?.let { setIconUri(Uri.parse(it)) }
+                    val iconBitmap = cachedAutoIconBitmap(iconUri)
+                    when {
+                        iconBitmap != null -> setIconBitmap(iconBitmap)
+                        iconName != null -> setIconUri(Uri.parse(autoDrawableUri(iconName)))
+                        iconUri != null -> setIconUri(Uri.parse(iconUri))
+                    }
                 }
                 .build(),
             MediaBrowserCompat.MediaItem.FLAG_BROWSABLE,
@@ -563,13 +584,26 @@ internal class AndroidAutoBrowseController(
                 .setSubtitle(subtitle)
                 .apply {
                     val artUri = iconUri ?: currentMetadata().coverArtUrl?.takeIf { mediaId == AndroidAutoPlaybackControls.MediaIdNowPlaying }
-                    artUri?.let {
-                        setIconUri(Uri.parse(it))
+                    val iconBitmap = cachedAutoIconBitmap(artUri)
+                    when {
+                        iconBitmap != null -> setIconBitmap(iconBitmap)
+                        artUri != null -> setIconUri(Uri.parse(artUri))
                     }
                 }
                 .build(),
             MediaBrowserCompat.MediaItem.FLAG_PLAYABLE,
         )
+
+    private fun cachedAutoIconBitmap(iconUri: String?): Bitmap? {
+        if (iconUri.isNullOrBlank()) return null
+        return runCatching {
+            runBlocking {
+                storage().cachedImageBytes(iconUri)
+            }?.let(::decodeAutoIconBitmap)
+        }.onFailure { error ->
+            Log.d("NaviampAutoCommand", "Auto art cache miss uri=$iconUri error=${error.message}")
+        }.getOrNull()
+    }
 
     private fun noSourceItems(): MutableList<MediaBrowserCompat.MediaItem> =
         mutableListOf(
@@ -650,17 +684,56 @@ internal class AndroidAutoBrowseController(
     private fun autoDrawableUri(name: String): String =
         "android.resource://${context.packageName}/drawable/$name"
 
+    private fun autoStationArtUri(station: InternetRadioStation): String {
+        val artworkUrl = station.defaultRadioArtworkUrl()
+        return if (artworkUrl.startsWith("http://") || artworkUrl.startsWith("https://")) {
+            artworkUrl
+        } else {
+            autoDrawableUri("ic_auto_radio")
+        }
+    }
+
     private fun recentPlaybackHistoryItems(
         playbackHistoryRepository: PlaybackHistoryRepository<AndroidPlaybackHistoryItem>,
         sourceId: String,
     ): List<MediaBrowserCompat.MediaItem> =
         playbackHistoryRepository.playbackHistory(sourceId, AndroidAutoBrowseLimit)
             .map { history -> trackItem(history.track) }
+
+    private suspend fun loadPlaylistTracks(
+        provider: NavidromeProvider,
+        cacheRepository: ProviderResponseCacheRepository,
+        playlistId: String,
+    ): List<Track> =
+        withContext(Dispatchers.IO) {
+            providerResponseService(cacheRepository).invalidatePlaylistTracks(provider, playlistId)
+            provider.playlistTracks(playlistId).also { tracks ->
+                Log.i("NaviampAutoCommand", "Auto playlist detail playlist=$playlistId count=${tracks.size}")
+            }
+        }
 }
 
 private const val AndroidAutoBrowseLimit = 50
+private const val AndroidAutoIconSidePx = 144
 private const val MediaIdPartSeparator = "|"
 private const val VoiceArtistScanLimit = 5_000L
+
+private fun decodeAutoIconBitmap(bytes: ByteArray): Bitmap? {
+    val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+    BitmapFactory.decodeByteArray(bytes, 0, bytes.size, bounds)
+    val maxSide = max(bounds.outWidth, bounds.outHeight)
+    if (maxSide <= 0) return null
+    var sampleSize = 1
+    while (maxSide / sampleSize > AndroidAutoIconSidePx) {
+        sampleSize *= 2
+    }
+    return BitmapFactory.decodeByteArray(
+        bytes,
+        0,
+        bytes.size,
+        BitmapFactory.Options().apply { inSampleSize = sampleSize },
+    )
+}
 
 private fun String.mediaIdParts(): List<String> =
     split("|").map { Uri.decode(it) }
@@ -696,4 +769,14 @@ private fun MediaSourceRepository.savedCoverArtUrl(album: Album): String? {
     val coverArtId = album.coverArtId ?: album.id.value
     val connection = latestMediaSource()?.toNavidromeConnection() ?: return null
     return NavidromeProvider(connection).coverArtUrl(coverArtId)
+}
+
+private fun MediaSourceRepository.savedCoverArtUrl(artist: Artist): String? {
+    val connection = latestMediaSource()?.toNavidromeConnection() ?: return null
+    return NavidromeProvider(connection).coverArtUrl(artist.id.value)
+}
+
+private fun MediaSourceRepository.savedCoverArtUrl(playlist: Playlist): String? {
+    val connection = latestMediaSource()?.toNavidromeConnection() ?: return null
+    return NavidromeProvider(connection).coverArtUrl(playlist.coverArtId ?: playlist.id)
 }

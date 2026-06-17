@@ -134,6 +134,36 @@ Finish Android Auto as the last 1.0 release gate. Naviamp should be discoverable
 
 ## Desktop Head Unit Flow
 
+On macOS, use the repo helper:
+
+```shell
+make android-auto-status
+make android-auto-dhu
+```
+
+If the debug app is already installed and only DHU needs to be restarted:
+
+```shell
+make android-auto-start
+```
+
+In a second terminal, follow Android Auto logs:
+
+```shell
+make android-auto-logs
+```
+
+The helper defaults to:
+
+- Android SDK: `/Users/jbmcmichael/Library/Android/sdk`
+- ADB: `$ANDROID_HOME/platform-tools/adb`
+- DHU: `$ANDROID_HOME/extras/google/auto/desktop-head-unit`
+- Optional device selector: `DEVICE=emulator-5556 make android-auto-dhu`
+
+When available, it starts `com.google.android.projection.gearhead/.companion.DeveloperHeadUnitNetworkService`. On newer Android Auto builds where that service is not listed by package inspection, start the head unit server manually on the phone first; the helper still forwards `tcp:5277` and launches Desktop Head Unit.
+
+The stock Google API phone emulator may only include the Android Auto stub package (`versionName=...-stub`). That package can expose Naviamp's installed media browser service but cannot run the DHU network server. For an actual no-truck test loop, use a physical phone with Android Auto developer mode enabled and the head unit server started, or an emulator image where full Gearhead is present.
+
 - [x] Install or update the Android debug build on the test phone.
 - [x] Start the Android Auto head unit server on the phone from Android Auto developer settings.
 - [ ] Run:
@@ -358,6 +388,14 @@ Pass criteria:
   - Smart template starts build a queue from the local library index for Recently Played, Never Played, High Rated, Favorite Albums, Recently Added but Unplayed, and Long-Unheard Favorites.
   - Downloads remain surfaced on the root only when local downloaded tracks exist.
   - Verification: `ANDROID_HOME=/Users/jbmcmichael/Library/Android/sdk ./gradlew :apps:android:compileDebugKotlin` passed.
+- macOS DHU validation completed on 2026-06-17 with physical phone `5A131JEA306253` / `Pixel 10a`:
+  - Phone Android Auto package was full release `17.0.662234-release`, not the emulator stub.
+  - Android Auto package inspection did not list `DeveloperHeadUnitNetworkService`, but manually starting the phone head unit server, running `adb -s 5A131JEA306253 forward tcp:5277 tcp:5277`, and launching `/Users/jbmcmichael/Library/Android/sdk/extras/google/auto/desktop-head-unit` connected successfully.
+  - DHU reported protocol `1.7`, TLS negotiation succeeded, and certificate verification returned `ok`.
+  - Naviamp Auto browse loaded root, home, downloads, playlists, radio, and queue branches from DHU.
+  - Media session reported active Naviamp playback with queue size `51`, custom actions Favorite, Shuffle, Repeat, and Start song radio.
+  - Transport validation through the active media session passed: play moved Naviamp to `PLAYING`, next changed metadata from `Fortuna Imperatrix Mundi: O Fortuna` to `Let Me Go`, and pause moved Naviamp to `PAUSED`.
+  - Cache/prefetch logs showed multiple upcoming tracks prefetched while DHU was connected.
 
 ## Phase 1 Browse ID Baseline
 

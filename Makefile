@@ -21,6 +21,11 @@ help:
 	@printf "Android:\n"
 	@printf "  make android-debug       Build debug APK\n"
 	@printf "  make android-release     Build release APK/AAB tasks configured by Gradle\n\n"
+	@printf "Android Auto DHU:\n"
+	@printf "  make android-auto-dhu    Install debug APK, start head unit server, and launch DHU\n"
+	@printf "  make android-auto-start  Start head unit server and launch DHU without reinstalling\n"
+	@printf "  make android-auto-logs   Follow Naviamp Android Auto logs\n"
+	@printf "  make android-auto-status Show connected device and package state\n\n"
 	@printf "Verification:\n"
 	@printf "  make clean               Run Gradle clean\n"
 	@printf "  make clean-generated     Run Gradle clean and remove root generated staging outputs\n"
@@ -90,6 +95,26 @@ android-debug:
 .PHONY: android-release
 android-release:
 	ANDROID_HOME="$(ANDROID_HOME)" $(GRADLE) $(GRADLE_COMMON) :apps:android:assembleRelease
+
+.PHONY: android-auto-dhu
+android-auto-dhu:
+	ANDROID_HOME="$(ANDROID_HOME)" scripts/android-auto-dhu.sh run
+
+.PHONY: android-auto-start
+android-auto-start:
+	ANDROID_HOME="$(ANDROID_HOME)" scripts/android-auto-dhu.sh start
+
+.PHONY: android-auto-logs
+android-auto-logs:
+	ANDROID_HOME="$(ANDROID_HOME)" scripts/android-auto-dhu.sh logs
+
+.PHONY: android-auto-status
+android-auto-status:
+	ANDROID_HOME="$(ANDROID_HOME)" scripts/android-auto-dhu.sh status
+
+.PHONY: android-auto-stop
+android-auto-stop:
+	ANDROID_HOME="$(ANDROID_HOME)" scripts/android-auto-dhu.sh stop
 
 .PHONY: desktop-test
 desktop-test:
