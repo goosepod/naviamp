@@ -317,9 +317,11 @@ internal class AndroidServicePlaybackRuntimeController(
             ?.let { (it * 1_000.0).toLong() }
         AndroidPlaybackNotificationControls.positionMillis = positionMillis ?: previousPositionMillis
         AndroidPlaybackNotificationControls.durationMillis = durationMillis ?: previousDurationMillis
-        if (AndroidPlaybackNotificationControls.durationMillis != previousDurationMillis) {
+        val durationChanged = AndroidPlaybackNotificationControls.durationMillis != previousDurationMillis
+        val positionChanged = AndroidPlaybackNotificationControls.positionMillis != previousPositionMillis
+        if (durationChanged) {
             updateMediaSession(currentMetadata())
-        } else {
+        } else if (!AndroidPlaybackNotificationControls.isPlaying && positionChanged) {
             updateMediaSessionPlaybackState()
         }
         if (now - lastServiceSessionSaveAtMillis >= ServicePlaybackSessionSaveIntervalMillis) {

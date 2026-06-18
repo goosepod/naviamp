@@ -4,6 +4,7 @@ object AndroidAutoPlaybackControls {
     const val MediaIdRoot = "naviamp.root"
     const val MediaIdNowPlaying = "naviamp.now_playing"
     const val MediaIdQueue = "naviamp.queue"
+    const val MediaIdQueuePagePrefix = "naviamp.queue.page:"
     const val MediaIdHome = "naviamp.home"
     const val MediaIdHomeMixes = "naviamp.home.mixes"
     const val MediaIdHomeDjs = "naviamp.home.djs"
@@ -30,15 +31,19 @@ object AndroidAutoPlaybackControls {
 
     const val MediaIdArtistPrefix = "naviamp.artist:"
     const val MediaIdArtistGroupPrefix = "naviamp.artist.group:"
+    const val MediaIdArtistPlayPrefix = "naviamp.artist.play:"
     const val MediaIdArtistTrackPrefix = "naviamp.artist.track:"
     const val MediaIdArtistShufflePrefix = "naviamp.artist.shuffle:"
     const val MediaIdAlbumPrefix = "naviamp.album:"
+    const val MediaIdAlbumPlayPrefix = "naviamp.album.play:"
     const val MediaIdTrackPrefix = "naviamp.track:"
     const val MediaIdAlbumTrackPrefix = "naviamp.album.track:"
     const val MediaIdAlbumShufflePrefix = "naviamp.album.shuffle:"
     const val MediaIdQueueTrackPrefix = "naviamp.queue.track:"
     const val MediaIdDownloadPrefix = "naviamp.download:"
     const val MediaIdPlaylistPrefix = "naviamp.playlist:"
+    const val MediaIdPlaylistPlayPrefix = "naviamp.playlist.play:"
+    const val MediaIdPlaylistShufflePrefix = "naviamp.playlist.shuffle:"
     const val MediaIdPlaylistTrackPrefix = "naviamp.playlist.track:"
     const val MediaIdRadioStationPrefix = "naviamp.radio.station:"
     const val MediaIdRecentRadioPrefix = "naviamp.radio.recent:"
@@ -54,6 +59,7 @@ object AndroidAutoPlaybackControls {
             mediaId.endsWith(".empty") ||
             mediaId.endsWith(".error") ||
             mediaId in nonPlayableContainerIds ||
+            mediaId.startsWith(MediaIdQueuePagePrefix) ||
             mediaId.startsWith(MediaIdArtistGroupPrefix) ||
             mediaId.startsWith(MediaIdArtistPrefix) ||
             mediaId.startsWith(MediaIdAlbumPrefix) ||

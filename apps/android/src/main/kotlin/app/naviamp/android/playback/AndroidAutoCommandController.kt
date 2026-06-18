@@ -28,11 +28,11 @@ internal class AndroidAutoCommandController(
             refreshNotification()
             return
         }
-        if (handleServicePlayMediaId(mediaId)) {
-            return
-        }
         if (AndroidAutoPlaybackControls.isNonPlayableMediaId(mediaId)) {
             Log.w("NaviampAutoCommand", "Ignoring non-playable Auto mediaId=$mediaId")
+            return
+        }
+        if (handleServicePlayMediaId(mediaId)) {
             return
         }
         Log.w("NaviampAutoCommand", "Service could not handle Auto mediaId=$mediaId; opening phone UI for context")
