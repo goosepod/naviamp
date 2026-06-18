@@ -60,6 +60,8 @@ class AndroidPlaylistEngine(
         waveformRepository = waveformRepository,
         audioAssets = playbackAudioAssets,
         analyzer = waveformAnalyzer,
+        waveformsEnabled = { state.cacheSettings.waveformsEnabled },
+        waveformBucketCount = { state.cacheSettings.normalized().waveformBucketCount },
         prepareAnalysis = {
             waveformAnalyzer.applyTlsSettings(state.activeTlsSettings)
             AndroidPlaybackTls.applyDefaults(state.activeTlsSettings)

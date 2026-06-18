@@ -5,8 +5,8 @@ import app.naviamp.domain.bass.BassAudioBackend
 import app.naviamp.domain.waveform.AudioWaveformAnalysisSource
 import app.naviamp.domain.waveform.AudioWaveform
 import app.naviamp.domain.waveform.AudioWaveformAnalyzer as DomainAudioWaveformAnalyzer
-import app.naviamp.domain.waveform.DefaultWaveformBucketCount
 import app.naviamp.domain.waveform.analyzeBassFloatPcmWaveform
+import app.naviamp.domain.settings.DefaultWaveformBucketCount
 import java.net.URI
 import java.nio.file.Path
 import kotlin.io.path.exists
@@ -16,9 +16,9 @@ class DesktopAudioWaveformAnalyzer(
     private val bucketCount: Int = DefaultWaveformBucketCount,
 ) : DomainAudioWaveformAnalyzer {
     override suspend fun analyze(source: AudioWaveformAnalysisSource): AudioWaveform? =
-        analyze(source.streamUrl)
+        analyze(source.streamUrl, source.bucketCount)
 
-    fun analyze(audioPath: Path): AudioWaveform? {
+    fun analyze(audioPath: Path, bucketCount: Int = this.bucketCount): AudioWaveform? {
         if (!audioPath.exists()) return null
         val bass = backendResult.getOrNull() ?: return null
         val stream = bass.createFileDecodeStream(audioPath.toString()).getOrNull() ?: return null
@@ -33,9 +33,9 @@ class DesktopAudioWaveformAnalyzer(
         }
     }
 
-    private fun analyze(streamUrl: String): AudioWaveform? {
+    private fun analyze(streamUrl: String, bucketCount: Int): AudioWaveform? {
         val localPath = localPathFromUrl(streamUrl)
-        if (localPath != null) return analyze(localPath)
+        if (localPath != null) return analyze(localPath, bucketCount)
         val bass = backendResult.getOrNull() ?: return null
         bass.configureInternetStreams().getOrElse { return null }
         val stream = bass.createUrlDecodeStream(streamUrl).getOrNull() ?: return null

@@ -3,6 +3,18 @@ import java.util.zip.ZipFile
 
 val composeVersion = libs.versions.compose.get()
 val composeMaterial3Version = "1.8.2"
+val naviampVersionName = rootProject.file("VERSION").readText().trim()
+val naviampVersionCode = rootProject.file("VERSION_CODE").readText().trim().toInt()
+val androidReleaseKeystore = providers.environmentVariable("NAVIAMP_ANDROID_KEYSTORE")
+val androidReleaseKeystorePassword = providers.environmentVariable("NAVIAMP_ANDROID_KEYSTORE_PASSWORD")
+val androidReleaseKeyAlias = providers.environmentVariable("NAVIAMP_ANDROID_KEY_ALIAS")
+val androidReleaseKeyPassword = providers.environmentVariable("NAVIAMP_ANDROID_KEY_PASSWORD")
+val hasAndroidReleaseSigning = listOf(
+    androidReleaseKeystore,
+    androidReleaseKeystorePassword,
+    androidReleaseKeyAlias,
+    androidReleaseKeyPassword,
+).all { it.isPresent }
 
 plugins {
     alias(libs.plugins.android.application)
@@ -19,11 +31,30 @@ android {
         applicationId = "app.naviamp.android"
         minSdk = 26
         targetSdk = 36
-        versionCode = 1
-        versionName = "0.9.0"
+        versionCode = naviampVersionCode
+        versionName = naviampVersionName
         externalNativeBuild {
             cmake {
                 arguments += "-DANDROID_STL=c++_shared"
+            }
+        }
+    }
+
+    signingConfigs {
+        if (hasAndroidReleaseSigning) {
+            create("release") {
+                storeFile = file(androidReleaseKeystore.get())
+                storePassword = androidReleaseKeystorePassword.get()
+                keyAlias = androidReleaseKeyAlias.get()
+                keyPassword = androidReleaseKeyPassword.get()
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            if (hasAndroidReleaseSigning) {
+                signingConfig = signingConfigs.getByName("release")
             }
         }
     }

@@ -10,6 +10,7 @@ import app.naviamp.domain.playback.playbackStreamUrl
 import app.naviamp.domain.playback.resolvePlaybackAudioSource
 import app.naviamp.domain.playback.waveformStatus
 import app.naviamp.domain.provider.MediaProvider
+import app.naviamp.domain.settings.DefaultWaveformBucketCount
 
 data class AudioWaveformServiceResult(
     val waveform: AudioWaveform?,
@@ -35,6 +36,8 @@ class AudioWaveformService(
     private val waveformRepository: AudioWaveformStorageRepository,
     private val audioAssets: PlaybackAudioAssetRepository,
     private val analyzer: AudioWaveformAnalyzer,
+    private val waveformsEnabled: () -> Boolean = { true },
+    private val waveformBucketCount: () -> Int = { DefaultWaveformBucketCount },
     private val prepareAnalysis: suspend () -> Unit = {},
     private val cacheAudioForWaveform: suspend (
         sourceId: String,
@@ -50,8 +53,20 @@ class AudioWaveformService(
         quality: StreamQuality,
         audioCachingEnabled: Boolean,
     ): AudioWaveformServiceResult {
+        val bucketCount = waveformBucketCount().coerceAtLeast(1)
+        if (!waveformsEnabled()) {
+            return AudioWaveformServiceResult(
+                waveform = null,
+                localAudio = null,
+                cachedWaveformAvailable = false,
+                generatedWaveformAvailable = false,
+                audioAvailable = true,
+                playbackSource = PlaybackSource.CachedFile,
+            )
+        }
+
         if (sourceId != null) {
-            waveformRepository.cachedAudioWaveform(sourceId, track.id, quality)?.let { waveform ->
+            waveformRepository.cachedAudioWaveform(sourceId, track.id, quality, bucketCount)?.let { waveform ->
                 return AudioWaveformServiceResult(
                     waveform = waveform,
                     localAudio = null,
@@ -84,7 +99,7 @@ class AudioWaveformService(
         }
 
         if (sourceId != null && localAudio != null) {
-            waveformRepository.cachedAudioWaveform(sourceId, track.id, quality)?.let { waveform ->
+            waveformRepository.cachedAudioWaveform(sourceId, track.id, quality, bucketCount)?.let { waveform ->
                 return AudioWaveformServiceResult(
                     waveform = waveform,
                     localAudio = localAudio,
@@ -104,6 +119,7 @@ class AudioWaveformService(
             AudioWaveformAnalysisSource(
                 cacheKey = track.id.value,
                 streamUrl = streamUrl,
+                bucketCount = bucketCount,
             ),
         )
         val storedWaveform = if (waveform != null && sourceId != null && localAudio != null) {

@@ -77,6 +77,7 @@ fun NaviampApp(
     val appColors = if (isDark) DesktopAppColors.Dark else DesktopAppColors.Light
     val colorScheme = if (isDark) darkColorScheme() else lightColorScheme()
     val settingsStore = dependencies.settingsStore
+    val about = remember { loadDesktopAboutUi() }
     val playbackEngine = dependencies.playbackEngine
     val storage = dependencies.storage
     val imageCacheRepository: ImageCacheRepository = dependencies.imageCacheRepository
@@ -114,6 +115,8 @@ fun NaviampApp(
     var cacheSettings by remember {
         mutableStateOf(settingsStore.loadCacheSettings().normalized())
     }
+    dependencies.waveformsEnabledProvider = { cacheSettings.waveformsEnabled }
+    dependencies.waveformBucketCountProvider = { cacheSettings.normalized().waveformBucketCount }
     val playlistEngine = remember(dependencies) {
         dependencies.playlistEngine(
             sourceIdProvider = { connectedSourceId },
@@ -988,6 +991,7 @@ fun NaviampApp(
                             playbackState = playbackState,
                             playbackProgress = playbackProgress,
                             playbackSettings = playbackSettings,
+                            cacheSettings = cacheSettings,
                             sleepTimer = sleepTimer,
                             sleepTimerNowEpochMillis = sleepTimerNowEpochMillis,
                             onPlaybackAction = handleNowPlayingPlaybackAction,
@@ -1003,6 +1007,7 @@ fun NaviampApp(
                             appColors = appColors,
                             appRoute = appRoute,
                             connectionStatus = connectionStatus,
+                            about = about,
                             homeStatus = homeStatus,
                             homeContent = homeContent,
                             sonicHomeDiscoveryRows = sonicHomeDiscoveryController.rows,

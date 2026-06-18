@@ -21,15 +21,26 @@ help:
 	@printf "Android:\n"
 	@printf "  make android-debug       Build debug APK\n"
 	@printf "  make android-release     Build release APK/AAB tasks configured by Gradle\n\n"
+	@printf "  make android-play-release Build signed release AAB for Google Play\n\n"
 	@printf "Android Auto DHU:\n"
 	@printf "  make android-auto-dhu    Install debug APK, start head unit server, and launch DHU\n"
 	@printf "  make android-auto-start  Start head unit server and launch DHU without reinstalling\n"
 	@printf "  make android-auto-logs   Follow Naviamp Android Auto logs\n"
 	@printf "  make android-auto-status Show connected device and package state\n\n"
 	@printf "Verification:\n"
+	@printf "  make version-check       Validate VERSION and VERSION_CODE\n"
+	@printf "  make bump-version PART=patch|minor|major\n"
 	@printf "  make clean               Run Gradle clean\n"
 	@printf "  make clean-generated     Run Gradle clean and remove root generated staging outputs\n"
 	@printf "  make desktop-test        Run desktop tests\n"
+
+.PHONY: version-check
+version-check:
+	scripts/validate-version.sh
+
+.PHONY: bump-version
+bump-version:
+	scripts/bump-version.sh $(or $(PART),patch)
 
 .PHONY: clean
 clean:
@@ -94,7 +105,12 @@ android-debug:
 
 .PHONY: android-release
 android-release:
-	ANDROID_HOME="$(ANDROID_HOME)" $(GRADLE) $(GRADLE_COMMON) :apps:android:assembleRelease
+	ANDROID_HOME="$(ANDROID_HOME)" $(GRADLE) $(GRADLE_COMMON) :apps:android:assembleRelease :apps:android:bundleRelease
+
+.PHONY: android-play-release
+android-play-release:
+	scripts/require-android-signing.sh
+	ANDROID_HOME="$(ANDROID_HOME)" $(GRADLE) $(GRADLE_COMMON) :apps:android:bundleRelease
 
 .PHONY: android-auto-dhu
 android-auto-dhu:

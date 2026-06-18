@@ -21,11 +21,13 @@ class AndroidAudioWaveformStore(
         sourceId: String,
         trackId: TrackId,
         quality: StreamQuality,
+        bucketCount: Int,
     ): AudioWaveform? =
         withContext(Dispatchers.IO) {
             val qualityKey = quality.waveformCacheKey()
             val row = queries.selectCachedAudioWaveform(sourceId, trackId.value, qualityKey).executeAsOneOrNull()
                 ?: return@withContext null
+            if (row.bucket_count.toInt() != bucketCount) return@withContext null
             queries.touchCachedAudioWaveform(nowMillis(), sourceId, trackId.value, qualityKey)
             AudioWaveform(json.decodeFromString<List<Float>>(row.amplitudes_json))
         }

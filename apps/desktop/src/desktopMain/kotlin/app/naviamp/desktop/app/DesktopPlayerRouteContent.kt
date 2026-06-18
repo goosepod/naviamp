@@ -15,6 +15,7 @@ import app.naviamp.domain.playback.SleepTimerState
 import app.naviamp.domain.playback.VisualizerPlaybackEngine
 import app.naviamp.domain.queue.PlaybackQueue
 import app.naviamp.domain.queue.RepeatMode
+import app.naviamp.desktop.settings.CacheSettings
 import app.naviamp.desktop.settings.PlaybackSettings
 import app.naviamp.provider.navidrome.NavidromeProvider
 import app.naviamp.ui.NowPlayingCurrentTrackAction
@@ -49,6 +50,7 @@ internal fun ColumnScope.DesktopPlayerRouteContent(
     playbackState: PlaybackState,
     playbackProgress: PlaybackProgress,
     playbackSettings: PlaybackSettings,
+    cacheSettings: CacheSettings,
     sleepTimer: SleepTimerState?,
     sleepTimerNowEpochMillis: Long,
     onPlaybackAction: (NowPlayingPlaybackActionRequest) -> Unit,
@@ -71,7 +73,7 @@ internal fun ColumnScope.DesktopPlayerRouteContent(
         supportsTrackFavorites = connectedProvider?.capabilities?.supportsTrackFavorites == true,
         supportsTrackRatings = connectedProvider?.capabilities?.supportsTrackRatings == true,
         nowPlayingTrack = nowPlayingTrack,
-        nowPlayingWaveform = nowPlayingController.waveform,
+        nowPlayingWaveform = nowPlayingController.waveform.takeIf { cacheSettings.waveformsEnabled },
         visualizerFrame = nowPlayingPresentation.visualizerFrame,
         selectedVisualizer = nowPlayingPresentation.selectedVisualizer,
         visualizerColors = nowPlayingPresentation.targetBackgroundColors,

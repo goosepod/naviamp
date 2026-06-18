@@ -160,6 +160,8 @@ class AndroidSettingsStore(
             audioCachingEnabled = preferences.getBoolean(KeyAudioCachingEnabled, true),
             offlineModeEnabled = preferences.getBoolean(KeyOfflineModeEnabled, false),
             audioPrefetchDepth = preferences.getInt(KeyAudioPrefetchDepth, CacheSettings().audioPrefetchDepth),
+            waveformsEnabled = preferences.getBoolean(KeyWaveformsEnabled, CacheSettings().waveformsEnabled),
+            waveformBucketCount = preferences.getInt(KeyWaveformBucketCount, CacheSettings().waveformBucketCount),
             maxAudioCacheBytes = preferences.getLong(KeyMaxAudioCacheBytes, CacheSettings().maxAudioCacheBytes),
             maxDownloadBytes = preferences.getLong(KeyMaxDownloadBytes, CacheSettings().maxDownloadBytes),
         ).normalized()
@@ -170,6 +172,8 @@ class AndroidSettingsStore(
             .putBoolean(KeyAudioCachingEnabled, normalized.audioCachingEnabled)
             .putBoolean(KeyOfflineModeEnabled, normalized.offlineModeEnabled)
             .putInt(KeyAudioPrefetchDepth, normalized.audioPrefetchDepth)
+            .putBoolean(KeyWaveformsEnabled, normalized.waveformsEnabled)
+            .putInt(KeyWaveformBucketCount, normalized.waveformBucketCount)
             .putLong(KeyMaxAudioCacheBytes, normalized.maxAudioCacheBytes)
             .putLong(KeyMaxDownloadBytes, normalized.maxDownloadBytes)
             .apply()
@@ -326,6 +330,8 @@ private const val KeyAllowMobileDownloads = "allow_mobile_downloads"
 private const val KeyAudioCachingEnabled = "audio_caching_enabled"
 private const val KeyOfflineModeEnabled = "offline_mode_enabled"
 private const val KeyAudioPrefetchDepth = "audio_prefetch_depth"
+private const val KeyWaveformsEnabled = "waveforms_enabled"
+private const val KeyWaveformBucketCount = "waveform_bucket_count"
 private const val KeyMaxAudioCacheBytes = "max_audio_cache_bytes"
 private const val KeyMaxDownloadBytes = "max_download_bytes"
 private const val KeySelectedVisualizer = "selected_visualizer"

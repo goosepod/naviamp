@@ -11,6 +11,7 @@ import app.naviamp.domain.TrackId
 import app.naviamp.domain.provider.MediaProvider
 import app.naviamp.domain.popular.ArtistPopularTracksRepository
 import app.naviamp.domain.settings.PlaybackSessionSettings
+import app.naviamp.domain.settings.DefaultWaveformBucketCount
 import app.naviamp.domain.source.ConnectionTlsSettings
 import app.naviamp.domain.source.MediaSourceIdentity
 import app.naviamp.domain.source.SavedMediaSource
@@ -77,6 +78,7 @@ interface AudioWaveformCacheRepository {
         sourceId: String,
         trackId: TrackId,
         quality: StreamQuality,
+        bucketCount: Int = DefaultWaveformBucketCount,
     ): AudioWaveform?
 }
 

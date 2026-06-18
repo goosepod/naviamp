@@ -52,6 +52,7 @@ import app.naviamp.domain.provider.PendingProviderAction
 import app.naviamp.domain.provider.PendingProviderActionRepository
 import app.naviamp.domain.radio.RadioDjPreset
 import app.naviamp.domain.radio.RadioDjPresetRepository
+import app.naviamp.domain.settings.DefaultWaveformBucketCount
 import app.naviamp.domain.source.MediaSourceIdentity
 import app.naviamp.domain.source.SavedMediaSource
 import app.naviamp.domain.waveform.AudioWaveform
@@ -297,8 +298,9 @@ class DesktopCache(
         sourceId: String,
         trackId: TrackId,
         quality: StreamQuality,
+        bucketCount: Int,
     ): AudioWaveform? =
-        audioWaveforms.cachedAudioWaveform(sourceId, trackId, quality)
+        audioWaveforms.cachedAudioWaveform(sourceId, trackId, quality, bucketCount)
 
     override suspend fun ensureAudioWaveform(
         sourceId: String,
@@ -312,9 +314,10 @@ class DesktopCache(
         trackId: TrackId,
         quality: StreamQuality,
         analyzer: DomainAudioWaveformAnalyzer = DesktopAudioWaveformAnalyzer(),
+        bucketCount: Int = DefaultWaveformBucketCount,
     ): AudioWaveform? =
         withContext(Dispatchers.IO) {
-            cachedAudioWaveform(sourceId, trackId, quality)?.let { return@withContext it }
+            cachedAudioWaveform(sourceId, trackId, quality, bucketCount)?.let { return@withContext it }
             val audioPath = downloadedAudioFile(sourceId, trackId, quality)?.path
                 ?: cachedAudioFile(sourceId, trackId, quality)?.path
                 ?: return@withContext null
@@ -322,6 +325,7 @@ class DesktopCache(
                 AudioWaveformAnalysisSource(
                     cacheKey = trackId.value,
                     streamUrl = audioPath.toUri().toString(),
+                    bucketCount = bucketCount,
                 ),
             ) ?: return@withContext null
             storeAudioWaveform(

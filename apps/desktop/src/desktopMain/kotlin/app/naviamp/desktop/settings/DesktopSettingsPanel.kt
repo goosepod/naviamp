@@ -51,8 +51,13 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.naviamp.domain.source.SavedMediaSource
 import app.naviamp.domain.settings.ConnectionFormState
+import app.naviamp.domain.settings.DefaultWaveformBucketCount
+import app.naviamp.domain.settings.MaxWaveformBucketCount
+import app.naviamp.domain.settings.MinWaveformBucketCount
 import app.naviamp.desktop.settings.CacheSettings
 import app.naviamp.desktop.settings.PlaybackSettings
+import app.naviamp.ui.NaviampAboutSettingsSection
+import app.naviamp.ui.NaviampAboutUi
 import app.naviamp.ui.NaviampConnectionForm
 import app.naviamp.ui.NaviampPlaybackSettingsSection
 import app.naviamp.ui.NaviampSettingsCategory
@@ -81,6 +86,7 @@ fun DesktopSettingsPanel(
     playbackSettings: PlaybackSettings,
     cacheSettings: CacheSettings,
     cacheStats: StorageCacheStats,
+    about: NaviampAboutUi,
     supportsReplayGain: Boolean,
     supportsGapless: Boolean,
     supportsCrossfade: Boolean,
@@ -189,6 +195,10 @@ fun DesktopSettingsPanel(
                     lastStatusClickMillis = millis
                 },
                 onOpenStatsForNerds = onOpenStatsForNerds,
+            )
+            NaviampSettingsCategory.About -> NaviampAboutSettingsSection(
+                colors = appColors,
+                about = about,
             )
         }
     }
@@ -759,6 +769,32 @@ private fun CacheSettingsSection(
         },
     )
     Text(
+        "Waveforms: ${cacheStats.audioWaveformCount} files, ${cacheStats.audioWaveformBytes.storageBytesLabel()}",
+        color = appColors.secondaryText,
+        fontSize = 12.sp,
+    )
+    Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+        Checkbox(
+            checked = cacheSettings.waveformsEnabled,
+            onCheckedChange = { enabled ->
+                onCacheSettingsChanged(cacheSettings.copy(waveformsEnabled = enabled).normalized())
+            },
+        )
+        Text("Generate track waveforms", color = appColors.secondaryText, fontSize = 12.sp)
+    }
+    DetentIntSettingsSlider(
+        title = "Waveform detail",
+        value = cacheSettings.waveformBucketCount,
+        detents = WaveformBucketCountOptions,
+        snapDistance = 0.12f,
+        enabled = cacheSettings.waveformsEnabled,
+        valueLabel = { count -> "$count steps" },
+        appColors = appColors,
+        onValueChanged = { count ->
+            onCacheSettingsChanged(cacheSettings.copy(waveformBucketCount = count).normalized())
+        },
+    )
+    Text(
         "Downloads: ${cacheStats.downloadCount} files, ${cacheStats.downloadBytes.storageBytesLabel()} used of " +
             cacheSettings.maxDownloadBytes.storageBytesLabel(),
         color = appColors.secondaryText,
@@ -1002,6 +1038,15 @@ private data class AudioCacheBudgetOption(
 )
 
 private val PrefetchDepthOptions = listOf(0, 3, 5, 10, 15, 25)
+
+private val WaveformBucketCountOptions = listOf(
+    MinWaveformBucketCount,
+    DefaultWaveformBucketCount,
+    250,
+    320,
+    400,
+    MaxWaveformBucketCount,
+)
 
 private val AudioCacheBudgetOptions = listOf(
     AudioCacheBudgetOption("512 MB", 512L * 1024L * 1024L),

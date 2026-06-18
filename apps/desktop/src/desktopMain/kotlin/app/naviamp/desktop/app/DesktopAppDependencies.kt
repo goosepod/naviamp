@@ -22,6 +22,9 @@ class DesktopAppDependencies(
     val playbackEngine: PlaybackEngine = DesktopPlaybackEngineFactory.createDefault(),
     val storage: DesktopStorageDependencies = DesktopStorageDependencies(),
 ) {
+    var waveformsEnabledProvider: () -> Boolean = { true }
+    var waveformBucketCountProvider: () -> Int = { app.naviamp.domain.settings.DefaultWaveformBucketCount }
+
     val imageCacheRepository: ImageCacheRepository = storage
 
     val playbackAudioAssets: DesktopPlaybackAudioAssets =
@@ -45,6 +48,8 @@ class DesktopAppDependencies(
             waveformRepository = storage,
             audioAssets = playbackAudioAssets,
             analyzer = DesktopAudioWaveformAnalyzer(),
+            waveformsEnabled = { waveformsEnabledProvider() },
+            waveformBucketCount = { waveformBucketCountProvider() },
             cacheAudioForWaveform = { sourceId, provider, track, quality ->
                 storage.cacheAudioTrack(sourceId, provider, track, quality).path.toPlaybackLocalAudio()
             },

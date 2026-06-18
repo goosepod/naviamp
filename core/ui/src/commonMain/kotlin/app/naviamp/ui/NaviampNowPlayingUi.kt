@@ -1114,9 +1114,9 @@ private fun WaveformScrubber(
             }
 
             val centerY = size.height / 2f
-            val visibleBars = minOf(amplitudes.size, (size.width / 3f).toInt().coerceAtLeast(24))
+            val visibleBars = minOf(amplitudes.size, size.width.toInt().coerceAtLeast(24))
             val step = size.width / visibleBars.toFloat()
-            val strokeWidth = (step * 0.62f).coerceIn(1.2f, 2.4f)
+            val strokeWidth = (step * 0.72f).coerceIn(0.75f, 2.4f)
             val minBarHeight = 2.5f
             val maxBarHeight = size.height * 0.92f
 

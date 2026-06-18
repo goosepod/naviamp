@@ -19,6 +19,7 @@ fun AndroidAppShellContent(
         playbackSettings = state.playbackSettings,
         cacheSettings = state.cacheSettings,
         diagnostics = state.diagnostics,
+        about = state.about,
         supportsReplayGain = state.supportsReplayGain,
         supportsGapless = state.supportsGapless,
         supportsCrossfade = state.supportsCrossfade,

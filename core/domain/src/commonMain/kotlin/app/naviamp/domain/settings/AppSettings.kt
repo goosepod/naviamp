@@ -209,16 +209,23 @@ data class CacheSettings(
     val audioCachingEnabled: Boolean = true,
     val offlineModeEnabled: Boolean = false,
     val audioPrefetchDepth: Int = 10,
+    val waveformsEnabled: Boolean = true,
+    val waveformBucketCount: Int = DefaultWaveformBucketCount,
     val maxAudioCacheBytes: Long = 2L * 1024L * 1024L * 1024L,
     val maxDownloadBytes: Long = 10L * 1024L * 1024L * 1024L,
 ) {
     fun normalized(): CacheSettings =
         copy(
             audioPrefetchDepth = audioPrefetchDepth.coerceIn(0, 25),
+            waveformBucketCount = waveformBucketCount.coerceIn(MinWaveformBucketCount, MaxWaveformBucketCount),
             maxAudioCacheBytes = maxAudioCacheBytes.coerceIn(256L * 1024L * 1024L, 20L * 1024L * 1024L * 1024L),
             maxDownloadBytes = maxDownloadBytes.coerceIn(512L * 1024L * 1024L, 100L * 1024L * 1024L * 1024L),
         )
 }
+
+const val DefaultWaveformBucketCount = 180
+const val MinWaveformBucketCount = 150
+const val MaxWaveformBucketCount = 500
 
 @Serializable
 data class VisualizerSettings(

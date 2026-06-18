@@ -2,10 +2,12 @@ package app.naviamp.domain.waveform
 
 import app.naviamp.domain.bass.BassAudioBackend
 import app.naviamp.domain.bass.BassStreamHandle
+import app.naviamp.domain.settings.DefaultWaveformBucketCount
 
 data class AudioWaveformAnalysisSource(
     val cacheKey: String,
     val streamUrl: String,
+    val bucketCount: Int = DefaultWaveformBucketCount,
 )
 
 interface AudioWaveformAnalyzer {

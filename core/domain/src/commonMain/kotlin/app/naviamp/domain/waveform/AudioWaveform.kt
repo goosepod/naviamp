@@ -1,6 +1,7 @@
 package app.naviamp.domain.waveform
 
 import app.naviamp.domain.StreamQuality
+import app.naviamp.domain.settings.DefaultWaveformBucketCount
 import kotlin.math.ceil
 import kotlin.math.sqrt
 
@@ -133,8 +134,6 @@ private fun normalizeBuckets(buckets: FloatArray): AudioWaveform {
     if (max <= 0f) return AudioWaveform(List(buckets.size) { 0f })
     return AudioWaveform(buckets.map { (it / max).coerceIn(0f, 1f) })
 }
-
-const val DefaultWaveformBucketCount = 180
 
 private const val RmsWeight = 0.82f
 private const val PeakWeight = 0.18f

@@ -11,12 +11,31 @@ plugins {
     alias(libs.plugins.kotlin.serialization)
 }
 
+val naviampVersionName = rootProject.file("VERSION").readText().trim()
+val naviampVersionCode = rootProject.file("VERSION_CODE").readText().trim()
+val naviampNativePackageVersion = nativeDistributionPackageVersion(naviampVersionName)
 val desktopBassPlatform = providers.gradleProperty("naviamp.bass.platform")
     .orElse(desktopNativePlatform())
 val desktopBassVendorDir = desktopBassPlatform.map { platform ->
     layout.projectDirectory.dir("vendor/bass/$platform")
 }
 val generatedDesktopBassResources = layout.buildDirectory.dir("generated/desktopBass")
+val generatedDesktopBuildInfoResources = layout.buildDirectory.dir("generated/desktopBuildInfo")
+val generateDesktopBuildInfo by tasks.registering {
+    val outputFile = generatedDesktopBuildInfoResources.map { it.file("naviamp-build.properties").asFile }
+    outputs.file(outputFile)
+    doLast {
+        outputFile.get().apply {
+            parentFile.mkdirs()
+            writeText(
+                """
+                version=$naviampVersionName
+                buildNumber=$naviampVersionCode
+                """.trimIndent() + "\n",
+            )
+        }
+    }
+}
 val copyDesktopBass by tasks.registering(Copy::class) {
     from(desktopBassVendorDir)
     into(generatedDesktopBassResources.zip(desktopBassPlatform) { resources, platform ->
@@ -102,6 +121,7 @@ kotlin {
     sourceSets {
         val desktopMain by getting {
             resources.srcDir(generatedDesktopBassResources)
+            resources.srcDir(generatedDesktopBuildInfoResources)
 
             dependencies {
                 implementation(project(":core:domain"))
@@ -163,7 +183,7 @@ compose.desktop {
 
         nativeDistributions {
             packageName = "Naviamp"
-            packageVersion = "1.0.0"
+            packageVersion = naviampNativePackageVersion
             appResourcesRootDir.set(generatedDesktopBassAppResources)
             modules("java.net.http", "java.sql")
             targetFormats(TargetFormat.Dmg, TargetFormat.Msi, TargetFormat.Exe)
@@ -180,6 +200,7 @@ compose.desktop {
 
 tasks.matching { it.name == "desktopProcessResources" || it.name == "processDesktopMainResources" }
     .configureEach {
+        dependsOn(generateDesktopBuildInfo)
         dependsOn(copyDesktopBass)
         dependsOn(copyDesktopBassJni)
     }
@@ -285,7 +306,20 @@ fun desktopLibraryName(stem: String, platform: String): String =
         platform.startsWith("windows-") -> "$stem.dll"
         platform.startsWith("macos-") -> "lib$stem.dylib"
         else -> "lib$stem.so"
+}
+
+fun nativeDistributionPackageVersion(version: String): String {
+    val coreVersion = version.substringBefore('-').substringBefore('+')
+    val parts = coreVersion.split(".")
+    require(parts.size == 3) {
+        "VERSION must be major.minor.patch for desktop packaging, got: $version"
     }
+    val major = parts[0].toInt()
+    val minor = parts[1].toInt()
+    val patch = parts[2].toInt()
+    val nativeMajor = major.takeIf { it > 0 } ?: 1
+    return "$nativeMajor.$minor.$patch"
+}
 
 fun desktopCmakeArchitecture(platform: String): String =
     when {

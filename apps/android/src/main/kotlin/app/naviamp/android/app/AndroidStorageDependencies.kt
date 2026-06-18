@@ -55,8 +55,9 @@ class AndroidStorageDependencies(
         sourceId: String,
         trackId: TrackId,
         quality: StreamQuality,
+        bucketCount: Int,
     ): AudioWaveform? =
-        storage.cachedAudioWaveform(sourceId, trackId, quality)
+        storage.cachedAudioWaveform(sourceId, trackId, quality, bucketCount)
 
     override fun mediaSource(sourceId: String): SavedMediaSource? =
         storage.mediaSource(sourceId)

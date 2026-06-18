@@ -1,6 +1,7 @@
 package app.naviamp.android
 
 import android.content.Context
+import android.os.Build
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import app.naviamp.android.playback.AndroidBassLoadReport
@@ -9,6 +10,7 @@ import app.naviamp.domain.Track
 import app.naviamp.domain.playback.EqualizerPlaybackEngine
 import app.naviamp.domain.provider.allKnownTracks
 import app.naviamp.domain.settings.streamQualityForNetwork
+import app.naviamp.ui.NaviampAboutUi
 import app.naviamp.ui.NaviampOfflineDashboardUi
 import app.naviamp.ui.SharedAlbumMixBuilderUi
 import app.naviamp.ui.SharedArtistMixBuilderUi
@@ -91,7 +93,7 @@ fun rememberAndroidAppShellUiState(
             knownTracks = activeQueueForUi,
             repeatMode = repeatMode,
             shuffledUpNextSnapshot = shuffledUpNextSnapshot,
-            waveformByTrackId = waveformByTrackId,
+            waveformByTrackId = if (cacheSettings.waveformsEnabled) waveformByTrackId else emptyMap(),
             audioTagsByTrackId = audioTagsByTrackId,
             lyricsByTrackId = lyricsByTrackId,
             lyricsStatusByTrackId = lyricsStatusByTrackId,
@@ -126,6 +128,7 @@ fun rememberAndroidAppShellUiState(
             playbackSettings = playbackSettings,
             cacheSettings = cacheSettings,
             diagnostics = diagnostics,
+            about = context.androidAboutUi(),
             supportsReplayGain = playbackEngine.supportsReplayGain,
             supportsGapless = playbackEngine.supportsGapless,
             supportsCrossfade = playbackEngine.supportsCrossfade,
@@ -202,3 +205,17 @@ fun rememberAndroidAppShellUiState(
             selectedRoute = selectedRoute,
         )
     }
+
+private fun Context.androidAboutUi(): NaviampAboutUi {
+    val packageInfo = packageManager.getPackageInfo(packageName, 0)
+    val buildNumber = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+        packageInfo.longVersionCode
+    } else {
+        @Suppress("DEPRECATION")
+        packageInfo.versionCode.toLong()
+    }
+    return NaviampAboutUi(
+        version = packageInfo.versionName ?: "Unknown",
+        buildNumber = buildNumber.toString(),
+    )
+}

@@ -42,6 +42,10 @@ import app.naviamp.domain.radio.RadioDjPreset
 import app.naviamp.domain.radio.RadioFamiliarity
 import app.naviamp.domain.radio.RadioArtistRunMode
 import app.naviamp.domain.radio.RadioTuningSettings
+import app.naviamp.domain.settings.CacheSettings
+import app.naviamp.domain.settings.DefaultWaveformBucketCount
+import app.naviamp.domain.settings.MaxWaveformBucketCount
+import app.naviamp.domain.settings.MinWaveformBucketCount
 import app.naviamp.domain.settings.PlaybackSettings
 import app.naviamp.domain.settings.PreviousButtonBehavior
 import app.naviamp.domain.settings.StreamBitrateKbpsOptions
@@ -59,6 +63,13 @@ data class NaviampDiagnosticsSectionUi(
     val rows: List<Pair<String, String>>,
 )
 
+data class NaviampAboutUi(
+    val version: String = "Unknown",
+    val buildNumber: String = "Unknown",
+    val libraries: List<String> = DefaultNaviampLibraries,
+    val changelog: List<String> = DefaultNaviampChangelog,
+)
+
 enum class NaviampSettingsCategory(
     val label: String,
     val subtitle: String,
@@ -69,6 +80,7 @@ enum class NaviampSettingsCategory(
     Cache("Cache", "Audio cache and downloads", NaviampIcons.Downloads),
     LocalData("Local data", "Cache, library, and database", NaviampIcons.Library),
     Diagnostics("Diagnostics", "Stats and debugging", NaviampIcons.Settings),
+    About("About", "Version, libraries, changelog", NaviampIcons.Settings),
 }
 
 @Composable
@@ -77,6 +89,7 @@ fun NaviampSharedSettingsContent(
     playbackSettings: PlaybackSettings,
     cacheSettings: CacheSettings = CacheSettings(),
     diagnostics: NaviampDiagnosticsUi = NaviampDiagnosticsUi(),
+    about: NaviampAboutUi = NaviampAboutUi(),
     onEditConnection: () -> Unit,
     onPlaybackSettingsChanged: (PlaybackSettings) -> Unit,
     onPlaybackSettingsChangedAndRedownload: (PlaybackSettings) -> Unit = onPlaybackSettingsChanged,
@@ -143,6 +156,10 @@ fun NaviampSharedSettingsContent(
                     title = "Diagnostics",
                     diagnostics = diagnostics,
                     emptyText = "Diagnostics will appear after the app initializes.",
+                )
+                NaviampSettingsCategory.About -> NaviampAboutSettingsSection(
+                    colors = colors,
+                    about = about,
                 )
             }
         } ?: run {
@@ -213,6 +230,50 @@ private fun SettingsCategoryRow(
 }
 
 @Composable
+fun NaviampAboutSettingsSection(
+    colors: NaviampColors,
+    about: NaviampAboutUi,
+) {
+    SettingsSectionTitle("About", colors)
+    AboutInfoRow("Version", about.version, colors)
+    AboutInfoRow("Build number", about.buildNumber, colors)
+
+    Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
+        Text("Libraries", color = colors.primaryText, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+        about.libraries.forEach { library ->
+            Text(library, color = colors.secondaryText, fontSize = 12.sp)
+        }
+    }
+
+    Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
+        Text("Changelog", color = colors.primaryText, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+        if (about.changelog.isEmpty()) {
+            Text("Changelog entries will appear here in a future release.", color = colors.secondaryText, fontSize = 12.sp)
+        } else {
+            about.changelog.forEach { entry ->
+                Text(entry, color = colors.secondaryText, fontSize = 12.sp)
+            }
+        }
+    }
+}
+
+@Composable
+private fun AboutInfoRow(
+    label: String,
+    value: String,
+    colors: NaviampColors,
+) {
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        verticalAlignment = Alignment.Top,
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Text(label, color = colors.mutedText, fontSize = 12.sp, modifier = Modifier.weight(0.38f))
+        Text(value, color = colors.primaryText, fontSize = 12.sp, modifier = Modifier.weight(0.62f))
+    }
+}
+
+@Composable
 fun NaviampDiagnosticsSettingsSection(
     colors: NaviampColors,
     title: String = "Diagnostics",
@@ -250,6 +311,23 @@ fun NaviampDiagnosticsSettingsSection(
         }
     }
 }
+
+private val DefaultNaviampLibraries = listOf(
+    "Kotlin Multiplatform",
+    "Compose Multiplatform and Material 3",
+    "kotlinx.coroutines",
+    "kotlinx.serialization",
+    "Ktor",
+    "SQLDelight and SQLite",
+    "BASS audio engine and add-ons",
+    "Skiko and Skia",
+    "Navidrome and OpenSubsonic APIs",
+)
+
+private val DefaultNaviampChangelog = listOf(
+    "Added waveform detail settings with configurable bucket counts.",
+    "Added this About page with version, build, libraries, and changelog details.",
+)
 
 @Composable
 private fun SharedLocalDataActions(
@@ -346,6 +424,30 @@ private fun SharedCacheSettingsSection(
             detents = AudioCacheBudgetOptions,
             onValueChanged = { bytes ->
                 onCacheSettingsChanged(normalized.copy(maxAudioCacheBytes = bytes).normalized())
+            },
+        )
+
+        SettingsSectionTitle("Waveforms", colors)
+        diagnosticRowValue(diagnostics, "Storage", "Waveforms")?.let { value ->
+            Text(value, color = colors.secondaryText, fontSize = 12.sp)
+        }
+        SettingsCheckboxRow(
+            colors = colors,
+            checked = normalized.waveformsEnabled,
+            label = "Generate track waveforms",
+            onCheckedChange = { enabled ->
+                onCacheSettingsChanged(normalized.copy(waveformsEnabled = enabled).normalized())
+            },
+        )
+        DetentIntSettingsSlider(
+            colors = colors,
+            title = "Waveform detail",
+            value = normalized.waveformBucketCount,
+            detents = WaveformBucketCountOptions,
+            enabled = normalized.waveformsEnabled,
+            valueLabel = { count -> "$count steps" },
+            onValueChanged = { count ->
+                onCacheSettingsChanged(normalized.copy(waveformBucketCount = count).normalized())
             },
         )
 
@@ -1433,6 +1535,14 @@ private fun Float.equalizerGainLabel(): String =
 private val CrossfadeDurationOptions = listOf(0, 3, 5, 8, 12)
 private const val NewRadioDjId = "__new_radio_dj__"
 private val PrefetchDepthOptions = listOf(0, 3, 5, 10, 15, 25)
+private val WaveformBucketCountOptions = listOf(
+    MinWaveformBucketCount,
+    DefaultWaveformBucketCount,
+    250,
+    320,
+    400,
+    MaxWaveformBucketCount,
+)
 private val AudioCacheBudgetOptions = listOf(
     256L * 1024L * 1024L,
     512L * 1024L * 1024L,

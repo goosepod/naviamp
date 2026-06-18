@@ -7,6 +7,9 @@ out/
 *.iml
 .DS_Store
 local.properties
+.env.android-signing
+*.jks
+*.keystore
 /.kotlin/
 **/.cxx/
 apps/desktop/vendor/mpv/*/mpv

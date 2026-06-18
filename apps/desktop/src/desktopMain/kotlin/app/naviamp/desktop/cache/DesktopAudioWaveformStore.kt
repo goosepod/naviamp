@@ -22,6 +22,7 @@ class DesktopAudioWaveformStore(
         sourceId: String,
         trackId: TrackId,
         quality: StreamQuality,
+        bucketCount: Int,
     ): AudioWaveform? =
         withContext(Dispatchers.IO) {
             val qualityKey = quality.waveformCacheKey()
@@ -30,6 +31,7 @@ class DesktopAudioWaveformStore(
                 remote_track_id = trackId.value,
                 quality_key = qualityKey,
             ).executeAsOneOrNull() ?: return@withContext null
+            if (row.bucket_count.toInt() != bucketCount) return@withContext null
 
             queries.touchCachedAudioWaveform(nowMillis(), sourceId, trackId.value, qualityKey)
             AudioWaveform(

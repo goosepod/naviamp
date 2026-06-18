@@ -40,6 +40,7 @@ import app.naviamp.domain.sonichome.SonicHomeDiscoveryRows
 import app.naviamp.ui.AlbumMixBuilderContent
 import app.naviamp.ui.ArtistMixBuilderContent
 import app.naviamp.ui.GenreMixBuilderContent
+import app.naviamp.ui.NaviampAboutUi
 import app.naviamp.ui.SharedAlbumMixBuilderUi
 import app.naviamp.ui.SharedArtistMixBuilderUi
 import app.naviamp.ui.SharedGenreMixBuilderUi
@@ -68,6 +69,7 @@ fun ColumnScope.DesktopAppRouteContent(
     appColors: DesktopAppColors,
     appRoute: DesktopAppRoute,
     connectionStatus: String?,
+    about: NaviampAboutUi,
     homeStatus: String?,
     homeContent: HomeContent,
     sonicHomeDiscoveryRows: SonicHomeDiscoveryRows,
@@ -863,6 +865,7 @@ fun ColumnScope.DesktopAppRouteContent(
                     playbackSettings = playbackSettings,
                     cacheSettings = cacheSettings,
                     cacheStats = cacheStats,
+                    about = about,
                     supportsReplayGain = playbackEngine.supportsReplayGain,
                     supportsGapless = playbackEngine.supportsGapless,
                     supportsCrossfade = playbackEngine.supportsCrossfade,

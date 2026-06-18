@@ -14,8 +14,19 @@ env:
   GRADLE_OPTS: -Dorg.gradle.daemon=false -Dorg.gradle.jvmargs=-Xmx4g
 
 jobs:
+  version:
+    name: Validate version
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Validate version files
+        run: scripts/validate-version.sh
+
   android:
     name: Android APK and bundle
+    needs: version
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository
@@ -47,6 +58,7 @@ jobs:
 
   windows:
     name: Windows standalone and installers
+    needs: version
     runs-on: windows-latest
     steps:
       - name: Check out repository
@@ -88,6 +100,7 @@ jobs:
 
   macos:
     name: macOS standalone and DMG
+    needs: version
     runs-on: macos-latest
     steps:
       - name: Check out repository

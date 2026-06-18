@@ -136,10 +136,58 @@ class AudioWaveformServiceTest {
         assertEquals(listOf("source:track:cache/generated.flac"), repository.stored)
     }
 
+    @Test
+    fun doesNotAnalyzeWhenWaveformsAreDisabled() = runTest {
+        val repository = RecordingWaveformRepository()
+        val analyzer = RecordingWaveformAnalyzer(AudioWaveform(listOf(1f)))
+        val service = service(
+            repository = repository,
+            analyzer = analyzer,
+            waveformsEnabled = { false },
+        )
+
+        val result = service.loadOrCreateWaveform(
+            sourceId = "source",
+            provider = FakeMediaProvider(),
+            track = track(),
+            quality = StreamQuality.Original,
+            audioCachingEnabled = true,
+        )
+
+        assertNull(result.waveform)
+        assertEquals(0, analyzer.analyzedUrls.size)
+        assertEquals(0, repository.stored.size)
+    }
+
+    @Test
+    fun passesConfiguredBucketCountToAnalyzerAndCacheLookup() = runTest {
+        val repository = RecordingWaveformRepository()
+        val analyzer = RecordingWaveformAnalyzer(AudioWaveform(List(250) { 0.5f }))
+        val service = service(
+            repository = repository,
+            analyzer = analyzer,
+            waveformBucketCount = { 250 },
+            audioAssets = RecordingAudioAssets(cached = "cache/song.flac"),
+        )
+
+        service.loadOrCreateWaveform(
+            sourceId = "source",
+            provider = FakeMediaProvider(),
+            track = track(),
+            quality = StreamQuality.Original,
+            audioCachingEnabled = true,
+        )
+
+        assertEquals(listOf(250, 250), repository.requestedBucketCounts)
+        assertEquals(listOf(250), analyzer.analyzedBucketCounts)
+    }
+
     private fun service(
         repository: RecordingWaveformRepository,
         analyzer: RecordingWaveformAnalyzer,
         audioAssets: PlaybackAudioAssetRepository = RecordingAudioAssets(),
+        waveformsEnabled: () -> Boolean = { true },
+        waveformBucketCount: () -> Int = { 180 },
         cacheAudioForWaveform: suspend (
             sourceId: String,
             provider: MediaProvider,
@@ -151,6 +199,8 @@ class AudioWaveformServiceTest {
             waveformRepository = repository,
             audioAssets = audioAssets,
             analyzer = analyzer,
+            waveformsEnabled = waveformsEnabled,
+            waveformBucketCount = waveformBucketCount,
             cacheAudioForWaveform = cacheAudioForWaveform,
         )
 
@@ -177,12 +227,17 @@ private class RecordingWaveformRepository(
     private val cached: AudioWaveform? = null,
 ) : AudioWaveformStorageRepository {
     val stored = mutableListOf<String>()
+    val requestedBucketCounts = mutableListOf<Int>()
 
     override suspend fun cachedAudioWaveform(
         sourceId: String,
         trackId: TrackId,
         quality: StreamQuality,
-    ): AudioWaveform? = cached
+        bucketCount: Int,
+    ): AudioWaveform? {
+        requestedBucketCounts += bucketCount
+        return cached
+    }
 
     override suspend fun storeAudioWaveform(
         sourceId: String,
@@ -220,9 +275,11 @@ private class RecordingWaveformAnalyzer(
     private val waveform: AudioWaveform? = null,
 ) : AudioWaveformAnalyzer {
     val analyzedUrls = mutableListOf<String>()
+    val analyzedBucketCounts = mutableListOf<Int>()
 
     override suspend fun analyze(source: AudioWaveformAnalysisSource): AudioWaveform? {
         analyzedUrls += source.streamUrl
+        analyzedBucketCounts += source.bucketCount
         return waveform
     }
 }

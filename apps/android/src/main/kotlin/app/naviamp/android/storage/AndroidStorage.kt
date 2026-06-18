@@ -368,8 +368,9 @@ class AndroidStorage(
         sourceId: String,
         trackId: TrackId,
         quality: StreamQuality,
+        bucketCount: Int,
     ): AudioWaveform? =
-        audioWaveforms.cachedAudioWaveform(sourceId, trackId, quality)
+        audioWaveforms.cachedAudioWaveform(sourceId, trackId, quality, bucketCount)
 
     fun upsertAudioWaveform(
         sourceId: String,

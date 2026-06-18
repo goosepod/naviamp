@@ -15,6 +15,7 @@ import app.naviamp.ui.NaviampLibrarySyncStatusUi
 import app.naviamp.ui.NaviampPlaylistChoiceUi
 import app.naviamp.ui.NaviampVisualizer
 import app.naviamp.ui.DownloadedTrackActionRequest
+import app.naviamp.ui.NaviampAboutUi
 import app.naviamp.ui.NowPlayingCurrentTrackUiActionRequest
 import app.naviamp.ui.NowPlayingDisplayActionRequest
 import app.naviamp.ui.NowPlayingItemActionRequest
@@ -58,6 +59,7 @@ data class AndroidAppShellUiState(
     val playbackSettings: PlaybackSettings,
     val cacheSettings: CacheSettings,
     val diagnostics: NaviampDiagnosticsUi,
+    val about: NaviampAboutUi,
     val supportsReplayGain: Boolean,
     val supportsGapless: Boolean,
     val supportsCrossfade: Boolean,

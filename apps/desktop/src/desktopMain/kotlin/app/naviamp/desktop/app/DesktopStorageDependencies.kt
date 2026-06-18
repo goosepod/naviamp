@@ -49,8 +49,9 @@ class DesktopStorageDependencies(
         sourceId: String,
         trackId: TrackId,
         quality: StreamQuality,
+        bucketCount: Int,
     ): AudioWaveform? =
-        cache.cachedAudioWaveform(sourceId, trackId, quality)
+        cache.cachedAudioWaveform(sourceId, trackId, quality, bucketCount)
 
     override fun mediaSource(sourceId: String): SavedMediaSource? =
         cache.mediaSource(sourceId)
