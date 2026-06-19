@@ -14,6 +14,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import app.naviamp.ui.NaviampPlayerColors
+import app.naviamp.ui.rememberNaviampTypography
 
 @Composable
 internal fun DesktopAppSurface(
@@ -27,7 +28,7 @@ internal fun DesktopAppSurface(
     onCloseStatsForNerds: () -> Unit,
     content: @Composable () -> Unit,
 ) {
-    MaterialTheme(colorScheme = colorScheme) {
+    MaterialTheme(colorScheme = colorScheme, typography = rememberNaviampTypography()) {
         statsForNerdsInfo?.let { info ->
             DesktopStatsForNerdsWindow(
                 appColors = appColors,

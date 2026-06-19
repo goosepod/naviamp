@@ -336,6 +336,7 @@ fun NaviampSharedAppShell(
             onBackground = colors.primaryText,
             onSurface = colors.primaryText,
         ),
+        typography = rememberNaviampTypography(),
     ) {
         Box(
             modifier = Modifier

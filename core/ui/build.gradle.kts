@@ -25,12 +25,18 @@ kotlin {
             implementation("org.jetbrains.compose.material3:material3:$composeMaterial3Version")
             implementation("org.jetbrains.compose.runtime:runtime:$composeVersion")
             implementation("org.jetbrains.compose.ui:ui:$composeVersion")
+            implementation(compose.components.resources)
         }
         jvmTest.dependencies {
             implementation(compose.desktop.currentOs)
             implementation(libs.kotlin.test)
         }
     }
+}
+
+compose.resources {
+    generateResClass = always
+    packageOfResClass = "app.naviamp.ui.generated.resources"
 }
 
 android {
