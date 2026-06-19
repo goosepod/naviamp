@@ -83,6 +83,7 @@ fun NaviampAndroidApp(
     }
     val settingsStore = dependencies.settingsStore
     val savedProviderSource = remember { storage.latestNavidromeSource() }
+    val savedMediaSources = remember { storage.mediaSources() }
     val savedProviderConnection = savedProviderSource?.toNavidromeConnection()
     val savedConnection = remember { settingsStore.loadConnection(savedProviderConnection) }
     val canAutoConnect = savedProviderConnection != null ||
@@ -109,6 +110,8 @@ fun NaviampAndroidApp(
         savedCacheSettings = savedCacheSettings,
         canAutoConnect = canAutoConnect,
         savedSourceId = savedProviderSource?.id,
+        initialSavedMediaSources = savedMediaSources,
+        initialSavedConnectionForLogin = savedProviderConnection,
         initialStorageStats = storage.stats(),
         initialOpenNowPlayingRequest = openNowPlayingRequest,
         initialAutoPlayMediaIdRequest = autoPlayMediaIdRequest,
@@ -338,15 +341,15 @@ fun NaviampAndroidApp(
         )
     }
 
-    val connectionSessionController = remember(appState, storage, settingsStore, savedProviderConnection) {
+    val connectionSessionController = remember(appState, storage, settingsStore, playbackQueueController) {
         AndroidConnectionSessionController(
             scope = scope,
             state = appState,
             storage = storage,
             settingsStore = settingsStore,
-            savedProviderConnection = savedProviderConnection,
             savedConnection = savedConnection,
             playbackEngine = playbackEngine,
+            queueController = playbackQueueController,
             preloadPlaylistTracks = playlistActionController::preloadPlaylistTracks,
             loadRelatedTracks = mediaAppController::loadRelatedTracks,
             startAndroidLibrarySync = { force -> startAndroidLibrarySync(scope, appState, storage, force) },

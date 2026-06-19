@@ -35,9 +35,11 @@ import app.naviamp.domain.queue.RepeatMode
 import app.naviamp.domain.settings.ConnectionFormState
 import app.naviamp.domain.settings.CacheSettings
 import app.naviamp.domain.settings.PlaybackSettings
+import app.naviamp.domain.source.SavedMediaSource
 import app.naviamp.domain.sonichome.SonicHomeDiscoveryRows
 import app.naviamp.domain.waveform.AudioWaveform
 import app.naviamp.provider.navidrome.NavidromeProvider
+import app.naviamp.provider.navidrome.NavidromeConnection
 import app.naviamp.provider.navidrome.NavidromeTlsSettings
 import app.naviamp.ui.NaviampVisualizer
 import app.naviamp.ui.SharedPlaylistSortMode
@@ -52,6 +54,8 @@ class AndroidAppState(
     savedCacheSettings: CacheSettings,
     canAutoConnect: Boolean,
     savedSourceId: String?,
+    initialSavedMediaSources: List<SavedMediaSource>,
+    initialSavedConnectionForLogin: NavidromeConnection?,
     initialStorageStats: StorageCacheStats,
     initialOpenNowPlayingRequest: Int,
     initialAutoPlayMediaIdRequest: String?,
@@ -89,6 +93,8 @@ class AndroidAppState(
     var isLibrarySyncing by mutableStateOf(false)
     var editingConnection by mutableStateOf(false)
     var restoringConnection by mutableStateOf(canAutoConnect)
+    var savedMediaSources by mutableStateOf(initialSavedMediaSources)
+    var savedConnectionForLogin by mutableStateOf(initialSavedConnectionForLogin)
     var navigationState by mutableStateOf(NaviampNavigationState())
     val selectedRoute: SharedRoute get() = navigationState.route.toSharedRoute()
     var provider by mutableStateOf<NavidromeProvider?>(null)
@@ -174,6 +180,8 @@ fun rememberAndroidAppState(
     savedCacheSettings: CacheSettings,
     canAutoConnect: Boolean,
     savedSourceId: String?,
+    initialSavedMediaSources: List<SavedMediaSource>,
+    initialSavedConnectionForLogin: NavidromeConnection?,
     initialStorageStats: StorageCacheStats,
     initialOpenNowPlayingRequest: Int,
     initialAutoPlayMediaIdRequest: String?,
@@ -187,6 +195,8 @@ fun rememberAndroidAppState(
             savedCacheSettings = savedCacheSettings,
             canAutoConnect = canAutoConnect,
             savedSourceId = savedSourceId,
+            initialSavedMediaSources = initialSavedMediaSources,
+            initialSavedConnectionForLogin = initialSavedConnectionForLogin,
             initialStorageStats = initialStorageStats,
             initialOpenNowPlayingRequest = initialOpenNowPlayingRequest,
             initialAutoPlayMediaIdRequest = initialAutoPlayMediaIdRequest,

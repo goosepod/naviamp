@@ -11,6 +11,7 @@ import app.naviamp.domain.playback.EqualizerPlaybackEngine
 import app.naviamp.domain.provider.allKnownTracks
 import app.naviamp.domain.settings.streamQualityForNetwork
 import app.naviamp.ui.NaviampAboutUi
+import app.naviamp.ui.NaviampSavedConnectionUi
 import app.naviamp.ui.NaviampOfflineDashboardUi
 import app.naviamp.ui.SharedAlbumMixBuilderUi
 import app.naviamp.ui.SharedArtistMixBuilderUi
@@ -125,6 +126,16 @@ fun rememberAndroidAppShellUiState(
             editingConnection = editingConnection,
             restoringConnection = restoringConnection,
             connectionForm = shellModels.connectionForm,
+            savedConnections = savedMediaSources.map { source ->
+                NaviampSavedConnectionUi(
+                    id = source.id,
+                    displayName = source.displayName,
+                    serverUrl = source.baseUrl,
+                    username = source.username,
+                    current = source.id == activeSourceId,
+                )
+            },
+            hasSavedConnection = savedConnectionForLogin != null,
             playbackSettings = playbackSettings,
             cacheSettings = cacheSettings,
             diagnostics = diagnostics,

@@ -35,6 +35,22 @@ internal fun androidMainShellActions(
         settingsStore = settingsStore,
         handleConnectionFormChanged = settingsMaintenanceController::handleConnectionFormChanged,
         connectToNavidrome = connectionSessionController::connectToNavidrome,
+        handleNewConnection = connectionSessionController::openNewConnectionForm,
+        handleEditSavedConnection = { connection ->
+            state.savedMediaSources.firstOrNull { it.id == connection.id }
+                ?.let(connectionSessionController::openSavedConnectionForm)
+                ?: run { state.status = "Connection not found." }
+        },
+        handleConnectSavedConnection = { connection ->
+            state.savedMediaSources.firstOrNull { it.id == connection.id }
+                ?.let(connectionSessionController::connectSavedConnection)
+                ?: run { state.status = "Connection not found." }
+        },
+        handleDeleteSavedConnection = { connection ->
+            state.savedMediaSources.firstOrNull { it.id == connection.id }
+                ?.let(connectionSessionController::deleteConnection)
+                ?: run { state.status = "Connection not found." }
+        },
         handlePlaybackSettingsChanged = settingsMaintenanceController::handlePlaybackSettingsChanged,
         handlePlaybackSettingsChangedAndRedownload = settingsMaintenanceController::handlePlaybackSettingsChangedAndRedownload,
         handleCacheSettingsChanged = settingsMaintenanceController::handleCacheSettingsChanged,
