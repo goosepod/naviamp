@@ -33,6 +33,91 @@ Add pull-to-refresh gestures on these top-level pages:
 - Refresh errors surface through the existing status/error UI for that page.
 - Existing scroll position is preserved when the refreshed content still supports it.
 
+## Mixes For You Starts Playback
+
+Status: Not started.
+
+Fix the Mixes For You cards on the home page so selecting one starts the intended generated mix instead of opening an album detail view.
+
+### Current Behavior
+
+Selecting a Mixes For You item currently navigates into an album. These cards used to start playback for the generated mix directly.
+
+### Desired Behavior
+
+Selecting a Mixes For You card should start playing the generated mix it represents. It should not route to an album unless the user explicitly chooses an album-specific action elsewhere.
+
+### Notes
+
+- Confirm whether this is a shared route/action mapping regression or a platform-specific event handling issue.
+- Preserve any existing queue-building behavior that previously powered these mixes.
+- Verify that the selected mix populates the queue with the expected related tracks and starts playback immediately.
+- Keep behavior consistent across Android and desktop if the home page uses shared UI/action plumbing.
+
+### Acceptance Criteria
+
+- Selecting each Mixes For You item starts playback for that generated mix.
+- Selection does not open an unrelated album detail page.
+- The resulting queue represents the selected mix type and source item.
+- The behavior works on both Android and desktop where Mixes For You is available.
+
+## Mix Builder Artwork
+
+Status: Not started.
+
+Replace the plain grey boxes under Mix Builders on the home page with richer icon artwork that makes each builder easier to identify at a glance.
+
+### Current Behavior
+
+Mix Builder rows use simple grey placeholder boxes, which makes the section feel unfinished compared with the rest of the app.
+
+### Desired Behavior
+
+Each Mix Builder item should have a distinct icon treatment with Naviamp-appropriate color, shape, and gradient styling. The result should feel closer to Plexamp's simple, polished mix/radio icon language without copying it directly.
+
+### Notes
+
+- Create distinct treatments for Artist Mix Builder, Album Mix Builder, Library Radio, Deep Cuts Radio, Time Travel Radio, Random Album Radio, Genre Radio, Style Radio, and any other builder rows in the same group.
+- Prefer reusable generated/vector assets or shared composables over one-off placeholder boxes.
+- Use gradients and icon silhouettes sparingly so the artwork stays readable at small row sizes.
+- Keep colors compatible with the app's dark presentation and album-art-derived backgrounds.
+- Avoid making the icons look like tappable buttons separate from the row action.
+
+### Acceptance Criteria
+
+- Every Mix Builder row has a distinct non-placeholder icon.
+- Icons remain legible at the current row size on desktop and Android.
+- The styling feels coherent with Naviamp's existing visual language.
+- The icons do not introduce layout shifts, clipping, or low-contrast states.
+
+## Now Playing Bottom Controls Stay Visible
+
+Status: Not started.
+
+Fix the Now Playing screen so the bottom row of icons keeps a stable size and remains visible as the desktop window is resized.
+
+### Current Behavior
+
+When the desktop window height changes, the bottom row of Now Playing icons shrinks and can disappear. This affects controls such as the radio/visualizer/queue/menu icons shown along the bottom of the Now Playing panel.
+
+### Desired Behavior
+
+The bottom icon row should have a stable touch/click target size and should always remain visible. Resizing the window should compress flexible content above the controls, not shrink or hide the controls themselves.
+
+### Notes
+
+- Treat the controls as fixed-size chrome within the Now Playing layout.
+- Audit the vertical sizing priorities around album art, waveform, track metadata, rating, volume, transport controls, and the bottom action row.
+- The screenshots from June 19, 2026 show the bottom icons shrinking and disappearing as the window gets shorter.
+- Preserve usability on both compact and roomy desktop window sizes.
+
+### Acceptance Criteria
+
+- Bottom Now Playing icons keep the same visual size while resizing the desktop window.
+- The bottom icon row remains visible at the supported minimum desktop window height.
+- Other content adapts without overlapping the controls.
+- Hit targets remain large enough to use reliably.
+
 ## Synced Lyrics Current-Line Position
 
 Adjust the synced lyrics panel so the current lyric line is visually centered in the seven-line display.
