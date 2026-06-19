@@ -224,6 +224,10 @@ class DesktopAppActions(
         homeAlbums().firstOrNull { it.id.value == itemId }?.let(::openAlbumDetails)
     }
 
+    fun playHomeMixAlbum(itemId: String) {
+        homeContent().mixAlbums.firstOrNull { it.id.value == itemId }?.let(::playAlbumRadio)
+    }
+
     fun toggleHomeAlbumFavorite(itemId: String) {
         homeAlbums().firstOrNull { it.id.value == itemId }?.let(::toggleAlbumFavorite)
     }

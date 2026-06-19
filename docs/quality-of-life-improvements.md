@@ -35,7 +35,7 @@ Add pull-to-refresh gestures on these top-level pages:
 
 ## Mixes For You Starts Playback
 
-Status: Not started.
+Status: Done.
 
 Fix the Mixes For You cards on the home page so selecting one starts the intended generated mix instead of opening an album detail view.
 
@@ -63,7 +63,7 @@ Selecting a Mixes For You card should start playing the generated mix it represe
 
 ## Mix Builder Artwork
 
-Status: Not started.
+Status: Done.
 
 Replace the plain grey boxes under Mix Builders on the home page with richer icon artwork that makes each builder easier to identify at a glance.
 

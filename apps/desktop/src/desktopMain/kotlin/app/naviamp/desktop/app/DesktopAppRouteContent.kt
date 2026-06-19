@@ -389,7 +389,7 @@ fun ColumnScope.DesktopAppRouteContent(
                     home = sharedHome,
                     onAlbumSelected = { item -> appActions.openHomeAlbum(item.id) },
                     onAlbumFavoriteToggled = { item -> appActions.toggleHomeAlbumFavorite(item.id) },
-                    onMixAlbumSelected = { item -> appActions.openHomeAlbum(item.id) },
+                    onMixAlbumSelected = { item -> appActions.playHomeMixAlbum(item.id) },
                     onPlaylistSelected = { item -> appActions.openHomePlaylist(item.id) },
                     onRecentRadioSelected = { item -> appActions.playHomeRecentRadio(item.id) },
                     onInternetRadioStationSelected = { item -> appActions.playHomeInternetRadio(item.id) },

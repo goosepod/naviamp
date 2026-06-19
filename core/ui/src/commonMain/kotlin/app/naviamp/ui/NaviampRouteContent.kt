@@ -4,6 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -26,7 +27,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -191,19 +194,99 @@ private fun MixBuilderSection(
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
         SectionHeader("MIX BUILDERS", colors)
         builders.forEach { builder ->
-            SharedMediaRow(
-                item = SharedMediaItemUi(
-                    id = builder.id,
-                    title = builder.title,
-                    subtitle = builder.subtitle,
-                ),
+            MixBuilderRow(
+                builder = builder,
                 colors = colors,
                 onClick = { onBuilderSelected(builder) },
-                itemKind = SharedMediaItemKind.MixBuilder,
             )
         }
     }
 }
+
+@Composable
+private fun MixBuilderRow(
+    builder: SharedMixBuilderUi,
+    colors: NaviampColors,
+    onClick: () -> Unit,
+) {
+    val artwork = mixBuilderArtwork(builder.id)
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(5.dp))
+            .background(Color.Black.copy(alpha = 0.12f))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 8.dp, vertical = 7.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Box(
+            contentAlignment = Alignment.Center,
+            modifier = Modifier
+                .size(34.dp)
+                .clip(RoundedCornerShape(5.dp))
+                .background(Brush.linearGradient(artwork.colors)),
+        ) {
+            Icon(
+                imageVector = artwork.icon,
+                contentDescription = null,
+                tint = Color.White,
+                modifier = Modifier.size(20.dp),
+            )
+        }
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(
+                builder.title,
+                color = colors.primaryText,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(
+                builder.subtitle,
+                color = colors.secondaryText,
+                fontSize = 11.sp,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+        Text(">", color = colors.mutedText, fontSize = 16.sp)
+    }
+}
+
+private data class MixBuilderArtwork(
+    val icon: ImageVector,
+    val colors: List<Color>,
+)
+
+private fun mixBuilderArtwork(id: String): MixBuilderArtwork =
+    when (id) {
+        "artist" -> MixBuilderArtwork(
+            icon = NaviampIcons.Brain,
+            colors = listOf(Color(0xFFB45CFF), Color(0xFF315BFF)),
+        )
+        "album" -> MixBuilderArtwork(
+            icon = NaviampIcons.Library,
+            colors = listOf(Color(0xFFFFA726), Color(0xFFDE3B79)),
+        )
+        "genre" -> MixBuilderArtwork(
+            icon = NaviampTransportIcons.Radio,
+            colors = listOf(Color(0xFF1BC779), Color(0xFF167BC2)),
+        )
+        "sonic-path" -> MixBuilderArtwork(
+            icon = NaviampIcons.Brain,
+            colors = listOf(Color(0xFF00C2FF), Color(0xFF7655FF)),
+        )
+        "sonic-mix" -> MixBuilderArtwork(
+            icon = NaviampIcons.Turntable,
+            colors = listOf(Color(0xFFFF5F6D), Color(0xFFFFC371)),
+        )
+        else -> MixBuilderArtwork(
+            icon = NaviampTransportIcons.Radio,
+            colors = listOf(Color(0xFF607D8B), Color(0xFF37474F)),
+        )
+    }
 
 @Composable
 internal fun SearchContent(
