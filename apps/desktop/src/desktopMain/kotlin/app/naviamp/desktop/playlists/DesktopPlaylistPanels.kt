@@ -64,6 +64,7 @@ fun DesktopPlaylistsPanel(
     coverArtUrl: (String?) -> String?,
     onSortModeChanged: (DesktopPlaylistSortMode) -> Unit,
     onPlaylistAction: (SharedMediaItemActionRequest) -> Unit,
+    onRefreshPlaylists: () -> Unit,
     onSmartPlaylistSave: suspend (SmartPlaylistDefinition) -> Unit,
     onSmartPlaylistUpdate: suspend (Playlist, SmartPlaylistDefinition) -> Unit,
     onSmartPlaylistLoad: suspend (Playlist) -> SmartPlaylistDefinition,
@@ -123,6 +124,10 @@ fun DesktopPlaylistsPanel(
                         modifier = Modifier.height(34.dp),
                     )
                 }
+                DesktopPageOverflowMenu(
+                    appColors = appColors,
+                    onRefresh = onRefreshPlaylists,
+                )
             }
         }
         status?.let {

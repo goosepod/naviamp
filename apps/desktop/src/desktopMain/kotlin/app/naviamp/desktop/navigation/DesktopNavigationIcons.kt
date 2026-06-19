@@ -24,4 +24,5 @@ object DesktopNavigationIcons {
     val InternetRadio = NaviampIcons.InternetRadio
     val Alphabetical = NaviampIcons.Alphabetical
     val Clock = NaviampIcons.Clock
+    val Refresh = NaviampIcons.Refresh
 }

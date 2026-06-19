@@ -66,7 +66,18 @@ fun DesktopLibraryPanel(
         verticalArrangement = Arrangement.spacedBy(4.dp),
         modifier = Modifier.fillMaxSize(),
     ) {
-        Text("Library", color = appColors.primaryText, style = MaterialTheme.typography.titleMedium)
+        Row(
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Text("Library", color = appColors.primaryText, style = MaterialTheme.typography.titleMedium)
+            DesktopPageOverflowMenu(
+                appColors = appColors,
+                onRefresh = onRefreshLibrary,
+                refreshEnabled = !isSyncing,
+            )
+        }
 
         status?.let { message ->
             Row(

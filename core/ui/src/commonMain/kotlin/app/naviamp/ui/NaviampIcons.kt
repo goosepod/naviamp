@@ -165,6 +165,20 @@ object NaviampIcons {
         moveTo(18f, 6f)
         lineTo(6f, 18f)
     }
+    val Refresh = icon("Refresh") {
+        moveTo(19f, 8f)
+        curveTo(17.7f, 5.6f, 15.1f, 4f, 12f, 4f)
+        curveTo(8.8f, 4f, 6.1f, 5.9f, 4.9f, 8.6f)
+        moveTo(19f, 4.8f)
+        lineTo(19f, 8f)
+        lineTo(15.8f, 8f)
+        moveTo(5f, 16f)
+        curveTo(6.3f, 18.4f, 8.9f, 20f, 12f, 20f)
+        curveTo(15.2f, 20f, 17.9f, 18.1f, 19.1f, 15.4f)
+        moveTo(5f, 19.2f)
+        lineTo(5f, 16f)
+        lineTo(8.2f, 16f)
+    }
     val Plus = icon("Plus") {
         moveTo(12f, 5f)
         lineTo(12f, 19f)

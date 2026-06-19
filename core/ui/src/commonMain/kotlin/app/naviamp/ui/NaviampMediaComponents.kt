@@ -1203,6 +1203,7 @@ fun InternetRadioContent(
     status: String?,
     onStationAction: (StationRowActionRequest) -> Unit,
     onSaveStation: ((InternetRadioStation) -> Unit)? = null,
+    headerActions: @Composable RowScope.() -> Unit = {},
 ) {
     var stationBeingEdited by remember { mutableStateOf<InternetRadioStation?>(null) }
     var stationBeingDeleted by remember { mutableStateOf<InternetRadioStation?>(null) }
@@ -1226,10 +1227,13 @@ fun InternetRadioContent(
             modifier = Modifier.fillMaxWidth(),
         ) {
             Text("Internet Radio", color = colors.primaryText, fontSize = 20.sp, fontWeight = FontWeight.Bold)
-            if (onSaveStation != null) {
-                Button(onClick = { creatingStation = true }, modifier = Modifier.height(34.dp)) {
-                    Text("New station", fontSize = 12.sp)
+            Row(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
+                if (onSaveStation != null) {
+                    Button(onClick = { creatingStation = true }, modifier = Modifier.height(34.dp)) {
+                        Text("New station", fontSize = 12.sp)
+                    }
                 }
+                headerActions()
             }
         }
         status?.let { Text(it, color = colors.secondaryText, fontSize = 12.sp) }

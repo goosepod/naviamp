@@ -500,6 +500,7 @@ fun ColumnScope.DesktopAppRouteContent(
                             .firstOrNull { playlist -> playlist.id == request.item.id }
                             ?.let { playlist -> handlePlaylistMediaAction(request.action, playlist, request.shuffle) }
                     },
+                    onRefreshPlaylists = { playlistsController.refreshPlaylists(useCache = false) },
                     onSmartPlaylistSave = smartPlaylistsController::saveSmartPlaylist,
                     onSmartPlaylistUpdate = smartPlaylistsController::updateSmartPlaylist,
                     onSmartPlaylistLoad = smartPlaylistsController::loadSmartPlaylistDefinition,
@@ -825,6 +826,7 @@ fun ColumnScope.DesktopAppRouteContent(
                             }
                         },
                         onSaveStation = onSaveInternetRadioStation,
+                        onRefreshStations = internetRadioController::refreshStations,
                     )
                 }
                 DesktopAppRoute.Downloads -> DesktopDownloadsRoute(

@@ -12,6 +12,7 @@ fun DesktopInternetRadioPanel(
     status: String?,
     onStationAction: (StationRowActionRequest) -> Unit,
     onSaveStation: (InternetRadioStation) -> Unit,
+    onRefreshStations: () -> Unit,
 ) {
     InternetRadioContent(
         colors = appColors,
@@ -19,5 +20,11 @@ fun DesktopInternetRadioPanel(
         status = status,
         onStationAction = onStationAction,
         onSaveStation = onSaveStation,
+        headerActions = {
+            DesktopPageOverflowMenu(
+                appColors = appColors,
+                onRefresh = onRefreshStations,
+            )
+        },
     )
 }
