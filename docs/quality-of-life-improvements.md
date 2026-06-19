@@ -221,6 +221,8 @@ Visualizer motion should feel smooth and continuous during normal playback. The 
 
 ## Configurable Download Path
 
+Status: Done.
+
 Let users choose where downloaded tracks are stored instead of always using Naviamp's default app/cache location.
 
 ### Goals

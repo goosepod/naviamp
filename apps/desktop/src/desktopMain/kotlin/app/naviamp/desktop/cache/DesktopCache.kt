@@ -80,7 +80,7 @@ class DesktopCache(
     private val maxAudioWaveformCacheBytes: Long = 32L * 1024L * 1024L,
     private val maxHotImageBytes: Long = 32L * 1024L * 1024L,
     private val audioCacheDirectory: Path = defaultAudioCacheDirectory(),
-    private val downloadDirectory: Path = defaultDownloadDirectory(),
+    private var downloadDirectory: Path = DesktopDownloadDirectories.defaultDirectory(),
 ) : ImageCacheRepository,
     ProviderResponseCacheRepository,
     AudioCacheRepository<CachedAudioFile, CachedAudioMetadata>,
@@ -157,8 +157,9 @@ class DesktopCache(
         store = DesktopAudioByteStore(audioCacheDirectory),
         httpClient = httpClient,
     )
+    private val downloadAudioByteStore = DesktopMutableAudioByteStore(downloadDirectory)
     private val downloadAudioByteStoreService = AudioByteStoreService(
-        store = DesktopAudioByteStore(downloadDirectory),
+        store = downloadAudioByteStore,
         httpClient = httpClient,
     )
     private val audioStore = DesktopAudioStore(
@@ -260,6 +261,15 @@ class DesktopCache(
         maxAudioCacheBytes = maxBytes.coerceAtLeast(0)
         audioStore.updateAudioCacheLimit(maxBytes)
     }
+
+    fun updateDownloadDirectory(directory: Path) {
+        val normalizedDirectory = DesktopDownloadDirectories.prepare(directory)
+        downloadDirectory = normalizedDirectory
+        downloadAudioByteStore.updateDirectory(normalizedDirectory)
+    }
+
+    fun downloadDirectory(): Path =
+        downloadDirectory
 
     override fun cachedAudioMetadata(
         sourceId: String,
@@ -617,8 +627,8 @@ class DesktopCache(
     }
 
     override fun clearDownloadData() {
-        maintenance.clearDownloadDataRows()
         clearDownloadFiles()
+        maintenance.clearDownloadDataRows()
     }
 
     override fun clearLibraryData(sourceId: String?) {
@@ -684,12 +694,29 @@ class DesktopCache(
     }
 
     private fun clearDownloadFiles() {
-        fileTreeCleaner.clearDirectoryContents(downloadDirectory)
+        queries.selectAllDownloadedAudio().executeAsList().forEach { row ->
+            fileTreeCleaner.deleteFile(Path.of(row.file_path))
+        }
     }
 }
 
 object DesktopCaches {
     val session = DesktopCache()
+}
+
+object DesktopDownloadDirectories {
+    fun defaultDirectory(): Path =
+        defaultDownloadDirectory()
+
+    fun fromSetting(path: String?): Path =
+        path?.takeIf { it.isNotBlank() }?.let { Path.of(it) } ?: defaultDirectory()
+
+    fun prepare(directory: Path): Path {
+        Files.createDirectories(directory)
+        require(Files.isDirectory(directory)) { "Download path is not a directory." }
+        require(Files.isWritable(directory)) { "Download path is not writable." }
+        return directory.toAbsolutePath().normalize()
+    }
 }
 
 data class CachedAudioFile(
@@ -1005,6 +1032,28 @@ private class DesktopAudioByteStore(
 
     override fun deleteAudioBytes(filePath: String) {
         Files.deleteIfExists(Path.of(filePath))
+    }
+}
+
+private class DesktopMutableAudioByteStore(
+    initialDirectory: Path,
+) : AudioByteStore {
+    @Volatile
+    private var store = DesktopAudioByteStore(initialDirectory)
+
+    fun updateDirectory(directory: Path) {
+        store = DesktopAudioByteStore(directory)
+    }
+
+    override suspend fun writeAudioBytes(
+        fileName: String,
+        errorMessage: String,
+        writeBytes: suspend (AudioByteWriter) -> Boolean,
+    ): StoredAudioBytes =
+        store.writeAudioBytes(fileName, errorMessage, writeBytes)
+
+    override fun deleteAudioBytes(filePath: String) {
+        store.deleteAudioBytes(filePath)
     }
 }
 

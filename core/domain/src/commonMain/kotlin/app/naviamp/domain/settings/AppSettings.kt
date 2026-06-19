@@ -213,6 +213,7 @@ data class CacheSettings(
     val waveformBucketCount: Int = DefaultWaveformBucketCount,
     val maxAudioCacheBytes: Long = 2L * 1024L * 1024L * 1024L,
     val maxDownloadBytes: Long = 10L * 1024L * 1024L * 1024L,
+    val customDownloadDirectory: String? = null,
 ) {
     fun normalized(): CacheSettings =
         copy(
@@ -220,6 +221,7 @@ data class CacheSettings(
             waveformBucketCount = waveformBucketCount.coerceIn(MinWaveformBucketCount, MaxWaveformBucketCount),
             maxAudioCacheBytes = maxAudioCacheBytes.coerceIn(256L * 1024L * 1024L, 20L * 1024L * 1024L * 1024L),
             maxDownloadBytes = maxDownloadBytes.coerceIn(512L * 1024L * 1024L, 100L * 1024L * 1024L * 1024L),
+            customDownloadDirectory = customDownloadDirectory?.trim()?.takeIf { it.isNotEmpty() },
         )
 }
 

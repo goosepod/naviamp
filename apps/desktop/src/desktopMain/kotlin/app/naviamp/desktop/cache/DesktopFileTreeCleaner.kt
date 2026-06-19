@@ -5,6 +5,12 @@ import java.nio.file.Path
 import kotlin.io.path.exists
 
 class DesktopFileTreeCleaner {
+    fun deleteFile(path: Path) {
+        runCatching {
+            Files.deleteIfExists(path)
+        }
+    }
+
     fun clearDirectoryContents(directory: Path) {
         runCatching {
             if (!directory.exists()) return@runCatching

@@ -24,6 +24,7 @@ import app.naviamp.domain.home.HomeLibraryRepository
 import app.naviamp.domain.radio.RadioDjPresetRepository
 import app.naviamp.domain.source.SavedMediaSource
 import app.naviamp.domain.waveform.AudioWaveform
+import java.nio.file.Path
 
 class DesktopStorageDependencies(
     private val cache: DesktopCache = DesktopCaches.session,
@@ -58,6 +59,13 @@ class DesktopStorageDependencies(
 
     fun libraryOffsetForLetter(sourceId: String, tab: DesktopLibraryTab, letter: Char): Long =
         cache.libraryOffsetForLetter(sourceId, tab, letter)
+
+    fun updateDownloadDirectory(directory: Path) {
+        cache.updateDownloadDirectory(directory)
+    }
+
+    fun downloadDirectory(): Path =
+        cache.downloadDirectory()
 
     fun asHomeLibraryRepository(): HomeLibraryRepository =
         object : HomeLibraryRepository {

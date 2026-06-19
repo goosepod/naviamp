@@ -841,6 +841,10 @@ FROM downloaded_audio
 WHERE source_id = ?
 ORDER BY downloaded_audio.downloaded_at_epoch_millis DESC;
 
+selectAllDownloadedAudio:
+SELECT *
+FROM downloaded_audio;
+
 upsertDownloadedAudio:
 INSERT OR REPLACE INTO downloaded_audio(
   source_id,

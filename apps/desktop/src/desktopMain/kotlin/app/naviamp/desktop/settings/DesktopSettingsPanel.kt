@@ -62,6 +62,10 @@ import app.naviamp.ui.NaviampConnectionForm
 import app.naviamp.ui.NaviampPlaybackSettingsSection
 import app.naviamp.ui.NaviampSettingsCategory
 import app.naviamp.ui.storageBytesLabel
+import java.awt.FileDialog
+import java.awt.Frame
+import java.io.File
+import javax.swing.JFileChooser
 import kotlin.math.abs
 import kotlin.math.roundToInt
 
@@ -730,6 +734,7 @@ private fun CacheSettingsSection(
     cacheStats: StorageCacheStats,
     onCacheSettingsChanged: (CacheSettings) -> Unit,
 ) {
+    var downloadPathStatus by remember { mutableStateOf<String?>(null) }
     SettingsSectionTitle("Cache", appColors)
     Text(
         "Audio cache: ${cacheStats.audioCount} files, ${cacheStats.audioBytes.storageBytesLabel()} used of " +
@@ -800,6 +805,63 @@ private fun CacheSettingsSection(
         color = appColors.secondaryText,
         fontSize = 12.sp,
     )
+    Text(
+        "Download location",
+        color = appColors.primaryText,
+        fontSize = 13.sp,
+        fontWeight = FontWeight.SemiBold,
+    )
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        val effectiveDownloadDirectory = cacheSettings.customDownloadDirectory
+            ?: DesktopDownloadDirectories.defaultDirectory().toString()
+        Text(
+            effectiveDownloadDirectory,
+            color = appColors.secondaryText,
+            fontSize = 12.sp,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f),
+        )
+        TextButton(
+            onClick = {
+                chooseDownloadDirectory(effectiveDownloadDirectory)?.let { selected ->
+                    runCatching {
+                        DesktopDownloadDirectories.prepare(selected.toPath())
+                    }.onSuccess { directory ->
+                        downloadPathStatus = null
+                        onCacheSettingsChanged(
+                            cacheSettings.copy(customDownloadDirectory = directory.toString()).normalized(),
+                        )
+                    }.onFailure { error ->
+                        downloadPathStatus = error.message ?: "Could not use that download location."
+                    }
+                }
+            },
+        ) {
+            Text("Choose")
+        }
+        TextButton(
+            enabled = cacheSettings.customDownloadDirectory != null,
+            onClick = {
+                downloadPathStatus = null
+                onCacheSettingsChanged(cacheSettings.copy(customDownloadDirectory = null).normalized())
+            },
+        ) {
+            Text("Reset")
+        }
+    }
+    Text(
+        "Existing downloads stay where they are. New downloads use this location.",
+        color = appColors.secondaryText,
+        fontSize = 12.sp,
+    )
+    downloadPathStatus?.let { status ->
+        Text(status, color = MaterialTheme.colorScheme.error, fontSize = 12.sp)
+    }
     DetentByteSettingsSlider(
         title = "Download storage budget",
         valueBytes = cacheSettings.maxDownloadBytes,
@@ -811,6 +873,128 @@ private fun CacheSettingsSection(
         },
     )
 }
+
+private sealed interface DirectoryPickerResult {
+    data class Selected(val file: File) : DirectoryPickerResult
+    data object Cancelled : DirectoryPickerResult
+    data object Unavailable : DirectoryPickerResult
+}
+
+private fun chooseDownloadDirectory(currentPath: String): File? =
+    when (
+        val result = when {
+            isMacOs() -> chooseMacDownloadDirectory(currentPath)
+            isWindows() -> chooseWindowsDownloadDirectory(currentPath)
+            else -> chooseLinuxDownloadDirectory(currentPath)
+        }
+    ) {
+        is DirectoryPickerResult.Selected -> result.file
+        DirectoryPickerResult.Cancelled -> null
+        DirectoryPickerResult.Unavailable -> chooseSwingDownloadDirectory(currentPath)
+    }
+
+private fun chooseMacDownloadDirectory(currentPath: String): DirectoryPickerResult {
+    val previous = System.getProperty(MacDirectoryDialogProperty)
+    System.setProperty(MacDirectoryDialogProperty, "true")
+    return try {
+        val dialog = FileDialog(null as Frame?, "Choose download location", FileDialog.LOAD)
+        dialog.directory = currentPath
+        dialog.isVisible = true
+        val selected = dialog.file ?: return DirectoryPickerResult.Cancelled
+        DirectoryPickerResult.Selected(File(dialog.directory, selected))
+    } catch (_: Throwable) {
+        DirectoryPickerResult.Unavailable
+    } finally {
+        if (previous == null) {
+            System.clearProperty(MacDirectoryDialogProperty)
+        } else {
+            System.setProperty(MacDirectoryDialogProperty, previous)
+        }
+    }
+}
+
+private fun chooseWindowsDownloadDirectory(currentPath: String): DirectoryPickerResult {
+    val selectedPath = runNativeDirectoryPicker(
+        "powershell",
+        "-NoProfile",
+        "-STA",
+        "-Command",
+        """
+        Add-Type -AssemblyName System.Windows.Forms;
+        ${'$'}dialog = New-Object System.Windows.Forms.FolderBrowserDialog;
+        ${'$'}dialog.Description = 'Choose download location';
+        ${'$'}dialog.SelectedPath = '${currentPath.replace("'", "''")}';
+        if (${'$'}dialog.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
+            [Console]::Out.Write(${'$'}dialog.SelectedPath)
+        }
+        """.trimIndent(),
+    )
+    return when (selectedPath) {
+        null -> DirectoryPickerResult.Unavailable
+        "" -> DirectoryPickerResult.Cancelled
+        else -> DirectoryPickerResult.Selected(File(selectedPath))
+    }
+}
+
+private fun chooseLinuxDownloadDirectory(currentPath: String): DirectoryPickerResult {
+    runNativeDirectoryPicker(
+        "zenity",
+        "--file-selection",
+        "--directory",
+        "--title=Choose download location",
+        "--filename=$currentPath/",
+    ).let { result ->
+        if (result != null) {
+            return if (result.isBlank()) DirectoryPickerResult.Cancelled else DirectoryPickerResult.Selected(File(result))
+        }
+    }
+    runNativeDirectoryPicker(
+        "kdialog",
+        "--getexistingdirectory",
+        currentPath,
+        "--title",
+        "Choose download location",
+    ).let { result ->
+        if (result != null) {
+            return if (result.isBlank()) DirectoryPickerResult.Cancelled else DirectoryPickerResult.Selected(File(result))
+        }
+    }
+    return DirectoryPickerResult.Unavailable
+}
+
+private fun runNativeDirectoryPicker(vararg command: String): String? =
+    runCatching {
+        val process = ProcessBuilder(*command)
+            .redirectError(ProcessBuilder.Redirect.DISCARD)
+            .start()
+        val output = process.inputStream.bufferedReader().readText().trim()
+        val exitCode = process.waitFor()
+        when {
+            exitCode == 0 -> output
+            exitCode == 1 -> ""
+            else -> null
+        }
+    }.getOrNull()
+
+private fun chooseSwingDownloadDirectory(currentPath: String): File? {
+    val chooser = JFileChooser(File(currentPath))
+    chooser.fileSelectionMode = JFileChooser.DIRECTORIES_ONLY
+    chooser.dialogTitle = "Choose download location"
+    chooser.isAcceptAllFileFilterUsed = false
+    return if (chooser.showOpenDialog(null) == JFileChooser.APPROVE_OPTION) {
+        chooser.selectedFile
+    } else {
+        null
+    }
+}
+
+private fun isMacOs(): Boolean =
+    System.getProperty("os.name").lowercase().contains("mac")
+
+private fun isWindows(): Boolean =
+    System.getProperty("os.name").lowercase().contains("win")
+
+private const val MacDirectoryDialogProperty = "apple.awt.fileDialogForDirectories"
 
 @Composable
 private fun DiagnosticsSettings(

@@ -809,6 +809,11 @@ fun NaviampApp(
         setLastContentRoute = { route -> lastContentRoute = route },
         setNowPlayingVisualizerFrame = nowPlayingPresentation::updateVisualizerFrame,
         updateAudioCacheLimit = { maxBytes -> storage.updateAudioCacheLimit(maxBytes) },
+        updateDownloadDirectory = { path ->
+            runCatching {
+                storage.updateDownloadDirectory(DesktopDownloadDirectories.fromSetting(path))
+            }
+        },
         cancelAudioPrefetch = { playlistEngine.cancelAudioPrefetch() },
         saveNavigationSettings = settingsStore::saveNavigationSettings,
     )

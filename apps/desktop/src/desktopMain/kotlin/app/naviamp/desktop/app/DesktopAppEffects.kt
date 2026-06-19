@@ -46,6 +46,7 @@ fun DesktopAppEffects(
     setLastContentRoute: (DesktopAppRoute) -> Unit,
     setNowPlayingVisualizerFrame: (PlaybackVisualizerFrame?) -> Unit,
     updateAudioCacheLimit: (Long) -> Unit,
+    updateDownloadDirectory: (String?) -> Unit,
     cancelAudioPrefetch: () -> Unit,
     saveNavigationSettings: (NavigationSettings) -> Unit,
 ) {
@@ -149,6 +150,10 @@ fun DesktopAppEffects(
 
     LaunchedEffect(cacheSettings.maxAudioCacheBytes) {
         updateAudioCacheLimit(cacheSettings.maxAudioCacheBytes)
+    }
+
+    LaunchedEffect(cacheSettings.customDownloadDirectory) {
+        updateDownloadDirectory(cacheSettings.customDownloadDirectory)
     }
 
     LaunchedEffect(cacheSettings.audioCachingEnabled, cacheSettings.audioPrefetchDepth) {
