@@ -159,6 +159,8 @@ Let users choose where downloaded tracks are stored instead of always using Navi
 
 ## Dark Mode Rendering With OS-Matched Window Chrome
 
+Status: Done
+
 Make Naviamp readable and polished on both dark-mode and light-mode desktop systems by keeping the app content on Naviamp's existing dark presentation while letting only native window chrome follow the operating system.
 
 ### Current Behavior
