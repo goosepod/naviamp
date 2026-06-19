@@ -33,6 +33,8 @@ import app.naviamp.domain.radio.genreRecentRadioStream
 import app.naviamp.domain.radio.genreMixRadioRequest
 import app.naviamp.domain.radio.internetRadioDeleteErrorStatus
 import app.naviamp.domain.radio.internetRadioDeleteLoadingStatus
+import app.naviamp.domain.radio.internetRadioRefreshErrorStatus
+import app.naviamp.domain.radio.internetRadioRefreshLoadingStatus
 import app.naviamp.domain.radio.internetRadioSaveErrorStatus
 import app.naviamp.domain.radio.internetRadioSaveLoadingStatus
 import app.naviamp.domain.radio.libraryRecentRadioStream
@@ -292,6 +294,37 @@ fun saveAndroidInternetRadioStation(
             state.status = ""
         }.onFailure { error ->
             state.status = error.message ?: internetRadioSaveErrorStatus()
+        }
+    }
+}
+
+fun refreshAndroidInternetRadioStations(
+    scope: CoroutineScope,
+    state: AndroidAppState,
+    stationManager: InternetRadioStationManager,
+) {
+    val activeProvider = state.provider
+    if (activeProvider == null) {
+        state.status = "Not connected."
+        return
+    }
+    if (state.isInternetRadioRefreshing) return
+    state.isInternetRadioRefreshing = true
+    state.status = internetRadioRefreshLoadingStatus()
+    scope.launch {
+        try {
+            runCatching {
+                withContext(Dispatchers.IO) {
+                    stationManager.refreshStations(activeProvider)
+                }
+            }.onSuccess { stations ->
+                state.homeState = state.homeState.copy(radioStations = stations)
+                state.status = ""
+            }.onFailure { error ->
+                state.status = error.message ?: internetRadioRefreshErrorStatus()
+            }
+        } finally {
+            state.isInternetRadioRefreshing = false
         }
     }
 }

@@ -19,10 +19,12 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.darkColorScheme
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -102,7 +104,9 @@ fun NaviampSharedAppShell(
     playlistSortMode: SharedPlaylistSortMode = SharedPlaylistSortMode.Alphabetical,
     playlistChoices: List<NaviampPlaylistChoiceUi> = emptyList(),
     playlistActionStatus: String? = null,
+    playlistRefreshing: Boolean = false,
     radioStations: List<InternetRadioStation>,
+    radioRefreshing: Boolean = false,
     albumDetail: SharedAlbumDetailUi?,
     artistDetail: SharedArtistDetailUi?,
     playlistDetail: SharedPlaylistDetailUi? = null,
@@ -167,6 +171,8 @@ fun NaviampSharedAppShell(
     onSonicMixSaveAsPlaylist: (String) -> Unit = {},
     onLibraryQueryChanged: (String) -> Unit = {},
     onRefreshLibrary: () -> Unit = {},
+    onRefreshPlaylists: () -> Unit = {},
+    onRefreshRadioStations: () -> Unit = {},
     onTrackSelected: (SharedTrackRowUi) -> Unit,
     onDownloadedTrackAction: (DownloadedTrackActionRequest) -> Unit = {},
     onAlbumSelected: (SharedMediaItemUi) -> Unit,
@@ -296,6 +302,7 @@ fun NaviampSharedAppShell(
             albumDetail != null ||
                 artistDetail != null ||
                 playlistDetail != null ||
+                selectedRoute == SharedRoute.Playlists ||
                 selectedRoute == SharedRoute.Library ||
                 selectedRoute == SharedRoute.ArtistMix ||
                 selectedRoute == SharedRoute.AlbumMix ||
@@ -403,7 +410,9 @@ fun NaviampSharedAppShell(
                             playlistSortMode = playlistSortMode,
                             playlistChoices = playlistChoices,
                             playlistActionStatus = playlistActionStatus,
+                            playlistRefreshing = playlistRefreshing,
                             radioStations = radioStations,
+                            radioRefreshing = radioRefreshing,
                             albumDetail = albumDetail,
                             artistDetail = artistDetail,
                             playlistDetail = playlistDetail,
@@ -476,6 +485,8 @@ fun NaviampSharedAppShell(
             onSonicMixSaveAsPlaylist = onSonicMixSaveAsPlaylist,
                             onLibraryQueryChanged = onLibraryQueryChanged,
                             onRefreshLibrary = onRefreshLibrary,
+                            onRefreshPlaylists = onRefreshPlaylists,
+                            onRefreshRadioStations = onRefreshRadioStations,
                             onTrackSelected = onTrackSelected,
                             onDownloadedTrackAction = onDownloadedTrackAction,
                             onAlbumSelected = onAlbumSelected,
@@ -721,7 +732,9 @@ private fun ConnectedContent(
     playlistSortMode: SharedPlaylistSortMode,
     playlistChoices: List<NaviampPlaylistChoiceUi>,
     playlistActionStatus: String?,
+    playlistRefreshing: Boolean,
     radioStations: List<InternetRadioStation>,
+    radioRefreshing: Boolean,
     albumDetail: SharedAlbumDetailUi?,
     artistDetail: SharedArtistDetailUi?,
     playlistDetail: SharedPlaylistDetailUi?,
@@ -791,6 +804,8 @@ private fun ConnectedContent(
     onSonicMixSaveAsPlaylist: (String) -> Unit,
     onLibraryQueryChanged: (String) -> Unit,
     onRefreshLibrary: () -> Unit,
+    onRefreshPlaylists: () -> Unit,
+    onRefreshRadioStations: () -> Unit,
     onTrackSelected: (SharedTrackRowUi) -> Unit,
     onDownloadedTrackAction: (DownloadedTrackActionRequest) -> Unit,
     onAlbumSelected: (SharedMediaItemUi) -> Unit,
@@ -1029,29 +1044,40 @@ private fun ConnectedContent(
                     }
                 },
             )
-            SharedRoute.Playlists -> PlaylistsContent(
-                colors = colors,
-                playlists = playlistItems,
-                recentPlaylistIds = recentPlaylistIds,
-                sortMode = playlistSortMode,
-                status = playlistActionStatus,
-                onSortModeChanged = onPlaylistSortModeChanged,
-                onPlaylistAction = onMediaItemAction,
-                onSmartPlaylistSave = onSmartPlaylistSave,
-                onSmartPlaylistUpdate = onSmartPlaylistUpdate,
-                onSmartPlaylistLoad = onSmartPlaylistLoad,
-                playlistChoices = playlistChoices,
-            )
-            SharedRoute.Library -> LibraryContent(
-                colors = colors,
-                items = libraryArtists,
-                query = libraryQuery,
-                syncStatus = librarySyncStatus,
-                onQueryChanged = onLibraryQueryChanged,
-                onRefreshLibrary = onRefreshLibrary,
-                onArtistSelected = onArtistSelected,
-                onArtistFavoriteToggled = onArtistFavoriteToggled,
-            )
+            SharedRoute.Playlists -> PullToRefreshRoute(
+                isRefreshing = playlistRefreshing,
+                onRefresh = onRefreshPlaylists,
+                useScrollContainer = true,
+            ) {
+                PlaylistsContent(
+                    colors = colors,
+                    playlists = playlistItems,
+                    recentPlaylistIds = recentPlaylistIds,
+                    sortMode = playlistSortMode,
+                    status = playlistActionStatus,
+                    onSortModeChanged = onPlaylistSortModeChanged,
+                    onPlaylistAction = onMediaItemAction,
+                    onSmartPlaylistSave = onSmartPlaylistSave,
+                    onSmartPlaylistUpdate = onSmartPlaylistUpdate,
+                    onSmartPlaylistLoad = onSmartPlaylistLoad,
+                    playlistChoices = playlistChoices,
+                )
+            }
+            SharedRoute.Library -> PullToRefreshRoute(
+                isRefreshing = librarySyncStatus.isSyncing,
+                onRefresh = onRefreshLibrary,
+            ) {
+                LibraryContent(
+                    colors = colors,
+                    items = libraryArtists,
+                    query = libraryQuery,
+                    syncStatus = librarySyncStatus,
+                    onQueryChanged = onLibraryQueryChanged,
+                    onRefreshLibrary = onRefreshLibrary,
+                    onArtistSelected = onArtistSelected,
+                    onArtistFavoriteToggled = onArtistFavoriteToggled,
+                )
+            }
             SharedRoute.Search -> SearchContent(
                 colors = colors,
                 query = query,
@@ -1224,13 +1250,19 @@ private fun ConnectedContent(
                     }
                 }
             }
-            SharedRoute.Radio -> InternetRadioContent(
-                colors = colors,
-                stations = radioStations,
-                status = null,
-                onStationAction = onStationAction,
-                onSaveStation = onRadioStationSave,
-            )
+            SharedRoute.Radio -> PullToRefreshRoute(
+                isRefreshing = radioRefreshing,
+                onRefresh = onRefreshRadioStations,
+                useScrollContainer = true,
+            ) {
+                InternetRadioContent(
+                    colors = colors,
+                    stations = radioStations,
+                    status = null,
+                    onStationAction = onStationAction,
+                    onSaveStation = onRadioStationSave,
+                )
+            }
             SharedRoute.Settings -> Unit
             SharedRoute.Downloads -> DownloadsContent(
                 colors = colors,
@@ -1270,6 +1302,33 @@ private fun ConnectedContent(
                 saveSonicMixDialogOpen = false
             },
         )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun PullToRefreshRoute(
+    isRefreshing: Boolean,
+    onRefresh: () -> Unit,
+    useScrollContainer: Boolean = false,
+    content: @Composable () -> Unit,
+) {
+    PullToRefreshBox(
+        isRefreshing = isRefreshing,
+        onRefresh = onRefresh,
+        modifier = Modifier.fillMaxSize(),
+    ) {
+        if (useScrollContainer) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState()),
+            ) {
+                content()
+            }
+        } else {
+            content()
+        }
     }
 }
 

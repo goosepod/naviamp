@@ -4,7 +4,7 @@ This document tracks small interaction and layout improvements that should make 
 
 ## Pull to Refresh
 
-Status: Done for desktop explicit refresh menus; Android pull-to-refresh gesture remains to do.
+Status: Done.
 
 Add pull-to-refresh gestures on these top-level pages:
 

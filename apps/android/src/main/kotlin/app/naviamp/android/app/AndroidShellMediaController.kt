@@ -161,6 +161,10 @@ internal class AndroidShellMediaController(
         saveAndroidInternetRadioStation(scope, state, internetRadioStationManager, station)
     }
 
+    fun refreshInternetRadioStations() {
+        refreshAndroidInternetRadioStations(scope, state, internetRadioStationManager)
+    }
+
     fun deleteInternetRadioStation(station: InternetRadioStation) {
         deleteAndroidInternetRadioStation(scope, state, internetRadioStationManager, station)
     }

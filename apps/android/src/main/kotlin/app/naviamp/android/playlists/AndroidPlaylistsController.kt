@@ -417,21 +417,28 @@ fun refreshAndroidPlaylists(
 ) {
     val activeProvider = state.provider ?: return
     val providerResponseService = providerResponseCacheRepository?.let { ProviderResponseService(it) }
+    if (state.isPlaylistRefreshing) return
+    state.isPlaylistRefreshing = true
     scope.launch {
-        runCatching {
-            activeProvider.refreshPlaylistListState(
-                providerResponseService = providerResponseService,
-                playlistTracksById = state.playlistTracksById,
-            )
-        }.onSuccess { update ->
-            applyAndroidPlaylistListApplication(state, update.playlists)
-            preloadAndroidPlaylistTracks(
-                scope,
-                state,
-                activeProvider,
-                update.playlists,
-                providerResponseCacheRepository,
-            )
+        try {
+            runCatching {
+                activeProvider.refreshPlaylistListState(
+                    providerResponseService = providerResponseService,
+                    useCache = false,
+                    playlistTracksById = state.playlistTracksById,
+                )
+            }.onSuccess { update ->
+                applyAndroidPlaylistListApplication(state, update.playlists)
+                preloadAndroidPlaylistTracks(
+                    scope,
+                    state,
+                    activeProvider,
+                    update.playlists,
+                    providerResponseCacheRepository,
+                )
+            }
+        } finally {
+            state.isPlaylistRefreshing = false
         }
     }
 }

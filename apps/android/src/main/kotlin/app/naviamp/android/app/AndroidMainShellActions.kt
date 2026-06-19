@@ -88,6 +88,8 @@ internal fun androidMainShellActions(
             playlistActionController.saveTracksAsPlaylist(name, sonicMixController.playlistTracks(), "sonic mix")
         },
         startAndroidLibrarySync = { force -> startAndroidLibrarySync(scope, state, storage, force) },
+        refreshPlaylists = playlistActionController::refreshPlaylists,
+        refreshInternetRadioStations = shellMediaController::refreshInternetRadioStations,
         handleShellTrackSelected = shellMediaController::handleShellTrackSelected,
         handleDownloadedTrackAction = trackActionController::handleDownloadedTrackAction,
         handleShellAlbumSelected = shellMediaController::handleShellAlbumSelected,
