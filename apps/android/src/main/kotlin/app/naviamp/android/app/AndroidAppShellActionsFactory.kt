@@ -17,6 +17,7 @@ import app.naviamp.ui.SharedTrackRowUi
 import app.naviamp.ui.DownloadedTrackActionRequest
 import app.naviamp.ui.NaviampNowPlayingItemUi
 import app.naviamp.ui.NaviampPlaylistChoiceUi
+import app.naviamp.ui.NaviampSavedConnectionUi
 import app.naviamp.ui.NowPlayingCurrentTrackAction
 import app.naviamp.ui.NowPlayingCurrentTrackUiActionRequest
 import app.naviamp.ui.NowPlayingDisplayAction
@@ -51,6 +52,10 @@ fun androidAppShellActions(
     settingsStore: AndroidSettingsStore,
     handleConnectionFormChanged: (ConnectionFormState) -> Unit,
     connectToNavidrome: () -> Unit,
+    handleNewConnection: () -> Unit,
+    handleEditSavedConnection: (NaviampSavedConnectionUi) -> Unit,
+    handleConnectSavedConnection: (NaviampSavedConnectionUi) -> Unit,
+    handleDeleteSavedConnection: (NaviampSavedConnectionUi) -> Unit,
     handlePlaybackSettingsChanged: (PlaybackSettings) -> Unit,
     handlePlaybackSettingsChangedAndRedownload: (PlaybackSettings) -> Unit,
     handleCacheSettingsChanged: (CacheSettings) -> Unit,
@@ -211,6 +216,10 @@ fun androidAppShellActions(
             onConnectionFormChanged = handleConnectionFormChanged,
             onConnect = { connectToNavidrome() },
             onEditConnection = { editingConnection = true },
+            onNewConnection = handleNewConnection,
+            onEditSavedConnection = handleEditSavedConnection,
+            onConnectSavedConnection = handleConnectSavedConnection,
+            onDeleteSavedConnection = handleDeleteSavedConnection,
             onCancelEditConnection = { editingConnection = false },
             onPlaybackSettingsChanged = handlePlaybackSettingsChanged,
             onPlaybackSettingsChangedAndRedownload = handlePlaybackSettingsChangedAndRedownload,

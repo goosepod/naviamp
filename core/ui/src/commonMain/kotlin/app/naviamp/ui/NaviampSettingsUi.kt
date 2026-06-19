@@ -1,6 +1,7 @@
 package app.naviamp.ui
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -12,6 +13,7 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -27,7 +29,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.naviamp.domain.playback.EqualizerBandFrequencies
@@ -43,6 +47,7 @@ import app.naviamp.domain.radio.RadioFamiliarity
 import app.naviamp.domain.radio.RadioArtistRunMode
 import app.naviamp.domain.radio.RadioTuningSettings
 import app.naviamp.domain.settings.CacheSettings
+import app.naviamp.domain.settings.ConnectionFormState
 import app.naviamp.domain.settings.DefaultWaveformBucketCount
 import app.naviamp.domain.settings.MaxWaveformBucketCount
 import app.naviamp.domain.settings.MinWaveformBucketCount
@@ -70,6 +75,14 @@ data class NaviampAboutUi(
     val changelog: List<String> = DefaultNaviampChangelog,
 )
 
+data class NaviampSavedConnectionUi(
+    val id: String,
+    val displayName: String,
+    val serverUrl: String,
+    val username: String,
+    val current: Boolean = false,
+)
+
 enum class NaviampSettingsCategory(
     val label: String,
     val subtitle: String,
@@ -90,7 +103,20 @@ fun NaviampSharedSettingsContent(
     cacheSettings: CacheSettings = CacheSettings(),
     diagnostics: NaviampDiagnosticsUi = NaviampDiagnosticsUi(),
     about: NaviampAboutUi = NaviampAboutUi(),
+    savedConnections: List<NaviampSavedConnectionUi> = emptyList(),
+    isConnectionFormOpen: Boolean = false,
+    isConnecting: Boolean = false,
+    connectionStatus: String? = null,
+    connectionForm: ConnectionFormState = ConnectionFormState(),
+    hasSavedConnection: Boolean = false,
     onEditConnection: () -> Unit,
+    onNewConnection: () -> Unit = onEditConnection,
+    onEditSavedConnection: (NaviampSavedConnectionUi) -> Unit = { onEditConnection() },
+    onConnectSavedConnection: (NaviampSavedConnectionUi) -> Unit = {},
+    onDeleteSavedConnection: (NaviampSavedConnectionUi) -> Unit = {},
+    onConnectionFormChanged: (ConnectionFormState) -> Unit = {},
+    onConnect: () -> Unit = {},
+    onCancelConnectionForm: () -> Unit = {},
     onPlaybackSettingsChanged: (PlaybackSettings) -> Unit,
     onPlaybackSettingsChangedAndRedownload: (PlaybackSettings) -> Unit = onPlaybackSettingsChanged,
     onCacheSettingsChanged: (CacheSettings) -> Unit = {},
@@ -114,8 +140,22 @@ fun NaviampSharedSettingsContent(
             SettingsDetailHeader(category = category, colors = colors, onBack = { selectedCategory = null })
             when (category) {
                 NaviampSettingsCategory.Connections -> {
-                    SettingsSectionTitle("Connections", colors)
-                    SettingsRow("Navidrome server", "Edit server, credentials, and TLS options", colors, onEditConnection)
+                    NaviampConnectionsSettingsSection(
+                        colors = colors,
+                        savedConnections = savedConnections,
+                        isConnectionFormOpen = isConnectionFormOpen,
+                        isConnecting = isConnecting,
+                        connectionStatus = connectionStatus,
+                        connectionForm = connectionForm,
+                        hasSavedConnection = hasSavedConnection,
+                        onNewConnection = onNewConnection,
+                        onEditConnection = onEditSavedConnection,
+                        onConnectConnection = onConnectSavedConnection,
+                        onDeleteConnection = onDeleteSavedConnection,
+                        onConnectionFormChanged = onConnectionFormChanged,
+                        onConnect = onConnect,
+                        onCancelConnectionForm = onCancelConnectionForm,
+                    )
                 }
                 NaviampSettingsCategory.Playback -> NaviampPlaybackSettingsSection(
                     colors = colors,
@@ -253,6 +293,136 @@ fun NaviampAboutSettingsSection(
             about.changelog.forEach { entry ->
                 Text(entry, color = colors.secondaryText, fontSize = 12.sp)
             }
+        }
+    }
+}
+
+@Composable
+private fun NaviampConnectionsSettingsSection(
+    colors: NaviampColors,
+    savedConnections: List<NaviampSavedConnectionUi>,
+    isConnectionFormOpen: Boolean,
+    isConnecting: Boolean,
+    connectionStatus: String?,
+    connectionForm: ConnectionFormState,
+    hasSavedConnection: Boolean,
+    onNewConnection: () -> Unit,
+    onEditConnection: (NaviampSavedConnectionUi) -> Unit,
+    onConnectConnection: (NaviampSavedConnectionUi) -> Unit,
+    onDeleteConnection: (NaviampSavedConnectionUi) -> Unit,
+    onConnectionFormChanged: (ConnectionFormState) -> Unit,
+    onConnect: () -> Unit,
+    onCancelConnectionForm: () -> Unit,
+) {
+    var pendingDelete by remember { mutableStateOf<NaviampSavedConnectionUi?>(null) }
+
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        SettingsSectionTitle("Connections", colors)
+        if (savedConnections.isEmpty()) {
+            Text("No saved connections yet.", color = colors.secondaryText, fontSize = 12.sp)
+        } else {
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                savedConnections.forEach { connection ->
+                    NaviampSavedConnectionRow(
+                        colors = colors,
+                        connection = connection,
+                        enabled = !isConnecting,
+                        onEdit = { onEditConnection(connection) },
+                        onDelete = { pendingDelete = connection },
+                        onConnect = { onConnectConnection(connection) },
+                    )
+                }
+            }
+        }
+        PrimaryButton("New connection", colors, enabled = !isConnecting, onClick = onNewConnection)
+        connectionStatus?.takeUnless { isConnectionFormOpen }?.let {
+            Text(it, color = colors.secondaryText, fontSize = 12.sp)
+        }
+        if (isConnectionFormOpen) {
+            HorizontalDivider(color = colors.border)
+            NaviampConnectionForm(
+                form = connectionForm,
+                colors = colors,
+                isReconnect = hasSavedConnection,
+                isConnecting = isConnecting,
+                connectionStatus = connectionStatus,
+                onFormChanged = onConnectionFormChanged,
+                onConnect = onConnect,
+                onCancel = onCancelConnectionForm,
+            )
+        }
+        pendingDelete?.let { connection ->
+            AlertDialog(
+                onDismissRequest = { pendingDelete = null },
+                title = { Text("Delete Connection") },
+                text = { Text("Delete ${connection.displayName}? This removes the saved server entry.") },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            pendingDelete = null
+                            onDeleteConnection(connection)
+                        },
+                    ) {
+                        Text("Delete")
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { pendingDelete = null }) {
+                        Text("Cancel")
+                    }
+                },
+            )
+        }
+    }
+}
+
+@Composable
+private fun NaviampSavedConnectionRow(
+    colors: NaviampColors,
+    connection: NaviampSavedConnectionUi,
+    enabled: Boolean,
+    onEdit: () -> Unit,
+    onDelete: () -> Unit,
+    onConnect: () -> Unit,
+) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .border(1.dp, if (connection.current) colors.accent else colors.border, RoundedCornerShape(6.dp))
+            .padding(horizontal = 10.dp, vertical = 8.dp),
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    connection.displayName,
+                    color = colors.primaryText,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                if (connection.current) {
+                    Text("Current", color = colors.accent, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+                }
+            }
+            Text(
+                "${connection.username} - ${connection.serverUrl}",
+                color = colors.secondaryText,
+                fontSize = 12.sp,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+        IconButton(enabled = enabled, onClick = onEdit, modifier = Modifier.size(34.dp)) {
+            Icon(NaviampIcons.Edit, contentDescription = "Edit connection", tint = if (enabled) colors.primaryText else colors.mutedText)
+        }
+        IconButton(enabled = enabled, onClick = onDelete, modifier = Modifier.size(34.dp)) {
+            Icon(NaviampIcons.Trash, contentDescription = "Delete connection", tint = if (enabled) colors.primaryText else colors.mutedText)
+        }
+        TextButton(enabled = enabled, onClick = onConnect) {
+            Text(if (connection.current) "Reconnect" else "Connect", color = if (enabled) colors.accent else colors.mutedText)
         }
     }
 }

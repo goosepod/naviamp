@@ -11,18 +11,22 @@ import app.naviamp.domain.InternetRadioStation
 import app.naviamp.domain.Track
 import app.naviamp.domain.home.HomeLibraryRepository
 import app.naviamp.domain.provider.PendingProviderActionRepository
+import app.naviamp.domain.playback.PlaybackQueueController
 import app.naviamp.domain.settings.RecentRadioStream
 import app.naviamp.domain.settings.ConnectionFormState
 import app.naviamp.domain.settings.connectionFormError
+import app.naviamp.domain.source.SavedMediaSource
 import app.naviamp.domain.source.ProviderConnectionLifecycleRequest
 import app.naviamp.domain.source.connectionFailureStatus
 import app.naviamp.domain.source.openProviderConnectionSession
 import app.naviamp.provider.navidrome.NavidromeConnection
 import app.naviamp.provider.navidrome.NavidromeConnectionLoginRequest
 import app.naviamp.provider.navidrome.NavidromeProvider
+import app.naviamp.provider.navidrome.NavidromeTlsSettings
 import app.naviamp.provider.navidrome.navidromeTlsSettingsFromForm
 import app.naviamp.provider.navidrome.prepareNavidromeConnection
 import app.naviamp.provider.navidrome.resolvedDisplayName
+import app.naviamp.provider.navidrome.toNavidromeConnection
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
@@ -31,9 +35,9 @@ class AndroidConnectionSessionController(
     private val state: AndroidAppState,
     private val storage: AndroidStorageDependencies,
     private val settingsStore: AndroidSettingsStore,
-    private val savedProviderConnection: NavidromeConnection?,
     private val savedConnection: ConnectionFormState,
     private val playbackEngine: AndroidPlaybackEngine,
+    private val queueController: PlaybackQueueController,
     private val preloadPlaylistTracks: (NavidromeProvider, List<Playlist>) -> Unit,
     private val loadRelatedTracks: (Track) -> Unit,
     private val startAndroidLibrarySync: (Boolean) -> Unit,
@@ -58,6 +62,7 @@ class AndroidConnectionSessionController(
             checkAndroidLibraryFreshness = checkAndroidLibraryFreshness,
             recentRadioStreams = settingsStore.loadRecentRadioStreams(),
             recentInternetRadioStations = settingsStore.loadRecentInternetRadioStations().map { it.toStation() },
+            refreshSavedMediaSources = { state.savedMediaSources = storage.mediaSources() },
         )
     }
 
@@ -66,20 +71,65 @@ class AndroidConnectionSessionController(
             scope = scope,
             state = state,
             settingsStore = settingsStore,
-            savedProviderConnection = savedProviderConnection,
             connectWithNavidromeConnection = ::connectWithNavidromeConnection,
         )
     }
 
     fun autoConnect() {
         when {
-            savedProviderConnection != null -> connectWithNavidromeConnection(savedProviderConnection)
+            state.savedConnectionForLogin != null -> connectWithNavidromeConnection(state.savedConnectionForLogin!!)
             savedConnection.serverUrl.isNotBlank() &&
                 savedConnection.username.isNotBlank() &&
                 savedConnection.password.isNotBlank() -> {
                 connectToNavidrome()
             }
         }
+    }
+
+    fun openNewConnectionForm() {
+        state.savedConnectionForLogin = null
+        state.applyConnectionForm(ConnectionFormState())
+        state.editingConnection = true
+        state.restoringConnection = false
+        state.status = "Add a Navidrome connection."
+    }
+
+    fun openSavedConnectionForm(source: SavedMediaSource) {
+        val connection = source.toNavidromeConnection()
+        state.savedConnectionForLogin = connection
+        state.applyConnectionForm(settingsStore.loadConnection(connection).copy(password = ""))
+        state.editingConnection = true
+        state.restoringConnection = false
+        state.status = "Editing saved connection. Leave password blank to reuse it."
+    }
+
+    fun connectSavedConnection(source: SavedMediaSource) {
+        val connection = source.toNavidromeConnection()
+        state.savedConnectionForLogin = connection
+        state.applyConnectionForm(settingsStore.loadConnection(connection).copy(password = ""))
+        state.editingConnection = false
+        connectWithNavidromeConnection(connection)
+    }
+
+    fun deleteConnection(source: SavedMediaSource) {
+        storage.deleteMediaSource(source.id)
+        state.savedMediaSources = storage.mediaSources()
+        if (state.activeSourceId == source.id) {
+            resetAndroidPlaybackState(state, playbackEngine, queueController)
+            state.provider = null
+            state.activeSourceId = null
+            state.validation = null
+            state.activeTlsSettings = NavidromeTlsSettings()
+            state.savedConnectionForLogin = null
+            state.editingConnection = true
+            state.navigationState = state.navigationState.copy(route = NaviampRoute.Settings)
+            clearAndroidDerivedMediaState(state)
+        } else if (state.savedConnectionForLogin?.baseUrl == source.baseUrl &&
+            state.savedConnectionForLogin?.username == source.username
+        ) {
+            state.savedConnectionForLogin = null
+        }
+        state.status = "Deleted ${source.displayName}."
     }
 }
 
@@ -121,6 +171,7 @@ fun startNavidromeConnection(
     checkAndroidLibraryFreshness: () -> Unit,
     recentRadioStreams: List<RecentRadioStream> = emptyList(),
     recentInternetRadioStations: List<InternetRadioStation> = emptyList(),
+    refreshSavedMediaSources: () -> Unit = {},
 ) {
     scope.launch {
         with(state) {
@@ -155,6 +206,7 @@ fun startNavidromeConnection(
                 preloadPlaylistTracks(nextProvider, homeState.playlists)
                 provider = nextProvider
                 activeSourceId = session.sourceId
+                refreshSavedMediaSources()
                 activeTlsSettings = session.connection.tlsSettings
                 syncAndroidPendingProviderActions(
                     scope = scope,
@@ -202,13 +254,12 @@ fun startNavidromeConnectionFromForm(
     scope: CoroutineScope,
     state: AndroidAppState,
     settingsStore: AndroidSettingsStore,
-    savedProviderConnection: NavidromeConnection?,
     connectWithNavidromeConnection: (NavidromeConnection) -> Unit,
 ) {
     val connectionForm = state.currentConnectionForm()
     val formError = connectionFormError(
         form = connectionForm,
-        hasSavedConnectionForLogin = savedProviderConnection != null,
+        hasSavedConnectionForLogin = state.savedConnectionForLogin != null,
     )
     if (formError != null) {
         state.status = formError
@@ -230,11 +281,12 @@ fun startNavidromeConnectionFromForm(
                     password = connectionForm.password,
                     displayName = connectionForm.displayName.trim().takeIf { it.isNotEmpty() },
                     tlsSettings = tlsSettings,
-                    savedConnectionForLogin = savedProviderConnection,
+                    savedConnectionForLogin = state.savedConnectionForLogin,
                 ),
             ).connection
         }.onSuccess { connection ->
             settingsStore.saveConnection(connectionForm)
+            state.savedConnectionForLogin = connection
             connectWithNavidromeConnection(connection)
         }.onFailure { error ->
             state.status = connectionFailureStatus(error)

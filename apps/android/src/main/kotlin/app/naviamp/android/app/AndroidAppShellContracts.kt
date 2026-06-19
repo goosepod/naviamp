@@ -36,6 +36,7 @@ import app.naviamp.ui.SharedHomeUi
 import app.naviamp.ui.SharedMediaItemActionRequest
 import app.naviamp.ui.SharedMediaItemUi
 import app.naviamp.ui.SharedMixBuilderUi
+import app.naviamp.ui.NaviampSavedConnectionUi
 import app.naviamp.ui.SharedPlaylistDetailUi
 import app.naviamp.ui.SharedPlaylistSortMode
 import app.naviamp.ui.SharedRoute
@@ -56,6 +57,8 @@ data class AndroidAppShellUiState(
     val editingConnection: Boolean,
     val restoringConnection: Boolean,
     val connectionForm: ConnectionFormState,
+    val savedConnections: List<NaviampSavedConnectionUi>,
+    val hasSavedConnection: Boolean,
     val playbackSettings: PlaybackSettings,
     val cacheSettings: CacheSettings,
     val diagnostics: NaviampDiagnosticsUi,
@@ -105,6 +108,10 @@ data class AndroidAppShellActions(
     val onConnectionFormChanged: (ConnectionFormState) -> Unit,
     val onConnect: () -> Unit,
     val onEditConnection: () -> Unit,
+    val onNewConnection: () -> Unit,
+    val onEditSavedConnection: (NaviampSavedConnectionUi) -> Unit,
+    val onConnectSavedConnection: (NaviampSavedConnectionUi) -> Unit,
+    val onDeleteSavedConnection: (NaviampSavedConnectionUi) -> Unit,
     val onCancelEditConnection: () -> Unit,
     val onPlaybackSettingsChanged: (PlaybackSettings) -> Unit,
     val onPlaybackSettingsChangedAndRedownload: (PlaybackSettings) -> Unit,
