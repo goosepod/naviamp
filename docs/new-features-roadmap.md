@@ -15,7 +15,7 @@ Keep implementation cross-platform by default: shared domain models, shared UI, 
 - [ ] Add cross-device app state sync.
   - Candidate state: recent radio, recent generated mixes, recent internet radio stations, settings, and possible playback handoff.
   - First investigate whether Navidrome can store app state; if not, evaluate app-managed sync keyed by server/user plus export/import as a fallback.
-- [ ] Add additional Plexamp-style station entries when the current Mix Builders and DJ flow need more depth.
+- [x] Add additional Plexamp-style station entries when the current Mix Builders and DJ flow need more depth.
   - Artist Mix Builder, Album Mix Builder, Genre Mix Radio, and DJ presets are the current first pass.
 
 ### Focused Polish
