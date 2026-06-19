@@ -20,6 +20,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.requiredHeight
+import androidx.compose.foundation.layout.requiredSize
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
@@ -221,14 +223,28 @@ fun NaviampNowPlayingPanel(
         val splitArtSize = ((viewportMaxHeight / 2f) - 28.dp)
             .coerceIn(170.dp, artSizeDefault)
         val artSize = when {
-            wideLayout -> ((viewportMaxHeight * 0.58f) - 24.dp).coerceIn(170.dp, 350.dp)
+            wideLayout -> {
+                val preferredArtSize = ((viewportMaxHeight / 2f) - 28.dp).coerceIn(170.dp, artSizeDefault)
+                val maximumArtSize = (
+                    viewportMaxHeight -
+                        WideNowPlayingDetailsMinHeight -
+                        NowPlayingArtShadowMargin * 2 -
+                        WideNowPlayingDetailsTopPadding
+                    ).coerceAtLeast(WideNowPlayingArtMinHeight)
+                preferredArtSize.coerceAtMost(maximumArtSize)
+            }
             compactStackLayout -> stackedArtSize
             maxWidth < 380.dp -> splitArtSize.coerceAtMost(238.dp)
             !wideLayout -> splitArtSize
             else -> artSizeDefault
         }
         val wideDetailsHeight = if (wideLayout) {
-            (viewportMaxHeight - artSize - 28.dp).coerceAtLeast(148.dp)
+            (
+                viewportMaxHeight -
+                    artSize -
+                    NowPlayingArtShadowMargin * 2 -
+                    WideNowPlayingDetailsTopPadding
+                ).coerceAtLeast(WideNowPlayingDetailsMinHeight)
         } else {
             Dp.Unspecified
         }
@@ -267,11 +283,12 @@ fun NaviampNowPlayingPanel(
                         actions = actions,
                         selectedVisualizer = selectedVisualizer,
                         compactLayout = viewportMaxHeight < 640.dp,
-                        availableHeight = wideDetailsHeight,
+                        availableHeight = (wideDetailsHeight - WideNowPlayingDetailsTopPadding)
+                            .coerceAtLeast(WideNowPlayingDetailsMinHeight - WideNowPlayingDetailsTopPadding),
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(wideDetailsHeight)
-                            .padding(top = 8.dp),
+                            .padding(top = WideNowPlayingDetailsTopPadding),
                     )
                 }
                 NowPlayingSidePanel(
@@ -308,6 +325,13 @@ fun NaviampNowPlayingPanel(
                     .verticalScroll(scrollState),
             ) {
                 if (compactStackLayout) {
+                    val compactArtHeight = if (nowPlaying.lyricsVisible && !showStationList) {
+                        artSize
+                    } else {
+                        artSize + NowPlayingArtShadowMargin * 2
+                    }
+                    val compactDetailsHeight = (viewportHeight - compactArtHeight - 3.dp)
+                        .coerceAtLeast(CompactNowPlayingDetailsMinHeight)
                     Column(
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.spacedBy(3.dp),
@@ -349,7 +373,7 @@ fun NaviampNowPlayingPanel(
                             actions = actions,
                             selectedVisualizer = selectedVisualizer,
                             compactLayout = true,
-                            availableHeight = viewportHeight,
+                            availableHeight = compactDetailsHeight,
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .weight(1f),
@@ -437,7 +461,6 @@ private fun NowPlayingArtSurface(
     onToggleVisualizer: () -> Unit,
     onVisualizerSelected: (NaviampVisualizer) -> Unit,
 ) {
-    val shadowMargin = 12.dp
     val shape = RoundedCornerShape(cornerRadius)
     val toggleModifier = Modifier.clickable(enabled = visualizerAvailable, onClick = onToggleVisualizer)
     var visualizerMenuExpanded by remember { mutableStateOf(false) }
@@ -447,7 +470,7 @@ private fun NowPlayingArtSurface(
             contentAlignment = Alignment.Center,
             modifier = Modifier
                 .fillMaxWidth()
-                .height(size + shadowMargin * 2)
+                .height(size + NowPlayingArtShadowMargin * 2)
                 .visualizerContextMenu { visualizerMenuExpanded = true }
                 .then(toggleModifier),
         ) {
@@ -478,7 +501,7 @@ private fun NowPlayingArtSurface(
     } else {
         Box(
             contentAlignment = Alignment.Center,
-            modifier = Modifier.size(size + shadowMargin * 2),
+            modifier = Modifier.size(size + NowPlayingArtShadowMargin * 2),
         ) {
             Box(
                 modifier = Modifier
@@ -536,9 +559,10 @@ private fun NowPlayingDetails(
     val canTogglePlayback = nowPlaying.canPlayPause
     val height = availableHeight ?: Dp.Unspecified
     val pinBottomActions = !mobileLayout && height != Dp.Unspecified
-    val showVolume = !compactLayout || height == Dp.Unspecified || height >= 225.dp
-    val showTrackExtras = !compactLayout || height == Dp.Unspecified || height >= 195.dp
-    val showTrackIdentity = !compactLayout || height == Dp.Unspecified || height >= 165.dp
+    val showVolume = !compactLayout || height == Dp.Unspecified || height >= 230.dp
+    val showRating = !compactLayout || height == Dp.Unspecified || height >= 180.dp
+    val showAudioInfo = !compactLayout || height == Dp.Unspecified || height >= 252.dp
+    val showTrackIdentity = !compactLayout || height == Dp.Unspecified || height >= 135.dp
     val controlColors = colors.copy(accent = playerColors.accent)
 
     LaunchedEffect(nowPlaying.progressFraction) {
@@ -554,7 +578,7 @@ private fun NowPlayingDetails(
 
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = if (mobileLayout && !compactLayout) {
+        verticalArrangement = if ((mobileLayout && !compactLayout) || pinBottomActions) {
             Arrangement.SpaceBetween
         } else {
             Arrangement.spacedBy(if (compactLayout) 5.dp else 6.dp)
@@ -663,13 +687,13 @@ private fun NowPlayingDetails(
                 }
             }
 
-            if (showTrackExtras) {
+            if (showRating || showAudioInfo) {
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.spacedBy(1.dp),
                     modifier = Modifier.fillMaxWidth(),
                 ) {
-                    if (!nowPlaying.isLive && (nowPlaying.canFavorite || nowPlaying.canRate || nowPlaying.favoriteActive || nowPlaying.userRating != null)) {
+                    if (showRating && !nowPlaying.isLive && (nowPlaying.canFavorite || nowPlaying.canRate || nowPlaying.favoriteActive || nowPlaying.userRating != null)) {
                         RatingRow(
                             favoriteActive = nowPlaying.favoriteActive,
                             canFavorite = nowPlaying.canFavorite,
@@ -684,7 +708,7 @@ private fun NowPlayingDetails(
                         )
                     }
 
-                    if (!nowPlaying.isLive && nowPlaying.audioInfo.isNotBlank()) {
+                    if (showAudioInfo && !nowPlaying.isLive && nowPlaying.audioInfo.isNotBlank()) {
                         Text(
                             nowPlaying.audioInfo,
                             color = colors.secondaryText,
@@ -775,14 +799,14 @@ private fun NowPlayingDetails(
             )
         }
 
-        if ((compactLayout && mobileLayout) || pinBottomActions) {
+        if (compactLayout && mobileLayout) {
             Box(modifier = Modifier.weight(1f))
         }
 
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(if (mobileLayout) 46.dp else 44.dp)
+                .requiredHeight(if (mobileLayout) 46.dp else 44.dp)
                 .padding(bottom = 0.dp),
         ) {
             Row(modifier = Modifier.align(Alignment.CenterStart)) {
@@ -795,7 +819,7 @@ private fun NowPlayingDetails(
                     iconSize = 26.dp,
                     onClick = { actions.currentTrack(NowPlayingCurrentTrackAction.StartRadio) },
                 )
-                Box(modifier = Modifier.size(44.dp), contentAlignment = Alignment.Center) {
+                Box(modifier = Modifier.requiredSize(44.dp), contentAlignment = Alignment.Center) {
                     NaviampTransportIconButton(
                         enabled = true,
                         icon = NaviampIcons.Turntable,
@@ -849,14 +873,14 @@ private fun NowPlayingDetails(
             IconButton(
                 onClick = { actions.display(NowPlayingDisplayAction.Collapse) },
                 modifier = Modifier
-                    .size(44.dp)
+                    .requiredSize(44.dp)
                     .align(Alignment.Center),
             ) {
                 Icon(
                     imageVector = NaviampIcons.ChevronDown,
                     contentDescription = "Back",
                     tint = colors.secondaryText,
-                    modifier = Modifier.size(26.dp),
+                    modifier = Modifier.requiredSize(26.dp),
                 )
             }
             Row(
@@ -874,7 +898,7 @@ private fun NowPlayingDetails(
                     iconSize = 26.dp,
                     onClick = { actions.display(NowPlayingDisplayAction.ToggleLyrics) },
                 )
-                Box(modifier = Modifier.size(44.dp), contentAlignment = Alignment.Center) {
+                Box(modifier = Modifier.requiredSize(44.dp), contentAlignment = Alignment.Center) {
                     NaviampTransportIconButton(
                         enabled = nowPlaying.menuEnabled,
                         icon = NaviampTransportIcons.Menu,
@@ -1337,6 +1361,11 @@ private fun VolumeRow(
     }
 }
 
+private val NowPlayingArtShadowMargin = 12.dp
+private val CompactNowPlayingDetailsMinHeight = 132.dp
+private val WideNowPlayingArtMinHeight = 112.dp
+private val WideNowPlayingDetailsMinHeight = 232.dp
+private val WideNowPlayingDetailsTopPadding = 8.dp
 private val VolumeThumbRadius = 6.dp
 
 @Composable
@@ -2023,7 +2052,7 @@ fun NaviampTransportIconButton(
     Box(
         contentAlignment = Alignment.Center,
         modifier = modifier
-            .size(buttonSize)
+            .requiredSize(buttonSize)
             .clip(RoundedCornerShape(999.dp))
             .background(
                 when {
@@ -2042,7 +2071,7 @@ fun NaviampTransportIconButton(
                 imageVector = icon,
                 contentDescription = contentDescription,
                 tint = if (enabled) colors.primaryText else colors.mutedText.copy(alpha = 0.55f),
-                modifier = Modifier.size(iconSize),
+                modifier = Modifier.requiredSize(iconSize),
             )
         }
         centerText?.let {

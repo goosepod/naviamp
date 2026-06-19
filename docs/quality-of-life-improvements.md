@@ -92,7 +92,7 @@ Each Mix Builder item should have a distinct icon treatment with Naviamp-appropr
 
 ## Now Playing Bottom Controls Stay Visible
 
-Status: Not started.
+Status: Done.
 
 Fix the Now Playing screen so the bottom row of icons keeps a stable size and remains visible as the desktop window is resized.
 
