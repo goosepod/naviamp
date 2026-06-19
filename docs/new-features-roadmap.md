@@ -20,6 +20,18 @@ Keep implementation cross-platform by default: shared domain models, shared UI, 
 
 ### Focused Polish
 
+- [ ] Add desktop update checking.
+  - Desktop app can manually check whether a newer Naviamp release is available.
+  - Keep the first pass simple: clear status for up-to-date, update available, and unable to check.
+  - Prefer a source that works with the eventual Forgejo release/tag flow.
+- [ ] Add desktop installer options.
+  - Keep the standard bundled-runtime installer as the reliable default.
+  - Add a clearly named thin smart installer that can use a compatible installed Java runtime when available.
+  - Windows installers should let users choose whether to add Naviamp to the Start Menu.
+- [ ] Improve desktop visualizer performance.
+  - Profile the current desktop visualizer pipeline before changing rendering behavior.
+  - Target smooth 60 fps motion where hardware/display support it, with diagnostics for frame time and dropped frames.
+  - Preserve existing visualizer styles while reducing choppy 5-10 fps behavior.
 - [x] Add Forgejo merge-to-main release builds.
   - Forgejo Actions builds run on pushes to `main` and manual dispatch.
   - Android produces unsigned APK/AAB release artifacts.

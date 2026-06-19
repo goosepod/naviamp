@@ -28,7 +28,8 @@ Finish Android Auto as the last 1.0 release gate. Naviamp should be discoverable
 - [x] Android Auto discovers Naviamp in DHU from a freshly installed debug build.
 - [ ] Android Auto discovers Naviamp in a real vehicle from a freshly installed build.
 - [x] Browse root is fast, stable, and never empty when a saved connection exists.
-- [ ] Browse root degrades gracefully when no connection is configured or provider restore fails.
+- [x] Browse root degrades gracefully when no connection is configured or provider restore fails.
+  - 2026-06-19 cleanup: Phase 3 empty/error-state work and current Auto browse no-source/load-error rows cover disconnected and restore-failure states.
 - [x] Now Playing / Resume item resumes the last saved queue or radio session from a swiped-away app.
 - [x] Browsed library track playback works from cold service start.
 - [ ] Browsed downloaded-track playback works from cold service start without network.
@@ -41,7 +42,8 @@ Finish Android Auto as the last 1.0 release gate. Naviamp should be discoverable
 - [ ] Library Radio works from cold service start.
 - [ ] Assistant voice requests reach Naviamp and either play a matching result or fail with a clear log/status.
 - [ ] Seek, play/pause, previous, next, and stop commands work from DHU and real vehicle controls.
-- [ ] Projection disconnect pauses playback reliably enough that audio does not continue unexpectedly on phone speakers.
+- [x] Projection disconnect pauses playback reliably enough that audio does not continue unexpectedly on phone speakers.
+  - 2026-06-19 cleanup: Phase 6 DHU disconnect and USB/Bluetooth route-disconnect tests are recorded as complete; real-vehicle discovery remains a separate release gate.
 - [x] Foreground notification and Android Auto session stay in sync across phone UI open/close, service-only playback, and app process cold start.
 - [x] `.\gradlew.bat --configure-on-demand :apps:android:assembleDebug` passes.
 - [x] `.\gradlew.bat --configure-on-demand :apps:android:assembleRelease` passes.

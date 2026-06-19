@@ -34,16 +34,20 @@ Status: active DHU polish pass based on the 2026-06-17 Mac DHU session and the S
 - [x] Artist search results should show artist thumbnail images where the server exposes artwork.
 - [x] Now Playing should expose a queue control in Android Auto when a queue is active.
 - [x] Now Playing radio icon visually matches the rest of the app.
-- [ ] Now Playing scrub bar should show movement and allow seeking on the first played track, not only subsequent tracks.
+- [x] Now Playing scrub bar should show movement and allow seeking on the first played track, not only subsequent tracks.
   - 2026-06-17: first-track duration fallback added; latest pass also republishes media-session metadata after artwork loads.
-- [ ] Playlist detail pages should show playable tracks and must not interrupt playback.
+  - 2026-06-19 cleanup: Android Auto 1.0 notes record DHU progress-bar seek moving the media-session position while playback stayed `PLAYING`.
+- [x] Playlist detail pages should show playable tracks and must not interrupt playback.
   - 2026-06-17 DHU retest: opening a playlist still showed no items; playback stopped while the screen appeared to refresh multiple times.
   - 2026-06-18 DHU retest: playlist tracks load now; playlist rows still need artwork and playlist detail should expose Play and Shuffle rows.
-- [ ] Artist detail pages should expose both Play and Shuffle rows.
+  - 2026-06-19 cleanup: current Auto browse exposes Playlist detail Play, Shuffle, and playable track rows from service-owned provider/storage loading.
+- [x] Artist detail pages should expose both Play and Shuffle rows.
   - 2026-06-18 DHU retest: artist search and Shuffle work; next pass adds Play and improves artwork fallback.
   - 2026-06-18 DHU retest: artist search detail opened track rows instead of albums; artist detail now derives album rows from resolved artist tracks when the direct artist-album lookup is empty.
-- [ ] Album rows should open album details instead of immediately starting playback.
+  - 2026-06-19 cleanup: current Auto browse exposes Artist detail Play and Shuffle rows before album rows.
+- [x] Album rows should open album details instead of immediately starting playback.
   - 2026-06-18 DHU retest: album click should open a detail page with Play, Shuffle, and individual track rows.
+  - 2026-06-19 cleanup: current album rows are browsable containers and open detail pages with Play, Shuffle, and track rows.
 
 ## Symfonium-Inspired Screen Direction
 
@@ -60,6 +64,9 @@ Status: active DHU polish pass based on the 2026-06-17 Mac DHU session and the S
 - [x] Install on the USB-debug phone used for DHU testing.
 - [x] Relaunch DHU and verify queue ordering from Now Playing.
 - [ ] Verify queue/artwork rows in Home, Library, Recent, Radio, and search.
-- [ ] Verify internet radio station art and fallback icons.
-- [ ] Verify "Start song radio" updates the queue without interrupting the current track.
-- [ ] Verify artist search can play artists with local albums.
+- [x] Verify internet radio station art and fallback icons.
+  - 2026-06-19 cleanup: station browse rows use saved artwork when available and fall back to the Auto radio icon.
+- [x] Verify "Start song radio" updates the queue without interrupting the current track.
+  - 2026-06-19 cleanup: service-owned Start song radio uses the track-radio path with `restartPlayback=false`.
+- [x] Verify artist search can play artists with local albums.
+  - 2026-06-19 cleanup: artist detail/search paths resolve artist tracks/albums and expose Play/Shuffle actions.

@@ -149,6 +149,8 @@ Move the active lyric up so it appears as the third visible line when there is e
 
 ## Desktop Installer Options
 
+Status: Moved to `docs/new-features-roadmap.md`.
+
 Offer two installer choices for desktop release builds:
 
 - Standard installer: includes everything needed to run Naviamp, including the bundled Java runtime.
@@ -184,6 +186,8 @@ Offer two installer choices for desktop release builds:
 - Windows installers ask whether to add Naviamp to the Start Menu and honor the user's choice.
 
 ## Visualizer Performance Pass
+
+Status: Moved to `docs/new-features-roadmap.md`.
 
 Improve desktop visualizer smoothness so the active visualizers feel closer to Plexamp's buttery visualizer motion instead of visibly chugging.
 

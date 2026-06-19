@@ -36,12 +36,12 @@ Gradle reads these root files for Android and desktop packaging:
 - Android `versionCode` comes from `VERSION_CODE`.
 - Desktop installer/package version is derived from `VERSION`.
 
-Native desktop installers built through jpackage do not accept a `0.x.y` package version on every platform, so pre-1.0 Naviamp versions are encoded with a positive native package major version for installer metadata. For example, app version `0.9.1` is packaged with native installer metadata version `1.9.1`. The source-of-truth user-facing version remains `VERSION`.
+Native desktop installers built through jpackage do not accept a `0.x.y` package version on every platform, so pre-1.0 Naviamp versions are encoded with a positive native package major version for installer metadata. For example, app version `0.10.0` is packaged with native installer metadata version `1.10.0`. The source-of-truth user-facing version remains `VERSION`.
 
 Current version:
 
 ```text
-0.9.1
+0.10.0
 ```
 
 Before merging a feature branch into `main`, bump the version on the branch:
@@ -174,15 +174,15 @@ make windows-installer
 
 For the first internal test release in Play Console:
 
-- Release name: `0.9.1 internal test 2`
+- Release name: `0.10.0 internal test 3`
 - Upload: `apps/android/build/outputs/bundle/release/android-release.aab`
 - Release notes:
 
 ```text
 <en-US>
-Internal testing release for Naviamp 0.9.1.
+Internal testing release for Naviamp 0.10.0.
 
-Includes waveform detail controls and the new About page with version, build, library, and changelog details.
+Includes refresh controls, Now Playing layout fixes, Mix Builder polish, synced lyrics positioning, and configurable desktop downloads.
 </en-US>
 ```
 

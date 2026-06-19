@@ -23,6 +23,8 @@ val generatedDesktopBassResources = layout.buildDirectory.dir("generated/desktop
 val generatedDesktopBuildInfoResources = layout.buildDirectory.dir("generated/desktopBuildInfo")
 val generateDesktopBuildInfo by tasks.registering {
     val outputFile = generatedDesktopBuildInfoResources.map { it.file("naviamp-build.properties").asFile }
+    inputs.property("naviampVersionName", naviampVersionName)
+    inputs.property("naviampVersionCode", naviampVersionCode)
     outputs.file(outputFile)
     doLast {
         outputFile.get().apply {
