@@ -1366,6 +1366,7 @@ private val CompactNowPlayingDetailsMinHeight = 132.dp
 private val WideNowPlayingArtMinHeight = 112.dp
 private val WideNowPlayingDetailsMinHeight = 232.dp
 private val WideNowPlayingDetailsTopPadding = 8.dp
+private const val LyricsActiveLineTargetIndex = 2
 private val VolumeThumbRadius = 6.dp
 
 @Composable
@@ -1495,7 +1496,7 @@ private fun LyricsPanel(
 
     LaunchedEffect(activeLineIndex, nowPlaying.lyricsLines.size) {
         if (activeLineIndex < 0) return@LaunchedEffect
-        listState.animateScrollToItem((activeLineIndex - 4).coerceAtLeast(0))
+        listState.animateScrollToItem((activeLineIndex - LyricsActiveLineTargetIndex).coerceAtLeast(0))
     }
 
     Column(

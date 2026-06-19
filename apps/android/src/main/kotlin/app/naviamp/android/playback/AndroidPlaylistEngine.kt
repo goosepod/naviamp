@@ -279,12 +279,18 @@ class AndroidPlaylistEngine(
                     state.audioTagsByTrackId = state.audioTagsByTrackId + (work.track.id.value to emptyList())
                 },
                 onLyricsReady = { lyrics ->
-                    state.lyricsByTrackId = state.lyricsByTrackId + (work.track.id.value to lyrics)
+                    if (lyrics != null || state.lyricsByTrackId[work.track.id.value] == null) {
+                        state.lyricsByTrackId = state.lyricsByTrackId + (work.track.id.value to lyrics)
+                    }
                     state.lyricsStatusByTrackId = state.lyricsStatusByTrackId + (work.track.id.value to null)
                 },
                 onLyricsFailed = { _, message ->
-                    state.lyricsByTrackId = state.lyricsByTrackId + (work.track.id.value to null)
-                    state.lyricsStatusByTrackId = state.lyricsStatusByTrackId + (work.track.id.value to message)
+                    if (state.lyricsByTrackId[work.track.id.value] != null) {
+                        state.lyricsStatusByTrackId = state.lyricsStatusByTrackId + (work.track.id.value to null)
+                    } else {
+                        state.lyricsByTrackId = state.lyricsByTrackId + (work.track.id.value to null)
+                        state.lyricsStatusByTrackId = state.lyricsStatusByTrackId + (work.track.id.value to message)
+                    }
                     val sourceId = work.sourceId
                     if (sourceId != null) {
                         sidecarStatusRepository.recordSidecarFailure(

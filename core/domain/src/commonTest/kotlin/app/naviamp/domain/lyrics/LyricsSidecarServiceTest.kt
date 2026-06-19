@@ -78,6 +78,28 @@ class LyricsSidecarServiceTest {
         assertEquals(emptyList(), repository.onlineRequests)
     }
 
+    @Test
+    fun keepsUnsyncedProviderLyricsWhenOnlineLyricsTimeout() = runTest {
+        val providerLyrics = lyrics(LyricsSource.Provider, synced = false, text = "Provider")
+        val repository = RecordingLyricsRepository(
+            providerLyrics = providerLyrics,
+            onlineError = RuntimeException("Request timeout has expired"),
+        )
+        val service = service(repository = repository)
+
+        val result = service.loadLyrics(
+            sourceId = "source",
+            provider = FakeMediaProvider(),
+            track = track(),
+            quality = StreamQuality.Original,
+            audioCachingEnabled = true,
+            onlineLyricsEnabled = true,
+        )
+
+        assertSame(providerLyrics, result.lyrics)
+        assertEquals(listOf("source:track"), repository.onlineRequests)
+    }
+
     private fun service(
         repository: RecordingLyricsRepository,
         audioAssets: PlaybackAudioAssetRepository = RecordingAudioAssets(),
@@ -96,6 +118,7 @@ class LyricsSidecarServiceTest {
 private class RecordingLyricsRepository(
     private val providerLyrics: Lyrics? = null,
     private val onlineLyrics: Lyrics? = null,
+    private val onlineError: Throwable? = null,
 ) : LyricsSidecarRepository {
     val providerRequests = mutableListOf<String>()
     val onlineRequests = mutableListOf<String>()
@@ -121,6 +144,7 @@ private class RecordingLyricsRepository(
 
     override suspend fun lrclibLyrics(sourceId: String, track: Track): Lyrics? {
         onlineRequests += "$sourceId:${track.id.value}"
+        onlineError?.let { throw it }
         return onlineLyrics
     }
 }

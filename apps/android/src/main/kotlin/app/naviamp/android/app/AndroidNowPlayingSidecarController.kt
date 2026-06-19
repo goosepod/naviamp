@@ -1,5 +1,6 @@
 package app.naviamp.android
 
+import android.util.Log
 import app.naviamp.domain.StreamQuality
 import app.naviamp.domain.Track
 import app.naviamp.domain.audio.AudioMetadataSidecarService
@@ -45,14 +46,16 @@ internal class AndroidNowPlayingSidecarController(
             val sourceId = state.activeSourceId
             val quality = currentStreamQuality()
             runCatching {
-                lyricsSidecarService.loadLyrics(
-                    sourceId = sourceId,
-                    provider = activeProvider,
-                    track = track,
-                    quality = quality,
-                    audioCachingEnabled = true,
-                    onlineLyricsEnabled = state.playbackSettings.lrclibLyricsEnabled,
-                ).lyrics?.let { lyrics -> lyricsOffsetController.withSavedOffset(sourceId, track, lyrics) }
+                withContext(Dispatchers.IO) {
+                    lyricsSidecarService.loadLyrics(
+                        sourceId = sourceId,
+                        provider = activeProvider,
+                        track = track,
+                        quality = quality,
+                        audioCachingEnabled = true,
+                        onlineLyricsEnabled = state.playbackSettings.lrclibLyricsEnabled,
+                    ).lyrics?.let { lyrics -> lyricsOffsetController.withSavedOffset(sourceId, track, lyrics) }
+                }
             }
                 .onSuccess { lyrics ->
                     state.lyricsByTrackId = state.lyricsByTrackId + (track.id.value to lyrics)
@@ -67,9 +70,14 @@ internal class AndroidNowPlayingSidecarController(
                     }
                 }
                 .onFailure { error ->
-                    state.lyricsByTrackId = state.lyricsByTrackId + (track.id.value to null)
                     val message = lyricsUnavailableStatus(error)
-                    state.lyricsStatusByTrackId = state.lyricsStatusByTrackId + (track.id.value to message)
+                    Log.w(LyricsLogTag, "Lyrics load failed for track ${track.id.value}: $message", error)
+                    if (state.lyricsByTrackId[track.id.value] != null) {
+                        state.lyricsStatusByTrackId = state.lyricsStatusByTrackId + (track.id.value to null)
+                    } else {
+                        state.lyricsByTrackId = state.lyricsByTrackId + (track.id.value to null)
+                        state.lyricsStatusByTrackId = state.lyricsStatusByTrackId + (track.id.value to message)
+                    }
                     sourceId?.let { activeSourceId ->
                         sidecarStatusRepository.recordSidecarFailure(
                             sourceId = activeSourceId,
@@ -125,3 +133,5 @@ internal class AndroidNowPlayingSidecarController(
         }
     }
 }
+
+private const val LyricsLogTag = "NaviampLyrics"

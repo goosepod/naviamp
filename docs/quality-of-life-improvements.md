@@ -120,7 +120,9 @@ The bottom icon row should have a stable touch/click target size and should alwa
 
 ## Synced Lyrics Current-Line Position
 
-Adjust the synced lyrics panel so the current lyric line is visually centered in the seven-line display.
+Status: Done.
+
+Adjust the synced lyrics panel so the current lyric line sits slightly above center in the seven-line display.
 
 ### Current Behavior
 
@@ -128,7 +130,7 @@ After the song gets past the first few lines, the active lyric appears as the fi
 
 ### Desired Behavior
 
-Move the active lyric up by one line so it appears as the fourth visible line when there is enough surrounding lyric context.
+Move the active lyric up so it appears as the third visible line when there is enough surrounding lyric context.
 
 ### Notes
 
@@ -136,10 +138,11 @@ Move the active lyric up by one line so it appears as the fourth visible line wh
 - Keep the end-of-song behavior graceful when there are not enough following lines.
 - Preserve the current lyric highlighting and offset controls.
 - Apply the behavior consistently across desktop and Android if they share the lyrics panel implementation.
+- On Android, keep already-loaded provider or embedded lyrics visible if an LRCLIB sync upgrade times out later.
 
 ### Acceptance Criteria
 
-- With seven visible synced lyric lines and enough surrounding context, the active line is fourth from the top.
+- With seven visible synced lyric lines and enough surrounding context, the active line is third from the top.
 - The first few lines do not leave unnecessary blank space above the lyrics.
 - The final few lines do not jump or leave unnecessary blank space below the lyrics.
 - Manual lyrics offset adjustment still updates the highlighted line immediately.

@@ -72,6 +72,7 @@ class LyricsSidecarService(
 
         val providerLyrics = providerLyrics(sourceId, provider, track)
 
+        val localLyrics = providerLyrics ?: embeddedLyrics
         val onlineLyrics = if (
             sourceId != null &&
             shouldLoadOnlineLyrics(
@@ -80,7 +81,10 @@ class LyricsSidecarService(
                 embeddedLyrics = embeddedLyrics,
             )
         ) {
-            onlineLyrics(sourceId, track)
+            runCatching { onlineLyrics(sourceId, track) }
+                .getOrElse { error ->
+                    if (localLyrics != null) null else throw error
+                }
         } else {
             null
         }
