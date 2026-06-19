@@ -495,14 +495,8 @@ private val DefaultNaviampLibraries = listOf(
 )
 
 private val DefaultNaviampChangelog = listOf(
-    "Added pull-to-refresh on Android and desktop refresh menus for Library, Playlists, and Internet Radio.",
-    "Kept desktop app content on the dark presentation while matching the window chrome to the OS theme.",
-    "Kept Now Playing bottom controls visible and stabilized compact Now Playing layout spacing.",
-    "Fixed Mixes For You playback and added distinct Mix Builder artwork.",
-    "Moved synced lyrics highlighting to the third visible line.",
-    "Added a configurable desktop download folder with the native folder picker.",
-    "Added waveform detail settings with configurable bucket counts.",
-    "Added this About page with version, build, libraries, and changelog details.",
+    "Added multiple saved Navidrome connections on Android.",
+    "Switched the app typography to Nunito Sans.",
 )
 
 @Composable
