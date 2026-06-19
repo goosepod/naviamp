@@ -22,6 +22,7 @@ Add pull-to-refresh gestures on these top-level pages:
 - Internet Radio should refresh the station list and keep the current route/context stable.
 - Library should refresh the local library snapshot or trigger the existing library refresh path, depending on the current platform flow.
 - The gesture should be platform-appropriate. Android should use native-feeling pull-to-refresh behavior. Desktop can wait unless there is an existing scroll/pointer pattern that makes the gesture feel intentional.
+- Desktop should still expose an explicit refresh affordance for the same pages, likely through a compact three-dot page menu with a Refresh action, so desktop users have parity without forcing a touch-style gesture.
 
 ### Acceptance Criteria
 
@@ -156,9 +157,9 @@ Let users choose where downloaded tracks are stored instead of always using Navi
 - Cache/download cleanup respects the configured directory and does not delete unrelated user files.
 - Resetting the setting returns downloads to Naviamp's default storage location.
 
-## Dark and Light Mode Readability
+## Dark Mode Rendering With OS-Matched Window Chrome
 
-Make Naviamp readable and polished on both dark-mode and light-mode desktop systems.
+Make Naviamp readable and polished on both dark-mode and light-mode desktop systems by keeping the app content on Naviamp's existing dark presentation while letting only native window chrome follow the operating system.
 
 ### Current Behavior
 
@@ -166,29 +167,29 @@ On a Windows machine using a non-dark system theme, the app can become extremely
 
 ### Desired Behavior
 
-Naviamp should render a coherent dark theme and a coherent light theme, with predictable colors, readable text, and controls that look intentional in either mode.
+Naviamp's in-app rendering should always use the current dark-mode look. The native title bar/window chrome should continue to match the operating system's light or dark appearance where the platform supports it.
 
 ### Goals
 
 - Audit desktop theme selection on Windows, macOS, and Linux.
-- Decide whether Naviamp follows system theme by default or uses an app-level theme preference.
-- Add explicit settings for System, Dark, and Light if the current theme path cannot reliably infer the user's intent.
-- Ensure every major surface, text color, icon tint, divider, selected row, disabled state, dialog, menu, and input field has acceptable contrast in both themes.
+- Decouple in-app Compose colors from system light/dark detection.
+- Keep every major app surface, text color, icon tint, divider, selected row, disabled state, dialog, menu, and input field on the existing readable dark theme.
 - Keep album-art-derived accents from overpowering text contrast or making controls unreadable.
 
 ### Notes
 
 - Test on a Windows machine with light mode enabled, not only by toggling previews or assumptions in code.
 - The player, navigation, settings, library, playlists, search, dialogs, Stats for Nerds, and visualizer overlays all need a pass.
-- Pay special attention to transparent or semi-transparent surfaces that may look fine on dark backgrounds and fail on light ones.
+- Pay special attention to transparent or semi-transparent surfaces that may accidentally depend on a light Material theme.
 - Use theme tokens/shared UI colors where possible so fixes do not become one-off color overrides.
 - Preserve the current dark-mode look where it already works well.
+- The OS should only influence the native title bar/window chrome, not the app content theme.
 
 ### Acceptance Criteria
 
-- The app is readable on Windows with system light mode enabled.
-- The app is readable on Windows with system dark mode enabled.
-- Text and interactive controls meet reasonable contrast expectations in both modes.
-- Users can choose System, Dark, or Light mode if automatic system theme detection is unreliable.
+- The app content is readable on Windows with system light mode enabled because it still uses Naviamp's dark in-app theme.
+- The app content is readable on Windows with system dark mode enabled.
+- The native title bar/window chrome follows the operating system light or dark appearance where supported.
+- Text and interactive controls keep the same contrast as the current dark-mode presentation.
 - Album-art/accent colors never make core text or controls unreadable.
-- Screenshots of the main desktop routes show coherent styling in both dark and light mode.
+- Screenshots of the main desktop routes show coherent dark in-app styling under both system light and dark modes.

@@ -3,14 +3,12 @@ package app.naviamp.desktop
 import app.naviamp.domain.cache.StorageCacheStats
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.darkColorScheme
-import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.NonRestartableComposable
@@ -73,9 +71,8 @@ import app.naviamp.ui.nowPlayingRelatedIndex
 fun NaviampApp(
     dependencies: DesktopAppDependencies = remember { DesktopAppDependencies() },
 ) {
-    val isDark = isSystemInDarkTheme()
-    val appColors = if (isDark) DesktopAppColors.Dark else DesktopAppColors.Light
-    val colorScheme = if (isDark) darkColorScheme() else lightColorScheme()
+    val appColors = DesktopAppColors.Dark
+    val colorScheme = darkColorScheme()
     val settingsStore = dependencies.settingsStore
     val about = remember { loadDesktopAboutUi() }
     val playbackEngine = dependencies.playbackEngine
