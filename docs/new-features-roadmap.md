@@ -24,6 +24,12 @@ Keep implementation cross-platform by default: shared domain models, shared UI, 
   - Desktop app can manually check whether a newer Naviamp release is available.
   - Keep the first pass simple: clear status for up-to-date, update available, and unable to check.
   - Prefer a source that works with the eventual Forgejo release/tag flow.
+- [ ] Add secondary server URL support for saved server profiles.
+  - Let each saved Navidrome/server config store a primary URL plus an optional secondary URL.
+  - Use case: connect directly to a local LAN URL at home, but fall back to a VPN, Tailscale, or external URL when away.
+  - Allow optional custom HTTP headers per connection for reverse proxies, auth gateways, VPN/proxy routing, or other self-hosted network setups.
+  - Keep credentials, TLS settings, cached source identity, and offline sync tied to the same logical server profile, not duplicated profiles.
+  - Prefer automatic reachability/fallback when safe, with clear status text showing which URL is active.
 - [ ] Add desktop installer options.
   - Keep the standard bundled-runtime installer as the reliable default.
   - Add a clearly named thin smart installer that can use a compatible installed Java runtime when available.
