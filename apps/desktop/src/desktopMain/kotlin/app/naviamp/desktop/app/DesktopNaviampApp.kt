@@ -40,12 +40,17 @@ import app.naviamp.domain.radio.RadioTuningSettings
 import app.naviamp.desktop.settings.PlaybackSettings
 import app.naviamp.desktop.settings.PlaybackSessionSettings
 import app.naviamp.desktop.settings.RecentRadioStream
+import app.naviamp.desktop.settings.DesktopSettingsSyncFile
+import app.naviamp.desktop.settings.DesktopSettingsSyncSettings
 import app.naviamp.desktop.settings.VisualizerSettings
+import app.naviamp.domain.settings.SettingsSyncLocalSnapshot
+import app.naviamp.domain.settings.buildSettingsSyncDocument
 import app.naviamp.domain.settings.effectiveForEngine
 import app.naviamp.domain.settings.PlaybackSettingsMaintenanceController
 import app.naviamp.domain.settings.playbackSettingsChange
 import app.naviamp.domain.settings.restoredPlaybackQueue
 import app.naviamp.domain.settings.restoredTrackSession
+import app.naviamp.domain.settings.toConnectionFormState
 import app.naviamp.domain.sonicautoplay.SonicAutoplayService
 import app.naviamp.provider.navidrome.NavidromeConnection
 import app.naviamp.provider.navidrome.NavidromeProvider
@@ -63,8 +68,10 @@ import app.naviamp.ui.NowPlayingSelectionAction
 import app.naviamp.ui.NowPlayingSelectionActionRequest
 import app.naviamp.ui.NowPlayingSleepTimerAction
 import app.naviamp.ui.NowPlayingSleepTimerActionRequest
+import app.naviamp.ui.naviampVisualizerFromName
 import app.naviamp.ui.nowPlayingQueueIndex
 import app.naviamp.ui.nowPlayingRelatedIndex
+import java.nio.file.Path
 
 @Composable
 @NonRestartableComposable
@@ -92,6 +99,7 @@ fun NaviampApp(
     val savedRecentRadioStreams = remember { settingsStore.loadRecentRadioStreams() }
     val savedRecentPlaylistIds = remember { settingsStore.loadRecentPlaylistIds() }
     val savedRecentInternetRadioStations = remember { settingsStore.loadRecentInternetRadioStations() }
+    val savedSettingsSync = remember { settingsStore.loadSettingsSync() }
     val savedPlaybackSettings = remember {
         val settings = settingsStore.loadPlaybackSettings()
         val storedDjs = storage.radioDjPresets()
@@ -136,6 +144,8 @@ fun NaviampApp(
     var mediaSourcesRevision by remember { mutableIntStateOf(0) }
     var isConnecting by remember { mutableStateOf(false) }
     var connectionStatus by remember { mutableStateOf<String?>(null) }
+    var settingsSyncSettings by remember { mutableStateOf(savedSettingsSync.normalized()) }
+    var settingsSyncStatus by remember { mutableStateOf<String?>(null) }
     var connectedProvider by remember { mutableStateOf<NavidromeProvider?>(null) }
     val sonicAutoplayService = remember {
         SonicAutoplayService(provider = { connectedProvider })
@@ -310,6 +320,100 @@ fun NaviampApp(
             homeContent = homeContent,
             setHomeContent = { content -> homeContent = content },
         )
+    }
+
+    fun settingsSyncDirectory(): Path? =
+        settingsSyncSettings.directoryPath?.let(Path::of)
+
+    fun updateSettingsSyncDirectory(path: String?) {
+        val normalized = DesktopSettingsSyncSettings(path).normalized()
+        settingsSyncSettings = normalized
+        settingsStore.saveSettingsSync(normalized)
+        settingsSyncStatus = if (normalized.directoryPath == null) {
+            "Settings sync disabled."
+        } else {
+            "Settings sync folder selected."
+        }
+    }
+
+    fun exportSettingsSync() {
+        val directory = settingsSyncDirectory()
+        if (directory == null) {
+            settingsSyncStatus = "Choose a settings sync folder first."
+            return
+        }
+        runCatching {
+            val document = buildSettingsSyncDocument(
+                snapshot = SettingsSyncLocalSnapshot(
+                    serverProfiles = storage.mediaSources(),
+                    playback = playbackSettings,
+                    visualizer = VisualizerSettings(
+                        selectedVisualizer = nowPlayingPresentation.selectedVisualizer.name,
+                    ),
+                    recentRadioStreams = recentRadioStreams,
+                    recentInternetRadioStations = settingsStore.loadRecentInternetRadioStations(),
+                ),
+                nowEpochMillis = System.currentTimeMillis(),
+                deviceId = DesktopSettingsSyncDeviceId,
+            )
+            DesktopSettingsSyncFile.write(directory, document)
+            DesktopSettingsSyncFile.syncFile(directory).fileName
+        }.onSuccess { fileName ->
+            settingsSyncStatus = "Settings exported to $fileName."
+        }.onFailure { error ->
+            settingsSyncStatus = error.message ?: "Could not export settings sync file."
+        }
+    }
+
+    fun importSettingsSync() {
+        val directory = settingsSyncDirectory()
+        if (directory == null) {
+            settingsSyncStatus = "Choose a settings sync folder first."
+            return
+        }
+        runCatching {
+            val document = DesktopSettingsSyncFile.read(directory)
+                ?: error("No settings sync file found in that folder.")
+            val importedPlayback = document.preferences.playback.effectiveForEngine(playbackEngine)
+            storage.replaceRadioDjPresets(importedPlayback.radioDjs)
+            playbackSettings = importedPlayback.copy(radioDjs = storage.radioDjPresets())
+            settingsStore.savePlaybackSettings(playbackSettings.copy(radioDjs = emptyList()))
+            settingsStore.saveVisualizerSettings(document.preferences.visualizer)
+            nowPlayingPresentation.selectVisualizer(
+                naviampVisualizerFromName(document.preferences.visualizer.selectedVisualizer),
+            )
+            recentRadioStreams = document.preferences.recentRadioStreams
+            settingsStore.saveRecentRadioStreams(recentRadioStreams)
+            settingsStore.saveRecentInternetRadioStations(document.preferences.recentInternetRadioStations)
+
+            document.serverProfiles.firstOrNull()?.let { profile ->
+                val form = profile.toConnectionFormState()
+                connectionForm.apply(
+                    DesktopConnectionFormState(
+                        serverUrl = form.serverUrl,
+                        connectionName = form.displayName,
+                        username = form.username,
+                        password = "",
+                        insecureSkipTlsVerification = form.skipTlsVerification,
+                        customCertificatePath = form.customCertificatePath,
+                        clientCertificateKeyStorePath = form.clientCertificatePath,
+                        clientCertificateKeyStorePassword = "",
+                    ),
+                )
+                connectionForm.isOpen = true
+                appRoute = DesktopAppRoute.Settings
+            }
+
+            document.serverProfiles.isNotEmpty()
+        }.onSuccess { hasServerProfiles ->
+            settingsSyncStatus = if (hasServerProfiles) {
+                "Settings imported. Enter the Navidrome password to finish connecting."
+            } else {
+                "Settings imported."
+            }
+        }.onFailure { error ->
+            settingsSyncStatus = error.message ?: "Could not import settings sync file."
+        }
     }
 
     val playlistCallbacksRef = remember { mutableStateOf<PlaylistCallbacks?>(null) }
@@ -1146,12 +1250,17 @@ fun NaviampApp(
                             playbackEngine = playbackEngine,
                             supportsSonicSimilarity =
                                 connectedProvider?.capabilities?.supportsSonicSimilarity == true,
+                            settingsSyncDirectoryPath = settingsSyncSettings.directoryPath,
+                            settingsSyncStatus = settingsSyncStatus,
                             onConnect = { appActions.connectToServer() },
                             onNewConnection = connectionLifecycleController::openNewConnectionForm,
                             onEditConnection = connectionLifecycleController::openSavedConnectionForm,
                             onConnectSavedConnection = connectionLifecycleController::connectSavedConnection,
                             onDeleteConnection = { source -> appActions.deleteConnection(source) },
                             onCancelConnectionForm = connectionLifecycleController::closeConnectionForm,
+                            onSettingsSyncDirectoryChanged = ::updateSettingsSyncDirectory,
+                            onSettingsSyncExport = ::exportSettingsSync,
+                            onSettingsSyncImport = ::importSettingsSync,
                             onPlaybackSettingsChanged = settingsMaintenanceController::applyPlaybackSettings,
                             onPlaybackSettingsChangedAndRedownload =
                                 settingsMaintenanceController::applyPlaybackSettingsAndRedownload,
@@ -1226,3 +1335,5 @@ private fun NavidromeConnection.withNativeTokenFrom(fallback: NavidromeConnectio
     val matchesSavedConnection = fallback.baseUrl == baseUrl && fallback.username == username
     return if (matchesSavedConnection) copy(nativeToken = fallbackToken) else this
 }
+
+private const val DesktopSettingsSyncDeviceId = "desktop"

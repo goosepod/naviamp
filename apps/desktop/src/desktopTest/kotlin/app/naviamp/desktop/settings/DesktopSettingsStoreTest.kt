@@ -250,4 +250,23 @@ class DesktopSettingsStoreTest {
         assertEquals("new order", store.loadSearchSettings().query)
         assertEquals("Search", store.loadNavigationSettings().route)
     }
+
+    @Test
+    fun saveSettingsSyncPreservesConnectionAndNormalizesDirectory() {
+        val path = createTempDirectory().resolve("settings.json")
+        val store = DesktopSettingsStore(path)
+        store.saveConnection(
+            NavidromeConnection(
+                baseUrl = "https://music.example.test",
+                username = "user",
+                token = "token",
+                salt = "salt",
+            ),
+        )
+
+        store.saveSettingsSync(DesktopSettingsSyncSettings(directoryPath = "  C:/Sync/Naviamp  "))
+
+        assertEquals("C:/Sync/Naviamp", store.loadSettingsSync().directoryPath)
+        assertEquals("user", store.loadConnection()?.username)
+    }
 }

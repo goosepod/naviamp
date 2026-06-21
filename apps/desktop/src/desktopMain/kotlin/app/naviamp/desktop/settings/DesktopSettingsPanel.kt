@@ -54,6 +54,7 @@ import app.naviamp.domain.settings.ConnectionFormState
 import app.naviamp.domain.settings.DefaultWaveformBucketCount
 import app.naviamp.domain.settings.MaxWaveformBucketCount
 import app.naviamp.domain.settings.MinWaveformBucketCount
+import app.naviamp.domain.settings.SettingsSyncFileName
 import app.naviamp.desktop.settings.CacheSettings
 import app.naviamp.desktop.settings.PlaybackSettings
 import app.naviamp.ui.NaviampAboutSettingsSection
@@ -90,6 +91,8 @@ fun DesktopSettingsPanel(
     playbackSettings: PlaybackSettings,
     cacheSettings: CacheSettings,
     cacheStats: StorageCacheStats,
+    settingsSyncDirectoryPath: String?,
+    settingsSyncStatus: String?,
     about: NaviampAboutUi,
     supportsReplayGain: Boolean,
     supportsGapless: Boolean,
@@ -110,6 +113,9 @@ fun DesktopSettingsPanel(
     onDeleteConnection: (SavedMediaSource) -> Unit,
     onConnectSavedConnection: (SavedMediaSource) -> Unit,
     onCancelConnectionForm: () -> Unit,
+    onSettingsSyncDirectoryChanged: (String?) -> Unit,
+    onSettingsSyncExport: () -> Unit,
+    onSettingsSyncImport: () -> Unit,
     onPlaybackSettingsChanged: (PlaybackSettings) -> Unit,
     onPlaybackSettingsChangedAndRedownload: (PlaybackSettings) -> Unit,
     onCacheSettingsChanged: (CacheSettings) -> Unit,
@@ -146,6 +152,8 @@ fun DesktopSettingsPanel(
                 isConnectionFormOpen = isConnectionFormOpen,
                 isConnecting = isConnecting,
                 connectionStatus = connectionStatus,
+                settingsSyncDirectoryPath = settingsSyncDirectoryPath,
+                settingsSyncStatus = settingsSyncStatus,
                 onServerUrlChanged = onServerUrlChanged,
                 onConnectionNameChanged = onConnectionNameChanged,
                 onUsernameChanged = onUsernameChanged,
@@ -160,6 +168,9 @@ fun DesktopSettingsPanel(
                 onDeleteConnection = onDeleteConnection,
                 onConnectSavedConnection = onConnectSavedConnection,
                 onCancelConnectionForm = onCancelConnectionForm,
+                onSettingsSyncDirectoryChanged = onSettingsSyncDirectoryChanged,
+                onSettingsSyncExport = onSettingsSyncExport,
+                onSettingsSyncImport = onSettingsSyncImport,
             )
             NaviampSettingsCategory.Playback -> NaviampPlaybackSettingsSection(
                 colors = appColors,
@@ -482,6 +493,8 @@ private fun ConnectionsSettings(
     isConnectionFormOpen: Boolean,
     isConnecting: Boolean,
     connectionStatus: String?,
+    settingsSyncDirectoryPath: String?,
+    settingsSyncStatus: String?,
     onServerUrlChanged: (String) -> Unit,
     onConnectionNameChanged: (String) -> Unit,
     onUsernameChanged: (String) -> Unit,
@@ -496,6 +509,9 @@ private fun ConnectionsSettings(
     onDeleteConnection: (SavedMediaSource) -> Unit,
     onConnectSavedConnection: (SavedMediaSource) -> Unit,
     onCancelConnectionForm: () -> Unit,
+    onSettingsSyncDirectoryChanged: (String?) -> Unit,
+    onSettingsSyncExport: () -> Unit,
+    onSettingsSyncImport: () -> Unit,
 ) {
     var connectionPendingDelete by remember { mutableStateOf<SavedMediaSource?>(null) }
 
@@ -565,6 +581,60 @@ private fun ConnectionsSettings(
                 onConnect = onConnect,
                 onCancel = onCancelConnectionForm,
             )
+        }
+        HorizontalDivider(color = appColors.border)
+        SettingsSectionTitle("Settings Sync", appColors)
+        Text(
+            "Use a folder managed by your own sync service. Naviamp writes $SettingsSyncFileName there.",
+            color = appColors.secondaryText,
+            fontSize = 12.sp,
+        )
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Text(
+                settingsSyncDirectoryPath ?: "No sync folder selected",
+                color = appColors.secondaryText,
+                fontSize = 12.sp,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f),
+            )
+            TextButton(
+                onClick = {
+                    val start = settingsSyncDirectoryPath ?: System.getProperty("user.home")
+                    chooseDirectory(start, "Choose settings sync folder")?.let { selected ->
+                        onSettingsSyncDirectoryChanged(selected.absolutePath)
+                    }
+                },
+            ) {
+                Text("Choose")
+            }
+            TextButton(
+                enabled = settingsSyncDirectoryPath != null,
+                onClick = { onSettingsSyncDirectoryChanged(null) },
+            ) {
+                Text("Reset")
+            }
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            TextButton(
+                enabled = settingsSyncDirectoryPath != null,
+                onClick = onSettingsSyncExport,
+            ) {
+                Text("Export")
+            }
+            TextButton(
+                enabled = settingsSyncDirectoryPath != null,
+                onClick = onSettingsSyncImport,
+            ) {
+                Text("Import")
+            }
+        }
+        settingsSyncStatus?.let {
+            Text(it, color = appColors.secondaryText, fontSize = 12.sp)
         }
         connectionPendingDelete?.let { connection ->
             DeleteConnectionDialog(
@@ -828,7 +898,7 @@ private fun CacheSettingsSection(
         )
         TextButton(
             onClick = {
-                chooseDownloadDirectory(effectiveDownloadDirectory)?.let { selected ->
+                chooseDirectory(effectiveDownloadDirectory, "Choose download location")?.let { selected ->
                     runCatching {
                         DesktopDownloadDirectories.prepare(selected.toPath())
                     }.onSuccess { directory ->
@@ -880,24 +950,24 @@ private sealed interface DirectoryPickerResult {
     data object Unavailable : DirectoryPickerResult
 }
 
-private fun chooseDownloadDirectory(currentPath: String): File? =
+private fun chooseDirectory(currentPath: String, title: String): File? =
     when (
         val result = when {
-            isMacOs() -> chooseMacDownloadDirectory(currentPath)
-            isWindows() -> chooseWindowsDownloadDirectory(currentPath)
-            else -> chooseLinuxDownloadDirectory(currentPath)
+            isMacOs() -> chooseMacDirectory(currentPath, title)
+            isWindows() -> chooseWindowsDirectory(currentPath, title)
+            else -> chooseLinuxDirectory(currentPath, title)
         }
     ) {
         is DirectoryPickerResult.Selected -> result.file
         DirectoryPickerResult.Cancelled -> null
-        DirectoryPickerResult.Unavailable -> chooseSwingDownloadDirectory(currentPath)
+        DirectoryPickerResult.Unavailable -> chooseSwingDirectory(currentPath, title)
     }
 
-private fun chooseMacDownloadDirectory(currentPath: String): DirectoryPickerResult {
+private fun chooseMacDirectory(currentPath: String, title: String): DirectoryPickerResult {
     val previous = System.getProperty(MacDirectoryDialogProperty)
     System.setProperty(MacDirectoryDialogProperty, "true")
     return try {
-        val dialog = FileDialog(null as Frame?, "Choose download location", FileDialog.LOAD)
+        val dialog = FileDialog(null as Frame?, title, FileDialog.LOAD)
         dialog.directory = currentPath
         dialog.isVisible = true
         val selected = dialog.file ?: return DirectoryPickerResult.Cancelled
@@ -913,7 +983,7 @@ private fun chooseMacDownloadDirectory(currentPath: String): DirectoryPickerResu
     }
 }
 
-private fun chooseWindowsDownloadDirectory(currentPath: String): DirectoryPickerResult {
+private fun chooseWindowsDirectory(currentPath: String, title: String): DirectoryPickerResult {
     val selectedPath = runNativeDirectoryPicker(
         "powershell",
         "-NoProfile",
@@ -922,7 +992,7 @@ private fun chooseWindowsDownloadDirectory(currentPath: String): DirectoryPicker
         """
         Add-Type -AssemblyName System.Windows.Forms;
         ${'$'}dialog = New-Object System.Windows.Forms.FolderBrowserDialog;
-        ${'$'}dialog.Description = 'Choose download location';
+        ${'$'}dialog.Description = '${title.replace("'", "''")}';
         ${'$'}dialog.SelectedPath = '${currentPath.replace("'", "''")}';
         if (${'$'}dialog.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
             [Console]::Out.Write(${'$'}dialog.SelectedPath)
@@ -936,12 +1006,12 @@ private fun chooseWindowsDownloadDirectory(currentPath: String): DirectoryPicker
     }
 }
 
-private fun chooseLinuxDownloadDirectory(currentPath: String): DirectoryPickerResult {
+private fun chooseLinuxDirectory(currentPath: String, title: String): DirectoryPickerResult {
     runNativeDirectoryPicker(
         "zenity",
         "--file-selection",
         "--directory",
-        "--title=Choose download location",
+        "--title=$title",
         "--filename=$currentPath/",
     ).let { result ->
         if (result != null) {
@@ -953,7 +1023,7 @@ private fun chooseLinuxDownloadDirectory(currentPath: String): DirectoryPickerRe
         "--getexistingdirectory",
         currentPath,
         "--title",
-        "Choose download location",
+        title,
     ).let { result ->
         if (result != null) {
             return if (result.isBlank()) DirectoryPickerResult.Cancelled else DirectoryPickerResult.Selected(File(result))
@@ -976,10 +1046,10 @@ private fun runNativeDirectoryPicker(vararg command: String): String? =
         }
     }.getOrNull()
 
-private fun chooseSwingDownloadDirectory(currentPath: String): File? {
+private fun chooseSwingDirectory(currentPath: String, title: String): File? {
     val chooser = JFileChooser(File(currentPath))
     chooser.fileSelectionMode = JFileChooser.DIRECTORIES_ONLY
-    chooser.dialogTitle = "Choose download location"
+    chooser.dialogTitle = title
     chooser.isAcceptAllFileFilterUsed = false
     return if (chooser.showOpenDialog(null) == JFileChooser.APPROVE_OPTION) {
         chooser.selectedFile

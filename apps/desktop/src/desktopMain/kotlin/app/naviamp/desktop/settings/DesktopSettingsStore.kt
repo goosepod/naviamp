@@ -124,6 +124,13 @@ class DesktopSettingsStore(
         saveSettings(loadSettings().copy(recentInternetRadioStations = stations.take(12)))
     }
 
+    fun loadSettingsSync(): DesktopSettingsSyncSettings =
+        loadSettings().settingsSync
+
+    fun saveSettingsSync(settingsSync: DesktopSettingsSyncSettings) {
+        saveSettings(loadSettings().copy(settingsSync = settingsSync.normalized()))
+    }
+
     private fun loadSettings(): DesktopSettings {
         if (!settingsPath.exists()) return DesktopSettings()
         val text = settingsPath.readText()
@@ -160,7 +167,16 @@ data class DesktopSettings(
     val recentRadioStreams: List<RecentRadioStream> = emptyList(),
     val recentPlaylistIds: List<String> = emptyList(),
     val recentInternetRadioStations: List<SavedInternetRadioStation> = emptyList(),
+    val settingsSync: DesktopSettingsSyncSettings = DesktopSettingsSyncSettings(),
 )
+
+@Serializable
+data class DesktopSettingsSyncSettings(
+    val directoryPath: String? = null,
+) {
+    fun normalized(): DesktopSettingsSyncSettings =
+        copy(directoryPath = directoryPath?.trim()?.takeIf { it.isNotEmpty() })
+}
 
 @Serializable
 data class WindowSettings(
@@ -223,5 +239,6 @@ private fun String.looksLikeDesktopSettings(): Boolean =
             "window" in keys ||
             "session" in keys ||
             "navigation" in keys ||
-            "search" in keys
+            "search" in keys ||
+            "settingsSync" in keys
     }.getOrDefault(false)
