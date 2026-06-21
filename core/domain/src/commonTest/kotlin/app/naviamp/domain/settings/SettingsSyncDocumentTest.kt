@@ -1,0 +1,112 @@
+package app.naviamp.domain.settings
+
+import app.naviamp.domain.playback.ReplayGainMode
+import app.naviamp.domain.radio.RadioDjPreset
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertNull
+import kotlin.test.assertTrue
+
+class SettingsSyncDocumentTest {
+    @Test
+    fun roundTripsPortableSettingsSyncDocument() {
+        val document = SettingsSyncDocument(
+            updatedAtEpochMillis = 123L,
+            lastWriterDeviceId = " desktop ",
+            serverProfiles = listOf(
+                SettingsSyncServerProfile(
+                    id = " goosepod ",
+                    displayName = " Goosepod Navidrome ",
+                    username = " ursasmar ",
+                    primaryUrl = " https://navidrome.lan/ ",
+                    secondaryUrls = listOf(
+                        SettingsSyncServerEndpoint(
+                            url = " https://navidrome.tailnet.example/ ",
+                            label = " Tailscale ",
+                            priority = 2,
+                        ),
+                    ),
+                    tls = SettingsSyncTlsSettings(
+                        insecureSkipTlsVerification = true,
+                        customCertificatePath = " /certs/navidrome.pem ",
+                    ),
+                    customHeaders = listOf(
+                        SettingsSyncHeaderDefinition(
+                            name = " X-Proxy-User ",
+                            value = " ursasmar ",
+                        ),
+                    ),
+                ),
+            ),
+            preferences = SettingsSyncPreferences(
+                playback = PlaybackSettings(
+                    replayGainMode = ReplayGainMode.Album,
+                    crossfadeDurationSeconds = 6,
+                    radioDjs = listOf(RadioDjPreset(id = "dj", name = " Road DJ ")),
+                ),
+                visualizer = VisualizerSettings(selectedVisualizer = "Waveform"),
+            ),
+        )
+
+        val decoded = SettingsSyncJson.decode(SettingsSyncJson.encode(document))
+        val profile = decoded.serverProfiles.single()
+
+        assertEquals(CurrentSettingsSyncSchemaVersion, decoded.schemaVersion)
+        assertEquals("desktop", decoded.lastWriterDeviceId)
+        assertEquals("goosepod", profile.id)
+        assertEquals("Goosepod Navidrome", profile.displayName)
+        assertEquals("ursasmar", profile.username)
+        assertEquals("https://navidrome.lan", profile.primaryUrl)
+        assertEquals("https://navidrome.tailnet.example", profile.secondaryUrls.single().url)
+        assertEquals("Tailscale", profile.secondaryUrls.single().label)
+        assertTrue(profile.tls.insecureSkipTlsVerification)
+        assertEquals("/certs/navidrome.pem", profile.tls.customCertificatePath)
+        assertEquals("X-Proxy-User", profile.customHeaders.single().name)
+        assertEquals("ursasmar", profile.customHeaders.single().value)
+        assertEquals(ReplayGainMode.Album, decoded.preferences.playback.replayGainMode)
+        assertEquals("Road DJ", decoded.preferences.playback.radioDjs.single().name)
+        assertEquals("Waveform", decoded.preferences.visualizer.selectedVisualizer)
+    }
+
+    @Test
+    fun normalizationDropsBlankProfilesAndDoesNotPersistSecretHeaderValues() {
+        val document = SettingsSyncDocument(
+            lastWriterDeviceId = " ",
+            serverProfiles = listOf(
+                SettingsSyncServerProfile(
+                    id = "blank",
+                    displayName = "Blank",
+                    username = "",
+                    primaryUrl = " ",
+                ),
+                SettingsSyncServerProfile(
+                    id = "source",
+                    displayName = "",
+                    username = "user",
+                    primaryUrl = "https://server.example/",
+                    secondaryUrls = listOf(
+                        SettingsSyncServerEndpoint("https://server.example"),
+                        SettingsSyncServerEndpoint(" "),
+                    ),
+                    customHeaders = listOf(
+                        SettingsSyncHeaderDefinition(name = "Authorization", value = "Bearer secret", valueIsSecret = true),
+                        SettingsSyncHeaderDefinition(name = " "),
+                    ),
+                ),
+            ),
+        ).normalized()
+
+        val profile = document.serverProfiles.single()
+        val secretHeader = profile.customHeaders.single()
+
+        assertNull(document.lastWriterDeviceId)
+        assertEquals("https://server.example", profile.primaryUrl)
+        assertEquals("https://server.example", profile.displayName)
+        assertTrue(profile.secondaryUrls.isEmpty())
+        assertEquals("Authorization", secretHeader.name)
+        assertNull(secretHeader.value)
+        assertTrue(secretHeader.valueIsSecret)
+        assertFalse(SettingsSyncJson.encode(document).contains("Bearer secret"))
+    }
+}
