@@ -37,6 +37,9 @@ Status: active DHU polish pass based on the 2026-06-17 Mac DHU session and the S
 - [x] Now Playing scrub bar should show movement and allow seeking on the first played track, not only subsequent tracks.
   - 2026-06-17: first-track duration fallback added; latest pass also republishes media-session metadata after artwork loads.
   - 2026-06-19 cleanup: Android Auto 1.0 notes record DHU progress-bar seek moving the media-session position while playback stayed `PLAYING`.
+- [x] Natural track end should advance the Android Auto queue instead of letting the timer run past duration.
+  - 2026-06-19 real vehicle report: audio stopped at the end of each track, but Android Auto kept counting past duration until Next was pressed manually.
+  - 2026-06-19: BASS polling now treats a known-duration position overrun as finished even when Android still reports the mixer/source as playing.
 - [x] Playlist detail pages should show playable tracks and must not interrupt playback.
   - 2026-06-17 DHU retest: opening a playlist still showed no items; playback stopped while the screen appeared to refresh multiple times.
   - 2026-06-18 DHU retest: playlist tracks load now; playlist rows still need artwork and playlist detail should expose Play and Shuffle rows.
@@ -70,3 +73,4 @@ Status: active DHU polish pass based on the 2026-06-17 Mac DHU session and the S
   - 2026-06-19 cleanup: service-owned Start song radio uses the track-radio path with `restartPlayback=false`.
 - [x] Verify artist search can play artists with local albums.
   - 2026-06-19 cleanup: artist detail/search paths resolve artist tracks/albums and expose Play/Shuffle actions.
+- [ ] Retest natural track-to-track advance in Android Auto real vehicle playback.
