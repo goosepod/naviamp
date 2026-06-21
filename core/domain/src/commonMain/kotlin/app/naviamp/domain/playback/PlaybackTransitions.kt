@@ -336,6 +336,15 @@ fun isPlaybackProgressAtEnd(
     return duration - position <= toleranceSeconds.coerceAtLeast(0.0)
 }
 
+fun hasPlaybackProgressOverrunDuration(
+    progress: PlaybackProgress,
+    toleranceSeconds: Double = FinishedPositionOverrunToleranceSeconds,
+): Boolean {
+    val position = progress.positionSeconds ?: return false
+    val duration = progress.durationSeconds ?: return false
+    return position - duration >= toleranceSeconds.coerceAtLeast(0.0)
+}
+
 fun visualizerBandsFromFft(
     fft: FloatArray,
     bandCount: Int = VisualizerBandCount,
@@ -385,6 +394,7 @@ fun shouldFinishPlaybackForBassState(
     progress: PlaybackProgress,
     currentSourceActiveState: Int? = null,
 ): Boolean {
+    if (hasPlaybackProgressOverrunDuration(progress)) return true
     if (!isPlaybackProgressAtEnd(progress)) return false
     return activeState == BassActiveState.Stopped ||
         currentSourceActiveState == BassActiveState.Stopped
@@ -398,5 +408,6 @@ const val DefaultBassMixerFrequency = 44_100
 const val DefaultBassMixerChannels = 2
 const val MaxPlaybackVolumeFactor = 4f
 const val FinishedPositionToleranceSeconds = 0.75
+const val FinishedPositionOverrunToleranceSeconds = 0.5
 const val VisualizerBandCount = 32
 const val VisualizerGain = 12f

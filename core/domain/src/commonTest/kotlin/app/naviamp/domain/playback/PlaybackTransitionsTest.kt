@@ -496,6 +496,21 @@ class PlaybackTransitionsTest {
     }
 
     @Test
+    fun detectsPlaybackProgressOverrunAfterKnownDuration() {
+        assertTrue(
+            hasPlaybackProgressOverrunDuration(
+                PlaybackProgress(positionSeconds = 100.6, durationSeconds = 100.0),
+            ),
+        )
+        assertFalse(
+            hasPlaybackProgressOverrunDuration(
+                PlaybackProgress(positionSeconds = 100.2, durationSeconds = 100.0),
+            ),
+        )
+        assertFalse(hasPlaybackProgressOverrunDuration(PlaybackProgress.Unknown))
+    }
+
+    @Test
     fun buildsVisualizerBandsFromFft() {
         val bands = visualizerBandsFromFft(
             fft = floatArrayOf(0f, 0.02f, 0.04f, 0.10f, 0.20f),
@@ -559,6 +574,13 @@ class PlaybackTransitionsTest {
                 activeState = BassActiveState.Playing,
                 currentSourceActiveState = BassActiveState.Playing,
                 progress = atEnd,
+            ),
+        )
+        assertTrue(
+            shouldFinishPlaybackForBassState(
+                activeState = BassActiveState.Playing,
+                currentSourceActiveState = BassActiveState.Playing,
+                progress = PlaybackProgress(positionSeconds = 100.6, durationSeconds = 100.0),
             ),
         )
     }

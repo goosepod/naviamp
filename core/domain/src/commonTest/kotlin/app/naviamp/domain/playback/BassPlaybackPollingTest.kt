@@ -127,6 +127,23 @@ class BassPlaybackPollingTest {
     }
 
     @Test
+    fun androidServicePolicyFinishesWhenPositionOverrunsDuration() {
+        val update = planBassPlaybackPollingUpdate(
+            snapshot = snapshot(
+                activeState = BassActiveState.Playing,
+                sourceActiveState = BassActiveState.Playing,
+                progress = PlaybackProgress(positionSeconds = 10.6, durationSeconds = 10.0),
+            ),
+            previous = BassPlaybackPollingState(lastActiveState = BassActiveState.Playing),
+            policy = BassPlaybackPollingPolicy.AndroidService,
+        )
+
+        assertTrue(update.finished)
+        assertEquals(PlaybackState.Finished, update.playbackState)
+        assertFalse(update.shouldContinue)
+    }
+
+    @Test
     fun stopsPollingWhenPlaybackOutputStops() {
         val update = planBassPlaybackPollingUpdate(
             snapshot = snapshot(activeState = BassActiveState.Stopped),
