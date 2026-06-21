@@ -13,8 +13,14 @@ Keep implementation cross-platform by default: shared domain models, shared UI, 
   - MVP target is Android TV / Google TV / Fire TV, not Roku.
   - See `docs/naviamp-connect-roadmap.md`.
 - [ ] Add cross-device app state sync.
-  - Candidate state: recent radio, recent generated mixes, recent internet radio stations, settings, and possible playback handoff.
-  - First investigate whether Navidrome can store app state; if not, evaluate app-managed sync keyed by server/user plus export/import as a fallback.
+  - First-run setup should ask whether the user wants to set up a new server directly or choose a shared settings-sync folder.
+  - When a shared settings file is imported during first-run setup, treat that folder as the default sync location for future settings writes.
+  - Importing a synced server profile should still ask for the Navidrome password on the new device, then store secrets locally.
+  - Keep the shared file as a portable sync document, not the only runtime source of truth; import into local platform storage and export changes back to the selected sync folder.
+  - Candidate synced state: logical server profiles, secondary URLs, non-secret custom header definitions, playback behavior, replay gain mode, gapless/crossfade, queue behavior, streaming/download quality preferences, lyrics options, visualizer selection, radio tuning and DJ presets, smart playlist editor drafts/templates if app-owned, and cross-platform UI preferences that are not window-size-specific.
+  - Do not sync secrets by default: passwords, tokens, native auth tokens, custom header values that are secret, and client certificate passwords should stay in OS/platform-local secret storage unless an explicit encrypted-secrets feature is designed later.
+  - Keep device-local state local: cache/download directories, downloaded file records, cache sizes unless explicitly opted in, local library indexes, pending offline provider actions, diagnostics/dev flags, and platform-specific layout/window state.
+  - Prefer Navidrome for state it can own cleanly, such as playlists, smart playlists, favorites, ratings, and play/scrobble history; use the shared file for Naviamp-specific state Navidrome does not know about.
 - [x] Add additional Plexamp-style station entries when the current Mix Builders and DJ flow need more depth.
   - Artist Mix Builder, Album Mix Builder, Genre Mix Radio, and DJ presets are the current first pass.
 
