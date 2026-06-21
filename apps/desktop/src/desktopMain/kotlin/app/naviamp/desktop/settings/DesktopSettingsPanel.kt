@@ -92,6 +92,7 @@ fun DesktopSettingsPanel(
     cacheSettings: CacheSettings,
     cacheStats: StorageCacheStats,
     settingsSyncDirectoryPath: String?,
+    settingsSyncAutoExportEnabled: Boolean,
     settingsSyncStatus: String?,
     about: NaviampAboutUi,
     supportsReplayGain: Boolean,
@@ -114,6 +115,7 @@ fun DesktopSettingsPanel(
     onConnectSavedConnection: (SavedMediaSource) -> Unit,
     onCancelConnectionForm: () -> Unit,
     onSettingsSyncDirectoryChanged: (String?) -> Unit,
+    onSettingsSyncAutoExportChanged: (Boolean) -> Unit,
     onSettingsSyncExport: () -> Unit,
     onSettingsSyncImport: () -> Unit,
     onPlaybackSettingsChanged: (PlaybackSettings) -> Unit,
@@ -153,6 +155,7 @@ fun DesktopSettingsPanel(
                 isConnecting = isConnecting,
                 connectionStatus = connectionStatus,
                 settingsSyncDirectoryPath = settingsSyncDirectoryPath,
+                settingsSyncAutoExportEnabled = settingsSyncAutoExportEnabled,
                 settingsSyncStatus = settingsSyncStatus,
                 onServerUrlChanged = onServerUrlChanged,
                 onConnectionNameChanged = onConnectionNameChanged,
@@ -169,6 +172,7 @@ fun DesktopSettingsPanel(
                 onConnectSavedConnection = onConnectSavedConnection,
                 onCancelConnectionForm = onCancelConnectionForm,
                 onSettingsSyncDirectoryChanged = onSettingsSyncDirectoryChanged,
+                onSettingsSyncAutoExportChanged = onSettingsSyncAutoExportChanged,
                 onSettingsSyncExport = onSettingsSyncExport,
                 onSettingsSyncImport = onSettingsSyncImport,
             )
@@ -494,6 +498,7 @@ private fun ConnectionsSettings(
     isConnecting: Boolean,
     connectionStatus: String?,
     settingsSyncDirectoryPath: String?,
+    settingsSyncAutoExportEnabled: Boolean,
     settingsSyncStatus: String?,
     onServerUrlChanged: (String) -> Unit,
     onConnectionNameChanged: (String) -> Unit,
@@ -510,6 +515,7 @@ private fun ConnectionsSettings(
     onConnectSavedConnection: (SavedMediaSource) -> Unit,
     onCancelConnectionForm: () -> Unit,
     onSettingsSyncDirectoryChanged: (String?) -> Unit,
+    onSettingsSyncAutoExportChanged: (Boolean) -> Unit,
     onSettingsSyncExport: () -> Unit,
     onSettingsSyncImport: () -> Unit,
 ) {
@@ -631,6 +637,31 @@ private fun ConnectionsSettings(
                 onClick = onSettingsSyncImport,
             ) {
                 Text("Import")
+            }
+        }
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable(
+                    enabled = settingsSyncDirectoryPath != null,
+                    onClick = { onSettingsSyncAutoExportChanged(!settingsSyncAutoExportEnabled) },
+                )
+                .padding(vertical = 2.dp),
+        ) {
+            Checkbox(
+                checked = settingsSyncAutoExportEnabled,
+                enabled = settingsSyncDirectoryPath != null,
+                onCheckedChange = onSettingsSyncAutoExportChanged,
+            )
+            Column {
+                Text("Auto-export changes", color = appColors.primaryText, fontSize = 13.sp)
+                Text(
+                    "Writes the shared settings file after local synced settings change.",
+                    color = appColors.secondaryText,
+                    fontSize = 12.sp,
+                )
             }
         }
         settingsSyncStatus?.let {

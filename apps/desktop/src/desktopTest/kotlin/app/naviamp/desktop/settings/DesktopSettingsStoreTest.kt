@@ -264,9 +264,15 @@ class DesktopSettingsStoreTest {
             ),
         )
 
-        store.saveSettingsSync(DesktopSettingsSyncSettings(directoryPath = "  C:/Sync/Naviamp  "))
+        store.saveSettingsSync(
+            DesktopSettingsSyncSettings(
+                directoryPath = "  C:/Sync/Naviamp  ",
+                autoExportEnabled = true,
+            ),
+        )
 
         assertEquals("C:/Sync/Naviamp", store.loadSettingsSync().directoryPath)
+        assertEquals(true, store.loadSettingsSync().autoExportEnabled)
         assertEquals("user", store.loadConnection()?.username)
     }
 }

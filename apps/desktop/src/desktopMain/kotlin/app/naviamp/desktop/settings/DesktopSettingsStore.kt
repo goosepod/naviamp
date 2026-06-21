@@ -173,6 +173,7 @@ data class DesktopSettings(
 @Serializable
 data class DesktopSettingsSyncSettings(
     val directoryPath: String? = null,
+    val autoExportEnabled: Boolean = false,
 ) {
     fun normalized(): DesktopSettingsSyncSettings =
         copy(directoryPath = directoryPath?.trim()?.takeIf { it.isNotEmpty() })

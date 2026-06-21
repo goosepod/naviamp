@@ -106,6 +106,7 @@ class DesktopConnectionLifecycleController(
     private val setConnectionStatus: (String?) -> Unit,
     private val setAppRoute: (DesktopAppRoute) -> Unit,
     private val appRoute: () -> DesktopAppRoute,
+    private val onSyncedSettingsChanged: () -> Unit = {},
 ) {
     fun openNewConnectionForm() {
         applyConnectionFormState(newDesktopConnectionFormState())
@@ -192,6 +193,7 @@ class DesktopConnectionLifecycleController(
                 }
                 settingsStore.saveConnection(connection)
                 setSavedConnectionForLogin(connection)
+                onSyncedSettingsChanged()
                 if (connection.nativeToken?.isNotBlank() == true) {
                     clearPassword()
                 }
@@ -233,6 +235,7 @@ class DesktopConnectionLifecycleController(
         settingsStore.clearConnection()
         setSavedConnectionForLogin(null)
         incrementMediaSourcesRevision()
+        onSyncedSettingsChanged()
         clearActiveConnectionState()
         setConnectionStatus(databaseResetStatus(savedServersRemoved = true))
         setAppRoute(DesktopAppRoute.Settings)
@@ -256,6 +259,7 @@ class DesktopConnectionLifecycleController(
         if (update.clearSavedConnectionForLogin) {
             setSavedConnectionForLogin(null)
         }
+        onSyncedSettingsChanged()
         setConnectionFormOpen(false)
         setConnectionStatus(update.status)
     }

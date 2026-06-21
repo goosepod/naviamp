@@ -38,6 +38,7 @@ import app.naviamp.domain.radio.planInternetRadioMetadataUpdate
 import app.naviamp.domain.radio.planInternetRadioPlaybackRequest
 import app.naviamp.domain.radio.planInternetRadioStart
 import app.naviamp.domain.radio.planRememberInternetRadioStation
+import app.naviamp.domain.settings.SavedInternetRadioStation
 import app.naviamp.domain.waveform.AudioWaveform
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -55,6 +56,7 @@ class DesktopInternetRadioController(
     private val homeContent: () -> HomeContent,
     private val setHomeContent: (HomeContent) -> Unit,
     initialRecentStations: List<InternetRadioStation>,
+    private val saveRecentInternetRadioStations: (List<SavedInternetRadioStation>) -> Unit,
     private val stopRadioContinuation: () -> Unit,
     private val clearShuffleSnapshot: () -> Unit,
     private val setNowPlayingTrack: (Track?) -> Unit,
@@ -113,7 +115,7 @@ class DesktopInternetRadioController(
                 recentSavedStations = settingsStore.loadRecentInternetRadioStations(),
             ),
             applier = InternetRadioRecentStationApplier(
-                saveRecentStations = settingsStore::saveRecentInternetRadioStations,
+                saveRecentStations = saveRecentInternetRadioStations,
                 setRecentStations = ::updateRecentStations,
             ),
         )
@@ -130,7 +132,7 @@ class DesktopInternetRadioController(
             plan = plan,
             nowPlayingTrack = radioTrack,
             applier = InternetRadioStartApplier(
-                saveRecentStations = settingsStore::saveRecentInternetRadioStations,
+                saveRecentStations = saveRecentInternetRadioStations,
                 setRecentStations = ::updateRecentStations,
                 clearRadioContinuation = stopRadioContinuation,
                 clearShuffleSnapshot = clearShuffleSnapshot,
