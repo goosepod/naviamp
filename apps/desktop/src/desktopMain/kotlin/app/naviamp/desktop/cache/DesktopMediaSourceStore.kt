@@ -3,16 +3,21 @@ package app.naviamp.desktop
 import app.naviamp.domain.cache.MediaSourceRepository
 import app.naviamp.domain.cache.ProviderMediaSourceConnection
 import app.naviamp.domain.cache.ProviderMediaSourceRepository
+import app.naviamp.domain.source.ConnectionHeaderDefinition
+import app.naviamp.domain.source.ConnectionSecondaryUrl
 import app.naviamp.domain.source.ConnectionTlsSettings
 import app.naviamp.domain.source.MediaSourceIdentity
 import app.naviamp.domain.source.SavedMediaSource
 import app.naviamp.domain.source.stableMediaSourceId
 import app.naviamp.storage.Media_source
 import app.naviamp.storage.NaviampStorageQueries
+import kotlinx.serialization.builtins.ListSerializer
+import kotlinx.serialization.json.Json
 
 class DesktopMediaSourceStore(
     private val queries: NaviampStorageQueries,
     private val nowMillis: () -> Long,
+    private val json: Json = Json { ignoreUnknownKeys = true },
 ) : MediaSourceRepository,
     ProviderMediaSourceRepository {
     override fun latestMediaSource(): SavedMediaSource? =
@@ -50,6 +55,8 @@ class DesktopMediaSourceStore(
             custom_certificate_path = connection.tlsSettings.customCertificatePath?.takeIf { it.isNotBlank() },
             client_certificate_keystore_path = connection.tlsSettings.clientCertificateKeyStorePath?.takeIf { it.isNotBlank() },
             client_certificate_keystore_password = connection.tlsSettings.clientCertificateKeyStorePassword,
+            secondary_urls_json = encodeSecondaryUrls(connection.secondaryUrls),
+            custom_headers_json = encodeCustomHeaders(connection.customHeaders),
             created_at_epoch_millis = existing?.created_at_epoch_millis ?: now,
             last_connected_at_epoch_millis = now,
             last_sync_started_at_epoch_millis = existing?.last_sync_started_at_epoch_millis,
@@ -71,6 +78,8 @@ class DesktopMediaSourceStore(
             custom_certificate_path = connection.tlsSettings.customCertificatePath?.takeIf { it.isNotBlank() },
             client_certificate_keystore_path = connection.tlsSettings.clientCertificateKeyStorePath?.takeIf { it.isNotBlank() },
             client_certificate_keystore_password = connection.tlsSettings.clientCertificateKeyStorePassword,
+            secondary_urls_json = encodeSecondaryUrls(connection.secondaryUrls),
+            custom_headers_json = encodeCustomHeaders(connection.customHeaders),
             last_connected_at_epoch_millis = now,
             last_sync_started_at_epoch_millis = existing?.last_sync_started_at_epoch_millis,
             last_sync_completed_at_epoch_millis = existing?.last_sync_completed_at_epoch_millis,
@@ -95,9 +104,46 @@ class DesktopMediaSourceStore(
     fun markLibraryScanChecked(sourceId: String, signature: String) {
         queries.markMediaSourceLibraryScanChecked(signature, nowMillis(), sourceId)
     }
+
+    private fun encodeSecondaryUrls(urls: List<ConnectionSecondaryUrl>): String? =
+        json.encodeToString(
+            ListSerializer(ConnectionSecondaryUrl.serializer()),
+            urls.mapNotNull { it.normalized() },
+        ).takeUnless { it == "[]" }
+
+    private fun encodeCustomHeaders(headers: List<ConnectionHeaderDefinition>): String? =
+        json.encodeToString(
+            ListSerializer(ConnectionHeaderDefinition.serializer()),
+            headers.mapNotNull { it.normalized() },
+        ).takeUnless { it == "[]" }
+
+    private fun decodeSecondaryUrls(text: String?): List<ConnectionSecondaryUrl> =
+        text?.let {
+            runCatching {
+                json.decodeFromString(ListSerializer(ConnectionSecondaryUrl.serializer()), it)
+                    .mapNotNull { url -> url.normalized() }
+            }.getOrDefault(emptyList())
+        }.orEmpty()
+
+    private fun decodeCustomHeaders(text: String?): List<ConnectionHeaderDefinition> =
+        text?.let {
+            runCatching {
+                json.decodeFromString(ListSerializer(ConnectionHeaderDefinition.serializer()), it)
+                    .mapNotNull { header -> header.normalized() }
+            }.getOrDefault(emptyList())
+        }.orEmpty()
+
+    private fun Media_source.toSavedMediaSource(): SavedMediaSource =
+        toSavedMediaSource(
+            secondaryUrls = decodeSecondaryUrls(secondary_urls_json),
+            customHeaders = decodeCustomHeaders(custom_headers_json),
+        )
 }
 
-private fun Media_source.toSavedMediaSource(): SavedMediaSource =
+private fun Media_source.toSavedMediaSource(
+    secondaryUrls: List<ConnectionSecondaryUrl>,
+    customHeaders: List<ConnectionHeaderDefinition>,
+): SavedMediaSource =
     SavedMediaSource(
         id = id,
         providerId = provider_id,
@@ -114,6 +160,8 @@ private fun Media_source.toSavedMediaSource(): SavedMediaSource =
             clientCertificateKeyStorePath = client_certificate_keystore_path,
             clientCertificateKeyStorePassword = client_certificate_keystore_password,
         ),
+        secondaryUrls = secondaryUrls,
+        customHeaders = customHeaders,
         createdAtEpochMillis = created_at_epoch_millis,
         lastConnectedAtEpochMillis = last_connected_at_epoch_millis,
         lastSyncStartedAtEpochMillis = last_sync_started_at_epoch_millis,

@@ -28,11 +28,13 @@ internal fun androidMainShellActions(
     sonicMixController: AndroidSonicMixController,
     sonicHomeDiscoveryController: AndroidSonicHomeDiscoveryController,
     nowPlayingSidecarController: AndroidNowPlayingSidecarController,
+    onSyncedSettingsChanged: () -> Unit = {},
 ): AndroidAppShellActions =
     androidAppShellActions(
         state = state,
         playbackEngine = playbackEngine,
         settingsStore = settingsStore,
+        onSyncedSettingsChanged = onSyncedSettingsChanged,
         handleConnectionFormChanged = settingsMaintenanceController::handleConnectionFormChanged,
         connectToNavidrome = connectionSessionController::connectToNavidrome,
         handleNewConnection = connectionSessionController::openNewConnectionForm,

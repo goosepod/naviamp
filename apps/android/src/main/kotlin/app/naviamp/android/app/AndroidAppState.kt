@@ -32,6 +32,8 @@ import app.naviamp.domain.provider.PendingPlaybackAction
 import app.naviamp.domain.popular.SimilarArtistMatch
 import app.naviamp.domain.queue.PlaybackQueue
 import app.naviamp.domain.queue.RepeatMode
+import app.naviamp.domain.settings.ConnectionFormHeader
+import app.naviamp.domain.settings.ConnectionFormSecondaryUrl
 import app.naviamp.domain.settings.ConnectionFormState
 import app.naviamp.domain.settings.CacheSettings
 import app.naviamp.domain.settings.PlaybackSettings
@@ -70,6 +72,8 @@ class AndroidAppState(
     var customCertificatePath by mutableStateOf(savedConnection.customCertificatePath)
     var clientCertificatePath by mutableStateOf(savedConnection.clientCertificatePath)
     var clientCertificatePassword by mutableStateOf(savedConnection.clientCertificatePassword)
+    var secondaryUrls by mutableStateOf(savedConnection.secondaryUrls)
+    var customHeaders by mutableStateOf(savedConnection.customHeaders)
     var playbackSettings by mutableStateOf(savedPlaybackSettings)
     var cacheSettings by mutableStateOf(savedCacheSettings.normalized())
     var homeState by mutableStateOf(app.naviamp.domain.home.HomeContent())

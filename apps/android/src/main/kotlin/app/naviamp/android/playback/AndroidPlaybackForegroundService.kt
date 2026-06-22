@@ -29,6 +29,7 @@ import app.naviamp.android.AndroidSettingsStore
 import app.naviamp.android.AndroidPlaybackAudioAssets
 import app.naviamp.android.R
 import app.naviamp.android.MainActivity
+import app.naviamp.android.markAndroidSettingsSyncChangedAndAutoExport
 import app.naviamp.android.resolveInternetRadioStreamUrl
 import app.naviamp.android.withAndroidPendingActions
 import app.naviamp.domain.Album
@@ -1482,6 +1483,11 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
         settingsStore.saveRecentRadioStreams(
             recentRadioStreamsWith(settingsStore.loadRecentRadioStreams(), stream),
         )
+        markAndroidSettingsSyncChangedAndAutoExport(
+            context = applicationContext,
+            settingsStore = settingsStore,
+            storage = serviceStorage,
+        )
     }
 
     private fun rememberRecentInternetRadioStation(station: InternetRadioStation) {
@@ -1495,6 +1501,11 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
             applier = InternetRadioRecentStationApplier(
                 saveRecentStations = settingsStore::saveRecentInternetRadioStations,
             ),
+        )
+        markAndroidSettingsSyncChangedAndAutoExport(
+            context = applicationContext,
+            settingsStore = settingsStore,
+            storage = serviceStorage,
         )
     }
 

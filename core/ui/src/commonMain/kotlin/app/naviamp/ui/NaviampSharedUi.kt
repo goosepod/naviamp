@@ -42,6 +42,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.Dp
 import app.naviamp.domain.InternetRadioStation
+import app.naviamp.domain.settings.ConnectionFormHeader
+import app.naviamp.domain.settings.ConnectionFormSecondaryUrl
 import app.naviamp.domain.smartplaylist.SmartPlaylistDefinition
 
 @Composable
@@ -130,6 +132,11 @@ fun NaviampSharedAppShell(
     onConnectSavedConnection: (NaviampSavedConnectionUi) -> Unit = {},
     onDeleteSavedConnection: (NaviampSavedConnectionUi) -> Unit = {},
     onImportSettingsSyncFile: (() -> Unit)? = null,
+    onChooseSettingsSyncFolder: (() -> Unit)? = null,
+    onImportSettingsSyncFolder: (() -> Unit)? = null,
+    onExportSettingsSyncFolder: (() -> Unit)? = null,
+    settingsSyncAutoExportEnabled: Boolean = false,
+    onSettingsSyncAutoExportChanged: ((Boolean) -> Unit)? = null,
     onCancelEditConnection: () -> Unit,
     onPlaybackSettingsChanged: (PlaybackSettings) -> Unit = {},
     onPlaybackSettingsChangedAndRedownload: (PlaybackSettings) -> Unit = onPlaybackSettingsChanged,
@@ -458,6 +465,11 @@ fun NaviampSharedAppShell(
                             onConnectSavedConnection = onConnectSavedConnection,
                             onDeleteSavedConnection = onDeleteSavedConnection,
                             onImportSettingsSyncFile = onImportSettingsSyncFile,
+                            onChooseSettingsSyncFolder = onChooseSettingsSyncFolder,
+                            onImportSettingsSyncFolder = onImportSettingsSyncFolder,
+                            onExportSettingsSyncFolder = onExportSettingsSyncFolder,
+                            settingsSyncAutoExportEnabled = settingsSyncAutoExportEnabled,
+                            onSettingsSyncAutoExportChanged = onSettingsSyncAutoExportChanged,
                             onConnectionFormChanged = onConnectionFormChanged,
                             onConnect = onConnect,
                             onCancelEditConnection = onCancelEditConnection,
@@ -652,7 +664,7 @@ fun NaviampConnectionForm(
                 enabled = !isConnecting,
                 onClick = importSettings,
             ) {
-                Text("Open settings file", color = if (isConnecting) colors.mutedText else colors.accent)
+                Text("Import provider settings", color = if (isConnecting) colors.mutedText else colors.accent)
             }
             settingsSyncStatus?.let {
                 Text(it, color = colors.secondaryText, fontSize = 12.sp)
@@ -727,6 +739,105 @@ fun NaviampConnectionForm(
                 colors = colors,
                 isPassword = true,
             )
+            SettingsSectionTitle("Fallback URLs", colors)
+            form.secondaryUrls.forEachIndexed { index, entry ->
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                    NaviampTextField(
+                        value = entry.url,
+                        onValueChange = { value ->
+                            onFormChanged(form.copy(
+                                secondaryUrls = form.secondaryUrls.updateAt(index, entry.copy(url = value)),
+                            ))
+                        },
+                        label = "URL",
+                        colors = colors,
+                        modifier = Modifier.weight(1f),
+                    )
+                    NaviampTextField(
+                        value = entry.label,
+                        onValueChange = { value ->
+                            onFormChanged(form.copy(
+                                secondaryUrls = form.secondaryUrls.updateAt(index, entry.copy(label = value)),
+                            ))
+                        },
+                        label = "Label",
+                        colors = colors,
+                        modifier = Modifier.weight(0.65f),
+                    )
+                    TextButton(
+                        onClick = {
+                            onFormChanged(form.copy(secondaryUrls = form.secondaryUrls.removeAt(index)))
+                        },
+                    ) {
+                        Text("Remove", color = colors.secondaryText)
+                    }
+                }
+            }
+            TextButton(
+                onClick = {
+                    onFormChanged(form.copy(secondaryUrls = form.secondaryUrls + ConnectionFormSecondaryUrl()))
+                },
+            ) {
+                Text("Add fallback URL", color = colors.accent)
+            }
+            SettingsSectionTitle("Headers", colors)
+            form.customHeaders.forEachIndexed { index, header ->
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                        NaviampTextField(
+                            value = header.name,
+                            onValueChange = { value ->
+                                onFormChanged(form.copy(
+                                    customHeaders = form.customHeaders.updateAt(index, header.copy(name = value)),
+                                ))
+                            },
+                            label = "Header name",
+                            colors = colors,
+                            modifier = Modifier.weight(1f),
+                        )
+                        NaviampTextField(
+                            value = header.value,
+                            onValueChange = { value ->
+                                onFormChanged(form.copy(
+                                    customHeaders = form.customHeaders.updateAt(index, header.copy(value = value)),
+                                ))
+                            },
+                            label = "Header value",
+                            colors = colors,
+                            isPassword = header.valueIsSecret,
+                            modifier = Modifier.weight(1f),
+                        )
+                        TextButton(
+                            onClick = {
+                                onFormChanged(form.copy(customHeaders = form.customHeaders.removeAt(index)))
+                            },
+                        ) {
+                            Text("Remove", color = colors.secondaryText)
+                        }
+                    }
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        Checkbox(
+                            checked = header.valueIsSecret,
+                            onCheckedChange = { checked ->
+                                onFormChanged(form.copy(
+                                    customHeaders = form.customHeaders.updateAt(index, header.copy(valueIsSecret = checked)),
+                                ))
+                            },
+                        )
+                        Text("Treat value as secret; do not sync it", color = colors.secondaryText, fontSize = 12.sp)
+                    }
+                }
+            }
+            TextButton(
+                onClick = {
+                    onFormChanged(form.copy(customHeaders = form.customHeaders + ConnectionFormHeader()))
+                },
+            ) {
+                Text("Add header", color = colors.accent)
+            }
         }
         connectionStatus?.let {
             Text(it, color = colors.secondaryText, fontSize = 11.sp)
@@ -749,6 +860,12 @@ fun NaviampConnectionForm(
         }
     }
 }
+
+private fun <T> List<T>.updateAt(index: Int, value: T): List<T> =
+    mapIndexed { itemIndex, item -> if (itemIndex == index) value else item }
+
+private fun <T> List<T>.removeAt(index: Int): List<T> =
+    filterIndexed { itemIndex, _ -> itemIndex != index }
 
 @Composable
 private fun ConnectedContent(
@@ -808,6 +925,11 @@ private fun ConnectedContent(
     onConnectSavedConnection: (NaviampSavedConnectionUi) -> Unit,
     onDeleteSavedConnection: (NaviampSavedConnectionUi) -> Unit,
     onImportSettingsSyncFile: (() -> Unit)?,
+    onChooseSettingsSyncFolder: (() -> Unit)?,
+    onImportSettingsSyncFolder: (() -> Unit)?,
+    onExportSettingsSyncFolder: (() -> Unit)?,
+    settingsSyncAutoExportEnabled: Boolean,
+    onSettingsSyncAutoExportChanged: ((Boolean) -> Unit)?,
     onConnectionFormChanged: (ConnectionFormState) -> Unit,
     onConnect: () -> Unit,
     onCancelEditConnection: () -> Unit,
@@ -968,10 +1090,15 @@ private fun ConnectedContent(
             onEditConnection = onEditConnection,
             onNewConnection = onNewConnection,
             onEditSavedConnection = onEditSavedConnection,
-                        onConnectSavedConnection = onConnectSavedConnection,
-                        onDeleteSavedConnection = onDeleteSavedConnection,
-                        onImportSettingsSyncFile = onImportSettingsSyncFile,
-                        onConnectionFormChanged = onConnectionFormChanged,
+            onConnectSavedConnection = onConnectSavedConnection,
+            onDeleteSavedConnection = onDeleteSavedConnection,
+            onImportSettingsSyncFile = onImportSettingsSyncFile,
+            onChooseSettingsSyncFolder = onChooseSettingsSyncFolder,
+            onImportSettingsSyncFolder = onImportSettingsSyncFolder,
+            onExportSettingsSyncFolder = onExportSettingsSyncFolder,
+            settingsSyncAutoExportEnabled = settingsSyncAutoExportEnabled,
+            onSettingsSyncAutoExportChanged = onSettingsSyncAutoExportChanged,
+            onConnectionFormChanged = onConnectionFormChanged,
             onConnect = onConnect,
             onCancelConnectionForm = onCancelEditConnection,
             onPlaybackSettingsChanged = onPlaybackSettingsChanged,
@@ -2027,6 +2154,11 @@ private fun SettingsContent(
     onConnectSavedConnection: (NaviampSavedConnectionUi) -> Unit,
     onDeleteSavedConnection: (NaviampSavedConnectionUi) -> Unit,
     onImportSettingsSyncFile: (() -> Unit)?,
+    onChooseSettingsSyncFolder: (() -> Unit)?,
+    onImportSettingsSyncFolder: (() -> Unit)?,
+    onExportSettingsSyncFolder: (() -> Unit)?,
+    settingsSyncAutoExportEnabled: Boolean,
+    onSettingsSyncAutoExportChanged: ((Boolean) -> Unit)?,
     onConnectionFormChanged: (ConnectionFormState) -> Unit,
     onConnect: () -> Unit,
     onCancelConnectionForm: () -> Unit,
@@ -2063,6 +2195,11 @@ private fun SettingsContent(
         onConnectSavedConnection = onConnectSavedConnection,
         onDeleteSavedConnection = onDeleteSavedConnection,
         onImportSettingsSyncFile = onImportSettingsSyncFile,
+        onChooseSettingsSyncFolder = onChooseSettingsSyncFolder,
+        onImportSettingsSyncFolder = onImportSettingsSyncFolder,
+        onExportSettingsSyncFolder = onExportSettingsSyncFolder,
+        settingsSyncAutoExportEnabled = settingsSyncAutoExportEnabled,
+        onSettingsSyncAutoExportChanged = onSettingsSyncAutoExportChanged,
         onConnectionFormChanged = onConnectionFormChanged,
         onConnect = onConnect,
         onCancelConnectionForm = onCancelConnectionForm,

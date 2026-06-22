@@ -11,6 +11,8 @@ import app.naviamp.domain.radio.RadioDjPreset
 import app.naviamp.domain.radio.RadioFamiliarity
 import app.naviamp.domain.radio.RadioTuningSettings
 import app.naviamp.domain.settings.ConnectionFormState
+import app.naviamp.domain.settings.ConnectionFormHeader
+import app.naviamp.domain.settings.ConnectionFormSecondaryUrl
 import app.naviamp.domain.settings.CacheSettings
 import app.naviamp.domain.settings.PlaybackSettings
 import app.naviamp.domain.settings.PreviousButtonBehavior
@@ -47,6 +49,19 @@ class AndroidSettingsStore(
                 ?: preferences.getString(KeyClientCertificatePath, "").orEmpty(),
             clientCertificatePassword = savedConnection?.tlsSettings?.clientCertificateKeyStorePassword
                 ?: preferences.getString(KeyClientCertificatePassword, "").orEmpty(),
+            secondaryUrls = savedConnection?.secondaryUrls?.map { url ->
+                ConnectionFormSecondaryUrl(
+                    url = url.url,
+                    label = url.label.orEmpty(),
+                )
+            } ?: decodeList(KeySecondaryUrls, ConnectionFormSecondaryUrl.serializer()),
+            customHeaders = savedConnection?.customHeaders?.map { header ->
+                ConnectionFormHeader(
+                    name = header.name,
+                    value = header.value.orEmpty(),
+                    valueIsSecret = header.valueIsSecret,
+                )
+            } ?: decodeList(KeyCustomHeaders, ConnectionFormHeader.serializer()),
         )
 
     fun saveConnection(connection: ConnectionFormState) {
@@ -59,6 +74,8 @@ class AndroidSettingsStore(
             .putString(KeyCustomCertificatePath, connection.customCertificatePath.trim())
             .putString(KeyClientCertificatePath, connection.clientCertificatePath.trim())
             .putString(KeyClientCertificatePassword, connection.clientCertificatePassword)
+            .putString(KeySecondaryUrls, encodeList(connection.secondaryUrls, ConnectionFormSecondaryUrl.serializer()))
+            .putString(KeyCustomHeaders, encodeList(connection.customHeaders, ConnectionFormHeader.serializer()))
             .apply()
     }
 
@@ -215,6 +232,32 @@ class AndroidSettingsStore(
             .apply()
     }
 
+    fun loadSettingsSync(): AndroidSettingsSyncSettings =
+        AndroidSettingsSyncSettings(
+            treeUri = preferences.getString(KeySettingsSyncTreeUri, null),
+            autoExportEnabled = preferences.getBoolean(KeySettingsSyncAutoExportEnabled, false),
+            lastLocalUpdateEpochMillis = preferences.getLong(KeySettingsSyncLastLocalUpdateEpochMillis, 0L),
+            lastAppliedSyncUpdateEpochMillis = preferences.getLong(KeySettingsSyncLastAppliedUpdateEpochMillis, 0L),
+            lastProviderPullEpochMillis = preferences.getLong(KeySettingsSyncLastProviderPullEpochMillis, 0L),
+            lastProviderPushEpochMillis = preferences.getLong(KeySettingsSyncLastProviderPushEpochMillis, 0L),
+            lastProviderError = preferences.getString(KeySettingsSyncLastProviderError, null),
+            lastMirrorUpdateEpochMillis = preferences.getLong(KeySettingsSyncLastMirrorUpdateEpochMillis, 0L),
+        ).normalized()
+
+    fun saveSettingsSync(settings: AndroidSettingsSyncSettings) {
+        val normalized = settings.normalized()
+        preferences.edit()
+            .putString(KeySettingsSyncTreeUri, normalized.treeUri)
+            .putBoolean(KeySettingsSyncAutoExportEnabled, normalized.autoExportEnabled)
+            .putLong(KeySettingsSyncLastLocalUpdateEpochMillis, normalized.lastLocalUpdateEpochMillis)
+            .putLong(KeySettingsSyncLastAppliedUpdateEpochMillis, normalized.lastAppliedSyncUpdateEpochMillis)
+            .putLong(KeySettingsSyncLastProviderPullEpochMillis, normalized.lastProviderPullEpochMillis)
+            .putLong(KeySettingsSyncLastProviderPushEpochMillis, normalized.lastProviderPushEpochMillis)
+            .putString(KeySettingsSyncLastProviderError, normalized.lastProviderError)
+            .putLong(KeySettingsSyncLastMirrorUpdateEpochMillis, normalized.lastMirrorUpdateEpochMillis)
+            .apply()
+    }
+
     fun clear() {
         preferences.edit().clear().apply()
     }
@@ -256,6 +299,35 @@ class AndroidSettingsStore(
                 runCatching { JsonSettings.decodeFromString(ListSerializer(serializer), json) }.getOrDefault(emptyList())
             }
             ?: emptyList()
+
+    private fun <T> encodeList(
+        values: List<T>,
+        serializer: kotlinx.serialization.KSerializer<T>,
+    ): String =
+        JsonSettings.encodeToString(ListSerializer(serializer), values)
+}
+
+data class AndroidSettingsSyncSettings(
+    val treeUri: String? = null,
+    val autoExportEnabled: Boolean = false,
+    val lastLocalUpdateEpochMillis: Long = 0L,
+    val lastAppliedSyncUpdateEpochMillis: Long = 0L,
+    val lastProviderPullEpochMillis: Long = 0L,
+    val lastProviderPushEpochMillis: Long = 0L,
+    val lastProviderError: String? = null,
+    val lastMirrorUpdateEpochMillis: Long = 0L,
+) {
+    fun normalized(): AndroidSettingsSyncSettings =
+        copy(
+            treeUri = treeUri?.trim()?.takeIf { it.isNotEmpty() },
+            autoExportEnabled = autoExportEnabled && treeUri?.trim()?.isNotEmpty() == true,
+            lastLocalUpdateEpochMillis = lastLocalUpdateEpochMillis.coerceAtLeast(0L),
+            lastAppliedSyncUpdateEpochMillis = lastAppliedSyncUpdateEpochMillis.coerceAtLeast(0L),
+            lastProviderPullEpochMillis = lastProviderPullEpochMillis.coerceAtLeast(0L),
+            lastProviderPushEpochMillis = lastProviderPushEpochMillis.coerceAtLeast(0L),
+            lastProviderError = lastProviderError?.trim()?.takeIf { it.isNotEmpty() },
+            lastMirrorUpdateEpochMillis = lastMirrorUpdateEpochMillis.coerceAtLeast(0L),
+        )
 }
 
 private fun android.content.SharedPreferences.Editor.putStreamQualityPreference(
@@ -296,6 +368,8 @@ private const val KeySkipTlsVerification = "skip_tls_verification"
 private const val KeyCustomCertificatePath = "custom_certificate_path"
 private const val KeyClientCertificatePath = "client_certificate_path"
 private const val KeyClientCertificatePassword = "client_certificate_password"
+private const val KeySecondaryUrls = "secondary_urls"
+private const val KeyCustomHeaders = "custom_headers"
 private const val KeyReplayGainMode = "replay_gain_mode"
 private const val KeyReplayGainInspectorEnabled = "replay_gain_inspector_enabled"
 private const val KeyGaplessEnabled = "gapless_enabled"
@@ -337,6 +411,14 @@ private const val KeyMaxDownloadBytes = "max_download_bytes"
 private const val KeySelectedVisualizer = "selected_visualizer"
 private const val KeyRecentRadioStreams = "recent_radio_streams"
 private const val KeyRecentInternetRadioStations = "recent_internet_radio_stations"
+private const val KeySettingsSyncTreeUri = "settings_sync_tree_uri"
+private const val KeySettingsSyncAutoExportEnabled = "settings_sync_auto_export_enabled"
+private const val KeySettingsSyncLastLocalUpdateEpochMillis = "settings_sync_last_local_update_epoch_millis"
+private const val KeySettingsSyncLastAppliedUpdateEpochMillis = "settings_sync_last_applied_update_epoch_millis"
+private const val KeySettingsSyncLastProviderPullEpochMillis = "settings_sync_last_provider_pull_epoch_millis"
+private const val KeySettingsSyncLastProviderPushEpochMillis = "settings_sync_last_provider_push_epoch_millis"
+private const val KeySettingsSyncLastProviderError = "settings_sync_last_provider_error"
+private const val KeySettingsSyncLastMirrorUpdateEpochMillis = "settings_sync_last_mirror_update_epoch_millis"
 private val JsonSettings = Json {
     ignoreUnknownKeys = true
     encodeDefaults = true

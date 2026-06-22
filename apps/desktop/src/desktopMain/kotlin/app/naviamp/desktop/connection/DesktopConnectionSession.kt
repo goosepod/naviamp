@@ -5,6 +5,8 @@ import app.naviamp.domain.Track
 import app.naviamp.domain.cache.CacheMaintenanceRepository
 import app.naviamp.domain.cache.ProviderMediaSourceConnection
 import app.naviamp.domain.cache.ProviderMediaSourceRepository
+import app.naviamp.domain.source.ConnectionHeaderDefinition
+import app.naviamp.domain.source.ConnectionSecondaryUrl
 import app.naviamp.domain.settings.PlaybackSessionSettings
 import app.naviamp.domain.settings.RestoredPlaybackSession
 import app.naviamp.domain.settings.restoredTrackSession
@@ -39,6 +41,8 @@ suspend fun openDesktopConnectionSession(
     password: String,
     displayName: String,
     tlsSettings: NavidromeTlsSettings,
+    secondaryUrls: List<ConnectionSecondaryUrl>,
+    customHeaders: List<ConnectionHeaderDefinition>,
     savedConnectionForLogin: NavidromeConnection?,
     cacheMaintenanceRepository: CacheMaintenanceRepository<*>,
     providerMediaSourceRepository: ProviderMediaSourceRepository,
@@ -48,10 +52,12 @@ suspend fun openDesktopConnectionSession(
         request = ProviderConnectionLifecycleRequest(
             connection = NavidromeConnectionLoginRequest(
                 baseUrl = serverUrl,
+                secondaryUrls = secondaryUrls,
                 username = username,
                 password = password,
                 displayName = displayName,
                 tlsSettings = tlsSettings,
+                customHeaders = customHeaders,
                 savedConnectionForLogin = savedConnectionForLogin,
                 nativeAuthRequired = true,
             ),
@@ -77,6 +83,8 @@ private fun NavidromeConnection.toProviderMediaSourceConnection(): ProviderMedia
         salt = salt,
         nativeToken = nativeToken,
         tlsSettings = tlsSettings,
+        secondaryUrls = secondaryUrls,
+        customHeaders = customHeaders,
     )
 
 fun restoredDesktopPlaybackSession(

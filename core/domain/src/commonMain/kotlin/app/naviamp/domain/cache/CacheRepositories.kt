@@ -13,6 +13,8 @@ import app.naviamp.domain.popular.ArtistPopularTracksRepository
 import app.naviamp.domain.settings.PlaybackSessionSettings
 import app.naviamp.domain.settings.DefaultWaveformBucketCount
 import app.naviamp.domain.source.ConnectionTlsSettings
+import app.naviamp.domain.source.ConnectionHeaderDefinition
+import app.naviamp.domain.source.ConnectionSecondaryUrl
 import app.naviamp.domain.source.MediaSourceIdentity
 import app.naviamp.domain.source.SavedMediaSource
 import app.naviamp.domain.waveform.AudioWaveform
@@ -231,6 +233,8 @@ data class ProviderMediaSourceConnection(
     val salt: String,
     val nativeToken: String? = null,
     val tlsSettings: ConnectionTlsSettings = ConnectionTlsSettings(),
+    val secondaryUrls: List<ConnectionSecondaryUrl> = emptyList(),
+    val customHeaders: List<ConnectionHeaderDefinition> = emptyList(),
 )
 
 interface ProviderMediaSourceRepository {

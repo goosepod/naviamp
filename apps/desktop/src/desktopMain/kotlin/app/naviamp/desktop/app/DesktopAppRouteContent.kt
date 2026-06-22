@@ -191,6 +191,7 @@ fun ColumnScope.DesktopAppRouteContent(
     onDeleteConnection: (SavedMediaSource) -> Unit,
     onCancelConnectionForm: () -> Unit,
     onSettingsSyncDirectoryChanged: (String?) -> Unit,
+    onSettingsSyncDirectorySelectedForImport: (String) -> Unit,
     onSettingsSyncAutoExportChanged: (Boolean) -> Unit,
     onSettingsSyncExport: () -> Unit,
     onSettingsSyncImport: () -> Unit,
@@ -865,6 +866,8 @@ fun ColumnScope.DesktopAppRouteContent(
                     customCertificatePath = connectionForm.customCertificatePath,
                     clientCertificateKeyStorePath = connectionForm.clientCertificateKeyStorePath,
                     clientCertificateKeyStorePassword = connectionForm.clientCertificateKeyStorePassword,
+                    secondaryUrls = connectionForm.secondaryUrls,
+                    customHeaders = connectionForm.customHeaders,
                     savedConnections = savedMediaSources,
                     currentSourceId = connectedSourceId,
                     hasSavedConnection = connectionForm.savedConnectionForLogin != null,
@@ -899,6 +902,12 @@ fun ColumnScope.DesktopAppRouteContent(
                     onClientCertificateKeyStorePasswordChanged = {
                         connectionForm.clientCertificateKeyStorePassword = it
                     },
+                    onSecondaryUrlsChanged = {
+                        connectionForm.secondaryUrls = it
+                    },
+                    onCustomHeadersChanged = {
+                        connectionForm.customHeaders = it
+                    },
                     onConnect = onConnect,
                     onNewConnection = onNewConnection,
                     onEditConnection = onEditConnection,
@@ -906,6 +915,7 @@ fun ColumnScope.DesktopAppRouteContent(
                     onDeleteConnection = onDeleteConnection,
                     onCancelConnectionForm = onCancelConnectionForm,
                     onSettingsSyncDirectoryChanged = onSettingsSyncDirectoryChanged,
+                    onSettingsSyncDirectorySelectedForImport = onSettingsSyncDirectorySelectedForImport,
                     onSettingsSyncAutoExportChanged = onSettingsSyncAutoExportChanged,
                     onSettingsSyncExport = onSettingsSyncExport,
                     onSettingsSyncImport = onSettingsSyncImport,

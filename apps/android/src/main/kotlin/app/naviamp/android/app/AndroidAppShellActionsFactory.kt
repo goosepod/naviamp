@@ -50,6 +50,7 @@ fun androidAppShellActions(
     state: AndroidAppState,
     playbackEngine: AndroidPlaybackEngine,
     settingsStore: AndroidSettingsStore,
+    onSyncedSettingsChanged: () -> Unit = {},
     handleConnectionFormChanged: (ConnectionFormState) -> Unit,
     connectToNavidrome: () -> Unit,
     handleNewConnection: () -> Unit,
@@ -521,6 +522,7 @@ fun androidAppShellActions(
                     NowPlayingDisplayAction.SelectVisualizer -> request.visualizer?.let { visualizer ->
                         selectedVisualizer = visualizer
                         settingsStore.saveVisualizerSettings(VisualizerSettings(selectedVisualizer = visualizer.name))
+                        onSyncedSettingsChanged()
                     }
                     NowPlayingDisplayAction.SelectRadioDj -> {
                         val selectedDj = request.radioDjId

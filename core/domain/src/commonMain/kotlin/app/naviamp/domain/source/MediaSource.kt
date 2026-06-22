@@ -1,5 +1,7 @@
 package app.naviamp.domain.source
 
+import kotlinx.serialization.Serializable
+
 data class ConnectionTlsSettings(
     val insecureSkipTlsVerification: Boolean = false,
     val customCertificatePath: String? = null,
@@ -11,6 +13,39 @@ data class ConnectionTlsSettings(
 
     val hasClientCertificate: Boolean
         get() = !clientCertificateKeyStorePath.isNullOrBlank()
+}
+
+@Serializable
+data class ConnectionSecondaryUrl(
+    val url: String,
+    val label: String? = null,
+    val priority: Int = 0,
+) {
+    fun normalized(): ConnectionSecondaryUrl? {
+        val normalizedUrl = normalizedBaseUrl(url).takeIf { it.isNotEmpty() } ?: return null
+        return copy(
+            url = normalizedUrl,
+            label = label?.trim()?.takeIf { it.isNotEmpty() },
+            priority = priority.coerceAtLeast(0),
+        )
+    }
+}
+
+@Serializable
+data class ConnectionHeaderDefinition(
+    val name: String,
+    val value: String? = null,
+    val valueIsSecret: Boolean = false,
+) {
+    fun normalized(): ConnectionHeaderDefinition? {
+        val normalizedName = name.trim()
+        if (normalizedName.isEmpty()) return null
+        return copy(
+            name = normalizedName,
+            value = value?.trim()?.takeIf { it.isNotEmpty() },
+            valueIsSecret = valueIsSecret,
+        )
+    }
 }
 
 data class MediaSourceIdentity(
@@ -30,6 +65,8 @@ data class SavedMediaSource(
     val salt: String,
     val nativeToken: String? = null,
     val tlsSettings: ConnectionTlsSettings = ConnectionTlsSettings(),
+    val secondaryUrls: List<ConnectionSecondaryUrl> = emptyList(),
+    val customHeaders: List<ConnectionHeaderDefinition> = emptyList(),
     val createdAtEpochMillis: Long,
     val lastConnectedAtEpochMillis: Long?,
     val lastSyncStartedAtEpochMillis: Long?,

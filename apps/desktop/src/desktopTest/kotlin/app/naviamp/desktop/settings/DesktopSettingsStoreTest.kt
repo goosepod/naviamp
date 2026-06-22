@@ -129,6 +129,27 @@ class DesktopSettingsStoreTest {
     }
 
     @Test
+    fun saveSettingsSyncRoundTripsMetadata() {
+        val path = createTempDirectory().resolve("settings.json")
+        val store = DesktopSettingsStore(path)
+
+        store.saveSettingsSync(
+            DesktopSettingsSyncSettings(
+                directoryPath = " /tmp/naviamp-sync ",
+                autoExportEnabled = true,
+                lastLocalUpdateEpochMillis = 123L,
+                lastAppliedSyncUpdateEpochMillis = 120L,
+            ),
+        )
+
+        val settings = store.loadSettingsSync()
+        assertEquals("/tmp/naviamp-sync", settings.directoryPath)
+        assertEquals(true, settings.autoExportEnabled)
+        assertEquals(123L, settings.lastLocalUpdateEpochMillis)
+        assertEquals(120L, settings.lastAppliedSyncUpdateEpochMillis)
+    }
+
+    @Test
     fun saveWindowSettingsPreservesConnection() {
         val path = createTempDirectory().resolve("settings.json")
         val store = DesktopSettingsStore(path)

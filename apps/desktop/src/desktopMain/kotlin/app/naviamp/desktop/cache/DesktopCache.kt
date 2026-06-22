@@ -798,6 +798,12 @@ private fun ensureMediaSourceLibraryScanSchema(driver: JdbcSqliteDriver) {
     if (!driver.tableHasColumn("media_source", "last_library_scan_checked_at_epoch_millis")) {
         driver.execute(null, "ALTER TABLE media_source ADD COLUMN last_library_scan_checked_at_epoch_millis INTEGER", 0)
     }
+    if (!driver.tableHasColumn("media_source", "secondary_urls_json")) {
+        driver.execute(null, "ALTER TABLE media_source ADD COLUMN secondary_urls_json TEXT", 0)
+    }
+    if (!driver.tableHasColumn("media_source", "custom_headers_json")) {
+        driver.execute(null, "ALTER TABLE media_source ADD COLUMN custom_headers_json TEXT", 0)
+    }
 }
 
 private fun JdbcSqliteDriver.tableHasColumn(tableName: String, columnName: String): Boolean =

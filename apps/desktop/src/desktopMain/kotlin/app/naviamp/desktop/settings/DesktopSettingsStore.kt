@@ -1,5 +1,7 @@
 package app.naviamp.desktop.settings
 
+import app.naviamp.domain.source.ConnectionHeaderDefinition
+import app.naviamp.domain.source.ConnectionSecondaryUrl
 import app.naviamp.provider.navidrome.NavidromeConnection
 import app.naviamp.domain.cache.PlaybackSessionRepository
 import app.naviamp.provider.navidrome.NavidromeTlsSettings
@@ -38,6 +40,8 @@ class DesktopSettingsStore(
                     customCertificatePath = connection.tlsSettings.customCertificatePath,
                     clientCertificateKeyStorePath = connection.tlsSettings.clientCertificateKeyStorePath,
                     clientCertificateKeyStorePassword = connection.tlsSettings.clientCertificateKeyStorePassword,
+                    secondaryUrls = connection.secondaryUrls,
+                    customHeaders = connection.customHeaders,
                 ),
             ),
         )
@@ -174,9 +178,16 @@ data class DesktopSettings(
 data class DesktopSettingsSyncSettings(
     val directoryPath: String? = null,
     val autoExportEnabled: Boolean = false,
+    val lastLocalUpdateEpochMillis: Long = 0L,
+    val lastAppliedSyncUpdateEpochMillis: Long = 0L,
 ) {
     fun normalized(): DesktopSettingsSyncSettings =
-        copy(directoryPath = directoryPath?.trim()?.takeIf { it.isNotEmpty() })
+        copy(
+            directoryPath = directoryPath?.trim()?.takeIf { it.isNotEmpty() },
+            autoExportEnabled = autoExportEnabled && directoryPath?.trim()?.isNotEmpty() == true,
+            lastLocalUpdateEpochMillis = lastLocalUpdateEpochMillis.coerceAtLeast(0L),
+            lastAppliedSyncUpdateEpochMillis = lastAppliedSyncUpdateEpochMillis.coerceAtLeast(0L),
+        )
 }
 
 @Serializable
@@ -197,6 +208,8 @@ data class SavedConnection(
     val customCertificatePath: String? = null,
     val clientCertificateKeyStorePath: String? = null,
     val clientCertificateKeyStorePassword: String? = null,
+    val secondaryUrls: List<ConnectionSecondaryUrl> = emptyList(),
+    val customHeaders: List<ConnectionHeaderDefinition> = emptyList(),
 ) {
     fun toConnection(): NavidromeConnection =
         NavidromeConnection(
@@ -212,6 +225,8 @@ data class SavedConnection(
                 clientCertificateKeyStorePath = clientCertificateKeyStorePath,
                 clientCertificateKeyStorePassword = clientCertificateKeyStorePassword,
             ),
+            secondaryUrls = secondaryUrls.mapNotNull { it.normalized() },
+            customHeaders = customHeaders.mapNotNull { it.normalized() },
         )
 }
 

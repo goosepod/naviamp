@@ -1,6 +1,8 @@
 package app.naviamp.provider.navidrome
 
 import app.naviamp.domain.source.ConnectionTlsSettings
+import app.naviamp.domain.source.ConnectionHeaderDefinition
+import app.naviamp.domain.source.ConnectionSecondaryUrl
 import app.naviamp.domain.source.SavedMediaSource
 import app.naviamp.domain.source.normalizedBaseUrl
 import app.naviamp.domain.source.resolvedConnectionDisplayName
@@ -16,6 +18,8 @@ data class NavidromeConnection(
     val nativeToken: String? = null,
     val displayName: String? = null,
     val tlsSettings: NavidromeTlsSettings = NavidromeTlsSettings(),
+    val secondaryUrls: List<ConnectionSecondaryUrl> = emptyList(),
+    val customHeaders: List<ConnectionHeaderDefinition> = emptyList(),
 ) {
     val normalizedBaseUrl: String =
         normalizedBaseUrl(baseUrl)
@@ -28,6 +32,8 @@ data class NavidromeConnection(
             salt: String = randomSalt(),
             displayName: String? = null,
             tlsSettings: NavidromeTlsSettings = NavidromeTlsSettings(),
+            secondaryUrls: List<ConnectionSecondaryUrl> = emptyList(),
+            customHeaders: List<ConnectionHeaderDefinition> = emptyList(),
         ): NavidromeConnection =
             NavidromeConnection(
                 baseUrl = baseUrl,
@@ -37,6 +43,8 @@ data class NavidromeConnection(
                 nativeToken = null,
                 displayName = displayName,
                 tlsSettings = tlsSettings,
+                secondaryUrls = secondaryUrls,
+                customHeaders = customHeaders,
             )
 
         private fun randomSalt(): String =
@@ -59,4 +67,6 @@ fun SavedMediaSource.toNavidromeConnection(): NavidromeConnection =
         nativeToken = nativeToken,
         displayName = displayName,
         tlsSettings = tlsSettings,
+        secondaryUrls = secondaryUrls,
+        customHeaders = customHeaders,
     )

@@ -90,6 +90,7 @@ class AndroidStorage(
         name = DatabaseName,
     ).also {
         it.configureSqliteLockHandling()
+        it.ensureMediaSourceNetworkOptionsSchema()
         it.ensureTrackLyricsOffsetSchema()
         it.ensurePendingProviderActionSchema()
         it.ensureLibraryTrackPlayMetadataSchema()
@@ -215,6 +216,8 @@ class AndroidStorage(
                 salt = connection.salt,
                 nativeToken = connection.nativeToken,
                 tlsSettings = connection.tlsSettings,
+                secondaryUrls = connection.secondaryUrls,
+                customHeaders = connection.customHeaders,
             ),
             cacheNamespace = cacheNamespace,
             providerId = providerId,
@@ -716,6 +719,15 @@ private fun SqlDriver.configureSqliteLockHandling() {
         },
         parameters = 0,
     )
+}
+
+private fun SqlDriver.ensureMediaSourceNetworkOptionsSchema() {
+    if (!tableHasColumn("media_source", "secondary_urls_json")) {
+        execute(null, "ALTER TABLE media_source ADD COLUMN secondary_urls_json TEXT", 0)
+    }
+    if (!tableHasColumn("media_source", "custom_headers_json")) {
+        execute(null, "ALTER TABLE media_source ADD COLUMN custom_headers_json TEXT", 0)
+    }
 }
 
 private fun SqlDriver.ensureTrackLyricsOffsetSchema() {

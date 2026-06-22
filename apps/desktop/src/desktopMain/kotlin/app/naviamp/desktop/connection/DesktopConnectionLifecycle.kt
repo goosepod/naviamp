@@ -17,6 +17,8 @@ import app.naviamp.domain.queue.PlaybackQueue
 import app.naviamp.domain.settings.PlaybackSessionSettings
 import app.naviamp.domain.settings.connectionFormError
 import app.naviamp.domain.source.SavedMediaSource
+import app.naviamp.domain.source.ConnectionHeaderDefinition
+import app.naviamp.domain.source.ConnectionSecondaryUrl
 import app.naviamp.domain.source.connectionFailureStatus
 import app.naviamp.domain.source.deletedMediaSourceUpdate
 import app.naviamp.desktop.playback.PlaylistCallbacks
@@ -69,6 +71,8 @@ class DesktopConnectionLifecycleController(
     private val customCertificatePath: () -> String,
     private val clientCertificateKeyStorePath: () -> String,
     private val clientCertificateKeyStorePassword: () -> String,
+    private val secondaryUrls: () -> List<ConnectionSecondaryUrl>,
+    private val customHeaders: () -> List<ConnectionHeaderDefinition>,
     private val isConnecting: () -> Boolean,
     private val setConnecting: (Boolean) -> Unit,
     private val savedPlaybackSession: () -> PlaybackSessionSettings?,
@@ -178,6 +182,8 @@ class DesktopConnectionLifecycleController(
                         clientCertificateKeyStorePath = clientCertificateKeyStorePath(),
                         clientCertificateKeyStorePassword = clientCertificateKeyStorePassword(),
                     ),
+                    secondaryUrls = secondaryUrls(),
+                    customHeaders = customHeaders(),
                     savedConnectionForLogin = savedConnectionForLogin(),
                     cacheMaintenanceRepository = cacheMaintenanceRepository,
                     providerMediaSourceRepository = providerMediaSourceRepository,
@@ -204,6 +210,8 @@ class DesktopConnectionLifecycleController(
                 setConnectionStatus(
                     navidromeConnectionSuccessStatus(
                         validation = session.validation,
+                        activeUrl = session.connection.baseUrl,
+                        primaryUrl = serverUrl(),
                     ),
                 )
                 refreshLibrarySnapshot()

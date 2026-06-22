@@ -15,6 +15,8 @@ import app.naviamp.domain.playback.PlaybackQueueController
 import app.naviamp.domain.settings.RecentRadioStream
 import app.naviamp.domain.settings.ConnectionFormState
 import app.naviamp.domain.settings.connectionFormError
+import app.naviamp.domain.settings.toConnectionHeaderDefinitions
+import app.naviamp.domain.settings.toConnectionSecondaryUrls
 import app.naviamp.domain.source.SavedMediaSource
 import app.naviamp.domain.source.ProviderConnectionLifecycleRequest
 import app.naviamp.domain.source.connectionFailureStatus
@@ -142,6 +144,8 @@ fun AndroidAppState.applyConnectionForm(form: ConnectionFormState) {
     customCertificatePath = form.customCertificatePath
     clientCertificatePath = form.clientCertificatePath
     clientCertificatePassword = form.clientCertificatePassword
+    secondaryUrls = form.secondaryUrls
+    customHeaders = form.customHeaders
 }
 
 fun AndroidAppState.currentConnectionForm(): ConnectionFormState =
@@ -154,6 +158,8 @@ fun AndroidAppState.currentConnectionForm(): ConnectionFormState =
         customCertificatePath = customCertificatePath,
         clientCertificatePath = clientCertificatePath,
         clientCertificatePassword = clientCertificatePassword,
+        secondaryUrls = secondaryUrls,
+        customHeaders = customHeaders,
     )
 
 fun startNavidromeConnection(
@@ -220,9 +226,13 @@ fun startNavidromeConnection(
                     },
                 )
                 restorePlaybackSession(session.sourceId)
-            }.onSuccess {
+                session.connection.baseUrl
+            }.onSuccess { activeUrl ->
                 if (nowPlaying == null && nowPlayingStation == null) {
-                    status = "Connected."
+                    status = connectionStatusWithActiveUrl(
+                        primaryUrl = connection.baseUrl,
+                        activeUrl = activeUrl,
+                    )
                 }
                 restoringConnection = false
                 editingConnection = false
@@ -248,7 +258,19 @@ private fun NavidromeConnection.toProviderMediaSourceConnection(): ProviderMedia
         salt = salt,
         nativeToken = nativeToken,
         tlsSettings = tlsSettings,
+        secondaryUrls = secondaryUrls,
+        customHeaders = customHeaders,
     )
+
+private fun connectionStatusWithActiveUrl(primaryUrl: String, activeUrl: String): String {
+    val normalizedPrimary = primaryUrl.trim().trimEnd('/')
+    val normalizedActive = activeUrl.trim().trimEnd('/')
+    return if (normalizedActive.isNotBlank() && normalizedActive != normalizedPrimary) {
+        "Connected via $normalizedActive."
+    } else {
+        "Connected."
+    }
+}
 
 fun startNavidromeConnectionFromForm(
     scope: CoroutineScope,
@@ -277,10 +299,12 @@ fun startNavidromeConnectionFromForm(
             prepareNavidromeConnection(
                 NavidromeConnectionLoginRequest(
                     baseUrl = connectionForm.serverUrl,
+                    secondaryUrls = connectionForm.secondaryUrls.toConnectionSecondaryUrls(),
                     username = connectionForm.username,
                     password = connectionForm.password,
                     displayName = connectionForm.displayName.trim().takeIf { it.isNotEmpty() },
                     tlsSettings = tlsSettings,
+                    customHeaders = connectionForm.customHeaders.toConnectionHeaderDefinitions(),
                     savedConnectionForLogin = state.savedConnectionForLogin,
                 ),
             ).connection

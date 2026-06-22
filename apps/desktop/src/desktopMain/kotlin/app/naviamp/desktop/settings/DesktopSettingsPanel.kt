@@ -50,6 +50,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.naviamp.domain.source.SavedMediaSource
+import app.naviamp.domain.settings.ConnectionFormHeader
+import app.naviamp.domain.settings.ConnectionFormSecondaryUrl
 import app.naviamp.domain.settings.ConnectionFormState
 import app.naviamp.domain.settings.DefaultWaveformBucketCount
 import app.naviamp.domain.settings.MaxWaveformBucketCount
@@ -82,6 +84,8 @@ fun DesktopSettingsPanel(
     customCertificatePath: String,
     clientCertificateKeyStorePath: String,
     clientCertificateKeyStorePassword: String,
+    secondaryUrls: List<ConnectionFormSecondaryUrl>,
+    customHeaders: List<ConnectionFormHeader>,
     savedConnections: List<SavedMediaSource>,
     currentSourceId: String?,
     hasSavedConnection: Boolean,
@@ -108,6 +112,8 @@ fun DesktopSettingsPanel(
     onCustomCertificatePathChanged: (String) -> Unit,
     onClientCertificateKeyStorePathChanged: (String) -> Unit,
     onClientCertificateKeyStorePasswordChanged: (String) -> Unit,
+    onSecondaryUrlsChanged: (List<ConnectionFormSecondaryUrl>) -> Unit,
+    onCustomHeadersChanged: (List<ConnectionFormHeader>) -> Unit,
     onConnect: () -> Unit,
     onNewConnection: () -> Unit,
     onEditConnection: (SavedMediaSource) -> Unit,
@@ -115,6 +121,7 @@ fun DesktopSettingsPanel(
     onConnectSavedConnection: (SavedMediaSource) -> Unit,
     onCancelConnectionForm: () -> Unit,
     onSettingsSyncDirectoryChanged: (String?) -> Unit,
+    onSettingsSyncDirectorySelectedForImport: (String) -> Unit,
     onSettingsSyncAutoExportChanged: (Boolean) -> Unit,
     onSettingsSyncExport: () -> Unit,
     onSettingsSyncImport: () -> Unit,
@@ -148,6 +155,8 @@ fun DesktopSettingsPanel(
                 customCertificatePath = customCertificatePath,
                 clientCertificateKeyStorePath = clientCertificateKeyStorePath,
                 clientCertificateKeyStorePassword = clientCertificateKeyStorePassword,
+                secondaryUrls = secondaryUrls,
+                customHeaders = customHeaders,
                 savedConnections = savedConnections,
                 currentSourceId = currentSourceId,
                 hasSavedConnection = hasSavedConnection,
@@ -165,6 +174,8 @@ fun DesktopSettingsPanel(
                 onCustomCertificatePathChanged = onCustomCertificatePathChanged,
                 onClientCertificateKeyStorePathChanged = onClientCertificateKeyStorePathChanged,
                 onClientCertificateKeyStorePasswordChanged = onClientCertificateKeyStorePasswordChanged,
+                onSecondaryUrlsChanged = onSecondaryUrlsChanged,
+                onCustomHeadersChanged = onCustomHeadersChanged,
                 onConnect = onConnect,
                 onNewConnection = onNewConnection,
                 onEditConnection = onEditConnection,
@@ -172,6 +183,7 @@ fun DesktopSettingsPanel(
                 onConnectSavedConnection = onConnectSavedConnection,
                 onCancelConnectionForm = onCancelConnectionForm,
                 onSettingsSyncDirectoryChanged = onSettingsSyncDirectoryChanged,
+                onSettingsSyncDirectorySelectedForImport = onSettingsSyncDirectorySelectedForImport,
                 onSettingsSyncAutoExportChanged = onSettingsSyncAutoExportChanged,
                 onSettingsSyncExport = onSettingsSyncExport,
                 onSettingsSyncImport = onSettingsSyncImport,
@@ -481,6 +493,40 @@ private fun SettingsDetailHeader(
 }
 
 @Composable
+private fun FirstRunConnectionChoice(
+    appColors: DesktopAppColors,
+    onNewConnection: () -> Unit,
+    onSettingsSyncDirectorySelectedForImport: (String) -> Unit,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Text(
+            "Start with a new server or import an existing settings sync folder.",
+            color = appColors.secondaryText,
+            fontSize = 12.sp,
+        )
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Button(
+                onClick = onNewConnection,
+                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
+                modifier = Modifier.height(30.dp),
+            ) {
+                Text("Set up server", fontSize = 12.sp)
+            }
+            TextButton(
+                onClick = {
+                    chooseDirectory(System.getProperty("user.home"), "Choose settings sync folder")?.let { selected ->
+                        onSettingsSyncDirectorySelectedForImport(selected.absolutePath)
+                    }
+                },
+                modifier = Modifier.height(30.dp),
+            ) {
+                Text("Use sync folder", fontSize = 12.sp)
+            }
+        }
+    }
+}
+
+@Composable
 private fun ConnectionsSettings(
     appColors: DesktopAppColors,
     serverUrl: String,
@@ -491,6 +537,8 @@ private fun ConnectionsSettings(
     customCertificatePath: String,
     clientCertificateKeyStorePath: String,
     clientCertificateKeyStorePassword: String,
+    secondaryUrls: List<ConnectionFormSecondaryUrl>,
+    customHeaders: List<ConnectionFormHeader>,
     savedConnections: List<SavedMediaSource>,
     currentSourceId: String?,
     hasSavedConnection: Boolean,
@@ -508,6 +556,8 @@ private fun ConnectionsSettings(
     onCustomCertificatePathChanged: (String) -> Unit,
     onClientCertificateKeyStorePathChanged: (String) -> Unit,
     onClientCertificateKeyStorePasswordChanged: (String) -> Unit,
+    onSecondaryUrlsChanged: (List<ConnectionFormSecondaryUrl>) -> Unit,
+    onCustomHeadersChanged: (List<ConnectionFormHeader>) -> Unit,
     onConnect: () -> Unit,
     onNewConnection: () -> Unit,
     onEditConnection: (SavedMediaSource) -> Unit,
@@ -515,6 +565,7 @@ private fun ConnectionsSettings(
     onConnectSavedConnection: (SavedMediaSource) -> Unit,
     onCancelConnectionForm: () -> Unit,
     onSettingsSyncDirectoryChanged: (String?) -> Unit,
+    onSettingsSyncDirectorySelectedForImport: (String) -> Unit,
     onSettingsSyncAutoExportChanged: (Boolean) -> Unit,
     onSettingsSyncExport: () -> Unit,
     onSettingsSyncImport: () -> Unit,
@@ -527,9 +578,17 @@ private fun ConnectionsSettings(
             .fillMaxWidth()
             .padding(end = 16.dp),
     ) {
+        val showingFirstRunChoice = savedConnections.isEmpty() && !isConnectionFormOpen
         SettingsSectionTitle("Connections", appColors)
         if (savedConnections.isEmpty()) {
             Text("No saved connections yet.", color = appColors.secondaryText, fontSize = 12.sp)
+            if (showingFirstRunChoice) {
+                FirstRunConnectionChoice(
+                    appColors = appColors,
+                    onNewConnection = onNewConnection,
+                    onSettingsSyncDirectorySelectedForImport = onSettingsSyncDirectorySelectedForImport,
+                )
+            }
         } else {
             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 savedConnections.forEach { connection ->
@@ -545,7 +604,7 @@ private fun ConnectionsSettings(
                 }
             }
         }
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        if (!showingFirstRunChoice) Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Button(
                 onClick = onNewConnection,
                 contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
@@ -569,6 +628,8 @@ private fun ConnectionsSettings(
                     customCertificatePath = customCertificatePath,
                     clientCertificatePath = clientCertificateKeyStorePath,
                     clientCertificatePassword = clientCertificateKeyStorePassword,
+                    secondaryUrls = secondaryUrls,
+                    customHeaders = customHeaders,
                 ),
                 colors = appColors,
                 isReconnect = hasSavedConnection,
@@ -583,6 +644,8 @@ private fun ConnectionsSettings(
                     onCustomCertificatePathChanged(form.customCertificatePath)
                     onClientCertificateKeyStorePathChanged(form.clientCertificatePath)
                     onClientCertificateKeyStorePasswordChanged(form.clientCertificatePassword)
+                    onSecondaryUrlsChanged(form.secondaryUrls)
+                    onCustomHeadersChanged(form.customHeaders)
                 },
                 onConnect = onConnect,
                 onCancel = onCancelConnectionForm,
@@ -656,7 +719,7 @@ private fun ConnectionsSettings(
                 onCheckedChange = onSettingsSyncAutoExportChanged,
             )
             Column {
-                Text("Auto-export changes", color = appColors.primaryText, fontSize = 13.sp)
+                Text("Auto-sync changes", color = appColors.primaryText, fontSize = 13.sp)
                 Text(
                     "Writes the shared settings file after local synced settings change.",
                     color = appColors.secondaryText,

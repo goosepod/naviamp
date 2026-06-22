@@ -61,6 +61,14 @@ class NavidromeProvider(
     override val source: String = NavidromeAgentMetadataSource
     override val cacheNamespace: String =
         "${id.value}:${connection.normalizedBaseUrl}:${connection.username}"
+    private val customHeaders: Map<String, String> =
+        connection.customHeaders
+            .mapNotNull { header ->
+                val normalized = header.normalized() ?: return@mapNotNull null
+                val value = normalized.value?.takeIf { it.isNotBlank() } ?: return@mapNotNull null
+                normalized.name to value
+            }
+            .toMap()
     private val baseCapabilities: ProviderCapabilities =
         ProviderCapabilities(
             supportsStreamingTranscode = true,
@@ -707,10 +715,10 @@ class NavidromeProvider(
         url.startsWith("${connection.normalizedBaseUrl}/", ignoreCase = true)
 
     suspend fun bytes(url: String): ByteArray? =
-        httpClient.getBytes(url)
+        httpClient.getBytes(url, headers = customHeaders)
 
     suspend fun download(url: String, writeChunk: suspend (bytes: ByteArray, count: Int) -> Unit): Boolean =
-        httpClient.download(url, writeChunk = writeChunk)
+        httpClient.download(url, headers = customHeaders, writeChunk = writeChunk)
 
     override suspend fun downloadStream(
         url: String,
@@ -860,7 +868,7 @@ class NavidromeProvider(
         endpoint: String,
         params: List<Pair<String, String>>,
     ): JsonObject {
-        val body = httpClient.get(url(endpoint, params))
+        val body = httpClient.get(url(endpoint, params), headers = customHeaders)
         val root = json.parseToJsonElement(body).jsonObject
         val response = root["subsonic-response"]?.jsonObject
             ?: throw NavidromeException("Response was not a Subsonic response.")
@@ -880,7 +888,7 @@ class NavidromeProvider(
             httpClient.postJson(
                 url = nativeApiUrl(endpoint),
                 body = body,
-                headers = nativeAuthHeaders(),
+                headers = customHeaders + nativeAuthHeaders(),
             ),
         )
 
@@ -888,7 +896,7 @@ class NavidromeProvider(
         nativeJsonResponse(
             httpClient.get(
                 url = nativeApiUrl(endpoint),
-                headers = nativeAuthHeaders(),
+                headers = customHeaders + nativeAuthHeaders(),
             ),
         )
 
@@ -897,7 +905,7 @@ class NavidromeProvider(
             httpClient.putJson(
                 url = nativeApiUrl(endpoint),
                 body = body,
-                headers = nativeAuthHeaders(),
+                headers = customHeaders + nativeAuthHeaders(),
             ),
         )
 

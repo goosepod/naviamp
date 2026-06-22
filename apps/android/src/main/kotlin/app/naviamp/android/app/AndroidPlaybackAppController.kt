@@ -40,6 +40,7 @@ internal class AndroidPlaybackAppController(
     private val currentStreamQuality: () -> StreamQuality,
     private val loadRelatedTracks: (Track) -> Unit,
     private val sonicAutoplayService: SonicAutoplayService,
+    private val onSyncedSettingsChanged: () -> Unit = {},
 ) {
     fun handlePlaybackProgressChanged(sessionToken: Long, progress: PlaybackProgress) {
         handleAndroidPlaybackProgressChanged(
@@ -103,6 +104,7 @@ internal class AndroidPlaybackAppController(
             station = station,
             savePlaybackSessionThrottled = ::savePlaybackSessionThrottled,
             handlePlaybackProgressChanged = ::handlePlaybackProgressChanged,
+            onSyncedSettingsChanged = onSyncedSettingsChanged,
         )
     }
 
@@ -195,6 +197,7 @@ internal class AndroidPlaybackAppController(
         val recentStreams = recentRadioStreamsWith(settingsStore.loadRecentRadioStreams(), stream)
         settingsStore.saveRecentRadioStreams(recentStreams)
         state.homeState = state.homeState.copy(recentRadioStreams = recentStreams)
+        onSyncedSettingsChanged()
     }
 
     fun startTrackRadio(track: Track) {

@@ -250,6 +250,7 @@ fun playAndroidInternetRadioStation(
     station: InternetRadioStation,
     savePlaybackSessionThrottled: (force: Boolean) -> Unit,
     handlePlaybackProgressChanged: (Long, PlaybackProgress) -> Unit,
+    onSyncedSettingsChanged: () -> Unit = {},
 ) {
     val sessionToken = beginAndroidPlaybackSession(
         state = state,
@@ -263,7 +264,10 @@ fun playAndroidInternetRadioStation(
     applyInternetRadioStart(
         plan = plan,
         applier = InternetRadioStartApplier(
-            saveRecentStations = settingsStore::saveRecentInternetRadioStations,
+            saveRecentStations = { stations ->
+                settingsStore.saveRecentInternetRadioStations(stations)
+                onSyncedSettingsChanged()
+            },
             setRecentStations = { recentStations ->
                 state.homeState = state.homeState.copy(recentInternetRadioStations = recentStations)
             },

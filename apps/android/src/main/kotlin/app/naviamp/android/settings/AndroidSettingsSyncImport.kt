@@ -4,9 +4,10 @@ import android.content.Context
 import android.net.Uri
 import app.naviamp.android.playback.AndroidPlaybackEngine
 import app.naviamp.domain.app.NaviampRoute
+import app.naviamp.domain.settings.SettingsSyncDocument
 import app.naviamp.domain.settings.SettingsSyncJson
 import app.naviamp.domain.settings.effectiveForEngine
-import app.naviamp.domain.settings.toConnectionFormState
+import app.naviamp.domain.settings.importSettingsSyncServerProfiles
 import app.naviamp.ui.naviampVisualizerFromName
 
 fun importAndroidSettingsSyncDocument(
@@ -38,6 +39,22 @@ fun importAndroidSettingsSyncDocumentText(
     playbackEngine: AndroidPlaybackEngine,
 ): String {
     val document = SettingsSyncJson.decode(text)
+    return applyAndroidSettingsSyncDocument(
+        document = document,
+        state = state,
+        settingsStore = settingsStore,
+        storage = storage,
+        playbackEngine = playbackEngine,
+    )
+}
+
+fun applyAndroidSettingsSyncDocument(
+    document: SettingsSyncDocument,
+    state: AndroidAppState,
+    settingsStore: AndroidSettingsStore,
+    storage: AndroidStorageDependencies,
+    playbackEngine: AndroidPlaybackEngine,
+): String {
     val preferences = document.preferences
     val importedPlayback = preferences.playback.effectiveForEngine(playbackEngine)
 
@@ -55,7 +72,12 @@ fun importAndroidSettingsSyncDocumentText(
         recentInternetRadioStations = preferences.recentInternetRadioStations.map { it.toStation() },
     )
 
-    val importedConnection = document.serverProfiles.firstOrNull()?.toConnectionFormState(password = "")
+    val importedProfiles = importSettingsSyncServerProfiles(
+        serverProfiles = document.serverProfiles,
+        repository = storage,
+    )
+    state.savedMediaSources = storage.mediaSources()
+    val importedConnection = importedProfiles.firstConnectionForm
     if (importedConnection != null) {
         settingsStore.saveConnection(importedConnection)
         state.applyConnectionForm(importedConnection)
@@ -63,7 +85,11 @@ fun importAndroidSettingsSyncDocumentText(
         state.restoringConnection = false
         state.editingConnection = true
         state.navigationState = state.navigationState.copy(route = NaviampRoute.Settings)
-        state.status = "Settings imported. Enter the Navidrome password to finish connecting."
+        state.status = if (importedProfiles.importedCount > 1) {
+            "Settings imported ${importedProfiles.importedCount} server profiles. Enter the Navidrome password to finish connecting."
+        } else {
+            "Settings imported. Enter the Navidrome password to finish connecting."
+        }
         return state.status
     }
 

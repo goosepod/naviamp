@@ -43,15 +43,22 @@ import app.naviamp.desktop.settings.RecentRadioStream
 import app.naviamp.desktop.settings.DesktopSettingsSyncFile
 import app.naviamp.desktop.settings.DesktopSettingsSyncSettings
 import app.naviamp.desktop.settings.VisualizerSettings
+import app.naviamp.domain.settings.SettingsSyncCoordinator
+import app.naviamp.domain.settings.SettingsSyncDocument
 import app.naviamp.domain.settings.SettingsSyncLocalSnapshot
+import app.naviamp.domain.settings.SettingsSyncOperationKind
+import app.naviamp.domain.settings.SettingsSyncOperationResult
+import app.naviamp.domain.settings.SettingsSyncRuntimeState
 import app.naviamp.domain.settings.buildSettingsSyncDocument
 import app.naviamp.domain.settings.effectiveForEngine
 import app.naviamp.domain.settings.PlaybackSettingsMaintenanceController
 import app.naviamp.domain.settings.SavedInternetRadioStation
+import app.naviamp.domain.settings.importSettingsSyncServerProfiles
 import app.naviamp.domain.settings.playbackSettingsChange
 import app.naviamp.domain.settings.restoredPlaybackQueue
 import app.naviamp.domain.settings.restoredTrackSession
-import app.naviamp.domain.settings.toConnectionFormState
+import app.naviamp.domain.settings.toConnectionHeaderDefinitions
+import app.naviamp.domain.settings.toConnectionSecondaryUrls
 import app.naviamp.domain.sonicautoplay.SonicAutoplayService
 import app.naviamp.provider.navidrome.NavidromeConnection
 import app.naviamp.provider.navidrome.NavidromeProvider
@@ -315,43 +322,144 @@ fun NaviampApp(
     fun settingsSyncDirectory(): Path? =
         settingsSyncSettings.directoryPath?.let(Path::of)
 
-    fun updateSettingsSyncDirectory(path: String?) {
-        val normalized = DesktopSettingsSyncSettings(
-            directoryPath = path,
-            autoExportEnabled = settingsSyncSettings.autoExportEnabled && path != null,
-        ).normalized()
+    fun settingsSyncRuntimeState(): SettingsSyncRuntimeState =
+        SettingsSyncRuntimeState(
+            autoExportEnabled = settingsSyncSettings.autoExportEnabled,
+            lastLocalUpdateEpochMillis = settingsSyncSettings.lastLocalUpdateEpochMillis,
+            lastAppliedSyncUpdateEpochMillis = settingsSyncSettings.lastAppliedSyncUpdateEpochMillis,
+        )
+
+    fun saveSettingsSyncSettings(settings: DesktopSettingsSyncSettings) {
+        val normalized = settings.normalized()
         settingsSyncSettings = normalized
         settingsStore.saveSettingsSync(normalized)
-        settingsSyncStatus = if (normalized.directoryPath == null) {
+    }
+
+    fun buildLocalSettingsSyncDocument(updatedAtEpochMillis: Long): SettingsSyncDocument =
+        buildSettingsSyncDocument(
+            snapshot = SettingsSyncLocalSnapshot(
+                serverProfiles = storage.mediaSources(),
+                playback = playbackSettings,
+                visualizer = VisualizerSettings(
+                    selectedVisualizer = nowPlayingPresentation.selectedVisualizer.name,
+                ),
+                recentRadioStreams = recentRadioStreams,
+                recentInternetRadioStations = settingsStore.loadRecentInternetRadioStations(),
+            ),
+            nowEpochMillis = updatedAtEpochMillis,
+            deviceId = DesktopSettingsSyncDeviceId,
+        )
+
+    fun saveSettingsSyncRuntimeState(runtimeState: SettingsSyncRuntimeState) {
+        saveSettingsSyncSettings(
+            settingsSyncSettings.copy(
+                autoExportEnabled = runtimeState.autoExportEnabled,
+                lastLocalUpdateEpochMillis = runtimeState.lastLocalUpdateEpochMillis,
+                lastAppliedSyncUpdateEpochMillis = runtimeState.lastAppliedSyncUpdateEpochMillis,
+            ),
+        )
+    }
+
+    fun applySettingsSyncDocument(document: SettingsSyncDocument) {
+        val importedPlayback = document.preferences.playback.effectiveForEngine(playbackEngine)
+        storage.replaceRadioDjPresets(importedPlayback.radioDjs)
+        playbackSettings = importedPlayback.copy(radioDjs = storage.radioDjPresets())
+        settingsStore.savePlaybackSettings(playbackSettings.copy(radioDjs = emptyList()))
+        settingsStore.saveVisualizerSettings(document.preferences.visualizer)
+        nowPlayingPresentation.selectVisualizer(
+            naviampVisualizerFromName(document.preferences.visualizer.selectedVisualizer),
+        )
+        recentRadioStreams = document.preferences.recentRadioStreams
+        settingsStore.saveRecentRadioStreams(recentRadioStreams)
+        settingsStore.saveRecentInternetRadioStations(document.preferences.recentInternetRadioStations)
+
+        val importedProfiles = importSettingsSyncServerProfiles(
+            serverProfiles = document.serverProfiles,
+            repository = storage,
+        )
+        if (importedProfiles.importedCount > 0) {
+            mediaSourcesRevision++
+        }
+
+        importedProfiles.firstConnectionForm?.let { form ->
+            connectionForm.apply(
+                DesktopConnectionFormState(
+                    serverUrl = form.serverUrl,
+                    connectionName = form.displayName,
+                    username = form.username,
+                    password = "",
+                    insecureSkipTlsVerification = form.skipTlsVerification,
+                    customCertificatePath = form.customCertificatePath,
+                    clientCertificateKeyStorePath = form.clientCertificatePath,
+                    clientCertificateKeyStorePassword = "",
+                    secondaryUrls = form.secondaryUrls,
+                    customHeaders = form.customHeaders,
+                ),
+            )
+            connectionForm.isOpen = true
+            appRoute = DesktopAppRoute.Settings
+        }
+    }
+
+    val settingsSyncCoordinator = SettingsSyncCoordinator(
+        deviceId = DesktopSettingsSyncDeviceId,
+        state = ::settingsSyncRuntimeState,
+        saveState = ::saveSettingsSyncRuntimeState,
+        nowEpochMillis = { System.currentTimeMillis() },
+        buildLocalDocument = ::buildLocalSettingsSyncDocument,
+        applyDocument = ::applySettingsSyncDocument,
+    )
+
+    fun updateSettingsSyncDirectory(path: String?) {
+        saveSettingsSyncSettings(DesktopSettingsSyncSettings(
+            directoryPath = path,
+            autoExportEnabled = settingsSyncSettings.autoExportEnabled && path != null,
+            lastLocalUpdateEpochMillis = settingsSyncSettings.lastLocalUpdateEpochMillis,
+            lastAppliedSyncUpdateEpochMillis = settingsSyncSettings.lastAppliedSyncUpdateEpochMillis,
+        ))
+        settingsSyncStatus = if (settingsSyncSettings.directoryPath == null) {
             "Settings sync disabled."
         } else {
             "Settings sync folder selected."
         }
     }
 
-    fun writeSettingsSync(statusMessage: (String) -> String) {
+    fun settingsSyncImportStatus(result: SettingsSyncOperationResult): String =
+        if (result.hasServerProfiles) {
+            "Settings imported. Enter the Navidrome password to finish connecting."
+        } else {
+            "Settings imported."
+        }
+
+    fun settingsSyncStartupStatus(result: SettingsSyncOperationResult): String =
+        when (result.kind) {
+            SettingsSyncOperationKind.Imported -> if (result.hasServerProfiles) {
+                "Settings sync imported newer shared settings. Enter the Navidrome password to finish connecting."
+            } else {
+                "Settings sync imported newer shared settings."
+            }
+            SettingsSyncOperationKind.NoOp -> "Settings sync is up to date."
+            SettingsSyncOperationKind.UnsupportedSyncFile ->
+                "Settings sync file was created by a newer Naviamp version."
+            SettingsSyncOperationKind.NeedsSetupChoice -> "Choose how to set up Naviamp."
+            SettingsSyncOperationKind.MissingSyncLocation -> "Choose a settings sync folder first."
+            SettingsSyncOperationKind.Exported -> "Settings sync exported local settings."
+        }
+
+    fun writeSettingsSync(
+        document: SettingsSyncDocument,
+        statusMessage: (String) -> String,
+    ) {
         val directory = settingsSyncDirectory()
         if (directory == null) {
             settingsSyncStatus = "Choose a settings sync folder first."
             return
         }
         runCatching {
-            val document = buildSettingsSyncDocument(
-                snapshot = SettingsSyncLocalSnapshot(
-                    serverProfiles = storage.mediaSources(),
-                    playback = playbackSettings,
-                    visualizer = VisualizerSettings(
-                        selectedVisualizer = nowPlayingPresentation.selectedVisualizer.name,
-                    ),
-                    recentRadioStreams = recentRadioStreams,
-                    recentInternetRadioStations = settingsStore.loadRecentInternetRadioStations(),
-                ),
-                nowEpochMillis = System.currentTimeMillis(),
-                deviceId = DesktopSettingsSyncDeviceId,
-            )
             DesktopSettingsSyncFile.write(directory, document)
             DesktopSettingsSyncFile.syncFile(directory).fileName
         }.onSuccess { fileName ->
+            settingsSyncCoordinator.documentWritten(document)
             settingsSyncStatus = statusMessage(fileName.toString())
         }.onFailure { error ->
             settingsSyncStatus = error.message ?: "Could not export settings sync file."
@@ -359,47 +467,57 @@ fun NaviampApp(
     }
 
     fun exportSettingsSync() {
-        writeSettingsSync { fileName -> "Settings exported to $fileName." }
+        settingsSyncCoordinator.exportCurrent(markChanged = true).documentToWrite?.let { document ->
+            writeSettingsSync(document) { fileName -> "Settings exported to $fileName." }
+        }
     }
 
     fun autoExportSettingsSync() {
-        if (!settingsSyncSettings.autoExportEnabled) return
-        writeSettingsSync { fileName -> "Settings auto-exported to $fileName." }
+        settingsSyncCoordinator.autoExport()?.documentToWrite?.let { document ->
+            writeSettingsSync(document) { fileName -> "Settings auto-exported to $fileName." }
+        }
     }
 
     fun updateSettingsSyncAutoExport(enabled: Boolean) {
-        val normalized = settingsSyncSettings.copy(
+        saveSettingsSyncSettings(settingsSyncSettings.copy(
             autoExportEnabled = enabled && settingsSyncSettings.directoryPath != null,
-        ).normalized()
-        settingsSyncSettings = normalized
-        settingsStore.saveSettingsSync(normalized)
-        settingsSyncStatus = if (normalized.autoExportEnabled) {
+        ))
+        settingsSyncStatus = if (settingsSyncSettings.autoExportEnabled) {
             "Auto-export enabled."
         } else {
             "Auto-export disabled."
         }
-        if (normalized.autoExportEnabled) {
+        if (settingsSyncSettings.autoExportEnabled) {
             autoExportSettingsSync()
         }
     }
 
     fun savePlaybackSettingsForSync(settings: PlaybackSettings) {
         settingsStore.savePlaybackSettings(settings)
+        settingsSyncCoordinator.markLocalChanged()
         autoExportSettingsSync()
     }
 
     fun saveVisualizerSettingsForSync(settings: VisualizerSettings) {
         settingsStore.saveVisualizerSettings(settings)
+        settingsSyncCoordinator.markLocalChanged()
         autoExportSettingsSync()
     }
 
     fun saveRecentRadioStreamsForSync(streams: List<RecentRadioStream>) {
         settingsStore.saveRecentRadioStreams(streams)
+        settingsSyncCoordinator.markLocalChanged()
         autoExportSettingsSync()
     }
 
     fun saveRecentInternetRadioStationsForSync(stations: List<SavedInternetRadioStation>) {
         settingsStore.saveRecentInternetRadioStations(stations)
+        settingsSyncCoordinator.markLocalChanged()
+        autoExportSettingsSync()
+    }
+
+    fun markAndAutoExportSettingsSync() {
+        settingsSyncCoordinator.markLocalChanged()
         autoExportSettingsSync()
     }
 
@@ -414,54 +532,57 @@ fun NaviampApp(
         )
     }
 
+    fun importSettingsSyncFromDirectory(directory: Path) {
+        runCatching {
+            val document = DesktopSettingsSyncFile.read(directory)
+                ?: error("No settings sync file found in that folder.")
+            settingsSyncCoordinator.applySyncedDocument(document)
+        }.onSuccess { result ->
+            settingsSyncStatus = settingsSyncImportStatus(result)
+        }.onFailure { error ->
+            settingsSyncStatus = error.message ?: "Could not import settings sync file."
+        }
+    }
+
     fun importSettingsSync() {
         val directory = settingsSyncDirectory()
         if (directory == null) {
             settingsSyncStatus = "Choose a settings sync folder first."
             return
         }
+        importSettingsSyncFromDirectory(directory)
+    }
+
+    fun selectSettingsSyncDirectoryAndImport(path: String) {
+        saveSettingsSyncSettings(
+            DesktopSettingsSyncSettings(
+                directoryPath = path,
+                autoExportEnabled = settingsSyncSettings.autoExportEnabled,
+                lastLocalUpdateEpochMillis = settingsSyncSettings.lastLocalUpdateEpochMillis,
+                lastAppliedSyncUpdateEpochMillis = settingsSyncSettings.lastAppliedSyncUpdateEpochMillis,
+            ),
+        )
+        importSettingsSyncFromDirectory(Path.of(path))
+    }
+
+    LaunchedEffect(Unit) {
+        val directory = settingsSyncDirectory() ?: return@LaunchedEffect
         runCatching {
-            val document = DesktopSettingsSyncFile.read(directory)
-                ?: error("No settings sync file found in that folder.")
-            val importedPlayback = document.preferences.playback.effectiveForEngine(playbackEngine)
-            storage.replaceRadioDjPresets(importedPlayback.radioDjs)
-            playbackSettings = importedPlayback.copy(radioDjs = storage.radioDjPresets())
-            settingsStore.savePlaybackSettings(playbackSettings.copy(radioDjs = emptyList()))
-            settingsStore.saveVisualizerSettings(document.preferences.visualizer)
-            nowPlayingPresentation.selectVisualizer(
-                naviampVisualizerFromName(document.preferences.visualizer.selectedVisualizer),
+            val syncedDocument = DesktopSettingsSyncFile.read(directory)
+            settingsSyncCoordinator.reconcileStartup(
+                syncedDocument = syncedDocument,
+                syncLocationConfigured = true,
             )
-            recentRadioStreams = document.preferences.recentRadioStreams
-            settingsStore.saveRecentRadioStreams(recentRadioStreams)
-            settingsStore.saveRecentInternetRadioStations(document.preferences.recentInternetRadioStations)
-
-            document.serverProfiles.firstOrNull()?.let { profile ->
-                val form = profile.toConnectionFormState()
-                connectionForm.apply(
-                    DesktopConnectionFormState(
-                        serverUrl = form.serverUrl,
-                        connectionName = form.displayName,
-                        username = form.username,
-                        password = "",
-                        insecureSkipTlsVerification = form.skipTlsVerification,
-                        customCertificatePath = form.customCertificatePath,
-                        clientCertificateKeyStorePath = form.clientCertificatePath,
-                        clientCertificateKeyStorePassword = "",
-                    ),
-                )
-                connectionForm.isOpen = true
-                appRoute = DesktopAppRoute.Settings
-            }
-
-            document.serverProfiles.isNotEmpty()
-        }.onSuccess { hasServerProfiles ->
-            settingsSyncStatus = if (hasServerProfiles) {
-                "Settings imported. Enter the Navidrome password to finish connecting."
+        }.onSuccess { result ->
+            if (result.kind == SettingsSyncOperationKind.Exported) {
+                result.documentToWrite?.let { document ->
+                    writeSettingsSync(document) { fileName -> "Settings sync exported local settings to $fileName." }
+                }
             } else {
-                "Settings imported."
+                settingsSyncStatus = settingsSyncStartupStatus(result)
             }
         }.onFailure { error ->
-            settingsSyncStatus = error.message ?: "Could not import settings sync file."
+            settingsSyncStatus = error.message ?: "Could not check settings sync folder."
         }
     }
 
@@ -601,6 +722,8 @@ fun NaviampApp(
         customCertificatePath = { connectionForm.customCertificatePath },
         clientCertificateKeyStorePath = { connectionForm.clientCertificateKeyStorePath },
         clientCertificateKeyStorePassword = { connectionForm.clientCertificateKeyStorePassword },
+        secondaryUrls = { connectionForm.secondaryUrls.toConnectionSecondaryUrls() },
+        customHeaders = { connectionForm.customHeaders.toConnectionHeaderDefinitions() },
         isConnecting = { isConnecting },
         setConnecting = { connecting -> isConnecting = connecting },
         savedPlaybackSession = { savedPlaybackSession },
@@ -638,7 +761,7 @@ fun NaviampApp(
         setConnectionStatus = { status -> connectionStatus = status },
         setAppRoute = { route -> appRoute = route },
         appRoute = { appRoute },
-        onSyncedSettingsChanged = ::autoExportSettingsSync,
+        onSyncedSettingsChanged = ::markAndAutoExportSettingsSync,
     )
     }
 
@@ -1311,6 +1434,7 @@ fun NaviampApp(
                             onDeleteConnection = { source -> appActions.deleteConnection(source) },
                             onCancelConnectionForm = connectionLifecycleController::closeConnectionForm,
                             onSettingsSyncDirectoryChanged = ::updateSettingsSyncDirectory,
+                            onSettingsSyncDirectorySelectedForImport = ::selectSettingsSyncDirectoryAndImport,
                             onSettingsSyncAutoExportChanged = ::updateSettingsSyncAutoExport,
                             onSettingsSyncExport = ::exportSettingsSync,
                             onSettingsSyncImport = ::importSettingsSync,

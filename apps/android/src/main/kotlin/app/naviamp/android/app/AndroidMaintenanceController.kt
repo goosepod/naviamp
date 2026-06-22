@@ -139,6 +139,7 @@ internal class AndroidSettingsMaintenanceController(
     private val queueController: PlaybackQueueController,
     private val reloadVisibleLyrics: () -> Unit,
     private val redownloadTracks: (List<Track>, String) -> Unit,
+    private val onSyncedSettingsChanged: () -> Unit = {},
 ) {
     private val playbackSettingsMaintenanceController = PlaybackSettingsMaintenanceController(
         playbackEngine = playbackEngine,
@@ -155,11 +156,15 @@ internal class AndroidSettingsMaintenanceController(
         state.applyConnectionForm(form)
     }
 
-    fun handlePlaybackSettingsChanged(settings: PlaybackSettings) =
+    fun handlePlaybackSettingsChanged(settings: PlaybackSettings) {
         playbackSettingsMaintenanceController.applyPlaybackSettings(settings)
+        onSyncedSettingsChanged()
+    }
 
-    fun handlePlaybackSettingsChangedAndRedownload(settings: PlaybackSettings) =
+    fun handlePlaybackSettingsChangedAndRedownload(settings: PlaybackSettings) {
         playbackSettingsMaintenanceController.applyPlaybackSettingsAndRedownload(settings)
+        onSyncedSettingsChanged()
+    }
 
     fun handleCacheSettingsChanged(settings: CacheSettings) {
         state.cacheSettings = settings.normalized()

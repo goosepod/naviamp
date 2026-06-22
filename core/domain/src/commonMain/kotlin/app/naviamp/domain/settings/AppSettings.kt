@@ -17,7 +17,22 @@ import app.naviamp.domain.radio.internetRadioTrack
 import app.naviamp.domain.radio.RadioDjPreset
 import app.naviamp.domain.radio.RadioDjPresetRepository
 import app.naviamp.domain.radio.RadioTuningSettings
+import app.naviamp.domain.source.ConnectionHeaderDefinition
+import app.naviamp.domain.source.ConnectionSecondaryUrl
 import kotlinx.serialization.Serializable
+
+@Serializable
+data class ConnectionFormSecondaryUrl(
+    val url: String = "",
+    val label: String = "",
+)
+
+@Serializable
+data class ConnectionFormHeader(
+    val name: String = "",
+    val value: String = "",
+    val valueIsSecret: Boolean = false,
+)
 
 @Serializable
 data class ConnectionFormState(
@@ -29,7 +44,26 @@ data class ConnectionFormState(
     val customCertificatePath: String = "",
     val clientCertificatePath: String = "",
     val clientCertificatePassword: String = "",
+    val secondaryUrls: List<ConnectionFormSecondaryUrl> = emptyList(),
+    val customHeaders: List<ConnectionFormHeader> = emptyList(),
 )
+
+fun List<ConnectionFormSecondaryUrl>.toConnectionSecondaryUrls(): List<ConnectionSecondaryUrl> =
+    mapNotNull { entry ->
+        ConnectionSecondaryUrl(
+            url = entry.url,
+            label = entry.label,
+        ).normalized()
+    }.distinctBy { it.url }
+
+fun List<ConnectionFormHeader>.toConnectionHeaderDefinitions(): List<ConnectionHeaderDefinition> =
+    mapNotNull { header ->
+        ConnectionHeaderDefinition(
+            name = header.name,
+            value = header.value,
+            valueIsSecret = header.valueIsSecret,
+        ).normalized()
+    }.distinctBy { it.name.lowercase() }
 
 @Serializable
 data class PlaybackSettings(

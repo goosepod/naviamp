@@ -30,6 +30,8 @@ CREATE TABLE media_source (
   custom_certificate_path TEXT,
   client_certificate_keystore_path TEXT,
   client_certificate_keystore_password TEXT,
+  secondary_urls_json TEXT,
+  custom_headers_json TEXT,
   created_at_epoch_millis INTEGER NOT NULL,
   last_connected_at_epoch_millis INTEGER,
   last_sync_started_at_epoch_millis INTEGER,
@@ -441,13 +443,15 @@ INSERT OR IGNORE INTO media_source(
   custom_certificate_path,
   client_certificate_keystore_path,
   client_certificate_keystore_password,
+  secondary_urls_json,
+  custom_headers_json,
   created_at_epoch_millis,
   last_connected_at_epoch_millis,
   last_sync_started_at_epoch_millis,
   last_sync_completed_at_epoch_millis,
   last_library_scan_signature,
   last_library_scan_checked_at_epoch_millis
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
 
 updateMediaSource:
 UPDATE media_source
@@ -463,6 +467,8 @@ SET provider_id = ?,
     custom_certificate_path = ?,
     client_certificate_keystore_path = ?,
     client_certificate_keystore_password = ?,
+    secondary_urls_json = ?,
+    custom_headers_json = ?,
     last_connected_at_epoch_millis = ?,
     last_sync_started_at_epoch_millis = ?,
     last_sync_completed_at_epoch_millis = ?,

@@ -116,6 +116,11 @@ fun NaviampSharedSettingsContent(
     onConnectSavedConnection: (NaviampSavedConnectionUi) -> Unit = {},
     onDeleteSavedConnection: (NaviampSavedConnectionUi) -> Unit = {},
     onImportSettingsSyncFile: (() -> Unit)? = null,
+    onChooseSettingsSyncFolder: (() -> Unit)? = null,
+    onImportSettingsSyncFolder: (() -> Unit)? = null,
+    onExportSettingsSyncFolder: (() -> Unit)? = null,
+    settingsSyncAutoExportEnabled: Boolean = false,
+    onSettingsSyncAutoExportChanged: ((Boolean) -> Unit)? = null,
     onConnectionFormChanged: (ConnectionFormState) -> Unit = {},
     onConnect: () -> Unit = {},
     onCancelConnectionForm: () -> Unit = {},
@@ -156,6 +161,11 @@ fun NaviampSharedSettingsContent(
                         onConnectConnection = onConnectSavedConnection,
                         onDeleteConnection = onDeleteSavedConnection,
                         onImportSettingsSyncFile = onImportSettingsSyncFile,
+                        onChooseSettingsSyncFolder = onChooseSettingsSyncFolder,
+                        onImportSettingsSyncFolder = onImportSettingsSyncFolder,
+                        onExportSettingsSyncFolder = onExportSettingsSyncFolder,
+                        settingsSyncAutoExportEnabled = settingsSyncAutoExportEnabled,
+                        onSettingsSyncAutoExportChanged = onSettingsSyncAutoExportChanged,
                         onConnectionFormChanged = onConnectionFormChanged,
                         onConnect = onConnect,
                         onCancelConnectionForm = onCancelConnectionForm,
@@ -316,6 +326,11 @@ private fun NaviampConnectionsSettingsSection(
     onConnectConnection: (NaviampSavedConnectionUi) -> Unit,
     onDeleteConnection: (NaviampSavedConnectionUi) -> Unit,
     onImportSettingsSyncFile: (() -> Unit)?,
+    onChooseSettingsSyncFolder: (() -> Unit)?,
+    onImportSettingsSyncFolder: (() -> Unit)?,
+    onExportSettingsSyncFolder: (() -> Unit)?,
+    settingsSyncAutoExportEnabled: Boolean,
+    onSettingsSyncAutoExportChanged: ((Boolean) -> Unit)?,
     onConnectionFormChanged: (ConnectionFormState) -> Unit,
     onConnect: () -> Unit,
     onCancelConnectionForm: () -> Unit,
@@ -341,15 +356,49 @@ private fun NaviampConnectionsSettingsSection(
             }
         }
         PrimaryButton("New connection", colors, enabled = !isConnecting, onClick = onNewConnection)
-        onImportSettingsSyncFile?.let { importSettings ->
+        if (
+            onImportSettingsSyncFile != null ||
+            onChooseSettingsSyncFolder != null ||
+            onImportSettingsSyncFolder != null ||
+            onExportSettingsSyncFolder != null
+        ) {
             HorizontalDivider(color = colors.border)
             SettingsSectionTitle("Settings Sync", colors)
             Text(
-                "Import a shared Naviamp settings file from a synced folder.",
+                "Use a folder managed by Nextcloud, Dropbox, Syncthing, FolderSync, or another file sync app. Naviamp keeps a local copy and syncs this file when the provider allows it.",
                 color = colors.secondaryText,
                 fontSize = 12.sp,
             )
-            PrimarySettingsButton("Open settings file", colors, enabled = !isConnecting, onClick = importSettings)
+            onChooseSettingsSyncFolder?.let { chooseFolder ->
+                PrimarySettingsButton("Choose sync folder", colors, enabled = !isConnecting, onClick = chooseFolder)
+            }
+            onImportSettingsSyncFolder?.let { importFolder ->
+                PrimarySettingsButton("Sync now", colors, enabled = !isConnecting, onClick = importFolder)
+            }
+            onExportSettingsSyncFolder?.let { exportFolder ->
+                PrimarySettingsButton("Export local settings", colors, enabled = !isConnecting, onClick = exportFolder)
+            }
+            onImportSettingsSyncFile?.let { importSettings ->
+                PrimarySettingsButton("Import provider settings", colors, enabled = !isConnecting, onClick = importSettings)
+            }
+            onSettingsSyncAutoExportChanged?.let { onAutoExportChanged ->
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable(enabled = !isConnecting) {
+                            onAutoExportChanged(!settingsSyncAutoExportEnabled)
+                        },
+                ) {
+                    Checkbox(
+                        checked = settingsSyncAutoExportEnabled,
+                        enabled = !isConnecting,
+                        onCheckedChange = onAutoExportChanged,
+                    )
+                    Text("Auto-sync changes", color = colors.primaryText, fontSize = 13.sp)
+                }
+            }
             settingsSyncStatus?.let {
                 Text(it, color = colors.secondaryText, fontSize = 12.sp)
             }
