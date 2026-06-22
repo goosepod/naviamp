@@ -107,6 +107,7 @@ fun NaviampSharedSettingsContent(
     isConnectionFormOpen: Boolean = false,
     isConnecting: Boolean = false,
     connectionStatus: String? = null,
+    settingsSyncStatus: String? = null,
     connectionForm: ConnectionFormState = ConnectionFormState(),
     hasSavedConnection: Boolean = false,
     onEditConnection: () -> Unit,
@@ -114,6 +115,7 @@ fun NaviampSharedSettingsContent(
     onEditSavedConnection: (NaviampSavedConnectionUi) -> Unit = { onEditConnection() },
     onConnectSavedConnection: (NaviampSavedConnectionUi) -> Unit = {},
     onDeleteSavedConnection: (NaviampSavedConnectionUi) -> Unit = {},
+    onImportSettingsSyncFile: (() -> Unit)? = null,
     onConnectionFormChanged: (ConnectionFormState) -> Unit = {},
     onConnect: () -> Unit = {},
     onCancelConnectionForm: () -> Unit = {},
@@ -146,12 +148,14 @@ fun NaviampSharedSettingsContent(
                         isConnectionFormOpen = isConnectionFormOpen,
                         isConnecting = isConnecting,
                         connectionStatus = connectionStatus,
+                        settingsSyncStatus = settingsSyncStatus,
                         connectionForm = connectionForm,
                         hasSavedConnection = hasSavedConnection,
                         onNewConnection = onNewConnection,
                         onEditConnection = onEditSavedConnection,
                         onConnectConnection = onConnectSavedConnection,
                         onDeleteConnection = onDeleteSavedConnection,
+                        onImportSettingsSyncFile = onImportSettingsSyncFile,
                         onConnectionFormChanged = onConnectionFormChanged,
                         onConnect = onConnect,
                         onCancelConnectionForm = onCancelConnectionForm,
@@ -304,12 +308,14 @@ private fun NaviampConnectionsSettingsSection(
     isConnectionFormOpen: Boolean,
     isConnecting: Boolean,
     connectionStatus: String?,
+    settingsSyncStatus: String?,
     connectionForm: ConnectionFormState,
     hasSavedConnection: Boolean,
     onNewConnection: () -> Unit,
     onEditConnection: (NaviampSavedConnectionUi) -> Unit,
     onConnectConnection: (NaviampSavedConnectionUi) -> Unit,
     onDeleteConnection: (NaviampSavedConnectionUi) -> Unit,
+    onImportSettingsSyncFile: (() -> Unit)?,
     onConnectionFormChanged: (ConnectionFormState) -> Unit,
     onConnect: () -> Unit,
     onCancelConnectionForm: () -> Unit,
@@ -335,6 +341,19 @@ private fun NaviampConnectionsSettingsSection(
             }
         }
         PrimaryButton("New connection", colors, enabled = !isConnecting, onClick = onNewConnection)
+        onImportSettingsSyncFile?.let { importSettings ->
+            HorizontalDivider(color = colors.border)
+            SettingsSectionTitle("Settings Sync", colors)
+            Text(
+                "Import a shared Naviamp settings file from a synced folder.",
+                color = colors.secondaryText,
+                fontSize = 12.sp,
+            )
+            PrimarySettingsButton("Import shared settings", colors, enabled = !isConnecting, onClick = importSettings)
+            settingsSyncStatus?.let {
+                Text(it, color = colors.secondaryText, fontSize = 12.sp)
+            }
+        }
         connectionStatus?.takeUnless { isConnectionFormOpen }?.let {
             Text(it, color = colors.secondaryText, fontSize = 12.sp)
         }
@@ -346,8 +365,10 @@ private fun NaviampConnectionsSettingsSection(
                 isReconnect = hasSavedConnection,
                 isConnecting = isConnecting,
                 connectionStatus = connectionStatus,
+                settingsSyncStatus = settingsSyncStatus,
                 onFormChanged = onConnectionFormChanged,
                 onConnect = onConnect,
+                onImportSettingsSyncFile = onImportSettingsSyncFile,
                 onCancel = onCancelConnectionForm,
             )
         }

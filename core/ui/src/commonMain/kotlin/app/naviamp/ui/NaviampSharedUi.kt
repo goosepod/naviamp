@@ -81,6 +81,7 @@ fun NaviampSharedAppShell(
     isConnectionFormOpen: Boolean = editingConnection,
     isConnecting: Boolean = restoringConnection,
     connectionStatus: String? = status,
+    settingsSyncStatus: String? = null,
     hasSavedConnection: Boolean = false,
     supportsReplayGain: Boolean = false,
     supportsGapless: Boolean = true,
@@ -128,6 +129,7 @@ fun NaviampSharedAppShell(
     onEditSavedConnection: (NaviampSavedConnectionUi) -> Unit = { onEditConnection() },
     onConnectSavedConnection: (NaviampSavedConnectionUi) -> Unit = {},
     onDeleteSavedConnection: (NaviampSavedConnectionUi) -> Unit = {},
+    onImportSettingsSyncFile: (() -> Unit)? = null,
     onCancelEditConnection: () -> Unit,
     onPlaybackSettingsChanged: (PlaybackSettings) -> Unit = {},
     onPlaybackSettingsChangedAndRedownload: (PlaybackSettings) -> Unit = onPlaybackSettingsChanged,
@@ -392,8 +394,10 @@ fun NaviampSharedAppShell(
                             form = connectionForm,
                             colors = colors,
                             isReconnect = connected,
+                            settingsSyncStatus = settingsSyncStatus,
                             onFormChanged = onConnectionFormChanged,
                             onConnect = onConnect,
+                            onImportSettingsSyncFile = onImportSettingsSyncFile,
                             onCancel = onCancelEditConnection.takeIf { connected },
                         )
                     } else {
@@ -439,6 +443,7 @@ fun NaviampSharedAppShell(
                             isConnectionFormOpen = isConnectionFormOpen,
                             isConnecting = isConnecting,
                             connectionStatus = connectionStatus,
+                            settingsSyncStatus = settingsSyncStatus,
                             connectionForm = connectionForm,
                             hasSavedConnection = hasSavedConnection,
                             supportsReplayGain = supportsReplayGain,
@@ -452,6 +457,7 @@ fun NaviampSharedAppShell(
                             onEditSavedConnection = onEditSavedConnection,
                             onConnectSavedConnection = onConnectSavedConnection,
                             onDeleteSavedConnection = onDeleteSavedConnection,
+                            onImportSettingsSyncFile = onImportSettingsSyncFile,
                             onConnectionFormChanged = onConnectionFormChanged,
                             onConnect = onConnect,
                             onCancelEditConnection = onCancelEditConnection,
@@ -623,9 +629,11 @@ fun NaviampConnectionForm(
     isReconnect: Boolean,
     isConnecting: Boolean = false,
     connectionStatus: String? = null,
+    settingsSyncStatus: String? = null,
     modifier: Modifier = Modifier,
     onFormChanged: (ConnectionFormState) -> Unit,
     onConnect: () -> Unit,
+    onImportSettingsSyncFile: (() -> Unit)? = null,
     onCancel: (() -> Unit)?,
 ) {
     var advancedVisible by remember { mutableStateOf(false) }
@@ -638,6 +646,17 @@ fun NaviampConnectionForm(
                 color = colors.mutedText,
                 fontSize = 11.sp,
             )
+        }
+        onImportSettingsSyncFile?.let { importSettings ->
+            TextButton(
+                enabled = !isConnecting,
+                onClick = importSettings,
+            ) {
+                Text("Import shared settings", color = if (isConnecting) colors.mutedText else colors.accent)
+            }
+            settingsSyncStatus?.let {
+                Text(it, color = colors.secondaryText, fontSize = 12.sp)
+            }
         }
         NaviampTextField(
             value = form.displayName,
@@ -774,6 +793,7 @@ private fun ConnectedContent(
     isConnectionFormOpen: Boolean,
     isConnecting: Boolean,
     connectionStatus: String?,
+    settingsSyncStatus: String?,
     connectionForm: ConnectionFormState,
     hasSavedConnection: Boolean,
     supportsReplayGain: Boolean = false,
@@ -787,6 +807,7 @@ private fun ConnectedContent(
     onEditSavedConnection: (NaviampSavedConnectionUi) -> Unit,
     onConnectSavedConnection: (NaviampSavedConnectionUi) -> Unit,
     onDeleteSavedConnection: (NaviampSavedConnectionUi) -> Unit,
+    onImportSettingsSyncFile: (() -> Unit)?,
     onConnectionFormChanged: (ConnectionFormState) -> Unit,
     onConnect: () -> Unit,
     onCancelEditConnection: () -> Unit,
@@ -934,6 +955,7 @@ private fun ConnectedContent(
             isConnectionFormOpen = isConnectionFormOpen,
             isConnecting = isConnecting,
             connectionStatus = connectionStatus,
+            settingsSyncStatus = settingsSyncStatus,
             connectionForm = connectionForm,
             hasSavedConnection = hasSavedConnection,
             supportsReplayGain = supportsReplayGain,
@@ -948,6 +970,7 @@ private fun ConnectedContent(
             onEditSavedConnection = onEditSavedConnection,
             onConnectSavedConnection = onConnectSavedConnection,
             onDeleteSavedConnection = onDeleteSavedConnection,
+            onImportSettingsSyncFile = onImportSettingsSyncFile,
             onConnectionFormChanged = onConnectionFormChanged,
             onConnect = onConnect,
             onCancelConnectionForm = onCancelEditConnection,
@@ -1988,6 +2011,7 @@ private fun SettingsContent(
     isConnectionFormOpen: Boolean,
     isConnecting: Boolean,
     connectionStatus: String?,
+    settingsSyncStatus: String?,
     connectionForm: ConnectionFormState,
     hasSavedConnection: Boolean,
     supportsReplayGain: Boolean,
@@ -2002,6 +2026,7 @@ private fun SettingsContent(
     onEditSavedConnection: (NaviampSavedConnectionUi) -> Unit,
     onConnectSavedConnection: (NaviampSavedConnectionUi) -> Unit,
     onDeleteSavedConnection: (NaviampSavedConnectionUi) -> Unit,
+    onImportSettingsSyncFile: (() -> Unit)?,
     onConnectionFormChanged: (ConnectionFormState) -> Unit,
     onConnect: () -> Unit,
     onCancelConnectionForm: () -> Unit,
@@ -2022,6 +2047,7 @@ private fun SettingsContent(
         isConnectionFormOpen = isConnectionFormOpen,
         isConnecting = isConnecting,
         connectionStatus = connectionStatus,
+        settingsSyncStatus = settingsSyncStatus,
         connectionForm = connectionForm,
         hasSavedConnection = hasSavedConnection,
         supportsReplayGain = supportsReplayGain,
@@ -2036,6 +2062,7 @@ private fun SettingsContent(
         onEditSavedConnection = onEditSavedConnection,
         onConnectSavedConnection = onConnectSavedConnection,
         onDeleteSavedConnection = onDeleteSavedConnection,
+        onImportSettingsSyncFile = onImportSettingsSyncFile,
         onConnectionFormChanged = onConnectionFormChanged,
         onConnect = onConnect,
         onCancelConnectionForm = onCancelConnectionForm,

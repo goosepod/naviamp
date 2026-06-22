@@ -3,9 +3,14 @@ package app.naviamp.android
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.content.Context
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import app.naviamp.android.playback.AndroidPlaybackEngine
@@ -393,6 +398,33 @@ fun NaviampAndroidApp(
         )
     }
     val coverArtUrlForUi: (String?) -> String? = { coverArtId -> coverArtId?.let { appState.provider?.coverArtUrl(it) } }
+    var settingsSyncStatus by remember { mutableStateOf<String?>(null) }
+    val settingsSyncImportLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri == null) {
+            settingsSyncStatus = "Settings import cancelled."
+        } else {
+            settingsSyncStatus = "Importing settings..."
+            runCatching {
+                importAndroidSettingsSyncDocument(
+                    context = context,
+                    uri = uri,
+                    state = appState,
+                    settingsStore = settingsStore,
+                    storage = storage,
+                    playbackEngine = playbackEngine,
+                )
+            }.onSuccess { message ->
+                settingsSyncStatus = message
+            }.onFailure { error ->
+                val message = error.message ?: "Could not import settings file."
+                settingsSyncStatus = message
+                appState.status = message
+            }
+        }
+    }
+    val openSettingsSyncImport = {
+        settingsSyncImportLauncher.launch(arrayOf("application/json", "text/*", "*/*"))
+    }
 
     val shellUiState = rememberAndroidAppShellUiState(
         state = appState,
@@ -497,6 +529,11 @@ fun NaviampAndroidApp(
         nowPlayingSidecarController = nowPlayingSidecarController,
     )
 
-    AndroidAppShellContent(shellUiState, shellActions)
+    AndroidAppShellContent(
+        state = shellUiState,
+        actions = shellActions,
+        settingsSyncStatus = settingsSyncStatus,
+        onImportSettingsSyncFile = openSettingsSyncImport,
+    )
     }
 }
