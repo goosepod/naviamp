@@ -116,7 +116,6 @@ fun NaviampSharedSettingsContent(
     onConnectSavedConnection: (NaviampSavedConnectionUi) -> Unit = {},
     onDeleteSavedConnection: (NaviampSavedConnectionUi) -> Unit = {},
     onImportSettingsSyncFile: (() -> Unit)? = null,
-    onImportSettingsSyncLocalFile: (() -> Unit)? = null,
     onConnectionFormChanged: (ConnectionFormState) -> Unit = {},
     onConnect: () -> Unit = {},
     onCancelConnectionForm: () -> Unit = {},
@@ -157,7 +156,6 @@ fun NaviampSharedSettingsContent(
                         onConnectConnection = onConnectSavedConnection,
                         onDeleteConnection = onDeleteSavedConnection,
                         onImportSettingsSyncFile = onImportSettingsSyncFile,
-                        onImportSettingsSyncLocalFile = onImportSettingsSyncLocalFile,
                         onConnectionFormChanged = onConnectionFormChanged,
                         onConnect = onConnect,
                         onCancelConnectionForm = onCancelConnectionForm,
@@ -318,7 +316,6 @@ private fun NaviampConnectionsSettingsSection(
     onConnectConnection: (NaviampSavedConnectionUi) -> Unit,
     onDeleteConnection: (NaviampSavedConnectionUi) -> Unit,
     onImportSettingsSyncFile: (() -> Unit)?,
-    onImportSettingsSyncLocalFile: (() -> Unit)?,
     onConnectionFormChanged: (ConnectionFormState) -> Unit,
     onConnect: () -> Unit,
     onCancelConnectionForm: () -> Unit,
@@ -352,15 +349,7 @@ private fun NaviampConnectionsSettingsSection(
                 color = colors.secondaryText,
                 fontSize = 12.sp,
             )
-            PrimarySettingsButton("Import shared settings", colors, enabled = !isConnecting, onClick = importSettings)
-            onImportSettingsSyncLocalFile?.let { importLocalSettings ->
-                PrimarySettingsButton(
-                    "Import from sync folder",
-                    colors,
-                    enabled = !isConnecting,
-                    onClick = importLocalSettings,
-                )
-            }
+            PrimarySettingsButton("Open settings file", colors, enabled = !isConnecting, onClick = importSettings)
             settingsSyncStatus?.let {
                 Text(it, color = colors.secondaryText, fontSize = 12.sp)
             }
@@ -380,7 +369,6 @@ private fun NaviampConnectionsSettingsSection(
                 onFormChanged = onConnectionFormChanged,
                 onConnect = onConnect,
                 onImportSettingsSyncFile = onImportSettingsSyncFile,
-                onImportSettingsSyncLocalFile = onImportSettingsSyncLocalFile,
                 onCancel = onCancelConnectionForm,
             )
         }

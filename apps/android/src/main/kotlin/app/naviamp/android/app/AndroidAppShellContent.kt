@@ -9,7 +9,6 @@ fun AndroidAppShellContent(
     actions: AndroidAppShellActions,
     settingsSyncStatus: String? = null,
     onImportSettingsSyncFile: (() -> Unit)? = null,
-    onImportSettingsSyncLocalFile: (() -> Unit)? = null,
 ) {
     NaviampSharedAppShell(
         modifier = state.modifier,
@@ -76,7 +75,6 @@ fun AndroidAppShellContent(
         onConnectSavedConnection = actions.onConnectSavedConnection,
         onDeleteSavedConnection = actions.onDeleteSavedConnection,
         onImportSettingsSyncFile = onImportSettingsSyncFile,
-        onImportSettingsSyncLocalFile = onImportSettingsSyncLocalFile,
         onCancelEditConnection = actions.onCancelEditConnection,
         onPlaybackSettingsChanged = actions.onPlaybackSettingsChanged,
         onPlaybackSettingsChangedAndRedownload = actions.onPlaybackSettingsChangedAndRedownload,

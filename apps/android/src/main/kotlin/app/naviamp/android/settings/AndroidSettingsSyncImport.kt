@@ -5,11 +5,9 @@ import android.net.Uri
 import app.naviamp.android.playback.AndroidPlaybackEngine
 import app.naviamp.domain.app.NaviampRoute
 import app.naviamp.domain.settings.SettingsSyncJson
-import app.naviamp.domain.settings.SettingsSyncFileName
 import app.naviamp.domain.settings.effectiveForEngine
 import app.naviamp.domain.settings.toConnectionFormState
 import app.naviamp.ui.naviampVisualizerFromName
-import java.io.File
 
 fun importAndroidSettingsSyncDocument(
     context: Context,
@@ -25,34 +23,6 @@ fun importAndroidSettingsSyncDocument(
         ?: error("Could not read the selected settings file.")
     return importAndroidSettingsSyncDocumentText(
         text = text,
-        state = state,
-        settingsStore = settingsStore,
-        storage = storage,
-        playbackEngine = playbackEngine,
-    )
-}
-
-fun androidSettingsSyncFile(context: Context): File {
-    val directory = context.externalMediaDirs.firstOrNull()
-        ?: context.getExternalFilesDir(null)
-        ?: context.filesDir
-    directory.mkdirs()
-    return File(directory, SettingsSyncFileName)
-}
-
-fun importAndroidSettingsSyncLocalFile(
-    context: Context,
-    state: AndroidAppState,
-    settingsStore: AndroidSettingsStore,
-    storage: AndroidStorageDependencies,
-    playbackEngine: AndroidPlaybackEngine,
-): String {
-    val file = androidSettingsSyncFile(context)
-    if (!file.exists()) {
-        error("No settings file found at ${file.absolutePath}.")
-    }
-    return importAndroidSettingsSyncDocumentText(
-        text = file.readText(),
         state = state,
         settingsStore = settingsStore,
         storage = storage,

@@ -130,7 +130,6 @@ fun NaviampSharedAppShell(
     onConnectSavedConnection: (NaviampSavedConnectionUi) -> Unit = {},
     onDeleteSavedConnection: (NaviampSavedConnectionUi) -> Unit = {},
     onImportSettingsSyncFile: (() -> Unit)? = null,
-    onImportSettingsSyncLocalFile: (() -> Unit)? = null,
     onCancelEditConnection: () -> Unit,
     onPlaybackSettingsChanged: (PlaybackSettings) -> Unit = {},
     onPlaybackSettingsChangedAndRedownload: (PlaybackSettings) -> Unit = onPlaybackSettingsChanged,
@@ -399,7 +398,6 @@ fun NaviampSharedAppShell(
                             onFormChanged = onConnectionFormChanged,
                             onConnect = onConnect,
                             onImportSettingsSyncFile = onImportSettingsSyncFile,
-                            onImportSettingsSyncLocalFile = onImportSettingsSyncLocalFile,
                             onCancel = onCancelEditConnection.takeIf { connected },
                         )
                     } else {
@@ -460,7 +458,6 @@ fun NaviampSharedAppShell(
                             onConnectSavedConnection = onConnectSavedConnection,
                             onDeleteSavedConnection = onDeleteSavedConnection,
                             onImportSettingsSyncFile = onImportSettingsSyncFile,
-                            onImportSettingsSyncLocalFile = onImportSettingsSyncLocalFile,
                             onConnectionFormChanged = onConnectionFormChanged,
                             onConnect = onConnect,
                             onCancelEditConnection = onCancelEditConnection,
@@ -637,7 +634,6 @@ fun NaviampConnectionForm(
     onFormChanged: (ConnectionFormState) -> Unit,
     onConnect: () -> Unit,
     onImportSettingsSyncFile: (() -> Unit)? = null,
-    onImportSettingsSyncLocalFile: (() -> Unit)? = null,
     onCancel: (() -> Unit)?,
 ) {
     var advancedVisible by remember { mutableStateOf(false) }
@@ -656,18 +652,10 @@ fun NaviampConnectionForm(
                 enabled = !isConnecting,
                 onClick = importSettings,
             ) {
-                Text("Import shared settings", color = if (isConnecting) colors.mutedText else colors.accent)
+                Text("Open settings file", color = if (isConnecting) colors.mutedText else colors.accent)
             }
             settingsSyncStatus?.let {
                 Text(it, color = colors.secondaryText, fontSize = 12.sp)
-            }
-        }
-        onImportSettingsSyncLocalFile?.let { importSettings ->
-            TextButton(
-                enabled = !isConnecting,
-                onClick = importSettings,
-            ) {
-                Text("Import from sync folder", color = if (isConnecting) colors.mutedText else colors.accent)
             }
         }
         NaviampTextField(
@@ -820,7 +808,6 @@ private fun ConnectedContent(
     onConnectSavedConnection: (NaviampSavedConnectionUi) -> Unit,
     onDeleteSavedConnection: (NaviampSavedConnectionUi) -> Unit,
     onImportSettingsSyncFile: (() -> Unit)?,
-    onImportSettingsSyncLocalFile: (() -> Unit)?,
     onConnectionFormChanged: (ConnectionFormState) -> Unit,
     onConnect: () -> Unit,
     onCancelEditConnection: () -> Unit,
@@ -984,7 +971,6 @@ private fun ConnectedContent(
                         onConnectSavedConnection = onConnectSavedConnection,
                         onDeleteSavedConnection = onDeleteSavedConnection,
                         onImportSettingsSyncFile = onImportSettingsSyncFile,
-                        onImportSettingsSyncLocalFile = onImportSettingsSyncLocalFile,
                         onConnectionFormChanged = onConnectionFormChanged,
             onConnect = onConnect,
             onCancelConnectionForm = onCancelEditConnection,
@@ -2041,7 +2027,6 @@ private fun SettingsContent(
     onConnectSavedConnection: (NaviampSavedConnectionUi) -> Unit,
     onDeleteSavedConnection: (NaviampSavedConnectionUi) -> Unit,
     onImportSettingsSyncFile: (() -> Unit)?,
-    onImportSettingsSyncLocalFile: (() -> Unit)?,
     onConnectionFormChanged: (ConnectionFormState) -> Unit,
     onConnect: () -> Unit,
     onCancelConnectionForm: () -> Unit,
@@ -2078,7 +2063,6 @@ private fun SettingsContent(
         onConnectSavedConnection = onConnectSavedConnection,
         onDeleteSavedConnection = onDeleteSavedConnection,
         onImportSettingsSyncFile = onImportSettingsSyncFile,
-        onImportSettingsSyncLocalFile = onImportSettingsSyncLocalFile,
         onConnectionFormChanged = onConnectionFormChanged,
         onConnect = onConnect,
         onCancelConnectionForm = onCancelConnectionForm,
