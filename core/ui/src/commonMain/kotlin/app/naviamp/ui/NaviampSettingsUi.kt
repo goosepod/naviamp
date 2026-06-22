@@ -565,8 +565,9 @@ private val DefaultNaviampLibraries = listOf(
 )
 
 private val DefaultNaviampChangelog = listOf(
-    "Added multiple saved Navidrome connections on Android.",
-    "Switched the app typography to Nunito Sans.",
+    "Added cross-device settings sync using a portable Naviamp settings file.",
+    "Added desktop sync-folder setup and Android local mirror syncing for cloud providers.",
+    "Added secondary server URLs and non-secret custom headers to saved server profiles.",
 )
 
 @Composable
