@@ -3,10 +3,12 @@ package app.naviamp.android
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.content.Context
+import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -69,6 +71,8 @@ fun NaviampAndroidApp(
     onAutoPlayMediaIdConsumed: () -> Unit = {},
     autoCommandRequest: String? = null,
     onAutoCommandConsumed: () -> Unit = {},
+    settingsSyncImportUriRequest: Uri? = null,
+    onSettingsSyncImportUriConsumed: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
@@ -424,6 +428,27 @@ fun NaviampAndroidApp(
     }
     val openSettingsSyncImport = {
         settingsSyncImportLauncher.launch(arrayOf("application/json", "text/*", "*/*"))
+    }
+    LaunchedEffect(settingsSyncImportUriRequest) {
+        val uri = settingsSyncImportUriRequest ?: return@LaunchedEffect
+        settingsSyncStatus = "Importing settings..."
+        runCatching {
+            importAndroidSettingsSyncDocument(
+                context = context,
+                uri = uri,
+                state = appState,
+                settingsStore = settingsStore,
+                storage = storage,
+                playbackEngine = playbackEngine,
+            )
+        }.onSuccess { message ->
+            settingsSyncStatus = message
+        }.onFailure { error ->
+            val message = error.message ?: "Could not import settings file."
+            settingsSyncStatus = message
+            appState.status = message
+        }
+        onSettingsSyncImportUriConsumed()
     }
 
     val shellUiState = rememberAndroidAppShellUiState(

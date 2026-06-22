@@ -2,6 +2,7 @@ package app.naviamp.android
 
 import android.Manifest
 import android.content.Intent
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -19,6 +20,7 @@ class MainActivity : ComponentActivity() {
     private var openNowPlayingRequest by mutableStateOf(0)
     private var autoPlayMediaIdRequest by mutableStateOf<String?>(null)
     private var autoCommandRequest by mutableStateOf<String?>(null)
+    private var settingsSyncImportUriRequest by mutableStateOf<Uri?>(null)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -37,6 +39,8 @@ class MainActivity : ComponentActivity() {
                 onAutoPlayMediaIdConsumed = { autoPlayMediaIdRequest = null },
                 autoCommandRequest = autoCommandRequest,
                 onAutoCommandConsumed = { autoCommandRequest = null },
+                settingsSyncImportUriRequest = settingsSyncImportUriRequest,
+                onSettingsSyncImportUriConsumed = { settingsSyncImportUriRequest = null },
                 modifier = Modifier
                     .systemBarsPadding()
                     .imePadding(),
@@ -62,6 +66,26 @@ class MainActivity : ComponentActivity() {
         intent?.getStringExtra(ExtraAutoCommand)?.takeIf { it.isNotBlank() }?.let { command ->
             autoCommandRequest = command
             android.util.Log.i("NaviampAutoCommand", "Received Auto command=$command")
+        }
+        settingsSyncImportUri(intent)?.let { uri ->
+            settingsSyncImportUriRequest = uri
+            android.util.Log.i("NaviampSettingsSync", "Received settings sync import uri=$uri")
+        }
+    }
+
+    @Suppress("DEPRECATION")
+    private fun settingsSyncImportUri(intent: Intent?): Uri? {
+        if (intent == null) return null
+        return when (intent.action) {
+            Intent.ACTION_VIEW -> intent.data
+            Intent.ACTION_SEND -> {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    intent.getParcelableExtra(Intent.EXTRA_STREAM, Uri::class.java)
+                } else {
+                    intent.getParcelableExtra(Intent.EXTRA_STREAM)
+                }
+            }
+            else -> null
         }
     }
 
