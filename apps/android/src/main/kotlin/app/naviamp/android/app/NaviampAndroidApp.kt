@@ -429,6 +429,24 @@ fun NaviampAndroidApp(
     val openSettingsSyncImport = {
         settingsSyncImportLauncher.launch("*/*")
     }
+    val importSettingsSyncLocalFile: () -> Unit = {
+        settingsSyncStatus = "Importing settings..."
+        runCatching {
+            importAndroidSettingsSyncLocalFile(
+                context = context,
+                state = appState,
+                settingsStore = settingsStore,
+                storage = storage,
+                playbackEngine = playbackEngine,
+            )
+        }.onSuccess { message ->
+            settingsSyncStatus = message
+        }.onFailure { error ->
+            val message = error.message ?: "Could not import settings file."
+            settingsSyncStatus = message
+            appState.status = message
+        }
+    }
     LaunchedEffect(settingsSyncImportUriRequest) {
         val uri = settingsSyncImportUriRequest ?: return@LaunchedEffect
         settingsSyncStatus = "Importing settings..."
@@ -559,6 +577,7 @@ fun NaviampAndroidApp(
         actions = shellActions,
         settingsSyncStatus = settingsSyncStatus,
         onImportSettingsSyncFile = openSettingsSyncImport,
+        onImportSettingsSyncLocalFile = importSettingsSyncLocalFile,
     )
     }
 }
