@@ -116,7 +116,6 @@ fun NaviampSharedSettingsContent(
     onConnectSavedConnection: (NaviampSavedConnectionUi) -> Unit = {},
     onDeleteSavedConnection: (NaviampSavedConnectionUi) -> Unit = {},
     onImportSettingsSyncFile: (() -> Unit)? = null,
-    onPasteSettingsSyncJson: (() -> Unit)? = null,
     onConnectionFormChanged: (ConnectionFormState) -> Unit = {},
     onConnect: () -> Unit = {},
     onCancelConnectionForm: () -> Unit = {},
@@ -157,7 +156,6 @@ fun NaviampSharedSettingsContent(
                         onConnectConnection = onConnectSavedConnection,
                         onDeleteConnection = onDeleteSavedConnection,
                         onImportSettingsSyncFile = onImportSettingsSyncFile,
-                        onPasteSettingsSyncJson = onPasteSettingsSyncJson,
                         onConnectionFormChanged = onConnectionFormChanged,
                         onConnect = onConnect,
                         onCancelConnectionForm = onCancelConnectionForm,
@@ -318,7 +316,6 @@ private fun NaviampConnectionsSettingsSection(
     onConnectConnection: (NaviampSavedConnectionUi) -> Unit,
     onDeleteConnection: (NaviampSavedConnectionUi) -> Unit,
     onImportSettingsSyncFile: (() -> Unit)?,
-    onPasteSettingsSyncJson: (() -> Unit)?,
     onConnectionFormChanged: (ConnectionFormState) -> Unit,
     onConnect: () -> Unit,
     onCancelConnectionForm: () -> Unit,
@@ -353,9 +350,6 @@ private fun NaviampConnectionsSettingsSection(
                 fontSize = 12.sp,
             )
             PrimarySettingsButton("Import shared settings", colors, enabled = !isConnecting, onClick = importSettings)
-            onPasteSettingsSyncJson?.let { pasteSettings ->
-                PrimarySettingsButton("Paste shared settings", colors, enabled = !isConnecting, onClick = pasteSettings)
-            }
             settingsSyncStatus?.let {
                 Text(it, color = colors.secondaryText, fontSize = 12.sp)
             }
@@ -375,7 +369,6 @@ private fun NaviampConnectionsSettingsSection(
                 onFormChanged = onConnectionFormChanged,
                 onConnect = onConnect,
                 onImportSettingsSyncFile = onImportSettingsSyncFile,
-                onPasteSettingsSyncJson = onPasteSettingsSyncJson,
                 onCancel = onCancelConnectionForm,
             )
         }
