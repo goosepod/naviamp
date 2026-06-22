@@ -2,6 +2,7 @@ package app.naviamp.android
 
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
+import android.content.ClipboardManager
 import android.content.Context
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -429,6 +430,35 @@ fun NaviampAndroidApp(
     val openSettingsSyncImport = {
         settingsSyncImportLauncher.launch(arrayOf("application/json", "text/*", "*/*"))
     }
+    val pasteSettingsSyncJson: () -> Unit = {
+        val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+        val text = clipboard.primaryClip
+            ?.takeIf { it.itemCount > 0 }
+            ?.getItemAt(0)
+            ?.coerceToText(context)
+            ?.toString()
+            .orEmpty()
+        if (text.isBlank()) {
+            settingsSyncStatus = "Clipboard does not contain shared settings JSON."
+        } else {
+            settingsSyncStatus = "Importing settings..."
+            runCatching {
+                importAndroidSettingsSyncDocumentText(
+                    text = text,
+                    state = appState,
+                    settingsStore = settingsStore,
+                    storage = storage,
+                    playbackEngine = playbackEngine,
+                )
+            }.onSuccess { message ->
+                settingsSyncStatus = message
+            }.onFailure { error ->
+                val message = error.message ?: "Could not import settings from clipboard."
+                settingsSyncStatus = message
+                appState.status = message
+            }
+        }
+    }
     LaunchedEffect(settingsSyncImportUriRequest) {
         val uri = settingsSyncImportUriRequest ?: return@LaunchedEffect
         settingsSyncStatus = "Importing settings..."
@@ -559,6 +589,7 @@ fun NaviampAndroidApp(
         actions = shellActions,
         settingsSyncStatus = settingsSyncStatus,
         onImportSettingsSyncFile = openSettingsSyncImport,
+        onPasteSettingsSyncJson = pasteSettingsSyncJson,
     )
     }
 }

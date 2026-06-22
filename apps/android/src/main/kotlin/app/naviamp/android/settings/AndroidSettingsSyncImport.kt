@@ -21,6 +21,22 @@ fun importAndroidSettingsSyncDocument(
         ?.bufferedReader()
         ?.use { it.readText() }
         ?: error("Could not read the selected settings file.")
+    return importAndroidSettingsSyncDocumentText(
+        text = text,
+        state = state,
+        settingsStore = settingsStore,
+        storage = storage,
+        playbackEngine = playbackEngine,
+    )
+}
+
+fun importAndroidSettingsSyncDocumentText(
+    text: String,
+    state: AndroidAppState,
+    settingsStore: AndroidSettingsStore,
+    storage: AndroidStorageDependencies,
+    playbackEngine: AndroidPlaybackEngine,
+): String {
     val document = SettingsSyncJson.decode(text)
     val preferences = document.preferences
     val importedPlayback = preferences.playback.effectiveForEngine(playbackEngine)
