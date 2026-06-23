@@ -62,8 +62,9 @@ This tracks the work needed to replace the current Compose Canvas visualizer wit
 These are not implemented yet and should be treated as follow-up work rather than part of the current SkSL fragment-shader catalog.
 
 - Higher-resolution Mountains visualizer with richer history depth, camera controls, lighting, and quality settings. The current Mountains visualizer is a first retained-history shader backed by a small FFT history texture.
-- Particle galaxy quality controls for density/performance presets. The current Particle galaxy has the richer attractor, clustering, nebula, and emission behavior, but does not yet expose user-facing quality settings.
+- Particle galaxy quality controls for density/performance presets. The current Particle galaxy has the richer attractor, clustering, nebula, and emission behavior, but its Android balanced profile needs a lower particle count to stay near target on device and does not yet expose user-facing quality settings.
 - Album-art quality/performance controls. The current Album art visualizer uploads the cover image as a shader texture and supports reactive warping, luminance depth, chromatic shimmer, edge glow, and particle emission from bright regions.
+- Audio Tunnel redesign. The current Audio Tunnel performs well, but visually reads more like concentric frequency-response rings than flying through a tunnel. Redesign it so the viewer appears to move through a tunnel whose walls deform based on frequency bands.
 - Raymarching/SDF scenes: fractals, organic blobs, surreal geometry, and richer lighting. This is likely Phase 3+ because it has the highest GPU cost and needs performance gates.
 - Volumetric effects and full procedural 3D scenes. These should wait until the renderer abstraction can expose quality/performance settings.
 

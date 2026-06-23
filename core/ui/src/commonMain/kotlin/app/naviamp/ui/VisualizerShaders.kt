@@ -664,7 +664,7 @@ half4 main(float2 coord) {
     color += mix(palette(fract(iTime * 0.04 + 0.48)), iReadable.rgb, 0.14) * attractGlowB;
     color += mix(palette(fract(iTime * 0.04 + 0.76)), iReadable.rgb, 0.22) * attractGlowC;
 
-    for (int i = 0; i < 144; ++i) {
+    for (int i = 0; i < 48; ++i) {
         float fi = float(i);
         float seed = hash21(float2(fi * 1.17, fi * 2.41));
         float seedB = hash21(float2(fi * 3.11 + 8.0, fi * 0.83));
