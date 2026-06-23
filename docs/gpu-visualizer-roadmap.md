@@ -21,6 +21,7 @@ This tracks the work needed to replace the current Compose Canvas visualizer wit
 - Android visualizer debug builds log active renderer FPS and draw cost through the `NaviampVisualizerPerf` logcat tag while a visualizer is visible and playback is active.
 - Visualizer rendering now has shared performance policy tiers. macOS defaults to full-rate rendering, Windows/Linux desktop default to balanced rendering, Android shader rendering defaults to balanced, and older Android Canvas fallback defaults to constrained. Desktop can override with `-Dnaviamp.visualizer.profile=full|balanced|constrained` or `NAVIAMP_VISUALIZER_PROFILE`.
 - An embedded desktop `SwingPanel`/`SkiaLayer` surface was tested and rejected for the Player art area because it did not compose cleanly on macOS: the surface showed white/black backing rectangles, swallowed clicks that should toggle back to album art, and could remain layered over album art after toggling.
+- A follow-up native renderer track lives in `docs/native-visualizer-renderer-roadmap.md` for shader effects that need a full OpenGL/Metal-style pipeline instead of Skia RuntimeShader.
 
 ## Phase 1: Renderer Spike For Current Visualizer
 
