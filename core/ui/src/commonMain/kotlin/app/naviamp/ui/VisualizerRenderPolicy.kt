@@ -49,10 +49,7 @@ internal fun visualizerRenderPolicy(
 
 private val NaviampVisualizer.isHeavyVisualizer: Boolean
     get() = this == NaviampVisualizer.AlbumArtReactive ||
-        this == NaviampVisualizer.FftMountain ||
         this == NaviampVisualizer.FrequencyTerrain ||
         this == NaviampVisualizer.ParticleGalaxy ||
         this == NaviampVisualizer.ParticleField ||
-        this == NaviampVisualizer.PixelMountain ||
-        this == NaviampVisualizer.PixelRidge ||
         this == NaviampVisualizer.WaveInterference
