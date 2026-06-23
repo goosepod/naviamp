@@ -9,6 +9,7 @@ internal val NaviampVisualizer.shaderSource: String
         NaviampVisualizer.RibbonTrail -> RibbonTrailShaderSkSL
         NaviampVisualizer.SpectralRidge -> SpectralRidgeShaderSkSL
         NaviampVisualizer.FftMountain -> FftMountainShaderSkSL
+        NaviampVisualizer.NativeGlslProbe -> ReactiveBarsShaderSkSL
         NaviampVisualizer.PixelRidge -> PixelRidgeShaderSkSL
         NaviampVisualizer.PixelMountain -> PixelMountainShaderSkSL
         NaviampVisualizer.FrequencyTerrain -> FrequencyTerrainShaderSkSL

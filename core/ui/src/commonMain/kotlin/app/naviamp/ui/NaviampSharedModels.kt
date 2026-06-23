@@ -54,6 +54,7 @@ enum class NaviampVisualizer(val label: String) {
     FluidGradient("Fluid gradient"),
     FrequencyTerrain("Frequency terrain"),
     FftMountain("Mountains"),
+    NativeGlslProbe("Native GL probe"),
     ParticleField("Particle field"),
     ParticleGalaxy("Particle galaxy"),
     PixelMountain("Pixel mountains"),

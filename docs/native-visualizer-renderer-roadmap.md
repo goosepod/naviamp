@@ -107,11 +107,12 @@ The first pass can derive `u_beatDetected` and `u_spectralCentroid` from the cur
 
 ### Phase 2: Android OpenGL ES Spike
 
-- [ ] Add an Android native visualizer surface behind the Player visualizer area.
-- [ ] Compile one simple GLSL shader with the standard uniform contract.
-- [ ] Upload the frequency texture each frame.
-- [ ] Add lifecycle handling for pause/resume/context loss.
-- [ ] Add logcat compile errors and FPS/draw timing with the existing `NaviampVisualizerPerf` shape.
+- [x] Add an Android native visualizer surface behind the Player visualizer area.
+- [x] Compile one simple GLSL shader with the standard uniform contract.
+- [x] Upload the frequency texture each frame.
+- [x] Add lifecycle handling for pause/resume/context loss.
+- [x] Add logcat compile errors and FPS/draw timing with the existing `NaviampVisualizerPerf` shape.
+- [ ] Blend the native GL surface background with album-art/player colors instead of rendering a black backing area.
 
 ### Phase 3: Heavy Shader Support
 

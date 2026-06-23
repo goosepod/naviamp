@@ -50,6 +50,30 @@ internal val NaviampVisualizer.preferredRendererMode: VisualizerRendererMode
         NaviampVisualizer.SpectralRidge,
         NaviampVisualizer.WaveInterference,
         NaviampVisualizer.VinylGroove -> VisualizerRendererMode.SkiaRuntimeShader
+        NaviampVisualizer.NativeGlslProbe -> VisualizerRendererMode.NativeGpu
+    }
+
+internal val NaviampVisualizer.usesNativeRenderer: Boolean
+    get() = preferredRendererMode == VisualizerRendererMode.NativeGpu
+
+internal val NaviampVisualizer.fallbackRendererMode: VisualizerRendererMode
+    get() = when (this) {
+        NaviampVisualizer.NativeGlslProbe -> VisualizerRendererMode.SkiaRuntimeShader
+        NaviampVisualizer.AlbumArtReactive,
+        NaviampVisualizer.AudioSphere,
+        NaviampVisualizer.AudioTunnel,
+        NaviampVisualizer.FluidGradient,
+        NaviampVisualizer.FrequencyTerrain,
+        NaviampVisualizer.FftMountain,
+        NaviampVisualizer.ParticleField,
+        NaviampVisualizer.ParticleGalaxy,
+        NaviampVisualizer.PixelMountain,
+        NaviampVisualizer.PixelRidge,
+        NaviampVisualizer.ReactiveBars,
+        NaviampVisualizer.RibbonTrail,
+        NaviampVisualizer.SpectralRidge,
+        NaviampVisualizer.WaveInterference,
+        NaviampVisualizer.VinylGroove -> VisualizerRendererMode.SkiaRuntimeShader
     }
 
 internal fun selectedVisualizerRendererMode(
@@ -59,7 +83,7 @@ internal fun selectedVisualizerRendererMode(
     if (nativeRendererAvailable && visualizer.preferredRendererMode == VisualizerRendererMode.NativeGpu) {
         VisualizerRendererMode.NativeGpu
     } else {
-        VisualizerRendererMode.SkiaRuntimeShader
+        visualizer.fallbackRendererMode
     }
 
 internal fun smoothVisualizerBands(
@@ -135,4 +159,3 @@ private fun FloatArray.averageRange(start: Int, end: Int): Float {
     }
     return (total / (safeEnd - safeStart)).coerceIn(0f, 1f)
 }
-
