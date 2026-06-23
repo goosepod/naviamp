@@ -565,9 +565,9 @@ private val DefaultNaviampLibraries = listOf(
 )
 
 private val DefaultNaviampChangelog = listOf(
-    "Added cross-device settings sync using a portable Naviamp settings file.",
-    "Added desktop sync-folder setup and Android local mirror syncing for cloud providers.",
-    "Added secondary server URLs and non-secret custom headers to saved server profiles.",
+    "Added native OpenGL ES visualizers on Android for richer shader effects.",
+    "Added Fluidic Nebulae, Ocean of Ink, Liquid Sphere, and Analog Signal Failure visualizers.",
+    "Improved visualizer performance and album-art-reactive coloring for native effects.",
 )
 
 @Composable
