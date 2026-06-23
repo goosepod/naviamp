@@ -39,15 +39,26 @@ internal actual fun PlatformLiveVisualizerSurface(
 ) {
     var frameMillis by remember { mutableLongStateOf(0L) }
     var albumArtImage by remember(coverArtUrl) { androidx.compose.runtime.mutableStateOf<Image?>(null) }
-    LaunchedEffect(active, visualizer) {
+    val renderPolicy = remember(visualizer) {
+        visualizerRenderPolicy(visualizer, jvmVisualizerRenderTier())
+    }
+    LaunchedEffect(active, visualizer, renderPolicy.targetFrameIntervalMillis) {
         if (!active) {
             frameMillis = 0L
             return@LaunchedEffect
         }
         // Drive shader animation at the display frame clock. FFT sampling is intentionally
         // throttled upstream so visual smoothness does not require 60 BASS reads per second.
+        var lastRenderedFrameMillis = 0L
         while (true) {
-            withFrameMillis { frameMillis = it }
+            withFrameMillis { nextFrameMillis ->
+                if (lastRenderedFrameMillis == 0L ||
+                    nextFrameMillis - lastRenderedFrameMillis >= renderPolicy.targetFrameIntervalMillis
+                ) {
+                    lastRenderedFrameMillis = nextFrameMillis
+                    frameMillis = nextFrameMillis
+                }
+            }
         }
     }
     LaunchedEffect(coverArtUrl, visualizer) {
@@ -62,10 +73,12 @@ internal actual fun PlatformLiveVisualizerSurface(
         runCatching { RuntimeEffect.makeForShader(visualizer.shaderSource) }.getOrNull()
     }
     if (effect == null) {
-        CanvasVisualizerSurface(bandsProvider, active, colors, modifier)
+        CanvasVisualizerSurface(bandsProvider, active, colors, renderPolicy, modifier)
         return
     }
-    val renderer = remember(effect, visualizer) { ShaderVisualizerRenderer(effect, visualizer) }
+    val renderer = remember(effect, visualizer, renderPolicy) {
+        ShaderVisualizerRenderer(effect, visualizer, renderPolicy)
+    }
     DisposableEffect(renderer) {
         onDispose {
             renderer.close()
@@ -101,6 +114,7 @@ internal actual fun PlatformLiveVisualizerSurface(
 private class ShaderVisualizerRenderer(
     effect: RuntimeEffect,
     private val visualizer: NaviampVisualizer,
+    private val renderPolicy: VisualizerRenderPolicy,
 ) : AutoCloseable {
     private val builder = RuntimeShaderBuilder(effect)
     private val paint = Paint()
@@ -112,7 +126,11 @@ private class ShaderVisualizerRenderer(
     private var historyShader: Shader? = null
     private var historyImage: Image? = null
     private var lastHistoryPushSeconds = -1f
-    private val perfLogger = JvmVisualizerPerfLogger("shader", visualizer)
+    private val perfLogger = JvmVisualizerPerfLogger(
+        renderer = "shader",
+        visualizer = visualizer,
+        renderPolicy = renderPolicy,
+    )
 
     fun draw(
         canvas: org.jetbrains.skia.Canvas,
@@ -205,7 +223,7 @@ private class ShaderVisualizerRenderer(
 
     private fun updateHistoryTexture(timeSeconds: Float, active: Boolean) {
         if (!active || !visualizer.usesHistoryShader) return
-        if (lastHistoryPushSeconds >= 0f && timeSeconds - lastHistoryPushSeconds < VisualizerHistoryIntervalSeconds) return
+        if (lastHistoryPushSeconds >= 0f && timeSeconds - lastHistoryPushSeconds < renderPolicy.historyIntervalSeconds) return
         val changed = uniformBands.indices.any { index ->
             kotlin.math.abs(uniformBands[index] - previousHistoryBands[index]) > 0.006f
         }
@@ -266,11 +284,16 @@ private fun CanvasVisualizerSurface(
     bandsProvider: () -> List<Float>,
     active: Boolean,
     colors: NaviampColors,
+    renderPolicy: VisualizerRenderPolicy,
     modifier: Modifier,
 ) {
     Canvas(modifier = modifier) {
         val bands = bandsProvider()
-        val visibleBands = minOf(bands.size, (size.width / 6f).toInt().coerceAtLeast(16))
+        val visibleBands = minOf(
+            bands.size,
+            renderPolicy.maxCanvasSamples,
+            (size.width / 6f).toInt().coerceAtLeast(16),
+        )
         if (!active || visibleBands <= 0) {
             drawLine(
                 color = colors.primaryText.copy(alpha = 0.16f),
@@ -308,9 +331,9 @@ private fun CanvasVisualizerSurface(
 private const val VisualizerShaderBandCount = 32
 private const val VisualizerHistoryColumns = 32
 private const val VisualizerHistoryRows = 32
-private const val VisualizerHistoryIntervalSeconds = 0.075f
 private const val VisualizerPerfLogIntervalMillis = 5_000L
 private const val VisualizerPerfLogProperty = "naviamp.visualizer.perf"
+private const val VisualizerProfileProperty = "naviamp.visualizer.profile"
 
 private val NaviampVisualizer.usesHistoryShader: Boolean
     get() = this == NaviampVisualizer.SpectralRidge ||
@@ -328,8 +351,10 @@ private val NaviampVisualizer.historySamplingMode: SamplingMode
 private class JvmVisualizerPerfLogger(
     private val renderer: String,
     private val visualizer: NaviampVisualizer,
+    private val renderPolicy: VisualizerRenderPolicy,
 ) {
-    private val enabled = System.getProperty(VisualizerPerfLogProperty).equals("true", ignoreCase = true)
+    private val enabled = System.getProperty(VisualizerPerfLogProperty).equals("true", ignoreCase = true) ||
+        System.getenv("NAVIAMP_VISUALIZER_PERF").equals("true", ignoreCase = true)
     private var windowStartedMillis = System.currentTimeMillis()
     private var frameCount = 0
     private var drawNanosTotal = 0L
@@ -354,6 +379,8 @@ private class JvmVisualizerPerfLogger(
         val fps = frameCount * 1_000.0 / elapsedMillis.toDouble()
         println(
             "NaviampVisualizerPerf ${visualizer.name} renderer=$renderer " +
+                "platform=jvm-${jvmPlatformLabel()} " +
+                "profile=${renderPolicy.tier.label} targetFps=${renderPolicy.targetFps} " +
                 "fps=${fps.formatVisualizerMetric()} " +
                 "avgDrawMs=${averageDrawMillis.formatVisualizerMetric()} " +
                 "maxDrawMs=${maxDrawMillis.formatVisualizerMetric()} frames=$frameCount",
@@ -371,3 +398,28 @@ private class JvmVisualizerPerfLogger(
 
 private fun Double.formatVisualizerMetric(): String =
     String.format(Locale.US, "%.2f", this)
+
+private fun jvmVisualizerRenderTier(): VisualizerRenderTier {
+    val override = System.getProperty(VisualizerProfileProperty)
+        ?: System.getenv("NAVIAMP_VISUALIZER_PROFILE")
+    return when (override?.lowercase(Locale.US)) {
+        "full" -> VisualizerRenderTier.Full
+        "balanced" -> VisualizerRenderTier.Balanced
+        "constrained" -> VisualizerRenderTier.Constrained
+        else -> if (jvmPlatformLabel() == "macos") {
+            VisualizerRenderTier.Full
+        } else {
+            VisualizerRenderTier.Balanced
+        }
+    }
+}
+
+private fun jvmPlatformLabel(): String {
+    val osName = System.getProperty("os.name").lowercase(Locale.US)
+    return when {
+        "mac" in osName -> "macos"
+        "win" in osName -> "windows"
+        "linux" in osName -> "linux"
+        else -> osName.replace(' ', '-')
+    }
+}

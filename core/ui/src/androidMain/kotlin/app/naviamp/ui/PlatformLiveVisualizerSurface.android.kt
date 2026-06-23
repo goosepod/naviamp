@@ -51,6 +51,7 @@ internal actual fun PlatformLiveVisualizerSurface(
 ) {
     val performanceLoggingEnabled = LocalContext.current.applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE != 0
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+        val renderPolicy = visualizerRenderPolicy(visualizer, VisualizerRenderTier.Balanced)
         AndroidShaderVisualizerSurface(
             coverArtUrl = coverArtUrl,
             bandsProvider = bandsProvider,
@@ -58,17 +59,20 @@ internal actual fun PlatformLiveVisualizerSurface(
             visualizerColors = visualizerColors,
             active = active,
             colors = colors,
+            renderPolicy = renderPolicy,
             performanceLoggingEnabled = performanceLoggingEnabled,
             modifier = modifier,
         )
         return
     }
+    val renderPolicy = visualizerRenderPolicy(visualizer, VisualizerRenderTier.Constrained)
     AndroidCanvasVisualizerSurface(
         bandsProvider = bandsProvider,
         visualizer = visualizer,
         visualizerColors = visualizerColors,
         active = active,
         colors = colors,
+        renderPolicy = renderPolicy,
         performanceLoggingEnabled = performanceLoggingEnabled,
         modifier = modifier,
     )
@@ -83,17 +87,26 @@ private fun AndroidShaderVisualizerSurface(
     visualizerColors: NaviampPlayerColors,
     active: Boolean,
     colors: NaviampColors,
+    renderPolicy: VisualizerRenderPolicy,
     performanceLoggingEnabled: Boolean,
     modifier: Modifier,
 ) {
     var frameMillis by remember { mutableLongStateOf(0L) }
-    LaunchedEffect(active, visualizer) {
+    LaunchedEffect(active, visualizer, renderPolicy.targetFrameIntervalMillis) {
         if (!active) {
             frameMillis = 0L
             return@LaunchedEffect
         }
+        var lastRenderedFrameMillis = 0L
         while (true) {
-            withFrameMillis { frameMillis = it }
+            withFrameMillis { nextFrameMillis ->
+                if (lastRenderedFrameMillis == 0L ||
+                    nextFrameMillis - lastRenderedFrameMillis >= renderPolicy.targetFrameIntervalMillis
+                ) {
+                    lastRenderedFrameMillis = nextFrameMillis
+                    frameMillis = nextFrameMillis
+                }
+            }
         }
     }
     var albumArtBitmap by remember(coverArtUrl) { mutableStateOf<Bitmap?>(null) }
@@ -102,15 +115,15 @@ private fun AndroidShaderVisualizerSurface(
             withContext(Dispatchers.IO) {
                 runCatching {
                     androidPlatformCoverArtBytes(coverArtUrl)
-                        ?.let { decodeSampledBitmap(it, AndroidVisualizerAlbumArtSidePx) }
+                        ?.let { decodeSampledBitmap(it, renderPolicy.albumArtSidePx) }
                 }.getOrNull()
             }
         } else {
             null
         }
     }
-    val renderer = remember(visualizer, performanceLoggingEnabled) {
-        AndroidShaderVisualizerRenderer(visualizer, performanceLoggingEnabled)
+    val renderer = remember(visualizer, renderPolicy, performanceLoggingEnabled) {
+        AndroidShaderVisualizerRenderer(visualizer, renderPolicy, performanceLoggingEnabled)
     }
     DisposableEffect(renderer) {
         onDispose { renderer.close() }
@@ -144,6 +157,7 @@ private fun AndroidShaderVisualizerSurface(
 @RequiresApi(Build.VERSION_CODES.TIRAMISU)
 private class AndroidShaderVisualizerRenderer(
     private val visualizer: NaviampVisualizer,
+    private val renderPolicy: VisualizerRenderPolicy,
     performanceLoggingEnabled: Boolean,
 ) : AutoCloseable {
     private val runtimeShader = RuntimeShader(visualizer.shaderSource)
@@ -161,7 +175,7 @@ private class AndroidShaderVisualizerRenderer(
     private var albumArtBitmap: Bitmap? = null
     private var albumArtShader: BitmapShader? = null
     private var lastHistoryPushSeconds = -1f
-    private val perfLogger = AndroidVisualizerPerfLogger("shader", visualizer, performanceLoggingEnabled)
+    private val perfLogger = AndroidVisualizerPerfLogger("shader", visualizer, renderPolicy, performanceLoggingEnabled)
 
     fun draw(
         canvas: AndroidCanvas,
@@ -244,7 +258,7 @@ private class AndroidShaderVisualizerRenderer(
 
     private fun updateHistoryTexture(timeSeconds: Float, active: Boolean) {
         if (!active) return
-        if (lastHistoryPushSeconds >= 0f && timeSeconds - lastHistoryPushSeconds < AndroidVisualizerHistoryIntervalSeconds) return
+        if (lastHistoryPushSeconds >= 0f && timeSeconds - lastHistoryPushSeconds < renderPolicy.historyIntervalSeconds) return
         val changed = uniformBands.indices.any { index ->
             abs(uniformBands[index] - previousHistoryBands[index]) > 0.006f
         }
@@ -290,8 +304,6 @@ private fun Bitmap.newClampShader(filterMode: Int = BitmapShader.FILTER_MODE_LIN
         setFilterMode(filterMode)
     }
 
-private const val AndroidVisualizerAlbumArtSidePx = 1024
-
 @Composable
 private fun AndroidCanvasVisualizerSurface(
     bandsProvider: () -> List<Float>,
@@ -299,20 +311,29 @@ private fun AndroidCanvasVisualizerSurface(
     visualizerColors: NaviampPlayerColors,
     active: Boolean,
     colors: NaviampColors,
+    renderPolicy: VisualizerRenderPolicy,
     performanceLoggingEnabled: Boolean,
     modifier: Modifier,
 ) {
     var frameMillis by remember { mutableLongStateOf(0L) }
-    val perfLogger = remember(visualizer, performanceLoggingEnabled) {
-        AndroidVisualizerPerfLogger("canvas", visualizer, performanceLoggingEnabled)
+    val perfLogger = remember(visualizer, renderPolicy, performanceLoggingEnabled) {
+        AndroidVisualizerPerfLogger("canvas", visualizer, renderPolicy, performanceLoggingEnabled)
     }
-    LaunchedEffect(active, visualizer) {
+    LaunchedEffect(active, visualizer, renderPolicy.targetFrameIntervalMillis) {
         if (!active) {
             frameMillis = 0L
             return@LaunchedEffect
         }
+        var lastRenderedFrameMillis = 0L
         while (true) {
-            withFrameMillis { frameMillis = it }
+            withFrameMillis { nextFrameMillis ->
+                if (lastRenderedFrameMillis == 0L ||
+                    nextFrameMillis - lastRenderedFrameMillis >= renderPolicy.targetFrameIntervalMillis
+                ) {
+                    lastRenderedFrameMillis = nextFrameMillis
+                    frameMillis = nextFrameMillis
+                }
+            }
         }
     }
     Canvas(modifier = modifier) {
@@ -325,7 +346,7 @@ private fun AndroidCanvasVisualizerSurface(
             return@Canvas
         }
 
-        val samples = sampleBands(bands, visibleBands)
+        val samples = sampleBands(bands, minOf(visibleBands, renderPolicy.maxCanvasSamples))
         val energy = samples.average().toFloat().coerceIn(0f, 1f)
         val timeSeconds = frameMillis / 1000f
         when (visualizer) {
@@ -352,6 +373,7 @@ private fun AndroidCanvasVisualizerSurface(
 private class AndroidVisualizerPerfLogger(
     private val renderer: String,
     private val visualizer: NaviampVisualizer,
+    private val renderPolicy: VisualizerRenderPolicy,
     private val enabled: Boolean,
 ) {
     private var windowStartedMillis = SystemClock.elapsedRealtime()
@@ -378,7 +400,9 @@ private class AndroidVisualizerPerfLogger(
         val fps = frameCount * 1_000.0 / elapsedMillis.toDouble()
         Log.i(
             AndroidVisualizerPerfLogTag,
-            "${visualizer.name} renderer=$renderer fps=${fps.formatVisualizerMetric()} " +
+            "${visualizer.name} renderer=$renderer platform=android " +
+                "profile=${renderPolicy.tier.label} targetFps=${renderPolicy.targetFps} " +
+                "fps=${fps.formatVisualizerMetric()} " +
                 "avgDrawMs=${averageDrawMillis.formatVisualizerMetric()} " +
                 "maxDrawMs=${maxDrawMillis.formatVisualizerMetric()} frames=$frameCount",
         )
@@ -396,7 +420,6 @@ private class AndroidVisualizerPerfLogger(
 private const val AndroidVisualizerShaderBandCount = 32
 private const val AndroidVisualizerHistoryColumns = 32
 private const val AndroidVisualizerHistoryRows = 32
-private const val AndroidVisualizerHistoryIntervalSeconds = 0.075f
 private const val AndroidVisualizerPerfLogIntervalMillis = 5_000L
 private const val AndroidVisualizerPerfLogTag = "NaviampVisualizerPerf"
 

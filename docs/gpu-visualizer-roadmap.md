@@ -19,6 +19,7 @@ This tracks the work needed to replace the current Compose Canvas visualizer wit
 - The first GPU-backed baseline uses a JVM Skia runtime shader behind `PlatformLiveVisualizerSurface`.
 - Android 13+ uses the shared SkSL catalog through Android `RuntimeShader`; older Android versions keep the Compose Canvas visualizer fallback.
 - Android visualizer debug builds log active renderer FPS and draw cost through the `NaviampVisualizerPerf` logcat tag while a visualizer is visible and playback is active.
+- Visualizer rendering now has shared performance policy tiers. macOS defaults to full-rate rendering, Windows/Linux desktop default to balanced rendering, Android shader rendering defaults to balanced, and older Android Canvas fallback defaults to constrained. Desktop can override with `-Dnaviamp.visualizer.profile=full|balanced|constrained` or `NAVIAMP_VISUALIZER_PROFILE`.
 - An embedded desktop `SwingPanel`/`SkiaLayer` surface was tested and rejected for the Player art area because it did not compose cleanly on macOS: the surface showed white/black backing rectangles, swallowed clicks that should toggle back to album art, and could remain layered over album art after toggling.
 
 ## Phase 1: Renderer Spike For Current Visualizer
@@ -41,7 +42,7 @@ This tracks the work needed to replace the current Compose Canvas visualizer wit
 - [x] Target display-refresh rendering for active desktop visualizers.
 - [ ] Add measured FPS/frame-time instrumentation so the 60 fps target is observable instead of judged by eye.
   - [x] Add Android debug logcat measurements for active visualizer renderer FPS and draw cost.
-  - [ ] Add desktop measurements using the same summary shape.
+  - [x] Add desktop measurements using the same summary shape.
   - [ ] Decide whether Android emulator FPS below display refresh is GPU/compositor bound, emulator bound, or caused by Compose invalidation cadence.
 - [x] Switch back to album art while playback is paused/stopped, then restore the visualizer automatically when playback resumes if the user had it enabled.
 - [ ] Add optional visual decay for buffering/loading transitions without continuing full-rate rendering indefinitely.
@@ -74,6 +75,7 @@ These are not implemented yet and should be treated as follow-up work rather tha
 - [ ] Measure Home playback with no focused Naviamp window interaction.
 - [ ] Compare macOS packaged Metal build against Windows packaged renderer behavior.
 - [ ] Record CPU, memory, thread count, and sample hotspots in `docs/desktop-performance-optimization.md`.
+- [ ] Use performance logs to classify each visualizer as full-rate, balanced, or constrained on Android and Windows.
 
 ## Open Questions
 
