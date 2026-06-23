@@ -12,24 +12,6 @@ Keep implementation cross-platform by default: shared domain models, shared UI, 
   - Phone/desktop acts as controller; Android TV / Google TV / Fire TV acts as renderer.
   - MVP target is Android TV / Google TV / Fire TV, not Roku.
   - See `docs/naviamp-connect-roadmap.md`.
-- [ ] Add cross-device app state sync.
-  - First-run setup should ask whether the user wants to set up a new server directly or choose a shared settings-sync folder.
-  - When a shared settings file is imported during first-run setup, treat that folder as the default sync location for future settings writes.
-  - Importing a synced server profile should still ask for the Navidrome password on the new device, then store secrets locally.
-  - Keep the shared file as a portable sync document, not the only runtime source of truth; import into local platform storage and export changes back to the selected sync folder.
-  - First implementation in progress: shared sync document/planner/mapping plus desktop folder selection with manual import/export.
-  - Settings sync import/export orchestration now runs through shared domain code: `SettingsSyncPlanner` decides startup reconciliation and `SettingsSyncCoordinator` owns timestamp updates, import/apply bookkeeping, export document creation, and auto-export gating. Desktop and Android keep only platform file access and platform state adapters.
-  - Desktop first-run setup now presents an explicit choice between setting up a new server and importing an existing settings-sync folder; choosing a sync folder saves it as the default location and imports the shared settings file immediately.
-  - Android settings sync now uses an app-private local mirror as the on-device `naviamp-settings.json`, then treats the selected Storage Access Framework folder as best-effort provider transport. Local synced settings changes are saved to the mirror first; provider read/write failures leave settings usable and report sync pending.
-  - Android provider handling checks SAF create/write flags where available, keeps virtual/provider-backed files eligible for stream access, and reports clear provider failures for missing create/write support, unavailable streams, invalid JSON, and revoked/unavailable provider access.
-  - Recommended setup: desktop chooses a folder in the local Nextcloud/Dropbox/Syncthing sync directory; Android chooses the matching folder through the system file picker/provider. If a provider keeps the file offline or refuses writes, `Sync now` retries after the provider refreshes.
-  - Auto-export coverage has been audited for the current synced surface: playback settings, visualizer selection, recent radio streams, recent internet radio stations, DJ presets, and saved server profile changes now route through the shared dirty/export flow, including Android foreground-service recent-radio writes.
-  - Imported server profiles are now persisted as logical saved profiles without secrets; the first imported profile still opens the connection form so the user can enter the local Navidrome password before connecting.
-  - Secondary server URLs and custom header definitions now have runtime UI/storage/connection behavior. Naviamp validates the primary URL first, then configured fallback URLs; connection status reports the active URL when a fallback is used. Non-secret custom header values are included in settings sync, while secret header values stay local.
-  - Candidate synced state: logical server profiles, secondary URLs, non-secret custom header definitions, playback behavior, replay gain mode, gapless/crossfade, queue behavior, streaming/download quality preferences, lyrics options, visualizer selection, radio tuning and DJ presets, smart playlist editor drafts/templates if app-owned, and cross-platform UI preferences that are not window-size-specific.
-  - Do not sync secrets by default: passwords, tokens, native auth tokens, custom header values that are secret, and client certificate passwords should stay in OS/platform-local secret storage unless an explicit encrypted-secrets feature is designed later.
-  - Keep device-local state local: cache/download directories, downloaded file records, cache sizes unless explicitly opted in, local library indexes, pending offline provider actions, diagnostics/dev flags, and platform-specific layout/window state.
-  - Prefer Navidrome for state it can own cleanly, such as playlists, smart playlists, favorites, ratings, and play/scrobble history; use the shared file for Naviamp-specific state Navidrome does not know about.
 - [x] Add additional Plexamp-style station entries when the current Mix Builders and DJ flow need more depth.
   - Artist Mix Builder, Album Mix Builder, Genre Mix Radio, and DJ presets are the current first pass.
 
@@ -39,12 +21,6 @@ Keep implementation cross-platform by default: shared domain models, shared UI, 
   - Desktop app can manually check whether a newer Naviamp release is available.
   - Keep the first pass simple: clear status for up-to-date, update available, and unable to check.
   - Prefer a source that works with the eventual Forgejo release/tag flow.
-- [ ] Add secondary server URL support for saved server profiles.
-  - Let each saved Navidrome/server config store a primary URL plus an optional secondary URL.
-  - Use case: connect directly to a local LAN URL at home, but fall back to a VPN, Tailscale, or external URL when away.
-  - Allow optional custom HTTP headers per connection for reverse proxies, auth gateways, VPN/proxy routing, or other self-hosted network setups.
-  - Keep credentials, TLS settings, cached source identity, and offline sync tied to the same logical server profile, not duplicated profiles.
-  - Prefer automatic reachability/fallback when safe, with clear status text showing which URL is active.
 - [ ] Add desktop installer options.
   - Keep the standard bundled-runtime installer as the reliable default.
   - Add a clearly named thin smart installer that can use a compatible installed Java runtime when available.
@@ -77,6 +53,24 @@ Keep implementation cross-platform by default: shared domain models, shared UI, 
   - Surface smart playlists and templates.
 
 ## Completed
+
+### Settings Sync And Connectivity
+
+- [x] Add cross-device app state sync.
+  - Added a portable `naviamp-settings.json` sync document for logical server profiles and supported app preferences.
+  - First-run setup can import an existing settings-sync folder and save it as the default sync location.
+  - Desktop reads and writes the shared settings file in a real filesystem sync folder.
+  - Android keeps an app-private local mirror as the on-device source of truth, then treats the selected Storage Access Framework folder as best-effort provider transport.
+  - Android provider handling checks create/write capabilities where available, keeps virtual/provider-backed files eligible for stream access, and reports clear provider failures for unavailable streams, invalid JSON, missing write/create support, and revoked or unavailable provider access.
+  - Auto-sync coverage includes playback settings, visualizer selection, recent radio streams, recent internet radio stations, DJ presets, and saved server profile changes, including Android foreground-service recent-radio writes.
+  - Imported server profiles are persisted without secrets; the first imported profile opens the connection form so the user can enter the local Navidrome password before connecting.
+  - Secrets and device-local state remain local: passwords, tokens, native auth tokens, secret custom header values, certificate passwords, cache/download directories, downloaded-file records, local indexes, pending offline actions, diagnostics, and platform-specific layout/window state.
+- [x] Add secondary server URL support for saved server profiles.
+  - Saved Navidrome profiles can store a primary URL plus fallback secondary URLs.
+  - Naviamp validates the primary URL first, then configured fallback URLs; connection status reports the active URL when a fallback is used.
+  - Saved profiles support non-secret custom HTTP headers for reverse proxies, auth gateways, VPN/proxy routing, and other self-hosted network setups.
+  - Non-secret custom header values are included in settings sync; secret header values stay local.
+  - Credentials, TLS settings, cached source identity, and offline sync remain tied to the same logical server profile instead of duplicated profiles.
 
 ### Discovery, Radio, And Mixes
 
