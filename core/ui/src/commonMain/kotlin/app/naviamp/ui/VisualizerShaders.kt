@@ -32,6 +32,7 @@ uniform float iActive;
 uniform float iVisibleBands;
 uniform float iSourceBands;
 uniform float4 iEnergy;
+uniform float iTempo;
 uniform float2 iAlbumArtSize;
 uniform float iBands[32];
 
@@ -214,26 +215,48 @@ half4 main(float2 coord) {
     float bass = iEnergy.x;
     float mids = iEnergy.y;
     float highs = iEnergy.z;
-    float angle = atan(p.y, p.x);
-    float radius = length(p);
-    float tunnel = 0.0;
-    float3 color = float3(0.0);
-    for (int i = 0; i < 7; ++i) {
-        float fi = float(i);
-        float depth = fract(fi * 0.145 + iTime * (0.16 + bass * 0.24));
-        float ringRadius = mix(0.08, 0.58, depth);
-        float wobble = sin(angle * (5.0 + fi) + iTime * (0.8 + mids * 1.6) + fi) * (0.012 + mids * 0.026);
-        float sides = abs(cos(angle * 3.0 + fi + iTime * 0.22));
-        float wire = edgeMask(p, ringRadius + wobble + sides * 0.018 * highs, 0.010 + depth * 0.014);
-        float fade = (1.0 - depth) * (0.24 + highs * 0.26);
-        tunnel += wire * fade;
-        color += palette(fract(depth + fi * 0.13 + angle / 6.2831853)) * wire * fade;
-    }
-    float spoke = (1.0 - smoothstep(0.0, 0.014, abs(fract((angle / 6.2831853) * 12.0 + iTime * 0.16) - 0.5))) *
-        smoothstep(0.06, 0.42, radius) * smoothstep(0.62, 0.34, radius) * (0.04 + highs * 0.10);
-    float alpha = clamp(tunnel + spoke, 0.0, 0.86);
-    color = alpha > 0.001 ? color / max(tunnel, 0.001) : iAccent.rgb;
-    color = mix(color, iReadable.rgb, spoke * 0.42 + highs * 0.10);
+    float2 path = float2(
+        sin(iTime * 0.10) * 0.020,
+        cos(iTime * 0.08) * 0.016
+    );
+    float2 q = p - path;
+    float radius = max(length(q), 0.001);
+    float depth = 1.0 / (radius + 0.095);
+    float bend = sin(depth * 0.22 - iTime * 0.18) * (0.10 + mids * 0.16);
+    float angle = atan(q.y, q.x) + bend;
+    float angle01 = fract(angle / 6.2831853 + 0.5);
+    float band = bandAt(angle01);
+    float bandNear = max(bandAt(fract(angle01 - 0.045)), bandAt(fract(angle01 + 0.045)));
+    float response = max(band, bandNear * 0.72);
+    float tempoSpeed = smoothstep(80.0, 180.0, clamp(iTempo, 60.0, 220.0));
+    float speed = mix(0.34, 0.72, tempoSpeed);
+    float travel = depth * 0.42 + iTime * speed;
+
+    float laneCount = 14.0;
+    float lanePhase = fract(angle01 * laneCount + sin(depth * 0.18 + iTime * 0.12) * 0.10);
+    float laneDistance = min(lanePhase, 1.0 - lanePhase);
+    float rail = 1.0 - smoothstep(0.010, 0.050 + response * 0.020, laneDistance);
+    float railCore = 1.0 - smoothstep(0.006, 0.018 + response * 0.010, laneDistance);
+
+    float dashPhase = fract(travel * 1.55);
+    float dash = 1.0 - smoothstep(0.025, 0.20, min(dashPhase, 1.0 - dashPhase));
+    float ribPhase = fract(travel * 1.55 + 0.08);
+    float ribDistance = min(ribPhase, 1.0 - ribPhase);
+    float rib = 1.0 - smoothstep(0.020, 0.082, ribDistance);
+    float ribCore = 1.0 - smoothstep(0.007, 0.024, ribDistance);
+
+    float panel = pow(0.5 + 0.5 * sin(angle * 7.0 + depth * 0.35 - iTime * 0.16), 1.8) *
+        (0.030 + response * 0.080);
+    float wallMask = smoothstep(0.060, 0.22, radius) * smoothstep(0.82, 0.48, radius) *
+        smoothstep(6.5, 1.2, depth);
+    float tunnelWall = (rail * (0.20 + response * 0.20) + railCore * dash * (0.22 + highs * 0.22) +
+        rib * 0.12 + ribCore * (0.070 + rail * 0.08) + panel) * wallMask;
+    float centerOpening = smoothstep(0.035, 0.16, radius);
+    float alpha = clamp(tunnelWall * centerOpening, 0.0, 0.88);
+    float3 color = palette(fract(angle01 * 0.62 + depth * 0.035 + response * 0.18));
+    color = mix(color, iReadable.rgb, railCore * dash * 0.22 + ribCore * 0.14 + highs * 0.08);
+    color = mix(color, iAccent.rgb, bass * 0.06 + rib * 0.04);
+    color *= 0.68 + response * 0.48 + dash * railCore * 0.28 + ribCore * 0.18;
     return premul(color, alpha);
 }
 """

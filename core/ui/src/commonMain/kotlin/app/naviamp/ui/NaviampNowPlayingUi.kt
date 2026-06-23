@@ -273,6 +273,7 @@ fun NaviampNowPlayingPanel(
                         selectedVisualizer = selectedVisualizer,
                         visualizerColors = visualizerColors,
                         visualizerActive = nowPlaying.isPlaying,
+                        tempoBpm = nowPlaying.bpm,
                         onToggleVisualizer = { actions.display(NowPlayingDisplayAction.ToggleVisualizer) },
                         onVisualizerSelected = actions::selectVisualizer,
                     )
@@ -362,6 +363,7 @@ fun NaviampNowPlayingPanel(
                                 selectedVisualizer = selectedVisualizer,
                                 visualizerColors = visualizerColors,
                                 visualizerActive = nowPlaying.isPlaying,
+                                tempoBpm = nowPlaying.bpm,
                                 onToggleVisualizer = { actions.display(NowPlayingDisplayAction.ToggleVisualizer) },
                                 onVisualizerSelected = actions::selectVisualizer,
                             )
@@ -410,6 +412,7 @@ fun NaviampNowPlayingPanel(
                                 selectedVisualizer = selectedVisualizer,
                                 visualizerColors = visualizerColors,
                                 visualizerActive = nowPlaying.isPlaying,
+                                tempoBpm = nowPlaying.bpm,
                                 onToggleVisualizer = { actions.display(NowPlayingDisplayAction.ToggleVisualizer) },
                                 onVisualizerSelected = actions::selectVisualizer,
                             )
@@ -458,6 +461,7 @@ private fun NowPlayingArtSurface(
     selectedVisualizer: NaviampVisualizer,
     visualizerColors: NaviampPlayerColors,
     visualizerActive: Boolean,
+    tempoBpm: Int?,
     onToggleVisualizer: () -> Unit,
     onVisualizerSelected: (NaviampVisualizer) -> Unit,
 ) {
@@ -480,6 +484,7 @@ private fun NowPlayingArtSurface(
                 visualizer = selectedVisualizer,
                 visualizerColors = visualizerColors,
                 active = visualizerActive,
+                tempoBpm = tempoBpm,
                 colors = colors,
                 modifier = Modifier
                     .fillMaxSize(),
@@ -1075,6 +1080,7 @@ private fun LiveVisualizerSurface(
     visualizer: NaviampVisualizer,
     visualizerColors: NaviampPlayerColors,
     active: Boolean,
+    tempoBpm: Int?,
     colors: NaviampColors,
     modifier: Modifier = Modifier,
 ) {
@@ -1084,6 +1090,7 @@ private fun LiveVisualizerSurface(
         visualizer = visualizer,
         visualizerColors = visualizerColors,
         active = active,
+        tempoBpm = tempoBpm,
         colors = colors,
         modifier = modifier,
     )
@@ -1096,6 +1103,7 @@ internal expect fun PlatformLiveVisualizerSurface(
     visualizer: NaviampVisualizer,
     visualizerColors: NaviampPlayerColors,
     active: Boolean,
+    tempoBpm: Int?,
     colors: NaviampColors,
     modifier: Modifier = Modifier,
 )

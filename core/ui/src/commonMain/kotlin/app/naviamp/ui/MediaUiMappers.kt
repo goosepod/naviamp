@@ -907,6 +907,7 @@ fun Track.toNowPlayingUi(config: NowPlayingTrackUiConfig): NowPlayingUi =
         audioInfo = nowPlayingAudioInfoLabel(config.playbackEngineName),
         waveform = config.waveform,
         visualizerFrame = config.visualizerFrame,
+        bpm = bpm,
         visualizerAvailable = config.visualizerAvailable,
         visualizerVisible = config.visualizerVisible,
         positionSeconds = config.positionSeconds,

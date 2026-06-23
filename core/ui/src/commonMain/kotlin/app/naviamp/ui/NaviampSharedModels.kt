@@ -538,6 +538,7 @@ data class NowPlayingUi(
     val audioInfo: String = "",
     val waveform: AudioWaveform? = null,
     val visualizerFrame: PlaybackVisualizerFrame? = null,
+    val bpm: Int? = null,
     val visualizerAvailable: Boolean = false,
     val visualizerVisible: Boolean = false,
     val positionSeconds: Double? = null,

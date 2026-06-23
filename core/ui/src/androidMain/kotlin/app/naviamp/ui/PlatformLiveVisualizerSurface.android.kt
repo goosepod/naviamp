@@ -46,6 +46,7 @@ internal actual fun PlatformLiveVisualizerSurface(
     visualizer: NaviampVisualizer,
     visualizerColors: NaviampPlayerColors,
     active: Boolean,
+    tempoBpm: Int?,
     colors: NaviampColors,
     modifier: Modifier,
 ) {
@@ -58,6 +59,7 @@ internal actual fun PlatformLiveVisualizerSurface(
             visualizer = visualizer,
             visualizerColors = visualizerColors,
             active = active,
+            tempoBpm = tempoBpm,
             colors = colors,
             renderPolicy = renderPolicy,
             performanceLoggingEnabled = performanceLoggingEnabled,
@@ -86,6 +88,7 @@ private fun AndroidShaderVisualizerSurface(
     visualizer: NaviampVisualizer,
     visualizerColors: NaviampPlayerColors,
     active: Boolean,
+    tempoBpm: Int?,
     colors: NaviampColors,
     renderPolicy: VisualizerRenderPolicy,
     performanceLoggingEnabled: Boolean,
@@ -148,6 +151,7 @@ private fun AndroidShaderVisualizerSurface(
                 visualizerColors = visualizerColors,
                 albumArtBitmap = albumArtBitmap,
                 timeSeconds = frameMillis / 1000f,
+                tempoBpm = tempoBpm,
             )
         }
         renderer.recordDrawNanos(System.nanoTime() - drawStartedNanos, active)
@@ -188,6 +192,7 @@ private class AndroidShaderVisualizerRenderer(
         visualizerColors: NaviampPlayerColors,
         albumArtBitmap: Bitmap?,
         timeSeconds: Float,
+        tempoBpm: Int?,
     ) {
         repeat(AndroidVisualizerShaderBandCount) { index ->
             val sourceIndex = if (AndroidVisualizerShaderBandCount == 1 || bands.isEmpty()) {
@@ -225,6 +230,7 @@ private class AndroidShaderVisualizerRenderer(
         runtimeShader.setFloatUniform("iVisibleBands", visibleBands.toFloat())
         runtimeShader.setFloatUniform("iSourceBands", bands.size.toFloat().coerceAtLeast(1f))
         runtimeShader.setFloatUniform("iEnergy", bass, mids, highs, uniformBands.average().toFloat().coerceIn(0f, 1f))
+        runtimeShader.setFloatUniform("iTempo", tempoBpm?.toFloat()?.coerceIn(60f, 220f) ?: 120f)
         runtimeShader.setFloatUniform("iBands", uniformBands)
         val albumBitmap = albumArtBitmap ?: fallbackAlbumArtBitmap
         runtimeShader.setFloatUniform("iAlbumArtSize", albumBitmap.width.toFloat(), albumBitmap.height.toFloat())

@@ -34,6 +34,7 @@ internal actual fun PlatformLiveVisualizerSurface(
     visualizer: NaviampVisualizer,
     visualizerColors: NaviampPlayerColors,
     active: Boolean,
+    tempoBpm: Int?,
     colors: NaviampColors,
     modifier: Modifier,
 ) {
@@ -105,6 +106,7 @@ internal actual fun PlatformLiveVisualizerSurface(
                 visualizerColors = visualizerColors,
                 albumArtImage = albumArtImage,
                 timeSeconds = frameMillis / 1000f,
+                tempoBpm = tempoBpm,
             )
         }
         renderer.recordDrawNanos(System.nanoTime() - drawStartedNanos, active)
@@ -143,6 +145,7 @@ private class ShaderVisualizerRenderer(
         visualizerColors: NaviampPlayerColors,
         albumArtImage: Image?,
         timeSeconds: Float,
+        tempoBpm: Int?,
     ) {
         repeat(VisualizerShaderBandCount) { index ->
             val sourceIndex = if (VisualizerShaderBandCount == 1 || bands.isEmpty()) {
@@ -178,6 +181,7 @@ private class ShaderVisualizerRenderer(
         builder.uniform("iVisibleBands", visibleBands.toFloat())
         builder.uniform("iSourceBands", bands.size.toFloat().coerceAtLeast(1f))
         builder.uniform("iEnergy", bass, mids, highs, uniformBands.average().toFloat().coerceIn(0f, 1f))
+        builder.uniform("iTempo", tempoBpm?.toFloat()?.coerceIn(60f, 220f) ?: 120f)
         builder.uniform("iBands", uniformBands)
         builder.uniform(
             "iAlbumArtSize",
