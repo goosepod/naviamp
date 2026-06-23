@@ -827,9 +827,16 @@ varying vec2 v_uv;
 
 void main() {
     float band = texture2D(u_frequencyTexture, vec2(v_uv.x, 0.5)).r;
+    float radial = smoothstep(0.84, 0.08, distance(v_uv, vec2(0.5)));
+    float sweep = 0.5 + 0.5 * sin(v_uv.x * 5.0 + v_uv.y * 3.2 + u_time * 0.08);
+    vec3 gradient = mix(mix(u_colorA.rgb, u_colorB.rgb, v_uv.x), u_colorC.rgb, v_uv.y * 0.62);
+    vec3 background = gradient * (0.52 + radial * 0.34 + sweep * 0.08);
+    background = mix(background, u_accent.rgb, radial * (0.06 + u_energyLevel * 0.08));
+
     if (u_active < 0.5) {
         float idle = 1.0 - smoothstep(0.006, 0.018, abs(v_uv.y - 0.5));
-        gl_FragColor = vec4(u_readable.rgb, u_readable.a * idle * 0.16);
+        vec3 idleColor = background + u_readable.rgb * idle * 0.14;
+        gl_FragColor = vec4(idleColor, 1.0);
         return;
     }
 
@@ -837,11 +844,12 @@ void main() {
     bar = 1.0 - bar;
     float pulse = 0.74 + 0.26 * sin(u_time * (1.4 + u_bassLevel * 2.0) + v_uv.x * 18.0);
     float scan = 0.86 + 0.14 * sin((v_uv.y * u_resolution.y) * 0.45);
-    vec3 gradient = mix(mix(u_colorA.rgb, u_colorB.rgb, v_uv.x), u_colorC.rgb, v_uv.y * 0.55);
     vec3 color = mix(gradient, u_accent.rgb, 0.25 + u_trebleLevel * 0.35);
     color = mix(color, u_readable.rgb, bar * 0.16 + u_beatDetected * 0.18);
     float glow = smoothstep(0.62, 0.0, distance(v_uv, vec2(0.5))) * (0.08 + u_energyLevel * 0.18);
-    gl_FragColor = vec4(color * (bar * pulse + glow) * scan, min(0.92, bar * 0.82 + glow));
+    float lane = smoothstep(0.58, 0.0, abs(v_uv.y - 0.5));
+    vec3 visual = color * (bar * pulse + glow + lane * band * 0.10) * scan;
+    gl_FragColor = vec4(background + visual, 1.0);
 }
 """
 

@@ -112,7 +112,8 @@ The first pass can derive `u_beatDetected` and `u_spectralCentroid` from the cur
 - [x] Upload the frequency texture each frame.
 - [x] Add lifecycle handling for pause/resume/context loss.
 - [x] Add logcat compile errors and FPS/draw timing with the existing `NaviampVisualizerPerf` shape.
-- [ ] Blend the native GL surface background with album-art/player colors instead of rendering a black backing area.
+- [x] Blend the native GL surface background with album-art/player colors instead of rendering a black backing area.
+- [ ] Add album-art texture sampling to the native GL renderer so effects can react to the actual cover image, not only extracted player colors.
 
 ### Phase 3: Heavy Shader Support
 
