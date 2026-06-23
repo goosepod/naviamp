@@ -51,6 +51,24 @@ internal actual fun PlatformLiveVisualizerSurface(
     modifier: Modifier,
 ) {
     val performanceLoggingEnabled = LocalContext.current.applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE != 0
+    val rendererMode = selectedVisualizerRendererMode(
+        visualizer = visualizer,
+        nativeRendererAvailable = false,
+    )
+    if (rendererMode == VisualizerRendererMode.NativeGpu) {
+        val renderPolicy = visualizerRenderPolicy(visualizer, VisualizerRenderTier.Constrained)
+        AndroidCanvasVisualizerSurface(
+            bandsProvider = bandsProvider,
+            visualizer = visualizer,
+            visualizerColors = visualizerColors,
+            active = active,
+            colors = colors,
+            renderPolicy = renderPolicy,
+            performanceLoggingEnabled = performanceLoggingEnabled,
+            modifier = modifier,
+        )
+        return
+    }
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
         val renderPolicy = visualizerRenderPolicy(visualizer, VisualizerRenderTier.Balanced)
         AndroidShaderVisualizerSurface(
@@ -166,11 +184,11 @@ private class AndroidShaderVisualizerRenderer(
 ) : AutoCloseable {
     private val runtimeShader = RuntimeShader(visualizer.shaderSource)
     private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
-    private val uniformBands = FloatArray(AndroidVisualizerShaderBandCount)
-    private val smoothBands = FloatArray(AndroidVisualizerShaderBandCount)
-    private val historyPixels = IntArray(AndroidVisualizerHistoryColumns * AndroidVisualizerHistoryRows)
-    private val previousHistoryBands = FloatArray(AndroidVisualizerShaderBandCount)
-    private val historyBitmap = Bitmap.createBitmap(AndroidVisualizerHistoryColumns, AndroidVisualizerHistoryRows, Bitmap.Config.ARGB_8888)
+    private val uniformBands = FloatArray(VisualizerFrameBandCount)
+    private val smoothBands = FloatArray(VisualizerFrameBandCount)
+    private val historyPixels = IntArray(VisualizerHistoryColumns * VisualizerHistoryRows)
+    private val previousHistoryBands = FloatArray(VisualizerFrameBandCount)
+    private val historyBitmap = Bitmap.createBitmap(VisualizerHistoryColumns, VisualizerHistoryRows, Bitmap.Config.ARGB_8888)
     private var historyShader = historyBitmap.newClampShader(visualizer.historyFilterMode)
     private val fallbackAlbumArtBitmap = Bitmap.createBitmap(1, 1, Bitmap.Config.ARGB_8888).apply {
         eraseColor(android.graphics.Color.WHITE)
@@ -194,26 +212,23 @@ private class AndroidShaderVisualizerRenderer(
         timeSeconds: Float,
         tempoBpm: Int?,
     ) {
-        repeat(AndroidVisualizerShaderBandCount) { index ->
-            val sourceIndex = if (AndroidVisualizerShaderBandCount == 1 || bands.isEmpty()) {
-                0
-            } else {
-                ((index / (AndroidVisualizerShaderBandCount - 1f)) * (bands.size - 1)).toInt()
-            }
-            val target = bands.getOrNull(sourceIndex)?.coerceIn(0f, 1f) ?: 0f
-            val rise = if (target > smoothBands[index]) 0.42f else 0.18f
-            smoothBands[index] += (target - smoothBands[index]) * rise
-            uniformBands[index] = smoothBands[index].coerceIn(0f, 1f)
-        }
+        smoothVisualizerBands(bands, smoothBands, uniformBands)
         if (visualizer.usesHistoryShader) {
             updateHistoryTexture(timeSeconds, active)
         }
-        val bass = uniformBands.take(8).average().toFloat().coerceIn(0f, 1f)
-        val mids = uniformBands.drop(8).take(12).average().toFloat().coerceIn(0f, 1f)
-        val highs = uniformBands.drop(20).average().toFloat().coerceIn(0f, 1f)
+        val frameInput = buildVisualizerFrameInput(
+            width = width,
+            height = height,
+            bands = bands,
+            visibleBands = visibleBands,
+            active = active,
+            timeSeconds = timeSeconds,
+            tempoBpm = tempoBpm,
+            uniformBands = uniformBands,
+        )
 
-        runtimeShader.setFloatUniform("iResolution", width, height)
-        runtimeShader.setFloatUniform("iTime", timeSeconds)
+        runtimeShader.setFloatUniform("iResolution", frameInput.width, frameInput.height)
+        runtimeShader.setFloatUniform("iTime", frameInput.timeSeconds)
         runtimeShader.setFloatUniform("iAccent", visualizerColors.accent.red, visualizerColors.accent.green, visualizerColors.accent.blue, visualizerColors.accent.alpha)
         runtimeShader.setFloatUniform("iColorA", visualizerColors.backgroundStart.red, visualizerColors.backgroundStart.green, visualizerColors.backgroundStart.blue, 1f)
         runtimeShader.setFloatUniform("iColorB", visualizerColors.backgroundMid.red, visualizerColors.backgroundMid.green, visualizerColors.backgroundMid.blue, 1f)
@@ -226,12 +241,18 @@ private class AndroidShaderVisualizerRenderer(
             colors.primaryText.blue,
             colors.primaryText.alpha * 0.16f,
         )
-        runtimeShader.setFloatUniform("iActive", if (active) 1f else 0f)
-        runtimeShader.setFloatUniform("iVisibleBands", visibleBands.toFloat())
-        runtimeShader.setFloatUniform("iSourceBands", bands.size.toFloat().coerceAtLeast(1f))
-        runtimeShader.setFloatUniform("iEnergy", bass, mids, highs, uniformBands.average().toFloat().coerceIn(0f, 1f))
-        runtimeShader.setFloatUniform("iTempo", tempoBpm?.toFloat()?.coerceIn(60f, 220f) ?: 120f)
-        runtimeShader.setFloatUniform("iBands", uniformBands)
+        runtimeShader.setFloatUniform("iActive", if (frameInput.active) 1f else 0f)
+        runtimeShader.setFloatUniform("iVisibleBands", frameInput.visibleBands)
+        runtimeShader.setFloatUniform("iSourceBands", frameInput.sourceBands)
+        runtimeShader.setFloatUniform(
+            "iEnergy",
+            frameInput.energy.bass,
+            frameInput.energy.mids,
+            frameInput.energy.highs,
+            frameInput.energy.energy,
+        )
+        runtimeShader.setFloatUniform("iTempo", frameInput.tempoBpm)
+        runtimeShader.setFloatUniform("iBands", frameInput.bands)
         val albumBitmap = albumArtBitmap ?: fallbackAlbumArtBitmap
         runtimeShader.setFloatUniform("iAlbumArtSize", albumBitmap.width.toFloat(), albumBitmap.height.toFloat())
         if (visualizer.usesHistoryShader) {
@@ -270,24 +291,24 @@ private class AndroidShaderVisualizerRenderer(
         }
         if (!changed && lastHistoryPushSeconds >= 0f) return
         lastHistoryPushSeconds = timeSeconds
-        repeat(AndroidVisualizerShaderBandCount) { index ->
+        repeat(VisualizerFrameBandCount) { index ->
             previousHistoryBands[index] = uniformBands[index]
         }
 
-        val rowWidth = AndroidVisualizerHistoryColumns
+        val rowWidth = VisualizerHistoryColumns
         System.arraycopy(
             historyPixels,
             0,
             historyPixels,
             rowWidth,
-            rowWidth * (AndroidVisualizerHistoryRows - 1),
+            rowWidth * (VisualizerHistoryRows - 1),
         )
-        repeat(AndroidVisualizerHistoryColumns) { column ->
-            val sourceIndex = ((column / (AndroidVisualizerHistoryColumns - 1f)) * (AndroidVisualizerShaderBandCount - 1)).toInt()
+        repeat(VisualizerHistoryColumns) { column ->
+            val sourceIndex = ((column / (VisualizerHistoryColumns - 1f)) * (VisualizerFrameBandCount - 1)).toInt()
             val value = (uniformBands[sourceIndex].coerceIn(0f, 1f) * 255f).toInt().coerceIn(0, 255)
             historyPixels[column] = android.graphics.Color.argb(255, value, value, value)
         }
-        historyBitmap.setPixels(historyPixels, 0, rowWidth, 0, 0, AndroidVisualizerHistoryColumns, AndroidVisualizerHistoryRows)
+        historyBitmap.setPixels(historyPixels, 0, rowWidth, 0, 0, VisualizerHistoryColumns, VisualizerHistoryRows)
         historyShader = historyBitmap.newClampShader(visualizer.historyFilterMode)
     }
 }
@@ -423,9 +444,6 @@ private class AndroidVisualizerPerfLogger(
     }
 }
 
-private const val AndroidVisualizerShaderBandCount = 32
-private const val AndroidVisualizerHistoryColumns = 32
-private const val AndroidVisualizerHistoryRows = 32
 private const val AndroidVisualizerPerfLogIntervalMillis = 5_000L
 private const val AndroidVisualizerPerfLogTag = "NaviampVisualizerPerf"
 

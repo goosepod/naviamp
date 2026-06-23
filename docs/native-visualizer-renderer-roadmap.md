@@ -100,10 +100,10 @@ The first pass can derive `u_beatDetected` and `u_spectralCentroid` from the cur
 
 ### Phase 1: Renderer Boundary
 
-- [ ] Add a shared native visualizer capability flag or renderer mode.
-- [ ] Define a `VisualizerFrameInput` data model independent of Skia.
-- [ ] Keep existing SkSL visualizers unchanged.
-- [ ] Route only selected experimental visualizers to the native backend.
+- [x] Add a shared native visualizer capability flag or renderer mode.
+- [x] Define a `VisualizerFrameInput` data model independent of Skia.
+- [x] Keep existing SkSL visualizers unchanged.
+- [x] Route only selected experimental visualizers to the native backend.
 
 ### Phase 2: Android OpenGL ES Spike
 
@@ -133,4 +133,3 @@ The first pass can derive `u_beatDetected` and `u_spectralCentroid` from the cur
 - Hidden/inactive visualizer cost remains near zero.
 - Shader compile errors are visible in logs and fall back cleanly.
 - Heavy shaders can be quality-gated instead of making the Player unusable.
-

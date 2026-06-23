@@ -43,6 +43,12 @@ internal actual fun PlatformLiveVisualizerSurface(
     val renderPolicy = remember(visualizer) {
         visualizerRenderPolicy(visualizer, jvmVisualizerRenderTier())
     }
+    val rendererMode = remember(visualizer) {
+        selectedVisualizerRendererMode(
+            visualizer = visualizer,
+            nativeRendererAvailable = false,
+        )
+    }
     LaunchedEffect(active, visualizer, renderPolicy.targetFrameIntervalMillis) {
         if (!active) {
             frameMillis = 0L
@@ -68,6 +74,11 @@ internal actual fun PlatformLiveVisualizerSurface(
         } else {
             null
         }
+    }
+
+    if (rendererMode == VisualizerRendererMode.NativeGpu) {
+        CanvasVisualizerSurface(bandsProvider, active, colors, renderPolicy, modifier)
+        return
     }
 
     val effect = remember(visualizer) {
@@ -120,10 +131,10 @@ private class ShaderVisualizerRenderer(
 ) : AutoCloseable {
     private val builder = RuntimeShaderBuilder(effect)
     private val paint = Paint()
-    private val uniformBands = FloatArray(VisualizerShaderBandCount)
-    private val smoothBands = FloatArray(VisualizerShaderBandCount)
+    private val uniformBands = FloatArray(VisualizerFrameBandCount)
+    private val smoothBands = FloatArray(VisualizerFrameBandCount)
     private val historyPixels = ByteArray(VisualizerHistoryColumns * VisualizerHistoryRows * 4)
-    private val previousHistoryBands = FloatArray(VisualizerShaderBandCount)
+    private val previousHistoryBands = FloatArray(VisualizerFrameBandCount)
     private var shader: Shader? = null
     private var historyShader: Shader? = null
     private var historyImage: Image? = null
@@ -147,24 +158,21 @@ private class ShaderVisualizerRenderer(
         timeSeconds: Float,
         tempoBpm: Int?,
     ) {
-        repeat(VisualizerShaderBandCount) { index ->
-            val sourceIndex = if (VisualizerShaderBandCount == 1 || bands.isEmpty()) {
-                0
-            } else {
-                ((index / (VisualizerShaderBandCount - 1f)) * (bands.size - 1)).toInt()
-            }
-            val target = bands.getOrNull(sourceIndex)?.coerceIn(0f, 1f) ?: 0f
-            val rise = if (target > smoothBands[index]) 0.42f else 0.18f
-            smoothBands[index] += (target - smoothBands[index]) * rise
-            uniformBands[index] = smoothBands[index].coerceIn(0f, 1f)
-        }
+        smoothVisualizerBands(bands, smoothBands, uniformBands)
         updateHistoryTexture(timeSeconds, active)
-        val bass = uniformBands.take(8).average().toFloat().coerceIn(0f, 1f)
-        val mids = uniformBands.drop(8).take(12).average().toFloat().coerceIn(0f, 1f)
-        val highs = uniformBands.drop(20).average().toFloat().coerceIn(0f, 1f)
+        val frameInput = buildVisualizerFrameInput(
+            width = width,
+            height = height,
+            bands = bands,
+            visibleBands = visibleBands,
+            active = active,
+            timeSeconds = timeSeconds,
+            tempoBpm = tempoBpm,
+            uniformBands = uniformBands,
+        )
 
-        builder.uniform("iResolution", width, height)
-        builder.uniform("iTime", timeSeconds)
+        builder.uniform("iResolution", frameInput.width, frameInput.height)
+        builder.uniform("iTime", frameInput.timeSeconds)
         builder.uniform("iAccent", visualizerColors.accent.red, visualizerColors.accent.green, visualizerColors.accent.blue, visualizerColors.accent.alpha)
         builder.uniform("iColorA", visualizerColors.backgroundStart.red, visualizerColors.backgroundStart.green, visualizerColors.backgroundStart.blue, 1f)
         builder.uniform("iColorB", visualizerColors.backgroundMid.red, visualizerColors.backgroundMid.green, visualizerColors.backgroundMid.blue, 1f)
@@ -177,12 +185,18 @@ private class ShaderVisualizerRenderer(
             colors.primaryText.blue,
             colors.primaryText.alpha * 0.16f,
         )
-        builder.uniform("iActive", if (active) 1f else 0f)
-        builder.uniform("iVisibleBands", visibleBands.toFloat())
-        builder.uniform("iSourceBands", bands.size.toFloat().coerceAtLeast(1f))
-        builder.uniform("iEnergy", bass, mids, highs, uniformBands.average().toFloat().coerceIn(0f, 1f))
-        builder.uniform("iTempo", tempoBpm?.toFloat()?.coerceIn(60f, 220f) ?: 120f)
-        builder.uniform("iBands", uniformBands)
+        builder.uniform("iActive", if (frameInput.active) 1f else 0f)
+        builder.uniform("iVisibleBands", frameInput.visibleBands)
+        builder.uniform("iSourceBands", frameInput.sourceBands)
+        builder.uniform(
+            "iEnergy",
+            frameInput.energy.bass,
+            frameInput.energy.mids,
+            frameInput.energy.highs,
+            frameInput.energy.energy,
+        )
+        builder.uniform("iTempo", frameInput.tempoBpm)
+        builder.uniform("iBands", frameInput.bands)
         builder.uniform(
             "iAlbumArtSize",
             (albumArtImage?.width ?: 1).toFloat(),
@@ -233,7 +247,7 @@ private class ShaderVisualizerRenderer(
         }
         if (!changed && lastHistoryPushSeconds >= 0f) return
         lastHistoryPushSeconds = timeSeconds
-        repeat(VisualizerShaderBandCount) { index ->
+        repeat(VisualizerFrameBandCount) { index ->
             previousHistoryBands[index] = uniformBands[index]
         }
 
@@ -245,7 +259,7 @@ private class ShaderVisualizerRenderer(
             endIndex = rowBytes * (VisualizerHistoryRows - 1),
         )
         repeat(VisualizerHistoryColumns) { column ->
-            val sourceIndex = ((column / (VisualizerHistoryColumns - 1f)) * (VisualizerShaderBandCount - 1)).toInt()
+            val sourceIndex = ((column / (VisualizerHistoryColumns - 1f)) * (VisualizerFrameBandCount - 1)).toInt()
             val amplitude = uniformBands[sourceIndex].coerceIn(0f, 1f)
             val value = (amplitude * 255f).toInt().coerceIn(0, 255).toByte()
             val pixel = column * 4
@@ -332,9 +346,6 @@ private fun CanvasVisualizerSurface(
     }
 }
 
-private const val VisualizerShaderBandCount = 32
-private const val VisualizerHistoryColumns = 32
-private const val VisualizerHistoryRows = 32
 private const val VisualizerPerfLogIntervalMillis = 5_000L
 private const val VisualizerPerfLogProperty = "naviamp.visualizer.perf"
 private const val VisualizerProfileProperty = "naviamp.visualizer.profile"
