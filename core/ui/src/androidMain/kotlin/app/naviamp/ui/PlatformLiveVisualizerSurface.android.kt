@@ -9,6 +9,7 @@ import android.graphics.RuntimeShader
 import android.graphics.Shader
 import android.opengl.GLES20
 import android.opengl.GLSurfaceView
+import android.opengl.GLUtils
 import android.os.Build
 import android.os.SystemClock
 import android.util.Log
@@ -19,9 +20,11 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameMillis
 import androidx.compose.ui.Modifier
@@ -68,6 +71,7 @@ internal actual fun PlatformLiveVisualizerSurface(
     if (rendererMode == VisualizerRendererMode.NativeGpu) {
         val renderPolicy = visualizerRenderPolicy(visualizer, VisualizerRenderTier.Balanced)
         AndroidNativeGlslVisualizerSurface(
+            coverArtUrl = coverArtUrl,
             bandsProvider = bandsProvider,
             visualizer = visualizer,
             visualizerColors = visualizerColors,
@@ -111,6 +115,7 @@ internal actual fun PlatformLiveVisualizerSurface(
 
 @Composable
 private fun AndroidNativeGlslVisualizerSurface(
+    coverArtUrl: String?,
     bandsProvider: () -> List<Float>,
     visualizer: NaviampVisualizer,
     visualizerColors: NaviampPlayerColors,
@@ -128,8 +133,29 @@ private fun AndroidNativeGlslVisualizerSurface(
     val glViewState: MutableState<GLSurfaceView?> = remember { mutableStateOf(null) }
     val uniformBands = remember(visualizer) { FloatArray(VisualizerFrameBandCount) }
     val smoothBands = remember(visualizer) { FloatArray(VisualizerFrameBandCount) }
+    val latestBandsProvider by rememberUpdatedState(bandsProvider)
+    val latestVisualizerColors by rememberUpdatedState(visualizerColors)
+    val latestColors by rememberUpdatedState(colors)
+    val latestTempoBpm by rememberUpdatedState(tempoBpm)
+    val latestActive by rememberUpdatedState(active)
+    var albumArtBitmap by remember(coverArtUrl) { mutableStateOf<Bitmap?>(null) }
     var surfaceWidth by remember { mutableStateOf(0) }
     var surfaceHeight by remember { mutableStateOf(0) }
+
+    LaunchedEffect(coverArtUrl, renderPolicy.albumArtSidePx) {
+        albumArtBitmap = if (coverArtUrl == null) {
+            null
+        } else {
+            withContext(Dispatchers.IO) {
+                runCatching {
+                    androidPlatformCoverArtBytes(coverArtUrl)
+                        ?.let { decodeSampledBitmap(it, renderPolicy.albumArtSidePx) }
+                }.getOrNull()
+            }
+        }
+        renderer.updateAlbumArt(albumArtBitmap)
+        glViewState.value?.requestRender()
+    }
 
     DisposableEffect(renderer) {
         onDispose {
@@ -138,12 +164,7 @@ private fun AndroidNativeGlslVisualizerSurface(
         }
     }
 
-    LaunchedEffect(active, visualizer, renderPolicy.targetFrameIntervalMillis, surfaceWidth, surfaceHeight) {
-        if (!active) {
-            glViewState.value?.onPause()
-            renderer.updateActive(false)
-            return@LaunchedEffect
-        }
+    LaunchedEffect(visualizer, renderPolicy.targetFrameIntervalMillis, surfaceWidth, surfaceHeight) {
         glViewState.value?.onResume()
         var lastRenderedFrameMillis = 0L
         while (true) {
@@ -152,48 +173,46 @@ private fun AndroidNativeGlslVisualizerSurface(
                     nextFrameMillis - lastRenderedFrameMillis >= renderPolicy.targetFrameIntervalMillis
                 ) {
                     lastRenderedFrameMillis = nextFrameMillis
-                    val bands = bandsProvider()
+                    val bands = latestBandsProvider()
                     smoothVisualizerBands(bands, smoothBands, uniformBands)
                     val frameInput = buildVisualizerFrameInput(
                         width = surfaceWidth.toFloat(),
                         height = surfaceHeight.toFloat(),
                         bands = bands,
                         visibleBands = minOf(bands.size, VisualizerFrameBandCount).coerceAtLeast(1),
-                        active = active,
+                        active = latestActive,
                         timeSeconds = nextFrameMillis / 1000f,
-                        tempoBpm = tempoBpm,
+                        tempoBpm = latestTempoBpm,
                         uniformBands = uniformBands,
                     )
-                    renderer.updateFrame(frameInput, visualizerColors, colors)
+                    renderer.updateFrame(frameInput, latestVisualizerColors, latestColors)
                     glViewState.value?.requestRender()
                 }
             }
         }
     }
 
-    AndroidView(
-        modifier = modifier.onSizeChanged { size ->
-            surfaceWidth = size.width
-            surfaceHeight = size.height
-        },
-        factory = {
-            GLSurfaceView(context).apply {
-                setEGLContextClientVersion(2)
-                preserveEGLContextOnPause = true
-                setRenderer(renderer)
-                renderMode = GLSurfaceView.RENDERMODE_WHEN_DIRTY
-                glViewState.value = this
-            }
-        },
-        update = { view ->
-            glViewState.value = view
-            if (active) {
+    key(visualizer, renderPolicy.tier) {
+        AndroidView(
+            modifier = modifier.onSizeChanged { size ->
+                surfaceWidth = size.width
+                surfaceHeight = size.height
+            },
+            factory = {
+                GLSurfaceView(context).apply {
+                    setEGLContextClientVersion(3)
+                    preserveEGLContextOnPause = true
+                    setRenderer(renderer)
+                    renderMode = GLSurfaceView.RENDERMODE_WHEN_DIRTY
+                    glViewState.value = this
+                }
+            },
+            update = { view ->
+                glViewState.value = view
                 view.onResume()
-            } else {
-                view.onPause()
-            }
-        },
-    )
+            },
+        )
+    }
 }
 
 @RequiresApi(Build.VERSION_CODES.TIRAMISU)
@@ -416,14 +435,23 @@ private class AndroidNativeGlslVisualizerRenderer(
     private val renderPolicy: VisualizerRenderPolicy,
     performanceLoggingEnabled: Boolean,
 ) : GLSurfaceView.Renderer, AutoCloseable {
+    private val shaderSpec = visualizer.nativeGlslShaderSpec(renderPolicy)
     private val perfLogger = AndroidVisualizerPerfLogger("native-gl", visualizer, renderPolicy, performanceLoggingEnabled)
     private val frameLock = Any()
     private var latestFrame: VisualizerFrameInput? = null
     private var latestPalette = NativeGlslPalette()
+    private var latestAlbumArtBitmap: Bitmap? = null
+    private var uploadedAlbumArtBitmap: Bitmap? = null
     private var program = 0
+    private var screenProgram = 0
     private var frequencyTexture = 0
-    private var positionHandle = -1
-    private var uvHandle = -1
+    private var albumArtTexture = 0
+    private var albumArtWidth = 1
+    private var albumArtHeight = 1
+    private var framebuffer = 0
+    private var framebufferTexture = 0
+    private var framebufferWidth = 0
+    private var framebufferHeight = 0
     private var surfaceWidth = 1
     private var surfaceHeight = 1
     private val vertexBuffer = nativeFloatBuffer(
@@ -478,6 +506,12 @@ private class AndroidNativeGlslVisualizerRenderer(
         }
     }
 
+    fun updateAlbumArt(bitmap: Bitmap?) {
+        synchronized(frameLock) {
+            latestAlbumArtBitmap = bitmap
+        }
+    }
+
     fun updateActive(active: Boolean) {
         synchronized(frameLock) {
             latestFrame = latestFrame?.copy(active = active)
@@ -485,10 +519,11 @@ private class AndroidNativeGlslVisualizerRenderer(
     }
 
     override fun onSurfaceCreated(gl: GL10?, config: EGLConfig?) {
-        program = buildProgram(NativeGlslVertexShader, NativeGlslProbeFragmentShader)
-        positionHandle = GLES20.glGetAttribLocation(program, "a_position")
-        uvHandle = GLES20.glGetAttribLocation(program, "a_uv")
+        program = buildProgram(NativeGlslVertexShader, shaderSpec.fragmentSource)
+        screenProgram = buildProgram(NativeGlslVertexShader, NativeGlslBlitFragmentShader)
         frequencyTexture = createFrequencyTexture()
+        albumArtTexture = createAlbumArtTexture()
+        uploadedAlbumArtBitmap = null
         GLES20.glClearColor(0f, 0f, 0f, 0f)
     }
 
@@ -502,46 +537,75 @@ private class AndroidNativeGlslVisualizerRenderer(
         val drawStartedNanos = System.nanoTime()
         val frame: VisualizerFrameInput?
         val palette: NativeGlslPalette
+        val albumArtBitmap: Bitmap?
         synchronized(frameLock) {
             frame = latestFrame
             palette = latestPalette
+            albumArtBitmap = latestAlbumArtBitmap
         }
         GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT)
-        if (program == 0 || frequencyTexture == 0 || frame == null) {
+        if (program == 0 || frequencyTexture == 0 || albumArtTexture == 0 || frame == null) {
             perfLogger.record(System.nanoTime() - drawStartedNanos, active = false)
             return
         }
+        ensureFramebuffer()
         uploadFrequencyTexture(frame.bands)
+        uploadAlbumArtTextureIfNeeded(albumArtBitmap)
+        GLES20.glBindFramebuffer(GLES20.GL_FRAMEBUFFER, framebuffer)
+        GLES20.glViewport(0, 0, framebufferWidth, framebufferHeight)
+        GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT)
         GLES20.glUseProgram(program)
-        vertexBuffer.position(0)
-        GLES20.glEnableVertexAttribArray(positionHandle)
-        GLES20.glVertexAttribPointer(positionHandle, 2, GLES20.GL_FLOAT, false, NativeGlslVertexStrideBytes, vertexBuffer)
-        vertexBuffer.position(2)
-        GLES20.glEnableVertexAttribArray(uvHandle)
-        GLES20.glVertexAttribPointer(uvHandle, 2, GLES20.GL_FLOAT, false, NativeGlslVertexStrideBytes, vertexBuffer)
+        val shaderQuad = bindShaderQuad(program)
 
-        GLES20.glUniform1f(uniform("u_time"), frame.timeSeconds)
-        GLES20.glUniform2f(uniform("u_resolution"), surfaceWidth.toFloat(), surfaceHeight.toFloat())
-        GLES20.glUniform1f(uniform("u_energyLevel"), frame.energy.energy)
-        GLES20.glUniform1f(uniform("u_bassLevel"), frame.energy.bass)
-        GLES20.glUniform1f(uniform("u_midLevel"), frame.energy.mids)
-        GLES20.glUniform1f(uniform("u_trebleLevel"), frame.energy.highs)
-        GLES20.glUniform1f(uniform("u_spectralCentroid"), frame.energy.spectralCentroid)
-        GLES20.glUniform1f(uniform("u_tempoBpm"), frame.tempoBpm)
-        GLES20.glUniform1f(uniform("u_beatDetected"), frame.energy.beatDetected)
-        GLES20.glUniform1f(uniform("u_active"), if (frame.active) 1f else 0f)
-        GLES20.glUniform4fv(uniform("u_accent"), 1, palette.accent, 0)
-        GLES20.glUniform4fv(uniform("u_readable"), 1, palette.readable, 0)
-        GLES20.glUniform4fv(uniform("u_colorA"), 1, palette.colorA, 0)
-        GLES20.glUniform4fv(uniform("u_colorB"), 1, palette.colorB, 0)
-        GLES20.glUniform4fv(uniform("u_colorC"), 1, palette.colorC, 0)
+        GLES20.glUniform1f(uniform(program, "u_time"), frame.timeSeconds)
+        GLES20.glUniform2f(uniform(program, "u_resolution"), framebufferWidth.toFloat(), framebufferHeight.toFloat())
+        GLES20.glUniform1f(uniform(program, "u_energyLevel"), frame.energy.energy)
+        GLES20.glUniform1f(uniform(program, "u_bassLevel"), frame.energy.bass)
+        GLES20.glUniform1f(uniform(program, "u_midLevel"), frame.energy.mids)
+        GLES20.glUniform1f(uniform(program, "u_trebleLevel"), frame.energy.highs)
+        GLES20.glUniform1f(uniform(program, "u_spectralCentroid"), frame.energy.spectralCentroid)
+        GLES20.glUniform1f(uniform(program, "u_tempoBpm"), frame.tempoBpm)
+        GLES20.glUniform1f(uniform(program, "u_beatDetected"), frame.energy.beatDetected)
+        GLES20.glUniform1f(uniform(program, "u_active"), if (frame.active) 1f else 0f)
+        GLES20.glUniform1f(uniform(program, "u_renderScale"), shaderSpec.renderScale)
+        GLES20.glUniform1i(uniform(program, "u_maxRaymarchSteps"), shaderSpec.maxRaymarchSteps)
+        GLES20.glUniform2f(uniform(program, "u_albumArtSize"), albumArtWidth.toFloat(), albumArtHeight.toFloat())
+        GLES20.glUniform4fv(uniform(program, "u_accent"), 1, palette.accent, 0)
+        GLES20.glUniform4fv(uniform(program, "u_readable"), 1, palette.readable, 0)
+        GLES20.glUniform4fv(uniform(program, "u_colorA"), 1, palette.colorA, 0)
+        GLES20.glUniform4fv(uniform(program, "u_colorB"), 1, palette.colorB, 0)
+        GLES20.glUniform4fv(uniform(program, "u_colorC"), 1, palette.colorC, 0)
         GLES20.glActiveTexture(GLES20.GL_TEXTURE0)
         GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, frequencyTexture)
-        GLES20.glUniform1i(uniform("u_frequencyTexture"), 0)
+        GLES20.glUniform1i(uniform(program, "u_frequencyTexture"), 0)
+        GLES20.glActiveTexture(GLES20.GL_TEXTURE1)
+        GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, albumArtTexture)
+        GLES20.glUniform1i(uniform(program, "u_albumArtTexture"), 1)
         GLES20.glDrawArrays(GLES20.GL_TRIANGLE_STRIP, 0, 4)
-        GLES20.glDisableVertexAttribArray(positionHandle)
-        GLES20.glDisableVertexAttribArray(uvHandle)
+        shaderQuad.disable()
+
+        GLES20.glBindFramebuffer(GLES20.GL_FRAMEBUFFER, 0)
+        GLES20.glViewport(0, 0, surfaceWidth, surfaceHeight)
+        GLES20.glUseProgram(screenProgram)
+        val screenQuad = bindShaderQuad(screenProgram)
+        GLES20.glActiveTexture(GLES20.GL_TEXTURE0)
+        GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, framebufferTexture)
+        GLES20.glUniform1i(uniform(screenProgram, "u_texture"), 0)
+        GLES20.glDrawArrays(GLES20.GL_TRIANGLE_STRIP, 0, 4)
+        screenQuad.disable()
         perfLogger.record(System.nanoTime() - drawStartedNanos, frame.active)
+    }
+
+    private fun bindShaderQuad(drawProgram: Int): NativeGlslQuadBinding {
+        val drawPositionHandle = GLES20.glGetAttribLocation(drawProgram, "a_position")
+        val drawUvHandle = GLES20.glGetAttribLocation(drawProgram, "a_uv")
+        vertexBuffer.position(0)
+        GLES20.glEnableVertexAttribArray(drawPositionHandle)
+        GLES20.glVertexAttribPointer(drawPositionHandle, 2, GLES20.GL_FLOAT, false, NativeGlslVertexStrideBytes, vertexBuffer)
+        vertexBuffer.position(2)
+        GLES20.glEnableVertexAttribArray(drawUvHandle)
+        GLES20.glVertexAttribPointer(drawUvHandle, 2, GLES20.GL_FLOAT, false, NativeGlslVertexStrideBytes, vertexBuffer)
+        return NativeGlslQuadBinding(drawPositionHandle, drawUvHandle)
     }
 
     override fun close() {
@@ -549,10 +613,19 @@ private class AndroidNativeGlslVisualizerRenderer(
             GLES20.glDeleteProgram(program)
             program = 0
         }
+        if (screenProgram != 0) {
+            GLES20.glDeleteProgram(screenProgram)
+            screenProgram = 0
+        }
         if (frequencyTexture != 0) {
             GLES20.glDeleteTextures(1, intArrayOf(frequencyTexture), 0)
             frequencyTexture = 0
         }
+        if (albumArtTexture != 0) {
+            GLES20.glDeleteTextures(1, intArrayOf(albumArtTexture), 0)
+            albumArtTexture = 0
+        }
+        deleteFramebuffer()
     }
 
     private fun uploadFrequencyTexture(bands: FloatArray) {
@@ -601,7 +674,112 @@ private class AndroidNativeGlslVisualizerRenderer(
         return texture
     }
 
-    private fun uniform(name: String): Int = GLES20.glGetUniformLocation(program, name)
+    private fun createAlbumArtTexture(): Int {
+        val textures = IntArray(1)
+        GLES20.glGenTextures(1, textures, 0)
+        val texture = textures[0]
+        GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, texture)
+        GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MIN_FILTER, GLES20.GL_LINEAR)
+        GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MAG_FILTER, GLES20.GL_LINEAR)
+        GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_WRAP_S, GLES20.GL_CLAMP_TO_EDGE)
+        GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_WRAP_T, GLES20.GL_CLAMP_TO_EDGE)
+        GLES20.glTexImage2D(
+            GLES20.GL_TEXTURE_2D,
+            0,
+            GLES20.GL_RGBA,
+            1,
+            1,
+            0,
+            GLES20.GL_RGBA,
+            GLES20.GL_UNSIGNED_BYTE,
+            ByteBuffer.wrap(byteArrayOf(255.toByte(), 255.toByte(), 255.toByte(), 255.toByte())),
+        )
+        return texture
+    }
+
+    private fun uploadAlbumArtTextureIfNeeded(bitmap: Bitmap?) {
+        if (uploadedAlbumArtBitmap === bitmap) return
+        GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, albumArtTexture)
+        if (bitmap == null || bitmap.isRecycled) {
+            GLES20.glTexImage2D(
+                GLES20.GL_TEXTURE_2D,
+                0,
+                GLES20.GL_RGBA,
+                1,
+                1,
+                0,
+                GLES20.GL_RGBA,
+                GLES20.GL_UNSIGNED_BYTE,
+                ByteBuffer.wrap(byteArrayOf(255.toByte(), 255.toByte(), 255.toByte(), 255.toByte())),
+            )
+            albumArtWidth = 1
+            albumArtHeight = 1
+        } else {
+            GLUtils.texImage2D(GLES20.GL_TEXTURE_2D, 0, bitmap, 0)
+            albumArtWidth = bitmap.width.coerceAtLeast(1)
+            albumArtHeight = bitmap.height.coerceAtLeast(1)
+        }
+        uploadedAlbumArtBitmap = bitmap
+    }
+
+    private fun ensureFramebuffer() {
+        val targetWidth = (surfaceWidth * shaderSpec.renderScale).toInt().coerceAtLeast(64)
+        val targetHeight = (surfaceHeight * shaderSpec.renderScale).toInt().coerceAtLeast(64)
+        if (framebuffer != 0 && framebufferWidth == targetWidth && framebufferHeight == targetHeight) return
+        deleteFramebuffer()
+        framebufferWidth = targetWidth
+        framebufferHeight = targetHeight
+        val textures = IntArray(1)
+        GLES20.glGenTextures(1, textures, 0)
+        framebufferTexture = textures[0]
+        GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, framebufferTexture)
+        GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MIN_FILTER, GLES20.GL_LINEAR)
+        GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MAG_FILTER, GLES20.GL_LINEAR)
+        GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_WRAP_S, GLES20.GL_CLAMP_TO_EDGE)
+        GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_WRAP_T, GLES20.GL_CLAMP_TO_EDGE)
+        GLES20.glTexImage2D(
+            GLES20.GL_TEXTURE_2D,
+            0,
+            GLES20.GL_RGBA,
+            framebufferWidth,
+            framebufferHeight,
+            0,
+            GLES20.GL_RGBA,
+            GLES20.GL_UNSIGNED_BYTE,
+            null,
+        )
+        val framebuffers = IntArray(1)
+        GLES20.glGenFramebuffers(1, framebuffers, 0)
+        framebuffer = framebuffers[0]
+        GLES20.glBindFramebuffer(GLES20.GL_FRAMEBUFFER, framebuffer)
+        GLES20.glFramebufferTexture2D(
+            GLES20.GL_FRAMEBUFFER,
+            GLES20.GL_COLOR_ATTACHMENT0,
+            GLES20.GL_TEXTURE_2D,
+            framebufferTexture,
+            0,
+        )
+        if (GLES20.glCheckFramebufferStatus(GLES20.GL_FRAMEBUFFER) != GLES20.GL_FRAMEBUFFER_COMPLETE) {
+            Log.e(AndroidVisualizerPerfLogTag, "Native GLSL framebuffer is incomplete for ${visualizer.name}")
+            deleteFramebuffer()
+        }
+        GLES20.glBindFramebuffer(GLES20.GL_FRAMEBUFFER, 0)
+    }
+
+    private fun deleteFramebuffer() {
+        if (framebufferTexture != 0) {
+            GLES20.glDeleteTextures(1, intArrayOf(framebufferTexture), 0)
+            framebufferTexture = 0
+        }
+        if (framebuffer != 0) {
+            GLES20.glDeleteFramebuffers(1, intArrayOf(framebuffer), 0)
+            framebuffer = 0
+        }
+        framebufferWidth = 0
+        framebufferHeight = 0
+    }
+
+    private fun uniform(programHandle: Int, name: String): Int = GLES20.glGetUniformLocation(programHandle, name)
 
     private fun buildProgram(vertexSource: String, fragmentSource: String): Int {
         val vertexShader = compileShader(GLES20.GL_VERTEX_SHADER, vertexSource)
@@ -630,7 +808,11 @@ private class AndroidNativeGlslVisualizerRenderer(
         val compileStatus = IntArray(1)
         GLES20.glGetShaderiv(shader, GLES20.GL_COMPILE_STATUS, compileStatus, 0)
         if (compileStatus[0] == 0) {
-            Log.e(AndroidVisualizerPerfLogTag, "Failed to compile native GLSL visualizer: ${GLES20.glGetShaderInfoLog(shader)}")
+            Log.e(
+                AndroidVisualizerPerfLogTag,
+                "Failed to compile native GLSL visualizer type=$type firstLine=${source.lineSequence().firstOrNull()} " +
+                    "error=${GLES20.glGetShaderInfoLog(shader)}",
+            )
             GLES20.glDeleteShader(shader)
             return 0
         }
@@ -645,6 +827,80 @@ private data class NativeGlslPalette(
     val colorB: FloatArray = floatArrayOf(0f, 0f, 0f, 1f),
     val colorC: FloatArray = floatArrayOf(0f, 0f, 0f, 1f),
 )
+
+private data class NativeGlslShaderSpec(
+    val fragmentSource: String,
+    val renderScale: Float,
+    val maxRaymarchSteps: Int = 0,
+)
+
+private data class NativeGlslQuadBinding(
+    val positionHandle: Int,
+    val uvHandle: Int,
+) {
+    fun disable() {
+        GLES20.glDisableVertexAttribArray(positionHandle)
+        GLES20.glDisableVertexAttribArray(uvHandle)
+    }
+}
+
+private fun NaviampVisualizer.nativeGlslShaderSpec(renderPolicy: VisualizerRenderPolicy): NativeGlslShaderSpec =
+    when (this) {
+        NaviampVisualizer.AnalogSignalFailure -> NativeGlslShaderSpec(
+            fragmentSource = requireNotNull(nativeShaderDefinition).fragmentSource,
+            renderScale = when (renderPolicy.tier) {
+                VisualizerRenderTier.Full -> 1.0f
+                VisualizerRenderTier.Balanced -> 0.82f
+                VisualizerRenderTier.Constrained -> 0.65f
+            },
+        )
+        NaviampVisualizer.FluidicNebulae -> NativeGlslShaderSpec(
+            fragmentSource = requireNotNull(nativeShaderDefinition).fragmentSource,
+            renderScale = when (renderPolicy.tier) {
+                VisualizerRenderTier.Full -> 1.0f
+                VisualizerRenderTier.Balanced -> 0.82f
+                VisualizerRenderTier.Constrained -> 0.65f
+            },
+        )
+        NaviampVisualizer.OceanHorizon -> NativeGlslShaderSpec(
+            fragmentSource = requireNotNull(nativeShaderDefinition).fragmentSource,
+            renderScale = when (renderPolicy.tier) {
+                VisualizerRenderTier.Full -> 0.82f
+                VisualizerRenderTier.Balanced -> 0.62f
+                VisualizerRenderTier.Constrained -> 0.48f
+            },
+            maxRaymarchSteps = when (renderPolicy.tier) {
+                VisualizerRenderTier.Full -> 60
+                VisualizerRenderTier.Balanced -> 60
+                VisualizerRenderTier.Constrained -> 42
+            },
+        )
+        NaviampVisualizer.OceanOfInk -> NativeGlslShaderSpec(
+            fragmentSource = requireNotNull(nativeShaderDefinition).fragmentSource,
+            renderScale = when (renderPolicy.tier) {
+                VisualizerRenderTier.Full -> 1.0f
+                VisualizerRenderTier.Balanced -> 0.82f
+                VisualizerRenderTier.Constrained -> 0.65f
+            },
+        )
+        NaviampVisualizer.RaymarchedSphereLiquid -> NativeGlslShaderSpec(
+            fragmentSource = requireNotNull(nativeShaderDefinition).fragmentSource,
+            renderScale = when (renderPolicy.tier) {
+                VisualizerRenderTier.Full -> 1.0f
+                VisualizerRenderTier.Balanced -> 0.82f
+                VisualizerRenderTier.Constrained -> 0.65f
+            },
+            maxRaymarchSteps = when (renderPolicy.tier) {
+                VisualizerRenderTier.Full -> 80
+                VisualizerRenderTier.Balanced -> 64
+                VisualizerRenderTier.Constrained -> 48
+            },
+        )
+        else -> NativeGlslShaderSpec(
+            fragmentSource = NativeGlslShaderSources.FluidicNebulae,
+            renderScale = 1.0f,
+        )
+    }
 
 private fun nativeFloatBuffer(values: FloatArray): FloatBuffer =
     ByteBuffer
@@ -730,7 +986,11 @@ private fun AndroidCanvasVisualizerSurface(
             NaviampVisualizer.PixelRidge,
             NaviampVisualizer.PixelMountain,
             NaviampVisualizer.FrequencyTerrain -> drawFrequencyTerrain(samples, visualizerColors, colors)
-            NaviampVisualizer.NativeGlslProbe -> drawReactiveBars(samples, colors)
+            NaviampVisualizer.AnalogSignalFailure -> drawReactiveBars(samples, colors)
+            NaviampVisualizer.FluidicNebulae -> drawFluidGradient(samples, visualizerColors, colors, timeSeconds)
+            NaviampVisualizer.OceanHorizon,
+            NaviampVisualizer.OceanOfInk -> drawFrequencyTerrain(samples, visualizerColors, colors)
+            NaviampVisualizer.RaymarchedSphereLiquid -> drawAudioSphere(samples, visualizerColors, colors, timeSeconds)
             NaviampVisualizer.ParticleField,
             NaviampVisualizer.ParticleGalaxy -> drawParticleField(samples, visualizerColors, colors, timeSeconds, galaxy = visualizer == NaviampVisualizer.ParticleGalaxy)
             NaviampVisualizer.AlbumArtReactive -> drawAlbumArtReactive(samples, visualizerColors, colors, energy)
@@ -792,10 +1052,11 @@ private const val AndroidVisualizerPerfLogIntervalMillis = 5_000L
 private const val AndroidVisualizerPerfLogTag = "NaviampVisualizerPerf"
 private const val NativeGlslVertexStrideBytes = 4 * Float.SIZE_BYTES
 
-private const val NativeGlslVertexShader = """
-attribute vec2 a_position;
-attribute vec2 a_uv;
-varying vec2 v_uv;
+private const val NativeGlslVertexShader = """#version 300 es
+
+in vec2 a_position;
+in vec2 a_uv;
+out vec2 v_uv;
 
 void main() {
     v_uv = a_uv;
@@ -803,53 +1064,15 @@ void main() {
 }
 """
 
-private const val NativeGlslProbeFragmentShader = """
+private const val NativeGlslBlitFragmentShader = """#version 300 es
 precision mediump float;
 
-uniform float u_time;
-uniform vec2 u_resolution;
-uniform float u_energyLevel;
-uniform float u_bassLevel;
-uniform float u_midLevel;
-uniform float u_trebleLevel;
-uniform float u_spectralCentroid;
-uniform float u_tempoBpm;
-uniform float u_beatDetected;
-uniform float u_active;
-uniform vec4 u_accent;
-uniform vec4 u_readable;
-uniform vec4 u_colorA;
-uniform vec4 u_colorB;
-uniform vec4 u_colorC;
-uniform sampler2D u_frequencyTexture;
-
-varying vec2 v_uv;
+uniform sampler2D u_texture;
+in vec2 v_uv;
+out vec4 outColor;
 
 void main() {
-    float band = texture2D(u_frequencyTexture, vec2(v_uv.x, 0.5)).r;
-    float radial = smoothstep(0.84, 0.08, distance(v_uv, vec2(0.5)));
-    float sweep = 0.5 + 0.5 * sin(v_uv.x * 5.0 + v_uv.y * 3.2 + u_time * 0.08);
-    vec3 gradient = mix(mix(u_colorA.rgb, u_colorB.rgb, v_uv.x), u_colorC.rgb, v_uv.y * 0.62);
-    vec3 background = gradient * (0.52 + radial * 0.34 + sweep * 0.08);
-    background = mix(background, u_accent.rgb, radial * (0.06 + u_energyLevel * 0.08));
-
-    if (u_active < 0.5) {
-        float idle = 1.0 - smoothstep(0.006, 0.018, abs(v_uv.y - 0.5));
-        vec3 idleColor = background + u_readable.rgb * idle * 0.14;
-        gl_FragColor = vec4(idleColor, 1.0);
-        return;
-    }
-
-    float bar = smoothstep(0.0, 0.012, abs(v_uv.y - 0.5) - band * 0.44);
-    bar = 1.0 - bar;
-    float pulse = 0.74 + 0.26 * sin(u_time * (1.4 + u_bassLevel * 2.0) + v_uv.x * 18.0);
-    float scan = 0.86 + 0.14 * sin((v_uv.y * u_resolution.y) * 0.45);
-    vec3 color = mix(gradient, u_accent.rgb, 0.25 + u_trebleLevel * 0.35);
-    color = mix(color, u_readable.rgb, bar * 0.16 + u_beatDetected * 0.18);
-    float glow = smoothstep(0.62, 0.0, distance(v_uv, vec2(0.5))) * (0.08 + u_energyLevel * 0.18);
-    float lane = smoothstep(0.58, 0.0, abs(v_uv.y - 0.5));
-    vec3 visual = color * (bar * pulse + glow + lane * band * 0.10) * scan;
-    gl_FragColor = vec4(background + visual, 1.0);
+    outColor = texture(u_texture, v_uv);
 }
 """
 

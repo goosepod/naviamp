@@ -4,12 +4,12 @@ This branch explores a second visualizer rendering pipeline for shader effects t
 
 ## Goal
 
-Support richer visualizers, including full GLSL-style effects, without forcing every effect through Compose Canvas or SkSL.
+Support richer visualizers, including full GLSL-style effects, without manually approximating imported shaders per platform.
 
 The new renderer should stay as platform-agnostic as practical at the app boundary:
 
 - Shared visualizer selection, settings, audio analysis, tempo, color palette, and frame input.
-- Shared shader metadata and uniform names where possible.
+- Shared shader metadata, uniform names, and canonical shader identity.
 - Platform-specific GPU context and surface ownership.
 - Platform-specific shader dialects where necessary.
 
@@ -37,10 +37,10 @@ Now Playing UI
        palette colors
        active/paused state
        elapsed time
-  -> PlatformNativeVisualizerSurface
+  -> platform renderer
        Android: OpenGL ES surface
-       Windows/Linux: OpenGL surface
-       macOS: Metal surface if feasible, OpenGL fallback only as a spike
+       Desktop simple effects: Compose/Skia RuntimeShader surface
+       Desktop imported shaders: native host required before the effect is supported
 ```
 
 ## Backend Strategy
@@ -58,9 +58,8 @@ Start here because it is the current pain point.
 
 ### Windows And Linux Desktop
 
-- Use OpenGL first.
-- Evaluate LWJGL or a small purpose-built renderer module.
-- Avoid tying this to Skiko internals.
+- Keep using SkSL until there is a platform-native surface that composes safely inside the existing app window.
+- If this becomes a priority, evaluate OpenGL through a purpose-built renderer module, not by embedding AWT into Compose.
 - Keep the Compose integration isolated because embedded native surfaces can have layering/input issues.
 
 ### macOS
@@ -73,9 +72,10 @@ Metal is the right long-term target, but it is not as simple as "use GLSL":
 
 Pragmatic path:
 
-- Keep SkSL/Skiko as the macOS fallback during Android/Windows bring-up.
-- Spike a Metal backend only after the OpenGL path proves the renderer contract.
-- If Metal becomes too expensive to maintain, keep macOS on SkSL for stable visualizers and use native GLSL on Android/Windows where it helps most.
+- Keep SkSL/Skiko as the macOS renderer for this branch.
+- Do not use the LWJGL/AWT OpenGL bridge in-app; macOS testing showed driver crashes and AWT/AppKit run-loop hangs when embedded in the Compose window.
+- Spike a real Metal backend only if we are ready to own a native view bridge and MSL/translation workflow.
+- If Metal becomes too expensive to maintain, keep macOS on SkSL for stable/simple visualizers and mark imported native shaders unsupported on macOS instead of approximating them.
 
 ## Shader Contract
 
@@ -104,6 +104,9 @@ The first pass can derive `u_beatDetected` and `u_spectralCentroid` from the cur
 - [x] Define a `VisualizerFrameInput` data model independent of Skia.
 - [x] Keep existing SkSL visualizers unchanged.
 - [x] Route only selected experimental visualizers to the native backend.
+- [x] Add shared native shader definitions so imported effects have canonical shader identities independent of platform renderer code.
+- [x] Stop mapping imported native-only visualizers to desktop SkSL approximations.
+- [x] Move canonical GLSL source text out of platform renderer files and into shared shader assets/source consumed by each native backend.
 
 ### Phase 2: Android OpenGL ES Spike
 
@@ -113,25 +116,38 @@ The first pass can derive `u_beatDetected` and `u_spectralCentroid` from the cur
 - [x] Add lifecycle handling for pause/resume/context loss.
 - [x] Add logcat compile errors and FPS/draw timing with the existing `NaviampVisualizerPerf` shape.
 - [x] Blend the native GL surface background with album-art/player colors instead of rendering a black backing area.
-- [ ] Add album-art texture sampling to the native GL renderer so effects can react to the actual cover image, not only extracted player colors.
+- [x] Add album-art texture sampling to the native GL renderer so effects can react to the actual cover image, not only extracted player colors.
 
 ### Phase 3: Heavy Shader Support
 
-- [ ] Run full `Fluidic Nebulae` through the native GLSL backend.
-- [ ] Run full or near-full `Ocean of Ink` with quality controls.
-- [ ] Add render resolution scale for heavy shaders.
-- [ ] Add max raymarch step settings per platform/tier.
+- [x] Run full `Fluidic Nebulae` through the native GLSL backend.
+- [x] Run full or near-full `Ocean of Ink` with quality controls.
+- [x] Add `Analog Signal Failure` through the native GLSL backend with album-art/player palette colors.
+- [x] Add `Liquid sphere` through the native GLSL backend with album-art/player palette colors.
+- [x] Add render resolution scale for heavy shaders.
+- [x] Add max raymarch step settings per platform/tier.
 
-### Phase 4: Desktop Native Spike
+### Native Upgrade Candidates
 
-- [ ] Evaluate OpenGL desktop surface integration.
-- [ ] Verify macOS layering/click behavior before committing to an embedded native surface.
-- [ ] Decide whether macOS should use Metal, OpenGL fallback, or stay on SkSL.
+- `Audio tunnel`: best next candidate. The current Skia version is constrained by 2D drawing, while the desired effect is a camera-moving-through-geometry shader with stable ribs, depth, turns, and audio deformation.
+- `Wave interference`: strong candidate. It has shown visual stability issues in the Skia path and would map cleanly to a native full-screen fragment shader.
+- `Particle galaxy` / `Particle field`: optional candidate. Native rendering would allow more particles and better blending, but current behavior is already acceptable.
+- `Spectral ridge`, `Mountains`, `Pixel mountains`, and `Pixel ridge`: lower priority. These were tuned on the existing path and currently feel good; move them only if Android/Windows profiling shows real cost.
+- `Reactive bars`, `Fluid gradient`, `Vinyl groove`, `Ribbon trail`, and `Album art`: keep on Skia for now unless a specific visual limitation appears.
+
+### Phase 4: Desktop Renderer Decision
+
+- [x] Evaluate embedded LWJGL/AWT OpenGL surface integration.
+- [x] Reject the embedded LWJGL/AWT path for the in-app macOS renderer after testing exposed Apple driver crashes and AWT/AppKit run-loop hangs inside the Compose window.
+- [x] Remove the desktop LWJGL/AWT implementation and dependencies from the active app path.
+- [x] Replace desktop SkSL approximations for imported shaders with a native-renderer-required placeholder.
+- [ ] Add a real desktop native shader host so `Analog signal failure`, `Fluidic nebulae`, `Ocean horizon`, `Ocean of ink`, and `Liquid sphere` can run from their canonical shader sources.
+- [ ] Revisit a true macOS native renderer only as a Metal/AppKit bridge, not as AWT-embedded OpenGL.
 
 ## Acceptance Criteria
 
-- Existing SkSL visualizers still work and remain the default.
-- Android can run at least one GLSL visualizer without Skia RuntimeShader.
+- Existing SkSL visualizers still work and remain the desktop default.
+- Android can run GLSL visualizers without Skia RuntimeShader.
 - Hidden/inactive visualizer cost remains near zero.
 - Shader compile errors are visible in logs and fall back cleanly.
 - Heavy shaders can be quality-gated instead of making the Player unusable.

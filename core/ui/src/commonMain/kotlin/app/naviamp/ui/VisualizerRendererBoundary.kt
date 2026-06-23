@@ -34,23 +34,31 @@ internal data class VisualizerFrameInput(
 }
 
 internal val NaviampVisualizer.preferredRendererMode: VisualizerRendererMode
-    get() = when (this) {
-        NaviampVisualizer.AlbumArtReactive,
-        NaviampVisualizer.AudioSphere,
-        NaviampVisualizer.AudioTunnel,
-        NaviampVisualizer.FluidGradient,
-        NaviampVisualizer.FrequencyTerrain,
-        NaviampVisualizer.FftMountain,
-        NaviampVisualizer.ParticleField,
-        NaviampVisualizer.ParticleGalaxy,
-        NaviampVisualizer.PixelMountain,
-        NaviampVisualizer.PixelRidge,
-        NaviampVisualizer.ReactiveBars,
-        NaviampVisualizer.RibbonTrail,
-        NaviampVisualizer.SpectralRidge,
-        NaviampVisualizer.WaveInterference,
-        NaviampVisualizer.VinylGroove -> VisualizerRendererMode.SkiaRuntimeShader
-        NaviampVisualizer.NativeGlslProbe -> VisualizerRendererMode.NativeGpu
+    get() = if (nativeShaderDefinition != null) {
+        VisualizerRendererMode.NativeGpu
+    } else {
+        when (this) {
+            NaviampVisualizer.AlbumArtReactive,
+            NaviampVisualizer.AnalogSignalFailure,
+            NaviampVisualizer.AudioSphere,
+            NaviampVisualizer.AudioTunnel,
+            NaviampVisualizer.FluidicNebulae,
+            NaviampVisualizer.FluidGradient,
+            NaviampVisualizer.FrequencyTerrain,
+            NaviampVisualizer.FftMountain,
+            NaviampVisualizer.OceanHorizon,
+            NaviampVisualizer.OceanOfInk,
+            NaviampVisualizer.ParticleField,
+            NaviampVisualizer.ParticleGalaxy,
+            NaviampVisualizer.PixelMountain,
+            NaviampVisualizer.PixelRidge,
+            NaviampVisualizer.RaymarchedSphereLiquid,
+            NaviampVisualizer.ReactiveBars,
+            NaviampVisualizer.RibbonTrail,
+            NaviampVisualizer.SpectralRidge,
+            NaviampVisualizer.WaveInterference,
+            NaviampVisualizer.VinylGroove -> VisualizerRendererMode.SkiaRuntimeShader
+        }
     }
 
 internal val NaviampVisualizer.usesNativeRenderer: Boolean
@@ -58,17 +66,21 @@ internal val NaviampVisualizer.usesNativeRenderer: Boolean
 
 internal val NaviampVisualizer.fallbackRendererMode: VisualizerRendererMode
     get() = when (this) {
-        NaviampVisualizer.NativeGlslProbe -> VisualizerRendererMode.SkiaRuntimeShader
         NaviampVisualizer.AlbumArtReactive,
+        NaviampVisualizer.AnalogSignalFailure,
         NaviampVisualizer.AudioSphere,
         NaviampVisualizer.AudioTunnel,
+        NaviampVisualizer.FluidicNebulae,
         NaviampVisualizer.FluidGradient,
         NaviampVisualizer.FrequencyTerrain,
         NaviampVisualizer.FftMountain,
+        NaviampVisualizer.OceanHorizon,
+        NaviampVisualizer.OceanOfInk,
         NaviampVisualizer.ParticleField,
         NaviampVisualizer.ParticleGalaxy,
         NaviampVisualizer.PixelMountain,
         NaviampVisualizer.PixelRidge,
+        NaviampVisualizer.RaymarchedSphereLiquid,
         NaviampVisualizer.ReactiveBars,
         NaviampVisualizer.RibbonTrail,
         NaviampVisualizer.SpectralRidge,

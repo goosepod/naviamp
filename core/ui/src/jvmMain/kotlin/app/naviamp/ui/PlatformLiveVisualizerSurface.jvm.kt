@@ -349,7 +349,6 @@ private fun CanvasVisualizerSurface(
 private const val VisualizerPerfLogIntervalMillis = 5_000L
 private const val VisualizerPerfLogProperty = "naviamp.visualizer.perf"
 private const val VisualizerProfileProperty = "naviamp.visualizer.profile"
-
 private val NaviampVisualizer.usesHistoryShader: Boolean
     get() = this == NaviampVisualizer.SpectralRidge ||
         this == NaviampVisualizer.FftMountain ||

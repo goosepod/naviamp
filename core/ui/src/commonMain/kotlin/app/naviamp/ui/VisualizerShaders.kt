@@ -3,13 +3,17 @@ package app.naviamp.ui
 internal val NaviampVisualizer.shaderSource: String
     get() = when (this) {
         NaviampVisualizer.ReactiveBars -> ReactiveBarsShaderSkSL
+        NaviampVisualizer.AnalogSignalFailure -> NativeRendererRequiredShaderSkSL
         NaviampVisualizer.FluidGradient -> FluidGradientShaderSkSL
+        NaviampVisualizer.FluidicNebulae -> NativeRendererRequiredShaderSkSL
         NaviampVisualizer.AudioSphere -> AudioSphereShaderSkSL
         NaviampVisualizer.AudioTunnel -> AudioTunnelShaderSkSL
         NaviampVisualizer.RibbonTrail -> RibbonTrailShaderSkSL
         NaviampVisualizer.SpectralRidge -> SpectralRidgeShaderSkSL
         NaviampVisualizer.FftMountain -> FftMountainShaderSkSL
-        NaviampVisualizer.NativeGlslProbe -> ReactiveBarsShaderSkSL
+        NaviampVisualizer.OceanHorizon -> NativeRendererRequiredShaderSkSL
+        NaviampVisualizer.OceanOfInk -> NativeRendererRequiredShaderSkSL
+        NaviampVisualizer.RaymarchedSphereLiquid -> NativeRendererRequiredShaderSkSL
         NaviampVisualizer.PixelRidge -> PixelRidgeShaderSkSL
         NaviampVisualizer.PixelMountain -> PixelMountainShaderSkSL
         NaviampVisualizer.FrequencyTerrain -> FrequencyTerrainShaderSkSL
@@ -145,6 +149,20 @@ half4 main(float2 coord) {
     );
     float3 color = mix(iReadable.rgb, palette(amplitude), 0.72);
     float alpha = (0.42 + amplitude * 0.52) * mask;
+    return premul(color, alpha);
+}
+"""
+
+private const val NativeRendererRequiredShaderSkSL = CommonShaderHeader + """
+half4 main(float2 coord) {
+    float centerY = iResolution.y * 0.5;
+    float line = 1.0 - smoothstep(0.7, 1.9, abs(coord.y - centerY));
+    float2 uv = (coord - iResolution * 0.5) / min(iResolution.x, iResolution.y);
+    float pulse = 0.5 + 0.5 * sin(iTime * 1.8);
+    float bracket = 1.0 - smoothstep(0.010, 0.030, abs(abs(uv.x) - 0.28));
+    bracket *= 1.0 - smoothstep(0.10, 0.18, abs(uv.y));
+    float alpha = line * iIdle.a + bracket * (0.10 + pulse * 0.08);
+    float3 color = mix(iIdle.rgb, iAccent.rgb, bracket * 0.45);
     return premul(color, alpha);
 }
 """
