@@ -55,5 +55,4 @@ private val NaviampVisualizer.isHeavyVisualizer: Boolean
         this == NaviampVisualizer.ParticleField ||
         this == NaviampVisualizer.PixelMountain ||
         this == NaviampVisualizer.PixelRidge ||
-        this == NaviampVisualizer.SpectralRidge ||
         this == NaviampVisualizer.WaveInterference
