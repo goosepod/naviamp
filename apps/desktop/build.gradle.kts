@@ -104,6 +104,56 @@ val copyDesktopBassJniAppResources by tasks.registering(Copy::class) {
     })
     onlyIf { desktopBassJniOutputFile.get().isFile }
 }
+val desktopVisualizerMetalBuildDir = desktopBassPlatform.map { platform ->
+    layout.buildDirectory.dir("generated/visualizerMetalBuild/$platform").get()
+}
+val desktopVisualizerMetalOutputFile = desktopVisualizerMetalBuildDir.zip(desktopBassPlatform) { buildDir, platform ->
+    buildDir.file(desktopLibraryName("naviamp_visualizer_metal", platform)).asFile
+}
+val configureDesktopVisualizerMetal by tasks.registering(Exec::class) {
+    val nativeProjectDir = rootProject.layout.projectDirectory.dir("native/visualizer-metal")
+    onlyIf { desktopBassPlatform.get().startsWith("macos-") }
+    commandLine(
+        desktopCmakeExecutable.get(),
+        "-S",
+        nativeProjectDir.asFile.absolutePath,
+        "-B",
+        desktopVisualizerMetalBuildDir.get().asFile.absolutePath,
+        "-DCMAKE_BUILD_TYPE=Release",
+        "-DCMAKE_RUNTIME_OUTPUT_DIRECTORY=${desktopVisualizerMetalBuildDir.get().asFile.absolutePath}",
+        "-DCMAKE_LIBRARY_OUTPUT_DIRECTORY=${desktopVisualizerMetalBuildDir.get().asFile.absolutePath}",
+        "-DCMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE=${desktopVisualizerMetalBuildDir.get().asFile.absolutePath}",
+        "-DCMAKE_LIBRARY_OUTPUT_DIRECTORY_RELEASE=${desktopVisualizerMetalBuildDir.get().asFile.absolutePath}",
+        "-DCMAKE_OSX_ARCHITECTURES=${desktopCmakeArchitecture(desktopBassPlatform.get())}",
+    )
+}
+val buildDesktopVisualizerMetal by tasks.registering(Exec::class) {
+    dependsOn(configureDesktopVisualizerMetal)
+    onlyIf { desktopBassPlatform.get().startsWith("macos-") }
+    commandLine(desktopCmakeExecutable.get(), "--build", desktopVisualizerMetalBuildDir.get().asFile.absolutePath, "--config", "Release")
+}
+val copyDesktopVisualizerMetal by tasks.registering(Copy::class) {
+    dependsOn(buildDesktopVisualizerMetal)
+    from(desktopVisualizerMetalOutputFile)
+    into(generatedDesktopBassResources.zip(desktopBassPlatform) { resources, platform ->
+        resources.dir("playback/bass/$platform")
+    })
+    filePermissions {
+        unix("755")
+    }
+    onlyIf { desktopVisualizerMetalOutputFile.get().isFile }
+}
+val copyDesktopVisualizerMetalAppResources by tasks.registering(Copy::class) {
+    dependsOn(buildDesktopVisualizerMetal)
+    from(desktopVisualizerMetalOutputFile)
+    into(generatedDesktopBassAppResources.zip(desktopBassPlatform) { resources, platform ->
+        resources.dir("$platform/playback/bass/$platform")
+    })
+    filePermissions {
+        unix("755")
+    }
+    onlyIf { desktopVisualizerMetalOutputFile.get().isFile }
+}
 val desktopPackagedAppName = desktopBassPlatform.map { platform ->
     if (platform.startsWith("macos-")) "Naviamp.app" else "Naviamp"
 }
@@ -172,6 +222,7 @@ compose.desktop {
             }
             desktopBassPlatform.get().startsWith("macos-") -> {
                 jvmArgs += "-Dskiko.renderApi=METAL"
+                jvmArgs += "-Dnaviamp.visualizer.macosMetal=true"
             }
         }
 
@@ -205,6 +256,7 @@ tasks.matching { it.name == "desktopProcessResources" || it.name == "processDesk
         dependsOn(generateDesktopBuildInfo)
         dependsOn(copyDesktopBass)
         dependsOn(copyDesktopBassJni)
+        dependsOn(copyDesktopVisualizerMetal)
     }
 
 tasks.matching {
@@ -216,6 +268,18 @@ tasks.matching {
 }.configureEach {
     dependsOn(copyDesktopBassAppResources)
     dependsOn(copyDesktopBassJniAppResources)
+    dependsOn(copyDesktopVisualizerMetalAppResources)
+}
+
+tasks.matching {
+    it.name == "createDistributable" ||
+        it.name == "createReleaseDistributable" ||
+        it.name == "packageDistributionForCurrentOS" ||
+        it.name == "packageReleaseDistributionForCurrentOS"
+}.configureEach {
+    doLast {
+        markDesktopVisualizerMetalExecutable()
+    }
 }
 
 fun Zip.packageDesktopApp(archiveNameSuffix: String) {
@@ -234,6 +298,7 @@ tasks.register("verifyDesktopDistributable") {
     dependsOn("createDistributable")
 
     doLast {
+        markDesktopVisualizerMetalExecutable()
         val platform = desktopBassPlatform.get()
         val bassResourcesDir = desktopPackagedAppDir.get()
             .dir("Contents/app/resources/playback/bass/$platform")
@@ -250,10 +315,19 @@ tasks.register("verifyDesktopDistributable") {
             if (platform.startsWith("macos-") || platform.startsWith("windows-")) {
                 add(desktopLibraryName("naviamp_bass", platform))
             }
+            if (platform.startsWith("macos-")) {
+                add(desktopLibraryName("naviamp_visualizer_metal", platform))
+            }
         }
         val missingLibraries = requiredLibraries.filterNot { bassResourcesDir.resolve(it).isFile }
         check(missingLibraries.isEmpty()) {
             "Desktop package is missing native playback resources in ${bassResourcesDir.absolutePath}: ${missingLibraries.joinToString()}"
+        }
+        if (platform.startsWith("macos-")) {
+            val visualizerMetal = bassResourcesDir.resolve(desktopLibraryName("naviamp_visualizer_metal", platform))
+            check(visualizerMetal.canExecute()) {
+                "Desktop package Metal visualizer library is not executable: ${visualizerMetal.absolutePath}"
+            }
         }
     }
 }
@@ -329,3 +403,15 @@ fun desktopCmakeArchitecture(platform: String): String =
         platform.endsWith("-x64") -> "x86_64"
         else -> System.getProperty("os.arch")
     }
+
+fun markDesktopVisualizerMetalExecutable() {
+    val platform = desktopBassPlatform.get()
+    if (!platform.startsWith("macos-")) return
+    val visualizerMetal = desktopPackagedAppDir.get()
+        .dir("Contents/app/resources/playback/bass/$platform")
+        .file(desktopLibraryName("naviamp_visualizer_metal", platform))
+        .asFile
+    if (visualizerMetal.isFile) {
+        visualizerMetal.setExecutable(true, false)
+    }
+}
