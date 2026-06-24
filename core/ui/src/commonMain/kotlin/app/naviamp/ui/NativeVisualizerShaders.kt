@@ -2,6 +2,7 @@ package app.naviamp.ui
 
 internal enum class NativeShaderDialect {
     GlslEs300,
+    MetalShadingLanguage,
 }
 
 internal data class NativeVisualizerShaderDefinition(
@@ -11,6 +12,12 @@ internal data class NativeVisualizerShaderDefinition(
     val fragmentSource: String,
     val requiresNativeRenderer: Boolean = true,
 )
+
+internal fun NativeVisualizerShaderDefinition.fragmentSourceForDialect(dialect: NativeShaderDialect): String =
+    when (dialect) {
+        NativeShaderDialect.GlslEs300 -> fragmentSource
+        NativeShaderDialect.MetalShadingLanguage -> NativeMetalShaderTranslator.translateFragmentShader(fragmentSource)
+    }
 
 internal val NaviampVisualizer.nativeShaderDefinition: NativeVisualizerShaderDefinition?
     get() = when (this) {
@@ -89,6 +96,8 @@ float rand(vec2 co) {
 void main() {
     vec2 uv = gl_FragCoord.xy / max(u_resolution.xy, vec2(1.0));
     vec2 originalUv = uv;
+    uv.y = 1.0 - uv.y;
+    originalUv.y = 1.0 - originalUv.y;
     vec2 center = vec2(0.5, 0.5);
     float dist = distance(uv, center);
     float barrelAmount = 1.0 + pow(dist, 2.0) * (0.2 + u_bassLevel * 0.3);
@@ -132,9 +141,8 @@ void main() {
     float tearing = step(0.985, rand(vec2(floor(originalUv.y * 160.0), floor(u_time * 18.0)))) * (0.12 + onsetSignal * 0.24);
     color += mix(u_accent.rgb, u_readable.rgb, 0.45) * tearing * smoothstep(0.18, 0.90, signalColumn);
 
-    vec3 albumColor = texture(u_albumArtTexture, clamp(originalUv, 0.0, 1.0)).rgb;
     vec3 backing = mix(mix(u_colorA.rgb, u_colorB.rgb, originalUv.x), u_colorC.rgb, originalUv.y);
-    backing = mix(backing, albumColor, 0.16 + u_energyLevel * 0.10) * (0.18 + u_energyLevel * 0.10);
+    backing *= (0.18 + u_energyLevel * 0.10);
     float vignette = clamp(1.0 - pow(dist * 1.1, 2.5), 0.0, 1.0);
     float scanline = 0.8 + fract(gl_FragCoord.y * 0.3) * 0.4;
     color = (backing + color) * vignette * scanline;
@@ -221,13 +229,11 @@ float snoise(vec3 v) {
 vec3 playerBackground(vec2 uv) {
     float radial = smoothstep(0.90, 0.06, distance(uv, vec2(0.5)));
     vec3 gradient = mix(mix(u_colorA.rgb, u_colorB.rgb, uv.x), u_colorC.rgb, uv.y * 0.64);
-    vec3 album = texture(u_albumArtTexture, clamp(uv, 0.0, 1.0)).rgb;
-    gradient = mix(gradient, album, 0.18 + radial * 0.12);
     return mix(gradient * (0.50 + radial * 0.30), u_accent.rgb, radial * 0.08);
 }
 
 vec3 albumArtColor(vec2 uv) {
-    return texture(u_albumArtTexture, clamp(uv, 0.0, 1.0)).rgb;
+    return mix(mix(u_colorA.rgb, u_colorB.rgb, uv.x), u_colorC.rgb, uv.y);
 }
 """
 
@@ -253,7 +259,6 @@ void main() {
     vec3 color2 = mix(u_colorA.rgb, u_colorB.rgb, 0.45);
     vec3 color3 = mix(u_colorC.rgb, u_accent.rgb, 0.42);
     vec3 palette = mix(mix(color2, color1, u_spectralCentroid), color3, u_spectralCentroid - 0.5);
-    palette = mix(palette, albumArtColor(gl_FragCoord.xy / max(u_resolution.xy, vec2(1.0))), 0.18 + u_energyLevel * 0.10);
     vec3 color = noise * palette;
     color = mix(color, u_accent.rgb * noise, 0.10 + u_trebleLevel * 0.10);
     outColor = vec4(color, 1.0);
@@ -320,7 +325,7 @@ void main() {
 
     float waterMask = smoothstep(horizon + 0.035, horizon - 0.035, screenUv.y + surface * 0.018);
     vec3 sky = mix(vec3(0.05, 0.08, 0.18), vec3(0.38, 0.53, 0.80), smoothstep(horizon, 1.0, screenUv.y));
-    sky = mix(sky, albumArtColor(vec2(screenUv.x, 0.12 + screenUv.y * 0.30)), 0.10);
+    sky = mix(sky, mix(u_colorA.rgb, u_colorB.rgb, screenUv.x), 0.08);
     sky += mix(vec3(0.55, 0.10, 0.35), vec3(1.0, 0.72, 0.20), spectralMix) *
         pow(max(0.0, 1.0 - length(uv - vec2(0.18, 0.24)) * 1.8), 4.0) *
         (0.10 + treble * 0.35);
@@ -329,7 +334,7 @@ void main() {
     vec3 shallowInk = mix(vec3(0.02, 0.14, 0.24), vec3(0.34, 0.10, 0.03), spectralMix);
     float depthFade = smoothstep(0.0, 0.78, distanceFromHorizon);
     vec3 water = mix(shallowInk, deepInk, depthFade);
-    water = mix(water, albumArtColor(vec2(screenUv.x, 0.55 + screenUv.y * 0.35)), 0.08 + freq * 0.06);
+    water = mix(water, mix(u_colorB.rgb, u_colorC.rgb, screenUv.y), 0.06 + freq * 0.04);
     water += mix(vec3(0.15, 0.72, 1.0), vec3(1.0, 0.70, 0.25), spectralMix) * foam;
     water += vec3(1.0, 0.92, 0.72) * spec * (0.18 + freq * 0.72);
     water += u_accent.rgb * freq * (0.05 + bass * 0.10);
@@ -416,7 +421,7 @@ vec3 getSkyColor(vec3 rd, float s_centroid) {
 }
 
 vec3 albumArtColor(vec2 uv) {
-    return texture(u_albumArtTexture, clamp(uv, 0.0, 1.0)).rgb;
+    return mix(vec3(0.02, 0.08, 0.16), vec3(0.16, 0.06, 0.02), uv.y);
 }
 
 void main() {
@@ -447,8 +452,8 @@ void main() {
             vec3 reflected_dir = reflect(rd, n);
             vec3 reflection_color = getSkyColor(reflected_dir, s_centroid);
             vec3 deep_color = mix(vec3(0.0, 0.1, 0.2), vec3(0.3, 0.1, 0.0), s_centroid);
-            deep_color = mix(deep_color, albumArtColor(vec2(screenUv.x, 0.58 + screenUv.y * 0.28)), 0.12);
-            reflection_color = mix(reflection_color, albumArtColor(vec2(screenUv.x, 0.12 + screenUv.y * 0.34)), 0.10);
+            deep_color = mix(deep_color, getSkyColor(reflected_dir, s_centroid), 0.06);
+            reflection_color = mix(reflection_color, getSkyColor(rd, s_centroid), 0.05);
             float fresnel = 0.05 + 0.95 * pow(1.0 - max(0.0, dot(-rd, n)), 5.0);
             color = mix(deep_color, reflection_color, fresnel);
             float specular = pow(max(0.0, dot(reflected_dir, normalize(vec3(0.5, 0.5, 0.5)))), 64.0);
@@ -459,7 +464,7 @@ void main() {
         }
         if (t > 30.0) {
              color = getSkyColor(rd, s_centroid);
-             color = mix(color, albumArtColor(vec2(screenUv.x, 0.10 + screenUv.y * 0.30)), 0.10);
+             color = mix(color, getSkyColor(rd, s_centroid), 0.06);
              break;
         }
         t += d * 0.9;
@@ -488,6 +493,7 @@ uniform vec4 u_readable;
 uniform vec4 u_colorA;
 uniform vec4 u_colorB;
 uniform vec4 u_colorC;
+uniform sampler2D u_albumArtTexture;
 
 float sdSphere(vec3 p, float r) {
     return length(p) - r;
@@ -534,9 +540,7 @@ void main() {
 
     float radial = smoothstep(0.95, 0.08, length(uv));
     vec2 screenUv = gl_FragCoord.xy / max(u_resolution.xy, vec2(1.0));
-    vec3 albumTint = texture(u_albumArtTexture, clamp(screenUv, 0.0, 1.0)).rgb;
     vec3 background = mix(mix(u_colorA.rgb, u_colorB.rgb, screenUv.x), u_colorC.rgb, screenUv.y);
-    background = mix(background, albumTint, 0.16);
     background *= 0.24 + radial * 0.20;
     vec3 color = background;
 
@@ -548,7 +552,6 @@ void main() {
         float fresnel = pow(1.0 - abs(dot(normal, -rd)), 4.0);
 
         vec3 baseColor = mix(u_colorA.rgb, u_colorB.rgb, 0.35 + u_bassLevel * 0.35);
-        baseColor = mix(baseColor, albumTint, 0.22 + u_spectralCentroid * 0.10);
         baseColor = mix(baseColor, u_accent.rgb, 0.30 + u_spectralCentroid * 0.25);
         vec3 reflectionColor = mix(u_readable.rgb, u_colorC.rgb, 0.35) * (0.55 + u_trebleLevel * 0.65);
         color = mix(baseColor, reflectionColor, fresnel);

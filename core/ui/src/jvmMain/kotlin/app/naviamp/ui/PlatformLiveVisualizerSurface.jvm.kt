@@ -46,7 +46,7 @@ internal actual fun PlatformLiveVisualizerSurface(
     val rendererMode = remember(visualizer) {
         selectedVisualizerRendererMode(
             visualizer = visualizer,
-            nativeRendererAvailable = false,
+            nativeRendererAvailable = jvmNativeMetalVisualizerAvailable(visualizer),
         )
     }
     LaunchedEffect(active, visualizer, renderPolicy.targetFrameIntervalMillis) {
@@ -69,7 +69,9 @@ internal actual fun PlatformLiveVisualizerSurface(
         }
     }
     LaunchedEffect(coverArtUrl, visualizer) {
-        albumArtImage = if (coverArtUrl != null && visualizer == NaviampVisualizer.AlbumArtReactive) {
+        albumArtImage = if (coverArtUrl != null &&
+            (visualizer == NaviampVisualizer.AlbumArtReactive || visualizer.nativeShaderDefinition != null)
+        ) {
             runCatching { jvmPlatformCoverArtShaderImage(coverArtUrl) }.getOrNull()
         } else {
             null
@@ -77,7 +79,18 @@ internal actual fun PlatformLiveVisualizerSurface(
     }
 
     if (rendererMode == VisualizerRendererMode.NativeGpu) {
-        CanvasVisualizerSurface(bandsProvider, active, colors, renderPolicy, modifier)
+        NativeMetalVisualizerSurface(
+            bandsProvider = bandsProvider,
+            visualizer = visualizer,
+            renderPolicy = renderPolicy,
+            active = active,
+            visualizerColors = visualizerColors,
+            colors = colors,
+            albumArtImage = albumArtImage,
+            frameMillis = frameMillis,
+            tempoBpm = tempoBpm,
+            modifier = modifier,
+        )
         return
     }
 
@@ -121,6 +134,63 @@ internal actual fun PlatformLiveVisualizerSurface(
             )
         }
         renderer.recordDrawNanos(System.nanoTime() - drawStartedNanos, active)
+    }
+}
+
+@Composable
+private fun NativeMetalVisualizerSurface(
+    bandsProvider: () -> List<Float>,
+    visualizer: NaviampVisualizer,
+    renderPolicy: VisualizerRenderPolicy,
+    active: Boolean,
+    visualizerColors: NaviampPlayerColors,
+    colors: NaviampColors,
+    albumArtImage: Image?,
+    frameMillis: Long,
+    tempoBpm: Int?,
+    modifier: Modifier,
+) {
+    val host = remember(visualizer, renderPolicy) {
+        NativeMetalVisualizerHost(visualizer, renderPolicy)
+    }
+    DisposableEffect(host) {
+        onDispose { host.close() }
+    }
+    LaunchedEffect(host, albumArtImage) {
+        host.updateAlbumArt(albumArtImage)
+    }
+
+    Canvas(modifier = modifier) {
+        val image = host.renderImage(
+            width = size.width.toInt(),
+            height = size.height.toInt(),
+            bands = bandsProvider(),
+            active = active,
+            visualizerColors = visualizerColors,
+            colors = colors,
+            timeSeconds = frameMillis / 1000f,
+            tempoBpm = tempoBpm,
+        )
+        if (image != null) {
+            drawIntoCanvas { canvas ->
+                val paint = Paint()
+                canvas.nativeCanvas.drawImageRect(
+                    image,
+                    Rect.makeWH(size.width, size.height),
+                    paint,
+                )
+                paint.close()
+            }
+            image.close()
+        } else {
+            drawLine(
+                color = colors.primaryText.copy(alpha = 0.16f),
+                start = Offset(0f, size.height / 2f),
+                end = Offset(size.width, size.height / 2f),
+                strokeWidth = 1.4f,
+                cap = StrokeCap.Round,
+            )
+        }
     }
 }
 
@@ -349,6 +419,7 @@ private fun CanvasVisualizerSurface(
 private const val VisualizerPerfLogIntervalMillis = 5_000L
 private const val VisualizerPerfLogProperty = "naviamp.visualizer.perf"
 private const val VisualizerProfileProperty = "naviamp.visualizer.profile"
+private const val MacosMetalVisualizerProperty = "naviamp.visualizer.macosMetal"
 private val NaviampVisualizer.usesHistoryShader: Boolean
     get() = this == NaviampVisualizer.SpectralRidge ||
         this == NaviampVisualizer.FftMountain ||
@@ -436,4 +507,64 @@ private fun jvmPlatformLabel(): String {
         "linux" in osName -> "linux"
         else -> osName.replace(' ', '-')
     }
+}
+
+internal fun jvmNativeMetalVisualizerAvailable(
+    visualizer: NaviampVisualizer,
+    osName: String = System.getProperty("os.name"),
+    enabledProperty: String? = System.getProperty(MacosMetalVisualizerProperty),
+    libraryAvailable: Boolean = NativeMetalVisualizerHost.libraryAvailable(),
+): Boolean {
+    val enabled = enabledProperty.equals("true", ignoreCase = true)
+    val macos = osName.lowercase(Locale.US).contains("mac")
+    val shaderDefinition = visualizer.nativeShaderDefinition
+    val shaderTranslates = shaderDefinition?.let {
+        runCatching {
+            it.fragmentSourceForDialect(NativeShaderDialect.MetalShadingLanguage)
+        }.isSuccess
+    } ?: false
+    val available = enabled && macos && libraryAvailable && shaderDefinition != null && shaderTranslates
+
+    logNativeMetalAvailability(
+        visualizer = visualizer,
+        enabled = enabled,
+        osName = osName,
+        macos = macos,
+        libraryAvailable = libraryAvailable,
+        shaderDefinition = shaderDefinition != null,
+        shaderTranslates = shaderTranslates,
+        available = available,
+    )
+    return available
+}
+
+private val nativeMetalAvailabilityLogs = mutableSetOf<String>()
+
+private fun logNativeMetalAvailability(
+    visualizer: NaviampVisualizer,
+    enabled: Boolean,
+    osName: String,
+    macos: Boolean,
+    libraryAvailable: Boolean,
+    shaderDefinition: Boolean,
+    shaderTranslates: Boolean,
+    available: Boolean,
+) {
+    if (!nativeMetalDiagnosticsEnabled()) return
+    val key = "${visualizer.name}:$enabled:$macos:$libraryAvailable:$shaderDefinition:$shaderTranslates:$available"
+    if (!nativeMetalAvailabilityLogs.add(key)) return
+    val libraryError = NativeMetalVisualizerHost.libraryLoadFailureMessage()
+        ?.let { " libraryError=$it" }
+        .orEmpty()
+    val libraryDiagnostics = if (!libraryAvailable) {
+        " ${NativeMetalVisualizerHost.libraryDiagnostics()}"
+    } else {
+        ""
+    }
+    println(
+        "NaviampVisualizerMetal availability visualizer=${visualizer.name} " +
+            "available=$available enabled=$enabled osName=$osName macos=$macos " +
+            "libraryAvailable=$libraryAvailable shaderDefinition=$shaderDefinition " +
+            "shaderTranslates=$shaderTranslates$libraryError$libraryDiagnostics",
+    )
 }

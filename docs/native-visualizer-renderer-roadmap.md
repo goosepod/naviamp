@@ -72,9 +72,12 @@ Metal is the right long-term target, but it is not as simple as "use GLSL":
 
 Pragmatic path:
 
-- Keep SkSL/Skiko as the macOS renderer for this branch.
+- Keep SkSL/Skiko as the macOS default renderer until the native view host is complete.
 - Do not use the LWJGL/AWT OpenGL bridge in-app; macOS testing showed driver crashes and AWT/AppKit run-loop hangs when embedded in the Compose window.
-- Spike a real Metal backend only if we are ready to own a native view bridge and MSL/translation workflow.
+- Use a deterministic GLSL-to-MSL translation step for the canonical native shader sources instead of hand-maintaining a second shader catalog.
+- Keep the macOS Metal backend opt-in while it is being built (`-Dnaviamp.visualizer.macosMetal=true`) so stable desktop behavior does not change until the host can render into the app safely.
+- Use an offscreen Metal render target and draw the returned BGRA image through Compose Canvas. Avoid a heavyweight `SwingPanel`/`CAMetalLayer` overlay in the Player because it interferes with Compose layering and input.
+- The Metal host consumes translated MSL, uploads the 32-band frequency texture, frame uniforms, palette colors, and quality controls, and keeps SkSL as the fallback path. Native visualizer shaders should not blend album art into the effect background.
 - If Metal becomes too expensive to maintain, keep macOS on SkSL for stable/simple visualizers and mark imported native shaders unsupported on macOS instead of approximating them.
 
 ## Shader Contract
@@ -141,8 +144,16 @@ The first pass can derive `u_beatDetected` and `u_spectralCentroid` from the cur
 - [x] Reject the embedded LWJGL/AWT path for the in-app macOS renderer after testing exposed Apple driver crashes and AWT/AppKit run-loop hangs inside the Compose window.
 - [x] Remove the desktop LWJGL/AWT implementation and dependencies from the active app path.
 - [x] Replace desktop SkSL approximations for imported shaders with a native-renderer-required placeholder.
-- [ ] Add a real desktop native shader host so `Analog signal failure`, `Fluidic nebulae`, `Ocean horizon`, `Ocean of ink`, and `Liquid sphere` can run from their canonical shader sources.
-- [ ] Revisit a true macOS native renderer only as a Metal/AppKit bridge, not as AWT-embedded OpenGL.
+- [x] Add a macOS Metal shader translation step for the canonical native GLSL sources.
+- [x] Gate the experimental macOS native renderer path behind an explicit system property.
+- [x] Add opt-in Apple Metal compiler verification:
+  `./gradlew :core:ui:jvmTest -Dnaviamp.visualizer.metalCompilerTest=true --tests app.naviamp.ui.NativeMetalShaderTranslatorTest.translatedMetalShadersCompileWhenToolchainTestIsEnabled`.
+- [x] Add a macOS native Metal JNI library and package `libnaviamp_visualizer_metal.dylib` with the desktop app image.
+- [x] Add an offscreen macOS Metal host that renders translated native shaders into a BGRA image drawn by the Compose Player visualizer area.
+- [x] Upload frame uniforms, 32-band frequency texture, palette colors, and quality controls to the Metal host.
+- [x] Keep the macOS Metal path opt-in and fall back to SkSL/Canvas when the property, library, or host initialization is unavailable.
+- [x] Smoke-test the staged macOS app with `-Dnaviamp.visualizer.macosMetal=true`.
+- [ ] Manually validate all native-only visualizers in the Player with playback active, including resize/toggle behavior and layer ordering over album art.
 
 ## Acceptance Criteria
 
