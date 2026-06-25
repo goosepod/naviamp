@@ -565,9 +565,8 @@ private val DefaultNaviampLibraries = listOf(
 )
 
 private val DefaultNaviampChangelog = listOf(
-    "Added native OpenGL ES visualizers on Android for richer shader effects.",
-    "Added Fluidic Nebulae, Ocean of Ink, Liquid Sphere, and Analog Signal Failure visualizers.",
-    "Improved visualizer performance and album-art-reactive coloring for native effects.",
+    "Redesigned the Vinyl Groove visualizer as a spinning record with album-art center label and reactive frequency grooves.",
+    "Preserved provider lyric timing offsets until a saved per-track user offset overrides them.",
 )
 
 @Composable
