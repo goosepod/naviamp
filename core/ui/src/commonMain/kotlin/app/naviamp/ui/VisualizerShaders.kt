@@ -24,6 +24,10 @@ internal val NaviampVisualizer.shaderSource: String
         NaviampVisualizer.VinylGroove -> VinylGrooveShaderSkSL
     }
 
+internal val NaviampVisualizer.usesAlbumArtShader: Boolean
+    get() = this == NaviampVisualizer.AlbumArtReactive ||
+        this == NaviampVisualizer.VinylGroove
+
 private const val CommonShaderHeader = """
 uniform float2 iResolution;
 uniform float iTime;
@@ -597,26 +601,93 @@ half4 main(float2 coord) {
 """
 
 private const val VinylGrooveShaderSkSL = CommonShaderHeader + """
+uniform shader iAlbumArt;
+
+float3 vinylAlbumAt(float2 uv) {
+    float2 clampedUv = clamp(uv, 0.0, 1.0);
+    return clamp(iAlbumArt.eval(clampedUv * max(iAlbumArtSize, float2(1.0, 1.0))).rgb, 0.0, 1.0);
+}
+
+float vinylLuma(float3 color) {
+    return dot(color, float3(0.299, 0.587, 0.114));
+}
+
 half4 main(float2 coord) {
     float2 p = (coord - iResolution * 0.5) / min(iResolution.x, iResolution.y);
     float radius = length(p);
-    if (iActive < 0.5) {
-        float ring = edgeMask(p, 0.36, 0.012);
-        return premul(iIdle.rgb, iIdle.a * ring);
-    }
+    float outerRadius = 0.462;
+    float labelRadius = 0.124;
+    float innerGrooveRadius = 0.150;
+    float holeRadius = 0.018;
+    float recordMask = smoothstep(outerRadius + 0.006, outerRadius - 0.004, radius);
+    if (recordMask <= 0.0) return premul(float3(0.0), 0.0);
 
+    float rotation = iTime * 3.4906585;
     float bass = iEnergy.x;
     float mids = iEnergy.y;
     float highs = iEnergy.z;
     float angle = atan(p.y, p.x);
-    float spin = angle + iTime * (0.16 + bass * 0.18);
-    float groove = abs(fract(radius * (58.0 + mids * 28.0) - iTime * 0.18) - 0.5);
-    float rings = (1.0 - smoothstep(0.012, 0.036, groove)) * smoothstep(0.08, 0.16, radius) * smoothstep(0.58, 0.46, radius);
-    float shine = pow(max(0.0, cos(spin - 0.8)), 18.0) * smoothstep(0.18, 0.34, radius) * smoothstep(0.56, 0.42, radius);
-    float dust = smoothstep(0.985 - highs * 0.04, 1.0, hash21(floor((p + 0.7) * 52.0) + floor(iTime * 3.0))) * (0.10 + highs * 0.22);
-    float label = smoothstep(0.14 + bass * 0.035, 0.04, radius) * (0.20 + bass * 0.16);
-    float alpha = clamp(rings * (0.32 + bass * 0.24) + shine * (0.32 + highs * 0.26) + dust + label, 0.0, 0.84);
-    float3 color = mix(palette(fract(radius * 1.8 + spin * 0.08)), iReadable.rgb, shine * 0.32 + dust * 0.44);
+    float recordAngle = angle - rotation;
+
+    float disc = smoothstep(outerRadius, outerRadius - 0.012, radius);
+    float labelMask = smoothstep(labelRadius + 0.004, labelRadius - 0.004, radius);
+    float grooveArea = smoothstep(innerGrooveRadius, innerGrooveRadius + 0.012, radius) *
+        smoothstep(outerRadius - 0.008, outerRadius - 0.034, radius);
+
+    float groovePosition = clamp((radius - innerGrooveRadius) / max(outerRadius - 0.034 - innerGrooveRadius, 0.001), 0.0, 1.0);
+    float grooveFloat = groovePosition * 63.0;
+    float grooveIndex = floor(grooveFloat);
+    float grooveCenter = innerGrooveRadius + (grooveIndex + 0.5) * ((outerRadius - 0.034 - innerGrooveRadius) / 64.0);
+    int bandSlot = int(clamp(floor((grooveIndex / 63.0) * 31.0 + 0.0001), 0.0, 31.0));
+    float band = bandAtIndex(bandSlot);
+    float neighbor = max(
+        bandAtIndex(int(clamp(float(bandSlot - 1), 0.0, 31.0))),
+        bandAtIndex(int(clamp(float(bandSlot + 1), 0.0, 31.0)))
+    );
+    float amplitude = max(band, neighbor * 0.44);
+    float waveA = sin(recordAngle * (10.0 + grooveIndex * 0.31) + grooveIndex * 1.73);
+    float waveB = sin(recordAngle * (23.0 + grooveIndex * 0.17) + grooveIndex * 0.91);
+    float waveC = sin(recordAngle * 4.0 + grooveIndex * 2.11);
+    float reactiveOffset = (waveA * 0.62 + waveB * 0.27 + waveC * 0.11) * amplitude * 0.0028;
+    reactiveOffset += sin(recordAngle * 2.0 + radius * 88.0) * bass * 0.0014;
+    float grooveDistance = abs(radius - grooveCenter - reactiveOffset);
+    float grooveWidth = 0.00072 + amplitude * 0.00135 + highs * 0.00045;
+    float grooveLine = (1.0 - smoothstep(grooveWidth, grooveWidth * 2.75, grooveDistance)) * grooveArea;
+
+    float micro = sin(recordAngle * 96.0 + grooveIndex * 0.57) * sin(recordAngle * 31.0 - grooveIndex * 0.42);
+    float shimmer = smoothstep(0.60, 1.0, micro * 0.5 + 0.5) * grooveLine * (0.08 + highs * 0.18);
+    float outerRim = edgeMask(p, outerRadius - 0.004, 0.0026) * 0.32;
+    float innerRim = edgeMask(p, labelRadius + 0.006, 0.0028) * 0.22;
+    float dust = smoothstep(0.988 - highs * 0.035, 1.0, hash21(floor((p + 0.7) * 120.0) + grooveIndex)) *
+        grooveArea * (0.030 + highs * 0.090);
+
+    float3 recordBase = float3(0.005, 0.006, 0.010);
+    float3 grooveColor = mix(float3(0.145, 0.135, 0.168), iReadable.rgb, 0.10 + amplitude * 0.14);
+    grooveColor = mix(grooveColor, iAccent.rgb, amplitude * 0.20 + shimmer * 0.25);
+    float alpha = disc * 0.94;
+    float3 color = recordBase * alpha;
+    color += grooveColor * grooveLine * (0.30 + amplitude * 0.64);
+    color += iReadable.rgb * (outerRim + innerRim + shimmer + dust);
+
+    float2 cs = float2(cos(-rotation), sin(-rotation));
+    float2 rotated = float2(
+        p.x * cs.x - p.y * cs.y,
+        p.x * cs.y + p.y * cs.x
+    );
+    float2 labelUv = rotated / (labelRadius * 2.0) + 0.5;
+    float3 art = vinylAlbumAt(labelUv);
+    float artLuma = vinylLuma(art);
+    float labelEdge = edgeMask(p, labelRadius, 0.0038);
+    float labelVignette = smoothstep(labelRadius, labelRadius * 0.26, radius);
+    float3 labelColor = mix(art * (0.78 + artLuma * 0.32), iReadable.rgb, 0.05 + highs * 0.04);
+    color = mix(color, labelColor, labelMask * (0.94 - labelEdge * 0.10));
+    color += iReadable.rgb * labelEdge * 0.16;
+    color *= 0.86 + labelVignette * labelMask * 0.14;
+
+    float hole = smoothstep(holeRadius + 0.004, holeRadius - 0.002, radius);
+    color = mix(color, float3(0.0, 0.0, 0.0), hole);
+    color += iReadable.rgb * edgeMask(p, holeRadius + 0.002, 0.0018) * 0.12;
+    alpha = max(alpha, labelMask * 0.98);
     return premul(color, alpha);
 }
 """

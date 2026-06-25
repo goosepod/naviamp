@@ -70,7 +70,7 @@ internal actual fun PlatformLiveVisualizerSurface(
     }
     LaunchedEffect(coverArtUrl, visualizer) {
         albumArtImage = if (coverArtUrl != null &&
-            (visualizer == NaviampVisualizer.AlbumArtReactive || visualizer.nativeShaderDefinition != null)
+            (visualizer.usesAlbumArtShader || visualizer.nativeShaderDefinition != null)
         ) {
             runCatching { jvmPlatformCoverArtShaderImage(coverArtUrl) }.getOrNull()
         } else {
@@ -276,7 +276,7 @@ private class ShaderVisualizerRenderer(
             historyShader?.let { builder.child("iHistory", it) }
         }
         var temporaryAlbumShader: Shader? = null
-        if (visualizer == NaviampVisualizer.AlbumArtReactive) {
+        if (visualizer.usesAlbumArtShader) {
             val albumShader = (albumArtImage ?: fallbackAlbumArtImage).makeShader(
                 FilterTileMode.CLAMP,
                 FilterTileMode.CLAMP,

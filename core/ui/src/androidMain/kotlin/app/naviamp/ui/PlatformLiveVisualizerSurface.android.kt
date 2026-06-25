@@ -249,7 +249,7 @@ private fun AndroidShaderVisualizerSurface(
     }
     var albumArtBitmap by remember(coverArtUrl) { mutableStateOf<Bitmap?>(null) }
     LaunchedEffect(coverArtUrl, visualizer) {
-        albumArtBitmap = if (coverArtUrl != null && visualizer == NaviampVisualizer.AlbumArtReactive) {
+        albumArtBitmap = if (coverArtUrl != null && visualizer.usesAlbumArtShader) {
             withContext(Dispatchers.IO) {
                 runCatching {
                     androidPlatformCoverArtBytes(coverArtUrl)
@@ -375,7 +375,7 @@ private class AndroidShaderVisualizerRenderer(
         if (visualizer.usesHistoryShader) {
             runtimeShader.setInputShader("iHistory", historyShader)
         }
-        if (visualizer == NaviampVisualizer.AlbumArtReactive) {
+        if (visualizer.usesAlbumArtShader) {
             runtimeShader.setInputShader("iAlbumArt", albumShaderFor(albumArtBitmap))
         }
         paint.shader = runtimeShader
