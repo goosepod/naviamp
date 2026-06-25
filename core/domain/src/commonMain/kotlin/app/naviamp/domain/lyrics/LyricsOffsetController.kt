@@ -13,7 +13,10 @@ class LyricsOffsetController(
         lyrics: Lyrics?,
     ): Lyrics? {
         if (sourceId == null || track == null || lyrics == null) return lyrics
-        return lyrics.copy(offsetMillis = lyricsOffsetRepository.lyricsOffsetMillis(sourceId, track.id))
+        return lyrics.copy(
+            offsetMillis = lyricsOffsetRepository.lyricsOffsetMillis(sourceId, track.id)
+                ?: lyrics.offsetMillis,
+        )
     }
 
     fun saveOffset(

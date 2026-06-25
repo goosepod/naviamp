@@ -383,7 +383,7 @@ class DesktopCache(
     ): Lyrics? =
         lyricsSidecar.lrclibLyrics(sourceId, track, client)
 
-    override fun lyricsOffsetMillis(sourceId: String, trackId: TrackId): Int =
+    override fun lyricsOffsetMillis(sourceId: String, trackId: TrackId): Int? =
         lyricsOffsets.lyricsOffsetMillis(sourceId, trackId)
 
     override fun saveLyricsOffsetMillis(sourceId: String, trackId: TrackId, offsetMillis: Int) {

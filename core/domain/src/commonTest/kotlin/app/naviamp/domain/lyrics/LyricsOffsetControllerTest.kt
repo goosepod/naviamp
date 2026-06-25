@@ -22,6 +22,25 @@ class LyricsOffsetControllerTest {
     }
 
     @Test
+    fun withSavedOffsetKeepsSourceOffsetWhenNoUserOverrideExists() {
+        val controller = LyricsOffsetController(FakeLyricsOffsetRepository())
+
+        val lyrics = controller.withSavedOffset("source", track(), lyrics(offsetMillis = 1_500))
+
+        assertEquals(1_500, lyrics?.offsetMillis)
+    }
+
+    @Test
+    fun withSavedOffsetAllowsExplicitZeroOverride() {
+        val repository = FakeLyricsOffsetRepository(offsets = mutableMapOf("source:track" to 0))
+        val controller = LyricsOffsetController(repository)
+
+        val lyrics = controller.withSavedOffset("source", track(), lyrics(offsetMillis = 1_500))
+
+        assertEquals(0, lyrics?.offsetMillis)
+    }
+
+    @Test
     fun saveOffsetPersistsAndReturnsUpdatedLyrics() {
         val repository = FakeLyricsOffsetRepository()
         val controller = LyricsOffsetController(repository)
@@ -66,8 +85,8 @@ class LyricsOffsetControllerTest {
 private class FakeLyricsOffsetRepository(
     val offsets: MutableMap<String, Int> = mutableMapOf(),
 ) : LyricsOffsetRepository {
-    override fun lyricsOffsetMillis(sourceId: String, trackId: TrackId): Int =
-        offsets["$sourceId:${trackId.value}"] ?: 0
+    override fun lyricsOffsetMillis(sourceId: String, trackId: TrackId): Int? =
+        offsets["$sourceId:${trackId.value}"]
 
     override fun saveLyricsOffsetMillis(sourceId: String, trackId: TrackId, offsetMillis: Int) {
         offsets["$sourceId:${trackId.value}"] = offsetMillis

@@ -8,11 +8,10 @@ class DesktopLyricsOffsetStore(
     private val queries: NaviampStorageQueries,
     private val nowMillis: () -> Long,
 ) : LyricsOffsetRepository {
-    override fun lyricsOffsetMillis(sourceId: String, trackId: TrackId): Int =
+    override fun lyricsOffsetMillis(sourceId: String, trackId: TrackId): Int? =
         queries.selectTrackLyricsOffset(sourceId, trackId.value)
             .executeAsOneOrNull()
             ?.toInt()
-            ?: 0
 
     override fun saveLyricsOffsetMillis(sourceId: String, trackId: TrackId, offsetMillis: Int) {
         queries.upsertTrackLyricsOffset(
