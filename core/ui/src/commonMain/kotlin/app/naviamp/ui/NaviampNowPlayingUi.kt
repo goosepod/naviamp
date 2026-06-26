@@ -18,7 +18,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.requiredHeight
 import androidx.compose.foundation.layout.requiredSize
@@ -217,8 +216,8 @@ fun NaviampNowPlayingPanel(
     ) {
         val wideLayout = maxWidth >= 780.dp
         val viewportMaxHeight = maxHeight
-        val compactStackLayout = !wideLayout && viewportMaxHeight < 600.dp
-        val stackedArtSize = ((viewportMaxHeight * 0.45f) - 24.dp)
+        val compactStackLayout = !wideLayout && viewportMaxHeight < CompactNowPlayingStackBreakpoint
+        val stackedArtSize = ((viewportMaxHeight * 0.48f) - 18.dp)
             .coerceIn(150.dp, artSizeDefault)
         val splitArtSize = ((viewportMaxHeight / 2f) - 28.dp)
             .coerceIn(170.dp, artSizeDefault)
@@ -234,7 +233,7 @@ fun NaviampNowPlayingPanel(
                 preferredArtSize.coerceAtMost(maximumArtSize)
             }
             compactStackLayout -> stackedArtSize
-            maxWidth < 380.dp -> splitArtSize.coerceAtMost(238.dp)
+            maxWidth < 380.dp -> splitArtSize
             !wideLayout -> splitArtSize
             else -> artSizeDefault
         }
@@ -331,11 +330,11 @@ fun NaviampNowPlayingPanel(
                     } else {
                         artSize + NowPlayingArtShadowMargin * 2
                     }
-                    val compactDetailsHeight = (viewportHeight - compactArtHeight - 3.dp)
+                    val compactDetailsHeight = (viewportHeight - compactArtHeight - CompactNowPlayingStackGap)
                         .coerceAtLeast(CompactNowPlayingDetailsMinHeight)
                     Column(
                         horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(3.dp),
+                        verticalArrangement = Arrangement.spacedBy(CompactNowPlayingStackGap),
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(viewportHeight)
@@ -527,7 +526,7 @@ private fun VisualizerDropdownMenuItems(
     selectedVisualizer: NaviampVisualizer,
     onVisualizerSelected: (NaviampVisualizer) -> Unit,
 ) {
-    NaviampVisualizer.entries.forEach { visualizer ->
+    NaviampVisualizer.entries.sortedBy { it.label }.forEach { visualizer ->
         NaviampDropdownMenuItem(
             label = if (visualizer == selectedVisualizer) "${visualizer.label} ✓" else visualizer.label,
             enabled = visualizer != selectedVisualizer,
@@ -564,10 +563,11 @@ private fun NowPlayingDetails(
     val canTogglePlayback = nowPlaying.canPlayPause
     val height = availableHeight ?: Dp.Unspecified
     val pinBottomActions = !mobileLayout && height != Dp.Unspecified
-    val showVolume = !compactLayout || height == Dp.Unspecified || height >= 230.dp
-    val showRating = !compactLayout || height == Dp.Unspecified || height >= 180.dp
-    val showAudioInfo = !compactLayout || height == Dp.Unspecified || height >= 252.dp
+    val showVolume = !compactLayout || height == Dp.Unspecified || height >= 220.dp
+    val showRating = !compactLayout || height == Dp.Unspecified || height >= 150.dp
+    val showAudioInfo = !compactLayout || height == Dp.Unspecified || height >= 150.dp
     val showTrackIdentity = !compactLayout || height == Dp.Unspecified || height >= 135.dp
+    val compactMetadataRow = compactLayout && !mobileLayout
     val controlColors = colors.copy(accent = playerColors.accent)
 
     LaunchedEffect(nowPlaying.progressFraction) {
@@ -657,7 +657,6 @@ private fun NowPlayingDetails(
                     verticalArrangement = Arrangement.spacedBy(if (mobileLayout) 2.dp else 1.dp),
                     modifier = Modifier
                         .fillMaxWidth()
-                        .offset(y = if (mobileLayout && !compactLayout) (-14).dp else 0.dp)
                         .padding(bottom = if (mobileLayout) 1.dp else 0.dp),
                 ) {
                     BouncingTitleText(
@@ -692,7 +691,19 @@ private fun NowPlayingDetails(
                 }
             }
 
-            if (showRating || showAudioInfo) {
+            if (compactMetadataRow && (showRating || showAudioInfo)) {
+                CompactMetadataRow(
+                    nowPlaying = nowPlaying,
+                    colors = colors,
+                    showRating = showRating,
+                    showAudioInfo = showAudioInfo,
+                    onToggleFavorite = { actions.currentTrack(NowPlayingCurrentTrackAction.ToggleFavorite) },
+                    onRatingSelected = { rating ->
+                        actions.currentTrack(NowPlayingCurrentTrackAction.SetRating, rating = rating)
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            } else if (showRating || showAudioInfo) {
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.spacedBy(1.dp),
@@ -1074,6 +1085,77 @@ private fun NowPlayingDetails(
 }
 
 @Composable
+private fun CompactMetadataRow(
+    nowPlaying: NowPlayingUi,
+    colors: NaviampColors,
+    showRating: Boolean,
+    showAudioInfo: Boolean,
+    onToggleFavorite: () -> Unit,
+    onRatingSelected: (Int?) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    if (nowPlaying.isLive) return
+
+    val showRatingControls = showRating &&
+        (nowPlaying.canFavorite || nowPlaying.canRate || nowPlaying.favoriteActive || nowPlaying.userRating != null)
+    val showAudioText = showAudioInfo && nowPlaying.audioInfo.isNotBlank()
+    if (!showRatingControls && !showAudioText) return
+    val (audioType, audioQuality) = nowPlaying.audioInfo.compactAudioInfoParts()
+
+    Row(
+        horizontalArrangement = Arrangement.Center,
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = modifier,
+    ) {
+        if (showAudioText) {
+            Text(
+                audioType,
+                color = colors.secondaryText,
+                fontSize = 11.sp,
+                textAlign = TextAlign.End,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.width(36.dp),
+            )
+        }
+        if (showRatingControls) {
+            RatingRow(
+                favoriteActive = nowPlaying.favoriteActive,
+                canFavorite = nowPlaying.canFavorite,
+                rating = nowPlaying.userRating,
+                canRate = nowPlaying.canRate,
+                colors = colors,
+                onToggleFavorite = onToggleFavorite,
+                onRatingSelected = onRatingSelected,
+                modifier = Modifier.padding(horizontal = 8.dp),
+            )
+        }
+        if (showAudioText) {
+            Text(
+                audioQuality,
+                color = colors.secondaryText,
+                fontSize = 11.sp,
+                textAlign = TextAlign.Start,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.width(58.dp),
+            )
+        }
+    }
+}
+
+private fun String.compactAudioInfoParts(): Pair<String, String> {
+    val parts = trim().split(Regex("\\s{2,}"), limit = 2)
+    if (parts.size == 2) return parts[0] to parts[1]
+    val firstSpace = indexOf(' ')
+    return if (firstSpace > 0) {
+        substring(0, firstSpace) to substring(firstSpace + 1).trim()
+    } else {
+        this to ""
+    }
+}
+
+@Composable
 private fun LiveVisualizerSurface(
     coverArtUrl: String?,
     bandsProvider: () -> List<Float>,
@@ -1370,6 +1452,8 @@ private fun VolumeRow(
 }
 
 private val NowPlayingArtShadowMargin = 12.dp
+private val CompactNowPlayingStackBreakpoint = 640.dp
+private val CompactNowPlayingStackGap = 3.dp
 private val CompactNowPlayingDetailsMinHeight = 132.dp
 private val WideNowPlayingArtMinHeight = 112.dp
 private val WideNowPlayingDetailsMinHeight = 232.dp
