@@ -1,8 +1,6 @@
 package app.naviamp.android.playback
 
 import android.content.Context
-import android.graphics.Bitmap
-import android.graphics.BitmapFactory
 import android.net.Uri
 import android.os.Bundle
 import android.support.v4.media.MediaBrowserCompat
@@ -31,9 +29,7 @@ import app.naviamp.provider.navidrome.toNavidromeConnection
 import app.naviamp.ui.defaultRadioArtworkUrl
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
-import kotlin.math.max
 import kotlin.math.min
 
 internal class AndroidAutoBrowseController(
@@ -676,9 +672,7 @@ internal class AndroidAutoBrowseController(
                 .setTitle(title)
                 .setSubtitle(subtitle)
                 .apply {
-                    val iconBitmap = autoIconBitmap(iconUri)
                     when {
-                        iconBitmap != null -> setIconBitmap(iconBitmap)
                         iconName != null -> setIconUri(Uri.parse(autoDrawableUri(iconName)))
                         iconUri != null -> setIconUri(Uri.parse(iconUri))
                     }
@@ -700,49 +694,11 @@ internal class AndroidAutoBrowseController(
                 .setSubtitle(subtitle)
                 .apply {
                     val artUri = iconUri ?: currentMetadata().coverArtUrl?.takeIf { mediaId == AndroidAutoPlaybackControls.MediaIdNowPlaying }
-                    val iconBitmap = autoIconBitmap(artUri)
-                    when {
-                        iconBitmap != null -> setIconBitmap(iconBitmap)
-                        artUri != null -> setIconUri(Uri.parse(artUri))
-                    }
+                    artUri?.let { setIconUri(Uri.parse(it)) }
                 }
                 .build(),
             MediaBrowserCompat.MediaItem.FLAG_PLAYABLE,
         )
-
-    private fun autoIconBitmap(iconUri: String?): Bitmap? {
-        if (iconUri.isNullOrBlank()) return null
-        return runCatching {
-            runBlocking {
-                val storage = storage()
-                storage.cachedImageBytes(iconUri) ?: fetchAutoIconBytes(storage, iconUri)
-            }?.let(::decodeAutoIconBitmap)
-        }.onFailure { error ->
-            Log.d("NaviampAutoCommand", "Auto art fetch miss uri=$iconUri error=${error.message}")
-        }.getOrNull()
-    }
-
-    private suspend fun fetchAutoIconBytes(
-        storage: AndroidStorageDependencies,
-        iconUri: String,
-    ): ByteArray? {
-        if (!iconUri.startsWith("http://") && !iconUri.startsWith("https://")) return null
-        val provider = storage.latestNavidromeSource()
-            ?.toNavidromeConnection()
-            ?.let(::NavidromeProvider)
-            ?.takeIf { it.ownsUrl(iconUri) }
-            ?: run {
-                Log.d("NaviampAutoCommand", "Skipping Auto art fetch for non-provider uri=$iconUri")
-                return null
-            }
-        return withContext(Dispatchers.IO) {
-            runCatching {
-                storage.imageBytes(iconUri) {
-                    provider.bytes(iconUri) ?: error("No bytes for Auto art uri=$iconUri")
-                }
-            }.getOrNull()
-        }
-    }
 
     private fun noSourceItems(): MutableList<MediaBrowserCompat.MediaItem> =
         mutableListOf(
@@ -856,7 +812,6 @@ internal class AndroidAutoBrowseController(
 }
 
 private const val AndroidAutoBrowseLimit = 50
-private const val AndroidAutoIconSidePx = 144
 private const val AndroidAutoQueuePageSize = 1
 private const val MediaIdPartSeparator = "|"
 private const val VoiceArtistScanLimit = 5_000L
@@ -873,23 +828,6 @@ private fun MutableList<MediaBrowserCompat.MediaItem>.paginated(options: Bundle)
     if (fromIndex >= size) return mutableListOf()
     val toIndex = min(fromIndex + pageSize, size)
     return subList(fromIndex, toIndex).toMutableList()
-}
-
-private fun decodeAutoIconBitmap(bytes: ByteArray): Bitmap? {
-    val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-    BitmapFactory.decodeByteArray(bytes, 0, bytes.size, bounds)
-    val maxSide = max(bounds.outWidth, bounds.outHeight)
-    if (maxSide <= 0) return null
-    var sampleSize = 1
-    while (maxSide / sampleSize > AndroidAutoIconSidePx) {
-        sampleSize *= 2
-    }
-    return BitmapFactory.decodeByteArray(
-        bytes,
-        0,
-        bytes.size,
-        BitmapFactory.Options().apply { inSampleSize = sampleSize },
-    )
 }
 
 private fun String.mediaIdParts(): List<String> =

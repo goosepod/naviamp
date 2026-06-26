@@ -565,8 +565,10 @@ private val DefaultNaviampLibraries = listOf(
 )
 
 private val DefaultNaviampChangelog = listOf(
-    "Redesigned the Vinyl Groove visualizer as a spinning record with album-art center label and reactive frequency grooves.",
-    "Preserved provider lyric timing offsets until a saved per-track user offset overrides them.",
+    "Refined the compact Now Playing layout with larger responsive artwork, better spacing, and a Plexamp-style rating and audio-quality row.",
+    "Sorted visualizer choices alphabetically and updated their labels to title case.",
+    "Fixed macOS About metadata so the app reports the real Naviamp release version.",
+    "Improved Android Auto browse stability by avoiding blocking artwork fetches while loading media items.",
 )
 
 @Composable

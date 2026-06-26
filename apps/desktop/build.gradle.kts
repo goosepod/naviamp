@@ -279,6 +279,7 @@ tasks.matching {
 }.configureEach {
     doLast {
         markDesktopVisualizerMetalExecutable()
+        patchMacAppBundleVersion()
     }
 }
 
@@ -415,3 +416,22 @@ fun markDesktopVisualizerMetalExecutable() {
         visualizerMetal.setExecutable(true, false)
     }
 }
+
+fun patchMacAppBundleVersion() {
+    val platform = desktopBassPlatform.get()
+    if (!platform.startsWith("macos-")) return
+    val infoPlist = desktopPackagedAppDir.get()
+        .file("Contents/Info.plist")
+        .asFile
+    if (!infoPlist.isFile) return
+
+    val patched = infoPlist.readText()
+        .replacePlistStringValue("CFBundleShortVersionString", naviampVersionName)
+        .replacePlistStringValue("CFBundleVersion", naviampVersionName)
+    infoPlist.writeText(patched)
+}
+
+fun String.replacePlistStringValue(key: String, value: String): String =
+    replace(
+        Regex("(<key>${Regex.escape(key)}</key>\\s*<string>)([^<]*)(</string>)"),
+    ) { match -> "${match.groupValues[1]}$value${match.groupValues[3]}" }
