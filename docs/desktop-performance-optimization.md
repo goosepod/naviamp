@@ -85,6 +85,8 @@ Implemented first pass:
 
 - Force `-Dskiko.renderApi=OPENGL` for Windows packaged desktop builds.
 
+Follow-up visualizer testing on Windows showed the forced OpenGL backend made visualizer animation feel choppy even after faster visualizer FFT sampling. A packaged build using Skiko's default Windows renderer made visualizer animation fluid, improved visual quality, and stayed around 8-9% CPU in Task Manager even with detailed visualizers running. Windows packaged builds now use the default Skiko renderer unless `-Pnaviamp.windows.skiko.renderApi=OPENGL` or another explicit renderer is passed for testing.
+
 ### 3b. macOS packaged builds should stay on Metal
 
 macOS Compose Desktop should use Skiko Metal for the normal packaged app path. Keep this explicit so local packaged builds do not silently drift to a less efficient renderer while comparing idle CPU across platforms.

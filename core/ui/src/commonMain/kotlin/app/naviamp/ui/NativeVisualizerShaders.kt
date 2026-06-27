@@ -2,6 +2,7 @@ package app.naviamp.ui
 
 internal enum class NativeShaderDialect {
     GlslEs300,
+    DesktopGlsl330,
     MetalShadingLanguage,
 }
 
@@ -16,8 +17,16 @@ internal data class NativeVisualizerShaderDefinition(
 internal fun NativeVisualizerShaderDefinition.fragmentSourceForDialect(dialect: NativeShaderDialect): String =
     when (dialect) {
         NativeShaderDialect.GlslEs300 -> fragmentSource
+        NativeShaderDialect.DesktopGlsl330 -> NativeDesktopGlslShaderTranslator.translateFragmentShader(fragmentSource)
         NativeShaderDialect.MetalShadingLanguage -> NativeMetalShaderTranslator.translateFragmentShader(fragmentSource)
     }
+
+internal object NativeDesktopGlslShaderTranslator {
+    fun translateFragmentShader(source: String): String =
+        source
+            .replace("#version 300 es", "#version 330 core")
+            .replace(Regex("""(?m)^\s*precision\s+\w+\s+float;\s*\n"""), "")
+}
 
 internal val NaviampVisualizer.nativeShaderDefinition: NativeVisualizerShaderDefinition?
     get() = when (this) {

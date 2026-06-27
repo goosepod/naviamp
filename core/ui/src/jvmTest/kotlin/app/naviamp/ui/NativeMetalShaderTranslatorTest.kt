@@ -39,6 +39,22 @@ class NativeMetalShaderTranslatorTest {
     }
 
     @Test
+    fun translatesEveryNativeVisualizerShaderToDesktopGlslContract() {
+        val nativeVisualizers = NaviampVisualizer.entries.filter { it.nativeShaderDefinition != null }
+        assertTrue(nativeVisualizers.isNotEmpty())
+
+        nativeVisualizers.forEach { visualizer ->
+            val shaderDefinition = assertNotNull(visualizer.nativeShaderDefinition)
+            val source = shaderDefinition.fragmentSourceForDialect(NativeShaderDialect.DesktopGlsl330)
+
+            assertTrue(source.startsWith("#version 330 core"), visualizer.name)
+            assertTrue(source.contains("out vec4 outColor"), visualizer.name)
+            assertFalse(source.contains("#version 300 es"), visualizer.name)
+            assertFalse(source.contains("precision highp float"), visualizer.name)
+        }
+    }
+
+    @Test
     fun keepsDesktopNativeMetalBackendOptInAndMacOnly() {
         assertFalse(
             jvmNativeMetalVisualizerAvailable(
@@ -97,6 +113,46 @@ class NativeMetalShaderTranslatorTest {
                     osName = "Mac OS X",
                     enabledProperty = "true",
                     libraryAvailable = true,
+                ),
+            ),
+        )
+    }
+
+    @Test
+    fun nativeOpenGlAvailabilityFeedsRendererSelectionOnWindows() {
+        assertFalse(
+            jvmNativeOpenGlVisualizerAvailable(
+                visualizer = NaviampVisualizer.FluidicNebulae,
+                osName = "Windows 11",
+                enabledProperty = null,
+                libraryAvailable = true,
+            ),
+        )
+        assertFalse(
+            jvmNativeOpenGlVisualizerAvailable(
+                visualizer = NaviampVisualizer.FluidicNebulae,
+                osName = "Mac OS X",
+                enabledProperty = "true",
+                libraryAvailable = true,
+            ),
+        )
+        assertTrue(
+            jvmNativeOpenGlVisualizerAvailable(
+                visualizer = NaviampVisualizer.FluidicNebulae,
+                osName = "Windows 11",
+                enabledProperty = "true",
+                libraryAvailable = true,
+            ),
+        )
+        assertEquals(
+            VisualizerRendererMode.NativeGpu,
+            selectedVisualizerRendererMode(
+                visualizer = NaviampVisualizer.FluidicNebulae,
+                nativeRendererAvailable = jvmNativeVisualizerAvailable(
+                    visualizer = NaviampVisualizer.FluidicNebulae,
+                    osName = "Windows 11",
+                    windowsOpenGlEnabledProperty = "true",
+                    openGlLibraryAvailable = true,
                 ),
             ),
         )

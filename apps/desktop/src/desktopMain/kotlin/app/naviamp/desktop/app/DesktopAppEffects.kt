@@ -8,7 +8,7 @@ import app.naviamp.domain.isInternetRadioTrack
 import app.naviamp.domain.cache.ImageCacheRepository
 import app.naviamp.domain.playback.CrossfadeSettings
 import app.naviamp.domain.playback.DefaultNowPlayingHeartbeatIntervalMillis
-import app.naviamp.domain.playback.DefaultVisualizerFrameIntervalMillis
+import app.naviamp.domain.playback.DefaultDesktopVisualizerFrameIntervalMillis
 import app.naviamp.domain.playback.EqualizerPlaybackEngine
 import app.naviamp.domain.playback.PlaybackEngine
 import app.naviamp.domain.playback.PlaybackState
@@ -143,7 +143,7 @@ fun DesktopAppEffects(
             (playbackState == PlaybackState.Playing || playbackState == PlaybackState.Loading)
         ) {
             setNowPlayingVisualizerFrame(visualizerEngine.visualizerFrame())
-            delay(DefaultVisualizerFrameIntervalMillis)
+            delay(DefaultDesktopVisualizerFrameIntervalMillis)
         }
         setNowPlayingVisualizerFrame(null)
     }
