@@ -14,6 +14,7 @@ plugins {
 val naviampVersionName = rootProject.file("VERSION").readText().trim()
 val naviampVersionCode = rootProject.file("VERSION_CODE").readText().trim()
 val naviampNativePackageVersion = nativeDistributionPackageVersion(naviampVersionName)
+val naviampWindowsPackageVersion = windowsDistributionPackageVersion(naviampVersionName)
 val desktopBassPlatform = providers.gradleProperty("naviamp.bass.platform")
     .orElse(desktopNativePlatform())
 val desktopBassVendorDir = desktopBassPlatform.map { platform ->
@@ -293,6 +294,8 @@ compose.desktop {
 
             windows {
                 iconFile.set(project.file("src/desktopMain/resources/icons/naviamp.ico"))
+                msiPackageVersion = naviampWindowsPackageVersion
+                exePackageVersion = naviampWindowsPackageVersion
                 menu = true
                 menuGroup = "Naviamp"
             }
@@ -453,6 +456,16 @@ fun nativeDistributionPackageVersion(version: String): String {
     val patch = parts[2].toInt()
     val nativeMajor = major.takeIf { it > 0 } ?: 1
     return "$nativeMajor.$minor.$patch"
+}
+
+fun windowsDistributionPackageVersion(version: String): String {
+    val coreVersion = version.substringBefore('-').substringBefore('+')
+    val parts = coreVersion.split(".")
+    require(parts.size == 3) {
+        "VERSION must be major.minor.patch for Windows packaging, got: $version"
+    }
+    parts.forEach { it.toInt() }
+    return coreVersion
 }
 
 fun desktopCmakeArchitecture(platform: String): String =
