@@ -154,6 +154,49 @@ val copyDesktopVisualizerMetalAppResources by tasks.registering(Copy::class) {
     }
     onlyIf { desktopVisualizerMetalOutputFile.get().isFile }
 }
+val desktopVisualizerOpenGlBuildDir = desktopBassPlatform.map { platform ->
+    layout.buildDirectory.dir("generated/visualizerOpenGlBuild/$platform").get()
+}
+val desktopVisualizerOpenGlOutputFile = desktopVisualizerOpenGlBuildDir.zip(desktopBassPlatform) { buildDir, platform ->
+    buildDir.file(desktopLibraryName("naviamp_visualizer_opengl", platform)).asFile
+}
+val configureDesktopVisualizerOpenGl by tasks.registering(Exec::class) {
+    val nativeProjectDir = rootProject.layout.projectDirectory.dir("native/visualizer-opengl")
+    onlyIf { desktopBassPlatform.get().startsWith("windows-") }
+    commandLine(
+        desktopCmakeExecutable.get(),
+        "-S",
+        nativeProjectDir.asFile.absolutePath,
+        "-B",
+        desktopVisualizerOpenGlBuildDir.get().asFile.absolutePath,
+        "-DCMAKE_BUILD_TYPE=Release",
+        "-DCMAKE_RUNTIME_OUTPUT_DIRECTORY=${desktopVisualizerOpenGlBuildDir.get().asFile.absolutePath}",
+        "-DCMAKE_LIBRARY_OUTPUT_DIRECTORY=${desktopVisualizerOpenGlBuildDir.get().asFile.absolutePath}",
+        "-DCMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE=${desktopVisualizerOpenGlBuildDir.get().asFile.absolutePath}",
+        "-DCMAKE_LIBRARY_OUTPUT_DIRECTORY_RELEASE=${desktopVisualizerOpenGlBuildDir.get().asFile.absolutePath}",
+    )
+}
+val buildDesktopVisualizerOpenGl by tasks.registering(Exec::class) {
+    dependsOn(configureDesktopVisualizerOpenGl)
+    onlyIf { desktopBassPlatform.get().startsWith("windows-") }
+    commandLine(desktopCmakeExecutable.get(), "--build", desktopVisualizerOpenGlBuildDir.get().asFile.absolutePath, "--config", "Release")
+}
+val copyDesktopVisualizerOpenGl by tasks.registering(Copy::class) {
+    dependsOn(buildDesktopVisualizerOpenGl)
+    from(desktopVisualizerOpenGlOutputFile)
+    into(generatedDesktopBassResources.zip(desktopBassPlatform) { resources, platform ->
+        resources.dir("playback/bass/$platform")
+    })
+    onlyIf { desktopVisualizerOpenGlOutputFile.get().isFile }
+}
+val copyDesktopVisualizerOpenGlAppResources by tasks.registering(Copy::class) {
+    dependsOn(buildDesktopVisualizerOpenGl)
+    from(desktopVisualizerOpenGlOutputFile)
+    into(generatedDesktopBassAppResources.zip(desktopBassPlatform) { resources, platform ->
+        resources.dir("$platform/playback/bass/$platform")
+    })
+    onlyIf { desktopVisualizerOpenGlOutputFile.get().isFile }
+}
 val desktopPackagedAppName = desktopBassPlatform.map { platform ->
     if (platform.startsWith("macos-")) "Naviamp.app" else "Naviamp"
 }
@@ -218,7 +261,14 @@ compose.desktop {
         )
         when {
             desktopBassPlatform.get().startsWith("windows-") -> {
-                jvmArgs += "-Dskiko.renderApi=OPENGL"
+                val windowsSkikoRenderApi = providers.gradleProperty("naviamp.windows.skiko.renderApi")
+                    .orElse("DEFAULT")
+                    .get()
+                    .trim()
+                if (windowsSkikoRenderApi.isNotBlank() && !windowsSkikoRenderApi.equals("DEFAULT", ignoreCase = true)) {
+                    jvmArgs += "-Dskiko.renderApi=$windowsSkikoRenderApi"
+                }
+                jvmArgs += "-Dnaviamp.visualizer.windowsOpenGl=true"
             }
             desktopBassPlatform.get().startsWith("macos-") -> {
                 jvmArgs += "-Dskiko.renderApi=METAL"
@@ -257,6 +307,7 @@ tasks.matching { it.name == "desktopProcessResources" || it.name == "processDesk
         dependsOn(copyDesktopBass)
         dependsOn(copyDesktopBassJni)
         dependsOn(copyDesktopVisualizerMetal)
+        dependsOn(copyDesktopVisualizerOpenGl)
     }
 
 tasks.matching {
@@ -269,6 +320,7 @@ tasks.matching {
     dependsOn(copyDesktopBassAppResources)
     dependsOn(copyDesktopBassJniAppResources)
     dependsOn(copyDesktopVisualizerMetalAppResources)
+    dependsOn(copyDesktopVisualizerOpenGlAppResources)
 }
 
 tasks.matching {
@@ -318,6 +370,9 @@ tasks.register("verifyDesktopDistributable") {
             }
             if (platform.startsWith("macos-")) {
                 add(desktopLibraryName("naviamp_visualizer_metal", platform))
+            }
+            if (platform.startsWith("windows-")) {
+                add(desktopLibraryName("naviamp_visualizer_opengl", platform))
             }
         }
         val missingLibraries = requiredLibraries.filterNot { bassResourcesDir.resolve(it).isFile }

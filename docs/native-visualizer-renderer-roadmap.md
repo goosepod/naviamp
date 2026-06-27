@@ -58,9 +58,15 @@ Start here because it is the current pain point.
 
 ### Windows And Linux Desktop
 
-- Keep using SkSL until there is a platform-native surface that composes safely inside the existing app window.
-- If this becomes a priority, evaluate OpenGL through a purpose-built renderer module, not by embedding AWT into Compose.
-- Keep the Compose integration isolated because embedded native surfaces can have layering/input issues.
+- Windows now has an experimental offscreen OpenGL renderer packaged as `naviamp_visualizer_opengl.dll`.
+- The Windows path renders GLSL effects into a hidden OpenGL context, reads BGRA pixels back, and draws them through the existing Compose visualizer area so it avoids embedded native child-window layering issues.
+- Packaged Windows builds enable the experimental path with `-Dnaviamp.visualizer.windowsOpenGl=true`.
+- The default Windows `balanced` profile keeps native OpenGL visualizers at full internal resolution; only the explicit `constrained` profile downscales heavy shaders.
+- A direct `SwingPanel`/AWT OpenGL surface was tested on Windows and rejected for the Player visualizer because it rendered above Compose menus and other overlay UI.
+- The offscreen Windows OpenGL path defaults to at least `2x` pixel scale; it can be overridden with `-Dnaviamp.visualizer.windowsPixelScale=1..4`.
+- Desktop visualizer FFT/audio frame sampling now uses a desktop-specific `33ms` cadence while visible and active; the older shared `125ms` cadence made audio-reactive motion feel closer to 8fps even when shader animation frames were rendering faster.
+- Windows packaged builds should use Skiko's default renderer. Forcing `-Dskiko.renderApi=OPENGL` reduced idle CPU in an earlier no-track test but made visualizers visibly choppy; the default renderer kept detailed visualizers fluid while staying around 8-9% CPU in Task Manager during manual testing.
+- Linux should stay on SkSL until the Windows OpenGL path is validated and the native module is generalized beyond WGL.
 
 ### macOS
 
@@ -153,6 +159,12 @@ The first pass can derive `u_beatDetected` and `u_spectralCentroid` from the cur
 - [x] Upload frame uniforms, 32-band frequency texture, palette colors, and quality controls to the Metal host.
 - [x] Keep the macOS Metal path opt-in and fall back to SkSL/Canvas when the property, library, or host initialization is unavailable.
 - [x] Smoke-test the staged macOS app with `-Dnaviamp.visualizer.macosMetal=true`.
+- [x] Add an experimental Windows offscreen OpenGL host for native GLSL visualizers.
+- [x] Package the Windows OpenGL visualizer library with desktop Windows app images.
+- [x] Reject direct embedded Windows AWT/OpenGL surface rendering after it overlaid Compose menus.
+- [x] Increase desktop visualizer FFT/audio sampling cadence from `125ms` to `33ms` while visible and active.
+- [x] Restore the default Windows Skiko renderer for packaged builds after visualizer testing showed it was smoother than forced Skiko OpenGL.
+- [ ] Smoke-test the staged Windows app with the packaged OpenGL renderer and playback active.
 - [ ] Manually validate all native-only visualizers in the Player with playback active, including resize/toggle behavior and layer ordering over album art.
 
 ## Acceptance Criteria

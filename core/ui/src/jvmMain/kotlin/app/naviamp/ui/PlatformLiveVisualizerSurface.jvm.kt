@@ -46,7 +46,7 @@ internal actual fun PlatformLiveVisualizerSurface(
     val rendererMode = remember(visualizer) {
         selectedVisualizerRendererMode(
             visualizer = visualizer,
-            nativeRendererAvailable = jvmNativeMetalVisualizerAvailable(visualizer),
+            nativeRendererAvailable = jvmNativeVisualizerAvailable(visualizer),
         )
     }
     LaunchedEffect(active, visualizer, renderPolicy.targetFrameIntervalMillis) {
@@ -79,7 +79,7 @@ internal actual fun PlatformLiveVisualizerSurface(
     }
 
     if (rendererMode == VisualizerRendererMode.NativeGpu) {
-        NativeMetalVisualizerSurface(
+        NativeDesktopVisualizerSurface(
             bandsProvider = bandsProvider,
             visualizer = visualizer,
             renderPolicy = renderPolicy,
@@ -138,7 +138,7 @@ internal actual fun PlatformLiveVisualizerSurface(
 }
 
 @Composable
-private fun NativeMetalVisualizerSurface(
+private fun NativeDesktopVisualizerSurface(
     bandsProvider: () -> List<Float>,
     visualizer: NaviampVisualizer,
     renderPolicy: VisualizerRenderPolicy,
@@ -150,9 +150,7 @@ private fun NativeMetalVisualizerSurface(
     tempoBpm: Int?,
     modifier: Modifier,
 ) {
-    val host = remember(visualizer, renderPolicy) {
-        NativeMetalVisualizerHost(visualizer, renderPolicy)
-    }
+    val host = remember(visualizer, renderPolicy) { createNativeDesktopVisualizerHost(visualizer, renderPolicy) }
     DisposableEffect(host) {
         onDispose { host.close() }
     }
@@ -161,9 +159,12 @@ private fun NativeMetalVisualizerSurface(
     }
 
     Canvas(modifier = modifier) {
+        val nativePixelScale = nativeDesktopVisualizerPixelScale(density)
+        val renderWidth = (size.width * nativePixelScale).toInt().coerceAtLeast(1)
+        val renderHeight = (size.height * nativePixelScale).toInt().coerceAtLeast(1)
         val image = host.renderImage(
-            width = size.width.toInt(),
-            height = size.height.toInt(),
+            width = renderWidth,
+            height = renderHeight,
             bands = bandsProvider(),
             active = active,
             visualizerColors = visualizerColors,
@@ -176,8 +177,11 @@ private fun NativeMetalVisualizerSurface(
                 val paint = Paint()
                 canvas.nativeCanvas.drawImageRect(
                     image,
+                    Rect.makeWH(image.width.toFloat(), image.height.toFloat()),
                     Rect.makeWH(size.width, size.height),
+                    SamplingMode.LINEAR,
                     paint,
+                    true,
                 )
                 paint.close()
             }
@@ -192,6 +196,69 @@ private fun NativeMetalVisualizerSurface(
             )
         }
     }
+}
+
+private interface NativeDesktopVisualizerHost : AutoCloseable {
+    fun updateAlbumArt(image: Image?)
+
+    fun renderImage(
+        width: Int,
+        height: Int,
+        bands: List<Float>,
+        active: Boolean,
+        visualizerColors: NaviampPlayerColors,
+        colors: NaviampColors,
+        timeSeconds: Float,
+        tempoBpm: Int?,
+    ): Image?
+}
+
+private fun createNativeDesktopVisualizerHost(
+    visualizer: NaviampVisualizer,
+    renderPolicy: VisualizerRenderPolicy,
+): NativeDesktopVisualizerHost =
+    if (jvmPlatformLabel() == "windows") {
+        NativeOpenGlDesktopVisualizerHost(NativeOpenGlVisualizerHost(visualizer, renderPolicy))
+    } else {
+        NativeMetalDesktopVisualizerHost(NativeMetalVisualizerHost(visualizer, renderPolicy))
+    }
+
+private class NativeMetalDesktopVisualizerHost(
+    private val host: NativeMetalVisualizerHost,
+) : NativeDesktopVisualizerHost {
+    override fun updateAlbumArt(image: Image?) = host.updateAlbumArt(image)
+
+    override fun renderImage(
+        width: Int,
+        height: Int,
+        bands: List<Float>,
+        active: Boolean,
+        visualizerColors: NaviampPlayerColors,
+        colors: NaviampColors,
+        timeSeconds: Float,
+        tempoBpm: Int?,
+    ): Image? = host.renderImage(width, height, bands, active, visualizerColors, colors, timeSeconds, tempoBpm)
+
+    override fun close() = host.close()
+}
+
+private class NativeOpenGlDesktopVisualizerHost(
+    private val host: NativeOpenGlVisualizerHost,
+) : NativeDesktopVisualizerHost {
+    override fun updateAlbumArt(image: Image?) = host.updateAlbumArt(image)
+
+    override fun renderImage(
+        width: Int,
+        height: Int,
+        bands: List<Float>,
+        active: Boolean,
+        visualizerColors: NaviampPlayerColors,
+        colors: NaviampColors,
+        timeSeconds: Float,
+        tempoBpm: Int?,
+    ): Image? = host.renderImage(width, height, bands, active, visualizerColors, colors, timeSeconds, tempoBpm)
+
+    override fun close() = host.close()
 }
 
 private class ShaderVisualizerRenderer(
@@ -420,6 +487,7 @@ private const val VisualizerPerfLogIntervalMillis = 5_000L
 private const val VisualizerPerfLogProperty = "naviamp.visualizer.perf"
 private const val VisualizerProfileProperty = "naviamp.visualizer.profile"
 private const val MacosMetalVisualizerProperty = "naviamp.visualizer.macosMetal"
+private const val WindowsOpenGlVisualizerProperty = "naviamp.visualizer.windowsOpenGl"
 private val NaviampVisualizer.usesHistoryShader: Boolean
     get() = this == NaviampVisualizer.SpectralRidge ||
         this == NaviampVisualizer.FftMountain ||
@@ -509,6 +577,44 @@ private fun jvmPlatformLabel(): String {
     }
 }
 
+private fun nativeDesktopVisualizerPixelScale(density: Float): Float =
+    if (jvmPlatformLabel() == "windows") {
+        val override = System.getProperty("naviamp.visualizer.windowsPixelScale")
+            ?: System.getenv("NAVIAMP_VISUALIZER_WINDOWS_PIXEL_SCALE")
+        override
+            ?.toFloatOrNull()
+            ?.coerceIn(1f, 4f)
+            ?: maxOf(density, 2f)
+    } else {
+        1f
+    }
+
+internal fun jvmNativeVisualizerAvailable(
+    visualizer: NaviampVisualizer,
+    osName: String = System.getProperty("os.name"),
+    macosMetalEnabledProperty: String? = System.getProperty(MacosMetalVisualizerProperty),
+    windowsOpenGlEnabledProperty: String? = System.getProperty(WindowsOpenGlVisualizerProperty),
+    metalLibraryAvailable: Boolean? = null,
+    openGlLibraryAvailable: Boolean? = null,
+): Boolean {
+    val normalizedOs = osName.lowercase(Locale.US)
+    return when {
+        normalizedOs.contains("mac") -> jvmNativeMetalVisualizerAvailable(
+            visualizer = visualizer,
+            osName = osName,
+            enabledProperty = macosMetalEnabledProperty,
+            libraryAvailable = metalLibraryAvailable ?: NativeMetalVisualizerHost.libraryAvailable(),
+        )
+        normalizedOs.contains("win") -> jvmNativeOpenGlVisualizerAvailable(
+            visualizer = visualizer,
+            osName = osName,
+            enabledProperty = windowsOpenGlEnabledProperty,
+            libraryAvailable = openGlLibraryAvailable ?: NativeOpenGlVisualizerHost.libraryAvailable(),
+        )
+        else -> false
+    }
+}
+
 internal fun jvmNativeMetalVisualizerAvailable(
     visualizer: NaviampVisualizer,
     osName: String = System.getProperty("os.name"),
@@ -536,6 +642,66 @@ internal fun jvmNativeMetalVisualizerAvailable(
         available = available,
     )
     return available
+}
+
+internal fun jvmNativeOpenGlVisualizerAvailable(
+    visualizer: NaviampVisualizer,
+    osName: String = System.getProperty("os.name"),
+    enabledProperty: String? = System.getProperty(WindowsOpenGlVisualizerProperty),
+    libraryAvailable: Boolean = NativeOpenGlVisualizerHost.libraryAvailable(),
+): Boolean {
+    val enabled = enabledProperty.equals("true", ignoreCase = true)
+    val windows = osName.lowercase(Locale.US).contains("win")
+    val shaderDefinition = visualizer.nativeShaderDefinition
+    val shaderTranslates = shaderDefinition?.let {
+        runCatching {
+            it.fragmentSourceForDialect(NativeShaderDialect.DesktopGlsl330)
+        }.isSuccess
+    } ?: false
+    val available = enabled && windows && libraryAvailable && shaderDefinition != null && shaderTranslates
+
+    logNativeOpenGlAvailability(
+        visualizer = visualizer,
+        enabled = enabled,
+        osName = osName,
+        windows = windows,
+        libraryAvailable = libraryAvailable,
+        shaderDefinition = shaderDefinition != null,
+        shaderTranslates = shaderTranslates,
+        available = available,
+    )
+    return available
+}
+
+private val nativeOpenGlAvailabilityLogs = mutableSetOf<String>()
+
+private fun logNativeOpenGlAvailability(
+    visualizer: NaviampVisualizer,
+    enabled: Boolean,
+    osName: String,
+    windows: Boolean,
+    libraryAvailable: Boolean,
+    shaderDefinition: Boolean,
+    shaderTranslates: Boolean,
+    available: Boolean,
+) {
+    if (!nativeOpenGlDiagnosticsEnabled()) return
+    val key = "${visualizer.name}:$enabled:$windows:$libraryAvailable:$shaderDefinition:$shaderTranslates:$available"
+    if (!nativeOpenGlAvailabilityLogs.add(key)) return
+    val libraryError = NativeOpenGlVisualizerHost.libraryLoadFailureMessage()
+        ?.let { " libraryError=$it" }
+        .orEmpty()
+    val libraryDiagnostics = if (!libraryAvailable) {
+        " ${NativeOpenGlVisualizerHost.libraryDiagnostics()}"
+    } else {
+        ""
+    }
+    println(
+        "NaviampVisualizerOpenGl availability visualizer=${visualizer.name} " +
+            "available=$available enabled=$enabled osName=$osName windows=$windows " +
+            "libraryAvailable=$libraryAvailable shaderDefinition=$shaderDefinition " +
+            "shaderTranslates=$shaderTranslates$libraryError$libraryDiagnostics",
+    )
 }
 
 private val nativeMetalAvailabilityLogs = mutableSetOf<String>()
