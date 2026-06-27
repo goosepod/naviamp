@@ -565,7 +565,7 @@ private val DefaultNaviampLibraries = listOf(
 )
 
 private val DefaultNaviampChangelog = listOf(
-    "Improved Windows desktop visualizer smoothness and quality with the default Skiko renderer, faster desktop visualizer sampling, and an experimental native GLSL renderer path.",
+    "Improved Windows desktop visualizer smoothness and quality with the default Skiko renderer, faster desktop visualizer sampling, an experimental native GLSL renderer path, and Start Menu installer entries.",
     "Refined the compact Now Playing layout with larger responsive artwork, better spacing, and a Plexamp-style rating and audio-quality row.",
     "Sorted visualizer choices alphabetically and updated their labels to title case.",
     "Fixed macOS About metadata so the app reports the real Naviamp release version.",

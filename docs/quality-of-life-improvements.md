@@ -174,6 +174,7 @@ Offer two installer choices for desktop release builds:
 - If no compatible runtime is found, the thin smart installer should install or use Naviamp's bundled runtime and still produce a working app.
 - Windows installer flows should ask before creating Start Menu shortcuts instead of assuming every install should add one.
 - If the current jpackage installer cannot offer an optional Start Menu prompt, evaluate whether the custom installer path for the thin smart installer should also cover this behavior.
+- The current jpackage MSI path now creates a Naviamp Start Menu entry by default; an optional prompt still needs a custom installer path if we want the user to choose during installation.
 
 ### Acceptance Criteria
 

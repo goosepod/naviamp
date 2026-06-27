@@ -293,6 +293,8 @@ compose.desktop {
 
             windows {
                 iconFile.set(project.file("src/desktopMain/resources/icons/naviamp.ico"))
+                menu = true
+                menuGroup = "Naviamp"
             }
             macOS {
                 iconFile.set(project.file("src/desktopMain/resources/icons/naviamp.icns"))
