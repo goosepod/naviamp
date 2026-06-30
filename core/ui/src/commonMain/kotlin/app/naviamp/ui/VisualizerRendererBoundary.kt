@@ -5,6 +5,7 @@ internal const val VisualizerHistoryColumns = 32
 internal const val VisualizerHistoryRows = 32
 
 internal enum class VisualizerRendererMode {
+    Canvas,
     SkiaRuntimeShader,
     NativeGpu,
 }
@@ -38,6 +39,7 @@ internal val NaviampVisualizer.preferredRendererMode: VisualizerRendererMode
         VisualizerRendererMode.NativeGpu
     } else {
         when (this) {
+            NaviampVisualizer.SpectrumBars -> VisualizerRendererMode.Canvas
             NaviampVisualizer.AlbumArtReactive,
             NaviampVisualizer.AnalogSignalFailure,
             NaviampVisualizer.AudioSphere,
@@ -66,6 +68,7 @@ internal val NaviampVisualizer.usesNativeRenderer: Boolean
 
 internal val NaviampVisualizer.fallbackRendererMode: VisualizerRendererMode
     get() = when (this) {
+        NaviampVisualizer.SpectrumBars -> VisualizerRendererMode.Canvas
         NaviampVisualizer.AlbumArtReactive,
         NaviampVisualizer.AnalogSignalFailure,
         NaviampVisualizer.AudioSphere,

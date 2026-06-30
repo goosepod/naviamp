@@ -93,6 +93,17 @@ internal actual fun PlatformLiveVisualizerSurface(
         )
         return
     }
+    if (rendererMode == VisualizerRendererMode.Canvas) {
+        SpectrumBarsVisualizerSurface(
+            bandsProvider = bandsProvider,
+            visualizerColors = visualizerColors,
+            active = active,
+            colors = colors,
+            renderPolicy = renderPolicy,
+            modifier = modifier,
+        )
+        return
+    }
 
     val effect = remember(visualizer) {
         runCatching { RuntimeEffect.makeForShader(visualizer.shaderSource) }.getOrNull()

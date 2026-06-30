@@ -10,7 +10,7 @@ import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.imePadding
-import androidx.compose.foundation.layout.systemBarsPadding
+import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -42,7 +42,7 @@ class MainActivity : ComponentActivity() {
                 settingsSyncImportUriRequest = settingsSyncImportUriRequest,
                 onSettingsSyncImportUriConsumed = { settingsSyncImportUriRequest = null },
                 modifier = Modifier
-                    .systemBarsPadding()
+                    .safeDrawingPadding()
                     .imePadding(),
             )
         }

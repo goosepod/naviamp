@@ -65,6 +65,7 @@ enum class NaviampVisualizer(val label: String) {
     RaymarchedSphereLiquid("Liquid Sphere"),
     ReactiveBars("Reactive Bars"),
     RibbonTrail("Ribbon Trail"),
+    SpectrumBars("Spectrum Bars"),
     SpectralRidge("Spectral Ridge"),
     WaveInterference("Wave Interference"),
     VinylGroove("Vinyl Groove"),

@@ -68,6 +68,17 @@ internal actual fun PlatformLiveVisualizerSurface(
         visualizer = visualizer,
         nativeRendererAvailable = true,
     )
+    if (rendererMode == VisualizerRendererMode.Canvas) {
+        SpectrumBarsVisualizerSurface(
+            bandsProvider = bandsProvider,
+            visualizerColors = visualizerColors,
+            active = active,
+            colors = colors,
+            renderPolicy = visualizerRenderPolicy(visualizer, VisualizerRenderTier.Balanced),
+            modifier = modifier,
+        )
+        return
+    }
     if (rendererMode == VisualizerRendererMode.NativeGpu) {
         val renderPolicy = visualizerRenderPolicy(visualizer, VisualizerRenderTier.Balanced)
         AndroidNativeGlslVisualizerSurface(
@@ -977,6 +988,7 @@ private fun AndroidCanvasVisualizerSurface(
         val timeSeconds = frameMillis / 1000f
         when (visualizer) {
             NaviampVisualizer.ReactiveBars -> drawReactiveBars(samples, colors)
+            NaviampVisualizer.SpectrumBars -> drawReactiveBars(samples, colors)
             NaviampVisualizer.FluidGradient -> drawFluidGradient(samples, visualizerColors, colors, timeSeconds)
             NaviampVisualizer.AudioSphere -> drawAudioSphere(samples, visualizerColors, colors, timeSeconds)
             NaviampVisualizer.AudioTunnel -> drawAudioTunnel(samples, visualizerColors, colors, timeSeconds)

@@ -72,6 +72,7 @@ internal val NaviampVisualizer.nativeShaderDefinition: NativeVisualizerShaderDef
         NaviampVisualizer.PixelRidge,
         NaviampVisualizer.ReactiveBars,
         NaviampVisualizer.RibbonTrail,
+        NaviampVisualizer.SpectrumBars,
         NaviampVisualizer.SpectralRidge,
         NaviampVisualizer.VinylGroove,
         NaviampVisualizer.WaveInterference -> null

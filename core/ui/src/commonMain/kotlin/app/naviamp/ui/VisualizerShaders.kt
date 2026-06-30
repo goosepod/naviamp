@@ -3,6 +3,7 @@ package app.naviamp.ui
 internal val NaviampVisualizer.shaderSource: String
     get() = when (this) {
         NaviampVisualizer.ReactiveBars -> ReactiveBarsShaderSkSL
+        NaviampVisualizer.SpectrumBars -> ReactiveBarsShaderSkSL
         NaviampVisualizer.AnalogSignalFailure -> NativeRendererRequiredShaderSkSL
         NaviampVisualizer.FluidGradient -> FluidGradientShaderSkSL
         NaviampVisualizer.FluidicNebulae -> NativeRendererRequiredShaderSkSL

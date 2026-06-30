@@ -325,12 +325,8 @@ fun NaviampNowPlayingPanel(
                     .verticalScroll(scrollState),
             ) {
                 if (compactStackLayout) {
-                    val compactArtHeight = if (nowPlaying.lyricsVisible && !showStationList) {
-                        artSize
-                    } else {
-                        artSize + NowPlayingArtShadowMargin * 2
-                    }
-                    val compactDetailsHeight = (viewportHeight - compactArtHeight - CompactNowPlayingStackGap)
+                    val compactMediaSlotHeight = artSize + NowPlayingArtShadowMargin * 2
+                    val compactDetailsHeight = (viewportHeight - compactMediaSlotHeight - CompactNowPlayingStackGap)
                         .coerceAtLeast(CompactNowPlayingDetailsMinHeight)
                     Column(
                         horizontalAlignment = Alignment.CenterHorizontally,
@@ -341,15 +337,22 @@ fun NaviampNowPlayingPanel(
                             .padding(horizontal = 14.dp),
                     ) {
                         if (nowPlaying.lyricsVisible && !showStationList) {
-                            LyricsPanel(
-                                nowPlaying = nowPlaying,
-                                colors = colors,
-                                onSeek = actions::seek,
-                                onOffsetChanged = actions::changeLyricsOffset,
+                            Box(
+                                contentAlignment = Alignment.Center,
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .height(artSize),
-                            )
+                                    .height(compactMediaSlotHeight),
+                            ) {
+                                LyricsPanel(
+                                    nowPlaying = nowPlaying,
+                                    colors = colors,
+                                    onSeek = actions::seek,
+                                    onOffsetChanged = actions::changeLyricsOffset,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(artSize),
+                                )
+                            }
                         } else {
                             NowPlayingArtSurface(
                                 coverArtUrl = nowPlaying.coverArtUrl,
@@ -567,8 +570,28 @@ private fun NowPlayingDetails(
     val showRating = !compactLayout || height == Dp.Unspecified || height >= 150.dp
     val showAudioInfo = !compactLayout || height == Dp.Unspecified || height >= 150.dp
     val showTrackIdentity = !compactLayout || height == Dp.Unspecified || height >= 135.dp
+    val volumeVisible = nowPlaying.canChangeVolume && showVolume
     val compactMetadataRow = compactLayout && !mobileLayout
+    val separateMetadataRows = !compactMetadataRow && (showRating || showAudioInfo)
+    val noVolumeMetadata = compactLayout && !volumeVisible && (showRating || showAudioInfo)
     val controlColors = colors.copy(accent = playerColors.accent)
+    val titleFontSize = if (mobileLayout) 19 else 15
+    val titleTextHeight = if (mobileLayout) 23.dp else 18.dp
+    val metadataFontSize = if (mobileLayout) 16 else 13
+    val metadataLineHeight = if (mobileLayout) 18.sp else 14.sp
+    val audioInfoFontSize = if (mobileLayout) 14.sp else 11.sp
+    val ratingIconSize = if (mobileLayout) 21.dp else 17.dp
+    val ratingFavoriteSlotWidth = if (mobileLayout) 30.dp else 24.dp
+    val ratingStarSlotWidth = if (mobileLayout) 23.dp else 18.dp
+    val ratingStarsWidth = if (mobileLayout) 116.dp else 92.dp
+    val scrubberTimeFontSize = if (mobileLayout) 14.sp else 11.sp
+    val scrubberTimeWidth = if (mobileLayout) 52.dp else 42.dp
+    val secondaryTransportButtonSize = if (mobileLayout) 36.dp else 28.dp
+    val secondaryTransportIconSize = if (mobileLayout) 21.dp else 16.dp
+    val transportButtonSize = if (mobileLayout) 42.dp else 34.dp
+    val transportIconSize = if (mobileLayout) 25.dp else 20.dp
+    val prominentTransportButtonSize = if (mobileLayout) 56.dp else 44.dp
+    val prominentTransportIconSize = if (mobileLayout) 30.dp else 24.dp
 
     LaunchedEffect(nowPlaying.progressFraction) {
         if (!isScrubbing) {
@@ -588,7 +611,13 @@ private fun NowPlayingDetails(
         } else {
             Arrangement.spacedBy(if (compactLayout) 5.dp else 6.dp)
         },
-        modifier = modifier.padding(bottom = if (mobileLayout) 4.dp else 0.dp),
+        modifier = modifier.padding(
+            bottom = when {
+                pinBottomActions -> 8.dp
+                mobileLayout -> 4.dp
+                else -> 0.dp
+            },
+        ),
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
@@ -598,9 +627,9 @@ private fun NowPlayingDetails(
             Text(
                 if (nowPlaying.isLive) "LIVE" else secondsLabel(nowPlaying.positionSeconds),
                 color = colors.primaryText,
-                fontSize = 11.sp,
+                fontSize = scrubberTimeFontSize,
                 textAlign = TextAlign.Center,
-                modifier = Modifier.width(42.dp),
+                modifier = Modifier.width(scrubberTimeWidth),
             )
             if (nowPlaying.isLive) {
                 Box(
@@ -640,16 +669,32 @@ private fun NowPlayingDetails(
                 if (nowPlaying.isLive) "Radio" else secondsLabel(nowPlaying.durationSeconds),
                 color = colors.primaryText,
                 textAlign = TextAlign.Center,
-                fontSize = 11.sp,
-                modifier = Modifier.width(42.dp),
+                fontSize = scrubberTimeFontSize,
+                modifier = Modifier.width(scrubberTimeWidth),
             )
         }
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(if (mobileLayout) 8.dp else 6.dp),
+            verticalArrangement = Arrangement.spacedBy(
+                when {
+                    compactMetadataRow && !volumeVisible -> 5.dp
+                    compactMetadataRow -> 18.dp
+                    mobileLayout && separateMetadataRows && !volumeVisible -> 18.dp
+                    mobileLayout && separateMetadataRows -> 18.dp
+                    mobileLayout -> 8.dp
+                    else -> 6.dp
+                },
+            ),
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(top = if (mobileLayout) 8.dp else 3.dp, bottom = if (mobileLayout) 2.dp else 5.dp),
+                .padding(
+                    top = if (mobileLayout) 8.dp else 3.dp,
+                    bottom = when {
+                        noVolumeMetadata -> 2.dp
+                        mobileLayout -> 2.dp
+                        else -> 1.dp
+                    },
+                ),
         ) {
             if (showTrackIdentity) {
                 Column(
@@ -662,7 +707,8 @@ private fun NowPlayingDetails(
                     BouncingTitleText(
                         text = nowPlaying.title,
                         color = colors.primaryText,
-                        fontSize = 15,
+                        fontSize = titleFontSize,
+                        height = titleTextHeight,
                         marqueeEnabled = nowPlaying.id.isNotBlank(),
                         modifier = Modifier.fillMaxWidth(),
                     )
@@ -672,8 +718,8 @@ private fun NowPlayingDetails(
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                         textAlign = TextAlign.Center,
-                        fontSize = 13.sp,
-                        lineHeight = 14.sp,
+                        fontSize = metadataFontSize.sp,
+                        lineHeight = metadataLineHeight,
                         modifier = Modifier.clickable(
                             enabled = !nowPlaying.isLive,
                             onClick = { actions.currentTrack(NowPlayingCurrentTrackAction.GoToArtist) },
@@ -685,8 +731,8 @@ private fun NowPlayingDetails(
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                         textAlign = TextAlign.Center,
-                        fontSize = 13.sp,
-                        lineHeight = 14.sp,
+                        fontSize = metadataFontSize.sp,
+                        lineHeight = metadataLineHeight,
                     )
                 }
             }
@@ -720,6 +766,10 @@ private fun NowPlayingDetails(
                             onRatingSelected = { rating ->
                                 actions.currentTrack(NowPlayingCurrentTrackAction.SetRating, rating = rating)
                             },
+                            iconSize = ratingIconSize,
+                            favoriteSlotWidth = ratingFavoriteSlotWidth,
+                            starSlotWidth = ratingStarSlotWidth,
+                            starsWidth = ratingStarsWidth,
                             modifier = Modifier.fillMaxWidth(),
                         )
                     }
@@ -728,7 +778,7 @@ private fun NowPlayingDetails(
                         Text(
                             nowPlaying.audioInfo,
                             color = colors.secondaryText,
-                            fontSize = 11.sp,
+                            fontSize = audioInfoFontSize,
                             textAlign = TextAlign.Center,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
@@ -739,7 +789,7 @@ private fun NowPlayingDetails(
             }
         }
 
-        if (nowPlaying.canChangeVolume && showVolume) {
+        if (volumeVisible) {
             VolumeRow(
                 value = volumeValue,
                 isChangingVolume = { isChangingVolume = it },
@@ -766,8 +816,8 @@ private fun NowPlayingDetails(
                 contentDescription = if (nowPlaying.shuffleActive) "Turn shuffle off" else "Shuffle Up Next",
                 colors = controlColors,
                 selected = nowPlaying.shuffleActive,
-                buttonSize = 28.dp,
-                iconSize = 16.dp,
+                buttonSize = secondaryTransportButtonSize,
+                iconSize = secondaryTransportIconSize,
                 onClick = { actions.playback(NowPlayingPlaybackAction.ToggleShuffle) },
             )
             NaviampTransportIconButton(
@@ -775,6 +825,8 @@ private fun NowPlayingDetails(
                 icon = NaviampTransportIcons.Previous,
                 contentDescription = "Previous",
                 colors = controlColors,
+                buttonSize = transportButtonSize,
+                iconSize = transportIconSize,
                 onClick = { actions.playback(NowPlayingPlaybackAction.Previous) },
             )
             NaviampTransportIconButton(
@@ -783,6 +835,8 @@ private fun NowPlayingDetails(
                 contentDescription = if (nowPlaying.isPlaying) "Pause" else "Play",
                 colors = controlColors,
                 prominent = true,
+                buttonSize = prominentTransportButtonSize,
+                iconSize = prominentTransportIconSize,
                 onClick = {
                     when {
                         nowPlaying.isPlaying -> actions.playback(NowPlayingPlaybackAction.Pause)
@@ -796,6 +850,8 @@ private fun NowPlayingDetails(
                 icon = NaviampTransportIcons.Next,
                 contentDescription = "Next",
                 colors = controlColors,
+                buttonSize = transportButtonSize,
+                iconSize = transportIconSize,
                 onClick = { actions.playback(NowPlayingPlaybackAction.Next) },
             )
             NaviampTransportIconButton(
@@ -808,8 +864,8 @@ private fun NowPlayingDetails(
                 },
                 colors = controlColors,
                 selected = nowPlaying.repeatMode != NaviampRepeatMode.Off,
-                buttonSize = 28.dp,
-                iconSize = 16.dp,
+                buttonSize = secondaryTransportButtonSize,
+                iconSize = secondaryTransportIconSize,
                 centerText = if (nowPlaying.repeatMode == NaviampRepeatMode.Track) "1" else null,
                 onClick = { actions.playback(NowPlayingPlaybackAction.CycleRepeatMode) },
             )
@@ -823,27 +879,29 @@ private fun NowPlayingDetails(
             modifier = Modifier
                 .fillMaxWidth()
                 .requiredHeight(if (mobileLayout) 46.dp else 44.dp)
-                .padding(bottom = 0.dp),
+                .padding(horizontal = if (pinBottomActions) 8.dp else 0.dp),
         ) {
+            val bottomActionButtonSize = 33.dp
+            val bottomActionIconSize = 20.dp
             Row(modifier = Modifier.align(Alignment.CenterStart)) {
                 NaviampTransportIconButton(
                     enabled = nowPlaying.canStartRadio,
                     icon = NaviampTransportIcons.Radio,
                     contentDescription = "Start track radio",
                     colors = colors,
-                    buttonSize = 44.dp,
-                    iconSize = 26.dp,
+                    buttonSize = bottomActionButtonSize,
+                    iconSize = bottomActionIconSize,
                     onClick = { actions.currentTrack(NowPlayingCurrentTrackAction.StartRadio) },
                 )
-                Box(modifier = Modifier.requiredSize(44.dp), contentAlignment = Alignment.Center) {
+                Box(modifier = Modifier.requiredSize(bottomActionButtonSize), contentAlignment = Alignment.Center) {
                     NaviampTransportIconButton(
                         enabled = true,
                         icon = NaviampIcons.Turntable,
                         contentDescription = "DJs",
                         colors = colors,
                         selected = nowPlaying.activeRadioDjId != null,
-                        buttonSize = 44.dp,
-                        iconSize = 26.dp,
+                        buttonSize = bottomActionButtonSize,
+                        iconSize = bottomActionIconSize,
                         onClick = { radioDjMenuExpanded = true },
                     )
                     NaviampDropdownMenu(
@@ -889,14 +947,14 @@ private fun NowPlayingDetails(
             IconButton(
                 onClick = { actions.display(NowPlayingDisplayAction.Collapse) },
                 modifier = Modifier
-                    .requiredSize(44.dp)
+                    .requiredSize(bottomActionButtonSize)
                     .align(Alignment.Center),
             ) {
                 Icon(
                     imageVector = NaviampIcons.ChevronDown,
                     contentDescription = "Back",
                     tint = colors.secondaryText,
-                    modifier = Modifier.requiredSize(26.dp),
+                    modifier = Modifier.requiredSize(bottomActionIconSize),
                 )
             }
             Row(
@@ -910,18 +968,18 @@ private fun NowPlayingDetails(
                     contentDescription = if (nowPlaying.lyricsVisible) "Hide lyrics" else "Show lyrics",
                     colors = colors,
                     selected = nowPlaying.lyricsVisible,
-                    buttonSize = 44.dp,
-                    iconSize = 26.dp,
+                    buttonSize = bottomActionButtonSize,
+                    iconSize = bottomActionIconSize,
                     onClick = { actions.display(NowPlayingDisplayAction.ToggleLyrics) },
                 )
-                Box(modifier = Modifier.requiredSize(44.dp), contentAlignment = Alignment.Center) {
+                Box(modifier = Modifier.requiredSize(bottomActionButtonSize), contentAlignment = Alignment.Center) {
                     NaviampTransportIconButton(
                         enabled = nowPlaying.menuEnabled,
                         icon = NaviampTransportIcons.Menu,
                         contentDescription = "Track actions",
                         colors = colors,
-                        buttonSize = 44.dp,
-                        iconSize = 26.dp,
+                        buttonSize = bottomActionButtonSize,
+                        iconSize = bottomActionIconSize,
                         onClick = { actionMenuExpanded = true },
                     )
                     NaviampDropdownMenu(
@@ -1315,6 +1373,10 @@ private fun RatingRow(
     colors: NaviampColors,
     onToggleFavorite: () -> Unit,
     onRatingSelected: (Int?) -> Unit,
+    iconSize: Dp = 17.dp,
+    favoriteSlotWidth: Dp = 24.dp,
+    starSlotWidth: Dp = 18.dp,
+    starsWidth: Dp = 92.dp,
     modifier: Modifier = Modifier,
 ) {
     Row(
@@ -1326,23 +1388,23 @@ private fun RatingRow(
         Box(
             contentAlignment = Alignment.Center,
             modifier = Modifier
-                .width(24.dp)
+                .width(favoriteSlotWidth)
                 .clickable(enabled = canFavorite, onClick = onToggleFavorite),
         ) {
             Icon(
                 imageVector = if (favoriteActive) NaviampTransportIcons.HeartFilled else NaviampTransportIcons.Heart,
                 contentDescription = if (favoriteActive) "Remove favorite" else "Favorite",
                 tint = if (favoriteActive) colors.primaryText else inactiveColor,
-                modifier = Modifier.size(17.dp),
+                modifier = Modifier.size(iconSize),
             )
         }
-        Row(horizontalArrangement = Arrangement.Center, modifier = Modifier.width(92.dp)) {
+        Row(horizontalArrangement = Arrangement.Center, modifier = Modifier.width(starsWidth)) {
             (1..5).forEach { value ->
                 val selected = (rating ?: 0) >= value
                 Box(
                     contentAlignment = Alignment.Center,
                     modifier = Modifier
-                        .width(18.dp)
+                        .width(starSlotWidth)
                         .clickable(enabled = canRate) {
                             onRatingSelected(if (rating == value) null else value)
                         },
@@ -1351,7 +1413,7 @@ private fun RatingRow(
                         imageVector = if (selected) NaviampTransportIcons.StarFilled else NaviampTransportIcons.Star,
                         contentDescription = "$value star rating",
                         tint = if (selected) colors.primaryText else inactiveColor,
-                        modifier = Modifier.size(17.dp),
+                        modifier = Modifier.size(iconSize),
                     )
                 }
             }
@@ -2185,6 +2247,7 @@ private fun BouncingTitleText(
     text: String,
     color: Color,
     fontSize: Int,
+    height: Dp = 18.dp,
     marqueeEnabled: Boolean,
     modifier: Modifier = Modifier,
 ) {
@@ -2219,7 +2282,7 @@ private fun BouncingTitleText(
 
     Box(
         modifier = modifier
-            .height(18.dp)
+            .height(height)
             .clip(RoundedCornerShape(2.dp))
             .onSizeChanged { containerWidth = it.width },
         contentAlignment = Alignment.CenterStart,
