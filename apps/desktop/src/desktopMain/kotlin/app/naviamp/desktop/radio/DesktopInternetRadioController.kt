@@ -218,6 +218,7 @@ class DesktopInternetRadioController(
             return
         }
         val restoredPosition = restoredPlaybackPositionSeconds()
+            ?: playbackProgress().positionSeconds?.takeIf { it > 0.0 }
         setRestoredPlaybackPositionSeconds(null)
         playlistEngine.playCurrent(scope, restoredPosition)
     }

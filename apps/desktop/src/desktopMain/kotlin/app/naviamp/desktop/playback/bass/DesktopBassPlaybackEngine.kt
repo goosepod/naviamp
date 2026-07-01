@@ -90,6 +90,11 @@ class DesktopBassPlaybackEngine(
     private var initialized = false
     private var internetStreamsConfigured = false
     private var onStateChanged: ((PlaybackState) -> Unit)? = null
+    private var currentScope: CoroutineScope? = null
+    private var currentRequest: PlaybackRequest? = null
+    private var currentOnProgressChanged: ((PlaybackProgress) -> Unit)? = null
+    private var currentOnMetadataChanged: ((PlaybackStreamMetadata) -> Unit)? = null
+    private var lastProgress: PlaybackProgress = PlaybackProgress.Unknown
     private var lastRequestUrl: String? = null
     private var lastError: String? = loadError?.message
     private var preparedStream: Int = 0
@@ -112,7 +117,12 @@ class DesktopBassPlaybackEngine(
         onMetadataChanged: (PlaybackStreamMetadata) -> Unit,
     ) {
         lastRequestUrl = request.url
+        currentScope = scope
+        currentRequest = request
         this.onStateChanged = onStateChanged
+        currentOnProgressChanged = onProgressChanged
+        currentOnMetadataChanged = onMetadataChanged
+        lastProgress = PlaybackProgress.Unknown
         if (adoptQueuedPreparedStream(scope, request, onStateChanged, onProgressChanged, onMetadataChanged)) {
             return
         }
@@ -132,62 +142,86 @@ class DesktopBassPlaybackEngine(
 
         job = scope.launch(Dispatchers.IO) {
             var createdPlayback: BassPlaybackActivationUpdate? = null
+            var retriedAfterBassReset = false
             try {
-                ensureInitialized(bass)
-                val creationPlan = planBassPlaybackCreation(
-                    request = request,
-                    supportsMixer = bass.supportsMixer,
-                    requireMediaId = false,
-                )
-                createdPlayback = createPlayback(
-                    bass = bass,
-                    request = request,
-                    plan = creationPlan,
-                ).getOrThrow()
-                if (!isCurrentPlayback(currentPlaybackId)) {
-                    freeCreatedPlayback(bass, createdPlayback)
-                    createdPlayback = null
-                    return@launch
-                }
-                val playbackHandle = createdPlayback.playbackHandle
-                stream = playbackHandle
-                currentSourceStream = createdPlayback.sourceHandle
-                currentReplayGainAdjustment = createdPlayback.replayGainAdjustment
-                attachEndSync(bass, createdPlayback.sourceHandle, currentPlaybackId, onStateChanged)
-                createdPlayback = null
-                applyOutputVolume(bass)
-                applyEqualizer(bass)
-                val startPlan = planBassPlaybackStart(
-                    request = request,
-                    policy = BassPlaybackStartPolicy.DesktopEngine,
-                )
-                if (startPlan.shouldSeekBeforePlay) {
-                    startPlan.startSeekSeconds?.let { seekCurrentSource(bass, it) }
-                }
-                bass.play(playbackHandle)
-                    .getOrThrow()
-                onStateChanged(PlaybackState.Playing)
-
-                var pollingState = BassPlaybackPollingState()
                 while (isCurrentPlayback(currentPlaybackId)) {
-                    val snapshot = bass.bassPlaybackSnapshot(playbackHandle, currentSourceStream)
-                    val update = planBassPlaybackPollingUpdate(
-                        snapshot = snapshot,
-                        previous = pollingState,
-                        policy = BassPlaybackPollingPolicy.DesktopEngine,
-                    )
-                    pollingState = update.state
-                    update.playbackState?.let(onStateChanged)
-                    update.progress?.let(onProgressChanged)
-                    update.metadata?.let(onMetadataChanged)
-                    if (!update.shouldContinue) {
-                        break
-                    }
-                    delay(BassPlaybackPollingPolicy.DesktopEngine.pollIntervalMillis)
-                }
+                    try {
+                        ensureInitialized(bass)
+                        val creationPlan = planBassPlaybackCreation(
+                            request = request,
+                            supportsMixer = bass.supportsMixer,
+                            requireMediaId = false,
+                        )
+                        createdPlayback = createPlayback(
+                            bass = bass,
+                            request = request,
+                            plan = creationPlan,
+                        ).getOrThrow()
+                        if (!isCurrentPlayback(currentPlaybackId)) {
+                            freeCreatedPlayback(bass, createdPlayback)
+                            createdPlayback = null
+                            return@launch
+                        }
+                        val playbackHandle = createdPlayback.playbackHandle
+                        stream = playbackHandle
+                        currentSourceStream = createdPlayback.sourceHandle
+                        currentReplayGainAdjustment = createdPlayback.replayGainAdjustment
+                        attachEndSync(bass, createdPlayback.sourceHandle, currentPlaybackId, onStateChanged)
+                        createdPlayback = null
+                        applyOutputVolume(bass)
+                        applyEqualizer(bass)
+                        val startPlan = planBassPlaybackStart(
+                            request = request,
+                            policy = BassPlaybackStartPolicy.DesktopEngine,
+                        )
+                        if (startPlan.shouldSeekBeforePlay) {
+                            startPlan.startSeekSeconds?.let { seekCurrentSource(bass, it) }
+                        }
+                        bass.play(playbackHandle)
+                            .getOrThrow()
+                        onStateChanged(PlaybackState.Playing)
 
-                if (BassPlaybackPollingPolicy.DesktopEngine.finishWhenPollingStops && isCurrentPlayback(currentPlaybackId)) {
-                    onStateChanged(PlaybackState.Finished)
+                        var pollingState = BassPlaybackPollingState()
+                        while (isCurrentPlayback(currentPlaybackId)) {
+                            val snapshot = bass.bassPlaybackSnapshot(playbackHandle, currentSourceStream)
+                            val update = planBassPlaybackPollingUpdate(
+                                snapshot = snapshot,
+                                previous = pollingState,
+                                policy = BassPlaybackPollingPolicy.DesktopEngine,
+                            )
+                            pollingState = update.state
+                            update.playbackState?.let(onStateChanged)
+                            update.progress?.let { progress ->
+                                lastProgress = progress
+                                onProgressChanged(progress)
+                            }
+                            update.metadata?.let(onMetadataChanged)
+                            if (!update.shouldContinue) {
+                                break
+                            }
+                            delay(BassPlaybackPollingPolicy.DesktopEngine.pollIntervalMillis)
+                        }
+
+                        if (BassPlaybackPollingPolicy.DesktopEngine.finishWhenPollingStops && isCurrentPlayback(currentPlaybackId)) {
+                            onStateChanged(PlaybackState.Finished)
+                        }
+                        break
+                    } catch (exception: Throwable) {
+                        createdPlayback?.let { freeCreatedPlayback(bass, it) }
+                        createdPlayback = null
+                        if (
+                            !retriedAfterBassReset &&
+                            isCurrentPlayback(currentPlaybackId) &&
+                            job?.isCancelled != true
+                        ) {
+                            retriedAfterBassReset = true
+                            lastError = exception.message
+                            resetBassAfterPlaybackFailure(bass)
+                            onStateChanged(PlaybackState.Loading)
+                            continue
+                        }
+                        throw exception
+                    }
                 }
             } catch (exception: Throwable) {
                 createdPlayback?.let { freeCreatedPlayback(bass, it) }
@@ -222,7 +256,11 @@ class DesktopBassPlaybackEngine(
         if (handle != 0) {
             bass.play(handle)
                 .onSuccess { onStateChanged?.invoke(PlaybackState.Playing) }
-                .onFailure { lastError = it.message }
+                .onFailure {
+                    val message = it.message ?: "BASS playback failed."
+                    lastError = message
+                    restartCurrentPlaybackAfterResumeFailure(bass)
+                }
         }
     }
 
@@ -248,6 +286,11 @@ class DesktopBassPlaybackEngine(
         freePreparedStream()
         stopActiveStream()
         onStateChanged = null
+        currentScope = null
+        currentRequest = null
+        currentOnProgressChanged = null
+        currentOnMetadataChanged = null
+        lastProgress = PlaybackProgress.Unknown
     }
 
     override fun setCrossfadeDuration(seconds: Int) {
@@ -447,7 +490,10 @@ class DesktopBassPlaybackEngine(
                     )
                     pollingState = update.state
                     update.playbackState?.let(onStateChanged)
-                    update.progress?.let(onProgressChanged)
+                    update.progress?.let { progress ->
+                        lastProgress = progress
+                        onProgressChanged(progress)
+                    }
                     update.metadata?.let(onMetadataChanged)
                     if (!update.shouldContinue) {
                         break
@@ -550,6 +596,44 @@ class DesktopBassPlaybackEngine(
     private fun seekCurrentSource(bass: BassAudioBackend, seconds: Double) {
         bass.seekBassPlaybackSource(stream, currentSourceStream, seconds)
             .onFailure { lastError = it.message }
+    }
+
+    private fun restartCurrentPlaybackAfterResumeFailure(bass: BassAudioBackend) {
+        val scope = currentScope
+        val request = currentRequest
+        val stateCallback = onStateChanged
+        val progressCallback = currentOnProgressChanged
+        val metadataCallback = currentOnMetadataChanged
+        if (scope == null || request == null || stateCallback == null || progressCallback == null || metadataCallback == null) {
+            stateCallback?.invoke(PlaybackState.Error(lastError ?: "BASS playback failed."))
+            return
+        }
+        val restartRequest = request.copy(
+            startPositionSeconds = lastProgress.positionSeconds
+                ?.takeIf { position -> position > 0.0 }
+                ?: request.startPositionSeconds,
+        )
+        stopActiveStream()
+        resetBassAfterPlaybackFailure(bass)
+        play(
+            scope = scope,
+            request = restartRequest,
+            onStateChanged = stateCallback,
+            onProgressChanged = progressCallback,
+            onMetadataChanged = metadataCallback,
+        )
+    }
+
+    private fun resetBassAfterPlaybackFailure(bass: BassAudioBackend) {
+        if (stream != 0 || currentSourceStream != 0 || preparedStream != 0) {
+            val reset = freeAllStreams(bass)
+            applyStreamReset(reset.stream)
+            endSyncCallbacks.clear()
+        }
+        runCatching { bass.free() }
+            .onFailure { lastError = it.message }
+        initialized = false
+        internetStreamsConfigured = false
     }
 
     private fun freeAllStreams(bass: BassAudioBackend): BassPlaybackCleanupReset {
