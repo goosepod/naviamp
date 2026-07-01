@@ -218,6 +218,7 @@ class AndroidStorage(
                 tlsSettings = connection.tlsSettings,
                 secondaryUrls = connection.secondaryUrls,
                 customHeaders = connection.customHeaders,
+                selectedMusicFolderIds = connection.selectedMusicFolderIds,
             ),
             cacheNamespace = cacheNamespace,
             providerId = providerId,
@@ -727,6 +728,9 @@ private fun SqlDriver.ensureMediaSourceNetworkOptionsSchema() {
     }
     if (!tableHasColumn("media_source", "custom_headers_json")) {
         execute(null, "ALTER TABLE media_source ADD COLUMN custom_headers_json TEXT", 0)
+    }
+    if (!tableHasColumn("media_source", "selected_music_folder_ids_json")) {
+        execute(null, "ALTER TABLE media_source ADD COLUMN selected_music_folder_ids_json TEXT", 0)
     }
 }
 

@@ -42,6 +42,7 @@ class DesktopConnectionFormStateHolder(
             )
         },
     )
+    var selectedMusicFolderIds by mutableStateOf(initialConnection?.selectedMusicFolderIds.orEmpty())
     var isOpen by mutableStateOf(false)
 
     fun apply(formState: DesktopConnectionFormState) {
@@ -56,6 +57,7 @@ class DesktopConnectionFormStateHolder(
         clientCertificateKeyStorePassword = formState.clientCertificateKeyStorePassword
         secondaryUrls = formState.secondaryUrls
         customHeaders = formState.customHeaders
+        selectedMusicFolderIds = formState.selectedMusicFolderIds
     }
 
     fun clearPassword() {

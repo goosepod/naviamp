@@ -8,10 +8,12 @@ import app.naviamp.domain.source.ConnectionSecondaryUrl
 import app.naviamp.domain.source.ConnectionTlsSettings
 import app.naviamp.domain.source.MediaSourceIdentity
 import app.naviamp.domain.source.SavedMediaSource
+import app.naviamp.domain.source.normalizedMusicFolderIds
 import app.naviamp.domain.source.stableMediaSourceId
 import app.naviamp.storage.Media_source
 import app.naviamp.storage.NaviampStorageQueries
 import kotlinx.serialization.builtins.ListSerializer
+import kotlinx.serialization.builtins.serializer
 import kotlinx.serialization.json.Json
 
 class AndroidMediaSourceStore(
@@ -58,6 +60,7 @@ class AndroidMediaSourceStore(
             client_certificate_keystore_password = connection.tlsSettings.clientCertificateKeyStorePassword,
             secondary_urls_json = encodeSecondaryUrls(connection.secondaryUrls),
             custom_headers_json = encodeCustomHeaders(connection.customHeaders),
+            selected_music_folder_ids_json = encodeMusicFolderIds(connection.selectedMusicFolderIds),
             created_at_epoch_millis = existing?.created_at_epoch_millis ?: now,
             last_connected_at_epoch_millis = now,
             last_sync_started_at_epoch_millis = existing?.last_sync_started_at_epoch_millis,
@@ -81,6 +84,7 @@ class AndroidMediaSourceStore(
             client_certificate_keystore_password = connection.tlsSettings.clientCertificateKeyStorePassword,
             secondary_urls_json = encodeSecondaryUrls(connection.secondaryUrls),
             custom_headers_json = encodeCustomHeaders(connection.customHeaders),
+            selected_music_folder_ids_json = encodeMusicFolderIds(connection.selectedMusicFolderIds),
             last_connected_at_epoch_millis = now,
             last_sync_started_at_epoch_millis = existing?.last_sync_started_at_epoch_millis,
             last_sync_completed_at_epoch_millis = existing?.last_sync_completed_at_epoch_millis,
@@ -134,16 +138,31 @@ class AndroidMediaSourceStore(
             }.getOrDefault(emptyList())
         }.orEmpty()
 
+    private fun encodeMusicFolderIds(ids: List<String>): String? =
+        json.encodeToString(
+            ListSerializer(String.serializer()),
+            normalizedMusicFolderIds(ids),
+        ).takeUnless { it == "[]" }
+
+    private fun decodeMusicFolderIds(text: String?): List<String> =
+        text?.let {
+            runCatching {
+                normalizedMusicFolderIds(json.decodeFromString(ListSerializer(String.serializer()), it))
+            }.getOrDefault(emptyList())
+        }.orEmpty()
+
     private fun Media_source.toSavedMediaSource(): SavedMediaSource =
         toSavedMediaSource(
             secondaryUrls = decodeSecondaryUrls(secondary_urls_json),
             customHeaders = decodeCustomHeaders(custom_headers_json),
+            selectedMusicFolderIds = decodeMusicFolderIds(selected_music_folder_ids_json),
         )
 }
 
 private fun Media_source.toSavedMediaSource(
     secondaryUrls: List<ConnectionSecondaryUrl>,
     customHeaders: List<ConnectionHeaderDefinition>,
+    selectedMusicFolderIds: List<String>,
 ): SavedMediaSource =
     SavedMediaSource(
         id = id,
@@ -163,6 +182,7 @@ private fun Media_source.toSavedMediaSource(
         ),
         secondaryUrls = secondaryUrls,
         customHeaders = customHeaders,
+        selectedMusicFolderIds = selectedMusicFolderIds,
         createdAtEpochMillis = created_at_epoch_millis,
         lastConnectedAtEpochMillis = last_connected_at_epoch_millis,
         lastSyncStartedAtEpochMillis = last_sync_started_at_epoch_millis,

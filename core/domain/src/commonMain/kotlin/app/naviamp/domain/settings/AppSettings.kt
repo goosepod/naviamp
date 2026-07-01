@@ -19,6 +19,7 @@ import app.naviamp.domain.radio.RadioDjPresetRepository
 import app.naviamp.domain.radio.RadioTuningSettings
 import app.naviamp.domain.source.ConnectionHeaderDefinition
 import app.naviamp.domain.source.ConnectionSecondaryUrl
+import app.naviamp.domain.source.normalizedMusicFolderIds
 import kotlinx.serialization.Serializable
 
 @Serializable
@@ -35,6 +36,13 @@ data class ConnectionFormHeader(
 )
 
 @Serializable
+data class ConnectionFormMusicFolder(
+    val id: String,
+    val name: String,
+    val defaultSelected: Boolean = false,
+)
+
+@Serializable
 data class ConnectionFormState(
     val displayName: String = "",
     val serverUrl: String = "",
@@ -46,6 +54,7 @@ data class ConnectionFormState(
     val clientCertificatePassword: String = "",
     val secondaryUrls: List<ConnectionFormSecondaryUrl> = emptyList(),
     val customHeaders: List<ConnectionFormHeader> = emptyList(),
+    val selectedMusicFolderIds: List<String> = emptyList(),
 )
 
 fun List<ConnectionFormSecondaryUrl>.toConnectionSecondaryUrls(): List<ConnectionSecondaryUrl> =
@@ -64,6 +73,9 @@ fun List<ConnectionFormHeader>.toConnectionHeaderDefinitions(): List<ConnectionH
             valueIsSecret = header.valueIsSecret,
         ).normalized()
     }.distinctBy { it.name.lowercase() }
+
+fun List<String>.toSelectedMusicFolderIds(): List<String> =
+    normalizedMusicFolderIds(this)
 
 @Serializable
 data class PlaybackSettings(

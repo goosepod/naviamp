@@ -43,6 +43,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.Dp
 import app.naviamp.domain.InternetRadioStation
 import app.naviamp.domain.settings.ConnectionFormHeader
+import app.naviamp.domain.settings.ConnectionFormMusicFolder
 import app.naviamp.domain.settings.ConnectionFormSecondaryUrl
 import app.naviamp.domain.smartplaylist.SmartPlaylistDefinition
 
@@ -84,6 +85,8 @@ fun NaviampSharedAppShell(
     isConnecting: Boolean = restoringConnection,
     connectionStatus: String? = status,
     settingsSyncStatus: String? = null,
+    availableMusicFolders: List<ConnectionFormMusicFolder> = emptyList(),
+    musicFoldersStatus: String? = null,
     hasSavedConnection: Boolean = false,
     supportsReplayGain: Boolean = false,
     supportsGapless: Boolean = true,
@@ -401,6 +404,8 @@ fun NaviampSharedAppShell(
                             form = connectionForm,
                             colors = colors,
                             isReconnect = connected,
+                            availableMusicFolders = availableMusicFolders,
+                            musicFoldersStatus = musicFoldersStatus,
                             settingsSyncStatus = settingsSyncStatus,
                             onFormChanged = onConnectionFormChanged,
                             onConnect = onConnect,
@@ -451,6 +456,8 @@ fun NaviampSharedAppShell(
                             isConnecting = isConnecting,
                             connectionStatus = connectionStatus,
                             settingsSyncStatus = settingsSyncStatus,
+                            availableMusicFolders = availableMusicFolders,
+                            musicFoldersStatus = musicFoldersStatus,
                             connectionForm = connectionForm,
                             hasSavedConnection = hasSavedConnection,
                             supportsReplayGain = supportsReplayGain,
@@ -642,6 +649,8 @@ fun NaviampConnectionForm(
     isConnecting: Boolean = false,
     connectionStatus: String? = null,
     settingsSyncStatus: String? = null,
+    availableMusicFolders: List<ConnectionFormMusicFolder> = emptyList(),
+    musicFoldersStatus: String? = null,
     modifier: Modifier = Modifier,
     onFormChanged: (ConnectionFormState) -> Unit,
     onConnect: () -> Unit,
@@ -706,6 +715,16 @@ fun NaviampConnectionForm(
             )
         }
         if (advancedVisible) {
+            SettingsSectionTitle("Libraries", colors)
+            MusicFolderMultiSelect(
+                selectedIds = form.selectedMusicFolderIds,
+                availableFolders = availableMusicFolders,
+                status = musicFoldersStatus,
+                colors = colors,
+                onSelectedIdsChanged = { ids ->
+                    onFormChanged(form.copy(selectedMusicFolderIds = ids))
+                },
+            )
             SettingsSectionTitle("TLS", colors)
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -868,6 +887,78 @@ private fun <T> List<T>.removeAt(index: Int): List<T> =
     filterIndexed { itemIndex, _ -> itemIndex != index }
 
 @Composable
+private fun MusicFolderMultiSelect(
+    selectedIds: List<String>,
+    availableFolders: List<ConnectionFormMusicFolder>,
+    status: String?,
+    colors: NaviampColors,
+    onSelectedIdsChanged: (List<String>) -> Unit,
+) {
+    val selectedSet = selectedIds.toSet()
+    val knownIds = availableFolders.map { it.id }.toSet()
+    val unknownSelected = selectedIds
+        .filterNot { it in knownIds }
+        .map { id -> ConnectionFormMusicFolder(id = id, name = id) }
+    val choices = availableFolders + unknownSelected
+
+    status?.let {
+        Text(it, color = colors.mutedText, fontSize = 11.sp)
+    }
+    if (choices.isEmpty()) {
+        Text(
+            "Connect or enter credentials to load available libraries.",
+            color = colors.secondaryText,
+            fontSize = 12.sp,
+        )
+        return
+    }
+    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        choices.forEach { folder ->
+            val checked = folder.id in selectedSet
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(6.dp))
+                    .clickable {
+                        onSelectedIdsChanged(selectedIds.toggled(folder.id, checked, requireOne = choices.isNotEmpty()))
+                    }
+                    .padding(horizontal = 2.dp, vertical = 1.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Checkbox(
+                    checked = checked,
+                    onCheckedChange = null,
+                )
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = folder.name,
+                        color = colors.primaryText,
+                        fontSize = 13.sp,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    Text(
+                        text = if (folder.defaultSelected) "Default library" else "ID: ${folder.id}",
+                        color = colors.mutedText,
+                        fontSize = 11.sp,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+            }
+        }
+    }
+}
+
+private fun List<String>.toggled(id: String, currentlyChecked: Boolean, requireOne: Boolean): List<String> =
+    if (currentlyChecked) {
+        if (requireOne && size <= 1) this else filterNot { it == id }
+    } else {
+        (this + id).distinct()
+    }
+
+@Composable
 private fun ConnectedContent(
     colors: NaviampColors,
     selectedRoute: SharedRoute,
@@ -911,6 +1002,8 @@ private fun ConnectedContent(
     isConnecting: Boolean,
     connectionStatus: String?,
     settingsSyncStatus: String?,
+    availableMusicFolders: List<ConnectionFormMusicFolder>,
+    musicFoldersStatus: String?,
     connectionForm: ConnectionFormState,
     hasSavedConnection: Boolean,
     supportsReplayGain: Boolean = false,
@@ -1078,6 +1171,8 @@ private fun ConnectedContent(
             isConnecting = isConnecting,
             connectionStatus = connectionStatus,
             settingsSyncStatus = settingsSyncStatus,
+            availableMusicFolders = availableMusicFolders,
+            musicFoldersStatus = musicFoldersStatus,
             connectionForm = connectionForm,
             hasSavedConnection = hasSavedConnection,
             supportsReplayGain = supportsReplayGain,
@@ -2139,6 +2234,8 @@ private fun SettingsContent(
     isConnecting: Boolean,
     connectionStatus: String?,
     settingsSyncStatus: String?,
+    availableMusicFolders: List<ConnectionFormMusicFolder>,
+    musicFoldersStatus: String?,
     connectionForm: ConnectionFormState,
     hasSavedConnection: Boolean,
     supportsReplayGain: Boolean,
@@ -2180,6 +2277,8 @@ private fun SettingsContent(
         isConnecting = isConnecting,
         connectionStatus = connectionStatus,
         settingsSyncStatus = settingsSyncStatus,
+        availableMusicFolders = availableMusicFolders,
+        musicFoldersStatus = musicFoldersStatus,
         connectionForm = connectionForm,
         hasSavedConnection = hasSavedConnection,
         supportsReplayGain = supportsReplayGain,

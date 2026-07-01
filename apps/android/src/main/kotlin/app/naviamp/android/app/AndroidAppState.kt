@@ -33,6 +33,7 @@ import app.naviamp.domain.popular.SimilarArtistMatch
 import app.naviamp.domain.queue.PlaybackQueue
 import app.naviamp.domain.queue.RepeatMode
 import app.naviamp.domain.settings.ConnectionFormHeader
+import app.naviamp.domain.settings.ConnectionFormMusicFolder
 import app.naviamp.domain.settings.ConnectionFormSecondaryUrl
 import app.naviamp.domain.settings.ConnectionFormState
 import app.naviamp.domain.settings.CacheSettings
@@ -74,6 +75,9 @@ class AndroidAppState(
     var clientCertificatePassword by mutableStateOf(savedConnection.clientCertificatePassword)
     var secondaryUrls by mutableStateOf(savedConnection.secondaryUrls)
     var customHeaders by mutableStateOf(savedConnection.customHeaders)
+    var selectedMusicFolderIds by mutableStateOf(savedConnection.selectedMusicFolderIds)
+    var availableMusicFolders by mutableStateOf<List<ConnectionFormMusicFolder>>(emptyList())
+    var musicFoldersStatus by mutableStateOf<String?>(null)
     var playbackSettings by mutableStateOf(savedPlaybackSettings)
     var cacheSettings by mutableStateOf(savedCacheSettings.normalized())
     var homeState by mutableStateOf(app.naviamp.domain.home.HomeContent())

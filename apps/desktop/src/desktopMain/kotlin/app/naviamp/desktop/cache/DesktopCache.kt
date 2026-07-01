@@ -518,6 +518,9 @@ class DesktopCache(
                 salt = connection.salt,
                 nativeToken = connection.nativeToken,
                 tlsSettings = connection.tlsSettings,
+                secondaryUrls = connection.secondaryUrls,
+                customHeaders = connection.customHeaders,
+                selectedMusicFolderIds = connection.selectedMusicFolderIds,
             ),
             cacheNamespace = provider.cacheNamespace,
             providerId = provider.id.value,
@@ -803,6 +806,9 @@ private fun ensureMediaSourceLibraryScanSchema(driver: JdbcSqliteDriver) {
     }
     if (!driver.tableHasColumn("media_source", "custom_headers_json")) {
         driver.execute(null, "ALTER TABLE media_source ADD COLUMN custom_headers_json TEXT", 0)
+    }
+    if (!driver.tableHasColumn("media_source", "selected_music_folder_ids_json")) {
+        driver.execute(null, "ALTER TABLE media_source ADD COLUMN selected_music_folder_ids_json TEXT", 0)
     }
 }
 

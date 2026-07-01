@@ -64,6 +64,9 @@ fun rememberAndroidAppShellUiState(
             customCertificatePath = customCertificatePath,
             clientCertificatePath = clientCertificatePath,
             clientCertificatePassword = clientCertificatePassword,
+            selectedMusicFolderIds = selectedMusicFolderIds,
+            availableMusicFolders = availableMusicFolders,
+            musicFoldersStatus = musicFoldersStatus,
             provider = provider,
             sonicSimilarityEnabled = playbackSettings.sonicSimilarityEnabled,
             homeState = homeState,
@@ -126,6 +129,8 @@ fun rememberAndroidAppShellUiState(
             editingConnection = editingConnection,
             restoringConnection = restoringConnection,
             connectionForm = shellModels.connectionForm,
+            availableMusicFolders = shellModels.availableMusicFolders,
+            musicFoldersStatus = shellModels.musicFoldersStatus,
             savedConnections = savedMediaSources.map { source ->
                 NaviampSavedConnectionUi(
                     id = source.id,

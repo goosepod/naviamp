@@ -42,6 +42,7 @@ class DesktopSettingsStore(
                     clientCertificateKeyStorePassword = connection.tlsSettings.clientCertificateKeyStorePassword,
                     secondaryUrls = connection.secondaryUrls,
                     customHeaders = connection.customHeaders,
+                    selectedMusicFolderIds = connection.selectedMusicFolderIds,
                 ),
             ),
         )
@@ -210,6 +211,7 @@ data class SavedConnection(
     val clientCertificateKeyStorePassword: String? = null,
     val secondaryUrls: List<ConnectionSecondaryUrl> = emptyList(),
     val customHeaders: List<ConnectionHeaderDefinition> = emptyList(),
+    val selectedMusicFolderIds: List<String> = emptyList(),
 ) {
     fun toConnection(): NavidromeConnection =
         NavidromeConnection(
@@ -227,6 +229,7 @@ data class SavedConnection(
             ),
             secondaryUrls = secondaryUrls.mapNotNull { it.normalized() },
             customHeaders = customHeaders.mapNotNull { it.normalized() },
+            selectedMusicFolderIds = selectedMusicFolderIds,
         )
 }
 

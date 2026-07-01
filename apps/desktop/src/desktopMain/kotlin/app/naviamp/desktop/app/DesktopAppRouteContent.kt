@@ -35,6 +35,7 @@ import app.naviamp.domain.playback.EqualizerPlaybackEngine
 import app.naviamp.domain.playback.PlaybackEngine
 import app.naviamp.domain.popular.SimilarArtistMatch
 import app.naviamp.domain.provider.MediaSearchResults
+import app.naviamp.domain.settings.ConnectionFormMusicFolder
 import app.naviamp.domain.source.SavedMediaSource
 import app.naviamp.domain.sonichome.SonicHomeDiscoveryRows
 import app.naviamp.ui.AlbumMixBuilderContent
@@ -179,6 +180,8 @@ fun ColumnScope.DesktopAppRouteContent(
     settingsSyncStatus: String?,
     downloadedTracks: (sourceId: String) -> List<DownloadedTrack>,
     connectionForm: DesktopConnectionFormStateHolder,
+    availableMusicFolders: List<ConnectionFormMusicFolder>,
+    musicFoldersStatus: String?,
     savedMediaSources: List<SavedMediaSource>,
     isConnecting: Boolean,
     playbackSettings: PlaybackSettings,
@@ -868,6 +871,9 @@ fun ColumnScope.DesktopAppRouteContent(
                     clientCertificateKeyStorePassword = connectionForm.clientCertificateKeyStorePassword,
                     secondaryUrls = connectionForm.secondaryUrls,
                     customHeaders = connectionForm.customHeaders,
+                    selectedMusicFolderIds = connectionForm.selectedMusicFolderIds,
+                    availableMusicFolders = availableMusicFolders,
+                    musicFoldersStatus = musicFoldersStatus,
                     savedConnections = savedMediaSources,
                     currentSourceId = connectedSourceId,
                     hasSavedConnection = connectionForm.savedConnectionForLogin != null,
@@ -907,6 +913,9 @@ fun ColumnScope.DesktopAppRouteContent(
                     },
                     onCustomHeadersChanged = {
                         connectionForm.customHeaders = it
+                    },
+                    onSelectedMusicFolderIdsChanged = {
+                        connectionForm.selectedMusicFolderIds = it
                     },
                     onConnect = onConnect,
                     onNewConnection = onNewConnection,

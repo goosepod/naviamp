@@ -38,6 +38,7 @@ import app.naviamp.domain.popular.NavidromeAgentMetadataSource
 import app.naviamp.domain.popular.SimilarArtistCandidate
 import app.naviamp.domain.popular.SimilarArtistsClient
 import app.naviamp.domain.smartplaylist.SmartPlaylistDefinition
+import app.naviamp.domain.source.normalizedMusicFolderIds
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
@@ -51,6 +52,11 @@ import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.longOrNull
 import kotlinx.serialization.json.put
 
+data class NavidromeMusicFolder(
+    val id: String,
+    val name: String,
+)
+
 class NavidromeProvider(
     private val connection: NavidromeConnection,
     private val httpClient: NavidromeHttpClient = createDefaultNavidromeHttpClient(connection.tlsSettings),
@@ -60,8 +66,16 @@ class NavidromeProvider(
     override val id: ProviderId = ProviderId("navidrome")
     override val displayName: String = "Navidrome"
     override val source: String = NavidromeAgentMetadataSource
+    private val selectedMusicFolderIds: List<String> =
+        normalizedMusicFolderIds(connection.selectedMusicFolderIds)
     override val cacheNamespace: String =
-        "${id.value}:${connection.normalizedBaseUrl}:${connection.username}"
+        buildString {
+            append("${id.value}:${connection.normalizedBaseUrl}:${connection.username}")
+            if (selectedMusicFolderIds.isNotEmpty()) {
+                append(":folders=")
+                append(selectedMusicFolderIds.joinToString(","))
+            }
+        }
     private val customHeaders: Map<String, String> =
         connection.customHeaders
             .mapNotNull { header ->
@@ -116,6 +130,20 @@ class NavidromeProvider(
         )
     }
 
+    suspend fun musicFolders(): List<NavidromeMusicFolder> {
+        val response = get("getMusicFolders.view")
+        val folders = response.subsonicResponse()["musicFolders"]?.jsonObject
+            ?.arrayValue("musicFolder")
+            .orEmpty()
+        return folders.mapNotNull { folder ->
+            val obj = folder as? JsonObject ?: return@mapNotNull null
+            NavidromeMusicFolder(
+                id = obj.stringValue("id") ?: return@mapNotNull null,
+                name = obj.stringValue("name") ?: "Library",
+            )
+        }
+    }
+
     override suspend fun recentlyAddedAlbums(limit: Int): List<Album> =
         albumList(AlbumListType.Newest, limit)
 
@@ -146,13 +174,31 @@ class NavidromeProvider(
         type: String,
         limit: Int,
         extraParams: Map<String, String> = emptyMap(),
+    ): List<Album> =
+        forSelectedMusicFolders { musicFolderId ->
+            albumListForMusicFolder(
+                type = type,
+                limit = limit,
+                extraParams = extraParams,
+                musicFolderId = musicFolderId,
+            )
+        }.distinctBy { it.id }
+            .take(limit)
+
+    private suspend fun albumListForMusicFolder(
+        type: String,
+        limit: Int,
+        extraParams: Map<String, String> = emptyMap(),
+        musicFolderId: String?,
     ): List<Album> {
         val response = get(
             endpoint = "getAlbumList2.view",
-            params = mapOf(
-                "type" to type,
-                "size" to limit.toString(),
-            ) + extraParams,
+            params = buildMap {
+                put("type", type)
+                put("size", limit.toString())
+                musicFolderId?.let { put("musicFolderId", it) }
+                putAll(extraParams)
+            },
         )
         val albumList = response.subsonicResponse()["albumList2"]?.jsonObject
         val albums = albumList?.get("album") as? JsonArray ?: return emptyList()
@@ -199,8 +245,17 @@ class NavidromeProvider(
         )
     }
 
-    override suspend fun artists(limit: Int): List<Artist> {
-        val response = get("getArtists.view")
+    override suspend fun artists(limit: Int): List<Artist> =
+        forSelectedMusicFolders { musicFolderId ->
+            artistsForMusicFolder(musicFolderId)
+        }.distinctBy { it.id }
+            .take(limit)
+
+    private suspend fun artistsForMusicFolder(musicFolderId: String?): List<Artist> {
+        val response = get(
+            endpoint = "getArtists.view",
+            params = musicFolderId?.let { mapOf("musicFolderId" to it) }.orEmpty(),
+        )
         val artistsRoot = response.subsonicResponse()["artists"]?.jsonObject
             ?: return emptyList()
         val indexes = artistsRoot.arrayValue("index")
@@ -211,21 +266,37 @@ class NavidromeProvider(
             .mapNotNull { artist ->
                 (artist as? JsonObject)?.toArtist()
             }
-            .take(limit)
     }
 
     override suspend fun albums(limit: Int, offset: Int): List<Album> {
+        if (selectedMusicFolderIds.isNotEmpty() && offset == 0) {
+            return forSelectedMusicFolders { musicFolderId ->
+                albumsForMusicFolder(limit, offset, musicFolderId)
+            }.distinctBy { it.id }
+                .take(limit)
+        }
+        if (selectedMusicFolderIds.isNotEmpty()) {
+            return forSelectedMusicFolders { musicFolderId ->
+                albumsForMusicFolder(limit + offset, 0, musicFolderId)
+            }.distinctBy { it.id }
+                .drop(offset)
+                .take(limit)
+        }
+        return albumsForMusicFolder(limit, offset, musicFolderId = null)
+    }
+
+    private suspend fun albumsForMusicFolder(limit: Int, offset: Int, musicFolderId: String?): List<Album> {
         val response = get(
             endpoint = "getAlbumList2.view",
-            params = mapOf(
-                "type" to "alphabeticalByName",
-                "size" to limit.toString(),
-                "offset" to offset.toString(),
-            ),
+            params = buildMap {
+                put("type", "alphabeticalByName")
+                put("size", limit.toString())
+                put("offset", offset.toString())
+                musicFolderId?.let { put("musicFolderId", it) }
+            },
         )
         val albumList = response.subsonicResponse()["albumList2"]?.jsonObject
         val albums = albumList?.get("album") as? JsonArray ?: return emptyList()
-
         return albums.mapNotNull { album ->
             (album as? JsonObject)?.toAlbum()
         }
@@ -459,9 +530,23 @@ class NavidromeProvider(
             fromYear?.let { put("fromYear", it.toString()) }
             toYear?.let { put("toYear", it.toString()) }
         }
+        if (selectedMusicFolderIds.isNotEmpty()) {
+            return forSelectedMusicFolders { musicFolderId ->
+                randomSongsForMusicFolder(params, musicFolderId)
+            }.distinctBy { it.id }
+                .shuffled()
+                .take(limit.coerceAtLeast(1))
+        }
+        return randomSongsForMusicFolder(params, musicFolderId = null)
+    }
+
+    private suspend fun randomSongsForMusicFolder(
+        params: Map<String, String>,
+        musicFolderId: String?,
+    ): List<Track> {
         val response = get(
             endpoint = "getRandomSongs.view",
-            params = params,
+            params = if (musicFolderId == null) params else params + ("musicFolderId" to musicFolderId),
         )
         val songs = response.subsonicResponse()["randomSongs"]
             ?.jsonObject
@@ -1079,6 +1164,15 @@ class NavidromeProvider(
                 ?: stringValue("lastPlayed")
                 ?: stringValue("lastPlayedAt"),
         )
+
+    private suspend fun <T> forSelectedMusicFolders(
+        block: suspend (musicFolderId: String?) -> List<T>,
+    ): List<T> =
+        if (selectedMusicFolderIds.isEmpty()) {
+            block(null)
+        } else {
+            selectedMusicFolderIds.flatMap { musicFolderId -> block(musicFolderId) }
+        }
 
     private fun JsonObject.moodValues(): List<String> {
         val arrayValues = arrayValue("mood").mapNotNull { value ->

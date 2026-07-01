@@ -51,6 +51,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.naviamp.domain.source.SavedMediaSource
 import app.naviamp.domain.settings.ConnectionFormHeader
+import app.naviamp.domain.settings.ConnectionFormMusicFolder
 import app.naviamp.domain.settings.ConnectionFormSecondaryUrl
 import app.naviamp.domain.settings.ConnectionFormState
 import app.naviamp.domain.settings.DefaultWaveformBucketCount
@@ -86,6 +87,9 @@ fun DesktopSettingsPanel(
     clientCertificateKeyStorePassword: String,
     secondaryUrls: List<ConnectionFormSecondaryUrl>,
     customHeaders: List<ConnectionFormHeader>,
+    selectedMusicFolderIds: List<String>,
+    availableMusicFolders: List<ConnectionFormMusicFolder>,
+    musicFoldersStatus: String?,
     savedConnections: List<SavedMediaSource>,
     currentSourceId: String?,
     hasSavedConnection: Boolean,
@@ -114,6 +118,7 @@ fun DesktopSettingsPanel(
     onClientCertificateKeyStorePasswordChanged: (String) -> Unit,
     onSecondaryUrlsChanged: (List<ConnectionFormSecondaryUrl>) -> Unit,
     onCustomHeadersChanged: (List<ConnectionFormHeader>) -> Unit,
+    onSelectedMusicFolderIdsChanged: (List<String>) -> Unit,
     onConnect: () -> Unit,
     onNewConnection: () -> Unit,
     onEditConnection: (SavedMediaSource) -> Unit,
@@ -157,6 +162,9 @@ fun DesktopSettingsPanel(
                 clientCertificateKeyStorePassword = clientCertificateKeyStorePassword,
                 secondaryUrls = secondaryUrls,
                 customHeaders = customHeaders,
+                selectedMusicFolderIds = selectedMusicFolderIds,
+                availableMusicFolders = availableMusicFolders,
+                musicFoldersStatus = musicFoldersStatus,
                 savedConnections = savedConnections,
                 currentSourceId = currentSourceId,
                 hasSavedConnection = hasSavedConnection,
@@ -176,6 +184,7 @@ fun DesktopSettingsPanel(
                 onClientCertificateKeyStorePasswordChanged = onClientCertificateKeyStorePasswordChanged,
                 onSecondaryUrlsChanged = onSecondaryUrlsChanged,
                 onCustomHeadersChanged = onCustomHeadersChanged,
+                onSelectedMusicFolderIdsChanged = onSelectedMusicFolderIdsChanged,
                 onConnect = onConnect,
                 onNewConnection = onNewConnection,
                 onEditConnection = onEditConnection,
@@ -539,6 +548,9 @@ private fun ConnectionsSettings(
     clientCertificateKeyStorePassword: String,
     secondaryUrls: List<ConnectionFormSecondaryUrl>,
     customHeaders: List<ConnectionFormHeader>,
+    selectedMusicFolderIds: List<String>,
+    availableMusicFolders: List<ConnectionFormMusicFolder>,
+    musicFoldersStatus: String?,
     savedConnections: List<SavedMediaSource>,
     currentSourceId: String?,
     hasSavedConnection: Boolean,
@@ -558,6 +570,7 @@ private fun ConnectionsSettings(
     onClientCertificateKeyStorePasswordChanged: (String) -> Unit,
     onSecondaryUrlsChanged: (List<ConnectionFormSecondaryUrl>) -> Unit,
     onCustomHeadersChanged: (List<ConnectionFormHeader>) -> Unit,
+    onSelectedMusicFolderIdsChanged: (List<String>) -> Unit,
     onConnect: () -> Unit,
     onNewConnection: () -> Unit,
     onEditConnection: (SavedMediaSource) -> Unit,
@@ -579,6 +592,51 @@ private fun ConnectionsSettings(
             .padding(end = 16.dp),
     ) {
         val showingFirstRunChoice = savedConnections.isEmpty() && !isConnectionFormOpen
+        if (isConnectionFormOpen) {
+            ConnectionFormSubScreenHeader(
+                appColors = appColors,
+                title = if (hasSavedConnection) "Edit Connection" else "New Connection",
+                onBack = onCancelConnectionForm,
+                enabled = !isConnecting,
+            )
+            NaviampConnectionForm(
+                form = ConnectionFormState(
+                    serverUrl = serverUrl,
+                    username = username,
+                    password = password,
+                    displayName = connectionName,
+                    skipTlsVerification = insecureSkipTlsVerification,
+                    customCertificatePath = customCertificatePath,
+                    clientCertificatePath = clientCertificateKeyStorePath,
+                    clientCertificatePassword = clientCertificateKeyStorePassword,
+                    secondaryUrls = secondaryUrls,
+                    customHeaders = customHeaders,
+                    selectedMusicFolderIds = selectedMusicFolderIds,
+                ),
+                colors = appColors,
+                isReconnect = hasSavedConnection,
+                isConnecting = isConnecting,
+                connectionStatus = connectionStatus,
+                availableMusicFolders = availableMusicFolders,
+                musicFoldersStatus = musicFoldersStatus,
+                onFormChanged = { form ->
+                    onServerUrlChanged(form.serverUrl)
+                    onUsernameChanged(form.username)
+                    onPasswordChanged(form.password)
+                    onConnectionNameChanged(form.displayName)
+                    onInsecureSkipTlsVerificationChanged(form.skipTlsVerification)
+                    onCustomCertificatePathChanged(form.customCertificatePath)
+                    onClientCertificateKeyStorePathChanged(form.clientCertificatePath)
+                    onClientCertificateKeyStorePasswordChanged(form.clientCertificatePassword)
+                    onSecondaryUrlsChanged(form.secondaryUrls)
+                    onCustomHeadersChanged(form.customHeaders)
+                    onSelectedMusicFolderIdsChanged(form.selectedMusicFolderIds)
+                },
+                onConnect = onConnect,
+                onCancel = onCancelConnectionForm,
+            )
+            return@Column
+        }
         SettingsSectionTitle("Connections", appColors)
         if (savedConnections.isEmpty()) {
             Text("No saved connections yet.", color = appColors.secondaryText, fontSize = 12.sp)
@@ -613,43 +671,8 @@ private fun ConnectionsSettings(
                 Text("New connection", fontSize = 12.sp)
             }
         }
-        connectionStatus?.takeUnless { isConnectionFormOpen }?.let {
+        connectionStatus?.let {
             Text(it, color = appColors.secondaryText, fontSize = 12.sp)
-        }
-        if (isConnectionFormOpen) {
-            HorizontalDivider(color = appColors.border)
-            NaviampConnectionForm(
-                form = ConnectionFormState(
-                    serverUrl = serverUrl,
-                    username = username,
-                    password = password,
-                    displayName = connectionName,
-                    skipTlsVerification = insecureSkipTlsVerification,
-                    customCertificatePath = customCertificatePath,
-                    clientCertificatePath = clientCertificateKeyStorePath,
-                    clientCertificatePassword = clientCertificateKeyStorePassword,
-                    secondaryUrls = secondaryUrls,
-                    customHeaders = customHeaders,
-                ),
-                colors = appColors,
-                isReconnect = hasSavedConnection,
-                isConnecting = isConnecting,
-                connectionStatus = connectionStatus,
-                onFormChanged = { form ->
-                    onServerUrlChanged(form.serverUrl)
-                    onUsernameChanged(form.username)
-                    onPasswordChanged(form.password)
-                    onConnectionNameChanged(form.displayName)
-                    onInsecureSkipTlsVerificationChanged(form.skipTlsVerification)
-                    onCustomCertificatePathChanged(form.customCertificatePath)
-                    onClientCertificateKeyStorePathChanged(form.clientCertificatePath)
-                    onClientCertificateKeyStorePasswordChanged(form.clientCertificatePassword)
-                    onSecondaryUrlsChanged(form.secondaryUrls)
-                    onCustomHeadersChanged(form.customHeaders)
-                },
-                onConnect = onConnect,
-                onCancel = onCancelConnectionForm,
-            )
         }
         HorizontalDivider(color = appColors.border)
         SettingsSectionTitle("Settings Sync", appColors)
@@ -744,6 +767,45 @@ private fun ConnectionsSettings(
 }
 
 @Composable
+private fun ConnectionFormSubScreenHeader(
+    appColors: DesktopAppColors,
+    title: String,
+    onBack: () -> Unit,
+    enabled: Boolean,
+) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        IconButton(
+            enabled = enabled,
+            onClick = onBack,
+            modifier = Modifier.height(30.dp).width(30.dp),
+        ) {
+            Icon(
+                imageVector = DesktopNavigationIcons.Back,
+                contentDescription = "Back to connections",
+                tint = if (enabled) appColors.primaryText else appColors.mutedText,
+                modifier = Modifier.size(18.dp),
+            )
+        }
+        Text(
+            title,
+            color = appColors.primaryText,
+            fontSize = 16.sp,
+            fontWeight = FontWeight.SemiBold,
+        )
+    }
+    connectionSubScreenDivider(appColors)
+}
+
+@Composable
+private fun connectionSubScreenDivider(appColors: DesktopAppColors) {
+    HorizontalDivider(color = appColors.border)
+}
+
+@Composable
 private fun SavedConnectionRow(
     appColors: DesktopAppColors,
     connection: SavedMediaSource,
@@ -753,16 +815,19 @@ private fun SavedConnectionRow(
     onDelete: () -> Unit,
     onConnect: () -> Unit,
 ) {
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    Column(
+        verticalArrangement = Arrangement.spacedBy(5.dp),
         modifier = Modifier
             .fillMaxWidth()
             .border(1.dp, if (selected) appColors.accent else appColors.border, RoundedCornerShape(6.dp))
-            .padding(horizontal = 10.dp, vertical = 7.dp),
+            .padding(horizontal = 10.dp, vertical = 8.dp),
     ) {
-        Column(modifier = Modifier.weight(1f)) {
-            Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
                 Text(
                     connection.displayName,
                     color = appColors.primaryText,
@@ -771,40 +836,47 @@ private fun SavedConnectionRow(
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
-                if (selected) {
-                    Text("Current", color = appColors.accent, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
-                }
             }
-            Text(
-                "${connection.username} • ${connection.baseUrl}",
-                color = appColors.secondaryText,
-                fontSize = 12.sp,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
+            if (selected) {
+                Text("Current", color = appColors.accent, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+            }
+            ConnectionActionIconButton(
+                enabled = enabled,
+                onClick = onEdit,
+                icon = DesktopNavigationIcons.Edit,
+                contentDescription = "Edit connection",
+                appColors = appColors,
+            )
+            ConnectionActionIconButton(
+                enabled = enabled,
+                onClick = onDelete,
+                icon = DesktopNavigationIcons.Trash,
+                contentDescription = "Delete connection",
+                appColors = appColors,
+            )
+            ConnectionActionIconButton(
+                enabled = enabled,
+                onClick = onConnect,
+                icon = DesktopNavigationIcons.Refresh,
+                contentDescription = if (selected) "Reconnect" else "Connect",
+                appColors = appColors,
             )
         }
-        ConnectionActionIconButton(
-            enabled = enabled,
-            onClick = onEdit,
-            icon = DesktopNavigationIcons.Edit,
-            contentDescription = "Edit connection",
-            appColors = appColors,
+        Text(
+            connection.username,
+            color = appColors.secondaryText,
+            fontSize = 12.sp,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
         )
-        ConnectionActionIconButton(
-            enabled = enabled,
-            onClick = onDelete,
-            icon = DesktopNavigationIcons.Trash,
-            contentDescription = "Delete connection",
-            appColors = appColors,
+        Text(
+            connection.baseUrl,
+            color = appColors.secondaryText,
+            fontSize = 12.sp,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.fillMaxWidth(),
         )
-        Button(
-            enabled = enabled,
-            onClick = onConnect,
-            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 2.dp),
-            modifier = Modifier.height(28.dp),
-        ) {
-            Text(if (selected) "Reconnect" else "Connect", fontSize = 12.sp)
-        }
     }
 }
 

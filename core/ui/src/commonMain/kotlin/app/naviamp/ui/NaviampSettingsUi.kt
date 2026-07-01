@@ -48,6 +48,7 @@ import app.naviamp.domain.radio.RadioFamiliarity
 import app.naviamp.domain.radio.RadioArtistRunMode
 import app.naviamp.domain.radio.RadioTuningSettings
 import app.naviamp.domain.settings.CacheSettings
+import app.naviamp.domain.settings.ConnectionFormMusicFolder
 import app.naviamp.domain.settings.ConnectionFormState
 import app.naviamp.domain.settings.DefaultWaveformBucketCount
 import app.naviamp.domain.settings.MaxWaveformBucketCount
@@ -109,6 +110,8 @@ fun NaviampSharedSettingsContent(
     isConnecting: Boolean = false,
     connectionStatus: String? = null,
     settingsSyncStatus: String? = null,
+    availableMusicFolders: List<ConnectionFormMusicFolder> = emptyList(),
+    musicFoldersStatus: String? = null,
     connectionForm: ConnectionFormState = ConnectionFormState(),
     hasSavedConnection: Boolean = false,
     onEditConnection: () -> Unit,
@@ -155,6 +158,8 @@ fun NaviampSharedSettingsContent(
                         isConnecting = isConnecting,
                         connectionStatus = connectionStatus,
                         settingsSyncStatus = settingsSyncStatus,
+                        availableMusicFolders = availableMusicFolders,
+                        musicFoldersStatus = musicFoldersStatus,
                         connectionForm = connectionForm,
                         hasSavedConnection = hasSavedConnection,
                         onNewConnection = onNewConnection,
@@ -320,6 +325,8 @@ private fun NaviampConnectionsSettingsSection(
     isConnecting: Boolean,
     connectionStatus: String?,
     settingsSyncStatus: String?,
+    availableMusicFolders: List<ConnectionFormMusicFolder>,
+    musicFoldersStatus: String?,
     connectionForm: ConnectionFormState,
     hasSavedConnection: Boolean,
     onNewConnection: () -> Unit,
@@ -339,76 +346,13 @@ private fun NaviampConnectionsSettingsSection(
     var pendingDelete by remember { mutableStateOf<NaviampSavedConnectionUi?>(null) }
 
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        SettingsSectionTitle("Connections", colors)
-        if (savedConnections.isEmpty()) {
-            Text("No saved connections yet.", color = colors.secondaryText, fontSize = 12.sp)
-        } else {
-            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                savedConnections.forEach { connection ->
-                    NaviampSavedConnectionRow(
-                        colors = colors,
-                        connection = connection,
-                        enabled = !isConnecting,
-                        onEdit = { onEditConnection(connection) },
-                        onDelete = { pendingDelete = connection },
-                        onConnect = { onConnectConnection(connection) },
-                    )
-                }
-            }
-        }
-        PrimaryButton("New connection", colors, enabled = !isConnecting, onClick = onNewConnection)
-        if (
-            onImportSettingsSyncFile != null ||
-            onChooseSettingsSyncFolder != null ||
-            onImportSettingsSyncFolder != null ||
-            onExportSettingsSyncFolder != null
-        ) {
-            HorizontalDivider(color = colors.border)
-            SettingsSectionTitle("Settings Sync", colors)
-            Text(
-                "Use a folder managed by Nextcloud, Dropbox, Syncthing, FolderSync, or another file sync app. Naviamp keeps a local copy and syncs this file when the provider allows it.",
-                color = colors.secondaryText,
-                fontSize = 12.sp,
-            )
-            onChooseSettingsSyncFolder?.let { chooseFolder ->
-                PrimarySettingsButton("Choose sync folder", colors, enabled = !isConnecting, onClick = chooseFolder)
-            }
-            onImportSettingsSyncFolder?.let { importFolder ->
-                PrimarySettingsButton("Sync now", colors, enabled = !isConnecting, onClick = importFolder)
-            }
-            onExportSettingsSyncFolder?.let { exportFolder ->
-                PrimarySettingsButton("Export local settings", colors, enabled = !isConnecting, onClick = exportFolder)
-            }
-            onImportSettingsSyncFile?.let { importSettings ->
-                PrimarySettingsButton("Import provider settings", colors, enabled = !isConnecting, onClick = importSettings)
-            }
-            onSettingsSyncAutoExportChanged?.let { onAutoExportChanged ->
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable(enabled = !isConnecting) {
-                            onAutoExportChanged(!settingsSyncAutoExportEnabled)
-                        },
-                ) {
-                    Checkbox(
-                        checked = settingsSyncAutoExportEnabled,
-                        enabled = !isConnecting,
-                        onCheckedChange = onAutoExportChanged,
-                    )
-                    Text("Auto-sync changes", color = colors.primaryText, fontSize = 13.sp)
-                }
-            }
-            settingsSyncStatus?.let {
-                Text(it, color = colors.secondaryText, fontSize = 12.sp)
-            }
-        }
-        connectionStatus?.takeUnless { isConnectionFormOpen }?.let {
-            Text(it, color = colors.secondaryText, fontSize = 12.sp)
-        }
         if (isConnectionFormOpen) {
-            HorizontalDivider(color = colors.border)
+            SettingsSubsectionHeader(
+                title = if (hasSavedConnection) "Edit connection" else "New connection",
+                subtitle = if (hasSavedConnection) "Server, login, TLS, and libraries" else "Add a Navidrome server",
+                colors = colors,
+                onBack = onCancelConnectionForm,
+            )
             NaviampConnectionForm(
                 form = connectionForm,
                 colors = colors,
@@ -416,11 +360,82 @@ private fun NaviampConnectionsSettingsSection(
                 isConnecting = isConnecting,
                 connectionStatus = connectionStatus,
                 settingsSyncStatus = settingsSyncStatus,
+                availableMusicFolders = availableMusicFolders,
+                musicFoldersStatus = musicFoldersStatus,
                 onFormChanged = onConnectionFormChanged,
                 onConnect = onConnect,
                 onImportSettingsSyncFile = onImportSettingsSyncFile,
                 onCancel = onCancelConnectionForm,
             )
+        } else {
+            SettingsSectionTitle("Connections", colors)
+            if (savedConnections.isEmpty()) {
+                Text("No saved connections yet.", color = colors.secondaryText, fontSize = 12.sp)
+            } else {
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    savedConnections.forEach { connection ->
+                        NaviampSavedConnectionRow(
+                            colors = colors,
+                            connection = connection,
+                            enabled = !isConnecting,
+                            onEdit = { onEditConnection(connection) },
+                            onDelete = { pendingDelete = connection },
+                            onConnect = { onConnectConnection(connection) },
+                        )
+                    }
+                }
+            }
+            PrimaryButton("New connection", colors, enabled = !isConnecting, onClick = onNewConnection)
+            if (
+                onImportSettingsSyncFile != null ||
+                onChooseSettingsSyncFolder != null ||
+                onImportSettingsSyncFolder != null ||
+                onExportSettingsSyncFolder != null
+            ) {
+                HorizontalDivider(color = colors.border)
+                SettingsSectionTitle("Settings Sync", colors)
+                Text(
+                    "Use a folder managed by Nextcloud, Dropbox, Syncthing, FolderSync, or another file sync app. Naviamp keeps a local copy and syncs this file when the provider allows it.",
+                    color = colors.secondaryText,
+                    fontSize = 12.sp,
+                )
+                onChooseSettingsSyncFolder?.let { chooseFolder ->
+                    PrimarySettingsButton("Choose sync folder", colors, enabled = !isConnecting, onClick = chooseFolder)
+                }
+                onImportSettingsSyncFolder?.let { importFolder ->
+                    PrimarySettingsButton("Sync now", colors, enabled = !isConnecting, onClick = importFolder)
+                }
+                onExportSettingsSyncFolder?.let { exportFolder ->
+                    PrimarySettingsButton("Export local settings", colors, enabled = !isConnecting, onClick = exportFolder)
+                }
+                onImportSettingsSyncFile?.let { importSettings ->
+                    PrimarySettingsButton("Import provider settings", colors, enabled = !isConnecting, onClick = importSettings)
+                }
+                onSettingsSyncAutoExportChanged?.let { onAutoExportChanged ->
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable(enabled = !isConnecting) {
+                                onAutoExportChanged(!settingsSyncAutoExportEnabled)
+                            },
+                    ) {
+                        Checkbox(
+                            checked = settingsSyncAutoExportEnabled,
+                            enabled = !isConnecting,
+                            onCheckedChange = onAutoExportChanged,
+                        )
+                        Text("Auto-sync changes", color = colors.primaryText, fontSize = 13.sp)
+                    }
+                }
+                settingsSyncStatus?.let {
+                    Text(it, color = colors.secondaryText, fontSize = 12.sp)
+                }
+            }
+            connectionStatus?.let {
+                Text(it, color = colors.secondaryText, fontSize = 12.sp)
+            }
         }
         pendingDelete?.let { connection ->
             AlertDialog(
@@ -456,16 +471,19 @@ private fun NaviampSavedConnectionRow(
     onDelete: () -> Unit,
     onConnect: () -> Unit,
 ) {
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    Column(
+        verticalArrangement = Arrangement.spacedBy(6.dp),
         modifier = Modifier
             .fillMaxWidth()
             .border(1.dp, if (connection.current) colors.accent else colors.border, RoundedCornerShape(6.dp))
             .padding(horizontal = 10.dp, vertical = 8.dp),
     ) {
-        Column(modifier = Modifier.weight(1f)) {
-            Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
                 Text(
                     connection.displayName,
                     color = colors.primaryText,
@@ -474,25 +492,37 @@ private fun NaviampSavedConnectionRow(
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
-                if (connection.current) {
-                    Text("Current", color = colors.accent, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
-                }
             }
-            Text(
-                "${connection.username} - ${connection.serverUrl}",
-                color = colors.secondaryText,
-                fontSize = 12.sp,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
+            if (connection.current) {
+                Text("Current", color = colors.accent, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+            }
+            IconButton(enabled = enabled, onClick = onEdit, modifier = Modifier.size(32.dp)) {
+                Icon(NaviampIcons.Edit, contentDescription = "Edit connection", tint = if (enabled) colors.primaryText else colors.mutedText)
+            }
+            IconButton(enabled = enabled, onClick = onDelete, modifier = Modifier.size(32.dp)) {
+                Icon(NaviampIcons.Trash, contentDescription = "Delete connection", tint = if (enabled) colors.primaryText else colors.mutedText)
+            }
         }
-        IconButton(enabled = enabled, onClick = onEdit, modifier = Modifier.size(34.dp)) {
-            Icon(NaviampIcons.Edit, contentDescription = "Edit connection", tint = if (enabled) colors.primaryText else colors.mutedText)
-        }
-        IconButton(enabled = enabled, onClick = onDelete, modifier = Modifier.size(34.dp)) {
-            Icon(NaviampIcons.Trash, contentDescription = "Delete connection", tint = if (enabled) colors.primaryText else colors.mutedText)
-        }
-        TextButton(enabled = enabled, onClick = onConnect) {
+        Text(
+            connection.username,
+            color = colors.secondaryText,
+            fontSize = 12.sp,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+        Text(
+            connection.serverUrl,
+            color = colors.secondaryText,
+            fontSize = 12.sp,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.fillMaxWidth(),
+        )
+        TextButton(
+            enabled = enabled,
+            onClick = onConnect,
+            modifier = Modifier.fillMaxWidth(),
+        ) {
             Text(if (connection.current) "Reconnect" else "Connect", color = if (enabled) colors.accent else colors.mutedText)
         }
     }

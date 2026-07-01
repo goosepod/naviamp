@@ -25,6 +25,7 @@ import app.naviamp.domain.settings.UpNextSelectionBehavior
 import app.naviamp.domain.settings.VisualizerSettings
 import app.naviamp.provider.navidrome.NavidromeConnection
 import kotlinx.serialization.builtins.ListSerializer
+import kotlinx.serialization.builtins.serializer
 import kotlinx.serialization.json.Json
 
 class AndroidSettingsStore(
@@ -62,6 +63,8 @@ class AndroidSettingsStore(
                     valueIsSecret = header.valueIsSecret,
                 )
             } ?: decodeList(KeyCustomHeaders, ConnectionFormHeader.serializer()),
+            selectedMusicFolderIds = savedConnection?.selectedMusicFolderIds
+                ?: decodeList(KeySelectedMusicFolderIds, String.serializer()),
         )
 
     fun saveConnection(connection: ConnectionFormState) {
@@ -76,6 +79,7 @@ class AndroidSettingsStore(
             .putString(KeyClientCertificatePassword, connection.clientCertificatePassword)
             .putString(KeySecondaryUrls, encodeList(connection.secondaryUrls, ConnectionFormSecondaryUrl.serializer()))
             .putString(KeyCustomHeaders, encodeList(connection.customHeaders, ConnectionFormHeader.serializer()))
+            .putString(KeySelectedMusicFolderIds, encodeList(connection.selectedMusicFolderIds, String.serializer()))
             .apply()
     }
 
@@ -370,6 +374,7 @@ private const val KeyClientCertificatePath = "client_certificate_path"
 private const val KeyClientCertificatePassword = "client_certificate_password"
 private const val KeySecondaryUrls = "secondary_urls"
 private const val KeyCustomHeaders = "custom_headers"
+private const val KeySelectedMusicFolderIds = "selected_music_folder_ids"
 private const val KeyReplayGainMode = "replay_gain_mode"
 private const val KeyReplayGainInspectorEnabled = "replay_gain_inspector_enabled"
 private const val KeyGaplessEnabled = "gapless_enabled"

@@ -4,6 +4,7 @@ import androidx.compose.ui.Modifier
 import app.naviamp.domain.InternetRadioStation
 import app.naviamp.domain.Playlist
 import app.naviamp.domain.Track
+import app.naviamp.domain.settings.ConnectionFormMusicFolder
 import app.naviamp.domain.settings.ConnectionFormState
 import app.naviamp.domain.settings.CacheSettings
 import app.naviamp.domain.settings.PlaybackSettings
@@ -57,6 +58,8 @@ data class AndroidAppShellUiState(
     val editingConnection: Boolean,
     val restoringConnection: Boolean,
     val connectionForm: ConnectionFormState,
+    val availableMusicFolders: List<ConnectionFormMusicFolder>,
+    val musicFoldersStatus: String?,
     val savedConnections: List<NaviampSavedConnectionUi>,
     val hasSavedConnection: Boolean,
     val playbackSettings: PlaybackSettings,

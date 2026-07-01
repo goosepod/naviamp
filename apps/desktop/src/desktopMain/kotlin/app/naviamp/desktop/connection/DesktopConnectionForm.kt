@@ -19,6 +19,7 @@ data class DesktopConnectionFormState(
     val clientCertificateKeyStorePassword: String = "",
     val secondaryUrls: List<ConnectionFormSecondaryUrl> = emptyList(),
     val customHeaders: List<ConnectionFormHeader> = emptyList(),
+    val selectedMusicFolderIds: List<String> = emptyList(),
 )
 
 fun desktopConnectionDisplayName(
@@ -60,5 +61,6 @@ fun savedDesktopConnectionFormState(source: SavedMediaSource): DesktopConnection
                 valueIsSecret = header.valueIsSecret,
             )
         },
+        selectedMusicFolderIds = connection.selectedMusicFolderIds,
     )
 }

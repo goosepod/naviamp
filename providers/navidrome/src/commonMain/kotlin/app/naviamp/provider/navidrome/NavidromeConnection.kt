@@ -4,6 +4,7 @@ import app.naviamp.domain.source.ConnectionTlsSettings
 import app.naviamp.domain.source.ConnectionHeaderDefinition
 import app.naviamp.domain.source.ConnectionSecondaryUrl
 import app.naviamp.domain.source.SavedMediaSource
+import app.naviamp.domain.source.normalizedMusicFolderIds
 import app.naviamp.domain.source.normalizedBaseUrl
 import app.naviamp.domain.source.resolvedConnectionDisplayName
 import kotlin.random.Random
@@ -20,6 +21,7 @@ data class NavidromeConnection(
     val tlsSettings: NavidromeTlsSettings = NavidromeTlsSettings(),
     val secondaryUrls: List<ConnectionSecondaryUrl> = emptyList(),
     val customHeaders: List<ConnectionHeaderDefinition> = emptyList(),
+    val selectedMusicFolderIds: List<String> = emptyList(),
 ) {
     val normalizedBaseUrl: String =
         normalizedBaseUrl(baseUrl)
@@ -34,6 +36,7 @@ data class NavidromeConnection(
             tlsSettings: NavidromeTlsSettings = NavidromeTlsSettings(),
             secondaryUrls: List<ConnectionSecondaryUrl> = emptyList(),
             customHeaders: List<ConnectionHeaderDefinition> = emptyList(),
+            selectedMusicFolderIds: List<String> = emptyList(),
         ): NavidromeConnection =
             NavidromeConnection(
                 baseUrl = baseUrl,
@@ -45,6 +48,7 @@ data class NavidromeConnection(
                 tlsSettings = tlsSettings,
                 secondaryUrls = secondaryUrls,
                 customHeaders = customHeaders,
+                selectedMusicFolderIds = selectedMusicFolderIds,
             )
 
         private fun randomSalt(): String =
@@ -69,4 +73,5 @@ fun SavedMediaSource.toNavidromeConnection(): NavidromeConnection =
         tlsSettings = tlsSettings,
         secondaryUrls = secondaryUrls,
         customHeaders = customHeaders,
+        selectedMusicFolderIds = normalizedMusicFolderIds(selectedMusicFolderIds),
     )

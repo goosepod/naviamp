@@ -2,6 +2,7 @@ package app.naviamp.provider.navidrome
 
 import app.naviamp.domain.source.ConnectionHeaderDefinition
 import app.naviamp.domain.source.ConnectionSecondaryUrl
+import app.naviamp.domain.source.normalizedMusicFolderIds
 
 data class NavidromeConnectionLoginRequest(
     val baseUrl: String,
@@ -11,6 +12,7 @@ data class NavidromeConnectionLoginRequest(
     val displayName: String?,
     val tlsSettings: NavidromeTlsSettings,
     val customHeaders: List<ConnectionHeaderDefinition> = emptyList(),
+    val selectedMusicFolderIds: List<String> = emptyList(),
     val savedConnectionForLogin: NavidromeConnection?,
     val nativeAuthRequired: Boolean = false,
 )
@@ -34,6 +36,7 @@ suspend fun prepareNavidromeConnection(
         .filterNot { it.url == request.baseUrl.trim().trimEnd('/') }
         .distinctBy { it.url }
     val customHeaders = request.customHeaders.mapNotNull { it.normalized() }
+    val selectedMusicFolderIds = normalizedMusicFolderIds(request.selectedMusicFolderIds)
     val reusableCredentials = request.savedConnectionForLogin?.takeIf {
         it.baseUrl == request.baseUrl && it.username == request.username && request.password.isBlank()
     }
@@ -42,6 +45,7 @@ suspend fun prepareNavidromeConnection(
         tlsSettings = request.tlsSettings,
         secondaryUrls = normalizedSecondaryUrls,
         customHeaders = customHeaders,
+        selectedMusicFolderIds = selectedMusicFolderIds,
     ) ?: NavidromeConnection.fromPassword(
         baseUrl = request.baseUrl,
         username = request.username,
@@ -50,6 +54,7 @@ suspend fun prepareNavidromeConnection(
         tlsSettings = request.tlsSettings,
         secondaryUrls = normalizedSecondaryUrls,
         customHeaders = customHeaders,
+        selectedMusicFolderIds = selectedMusicFolderIds,
     )
     var nativeAuthErrorMessage: String? = null
     val connection = if (request.password.isNotBlank()) {

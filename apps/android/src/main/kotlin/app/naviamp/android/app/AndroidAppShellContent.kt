@@ -28,6 +28,8 @@ fun AndroidAppShellContent(
         isConnecting = state.restoringConnection,
         connectionStatus = state.status,
         settingsSyncStatus = settingsSyncStatus,
+        availableMusicFolders = state.availableMusicFolders,
+        musicFoldersStatus = state.musicFoldersStatus,
         hasSavedConnection = state.hasSavedConnection,
         playbackSettings = state.playbackSettings,
         cacheSettings = state.cacheSettings,

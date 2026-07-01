@@ -39,6 +39,7 @@ import app.naviamp.domain.provider.MediaSearchResults
 import app.naviamp.domain.popular.SimilarArtistMatch
 import app.naviamp.domain.queue.PlaybackQueue
 import app.naviamp.domain.queue.RepeatMode
+import app.naviamp.domain.settings.ConnectionFormMusicFolder
 import app.naviamp.domain.settings.ConnectionFormState
 import app.naviamp.domain.settings.PlaybackSettings
 import app.naviamp.domain.settings.streamQualityForNetwork
@@ -87,6 +88,8 @@ import kotlinx.coroutines.withContext
 import java.io.File
 data class AndroidShellModels(
     val connectionForm: ConnectionFormState,
+    val availableMusicFolders: List<ConnectionFormMusicFolder>,
+    val musicFoldersStatus: String?,
     val home: SharedHomeUi,
     val searchResults: SharedSearchResultsUi,
     val libraryArtists: List<SharedMediaItemUi>,
@@ -123,6 +126,9 @@ fun rememberAndroidShellModels(
     customCertificatePath: String,
     clientCertificatePath: String,
     clientCertificatePassword: String,
+    selectedMusicFolderIds: List<String>,
+    availableMusicFolders: List<ConnectionFormMusicFolder>,
+    musicFoldersStatus: String?,
     provider: NavidromeProvider?,
     sonicSimilarityEnabled: Boolean,
     homeState: HomeContent,
@@ -150,6 +156,9 @@ fun rememberAndroidShellModels(
         customCertificatePath,
         clientCertificatePath,
         clientCertificatePassword,
+        selectedMusicFolderIds,
+        availableMusicFolders,
+        musicFoldersStatus,
         provider,
         sonicSimilarityEnabled,
         homeState,
@@ -177,6 +186,9 @@ fun rememberAndroidShellModels(
             customCertificatePath = customCertificatePath,
             clientCertificatePath = clientCertificatePath,
             clientCertificatePassword = clientCertificatePassword,
+            selectedMusicFolderIds = selectedMusicFolderIds,
+            availableMusicFolders = availableMusicFolders,
+            musicFoldersStatus = musicFoldersStatus,
             provider = provider,
             sonicSimilarityEnabled = sonicSimilarityEnabled,
             homeState = homeState,
@@ -206,6 +218,9 @@ fun androidShellModels(
     customCertificatePath: String,
     clientCertificatePath: String,
     clientCertificatePassword: String,
+    selectedMusicFolderIds: List<String>,
+    availableMusicFolders: List<ConnectionFormMusicFolder>,
+    musicFoldersStatus: String?,
     provider: NavidromeProvider?,
     sonicSimilarityEnabled: Boolean,
     homeState: HomeContent,
@@ -238,7 +253,10 @@ fun androidShellModels(
             customCertificatePath = customCertificatePath,
             clientCertificatePath = clientCertificatePath,
             clientCertificatePassword = clientCertificatePassword,
+            selectedMusicFolderIds = selectedMusicFolderIds,
         ),
+        availableMusicFolders = availableMusicFolders,
+        musicFoldersStatus = musicFoldersStatus,
         home = homeState.toSharedHomeUi(
             coverArtUrl = coverArtUrl,
             playlistTracksById = playlistTracksById,

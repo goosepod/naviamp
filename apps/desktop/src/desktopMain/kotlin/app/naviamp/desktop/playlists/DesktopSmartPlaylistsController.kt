@@ -142,4 +142,7 @@ private fun NavidromeConnection.toProviderMediaSourceConnection(): ProviderMedia
         salt = salt,
         nativeToken = nativeToken,
         tlsSettings = tlsSettings,
+        secondaryUrls = secondaryUrls,
+        customHeaders = customHeaders,
+        selectedMusicFolderIds = selectedMusicFolderIds,
     )

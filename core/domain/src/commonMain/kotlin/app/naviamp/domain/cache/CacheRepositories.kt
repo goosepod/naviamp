@@ -235,6 +235,7 @@ data class ProviderMediaSourceConnection(
     val tlsSettings: ConnectionTlsSettings = ConnectionTlsSettings(),
     val secondaryUrls: List<ConnectionSecondaryUrl> = emptyList(),
     val customHeaders: List<ConnectionHeaderDefinition> = emptyList(),
+    val selectedMusicFolderIds: List<String> = emptyList(),
 )
 
 interface ProviderMediaSourceRepository {

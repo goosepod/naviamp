@@ -32,6 +32,7 @@ CREATE TABLE media_source (
   client_certificate_keystore_password TEXT,
   secondary_urls_json TEXT,
   custom_headers_json TEXT,
+  selected_music_folder_ids_json TEXT,
   created_at_epoch_millis INTEGER NOT NULL,
   last_connected_at_epoch_millis INTEGER,
   last_sync_started_at_epoch_millis INTEGER,
@@ -445,13 +446,14 @@ INSERT OR IGNORE INTO media_source(
   client_certificate_keystore_password,
   secondary_urls_json,
   custom_headers_json,
+  selected_music_folder_ids_json,
   created_at_epoch_millis,
   last_connected_at_epoch_millis,
   last_sync_started_at_epoch_millis,
   last_sync_completed_at_epoch_millis,
   last_library_scan_signature,
   last_library_scan_checked_at_epoch_millis
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
 
 updateMediaSource:
 UPDATE media_source
@@ -469,6 +471,7 @@ SET provider_id = ?,
     client_certificate_keystore_password = ?,
     secondary_urls_json = ?,
     custom_headers_json = ?,
+    selected_music_folder_ids_json = ?,
     last_connected_at_epoch_millis = ?,
     last_sync_started_at_epoch_millis = ?,
     last_sync_completed_at_epoch_millis = ?,

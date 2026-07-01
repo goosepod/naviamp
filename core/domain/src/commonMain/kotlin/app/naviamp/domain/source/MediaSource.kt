@@ -67,6 +67,7 @@ data class SavedMediaSource(
     val tlsSettings: ConnectionTlsSettings = ConnectionTlsSettings(),
     val secondaryUrls: List<ConnectionSecondaryUrl> = emptyList(),
     val customHeaders: List<ConnectionHeaderDefinition> = emptyList(),
+    val selectedMusicFolderIds: List<String> = emptyList(),
     val createdAtEpochMillis: Long,
     val lastConnectedAtEpochMillis: Long?,
     val lastSyncStartedAtEpochMillis: Long?,
@@ -89,6 +90,11 @@ fun stableMediaSourceId(cacheNamespace: String): String {
     }
     return "source_${hash.toString(radix = 16).padStart(16, '0')}"
 }
+
+fun normalizedMusicFolderIds(ids: List<String>): List<String> =
+    ids.map { it.trim() }
+        .filter { it.isNotEmpty() }
+        .distinct()
 
 private const val FnvOffsetBasis = 14695981039346656037UL
 private const val FnvPrime = 1099511628211UL

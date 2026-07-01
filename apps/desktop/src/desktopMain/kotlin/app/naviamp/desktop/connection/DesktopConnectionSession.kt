@@ -43,6 +43,7 @@ suspend fun openDesktopConnectionSession(
     tlsSettings: NavidromeTlsSettings,
     secondaryUrls: List<ConnectionSecondaryUrl>,
     customHeaders: List<ConnectionHeaderDefinition>,
+    selectedMusicFolderIds: List<String>,
     savedConnectionForLogin: NavidromeConnection?,
     cacheMaintenanceRepository: CacheMaintenanceRepository<*>,
     providerMediaSourceRepository: ProviderMediaSourceRepository,
@@ -58,6 +59,7 @@ suspend fun openDesktopConnectionSession(
                 displayName = displayName,
                 tlsSettings = tlsSettings,
                 customHeaders = customHeaders,
+                selectedMusicFolderIds = selectedMusicFolderIds,
                 savedConnectionForLogin = savedConnectionForLogin,
                 nativeAuthRequired = true,
             ),
@@ -85,6 +87,7 @@ private fun NavidromeConnection.toProviderMediaSourceConnection(): ProviderMedia
         tlsSettings = tlsSettings,
         secondaryUrls = secondaryUrls,
         customHeaders = customHeaders,
+        selectedMusicFolderIds = selectedMusicFolderIds,
     )
 
 fun restoredDesktopPlaybackSession(

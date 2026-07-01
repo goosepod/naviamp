@@ -17,6 +17,7 @@ import app.naviamp.domain.settings.ConnectionFormState
 import app.naviamp.domain.settings.connectionFormError
 import app.naviamp.domain.settings.toConnectionHeaderDefinitions
 import app.naviamp.domain.settings.toConnectionSecondaryUrls
+import app.naviamp.domain.settings.toSelectedMusicFolderIds
 import app.naviamp.domain.source.SavedMediaSource
 import app.naviamp.domain.source.ProviderConnectionLifecycleRequest
 import app.naviamp.domain.source.connectionFailureStatus
@@ -146,6 +147,7 @@ fun AndroidAppState.applyConnectionForm(form: ConnectionFormState) {
     clientCertificatePassword = form.clientCertificatePassword
     secondaryUrls = form.secondaryUrls
     customHeaders = form.customHeaders
+    selectedMusicFolderIds = form.selectedMusicFolderIds
 }
 
 fun AndroidAppState.currentConnectionForm(): ConnectionFormState =
@@ -160,6 +162,7 @@ fun AndroidAppState.currentConnectionForm(): ConnectionFormState =
         clientCertificatePassword = clientCertificatePassword,
         secondaryUrls = secondaryUrls,
         customHeaders = customHeaders,
+        selectedMusicFolderIds = selectedMusicFolderIds,
     )
 
 fun startNavidromeConnection(
@@ -260,6 +263,7 @@ private fun NavidromeConnection.toProviderMediaSourceConnection(): ProviderMedia
         tlsSettings = tlsSettings,
         secondaryUrls = secondaryUrls,
         customHeaders = customHeaders,
+        selectedMusicFolderIds = selectedMusicFolderIds,
     )
 
 private fun connectionStatusWithActiveUrl(primaryUrl: String, activeUrl: String): String {
@@ -305,6 +309,7 @@ fun startNavidromeConnectionFromForm(
                     displayName = connectionForm.displayName.trim().takeIf { it.isNotEmpty() },
                     tlsSettings = tlsSettings,
                     customHeaders = connectionForm.customHeaders.toConnectionHeaderDefinitions(),
+                    selectedMusicFolderIds = connectionForm.selectedMusicFolderIds.toSelectedMusicFolderIds(),
                     savedConnectionForLogin = state.savedConnectionForLogin,
                 ),
             ).connection

@@ -53,12 +53,14 @@ import app.naviamp.domain.settings.buildSettingsSyncDocument
 import app.naviamp.domain.settings.effectiveForEngine
 import app.naviamp.domain.settings.PlaybackSettingsMaintenanceController
 import app.naviamp.domain.settings.SavedInternetRadioStation
+import app.naviamp.domain.settings.ConnectionFormMusicFolder
 import app.naviamp.domain.settings.importSettingsSyncServerProfiles
 import app.naviamp.domain.settings.playbackSettingsChange
 import app.naviamp.domain.settings.restoredPlaybackQueue
 import app.naviamp.domain.settings.restoredTrackSession
 import app.naviamp.domain.settings.toConnectionHeaderDefinitions
 import app.naviamp.domain.settings.toConnectionSecondaryUrls
+import app.naviamp.domain.source.ConnectionTlsSettings
 import app.naviamp.domain.sonicautoplay.SonicAutoplayService
 import app.naviamp.provider.navidrome.NavidromeConnection
 import app.naviamp.provider.navidrome.NavidromeProvider
@@ -79,6 +81,8 @@ import app.naviamp.ui.NowPlayingSleepTimerActionRequest
 import app.naviamp.ui.naviampVisualizerFromName
 import app.naviamp.ui.nowPlayingQueueIndex
 import app.naviamp.ui.nowPlayingRelatedIndex
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import java.nio.file.Path
 
 @Composable
@@ -149,6 +153,8 @@ fun NaviampApp(
         restoredTrackSession?.currentTrack ?: savedPlaybackSession?.currentTrack()
     }
     val connectionForm = remember { DesktopConnectionFormStateHolder(savedConnection) }
+    var availableMusicFolders by remember { mutableStateOf(emptyList<ConnectionFormMusicFolder>()) }
+    var musicFoldersStatus by remember { mutableStateOf<String?>(null) }
     var mediaSourcesRevision by remember { mutableIntStateOf(0) }
     var isConnecting by remember { mutableStateOf(false) }
     var connectionStatus by remember { mutableStateOf<String?>(null) }
@@ -724,6 +730,7 @@ fun NaviampApp(
         clientCertificateKeyStorePassword = { connectionForm.clientCertificateKeyStorePassword },
         secondaryUrls = { connectionForm.secondaryUrls.toConnectionSecondaryUrls() },
         customHeaders = { connectionForm.customHeaders.toConnectionHeaderDefinitions() },
+        selectedMusicFolderIds = { connectionForm.selectedMusicFolderIds },
         isConnecting = { isConnecting },
         setConnecting = { connecting -> isConnecting = connecting },
         savedPlaybackSession = { savedPlaybackSession },
@@ -1124,6 +1131,92 @@ fun NaviampApp(
         setCacheStats = { stats -> cacheStats = stats },
     )
 
+    LaunchedEffect(
+        connectionForm.isOpen,
+        connectionForm.serverUrl,
+        connectionForm.username,
+        connectionForm.password,
+        connectionForm.insecureSkipTlsVerification,
+        connectionForm.customCertificatePath,
+        connectionForm.clientCertificateKeyStorePath,
+        connectionForm.clientCertificateKeyStorePassword,
+        connectionForm.secondaryUrls,
+        connectionForm.customHeaders,
+        connectionForm.savedConnectionForLogin,
+    ) {
+        if (!connectionForm.isOpen) {
+            availableMusicFolders = emptyList()
+            musicFoldersStatus = null
+            return@LaunchedEffect
+        }
+        val baseUrl = connectionForm.serverUrl.trim()
+        val username = connectionForm.username.trim()
+        val savedLogin = connectionForm.savedConnectionForLogin
+        val password = connectionForm.password
+        if (baseUrl.isEmpty() || username.isEmpty() || (savedLogin == null && password.isBlank())) {
+            availableMusicFolders = emptyList()
+            musicFoldersStatus = "Enter connection details to load libraries."
+            return@LaunchedEffect
+        }
+
+        musicFoldersStatus = "Loading libraries..."
+        val tlsSettings = ConnectionTlsSettings(
+            insecureSkipTlsVerification = connectionForm.insecureSkipTlsVerification,
+            customCertificatePath = connectionForm.customCertificatePath.ifBlank { null },
+            clientCertificateKeyStorePath = connectionForm.clientCertificateKeyStorePath.ifBlank { null },
+            clientCertificateKeyStorePassword = connectionForm.clientCertificateKeyStorePassword.ifBlank { null },
+        )
+        val secondaryUrls = connectionForm.secondaryUrls.toConnectionSecondaryUrls()
+        val customHeaders = connectionForm.customHeaders.toConnectionHeaderDefinitions()
+        val lookupConnection = if (savedLogin != null && password.isBlank()) {
+            savedLogin.copy(
+                baseUrl = baseUrl,
+                username = username,
+                tlsSettings = tlsSettings,
+                secondaryUrls = secondaryUrls,
+                customHeaders = customHeaders,
+            )
+        } else {
+            NavidromeConnection.fromPassword(
+                baseUrl = baseUrl,
+                username = username,
+                password = password,
+                displayName = connectionForm.connectionName.ifBlank { null },
+                tlsSettings = tlsSettings,
+                secondaryUrls = secondaryUrls,
+                customHeaders = customHeaders,
+            )
+        }
+        val result = runCatching {
+            withContext(Dispatchers.IO) {
+                NavidromeProvider(lookupConnection).musicFolders()
+            }
+        }
+        result.fold(
+            onSuccess = { folders ->
+                val choices = folders.mapIndexed { index, folder ->
+                    ConnectionFormMusicFolder(
+                        id = folder.id,
+                        name = folder.name,
+                        defaultSelected = index == 0,
+                    )
+                }
+                availableMusicFolders = choices
+                musicFoldersStatus = when {
+                    choices.isEmpty() -> "No libraries returned by the server."
+                    else -> null
+                }
+                if (connectionForm.selectedMusicFolderIds.isEmpty() && choices.isNotEmpty()) {
+                    connectionForm.selectedMusicFolderIds = listOf(choices.first().id)
+                }
+            },
+            onFailure = { error ->
+                availableMusicFolders = emptyList()
+                musicFoldersStatus = "Could not load libraries: ${error.message ?: error::class.simpleName}"
+            },
+        )
+    }
+
     loadHomeContentAction.value = homeController::loadHomeContent
     refreshPlaylistsAction.value = playlistsController::refreshPlaylists
 
@@ -1418,6 +1511,8 @@ fun NaviampApp(
                             cacheStats = cacheStats,
                             downloadedTracks = storage::downloadedTracks,
                             connectionForm = connectionForm,
+                            availableMusicFolders = availableMusicFolders,
+                            musicFoldersStatus = musicFoldersStatus,
                             savedMediaSources = savedMediaSources,
                             isConnecting = isConnecting,
                             playbackSettings = playbackSettings,

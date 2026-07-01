@@ -736,6 +736,33 @@ class NavidromeProviderTest {
     }
 
     @Test
+    fun albumListScopesRequestsToSelectedMusicFolders() = runTest {
+        val httpClient = SequencedHttpClient(
+            listOf(
+                albumListResponse(albumId = "album-1", title = "Technique", artist = "New Order"),
+                albumListResponse(albumId = "album-2", title = "Movement", artist = "New Order"),
+            ),
+        )
+        val provider = NavidromeProvider(
+            connection = connection("https://music.example.test").copy(
+                selectedMusicFolderIds = listOf("rock", "archive"),
+            ),
+            httpClient = httpClient,
+        )
+
+        val albums = provider.albumList(AlbumListType.Random, limit = 8)
+
+        assertEquals(
+            listOf(
+                "https://music.example.test/rest/getAlbumList2.view?u=demo&t=token&s=salt&v=1.16.1&$ExpectedClientQuery&f=json&type=random&size=8&musicFolderId=rock",
+                "https://music.example.test/rest/getAlbumList2.view?u=demo&t=token&s=salt&v=1.16.1&$ExpectedClientQuery&f=json&type=random&size=8&musicFolderId=archive",
+            ),
+            httpClient.urls,
+        )
+        assertEquals(listOf("Technique", "Movement"), albums.map { it.title })
+    }
+
+    @Test
     fun playlistsMapSubsonicPlaylists() = runTest {
         val provider = NavidromeProvider(
             connection = connection("https://music.example.test"),
@@ -1384,6 +1411,24 @@ class NavidromeProviderTest {
             limit = 25,
             isPublic = true,
         )
+
+    private fun albumListResponse(albumId: String, title: String, artist: String): String =
+        """
+        {
+          "subsonic-response": {
+            "status": "ok",
+            "albumList2": {
+              "album": [
+                {
+                  "id": "$albumId",
+                  "name": "$title",
+                  "artist": "$artist"
+                }
+              ]
+            }
+          }
+        }
+        """.trimIndent()
 
     private fun connection(baseUrl: String, nativeToken: String? = null): NavidromeConnection =
         NavidromeConnection(
