@@ -3,6 +3,7 @@ package app.naviamp.domain.lyrics
 import app.naviamp.domain.Lyrics
 import app.naviamp.domain.LyricsSource
 import app.naviamp.domain.Track
+import app.naviamp.domain.network.NaviampUserAgent
 import app.naviamp.domain.network.SharedHttpClient
 import app.naviamp.domain.network.urlEncodedParameter
 import kotlinx.serialization.Serializable
@@ -92,7 +93,7 @@ private val LrclibJson = Json { ignoreUnknownKeys = true }
 
 private val JsonHeaders = mapOf(
     "Accept" to "application/json",
-    "User-Agent" to "Naviamp/0.9.0",
+    "User-Agent" to NaviampUserAgent,
 )
 
 @Serializable

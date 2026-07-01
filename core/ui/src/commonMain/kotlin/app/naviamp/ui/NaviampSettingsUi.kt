@@ -1,5 +1,6 @@
 package app.naviamp.ui
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -565,11 +566,9 @@ private val DefaultNaviampLibraries = listOf(
 )
 
 private val DefaultNaviampChangelog = listOf(
-    "Improved Windows desktop visualizer smoothness and quality with the default Skiko renderer, faster desktop visualizer sampling, an experimental native GLSL renderer path, and Start Menu installer entries.",
-    "Refined the compact Now Playing layout with larger responsive artwork, better spacing, and a Plexamp-style rating and audio-quality row.",
-    "Sorted visualizer choices alphabetically and updated their labels to title case.",
-    "Fixed macOS About metadata so the app reports the real Naviamp release version.",
-    "Improved Android Auto browse stability by avoiding blocking artwork fetches while loading media items.",
+    "Updated Naviamp's Navidrome client identity and HTTP user agent so requests report the current app version instead of a stale hardcoded version.",
+    "Added Navidrome HTTP 429 rate-limit backoff handling with Retry-After support to avoid hammering the server while a rate limit is active.",
+    "Polished settings dropdown controls with a clearer bordered style and chevron indicator.",
 )
 
 @Composable
@@ -1662,8 +1661,38 @@ private fun <T> SettingsDropdown(
     onOptionSelected: (T) -> Unit,
 ) {
     var expanded by remember { mutableStateOf(false) }
-    TextButton(enabled = enabled, onClick = { expanded = true }) {
-        Text(label, color = if (enabled) colors.primaryText else colors.mutedText, fontSize = 12.sp)
+    val shape = RoundedCornerShape(7.dp)
+    Row(
+        modifier = Modifier
+            .height(30.dp)
+            .border(
+                width = 1.dp,
+                color = if (enabled) colors.border.copy(alpha = 0.9f) else colors.border.copy(alpha = 0.38f),
+                shape = shape,
+            )
+            .background(
+                color = if (enabled) colors.controlSurface.copy(alpha = 0.58f) else colors.controlSurface.copy(alpha = 0.24f),
+                shape = shape,
+            )
+            .clickable(enabled = enabled, onClick = { expanded = true })
+            .padding(start = 10.dp, end = 7.dp),
+        horizontalArrangement = Arrangement.spacedBy(7.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            label,
+            color = if (enabled) colors.primaryText else colors.mutedText,
+            fontSize = 12.sp,
+            fontWeight = FontWeight.SemiBold,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+        Icon(
+            imageVector = NaviampIcons.ChevronDown,
+            contentDescription = null,
+            tint = if (enabled) colors.secondaryText else colors.mutedText,
+            modifier = Modifier.size(14.dp),
+        )
         DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
             options.forEach { option ->
                 DropdownMenuItem(

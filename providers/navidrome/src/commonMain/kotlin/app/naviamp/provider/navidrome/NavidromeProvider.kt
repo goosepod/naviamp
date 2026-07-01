@@ -29,6 +29,7 @@ import app.naviamp.domain.provider.MediaSearchResults
 import app.naviamp.domain.provider.ProviderCapabilities
 import app.naviamp.domain.provider.SonicSimilarTrack
 import app.naviamp.domain.provider.SonicPathMatch
+import app.naviamp.domain.network.NaviampClientName
 import app.naviamp.domain.network.SharedHttpClient
 import app.naviamp.domain.popular.ArtistPopularTrackCandidate
 import app.naviamp.domain.popular.ArtistPopularTracksClient
@@ -956,7 +957,7 @@ class NavidromeProvider(
             "t" to connection.token,
             "s" to connection.salt,
             "v" to "1.16.1",
-            "c" to "Naviamp",
+            "c" to NaviampClientName,
             "f" to "json",
         )
 
@@ -1210,7 +1211,12 @@ fun recordNavidromeApiCall(
     )
 }
 
-class NavidromeException(message: String) : RuntimeException(message)
+open class NavidromeException(message: String) : RuntimeException(message)
+
+class NavidromeRateLimitException(
+    val retryAtEpochMillis: Long,
+    message: String,
+) : NavidromeException(message)
 
 private fun List<Pair<String, String>>.toQueryString(): String =
     joinToString("&") { (key, value) ->

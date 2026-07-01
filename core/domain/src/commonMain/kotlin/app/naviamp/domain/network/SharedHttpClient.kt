@@ -200,5 +200,5 @@ internal expect fun currentTimeMillis(): Long
 
 private val DefaultSharedHttpHeaders = mapOf(
     HttpHeaders.Accept to "application/json",
-    HttpHeaders.UserAgent to "Naviamp/0.9.0",
+    HttpHeaders.UserAgent to NaviampUserAgent,
 )

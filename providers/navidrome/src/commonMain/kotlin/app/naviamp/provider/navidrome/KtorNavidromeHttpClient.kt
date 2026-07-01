@@ -1,5 +1,6 @@
 package app.naviamp.provider.navidrome
 
+import app.naviamp.domain.network.NaviampUserAgent
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.request.headers
@@ -9,6 +10,7 @@ import io.ktor.client.statement.bodyAsChannel
 import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpMethod
+import io.ktor.http.fromHttpToGmtDate
 import io.ktor.http.contentType
 import io.ktor.http.isSuccess
 import io.ktor.utils.io.readAvailable
@@ -17,6 +19,8 @@ import kotlinx.coroutines.CancellationException
 class KtorNavidromeHttpClient(
     private val client: HttpClient = createDefaultNavidromeKtorClient(NavidromeTlsSettings()),
 ) : NavidromeHttpClient {
+    private val rateLimitBackoff = NavidromeRateLimitBackoff()
+
     override suspend fun get(url: String): String =
         request(url = url, method = HttpMethod.Get)
 
@@ -47,6 +51,7 @@ class KtorNavidromeHttpClient(
     ): String {
         val startedAt = navidromeCurrentTimeMillis()
         return runCatching {
+            rateLimitBackoff.activeExceptionOrNull()?.let { throw it }
             val response = client.request(url) {
                 this.method = method
                 headers {
@@ -59,6 +64,7 @@ class KtorNavidromeHttpClient(
             }
             val statusCode = response.status.value
             if (!response.status.isSuccess()) {
+                rateLimitBackoff.record(statusCode, response.headers[HttpHeaders.RetryAfter])?.let { throw it }
                 throw NavidromeException("Navidrome returned HTTP $statusCode.")
             }
             response.body<String>().also {
@@ -102,6 +108,16 @@ class KtorNavidromeHttpClient(
 
     private suspend fun requestBytes(url: String, headers: Map<String, String> = emptyMap()): ByteArray? {
         val startedAt = navidromeCurrentTimeMillis()
+        rateLimitBackoff.activeExceptionOrNull()?.let { error ->
+            recordApiCall(
+                method = HttpMethod.Get.value,
+                url = url,
+                startedAt = startedAt,
+                success = false,
+                errorMessage = error.message,
+            )
+            return null
+        }
         return runCatching {
             val response = client.request(url) {
                 method = HttpMethod.Get
@@ -111,12 +127,13 @@ class KtorNavidromeHttpClient(
             }
             val statusCode = response.status.value
             if (!response.status.isSuccess()) {
+                val rateLimitError = rateLimitBackoff.record(statusCode, response.headers[HttpHeaders.RetryAfter])
                 recordApiCall(
                     method = HttpMethod.Get.value,
                     url = url,
                     startedAt = startedAt,
                     success = false,
-                    errorMessage = "HTTP $statusCode.",
+                    errorMessage = rateLimitError?.message ?: "HTTP $statusCode.",
                 )
                 return null
             }
@@ -148,6 +165,16 @@ class KtorNavidromeHttpClient(
         writeChunk: suspend (bytes: ByteArray, count: Int) -> Unit,
     ): Boolean {
         val startedAt = navidromeCurrentTimeMillis()
+        rateLimitBackoff.activeExceptionOrNull()?.let { error ->
+            recordApiCall(
+                method = HttpMethod.Get.value,
+                url = url,
+                startedAt = startedAt,
+                success = false,
+                errorMessage = error.message,
+            )
+            return false
+        }
         return runCatching {
             val response = client.request(url) {
                 method = HttpMethod.Get
@@ -157,12 +184,13 @@ class KtorNavidromeHttpClient(
             }
             val statusCode = response.status.value
             if (!response.status.isSuccess()) {
+                val rateLimitError = rateLimitBackoff.record(statusCode, response.headers[HttpHeaders.RetryAfter])
                 recordApiCall(
                     method = HttpMethod.Get.value,
                     url = url,
                     startedAt = startedAt,
                     success = false,
-                    errorMessage = "HTTP $statusCode.",
+                    errorMessage = rateLimitError?.message ?: "HTTP $statusCode.",
                 )
                 return false
             }
@@ -196,7 +224,58 @@ class KtorNavidromeHttpClient(
     }
 }
 
+internal class NavidromeRateLimitBackoff(
+    private val nowMillis: () -> Long = ::navidromeCurrentTimeMillis,
+) {
+    private var retryAtEpochMillis: Long? = null
+
+    fun activeExceptionOrNull(): NavidromeRateLimitException? {
+        val retryAt = retryAtEpochMillis ?: return null
+        val now = nowMillis()
+        return if (retryAt > now) {
+            NavidromeRateLimitException(
+                retryAtEpochMillis = retryAt,
+                message = "Navidrome rate limit is active. Try again in ${remainingDescription(retryAt, now)}.",
+            )
+        } else {
+            retryAtEpochMillis = null
+            null
+        }
+    }
+
+    fun record(statusCode: Int, retryAfterHeader: String?): NavidromeRateLimitException? {
+        if (statusCode != TooManyRequestsStatusCode) return null
+        val now = nowMillis()
+        val retryAt = retryAfterHeader.retryAfterEpochMillis(now) ?: (now + DefaultRateLimitBackoffMillis)
+        retryAtEpochMillis = maxOf(retryAtEpochMillis ?: 0L, retryAt)
+        return NavidromeRateLimitException(
+            retryAtEpochMillis = retryAtEpochMillis ?: retryAt,
+            message = "Navidrome returned HTTP 429. Try again in ${remainingDescription(retryAtEpochMillis ?: retryAt, now)}.",
+        )
+    }
+
+    private fun String?.retryAfterEpochMillis(now: Long): Long? {
+        val value = this?.trim()?.takeIf { it.isNotEmpty() } ?: return null
+        value.toLongOrNull()?.let { seconds ->
+            if (seconds >= 0) return now + seconds * 1_000L
+        }
+        return runCatching { value.fromHttpToGmtDate().timestamp }.getOrNull()
+    }
+
+    private fun remainingDescription(retryAt: Long, now: Long): String {
+        val seconds = ((retryAt - now).coerceAtLeast(0L) + 999L) / 1_000L
+        return when (seconds) {
+            0L -> "less than a second"
+            1L -> "1 second"
+            else -> "$seconds seconds"
+        }
+    }
+}
+
 private val DefaultNavidromeHeaders = mapOf(
     HttpHeaders.Accept to "application/json",
-    HttpHeaders.UserAgent to "Naviamp/0.9.0",
+    HttpHeaders.UserAgent to NaviampUserAgent,
 )
+
+private const val TooManyRequestsStatusCode = 429
+private const val DefaultRateLimitBackoffMillis = 60_000L

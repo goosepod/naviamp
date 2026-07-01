@@ -1,6 +1,7 @@
 package app.naviamp.desktop
 
 import app.naviamp.domain.network.KtorSharedHttpClient
+import app.naviamp.domain.network.NaviampProjectUserAgent
 import app.naviamp.domain.network.SharedHttpCall
 import app.naviamp.domain.lyrics.LrclibLyricsProvider
 import app.naviamp.domain.lyrics.LrclibApiCall
@@ -14,7 +15,7 @@ class DesktopLrclibLyricsClient(
         callRecorder = { call -> DesktopLrclibApiCallHistory.record(call.toLrclibCall()) },
         defaultHeaders = mapOf(
             "Accept" to "application/json",
-            "User-Agent" to "Naviamp/0.9.0 (https://github.com/jbmcmichael/Naviamp)",
+            "User-Agent" to NaviampProjectUserAgent,
         ),
     ),
     baseUrl,

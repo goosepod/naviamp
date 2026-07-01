@@ -8,6 +8,7 @@ import app.naviamp.domain.StreamQuality
 import app.naviamp.domain.StreamRequest
 import app.naviamp.domain.TrackId
 import app.naviamp.domain.provider.AlbumListType
+import app.naviamp.domain.network.NaviampClientName
 import app.naviamp.domain.popular.NavidromeAgentMetadataSource
 import app.naviamp.domain.smartplaylist.SmartPlaylistCondition
 import app.naviamp.domain.smartplaylist.SmartPlaylistDefinition
@@ -30,7 +31,7 @@ class NavidromeProviderTest {
         val url = provider.streamUrl(StreamRequest(TrackId("abc123"), StreamQuality.Original))
 
         assertEquals(
-            "https://music.example.test/rest/stream.view?u=demo&t=token&s=salt&v=1.16.1&c=Naviamp&f=json&id=abc123",
+            "https://music.example.test/rest/stream.view?u=demo&t=token&s=salt&v=1.16.1&$ExpectedClientQuery&f=json&id=abc123",
             url,
         )
     }
@@ -47,7 +48,7 @@ class NavidromeProviderTest {
         )
 
         assertEquals(
-            "https://music.example.test/rest/stream.view?u=demo&t=token&s=salt&v=1.16.1&c=Naviamp&f=json&id=abc123&format=opus&maxBitRate=128",
+            "https://music.example.test/rest/stream.view?u=demo&t=token&s=salt&v=1.16.1&$ExpectedClientQuery&f=json&id=abc123&format=opus&maxBitRate=128",
             url,
         )
     }
@@ -65,7 +66,7 @@ class NavidromeProviderTest {
         )
 
         assertEquals(
-            "https://music.example.test/rest/stream.view?u=demo&t=token&s=salt&v=1.16.1&c=Naviamp&f=json&id=abc123&format=opus&maxBitRate=128&timeOffset=95",
+            "https://music.example.test/rest/stream.view?u=demo&t=token&s=salt&v=1.16.1&$ExpectedClientQuery&f=json&id=abc123&format=opus&maxBitRate=128&timeOffset=95",
             url,
         )
     }
@@ -77,7 +78,7 @@ class NavidromeProviderTest {
         val url = provider.coverArtUrl("cover-1")
 
         assertEquals(
-            "https://music.example.test/rest/getCoverArt.view?u=demo&t=token&s=salt&v=1.16.1&c=Naviamp&f=json&id=cover-1",
+            "https://music.example.test/rest/getCoverArt.view?u=demo&t=token&s=salt&v=1.16.1&$ExpectedClientQuery&f=json&id=cover-1",
             url,
         )
     }
@@ -93,7 +94,7 @@ class NavidromeProviderTest {
         provider.setTrackFavorite(TrackId("track-1"), favorite = true)
 
         assertEquals(
-            "https://music.example.test/rest/star.view?u=demo&t=token&s=salt&v=1.16.1&c=Naviamp&f=json&id=track-1",
+            "https://music.example.test/rest/star.view?u=demo&t=token&s=salt&v=1.16.1&$ExpectedClientQuery&f=json&id=track-1",
             httpClient.urls.single(),
         )
     }
@@ -109,7 +110,7 @@ class NavidromeProviderTest {
         provider.setTrackFavorite(TrackId("track-1"), favorite = false)
 
         assertEquals(
-            "https://music.example.test/rest/unstar.view?u=demo&t=token&s=salt&v=1.16.1&c=Naviamp&f=json&id=track-1",
+            "https://music.example.test/rest/unstar.view?u=demo&t=token&s=salt&v=1.16.1&$ExpectedClientQuery&f=json&id=track-1",
             httpClient.urls.single(),
         )
     }
@@ -125,7 +126,7 @@ class NavidromeProviderTest {
         provider.setArtistFavorite(ArtistId("artist-1"), favorite = true)
 
         assertEquals(
-            "https://music.example.test/rest/star.view?u=demo&t=token&s=salt&v=1.16.1&c=Naviamp&f=json&artistId=artist-1",
+            "https://music.example.test/rest/star.view?u=demo&t=token&s=salt&v=1.16.1&$ExpectedClientQuery&f=json&artistId=artist-1",
             httpClient.urls.single(),
         )
     }
@@ -141,7 +142,7 @@ class NavidromeProviderTest {
         provider.setAlbumFavorite(AlbumId("album-1"), favorite = false)
 
         assertEquals(
-            "https://music.example.test/rest/unstar.view?u=demo&t=token&s=salt&v=1.16.1&c=Naviamp&f=json&albumId=album-1",
+            "https://music.example.test/rest/unstar.view?u=demo&t=token&s=salt&v=1.16.1&$ExpectedClientQuery&f=json&albumId=album-1",
             httpClient.urls.single(),
         )
     }
@@ -157,7 +158,7 @@ class NavidromeProviderTest {
         provider.setTrackRating(TrackId("track-1"), rating = 4)
 
         assertEquals(
-            "https://music.example.test/rest/setRating.view?u=demo&t=token&s=salt&v=1.16.1&c=Naviamp&f=json&id=track-1&rating=4",
+            "https://music.example.test/rest/setRating.view?u=demo&t=token&s=salt&v=1.16.1&$ExpectedClientQuery&f=json&id=track-1&rating=4",
             httpClient.urls.single(),
         )
     }
@@ -173,7 +174,7 @@ class NavidromeProviderTest {
         provider.setTrackRating(TrackId("track-1"), rating = null)
 
         assertEquals(
-            "https://music.example.test/rest/setRating.view?u=demo&t=token&s=salt&v=1.16.1&c=Naviamp&f=json&id=track-1&rating=0",
+            "https://music.example.test/rest/setRating.view?u=demo&t=token&s=salt&v=1.16.1&$ExpectedClientQuery&f=json&id=track-1&rating=0",
             httpClient.urls.single(),
         )
     }
@@ -238,8 +239,8 @@ class NavidromeProviderTest {
         assertTrue(provider.capabilities.supportsSonicSimilarity)
         assertEquals(
             listOf(
-                "https://music.example.test/rest/ping.view?u=demo&t=token&s=salt&v=1.16.1&c=Naviamp&f=json",
-                "https://music.example.test/rest/getOpenSubsonicExtensions.view?u=demo&t=token&s=salt&v=1.16.1&c=Naviamp&f=json",
+                "https://music.example.test/rest/ping.view?u=demo&t=token&s=salt&v=1.16.1&$ExpectedClientQuery&f=json",
+                "https://music.example.test/rest/getOpenSubsonicExtensions.view?u=demo&t=token&s=salt&v=1.16.1&$ExpectedClientQuery&f=json",
             ),
             httpClient.urls,
         )
@@ -584,7 +585,7 @@ class NavidromeProviderTest {
         assertEquals("track-1", result.candidates.single().sourceTrackId)
         assertEquals("track-1", result.matchedTracksBySourceTrackId["track-1"]?.id?.value)
         assertEquals(
-            "https://music.example.test/rest/getTopSongs.view?u=demo&t=token&s=salt&v=1.16.1&c=Naviamp&f=json&artist=New+Order&count=12",
+            "https://music.example.test/rest/getTopSongs.view?u=demo&t=token&s=salt&v=1.16.1&$ExpectedClientQuery&f=json&artist=New+Order&count=12",
             httpClient.urls.single(),
         )
     }
@@ -621,12 +622,12 @@ class NavidromeProviderTest {
         assertEquals("artist-2", artists.single().sourceArtistId)
         assertEquals("Electronic", artists.single().name)
         assertEquals(
-            "https://music.example.test/rest/getCoverArt.view?u=demo&t=token&s=salt&v=1.16.1&c=Naviamp&f=json&id=artist-2-cover",
+            "https://music.example.test/rest/getCoverArt.view?u=demo&t=token&s=salt&v=1.16.1&$ExpectedClientQuery&f=json&id=artist-2-cover",
             artists.single().imageUrl,
         )
         assertEquals("https://musicbrainz.org/artist/55f1f4e6-2a97-4da6-9a7c-b451a2f22475", artists.single().externalUrl)
         assertEquals(
-            "https://music.example.test/rest/getArtistInfo2.view?u=demo&t=token&s=salt&v=1.16.1&c=Naviamp&f=json&id=artist-1&count=20&includeNotPresent=true",
+            "https://music.example.test/rest/getArtistInfo2.view?u=demo&t=token&s=salt&v=1.16.1&$ExpectedClientQuery&f=json&id=artist-1&count=20&includeNotPresent=true",
             httpClient.urls.single(),
         )
     }
@@ -728,7 +729,7 @@ class NavidromeProviderTest {
         val albums = provider.albumList(AlbumListType.Random, limit = 8)
 
         assertEquals(
-            "https://music.example.test/rest/getAlbumList2.view?u=demo&t=token&s=salt&v=1.16.1&c=Naviamp&f=json&type=random&size=8",
+            "https://music.example.test/rest/getAlbumList2.view?u=demo&t=token&s=salt&v=1.16.1&$ExpectedClientQuery&f=json&type=random&size=8",
             httpClient.urls.single(),
         )
         assertEquals("Technique", albums.single().title)
@@ -780,7 +781,7 @@ class NavidromeProviderTest {
         provider.createPlaylist("Road Mix", listOf(TrackId("track-1"), TrackId("track-2")))
 
         assertEquals(
-            "https://music.example.test/rest/createPlaylist.view?u=demo&t=token&s=salt&v=1.16.1&c=Naviamp&f=json&name=Road+Mix&songId=track-1&songId=track-2",
+            "https://music.example.test/rest/createPlaylist.view?u=demo&t=token&s=salt&v=1.16.1&$ExpectedClientQuery&f=json&name=Road+Mix&songId=track-1&songId=track-2",
             httpClient.urls.single(),
         )
     }
@@ -905,7 +906,7 @@ class NavidromeProviderTest {
         provider.addTracksToPlaylist("playlist-1", listOf(TrackId("track-1"), TrackId("track-2")))
 
         assertEquals(
-            "https://music.example.test/rest/updatePlaylist.view?u=demo&t=token&s=salt&v=1.16.1&c=Naviamp&f=json&playlistId=playlist-1&songIdToAdd=track-1&songIdToAdd=track-2",
+            "https://music.example.test/rest/updatePlaylist.view?u=demo&t=token&s=salt&v=1.16.1&$ExpectedClientQuery&f=json&playlistId=playlist-1&songIdToAdd=track-1&songIdToAdd=track-2",
             httpClient.urls.single(),
         )
     }
@@ -921,7 +922,7 @@ class NavidromeProviderTest {
         provider.renamePlaylist("playlist-1", "New Name")
 
         assertEquals(
-            "https://music.example.test/rest/updatePlaylist.view?u=demo&t=token&s=salt&v=1.16.1&c=Naviamp&f=json&playlistId=playlist-1&name=New+Name",
+            "https://music.example.test/rest/updatePlaylist.view?u=demo&t=token&s=salt&v=1.16.1&$ExpectedClientQuery&f=json&playlistId=playlist-1&name=New+Name",
             httpClient.urls.single(),
         )
     }
@@ -937,7 +938,7 @@ class NavidromeProviderTest {
         provider.deletePlaylist("playlist-1")
 
         assertEquals(
-            "https://music.example.test/rest/deletePlaylist.view?u=demo&t=token&s=salt&v=1.16.1&c=Naviamp&f=json&id=playlist-1",
+            "https://music.example.test/rest/deletePlaylist.view?u=demo&t=token&s=salt&v=1.16.1&$ExpectedClientQuery&f=json&id=playlist-1",
             httpClient.urls.single(),
         )
     }
@@ -970,7 +971,7 @@ class NavidromeProviderTest {
         val tracks = provider.randomSongs(limit = 12, genre = "House", fromYear = 2000, toYear = 2009)
 
         assertEquals(
-            "https://music.example.test/rest/getRandomSongs.view?u=demo&t=token&s=salt&v=1.16.1&c=Naviamp&f=json&size=12&genre=House&fromYear=2000&toYear=2009",
+            "https://music.example.test/rest/getRandomSongs.view?u=demo&t=token&s=salt&v=1.16.1&$ExpectedClientQuery&f=json&size=12&genre=House&fromYear=2000&toYear=2009",
             httpClient.urls.single(),
         )
         assertEquals("House Track", tracks.single().title)
@@ -1042,7 +1043,7 @@ class NavidromeProviderTest {
         )
 
         assertEquals(
-            "https://music.example.test/rest/createInternetRadioStation.view?u=demo&t=token&s=salt&v=1.16.1&c=Naviamp&f=json&name=KEXP&streamUrl=https%3A%2F%2Fkexp.example%2Fstream&homePageUrl=https%3A%2F%2Fkexp.org",
+            "https://music.example.test/rest/createInternetRadioStation.view?u=demo&t=token&s=salt&v=1.16.1&$ExpectedClientQuery&f=json&name=KEXP&streamUrl=https%3A%2F%2Fkexp.example%2Fstream&homePageUrl=https%3A%2F%2Fkexp.org",
             httpClient.urls.first(),
         )
     }
@@ -1066,11 +1067,11 @@ class NavidromeProviderTest {
         provider.deleteInternetRadioStation("station-1")
 
         assertEquals(
-            "https://music.example.test/rest/updateInternetRadioStation.view?u=demo&t=token&s=salt&v=1.16.1&c=Naviamp&f=json&id=station-1&name=KEXP&streamUrl=https%3A%2F%2Fkexp.example%2Fstream",
+            "https://music.example.test/rest/updateInternetRadioStation.view?u=demo&t=token&s=salt&v=1.16.1&$ExpectedClientQuery&f=json&id=station-1&name=KEXP&streamUrl=https%3A%2F%2Fkexp.example%2Fstream",
             httpClient.urls.first(),
         )
         assertEquals(
-            "https://music.example.test/rest/deleteInternetRadioStation.view?u=demo&t=token&s=salt&v=1.16.1&c=Naviamp&f=json&id=station-1",
+            "https://music.example.test/rest/deleteInternetRadioStation.view?u=demo&t=token&s=salt&v=1.16.1&$ExpectedClientQuery&f=json&id=station-1",
             httpClient.urls.last(),
         )
     }
@@ -1117,7 +1118,7 @@ class NavidromeProviderTest {
         val tracks = provider.artistRadio(ArtistId("artist-1"), count = 25)
 
         assertEquals(
-            "https://music.example.test/rest/getSimilarSongs2.view?u=demo&t=token&s=salt&v=1.16.1&c=Naviamp&f=json&id=artist-1&count=25",
+            "https://music.example.test/rest/getSimilarSongs2.view?u=demo&t=token&s=salt&v=1.16.1&$ExpectedClientQuery&f=json&id=artist-1&count=25",
             httpClient.urls.single(),
         )
         assertEquals("track-1", tracks.single().id.value)
@@ -1135,7 +1136,7 @@ class NavidromeProviderTest {
         val tracks = provider.albumRadio(AlbumId("album-1"), count = 30)
 
         assertEquals(
-            "https://music.example.test/rest/getSimilarSongs.view?u=demo&t=token&s=salt&v=1.16.1&c=Naviamp&f=json&id=album-1&count=30",
+            "https://music.example.test/rest/getSimilarSongs.view?u=demo&t=token&s=salt&v=1.16.1&$ExpectedClientQuery&f=json&id=album-1&count=30",
             httpClient.urls.single(),
         )
         assertEquals("track-2", tracks.single().id.value)
@@ -1175,7 +1176,7 @@ class NavidromeProviderTest {
         val tracks = provider.trackRadio(TrackId("seed-track"), count = 20)
 
         assertEquals(
-            "https://music.example.test/rest/getSimilarSongs.view?u=demo&t=token&s=salt&v=1.16.1&c=Naviamp&f=json&id=seed-track&count=20",
+            "https://music.example.test/rest/getSimilarSongs.view?u=demo&t=token&s=salt&v=1.16.1&$ExpectedClientQuery&f=json&id=seed-track&count=20",
             httpClient.urls.single(),
         )
         assertEquals(listOf("track-3"), tracks.map { it.id.value })
@@ -1223,7 +1224,7 @@ class NavidromeProviderTest {
         val matches = provider.sonicSimilarTrackMatches(TrackId("seed-track"), count = 12)
 
         assertEquals(
-            "https://music.example.test/rest/getSonicSimilarTracks.view?u=demo&t=token&s=salt&v=1.16.1&c=Naviamp&f=json&id=seed-track&count=12",
+            "https://music.example.test/rest/getSonicSimilarTracks.view?u=demo&t=token&s=salt&v=1.16.1&$ExpectedClientQuery&f=json&id=seed-track&count=12",
             httpClient.urls.single(),
         )
         val tracks = matches.map { it.track }
@@ -1286,7 +1287,7 @@ class NavidromeProviderTest {
         )
 
         assertEquals(
-            "https://music.example.test/rest/findSonicPath.view?u=demo&t=token&s=salt&v=1.16.1&c=Naviamp&f=json&startSongId=start-track&endSongId=end-track&count=10",
+            "https://music.example.test/rest/findSonicPath.view?u=demo&t=token&s=salt&v=1.16.1&$ExpectedClientQuery&f=json&startSongId=start-track&endSongId=end-track&count=10",
             httpClient.urls.single(),
         )
         assertEquals(listOf("start-track", "middle-track", "end-track"), matches.map { it.track.id.value })
@@ -1328,7 +1329,7 @@ class NavidromeProviderTest {
         val lyrics = provider.lyrics(TrackId("track-lyrics"))
 
         assertEquals(
-            "https://music.example.test/rest/getLyricsBySongId.view?u=demo&t=token&s=salt&v=1.16.1&c=Naviamp&f=json&id=track-lyrics",
+            "https://music.example.test/rest/getLyricsBySongId.view?u=demo&t=token&s=salt&v=1.16.1&$ExpectedClientQuery&f=json&id=track-lyrics",
             httpClient.urls.single(),
         )
         assertEquals(true, lyrics?.synced)
@@ -1347,7 +1348,7 @@ class NavidromeProviderTest {
         provider.reportNowPlaying(TrackId("track-1"))
 
         assertEquals(
-            "https://music.example.test/rest/scrobble.view?u=demo&t=token&s=salt&v=1.16.1&c=Naviamp&f=json&id=track-1&submission=false",
+            "https://music.example.test/rest/scrobble.view?u=demo&t=token&s=salt&v=1.16.1&$ExpectedClientQuery&f=json&id=track-1&submission=false",
             httpClient.urls.single(),
         )
     }
@@ -1363,7 +1364,7 @@ class NavidromeProviderTest {
         provider.reportPlayed(TrackId("track-1"), playedAtEpochMillis = 1_778_526_000_000L)
 
         assertEquals(
-            "https://music.example.test/rest/scrobble.view?u=demo&t=token&s=salt&v=1.16.1&c=Naviamp&f=json&id=track-1&submission=true&time=1778526000000",
+            "https://music.example.test/rest/scrobble.view?u=demo&t=token&s=salt&v=1.16.1&$ExpectedClientQuery&f=json&id=track-1&submission=true&time=1778526000000",
             httpClient.urls.single(),
         )
     }
@@ -1464,7 +1465,7 @@ class NavidromeProviderTest {
         }
     }
 
-    private fun radioResponse(responseKey: String, trackId: String, title: String): String =
+private fun radioResponse(responseKey: String, trackId: String, title: String): String =
         """
         {
           "subsonic-response": {
@@ -1487,3 +1488,5 @@ class NavidromeProviderTest {
         }
         """.trimIndent()
 }
+
+private val ExpectedClientQuery = "c=${NaviampClientName.urlEncode()}"
