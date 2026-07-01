@@ -50,6 +50,7 @@ internal fun visualizerRenderPolicy(
 private val NaviampVisualizer.isHeavyVisualizer: Boolean
     get() = this == NaviampVisualizer.AlbumArtReactive ||
         this == NaviampVisualizer.AnalogSignalFailure ||
+        this == NaviampVisualizer.AudioTunnel ||
         this == NaviampVisualizer.FrequencyTerrain ||
         this == NaviampVisualizer.FluidicNebulae ||
         this == NaviampVisualizer.OceanHorizon ||

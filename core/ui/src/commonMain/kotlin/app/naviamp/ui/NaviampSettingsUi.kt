@@ -566,9 +566,9 @@ private val DefaultNaviampLibraries = listOf(
 )
 
 private val DefaultNaviampChangelog = listOf(
-    "Updated Naviamp's Navidrome client identity and HTTP user agent so requests report the current app version instead of a stale hardcoded version.",
-    "Added Navidrome HTTP 429 rate-limit backoff handling with Retry-After support to avoid hammering the server while a rate limit is active.",
-    "Polished settings dropdown controls with a clearer bordered style and chevron indicator.",
+    "Added a native Audio Tunnel visualizer with deeper flight motion, sharper wall reactions, and stronger bass-driven turns.",
+    "Improved desktop visualizer fallback behavior so native renderer failures fall back to the shader visualizer instead of a blank diagnostic line.",
+    "Fixed Windows Vinyl Groove album art rendering by using stable raster-backed cover art textures for desktop shader sampling.",
 )
 
 @Composable

@@ -197,6 +197,18 @@ private fun NaviampVisualizer.nativeMetalShaderSpec(renderPolicy: VisualizerRend
                 VisualizerRenderTier.Constrained -> 48
             },
         )
+        NaviampVisualizer.AudioTunnel -> NativeMetalShaderSpec(
+            renderScale = when (renderPolicy.tier) {
+                VisualizerRenderTier.Full -> 1.0f
+                VisualizerRenderTier.Balanced -> 0.82f
+                VisualizerRenderTier.Constrained -> 0.62f
+            },
+            maxRaymarchSteps = when (renderPolicy.tier) {
+                VisualizerRenderTier.Full -> 64
+                VisualizerRenderTier.Balanced -> 52
+                VisualizerRenderTier.Constrained -> 38
+            },
+        )
         NaviampVisualizer.AnalogSignalFailure,
         NaviampVisualizer.FluidicNebulae,
         NaviampVisualizer.OceanOfInk -> NativeMetalShaderSpec(

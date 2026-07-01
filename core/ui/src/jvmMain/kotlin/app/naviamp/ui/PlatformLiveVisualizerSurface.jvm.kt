@@ -162,21 +162,35 @@ private fun NativeDesktopVisualizerSurface(
     modifier: Modifier,
 ) {
     val host = remember(visualizer, renderPolicy) { createNativeDesktopVisualizerHost(visualizer, renderPolicy) }
+    val fallbackEffect = remember(visualizer) {
+        runCatching { RuntimeEffect.makeForShader(visualizer.shaderSource) }.getOrNull()
+    }
+    val fallbackRenderer = remember(fallbackEffect, visualizer, renderPolicy) {
+        fallbackEffect?.let { ShaderVisualizerRenderer(it, visualizer, renderPolicy) }
+    }
     DisposableEffect(host) {
         onDispose { host.close() }
+    }
+    DisposableEffect(fallbackRenderer, fallbackEffect) {
+        onDispose {
+            fallbackRenderer?.close()
+            fallbackEffect?.close()
+        }
     }
     LaunchedEffect(host, albumArtImage) {
         host.updateAlbumArt(albumArtImage)
     }
 
     Canvas(modifier = modifier) {
+        val bands = bandsProvider()
+        val visibleBands = minOf(bands.size, (size.width / 6f).toInt().coerceAtLeast(16))
         val nativePixelScale = nativeDesktopVisualizerPixelScale(density)
         val renderWidth = (size.width * nativePixelScale).toInt().coerceAtLeast(1)
         val renderHeight = (size.height * nativePixelScale).toInt().coerceAtLeast(1)
         val image = host.renderImage(
             width = renderWidth,
             height = renderHeight,
-            bands = bandsProvider(),
+            bands = bands,
             active = active,
             visualizerColors = visualizerColors,
             colors = colors,
@@ -198,13 +212,32 @@ private fun NativeDesktopVisualizerSurface(
             }
             image.close()
         } else {
-            drawLine(
-                color = colors.primaryText.copy(alpha = 0.16f),
-                start = Offset(0f, size.height / 2f),
-                end = Offset(size.width, size.height / 2f),
-                strokeWidth = 1.4f,
-                cap = StrokeCap.Round,
-            )
+            val fallback = fallbackRenderer
+            if (fallback != null && visibleBands > 0 && size.width > 0f && size.height > 0f) {
+                drawIntoCanvas { canvas ->
+                    fallback.draw(
+                        canvas = canvas.nativeCanvas,
+                        width = size.width,
+                        height = size.height,
+                        bands = bands,
+                        visibleBands = visibleBands,
+                        active = active,
+                        colors = colors,
+                        visualizerColors = visualizerColors,
+                        albumArtImage = albumArtImage,
+                        timeSeconds = frameMillis / 1000f,
+                        tempoBpm = tempoBpm,
+                    )
+                }
+            } else {
+                drawLine(
+                    color = colors.primaryText.copy(alpha = 0.16f),
+                    start = Offset(0f, size.height / 2f),
+                    end = Offset(size.width, size.height / 2f),
+                    strokeWidth = 1.4f,
+                    cap = StrokeCap.Round,
+                )
+            }
         }
     }
 }

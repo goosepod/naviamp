@@ -24,6 +24,7 @@ import androidx.compose.ui.unit.Dp
 import app.naviamp.domain.network.KtorSharedHttpClient
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import org.jetbrains.skia.Bitmap as SkiaBitmap
 import org.jetbrains.skia.Image as SkiaImage
 import java.awt.Color as AwtColor
 import java.awt.Font
@@ -238,6 +239,13 @@ private object JvmCoverArtCache {
             return shouldRemove
         }
     }
+    private val shaderBitmaps = object : LinkedHashMap<String, SkiaBitmap>(MaxShaderImages, 0.75f, true) {
+        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, SkiaBitmap>?): Boolean {
+            val shouldRemove = size > MaxShaderImages
+            if (shouldRemove) eldest?.value?.close()
+            return shouldRemove
+        }
+    }
 
     fun cachedImage(url: String): ImageBitmap? =
         synchronized(images) { images[url] }
@@ -246,6 +254,14 @@ private object JvmCoverArtCache {
         synchronized(palettes) { palettes[url] }
             ?.let { naviampAlbumPalette(it) }
             ?.let { NaviampPlayerColors.from(it, colors) }
+
+    private fun cachedShaderImage(url: String): SkiaImage? =
+        synchronized(shaderImages) {
+            synchronized(shaderBitmaps) {
+                shaderBitmaps[url]
+            }
+            shaderImages[url]
+        }
 
     suspend fun image(url: String): ImageBitmap =
         cachedImage(url) ?: withContext(Dispatchers.IO) {
@@ -259,13 +275,19 @@ private object JvmCoverArtCache {
         }
 
     suspend fun shaderImage(url: String): SkiaImage =
-        synchronized(shaderImages) { shaderImages[url] } ?: withContext(Dispatchers.IO) {
-            synchronized(shaderImages) { shaderImages[url] } ?: SkiaImage.makeFromEncoded(platformCoverArtByteLoader(url))
-                .also { image ->
+        cachedShaderImage(url) ?: withContext(Dispatchers.IO) {
+            cachedShaderImage(url) ?: run {
+                val decoded = SkiaImage.makeFromEncoded(platformCoverArtByteLoader(url))
+                val bitmap = SkiaBitmap.makeFromImage(decoded).setImmutable()
+                val image = SkiaImage.makeFromBitmap(bitmap)
+                decoded.close()
+                image.also {
                     synchronized(shaderImages) {
-                        shaderImages[url] = image
+                        shaderBitmaps[url] = bitmap
+                        shaderImages[url] = it
                     }
                 }
+            }
         }
 
     suspend fun playerColors(

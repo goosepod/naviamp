@@ -865,6 +865,19 @@ private fun NaviampVisualizer.nativeGlslShaderSpec(renderPolicy: VisualizerRende
                 VisualizerRenderTier.Constrained -> 0.65f
             },
         )
+        NaviampVisualizer.AudioTunnel -> NativeGlslShaderSpec(
+            fragmentSource = requireNotNull(nativeShaderDefinition).fragmentSource,
+            renderScale = when (renderPolicy.tier) {
+                VisualizerRenderTier.Full -> 1.0f
+                VisualizerRenderTier.Balanced -> 0.82f
+                VisualizerRenderTier.Constrained -> 0.62f
+            },
+            maxRaymarchSteps = when (renderPolicy.tier) {
+                VisualizerRenderTier.Full -> 64
+                VisualizerRenderTier.Balanced -> 52
+                VisualizerRenderTier.Constrained -> 38
+            },
+        )
         NaviampVisualizer.FluidicNebulae -> NativeGlslShaderSpec(
             fragmentSource = requireNotNull(nativeShaderDefinition).fragmentSource,
             renderScale = when (renderPolicy.tier) {

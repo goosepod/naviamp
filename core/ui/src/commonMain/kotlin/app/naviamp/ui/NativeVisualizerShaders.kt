@@ -36,6 +36,12 @@ internal val NaviampVisualizer.nativeShaderDefinition: NativeVisualizerShaderDef
             canonicalName = "Analog Signal Failure.glsl",
             fragmentSource = NativeGlslShaderSources.AnalogSignalFailure,
         )
+        NaviampVisualizer.AudioTunnel -> NativeVisualizerShaderDefinition(
+            visualizer = this,
+            dialect = NativeShaderDialect.GlslEs300,
+            canonicalName = "Audio Tunnel.glsl",
+            fragmentSource = NativeGlslShaderSources.AudioTunnel,
+        )
         NaviampVisualizer.FluidicNebulae -> NativeVisualizerShaderDefinition(
             visualizer = this,
             dialect = NativeShaderDialect.GlslEs300,
@@ -62,7 +68,6 @@ internal val NaviampVisualizer.nativeShaderDefinition: NativeVisualizerShaderDef
         )
         NaviampVisualizer.AlbumArtReactive,
         NaviampVisualizer.AudioSphere,
-        NaviampVisualizer.AudioTunnel,
         NaviampVisualizer.FluidGradient,
         NaviampVisualizer.FrequencyTerrain,
         NaviampVisualizer.FftMountain,
@@ -244,6 +249,135 @@ vec3 playerBackground(vec2 uv) {
 
 vec3 albumArtColor(vec2 uv) {
     return mix(mix(u_colorA.rgb, u_colorB.rgb, uv.x), u_colorC.rgb, uv.y);
+}
+"""
+
+    const val AudioTunnel = NoiseHeader + """
+const float TunnelPi = 3.14159265359;
+const float TunnelTau = 6.28318530718;
+
+vec2 rotate2(vec2 p, float angle) {
+    float s = sin(angle);
+    float c = cos(angle);
+    return vec2(c * p.x - s * p.y, s * p.x + c * p.y);
+}
+
+vec2 tunnelPath(float z, float time, float bass, float mids) {
+    float slow = z * 0.135 + time * 0.40;
+    float fast = z * 0.315 - time * 0.27;
+    float sweep = z * 0.082 + time * 0.16;
+    float bend = 0.82 + bass * 1.18;
+    float drift = 0.42 + mids * 0.68;
+    float sweepAmount = 0.54 + bass * 0.58 + mids * 0.34;
+    return vec2(
+        sin(slow) * bend + sin(fast * 1.37) * drift + sin(sweep * 2.11 + 1.2) * sweepAmount,
+        cos(slow * 0.83) * bend * 0.86 + sin(fast * 1.11) * drift + cos(sweep * 1.73 - 0.8) * sweepAmount
+    );
+}
+
+float laneMask(float value, float count, float width) {
+    float lane = fract(value * count);
+    float dist = min(lane, 1.0 - lane);
+    return 1.0 - smoothstep(width, width * 2.8, dist);
+}
+
+float hash21(vec2 p) {
+    p = fract(p * vec2(123.34, 456.21));
+    p += dot(p, p + 45.32);
+    return fract(p.x * p.y);
+}
+
+void main() {
+    vec2 uv = (gl_FragCoord.xy - 0.5 * u_resolution.xy) / max(u_resolution.y, 1.0);
+    float bass = u_bassLevel;
+    float mids = u_midLevel;
+    float treble = u_trebleLevel;
+    float energy = u_energyLevel;
+    float beat = max(u_beatDetected, smoothstep(0.62, 0.98, bass) * smoothstep(0.22, 0.62, energy));
+
+    float tempo = smoothstep(72.0, 178.0, clamp(u_tempoBpm, 60.0, 220.0));
+    float flightSpeed = 0.92 + tempo * 0.85 + bass * 1.25 + beat * 0.90;
+    float travel = u_time * flightSpeed;
+    vec2 cameraPath = tunnelPath(travel + 0.80, u_time, bass, mids);
+    vec2 lookPath = tunnelPath(travel + 4.20, u_time, bass, mids) - cameraPath;
+    vec2 farPath = tunnelPath(travel + 11.0, u_time, bass, mids) - cameraPath;
+    float turnAmount = smoothstep(1.10, 3.80, length(farPath));
+    float roll = sin(u_time * 0.33 + mids * 1.7) * (0.14 + mids * 0.40) +
+        atan(lookPath.y, lookPath.x) * 0.34 + beat * 0.14;
+    vec2 ray = rotate2(uv, roll);
+    vec3 color = playerBackground(gl_FragCoord.xy / max(u_resolution.xy, vec2(1.0))) * 0.08;
+    float alpha = 1.0;
+    float fog = 0.0;
+
+    int maxSteps = max(u_maxRaymarchSteps, 34);
+    for (int i = 0; i < 72; i++) {
+        if (i >= maxSteps) {
+            break;
+        }
+        float stepIndex = float(i);
+        float z = 0.70 + stepIndex * 0.235;
+        float worldZ = z + travel;
+        vec2 center = tunnelPath(worldZ, u_time, bass, mids) - cameraPath - lookPath * (z * 0.075);
+        center *= 0.82 + smoothstep(1.0, 9.0, z) * 0.34;
+        vec2 p = ray * z - center;
+        float radius = max(length(p), 0.0001);
+        float angle = atan(p.y, p.x);
+        float angle01 = fract(angle / TunnelTau + 0.5);
+        float band = texture(u_frequencyTexture, vec2(angle01, 0.5)).r;
+        float bandLeft = texture(u_frequencyTexture, vec2(fract(angle01 - 0.055), 0.5)).r;
+        float bandRight = texture(u_frequencyTexture, vec2(fract(angle01 + 0.055), 0.5)).r;
+        float bandEnergy = max(band, max(bandLeft, bandRight) * 0.78);
+
+        float shock = exp(-abs(fract(worldZ * 0.17 - beat * 0.35) - 0.18) * 19.0) * beat;
+        float tubeRadius = 0.94 + sin(worldZ * 0.34 + u_time * 0.45) * (0.040 + mids * 0.085) +
+            shock * 0.18 + bass * 0.10;
+        float wall = 1.0 - smoothstep(0.025, 0.205 + bandEnergy * 0.080, abs(radius - tubeRadius));
+        float inside = smoothstep(0.35, tubeRadius + 0.16, radius);
+        wall *= inside;
+        float shell = (1.0 - smoothstep(0.32, 1.10, abs(radius - tubeRadius))) * inside;
+
+        float depthFade = exp(-z * 0.070);
+        float radialLane = laneMask(angle01 + sin(worldZ * 0.095) * 0.040, 15.0, 0.020 + bandEnergy * 0.012);
+        float rib = laneMask(worldZ * (0.92 + tempo * 0.34), 1.0, 0.042 + bass * 0.025);
+        float panel = pow(0.5 + 0.5 * sin(angle * 8.0 + worldZ * 0.62), 4.0) * (0.07 + bandEnergy * 0.24);
+        float grid = max(radialLane * (0.18 + bandEnergy * 0.42), rib * (0.12 + bass * 0.24));
+
+        vec2 cell = vec2(floor(angle01 * 18.0), floor(worldZ * 1.35));
+        float sparkSeed = hash21(cell + floor(u_time * (5.0 + treble * 10.0)));
+        float spark = step(0.86 - treble * 0.18, sparkSeed) * treble *
+            smoothstep(0.28, 0.92, bandEnergy) * (0.35 + beat * 0.65);
+        float highFlash = spark * radialLane * (0.55 + rib * 0.45);
+
+        float contribution = depthFade * (
+            shell * (0.035 + bandEnergy * 0.055 + bass * 0.025) +
+            wall * (0.10 + grid + panel + shock * 0.90 + highFlash)
+        );
+        vec3 wallColor = mix(u_colorA.rgb, u_colorB.rgb, angle01);
+        wallColor = mix(wallColor, u_colorC.rgb, smoothstep(2.0, 12.0, z));
+        wallColor = mix(wallColor, u_accent.rgb, bandEnergy * 0.38 + shock * 0.34);
+        wallColor = mix(wallColor, u_readable.rgb, highFlash * 0.55 + radialLane * rib * 0.12);
+        color += wallColor * contribution;
+        fog += max(wall, shell * 0.28) * depthFade * 0.020;
+    }
+
+    vec2 turnCenter = tunnelPath(travel + 7.5, u_time, bass, mids) - cameraPath - lookPath * 0.58;
+    vec2 nearCenter = uv - turnCenter * 0.16;
+    float endOcclusion = smoothstep(0.34, 0.95, length(turnCenter));
+    float vanishing = smoothstep(0.62, 0.02, length(nearCenter)) * (1.0 - endOcclusion * 0.82);
+    float beatBloom = beat * smoothstep(0.55, 0.0, length(uv)) * 0.35;
+    color += mix(u_colorC.rgb, u_accent.rgb, 0.52) * vanishing * (0.06 + bass * 0.12);
+    color += mix(u_accent.rgb, u_readable.rgb, 0.35) * beatBloom;
+
+    float vignette = smoothstep(1.28, 0.18, length(uv));
+    color *= 0.48 + vignette * 0.72 + fog;
+    color *= 1.0 - turnAmount * endOcclusion * 0.18;
+    color = pow(max(color, vec3(0.0)), vec3(0.4545));
+    float idleRadius = length(uv);
+    float idleRing = 1.0 - smoothstep(0.010, 0.030, abs(idleRadius - 0.34));
+    vec3 idleColor = mix(u_colorB.rgb, u_accent.rgb, 0.35 + 0.25 * sin(u_time * 0.6)) * idleRing * 0.55;
+    color = mix(idleColor, color, step(0.5, u_active));
+    alpha = mix(idleRing * 0.72, alpha, step(0.5, u_active));
+    outColor = vec4(clamp(color, 0.0, 1.0), alpha);
 }
 """
 

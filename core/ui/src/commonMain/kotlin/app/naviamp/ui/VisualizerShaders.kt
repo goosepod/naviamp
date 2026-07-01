@@ -239,48 +239,100 @@ half4 main(float2 coord) {
     float bass = iEnergy.x;
     float mids = iEnergy.y;
     float highs = iEnergy.z;
-    float2 path = float2(
-        sin(iTime * 0.10) * 0.020,
-        cos(iTime * 0.08) * 0.016
+    float beat = smoothstep(0.62, 0.98, bass) * smoothstep(0.24, 0.64, iEnergy.w);
+    float tempoSpeed = smoothstep(80.0, 180.0, clamp(iTempo, 60.0, 220.0));
+    float speed = 0.68 + tempoSpeed * 0.52 + bass * 0.55;
+    float travelBase = iTime * speed;
+    float cameraZ = travelBase + 0.80;
+    float lookZ = travelBase + 4.20;
+    float farZ = travelBase + 11.0;
+    float bendScale = 0.82 + bass * 1.18;
+    float driftScale = 0.42 + mids * 0.68;
+    float sweepScale = 0.54 + bass * 0.58 + mids * 0.34;
+    float2 cameraPath = float2(
+        sin(cameraZ * 0.135 + iTime * 0.40) * bendScale +
+            sin((cameraZ * 0.315 - iTime * 0.27) * 1.37) * driftScale +
+            sin((cameraZ * 0.082 + iTime * 0.16) * 2.11 + 1.2) * sweepScale,
+        cos((cameraZ * 0.135 + iTime * 0.40) * 0.83) * bendScale * 0.86 +
+            sin((cameraZ * 0.315 - iTime * 0.27) * 1.11) * driftScale +
+            cos((cameraZ * 0.082 + iTime * 0.16) * 1.73 - 0.8) * sweepScale
     );
-    float2 q = p - path;
+    float2 lookPath = float2(
+        sin(lookZ * 0.135 + iTime * 0.40) * bendScale +
+            sin((lookZ * 0.315 - iTime * 0.27) * 1.37) * driftScale +
+            sin((lookZ * 0.082 + iTime * 0.16) * 2.11 + 1.2) * sweepScale,
+        cos((lookZ * 0.135 + iTime * 0.40) * 0.83) * bendScale * 0.86 +
+            sin((lookZ * 0.315 - iTime * 0.27) * 1.11) * driftScale +
+            cos((lookZ * 0.082 + iTime * 0.16) * 1.73 - 0.8) * sweepScale
+    ) - cameraPath;
+    float2 farPath = float2(
+        sin(farZ * 0.135 + iTime * 0.40) * bendScale +
+            sin((farZ * 0.315 - iTime * 0.27) * 1.37) * driftScale +
+            sin((farZ * 0.082 + iTime * 0.16) * 2.11 + 1.2) * sweepScale,
+        cos((farZ * 0.135 + iTime * 0.40) * 0.83) * bendScale * 0.86 +
+            sin((farZ * 0.315 - iTime * 0.27) * 1.11) * driftScale +
+            cos((farZ * 0.082 + iTime * 0.16) * 1.73 - 0.8) * sweepScale
+    ) - cameraPath;
+    float turnAmount = smoothstep(1.10, 3.80, length(farPath));
+    float roll = sin(iTime * 0.34 + mids * 1.6) * (0.10 + mids * 0.22) +
+        atan(lookPath.y, lookPath.x) * 0.34;
+    float cr = cos(roll);
+    float sr = sin(roll);
+    float2 rolled = float2(cr * p.x - sr * p.y, sr * p.x + cr * p.y);
+    float initialDepth = 1.0 / (length(rolled) + 0.095);
+    float worldDepth = travelBase + initialDepth * 0.52;
+    float2 depthPath = float2(
+        sin(worldDepth * 0.135 + iTime * 0.40) * bendScale +
+            sin((worldDepth * 0.315 - iTime * 0.27) * 1.37) * driftScale +
+            sin((worldDepth * 0.082 + iTime * 0.16) * 2.11 + 1.2) * sweepScale,
+        cos((worldDepth * 0.135 + iTime * 0.40) * 0.83) * bendScale * 0.86 +
+            sin((worldDepth * 0.315 - iTime * 0.27) * 1.11) * driftScale +
+            cos((worldDepth * 0.082 + iTime * 0.16) * 1.73 - 0.8) * sweepScale
+    ) - cameraPath - lookPath * (initialDepth * 0.040);
+    depthPath *= 0.82 + smoothstep(1.0, 8.0, initialDepth) * 0.44;
+    float2 q = rolled - depthPath * 0.42;
     float radius = max(length(q), 0.001);
     float depth = 1.0 / (radius + 0.095);
-    float bend = sin(depth * 0.22 - iTime * 0.18) * (0.10 + mids * 0.16);
+    float bend = sin(depth * 0.25 - iTime * 0.58) * (0.16 + mids * 0.28 + bass * 0.12);
     float angle = atan(q.y, q.x) + bend;
     float angle01 = fract(angle / 6.2831853 + 0.5);
     float band = bandAt(angle01);
     float bandNear = max(bandAt(fract(angle01 - 0.045)), bandAt(fract(angle01 + 0.045)));
     float response = max(band, bandNear * 0.72);
-    float tempoSpeed = smoothstep(80.0, 180.0, clamp(iTempo, 60.0, 220.0));
-    float speed = mix(0.34, 0.72, tempoSpeed);
-    float travel = depth * 0.42 + iTime * speed;
+    float travel = depth * 0.50 + travelBase;
 
-    float laneCount = 14.0;
+    float shock = exp(-abs(fract(travel * 0.42 - beat * 0.18) - 0.18) * 16.0) * beat;
+    float laneCount = 15.0;
     float lanePhase = fract(angle01 * laneCount + sin(depth * 0.18 + iTime * 0.12) * 0.10);
     float laneDistance = min(lanePhase, 1.0 - lanePhase);
-    float rail = 1.0 - smoothstep(0.010, 0.050 + response * 0.020, laneDistance);
-    float railCore = 1.0 - smoothstep(0.006, 0.018 + response * 0.010, laneDistance);
+    float rail = 1.0 - smoothstep(0.010, 0.046 + response * 0.024, laneDistance);
+    float railCore = 1.0 - smoothstep(0.005, 0.017 + response * 0.010, laneDistance);
 
-    float dashPhase = fract(travel * 1.55);
-    float dash = 1.0 - smoothstep(0.025, 0.20, min(dashPhase, 1.0 - dashPhase));
-    float ribPhase = fract(travel * 1.55 + 0.08);
+    float dashPhase = fract(travel * 2.60);
+    float dash = 1.0 - smoothstep(0.020, 0.18, min(dashPhase, 1.0 - dashPhase));
+    float ribPhase = fract(travel * 1.82 + 0.08 + shock * 0.18);
     float ribDistance = min(ribPhase, 1.0 - ribPhase);
-    float rib = 1.0 - smoothstep(0.020, 0.082, ribDistance);
-    float ribCore = 1.0 - smoothstep(0.007, 0.024, ribDistance);
+    float rib = 1.0 - smoothstep(0.018, 0.076 + bass * 0.030, ribDistance);
+    float ribCore = 1.0 - smoothstep(0.006, 0.022 + bass * 0.012, ribDistance);
 
-    float panel = pow(0.5 + 0.5 * sin(angle * 7.0 + depth * 0.35 - iTime * 0.16), 1.8) *
-        (0.030 + response * 0.080);
-    float wallMask = smoothstep(0.060, 0.22, radius) * smoothstep(0.82, 0.48, radius) *
-        smoothstep(6.5, 1.2, depth);
-    float tunnelWall = (rail * (0.20 + response * 0.20) + railCore * dash * (0.22 + highs * 0.22) +
-        rib * 0.12 + ribCore * (0.070 + rail * 0.08) + panel) * wallMask;
+    float panel = pow(0.5 + 0.5 * sin(angle * 8.0 + depth * 0.42 - iTime * 0.28), 3.0) *
+        (0.040 + response * 0.14);
+    float sparkCell = hash21(float2(floor(angle01 * 18.0), floor(travel * 3.0)) + floor(iTime * (4.0 + highs * 8.0)));
+    float spark = step(0.88 - highs * 0.18, sparkCell) * highs * smoothstep(0.30, 0.88, response) * rail;
+    float wallMask = smoothstep(0.035, 0.16, radius) * smoothstep(1.04, 0.30, radius) *
+        smoothstep(8.5, 0.9, depth);
+    float wallTexture = 0.65 + 0.35 * sin(angle * 5.0 + travel * 0.72);
+    float baseWall = wallMask * (0.10 + response * 0.16 + bass * 0.045) * wallTexture;
+    float tunnelWall = baseWall + (rail * (0.24 + response * 0.24) + railCore * dash * (0.28 + highs * 0.28) +
+        rib * 0.12 + ribCore * (0.070 + rail * 0.08) + panel + shock * 0.42 + spark * 0.70) * wallMask;
     float centerOpening = smoothstep(0.035, 0.16, radius);
-    float alpha = clamp(tunnelWall * centerOpening, 0.0, 0.88);
-    float3 color = palette(fract(angle01 * 0.62 + depth * 0.035 + response * 0.18));
-    color = mix(color, iReadable.rgb, railCore * dash * 0.22 + ribCore * 0.14 + highs * 0.08);
-    color = mix(color, iAccent.rgb, bass * 0.06 + rib * 0.04);
-    color *= 0.68 + response * 0.48 + dash * railCore * 0.28 + ribCore * 0.18;
+    float alpha = clamp((tunnelWall + wallMask * 0.12) * centerOpening, 0.0, 0.92);
+    float3 color = palette(fract(angle01 * 0.62 + depth * 0.035 + response * 0.18 + highs * 0.18));
+    color = mix(color, iReadable.rgb, railCore * dash * 0.20 + ribCore * 0.12 + spark * 0.55);
+    color = mix(color, iAccent.rgb, bass * 0.08 + rib * 0.05 + shock * 0.20);
+    float bendOcclusion = smoothstep(0.34, 0.95, length(farPath - lookPath * 0.58));
+    color *= 0.82 + response * 0.62 + dash * railCore * 0.36 + ribCore * 0.24 + shock * 0.50;
+    color *= 1.0 - turnAmount * bendOcclusion * 0.16;
     return premul(color, alpha);
 }
 """
@@ -609,6 +661,18 @@ float3 vinylAlbumAt(float2 uv) {
     return clamp(iAlbumArt.eval(clampedUv * max(iAlbumArtSize, float2(1.0, 1.0))).rgb, 0.0, 1.0);
 }
 
+float2 vinylCoverUv(float2 uv) {
+    float2 imageSize = max(iAlbumArtSize, float2(1.0, 1.0));
+    float aspect = imageSize.x / imageSize.y;
+    float2 coverUv = uv;
+    if (aspect > 1.0) {
+        coverUv.x = (uv.x - 0.5) / aspect + 0.5;
+    } else {
+        coverUv.y = (uv.y - 0.5) * aspect + 0.5;
+    }
+    return coverUv;
+}
+
 float vinylLuma(float3 color) {
     return dot(color, float3(0.299, 0.587, 0.114));
 }
@@ -617,8 +681,8 @@ half4 main(float2 coord) {
     float2 p = (coord - iResolution * 0.5) / min(iResolution.x, iResolution.y);
     float radius = length(p);
     float outerRadius = 0.462;
-    float labelRadius = 0.124;
-    float innerGrooveRadius = 0.150;
+    float labelRadius = 0.154;
+    float innerGrooveRadius = 0.176;
     float holeRadius = 0.018;
     float recordMask = smoothstep(outerRadius + 0.006, outerRadius - 0.004, radius);
     if (recordMask <= 0.0) return premul(float3(0.0), 0.0);
@@ -676,14 +740,14 @@ half4 main(float2 coord) {
         p.x * cs.y + p.y * cs.x
     );
     float2 labelUv = rotated / (labelRadius * 2.0) + 0.5;
-    float3 art = vinylAlbumAt(labelUv);
+    float3 art = vinylAlbumAt(vinylCoverUv(labelUv));
     float artLuma = vinylLuma(art);
     float labelEdge = edgeMask(p, labelRadius, 0.0038);
     float labelVignette = smoothstep(labelRadius, labelRadius * 0.26, radius);
-    float3 labelColor = mix(art * (0.78 + artLuma * 0.32), iReadable.rgb, 0.05 + highs * 0.04);
-    color = mix(color, labelColor, labelMask * (0.94 - labelEdge * 0.10));
-    color += iReadable.rgb * labelEdge * 0.16;
-    color *= 0.86 + labelVignette * labelMask * 0.14;
+    float3 labelColor = mix(art * (0.92 + artLuma * 0.22), iReadable.rgb, 0.025 + highs * 0.025);
+    color = mix(color, labelColor, labelMask * (0.985 - labelEdge * 0.05));
+    color += iReadable.rgb * labelEdge * 0.20;
+    color *= 0.90 + labelVignette * labelMask * 0.10;
 
     float hole = smoothstep(holeRadius + 0.004, holeRadius - 0.002, radius);
     color = mix(color, float3(0.0, 0.0, 0.0), hole);
