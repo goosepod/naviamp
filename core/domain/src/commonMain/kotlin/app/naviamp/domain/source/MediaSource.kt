@@ -52,6 +52,8 @@ data class MediaSourceIdentity(
     val id: String,
     val cacheNamespace: String,
     val displayName: String,
+    val serverConnectionKey: String = "",
+    val libraryScopeKey: String = "",
 )
 
 data class SavedMediaSource(
@@ -68,6 +70,8 @@ data class SavedMediaSource(
     val secondaryUrls: List<ConnectionSecondaryUrl> = emptyList(),
     val customHeaders: List<ConnectionHeaderDefinition> = emptyList(),
     val selectedMusicFolderIds: List<String> = emptyList(),
+    val serverConnectionKey: String = "",
+    val libraryScopeKey: String = "",
     val createdAtEpochMillis: Long,
     val lastConnectedAtEpochMillis: Long?,
     val lastSyncStartedAtEpochMillis: Long?,
@@ -82,6 +86,23 @@ fun normalizedBaseUrl(baseUrl: String): String =
 fun resolvedConnectionDisplayName(displayName: String?, fallbackBaseUrl: String): String =
     displayName?.trim()?.takeIf { it.isNotEmpty() } ?: normalizedBaseUrl(fallbackBaseUrl)
 
+fun stableServerConnectionKey(
+    providerId: String,
+    baseUrl: String,
+    username: String,
+): String =
+    listOf(providerId, normalizedBaseUrl(baseUrl), username.trim())
+        .joinToString(":")
+
+fun stableLibraryScopeKey(selectedMusicFolderIds: List<String>): String {
+    val normalizedIds = normalizedMusicFolderIds(selectedMusicFolderIds)
+    return if (normalizedIds.isEmpty()) {
+        "folders=all"
+    } else {
+        "folders=${normalizedIds.joinToString(",")}"
+    }
+}
+
 fun stableMediaSourceId(cacheNamespace: String): String {
     var hash = FnvOffsetBasis
     cacheNamespace.encodeToByteArray().forEach { byte ->
@@ -95,6 +116,32 @@ fun normalizedMusicFolderIds(ids: List<String>): List<String> =
     ids.map { it.trim() }
         .filter { it.isNotEmpty() }
         .distinct()
+
+fun SavedMediaSource.effectiveServerConnectionKey(): String =
+    serverConnectionKey.ifBlank {
+        stableServerConnectionKey(
+            providerId = providerId,
+            baseUrl = baseUrl,
+            username = username,
+        )
+    }
+
+fun List<SavedMediaSource>.visibleServerConnections(currentSourceId: String? = null): List<SavedMediaSource> =
+    groupBy { it.effectiveServerConnectionKey() }
+        .values
+        .map { sources ->
+            sources.firstOrNull { it.id == currentSourceId }
+                ?: sources.maxWith(
+                    compareBy<SavedMediaSource> { it.lastConnectedAtEpochMillis ?: it.createdAtEpochMillis }
+                        .thenBy { it.createdAtEpochMillis }
+                        .thenBy { it.id },
+                )
+        }
+        .sortedWith(
+            compareByDescending<SavedMediaSource> { it.lastConnectedAtEpochMillis ?: it.createdAtEpochMillis }
+                .thenBy { it.displayName }
+                .thenBy { it.id },
+        )
 
 private const val FnvOffsetBasis = 14695981039346656037UL
 private const val FnvPrime = 1099511628211UL

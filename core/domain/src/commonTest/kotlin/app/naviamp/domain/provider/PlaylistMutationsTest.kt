@@ -1172,6 +1172,30 @@ class PlaylistMutationsTest {
     }
 
     @Test
+    fun addTracksToPlaylistAndRefreshSkipsKnownOutOfScopeTracks() = kotlinx.coroutines.test.runTest {
+        val existingPlaylist = playlist("existing", "Existing")
+        val provider = FakePlaylistProvider(
+            playlists = listOf(existingPlaylist),
+            playlistTracks = emptyList(),
+            selectedMusicFolderIds = listOf("2"),
+        )
+
+        provider.addTracksToPlaylistAndRefresh(
+            playlistId = existingPlaylist.id,
+            playlistName = existingPlaylist.name,
+            newPlaylistName = null,
+            tracks = listOf(
+                track("one", musicFolderId = "2"),
+                track("two", musicFolderId = "1"),
+                track("three"),
+            ),
+        )
+
+        assertEquals(existingPlaylist.id, provider.addedPlaylistId)
+        assertEquals(listOf(TrackId("one"), TrackId("three")), provider.addedTrackIds)
+    }
+
+    @Test
     fun addTracksToPlaylistApplicationBuildsHomePlaylistApplication() = kotlinx.coroutines.test.runTest {
         val existingPlaylist = playlist("existing", "Existing")
         val provider = FakePlaylistProvider(playlists = listOf(existingPlaylist), playlistTracks = emptyList())
@@ -1206,7 +1230,7 @@ class PlaylistMutationsTest {
             trackCount = 0,
         )
 
-    private fun track(id: String): Track =
+    private fun track(id: String, musicFolderId: String? = null): Track =
         Track(
             id = TrackId(id),
             title = "Track $id",
@@ -1216,6 +1240,7 @@ class PlaylistMutationsTest {
             coverArtId = null,
             audioInfo = null,
             replayGain = null,
+            musicFolderId = musicFolderId,
         )
 
     private class StopAutoRefresh : RuntimeException()
@@ -1223,6 +1248,7 @@ class PlaylistMutationsTest {
     private class FakePlaylistProvider(
         private val playlists: List<Playlist>,
         private val playlistTracks: List<Track>,
+        override val selectedMusicFolderIds: List<String> = emptyList(),
     ) : MediaProvider {
         override val id: ProviderId = ProviderId("fake")
         override val displayName: String = "Fake"

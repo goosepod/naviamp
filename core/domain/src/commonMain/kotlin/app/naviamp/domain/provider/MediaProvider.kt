@@ -23,6 +23,8 @@ interface MediaProvider {
     val capabilities: ProviderCapabilities
     val cacheNamespace: String
         get() = id.value
+    val selectedMusicFolderIds: List<String>
+        get() = emptyList()
 
     suspend fun validateConnection(): ConnectionValidation
     suspend fun libraryScanStatus(): LibraryScanStatus? = null

@@ -21,7 +21,10 @@ import app.naviamp.domain.settings.toSelectedMusicFolderIds
 import app.naviamp.domain.source.SavedMediaSource
 import app.naviamp.domain.source.ProviderConnectionLifecycleRequest
 import app.naviamp.domain.source.connectionFailureStatus
+import app.naviamp.domain.source.effectiveServerConnectionKey
 import app.naviamp.domain.source.openProviderConnectionSession
+import app.naviamp.domain.source.unusedSourceScopeCleanupCutoff
+import app.naviamp.domain.source.visibleServerConnections
 import app.naviamp.provider.navidrome.NavidromeConnection
 import app.naviamp.provider.navidrome.NavidromeConnectionLoginRequest
 import app.naviamp.provider.navidrome.NavidromeProvider
@@ -30,6 +33,7 @@ import app.naviamp.provider.navidrome.navidromeTlsSettingsFromForm
 import app.naviamp.provider.navidrome.prepareNavidromeConnection
 import app.naviamp.provider.navidrome.resolvedDisplayName
 import app.naviamp.provider.navidrome.toNavidromeConnection
+import app.naviamp.provider.navidrome.withBackfilledDefaultMusicFolder
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
@@ -50,6 +54,10 @@ class AndroidConnectionSessionController(
         restoreAndroidPlaybackSession(state, storage, sourceId, loadRelatedTracks)
 
     fun connectWithNavidromeConnection(connection: NavidromeConnection) {
+        val restoreExistingPlayback = state.restoringConnection
+        if (!restoreExistingPlayback) {
+            resetAndroidPlaybackState(state, playbackEngine, queueController)
+        }
         startNavidromeConnection(
             scope = scope,
             state = state,
@@ -61,11 +69,18 @@ class AndroidConnectionSessionController(
             playbackEngine = playbackEngine,
             preloadPlaylistTracks = preloadPlaylistTracks,
             restorePlaybackSession = ::restorePlaybackSession,
+            restoreExistingPlayback = restoreExistingPlayback,
             startAndroidLibrarySync = startAndroidLibrarySync,
             checkAndroidLibraryFreshness = checkAndroidLibraryFreshness,
             recentRadioStreams = settingsStore.loadRecentRadioStreams(),
             recentInternetRadioStations = settingsStore.loadRecentInternetRadioStations().map { it.toStation() },
-            refreshSavedMediaSources = { state.savedMediaSources = storage.mediaSources() },
+            refreshSavedMediaSources = {
+                state.savedMediaSources = storage.mediaSources().visibleServerConnections(state.activeSourceId)
+            },
+            onPreparedConnection = { preparedConnection ->
+                state.savedConnectionForLogin = preparedConnection
+                state.selectedMusicFolderIds = preparedConnection.selectedMusicFolderIds
+            },
         )
     }
 
@@ -115,8 +130,11 @@ class AndroidConnectionSessionController(
     }
 
     fun deleteConnection(source: SavedMediaSource) {
-        storage.deleteMediaSource(source.id)
-        state.savedMediaSources = storage.mediaSources()
+        val serverConnectionKey = source.effectiveServerConnectionKey()
+        storage.mediaSources()
+            .filter { it.effectiveServerConnectionKey() == serverConnectionKey }
+            .forEach { storage.deleteMediaSource(it.id) }
+        state.savedMediaSources = storage.mediaSources().visibleServerConnections(state.activeSourceId)
         if (state.activeSourceId == source.id) {
             resetAndroidPlaybackState(state, playbackEngine, queueController)
             state.provider = null
@@ -176,11 +194,13 @@ fun startNavidromeConnection(
     playbackEngine: AndroidPlaybackEngine,
     preloadPlaylistTracks: (NavidromeProvider, List<Playlist>) -> Unit,
     restorePlaybackSession: (String) -> Boolean,
+    restoreExistingPlayback: Boolean = true,
     startAndroidLibrarySync: (Boolean) -> Unit,
     checkAndroidLibraryFreshness: () -> Unit,
     recentRadioStreams: List<RecentRadioStream> = emptyList(),
     recentInternetRadioStations: List<InternetRadioStation> = emptyList(),
     refreshSavedMediaSources: () -> Unit = {},
+    onPreparedConnection: (NavidromeConnection) -> Unit = {},
 ) {
     scope.launch {
         with(state) {
@@ -189,7 +209,9 @@ fun startNavidromeConnection(
                 val session = openProviderConnectionSession(
                     request = ProviderConnectionLifecycleRequest(
                         connection = connection,
-                        prepareConnection = { requestedConnection -> requestedConnection },
+                        prepareConnection = { requestedConnection ->
+                            requestedConnection.withBackfilledDefaultMusicFolder()
+                        },
                         preparedConnection = { preparedConnection -> preparedConnection },
                         provider = { preparedConnection -> NavidromeProvider(preparedConnection) },
                         mediaSourceConnection = { preparedConnection ->
@@ -199,9 +221,13 @@ fun startNavidromeConnection(
                             playbackEngine.applyTlsSettings(preparedConnection.tlsSettings)
                             AndroidPlaybackTls.applyDefaults(preparedConnection.tlsSettings)
                         },
+                        pruneUnusedSourceScopesBeforeEpochMillis = unusedSourceScopeCleanupCutoff(
+                            System.currentTimeMillis(),
+                        ),
                     ),
                     providerMediaSourceRepository = providerMediaSourceRepository,
                 )
+                onPreparedConnection(session.connection)
                 val nextProvider = session.provider
                 validation = session.validation
                 homeState = loadBrowseState(
@@ -228,7 +254,9 @@ fun startNavidromeConnection(
                         }
                     },
                 )
-                restorePlaybackSession(session.sourceId)
+                if (restoreExistingPlayback) {
+                    restorePlaybackSession(session.sourceId)
+                }
                 session.connection.baseUrl
             }.onSuccess { activeUrl ->
                 if (nowPlaying == null && nowPlayingStation == null) {
@@ -314,8 +342,12 @@ fun startNavidromeConnectionFromForm(
                 ),
             ).connection
         }.onSuccess { connection ->
-            settingsStore.saveConnection(connectionForm)
+            val savedConnectionForm = connectionForm.copy(
+                selectedMusicFolderIds = connection.selectedMusicFolderIds,
+            )
+            settingsStore.saveConnection(savedConnectionForm)
             state.savedConnectionForLogin = connection
+            state.applyConnectionForm(savedConnectionForm.copy(password = connectionForm.password))
             connectWithNavidromeConnection(connection)
         }.onFailure { error ->
             state.status = connectionFailureStatus(error)

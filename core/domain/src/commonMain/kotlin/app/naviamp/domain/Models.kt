@@ -64,6 +64,7 @@ data class Track(
     val moods: List<String> = emptyList(),
     val playCount: Int? = null,
     val lastPlayedAtIso8601: String? = null,
+    val musicFolderId: String? = null,
 )
 
 data class AudioInfo(

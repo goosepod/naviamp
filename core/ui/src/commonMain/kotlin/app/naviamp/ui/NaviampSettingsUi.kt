@@ -82,6 +82,7 @@ data class NaviampSavedConnectionUi(
     val displayName: String,
     val serverUrl: String,
     val username: String,
+    val selectedLibrarySummary: String = "",
     val current: Boolean = false,
 )
 
@@ -518,6 +519,16 @@ private fun NaviampSavedConnectionRow(
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.fillMaxWidth(),
         )
+        if (connection.selectedLibrarySummary.isNotBlank()) {
+            Text(
+                "Libraries: ${connection.selectedLibrarySummary}",
+                color = colors.secondaryText,
+                fontSize = 12.sp,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.fillMaxWidth(),
+            )
+        }
         TextButton(
             enabled = enabled,
             onClick = onConnect,

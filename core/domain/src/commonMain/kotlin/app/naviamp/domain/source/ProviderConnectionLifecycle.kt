@@ -23,6 +23,7 @@ data class ProviderConnectionLifecycleRequest<InputConnection, Connection, Prepa
     val applyTlsDefaults: (Connection) -> Unit = {},
     val smartPlaylistAuthWarning: (PreparedConnection) -> String? = { null },
     val clearProviderData: Boolean = false,
+    val pruneUnusedSourceScopesBeforeEpochMillis: Long? = null,
 )
 
 suspend fun <InputConnection, Connection, PreparedConnection, Provider : MediaProvider> openProviderConnectionSession(
@@ -43,6 +44,12 @@ suspend fun <InputConnection, Connection, PreparedConnection, Provider : MediaPr
         cacheNamespace = provider.cacheNamespace,
         providerId = provider.id.value,
     )
+    request.pruneUnusedSourceScopesBeforeEpochMillis?.let { cutoff ->
+        cacheMaintenanceRepository?.pruneUnusedSourceScopes(
+            activeSourceIds = setOf(source.id),
+            lastConnectedBeforeEpochMillis = cutoff,
+        )
+    }
     return ProviderConnectionSession(
         connection = connection,
         provider = provider,
@@ -54,3 +61,8 @@ suspend fun <InputConnection, Connection, PreparedConnection, Provider : MediaPr
 
 fun connectionFailureStatus(error: Throwable, fallback: String = "Connection failed."): String =
     error.message ?: fallback
+
+const val UnusedSourceScopeRetentionMillis: Long = 30L * 24L * 60L * 60L * 1_000L
+
+fun unusedSourceScopeCleanupCutoff(nowEpochMillis: Long): Long =
+    nowEpochMillis - UnusedSourceScopeRetentionMillis

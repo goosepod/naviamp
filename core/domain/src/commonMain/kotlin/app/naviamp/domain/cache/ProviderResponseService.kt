@@ -439,6 +439,7 @@ private data class TrackDto(
     val moods: List<String> = emptyList(),
     val playCount: Int? = null,
     val lastPlayedAtIso8601: String? = null,
+    val musicFolderId: String? = null,
 ) {
     fun toTrack(): Track =
         Track(
@@ -459,6 +460,7 @@ private data class TrackDto(
             moods = moods,
             playCount = playCount,
             lastPlayedAtIso8601 = lastPlayedAtIso8601,
+            musicFolderId = musicFolderId,
         )
 
     companion object {
@@ -481,6 +483,7 @@ private data class TrackDto(
                 moods = track.moods,
                 playCount = track.playCount,
                 lastPlayedAtIso8601 = track.lastPlayedAtIso8601,
+                musicFolderId = track.musicFolderId,
             )
     }
 }

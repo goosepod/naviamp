@@ -645,6 +645,17 @@ class DesktopCache(
         maintenance.clearAllRows()
     }
 
+    override fun pruneUnusedSourceScopes(
+        activeSourceIds: Set<String>,
+        lastConnectedBeforeEpochMillis: Long,
+        limit: Long,
+    ): Int =
+        mediaSources.pruneUnusedSourceScopes(
+            activeSourceIds = activeSourceIds,
+            lastConnectedBeforeEpochMillis = lastConnectedBeforeEpochMillis,
+            limit = limit,
+        )
+
     override fun stats(): StorageCacheStats =
         maintenance.stats(
             databaseLabel = databasePath.toAbsolutePath().toString(),
@@ -809,6 +820,12 @@ private fun ensureMediaSourceLibraryScanSchema(driver: JdbcSqliteDriver) {
     }
     if (!driver.tableHasColumn("media_source", "selected_music_folder_ids_json")) {
         driver.execute(null, "ALTER TABLE media_source ADD COLUMN selected_music_folder_ids_json TEXT", 0)
+    }
+    if (!driver.tableHasColumn("media_source", "server_connection_key")) {
+        driver.execute(null, "ALTER TABLE media_source ADD COLUMN server_connection_key TEXT", 0)
+    }
+    if (!driver.tableHasColumn("media_source", "library_scope_key")) {
+        driver.execute(null, "ALTER TABLE media_source ADD COLUMN library_scope_key TEXT", 0)
     }
 }
 
@@ -1243,6 +1260,7 @@ data class TrackDto(
     val moods: List<String> = emptyList(),
     val playCount: Int? = null,
     val lastPlayedAtIso8601: String? = null,
+    val musicFolderId: String? = null,
 ) {
     fun toTrack(): Track =
         Track(
@@ -1263,6 +1281,7 @@ data class TrackDto(
             moods = moods,
             playCount = playCount,
             lastPlayedAtIso8601 = lastPlayedAtIso8601,
+            musicFolderId = musicFolderId,
         )
 
     companion object {
@@ -1285,6 +1304,7 @@ data class TrackDto(
                 moods = track.moods,
                 playCount = track.playCount,
                 lastPlayedAtIso8601 = track.lastPlayedAtIso8601,
+                musicFolderId = track.musicFolderId,
             )
     }
 }

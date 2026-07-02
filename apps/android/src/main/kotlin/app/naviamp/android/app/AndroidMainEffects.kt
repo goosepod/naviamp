@@ -9,7 +9,8 @@ import app.naviamp.domain.playback.SleepTimerController
 import app.naviamp.domain.provider.PlaylistDetailRefreshIntervalMillis
 import app.naviamp.domain.provider.playlistDetailAutoRefreshTarget
 import app.naviamp.domain.provider.runPlaylistDetailAutoRefresh
-import app.naviamp.domain.settings.ConnectionFormMusicFolder
+import app.naviamp.domain.settings.connectionFormMusicFolders
+import app.naviamp.domain.settings.defaultSelectedMusicFolderIds
 import app.naviamp.domain.settings.toConnectionHeaderDefinitions
 import app.naviamp.domain.settings.toConnectionSecondaryUrls
 import app.naviamp.provider.navidrome.NavidromeConnection
@@ -136,7 +137,6 @@ internal fun AndroidMainEffects(
             savedConnectionForLogin,
         ) {
             if (!editingConnection) {
-                availableMusicFolders = emptyList()
                 musicFoldersStatus = null
                 return@LaunchedEffect
             }
@@ -185,27 +185,34 @@ internal fun AndroidMainEffects(
                 }
             }.fold(
                 onSuccess = { folders ->
-                    val choices = folders.mapIndexed { index, folder ->
-                        ConnectionFormMusicFolder(
-                            id = folder.id,
-                            name = folder.name,
-                            defaultSelected = index == 0,
-                        )
-                    }
+                    val choices = connectionFormMusicFolders(folders.map { folder -> folder.id to folder.name })
                     availableMusicFolders = choices
                     musicFoldersStatus = when {
                         choices.isEmpty() -> "No libraries returned by the server."
                         else -> null
                     }
-                    if (selectedMusicFolderIds.isEmpty() && choices.isNotEmpty()) {
-                        selectedMusicFolderIds = listOf(choices.first().id)
-                    }
+                    selectedMusicFolderIds = defaultSelectedMusicFolderIds(
+                        selectedIds = selectedMusicFolderIds,
+                        availableFolders = choices,
+                    )
                 },
                 onFailure = { error ->
                     availableMusicFolders = emptyList()
                     musicFoldersStatus = "Could not load libraries: ${error.message ?: error::class.simpleName}"
                 },
             )
+        }
+
+        LaunchedEffect(provider, activeSourceId, editingConnection) {
+            val activeProvider = provider
+            if (editingConnection || activeProvider == null) return@LaunchedEffect
+            runCatching {
+                withContext(Dispatchers.IO) {
+                    activeProvider.musicFolders()
+                }
+            }.onSuccess { folders ->
+                availableMusicFolders = connectionFormMusicFolders(folders.map { folder -> folder.id to folder.name })
+            }
         }
 
         NaviampSleepTimerExpiryEffect(

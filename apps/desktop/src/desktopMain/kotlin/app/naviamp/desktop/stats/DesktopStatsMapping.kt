@@ -12,6 +12,7 @@ import app.naviamp.domain.playback.PlaybackStreamMetadata
 import app.naviamp.domain.playback.label
 import app.naviamp.domain.provider.MediaSearchResults
 import app.naviamp.domain.queue.PlaybackQueue
+import app.naviamp.domain.settings.ConnectionFormMusicFolder
 import app.naviamp.domain.settings.PlaybackSettings
 import app.naviamp.domain.source.SavedMediaSource
 import app.naviamp.desktop.playback.DesktopPlaybackEngineDiagnostics
@@ -30,6 +31,7 @@ fun buildDesktopStatsForNerdsInfo(
     username: String,
     connectedProvider: NavidromeProvider?,
     mediaSource: SavedMediaSource?,
+    availableMusicFolders: List<ConnectionFormMusicFolder>,
     connectionStatus: String?,
     isLibrarySyncing: Boolean,
     libraryStatus: String?,
@@ -60,7 +62,7 @@ fun buildDesktopStatsForNerdsInfo(
         username = username,
         providerName = connectedProvider?.displayName ?: "Not connected",
         providerCacheNamespace = connectedProvider?.cacheNamespace ?: "Not connected",
-        mediaSource = mediaSource?.toStats(),
+        mediaSource = mediaSource?.toStats(availableMusicFolders),
         connectionStatus = connectionStatus,
         librarySync = DesktopLibrarySyncStats(
             isSyncing = isLibrarySyncing,

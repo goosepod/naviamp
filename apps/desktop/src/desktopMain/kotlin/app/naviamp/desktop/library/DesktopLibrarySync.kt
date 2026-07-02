@@ -85,7 +85,10 @@ fun shouldAutoSyncLibrary(
     libraryIndexRepository: LocalLibraryIndexRepository,
 ): Boolean {
     val indexStats = libraryIndexRepository.libraryIndexStats(sourceId)
-    return shouldAutoSyncLibraryIndex(indexStats)
+    return shouldAutoSyncLibraryIndex(
+        indexStats = indexStats,
+        source = libraryIndexRepository.mediaSource(sourceId),
+    )
 }
 
 data class DesktopLibrarySyncProgress(

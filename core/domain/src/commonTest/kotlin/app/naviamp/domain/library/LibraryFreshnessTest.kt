@@ -81,12 +81,49 @@ class LibraryFreshnessTest {
     fun librarySyncHelpersShareCommonStatusAndAutoSyncRules() {
         assertTrue(shouldAutoSyncLibrary(LibraryIndexStats(artistCount = 0, albumCount = 0, trackCount = 0)))
         assertFalse(shouldAutoSyncLibrary(LibraryIndexStats(artistCount = 1, albumCount = 0, trackCount = 0)))
+        assertTrue(
+            shouldAutoSyncLibrary(
+                LibraryIndexStats(artistCount = 1, albumCount = 0, trackCount = 0),
+                source = savedSource(lastSyncStartedAt = null, lastSyncCompletedAt = null),
+            ),
+        )
+        assertTrue(
+            shouldAutoSyncLibrary(
+                LibraryIndexStats(artistCount = 1, albumCount = 0, trackCount = 0),
+                source = savedSource(lastSyncStartedAt = 20, lastSyncCompletedAt = 10),
+            ),
+        )
+        assertFalse(
+            shouldAutoSyncLibrary(
+                LibraryIndexStats(artistCount = 1, albumCount = 0, trackCount = 0),
+                source = savedSource(lastSyncStartedAt = 10, lastSyncCompletedAt = 20),
+            ),
+        )
         assertEquals("Connect to Navidrome to import your library.", libraryConnectionRequiredStatus())
         assertEquals("Starting library import...", librarySyncStartingStatus())
         assertEquals("Library refreshed.", librarySyncCompletedStatus())
         assertEquals("Could not import library.", librarySyncErrorStatus(IllegalStateException()))
         assertEquals("Nope", librarySyncErrorStatus(IllegalStateException("Nope")))
     }
+
+    private fun savedSource(
+        lastSyncStartedAt: Long?,
+        lastSyncCompletedAt: Long?,
+    ): SavedMediaSource =
+        SavedMediaSource(
+            id = "source",
+            providerId = "provider",
+            cacheNamespace = "provider:server:user",
+            displayName = "Provider",
+            baseUrl = "https://example.test",
+            username = "user",
+            token = "token",
+            salt = "salt",
+            createdAtEpochMillis = 0,
+            lastConnectedAtEpochMillis = null,
+            lastSyncStartedAtEpochMillis = lastSyncStartedAt,
+            lastSyncCompletedAtEpochMillis = lastSyncCompletedAt,
+        )
 
     @Test
     fun libraryFreshnessUpdateFetchesProviderAndSourceState() = kotlinx.coroutines.test.runTest {
@@ -171,7 +208,11 @@ class LibraryFreshnessTest {
             status = { status },
             setStatus = { status = it },
             libraryIndexRepository = FakeLibraryIndexRepository(hasUsableIndex = true),
-            mediaSourceRepository = FakeMediaSourceRepository(previousSignature = null),
+            mediaSourceRepository = FakeMediaSourceRepository(
+                previousSignature = null,
+                lastSyncStartedAt = 10,
+                lastSyncCompletedAt = 20,
+            ),
         )
 
         coordinator.startSync(force = false, sync = { _, _, _ -> error("should not run") })
@@ -256,6 +297,8 @@ class LibraryFreshnessTest {
 
     private class FakeMediaSourceRepository(
         private val previousSignature: String?,
+        private val lastSyncStartedAt: Long? = null,
+        private val lastSyncCompletedAt: Long? = null,
     ) : MediaSourceRepository {
         override fun latestMediaSource(): SavedMediaSource? =
             null
@@ -275,8 +318,8 @@ class LibraryFreshnessTest {
                 salt = "salt",
                 createdAtEpochMillis = 0,
                 lastConnectedAtEpochMillis = null,
-                lastSyncStartedAtEpochMillis = null,
-                lastSyncCompletedAtEpochMillis = null,
+                lastSyncStartedAtEpochMillis = lastSyncStartedAt,
+                lastSyncCompletedAtEpochMillis = lastSyncCompletedAt,
                 lastLibraryScanSignature = previousSignature,
             )
 

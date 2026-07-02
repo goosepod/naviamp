@@ -38,7 +38,10 @@ class LibrarySyncCoordinator(
     private val libraryIndexRepository: LocalLibraryIndexRepository,
     private val mediaSourceRepository: MediaSourceRepository? = null,
     private val shouldAutoSync: (String) -> Boolean = { activeSourceId ->
-        shouldAutoSyncLibrary(libraryIndexRepository.libraryIndexStats(activeSourceId))
+        shouldAutoSyncLibrary(
+            indexStats = libraryIndexRepository.libraryIndexStats(activeSourceId),
+            source = mediaSourceRepository?.mediaSource(activeSourceId),
+        )
     },
 ) {
     suspend fun startSync(

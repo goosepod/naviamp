@@ -3,6 +3,7 @@ package app.naviamp.domain.library
 import app.naviamp.domain.cache.LibraryIndexStats
 import app.naviamp.domain.cache.MediaSourceRepository
 import app.naviamp.domain.provider.MediaProvider
+import app.naviamp.domain.source.SavedMediaSource
 
 const val LibraryFreshnessCheckIntervalMillis = 60_000L
 
@@ -50,8 +51,17 @@ suspend fun libraryFreshnessUpdate(
     ).evaluateLibraryFreshness(currentStatus)
 }
 
-fun shouldAutoSyncLibrary(indexStats: LibraryIndexStats): Boolean =
-    !indexStats.hasUsableIndex
+fun shouldAutoSyncLibrary(
+    indexStats: LibraryIndexStats,
+    source: SavedMediaSource? = null,
+): Boolean =
+    !indexStats.hasUsableIndex || source?.hasStaleLibraryScope() == true
+
+private fun SavedMediaSource.hasStaleLibraryScope(): Boolean {
+    val completedAt = lastSyncCompletedAtEpochMillis ?: return true
+    val startedAt = lastSyncStartedAtEpochMillis ?: return false
+    return startedAt > completedAt
+}
 
 fun libraryConnectionRequiredStatus(): String =
     "Connect to Navidrome to import your library."

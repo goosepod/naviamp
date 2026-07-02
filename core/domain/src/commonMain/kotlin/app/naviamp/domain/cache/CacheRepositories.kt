@@ -17,6 +17,8 @@ import app.naviamp.domain.source.ConnectionHeaderDefinition
 import app.naviamp.domain.source.ConnectionSecondaryUrl
 import app.naviamp.domain.source.MediaSourceIdentity
 import app.naviamp.domain.source.SavedMediaSource
+import app.naviamp.domain.source.stableLibraryScopeKey
+import app.naviamp.domain.source.stableServerConnectionKey
 import app.naviamp.domain.waveform.AudioWaveform
 
 interface ImageCacheRepository {
@@ -236,7 +238,17 @@ data class ProviderMediaSourceConnection(
     val secondaryUrls: List<ConnectionSecondaryUrl> = emptyList(),
     val customHeaders: List<ConnectionHeaderDefinition> = emptyList(),
     val selectedMusicFolderIds: List<String> = emptyList(),
-)
+) {
+    fun serverConnectionKey(providerId: String): String =
+        stableServerConnectionKey(
+            providerId = providerId,
+            baseUrl = baseUrl,
+            username = username,
+        )
+
+    fun libraryScopeKey(): String =
+        stableLibraryScopeKey(selectedMusicFolderIds)
+}
 
 interface ProviderMediaSourceRepository {
     fun upsertProviderMediaSource(
@@ -310,6 +322,12 @@ interface CacheMaintenanceRepository<Stats> {
     fun clearDownloadData()
 
     fun clearAll()
+
+    fun pruneUnusedSourceScopes(
+        activeSourceIds: Set<String>,
+        lastConnectedBeforeEpochMillis: Long,
+        limit: Long = 20,
+    ): Int = 0
 
     fun stats(): Stats
 }

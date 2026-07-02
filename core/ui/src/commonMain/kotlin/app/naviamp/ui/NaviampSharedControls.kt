@@ -55,15 +55,23 @@ internal fun NaviampTextField(
     modifier: Modifier = Modifier.fillMaxWidth(),
     enabled: Boolean = true,
     isPassword: Boolean = false,
+    forceFloatingLabel: Boolean = false,
     onSubmit: (() -> Unit)? = null,
 ) {
+    val displayValue = if (forceFloatingLabel && value.isEmpty()) FloatingLabelSentinel else value
     OutlinedTextField(
-        value = value,
-        onValueChange = onValueChange,
+        value = displayValue,
+        onValueChange = { nextValue ->
+            onValueChange(nextValue.replace(FloatingLabelSentinel, ""))
+        },
         label = { Text(label, color = colors.secondaryText) },
         singleLine = true,
         enabled = enabled,
-        visualTransformation = if (isPassword) PasswordVisualTransformation() else VisualTransformation.None,
+        visualTransformation = if (isPassword && value.isNotEmpty()) {
+            PasswordVisualTransformation()
+        } else {
+            VisualTransformation.None
+        },
         keyboardOptions = KeyboardOptions(imeAction = if (onSubmit != null) ImeAction.Search else ImeAction.Default),
         keyboardActions = KeyboardActions(onSearch = { onSubmit?.invoke() }),
         modifier = modifier.then(
@@ -82,6 +90,8 @@ internal fun NaviampTextField(
         ),
     )
 }
+
+private const val FloatingLabelSentinel = "\u200B"
 
 @Composable
 internal fun PrimaryButton(label: String, colors: NaviampColors, onClick: () -> Unit, enabled: Boolean = true) {

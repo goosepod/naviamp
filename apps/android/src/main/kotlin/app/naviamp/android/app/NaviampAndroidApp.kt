@@ -47,6 +47,7 @@ import app.naviamp.domain.sonicautoplay.SonicAutoplayService
 import app.naviamp.provider.navidrome.NavidromeApiCall
 import app.naviamp.provider.navidrome.NavidromeApiCallHistory
 import app.naviamp.provider.navidrome.toNavidromeConnection
+import app.naviamp.domain.source.visibleServerConnections
 import app.naviamp.ui.SharedTrackRowUi
 import app.naviamp.ui.NaviampDiagnosticsSectionUi
 import app.naviamp.ui.NaviampDiagnosticsUi
@@ -103,7 +104,7 @@ fun NaviampAndroidApp(
     }
     val settingsStore = dependencies.settingsStore
     val savedProviderSource = remember { storage.latestNavidromeSource() }
-    val savedMediaSources = remember { storage.mediaSources() }
+    val savedMediaSources = remember { storage.mediaSources().visibleServerConnections(savedProviderSource?.id) }
     val savedProviderConnection = savedProviderSource?.toNavidromeConnection()
     val savedConnection = remember { settingsStore.loadConnection(savedProviderConnection) }
     val canAutoConnect = savedProviderConnection != null ||

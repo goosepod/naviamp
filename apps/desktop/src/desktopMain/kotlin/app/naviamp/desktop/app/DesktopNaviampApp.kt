@@ -54,6 +54,8 @@ import app.naviamp.domain.settings.effectiveForEngine
 import app.naviamp.domain.settings.PlaybackSettingsMaintenanceController
 import app.naviamp.domain.settings.SavedInternetRadioStation
 import app.naviamp.domain.settings.ConnectionFormMusicFolder
+import app.naviamp.domain.settings.connectionFormMusicFolders
+import app.naviamp.domain.settings.defaultSelectedMusicFolderIds
 import app.naviamp.domain.settings.importSettingsSyncServerProfiles
 import app.naviamp.domain.settings.playbackSettingsChange
 import app.naviamp.domain.settings.restoredPlaybackQueue
@@ -61,6 +63,7 @@ import app.naviamp.domain.settings.restoredTrackSession
 import app.naviamp.domain.settings.toConnectionHeaderDefinitions
 import app.naviamp.domain.settings.toConnectionSecondaryUrls
 import app.naviamp.domain.source.ConnectionTlsSettings
+import app.naviamp.domain.source.visibleServerConnections
 import app.naviamp.domain.sonicautoplay.SonicAutoplayService
 import app.naviamp.provider.navidrome.NavidromeConnection
 import app.naviamp.provider.navidrome.NavidromeProvider
@@ -1145,7 +1148,6 @@ fun NaviampApp(
         connectionForm.savedConnectionForLogin,
     ) {
         if (!connectionForm.isOpen) {
-            availableMusicFolders = emptyList()
             musicFoldersStatus = null
             return@LaunchedEffect
         }
@@ -1194,21 +1196,16 @@ fun NaviampApp(
         }
         result.fold(
             onSuccess = { folders ->
-                val choices = folders.mapIndexed { index, folder ->
-                    ConnectionFormMusicFolder(
-                        id = folder.id,
-                        name = folder.name,
-                        defaultSelected = index == 0,
-                    )
-                }
+                val choices = connectionFormMusicFolders(folders.map { folder -> folder.id to folder.name })
                 availableMusicFolders = choices
                 musicFoldersStatus = when {
                     choices.isEmpty() -> "No libraries returned by the server."
                     else -> null
                 }
-                if (connectionForm.selectedMusicFolderIds.isEmpty() && choices.isNotEmpty()) {
-                    connectionForm.selectedMusicFolderIds = listOf(choices.first().id)
-                }
+                connectionForm.selectedMusicFolderIds = defaultSelectedMusicFolderIds(
+                    selectedIds = connectionForm.selectedMusicFolderIds,
+                    availableFolders = choices,
+                )
             },
             onFailure = { error ->
                 availableMusicFolders = emptyList()
@@ -1217,16 +1214,31 @@ fun NaviampApp(
         )
     }
 
+    LaunchedEffect(connectedProvider, connectedSourceId, connectionForm.isOpen) {
+        val provider = connectedProvider
+        if (connectionForm.isOpen || provider == null) return@LaunchedEffect
+        runCatching {
+            withContext(Dispatchers.IO) {
+                provider.musicFolders()
+            }
+        }.onSuccess { folders ->
+            availableMusicFolders = connectionFormMusicFolders(folders.map { folder -> folder.id to folder.name })
+        }
+    }
+
     loadHomeContentAction.value = homeController::loadHomeContent
     refreshPlaylistsAction.value = playlistsController::refreshPlaylists
 
-    val savedMediaSources = mediaSourcesRevision.let { storage.mediaSources() }
+    val savedMediaSources = mediaSourcesRevision.let {
+        storage.mediaSources().visibleServerConnections(connectedSourceId)
+    }
     val statsForNerdsInfo = desktopStatsForNerdsInfoOrNull(
         showStatsForNerds = showStatsForNerds,
         appRoute = appRoute,
         connectionForm = connectionForm,
         connectedProvider = connectedProvider,
         connectedSourceId = connectedSourceId,
+        availableMusicFolders = availableMusicFolders,
         storage = storage,
         connectionStatus = connectionStatus,
         isLibrarySyncing = libraryController.syncing,
@@ -1566,7 +1578,7 @@ fun NaviampApp(
                             onDismissDeletePlaylist = playlistsController::dismissDelete,
                             onDeletePlaylist = appActions::deletePlaylist,
                         )
-                        if (nowPlayingTrack != null) {
+                        if (nowPlayingTrack != null && !connectionForm.isOpen) {
                             DesktopMiniPlayerPanel(
                                 appColors = appColors,
                                 nowPlayingTrack = nowPlayingTrack,

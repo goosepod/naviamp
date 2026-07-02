@@ -27,6 +27,9 @@ suspend fun prepareNavidromeConnection(
     validateConnection: suspend (NavidromeConnection) -> Unit = { connection ->
         NavidromeProvider(connection).validateConnection()
     },
+    musicFolders: suspend (NavidromeConnection) -> List<NavidromeMusicFolder> = { connection ->
+        NavidromeProvider(connection).musicFolders()
+    },
     nativeTokenFromPassword: suspend (NavidromeConnection, String, Boolean) -> NavidromeConnection = { connection, password, required ->
         connection.withNativeTokenFromPassword(password, required = required)
     },
@@ -73,10 +76,29 @@ suspend fun prepareNavidromeConnection(
         connectionWithoutNativeRefresh
     }
     val activeConnection = connection.withReachableBaseUrl(validateConnection)
+        .withBackfilledDefaultMusicFolder(musicFolders)
     return PreparedNavidromeConnection(
         connection = activeConnection,
         nativeAuthErrorMessage = nativeAuthErrorMessage,
     )
+}
+
+suspend fun NavidromeConnection.withBackfilledDefaultMusicFolder(
+    musicFolders: suspend (NavidromeConnection) -> List<NavidromeMusicFolder> = { connection ->
+        NavidromeProvider(connection).musicFolders()
+    },
+): NavidromeConnection {
+    if (normalizedMusicFolderIds(selectedMusicFolderIds).isNotEmpty()) {
+        return this
+    }
+    return runCatching {
+        val defaultMusicFolderId = musicFolders(this).firstOrNull()?.id
+            ?: return@runCatching this
+        val selectedIds = normalizedMusicFolderIds(listOf(defaultMusicFolderId))
+        if (selectedIds.isEmpty()) this else copy(selectedMusicFolderIds = selectedIds)
+    }.getOrElse {
+        this
+    }
 }
 
 private suspend fun NavidromeConnection.withReachableBaseUrl(

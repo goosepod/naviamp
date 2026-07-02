@@ -9,6 +9,7 @@ import app.naviamp.android.playback.AndroidPlaybackEngine
 import app.naviamp.domain.Track
 import app.naviamp.domain.playback.EqualizerPlaybackEngine
 import app.naviamp.domain.provider.allKnownTracks
+import app.naviamp.domain.settings.selectedMusicFolderSummary
 import app.naviamp.domain.settings.streamQualityForNetwork
 import app.naviamp.ui.NaviampAboutUi
 import app.naviamp.ui.NaviampSavedConnectionUi
@@ -54,6 +55,8 @@ fun rememberAndroidAppShellUiState(
             nowPlayingOpen = nowPlayingOpen,
             visualizerVisible = visualizerVisible,
             activeTlsSettings = activeTlsSettings,
+            selectedMusicFolderIds = selectedMusicFolderIds,
+            availableMusicFolders = availableMusicFolders,
         )
         val shellModels = rememberAndroidShellModels(
             connectionName = connectionName,
@@ -137,6 +140,10 @@ fun rememberAndroidAppShellUiState(
                     displayName = source.displayName,
                     serverUrl = source.baseUrl,
                     username = source.username,
+                    selectedLibrarySummary = selectedMusicFolderSummary(
+                        selectedIds = source.selectedMusicFolderIds,
+                        availableFolders = availableMusicFolders,
+                    ),
                     current = source.id == activeSourceId,
                 )
             },

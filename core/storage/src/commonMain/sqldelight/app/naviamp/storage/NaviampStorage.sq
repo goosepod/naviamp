@@ -20,6 +20,8 @@ CREATE TABLE media_source (
   id TEXT NOT NULL PRIMARY KEY,
   provider_id TEXT NOT NULL,
   cache_namespace TEXT NOT NULL UNIQUE,
+  server_connection_key TEXT,
+  library_scope_key TEXT,
   display_name TEXT NOT NULL,
   base_url TEXT NOT NULL,
   username TEXT NOT NULL,
@@ -434,6 +436,8 @@ INSERT OR IGNORE INTO media_source(
   id,
   provider_id,
   cache_namespace,
+  server_connection_key,
+  library_scope_key,
   display_name,
   base_url,
   username,
@@ -453,12 +457,14 @@ INSERT OR IGNORE INTO media_source(
   last_sync_completed_at_epoch_millis,
   last_library_scan_signature,
   last_library_scan_checked_at_epoch_millis
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
 
 updateMediaSource:
 UPDATE media_source
 SET provider_id = ?,
     cache_namespace = ?,
+    server_connection_key = ?,
+    library_scope_key = ?,
     display_name = ?,
     base_url = ?,
     username = ?,
@@ -487,6 +493,18 @@ WHERE id = ?;
 deleteMediaSource:
 DELETE FROM media_source
 WHERE id = ?;
+
+selectPrunableMediaSources:
+SELECT id
+FROM media_source
+WHERE COALESCE(last_connected_at_epoch_millis, created_at_epoch_millis) < ?
+  AND NOT EXISTS (
+    SELECT 1
+    FROM downloaded_audio
+    WHERE downloaded_audio.source_id = media_source.id
+  )
+ORDER BY COALESCE(last_connected_at_epoch_millis, created_at_epoch_millis) ASC
+LIMIT ?;
 
 markMediaSourceSyncStarted:
 UPDATE media_source

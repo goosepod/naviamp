@@ -612,6 +612,17 @@ class AndroidStorage(
         maintenance.clearAllRows()
     }
 
+    override fun pruneUnusedSourceScopes(
+        activeSourceIds: Set<String>,
+        lastConnectedBeforeEpochMillis: Long,
+        limit: Long,
+    ): Int =
+        mediaSources.pruneUnusedSourceScopes(
+            activeSourceIds = activeSourceIds,
+            lastConnectedBeforeEpochMillis = lastConnectedBeforeEpochMillis,
+            limit = limit,
+        )
+
     override fun stats(): StorageCacheStats =
         maintenance.stats(
             databaseLabel = DatabaseName,
@@ -731,6 +742,12 @@ private fun SqlDriver.ensureMediaSourceNetworkOptionsSchema() {
     }
     if (!tableHasColumn("media_source", "selected_music_folder_ids_json")) {
         execute(null, "ALTER TABLE media_source ADD COLUMN selected_music_folder_ids_json TEXT", 0)
+    }
+    if (!tableHasColumn("media_source", "server_connection_key")) {
+        execute(null, "ALTER TABLE media_source ADD COLUMN server_connection_key TEXT", 0)
+    }
+    if (!tableHasColumn("media_source", "library_scope_key")) {
+        execute(null, "ALTER TABLE media_source ADD COLUMN library_scope_key TEXT", 0)
     }
 }
 

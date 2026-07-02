@@ -8,6 +8,7 @@ import app.naviamp.domain.playback.PlaybackProgress
 import app.naviamp.domain.playback.PlaybackState
 import app.naviamp.domain.playback.PlaybackStreamMetadata
 import app.naviamp.domain.queue.PlaybackQueue
+import app.naviamp.domain.settings.ConnectionFormMusicFolder
 import app.naviamp.domain.waveform.AudioWaveform
 import app.naviamp.desktop.playback.DesktopPlaylistEngine
 import app.naviamp.desktop.settings.PlaybackSettings
@@ -19,6 +20,7 @@ internal fun desktopStatsForNerdsInfoOrNull(
     connectionForm: DesktopConnectionFormStateHolder,
     connectedProvider: NavidromeProvider?,
     connectedSourceId: String?,
+    availableMusicFolders: List<ConnectionFormMusicFolder>,
     storage: DesktopStorageDependencies,
     connectionStatus: String?,
     isLibrarySyncing: Boolean,
@@ -53,6 +55,7 @@ internal fun desktopStatsForNerdsInfoOrNull(
         username = connectionForm.username,
         connectedProvider = connectedProvider,
         mediaSource = connectedSourceId?.let { storage.mediaSource(it) } ?: storage.latestMediaSource(),
+        availableMusicFolders = availableMusicFolders,
         connectionStatus = connectionStatus,
         isLibrarySyncing = isLibrarySyncing,
         libraryStatus = libraryStatus,

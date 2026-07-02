@@ -58,6 +58,7 @@ import app.naviamp.domain.settings.DefaultWaveformBucketCount
 import app.naviamp.domain.settings.MaxWaveformBucketCount
 import app.naviamp.domain.settings.MinWaveformBucketCount
 import app.naviamp.domain.settings.SettingsSyncFileName
+import app.naviamp.domain.settings.selectedMusicFolderSummary
 import app.naviamp.desktop.settings.CacheSettings
 import app.naviamp.desktop.settings.PlaybackSettings
 import app.naviamp.ui.NaviampAboutSettingsSection
@@ -653,6 +654,10 @@ private fun ConnectionsSettings(
                     SavedConnectionRow(
                         appColors = appColors,
                         connection = connection,
+                        selectedLibrarySummary = selectedMusicFolderSummary(
+                            selectedIds = connection.selectedMusicFolderIds,
+                            availableFolders = availableMusicFolders,
+                        ),
                         selected = connection.id == currentSourceId,
                         enabled = !isConnecting,
                         onEdit = { onEditConnection(connection) },
@@ -809,6 +814,7 @@ private fun connectionSubScreenDivider(appColors: DesktopAppColors) {
 private fun SavedConnectionRow(
     appColors: DesktopAppColors,
     connection: SavedMediaSource,
+    selectedLibrarySummary: String,
     selected: Boolean,
     enabled: Boolean,
     onEdit: () -> Unit,
@@ -877,6 +883,16 @@ private fun SavedConnectionRow(
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.fillMaxWidth(),
         )
+        if (selectedLibrarySummary.isNotBlank()) {
+            Text(
+                "Libraries: $selectedLibrarySummary",
+                color = appColors.secondaryText,
+                fontSize = 12.sp,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.fillMaxWidth(),
+            )
+        }
     }
 }
 

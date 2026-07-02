@@ -77,6 +77,50 @@ fun List<ConnectionFormHeader>.toConnectionHeaderDefinitions(): List<ConnectionH
 fun List<String>.toSelectedMusicFolderIds(): List<String> =
     normalizedMusicFolderIds(this)
 
+fun connectionFormMusicFolders(folders: List<Pair<String, String>>): List<ConnectionFormMusicFolder> =
+    folders.mapIndexed { index, folder ->
+        ConnectionFormMusicFolder(
+            id = folder.first,
+            name = folder.second,
+            defaultSelected = index == 0,
+        )
+    }
+
+fun defaultSelectedMusicFolderIds(
+    selectedIds: List<String>,
+    availableFolders: List<ConnectionFormMusicFolder>,
+): List<String> =
+    selectedIds.takeIf { it.isNotEmpty() }
+        ?: availableFolders.firstOrNull()?.let { listOf(it.id) }
+        ?: emptyList()
+
+fun List<String>.toggleSelectedMusicFolderId(
+    id: String,
+    requireOne: Boolean,
+): List<String> =
+    if (id in this) {
+        if (requireOne && size <= 1) this else filterNot { it == id }
+    } else {
+        (this + id).distinct()
+    }
+
+fun selectedMusicFolderLabels(
+    selectedIds: List<String>,
+    availableFolders: List<ConnectionFormMusicFolder>,
+): List<String> {
+    val folderNameById = availableFolders.associate { it.id to it.name }
+    return selectedIds.map { id -> folderNameById[id] ?: "ID: $id" }
+}
+
+fun selectedMusicFolderSummary(
+    selectedIds: List<String>,
+    availableFolders: List<ConnectionFormMusicFolder>,
+    emptyLabel: String = "All accessible libraries",
+): String =
+    selectedMusicFolderLabels(selectedIds, availableFolders)
+        .joinToString(", ")
+        .ifBlank { emptyLabel }
+
 @Serializable
 data class PlaybackSettings(
     val replayGainMode: ReplayGainMode = ReplayGainMode.Off,
@@ -449,6 +493,7 @@ data class SavedTrack(
     val moods: List<String> = emptyList(),
     val playCount: Int? = null,
     val lastPlayedAtIso8601: String? = null,
+    val musicFolderId: String? = null,
 ) {
     fun toTrack(): Track =
         Track(
@@ -469,6 +514,7 @@ data class SavedTrack(
             moods = moods,
             playCount = playCount,
             lastPlayedAtIso8601 = lastPlayedAtIso8601,
+            musicFolderId = musicFolderId,
         )
 
     companion object {
@@ -490,6 +536,7 @@ data class SavedTrack(
                 moods = track.moods,
                 playCount = track.playCount,
                 lastPlayedAtIso8601 = track.lastPlayedAtIso8601,
+                musicFolderId = track.musicFolderId,
             )
     }
 }

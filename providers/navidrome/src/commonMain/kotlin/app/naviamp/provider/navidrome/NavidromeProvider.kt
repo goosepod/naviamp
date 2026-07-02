@@ -37,7 +37,14 @@ import app.naviamp.domain.popular.ArtistPopularTracksResult
 import app.naviamp.domain.popular.NavidromeAgentMetadataSource
 import app.naviamp.domain.popular.SimilarArtistCandidate
 import app.naviamp.domain.popular.SimilarArtistsClient
+import app.naviamp.domain.smartplaylist.SmartPlaylistCondition
 import app.naviamp.domain.smartplaylist.SmartPlaylistDefinition
+import app.naviamp.domain.smartplaylist.SmartPlaylistFields
+import app.naviamp.domain.smartplaylist.SmartPlaylistGroup
+import app.naviamp.domain.smartplaylist.SmartPlaylistMatch
+import app.naviamp.domain.smartplaylist.SmartPlaylistOperator
+import app.naviamp.domain.smartplaylist.SmartPlaylistRule
+import app.naviamp.domain.smartplaylist.SmartPlaylistValue
 import app.naviamp.domain.source.normalizedMusicFolderIds
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
@@ -66,7 +73,7 @@ class NavidromeProvider(
     override val id: ProviderId = ProviderId("navidrome")
     override val displayName: String = "Navidrome"
     override val source: String = NavidromeAgentMetadataSource
-    private val selectedMusicFolderIds: List<String> =
+    override val selectedMusicFolderIds: List<String> =
         normalizedMusicFolderIds(connection.selectedMusicFolderIds)
     override val cacheNamespace: String =
         buildString {
@@ -308,14 +315,42 @@ class NavidromeProvider(
         val trimmedQuery = query.trim()
         if (trimmedQuery.isEmpty()) return MediaSearchResults()
 
+        if (selectedMusicFolderIds.isNotEmpty()) {
+            val results = selectedMusicFolderIds.map { musicFolderId ->
+                searchForMusicFolder(
+                    query = trimmedQuery,
+                    limit = limit,
+                    musicFolderId = musicFolderId,
+                )
+            }
+            return MediaSearchResults(
+                artists = results.flatMap { it.artists }.distinctBy { it.id }.take(limit),
+                albums = results.flatMap { it.albums }.distinctBy { it.id }.take(limit),
+                tracks = results.flatMap { it.tracks }.distinctBy { it.id }.take(limit),
+            )
+        }
+
+        return searchForMusicFolder(
+            query = trimmedQuery,
+            limit = limit,
+            musicFolderId = null,
+        )
+    }
+
+    private suspend fun searchForMusicFolder(
+        query: String,
+        limit: Int,
+        musicFolderId: String?,
+    ): MediaSearchResults {
         val response = get(
             endpoint = "search3.view",
-            params = mapOf(
-                "query" to trimmedQuery,
-                "artistCount" to limit.toString(),
-                "albumCount" to limit.toString(),
-                "songCount" to limit.toString(),
-            ),
+            params = buildMap {
+                put("query", query)
+                put("artistCount", limit.toString())
+                put("albumCount", limit.toString())
+                put("songCount", limit.toString())
+                musicFolderId?.let { put("musicFolderId", it) }
+            },
         )
         val searchResult = response.subsonicResponse()["searchResult3"]?.jsonObject
             ?: return MediaSearchResults()
@@ -398,7 +433,20 @@ class NavidromeProvider(
             ?: "https://www.last.fm/music/${name.urlEncode()}"
 
     override suspend fun playlists(limit: Int): List<Playlist> {
-        val response = get("getPlaylists.view")
+        if (selectedMusicFolderIds.isNotEmpty()) {
+            return selectedMusicFolderIds
+                .flatMap { musicFolderId -> playlistsForMusicFolder(limit, musicFolderId) }
+                .distinctBy { it.id }
+                .take(limit)
+        }
+        return playlistsForMusicFolder(limit, musicFolderId = null)
+    }
+
+    private suspend fun playlistsForMusicFolder(limit: Int, musicFolderId: String?): List<Playlist> {
+        val response = get(
+            endpoint = "getPlaylists.view",
+            params = musicFolderId?.let { mapOf("musicFolderId" to it) }.orEmpty(),
+        )
         val playlists = response.subsonicResponse()["playlists"]
             ?.jsonObject
             ?.arrayValue("playlist")
@@ -413,9 +461,25 @@ class NavidromeProvider(
     }
 
     override suspend fun playlistTracks(playlistId: String): List<Track> {
+        if (selectedMusicFolderIds.isNotEmpty()) {
+            val selectedIds = selectedMusicFolderIds.toSet()
+            return selectedMusicFolderIds
+                .flatMap { musicFolderId -> playlistTracksForMusicFolder(playlistId, musicFolderId) }
+                .filter { track ->
+                    track.musicFolderId == null || track.musicFolderId in selectedIds
+                }
+                .distinctBy { it.id }
+        }
+        return playlistTracksForMusicFolder(playlistId, musicFolderId = null)
+    }
+
+    private suspend fun playlistTracksForMusicFolder(playlistId: String, musicFolderId: String?): List<Track> {
         val response = get(
             endpoint = "getPlaylist.view",
-            params = mapOf("id" to playlistId),
+            params = buildMap {
+                put("id", playlistId)
+                musicFolderId?.let { put("musicFolderId", it) }
+            },
         )
         val playlist = response.subsonicResponse()["playlist"]?.jsonObject
             ?: return emptyList()
@@ -442,7 +506,7 @@ class NavidromeProvider(
     }
 
     override suspend fun createSmartPlaylist(definition: SmartPlaylistDefinition): Playlist {
-        val body = definition.toNativePlaylistBody()
+        val body = definition.withSelectedMusicFolderScope().toNativePlaylistBody()
         val response = postNativeJson(
             endpoint = "playlist",
             body = json.encodeToString(JsonObject.serializer(), body),
@@ -451,7 +515,7 @@ class NavidromeProvider(
     }
 
     override suspend fun updateSmartPlaylist(playlistId: String, definition: SmartPlaylistDefinition) {
-        val body = definition.toNativePlaylistBody()
+        val body = definition.withSelectedMusicFolderScope().toNativePlaylistBody()
         putNativeJson(
             endpoint = "playlist/${playlistId.urlEncode()}",
             body = json.encodeToString(JsonObject.serializer(), body),
@@ -461,6 +525,7 @@ class NavidromeProvider(
     override suspend fun smartPlaylistDefinition(playlistId: String): SmartPlaylistDefinition {
         val response = getNativeJson("playlist/${playlistId.urlEncode()}")
         return SmartPlaylistDefinition.fromJsonObject(response.toNativeDataObject())
+            .withoutSelectedMusicFolderScopeForEditing()
     }
 
     override suspend fun addTracksToPlaylist(playlistId: String, trackIds: List<TrackId>) {
@@ -1028,6 +1093,74 @@ class NavidromeProvider(
     private fun nativeApiUrl(endpoint: String): String =
         "${connection.normalizedBaseUrl}/api/${endpoint.trimStart('/')}"
 
+    private fun SmartPlaylistDefinition.withSelectedMusicFolderScope(): SmartPlaylistDefinition {
+        if (selectedMusicFolderIds.isEmpty() || rules.any { it.isLibraryScopeRule() }) return this
+        return copy(
+            match = SmartPlaylistMatch.All,
+            rules = listOf(selectedMusicFolderRule()) + rules,
+        )
+        }
+
+    private fun SmartPlaylistDefinition.withoutSelectedMusicFolderScopeForEditing(): SmartPlaylistDefinition {
+        if (selectedMusicFolderIds.isEmpty() || match != SmartPlaylistMatch.All || rules.isEmpty()) return this
+        val firstRule = rules.first()
+        if (!firstRule.matchesSelectedMusicFolderScope()) return this
+        val userRules = rules.drop(1)
+        if (userRules.isEmpty()) return this
+        return copy(rules = userRules)
+    }
+
+    private fun selectedMusicFolderRule(): SmartPlaylistRule =
+        if (selectedMusicFolderIds.size == 1) {
+            SmartPlaylistCondition(
+                operator = SmartPlaylistOperator.Is,
+                field = SmartPlaylistFields.LibraryId,
+                value = SmartPlaylistValue.Number(selectedMusicFolderIds.single().toLongOrNull() ?: 0L),
+            )
+        } else {
+            SmartPlaylistGroup(
+                match = SmartPlaylistMatch.Any,
+                rules = selectedMusicFolderIds.map { musicFolderId ->
+                    SmartPlaylistCondition(
+                        operator = SmartPlaylistOperator.Is,
+                        field = SmartPlaylistFields.LibraryId,
+                        value = SmartPlaylistValue.Number(musicFolderId.toLongOrNull() ?: 0L),
+                    )
+                },
+            )
+        }
+
+    private fun SmartPlaylistRule.isLibraryScopeRule(): Boolean =
+        when (this) {
+            is SmartPlaylistCondition -> field == SmartPlaylistFields.LibraryId
+            is SmartPlaylistGroup -> rules.any { it.isLibraryScopeRule() }
+        }
+
+    private fun SmartPlaylistRule.matchesSelectedMusicFolderScope(): Boolean =
+        libraryScopeIds() == selectedMusicFolderIds.toSet()
+
+    private fun SmartPlaylistRule.libraryScopeIds(): Set<String>? =
+        when (this) {
+            is SmartPlaylistCondition -> {
+                if (operator == SmartPlaylistOperator.Is && field == SmartPlaylistFields.LibraryId) {
+                    value.musicFolderIdValue()?.let { setOf(it) }
+                } else {
+                    null
+                }
+            }
+            is SmartPlaylistGroup -> {
+                val ids = rules.map { it.libraryScopeIds() }
+                if (ids.any { it == null }) null else ids.filterNotNull().flatten().toSet()
+            }
+        }
+
+    private fun SmartPlaylistValue.musicFolderIdValue(): String? =
+        when (this) {
+            is SmartPlaylistValue.Number -> value.toString()
+            is SmartPlaylistValue.Text -> value.trim().takeIf { it.isNotEmpty() }
+            else -> null
+        }
+
     private fun SmartPlaylistDefinition.toNativePlaylistBody(): JsonObject =
         buildJsonObject {
             put("name", name.trim())
@@ -1163,6 +1296,7 @@ class NavidromeProvider(
             lastPlayedAtIso8601 = stringValue("played")
                 ?: stringValue("lastPlayed")
                 ?: stringValue("lastPlayedAt"),
+            musicFolderId = stringValue("musicFolderId"),
         )
 
     private suspend fun <T> forSelectedMusicFolders(

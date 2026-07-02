@@ -45,6 +45,7 @@ import app.naviamp.domain.InternetRadioStation
 import app.naviamp.domain.settings.ConnectionFormHeader
 import app.naviamp.domain.settings.ConnectionFormMusicFolder
 import app.naviamp.domain.settings.ConnectionFormSecondaryUrl
+import app.naviamp.domain.settings.toggleSelectedMusicFolderId
 import app.naviamp.domain.smartplaylist.SmartPlaylistDefinition
 
 @Composable
@@ -702,9 +703,10 @@ fun NaviampConnectionForm(
             NaviampTextField(
                 value = form.password,
                 onValueChange = { onFormChanged(form.copy(password = it)) },
-                label = if (isReconnect) "Password (optional)" else "Password",
+                label = "Password",
                 colors = colors,
                 isPassword = true,
+                forceFloatingLabel = isReconnect,
                 modifier = Modifier.weight(1f),
             )
         }
@@ -920,7 +922,12 @@ private fun MusicFolderMultiSelect(
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(6.dp))
                     .clickable {
-                        onSelectedIdsChanged(selectedIds.toggled(folder.id, checked, requireOne = choices.isNotEmpty()))
+                        onSelectedIdsChanged(
+                            selectedIds.toggleSelectedMusicFolderId(
+                                id = folder.id,
+                                requireOne = choices.isNotEmpty(),
+                            ),
+                        )
                     }
                     .padding(horizontal = 2.dp, vertical = 1.dp),
                 verticalAlignment = Alignment.CenterVertically,
@@ -950,13 +957,6 @@ private fun MusicFolderMultiSelect(
         }
     }
 }
-
-private fun List<String>.toggled(id: String, currentlyChecked: Boolean, requireOne: Boolean): List<String> =
-    if (currentlyChecked) {
-        if (requireOne && size <= 1) this else filterNot { it == id }
-    } else {
-        (this + id).distinct()
-    }
 
 @Composable
 private fun ConnectedContent(

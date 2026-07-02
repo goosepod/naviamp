@@ -30,6 +30,8 @@ import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.rememberWindowState
 import app.naviamp.domain.playback.AudioPrefetchStats
 import app.naviamp.domain.playback.CacheRuntimeStats
+import app.naviamp.domain.settings.ConnectionFormMusicFolder
+import app.naviamp.domain.settings.selectedMusicFolderSummary
 import app.naviamp.domain.source.SavedMediaSource
 import app.naviamp.ui.bytesLabel
 import java.time.Instant
@@ -304,6 +306,7 @@ data class DesktopMediaSourceStats(
     val displayName: String,
     val baseUrl: String,
     val username: String,
+    val selectedLibrarySummary: String,
     val hasNativeToken: Boolean,
     val cacheNamespace: String,
     val createdAtEpochMillis: Long,
@@ -320,6 +323,7 @@ data class DesktopMediaSourceStats(
             "Display name" to displayName,
             "Base URL" to baseUrl,
             "Username" to username,
+            "Selected libraries" to selectedLibrarySummary,
             "Native smart playlist token" to if (hasNativeToken) "Present" else "Missing",
             "Cache namespace" to cacheNamespace,
             "Created" to createdAtEpochMillis.dateTimeLabel(),
@@ -426,13 +430,14 @@ private fun AudioPrefetchStats.rows(): List<Pair<String, String>> =
         "Last sidecar error" to (lastSidecarError ?: "None"),
     )
 
-fun SavedMediaSource.toStats(): DesktopMediaSourceStats =
+fun SavedMediaSource.toStats(availableMusicFolders: List<ConnectionFormMusicFolder>): DesktopMediaSourceStats =
     DesktopMediaSourceStats(
         id = id,
         providerId = providerId,
         displayName = displayName,
         baseUrl = baseUrl,
         username = username,
+        selectedLibrarySummary = selectedMusicFolderSummary(selectedMusicFolderIds, availableMusicFolders),
         hasNativeToken = !nativeToken.isNullOrBlank(),
         cacheNamespace = cacheNamespace,
         createdAtEpochMillis = createdAtEpochMillis,

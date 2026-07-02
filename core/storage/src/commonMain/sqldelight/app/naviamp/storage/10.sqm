@@ -1,0 +1,2 @@
+ALTER TABLE media_source ADD COLUMN server_connection_key TEXT;
+ALTER TABLE media_source ADD COLUMN library_scope_key TEXT;

@@ -549,6 +549,44 @@ class NavidromeProviderTest {
     }
 
     @Test
+    fun searchScopesRequestsToSelectedMusicFolders() = runTest {
+        val httpClient = RecordingResponseHttpClient(
+            """
+            {
+              "subsonic-response": {
+                "status": "ok",
+                "searchResult3": {
+                  "song": [
+                    {
+                      "id": "track-1",
+                      "title": "Classical Search Result",
+                      "artist": "Composer",
+                      "musicFolderId": "2"
+                    }
+                  ]
+                }
+              }
+            }
+            """.trimIndent(),
+        )
+        val provider = NavidromeProvider(
+            connection = connection("https://music.example.test").copy(
+                selectedMusicFolderIds = listOf("2"),
+            ),
+            httpClient = httpClient,
+        )
+
+        val results = provider.search("from duck till dawn")
+
+        assertEquals(
+            "https://music.example.test/rest/search3.view?u=demo&t=token&s=salt&v=1.16.1&$ExpectedClientQuery&f=json&query=from+duck+till+dawn&artistCount=20&albumCount=20&songCount=20&musicFolderId=2",
+            httpClient.urls.single(),
+        )
+        assertEquals("Classical Search Result", results.tracks.single().title)
+        assertEquals("2", results.tracks.single().musicFolderId)
+    }
+
+    @Test
     fun popularTracksUsesNavidromeTopSongsAsMatchedLibraryTracks() = runTest {
         val httpClient = RecordingResponseHttpClient(
             """
@@ -798,6 +836,81 @@ class NavidromeProviderTest {
     }
 
     @Test
+    fun playlistsScopesRequestsToSelectedMusicFolders() = runTest {
+        val httpClient = SequencedHttpClient(
+            listOf(
+                playlistsResponse("playlist-1", "Classical"),
+                playlistsResponse("playlist-2", "Piano"),
+            ),
+        )
+        val provider = NavidromeProvider(
+            connection = connection("https://music.example.test").copy(
+                selectedMusicFolderIds = listOf("2", "4"),
+            ),
+            httpClient = httpClient,
+        )
+
+        val playlists = provider.playlists(limit = 20)
+
+        assertEquals(
+            listOf(
+                "https://music.example.test/rest/getPlaylists.view?u=demo&t=token&s=salt&v=1.16.1&$ExpectedClientQuery&f=json&musicFolderId=2",
+                "https://music.example.test/rest/getPlaylists.view?u=demo&t=token&s=salt&v=1.16.1&$ExpectedClientQuery&f=json&musicFolderId=4",
+            ),
+            httpClient.urls,
+        )
+        assertEquals(listOf("Classical", "Piano"), playlists.map { it.name })
+    }
+
+    @Test
+    fun playlistTracksScopesRequestAndDropsKnownOutOfScopeEntries() = runTest {
+        val httpClient = RecordingResponseHttpClient(
+            """
+            {
+              "subsonic-response": {
+                "status": "ok",
+                "playlist": {
+                  "entry": [
+                    {
+                      "id": "track-1",
+                      "title": "In Scope",
+                      "artist": "Composer",
+                      "musicFolderId": "2"
+                    },
+                    {
+                      "id": "track-2",
+                      "title": "Out Of Scope",
+                      "artist": "Band",
+                      "musicFolderId": "1"
+                    },
+                    {
+                      "id": "track-3",
+                      "title": "Unknown Scope",
+                      "artist": "Unknown"
+                    }
+                  ]
+                }
+              }
+            }
+            """.trimIndent(),
+        )
+        val provider = NavidromeProvider(
+            connection = connection("https://music.example.test").copy(
+                selectedMusicFolderIds = listOf("2"),
+            ),
+            httpClient = httpClient,
+        )
+
+        val tracks = provider.playlistTracks("playlist-1")
+
+        assertEquals(
+            "https://music.example.test/rest/getPlaylist.view?u=demo&t=token&s=salt&v=1.16.1&$ExpectedClientQuery&f=json&id=playlist-1&musicFolderId=2",
+            httpClient.urls.single(),
+        )
+        assertEquals(listOf("In Scope", "Unknown Scope"), tracks.map { it.title })
+    }
+
+    @Test
     fun createPlaylistSendsNameAndSongIds() = runTest {
         val httpClient = RecordingHttpClient()
         val provider = NavidromeProvider(
@@ -845,6 +958,33 @@ class NavidromeProviderTest {
     }
 
     @Test
+    fun createSmartPlaylistScopesDefinitionToSelectedMusicFolder() = runTest {
+        val httpClient = RecordingNativeHttpClient(
+            """
+            {
+              "data": {
+                "id": "smart-1",
+                "name": "Road Smart"
+              }
+            }
+            """.trimIndent(),
+        )
+        val provider = NavidromeProvider(
+            connection = connection("https://music.example.test", nativeToken = "native-token").copy(
+                selectedMusicFolderIds = listOf("2"),
+            ),
+            httpClient = httpClient,
+        )
+
+        provider.createSmartPlaylist(smartPlaylistDefinition())
+
+        assertEquals(
+            """{"name":"Road Smart","comment":"Fresh tracks","public":true,"rules":{"all":[{"is":{"library_id":2}},{"is":{"loved":true}}],"sort":"-rating","limit":25}}""",
+            httpClient.postBodies.single(),
+        )
+    }
+
+    @Test
     fun updateSmartPlaylistUsesNavidromeNativePlaylistApi() = runTest {
         val httpClient = RecordingNativeHttpClient("{}")
         val provider = NavidromeProvider(
@@ -858,6 +998,24 @@ class NavidromeProviderTest {
         assertEquals(mapOf("x-nd-authorization" to "Bearer native-token"), httpClient.putHeaders.single())
         assertEquals(
             """{"name":"Road Smart","comment":"Fresh tracks","public":true,"rules":{"all":[{"is":{"loved":true}}],"sort":"-rating","limit":25}}""",
+            httpClient.putBodies.single(),
+        )
+    }
+
+    @Test
+    fun updateSmartPlaylistScopesDefinitionToSelectedMusicFolders() = runTest {
+        val httpClient = RecordingNativeHttpClient("{}")
+        val provider = NavidromeProvider(
+            connection = connection("https://music.example.test", nativeToken = "native-token").copy(
+                selectedMusicFolderIds = listOf("2", "4"),
+            ),
+            httpClient = httpClient,
+        )
+
+        provider.updateSmartPlaylist("smart playlist/1", smartPlaylistDefinition())
+
+        assertEquals(
+            """{"name":"Road Smart","comment":"Fresh tracks","public":true,"rules":{"all":[{"any":[{"is":{"library_id":2}},{"is":{"library_id":4}}]},{"is":{"loved":true}}],"sort":"-rating","limit":25}}""",
             httpClient.putBodies.single(),
         )
     }
@@ -894,6 +1052,40 @@ class NavidromeProviderTest {
         assertEquals("https://music.example.test/api/playlist/smart+playlist%2F1", httpClient.getUrls.single())
         assertEquals(mapOf("x-nd-authorization" to "Bearer native-token"), httpClient.getHeaders.single())
         assertEquals(25, definition.limit)
+    }
+
+    @Test
+    fun smartPlaylistDefinitionHidesInjectedSelectedMusicFolderScope() = runTest {
+        val httpClient = RecordingNativeHttpClient(
+            """
+            {
+              "data": {
+                "id": "smart-1",
+                "name": "Road Smart",
+                "rules": {
+                  "all": [
+                    { "is": { "library_id": 2 } },
+                    { "is": { "loved": true } }
+                  ],
+                  "sort": "-rating",
+                  "limit": 25
+                }
+              }
+            }
+            """.trimIndent(),
+        )
+        val provider = NavidromeProvider(
+            connection = connection("https://music.example.test", nativeToken = "native-token").copy(
+                selectedMusicFolderIds = listOf("2"),
+            ),
+            httpClient = httpClient,
+        )
+
+        val definition = provider.smartPlaylistDefinition("smart playlist/1")
+        val rule = definition.rules.single() as SmartPlaylistCondition
+
+        assertEquals("Road Smart", definition.name)
+        assertEquals(SmartPlaylistFields.Loved, rule.field)
     }
 
     @Test
@@ -1423,6 +1615,24 @@ class NavidromeProviderTest {
                   "id": "$albumId",
                   "name": "$title",
                   "artist": "$artist"
+                }
+              ]
+            }
+          }
+        }
+        """.trimIndent()
+
+    private fun playlistsResponse(playlistId: String, name: String): String =
+        """
+        {
+          "subsonic-response": {
+            "status": "ok",
+            "playlists": {
+              "playlist": [
+                {
+                  "id": "$playlistId",
+                  "name": "$name",
+                  "songCount": 10
                 }
               ]
             }

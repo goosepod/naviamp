@@ -13,8 +13,10 @@ import app.naviamp.domain.playback.PlaybackStreamMetadata
 import app.naviamp.domain.playback.label
 import app.naviamp.domain.provider.ConnectionValidation
 import app.naviamp.domain.provider.MediaProvider
+import app.naviamp.domain.settings.ConnectionFormMusicFolder
 import app.naviamp.domain.queue.PlaybackQueue
 import app.naviamp.domain.settings.PlaybackSettings
+import app.naviamp.domain.settings.selectedMusicFolderSummary
 import app.naviamp.provider.navidrome.NavidromeApiCall
 import app.naviamp.provider.navidrome.NavidromeApiCallHistory
 import app.naviamp.provider.navidrome.NavidromeTlsSettings
@@ -43,6 +45,8 @@ fun rememberAndroidDiagnostics(
     nowPlayingOpen: Boolean,
     visualizerVisible: Boolean,
     activeTlsSettings: NavidromeTlsSettings,
+    selectedMusicFolderIds: List<String>,
+    availableMusicFolders: List<ConnectionFormMusicFolder>,
 ): NaviampDiagnosticsUi {
     if (selectedRoute != SharedRoute.Settings) return NaviampDiagnosticsUi()
     return androidDiagnostics(
@@ -63,6 +67,8 @@ fun rememberAndroidDiagnostics(
         nowPlayingOpen = nowPlayingOpen,
         visualizerVisible = visualizerVisible,
         activeTlsSettings = activeTlsSettings,
+        selectedMusicFolderIds = selectedMusicFolderIds,
+        availableMusicFolders = availableMusicFolders,
         selectedRoute = selectedRoute,
     )
 }
@@ -85,6 +91,8 @@ fun androidDiagnostics(
     nowPlayingOpen: Boolean,
     visualizerVisible: Boolean,
     activeTlsSettings: NavidromeTlsSettings,
+    selectedMusicFolderIds: List<String>,
+    availableMusicFolders: List<ConnectionFormMusicFolder>,
     selectedRoute: SharedRoute,
 ): NaviampDiagnosticsUi =
     NaviampDiagnosticsUi(
@@ -97,6 +105,7 @@ fun androidDiagnostics(
                     "Server" to (validation?.serverVersion ?: "Unknown"),
                     "API" to (validation?.apiVersion ?: "Unknown"),
                     "Route" to selectedRoute.label,
+                    "Libraries" to selectedMusicFolderSummary(selectedMusicFolderIds, availableMusicFolders),
                     "Skip TLS verification" to activeTlsSettings.insecureSkipTlsVerification.toString(),
                 ),
             ),

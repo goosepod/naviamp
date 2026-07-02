@@ -43,10 +43,14 @@ class DesktopMediaSourceStore(
         val now = nowMillis()
         val existing = queries.selectMediaSourceByCacheNamespace(cacheNamespace).executeAsOneOrNull()
         val id = existing?.id ?: stableMediaSourceId(cacheNamespace)
+        val serverConnectionKey = connection.serverConnectionKey(providerId)
+        val libraryScopeKey = connection.libraryScopeKey()
         queries.upsertMediaSource(
             id = id,
             provider_id = providerId,
             cache_namespace = cacheNamespace,
+            server_connection_key = serverConnectionKey,
+            library_scope_key = libraryScopeKey,
             display_name = connection.displayName,
             base_url = connection.baseUrl,
             username = connection.username,
@@ -71,6 +75,8 @@ class DesktopMediaSourceStore(
             id = id,
             provider_id = providerId,
             cache_namespace = cacheNamespace,
+            server_connection_key = serverConnectionKey,
+            library_scope_key = libraryScopeKey,
             display_name = connection.displayName,
             base_url = connection.baseUrl,
             username = connection.username,
@@ -94,7 +100,23 @@ class DesktopMediaSourceStore(
             id = id,
             cacheNamespace = cacheNamespace,
             displayName = connection.displayName,
+            serverConnectionKey = serverConnectionKey,
+            libraryScopeKey = libraryScopeKey,
         )
+    }
+
+    fun pruneUnusedSourceScopes(
+        activeSourceIds: Set<String>,
+        lastConnectedBeforeEpochMillis: Long,
+        limit: Long,
+    ): Int {
+        val candidateIds = queries.selectPrunableMediaSources(
+            lastConnectedBeforeEpochMillis,
+            limit,
+        ).executeAsList()
+            .filterNot { sourceId -> sourceId in activeSourceIds }
+        candidateIds.forEach(queries::deleteMediaSource)
+        return candidateIds.size
     }
 
     fun markLibrarySyncStarted(sourceId: String) {
@@ -182,6 +204,8 @@ private fun Media_source.toSavedMediaSource(
         secondaryUrls = secondaryUrls,
         customHeaders = customHeaders,
         selectedMusicFolderIds = selectedMusicFolderIds,
+        serverConnectionKey = server_connection_key.orEmpty(),
+        libraryScopeKey = library_scope_key.orEmpty(),
         createdAtEpochMillis = created_at_epoch_millis,
         lastConnectedAtEpochMillis = last_connected_at_epoch_millis,
         lastSyncStartedAtEpochMillis = last_sync_started_at_epoch_millis,

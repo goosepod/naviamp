@@ -911,8 +911,16 @@ suspend fun MediaProvider.createPlaylistOrAddTracks(
     createPlaylistOrAddMissingTracks(
         playlistId = playlistId,
         newPlaylistName = newPlaylistName,
-        trackIds = tracks.map { it.id }.distinct(),
+        trackIds = tracks.filterForSelectedMusicFolders(selectedMusicFolderIds).map { it.id }.distinct(),
     )
+
+fun List<Track>.filterForSelectedMusicFolders(selectedMusicFolderIds: List<String>): List<Track> {
+    if (selectedMusicFolderIds.isEmpty()) return this
+    val selectedIds = selectedMusicFolderIds.toSet()
+    return filter { track ->
+        track.musicFolderId == null || track.musicFolderId in selectedIds
+    }
+}
 
 suspend fun MediaProvider.addTracksToPlaylistAndRefresh(
     playlistId: String?,

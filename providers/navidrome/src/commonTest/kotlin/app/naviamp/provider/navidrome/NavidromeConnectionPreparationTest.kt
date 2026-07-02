@@ -21,6 +21,7 @@ class NavidromeConnectionPreparationTest {
                 savedConnectionForLogin = savedConnection,
             ),
             validateConnection = {},
+            musicFolders = { emptyList() },
         )
 
         assertEquals("saved-token", prepared.connection.token)
@@ -43,6 +44,7 @@ class NavidromeConnectionPreparationTest {
                 nativeAuthRequired = true,
             ),
             validateConnection = {},
+            musicFolders = { emptyList() },
             nativeTokenFromPassword = { _, _, _ -> error("native auth unavailable") },
         )
 
@@ -62,6 +64,7 @@ class NavidromeConnectionPreparationTest {
                 savedConnectionForLogin = null,
             ),
             validateConnection = {},
+            musicFolders = { emptyList() },
             nativeTokenFromPassword = { connection, _, _ -> connection.copy(nativeToken = "native") },
         )
 
@@ -88,11 +91,80 @@ class NavidromeConnectionPreparationTest {
                 attempts += connection.baseUrl
                 if (connection.baseUrl == "https://primary.example.test") error("primary unavailable")
             },
+            musicFolders = { emptyList() },
             nativeTokenFromPassword = { connection, _, _ -> connection },
         )
 
         assertEquals(listOf("https://primary.example.test", "https://fallback.example.test"), attempts)
         assertEquals("https://fallback.example.test", prepared.connection.baseUrl)
+    }
+
+    @Test
+    fun backfillsFirstMusicFolderWhenSelectionIsEmpty() = runTest {
+        val prepared = prepareNavidromeConnection(
+            NavidromeConnectionLoginRequest(
+                baseUrl = "https://music.example.test",
+                username = "demo",
+                password = "secret",
+                displayName = "Home Music",
+                tlsSettings = ConnectionTlsSettings(),
+                savedConnectionForLogin = null,
+            ),
+            validateConnection = {},
+            musicFolders = {
+                listOf(
+                    NavidromeMusicFolder(id = "1", name = "Music Library"),
+                    NavidromeMusicFolder(id = "2", name = "Classical"),
+                )
+            },
+            nativeTokenFromPassword = { connection, _, _ -> connection },
+        )
+
+        assertEquals(listOf("1"), prepared.connection.selectedMusicFolderIds)
+    }
+
+    @Test
+    fun keepsExplicitMusicFolderSelection() = runTest {
+        var musicFolderLookupCount = 0
+        val prepared = prepareNavidromeConnection(
+            NavidromeConnectionLoginRequest(
+                baseUrl = "https://music.example.test",
+                username = "demo",
+                password = "secret",
+                displayName = "Home Music",
+                tlsSettings = ConnectionTlsSettings(),
+                selectedMusicFolderIds = listOf(" 2 "),
+                savedConnectionForLogin = null,
+            ),
+            validateConnection = {},
+            musicFolders = {
+                musicFolderLookupCount += 1
+                listOf(NavidromeMusicFolder(id = "1", name = "Music Library"))
+            },
+            nativeTokenFromPassword = { connection, _, _ -> connection },
+        )
+
+        assertEquals(listOf("2"), prepared.connection.selectedMusicFolderIds)
+        assertEquals(0, musicFolderLookupCount)
+    }
+
+    @Test
+    fun keepsEmptySelectionWhenMusicFolderBackfillFails() = runTest {
+        val prepared = prepareNavidromeConnection(
+            NavidromeConnectionLoginRequest(
+                baseUrl = "https://music.example.test",
+                username = "demo",
+                password = "secret",
+                displayName = "Home Music",
+                tlsSettings = ConnectionTlsSettings(),
+                savedConnectionForLogin = null,
+            ),
+            validateConnection = {},
+            musicFolders = { error("music folders unavailable") },
+            nativeTokenFromPassword = { connection, _, _ -> connection },
+        )
+
+        assertEquals(emptyList(), prepared.connection.selectedMusicFolderIds)
     }
 }
 

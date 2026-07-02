@@ -21,6 +21,7 @@ import app.naviamp.domain.source.ConnectionHeaderDefinition
 import app.naviamp.domain.source.ConnectionSecondaryUrl
 import app.naviamp.domain.source.connectionFailureStatus
 import app.naviamp.domain.source.deletedMediaSourceUpdate
+import app.naviamp.domain.source.effectiveServerConnectionKey
 import app.naviamp.desktop.playback.PlaylistCallbacks
 import app.naviamp.desktop.playback.DesktopPlaylistEngine
 import app.naviamp.desktop.settings.DesktopSettingsStore
@@ -252,7 +253,10 @@ class DesktopConnectionLifecycleController(
     }
 
     fun deleteConnection(source: SavedMediaSource) {
-        mediaSourceRepository.deleteMediaSource(source.id)
+        val serverConnectionKey = source.effectiveServerConnectionKey()
+        mediaSourceRepository.mediaSources()
+            .filter { it.effectiveServerConnectionKey() == serverConnectionKey }
+            .forEach { mediaSourceRepository.deleteMediaSource(it.id) }
         incrementMediaSourcesRevision()
         val savedConnection = savedConnectionForLogin()
         val update = deletedMediaSourceUpdate(

@@ -62,27 +62,39 @@ That is acceptable for the first slice, but it should be replaced or refined whe
 
 - [x] Keep connection and library-selection interfaces as cross-platform as possible, with shared state/models and shared UI before adding platform-specific wrappers.
 - [x] Add Android library-name lookup and multi-select parity.
-- [ ] Verify Navidrome exposes an explicit default-library marker. If not, keep treating the first returned library as the default candidate.
-- [ ] Add tests for default auto-selection and one-required multi-select behavior.
-- [ ] Show selected library names in saved connection summaries and diagnostics.
-- [ ] Add connection migration/backfill behavior for existing saved connections with no selected library IDs.
-- [ ] Decide whether empty selected IDs should remain a compatibility fallback or become invalid once library discovery succeeds.
-- [ ] Add explicit server/library/item-origin metadata to local storage before deep playlist/download/history filtering work.
-- [ ] Add stale-scope detection so selected-library changes can reuse retained local data and refresh automatically.
-- [ ] Add cache cleanup for unused source scopes instead of deleting deselected-library data immediately.
+- [x] Verify Navidrome exposes an explicit default-library marker. It does not appear in the documented `getMusicFolders` response, so keep treating the first returned library as the default candidate.
+- [x] Add tests for default auto-selection and one-required multi-select behavior.
+- [x] Show selected library names in saved connection summaries and diagnostics.
+- [x] Add connection migration/backfill behavior for existing saved connections with no selected library IDs.
+- [x] Decide whether empty selected IDs should remain a compatibility fallback or become invalid once library discovery succeeds.
+- [x] Add explicit server/library/item-origin metadata to local storage before deep playlist/download/history filtering work.
+- [x] Add stale-scope detection so selected-library changes can reuse retained local data and refresh automatically.
+- [x] Add cache cleanup for unused source scopes instead of deleting deselected-library data immediately.
+
+Empty selected library IDs remain a compatibility fallback only when music-folder discovery fails or returns no usable IDs. When discovery succeeds, older saved connections are backfilled to the first returned library and the prepared connection is persisted through the normal source/session save path.
+
+The current storage slice records explicit server/account and selected-library scope keys on each `media_source`. That makes source-scope origin queryable and keeps re-selected library combinations tied to the same retained local data. Per-track/per-playlist music-folder origin still needs provider/domain support before playlist, download, and history filtering can move beyond source-scope identity.
+
+Source scopes auto-sync when their local index is empty, has never completed a sync, or has a newer sync start than completion. Connection startup also prunes old inactive source-scope rows after a retention window, but skips the active source and any source with downloads.
 
 ## Playlist And Smart Playlist Filtering
 
 Navidrome appears to support library/music-folder filtering beyond basic browsing. Track each endpoint before applying filters so playlist behavior does not become inconsistent.
 
-- [ ] Verify `getPlaylists.view` supports a `musicFolderId` filter and determine whether multiple selected libraries require fan-out/merge.
-- [ ] Verify `getPlaylist.view` supports library filtering or whether returned entries must be filtered client-side.
+- [x] Verify `getPlaylists.view` supports a `musicFolderId` filter and determine whether multiple selected libraries require fan-out/merge.
+- [x] Verify `getPlaylist.view` supports library filtering or whether returned entries must be filtered client-side.
 - [ ] Verify native `/api/playlist` list/detail endpoints expose or accept library filters.
-- [ ] Add library filters to regular playlist list and detail refresh.
-- [ ] Add library filters to smart playlist list, load, save, and edit flows where supported by Navidrome.
-- [ ] Ensure playlist add/create operations do not accidentally cross selected-library boundaries.
+- [x] Add library filters to regular playlist list and detail refresh.
+- [x] Add library filters to smart playlist list, load, save, and edit flows where supported by Navidrome.
+- [x] Ensure playlist add/create operations do not accidentally cross selected-library boundaries.
 - [ ] Add UI filters where users naturally expect them: Playlists, smart playlist editor, add-to-playlist dialogs, and Stats for Nerds.
 - [ ] Hide library filter controls when only one library is selected, since filtering is unnecessary and confusing in that case.
+
+Regular Subsonic playlist list/detail calls now pass `musicFolderId` for each selected Navidrome library and merge duplicate playlist/track IDs. Playlist detail also filters returned entries client-side when Navidrome includes `musicFolderId` on tracks, while preserving tracks with unknown folder metadata.
+
+Smart playlist save/update now injects a `library_id` rule for the active selected libraries unless the definition already contains an explicit library rule. This scopes new or edited smart playlists at the Navidrome rule level. Loading a smart playlist for edit strips the exact injected active-library rule back out so the editor shows the user's actual criteria. Native `/api/playlist` list/detail library query support still needs verification before list/load behavior can be filtered beyond the regular Subsonic playlist endpoints.
+
+Add/create playlist mutations now skip tracks that expose a known `musicFolderId` outside the active selected libraries. Tracks without folder metadata are preserved because older/cached responses may not carry enough origin data yet.
 
 ## Multi-Server Follow-Up
 

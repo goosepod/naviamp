@@ -13,6 +13,7 @@ import app.naviamp.domain.settings.restoredTrackSession
 import app.naviamp.domain.source.ProviderConnectionLifecycleRequest
 import app.naviamp.domain.source.ProviderConnectionSession
 import app.naviamp.domain.source.openProviderConnectionSession
+import app.naviamp.domain.source.unusedSourceScopeCleanupCutoff
 import app.naviamp.provider.navidrome.NavidromeConnection
 import app.naviamp.provider.navidrome.NavidromeConnectionLoginRequest
 import app.naviamp.provider.navidrome.NavidromeProvider
@@ -70,6 +71,7 @@ suspend fun openDesktopConnectionSession(
             applyTlsDefaults = { connection -> NavidromeTls.applyJvmDefaults(connection.tlsSettings) },
             smartPlaylistAuthWarning = { prepared -> prepared.nativeAuthErrorMessage },
             clearProviderData = clearProviderData,
+            pruneUnusedSourceScopesBeforeEpochMillis = unusedSourceScopeCleanupCutoff(System.currentTimeMillis()),
         ),
         cacheMaintenanceRepository = cacheMaintenanceRepository,
         providerMediaSourceRepository = providerMediaSourceRepository,
