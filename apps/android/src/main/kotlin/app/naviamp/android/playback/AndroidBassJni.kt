@@ -83,6 +83,8 @@ object AndroidBassJni {
 
     fun fft(stream: Int, bins: Int): FloatArray = nativeFft(stream, bins)
 
+    fun waveformLevels(stream: Int, bucketCount: Int): FloatArray = nativeWaveformLevels(stream, bucketCount)
+
     fun readFloatData(stream: Int, buffer: FloatArray): Int = nativeReadFloatData(stream, buffer)
 
     private external fun nativeBassVersion(): Int
@@ -115,5 +117,6 @@ object AndroidBassJni {
     private external fun nativeLengthBytes(stream: Int): Long
     private external fun nativeStreamTags(stream: Int): Array<String>
     private external fun nativeFft(stream: Int, bins: Int): FloatArray
+    private external fun nativeWaveformLevels(stream: Int, bucketCount: Int): FloatArray
     private external fun nativeReadFloatData(stream: Int, buffer: FloatArray): Int
 }

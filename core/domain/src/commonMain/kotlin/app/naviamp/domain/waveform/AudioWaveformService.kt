@@ -38,6 +38,7 @@ class AudioWaveformService(
     private val analyzer: AudioWaveformAnalyzer,
     private val waveformsEnabled: () -> Boolean = { true },
     private val waveformBucketCount: () -> Int = { DefaultWaveformBucketCount },
+    private val cacheAudioBeforeAnalysis: () -> Boolean = { true },
     private val prepareAnalysis: suspend () -> Unit = {},
     private val cacheAudioForWaveform: suspend (
         sourceId: String,
@@ -86,7 +87,12 @@ class AudioWaveformService(
             audioAssets = audioAssets,
         )
         val cachedOrDownloadedAudio = plan.localAudio
-        val generatedAudio = if (cachedOrDownloadedAudio == null && sourceId != null && audioCachingEnabled) {
+        val generatedAudio = if (
+            cachedOrDownloadedAudio == null &&
+            sourceId != null &&
+            audioCachingEnabled &&
+            cacheAudioBeforeAnalysis()
+        ) {
             cacheAudioForWaveform(sourceId, provider, track, quality)
         } else {
             null
@@ -122,12 +128,12 @@ class AudioWaveformService(
                 bucketCount = bucketCount,
             ),
         )
-        val storedWaveform = if (waveform != null && sourceId != null && localAudio != null) {
+        val storedWaveform = if (waveform != null && sourceId != null) {
             waveformRepository.storeAudioWaveform(
                 sourceId = sourceId,
                 trackId = track.id,
                 quality = quality,
-                audioFilePath = localAudio.path,
+                audioFilePath = localAudio?.path,
                 waveform = waveform,
             )
         } else {

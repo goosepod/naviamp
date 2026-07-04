@@ -224,6 +224,80 @@ Visualizer motion should feel smooth and continuous during normal playback. The 
 - Audio playback remains stable while visualizers are enabled.
 - At least the heaviest existing visualizer is profiled and optimized or given a graceful lower-cost rendering path.
 
+## Lyric Mirror Tunnel Visualizer
+
+Status: Needs triage.
+
+Add a lyric-forward visualizer built around album-art-derived color, mirror-like depth, and beat-reactive lyric typography.
+
+### Current Behavior
+
+Existing visualizers are mostly abstract audio-reactive scenes. Lyrics can be shown in the Now Playing UI, but they are not the central visualizer subject.
+
+### Desired Behavior
+
+Create a visualizer where the song lyrics are the star. A colored line travels around the outer edge of the visualizer area with a long fading tail. The line color should match the brightest or most prominent useful color from the track cover art. On strong beats, nested rectangular outlines appear inside the outer box, like a multi-mirror reflection receding into distance. The nested boxes should use colors pulled from the album art and become fainter and more transparent as they move inward.
+
+The current lyric line should appear prominently in the center, wrapping when needed. The text should read as black letters with a white outline or drop shadow. On strong bass hits and near the transition to the next lyric line, the white outline/shadow should react: the outer edge of the letters should slowly burst outward, then fade quickly, while the black interior fades away more simply.
+
+### Goals
+
+- Make lyrics feel like the primary performance element, not an overlay.
+- Use album art colors for the perimeter tracer, mirror boxes, and accent reactions.
+- Keep lyric readability high even with active visuals behind it.
+- Sync lyric transitions to timed lyrics when available, with graceful fallback for untimed lyrics.
+- React more strongly to bass/beat energy than to general loudness.
+
+### Notes
+
+- The perimeter tracer tail should remain visible long enough that the moving front catches up to a still-visible tail.
+- The mirror-box effect should feel like depth or reflection, not simply stacked borders.
+- The lyric explosion should affect the outline/shadow more than the filled text.
+- Consider GPU/runtime-shader rendering if Compose text effects are too expensive or too limited.
+- This concept depends on reliable lyric timing, album-art palette extraction, and beat/bass signal quality.
+
+### Acceptance Criteria
+
+- The visualizer has a clear outer tracer with a long fading tail.
+- Beat events create nested, fading album-art-colored boxes inside the frame.
+- The current lyric line is readable, centered, and wraps cleanly.
+- Bass hits visibly affect the lyric styling without making the words unreadable.
+- Lyric line changes include the requested outline/shadow burst and quick fade.
+
+## Android Bluetooth Speaker Playback Crash
+
+Status: Needs investigation.
+
+Investigate an Android playback crash that occurs after switching from wireless Android Auto use to a regular Bluetooth speaker route.
+
+### Current Behavior
+
+After a successful wireless Android Auto drive session, switching to a regular Bluetooth speaker caused Naviamp to crash repeatedly after roughly a minute of playback. The issue became severe enough that another music app had to be used instead.
+
+### Desired Behavior
+
+Naviamp should remain stable when moving between Android Auto, phone playback, and standard Bluetooth audio routes. Route changes should not leave stale Android Auto, media session, audio focus, foreground service, or playback-engine state that later crashes normal Bluetooth playback.
+
+### Goals
+
+- Capture crash logs from a real device after reproducing the Android Auto to Bluetooth transition.
+- Determine whether the crash is in foreground service lifecycle, audio focus/noisy-route handling, media session updates, BASS playback, notification updates, or Android Auto browser/session cleanup.
+- Preserve the working wireless Android Auto behavior while fixing the Bluetooth route instability.
+- Add defensive handling or lifecycle tests around route/session transitions if a reproducible cause is found.
+
+### Notes
+
+- Repro path reported on July 4, 2026: wireless Android Auto in a truck worked normally; later, normal Bluetooth speaker playback crashed after about a minute.
+- Compare behavior after force-stopping Naviamp between the Android Auto session and Bluetooth playback to separate stale-session state from a general Bluetooth playback bug.
+- Check logcat for native crashes, foreground-service exceptions, media session errors, and repeated audio focus transitions.
+
+### Acceptance Criteria
+
+- The Android Auto to regular Bluetooth speaker transition can be reproduced or confidently ruled out.
+- Crash logs identify a concrete failure point.
+- Playback remains stable for at least 30 minutes on a regular Bluetooth speaker after an Android Auto session.
+- Android Auto playback remains stable after the fix.
+
 ## Configurable Download Path
 
 Status: Done.

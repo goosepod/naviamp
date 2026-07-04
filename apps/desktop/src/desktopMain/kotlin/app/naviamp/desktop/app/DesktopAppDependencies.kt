@@ -50,6 +50,7 @@ class DesktopAppDependencies(
             analyzer = DesktopAudioWaveformAnalyzer(),
             waveformsEnabled = { waveformsEnabledProvider() },
             waveformBucketCount = { waveformBucketCountProvider() },
+            cacheAudioBeforeAnalysis = { false },
             cacheAudioForWaveform = { sourceId, provider, track, quality ->
                 storage.cacheAudioTrack(sourceId, provider, track, quality).path.toPlaybackLocalAudio()
             },

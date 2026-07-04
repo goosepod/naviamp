@@ -19,6 +19,12 @@ fun analyzeBassFloatPcmWaveform(
     stream: BassStreamHandle,
     bucketCount: Int = DefaultWaveformBucketCount,
 ): AudioWaveform? {
+    bass.waveformLevels(stream, bucketCount)
+        .getOrNull()
+        ?.takeIf { it.isNotEmpty() }
+        ?.toList()
+        ?.let { levels -> return normalizeWaveformPeaks(levels, bucketCount) }
+
     val totalSamples = bass.lengthBytes(stream)
         ?.let { it / Float.SIZE_BYTES }
         ?: return null

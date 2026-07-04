@@ -51,6 +51,21 @@ class AudioWaveformTest {
     }
 
     @Test
+    fun prefersBassWaveformLevelsWhenAvailable() {
+        val waveform = analyzeBassFloatPcmWaveform(
+            bass = FakeBassAudioBackend(
+                chunks = listOf(floatArrayOf(0.1f)),
+                waveformLevels = floatArrayOf(0.25f, 1.0f),
+            ),
+            stream = BassStreamHandle(7),
+            bucketCount = 2,
+        )
+
+        assertNotNull(waveform)
+        assertEquals(listOf(0.25f, 1.0f), waveform.amplitudes)
+    }
+
+    @Test
     fun computesSeekSecondsFromFraction() {
         assertEquals(90.0, seekSecondsForFraction(0.5f, 180.0))
         assertEquals(180.0, seekSecondsForFraction(2f, 180.0))
@@ -59,9 +74,9 @@ class AudioWaveformTest {
 
     @Test
     fun buildsStableWaveformQualityKeys() {
-        assertEquals("original:waveform-v2", StreamQuality.Original.waveformCacheKey())
+        assertEquals("original:waveform-v3", StreamQuality.Original.waveformCacheKey())
         assertEquals(
-            "transcoded:opus:128:waveform-v2",
+            "transcoded:opus:128:waveform-v3",
             StreamQuality.Transcoded(AudioCodec.Opus, 128).waveformCacheKey(),
         )
     }
@@ -69,6 +84,7 @@ class AudioWaveformTest {
 
 private class FakeBassAudioBackend(
     private val chunks: List<FloatArray>,
+    private val waveformLevels: FloatArray? = null,
 ) : BassAudioBackend {
     private var chunkIndex = 0
 
@@ -80,6 +96,11 @@ private class FakeBassAudioBackend(
 
     override fun lengthBytes(stream: BassStreamHandle): Long =
         chunks.sumOf { it.size }.toLong() * Float.SIZE_BYTES
+
+    override fun waveformLevels(stream: BassStreamHandle, bucketCount: Int): Result<FloatArray> =
+        waveformLevels
+            ?.let { Result.success(it) }
+            ?: super.waveformLevels(stream, bucketCount)
 
     override fun readFloatData(stream: BassStreamHandle, buffer: FloatArray): Result<Int> {
         val chunk = chunks.getOrNull(chunkIndex++) ?: return Result.success(0)

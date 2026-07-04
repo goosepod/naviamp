@@ -54,6 +54,7 @@ struct BassApi {
     decltype(&::BASS_ChannelBytes2Seconds) BASS_ChannelBytes2Seconds = nullptr;
     decltype(&::BASS_ChannelGetLength) BASS_ChannelGetLength = nullptr;
     decltype(&::BASS_ChannelGetData) BASS_ChannelGetData = nullptr;
+    decltype(&::BASS_ChannelGetLevelEx) BASS_ChannelGetLevelEx = nullptr;
     decltype(&::BASS_GetVersion) BASS_GetVersion = nullptr;
     decltype(&::BASS_ErrorGetCode) BASS_ErrorGetCode = nullptr;
     decltype(&::BASS_Mixer_GetVersion) BASS_Mixer_GetVersion = nullptr;
@@ -106,6 +107,7 @@ bool load_bass_symbols() {
     ok = load_symbol(bassApi.bass, "BASS_ChannelBytes2Seconds", bassApi.BASS_ChannelBytes2Seconds) && ok;
     ok = load_symbol(bassApi.bass, "BASS_ChannelGetLength", bassApi.BASS_ChannelGetLength) && ok;
     ok = load_symbol(bassApi.bass, "BASS_ChannelGetData", bassApi.BASS_ChannelGetData) && ok;
+    ok = load_symbol(bassApi.bass, "BASS_ChannelGetLevelEx", bassApi.BASS_ChannelGetLevelEx) && ok;
     ok = load_symbol(bassApi.bass, "BASS_GetVersion", bassApi.BASS_GetVersion) && ok;
     ok = load_symbol(bassApi.bass, "BASS_ErrorGetCode", bassApi.BASS_ErrorGetCode) && ok;
     ok = load_symbol(bassApi.bassmix, "BASS_Mixer_GetVersion", bassApi.BASS_Mixer_GetVersion) && ok;
@@ -182,6 +184,7 @@ bool configure_windows_title_bar(JNIEnv* env, jobject window, bool isDark) {
 #define BASS_ChannelBytes2Seconds bassApi.BASS_ChannelBytes2Seconds
 #define BASS_ChannelGetLength bassApi.BASS_ChannelGetLength
 #define BASS_ChannelGetData bassApi.BASS_ChannelGetData
+#define BASS_ChannelGetLevelEx bassApi.BASS_ChannelGetLevelEx
 #define BASS_GetVersion bassApi.BASS_GetVersion
 #define BASS_ErrorGetCode bassApi.BASS_ErrorGetCode
 #define BASS_Mixer_GetVersion bassApi.BASS_Mixer_GetVersion
@@ -223,6 +226,46 @@ void configure_playback_buffers() {
     BASS_SetConfig(BASS_CONFIG_NET_PREBUF_WAIT, 1);
     BASS_SetConfig(BASS_CONFIG_NET_TIMEOUT, NETWORK_TIMEOUT_MILLIS);
     BASS_SetConfig(BASS_CONFIG_NET_READTIMEOUT, NETWORK_TIMEOUT_MILLIS);
+}
+
+jfloatArray waveform_levels(JNIEnv* env, jint stream, jint bucketCount) {
+    int safeBucketCount = std::max(1, std::min(static_cast<int>(bucketCount), 4096));
+    DWORD handle = static_cast<DWORD>(stream);
+    QWORD lengthBytes = BASS_ChannelGetLength(handle, BASS_POS_BYTE);
+    if (lengthBytes == static_cast<QWORD>(-1)) return env->NewFloatArray(0);
+    double durationSeconds = BASS_ChannelBytes2Seconds(handle, lengthBytes);
+    if (durationSeconds <= 0.0 || !std::isfinite(durationSeconds)) return env->NewFloatArray(0);
+
+    BASS_ChannelSetPosition(handle, 0, BASS_POS_BYTE);
+
+    std::vector<float> levels(static_cast<size_t>(safeBucketCount), 0.0f);
+    double bucketSeconds = durationSeconds / safeBucketCount;
+    bool anyLevel = false;
+    for (int bucket = 0; bucket < safeBucketCount; ++bucket) {
+        double remaining = bucketSeconds;
+        float peakLevel = 0.0f;
+        double measuredSeconds = 0.0;
+        while (remaining > 0.0001) {
+            float level = 0.0f;
+            float windowSeconds = static_cast<float>(std::min(remaining, 1.0));
+            if (!BASS_ChannelGetLevelEx(handle, &level, windowSeconds, BASS_LEVEL_MONO)) {
+                break;
+            }
+            float clampedLevel = std::max(0.0f, std::min(level, 1.0f));
+            peakLevel = std::max(peakLevel, clampedLevel);
+            measuredSeconds += windowSeconds;
+            remaining -= windowSeconds;
+            anyLevel = true;
+        }
+        if (measuredSeconds > 0.0) {
+            levels[static_cast<size_t>(bucket)] = peakLevel;
+        }
+    }
+
+    if (!anyLevel) return env->NewFloatArray(0);
+    jfloatArray result = env->NewFloatArray(static_cast<jsize>(safeBucketCount));
+    env->SetFloatArrayRegion(result, 0, static_cast<jsize>(safeBucketCount), levels.data());
+    return result;
 }
 
 BOOL configure_internet_streams() {
@@ -748,6 +791,12 @@ Java_app_naviamp_android_playback_AndroidBassJni_nativeFft(JNIEnv* env, jobject 
     return result;
 }
 
+extern "C" JNIEXPORT jfloatArray JNICALL
+Java_app_naviamp_android_playback_AndroidBassJni_nativeWaveformLevels(JNIEnv* env, jobject thiz, jint stream, jint bucketCount) {
+    (void)thiz;
+    return waveform_levels(env, stream, bucketCount);
+}
+
 extern "C" JNIEXPORT jint JNICALL
 Java_app_naviamp_android_playback_AndroidBassJni_nativeReadFloatData(JNIEnv* env, jobject thiz, jint stream, jfloatArray output) {
     (void)thiz;
@@ -1038,6 +1087,12 @@ Java_app_naviamp_desktop_playback_bass_DesktopBassJniBinding_nativeFft(JNIEnv* e
     jfloatArray result = env->NewFloatArray(static_cast<jsize>(safeBins));
     env->SetFloatArrayRegion(result, 0, static_cast<jsize>(safeBins), buffer.data());
     return result;
+}
+
+extern "C" JNIEXPORT jfloatArray JNICALL
+Java_app_naviamp_desktop_playback_bass_DesktopBassJniBinding_nativeWaveformLevels(JNIEnv* env, jobject thiz, jint stream, jint bucketCount) {
+    (void)thiz;
+    return waveform_levels(env, stream, bucketCount);
 }
 
 extern "C" JNIEXPORT jint JNICALL

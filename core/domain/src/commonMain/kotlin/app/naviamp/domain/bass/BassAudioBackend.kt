@@ -217,6 +217,9 @@ interface BassAudioBackend {
 
     fun lengthBytes(stream: BassStreamHandle): Long?
 
+    fun waveformLevels(stream: BassStreamHandle, bucketCount: Int): Result<FloatArray> =
+        unsupportedBassOperation("BASS waveform level analysis")
+
     fun readFloatData(stream: BassStreamHandle, buffer: FloatArray): Result<Int>
 
     fun fft(stream: BassStreamHandle, bins: Int): Result<FloatArray> =

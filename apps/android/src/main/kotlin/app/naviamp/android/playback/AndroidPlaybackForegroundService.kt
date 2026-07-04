@@ -2,6 +2,7 @@ package app.naviamp.android.playback
 
 import android.app.Notification
 import android.app.NotificationChannel
+import android.app.ForegroundServiceStartNotAllowedException
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.BroadcastReceiver
@@ -80,6 +81,7 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
     private var mediaSession: MediaSessionCompat? = null
     private var browserSessionTokenSet = false
     private var serviceStorageInstance: AndroidStorageDependencies? = null
+    private var loadingNotificationCoverArtUrl: String? = null
     private val notificationArtHttpClient = KtorSharedHttpClient()
     private val serviceStorage: AndroidStorageDependencies
         get() = serviceStorageInstance ?: AndroidStorageDependencies(applicationContext).also { serviceStorageInstance = it }
@@ -158,6 +160,7 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
 
     override fun onCreate() {
         super.onCreate()
+        serviceCreated = true
         ensureNotificationChannel()
         ensureMediaSession()
         hydrateSavedPlaybackSession()
@@ -167,9 +170,12 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
     override fun onDestroy() {
         pausePlaybackForRouteDisconnect("service destroyed")
         runCatching { unregisterReceiver(noisyAudioReceiver) }
+        mediaSession?.setCallback(null)
         mediaSession?.release()
         mediaSession = null
         browserSessionTokenSet = false
+        resetMediaSessionPublishState()
+        serviceCreated = false
         super.onDestroy()
     }
 
@@ -249,24 +255,41 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
                 }
                 return START_STICKY
             }
+            ActionUpdate -> {
+                refreshNotification(intent)
+                return START_STICKY
+            }
             else -> {
                 ensureNotificationChannel()
                 val metadata = intent.toMetadata()
-                startForeground(NotificationId, buildNotification(metadata, largeIcon = null))
-                updateMediaSession(metadata, currentLargeIcon)
-                metadata.coverArtUrl?.let { coverArtUrl ->
-                    loadCoverArtAsync(coverArtUrl, metadata)
+                if (!startForegroundSafely(metadata)) {
+                    stopSelf(startId)
+                    return START_NOT_STICKY
                 }
+                loadCoverArtIfNeeded(metadata)
                 return START_STICKY
             }
         }
     }
 
+    private fun startForegroundSafely(metadata: AndroidPlaybackNotificationMetadata): Boolean =
+        runCatching {
+            startForeground(NotificationId, buildNotification(metadata, largeIcon = null))
+        }.onFailure { error ->
+            val notAllowed = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
+                error is ForegroundServiceStartNotAllowedException
+            if (notAllowed) {
+                Log.w("NaviampAutoCommand", "Android rejected playback foreground start from background", error)
+            } else {
+                Log.w("NaviampAutoCommand", "Could not promote playback service to foreground", error)
+            }
+        }.isSuccess
+
     private fun refreshNotification(intent: Intent?) {
         val manager = getSystemService(NotificationManager::class.java)
         val metadata = intent.toMetadata()
         manager.notify(NotificationId, buildNotification(metadata, largeIcon = null))
-        updateMediaSession(metadata, currentLargeIcon)
+        loadCoverArtIfNeeded(metadata)
     }
 
     private fun buildNotification(
@@ -353,18 +376,36 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
         )
 
     private fun loadCoverArtAsync(coverArtUrl: String, metadata: AndroidPlaybackNotificationMetadata) {
+        loadingNotificationCoverArtUrl = coverArtUrl
         thread(name = "naviamp-notification-art") {
             val bitmap = runCatching {
                 runBlocking {
                     notificationCoverArtBytes(coverArtUrl)
                         ?.let { decodeSampledBitmap(it, NotificationCoverArtSidePx) }
                 }
-            }.getOrNull() ?: return@thread
-            if (currentMetadata.coverArtUrl != coverArtUrl) return@thread
+            }.getOrNull() ?: run {
+                if (loadingNotificationCoverArtUrl == coverArtUrl) {
+                    loadingNotificationCoverArtUrl = null
+                }
+                return@thread
+            }
+            if (currentMetadata.coverArtUrl != coverArtUrl) {
+                if (loadingNotificationCoverArtUrl == coverArtUrl) {
+                    loadingNotificationCoverArtUrl = null
+                }
+                return@thread
+            }
+            loadingNotificationCoverArtUrl = null
             val manager = getSystemService(NotificationManager::class.java)
             manager.notify(NotificationId, buildNotification(metadata, largeIcon = bitmap))
-            updateMediaSession(metadata, bitmap)
         }
+    }
+
+    private fun loadCoverArtIfNeeded(metadata: AndroidPlaybackNotificationMetadata) {
+        val coverArtUrl = metadata.coverArtUrl?.takeIf { it.isNotBlank() } ?: return
+        if (currentLargeIcon != null && currentMetadata.coverArtUrl == coverArtUrl) return
+        if (loadingNotificationCoverArtUrl == coverArtUrl) return
+        loadCoverArtAsync(coverArtUrl, metadata)
     }
 
     private suspend fun notificationCoverArtBytes(url: String): ByteArray? {
@@ -1525,6 +1566,7 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
 
     private fun ensureMediaSession(): MediaSessionCompat =
         mediaSession ?: MediaSessionCompat(this, "NaviampPlayback").apply {
+            resetMediaSessionPublishState()
             setCallback(
                 object : MediaSessionCompat.Callback() {
                     override fun onPlay() {
@@ -1564,6 +1606,26 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
                         handleAutoSeek(pos)
                     }
 
+                    override fun onRewind() {
+                        seekServiceOwnedPlayback(
+                            ((AndroidPlaybackNotificationControls.positionMillis ?: 0L) - MediaSessionSeekStepMillis)
+                                .coerceAtLeast(0L),
+                        )
+                    }
+
+                    override fun onFastForward() {
+                        val currentPosition = AndroidPlaybackNotificationControls.positionMillis ?: 0L
+                        val duration = AndroidPlaybackNotificationControls.durationMillis
+                        val nextPosition = currentPosition + MediaSessionSeekStepMillis
+                        seekServiceOwnedPlayback(
+                            if (duration != null && duration > 0L) {
+                                nextPosition.coerceAtMost(duration)
+                            } else {
+                                nextPosition
+                            },
+                        )
+                    }
+
                     override fun onPlayFromMediaId(mediaId: String, extras: Bundle?) {
                         autoCommandController.playFromMediaId(mediaId, extras)
                     }
@@ -1577,13 +1639,19 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
                     }
                 },
             )
-            isActive = true
+            publishPlaybackState(this)
             if (!browserSessionTokenSet) {
                 setSessionToken(sessionToken)
                 browserSessionTokenSet = true
             }
             this@AndroidPlaybackForegroundService.mediaSession = this
         }
+
+    private fun resetMediaSessionPublishState() {
+        lastPublishedAutoQueueSignature = null
+        lastPublishedMediaMetadataSignature = null
+        lastPublishedPlaybackStateSignature = null
+    }
 
     override fun onGetRoot(
         clientPackageName: String,
@@ -1627,34 +1695,56 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
 
     private fun updateMediaSession(metadata: AndroidPlaybackNotificationMetadata, largeIcon: Bitmap?) {
         val session = ensureMediaSession()
-        session.isActive = true
         currentMediaSessionDurationMillis = currentPlaybackDurationMillis()
         publishAutoQueue(session)
-        session.setMetadata(
-            MediaMetadataCompat.Builder()
-                .putString(MediaMetadataCompat.METADATA_KEY_TITLE, metadata.title.orEmpty())
-                .putString(MediaMetadataCompat.METADATA_KEY_ARTIST, metadata.subtitle.orEmpty())
-                .apply {
-                    currentMediaSessionDurationMillis?.takeIf { it > 0L }?.let { duration ->
-                        putLong(MediaMetadataCompat.METADATA_KEY_DURATION, duration)
+        val metadataSignature = mediaMetadataSignature(metadata, currentMediaSessionDurationMillis, largeIcon)
+        if (metadataSignature != lastPublishedMediaMetadataSignature) {
+            lastPublishedMediaMetadataSignature = metadataSignature
+            session.setMetadata(
+                MediaMetadataCompat.Builder()
+                    .putString(MediaMetadataCompat.METADATA_KEY_MEDIA_ID, currentMediaSessionMediaId())
+                    .putString(MediaMetadataCompat.METADATA_KEY_TITLE, metadata.title.orEmpty())
+                    .putString(MediaMetadataCompat.METADATA_KEY_ARTIST, metadata.subtitle.orEmpty())
+                    .apply {
+                        currentAutoQueue.getOrNull(currentAutoQueueIndex)?.albumTitle?.takeIf { it.isNotBlank() }?.let { album ->
+                            putString(MediaMetadataCompat.METADATA_KEY_ALBUM, album)
+                        }
                     }
-                }
-                .apply {
-                    largeIcon?.let { art ->
-                        putBitmap(MediaMetadataCompat.METADATA_KEY_ALBUM_ART, art)
-                        putBitmap(MediaMetadataCompat.METADATA_KEY_ART, art)
+                    .apply {
+                        currentMediaSessionDurationMillis?.takeIf { it > 0L }?.let { duration ->
+                            putLong(MediaMetadataCompat.METADATA_KEY_DURATION, duration)
+                        }
                     }
-                }
-                .build(),
-        )
-        val favoriteIcon = if (AndroidPlaybackNotificationControls.isFavorite) {
-            R.drawable.ic_favorite_filled_24
-        } else {
-            R.drawable.ic_favorite_24
+                    .apply {
+                        largeIcon?.let { art ->
+                            putBitmap(MediaMetadataCompat.METADATA_KEY_ALBUM_ART, art)
+                            putBitmap(MediaMetadataCompat.METADATA_KEY_ART, art)
+                        }
+                    }
+                    .build(),
+            )
         }
-        val favoriteTitle = if (AndroidPlaybackNotificationControls.isFavorite) "Unfavorite" else "Favorite"
-        session.setPlaybackState(buildPlaybackState(favoriteTitle, favoriteIcon))
+        publishPlaybackState(session)
+        session.isActive = true
     }
+
+    private fun mediaMetadataSignature(
+        metadata: AndroidPlaybackNotificationMetadata,
+        durationMillis: Long?,
+        largeIcon: Bitmap?,
+    ): String =
+        listOf(
+            currentMediaSessionMediaId(),
+            metadata.title.orEmpty(),
+            metadata.subtitle.orEmpty(),
+            durationMillis?.toString().orEmpty(),
+            largeIcon?.generationId?.toString().orEmpty(),
+        ).joinToString("|")
+
+    private fun currentMediaSessionMediaId(): String =
+        currentAutoQueue.getOrNull(currentAutoQueueIndex)?.id?.value
+            ?: currentMetadata.coverArtUrl?.takeIf { it.isNotBlank() }
+            ?: "naviamp-now-playing"
 
     private fun currentPlaybackDurationMillis(): Long? =
         AndroidPlaybackNotificationControls.durationMillis
@@ -1756,7 +1846,7 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
 
     private fun publishAutoQueue(session: MediaSessionCompat) {
         val queue = currentAutoQueue
-        val queueSignature = queue.joinToString("|") { it.id.value }
+        val queueSignature = "$currentAutoQueueIndex:${queue.joinToString("|") { it.id.value }}"
         if (queueSignature == lastPublishedAutoQueueSignature) return
         lastPublishedAutoQueueSignature = queueSignature
         if (queue.isEmpty()) {
@@ -1804,11 +1894,18 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
 
     private fun updateMediaSessionPlaybackState() {
         val session = ensureMediaSession()
-        session.isActive = true
         if (currentMediaSessionDurationMillis != currentPlaybackDurationMillis()) {
             updateMediaSession(currentMetadata, currentLargeIcon)
             return
         }
+        publishPlaybackState(session)
+        session.isActive = true
+    }
+
+    private fun publishPlaybackState(session: MediaSessionCompat) {
+        val stateSignature = playbackStateSignature()
+        if (stateSignature == lastPublishedPlaybackStateSignature) return
+        lastPublishedPlaybackStateSignature = stateSignature
         val favoriteIcon = if (AndroidPlaybackNotificationControls.isFavorite) {
             R.drawable.ic_favorite_filled_24
         } else {
@@ -1817,6 +1914,19 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
         val favoriteTitle = if (AndroidPlaybackNotificationControls.isFavorite) "Unfavorite" else "Favorite"
         session.setPlaybackState(buildPlaybackState(favoriteTitle, favoriteIcon))
     }
+
+    private fun playbackStateSignature(): String =
+        listOf(
+            AndroidPlaybackNotificationControls.isPlaying.toString(),
+            AndroidPlaybackNotificationControls.positionMillis?.toString().orEmpty(),
+            AndroidPlaybackNotificationControls.durationMillis?.toString().orEmpty(),
+            AndroidPlaybackNotificationControls.canFavorite.toString(),
+            AndroidPlaybackNotificationControls.isFavorite.toString(),
+            serviceShuffleEnabled.toString(),
+            serviceRepeatMode.name,
+            currentAutoQueueIndex.toString(),
+            currentAutoQueue.getOrNull(currentAutoQueueIndex)?.id?.value.orEmpty(),
+        ).joinToString("|")
 
     private fun buildPlaybackState(
         favoriteTitle: String,
@@ -1827,8 +1937,10 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
                 PlaybackStateCompat.ACTION_PLAY or
                     PlaybackStateCompat.ACTION_PAUSE or
                     PlaybackStateCompat.ACTION_PLAY_PAUSE or
+                    PlaybackStateCompat.ACTION_REWIND or
                     PlaybackStateCompat.ACTION_SKIP_TO_PREVIOUS or
                     PlaybackStateCompat.ACTION_SKIP_TO_NEXT or
+                    PlaybackStateCompat.ACTION_FAST_FORWARD or
                     PlaybackStateCompat.ACTION_SKIP_TO_QUEUE_ITEM or
                     PlaybackStateCompat.ACTION_PLAY_FROM_SEARCH or
                     PlaybackStateCompat.ACTION_SEEK_TO or
@@ -1921,8 +2033,10 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
         private const val ActionShuffle = "app.naviamp.android.playback.SHUFFLE"
         private const val ActionRepeat = "app.naviamp.android.playback.REPEAT"
         private const val ActionTrackRadio = "app.naviamp.android.playback.TRACK_RADIO"
+        private const val ActionUpdate = "app.naviamp.android.playback.UPDATE"
         private const val ActionProgress = "app.naviamp.android.playback.PROGRESS"
         private const val AndroidAutoBrowseLimit = 50
+        private const val MediaSessionSeekStepMillis = 10_000L
         private const val ExtraTitle = "title"
         private const val ExtraSubtitle = "subtitle"
         private const val ExtraCoverArtUrl = "coverArtUrl"
@@ -1936,8 +2050,12 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
         private var currentAutoQueue: List<Track> = emptyList()
         private var currentAutoQueueIndex: Int = -1
         private var lastPublishedAutoQueueSignature: String? = null
+        private var lastPublishedMediaMetadataSignature: String? = null
+        private var lastPublishedPlaybackStateSignature: String? = null
         private var serviceShuffleEnabled = false
         private var serviceRepeatMode = ServiceRepeatMode.Off
+        @Volatile
+        private var serviceCreated = false
 
         fun start(context: Context, metadata: AndroidPlaybackNotificationMetadata) {
             val intent = Intent(context, AndroidPlaybackForegroundService::class.java)
@@ -1957,7 +2075,17 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
         }
 
         fun update(context: Context, metadata: AndroidPlaybackNotificationMetadata) {
-            start(context, metadata)
+            if (!serviceCreated) return
+            val intent = Intent(context, AndroidPlaybackForegroundService::class.java)
+                .setAction(ActionUpdate)
+                .putExtra(ExtraTitle, metadata.title)
+                .putExtra(ExtraSubtitle, metadata.subtitle)
+                .putExtra(ExtraCoverArtUrl, metadata.coverArtUrl)
+            runCatching {
+                context.startService(intent)
+            }.onFailure { error ->
+                Log.w("NaviampAutoCommand", "Could not update playback foreground service", error)
+            }
         }
 
         fun stop(context: Context) {
@@ -1973,6 +2101,7 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
         }
 
         fun updateProgress(context: Context, positionMillis: Long?, durationMillis: Long?) {
+            if (!serviceCreated) return
             runCatching {
                 context.startService(
                     Intent(context, AndroidPlaybackForegroundService::class.java)

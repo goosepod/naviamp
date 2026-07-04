@@ -239,7 +239,7 @@ class NowPlayingSidecarsTest {
         )
 
         assertEquals(
-            listOf("audio", "waveform", "waveform-ready", "tags", "tags-ready:1", "lyrics", "lyrics-ready"),
+            listOf("waveform", "waveform-ready", "audio", "tags", "tags-ready:1", "lyrics", "lyrics-ready"),
             events,
         )
     }
@@ -268,7 +268,7 @@ class NowPlayingSidecarsTest {
     }
 
     @Test
-    fun runCurrentTrackSidecarsStopsWhenInactiveOrAudioPrepFails() = runTest {
+    fun runCurrentTrackSidecarsStopsWhenInactiveOrAudioPrepFailsAfterWaveform() = runTest {
         val inactiveEvents = mutableListOf<String>()
         runCurrentTrackSidecars(
             work = currentSidecarWork(loadLyrics = true),
@@ -292,8 +292,15 @@ class NowPlayingSidecarsTest {
                 failedAudioEvents += "waveform"
                 null
             },
+            onWaveformReady = {
+                failedAudioEvents += "waveform-ready"
+            },
+            prepareAudioTags = {
+                failedAudioEvents += "tags"
+                emptyList()
+            },
         )
-        assertEquals(listOf("audio"), failedAudioEvents)
+        assertEquals(listOf("waveform", "waveform-ready", "audio"), failedAudioEvents)
     }
 
     @Test

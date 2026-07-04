@@ -190,18 +190,18 @@ suspend fun <Provider> runCurrentTrackSidecars(
 ) {
     if (!isActive()) return
     runCatching {
-        prepareAudio(work)
-    }.onFailure {
-        return
-    }
-
-    if (!isActive()) return
-    runCatching {
         prepareWaveform(work)
     }.onSuccess { waveform ->
         if (isActive()) onWaveformReady(waveform)
     }.onFailure { error ->
         if (isActive()) onWaveformFailed(error)
+    }
+
+    if (!isActive()) return
+    runCatching {
+        prepareAudio(work)
+    }.onFailure {
+        return
     }
 
     if (!isActive()) return

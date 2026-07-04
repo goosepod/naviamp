@@ -88,7 +88,7 @@ fun NaviampAndroidApp(
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
-    val dependencies = remember(context) { AndroidAppDependencies(context) }
+    val dependencies = remember(context) { AndroidAppDependencyStore.get(context) }
     val playbackRuntime = dependencies.playbackRuntime
     val scope = playbackRuntime.scope
     val bassLoadReport = playbackRuntime.bassLoadReport
@@ -99,9 +99,6 @@ fun NaviampAndroidApp(
     val playbackAudioAssets = dependencies.playbackAudioAssets
     val audioMetadataSidecarService = dependencies.audioMetadataSidecarService
     val lyricsSidecarService = dependencies.lyricsSidecarService
-    DisposableEffect(dependencies) {
-        onDispose { dependencies.close() }
-    }
     val settingsStore = dependencies.settingsStore
     val savedProviderSource = remember { storage.latestNavidromeSource() }
     val savedMediaSources = remember { storage.mediaSources().visibleServerConnections(savedProviderSource?.id) }
