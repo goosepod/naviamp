@@ -14,6 +14,10 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.nativeCanvas
+import java.awt.Font
+import java.awt.RenderingHints
+import java.awt.image.BufferedImage
+import java.awt.Color as AwtColor
 import java.util.Locale
 import org.jetbrains.skia.ColorAlphaType
 import org.jetbrains.skia.ColorType
@@ -36,6 +40,7 @@ internal actual fun PlatformLiveVisualizerSurface(
     active: Boolean,
     tempoBpm: Int?,
     colors: NaviampColors,
+    lyricLine: LyricMirrorTunnelLine?,
     modifier: Modifier,
 ) {
     var frameMillis by remember { mutableLongStateOf(0L) }
@@ -68,13 +73,13 @@ internal actual fun PlatformLiveVisualizerSurface(
             }
         }
     }
-    LaunchedEffect(coverArtUrl, visualizer) {
-        albumArtImage = if (coverArtUrl != null &&
-            (visualizer.usesAlbumArtShader || visualizer.nativeShaderDefinition != null)
-        ) {
-            runCatching { jvmPlatformCoverArtShaderImage(coverArtUrl) }.getOrNull()
-        } else {
-            null
+    LaunchedEffect(coverArtUrl, visualizer, lyricLine?.text) {
+        albumArtImage = when {
+            visualizer == NaviampVisualizer.LyricMirrorTunnel ->
+                jvmLyricMaskShaderImage(lyricLine?.text.orEmpty())
+            coverArtUrl != null && (visualizer.usesAlbumArtShader || visualizer.nativeShaderDefinition != null) ->
+                runCatching { jvmPlatformCoverArtShaderImage(coverArtUrl) }.getOrNull()
+            else -> null
         }
     }
 
@@ -88,20 +93,33 @@ internal actual fun PlatformLiveVisualizerSurface(
             colors = colors,
             albumArtImage = albumArtImage,
             frameMillis = frameMillis,
+            lyricLine = lyricLine,
             tempoBpm = tempoBpm,
             modifier = modifier,
         )
         return
     }
     if (rendererMode == VisualizerRendererMode.Canvas) {
-        SpectrumBarsVisualizerSurface(
-            bandsProvider = bandsProvider,
-            visualizerColors = visualizerColors,
-            active = active,
-            colors = colors,
-            renderPolicy = renderPolicy,
-            modifier = modifier,
-        )
+        if (visualizer == NaviampVisualizer.LyricMirrorTunnel) {
+            LyricMirrorTunnelVisualizerSurface(
+                bandsProvider = bandsProvider,
+                visualizerColors = visualizerColors,
+                active = active,
+                colors = colors,
+                lyricLine = lyricLine,
+                renderPolicy = renderPolicy,
+                modifier = modifier,
+            )
+        } else {
+            SpectrumBarsVisualizerSurface(
+                bandsProvider = bandsProvider,
+                visualizerColors = visualizerColors,
+                active = active,
+                colors = colors,
+                renderPolicy = renderPolicy,
+                modifier = modifier,
+            )
+        }
         return
     }
 
@@ -158,6 +176,7 @@ private fun NativeDesktopVisualizerSurface(
     colors: NaviampColors,
     albumArtImage: Image?,
     frameMillis: Long,
+    lyricLine: LyricMirrorTunnelLine?,
     tempoBpm: Int?,
     modifier: Modifier,
 ) {
@@ -196,6 +215,7 @@ private fun NativeDesktopVisualizerSurface(
             colors = colors,
             timeSeconds = frameMillis / 1000f,
             tempoBpm = tempoBpm,
+            lyricProgress = lyricLine?.progressToNext ?: 0f,
         )
         if (image != null) {
             drawIntoCanvas { canvas ->
@@ -254,6 +274,7 @@ private interface NativeDesktopVisualizerHost : AutoCloseable {
         colors: NaviampColors,
         timeSeconds: Float,
         tempoBpm: Int?,
+        lyricProgress: Float,
     ): Image?
 }
 
@@ -281,6 +302,7 @@ private class NativeMetalDesktopVisualizerHost(
         colors: NaviampColors,
         timeSeconds: Float,
         tempoBpm: Int?,
+        lyricProgress: Float,
     ): Image? = host.renderImage(width, height, bands, active, visualizerColors, colors, timeSeconds, tempoBpm)
 
     override fun close() = host.close()
@@ -300,7 +322,8 @@ private class NativeOpenGlDesktopVisualizerHost(
         colors: NaviampColors,
         timeSeconds: Float,
         tempoBpm: Int?,
-    ): Image? = host.renderImage(width, height, bands, active, visualizerColors, colors, timeSeconds, tempoBpm)
+        lyricProgress: Float,
+    ): Image? = host.renderImage(width, height, bands, active, visualizerColors, colors, timeSeconds, tempoBpm, lyricProgress)
 
     override fun close() = host.close()
 }
@@ -633,6 +656,96 @@ private fun nativeDesktopVisualizerPixelScale(density: Float): Float =
         1f
     }
 
+private fun jvmLyricMaskShaderImage(text: String): Image {
+    val width = 768
+    val height = 256
+    val image = BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB)
+    val graphics = image.createGraphics()
+    graphics.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON)
+    graphics.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON)
+    graphics.color = AwtColor(0, 0, 0, 0)
+    graphics.fillRect(0, 0, width, height)
+    graphics.color = AwtColor.WHITE
+    val layout = selectJvmLyricMaskLayout(graphics, text.ifBlank { " " }, width - 92, height - 34)
+    graphics.font = layout.font
+    val lines = layout.lines
+    val lineHeight = graphics.fontMetrics.height
+    val totalHeight = lineHeight * lines.size
+    var y = (height - totalHeight) / 2 + graphics.fontMetrics.ascent
+    lines.forEach { line ->
+        val x = (width - graphics.fontMetrics.stringWidth(line)) / 2
+        graphics.drawString(line, x.coerceAtLeast(8), y)
+        y += lineHeight
+    }
+    graphics.dispose()
+
+    val rgba = ByteArray(width * height * 4)
+    var offset = 0
+    for (row in 0 until height) {
+        for (column in 0 until width) {
+            val argb = image.getRGB(column, row)
+            val alpha = (argb ushr 24).toByte()
+            rgba[offset] = 255.toByte()
+            rgba[offset + 1] = 255.toByte()
+            rgba[offset + 2] = 255.toByte()
+            rgba[offset + 3] = alpha
+            offset += 4
+        }
+    }
+    return Image.makeRaster(
+        ImageInfo(width, height, ColorType.RGBA_8888, ColorAlphaType.PREMUL),
+        rgba,
+        width * 4,
+    )
+}
+
+private data class JvmLyricMaskLayout(
+    val font: Font,
+    val lines: List<String>,
+)
+
+private fun selectJvmLyricMaskLayout(
+    graphics: java.awt.Graphics2D,
+    text: String,
+    maxWidth: Int,
+    maxHeight: Int,
+): JvmLyricMaskLayout {
+    for (fontSize in 74 downTo 34 step 2) {
+        val font = Font(Font.SANS_SERIF, Font.BOLD, fontSize)
+        graphics.font = font
+        val lines = text.wrapLyricMaskLines(graphics.fontMetrics, maxWidth).take(3)
+        val fitsWidth = lines.all { graphics.fontMetrics.stringWidth(it) <= maxWidth }
+        val fitsHeight = graphics.fontMetrics.height * lines.size <= maxHeight
+        if (fitsWidth && fitsHeight) {
+            return JvmLyricMaskLayout(font, lines)
+        }
+    }
+    val fallback = Font(Font.SANS_SERIF, Font.BOLD, 34)
+    graphics.font = fallback
+    return JvmLyricMaskLayout(fallback, text.wrapLyricMaskLines(graphics.fontMetrics, maxWidth).take(3))
+}
+
+private fun String.wrapLyricMaskLines(
+    fontMetrics: java.awt.FontMetrics,
+    maxWidth: Int,
+): List<String> {
+    val words = trim().split(Regex("\\s+")).filter { it.isNotBlank() }
+    if (words.isEmpty()) return listOf(" ")
+    val lines = mutableListOf<String>()
+    var current = ""
+    words.forEach { word ->
+        val candidate = if (current.isBlank()) word else "$current $word"
+        if (fontMetrics.stringWidth(candidate) <= maxWidth || current.isBlank()) {
+            current = candidate
+        } else {
+            lines += current
+            current = word
+        }
+    }
+    if (current.isNotBlank()) lines += current
+    return lines
+}
+
 internal fun jvmNativeVisualizerAvailable(
     visualizer: NaviampVisualizer,
     osName: String = System.getProperty("os.name"),
@@ -665,7 +778,8 @@ internal fun jvmNativeMetalVisualizerAvailable(
     enabledProperty: String? = System.getProperty(MacosMetalVisualizerProperty),
     libraryAvailable: Boolean = NativeMetalVisualizerHost.libraryAvailable(),
 ): Boolean {
-    val enabled = enabledProperty.equals("true", ignoreCase = true)
+    val enabled = enabledProperty.equals("true", ignoreCase = true) ||
+        visualizer == NaviampVisualizer.LyricMirrorTunnel
     val macos = osName.lowercase(Locale.US).contains("mac")
     val shaderDefinition = visualizer.nativeShaderDefinition
     val shaderTranslates = shaderDefinition?.let {

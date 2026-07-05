@@ -518,6 +518,7 @@ Java_app_naviamp_ui_NativeOpenGlVisualizerHost_nativeRenderImage(
     jfloat timeSeconds,
     jboolean active,
     jfloat tempoBpm,
+    jfloat lyricProgress,
     jfloat renderScale,
     jint maxRaymarchSteps,
     jfloatArray bandsArray,
@@ -598,6 +599,7 @@ Java_app_naviamp_ui_NativeOpenGlVisualizerHost_nativeRenderImage(
     host->gl.uniform1f(uniform(host->gl, host->program, "u_trebleLevel"), highs);
     host->gl.uniform1f(uniform(host->gl, host->program, "u_spectralCentroid"), spectralCentroid);
     host->gl.uniform1f(uniform(host->gl, host->program, "u_tempoBpm"), std::clamp(tempoBpm, 60.0f, 220.0f));
+    host->gl.uniform1f(uniform(host->gl, host->program, "u_lyricProgress"), std::clamp(lyricProgress, 0.0f, 1.0f));
     host->gl.uniform1f(uniform(host->gl, host->program, "u_beatDetected"), beatDetected);
     host->gl.uniform1f(uniform(host->gl, host->program, "u_active"), active == JNI_TRUE ? 1.0f : 0.0f);
     host->gl.uniform1f(uniform(host->gl, host->program, "u_renderScale"), renderScale);
@@ -647,6 +649,7 @@ Java_app_naviamp_ui_NativeOpenGlVisualizerHost_nativeRenderSurface(
     jfloat timeSeconds,
     jboolean active,
     jfloat tempoBpm,
+    jfloat lyricProgress,
     jfloat renderScale,
     jint maxRaymarchSteps,
     jfloatArray bandsArray,
@@ -728,6 +731,7 @@ Java_app_naviamp_ui_NativeOpenGlVisualizerHost_nativeRenderSurface(
     host->gl.uniform1f(uniform(host->gl, host->program, "u_trebleLevel"), highs);
     host->gl.uniform1f(uniform(host->gl, host->program, "u_spectralCentroid"), spectralCentroid);
     host->gl.uniform1f(uniform(host->gl, host->program, "u_tempoBpm"), std::clamp(tempoBpm, 60.0f, 220.0f));
+    host->gl.uniform1f(uniform(host->gl, host->program, "u_lyricProgress"), std::clamp(lyricProgress, 0.0f, 1.0f));
     host->gl.uniform1f(uniform(host->gl, host->program, "u_beatDetected"), beatDetected);
     host->gl.uniform1f(uniform(host->gl, host->program, "u_active"), active == JNI_TRUE ? 1.0f : 0.0f);
     host->gl.uniform1f(uniform(host->gl, host->program, "u_renderScale"), renderScale);

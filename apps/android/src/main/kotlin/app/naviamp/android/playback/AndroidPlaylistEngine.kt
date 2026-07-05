@@ -33,6 +33,7 @@ import app.naviamp.domain.playback.runAudioPrefetch
 import app.naviamp.domain.playback.runCurrentTrackSidecars
 import app.naviamp.domain.playback.waveformUnavailableStatus
 import app.naviamp.domain.queue.PlaybackQueue
+import app.naviamp.ui.NaviampVisualizer
 import app.naviamp.domain.waveform.AudioWaveformService
 import app.naviamp.provider.navidrome.NavidromeProvider
 import java.io.File
@@ -213,7 +214,7 @@ class AndroidPlaylistEngine(
             quality = currentStreamQuality(),
             audioCachingEnabled = true,
             onlineLyricsEnabled = state.playbackSettings.lrclibLyricsEnabled,
-            lyricsVisible = state.lyricsVisible,
+            lyricsVisible = state.lyricsVisible || state.selectedVisualizer == NaviampVisualizer.LyricMirrorTunnel,
         ) ?: return
         state.sidecarPrepJob = scope.launch {
             runCurrentTrackSidecars(

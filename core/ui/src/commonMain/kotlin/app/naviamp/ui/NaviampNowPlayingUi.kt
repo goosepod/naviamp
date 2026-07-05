@@ -263,6 +263,7 @@ fun NaviampNowPlayingPanel(
                         .fillMaxHeight(),
                 ) {
                     NowPlayingArtSurface(
+                        nowPlaying = nowPlaying,
                         coverArtUrl = nowPlaying.coverArtUrl,
                         colors = colors,
                         size = artSize,
@@ -356,6 +357,7 @@ fun NaviampNowPlayingPanel(
                             }
                         } else {
                             NowPlayingArtSurface(
+                                nowPlaying = nowPlaying,
                                 coverArtUrl = nowPlaying.coverArtUrl,
                                 colors = colors,
                                 size = artSize,
@@ -405,6 +407,7 @@ fun NaviampNowPlayingPanel(
                             )
                         } else {
                             NowPlayingArtSurface(
+                                nowPlaying = nowPlaying,
                                 coverArtUrl = nowPlaying.coverArtUrl,
                                 colors = colors,
                                 size = artSize,
@@ -454,6 +457,7 @@ fun NaviampNowPlayingPanel(
 
 @Composable
 private fun NowPlayingArtSurface(
+    nowPlaying: NowPlayingUi,
     coverArtUrl: String?,
     colors: NaviampColors,
     size: Dp,
@@ -489,6 +493,7 @@ private fun NowPlayingArtSurface(
                 active = visualizerActive,
                 tempoBpm = tempoBpm,
                 colors = colors,
+                lyricLine = nowPlaying.currentLyricMirrorTunnelLine(),
                 modifier = Modifier
                     .fillMaxSize(),
             )
@@ -1214,6 +1219,31 @@ private fun String.compactAudioInfoParts(): Pair<String, String> {
     }
 }
 
+private fun NowPlayingUi.currentLyricMirrorTunnelLine(): LyricMirrorTunnelLine? {
+    val positionMillis = positionSeconds?.times(1000)?.toLong() ?: return null
+    if (lyricsLines.isEmpty()) return null
+    val activeIndex = lyricsLines.indexOfLast { line ->
+        val startMillis = line.startMillis?.plus(lyricsOffsetMillis)
+        startMillis != null && startMillis <= positionMillis + LyricsAutoScrollLeadMillis
+    }
+    val activeLine = lyricsLines.getOrNull(activeIndex)?.takeIf { it.text.isNotBlank() } ?: return null
+    val activeStart = activeLine.startMillis?.plus(lyricsOffsetMillis)
+    val nextStart = lyricsLines
+        .drop(activeIndex + 1)
+        .firstOrNull { it.startMillis != null }
+        ?.startMillis
+        ?.plus(lyricsOffsetMillis)
+    val progress = if (activeStart != null && nextStart != null && nextStart > activeStart) {
+        ((positionMillis - activeStart).toFloat() / (nextStart - activeStart).toFloat()).coerceIn(0f, 1f)
+    } else {
+        0f
+    }
+    return LyricMirrorTunnelLine(
+        text = activeLine.text,
+        progressToNext = progress,
+    )
+}
+
 @Composable
 private fun LiveVisualizerSurface(
     coverArtUrl: String?,
@@ -1223,6 +1253,7 @@ private fun LiveVisualizerSurface(
     active: Boolean,
     tempoBpm: Int?,
     colors: NaviampColors,
+    lyricLine: LyricMirrorTunnelLine?,
     modifier: Modifier = Modifier,
 ) {
     PlatformLiveVisualizerSurface(
@@ -1233,6 +1264,7 @@ private fun LiveVisualizerSurface(
         active = active,
         tempoBpm = tempoBpm,
         colors = colors,
+        lyricLine = lyricLine,
         modifier = modifier,
     )
 }
@@ -1246,6 +1278,7 @@ internal expect fun PlatformLiveVisualizerSurface(
     active: Boolean,
     tempoBpm: Int?,
     colors: NaviampColors,
+    lyricLine: LyricMirrorTunnelLine?,
     modifier: Modifier = Modifier,
 )
 
@@ -2216,28 +2249,18 @@ fun NaviampTransportIconButton(
                     selected -> colors.accent.copy(alpha = 0.18f)
                     else -> Color.Transparent
                 },
+            )
+            .clickable(
+                enabled = enabled,
+                onClick = onClick,
             ),
     ) {
-        IconButton(
-            enabled = enabled,
-            onClick = onClick,
-            modifier = Modifier.fillMaxSize(),
-        ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = contentDescription,
-                tint = if (enabled) colors.primaryText else colors.mutedText.copy(alpha = 0.55f),
-                modifier = Modifier
-                    .requiredSize(iconSize)
-                    .then(
-                        if (icon == NaviampTransportIcons.Lyrics) {
-                            Modifier.offset(x = 1.dp)
-                        } else {
-                            Modifier
-                        },
-                    ),
-            )
-        }
+        Icon(
+            imageVector = icon,
+            contentDescription = contentDescription,
+            tint = if (enabled) colors.primaryText else colors.mutedText.copy(alpha = 0.55f),
+            modifier = Modifier.requiredSize(iconSize),
+        )
         centerText?.let {
             Text(
                 it,

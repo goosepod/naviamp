@@ -48,6 +48,12 @@ internal val NaviampVisualizer.nativeShaderDefinition: NativeVisualizerShaderDef
             canonicalName = "Fluidic Nebulae.glsl",
             fragmentSource = NativeGlslShaderSources.FluidicNebulae,
         )
+        NaviampVisualizer.LyricMirrorTunnel -> NativeVisualizerShaderDefinition(
+            visualizer = this,
+            dialect = NativeShaderDialect.GlslEs300,
+            canonicalName = "Lyric Mirror Tunnel.glsl",
+            fragmentSource = NativeGlslShaderSources.LyricMirrorTunnel,
+        )
         NaviampVisualizer.OceanHorizon -> NativeVisualizerShaderDefinition(
             visualizer = this,
             dialect = NativeShaderDialect.GlslEs300,
@@ -84,6 +90,128 @@ internal val NaviampVisualizer.nativeShaderDefinition: NativeVisualizerShaderDef
     }
 
 internal object NativeGlslShaderSources {
+    const val LyricMirrorTunnel = """#version 300 es
+precision highp float;
+
+uniform float u_time;
+uniform vec2 u_resolution;
+uniform float u_energyLevel;
+uniform float u_bassLevel;
+uniform float u_midLevel;
+uniform float u_beatDetected;
+uniform float u_active;
+uniform float u_lyricProgress;
+uniform vec4 u_accent;
+uniform vec4 u_readable;
+uniform vec4 u_colorA;
+uniform vec4 u_colorB;
+uniform vec4 u_colorC;
+uniform sampler2D u_frequencyTexture;
+uniform sampler2D u_albumArtTexture;
+
+in vec2 v_uv;
+out vec4 outColor;
+
+float hash21(vec2 p) {
+    p = fract(p * vec2(234.34, 435.345));
+    p += dot(p, p + 34.23);
+    return fract(p.x * p.y);
+}
+
+float rectLine(vec2 p, vec2 halfSize, float width) {
+    vec2 d = abs(p) - halfSize;
+    float outside = length(max(d, 0.0));
+    float inside = min(max(d.x, d.y), 0.0);
+    float distance = outside + inside;
+    return smoothstep(width, 0.0, abs(distance));
+}
+
+float lyricMask(vec2 uv) {
+    vec2 maskUv = clamp(vec2(uv.x, 1.0 - uv.y), vec2(0.0), vec2(1.0));
+    return texture(u_albumArtTexture, maskUv).a;
+}
+
+float lyricOutline(vec2 uv, vec2 texel, float radius) {
+    float center = lyricMask(uv);
+    float edge = 0.0;
+    for (int y = -2; y <= 2; ++y) {
+        for (int x = -2; x <= 2; ++x) {
+            vec2 offset = vec2(float(x), float(y)) * texel * radius;
+            edge = max(edge, lyricMask(uv + offset));
+        }
+    }
+    return max(edge - center * 0.55, 0.0);
+}
+
+float particleField(vec2 uv, vec2 texel, float progress) {
+    float t = smoothstep(0.0, 1.0, progress);
+    float fade = 1.0 - smoothstep(0.72, 1.0, t);
+    float particles = 0.0;
+    for (int i = 0; i < 72; ++i) {
+        float fi = float(i);
+        vec2 seed = vec2(hash21(vec2(fi, 1.7)), hash21(vec2(fi, 8.9)));
+        vec2 anchor = vec2(0.12 + seed.x * 0.76, 0.24 + seed.y * 0.52);
+        float source = lyricOutline(anchor, texel, 2.2);
+        vec2 away = normalize(anchor - vec2(0.5) + vec2(0.001));
+        vec2 swirl = vec2(
+            sin(u_time * (0.65 + seed.x) + fi * 1.7),
+            cos(u_time * (0.55 + seed.y) + fi * 1.3)
+        ) * (0.006 + t * 0.022);
+        vec2 drift = away * (0.018 + 0.150 * t) * (0.55 + seed.y);
+        vec2 p = anchor + drift + swirl + vec2(0.0, -t * (0.018 + seed.x * 0.045));
+        float d = length((uv - p) * vec2(u_resolution.x / u_resolution.y, 1.0));
+        float sparkle = 0.45 + 0.55 * sin(u_time * (5.0 + seed.y * 6.0) + fi);
+        particles += source * smoothstep(0.018, 0.0, d) * fade * sparkle;
+    }
+    return clamp(particles, 0.0, 1.0);
+}
+
+void main() {
+    vec2 uv = v_uv;
+    vec2 p = uv * 2.0 - 1.0;
+    p.x *= u_resolution.x / max(u_resolution.y, 1.0);
+    float bass = clamp(u_bassLevel, 0.0, 1.0) * u_active;
+    float beat = smoothstep(0.28, 0.78, bass);
+    float fluidA = sin(p.x * 4.7 + p.y * 2.6 + u_time * 0.42);
+    float fluidB = sin(length(p) * 7.4 - u_time * 0.56 + u_midLevel * 2.2);
+    float fluidC = sin((p.x - p.y) * 5.1 + u_time * 0.31);
+    float fluid = (fluidA + fluidB + fluidC) / 3.0;
+    float vignette = smoothstep(1.18, 0.18, length(p));
+    vec3 bg = mix(u_colorC.rgb * 0.07, u_colorA.rgb * 0.22, vignette);
+    bg += mix(u_colorB.rgb, u_accent.rgb, 0.28) * (0.055 + fluid * 0.045 + u_energyLevel * 0.12);
+    bg += u_readable.rgb * pow(max(0.0, vignette), 5.0) * (0.015 + beat * 0.035);
+
+    vec3 color = bg;
+    float outer = rectLine(p, vec2(0.94 * u_resolution.x / max(u_resolution.y, 1.0), 0.94), 0.020 + beat * 0.006);
+    float inner = rectLine(p, vec2(0.88 * u_resolution.x / max(u_resolution.y, 1.0), 0.88), 0.011 + beat * 0.004);
+    color += u_accent.rgb * outer * (0.62 + beat * 0.22);
+    color += mix(u_readable.rgb, u_accent.rgb, 0.35) * inner * (0.42 + beat * 0.24);
+
+    for (int i = 0; i < 8; ++i) {
+        float f = float(i) / 7.0;
+        float band = texture(u_frequencyTexture, vec2(f, 0.5)).r;
+        float push = smoothstep(0.18 + f * 0.12, 0.92, bass + band * 0.52);
+        float scale = mix(0.22 + f * 0.06, 0.86 - f * 0.055, push);
+        vec2 halfSize = vec2(scale * u_resolution.x / max(u_resolution.y, 1.0), scale);
+        float line = rectLine(p, halfSize, 0.006 + push * 0.013);
+        float breathe = 0.74 + 0.26 * sin(u_time * 0.9 + f * 5.2);
+        float alpha = (0.035 + push * 0.34) * (1.0 - f * 0.38) * breathe;
+        color += mix(u_colorB.rgb, u_accent.rgb, f) * line * alpha;
+    }
+
+    vec2 texel = 1.0 / vec2(768.0, 256.0);
+    float mask = lyricMask(uv);
+    float outline = lyricOutline(uv, texel, 1.0 + beat * 2.8);
+    float pop = smoothstep(0.60, 0.98, u_lyricProgress);
+    float particles = particleField(uv, texel, pop);
+    color = mix(color, vec3(0.0), mask * (1.0 - pop * 0.62));
+    color += mix(vec3(1.0), u_accent.rgb, 0.18) * outline * (0.86 + beat * 0.36) * (1.0 - pop * 0.45);
+    color += mix(vec3(1.0), u_accent.rgb, 0.30) * particles * (1.05 + beat * 0.35);
+
+    outColor = vec4(color, 1.0);
+}
+"""
+
     const val AnalogSignalFailure = """#version 300 es
 precision highp float;
 

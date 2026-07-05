@@ -39,6 +39,7 @@ internal val NaviampVisualizer.preferredRendererMode: VisualizerRendererMode
         VisualizerRendererMode.NativeGpu
     } else {
         when (this) {
+            NaviampVisualizer.LyricMirrorTunnel,
             NaviampVisualizer.SpectrumBars -> VisualizerRendererMode.Canvas
             NaviampVisualizer.AlbumArtReactive,
             NaviampVisualizer.AnalogSignalFailure,
@@ -68,6 +69,7 @@ internal val NaviampVisualizer.usesNativeRenderer: Boolean
 
 internal val NaviampVisualizer.fallbackRendererMode: VisualizerRendererMode
     get() = when (this) {
+        NaviampVisualizer.LyricMirrorTunnel,
         NaviampVisualizer.SpectrumBars -> VisualizerRendererMode.Canvas
         NaviampVisualizer.AlbumArtReactive,
         NaviampVisualizer.AnalogSignalFailure,

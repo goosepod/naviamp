@@ -37,6 +37,7 @@ internal class NativeOpenGlVisualizerHost(
         colors: NaviampColors,
         timeSeconds: Float,
         tempoBpm: Int?,
+        lyricProgress: Float = 0f,
     ): Image? {
         if (failed || width <= 0 || height <= 0) return null
         if (!ensureCreated()) return null
@@ -54,6 +55,7 @@ internal class NativeOpenGlVisualizerHost(
                 timeSeconds,
                 active,
                 tempoBpm?.toFloat() ?: 120f,
+                lyricProgress.coerceIn(0f, 1f),
                 shaderSpec.renderScale,
                 shaderSpec.maxRaymarchSteps,
                 uniformBands,
@@ -85,6 +87,7 @@ internal class NativeOpenGlVisualizerHost(
         colors: NaviampColors,
         timeSeconds: Float,
         tempoBpm: Int?,
+        lyricProgress: Float = 0f,
     ): Boolean {
         if (failed || width <= 0 || height <= 0) return false
         if (!ensureCreated()) return false
@@ -101,6 +104,7 @@ internal class NativeOpenGlVisualizerHost(
                 timeSeconds,
                 active,
                 tempoBpm?.toFloat() ?: 120f,
+                lyricProgress.coerceIn(0f, 1f),
                 shaderSpec.renderScale,
                 shaderSpec.maxRaymarchSteps,
                 uniformBands,
@@ -160,6 +164,7 @@ internal class NativeOpenGlVisualizerHost(
         timeSeconds: Float,
         active: Boolean,
         tempoBpm: Float,
+        lyricProgress: Float,
         renderScale: Float,
         maxRaymarchSteps: Int,
         bands: FloatArray,
@@ -182,6 +187,7 @@ internal class NativeOpenGlVisualizerHost(
         timeSeconds: Float,
         active: Boolean,
         tempoBpm: Float,
+        lyricProgress: Float,
         renderScale: Float,
         maxRaymarchSteps: Int,
         bands: FloatArray,

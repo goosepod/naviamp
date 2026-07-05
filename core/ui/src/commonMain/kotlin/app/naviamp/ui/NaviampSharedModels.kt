@@ -56,6 +56,7 @@ enum class NaviampVisualizer(val label: String) {
     FrequencyTerrain("Frequency Terrain"),
     FftMountain("Mountains"),
     FluidicNebulae("Fluidic Nebulae"),
+    LyricMirrorTunnel("Lyric Mirror Tunnel"),
     OceanHorizon("Ocean Horizon"),
     OceanOfInk("Ocean Of Ink"),
     ParticleField("Particle Field"),

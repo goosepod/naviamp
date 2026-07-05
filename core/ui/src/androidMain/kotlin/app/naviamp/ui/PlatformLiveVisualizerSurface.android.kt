@@ -7,6 +7,7 @@ import android.graphics.Canvas as AndroidCanvas
 import android.graphics.Paint
 import android.graphics.RuntimeShader
 import android.graphics.Shader
+import android.graphics.Typeface
 import android.opengl.GLES20
 import android.opengl.GLSurfaceView
 import android.opengl.GLUtils
@@ -61,6 +62,7 @@ internal actual fun PlatformLiveVisualizerSurface(
     active: Boolean,
     tempoBpm: Int?,
     colors: NaviampColors,
+    lyricLine: LyricMirrorTunnelLine?,
     modifier: Modifier,
 ) {
     val performanceLoggingEnabled = LocalContext.current.applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE != 0
@@ -69,14 +71,27 @@ internal actual fun PlatformLiveVisualizerSurface(
         nativeRendererAvailable = true,
     )
     if (rendererMode == VisualizerRendererMode.Canvas) {
-        SpectrumBarsVisualizerSurface(
-            bandsProvider = bandsProvider,
-            visualizerColors = visualizerColors,
-            active = active,
-            colors = colors,
-            renderPolicy = visualizerRenderPolicy(visualizer, VisualizerRenderTier.Balanced),
-            modifier = modifier,
-        )
+        val renderPolicy = visualizerRenderPolicy(visualizer, VisualizerRenderTier.Balanced)
+        if (visualizer == NaviampVisualizer.LyricMirrorTunnel) {
+            LyricMirrorTunnelVisualizerSurface(
+                bandsProvider = bandsProvider,
+                visualizerColors = visualizerColors,
+                active = active,
+                colors = colors,
+                lyricLine = lyricLine,
+                renderPolicy = renderPolicy,
+                modifier = modifier,
+            )
+        } else {
+            SpectrumBarsVisualizerSurface(
+                bandsProvider = bandsProvider,
+                visualizerColors = visualizerColors,
+                active = active,
+                colors = colors,
+                renderPolicy = renderPolicy,
+                modifier = modifier,
+            )
+        }
         return
     }
     if (rendererMode == VisualizerRendererMode.NativeGpu) {
@@ -87,6 +102,7 @@ internal actual fun PlatformLiveVisualizerSurface(
             visualizer = visualizer,
             visualizerColors = visualizerColors,
             active = active,
+            lyricLine = lyricLine,
             tempoBpm = tempoBpm,
             colors = colors,
             renderPolicy = renderPolicy,
@@ -131,6 +147,7 @@ private fun AndroidNativeGlslVisualizerSurface(
     visualizer: NaviampVisualizer,
     visualizerColors: NaviampPlayerColors,
     active: Boolean,
+    lyricLine: LyricMirrorTunnelLine?,
     tempoBpm: Int?,
     colors: NaviampColors,
     renderPolicy: VisualizerRenderPolicy,
@@ -149,12 +166,15 @@ private fun AndroidNativeGlslVisualizerSurface(
     val latestColors by rememberUpdatedState(colors)
     val latestTempoBpm by rememberUpdatedState(tempoBpm)
     val latestActive by rememberUpdatedState(active)
+    val latestLyricProgress by rememberUpdatedState(lyricLine?.progressToNext ?: 0f)
     var albumArtBitmap by remember(coverArtUrl) { mutableStateOf<Bitmap?>(null) }
     var surfaceWidth by remember { mutableStateOf(0) }
     var surfaceHeight by remember { mutableStateOf(0) }
 
-    LaunchedEffect(coverArtUrl, renderPolicy.albumArtSidePx) {
-        albumArtBitmap = if (coverArtUrl == null) {
+    LaunchedEffect(coverArtUrl, renderPolicy.albumArtSidePx, visualizer, lyricLine?.text) {
+        albumArtBitmap = if (visualizer == NaviampVisualizer.LyricMirrorTunnel) {
+            androidLyricMaskBitmap(lyricLine?.text.orEmpty())
+        } else if (coverArtUrl == null) {
             null
         } else {
             withContext(Dispatchers.IO) {
@@ -196,7 +216,7 @@ private fun AndroidNativeGlslVisualizerSurface(
                         tempoBpm = latestTempoBpm,
                         uniformBands = uniformBands,
                     )
-                    renderer.updateFrame(frameInput, latestVisualizerColors, latestColors)
+                    renderer.updateFrame(frameInput, latestVisualizerColors, latestColors, latestLyricProgress)
                     glViewState.value?.requestRender()
                 }
             }
@@ -450,6 +470,7 @@ private class AndroidNativeGlslVisualizerRenderer(
     private val perfLogger = AndroidVisualizerPerfLogger("native-gl", visualizer, renderPolicy, performanceLoggingEnabled)
     private val frameLock = Any()
     private var latestFrame: VisualizerFrameInput? = null
+    private var latestLyricProgress = 0f
     private var latestPalette = NativeGlslPalette()
     private var latestAlbumArtBitmap: Bitmap? = null
     private var uploadedAlbumArtBitmap: Bitmap? = null
@@ -479,9 +500,11 @@ private class AndroidNativeGlslVisualizerRenderer(
         frameInput: VisualizerFrameInput,
         visualizerColors: NaviampPlayerColors,
         colors: NaviampColors,
+        lyricProgress: Float,
     ) {
         synchronized(frameLock) {
             latestFrame = frameInput
+            latestLyricProgress = lyricProgress.coerceIn(0f, 1f)
             latestPalette = NativeGlslPalette(
                 accent = floatArrayOf(
                     visualizerColors.accent.red,
@@ -547,10 +570,12 @@ private class AndroidNativeGlslVisualizerRenderer(
     override fun onDrawFrame(gl: GL10?) {
         val drawStartedNanos = System.nanoTime()
         val frame: VisualizerFrameInput?
+        val lyricProgress: Float
         val palette: NativeGlslPalette
         val albumArtBitmap: Bitmap?
         synchronized(frameLock) {
             frame = latestFrame
+            lyricProgress = latestLyricProgress
             palette = latestPalette
             albumArtBitmap = latestAlbumArtBitmap
         }
@@ -576,6 +601,7 @@ private class AndroidNativeGlslVisualizerRenderer(
         GLES20.glUniform1f(uniform(program, "u_trebleLevel"), frame.energy.highs)
         GLES20.glUniform1f(uniform(program, "u_spectralCentroid"), frame.energy.spectralCentroid)
         GLES20.glUniform1f(uniform(program, "u_tempoBpm"), frame.tempoBpm)
+        GLES20.glUniform1f(uniform(program, "u_lyricProgress"), lyricProgress)
         GLES20.glUniform1f(uniform(program, "u_beatDetected"), frame.energy.beatDetected)
         GLES20.glUniform1f(uniform(program, "u_active"), if (frame.active) 1f else 0f)
         GLES20.glUniform1f(uniform(program, "u_renderScale"), shaderSpec.renderScale)
@@ -886,6 +912,10 @@ private fun NaviampVisualizer.nativeGlslShaderSpec(renderPolicy: VisualizerRende
                 VisualizerRenderTier.Constrained -> 0.65f
             },
         )
+        NaviampVisualizer.LyricMirrorTunnel -> NativeGlslShaderSpec(
+            fragmentSource = requireNotNull(nativeShaderDefinition).fragmentSource,
+            renderScale = 1.0f,
+        )
         NaviampVisualizer.OceanHorizon -> NativeGlslShaderSpec(
             fragmentSource = requireNotNull(nativeShaderDefinition).fragmentSource,
             renderScale = when (renderPolicy.tier) {
@@ -954,6 +984,67 @@ private fun Bitmap.newClampShader(filterMode: Int = BitmapShader.FILTER_MODE_LIN
         setFilterMode(filterMode)
     }
 
+private fun androidLyricMaskBitmap(text: String): Bitmap {
+    val width = 768
+    val height = 256
+    val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+    val canvas = AndroidCanvas(bitmap)
+    canvas.drawColor(android.graphics.Color.TRANSPARENT)
+    val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = android.graphics.Color.WHITE
+        textAlign = Paint.Align.CENTER
+        typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.BOLD)
+    }
+    val lines = paint.selectAndroidLyricMaskLayout(text.ifBlank { " " }, width - 92, height - 34)
+    val fontMetrics = paint.fontMetrics
+    val lineHeight = fontMetrics.descent - fontMetrics.ascent
+    var baseline = height / 2f - (lineHeight * lines.size) / 2f - fontMetrics.ascent
+    lines.forEach { line ->
+        canvas.drawText(line, width / 2f, baseline, paint)
+        baseline += lineHeight
+    }
+    return bitmap
+}
+
+private fun Paint.selectAndroidLyricMaskLayout(
+    text: String,
+    maxWidth: Int,
+    maxHeight: Int,
+): List<String> {
+    for (fontSize in 74 downTo 34 step 2) {
+        textSize = fontSize.toFloat()
+        val lines = text.androidWrapLyricMaskLines(this, maxWidth).take(3)
+        val metrics = fontMetrics
+        val lineHeight = metrics.descent - metrics.ascent
+        val fitsWidth = lines.all { measureText(it) <= maxWidth }
+        val fitsHeight = lineHeight * lines.size <= maxHeight
+        if (fitsWidth && fitsHeight) return lines
+    }
+    textSize = 34f
+    return text.androidWrapLyricMaskLines(this, maxWidth).take(3)
+}
+
+private fun String.androidWrapLyricMaskLines(
+    paint: Paint,
+    maxWidth: Int,
+): List<String> {
+    val words = trim().split(Regex("\\s+")).filter { it.isNotBlank() }
+    if (words.isEmpty()) return listOf(" ")
+    val lines = mutableListOf<String>()
+    var current = ""
+    words.forEach { word ->
+        val candidate = if (current.isBlank()) word else "$current $word"
+        if (paint.measureText(candidate) <= maxWidth || current.isBlank()) {
+            current = candidate
+        } else {
+            lines += current
+            current = word
+        }
+    }
+    if (current.isNotBlank()) lines += current
+    return lines
+}
+
 @Composable
 private fun AndroidCanvasVisualizerSurface(
     bandsProvider: () -> List<Float>,
@@ -1003,6 +1094,15 @@ private fun AndroidCanvasVisualizerSurface(
             NaviampVisualizer.ReactiveBars -> drawReactiveBars(samples, colors)
             NaviampVisualizer.SpectrumBars -> drawReactiveBars(samples, colors)
             NaviampVisualizer.FluidGradient -> drawFluidGradient(samples, visualizerColors, colors, timeSeconds)
+            NaviampVisualizer.LyricMirrorTunnel -> drawLyricTunnelScene(
+                samples = samples,
+                playerColors = visualizerColors,
+                colors = colors,
+                active = active,
+                timeSeconds = timeSeconds,
+                energy = energy,
+                ringPush = FloatArray(7) { energy },
+            )
             NaviampVisualizer.AudioSphere -> drawAudioSphere(samples, visualizerColors, colors, timeSeconds)
             NaviampVisualizer.AudioTunnel -> drawAudioTunnel(samples, visualizerColors, colors, timeSeconds)
             NaviampVisualizer.RibbonTrail -> drawRibbonTrail(samples, visualizerColors, colors, timeSeconds)

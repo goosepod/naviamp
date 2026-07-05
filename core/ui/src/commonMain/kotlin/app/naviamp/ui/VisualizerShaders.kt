@@ -7,6 +7,7 @@ internal val NaviampVisualizer.shaderSource: String
         NaviampVisualizer.AnalogSignalFailure -> NativeRendererRequiredShaderSkSL
         NaviampVisualizer.FluidGradient -> FluidGradientShaderSkSL
         NaviampVisualizer.FluidicNebulae -> NativeRendererRequiredShaderSkSL
+        NaviampVisualizer.LyricMirrorTunnel -> ReactiveBarsShaderSkSL
         NaviampVisualizer.AudioSphere -> AudioSphereShaderSkSL
         NaviampVisualizer.AudioTunnel -> AudioTunnelShaderSkSL
         NaviampVisualizer.RibbonTrail -> RibbonTrailShaderSkSL

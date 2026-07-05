@@ -312,6 +312,7 @@ fun NaviampApp(
         cacheSettings = { cacheSettings },
         appRoute = { appRoute },
         lyricsVisible = { nowPlayingLyricsVisible },
+        selectedVisualizer = { nowPlayingPresentation.selectedVisualizer },
         playbackQueue = { playbackQueue },
         nowPlayingTrack = { nowPlayingTrack },
         nowPlayingCoverArtUrl = {
@@ -1122,6 +1123,7 @@ fun NaviampApp(
         cacheSettings = cacheSettings,
         playbackSettings = playbackSettings,
         nowPlayingLyricsVisible = nowPlayingLyricsVisible,
+        selectedVisualizer = nowPlayingPresentation.selectedVisualizer,
         appRoute = appRoute,
         selectedPlaylist = playlistsController.selectedPlaylist,
         homeContent = homeContent,

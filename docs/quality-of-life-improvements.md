@@ -226,7 +226,7 @@ Visualizer motion should feel smooth and continuous during normal playback. The 
 
 ## Lyric Mirror Tunnel Visualizer
 
-Status: Needs triage.
+Status: Prototype checkpoint; needs follow-up polish.
 
 Add a lyric-forward visualizer built around album-art-derived color, mirror-like depth, and beat-reactive lyric typography.
 
@@ -250,6 +250,7 @@ The current lyric line should appear prominently in the center, wrapping when ne
 
 ### Notes
 
+- 2026-07-04 checkpoint: A first native GPU-backed Lyric Mirror Tunnel implementation exists with lyric loading, lyric-offset timing, adaptive lyric mask sizing, nested frames, and initial shader particles. It is not final-quality yet; the visual design still needs a serious polish pass for fluid background motion, more convincing outline breakup/sparkle behavior, richer beat-driven depth, and overall professional feel.
 - The perimeter tracer tail should remain visible long enough that the moving front catches up to a still-visible tail.
 - The mirror-box effect should feel like depth or reflection, not simply stacked borders.
 - The lyric explosion should affect the outline/shadow more than the filled text.

@@ -13,6 +13,7 @@ import app.naviamp.domain.playback.lyricsLoadingStatus
 import app.naviamp.domain.playback.lyricsUnavailableStatus
 import app.naviamp.domain.playback.recordSidecarFailure
 import app.naviamp.domain.playback.recordSidecarSuccess
+import app.naviamp.ui.NaviampVisualizer
 import app.naviamp.provider.navidrome.NavidromeProvider
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -107,7 +108,7 @@ internal class AndroidNowPlayingSidecarController(
     fun reloadVisibleLyrics() {
         state.lyricsByTrackId = emptyMap()
         state.lyricsStatusByTrackId = emptyMap()
-        if (state.lyricsVisible && state.nowPlayingOpen) {
+        if ((state.lyricsVisible || state.selectedVisualizer == NaviampVisualizer.LyricMirrorTunnel) && state.nowPlayingOpen) {
             state.nowPlaying?.let(::loadLyrics)
         }
     }

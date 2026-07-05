@@ -13,6 +13,7 @@ import app.naviamp.domain.provider.playlistDetailAutoRefreshTarget
 import app.naviamp.domain.provider.runPlaylistDetailAutoRefresh
 import app.naviamp.desktop.settings.CacheSettings
 import app.naviamp.desktop.settings.PlaybackSettings
+import app.naviamp.ui.NaviampVisualizer
 import app.naviamp.provider.navidrome.NavidromeProvider
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -35,6 +36,7 @@ internal fun DesktopAppControllerEffects(
     cacheSettings: CacheSettings,
     playbackSettings: PlaybackSettings,
     nowPlayingLyricsVisible: Boolean,
+    selectedVisualizer: NaviampVisualizer,
     appRoute: DesktopAppRoute,
     selectedPlaylist: Playlist?,
     homeContent: HomeContent,
@@ -55,6 +57,7 @@ internal fun DesktopAppControllerEffects(
         cacheSettings.audioCachingEnabled,
         playbackSettings.lrclibLyricsEnabled,
         nowPlayingLyricsVisible,
+        selectedVisualizer,
         appRoute,
     ) {
         nowPlayingController.loadNowPlayingAnalysis()

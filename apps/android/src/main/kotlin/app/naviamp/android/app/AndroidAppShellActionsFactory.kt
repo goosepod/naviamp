@@ -18,6 +18,7 @@ import app.naviamp.ui.DownloadedTrackActionRequest
 import app.naviamp.ui.NaviampNowPlayingItemUi
 import app.naviamp.ui.NaviampPlaylistChoiceUi
 import app.naviamp.ui.NaviampSavedConnectionUi
+import app.naviamp.ui.NaviampVisualizer
 import app.naviamp.ui.NowPlayingCurrentTrackAction
 import app.naviamp.ui.NowPlayingCurrentTrackUiActionRequest
 import app.naviamp.ui.NowPlayingDisplayAction
@@ -521,6 +522,9 @@ fun androidAppShellActions(
                         visualizerRequestedVisible = !visualizerRequestedVisible
                     NowPlayingDisplayAction.SelectVisualizer -> request.visualizer?.let { visualizer ->
                         selectedVisualizer = visualizer
+                        if (visualizer == NaviampVisualizer.LyricMirrorTunnel) {
+                            nowPlaying?.let(loadLyrics)
+                        }
                         settingsStore.saveVisualizerSettings(VisualizerSettings(selectedVisualizer = visualizer.name))
                         onSyncedSettingsChanged()
                     }

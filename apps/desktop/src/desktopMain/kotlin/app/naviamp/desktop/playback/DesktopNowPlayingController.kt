@@ -26,6 +26,7 @@ import app.naviamp.domain.waveform.AudioWaveform
 import app.naviamp.domain.waveform.AudioWaveformService
 import app.naviamp.desktop.settings.CacheSettings
 import app.naviamp.desktop.settings.PlaybackSettings
+import app.naviamp.ui.NaviampVisualizer
 import app.naviamp.ui.preloadJvmPlatformCoverArt
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -44,6 +45,7 @@ class DesktopNowPlayingController(
     private val cacheSettings: () -> CacheSettings,
     private val appRoute: () -> DesktopAppRoute,
     private val lyricsVisible: () -> Boolean,
+    private val selectedVisualizer: () -> NaviampVisualizer,
     private val playbackQueue: () -> PlaybackQueue,
     private val nowPlayingTrack: () -> Track?,
     private val nowPlayingCoverArtUrl: () -> String?,
@@ -121,7 +123,8 @@ class DesktopNowPlayingController(
     }
 
     suspend fun loadNowPlayingAnalysis() {
-        val lyricsVisibleForWork = lyricsVisible() && appRoute() == DesktopAppRoute.Player
+        val lyricMirrorTunnelVisible = selectedVisualizer() == NaviampVisualizer.LyricMirrorTunnel
+        val lyricsVisibleForWork = (lyricsVisible() || lyricMirrorTunnelVisible) && appRoute() == DesktopAppRoute.Player
         val track = nowPlayingTrack() ?: run {
             waveform = null
             waveformStatus = "No track"
