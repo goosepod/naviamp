@@ -607,9 +607,11 @@ private val DefaultNaviampLibraries = listOf(
 )
 
 private val DefaultNaviampChangelog = listOf(
-    "Added a native Audio Tunnel visualizer with deeper flight motion, sharper wall reactions, and stronger bass-driven turns.",
-    "Improved desktop visualizer fallback behavior so native renderer failures fall back to the shader visualizer instead of a blank diagnostic line.",
-    "Fixed Windows Vinyl Groove album art rendering by using stable raster-backed cover art textures for desktop shader sampling.",
+    "Added per-server music library selection so Navidrome/OpenSubsonic connections can scope browsing, search, playlists, radio, and library sync to a chosen library.",
+    "Improved waveform generation with faster BASS-backed analysis, better caching, and cross-platform waveform rendering fixes.",
+    "Hardened Android playback session handling for Bluetooth, Android Auto, foreground playback, and notification album art.",
+    "Added the first Lyric Mirror Tunnel visualizer checkpoint with synced-lyric timing, lyric offset support, native GPU rendering, adaptive lyric sizing, and beat-reactive text effects.",
+    "Added more diagnostics for BASS libraries, playback sidecars, visualizer rendering, and provider/network behavior.",
 )
 
 @Composable
