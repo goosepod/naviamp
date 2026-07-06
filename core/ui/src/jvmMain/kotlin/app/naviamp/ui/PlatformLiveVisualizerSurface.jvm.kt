@@ -40,7 +40,7 @@ internal actual fun PlatformLiveVisualizerSurface(
     active: Boolean,
     tempoBpm: Int?,
     colors: NaviampColors,
-    lyricLine: LyricMirrorTunnelLine?,
+    lyricStage: LyricMirrorTunnelStage,
     modifier: Modifier,
 ) {
     var frameMillis by remember { mutableLongStateOf(0L) }
@@ -73,10 +73,11 @@ internal actual fun PlatformLiveVisualizerSurface(
             }
         }
     }
-    LaunchedEffect(coverArtUrl, visualizer, lyricLine?.text) {
+    val primaryLyricLine = lyricStage.primaryLineForNativeMask()
+    LaunchedEffect(coverArtUrl, visualizer, primaryLyricLine?.text) {
         albumArtImage = when {
             visualizer == NaviampVisualizer.LyricMirrorTunnel ->
-                jvmLyricMaskShaderImage(lyricLine?.text.orEmpty())
+                jvmLyricMaskShaderImage(primaryLyricLine?.text.orEmpty())
             coverArtUrl != null && (visualizer.usesAlbumArtShader || visualizer.nativeShaderDefinition != null) ->
                 runCatching { jvmPlatformCoverArtShaderImage(coverArtUrl) }.getOrNull()
             else -> null
@@ -93,7 +94,7 @@ internal actual fun PlatformLiveVisualizerSurface(
             colors = colors,
             albumArtImage = albumArtImage,
             frameMillis = frameMillis,
-            lyricLine = lyricLine,
+            lyricLine = primaryLyricLine,
             tempoBpm = tempoBpm,
             modifier = modifier,
         )
@@ -106,7 +107,7 @@ internal actual fun PlatformLiveVisualizerSurface(
                 visualizerColors = visualizerColors,
                 active = active,
                 colors = colors,
-                lyricLine = lyricLine,
+                lyricStage = lyricStage,
                 renderPolicy = renderPolicy,
                 modifier = modifier,
             )

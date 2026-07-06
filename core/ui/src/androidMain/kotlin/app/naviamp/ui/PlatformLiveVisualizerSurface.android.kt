@@ -62,7 +62,7 @@ internal actual fun PlatformLiveVisualizerSurface(
     active: Boolean,
     tempoBpm: Int?,
     colors: NaviampColors,
-    lyricLine: LyricMirrorTunnelLine?,
+    lyricStage: LyricMirrorTunnelStage,
     modifier: Modifier,
 ) {
     val performanceLoggingEnabled = LocalContext.current.applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE != 0
@@ -78,7 +78,7 @@ internal actual fun PlatformLiveVisualizerSurface(
                 visualizerColors = visualizerColors,
                 active = active,
                 colors = colors,
-                lyricLine = lyricLine,
+                lyricStage = lyricStage,
                 renderPolicy = renderPolicy,
                 modifier = modifier,
             )
@@ -102,7 +102,7 @@ internal actual fun PlatformLiveVisualizerSurface(
             visualizer = visualizer,
             visualizerColors = visualizerColors,
             active = active,
-            lyricLine = lyricLine,
+            lyricLine = lyricStage.primaryLineForNativeMask(),
             tempoBpm = tempoBpm,
             colors = colors,
             renderPolicy = renderPolicy,

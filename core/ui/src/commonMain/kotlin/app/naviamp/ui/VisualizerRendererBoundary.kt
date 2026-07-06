@@ -35,32 +35,34 @@ internal data class VisualizerFrameInput(
 }
 
 internal val NaviampVisualizer.preferredRendererMode: VisualizerRendererMode
-    get() = if (nativeShaderDefinition != null) {
-        VisualizerRendererMode.NativeGpu
-    } else {
-        when (this) {
-            NaviampVisualizer.LyricMirrorTunnel,
-            NaviampVisualizer.SpectrumBars -> VisualizerRendererMode.Canvas
-            NaviampVisualizer.AlbumArtReactive,
-            NaviampVisualizer.AnalogSignalFailure,
-            NaviampVisualizer.AudioSphere,
-            NaviampVisualizer.AudioTunnel,
-            NaviampVisualizer.FluidicNebulae,
-            NaviampVisualizer.FluidGradient,
-            NaviampVisualizer.FrequencyTerrain,
-            NaviampVisualizer.FftMountain,
-            NaviampVisualizer.OceanHorizon,
-            NaviampVisualizer.OceanOfInk,
-            NaviampVisualizer.ParticleField,
-            NaviampVisualizer.ParticleGalaxy,
-            NaviampVisualizer.PixelMountain,
-            NaviampVisualizer.PixelRidge,
-            NaviampVisualizer.RaymarchedSphereLiquid,
-            NaviampVisualizer.ReactiveBars,
-            NaviampVisualizer.RibbonTrail,
-            NaviampVisualizer.SpectralRidge,
-            NaviampVisualizer.WaveInterference,
-            NaviampVisualizer.VinylGroove -> VisualizerRendererMode.SkiaRuntimeShader
+    get() = when (this) {
+        NaviampVisualizer.LyricMirrorTunnel -> VisualizerRendererMode.Canvas
+        else -> if (nativeShaderDefinition != null) {
+            VisualizerRendererMode.NativeGpu
+        } else {
+            when (this) {
+                NaviampVisualizer.SpectrumBars -> VisualizerRendererMode.Canvas
+                NaviampVisualizer.AlbumArtReactive,
+                NaviampVisualizer.AnalogSignalFailure,
+                NaviampVisualizer.AudioSphere,
+                NaviampVisualizer.AudioTunnel,
+                NaviampVisualizer.FluidicNebulae,
+                NaviampVisualizer.FluidGradient,
+                NaviampVisualizer.FrequencyTerrain,
+                NaviampVisualizer.FftMountain,
+                NaviampVisualizer.OceanHorizon,
+                NaviampVisualizer.OceanOfInk,
+                NaviampVisualizer.ParticleField,
+                NaviampVisualizer.ParticleGalaxy,
+                NaviampVisualizer.PixelMountain,
+                NaviampVisualizer.PixelRidge,
+                NaviampVisualizer.RaymarchedSphereLiquid,
+                NaviampVisualizer.ReactiveBars,
+                NaviampVisualizer.RibbonTrail,
+                NaviampVisualizer.SpectralRidge,
+                NaviampVisualizer.WaveInterference,
+                NaviampVisualizer.VinylGroove -> VisualizerRendererMode.SkiaRuntimeShader
+            }
         }
     }
 

@@ -493,7 +493,7 @@ private fun NowPlayingArtSurface(
                 active = visualizerActive,
                 tempoBpm = tempoBpm,
                 colors = colors,
-                lyricLine = nowPlaying.currentLyricMirrorTunnelLine(),
+                lyricStage = nowPlaying.currentLyricMirrorTunnelStage(),
                 modifier = Modifier
                     .fillMaxSize(),
             )
@@ -1219,30 +1219,92 @@ private fun String.compactAudioInfoParts(): Pair<String, String> {
     }
 }
 
-private fun NowPlayingUi.currentLyricMirrorTunnelLine(): LyricMirrorTunnelLine? {
-    val positionMillis = positionSeconds?.times(1000)?.toLong() ?: return null
-    if (lyricsLines.isEmpty()) return null
+private fun NowPlayingUi.currentLyricMirrorTunnelStage(): LyricMirrorTunnelStage {
+    val positionMillis = positionSeconds?.times(1000)?.toLong() ?: return EmptyLyricMirrorTunnelStage
+    if (lyricsLines.isEmpty()) return EmptyLyricMirrorTunnelStage
     val activeIndex = lyricsLines.indexOfLast { line ->
         val startMillis = line.startMillis?.plus(lyricsOffsetMillis)
         startMillis != null && startMillis <= positionMillis + LyricsAutoScrollLeadMillis
     }
-    val activeLine = lyricsLines.getOrNull(activeIndex)?.takeIf { it.text.isNotBlank() } ?: return null
+    if (activeIndex < 0) return EmptyLyricMirrorTunnelStage
+    val activeLine = lyricsLines.getOrNull(activeIndex)?.takeIf { it.text.isNotBlank() }
+        ?: return EmptyLyricMirrorTunnelStage
     val activeStart = activeLine.startMillis?.plus(lyricsOffsetMillis)
-    val nextStart = lyricsLines
-        .drop(activeIndex + 1)
-        .firstOrNull { it.startMillis != null }
-        ?.startMillis
-        ?.plus(lyricsOffsetMillis)
+    val nextIndex = lyricsLines.indexOfFirstAfter(activeIndex) { it.startMillis != null && it.text.isNotBlank() }
+    val nextStart = lyricsLines.getOrNull(nextIndex)?.startMillis?.plus(lyricsOffsetMillis)
     val progress = if (activeStart != null && nextStart != null && nextStart > activeStart) {
         ((positionMillis - activeStart).toFloat() / (nextStart - activeStart).toFloat()).coerceIn(0f, 1f)
     } else {
         0f
     }
-    return LyricMirrorTunnelLine(
+    if (activeStart != null &&
+        positionMillis - activeStart > LyricMirrorTunnelLineHoldMillis &&
+        (nextStart == null || nextStart - positionMillis > LyricMirrorTunnelUpcomingLeadMillis)
+    ) {
+        return EmptyLyricMirrorTunnelStage
+    }
+    val lines = mutableListOf<LyricMirrorTunnelLine>()
+    val previousIndex = lyricsLines.indexOfLastBefore(activeIndex) { it.startMillis != null && it.text.isNotBlank() }
+    if (previousIndex >= 0 && activeStart != null) {
+        val previous = lyricsLines[previousIndex]
+        val exitProgress = ((positionMillis - activeStart).toFloat() / LyricMirrorTunnelFallMillis).coerceIn(0f, 1f)
+        if (exitProgress < 1f) {
+            lines += LyricMirrorTunnelLine(
+                key = previous.lyricMirrorTunnelKey(),
+                text = previous.text,
+                progressToNext = 1f,
+                enterProgress = 1f,
+                exitProgress = exitProgress,
+                verticalSlot = lyricMirrorTunnelSlot(previousIndex),
+                role = LyricMirrorTunnelLineRole.Previous,
+            )
+        }
+    }
+    lines += LyricMirrorTunnelLine(
+        key = activeLine.lyricMirrorTunnelKey(),
         text = activeLine.text,
         progressToNext = progress,
+        enterProgress = if (activeStart != null) {
+            ((positionMillis - activeStart).toFloat() / LyricMirrorTunnelEnterMillis).coerceIn(0f, 1f)
+        } else {
+            1f
+        },
+        exitProgress = 0f,
+        verticalSlot = lyricMirrorTunnelSlot(activeIndex),
+        role = LyricMirrorTunnelLineRole.Active,
     )
+    return LyricMirrorTunnelStage(lines)
 }
+
+private inline fun <T> List<T>.indexOfFirstAfter(index: Int, predicate: (T) -> Boolean): Int {
+    for (candidate in index + 1 until size) {
+        if (predicate(this[candidate])) return candidate
+    }
+    return -1
+}
+
+private inline fun <T> List<T>.indexOfLastBefore(index: Int, predicate: (T) -> Boolean): Int {
+    for (candidate in index - 1 downTo 0) {
+        if (predicate(this[candidate])) return candidate
+    }
+    return -1
+}
+
+private fun lyricMirrorTunnelSlot(index: Int): Float {
+    val slots = floatArrayOf(-0.36f, 0.18f, -0.08f, 0.42f, -0.58f, 0.02f)
+    return slots[index.floorMod(slots.size)]
+}
+
+private fun NaviampLyricLineUi.lyricMirrorTunnelKey(): String =
+    "lyric-$startMillis-$text"
+
+private fun Int.floorMod(modulus: Int): Int =
+    ((this % modulus) + modulus) % modulus
+
+private const val LyricMirrorTunnelEnterMillis = 820f
+private const val LyricMirrorTunnelFallMillis = 3800f
+private const val LyricMirrorTunnelUpcomingLeadMillis = 1320L
+private const val LyricMirrorTunnelLineHoldMillis = 5000L
 
 @Composable
 private fun LiveVisualizerSurface(
@@ -1253,7 +1315,7 @@ private fun LiveVisualizerSurface(
     active: Boolean,
     tempoBpm: Int?,
     colors: NaviampColors,
-    lyricLine: LyricMirrorTunnelLine?,
+    lyricStage: LyricMirrorTunnelStage,
     modifier: Modifier = Modifier,
 ) {
     PlatformLiveVisualizerSurface(
@@ -1264,7 +1326,7 @@ private fun LiveVisualizerSurface(
         active = active,
         tempoBpm = tempoBpm,
         colors = colors,
-        lyricLine = lyricLine,
+        lyricStage = lyricStage,
         modifier = modifier,
     )
 }
@@ -1278,7 +1340,7 @@ internal expect fun PlatformLiveVisualizerSurface(
     active: Boolean,
     tempoBpm: Int?,
     colors: NaviampColors,
-    lyricLine: LyricMirrorTunnelLine?,
+    lyricStage: LyricMirrorTunnelStage,
     modifier: Modifier = Modifier,
 )
 
