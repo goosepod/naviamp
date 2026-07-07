@@ -18,7 +18,7 @@ data class BassPlaybackPollingPolicy(
         val AndroidService: BassPlaybackPollingPolicy =
             BassPlaybackPollingPolicy(
                 pollIntervalMillis = DefaultAndroidBassPollingIntervalMillis,
-                emitDuplicateProgress = true,
+                emitDuplicateProgress = false,
                 finishOnSourceEnd = true,
                 finishWhenPollingStops = false,
             )
@@ -97,5 +97,5 @@ fun planBassPlaybackPollingUpdate(
     )
 
 const val DefaultBassPollingIntervalMillis = 250L
-const val DefaultAndroidBassPollingIntervalMillis = 100L
+const val DefaultAndroidBassPollingIntervalMillis = 1_000L
 const val DefaultDesktopBassPollingIntervalMillis = 250L

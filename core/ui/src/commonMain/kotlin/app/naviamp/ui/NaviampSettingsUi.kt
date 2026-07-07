@@ -607,11 +607,12 @@ private val DefaultNaviampLibraries = listOf(
 )
 
 private val DefaultNaviampChangelog = listOf(
-    "Added per-server music library selection so Navidrome/OpenSubsonic connections can scope browsing, search, playlists, radio, and library sync to a chosen library.",
-    "Improved waveform generation with faster BASS-backed analysis, better caching, and cross-platform waveform rendering fixes.",
-    "Hardened Android playback session handling for Bluetooth, Android Auto, foreground playback, and notification album art.",
-    "Added the first Lyric Mirror Tunnel visualizer checkpoint with synced-lyric timing, lyric offset support, native GPU rendering, adaptive lyric sizing, and beat-reactive text effects.",
-    "Added more diagnostics for BASS libraries, playback sidecars, visualizer rendering, and provider/network behavior.",
+    "Added the Lyric Stage visualizer with synced-lyric timing, beat-reactive text, adaptive layout, and native visualizer integration.",
+    "Fixed waveform startup and cache behavior so saved waveforms are reused more reliably and first-track waveforms render correctly after app launch.",
+    "Improved waveform analysis resilience with sanitized peak data, bounded background work, and shared storage cleanup for desktop and Android.",
+    "Reduced Android playback overhead with slower session-save cadence, lower playback polling churn, direct BASS playback when crossfade is off, and release startup profile optimization.",
+    "Added macOS and Android observer scripts for repeatable CPU, memory, log, and battery diagnostics during real playback testing.",
+    "Improved Android release validation with ProfileInstaller support and an app-owned baseline profile for faster startup.",
 )
 
 @Composable

@@ -39,27 +39,28 @@ class DesktopStorageMaintenanceStore(
         maxAudioBytes: Long,
         maxAudioWaveformBytes: Long,
         maxHotImageBytes: Long,
-    ): StorageCacheStats =
-        StorageCacheStats(
+    ): StorageCacheStats {
+        val row = queries.storageStats().executeAsOne()
+        return StorageCacheStats(
             databaseLabel = databaseLabel,
             databaseBytes = databaseBytes,
-            imageCount = queries.imageCacheCount().executeAsOne(),
-            imageBytes = queries.imageCacheSize().executeAsOne(),
-            responseCount = queries.responseCacheCount().executeAsOne(),
-            audioCount = queries.audioCacheCount().executeAsOne(),
-            audioBytes = queries.audioCacheSize().executeAsOne(),
-            downloadCount = queries.downloadedAudioCount().executeAsOne(),
-            downloadBytes = queries.downloadedAudioSize().executeAsOne(),
-            audioWaveformCount = queries.audioWaveformCacheCount().executeAsOne(),
-            audioWaveformBytes = queries.audioWaveformCacheSize().executeAsOne(),
-            lyricsCount = queries.lyricsCacheCount().executeAsOne() + queries.lrclibLyricsCacheCount().executeAsOne(),
-            lyricsBytes = queries.lyricsCacheSize().executeAsOne() + queries.lrclibLyricsCacheSize().executeAsOne(),
-            mediaSourceCount = queries.mediaSourceCount().executeAsOne(),
-            libraryArtistCount = queries.libraryArtistCount().executeAsOne(),
-            libraryAlbumCount = queries.libraryAlbumCount().executeAsOne(),
-            libraryTrackCount = queries.libraryTrackCount().executeAsOne(),
-            pendingProviderActionCount = queries.pendingProviderActionCount().executeAsOne(),
-            failedPendingProviderActionCount = queries.failedPendingProviderActionCount().executeAsOne(),
+            imageCount = row.image_count,
+            imageBytes = row.image_bytes,
+            responseCount = row.response_count,
+            audioCount = row.audio_count,
+            audioBytes = row.audio_bytes,
+            downloadCount = row.download_count,
+            downloadBytes = row.download_bytes,
+            audioWaveformCount = row.audio_waveform_count,
+            audioWaveformBytes = row.audio_waveform_bytes,
+            lyricsCount = row.lyrics_count,
+            lyricsBytes = row.lyrics_bytes,
+            mediaSourceCount = row.media_source_count,
+            libraryArtistCount = row.library_artist_count,
+            libraryAlbumCount = row.library_album_count,
+            libraryTrackCount = row.library_track_count,
+            pendingProviderActionCount = row.pending_provider_action_count,
+            failedPendingProviderActionCount = row.failed_pending_provider_action_count,
             hotImageCount = hotImageCount,
             hotImageBytes = hotImageBytes,
             maxImageBytes = maxImageBytes,
@@ -67,4 +68,5 @@ class DesktopStorageMaintenanceStore(
             maxAudioWaveformBytes = maxAudioWaveformBytes,
             maxHotImageBytes = maxHotImageBytes,
         )
+    }
 }

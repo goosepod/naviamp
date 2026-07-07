@@ -132,8 +132,29 @@ fun normalizeFloatPcmWaveform(
 private fun normalizeBuckets(buckets: FloatArray): AudioWaveform {
     val max = buckets.maxOrNull() ?: 0f
     if (max <= 0f) return AudioWaveform(List(buckets.size) { 0f })
-    return AudioWaveform(buckets.map { (it / max).coerceIn(0f, 1f) })
+    return AudioWaveform(cleanWaveformAmplitudes(buckets.map { (it / max).coerceIn(0f, 1f) }))
+}
+
+fun cleanWaveformAmplitudes(amplitudes: List<Float>): List<Float> {
+    if (amplitudes.size < MinSpikeSuppressionBuckets) return amplitudes
+    return amplitudes.mapIndexed { index, amplitude ->
+        val previous = amplitudes.getOrNull(index - 1)
+        val next = amplitudes.getOrNull(index + 1)
+        val neighborPeak = listOfNotNull(previous, next).maxOrNull() ?: 0f
+        if (amplitude >= IsolatedSpikeAmplitude &&
+            neighborPeak <= IsolatedSpikeNeighborMax &&
+            amplitude >= neighborPeak * IsolatedSpikeRatio
+        ) {
+            neighborPeak
+        } else {
+            amplitude
+        }
+    }
 }
 
 private const val RmsWeight = 0.82f
 private const val PeakWeight = 0.18f
+private const val MinSpikeSuppressionBuckets = 16
+private const val IsolatedSpikeAmplitude = 0.92f
+private const val IsolatedSpikeNeighborMax = 0.35f
+private const val IsolatedSpikeRatio = 3.0f

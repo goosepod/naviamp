@@ -6,7 +6,6 @@ import app.naviamp.domain.cache.AudioWaveformStorageRepository
 import app.naviamp.domain.waveform.AudioWaveform
 import app.naviamp.domain.waveform.waveformCacheKey
 import app.naviamp.storage.NaviampStorageQueries
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -23,7 +22,7 @@ class AndroidAudioWaveformStore(
         quality: StreamQuality,
         bucketCount: Int,
     ): AudioWaveform? =
-        withContext(Dispatchers.IO) {
+        withContext(AndroidWaveformStorageDispatcher) {
             val qualityKey = quality.waveformCacheKey()
             val row = queries.selectCachedAudioWaveform(sourceId, trackId.value, qualityKey).executeAsOneOrNull()
                 ?: return@withContext null
@@ -39,7 +38,7 @@ class AndroidAudioWaveformStore(
         audioFilePath: String?,
         waveform: AudioWaveform,
     ): AudioWaveform =
-        withContext(Dispatchers.IO) {
+        withContext(AndroidWaveformStorageDispatcher) {
             storeAudioWaveformRow(sourceId, trackId, quality, audioFilePath, waveform)
         }
 

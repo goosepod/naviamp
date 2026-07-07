@@ -11,6 +11,12 @@ import app.naviamp.domain.playback.resolvePlaybackAudioSource
 import app.naviamp.domain.playback.waveformStatus
 import app.naviamp.domain.provider.MediaProvider
 import app.naviamp.domain.settings.DefaultWaveformBucketCount
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
+import kotlin.coroutines.CoroutineContext
+import kotlin.coroutines.EmptyCoroutineContext
 
 data class AudioWaveformServiceResult(
     val waveform: AudioWaveform?,
@@ -40,6 +46,7 @@ class AudioWaveformService(
     private val waveformBucketCount: () -> Int = { DefaultWaveformBucketCount },
     private val cacheAudioBeforeAnalysis: () -> Boolean = { true },
     private val prepareAnalysis: suspend () -> Unit = {},
+    private val workContext: CoroutineContext = EmptyCoroutineContext,
     private val cacheAudioForWaveform: suspend (
         sourceId: String,
         provider: MediaProvider,
@@ -47,16 +54,19 @@ class AudioWaveformService(
         quality: StreamQuality,
     ) -> PlaybackLocalAudio? = { _, _, _, _ -> null },
 ) {
+    private val inFlightMutex = Mutex()
+    private val inFlightWaveforms = mutableMapOf<String, CompletableDeferred<AudioWaveformServiceResult>>()
+
     suspend fun loadOrCreateWaveform(
         sourceId: String?,
         provider: MediaProvider,
         track: Track,
         quality: StreamQuality,
         audioCachingEnabled: Boolean,
-    ): AudioWaveformServiceResult {
+    ): AudioWaveformServiceResult = withContext(workContext) {
         val bucketCount = waveformBucketCount().coerceAtLeast(1)
         if (!waveformsEnabled()) {
-            return AudioWaveformServiceResult(
+            return@withContext AudioWaveformServiceResult(
                 waveform = null,
                 localAudio = null,
                 cachedWaveformAvailable = false,
@@ -68,7 +78,7 @@ class AudioWaveformService(
 
         if (sourceId != null) {
             waveformRepository.cachedAudioWaveform(sourceId, track.id, quality, bucketCount)?.let { waveform ->
-                return AudioWaveformServiceResult(
+                return@withContext AudioWaveformServiceResult(
                     waveform = waveform,
                     localAudio = null,
                     cachedWaveformAvailable = true,
@@ -79,6 +89,50 @@ class AudioWaveformService(
             }
         }
 
+        val inFlightKey = waveformInFlightKey(sourceId, track, quality, bucketCount)
+        var ownsAnalysis = false
+        val inFlightResult = inFlightMutex.withLock {
+            inFlightWaveforms[inFlightKey] ?: CompletableDeferred<AudioWaveformServiceResult>()
+                .also { deferred ->
+                    inFlightWaveforms[inFlightKey] = deferred
+                    ownsAnalysis = true
+                }
+        }
+        if (!ownsAnalysis) {
+            return@withContext inFlightResult.await()
+        }
+
+        try {
+            val result = loadOrCreateWaveformAfterCacheLookup(
+                sourceId = sourceId,
+                provider = provider,
+                track = track,
+                quality = quality,
+                audioCachingEnabled = audioCachingEnabled,
+                bucketCount = bucketCount,
+            )
+            inFlightResult.complete(result)
+            return@withContext result
+        } catch (error: Throwable) {
+            inFlightResult.completeExceptionally(error)
+            throw error
+        } finally {
+            inFlightMutex.withLock {
+                if (inFlightWaveforms[inFlightKey] === inFlightResult) {
+                    inFlightWaveforms.remove(inFlightKey)
+                }
+            }
+        }
+    }
+
+    private suspend fun loadOrCreateWaveformAfterCacheLookup(
+        sourceId: String?,
+        provider: MediaProvider,
+        track: Track,
+        quality: StreamQuality,
+        audioCachingEnabled: Boolean,
+        bucketCount: Int,
+    ): AudioWaveformServiceResult {
         val plan = resolvePlaybackAudioSource(
             sourceId = sourceId,
             track = track,
@@ -150,3 +204,11 @@ class AudioWaveformService(
         )
     }
 }
+
+private fun waveformInFlightKey(
+    sourceId: String?,
+    track: Track,
+    quality: StreamQuality,
+    bucketCount: Int,
+): String =
+    "${sourceId.orEmpty()}:${track.id.value}:${quality.waveformCacheKey()}:$bucketCount"

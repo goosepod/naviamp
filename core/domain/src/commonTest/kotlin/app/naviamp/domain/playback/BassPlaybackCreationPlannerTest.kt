@@ -34,6 +34,20 @@ class BassPlaybackCreationPlannerTest {
     }
 
     @Test
+    fun skipsMixerWhenMixerIsNotRequired() {
+        val plan = planBassPlaybackCreation(
+            request = request(mediaId = "track"),
+            supportsMixer = true,
+            requireMediaId = true,
+            requiresMixer = false,
+        )
+
+        assertFalse(plan.useMixer)
+        assertTrue(plan.isLocalFileUrl)
+        assertEquals(1f, plan.replayGainFactor)
+    }
+
+    @Test
     fun skipsMixerWhenMediaIdIsRequiredButMissing() {
         val plan = planBassPlaybackCreation(
             request = request(mediaId = null),

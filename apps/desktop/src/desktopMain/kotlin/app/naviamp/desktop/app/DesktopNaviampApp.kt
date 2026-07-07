@@ -754,6 +754,7 @@ fun NaviampApp(
         setNowPlayingAudioTags = nowPlayingController::updateAudioTags,
         setNowPlayingLyrics = nowPlayingController::setNowPlayingLyricsWithSavedOffset,
         setNowPlayingLyricsStatus = nowPlayingController::updateLyricsStatus,
+        incrementNowPlayingWaveformReloadToken = nowPlayingController::incrementWaveformReloadToken,
         setPlaybackState = { state -> playbackState = state },
         setPlaybackProgress = { progress -> playbackProgress = progress },
         setPlaybackQueue = { queue -> playbackQueue = queue },

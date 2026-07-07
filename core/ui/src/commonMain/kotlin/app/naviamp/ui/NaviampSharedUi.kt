@@ -26,6 +26,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.NonRestartableComposable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -69,6 +70,7 @@ expect fun rememberPlatformCoverArtPlayerColors(
 ): NaviampPlayerColors
 
 @Composable
+@NonRestartableComposable
 fun NaviampSharedAppShell(
     modifier: Modifier = Modifier,
     status: String,

@@ -24,12 +24,14 @@ fun planBassPlaybackCreation(
     request: PlaybackRequest,
     supportsMixer: Boolean,
     requireMediaId: Boolean,
+    requiresMixer: Boolean = true,
 ): BassPlaybackCreationPlan =
     BassPlaybackCreationPlan(
         useMixer = shouldUseBassMixerPlayback(
             request = request,
             supportsMixer = supportsMixer,
             requireMediaId = requireMediaId,
+            requiresMixer = requiresMixer,
         ),
         replayGainAdjustment = playbackReplayGainAdjustment(request),
         isLocalFileUrl = isPlaybackLocalFileUrl(request.url),

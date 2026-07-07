@@ -71,6 +71,7 @@ import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.naviamp.domain.waveform.playbackFraction
+import app.naviamp.domain.waveform.cleanWaveformAmplitudes
 import app.naviamp.domain.waveform.seekSecondsForFraction
 import app.naviamp.domain.playback.SleepTimerRequest
 import kotlinx.coroutines.launch
@@ -207,6 +208,7 @@ fun NaviampNowPlayingPanel(
 ) {
     var selectedTab by remember(nowPlaying.id, nowPlaying.isLive) { mutableStateOf(NaviampNowPlayingTab.UpNext) }
     val showStationList = nowPlaying.isLive
+    val progressStableNowPlaying = rememberProgressStableNowPlaying(nowPlaying)
     val artSizeDefault = 286.dp
     val sidePanelHeight = 340.dp
 
@@ -263,7 +265,7 @@ fun NaviampNowPlayingPanel(
                         .fillMaxHeight(),
                 ) {
                     NowPlayingArtSurface(
-                        nowPlaying = nowPlaying,
+                        nowPlaying = if (nowPlaying.visualizerVisible) nowPlaying else progressStableNowPlaying,
                         coverArtUrl = nowPlaying.coverArtUrl,
                         colors = colors,
                         size = artSize,
@@ -294,7 +296,7 @@ fun NaviampNowPlayingPanel(
                     )
                 }
                 NowPlayingSidePanel(
-                    nowPlaying = nowPlaying,
+                    nowPlaying = if (nowPlaying.lyricsVisible) nowPlaying else progressStableNowPlaying,
                     colors = colors,
                     selectedTab = selectedTab,
                     onTabSelected = { selectedTab = it },
@@ -357,7 +359,7 @@ fun NaviampNowPlayingPanel(
                             }
                         } else {
                             NowPlayingArtSurface(
-                                nowPlaying = nowPlaying,
+                                nowPlaying = if (nowPlaying.visualizerVisible) nowPlaying else progressStableNowPlaying,
                                 coverArtUrl = nowPlaying.coverArtUrl,
                                 colors = colors,
                                 size = artSize,
@@ -407,7 +409,7 @@ fun NaviampNowPlayingPanel(
                             )
                         } else {
                             NowPlayingArtSurface(
-                                nowPlaying = nowPlaying,
+                                nowPlaying = if (nowPlaying.visualizerVisible) nowPlaying else progressStableNowPlaying,
                                 coverArtUrl = nowPlaying.coverArtUrl,
                                 colors = colors,
                                 size = artSize,
@@ -438,7 +440,7 @@ fun NaviampNowPlayingPanel(
                     )
                 }
                 NowPlayingSidePanel(
-                    nowPlaying = nowPlaying,
+                    nowPlaying = progressStableNowPlaying,
                     colors = colors,
                     selectedTab = selectedTab,
                     onTabSelected = { selectedTab = it },
@@ -453,6 +455,15 @@ fun NaviampNowPlayingPanel(
             }
         }
     }
+}
+
+@Composable
+private fun rememberProgressStableNowPlaying(nowPlaying: NowPlayingUi): NowPlayingUi {
+    val key = nowPlaying.copy(
+        positionSeconds = null,
+        visualizerFrame = null,
+    )
+    return remember(key) { key }
 }
 
 @Composable
@@ -715,7 +726,7 @@ private fun NowPlayingDetails(
                         color = colors.primaryText,
                         fontSize = titleFontSize,
                         height = titleTextHeight,
-                        marqueeEnabled = nowPlaying.id.isNotBlank(),
+                        marqueeEnabled = !mobileLayout && nowPlaying.id.isNotBlank(),
                         modifier = Modifier.fillMaxWidth(),
                     )
                     Text(
@@ -1368,6 +1379,7 @@ private fun WaveformScrubber(
     modifier: Modifier = Modifier,
 ) {
     var latestValue by remember(value) { mutableFloatStateOf(value.coerceIn(0f, 1f)) }
+    val displayAmplitudes = remember(amplitudes) { cleanWaveformAmplitudes(amplitudes) }
 
     Box(
         modifier = modifier
@@ -1376,13 +1388,13 @@ private fun WaveformScrubber(
         Canvas(
             modifier = Modifier.fillMaxSize(),
         ) {
-            if (amplitudes.isEmpty()) {
+            if (displayAmplitudes.isEmpty()) {
                 drawFallbackScrubLine(value, enabled, colors)
                 return@Canvas
             }
 
             val centerY = size.height / 2f
-            val visibleBars = minOf(amplitudes.size, size.width.toInt().coerceAtLeast(24))
+            val visibleBars = minOf(displayAmplitudes.size, size.width.toInt().coerceAtLeast(24))
             val step = size.width / visibleBars.toFloat()
             val strokeWidth = (step * 0.72f).coerceIn(0.75f, 2.4f)
             val minBarHeight = 2.5f
@@ -1392,9 +1404,9 @@ private fun WaveformScrubber(
                 val sourceIndex = if (visibleBars == 1) {
                     0
                 } else {
-                    ((index / (visibleBars - 1f)) * (amplitudes.size - 1)).toInt()
+                    ((index / (visibleBars - 1f)) * (displayAmplitudes.size - 1)).toInt()
                 }
-                val amplitude = amplitudes[sourceIndex].coerceIn(0f, 1f)
+                val amplitude = displayAmplitudes[sourceIndex].coerceIn(0f, 1f)
                 val barHeight = (minBarHeight + amplitude * (maxBarHeight - minBarHeight))
                     .coerceAtMost(size.height)
                 val ratio = if (visibleBars == 1) 0f else index / (visibleBars - 1f)

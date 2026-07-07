@@ -350,6 +350,14 @@ class PlaybackTransitionsTest {
                 requireMediaId = true,
             ),
         )
+        assertFalse(
+            shouldUseBassMixerPlayback(
+                request = request,
+                supportsMixer = true,
+                requireMediaId = true,
+                requiresMixer = false,
+            ),
+        )
     }
 
     @Test

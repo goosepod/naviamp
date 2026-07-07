@@ -1160,6 +1160,26 @@ mediaSourceCount:
 SELECT COUNT(*)
 FROM media_source;
 
+storageStats:
+SELECT
+  (SELECT COUNT(*) FROM cached_image) AS image_count,
+  (SELECT COALESCE(SUM(size_bytes), 0) FROM cached_image) AS image_bytes,
+  (SELECT COUNT(*) FROM cached_response) AS response_count,
+  (SELECT COUNT(*) FROM cached_audio) AS audio_count,
+  (SELECT COALESCE(SUM(size_bytes), 0) FROM cached_audio) AS audio_bytes,
+  (SELECT COUNT(*) FROM downloaded_audio) AS download_count,
+  (SELECT COALESCE(SUM(size_bytes), 0) FROM downloaded_audio) AS download_bytes,
+  (SELECT COUNT(*) FROM cached_audio_waveform) AS audio_waveform_count,
+  (SELECT COALESCE(SUM(size_bytes), 0) FROM cached_audio_waveform) AS audio_waveform_bytes,
+  (SELECT COUNT(*) FROM cached_lyrics) + (SELECT COUNT(*) FROM cached_lrclib_lyrics) AS lyrics_count,
+  (SELECT COALESCE(SUM(size_bytes), 0) FROM cached_lyrics) + (SELECT COALESCE(SUM(size_bytes), 0) FROM cached_lrclib_lyrics) AS lyrics_bytes,
+  (SELECT COUNT(*) FROM media_source) AS media_source_count,
+  (SELECT COUNT(*) FROM library_artist) AS library_artist_count,
+  (SELECT COUNT(*) FROM library_album) AS library_album_count,
+  (SELECT COUNT(*) FROM library_track) AS library_track_count,
+  (SELECT COUNT(*) FROM pending_provider_action) AS pending_provider_action_count,
+  (SELECT COUNT(*) FROM pending_provider_action WHERE attempt_count > 0) AS failed_pending_provider_action_count;
+
 clearLibraryForSource:
 DELETE FROM library_track
 WHERE source_id = ?;
