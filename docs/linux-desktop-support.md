@@ -30,8 +30,8 @@ Flatpak is the preferred universal package to investigate after the app-image an
 - [x] Verify `make linux-test` stages and launches `build/local-test/Naviamp`.
 - [x] Verify basic playback on Xubuntu over XRDP with PulseAudio passthrough.
 - [x] Verify crossfade playback behavior on Linux.
+- [x] Verify gapless playback behavior on Linux with Pink Floyd's `The Dark Side of the Moon`.
 - [ ] Verify seek behavior on Linux.
-- [ ] Verify gapless playback behavior on Linux.
 - [ ] Verify waveform generation on Linux.
 - [ ] Verify visualizer behavior on Linux.
 - [ ] Verify `make linux-standalone` produces `Naviamp-linux-x64-release.zip`.
