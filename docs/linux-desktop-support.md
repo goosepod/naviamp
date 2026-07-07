@@ -35,6 +35,9 @@ Flatpak is the preferred universal package to investigate after the app-image an
 - [x] Verify lyrics display on Linux.
 - [x] Verify downloads on Linux.
 - [x] Verify playlist creation on Linux.
+- [x] Verify volume controls on Linux.
+- [x] Verify library search on Linux.
+- [x] Complete a general Xubuntu XRDP smoke test with no remaining user-visible blockers found.
 - [x] Verify basic visualizer behavior on Linux.
 - [ ] Verify seek behavior on Linux.
 - [ ] Verify waveform generation on Linux.
