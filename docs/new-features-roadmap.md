@@ -17,6 +17,12 @@ Keep implementation cross-platform by default: shared domain models, shared UI, 
 
 ### Focused Polish
 
+- [ ] Add audio output device selection.
+  - Default behavior should remain `Follow OS Output`, which uses the current system default output device.
+  - Users should be able to pin a specific available output, such as Mac built-in speakers, headphones, Windows internal speakers, HDMI audio, dock audio, or Linux Pulse/PipeWire sinks.
+  - If a pinned device is disconnected or unavailable, fall back to the OS default and make the unavailable state clear in settings.
+  - Persist the choice per device/app install rather than syncing it across machines, because output device IDs are OS-local.
+  - Implement through platform playback adapters; shared UI/settings can model the preference, but device enumeration and selection are platform-specific audio behavior.
 - [ ] Add desktop update checking.
   - Desktop app can manually check whether a newer Naviamp release is available.
   - Keep the first pass simple: clear status for up-to-date, update available, and unable to check.

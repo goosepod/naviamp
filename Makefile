@@ -5,6 +5,7 @@ ANDROID_HOME ?= /Users/jbmcmichael/Library/Android/sdk
 GRADLE_COMMON = --configure-on-demand
 MACOS_DESKTOP_PROPS = -Pnaviamp.bass.platform=macos-arm64 -Pcompose.desktop.packaging.checkJdkVendor=false
 WINDOWS_DESKTOP_PROPS = -Pnaviamp.bass.platform=windows-x64
+LINUX_DESKTOP_PROPS = -Pnaviamp.bass.platform=linux-x64
 
 .PHONY: help
 help:
@@ -18,6 +19,10 @@ help:
 	@printf "  make windows-test        Build and stage the Windows test app\n"
 	@printf "  make windows-standalone  Build Windows release zip\n"
 	@printf "  make windows-installer   Build Windows MSI/EXE installer\n\n"
+	@printf "Linux, run on a Linux runner or shell:\n"
+	@printf "  make linux-test          Build and stage the Linux test app\n"
+	@printf "  make linux-standalone    Build Linux release zip\n"
+	@printf "  make linux-installer     Build Linux DEB/RPM packages\n\n"
 	@printf "Android:\n"
 	@printf "  make android-debug       Build debug APK\n"
 	@printf "  make android-release     Build release APK/AAB tasks configured by Gradle\n\n"
@@ -96,6 +101,33 @@ windows-installer:
 		$(GRADLEW_BAT) $(GRADLE_COMMON) "$(WINDOWS_DESKTOP_PROPS)" :apps:desktop:packageReleaseDistributionForCurrentOS; \
 	else \
 		printf "windows-installer must run on Windows so jpackage can create a Windows installer.\n"; \
+		exit 1; \
+	fi
+
+.PHONY: linux-test
+linux-test:
+	@if uname -s | grep -Eq 'Linux'; then \
+		$(GRADLE) $(GRADLE_COMMON) $(LINUX_DESKTOP_PROPS) :apps:desktop:stageLocalTestApp; \
+	else \
+		printf "linux-test must run on Linux so jpackage can create a Linux app image.\n"; \
+		exit 1; \
+	fi
+
+.PHONY: linux-standalone linux-release
+linux-standalone linux-release:
+	@if uname -s | grep -Eq 'Linux'; then \
+		$(GRADLE) $(GRADLE_COMMON) $(LINUX_DESKTOP_PROPS) :apps:desktop:packageReleaseDistributable; \
+	else \
+		printf "linux-standalone must run on Linux so jpackage can create a Linux app image.\n"; \
+		exit 1; \
+	fi
+
+.PHONY: linux-installer
+linux-installer:
+	@if uname -s | grep -Eq 'Linux'; then \
+		$(GRADLE) $(GRADLE_COMMON) $(LINUX_DESKTOP_PROPS) :apps:desktop:packageReleaseDistributionForCurrentOS; \
+	else \
+		printf "linux-installer must run on Linux so jpackage can create Linux packages.\n"; \
 		exit 1; \
 	fi
 

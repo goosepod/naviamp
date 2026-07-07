@@ -288,9 +288,13 @@ compose.desktop {
         nativeDistributions {
             packageName = "Naviamp"
             packageVersion = naviampNativePackageVersion
+            description = "A native Navidrome music client with BASS-backed playback."
+            vendor = "Naviamp"
+            copyright = "Copyright 2026 Naviamp contributors"
+            licenseFile.set(rootProject.file("LICENSE"))
             appResourcesRootDir.set(generatedDesktopBassAppResources)
             modules("java.net.http", "java.sql")
-            targetFormats(TargetFormat.Dmg, TargetFormat.Msi, TargetFormat.Exe)
+            targetFormats(TargetFormat.Dmg, TargetFormat.Msi, TargetFormat.Exe, TargetFormat.Deb, TargetFormat.Rpm)
 
             windows {
                 iconFile.set(project.file("src/desktopMain/resources/icons/naviamp.ico"))
@@ -301,6 +305,19 @@ compose.desktop {
             }
             macOS {
                 iconFile.set(project.file("src/desktopMain/resources/icons/naviamp.icns"))
+            }
+            linux {
+                iconFile.set(project.file("src/desktopMain/resources/icons/naviamp.png"))
+                packageName = "naviamp"
+                packageVersion = naviampVersionName
+                debPackageVersion = naviampVersionName
+                rpmPackageVersion = naviampVersionName
+                appRelease = "1"
+                shortcut = true
+                debMaintainer = "Naviamp Maintainers"
+                menuGroup = "AudioVideo"
+                appCategory = "AudioVideo"
+                rpmLicenseType = "MIT"
             }
         }
     }
@@ -335,6 +352,7 @@ tasks.matching {
         it.name == "packageReleaseDistributionForCurrentOS"
 }.configureEach {
     doLast {
+        syncDesktopNativeAppResources()
         markDesktopVisualizerMetalExecutable()
         patchMacAppBundleVersion()
     }
@@ -356,21 +374,17 @@ tasks.register("verifyDesktopDistributable") {
     dependsOn("createDistributable")
 
     doLast {
+        syncDesktopNativeAppResources()
         markDesktopVisualizerMetalExecutable()
         val platform = desktopBassPlatform.get()
-        val bassResourcesDir = desktopPackagedAppDir.get()
-            .dir("Contents/app/resources/playback/bass/$platform")
-            .asFile
-            .takeIf { platform.startsWith("macos-") }
-            ?: desktopPackagedAppDir.get()
-                .dir("app/resources/playback/bass/$platform")
-                .asFile
+        val bassResourcesDir = desktopPackagedResourcesDir(platform)
+            .resolve("playback/bass/$platform")
         val requiredLibraries = buildList {
             add(desktopLibraryName("bass", platform))
             add(desktopLibraryName("bassmix", platform))
             add(desktopLibraryName("bassflac", platform))
             add(desktopLibraryName("bassopus", platform))
-            if (platform.startsWith("macos-") || platform.startsWith("windows-")) {
+            if (platform.startsWith("macos-") || platform.startsWith("windows-") || platform.startsWith("linux-")) {
                 add(desktopLibraryName("naviamp_bass", platform))
             }
             if (platform.startsWith("macos-")) {
@@ -443,7 +457,37 @@ fun desktopLibraryName(stem: String, platform: String): String =
         platform.startsWith("windows-") -> "$stem.dll"
         platform.startsWith("macos-") -> "lib$stem.dylib"
         else -> "lib$stem.so"
+    }
+
+fun syncDesktopNativeAppResources() {
+    val platform = desktopBassPlatform.get()
+    val sourceRoot = generatedDesktopBassAppResources.get()
+        .dir(platform)
+        .asFile
+    if (!sourceRoot.isDirectory) return
+
+    val resourcesRoot = desktopPackagedResourcesDir(platform)
+    staleDesktopPackagedResourcesDirs(platform).forEach { staleResourcesRoot ->
+        delete(staleResourcesRoot.resolve("playback/bass/$platform"))
+    }
+    copy {
+        from(sourceRoot)
+        into(resourcesRoot)
+    }
 }
+
+fun desktopPackagedResourcesDir(platform: String) =
+    when {
+        platform.startsWith("macos-") -> desktopPackagedAppDir.get().dir("Contents/app/resources").asFile
+        platform.startsWith("linux-") -> desktopPackagedAppDir.get().dir("lib/app/resources").asFile
+        else -> desktopPackagedAppDir.get().dir("app/resources").asFile
+    }
+
+fun staleDesktopPackagedResourcesDirs(platform: String) =
+    when {
+        platform.startsWith("linux-") -> listOf(desktopPackagedAppDir.get().dir("app/resources").asFile)
+        else -> emptyList()
+    }
 
 fun nativeDistributionPackageVersion(version: String): String {
     val coreVersion = version.substringBefore('-').substringBefore('+')
