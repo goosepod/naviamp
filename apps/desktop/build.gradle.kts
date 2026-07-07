@@ -288,6 +288,10 @@ compose.desktop {
         nativeDistributions {
             packageName = "Naviamp"
             packageVersion = naviampNativePackageVersion
+            description = "A native Navidrome music client with BASS-backed playback."
+            vendor = "Naviamp"
+            copyright = "Copyright 2026 Naviamp contributors"
+            licenseFile.set(rootProject.file("LICENSE"))
             appResourcesRootDir.set(generatedDesktopBassAppResources)
             modules("java.net.http", "java.sql")
             targetFormats(TargetFormat.Dmg, TargetFormat.Msi, TargetFormat.Exe, TargetFormat.Deb, TargetFormat.Rpm)
@@ -305,6 +309,11 @@ compose.desktop {
             linux {
                 iconFile.set(project.file("src/desktopMain/resources/icons/naviamp.png"))
                 packageName = "naviamp"
+                packageVersion = naviampVersionName
+                debPackageVersion = naviampVersionName
+                rpmPackageVersion = naviampVersionName
+                appRelease = "1"
+                shortcut = true
                 debMaintainer = "Naviamp Maintainers"
                 menuGroup = "AudioVideo"
                 appCategory = "AudioVideo"

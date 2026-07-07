@@ -39,11 +39,14 @@ Flatpak is the preferred universal package to investigate after the app-image an
 - [x] Verify library search on Linux.
 - [x] Complete a general Xubuntu XRDP smoke test with no remaining user-visible blockers found.
 - [x] Verify basic visualizer behavior on Linux.
+- [x] Verify `make linux-standalone` produces `Naviamp-linux-x64-release.zip` and the standalone app runs.
+- [x] Verify `make linux-installer` produces `.deb` and `.rpm` packages.
+- [x] Verify the `.deb` installs and launches on Xubuntu.
 - [ ] Verify seek behavior on Linux.
 - [ ] Verify waveform generation on Linux.
 - [ ] Verify GLSL/shader visualizer behavior on non-VM Linux graphics.
-- [ ] Verify `make linux-standalone` produces `Naviamp-linux-x64-release.zip`.
-- [ ] Verify `make linux-installer` produces `.deb` and `.rpm` packages.
+- [ ] Verify installed Linux app launcher icon and metadata after package metadata updates.
+- [ ] Add AppStream metadata if Xubuntu App Center still needs richer package information from the raw `.deb`.
 - [ ] Add Linux release artifacts to `.forgejo/workflows/release-builds.yml` after the native vendor set is present.
 - [ ] Package a Flatpak bundle or repo manifest.
 - [ ] Decide whether a Snap package is worth maintaining.
@@ -114,6 +117,12 @@ apps/desktop/build/compose/distributions/Naviamp-linux-x64-release.zip
 apps/desktop/build/compose/binaries/main/deb/*.deb
 apps/desktop/build/compose/binaries/main/rpm/*.rpm
 ```
+
+Linux `.deb` and `.rpm` package versions should use the project `VERSION` directly, for example `0.14.0-1` for a first Linux package release. The positive-major native package version workaround is retained for package formats that require it, but Linux package managers accept pre-1.0 versions.
+
+The standalone app-image `bin/Naviamp` executable may still show a generic executable icon in file managers because Linux icons normally belong to `.desktop` launchers and installed icon-theme resources, not to ELF launcher files. The installed `.deb`/`.rpm` launcher is the authoritative Linux icon integration point.
+
+Xubuntu App Center can show limited information for third-party raw `.deb` files unless the package includes AppStream metadata. The Compose Desktop/jpackage metadata now includes a description, vendor, license file, Linux shortcut, package category, and icon, but a richer App Center listing may still require a dedicated AppStream metainfo file or Flatpak packaging.
 
 ## Xubuntu XRDP Audio Notes
 
