@@ -607,12 +607,11 @@ private val DefaultNaviampLibraries = listOf(
 )
 
 private val DefaultNaviampChangelog = listOf(
-    "Added the Lyric Stage visualizer with synced-lyric timing, beat-reactive text, adaptive layout, and native visualizer integration.",
-    "Fixed waveform startup and cache behavior so saved waveforms are reused more reliably and first-track waveforms render correctly after app launch.",
-    "Improved waveform analysis resilience with sanitized peak data, bounded background work, and shared storage cleanup for desktop and Android.",
-    "Reduced Android playback overhead with slower session-save cadence, lower playback polling churn, direct BASS playback when crossfade is off, and release startup profile optimization.",
-    "Added macOS and Android observer scripts for repeatable CPU, memory, log, and battery diagnostics during real playback testing.",
-    "Improved Android release validation with ProfileInstaller support and an app-owned baseline profile for faster startup.",
+    "Added Linux desktop packaging with standalone zip, deb, and rpm builds.",
+    "Bundled Linux x64 BASS playback libraries and JNI resources for packaged desktop playback.",
+    "Verified Linux playback, seeking, waveforms, crossfade, gapless transitions, radio, lyrics, downloads, playlists, volume controls, and library search on Xubuntu.",
+    "Improved Linux package metadata, launcher icon integration, version numbering, and native resource layout.",
+    "Documented Linux build setup, validation coverage, and future audio output device selection.",
 )
 
 @Composable
