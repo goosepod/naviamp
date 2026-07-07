@@ -42,6 +42,7 @@ Flatpak is the preferred universal package to investigate after the app-image an
 - [x] Verify `make linux-standalone` produces `Naviamp-linux-x64-release.zip` and the standalone app runs.
 - [x] Verify `make linux-installer` produces `.deb` and `.rpm` packages.
 - [x] Verify the `.deb` installs and launches on Xubuntu.
+- [x] Remove duplicate Linux BASS resources from standalone zip output.
 - [ ] Verify seek behavior on Linux.
 - [ ] Verify waveform generation on Linux.
 - [ ] Verify GLSL/shader visualizer behavior on non-VM Linux graphics.
@@ -121,6 +122,8 @@ apps/desktop/build/compose/binaries/main/rpm/*.rpm
 Linux `.deb` and `.rpm` package versions should use the project `VERSION` directly, for example `0.14.0-1` for a first Linux package release. The positive-major native package version workaround is retained for package formats that require it, but Linux package managers accept pre-1.0 versions.
 
 The standalone app-image `bin/Naviamp` executable may still show a generic executable icon in file managers because Linux icons normally belong to `.desktop` launchers and installed icon-theme resources, not to ELF launcher files. The installed `.deb`/`.rpm` launcher is the authoritative Linux icon integration point.
+
+Linux app-image resources live under `lib/app/resources`. The release zip should not also contain a duplicate `app/resources/playback/bass/linux-x64` tree.
 
 Xubuntu App Center can show limited information for third-party raw `.deb` files unless the package includes AppStream metadata. The Compose Desktop/jpackage metadata now includes a description, vendor, license file, Linux shortcut, package category, and icon, but a richer App Center listing may still require a dedicated AppStream metainfo file or Flatpak packaging.
 

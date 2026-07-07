@@ -377,13 +377,8 @@ tasks.register("verifyDesktopDistributable") {
         syncDesktopNativeAppResources()
         markDesktopVisualizerMetalExecutable()
         val platform = desktopBassPlatform.get()
-        val bassResourcesDir = desktopPackagedAppDir.get()
-            .dir("Contents/app/resources/playback/bass/$platform")
-            .asFile
-            .takeIf { platform.startsWith("macos-") }
-            ?: desktopPackagedAppDir.get()
-                .dir("app/resources/playback/bass/$platform")
-                .asFile
+        val bassResourcesDir = desktopPackagedResourcesDir(platform)
+            .resolve("playback/bass/$platform")
         val requiredLibraries = buildList {
             add(desktopLibraryName("bass", platform))
             add(desktopLibraryName("bassmix", platform))
@@ -471,16 +466,28 @@ fun syncDesktopNativeAppResources() {
         .asFile
     if (!sourceRoot.isDirectory) return
 
-    val resourcesRoot = if (platform.startsWith("macos-")) {
-        desktopPackagedAppDir.get().dir("Contents/app/resources").asFile
-    } else {
-        desktopPackagedAppDir.get().dir("app/resources").asFile
+    val resourcesRoot = desktopPackagedResourcesDir(platform)
+    staleDesktopPackagedResourcesDirs(platform).forEach { staleResourcesRoot ->
+        delete(staleResourcesRoot.resolve("playback/bass/$platform"))
     }
     copy {
         from(sourceRoot)
         into(resourcesRoot)
     }
 }
+
+fun desktopPackagedResourcesDir(platform: String) =
+    when {
+        platform.startsWith("macos-") -> desktopPackagedAppDir.get().dir("Contents/app/resources").asFile
+        platform.startsWith("linux-") -> desktopPackagedAppDir.get().dir("lib/app/resources").asFile
+        else -> desktopPackagedAppDir.get().dir("app/resources").asFile
+    }
+
+fun staleDesktopPackagedResourcesDirs(platform: String) =
+    when {
+        platform.startsWith("linux-") -> listOf(desktopPackagedAppDir.get().dir("app/resources").asFile)
+        else -> emptyList()
+    }
 
 fun nativeDistributionPackageVersion(version: String): String {
     val coreVersion = version.substringBefore('-').substringBefore('+')
