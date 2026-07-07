@@ -343,6 +343,7 @@ tasks.matching {
         it.name == "packageReleaseDistributionForCurrentOS"
 }.configureEach {
     doLast {
+        syncDesktopNativeAppResources()
         markDesktopVisualizerMetalExecutable()
         patchMacAppBundleVersion()
     }
@@ -364,6 +365,7 @@ tasks.register("verifyDesktopDistributable") {
     dependsOn("createDistributable")
 
     doLast {
+        syncDesktopNativeAppResources()
         markDesktopVisualizerMetalExecutable()
         val platform = desktopBassPlatform.get()
         val bassResourcesDir = desktopPackagedAppDir.get()
@@ -451,6 +453,24 @@ fun desktopLibraryName(stem: String, platform: String): String =
         platform.startsWith("windows-") -> "$stem.dll"
         platform.startsWith("macos-") -> "lib$stem.dylib"
         else -> "lib$stem.so"
+    }
+
+fun syncDesktopNativeAppResources() {
+    val platform = desktopBassPlatform.get()
+    val sourceRoot = generatedDesktopBassAppResources.get()
+        .dir(platform)
+        .asFile
+    if (!sourceRoot.isDirectory) return
+
+    val resourcesRoot = if (platform.startsWith("macos-")) {
+        desktopPackagedAppDir.get().dir("Contents/app/resources").asFile
+    } else {
+        desktopPackagedAppDir.get().dir("app/resources").asFile
+    }
+    copy {
+        from(sourceRoot)
+        into(resourcesRoot)
+    }
 }
 
 fun nativeDistributionPackageVersion(version: String): String {
