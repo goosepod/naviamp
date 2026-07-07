@@ -31,9 +31,10 @@ Flatpak is the preferred universal package to investigate after the app-image an
 - [x] Verify basic playback on Xubuntu over XRDP with PulseAudio passthrough.
 - [x] Verify crossfade playback behavior on Linux.
 - [x] Verify gapless playback behavior on Linux with Pink Floyd's `The Dark Side of the Moon`.
+- [x] Verify basic visualizer behavior on Linux.
 - [ ] Verify seek behavior on Linux.
 - [ ] Verify waveform generation on Linux.
-- [ ] Verify visualizer behavior on Linux.
+- [ ] Verify GLSL/shader visualizer behavior on non-VM Linux graphics.
 - [ ] Verify `make linux-standalone` produces `Naviamp-linux-x64-release.zip`.
 - [ ] Verify `make linux-installer` produces `.deb` and `.rpm` packages.
 - [ ] Add Linux release artifacts to `.forgejo/workflows/release-builds.yml` after the native vendor set is present.
