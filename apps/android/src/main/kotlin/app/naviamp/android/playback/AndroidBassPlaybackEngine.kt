@@ -212,6 +212,7 @@ class AndroidBassPlaybackEngine(
                     request = request,
                     supportsMixer = bass.supportsMixer,
                     requireMediaId = true,
+                    requiresMixer = crossfadeDurationSeconds > 0,
                 )
                 val playback = createPlayback(
                     request = request,
@@ -225,7 +226,7 @@ class AndroidBassPlaybackEngine(
                 val activation = bassPlaybackActivated(playback, creationPlan.replayGainAdjustment)
                 val handle = activation.playbackHandle
                 stream = activation.playbackHandle
-                currentSourceStream = activation.sourceHandle
+                currentSourceStream = activation.sourceHandle.takeIf { creationPlan.useMixer } ?: 0
                 replayGainFactor = activation.replayGainFactor
                 createdPlayback = null
                 Log.i(Tag, "BASS stream handle=$handle source=$currentSourceStream error=${bass.lastErrorCode}")

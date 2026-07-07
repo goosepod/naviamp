@@ -3,6 +3,7 @@ package app.naviamp.android.playback
 import android.content.Context
 import android.util.Log
 import app.naviamp.android.AndroidPlaybackAudioAssets
+import app.naviamp.android.AndroidPlaybackSessionSaveIntervalMillis
 import app.naviamp.android.AndroidSettingsStore
 import app.naviamp.android.AndroidStorageDependencies
 import app.naviamp.android.withAndroidPendingActions
@@ -473,7 +474,7 @@ internal class AndroidServicePlaybackRuntimeController(
     }
 
     private companion object {
-        const val ServicePlaybackSessionSaveIntervalMillis = 5_000L
+        const val ServicePlaybackSessionSaveIntervalMillis = AndroidPlaybackSessionSaveIntervalMillis
         const val ServiceSeekToleranceSeconds = 2.0
         const val ServiceSeekStaleProgressWindowMillis = 1_500L
         const val ServiceIgnoreZeroSeekAfterSeconds = 3.0

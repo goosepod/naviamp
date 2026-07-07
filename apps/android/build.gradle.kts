@@ -9,6 +9,9 @@ val androidReleaseKeystore = providers.environmentVariable("NAVIAMP_ANDROID_KEYS
 val androidReleaseKeystorePassword = providers.environmentVariable("NAVIAMP_ANDROID_KEYSTORE_PASSWORD")
 val androidReleaseKeyAlias = providers.environmentVariable("NAVIAMP_ANDROID_KEY_ALIAS")
 val androidReleaseKeyPassword = providers.environmentVariable("NAVIAMP_ANDROID_KEY_PASSWORD")
+val signDebugWithReleaseKey = providers.gradleProperty("naviamp.android.signDebugWithReleaseKey")
+    .map(String::toBoolean)
+    .orElse(false)
 val hasAndroidReleaseSigning = listOf(
     androidReleaseKeystore,
     androidReleaseKeystorePassword,
@@ -52,6 +55,11 @@ android {
     }
 
     buildTypes {
+        debug {
+            if (hasAndroidReleaseSigning && signDebugWithReleaseKey.get()) {
+                signingConfig = signingConfigs.getByName("release")
+            }
+        }
         release {
             if (hasAndroidReleaseSigning) {
                 signingConfig = signingConfigs.getByName("release")
@@ -90,6 +98,7 @@ dependencies {
     implementation(project(":providers:navidrome"))
     implementation(libs.activity.compose)
     implementation(libs.androidx.media)
+    implementation(libs.androidx.profileinstaller)
     implementation("org.jetbrains.compose.foundation:foundation:$composeVersion")
     implementation("org.jetbrains.compose.material3:material3:$composeMaterial3Version")
     implementation("org.jetbrains.compose.runtime:runtime:$composeVersion")

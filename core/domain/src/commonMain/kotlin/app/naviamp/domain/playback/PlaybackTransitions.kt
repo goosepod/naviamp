@@ -203,8 +203,9 @@ fun shouldUseBassMixerPlayback(
     request: PlaybackRequest,
     supportsMixer: Boolean,
     requireMediaId: Boolean,
+    requiresMixer: Boolean = true,
 ): Boolean =
-    supportsMixer && (!requireMediaId || request.mediaId != null)
+    requiresMixer && supportsMixer && (!requireMediaId || request.mediaId != null)
 
 fun canPrepareBassMixerSource(
     playbackHandle: Int,

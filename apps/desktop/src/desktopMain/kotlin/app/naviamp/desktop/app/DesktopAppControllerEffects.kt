@@ -4,6 +4,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import app.naviamp.domain.Playlist
 import app.naviamp.domain.Track
+import app.naviamp.domain.app.StorageStatsRefreshIntervalMillis
 import app.naviamp.domain.app.shouldRefreshStorageStats
 import app.naviamp.domain.cache.StorageCacheStats
 import app.naviamp.domain.home.HomeContent
@@ -130,7 +131,7 @@ internal fun DesktopAppControllerEffects(
 
     LaunchedEffect(showStatsForNerds) {
         while (showStatsForNerds) {
-            delay(1_000)
+            delay(StorageStatsRefreshIntervalMillis)
             incrementStatsForNerdsRefreshTick()
         }
     }

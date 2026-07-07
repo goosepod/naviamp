@@ -55,6 +55,7 @@ Android already uses the shared Compose UI shell for the main app surface, so ma
   - [x] Add shared stream/download quality settings for full quality vs Navidrome transcode.
   - [x] Add Android mobile-data policy controls for streaming quality and download allowance.
   - Confirm gapless, crossfade, and ReplayGain behavior match desktop for local files, direct provider streams, and prepared-next transitions.
+  - Future performance investigation: Android crossfade currently keeps playback on the BASSmix path for the active track when crossfade is enabled. Measurements suggest this costs more CPU than direct BASS playback. Revisit whether Android can stay on direct playback for most of a track and only enter mixer playback near an actual transition, but treat this as a risky follow-up because it touches gapless/crossfade state, prepared-next adoption, seek/pause reset, and rapid skip behavior.
 
 - [ ] **Similar artists on Android**
   - Desktop has a Deezer-backed similar-artist flow with local library matching and external Deezer links.

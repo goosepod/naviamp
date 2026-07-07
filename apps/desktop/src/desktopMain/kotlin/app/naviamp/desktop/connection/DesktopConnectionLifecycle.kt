@@ -94,6 +94,7 @@ class DesktopConnectionLifecycleController(
     private val setNowPlayingAudioTags: (List<AudioTag>?) -> Unit,
     private val setNowPlayingLyrics: (Lyrics?) -> Unit,
     private val setNowPlayingLyricsStatus: (String?) -> Unit,
+    private val incrementNowPlayingWaveformReloadToken: () -> Unit,
     private val setPlaybackState: (PlaybackState) -> Unit,
     private val setPlaybackProgress: (PlaybackProgress) -> Unit,
     private val setPlaybackQueue: (PlaybackQueue) -> Unit,
@@ -309,6 +310,12 @@ class DesktopConnectionLifecycleController(
                 setNowPlayingStreamMetadata(PlaybackStreamMetadata())
                 setNowPlayingTrack(restoredSession.session.currentTrack)
                 setNowPlayingCoverArtUrl(restoredSession.coverArtUrl)
+                setNowPlayingWaveform(null)
+                setNowPlayingWaveformStatus("Waiting")
+                setNowPlayingAudioTags(null)
+                setNowPlayingLyrics(null)
+                setNowPlayingLyricsStatus(null)
+                incrementNowPlayingWaveformReloadToken()
                 setPlaybackState(PlaybackState.Idle)
             }
             null -> Unit

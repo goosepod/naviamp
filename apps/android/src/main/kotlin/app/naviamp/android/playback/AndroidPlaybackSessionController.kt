@@ -26,16 +26,6 @@ fun saveAndroidPlaybackSession(
         )
         if (plan !is PlaybackSessionSavePlan.Save) return
         playbackSessionRepository.savePlaybackSession(session = plan.session, sourceId = sourceId)
-        when (plan.kind) {
-            PlaybackSessionSavePlan.Kind.InternetRadio -> android.util.Log.i(
-                "NaviampSession",
-                "Saved station source=$sourceId name=${nowPlayingStation?.name.orEmpty()}",
-            )
-            PlaybackSessionSavePlan.Kind.Track -> android.util.Log.i(
-                "NaviampSession",
-                "Saved track source=$sourceId title=${nowPlaying?.title.orEmpty()} queue=${playbackQueue.tracks.size} index=${playbackQueue.currentIndex} position=${plan.session.positionSeconds}",
-            )
-        }
     }
 }
 

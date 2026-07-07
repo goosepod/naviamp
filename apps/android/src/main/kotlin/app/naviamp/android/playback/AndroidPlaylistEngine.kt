@@ -71,6 +71,7 @@ class AndroidPlaylistEngine(
             cacheAudioTrack(sourceId, mediaProvider as NavidromeProvider, track, quality)
                 ?.toPlaybackLocalAudio()
         },
+        workContext = AndroidWaveformWorkDispatcher,
     )
     private val sidecarService = PlaybackSidecarService(
         waveformService = audioWaveformService,

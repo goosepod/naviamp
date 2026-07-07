@@ -66,6 +66,14 @@ class AudioWaveformTest {
     }
 
     @Test
+    fun suppressesIsolatedLeadingWaveformSpike() {
+        val waveform = cleanWaveformAmplitudes(listOf(1.0f) + List(31) { 0.08f })
+
+        assertEquals(0.08f, waveform.first())
+        assertEquals(0.08f, waveform[1])
+    }
+
+    @Test
     fun computesSeekSecondsFromFraction() {
         assertEquals(90.0, seekSecondsForFraction(0.5f, 180.0))
         assertEquals(180.0, seekSecondsForFraction(2f, 180.0))

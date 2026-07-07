@@ -26,6 +26,9 @@ import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.test.runTest
 
 class AudioWaveformServiceTest {
@@ -210,6 +213,51 @@ class AudioWaveformServiceTest {
         assertEquals(listOf(250), analyzer.analyzedBucketCounts)
     }
 
+    @Test
+    fun concurrentRequestsShareSingleWaveformAnalysis() = runTest {
+        val generated = AudioWaveform(listOf(0.3f, 0.8f))
+        val repository = RecordingWaveformRepository()
+        val analysisStarted = CompletableDeferred<Unit>()
+        val releaseAnalysis = CompletableDeferred<Unit>()
+        val analyzer = RecordingWaveformAnalyzer(generated) {
+            analysisStarted.complete(Unit)
+            releaseAnalysis.await()
+        }
+        val service = service(
+            repository = repository,
+            analyzer = analyzer,
+            audioAssets = RecordingAudioAssets(cached = "cache/song.flac"),
+        )
+
+        val first = async {
+            service.loadOrCreateWaveform(
+                sourceId = "source",
+                provider = FakeMediaProvider(),
+                track = track(),
+                quality = StreamQuality.Original,
+                audioCachingEnabled = true,
+            )
+        }
+        analysisStarted.await()
+        val second = async {
+            service.loadOrCreateWaveform(
+                sourceId = "source",
+                provider = FakeMediaProvider(),
+                track = track(),
+                quality = StreamQuality.Original,
+                audioCachingEnabled = true,
+            )
+        }
+
+        releaseAnalysis.complete(Unit)
+        val results = awaitAll(first, second)
+
+        assertEquals(1, analyzer.analyzedUrls.size)
+        assertEquals(1, repository.stored.size)
+        assertSame(generated, results[0].waveform)
+        assertSame(generated, results[1].waveform)
+    }
+
     private fun service(
         repository: RecordingWaveformRepository,
         analyzer: RecordingWaveformAnalyzer,
@@ -303,11 +351,13 @@ private class RecordingAudioAssets(
 
 private class RecordingWaveformAnalyzer(
     private val waveform: AudioWaveform? = null,
+    private val beforeAnalyze: suspend () -> Unit = {},
 ) : AudioWaveformAnalyzer {
     val analyzedUrls = mutableListOf<String>()
     val analyzedBucketCounts = mutableListOf<Int>()
 
     override suspend fun analyze(source: AudioWaveformAnalysisSource): AudioWaveform? {
+        beforeAnalyze()
         analyzedUrls += source.streamUrl
         analyzedBucketCounts += source.bucketCount
         return waveform

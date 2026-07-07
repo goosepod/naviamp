@@ -9,23 +9,32 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameMillis
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.TextMeasurer
+import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -35,8 +44,50 @@ import kotlin.math.min
 import kotlin.math.sin
 
 internal data class LyricMirrorTunnelLine(
+    val key: String,
     val text: String,
     val progressToNext: Float,
+    val enterProgress: Float = 1f,
+    val exitProgress: Float = 0f,
+    val verticalSlot: Float = 0f,
+    val role: LyricMirrorTunnelLineRole = LyricMirrorTunnelLineRole.Active,
+)
+
+internal enum class LyricMirrorTunnelLineRole {
+    Previous,
+    Active,
+    Upcoming,
+}
+
+internal data class LyricMirrorTunnelStage(
+    val lines: List<LyricMirrorTunnelLine> = emptyList(),
+) {
+    val primaryLine: LyricMirrorTunnelLine?
+        get() = lines.firstOrNull { it.role == LyricMirrorTunnelLineRole.Active }
+            ?: lines.firstOrNull()
+}
+
+internal val EmptyLyricMirrorTunnelStage = LyricMirrorTunnelStage()
+
+internal fun LyricMirrorTunnelLine?.asLyricMirrorTunnelStage(): LyricMirrorTunnelStage =
+    this?.let { LyricMirrorTunnelStage(listOf(it)) } ?: EmptyLyricMirrorTunnelStage
+
+internal fun LyricMirrorTunnelStage.primaryText(): String =
+    primaryLine?.text.orEmpty()
+
+internal fun LyricMirrorTunnelStage.primaryProgressToNext(): Float =
+    primaryLine?.progressToNext ?: 0f
+
+internal fun LyricMirrorTunnelStage.primaryLineForNativeMask(): LyricMirrorTunnelLine? =
+    primaryLine
+
+internal fun LyricMirrorTunnelLine(
+    text: String,
+    progressToNext: Float,
+): LyricMirrorTunnelLine = LyricMirrorTunnelLine(
+    key = text,
+    text = text,
+    progressToNext = progressToNext,
 )
 
 @Composable
@@ -45,7 +96,7 @@ internal fun LyricMirrorTunnelVisualizerSurface(
     visualizerColors: NaviampPlayerColors,
     active: Boolean,
     colors: NaviampColors,
-    lyricLine: LyricMirrorTunnelLine?,
+    lyricStage: LyricMirrorTunnelStage,
     renderPolicy: VisualizerRenderPolicy,
     modifier: Modifier,
 ) {
@@ -74,19 +125,87 @@ internal fun LyricMirrorTunnelVisualizerSurface(
     }
     val bass = sampledBands.take(10).averageOrZero().coerceIn(0f, 1f)
     val energy = sampledBands.averageOrZero().coerceIn(0f, 1f)
-    val pixelPop = lyricLine?.progressToNext
-        ?.let { progress -> ((progress - 0.62f) / 0.36f).coerceIn(0f, 1f) }
-        ?: 0f
     val beatIntensity = if (active && bass > 0.34f) ((bass - 0.34f) / 0.48f).coerceIn(0f, 1f) else 0f
-    val lyricText = lyricLine?.text?.takeIf { it.isNotBlank() } ?: "..."
-    val tunnelPush = remember { FloatArray(LyricTunnelRingCount) }
+    val stageLines = lyricStage.lines
+    val primaryStageLine = lyricStage.primaryLine
+    var activeLine by remember { mutableStateOf<LyricMirrorTunnelLine?>(null) }
+    var activeLineStartedAtMillis by remember { mutableLongStateOf(0L) }
+    var outgoingLine by remember { mutableStateOf<LyricMirrorTunnelLine?>(null) }
+    var outgoingLineStartedAtMillis by remember { mutableLongStateOf(0L) }
     val previousFrameMillis = remember { mutableLongStateOf(0L) }
+    LaunchedEffect(primaryStageLine?.key) {
+        val nextActiveLine = primaryStageLine
+        if (nextActiveLine == null) {
+            activeLine?.let { previous ->
+                outgoingLine = previous.copy(
+                    role = LyricMirrorTunnelLineRole.Previous,
+                    enterProgress = 1f,
+                    exitProgress = 0f,
+                )
+                outgoingLineStartedAtMillis = frameMillis.takeIf { it > 0L } ?: previousFrameMillis.longValue
+                activeLine = null
+                activeLineStartedAtMillis = 0L
+            }
+        } else if (nextActiveLine.key != activeLine?.key) {
+            activeLine?.let { previous ->
+                outgoingLine = previous.copy(
+                    role = LyricMirrorTunnelLineRole.Previous,
+                    enterProgress = 1f,
+                    exitProgress = 0f,
+                )
+                outgoingLineStartedAtMillis = frameMillis.takeIf { it > 0L } ?: previousFrameMillis.longValue
+            }
+            activeLine = nextActiveLine.copy(
+                role = LyricMirrorTunnelLineRole.Active,
+                enterProgress = nextActiveLine.enterProgress,
+                exitProgress = 0f,
+            )
+            val startFrameMillis = frameMillis.takeIf { it > 0L } ?: previousFrameMillis.longValue
+            activeLineStartedAtMillis = startFrameMillis -
+                (nextActiveLine.enterProgress.coerceIn(0f, 1f) * LyricTunnelEnterMillis).toLong()
+        }
+    }
+    val frameClockMillis = frameMillis.takeIf { it > 0L } ?: previousFrameMillis.longValue
+    val activeDisplayLine = activeLine
+        ?.copy(
+            enterProgress = if (activeLineStartedAtMillis > 0L) {
+                ((frameClockMillis - activeLineStartedAtMillis).toFloat() / LyricTunnelEnterMillis).coerceIn(0f, 1f)
+            } else {
+                1f
+            },
+            exitProgress = 0f,
+        )
+    val outgoingDisplayLine = outgoingLine
+        ?.let { line ->
+            val exitProgress = if (outgoingLineStartedAtMillis > 0L) {
+                ((frameClockMillis - outgoingLineStartedAtMillis).toFloat() / LyricTunnelFallMillis).coerceIn(0f, 1f)
+            } else {
+                1f
+            }
+            if (exitProgress < 1f) line.copy(exitProgress = exitProgress) else null
+        }
+    if (outgoingDisplayLine == null && outgoingLine != null) {
+        outgoingLine = null
+    }
+    val displayLines = if (activeDisplayLine == null) {
+        buildList {
+            outgoingDisplayLine?.let(::add)
+            addAll(stageLines)
+        }
+    } else {
+        buildList {
+            outgoingDisplayLine?.let(::add)
+            addAll(lyricStage.lines.filter { it.role == LyricMirrorTunnelLineRole.Upcoming })
+            add(activeDisplayLine)
+        }
+    }
+    val tunnelPush = remember { FloatArray(LyricTunnelRingCount) }
     val previousMillis = previousFrameMillis.longValue.takeIf { it > 0L } ?: frameMillis
     val deltaSeconds = ((frameMillis - previousMillis).coerceAtLeast(0L) / 1000f).coerceIn(0f, 0.12f)
     previousFrameMillis.longValue = frameMillis
     updateLyricTunnelPush(tunnelPush, beatIntensity, deltaSeconds)
 
-    Box(modifier = modifier) {
+    Box(modifier = modifier.clipToBounds()) {
         Canvas(modifier = Modifier.fillMaxSize()) {
             drawLyricTunnelScene(
                 samples = sampledBands,
@@ -98,81 +217,103 @@ internal fun LyricMirrorTunnelVisualizerSurface(
                 ringPush = tunnelPush,
             )
         }
-        LyricTunnelText(
-            text = lyricText,
-            colors = colors,
-            playerColors = visualizerColors,
-            pixelPop = pixelPop,
-            beatIntensity = beatIntensity,
-            modifier = Modifier
-                .align(Alignment.Center)
-                .fillMaxWidth()
-                .padding(horizontal = 20.dp),
-        )
+        displayLines.forEach { line ->
+            key(line.key) {
+                LyricTunnelStageLine(
+                    line = line,
+                    colors = colors,
+                    playerColors = visualizerColors,
+                    beatIntensity = beatIntensity,
+                    modifier = Modifier
+                        .align(Alignment.Center)
+                        .fillMaxSize()
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp),
+                )
+            }
+        }
     }
 }
 
 @Composable
-private fun LyricTunnelText(
-    text: String,
+private fun LyricTunnelStageLine(
+    line: LyricMirrorTunnelLine,
     colors: NaviampColors,
     playerColors: NaviampPlayerColors,
-    pixelPop: Float,
     beatIntensity: Float,
     modifier: Modifier,
 ) {
-    val outlineOffset = (1.2f + beatIntensity * 4.6f + pixelPop * 1.4f).dp
-    val outlineAlpha = (0.86f + beatIntensity * 0.12f - pixelPop * 0.30f).coerceIn(0f, 0.96f)
-    val fillAlpha = (1f - pixelPop * 0.62f).coerceIn(0f, 1f)
+    val textMeasurer = rememberTextMeasurer()
+    val enter = lyricTunnelEaseInOut(line.enterProgress.coerceIn(0f, 1f))
+    val exit = line.exitProgress.coerceIn(0f, 1f)
+    val active = line.role == LyricMirrorTunnelLineRole.Active
+    val foreground = line.role != LyricMirrorTunnelLineRole.Previous
+    val lineLength = line.text.length.coerceAtLeast(1)
+    val baseFontSize = if (foreground) 30f else 22f
+    val fontSize = (baseFontSize - (lineLength - 18).coerceAtLeast(0) * 0.28f).coerceIn(if (foreground) 22f else 17f, baseFontSize)
+    val emphasis = if (foreground) 1f else 0.72f
+    val alpha = (enter * (1f - exit * 0.34f) * emphasis).coerceIn(0f, 1f)
+    val slotOffsetPx = line.verticalSlot * 74f
+    val enterLiftPx = (1f - enter) * -28f
+    val fallPx = exit * exit * 58f
+    val driftPx = sin((line.key.hashCode() and 0xff) * 0.17f) * exit * 3f
+    val beatScale = if (active && enter > 0.98f) beatIntensity * 0.018f else 0f
+    val scale = (0.92f + enter * 0.08f + beatScale - exit * 0.02f).coerceIn(0.82f, 1.06f)
+    val particleRelease = exit
+    val shadowOffset = (1.4f + beatIntensity * 1.8f).dp
+    val shadowAlpha = (0.48f * (1f - exit * 3.6f)).coerceIn(0f, 0.48f) * alpha
+    val textAlpha = (alpha * (1f - exit * 3.8f)).coerceIn(0f, 1f)
+    val particleOpacity = if (foreground) {
+        (0.46f + exit * 0.54f).coerceIn(0f, 1f)
+    } else {
+        1f
+    }
     val style = TextStyle(
-        fontSize = 25.sp,
-        lineHeight = 28.sp,
+        fontSize = fontSize.sp,
+        lineHeight = (fontSize * 1.08f).sp,
         fontWeight = FontWeight.ExtraBold,
         textAlign = TextAlign.Center,
     )
 
-    Box(modifier = modifier) {
-        val outlineColor = lerp(Color.White, playerColors.accent, 0.22f).copy(alpha = outlineAlpha)
-        val offsets = listOf(
-            Modifier.align(Alignment.Center).padding(start = outlineOffset),
-            Modifier.align(Alignment.Center).padding(end = outlineOffset),
-            Modifier.align(Alignment.Center).padding(top = outlineOffset),
-            Modifier.align(Alignment.Center).padding(bottom = outlineOffset),
-            Modifier.align(Alignment.Center).padding(start = outlineOffset * 0.74f, top = outlineOffset * 0.74f),
-            Modifier.align(Alignment.Center).padding(end = outlineOffset * 0.74f, top = outlineOffset * 0.74f),
-            Modifier.align(Alignment.Center).padding(start = outlineOffset * 0.74f, bottom = outlineOffset * 0.74f),
-            Modifier.align(Alignment.Center).padding(end = outlineOffset * 0.74f, bottom = outlineOffset * 0.74f),
+    Box(
+        modifier = modifier.graphicsLayer {
+            translationX = driftPx
+            translationY = slotOffsetPx + enterLiftPx + fallPx
+            scaleX = scale
+            scaleY = scale
+            this.alpha = alpha
+        },
+    ) {
+        Text(
+            text = line.text,
+            color = Color.Black.copy(alpha = shadowAlpha),
+            style = style,
+            maxLines = 3,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.align(Alignment.Center).padding(start = shadowOffset, top = shadowOffset),
         )
-        offsets.forEach { outlineModifier ->
-            Text(
-                text = text,
-                color = outlineColor,
-                style = style,
-                maxLines = 3,
-                overflow = TextOverflow.Ellipsis,
-                modifier = outlineModifier,
-            )
-        }
-        if (pixelPop > 0f) {
-            Canvas(modifier = Modifier.fillMaxSize()) {
-                drawLyricOutlineParticles(
-                    pixelPop = pixelPop,
-                    color = outlineColor,
+        if (foreground || particleRelease > 0f) {
+            Canvas(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .graphicsLayer {
+                        compositingStrategy = CompositingStrategy.Offscreen
+                    },
+            ) {
+                drawLyricGlyphParticles(
+                    textMeasurer = textMeasurer,
+                    text = line.text,
+                    style = style,
+                    release = particleRelease,
+                    opacity = particleOpacity,
+                    color = Color.White,
                     playerColors = playerColors,
                 )
             }
         }
         Text(
-            text = text,
-            color = Color.Black.copy(alpha = fillAlpha),
-            style = style,
-            maxLines = 3,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.align(Alignment.Center),
-        )
-        Text(
-            text = text,
-            color = colors.primaryText.copy(alpha = 0.10f * fillAlpha),
+            text = line.text,
+            color = Color.White.copy(alpha = textAlpha * 0.44f),
             style = style,
             maxLines = 3,
             overflow = TextOverflow.Ellipsis,
@@ -270,42 +411,106 @@ private fun updateLyricTunnelPush(
     }
 }
 
-private fun DrawScope.drawLyricOutlineParticles(
-    pixelPop: Float,
+private fun DrawScope.drawLyricGlyphParticles(
+    textMeasurer: TextMeasurer,
+    text: String,
+    style: TextStyle,
+    release: Float,
+    opacity: Float,
     color: Color,
     playerColors: NaviampPlayerColors,
 ) {
-    val eased = pixelPop * pixelPop * (3f - 2f * pixelPop)
-    val alpha = (0.52f * (1f - pixelPop * 0.72f)).coerceIn(0f, 0.52f)
+    val eased = release * release * (3f - 2f * release)
+    val alpha = (0.98f * opacity * (1f - release * 0.34f)).coerceIn(0f, 0.98f)
     if (alpha <= 0.01f) return
 
     val center = Offset(size.width / 2f, size.height / 2f)
-    val textWidth = size.width * 0.66f
-    val textHeight = size.height * 0.58f
-    repeat(ParticleCount) { index ->
-        val side = index % 4
-        val lane = index / 4
-        val laneFraction = ((lane % 8) + 0.5f) / 8f
-        val jitter = ((index * 37) % 11 - 5) * 0.8f
-        val base = when (side) {
-            0 -> Offset(center.x - textWidth / 2f + textWidth * laneFraction, center.y - textHeight / 2f)
-            1 -> Offset(center.x + textWidth / 2f, center.y - textHeight / 2f + textHeight * laneFraction)
-            2 -> Offset(center.x + textWidth / 2f - textWidth * laneFraction, center.y + textHeight / 2f)
-            else -> Offset(center.x - textWidth / 2f, center.y + textHeight / 2f - textHeight * laneFraction)
-        }
-        val direction = Offset(
-            x = (base.x - center.x).let { if (it == 0f) jitter else it },
-            y = (base.y - center.y).let { if (it == 0f) -jitter else it },
-        ).normalizedOrZero()
-        val travel = 5f + eased * (18f + (index % 5) * 4f)
-        val particleSize = 1.4f + (index % 3) * 0.8f + pixelPop * 1.2f
-        val particleCenter = base + direction * travel + Offset(jitter, -jitter * 0.35f) * eased
-        drawRect(
-            color = lerp(color, playerColors.accent, (index % 7) / 10f).copy(alpha = alpha),
-            topLeft = Offset(particleCenter.x - particleSize / 2f, particleCenter.y - particleSize / 2f),
-            size = Size(particleSize, particleSize),
+    val measured = textMeasurer.measure(
+        text = text,
+        style = style.copy(color = Color.White),
+        maxLines = 3,
+        overflow = TextOverflow.Ellipsis,
+        constraints = androidx.compose.ui.unit.Constraints(
+            maxWidth = size.width.toInt().coerceAtLeast(1),
+            maxHeight = size.height.toInt().coerceAtLeast(1),
+        ),
+    )
+    val layoutSize = Size(measured.size.width.toFloat(), measured.size.height.toFloat())
+    if (layoutSize.width <= 0f || layoutSize.height <= 0f) return
+
+    val textTopLeft = Offset(
+        x = center.x - layoutSize.width / 2f,
+        y = center.y - layoutSize.height / 2f,
+    )
+    val glyphBoxes = text.indices
+        .filterNot { text[it].isWhitespace() }
+        .map { measured.getBoundingBox(it) }
+        .filter { it.width > 0.5f && it.height > 0.5f }
+
+    if (release <= 0.001f) {
+        drawText(
+            textLayoutResult = measured,
+            color = Color.White,
+            topLeft = textTopLeft,
         )
     }
+
+    repeat(ParticleCount) { index ->
+        val seedA = lyricParticleHash(index, 13)
+        val seedB = lyricParticleHash(index, 47)
+        val seedC = lyricParticleHash(index, 91)
+        val glyphBox = glyphBoxes.getOrNull((index * 37 + (seedA * glyphBoxes.size.coerceAtLeast(1)).toInt()).floorMod(glyphBoxes.size.coerceAtLeast(1)))
+        val sourceX = if (glyphBox != null) {
+            textTopLeft.x + glyphBox.left + seedA * glyphBox.width
+        } else {
+            textTopLeft.x + seedA * layoutSize.width
+        }
+        val sourceY = if (glyphBox != null) {
+            textTopLeft.y + glyphBox.top + seedB * glyphBox.height
+        } else {
+            textTopLeft.y + seedB * layoutSize.height
+        }
+        val sourceDepth = ((sourceY - textTopLeft.y) / layoutSize.height.coerceAtLeast(1f)).coerceIn(0f, 1f)
+        val verticalWeight = (0.62f + sourceDepth * 0.72f + seedB * 0.24f).coerceIn(0.62f, 1.58f)
+        val sideways = (seedC - 0.5f) * eased * (1.2f + release * 5.4f)
+        val gravity = eased * eased * (40f + 360f * verticalWeight)
+        val particleSize = (1.0f + seedC * 1.7f + release * 0.8f).coerceIn(1f, 3.5f)
+        val particleCenter = Offset(
+            x = sourceX + sideways,
+            y = sourceY + gravity,
+        )
+        val trailStart = Offset(
+            x = sourceX + sideways * 0.28f,
+            y = sourceY + gravity * 0.58f,
+        )
+        val sparkleColor = lerp(color, playerColors.accent, seedC * 0.12f).copy(alpha = alpha)
+        drawLine(
+            color = sparkleColor.copy(alpha = alpha * 0.44f),
+            start = trailStart,
+            end = particleCenter,
+            strokeWidth = (particleSize * 0.48f).coerceAtLeast(0.8f),
+            blendMode = if (release <= 0.001f) BlendMode.SrcIn else BlendMode.SrcOver,
+        )
+        drawRect(
+            color = sparkleColor,
+            topLeft = Offset(particleCenter.x - particleSize / 2f, particleCenter.y - particleSize / 2f),
+            size = Size(particleSize, particleSize),
+            blendMode = if (release <= 0.001f) BlendMode.SrcIn else BlendMode.SrcOver,
+        )
+    }
+}
+
+private fun lyricTunnelEaseInOut(value: Float): Float {
+    val clamped = value.coerceIn(0f, 1f)
+    return clamped * clamped * clamped * (clamped * (clamped * 6f - 15f) + 10f)
+}
+
+private fun Int.floorMod(divisor: Int): Int =
+    ((this % divisor) + divisor) % divisor
+
+private fun lyricParticleHash(index: Int, salt: Int): Float {
+    val value = kotlin.math.sin((index * 12.9898f + salt * 78.233f).toDouble()) * 43758.5453
+    return (value - kotlin.math.floor(value)).toFloat()
 }
 
 private fun Offset.normalizedOrZero(): Offset {
@@ -332,4 +537,6 @@ private fun FloatArray.maxOrZero(): Float =
     if (isEmpty()) 0f else maxOrNull() ?: 0f
 
 private const val LyricTunnelRingCount = 7
-private const val ParticleCount = 32
+private const val ParticleCount = 1040
+private const val LyricTunnelEnterMillis = 820f
+private const val LyricTunnelFallMillis = 3800f

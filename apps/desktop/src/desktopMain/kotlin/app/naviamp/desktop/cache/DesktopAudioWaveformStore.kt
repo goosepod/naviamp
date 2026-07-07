@@ -7,7 +7,6 @@ import app.naviamp.domain.waveform.AudioWaveform
 import app.naviamp.domain.waveform.AudioWaveformCacheMetadata
 import app.naviamp.domain.waveform.waveformCacheKey
 import app.naviamp.storage.NaviampStorageQueries
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -24,7 +23,7 @@ class DesktopAudioWaveformStore(
         quality: StreamQuality,
         bucketCount: Int,
     ): AudioWaveform? =
-        withContext(Dispatchers.IO) {
+        withContext(DesktopWaveformWorkDispatcher) {
             val qualityKey = quality.waveformCacheKey()
             val row = queries.selectCachedAudioWaveform(
                 source_id = sourceId,
@@ -46,7 +45,7 @@ class DesktopAudioWaveformStore(
         audioFilePath: String?,
         waveform: AudioWaveform,
     ): AudioWaveform =
-        withContext(Dispatchers.IO) {
+        withContext(DesktopWaveformWorkDispatcher) {
             val qualityKey = quality.waveformCacheKey()
             val amplitudesJson = json.encodeToString(waveform.amplitudes)
             val now = nowMillis()
