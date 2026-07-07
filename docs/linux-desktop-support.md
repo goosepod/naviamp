@@ -14,7 +14,7 @@ Initial Linux artifacts should follow the existing desktop packaging model:
 
 A thin package that depends on system Java can be considered later, but it needs a separate launcher/package-maintainer path and broader distro compatibility testing. It should not block the first Linux app.
 
-Flatpak is the preferred universal package to investigate after the app-image and native packages work. Snap can follow if Ubuntu Store distribution becomes useful.
+For now, `.deb`, `.rpm`, and standalone `.zip` artifacts are enough for Linux distribution. Flatpak and Snap can stay deferred unless a store/repository use case becomes important.
 
 ## Current Status
 
@@ -43,14 +43,13 @@ Flatpak is the preferred universal package to investigate after the app-image an
 - [x] Verify `make linux-installer` produces `.deb` and `.rpm` packages.
 - [x] Verify the `.deb` installs and launches on Xubuntu.
 - [x] Remove duplicate Linux BASS resources from standalone zip output.
-- [ ] Verify seek behavior on Linux.
-- [ ] Verify waveform generation on Linux.
+- [x] Verify seek behavior on Linux.
+- [x] Verify waveform generation on Linux.
+- [x] Verify installed Linux app launcher icon after package metadata updates.
 - [ ] Verify GLSL/shader visualizer behavior on non-VM Linux graphics.
-- [ ] Verify installed Linux app launcher icon and metadata after package metadata updates.
 - [ ] Add AppStream metadata if Xubuntu App Center still needs richer package information from the raw `.deb`.
 - [ ] Add Linux release artifacts to `.forgejo/workflows/release-builds.yml` after the native vendor set is present.
-- [ ] Package a Flatpak bundle or repo manifest.
-- [ ] Decide whether a Snap package is worth maintaining.
+- [ ] Revisit Flatpak or Snap only if Linux store/repository distribution becomes useful.
 
 ## Native Dependencies
 
