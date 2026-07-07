@@ -26,9 +26,10 @@ Flatpak is the preferred universal package to investigate after the app-image an
 - [x] Add Linux JNI RPATH configuration so `libnaviamp_bass.so` can resolve adjacent BASS libraries.
 - [x] Require `libnaviamp_bass.so` in Linux desktop package verification.
 - [x] Verify Gradle copies Linux x64 BASS vendor files into desktop resources.
-- [ ] Verify the BASS JNI CMake target builds `libnaviamp_bass.so` on Linux.
-- [ ] Verify `make linux-test` stages and launches `build/local-test/Naviamp`.
-- [ ] Verify playback, seek, gapless/crossfade, waveform generation, and visualizer behavior on Linux.
+- [x] Verify the BASS JNI CMake target builds `libnaviamp_bass.so` on Linux.
+- [x] Verify `make linux-test` stages and launches `build/local-test/Naviamp`.
+- [x] Verify basic playback on Xubuntu over XRDP with PulseAudio passthrough.
+- [ ] Verify seek, gapless/crossfade, waveform generation, and visualizer behavior on Linux.
 - [ ] Verify `make linux-standalone` produces `Naviamp-linux-x64-release.zip`.
 - [ ] Verify `make linux-installer` produces `.deb` and `.rpm` packages.
 - [ ] Add Linux release artifacts to `.forgejo/workflows/release-builds.yml` after the native vendor set is present.
@@ -101,6 +102,39 @@ apps/desktop/build/compose/distributions/Naviamp-linux-x64-release.zip
 apps/desktop/build/compose/binaries/main/deb/*.deb
 apps/desktop/build/compose/binaries/main/rpm/*.rpm
 ```
+
+## Xubuntu XRDP Audio Notes
+
+The first Linux VM validation was done on Xubuntu over XRDP with PulseAudio passthrough. The app built, launched, connected to the server, loaded the library, and selected tracks correctly, but playback did not start until ALSA's Pulse bridge was installed and the default ALSA device routed to PulseAudio.
+
+Useful packages for this setup:
+
+```shell
+sudo apt install -y libasound2-plugins alsa-utils pulseaudio-utils
+```
+
+Validation commands:
+
+```shell
+pactl info
+aplay -L | grep -i pulse
+speaker-test -D pulse -c 2 -t sine -l 1
+speaker-test -D default -c 2 -t sine -l 1
+```
+
+If `speaker-test -D pulse` works but `speaker-test -D default` does not, create `~/.asoundrc`:
+
+```text
+pcm.!default {
+    type pulse
+}
+
+ctl.!default {
+    type pulse
+}
+```
+
+After restarting Naviamp, BASS playback works through the XRDP PulseAudio sink.
 
 ## Desktop Environment Test Matrix
 
