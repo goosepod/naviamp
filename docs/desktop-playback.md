@@ -57,25 +57,25 @@ Windows package resources are generated at:
 apps/desktop/build/generated/desktopBassApp/windows-x64/playback/bass/windows-x64
 ```
 
-The Windows x64 set currently includes `bass.dll`, `naviamp_bass.dll`, and available BASS add-ons such as FLAC, HLS, mix, Opus, WebM, WavPack, DSD, APE, ALAC, AAC, MPC, WMA, FX, and SSL. The macOS ARM64 set currently includes `libbass.dylib`, `libnaviamp_bass.dylib`, and available add-ons.
+The Windows x64 set currently includes `bass.dll`, `naviamp_bass.dll`, and available BASS add-ons such as FLAC, HLS, mix, Opus, WebM, DSD, APE, ALAC, AAC, MPC, WMA, FX, and SSL. The macOS ARM64 set currently includes `libbass.dylib`, `libnaviamp_bass.dylib`, and available add-ons. The Linux x64 vendor set currently includes BASS core plus FLAC, HLS, mix, Opus, WebM, WavPack, DSD, APE, ALAC, AAC, AC3, MPC, SPX, TTA, MIDI, loudness, and FX add-ons; `libnaviamp_bass.so` is built from source on a Linux host.
 
 The intended original-stream coverage is:
 
-| Format | macOS ARM64 | Windows x64 | Notes |
-| --- | --- | --- | --- |
-| MP3 | BASS core | BASS core | Direct provider streams should play without add-ons. |
-| FLAC | `bassflac` | `bassflac` | Includes Ogg FLAC where the add-on reports it. |
-| Opus | `bassopus` | `bassopus` | Direct Opus streams should remain original. |
-| AAC/M4A | CoreAudio/BASS plus HLS where applicable | `bass_aac` plus BASS core | If a macOS AAC/MP4 edge case fails, fall back to provider transcode until the matching add-on is vendored. |
-| ALAC | CoreAudio/BASS where available | `bassalac` | macOS currently relies on platform/CoreAudio support; Windows has the explicit add-on. |
-| Vorbis/Ogg | BASS core | BASS core | Native BASS stream type reports Ogg/Vorbis. |
-| WavPack | `basswv` | not currently in the Windows vendor set | Windows should fall back to provider transcode until `basswv.dll` is added. |
-| APE | `bassape` | `bassape` | Direct playback requires the add-on. |
-| MPC | `bass_mpc` | `bass_mpc` | Direct playback requires the add-on. |
-| DSD | `bassdsd` | `bassdsd` | Direct playback requires the add-on. |
-| HLS | `basshls` | `basshls` | Live/radio streams should be treated as non-seekable and unknown-duration. |
-| WMA | not packaged | `basswma` | macOS should fall back to provider transcode. |
-| WebM | `basswebm` | `basswebm` | Direct playback requires the add-on. |
+| Format | macOS ARM64 | Windows x64 | Linux x64 | Notes |
+| --- | --- | --- | --- | --- |
+| MP3 | BASS core | BASS core | BASS core | Direct provider streams should play without add-ons. |
+| FLAC | `bassflac` | `bassflac` | `bassflac` | Includes Ogg FLAC where the add-on reports it. |
+| Opus | `bassopus` | `bassopus` | `bassopus` | Direct Opus streams should remain original. |
+| AAC/M4A | CoreAudio/BASS plus HLS where applicable | `bass_aac` plus BASS core | `bass_aac` plus BASS core | If a macOS AAC/MP4 edge case fails, fall back to provider transcode until the matching add-on is vendored. |
+| ALAC | CoreAudio/BASS where available | `bassalac` | `bassalac` | macOS currently relies on platform/CoreAudio support; Windows and Linux have the explicit add-on. |
+| Vorbis/Ogg | BASS core | BASS core | BASS core | Native BASS stream type reports Ogg/Vorbis. |
+| WavPack | `basswv` | not currently in the Windows vendor set | `basswv` | Windows should fall back to provider transcode until `basswv.dll` is added. |
+| APE | `bassape` | `bassape` | `bassape` | Direct playback requires the add-on. |
+| MPC | `bass_mpc` | `bass_mpc` | `bass_mpc` | Direct playback requires the add-on. |
+| DSD | `bassdsd` | `bassdsd` | `bassdsd` | Direct playback requires the add-on. |
+| HLS | `basshls` | `basshls` | `basshls` | Live/radio streams should be treated as non-seekable and unknown-duration. |
+| WMA | not packaged | `basswma` | not available | macOS and Linux should fall back to provider transcode. |
+| WebM | `basswebm` | `basswebm` | `basswebm` | Direct playback requires the add-on. |
 
 When a format is not covered by BASS core or a packaged add-on on the current platform, Naviamp should request provider transcoding instead of surfacing a codec error to the user. Stats for nerds shows the loaded BASS add-ons, current stream info, and latest BASS error through the shared backend/JNI path.
 
@@ -84,6 +84,7 @@ Override the platform for packaging/copy verification with:
 ```shell
 ./gradlew -Pnaviamp.bass.platform=macos-arm64 :apps:desktop:packageReleaseDistributable
 ./gradlew -Pnaviamp.bass.platform=windows-x64 :apps:desktop:copyDesktopBass :apps:desktop:copyDesktopBassAppResources
+./gradlew -Pnaviamp.bass.platform=linux-x64 :apps:desktop:copyDesktopBass :apps:desktop:copyDesktopBassAppResources
 ```
 
 ## Windows Local Build Workflow
@@ -189,6 +190,37 @@ That task deliberately uses the same non-ProGuard app image as local testing and
 ```text
 apps/desktop/build/compose/distributions/Naviamp-macos-arm64-release.zip
 ```
+
+## Linux Local Build Workflow
+
+Linux support is tracked in `docs/linux-desktop-support.md`. The packaging path follows the same non-ProGuard app image used by macOS and Windows, but it must run on Linux because Compose Desktop and `jpackage` create native packages for the current OS only.
+
+For local Linux testing, use:
+
+```shell
+make linux-test
+./build/local-test/Naviamp/bin/Naviamp
+```
+
+To produce a movable zip:
+
+```shell
+make linux-standalone
+```
+
+The zip is written to:
+
+```text
+apps/desktop/build/compose/distributions/Naviamp-linux-x64-release.zip
+```
+
+To produce native packages:
+
+```shell
+make linux-installer
+```
+
+That target creates `.deb` and `.rpm` packages through Compose Desktop and `jpackage`. Linux native playback remains blocked until BASS Linux x64 libraries are vendored under `apps/desktop/vendor/bass/linux-x64` and verified on a Linux host.
 
 ## Library Refresh
 

@@ -87,6 +87,7 @@ make help
 make desktop-test
 make macos-test
 make macos-standalone
+make linux-test
 make android-debug
 make clean
 make clean-generated
@@ -96,6 +97,7 @@ Useful outputs:
 
 - `make macos-test` builds, stages, and opens `build/local-test/Naviamp.app`.
 - `make macos-standalone` creates a release zip under `apps/desktop/build/compose/distributions`.
+- `make linux-test` builds and stages `build/local-test/Naviamp` when run on Linux with Linux native playback libraries present.
 - `make android-debug` builds the debug APK through the Android Gradle plugin.
 - `make desktop-test` runs the desktop test task.
 
@@ -108,6 +110,16 @@ make windows-installer
 ```
 
 `make windows-installer` creates Windows MSI/EXE installers through `jpackage`. It must run on Windows with WiX Toolset 3.x available on `PATH`.
+
+Linux packaging tasks are present, but must run on Linux because `jpackage` needs the target OS:
+
+```shell
+make linux-test
+make linux-standalone
+make linux-installer
+```
+
+`make linux-installer` creates Linux `.deb` and `.rpm` packages through `jpackage` once Linux native BASS resources are present.
 
 ## Release Direction
 
@@ -158,6 +170,7 @@ Useful project docs:
 - [docs/architecture.md](docs/architecture.md)
 - [docs/roadmap.md](docs/roadmap.md)
 - [docs/desktop-playback.md](docs/desktop-playback.md)
+- [docs/linux-desktop-support.md](docs/linux-desktop-support.md)
 - [docs/desktop-performance-optimization.md](docs/desktop-performance-optimization.md)
 - [docs/gpu-visualizer-roadmap.md](docs/gpu-visualizer-roadmap.md)
 - [docs/learning-kotlin.md](docs/learning-kotlin.md)

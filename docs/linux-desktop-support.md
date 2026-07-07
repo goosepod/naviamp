@@ -1,0 +1,113 @@
+# Linux Desktop Support
+
+This checklist tracks the work to make Naviamp's Compose Desktop app usable and releasable on Linux.
+
+## Distribution Direction
+
+Naviamp should target Linux desktop conventions rather than individual desktop environments. The app should run under GNOME, KDE Plasma, Xfce, and other freedesktop.org-compatible sessions from the same build, with testing spread across representative Wayland and X11 environments.
+
+Initial Linux artifacts should follow the existing desktop packaging model:
+
+- Standalone app-image zip with the app, launcher, private runtime, and native libraries together.
+- Native `.deb` and `.rpm` packages produced by Compose Desktop and `jpackage` on a Linux runner.
+- Bundled trimmed Java runtime through `jlink`, matching macOS and Windows behavior.
+
+A thin package that depends on system Java can be considered later, but it needs a separate launcher/package-maintainer path and broader distro compatibility testing. It should not block the first Linux app.
+
+Flatpak is the preferred universal package to investigate after the app-image and native packages work. Snap can follow if Ubuntu Store distribution becomes useful.
+
+## Current Status
+
+- [x] Create a Linux desktop support tracker.
+- [x] Add Compose Desktop Linux package formats (`.deb`, `.rpm`) to the desktop Gradle configuration.
+- [x] Add Linux package metadata and PNG icon configuration.
+- [x] Add Makefile entry points for Linux local app image, release zip, and native packages.
+- [x] Vendor Linux x64 BASS libraries under `apps/desktop/vendor/bass/linux-x64`.
+- [x] Add Linux JNI RPATH configuration so `libnaviamp_bass.so` can resolve adjacent BASS libraries.
+- [x] Require `libnaviamp_bass.so` in Linux desktop package verification.
+- [x] Verify Gradle copies Linux x64 BASS vendor files into desktop resources.
+- [ ] Verify the BASS JNI CMake target builds `libnaviamp_bass.so` on Linux.
+- [ ] Verify `make linux-test` stages and launches `build/local-test/Naviamp`.
+- [ ] Verify playback, seek, gapless/crossfade, waveform generation, and visualizer behavior on Linux.
+- [ ] Verify `make linux-standalone` produces `Naviamp-linux-x64-release.zip`.
+- [ ] Verify `make linux-installer` produces `.deb` and `.rpm` packages.
+- [ ] Add Linux release artifacts to `.forgejo/workflows/release-builds.yml` after the native vendor set is present.
+- [ ] Package a Flatpak bundle or repo manifest.
+- [ ] Decide whether a Snap package is worth maintaining.
+
+## Native Dependencies
+
+Linux desktop playback depends on the same JNI-backed BASS path as macOS and Windows. Before Linux packages can be considered functional, the repository needs a Linux vendor directory:
+
+```text
+apps/desktop/vendor/bass/linux-x64
+```
+
+At minimum, the app-image verifier expects:
+
+```text
+libbass.so
+libbassmix.so
+libbassflac.so
+libbassopus.so
+```
+
+The desktop JNI build should then produce:
+
+```text
+libnaviamp_bass.so
+```
+
+Additional BASS add-ons should mirror the intended format coverage from `docs/desktop-playback.md` where Linux redistributables are available.
+
+The current Linux x64 vendor set was sourced from local Un4seen Linux archives under `/Users/jbmcmichael/Downloads/bass_linux` and includes:
+
+```text
+libbass.so
+libbass_aac.so
+libbass_ac3.so
+libbass_fx.so
+libbass_mpc.so
+libbass_spx.so
+libbass_tta.so
+libbassalac.so
+libbassape.so
+libbassdsd.so
+libbassflac.so
+libbasshls.so
+libbassloud.so
+libbassmidi.so
+libbassmix.so
+libbassopus.so
+libbasswebm.so
+libbasswv.so
+```
+
+## Local Linux Commands
+
+Run these on a Linux machine or Linux CI runner with JDK 17 and CMake available:
+
+```shell
+make linux-test
+make linux-standalone
+make linux-installer
+```
+
+Expected outputs once native resources are present:
+
+```text
+build/local-test/Naviamp
+apps/desktop/build/compose/distributions/Naviamp-linux-x64-release.zip
+apps/desktop/build/compose/binaries/main/deb/*.deb
+apps/desktop/build/compose/binaries/main/rpm/*.rpm
+```
+
+## Desktop Environment Test Matrix
+
+Minimum validation before calling Linux support ready:
+
+- GNOME on Wayland.
+- KDE Plasma on Wayland or X11.
+- One lighter X11 environment such as Xfce.
+
+Validation should cover login, library browsing, playback from original streams, transcoded fallback, seek, queue transitions, radio streams, cover art, visualizers, window persistence, and app menu integration.

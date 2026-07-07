@@ -176,6 +176,7 @@ data class DesktopBassJniPlugin(
 private object DesktopBassJniPlugins {
     val names: List<String> = listOf(
         "bass_aac",
+        "bass_ac3",
         "bassflac",
         "bassopus",
         "bassalac",
@@ -188,6 +189,9 @@ private object DesktopBassJniPlugins {
         "bassmix",
         "bass_fx",
         "basswv",
+        "bass_spx",
+        "bass_tta",
+        "bassloud",
         "basswma",
     )
 }

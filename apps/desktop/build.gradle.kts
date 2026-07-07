@@ -290,7 +290,7 @@ compose.desktop {
             packageVersion = naviampNativePackageVersion
             appResourcesRootDir.set(generatedDesktopBassAppResources)
             modules("java.net.http", "java.sql")
-            targetFormats(TargetFormat.Dmg, TargetFormat.Msi, TargetFormat.Exe)
+            targetFormats(TargetFormat.Dmg, TargetFormat.Msi, TargetFormat.Exe, TargetFormat.Deb, TargetFormat.Rpm)
 
             windows {
                 iconFile.set(project.file("src/desktopMain/resources/icons/naviamp.ico"))
@@ -301,6 +301,14 @@ compose.desktop {
             }
             macOS {
                 iconFile.set(project.file("src/desktopMain/resources/icons/naviamp.icns"))
+            }
+            linux {
+                iconFile.set(project.file("src/desktopMain/resources/icons/naviamp.png"))
+                packageName = "naviamp"
+                debMaintainer = "Naviamp Maintainers"
+                menuGroup = "AudioVideo"
+                appCategory = "AudioVideo"
+                rpmLicenseType = "MIT"
             }
         }
     }
@@ -370,7 +378,7 @@ tasks.register("verifyDesktopDistributable") {
             add(desktopLibraryName("bassmix", platform))
             add(desktopLibraryName("bassflac", platform))
             add(desktopLibraryName("bassopus", platform))
-            if (platform.startsWith("macos-") || platform.startsWith("windows-")) {
+            if (platform.startsWith("macos-") || platform.startsWith("windows-") || platform.startsWith("linux-")) {
                 add(desktopLibraryName("naviamp_bass", platform))
             }
             if (platform.startsWith("macos-")) {

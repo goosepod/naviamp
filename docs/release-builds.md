@@ -13,6 +13,7 @@ Workflow:
 - Android: release APK and release AAB, signed when the Android signing environment is configured.
 - Windows: standalone app-image zip plus jpackage MSI/EXE installers.
 - macOS: standalone `.app` zip plus jpackage DMG installer.
+- Linux: planned standalone app-image zip plus jpackage `.deb` and `.rpm` packages after Linux native BASS resources are vendored and verified.
 
 The current desktop installers are unsigned and the macOS DMG is not notarized.
 
@@ -152,6 +153,7 @@ The keystore file itself must also be available on the runner at `NAVIAMP_ANDROI
 - Android job: Linux runner with Java 17. The workflow installs Android platform 36, build tools 36.0.0, and CMake 3.22.1 through `sdkmanager`.
 - Windows job: Windows runner with Java 17 and Chocolatey. The workflow installs WiX Toolset 3.14 when `candle.exe` is missing, because jpackage needs WiX for MSI/EXE output.
 - macOS job: Apple Silicon macOS runner with Java 17. The packaged platform is `macos-arm64` because the repo currently vendors macOS ARM64 BASS libraries.
+- Linux desktop job: planned Linux runner with Java 17 and CMake. The packaged platform will be `linux-x64` once the repo vendors Linux x64 BASS libraries.
 
 If Forgejo uses different runner labels than `ubuntu-latest`, `windows-latest`, or `macos-latest`, update `runs-on` in the workflow without changing the Gradle tasks.
 
@@ -168,6 +170,13 @@ On Windows:
 ```powershell
 make windows-standalone
 make windows-installer
+```
+
+On Linux, after Linux native playback resources are present:
+
+```shell
+make linux-standalone
+make linux-installer
 ```
 
 ## Google Play Internal Test Upload
@@ -192,4 +201,5 @@ Includes refresh controls, Now Playing layout fixes, Mix Builder polish, synced 
 - Complete Google Play store listing, content rating, data safety, and privacy policy requirements.
 - Add Windows code signing for MSI/EXE.
 - Add macOS Developer ID signing and notarization for the DMG.
+- Add Linux desktop release builds after Linux native playback resources are verified.
 - Decide whether build artifacts should also be attached to Forgejo releases for tagged builds.

@@ -71,6 +71,11 @@ else()
             BUILD_RPATH "@loader_path"
             INSTALL_RPATH "@loader_path"
         )
+    elseif(UNIX)
+        set_target_properties(naviamp_bass PROPERTIES
+            BUILD_RPATH "$ORIGIN"
+            INSTALL_RPATH "$ORIGIN"
+        )
     endif()
 endif()
 
