@@ -29,7 +29,11 @@ Flatpak is the preferred universal package to investigate after the app-image an
 - [x] Verify the BASS JNI CMake target builds `libnaviamp_bass.so` on Linux.
 - [x] Verify `make linux-test` stages and launches `build/local-test/Naviamp`.
 - [x] Verify basic playback on Xubuntu over XRDP with PulseAudio passthrough.
-- [ ] Verify seek, gapless/crossfade, waveform generation, and visualizer behavior on Linux.
+- [x] Verify crossfade playback behavior on Linux.
+- [ ] Verify seek behavior on Linux.
+- [ ] Verify gapless playback behavior on Linux.
+- [ ] Verify waveform generation on Linux.
+- [ ] Verify visualizer behavior on Linux.
 - [ ] Verify `make linux-standalone` produces `Naviamp-linux-x64-release.zip`.
 - [ ] Verify `make linux-installer` produces `.deb` and `.rpm` packages.
 - [ ] Add Linux release artifacts to `.forgejo/workflows/release-builds.yml` after the native vendor set is present.
