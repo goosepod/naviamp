@@ -97,6 +97,8 @@ jobs:
 
       - name: Build Windows standalone zip and installers
         shell: powershell
+        env:
+          CMAKE_EXE: cmake
         run: .\gradlew.bat $env:GRADLE_COMMON "-Pnaviamp.bass.platform=windows-x64" :apps:desktop:packageReleaseDistributable :apps:desktop:packageReleaseDistributionForCurrentOS
 
       - name: Upload Windows artifacts
