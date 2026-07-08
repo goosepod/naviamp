@@ -210,7 +210,7 @@ The keystore file itself must also be available on the runner at `NAVIAMP_ANDROI
 
 ## Runner Requirements
 
-- Android job: Linux runner with Java 17. The workflow installs Android platform 36, build tools 36.0.0, and CMake 3.22.1 through `sdkmanager`.
+- Android job: Linux runner with Java 17. The workflow installs Android platform 36, build tools 36.0.0, CMake 3.22.1, and NDK 27.0.12077973 through `sdkmanager`.
 - Windows job: Windows runner with Java 17 and Chocolatey. The workflow installs WiX Toolset 3.14 when `candle.exe` is missing, because jpackage needs WiX for MSI/EXE output.
 - macOS job: Apple Silicon macOS runner with Java 17. The packaged platform is `macos-arm64` because the repo currently vendors macOS ARM64 BASS libraries.
 - Linux desktop job: planned Linux runner with Java 17 and CMake. The packaged platform will be `linux-x64` once the repo vendors Linux x64 BASS libraries.

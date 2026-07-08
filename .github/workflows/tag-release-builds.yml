@@ -46,7 +46,7 @@ jobs:
         uses: android-actions/setup-android@v3
 
       - name: Install Android build packages
-        run: sdkmanager "platforms;android-36" "build-tools;36.0.0" "cmake;3.22.1"
+        run: sdkmanager "platforms;android-36" "build-tools;36.0.0" "cmake;3.22.1" "ndk;27.0.12077973"
 
       - name: Restore Android signing key
         env:

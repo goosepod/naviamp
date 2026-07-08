@@ -607,9 +607,9 @@ private val DefaultNaviampLibraries = listOf(
 )
 
 private val DefaultNaviampChangelog = listOf(
-    "Fixed GitHub release publishing so nested desktop artifacts are attached to draft releases.",
-    "Added a release asset listing step to show exactly which files are downloaded before publishing.",
-    "Kept Windows CMake, manual tag release, and Compose Gradle warning fixes from the previous release.",
+    "Fixed GitHub Android release builds by installing the required Android NDK before Gradle runs.",
+    "Documented the GitHub Android runner NDK requirement for tag release builds.",
+    "Kept the recursive release asset upload fix from the previous release.",
 )
 
 @Composable
