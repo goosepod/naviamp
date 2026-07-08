@@ -118,7 +118,7 @@ apps/desktop/build/compose/binaries/main/deb/*.deb
 apps/desktop/build/compose/binaries/main/rpm/*.rpm
 ```
 
-Linux `.deb` and `.rpm` package versions should use the project `VERSION` directly, for example `0.14.0-1` for a first Linux package release. The positive-major native package version workaround is retained for package formats that require it, but Linux package managers accept pre-1.0 versions.
+Linux `.deb` and `.rpm` package versions should use the numeric project version without the user-facing `v` prefix, for example `0.15.0-1` for tag `v0.15.0`. The positive-major native package version workaround is retained for package formats that require it, but Linux package managers accept pre-1.0 versions.
 
 The standalone app-image `bin/Naviamp` executable may still show a generic executable icon in file managers because Linux icons normally belong to `.desktop` launchers and installed icon-theme resources, not to ELF launcher files. The installed `.deb`/`.rpm` launcher is the authoritative Linux icon integration point.
 

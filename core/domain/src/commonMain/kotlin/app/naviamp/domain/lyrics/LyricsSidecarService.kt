@@ -63,16 +63,22 @@ class LyricsSidecarService(
         audioCachingEnabled: Boolean,
         onlineLyricsEnabled: Boolean,
     ): LyricsSidecarResult {
-        val localAudio = localAudio(sourceId, track, quality, audioCachingEnabled)
-        val tags = audioMetadataSidecarService.audioTags(localAudio)
-        val embeddedLyrics = audioMetadataSidecarService.embeddedLyrics(tags)
-        if (sourceId != null && embeddedLyrics != null) {
-            lyricsRepository.cacheEmbeddedLyrics(sourceId, track.id, embeddedLyrics)
-        }
-
         val providerLyrics = providerLyrics(sourceId, provider, track)
-
-        val localLyrics = providerLyrics ?: embeddedLyrics
+        val localAudio = if (providerLyrics == null) {
+            localAudio(sourceId, track, quality, audioCachingEnabled)
+        } else {
+            null
+        }
+        val embeddedLyrics = if (providerLyrics == null) {
+            val tags = audioMetadataSidecarService.audioTags(localAudio)
+            audioMetadataSidecarService.embeddedLyrics(tags).also { lyrics ->
+                if (sourceId != null && lyrics != null) {
+                    lyricsRepository.cacheEmbeddedLyrics(sourceId, track.id, lyrics)
+                }
+            }
+        } else {
+            null
+        }
         val onlineLyrics = if (
             sourceId != null &&
             shouldLoadOnlineLyrics(
@@ -83,7 +89,7 @@ class LyricsSidecarService(
         ) {
             runCatching { onlineLyrics(sourceId, track) }
                 .getOrElse { error ->
-                    if (localLyrics != null) null else throw error
+                    if (providerLyrics != null || embeddedLyrics != null) null else throw error
                 }
         } else {
             null

@@ -1,28 +1,35 @@
 # Release Builds
 
-Naviamp builds release artifacts through Forgejo Actions on every push to `main`, which covers normal merge-to-main release candidates. The workflow also supports manual runs through `workflow_dispatch`.
+Naviamp builds release artifacts through Forgejo Actions on every push to `main`, which covers normal merge-to-main release candidates. GitHub Actions builds public release artifacts when a mirrored `v*` tag is pushed to GitHub.
 
 Workflow:
 
 ```text
 .forgejo/workflows/release-builds.yml
+.github/workflows/tag-release-builds.yml
 ```
 
 ## Artifacts
 
-- Android: release APK and release AAB, signed when the Android signing environment is configured.
+- Android: signed release APK on GitHub tag builds; release APK and release AAB on Forgejo main builds when the Android signing environment is configured.
 - Windows: standalone app-image zip plus jpackage MSI/EXE installers.
 - macOS: standalone `.app` zip plus jpackage DMG installer.
-- Linux: planned standalone app-image zip plus jpackage `.deb` and `.rpm` packages after Linux native BASS resources are vendored and verified.
+- Linux: standalone app-image zip plus jpackage `.deb` and `.rpm` packages.
 
 The current desktop installers are unsigned and the macOS DMG is not notarized.
 
 ## Versioning
 
-Naviamp uses SemVer for the user-facing app version:
+Naviamp uses `v`-prefixed SemVer for the user-facing app version and release tag:
 
 ```text
 VERSION
+```
+
+Example:
+
+```text
+v0.15.0
 ```
 
 Android also requires a monotonically increasing integer version code for Google Play:
@@ -42,7 +49,7 @@ Native desktop installers built through jpackage do not accept a `0.x.y` package
 Current version:
 
 ```text
-0.10.0
+v0.15.0
 ```
 
 Before merging a feature branch into `main`, bump the version on the branch:
@@ -61,9 +68,27 @@ Validate the version files locally with:
 make version-check
 ```
 
-Forgejo runs `.forgejo/workflows/version-check.yml` on feature-branch pushes and pull requests to `main`. That check verifies `VERSION` is valid SemVer and `VERSION_CODE` increases relative to `origin/main`. To enforce this rule, make the version check a required status for merges into `main` in Forgejo branch protection.
+Forgejo runs `.forgejo/workflows/version-check.yml` on feature-branch pushes and pull requests to `main`. That check verifies `VERSION` is valid `v`-prefixed SemVer and `VERSION_CODE` increases relative to `origin/main`. To enforce this rule, make the version check a required status for merges into `main` in Forgejo branch protection.
 
-The release workflow also validates the version files before building artifacts from `main`.
+The GitHub tag release workflow validates that the pushed tag exactly matches `VERSION`. For example, a release with `VERSION=v0.15.0` must be tagged `v0.15.0`.
+
+## GitHub Tag Releases
+
+Forgejo must mirror release tags to GitHub in addition to `main`. In the Forgejo repository mirror settings, include both branch and tag refs in the push mirror refspecs:
+
+```text
+refs/heads/main:refs/heads/main
+refs/tags/*:refs/tags/*
+```
+
+When a tag like `v0.15.0` appears on GitHub, `.github/workflows/tag-release-builds.yml` builds:
+
+- Android signed release APK.
+- Windows standalone zip, MSI, and EXE.
+- macOS standalone zip and DMG.
+- Linux standalone zip, DEB, and RPM.
+
+The workflow creates a draft GitHub Release and attaches the build outputs. Keep it as a draft until any manual smoke testing is complete.
 
 ## Google Play Testing
 
@@ -112,6 +137,39 @@ source .env.android-signing
 ```
 
 Use single quotes around password values in `.env.android-signing`. Double quotes can change passwords that contain shell-special characters such as `$`, backticks, or backslashes.
+
+### GitHub Android Signing Secrets
+
+GitHub tag builds need the same signing values as local Android release builds. Add these repository secrets in GitHub under `Settings` -> `Secrets and variables` -> `Actions` -> `Repository secrets`:
+
+```text
+NAVIAMP_ANDROID_KEYSTORE_BASE64
+NAVIAMP_ANDROID_KEYSTORE_PASSWORD
+NAVIAMP_ANDROID_KEY_ALIAS
+NAVIAMP_ANDROID_KEY_PASSWORD
+```
+
+`NAVIAMP_ANDROID_KEYSTORE_BASE64` is the upload keystore file encoded as one base64 line. On macOS:
+
+```shell
+base64 < "$NAVIAMP_ANDROID_KEYSTORE" | tr -d '\n' | pbcopy
+```
+
+Paste the clipboard value into the GitHub secret.
+
+If GitHub CLI is authenticated for the mirrored repository, the same setup can be done from a shell that has `.env.android-signing` loaded:
+
+```shell
+source .env.android-signing
+
+gh secret set NAVIAMP_ANDROID_KEYSTORE_BASE64 \
+  --body "$(base64 < "$NAVIAMP_ANDROID_KEYSTORE" | tr -d '\n')"
+gh secret set NAVIAMP_ANDROID_KEYSTORE_PASSWORD --body "$NAVIAMP_ANDROID_KEYSTORE_PASSWORD"
+gh secret set NAVIAMP_ANDROID_KEY_ALIAS --body "$NAVIAMP_ANDROID_KEY_ALIAS"
+gh secret set NAVIAMP_ANDROID_KEY_PASSWORD --body "$NAVIAMP_ANDROID_KEY_PASSWORD"
+```
+
+Do not commit `.env.android-signing` or the `.jks` keystore file. GitHub masks secret values in logs, but local shell history can still contain commands, so avoid typing literal passwords directly into commands.
 
 Build the signed release APK and AAB:
 

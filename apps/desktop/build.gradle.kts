@@ -15,6 +15,7 @@ val naviampVersionName = rootProject.file("VERSION").readText().trim()
 val naviampVersionCode = rootProject.file("VERSION_CODE").readText().trim()
 val naviampNativePackageVersion = nativeDistributionPackageVersion(naviampVersionName)
 val naviampWindowsPackageVersion = windowsDistributionPackageVersion(naviampVersionName)
+val naviampLinuxPackageVersion = numericDistributionPackageVersion(naviampVersionName)
 val desktopBassPlatform = providers.gradleProperty("naviamp.bass.platform")
     .orElse(desktopNativePlatform())
 val desktopBassVendorDir = desktopBassPlatform.map { platform ->
@@ -309,9 +310,9 @@ compose.desktop {
             linux {
                 iconFile.set(project.file("src/desktopMain/resources/icons/naviamp.png"))
                 packageName = "naviamp"
-                packageVersion = naviampVersionName
-                debPackageVersion = naviampVersionName
-                rpmPackageVersion = naviampVersionName
+                packageVersion = naviampLinuxPackageVersion
+                debPackageVersion = naviampLinuxPackageVersion
+                rpmPackageVersion = naviampLinuxPackageVersion
                 appRelease = "1"
                 shortcut = true
                 debMaintainer = "Naviamp Maintainers"
@@ -490,7 +491,7 @@ fun staleDesktopPackagedResourcesDirs(platform: String) =
     }
 
 fun nativeDistributionPackageVersion(version: String): String {
-    val coreVersion = version.substringBefore('-').substringBefore('+')
+    val coreVersion = numericDistributionPackageVersion(version).substringBefore('-').substringBefore('+')
     val parts = coreVersion.split(".")
     require(parts.size == 3) {
         "VERSION must be major.minor.patch for desktop packaging, got: $version"
@@ -503,7 +504,7 @@ fun nativeDistributionPackageVersion(version: String): String {
 }
 
 fun windowsDistributionPackageVersion(version: String): String {
-    val coreVersion = version.substringBefore('-').substringBefore('+')
+    val coreVersion = numericDistributionPackageVersion(version).substringBefore('-').substringBefore('+')
     val parts = coreVersion.split(".")
     require(parts.size == 3) {
         "VERSION must be major.minor.patch for Windows packaging, got: $version"
@@ -511,6 +512,9 @@ fun windowsDistributionPackageVersion(version: String): String {
     parts.forEach { it.toInt() }
     return coreVersion
 }
+
+fun numericDistributionPackageVersion(version: String): String =
+    version.removePrefix("v")
 
 fun desktopCmakeArchitecture(platform: String): String =
     when {

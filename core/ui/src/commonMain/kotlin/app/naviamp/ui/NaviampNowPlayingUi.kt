@@ -1748,7 +1748,36 @@ private fun LyricsPanel(
     modifier: Modifier = Modifier,
 ) {
     val listState = rememberLazyListState()
-    val positionMillis = nowPlaying.positionSeconds?.times(1000)?.toLong()
+    val basePositionMillis = nowPlaying.positionSeconds?.times(1000)?.toLong()
+    var localPositionAnchor by remember { mutableStateOf<LyricPositionAnchor?>(null) }
+    var localNowMillis by remember { mutableStateOf(currentTimeMillis()) }
+
+    LaunchedEffect(basePositionMillis, nowPlaying.isPlaying, nowPlaying.lyricsLines) {
+        localPositionAnchor = basePositionMillis?.let { positionMillis ->
+            LyricPositionAnchor(
+                positionMillis = positionMillis,
+                capturedAtMillis = currentTimeMillis(),
+            )
+        }
+        localNowMillis = currentTimeMillis()
+    }
+
+    LaunchedEffect(nowPlaying.isPlaying, nowPlaying.lyricsLines, basePositionMillis) {
+        if (!nowPlaying.isPlaying || basePositionMillis == null || nowPlaying.lyricsLines.none { it.startMillis != null }) {
+            return@LaunchedEffect
+        }
+        while (true) {
+            localNowMillis = currentTimeMillis()
+            kotlinx.coroutines.delay(LyricsPositionTickMillis)
+        }
+    }
+
+    val positionMillis = remember(localPositionAnchor, localNowMillis, nowPlaying.isPlaying) {
+        localPositionAnchor?.currentPositionMillis(
+            nowMillis = localNowMillis,
+            playing = nowPlaying.isPlaying,
+        )
+    }
     val activeLineIndex = remember(nowPlaying.lyricsLines, positionMillis, nowPlaying.lyricsOffsetMillis) {
         nowPlaying.lyricsLines.indexOfLast { line ->
             val startMillis = line.startMillis?.plus(nowPlaying.lyricsOffsetMillis)
@@ -1873,7 +1902,16 @@ private fun Int.offsetSecondsLabel(): String {
 }
 
 private const val LyricsAutoScrollLeadMillis = 100L
+private const val LyricsPositionTickMillis = 100L
 private const val LyricsOffsetStepMillis = 100
+
+private data class LyricPositionAnchor(
+    val positionMillis: Long,
+    val capturedAtMillis: Long,
+) {
+    fun currentPositionMillis(nowMillis: Long, playing: Boolean): Long =
+        if (playing) positionMillis + (nowMillis - capturedAtMillis).coerceAtLeast(0L) else positionMillis
+}
 
 @Composable
 fun TrackDetailsDialog(

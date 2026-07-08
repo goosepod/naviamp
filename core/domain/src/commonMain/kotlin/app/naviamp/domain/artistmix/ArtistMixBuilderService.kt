@@ -76,10 +76,16 @@ fun artistMixBuilderService(
     ArtistMixBuilderService(
         sourceId = sourceId,
         artistSearch = { query, limit ->
-            sourceId()
-                ?.let { activeSourceId -> localArtistSearch(activeSourceId, query, limit) }
+            provider()
+                ?.let { activeProvider ->
+                    runCatching { activeProvider.search(query, limit.toInt()).artists }.getOrDefault(emptyList())
+                }
                 .orEmpty()
-                .ifEmpty { provider()?.search(query, limit.toInt())?.artists.orEmpty() }
+                .ifEmpty {
+                    sourceId()
+                        ?.let { activeSourceId -> localArtistSearch(activeSourceId, query, limit) }
+                        .orEmpty()
+                }
         },
         randomArtists = { limit ->
             homeContent().mixBuilderArtistCandidates()

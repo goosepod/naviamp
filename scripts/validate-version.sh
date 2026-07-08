@@ -18,9 +18,9 @@ fi
 version="$(tr -d '[:space:]' < "$version_file")"
 version_code="$(tr -d '[:space:]' < "$version_code_file")"
 
-semver_regex='^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-[0-9A-Za-z.-]+)?(\+[0-9A-Za-z.-]+)?$'
+semver_regex='^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-[0-9A-Za-z.-]+)?(\+[0-9A-Za-z.-]+)?$'
 if [[ ! "$version" =~ $semver_regex ]]; then
-  echo "VERSION must be SemVer, got: $version" >&2
+  echo "VERSION must be v-prefixed SemVer, for example v0.15.0; got: $version" >&2
   exit 1
 fi
 

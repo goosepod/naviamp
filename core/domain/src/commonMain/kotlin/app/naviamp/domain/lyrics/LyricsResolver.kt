@@ -7,11 +7,9 @@ fun selectPreferredLyrics(
     embeddedLyrics: Lyrics?,
     onlineLyrics: Lyrics?,
 ): Lyrics? {
-    val localLyrics = providerLyrics ?: embeddedLyrics
     return when {
-        localLyrics == null -> onlineLyrics
-        localLyrics.synced -> localLyrics
-        onlineLyrics?.synced == true -> onlineLyrics
-        else -> localLyrics
+        providerLyrics != null -> providerLyrics
+        embeddedLyrics != null -> embeddedLyrics
+        else -> onlineLyrics
     }
 }

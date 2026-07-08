@@ -1557,6 +1557,94 @@ class NavidromeProviderTest {
     }
 
     @Test
+    fun enhancedLyricsUseSongLyricsV2CuesWhenAdvertised() = runTest {
+        val httpClient = SequencedHttpClient(
+            listOf(
+                """
+                {
+                  "subsonic-response": {
+                    "status": "ok",
+                    "version": "1.16.1",
+                    "serverVersion": "0.63.0"
+                  }
+                }
+                """.trimIndent(),
+                """
+                {
+                  "subsonic-response": {
+                    "status": "ok",
+                    "openSubsonicExtensions": [
+                      { "name": "songLyrics", "versions": [1, 2] }
+                    ]
+                  }
+                }
+                """.trimIndent(),
+                """
+                {
+                  "subsonic-response": {
+                    "status": "ok",
+                    "lyricsList": {
+                      "structuredLyrics": [
+                        {
+                          "displayArtist": "New Order",
+                          "displayTitle": "Ceremony",
+                          "lang": "eng",
+                          "kind": "main",
+                          "offset": -750,
+                          "synced": true,
+                          "line": [
+                            { "start": 12000, "value": "This is why events unnerve me" }
+                          ],
+                          "agents": [
+                            { "id": "vocal-1", "name": "Lead", "role": "main" }
+                          ],
+                          "cueLine": [
+                            {
+                              "index": 0,
+                              "start": 12000,
+                              "end": 14200,
+                              "value": "This is why events unnerve me",
+                              "agentId": "vocal-1",
+                              "cue": [
+                                { "start": 12000, "end": 12400, "value": "This", "byteStart": 0, "byteEnd": 3 },
+                                { "start": 12500, "end": 13000, "value": "is", "byteStart": 5, "byteEnd": 6 }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  }
+                }
+                """.trimIndent(),
+            ),
+        )
+        val provider = NavidromeProvider(
+            connection = connection("https://music.example.test"),
+            httpClient = httpClient,
+        )
+
+        provider.validateConnection()
+        val lyrics = provider.lyrics(TrackId("track-lyrics"))
+
+        assertEquals(
+            listOf(
+                "https://music.example.test/rest/ping.view?u=demo&t=token&s=salt&v=1.16.1&$ExpectedClientQuery&f=json",
+                "https://music.example.test/rest/getOpenSubsonicExtensions.view?u=demo&t=token&s=salt&v=1.16.1&$ExpectedClientQuery&f=json",
+                "https://music.example.test/rest/getLyricsBySongId.view?u=demo&t=token&s=salt&v=1.16.1&$ExpectedClientQuery&f=json&id=track-lyrics&enhanced=true",
+            ),
+            httpClient.urls,
+        )
+        assertEquals("main", lyrics?.kind)
+        assertEquals(750, lyrics?.offsetMillis)
+        assertEquals("vocal-1", lyrics?.agents?.single()?.id)
+        assertEquals("Lead", lyrics?.agents?.single()?.name)
+        assertEquals(0, lyrics?.cueLines?.single()?.lineIndex)
+        assertEquals("vocal-1", lyrics?.cueLines?.single()?.agentId)
+        assertEquals(listOf("This", "is"), lyrics?.cueLines?.single()?.cues?.map { it.text })
+    }
+
+    @Test
     fun reportNowPlayingUsesScrobbleWithoutSubmission() = runTest {
         val httpClient = RecordingHttpClient()
         val provider = NavidromeProvider(

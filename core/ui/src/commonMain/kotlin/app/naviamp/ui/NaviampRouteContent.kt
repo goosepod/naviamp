@@ -27,6 +27,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -303,6 +305,7 @@ internal fun SearchContent(
     onArtistFavoriteToggled: (SharedMediaItemUi) -> Unit = {},
     onAlbumFavoriteToggled: (SharedMediaItemUi) -> Unit = {},
 ) {
+    val searchFocusRequester = remember { FocusRequester() }
     val handleTrackAction: (SharedTrackRowActionRequest) -> Unit = { request ->
         handleSharedTrackRowAction(
             request,
@@ -327,10 +330,15 @@ internal fun SearchContent(
                 onValueChange = onQueryChanged,
                 label = "Search tracks",
                 colors = colors,
-                modifier = Modifier.weight(1f),
+                modifier = Modifier.weight(1f).focusRequester(searchFocusRequester),
             )
             if (query.isNotBlank() || !results.isEmpty) {
-                IconButton(onClick = onClearSearch) {
+                IconButton(
+                    onClick = {
+                        onClearSearch()
+                        searchFocusRequester.requestFocus()
+                    },
+                ) {
                     Icon(NaviampIcons.Close, contentDescription = "Clear search", tint = colors.secondaryText)
                 }
             }
@@ -401,6 +409,7 @@ internal fun LibraryContent(
     onArtistSelected: (SharedMediaItemUi) -> Unit,
     onArtistFavoriteToggled: (SharedMediaItemUi) -> Unit = {},
 ) {
+    val searchFocusRequester = remember { FocusRequester() }
     val filteredItems = remember(items, query) {
         val normalizedQuery = query.trim().lowercase()
         if (normalizedQuery.isBlank()) {
@@ -431,10 +440,15 @@ internal fun LibraryContent(
                     onValueChange = onQueryChanged,
                     label = "Search library artists",
                     colors = colors,
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier.weight(1f).focusRequester(searchFocusRequester),
                 )
                 if (query.isNotBlank()) {
-                    IconButton(onClick = { onQueryChanged("") }) {
+                    IconButton(
+                        onClick = {
+                            onQueryChanged("")
+                            searchFocusRequester.requestFocus()
+                        },
+                    ) {
                         Icon(NaviampIcons.Close, contentDescription = "Clear library search", tint = colors.secondaryText)
                     }
                 }

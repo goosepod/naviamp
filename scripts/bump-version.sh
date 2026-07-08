@@ -11,7 +11,8 @@ version_code_file="$repo_root/VERSION_CODE"
 version="$(tr -d '[:space:]' < "$version_file")"
 version_code="$(tr -d '[:space:]' < "$version_code_file")"
 
-core="${version%%[-+]*}"
+numeric_version="${version#v}"
+core="${numeric_version%%[-+]*}"
 IFS='.' read -r major minor patch <<< "$core"
 
 case "$part" in
@@ -33,7 +34,7 @@ case "$part" in
     ;;
 esac
 
-next_version="$major.$minor.$patch"
+next_version="v$major.$minor.$patch"
 next_version_code=$((version_code + 1))
 
 printf '%s\n' "$next_version" > "$version_file"

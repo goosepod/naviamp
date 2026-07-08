@@ -91,8 +91,8 @@ class LyricsServiceTest {
     }
 
     @Test
-    fun preferredLyricsCanUpgradeUnsyncedLocalLyricsWithSyncedLrclibLyrics() {
-        val local = Lyrics(
+    fun preferredLyricsKeepsProviderLyricsOverSyncedLrclibLyrics() {
+        val provider = Lyrics(
             source = LyricsSource.Provider,
             synced = false,
             lines = listOf(LyricLine(null, "provider")),
@@ -103,7 +103,23 @@ class LyricsServiceTest {
             lines = listOf(LyricLine(1_000L, "lrclib")),
         )
 
-        assertEquals(lrclib, selectPreferredLyrics(local, embeddedLyrics = null, onlineLyrics = lrclib))
+        assertEquals(provider, selectPreferredLyrics(provider, embeddedLyrics = null, onlineLyrics = lrclib))
+    }
+
+    @Test
+    fun preferredLyricsUsesEmbeddedLyricsBeforeLrclibLyrics() {
+        val embedded = Lyrics(
+            source = LyricsSource.Embedded,
+            synced = false,
+            lines = listOf(LyricLine(null, "embedded")),
+        )
+        val lrclib = Lyrics(
+            source = LyricsSource.Lrclib,
+            synced = true,
+            lines = listOf(LyricLine(1_000L, "lrclib")),
+        )
+
+        assertEquals(embedded, selectPreferredLyrics(providerLyrics = null, embeddedLyrics = embedded, onlineLyrics = lrclib))
     }
 
     private class StubLrclibLyricsProvider : LrclibLyricsProvider() {

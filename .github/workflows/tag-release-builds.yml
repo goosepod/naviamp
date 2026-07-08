@@ -1,0 +1,191 @@
+name: Tag release builds
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  GRADLE_COMMON: --configure-on-demand
+  GRADLE_OPTS: -Dorg.gradle.daemon=false -Dorg.gradle.jvmargs=-Xmx4g
+
+jobs:
+  version:
+    name: Validate release tag
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Validate version files
+        run: scripts/validate-version.sh
+
+      - name: Validate tag matches VERSION
+        if: github.event_name == 'push'
+        run: scripts/validate-release-tag.sh "$GITHUB_REF_NAME"
+
+  android:
+    name: Android signed APK
+    needs: version
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android build packages
+        run: sdkmanager "platforms;android-36" "build-tools;36.0.0" "cmake;3.22.1"
+
+      - name: Restore Android signing key
+        env:
+          NAVIAMP_ANDROID_KEYSTORE_BASE64: ${{ secrets.NAVIAMP_ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          test -n "$NAVIAMP_ANDROID_KEYSTORE_BASE64"
+          mkdir -p "$RUNNER_TEMP/naviamp-signing"
+          printf '%s' "$NAVIAMP_ANDROID_KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/naviamp-signing/naviamp-upload.jks"
+
+      - name: Build signed Android release APK
+        env:
+          NAVIAMP_ANDROID_KEYSTORE: ${{ runner.temp }}/naviamp-signing/naviamp-upload.jks
+          NAVIAMP_ANDROID_KEYSTORE_PASSWORD: ${{ secrets.NAVIAMP_ANDROID_KEYSTORE_PASSWORD }}
+          NAVIAMP_ANDROID_KEY_ALIAS: ${{ secrets.NAVIAMP_ANDROID_KEY_ALIAS }}
+          NAVIAMP_ANDROID_KEY_PASSWORD: ${{ secrets.NAVIAMP_ANDROID_KEY_PASSWORD }}
+        run: |
+          scripts/require-android-signing.sh
+          ./gradlew $GRADLE_COMMON :apps:android:assembleRelease
+
+      - name: Upload Android APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: naviamp-android-apk
+          if-no-files-found: error
+          path: apps/android/build/outputs/apk/release/*.apk
+
+  windows:
+    name: Windows zip and installers
+    needs: version
+    runs-on: windows-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Install WiX Toolset
+        shell: powershell
+        run: |
+          if (-not (Get-Command candle.exe -ErrorAction SilentlyContinue)) {
+            choco install wixtoolset --version=3.14.1 --no-progress -y
+            "$env:ProgramFiles(x86)\WiX Toolset v3.14\bin" | Out-File -FilePath $env:GITHUB_PATH -Append
+          }
+
+      - name: Build Windows standalone zip and installers
+        shell: powershell
+        run: .\gradlew.bat $env:GRADLE_COMMON "-Pnaviamp.bass.platform=windows-x64" :apps:desktop:packageReleaseDistributable :apps:desktop:packageReleaseDistributionForCurrentOS
+
+      - name: Upload Windows artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: naviamp-windows
+          if-no-files-found: error
+          path: |
+            apps/desktop/build/compose/distributions/Naviamp-windows-x64-release.zip
+            apps/desktop/build/compose/binaries/**/*.msi
+            apps/desktop/build/compose/binaries/**/*.exe
+
+  macos:
+    name: macOS zip and DMG
+    needs: version
+    runs-on: macos-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Build macOS standalone zip and DMG
+        run: ./gradlew $GRADLE_COMMON -Pnaviamp.bass.platform=macos-arm64 -Pcompose.desktop.packaging.checkJdkVendor=false :apps:desktop:packageReleaseDistributable :apps:desktop:packageReleaseDistributionForCurrentOS
+
+      - name: Upload macOS artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: naviamp-macos
+          if-no-files-found: error
+          path: |
+            apps/desktop/build/compose/distributions/Naviamp-macos-arm64-release.zip
+            apps/desktop/build/compose/binaries/**/*.dmg
+
+  linux:
+    name: Linux zip, DEB, and RPM
+    needs: version
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Install Linux packaging tools
+        run: sudo apt-get update && sudo apt-get install -y fakeroot rpm
+
+      - name: Build Linux standalone zip and installers
+        run: ./gradlew $GRADLE_COMMON -Pnaviamp.bass.platform=linux-x64 :apps:desktop:packageReleaseDistributable :apps:desktop:packageReleaseDistributionForCurrentOS
+
+      - name: Upload Linux artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: naviamp-linux
+          if-no-files-found: error
+          path: |
+            apps/desktop/build/compose/distributions/Naviamp-linux-x64-release.zip
+            apps/desktop/build/compose/binaries/**/*.deb
+            apps/desktop/build/compose/binaries/**/*.rpm
+
+  github-release:
+    name: Publish GitHub release
+    if: github.event_name == 'push'
+    needs:
+      - android
+      - windows
+      - macos
+      - linux
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download built artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: release-artifacts
+          merge-multiple: true
+
+      - name: Publish release assets
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: Naviamp ${{ github.ref_name }}
+          draft: true
+          fail_on_unmatched_files: true
+          files: release-artifacts/*

@@ -90,14 +90,43 @@ data class Lyrics(
     val displayTitle: String? = null,
     val language: String? = null,
     val offsetMillis: Int = 0,
+    val kind: String? = null,
+    val agents: List<LyricAgent> = emptyList(),
+    val cueLines: List<LyricCueLine> = emptyList(),
 ) {
     val hasTimedLines: Boolean
         get() = lines.any { it.startMillis != null }
+
+    val hasKaraokeCues: Boolean
+        get() = cueLines.any { it.cues.isNotEmpty() }
 }
 
 data class LyricLine(
     val startMillis: Long?,
     val text: String,
+)
+
+data class LyricAgent(
+    val id: String,
+    val name: String? = null,
+    val role: String? = null,
+)
+
+data class LyricCueLine(
+    val lineIndex: Int,
+    val startMillis: Long?,
+    val endMillis: Long?,
+    val text: String,
+    val agentId: String? = null,
+    val cues: List<LyricCue> = emptyList(),
+)
+
+data class LyricCue(
+    val startMillis: Long?,
+    val endMillis: Long?,
+    val text: String,
+    val byteStart: Int?,
+    val byteEnd: Int?,
 )
 
 enum class LyricsSource {
