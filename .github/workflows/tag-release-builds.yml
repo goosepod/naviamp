@@ -25,7 +25,7 @@ jobs:
         run: scripts/validate-version.sh
 
       - name: Validate tag matches VERSION
-        if: github.event_name == 'push'
+        if: startsWith(github.ref, 'refs/tags/v')
         run: scripts/validate-release-tag.sh "$GITHUB_REF_NAME"
 
   android:
@@ -169,7 +169,7 @@ jobs:
 
   github-release:
     name: Publish GitHub release
-    if: github.event_name == 'push'
+    if: startsWith(github.ref, 'refs/tags/v')
     needs:
       - android
       - windows

@@ -25,7 +25,7 @@ kotlin {
             implementation("org.jetbrains.compose.material3:material3:$composeMaterial3Version")
             implementation("org.jetbrains.compose.runtime:runtime:$composeVersion")
             implementation("org.jetbrains.compose.ui:ui:$composeVersion")
-            implementation(compose.components.resources)
+            implementation("org.jetbrains.compose.components:components-resources:$composeVersion")
         }
         jvmTest.dependencies {
             implementation(compose.desktop.currentOs)
