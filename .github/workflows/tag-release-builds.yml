@@ -175,6 +175,22 @@ jobs:
       - linux
     runs-on: ubuntu-latest
     steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Prepare release notes
+        run: |
+          notes="docs/release-notes/${GITHUB_REF_NAME}.md"
+          if [ -f "$notes" ]; then
+            cp "$notes" "$RUNNER_TEMP/release-notes.md"
+          else
+            {
+              echo "Naviamp ${GITHUB_REF_NAME}"
+              echo
+              echo "See the tagged commit for release details."
+            } > "$RUNNER_TEMP/release-notes.md"
+          fi
+
       - name: Download built artifacts
         uses: actions/download-artifact@v4
         with:
@@ -187,5 +203,6 @@ jobs:
           tag_name: ${{ github.ref_name }}
           name: Naviamp ${{ github.ref_name }}
           draft: true
+          body_path: ${{ runner.temp }}/release-notes.md
           fail_on_unmatched_files: true
           files: release-artifacts/*

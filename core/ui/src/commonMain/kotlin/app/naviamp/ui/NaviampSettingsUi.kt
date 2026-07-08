@@ -607,11 +607,11 @@ private val DefaultNaviampLibraries = listOf(
 )
 
 private val DefaultNaviampChangelog = listOf(
-    "Added Linux desktop packaging with standalone zip, deb, and rpm builds.",
-    "Bundled Linux x64 BASS playback libraries and JNI resources for packaged desktop playback.",
-    "Verified Linux playback, seeking, waveforms, crossfade, gapless transitions, radio, lyrics, downloads, playlists, volume controls, and library search on Xubuntu.",
-    "Improved Linux package metadata, launcher icon integration, version numbering, and native resource layout.",
-    "Documented Linux build setup, validation coverage, and future audio output device selection.",
+    "Added Navidrome 0.63 enhanced lyrics support with provider lyrics prioritized before embedded lyrics and LRCLIB.",
+    "Improved synced lyrics timing and cleared stale saved lyric offsets from existing databases.",
+    "Added provider-backed search for artist and album mix builders with local fallback.",
+    "Kept focus in search fields after clearing a query.",
+    "Added GitHub tag release automation for signed Android APKs, desktop installers, Linux packages, and draft release notes.",
 )
 
 @Composable
