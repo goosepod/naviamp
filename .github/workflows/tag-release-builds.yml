@@ -101,6 +101,13 @@ jobs:
           CMAKE_EXE: cmake
         run: .\gradlew.bat $env:GRADLE_COMMON "-Pnaviamp.bass.platform=windows-x64" :apps:desktop:packageReleaseDistributable :apps:desktop:packageReleaseDistributionForCurrentOS
 
+      - name: List Windows release outputs
+        shell: powershell
+        run: |
+          Get-ChildItem apps/desktop/build/compose/distributions -Filter *.zip
+          Get-ChildItem apps/desktop/build/compose/binaries/main-release/msi -Filter *.msi
+          Get-ChildItem apps/desktop/build/compose/binaries/main-release/exe -Filter *.exe
+
       - name: Upload Windows artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -108,8 +115,8 @@ jobs:
           if-no-files-found: error
           path: |
             apps/desktop/build/compose/distributions/Naviamp-windows-x64-release.zip
-            apps/desktop/build/compose/binaries/main/msi/*.msi
-            apps/desktop/build/compose/binaries/main/exe/*.exe
+            apps/desktop/build/compose/binaries/main-release/msi/*.msi
+            apps/desktop/build/compose/binaries/main-release/exe/*.exe
 
   macos:
     name: macOS zip and DMG
