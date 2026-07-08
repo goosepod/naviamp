@@ -72,6 +72,8 @@ Forgejo runs `.forgejo/workflows/version-check.yml` on feature-branch pushes and
 
 The GitHub tag release workflow validates that the pushed tag exactly matches `VERSION`. For example, a release with `VERSION=v0.15.0` must be tagged `v0.15.0`.
 
+Create release tags as annotated tags and include the release change notes in the tag message. Forgejo and GitHub both surface annotated tag messages, so the tag itself should describe what changed even before release assets are attached. Keep the tag message aligned with `docs/release-notes/<tag>.md`.
+
 ## GitHub Tag Releases
 
 Forgejo must mirror release tags to GitHub in addition to `main`. In the Forgejo repository mirror settings, include both branch and tag refs in the push mirror refspecs:

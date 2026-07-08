@@ -607,11 +607,11 @@ private val DefaultNaviampLibraries = listOf(
 )
 
 private val DefaultNaviampChangelog = listOf(
-    "Added Navidrome 0.63 enhanced lyrics support with provider lyrics prioritized before embedded lyrics and LRCLIB.",
-    "Improved synced lyrics timing and cleared stale saved lyric offsets from existing databases.",
-    "Added provider-backed search for artist and album mix builders with local fallback.",
-    "Kept focus in search fields after clearing a query.",
-    "Added GitHub tag release automation for signed Android APKs, desktop installers, Linux packages, and draft release notes.",
+    "Fixed Windows GitHub release builds by using the runner CMake install for desktop native packaging.",
+    "Allowed manually dispatched GitHub tag builds to create draft releases after successful artifacts build.",
+    "Kept release tag validation active for manual runs started from v-prefixed tags.",
+    "Removed deprecated Compose Gradle dependency accessors from desktop and shared UI builds.",
+    "Documented release tag notes so Forgejo and GitHub show the release changes on the tag.",
 )
 
 @Composable
