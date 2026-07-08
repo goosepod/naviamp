@@ -980,9 +980,10 @@ private val DefaultNaviampLibraries = listOf(
 )
 
 private val DefaultNaviampChangelog = listOf(
-    "Filtered GitHub release assets so the raw Windows app-image Naviamp.exe is not attached.",
-    "Kept Windows package artifacts limited to the standalone zip plus MSI and installer EXE.",
-    "Kept the Android NDK and recursive release asset fixes from the previous releases.",
+    "Added desktop audio output selection with Follow System Output and per-device routing.",
+    "Redesigned Settings around Plexamp-style categories, compact controls, selection pages, and a refreshed About page.",
+    "Added Replay Gain mode and preamp controls, equalizer editing, audio cache controls, waveform settings, and Radio DJs pages.",
+    "Kept Android audio output hidden so Android builds continue to follow the system output.",
 )
 
 @Composable
