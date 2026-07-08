@@ -50,6 +50,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.naviamp.domain.source.SavedMediaSource
+import app.naviamp.domain.playback.AudioOutputDevice
 import app.naviamp.domain.settings.ConnectionFormHeader
 import app.naviamp.domain.settings.ConnectionFormMusicFolder
 import app.naviamp.domain.settings.ConnectionFormSecondaryUrl
@@ -63,9 +64,15 @@ import app.naviamp.desktop.settings.CacheSettings
 import app.naviamp.desktop.settings.PlaybackSettings
 import app.naviamp.ui.NaviampAboutSettingsSection
 import app.naviamp.ui.NaviampAboutUi
+import app.naviamp.ui.NaviampAudioCacheSettingsSection
 import app.naviamp.ui.NaviampConnectionForm
+import app.naviamp.ui.NaviampDebugPlaybackSettingsSection
+import app.naviamp.ui.NaviampDownloadsSettingsSection
+import app.naviamp.ui.NaviampExperienceSettingsSection
 import app.naviamp.ui.NaviampPlaybackSettingsSection
 import app.naviamp.ui.NaviampSettingsCategory
+import app.naviamp.ui.NaviampDiagnosticsSectionUi
+import app.naviamp.ui.NaviampDiagnosticsUi
 import app.naviamp.ui.storageBytesLabel
 import java.awt.FileDialog
 import java.awt.Frame
@@ -108,6 +115,8 @@ fun DesktopSettingsPanel(
     supportsGapless: Boolean,
     supportsCrossfade: Boolean,
     supportsEqualizer: Boolean,
+    supportsAudioOutputDeviceSelection: Boolean,
+    audioOutputDevices: List<AudioOutputDevice>,
     supportsSonicSimilarity: Boolean,
     onServerUrlChanged: (String) -> Unit,
     onConnectionNameChanged: (String) -> Unit,
@@ -140,7 +149,7 @@ fun DesktopSettingsPanel(
     onRefreshLibrary: () -> Unit,
     onResetDatabase: () -> Unit,
 ) {
-    var selectedCategory by remember { mutableStateOf(NaviampSettingsCategory.Connections) }
+    var selectedCategory by remember { mutableStateOf(NaviampSettingsCategory.Source) }
     var statusClickCount by remember { mutableIntStateOf(0) }
     var lastStatusClickMillis by remember { mutableStateOf(0L) }
     var clearCacheDialogOpen by remember { mutableStateOf(false) }
@@ -151,7 +160,7 @@ fun DesktopSettingsPanel(
     @Composable
     fun CategoryContent(category: NaviampSettingsCategory) {
         when (category) {
-            NaviampSettingsCategory.Connections -> ConnectionsSettings(
+            NaviampSettingsCategory.Source -> ConnectionsSettings(
                 appColors = appColors,
                 serverUrl = serverUrl,
                 connectionName = connectionName,
@@ -198,6 +207,16 @@ fun DesktopSettingsPanel(
                 onSettingsSyncExport = onSettingsSyncExport,
                 onSettingsSyncImport = onSettingsSyncImport,
             )
+            NaviampSettingsCategory.Experience -> NaviampExperienceSettingsSection(
+                colors = appColors,
+                playbackSettings = playbackSettings,
+                cacheSettings = cacheSettings,
+                showQueueBehavior = true,
+                showLrclibLyrics = true,
+                supportsSonicSimilarity = supportsSonicSimilarity,
+                onPlaybackSettingsChanged = onPlaybackSettingsChanged,
+                onCacheSettingsChanged = onCacheSettingsChanged,
+            )
             NaviampSettingsCategory.Playback -> NaviampPlaybackSettingsSection(
                 colors = appColors,
                 playbackSettings = playbackSettings,
@@ -205,38 +224,68 @@ fun DesktopSettingsPanel(
                 supportsGapless = supportsGapless,
                 supportsCrossfade = supportsCrossfade,
                 supportsEqualizer = supportsEqualizer,
+                supportsAudioOutputDeviceSelection = supportsAudioOutputDeviceSelection,
+                audioOutputDevices = audioOutputDevices,
                 supportsSonicSimilarity = supportsSonicSimilarity,
                 downloadBytes = cacheStats.downloadBytes,
                 onPlaybackSettingsChanged = onPlaybackSettingsChanged,
                 onPlaybackSettingsChangedAndRedownload = onPlaybackSettingsChangedAndRedownload,
             )
-            NaviampSettingsCategory.Cache -> CacheSettingsSection(
-                appColors = appColors,
+            NaviampSettingsCategory.Downloads -> NaviampDownloadsSettingsSection(
+                colors = appColors,
+                playbackSettings = playbackSettings,
                 cacheSettings = cacheSettings,
-                cacheStats = cacheStats,
+                diagnostics = NaviampDiagnosticsUi(
+                    listOf(
+                        "Audio cache" to cacheStats.audioBytes.storageBytesLabel(),
+                        "Downloads" to cacheStats.downloadBytes.storageBytesLabel(),
+                        "Images" to cacheStats.imageBytes.storageBytesLabel(),
+                    ).let { rows -> listOf(NaviampDiagnosticsSectionUi("Storage", rows)) },
+                ),
+                showMobileNetworkQuality = false,
+                downloadBytes = cacheStats.downloadBytes,
+                onPlaybackSettingsChanged = onPlaybackSettingsChanged,
+                onPlaybackSettingsChangedAndRedownload = onPlaybackSettingsChangedAndRedownload,
                 onCacheSettingsChanged = onCacheSettingsChanged,
             )
-            NaviampSettingsCategory.LocalData -> LocalDataSettings(
-                appColors = appColors,
-                onClearCache = { clearCacheDialogOpen = true },
-                onClearLibrary = { clearLibraryDialogOpen = true },
-                onRefreshLibrary = onRefreshLibrary,
-                onResetDatabase = {
-                    resetIncludesServers = false
-                    resetDialogOpen = true
-                },
+            NaviampSettingsCategory.AudioCache -> NaviampAudioCacheSettingsSection(
+                colors = appColors,
+                cacheSettings = cacheSettings,
+                diagnostics = NaviampDiagnosticsUi(
+                    listOf(
+                        "Audio cache" to cacheStats.audioBytes.storageBytesLabel(),
+                    ).let { rows -> listOf(NaviampDiagnosticsSectionUi("Storage", rows)) },
+                ),
+                onCacheSettingsChanged = onCacheSettingsChanged,
             )
-            NaviampSettingsCategory.Diagnostics -> DiagnosticsSettings(
-                appColors = appColors,
-                connectionStatus = connectionStatus,
-                statusClickCount = statusClickCount,
-                lastStatusClickMillis = lastStatusClickMillis,
-                onStatusClickStateChanged = { count, millis ->
-                    statusClickCount = count
-                    lastStatusClickMillis = millis
-                },
-                onOpenStatsForNerds = onOpenStatsForNerds,
-            )
+            NaviampSettingsCategory.Debugging -> {
+                NaviampDebugPlaybackSettingsSection(
+                    colors = appColors,
+                    playbackSettings = playbackSettings,
+                    onPlaybackSettingsChanged = onPlaybackSettingsChanged,
+                )
+                DiagnosticsSettings(
+                    appColors = appColors,
+                    connectionStatus = connectionStatus,
+                    statusClickCount = statusClickCount,
+                    lastStatusClickMillis = lastStatusClickMillis,
+                    onStatusClickStateChanged = { count, millis ->
+                        statusClickCount = count
+                        lastStatusClickMillis = millis
+                    },
+                    onOpenStatsForNerds = onOpenStatsForNerds,
+                )
+                LocalDataSettings(
+                    appColors = appColors,
+                    onClearCache = { clearCacheDialogOpen = true },
+                    onClearLibrary = { clearLibraryDialogOpen = true },
+                    onRefreshLibrary = onRefreshLibrary,
+                    onResetDatabase = {
+                        resetIncludesServers = false
+                        resetDialogOpen = true
+                    },
+                )
+            }
             NaviampSettingsCategory.About -> NaviampAboutSettingsSection(
                 colors = appColors,
                 about = about,
@@ -422,7 +471,7 @@ private fun SettingsCategoryList(
             SettingsCategoryRow(
                 appColors = appColors,
                 category = category,
-                subtitle = if (category == NaviampSettingsCategory.Connections) connectionSubtitle else category.subtitle,
+                subtitle = if (category == NaviampSettingsCategory.Source) connectionSubtitle else category.subtitle,
                 onClick = { onCategorySelected(category) },
             )
         }
@@ -1001,7 +1050,7 @@ private fun CacheSettingsSection(
                 onCacheSettingsChanged(cacheSettings.copy(audioCachingEnabled = enabled).normalized())
             },
         )
-        Text("Enable audio cache and prefetch", color = appColors.secondaryText, fontSize = 12.sp)
+        Text("Enable audio prefetch", color = appColors.secondaryText, fontSize = 12.sp)
     }
     DetentIntSettingsSlider(
         title = "Prefetch depth",
@@ -1289,6 +1338,22 @@ private fun DiagnosticsSettings(
 @Composable
 private fun SettingsSectionTitle(title: String, appColors: DesktopAppColors) {
     Text(title, color = appColors.primaryText, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+}
+
+@Composable
+private fun SettingsPlaceholderSection(
+    title: String,
+    body: String,
+    appColors: DesktopAppColors,
+    value: String? = null,
+) {
+    SettingsSectionTitle(title, appColors)
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Text(body, color = appColors.secondaryText, fontSize = 12.sp)
+        value?.let {
+            Text(it, color = appColors.primaryText, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+        }
+    }
 }
 
 @Composable

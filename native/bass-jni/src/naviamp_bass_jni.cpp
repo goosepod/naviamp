@@ -16,6 +16,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdlib>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -58,8 +59,12 @@ struct BassApi {
     decltype(&::BASS_GetVersion) BASS_GetVersion = nullptr;
     decltype(&::BASS_ErrorGetCode) BASS_ErrorGetCode = nullptr;
     decltype(&::BASS_Mixer_GetVersion) BASS_Mixer_GetVersion = nullptr;
+    decltype(&::BASS_GetDeviceInfo) BASS_GetDeviceInfo = nullptr;
     decltype(&::BASS_Init) BASS_Init = nullptr;
     decltype(&::BASS_Free) BASS_Free = nullptr;
+    decltype(&::BASS_SetDevice) BASS_SetDevice = nullptr;
+    decltype(&::BASS_GetDevice) BASS_GetDevice = nullptr;
+    decltype(&::BASS_ChannelSetDevice) BASS_ChannelSetDevice = nullptr;
     decltype(&::BASS_Mixer_ChannelRemove) BASS_Mixer_ChannelRemove = nullptr;
     decltype(&::BASS_ChannelSetSync) BASS_ChannelSetSync = nullptr;
     decltype(&::BASS_ChannelPlay) BASS_ChannelPlay = nullptr;
@@ -111,8 +116,12 @@ bool load_bass_symbols() {
     ok = load_symbol(bassApi.bass, "BASS_GetVersion", bassApi.BASS_GetVersion) && ok;
     ok = load_symbol(bassApi.bass, "BASS_ErrorGetCode", bassApi.BASS_ErrorGetCode) && ok;
     ok = load_symbol(bassApi.bassmix, "BASS_Mixer_GetVersion", bassApi.BASS_Mixer_GetVersion) && ok;
+    ok = load_symbol(bassApi.bass, "BASS_GetDeviceInfo", bassApi.BASS_GetDeviceInfo) && ok;
     ok = load_symbol(bassApi.bass, "BASS_Init", bassApi.BASS_Init) && ok;
     ok = load_symbol(bassApi.bass, "BASS_Free", bassApi.BASS_Free) && ok;
+    ok = load_symbol(bassApi.bass, "BASS_SetDevice", bassApi.BASS_SetDevice) && ok;
+    ok = load_symbol(bassApi.bass, "BASS_GetDevice", bassApi.BASS_GetDevice) && ok;
+    ok = load_symbol(bassApi.bass, "BASS_ChannelSetDevice", bassApi.BASS_ChannelSetDevice) && ok;
     ok = load_symbol(bassApi.bassmix, "BASS_Mixer_ChannelRemove", bassApi.BASS_Mixer_ChannelRemove) && ok;
     ok = load_symbol(bassApi.bass, "BASS_ChannelSetSync", bassApi.BASS_ChannelSetSync) && ok;
     ok = load_symbol(bassApi.bass, "BASS_ChannelPlay", bassApi.BASS_ChannelPlay) && ok;
@@ -188,8 +197,12 @@ bool configure_windows_title_bar(JNIEnv* env, jobject window, bool isDark) {
 #define BASS_GetVersion bassApi.BASS_GetVersion
 #define BASS_ErrorGetCode bassApi.BASS_ErrorGetCode
 #define BASS_Mixer_GetVersion bassApi.BASS_Mixer_GetVersion
+#define BASS_GetDeviceInfo bassApi.BASS_GetDeviceInfo
 #define BASS_Init bassApi.BASS_Init
 #define BASS_Free bassApi.BASS_Free
+#define BASS_SetDevice bassApi.BASS_SetDevice
+#define BASS_GetDevice bassApi.BASS_GetDevice
+#define BASS_ChannelSetDevice bassApi.BASS_ChannelSetDevice
 #define BASS_Mixer_ChannelRemove bassApi.BASS_Mixer_ChannelRemove
 #define BASS_ChannelSetSync bassApi.BASS_ChannelSetSync
 #define BASS_ChannelPlay bassApi.BASS_ChannelPlay
@@ -226,6 +239,65 @@ void configure_playback_buffers() {
     BASS_SetConfig(BASS_CONFIG_NET_PREBUF_WAIT, 1);
     BASS_SetConfig(BASS_CONFIG_NET_TIMEOUT, NETWORK_TIMEOUT_MILLIS);
     BASS_SetConfig(BASS_CONFIG_NET_READTIMEOUT, NETWORK_TIMEOUT_MILLIS);
+}
+
+int device_id_or_default(JNIEnv* env, jstring deviceId) {
+    if (deviceId == nullptr) return -1;
+    const char* chars = env->GetStringUTFChars(deviceId, nullptr);
+    if (chars == nullptr) return -1;
+    char* end = nullptr;
+    long parsed = std::strtol(chars, &end, 10);
+    env->ReleaseStringUTFChars(deviceId, chars);
+    if (end == chars || parsed < -1 || parsed > 4096) return -1;
+    return static_cast<int>(parsed);
+}
+
+int concrete_output_device(int requestedDevice) {
+    if (requestedDevice >= 0) return requestedDevice;
+    for (DWORD device = 1; device < 256; ++device) {
+        BASS_DEVICEINFO info{};
+        if (!BASS_GetDeviceInfo(device, &info)) break;
+        if ((info.flags & BASS_DEVICE_DEFAULT) != 0) {
+            return static_cast<int>(device);
+        }
+    }
+    return -1;
+}
+
+bool init_output_device(int device) {
+    configure_playback_buffers();
+    if (BASS_Init(device, 44100, 0, nullptr, nullptr)) {
+        return true;
+    }
+    if (BASS_ErrorGetCode() == BASS_ERROR_ALREADY) {
+        int concreteDevice = concrete_output_device(device);
+        return concreteDevice >= 0 && BASS_SetDevice(static_cast<DWORD>(concreteDevice));
+    }
+    return false;
+}
+
+jobjectArray output_devices(JNIEnv* env) {
+    std::vector<std::string> devices;
+    for (DWORD device = 1; device < 256; ++device) {
+        BASS_DEVICEINFO info{};
+        if (!BASS_GetDeviceInfo(device, &info)) break;
+        if (info.name == nullptr) continue;
+        std::string line = std::to_string(device);
+        line += "\t";
+        line += info.name;
+        line += "\t";
+        line += std::to_string(info.flags);
+        devices.push_back(line);
+    }
+
+    jclass stringClass = env->FindClass("java/lang/String");
+    jobjectArray array = env->NewObjectArray(static_cast<jsize>(devices.size()), stringClass, nullptr);
+    for (jsize index = 0; index < static_cast<jsize>(devices.size()); ++index) {
+        jstring value = env->NewStringUTF(devices[static_cast<size_t>(index)].c_str());
+        env->SetObjectArrayElement(array, index, value);
+        env->DeleteLocalRef(value);
+    }
+    return array;
 }
 
 jfloatArray waveform_levels(JNIEnv* env, jint stream, jint bucketCount) {
@@ -840,14 +912,13 @@ extern "C" JNIEXPORT jboolean JNICALL
 Java_app_naviamp_desktop_playback_bass_DesktopBassJniBinding_nativeInit(JNIEnv* env, jobject thiz) {
     (void)env;
     (void)thiz;
-    configure_playback_buffers();
-    if (BASS_Init(-1, 44100, 0, nullptr, nullptr)) {
-        return JNI_TRUE;
-    }
-    if (BASS_ErrorGetCode() == BASS_ERROR_ALREADY) {
-        return JNI_TRUE;
-    }
-    return JNI_FALSE;
+    return init_output_device(-1) ? JNI_TRUE : JNI_FALSE;
+}
+
+extern "C" JNIEXPORT jboolean JNICALL
+Java_app_naviamp_desktop_playback_bass_DesktopBassJniBinding_nativeInitDevice(JNIEnv* env, jobject thiz, jstring deviceId) {
+    (void)thiz;
+    return init_output_device(device_id_or_default(env, deviceId)) ? JNI_TRUE : JNI_FALSE;
 }
 
 extern "C" JNIEXPORT void JNICALL
@@ -856,6 +927,31 @@ Java_app_naviamp_desktop_playback_bass_DesktopBassJniBinding_nativeFree(JNIEnv* 
     (void)thiz;
     equalizerFxByChannel.clear();
     BASS_Free();
+}
+
+extern "C" JNIEXPORT jobjectArray JNICALL
+Java_app_naviamp_desktop_playback_bass_DesktopBassJniBinding_nativeOutputDevices(JNIEnv* env, jobject thiz) {
+    (void)thiz;
+    return output_devices(env);
+}
+
+extern "C" JNIEXPORT jboolean JNICALL
+Java_app_naviamp_desktop_playback_bass_DesktopBassJniBinding_nativeSetOutputDevice(JNIEnv* env, jobject thiz, jstring deviceId) {
+    (void)thiz;
+    int device = device_id_or_default(env, deviceId);
+    if (!init_output_device(device)) return JNI_FALSE;
+    int concreteDevice = concrete_output_device(device);
+    return concreteDevice >= 0 && BASS_SetDevice(static_cast<DWORD>(concreteDevice)) ? JNI_TRUE : JNI_FALSE;
+}
+
+extern "C" JNIEXPORT jboolean JNICALL
+Java_app_naviamp_desktop_playback_bass_DesktopBassJniBinding_nativeSetStreamOutputDevice(JNIEnv* env, jobject thiz, jint stream, jstring deviceId) {
+    (void)thiz;
+    int device = device_id_or_default(env, deviceId);
+    if (!init_output_device(device)) return JNI_FALSE;
+    int concreteDevice = concrete_output_device(device);
+    if (concreteDevice < 0 || !BASS_SetDevice(static_cast<DWORD>(concreteDevice))) return JNI_FALSE;
+    return BASS_ChannelSetDevice(static_cast<DWORD>(stream), static_cast<DWORD>(concreteDevice)) ? JNI_TRUE : JNI_FALSE;
 }
 
 extern "C" JNIEXPORT jboolean JNICALL

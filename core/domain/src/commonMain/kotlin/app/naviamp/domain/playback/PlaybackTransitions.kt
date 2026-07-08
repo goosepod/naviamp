@@ -128,6 +128,17 @@ fun playbackReplayGainAdjustment(request: PlaybackRequest): PlaybackReplayGainAd
     val replayGainSource = request.replayGain
     val replayGain = replayGainSource?.replayGain
     if (mode == ReplayGainMode.Off || replayGain == null) {
+        if (request.replayGainPreampDb != 0f) {
+            val gainDb = request.replayGainPreampDb.toDouble()
+            return PlaybackReplayGainAdjustment(
+                mode = mode,
+                source = replayGainSource?.source,
+                gainDb = gainDb,
+                peak = null,
+                volumeFactor = 10.0.pow(gainDb / 20.0).toFloat(),
+                clippingPrevented = false,
+            )
+        }
         return PlaybackReplayGainAdjustment.off(mode)
     }
     val gainDb = when (mode) {
@@ -140,7 +151,8 @@ fun playbackReplayGainAdjustment(request: PlaybackRequest): PlaybackReplayGainAd
         ReplayGainMode.Track -> replayGain.trackPeak
         ReplayGainMode.Album -> replayGain.albumPeak ?: replayGain.trackPeak
     }
-    val rawFactor = 10.0.pow(gainDb / 20.0)
+    val effectiveGainDb = gainDb + request.replayGainPreampDb.toDouble()
+    val rawFactor = 10.0.pow(effectiveGainDb / 20.0)
     val clippedFactor = if (peak != null && peak > 0.0 && rawFactor * peak > 1.0) {
         1.0 / peak
     } else {
@@ -149,7 +161,7 @@ fun playbackReplayGainAdjustment(request: PlaybackRequest): PlaybackReplayGainAd
     return PlaybackReplayGainAdjustment(
         mode = mode,
         source = replayGainSource.source,
-        gainDb = gainDb,
+        gainDb = effectiveGainDb,
         peak = peak,
         volumeFactor = clippedFactor.coerceIn(0.0, MaxPlaybackVolumeFactor.toDouble()).toFloat(),
         clippingPrevented = clippedFactor < rawFactor,

@@ -31,6 +31,7 @@ class PreparedNextPlaybackCoordinator(
     private val audioCachingEnabled: () -> Boolean,
     private val audioAssets: PlaybackAudioAssetRepository,
     private val replayGainMode: () -> ReplayGainMode,
+    private val replayGainPreampDb: () -> Float = { 0f },
     private val supportsReplayGain: () -> Boolean,
     private val replayGainForTrack: suspend (Track, StreamQuality) -> PlaybackReplayGain?,
 ) {
@@ -78,6 +79,7 @@ class PreparedNextPlaybackCoordinator(
             audioCachingEnabled = audioCachingEnabled(),
             audioAssets = audioAssets,
             replayGainMode = replayGainMode(),
+            replayGainPreampDb = replayGainPreampDb(),
             supportsReplayGain = supportsReplayGain(),
             replayGainForTrack = replayGainForTrack,
         )
@@ -139,6 +141,7 @@ suspend fun prepareNextPlaybackRequest(
     audioCachingEnabled: Boolean,
     audioAssets: PlaybackAudioAssetRepository,
     replayGainMode: ReplayGainMode,
+    replayGainPreampDb: Float = 0f,
     supportsReplayGain: Boolean,
     replayGainForTrack: suspend (Track, StreamQuality) -> PlaybackReplayGain?,
 ): PreparedNextPlaybackRequest? {
@@ -161,6 +164,7 @@ suspend fun prepareNextPlaybackRequest(
         audioCachingEnabled = audioCachingEnabled,
         audioAssets = audioAssets,
         replayGainMode = replayGainMode,
+        replayGainPreampDb = replayGainPreampDb,
         supportsReplayGain = supportsReplayGain,
         replayGainForTrack = replayGainForTrack,
     )
@@ -174,6 +178,7 @@ suspend fun preparedNextPlaybackRequest(
     audioCachingEnabled: Boolean,
     audioAssets: PlaybackAudioAssetRepository,
     replayGainMode: ReplayGainMode,
+    replayGainPreampDb: Float = 0f,
     supportsReplayGain: Boolean,
     replayGainForTrack: suspend (Track, StreamQuality) -> PlaybackReplayGain?,
 ): PreparedNextPlaybackRequest {
@@ -195,6 +200,7 @@ suspend fun preparedNextPlaybackRequest(
             url = streamUrl,
             mediaId = track.id.value,
             replayGainMode = if (supportsReplayGain) replayGainMode else ReplayGainMode.Off,
+            replayGainPreampDb = if (supportsReplayGain) replayGainPreampDb else 0f,
             replayGain = replayGainForTrack(track, quality),
         ),
     )

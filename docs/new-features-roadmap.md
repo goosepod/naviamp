@@ -23,6 +23,11 @@ Keep implementation cross-platform by default: shared domain models, shared UI, 
   - If a pinned device is disconnected or unavailable, fall back to the OS default and make the unavailable state clear in settings.
   - Persist the choice per device/app install rather than syncing it across machines, because output device IDs are OS-local.
   - Implement through platform playback adapters; shared UI/settings can model the preference, but device enumeration and selection are platform-specific audio behavior.
+- [ ] Add interface language selection.
+  - Default behavior should follow the system language.
+  - Users should be able to choose a specific app interface language from Settings.
+  - Persist the selected language as an app preference and make it eligible for settings sync once translation support exists.
+  - Keep provider metadata, artist names, album names, track titles, and user-authored playlist names in their original language.
 - [ ] Add desktop update checking.
   - Desktop app can manually check whether a newer Naviamp release is available.
   - Keep the first pass simple: clear status for up-to-date, update available, and unable to check.

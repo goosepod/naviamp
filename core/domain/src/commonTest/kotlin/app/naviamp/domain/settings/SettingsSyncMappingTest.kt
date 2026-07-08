@@ -21,6 +21,11 @@ class SettingsSyncMappingTest {
                 serverProfiles = listOf(savedSource()),
                 playback = PlaybackSettings(
                     replayGainMode = ReplayGainMode.Track,
+                    outputDevice = AudioOutputDevicePreference(
+                        mode = AudioOutputDeviceMode.Pinned,
+                        deviceId = "built-in-output",
+                        deviceName = "Built-in Output",
+                    ),
                     crossfadeDurationSeconds = 5,
                     volumePercent = 42,
                     debugLoggingEnabled = true,
@@ -50,6 +55,7 @@ class SettingsSyncMappingTest {
         assertEquals("/certs/navidrome.pem", profile.tls.customCertificatePath)
         assertEquals("/certs/client.p12", profile.tls.clientCertificateKeyStorePath)
         assertEquals(ReplayGainMode.Track, document.preferences.playback.replayGainMode)
+        assertEquals(AudioOutputDevicePreference(), document.preferences.playback.outputDevice)
         assertEquals(5, document.preferences.playback.crossfadeDurationSeconds)
         assertEquals(100, document.preferences.playback.volumePercent)
         assertFalse(document.preferences.playback.debugLoggingEnabled)

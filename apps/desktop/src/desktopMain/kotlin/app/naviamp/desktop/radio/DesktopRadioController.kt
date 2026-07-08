@@ -74,6 +74,7 @@ class DesktopRadioController(
     private val sourceId: () -> String?,
     private val streamQuality: () -> StreamQuality,
     private val replayGainMode: () -> ReplayGainMode,
+    private val replayGainPreampDb: () -> Float,
     private val preferSonicSimilarity: () -> Boolean,
     private val radioTuning: () -> RadioTuningSettings,
     private val repeatMode: () -> RepeatMode,
@@ -179,6 +180,7 @@ class DesktopRadioController(
                         index = 0,
                         quality = streamQuality(),
                         replayGainMode = replayGainMode(),
+                        replayGainPreampDb = replayGainPreampDb(),
                         callbacks = playlistCallbacks(),
                     )
                 }
@@ -454,6 +456,7 @@ class DesktopRadioController(
             index = 0,
             quality = streamQuality(),
             replayGainMode = replayGainMode(),
+            replayGainPreampDb = replayGainPreampDb(),
             callbacks = playlistCallbacks(),
         )
 

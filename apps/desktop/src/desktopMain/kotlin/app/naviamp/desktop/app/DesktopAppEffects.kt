@@ -9,6 +9,7 @@ import app.naviamp.domain.cache.ImageCacheRepository
 import app.naviamp.domain.playback.CrossfadeSettings
 import app.naviamp.domain.playback.DefaultNowPlayingHeartbeatIntervalMillis
 import app.naviamp.domain.playback.DefaultDesktopVisualizerFrameIntervalMillis
+import app.naviamp.domain.playback.AudioOutputDevicePlaybackEngine
 import app.naviamp.domain.playback.EqualizerPlaybackEngine
 import app.naviamp.domain.playback.PlaybackEngine
 import app.naviamp.domain.playback.PlaybackState
@@ -20,6 +21,7 @@ import app.naviamp.desktop.playback.DesktopPlaylistEngine
 import app.naviamp.desktop.settings.CacheSettings
 import app.naviamp.desktop.settings.NavigationSettings
 import app.naviamp.desktop.settings.PlaybackSettings
+import app.naviamp.domain.settings.AudioOutputDeviceMode
 import app.naviamp.provider.navidrome.NavidromeProvider
 import app.naviamp.ui.jvmGeneratedCoverArtBytes
 import app.naviamp.ui.resetJvmPlatformCoverArtByteLoader
@@ -98,6 +100,17 @@ fun DesktopAppEffects(
 
     LaunchedEffect(playbackEngine, playbackSettings.equalizer) {
         (playbackEngine as? EqualizerPlaybackEngine)?.setEqualizer(playbackSettings.equalizer)
+    }
+
+    LaunchedEffect(playbackEngine, playbackSettings.outputDevice) {
+        val outputEngine = playbackEngine as? AudioOutputDevicePlaybackEngine ?: return@LaunchedEffect
+        val preference = playbackSettings.outputDevice.normalized()
+        val deviceId = when (preference.mode) {
+            AudioOutputDeviceMode.FollowSystem -> null
+            AudioOutputDeviceMode.Pinned -> preference.deviceId
+                ?.takeIf { id -> outputEngine.outputDevices().any { it.id == id && it.isEnabled } }
+        }
+        outputEngine.setAudioOutputDevice(deviceId)
     }
 
     LaunchedEffect(nowPlayingTrack?.id) {

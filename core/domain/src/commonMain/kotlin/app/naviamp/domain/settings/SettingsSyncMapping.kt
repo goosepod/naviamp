@@ -151,6 +151,7 @@ private val SettingsSyncServerProfile.cacheNamespace: String
 
 private fun PlaybackSettings.withoutDeviceLocalSettings(): PlaybackSettings =
     copy(
+        outputDevice = PlaybackSettings().outputDevice,
         volumePercent = PlaybackSettings().volumePercent,
         debugLoggingEnabled = false,
         allowMobileDownloads = false,

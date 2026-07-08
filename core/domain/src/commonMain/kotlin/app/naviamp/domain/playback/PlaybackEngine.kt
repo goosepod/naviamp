@@ -50,6 +50,37 @@ interface EqualizerPlaybackEngine : PlaybackEngine {
     fun setEqualizer(settings: EqualizerSettings)
 }
 
+interface ReplayGainPlaybackEngine : PlaybackEngine {
+    fun setReplayGain(mode: ReplayGainMode, preampDb: Float)
+}
+
+interface AudioOutputDevicePlaybackEngine : PlaybackEngine {
+    val supportsAudioOutputDeviceSelection: Boolean
+
+    fun outputDevices(): List<AudioOutputDevice>
+
+    fun setAudioOutputDevice(deviceId: String?): Result<Unit>
+}
+
+@kotlinx.serialization.Serializable
+data class AudioOutputDevice(
+    val id: String,
+    val name: String,
+    val isDefault: Boolean = false,
+    val isEnabled: Boolean = true,
+    val isInitialized: Boolean = false,
+) {
+    fun normalized(): AudioOutputDevice? {
+        val normalizedId = id.trim()
+        val normalizedName = name.trim()
+        if (normalizedId.isBlank() || normalizedName.isBlank()) return null
+        return copy(
+            id = normalizedId,
+            name = normalizedName,
+        )
+    }
+}
+
 @kotlinx.serialization.Serializable
 data class EqualizerSettings(
     val enabled: Boolean = false,
@@ -195,6 +226,7 @@ data class PlaybackRequest(
     val url: String,
     val mediaId: String? = null,
     val replayGainMode: ReplayGainMode = ReplayGainMode.Off,
+    val replayGainPreampDb: Float = 0f,
     val replayGain: PlaybackReplayGain? = null,
     val startPositionSeconds: Double? = null,
 )

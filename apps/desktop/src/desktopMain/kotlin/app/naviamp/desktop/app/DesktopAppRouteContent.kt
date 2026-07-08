@@ -30,6 +30,7 @@ import app.naviamp.domain.Playlist
 import app.naviamp.domain.Track
 import app.naviamp.domain.cache.LibrarySnapshot
 import app.naviamp.domain.cache.StorageCacheStats
+import app.naviamp.domain.playback.AudioOutputDevicePlaybackEngine
 import app.naviamp.domain.home.HomeContent
 import app.naviamp.domain.playback.EqualizerPlaybackEngine
 import app.naviamp.domain.playback.PlaybackEngine
@@ -891,6 +892,10 @@ fun ColumnScope.DesktopAppRouteContent(
                     supportsGapless = playbackEngine.supportsGapless,
                     supportsCrossfade = playbackEngine.supportsCrossfade,
                     supportsEqualizer = (playbackEngine as? EqualizerPlaybackEngine)?.supportsEqualizer == true,
+                    supportsAudioOutputDeviceSelection =
+                        (playbackEngine as? AudioOutputDevicePlaybackEngine)?.supportsAudioOutputDeviceSelection == true,
+                    audioOutputDevices =
+                        (playbackEngine as? AudioOutputDevicePlaybackEngine)?.outputDevices().orEmpty(),
                     supportsSonicSimilarity = supportsSonicSimilarity,
                     onServerUrlChanged = connectionForm::updateServerUrl,
                     onConnectionNameChanged = { connectionForm.connectionName = it },

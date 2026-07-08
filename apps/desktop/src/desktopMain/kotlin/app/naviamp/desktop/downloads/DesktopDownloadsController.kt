@@ -165,6 +165,7 @@ class DesktopDownloadsController(
             index = index,
             quality = playbackSettings().streamQuality(playbackEngine),
             replayGainMode = playbackSettings().replayGainMode,
+            replayGainPreampDb = playbackSettings().replayGainPreampDb,
             callbacks = playlistCallbacks(),
         )
     }

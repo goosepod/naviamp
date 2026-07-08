@@ -15,8 +15,8 @@ data class NaviampColors(
     val secondaryText: Color = Color(0xFFD7CADF),
     val mutedText: Color = Color(0xFF8F96A3),
     val border: Color = Color(0xFF59606D),
-    val accent: Color = Color(0xFFD8B9FF),
-    val onAccent: Color = Color(0xFF28103C),
+    val accent: Color = Color(0xFF315D9E),
+    val onAccent: Color = Color.White,
     val controlSurface: Color = Color(0xFF201921),
     val albumArtPlaceholder: Color = Color(0xFF43536B),
 ) {
@@ -27,7 +27,8 @@ data class NaviampColors(
             secondaryText = Color(0xFFB9BDC7),
             mutedText = Color(0xFF8F96A3),
             border = Color(0xFF59606D),
-            accent = Color(0xFF8EA7D8),
+            accent = Color(0xFF315D9E),
+            onAccent = Color.White,
             albumArtPlaceholder = Color(0xFF43536B),
         )
 

@@ -162,6 +162,7 @@ fun playAndroidTrack(
                     playbackSource = audioSourcePlan.source,
                     streamUrl = streamUrl,
                     replayGainMode = playbackSettings.replayGainMode,
+                    replayGainPreampDb = playbackSettings.replayGainPreampDb,
                     replayGain = track.replayGain?.let { PlaybackReplayGain(it, ReplayGainSource.Provider) },
                     supportsReplayGain = playbackEngine.supportsReplayGain,
                     engineStartPositionSeconds = effectsPlan.engineStartPositionSeconds,

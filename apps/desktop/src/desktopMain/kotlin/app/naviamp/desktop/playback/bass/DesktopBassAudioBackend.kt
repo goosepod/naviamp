@@ -5,6 +5,7 @@ import app.naviamp.domain.bass.BassPluginDiagnostic
 import app.naviamp.domain.bass.BassStreamInfo
 import app.naviamp.domain.bass.BassStreamHandle
 import app.naviamp.domain.bass.bassFailureMessage
+import app.naviamp.domain.playback.AudioOutputDevice
 
 class DesktopBassAudioBackend(
     private val bass: DesktopBassJniBinding,
@@ -43,10 +44,50 @@ class DesktopBassAudioBackend(
             Result.failure(IllegalStateException(errorMessage("BASS_Init failed")))
         }
 
+    override fun init(deviceId: String?): Result<Unit> =
+        if (bass.init(deviceId)) {
+            Result.success(Unit)
+        } else {
+            Result.failure(IllegalStateException(errorMessage("BASS_Init failed")))
+        }
+
     override fun free(): Result<Unit> {
         bass.free()
         return Result.success(Unit)
     }
+
+    override fun outputDevices(): List<AudioOutputDevice> =
+        bass.outputDevices()
+            .mapNotNull { line ->
+                val parts = line.split('\t')
+                val id = parts.getOrNull(0).orEmpty()
+                val name = parts.getOrNull(1).orEmpty()
+                val flags = parts.getOrNull(2)?.toIntOrNull() ?: 0
+                AudioOutputDevice(
+                    id = id,
+                    name = name,
+                    isDefault = flags and BassDeviceDefault != 0,
+                    isEnabled = flags and BassDeviceEnabled != 0,
+                    isInitialized = flags and BassDeviceInitialized != 0,
+                ).normalized()
+            }
+
+    override fun setOutputDevice(deviceId: String?): Result<Unit> =
+        if (bass.setOutputDevice(deviceId)) {
+            Result.success(Unit)
+        } else {
+            Result.failure(IllegalStateException(errorMessage("BASS_SetDevice failed")))
+        }
+
+    override fun setStreamOutputDevice(
+        stream: BassStreamHandle,
+        deviceId: String?,
+    ): Result<Unit> =
+        if (bass.setStreamOutputDevice(stream.value, deviceId)) {
+            Result.success(Unit)
+        } else {
+            Result.failure(IllegalStateException(errorMessage("BASS_ChannelSetDevice failed")))
+        }
 
     override fun configureInternetStreams(): Result<Unit> =
         if (bass.configureInternetStreams()) {
@@ -266,3 +307,7 @@ private fun String.icyStreamTitleValue(): String {
     val titleEnd = indexOf("';", titleStart).takeIf { it >= 0 } ?: indexOf("'", titleStart)
     return if (titleEnd > titleStart) substring(titleStart, titleEnd).trim() else this
 }
+
+private const val BassDeviceEnabled: Int = 1
+private const val BassDeviceDefault: Int = 2
+private const val BassDeviceInitialized: Int = 4

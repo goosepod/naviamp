@@ -42,6 +42,11 @@ class PlaybackSettingsTest {
     fun effectiveForEngineNormalizesSupportedSettings() {
         val settings = PlaybackSettings(
             replayGainMode = ReplayGainMode.Track,
+            outputDevice = AudioOutputDevicePreference(
+                mode = AudioOutputDeviceMode.Pinned,
+                deviceId = "  built-in-output  ",
+                deviceName = "  Built-in Output  ",
+            ),
             gaplessEnabled = false,
             crossfadeDurationSeconds = 99,
             volumePercent = -10,
@@ -53,11 +58,25 @@ class PlaybackSettingsTest {
         val effective = settings.effectiveForEngine(FakePlaybackEngine())
 
         assertEquals(ReplayGainMode.Track, effective.replayGainMode)
+        assertEquals(AudioOutputDeviceMode.Pinned, effective.outputDevice.mode)
+        assertEquals("built-in-output", effective.outputDevice.deviceId)
+        assertEquals("Built-in Output", effective.outputDevice.deviceName)
         assertEquals(12, effective.crossfadeDurationSeconds)
         assertEquals(0, effective.volumePercent)
         assertEquals(192, effective.wifiStreamingQuality.bitrateKbps)
         assertEquals(128, effective.mobileStreamingQuality.bitrateKbps)
         assertEquals(192, effective.downloadQuality.bitrateKbps)
+    }
+
+    @Test
+    fun audioOutputDevicePreferenceFallsBackToFollowSystemWithoutPinnedDeviceId() {
+        val preference = AudioOutputDevicePreference(
+            mode = AudioOutputDeviceMode.Pinned,
+            deviceId = " ",
+            deviceName = "Headphones",
+        )
+
+        assertEquals(AudioOutputDevicePreference(), preference.normalized())
     }
 
     @Test

@@ -1,6 +1,7 @@
 package app.naviamp.domain.bass
 
 import app.naviamp.domain.playback.PreparedMixerTransitionPlan
+import app.naviamp.domain.playback.AudioOutputDevice
 import app.naviamp.domain.playback.PlaybackVisualizerFrame
 import app.naviamp.domain.playback.PlaybackProgress
 import app.naviamp.domain.playback.PlaybackStreamMetadata
@@ -147,7 +148,19 @@ interface BassAudioBackend {
 
     fun init(): Result<Unit> = unsupportedBassOperation("BASS init")
 
+    fun init(deviceId: String?): Result<Unit> = init()
+
     fun free(): Result<Unit> = unsupportedBassOperation("BASS free")
+
+    fun outputDevices(): List<AudioOutputDevice> = emptyList()
+
+    fun setOutputDevice(deviceId: String?): Result<Unit> =
+        unsupportedBassOperation("BASS output device selection")
+
+    fun setStreamOutputDevice(
+        stream: BassStreamHandle,
+        deviceId: String?,
+    ): Result<Unit> = setOutputDevice(deviceId)
 
     fun setVerifyNet(verify: Boolean): Result<Unit> = Result.success(Unit)
 

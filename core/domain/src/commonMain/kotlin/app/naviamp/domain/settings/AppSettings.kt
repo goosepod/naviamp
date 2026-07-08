@@ -12,6 +12,7 @@ import app.naviamp.domain.Track
 import app.naviamp.domain.TrackId
 import app.naviamp.domain.playback.EqualizerSettings
 import app.naviamp.domain.playback.PlaybackEngine
+import app.naviamp.domain.playback.ReplayGainPlaybackEngine
 import app.naviamp.domain.playback.ReplayGainMode
 import app.naviamp.domain.radio.internetRadioTrack
 import app.naviamp.domain.radio.RadioDjPreset
@@ -124,7 +125,9 @@ fun selectedMusicFolderSummary(
 @Serializable
 data class PlaybackSettings(
     val replayGainMode: ReplayGainMode = ReplayGainMode.Off,
+    val replayGainPreampDb: Float = 0f,
     val replayGainInspectorEnabled: Boolean = false,
+    val outputDevice: AudioOutputDevicePreference = AudioOutputDevicePreference(),
     val gaplessEnabled: Boolean = true,
     val crossfadeDurationSeconds: Int = 0,
     val equalizer: EqualizerSettings = EqualizerSettings(),
@@ -149,6 +152,32 @@ data class PlaybackSettings(
     val allowMobileDownloads: Boolean = false,
 )
 
+@Serializable
+data class AudioOutputDevicePreference(
+    val mode: AudioOutputDeviceMode = AudioOutputDeviceMode.FollowSystem,
+    val deviceId: String? = null,
+    val deviceName: String? = null,
+) {
+    fun normalized(): AudioOutputDevicePreference {
+        val normalizedDeviceId = deviceId?.trim()?.takeIf { it.isNotEmpty() }
+        val normalizedDeviceName = deviceName?.trim()?.takeIf { it.isNotEmpty() }
+        return when (mode) {
+            AudioOutputDeviceMode.FollowSystem -> AudioOutputDevicePreference()
+            AudioOutputDeviceMode.Pinned -> if (normalizedDeviceId == null) {
+                AudioOutputDevicePreference()
+            } else {
+                copy(deviceId = normalizedDeviceId, deviceName = normalizedDeviceName)
+            }
+        }
+    }
+}
+
+@Serializable
+enum class AudioOutputDeviceMode {
+    FollowSystem,
+    Pinned,
+}
+
 data class PlaybackSettingsChange(
     val settings: PlaybackSettings,
     val shouldReloadLyricsSidecars: Boolean,
@@ -163,6 +192,11 @@ fun PlaybackSettings.effectiveForEngine(playbackEngine: PlaybackEngine): Playbac
             ReplayGainMode.Off
         },
         replayGainInspectorEnabled = playbackEngine.supportsReplayGain && replayGainInspectorEnabled,
+        replayGainPreampDb = if (playbackEngine.supportsReplayGain) {
+            replayGainPreampDb.coerceIn(MinReplayGainPreampDb, MaxReplayGainPreampDb)
+        } else {
+            0f
+        },
         gaplessEnabled = effectiveGapless,
         crossfadeDurationSeconds = if (playbackEngine.supportsCrossfade) {
             if (effectiveGapless) 0 else crossfadeDurationSeconds.coerceIn(0, 12)
@@ -174,6 +208,7 @@ fun PlaybackSettings.effectiveForEngine(playbackEngine: PlaybackEngine): Playbac
         } else {
             100
         },
+        outputDevice = outputDevice.normalized(),
         equalizer = equalizer.normalized(),
         wifiStreamingQuality = wifiStreamingQuality.normalized(),
         mobileStreamingQuality = mobileStreamingQuality.normalized(),
@@ -220,6 +255,10 @@ class PlaybackSettingsMaintenanceController(
         if (change.shouldReloadLyricsSidecars) {
             reloadLyricsSidecars()
         }
+        (playbackEngine as? ReplayGainPlaybackEngine)?.setReplayGain(
+            mode = effectiveSettings.replayGainMode,
+            preampDb = effectiveSettings.replayGainPreampDb,
+        )
     }
 
     fun applyPlaybackSettingsAndRedownload(settings: PlaybackSettings) {
@@ -323,6 +362,9 @@ const val MaxWaveformBucketCount = 500
 data class VisualizerSettings(
     val selectedVisualizer: String = DefaultSelectedVisualizer,
 )
+
+const val MinReplayGainPreampDb = -12f
+const val MaxReplayGainPreampDb = 12f
 
 @Serializable
 data class NavigationSettings(
