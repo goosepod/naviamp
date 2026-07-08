@@ -20,7 +20,16 @@ class DesktopBassJniBinding private constructor(
 
     fun init(): Boolean = nativeInit()
 
+    fun init(deviceId: String?): Boolean = nativeInitDevice(deviceId)
+
     fun free() = nativeFree()
+
+    fun outputDevices(): Array<String> = nativeOutputDevices()
+
+    fun setOutputDevice(deviceId: String?): Boolean = nativeSetOutputDevice(deviceId)
+
+    fun setStreamOutputDevice(stream: Int, deviceId: String?): Boolean =
+        nativeSetStreamOutputDevice(stream, deviceId)
 
     fun configureInternetStreams(): Boolean = nativeConfigureInternetStreams()
 
@@ -111,7 +120,11 @@ class DesktopBassJniBinding private constructor(
     private external fun nativeMixerVersion(): Int
     private external fun nativeLastErrorCode(): Int
     private external fun nativeInit(): Boolean
+    private external fun nativeInitDevice(deviceId: String?): Boolean
     private external fun nativeFree()
+    private external fun nativeOutputDevices(): Array<String>
+    private external fun nativeSetOutputDevice(deviceId: String?): Boolean
+    private external fun nativeSetStreamOutputDevice(stream: Int, deviceId: String?): Boolean
     private external fun nativeConfigureInternetStreams(): Boolean
     private external fun nativeCreateUrlStream(url: String): Int
     private external fun nativeCreateFileStream(path: String): Int

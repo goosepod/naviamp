@@ -61,6 +61,7 @@ class DesktopPlaylistEngine(
     private var provider: MediaProvider? = null
     private var streamQuality: StreamQuality? = null
     private var replayGainMode: ReplayGainMode = ReplayGainMode.Off
+    private var replayGainPreampDb: Float = 0f
     private var callbacks: PlaylistCallbacks? = null
     private var crossfadeSettings = CrossfadeSettings()
     private var gaplessEnabled = true
@@ -78,6 +79,7 @@ class DesktopPlaylistEngine(
         audioCachingEnabled = audioCachingEnabledProvider,
         audioAssets = this.playbackAudioAssets,
         replayGainMode = { replayGainMode },
+        replayGainPreampDb = { replayGainPreampDb },
         supportsReplayGain = { playbackEngine.supportsReplayGain },
         replayGainForTrack = ::replayGainForTrack,
     )
@@ -98,11 +100,13 @@ class DesktopPlaylistEngine(
         index: Int,
         quality: StreamQuality,
         replayGainMode: ReplayGainMode,
+        replayGainPreampDb: Float = 0f,
         callbacks: PlaylistCallbacks,
     ) {
         this.provider = provider
         this.streamQuality = quality
         this.replayGainMode = replayGainMode
+        this.replayGainPreampDb = replayGainPreampDb
         this.callbacks = callbacks
         currentTrackSidecarJob?.cancel()
         currentTrackSidecarJob = null
@@ -121,6 +125,7 @@ class DesktopPlaylistEngine(
         index: Int,
         quality: StreamQuality,
         replayGainMode: ReplayGainMode,
+        replayGainPreampDb: Float = 0f,
         callbacks: PlaylistCallbacks,
         initialProgress: PlaybackProgress = PlaybackProgress.Unknown,
     ) {
@@ -128,6 +133,7 @@ class DesktopPlaylistEngine(
         this.provider = provider
         this.streamQuality = quality
         this.replayGainMode = replayGainMode
+        this.replayGainPreampDb = replayGainPreampDb
         this.callbacks = callbacks
         currentTrackSidecarJob?.cancel()
         currentTrackSidecarJob = null
@@ -289,6 +295,7 @@ class DesktopPlaylistEngine(
                     playbackSource = playbackTarget.source,
                     streamUrl = playbackTarget.url,
                     replayGainMode = replayGainMode,
+                    replayGainPreampDb = replayGainPreampDb,
                     replayGain = replayGain,
                     supportsReplayGain = playbackEngine.supportsReplayGain,
                     engineStartPositionSeconds = playbackTarget.engineStartPositionSeconds,

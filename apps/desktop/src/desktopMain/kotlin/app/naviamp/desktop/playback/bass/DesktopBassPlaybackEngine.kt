@@ -5,11 +5,15 @@ import app.naviamp.domain.playback.PlaybackProgress
 import app.naviamp.domain.playback.PlaybackRequest
 import app.naviamp.domain.playback.PlaybackState
 import app.naviamp.domain.playback.PlaybackStreamMetadata
+import app.naviamp.domain.playback.AudioOutputDevice
+import app.naviamp.domain.playback.AudioOutputDevicePlaybackEngine
 import app.naviamp.domain.playback.QueueAwarePlaybackEngine
 import app.naviamp.domain.playback.EqualizerPlaybackEngine
 import app.naviamp.domain.playback.EqualizerSettings
 import app.naviamp.domain.playback.PlaybackReplayGainAdjustment
 import app.naviamp.domain.playback.PlaybackVisualizerFrame
+import app.naviamp.domain.playback.ReplayGainMode
+import app.naviamp.domain.playback.ReplayGainPlaybackEngine
 import app.naviamp.domain.playback.VisualizerBandCount
 import app.naviamp.domain.playback.VisualizerPlaybackEngine
 import app.naviamp.domain.playback.BassPlaybackCleanupReset
@@ -52,6 +56,7 @@ import app.naviamp.domain.playback.planPreparedBassPlayback
 import app.naviamp.domain.playback.planPreparedBassPlaybackAdoption
 import app.naviamp.domain.playback.playbackSourceHandle
 import app.naviamp.domain.playback.playbackUserVolumeFactor
+import app.naviamp.domain.playback.playbackReplayGainAdjustment
 import app.naviamp.domain.playback.preparedBassPlaybackAdopted
 import app.naviamp.domain.playback.preparedBassPlaybackFailed
 import app.naviamp.domain.playback.preparedBassPlaybackSucceeded
@@ -65,7 +70,12 @@ import java.net.URI
 
 class DesktopBassPlaybackEngine(
     private val backendResult: Result<BassAudioBackend> = loadDesktopBassAudioBackend(),
-) : QueueAwarePlaybackEngine, VisualizerPlaybackEngine, EqualizerPlaybackEngine, DesktopPlaybackEngineDiagnostics {
+) : QueueAwarePlaybackEngine,
+    VisualizerPlaybackEngine,
+    EqualizerPlaybackEngine,
+    ReplayGainPlaybackEngine,
+    AudioOutputDevicePlaybackEngine,
+    DesktopPlaybackEngineDiagnostics {
     private val backend: BassAudioBackend? = backendResult.getOrNull()
     private val loadError: Throwable? = backendResult.exceptionOrNull()
 
@@ -78,6 +88,7 @@ class DesktopBassPlaybackEngine(
     override val supportsCrossfade: Boolean = featureSupport.supportsCrossfade
     override val supportsReplayGain: Boolean = true
     override val supportsEqualizer: Boolean = backend != null
+    override val supportsAudioOutputDeviceSelection: Boolean = backend != null
     override val supportsVisualizer: Boolean = true
     override val supportsSoftwareVolume: Boolean = true
     override val prefersOriginalStream: Boolean = true
@@ -106,6 +117,7 @@ class DesktopBassPlaybackEngine(
     private var crossfadeActive: Boolean = false
     private var currentReplayGainAdjustment: PlaybackReplayGainAdjustment = PlaybackReplayGainAdjustment.off()
     private var equalizerSettings: EqualizerSettings = EqualizerSettings()
+    private var selectedOutputDeviceId: String? = null
     @Volatile
     private var currentVisualizerFrame: PlaybackVisualizerFrame? = null
 
@@ -302,6 +314,31 @@ class DesktopBassPlaybackEngine(
         backend?.let(::applyEqualizer)
     }
 
+    override fun setReplayGain(mode: ReplayGainMode, preampDb: Float) {
+        val request = currentRequest ?: return
+        currentReplayGainAdjustment = playbackReplayGainAdjustment(
+            request.copy(
+                replayGainMode = mode,
+                replayGainPreampDb = preampDb,
+            ),
+        )
+        backend?.let(::applyOutputVolume)
+    }
+
+    override fun outputDevices(): List<AudioOutputDevice> =
+        backend?.outputDevices().orEmpty()
+
+    override fun setAudioOutputDevice(deviceId: String?): Result<Unit> {
+        selectedOutputDeviceId = deviceId
+        val bass = backend ?: return Result.failure(IllegalStateException("BASS native library is not available."))
+        return bass.setOutputDevice(deviceId)
+            .onSuccess {
+                applyOutputDevice(bass)
+                initialized = true
+            }
+            .onFailure { lastError = it.message }
+    }
+
     override fun prepareNext(request: PlaybackRequest) {
         val bass = backend ?: return
         val plan = planPreparedBassPlayback(
@@ -431,8 +468,10 @@ class DesktopBassPlaybackEngine(
 
     private fun ensureInitialized(bass: BassAudioBackend) {
         if (!initialized) {
-            bass.init().getOrThrow()
+            bass.init(selectedOutputDeviceId).getOrThrow()
             initialized = true
+        } else {
+            bass.setOutputDevice(selectedOutputDeviceId).getOrThrow()
         }
         if (!internetStreamsConfigured) {
             bass.configureInternetStreams().getOrThrow()
@@ -576,6 +615,18 @@ class DesktopBassPlaybackEngine(
         stream.takeIf { it != 0 }
             ?.let { handle -> bass.applyEqualizer(handle, equalizerSettings.bandsForBackend()) }
             ?.onFailure { lastError = it.message }
+    }
+
+    private fun applyOutputDevice(bass: BassAudioBackend) {
+        listOf(stream, currentSourceStream, preparedStream)
+            .filter { it != 0 }
+            .distinct()
+            .forEach { handle ->
+                bass.setStreamOutputDevice(
+                    stream = app.naviamp.domain.bass.BassStreamHandle(handle),
+                    deviceId = selectedOutputDeviceId,
+                ).onFailure { lastError = it.message }
+            }
     }
 
     private fun outputVolumeFactor(): Float =

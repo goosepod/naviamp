@@ -133,6 +133,7 @@ fun DesktopConnectionPanel(
                                 index = 0,
                                 quality = playbackSettings.streamQuality(playbackEngine),
                                 replayGainMode = playbackSettings.replayGainMode,
+                                replayGainPreampDb = playbackSettings.replayGainPreampDb,
                                 callbacks = playlistCallbacks,
                             )
                         },
@@ -153,6 +154,7 @@ fun DesktopConnectionPanel(
                                 index = 0,
                                 quality = playbackSettings.streamQuality(playbackEngine),
                                 replayGainMode = playbackSettings.replayGainMode,
+                                replayGainPreampDb = playbackSettings.replayGainPreampDb,
                                 callbacks = playlistCallbacks,
                             )
                         },
@@ -175,6 +177,7 @@ fun DesktopConnectionPanel(
                                     index = index,
                                     quality = playbackSettings.streamQuality(playbackEngine),
                                     replayGainMode = playbackSettings.replayGainMode,
+                                    replayGainPreampDb = playbackSettings.replayGainPreampDb,
                                     callbacks = playlistCallbacks,
                                 )
                             },

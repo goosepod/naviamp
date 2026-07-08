@@ -35,6 +35,8 @@ import app.naviamp.domain.playback.PlaybackVisualizerFrame
 import app.naviamp.domain.playback.QueueAwarePlaybackEngine
 import app.naviamp.domain.playback.EqualizerPlaybackEngine
 import app.naviamp.domain.playback.EqualizerSettings
+import app.naviamp.domain.playback.ReplayGainMode
+import app.naviamp.domain.playback.ReplayGainPlaybackEngine
 import app.naviamp.domain.playback.VisualizerBandCount
 import app.naviamp.domain.playback.VisualizerPlaybackEngine
 import app.naviamp.domain.playback.BassPlaybackPollingState
@@ -57,6 +59,7 @@ import app.naviamp.domain.playback.planBassPlaybackPrePlay
 import app.naviamp.domain.playback.planBassPlaybackStart
 import app.naviamp.domain.playback.playbackSourceHandle
 import app.naviamp.domain.playback.playbackUserVolumeFactor
+import app.naviamp.domain.playback.playbackReplayGainAdjustment
 import app.naviamp.domain.playback.preparedBassPlaybackAdopted
 import app.naviamp.domain.playback.preparedBassPlaybackFailed
 import app.naviamp.domain.playback.preparedBassPlaybackSucceeded
@@ -72,12 +75,13 @@ import java.io.File
 class AndroidBassPlaybackEngine(
     context: Context,
     private val bass: BassAudioBackend,
-) : AndroidPlaybackEngine, QueueAwarePlaybackEngine, VisualizerPlaybackEngine, EqualizerPlaybackEngine {
+) : AndroidPlaybackEngine, QueueAwarePlaybackEngine, VisualizerPlaybackEngine, EqualizerPlaybackEngine, ReplayGainPlaybackEngine {
     private val appContext = context.applicationContext
     private val audioManager = appContext.getSystemService(AudioManager::class.java)
     private var stream: Int = 0
     private var currentSourceStream: Int = 0
     private var preparedStream: Int = 0
+    private var currentRequest: PlaybackRequest? = null
     private var preparedRequest: PlaybackRequest? = null
     private var preparedReplayGainFactor: Float = 1f
     private var playbackId: Int = 0
@@ -177,6 +181,7 @@ class AndroidBassPlaybackEngine(
         onProgressChanged: (PlaybackProgress) -> Unit,
         onMetadataChanged: (PlaybackStreamMetadata) -> Unit,
     ) {
+        currentRequest = request
         this.onStateChanged = onStateChanged
         this.onProgressChanged = onProgressChanged
         this.onMetadataChanged = onMetadataChanged
@@ -348,6 +353,7 @@ class AndroidBassPlaybackEngine(
         duckedForFocusLoss = false
         abandonAudioFocus()
         releasePlaybackWakeLock()
+        currentRequest = null
         AndroidPlaybackNotificationControls.isPlaying = false
         AndroidPlaybackForegroundService.stop(appContext)
         onProgressChanged?.invoke(PlaybackProgress.Unknown)
@@ -360,6 +366,7 @@ class AndroidBassPlaybackEngine(
         duckedForFocusLoss = false
         abandonAudioFocus()
         releasePlaybackWakeLock()
+        currentRequest = null
         AndroidPlaybackNotificationControls.clear()
         AndroidPlaybackForegroundService.stop(appContext)
         bass.free()
@@ -385,6 +392,17 @@ class AndroidBassPlaybackEngine(
     override fun setEqualizer(settings: EqualizerSettings) {
         equalizerSettings = settings.normalized()
         applyEqualizer()
+    }
+
+    override fun setReplayGain(mode: ReplayGainMode, preampDb: Float) {
+        val request = currentRequest ?: return
+        replayGainFactor = playbackReplayGainAdjustment(
+            request.copy(
+                replayGainMode = mode,
+                replayGainPreampDb = preampDb,
+            ),
+        ).volumeFactor
+        applyVolume()
     }
 
     override fun prepareNext(request: PlaybackRequest) {

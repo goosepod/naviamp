@@ -85,6 +85,7 @@ class AndroidPlaylistEngine(
         audioCachingEnabled = { true },
         audioAssets = playbackAudioAssets,
         replayGainMode = { state.playbackSettings.replayGainMode },
+        replayGainPreampDb = { state.playbackSettings.replayGainPreampDb },
         supportsReplayGain = { playbackEngine.supportsReplayGain },
         replayGainForTrack = { track, _ ->
             track.replayGain?.let { PlaybackReplayGain(it, ReplayGainSource.Provider) }

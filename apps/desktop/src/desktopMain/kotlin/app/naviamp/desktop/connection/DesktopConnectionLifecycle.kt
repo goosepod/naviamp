@@ -81,6 +81,7 @@ class DesktopConnectionLifecycleController(
     private val playlistCallbacks: () -> PlaylistCallbacks,
     private val streamQuality: () -> StreamQuality,
     private val replayGainMode: () -> ReplayGainMode,
+    private val replayGainPreampDb: () -> Float,
     private val setConnectedProvider: (NavidromeProvider?) -> Unit,
     private val setConnectedSourceId: (String?) -> Unit,
     private val setHomeContent: (HomeContent) -> Unit,
@@ -303,6 +304,7 @@ class DesktopConnectionLifecycleController(
                     index = restoredSession.session.currentIndex,
                     quality = streamQuality(),
                     replayGainMode = replayGainMode(),
+                    replayGainPreampDb = replayGainPreampDb(),
                     callbacks = playlistCallbacks(),
                     initialProgress = restoredSession.session.playbackProgress,
                 )
