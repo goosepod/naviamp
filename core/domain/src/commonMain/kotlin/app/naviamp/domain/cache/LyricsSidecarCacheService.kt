@@ -1,5 +1,8 @@
 package app.naviamp.domain.cache
 
+import app.naviamp.domain.LyricAgent
+import app.naviamp.domain.LyricCue
+import app.naviamp.domain.LyricCueLine
 import app.naviamp.domain.LyricLine
 import app.naviamp.domain.Lyrics
 import app.naviamp.domain.LyricsSource
@@ -12,6 +15,7 @@ import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonArray
 
 interface LyricsSidecarStore {
     fun cachedLyrics(
@@ -190,18 +194,26 @@ class LyricsSidecarCacheService(
     }
 
     private fun Lyrics.linesJson(): String =
-        json.encodeToString(lines.map { LyricLineDto.fromLyricLine(it) })
+        json.encodeToString(LyricsDto.fromLyrics(this))
 
     private fun CachedLyricsRow.toLyrics(source: LyricsSource = lyricSource.toLyricsSource()): Lyrics =
-        Lyrics(
+        lyricsPayload().toLyrics(
             source = source,
             synced = synced,
-            lines = json.decodeFromString<List<LyricLineDto>>(linesJson).map { it.toLyricLine() },
             displayArtist = displayArtist,
             displayTitle = displayTitle,
             language = language,
             offsetMillis = offsetMillis.toInt(),
         )
+
+    private fun CachedLyricsRow.lyricsPayload(): LyricsDto {
+        val element = json.parseToJsonElement(linesJson)
+        return if (element is JsonArray) {
+            LyricsDto(lines = json.decodeFromString<List<LyricLineDto>>(linesJson))
+        } else {
+            json.decodeFromString<LyricsDto>(linesJson)
+        }
+    }
 }
 
 private fun String.toLyricsSource(): LyricsSource =
@@ -223,6 +235,129 @@ private data class LyricLineDto(
             LyricLineDto(
                 startMillis = line.startMillis,
                 text = line.text,
+            )
+    }
+}
+
+@Serializable
+private data class LyricsDto(
+    val lines: List<LyricLineDto>,
+    val kind: String? = null,
+    val agents: List<LyricAgentDto> = emptyList(),
+    val cueLines: List<LyricCueLineDto> = emptyList(),
+) {
+    fun toLyrics(
+        source: LyricsSource,
+        synced: Boolean,
+        displayArtist: String?,
+        displayTitle: String?,
+        language: String?,
+        offsetMillis: Int,
+    ): Lyrics =
+        Lyrics(
+            source = source,
+            synced = synced,
+            lines = lines.map { it.toLyricLine() },
+            displayArtist = displayArtist,
+            displayTitle = displayTitle,
+            language = language,
+            offsetMillis = offsetMillis,
+            kind = kind,
+            agents = agents.map { it.toLyricAgent() },
+            cueLines = cueLines.map { it.toLyricCueLine() },
+        )
+
+    companion object {
+        fun fromLyrics(lyrics: Lyrics): LyricsDto =
+            LyricsDto(
+                lines = lyrics.lines.map { LyricLineDto.fromLyricLine(it) },
+                kind = lyrics.kind,
+                agents = lyrics.agents.map { LyricAgentDto.fromLyricAgent(it) },
+                cueLines = lyrics.cueLines.map { LyricCueLineDto.fromLyricCueLine(it) },
+            )
+    }
+}
+
+@Serializable
+private data class LyricAgentDto(
+    val id: String,
+    val name: String? = null,
+    val role: String? = null,
+) {
+    fun toLyricAgent(): LyricAgent =
+        LyricAgent(
+            id = id,
+            name = name,
+            role = role,
+        )
+
+    companion object {
+        fun fromLyricAgent(agent: LyricAgent): LyricAgentDto =
+            LyricAgentDto(
+                id = agent.id,
+                name = agent.name,
+                role = agent.role,
+            )
+    }
+}
+
+@Serializable
+private data class LyricCueLineDto(
+    val lineIndex: Int,
+    val startMillis: Long? = null,
+    val endMillis: Long? = null,
+    val text: String,
+    val agentId: String? = null,
+    val cues: List<LyricCueDto> = emptyList(),
+) {
+    fun toLyricCueLine(): LyricCueLine =
+        LyricCueLine(
+            lineIndex = lineIndex,
+            startMillis = startMillis,
+            endMillis = endMillis,
+            text = text,
+            agentId = agentId,
+            cues = cues.map { it.toLyricCue() },
+        )
+
+    companion object {
+        fun fromLyricCueLine(cueLine: LyricCueLine): LyricCueLineDto =
+            LyricCueLineDto(
+                lineIndex = cueLine.lineIndex,
+                startMillis = cueLine.startMillis,
+                endMillis = cueLine.endMillis,
+                text = cueLine.text,
+                agentId = cueLine.agentId,
+                cues = cueLine.cues.map { LyricCueDto.fromLyricCue(it) },
+            )
+    }
+}
+
+@Serializable
+private data class LyricCueDto(
+    val startMillis: Long? = null,
+    val endMillis: Long? = null,
+    val text: String,
+    val byteStart: Int? = null,
+    val byteEnd: Int? = null,
+) {
+    fun toLyricCue(): LyricCue =
+        LyricCue(
+            startMillis = startMillis,
+            endMillis = endMillis,
+            text = text,
+            byteStart = byteStart,
+            byteEnd = byteEnd,
+        )
+
+    companion object {
+        fun fromLyricCue(cue: LyricCue): LyricCueDto =
+            LyricCueDto(
+                startMillis = cue.startMillis,
+                endMillis = cue.endMillis,
+                text = cue.text,
+                byteStart = cue.byteStart,
+                byteEnd = cue.byteEnd,
             )
     }
 }

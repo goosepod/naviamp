@@ -768,13 +768,18 @@ private fun createDatabase(path: Path): NaviampStorageDatabase {
     registerSqliteDriver()
     val driver = JdbcSqliteDriver("jdbc:sqlite:${path.toAbsolutePath()}")
     configureSqliteLockHandling(driver)
+    val newVersion = NaviampStorageDatabase.Schema.version
+    var shouldRunLegacyLyricsOffsetCleanup = false
     if (!exists) {
         NaviampStorageDatabase.Schema.create(driver)
+        driver.setDatabaseVersion(newVersion)
     } else {
         val oldVersion = driver.databaseVersion()
-        val newVersion = NaviampStorageDatabase.Schema.version
-        if (oldVersion in 1 until newVersion) {
+        if (oldVersion == 0L) {
+            shouldRunLegacyLyricsOffsetCleanup = true
+        } else if (oldVersion in 1 until newVersion) {
             NaviampStorageDatabase.Schema.migrate(driver, oldVersion, newVersion)
+            driver.setDatabaseVersion(newVersion)
         }
     }
     ensureMediaSourceLibraryScanSchema(driver)
@@ -784,6 +789,10 @@ private fun createDatabase(path: Path): NaviampStorageDatabase {
     ensurePendingProviderActionSchema(driver)
     ensureLibraryTrackPlayMetadataSchema(driver)
     ensureRadioDjPresetSchema(driver)
+    if (shouldRunLegacyLyricsOffsetCleanup) {
+        clearLegacyLyricsOffsets(driver)
+        driver.setDatabaseVersion(newVersion)
+    }
     driver.execute(null, "PRAGMA foreign_keys=ON", 0)
     return NaviampStorageDatabase(driver)
 }
@@ -801,6 +810,16 @@ private fun JdbcSqliteDriver.databaseVersion(): Long =
     executeQuery(null, "PRAGMA user_version", { cursor ->
         QueryResult.Value(if (cursor.next().value) cursor.getLong(0) ?: 0L else 0L)
     }, 0).value
+
+private fun JdbcSqliteDriver.setDatabaseVersion(version: Long) {
+    execute(null, "PRAGMA user_version = $version", 0)
+}
+
+private fun clearLegacyLyricsOffsets(driver: JdbcSqliteDriver) {
+    driver.execute(null, "DELETE FROM track_lyrics_offset", 0)
+    driver.execute(null, "DELETE FROM cached_lyrics", 0)
+    driver.execute(null, "DELETE FROM cached_sidecar_status WHERE sidecar_type = 'lyrics'", 0)
+}
 
 private fun ensureMediaSourceLibraryScanSchema(driver: JdbcSqliteDriver) {
     if (!driver.tableHasColumn("media_source", "native_token")) {

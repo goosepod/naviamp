@@ -30,7 +30,7 @@ import kotlinx.coroutines.test.runTest
 
 class LyricsSidecarServiceTest {
     @Test
-    fun prefersSyncedOnlineLyricsOverUnsyncedProviderAndEmbeddedLyrics() = runTest {
+    fun prefersProviderLyricsBeforeEmbeddedAndOnlineLyrics() = runTest {
         val providerLyrics = lyrics(LyricsSource.Provider, synced = false, text = "Provider")
         val embeddedLyrics = lyrics(LyricsSource.Embedded, synced = false, text = "Embedded")
         val onlineLyrics = lyrics(LyricsSource.Lrclib, synced = true, text = "Online")
@@ -53,38 +53,42 @@ class LyricsSidecarServiceTest {
             onlineLyricsEnabled = true,
         )
 
-        assertSame(onlineLyrics, result.lyrics)
-        assertEquals(listOf("source:track:Embedded"), repository.embeddedStores)
-        assertEquals(listOf("source:track"), repository.providerRequests)
-        assertEquals(listOf("source:track"), repository.onlineRequests)
-    }
-
-    @Test
-    fun skipsOnlineLyricsWhenProviderLyricsAreSynced() = runTest {
-        val providerLyrics = lyrics(LyricsSource.Provider, synced = true, text = "Provider")
-        val repository = RecordingLyricsRepository(providerLyrics = providerLyrics)
-        val service = service(repository = repository)
-
-        val result = service.loadLyrics(
-            sourceId = "source",
-            provider = FakeMediaProvider(),
-            track = track(),
-            quality = StreamQuality.Original,
-            audioCachingEnabled = true,
-            onlineLyricsEnabled = true,
-        )
-
         assertSame(providerLyrics, result.lyrics)
+        assertEquals(emptyList(), repository.embeddedStores)
+        assertEquals(listOf("source:track"), repository.providerRequests)
         assertEquals(emptyList(), repository.onlineRequests)
     }
 
     @Test
-    fun keepsUnsyncedProviderLyricsWhenOnlineLyricsTimeout() = runTest {
-        val providerLyrics = lyrics(LyricsSource.Provider, synced = false, text = "Provider")
-        val repository = RecordingLyricsRepository(
-            providerLyrics = providerLyrics,
-            onlineError = RuntimeException("Request timeout has expired"),
+    fun usesEmbeddedLyricsWhenProviderHasNone() = runTest {
+        val embeddedLyrics = lyrics(LyricsSource.Embedded, synced = false, text = "Embedded")
+        val onlineLyrics = lyrics(LyricsSource.Lrclib, synced = true, text = "Online")
+        val repository = RecordingLyricsRepository(onlineLyrics = onlineLyrics)
+        val service = service(
+            repository = repository,
+            audioAssets = RecordingAudioAssets(cached = localAudio("song.flac")),
+            tags = listOf(AudioTag("Lyrics", embeddedLyrics.lines.single().text)),
         )
+
+        val result = service.loadLyrics(
+            sourceId = "source",
+            provider = FakeMediaProvider(),
+            track = track(),
+            quality = StreamQuality.Original,
+            audioCachingEnabled = true,
+            onlineLyricsEnabled = true,
+        )
+
+        assertEquals(LyricsSource.Embedded, result.lyrics?.source)
+        assertEquals(listOf("source:track:Embedded"), repository.embeddedStores)
+        assertEquals(listOf("source:track"), repository.providerRequests)
+        assertEquals(emptyList(), repository.onlineRequests)
+    }
+
+    @Test
+    fun usesOnlineLyricsOnlyWhenProviderAndEmbeddedLyricsAreMissing() = runTest {
+        val onlineLyrics = lyrics(LyricsSource.Lrclib, synced = true, text = "Online")
+        val repository = RecordingLyricsRepository(onlineLyrics = onlineLyrics)
         val service = service(repository = repository)
 
         val result = service.loadLyrics(
@@ -96,7 +100,7 @@ class LyricsSidecarServiceTest {
             onlineLyricsEnabled = true,
         )
 
-        assertSame(providerLyrics, result.lyrics)
+        assertSame(onlineLyrics, result.lyrics)
         assertEquals(listOf("source:track"), repository.onlineRequests)
     }
 

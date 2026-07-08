@@ -65,7 +65,7 @@ fun shouldLoadOnlineLyrics(
     providerLyrics: Lyrics?,
     embeddedLyrics: Lyrics?,
 ): Boolean =
-    onlineLyricsEnabled && listOf(providerLyrics, embeddedLyrics).none { it?.synced == true }
+    onlineLyricsEnabled && providerLyrics == null && embeddedLyrics == null
 
 fun waveformStatus(
     cachedWaveformAvailable: Boolean,

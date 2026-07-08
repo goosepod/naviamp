@@ -19,12 +19,12 @@ import kotlinx.coroutines.test.runTest
 
 class NowPlayingSidecarsTest {
     @Test
-    fun onlineLyricsLoadOnlyWhenEnabledAndNoSyncedLocalLyricsExist() {
+    fun onlineLyricsLoadOnlyWhenEnabledAndNoFirstPartyLyricsExist() {
         val synced = Lyrics(LyricsSource.Provider, synced = true, lines = listOf(LyricLine(1_000, "line")))
         val unsynced = Lyrics(LyricsSource.Provider, synced = false, lines = listOf(LyricLine(null, "line")))
 
         assertTrue(shouldLoadOnlineLyrics(true, providerLyrics = null, embeddedLyrics = null))
-        assertTrue(shouldLoadOnlineLyrics(true, providerLyrics = unsynced, embeddedLyrics = null))
+        assertFalse(shouldLoadOnlineLyrics(true, providerLyrics = unsynced, embeddedLyrics = null))
         assertFalse(shouldLoadOnlineLyrics(false, providerLyrics = null, embeddedLyrics = null))
         assertFalse(shouldLoadOnlineLyrics(true, providerLyrics = synced, embeddedLyrics = null))
     }

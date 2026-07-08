@@ -36,7 +36,7 @@ import kotlinx.coroutines.test.runTest
 
 class MixBuilderServiceFactoriesTest {
     @Test
-    fun artistFactoryUsesLocalSearchBeforeProviderFallback() = runTest {
+    fun artistFactoryUsesProviderSearchBeforeLocalFallback() = runTest {
         val provider = FakeMixProvider(searchArtists = listOf(artist("provider")))
         val service = artistMixBuilderService(
             sourceId = { "source" },
@@ -49,8 +49,19 @@ class MixBuilderServiceFactoriesTest {
             similarArtistsService = fakeSimilarArtistsService(),
         )
 
-        assertEquals(listOf("local"), service.searchSuggestions("local", emptyList()).map { it.id.value })
-        assertEquals(listOf("provider"), service.searchSuggestions("remote", emptyList()).map { it.id.value })
+        assertEquals(listOf("provider"), service.searchSuggestions("local", emptyList()).map { it.id.value })
+
+        val fallback = artistMixBuilderService(
+            sourceId = { "source" },
+            provider = { FakeMixProvider() },
+            homeContent = { HomeContent() },
+            localArtistSearch = { _, query, _ ->
+                if (query == "local") listOf(artist("local")) else emptyList()
+            },
+            popularTracksService = fakePopularTracksService(),
+            similarArtistsService = fakeSimilarArtistsService(),
+        )
+        assertEquals(listOf("local"), fallback.searchSuggestions("local", emptyList()).map { it.id.value })
     }
 
     @Test
@@ -79,6 +90,37 @@ class MixBuilderServiceFactoriesTest {
             similarArtistsService = fakeSimilarArtistsService(),
         )
         assertEquals(listOf("provider"), fallback.initialSuggestions(emptyList()).map { it.id.value })
+    }
+
+    @Test
+    fun albumFactoryUsesProviderSearchBeforeLocalFallback() = runTest {
+        val provider = FakeMixProvider(searchAlbums = listOf(album("provider")))
+        val service = albumMixBuilderService(
+            sourceId = { "source" },
+            provider = { provider },
+            homeContent = { HomeContent() },
+            localAlbumSearch = { _, query, _ ->
+                if (query == "local") listOf(album("local")) else emptyList()
+            },
+            localAlbumTracks = { _, _, _ -> emptyList() },
+            providerAlbumTracks = { _, _ -> emptyList() },
+            similarArtistsService = fakeSimilarArtistsService(),
+        )
+
+        assertEquals(listOf("provider"), service.searchSuggestions("local", emptyList()).map { it.id.value })
+
+        val fallback = albumMixBuilderService(
+            sourceId = { "source" },
+            provider = { FakeMixProvider() },
+            homeContent = { HomeContent() },
+            localAlbumSearch = { _, query, _ ->
+                if (query == "local") listOf(album("local")) else emptyList()
+            },
+            localAlbumTracks = { _, _, _ -> emptyList() },
+            providerAlbumTracks = { _, _ -> emptyList() },
+            similarArtistsService = fakeSimilarArtistsService(),
+        )
+        assertEquals(listOf("local"), fallback.searchSuggestions("local", emptyList()).map { it.id.value })
     }
 
     @Test
@@ -258,6 +300,7 @@ class MixBuilderServiceFactoriesTest {
 
     private class FakeMixProvider(
         private val searchArtists: List<Artist> = emptyList(),
+        private val searchAlbums: List<Album> = emptyList(),
         private val randomAlbums: List<Album> = emptyList(),
         private val genres: List<Genre> = emptyList(),
     ) : MediaProvider {
@@ -299,7 +342,7 @@ class MixBuilderServiceFactoriesTest {
         override suspend fun tracks(limit: Int): List<Track> = emptyList()
 
         override suspend fun search(query: String, limit: Int): MediaSearchResults =
-            MediaSearchResults(artists = searchArtists)
+            MediaSearchResults(artists = searchArtists, albums = searchAlbums)
 
         override suspend fun genres(limit: Int): List<Genre> = genres
 

@@ -82,14 +82,20 @@ fun albumMixBuilderService(
     localAlbumSearch: suspend (sourceId: String, query: String, limit: Long) -> List<Album>,
     localAlbumTracks: suspend (sourceId: String, album: Album, limit: Long) -> List<Track>,
     providerAlbumTracks: suspend (provider: MediaProvider, album: Album) -> List<Track>,
-    similarArtistsService: SimilarArtistsService,
+        similarArtistsService: SimilarArtistsService,
 ): AlbumMixBuilderService =
     AlbumMixBuilderService(
         albumSearch = { query, limit ->
-            sourceId()
-                ?.let { activeSourceId -> localAlbumSearch(activeSourceId, query, limit) }
+            provider()
+                ?.let { activeProvider ->
+                    runCatching { activeProvider.search(query, limit.toInt()).albums }.getOrDefault(emptyList())
+                }
                 .orEmpty()
-                .ifEmpty { provider()?.search(query, limit.toInt())?.albums.orEmpty() }
+                .ifEmpty {
+                    sourceId()
+                        ?.let { activeSourceId -> localAlbumSearch(activeSourceId, query, limit) }
+                        .orEmpty()
+                }
         },
         randomAlbums = { limit ->
             homeContent().mixBuilderAlbumCandidates()

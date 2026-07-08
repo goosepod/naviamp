@@ -11,6 +11,9 @@ import app.naviamp.domain.AudioInfo
 import app.naviamp.domain.AudioCodec
 import app.naviamp.domain.Genre
 import app.naviamp.domain.InternetRadioStation
+import app.naviamp.domain.LyricAgent
+import app.naviamp.domain.LyricCue
+import app.naviamp.domain.LyricCueLine
 import app.naviamp.domain.LyricLine
 import app.naviamp.domain.Lyrics
 import app.naviamp.domain.LyricsSource
@@ -107,17 +110,23 @@ class NavidromeProvider(
         )
     override var capabilities: ProviderCapabilities = baseCapabilities
         private set
+    private var supportsEnhancedSongLyrics: Boolean = false
 
     private val json = Json { ignoreUnknownKeys = true }
 
     override suspend fun validateConnection(): ConnectionValidation {
         val response = get("ping.view")
         val root = response.subsonicResponse()
+        val extensionVersions = openSubsonicExtensionVersions()
         capabilities = baseCapabilities.copy(
-            supportsSonicSimilarity = supportsOpenSubsonicExtension(
+            supportsSonicSimilarity = extensionVersions.supportsOpenSubsonicExtension(
                 name = "sonicSimilarity",
                 minimumVersion = 1,
             ),
+        )
+        supportsEnhancedSongLyrics = extensionVersions.supportsOpenSubsonicExtension(
+            name = "songLyrics",
+            minimumVersion = 2,
         )
 
         return ConnectionValidation(
@@ -777,7 +786,10 @@ class NavidromeProvider(
         val response = runCatching {
             get(
                 endpoint = "getLyricsBySongId.view",
-                params = mapOf("id" to trackId.value),
+                params = buildMap {
+                    put("id", trackId.value)
+                    if (supportsEnhancedSongLyrics) put("enhanced", "true")
+                },
             )
         }.getOrNull() ?: return null
         val lyricsList = response.subsonicResponse()["lyricsList"]?.jsonObject ?: return null
@@ -786,7 +798,8 @@ class NavidromeProvider(
             .mapNotNull { it as? JsonObject }
             .mapNotNull { it.toLyrics() }
             .sortedWith(
-                compareByDescending<Lyrics> { it.hasTimedLines }
+                compareByDescending<Lyrics> { it.hasKaraokeCues }
+                    .thenByDescending { it.hasTimedLines }
                     .thenByDescending { it.lines.size },
             )
             .firstOrNull()
@@ -947,17 +960,21 @@ class NavidromeProvider(
         return response.subsonicResponse()["song"]?.jsonObject?.toTrack()
     }
 
-    private suspend fun supportsOpenSubsonicExtension(name: String, minimumVersion: Int): Boolean =
+    private suspend fun openSubsonicExtensionVersions(): Map<String, List<Int>> =
         runCatching {
             val response = get("getOpenSubsonicExtensions.view")
             response.subsonicResponse()
                 .arrayValue("openSubsonicExtensions")
-                .any { extension ->
-                    val item = extension as? JsonObject ?: return@any false
-                    item.stringValue("name") == name &&
-                        item.extensionVersions().any { version -> version >= minimumVersion }
+                .mapNotNull { extension ->
+                    val item = extension as? JsonObject ?: return@mapNotNull null
+                    val name = item.stringValue("name") ?: return@mapNotNull null
+                    name to item.extensionVersions()
                 }
-        }.getOrDefault(false)
+                .toMap()
+        }.getOrDefault(emptyMap())
+
+    private fun Map<String, List<Int>>.supportsOpenSubsonicExtension(name: String, minimumVersion: Int): Boolean =
+        this[name].orEmpty().any { version -> version >= minimumVersion }
 
     private fun JsonObject.extensionVersions(): List<Int> =
         arrayValue("versions").mapNotNull { version ->
@@ -1362,9 +1379,52 @@ class NavidromeProvider(
             displayArtist = stringValue("displayArtist"),
             displayTitle = stringValue("displayTitle"),
             language = stringValue("lang"),
-            offsetMillis = intValue("offset") ?: 0,
+            offsetMillis = normalizedOpenSubsonicLyricsOffsetMillis(),
+            kind = stringValue("kind"),
+            agents = agents(),
+            cueLines = cueLines(),
         )
     }
+
+    private fun JsonObject.normalizedOpenSubsonicLyricsOffsetMillis(): Int =
+        // OpenSubsonic offset is positive when lyrics should appear sooner; Naviamp's UI offset
+        // is positive when timestamps should be delayed.
+        -(intValue("offset") ?: 0)
+
+    private fun JsonObject.agents(): List<LyricAgent> =
+        arrayValue("agents")
+            .mapNotNull { it as? JsonObject }
+            .mapNotNull { agent ->
+                LyricAgent(
+                    id = agent.stringValue("id") ?: return@mapNotNull null,
+                    name = agent.stringValue("name"),
+                    role = agent.stringValue("role"),
+                )
+            }
+
+    private fun JsonObject.cueLines(): List<LyricCueLine> =
+        arrayValue("cueLine")
+            .mapNotNull { it as? JsonObject }
+            .mapNotNull { cueLine ->
+                LyricCueLine(
+                    lineIndex = cueLine.intValue("index") ?: return@mapNotNull null,
+                    startMillis = cueLine.longValue("start"),
+                    endMillis = cueLine.longValue("end"),
+                    text = cueLine.stringValue("value") ?: return@mapNotNull null,
+                    agentId = cueLine.stringValue("agentId"),
+                    cues = cueLine.arrayValue("cue")
+                        .mapNotNull { it as? JsonObject }
+                        .mapNotNull { cue ->
+                            LyricCue(
+                                startMillis = cue.longValue("start"),
+                                endMillis = cue.longValue("end"),
+                                text = cue.stringValue("value") ?: return@mapNotNull null,
+                                byteStart = cue.intValue("byteStart"),
+                                byteEnd = cue.intValue("byteEnd"),
+                            )
+                        },
+                )
+            }
 }
 
 interface NavidromeHttpClient {
