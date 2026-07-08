@@ -108,8 +108,8 @@ jobs:
           if-no-files-found: error
           path: |
             apps/desktop/build/compose/distributions/Naviamp-windows-x64-release.zip
-            apps/desktop/build/compose/binaries/**/*.msi
-            apps/desktop/build/compose/binaries/**/*.exe
+            apps/desktop/build/compose/binaries/main/msi/*.msi
+            apps/desktop/build/compose/binaries/main/exe/*.exe
 
   macos:
     name: macOS zip and DMG

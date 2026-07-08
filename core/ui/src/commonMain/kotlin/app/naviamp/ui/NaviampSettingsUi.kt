@@ -607,9 +607,9 @@ private val DefaultNaviampLibraries = listOf(
 )
 
 private val DefaultNaviampChangelog = listOf(
-    "Fixed GitHub Android release builds by installing the required Android NDK before Gradle runs.",
-    "Documented the GitHub Android runner NDK requirement for tag release builds.",
-    "Kept the recursive release asset upload fix from the previous release.",
+    "Filtered GitHub release assets so the raw Windows app-image Naviamp.exe is not attached.",
+    "Kept Windows package artifacts limited to the standalone zip plus MSI and installer EXE.",
+    "Kept the Android NDK and recursive release asset fixes from the previous releases.",
 )
 
 @Composable
