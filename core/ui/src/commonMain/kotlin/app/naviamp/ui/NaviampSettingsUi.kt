@@ -607,11 +607,9 @@ private val DefaultNaviampLibraries = listOf(
 )
 
 private val DefaultNaviampChangelog = listOf(
-    "Fixed Windows GitHub release builds by using the runner CMake install for desktop native packaging.",
-    "Allowed manually dispatched GitHub tag builds to create draft releases after successful artifacts build.",
-    "Kept release tag validation active for manual runs started from v-prefixed tags.",
-    "Removed deprecated Compose Gradle dependency accessors from desktop and shared UI builds.",
-    "Documented release tag notes so Forgejo and GitHub show the release changes on the tag.",
+    "Fixed GitHub release publishing so nested desktop artifacts are attached to draft releases.",
+    "Added a release asset listing step to show exactly which files are downloaded before publishing.",
+    "Kept Windows CMake, manual tag release, and Compose Gradle warning fixes from the previous release.",
 )
 
 @Composable

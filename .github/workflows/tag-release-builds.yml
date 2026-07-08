@@ -199,6 +199,9 @@ jobs:
           path: release-artifacts
           merge-multiple: true
 
+      - name: List release assets
+        run: find release-artifacts -type f -print | sort
+
       - name: Publish release assets
         uses: softprops/action-gh-release@v2
         with:
@@ -207,4 +210,4 @@ jobs:
           draft: true
           body_path: ${{ runner.temp }}/release-notes.md
           fail_on_unmatched_files: true
-          files: release-artifacts/*
+          files: release-artifacts/**
