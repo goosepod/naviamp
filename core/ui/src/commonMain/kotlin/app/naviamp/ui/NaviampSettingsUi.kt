@@ -1209,9 +1209,11 @@ private val DefaultNaviampLibraries = listOf(
 )
 
 private val DefaultNaviampChangelog = listOf(
-    "Refined Settings spacing and typography so subpages match the main Settings list more closely.",
-    "Moved Source connections and Settings Sync into dedicated subpages with cleaner compact rows.",
-    "Fixed Debugging page padding and left-aligned local data actions.",
+    "Added English and Spanish UI language resources that follow the system language.",
+    "Improved smart playlist editing with searchable fields, fresher playback, newer Navidrome options, and token refresh when saving.",
+    "Added Lyrics settings for Download Lyrics, Prefer Synced, and draggable Search Order.",
+    "Fixed Android and desktop artist detail parity, including expanded bios and Android popular tracks.",
+    "Refined Now Playing visuals with brighter album-art gradients and a vertical dots menu action.",
 )
 
 @Composable
