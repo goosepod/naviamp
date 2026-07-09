@@ -301,6 +301,7 @@ compose.desktop {
 
             windows {
                 iconFile.set(project.file("src/desktopMain/resources/icons/naviamp.ico"))
+                upgradeUuid = "ddece57e-59fc-4ff9-915d-875876779251"
                 msiPackageVersion = naviampWindowsPackageVersion
                 exePackageVersion = naviampWindowsPackageVersion
                 menu = true

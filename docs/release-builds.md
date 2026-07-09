@@ -46,6 +46,8 @@ Gradle reads these root files for Android and desktop packaging:
 
 Native desktop installers built through jpackage do not accept a `0.x.y` package version on every platform, so pre-1.0 Naviamp versions are encoded with a positive native package major version for installer metadata. For example, app version `0.10.0` is packaged with native installer metadata version `1.10.0`. The source-of-truth user-facing version remains `VERSION`.
 
+Windows MSI upgrades use the stable `upgradeUuid` configured in `apps/desktop/build.gradle.kts`. Do not change that UUID for normal releases; Windows Installer uses it to recognize Naviamp as the same product family across versions and replace old installed files during upgrades.
+
 Current version:
 
 ```text
