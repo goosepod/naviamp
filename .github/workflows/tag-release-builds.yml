@@ -12,6 +12,7 @@ permissions:
 env:
   GRADLE_COMMON: --configure-on-demand
   GRADLE_OPTS: -Dorg.gradle.daemon=false -Dorg.gradle.jvmargs=-Xmx4g
+  TZ: America/Los_Angeles
 
 jobs:
   version:
