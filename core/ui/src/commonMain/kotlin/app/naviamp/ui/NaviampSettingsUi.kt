@@ -417,8 +417,8 @@ private fun SettingsDetailHeader(
             Icon(NaviampIcons.Back, contentDescription = "Back", tint = colors.primaryText)
         }
         Column(verticalArrangement = Arrangement.spacedBy(1.dp)) {
-            Text(category.label, color = colors.primaryText, fontSize = 18.sp, fontWeight = FontWeight.Bold)
-            Text(category.subtitle, color = colors.secondaryText, fontSize = 12.sp)
+            Text(category.label, color = colors.primaryText, fontSize = SettingsCategoryTitleSize, fontWeight = FontWeight.Bold)
+            Text(category.subtitle, color = colors.secondaryText, fontSize = SettingsDetailSubtitleSize)
         }
     }
 }
@@ -462,33 +462,38 @@ fun NaviampAboutSettingsSection(
 
     page?.let { selected ->
         SettingsSubsectionHeader(selected.title, selected.subtitle, colors) { page = null }
-        when (selected) {
-            AboutSettingsPage.Thanks -> {
-                SettingsSectionTitle("Libraries", colors)
-                about.libraries.forEach { library ->
-                    Text(library, color = colors.secondaryText, fontSize = 12.sp)
+        Column(
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier.fillMaxWidth().padding(horizontal = SettingsRowHorizontalPadding),
+        ) {
+            when (selected) {
+                AboutSettingsPage.Thanks -> {
+                    SettingsSectionTitle("Libraries", colors)
+                    about.libraries.forEach { library ->
+                        Text(library, color = colors.secondaryText, fontSize = SettingsDetailRowSubtitleSize)
+                    }
+                    SettingsSectionTitle("Fonts", colors)
+                    Text("Nunito Sans", color = colors.secondaryText, fontSize = SettingsDetailRowSubtitleSize)
+                    SettingsSectionTitle("Audio", colors)
+                    Text("BASS audio library", color = colors.secondaryText, fontSize = SettingsDetailRowSubtitleSize)
                 }
-                SettingsSectionTitle("Fonts", colors)
-                Text("Nunito Sans", color = colors.secondaryText, fontSize = 12.sp)
-                SettingsSectionTitle("Audio", colors)
-                Text("BASS audio library", color = colors.secondaryText, fontSize = 12.sp)
-            }
-            AboutSettingsPage.Licenses -> {
-                SettingsSectionTitle("Naviamp", colors)
-                Text("Apache License 2.0", color = colors.primaryText, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
-                Text(
-                    ApacheLicenseText,
-                    color = colors.secondaryText,
-                    fontSize = 12.sp,
-                )
-            }
-            AboutSettingsPage.Changelog -> {
-                SettingsSectionTitle("Latest Changes", colors)
-                if (about.changelog.isEmpty()) {
-                    Text("Changelog entries will appear here in a future release.", color = colors.secondaryText, fontSize = 12.sp)
-                } else {
-                    about.changelog.forEach { entry ->
-                        Text(entry, color = colors.secondaryText, fontSize = 12.sp)
+                AboutSettingsPage.Licenses -> {
+                    SettingsSectionTitle("Naviamp", colors)
+                    Text("Apache License 2.0", color = colors.primaryText, fontSize = SettingsDetailRowTitleSize, fontWeight = FontWeight.SemiBold)
+                    Text(
+                        ApacheLicenseText,
+                        color = colors.secondaryText,
+                        fontSize = SettingsDetailRowSubtitleSize,
+                    )
+                }
+                AboutSettingsPage.Changelog -> {
+                    SettingsSectionTitle("Latest Changes", colors)
+                    if (about.changelog.isEmpty()) {
+                        Text("Changelog entries will appear here in a future release.", color = colors.secondaryText, fontSize = SettingsDetailRowSubtitleSize)
+                    } else {
+                        about.changelog.forEach { entry ->
+                            Text(entry, color = colors.secondaryText, fontSize = SettingsDetailRowSubtitleSize)
+                        }
                     }
                 }
             }
@@ -508,8 +513,7 @@ fun NaviampAboutSettingsSection(
         )
         Text("Naviamp", color = colors.primaryText, fontSize = 20.sp, fontWeight = FontWeight.Bold)
         Text("A GoosePod Production", color = colors.secondaryText, fontSize = 14.sp)
-        Text(about.version, color = colors.secondaryText, fontSize = 12.sp)
-        Text("Build ${about.buildNumber}", color = colors.mutedText, fontSize = 11.sp)
+        Text("${about.version} Build ${about.buildNumber}", color = colors.secondaryText, fontSize = 12.sp)
     }
     AboutSettingsPage.entries.forEach { aboutPage ->
         SettingsRow(
@@ -718,15 +722,21 @@ private fun NaviampConnectionsSettingsSection(
     onCancelConnectionForm: () -> Unit,
 ) {
     var pendingDelete by remember { mutableStateOf<NaviampSavedConnectionUi?>(null) }
+    var selectedPage by remember { mutableStateOf<SourceSettingsPage?>(null) }
+    val hasSettingsSync =
+        onImportSettingsSyncFile != null ||
+            onChooseSettingsSyncFolder != null ||
+            onImportSettingsSyncFolder != null ||
+            onExportSettingsSyncFolder != null
 
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        if (isConnectionFormOpen) {
-            SettingsSubsectionHeader(
-                title = if (hasSavedConnection) "Edit connection" else "New connection",
-                subtitle = if (hasSavedConnection) "Server, login, TLS, and libraries" else "Add a Navidrome server",
-                colors = colors,
-                onBack = onCancelConnectionForm,
-            )
+    if (isConnectionFormOpen) {
+        SettingsSubsectionHeader(
+            title = if (hasSavedConnection) "Edit connection" else "New connection",
+            subtitle = if (hasSavedConnection) "Server, login, TLS, and libraries" else "Add a Navidrome server",
+            colors = colors,
+            onBack = onCancelConnectionForm,
+        )
+        Column(modifier = Modifier.fillMaxWidth().padding(horizontal = SettingsRowHorizontalPadding)) {
             NaviampConnectionForm(
                 form = connectionForm,
                 colors = colors,
@@ -741,38 +751,60 @@ private fun NaviampConnectionsSettingsSection(
                 onImportSettingsSyncFile = onImportSettingsSyncFile,
                 onCancel = onCancelConnectionForm,
             )
-        } else {
-            SettingsSectionTitle("Connections", colors)
-            if (savedConnections.isEmpty()) {
-                Text("No saved connections yet.", color = colors.secondaryText, fontSize = 12.sp)
-            } else {
-                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    savedConnections.forEach { connection ->
-                        NaviampSavedConnectionRow(
-                            colors = colors,
-                            connection = connection,
-                            enabled = !isConnecting,
-                            onEdit = { onEditConnection(connection) },
-                            onDelete = { pendingDelete = connection },
-                            onConnect = { onConnectConnection(connection) },
-                        )
+        }
+    } else when (selectedPage) {
+        SourceSettingsPage.Connections -> {
+            SettingsSubsectionHeader("Connections", "Saved Navidrome servers", colors) {
+                selectedPage = null
+            }
+            Column(
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.fillMaxWidth().padding(horizontal = SettingsRowHorizontalPadding),
+            ) {
+                if (savedConnections.isEmpty()) {
+                    Text("No saved connections yet.", color = colors.secondaryText, fontSize = SettingsDetailRowSubtitleSize)
+                } else {
+                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        savedConnections.forEach { connection ->
+                            NaviampSavedConnectionRow(
+                                colors = colors,
+                                connection = connection,
+                                enabled = !isConnecting,
+                                onEdit = { onEditConnection(connection) },
+                                onDelete = { pendingDelete = connection },
+                                onConnect = { onConnectConnection(connection) },
+                            )
+                        }
                     }
                 }
+                PrimaryButton("New connection", colors, enabled = !isConnecting, onClick = onNewConnection)
+                connectionStatus?.let {
+                    Text(it, color = colors.secondaryText, fontSize = SettingsDetailRowSubtitleSize)
+                }
             }
-            PrimaryButton("New connection", colors, enabled = !isConnecting, onClick = onNewConnection)
-            if (
-                onImportSettingsSyncFile != null ||
-                onChooseSettingsSyncFolder != null ||
-                onImportSettingsSyncFolder != null ||
-                onExportSettingsSyncFolder != null
+        }
+        SourceSettingsPage.SettingsSync -> {
+            SettingsSubsectionHeader("Settings Sync", "Folder-based settings sync", colors) {
+                selectedPage = null
+            }
+            Column(
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.fillMaxWidth().padding(horizontal = SettingsRowHorizontalPadding),
             ) {
-                HorizontalDivider(color = colors.border)
-                SettingsSectionTitle("Settings Sync", colors)
                 Text(
                     "Use a folder managed by Nextcloud, Dropbox, Syncthing, FolderSync, or another file sync app. Naviamp keeps a local copy and syncs this file when the provider allows it.",
                     color = colors.secondaryText,
-                    fontSize = 12.sp,
+                    fontSize = SettingsDetailRowSubtitleSize,
                 )
+                onSettingsSyncAutoExportChanged?.let { onAutoExportChanged ->
+                    InlineSettingsToggleRow(
+                        colors = colors,
+                        checked = settingsSyncAutoExportEnabled,
+                        enabled = !isConnecting,
+                        label = "Auto-sync changes",
+                        onCheckedChange = onAutoExportChanged,
+                    )
+                }
                 onChooseSettingsSyncFolder?.let { chooseFolder ->
                     PrimarySettingsButton("Choose sync folder", colors, enabled = !isConnecting, onClick = chooseFolder)
                 }
@@ -785,32 +817,42 @@ private fun NaviampConnectionsSettingsSection(
                 onImportSettingsSyncFile?.let { importSettings ->
                     PrimarySettingsButton("Import provider settings", colors, enabled = !isConnecting, onClick = importSettings)
                 }
-                onSettingsSyncAutoExportChanged?.let { onAutoExportChanged ->
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable(enabled = !isConnecting) {
-                                onAutoExportChanged(!settingsSyncAutoExportEnabled)
-                            },
-                    ) {
-                        Checkbox(
-                            checked = settingsSyncAutoExportEnabled,
-                            enabled = !isConnecting,
-                            onCheckedChange = onAutoExportChanged,
-                        )
-                        Text("Auto-sync changes", color = colors.primaryText, fontSize = 13.sp)
-                    }
-                }
                 settingsSyncStatus?.let {
-                    Text(it, color = colors.secondaryText, fontSize = 12.sp)
+                    Text(it, color = colors.secondaryText, fontSize = SettingsDetailRowSubtitleSize)
                 }
-            }
-            connectionStatus?.let {
-                Text(it, color = colors.secondaryText, fontSize = 12.sp)
             }
         }
+        null -> {
+            Column(
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.fillMaxWidth().padding(horizontal = SettingsRowHorizontalPadding),
+            ) {
+                SourceSubpageRow(
+                    title = "Connections",
+                    subtitle = "Saved Navidrome servers.",
+                    value = savedConnections.firstOrNull { it.current }?.displayName ?: "${savedConnections.size} saved",
+                    colors = colors,
+                    enabled = !isConnecting,
+                ) {
+                    selectedPage = SourceSettingsPage.Connections
+                }
+                if (hasSettingsSync) {
+                    SourceSubpageRow(
+                        title = "Settings Sync",
+                        subtitle = "Folder-based settings sync.",
+                        value = settingsSyncStatus,
+                        colors = colors,
+                        enabled = !isConnecting,
+                    ) {
+                        selectedPage = SourceSettingsPage.SettingsSync
+                    }
+                }
+                connectionStatus?.let {
+                    Text(it, color = colors.secondaryText, fontSize = SettingsDetailRowSubtitleSize)
+                }
+            }
+        }
+    }
         pendingDelete?.let { connection ->
             AlertDialog(
                 onDismissRequest = { pendingDelete = null },
@@ -833,6 +875,51 @@ private fun NaviampConnectionsSettingsSection(
                 },
             )
         }
+}
+
+private enum class SourceSettingsPage {
+    Connections,
+    SettingsSync,
+}
+
+@Composable
+private fun SourceSubpageRow(
+    title: String,
+    subtitle: String,
+    value: String?,
+    colors: NaviampColors,
+    enabled: Boolean,
+    onClick: () -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(enabled = enabled, onClick = onClick)
+            .padding(vertical = SettingsDetailRowVerticalPadding),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(Modifier.weight(1f)) {
+            Text(title, color = if (enabled) colors.primaryText else colors.mutedText, fontSize = SettingsDetailRowTitleSize)
+            Text(subtitle, color = colors.mutedText, fontSize = SettingsDetailRowSubtitleSize)
+        }
+        value?.takeIf { it.isNotBlank() }?.let {
+            Text(
+                it,
+                color = if (enabled) colors.secondaryText else colors.mutedText,
+                fontSize = SettingsDetailRowSubtitleSize,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier
+                    .weight(0.45f, fill = false)
+                    .padding(start = 10.dp),
+            )
+        }
+        Icon(
+            NaviampIcons.ChevronRight,
+            contentDescription = null,
+            tint = if (enabled) colors.secondaryText else colors.mutedText,
+            modifier = Modifier.size(18.dp),
+        )
     }
 }
 
@@ -935,32 +1022,37 @@ fun NaviampDiagnosticsSettingsSection(
     diagnostics: NaviampDiagnosticsUi,
     emptyText: String = "No diagnostics yet.",
 ) {
-    SettingsSectionTitle(title, colors)
-    if (diagnostics.sections.isEmpty()) {
-        Text(emptyText, color = colors.secondaryText, fontSize = 12.sp)
-        return
-    }
-    diagnostics.sections.forEach { section ->
-        Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
-            Text(section.title, color = colors.secondaryText, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
-            section.rows.forEach { (label, value) ->
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp),
-                    verticalAlignment = Alignment.Top,
-                ) {
-                    Text(
-                        label,
-                        color = colors.mutedText,
-                        fontSize = 11.sp,
-                        modifier = Modifier.weight(0.42f),
-                    )
-                    Text(
-                        value,
-                        color = colors.primaryText,
-                        fontSize = 11.sp,
-                        modifier = Modifier.weight(0.58f),
-                    )
+    Column(
+        verticalArrangement = Arrangement.spacedBy(6.dp),
+        modifier = Modifier.fillMaxWidth().padding(horizontal = SettingsRowHorizontalPadding),
+    ) {
+        SettingsSectionTitle(title, colors)
+        if (diagnostics.sections.isEmpty()) {
+            Text(emptyText, color = colors.secondaryText, fontSize = SettingsDetailRowSubtitleSize)
+        } else {
+            diagnostics.sections.forEach { section ->
+                Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                    Text(section.title, color = colors.secondaryText, fontSize = SettingsDetailRowSubtitleSize, fontWeight = FontWeight.SemiBold)
+                    section.rows.forEach { (label, value) ->
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                            verticalAlignment = Alignment.Top,
+                        ) {
+                            Text(
+                                label,
+                                color = colors.mutedText,
+                                fontSize = SettingsDetailTinyTextSize,
+                                modifier = Modifier.weight(0.42f),
+                            )
+                            Text(
+                                value,
+                                color = colors.primaryText,
+                                fontSize = SettingsDetailTinyTextSize,
+                                modifier = Modifier.weight(0.58f),
+                            )
+                        }
+                    }
                 }
             }
         }
@@ -980,10 +1072,9 @@ private val DefaultNaviampLibraries = listOf(
 )
 
 private val DefaultNaviampChangelog = listOf(
-    "Added desktop audio output selection with Follow System Output and per-device routing.",
-    "Redesigned Settings around Plexamp-style categories, compact controls, selection pages, and a refreshed About page.",
-    "Added Replay Gain mode and preamp controls, equalizer editing, audio cache controls, waveform settings, and Radio DJs pages.",
-    "Kept Android audio output hidden so Android builds continue to follow the system output.",
+    "Refined Settings spacing and typography so subpages match the main Settings list more closely.",
+    "Moved Source connections and Settings Sync into dedicated subpages with cleaner compact rows.",
+    "Fixed Debugging page padding and left-aligned local data actions.",
 )
 
 @Composable
@@ -995,12 +1086,15 @@ private fun SharedLocalDataActions(
 ) {
     var confirmAction by remember { mutableStateOf<SharedLocalDataAction?>(null) }
 
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    Column(
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+        modifier = Modifier.fillMaxWidth().padding(horizontal = SettingsRowHorizontalPadding),
+    ) {
         SettingsSectionTitle("Local data", colors)
         Text(
             "Manage local cache, indexed library data, downloads, and app database storage.",
             color = colors.secondaryText,
-            fontSize = 12.sp,
+            fontSize = SettingsDetailRowSubtitleSize,
         )
         PrimarySettingsButton("Clear cache", colors, enabled = onClearCache != null) {
             confirmAction = SharedLocalDataAction.ClearCache
@@ -1367,7 +1461,6 @@ fun NaviampDownloadsSettingsSection(
         return
     }
 
-    SettingsSectionTitle("Downloads", colors)
     SettingsRow(
         title = "Saved Files",
         subtitle = "Quality for newly saved files.",
@@ -1403,9 +1496,14 @@ fun NaviampDownloadsSettingsSection(
     ) {
         selectedPage = DownloadsSettingsPage.StorageBudget
     }
-    SettingsSectionTitle("Storage", colors)
-    diagnosticRowValue(diagnostics, "Storage", "Downloads")?.let { value ->
-        Text(value, color = colors.secondaryText, fontSize = 12.sp)
+    Column(
+        verticalArrangement = Arrangement.spacedBy(6.dp),
+        modifier = Modifier.fillMaxWidth().padding(horizontal = SettingsRowHorizontalPadding),
+    ) {
+        SettingsSectionTitle("Storage", colors)
+        diagnosticRowValue(diagnostics, "Storage", "Downloads")?.let { value ->
+            Text(value, color = colors.secondaryText, fontSize = SettingsDetailRowSubtitleSize)
+        }
     }
 }
 
@@ -1453,7 +1551,6 @@ fun NaviampAudioCacheSettingsSection(
         return
     }
 
-    SettingsSectionTitle("Audio Cache", colors)
     SettingsCheckboxRow(
         colors = colors,
         checked = normalized.audioCachingEnabled,
@@ -1480,9 +1577,14 @@ fun NaviampAudioCacheSettingsSection(
     ) {
         selectedPage = AudioCacheSettingsPage.AudioCacheBudget
     }
-    SettingsSectionTitle("Storage", colors)
-    diagnosticRowValue(diagnostics, "Storage", "Audio cache")?.let { value ->
-        Text(value, color = colors.secondaryText, fontSize = 12.sp)
+    Column(
+        verticalArrangement = Arrangement.spacedBy(6.dp),
+        modifier = Modifier.fillMaxWidth().padding(horizontal = SettingsRowHorizontalPadding),
+    ) {
+        SettingsSectionTitle("Storage", colors)
+        diagnosticRowValue(diagnostics, "Storage", "Audio cache")?.let { value ->
+            Text(value, color = colors.secondaryText, fontSize = SettingsDetailRowSubtitleSize)
+        }
     }
 }
 
@@ -1547,11 +1649,45 @@ private fun PrimarySettingsButton(
     enabled: Boolean,
     onClick: () -> Unit,
 ) {
-    TextButton(
-        enabled = enabled,
-        onClick = onClick,
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(enabled = enabled, onClick = onClick)
+            .padding(vertical = 6.dp),
+        horizontalArrangement = Arrangement.Start,
     ) {
-        Text(label, color = if (enabled) colors.primaryText else colors.mutedText)
+        Text(label, color = if (enabled) colors.primaryText else colors.mutedText, fontSize = SettingsDetailRowTitleSize)
+    }
+}
+
+@Composable
+private fun InlineSettingsToggleRow(
+    colors: NaviampColors,
+    checked: Boolean,
+    enabled: Boolean = true,
+    label: String,
+    onCheckedChange: (Boolean) -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(enabled = enabled) { onCheckedChange(!checked) }
+            .padding(vertical = SettingsDetailRowVerticalPadding),
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            label,
+            color = if (enabled) colors.primaryText else colors.mutedText,
+            fontSize = SettingsDetailRowTitleSize,
+            modifier = Modifier.weight(1f),
+        )
+        CompactSettingsSwitch(
+            colors = colors,
+            checked = checked,
+            enabled = enabled,
+            onClick = { onCheckedChange(!checked) },
+        )
     }
 }
 
@@ -1641,7 +1777,6 @@ fun NaviampPlaybackSettingsSection(
             )
         }
     } ?: run {
-        SettingsSectionTitle("Playback", colors)
         playbackSettingsSections(
             showOutput = supportsAudioOutputDeviceSelection,
             showReplayGain = showReplayGain,
@@ -1793,20 +1928,20 @@ private fun SelectableSettingsRow(
                 shape = RoundedCornerShape(6.dp),
             )
             .clickable(enabled = enabled, onClick = onClick)
-            .padding(horizontal = 8.dp, vertical = 8.dp),
+            .padding(horizontal = 8.dp, vertical = SettingsDetailRowVerticalPadding),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Column(Modifier.weight(1f)) {
-            Text(title, color = if (enabled) colors.primaryText else colors.mutedText, fontSize = 15.sp)
+            Text(title, color = if (enabled) colors.primaryText else colors.mutedText, fontSize = SettingsDetailRowTitleSize)
             subtitle?.takeIf { it.isNotBlank() }?.let {
-                Text(it, color = colors.mutedText, fontSize = 12.sp)
+                Text(it, color = colors.mutedText, fontSize = SettingsDetailRowSubtitleSize)
             }
         }
         if (selected) {
             Text(
                 "Selected",
                 color = if (enabled) colors.primaryText else colors.mutedText,
-                fontSize = 12.sp,
+                fontSize = SettingsDetailRowSubtitleSize,
                 fontWeight = FontWeight.SemiBold,
                 modifier = Modifier.padding(start = 10.dp),
             )
@@ -1832,20 +1967,20 @@ private fun SelectableTextOption(
                 shape = RoundedCornerShape(6.dp),
             )
             .clickable(enabled = enabled, onClick = onClick)
-            .padding(horizontal = 8.dp, vertical = 8.dp),
+            .padding(horizontal = 8.dp, vertical = SettingsDetailRowVerticalPadding),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Column(Modifier.weight(1f)) {
-            Text(title, color = if (enabled) colors.primaryText else colors.mutedText, fontSize = 15.sp)
+            Text(title, color = if (enabled) colors.primaryText else colors.mutedText, fontSize = SettingsDetailRowTitleSize)
             subtitle?.takeIf { it.isNotBlank() }?.let {
-                Text(it, color = colors.mutedText, fontSize = 12.sp)
+                Text(it, color = colors.mutedText, fontSize = SettingsDetailRowSubtitleSize)
             }
         }
         if (selected) {
             Text(
                 "Selected",
                 color = if (enabled) colors.primaryText else colors.mutedText,
-                fontSize = 12.sp,
+                fontSize = SettingsDetailRowSubtitleSize,
                 fontWeight = FontWeight.SemiBold,
                 modifier = Modifier.padding(start = 10.dp),
             )
@@ -1982,8 +2117,8 @@ private fun SettingsSubsectionHeader(
             Icon(NaviampIcons.Back, contentDescription = "Back", tint = colors.primaryText)
         }
         Column(verticalArrangement = Arrangement.spacedBy(1.dp)) {
-            Text(title, color = colors.primaryText, fontSize = 18.sp, fontWeight = FontWeight.Bold)
-            Text(subtitle, color = colors.secondaryText, fontSize = 12.sp)
+            Text(title, color = colors.primaryText, fontSize = SettingsDetailTitleSize, fontWeight = FontWeight.Bold)
+            Text(subtitle, color = colors.secondaryText, fontSize = SettingsDetailSubtitleSize)
         }
     }
 }
@@ -2892,14 +3027,14 @@ private fun SettingsCheckboxRow(
             .padding(horizontal = SettingsRowHorizontalPadding)
             .fillMaxWidth()
             .clickable(enabled = enabled) { onCheckedChange(!checked) }
-            .padding(vertical = 8.dp),
+            .padding(vertical = SettingsDetailRowVerticalPadding),
         horizontalArrangement = Arrangement.spacedBy(10.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Column(Modifier.weight(1f)) {
-            Text(label, color = if (enabled) colors.primaryText else colors.mutedText, fontSize = 15.sp)
+            Text(label, color = if (enabled) colors.primaryText else colors.mutedText, fontSize = SettingsDetailRowTitleSize)
             subtitle?.takeIf { it.isNotBlank() }?.let {
-                Text(it, color = colors.mutedText, fontSize = 12.sp)
+                Text(it, color = colors.mutedText, fontSize = SettingsDetailRowSubtitleSize)
             }
         }
         CompactSettingsSwitch(
@@ -2948,7 +3083,7 @@ private fun CompactSettingsSwitch(
 
 @Composable
 fun SettingsSectionTitle(title: String, colors: NaviampColors) {
-    Text(title, color = colors.primaryText, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+    Text(title, color = colors.primaryText, fontWeight = FontWeight.SemiBold, fontSize = SettingsSectionTitleSize)
 }
 
 @Composable
@@ -2965,18 +3100,18 @@ fun SettingsRow(
             .padding(horizontal = SettingsRowHorizontalPadding)
             .fillMaxWidth()
             .clickable(enabled = enabled, onClick = onClick)
-            .padding(vertical = 8.dp),
+            .padding(vertical = SettingsDetailRowVerticalPadding),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Column(Modifier.weight(1f)) {
-            Text(title, color = if (enabled) colors.primaryText else colors.mutedText, fontSize = 15.sp)
-            Text(subtitle, color = colors.mutedText, fontSize = 12.sp)
+            Text(title, color = if (enabled) colors.primaryText else colors.mutedText, fontSize = SettingsDetailRowTitleSize)
+            Text(subtitle, color = colors.mutedText, fontSize = SettingsDetailRowSubtitleSize)
         }
         value?.takeIf { it.isNotBlank() }?.let {
             Text(
                 it,
                 color = if (enabled) colors.secondaryText else colors.mutedText,
-                fontSize = 12.sp,
+                fontSize = SettingsDetailRowSubtitleSize,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.padding(start = 10.dp),
@@ -3070,7 +3205,15 @@ private fun Float.preampLabel(): String =
 
 private val CrossfadeDurationOptions = listOf(0, 3, 5, 8, 12)
 private val PreampDbOptions = listOf(6f, 5f, 4f, 3f, 2f, 1f, 0f, -1f, -2f, -3f, -4f, -5f, -6f, -9f, -12f)
-private val SettingsRowHorizontalPadding = 8.dp
+private val SettingsRowHorizontalPadding = 14.dp
+private val SettingsDetailRowVerticalPadding = 6.dp
+private val SettingsCategoryTitleSize = 17.sp
+private val SettingsDetailTitleSize = 16.sp
+private val SettingsDetailSubtitleSize = 11.sp
+private val SettingsDetailRowTitleSize = 14.sp
+private val SettingsDetailRowSubtitleSize = 11.sp
+private val SettingsDetailTinyTextSize = 10.sp
+private val SettingsSectionTitleSize = 13.sp
 private const val NewRadioDjId = "__new_radio_dj__"
 private val PrefetchDepthOptions = listOf(0, 3, 5, 10, 15, 25)
 private val WaveformBucketCountOptions = listOf(

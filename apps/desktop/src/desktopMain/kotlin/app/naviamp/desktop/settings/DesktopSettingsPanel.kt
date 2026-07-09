@@ -2,6 +2,7 @@ package app.naviamp.desktop
 
 import app.naviamp.domain.cache.StorageCacheStats
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -46,6 +47,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -259,32 +261,39 @@ fun DesktopSettingsPanel(
                 onCacheSettingsChanged = onCacheSettingsChanged,
             )
             NaviampSettingsCategory.Debugging -> {
-                NaviampDebugPlaybackSettingsSection(
-                    colors = appColors,
-                    playbackSettings = playbackSettings,
-                    onPlaybackSettingsChanged = onPlaybackSettingsChanged,
-                )
-                DiagnosticsSettings(
-                    appColors = appColors,
-                    connectionStatus = connectionStatus,
-                    statusClickCount = statusClickCount,
-                    lastStatusClickMillis = lastStatusClickMillis,
-                    onStatusClickStateChanged = { count, millis ->
-                        statusClickCount = count
-                        lastStatusClickMillis = millis
-                    },
-                    onOpenStatsForNerds = onOpenStatsForNerds,
-                )
-                LocalDataSettings(
-                    appColors = appColors,
-                    onClearCache = { clearCacheDialogOpen = true },
-                    onClearLibrary = { clearLibraryDialogOpen = true },
-                    onRefreshLibrary = onRefreshLibrary,
-                    onResetDatabase = {
-                        resetIncludesServers = false
-                        resetDialogOpen = true
-                    },
-                )
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = DesktopSettingsRowHorizontalPadding),
+                ) {
+                    NaviampDebugPlaybackSettingsSection(
+                        colors = appColors,
+                        playbackSettings = playbackSettings,
+                        onPlaybackSettingsChanged = onPlaybackSettingsChanged,
+                    )
+                    DiagnosticsSettings(
+                        appColors = appColors,
+                        connectionStatus = connectionStatus,
+                        statusClickCount = statusClickCount,
+                        lastStatusClickMillis = lastStatusClickMillis,
+                        onStatusClickStateChanged = { count, millis ->
+                            statusClickCount = count
+                            lastStatusClickMillis = millis
+                        },
+                        onOpenStatsForNerds = onOpenStatsForNerds,
+                    )
+                    LocalDataSettings(
+                        appColors = appColors,
+                        onClearCache = { clearCacheDialogOpen = true },
+                        onClearLibrary = { clearLibraryDialogOpen = true },
+                        onRefreshLibrary = onRefreshLibrary,
+                        onResetDatabase = {
+                            resetIncludesServers = false
+                            resetDialogOpen = true
+                        },
+                    )
+                }
             }
             NaviampSettingsCategory.About -> NaviampAboutSettingsSection(
                 colors = appColors,
@@ -634,12 +643,13 @@ private fun ConnectionsSettings(
     onSettingsSyncImport: () -> Unit,
 ) {
     var connectionPendingDelete by remember { mutableStateOf<SavedMediaSource?>(null) }
+    var sourcePage by remember { mutableStateOf<DesktopSourceSettingsPage?>(null) }
 
     Column(
         verticalArrangement = Arrangement.spacedBy(8.dp),
         modifier = Modifier
             .fillMaxWidth()
-            .padding(end = 16.dp),
+            .padding(horizontal = DesktopSettingsRowHorizontalPadding),
     ) {
         val showingFirstRunChoice = savedConnections.isEmpty() && !isConnectionFormOpen
         if (isConnectionFormOpen) {
@@ -687,125 +697,145 @@ private fun ConnectionsSettings(
             )
             return@Column
         }
-        SettingsSectionTitle("Connections", appColors)
-        if (savedConnections.isEmpty()) {
-            Text("No saved connections yet.", color = appColors.secondaryText, fontSize = 12.sp)
-            if (showingFirstRunChoice) {
-                FirstRunConnectionChoice(
+        when (sourcePage) {
+            DesktopSourceSettingsPage.Connections -> {
+                ConnectionFormSubScreenHeader(
                     appColors = appColors,
-                    onNewConnection = onNewConnection,
-                    onSettingsSyncDirectorySelectedForImport = onSettingsSyncDirectorySelectedForImport,
+                    title = "Connections",
+                    onBack = { sourcePage = null },
+                    enabled = !isConnecting,
                 )
-            }
-        } else {
-            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                savedConnections.forEach { connection ->
-                    SavedConnectionRow(
-                        appColors = appColors,
-                        connection = connection,
-                        selectedLibrarySummary = selectedMusicFolderSummary(
-                            selectedIds = connection.selectedMusicFolderIds,
-                            availableFolders = availableMusicFolders,
-                        ),
-                        selected = connection.id == currentSourceId,
-                        enabled = !isConnecting,
-                        onEdit = { onEditConnection(connection) },
-                        onDelete = { connectionPendingDelete = connection },
-                        onConnect = { onConnectSavedConnection(connection) },
-                    )
+                if (savedConnections.isEmpty()) {
+                    Text("No saved connections yet.", color = appColors.secondaryText, fontSize = 12.sp)
+                    if (showingFirstRunChoice) {
+                        FirstRunConnectionChoice(
+                            appColors = appColors,
+                            onNewConnection = onNewConnection,
+                            onSettingsSyncDirectorySelectedForImport = onSettingsSyncDirectorySelectedForImport,
+                        )
+                    }
+                } else {
+                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        savedConnections.forEach { connection ->
+                            SavedConnectionRow(
+                                appColors = appColors,
+                                connection = connection,
+                                selectedLibrarySummary = selectedMusicFolderSummary(
+                                    selectedIds = connection.selectedMusicFolderIds,
+                                    availableFolders = availableMusicFolders,
+                                ),
+                                selected = connection.id == currentSourceId,
+                                enabled = !isConnecting,
+                                onEdit = { onEditConnection(connection) },
+                                onDelete = { connectionPendingDelete = connection },
+                                onConnect = { onConnectSavedConnection(connection) },
+                            )
+                        }
+                    }
+                }
+                if (!showingFirstRunChoice) Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Button(
+                        onClick = onNewConnection,
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
+                        modifier = Modifier.height(30.dp),
+                    ) {
+                        Text("New connection", fontSize = 12.sp)
+                    }
+                }
+                connectionStatus?.let {
+                    Text(it, color = appColors.secondaryText, fontSize = 12.sp)
                 }
             }
-        }
-        if (!showingFirstRunChoice) Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Button(
-                onClick = onNewConnection,
-                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
-                modifier = Modifier.height(30.dp),
-            ) {
-                Text("New connection", fontSize = 12.sp)
-            }
-        }
-        connectionStatus?.let {
-            Text(it, color = appColors.secondaryText, fontSize = 12.sp)
-        }
-        HorizontalDivider(color = appColors.border)
-        SettingsSectionTitle("Settings Sync", appColors)
-        Text(
-            "Use a folder managed by your own sync service. Naviamp writes $SettingsSyncFileName there.",
-            color = appColors.secondaryText,
-            fontSize = 12.sp,
-        )
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.fillMaxWidth(),
-        ) {
-            Text(
-                settingsSyncDirectoryPath ?: "No sync folder selected",
-                color = appColors.secondaryText,
-                fontSize = 12.sp,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.weight(1f),
-            )
-            TextButton(
-                onClick = {
-                    val start = settingsSyncDirectoryPath ?: System.getProperty("user.home")
-                    chooseDirectory(start, "Choose settings sync folder")?.let { selected ->
-                        onSettingsSyncDirectoryChanged(selected.absolutePath)
-                    }
-                },
-            ) {
-                Text("Choose")
-            }
-            TextButton(
-                enabled = settingsSyncDirectoryPath != null,
-                onClick = { onSettingsSyncDirectoryChanged(null) },
-            ) {
-                Text("Reset")
-            }
-        }
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            TextButton(
-                enabled = settingsSyncDirectoryPath != null,
-                onClick = onSettingsSyncExport,
-            ) {
-                Text("Export")
-            }
-            TextButton(
-                enabled = settingsSyncDirectoryPath != null,
-                onClick = onSettingsSyncImport,
-            ) {
-                Text("Import")
-            }
-        }
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable(
-                    enabled = settingsSyncDirectoryPath != null,
-                    onClick = { onSettingsSyncAutoExportChanged(!settingsSyncAutoExportEnabled) },
+            DesktopSourceSettingsPage.SettingsSync -> {
+                ConnectionFormSubScreenHeader(
+                    appColors = appColors,
+                    title = "Settings Sync",
+                    onBack = { sourcePage = null },
+                    enabled = !isConnecting,
                 )
-                .padding(vertical = 2.dp),
-        ) {
-            Checkbox(
-                checked = settingsSyncAutoExportEnabled,
-                enabled = settingsSyncDirectoryPath != null,
-                onCheckedChange = onSettingsSyncAutoExportChanged,
-            )
-            Column {
-                Text("Auto-sync changes", color = appColors.primaryText, fontSize = 13.sp)
                 Text(
-                    "Writes the shared settings file after local synced settings change.",
+                    "Use a folder managed by your own sync service. Naviamp writes $SettingsSyncFileName there.",
                     color = appColors.secondaryText,
                     fontSize = 12.sp,
                 )
+                DesktopInlineToggleRow(
+                    appColors = appColors,
+                    checked = settingsSyncAutoExportEnabled,
+                    enabled = settingsSyncDirectoryPath != null,
+                    label = "Auto-sync changes",
+                    onCheckedChange = onSettingsSyncAutoExportChanged,
+                )
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text(
+                        settingsSyncDirectoryPath ?: "No sync folder selected",
+                        color = appColors.secondaryText,
+                        fontSize = 12.sp,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f),
+                    )
+                    TextButton(
+                        onClick = {
+                            val start = settingsSyncDirectoryPath ?: System.getProperty("user.home")
+                            chooseDirectory(start, "Choose settings sync folder")?.let { selected ->
+                                onSettingsSyncDirectoryChanged(selected.absolutePath)
+                            }
+                        },
+                    ) {
+                        Text("Choose")
+                    }
+                    TextButton(
+                        enabled = settingsSyncDirectoryPath != null,
+                        onClick = { onSettingsSyncDirectoryChanged(null) },
+                    ) {
+                        Text("Reset")
+                    }
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    TextButton(
+                        enabled = settingsSyncDirectoryPath != null,
+                        onClick = onSettingsSyncExport,
+                    ) {
+                        Text("Export")
+                    }
+                    TextButton(
+                        enabled = settingsSyncDirectoryPath != null,
+                        onClick = onSettingsSyncImport,
+                    ) {
+                        Text("Import")
+                    }
+                }
+                settingsSyncStatus?.let {
+                    Text(it, color = appColors.secondaryText, fontSize = 12.sp)
+                }
             }
-        }
-        settingsSyncStatus?.let {
-            Text(it, color = appColors.secondaryText, fontSize = 12.sp)
+            null -> {
+                DesktopSourceSubpageRow(
+                    title = "Connections",
+                    subtitle = "Saved Navidrome servers.",
+                    value = savedConnections.firstOrNull { it.id == currentSourceId }?.displayName ?: "${savedConnections.size} saved",
+                    appColors = appColors,
+                    enabled = !isConnecting,
+                ) {
+                    sourcePage = DesktopSourceSettingsPage.Connections
+                }
+                DesktopSourceSubpageRow(
+                    title = "Settings Sync",
+                    subtitle = "Folder-based settings sync.",
+                    value = settingsSyncDirectoryPath?.let { "Configured" },
+                    appColors = appColors,
+                    enabled = !isConnecting,
+                ) {
+                    sourcePage = DesktopSourceSettingsPage.SettingsSync
+                }
+                connectionStatus?.let {
+                    Text(it, color = appColors.secondaryText, fontSize = 12.sp)
+                }
+            }
         }
         connectionPendingDelete?.let { connection ->
             DeleteConnectionDialog(
@@ -817,6 +847,118 @@ private fun ConnectionsSettings(
                 },
             )
         }
+    }
+}
+
+private enum class DesktopSourceSettingsPage {
+    Connections,
+    SettingsSync,
+}
+
+@Composable
+private fun DesktopSourceSubpageRow(
+    title: String,
+    subtitle: String,
+    value: String?,
+    appColors: DesktopAppColors,
+    enabled: Boolean,
+    onClick: () -> Unit,
+) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(enabled = enabled, onClick = onClick)
+            .padding(vertical = 6.dp),
+    ) {
+        Column(Modifier.weight(1f)) {
+            Text(title, color = if (enabled) appColors.primaryText else appColors.mutedText, fontSize = 14.sp)
+            Text(subtitle, color = appColors.secondaryText, fontSize = 11.sp)
+        }
+        value?.takeIf { it.isNotBlank() }?.let {
+            Text(
+                it,
+                color = if (enabled) appColors.secondaryText else appColors.mutedText,
+                fontSize = 11.sp,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier
+                    .weight(0.45f, fill = false)
+                    .padding(start = 10.dp),
+            )
+        }
+        Icon(
+            imageVector = DesktopNavigationIcons.ChevronRight,
+            contentDescription = null,
+            tint = if (enabled) appColors.secondaryText else appColors.mutedText,
+            modifier = Modifier.size(18.dp),
+        )
+    }
+}
+
+@Composable
+private fun DesktopInlineToggleRow(
+    appColors: DesktopAppColors,
+    checked: Boolean,
+    enabled: Boolean,
+    label: String,
+    onCheckedChange: (Boolean) -> Unit,
+) {
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(enabled = enabled) { onCheckedChange(!checked) }
+            .padding(vertical = 6.dp),
+    ) {
+        Text(
+            label,
+            color = if (enabled) appColors.primaryText else appColors.mutedText,
+            fontSize = 14.sp,
+            modifier = Modifier.weight(1f),
+        )
+        CompactSettingsSwitch(
+            checked = checked,
+            enabled = enabled,
+            appColors = appColors,
+            onClick = { onCheckedChange(!checked) },
+        )
+    }
+}
+
+@Composable
+private fun CompactSettingsSwitch(
+    checked: Boolean,
+    enabled: Boolean,
+    appColors: DesktopAppColors,
+    onClick: () -> Unit,
+) {
+    val trackColor = when {
+        !enabled -> appColors.border.copy(alpha = 0.28f)
+        checked -> appColors.accent
+        else -> appColors.background.copy(alpha = 0.92f)
+    }
+    val thumbColor = when {
+        !enabled -> appColors.mutedText.copy(alpha = 0.62f)
+        checked -> appColors.primaryText
+        else -> appColors.secondaryText
+    }
+    Box(
+        modifier = Modifier
+            .width(34.dp)
+            .height(18.dp)
+            .background(trackColor, RoundedCornerShape(999.dp))
+            .border(1.dp, appColors.border.copy(alpha = if (checked) 0.22f else 0.72f), RoundedCornerShape(999.dp))
+            .clickable(enabled = enabled, onClick = onClick)
+            .padding(2.dp),
+    ) {
+        Box(
+            modifier = Modifier
+                .size(14.dp)
+                .align(if (checked) Alignment.CenterEnd else Alignment.CenterStart)
+                .background(thumbColor, RoundedCornerShape(999.dp)),
+        )
     }
 }
 
@@ -1005,26 +1147,34 @@ private fun LocalDataSettings(
         fontSize = 12.sp,
     )
     Column(verticalArrangement = Arrangement.spacedBy(4.dp), modifier = Modifier.fillMaxWidth()) {
-        TextButton(
-            onClick = onClearCache,
-            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 3.dp),
-            modifier = Modifier.height(30.dp).fillMaxWidth(),
-        ) { Text("Clear cache", fontSize = 12.sp) }
-        TextButton(
-            onClick = onClearLibrary,
-            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 3.dp),
-            modifier = Modifier.height(30.dp).fillMaxWidth(),
-        ) { Text("Clear library index", fontSize = 12.sp) }
-        TextButton(
-            onClick = onRefreshLibrary,
-            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 3.dp),
-            modifier = Modifier.height(30.dp).fillMaxWidth(),
-        ) { Text("Refresh library", fontSize = 12.sp) }
-        TextButton(
-            onClick = onResetDatabase,
-            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 3.dp),
-            modifier = Modifier.height(30.dp).fillMaxWidth(),
-        ) { Text("Reset database", fontSize = 12.sp) }
+        LocalDataActionRow("Clear cache", appColors, onClearCache)
+        LocalDataActionRow("Clear library index", appColors, onClearLibrary)
+        LocalDataActionRow("Refresh library", appColors, onRefreshLibrary)
+        LocalDataActionRow("Reset database", appColors, onResetDatabase)
+    }
+}
+
+@Composable
+private fun LocalDataActionRow(
+    label: String,
+    appColors: DesktopAppColors,
+    onClick: () -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(vertical = 4.dp),
+        horizontalArrangement = Arrangement.Start,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            label,
+            color = appColors.primaryText,
+            fontSize = 12.sp,
+            textAlign = TextAlign.Start,
+            modifier = Modifier.fillMaxWidth(),
+        )
     }
 }
 
@@ -1538,6 +1688,7 @@ private data class AudioCacheBudgetOption(
     val bytes: Long,
 )
 
+private val DesktopSettingsRowHorizontalPadding = 14.dp
 private val PrefetchDepthOptions = listOf(0, 3, 5, 10, 15, 25)
 
 private val WaveformBucketCountOptions = listOf(
