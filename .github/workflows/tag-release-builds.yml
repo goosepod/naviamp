@@ -85,7 +85,7 @@ jobs:
         uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: "17"
+          java-version: "21"
 
       - name: Install WiX Toolset
         shell: powershell
@@ -130,7 +130,7 @@ jobs:
         uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: "17"
+          java-version: "21"
 
       - name: Build macOS standalone zip and DMG
         run: ./gradlew $GRADLE_COMMON -Pnaviamp.bass.platform=macos-arm64 -Pcompose.desktop.packaging.checkJdkVendor=false :apps:desktop:packageReleaseDistributable :apps:desktop:packageReleaseDistributionForCurrentOS
@@ -156,7 +156,7 @@ jobs:
         uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: "17"
+          java-version: "21"
 
       - name: Install Linux packaging tools
         run: sudo apt-get update && sudo apt-get install -y fakeroot rpm
