@@ -9,6 +9,7 @@ import app.naviamp.domain.source.SavedMediaSource
 
 data class SettingsSyncLocalSnapshot(
     val serverProfiles: List<SavedMediaSource> = emptyList(),
+    val interfaceSettings: InterfaceSettings = InterfaceSettings(),
     val playback: PlaybackSettings = PlaybackSettings(),
     val visualizer: VisualizerSettings = VisualizerSettings(),
     val recentRadioStreams: List<RecentRadioStream> = emptyList(),
@@ -30,6 +31,7 @@ fun buildSettingsSyncDocument(
         lastWriterDeviceId = deviceId,
         serverProfiles = snapshot.serverProfiles.map { it.toSettingsSyncServerProfile() },
         preferences = SettingsSyncPreferences(
+            interfaceSettings = snapshot.interfaceSettings,
             playback = snapshot.playback.withoutDeviceLocalSettings(),
             visualizer = snapshot.visualizer,
             recentRadioStreams = snapshot.recentRadioStreams,

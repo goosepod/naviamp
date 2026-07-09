@@ -2,6 +2,7 @@ package app.naviamp.desktop.settings
 
 import app.naviamp.domain.source.ConnectionHeaderDefinition
 import app.naviamp.domain.source.ConnectionSecondaryUrl
+import app.naviamp.domain.settings.InterfaceSettings
 import app.naviamp.provider.navidrome.NavidromeConnection
 import app.naviamp.domain.cache.PlaybackSessionRepository
 import app.naviamp.provider.navidrome.NavidromeTlsSettings
@@ -54,6 +55,13 @@ class DesktopSettingsStore(
 
     fun loadPlaybackSettings(): PlaybackSettings =
         loadSettings().playback
+
+    fun loadInterfaceSettings(): InterfaceSettings =
+        loadSettings().interfaceSettings.normalized()
+
+    fun saveInterfaceSettings(interfaceSettings: InterfaceSettings) {
+        saveSettings(loadSettings().copy(interfaceSettings = interfaceSettings.normalized()))
+    }
 
     fun savePlaybackSettings(playbackSettings: PlaybackSettings) {
         saveSettings(loadSettings().copy(playback = playbackSettings))
@@ -162,6 +170,7 @@ class DesktopSettingsStore(
 @Serializable
 data class DesktopSettings(
     val connection: SavedConnection? = null,
+    val interfaceSettings: InterfaceSettings = InterfaceSettings(),
     val playback: PlaybackSettings = PlaybackSettings(),
     val visualizer: VisualizerSettings = VisualizerSettings(),
     val cache: CacheSettings = CacheSettings(),
@@ -252,6 +261,7 @@ private fun String.looksLikeDesktopSettings(): Boolean =
     runCatching {
         val keys = Json.parseToJsonElement(this).jsonObject.keys
             "connection" in keys ||
+            "interfaceSettings" in keys ||
             "playback" in keys ||
             "visualizer" in keys ||
             "cache" in keys ||

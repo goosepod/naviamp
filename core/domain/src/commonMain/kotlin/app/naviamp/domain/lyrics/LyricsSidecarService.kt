@@ -8,8 +8,9 @@ import app.naviamp.domain.cache.LyricsSidecarRepository
 import app.naviamp.domain.playback.PlaybackAudioAssetRepository
 import app.naviamp.domain.playback.PlaybackLocalAudio
 import app.naviamp.domain.playback.resolvePlaybackAudioSource
-import app.naviamp.domain.playback.shouldLoadOnlineLyrics
 import app.naviamp.domain.provider.MediaProvider
+import app.naviamp.domain.settings.LyricsSourcePreference
+import app.naviamp.domain.settings.normalizedLyricsSearchOrder
 
 data class LyricsSidecarResult(
     val lyrics: Lyrics?,
@@ -62,48 +63,64 @@ class LyricsSidecarService(
         quality: StreamQuality,
         audioCachingEnabled: Boolean,
         onlineLyricsEnabled: Boolean,
+        preferSyncedLyrics: Boolean = false,
+        searchOrder: List<LyricsSourcePreference> = emptyList(),
     ): LyricsSidecarResult {
-        val providerLyrics = providerLyrics(sourceId, provider, track)
-        val localAudio = if (providerLyrics == null) {
-            localAudio(sourceId, track, quality, audioCachingEnabled)
-        } else {
-            null
-        }
-        val embeddedLyrics = if (providerLyrics == null) {
-            val tags = audioMetadataSidecarService.audioTags(localAudio)
-            audioMetadataSidecarService.embeddedLyrics(tags).also { lyrics ->
-                if (sourceId != null && lyrics != null) {
-                    lyricsRepository.cacheEmbeddedLyrics(sourceId, track.id, lyrics)
+        var loadedProviderLyrics: Lyrics? = null
+        var loadedEmbeddedLyrics: Lyrics? = null
+        var loadedOnlineLyrics: Lyrics? = null
+        var localAudio: PlaybackLocalAudio? = null
+        var firstLyrics: Lyrics? = null
+
+        suspend fun loadSource(source: LyricsSourcePreference): Lyrics? =
+            when (source) {
+                LyricsSourcePreference.Provider -> loadedProviderLyrics ?: providerLyrics(sourceId, provider, track).also {
+                    loadedProviderLyrics = it
+                }
+                LyricsSourcePreference.Embedded -> loadedEmbeddedLyrics ?: run {
+                    localAudio = localAudio ?: localAudio(sourceId, track, quality, audioCachingEnabled)
+                    val tags = audioMetadataSidecarService.audioTags(localAudio)
+                    audioMetadataSidecarService.embeddedLyrics(tags).also { lyrics ->
+                        if (sourceId != null && lyrics != null) {
+                            lyricsRepository.cacheEmbeddedLyrics(sourceId, track.id, lyrics)
+                        }
+                        loadedEmbeddedLyrics = lyrics
+                    }
+                }
+                LyricsSourcePreference.Download -> {
+                    if (!onlineLyricsEnabled || sourceId == null) {
+                        null
+                    } else {
+                        loadedOnlineLyrics ?: runCatching { onlineLyrics(sourceId, track) }
+                            .getOrElse { error ->
+                                if (firstLyrics != null) null else throw error
+                            }
+                            .also { loadedOnlineLyrics = it }
+                    }
                 }
             }
-        } else {
-            null
-        }
-        val onlineLyrics = if (
-            sourceId != null &&
-            shouldLoadOnlineLyrics(
-                onlineLyricsEnabled = onlineLyricsEnabled,
-                providerLyrics = providerLyrics,
-                embeddedLyrics = embeddedLyrics,
-            )
-        ) {
-            runCatching { onlineLyrics(sourceId, track) }
-                .getOrElse { error ->
-                    if (providerLyrics != null || embeddedLyrics != null) null else throw error
-                }
-        } else {
-            null
+
+        val activeSearchOrder = searchOrder.normalizedLyricsSearchOrder()
+            .filter { source -> onlineLyricsEnabled || source != LyricsSourcePreference.Download }
+        for (source in activeSearchOrder) {
+            val lyrics = loadSource(source) ?: continue
+            if (firstLyrics == null) firstLyrics = lyrics
+            if (!preferSyncedLyrics || lyrics.synced || lyrics.hasTimedLines || lyrics.hasKaraokeCues) {
+                return LyricsSidecarResult(
+                    lyrics = lyrics,
+                    providerLyrics = loadedProviderLyrics,
+                    embeddedLyrics = loadedEmbeddedLyrics,
+                    onlineLyrics = loadedOnlineLyrics,
+                    localAudio = localAudio,
+                )
+            }
         }
 
         return LyricsSidecarResult(
-            lyrics = selectPreferredLyrics(
-                providerLyrics = providerLyrics,
-                embeddedLyrics = embeddedLyrics,
-                onlineLyrics = onlineLyrics,
-            ),
-            providerLyrics = providerLyrics,
-            embeddedLyrics = embeddedLyrics,
-            onlineLyrics = onlineLyrics,
+            lyrics = firstLyrics,
+            providerLyrics = loadedProviderLyrics,
+            embeddedLyrics = loadedEmbeddedLyrics,
+            onlineLyrics = loadedOnlineLyrics,
             localAudio = localAudio,
         )
     }

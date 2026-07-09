@@ -55,6 +55,8 @@ internal class AndroidNowPlayingSidecarController(
                         quality = quality,
                         audioCachingEnabled = true,
                         onlineLyricsEnabled = state.playbackSettings.lrclibLyricsEnabled,
+                        preferSyncedLyrics = state.playbackSettings.preferSyncedLyrics,
+                        searchOrder = state.playbackSettings.lyricsSearchOrder,
                     ).lyrics?.let { lyrics -> lyricsOffsetController.withSavedOffset(sourceId, track, lyrics) }
                 }
             }

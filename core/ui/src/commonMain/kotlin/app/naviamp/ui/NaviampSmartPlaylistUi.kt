@@ -29,6 +29,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -36,6 +37,8 @@ import app.naviamp.domain.smartplaylist.SmartPlaylistConditionDraft
 import app.naviamp.domain.smartplaylist.SmartPlaylistDefinition
 import app.naviamp.domain.smartplaylist.SmartPlaylistDraft
 import app.naviamp.domain.smartplaylist.SmartPlaylistFieldCatalog
+import app.naviamp.domain.smartplaylist.SmartPlaylistFieldOption
+import app.naviamp.domain.smartplaylist.SmartPlaylistFields
 import app.naviamp.domain.smartplaylist.SmartPlaylistGroupDraft
 import app.naviamp.domain.smartplaylist.SmartPlaylistLimitMode
 import app.naviamp.domain.smartplaylist.SmartPlaylistMatch
@@ -46,6 +49,7 @@ import app.naviamp.domain.smartplaylist.SmartPlaylistValueType
 import app.naviamp.domain.smartplaylist.displayLabel
 import app.naviamp.domain.smartplaylist.updated
 import app.naviamp.domain.smartplaylist.valueLabel
+import androidx.compose.ui.window.PopupProperties
 import kotlinx.coroutines.launch
 
 @Composable
@@ -56,6 +60,7 @@ fun SmartPlaylistBuilderDialog(
     saveLabel: String = "Save",
     onDismissRequest: () -> Unit,
     onSave: suspend (SmartPlaylistDefinition) -> Unit,
+    onSaveWithPassword: (suspend (SmartPlaylistDefinition, String) -> Unit)? = null,
 ) {
     var draft by remember(initialDraft) { mutableStateOf(initialDraft) }
     var importJson by remember { mutableStateOf("") }
@@ -63,6 +68,10 @@ fun SmartPlaylistBuilderDialog(
     var importOpen by remember { mutableStateOf(false) }
     var saving by remember { mutableStateOf(false) }
     var saveMessage by remember { mutableStateOf<String?>(null) }
+    var passwordPromptOpen by remember { mutableStateOf(false) }
+    var password by remember { mutableStateOf("") }
+    var passwordSaving by remember { mutableStateOf(false) }
+    var pendingPasswordDefinition by remember { mutableStateOf<SmartPlaylistDefinition?>(null) }
     val coroutineScope = rememberCoroutineScope()
     val definition = remember(draft) {
         runCatching { draft.toDefinition() }
@@ -206,7 +215,14 @@ fun SmartPlaylistBuilderDialog(
                             onDismissRequest()
                         }.onFailure { error ->
                             saving = false
-                            saveMessage = error.message ?: "Could not save smart playlist."
+                            if (onSaveWithPassword != null && error.requiresSmartPlaylistPassword()) {
+                                pendingPasswordDefinition = smartPlaylist
+                                password = ""
+                                passwordPromptOpen = true
+                                saveMessage = "Enter your Navidrome password to enable smart playlist saving."
+                            } else {
+                                saveMessage = error.message ?: "Could not save smart playlist."
+                            }
                         }
                     }
                 },
@@ -223,6 +239,78 @@ fun SmartPlaylistBuilderDialog(
         titleContentColor = colors.primaryText,
         textContentColor = colors.secondaryText,
     )
+    if (passwordPromptOpen) {
+        val pendingDefinition = pendingPasswordDefinition
+        AlertDialog(
+            onDismissRequest = {
+                if (!passwordSaving) {
+                    passwordPromptOpen = false
+                    pendingPasswordDefinition = null
+                    password = ""
+                }
+            },
+            title = { Text("Navidrome password") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        "Smart playlist changes need a Navidrome API token. Enter your password once and Naviamp will save the token for future edits.",
+                        color = colors.secondaryText,
+                        fontSize = 12.sp,
+                    )
+                    OutlinedTextField(
+                        value = password,
+                        onValueChange = { password = it },
+                        label = { Text("Password", color = colors.secondaryText) },
+                        singleLine = true,
+                        visualTransformation = PasswordVisualTransformation(),
+                        textStyle = TextStyle(fontSize = 13.sp),
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    enabled = pendingDefinition != null && password.isNotBlank() && !passwordSaving,
+                    onClick = {
+                        val definitionToSave = pendingDefinition ?: return@TextButton
+                        val passwordToUse = password
+                        passwordSaving = true
+                        coroutineScope.launch {
+                            runCatching {
+                                onSaveWithPassword?.invoke(definitionToSave, passwordToUse)
+                            }.onSuccess {
+                                passwordSaving = false
+                                passwordPromptOpen = false
+                                pendingPasswordDefinition = null
+                                password = ""
+                                onDismissRequest()
+                            }.onFailure { error ->
+                                passwordSaving = false
+                                saveMessage = error.message ?: "Could not authenticate with Navidrome."
+                            }
+                        }
+                    },
+                ) {
+                    Text(if (passwordSaving) "Saving..." else "Save")
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    enabled = !passwordSaving,
+                    onClick = {
+                        passwordPromptOpen = false
+                        pendingPasswordDefinition = null
+                        password = ""
+                    },
+                ) {
+                    Text("Cancel")
+                }
+            },
+            containerColor = colors.controlSurface,
+            titleContentColor = colors.primaryText,
+            textContentColor = colors.secondaryText,
+        )
+    }
 }
 
 @Composable
@@ -364,7 +452,9 @@ private fun SmartPlaylistCustomControls(
                     label = "Field",
                     value = sort.field.label,
                     colors = colors,
-                    options = SmartPlaylistFieldCatalog.sortableFields.map { it.label to it },
+                    options = SmartPlaylistFieldCatalog.sortableFields
+                        .smartPlaylistMenuOrder(CommonSmartPlaylistSortFields)
+                        .map { it.label to it },
                     onSelected = { field ->
                         onDraftChange(draft.copy(sort = draft.sort.updated(index, sort.copy(field = field))))
                     },
@@ -434,7 +524,9 @@ private fun SmartPlaylistRuleControls(
             label = "Field",
             value = condition.field.label,
             colors = colors,
-            options = SmartPlaylistFieldCatalog.fields.map { it.label to it },
+            options = SmartPlaylistFieldCatalog.fields
+                .smartPlaylistMenuOrder(CommonSmartPlaylistRuleFields)
+                .map { it.label to it },
             onSelected = { field ->
                 onConditionChange(condition.copy(field = field, operator = field.operators.first(), value = "", secondValue = ""))
             },
@@ -567,7 +659,6 @@ private fun <T> SmartPlaylistDropdown(
     val normalizedQuery = query.trim().takeUnless { it.equals(value, ignoreCase = true) }.orEmpty()
     val visibleOptions = options
         .filter { (optionLabel, _) -> normalizedQuery.isBlank() || optionLabel.contains(normalizedQuery, ignoreCase = true) }
-        .ifEmpty { options }
     Box(modifier = Modifier.fillMaxWidth()) {
         OutlinedTextField(
             value = if (expanded) query else value,
@@ -593,8 +684,16 @@ private fun <T> SmartPlaylistDropdown(
                 query = value
             },
             containerColor = colors.controlSurface,
+            properties = PopupProperties(focusable = false),
             modifier = Modifier.heightIn(max = 280.dp),
         ) {
+            if (visibleOptions.isEmpty()) {
+                DropdownMenuItem(
+                    text = { Text("No matches", color = colors.secondaryText) },
+                    onClick = {},
+                    enabled = false,
+                )
+            }
             visibleOptions.forEach { (optionLabel, optionValue) ->
                 DropdownMenuItem(
                     text = { Text(optionLabel, color = colors.primaryText) },
@@ -607,4 +706,47 @@ private fun <T> SmartPlaylistDropdown(
             }
         }
     }
+}
+
+private val CommonSmartPlaylistRuleFields = listOf(
+    SmartPlaylistFields.Loved,
+    SmartPlaylistFields.DateLoved,
+    SmartPlaylistFields.Rating,
+    SmartPlaylistFields.DateRated,
+    SmartPlaylistFields.LastPlayed,
+    SmartPlaylistFields.PlayCount,
+    SmartPlaylistFields.DateAdded,
+    SmartPlaylistFields.Artist,
+    SmartPlaylistFields.Album,
+    SmartPlaylistFields.Title,
+    SmartPlaylistFields.Genre,
+    SmartPlaylistFields.Year,
+)
+
+private val CommonSmartPlaylistSortFields = listOf(
+    SmartPlaylistFields.DateLoved,
+    SmartPlaylistFields.LastPlayed,
+    SmartPlaylistFields.DateAdded,
+    SmartPlaylistFields.Rating,
+    SmartPlaylistFields.PlayCount,
+    SmartPlaylistFields.Artist,
+    SmartPlaylistFields.Album,
+    SmartPlaylistFields.Title,
+    SmartPlaylistFields.Genre,
+    SmartPlaylistFields.Year,
+    SmartPlaylistFields.Random,
+)
+
+private fun List<SmartPlaylistFieldOption>.smartPlaylistMenuOrder(commonFields: List<String>): List<SmartPlaylistFieldOption> =
+    sortedWith(
+        compareBy<SmartPlaylistFieldOption> { option ->
+            val index = commonFields.indexOf(option.field)
+            if (index == -1) Int.MAX_VALUE else index
+        }.thenBy { option -> option.label.lowercase() },
+    )
+
+private fun Throwable.requiresSmartPlaylistPassword(): Boolean {
+    val message = message.orEmpty()
+    return message.contains("password", ignoreCase = true) &&
+        message.contains("smart playlist", ignoreCase = true)
 }

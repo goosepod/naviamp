@@ -46,6 +46,7 @@ import app.naviamp.domain.InternetRadioStation
 import app.naviamp.domain.settings.ConnectionFormHeader
 import app.naviamp.domain.settings.ConnectionFormMusicFolder
 import app.naviamp.domain.settings.ConnectionFormSecondaryUrl
+import app.naviamp.domain.settings.InterfaceSettings
 import app.naviamp.domain.settings.toggleSelectedMusicFolderId
 import app.naviamp.domain.smartplaylist.SmartPlaylistDefinition
 
@@ -79,6 +80,7 @@ fun NaviampSharedAppShell(
     editingConnection: Boolean,
     restoringConnection: Boolean = false,
     connectionForm: ConnectionFormState,
+    interfaceSettings: InterfaceSettings = InterfaceSettings(),
     playbackSettings: PlaybackSettings = PlaybackSettings(),
     cacheSettings: CacheSettings = CacheSettings(),
     diagnostics: NaviampDiagnosticsUi = NaviampDiagnosticsUi(),
@@ -144,6 +146,7 @@ fun NaviampSharedAppShell(
     settingsSyncAutoExportEnabled: Boolean = false,
     onSettingsSyncAutoExportChanged: ((Boolean) -> Unit)? = null,
     onCancelEditConnection: () -> Unit,
+    onInterfaceSettingsChanged: (InterfaceSettings) -> Unit = {},
     onPlaybackSettingsChanged: (PlaybackSettings) -> Unit = {},
     onPlaybackSettingsChangedAndRedownload: (PlaybackSettings) -> Unit = onPlaybackSettingsChanged,
     onCacheSettingsChanged: (CacheSettings) -> Unit = {},
@@ -278,6 +281,12 @@ fun NaviampSharedAppShell(
     },
     onSmartPlaylistSave: suspend (SmartPlaylistDefinition) -> Unit = {},
     onSmartPlaylistUpdate: suspend (SharedMediaItemUi, SmartPlaylistDefinition) -> Unit = { _, _ -> },
+    onSmartPlaylistSaveWithPassword: suspend (SmartPlaylistDefinition, String) -> Unit = { definition, _ ->
+        onSmartPlaylistSave(definition)
+    },
+    onSmartPlaylistUpdateWithPassword: suspend (SharedMediaItemUi, SmartPlaylistDefinition, String) -> Unit = { playlist, definition, _ ->
+        onSmartPlaylistUpdate(playlist, definition)
+    },
     onSmartPlaylistLoad: suspend (SharedMediaItemUi) -> SmartPlaylistDefinition = {
         throw UnsupportedOperationException("Smart playlist loading is not available.")
     },
@@ -450,6 +459,7 @@ fun NaviampSharedAppShell(
                             nowPlayingOpen = nowPlayingOpen,
                             visualizerBandsProvider = visualizerBandsProvider,
                             selectedVisualizer = selectedVisualizer,
+                            interfaceSettings = interfaceSettings,
                             playbackSettings = playbackSettings,
                             cacheSettings = cacheSettings,
                             diagnostics = diagnostics,
@@ -483,6 +493,7 @@ fun NaviampSharedAppShell(
                             onConnectionFormChanged = onConnectionFormChanged,
                             onConnect = onConnect,
                             onCancelEditConnection = onCancelEditConnection,
+                            onInterfaceSettingsChanged = onInterfaceSettingsChanged,
                             onPlaybackSettingsChanged = onPlaybackSettingsChanged,
                             onPlaybackSettingsChangedAndRedownload = onPlaybackSettingsChangedAndRedownload,
                             onCacheSettingsChanged = onCacheSettingsChanged,
@@ -584,6 +595,8 @@ fun NaviampSharedAppShell(
                             onMediaItemAction = onMediaItemAction,
                             onSmartPlaylistSave = onSmartPlaylistSave,
                             onSmartPlaylistUpdate = onSmartPlaylistUpdate,
+                            onSmartPlaylistSaveWithPassword = onSmartPlaylistSaveWithPassword,
+                            onSmartPlaylistUpdateWithPassword = onSmartPlaylistUpdateWithPassword,
                             onSmartPlaylistLoad = onSmartPlaylistLoad,
                             onPlaylistBack = onPlaylistBack,
                             onPlaylistTrackSelected = onPlaylistTrackSelected,
@@ -995,6 +1008,7 @@ private fun ConnectedContent(
     nowPlayingOpen: Boolean,
     visualizerBandsProvider: () -> List<Float>,
     selectedVisualizer: NaviampVisualizer,
+    interfaceSettings: InterfaceSettings,
     playbackSettings: PlaybackSettings,
     cacheSettings: CacheSettings,
     diagnostics: NaviampDiagnosticsUi,
@@ -1028,6 +1042,7 @@ private fun ConnectedContent(
     onConnectionFormChanged: (ConnectionFormState) -> Unit,
     onConnect: () -> Unit,
     onCancelEditConnection: () -> Unit,
+    onInterfaceSettingsChanged: (InterfaceSettings) -> Unit,
     onPlaybackSettingsChanged: (PlaybackSettings) -> Unit,
     onPlaybackSettingsChangedAndRedownload: (PlaybackSettings) -> Unit,
     onCacheSettingsChanged: (CacheSettings) -> Unit,
@@ -1126,6 +1141,8 @@ private fun ConnectedContent(
     onMediaItemAction: (SharedMediaItemActionRequest) -> Unit,
     onSmartPlaylistSave: suspend (SmartPlaylistDefinition) -> Unit,
     onSmartPlaylistUpdate: suspend (SharedMediaItemUi, SmartPlaylistDefinition) -> Unit,
+    onSmartPlaylistSaveWithPassword: suspend (SmartPlaylistDefinition, String) -> Unit,
+    onSmartPlaylistUpdateWithPassword: suspend (SharedMediaItemUi, SmartPlaylistDefinition, String) -> Unit,
     onSmartPlaylistLoad: suspend (SharedMediaItemUi) -> SmartPlaylistDefinition,
     onPlaylistBack: () -> Unit,
     onPlaylistTrackSelected: (SharedTrackRowUi) -> Unit,
@@ -1164,6 +1181,7 @@ private fun ConnectedContent(
         )
         selectedRoute == SharedRoute.Settings -> SettingsContent(
             colors = colors,
+            interfaceSettings = interfaceSettings,
             playbackSettings = playbackSettings,
             cacheSettings = cacheSettings,
             diagnostics = diagnostics,
@@ -1198,6 +1216,7 @@ private fun ConnectedContent(
             onConnectionFormChanged = onConnectionFormChanged,
             onConnect = onConnect,
             onCancelConnectionForm = onCancelEditConnection,
+            onInterfaceSettingsChanged = onInterfaceSettingsChanged,
             onPlaybackSettingsChanged = onPlaybackSettingsChanged,
             onPlaybackSettingsChangedAndRedownload = onPlaybackSettingsChangedAndRedownload,
             onCacheSettingsChanged = onCacheSettingsChanged,
@@ -1356,6 +1375,8 @@ private fun ConnectedContent(
                     onPlaylistAction = onMediaItemAction,
                     onSmartPlaylistSave = onSmartPlaylistSave,
                     onSmartPlaylistUpdate = onSmartPlaylistUpdate,
+                    onSmartPlaylistSaveWithPassword = onSmartPlaylistSaveWithPassword,
+                    onSmartPlaylistUpdateWithPassword = onSmartPlaylistUpdateWithPassword,
                     onSmartPlaylistLoad = onSmartPlaylistLoad,
                     playlistChoices = playlistChoices,
                 )
@@ -1669,7 +1690,9 @@ private fun AlbumDetailContent(
 
     Column(
         verticalArrangement = Arrangement.spacedBy(12.dp),
-        modifier = Modifier.fillMaxSize(),
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState()),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             IconButton(onClick = onBack, modifier = Modifier.size(36.dp)) {
@@ -1855,9 +1878,11 @@ private fun ArtistDetailContent(
 
     Column(
         verticalArrangement = Arrangement.spacedBy(12.dp),
-        modifier = Modifier.fillMaxSize(),
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState()),
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(verticalAlignment = Alignment.Top, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             IconButton(onClick = onBack, modifier = Modifier.size(36.dp)) {
                 Icon(NaviampIcons.Back, contentDescription = "Back", tint = colors.primaryText)
             }
@@ -1931,9 +1956,6 @@ private fun ArtistDetailContent(
         }
         Column(
             verticalArrangement = Arrangement.spacedBy(12.dp),
-            modifier = Modifier
-                .weight(1f)
-                .verticalScroll(rememberScrollState()),
         ) {
             if (similarArtistsVisible) {
                 Row(
@@ -2227,6 +2249,7 @@ private fun FullNowPlaying(
 @Composable
 private fun SettingsContent(
     colors: NaviampColors,
+    interfaceSettings: InterfaceSettings,
     playbackSettings: PlaybackSettings,
     cacheSettings: CacheSettings,
     diagnostics: NaviampDiagnosticsUi,
@@ -2261,6 +2284,7 @@ private fun SettingsContent(
     onConnectionFormChanged: (ConnectionFormState) -> Unit,
     onConnect: () -> Unit,
     onCancelConnectionForm: () -> Unit,
+    onInterfaceSettingsChanged: (InterfaceSettings) -> Unit,
     onPlaybackSettingsChanged: (PlaybackSettings) -> Unit,
     onPlaybackSettingsChangedAndRedownload: (PlaybackSettings) -> Unit,
     onCacheSettingsChanged: (CacheSettings) -> Unit,
@@ -2270,6 +2294,7 @@ private fun SettingsContent(
 ) {
     NaviampSharedSettingsContent(
         colors = colors,
+        interfaceSettings = interfaceSettings,
         playbackSettings = playbackSettings,
         cacheSettings = cacheSettings,
         diagnostics = diagnostics,
@@ -2304,6 +2329,7 @@ private fun SettingsContent(
         onConnectionFormChanged = onConnectionFormChanged,
         onConnect = onConnect,
         onCancelConnectionForm = onCancelConnectionForm,
+        onInterfaceSettingsChanged = onInterfaceSettingsChanged,
         onPlaybackSettingsChanged = onPlaybackSettingsChanged,
         onPlaybackSettingsChangedAndRedownload = onPlaybackSettingsChangedAndRedownload,
         onCacheSettingsChanged = onCacheSettingsChanged,

@@ -17,21 +17,18 @@ Keep implementation cross-platform by default: shared domain models, shared UI, 
 
 ### Focused Polish
 
-- [ ] Add audio output device selection.
-  - Default behavior should remain `Follow OS Output`, which uses the current system default output device.
-  - Users should be able to pin a specific available output, such as Mac built-in speakers, headphones, Windows internal speakers, HDMI audio, dock audio, or Linux Pulse/PipeWire sinks.
-  - If a pinned device is disconnected or unavailable, fall back to the OS default and make the unavailable state clear in settings.
-  - Persist the choice per device/app install rather than syncing it across machines, because output device IDs are OS-local.
-  - Implement through platform playback adapters; shared UI/settings can model the preference, but device enumeration and selection are platform-specific audio behavior.
 - [ ] Add interface language selection.
   - Default behavior should follow the system language.
   - Users should be able to choose a specific app interface language from Settings.
   - Persist the selected language as an app preference and make it eligible for settings sync once translation support exists.
   - Keep provider metadata, artist names, album names, track titles, and user-authored playlist names in their original language.
-- [ ] Add desktop update checking.
-  - Desktop app can manually check whether a newer Naviamp release is available.
-  - Keep the first pass simple: clear status for up-to-date, update available, and unable to check.
-  - Prefer a source that works with the eventual Forgejo release/tag flow.
+- [ ] Add desktop update checking and updater flow.
+  - First pass should manually check whether a newer Naviamp release is available.
+  - Use the Forgejo/GitHub tag release metadata and the current `VERSION` file as the source of truth.
+  - Show clear status for up-to-date, update available, downloading, ready to install, and unable to check.
+  - Start with download/open-installer behavior for native installers before attempting silent or in-place updates.
+  - Keep platform differences explicit: macOS DMG, Windows MSI/EXE, and Linux DEB/RPM/AppImage-style archive handling are different update paths.
+  - Require signed/notarized desktop artifacts before promoting automatic background installs as a normal user-facing behavior.
 - [ ] Add desktop installer options.
   - Keep the standard bundled-runtime installer as the reliable default.
   - Add a clearly named thin smart installer that can use a compatible installed Java runtime when available.
@@ -128,6 +125,11 @@ Keep implementation cross-platform by default: shared domain models, shared UI, 
 - [x] Add a 10-band equalizer.
   - Includes common presets and applies through the shared BASS/audio backend where possible.
   - EQ is global for this first version.
+- [x] Add audio output device selection.
+  - Desktop builds expose `Follow System Output` plus per-device routing.
+  - macOS enumerates playback devices and lets users pin a specific output while keeping the default system-output option available.
+  - Android keeps the setting hidden and continues to follow system output.
+  - The preference remains device-local because output device IDs are OS-local.
 
 ### Offline And History
 

@@ -57,6 +57,7 @@ import app.naviamp.domain.settings.ConnectionFormMusicFolder
 import app.naviamp.domain.settings.connectionFormMusicFolders
 import app.naviamp.domain.settings.defaultSelectedMusicFolderIds
 import app.naviamp.domain.settings.importSettingsSyncServerProfiles
+import app.naviamp.domain.settings.InterfaceSettings
 import app.naviamp.domain.settings.playbackSettingsChange
 import app.naviamp.domain.settings.restoredPlaybackQueue
 import app.naviamp.domain.settings.restoredTrackSession
@@ -135,6 +136,12 @@ fun NaviampApp(
     var cacheSettings by remember {
         mutableStateOf(settingsStore.loadCacheSettings().normalized())
     }
+    var interfaceSettings by remember {
+        mutableStateOf(settingsStore.loadInterfaceSettings().normalized())
+    }
+    var playbackSettings by remember {
+        mutableStateOf(savedPlaybackSettings.effectiveForEngine(playbackEngine))
+    }
     dependencies.waveformsEnabledProvider = { cacheSettings.waveformsEnabled }
     dependencies.waveformBucketCountProvider = { cacheSettings.normalized().waveformBucketCount }
     val playlistEngine = remember(dependencies) {
@@ -142,6 +149,7 @@ fun NaviampApp(
             sourceIdProvider = { connectedSourceId },
             audioCachingEnabledProvider = { cacheSettings.audioCachingEnabled },
             audioPrefetchDepthProvider = { cacheSettings.audioPrefetchDepth },
+            playbackSettingsProvider = { playbackSettings },
         )
     }
     val librarySync = remember(dependencies) { dependencies.librarySync() }
@@ -206,9 +214,6 @@ fun NaviampApp(
     }
     var sleepTimer by remember { mutableStateOf<SleepTimerState?>(null) }
     var sleepTimerNowEpochMillis by remember { mutableLongStateOf(System.currentTimeMillis()) }
-    var playbackSettings by remember {
-        mutableStateOf(savedPlaybackSettings.effectiveForEngine(playbackEngine))
-    }
     playlistEngine.setSonicAutoplayTracksProvider { queue ->
         val enabled = playbackSettings.sonicAutoplayEnabled &&
             connectedProvider?.capabilities?.supportsSonicSimilarity == true
@@ -349,6 +354,7 @@ fun NaviampApp(
         buildSettingsSyncDocument(
             snapshot = SettingsSyncLocalSnapshot(
                 serverProfiles = storage.mediaSources(),
+                interfaceSettings = interfaceSettings,
                 playback = playbackSettings,
                 visualizer = VisualizerSettings(
                     selectedVisualizer = nowPlayingPresentation.selectedVisualizer.name,
@@ -372,6 +378,8 @@ fun NaviampApp(
 
     fun applySettingsSyncDocument(document: SettingsSyncDocument) {
         val importedPlayback = document.preferences.playback.effectiveForEngine(playbackEngine)
+        interfaceSettings = document.preferences.interfaceSettings.normalized()
+        settingsStore.saveInterfaceSettings(interfaceSettings)
         storage.replaceRadioDjPresets(importedPlayback.radioDjs)
         playbackSettings = importedPlayback.copy(radioDjs = storage.radioDjPresets())
         settingsStore.savePlaybackSettings(playbackSettings.copy(radioDjs = emptyList()))
@@ -1532,6 +1540,7 @@ fun NaviampApp(
                             musicFoldersStatus = musicFoldersStatus,
                             savedMediaSources = savedMediaSources,
                             isConnecting = isConnecting,
+                            interfaceSettings = interfaceSettings,
                             playbackSettings = playbackSettings,
                             playbackEngine = playbackEngine,
                             supportsSonicSimilarity =
@@ -1550,6 +1559,11 @@ fun NaviampApp(
                             onSettingsSyncAutoExportChanged = ::updateSettingsSyncAutoExport,
                             onSettingsSyncExport = ::exportSettingsSync,
                             onSettingsSyncImport = ::importSettingsSync,
+                            onInterfaceSettingsChanged = { settings: InterfaceSettings ->
+                                interfaceSettings = settings.normalized()
+                                settingsStore.saveInterfaceSettings(interfaceSettings)
+                                markAndAutoExportSettingsSync()
+                            },
                             onPlaybackSettingsChanged = settingsMaintenanceController::applyPlaybackSettings,
                             onPlaybackSettingsChangedAndRedownload =
                                 settingsMaintenanceController::applyPlaybackSettingsAndRedownload,

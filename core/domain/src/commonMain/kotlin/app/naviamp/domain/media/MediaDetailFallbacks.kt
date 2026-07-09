@@ -120,6 +120,7 @@ suspend fun loadArtistDetails(
     sourceId: String?,
 ): ArtistDetails =
     runCatching {
+        providerResponseService.invalidateArtist(provider, artistId)
         providerResponseService.artist(provider, artistId)
             .withLocalAlbumsWhenEmpty(libraryIndexRepository, sourceId, artistId, fallbackName)
     }.recoverCatching { error ->

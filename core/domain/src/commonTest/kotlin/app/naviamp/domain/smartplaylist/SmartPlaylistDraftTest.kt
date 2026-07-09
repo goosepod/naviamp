@@ -188,6 +188,32 @@ class SmartPlaylistDraftTest {
     }
 
     @Test
+    fun catalogIncludesNavidrome063MissingPresentOperators() {
+        val fields = SmartPlaylistFieldCatalog.fields.associateBy { it.field }
+
+        val fieldsWithPresenceOperators = listOf(
+            SmartPlaylistFields.Title,
+            SmartPlaylistFields.Album,
+            SmartPlaylistFields.Comment,
+            SmartPlaylistFields.Lyrics,
+            SmartPlaylistFields.FilePath,
+            SmartPlaylistFields.Codec,
+            SmartPlaylistFields.Bpm,
+            SmartPlaylistFields.BitDepth,
+            SmartPlaylistFields.ReplayGainAlbumGain,
+            SmartPlaylistFields.ReplayGainAlbumPeak,
+            SmartPlaylistFields.ReplayGainTrackGain,
+            SmartPlaylistFields.ReplayGainTrackPeak,
+        )
+
+        fieldsWithPresenceOperators.forEach { field ->
+            val operators = requireNotNull(fields[field]) { "Missing smart playlist field $field" }.operators
+            assertEquals(true, SmartPlaylistOperator.IsMissing in operators, "$field should support isMissing")
+            assertEquals(true, SmartPlaylistOperator.IsPresent in operators, "$field should support isPresent")
+        }
+    }
+
+    @Test
     fun parsesLargeNumericFields() {
         val sizeField = SmartPlaylistFieldCatalog.fields.first { it.field == SmartPlaylistFields.Size }
         val condition = SmartPlaylistConditionDraft(
@@ -278,5 +304,43 @@ class SmartPlaylistDraftTest {
         assertEquals("mood", draft.conditions.single().field.field)
         assertEquals(SmartPlaylistOperator.IsMissing, draft.conditions.single().operator)
         assertEquals("true", draft.conditions.single().value)
+    }
+
+    @Test
+    fun importsNavidrome063MissingPresentRulesToEditableDraft() {
+        val definition = SmartPlaylistDefinition.fromNspJson(
+            """
+            {
+              "name": "Metadata Cleanup",
+              "all": [
+                { "isMissing": { "bpm": true } },
+                { "isPresent": { "bitdepth": true } },
+                { "isMissing": { "rgalbumgain": true } },
+                { "isPresent": { "lyrics": true } }
+              ]
+            }
+            """.trimIndent(),
+        )
+
+        val draft = SmartPlaylistDraft.fromDefinition(definition)
+
+        assertEquals(
+            listOf(
+                SmartPlaylistFields.Bpm,
+                SmartPlaylistFields.BitDepth,
+                SmartPlaylistFields.ReplayGainAlbumGain,
+                SmartPlaylistFields.Lyrics,
+            ),
+            draft.conditions.map { it.field.field },
+        )
+        assertEquals(
+            listOf(
+                SmartPlaylistOperator.IsMissing,
+                SmartPlaylistOperator.IsPresent,
+                SmartPlaylistOperator.IsMissing,
+                SmartPlaylistOperator.IsPresent,
+            ),
+            draft.conditions.map { it.operator },
+        )
     }
 }

@@ -348,6 +348,31 @@ object NaviampTransportIcons {
         }
     }.build()
 
+    val MoreVertical: ImageVector = ImageVector.Builder(
+        name = "MoreVertical",
+        defaultWidth = IconSize,
+        defaultHeight = IconSize,
+        viewportWidth = Viewport,
+        viewportHeight = Viewport,
+    ).apply {
+        path(
+            fill = SolidColor(Color.Black),
+        ) {
+            moveTo(12f, 8f)
+            arcToRelative(1.6f, 1.6f, 0f, false, false, 0f, -3.2f)
+            arcToRelative(1.6f, 1.6f, 0f, false, false, 0f, 3.2f)
+            close()
+            moveTo(12f, 13.6f)
+            arcToRelative(1.6f, 1.6f, 0f, false, false, 0f, -3.2f)
+            arcToRelative(1.6f, 1.6f, 0f, false, false, 0f, 3.2f)
+            close()
+            moveTo(12f, 19.2f)
+            arcToRelative(1.6f, 1.6f, 0f, false, false, 0f, -3.2f)
+            arcToRelative(1.6f, 1.6f, 0f, false, false, 0f, 3.2f)
+            close()
+        }
+    }.build()
+
     val Lyrics: ImageVector = ImageVector.Builder(
         name = "Lyrics",
         defaultWidth = IconSize,

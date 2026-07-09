@@ -122,8 +122,10 @@ fun NaviampAndroidApp(
         hydrated.effectiveForEngine(playbackEngine)
     }
     val savedCacheSettings = remember { settingsStore.loadCacheSettings() }
+    val savedInterfaceSettings = remember { settingsStore.loadInterfaceSettings() }
     val appState = rememberAndroidAppState(
         savedConnection = savedConnection,
+        savedInterfaceSettings = savedInterfaceSettings,
         savedPlaybackSettings = savedPlaybackSettings,
         savedCacheSettings = savedCacheSettings,
         canAutoConnect = canAutoConnect,
@@ -149,14 +151,14 @@ fun NaviampAndroidApp(
     }
     val popularTracksService = remember(dependencies) {
         dependencies.popularTracksService(
-            activeSourceIdProvider = { activeSourceId },
-            providerProvider = { provider },
+            activeSourceIdProvider = { appState.activeSourceId },
+            providerProvider = { appState.provider },
         )
     }
     val similarArtistsService = remember(dependencies) {
         dependencies.similarArtistsService(
-            activeSourceIdProvider = { activeSourceId },
-            providerProvider = { provider },
+            activeSourceIdProvider = { appState.activeSourceId },
+            providerProvider = { appState.provider },
         )
     }
     val mediaAppController = remember(appState, storage, popularTracksService) {
@@ -448,6 +450,7 @@ fun NaviampAndroidApp(
         buildSettingsSyncDocument(
             snapshot = SettingsSyncLocalSnapshot(
                 serverProfiles = storage.mediaSources(),
+                interfaceSettings = appState.interfaceSettings,
                 playback = appState.playbackSettings,
                 visualizer = VisualizerSettings(selectedVisualizer = appState.selectedVisualizer.name),
                 recentRadioStreams = settingsStore.loadRecentRadioStreams(),

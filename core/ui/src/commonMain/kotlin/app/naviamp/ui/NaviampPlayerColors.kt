@@ -45,17 +45,25 @@ data class NaviampPlayerColors(
             } else {
                 palette.secondary
             }
+            val artworkLift = maxOf(
+                palette.primary.hsvValue(),
+                palette.secondary.hsvValue(),
+                palette.accent.hsvValue(),
+            ).coerceIn(0f, 1f)
+            val lightArtwork = ((artworkLift - 0.42f) / 0.42f).coerceIn(0f, 1f)
             val left = palette.primary
-                .mix(Color.White, 0.03f)
-                .mix(Color.Black, 0.34f)
-                .mix(colors.background, 0.16f)
+                .mix(Color.White, 0.04f + lightArtwork * 0.04f)
+                .mix(Color.Black, 0.36f - lightArtwork * 0.14f)
+                .mix(colors.background, 0.14f)
             val middle = palette.accent
                 .mix(palette.primary, 0.28f)
-                .mix(Color.Black, 0.42f)
-                .mix(colors.background, 0.10f)
+                .mix(Color.White, lightArtwork * 0.05f)
+                .mix(Color.Black, 0.44f - lightArtwork * 0.18f)
+                .mix(colors.background, 0.08f)
             val right = secondary
-                .mix(Color.Black, 0.66f)
-                .mix(colors.background, 0.12f)
+                .mix(Color.White, lightArtwork * 0.03f)
+                .mix(Color.Black, 0.62f - lightArtwork * 0.20f)
+                .mix(colors.background, 0.10f)
             return NaviampPlayerColors(
                 backgroundStart = left,
                 backgroundMid = middle,
@@ -153,7 +161,7 @@ private class ColorBucket {
     }
 
     fun accentScore(primary: ColorBucket): Double =
-        score() * (1.0 + saturationAverage()) * (1.0 + colorDistance(primary))
+        score() * (1.0 + saturationAverage()) * (0.72 + brightnessAverage()) * (1.0 + colorDistance(primary))
 
     fun saturationAverage(): Float =
         (saturation / count).toFloat()
@@ -188,6 +196,9 @@ fun Color.shiftHue(amount: Float): Color {
         alpha = alpha,
     )
 }
+
+private fun Color.hsvValue(): Float =
+    rgbToHsv((red * 255).toInt(), (green * 255).toInt(), (blue * 255).toInt())[2]
 
 fun Color.hueDistance(other: Color): Float {
     val hsv = rgbToHsv((red * 255).toInt(), (green * 255).toInt(), (blue * 255).toInt())

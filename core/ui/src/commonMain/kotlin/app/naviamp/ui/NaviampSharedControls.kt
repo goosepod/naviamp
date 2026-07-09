@@ -1,5 +1,7 @@
 package app.naviamp.ui
 
+import app.naviamp.ui.generated.resources.Res
+import app.naviamp.ui.generated.resources.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -45,6 +47,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import org.jetbrains.compose.resources.stringResource
 
 @Composable
 internal fun NaviampTextField(
@@ -146,7 +149,7 @@ fun SharedTransportControls(
     ) {
         TransportIconButton(
             icon = NaviampTransportIcons.Shuffle,
-            contentDescription = "Shuffle",
+            contentDescription = stringResource(Res.string.transport_shuffle),
             colors = colors,
             onClick = onShuffle ?: {},
             enabled = onShuffle != null,
@@ -155,7 +158,7 @@ fun SharedTransportControls(
         )
         TransportIconButton(
             icon = NaviampTransportIcons.Previous,
-            contentDescription = "Previous",
+            contentDescription = stringResource(Res.string.transport_previous),
             colors = colors,
             onClick = onPrevious ?: {},
             enabled = onPrevious != null,
@@ -163,21 +166,25 @@ fun SharedTransportControls(
         )
         TransportIconButton(
             icon = if (isPlaying) NaviampTransportIcons.Pause else NaviampTransportIcons.Play,
-            contentDescription = if (isPlaying) "Pause" else "Play",
+            contentDescription = if (isPlaying) {
+                stringResource(Res.string.transport_pause)
+            } else {
+                stringResource(Res.string.transport_play)
+            },
             colors = colors,
             onClick = if (isPlaying) onPause else onResume,
             size = transportSize,
         )
         TransportIconButton(
             icon = NaviampTransportIcons.Stop,
-            contentDescription = "Stop",
+            contentDescription = stringResource(Res.string.transport_stop),
             colors = colors,
             onClick = onStop,
             size = sideSize,
         )
         TransportIconButton(
             icon = NaviampTransportIcons.Next,
-            contentDescription = "Next",
+            contentDescription = stringResource(Res.string.transport_next),
             colors = colors,
             onClick = onNext ?: {},
             enabled = onNext != null,
@@ -185,7 +192,7 @@ fun SharedTransportControls(
         )
         TransportIconButton(
             icon = NaviampTransportIcons.Repeat,
-            contentDescription = "Repeat",
+            contentDescription = stringResource(Res.string.transport_repeat),
             colors = colors,
             onClick = onRepeat ?: {},
             enabled = onRepeat != null,

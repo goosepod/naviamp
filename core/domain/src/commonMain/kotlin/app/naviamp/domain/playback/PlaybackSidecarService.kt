@@ -6,6 +6,7 @@ import app.naviamp.domain.Track
 import app.naviamp.domain.cache.SidecarStatusRepository
 import app.naviamp.domain.lyrics.LyricsSidecarService
 import app.naviamp.domain.provider.MediaProvider
+import app.naviamp.domain.settings.LyricsSourcePreference
 import app.naviamp.domain.waveform.AudioWaveform
 import app.naviamp.domain.waveform.AudioWaveformService
 
@@ -56,6 +57,8 @@ class PlaybackSidecarService(
         quality: StreamQuality,
         audioCachingEnabled: Boolean,
         onlineLyricsEnabled: Boolean,
+        preferSyncedLyrics: Boolean = false,
+        lyricsSearchOrder: List<LyricsSourcePreference> = emptyList(),
     ): Lyrics? {
         val lyrics = lyricsSidecarService.loadLyrics(
             sourceId = sourceId,
@@ -64,6 +67,8 @@ class PlaybackSidecarService(
             quality = quality,
             audioCachingEnabled = audioCachingEnabled,
             onlineLyricsEnabled = onlineLyricsEnabled,
+            preferSyncedLyrics = preferSyncedLyrics,
+            searchOrder = lyricsSearchOrder,
         ).lyrics
         if (sourceId != null) {
             sidecarStatusRepository.recordSidecarSuccess(
@@ -83,6 +88,8 @@ class PlaybackSidecarService(
         quality: StreamQuality,
         audioCachingEnabled: Boolean,
         onlineLyricsEnabled: Boolean,
+        preferSyncedLyrics: Boolean = false,
+        lyricsSearchOrder: List<LyricsSourcePreference> = emptyList(),
         includeLyrics: Boolean,
     ): PlaybackSidecarPrepResult {
         var waveform: AudioWaveform? = null
@@ -122,6 +129,8 @@ class PlaybackSidecarService(
                     quality = quality,
                     audioCachingEnabled = audioCachingEnabled,
                     onlineLyricsEnabled = onlineLyricsEnabled,
+                    preferSyncedLyrics = preferSyncedLyrics,
+                    lyricsSearchOrder = lyricsSearchOrder,
                 )
             }
         }

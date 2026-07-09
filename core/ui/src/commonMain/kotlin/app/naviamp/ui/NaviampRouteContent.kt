@@ -36,6 +36,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import app.naviamp.ui.generated.resources.Res
+import app.naviamp.ui.generated.resources.*
+import org.jetbrains.compose.resources.stringResource
 
 @Composable
 fun SharedHome(
@@ -53,13 +56,13 @@ fun SharedHome(
     onAlbumFavoriteToggled: (SharedMediaItemUi) -> Unit = {},
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        Text("Music", color = colors.primaryText, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+        Text(stringResource(Res.string.home_music_title), color = colors.primaryText, fontSize = 20.sp, fontWeight = FontWeight.Bold)
         if (home.isEmpty) {
-            PlaceholderTile("Home sections will appear after connection.", colors)
+            PlaceholderTile(stringResource(Res.string.home_empty), colors)
         }
         if (home.mixAlbums.isNotEmpty()) {
             Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                SectionHeader("MIXES FOR YOU", colors)
+                SectionHeader(stringResource(Res.string.home_mixes_for_you), colors)
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     modifier = Modifier.horizontalScroll(rememberScrollState()),
@@ -71,17 +74,17 @@ fun SharedHome(
             }
         }
         HomeSection(
-            title = "Recently Played Radio",
+            title = stringResource(Res.string.home_recently_played_radio),
             items = home.recentRadioStreams,
             colors = colors,
             onItemSelected = onRecentRadioSelected,
-            emptyText = "Start a radio station to build this list.",
+            emptyText = stringResource(Res.string.home_recent_radio_empty),
         )
         RecentPlayedSection(home.recentlyPlayedTracks, colors, onRecentlyPlayedTrackAction)
         MixBuilderSection(home.mixBuilders, colors, onMixBuilderSelected)
         SonicDiscoverySection(home.sonicDiscoveryRows, colors, onSonicDiscoveryTrackAction)
         HomeSection(
-            "Recently Added In Music",
+            stringResource(Res.string.home_recently_added_music),
             home.recentlyAddedAlbums,
             colors,
             onAlbumSelected,
@@ -89,27 +92,27 @@ fun SharedHome(
             SharedMediaItemKind.Album,
         )
         HomeSection(
-            "Recent Playlists",
+            stringResource(Res.string.home_recent_playlists),
             home.playlists,
             colors,
             onPlaylistSelected,
             itemKind = SharedMediaItemKind.Playlist,
         )
         HomeSection(
-            "Recent Internet Radio",
+            stringResource(Res.string.home_recent_internet_radio),
             home.radioStations,
             colors,
             onInternetRadioStationSelected,
             itemKind = SharedMediaItemKind.RadioStation,
         )
         HomeStationSection(home.stations, colors, onHomeStationSelected)
-        HomeSection("Recent Albums", home.recentAlbums, colors, onAlbumSelected, onAlbumFavoriteToggled, SharedMediaItemKind.Album)
-        HomeSection("Frequently Played Albums", home.frequentAlbums, colors, onAlbumSelected, onAlbumFavoriteToggled, SharedMediaItemKind.Album)
-        HomeSection("Random Albums", home.randomAlbums, colors, onAlbumSelected, onAlbumFavoriteToggled, SharedMediaItemKind.Album)
+        HomeSection(stringResource(Res.string.home_recent_albums), home.recentAlbums, colors, onAlbumSelected, onAlbumFavoriteToggled, SharedMediaItemKind.Album)
+        HomeSection(stringResource(Res.string.home_frequently_played_albums), home.frequentAlbums, colors, onAlbumSelected, onAlbumFavoriteToggled, SharedMediaItemKind.Album)
+        HomeSection(stringResource(Res.string.home_random_albums), home.randomAlbums, colors, onAlbumSelected, onAlbumFavoriteToggled, SharedMediaItemKind.Album)
         home.genreSpotlightTitle?.let { title ->
-            HomeSection("More In $title", home.genreSpotlightAlbums, colors, onAlbumSelected, onAlbumFavoriteToggled, SharedMediaItemKind.Album)
+            HomeSection(stringResource(Res.string.home_more_in, title), home.genreSpotlightAlbums, colors, onAlbumSelected, onAlbumFavoriteToggled, SharedMediaItemKind.Album)
         }
-        HomeSection("From ${home.decadeLabel}", home.decadeAlbums, colors, onAlbumSelected, onAlbumFavoriteToggled, SharedMediaItemKind.Album)
+        HomeSection(stringResource(Res.string.home_from_decade, home.decadeLabel), home.decadeAlbums, colors, onAlbumSelected, onAlbumFavoriteToggled, SharedMediaItemKind.Album)
     }
 }
 
@@ -121,7 +124,7 @@ private fun RecentPlayedSection(
 ) {
     if (tracks.isEmpty()) return
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        SectionHeader("RECENTLY PLAYED", colors)
+        SectionHeader(stringResource(Res.string.home_recently_played), colors)
         tracks.take(8).forEach { track ->
             TrackRow(
                 track = track,
@@ -319,7 +322,7 @@ internal fun SearchContent(
         verticalArrangement = Arrangement.spacedBy(12.dp),
         modifier = Modifier.fillMaxSize(),
     ) {
-        Text("Search", color = colors.primaryText, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+        Text(stringResource(Res.string.search_title), color = colors.primaryText, fontSize = 20.sp, fontWeight = FontWeight.Bold)
         Row(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = Alignment.CenterVertically,
@@ -328,7 +331,7 @@ internal fun SearchContent(
             NaviampTextField(
                 value = query,
                 onValueChange = onQueryChanged,
-                label = "Search tracks",
+                label = stringResource(Res.string.search_tracks_label),
                 colors = colors,
                 modifier = Modifier.weight(1f).focusRequester(searchFocusRequester),
             )
@@ -339,17 +342,17 @@ internal fun SearchContent(
                         searchFocusRequester.requestFocus()
                     },
                 ) {
-                    Icon(NaviampIcons.Close, contentDescription = "Clear search", tint = colors.secondaryText)
+                    Icon(NaviampIcons.Close, contentDescription = stringResource(Res.string.search_clear), tint = colors.secondaryText)
                 }
             }
         }
         if (query.isNotBlank() && results.isEmpty) {
-            Text("No matches found.", color = colors.secondaryText, fontSize = 12.sp)
+            Text(stringResource(Res.string.search_no_matches), color = colors.secondaryText, fontSize = 12.sp)
         }
-        MediaSection("Artists", results.artists, colors, onArtistSelected, onArtistFavoriteToggled, SharedMediaItemKind.Artist)
-        MediaSection("Albums", results.albums, colors, onAlbumSelected, onAlbumFavoriteToggled, SharedMediaItemKind.Album)
+        MediaSection(stringResource(Res.string.search_artists), results.artists, colors, onArtistSelected, onArtistFavoriteToggled, SharedMediaItemKind.Artist)
+        MediaSection(stringResource(Res.string.search_albums), results.albums, colors, onAlbumSelected, onAlbumFavoriteToggled, SharedMediaItemKind.Album)
         if (results.tracks.isNotEmpty()) {
-            SectionHeader("TRACKS", colors)
+            SectionHeader(stringResource(Res.string.search_tracks_section), colors)
             results.tracks.forEach { track ->
                 TrackRow(
                     track,
@@ -427,7 +430,7 @@ internal fun LibraryContent(
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         item {
-            Text("Library", color = colors.primaryText, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+            Text(stringResource(Res.string.library_title), color = colors.primaryText, fontSize = 20.sp, fontWeight = FontWeight.Bold)
         }
         item {
             Row(
@@ -438,7 +441,7 @@ internal fun LibraryContent(
                 NaviampTextField(
                     value = query,
                     onValueChange = onQueryChanged,
-                    label = "Search library artists",
+                    label = stringResource(Res.string.library_search_artists),
                     colors = colors,
                     modifier = Modifier.weight(1f).focusRequester(searchFocusRequester),
                 )
@@ -449,7 +452,7 @@ internal fun LibraryContent(
                             searchFocusRequester.requestFocus()
                         },
                     ) {
-                        Icon(NaviampIcons.Close, contentDescription = "Clear library search", tint = colors.secondaryText)
+                        Icon(NaviampIcons.Close, contentDescription = stringResource(Res.string.library_clear_search), tint = colors.secondaryText)
                     }
                 }
             }
@@ -472,7 +475,10 @@ internal fun LibraryContent(
                             enabled = !syncStatus.isSyncing,
                             onClick = onRefreshLibrary,
                         ) {
-                            Text(if (syncStatus.isSyncing) "Refreshing..." else "Refresh", fontSize = 12.sp)
+                            Text(
+                                if (syncStatus.isSyncing) stringResource(Res.string.library_refreshing) else stringResource(Res.string.library_refresh),
+                                fontSize = 12.sp,
+                            )
                         }
                     }
                 }
@@ -481,7 +487,7 @@ internal fun LibraryContent(
         if (filteredItems.isEmpty()) {
             item {
                 Text(
-                    if (query.isBlank()) "No library artists found." else "No library artists match.",
+                    if (query.isBlank()) stringResource(Res.string.library_no_artists) else stringResource(Res.string.library_no_artist_matches),
                     color = colors.secondaryText,
                     fontSize = 13.sp,
                 )
@@ -540,14 +546,23 @@ internal fun DownloadsContent(
     ) {
         item {
             Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                Text("Offline Mode", color = colors.primaryText, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                Text(stringResource(Res.string.downloads_offline_title), color = colors.primaryText, fontSize = 20.sp, fontWeight = FontWeight.Bold)
                 Text(
-                    "${downloads.size} files - ${downloadBytes.storageBytesLabel()} of ${maxDownloadBytes.storageBytesLabel()}",
+                    stringResource(
+                        Res.string.downloads_summary,
+                        downloads.size,
+                        downloadBytes.storageBytesLabel(),
+                        maxDownloadBytes.storageBytesLabel(),
+                    ),
                     color = colors.secondaryText,
                     fontSize = 12.sp,
                 )
                 Text(
-                    "${remainingBytes.storageBytesLabel()} remaining - ${usedPercent.oneDecimalLabel()}% used",
+                    stringResource(
+                        Res.string.downloads_remaining,
+                        remainingBytes.storageBytesLabel(),
+                        usedPercent.oneDecimalLabel(),
+                    ),
                     color = colors.mutedText,
                     fontSize = 11.sp,
                 )
@@ -569,7 +584,7 @@ internal fun DownloadsContent(
         }
         if (downloads.isEmpty()) {
             item {
-                Text("Downloaded tracks will appear here.", color = colors.secondaryText, fontSize = 13.sp)
+                Text(stringResource(Res.string.downloads_empty), color = colors.secondaryText, fontSize = 13.sp)
             }
         }
         items(
@@ -665,9 +680,9 @@ private fun OfflineDashboardSummary(
 ) {
     val ready = downloads.isNotEmpty()
     val readyMessage = if (ready) {
-        "Ready for offline playback and Android Auto Downloads browsing."
+        stringResource(Res.string.offline_ready)
     } else {
-        "Download albums, playlists, or tracks before using offline mode."
+        stringResource(Res.string.offline_not_ready)
     }
     val downloadPercent = storagePercentLabel(downloadBytes, maxDownloadBytes)
     val audioCachePercent = storagePercentLabel(
@@ -683,25 +698,25 @@ private fun OfflineDashboardSummary(
             .background(Color.Black.copy(alpha = 0.2f))
             .padding(12.dp),
     ) {
-        Text("OFFLINE DASHBOARD", color = colors.primaryText, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+        Text(stringResource(Res.string.offline_dashboard_title), color = colors.primaryText, fontSize = 13.sp, fontWeight = FontWeight.Bold)
         Text(readyMessage, color = if (ready) colors.primaryText else colors.secondaryText, fontSize = 13.sp)
         OfflineDashboardMetric(
             colors = colors,
-            label = "Downloaded tracks",
+            label = stringResource(Res.string.offline_downloaded_tracks),
             value = downloads.size.toString(),
-            detail = "${downloadBytes.storageBytesLabel()} used - $downloadPercent of download budget",
+            detail = stringResource(Res.string.offline_download_budget_detail, downloadBytes.storageBytesLabel(), downloadPercent),
         )
         OfflineDashboardMetric(
             colors = colors,
-            label = "Playback cache",
+            label = stringResource(Res.string.offline_playback_cache),
             value = offlineDashboard.audioCacheCount.toString(),
-            detail = "${offlineDashboard.audioCacheBytes.storageBytesLabel()} used - $audioCachePercent of streaming cache",
+            detail = stringResource(Res.string.offline_streaming_cache_detail, offlineDashboard.audioCacheBytes.storageBytesLabel(), audioCachePercent),
         )
         OfflineDashboardMetric(
             colors = colors,
-            label = "Pending actions",
+            label = stringResource(Res.string.offline_pending_actions),
             value = "0",
-            detail = "Downloads are applied immediately; failed sync tracking is not stored yet.",
+            detail = stringResource(Res.string.offline_pending_detail),
         )
     }
 }

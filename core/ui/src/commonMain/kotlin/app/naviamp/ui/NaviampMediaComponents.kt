@@ -1,5 +1,7 @@
 package app.naviamp.ui
 
+import app.naviamp.ui.generated.resources.Res
+import app.naviamp.ui.generated.resources.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -39,6 +41,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import org.jetbrains.compose.resources.stringResource
 import app.naviamp.domain.InternetRadioStation
 
 @Composable
@@ -498,10 +501,15 @@ fun ArtistMixBuilderContent(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier.fillMaxWidth(),
         ) {
-            Text("Artist Mix Builder", color = colors.primaryText, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+            Text(
+                stringResource(Res.string.mix_artist_builder_title),
+                color = colors.primaryText,
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Bold,
+            )
             if (builder.query.isNotBlank() || builder.selectedArtists.isNotEmpty()) {
                 TextButton(onClick = onReset) {
-                    Text("Reset", fontSize = 12.sp)
+                    Text(stringResource(Res.string.common_reset), fontSize = 12.sp)
                 }
             }
         }
@@ -509,13 +517,17 @@ fun ArtistMixBuilderContent(
             NaviampTextField(
                 value = builder.query,
                 onValueChange = onQueryChanged,
-                label = "Search artists",
+                label = stringResource(Res.string.mix_search_artists),
                 colors = colors,
                 modifier = Modifier.weight(1f),
                 onSubmit = onSearch,
             )
             Button(onClick = onSearch, modifier = Modifier.height(48.dp)) {
-                Icon(NaviampIcons.Search, contentDescription = "Search artists", modifier = Modifier.size(18.dp))
+                Icon(
+                    NaviampIcons.Search,
+                    contentDescription = stringResource(Res.string.mix_search_artists),
+                    modifier = Modifier.size(18.dp),
+                )
             }
         }
         if (builder.selectedArtists.isNotEmpty()) {
@@ -534,7 +546,7 @@ fun ArtistMixBuilderContent(
                 }
             }
         }
-        (builder.status ?: if (builder.loading) "Loading artists..." else null)?.let {
+        (builder.status ?: if (builder.loading) stringResource(Res.string.mix_loading_artists) else null)?.let {
             Text(it, color = colors.secondaryText, fontSize = 12.sp)
         }
         FlowRow(
@@ -554,7 +566,7 @@ fun ArtistMixBuilderContent(
             }
         }
         if (showPlayMixButton && builder.selectedArtists.isNotEmpty()) {
-            PrimaryButton("Play Mix", colors, onClick = onPlayMix)
+            PrimaryButton(stringResource(Res.string.mix_play_mix), colors, onClick = onPlayMix)
         }
     }
 }
@@ -578,10 +590,15 @@ fun AlbumMixBuilderContent(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier.fillMaxWidth(),
         ) {
-            Text("Album Mix Builder", color = colors.primaryText, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+            Text(
+                stringResource(Res.string.mix_album_builder_title),
+                color = colors.primaryText,
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Bold,
+            )
             if (builder.query.isNotBlank() || builder.selectedAlbums.isNotEmpty()) {
                 TextButton(onClick = onReset) {
-                    Text("Reset", fontSize = 12.sp)
+                    Text(stringResource(Res.string.common_reset), fontSize = 12.sp)
                 }
             }
         }
@@ -589,13 +606,17 @@ fun AlbumMixBuilderContent(
             NaviampTextField(
                 value = builder.query,
                 onValueChange = onQueryChanged,
-                label = "Search albums",
+                label = stringResource(Res.string.mix_search_albums),
                 colors = colors,
                 modifier = Modifier.weight(1f),
                 onSubmit = onSearch,
             )
             Button(onClick = onSearch, modifier = Modifier.height(48.dp)) {
-                Icon(NaviampIcons.Search, contentDescription = "Search albums", modifier = Modifier.size(18.dp))
+                Icon(
+                    NaviampIcons.Search,
+                    contentDescription = stringResource(Res.string.mix_search_albums),
+                    modifier = Modifier.size(18.dp),
+                )
             }
         }
         if (builder.selectedAlbums.isNotEmpty()) {
@@ -614,7 +635,7 @@ fun AlbumMixBuilderContent(
                 }
             }
         }
-        (builder.status ?: if (builder.loading) "Loading albums..." else null)?.let {
+        (builder.status ?: if (builder.loading) stringResource(Res.string.mix_loading_albums) else null)?.let {
             Text(it, color = colors.secondaryText, fontSize = 12.sp)
         }
         FlowRow(
@@ -634,7 +655,7 @@ fun AlbumMixBuilderContent(
             }
         }
         if (showPlayMixButton && builder.selectedAlbums.isNotEmpty()) {
-            PrimaryButton("Play Mix", colors, onClick = onPlayMix)
+            PrimaryButton(stringResource(Res.string.mix_play_mix), colors, onClick = onPlayMix)
         }
     }
 }
@@ -658,10 +679,15 @@ fun GenreMixBuilderContent(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier.fillMaxWidth(),
         ) {
-            Text("Genre Mix Builder", color = colors.primaryText, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+            Text(
+                stringResource(Res.string.mix_genre_builder_title),
+                color = colors.primaryText,
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Bold,
+            )
             if (builder.query.isNotBlank() || builder.selectedGenres.isNotEmpty()) {
                 TextButton(onClick = onReset) {
-                    Text("Reset", fontSize = 12.sp)
+                    Text(stringResource(Res.string.common_reset), fontSize = 12.sp)
                 }
             }
         }
@@ -669,13 +695,17 @@ fun GenreMixBuilderContent(
             NaviampTextField(
                 value = builder.query,
                 onValueChange = onQueryChanged,
-                label = "Search genres",
+                label = stringResource(Res.string.mix_search_genres),
                 colors = colors,
                 modifier = Modifier.weight(1f),
                 onSubmit = onSearch,
             )
             Button(onClick = onSearch, modifier = Modifier.height(48.dp)) {
-                Icon(NaviampIcons.Search, contentDescription = "Search genres", modifier = Modifier.size(18.dp))
+                Icon(
+                    NaviampIcons.Search,
+                    contentDescription = stringResource(Res.string.mix_search_genres),
+                    modifier = Modifier.size(18.dp),
+                )
             }
         }
         if (builder.selectedGenres.isNotEmpty()) {
@@ -693,7 +723,7 @@ fun GenreMixBuilderContent(
                 }
             }
         }
-        (builder.status ?: if (builder.loading) "Loading genres..." else null)?.let {
+        (builder.status ?: if (builder.loading) stringResource(Res.string.mix_loading_genres) else null)?.let {
             Text(it, color = colors.secondaryText, fontSize = 12.sp)
         }
         Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -706,7 +736,7 @@ fun GenreMixBuilderContent(
             }
         }
         if (showPlayMixButton && builder.selectedGenres.isNotEmpty()) {
-            PrimaryButton("Play Mix", colors, onClick = onPlayMix)
+            PrimaryButton(stringResource(Res.string.mix_play_mix), colors, onClick = onPlayMix)
         }
     }
 }
@@ -736,7 +766,12 @@ fun SonicPathBuilderContent(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier.fillMaxWidth(),
         ) {
-            Text("Sonic Path", color = colors.primaryText, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+            Text(
+                stringResource(Res.string.sonic_path_title),
+                color = colors.primaryText,
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Bold,
+            )
             if (
                 builder.startQuery.isNotBlank() ||
                 builder.endQuery.isNotBlank() ||
@@ -745,12 +780,12 @@ fun SonicPathBuilderContent(
                 builder.hasPath
             ) {
                 TextButton(onClick = onReset) {
-                    Text("Reset", fontSize = 12.sp)
+                    Text(stringResource(Res.string.common_reset), fontSize = 12.sp)
                 }
             }
         }
         SonicPathTrackPicker(
-            title = "Start Track",
+            title = stringResource(Res.string.sonic_path_start_track),
             query = builder.startQuery,
             selectedTrack = builder.startTrack,
             suggestions = builder.startSuggestions,
@@ -761,7 +796,7 @@ fun SonicPathBuilderContent(
             onTrackCleared = onStartTrackCleared,
         )
         SonicPathTrackPicker(
-            title = "Destination Track",
+            title = stringResource(Res.string.sonic_path_destination_track),
             query = builder.endQuery,
             selectedTrack = builder.endTrack,
             suggestions = builder.endSuggestions,
@@ -776,7 +811,12 @@ fun SonicPathBuilderContent(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier.fillMaxWidth(),
         ) {
-            Text("Max tracks", color = colors.secondaryText, fontSize = 13.sp, modifier = Modifier.weight(1f))
+            Text(
+                stringResource(Res.string.sonic_path_max_tracks),
+                color = colors.secondaryText,
+                fontSize = 13.sp,
+                modifier = Modifier.weight(1f),
+            )
             Button(
                 enabled = builder.count > 2,
                 onClick = { onCountChanged(builder.count - 1) },
@@ -791,17 +831,22 @@ fun SonicPathBuilderContent(
                 Text("+")
             }
         }
-        (builder.status ?: if (builder.loading) "Finding path..." else null)?.let {
+        (builder.status ?: if (builder.loading) stringResource(Res.string.sonic_path_finding) else null)?.let {
             Text(it, color = colors.secondaryText, fontSize = 12.sp)
         }
         PrimaryButton(
-            label = "Find Path",
+            label = stringResource(Res.string.sonic_path_find),
             colors = colors,
             enabled = builder.canBuild && !builder.loading,
             onClick = onBuildPath,
         )
         if (builder.pathTracks.isNotEmpty()) {
-            Text("Path", color = colors.primaryText, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+            Text(
+                stringResource(Res.string.sonic_path_result_title),
+                color = colors.primaryText,
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Bold,
+            )
             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 builder.pathTracks.forEachIndexed { index, track ->
                     TrackRow(
@@ -817,13 +862,13 @@ fun SonicPathBuilderContent(
             if (showPathActions) {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
                     Button(onClick = onPlayPath, modifier = Modifier.weight(1f)) {
-                        Text("Play Path")
+                        Text(stringResource(Res.string.sonic_path_play))
                     }
                     Button(
                         onClick = onAddPathToQueue,
                         modifier = Modifier.weight(1f),
                     ) {
-                        Text("Add to Queue")
+                        Text(stringResource(Res.string.mix_add_to_queue))
                     }
                 }
             }
@@ -854,7 +899,12 @@ fun SonicMixBuilderContent(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier.fillMaxWidth(),
         ) {
-            Text("Sonic Mix", color = colors.primaryText, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+            Text(
+                stringResource(Res.string.nav_sonic_mix),
+                color = colors.primaryText,
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Bold,
+            )
             if (
                 builder.query.isNotBlank() ||
                 builder.selectedTracks.isNotEmpty() ||
@@ -862,22 +912,31 @@ fun SonicMixBuilderContent(
                 builder.hasMix
             ) {
                 TextButton(onClick = onReset) {
-                    Text("Reset", fontSize = 12.sp)
+                    Text(stringResource(Res.string.common_reset), fontSize = 12.sp)
                 }
             }
         }
-        Text("Seed Tracks", color = colors.primaryText, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+        Text(
+            stringResource(Res.string.mix_seed_tracks),
+            color = colors.primaryText,
+            fontSize = 14.sp,
+            fontWeight = FontWeight.SemiBold,
+        )
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
             NaviampTextField(
                 value = builder.query,
                 onValueChange = onQueryChanged,
-                label = "Search tracks",
+                label = stringResource(Res.string.mix_search_tracks),
                 colors = colors,
                 modifier = Modifier.weight(1f),
                 onSubmit = onSearch,
             )
             Button(onClick = onSearch, modifier = Modifier.height(48.dp)) {
-                Icon(NaviampIcons.Search, contentDescription = "Search tracks", modifier = Modifier.size(18.dp))
+                Icon(
+                    NaviampIcons.Search,
+                    contentDescription = stringResource(Res.string.mix_search_tracks),
+                    modifier = Modifier.size(18.dp),
+                )
             }
         }
         if (builder.selectedTracks.isNotEmpty()) {
@@ -895,7 +954,7 @@ fun SonicMixBuilderContent(
                             modifier = Modifier.weight(1f),
                         )
                         TextButton(onClick = { onTrackRemoved(track) }) {
-                            Text("Remove", fontSize = 12.sp)
+                            Text(stringResource(Res.string.mix_remove), fontSize = 12.sp)
                         }
                     }
                 }
@@ -917,7 +976,12 @@ fun SonicMixBuilderContent(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier.fillMaxWidth(),
         ) {
-            Text("Target tracks", color = colors.secondaryText, fontSize = 13.sp, modifier = Modifier.weight(1f))
+            Text(
+                stringResource(Res.string.mix_target_tracks),
+                color = colors.secondaryText,
+                fontSize = 13.sp,
+                modifier = Modifier.weight(1f),
+            )
             Button(
                 enabled = builder.targetLength > 5,
                 onClick = { onTargetLengthChanged(builder.targetLength - 5) },
@@ -932,28 +996,33 @@ fun SonicMixBuilderContent(
                 Text("+")
             }
         }
-        Text("Bias", color = colors.secondaryText, fontSize = 13.sp)
+        Text(stringResource(Res.string.mix_bias), color = colors.secondaryText, fontSize = 13.sp)
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             SharedSonicMixBiasUi.entries.forEach { bias ->
                 Button(
                     onClick = { onBiasChanged(bias) },
                     enabled = builder.bias != bias,
                 ) {
-                    Text(bias.label)
+                    Text(bias.labelText())
                 }
             }
         }
-        (builder.status ?: if (builder.loading) "Building mix..." else null)?.let {
+        (builder.status ?: if (builder.loading) stringResource(Res.string.mix_building) else null)?.let {
             Text(it, color = colors.secondaryText, fontSize = 12.sp)
         }
         PrimaryButton(
-            label = "Build Mix",
+            label = stringResource(Res.string.mix_build_mix),
             colors = colors,
             enabled = builder.canBuild && !builder.loading,
             onClick = onBuildMix,
         )
         if (builder.mixTracks.isNotEmpty()) {
-            Text("Mix", color = colors.primaryText, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+            Text(
+                stringResource(Res.string.mix_result_title),
+                color = colors.primaryText,
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Bold,
+            )
             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 builder.mixTracks.forEachIndexed { index, track ->
                     TrackRow(
@@ -969,10 +1038,10 @@ fun SonicMixBuilderContent(
             if (showMixActions) {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
                     Button(onClick = onPlayMix, modifier = Modifier.weight(1f)) {
-                        Text("Play Mix")
+                        Text(stringResource(Res.string.mix_play_mix))
                     }
                     Button(onClick = onAddMixToQueue, modifier = Modifier.weight(1f)) {
-                        Text("Add to Queue")
+                        Text(stringResource(Res.string.mix_add_to_queue))
                     }
                 }
             }
@@ -998,13 +1067,17 @@ private fun SonicPathTrackPicker(
             NaviampTextField(
                 value = query,
                 onValueChange = onQueryChanged,
-                label = "Search tracks",
+                label = stringResource(Res.string.mix_search_tracks),
                 colors = colors,
                 modifier = Modifier.weight(1f),
                 onSubmit = onSearch,
             )
             Button(onClick = onSearch, modifier = Modifier.height(48.dp)) {
-                Icon(NaviampIcons.Search, contentDescription = "Search tracks", modifier = Modifier.size(18.dp))
+                Icon(
+                    NaviampIcons.Search,
+                    contentDescription = stringResource(Res.string.mix_search_tracks),
+                    modifier = Modifier.size(18.dp),
+                )
             }
         }
         selectedTrack?.let { track ->
@@ -1020,7 +1093,7 @@ private fun SonicPathTrackPicker(
                     modifier = Modifier.weight(1f),
                 )
                 TextButton(onClick = onTrackCleared) {
-                    Text("Clear", fontSize = 12.sp)
+                    Text(stringResource(Res.string.common_clear), fontSize = 12.sp)
                 }
             }
         }
@@ -1034,6 +1107,14 @@ private fun SonicPathTrackPicker(
             }
         }
     }
+}
+
+@Composable
+private fun SharedSonicMixBiasUi.labelText(): String = when (this) {
+    SharedSonicMixBiasUi.Balanced -> stringResource(Res.string.mix_bias_balanced)
+    SharedSonicMixBiasUi.Favorites -> stringResource(Res.string.mix_bias_favorites)
+    SharedSonicMixBiasUi.Unplayed -> stringResource(Res.string.mix_bias_unplayed)
+    SharedSonicMixBiasUi.Recent -> stringResource(Res.string.mix_bias_recent)
 }
 
 @Composable

@@ -14,6 +14,9 @@ import app.naviamp.domain.settings.ConnectionFormState
 import app.naviamp.domain.settings.ConnectionFormHeader
 import app.naviamp.domain.settings.ConnectionFormSecondaryUrl
 import app.naviamp.domain.settings.CacheSettings
+import app.naviamp.domain.settings.InterfaceLanguage
+import app.naviamp.domain.settings.InterfaceSettings
+import app.naviamp.domain.settings.LyricsSourcePreference
 import app.naviamp.domain.settings.PlaybackSettings
 import app.naviamp.domain.settings.PreviousButtonBehavior
 import app.naviamp.domain.settings.RecentRadioStream
@@ -92,6 +95,8 @@ class AndroidSettingsStore(
             equalizer = loadEqualizerSettings(),
             debugLoggingEnabled = preferences.getBoolean(KeyDebugLoggingEnabled, false),
             lrclibLyricsEnabled = preferences.getBoolean(KeyLrclibLyricsEnabled, false),
+            preferSyncedLyrics = preferences.getBoolean(KeyPreferSyncedLyrics, false),
+            lyricsSearchOrder = decodeList(KeyLyricsSearchOrder, LyricsSourcePreference.serializer()),
             sonicSimilarityEnabled = preferences.getBoolean(KeySonicSimilarityEnabled, false),
             sonicAutoplayEnabled = preferences.getBoolean(KeySonicAutoplayEnabled, false),
             previousButtonBehavior = enumPreference(
@@ -135,6 +140,17 @@ class AndroidSettingsStore(
             allowMobileDownloads = preferences.getBoolean(KeyAllowMobileDownloads, false),
         )
 
+    fun loadInterfaceSettings(): InterfaceSettings =
+        InterfaceSettings(
+            language = enumPreference(KeyInterfaceLanguage, InterfaceLanguage.System),
+        ).normalized()
+
+    fun saveInterfaceSettings(settings: InterfaceSettings) {
+        preferences.edit()
+            .putString(KeyInterfaceLanguage, settings.normalized().language.name)
+            .apply()
+    }
+
     fun savePlaybackSettings(settings: PlaybackSettings) {
         preferences.edit()
             .putString(KeyReplayGainMode, settings.replayGainMode.name)
@@ -144,6 +160,14 @@ class AndroidSettingsStore(
             .putEqualizerSettings(settings.equalizer)
             .putBoolean(KeyDebugLoggingEnabled, settings.debugLoggingEnabled)
             .putBoolean(KeyLrclibLyricsEnabled, settings.lrclibLyricsEnabled)
+            .putBoolean(KeyPreferSyncedLyrics, settings.preferSyncedLyrics)
+            .putString(
+                KeyLyricsSearchOrder,
+                JsonSettings.encodeToString(
+                    ListSerializer(LyricsSourcePreference.serializer()),
+                    settings.lyricsSearchOrder,
+                ),
+            )
             .putBoolean(KeySonicSimilarityEnabled, settings.sonicSimilarityEnabled)
             .putBoolean(KeySonicAutoplayEnabled, settings.sonicAutoplayEnabled)
             .putString(KeyPreviousButtonBehavior, settings.previousButtonBehavior.name)
@@ -375,6 +399,7 @@ private const val KeyClientCertificatePassword = "client_certificate_password"
 private const val KeySecondaryUrls = "secondary_urls"
 private const val KeyCustomHeaders = "custom_headers"
 private const val KeySelectedMusicFolderIds = "selected_music_folder_ids"
+private const val KeyInterfaceLanguage = "interface_language"
 private const val KeyReplayGainMode = "replay_gain_mode"
 private const val KeyReplayGainInspectorEnabled = "replay_gain_inspector_enabled"
 private const val KeyGaplessEnabled = "gapless_enabled"
@@ -386,6 +411,8 @@ private const val KeyEqualizerProfiles = "equalizer_profiles"
 private const val KeyEqualizerBandPrefix = "equalizer_band"
 private const val KeyDebugLoggingEnabled = "debug_logging_enabled"
 private const val KeyLrclibLyricsEnabled = "lrclib_lyrics_enabled"
+private const val KeyPreferSyncedLyrics = "prefer_synced_lyrics"
+private const val KeyLyricsSearchOrder = "lyrics_search_order"
 private const val KeySonicSimilarityEnabled = "sonic_similarity_enabled"
 private const val KeySonicAutoplayEnabled = "sonic_autoplay_enabled"
 private const val KeyPreviousButtonBehavior = "previous_button_behavior"

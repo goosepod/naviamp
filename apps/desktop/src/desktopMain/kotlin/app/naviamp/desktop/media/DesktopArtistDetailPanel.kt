@@ -83,7 +83,9 @@ fun DesktopArtistDetailPanel(
 
     Column(
         verticalArrangement = Arrangement.spacedBy(6.dp),
-        modifier = Modifier.fillMaxSize(),
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState()),
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
@@ -223,9 +225,6 @@ fun DesktopArtistDetailPanel(
         artistDetails?.let { details ->
             Column(
                 verticalArrangement = Arrangement.spacedBy(6.dp),
-                modifier = Modifier
-                    .weight(1f)
-                    .verticalScroll(rememberScrollState()),
             ) {
                 if (similarArtistsVisible) {
                     Row(

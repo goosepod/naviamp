@@ -216,6 +216,8 @@ class AndroidPlaylistEngine(
             quality = currentStreamQuality(),
             audioCachingEnabled = true,
             onlineLyricsEnabled = state.playbackSettings.lrclibLyricsEnabled,
+            preferSyncedLyrics = state.playbackSettings.preferSyncedLyrics,
+            lyricsSearchOrder = state.playbackSettings.lyricsSearchOrder,
             lyricsVisible = state.lyricsVisible || state.selectedVisualizer == NaviampVisualizer.LyricMirrorTunnel,
         ) ?: return
         state.sidecarPrepJob = scope.launch {
@@ -247,6 +249,8 @@ class AndroidPlaylistEngine(
                         quality = sidecarWork.quality,
                         audioCachingEnabled = sidecarWork.audioCachingEnabled,
                         onlineLyricsEnabled = sidecarWork.onlineLyricsEnabled,
+                        preferSyncedLyrics = sidecarWork.preferSyncedLyrics,
+                        lyricsSearchOrder = sidecarWork.lyricsSearchOrder,
                     )
                 },
                 onWaveformReady = { waveform ->
@@ -322,6 +326,8 @@ class AndroidPlaylistEngine(
             quality = quality,
             audioCachingEnabled = true,
             onlineLyricsEnabled = state.playbackSettings.lrclibLyricsEnabled,
+            preferSyncedLyrics = state.playbackSettings.preferSyncedLyrics,
+            lyricsSearchOrder = state.playbackSettings.lyricsSearchOrder,
             includeLyrics = false,
         )
 

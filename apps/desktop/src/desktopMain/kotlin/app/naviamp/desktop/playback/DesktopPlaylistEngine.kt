@@ -41,6 +41,7 @@ import app.naviamp.domain.playback.runAudioPrefetch
 import app.naviamp.domain.playback.runCurrentTrackSidecars
 import app.naviamp.domain.queue.PlaybackQueue
 import app.naviamp.domain.queue.RepeatMode
+import app.naviamp.domain.settings.PlaybackSettings
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -55,6 +56,7 @@ class DesktopPlaylistEngine(
     private val audioCacheRepository: AudioCacheRepository<CachedAudioFile, CachedAudioMetadata>? = null,
     private val sidecarService: PlaybackSidecarService? = null,
     private val audioMetadataSidecarService: AudioMetadataSidecarService? = null,
+    private val playbackSettingsProvider: () -> PlaybackSettings = { PlaybackSettings(lrclibLyricsEnabled = true) },
     playbackAudioAssets: PlaybackAudioAssetRepository? = null,
 ) {
     private val playbackAudioAssets = playbackAudioAssets ?: emptyPlaybackAudioAssetRepository()
@@ -370,13 +372,16 @@ class DesktopPlaylistEngine(
         if (!audioCachingEnabledProvider()) return
         val audioCache = audioCacheRepository ?: return
         val sidecars = sidecarService ?: return
+        val playbackSettings = playbackSettingsProvider()
         val work = currentTrackSidecarWork(
             sourceId = sourceIdProvider(),
             provider = provider,
             track = track,
             quality = streamQuality,
             audioCachingEnabled = audioCachingEnabledProvider(),
-            onlineLyricsEnabled = true,
+            onlineLyricsEnabled = playbackSettings.lrclibLyricsEnabled,
+            preferSyncedLyrics = playbackSettings.preferSyncedLyrics,
+            lyricsSearchOrder = playbackSettings.lyricsSearchOrder,
             lyricsVisible = false,
         ) ?: return
         val sourceId = work.sourceId ?: return
@@ -411,6 +416,8 @@ class DesktopPlaylistEngine(
                         quality = sidecarWork.quality,
                         audioCachingEnabled = sidecarWork.audioCachingEnabled,
                         onlineLyricsEnabled = sidecarWork.onlineLyricsEnabled,
+                        preferSyncedLyrics = sidecarWork.preferSyncedLyrics,
+                        lyricsSearchOrder = sidecarWork.lyricsSearchOrder,
                     )
                 },
                 onWaveformReady = {
@@ -473,13 +480,16 @@ class DesktopPlaylistEngine(
         track: Track,
         quality: StreamQuality,
     ): PlaybackSidecarPrepResult {
+        val playbackSettings = playbackSettingsProvider()
         val waveformResult = sidecarService.prepareAll(
             sourceId = sourceId,
             provider = provider,
             track = track,
             quality = quality,
             audioCachingEnabled = audioCachingEnabledProvider(),
-            onlineLyricsEnabled = true,
+            onlineLyricsEnabled = playbackSettings.lrclibLyricsEnabled,
+            preferSyncedLyrics = playbackSettings.preferSyncedLyrics,
+            lyricsSearchOrder = playbackSettings.lyricsSearchOrder,
             includeLyrics = false,
         )
         val lyricsResult = sidecarService.prepareDetailedLyrics(

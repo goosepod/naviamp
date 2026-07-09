@@ -349,6 +349,8 @@ class NowPlayingSidecarsTest {
             quality = StreamQuality.Original,
             audioCachingEnabled = true,
             onlineLyricsEnabled = loadLyrics,
+            preferSyncedLyrics = false,
+            lyricsSearchOrder = emptyList(),
             loadLyrics = loadLyrics,
         )
 }

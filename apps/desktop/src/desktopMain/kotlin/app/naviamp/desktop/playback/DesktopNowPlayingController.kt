@@ -186,6 +186,8 @@ class DesktopNowPlayingController(
                         quality = quality,
                         audioCachingEnabled = activeCacheSettings.audioCachingEnabled,
                         onlineLyricsEnabled = activePlaybackSettings.lrclibLyricsEnabled,
+                        preferSyncedLyrics = activePlaybackSettings.preferSyncedLyrics,
+                        searchOrder = activePlaybackSettings.lyricsSearchOrder,
                     ).lyrics
                 } else {
                     null

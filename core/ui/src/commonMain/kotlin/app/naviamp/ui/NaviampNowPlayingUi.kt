@@ -992,7 +992,7 @@ private fun NowPlayingDetails(
                 Box(modifier = Modifier.requiredSize(bottomActionButtonSize), contentAlignment = Alignment.Center) {
                     NaviampTransportIconButton(
                         enabled = nowPlaying.menuEnabled,
-                        icon = NaviampTransportIcons.Menu,
+                        icon = NaviampTransportIcons.MoreVertical,
                         contentDescription = "Track actions",
                         colors = colors,
                         buttonSize = bottomActionButtonSize,

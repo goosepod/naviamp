@@ -36,6 +36,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -43,6 +44,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.zIndex
 import app.naviamp.domain.playback.EqualizerBandFrequencies
 import app.naviamp.domain.playback.EqualizerPreset
 import app.naviamp.domain.playback.MaxEqualizerGainDb
@@ -60,6 +62,9 @@ import app.naviamp.domain.settings.CacheSettings
 import app.naviamp.domain.settings.ConnectionFormMusicFolder
 import app.naviamp.domain.settings.ConnectionFormState
 import app.naviamp.domain.settings.DefaultWaveformBucketCount
+import app.naviamp.domain.settings.InterfaceLanguage
+import app.naviamp.domain.settings.InterfaceSettings
+import app.naviamp.domain.settings.LyricsSourcePreference
 import app.naviamp.domain.settings.MaxReplayGainPreampDb
 import app.naviamp.domain.settings.MaxWaveformBucketCount
 import app.naviamp.domain.settings.MinReplayGainPreampDb
@@ -73,9 +78,12 @@ import app.naviamp.domain.settings.StreamQualityMode
 import app.naviamp.domain.settings.StreamQualityPreference
 import app.naviamp.domain.settings.StreamingCodec
 import app.naviamp.domain.settings.UpNextSelectionBehavior
+import app.naviamp.domain.settings.normalizedLyricsSearchOrder
 import app.naviamp.ui.generated.resources.Res
+import app.naviamp.ui.generated.resources.*
 import app.naviamp.ui.generated.resources.naviamp
 import org.jetbrains.compose.resources.painterResource
+import org.jetbrains.compose.resources.stringResource
 import kotlin.math.roundToInt
 
 data class NaviampDiagnosticsUi(
@@ -104,11 +112,12 @@ data class NaviampSavedConnectionUi(
 )
 
 enum class NaviampSettingsCategory(
-    val label: String,
-    val subtitle: String,
+    val defaultLabel: String,
+    val defaultSubtitle: String,
     val icon: ImageVector,
 ) {
     Source("Source", "Servers and libraries", NaviampIcons.Library),
+    Language("Language", "Interface language", NaviampIcons.Globe),
     Experience("Experience", "Appearance and behavior", NaviampIcons.Experience),
     Playback("Playback", "Make your ears happy", NaviampTransportIcons.Play),
     Downloads("Downloads", "Media on the go", NaviampIcons.Downloads),
@@ -120,6 +129,7 @@ enum class NaviampSettingsCategory(
 @Composable
 fun NaviampSharedSettingsContent(
     colors: NaviampColors,
+    interfaceSettings: InterfaceSettings = InterfaceSettings(),
     playbackSettings: PlaybackSettings,
     cacheSettings: CacheSettings = CacheSettings(),
     diagnostics: NaviampDiagnosticsUi = NaviampDiagnosticsUi(),
@@ -147,6 +157,7 @@ fun NaviampSharedSettingsContent(
     onConnectionFormChanged: (ConnectionFormState) -> Unit = {},
     onConnect: () -> Unit = {},
     onCancelConnectionForm: () -> Unit = {},
+    onInterfaceSettingsChanged: (InterfaceSettings) -> Unit = {},
     onPlaybackSettingsChanged: (PlaybackSettings) -> Unit,
     onPlaybackSettingsChangedAndRedownload: (PlaybackSettings) -> Unit = onPlaybackSettingsChanged,
     onCacheSettingsChanged: (CacheSettings) -> Unit = {},
@@ -166,10 +177,18 @@ fun NaviampSharedSettingsContent(
     showMobileNetworkQuality: Boolean = false,
 ) {
     var selectedCategory by remember { mutableStateOf<NaviampSettingsCategory?>(null) }
+    val languagePack = remember(interfaceSettings.language) {
+        naviampLanguagePack(interfaceSettings.language)
+    }
 
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         selectedCategory?.let { category ->
-            SettingsDetailHeader(category = category, colors = colors, onBack = { selectedCategory = null })
+            SettingsDetailHeader(
+                category = category,
+                languagePack = languagePack,
+                colors = colors,
+                onBack = { selectedCategory = null },
+            )
             when (category) {
                 NaviampSettingsCategory.Source -> {
                     NaviampConnectionsSettingsSection(
@@ -198,6 +217,12 @@ fun NaviampSharedSettingsContent(
                         onCancelConnectionForm = onCancelConnectionForm,
                     )
                 }
+                NaviampSettingsCategory.Language -> NaviampLanguageSettingsSection(
+                    colors = colors,
+                    interfaceSettings = interfaceSettings,
+                    languagePack = languagePack,
+                    onInterfaceSettingsChanged = onInterfaceSettingsChanged,
+                )
                 NaviampSettingsCategory.Experience -> NaviampExperienceSettingsSection(
                     colors = colors,
                     playbackSettings = playbackSettings,
@@ -253,9 +278,9 @@ fun NaviampSharedSettingsContent(
                     }
                     NaviampDiagnosticsSettingsSection(
                         colors = colors,
-                        title = "Debugging",
+                        title = stringResource(Res.string.settings_debugging_title),
                         diagnostics = diagnostics,
-                        emptyText = "Diagnostics will appear after the app initializes.",
+                        emptyText = stringResource(Res.string.settings_debugging_empty),
                     )
                     SharedLocalDataActions(
                         colors = colors,
@@ -270,16 +295,18 @@ fun NaviampSharedSettingsContent(
                 )
             }
         } ?: run {
-            Text("Settings", color = colors.primaryText, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+            Text(languagePack.settingsTitle(), color = colors.primaryText, fontSize = 20.sp, fontWeight = FontWeight.Bold)
             val currentConnection = savedConnections.firstOrNull { it.current }
             NaviampSettingsCategory.entries.forEach { category ->
                 SettingsCategoryRow(
                     category = category,
+                    languagePack = languagePack,
                     colors = colors,
                     enabled = true,
                     subtitle = when (category) {
-                        NaviampSettingsCategory.Source -> currentConnection?.displayName ?: connectionStatus ?: category.subtitle
-                        else -> category.subtitle
+                        NaviampSettingsCategory.Source -> currentConnection?.displayName ?: connectionStatus ?: languagePack.categorySubtitle(category)
+                        NaviampSettingsCategory.Language -> languagePack.languageTitle(interfaceSettings.language)
+                        else -> languagePack.categorySubtitle(category)
                     },
                     onClick = { selectedCategory = category },
                 )
@@ -321,7 +348,7 @@ fun NaviampExperienceSettingsSection(
     var selectedSection by remember { mutableStateOf<ExperienceSettingsPage?>(null) }
 
     selectedSection?.let { section ->
-        SettingsSubsectionHeader(section.title, section.subtitle, colors) { selectedSection = null }
+        SettingsSubsectionHeader(section.title(), section.subtitle(), colors) { selectedSection = null }
         when (section) {
             ExperienceSettingsPage.Player -> QueueRulesSettings(
                 colors = colors,
@@ -334,6 +361,12 @@ fun NaviampExperienceSettingsSection(
                 supportsSonicSimilarity = supportsSonicSimilarity,
                 onPlaybackSettingsChanged = onPlaybackSettingsChanged,
             )
+            ExperienceSettingsPage.Lyrics -> LyricsSettings(
+                colors = colors,
+                playbackSettings = playbackSettings,
+                showLrclibLyrics = showLrclibLyrics,
+                onPlaybackSettingsChanged = onPlaybackSettingsChanged,
+            )
             ExperienceSettingsPage.Waveforms -> WaveformSettings(
                 colors = colors,
                 cacheSettings = cacheSettings,
@@ -343,28 +376,27 @@ fun NaviampExperienceSettingsSection(
     } ?: run {
         if (showQueueBehavior) {
             SettingsRow(
-                title = ExperienceSettingsPage.Player.title,
-                subtitle = ExperienceSettingsPage.Player.subtitle,
+                title = ExperienceSettingsPage.Player.title(),
+                subtitle = ExperienceSettingsPage.Player.subtitle(),
                 colors = colors,
             ) {
                 selectedSection = ExperienceSettingsPage.Player
             }
         }
         if (showLrclibLyrics) {
-            SettingsCheckboxRow(
+            SettingsRow(
                 colors = colors,
-                checked = playbackSettings.lrclibLyricsEnabled,
-                label = "Lyrics",
-                subtitle = "Download synced lyrics for tracks.",
-                onCheckedChange = { enabled ->
-                    onPlaybackSettingsChanged(playbackSettings.copy(lrclibLyricsEnabled = enabled))
-                },
-            )
+                title = stringResource(Res.string.settings_lyrics_title),
+                subtitle = stringResource(Res.string.settings_lyrics_subtitle),
+                value = playbackSettings.lyricsSummary(),
+            ) {
+                selectedSection = ExperienceSettingsPage.Lyrics
+            }
         }
         if (supportsSonicSimilarity) {
             SettingsRow(
-                title = ExperienceSettingsPage.RelatedTracks.title,
-                subtitle = ExperienceSettingsPage.RelatedTracks.subtitle,
+                title = ExperienceSettingsPage.RelatedTracks.title(),
+                subtitle = ExperienceSettingsPage.RelatedTracks.subtitle(),
                 colors = colors,
                 value = playbackSettings.relatedTracksSummary(),
             ) {
@@ -372,15 +404,19 @@ fun NaviampExperienceSettingsSection(
             }
         }
         SettingsRow(
-            title = ExperienceSettingsPage.Waveforms.title,
-            subtitle = ExperienceSettingsPage.Waveforms.subtitle,
+            title = ExperienceSettingsPage.Waveforms.title(),
+            subtitle = ExperienceSettingsPage.Waveforms.subtitle(),
             colors = colors,
-            value = if (cacheSettings.normalized().waveformsEnabled) "Enabled" else "Off",
+            value = if (cacheSettings.normalized().waveformsEnabled) {
+                stringResource(Res.string.common_enabled)
+            } else {
+                stringResource(Res.string.common_off)
+            },
         ) {
             selectedSection = ExperienceSettingsPage.Waveforms
         }
         if (!showQueueBehavior && !showLrclibLyrics && !supportsSonicSimilarity) {
-            Text("Experience controls will appear here as they are added.", color = colors.secondaryText, fontSize = 12.sp)
+            Text(stringResource(Res.string.settings_experience_empty), color = colors.secondaryText, fontSize = 12.sp)
         }
     }
 }
@@ -391,20 +427,50 @@ private enum class ExperienceSettingsPage(
 ) {
     Player("Player", "Queue, Back To, and Up Next behavior"),
     RelatedTracks("Related Tracks", "Sonic similarity and autoplay"),
+    Lyrics("Lyrics", "Download and source order"),
     Waveforms("Waveforms", "Track waveforms and detail"),
 }
 
+@Composable
+private fun ExperienceSettingsPage.title(): String =
+    when (this) {
+        ExperienceSettingsPage.Player -> stringResource(Res.string.settings_experience_player_title)
+        ExperienceSettingsPage.RelatedTracks -> stringResource(Res.string.settings_experience_related_tracks_title)
+        ExperienceSettingsPage.Lyrics -> stringResource(Res.string.settings_lyrics_title)
+        ExperienceSettingsPage.Waveforms -> stringResource(Res.string.settings_experience_waveforms_title)
+    }
+
+@Composable
+private fun ExperienceSettingsPage.subtitle(): String =
+    when (this) {
+        ExperienceSettingsPage.Player -> stringResource(Res.string.settings_experience_player_subtitle)
+        ExperienceSettingsPage.RelatedTracks -> stringResource(Res.string.settings_experience_related_tracks_subtitle)
+        ExperienceSettingsPage.Lyrics -> stringResource(Res.string.settings_lyrics_subtitle)
+        ExperienceSettingsPage.Waveforms -> stringResource(Res.string.settings_experience_waveforms_subtitle)
+    }
+
+@Composable
+private fun PlaybackSettings.lyricsSummary(): String =
+    when {
+        preferSyncedLyrics && lrclibLyricsEnabled -> stringResource(Res.string.settings_lyrics_summary_synced_download)
+        preferSyncedLyrics -> stringResource(Res.string.settings_lyrics_summary_synced)
+        lrclibLyricsEnabled -> stringResource(Res.string.settings_lyrics_summary_download)
+        else -> stringResource(Res.string.common_off)
+    }
+
+@Composable
 private fun PlaybackSettings.relatedTracksSummary(): String? =
     when {
-        sonicSimilarityEnabled && sonicAutoplayEnabled -> "Related, Autoplay"
-        sonicSimilarityEnabled -> "Related"
-        sonicAutoplayEnabled -> "Autoplay"
+        sonicSimilarityEnabled && sonicAutoplayEnabled -> stringResource(Res.string.settings_related_autoplay_summary)
+        sonicSimilarityEnabled -> stringResource(Res.string.settings_related_summary)
+        sonicAutoplayEnabled -> stringResource(Res.string.settings_autoplay_summary)
         else -> null
     }
 
 @Composable
 private fun SettingsDetailHeader(
     category: NaviampSettingsCategory,
+    languagePack: NaviampLanguagePack,
     colors: NaviampColors,
     onBack: () -> Unit,
 ) {
@@ -414,11 +480,11 @@ private fun SettingsDetailHeader(
         modifier = Modifier.fillMaxWidth(),
     ) {
         IconButton(onClick = onBack, modifier = Modifier.size(34.dp)) {
-            Icon(NaviampIcons.Back, contentDescription = "Back", tint = colors.primaryText)
+            Icon(NaviampIcons.Back, contentDescription = stringResource(Res.string.common_back), tint = colors.primaryText)
         }
         Column(verticalArrangement = Arrangement.spacedBy(1.dp)) {
-            Text(category.label, color = colors.primaryText, fontSize = SettingsCategoryTitleSize, fontWeight = FontWeight.Bold)
-            Text(category.subtitle, color = colors.secondaryText, fontSize = SettingsDetailSubtitleSize)
+            Text(languagePack.categoryLabel(category), color = colors.primaryText, fontSize = SettingsCategoryTitleSize, fontWeight = FontWeight.Bold)
+            Text(languagePack.categorySubtitle(category), color = colors.secondaryText, fontSize = SettingsDetailSubtitleSize)
         }
     }
 }
@@ -426,6 +492,7 @@ private fun SettingsDetailHeader(
 @Composable
 private fun SettingsCategoryRow(
     category: NaviampSettingsCategory,
+    languagePack: NaviampLanguagePack,
     colors: NaviampColors,
     enabled: Boolean,
     subtitle: String,
@@ -446,10 +513,36 @@ private fun SettingsCategoryRow(
             modifier = Modifier.size(20.dp),
         )
         Column(Modifier.weight(1f)) {
-            Text(category.label, color = if (enabled) colors.primaryText else colors.mutedText, fontSize = 15.sp)
+            Text(languagePack.categoryLabel(category), color = if (enabled) colors.primaryText else colors.mutedText, fontSize = 15.sp)
             Text(subtitle, color = colors.mutedText, fontSize = 12.sp)
         }
         Icon(NaviampIcons.ChevronRight, contentDescription = null, tint = colors.secondaryText, modifier = Modifier.size(18.dp))
+    }
+}
+
+@Composable
+fun NaviampLanguageSettingsSection(
+    colors: NaviampColors,
+    interfaceSettings: InterfaceSettings,
+    languagePack: NaviampLanguagePack,
+    onInterfaceSettingsChanged: (InterfaceSettings) -> Unit,
+) {
+    Column(
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+        modifier = Modifier.fillMaxWidth().padding(horizontal = SettingsRowHorizontalPadding),
+    ) {
+        InterfaceLanguage.entries.forEach { language ->
+            SelectableTextOption(
+                title = languagePack.languageTitle(language),
+                subtitle = languagePack.languageSubtitle(language),
+                selected = interfaceSettings.language == language,
+                colors = colors,
+                enabled = true,
+                selectedLabel = languagePack.selectedLabel(),
+            ) {
+                onInterfaceSettingsChanged(interfaceSettings.copy(language = language).normalized())
+            }
+        }
     }
 }
 
@@ -461,25 +554,25 @@ fun NaviampAboutSettingsSection(
     var page by remember { mutableStateOf<AboutSettingsPage?>(null) }
 
     page?.let { selected ->
-        SettingsSubsectionHeader(selected.title, selected.subtitle, colors) { page = null }
+        SettingsSubsectionHeader(selected.title(), selected.subtitle(), colors) { page = null }
         Column(
             verticalArrangement = Arrangement.spacedBy(8.dp),
             modifier = Modifier.fillMaxWidth().padding(horizontal = SettingsRowHorizontalPadding),
         ) {
             when (selected) {
                 AboutSettingsPage.Thanks -> {
-                    SettingsSectionTitle("Libraries", colors)
+                    SettingsSectionTitle(stringResource(Res.string.settings_about_libraries_title), colors)
                     about.libraries.forEach { library ->
                         Text(library, color = colors.secondaryText, fontSize = SettingsDetailRowSubtitleSize)
                     }
-                    SettingsSectionTitle("Fonts", colors)
+                    SettingsSectionTitle(stringResource(Res.string.settings_about_fonts_title), colors)
                     Text("Nunito Sans", color = colors.secondaryText, fontSize = SettingsDetailRowSubtitleSize)
-                    SettingsSectionTitle("Audio", colors)
+                    SettingsSectionTitle(stringResource(Res.string.settings_about_audio_title), colors)
                     Text("BASS audio library", color = colors.secondaryText, fontSize = SettingsDetailRowSubtitleSize)
                 }
                 AboutSettingsPage.Licenses -> {
                     SettingsSectionTitle("Naviamp", colors)
-                    Text("Apache License 2.0", color = colors.primaryText, fontSize = SettingsDetailRowTitleSize, fontWeight = FontWeight.SemiBold)
+                    Text(stringResource(Res.string.settings_about_license_title), color = colors.primaryText, fontSize = SettingsDetailRowTitleSize, fontWeight = FontWeight.SemiBold)
                     Text(
                         ApacheLicenseText,
                         color = colors.secondaryText,
@@ -487,9 +580,9 @@ fun NaviampAboutSettingsSection(
                     )
                 }
                 AboutSettingsPage.Changelog -> {
-                    SettingsSectionTitle("Latest Changes", colors)
+                    SettingsSectionTitle(stringResource(Res.string.settings_about_latest_changes_title), colors)
                     if (about.changelog.isEmpty()) {
-                        Text("Changelog entries will appear here in a future release.", color = colors.secondaryText, fontSize = SettingsDetailRowSubtitleSize)
+                        Text(stringResource(Res.string.settings_about_empty_changelog), color = colors.secondaryText, fontSize = SettingsDetailRowSubtitleSize)
                     } else {
                         about.changelog.forEach { entry ->
                             Text(entry, color = colors.secondaryText, fontSize = SettingsDetailRowSubtitleSize)
@@ -512,13 +605,13 @@ fun NaviampAboutSettingsSection(
             modifier = Modifier.size(78.dp),
         )
         Text("Naviamp", color = colors.primaryText, fontSize = 20.sp, fontWeight = FontWeight.Bold)
-        Text("A GoosePod Production", color = colors.secondaryText, fontSize = 14.sp)
-        Text("${about.version} Build ${about.buildNumber}", color = colors.secondaryText, fontSize = 12.sp)
+        Text(stringResource(Res.string.settings_about_production), color = colors.secondaryText, fontSize = 14.sp)
+        Text(stringResource(Res.string.settings_about_version_build, about.version, about.buildNumber), color = colors.secondaryText, fontSize = 12.sp)
     }
     AboutSettingsPage.entries.forEach { aboutPage ->
         SettingsRow(
-            title = aboutPage.title,
-            subtitle = aboutPage.rowSubtitle,
+            title = aboutPage.title(),
+            subtitle = aboutPage.description(),
             colors = colors,
         ) {
             page = aboutPage
@@ -535,6 +628,30 @@ private enum class AboutSettingsPage(
     Licenses("Licenses", "App license", "Open source license information."),
     Changelog("Changelog", "Latest changes", "What changed in this version."),
 }
+
+@Composable
+private fun AboutSettingsPage.title(): String =
+    when (this) {
+        AboutSettingsPage.Thanks -> stringResource(Res.string.settings_about_thanks_title)
+        AboutSettingsPage.Licenses -> stringResource(Res.string.settings_about_licenses_title)
+        AboutSettingsPage.Changelog -> stringResource(Res.string.settings_about_changelog_title)
+    }
+
+@Composable
+private fun AboutSettingsPage.subtitle(): String =
+    when (this) {
+        AboutSettingsPage.Thanks -> stringResource(Res.string.settings_about_thanks_subtitle)
+        AboutSettingsPage.Licenses -> stringResource(Res.string.settings_about_licenses_subtitle)
+        AboutSettingsPage.Changelog -> stringResource(Res.string.settings_about_changelog_subtitle)
+    }
+
+@Composable
+private fun AboutSettingsPage.description(): String =
+    when (this) {
+        AboutSettingsPage.Thanks -> stringResource(Res.string.settings_about_thanks_description)
+        AboutSettingsPage.Licenses -> stringResource(Res.string.settings_about_licenses_description)
+        AboutSettingsPage.Changelog -> stringResource(Res.string.settings_about_changelog_description)
+    }
 
 private val ApacheLicenseText = """
 Apache License
@@ -731,8 +848,16 @@ private fun NaviampConnectionsSettingsSection(
 
     if (isConnectionFormOpen) {
         SettingsSubsectionHeader(
-            title = if (hasSavedConnection) "Edit connection" else "New connection",
-            subtitle = if (hasSavedConnection) "Server, login, TLS, and libraries" else "Add a Navidrome server",
+            title = if (hasSavedConnection) {
+                stringResource(Res.string.settings_source_edit_connection_title)
+            } else {
+                stringResource(Res.string.settings_source_new_connection_title)
+            },
+            subtitle = if (hasSavedConnection) {
+                stringResource(Res.string.settings_source_edit_connection_subtitle)
+            } else {
+                stringResource(Res.string.settings_source_new_connection_subtitle)
+            },
             colors = colors,
             onBack = onCancelConnectionForm,
         )
@@ -754,7 +879,11 @@ private fun NaviampConnectionsSettingsSection(
         }
     } else when (selectedPage) {
         SourceSettingsPage.Connections -> {
-            SettingsSubsectionHeader("Connections", "Saved Navidrome servers", colors) {
+            SettingsSubsectionHeader(
+                stringResource(Res.string.settings_source_connections_title),
+                stringResource(Res.string.settings_source_connections_subtitle),
+                colors,
+            ) {
                 selectedPage = null
             }
             Column(
@@ -762,7 +891,7 @@ private fun NaviampConnectionsSettingsSection(
                 modifier = Modifier.fillMaxWidth().padding(horizontal = SettingsRowHorizontalPadding),
             ) {
                 if (savedConnections.isEmpty()) {
-                    Text("No saved connections yet.", color = colors.secondaryText, fontSize = SettingsDetailRowSubtitleSize)
+                    Text(stringResource(Res.string.settings_source_no_connections), color = colors.secondaryText, fontSize = SettingsDetailRowSubtitleSize)
                 } else {
                     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                         savedConnections.forEach { connection ->
@@ -777,14 +906,18 @@ private fun NaviampConnectionsSettingsSection(
                         }
                     }
                 }
-                PrimaryButton("New connection", colors, enabled = !isConnecting, onClick = onNewConnection)
+                PrimaryButton(stringResource(Res.string.settings_source_new_connection_button), colors, enabled = !isConnecting, onClick = onNewConnection)
                 connectionStatus?.let {
                     Text(it, color = colors.secondaryText, fontSize = SettingsDetailRowSubtitleSize)
                 }
             }
         }
         SourceSettingsPage.SettingsSync -> {
-            SettingsSubsectionHeader("Settings Sync", "Folder-based settings sync", colors) {
+            SettingsSubsectionHeader(
+                stringResource(Res.string.settings_sync_title),
+                stringResource(Res.string.settings_sync_subtitle),
+                colors,
+            ) {
                 selectedPage = null
             }
             Column(
@@ -792,7 +925,7 @@ private fun NaviampConnectionsSettingsSection(
                 modifier = Modifier.fillMaxWidth().padding(horizontal = SettingsRowHorizontalPadding),
             ) {
                 Text(
-                    "Use a folder managed by Nextcloud, Dropbox, Syncthing, FolderSync, or another file sync app. Naviamp keeps a local copy and syncs this file when the provider allows it.",
+                    stringResource(Res.string.settings_sync_description),
                     color = colors.secondaryText,
                     fontSize = SettingsDetailRowSubtitleSize,
                 )
@@ -801,21 +934,21 @@ private fun NaviampConnectionsSettingsSection(
                         colors = colors,
                         checked = settingsSyncAutoExportEnabled,
                         enabled = !isConnecting,
-                        label = "Auto-sync changes",
+                        label = stringResource(Res.string.settings_sync_auto_sync),
                         onCheckedChange = onAutoExportChanged,
                     )
                 }
                 onChooseSettingsSyncFolder?.let { chooseFolder ->
-                    PrimarySettingsButton("Choose sync folder", colors, enabled = !isConnecting, onClick = chooseFolder)
+                    PrimarySettingsButton(stringResource(Res.string.settings_sync_choose_folder), colors, enabled = !isConnecting, onClick = chooseFolder)
                 }
                 onImportSettingsSyncFolder?.let { importFolder ->
-                    PrimarySettingsButton("Sync now", colors, enabled = !isConnecting, onClick = importFolder)
+                    PrimarySettingsButton(stringResource(Res.string.settings_sync_now), colors, enabled = !isConnecting, onClick = importFolder)
                 }
                 onExportSettingsSyncFolder?.let { exportFolder ->
-                    PrimarySettingsButton("Export local settings", colors, enabled = !isConnecting, onClick = exportFolder)
+                    PrimarySettingsButton(stringResource(Res.string.settings_sync_export_local), colors, enabled = !isConnecting, onClick = exportFolder)
                 }
                 onImportSettingsSyncFile?.let { importSettings ->
-                    PrimarySettingsButton("Import provider settings", colors, enabled = !isConnecting, onClick = importSettings)
+                    PrimarySettingsButton(stringResource(Res.string.settings_sync_import_provider), colors, enabled = !isConnecting, onClick = importSettings)
                 }
                 settingsSyncStatus?.let {
                     Text(it, color = colors.secondaryText, fontSize = SettingsDetailRowSubtitleSize)
@@ -828,9 +961,10 @@ private fun NaviampConnectionsSettingsSection(
                 modifier = Modifier.fillMaxWidth().padding(horizontal = SettingsRowHorizontalPadding),
             ) {
                 SourceSubpageRow(
-                    title = "Connections",
-                    subtitle = "Saved Navidrome servers.",
-                    value = savedConnections.firstOrNull { it.current }?.displayName ?: "${savedConnections.size} saved",
+                    title = stringResource(Res.string.settings_source_connections_title),
+                    subtitle = stringResource(Res.string.settings_source_connections_subtitle_period),
+                    value = savedConnections.firstOrNull { it.current }?.displayName
+                        ?: stringResource(Res.string.settings_source_saved_count, savedConnections.size),
                     colors = colors,
                     enabled = !isConnecting,
                 ) {
@@ -838,8 +972,8 @@ private fun NaviampConnectionsSettingsSection(
                 }
                 if (hasSettingsSync) {
                     SourceSubpageRow(
-                        title = "Settings Sync",
-                        subtitle = "Folder-based settings sync.",
+                        title = stringResource(Res.string.settings_sync_title),
+                        subtitle = stringResource(Res.string.settings_sync_subtitle_period),
                         value = settingsSyncStatus,
                         colors = colors,
                         enabled = !isConnecting,
@@ -856,8 +990,8 @@ private fun NaviampConnectionsSettingsSection(
         pendingDelete?.let { connection ->
             AlertDialog(
                 onDismissRequest = { pendingDelete = null },
-                title = { Text("Delete Connection") },
-                text = { Text("Delete ${connection.displayName}? This removes the saved server entry.") },
+                title = { Text(stringResource(Res.string.settings_source_delete_title)) },
+                text = { Text(stringResource(Res.string.settings_source_delete_message, connection.displayName)) },
                 confirmButton = {
                     TextButton(
                         onClick = {
@@ -865,12 +999,12 @@ private fun NaviampConnectionsSettingsSection(
                             onDeleteConnection(connection)
                         },
                     ) {
-                        Text("Delete")
+                        Text(stringResource(Res.string.common_delete))
                     }
                 },
                 dismissButton = {
                     TextButton(onClick = { pendingDelete = null }) {
-                        Text("Cancel")
+                        Text(stringResource(Res.string.common_cancel))
                     }
                 },
             )
@@ -955,13 +1089,13 @@ private fun NaviampSavedConnectionRow(
                 )
             }
             if (connection.current) {
-                Text("Current", color = colors.accent, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+                Text(stringResource(Res.string.common_current), color = colors.accent, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
             }
             IconButton(enabled = enabled, onClick = onEdit, modifier = Modifier.size(32.dp)) {
-                Icon(NaviampIcons.Edit, contentDescription = "Edit connection", tint = if (enabled) colors.primaryText else colors.mutedText)
+                Icon(NaviampIcons.Edit, contentDescription = stringResource(Res.string.settings_source_edit_content_description), tint = if (enabled) colors.primaryText else colors.mutedText)
             }
             IconButton(enabled = enabled, onClick = onDelete, modifier = Modifier.size(32.dp)) {
-                Icon(NaviampIcons.Trash, contentDescription = "Delete connection", tint = if (enabled) colors.primaryText else colors.mutedText)
+                Icon(NaviampIcons.Trash, contentDescription = stringResource(Res.string.settings_source_delete_content_description), tint = if (enabled) colors.primaryText else colors.mutedText)
             }
         }
         Text(
@@ -981,7 +1115,7 @@ private fun NaviampSavedConnectionRow(
         )
         if (connection.selectedLibrarySummary.isNotBlank()) {
             Text(
-                "Libraries: ${connection.selectedLibrarySummary}",
+                stringResource(Res.string.settings_source_libraries_prefix, connection.selectedLibrarySummary),
                 color = colors.secondaryText,
                 fontSize = 12.sp,
                 maxLines = 1,
@@ -994,7 +1128,10 @@ private fun NaviampSavedConnectionRow(
             onClick = onConnect,
             modifier = Modifier.fillMaxWidth(),
         ) {
-            Text(if (connection.current) "Reconnect" else "Connect", color = if (enabled) colors.accent else colors.mutedText)
+            Text(
+                if (connection.current) stringResource(Res.string.common_reconnect) else stringResource(Res.string.common_connect),
+                color = if (enabled) colors.accent else colors.mutedText,
+            )
         }
     }
 }
@@ -1090,19 +1227,19 @@ private fun SharedLocalDataActions(
         verticalArrangement = Arrangement.spacedBy(8.dp),
         modifier = Modifier.fillMaxWidth().padding(horizontal = SettingsRowHorizontalPadding),
     ) {
-        SettingsSectionTitle("Local data", colors)
+        SettingsSectionTitle(stringResource(Res.string.settings_local_data_title), colors)
         Text(
-            "Manage local cache, indexed library data, downloads, and app database storage.",
+            stringResource(Res.string.settings_local_data_description),
             color = colors.secondaryText,
             fontSize = SettingsDetailRowSubtitleSize,
         )
-        PrimarySettingsButton("Clear cache", colors, enabled = onClearCache != null) {
+        PrimarySettingsButton(stringResource(Res.string.settings_local_clear_cache), colors, enabled = onClearCache != null) {
             confirmAction = SharedLocalDataAction.ClearCache
         }
-        PrimarySettingsButton("Clear library index", colors, enabled = onClearLibrary != null) {
+        PrimarySettingsButton(stringResource(Res.string.settings_local_clear_library), colors, enabled = onClearLibrary != null) {
             confirmAction = SharedLocalDataAction.ClearLibrary
         }
-        PrimarySettingsButton("Reset database", colors, enabled = onResetDatabase != null) {
+        PrimarySettingsButton(stringResource(Res.string.settings_local_reset_database), colors, enabled = onResetDatabase != null) {
             confirmAction = SharedLocalDataAction.ResetDatabase
         }
     }
@@ -1110,8 +1247,8 @@ private fun SharedLocalDataActions(
     confirmAction?.let { action ->
         AlertDialog(
             onDismissRequest = { confirmAction = null },
-            title = { Text(action.title) },
-            text = { Text(action.message) },
+            title = { Text(action.title()) },
+            text = { Text(action.message()) },
             confirmButton = {
                 TextButton(
                     onClick = {
@@ -1123,12 +1260,12 @@ private fun SharedLocalDataActions(
                         }
                     },
                 ) {
-                    Text(action.confirmLabel)
+                    Text(action.confirmLabel())
                 }
             },
             dismissButton = {
                 TextButton(onClick = { confirmAction = null }) {
-                    Text("Cancel")
+                    Text(stringResource(Res.string.common_cancel))
                 }
             },
         )
@@ -1145,32 +1282,32 @@ private fun SharedCacheSettingsSection(
     val normalized = cacheSettings.normalized()
 
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        SettingsSectionTitle("Audio cache", colors)
+        SettingsSectionTitle(stringResource(Res.string.settings_audio_cache_title), colors)
         diagnosticRowValue(diagnostics, "Storage", "Audio cache")?.let { value ->
             Text(value, color = colors.secondaryText, fontSize = 12.sp)
         }
         SettingsCheckboxRow(
             colors = colors,
             checked = normalized.audioCachingEnabled,
-            label = "Enable audio prefetch",
+            label = stringResource(Res.string.settings_audio_cache_enable),
             onCheckedChange = { enabled ->
                 onCacheSettingsChanged(normalized.copy(audioCachingEnabled = enabled).normalized())
             },
         )
         DetentIntSettingsSlider(
             colors = colors,
-            title = "Prefetch depth",
+            title = stringResource(Res.string.settings_audio_cache_prefetch_depth_title),
             value = normalized.audioPrefetchDepth,
             detents = PrefetchDepthOptions,
             enabled = normalized.audioCachingEnabled,
-            valueLabel = { depth -> if (depth == 0) "Off" else "$depth tracks" },
+            valueLabel = { depth -> if (depth == 0) stringResource(Res.string.common_off) else stringResource(Res.string.settings_tracks_count, depth) },
             onValueChanged = { depth ->
                 onCacheSettingsChanged(normalized.copy(audioPrefetchDepth = depth).normalized())
             },
         )
         DetentByteSettingsSlider(
             colors = colors,
-            title = "Audio cache budget",
+            title = stringResource(Res.string.settings_audio_cache_budget_title),
             valueBytes = normalized.maxAudioCacheBytes,
             detents = AudioCacheBudgetOptions,
             onValueChanged = { bytes ->
@@ -1178,50 +1315,50 @@ private fun SharedCacheSettingsSection(
             },
         )
 
-        SettingsSectionTitle("Waveforms", colors)
+        SettingsSectionTitle(stringResource(Res.string.settings_waveforms_title), colors)
         diagnosticRowValue(diagnostics, "Storage", "Waveforms")?.let { value ->
             Text(value, color = colors.secondaryText, fontSize = 12.sp)
         }
         SettingsCheckboxRow(
             colors = colors,
             checked = normalized.waveformsEnabled,
-            label = "Generate track waveforms",
+            label = stringResource(Res.string.settings_waveforms_generate),
             onCheckedChange = { enabled ->
                 onCacheSettingsChanged(normalized.copy(waveformsEnabled = enabled).normalized())
             },
         )
         DetentIntSettingsSlider(
             colors = colors,
-            title = "Waveform detail",
+            title = stringResource(Res.string.settings_waveforms_detail_title),
             value = normalized.waveformBucketCount,
             detents = WaveformBucketCountOptions,
             enabled = normalized.waveformsEnabled,
-            valueLabel = { count -> "$count steps" },
+            valueLabel = { count -> stringResource(Res.string.settings_steps_count, count) },
             onValueChanged = { count ->
                 onCacheSettingsChanged(normalized.copy(waveformBucketCount = count).normalized())
             },
         )
 
-        SettingsSectionTitle("Downloads", colors)
+        SettingsSectionTitle(stringResource(Res.string.settings_downloads_title), colors)
         diagnosticRowValue(diagnostics, "Storage", "Downloads")?.let { value ->
             Text(value, color = colors.secondaryText, fontSize = 12.sp)
         }
         SettingsCheckboxRow(
             colors = colors,
             checked = normalized.offlineModeEnabled,
-            label = "Offline Mode",
+            label = stringResource(Res.string.settings_downloads_offline_mode),
             onCheckedChange = { enabled ->
                 onCacheSettingsChanged(normalized.copy(offlineModeEnabled = enabled).normalized())
             },
         )
         Text(
-            "Search only downloaded tracks while Offline Mode is enabled.",
+            stringResource(Res.string.settings_downloads_offline_mode_subtitle),
             color = colors.secondaryText,
             fontSize = 12.sp,
         )
         DetentByteSettingsSlider(
             colors = colors,
-            title = "Download storage budget",
+            title = stringResource(Res.string.settings_downloads_storage_budget_title),
             valueBytes = normalized.maxDownloadBytes,
             detents = DownloadBudgetOptions,
             onValueChanged = { bytes ->
@@ -1231,9 +1368,9 @@ private fun SharedCacheSettingsSection(
 
         NaviampDiagnosticsSettingsSection(
             colors = colors,
-            title = "Storage",
+            title = stringResource(Res.string.settings_storage_title),
             diagnostics = diagnostics,
-            emptyText = "Cache sizes will appear after the app initializes storage.",
+            emptyText = stringResource(Res.string.settings_storage_empty),
         )
     }
 }
@@ -1245,7 +1382,7 @@ private fun DetentIntSettingsSlider(
     value: Int,
     detents: List<Int>,
     enabled: Boolean = true,
-    valueLabel: (Int) -> String,
+    valueLabel: @Composable (Int) -> String,
     onValueChanged: (Int) -> Unit,
 ) {
     val normalizedDetents = detents.distinct().sorted()
@@ -1316,7 +1453,7 @@ private fun DetentIntSettingsPageRow(
     value: Int,
     detents: List<Int>,
     enabled: Boolean = true,
-    valueLabel: (Int) -> String,
+    valueLabel: @Composable (Int) -> String,
     onValueChanged: (Int) -> Unit,
 ) {
     var open by remember { mutableStateOf(false) }
@@ -1427,7 +1564,7 @@ fun NaviampDownloadsSettingsSection(
     }
 
     selectedPage?.let { page ->
-        SettingsSubsectionHeader(page.title, page.subtitle, colors) { selectedPage = null }
+        SettingsSubsectionHeader(page.title(), page.subtitle(), colors) { selectedPage = null }
         when (page) {
             DownloadsSettingsPage.SavedFiles -> QualityBitrateOptions(
                 colors = colors,
@@ -1462,8 +1599,8 @@ fun NaviampDownloadsSettingsSection(
     }
 
     SettingsRow(
-        title = "Saved Files",
-        subtitle = "Quality for newly saved files.",
+        title = stringResource(Res.string.settings_downloads_saved_files_title),
+        subtitle = stringResource(Res.string.settings_downloads_saved_files_subtitle),
         colors = colors,
         value = playbackSettings.downloadQuality.summaryLabel(),
     ) {
@@ -1473,7 +1610,7 @@ fun NaviampDownloadsSettingsSection(
         SettingsCheckboxRow(
             colors = colors,
             checked = playbackSettings.allowMobileDownloads,
-            label = "Allow downloads on mobile data",
+            label = stringResource(Res.string.settings_downloads_mobile_data),
             onCheckedChange = { enabled ->
                 onPlaybackSettingsChanged(playbackSettings.copy(allowMobileDownloads = enabled))
             },
@@ -1482,15 +1619,15 @@ fun NaviampDownloadsSettingsSection(
     SettingsCheckboxRow(
         colors = colors,
         checked = normalized.offlineModeEnabled,
-        label = "Offline Mode",
-        subtitle = "Search only downloaded tracks while Offline Mode is enabled.",
+        label = stringResource(Res.string.settings_downloads_offline_mode),
+        subtitle = stringResource(Res.string.settings_downloads_offline_mode_subtitle),
         onCheckedChange = { enabled ->
             onCacheSettingsChanged(normalized.copy(offlineModeEnabled = enabled).normalized())
         },
     )
     SettingsRow(
-        title = "Download Storage Budget",
-        subtitle = "Maximum space for saved files.",
+        title = stringResource(Res.string.settings_downloads_storage_budget_title),
+        subtitle = stringResource(Res.string.settings_downloads_storage_budget_subtitle),
         colors = colors,
         value = normalized.maxDownloadBytes.storageBytesLabel(),
     ) {
@@ -1500,7 +1637,7 @@ fun NaviampDownloadsSettingsSection(
         verticalArrangement = Arrangement.spacedBy(6.dp),
         modifier = Modifier.fillMaxWidth().padding(horizontal = SettingsRowHorizontalPadding),
     ) {
-        SettingsSectionTitle("Storage", colors)
+        SettingsSectionTitle(stringResource(Res.string.settings_storage_title), colors)
         diagnosticRowValue(diagnostics, "Storage", "Downloads")?.let { value ->
             Text(value, color = colors.secondaryText, fontSize = SettingsDetailRowSubtitleSize)
         }
@@ -1516,6 +1653,20 @@ private enum class DownloadsSettingsPage(
 }
 
 @Composable
+private fun DownloadsSettingsPage.title(): String =
+    when (this) {
+        DownloadsSettingsPage.SavedFiles -> stringResource(Res.string.settings_downloads_saved_files_title)
+        DownloadsSettingsPage.StorageBudget -> stringResource(Res.string.settings_downloads_storage_budget_title)
+    }
+
+@Composable
+private fun DownloadsSettingsPage.subtitle(): String =
+    when (this) {
+        DownloadsSettingsPage.SavedFiles -> stringResource(Res.string.settings_downloads_saved_files_subtitle)
+        DownloadsSettingsPage.StorageBudget -> stringResource(Res.string.settings_downloads_storage_budget_subtitle)
+    }
+
+@Composable
 fun NaviampAudioCacheSettingsSection(
     colors: NaviampColors,
     cacheSettings: CacheSettings,
@@ -1526,12 +1677,12 @@ fun NaviampAudioCacheSettingsSection(
     var selectedPage by remember { mutableStateOf<AudioCacheSettingsPage?>(null) }
 
     selectedPage?.let { page ->
-        SettingsSubsectionHeader(page.title, page.subtitle, colors) { selectedPage = null }
+        SettingsSubsectionHeader(page.title(), page.subtitle(), colors) { selectedPage = null }
         when (page) {
             AudioCacheSettingsPage.PrefetchDepth -> PrefetchDepthOptions.forEach { depth ->
                 SelectableSettingsRow(
                     colors = colors,
-                    title = if (depth == 0) "Off" else "$depth tracks",
+                    title = if (depth == 0) stringResource(Res.string.common_off) else stringResource(Res.string.settings_tracks_count, depth),
                     selected = depth == normalized.audioPrefetchDepth,
                     enabled = normalized.audioCachingEnabled,
                 ) {
@@ -1554,24 +1705,28 @@ fun NaviampAudioCacheSettingsSection(
     SettingsCheckboxRow(
         colors = colors,
         checked = normalized.audioCachingEnabled,
-        label = "Enable audio prefetch",
-        subtitle = "Cache upcoming audio for smoother playback.",
+        label = stringResource(Res.string.settings_audio_cache_enable),
+        subtitle = stringResource(Res.string.settings_audio_cache_enable_subtitle),
         onCheckedChange = { enabled ->
             onCacheSettingsChanged(normalized.copy(audioCachingEnabled = enabled).normalized())
         },
     )
     SettingsRow(
-        title = "Prefetch Depth",
-        subtitle = "Tracks to cache ahead in the play queue.",
+        title = stringResource(Res.string.settings_audio_cache_prefetch_depth_title),
+        subtitle = stringResource(Res.string.settings_audio_cache_prefetch_depth_subtitle),
         colors = colors,
-        value = if (normalized.audioPrefetchDepth == 0) "Off" else "${normalized.audioPrefetchDepth} tracks",
+        value = if (normalized.audioPrefetchDepth == 0) {
+            stringResource(Res.string.common_off)
+        } else {
+            stringResource(Res.string.settings_tracks_count, normalized.audioPrefetchDepth)
+        },
         enabled = normalized.audioCachingEnabled,
     ) {
         selectedPage = AudioCacheSettingsPage.PrefetchDepth
     }
     SettingsRow(
-        title = "Audio Cache Budget",
-        subtitle = "Maximum space for prefetched audio.",
+        title = stringResource(Res.string.settings_audio_cache_budget_title),
+        subtitle = stringResource(Res.string.settings_audio_cache_budget_subtitle),
         colors = colors,
         value = normalized.maxAudioCacheBytes.storageBytesLabel(),
     ) {
@@ -1581,7 +1736,7 @@ fun NaviampAudioCacheSettingsSection(
         verticalArrangement = Arrangement.spacedBy(6.dp),
         modifier = Modifier.fillMaxWidth().padding(horizontal = SettingsRowHorizontalPadding),
     ) {
-        SettingsSectionTitle("Storage", colors)
+        SettingsSectionTitle(stringResource(Res.string.settings_storage_title), colors)
         diagnosticRowValue(diagnostics, "Storage", "Audio cache")?.let { value ->
             Text(value, color = colors.secondaryText, fontSize = SettingsDetailRowSubtitleSize)
         }
@@ -1597,6 +1752,20 @@ private enum class AudioCacheSettingsPage(
 }
 
 @Composable
+private fun AudioCacheSettingsPage.title(): String =
+    when (this) {
+        AudioCacheSettingsPage.PrefetchDepth -> stringResource(Res.string.settings_audio_cache_prefetch_depth_title)
+        AudioCacheSettingsPage.AudioCacheBudget -> stringResource(Res.string.settings_audio_cache_budget_title)
+    }
+
+@Composable
+private fun AudioCacheSettingsPage.subtitle(): String =
+    when (this) {
+        AudioCacheSettingsPage.PrefetchDepth -> stringResource(Res.string.settings_audio_cache_prefetch_depth_subtitle)
+        AudioCacheSettingsPage.AudioCacheBudget -> stringResource(Res.string.settings_audio_cache_budget_subtitle)
+    }
+
+@Composable
 private fun WaveformSettings(
     colors: NaviampColors,
     cacheSettings: CacheSettings,
@@ -1606,13 +1775,17 @@ private fun WaveformSettings(
     var detailOpen by remember { mutableStateOf(false) }
 
     if (detailOpen) {
-        SettingsSubsectionHeader("Waveform Detail", "How many steps to render in each waveform", colors) {
+        SettingsSubsectionHeader(
+            stringResource(Res.string.settings_waveforms_detail_title),
+            stringResource(Res.string.settings_waveforms_detail_header_subtitle),
+            colors,
+        ) {
             detailOpen = false
         }
         WaveformBucketCountOptions.forEach { count ->
             SelectableSettingsRow(
                 colors = colors,
-                title = "$count steps",
+                title = stringResource(Res.string.settings_steps_count, count),
                 selected = count == normalized.waveformBucketCount,
                 enabled = normalized.waveformsEnabled,
             ) {
@@ -1625,17 +1798,17 @@ private fun WaveformSettings(
     SettingsCheckboxRow(
         colors = colors,
         checked = normalized.waveformsEnabled,
-        label = "Generate Waveforms",
-        subtitle = "Create visual track waveforms for the player.",
+        label = stringResource(Res.string.settings_waveforms_generate),
+        subtitle = stringResource(Res.string.settings_waveforms_generate_subtitle),
         onCheckedChange = { enabled ->
             onCacheSettingsChanged(normalized.copy(waveformsEnabled = enabled).normalized())
         },
     )
     SettingsRow(
-        title = "Waveform Detail",
-        subtitle = "How many steps to render in each waveform.",
+        title = stringResource(Res.string.settings_waveforms_detail_title),
+        subtitle = stringResource(Res.string.settings_waveforms_detail_subtitle),
         colors = colors,
-        value = "${normalized.waveformBucketCount} steps",
+        value = stringResource(Res.string.settings_steps_count, normalized.waveformBucketCount),
         enabled = normalized.waveformsEnabled,
     ) {
         detailOpen = true
@@ -1714,6 +1887,30 @@ private enum class SharedLocalDataAction(
 }
 
 @Composable
+private fun SharedLocalDataAction.title(): String =
+    when (this) {
+        SharedLocalDataAction.ClearCache -> stringResource(Res.string.settings_clear_cache_title)
+        SharedLocalDataAction.ClearLibrary -> stringResource(Res.string.settings_clear_library_title)
+        SharedLocalDataAction.ResetDatabase -> stringResource(Res.string.settings_reset_database_title)
+    }
+
+@Composable
+private fun SharedLocalDataAction.message(): String =
+    when (this) {
+        SharedLocalDataAction.ClearCache -> stringResource(Res.string.settings_clear_cache_message)
+        SharedLocalDataAction.ClearLibrary -> stringResource(Res.string.settings_clear_library_message)
+        SharedLocalDataAction.ResetDatabase -> stringResource(Res.string.settings_reset_database_message)
+    }
+
+@Composable
+private fun SharedLocalDataAction.confirmLabel(): String =
+    when (this) {
+        SharedLocalDataAction.ClearCache -> stringResource(Res.string.settings_clear_cache_confirm)
+        SharedLocalDataAction.ClearLibrary -> stringResource(Res.string.settings_clear_library_confirm)
+        SharedLocalDataAction.ResetDatabase -> stringResource(Res.string.settings_reset_database_confirm)
+    }
+
+@Composable
 fun NaviampPlaybackSettingsSection(
     colors: NaviampColors,
     playbackSettings: PlaybackSettings,
@@ -1737,7 +1934,7 @@ fun NaviampPlaybackSettingsSection(
     var selectedSection by remember { mutableStateOf<NaviampPlaybackSettingsSection?>(null) }
 
     selectedSection?.let { section ->
-        SettingsSubsectionHeader(section.title, section.subtitle, colors) { selectedSection = null }
+        SettingsSubsectionHeader(section.title(), section.subtitle(), colors) { selectedSection = null }
         when (section) {
             NaviampPlaybackSettingsSection.Output -> AudioOutputSettings(
                 colors = colors,
@@ -1783,8 +1980,8 @@ fun NaviampPlaybackSettingsSection(
             showCrossfade = showCrossfade,
         ).forEach { section ->
             SettingsRow(
-                title = section.title,
-                subtitle = section.subtitle,
+                title = section.title(),
+                subtitle = section.subtitle(),
                 colors = colors,
                 value = playbackSettingsSectionValue(section, playbackSettings),
             ) {
@@ -1806,6 +2003,29 @@ private enum class NaviampPlaybackSettingsSection(
     DjBuilder("Radio DJs", "Saved DJs and radio tuning"),
 }
 
+@Composable
+private fun NaviampPlaybackSettingsSection.title(): String =
+    when (this) {
+        NaviampPlaybackSettingsSection.Output -> stringResource(Res.string.settings_playback_output_title)
+        NaviampPlaybackSettingsSection.AudioQuality -> stringResource(Res.string.settings_playback_quality_title)
+        NaviampPlaybackSettingsSection.ReplayGain -> stringResource(Res.string.settings_playback_loudness_title)
+        NaviampPlaybackSettingsSection.GaplessCrossfade -> stringResource(Res.string.settings_playback_fades_title)
+        NaviampPlaybackSettingsSection.Equalizer -> stringResource(Res.string.settings_playback_equalizer_title)
+        NaviampPlaybackSettingsSection.DjBuilder -> stringResource(Res.string.settings_playback_radio_djs_title)
+    }
+
+@Composable
+private fun NaviampPlaybackSettingsSection.subtitle(): String =
+    when (this) {
+        NaviampPlaybackSettingsSection.Output -> stringResource(Res.string.settings_playback_output_subtitle)
+        NaviampPlaybackSettingsSection.AudioQuality -> stringResource(Res.string.settings_playback_quality_subtitle)
+        NaviampPlaybackSettingsSection.ReplayGain -> stringResource(Res.string.settings_playback_loudness_subtitle)
+        NaviampPlaybackSettingsSection.GaplessCrossfade -> stringResource(Res.string.settings_playback_fades_subtitle)
+        NaviampPlaybackSettingsSection.Equalizer -> stringResource(Res.string.settings_playback_equalizer_subtitle)
+        NaviampPlaybackSettingsSection.DjBuilder -> stringResource(Res.string.settings_playback_radio_djs_subtitle)
+    }
+
+@Composable
 private fun playbackSettingsSectionValue(
     section: NaviampPlaybackSettingsSection,
     playbackSettings: PlaybackSettings,
@@ -1815,8 +2035,14 @@ private fun playbackSettingsSectionValue(
         NaviampPlaybackSettingsSection.AudioQuality -> playbackSettings.wifiStreamingQuality.summaryLabel()
         NaviampPlaybackSettingsSection.ReplayGain -> playbackSettings.replayGainMode.displayName
         NaviampPlaybackSettingsSection.GaplessCrossfade -> playbackSettings.fadeSummary()
-        NaviampPlaybackSettingsSection.Equalizer -> if (playbackSettings.equalizer.normalized().enabled) "Enabled" else "Off"
-        NaviampPlaybackSettingsSection.DjBuilder -> playbackSettings.radioDjs.size.takeIf { it > 0 }?.let { "$it saved" }
+        NaviampPlaybackSettingsSection.Equalizer -> if (playbackSettings.equalizer.normalized().enabled) {
+            stringResource(Res.string.common_enabled)
+        } else {
+            stringResource(Res.string.common_off)
+        }
+        NaviampPlaybackSettingsSection.DjBuilder -> playbackSettings.radioDjs.size.takeIf { it > 0 }?.let {
+            stringResource(Res.string.settings_source_saved_count, it)
+        }
     }
 
 private fun playbackSettingsSections(
@@ -1847,8 +2073,8 @@ private fun AudioOutputSettings(
         selectedDevice?.isEnabled != true
 
     SelectableSettingsRow(
-        title = "Default",
-        subtitle = "Follows System Output",
+        title = stringResource(Res.string.common_default),
+        subtitle = stringResource(Res.string.settings_output_default_subtitle),
         colors = colors,
         selected = selected.mode == AudioOutputDeviceMode.FollowSystem,
     ) {
@@ -1879,30 +2105,36 @@ private fun AudioOutputSettings(
         }
     if (pinnedUnavailable) {
         Text(
-            "Pinned output unavailable: ${selected.deviceName ?: selected.deviceId}. Playback is using the OS default.",
+            stringResource(
+                Res.string.settings_output_pinned_unavailable,
+                selected.deviceName ?: selected.deviceId.orEmpty(),
+            ),
             color = colors.secondaryText,
             fontSize = 12.sp,
         )
     }
 }
 
+@Composable
 private fun AudioOutputDevicePreference.outputSummary(): String =
     normalized().let { preference ->
         when (preference.mode) {
-            AudioOutputDeviceMode.FollowSystem -> "Default"
-            AudioOutputDeviceMode.Pinned -> preference.deviceName ?: "Pinned"
+            AudioOutputDeviceMode.FollowSystem -> stringResource(Res.string.common_default)
+            AudioOutputDeviceMode.Pinned -> preference.deviceName ?: stringResource(Res.string.settings_output_pinned)
         }
     }
 
+@Composable
 private fun AudioOutputDevice.outputDeviceSubtitle(): String =
     buildList {
-        if (isInitialized) add("Active")
-        add(if (isEnabled) "Available" else "Unavailable")
+        if (isInitialized) add(stringResource(Res.string.common_active))
+        add(if (isEnabled) stringResource(Res.string.common_available) else stringResource(Res.string.common_unavailable))
     }.joinToString(" / ")
 
+@Composable
 private fun AudioOutputDevice.outputDeviceDisplayName(): String =
     if (isDefault && name.equals("Default", ignoreCase = true)) {
-        "System Default Device"
+        stringResource(Res.string.settings_output_system_default_device)
     } else {
         name
     }
@@ -1939,7 +2171,7 @@ private fun SelectableSettingsRow(
         }
         if (selected) {
             Text(
-                "Selected",
+                stringResource(Res.string.settings_selected_label),
                 color = if (enabled) colors.primaryText else colors.mutedText,
                 fontSize = SettingsDetailRowSubtitleSize,
                 fontWeight = FontWeight.SemiBold,
@@ -1956,6 +2188,7 @@ private fun SelectableTextOption(
     subtitle: String? = null,
     selected: Boolean,
     enabled: Boolean = true,
+    selectedLabel: String = "Selected",
     onClick: () -> Unit,
 ) {
     Row(
@@ -1978,7 +2211,7 @@ private fun SelectableTextOption(
         }
         if (selected) {
             Text(
-                "Selected",
+                selectedLabel,
                 color = if (enabled) colors.primaryText else colors.mutedText,
                 fontSize = SettingsDetailRowSubtitleSize,
                 fontWeight = FontWeight.SemiBold,
@@ -1995,19 +2228,21 @@ private fun AudioOutputDevice.outputDeviceTitle(selected: Boolean): String =
         if (selected) append(" (Selected)")
     }
 
+@Composable
 private fun StreamQualityPreference.summaryLabel(): String =
     normalized().let { quality ->
         when (quality.mode) {
-            StreamQualityMode.Original -> "Maximum"
-            StreamQualityMode.Transcode -> "${quality.codec.label} ${quality.bitrateKbps} kbps"
+            StreamQualityMode.Original -> stringResource(Res.string.settings_quality_maximum)
+            StreamQualityMode.Transcode -> "${quality.codec.label} ${stringResource(Res.string.settings_quality_kbps, quality.bitrateKbps)}"
         }
     }
 
+@Composable
 private fun PlaybackSettings.fadeSummary(): String =
     when {
-        crossfadeDurationSeconds > 0 -> "${crossfadeDurationSeconds}s"
-        gaplessEnabled -> "Gapless"
-        else -> "Off"
+        crossfadeDurationSeconds > 0 -> stringResource(Res.string.settings_seconds_short, crossfadeDurationSeconds)
+        gaplessEnabled -> stringResource(Res.string.settings_gapless_title)
+        else -> stringResource(Res.string.common_off)
     }
 
 @Composable
@@ -2070,11 +2305,11 @@ private fun QualityBitrateOptions(
     onPreferenceChanged: (StreamQualityPreference) -> Unit,
 ) {
     val normalized = preference.normalized()
-    SettingsSectionTitle("Codec", colors)
+    SettingsSectionTitle(stringResource(Res.string.settings_quality_codec_title), colors)
     SelectableTextOption(
         colors = colors,
-        title = "Maximum",
-        subtitle = "Never convert unless unsupported.",
+        title = stringResource(Res.string.settings_quality_maximum),
+        subtitle = stringResource(Res.string.settings_quality_maximum_subtitle),
         selected = normalized.mode == StreamQualityMode.Original,
     ) {
         onPreferenceChanged(normalized.copy(mode = StreamQualityMode.Original))
@@ -2083,17 +2318,17 @@ private fun QualityBitrateOptions(
         SelectableTextOption(
             colors = colors,
             title = codec.label,
-            subtitle = "Convert to ${codec.label}.",
+            subtitle = stringResource(Res.string.settings_quality_convert_to, codec.label),
             selected = normalized.mode == StreamQualityMode.Transcode && normalized.codec == codec,
         ) {
             onPreferenceChanged(normalized.copy(mode = StreamQualityMode.Transcode, codec = codec))
         }
     }
-    SettingsSectionTitle("Bitrate", colors)
+    SettingsSectionTitle(stringResource(Res.string.settings_quality_bitrate_title), colors)
     StreamBitrateKbpsOptions.sortedDescending().forEach { bitrate ->
         SelectableTextOption(
             colors = colors,
-            title = "$bitrate kbps",
+            title = stringResource(Res.string.settings_quality_kbps, bitrate),
             selected = normalized.mode == StreamQualityMode.Transcode && normalized.bitrateKbps == bitrate,
         ) {
             onPreferenceChanged(normalized.copy(mode = StreamQualityMode.Transcode, bitrateKbps = bitrate))
@@ -2114,7 +2349,7 @@ private fun SettingsSubsectionHeader(
         modifier = Modifier.fillMaxWidth(),
     ) {
         IconButton(onClick = onBack, modifier = Modifier.size(34.dp)) {
-            Icon(NaviampIcons.Back, contentDescription = "Back", tint = colors.primaryText)
+            Icon(NaviampIcons.Back, contentDescription = stringResource(Res.string.common_back), tint = colors.primaryText)
         }
         Column(verticalArrangement = Arrangement.spacedBy(1.dp)) {
             Text(title, color = colors.primaryText, fontSize = SettingsDetailTitleSize, fontWeight = FontWeight.Bold)
@@ -2133,7 +2368,11 @@ private fun ReplayGainSettings(
     var preampOpen by remember { mutableStateOf(false) }
     var replayGainModeOpen by remember { mutableStateOf(false) }
     if (replayGainModeOpen) {
-        SettingsSubsectionHeader("Replay Gain", "Track and album volume matching", colors) {
+        SettingsSubsectionHeader(
+            stringResource(Res.string.settings_replay_gain_title),
+            stringResource(Res.string.settings_playback_loudness_subtitle),
+            colors,
+        ) {
             replayGainModeOpen = false
         }
         ReplayGainMode.entries.forEach { mode ->
@@ -2150,12 +2389,16 @@ private fun ReplayGainSettings(
         return
     }
     if (preampOpen) {
-        SettingsSubsectionHeader("Preamp", "Replay Gain output trim", colors) { preampOpen = false }
+        SettingsSubsectionHeader(
+            stringResource(Res.string.settings_replay_gain_preamp_title),
+            stringResource(Res.string.settings_replay_gain_preamp_subtitle),
+            colors,
+        ) { preampOpen = false }
         PreampDbOptions.forEach { gain ->
             SelectableSettingsRow(
                 colors = colors,
                 title = gain.preampLabel(),
-                subtitle = if (gain == 0f) "Default" else null,
+                subtitle = if (gain == 0f) stringResource(Res.string.common_default) else null,
                 selected = kotlin.math.abs(playbackSettings.replayGainPreampDb - gain) < 0.05f,
                 enabled = supportsReplayGain,
             ) {
@@ -2166,7 +2409,7 @@ private fun ReplayGainSettings(
     }
 
     SettingsRow(
-        title = "Replay Gain",
+        title = stringResource(Res.string.settings_replay_gain_title),
         subtitle = playbackSettings.replayGainMode.replayGainSubtitle(),
         colors = colors,
         value = playbackSettings.replayGainMode.displayName,
@@ -2175,8 +2418,8 @@ private fun ReplayGainSettings(
         replayGainModeOpen = true
     }
     SettingsRow(
-        title = "Preamp",
-        subtitle = "Amount to amplify from the reference ReplayGain level.",
+        title = stringResource(Res.string.settings_replay_gain_preamp_title),
+        subtitle = stringResource(Res.string.settings_replay_gain_preamp_row_subtitle),
         colors = colors,
         value = playbackSettings.replayGainPreampDb.preampLabel(),
         enabled = supportsReplayGain,
@@ -2187,8 +2430,8 @@ private fun ReplayGainSettings(
         colors = colors,
         checked = playbackSettings.replayGainInspectorEnabled,
         enabled = supportsReplayGain,
-        label = "Inspector",
-        subtitle = "Show ReplayGain details in track info.",
+        label = stringResource(Res.string.settings_replay_gain_inspector),
+        subtitle = stringResource(Res.string.settings_replay_gain_inspector_subtitle),
         onCheckedChange = { enabled ->
             onPlaybackSettingsChanged(playbackSettings.copy(replayGainInspectorEnabled = enabled))
         },
@@ -2205,12 +2448,16 @@ private fun GaplessCrossfadeSettings(
 ) {
     var crossfadeOpen by remember { mutableStateOf(false) }
     if (crossfadeOpen) {
-        SettingsSubsectionHeader("Crossfade", "Blend track transitions", colors) { crossfadeOpen = false }
+        SettingsSubsectionHeader(
+            stringResource(Res.string.settings_crossfade_title),
+            stringResource(Res.string.settings_crossfade_subtitle),
+            colors,
+        ) { crossfadeOpen = false }
         CrossfadeDurationOptions.forEach { seconds ->
             SelectableSettingsRow(
                 colors = colors,
-                title = if (seconds == 0) "Off" else "$seconds seconds",
-                subtitle = if (seconds == 0) "Do not overlap tracks." else null,
+                title = if (seconds == 0) stringResource(Res.string.common_off) else stringResource(Res.string.settings_seconds_count, seconds),
+                subtitle = if (seconds == 0) stringResource(Res.string.settings_crossfade_off_subtitle) else null,
                 selected = playbackSettings.crossfadeDurationSeconds == seconds,
                 enabled = supportsCrossfade || seconds == 0,
             ) {
@@ -2228,8 +2475,8 @@ private fun GaplessCrossfadeSettings(
         colors = colors,
         checked = playbackSettings.gaplessEnabled && playbackSettings.crossfadeDurationSeconds == 0,
         enabled = supportsGapless,
-        label = "Gapless",
-        subtitle = "Keep album playback continuous when possible.",
+        label = stringResource(Res.string.settings_gapless_title),
+        subtitle = stringResource(Res.string.settings_gapless_subtitle),
         onCheckedChange = { enabled ->
             onPlaybackSettingsChanged(
                 playbackSettings.copy(
@@ -2240,10 +2487,14 @@ private fun GaplessCrossfadeSettings(
         },
     )
     SettingsRow(
-        title = "Crossfade",
-        subtitle = "Blend track transitions.",
+        title = stringResource(Res.string.settings_crossfade_title),
+        subtitle = stringResource(Res.string.settings_crossfade_row_subtitle),
         colors = colors,
-        value = if (playbackSettings.crossfadeDurationSeconds == 0) "Off" else "${playbackSettings.crossfadeDurationSeconds}s",
+        value = if (playbackSettings.crossfadeDurationSeconds == 0) {
+            stringResource(Res.string.common_off)
+        } else {
+            stringResource(Res.string.settings_seconds_short, playbackSettings.crossfadeDurationSeconds)
+        },
         enabled = supportsCrossfade,
     ) {
         crossfadeOpen = true
@@ -2259,12 +2510,12 @@ private fun QueueRulesSettings(
     var selectedPage by remember { mutableStateOf<PlayerBehaviorPage?>(null) }
 
     selectedPage?.let { page ->
-        SettingsSubsectionHeader(page.title, page.subtitle, colors) { selectedPage = null }
+        SettingsSubsectionHeader(page.title(), page.subtitle(), colors) { selectedPage = null }
         when (page) {
             PlayerBehaviorPage.PreviousClick -> PreviousButtonBehavior.entries.forEach { behavior ->
                 SelectableSettingsRow(
                     colors = colors,
-                    title = behavior.label,
+                    title = behavior.label(),
                     subtitle = behavior.previousButtonSubtitle(),
                     selected = playbackSettings.previousButtonBehavior == behavior,
                 ) {
@@ -2274,7 +2525,7 @@ private fun QueueRulesSettings(
             PlayerBehaviorPage.UpNextSelection -> UpNextSelectionBehavior.entries.forEach { behavior ->
                 SelectableSettingsRow(
                     colors = colors,
-                    title = behavior.label,
+                    title = behavior.label(),
                     subtitle = behavior.upNextSelectionSubtitle(),
                     selected = playbackSettings.upNextSelectionBehavior == behavior,
                 ) {
@@ -2288,25 +2539,25 @@ private fun QueueRulesSettings(
     SettingsCheckboxRow(
         colors = colors,
         checked = playbackSettings.removePlayedTracksFromQueue,
-        label = "Remove played tracks from Back To",
-        subtitle = "Keep playback history shorter as tracks finish.",
+        label = stringResource(Res.string.settings_player_remove_played),
+        subtitle = stringResource(Res.string.settings_player_remove_played_subtitle),
         onCheckedChange = { enabled ->
             onPlaybackSettingsChanged(playbackSettings.copy(removePlayedTracksFromQueue = enabled))
         },
     )
     SettingsRow(
-        title = PlayerBehaviorPage.PreviousClick.title,
-        subtitle = PlayerBehaviorPage.PreviousClick.subtitle,
+        title = PlayerBehaviorPage.PreviousClick.title(),
+        subtitle = PlayerBehaviorPage.PreviousClick.subtitle(),
         colors = colors,
-        value = playbackSettings.previousButtonBehavior.label,
+        value = playbackSettings.previousButtonBehavior.label(),
     ) {
         selectedPage = PlayerBehaviorPage.PreviousClick
     }
     SettingsRow(
-        title = PlayerBehaviorPage.UpNextSelection.title,
-        subtitle = PlayerBehaviorPage.UpNextSelection.subtitle,
+        title = PlayerBehaviorPage.UpNextSelection.title(),
+        subtitle = PlayerBehaviorPage.UpNextSelection.subtitle(),
         colors = colors,
-        value = playbackSettings.upNextSelectionBehavior.label,
+        value = playbackSettings.upNextSelectionBehavior.label(),
     ) {
         selectedPage = PlayerBehaviorPage.UpNextSelection
     }
@@ -2321,12 +2572,26 @@ private enum class PlayerBehaviorPage(
 }
 
 @Composable
+private fun PlayerBehaviorPage.title(): String =
+    when (this) {
+        PlayerBehaviorPage.PreviousClick -> stringResource(Res.string.settings_player_previous_click_title)
+        PlayerBehaviorPage.UpNextSelection -> stringResource(Res.string.settings_player_up_next_title)
+    }
+
+@Composable
+private fun PlayerBehaviorPage.subtitle(): String =
+    when (this) {
+        PlayerBehaviorPage.PreviousClick -> stringResource(Res.string.settings_player_previous_click_subtitle)
+        PlayerBehaviorPage.UpNextSelection -> stringResource(Res.string.settings_player_up_next_subtitle)
+    }
+
+@Composable
 private fun RadioTuningControls(
     colors: NaviampColors,
     tuning: RadioTuningSettings,
     onTuningChanged: (RadioTuningSettings) -> Unit,
 ) {
-    Text("Familiarity", color = colors.secondaryText, fontSize = 12.sp)
+    Text(stringResource(Res.string.settings_radio_familiarity), color = colors.secondaryText, fontSize = 12.sp)
     Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
         RadioFamiliarity.entries.forEach { familiarity ->
             FilterChip(
@@ -2337,7 +2602,7 @@ private fun RadioTuningControls(
             )
         }
     }
-    Text("Artist spread", color = colors.secondaryText, fontSize = 12.sp)
+    Text(stringResource(Res.string.settings_radio_artist_spread), color = colors.secondaryText, fontSize = 12.sp)
     Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
         RadioArtistSpread.entries.forEach { spread ->
             FilterChip(
@@ -2351,12 +2616,12 @@ private fun RadioTuningControls(
     SettingsCheckboxRow(
         colors = colors,
         checked = tuning.sameDecadeOnly,
-        label = "Stay in seed track decade",
+        label = stringResource(Res.string.settings_radio_stay_in_decade),
         onCheckedChange = { enabled ->
             onTuningChanged(tuning.copy(sameDecadeOnly = enabled))
         },
     )
-    Text("Artist runs", color = colors.secondaryText, fontSize = 12.sp)
+    Text(stringResource(Res.string.settings_radio_artist_runs), color = colors.secondaryText, fontSize = 12.sp)
     Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
         RadioArtistRunMode.entries.forEach { mode ->
             FilterChip(
@@ -2370,13 +2635,13 @@ private fun RadioTuningControls(
     if (tuning.artistRunMode == RadioArtistRunMode.ArtistBlocks) {
         SettingsNumberSlider(
             colors = colors,
-            label = "Same artist run",
+            label = stringResource(Res.string.settings_radio_same_artist_run),
             value = tuning.sameArtistRunLength,
             onValueChanged = { value -> onTuningChanged(tuning.copy(sameArtistRunLength = value)) },
         )
         SettingsNumberSlider(
             colors = colors,
-            label = "Other artists run",
+            label = stringResource(Res.string.settings_radio_other_artists_run),
             value = tuning.otherArtistRunLength,
             onValueChanged = { value -> onTuningChanged(tuning.copy(otherArtistRunLength = value)) },
         )
@@ -2414,8 +2679,8 @@ private fun RadioDjSettingsSection(
 
     if (editingId != null) {
         SettingsSubsectionHeader(
-            title = if (editingPreset == null) "New DJ" else editingPreset.name,
-            subtitle = "Radio DJ tuning",
+            title = if (editingPreset == null) stringResource(Res.string.settings_radio_new_dj) else editingPreset.name,
+            subtitle = stringResource(Res.string.settings_radio_edit_dj_subtitle),
             colors = colors,
         ) {
             editingId = null
@@ -2424,7 +2689,7 @@ private fun RadioDjSettingsSection(
             value = draftName,
             onValueChange = { draftName = it },
             singleLine = true,
-            label = { Text("DJ name") },
+            label = { Text(stringResource(Res.string.settings_radio_dj_name)) },
             modifier = Modifier.fillMaxWidth(),
         )
         RadioTuningControls(
@@ -2457,7 +2722,7 @@ private fun RadioDjSettingsSection(
                     editingId = null
                 },
             ) {
-                Text("Save", color = if (draftName.isNotBlank()) colors.primaryText else colors.mutedText)
+                Text(stringResource(Res.string.common_save), color = if (draftName.isNotBlank()) colors.primaryText else colors.mutedText)
             }
             if (editingPreset != null) {
                 TextButton(
@@ -2472,18 +2737,18 @@ private fun RadioDjSettingsSection(
                         editingId = null
                     },
                 ) {
-                    Text("Delete", color = colors.primaryText)
+                    Text(stringResource(Res.string.common_delete), color = colors.primaryText)
                 }
             }
             TextButton(onClick = { editingId = null }) {
-                Text("Cancel", color = colors.secondaryText)
+                Text(stringResource(Res.string.common_cancel), color = colors.secondaryText)
             }
         }
         return
     }
 
     if (playbackSettings.radioDjs.isEmpty()) {
-        Text("No DJs saved yet.", color = colors.secondaryText, fontSize = 12.sp)
+        Text(stringResource(Res.string.settings_radio_no_djs), color = colors.secondaryText, fontSize = 12.sp)
     } else {
         playbackSettings.radioDjs.forEach { preset ->
             SettingsRow(preset.name, preset.tuning.summaryLabel(), colors) {
@@ -2493,7 +2758,7 @@ private fun RadioDjSettingsSection(
             }
         }
     }
-    PrimarySettingsButton("New DJ", colors, enabled = true) {
+    PrimarySettingsButton(stringResource(Res.string.settings_radio_new_dj), colors, enabled = true) {
         editingId = NewRadioDjId
         draftName = ""
         draftTuning = playbackSettings.radioTuning
@@ -2507,16 +2772,150 @@ private fun LyricsSettings(
     showLrclibLyrics: Boolean,
     onPlaybackSettingsChanged: (PlaybackSettings) -> Unit,
 ) {
+    var showSearchOrder by remember { mutableStateOf(false) }
+    if (showSearchOrder) {
+        SettingsSubsectionHeader(
+            title = stringResource(Res.string.settings_lyrics_search_order),
+            subtitle = stringResource(Res.string.settings_lyrics_search_order_subtitle),
+            colors = colors,
+        ) {
+            showSearchOrder = false
+        }
+        LyricsSearchOrderSettings(
+            colors = colors,
+            order = playbackSettings.lyricsSearchOrder.normalizedLyricsSearchOrder(),
+            onOrderChanged = { order ->
+                onPlaybackSettingsChanged(playbackSettings.copy(lyricsSearchOrder = order))
+            },
+        )
+        return
+    }
+
     if (showLrclibLyrics) {
         SettingsCheckboxRow(
             colors = colors,
             checked = playbackSettings.lrclibLyricsEnabled,
-            label = "Download lyrics for tracks",
+            label = stringResource(Res.string.settings_lyrics_download),
+            subtitle = stringResource(Res.string.settings_lyrics_download_subtitle),
             onCheckedChange = { enabled ->
                 onPlaybackSettingsChanged(playbackSettings.copy(lrclibLyricsEnabled = enabled))
             },
         )
     }
+    SettingsCheckboxRow(
+        colors = colors,
+        checked = playbackSettings.preferSyncedLyrics,
+        label = stringResource(Res.string.settings_lyrics_prefer_synced),
+        subtitle = stringResource(Res.string.settings_lyrics_prefer_synced_subtitle),
+        onCheckedChange = { enabled ->
+            onPlaybackSettingsChanged(playbackSettings.copy(preferSyncedLyrics = enabled))
+        },
+    )
+    SettingsRow(
+        title = stringResource(Res.string.settings_lyrics_search_order),
+        subtitle = stringResource(Res.string.settings_lyrics_search_order_subtitle),
+        colors = colors,
+        value = playbackSettings.lyricsSearchOrder.normalizedLyricsSearchOrder()
+            .map { source -> source.label() }
+            .joinToString(", "),
+    ) {
+        showSearchOrder = true
+    }
+}
+
+@Composable
+private fun LyricsSearchOrderSettings(
+    colors: NaviampColors,
+    order: List<LyricsSourcePreference>,
+    onOrderChanged: (List<LyricsSourcePreference>) -> Unit,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        order.forEachIndexed { index, source ->
+            var dragY by remember(order, source) { mutableStateOf(0f) }
+            val isDragging = dragY != 0f
+            val rowShape = RoundedCornerShape(6.dp)
+            Row(
+                modifier = Modifier
+                    .padding(horizontal = SettingsRowHorizontalPadding)
+                    .fillMaxWidth()
+                    .zIndex(if (isDragging) 1f else 0f)
+                    .graphicsLayer {
+                        translationY = dragY.coerceIn(-132f, 132f)
+                        shadowElevation = if (isDragging) 10f else 0f
+                        shape = rowShape
+                    }
+                    .background(
+                        color = if (isDragging) {
+                            colors.controlSurface.copy(alpha = 0.72f)
+                        } else {
+                            colors.background.copy(alpha = 0.12f)
+                        },
+                        shape = rowShape,
+                    )
+                    .border(
+                        width = 1.dp,
+                        color = colors.border.copy(alpha = if (isDragging) 0.78f else 0.18f),
+                        shape = rowShape,
+                    )
+                    .pointerInput(order, source) {
+                        detectDragGestures(
+                            onDragStart = { dragY = 0f },
+                            onDrag = { change, dragAmount ->
+                                change.consume()
+                                dragY += dragAmount.y
+                            },
+                            onDragEnd = {
+                                val rowStep = 56.dp.toPx()
+                                val targetIndex = (index + (dragY / rowStep).roundToInt()).coerceIn(order.indices)
+                                if (targetIndex != index) {
+                                    onOrderChanged(order.moveItem(index, targetIndex))
+                                }
+                                dragY = 0f
+                            },
+                            onDragCancel = { dragY = 0f },
+                        )
+                    }
+                    .padding(vertical = SettingsDetailRowVerticalPadding),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Icon(
+                    NaviampTransportIcons.Menu,
+                    contentDescription = stringResource(Res.string.settings_lyrics_drag_source),
+                    tint = colors.secondaryText,
+                    modifier = Modifier.size(18.dp),
+                )
+                Column(Modifier.weight(1f)) {
+                    Text(source.label(), color = colors.primaryText, fontSize = SettingsDetailRowTitleSize)
+                    Text(source.subtitle(), color = colors.mutedText, fontSize = SettingsDetailRowSubtitleSize)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun LyricsSourcePreference.label(): String =
+    when (this) {
+        LyricsSourcePreference.Provider -> stringResource(Res.string.settings_lyrics_source_provider)
+        LyricsSourcePreference.Embedded -> stringResource(Res.string.settings_lyrics_source_embedded)
+        LyricsSourcePreference.Download -> stringResource(Res.string.settings_lyrics_source_download)
+    }
+
+@Composable
+private fun LyricsSourcePreference.subtitle(): String =
+    when (this) {
+        LyricsSourcePreference.Provider -> stringResource(Res.string.settings_lyrics_source_provider_subtitle)
+        LyricsSourcePreference.Embedded -> stringResource(Res.string.settings_lyrics_source_embedded_subtitle)
+        LyricsSourcePreference.Download -> stringResource(Res.string.settings_lyrics_source_download_subtitle)
+    }
+
+private fun <T> List<T>.moveItem(fromIndex: Int, toIndex: Int): List<T> {
+    if (fromIndex == toIndex) return this
+    val mutable = toMutableList()
+    val item = mutable.removeAt(fromIndex)
+    mutable.add(toIndex, item)
+    return mutable
 }
 
 @Composable
@@ -2530,8 +2929,8 @@ private fun RelatedTracksSettings(
         SettingsCheckboxRow(
             colors = colors,
             checked = playbackSettings.sonicSimilarityEnabled,
-            label = "Sonic Similarity",
-            subtitle = "Use server-provided similarity to find nearby tracks.",
+            label = stringResource(Res.string.settings_related_sonic_similarity),
+            subtitle = stringResource(Res.string.settings_related_sonic_similarity_subtitle),
             onCheckedChange = { enabled ->
                 onPlaybackSettingsChanged(playbackSettings.copy(sonicSimilarityEnabled = enabled))
             },
@@ -2539,14 +2938,14 @@ private fun RelatedTracksSettings(
         SettingsCheckboxRow(
             colors = colors,
             checked = playbackSettings.sonicAutoplayEnabled,
-            label = "Sonic autoplay",
-            subtitle = "Start related music when the queue ends.",
+            label = stringResource(Res.string.settings_related_sonic_autoplay),
+            subtitle = stringResource(Res.string.settings_related_sonic_autoplay_subtitle),
             onCheckedChange = { enabled ->
                 onPlaybackSettingsChanged(playbackSettings.copy(sonicAutoplayEnabled = enabled))
             },
         )
     } else {
-        Text("Related tracks require server support for sonic similarity.", color = colors.secondaryText, fontSize = 12.sp)
+        Text(stringResource(Res.string.settings_related_requires_support), color = colors.secondaryText, fontSize = 12.sp)
     }
 }
 
@@ -2559,7 +2958,7 @@ fun NaviampDebugPlaybackSettingsSection(
     SettingsCheckboxRow(
         colors = colors,
         checked = playbackSettings.debugLoggingEnabled,
-        label = "Debug logging",
+        label = stringResource(Res.string.settings_debug_logging),
         onCheckedChange = { enabled ->
             onPlaybackSettingsChanged(playbackSettings.copy(debugLoggingEnabled = enabled))
         },
@@ -2698,7 +3097,7 @@ private fun EqualizerSettings(
         mutableStateOf(activeProfile?.name.orEmpty())
     }
     selectedPage?.let { page ->
-        SettingsSubsectionHeader(page.title, page.subtitle, colors) { selectedPage = null }
+        SettingsSubsectionHeader(page.title(), page.subtitle(), colors) { selectedPage = null }
         when (page) {
             EqualizerSettingsPage.Preset -> EqualizerPreset.entries.forEach { preset ->
                 SelectableSettingsRow(
@@ -2712,7 +3111,7 @@ private fun EqualizerSettings(
             }
             EqualizerSettingsPage.Profile -> {
                 if (equalizer.savedProfiles.isEmpty()) {
-                    Text("No saved profiles yet.", color = colors.secondaryText, fontSize = 12.sp)
+                    Text(stringResource(Res.string.settings_equalizer_no_profiles), color = colors.secondaryText, fontSize = 12.sp)
                 } else {
                     equalizer.savedProfiles.forEach { profile ->
                         SelectableSettingsRow(
@@ -2743,8 +3142,12 @@ private fun EqualizerSettings(
         colors = colors,
         checked = equalizer.enabled,
         enabled = supportsEqualizer,
-        label = "Enable Equalizer",
-        subtitle = if (supportsEqualizer) "Apply the 10-band EQ to playback." else "Unavailable with this playback engine.",
+        label = stringResource(Res.string.settings_equalizer_enable),
+        subtitle = if (supportsEqualizer) {
+            stringResource(Res.string.settings_equalizer_enable_subtitle)
+        } else {
+            stringResource(Res.string.settings_equalizer_unavailable_subtitle)
+        },
         onCheckedChange = { enabled ->
             onPlaybackSettingsChanged(
                 playbackSettings.copy(equalizer = equalizer.copy(enabled = enabled).normalized()),
@@ -2753,18 +3156,18 @@ private fun EqualizerSettings(
     )
     if (equalizer.savedProfiles.isNotEmpty()) {
         SettingsRow(
-            title = "Saved Profile",
-            subtitle = "Apply a saved EQ curve.",
+            title = stringResource(Res.string.settings_equalizer_saved_profile_title),
+            subtitle = stringResource(Res.string.settings_equalizer_saved_profile_subtitle),
             colors = colors,
-            value = activeProfile?.name ?: "None",
+            value = activeProfile?.name ?: stringResource(Res.string.common_none),
             enabled = supportsEqualizer,
         ) {
             selectedPage = EqualizerSettingsPage.Profile
         }
     }
     SettingsRow(
-        title = "Preset",
-        subtitle = "Start from a built-in EQ curve.",
+        title = stringResource(Res.string.settings_equalizer_preset_title),
+        subtitle = stringResource(Res.string.settings_equalizer_preset_subtitle),
         colors = colors,
         value = equalizer.preset.displayName,
         enabled = supportsEqualizer,
@@ -2781,7 +3184,7 @@ private fun EqualizerSettings(
                 onPlaybackSettingsChanged(playbackSettings.copy(equalizer = equalizer.withPreset(EqualizerPreset.Flat)))
             },
         ) {
-            Text("Reset", color = if (supportsEqualizer) colors.primaryText else colors.mutedText, fontSize = 12.sp)
+            Text(stringResource(Res.string.common_reset), color = if (supportsEqualizer) colors.primaryText else colors.mutedText, fontSize = 12.sp)
         }
         TextButton(
             enabled = supportsEqualizer,
@@ -2791,7 +3194,11 @@ private fun EqualizerSettings(
             },
         ) {
             Text(
-                if (activeProfile == null) "Save profile" else "Rename profile",
+                if (activeProfile == null) {
+                    stringResource(Res.string.settings_equalizer_save_profile)
+                } else {
+                    stringResource(Res.string.settings_equalizer_rename_profile)
+                },
                 color = if (supportsEqualizer) colors.primaryText else colors.mutedText,
                 fontSize = 12.sp,
             )
@@ -2800,13 +3207,21 @@ private fun EqualizerSettings(
     if (profileDialogOpen) {
         AlertDialog(
             onDismissRequest = { profileDialogOpen = false },
-            title = { Text(if (activeProfile == null) "Save EQ profile" else "Rename EQ profile") },
+            title = {
+                Text(
+                    if (activeProfile == null) {
+                        stringResource(Res.string.settings_equalizer_save_profile_title)
+                    } else {
+                        stringResource(Res.string.settings_equalizer_rename_profile_title)
+                    },
+                )
+            },
             text = {
                 OutlinedTextField(
                     value = profileName,
                     onValueChange = { profileName = it },
                     singleLine = true,
-                    label = { Text("Profile name") },
+                    label = { Text(stringResource(Res.string.settings_equalizer_profile_name)) },
                 )
             },
             confirmButton = {
@@ -2819,12 +3234,12 @@ private fun EqualizerSettings(
                         )
                     },
                 ) {
-                    Text("Save")
+                    Text(stringResource(Res.string.common_save))
                 }
             },
             dismissButton = {
                 TextButton(onClick = { profileDialogOpen = false }) {
-                    Text("Cancel")
+                    Text(stringResource(Res.string.common_cancel))
                 }
             },
         )
@@ -2840,6 +3255,20 @@ private enum class EqualizerSettingsPage(
 }
 
 @Composable
+private fun EqualizerSettingsPage.title(): String =
+    when (this) {
+        EqualizerSettingsPage.Preset -> stringResource(Res.string.settings_equalizer_preset_title)
+        EqualizerSettingsPage.Profile -> stringResource(Res.string.settings_equalizer_saved_profile_title)
+    }
+
+@Composable
+private fun EqualizerSettingsPage.subtitle(): String =
+    when (this) {
+        EqualizerSettingsPage.Preset -> stringResource(Res.string.settings_equalizer_preset_subtitle)
+        EqualizerSettingsPage.Profile -> stringResource(Res.string.settings_equalizer_saved_profile_subtitle)
+    }
+
+@Composable
 private fun StreamingQualitySettings(
     colors: NaviampColors,
     playbackSettings: PlaybackSettings,
@@ -2848,7 +3277,7 @@ private fun StreamingQualitySettings(
 ) {
     var selectedPage by remember { mutableStateOf<StreamingQualitySettingsPage?>(null) }
     selectedPage?.let { page ->
-        SettingsSubsectionHeader(page.title, page.subtitle, colors) { selectedPage = null }
+        SettingsSubsectionHeader(page.title(), page.subtitle(), colors) { selectedPage = null }
         when (page) {
             StreamingQualitySettingsPage.Wifi -> QualityBitrateOptions(
                 colors = colors,
@@ -2868,10 +3297,10 @@ private fun StreamingQualitySettings(
         return
     }
 
-    SettingsSectionTitle("Streaming quality", colors)
+    SettingsSectionTitle(stringResource(Res.string.settings_quality_streaming_title), colors)
     SettingsRow(
-        title = "Wi-Fi / wired",
-        subtitle = "Quality when on trusted networks.",
+        title = stringResource(Res.string.settings_quality_wifi_title),
+        subtitle = stringResource(Res.string.settings_quality_wifi_subtitle),
         colors = colors,
         value = playbackSettings.wifiStreamingQuality.summaryLabel(),
     ) {
@@ -2879,8 +3308,8 @@ private fun StreamingQualitySettings(
     }
     if (showMobileNetworkQuality) {
         SettingsRow(
-            title = "Mobile data",
-            subtitle = "Quality when using cellular data.",
+            title = stringResource(Res.string.settings_quality_mobile_title),
+            subtitle = stringResource(Res.string.settings_quality_mobile_subtitle),
             colors = colors,
             value = playbackSettings.mobileStreamingQuality.summaryLabel(),
         ) {
@@ -2896,6 +3325,20 @@ private enum class StreamingQualitySettingsPage(
     Wifi("Wi-Fi / wired", "Quality when on trusted networks"),
     Mobile("Mobile data", "Quality when using cellular data"),
 }
+
+@Composable
+private fun StreamingQualitySettingsPage.title(): String =
+    when (this) {
+        StreamingQualitySettingsPage.Wifi -> stringResource(Res.string.settings_quality_wifi_title)
+        StreamingQualitySettingsPage.Mobile -> stringResource(Res.string.settings_quality_mobile_title)
+    }
+
+@Composable
+private fun StreamingQualitySettingsPage.subtitle(): String =
+    when (this) {
+        StreamingQualitySettingsPage.Wifi -> stringResource(Res.string.settings_quality_wifi_subtitle)
+        StreamingQualitySettingsPage.Mobile -> stringResource(Res.string.settings_quality_mobile_subtitle)
+    }
 
 @Composable
 private fun DownloadQualitySettings(
@@ -2919,17 +3362,21 @@ private fun DownloadQualitySettings(
     }
 
     if (savedFilesOpen) {
-        SettingsSubsectionHeader("Saved Files", "Quality for newly saved files", colors) { savedFilesOpen = false }
+        SettingsSubsectionHeader(
+            stringResource(Res.string.settings_downloads_saved_files_title),
+            stringResource(Res.string.settings_downloads_saved_files_subtitle),
+            colors,
+        ) { savedFilesOpen = false }
         QualityBitrateOptions(
             colors = colors,
             preference = playbackSettings.downloadQuality,
             onPreferenceChanged = { preference -> applyDownloadQuality(preference) },
         )
     } else {
-        SettingsSectionTitle("Downloads", colors)
+        SettingsSectionTitle(stringResource(Res.string.settings_downloads_title), colors)
         SettingsRow(
-            title = "Saved Files",
-            subtitle = "Quality for newly saved files.",
+            title = stringResource(Res.string.settings_downloads_saved_files_title),
+            subtitle = stringResource(Res.string.settings_downloads_saved_files_subtitle),
             colors = colors,
             value = playbackSettings.downloadQuality.summaryLabel(),
         ) {
@@ -2939,7 +3386,7 @@ private fun DownloadQualitySettings(
             SettingsCheckboxRow(
                 colors = colors,
                 checked = playbackSettings.allowMobileDownloads,
-                label = "Allow downloads on mobile data",
+                label = stringResource(Res.string.settings_downloads_mobile_data),
                 onCheckedChange = { enabled ->
                     onPlaybackSettingsChanged(playbackSettings.copy(allowMobileDownloads = enabled))
                 },
@@ -2949,9 +3396,9 @@ private fun DownloadQualitySettings(
     pendingDownloadQualitySettings?.let { pendingSettings ->
         AlertDialog(
             onDismissRequest = { pendingDownloadQualitySettings = null },
-            title = { Text("Change saved file quality?") },
+            title = { Text(stringResource(Res.string.settings_downloads_change_quality_title)) },
             text = {
-                Text("Existing downloads will stay in their current quality. New downloads will use the updated setting.")
+                Text(stringResource(Res.string.settings_downloads_change_quality_message))
             },
             confirmButton = {
                 TextButton(
@@ -2960,7 +3407,7 @@ private fun DownloadQualitySettings(
                         onPlaybackSettingsChanged(pendingSettings)
                     },
                 ) {
-                    Text("Keep existing")
+                    Text(stringResource(Res.string.settings_downloads_keep_existing))
                 }
             },
             dismissButton = {
@@ -2971,10 +3418,10 @@ private fun DownloadQualitySettings(
                             onPlaybackSettingsChangedAndRedownload(pendingSettings)
                         },
                     ) {
-                        Text("Re-download")
+                        Text(stringResource(Res.string.settings_downloads_redownload))
                     }
                     TextButton(onClick = { pendingDownloadQualitySettings = null }) {
-                        Text("Cancel")
+                        Text(stringResource(Res.string.common_cancel))
                     }
                 }
             },
@@ -2991,22 +3438,22 @@ private fun DownloadQualityChangeDialog(
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Change saved file quality?") },
+        title = { Text(stringResource(Res.string.settings_downloads_change_quality_title)) },
         text = {
-            Text("Existing downloads will stay in their current quality. New downloads will use the updated setting.")
+            Text(stringResource(Res.string.settings_downloads_change_quality_message))
         },
         confirmButton = {
             TextButton(onClick = onKeepExisting) {
-                Text("Keep existing")
+                Text(stringResource(Res.string.settings_downloads_keep_existing))
             }
         },
         dismissButton = {
             Row {
                 TextButton(onClick = onRedownload) {
-                    Text("Re-download")
+                    Text(stringResource(Res.string.settings_downloads_redownload))
                 }
                 TextButton(onClick = onDismiss) {
-                    Text("Cancel")
+                    Text(stringResource(Res.string.common_cancel))
                 }
             }
         },
@@ -3126,35 +3573,40 @@ fun SettingsRow(
     }
 }
 
-private val PreviousButtonBehavior.label: String
-    get() = when (this) {
-        PreviousButtonBehavior.RestartThenPrevious -> "Restart first"
-        PreviousButtonBehavior.AlwaysPrevious -> "Always previous"
+@Composable
+private fun PreviousButtonBehavior.label(): String =
+    when (this) {
+        PreviousButtonBehavior.RestartThenPrevious -> stringResource(Res.string.settings_previous_restart_first)
+        PreviousButtonBehavior.AlwaysPrevious -> stringResource(Res.string.settings_previous_always_previous)
     }
 
+@Composable
 private fun PreviousButtonBehavior.previousButtonSubtitle(): String =
     when (this) {
-        PreviousButtonBehavior.RestartThenPrevious -> "Restart the current song before going back."
-        PreviousButtonBehavior.AlwaysPrevious -> "Always move directly to the previous song."
+        PreviousButtonBehavior.RestartThenPrevious -> stringResource(Res.string.settings_previous_restart_first_subtitle)
+        PreviousButtonBehavior.AlwaysPrevious -> stringResource(Res.string.settings_previous_always_previous_subtitle)
     }
 
-private val UpNextSelectionBehavior.label: String
-    get() = when (this) {
-        UpNextSelectionBehavior.MoveSelectedToCurrent -> "Move selected"
-        UpNextSelectionBehavior.SkipToSelected -> "Skip to selected"
+@Composable
+private fun UpNextSelectionBehavior.label(): String =
+    when (this) {
+        UpNextSelectionBehavior.MoveSelectedToCurrent -> stringResource(Res.string.settings_up_next_move_selected)
+        UpNextSelectionBehavior.SkipToSelected -> stringResource(Res.string.settings_up_next_skip_selected)
     }
 
+@Composable
 private fun UpNextSelectionBehavior.upNextSelectionSubtitle(): String =
     when (this) {
-        UpNextSelectionBehavior.MoveSelectedToCurrent -> "Play the selected song now and preserve earlier Up Next songs."
-        UpNextSelectionBehavior.SkipToSelected -> "Advance through the queue so skipped songs move into Back To."
+        UpNextSelectionBehavior.MoveSelectedToCurrent -> stringResource(Res.string.settings_up_next_move_selected_subtitle)
+        UpNextSelectionBehavior.SkipToSelected -> stringResource(Res.string.settings_up_next_skip_selected_subtitle)
     }
 
+@Composable
 private fun ReplayGainMode.replayGainSubtitle(): String =
     when (this) {
-        ReplayGainMode.Off -> "Leave track volume unchanged."
-        ReplayGainMode.Track -> "Normalize each track independently."
-        ReplayGainMode.Album -> "Keep album-relative loudness intact."
+        ReplayGainMode.Off -> stringResource(Res.string.settings_replay_gain_off_description)
+        ReplayGainMode.Track -> stringResource(Res.string.settings_replay_gain_track_description)
+        ReplayGainMode.Album -> stringResource(Res.string.settings_replay_gain_album_description)
     }
 
 private val StreamingCodec.label: String
@@ -3164,15 +3616,20 @@ private val StreamingCodec.label: String
         StreamingCodec.Opus -> "Opus"
     }
 
+@Composable
 private fun RadioTuningSettings.summaryLabel(): String =
     listOf(
         familiarity.label,
         artistSpread.label,
-        if (sameDecadeOnly) "same decade" else "any decade",
+        if (sameDecadeOnly) stringResource(Res.string.settings_radio_same_decade) else stringResource(Res.string.settings_radio_any_decade),
         when (artistRunMode) {
-            RadioArtistRunMode.Mixed -> "mixed artists"
-            RadioArtistRunMode.SingleArtist -> "single artist"
-            RadioArtistRunMode.ArtistBlocks -> "${sameArtistRunLength} same / ${otherArtistRunLength} other"
+            RadioArtistRunMode.Mixed -> stringResource(Res.string.settings_radio_mixed_artists)
+            RadioArtistRunMode.SingleArtist -> stringResource(Res.string.settings_radio_single_artist)
+            RadioArtistRunMode.ArtistBlocks -> stringResource(
+                Res.string.settings_radio_artist_blocks,
+                sameArtistRunLength,
+                otherArtistRunLength,
+            )
         },
     ).joinToString(" / ")
 

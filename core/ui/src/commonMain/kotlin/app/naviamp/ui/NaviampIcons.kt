@@ -235,6 +235,28 @@ object NaviampIcons {
         curveTo(15.9f, 20f, 19f, 18.7f, 19f, 17f)
         lineTo(19f, 12f)
     }
+    val Globe = icon("Globe") {
+        moveTo(12f, 4f)
+        curveTo(7.6f, 4f, 4f, 7.6f, 4f, 12f)
+        curveTo(4f, 16.4f, 7.6f, 20f, 12f, 20f)
+        curveTo(16.4f, 20f, 20f, 16.4f, 20f, 12f)
+        curveTo(20f, 7.6f, 16.4f, 4f, 12f, 4f)
+        close()
+        moveTo(4.8f, 12f)
+        lineTo(19.2f, 12f)
+        moveTo(12f, 4.2f)
+        curveTo(9.9f, 6.1f, 8.8f, 8.7f, 8.8f, 12f)
+        curveTo(8.8f, 15.3f, 9.9f, 17.9f, 12f, 19.8f)
+        moveTo(12f, 4.2f)
+        curveTo(14.1f, 6.1f, 15.2f, 8.7f, 15.2f, 12f)
+        curveTo(15.2f, 15.3f, 14.1f, 17.9f, 12f, 19.8f)
+        moveTo(6.4f, 7.5f)
+        curveTo(8f, 8.2f, 9.9f, 8.6f, 12f, 8.6f)
+        curveTo(14.1f, 8.6f, 16f, 8.2f, 17.6f, 7.5f)
+        moveTo(6.4f, 16.5f)
+        curveTo(8f, 15.8f, 9.9f, 15.4f, 12f, 15.4f)
+        curveTo(14.1f, 15.4f, 16f, 15.8f, 17.6f, 16.5f)
+    }
     val Experience = icon("Experience") {
         moveTo(4f, 12f)
         curveTo(6.1f, 7.8f, 8.8f, 5.8f, 12f, 5.8f)

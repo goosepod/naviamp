@@ -1,5 +1,7 @@
 package app.naviamp.ui
 
+import app.naviamp.ui.generated.resources.Res
+import app.naviamp.ui.generated.resources.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -34,6 +36,7 @@ import androidx.compose.ui.unit.sp
 import app.naviamp.domain.smartplaylist.SmartPlaylistDefinition
 import app.naviamp.domain.smartplaylist.SmartPlaylistDraft
 import kotlinx.coroutines.launch
+import org.jetbrains.compose.resources.stringResource
 
 @Composable
 internal fun PlaylistsContent(
@@ -46,6 +49,12 @@ internal fun PlaylistsContent(
     onPlaylistAction: (SharedMediaItemActionRequest) -> Unit,
     onSmartPlaylistSave: suspend (SmartPlaylistDefinition) -> Unit,
     onSmartPlaylistUpdate: suspend (SharedMediaItemUi, SmartPlaylistDefinition) -> Unit,
+    onSmartPlaylistSaveWithPassword: suspend (SmartPlaylistDefinition, String) -> Unit = { definition, _ ->
+        onSmartPlaylistSave(definition)
+    },
+    onSmartPlaylistUpdateWithPassword: suspend (SharedMediaItemUi, SmartPlaylistDefinition, String) -> Unit = { playlist, definition, _ ->
+        onSmartPlaylistUpdate(playlist, definition)
+    },
     onSmartPlaylistLoad: suspend (SharedMediaItemUi) -> SmartPlaylistDefinition,
     playlistChoices: List<NaviampPlaylistChoiceUi>,
 ) {
@@ -81,7 +90,7 @@ internal fun PlaylistsContent(
                                 smartPlaylistLoadMessage = null
                             }
                             .onFailure { error ->
-                                smartPlaylistLoadMessage = error.message ?: "Could not load smart playlist rules."
+                                smartPlaylistLoadMessage = error.message.orEmpty()
                             }
                     }
                 },
@@ -104,7 +113,12 @@ internal fun PlaylistsContent(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier.fillMaxWidth(),
         ) {
-            Text("Playlists", color = colors.primaryText, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+            Text(
+                stringResource(Res.string.playlists_title),
+                color = colors.primaryText,
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Bold,
+            )
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 IconButton(
                     onClick = { smartPlaylistBuilderOpen = true },
@@ -112,7 +126,7 @@ internal fun PlaylistsContent(
                 ) {
                     Icon(
                         NaviampIcons.Brain,
-                        contentDescription = "Create smart playlist",
+                        contentDescription = stringResource(Res.string.playlists_create_smart),
                         tint = colors.primaryText,
                         modifier = Modifier.size(24.dp),
                     )
@@ -128,13 +142,17 @@ internal fun PlaylistsContent(
             }
         }
         if (sortedPlaylists.isEmpty()) {
-            Text("No playlists yet.", color = colors.secondaryText, fontSize = 12.sp)
+            Text(stringResource(Res.string.playlists_empty), color = colors.secondaryText, fontSize = 12.sp)
         }
         status?.let {
             Text(it, color = colors.secondaryText, fontSize = 12.sp)
         }
-        smartPlaylistLoadMessage?.let {
-            Text(it, color = colors.secondaryText, fontSize = 12.sp)
+        smartPlaylistLoadMessage?.let { message ->
+            Text(
+                message.ifBlank { stringResource(Res.string.playlists_load_smart_failed) },
+                color = colors.secondaryText,
+                fontSize = 12.sp,
+            )
         }
         sortedPlaylists.forEach { playlist ->
             PlaylistListRow(
@@ -211,8 +229,16 @@ internal fun PlaylistsContent(
         SmartPlaylistBuilderDialog(
             colors = colors,
             initialDraft = smartPlaylistInitialDraft,
-            title = if (editTarget == null) "Smart playlist" else "Edit smart playlist",
-            saveLabel = if (editTarget == null) "Save" else "Update",
+            title = if (editTarget == null) {
+                stringResource(Res.string.playlists_smart)
+            } else {
+                stringResource(Res.string.playlists_edit_smart)
+            },
+            saveLabel = if (editTarget == null) {
+                stringResource(Res.string.common_save)
+            } else {
+                stringResource(Res.string.playlists_update)
+            },
             onDismissRequest = {
                 smartPlaylistBuilderOpen = false
                 smartPlaylistEditTarget = null
@@ -223,6 +249,16 @@ internal fun PlaylistsContent(
                     onSmartPlaylistSave(definition)
                 } else {
                     onSmartPlaylistUpdate(editTarget, definition)
+                }
+                smartPlaylistBuilderOpen = false
+                smartPlaylistEditTarget = null
+                smartPlaylistInitialDraft = SmartPlaylistDraft()
+            },
+            onSaveWithPassword = { definition, password ->
+                if (editTarget == null) {
+                    onSmartPlaylistSaveWithPassword(definition, password)
+                } else {
+                    onSmartPlaylistUpdateWithPassword(editTarget, definition, password)
                 }
                 smartPlaylistBuilderOpen = false
                 smartPlaylistEditTarget = null
@@ -292,7 +328,7 @@ private fun PlaylistListRow(
                 if (playlist.isSmartPlaylist) {
                     Icon(
                         NaviampIcons.Brain,
-                        contentDescription = "Smart playlist",
+                        contentDescription = stringResource(Res.string.playlists_smart),
                         tint = colors.secondaryText,
                         modifier = Modifier.size(14.dp),
                     )
@@ -308,10 +344,15 @@ private fun PlaylistListRow(
             }
             Text(playlist.subtitle, color = colors.secondaryText, fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
-        MiniPlayerIconButton(colors, true, NaviampTransportIcons.Play, "Play playlist") {
+        MiniPlayerIconButton(colors, true, NaviampTransportIcons.Play, stringResource(Res.string.playlists_play)) {
             onAction(playlist.actionRequest(SharedMediaItemAction.Play, kind = SharedMediaItemKind.Playlist))
         }
-        MiniPlayerIconButton(colors, playlist.meta != "1 track", NaviampTransportIcons.Shuffle, "Play playlist in random order") {
+        MiniPlayerIconButton(
+            colors,
+            playlist.meta != "1 track",
+            NaviampTransportIcons.Shuffle,
+            stringResource(Res.string.playlists_shuffle),
+        ) {
             onAction(playlist.actionRequest(SharedMediaItemAction.Shuffle, kind = SharedMediaItemKind.Playlist))
         }
         NaviampRowOverflowMenu(
@@ -400,12 +441,17 @@ internal fun PlaylistDetailContent(
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(2.dp)) {
             IconButton(onClick = onBack, modifier = Modifier.size(32.dp)) {
-                Icon(NaviampIcons.Back, contentDescription = "Back", tint = colors.primaryText, modifier = Modifier.size(18.dp))
+                Icon(
+                    NaviampIcons.Back,
+                    contentDescription = stringResource(Res.string.common_back),
+                    tint = colors.primaryText,
+                    modifier = Modifier.size(18.dp),
+                )
             }
             if (detail.playlist.isSmartPlaylist) {
                 Icon(
                     NaviampIcons.Brain,
-                    contentDescription = "Smart playlist",
+                    contentDescription = stringResource(Res.string.playlists_smart),
                     tint = colors.secondaryText,
                     modifier = Modifier.size(18.dp),
                 )
@@ -423,18 +469,64 @@ internal fun PlaylistDetailContent(
             Column(verticalArrangement = Arrangement.spacedBy(4.dp), modifier = Modifier.weight(1f)) {
                 Text(detail.playlist.subtitle, color = colors.secondaryText, fontSize = 12.sp)
                 Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                    MiniPlayerIconButton(colors, detail.tracks.isNotEmpty(), NaviampTransportIcons.Play, "Play playlist", onPlayPlaylist)
-                    MiniPlayerIconButton(colors, detail.tracks.size > 1, NaviampTransportIcons.Shuffle, "Play playlist in random order", onShufflePlaylist)
-                    MiniPlayerIconButton(colors, detail.tracks.isNotEmpty(), NaviampIcons.Queue, "Add playlist to queue", onAddPlaylistToQueue)
-                    MiniPlayerIconButton(colors, detail.tracks.isNotEmpty(), NaviampIcons.Downloads, "Download playlist", onDownloadPlaylist)
-                    MiniPlayerIconButton(colors, detail.tracks.isNotEmpty(), NaviampIcons.Playlist, "Add playlist to playlist") {
+                    MiniPlayerIconButton(
+                        colors,
+                        detail.tracks.isNotEmpty(),
+                        NaviampTransportIcons.Play,
+                        stringResource(Res.string.playlists_play),
+                        onPlayPlaylist,
+                    )
+                    MiniPlayerIconButton(
+                        colors,
+                        detail.tracks.size > 1,
+                        NaviampTransportIcons.Shuffle,
+                        stringResource(Res.string.playlists_shuffle),
+                        onShufflePlaylist,
+                    )
+                    MiniPlayerIconButton(
+                        colors,
+                        detail.tracks.isNotEmpty(),
+                        NaviampIcons.Queue,
+                        stringResource(Res.string.playlists_add_to_queue),
+                        onAddPlaylistToQueue,
+                    )
+                    MiniPlayerIconButton(
+                        colors,
+                        detail.tracks.isNotEmpty(),
+                        NaviampIcons.Downloads,
+                        stringResource(Res.string.playlists_download),
+                        onDownloadPlaylist,
+                    )
+                    MiniPlayerIconButton(
+                        colors,
+                        detail.tracks.isNotEmpty(),
+                        NaviampIcons.Playlist,
+                        stringResource(Res.string.playlists_add_to_playlist),
+                    ) {
                         addToPlaylistOpen = true
                     }
-                    MiniPlayerIconButton(colors, detail.tracks.isNotEmpty(), NaviampIcons.Settings, "Playlist bulk tools") {
+                    MiniPlayerIconButton(
+                        colors,
+                        detail.tracks.isNotEmpty(),
+                        NaviampIcons.Settings,
+                        stringResource(Res.string.playlists_bulk_tools_title),
+                    ) {
                         bulkToolsOpen = true
                     }
-                    MiniPlayerIconButton(colors, true, NaviampIcons.Edit, "Rename playlist", { renameOpen = true })
-                    MiniPlayerIconButton(colors, true, NaviampIcons.Trash, "Delete playlist", { deleteOpen = true })
+                    MiniPlayerIconButton(
+                        colors,
+                        true,
+                        NaviampIcons.Edit,
+                        stringResource(Res.string.playlists_rename_title),
+                        { renameOpen = true },
+                    )
+                    MiniPlayerIconButton(
+                        colors,
+                        true,
+                        NaviampIcons.Trash,
+                        stringResource(Res.string.playlists_delete_title),
+                        { deleteOpen = true },
+                    )
                 }
             }
         }
@@ -520,37 +612,40 @@ private fun PlaylistBulkToolsDialog(
     onAddToExisting: (NaviampPlaylistChoiceUi) -> Unit,
     onCreateAndAdd: (String) -> Unit,
 ) {
-    var copyName by remember { mutableStateOf("${detail.playlist.title} Copy") }
+    val defaultCopyName = stringResource(Res.string.playlists_copy_suffix, detail.playlist.title)
+    var copyName by remember(detail.playlist.title) {
+        mutableStateOf(defaultCopyName)
+    }
     val deduplicatedCount = remember(detail.tracks) { detail.tracks.distinctBy { it.id }.size }
     AlertDialog(
         onDismissRequest = onDismissRequest,
-        title = { Text("Playlist bulk tools") },
+        title = { Text(stringResource(Res.string.playlists_bulk_tools_title)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Text(
-                    "${detail.tracks.size} tracks - $deduplicatedCount unique",
+                    stringResource(Res.string.playlists_bulk_count, detail.tracks.size, deduplicatedCount),
                     color = colors.secondaryText,
                     fontSize = 12.sp,
                 )
                 OutlinedTextField(
                     value = copyName,
                     onValueChange = { copyName = it },
-                    label = { Text("New playlist name") },
+                    label = { Text(stringResource(Res.string.playlists_new_name)) },
                     singleLine = true,
                 )
                 TextButton(
                     enabled = detail.tracks.isNotEmpty() && copyName.isNotBlank(),
                     onClick = { onCopyPlaylist(copyName.trim(), false) },
                 ) {
-                    Text("Copy playlist")
+                    Text(stringResource(Res.string.playlists_copy))
                 }
                 TextButton(
                     enabled = detail.tracks.isNotEmpty() && copyName.isNotBlank(),
                     onClick = { onCopyPlaylist(copyName.trim(), true) },
                 ) {
-                    Text("Copy deduplicated playlist")
+                    Text(stringResource(Res.string.playlists_copy_deduplicated))
                 }
-                Text("Merge/copy into another playlist", color = colors.secondaryText, fontSize = 12.sp)
+                Text(stringResource(Res.string.playlists_merge_copy), color = colors.secondaryText, fontSize = 12.sp)
                 playlists.take(6).forEach { playlist ->
                     TextButton(onClick = { onAddToExisting(playlist) }) {
                         Text(playlist.name, maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -560,13 +655,13 @@ private fun PlaylistBulkToolsDialog(
                     enabled = copyName.isNotBlank(),
                     onClick = { onCreateAndAdd(copyName.trim()) },
                 ) {
-                    Text("Create playlist and add these tracks")
+                    Text(stringResource(Res.string.playlists_create_and_add))
                 }
             }
         },
         confirmButton = {
             TextButton(onClick = onDismissRequest) {
-                Text("Close")
+                Text(stringResource(Res.string.common_close))
             }
         },
     )
@@ -615,23 +710,23 @@ fun RenamePlaylistDialog(
     var name by remember(playlist.id) { mutableStateOf(playlist.title) }
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Rename playlist") },
+        title = { Text(stringResource(Res.string.playlists_rename_title)) },
         text = {
             OutlinedTextField(
                 value = name,
                 onValueChange = { name = it },
-                label = { Text("Playlist name") },
+                label = { Text(stringResource(Res.string.playlists_name)) },
                 singleLine = true,
             )
         },
         confirmButton = {
             TextButton(enabled = name.isNotBlank(), onClick = { onConfirm(name) }) {
-                Text("Save")
+                Text(stringResource(Res.string.common_save))
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Cancel")
+                Text(stringResource(Res.string.common_cancel))
             }
         },
         containerColor = colors.controlSurface,
@@ -649,16 +744,16 @@ fun DeletePlaylistDialog(
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Delete playlist") },
-        text = { Text("Delete ${playlist.title}? This removes the server playlist.") },
+        title = { Text(stringResource(Res.string.playlists_delete_title)) },
+        text = { Text(stringResource(Res.string.playlists_delete_message, playlist.title)) },
         confirmButton = {
             TextButton(onClick = onConfirm) {
-                Text("Delete")
+                Text(stringResource(Res.string.common_delete))
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Cancel")
+                Text(stringResource(Res.string.common_cancel))
             }
         },
         containerColor = colors.controlSurface,

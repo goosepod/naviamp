@@ -37,6 +37,7 @@ import app.naviamp.domain.settings.ConnectionFormMusicFolder
 import app.naviamp.domain.settings.ConnectionFormSecondaryUrl
 import app.naviamp.domain.settings.ConnectionFormState
 import app.naviamp.domain.settings.CacheSettings
+import app.naviamp.domain.settings.InterfaceSettings
 import app.naviamp.domain.settings.PlaybackSettings
 import app.naviamp.domain.source.SavedMediaSource
 import app.naviamp.domain.sonichome.SonicHomeDiscoveryRows
@@ -53,6 +54,7 @@ import kotlinx.coroutines.Job
 
 class AndroidAppState(
     savedConnection: ConnectionFormState,
+    savedInterfaceSettings: InterfaceSettings,
     savedPlaybackSettings: PlaybackSettings,
     savedCacheSettings: CacheSettings,
     canAutoConnect: Boolean,
@@ -78,6 +80,7 @@ class AndroidAppState(
     var selectedMusicFolderIds by mutableStateOf(savedConnection.selectedMusicFolderIds)
     var availableMusicFolders by mutableStateOf<List<ConnectionFormMusicFolder>>(emptyList())
     var musicFoldersStatus by mutableStateOf<String?>(null)
+    var interfaceSettings by mutableStateOf(savedInterfaceSettings.normalized())
     var playbackSettings by mutableStateOf(savedPlaybackSettings)
     var cacheSettings by mutableStateOf(savedCacheSettings.normalized())
     var homeState by mutableStateOf(app.naviamp.domain.home.HomeContent())
@@ -184,6 +187,7 @@ class AndroidAppState(
 @Composable
 fun rememberAndroidAppState(
     savedConnection: ConnectionFormState,
+    savedInterfaceSettings: InterfaceSettings,
     savedPlaybackSettings: PlaybackSettings,
     savedCacheSettings: CacheSettings,
     canAutoConnect: Boolean,
@@ -199,6 +203,7 @@ fun rememberAndroidAppState(
     remember {
         AndroidAppState(
             savedConnection = savedConnection,
+            savedInterfaceSettings = savedInterfaceSettings,
             savedPlaybackSettings = savedPlaybackSettings,
             savedCacheSettings = savedCacheSettings,
             canAutoConnect = canAutoConnect,

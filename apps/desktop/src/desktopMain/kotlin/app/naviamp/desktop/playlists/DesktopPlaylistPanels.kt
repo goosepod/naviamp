@@ -67,6 +67,8 @@ fun DesktopPlaylistsPanel(
     onRefreshPlaylists: () -> Unit,
     onSmartPlaylistSave: suspend (SmartPlaylistDefinition) -> Unit,
     onSmartPlaylistUpdate: suspend (Playlist, SmartPlaylistDefinition) -> Unit,
+    onSmartPlaylistSaveWithPassword: suspend (SmartPlaylistDefinition, String) -> Unit,
+    onSmartPlaylistUpdateWithPassword: suspend (Playlist, SmartPlaylistDefinition, String) -> Unit,
     onSmartPlaylistLoad: suspend (Playlist) -> SmartPlaylistDefinition,
 ) {
     var smartPlaylistBuilderOpen by remember { mutableStateOf(false) }
@@ -181,6 +183,16 @@ fun DesktopPlaylistsPanel(
                     onSmartPlaylistSave(definition)
                 } else {
                     onSmartPlaylistUpdate(editTarget, definition)
+                }
+                smartPlaylistBuilderOpen = false
+                smartPlaylistEditTarget = null
+                smartPlaylistInitialDraft = SmartPlaylistDraft()
+            },
+            onSaveWithPassword = { definition, password ->
+                if (editTarget == null) {
+                    onSmartPlaylistSaveWithPassword(definition, password)
+                } else {
+                    onSmartPlaylistUpdateWithPassword(editTarget, definition, password)
                 }
                 smartPlaylistBuilderOpen = false
                 smartPlaylistEditTarget = null

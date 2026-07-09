@@ -23,6 +23,7 @@ import app.naviamp.domain.provider.ConnectionValidation
 import app.naviamp.domain.provider.MediaProvider
 import app.naviamp.domain.provider.MediaSearchResults
 import app.naviamp.domain.provider.ProviderCapabilities
+import app.naviamp.domain.settings.LyricsSourcePreference
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertSame
@@ -102,6 +103,77 @@ class LyricsSidecarServiceTest {
 
         assertSame(onlineLyrics, result.lyrics)
         assertEquals(listOf("source:track"), repository.onlineRequests)
+    }
+
+    @Test
+    fun preferSyncedKeepsSearchingAndFallsBackToFirstLyricsWhenNoSyncedLyricsExist() = runTest {
+        val providerLyrics = lyrics(LyricsSource.Provider, synced = false, text = "Provider")
+        val embeddedLyrics = lyrics(LyricsSource.Embedded, synced = false, text = "Embedded")
+        val repository = RecordingLyricsRepository(providerLyrics = providerLyrics)
+        val service = service(
+            repository = repository,
+            audioAssets = RecordingAudioAssets(cached = localAudio("song.flac")),
+            tags = listOf(AudioTag("Lyrics", embeddedLyrics.lines.single().text)),
+        )
+
+        val result = service.loadLyrics(
+            sourceId = "source",
+            provider = FakeMediaProvider(),
+            track = track(),
+            quality = StreamQuality.Original,
+            audioCachingEnabled = true,
+            onlineLyricsEnabled = false,
+            preferSyncedLyrics = true,
+        )
+
+        assertSame(providerLyrics, result.lyrics)
+        assertEquals(listOf("source:track:Embedded"), repository.embeddedStores)
+    }
+
+    @Test
+    fun preferSyncedUsesLaterSyncedLyricsBeforeEarlierUnsyncedLyrics() = runTest {
+        val providerLyrics = lyrics(LyricsSource.Provider, synced = false, text = "Provider")
+        val onlineLyrics = lyrics(LyricsSource.Lrclib, synced = true, text = "Online")
+        val repository = RecordingLyricsRepository(providerLyrics = providerLyrics, onlineLyrics = onlineLyrics)
+        val service = service(repository = repository)
+
+        val result = service.loadLyrics(
+            sourceId = "source",
+            provider = FakeMediaProvider(),
+            track = track(),
+            quality = StreamQuality.Original,
+            audioCachingEnabled = true,
+            onlineLyricsEnabled = true,
+            preferSyncedLyrics = true,
+        )
+
+        assertSame(onlineLyrics, result.lyrics)
+        assertEquals(listOf("source:track"), repository.onlineRequests)
+    }
+
+    @Test
+    fun customSearchOrderControlsFirstSourceWithoutPreferSynced() = runTest {
+        val providerLyrics = lyrics(LyricsSource.Provider, synced = false, text = "Provider")
+        val onlineLyrics = lyrics(LyricsSource.Lrclib, synced = true, text = "Online")
+        val repository = RecordingLyricsRepository(providerLyrics = providerLyrics, onlineLyrics = onlineLyrics)
+        val service = service(repository = repository)
+
+        val result = service.loadLyrics(
+            sourceId = "source",
+            provider = FakeMediaProvider(),
+            track = track(),
+            quality = StreamQuality.Original,
+            audioCachingEnabled = true,
+            onlineLyricsEnabled = true,
+            searchOrder = listOf(
+                LyricsSourcePreference.Download,
+                LyricsSourcePreference.Provider,
+                LyricsSourcePreference.Embedded,
+            ),
+        )
+
+        assertSame(onlineLyrics, result.lyrics)
+        assertEquals(emptyList(), repository.providerRequests)
     }
 
     private fun service(

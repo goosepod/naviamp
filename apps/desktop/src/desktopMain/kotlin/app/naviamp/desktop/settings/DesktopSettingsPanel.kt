@@ -58,6 +58,7 @@ import app.naviamp.domain.settings.ConnectionFormMusicFolder
 import app.naviamp.domain.settings.ConnectionFormSecondaryUrl
 import app.naviamp.domain.settings.ConnectionFormState
 import app.naviamp.domain.settings.DefaultWaveformBucketCount
+import app.naviamp.domain.settings.InterfaceSettings
 import app.naviamp.domain.settings.MaxWaveformBucketCount
 import app.naviamp.domain.settings.MinWaveformBucketCount
 import app.naviamp.domain.settings.SettingsSyncFileName
@@ -71,10 +72,16 @@ import app.naviamp.ui.NaviampConnectionForm
 import app.naviamp.ui.NaviampDebugPlaybackSettingsSection
 import app.naviamp.ui.NaviampDownloadsSettingsSection
 import app.naviamp.ui.NaviampExperienceSettingsSection
+import app.naviamp.ui.NaviampLanguageSettingsSection
 import app.naviamp.ui.NaviampPlaybackSettingsSection
 import app.naviamp.ui.NaviampSettingsCategory
 import app.naviamp.ui.NaviampDiagnosticsSectionUi
 import app.naviamp.ui.NaviampDiagnosticsUi
+import app.naviamp.ui.categoryLabel
+import app.naviamp.ui.categorySubtitle
+import app.naviamp.ui.languageTitle
+import app.naviamp.ui.naviampLanguagePack
+import app.naviamp.ui.settingsTitle
 import app.naviamp.ui.storageBytesLabel
 import java.awt.FileDialog
 import java.awt.Frame
@@ -106,6 +113,7 @@ fun DesktopSettingsPanel(
     isConnectionFormOpen: Boolean,
     isConnecting: Boolean,
     connectionStatus: String?,
+    interfaceSettings: InterfaceSettings,
     playbackSettings: PlaybackSettings,
     cacheSettings: CacheSettings,
     cacheStats: StorageCacheStats,
@@ -142,6 +150,7 @@ fun DesktopSettingsPanel(
     onSettingsSyncAutoExportChanged: (Boolean) -> Unit,
     onSettingsSyncExport: () -> Unit,
     onSettingsSyncImport: () -> Unit,
+    onInterfaceSettingsChanged: (InterfaceSettings) -> Unit,
     onPlaybackSettingsChanged: (PlaybackSettings) -> Unit,
     onPlaybackSettingsChangedAndRedownload: (PlaybackSettings) -> Unit,
     onCacheSettingsChanged: (CacheSettings) -> Unit,
@@ -158,6 +167,9 @@ fun DesktopSettingsPanel(
     var clearLibraryDialogOpen by remember { mutableStateOf(false) }
     var resetDialogOpen by remember { mutableStateOf(false) }
     var resetIncludesServers by remember { mutableStateOf(false) }
+    val languagePack = remember(interfaceSettings.language) {
+        naviampLanguagePack(interfaceSettings.language)
+    }
 
     @Composable
     fun CategoryContent(category: NaviampSettingsCategory) {
@@ -208,6 +220,12 @@ fun DesktopSettingsPanel(
                 onSettingsSyncAutoExportChanged = onSettingsSyncAutoExportChanged,
                 onSettingsSyncExport = onSettingsSyncExport,
                 onSettingsSyncImport = onSettingsSyncImport,
+            )
+            NaviampSettingsCategory.Language -> NaviampLanguageSettingsSection(
+                colors = appColors,
+                interfaceSettings = interfaceSettings,
+                languagePack = languagePack,
+                onInterfaceSettingsChanged = onInterfaceSettingsChanged,
             )
             NaviampSettingsCategory.Experience -> NaviampExperienceSettingsSection(
                 colors = appColors,
@@ -316,7 +334,9 @@ fun DesktopSettingsPanel(
             if (activeCategory == null) {
                 SettingsCategoryList(
                     appColors = appColors,
+                    languagePack = languagePack,
                     connectionSubtitle = connectionSubtitle,
+                    languageSubtitle = languagePack.languageTitle(interfaceSettings.language),
                     onCategorySelected = { narrowCategory = it },
                 )
             } else {
@@ -328,7 +348,7 @@ fun DesktopSettingsPanel(
                 ) {
                     SettingsDetailHeader(
                         appColors = appColors,
-                        title = activeCategory.label,
+                        title = languagePack.categoryLabel(activeCategory),
                         onBack = { narrowCategory = null },
                     )
                     Column(
@@ -347,7 +367,7 @@ fun DesktopSettingsPanel(
                 verticalArrangement = Arrangement.spacedBy(8.dp),
                 modifier = Modifier.fillMaxSize(),
             ) {
-                Text("Settings", color = appColors.primaryText, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
+                Text(languagePack.settingsTitle(), color = appColors.primaryText, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                     modifier = Modifier
@@ -362,7 +382,7 @@ fun DesktopSettingsPanel(
                             FilterChip(
                                 selected = selectedCategory == category,
                                 onClick = { selectedCategory = category },
-                                label = { Text(category.label, fontSize = 12.sp) },
+                                label = { Text(languagePack.categoryLabel(category), fontSize = 12.sp) },
                                 modifier = Modifier.fillMaxWidth(),
                             )
                         }
@@ -465,7 +485,9 @@ fun DesktopSettingsPanel(
 @Composable
 private fun SettingsCategoryList(
     appColors: DesktopAppColors,
+    languagePack: app.naviamp.ui.NaviampLanguagePack,
     connectionSubtitle: String,
+    languageSubtitle: String,
     onCategorySelected: (NaviampSettingsCategory) -> Unit,
 ) {
     Column(
@@ -474,13 +496,18 @@ private fun SettingsCategoryList(
             .fillMaxWidth()
             .padding(end = 10.dp),
     ) {
-        Text("Settings", color = appColors.primaryText, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
+        Text(languagePack.settingsTitle(), color = appColors.primaryText, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
         Spacer(modifier = Modifier.height(8.dp))
         NaviampSettingsCategory.entries.forEach { category ->
             SettingsCategoryRow(
                 appColors = appColors,
+                languagePack = languagePack,
                 category = category,
-                subtitle = if (category == NaviampSettingsCategory.Source) connectionSubtitle else category.subtitle,
+                subtitle = when (category) {
+                    NaviampSettingsCategory.Source -> connectionSubtitle
+                    NaviampSettingsCategory.Language -> languageSubtitle
+                    else -> languagePack.categorySubtitle(category)
+                },
                 onClick = { onCategorySelected(category) },
             )
         }
@@ -490,6 +517,7 @@ private fun SettingsCategoryList(
 @Composable
 private fun SettingsCategoryRow(
     appColors: DesktopAppColors,
+    languagePack: app.naviamp.ui.NaviampLanguagePack,
     category: NaviampSettingsCategory,
     subtitle: String,
     onClick: () -> Unit,
@@ -511,7 +539,7 @@ private fun SettingsCategoryRow(
         )
         Column(modifier = Modifier.weight(1f)) {
             Text(
-                category.label,
+                languagePack.categoryLabel(category),
                 color = appColors.primaryText,
                 fontSize = 14.sp,
                 fontWeight = FontWeight.SemiBold,

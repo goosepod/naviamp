@@ -37,6 +37,7 @@ import app.naviamp.domain.playback.PlaybackEngine
 import app.naviamp.domain.popular.SimilarArtistMatch
 import app.naviamp.domain.provider.MediaSearchResults
 import app.naviamp.domain.settings.ConnectionFormMusicFolder
+import app.naviamp.domain.settings.InterfaceSettings
 import app.naviamp.domain.source.SavedMediaSource
 import app.naviamp.domain.sonichome.SonicHomeDiscoveryRows
 import app.naviamp.ui.AlbumMixBuilderContent
@@ -185,6 +186,7 @@ fun ColumnScope.DesktopAppRouteContent(
     musicFoldersStatus: String?,
     savedMediaSources: List<SavedMediaSource>,
     isConnecting: Boolean,
+    interfaceSettings: InterfaceSettings,
     playbackSettings: PlaybackSettings,
     playbackEngine: PlaybackEngine,
     supportsSonicSimilarity: Boolean,
@@ -199,6 +201,7 @@ fun ColumnScope.DesktopAppRouteContent(
     onSettingsSyncAutoExportChanged: (Boolean) -> Unit,
     onSettingsSyncExport: () -> Unit,
     onSettingsSyncImport: () -> Unit,
+    onInterfaceSettingsChanged: (InterfaceSettings) -> Unit,
     onPlaybackSettingsChanged: (PlaybackSettings) -> Unit,
     onPlaybackSettingsChangedAndRedownload: (PlaybackSettings) -> Unit,
     onCacheSettingsChanged: (CacheSettings) -> Unit,
@@ -515,6 +518,8 @@ fun ColumnScope.DesktopAppRouteContent(
                     onRefreshPlaylists = { playlistsController.refreshPlaylists(useCache = false) },
                     onSmartPlaylistSave = smartPlaylistsController::saveSmartPlaylist,
                     onSmartPlaylistUpdate = smartPlaylistsController::updateSmartPlaylist,
+                    onSmartPlaylistSaveWithPassword = smartPlaylistsController::saveSmartPlaylistWithPassword,
+                    onSmartPlaylistUpdateWithPassword = smartPlaylistsController::updateSmartPlaylistWithPassword,
                     onSmartPlaylistLoad = smartPlaylistsController::loadSmartPlaylistDefinition,
                 )
                 DesktopAppRoute.PlaylistDetail -> DesktopPlaylistDetailPanel(
@@ -881,6 +886,7 @@ fun ColumnScope.DesktopAppRouteContent(
                     isConnectionFormOpen = connectionForm.isOpen,
                     isConnecting = isConnecting,
                     connectionStatus = connectionStatus,
+                    interfaceSettings = interfaceSettings,
                     playbackSettings = playbackSettings,
                     cacheSettings = cacheSettings,
                     cacheStats = cacheStats,
@@ -933,6 +939,7 @@ fun ColumnScope.DesktopAppRouteContent(
                     onSettingsSyncAutoExportChanged = onSettingsSyncAutoExportChanged,
                     onSettingsSyncExport = onSettingsSyncExport,
                     onSettingsSyncImport = onSettingsSyncImport,
+                    onInterfaceSettingsChanged = onInterfaceSettingsChanged,
                     onPlaybackSettingsChanged = onPlaybackSettingsChanged,
                     onPlaybackSettingsChangedAndRedownload = onPlaybackSettingsChangedAndRedownload,
                     onCacheSettingsChanged = onCacheSettingsChanged,

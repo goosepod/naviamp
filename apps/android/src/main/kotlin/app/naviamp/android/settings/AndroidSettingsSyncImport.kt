@@ -58,6 +58,9 @@ fun applyAndroidSettingsSyncDocument(
     val preferences = document.preferences
     val importedPlayback = preferences.playback.effectiveForEngine(playbackEngine)
 
+    state.interfaceSettings = preferences.interfaceSettings.normalized()
+    settingsStore.saveInterfaceSettings(state.interfaceSettings)
+
     storage.replaceRadioDjPresets(importedPlayback.radioDjs)
     state.playbackSettings = importedPlayback.copy(radioDjs = storage.radioDjPresets())
     settingsStore.savePlaybackSettings(state.playbackSettings)

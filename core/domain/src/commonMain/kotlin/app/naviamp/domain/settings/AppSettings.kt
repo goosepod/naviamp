@@ -123,6 +123,22 @@ fun selectedMusicFolderSummary(
         .ifBlank { emptyLabel }
 
 @Serializable
+data class InterfaceSettings(
+    val language: InterfaceLanguage = InterfaceLanguage.System,
+) {
+    fun normalized(): InterfaceSettings = this
+}
+
+@Serializable
+enum class InterfaceLanguage(
+    val languageTag: String?,
+) {
+    System(languageTag = null),
+    English(languageTag = "en"),
+    Spanish(languageTag = "es"),
+}
+
+@Serializable
 data class PlaybackSettings(
     val replayGainMode: ReplayGainMode = ReplayGainMode.Off,
     val replayGainPreampDb: Float = 0f,
@@ -134,6 +150,8 @@ data class PlaybackSettings(
     val volumePercent: Int = 100,
     val debugLoggingEnabled: Boolean = false,
     val lrclibLyricsEnabled: Boolean = false,
+    val preferSyncedLyrics: Boolean = false,
+    val lyricsSearchOrder: List<LyricsSourcePreference> = DefaultLyricsSearchOrder,
     val sonicSimilarityEnabled: Boolean = false,
     val sonicAutoplayEnabled: Boolean = false,
     val previousButtonBehavior: PreviousButtonBehavior = PreviousButtonBehavior.RestartThenPrevious,
@@ -151,6 +169,22 @@ data class PlaybackSettings(
     val downloadQuality: StreamQualityPreference = StreamQualityPreference(),
     val allowMobileDownloads: Boolean = false,
 )
+
+@Serializable
+enum class LyricsSourcePreference {
+    Provider,
+    Embedded,
+    Download,
+}
+
+val DefaultLyricsSearchOrder: List<LyricsSourcePreference> = listOf(
+    LyricsSourcePreference.Provider,
+    LyricsSourcePreference.Embedded,
+    LyricsSourcePreference.Download,
+)
+
+fun List<LyricsSourcePreference>.normalizedLyricsSearchOrder(): List<LyricsSourcePreference> =
+    (this + DefaultLyricsSearchOrder).distinct()
 
 @Serializable
 data class AudioOutputDevicePreference(

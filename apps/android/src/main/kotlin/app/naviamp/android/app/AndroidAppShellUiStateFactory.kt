@@ -148,6 +148,7 @@ fun rememberAndroidAppShellUiState(
                 )
             },
             hasSavedConnection = savedConnectionForLogin != null,
+            interfaceSettings = interfaceSettings,
             playbackSettings = playbackSettings,
             cacheSettings = cacheSettings,
             diagnostics = diagnostics,

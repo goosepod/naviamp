@@ -502,11 +502,9 @@ suspend fun MediaProvider.refreshPlaylistDetails(
     playlistLimit: Int = 500,
     providerResponseService: ProviderResponseService? = null,
 ): PlaylistDetailsRefresh {
-    val refreshedPlaylists = providerResponseService?.playlists(this, playlistLimit)
-        ?: playlists(limit = playlistLimit)
+    val refreshedPlaylists = playlists(limit = playlistLimit)
     val refreshedPlaylist = refreshedPlaylists.firstOrNull { it.id == playlist.id } ?: playlist
-    val refreshedTracks = providerResponseService?.playlistTracks(this, refreshedPlaylist.id)
-        ?: playlistTracks(refreshedPlaylist.id)
+    val refreshedTracks = playlistTracks(refreshedPlaylist.id)
     val displayPlaylist = refreshedPlaylist.copy(trackCount = refreshedTracks.size)
     return PlaylistDetailsRefresh(
         playlists = refreshedPlaylists.map {
@@ -663,15 +661,14 @@ fun playlistPlaybackTrackLoadPlan(
     playlist: Playlist,
 ): PlaylistPlaybackTrackLoadPlan =
     PlaylistPlaybackTrackLoadPlan(
-        shouldLoadTracks = selectedPlaylist?.id != playlist.id || selectedPlaylistTracks.isEmpty(),
+        shouldLoadTracks = true,
     )
 
 suspend fun MediaProvider.loadPlaylistTracksForPlayback(
     playlist: Playlist,
     providerResponseService: ProviderResponseService? = null,
 ): List<Track> =
-    providerResponseService?.playlistTracks(this, playlist.id)
-        ?: playlistTracks(playlist.id)
+    playlistTracks(playlist.id)
 
 suspend fun MediaProvider.preparePlaylistPlayback(
     playlist: Playlist,
@@ -695,8 +692,8 @@ suspend fun MediaProvider.preparePlaylistPlayback(
         readyPlan = playlistPlaybackReadyPlan(
             playlist = playlist,
             shuffle = shuffle,
-            selectedPlaylist = selectedPlaylist,
-            selectedPlaylistTracks = selectedPlaylistTracks,
+            selectedPlaylist = null,
+            selectedPlaylistTracks = emptyList(),
             loadedTracks = loadedTracks,
             recentPlaylistIds = recentPlaylistIds,
             recentPlaylistLimit = recentPlaylistLimit,

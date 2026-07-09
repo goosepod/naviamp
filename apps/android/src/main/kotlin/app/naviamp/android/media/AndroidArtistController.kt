@@ -82,8 +82,9 @@ fun openAndroidArtistDetails(
                     sourceId = sourceId,
                 ),
                 afterLoaded = { detail ->
+                    val popularTrackKeys = setOf(artistId.value, detail.artist.id.value)
                     artistPopularTracksStatusByArtistId =
-                        artistPopularTracksStatusByArtistId + (artistId.value to loadingPopularTracksStatus())
+                        artistPopularTracksStatusByArtistId + popularTrackKeys.associateWith { loadingPopularTracksStatus() }
                     scope.launch(Dispatchers.IO) {
                         val update = loadArtistPopularTracksUpdate(
                             sourceId = sourceId,
@@ -94,9 +95,9 @@ fun openAndroidArtistDetails(
                         )
                         withContext(Dispatchers.Main) {
                             artistPopularTracksByArtistId =
-                                artistPopularTracksByArtistId + (artistId.value to update.tracks)
+                                artistPopularTracksByArtistId + popularTrackKeys.associateWith { update.tracks }
                             artistPopularTracksStatusByArtistId =
-                                artistPopularTracksStatusByArtistId + (artistId.value to update.status)
+                                artistPopularTracksStatusByArtistId + popularTrackKeys.associateWith { update.status }
                         }
                     }
                 },

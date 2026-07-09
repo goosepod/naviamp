@@ -165,6 +165,13 @@ class ProviderResponseService(
             fetch = { provider.artist(artistId) },
         )
 
+    fun invalidateArtist(
+        provider: MediaProvider,
+        artistId: ArtistId,
+    ) {
+        cacheRepository.invalidateProviderResponse(provider, ArtistResourceType, artistId.value)
+    }
+
     suspend fun search(
         provider: MediaProvider,
         query: String,

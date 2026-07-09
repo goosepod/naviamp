@@ -8,6 +8,7 @@ import app.naviamp.domain.audio.AudioTag
 import app.naviamp.domain.cache.SidecarStatusRepository
 import app.naviamp.domain.isInternetRadioTrack
 import app.naviamp.domain.queue.PlaybackQueue
+import app.naviamp.domain.settings.LyricsSourcePreference
 import app.naviamp.domain.waveform.AudioWaveform
 
 const val SidecarTypeWaveform = "waveform"
@@ -118,6 +119,8 @@ data class CurrentTrackSidecarWork<Provider>(
     val quality: StreamQuality,
     val audioCachingEnabled: Boolean,
     val onlineLyricsEnabled: Boolean,
+    val preferSyncedLyrics: Boolean,
+    val lyricsSearchOrder: List<LyricsSourcePreference>,
     val loadLyrics: Boolean,
 )
 
@@ -139,6 +142,8 @@ fun <Provider> currentTrackSidecarWork(
     quality: StreamQuality?,
     audioCachingEnabled: Boolean,
     onlineLyricsEnabled: Boolean,
+    preferSyncedLyrics: Boolean = false,
+    lyricsSearchOrder: List<LyricsSourcePreference> = emptyList(),
     lyricsVisible: Boolean,
 ): CurrentTrackSidecarWork<Provider>? {
     val activeProvider = provider ?: return null
@@ -151,6 +156,8 @@ fun <Provider> currentTrackSidecarWork(
         quality = activeQuality,
         audioCachingEnabled = audioCachingEnabled,
         onlineLyricsEnabled = onlineLyricsEnabled,
+        preferSyncedLyrics = preferSyncedLyrics,
+        lyricsSearchOrder = lyricsSearchOrder,
         loadLyrics = onlineLyricsEnabled || lyricsVisible,
     )
 }
@@ -162,6 +169,8 @@ fun <Provider> currentTrackSidecarWork(
     quality: StreamQuality?,
     audioCachingEnabled: Boolean,
     onlineLyricsEnabled: Boolean,
+    preferSyncedLyrics: Boolean = false,
+    lyricsSearchOrder: List<LyricsSourcePreference> = emptyList(),
     lyricsVisible: Boolean,
 ): CurrentTrackSidecarWork<Provider>? =
     currentTrackSidecarWork(
@@ -171,6 +180,8 @@ fun <Provider> currentTrackSidecarWork(
         quality = quality,
         audioCachingEnabled = audioCachingEnabled,
         onlineLyricsEnabled = onlineLyricsEnabled,
+        preferSyncedLyrics = preferSyncedLyrics,
+        lyricsSearchOrder = lyricsSearchOrder,
         lyricsVisible = lyricsVisible,
     )
 

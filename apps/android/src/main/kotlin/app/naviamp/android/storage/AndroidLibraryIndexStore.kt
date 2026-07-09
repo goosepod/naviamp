@@ -172,6 +172,7 @@ class AndroidLibraryIndexStore(
         fetchedAtEpochMillis: Long,
     ) {
         queries.transaction {
+            upsertLibraryTracks(sourceId, matchedTracksBySourceTrackId.values.toList())
             queries.deleteArtistPopularTracks(sourceId, artistId.value, source)
             candidates.forEach { candidate ->
                 queries.upsertArtistPopularTrack(

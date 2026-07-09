@@ -40,6 +40,7 @@ fun markAndroidSettingsSyncChangedAndAutoExport(
             buildSettingsSyncDocument(
                 snapshot = SettingsSyncLocalSnapshot(
                     serverProfiles = storage.mediaSources(),
+                    interfaceSettings = settingsStore.loadInterfaceSettings(),
                     playback = storedPlayback.copy(radioDjs = radioDjs),
                     visualizer = settingsStore.loadVisualizerSettings(),
                     recentRadioStreams = settingsStore.loadRecentRadioStreams(),

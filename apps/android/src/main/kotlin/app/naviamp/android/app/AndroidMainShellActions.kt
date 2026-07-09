@@ -145,6 +145,8 @@ internal fun androidMainShellActions(
         deletePlaylist = playlistActionController::deletePlaylist,
         saveSmartPlaylist = playlistActionController::saveSmartPlaylist,
         updateSmartPlaylist = playlistActionController::updateSmartPlaylist,
+        saveSmartPlaylistWithPassword = playlistActionController::saveSmartPlaylistWithPassword,
+        updateSmartPlaylistWithPassword = playlistActionController::updateSmartPlaylistWithPassword,
         loadSmartPlaylist = playlistActionController::loadSmartPlaylistDefinition,
         closeActivePlaylist = navigationController::closeActivePlaylist,
         handlePlaylistTrackSelected = trackActionController::handlePlaylistTrackSelected,

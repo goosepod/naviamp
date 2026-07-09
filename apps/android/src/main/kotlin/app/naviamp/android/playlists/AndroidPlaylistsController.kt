@@ -2,6 +2,7 @@ package app.naviamp.android
 
 import app.naviamp.domain.Playlist
 import app.naviamp.domain.Track
+import app.naviamp.domain.cache.ProviderMediaSourceConnection
 import app.naviamp.domain.app.NaviampRoute
 import app.naviamp.domain.cache.downloadConnectionRequiredStatus
 import app.naviamp.domain.cache.ProviderResponseCacheRepository
@@ -43,9 +44,13 @@ import app.naviamp.domain.provider.smartPlaylistUpdatingStatus
 import app.naviamp.domain.provider.deletePlaylistAndRefresh
 import app.naviamp.domain.provider.preloadPlaylistTracksStateUpdate
 import app.naviamp.domain.provider.updateSmartPlaylistStateUpdate
+import app.naviamp.domain.source.visibleServerConnections
 import app.naviamp.domain.smartplaylist.SmartPlaylistDefinition
 import app.naviamp.ui.NaviampPlaylistChoiceUi
+import app.naviamp.provider.navidrome.NavidromeConnection
 import app.naviamp.provider.navidrome.NavidromeProvider
+import app.naviamp.provider.navidrome.resolvedDisplayName
+import app.naviamp.provider.navidrome.withNativeTokenFromPassword
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -493,17 +498,50 @@ fun saveTracksAsPlaylistFromState(
     }
 }
 
+private suspend fun refreshAndroidSmartPlaylistProvider(
+    state: AndroidAppState,
+    storage: AndroidStorageDependencies?,
+    passwordOverride: String?,
+): NavidromeProvider {
+    val activeProvider = state.provider
+        ?: throw IllegalStateException("Connect to Navidrome before saving smart playlists.")
+    val savedConnection = state.savedConnectionForLogin
+    if (savedConnection?.nativeToken?.isNotBlank() == true) return activeProvider
+    val passwordToUse = passwordOverride?.takeIf { it.isNotBlank() } ?: state.password.takeIf { it.isNotBlank() }
+        ?: return activeProvider
+    val connection = savedConnection
+        ?: throw IllegalStateException("Reconnect to Navidrome with your password before saving smart playlists.")
+    val refreshedConnection = withContext(Dispatchers.IO) {
+        connection.withNativeTokenFromPassword(passwordToUse, required = true)
+    }
+    val refreshedProvider = NavidromeProvider(refreshedConnection)
+    state.provider = refreshedProvider
+    state.savedConnectionForLogin = refreshedConnection
+    state.password = ""
+    storage?.let { dependencies ->
+        val mediaSource = dependencies.upsertProviderMediaSource(
+            connection = refreshedConnection.toProviderMediaSourceConnection(),
+            cacheNamespace = refreshedProvider.cacheNamespace,
+            providerId = refreshedProvider.id.value,
+        )
+        state.activeSourceId = mediaSource.id
+        state.savedMediaSources = dependencies.mediaSources().visibleServerConnections(state.activeSourceId)
+    }
+    state.status = "Smart playlist authentication refreshed."
+    return refreshedProvider
+}
+
 suspend fun saveAndroidSmartPlaylist(
     scope: CoroutineScope,
     state: AndroidAppState,
     definition: SmartPlaylistDefinition,
-    providerResponseCacheRepository: ProviderResponseCacheRepository? = null,
+    storage: AndroidStorageDependencies? = null,
+    passwordOverride: String? = null,
 ) {
-    val activeProvider = state.provider
-        ?: throw IllegalStateException("Connect to Navidrome before saving smart playlists.")
+    val activeProvider = refreshAndroidSmartPlaylistProvider(state, storage, passwordOverride)
     state.status = smartPlaylistSavingStatus(definition)
     try {
-        val providerResponseService = providerResponseCacheRepository?.let { ProviderResponseService(it) }
+        val providerResponseService = storage?.let { ProviderResponseService(it) }
         val update = saveSmartPlaylistStateUpdate(
             provider = activeProvider,
             definition = definition,
@@ -520,18 +558,32 @@ suspend fun saveAndroidSmartPlaylist(
     }
 }
 
+private fun NavidromeConnection.toProviderMediaSourceConnection(): ProviderMediaSourceConnection =
+    ProviderMediaSourceConnection(
+        displayName = resolvedDisplayName(),
+        baseUrl = baseUrl,
+        username = username,
+        token = token,
+        salt = salt,
+        nativeToken = nativeToken,
+        tlsSettings = tlsSettings,
+        secondaryUrls = secondaryUrls,
+        customHeaders = customHeaders,
+        selectedMusicFolderIds = selectedMusicFolderIds,
+    )
+
 suspend fun updateAndroidSmartPlaylist(
     scope: CoroutineScope,
     state: AndroidAppState,
     playlist: Playlist,
     definition: SmartPlaylistDefinition,
-    providerResponseCacheRepository: ProviderResponseCacheRepository? = null,
+    storage: AndroidStorageDependencies? = null,
+    passwordOverride: String? = null,
 ) {
-    val activeProvider = state.provider
-        ?: throw IllegalStateException("Connect to Navidrome before updating smart playlists.")
+    val activeProvider = refreshAndroidSmartPlaylistProvider(state, storage, passwordOverride)
     state.status = smartPlaylistUpdatingStatus(definition)
     try {
-        val providerResponseService = providerResponseCacheRepository?.let { ProviderResponseService(it) }
+        val providerResponseService = storage?.let { ProviderResponseService(it) }
         val update = updateSmartPlaylistStateUpdate(
             provider = activeProvider,
             playlist = playlist,
@@ -600,8 +652,16 @@ internal class AndroidPlaylistActionController(
         saveAndroidSmartPlaylist(scope, state, definition, storage)
     }
 
+    suspend fun saveSmartPlaylistWithPassword(definition: SmartPlaylistDefinition, password: String) {
+        saveAndroidSmartPlaylist(scope, state, definition, storage, passwordOverride = password)
+    }
+
     suspend fun updateSmartPlaylist(playlist: Playlist, definition: SmartPlaylistDefinition) {
         updateAndroidSmartPlaylist(scope, state, playlist, definition, storage)
+    }
+
+    suspend fun updateSmartPlaylistWithPassword(playlist: Playlist, definition: SmartPlaylistDefinition, password: String) {
+        updateAndroidSmartPlaylist(scope, state, playlist, definition, storage, passwordOverride = password)
     }
 
     suspend fun loadSmartPlaylistDefinition(playlist: Playlist): SmartPlaylistDefinition =

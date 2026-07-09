@@ -93,6 +93,7 @@ class DesktopAppDependencies(
         sourceIdProvider: () -> String?,
         audioCachingEnabledProvider: () -> Boolean,
         audioPrefetchDepthProvider: () -> Int,
+        playbackSettingsProvider: () -> app.naviamp.domain.settings.PlaybackSettings,
     ): DesktopPlaylistEngine =
         DesktopPlaylistEngine(
             playbackEngine = playbackEngine,
@@ -102,6 +103,7 @@ class DesktopAppDependencies(
             audioCacheRepository = storage,
             sidecarService = playbackSidecarService,
             audioMetadataSidecarService = audioMetadataSidecarService,
+            playbackSettingsProvider = playbackSettingsProvider,
             playbackAudioAssets = playbackAudioAssets,
         )
 

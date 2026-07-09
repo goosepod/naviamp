@@ -105,6 +105,7 @@ data class SettingsSyncHeaderDefinition(
 
 @Serializable
 data class SettingsSyncPreferences(
+    val interfaceSettings: InterfaceSettings = InterfaceSettings(),
     val playback: PlaybackSettings = PlaybackSettings(),
     val visualizer: VisualizerSettings = VisualizerSettings(),
     val recentRadioStreams: List<RecentRadioStream> = emptyList(),
@@ -112,6 +113,7 @@ data class SettingsSyncPreferences(
 ) {
     fun normalized(): SettingsSyncPreferences =
         copy(
+            interfaceSettings = interfaceSettings.normalized(),
             playback = playback.copy(
                 wifiStreamingQuality = playback.wifiStreamingQuality.normalized(),
                 mobileStreamingQuality = playback.mobileStreamingQuality.normalized(),

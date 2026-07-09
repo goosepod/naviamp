@@ -11,6 +11,8 @@ import app.naviamp.domain.ProviderId
 import app.naviamp.domain.StreamRequest
 import app.naviamp.domain.Track
 import app.naviamp.domain.TrackId
+import app.naviamp.domain.cache.ProviderResponseCacheRepository
+import app.naviamp.domain.cache.ProviderResponseService
 import app.naviamp.domain.home.HomeContent
 import app.naviamp.domain.smartplaylist.SmartPlaylistDefinition
 import app.naviamp.domain.smartplaylist.SmartPlaylistTemplates
@@ -103,6 +105,30 @@ class PlaylistMutationsTest {
                 tracks = tracks,
             ),
             provider.refreshPlaylistDetails(stalePlaylist),
+        )
+    }
+
+    @Test
+    fun refreshPlaylistDetailsBypassesProviderResponseCache() = kotlinx.coroutines.test.runTest {
+        val stalePlaylist = playlist("one", "Old Name")
+        val refreshedPlaylist = playlist("one", "New Name")
+        val tracks = listOf(track("fresh"))
+        val provider = FakePlaylistProvider(
+            playlists = listOf(refreshedPlaylist),
+            playlistTracks = tracks,
+        )
+        val cache = ProviderResponseService(FailingProviderResponseCacheRepository())
+
+        assertEquals(
+            PlaylistDetailsRefresh(
+                playlists = listOf(refreshedPlaylist.copy(trackCount = 1)),
+                displayPlaylist = refreshedPlaylist.copy(trackCount = 1),
+                tracks = tracks,
+            ),
+            provider.refreshPlaylistDetails(
+                playlist = stalePlaylist,
+                providerResponseService = cache,
+            ),
         )
     }
 
@@ -413,7 +439,7 @@ class PlaylistMutationsTest {
             ),
         )
         assertEquals(
-            PlaylistPlaybackTrackLoadPlan(shouldLoadTracks = false),
+            PlaylistPlaybackTrackLoadPlan(shouldLoadTracks = true),
             playlistPlaybackTrackLoadPlan(playlist, selectedTracks, playlist),
         )
         assertEquals(
@@ -449,7 +475,7 @@ class PlaylistMutationsTest {
     }
 
     @Test
-    fun preparePlaylistPlaybackLoadsOrReusesTracks() = kotlinx.coroutines.test.runTest {
+    fun preparePlaylistPlaybackAlwaysLoadsFreshTracks() = kotlinx.coroutines.test.runTest {
         val playlist = playlist("one", "Road Mix")
         val selectedTracks = listOf(track("selected"))
         val provider = FakePlaylistProvider(
@@ -478,9 +504,32 @@ class PlaylistMutationsTest {
             recentPlaylistIds = emptyList(),
             recentPlaylistLimit = 2,
         )
-        assertEquals(false, reused.shouldStoreLoadedTracks)
-        assertEquals(emptyList(), reused.loadedTracks)
-        assertEquals(selectedTracks, reused.readyPlan.tracks)
+        assertEquals(true, reused.shouldStoreLoadedTracks)
+        assertEquals(listOf(track("loaded")), reused.loadedTracks)
+        assertEquals(listOf(track("loaded")), reused.readyPlan.tracks)
+    }
+
+    @Test
+    fun preparePlaylistPlaybackBypassesProviderResponseCache() = kotlinx.coroutines.test.runTest {
+        val playlist = playlist("one", "Road Mix")
+        val provider = FakePlaylistProvider(
+            playlists = listOf(playlist),
+            playlistTracks = listOf(track("fresh")),
+        )
+        val cache = ProviderResponseService(FailingProviderResponseCacheRepository())
+
+        val loaded = provider.preparePlaylistPlayback(
+            playlist = playlist,
+            shuffle = false,
+            selectedPlaylist = null,
+            selectedPlaylistTracks = emptyList(),
+            recentPlaylistIds = emptyList(),
+            recentPlaylistLimit = 2,
+            providerResponseService = cache,
+        )
+
+        assertEquals(listOf(track("fresh")), loaded.loadedTracks)
+        assertEquals(listOf(track("fresh")), loaded.readyPlan.tracks)
     }
 
     @Test
@@ -642,20 +691,21 @@ class PlaylistMutationsTest {
     }
 
     @Test
-    fun preparePlaylistDetailPlaybackApplicationUsesLoadedSelectionWithoutProviderFetch() = kotlinx.coroutines.test.runTest {
+    fun preparePlaylistDetailPlaybackApplicationRefreshesLoadedSelectionBeforePlayback() = kotlinx.coroutines.test.runTest {
         val playlist = playlist("one", "Road Mix")
         val selectedTracks = listOf(track("selected-one"), track("selected-two"))
+        val providerTracks = listOf(track("provider-one"), track("provider-two"))
         val provider = FakePlaylistProvider(
             playlists = listOf(playlist),
-            playlistTracks = listOf(track("provider")),
+            playlistTracks = providerTracks,
         )
 
         assertEquals(
             PlaylistDetailPlaybackApplicationUpdate(
-                playlistTracksById = emptyMap(),
-                loadedTracksToStore = null,
-                firstTrack = selectedTracks.first(),
-                playbackTracks = selectedTracks,
+                playlistTracksById = mapOf("one" to providerTracks),
+                loadedTracksToStore = providerTracks,
+                firstTrack = providerTracks.first(),
+                playbackTracks = providerTracks,
                 playbackIndex = 1,
                 recentPlaylistIds = listOf("one", "two"),
                 status = null,
@@ -1244,6 +1294,28 @@ class PlaylistMutationsTest {
         )
 
     private class StopAutoRefresh : RuntimeException()
+
+    private class FailingProviderResponseCacheRepository : ProviderResponseCacheRepository {
+        override suspend fun <T> cachedProviderResponse(
+            provider: MediaProvider,
+            resourceType: String,
+            resourceId: String,
+            decode: (String) -> T,
+            encode: (T) -> String,
+            fetch: suspend () -> T,
+        ): T = error("Active playlist operations must bypass provider response cache.")
+
+        override fun invalidateProviderResponses(
+            provider: MediaProvider,
+            resourceType: String,
+        ) = Unit
+
+        override fun invalidateProviderResponse(
+            provider: MediaProvider,
+            resourceType: String,
+            resourceId: String,
+        ) = Unit
+    }
 
     private class FakePlaylistProvider(
         private val playlists: List<Playlist>,

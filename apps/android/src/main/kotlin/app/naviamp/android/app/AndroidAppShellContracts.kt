@@ -7,6 +7,7 @@ import app.naviamp.domain.Track
 import app.naviamp.domain.settings.ConnectionFormMusicFolder
 import app.naviamp.domain.settings.ConnectionFormState
 import app.naviamp.domain.settings.CacheSettings
+import app.naviamp.domain.settings.InterfaceSettings
 import app.naviamp.domain.settings.PlaybackSettings
 import app.naviamp.domain.smartplaylist.SmartPlaylistDefinition
 import app.naviamp.ui.NaviampDiagnosticsUi
@@ -62,6 +63,7 @@ data class AndroidAppShellUiState(
     val musicFoldersStatus: String?,
     val savedConnections: List<NaviampSavedConnectionUi>,
     val hasSavedConnection: Boolean,
+    val interfaceSettings: InterfaceSettings,
     val playbackSettings: PlaybackSettings,
     val cacheSettings: CacheSettings,
     val diagnostics: NaviampDiagnosticsUi,
@@ -116,6 +118,7 @@ data class AndroidAppShellActions(
     val onConnectSavedConnection: (NaviampSavedConnectionUi) -> Unit,
     val onDeleteSavedConnection: (NaviampSavedConnectionUi) -> Unit,
     val onCancelEditConnection: () -> Unit,
+    val onInterfaceSettingsChanged: (InterfaceSettings) -> Unit,
     val onPlaybackSettingsChanged: (PlaybackSettings) -> Unit,
     val onPlaybackSettingsChangedAndRedownload: (PlaybackSettings) -> Unit,
     val onCacheSettingsChanged: (CacheSettings) -> Unit,
@@ -211,6 +214,8 @@ data class AndroidAppShellActions(
     val onMediaItemAction: (SharedMediaItemActionRequest) -> Unit,
     val onSmartPlaylistSave: suspend (SmartPlaylistDefinition) -> Unit,
     val onSmartPlaylistUpdate: suspend (SharedMediaItemUi, SmartPlaylistDefinition) -> Unit,
+    val onSmartPlaylistSaveWithPassword: suspend (SmartPlaylistDefinition, String) -> Unit,
+    val onSmartPlaylistUpdateWithPassword: suspend (SharedMediaItemUi, SmartPlaylistDefinition, String) -> Unit,
     val onSmartPlaylistLoad: suspend (SharedMediaItemUi) -> SmartPlaylistDefinition,
     val onPlaylistBack: () -> Unit,
     val onPlaylistTrackSelected: (SharedTrackRowUi) -> Unit,

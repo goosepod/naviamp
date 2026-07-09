@@ -10,6 +10,7 @@ import app.naviamp.domain.radio.RadioTuningSettings
 import app.naviamp.domain.playback.SleepTimerRequest
 import app.naviamp.domain.settings.CacheSettings
 import app.naviamp.domain.settings.ConnectionFormState
+import app.naviamp.domain.settings.InterfaceSettings
 import app.naviamp.domain.settings.PlaybackSettings
 import app.naviamp.domain.settings.VisualizerSettings
 import app.naviamp.domain.smartplaylist.SmartPlaylistDefinition
@@ -144,6 +145,8 @@ fun androidAppShellActions(
     deletePlaylist: (Playlist) -> Unit,
     saveSmartPlaylist: suspend (SmartPlaylistDefinition) -> Unit,
     updateSmartPlaylist: suspend (Playlist, SmartPlaylistDefinition) -> Unit,
+    saveSmartPlaylistWithPassword: suspend (SmartPlaylistDefinition, String) -> Unit,
+    updateSmartPlaylistWithPassword: suspend (Playlist, SmartPlaylistDefinition, String) -> Unit,
     loadSmartPlaylist: suspend (Playlist) -> SmartPlaylistDefinition,
     closeActivePlaylist: () -> Unit,
     handlePlaylistTrackSelected: (SharedTrackRowUi) -> Unit,
@@ -223,6 +226,11 @@ fun androidAppShellActions(
             onConnectSavedConnection = handleConnectSavedConnection,
             onDeleteSavedConnection = handleDeleteSavedConnection,
             onCancelEditConnection = { editingConnection = false },
+            onInterfaceSettingsChanged = { settings: InterfaceSettings ->
+                interfaceSettings = settings.normalized()
+                settingsStore.saveInterfaceSettings(interfaceSettings)
+                onSyncedSettingsChanged()
+            },
             onPlaybackSettingsChanged = handlePlaybackSettingsChanged,
             onPlaybackSettingsChangedAndRedownload = handlePlaybackSettingsChangedAndRedownload,
             onCacheSettingsChanged = handleCacheSettingsChanged,
@@ -462,6 +470,14 @@ fun androidAppShellActions(
             onSmartPlaylistUpdate = { playlist, definition ->
                 homeState.playlists.firstOrNull { it.id == playlist.id }?.let { updateSmartPlaylist(it, definition) }
                     ?: run { status = "Playlist not found." }
+            },
+            onSmartPlaylistSaveWithPassword = { definition, password ->
+                saveSmartPlaylistWithPassword(definition, password)
+            },
+            onSmartPlaylistUpdateWithPassword = { playlist, definition, password ->
+                homeState.playlists.firstOrNull { it.id == playlist.id }?.let {
+                    updateSmartPlaylistWithPassword(it, definition, password)
+                } ?: run { status = "Playlist not found." }
             },
             onSmartPlaylistLoad = { playlist ->
                 homeState.playlists.firstOrNull { it.id == playlist.id }?.let { loadSmartPlaylist(it) }
