@@ -226,6 +226,11 @@ interface BassAudioBackend {
 
     fun positionSeconds(stream: BassStreamHandle): Double? = null
 
+    fun audiblePositionSeconds(
+        playbackStream: BassStreamHandle,
+        sourceStream: BassStreamHandle,
+    ): Double? = positionSeconds(sourceStream.takeIf { it.value != 0 } ?: playbackStream)
+
     fun durationSeconds(stream: BassStreamHandle): Double? = null
 
     fun lengthBytes(stream: BassStreamHandle): Long?
@@ -548,12 +553,17 @@ fun BassAudioBackend.bassPlaybackSnapshot(
     sourceHandle: Int,
 ): BassPlaybackSnapshot {
     val progressHandle = playbackSourceHandle(playbackHandle, sourceHandle)
+    val decodedPositionSeconds = positionSeconds(progressHandle)
     return BassPlaybackSnapshot(
         activeState = activeState(playbackHandle),
         sourceActiveState = sourceHandle.takeIf { it != 0 }?.let(::activeState),
         progress = PlaybackProgress(
-            positionSeconds = positionSeconds(progressHandle),
+            positionSeconds = audiblePositionSeconds(
+                playbackStream = BassStreamHandle(playbackHandle),
+                sourceStream = BassStreamHandle(sourceHandle),
+            ) ?: decodedPositionSeconds,
             durationSeconds = durationSeconds(progressHandle),
+            decodedPositionSeconds = decodedPositionSeconds,
         ),
         metadata = PlaybackStreamMetadata.fromProperties(streamMetadata(progressHandle)),
     )

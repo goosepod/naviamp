@@ -74,6 +74,7 @@ import app.naviamp.domain.waveform.playbackFraction
 import app.naviamp.domain.waveform.cleanWaveformAmplitudes
 import app.naviamp.domain.waveform.seekSecondsForFraction
 import app.naviamp.domain.playback.SleepTimerRequest
+import app.naviamp.domain.settings.NowPlayingDisplaySettings
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
@@ -201,6 +202,7 @@ fun NaviampNowPlayingPanel(
     nowPlaying: NowPlayingUi,
     colors: NaviampColors,
     actions: NaviampNowPlayingActions,
+    displaySettings: NowPlayingDisplaySettings = NowPlayingDisplaySettings(),
     modifier: Modifier = Modifier,
     visualizerBandsProvider: () -> List<Float> = { nowPlaying.visualizerFrame?.bands.orEmpty() },
     selectedVisualizer: NaviampVisualizer = NaviampVisualizer.AudioSphere,
@@ -286,6 +288,7 @@ fun NaviampNowPlayingPanel(
                         playerColors = visualizerColors,
                         actions = actions,
                         selectedVisualizer = selectedVisualizer,
+                        displaySettings = displaySettings,
                         compactLayout = viewportMaxHeight < 640.dp,
                         availableHeight = (wideDetailsHeight - WideNowPlayingDetailsTopPadding)
                             .coerceAtLeast(WideNowPlayingDetailsMinHeight - WideNowPlayingDetailsTopPadding),
@@ -382,6 +385,7 @@ fun NaviampNowPlayingPanel(
                             playerColors = visualizerColors,
                             actions = actions,
                             selectedVisualizer = selectedVisualizer,
+                            displaySettings = displaySettings,
                             compactLayout = true,
                             availableHeight = compactDetailsHeight,
                             modifier = Modifier
@@ -433,6 +437,7 @@ fun NaviampNowPlayingPanel(
                         playerColors = visualizerColors,
                         actions = actions,
                         selectedVisualizer = selectedVisualizer,
+                        displaySettings = displaySettings,
                         mobileLayout = true,
                         compactSizing = compactWidthSizing,
                         modifier = Modifier
@@ -564,6 +569,7 @@ private fun NowPlayingDetails(
     playerColors: NaviampPlayerColors,
     actions: NaviampNowPlayingActions,
     selectedVisualizer: NaviampVisualizer,
+    displaySettings: NowPlayingDisplaySettings,
     mobileLayout: Boolean = false,
     compactLayout: Boolean = false,
     compactSizing: Boolean = compactLayout,
@@ -588,9 +594,9 @@ private fun NowPlayingDetails(
     val pinBottomActions = !mobileLayout && height != Dp.Unspecified
     val showVolume = !compactLayout || height == Dp.Unspecified || height >= 220.dp
     val showRating = !compactLayout || height == Dp.Unspecified || height >= 150.dp
-    val showAudioInfo = !compactLayout || height == Dp.Unspecified || height >= 150.dp
+    val showAudioInfo = displaySettings.showAudioInfo && (!compactLayout || height == Dp.Unspecified || height >= 150.dp)
     val showTrackIdentity = !compactLayout || height == Dp.Unspecified || height >= 135.dp
-    val volumeVisible = nowPlaying.canChangeVolume && showVolume
+    val volumeVisible = displaySettings.showVolumeBar && nowPlaying.canChangeVolume && showVolume
     val compactMetadataRow = compactLayout && !mobileLayout
     val controlColors = colors.copy(accent = playerColors.accent)
     val useLargeSizing = mobileLayout && !compactSizing
@@ -700,35 +706,39 @@ private fun NowPlayingDetails(
                         .fillMaxWidth()
                         .padding(bottom = if (mobileLayout) 1.dp else 0.dp),
                 ) {
-                    BouncingTitleText(
+                    NowPlayingIdentityText(
                         text = nowPlaying.title,
                         color = colors.primaryText,
                         fontSize = titleFontSize,
                         height = titleTextHeight,
-                        marqueeEnabled = !mobileLayout && nowPlaying.id.isNotBlank(),
+                        bold = true,
+                        marqueeEnabled = displaySettings.scrollTrackTitle && nowPlaying.id.isNotBlank(),
                         modifier = Modifier.fillMaxWidth(),
                     )
-                    Text(
-                        nowPlaying.subtitle,
+                    NowPlayingIdentityText(
+                        text = nowPlaying.subtitle,
                         color = colors.secondaryText,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        textAlign = TextAlign.Center,
-                        fontSize = metadataFontSize.sp,
-                        lineHeight = metadataLineHeight,
+                        fontSize = metadataFontSize,
+                        height = metadataLineHeight.value.dp,
+                        marqueeEnabled = displaySettings.scrollArtistName && !nowPlaying.isLive,
                         modifier = Modifier.clickable(
                             enabled = !nowPlaying.isLive,
                             onClick = { actions.currentTrack(NowPlayingCurrentTrackAction.GoToArtist) },
                         ),
                     )
-                    Text(
-                        if (nowPlaying.isLive) "Live stream" else nowPlaying.albumLine.ifBlank { nowPlaying.stateLabel },
+                    val albumText = when {
+                        nowPlaying.isLive -> "Live stream"
+                        nowPlaying.albumTitle.isNotBlank() && displaySettings.showAlbumYear && nowPlaying.albumYear != null ->
+                            "${nowPlaying.albumTitle} (${nowPlaying.albumYear})"
+                        nowPlaying.albumTitle.isNotBlank() -> nowPlaying.albumTitle
+                        else -> nowPlaying.albumLine.ifBlank { nowPlaying.stateLabel }
+                    }
+                    NowPlayingIdentityText(
+                        text = albumText,
                         color = colors.secondaryText.copy(alpha = 0.84f),
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        textAlign = TextAlign.Center,
-                        fontSize = metadataFontSize.sp,
-                        lineHeight = metadataLineHeight,
+                        fontSize = metadataFontSize,
+                        height = metadataLineHeight.value.dp,
+                        marqueeEnabled = displaySettings.scrollAlbumName && !nowPlaying.isLive,
                         modifier = Modifier.clickable(
                             enabled = !nowPlaying.isLive && nowPlaying.albumLine.isNotBlank(),
                             onClick = { actions.currentTrack(NowPlayingCurrentTrackAction.GoToAlbum) },
@@ -2380,6 +2390,7 @@ private fun BouncingTitleText(
     height: Dp = 18.dp,
     marqueeEnabled: Boolean,
     modifier: Modifier = Modifier,
+    bold: Boolean = true,
 ) {
     val offset = remember(text) { Animatable(0f) }
     var containerWidth by remember { mutableStateOf(0) }
@@ -2424,7 +2435,7 @@ private fun BouncingTitleText(
                     color = color,
                     fontSize = fontSize.sp,
                     lineHeight = (fontSize + 1).sp,
-                    fontWeight = FontWeight.Bold,
+                    fontWeight = if (bold) FontWeight.Bold else FontWeight.Normal,
                     maxLines = 1,
                     softWrap = false,
                     textAlign = TextAlign.Start,
@@ -2455,6 +2466,47 @@ private fun BouncingTitleText(
                 }
                 placeable.placeRelative(x, (height - placeable.height) / 2)
             }
+        }
+    }
+}
+
+@Composable
+private fun NowPlayingIdentityText(
+    text: String,
+    color: Color,
+    fontSize: Int,
+    height: Dp,
+    marqueeEnabled: Boolean,
+    modifier: Modifier = Modifier,
+    bold: Boolean = false,
+) {
+    if (marqueeEnabled) {
+        BouncingTitleText(
+            text = text,
+            color = color,
+            fontSize = fontSize,
+            height = height,
+            marqueeEnabled = true,
+            modifier = modifier.fillMaxWidth(),
+            bold = bold,
+        )
+    } else {
+        Box(
+            contentAlignment = Alignment.Center,
+            modifier = modifier
+                .fillMaxWidth()
+                .height(height),
+        ) {
+            Text(
+                text = text,
+                color = color,
+                fontSize = fontSize.sp,
+                lineHeight = (fontSize + 1).sp,
+                fontWeight = if (bold) FontWeight.Bold else FontWeight.Normal,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                textAlign = TextAlign.Center,
+            )
         }
     }
 }

@@ -16,6 +16,7 @@ import app.naviamp.domain.settings.ConnectionFormSecondaryUrl
 import app.naviamp.domain.settings.CacheSettings
 import app.naviamp.domain.settings.InterfaceLanguage
 import app.naviamp.domain.settings.InterfaceSettings
+import app.naviamp.domain.settings.NowPlayingDisplaySettings
 import app.naviamp.domain.settings.LyricsSourcePreference
 import app.naviamp.domain.settings.PlaybackSettings
 import app.naviamp.domain.settings.PreviousButtonBehavior
@@ -144,12 +145,28 @@ class AndroidSettingsStore(
         InterfaceSettings(
             language = enumPreference(KeyInterfaceLanguage, InterfaceLanguage.System),
             checkForUpdates = preferences.getBoolean(KeyCheckForUpdates, true),
+            startPlayingOnLaunch = preferences.getBoolean(KeyStartPlayingOnLaunch, false),
+            nowPlaying = NowPlayingDisplaySettings(
+                showAlbumYear = preferences.getBoolean(KeyNowPlayingShowAlbumYear, true),
+                showAudioInfo = preferences.getBoolean(KeyNowPlayingShowAudioInfo, true),
+                showVolumeBar = preferences.getBoolean(KeyNowPlayingShowVolumeBar, true),
+                scrollTrackTitle = preferences.getBoolean(KeyNowPlayingScrollTrackTitle, true),
+                scrollArtistName = preferences.getBoolean(KeyNowPlayingScrollArtistName, false),
+                scrollAlbumName = preferences.getBoolean(KeyNowPlayingScrollAlbumName, false),
+            ),
         ).normalized()
 
     fun saveInterfaceSettings(settings: InterfaceSettings) {
         preferences.edit()
             .putString(KeyInterfaceLanguage, settings.normalized().language.name)
             .putBoolean(KeyCheckForUpdates, settings.normalized().checkForUpdates)
+            .putBoolean(KeyStartPlayingOnLaunch, settings.normalized().startPlayingOnLaunch)
+            .putBoolean(KeyNowPlayingShowAlbumYear, settings.normalized().nowPlaying.showAlbumYear)
+            .putBoolean(KeyNowPlayingShowAudioInfo, settings.normalized().nowPlaying.showAudioInfo)
+            .putBoolean(KeyNowPlayingShowVolumeBar, settings.normalized().nowPlaying.showVolumeBar)
+            .putBoolean(KeyNowPlayingScrollTrackTitle, settings.normalized().nowPlaying.scrollTrackTitle)
+            .putBoolean(KeyNowPlayingScrollArtistName, settings.normalized().nowPlaying.scrollArtistName)
+            .putBoolean(KeyNowPlayingScrollAlbumName, settings.normalized().nowPlaying.scrollAlbumName)
             .apply()
     }
 
@@ -413,6 +430,13 @@ private const val KeyEqualizerProfiles = "equalizer_profiles"
 private const val KeyEqualizerBandPrefix = "equalizer_band"
 private const val KeyDebugLoggingEnabled = "debug_logging_enabled"
 private const val KeyCheckForUpdates = "check_for_updates"
+private const val KeyStartPlayingOnLaunch = "start_playing_on_launch"
+private const val KeyNowPlayingShowAlbumYear = "now_playing_show_album_year"
+private const val KeyNowPlayingShowAudioInfo = "now_playing_show_audio_info"
+private const val KeyNowPlayingShowVolumeBar = "now_playing_show_volume_bar"
+private const val KeyNowPlayingScrollTrackTitle = "now_playing_scroll_track_title"
+private const val KeyNowPlayingScrollArtistName = "now_playing_scroll_artist_name"
+private const val KeyNowPlayingScrollAlbumName = "now_playing_scroll_album_name"
 private const val KeyLrclibLyricsEnabled = "lrclib_lyrics_enabled"
 private const val KeyPreferSyncedLyrics = "prefer_synced_lyrics"
 private const val KeyLyricsSearchOrder = "lyrics_search_order"

@@ -299,6 +299,7 @@ data class CrossfadeSettings(
 data class PlaybackProgress(
     val positionSeconds: Double?,
     val durationSeconds: Double?,
+    val decodedPositionSeconds: Double? = null,
 ) {
     val fraction: Double
         get() {
@@ -315,6 +316,9 @@ data class PlaybackProgress(
         )
     }
 }
+
+val PlaybackProgress.playbackPlanningPositionSeconds: Double?
+    get() = decodedPositionSeconds ?: positionSeconds
 
 fun PlaybackProgress.mergeWith(previous: PlaybackProgress): PlaybackProgress {
     val previousPosition = previous.positionSeconds

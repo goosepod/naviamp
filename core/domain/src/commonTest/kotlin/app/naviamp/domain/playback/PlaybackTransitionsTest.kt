@@ -14,6 +14,26 @@ import kotlin.test.assertTrue
 
 class PlaybackTransitionsTest {
     @Test
+    fun prepareNextUsesDecodedPositionWhenAudiblePositionTrailsBufferedAudio() {
+        val plan = planPrepareNextPlayback(
+            progress = PlaybackProgress(
+                positionSeconds = 94.5,
+                durationSeconds = 100.0,
+                decodedPositionSeconds = 96.0,
+            ),
+            nextQueueIndex = 1,
+            alreadyPreparedNext = false,
+            gaplessEnabled = true,
+            supportsGapless = true,
+            crossfadeDurationSeconds = 0,
+            supportsCrossfade = false,
+            gaplessPrepareWindowSeconds = 5.0,
+        )
+
+        assertTrue(plan.shouldPrepare)
+    }
+
+    @Test
     fun normalizesCrossfadeDurations() {
         assertEquals(0, normalizedCrossfadeDurationSeconds(-1))
         assertEquals(5, normalizedCrossfadeDurationSeconds(5))

@@ -543,6 +543,8 @@ data class NowPlayingUi(
     val coverArtUrl: String? = null,
     val isLive: Boolean = false,
     val albumLine: String = "",
+    val albumTitle: String = "",
+    val albumYear: Int? = null,
     val audioInfo: String = "",
     val waveform: AudioWaveform? = null,
     val visualizerFrame: PlaybackVisualizerFrame? = null,

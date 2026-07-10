@@ -17,6 +17,7 @@ import app.naviamp.domain.queue.PlaybackQueue
 import app.naviamp.domain.queue.RepeatMode
 import app.naviamp.desktop.settings.CacheSettings
 import app.naviamp.desktop.settings.PlaybackSettings
+import app.naviamp.domain.settings.InterfaceSettings
 import app.naviamp.provider.navidrome.NavidromeProvider
 import app.naviamp.ui.NowPlayingCurrentTrackAction
 import app.naviamp.ui.NowPlayingDisplayActionRequest
@@ -50,6 +51,7 @@ internal fun ColumnScope.DesktopPlayerRouteContent(
     playbackState: PlaybackState,
     playbackProgress: PlaybackProgress,
     playbackSettings: PlaybackSettings,
+    interfaceSettings: InterfaceSettings,
     cacheSettings: CacheSettings,
     sleepTimer: SleepTimerState?,
     sleepTimerNowEpochMillis: Long,
@@ -66,6 +68,7 @@ internal fun ColumnScope.DesktopPlayerRouteContent(
             .weight(1f)
             .fillMaxWidth(),
         appColors = appColors,
+        displaySettings = interfaceSettings.nowPlaying,
         playbackEngineName = playbackEngine.name,
         supportsPause = playbackEngine.supportsPause,
         supportsSoftwareVolume = playbackEngine.supportsSoftwareVolume,

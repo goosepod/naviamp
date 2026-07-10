@@ -82,6 +82,7 @@ class DesktopConnectionLifecycleController(
     private val streamQuality: () -> StreamQuality,
     private val replayGainMode: () -> ReplayGainMode,
     private val replayGainPreampDb: () -> Float,
+    private val startPlayingOnLaunch: () -> Boolean,
     private val setConnectedProvider: (NavidromeProvider?) -> Unit,
     private val setConnectedSourceId: (String?) -> Unit,
     private val setHomeContent: (HomeContent) -> Unit,
@@ -319,6 +320,9 @@ class DesktopConnectionLifecycleController(
                 setNowPlayingLyricsStatus(null)
                 incrementNowPlayingWaveformReloadToken()
                 setPlaybackState(PlaybackState.Idle)
+                if (startPlayingOnLaunch()) {
+                    playlistEngine.playCurrent(scope, restoredSession.session.playbackProgress.positionSeconds)
+                }
             }
             null -> Unit
         }

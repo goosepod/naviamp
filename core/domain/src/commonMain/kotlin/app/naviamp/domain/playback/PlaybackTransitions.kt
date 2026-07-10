@@ -283,7 +283,7 @@ fun planPrepareNextPlayback(
     if (!canPrepareForCrossfade && !canPrepareForGapless) return PrepareNextPlaybackPlan(shouldPrepare = false)
     if (nextQueueIndex == null) return PrepareNextPlaybackPlan(shouldPrepare = false)
     if (alreadyPreparedNext) return PrepareNextPlaybackPlan(shouldPrepare = false)
-    val position = progress.positionSeconds ?: return PrepareNextPlaybackPlan(shouldPrepare = false)
+    val position = progress.playbackPlanningPositionSeconds ?: return PrepareNextPlaybackPlan(shouldPrepare = false)
     val duration = progress.durationSeconds ?: return PrepareNextPlaybackPlan(shouldPrepare = false)
     val safeCrossfadeDurationSeconds = normalizedCrossfadeDurationSeconds(crossfadeDurationSeconds)
     val canPrepareForCurrentTrackCrossfade = canPrepareForCrossfade && duration > safeCrossfadeDurationSeconds.toDouble()
@@ -344,7 +344,7 @@ fun isPlaybackProgressAtEnd(
     progress: PlaybackProgress,
     toleranceSeconds: Double = FinishedPositionToleranceSeconds,
 ): Boolean {
-    val position = progress.positionSeconds ?: return false
+    val position = progress.playbackPlanningPositionSeconds ?: return false
     val duration = progress.durationSeconds ?: return false
     return duration - position <= toleranceSeconds.coerceAtLeast(0.0)
 }
@@ -353,7 +353,7 @@ fun hasPlaybackProgressOverrunDuration(
     progress: PlaybackProgress,
     toleranceSeconds: Double = FinishedPositionOverrunToleranceSeconds,
 ): Boolean {
-    val position = progress.positionSeconds ?: return false
+    val position = progress.playbackPlanningPositionSeconds ?: return false
     val duration = progress.durationSeconds ?: return false
     return position - duration >= toleranceSeconds.coerceAtLeast(0.0)
 }

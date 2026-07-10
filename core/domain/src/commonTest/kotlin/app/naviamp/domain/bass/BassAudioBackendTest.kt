@@ -266,14 +266,16 @@ class BassAudioBackendTest {
 
         assertEquals(BassActiveState.Playing, snapshot.activeState)
         assertEquals(BassActiveState.Playing, snapshot.sourceActiveState)
-        assertEquals(12.5, snapshot.progress.positionSeconds)
+        assertEquals(11.0, snapshot.progress.positionSeconds)
+        assertEquals(12.5, snapshot.progress.decodedPositionSeconds)
         assertEquals(60.0, snapshot.progress.durationSeconds)
         assertEquals("Radio Title", snapshot.metadata.title)
         assertEquals(
             listOf(
+                "positionSeconds:8",
                 "active:7",
                 "active:8",
-                "positionSeconds:8",
+                "audiblePositionSeconds:7:8",
                 "durationSeconds:8",
                 "metadata:8",
             ),
@@ -829,6 +831,14 @@ private class RecordingBassAudioBackend(
     override fun positionSeconds(stream: BassStreamHandle): Double {
         calls += "positionSeconds:${stream.value}"
         return 12.5
+    }
+
+    override fun audiblePositionSeconds(
+        playbackStream: BassStreamHandle,
+        sourceStream: BassStreamHandle,
+    ): Double {
+        calls += "audiblePositionSeconds:${playbackStream.value}:${sourceStream.value}"
+        return 11.0
     }
 
     override fun durationSeconds(stream: BassStreamHandle): Double {

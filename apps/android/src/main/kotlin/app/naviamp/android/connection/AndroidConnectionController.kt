@@ -47,6 +47,7 @@ class AndroidConnectionSessionController(
     private val queueController: PlaybackQueueController,
     private val preloadPlaylistTracks: (NavidromeProvider, List<Playlist>) -> Unit,
     private val loadRelatedTracks: (Track) -> Unit,
+    private val startRestoredTrackPlayback: () -> Unit,
     private val startAndroidLibrarySync: (Boolean) -> Unit,
     private val checkAndroidLibraryFreshness: () -> Unit,
 ) {
@@ -70,6 +71,8 @@ class AndroidConnectionSessionController(
             preloadPlaylistTracks = preloadPlaylistTracks,
             restorePlaybackSession = ::restorePlaybackSession,
             restoreExistingPlayback = restoreExistingPlayback,
+            startPlayingOnLaunch = settingsStore.loadInterfaceSettings().startPlayingOnLaunch,
+            startRestoredTrackPlayback = startRestoredTrackPlayback,
             startAndroidLibrarySync = startAndroidLibrarySync,
             checkAndroidLibraryFreshness = checkAndroidLibraryFreshness,
             recentRadioStreams = settingsStore.loadRecentRadioStreams(),
@@ -195,6 +198,8 @@ fun startNavidromeConnection(
     preloadPlaylistTracks: (NavidromeProvider, List<Playlist>) -> Unit,
     restorePlaybackSession: (String) -> Boolean,
     restoreExistingPlayback: Boolean = true,
+    startPlayingOnLaunch: Boolean = false,
+    startRestoredTrackPlayback: () -> Unit = {},
     startAndroidLibrarySync: (Boolean) -> Unit,
     checkAndroidLibraryFreshness: () -> Unit,
     recentRadioStreams: List<RecentRadioStream> = emptyList(),
@@ -255,7 +260,10 @@ fun startNavidromeConnection(
                     },
                 )
                 if (restoreExistingPlayback) {
-                    restorePlaybackSession(session.sourceId)
+                    val restored = restorePlaybackSession(session.sourceId)
+                    if (restored && startPlayingOnLaunch && nowPlaying != null) {
+                        startRestoredTrackPlayback()
+                    }
                 }
                 session.connection.baseUrl
             }.onSuccess { activeUrl ->

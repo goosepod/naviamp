@@ -19,6 +19,7 @@ import app.naviamp.domain.playback.label
 import app.naviamp.domain.radio.RadioDjPreset
 import app.naviamp.domain.queue.PlaybackQueue
 import app.naviamp.domain.queue.RepeatMode
+import app.naviamp.domain.settings.NowPlayingDisplaySettings
 import app.naviamp.domain.waveform.AudioWaveform
 import app.naviamp.ui.NaviampMiniNowPlaying
 import app.naviamp.ui.NaviampNowPlayingActions
@@ -46,6 +47,7 @@ import app.naviamp.ui.toTrackNowPlayingUi
 fun DesktopNowPlayingPanel(
     modifier: Modifier = Modifier,
     appColors: DesktopAppColors,
+    displaySettings: NowPlayingDisplaySettings,
     playbackEngineName: String,
     supportsPause: Boolean,
     supportsSeek: Boolean,
@@ -208,6 +210,7 @@ fun DesktopNowPlayingPanel(
         modifier = modifier,
         nowPlaying = nowPlayingUi,
         colors = appColors,
+        displaySettings = displaySettings,
         visualizerBandsProvider = { visualizerFrame?.bands.orEmpty() },
         selectedVisualizer = selectedVisualizer,
         visualizerColors = visualizerColors,

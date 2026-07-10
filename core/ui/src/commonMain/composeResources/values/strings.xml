@@ -73,7 +73,7 @@
     <string name="settings_lyrics_drag_source">Reorder lyrics source</string>
     <string name="settings_experience_empty">Experience controls will appear here as they are added.</string>
     <string name="settings_experience_player_title">Player</string>
-    <string name="settings_experience_player_subtitle">Queue, Back To, and Up Next behavior</string>
+    <string name="settings_experience_player_subtitle">Queue behavior, Now Playing, and waveforms</string>
     <string name="settings_experience_related_tracks_title">Related Tracks</string>
     <string name="settings_experience_related_tracks_subtitle">Sonic similarity and autoplay</string>
     <string name="settings_experience_waveforms_title">Waveforms</string>
@@ -156,6 +156,14 @@
     <string name="settings_waveforms_detail_title">Waveform Detail</string>
     <string name="settings_waveforms_detail_subtitle">How many steps to render in each waveform.</string>
     <string name="settings_waveforms_detail_header_subtitle">How many steps to render in each waveform</string>
+    <string name="settings_now_playing_show_album_year">Show album year</string>
+    <string name="settings_now_playing_show_audio_info">Show bitrate and audio information</string>
+    <string name="settings_now_playing_show_volume_bar">Show volume bar</string>
+    <string name="settings_now_playing_scroll_track">Scroll track titles</string>
+    <string name="settings_now_playing_scroll_artist">Scroll artist names</string>
+    <string name="settings_now_playing_scroll_album">Scroll album names</string>
+    <string name="settings_start_playing_on_launch">Start Playing on Launch</string>
+    <string name="settings_start_playing_on_launch_subtitle">Automatically play the last track after restoring the queue and position.</string>
     <string name="settings_storage_title">Storage</string>
     <string name="settings_storage_empty">Cache sizes will appear after the app initializes storage.</string>
 

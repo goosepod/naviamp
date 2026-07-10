@@ -82,9 +82,9 @@ class AudioWaveformTest {
 
     @Test
     fun buildsStableWaveformQualityKeys() {
-        assertEquals("original:waveform-v3", StreamQuality.Original.waveformCacheKey())
+        assertEquals("original:waveform-v4", StreamQuality.Original.waveformCacheKey())
         assertEquals(
-            "transcoded:opus:128:waveform-v3",
+            "transcoded:opus:128:waveform-v4",
             StreamQuality.Transcoded(AudioCodec.Opus, 128).waveformCacheKey(),
         )
     }

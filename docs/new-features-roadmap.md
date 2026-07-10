@@ -17,11 +17,14 @@ Keep implementation cross-platform by default: shared domain models, shared UI, 
 
 ### Focused Polish
 
-- [ ] Add Now Playing display customization.
+- [x] Add Now Playing display customization.
   - Let users independently show or hide the album year, bitrate/audio information, and volume bar.
+  - Add independent toggles for scrolling long track titles, artist names, and album names.
+  - Keep the existing long-track-title scrolling behavior, and add matching scrolling behavior for long artist and album text when their toggles are enabled.
+  - Avoid scrolling short text, and keep each disabled field static with graceful truncation when it does not fit.
   - Keep sensible defaults and preserve responsive layouts across small desktop windows, larger desktop players, and Android.
   - Store the choices as app preferences and include portable display choices in settings sync where appropriate.
-- [ ] Add optional automatic playback resume at startup.
+- [x] Add optional automatic playback resume at startup.
   - Add a setting that starts playing the last active song when Naviamp launches.
   - Restore the saved queue, current track, and playback position before starting playback.
   - Keep automatic playback opt-in so launching the app does not unexpectedly produce audio by default.

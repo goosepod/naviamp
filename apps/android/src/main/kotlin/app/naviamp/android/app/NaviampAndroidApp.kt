@@ -375,6 +375,15 @@ fun NaviampAndroidApp(
             queueController = playbackQueueController,
             preloadPlaylistTracks = playlistActionController::preloadPlaylistTracks,
             loadRelatedTracks = mediaAppController::loadRelatedTracks,
+            startRestoredTrackPlayback = {
+                appState.nowPlaying?.let { track ->
+                    playbackAppController.playTrack(
+                        track = track,
+                        queue = appState.playbackQueue.tracks,
+                        startPositionSeconds = appState.restoredStartPositionSeconds,
+                    )
+                }
+            },
             startAndroidLibrarySync = { force -> startAndroidLibrarySync(scope, appState, storage, force) },
             checkAndroidLibraryFreshness = { checkAndroidLibraryFreshness(scope, appState, storage, storage) },
         )

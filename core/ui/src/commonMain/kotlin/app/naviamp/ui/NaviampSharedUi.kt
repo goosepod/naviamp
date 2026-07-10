@@ -1225,6 +1225,7 @@ private fun ConnectedContent(
             visualizerBandsProvider = visualizerBandsProvider,
             selectedVisualizer = selectedVisualizer,
             actions = nowPlayingActions,
+            displaySettings = interfaceSettings.nowPlaying,
         )
         selectedRoute == SharedRoute.Settings -> SettingsContent(
             colors = colors,
@@ -2333,6 +2334,7 @@ private fun FullNowPlaying(
     visualizerBandsProvider: () -> List<Float>,
     selectedVisualizer: NaviampVisualizer,
     actions: NaviampNowPlayingActions,
+    displaySettings: app.naviamp.domain.settings.NowPlayingDisplaySettings,
 ) {
     Column(modifier = Modifier.fillMaxSize()) {
         NaviampNowPlayingPanel(
@@ -2342,6 +2344,7 @@ private fun FullNowPlaying(
             selectedVisualizer = selectedVisualizer,
             visualizerColors = playerColors,
             actions = actions,
+            displaySettings = displaySettings,
             modifier = Modifier
                 .fillMaxWidth()
                 .weight(1f),

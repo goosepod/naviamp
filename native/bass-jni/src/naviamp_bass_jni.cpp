@@ -315,22 +315,24 @@ jfloatArray waveform_levels(JNIEnv* env, jint stream, jint bucketCount) {
     bool anyLevel = false;
     for (int bucket = 0; bucket < safeBucketCount; ++bucket) {
         double remaining = bucketSeconds;
-        float peakLevel = 0.0f;
+        double weightedSquareSum = 0.0;
         double measuredSeconds = 0.0;
         while (remaining > 0.0001) {
             float level = 0.0f;
             float windowSeconds = static_cast<float>(std::min(remaining, 1.0));
-            if (!BASS_ChannelGetLevelEx(handle, &level, windowSeconds, BASS_LEVEL_MONO)) {
+            if (!BASS_ChannelGetLevelEx(handle, &level, windowSeconds, BASS_LEVEL_MONO | BASS_LEVEL_RMS)) {
                 break;
             }
             float clampedLevel = std::max(0.0f, std::min(level, 1.0f));
-            peakLevel = std::max(peakLevel, clampedLevel);
+            weightedSquareSum += static_cast<double>(clampedLevel) * clampedLevel * windowSeconds;
             measuredSeconds += windowSeconds;
             remaining -= windowSeconds;
             anyLevel = true;
         }
         if (measuredSeconds > 0.0) {
-            levels[static_cast<size_t>(bucket)] = peakLevel;
+            levels[static_cast<size_t>(bucket)] = static_cast<float>(
+                std::sqrt(weightedSquareSum / measuredSeconds)
+            );
         }
     }
 
@@ -485,6 +487,21 @@ jdouble position_seconds(jint stream) {
     QWORD bytes = BASS_ChannelGetPosition(static_cast<DWORD>(stream), BASS_POS_BYTE);
     if (bytes == static_cast<QWORD>(-1)) return -1.0;
     return BASS_ChannelBytes2Seconds(static_cast<DWORD>(stream), bytes);
+}
+
+jdouble audible_position_seconds(jint playbackStream, jint sourceStream) {
+    DWORD playback = static_cast<DWORD>(playbackStream);
+    DWORD progress = sourceStream != 0 ? static_cast<DWORD>(sourceStream) : playback;
+    QWORD positionBytes = BASS_ChannelGetPosition(progress, BASS_POS_BYTE);
+    if (positionBytes == static_cast<QWORD>(-1)) return -1.0;
+    double decodedSeconds = BASS_ChannelBytes2Seconds(progress, positionBytes);
+    if (decodedSeconds < 0.0 || !std::isfinite(decodedSeconds)) return -1.0;
+
+    DWORD bufferedBytes = BASS_ChannelGetData(playback, nullptr, BASS_DATA_AVAILABLE);
+    if (bufferedBytes == static_cast<DWORD>(-1)) return decodedSeconds;
+    double bufferedSeconds = BASS_ChannelBytes2Seconds(playback, bufferedBytes);
+    if (bufferedSeconds < 0.0 || !std::isfinite(bufferedSeconds)) return decodedSeconds;
+    return std::max(0.0, decodedSeconds - bufferedSeconds);
 }
 
 jdouble duration_seconds(jint stream) {
@@ -798,6 +815,18 @@ Java_app_naviamp_android_playback_AndroidBassJni_nativePositionSeconds(JNIEnv* e
     QWORD bytes = BASS_ChannelGetPosition(static_cast<DWORD>(stream), BASS_POS_BYTE);
     if (bytes == static_cast<QWORD>(-1)) return -1.0;
     return BASS_ChannelBytes2Seconds(static_cast<DWORD>(stream), bytes);
+}
+
+extern "C" JNIEXPORT jdouble JNICALL
+Java_app_naviamp_android_playback_AndroidBassJni_nativeAudiblePositionSeconds(
+    JNIEnv* env,
+    jobject thiz,
+    jint playbackStream,
+    jint sourceStream
+) {
+    (void)env;
+    (void)thiz;
+    return audible_position_seconds(playbackStream, sourceStream);
 }
 
 extern "C" JNIEXPORT jdouble JNICALL
@@ -1134,6 +1163,18 @@ Java_app_naviamp_desktop_playback_bass_DesktopBassJniBinding_nativePositionSecon
     (void)env;
     (void)thiz;
     return position_seconds(stream);
+}
+
+extern "C" JNIEXPORT jdouble JNICALL
+Java_app_naviamp_desktop_playback_bass_DesktopBassJniBinding_nativeAudiblePositionSeconds(
+    JNIEnv* env,
+    jobject thiz,
+    jint playbackStream,
+    jint sourceStream
+) {
+    (void)env;
+    (void)thiz;
+    return audible_position_seconds(playbackStream, sourceStream);
 }
 
 extern "C" JNIEXPORT jdouble JNICALL

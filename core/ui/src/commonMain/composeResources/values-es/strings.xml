@@ -73,7 +73,7 @@
     <string name="settings_lyrics_drag_source">Reordenar fuente de letras</string>
     <string name="settings_experience_empty">Los controles de experiencia aparecerán aquí cuando se agreguen.</string>
     <string name="settings_experience_player_title">Reproductor</string>
-    <string name="settings_experience_player_subtitle">Comportamiento de cola, Atrás y A continuación</string>
+    <string name="settings_experience_player_subtitle">Comportamiento de cola, reproducción actual y formas de onda</string>
     <string name="settings_experience_related_tracks_title">Pistas relacionadas</string>
     <string name="settings_experience_related_tracks_subtitle">Similitud sónica y reproducción automática</string>
     <string name="settings_experience_waveforms_title">Formas de onda</string>
@@ -156,6 +156,14 @@
     <string name="settings_waveforms_detail_title">Detalle de forma de onda</string>
     <string name="settings_waveforms_detail_subtitle">Cuántos pasos renderizar en cada forma de onda.</string>
     <string name="settings_waveforms_detail_header_subtitle">Cuántos pasos renderizar en cada forma de onda</string>
+    <string name="settings_now_playing_show_album_year">Mostrar año del álbum</string>
+    <string name="settings_now_playing_show_audio_info">Mostrar tasa de bits e información de audio</string>
+    <string name="settings_now_playing_show_volume_bar">Mostrar barra de volumen</string>
+    <string name="settings_now_playing_scroll_track">Desplazar títulos de pistas</string>
+    <string name="settings_now_playing_scroll_artist">Desplazar nombres de artistas</string>
+    <string name="settings_now_playing_scroll_album">Desplazar nombres de álbumes</string>
+    <string name="settings_start_playing_on_launch">Reproducir al iniciar</string>
+    <string name="settings_start_playing_on_launch_subtitle">Reproducir automáticamente la última pista después de restaurar la cola y la posición.</string>
     <string name="settings_storage_title">Almacenamiento</string>
     <string name="settings_storage_empty">Los tamaños de caché aparecerán cuando la app inicialice el almacenamiento.</string>
 

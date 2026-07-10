@@ -40,6 +40,17 @@ class SettingsSyncDocumentTest {
                 ),
             ),
             preferences = SettingsSyncPreferences(
+                interfaceSettings = InterfaceSettings(
+                    startPlayingOnLaunch = true,
+                    nowPlaying = NowPlayingDisplaySettings(
+                        showAlbumYear = false,
+                        showAudioInfo = false,
+                        showVolumeBar = false,
+                        scrollTrackTitle = false,
+                        scrollArtistName = true,
+                        scrollAlbumName = true,
+                    ),
+                ),
                 playback = PlaybackSettings(
                     replayGainMode = ReplayGainMode.Album,
                     crossfadeDurationSeconds = 6,
@@ -67,6 +78,13 @@ class SettingsSyncDocumentTest {
         assertEquals(ReplayGainMode.Album, decoded.preferences.playback.replayGainMode)
         assertEquals("Road DJ", decoded.preferences.playback.radioDjs.single().name)
         assertEquals("Waveform", decoded.preferences.visualizer.selectedVisualizer)
+        assertTrue(decoded.preferences.interfaceSettings.startPlayingOnLaunch)
+        assertFalse(decoded.preferences.interfaceSettings.nowPlaying.showAlbumYear)
+        assertFalse(decoded.preferences.interfaceSettings.nowPlaying.showAudioInfo)
+        assertFalse(decoded.preferences.interfaceSettings.nowPlaying.showVolumeBar)
+        assertFalse(decoded.preferences.interfaceSettings.nowPlaying.scrollTrackTitle)
+        assertTrue(decoded.preferences.interfaceSettings.nowPlaying.scrollArtistName)
+        assertTrue(decoded.preferences.interfaceSettings.nowPlaying.scrollAlbumName)
     }
 
     @Test

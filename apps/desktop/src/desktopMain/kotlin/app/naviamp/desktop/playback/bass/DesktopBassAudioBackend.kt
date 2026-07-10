@@ -229,6 +229,11 @@ class DesktopBassAudioBackend(
     override fun positionSeconds(stream: BassStreamHandle): Double? =
         bass.positionSeconds(stream.value)
 
+    override fun audiblePositionSeconds(
+        playbackStream: BassStreamHandle,
+        sourceStream: BassStreamHandle,
+    ): Double? = bass.audiblePositionSeconds(playbackStream.value, sourceStream.value)
+
     override fun durationSeconds(stream: BassStreamHandle): Double? =
         bass.durationSeconds(stream.value)
 

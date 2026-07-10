@@ -354,10 +354,14 @@ fun NaviampExperienceSettingsSection(
     selectedSection?.let { section ->
         SettingsSubsectionHeader(section.title(), section.subtitle(), colors) { selectedSection = null }
         when (section) {
-            ExperienceSettingsPage.Player -> QueueRulesSettings(
+            ExperienceSettingsPage.Player -> PlayerExperienceSettings(
                 colors = colors,
+                interfaceSettings = interfaceSettings,
                 playbackSettings = playbackSettings,
+                cacheSettings = cacheSettings,
+                onInterfaceSettingsChanged = onInterfaceSettingsChanged,
                 onPlaybackSettingsChanged = onPlaybackSettingsChanged,
+                onCacheSettingsChanged = onCacheSettingsChanged,
             )
             ExperienceSettingsPage.RelatedTracks -> RelatedTracksSettings(
                 colors = colors,
@@ -370,11 +374,6 @@ fun NaviampExperienceSettingsSection(
                 playbackSettings = playbackSettings,
                 showLrclibLyrics = showLrclibLyrics,
                 onPlaybackSettingsChanged = onPlaybackSettingsChanged,
-            )
-            ExperienceSettingsPage.Waveforms -> WaveformSettings(
-                colors = colors,
-                cacheSettings = cacheSettings,
-                onCacheSettingsChanged = onCacheSettingsChanged,
             )
         }
     } ?: run {
@@ -407,18 +406,15 @@ fun NaviampExperienceSettingsSection(
                 selectedSection = ExperienceSettingsPage.RelatedTracks
             }
         }
-        SettingsRow(
-            title = ExperienceSettingsPage.Waveforms.title(),
-            subtitle = ExperienceSettingsPage.Waveforms.subtitle(),
+        SettingsCheckboxRow(
             colors = colors,
-            value = if (cacheSettings.normalized().waveformsEnabled) {
-                stringResource(Res.string.common_enabled)
-            } else {
-                stringResource(Res.string.common_off)
+            checked = interfaceSettings.startPlayingOnLaunch,
+            label = stringResource(Res.string.settings_start_playing_on_launch),
+            subtitle = stringResource(Res.string.settings_start_playing_on_launch_subtitle),
+            onCheckedChange = { enabled ->
+                onInterfaceSettingsChanged(interfaceSettings.copy(startPlayingOnLaunch = enabled))
             },
-        ) {
-            selectedSection = ExperienceSettingsPage.Waveforms
-        }
+        )
         SettingsCheckboxRow(
             colors = colors,
             checked = interfaceSettings.checkForUpdates,
@@ -437,7 +433,6 @@ private enum class ExperienceSettingsPage(
     Player("Player", "Queue, Back To, and Up Next behavior"),
     RelatedTracks("Related Tracks", "Sonic similarity and autoplay"),
     Lyrics("Lyrics", "Download and source order"),
-    Waveforms("Waveforms", "Track waveforms and detail"),
 }
 
 @Composable
@@ -446,7 +441,6 @@ private fun ExperienceSettingsPage.title(): String =
         ExperienceSettingsPage.Player -> stringResource(Res.string.settings_experience_player_title)
         ExperienceSettingsPage.RelatedTracks -> stringResource(Res.string.settings_experience_related_tracks_title)
         ExperienceSettingsPage.Lyrics -> stringResource(Res.string.settings_lyrics_title)
-        ExperienceSettingsPage.Waveforms -> stringResource(Res.string.settings_experience_waveforms_title)
     }
 
 @Composable
@@ -455,8 +449,57 @@ private fun ExperienceSettingsPage.subtitle(): String =
         ExperienceSettingsPage.Player -> stringResource(Res.string.settings_experience_player_subtitle)
         ExperienceSettingsPage.RelatedTracks -> stringResource(Res.string.settings_experience_related_tracks_subtitle)
         ExperienceSettingsPage.Lyrics -> stringResource(Res.string.settings_lyrics_subtitle)
-        ExperienceSettingsPage.Waveforms -> stringResource(Res.string.settings_experience_waveforms_subtitle)
     }
+
+@Composable
+private fun NowPlayingDisplaySettings(
+    colors: NaviampColors,
+    interfaceSettings: InterfaceSettings,
+    onInterfaceSettingsChanged: (InterfaceSettings) -> Unit,
+) {
+    val settings = interfaceSettings.normalized().nowPlaying
+    fun update(transform: (app.naviamp.domain.settings.NowPlayingDisplaySettings) -> app.naviamp.domain.settings.NowPlayingDisplaySettings) {
+        onInterfaceSettingsChanged(interfaceSettings.copy(nowPlaying = transform(settings)).normalized())
+    }
+
+    SettingsCheckboxRow(
+        colors = colors,
+        checked = settings.showAlbumYear,
+        label = stringResource(Res.string.settings_now_playing_show_album_year),
+        onCheckedChange = { enabled -> update { it.copy(showAlbumYear = enabled) } },
+    )
+    SettingsCheckboxRow(
+        colors = colors,
+        checked = settings.showAudioInfo,
+        label = stringResource(Res.string.settings_now_playing_show_audio_info),
+        onCheckedChange = { enabled -> update { it.copy(showAudioInfo = enabled) } },
+    )
+    SettingsCheckboxRow(
+        colors = colors,
+        checked = settings.showVolumeBar,
+        label = stringResource(Res.string.settings_now_playing_show_volume_bar),
+        onCheckedChange = { enabled -> update { it.copy(showVolumeBar = enabled) } },
+    )
+
+    SettingsCheckboxRow(
+        colors = colors,
+        checked = settings.scrollTrackTitle,
+        label = stringResource(Res.string.settings_now_playing_scroll_track),
+        onCheckedChange = { enabled -> update { it.copy(scrollTrackTitle = enabled) } },
+    )
+    SettingsCheckboxRow(
+        colors = colors,
+        checked = settings.scrollArtistName,
+        label = stringResource(Res.string.settings_now_playing_scroll_artist),
+        onCheckedChange = { enabled -> update { it.copy(scrollArtistName = enabled) } },
+    )
+    SettingsCheckboxRow(
+        colors = colors,
+        checked = settings.scrollAlbumName,
+        label = stringResource(Res.string.settings_now_playing_scroll_album),
+        onCheckedChange = { enabled -> update { it.copy(scrollAlbumName = enabled) } },
+    )
+}
 
 @Composable
 private fun PlaybackSettings.lyricsSummary(): String =
@@ -2513,10 +2556,14 @@ private fun GaplessCrossfadeSettings(
 }
 
 @Composable
-private fun QueueRulesSettings(
+private fun PlayerExperienceSettings(
     colors: NaviampColors,
+    interfaceSettings: InterfaceSettings,
     playbackSettings: PlaybackSettings,
+    cacheSettings: CacheSettings,
+    onInterfaceSettingsChanged: (InterfaceSettings) -> Unit,
     onPlaybackSettingsChanged: (PlaybackSettings) -> Unit,
+    onCacheSettingsChanged: (CacheSettings) -> Unit,
 ) {
     var selectedPage by remember { mutableStateOf<PlayerBehaviorPage?>(null) }
 
@@ -2543,6 +2590,11 @@ private fun QueueRulesSettings(
                     onPlaybackSettingsChanged(playbackSettings.copy(upNextSelectionBehavior = behavior))
                 }
             }
+            PlayerBehaviorPage.Waveforms -> WaveformSettings(
+                colors = colors,
+                cacheSettings = cacheSettings,
+                onCacheSettingsChanged = onCacheSettingsChanged,
+            )
         }
         return
     }
@@ -2572,6 +2624,23 @@ private fun QueueRulesSettings(
     ) {
         selectedPage = PlayerBehaviorPage.UpNextSelection
     }
+    NowPlayingDisplaySettings(
+        colors = colors,
+        interfaceSettings = interfaceSettings,
+        onInterfaceSettingsChanged = onInterfaceSettingsChanged,
+    )
+    SettingsRow(
+        title = PlayerBehaviorPage.Waveforms.title(),
+        subtitle = PlayerBehaviorPage.Waveforms.subtitle(),
+        colors = colors,
+        value = if (cacheSettings.normalized().waveformsEnabled) {
+            stringResource(Res.string.common_enabled)
+        } else {
+            stringResource(Res.string.common_off)
+        },
+    ) {
+        selectedPage = PlayerBehaviorPage.Waveforms
+    }
 }
 
 private enum class PlayerBehaviorPage(
@@ -2580,6 +2649,7 @@ private enum class PlayerBehaviorPage(
 ) {
     PreviousClick("Previous Click", "Back button behavior"),
     UpNextSelection("Up Next Selection", "What happens when choosing a queued track"),
+    Waveforms("Waveforms", "Track waveforms and detail"),
 }
 
 @Composable
@@ -2587,6 +2657,7 @@ private fun PlayerBehaviorPage.title(): String =
     when (this) {
         PlayerBehaviorPage.PreviousClick -> stringResource(Res.string.settings_player_previous_click_title)
         PlayerBehaviorPage.UpNextSelection -> stringResource(Res.string.settings_player_up_next_title)
+        PlayerBehaviorPage.Waveforms -> stringResource(Res.string.settings_experience_waveforms_title)
     }
 
 @Composable
@@ -2594,6 +2665,7 @@ private fun PlayerBehaviorPage.subtitle(): String =
     when (this) {
         PlayerBehaviorPage.PreviousClick -> stringResource(Res.string.settings_player_previous_click_subtitle)
         PlayerBehaviorPage.UpNextSelection -> stringResource(Res.string.settings_player_up_next_subtitle)
+        PlayerBehaviorPage.Waveforms -> stringResource(Res.string.settings_experience_waveforms_subtitle)
     }
 
 @Composable

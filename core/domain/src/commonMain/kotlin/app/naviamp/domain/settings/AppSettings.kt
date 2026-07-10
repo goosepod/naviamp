@@ -126,8 +126,22 @@ fun selectedMusicFolderSummary(
 data class InterfaceSettings(
     val language: InterfaceLanguage = InterfaceLanguage.System,
     val checkForUpdates: Boolean = true,
+    val startPlayingOnLaunch: Boolean = false,
+    val nowPlaying: NowPlayingDisplaySettings = NowPlayingDisplaySettings(),
 ) {
-    fun normalized(): InterfaceSettings = this
+    fun normalized(): InterfaceSettings = copy(nowPlaying = nowPlaying.normalized())
+}
+
+@Serializable
+data class NowPlayingDisplaySettings(
+    val showAlbumYear: Boolean = true,
+    val showAudioInfo: Boolean = true,
+    val showVolumeBar: Boolean = true,
+    val scrollTrackTitle: Boolean = true,
+    val scrollArtistName: Boolean = false,
+    val scrollAlbumName: Boolean = false,
+) {
+    fun normalized(): NowPlayingDisplaySettings = this
 }
 
 @Serializable

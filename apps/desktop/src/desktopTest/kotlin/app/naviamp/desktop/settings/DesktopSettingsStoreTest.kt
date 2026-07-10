@@ -14,8 +14,29 @@ import kotlin.io.path.readText
 import kotlin.io.path.writeText
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import app.naviamp.domain.settings.InterfaceSettings
+import app.naviamp.domain.settings.NowPlayingDisplaySettings
 
 class DesktopSettingsStoreTest {
+    @Test
+    fun saveInterfaceSettingsRoundTripsNowPlayingCustomization() {
+        val path = createTempDirectory().resolve("settings.json")
+        val store = DesktopSettingsStore(path)
+        val expected = NowPlayingDisplaySettings(
+            showAlbumYear = false,
+            showAudioInfo = false,
+            showVolumeBar = false,
+            scrollTrackTitle = false,
+            scrollArtistName = true,
+            scrollAlbumName = true,
+        )
+
+        store.saveInterfaceSettings(InterfaceSettings(startPlayingOnLaunch = true, nowPlaying = expected))
+
+        assertEquals(true, store.loadInterfaceSettings().startPlayingOnLaunch)
+        assertEquals(expected, store.loadInterfaceSettings().nowPlaying)
+    }
+
     @Test
     fun loadConnectionReadsLegacyConnectionFile() {
         val path = createTempDirectory().resolve("settings.json")
