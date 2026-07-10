@@ -1263,11 +1263,11 @@ private val DefaultNaviampLibraries = listOf(
 )
 
 private val DefaultNaviampChangelog = listOf(
-    "Added first-pass update checks with a default-on Experience setting and GitHub release prompts.",
-    "Added artist and album navigation to queue menus, plus clickable Now Playing album links.",
-    "Added enlarged, aspect-ratio-preserving artist and album artwork on detail pages.",
-    "Improved compact Now Playing spacing, sizing, and metadata alignment, plus Settings scrolling in small windows.",
-    "Fixed writable database storage and migration for portable Windows builds.",
+    "Added Now Playing display customization for album year, bitrate info, volume bar, and long title, artist, and album scrolling.",
+    "Added opt-in Start Playing on Start behavior to resume playback automatically from the previous session.",
+    "Added configurable audio output quality with Sample Rate Converter and Sample Rate Matching settings.",
+    "Added strict sample-rate/crossfade safety prompts so incompatible playback settings are handled explicitly.",
+    "Improved waveform rendering dynamics and added a scroll affordance to the Add to Playlist dialog.",
 )
 
 @Composable

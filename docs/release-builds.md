@@ -51,7 +51,7 @@ Windows MSI upgrades use the stable `upgradeUuid` configured in `apps/desktop/bu
 Current version:
 
 ```text
-v0.18.0
+v0.19.0
 ```
 
 Before merging a feature branch into `main`, bump the version on the branch:

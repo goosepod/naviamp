@@ -58,6 +58,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.ui.input.pointer.isSecondaryPressed
@@ -1993,6 +1994,7 @@ fun AddToPlaylistDialog(
 ) {
     var createNew by remember(playlists) { mutableStateOf(playlists.isEmpty()) }
     var playlistName by remember { mutableStateOf("") }
+    val playlistListState = rememberLazyListState()
 
     AlertDialog(
         onDismissRequest = onDismissRequest,
@@ -2014,30 +2016,63 @@ fun AddToPlaylistDialog(
                         modifier = Modifier.fillMaxWidth(),
                     )
                 } else {
-                    LazyColumn(
-                        verticalArrangement = Arrangement.spacedBy(2.dp),
+                    Box(
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(220.dp),
                     ) {
-                        items(playlists.sortedBy { it.name.lowercase() }, key = { it.id }) { playlist ->
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clip(RoundedCornerShape(5.dp))
-                                    .clickable { onAddToExisting(playlist) }
-                                    .padding(horizontal = 8.dp, vertical = 7.dp),
-                            ) {
-                                Icon(NaviampIcons.Playlist, contentDescription = null, tint = colors.secondaryText, modifier = Modifier.size(17.dp))
-                                Column(Modifier.weight(1f)) {
-                                    Text(playlist.name, color = colors.primaryText, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                                    if (playlist.subtitle.isNotBlank()) {
-                                        Text(playlist.subtitle, color = colors.mutedText, fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        LazyColumn(
+                            state = playlistListState,
+                            verticalArrangement = Arrangement.spacedBy(2.dp),
+                            modifier = Modifier.fillMaxSize(),
+                        ) {
+                            items(playlists.sortedBy { it.name.lowercase() }, key = { it.id }) { playlist ->
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clip(RoundedCornerShape(5.dp))
+                                        .clickable { onAddToExisting(playlist) }
+                                        .padding(horizontal = 8.dp, vertical = 7.dp),
+                                ) {
+                                    Icon(NaviampIcons.Playlist, contentDescription = null, tint = colors.secondaryText, modifier = Modifier.size(17.dp))
+                                    Column(Modifier.weight(1f)) {
+                                        Text(playlist.name, color = colors.primaryText, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                        if (playlist.subtitle.isNotBlank()) {
+                                            Text(playlist.subtitle, color = colors.mutedText, fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                        }
                                     }
                                 }
                             }
+                        }
+                        if (playlistListState.canScrollBackward) {
+                            Box(
+                                modifier = Modifier
+                                    .align(Alignment.TopCenter)
+                                    .fillMaxWidth()
+                                    .height(18.dp)
+                                    .background(
+                                        Brush.verticalGradient(
+                                            0f to colors.primaryText.copy(alpha = 0.10f),
+                                            1f to Color.Transparent,
+                                        ),
+                                    ),
+                            )
+                        }
+                        if (playlistListState.canScrollForward) {
+                            Box(
+                                modifier = Modifier
+                                    .align(Alignment.BottomCenter)
+                                    .fillMaxWidth()
+                                    .height(18.dp)
+                                    .background(
+                                        Brush.verticalGradient(
+                                            0f to Color.Transparent,
+                                            1f to colors.primaryText.copy(alpha = 0.10f),
+                                        ),
+                                    ),
+                            )
                         }
                     }
                 }

@@ -28,7 +28,7 @@ Keep implementation cross-platform by default: shared domain models, shared UI, 
   - Add a setting that starts playing the last active song when Naviamp launches.
   - Restore the saved queue, current track, and playback position before starting playback.
   - Keep automatic playback opt-in so launching the app does not unexpectedly produce audio by default.
-- [ ] Add interface language selection.
+- [x] Add interface language selection.
   - Default behavior should follow the system language.
   - Users should be able to choose a specific app interface language from Settings.
   - Persist the selected language as an app preference and make it eligible for settings sync once translation support exists.
@@ -41,11 +41,7 @@ Keep implementation cross-platform by default: shared domain models, shared UI, 
   - Start with download/open-installer behavior for native installers before attempting silent or in-place updates.
   - Keep platform differences explicit: macOS DMG, Windows MSI/EXE, and Linux DEB/RPM/AppImage-style archive handling are different update paths.
   - Require signed/notarized desktop artifacts before promoting automatic background installs as a normal user-facing behavior.
-- [ ] Add desktop installer options.
-  - Keep the standard bundled-runtime installer as the reliable default.
-  - Add a clearly named thin smart installer that can use a compatible installed Java runtime when available.
-  - Windows installers should let users choose whether to add Naviamp to the Start Menu.
-- [ ] Improve desktop visualizer performance.
+- [x] Improve desktop visualizer performance.
   - Profile the current desktop visualizer pipeline before changing rendering behavior.
   - Target smooth 60 fps motion where hardware/display support it, with diagnostics for frame time and dropped frames.
   - Preserve existing visualizer styles while reducing choppy 5-10 fps behavior.
