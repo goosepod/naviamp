@@ -16,6 +16,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import app.naviamp.domain.settings.InterfaceSettings
 import app.naviamp.domain.settings.NowPlayingDisplaySettings
+import app.naviamp.domain.settings.SampleRateConverter
 
 class DesktopSettingsStoreTest {
     @Test
@@ -127,6 +128,7 @@ class DesktopSettingsStoreTest {
         store.savePlaybackSettings(
             PlaybackSettings(
                 replayGainMode = ReplayGainMode.Track,
+                sampleRateConverter = SampleRateConverter.Sinc64,
                 gaplessEnabled = false,
                 crossfadeDurationSeconds = 8,
                 volumePercent = 64,
@@ -136,6 +138,7 @@ class DesktopSettingsStoreTest {
         )
 
         assertEquals(ReplayGainMode.Track, store.loadPlaybackSettings().replayGainMode)
+        assertEquals(SampleRateConverter.Sinc64, store.loadPlaybackSettings().sampleRateConverter)
         assertEquals(false, store.loadPlaybackSettings().gaplessEnabled)
         assertEquals(8, store.loadPlaybackSettings().crossfadeDurationSeconds)
         assertEquals(64, store.loadPlaybackSettings().volumePercent)

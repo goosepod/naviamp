@@ -180,8 +180,10 @@
     <string name="settings_downloads_keep_existing">Mantener existentes</string>
     <string name="settings_downloads_redownload">Volver a descargar</string>
 
+    <string name="settings_playback_device_title">Dispositivo de audio</string>
+    <string name="settings_playback_device_subtitle">Dónde suena la música</string>
     <string name="settings_playback_output_title">Salida de audio</string>
-    <string name="settings_playback_output_subtitle">Dónde suena la música</string>
+    <string name="settings_playback_output_subtitle">Remuestreo y calidad de salida</string>
     <string name="settings_playback_quality_title">Calidad</string>
     <string name="settings_playback_quality_subtitle">Streaming, descargas y calidad de red</string>
     <string name="settings_playback_loudness_title">Nivelación de volumen</string>
@@ -198,6 +200,8 @@
     <string name="settings_output_system_default_device">Dispositivo predeterminado del sistema</string>
     <string name="settings_output_default_suffix"> (Predeterminado)</string>
     <string name="settings_output_selected_suffix"> (Seleccionado)</string>
+    <string name="settings_sample_rate_converter_title">Conversor de frecuencia de muestreo</string>
+    <string name="settings_sample_rate_converter_subtitle">Calidad de remuestreo cuando las frecuencias difieren</string>
 
     <string name="settings_quality_codec_title">Códec</string>
     <string name="settings_quality_bitrate_title">Tasa de bits</string>
@@ -209,7 +213,6 @@
     <string name="settings_quality_wifi_subtitle">Calidad en redes de confianza.</string>
     <string name="settings_quality_mobile_title">Datos móviles</string>
     <string name="settings_quality_mobile_subtitle">Calidad al usar datos celulares.</string>
-    <string name="settings_quality_streaming_title">Calidad de streaming</string>
 
     <string name="settings_replay_gain_title">Replay Gain</string>
     <string name="settings_replay_gain_preamp_title">Preamp</string>

@@ -19,6 +19,7 @@ import app.naviamp.domain.settings.InterfaceSettings
 import app.naviamp.domain.settings.NowPlayingDisplaySettings
 import app.naviamp.domain.settings.LyricsSourcePreference
 import app.naviamp.domain.settings.PlaybackSettings
+import app.naviamp.domain.settings.SampleRateConverter
 import app.naviamp.domain.settings.PreviousButtonBehavior
 import app.naviamp.domain.settings.RecentRadioStream
 import app.naviamp.domain.settings.SavedInternetRadioStation
@@ -91,6 +92,7 @@ class AndroidSettingsStore(
         PlaybackSettings(
             replayGainMode = enumPreference(KeyReplayGainMode, ReplayGainMode.Off),
             replayGainInspectorEnabled = preferences.getBoolean(KeyReplayGainInspectorEnabled, false),
+            sampleRateConverter = enumPreference(KeySampleRateConverter, SampleRateConverter.Sinc16),
             gaplessEnabled = preferences.getBoolean(KeyGaplessEnabled, true),
             crossfadeDurationSeconds = preferences.getInt(KeyCrossfadeDurationSeconds, 0),
             equalizer = loadEqualizerSettings(),
@@ -173,6 +175,7 @@ class AndroidSettingsStore(
     fun savePlaybackSettings(settings: PlaybackSettings) {
         preferences.edit()
             .putString(KeyReplayGainMode, settings.replayGainMode.name)
+            .putString(KeySampleRateConverter, settings.sampleRateConverter.name)
             .putBoolean(KeyReplayGainInspectorEnabled, settings.replayGainInspectorEnabled)
             .putBoolean(KeyGaplessEnabled, settings.gaplessEnabled)
             .putInt(KeyCrossfadeDurationSeconds, settings.crossfadeDurationSeconds)
@@ -420,6 +423,7 @@ private const val KeyCustomHeaders = "custom_headers"
 private const val KeySelectedMusicFolderIds = "selected_music_folder_ids"
 private const val KeyInterfaceLanguage = "interface_language"
 private const val KeyReplayGainMode = "replay_gain_mode"
+private const val KeySampleRateConverter = "sample_rate_converter"
 private const val KeyReplayGainInspectorEnabled = "replay_gain_inspector_enabled"
 private const val KeyGaplessEnabled = "gapless_enabled"
 private const val KeyCrossfadeDurationSeconds = "crossfade_duration_seconds"

@@ -14,6 +14,8 @@ import app.naviamp.domain.playback.PlaybackReplayGainAdjustment
 import app.naviamp.domain.playback.PlaybackVisualizerFrame
 import app.naviamp.domain.playback.ReplayGainMode
 import app.naviamp.domain.playback.ReplayGainPlaybackEngine
+import app.naviamp.domain.playback.SampleRateConverterPlaybackEngine
+import app.naviamp.domain.settings.SampleRateConverter
 import app.naviamp.domain.playback.VisualizerBandCount
 import app.naviamp.domain.playback.VisualizerPlaybackEngine
 import app.naviamp.domain.playback.BassPlaybackCleanupReset
@@ -74,10 +76,12 @@ class DesktopBassPlaybackEngine(
     VisualizerPlaybackEngine,
     EqualizerPlaybackEngine,
     ReplayGainPlaybackEngine,
+    SampleRateConverterPlaybackEngine,
     AudioOutputDevicePlaybackEngine,
     DesktopPlaybackEngineDiagnostics {
     private val backend: BassAudioBackend? = backendResult.getOrNull()
     private val loadError: Throwable? = backendResult.exceptionOrNull()
+    private var sampleRateConverter = SampleRateConverter.Sinc16
 
     override val name: String = "BASS"
     override val supportsPause: Boolean = true
@@ -88,6 +92,11 @@ class DesktopBassPlaybackEngine(
     override val supportsCrossfade: Boolean = featureSupport.supportsCrossfade
     override val supportsReplayGain: Boolean = true
     override val supportsEqualizer: Boolean = backend != null
+
+    override fun setSampleRateConverter(converter: SampleRateConverter) {
+        sampleRateConverter = converter
+        backend?.setSampleRateConverterQuality(converter.bassQuality)
+    }
     override val supportsAudioOutputDeviceSelection: Boolean = backend != null
     override val supportsVisualizer: Boolean = true
     override val supportsSoftwareVolume: Boolean = true
@@ -467,6 +476,7 @@ class DesktopBassPlaybackEngine(
         )
 
     private fun ensureInitialized(bass: BassAudioBackend) {
+        bass.setSampleRateConverterQuality(sampleRateConverter.bassQuality).getOrThrow()
         if (!initialized) {
             bass.init(selectedOutputDeviceId).getOrThrow()
             initialized = true

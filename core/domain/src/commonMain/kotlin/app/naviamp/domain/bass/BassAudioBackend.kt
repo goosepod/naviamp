@@ -166,6 +166,9 @@ interface BassAudioBackend {
 
     fun configureInternetStreams(): Result<Unit> = Result.success(Unit)
 
+    fun setSampleRateConverterQuality(quality: Int): Result<Unit> =
+        unsupportedBassOperation("BASS sample-rate converter quality")
+
     fun createFileStream(path: String): Result<BassStreamHandle> =
         unsupportedBassOperation("BASS file stream creation")
 

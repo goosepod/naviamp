@@ -11,6 +11,7 @@ import app.naviamp.domain.playback.DefaultNowPlayingHeartbeatIntervalMillis
 import app.naviamp.domain.playback.DefaultDesktopVisualizerFrameIntervalMillis
 import app.naviamp.domain.playback.AudioOutputDevicePlaybackEngine
 import app.naviamp.domain.playback.EqualizerPlaybackEngine
+import app.naviamp.domain.playback.SampleRateConverterPlaybackEngine
 import app.naviamp.domain.playback.PlaybackEngine
 import app.naviamp.domain.playback.PlaybackState
 import app.naviamp.domain.playback.PlaybackVisualizerFrame
@@ -100,6 +101,8 @@ fun DesktopAppEffects(
 
     LaunchedEffect(playbackEngine, playbackSettings.equalizer) {
         (playbackEngine as? EqualizerPlaybackEngine)?.setEqualizer(playbackSettings.equalizer)
+        (playbackEngine as? SampleRateConverterPlaybackEngine)
+            ?.setSampleRateConverter(playbackSettings.sampleRateConverter)
     }
 
     LaunchedEffect(playbackEngine, playbackSettings.outputDevice) {

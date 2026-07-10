@@ -241,6 +241,11 @@ void configure_playback_buffers() {
     BASS_SetConfig(BASS_CONFIG_NET_READTIMEOUT, NETWORK_TIMEOUT_MILLIS);
 }
 
+jboolean set_sample_rate_converter_quality(jint quality) {
+    DWORD safeQuality = static_cast<DWORD>(std::max(0, std::min(static_cast<int>(quality), 4)));
+    return BASS_SetConfig(BASS_CONFIG_SRC, safeQuality) ? JNI_TRUE : JNI_FALSE;
+}
+
 int device_id_or_default(JNIEnv* env, jstring deviceId) {
     if (deviceId == nullptr) return -1;
     const char* chars = env->GetStringUTFChars(deviceId, nullptr);
@@ -817,6 +822,13 @@ Java_app_naviamp_android_playback_AndroidBassJni_nativePositionSeconds(JNIEnv* e
     return BASS_ChannelBytes2Seconds(static_cast<DWORD>(stream), bytes);
 }
 
+extern "C" JNIEXPORT jboolean JNICALL
+Java_app_naviamp_android_playback_AndroidBassJni_nativeSetSampleRateConverterQuality(JNIEnv* env, jobject thiz, jint quality) {
+    (void)env;
+    (void)thiz;
+    return set_sample_rate_converter_quality(quality);
+}
+
 extern "C" JNIEXPORT jdouble JNICALL
 Java_app_naviamp_android_playback_AndroidBassJni_nativeAudiblePositionSeconds(
     JNIEnv* env,
@@ -1163,6 +1175,13 @@ Java_app_naviamp_desktop_playback_bass_DesktopBassJniBinding_nativePositionSecon
     (void)env;
     (void)thiz;
     return position_seconds(stream);
+}
+
+extern "C" JNIEXPORT jboolean JNICALL
+Java_app_naviamp_desktop_playback_bass_DesktopBassJniBinding_nativeSetSampleRateConverterQuality(JNIEnv* env, jobject thiz, jint quality) {
+    (void)env;
+    (void)thiz;
+    return set_sample_rate_converter_quality(quality);
 }
 
 extern "C" JNIEXPORT jdouble JNICALL

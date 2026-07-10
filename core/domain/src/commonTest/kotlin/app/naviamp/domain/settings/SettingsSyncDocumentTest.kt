@@ -53,6 +53,7 @@ class SettingsSyncDocumentTest {
                 ),
                 playback = PlaybackSettings(
                     replayGainMode = ReplayGainMode.Album,
+                    sampleRateConverter = SampleRateConverter.Sinc32,
                     crossfadeDurationSeconds = 6,
                     radioDjs = listOf(RadioDjPreset(id = "dj", name = " Road DJ ")),
                 ),
@@ -76,6 +77,7 @@ class SettingsSyncDocumentTest {
         assertEquals("X-Proxy-User", profile.customHeaders.single().name)
         assertEquals("ursasmar", profile.customHeaders.single().value)
         assertEquals(ReplayGainMode.Album, decoded.preferences.playback.replayGainMode)
+        assertEquals(SampleRateConverter.Sinc32, decoded.preferences.playback.sampleRateConverter)
         assertEquals("Road DJ", decoded.preferences.playback.radioDjs.single().name)
         assertEquals("Waveform", decoded.preferences.visualizer.selectedVisualizer)
         assertTrue(decoded.preferences.interfaceSettings.startPlayingOnLaunch)

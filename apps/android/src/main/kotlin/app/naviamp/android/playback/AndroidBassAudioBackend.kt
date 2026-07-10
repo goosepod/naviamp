@@ -46,6 +46,10 @@ class AndroidBassAudioBackend(
             Result.failure(IllegalStateException(errorMessage("BASS internet stream config failed")))
         }
 
+    override fun setSampleRateConverterQuality(quality: Int): Result<Unit> =
+        if (bass.setSampleRateConverterQuality(quality)) Result.success(Unit)
+        else Result.failure(IllegalStateException(errorMessage("BASS_CONFIG_SRC failed")))
+
     override fun createFileStream(path: String): Result<BassStreamHandle> =
         bass.createFileStream(path)
             .toHandleResult("BASS_StreamCreateFile failed")

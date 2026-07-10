@@ -70,6 +70,7 @@ import app.naviamp.domain.settings.MaxWaveformBucketCount
 import app.naviamp.domain.settings.MinReplayGainPreampDb
 import app.naviamp.domain.settings.MinWaveformBucketCount
 import app.naviamp.domain.settings.PlaybackSettings
+import app.naviamp.domain.settings.SampleRateConverter
 import app.naviamp.domain.settings.AudioOutputDeviceMode
 import app.naviamp.domain.settings.AudioOutputDevicePreference
 import app.naviamp.domain.settings.PreviousButtonBehavior
@@ -1988,14 +1989,20 @@ fun NaviampPlaybackSettingsSection(
     var selectedSection by remember { mutableStateOf<NaviampPlaybackSettingsSection?>(null) }
 
     selectedSection?.let { section ->
-        SettingsSubsectionHeader(section.title(), section.subtitle(), colors) { selectedSection = null }
-        when (section) {
-            NaviampPlaybackSettingsSection.Output -> AudioOutputSettings(
+        if (section == NaviampPlaybackSettingsSection.AudioOutput) {
+            AudioOutputSettings(
                 colors = colors,
                 playbackSettings = playbackSettings,
                 devices = audioOutputDevices,
+                supportsAudioDeviceSelection = supportsAudioOutputDeviceSelection,
                 onPlaybackSettingsChanged = onPlaybackSettingsChanged,
+                onBack = { selectedSection = null },
             )
+            return@let
+        }
+        SettingsSubsectionHeader(section.title(), section.subtitle(), colors) { selectedSection = null }
+        when (section) {
+            NaviampPlaybackSettingsSection.AudioOutput -> Unit
             NaviampPlaybackSettingsSection.AudioQuality -> StreamingQualitySettings(
                 colors = colors,
                 playbackSettings = playbackSettings,
@@ -2028,11 +2035,7 @@ fun NaviampPlaybackSettingsSection(
             )
         }
     } ?: run {
-        playbackSettingsSections(
-            showOutput = supportsAudioOutputDeviceSelection,
-            showReplayGain = showReplayGain,
-            showCrossfade = showCrossfade,
-        ).forEach { section ->
+        playbackSettingsSections(showReplayGain, showCrossfade).forEach { section ->
             SettingsRow(
                 title = section.title(),
                 subtitle = section.subtitle(),
@@ -2049,7 +2052,7 @@ private enum class NaviampPlaybackSettingsSection(
     val title: String,
     val subtitle: String,
 ) {
-    Output("Audio Output", "Where the music plays"),
+    AudioOutput("Audio Output", "Resampling and output quality"),
     AudioQuality("Quality", "Streaming, downloads, and network quality"),
     ReplayGain("Loudness Leveling", "Track and album volume matching"),
     GaplessCrossfade("Fades", "Album flow and transition timing"),
@@ -2060,7 +2063,7 @@ private enum class NaviampPlaybackSettingsSection(
 @Composable
 private fun NaviampPlaybackSettingsSection.title(): String =
     when (this) {
-        NaviampPlaybackSettingsSection.Output -> stringResource(Res.string.settings_playback_output_title)
+        NaviampPlaybackSettingsSection.AudioOutput -> stringResource(Res.string.settings_playback_output_title)
         NaviampPlaybackSettingsSection.AudioQuality -> stringResource(Res.string.settings_playback_quality_title)
         NaviampPlaybackSettingsSection.ReplayGain -> stringResource(Res.string.settings_playback_loudness_title)
         NaviampPlaybackSettingsSection.GaplessCrossfade -> stringResource(Res.string.settings_playback_fades_title)
@@ -2071,7 +2074,7 @@ private fun NaviampPlaybackSettingsSection.title(): String =
 @Composable
 private fun NaviampPlaybackSettingsSection.subtitle(): String =
     when (this) {
-        NaviampPlaybackSettingsSection.Output -> stringResource(Res.string.settings_playback_output_subtitle)
+        NaviampPlaybackSettingsSection.AudioOutput -> stringResource(Res.string.settings_playback_output_subtitle)
         NaviampPlaybackSettingsSection.AudioQuality -> stringResource(Res.string.settings_playback_quality_subtitle)
         NaviampPlaybackSettingsSection.ReplayGain -> stringResource(Res.string.settings_playback_loudness_subtitle)
         NaviampPlaybackSettingsSection.GaplessCrossfade -> stringResource(Res.string.settings_playback_fades_subtitle)
@@ -2085,7 +2088,7 @@ private fun playbackSettingsSectionValue(
     playbackSettings: PlaybackSettings,
 ): String? =
     when (section) {
-        NaviampPlaybackSettingsSection.Output -> playbackSettings.outputDevice.outputSummary()
+        NaviampPlaybackSettingsSection.AudioOutput -> null
         NaviampPlaybackSettingsSection.AudioQuality -> playbackSettings.wifiStreamingQuality.summaryLabel()
         NaviampPlaybackSettingsSection.ReplayGain -> playbackSettings.replayGainMode.displayName
         NaviampPlaybackSettingsSection.GaplessCrossfade -> playbackSettings.fadeSummary()
@@ -2100,12 +2103,11 @@ private fun playbackSettingsSectionValue(
     }
 
 private fun playbackSettingsSections(
-    showOutput: Boolean,
     showReplayGain: Boolean,
     showCrossfade: Boolean,
 ): List<NaviampPlaybackSettingsSection> =
     buildList {
-        if (showOutput) add(NaviampPlaybackSettingsSection.Output)
+        add(NaviampPlaybackSettingsSection.AudioOutput)
         add(NaviampPlaybackSettingsSection.AudioQuality)
         if (showReplayGain) add(NaviampPlaybackSettingsSection.ReplayGain)
         if (showCrossfade) add(NaviampPlaybackSettingsSection.GaplessCrossfade)
@@ -2114,7 +2116,7 @@ private fun playbackSettingsSections(
     }
 
 @Composable
-private fun AudioOutputSettings(
+private fun AudioDeviceSettings(
     colors: NaviampColors,
     playbackSettings: PlaybackSettings,
     devices: List<AudioOutputDevice>,
@@ -2167,6 +2169,72 @@ private fun AudioOutputSettings(
             fontSize = 12.sp,
         )
     }
+}
+
+@Composable
+private fun AudioOutputSettings(
+    colors: NaviampColors,
+    playbackSettings: PlaybackSettings,
+    devices: List<AudioOutputDevice>,
+    supportsAudioDeviceSelection: Boolean,
+    onPlaybackSettingsChanged: (PlaybackSettings) -> Unit,
+    onBack: () -> Unit,
+) {
+    var selectedPage by remember { mutableStateOf<AudioOutputSettingsPage?>(null) }
+    SettingsSubsectionHeader(
+        title = when (selectedPage) {
+            AudioOutputSettingsPage.AudioDevice -> stringResource(Res.string.settings_playback_device_title)
+            AudioOutputSettingsPage.SampleRateConverter -> stringResource(Res.string.settings_sample_rate_converter_title)
+            null -> stringResource(Res.string.settings_playback_output_title)
+        },
+        subtitle = when (selectedPage) {
+            AudioOutputSettingsPage.AudioDevice -> stringResource(Res.string.settings_playback_device_subtitle)
+            AudioOutputSettingsPage.SampleRateConverter -> stringResource(Res.string.settings_sample_rate_converter_subtitle)
+            null -> stringResource(Res.string.settings_playback_output_subtitle)
+        },
+        colors = colors,
+    ) {
+        if (selectedPage == null) onBack() else selectedPage = null
+    }
+    when (selectedPage) {
+        AudioOutputSettingsPage.AudioDevice -> AudioDeviceSettings(
+            colors = colors,
+            playbackSettings = playbackSettings,
+            devices = devices,
+            onPlaybackSettingsChanged = onPlaybackSettingsChanged,
+        )
+        AudioOutputSettingsPage.SampleRateConverter -> SampleRateConverter.entries.forEach { converter ->
+            SelectableSettingsRow(
+                title = converter.label,
+                subtitle = converter.subtitle,
+                colors = colors,
+                selected = playbackSettings.sampleRateConverter == converter,
+            ) {
+                onPlaybackSettingsChanged(playbackSettings.copy(sampleRateConverter = converter))
+            }
+        }
+        null -> {
+            if (supportsAudioDeviceSelection) {
+                SettingsRow(
+                    title = stringResource(Res.string.settings_playback_device_title),
+                    subtitle = stringResource(Res.string.settings_playback_device_subtitle),
+                    colors = colors,
+                    value = playbackSettings.outputDevice.outputSummary(),
+                ) { selectedPage = AudioOutputSettingsPage.AudioDevice }
+            }
+            SettingsRow(
+                title = stringResource(Res.string.settings_sample_rate_converter_title),
+                subtitle = stringResource(Res.string.settings_sample_rate_converter_subtitle),
+                colors = colors,
+                value = playbackSettings.sampleRateConverter.label,
+            ) { selectedPage = AudioOutputSettingsPage.SampleRateConverter }
+        }
+    }
+}
+
+private enum class AudioOutputSettingsPage {
+    AudioDevice,
+    SampleRateConverter,
 }
 
 @Composable
@@ -3380,7 +3448,6 @@ private fun StreamingQualitySettings(
         return
     }
 
-    SettingsSectionTitle(stringResource(Res.string.settings_quality_streaming_title), colors)
     SettingsRow(
         title = stringResource(Res.string.settings_quality_wifi_title),
         subtitle = stringResource(Res.string.settings_quality_wifi_subtitle),

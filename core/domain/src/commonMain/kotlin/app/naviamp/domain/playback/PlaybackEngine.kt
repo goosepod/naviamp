@@ -54,6 +54,10 @@ interface ReplayGainPlaybackEngine : PlaybackEngine {
     fun setReplayGain(mode: ReplayGainMode, preampDb: Float)
 }
 
+interface SampleRateConverterPlaybackEngine : PlaybackEngine {
+    fun setSampleRateConverter(converter: app.naviamp.domain.settings.SampleRateConverter)
+}
+
 interface AudioOutputDevicePlaybackEngine : PlaybackEngine {
     val supportsAudioOutputDeviceSelection: Boolean
 

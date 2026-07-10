@@ -159,6 +159,7 @@ data class PlaybackSettings(
     val replayGainPreampDb: Float = 0f,
     val replayGainInspectorEnabled: Boolean = false,
     val outputDevice: AudioOutputDevicePreference = AudioOutputDevicePreference(),
+    val sampleRateConverter: SampleRateConverter = SampleRateConverter.Sinc16,
     val gaplessEnabled: Boolean = true,
     val crossfadeDurationSeconds: Int = 0,
     val equalizer: EqualizerSettings = EqualizerSettings(),
@@ -184,6 +185,15 @@ data class PlaybackSettings(
     val downloadQuality: StreamQualityPreference = StreamQualityPreference(),
     val allowMobileDownloads: Boolean = false,
 )
+
+@Serializable
+enum class SampleRateConverter(val bassQuality: Int, val label: String, val subtitle: String) {
+    Linear(0, "Linear", "Fast but rough"),
+    Sinc8(1, "8 point sinc", "Balanced fidelity"),
+    Sinc16(2, "16 point sinc", "High quality"),
+    Sinc32(3, "32 point sinc", "Audiophile quality"),
+    Sinc64(4, "64 point sinc", "Highest accuracy"),
+}
 
 @Serializable
 enum class LyricsSourcePreference {
@@ -308,6 +318,8 @@ class PlaybackSettingsMaintenanceController(
             mode = effectiveSettings.replayGainMode,
             preampDb = effectiveSettings.replayGainPreampDb,
         )
+        (playbackEngine as? app.naviamp.domain.playback.SampleRateConverterPlaybackEngine)
+            ?.setSampleRateConverter(effectiveSettings.sampleRateConverter)
     }
 
     fun applyPlaybackSettingsAndRedownload(settings: PlaybackSettings) {

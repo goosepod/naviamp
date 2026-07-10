@@ -15,6 +15,12 @@ import kotlin.test.assertFalse
 
 class PlaybackSettingsTest {
     @Test
+    fun sampleRateConvertersMapToBassSrcQualityLevels() {
+        assertEquals(listOf(0, 1, 2, 3, 4), SampleRateConverter.entries.map { it.bassQuality })
+        assertEquals(SampleRateConverter.Sinc16, PlaybackSettings().sampleRateConverter)
+    }
+
+    @Test
     fun effectiveForEngineDisablesUnsupportedFeatures() {
         val settings = PlaybackSettings(
             replayGainMode = ReplayGainMode.Album,

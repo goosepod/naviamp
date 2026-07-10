@@ -37,6 +37,8 @@ import app.naviamp.domain.playback.EqualizerPlaybackEngine
 import app.naviamp.domain.playback.EqualizerSettings
 import app.naviamp.domain.playback.ReplayGainMode
 import app.naviamp.domain.playback.ReplayGainPlaybackEngine
+import app.naviamp.domain.playback.SampleRateConverterPlaybackEngine
+import app.naviamp.domain.settings.SampleRateConverter
 import app.naviamp.domain.playback.VisualizerBandCount
 import app.naviamp.domain.playback.VisualizerPlaybackEngine
 import app.naviamp.domain.playback.BassPlaybackPollingState
@@ -75,8 +77,14 @@ import java.io.File
 class AndroidBassPlaybackEngine(
     context: Context,
     private val bass: BassAudioBackend,
-) : AndroidPlaybackEngine, QueueAwarePlaybackEngine, VisualizerPlaybackEngine, EqualizerPlaybackEngine, ReplayGainPlaybackEngine {
+) : AndroidPlaybackEngine, QueueAwarePlaybackEngine, VisualizerPlaybackEngine, EqualizerPlaybackEngine, ReplayGainPlaybackEngine, SampleRateConverterPlaybackEngine {
     private val appContext = context.applicationContext
+    private var sampleRateConverter = SampleRateConverter.Sinc16
+
+    override fun setSampleRateConverter(converter: SampleRateConverter) {
+        sampleRateConverter = converter
+        bass.setSampleRateConverterQuality(converter.bassQuality)
+    }
     private val audioManager = appContext.getSystemService(AudioManager::class.java)
     private var stream: Int = 0
     private var currentSourceStream: Int = 0
@@ -208,6 +216,7 @@ class AndroidBassPlaybackEngine(
         playbackJob = scope.launch(Dispatchers.IO) {
             var createdPlayback: BassCreatedPlayback? = null
             try {
+                bass.setSampleRateConverterQuality(sampleRateConverter.bassQuality).getOrThrow()
                 bass.init().getOrThrow()
                 val verifyNet = !tlsSettings.insecureSkipTlsVerification
                 Log.i(Tag, "Opening BASS stream verifyNet=$verifyNet url=${request.url.sanitizedForLog()}")
@@ -420,6 +429,7 @@ class AndroidBassPlaybackEngine(
         if (plan == PreparedBassPlaybackPlan.NotSupported) return
         val mixerPlan = plan as PreparedBassPlaybackPlan.PrepareMixer
         runCatching {
+            bass.setSampleRateConverterQuality(sampleRateConverter.bassQuality).getOrThrow()
             bass.init().getOrThrow()
             val mixer = stream
             val file = if (mixerPlan.isLocalFileUrl) localFileFromUrl(request.url) else null

@@ -180,8 +180,10 @@
     <string name="settings_downloads_keep_existing">Keep existing</string>
     <string name="settings_downloads_redownload">Re-download</string>
 
+    <string name="settings_playback_device_title">Audio Device</string>
+    <string name="settings_playback_device_subtitle">Where the music plays</string>
     <string name="settings_playback_output_title">Audio Output</string>
-    <string name="settings_playback_output_subtitle">Where the music plays</string>
+    <string name="settings_playback_output_subtitle">Resampling and output quality</string>
     <string name="settings_playback_quality_title">Quality</string>
     <string name="settings_playback_quality_subtitle">Streaming, downloads, and network quality</string>
     <string name="settings_playback_loudness_title">Loudness Leveling</string>
@@ -198,6 +200,8 @@
     <string name="settings_output_system_default_device">System Default Device</string>
     <string name="settings_output_default_suffix"> (Default)</string>
     <string name="settings_output_selected_suffix"> (Selected)</string>
+    <string name="settings_sample_rate_converter_title">Sample Rate Converter</string>
+    <string name="settings_sample_rate_converter_subtitle">Resampling quality when rates differ</string>
 
     <string name="settings_quality_codec_title">Codec</string>
     <string name="settings_quality_bitrate_title">Bitrate</string>
@@ -209,7 +213,6 @@
     <string name="settings_quality_wifi_subtitle">Quality when on trusted networks.</string>
     <string name="settings_quality_mobile_title">Mobile data</string>
     <string name="settings_quality_mobile_subtitle">Quality when using cellular data.</string>
-    <string name="settings_quality_streaming_title">Streaming quality</string>
 
     <string name="settings_replay_gain_title">Replay Gain</string>
     <string name="settings_replay_gain_preamp_title">Preamp</string>

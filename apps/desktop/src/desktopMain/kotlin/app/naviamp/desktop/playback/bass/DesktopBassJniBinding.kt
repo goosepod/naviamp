@@ -85,6 +85,7 @@ class DesktopBassJniBinding private constructor(
     fun seek(stream: Int, seconds: Double): Boolean = nativeSeek(stream, seconds)
 
     fun positionSeconds(stream: Int): Double? = nativePositionSeconds(stream).takeIf { it >= 0.0 }
+    fun setSampleRateConverterQuality(quality: Int): Boolean = nativeSetSampleRateConverterQuality(quality)
 
     fun audiblePositionSeconds(playbackStream: Int, sourceStream: Int): Double? =
         nativeAudiblePositionSeconds(playbackStream, sourceStream).takeIf { it >= 0.0 }
@@ -149,6 +150,7 @@ class DesktopBassJniBinding private constructor(
     private external fun nativeApplyEqualizer(stream: Int, bandsDb: FloatArray): Boolean
     private external fun nativeSeek(stream: Int, seconds: Double): Boolean
     private external fun nativePositionSeconds(stream: Int): Double
+    private external fun nativeSetSampleRateConverterQuality(quality: Int): Boolean
     private external fun nativeAudiblePositionSeconds(playbackStream: Int, sourceStream: Int): Double
     private external fun nativeDurationSeconds(stream: Int): Double
     private external fun nativeLengthBytes(stream: Int): Long
