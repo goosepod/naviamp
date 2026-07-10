@@ -310,6 +310,7 @@ fun NaviampNowPlayingPanel(
             }
         } else {
             val viewportHeight = maxHeight
+            val compactWidthSizing = maxWidth < 380.dp
             val scrollState = rememberScrollState()
             val coroutineScope = rememberCoroutineScope()
             fun scrollToPlayer() {
@@ -433,6 +434,7 @@ fun NaviampNowPlayingPanel(
                         actions = actions,
                         selectedVisualizer = selectedVisualizer,
                         mobileLayout = true,
+                        compactSizing = compactWidthSizing,
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(viewportHeight / 2)
@@ -564,6 +566,7 @@ private fun NowPlayingDetails(
     selectedVisualizer: NaviampVisualizer,
     mobileLayout: Boolean = false,
     compactLayout: Boolean = false,
+    compactSizing: Boolean = compactLayout,
     availableHeight: Dp? = null,
     modifier: Modifier = Modifier,
 ) {
@@ -589,26 +592,25 @@ private fun NowPlayingDetails(
     val showTrackIdentity = !compactLayout || height == Dp.Unspecified || height >= 135.dp
     val volumeVisible = nowPlaying.canChangeVolume && showVolume
     val compactMetadataRow = compactLayout && !mobileLayout
-    val separateMetadataRows = !compactMetadataRow && (showRating || showAudioInfo)
-    val noVolumeMetadata = compactLayout && !volumeVisible && (showRating || showAudioInfo)
     val controlColors = colors.copy(accent = playerColors.accent)
-    val titleFontSize = if (mobileLayout) 19 else 15
-    val titleTextHeight = if (mobileLayout) 23.dp else 18.dp
-    val metadataFontSize = if (mobileLayout) 16 else 13
-    val metadataLineHeight = if (mobileLayout) 18.sp else 14.sp
-    val audioInfoFontSize = if (mobileLayout) 14.sp else 11.sp
-    val ratingIconSize = if (mobileLayout) 21.dp else 17.dp
-    val ratingFavoriteSlotWidth = if (mobileLayout) 30.dp else 24.dp
-    val ratingStarSlotWidth = if (mobileLayout) 23.dp else 18.dp
-    val ratingStarsWidth = if (mobileLayout) 116.dp else 92.dp
-    val scrubberTimeFontSize = if (mobileLayout) 14.sp else 11.sp
-    val scrubberTimeWidth = if (mobileLayout) 52.dp else 42.dp
-    val secondaryTransportButtonSize = if (mobileLayout) 36.dp else 28.dp
-    val secondaryTransportIconSize = if (mobileLayout) 21.dp else 16.dp
-    val transportButtonSize = if (mobileLayout) 42.dp else 34.dp
-    val transportIconSize = if (mobileLayout) 25.dp else 20.dp
-    val prominentTransportButtonSize = if (mobileLayout) 56.dp else 44.dp
-    val prominentTransportIconSize = if (mobileLayout) 30.dp else 24.dp
+    val useLargeSizing = mobileLayout && !compactSizing
+    val titleFontSize = if (useLargeSizing) 19 else 15
+    val titleTextHeight = if (useLargeSizing) 23.dp else 18.dp
+    val metadataFontSize = if (useLargeSizing) 16 else 13
+    val metadataLineHeight = if (useLargeSizing) 18.sp else 14.sp
+    val audioInfoFontSize = if (useLargeSizing) 14.sp else 11.sp
+    val ratingIconSize = if (useLargeSizing) 21.dp else 17.dp
+    val ratingFavoriteSlotWidth = if (useLargeSizing) 30.dp else 24.dp
+    val ratingStarSlotWidth = if (useLargeSizing) 23.dp else 18.dp
+    val ratingStarsWidth = if (useLargeSizing) 116.dp else 92.dp
+    val scrubberTimeFontSize = if (useLargeSizing) 14.sp else 11.sp
+    val scrubberTimeWidth = if (useLargeSizing) 52.dp else 42.dp
+    val secondaryTransportButtonSize = if (useLargeSizing) 36.dp else 28.dp
+    val secondaryTransportIconSize = if (useLargeSizing) 21.dp else 16.dp
+    val transportButtonSize = if (useLargeSizing) 42.dp else 34.dp
+    val transportIconSize = if (useLargeSizing) 25.dp else 20.dp
+    val prominentTransportButtonSize = if (useLargeSizing) 56.dp else 44.dp
+    val prominentTransportIconSize = if (useLargeSizing) 30.dp else 24.dp
 
     LaunchedEffect(nowPlaying.progressFraction) {
         if (!isScrubbing) {
@@ -690,30 +692,7 @@ private fun NowPlayingDetails(
                 modifier = Modifier.width(scrubberTimeWidth),
             )
         }
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(
-                when {
-                    compactMetadataRow && !volumeVisible -> 5.dp
-                    compactMetadataRow -> 18.dp
-                    mobileLayout && separateMetadataRows && !volumeVisible -> 18.dp
-                    mobileLayout && separateMetadataRows -> 18.dp
-                    mobileLayout -> 8.dp
-                    else -> 6.dp
-                },
-            ),
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(
-                    top = if (mobileLayout) 8.dp else 3.dp,
-                    bottom = when {
-                        noVolumeMetadata -> 2.dp
-                        mobileLayout -> 2.dp
-                        else -> 1.dp
-                    },
-                ),
-        ) {
-            if (showTrackIdentity) {
+        if (showTrackIdentity) {
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.spacedBy(if (mobileLayout) 2.dp else 1.dp),
@@ -750,11 +729,15 @@ private fun NowPlayingDetails(
                         textAlign = TextAlign.Center,
                         fontSize = metadataFontSize.sp,
                         lineHeight = metadataLineHeight,
+                        modifier = Modifier.clickable(
+                            enabled = !nowPlaying.isLive && nowPlaying.albumLine.isNotBlank(),
+                            onClick = { actions.currentTrack(NowPlayingCurrentTrackAction.GoToAlbum) },
+                        ),
                     )
                 }
-            }
+        }
 
-            if (compactMetadataRow && (showRating || showAudioInfo)) {
+        if (compactMetadataRow && (showRating || showAudioInfo)) {
                 CompactMetadataRow(
                     nowPlaying = nowPlaying,
                     colors = colors,
@@ -766,7 +749,7 @@ private fun NowPlayingDetails(
                     },
                     modifier = Modifier.fillMaxWidth(),
                 )
-            } else if (showRating || showAudioInfo) {
+        } else if (showRating || showAudioInfo) {
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.spacedBy(1.dp),
@@ -803,7 +786,6 @@ private fun NowPlayingDetails(
                         )
                     }
                 }
-            }
         }
 
         if (volumeVisible) {
@@ -2287,6 +2269,10 @@ private fun NowPlayingItemList(
                                             }
                                         NaviampAction.DownloadTrack ->
                                             onAction(nowPlayingItemActionRequest(item, NowPlayingItemAction.Download))
+                                        NaviampAction.GoToAlbum ->
+                                            onAction(nowPlayingItemActionRequest(item, NowPlayingItemAction.GoToAlbum))
+                                        NaviampAction.GoToArtist ->
+                                            onAction(nowPlayingItemActionRequest(item, NowPlayingItemAction.GoToArtist))
                                         NaviampAction.AddToPlaylist -> {
                                             if (useInlinePlaylistPicker) {
                                                 playlistDialogOpen = true

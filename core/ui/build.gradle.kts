@@ -21,6 +21,7 @@ kotlin {
     sourceSets {
         commonMain.dependencies {
             implementation(project(":core:domain"))
+            implementation(libs.kotlinx.serialization.json)
             implementation("org.jetbrains.compose.foundation:foundation:$composeVersion")
             implementation("org.jetbrains.compose.material3:material3:$composeMaterial3Version")
             implementation("org.jetbrains.compose.runtime:runtime:$composeVersion")
@@ -29,6 +30,7 @@ kotlin {
         }
         jvmTest.dependencies {
             implementation(compose.desktop.currentOs)
+            implementation(libs.kotlinx.coroutines.test)
             implementation(libs.kotlin.test)
         }
     }

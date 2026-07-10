@@ -225,11 +225,13 @@ fun NaviampSharedSettingsContent(
                 )
                 NaviampSettingsCategory.Experience -> NaviampExperienceSettingsSection(
                     colors = colors,
+                    interfaceSettings = interfaceSettings,
                     playbackSettings = playbackSettings,
                     cacheSettings = cacheSettings,
                     showQueueBehavior = showQueueBehavior,
                     showLrclibLyrics = true,
                     supportsSonicSimilarity = supportsSonicSimilarity,
+                    onInterfaceSettingsChanged = onInterfaceSettingsChanged,
                     onPlaybackSettingsChanged = onPlaybackSettingsChanged,
                     onCacheSettingsChanged = onCacheSettingsChanged,
                 )
@@ -337,11 +339,13 @@ private fun SettingsPlaceholderSection(
 @Composable
 fun NaviampExperienceSettingsSection(
     colors: NaviampColors,
+    interfaceSettings: InterfaceSettings,
     playbackSettings: PlaybackSettings,
     cacheSettings: CacheSettings,
     showQueueBehavior: Boolean,
     showLrclibLyrics: Boolean,
     supportsSonicSimilarity: Boolean,
+    onInterfaceSettingsChanged: (InterfaceSettings) -> Unit,
     onPlaybackSettingsChanged: (PlaybackSettings) -> Unit,
     onCacheSettingsChanged: (CacheSettings) -> Unit,
 ) {
@@ -415,9 +419,14 @@ fun NaviampExperienceSettingsSection(
         ) {
             selectedSection = ExperienceSettingsPage.Waveforms
         }
-        if (!showQueueBehavior && !showLrclibLyrics && !supportsSonicSimilarity) {
-            Text(stringResource(Res.string.settings_experience_empty), color = colors.secondaryText, fontSize = 12.sp)
-        }
+        SettingsCheckboxRow(
+            colors = colors,
+            checked = interfaceSettings.checkForUpdates,
+            label = "Check for Updates",
+            onCheckedChange = { enabled ->
+                onInterfaceSettingsChanged(interfaceSettings.copy(checkForUpdates = enabled))
+            },
+        )
     }
 }
 
@@ -1209,11 +1218,11 @@ private val DefaultNaviampLibraries = listOf(
 )
 
 private val DefaultNaviampChangelog = listOf(
-    "Added English and Spanish UI language resources that follow the system language.",
-    "Improved smart playlist editing with searchable fields, fresher playback, newer Navidrome options, and token refresh when saving.",
-    "Added Lyrics settings for Download Lyrics, Prefer Synced, and draggable Search Order.",
-    "Fixed Android and desktop artist detail parity, including expanded bios and Android popular tracks.",
-    "Refined Now Playing visuals with brighter album-art gradients and a vertical dots menu action.",
+    "Added first-pass update checks with a default-on Experience setting and GitHub release prompts.",
+    "Added artist and album navigation to queue menus, plus clickable Now Playing album links.",
+    "Added enlarged, aspect-ratio-preserving artist and album artwork on detail pages.",
+    "Improved compact Now Playing spacing, sizing, and metadata alignment, plus Settings scrolling in small windows.",
+    "Fixed writable database storage and migration for portable Windows builds.",
 )
 
 @Composable

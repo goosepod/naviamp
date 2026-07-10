@@ -125,6 +125,7 @@ fun selectedMusicFolderSummary(
 @Serializable
 data class InterfaceSettings(
     val language: InterfaceLanguage = InterfaceLanguage.System,
+    val checkForUpdates: Boolean = true,
 ) {
     fun normalized(): InterfaceSettings = this
 }

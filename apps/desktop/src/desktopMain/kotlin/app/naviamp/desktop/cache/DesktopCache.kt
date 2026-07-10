@@ -1012,8 +1012,11 @@ private fun ensureRadioDjPresetSchema(driver: JdbcSqliteDriver) {
 
 private const val SqliteBusyTimeoutMillis = 10_000
 
-private fun defaultCacheDatabasePath(): Path =
-    defaultAppDataDirectory().resolve("storage.db")
+private fun defaultCacheDatabasePath(): Path {
+    val databasePath = defaultAppDataDirectory().resolve("storage.db")
+    migrateLegacyWindowsDatabase(databasePath)
+    return databasePath
+}
 
 private fun defaultAudioCacheDirectory(): Path =
     defaultAppDataDirectory().resolve("audio-cache")
@@ -1027,10 +1030,29 @@ private fun defaultAppDataDirectory(): Path {
 
     return when {
         os.contains("mac") -> home.resolve("Library").resolve("Application Support").resolve("Naviamp")
-        os.contains("win") -> Path.of(System.getenv("APPDATA") ?: home.resolve("AppData/Roaming").toString())
+        os.contains("win") -> Path.of(System.getenv("LOCALAPPDATA") ?: home.resolve("AppData/Local").toString())
             .resolve("Naviamp")
         else -> Path.of(System.getenv("XDG_CACHE_HOME") ?: home.resolve(".cache").toString())
             .resolve("naviamp")
+    }
+}
+
+private fun migrateLegacyWindowsDatabase(databasePath: Path) {
+    if (!System.getProperty("os.name").lowercase().contains("win") || databasePath.exists()) return
+
+    val home = Path.of(System.getProperty("user.home"))
+    val legacyDirectory = Path.of(
+        System.getenv("APPDATA") ?: home.resolve("AppData/Roaming").toString(),
+    ).resolve("Naviamp")
+    val legacyDatabase = legacyDirectory.resolve("storage.db")
+    if (!legacyDatabase.exists() || legacyDatabase == databasePath) return
+
+    Files.createDirectories(databasePath.parent)
+    listOf("", "-wal").forEach { suffix ->
+        val source = Path.of("$legacyDatabase$suffix")
+        if (source.exists()) {
+            Files.copy(source, Path.of("$databasePath$suffix"), StandardCopyOption.REPLACE_EXISTING)
+        }
     }
 }
 

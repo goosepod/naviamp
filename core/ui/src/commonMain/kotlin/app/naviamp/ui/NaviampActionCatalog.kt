@@ -65,10 +65,14 @@ fun trackRowActions(
     )
 
 fun queueRowActions(): List<NaviampActionSpec> =
-    trackRowActions(
-        canStartRadio = true,
-        canDownload = true,
-        canAddToPlaylist = true,
+    listOf(
+        NaviampAction.StartTrackRadio.toSpec(),
+        NaviampAction.PlayTrackRadioNext.toSpec(),
+        NaviampAction.AddTrackRadioToQueue.toSpec(),
+        NaviampAction.DownloadTrack.toSpec(),
+        NaviampAction.AddToPlaylist.toSpec(),
+        NaviampAction.GoToArtist.toSpec(),
+        NaviampAction.GoToAlbum.toSpec(),
     )
 
 fun upNextQueueRowActions(): List<NaviampActionSpec> =

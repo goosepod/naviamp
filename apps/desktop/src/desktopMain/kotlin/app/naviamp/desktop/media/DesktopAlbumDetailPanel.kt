@@ -2,7 +2,9 @@ package app.naviamp.desktop
 
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -16,6 +18,10 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -26,6 +32,7 @@ import app.naviamp.domain.Album
 import app.naviamp.domain.AlbumDetails
 import app.naviamp.domain.Track
 import app.naviamp.ui.SharedMediaItemAction
+import app.naviamp.ui.ExpandedMediaImageDialog
 import app.naviamp.ui.SharedMediaItemActionRequest
 import app.naviamp.ui.SharedMediaItemKind
 import app.naviamp.ui.SharedTrackRowActionRequest
@@ -45,6 +52,8 @@ fun DesktopAlbumDetailPanel(
     onTrackAction: (SharedTrackRowActionRequest) -> Unit,
     onArtistSelected: (Track) -> Unit,
 ) {
+    val effectiveAlbumId = albumDetails?.album?.id ?: album?.id
+    var albumImageOpen by remember(effectiveAlbumId) { mutableStateOf(false) }
     Column(
         verticalArrangement = Arrangement.spacedBy(3.dp),
         modifier = Modifier.fillMaxSize(),
@@ -79,12 +88,19 @@ fun DesktopAlbumDetailPanel(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier.fillMaxWidth(),
         ) {
-            DesktopCoverArtThumb(
-                appColors = appColors,
-                coverArtUrl = coverArtUrl,
-                size = 96.dp,
-                cornerRadius = 4.dp,
-            )
+            Box(
+                modifier = Modifier.clickable(
+                    enabled = coverArtUrl != null,
+                    onClick = { albumImageOpen = true },
+                ),
+            ) {
+                DesktopCoverArtThumb(
+                    appColors = appColors,
+                    coverArtUrl = coverArtUrl,
+                    size = 96.dp,
+                    cornerRadius = 4.dp,
+                )
+            }
             Column(
                 verticalArrangement = Arrangement.spacedBy(2.dp),
                 modifier = Modifier.weight(1f),
@@ -228,6 +244,14 @@ fun DesktopAlbumDetailPanel(
                 }
             }
         }
+    }
+
+    if (albumImageOpen) {
+        ExpandedMediaImageDialog(
+            imageUrl = coverArtUrl,
+            colors = appColors,
+            onDismissRequest = { albumImageOpen = false },
+        )
     }
 }
 

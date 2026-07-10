@@ -3,6 +3,7 @@ package app.naviamp.desktop
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Row
@@ -29,6 +30,7 @@ import app.naviamp.domain.ArtistDetails
 import app.naviamp.domain.Track
 import app.naviamp.domain.popular.SimilarArtistMatch
 import app.naviamp.ui.SharedMediaItemAction
+import app.naviamp.ui.ExpandedMediaImageDialog
 import app.naviamp.ui.SharedMediaItemActionRequest
 import app.naviamp.ui.SharedMediaItemKind
 import app.naviamp.ui.SharedTrackGroupAction
@@ -62,6 +64,7 @@ fun DesktopArtistDetailPanel(
         ?: artistDetails?.info?.mediumImageUrl
         ?: artistDetails?.info?.smallImageUrl
     var biographyExpanded by remember(effectiveArtist?.id) { mutableStateOf(false) }
+    var artistImageOpen by remember(effectiveArtist?.id) { mutableStateOf(false) }
     val similarArtistsVisible = similarArtists.isNotEmpty() || similarArtistsStatus != null
     val artistItem = effectiveArtist?.toSharedMediaItemUi(
         coverArtUrl = { imageUrl },
@@ -117,12 +120,19 @@ fun DesktopArtistDetailPanel(
             verticalAlignment = Alignment.Top,
             modifier = Modifier.fillMaxWidth(),
         ) {
-            DesktopCoverArtThumb(
-                appColors = appColors,
-                coverArtUrl = imageUrl,
-                size = 96.dp,
-                cornerRadius = 48.dp,
-            )
+            Box(
+                modifier = Modifier.clickable(
+                    enabled = imageUrl != null,
+                    onClick = { artistImageOpen = true },
+                ),
+            ) {
+                DesktopCoverArtThumb(
+                    appColors = appColors,
+                    coverArtUrl = imageUrl,
+                    size = 96.dp,
+                    cornerRadius = 48.dp,
+                )
+            }
             Column(
                 verticalArrangement = Arrangement.spacedBy(3.dp),
                 modifier = Modifier.weight(1f),
@@ -332,6 +342,14 @@ fun DesktopArtistDetailPanel(
                 }
             }
         }
+    }
+
+    if (artistImageOpen) {
+        ExpandedMediaImageDialog(
+            imageUrl = imageUrl,
+            colors = appColors,
+            onDismissRequest = { artistImageOpen = false },
+        )
     }
 }
 

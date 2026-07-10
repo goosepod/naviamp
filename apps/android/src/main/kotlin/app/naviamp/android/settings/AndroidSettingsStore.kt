@@ -143,11 +143,13 @@ class AndroidSettingsStore(
     fun loadInterfaceSettings(): InterfaceSettings =
         InterfaceSettings(
             language = enumPreference(KeyInterfaceLanguage, InterfaceLanguage.System),
+            checkForUpdates = preferences.getBoolean(KeyCheckForUpdates, true),
         ).normalized()
 
     fun saveInterfaceSettings(settings: InterfaceSettings) {
         preferences.edit()
             .putString(KeyInterfaceLanguage, settings.normalized().language.name)
+            .putBoolean(KeyCheckForUpdates, settings.normalized().checkForUpdates)
             .apply()
     }
 
@@ -410,6 +412,7 @@ private const val KeyEqualizerProfileId = "equalizer_profile_id"
 private const val KeyEqualizerProfiles = "equalizer_profiles"
 private const val KeyEqualizerBandPrefix = "equalizer_band"
 private const val KeyDebugLoggingEnabled = "debug_logging_enabled"
+private const val KeyCheckForUpdates = "check_for_updates"
 private const val KeyLrclibLyricsEnabled = "lrclib_lyrics_enabled"
 private const val KeyPreferSyncedLyrics = "prefer_synced_lyrics"
 private const val KeyLyricsSearchOrder = "lyrics_search_order"

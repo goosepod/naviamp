@@ -33,6 +33,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
 import app.naviamp.domain.network.KtorSharedHttpClient
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
@@ -42,6 +43,7 @@ import java.io.ByteArrayOutputStream
 import java.security.MessageDigest
 import java.util.LinkedHashMap
 import kotlin.math.ceil
+import kotlin.math.min
 
 @Volatile
 private var androidPlatformCoverArtByteLoader: (suspend (String) -> ByteArray?)? = null
@@ -110,6 +112,52 @@ actual fun PlatformCoverArt(
                     )
                 }
             }
+        }
+    }
+}
+
+@Composable
+actual fun PlatformExpandedMediaImage(
+    url: String?,
+    colors: NaviampColors,
+    maxWidth: Dp,
+    maxHeight: Dp,
+) {
+    val context = LocalContext.current
+    val targetImageSizePx = with(LocalDensity.current) {
+        ceil(maxOf(maxWidth.toPx(), maxHeight.toPx())).toInt()
+            .coerceIn(MinCoverArtBitmapSidePx, MaxCoverArtBitmapSidePx)
+    }
+    var image by remember(url) { mutableStateOf<ImageBitmap?>(null) }
+
+    LaunchedEffect(url, targetImageSizePx) {
+        image = url?.let {
+            runCatching {
+                withContext(Dispatchers.IO) {
+                    AndroidCoverArtCache.imageBytes(context, it)
+                        ?.let { bytes -> decodeSampledBitmap(bytes, targetImageSizePx)?.asImageBitmap() }
+                }
+            }.getOrNull()
+        }
+    }
+
+    val imageWidth = image?.width?.takeIf { it > 0 } ?: 1
+    val imageHeight = image?.height?.takeIf { it > 0 } ?: 1
+    val scale = min(maxWidth.value / imageWidth, maxHeight.value / imageHeight)
+    val width = (imageWidth * scale).dp
+    val height = (imageHeight * scale).dp
+    Box(
+        modifier = Modifier
+            .size(width, height)
+            .background(colors.albumArtPlaceholder),
+    ) {
+        image?.let {
+            Image(
+                bitmap = it,
+                contentDescription = "Enlarged image",
+                contentScale = ContentScale.Fit,
+                modifier = Modifier.fillMaxSize(),
+            )
         }
     }
 }

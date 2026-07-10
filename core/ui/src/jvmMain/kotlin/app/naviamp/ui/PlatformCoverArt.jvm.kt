@@ -21,6 +21,7 @@ import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.toComposeImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
 import app.naviamp.domain.network.KtorSharedHttpClient
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -35,6 +36,7 @@ import java.awt.image.BufferedImage
 import java.io.ByteArrayOutputStream
 import java.util.LinkedHashMap
 import javax.imageio.ImageIO
+import kotlin.math.min
 
 @Volatile
 private var platformCoverArtByteLoader: suspend (String) -> ByteArray = ::defaultPlatformCoverArtBytes
@@ -96,6 +98,40 @@ actual fun PlatformCoverArt(
                     modifier = Modifier.fillMaxSize(),
                 )
             }
+        }
+    }
+}
+
+@Composable
+actual fun PlatformExpandedMediaImage(
+    url: String?,
+    colors: NaviampColors,
+    maxWidth: Dp,
+    maxHeight: Dp,
+) {
+    var image by remember(url) { mutableStateOf(url?.let { JvmCoverArtCache.cachedImage(it) }) }
+
+    LaunchedEffect(url) {
+        image = url?.let { runCatching { JvmCoverArtCache.image(it) }.getOrNull() }
+    }
+
+    val imageWidth = image?.width?.takeIf { it > 0 } ?: 1
+    val imageHeight = image?.height?.takeIf { it > 0 } ?: 1
+    val scale = min(maxWidth.value / imageWidth, maxHeight.value / imageHeight)
+    val width = (imageWidth * scale).dp
+    val height = (imageHeight * scale).dp
+    Box(
+        modifier = Modifier
+            .size(width, height)
+            .background(colors.albumArtPlaceholder),
+    ) {
+        image?.let {
+            Image(
+                bitmap = it,
+                contentDescription = "Enlarged image",
+                contentScale = ContentScale.Fit,
+                modifier = Modifier.fillMaxSize(),
+            )
         }
     }
 }

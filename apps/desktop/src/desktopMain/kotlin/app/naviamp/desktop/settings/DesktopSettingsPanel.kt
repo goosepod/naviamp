@@ -229,11 +229,13 @@ fun DesktopSettingsPanel(
             )
             NaviampSettingsCategory.Experience -> NaviampExperienceSettingsSection(
                 colors = appColors,
+                interfaceSettings = interfaceSettings,
                 playbackSettings = playbackSettings,
                 cacheSettings = cacheSettings,
                 showQueueBehavior = true,
                 showLrclibLyrics = true,
                 supportsSonicSimilarity = supportsSonicSimilarity,
+                onInterfaceSettingsChanged = onInterfaceSettingsChanged,
                 onPlaybackSettingsChanged = onPlaybackSettingsChanged,
                 onCacheSettingsChanged = onCacheSettingsChanged,
             )
@@ -494,6 +496,7 @@ private fun SettingsCategoryList(
         verticalArrangement = Arrangement.spacedBy(2.dp),
         modifier = Modifier
             .fillMaxWidth()
+            .verticalScroll(rememberScrollState())
             .padding(end = 10.dp),
     ) {
         Text(languagePack.settingsTitle(), color = appColors.primaryText, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)

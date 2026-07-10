@@ -28,6 +28,22 @@ class NaviampActionCatalogTest {
     }
 
     @Test
+    fun queueRowActionsReplaceTrackDetailsWithArtistAndAlbumNavigation() {
+        assertEquals(
+            listOf(
+                NaviampAction.StartTrackRadio,
+                NaviampAction.PlayTrackRadioNext,
+                NaviampAction.AddTrackRadioToQueue,
+                NaviampAction.DownloadTrack,
+                NaviampAction.AddToPlaylist,
+                NaviampAction.GoToArtist,
+                NaviampAction.GoToAlbum,
+            ),
+            queueRowActions().map { it.action },
+        )
+    }
+
+    @Test
     fun playlistRowActionsIncludeOnlyAvailablePlaylistActionsInMenuOrder() {
         val actions = playlistRowActions(
             canDownload = true,

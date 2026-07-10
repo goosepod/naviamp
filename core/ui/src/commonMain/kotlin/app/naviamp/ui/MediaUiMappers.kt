@@ -362,6 +362,8 @@ enum class NowPlayingItemAction {
     AddToPlaylist,
     CreatePlaylistAndAdd,
     Download,
+    GoToAlbum,
+    GoToArtist,
     RemoveFromQueue,
 }
 

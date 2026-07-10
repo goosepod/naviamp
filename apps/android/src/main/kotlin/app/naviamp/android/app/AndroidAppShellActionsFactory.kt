@@ -182,6 +182,8 @@ fun androidAppShellActions(
     downloadTrack: (Track) -> Unit,
     handleShellGoToAlbum: () -> Unit,
     handleShellGoToArtist: () -> Unit,
+    handleTrackGoToAlbum: (Track) -> Unit,
+    handleTrackGoToArtist: (Track) -> Unit,
     handleShellQueueItemRadio: (NaviampNowPlayingItemUi) -> Unit,
     handleQueueItemPlayNext: (NaviampNowPlayingItemUi) -> Unit,
     handleQueueItemAddToQueue: (NaviampNowPlayingItemUi) -> Unit,
@@ -203,6 +205,8 @@ fun androidAppShellActions(
             NowPlayingItemAction.CreatePlaylistAndAdd ->
                 action.track?.let { addTrackToPlaylist(it, null, action.playlistName) }
             NowPlayingItemAction.Download -> action.track?.let(downloadTrack)
+            NowPlayingItemAction.GoToAlbum -> action.track?.let(handleTrackGoToAlbum)
+            NowPlayingItemAction.GoToArtist -> action.track?.let(handleTrackGoToArtist)
             NowPlayingItemAction.RemoveFromQueue ->
                 (request.target as? app.naviamp.ui.NowPlayingItemTarget.QueueIndex)
                     ?.let { handleQueueItemRemoveFromQueue(it.index) }

@@ -17,15 +17,24 @@ Keep implementation cross-platform by default: shared domain models, shared UI, 
 
 ### Focused Polish
 
+- [ ] Add Now Playing display customization.
+  - Let users independently show or hide the album year, bitrate/audio information, and volume bar.
+  - Keep sensible defaults and preserve responsive layouts across small desktop windows, larger desktop players, and Android.
+  - Store the choices as app preferences and include portable display choices in settings sync where appropriate.
+- [ ] Add optional automatic playback resume at startup.
+  - Add a setting that starts playing the last active song when Naviamp launches.
+  - Restore the saved queue, current track, and playback position before starting playback.
+  - Keep automatic playback opt-in so launching the app does not unexpectedly produce audio by default.
 - [ ] Add interface language selection.
   - Default behavior should follow the system language.
   - Users should be able to choose a specific app interface language from Settings.
   - Persist the selected language as an app preference and make it eligible for settings sync once translation support exists.
   - Keep provider metadata, artist names, album names, track titles, and user-authored playlist names in their original language.
-- [ ] Add desktop update checking and updater flow.
-  - First pass should manually check whether a newer Naviamp release is available.
-  - Use the Forgejo/GitHub tag release metadata and the current `VERSION` file as the source of truth.
-  - Show clear status for up-to-date, update available, downloading, ready to install, and unable to check.
+- [x] Add first-pass update checking.
+  - Check GitHub Releases at startup and every 24 hours, with a persisted Experience toggle that defaults on.
+  - Compare the latest stable release tag with the running app version and show a modal linking to the specific release.
+  - Keep network failures silent and leave download and installation choices to the user.
+  - Future updater work can show explicit status for up-to-date, unable to check, downloading, and ready to install.
   - Start with download/open-installer behavior for native installers before attempting silent or in-place updates.
   - Keep platform differences explicit: macOS DMG, Windows MSI/EXE, and Linux DEB/RPM/AppImage-style archive handling are different update paths.
   - Require signed/notarized desktop artifacts before promoting automatic background installs as a normal user-facing behavior.

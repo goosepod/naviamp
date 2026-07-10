@@ -173,6 +173,8 @@ internal fun androidMainShellActions(
         downloadTrack = downloadActionController::downloadTrack,
         handleShellGoToAlbum = shellMediaController::handleShellGoToAlbum,
         handleShellGoToArtist = shellMediaController::handleShellGoToArtist,
+        handleTrackGoToAlbum = shellMediaController::handleTrackGoToAlbum,
+        handleTrackGoToArtist = shellMediaController::handleTrackGoToArtist,
         handleShellQueueItemRadio = shellPlaybackController::startQueueItemRadio,
         handleQueueItemPlayNext = { item ->
             mediaAppController.resolveNowPlayingItemTrack(item)?.let(mediaAppController::playNext)

@@ -120,6 +120,21 @@ internal class AndroidShellMediaController(
         openAndroidNowPlayingAlbumDetails(scope, state, storage, storage)
     }
 
+    fun handleTrackGoToAlbum(track: Track) {
+        val albumId = track.albumId ?: return
+        openAndroidAlbumDetails(
+            scope = scope,
+            state = state,
+            libraryIndexRepository = storage,
+            providerResponseCacheRepository = storage,
+            selectedAlbum = SharedMediaItemUi(
+                id = albumId.value,
+                title = track.albumTitle.orEmpty(),
+                subtitle = track.artistName.orEmpty(),
+            ),
+        )
+    }
+
     fun handleShellRatingSelected(rating: Int?) {
         setAndroidCurrentTrackRating(scope, state, playbackEngine, rating)
     }
@@ -172,5 +187,9 @@ internal class AndroidShellMediaController(
     fun handleShellGoToArtist() {
         val currentTrack = state.nowPlaying ?: return
         currentTrack.artistId?.let { openArtistDetails(it, currentTrack.artistName) }
+    }
+
+    fun handleTrackGoToArtist(track: Track) {
+        track.artistId?.let { openArtistDetails(it, track.artistName) }
     }
 }

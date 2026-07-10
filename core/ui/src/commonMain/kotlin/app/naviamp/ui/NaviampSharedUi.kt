@@ -16,6 +16,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -26,6 +27,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.NonRestartableComposable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -36,12 +38,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.window.Dialog
 import app.naviamp.domain.InternetRadioStation
 import app.naviamp.domain.settings.ConnectionFormHeader
 import app.naviamp.domain.settings.ConnectionFormMusicFolder
@@ -56,6 +60,14 @@ expect fun PlatformCoverArt(
     colors: NaviampColors,
     size: Dp,
     cornerRadius: Dp,
+)
+
+@Composable
+expect fun PlatformExpandedMediaImage(
+    url: String?,
+    colors: NaviampColors,
+    maxWidth: Dp,
+    maxHeight: Dp,
 )
 
 @Composable
@@ -326,6 +338,16 @@ fun NaviampSharedAppShell(
     onResetDatabase: () -> Unit = {},
 ) {
     val colors = NaviampColors.Dark
+    var availableUpdate by remember { mutableStateOf<NaviampAvailableUpdate?>(null) }
+    val uriHandler = LocalUriHandler.current
+    NaviampUpdateCheckEffect(
+        enabled = interfaceSettings.checkForUpdates,
+        currentVersion = about.version,
+        onUpdateAvailable = { availableUpdate = it },
+    )
+    LaunchedEffect(interfaceSettings.checkForUpdates) {
+        if (!interfaceSettings.checkForUpdates) availableUpdate = null
+    }
     val showFullNowPlaying = connected && !editingConnection && !restoringConnection && nowPlayingOpen && nowPlaying != null
     val routeUsesOwnScroll = connected &&
         !editingConnection &&
@@ -636,6 +658,31 @@ fun NaviampSharedAppShell(
                 }
             }
         }
+    }
+
+    availableUpdate?.let { update ->
+        AlertDialog(
+            onDismissRequest = { availableUpdate = null },
+            title = { Text("Naviamp Update Available") },
+            text = {
+                Text("${update.name} is available. You are currently running ${about.version}.")
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        availableUpdate = null
+                        uriHandler.openUri(update.releaseUrl)
+                    },
+                ) {
+                    Text("View Release")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { availableUpdate = null }) {
+                    Text("Later")
+                }
+            },
+        )
     }
 }
 
@@ -1673,6 +1720,7 @@ private fun AlbumDetailContent(
 ) {
     var addAlbumToPlaylistOpen by remember(detail.album.id) { mutableStateOf(false) }
     var trackForPlaylist by remember(detail.album.id) { mutableStateOf<SharedTrackRowUi?>(null) }
+    var albumImageOpen by remember(detail.album.id) { mutableStateOf(false) }
     val handleTrackAction: (SharedTrackRowActionRequest) -> Unit = { request ->
         handleSharedTrackRowAction(
             request,
@@ -1700,7 +1748,14 @@ private fun AlbumDetailContent(
             }
         }
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
-            PlatformCoverArt(detail.album.coverArtUrl, colors, 96.dp, 8.dp)
+            Box(
+                modifier = Modifier.clickable(
+                    enabled = detail.album.coverArtUrl != null,
+                    onClick = { albumImageOpen = true },
+                ),
+            ) {
+                PlatformCoverArt(detail.album.coverArtUrl, colors, 96.dp, 8.dp)
+            }
             Column(verticalArrangement = Arrangement.spacedBy(4.dp), modifier = Modifier.weight(1f)) {
                 Text(
                     detail.album.title,
@@ -1810,6 +1865,14 @@ private fun AlbumDetailContent(
             },
         )
     }
+
+    if (albumImageOpen) {
+        ExpandedMediaImageDialog(
+            imageUrl = detail.album.coverArtUrl,
+            colors = colors,
+            onDismissRequest = { albumImageOpen = false },
+        )
+    }
 }
 
 @Composable
@@ -1844,6 +1907,7 @@ private fun ArtistDetailContent(
     var popularTrackForPlaylist by remember(detail.artist.id) { mutableStateOf<SharedTrackRowUi?>(null) }
     var albumForPlaylist by remember(detail.artist.id) { mutableStateOf<SharedMediaItemUi?>(null) }
     var biographyExpanded by remember(detail.artist.id) { mutableStateOf(false) }
+    var artistImageOpen by remember(detail.artist.id) { mutableStateOf(false) }
     val handleAlbumAction: (SharedMediaItemActionRequest) -> Unit = { request ->
         handleSharedMediaItemAction(
             request,
@@ -1886,7 +1950,14 @@ private fun ArtistDetailContent(
             IconButton(onClick = onBack, modifier = Modifier.size(36.dp)) {
                 Icon(NaviampIcons.Back, contentDescription = "Back", tint = colors.primaryText)
             }
-            PlatformCoverArt(detail.artist.coverArtUrl, colors, 64.dp, 32.dp)
+            Box(
+                modifier = Modifier.clickable(
+                    enabled = detail.artist.coverArtUrl != null,
+                    onClick = { artistImageOpen = true },
+                ),
+            ) {
+                PlatformCoverArt(detail.artist.coverArtUrl, colors, 64.dp, 32.dp)
+            }
             Column(modifier = Modifier.weight(1f)) {
                 Text(detail.artist.title, color = colors.primaryText, fontSize = 20.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 Text(
@@ -2150,6 +2221,38 @@ private fun ArtistDetailContent(
                 )
             },
         )
+    }
+
+    if (artistImageOpen) {
+        ExpandedMediaImageDialog(
+            imageUrl = detail.artist.coverArtUrl,
+            colors = colors,
+            onDismissRequest = { artistImageOpen = false },
+        )
+    }
+}
+
+@Composable
+fun ExpandedMediaImageDialog(
+    imageUrl: String?,
+    colors: NaviampColors,
+    onDismissRequest: () -> Unit,
+) {
+    Dialog(onDismissRequest = onDismissRequest) {
+        Box(
+            modifier = Modifier
+                .clip(RoundedCornerShape(8.dp))
+                .background(colors.controlSurface)
+                .clickable(onClick = onDismissRequest)
+                .padding(4.dp),
+        ) {
+            PlatformExpandedMediaImage(
+                url = imageUrl,
+                colors = colors,
+                maxWidth = 320.dp,
+                maxHeight = 420.dp,
+            )
+        }
     }
 }
 
