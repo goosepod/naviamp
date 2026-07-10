@@ -71,6 +71,7 @@ import app.naviamp.domain.settings.MinReplayGainPreampDb
 import app.naviamp.domain.settings.MinWaveformBucketCount
 import app.naviamp.domain.settings.PlaybackSettings
 import app.naviamp.domain.settings.SampleRateConverter
+import app.naviamp.domain.settings.SampleRateMatching
 import app.naviamp.domain.settings.AudioOutputDeviceMode
 import app.naviamp.domain.settings.AudioOutputDevicePreference
 import app.naviamp.domain.settings.PreviousButtonBehavior
@@ -2181,14 +2182,17 @@ private fun AudioOutputSettings(
     onBack: () -> Unit,
 ) {
     var selectedPage by remember { mutableStateOf<AudioOutputSettingsPage?>(null) }
+    var pendingStrictCrossfadeConfirmation by remember { mutableStateOf(false) }
     SettingsSubsectionHeader(
         title = when (selectedPage) {
             AudioOutputSettingsPage.AudioDevice -> stringResource(Res.string.settings_playback_device_title)
+            AudioOutputSettingsPage.SampleRateMatching -> stringResource(Res.string.settings_sample_rate_matching_title)
             AudioOutputSettingsPage.SampleRateConverter -> stringResource(Res.string.settings_sample_rate_converter_title)
             null -> stringResource(Res.string.settings_playback_output_title)
         },
         subtitle = when (selectedPage) {
             AudioOutputSettingsPage.AudioDevice -> stringResource(Res.string.settings_playback_device_subtitle)
+            AudioOutputSettingsPage.SampleRateMatching -> stringResource(Res.string.settings_sample_rate_matching_subtitle)
             AudioOutputSettingsPage.SampleRateConverter -> stringResource(Res.string.settings_sample_rate_converter_subtitle)
             null -> stringResource(Res.string.settings_playback_output_subtitle)
         },
@@ -2203,6 +2207,24 @@ private fun AudioOutputSettings(
             devices = devices,
             onPlaybackSettingsChanged = onPlaybackSettingsChanged,
         )
+        AudioOutputSettingsPage.SampleRateMatching -> SampleRateMatching.entries.forEach { mode ->
+            SelectableSettingsRow(
+                title = mode.label,
+                subtitle = mode.subtitle,
+                colors = colors,
+                selected = playbackSettings.sampleRateMatching == mode,
+            ) {
+                if (
+                    mode == SampleRateMatching.Strict &&
+                    playbackSettings.sampleRateMatching != SampleRateMatching.Strict &&
+                    playbackSettings.crossfadeDurationSeconds > 0
+                ) {
+                    pendingStrictCrossfadeConfirmation = true
+                } else {
+                    onPlaybackSettingsChanged(playbackSettings.copy(sampleRateMatching = mode))
+                }
+            }
+        }
         AudioOutputSettingsPage.SampleRateConverter -> SampleRateConverter.entries.forEach { converter ->
             SelectableSettingsRow(
                 title = converter.label,
@@ -2223,6 +2245,12 @@ private fun AudioOutputSettings(
                 ) { selectedPage = AudioOutputSettingsPage.AudioDevice }
             }
             SettingsRow(
+                title = stringResource(Res.string.settings_sample_rate_matching_title),
+                subtitle = stringResource(Res.string.settings_sample_rate_matching_subtitle),
+                colors = colors,
+                value = playbackSettings.sampleRateMatching.label,
+            ) { selectedPage = AudioOutputSettingsPage.SampleRateMatching }
+            SettingsRow(
                 title = stringResource(Res.string.settings_sample_rate_converter_title),
                 subtitle = stringResource(Res.string.settings_sample_rate_converter_subtitle),
                 colors = colors,
@@ -2230,10 +2258,38 @@ private fun AudioOutputSettings(
             ) { selectedPage = AudioOutputSettingsPage.SampleRateConverter }
         }
     }
+    if (pendingStrictCrossfadeConfirmation) {
+        AlertDialog(
+            onDismissRequest = { pendingStrictCrossfadeConfirmation = false },
+            title = { Text(stringResource(Res.string.settings_sample_rate_matching_strict_crossfade_title)) },
+            text = { Text(stringResource(Res.string.settings_sample_rate_matching_strict_crossfade_message)) },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        pendingStrictCrossfadeConfirmation = false
+                        onPlaybackSettingsChanged(
+                            playbackSettings.copy(
+                                sampleRateMatching = SampleRateMatching.Strict,
+                                crossfadeDurationSeconds = 0,
+                            ),
+                        )
+                    },
+                ) {
+                    Text(stringResource(Res.string.settings_sample_rate_matching_strict_crossfade_confirm))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { pendingStrictCrossfadeConfirmation = false }) {
+                    Text(stringResource(Res.string.common_cancel))
+                }
+            },
+        )
+    }
 }
 
 private enum class AudioOutputSettingsPage {
     AudioDevice,
+    SampleRateMatching,
     SampleRateConverter,
 }
 
@@ -2569,6 +2625,7 @@ private fun GaplessCrossfadeSettings(
     onPlaybackSettingsChanged: (PlaybackSettings) -> Unit,
 ) {
     var crossfadeOpen by remember { mutableStateOf(false) }
+    var pendingCrossfadeDurationForStrict by remember { mutableStateOf<Int?>(null) }
     if (crossfadeOpen) {
         SettingsSubsectionHeader(
             stringResource(Res.string.settings_crossfade_title),
@@ -2583,13 +2640,61 @@ private fun GaplessCrossfadeSettings(
                 selected = playbackSettings.crossfadeDurationSeconds == seconds,
                 enabled = supportsCrossfade || seconds == 0,
             ) {
-                onPlaybackSettingsChanged(
-                    playbackSettings.copy(
-                        crossfadeDurationSeconds = seconds,
-                        gaplessEnabled = if (seconds > 0) false else playbackSettings.gaplessEnabled,
-                    ),
-                )
+                if (seconds > 0 && playbackSettings.sampleRateMatching == SampleRateMatching.Strict) {
+                    pendingCrossfadeDurationForStrict = seconds
+                } else {
+                    onPlaybackSettingsChanged(
+                        playbackSettings.copy(
+                            crossfadeDurationSeconds = seconds,
+                            gaplessEnabled = if (seconds > 0) false else playbackSettings.gaplessEnabled,
+                        ),
+                    )
+                }
             }
+        }
+        pendingCrossfadeDurationForStrict?.let { seconds ->
+            AlertDialog(
+                onDismissRequest = { pendingCrossfadeDurationForStrict = null },
+                title = { Text(stringResource(Res.string.settings_crossfade_strict_rate_matching_title)) },
+                text = { Text(stringResource(Res.string.settings_crossfade_strict_rate_matching_message)) },
+                confirmButton = {
+                    Row {
+                        TextButton(
+                            onClick = {
+                                pendingCrossfadeDurationForStrict = null
+                                onPlaybackSettingsChanged(
+                                    playbackSettings.copy(
+                                        sampleRateMatching = SampleRateMatching.Disabled,
+                                        crossfadeDurationSeconds = seconds,
+                                        gaplessEnabled = false,
+                                    ),
+                                )
+                            },
+                        ) {
+                            Text(stringResource(Res.string.settings_crossfade_strict_rate_matching_disabled))
+                        }
+                        TextButton(
+                            onClick = {
+                                pendingCrossfadeDurationForStrict = null
+                                onPlaybackSettingsChanged(
+                                    playbackSettings.copy(
+                                        sampleRateMatching = SampleRateMatching.Smart,
+                                        crossfadeDurationSeconds = seconds,
+                                        gaplessEnabled = false,
+                                    ),
+                                )
+                            },
+                        ) {
+                            Text(stringResource(Res.string.settings_crossfade_strict_rate_matching_smart))
+                        }
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { pendingCrossfadeDurationForStrict = null }) {
+                        Text(stringResource(Res.string.common_cancel))
+                    }
+                },
+            )
         }
         return
     }

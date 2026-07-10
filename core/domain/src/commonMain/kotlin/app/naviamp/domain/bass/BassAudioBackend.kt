@@ -150,6 +150,8 @@ interface BassAudioBackend {
 
     fun init(deviceId: String?): Result<Unit> = init()
 
+    fun init(deviceId: String?, sampleRateHz: Int): Result<Unit> = init(deviceId)
+
     fun free(): Result<Unit> = unsupportedBassOperation("BASS free")
 
     fun outputDevices(): List<AudioOutputDevice> = emptyList()

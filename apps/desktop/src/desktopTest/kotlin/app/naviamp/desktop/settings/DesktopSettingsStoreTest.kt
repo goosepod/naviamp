@@ -17,6 +17,7 @@ import kotlin.test.assertEquals
 import app.naviamp.domain.settings.InterfaceSettings
 import app.naviamp.domain.settings.NowPlayingDisplaySettings
 import app.naviamp.domain.settings.SampleRateConverter
+import app.naviamp.domain.settings.SampleRateMatching
 
 class DesktopSettingsStoreTest {
     @Test
@@ -129,6 +130,7 @@ class DesktopSettingsStoreTest {
             PlaybackSettings(
                 replayGainMode = ReplayGainMode.Track,
                 sampleRateConverter = SampleRateConverter.Sinc64,
+                sampleRateMatching = SampleRateMatching.Smart,
                 gaplessEnabled = false,
                 crossfadeDurationSeconds = 8,
                 volumePercent = 64,
@@ -139,12 +141,14 @@ class DesktopSettingsStoreTest {
 
         assertEquals(ReplayGainMode.Track, store.loadPlaybackSettings().replayGainMode)
         assertEquals(SampleRateConverter.Sinc64, store.loadPlaybackSettings().sampleRateConverter)
+        assertEquals(SampleRateMatching.Smart, store.loadPlaybackSettings().sampleRateMatching)
         assertEquals(false, store.loadPlaybackSettings().gaplessEnabled)
         assertEquals(8, store.loadPlaybackSettings().crossfadeDurationSeconds)
         assertEquals(64, store.loadPlaybackSettings().volumePercent)
         assertEquals(true, store.loadPlaybackSettings().debugLoggingEnabled)
         assertEquals(true, store.loadPlaybackSettings().removePlayedTracksFromQueue)
         assertEquals(true, path.readText().contains("replayGainMode"))
+        assertEquals(true, path.readText().contains("sampleRateMatching"))
         assertEquals(true, path.readText().contains("gaplessEnabled"))
         assertEquals(true, path.readText().contains("crossfadeDurationSeconds"))
         assertEquals(true, path.readText().contains("volumePercent"))

@@ -202,6 +202,15 @@
     <string name="settings_output_selected_suffix"> (Seleccionado)</string>
     <string name="settings_sample_rate_converter_title">Conversor de frecuencia de muestreo</string>
     <string name="settings_sample_rate_converter_subtitle">Calidad de remuestreo cuando las frecuencias difieren</string>
+    <string name="settings_sample_rate_matching_title">Coincidencia de frecuencia de muestreo</string>
+    <string name="settings_sample_rate_matching_subtitle">Ajustar la frecuencia de salida a la música</string>
+    <string name="settings_sample_rate_matching_strict_crossfade_title">¿Desactivar fundido?</string>
+    <string name="settings_sample_rate_matching_strict_crossfade_message">La coincidencia estricta de frecuencia necesita reiniciar el dispositivo de salida cuando cambian las frecuencias de las pistas, por eso se desactivará el fundido.</string>
+    <string name="settings_sample_rate_matching_strict_crossfade_confirm">Desactivar fundido</string>
+    <string name="settings_crossfade_strict_rate_matching_title">¿Cambiar coincidencia de frecuencia?</string>
+    <string name="settings_crossfade_strict_rate_matching_message">El fundido no se puede usar con la coincidencia estricta de frecuencia. Elige Desactivada o Inteligente para la coincidencia de frecuencia, o cancela para dejar la configuración igual.</string>
+    <string name="settings_crossfade_strict_rate_matching_disabled">Usar Desactivada</string>
+    <string name="settings_crossfade_strict_rate_matching_smart">Usar Inteligente</string>
 
     <string name="settings_quality_codec_title">Códec</string>
     <string name="settings_quality_bitrate_title">Tasa de bits</string>

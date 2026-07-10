@@ -269,9 +269,9 @@ int concrete_output_device(int requestedDevice) {
     return -1;
 }
 
-bool init_output_device(int device) {
+bool init_output_device(int device, DWORD frequency = 44100, DWORD flags = 0) {
     configure_playback_buffers();
-    if (BASS_Init(device, 44100, 0, nullptr, nullptr)) {
+    if (BASS_Init(device, frequency, flags, nullptr, nullptr)) {
         return true;
     }
     if (BASS_ErrorGetCode() == BASS_ERROR_ALREADY) {
@@ -279,6 +279,14 @@ bool init_output_device(int device) {
         return concreteDevice >= 0 && BASS_SetDevice(static_cast<DWORD>(concreteDevice));
     }
     return false;
+}
+
+
+bool reinit_output_device(int device, jint sampleRateHz) {
+    equalizerFxByChannel.clear();
+    BASS_Free();
+    DWORD frequency = static_cast<DWORD>(std::max(8000, std::min(static_cast<int>(sampleRateHz), 768000)));
+    return init_output_device(device, frequency, BASS_DEVICE_FREQ);
 }
 
 jobjectArray output_devices(JNIEnv* env) {
@@ -600,6 +608,13 @@ Java_app_naviamp_android_playback_AndroidBassJni_nativeInit(JNIEnv* env, jobject
         return JNI_TRUE;
     }
     return JNI_FALSE;
+}
+
+extern "C" JNIEXPORT jboolean JNICALL
+Java_app_naviamp_android_playback_AndroidBassJni_nativeInitAtSampleRate(JNIEnv* env, jobject thiz, jint sampleRateHz) {
+    (void)env;
+    (void)thiz;
+    return reinit_output_device(-1, sampleRateHz) ? JNI_TRUE : JNI_FALSE;
 }
 
 extern "C" JNIEXPORT void JNICALL
@@ -960,6 +975,12 @@ extern "C" JNIEXPORT jboolean JNICALL
 Java_app_naviamp_desktop_playback_bass_DesktopBassJniBinding_nativeInitDevice(JNIEnv* env, jobject thiz, jstring deviceId) {
     (void)thiz;
     return init_output_device(device_id_or_default(env, deviceId)) ? JNI_TRUE : JNI_FALSE;
+}
+
+extern "C" JNIEXPORT jboolean JNICALL
+Java_app_naviamp_desktop_playback_bass_DesktopBassJniBinding_nativeInitDeviceAtSampleRate(JNIEnv* env, jobject thiz, jstring deviceId, jint sampleRateHz) {
+    (void)thiz;
+    return reinit_output_device(device_id_or_default(env, deviceId), sampleRateHz) ? JNI_TRUE : JNI_FALSE;
 }
 
 extern "C" JNIEXPORT void JNICALL

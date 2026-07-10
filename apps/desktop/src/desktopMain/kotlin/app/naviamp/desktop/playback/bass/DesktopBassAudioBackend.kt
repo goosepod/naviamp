@@ -51,6 +51,13 @@ class DesktopBassAudioBackend(
             Result.failure(IllegalStateException(errorMessage("BASS_Init failed")))
         }
 
+    override fun init(deviceId: String?, sampleRateHz: Int): Result<Unit> =
+        if (bass.init(deviceId, sampleRateHz)) {
+            Result.success(Unit)
+        } else {
+            Result.failure(IllegalStateException(errorMessage("BASS_Init at $sampleRateHz Hz failed")))
+        }
+
     override fun free(): Result<Unit> {
         bass.free()
         return Result.success(Unit)

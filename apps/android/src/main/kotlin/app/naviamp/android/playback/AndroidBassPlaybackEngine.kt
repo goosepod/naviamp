@@ -38,7 +38,9 @@ import app.naviamp.domain.playback.EqualizerSettings
 import app.naviamp.domain.playback.ReplayGainMode
 import app.naviamp.domain.playback.ReplayGainPlaybackEngine
 import app.naviamp.domain.playback.SampleRateConverterPlaybackEngine
+import app.naviamp.domain.playback.SampleRateMatchingPlaybackEngine
 import app.naviamp.domain.settings.SampleRateConverter
+import app.naviamp.domain.settings.SampleRateMatching
 import app.naviamp.domain.playback.VisualizerBandCount
 import app.naviamp.domain.playback.VisualizerPlaybackEngine
 import app.naviamp.domain.playback.BassPlaybackPollingState
@@ -65,6 +67,7 @@ import app.naviamp.domain.playback.playbackReplayGainAdjustment
 import app.naviamp.domain.playback.preparedBassPlaybackAdopted
 import app.naviamp.domain.playback.preparedBassPlaybackFailed
 import app.naviamp.domain.playback.preparedBassPlaybackSucceeded
+import app.naviamp.domain.playback.targetOutputSampleRate
 import app.naviamp.provider.navidrome.NavidromeTlsSettings
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -77,14 +80,26 @@ import java.io.File
 class AndroidBassPlaybackEngine(
     context: Context,
     private val bass: BassAudioBackend,
-) : AndroidPlaybackEngine, QueueAwarePlaybackEngine, VisualizerPlaybackEngine, EqualizerPlaybackEngine, ReplayGainPlaybackEngine, SampleRateConverterPlaybackEngine {
+) : AndroidPlaybackEngine,
+    QueueAwarePlaybackEngine,
+    VisualizerPlaybackEngine,
+    EqualizerPlaybackEngine,
+    ReplayGainPlaybackEngine,
+    SampleRateConverterPlaybackEngine,
+    SampleRateMatchingPlaybackEngine {
     private val appContext = context.applicationContext
     private var sampleRateConverter = SampleRateConverter.Sinc16
+    private var sampleRateMatching = SampleRateMatching.Disabled
 
     override fun setSampleRateConverter(converter: SampleRateConverter) {
         sampleRateConverter = converter
         bass.setSampleRateConverterQuality(converter.bassQuality)
     }
+
+    override fun setSampleRateMatching(mode: SampleRateMatching) {
+        sampleRateMatching = mode
+    }
+
     private val audioManager = appContext.getSystemService(AudioManager::class.java)
     private var stream: Int = 0
     private var currentSourceStream: Int = 0
@@ -104,6 +119,8 @@ class AndroidBassPlaybackEngine(
     private var replayGainFactor: Float = 1f
     private var equalizerSettings: EqualizerSettings = EqualizerSettings()
     private var tlsSettings: NavidromeTlsSettings = NavidromeTlsSettings()
+    private var bassInitialized = false
+    private var activeOutputSampleRateHz: Int? = null
     private var audioFocusRequest: AudioFocusRequest? = null
     private var pausedForTransientFocusLoss = false
     private var duckedForFocusLoss = false
@@ -200,7 +217,17 @@ class AndroidBassPlaybackEngine(
             AndroidPlaybackForegroundService.update(appContext, notificationMetadata)
             return
         }
-        if (adoptPreparedStream(scope, request, onStateChanged, onProgressChanged)) {
+        val startingFromIdle = stream == 0
+        val targetSampleRateHz = targetOutputSampleRate(
+            mode = sampleRateMatching,
+            requestedSampleRateHz = request.samplingRateHz,
+            startingFromIdle = startingFromIdle,
+        )
+        val canAdoptPreparedStream = targetSampleRateHz == null || targetSampleRateHz == activeOutputSampleRateHz
+        if (
+            canAdoptPreparedStream &&
+            adoptPreparedStream(scope, request, onStateChanged, onProgressChanged)
+        ) {
             acquirePlaybackWakeLock()
             AndroidPlaybackNotificationControls.isPlaying = true
             AndroidPlaybackForegroundService.update(appContext, notificationMetadata)
@@ -216,8 +243,7 @@ class AndroidBassPlaybackEngine(
         playbackJob = scope.launch(Dispatchers.IO) {
             var createdPlayback: BassCreatedPlayback? = null
             try {
-                bass.setSampleRateConverterQuality(sampleRateConverter.bassQuality).getOrThrow()
-                bass.init().getOrThrow()
+                ensureInitialized(targetSampleRateHz)
                 val verifyNet = !tlsSettings.insecureSkipTlsVerification
                 Log.i(Tag, "Opening BASS stream verifyNet=$verifyNet url=${request.url.sanitizedForLog()}")
                 bass.setVerifyNet(verifyNet).getOrThrow()
@@ -379,6 +405,8 @@ class AndroidBassPlaybackEngine(
         AndroidPlaybackNotificationControls.clear()
         AndroidPlaybackForegroundService.stop(appContext)
         bass.free()
+        bassInitialized = false
+        activeOutputSampleRateHz = null
         onStateChanged = null
         onProgressChanged = null
         onMetadataChanged = null
@@ -429,8 +457,7 @@ class AndroidBassPlaybackEngine(
         if (plan == PreparedBassPlaybackPlan.NotSupported) return
         val mixerPlan = plan as PreparedBassPlaybackPlan.PrepareMixer
         runCatching {
-            bass.setSampleRateConverterQuality(sampleRateConverter.bassQuality).getOrThrow()
-            bass.init().getOrThrow()
+            ensureInitialized()
             val mixer = stream
             val file = if (mixerPlan.isLocalFileUrl) localFileFromUrl(request.url) else null
             val prepared = bass.prepareNextBassMixerSource(
@@ -537,6 +564,30 @@ class AndroidBassPlaybackEngine(
             bass.stopAndReleaseBassPlayback(handle, currentSourceStream, preparedStream)
         }
         applyCleanupReset(clearBassPlaybackCleanupState())
+    }
+
+    private fun ensureInitialized(targetSampleRateHz: Int? = null) {
+        if (bassInitialized && targetSampleRateHz != null && targetSampleRateHz != activeOutputSampleRateHz) {
+            bass.free()
+            bassInitialized = false
+            activeOutputSampleRateHz = null
+        }
+        if (!bassInitialized) {
+            val initResult = if (targetSampleRateHz != null) {
+                bass.init(null, targetSampleRateHz)
+            } else {
+                bass.init()
+            }
+            if (initResult.isFailure && targetSampleRateHz != null) {
+                bass.init().getOrThrow()
+                activeOutputSampleRateHz = null
+            } else {
+                initResult.getOrThrow()
+                activeOutputSampleRateHz = targetSampleRateHz
+            }
+            bassInitialized = true
+        }
+        bass.setSampleRateConverterQuality(sampleRateConverter.bassQuality).getOrThrow()
     }
 
     private fun handlePlaybackFinished() {

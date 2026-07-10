@@ -159,6 +159,7 @@ data class PlaybackSettings(
     val replayGainPreampDb: Float = 0f,
     val replayGainInspectorEnabled: Boolean = false,
     val outputDevice: AudioOutputDevicePreference = AudioOutputDevicePreference(),
+    val sampleRateMatching: SampleRateMatching = SampleRateMatching.Disabled,
     val sampleRateConverter: SampleRateConverter = SampleRateConverter.Sinc16,
     val gaplessEnabled: Boolean = true,
     val crossfadeDurationSeconds: Int = 0,
@@ -193,6 +194,13 @@ enum class SampleRateConverter(val bassQuality: Int, val label: String, val subt
     Sinc16(2, "16 point sinc", "High quality"),
     Sinc32(3, "32 point sinc", "Audiophile quality"),
     Sinc64(4, "64 point sinc", "Highest accuracy"),
+}
+
+@Serializable
+enum class SampleRateMatching(val label: String, val subtitle: String) {
+    Disabled("Disabled", "Sample rates are fixed"),
+    Smart("Smart", "Sample rates are adjusted when playback is idle"),
+    Strict("Strict", "Sample rates are adjusted for each track as needed"),
 }
 
 @Serializable
@@ -320,6 +328,8 @@ class PlaybackSettingsMaintenanceController(
         )
         (playbackEngine as? app.naviamp.domain.playback.SampleRateConverterPlaybackEngine)
             ?.setSampleRateConverter(effectiveSettings.sampleRateConverter)
+        (playbackEngine as? app.naviamp.domain.playback.SampleRateMatchingPlaybackEngine)
+            ?.setSampleRateMatching(effectiveSettings.sampleRateMatching)
     }
 
     fun applyPlaybackSettingsAndRedownload(settings: PlaybackSettings) {

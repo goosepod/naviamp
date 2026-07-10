@@ -1,6 +1,7 @@
 package app.naviamp.domain.playback
 
 import app.naviamp.domain.ReplayGain
+import app.naviamp.domain.settings.SampleRateMatching
 import kotlinx.coroutines.CoroutineScope
 
 interface PlaybackEngine {
@@ -56,6 +57,25 @@ interface ReplayGainPlaybackEngine : PlaybackEngine {
 
 interface SampleRateConverterPlaybackEngine : PlaybackEngine {
     fun setSampleRateConverter(converter: app.naviamp.domain.settings.SampleRateConverter)
+}
+
+interface SampleRateMatchingPlaybackEngine : PlaybackEngine {
+    fun setSampleRateMatching(mode: app.naviamp.domain.settings.SampleRateMatching)
+}
+
+fun targetOutputSampleRate(
+    mode: SampleRateMatching,
+    requestedSampleRateHz: Int?,
+    startingFromIdle: Boolean,
+): Int? {
+    val requested = requestedSampleRateHz
+        ?.takeIf { it in 8_000..768_000 }
+        ?: return null
+    return when (mode) {
+        SampleRateMatching.Disabled -> null
+        SampleRateMatching.Smart -> requested.takeIf { startingFromIdle }
+        SampleRateMatching.Strict -> requested
+    }
 }
 
 interface AudioOutputDevicePlaybackEngine : PlaybackEngine {
@@ -229,6 +249,7 @@ data class PlaybackVisualizerFrame(
 data class PlaybackRequest(
     val url: String,
     val mediaId: String? = null,
+    val samplingRateHz: Int? = null,
     val replayGainMode: ReplayGainMode = ReplayGainMode.Off,
     val replayGainPreampDb: Float = 0f,
     val replayGain: PlaybackReplayGain? = null,

@@ -17,6 +17,7 @@ import app.naviamp.domain.playback.DefaultNowPlayingHeartbeatIntervalMillis
 import app.naviamp.domain.playback.DefaultVisualizerFrameIntervalMillis
 import app.naviamp.domain.playback.EqualizerPlaybackEngine
 import app.naviamp.domain.playback.SampleRateConverterPlaybackEngine
+import app.naviamp.domain.playback.SampleRateMatchingPlaybackEngine
 import app.naviamp.domain.playback.PlaybackState
 import app.naviamp.domain.playback.QueueAwarePlaybackEngine
 import app.naviamp.domain.playback.VisualizerPlaybackEngine
@@ -128,6 +129,11 @@ fun AndroidAppRuntimeEffects(
         LaunchedEffect(playbackEngine, playbackSettings.sampleRateConverter) {
             (playbackEngine as? SampleRateConverterPlaybackEngine)
                 ?.setSampleRateConverter(playbackSettings.sampleRateConverter)
+        }
+
+        LaunchedEffect(playbackEngine, playbackSettings.sampleRateMatching) {
+            (playbackEngine as? SampleRateMatchingPlaybackEngine)
+                ?.setSampleRateMatching(playbackSettings.sampleRateMatching)
         }
 
         DisposableEffect(playbackEngine) {

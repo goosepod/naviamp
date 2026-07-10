@@ -199,6 +199,7 @@ suspend fun preparedNextPlaybackRequest(
         request = PlaybackRequest(
             url = streamUrl,
             mediaId = track.id.value,
+            samplingRateHz = track.audioInfo?.samplingRateHz,
             replayGainMode = if (supportsReplayGain) replayGainMode else ReplayGainMode.Off,
             replayGainPreampDb = if (supportsReplayGain) replayGainPreampDb else 0f,
             replayGain = replayGainForTrack(track, quality),

@@ -8,6 +8,7 @@ import app.naviamp.domain.playback.PlaybackRequest
 import app.naviamp.domain.playback.PlaybackState
 import app.naviamp.domain.playback.PlaybackStreamMetadata
 import app.naviamp.domain.playback.ReplayGainMode
+import app.naviamp.domain.playback.targetOutputSampleRate
 import kotlinx.coroutines.CoroutineScope
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -18,6 +19,17 @@ class PlaybackSettingsTest {
     fun sampleRateConvertersMapToBassSrcQualityLevels() {
         assertEquals(listOf(0, 1, 2, 3, 4), SampleRateConverter.entries.map { it.bassQuality })
         assertEquals(SampleRateConverter.Sinc16, PlaybackSettings().sampleRateConverter)
+        assertEquals(SampleRateMatching.Disabled, PlaybackSettings().sampleRateMatching)
+    }
+
+    @Test
+    fun sampleRateMatchingSelectsTargetOutputRate() {
+        assertEquals(null, targetOutputSampleRate(SampleRateMatching.Disabled, 48_000, startingFromIdle = true))
+        assertEquals(48_000, targetOutputSampleRate(SampleRateMatching.Smart, 48_000, startingFromIdle = true))
+        assertEquals(null, targetOutputSampleRate(SampleRateMatching.Smart, 48_000, startingFromIdle = false))
+        assertEquals(96_000, targetOutputSampleRate(SampleRateMatching.Strict, 96_000, startingFromIdle = false))
+        assertEquals(null, targetOutputSampleRate(SampleRateMatching.Strict, 7_999, startingFromIdle = true))
+        assertEquals(null, targetOutputSampleRate(SampleRateMatching.Strict, null, startingFromIdle = true))
     }
 
     @Test

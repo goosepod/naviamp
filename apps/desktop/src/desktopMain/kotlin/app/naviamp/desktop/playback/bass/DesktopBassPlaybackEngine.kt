@@ -15,7 +15,9 @@ import app.naviamp.domain.playback.PlaybackVisualizerFrame
 import app.naviamp.domain.playback.ReplayGainMode
 import app.naviamp.domain.playback.ReplayGainPlaybackEngine
 import app.naviamp.domain.playback.SampleRateConverterPlaybackEngine
+import app.naviamp.domain.playback.SampleRateMatchingPlaybackEngine
 import app.naviamp.domain.settings.SampleRateConverter
+import app.naviamp.domain.settings.SampleRateMatching
 import app.naviamp.domain.playback.VisualizerBandCount
 import app.naviamp.domain.playback.VisualizerPlaybackEngine
 import app.naviamp.domain.playback.BassPlaybackCleanupReset
@@ -62,6 +64,7 @@ import app.naviamp.domain.playback.playbackReplayGainAdjustment
 import app.naviamp.domain.playback.preparedBassPlaybackAdopted
 import app.naviamp.domain.playback.preparedBassPlaybackFailed
 import app.naviamp.domain.playback.preparedBassPlaybackSucceeded
+import app.naviamp.domain.playback.targetOutputSampleRate
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -77,11 +80,13 @@ class DesktopBassPlaybackEngine(
     EqualizerPlaybackEngine,
     ReplayGainPlaybackEngine,
     SampleRateConverterPlaybackEngine,
+    SampleRateMatchingPlaybackEngine,
     AudioOutputDevicePlaybackEngine,
     DesktopPlaybackEngineDiagnostics {
     private val backend: BassAudioBackend? = backendResult.getOrNull()
     private val loadError: Throwable? = backendResult.exceptionOrNull()
     private var sampleRateConverter = SampleRateConverter.Sinc16
+    private var sampleRateMatching = SampleRateMatching.Disabled
 
     override val name: String = "BASS"
     override val supportsPause: Boolean = true
@@ -97,6 +102,11 @@ class DesktopBassPlaybackEngine(
         sampleRateConverter = converter
         backend?.setSampleRateConverterQuality(converter.bassQuality)
     }
+
+    override fun setSampleRateMatching(mode: SampleRateMatching) {
+        sampleRateMatching = mode
+    }
+
     override val supportsAudioOutputDeviceSelection: Boolean = backend != null
     override val supportsVisualizer: Boolean = true
     override val supportsSoftwareVolume: Boolean = true
@@ -109,6 +119,7 @@ class DesktopBassPlaybackEngine(
     private var volumePercent: Int = 100
     private var initialized = false
     private var internetStreamsConfigured = false
+    private var activeOutputSampleRateHz: Int? = null
     private var onStateChanged: ((PlaybackState) -> Unit)? = null
     private var currentScope: CoroutineScope? = null
     private var currentRequest: PlaybackRequest? = null
@@ -144,7 +155,17 @@ class DesktopBassPlaybackEngine(
         currentOnProgressChanged = onProgressChanged
         currentOnMetadataChanged = onMetadataChanged
         lastProgress = PlaybackProgress.Unknown
-        if (adoptQueuedPreparedStream(scope, request, onStateChanged, onProgressChanged, onMetadataChanged)) {
+        val startingFromIdle = stream == 0
+        val targetSampleRateHz = targetOutputSampleRate(
+            mode = sampleRateMatching,
+            requestedSampleRateHz = request.samplingRateHz,
+            startingFromIdle = startingFromIdle,
+        )
+        val canAdoptPreparedStream = targetSampleRateHz == null || targetSampleRateHz == activeOutputSampleRateHz
+        if (
+            canAdoptPreparedStream &&
+            adoptQueuedPreparedStream(scope, request, onStateChanged, onProgressChanged, onMetadataChanged)
+        ) {
             return
         }
 
@@ -167,7 +188,7 @@ class DesktopBassPlaybackEngine(
             try {
                 while (isCurrentPlayback(currentPlaybackId)) {
                     try {
-                        ensureInitialized(bass)
+                        ensureInitialized(bass, targetSampleRateHz)
                         val creationPlan = planBassPlaybackCreation(
                             request = request,
                             supportsMixer = bass.supportsMixer,
@@ -344,6 +365,7 @@ class DesktopBassPlaybackEngine(
             .onSuccess {
                 applyOutputDevice(bass)
                 initialized = true
+                activeOutputSampleRateHz = null
             }
             .onFailure { lastError = it.message }
     }
@@ -475,14 +497,36 @@ class DesktopBassPlaybackEngine(
             "Last error" to (lastError ?: "None"),
         )
 
-    private fun ensureInitialized(bass: BassAudioBackend) {
-        bass.setSampleRateConverterQuality(sampleRateConverter.bassQuality).getOrThrow()
+    private fun ensureInitialized(
+        bass: BassAudioBackend,
+        targetSampleRateHz: Int? = null,
+    ) {
+        if (initialized && targetSampleRateHz != null && targetSampleRateHz != activeOutputSampleRateHz) {
+            runCatching { bass.free().getOrThrow() }
+                .onFailure { lastError = it.message }
+            initialized = false
+            internetStreamsConfigured = false
+            activeOutputSampleRateHz = null
+        }
         if (!initialized) {
-            bass.init(selectedOutputDeviceId).getOrThrow()
+            val initResult = if (targetSampleRateHz != null) {
+                bass.init(selectedOutputDeviceId, targetSampleRateHz)
+                    .onFailure { lastError = it.message }
+            } else {
+                bass.init(selectedOutputDeviceId)
+            }
+            if (initResult.isFailure && targetSampleRateHz != null) {
+                bass.init(selectedOutputDeviceId).getOrThrow()
+                activeOutputSampleRateHz = null
+            } else {
+                initResult.getOrThrow()
+                activeOutputSampleRateHz = targetSampleRateHz
+            }
             initialized = true
         } else {
             bass.setOutputDevice(selectedOutputDeviceId).getOrThrow()
         }
+        bass.setSampleRateConverterQuality(sampleRateConverter.bassQuality).getOrThrow()
         if (!internetStreamsConfigured) {
             bass.configureInternetStreams().getOrThrow()
             internetStreamsConfigured = true
@@ -695,6 +739,7 @@ class DesktopBassPlaybackEngine(
             .onFailure { lastError = it.message }
         initialized = false
         internetStreamsConfigured = false
+        activeOutputSampleRateHz = null
     }
 
     private fun freeAllStreams(bass: BassAudioBackend): BassPlaybackCleanupReset {

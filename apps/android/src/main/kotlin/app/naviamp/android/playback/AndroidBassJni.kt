@@ -29,6 +29,7 @@ object AndroidBassJni {
         get() = nativeLastErrorCode()
 
     fun init(): Boolean = nativeInit()
+    fun init(sampleRateHz: Int): Boolean = nativeInitAtSampleRate(sampleRateHz)
 
     fun free() = nativeFree()
 
@@ -95,6 +96,7 @@ object AndroidBassJni {
     private external fun nativeMixerVersion(): Int
     private external fun nativeLastErrorCode(): Int
     private external fun nativeInit(): Boolean
+    private external fun nativeInitAtSampleRate(sampleRateHz: Int): Boolean
     private external fun nativeFree()
     private external fun nativeSetVerifyNet(verify: Boolean): Boolean
     private external fun nativeConfigureInternetStreams(): Boolean

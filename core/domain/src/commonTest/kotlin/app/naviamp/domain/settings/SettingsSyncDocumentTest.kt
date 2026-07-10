@@ -54,6 +54,7 @@ class SettingsSyncDocumentTest {
                 playback = PlaybackSettings(
                     replayGainMode = ReplayGainMode.Album,
                     sampleRateConverter = SampleRateConverter.Sinc32,
+                    sampleRateMatching = SampleRateMatching.Strict,
                     crossfadeDurationSeconds = 6,
                     radioDjs = listOf(RadioDjPreset(id = "dj", name = " Road DJ ")),
                 ),
@@ -78,6 +79,7 @@ class SettingsSyncDocumentTest {
         assertEquals("ursasmar", profile.customHeaders.single().value)
         assertEquals(ReplayGainMode.Album, decoded.preferences.playback.replayGainMode)
         assertEquals(SampleRateConverter.Sinc32, decoded.preferences.playback.sampleRateConverter)
+        assertEquals(SampleRateMatching.Strict, decoded.preferences.playback.sampleRateMatching)
         assertEquals("Road DJ", decoded.preferences.playback.radioDjs.single().name)
         assertEquals("Waveform", decoded.preferences.visualizer.selectedVisualizer)
         assertTrue(decoded.preferences.interfaceSettings.startPlayingOnLaunch)

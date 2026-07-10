@@ -202,6 +202,15 @@
     <string name="settings_output_selected_suffix"> (Selected)</string>
     <string name="settings_sample_rate_converter_title">Sample Rate Converter</string>
     <string name="settings_sample_rate_converter_subtitle">Resampling quality when rates differ</string>
+    <string name="settings_sample_rate_matching_title">Sample Rate Matching</string>
+    <string name="settings_sample_rate_matching_subtitle">Match the output device rate to the music</string>
+    <string name="settings_sample_rate_matching_strict_crossfade_title">Disable Crossfade?</string>
+    <string name="settings_sample_rate_matching_strict_crossfade_message">Strict sample rate matching needs to restart the output device when track rates change, so Crossfade will be disabled.</string>
+    <string name="settings_sample_rate_matching_strict_crossfade_confirm">Disable Crossfade</string>
+    <string name="settings_crossfade_strict_rate_matching_title">Change Sample Rate Matching?</string>
+    <string name="settings_crossfade_strict_rate_matching_message">Crossfade cannot be used with Strict sample rate matching. Choose Disabled or Smart for Sample Rate Matching, or cancel to leave settings unchanged.</string>
+    <string name="settings_crossfade_strict_rate_matching_disabled">Use Disabled</string>
+    <string name="settings_crossfade_strict_rate_matching_smart">Use Smart</string>
 
     <string name="settings_quality_codec_title">Codec</string>
     <string name="settings_quality_bitrate_title">Bitrate</string>
