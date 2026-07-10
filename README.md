@@ -1,181 +1,181 @@
 # Naviamp
 
-Naviamp is a cross-platform music client for Navidrome, built around a compact, playback-first experience. The current app is written in Kotlin Multiplatform with Compose Multiplatform, uses shared domain/provider/UI modules, and targets desktop first while keeping Android and future mobile targets in view.
+Naviamp is a music player for people who run their own music library. It connects to Navidrome and OpenSubsonic-compatible servers, then gives that library a polished app experience on desktop and Android.
 
-The project is still being shaped privately, but the intent is to make it a capable, open-source-friendly music player for people who self-host their libraries and want a polished native client rather than a browser tab.
+The goal is simple: keep your music on your server, but make browsing, playback, discovery, lyrics, radio, playlists, and visualizers feel like they belong in a modern native player.
 
-## What It Does
+<p align="center">
+  <img src="readme-assets/screenshots/desktop-queue.png" alt="Naviamp desktop player" width="700">
+</p>
 
-Naviamp connects to a Navidrome server, browses the library, streams music, manages playback, and presents a focused now-playing experience. It is designed to feel closer to a small native music app than a general media dashboard.
+## Highlights
 
-Current work includes:
+- Browse albums, artists, tracks, playlists, genres, favorites, recently added music, recently played music, and random library picks.
+- Play from a focused Now Playing screen with queue controls, waveforms, ratings, favorites, lyrics, volume, repeat, shuffle, and track details close at hand.
+- Build smarter listening sessions with Sonic Analysis, Sonic Mix, Sonic Path, sonic-backed track radio, sonic autoplay, and related-track queues when your server supports it.
+- Create and edit smart playlists, then save generated sonic results and normal track selections back to your server.
+- Use internet radio alongside your library, including station browsing, playback, and now-playing metadata.
+- Customize the player with album-art-driven colors, waveform display, compact layouts, display toggles, and desktop visualizers.
+- Tune playback with ReplayGain, gapless playback, crossfade, sample-rate converter quality, and sample-rate matching.
+- Follow along with embedded or downloaded lyrics, including synced lyric highlighting where available.
+- Keep the same app model across macOS, Windows, Linux, and Android, with shared UI and playback behavior wherever the platforms allow it.
 
-- Navidrome login and saved connection settings.
-- Library home views for albums, playlists, tracks, artists, genres, recent/frequent/random content, and search.
-- Queue-based playback with shuffle, repeat, seek, previous/next, volume, and playback progress.
-- BASS-backed desktop playback with bundled native libraries for packaged builds.
-- ReplayGain, crossfade settings, and playback diagnostics.
-- Internet radio and track radio flows.
-- Album art loading, album-art-derived player colors, and cached cover art.
-- Waveform generation for the scrub bar.
-- Embedded and provider-backed lyrics work.
-- Stats and diagnostics for playback, cache, provider, and runtime state.
-- GPU-backed desktop visualizers with selectable shader effects.
-- A desktop settings store that remembers playback, navigation, window, search, session, cache, recent radio, and selected visualizer state.
+## Sonic Analysis and Discovery
+
+Naviamp can use server-side sonic similarity data to turn a large library into something easier to explore. When connected to a compatible Navidrome/OpenSubsonic server with sonic support enabled, Naviamp can build queues from how songs sound, not only from tags or album metadata.
+
+Sonic-powered features include:
+
+- Sonic Mix: start with multiple seed tracks and build a cohesive queue around them.
+- Sonic Path: choose a starting track and destination track, then generate a musical path between them.
+- Track Radio: use sonic similarity as the preferred radio engine when available.
+- Related tracks: show sonic-backed recommendations in the player queue area.
+- Sonic autoplay: keep playback going with similar tracks when the current queue ends.
+- Playlist saving: save generated sonic results as regular playlists for later listening.
+
+If sonic support is not available from the server, Naviamp hides or falls back from those features instead of showing broken controls.
+
+## Smart Playlists
+
+Naviamp includes smart playlist support for building reusable listening rules rather than only static track lists. Smart playlists are useful for views like recent additions, favorites, genres, deep cuts, or other library slices that should update over time.
+
+The player also keeps playlist workflows close to where listening happens:
+
+- Add tracks, albums, artists, search results, downloads, and generated results to playlists.
+- Create a new playlist from add-to-playlist dialogs.
+- Save sonic-generated queues as playlists.
+- Browse and play server playlists from the main library and Android Auto.
+- Preserve playlist actions across desktop and Android where supported.
+
+## Screenshots
+
+<table>
+  <tr>
+    <td><img src="readme-assets/screenshots/now-playing-compact.png" alt="Compact Now Playing screen" width="220"></td>
+    <td><img src="readme-assets/screenshots/home-discovery.png" alt="Home discovery screen" width="220"></td>
+    <td><img src="readme-assets/screenshots/playlists.png" alt="Playlist list" width="220"></td>
+  </tr>
+  <tr>
+    <td><img src="readme-assets/screenshots/smart-playlist-editor.png" alt="Smart playlist editor" width="220"></td>
+    <td><img src="readme-assets/screenshots/library-artists.png" alt="Artist library" width="220"></td>
+    <td><img src="readme-assets/screenshots/search-results.png" alt="Search results" width="220"></td>
+  </tr>
+  <tr>
+    <td><img src="readme-assets/screenshots/internet-radio.png" alt="Internet radio" width="220"></td>
+    <td><img src="readme-assets/screenshots/offline-mode.png" alt="Offline mode" width="220"></td>
+    <td><img src="readme-assets/screenshots/settings.png" alt="Settings" width="220"></td>
+  </tr>
+  <tr>
+    <td><img src="readme-assets/screenshots/now-playing-menu.png" alt="Now Playing menu" width="220"></td>
+    <td><img src="readme-assets/screenshots/artist-detail-popular-tracks.png" alt="Artist detail with popular tracks" width="220"></td>
+    <td><img src="readme-assets/screenshots/artist-detail-similar-artists.png" alt="Artist detail with similar artists" width="220"></td>
+  </tr>
+</table>
+
+## Playback
+
+Naviamp uses the BASS audio engine for playback. The player is designed around fast queue changes, clear transport controls, and a Now Playing screen that can stay compact without hiding the important details.
+
+Playback features include:
+
+- Back To, Up Next, and Related queue views.
+- Shuffle, repeat, seek, previous, next, and volume controls.
+- ReplayGain support.
+- Gapless playback and configurable crossfade.
+- Sample-rate converter quality settings.
+- Sample-rate matching for users who want the output device to follow the current track where the platform allows it.
+- Waveform-based seeking.
+- Configurable Now Playing metadata, including album year, bitrate info, volume bar, and long-text scrolling.
 
 ## Visualizers
 
-Naviamp has a growing GPU visualizer catalog on desktop. Visualizers use the current BASS FFT/waveform data, album-art-derived colors, and Skia runtime shaders. The app switches back to album art when playback is paused or stopped, then restores the visualizer when playback resumes if the user had it enabled.
+The desktop app includes GPU-backed visualizers that react to the playing track and use album-art-derived colors. Visualizers can be selected from the player and remembered between launches.
 
-Current visualizers include:
+Current visualizer styles include reactive bars, fluid gradients, audio sphere, audio tunnel, ribbon trail, spectral ridge, mountains, frequency terrain, particle field, particle galaxy, wave interference, vinyl groove, and album art.
 
-- Reactive bars
-- Fluid gradient
-- Audio sphere
-- Audio tunnel
-- Ribbon trail
-- Spectral ridge
-- Mountains
-- Frequency terrain
-- Particle field
-- Particle galaxy
-- Album art
-- Wave interference
-- Vinyl groove
+## Platforms
 
-Visualizer selection is available from the visualizer context menu and the now-playing hamburger menu. The last selected visualizer is persisted and restored the next time the desktop app opens.
+Naviamp currently targets:
 
-## Project Structure
+- macOS
+- Windows
+- Linux
+- Android
+
+The desktop app is built with Compose Multiplatform. The Android app shares the same core domain and UI model where practical, so features can move across platforms without being rebuilt from scratch.
+
+## Requirements
+
+To use Naviamp, you need:
+
+- A Navidrome server or another compatible OpenSubsonic server.
+- A user account on that server.
+- Sonic similarity support on the server if you want Sonic Mix, Sonic Path, and sonic-backed recommendations.
+
+Navidrome is the first-class server target for Naviamp.
+
+## Building from Source
+
+Naviamp uses Kotlin Multiplatform, Compose Multiplatform, Gradle, SQLDelight, and native BASS integration.
+
+Basic requirements:
+
+- JDK 17 or newer.
+- Android Studio or Android SDK if building Android.
+- Platform-specific packaging tools if building installers.
+
+Clone the project and use the checked-in Gradle wrapper:
+
+```shell
+git clone https://github.com/goosepod/naviamp.git
+cd naviamp
+./gradlew check
+```
+
+Common development commands are exposed through `make`:
+
+```shell
+make help
+make desktop-test
+make macos-test
+make android-debug
+```
+
+Useful build targets:
+
+- `make macos-test` builds, stages, and opens a local macOS app at `build/local-test/Naviamp.app`.
+- `make macos-standalone` creates a macOS release zip under `apps/desktop/build/compose/distributions`.
+- `make android-debug` builds the Android debug APK.
+- `make desktop-test` runs the desktop test task.
+- `make linux-test` builds and stages a Linux desktop app when run on Linux with the required native playback resources.
+
+Windows and Linux installer targets must run on their target operating system because `jpackage` packages for the current OS:
+
+```shell
+make windows-standalone
+make windows-installer
+make linux-standalone
+make linux-installer
+```
+
+Android release builds require a local signing configuration. Use `.env.android-signing.example` as the template for the required signing values.
+
+## Project Layout
 
 ```text
 apps/
   android/        Android app target
   desktop/        Compose Multiplatform desktop app
 core/
-  domain/         Shared models, playback contracts, queue/radio/settings logic
+  domain/         Shared models, playback, queues, settings, and provider contracts
   storage/        Shared SQLDelight storage
   ui/             Shared Compose UI and platform UI seams
 providers/
-  navidrome/      Navidrome provider implementation
-native/           Native support code
-docs/             Architecture notes, roadmaps, performance notes, setup docs
+  navidrome/      Navidrome and OpenSubsonic provider implementation
+native/           Native playback and visualizer support code
+readme-assets/    Images used by this README
 ```
 
-## Technology
+## License
 
-- Kotlin Multiplatform for shared app code.
-- Compose Multiplatform for desktop UI.
-- Android app target sharing the same core/UI modules where practical.
-- SQLDelight for local storage.
-- Navidrome/Subsonic-compatible provider work for the first media source.
-- BASS for production desktop playback, native format support, FFT data, and future gapless/crossfade work.
-- Skia runtime shaders for current desktop GPU visualizers.
-- Gradle as the primary build system, with memorable Makefile shortcuts for local and future CI/release use.
-
-## Local Development
-
-Use the checked-in Gradle wrapper:
-
-```shell
-./gradlew check
-```
-
-Common local commands are exposed through `make` so the important workflows are easier to remember than raw Gradle task names:
-
-```shell
-make help
-make desktop-test
-make macos-test
-make macos-standalone
-make linux-test
-make android-debug
-make clean
-make clean-generated
-```
-
-Useful outputs:
-
-- `make macos-test` builds, stages, and opens `build/local-test/Naviamp.app`.
-- `make macos-standalone` creates a release zip under `apps/desktop/build/compose/distributions`.
-- `make linux-test` builds and stages `build/local-test/Naviamp` when run on Linux with Linux native playback libraries present.
-- `make android-debug` builds the debug APK through the Android Gradle plugin.
-- `make desktop-test` runs the desktop test task.
-
-Windows packaging tasks are present, but must run on Windows because `jpackage` needs the target OS:
-
-```shell
-make windows-test
-make windows-standalone
-make windows-installer
-```
-
-`make windows-installer` creates Windows MSI/EXE installers through `jpackage`. It must run on Windows with WiX Toolset 3.x available on `PATH`.
-
-Linux packaging tasks are present, but must run on Linux because `jpackage` needs the target OS:
-
-```shell
-make linux-test
-make linux-standalone
-make linux-installer
-```
-
-`make linux-installer` creates Linux `.deb` and `.rpm` packages through `jpackage` once Linux native BASS resources are present.
-
-## Release Direction
-
-The desired release path is a Forgejo-based automation that builds all supported targets when changes merge into `main`. The long-term goal is for release jobs to gather merged PRs, tickets, and other change metadata, build a changelog, and produce all expected release artifacts.
-
-Planned artifacts include:
-
-- macOS app bundle and standalone zip.
-- Windows standalone zip plus MSI/EXE installers.
-- Android APK/AAB release outputs.
-- Linux packages or archives once Linux desktop support is formalized.
-- iOS artifacts if/when an iOS target becomes realistic.
-
-The Makefile is intended to stay as the stable human and CI entry point, even if Gradle task names or packaging internals change.
-
-## Roadmap
-
-Near-term work:
-
-- Keep improving the desktop release path without relying on ProGuard for the app image.
-- Add measured FPS/frame-time instrumentation for active visualizers.
-- Add per-visualizer settings and quality controls without cluttering the player UI.
-- Continue optimizing idle playback, visualizer rendering, lyrics, and now-playing recomposition.
-- Harden BASS playback behavior around gapless playback, crossfade, stream formats, and native diagnostics.
-- Improve release packaging for macOS and Windows.
-
-Medium-term work:
-
-- Linux desktop target.
-- Android polish, including mobile-specific playback behavior and Android Auto direction.
-- Offline downloads and cache management.
-- Provider expansion beyond Navidrome, while keeping Navidrome the first-class path.
-- Better changelog/release automation through Forgejo.
-- Installer support, signed artifacts, and repeatable release builds.
-
-Long-term possibilities:
-
-- iOS target.
-- More advanced visualizers, including raymarching/SDF scenes, volumetric effects, album-art depth/parallax, and quality presets.
-- More provider backends such as Plex, Jellyfin, or other Subsonic-compatible servers.
-- A fully automated multi-target release pipeline for zips, installers, APKs/AABs, and platform-specific packages.
-
-## Documentation
-
-Useful project docs:
-
-- [docs/setup.md](docs/setup.md)
-- [docs/architecture.md](docs/architecture.md)
-- [docs/roadmap.md](docs/roadmap.md)
-- [docs/desktop-playback.md](docs/desktop-playback.md)
-- [docs/linux-desktop-support.md](docs/linux-desktop-support.md)
-- [docs/desktop-performance-optimization.md](docs/desktop-performance-optimization.md)
-- [docs/gpu-visualizer-roadmap.md](docs/gpu-visualizer-roadmap.md)
-- [docs/learning-kotlin.md](docs/learning-kotlin.md)
-- [docs/decisions.md](docs/decisions.md)
-
-## Status
-
-Naviamp is under active development. The current priority is making the desktop app feel solid, fast, and releasable, while preserving a clean path to Android, Linux, and future iOS work.
+Naviamp is licensed under the GNU General Public License v3.0. See [LICENSE](LICENSE) for the full license text.

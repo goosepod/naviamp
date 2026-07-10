@@ -87,7 +87,7 @@
     <string name="settings_about_libraries_title">Libraries</string>
     <string name="settings_about_fonts_title">Fonts</string>
     <string name="settings_about_audio_title">Audio</string>
-    <string name="settings_about_license_title">Apache License 2.0</string>
+    <string name="settings_about_license_title">GNU General Public License v3.0</string>
     <string name="settings_about_latest_changes_title">Latest Changes</string>
     <string name="settings_about_empty_changelog">Changelog entries will appear here in a future release.</string>
     <string name="settings_about_thanks_title">Thanks</string>

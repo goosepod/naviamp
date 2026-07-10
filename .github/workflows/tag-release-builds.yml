@@ -190,14 +190,21 @@ jobs:
 
       - name: Prepare release notes
         run: |
-          notes="docs/release-notes/${GITHUB_REF_NAME}.md"
-          if [ -f "$notes" ]; then
-            cp "$notes" "$RUNNER_TEMP/release-notes.md"
+          if [ -f CHANGELOG.md ]; then
+            awk -v tag="${GITHUB_REF_NAME}" '
+              $0 == "## " tag { capture = 1; print; next }
+              capture && /^## / { exit }
+              capture { print }
+            ' CHANGELOG.md > "$RUNNER_TEMP/release-notes.md"
+          fi
+
+          if [ -s "$RUNNER_TEMP/release-notes.md" ]; then
+            :
           else
             {
               echo "Naviamp ${GITHUB_REF_NAME}"
               echo
-              echo "See the tagged commit for release details."
+              echo "See CHANGELOG.md and the tagged commit for release details."
             } > "$RUNNER_TEMP/release-notes.md"
           fi
 
