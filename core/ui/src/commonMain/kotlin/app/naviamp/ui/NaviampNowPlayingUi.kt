@@ -27,6 +27,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -101,6 +102,7 @@ data class NaviampNowPlayingItemUi(
     val favoriteActive: Boolean = false,
     val hasAlbum: Boolean = false,
     val hasArtist: Boolean = false,
+    val playNextPriority: Boolean = false,
 )
 
 data class NaviampNowPlayingActions(
@@ -2271,7 +2273,12 @@ private fun NowPlayingItemList(
         verticalArrangement = Arrangement.spacedBy(5.dp),
         modifier = modifier.fillMaxWidth(),
     ) {
-        items(items, key = { it.id }) { item ->
+        itemsIndexed(items, key = { _, item -> item.id }) { index, item ->
+            if (item.playNextPriority && index == 0) {
+                QueueSectionHeader("PLAY NEXT", colors)
+            } else if (!item.playNextPriority && index > 0 && items[index - 1].playNextPriority) {
+                QueueSectionHeader("QUEUE", colors)
+            }
             val selected = item.id == currentId
             var menuExpanded by remember { mutableStateOf(false) }
             var playlistDialogOpen by remember { mutableStateOf(false) }
@@ -2433,6 +2440,30 @@ private fun NowPlayingItemList(
                 )
             }
         }
+    }
+}
+
+@Composable
+private fun QueueSectionHeader(label: String, colors: NaviampColors) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 6.dp, vertical = 3.dp),
+    ) {
+        Text(
+            text = label,
+            color = colors.primaryText,
+            fontSize = 11.sp,
+            fontWeight = FontWeight.Bold,
+        )
+        Box(
+            modifier = Modifier
+                .weight(1f)
+                .height(1.dp)
+                .background(colors.primaryText.copy(alpha = 0.32f)),
+        )
     }
 }
 

@@ -23,6 +23,7 @@ fun PlaybackSessionSettings.restoredTrackSession(): RestoredPlaybackSession? {
         playbackQueue = PlaybackQueue(
             tracks = tracks,
             currentIndex = currentIndex,
+            playNextCount = playNextCount.coerceIn(0, tracks.size - currentIndex - 1),
         ),
         playbackProgress = PlaybackProgress(
             positionSeconds = positionSeconds,
@@ -41,6 +42,7 @@ fun playbackSessionFromQueue(
     PlaybackSessionSettings.fromTracks(
         tracks = queue.tracks,
         currentIndex = queue.currentIndex,
+        playNextCount = queue.playNextCount,
         positionSeconds = positionSeconds,
     )
 

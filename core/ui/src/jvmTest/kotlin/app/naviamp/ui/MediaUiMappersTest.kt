@@ -342,6 +342,29 @@ class MediaUiMappersTest {
     }
 
     @Test
+    fun nowPlayingSectionsMarkOnlyThePriorityBlockAsPlayNext() {
+        val tracks = listOf(
+            track("current"),
+            track("priority-1"),
+            track("priority-2"),
+            track("context"),
+        )
+
+        val sections = PlaybackQueue(
+            tracks = tracks,
+            currentIndex = 0,
+            playNextCount = 2,
+        ).toNowPlayingSectionsUi(
+            relatedTracks = emptyList(),
+            coverArtUrl = { null },
+            sonicSimilarityEnabled = false,
+            repeatMode = RepeatMode.Off,
+        )
+
+        assertEquals(listOf(true, true, false), sections.upNext.map { it.playNextPriority })
+    }
+
+    @Test
     fun nowPlayingSectionsLabelFallbackRelatedTracksByActualSource() {
         val tracks = listOf(track("one"), track("two"))
 

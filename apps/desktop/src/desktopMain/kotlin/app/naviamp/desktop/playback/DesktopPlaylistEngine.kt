@@ -123,15 +123,14 @@ class DesktopPlaylistEngine(
 
     fun restore(
         provider: MediaProvider,
-        tracks: List<Track>,
-        index: Int,
+        queue: PlaybackQueue,
         quality: StreamQuality,
         replayGainMode: ReplayGainMode,
         replayGainPreampDb: Float = 0f,
         callbacks: PlaylistCallbacks,
         initialProgress: PlaybackProgress = PlaybackProgress.Unknown,
     ) {
-        if (!queueController.restore(tracks, index)) return
+        if (!queueController.restore(queue)) return
         this.provider = provider
         this.streamQuality = quality
         this.replayGainMode = replayGainMode

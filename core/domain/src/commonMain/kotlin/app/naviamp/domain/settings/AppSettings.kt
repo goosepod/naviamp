@@ -580,6 +580,7 @@ data class SavedInternetRadioStation(
 data class PlaybackSessionSettings(
     val tracks: List<SavedTrack> = emptyList(),
     val currentIndex: Int = -1,
+    val playNextCount: Int = 0,
     val positionSeconds: Double? = null,
     val internetRadioStation: SavedInternetRadioStation? = null,
 ) {
@@ -593,12 +594,14 @@ data class PlaybackSessionSettings(
         fun fromTracks(
             tracks: List<Track>,
             currentIndex: Int,
+            playNextCount: Int = 0,
             positionSeconds: Double? = null,
         ): PlaybackSessionSettings? {
             if (tracks.isEmpty() || currentIndex !in tracks.indices) return null
             return PlaybackSessionSettings(
                 tracks = tracks.map { SavedTrack.fromTrack(it) },
                 currentIndex = currentIndex,
+                playNextCount = playNextCount.coerceIn(0, tracks.size - currentIndex - 1),
                 positionSeconds = positionSeconds?.takeIf { it > 0.0 },
             )
         }

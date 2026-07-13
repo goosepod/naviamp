@@ -149,14 +149,16 @@ class PlaybackSessionMappingTest {
 
         val trackSession = PlaybackSessionSettings.fromTracks(
             tracks = listOf(track("one"), track("two")),
-            currentIndex = 1,
+            currentIndex = 0,
+            playNextCount = 1,
             positionSeconds = 12.0,
         )
         val trackPlan = planPlaybackSessionRestore(trackSession)
         val restoredTrack = trackPlan as PlaybackSessionRestorePlan.TrackSession
-        assertEquals(TrackId("two"), restoredTrack.currentTrack.id)
+        assertEquals(TrackId("one"), restoredTrack.currentTrack.id)
+        assertEquals(1, restoredTrack.playbackQueue.playNextCount)
         assertEquals(12.0, restoredTrack.restoredStartPositionSeconds)
-        assertEquals("Restored Track two. Press play to resume.", restoredTrack.status)
+        assertEquals("Restored Track one. Press play to resume.", restoredTrack.status)
     }
 
     @Test

@@ -11,6 +11,7 @@ enum class RepeatMode {
 data class PlaybackQueue(
     val tracks: List<Track> = emptyList(),
     val currentIndex: Int = -1,
+    val playNextCount: Int = 0,
 ) {
     val current: Track?
         get() = tracks.getOrNull(currentIndex)
@@ -29,6 +30,15 @@ data class PlaybackQueue(
             emptyList()
         }
 
+    fun playNext(): List<Track> =
+        upNext().take(effectivePlayNextCount)
+
+    fun contextUpNext(): List<Track> =
+        upNext().drop(effectivePlayNextCount)
+
+    private val effectivePlayNextCount: Int
+        get() = playNextCount.coerceIn(0, upNext().size)
+
     fun hasNext(): Boolean =
         currentIndex in tracks.indices && currentIndex + 1 < tracks.size
 
@@ -37,12 +47,12 @@ data class PlaybackQueue(
 
     fun next(repeatMode: RepeatMode = RepeatMode.Off): PlaybackQueue {
         val targetIndex = nextIndex(repeatMode = repeatMode, repeatTrack = false) ?: return this
-        return copy(currentIndex = targetIndex)
+        return jumpTo(targetIndex)
     }
 
     fun previous(repeatMode: RepeatMode = RepeatMode.Off): PlaybackQueue {
         val targetIndex = previousIndex(repeatMode = repeatMode, repeatTrack = false) ?: return this
-        return copy(currentIndex = targetIndex)
+        return jumpTo(targetIndex)
     }
 
     fun adjacentIndex(
@@ -115,6 +125,7 @@ data class PlaybackQueue(
         return PlaybackQueue(
             tracks = (this.tracks + tracks).drop(prunedTrackCount),
             currentIndex = currentIndex - prunedTrackCount,
+            playNextCount = effectivePlayNextCount,
         )
     }
 
@@ -131,10 +142,12 @@ data class PlaybackQueue(
         val currentAndHistory = this.tracks
             .take(currentIndex + 1)
             .drop(prunedTrackCount)
-        val upcoming = this.tracks.drop(currentIndex + 1)
+        val priorityTracks = playNext()
+        val upcoming = contextUpNext()
         return PlaybackQueue(
-            tracks = currentAndHistory + tracks + upcoming,
+            tracks = currentAndHistory + priorityTracks + tracks + upcoming,
             currentIndex = currentIndex - prunedTrackCount,
+            playNextCount = priorityTracks.size + tracks.size,
         )
     }
 
@@ -153,21 +166,27 @@ data class PlaybackQueue(
         val history = tracks
             .take(currentQueueIndex)
             .drop(prunedTrackCount)
+        val priorityTracks = playNext()
         val dedupedUpcoming = upcomingTracks.filterNot { track ->
-            track.id == currentQueueTrack.id || history.any { it.id == track.id }
+            track.id == currentQueueTrack.id ||
+                history.any { it.id == track.id } ||
+                priorityTracks.any { it.id == track.id }
         }
 
         return PlaybackQueue(
-            tracks = history + currentQueueTrack + dedupedUpcoming,
+            tracks = history + currentQueueTrack + priorityTracks + dedupedUpcoming,
             currentIndex = history.size,
+            playNextCount = priorityTracks.size,
         )
     }
 
     fun shuffleUpcoming(): Pair<PlaybackQueue, List<Track>>? {
-        val originalUpcoming = upNext()
+        val priorityTracks = playNext()
+        val originalUpcoming = contextUpNext()
         if (originalUpcoming.size < 2 || currentIndex !in tracks.indices) return null
         return copy(
-            tracks = tracks.take(currentIndex + 1) + originalUpcoming.shuffled(),
+            tracks = tracks.take(currentIndex + 1) + priorityTracks + originalUpcoming.shuffled(),
+            playNextCount = priorityTracks.size,
         ) to originalUpcoming
     }
 
@@ -181,8 +200,10 @@ data class PlaybackQueue(
 
     fun restoreUpcoming(tracks: List<Track>): PlaybackQueue {
         if (currentIndex !in this.tracks.indices) return this
+        val priorityTracks = playNext()
         return copy(
-            tracks = this.tracks.take(currentIndex + 1) + tracks,
+            tracks = this.tracks.take(currentIndex + 1) + priorityTracks + tracks,
+            playNextCount = priorityTracks.size,
         )
     }
 
@@ -196,26 +217,44 @@ data class PlaybackQueue(
             index == currentIndex -> currentIndex.coerceAtMost(nextTracks.lastIndex)
             else -> currentIndex
         }
+        val priorityRange = (currentIndex + 1) until (currentIndex + 1 + effectivePlayNextCount)
+        val nextPlayNextCount = when {
+            index in priorityRange -> effectivePlayNextCount - 1
+            index == currentIndex && effectivePlayNextCount > 0 -> effectivePlayNextCount - 1
+            else -> effectivePlayNextCount
+        }
         return PlaybackQueue(
             tracks = nextTracks,
             currentIndex = nextCurrentIndex.takeIf { it in nextTracks.indices } ?: -1,
+            playNextCount = nextPlayNextCount.coerceAtLeast(0),
         )
     }
 
     fun moveToNext(index: Int): PlaybackQueue {
         if (index !in tracks.indices || currentIndex !in tracks.indices) return this
+        val priorityRange = (currentIndex + 1) until (currentIndex + 1 + effectivePlayNextCount)
         if (index == currentIndex || index == currentIndex + 1) return this
 
         val reordered = tracks.toMutableList()
         val selected = reordered.removeAt(index)
         val adjustedCurrentIndex = currentIndex - if (index < currentIndex) 1 else 0
-        reordered.add(adjustedCurrentIndex + 1, selected)
-        return PlaybackQueue(tracks = reordered, currentIndex = adjustedCurrentIndex)
+        val selectedWasPriority = index in priorityRange
+        val insertionIndex = if (selectedWasPriority) {
+            adjustedCurrentIndex + 1
+        } else {
+            adjustedCurrentIndex + 1 + effectivePlayNextCount
+        }
+        reordered.add(insertionIndex, selected)
+        return PlaybackQueue(
+            tracks = reordered,
+            currentIndex = adjustedCurrentIndex,
+            playNextCount = effectivePlayNextCount + if (selectedWasPriority) 0 else 1,
+        )
     }
 
     fun clearUpcoming(): PlaybackQueue {
         if (currentIndex !in tracks.indices) return PlaybackQueue()
-        return copy(tracks = tracks.take(currentIndex + 1))
+        return copy(tracks = tracks.take(currentIndex + 1), playNextCount = 0)
     }
 
     fun removePlayedHistory(): PlaybackQueue {
@@ -223,6 +262,7 @@ data class PlaybackQueue(
         return PlaybackQueue(
             tracks = tracks.drop(currentIndex),
             currentIndex = 0,
+            playNextCount = effectivePlayNextCount,
         )
     }
 
@@ -231,22 +271,22 @@ data class PlaybackQueue(
         moveSelectedToCurrent: Boolean = true,
     ): PlaybackQueue {
         if (index !in tracks.indices || index == currentIndex) return this
-        if (currentIndex !in tracks.indices) return copy(currentIndex = index)
-        if (!moveSelectedToCurrent) return copy(currentIndex = index)
+        if (currentIndex !in tracks.indices) return copy(currentIndex = index, playNextCount = 0)
+        if (!moveSelectedToCurrent) return copy(currentIndex = index, playNextCount = 0)
 
-        return if (index > currentIndex) {
-            val currentAndHistory = tracks.take(currentIndex + 1)
-            val upcoming = tracks.drop(currentIndex + 1)
-            val selected = tracks[index]
-            PlaybackQueue(
-                tracks = currentAndHistory + selected + upcoming.filterIndexed { upcomingIndex, _ ->
-                    currentIndex + 1 + upcomingIndex != index
-                },
-                currentIndex = currentAndHistory.size,
-            )
-        } else {
-            copy(currentIndex = index)
-        }
+        val priorityRange = (currentIndex + 1) until (currentIndex + 1 + effectivePlayNextCount)
+        val historyIndexes: Iterable<Int> = if (index > currentIndex) 0..currentIndex else 0 until index
+        val history = historyIndexes.map { tracks[it] }
+        val remainingPriority = priorityRange
+            .filter { it != index }
+            .map { tracks[it] }
+        val excludedIndexes = historyIndexes.toSet() + priorityRange.toSet() + index
+        val remainingContext = tracks.filterIndexed { trackIndex, _ -> trackIndex !in excludedIndexes }
+        return PlaybackQueue(
+            tracks = history + tracks[index] + remainingPriority + remainingContext,
+            currentIndex = history.size,
+            playNextCount = remainingPriority.size,
+        )
     }
 }
 

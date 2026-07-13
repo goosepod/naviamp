@@ -328,6 +328,7 @@ fun androidNowPlayingUi(
     visualizerVisible: Boolean,
     volumePercent: Int,
     knownTracks: List<Track>,
+    playNextCount: Int,
     repeatMode: RepeatMode,
     shuffledUpNextSnapshot: List<Track>?,
     waveformByTrackId: Map<String, AudioWaveform>,
@@ -355,6 +356,7 @@ fun androidNowPlayingUi(
         val sections = nowPlayingSectionsUi(
             tracks = knownTracks,
             currentTrack = track,
+            playNextCount = playNextCount,
             relatedTracks = relatedTracks,
             coverArtUrl = trackCoverArtUrl,
             sonicSimilarityEnabled = sonicSimilarityEnabled,

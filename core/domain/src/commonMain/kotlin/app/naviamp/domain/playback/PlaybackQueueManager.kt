@@ -23,6 +23,9 @@ class PlaybackQueueManager(
     ): PlaybackQueueMutationUpdate =
         lifecycle.restoreQueue(tracks, index)
 
+    fun restoreQueue(queue: PlaybackQueue): PlaybackQueueMutationUpdate =
+        lifecycle.restoreQueue(queue)
+
     fun clearQueue(): PlaybackQueueMutationUpdate =
         lifecycle.clearQueue()
 

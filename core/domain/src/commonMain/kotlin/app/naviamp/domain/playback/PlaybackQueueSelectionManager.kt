@@ -70,7 +70,7 @@ class PlaybackQueueSelectionManager(
         } else {
             PlaybackQueueFinishedCommand.PlayNext
         }
-        val nextQueue = queue.copy(currentIndex = nextIndex)
+        val nextQueue = queue.jumpTo(nextIndex)
             .let { updatedQueue ->
                 if (
                     removePlayedTracksFromQueue &&
@@ -113,7 +113,7 @@ class PlaybackQueueSelectionManager(
             wrapQueue = wrapQueue,
         ) ?: return PlaybackQueueSelectionUpdate(queue = queue, changed = false)
         return PlaybackQueueSelectionUpdate(
-            queue = queue.copy(currentIndex = nextIndex),
+            queue = queue.jumpTo(nextIndex),
             changed = nextIndex != queue.currentIndex,
         )
     }

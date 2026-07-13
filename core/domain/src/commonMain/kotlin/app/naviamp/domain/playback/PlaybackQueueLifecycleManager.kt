@@ -23,6 +23,22 @@ class PlaybackQueueLifecycleManager {
     ): PlaybackQueueMutationUpdate =
         startQueue(tracks, index)
 
+    fun restoreQueue(queue: PlaybackQueue): PlaybackQueueMutationUpdate {
+        if (queue.currentIndex !in queue.tracks.indices) {
+            return PlaybackQueueMutationUpdate(queue = PlaybackQueue(), changed = false)
+        }
+        return PlaybackQueueMutationUpdate(
+            queue = queue.copy(
+                playNextCount = queue.playNextCount.coerceIn(
+                    0,
+                    queue.tracks.size - queue.currentIndex - 1,
+                ),
+            ),
+            changed = true,
+            clearPreparedNext = true,
+        )
+    }
+
     fun clearQueue(): PlaybackQueueMutationUpdate =
         PlaybackQueueMutationUpdate(
             queue = PlaybackQueue(),

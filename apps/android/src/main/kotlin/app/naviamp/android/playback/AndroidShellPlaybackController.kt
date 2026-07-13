@@ -48,7 +48,13 @@ internal class AndroidShellPlaybackController(
         val queue = activeQueue()
         val currentIndex = queue.indexOfFirst { it.id == currentTrack.id }
         if (currentIndex < 0) return
-        playbackQueueController.replaceQueue(PlaybackQueue(tracks = queue, currentIndex = currentIndex))
+        playbackQueueController.replaceQueue(
+            PlaybackQueue(
+                tracks = queue,
+                currentIndex = currentIndex,
+                playNextCount = state.playbackQueue.playNextCount.coerceIn(0, queue.size - currentIndex - 1),
+            ),
+        )
         val update = PlaybackQueueManager().toggleUpcomingShuffle(
             playbackQueueController.queue,
             state.shuffledUpNextSnapshot,

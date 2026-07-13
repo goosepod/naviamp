@@ -98,6 +98,7 @@ fun rememberAndroidAppShellUiState(
             visualizerVisible = visualizerVisible,
             volumePercent = volumePercent,
             knownTracks = activeQueueForUi,
+            playNextCount = playbackQueue.playNextCount,
             repeatMode = repeatMode,
             shuffledUpNextSnapshot = shuffledUpNextSnapshot,
             waveformByTrackId = if (cacheSettings.waveformsEnabled) waveformByTrackId else emptyMap(),

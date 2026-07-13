@@ -336,6 +336,7 @@ class AndroidPlaylistEngine(
             tracks = activeQueue(),
             currentTrack = state.nowPlaying,
             repeatMode = state.repeatMode,
+            playNextCount = state.playbackQueue.playNextCount,
         )
     }
 }

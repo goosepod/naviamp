@@ -301,8 +301,7 @@ class DesktopConnectionLifecycleController(
                 setPlaybackProgress(restoredSession.session.playbackProgress)
                 playlistEngine.restore(
                     provider = provider,
-                    tracks = restoredSession.session.tracks,
-                    index = restoredSession.session.currentIndex,
+                    queue = restoredSession.session.playbackQueue,
                     quality = streamQuality(),
                     replayGainMode = replayGainMode(),
                     replayGainPreampDb = replayGainPreampDb(),

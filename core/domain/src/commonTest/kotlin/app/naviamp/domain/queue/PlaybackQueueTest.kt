@@ -8,6 +8,92 @@ import kotlin.test.assertNotNull
 
 class PlaybackQueueTest {
     @Test
+    fun repeatedPlayNextTracksPreserveInsertionOrder() {
+        val queue = PlaybackQueue(
+            tracks = listOf(track("current"), track("context-1"), track("context-2")),
+            currentIndex = 0,
+        )
+            .playNextTracks(listOf(track("priority-1")))
+            .playNextTracks(listOf(track("priority-2")))
+
+        assertEquals(
+            listOf(track("current"), track("priority-1"), track("priority-2"), track("context-1"), track("context-2")),
+            queue.tracks,
+        )
+        assertEquals(listOf(track("priority-1"), track("priority-2")), queue.playNext())
+        assertEquals(listOf(track("context-1"), track("context-2")), queue.contextUpNext())
+    }
+
+    @Test
+    fun advancingConsumesOnlyTheStartedPriorityTrack() {
+        val queue = PlaybackQueue(
+            tracks = listOf(track("current"), track("priority-1"), track("priority-2"), track("context")),
+            currentIndex = 0,
+            playNextCount = 2,
+        ).next()
+
+        assertEquals(track("priority-1"), queue.current)
+        assertEquals(listOf(track("priority-2")), queue.playNext())
+        assertEquals(listOf(track("context")), queue.contextUpNext())
+    }
+
+    @Test
+    fun shuffleLeavesPriorityTracksInOrder() {
+        val priority = listOf(track("priority-1"), track("priority-2"))
+        val context = listOf(track("context-1"), track("context-2"), track("context-3"))
+        val result = PlaybackQueue(
+            tracks = listOf(track("current")) + priority + context,
+            currentIndex = 0,
+            playNextCount = priority.size,
+        ).shuffleUpcoming()
+
+        assertNotNull(result)
+        assertEquals(priority, result.first.playNext())
+        assertEquals(context.toSet(), result.first.contextUpNext().toSet())
+        assertEquals(context, result.second)
+    }
+
+    @Test
+    fun selectingAContextTrackMovesRemainingPriorityTracksAfterIt() {
+        val queue = PlaybackQueue(
+            tracks = listOf(track("current"), track("priority-1"), track("priority-2"), track("context-1"), track("context-2")),
+            currentIndex = 0,
+            playNextCount = 2,
+        ).jumpTo(3)
+
+        assertEquals(track("context-1"), queue.current)
+        assertEquals(listOf(track("priority-1"), track("priority-2")), queue.playNext())
+        assertEquals(listOf(track("context-2")), queue.contextUpNext())
+    }
+
+    @Test
+    fun removingPriorityTrackShrinksPriorityBlock() {
+        val queue = PlaybackQueue(
+            tracks = listOf(track("current"), track("priority-1"), track("priority-2"), track("context")),
+            currentIndex = 0,
+            playNextCount = 2,
+        ).removeAt(1)
+
+        assertEquals(listOf(track("priority-2")), queue.playNext())
+        assertEquals(listOf(track("context")), queue.contextUpNext())
+    }
+
+    @Test
+    fun movingExistingPriorityTrackNextPromotesItToTheFront() {
+        val queue = PlaybackQueue(
+            tracks = listOf(track("current"), track("priority-1"), track("priority-2"), track("priority-3"), track("context")),
+            currentIndex = 0,
+            playNextCount = 3,
+        ).moveToNext(2)
+
+        assertEquals(
+            listOf(track("priority-2"), track("priority-1"), track("priority-3")),
+            queue.playNext(),
+        )
+        assertEquals(listOf(track("context")), queue.contextUpNext())
+    }
+
+    @Test
     fun backToListsRecentTracksFirst() {
         val queue = PlaybackQueue(
             tracks = listOf(track("1"), track("2"), track("3")),
@@ -190,6 +276,7 @@ class PlaybackQueueTest {
 
         assertEquals(listOf(track("1"), track("4"), track("2"), track("3")), queue.tracks)
         assertEquals(0, queue.currentIndex)
+        assertEquals(1, queue.playNextCount)
     }
 
     @Test

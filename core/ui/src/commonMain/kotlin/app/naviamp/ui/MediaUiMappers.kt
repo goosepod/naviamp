@@ -264,6 +264,7 @@ data class NowPlayingSectionsUi(
 fun nowPlayingSectionsUi(
     tracks: List<Track>,
     currentTrack: Track?,
+    playNextCount: Int = 0,
     relatedTracks: List<Track>,
     coverArtUrl: (Track) -> String?,
     sonicSimilarityEnabled: Boolean,
@@ -276,6 +277,7 @@ fun nowPlayingSectionsUi(
     return nowPlayingSectionsUi(
         tracks = tracks,
         currentIndex = currentIndex,
+        playNextCount = playNextCount,
         relatedTracks = relatedTracks,
         coverArtUrl = coverArtUrl,
         sonicSimilarityEnabled = sonicSimilarityEnabled,
@@ -298,6 +300,7 @@ fun PlaybackQueue.toNowPlayingSectionsUi(
     nowPlayingSectionsUi(
         tracks = tracks,
         currentIndex = currentIndex,
+        playNextCount = playNextCount,
         relatedTracks = relatedTracks,
         coverArtUrl = coverArtUrl,
         sonicSimilarityEnabled = sonicSimilarityEnabled,
@@ -310,6 +313,7 @@ fun PlaybackQueue.toNowPlayingSectionsUi(
 private fun nowPlayingSectionsUi(
     tracks: List<Track>,
     currentIndex: Int,
+    playNextCount: Int,
     relatedTracks: List<Track>,
     coverArtUrl: (Track) -> String?,
     sonicSimilarityEnabled: Boolean,
@@ -346,7 +350,9 @@ private fun nowPlayingSectionsUi(
             coverArtUrl = coverArtUrl,
             id = { index, track -> queueItemId(index, firstUpNextQueueIndex + index, track) },
             meta = { "" },
-        ),
+        ).mapIndexed { index, item ->
+            item.copy(playNextPriority = index < playNextCount.coerceIn(0, upNext.size))
+        },
         related = relatedTracks.toNowPlayingItemUis(
             coverArtUrl = coverArtUrl,
             id = relatedItemId,

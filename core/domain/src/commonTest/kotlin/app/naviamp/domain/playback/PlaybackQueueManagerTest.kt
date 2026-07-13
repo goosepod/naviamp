@@ -119,7 +119,7 @@ class PlaybackQueueManagerTest {
 
         assertEquals(
             PlaybackQueueUpdate(
-                queue = PlaybackQueue(tracks = listOf(one, three, two), currentIndex = 0),
+                queue = PlaybackQueue(tracks = listOf(one, three, two), currentIndex = 0, playNextCount = 1),
                 tracksChanged = true,
                 status = "Added 1 track to play next.",
             ),
