@@ -196,13 +196,32 @@ suspend fun preparedNextPlaybackRequest(
     return PreparedNextPlaybackRequest(
         nextQueueIndex = plan.nextQueueIndex,
         track = track,
-        request = PlaybackRequest(
+        request = playbackRequestForTrack(
+            track = track,
             url = streamUrl,
-            mediaId = track.id.value,
-            samplingRateHz = track.audioInfo?.samplingRateHz,
-            replayGainMode = if (supportsReplayGain) replayGainMode else ReplayGainMode.Off,
-            replayGainPreampDb = if (supportsReplayGain) replayGainPreampDb else 0f,
+            replayGainMode = replayGainMode,
+            replayGainPreampDb = replayGainPreampDb,
+            supportsReplayGain = supportsReplayGain,
             replayGain = replayGainForTrack(track, quality),
         ),
     )
 }
+
+fun playbackRequestForTrack(
+    track: Track,
+    url: String,
+    replayGainMode: ReplayGainMode,
+    replayGainPreampDb: Float = 0f,
+    supportsReplayGain: Boolean,
+    replayGain: PlaybackReplayGain?,
+    startPositionSeconds: Double? = null,
+): PlaybackRequest =
+    PlaybackRequest(
+        url = url,
+        mediaId = track.id.value,
+        samplingRateHz = track.audioInfo?.samplingRateHz,
+        replayGainMode = if (supportsReplayGain) replayGainMode else ReplayGainMode.Off,
+        replayGainPreampDb = if (supportsReplayGain) replayGainPreampDb else 0f,
+        replayGain = replayGain,
+        startPositionSeconds = startPositionSeconds,
+    )

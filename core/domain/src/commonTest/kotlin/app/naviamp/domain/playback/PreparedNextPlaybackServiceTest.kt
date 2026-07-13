@@ -3,11 +3,13 @@ package app.naviamp.domain.playback
 import app.naviamp.domain.Album
 import app.naviamp.domain.AlbumDetails
 import app.naviamp.domain.AlbumId
+import app.naviamp.domain.AudioInfo
 import app.naviamp.domain.Artist
 import app.naviamp.domain.ArtistDetails
 import app.naviamp.domain.ArtistId
 import app.naviamp.domain.Lyrics
 import app.naviamp.domain.ProviderId
+import app.naviamp.domain.ReplayGain
 import app.naviamp.domain.StreamQuality
 import app.naviamp.domain.StreamRequest
 import app.naviamp.domain.Track
@@ -23,6 +25,41 @@ import kotlin.test.assertNull
 import kotlinx.coroutines.test.runTest
 
 class PreparedNextPlaybackServiceTest {
+    @Test
+    fun sharedTrackRequestIncludesPreparedPlaybackIdentityMetadata() {
+        val replayGain = ReplayGain(
+            trackGainDb = -6.0,
+            albumGainDb = -4.0,
+            trackPeak = 0.9,
+            albumPeak = 0.95,
+        )
+        val track = track("identity").copy(
+            audioInfo = AudioInfo(
+                codec = "FLAC",
+                bitrateKbps = 900,
+                contentType = "audio/flac",
+                samplingRateHz = 96_000,
+            ),
+            replayGain = replayGain,
+        )
+        val playbackReplayGain = PlaybackReplayGain(replayGain, ReplayGainSource.Provider)
+
+        val request = playbackRequestForTrack(
+            track = track,
+            url = "file://cache/identity.flac",
+            replayGainMode = ReplayGainMode.Track,
+            replayGainPreampDb = 1.5f,
+            supportsReplayGain = true,
+            replayGain = playbackReplayGain,
+        )
+
+        assertEquals("identity", request.mediaId)
+        assertEquals(96_000, request.samplingRateHz)
+        assertEquals(ReplayGainMode.Track, request.replayGainMode)
+        assertEquals(1.5f, request.replayGainPreampDb)
+        assertEquals(playbackReplayGain, request.replayGain)
+    }
+
     @Test
     fun buildsPreparedNextRequestFromLocalAudioPlan() = runTest {
         val nextTrack = track("next")

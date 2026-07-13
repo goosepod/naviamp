@@ -24,6 +24,7 @@ import android.support.v4.media.MediaMetadataCompat
 import android.support.v4.media.session.MediaSessionCompat
 import android.support.v4.media.session.PlaybackStateCompat
 import androidx.media.MediaBrowserServiceCompat
+import androidx.media.MediaSessionManager
 import androidx.media.utils.MediaConstants
 import app.naviamp.android.AndroidStorageDependencies
 import app.naviamp.android.AndroidSettingsStore
@@ -82,6 +83,7 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
     private var browserSessionTokenSet = false
     private var serviceStorageInstance: AndroidStorageDependencies? = null
     private var loadingNotificationCoverArtUrl: String? = null
+    private var serviceSelectionJobs: AndroidAutoSelectionJobs? = null
     private val notificationArtHttpClient = KtorSharedHttpClient()
     private val serviceStorage: AndroidStorageDependencies
         get() = serviceStorageInstance ?: AndroidStorageDependencies(applicationContext).also { serviceStorageInstance = it }
@@ -168,6 +170,8 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
     }
 
     override fun onDestroy() {
+        serviceSelectionJobs?.cancel()
+        serviceSelectionJobs = null
         pausePlaybackForRouteDisconnect("service destroyed")
         runCatching { unregisterReceiver(noisyAudioReceiver) }
         mediaSession?.setCallback(null)
@@ -560,7 +564,19 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
         servicePlaybackRuntimeController.playSavedSession(existingSession)
     }
 
+    private fun cancelPendingServiceSelection() {
+        serviceSelectionJobs?.cancel()
+    }
+
+    private fun launchServiceSelection(block: suspend () -> Unit) {
+        val jobs = serviceSelectionJobs ?: AndroidAutoSelectionJobs(
+            AndroidPlaybackRuntime.get(applicationContext).scope,
+        ).also { serviceSelectionJobs = it }
+        jobs.launch(block)
+    }
+
     private fun handleServicePlayMediaId(mediaId: String): Boolean {
+        cancelPendingServiceSelection()
         val storage = serviceStorage
         val source = storage.latestNavidromeSource() ?: return false
         val sourceId = source.id
@@ -582,7 +598,7 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
                     label = "Library Radio",
                     kind = RecentRadioKind.Library,
                 )
-                AndroidPlaybackRuntime.get(applicationContext).scope.launch {
+                launchServiceSelection {
                     val radioService = RadioService(
                         provider = provider,
                         tuning = AndroidSettingsStore(applicationContext).loadPlaybackSettings().radioTuning,
@@ -604,7 +620,7 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
                 val djId = Uri.decode(mediaId.removePrefix(AndroidAutoPlaybackControls.MediaIdRadioDjPrefix))
                 val dj = storage.radioDjPresets().firstOrNull { it.id == djId } ?: return false
                 val provider = NavidromeProvider(source.toNavidromeConnection())
-                AndroidPlaybackRuntime.get(applicationContext).scope.launch {
+                launchServiceSelection {
                     val radioService = RadioService(
                         provider = provider,
                         tuning = dj.tuning,
@@ -644,7 +660,7 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
             mediaId.startsWith(AndroidAutoPlaybackControls.MediaIdPlaylistPlayPrefix) -> {
                 val playlistId = Uri.decode(mediaId.removePrefix(AndroidAutoPlaybackControls.MediaIdPlaylistPlayPrefix))
                 val provider = NavidromeProvider(source.toNavidromeConnection())
-                AndroidPlaybackRuntime.get(applicationContext).scope.launch {
+                launchServiceSelection {
                     runCatching {
                         withContext(Dispatchers.IO) {
                             loadServicePlaylistTracks(storage, provider, playlistId)
@@ -664,7 +680,7 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
             mediaId.startsWith(AndroidAutoPlaybackControls.MediaIdPlaylistShufflePrefix) -> {
                 val playlistId = Uri.decode(mediaId.removePrefix(AndroidAutoPlaybackControls.MediaIdPlaylistShufflePrefix))
                 val provider = NavidromeProvider(source.toNavidromeConnection())
-                AndroidPlaybackRuntime.get(applicationContext).scope.launch {
+                launchServiceSelection {
                     runCatching {
                         withContext(Dispatchers.IO) {
                             loadServicePlaylistTracks(storage, provider, playlistId)
@@ -687,7 +703,7 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
                 val trackId = parts.getOrNull(1).orEmpty()
                 if (playlistId.isBlank() || trackId.isBlank()) return false
                 val provider = NavidromeProvider(source.toNavidromeConnection())
-                AndroidPlaybackRuntime.get(applicationContext).scope.launch {
+                launchServiceSelection {
                     runCatching {
                         withContext(Dispatchers.IO) {
                             loadServicePlaylistTracks(storage, provider, playlistId)
@@ -751,7 +767,7 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
                 val trackId = parts.getOrNull(2).orEmpty()
                 if (trackId.isBlank()) return false
                 val provider = NavidromeProvider(source.toNavidromeConnection())
-                AndroidPlaybackRuntime.get(applicationContext).scope.launch {
+                launchServiceSelection {
                     runCatching {
                         val tracks = loadServiceArtistTracks(storage, storage, sourceId, provider, artistId, artistName)
                         val track = tracks.firstOrNull { it.id.value == trackId }
@@ -783,7 +799,7 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
                 val trackId = parts.getOrNull(1).orEmpty()
                 if (albumId.isBlank() || trackId.isBlank()) return false
                 val provider = NavidromeProvider(source.toNavidromeConnection())
-                AndroidPlaybackRuntime.get(applicationContext).scope.launch {
+                launchServiceSelection {
                     runCatching {
                         val tracks = loadServiceAlbumTracks(
                             libraryIndexRepository = storage,
@@ -825,7 +841,7 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
                 val artistName = parts.getOrNull(1)
                 if (artistId.isBlank() && artistName.isNullOrBlank()) return false
                 val provider = NavidromeProvider(source.toNavidromeConnection())
-                AndroidPlaybackRuntime.get(applicationContext).scope.launch {
+                launchServiceSelection {
                     runCatching {
                         loadServiceArtistTracks(storage, storage, sourceId, provider, artistId, artistName)
                     }.onSuccess { tracks ->
@@ -844,7 +860,7 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
                 val artistName = parts.getOrNull(1)
                 if (artistId.isBlank() && artistName.isNullOrBlank()) return false
                 val provider = NavidromeProvider(source.toNavidromeConnection())
-                AndroidPlaybackRuntime.get(applicationContext).scope.launch {
+                launchServiceSelection {
                     runCatching {
                         loadServiceArtistTracks(storage, storage, sourceId, provider, artistId, artistName)
                     }.onSuccess { tracks ->
@@ -864,7 +880,7 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
                 val albumArtist = parts.getOrNull(2)
                 if (albumId.isBlank()) return false
                 val provider = NavidromeProvider(source.toNavidromeConnection())
-                AndroidPlaybackRuntime.get(applicationContext).scope.launch {
+                launchServiceSelection {
                     runCatching {
                         loadServiceAlbumTracks(storage, storage, sourceId, provider, albumId, albumTitle, albumArtist)
                     }.onSuccess { tracks ->
@@ -884,7 +900,7 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
                 val albumArtist = parts.getOrNull(2)
                 if (albumId.isBlank()) return false
                 val provider = NavidromeProvider(source.toNavidromeConnection())
-                AndroidPlaybackRuntime.get(applicationContext).scope.launch {
+                launchServiceSelection {
                     runCatching {
                         loadServiceAlbumTracks(storage, storage, sourceId, provider, albumId, albumTitle, albumArtist)
                     }.onSuccess { tracks ->
@@ -913,6 +929,7 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
     }
 
     private fun handleServicePlaySearch(query: String): Boolean {
+        cancelPendingServiceSelection()
         val trimmedQuery = query.trim()
         if (trimmedQuery.isBlank()) {
             Log.w("NaviampAutoCommand", "Ignoring blank Auto voice search")
@@ -1010,7 +1027,7 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
             label = "Library Radio",
             kind = RecentRadioKind.Library,
         )
-        AndroidPlaybackRuntime.get(applicationContext).scope.launch {
+        launchServiceSelection {
             val radioService = RadioService(
                 provider = provider,
                 tuning = AndroidSettingsStore(applicationContext).loadPlaybackSettings().radioTuning,
@@ -1050,7 +1067,7 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
             return false
         }
         val provider = NavidromeProvider(source.toNavidromeConnection())
-        AndroidPlaybackRuntime.get(applicationContext).scope.launch {
+        launchServiceSelection {
             runCatching {
                 withContext(Dispatchers.IO) {
                     val responseService = providerResponseService(storage)
@@ -1094,7 +1111,7 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
             return false
         }
         val provider = NavidromeProvider(source.toNavidromeConnection())
-        AndroidPlaybackRuntime.get(applicationContext).scope.launch {
+        launchServiceSelection {
             runCatching {
                 withContext(Dispatchers.IO) {
                     providerResponseService(storage)
@@ -1137,7 +1154,7 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
             kind = RecentRadioKind.Artist,
             artist = app.naviamp.domain.settings.SavedArtist.fromArtist(artist),
         )
-        AndroidPlaybackRuntime.get(applicationContext).scope.launch {
+        launchServiceSelection {
             val radioService = RadioService(
                 provider = provider,
                 tuning = AndroidSettingsStore(applicationContext).loadPlaybackSettings().radioTuning,
@@ -1170,7 +1187,7 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
             kind = RecentRadioKind.Genre,
             genre = query,
         )
-        AndroidPlaybackRuntime.get(applicationContext).scope.launch {
+        launchServiceSelection {
             runCatching { withContext(Dispatchers.IO) { provider.randomSongs(genre = query) } }
                 .onSuccess { tracks ->
                     if (tracks.isEmpty()) {
@@ -1363,7 +1380,7 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
             track = SavedTrack.fromTrack(seedTrack),
         )
         rememberRecentRadioStream(recent.withRadioCoverArtIds(listOf(seedTrack)))
-        AndroidPlaybackRuntime.get(applicationContext).scope.launch {
+        launchServiceSelection {
             val playbackSettings = AndroidSettingsStore(applicationContext).loadPlaybackSettings()
             val preferSonicSimilarity = playbackSettings.sonicSimilarityEnabled
             runCatching {
@@ -1412,7 +1429,7 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
     ) {
         val source = mediaSourceRepository.latestMediaSource() ?: return
         val provider = NavidromeProvider(source.toNavidromeConnection())
-        AndroidPlaybackRuntime.get(applicationContext).scope.launch {
+        launchServiceSelection {
             val radioService = RadioService(
                 provider = provider,
                 tuning = AndroidSettingsStore(applicationContext).loadPlaybackSettings().radioTuning,
@@ -1476,7 +1493,7 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
         )
         stationArtUrl?.let { loadCoverArtAsync(it, currentMetadata) }
         updateMediaSession(currentMetadata, currentLargeIcon)
-        runtime.scope.launch {
+        launchServiceSelection {
             runCatching { resolveInternetRadioStreamUrl(station.streamUrl.trim()) }
                 .onSuccess { streamUrl ->
                     runtime.playbackEngine.updateNotificationMetadata(
@@ -1607,7 +1624,7 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
                     }
 
                     override fun onRewind() {
-                        seekServiceOwnedPlayback(
+                        handleAutoSeek(
                             ((AndroidPlaybackNotificationControls.positionMillis ?: 0L) - MediaSessionSeekStepMillis)
                                 .coerceAtLeast(0L),
                         )
@@ -1617,7 +1634,7 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
                         val currentPosition = AndroidPlaybackNotificationControls.positionMillis ?: 0L
                         val duration = AndroidPlaybackNotificationControls.durationMillis
                         val nextPosition = currentPosition + MediaSessionSeekStepMillis
-                        seekServiceOwnedPlayback(
+                        handleAutoSeek(
                             if (duration != null && duration > 0L) {
                                 nextPosition.coerceAtMost(duration)
                             } else {
@@ -1657,7 +1674,18 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
         clientPackageName: String,
         clientUid: Int,
         rootHints: Bundle?,
-    ): BrowserRoot {
+    ): BrowserRoot? {
+        val remoteUser = MediaSessionManager.RemoteUserInfo(
+            clientPackageName,
+            -1,
+            clientUid,
+        )
+        val trusted = clientUid == applicationInfo.uid ||
+            MediaSessionManager.getSessionManager(applicationContext).isTrustedForMediaControl(remoteUser)
+        if (!trusted) {
+            Log.w("NaviampAutoCommand", "Rejecting untrusted media browser client=$clientPackageName uid=$clientUid")
+            return null
+        }
         hydrateSavedPlaybackSession()
         return BrowserRoot(
             AndroidAutoPlaybackControls.MediaIdRoot,
@@ -1870,26 +1898,13 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
                         .setDescription(track.albumTitle)
                         .apply {
                             val artUrl = serviceStorage.savedCoverArtUrl(track)
-                            val iconBitmap = cachedAutoQueueIconBitmap(artUrl)
-                            when {
-                                iconBitmap != null -> setIconBitmap(iconBitmap)
-                                artUrl != null -> setIconUri(Uri.parse(artUrl))
-                            }
+                            artUrl?.let { setIconUri(Uri.parse(it)) }
                         }
                         .build(),
                     index.toLong(),
                 )
             },
         )
-    }
-
-    private fun cachedAutoQueueIconBitmap(artUrl: String?): Bitmap? {
-        if (artUrl.isNullOrBlank()) return null
-        return runCatching {
-            runBlocking {
-                serviceStorage.cachedImageBytes(artUrl)
-            }?.let { bytes -> decodeSampledBitmap(bytes, AutoQueueIconSidePx) }
-        }.getOrNull()
     }
 
     private fun updateMediaSessionPlaybackState() {
@@ -2167,7 +2182,6 @@ private fun sampleSizeFor(width: Int, height: Int, maxSidePx: Int): Int {
 }
 
 private const val NotificationCoverArtSidePx = 512
-private const val AutoQueueIconSidePx = 144
 
 private fun String.decodedMediaId(): String =
     Uri.decode(this)

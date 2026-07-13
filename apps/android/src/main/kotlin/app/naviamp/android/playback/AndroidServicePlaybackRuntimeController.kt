@@ -3,6 +3,7 @@ package app.naviamp.android.playback
 import android.content.Context
 import android.util.Log
 import app.naviamp.android.AndroidPlaybackAudioAssets
+import app.naviamp.android.AndroidGaplessPrepareWindowSeconds
 import app.naviamp.android.AndroidPlaybackSessionSaveIntervalMillis
 import app.naviamp.android.AndroidSettingsStore
 import app.naviamp.android.AndroidStorageDependencies
@@ -15,25 +16,34 @@ import app.naviamp.domain.cache.MediaSourceRepository
 import app.naviamp.domain.cache.PlaybackSessionRepository
 import app.naviamp.domain.isInternetRadioTrack
 import app.naviamp.domain.playback.PlaybackProgress
+import app.naviamp.domain.playback.PlaybackReplayGain
 import app.naviamp.domain.playback.PlaybackQueueController
 import app.naviamp.domain.playback.PlaybackQueueFinishedCommand
 import app.naviamp.domain.playback.PlaybackQueueManager
-import app.naviamp.domain.playback.PlaybackRequest
 import app.naviamp.domain.playback.PlaybackState
+import app.naviamp.domain.playback.PreparedNextPlaybackCoordinator
+import app.naviamp.domain.playback.PreparedNextPlaybackSettings
+import app.naviamp.domain.playback.PreparedNextPlaybackWork
+import app.naviamp.domain.playback.QueueAwarePlaybackEngine
+import app.naviamp.domain.playback.ReplayGainSource
 import app.naviamp.domain.playback.canReportPlaybackTrack
 import app.naviamp.domain.playback.hasPendingSeekReachedTarget
 import app.naviamp.domain.playback.playbackStreamUrl
+import app.naviamp.domain.playback.playbackRequestForTrack
 import app.naviamp.domain.playback.planAudioPrefetchWork
 import app.naviamp.domain.playback.resolvePlaybackAudioSource
 import app.naviamp.domain.playback.runAudioPrefetch
+import app.naviamp.domain.playback.preparedNextPlaybackWork
 import app.naviamp.domain.playback.shouldSubmitPlayReport
 import app.naviamp.domain.playback.shouldIgnoreProgressForPendingSeek
 import app.naviamp.domain.queue.PlaybackQueue
 import app.naviamp.domain.queue.RepeatMode
 import app.naviamp.domain.settings.PlaybackSessionSettings
+import app.naviamp.domain.settings.PlaybackSettings
 import app.naviamp.domain.settings.adjacentTrackSession
 import app.naviamp.domain.settings.PlaybackSessionRestorePlan
 import app.naviamp.domain.settings.planPlaybackSessionRestore
+import app.naviamp.domain.settings.effectiveForEngine
 import app.naviamp.domain.settings.withPlaybackPosition
 import app.naviamp.provider.navidrome.NavidromeProvider
 import app.naviamp.provider.navidrome.toNavidromeConnection
@@ -65,6 +75,8 @@ internal class AndroidServicePlaybackRuntimeController(
     private var pendingServiceSeekPositionSeconds: Double? = null
     private var pendingServiceSeekAtMillis = 0L
     private var serviceAudioPrefetchJob: Job? = null
+    private var servicePreparedNextJob: Job? = null
+    private var servicePlaybackSettings = PlaybackSettings()
     private var servicePlaybackSessionToken: Long = 0L
     private var submittedServicePlayReportSessionToken: Long? = null
 
@@ -93,6 +105,9 @@ internal class AndroidServicePlaybackRuntimeController(
         serviceOwnedPlayback = false
         serviceAudioPrefetchJob?.cancel()
         serviceAudioPrefetchJob = null
+        servicePreparedNextJob?.cancel()
+        servicePreparedNextJob = null
+        queueController.clearPreparedNext()
         updateMediaSessionPlaybackState()
     }
 
@@ -175,13 +190,18 @@ internal class AndroidServicePlaybackRuntimeController(
         val provider = NavidromeProvider(connection)
         val runtime = AndroidPlaybackRuntime.get(context)
         val settingsStore = AndroidSettingsStore(context)
-        val playbackSettings = settingsStore.loadPlaybackSettings()
+        val playbackSettings = settingsStore
+            .loadPlaybackSettings()
+            .effectiveForEngine(runtime.playbackEngine)
+        servicePlaybackSettings = playbackSettings
         val cacheSettings = settingsStore.loadCacheSettings()
         val audioAssets = AndroidPlaybackAudioAssets(storage, storage)
         val quality = StreamQuality.Original
         val startPositionSeconds = restorePlan.restoredStartPositionSeconds?.takeIf { it > 0.0 }
 
         runtime.playbackEngine.applyTlsSettings(connection.tlsSettings)
+        (runtime.playbackEngine as? QueueAwarePlaybackEngine)
+            ?.setCrossfadeDuration(playbackSettings.crossfadeDurationSeconds)
         AndroidPlaybackNotificationControls.canFavorite = provider.capabilities.supportsTrackFavorites
         AndroidPlaybackNotificationControls.isFavorite = track.favoritedAtIso8601 != null
         AndroidPlaybackNotificationControls.isPlaying = true
@@ -239,10 +259,13 @@ internal class AndroidServicePlaybackRuntimeController(
                 )
                 runtime.playbackEngine.play(
                     scope = runtime.scope,
-                    request = PlaybackRequest(
+                    request = playbackRequestForTrack(
+                        track = track,
                         url = playbackTarget.first,
-                        mediaId = track.id.value,
                         replayGainMode = playbackSettings.replayGainMode,
+                        replayGainPreampDb = playbackSettings.replayGainPreampDb,
+                        supportsReplayGain = runtime.playbackEngine.supportsReplayGain,
+                        replayGain = track.replayGain?.let { PlaybackReplayGain(it, ReplayGainSource.Provider) },
                         startPositionSeconds = playbackTarget.second,
                     ),
                     onStateChanged = { state -> handlePlaybackStateChanged(state, handleFinished = true) },
@@ -264,6 +287,9 @@ internal class AndroidServicePlaybackRuntimeController(
         lastServicePlaybackState = null
         serviceAudioPrefetchJob?.cancel()
         serviceAudioPrefetchJob = null
+        servicePreparedNextJob?.cancel()
+        servicePreparedNextJob = null
+        queueController.clearPreparedNext()
     }
 
     fun handlePlaybackStateChanged(state: PlaybackState, handleFinished: Boolean = false) {
@@ -332,7 +358,63 @@ internal class AndroidServicePlaybackRuntimeController(
                 session = session.withPlaybackPosition(progressPositionSeconds),
             )
         }
+        prepareNextIfNeeded(progress)
         maybeReportServicePlayed(sourceId, progress)
+    }
+
+    private fun prepareNextIfNeeded(progress: PlaybackProgress) {
+        val runtime = AndroidPlaybackRuntime.get(context)
+        val queueAwareEngine = runtime.playbackEngine as? QueueAwarePlaybackEngine ?: return
+        val playbackSettings = servicePlaybackSettings
+        val queue = PlaybackQueue(currentQueue(), currentQueueIndex())
+        val work = planAndroidServicePreparedNextPlayback(
+            queue = queue,
+            repeatMode = repeatMode(),
+            progress = progress,
+            preparedNextIndex = queueController.preparedNextIndex,
+            playbackSettings = playbackSettings,
+            supportsGapless = runtime.playbackEngine.supportsGapless,
+            supportsCrossfade = runtime.playbackEngine.supportsCrossfade,
+        ) ?: return
+        val storage = storage()
+        val source = storage.latestNavidromeSource() ?: return
+        val provider = NavidromeProvider(source.toNavidromeConnection())
+        val sessionToken = servicePlaybackSessionToken
+        val coordinator = PreparedNextPlaybackCoordinator(
+            provider = { provider },
+            sourceId = { source.id },
+            quality = { StreamQuality.Original },
+            audioCachingEnabled = { true },
+            audioAssets = AndroidPlaybackAudioAssets(storage, storage),
+            replayGainMode = { playbackSettings.replayGainMode },
+            replayGainPreampDb = { playbackSettings.replayGainPreampDb },
+            supportsReplayGain = { runtime.playbackEngine.supportsReplayGain },
+            replayGainForTrack = { track, _ ->
+                track.replayGain?.let { PlaybackReplayGain(it, ReplayGainSource.Provider) }
+            },
+        )
+        queueController.markPreparedNext(work.markPreparedNextIndex)
+        servicePreparedNextJob = runtime.scope.launch {
+            runCatching { coordinator.request(work) }
+                .onSuccess { prepared ->
+                    if (prepared == null) {
+                        if (sessionToken == servicePlaybackSessionToken) {
+                            queueController.clearPreparedNext()
+                        }
+                        return@onSuccess
+                    }
+                    if (sessionToken != servicePlaybackSessionToken || !serviceOwnedPlayback) {
+                        return@onSuccess
+                    }
+                    queueAwareEngine.prepareNext(prepared.request)
+                }
+                .onFailure { error ->
+                    if (sessionToken == servicePlaybackSessionToken) {
+                        queueController.clearPreparedNext()
+                    }
+                    Log.w("NaviampAutoCommand", "Could not prepare next service-owned track", error)
+                }
+        }
     }
 
     private fun reportServiceNowPlaying(
@@ -479,6 +561,31 @@ internal class AndroidServicePlaybackRuntimeController(
         const val ServiceSeekStaleProgressWindowMillis = 1_500L
         const val ServiceIgnoreZeroSeekAfterSeconds = 3.0
     }
+}
+
+internal fun planAndroidServicePreparedNextPlayback(
+    queue: PlaybackQueue,
+    repeatMode: RepeatMode,
+    progress: PlaybackProgress,
+    preparedNextIndex: Int?,
+    playbackSettings: PlaybackSettings,
+    supportsGapless: Boolean,
+    supportsCrossfade: Boolean,
+): PreparedNextPlaybackWork? {
+    val nextQueueIndex = PlaybackQueueManager().nextPreparedQueueIndex(queue, repeatMode)
+    return preparedNextPlaybackWork(
+        queue = queue,
+        progress = progress,
+        nextQueueIndex = nextQueueIndex,
+        preparedNextIndex = preparedNextIndex,
+        settings = PreparedNextPlaybackSettings(
+            gaplessEnabled = playbackSettings.gaplessEnabled,
+            supportsGapless = supportsGapless,
+            crossfadeDurationSeconds = playbackSettings.crossfadeDurationSeconds,
+            supportsCrossfade = supportsCrossfade,
+            gaplessPrepareWindowSeconds = AndroidGaplessPrepareWindowSeconds,
+        ),
+    )
 }
 
 private fun MediaSourceRepository.savedCoverArtUrl(track: Track): String? {
