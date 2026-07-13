@@ -163,6 +163,7 @@ fun rememberAndroidAppShellUiState(
             visualizerBandsProvider = { visualizerFrame?.bands.orEmpty() },
             query = query,
             home = shellModels.home,
+            homeRefreshing = isHomeRefreshing,
             searchResults = shellModels.searchResults,
             artistMixBuilder = SharedArtistMixBuilderUi(
                 query = artistMixQuery,

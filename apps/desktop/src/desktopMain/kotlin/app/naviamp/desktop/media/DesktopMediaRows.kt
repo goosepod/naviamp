@@ -378,6 +378,7 @@ fun DesktopTrackRow(
                     onClick?.invoke()
                     Unit
                 }
+                SharedTrackRowAction.PlayNext -> Unit
                 SharedTrackRowAction.StartRadio -> {
                     onStartRadio?.invoke()
                     Unit

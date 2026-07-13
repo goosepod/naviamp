@@ -435,6 +435,7 @@ data class NowPlayingDisplayActionRequest(
 
 enum class NowPlayingQueueAction {
     SaveQueueAsPlaylist,
+    MoveToNext,
     RemoveFromQueue,
     EmptyQueue,
 }

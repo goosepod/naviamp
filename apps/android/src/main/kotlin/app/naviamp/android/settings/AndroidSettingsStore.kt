@@ -27,6 +27,8 @@ import app.naviamp.domain.settings.SavedInternetRadioStation
 import app.naviamp.domain.settings.StreamQualityMode
 import app.naviamp.domain.settings.StreamQualityPreference
 import app.naviamp.domain.settings.StreamingCodec
+import app.naviamp.domain.settings.TrackSwipeAction
+import app.naviamp.domain.settings.TrackSwipeSettings
 import app.naviamp.domain.settings.UpNextSelectionBehavior
 import app.naviamp.domain.settings.VisualizerSettings
 import app.naviamp.provider.navidrome.NavidromeConnection
@@ -158,6 +160,14 @@ class AndroidSettingsStore(
                 scrollArtistName = preferences.getBoolean(KeyNowPlayingScrollArtistName, false),
                 scrollAlbumName = preferences.getBoolean(KeyNowPlayingScrollAlbumName, false),
             ),
+            trackSwipes = TrackSwipeSettings(
+                libraryRight = enumPreference(KeySwipeLibraryRight, TrackSwipeAction.PlayNext),
+                libraryLeft = enumPreference(KeySwipeLibraryLeft, TrackSwipeAction.None),
+                queueRight = enumPreference(KeySwipeQueueRight, TrackSwipeAction.PlayNext),
+                queueLeft = enumPreference(KeySwipeQueueLeft, TrackSwipeAction.Remove),
+                relatedRight = enumPreference(KeySwipeRelatedRight, TrackSwipeAction.PlayNext),
+                relatedLeft = enumPreference(KeySwipeRelatedLeft, TrackSwipeAction.None),
+            ),
         ).normalized()
 
     fun saveInterfaceSettings(settings: InterfaceSettings) {
@@ -171,6 +181,12 @@ class AndroidSettingsStore(
             .putBoolean(KeyNowPlayingScrollTrackTitle, settings.normalized().nowPlaying.scrollTrackTitle)
             .putBoolean(KeyNowPlayingScrollArtistName, settings.normalized().nowPlaying.scrollArtistName)
             .putBoolean(KeyNowPlayingScrollAlbumName, settings.normalized().nowPlaying.scrollAlbumName)
+            .putString(KeySwipeLibraryRight, settings.normalized().trackSwipes.libraryRight.name)
+            .putString(KeySwipeLibraryLeft, settings.normalized().trackSwipes.libraryLeft.name)
+            .putString(KeySwipeQueueRight, settings.normalized().trackSwipes.queueRight.name)
+            .putString(KeySwipeQueueLeft, settings.normalized().trackSwipes.queueLeft.name)
+            .putString(KeySwipeRelatedRight, settings.normalized().trackSwipes.relatedRight.name)
+            .putString(KeySwipeRelatedLeft, settings.normalized().trackSwipes.relatedLeft.name)
             .apply()
     }
 
@@ -445,6 +461,12 @@ private const val KeyNowPlayingShowVolumeBar = "now_playing_show_volume_bar"
 private const val KeyNowPlayingScrollTrackTitle = "now_playing_scroll_track_title"
 private const val KeyNowPlayingScrollArtistName = "now_playing_scroll_artist_name"
 private const val KeyNowPlayingScrollAlbumName = "now_playing_scroll_album_name"
+private const val KeySwipeLibraryRight = "swipe_library_right"
+private const val KeySwipeLibraryLeft = "swipe_library_left"
+private const val KeySwipeQueueRight = "swipe_queue_right"
+private const val KeySwipeQueueLeft = "swipe_queue_left"
+private const val KeySwipeRelatedRight = "swipe_related_right"
+private const val KeySwipeRelatedLeft = "swipe_related_left"
 private const val KeyLrclibLyricsEnabled = "lrclib_lyrics_enabled"
 private const val KeyPreferSyncedLyrics = "prefer_synced_lyrics"
 private const val KeyLyricsSearchOrder = "lyrics_search_order"

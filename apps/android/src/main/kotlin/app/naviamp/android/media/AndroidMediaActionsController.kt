@@ -451,6 +451,7 @@ internal class AndroidTrackActionController(
             SharedTrackRowAction.Select,
             SharedTrackRowAction.StartRadio,
             -> Unit
+            SharedTrackRowAction.PlayNext -> playNextTracks(listOf(track), "track")
             SharedTrackRowAction.PlayTrackRadioNext -> playTrackRadioNext(track)
             SharedTrackRowAction.AddTrackRadioToQueue -> addTrackRadioToQueue(track)
             SharedTrackRowAction.AddToQueue -> appendTracksToQueue(listOf(track), "track")

@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.NonRestartableComposable
 import androidx.compose.runtime.getValue
@@ -1327,6 +1328,10 @@ fun NaviampApp(
         when (request.action) {
             NowPlayingQueueAction.SaveQueueAsPlaylist ->
                 request.playlistName?.let(playlistsController::saveQueueAsPlaylist)
+            NowPlayingQueueAction.MoveToNext ->
+                request.queueIndex?.let { index ->
+                    playlistEngine.replaceQueue(playbackQueue.moveToNext(index))
+                }
             NowPlayingQueueAction.RemoveFromQueue ->
                 request.queueIndex?.let { index ->
                     playlistEngine.replaceQueue(playbackQueue.removeAt(index))
@@ -1353,6 +1358,7 @@ fun NaviampApp(
         }
     }
 
+    CompositionLocalProvider(app.naviamp.ui.LocalTrackSwipeSettings provides interfaceSettings.trackSwipes) {
     DesktopAppSurface(
             colorScheme = colorScheme,
             appColors = appColors,
@@ -1410,6 +1416,8 @@ fun NaviampApp(
                             about = about,
                             homeStatus = homeStatus,
                             homeContent = homeContent,
+                            homeRefreshing = homeController.refreshing,
+                            onRefreshHome = { connectedProvider?.let(homeController::loadHomeContent) },
                             sonicHomeDiscoveryRows = sonicHomeDiscoveryController.rows,
                             coverArtUrl = { coverArtId -> coverArtId?.let { connectedProvider?.coverArtUrl(it) } },
                             appActions = appActions,
@@ -1630,6 +1638,7 @@ fun NaviampApp(
                             },
                         )
     }
+}
 }
 }
 }

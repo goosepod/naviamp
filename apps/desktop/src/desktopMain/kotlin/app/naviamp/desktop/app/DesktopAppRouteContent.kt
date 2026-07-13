@@ -48,7 +48,7 @@ import app.naviamp.ui.SharedAlbumMixBuilderUi
 import app.naviamp.ui.SharedArtistMixBuilderUi
 import app.naviamp.ui.SharedGenreMixBuilderUi
 import app.naviamp.ui.SharedGenreMixItemUi
-import app.naviamp.ui.SharedHome
+import app.naviamp.ui.SharedHomeRoute
 import app.naviamp.ui.SharedHomeDiscoveryTrackActionRequest
 import app.naviamp.ui.SharedMediaItemAction
 import app.naviamp.ui.SharedMediaItemActionRequest
@@ -75,6 +75,8 @@ fun ColumnScope.DesktopAppRouteContent(
     about: NaviampAboutUi,
     homeStatus: String?,
     homeContent: HomeContent,
+    homeRefreshing: Boolean,
+    onRefreshHome: () -> Unit,
     sonicHomeDiscoveryRows: SonicHomeDiscoveryRows,
     coverArtUrl: (String?) -> String?,
     appActions: DesktopAppActions,
@@ -377,7 +379,8 @@ fun ColumnScope.DesktopAppRouteContent(
             .fillMaxWidth()
             .then(
                 if (
-                    appRoute == DesktopAppRoute.Library ||
+                    appRoute == DesktopAppRoute.Home ||
+                        appRoute == DesktopAppRoute.Library ||
                         appRoute == DesktopAppRoute.ArtistMix ||
                         appRoute == DesktopAppRoute.AlbumMix ||
                         appRoute == DesktopAppRoute.GenreMix ||
@@ -399,9 +402,11 @@ fun ColumnScope.DesktopAppRouteContent(
         ) {
             when (appRoute) {
                 DesktopAppRoute.Player -> Unit
-                DesktopAppRoute.Home -> SharedHome(
+                DesktopAppRoute.Home -> SharedHomeRoute(
                     colors = appColors,
                     home = sharedHome,
+                    isRefreshing = homeRefreshing,
+                    onRefresh = onRefreshHome,
                     onAlbumSelected = { item -> appActions.openHomeAlbum(item.id) },
                     onAlbumFavoriteToggled = { item -> appActions.toggleHomeAlbumFavorite(item.id) },
                     onMixAlbumSelected = { item -> appActions.playHomeMixAlbum(item.id) },
@@ -418,6 +423,7 @@ fun ColumnScope.DesktopAppRouteContent(
                         if (track != null) {
                             when (request.action) {
                                 SharedTrackRowAction.Select -> appActions.playPopularTracks(tracks, index)
+                                SharedTrackRowAction.PlayNext -> playlistsController.playNext(track)
                                 SharedTrackRowAction.StartRadio -> appActions.playTrackRadio(track)
                                 SharedTrackRowAction.PlayTrackRadioNext -> appActions.playTrackRadioNext(track)
                                 SharedTrackRowAction.AddTrackRadioToQueue -> appActions.addTrackRadioToQueue(track)
@@ -446,6 +452,7 @@ fun ColumnScope.DesktopAppRouteContent(
                         if (track != null) {
                             when (request.action) {
                                 SharedTrackRowAction.Select -> appActions.playAlbumDetails(index = index)
+                                SharedTrackRowAction.PlayNext -> playlistsController.playNext(track)
                                 SharedTrackRowAction.StartRadio -> appActions.playTrackRadio(track)
                                 SharedTrackRowAction.PlayTrackRadioNext -> appActions.playTrackRadioNext(track)
                                 SharedTrackRowAction.AddTrackRadioToQueue -> appActions.addTrackRadioToQueue(track)
@@ -484,6 +491,7 @@ fun ColumnScope.DesktopAppRouteContent(
                             ?.let { track ->
                                 when (request.action) {
                                     SharedTrackRowAction.Select -> appActions.playSelectedPopularTrack(track)
+                                    SharedTrackRowAction.PlayNext -> playlistsController.playNext(track)
                                     SharedTrackRowAction.StartRadio -> appActions.playPopularTracksRadio(listOf(track))
                                     SharedTrackRowAction.PlayTrackRadioNext -> appActions.playTrackRadioNext(track)
                                     SharedTrackRowAction.AddTrackRadioToQueue -> appActions.addTrackRadioToQueue(track)
@@ -537,6 +545,7 @@ fun ColumnScope.DesktopAppRouteContent(
                         if (track != null) {
                             when (request.action) {
                                 SharedTrackRowAction.Select -> appActions.playPlaylistDetails(index = index)
+                                SharedTrackRowAction.PlayNext -> playlistsController.playNext(track)
                                 SharedTrackRowAction.StartRadio -> appActions.playTrackRadio(track)
                                 SharedTrackRowAction.PlayTrackRadioNext -> appActions.playTrackRadioNext(track)
                                 SharedTrackRowAction.AddTrackRadioToQueue -> appActions.addTrackRadioToQueue(track)
@@ -602,6 +611,7 @@ fun ColumnScope.DesktopAppRouteContent(
                         if (track != null) {
                             when (request.action) {
                                 SharedTrackRowAction.Select -> appActions.playSearchTrack(index)
+                                SharedTrackRowAction.PlayNext -> playlistsController.playNext(track)
                                 SharedTrackRowAction.StartRadio -> appActions.playSearchTrackRadio(index)
                                 SharedTrackRowAction.PlayTrackRadioNext -> appActions.playTrackRadioNext(track)
                                 SharedTrackRowAction.AddTrackRadioToQueue -> appActions.addTrackRadioToQueue(track)

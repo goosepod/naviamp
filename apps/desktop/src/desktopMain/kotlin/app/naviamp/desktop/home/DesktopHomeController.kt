@@ -1,5 +1,8 @@
 package app.naviamp.desktop
 
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import app.naviamp.domain.InternetRadioStation
 import app.naviamp.domain.cache.ProviderResponseCacheRepository
 import app.naviamp.domain.cache.ProviderResponseService
@@ -27,6 +30,9 @@ class DesktopHomeController(
     private val setHomeContent: (HomeContent) -> Unit,
     private val setHomeStatus: (String?) -> Unit,
 ) {
+    var refreshing by mutableStateOf(false)
+        private set
+
     private val providerResponseService = ProviderResponseService(providerResponseCacheRepository)
     private val coordinator = HomeContentCoordinator(
         setHomeContent = setHomeContent,
@@ -36,22 +42,27 @@ class DesktopHomeController(
     fun loadHomeContent(provider: MediaProvider) {
         val activeSourceId = sourceId()
         scope.launch {
-            coordinator.load(
-                request = HomeContentLoadRequest(
-                    provider = provider,
-                    providerResponseService = providerResponseService,
-                    libraryRepository = homeLibraryRepository,
-                    sourceId = activeSourceId,
-                    date = currentHomeDate(),
-                    recentRadioStreams = recentRadioStreams(),
-                    recentInternetRadioStations = recentInternetRadioStations(),
-                ),
-                loadContent = { request ->
-                    withContext(Dispatchers.IO) {
-                        loadSharedHomeContent(request)
-                    }
-                },
-            )
+            refreshing = true
+            try {
+                coordinator.load(
+                    request = HomeContentLoadRequest(
+                        provider = provider,
+                        providerResponseService = providerResponseService,
+                        libraryRepository = homeLibraryRepository,
+                        sourceId = activeSourceId,
+                        date = currentHomeDate(),
+                        recentRadioStreams = recentRadioStreams(),
+                        recentInternetRadioStations = recentInternetRadioStations(),
+                    ),
+                    loadContent = { request ->
+                        withContext(Dispatchers.IO) {
+                            loadSharedHomeContent(request)
+                        }
+                    },
+                )
+            } finally {
+                refreshing = false
+            }
         }
     }
 

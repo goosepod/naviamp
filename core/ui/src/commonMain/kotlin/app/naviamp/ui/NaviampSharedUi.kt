@@ -27,6 +27,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.NonRestartableComposable
 import androidx.compose.runtime.getValue
@@ -113,6 +114,7 @@ fun NaviampSharedAppShell(
     showMobileNetworkQuality: Boolean = false,
     query: String,
     home: SharedHomeUi,
+    homeRefreshing: Boolean = false,
     searchResults: SharedSearchResultsUi,
     artistMixBuilder: SharedArtistMixBuilderUi = SharedArtistMixBuilderUi(),
     albumMixBuilder: SharedAlbumMixBuilderUi = SharedAlbumMixBuilderUi(),
@@ -209,6 +211,7 @@ fun NaviampSharedAppShell(
     onSonicMixAddToQueue: () -> Unit = {},
     onSonicMixSaveAsPlaylist: (String) -> Unit = {},
     onLibraryQueryChanged: (String) -> Unit = {},
+    onRefreshHome: () -> Unit = {},
     onRefreshLibrary: () -> Unit = {},
     onRefreshPlaylists: () -> Unit = {},
     onRefreshRadioStations: () -> Unit = {},
@@ -340,6 +343,7 @@ fun NaviampSharedAppShell(
     val colors = NaviampColors.Dark
     var availableUpdate by remember { mutableStateOf<NaviampAvailableUpdate?>(null) }
     val uriHandler = LocalUriHandler.current
+    CompositionLocalProvider(LocalTrackSwipeSettings provides interfaceSettings.trackSwipes) {
     NaviampUpdateCheckEffect(
         enabled = interfaceSettings.checkForUpdates,
         currentVersion = about.version,
@@ -357,6 +361,7 @@ fun NaviampSharedAppShell(
             albumDetail != null ||
                 artistDetail != null ||
                 playlistDetail != null ||
+                selectedRoute == SharedRoute.Home ||
                 selectedRoute == SharedRoute.Playlists ||
                 selectedRoute == SharedRoute.Library ||
                 selectedRoute == SharedRoute.ArtistMix ||
@@ -451,6 +456,7 @@ fun NaviampSharedAppShell(
                             colors = colors,
                             selectedRoute = selectedRoute,
                             home = home,
+                            homeRefreshing = homeRefreshing,
                             query = query,
                             searchResults = searchResults,
             artistMixBuilder = artistMixBuilder,
@@ -569,6 +575,7 @@ fun NaviampSharedAppShell(
             onSonicMixAddToQueue = onSonicMixAddToQueue,
             onSonicMixSaveAsPlaylist = onSonicMixSaveAsPlaylist,
                             onLibraryQueryChanged = onLibraryQueryChanged,
+                            onRefreshHome = onRefreshHome,
                             onRefreshLibrary = onRefreshLibrary,
                             onRefreshPlaylists = onRefreshPlaylists,
                             onRefreshRadioStations = onRefreshRadioStations,
@@ -683,6 +690,7 @@ fun NaviampSharedAppShell(
                 }
             },
         )
+    }
     }
 }
 
@@ -1025,6 +1033,7 @@ private fun ConnectedContent(
     colors: NaviampColors,
     selectedRoute: SharedRoute,
     home: SharedHomeUi,
+    homeRefreshing: Boolean,
     query: String,
     searchResults: SharedSearchResultsUi,
     artistMixBuilder: SharedArtistMixBuilderUi,
@@ -1140,6 +1149,7 @@ private fun ConnectedContent(
     onSonicMixAddToQueue: () -> Unit,
     onSonicMixSaveAsPlaylist: (String) -> Unit,
     onLibraryQueryChanged: (String) -> Unit,
+    onRefreshHome: () -> Unit,
     onRefreshLibrary: () -> Unit,
     onRefreshPlaylists: () -> Unit,
     onRefreshRadioStations: () -> Unit,
@@ -1386,9 +1396,11 @@ private fun ConnectedContent(
             playlistChoices = playlistChoices,
         )
         else -> when (selectedRoute) {
-            SharedRoute.Home -> SharedHome(
+            SharedRoute.Home -> SharedHomeRoute(
                 colors = colors,
                 home = home,
+                isRefreshing = homeRefreshing,
+                onRefresh = onRefreshHome,
                 onAlbumSelected = onAlbumSelected,
                 onAlbumFavoriteToggled = onAlbumFavoriteToggled,
                 onMixAlbumSelected = onMixAlbumSelected,

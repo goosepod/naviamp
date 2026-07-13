@@ -100,6 +100,7 @@ data class SharedTrackRowUi(
 
 enum class SharedTrackRowAction {
     Select,
+    PlayNext,
     StartRadio,
     PlayTrackRadioNext,
     AddTrackRadioToQueue,
@@ -129,6 +130,7 @@ data class SharedTrackGroupActionRequest(
 
 data class SharedTrackRowActionHandlers(
     val onSelect: (SharedTrackRowUi) -> Unit = {},
+    val onPlayNext: (SharedTrackRowUi) -> Unit = {},
     val onStartRadio: (SharedTrackRowUi) -> Unit = {},
     val onPlayTrackRadioNext: (SharedTrackRowUi) -> Unit = {},
     val onAddTrackRadioToQueue: (SharedTrackRowUi) -> Unit = {},
@@ -144,6 +146,7 @@ fun handleSharedTrackRowAction(
 ) {
     when (request.action) {
         SharedTrackRowAction.Select -> handlers.onSelect(request.track)
+        SharedTrackRowAction.PlayNext -> handlers.onPlayNext(request.track)
         SharedTrackRowAction.StartRadio -> handlers.onStartRadio(request.track)
         SharedTrackRowAction.PlayTrackRadioNext -> handlers.onPlayTrackRadioNext(request.track)
         SharedTrackRowAction.AddTrackRadioToQueue -> handlers.onAddTrackRadioToQueue(request.track)

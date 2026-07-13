@@ -59,6 +59,7 @@ internal class AndroidSonicHomeDiscoveryController(
         val track = rowTracks.firstOrNull { candidate -> candidate.id.value == request.track.id } ?: return
         when (request.action) {
             SharedTrackRowAction.Select -> playTrack(track, rowTracks)
+            SharedTrackRowAction.PlayNext -> playNext(track)
             SharedTrackRowAction.AddToQueue -> addTracksToQueue(listOf(track), "track")
             SharedTrackRowAction.StartRadio,
             SharedTrackRowAction.PlayTrackRadioNext,
@@ -68,6 +69,22 @@ internal class AndroidSonicHomeDiscoveryController(
             SharedTrackRowAction.CreatePlaylistAndAdd,
             -> Unit
         }
+    }
+
+    private fun playNext(track: Track) {
+        val update = PlaybackQueueManager().playNextTracks(
+            currentQueue = state.playbackQueue,
+            tracksToAdd = listOf(track),
+            label = "track",
+        )
+        applyPlaybackQueueUpdate(
+            update = update,
+            setStatus = { status -> state.status = status },
+            replaceQueue = { queue ->
+                state.playbackQueue = queue
+                queueController.replaceQueue(queue)
+            },
+        )
     }
 
     private fun addTracksToQueue(tracks: List<Track>, label: String) {

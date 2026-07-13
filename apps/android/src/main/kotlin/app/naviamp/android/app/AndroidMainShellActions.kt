@@ -2,7 +2,11 @@ package app.naviamp.android
 
 import app.naviamp.android.playback.AndroidPlaybackEngine
 import app.naviamp.domain.playback.SleepTimerController
+import app.naviamp.ui.nowPlayingQueueIndex
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 internal fun androidMainShellActions(
     scope: CoroutineScope,
@@ -36,6 +40,32 @@ internal fun androidMainShellActions(
         settingsStore = settingsStore,
         onSyncedSettingsChanged = onSyncedSettingsChanged,
         handleConnectionFormChanged = settingsMaintenanceController::handleConnectionFormChanged,
+        refreshHome = {
+            val provider = state.provider
+            if (provider != null && !state.isHomeRefreshing) {
+                state.isHomeRefreshing = true
+                scope.launch {
+                    runCatching {
+                        withContext(Dispatchers.IO) {
+                            loadBrowseState(
+                                provider = provider,
+                                providerResponseCacheRepository = storage,
+                                libraryRepository = storage.asHomeLibraryRepository(),
+                                sourceId = state.activeSourceId,
+                                recentRadioStreams = state.homeState.recentRadioStreams,
+                                recentInternetRadioStations = state.homeState.recentInternetRadioStations,
+                            )
+                        }
+                    }.onSuccess { content ->
+                        state.homeState = content
+                        state.status = "Home refreshed."
+                    }.onFailure { error ->
+                        state.status = error.message ?: "Could not refresh Home."
+                    }
+                    state.isHomeRefreshing = false
+                }
+            }
+        },
         connectToNavidrome = connectionSessionController::connectToNavidrome,
         handleNewConnection = connectionSessionController::openNewConnectionForm,
         handleEditSavedConnection = { connection ->
@@ -177,12 +207,14 @@ internal fun androidMainShellActions(
         handleTrackGoToArtist = shellMediaController::handleTrackGoToArtist,
         handleShellQueueItemRadio = shellPlaybackController::startQueueItemRadio,
         handleQueueItemPlayNext = { item ->
-            mediaAppController.resolveNowPlayingItemTrack(item)?.let(mediaAppController::playNext)
+            nowPlayingQueueIndex(item)?.let(mediaAppController::moveQueueTrackNext)
+                ?: mediaAppController.resolveNowPlayingItemTrack(item)?.let(mediaAppController::playNext)
         },
         handleQueueItemAddToQueue = { item ->
             mediaAppController.resolveNowPlayingItemTrack(item)?.let(mediaAppController::addToQueue)
         },
         handleQueueItemRemoveFromQueue = mediaAppController::removeFromQueue,
+        handleQueueItemMoveNext = mediaAppController::moveQueueTrackNext,
         handleEmptyQueue = mediaAppController::emptyQueue,
         handleTrackRadioNext = trackActionController::playTrackRadioNext,
         handleAddTrackRadioToQueue = trackActionController::addTrackRadioToQueue,

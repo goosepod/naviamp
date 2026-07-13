@@ -4,6 +4,7 @@ import app.naviamp.ui.generated.resources.Res
 import app.naviamp.ui.generated.resources.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -14,6 +15,7 @@ import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -26,15 +28,20 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -43,6 +50,13 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import org.jetbrains.compose.resources.stringResource
 import app.naviamp.domain.InternetRadioStation
+import app.naviamp.domain.settings.TrackSwipeAction
+import app.naviamp.domain.settings.TrackSwipeSettings
+import kotlin.math.roundToInt
+
+val LocalTrackSwipeSettings = compositionLocalOf { TrackSwipeSettings() }
+
+enum class TrackSwipeContext { Library, Related }
 
 @Composable
 fun TrackRow(
@@ -61,6 +75,7 @@ fun TrackRow(
     onTrackAction: (SharedTrackRowActionRequest) -> Unit = { request ->
         when (request.action) {
             SharedTrackRowAction.Select -> onTrackSelected?.invoke(request.track)
+            SharedTrackRowAction.PlayNext -> Unit
             SharedTrackRowAction.StartRadio -> onStartRadio?.invoke(request.track)
             SharedTrackRowAction.PlayTrackRadioNext,
             SharedTrackRowAction.AddTrackRadioToQueue,
@@ -86,10 +101,33 @@ fun TrackRow(
     showMenu: Boolean = false,
     leadingContent: (@Composable RowScope.() -> Unit)? = null,
     trailingContent: (@Composable RowScope.() -> Unit)? = null,
+    swipeContext: TrackSwipeContext = TrackSwipeContext.Library,
 ) {
     var detailsOpen by remember(track.id) { mutableStateOf(false) }
+    val swipeSettings = LocalTrackSwipeSettings.current
+    SwipeActionContainer(
+        modifier = modifier,
+        swipeRight = trackSwipeActionVisual(
+            action = if (swipeContext == TrackSwipeContext.Related) swipeSettings.relatedRight else swipeSettings.libraryRight,
+            track = track,
+            canStartRadio = canStartRadio,
+            canAddToQueue = canAddToQueue,
+            canDownload = canDownload,
+            canAddToPlaylist = canAddToPlaylist,
+            onTrackAction = onTrackAction,
+        ),
+        swipeLeft = trackSwipeActionVisual(
+            action = if (swipeContext == TrackSwipeContext.Related) swipeSettings.relatedLeft else swipeSettings.libraryLeft,
+            track = track,
+            canStartRadio = canStartRadio,
+            canAddToQueue = canAddToQueue,
+            canDownload = canDownload,
+            canAddToPlaylist = canAddToPlaylist,
+            onTrackAction = onTrackAction,
+        ),
+    ) { swipeModifier ->
     Row(
-        modifier = modifier
+        modifier = swipeModifier
             .fillMaxWidth()
             .then(
                 if (background) {
@@ -227,11 +265,128 @@ fun TrackRow(
             )
         }
     }
+    }
     if (detailsOpen) {
         TrackDetailsDialog(
             sections = track.detailSections,
             colors = colors,
             onDismissRequest = { detailsOpen = false },
+        )
+    }
+}
+
+private fun trackSwipeActionVisual(
+    action: TrackSwipeAction,
+    track: SharedTrackRowUi,
+    canStartRadio: Boolean,
+    canAddToQueue: Boolean,
+    canDownload: Boolean,
+    canAddToPlaylist: Boolean,
+    onTrackAction: (SharedTrackRowActionRequest) -> Unit,
+): TrackSwipeActionVisual? {
+    val rowAction = when (action) {
+        TrackSwipeAction.None,
+        TrackSwipeAction.Remove,
+        -> return null
+        TrackSwipeAction.PlayNext -> SharedTrackRowAction.PlayNext.takeIf { canAddToQueue }
+        TrackSwipeAction.AddToQueue -> SharedTrackRowAction.AddToQueue.takeIf { canAddToQueue }
+        TrackSwipeAction.AddToPlaylist -> SharedTrackRowAction.AddToPlaylist.takeIf { canAddToPlaylist }
+        TrackSwipeAction.Download -> SharedTrackRowAction.Download.takeIf { canDownload }
+        TrackSwipeAction.StartRadio -> SharedTrackRowAction.StartRadio.takeIf { canStartRadio }
+    } ?: return null
+    val (label, icon) = when (action) {
+        TrackSwipeAction.PlayNext -> "Play next" to NaviampIcons.Queue
+        TrackSwipeAction.AddToQueue -> "Add to queue" to NaviampIcons.Queue
+        TrackSwipeAction.AddToPlaylist -> "Add to playlist" to NaviampIcons.Playlist
+        TrackSwipeAction.Download -> "Download" to NaviampIcons.Downloads
+        TrackSwipeAction.StartRadio -> "Start radio" to NaviampTransportIcons.Radio
+        TrackSwipeAction.None,
+        TrackSwipeAction.Remove,
+        -> return null
+    }
+    return TrackSwipeActionVisual(
+        label = label,
+        icon = icon,
+        background = Color(0xFF2E7D32),
+        onTriggered = { onTrackAction(SharedTrackRowActionRequest(track, rowAction)) },
+    )
+}
+
+internal data class TrackSwipeActionVisual(
+    val label: String,
+    val icon: androidx.compose.ui.graphics.vector.ImageVector,
+    val background: Color,
+    val onTriggered: () -> Unit,
+)
+
+@Composable
+internal fun SwipeActionContainer(
+    modifier: Modifier = Modifier,
+    swipeRight: TrackSwipeActionVisual? = null,
+    swipeLeft: TrackSwipeActionVisual? = null,
+    content: @Composable (Modifier) -> Unit,
+) {
+    if (swipeRight == null && swipeLeft == null) {
+        content(modifier)
+        return
+    }
+
+    val density = LocalDensity.current
+    val thresholdPx = with(density) { 72.dp.toPx() }
+    val maximumOffsetPx = with(density) { 132.dp.toPx() }
+    val currentSwipeRight by rememberUpdatedState(swipeRight)
+    val currentSwipeLeft by rememberUpdatedState(swipeLeft)
+    var offsetX by remember { mutableStateOf(0f) }
+    val visibleAction = when {
+        offsetX > 0f -> swipeRight
+        offsetX < 0f -> swipeLeft
+        else -> null
+    }
+
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(5.dp)),
+    ) {
+        visibleAction?.let { action ->
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(7.dp),
+                modifier = Modifier
+                    .matchParentSize()
+                    .background(action.background)
+                    .padding(horizontal = 14.dp),
+            ) {
+                if (offsetX < 0f) androidx.compose.foundation.layout.Spacer(Modifier.weight(1f))
+                Icon(action.icon, contentDescription = action.label, tint = Color.White, modifier = Modifier.size(20.dp))
+                Text(action.label, color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                if (offsetX > 0f) androidx.compose.foundation.layout.Spacer(Modifier.weight(1f))
+            }
+        }
+        content(
+            Modifier
+                .offset { IntOffset(offsetX.roundToInt(), 0) }
+                .pointerInput(swipeRight != null, swipeLeft != null, thresholdPx) {
+                    detectHorizontalDragGestures(
+                        onHorizontalDrag = { change, dragAmount ->
+                            change.consume()
+                            offsetX = (offsetX + dragAmount).coerceIn(
+                                minimumValue = if (currentSwipeLeft == null) 0f else -maximumOffsetPx,
+                                maximumValue = if (currentSwipeRight == null) 0f else maximumOffsetPx,
+                            )
+                        },
+                        onDragEnd = {
+                            val action = when {
+                                offsetX >= thresholdPx -> currentSwipeRight
+                                offsetX <= -thresholdPx -> currentSwipeLeft
+                                else -> null
+                            }
+                            offsetX = 0f
+                            action?.onTriggered?.invoke()
+                        },
+                        onDragCancel = { offsetX = 0f },
+                    )
+                },
         )
     }
 }

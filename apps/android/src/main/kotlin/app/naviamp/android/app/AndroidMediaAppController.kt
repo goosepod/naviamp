@@ -68,6 +68,12 @@ internal class AndroidMediaAppController(
         queueController.replaceQueue(queue)
     }
 
+    fun moveQueueTrackNext(index: Int) {
+        val queue = state.playbackQueue.moveToNext(index)
+        state.playbackQueue = queue
+        queueController.replaceQueue(queue)
+    }
+
     fun emptyQueue() {
         val queue = state.playbackQueue.clearUpcoming()
         state.playbackQueue = queue

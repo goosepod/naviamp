@@ -202,6 +202,17 @@ data class PlaybackQueue(
         )
     }
 
+    fun moveToNext(index: Int): PlaybackQueue {
+        if (index !in tracks.indices || currentIndex !in tracks.indices) return this
+        if (index == currentIndex || index == currentIndex + 1) return this
+
+        val reordered = tracks.toMutableList()
+        val selected = reordered.removeAt(index)
+        val adjustedCurrentIndex = currentIndex - if (index < currentIndex) 1 else 0
+        reordered.add(adjustedCurrentIndex + 1, selected)
+        return PlaybackQueue(tracks = reordered, currentIndex = adjustedCurrentIndex)
+    }
+
     fun clearUpcoming(): PlaybackQueue {
         if (currentIndex !in tracks.indices) return PlaybackQueue()
         return copy(tracks = tracks.take(currentIndex + 1))

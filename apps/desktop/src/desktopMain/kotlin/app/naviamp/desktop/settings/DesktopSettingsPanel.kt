@@ -354,7 +354,7 @@ fun DesktopSettingsPanel(
                         onBack = { narrowCategory = null },
                     )
                     Column(
-                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(2.dp),
                         modifier = Modifier
                             .weight(1f)
                             .fillMaxWidth()
@@ -390,7 +390,7 @@ fun DesktopSettingsPanel(
                         }
                     }
                     Column(
-                        verticalArrangement = Arrangement.spacedBy(10.dp),
+                        verticalArrangement = Arrangement.spacedBy(2.dp),
                         modifier = Modifier
                             .weight(1f)
                             .verticalScroll(rememberScrollState()),

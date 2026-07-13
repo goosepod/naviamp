@@ -76,6 +76,7 @@ import app.naviamp.domain.waveform.cleanWaveformAmplitudes
 import app.naviamp.domain.waveform.seekSecondsForFraction
 import app.naviamp.domain.playback.SleepTimerRequest
 import app.naviamp.domain.settings.NowPlayingDisplaySettings
+import app.naviamp.domain.settings.TrackSwipeAction
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
@@ -1704,6 +1705,7 @@ private fun NowPlayingSidePanel(
             NaviampNowPlayingTab.UpNext -> upNextListState
             NaviampNowPlayingTab.Related -> relatedListState
         }
+        val swipeSettings = LocalTrackSwipeSettings.current
         NowPlayingItemList(
             items = items,
             colors = colors,
@@ -1718,6 +1720,17 @@ private fun NowPlayingSidePanel(
             onClick = onClick,
             rowActions = rowActions,
             onAction = actions.onQueueItemAction,
+            swipeRightAction = if (selectedTab == NaviampNowPlayingTab.Related) {
+                swipeSettings.relatedRight
+            } else {
+                swipeSettings.queueRight
+            },
+            swipeLeftAction = if (selectedTab == NaviampNowPlayingTab.Related) {
+                swipeSettings.relatedLeft
+            } else {
+                swipeSettings.queueLeft
+            },
+            queueContext = selectedTab != NaviampNowPlayingTab.Related,
             modifier = Modifier.weight(if (showLyrics) 0.62f else 1f),
         )
         if (showLyrics) {
@@ -2238,6 +2251,9 @@ private fun NowPlayingItemList(
     onClick: (NaviampNowPlayingItemUi) -> Unit,
     rowActions: List<NaviampActionSpec> = queueRowActions(),
     onAction: (NowPlayingItemActionRequest) -> Unit = {},
+    swipeRightAction: TrackSwipeAction = TrackSwipeAction.None,
+    swipeLeftAction: TrackSwipeAction = TrackSwipeAction.None,
+    queueContext: Boolean = false,
 ) {
     if (items.isEmpty()) {
         Box(modifier = modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
@@ -2254,10 +2270,32 @@ private fun NowPlayingItemList(
             val selected = item.id == currentId
             var menuExpanded by remember { mutableStateOf(false) }
             var playlistDialogOpen by remember { mutableStateOf(false) }
+            SwipeActionContainer(
+                swipeRight = nowPlayingSwipeActionVisual(
+                    swipeRightAction,
+                    item,
+                    queueContext,
+                    onAddToPlaylist = {
+                        if (useInlinePlaylistPicker) playlistDialogOpen = true
+                        else onAction(nowPlayingItemActionRequest(item, NowPlayingItemAction.AddToPlaylist))
+                    },
+                    onAction = onAction,
+                ),
+                swipeLeft = nowPlayingSwipeActionVisual(
+                    swipeLeftAction,
+                    item,
+                    queueContext,
+                    onAddToPlaylist = {
+                        if (useInlinePlaylistPicker) playlistDialogOpen = true
+                        else onAction(nowPlayingItemActionRequest(item, NowPlayingItemAction.AddToPlaylist))
+                    },
+                    onAction = onAction,
+                ),
+            ) { swipeModifier ->
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
-                modifier = Modifier
+                modifier = swipeModifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(5.dp))
                     .background(if (selected) Color.White.copy(alpha = 0.12f) else Color.Black.copy(alpha = 0.10f))
@@ -2334,6 +2372,7 @@ private fun NowPlayingItemList(
                     }
                 }
             }
+            }
             if (playlistDialogOpen) {
                 AddToPlaylistDialog(
                     title = item.title,
@@ -2366,6 +2405,57 @@ private fun NowPlayingItemList(
         }
     }
 }
+
+private fun nowPlayingSwipeActionVisual(
+    action: TrackSwipeAction,
+    item: NaviampNowPlayingItemUi,
+    queueContext: Boolean,
+    onAddToPlaylist: () -> Unit,
+    onAction: (NowPlayingItemActionRequest) -> Unit,
+): TrackSwipeActionVisual? = when (action) {
+    TrackSwipeAction.None -> null
+    TrackSwipeAction.PlayNext -> swipeVisual("Play next", NaviampIcons.Queue) {
+        onAction(nowPlayingItemActionRequest(item, NowPlayingItemAction.PlayNext))
+    }
+    TrackSwipeAction.AddToQueue -> swipeVisual("Add to queue", NaviampIcons.Queue) {
+        onAction(nowPlayingItemActionRequest(item, NowPlayingItemAction.AddToQueue))
+    }
+    TrackSwipeAction.AddToPlaylist -> swipeVisual("Add to playlist", NaviampIcons.Playlist, onTriggered = onAddToPlaylist)
+    TrackSwipeAction.Download -> swipeVisual("Download", NaviampIcons.Downloads) {
+        onAction(nowPlayingItemActionRequest(item, NowPlayingItemAction.Download))
+    }
+    TrackSwipeAction.StartRadio -> swipeVisual("Start radio", NaviampTransportIcons.Radio) {
+        onAction(nowPlayingItemActionRequest(item, NowPlayingItemAction.StartRadio))
+    }
+    TrackSwipeAction.Remove -> {
+        val index = nowPlayingQueueIndex(item)
+        if (!queueContext || index == null) {
+            null
+        } else {
+            swipeVisual("Remove", NaviampIcons.Trash, destructive = true) {
+                onAction(
+                    NowPlayingItemActionRequest(
+                        item = item,
+                        target = NowPlayingItemTarget.QueueIndex(index),
+                        action = NowPlayingItemAction.RemoveFromQueue,
+                    ),
+                )
+            }
+        }
+    }
+}
+
+private fun swipeVisual(
+    label: String,
+    icon: ImageVector,
+    destructive: Boolean = false,
+    onTriggered: () -> Unit,
+): TrackSwipeActionVisual = TrackSwipeActionVisual(
+    label = label,
+    icon = icon,
+    background = if (destructive) Color(0xFFC62828) else Color(0xFF2E7D32),
+    onTriggered = onTriggered,
+)
 
 @Composable
 fun NaviampTransportIconButton(

@@ -54,6 +54,7 @@ fun androidAppShellActions(
     settingsStore: AndroidSettingsStore,
     onSyncedSettingsChanged: () -> Unit = {},
     handleConnectionFormChanged: (ConnectionFormState) -> Unit,
+    refreshHome: () -> Unit,
     connectToNavidrome: () -> Unit,
     handleNewConnection: () -> Unit,
     handleEditSavedConnection: (NaviampSavedConnectionUi) -> Unit,
@@ -188,6 +189,7 @@ fun androidAppShellActions(
     handleQueueItemPlayNext: (NaviampNowPlayingItemUi) -> Unit,
     handleQueueItemAddToQueue: (NaviampNowPlayingItemUi) -> Unit,
     handleQueueItemRemoveFromQueue: (Int) -> Unit,
+    handleQueueItemMoveNext: (Int) -> Unit,
     handleEmptyQueue: () -> Unit,
     handleTrackRadioNext: (Track) -> Unit,
     handleAddTrackRadioToQueue: (Track) -> Unit,
@@ -295,6 +297,7 @@ fun androidAppShellActions(
             onSonicMixAddToQueue = handleSonicMixAddToQueue,
             onSonicMixSaveAsPlaylist = handleSonicMixSaveAsPlaylist,
             onLibraryQueryChanged = { libraryQuery = it },
+            onRefreshHome = refreshHome,
             onRefreshLibrary = { startAndroidLibrarySync(true) },
             onRefreshPlaylists = refreshPlaylists,
             onRefreshRadioStations = refreshInternetRadioStations,
@@ -588,6 +591,7 @@ fun androidAppShellActions(
             onNowPlayingQueueAction = { request: NowPlayingQueueActionRequest ->
                 when (request.action) {
                     NowPlayingQueueAction.SaveQueueAsPlaylist -> request.playlistName?.let(handleSaveQueueAsPlaylist)
+                    NowPlayingQueueAction.MoveToNext -> request.queueIndex?.let(handleQueueItemMoveNext)
                     NowPlayingQueueAction.RemoveFromQueue -> request.queueIndex?.let(handleQueueItemRemoveFromQueue)
                     NowPlayingQueueAction.EmptyQueue -> handleEmptyQueue()
                 }

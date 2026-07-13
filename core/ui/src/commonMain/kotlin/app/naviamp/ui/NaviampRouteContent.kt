@@ -14,11 +14,14 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -54,9 +57,25 @@ fun SharedHome(
     onSonicDiscoveryTrackAction: (SharedHomeDiscoveryTrackActionRequest) -> Unit = {},
     onRecentlyPlayedTrackAction: (SharedTrackRowActionRequest) -> Unit = {},
     onAlbumFavoriteToggled: (SharedMediaItemUi) -> Unit = {},
+    onRefresh: () -> Unit = {},
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        Text(stringResource(Res.string.home_music_title), color = colors.primaryText, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Text(
+                stringResource(Res.string.home_music_title),
+                color = colors.primaryText,
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.weight(1f),
+            )
+            NaviampRowOverflowMenu(
+                colors = colors,
+                items = listOf(NaviampRowMenuItem("Refresh", NaviampIcons.Refresh, onRefresh)),
+            )
+        }
         if (home.isEmpty) {
             PlaceholderTile(stringResource(Res.string.home_empty), colors)
         }
@@ -113,6 +132,53 @@ fun SharedHome(
             HomeSection(stringResource(Res.string.home_more_in, title), home.genreSpotlightAlbums, colors, onAlbumSelected, onAlbumFavoriteToggled, SharedMediaItemKind.Album)
         }
         HomeSection(stringResource(Res.string.home_from_decade, home.decadeLabel), home.decadeAlbums, colors, onAlbumSelected, onAlbumFavoriteToggled, SharedMediaItemKind.Album)
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun SharedHomeRoute(
+    colors: NaviampColors,
+    home: SharedHomeUi,
+    isRefreshing: Boolean,
+    onRefresh: () -> Unit,
+    onAlbumSelected: (SharedMediaItemUi) -> Unit,
+    onMixAlbumSelected: (SharedMediaItemUi) -> Unit,
+    onPlaylistSelected: (SharedMediaItemUi) -> Unit,
+    onRecentRadioSelected: (SharedMediaItemUi) -> Unit,
+    onInternetRadioStationSelected: (SharedMediaItemUi) -> Unit,
+    onMixBuilderSelected: (SharedMixBuilderUi) -> Unit,
+    onHomeStationSelected: (SharedHomeStationUi) -> Unit,
+    onSonicDiscoveryTrackAction: (SharedHomeDiscoveryTrackActionRequest) -> Unit = {},
+    onRecentlyPlayedTrackAction: (SharedTrackRowActionRequest) -> Unit = {},
+    onAlbumFavoriteToggled: (SharedMediaItemUi) -> Unit = {},
+) {
+    PullToRefreshBox(
+        isRefreshing = isRefreshing,
+        onRefresh = onRefresh,
+        modifier = Modifier.fillMaxSize(),
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState()),
+        ) {
+            SharedHome(
+                colors = colors,
+                home = home,
+                onAlbumSelected = onAlbumSelected,
+                onMixAlbumSelected = onMixAlbumSelected,
+                onPlaylistSelected = onPlaylistSelected,
+                onRecentRadioSelected = onRecentRadioSelected,
+                onInternetRadioStationSelected = onInternetRadioStationSelected,
+                onMixBuilderSelected = onMixBuilderSelected,
+                onHomeStationSelected = onHomeStationSelected,
+                onSonicDiscoveryTrackAction = onSonicDiscoveryTrackAction,
+                onRecentlyPlayedTrackAction = onRecentlyPlayedTrackAction,
+                onAlbumFavoriteToggled = onAlbumFavoriteToggled,
+                onRefresh = onRefresh,
+            )
+        }
     }
 }
 
@@ -182,6 +248,7 @@ private fun SonicDiscoverySection(
                                 ),
                             )
                         },
+                        swipeContext = TrackSwipeContext.Related,
                     )
                 }
             }

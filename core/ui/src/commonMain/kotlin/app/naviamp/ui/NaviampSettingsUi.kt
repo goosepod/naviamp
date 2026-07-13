@@ -79,6 +79,7 @@ import app.naviamp.domain.settings.StreamBitrateKbpsOptions
 import app.naviamp.domain.settings.StreamQualityMode
 import app.naviamp.domain.settings.StreamQualityPreference
 import app.naviamp.domain.settings.StreamingCodec
+import app.naviamp.domain.settings.TrackSwipeAction
 import app.naviamp.domain.settings.UpNextSelectionBehavior
 import app.naviamp.domain.settings.normalizedLyricsSearchOrder
 import app.naviamp.ui.generated.resources.Res
@@ -183,7 +184,11 @@ fun NaviampSharedSettingsContent(
         naviampLanguagePack(interfaceSettings.language)
     }
 
-    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+    Column(
+        verticalArrangement = Arrangement.spacedBy(
+            if (selectedCategory == null) 10.dp else SettingsDetailItemSpacing,
+        ),
+    ) {
         selectedCategory?.let { category ->
             SettingsDetailHeader(
                 category = category,
@@ -377,6 +382,11 @@ fun NaviampExperienceSettingsSection(
                 showLrclibLyrics = showLrclibLyrics,
                 onPlaybackSettingsChanged = onPlaybackSettingsChanged,
             )
+            ExperienceSettingsPage.SwipeActions -> SwipeActionSettings(
+                colors = colors,
+                interfaceSettings = interfaceSettings,
+                onInterfaceSettingsChanged = onInterfaceSettingsChanged,
+            )
         }
     } ?: run {
         if (showQueueBehavior) {
@@ -408,6 +418,13 @@ fun NaviampExperienceSettingsSection(
                 selectedSection = ExperienceSettingsPage.RelatedTracks
             }
         }
+        SettingsRow(
+            title = ExperienceSettingsPage.SwipeActions.title(),
+            subtitle = ExperienceSettingsPage.SwipeActions.subtitle(),
+            colors = colors,
+        ) {
+            selectedSection = ExperienceSettingsPage.SwipeActions
+        }
         SettingsCheckboxRow(
             colors = colors,
             checked = interfaceSettings.startPlayingOnLaunch,
@@ -435,6 +452,7 @@ private enum class ExperienceSettingsPage(
     Player("Player", "Queue, Back To, and Up Next behavior"),
     RelatedTracks("Related Tracks", "Sonic similarity and autoplay"),
     Lyrics("Lyrics", "Download and source order"),
+    SwipeActions("Swipe Actions", "Track gestures by list type"),
 }
 
 @Composable
@@ -443,6 +461,7 @@ private fun ExperienceSettingsPage.title(): String =
         ExperienceSettingsPage.Player -> stringResource(Res.string.settings_experience_player_title)
         ExperienceSettingsPage.RelatedTracks -> stringResource(Res.string.settings_experience_related_tracks_title)
         ExperienceSettingsPage.Lyrics -> stringResource(Res.string.settings_lyrics_title)
+        ExperienceSettingsPage.SwipeActions -> "Swipe Actions"
     }
 
 @Composable
@@ -451,7 +470,117 @@ private fun ExperienceSettingsPage.subtitle(): String =
         ExperienceSettingsPage.Player -> stringResource(Res.string.settings_experience_player_subtitle)
         ExperienceSettingsPage.RelatedTracks -> stringResource(Res.string.settings_experience_related_tracks_subtitle)
         ExperienceSettingsPage.Lyrics -> stringResource(Res.string.settings_lyrics_subtitle)
+        ExperienceSettingsPage.SwipeActions -> "Choose left and right track actions"
     }
+
+private enum class SwipeActionSlot(val title: String, val subtitle: String) {
+    LibraryRight("Library: swipe right", "Search, albums, playlists, and library tracks"),
+    LibraryLeft("Library: swipe left", "Search, albums, playlists, and library tracks"),
+    QueueRight("Queue: swipe right", "Back To and Up Next"),
+    QueueLeft("Queue: swipe left", "Back To and Up Next"),
+    RelatedRight("Related: swipe right", "Related and Sonic recommendations"),
+    RelatedLeft("Related: swipe left", "Related and Sonic recommendations"),
+}
+
+@Composable
+private fun SwipeActionSettings(
+    colors: NaviampColors,
+    interfaceSettings: InterfaceSettings,
+    onInterfaceSettingsChanged: (InterfaceSettings) -> Unit,
+) {
+    var selectedSlot by remember { mutableStateOf<SwipeActionSlot?>(null) }
+    val settings = interfaceSettings.trackSwipes
+
+    selectedSlot?.let { slot ->
+        SettingsSubsectionHeader(slot.title, slot.subtitle, colors) { selectedSlot = null }
+        swipeActionChoices(slot).forEach { action ->
+            SelectableSettingsRow(
+                colors = colors,
+                title = action.label(),
+                subtitle = action.subtitle(),
+                selected = settings.action(slot) == action,
+            ) {
+                onInterfaceSettingsChanged(
+                    interfaceSettings.copy(trackSwipes = settings.withAction(slot, action)).normalized(),
+                )
+            }
+        }
+        return
+    }
+
+    SwipeActionSlot.entries.forEach { slot ->
+        SettingsRow(
+            title = slot.title,
+            subtitle = slot.subtitle,
+            colors = colors,
+            value = settings.action(slot).label(),
+        ) {
+            selectedSlot = slot
+        }
+    }
+}
+
+private fun app.naviamp.domain.settings.TrackSwipeSettings.action(slot: SwipeActionSlot): TrackSwipeAction = when (slot) {
+    SwipeActionSlot.LibraryRight -> libraryRight
+    SwipeActionSlot.LibraryLeft -> libraryLeft
+    SwipeActionSlot.QueueRight -> queueRight
+    SwipeActionSlot.QueueLeft -> queueLeft
+    SwipeActionSlot.RelatedRight -> relatedRight
+    SwipeActionSlot.RelatedLeft -> relatedLeft
+}
+
+private fun app.naviamp.domain.settings.TrackSwipeSettings.withAction(
+    slot: SwipeActionSlot,
+    action: TrackSwipeAction,
+): app.naviamp.domain.settings.TrackSwipeSettings = when (slot) {
+    SwipeActionSlot.LibraryRight -> copy(libraryRight = action)
+    SwipeActionSlot.LibraryLeft -> copy(libraryLeft = action)
+    SwipeActionSlot.QueueRight -> copy(queueRight = action)
+    SwipeActionSlot.QueueLeft -> copy(queueLeft = action)
+    SwipeActionSlot.RelatedRight -> copy(relatedRight = action)
+    SwipeActionSlot.RelatedLeft -> copy(relatedLeft = action)
+}
+
+private fun swipeActionChoices(slot: SwipeActionSlot): List<TrackSwipeAction> = when (slot) {
+    SwipeActionSlot.QueueRight,
+    SwipeActionSlot.QueueLeft,
+    -> listOf(
+        TrackSwipeAction.None,
+        TrackSwipeAction.PlayNext,
+        TrackSwipeAction.AddToPlaylist,
+        TrackSwipeAction.Download,
+        TrackSwipeAction.StartRadio,
+        TrackSwipeAction.Remove,
+    )
+    else -> listOf(
+        TrackSwipeAction.None,
+        TrackSwipeAction.PlayNext,
+        TrackSwipeAction.AddToQueue,
+        TrackSwipeAction.AddToPlaylist,
+        TrackSwipeAction.Download,
+        TrackSwipeAction.StartRadio,
+    )
+}
+
+private fun TrackSwipeAction.label(): String = when (this) {
+    TrackSwipeAction.None -> "No action"
+    TrackSwipeAction.PlayNext -> "Play next"
+    TrackSwipeAction.AddToQueue -> "Add to queue"
+    TrackSwipeAction.AddToPlaylist -> "Add to playlist"
+    TrackSwipeAction.Download -> "Download"
+    TrackSwipeAction.StartRadio -> "Start radio"
+    TrackSwipeAction.Remove -> "Remove"
+}
+
+private fun TrackSwipeAction.subtitle(): String = when (this) {
+    TrackSwipeAction.None -> "Disable this swipe direction"
+    TrackSwipeAction.PlayNext -> "Insert or move the track directly after the current track"
+    TrackSwipeAction.AddToQueue -> "Append the track to the end of Up Next"
+    TrackSwipeAction.AddToPlaylist -> "Open the playlist picker"
+    TrackSwipeAction.Download -> "Save the track for offline playback"
+    TrackSwipeAction.StartRadio -> "Build a radio queue from the track"
+    TrackSwipeAction.Remove -> "Remove the track from this queue"
+}
 
 @Composable
 private fun NowPlayingDisplaySettings(
@@ -939,7 +1068,7 @@ private fun SourceSubpageRow(
     ) {
         Column(Modifier.weight(1f)) {
             Text(title, color = if (enabled) colors.primaryText else colors.mutedText, fontSize = SettingsDetailRowTitleSize)
-            Text(subtitle, color = colors.mutedText, fontSize = SettingsDetailRowSubtitleSize)
+            Text(subtitle, color = colors.mutedText, fontSize = SettingsDetailRowSubtitleSize, lineHeight = SettingsDetailRowSubtitleLineHeight)
         }
         value?.takeIf { it.isNotBlank() }?.let {
             Text(
@@ -2195,7 +2324,7 @@ private fun SelectableSettingsRow(
         Column(Modifier.weight(1f)) {
             Text(title, color = if (enabled) colors.primaryText else colors.mutedText, fontSize = SettingsDetailRowTitleSize)
             subtitle?.takeIf { it.isNotBlank() }?.let {
-                Text(it, color = colors.mutedText, fontSize = SettingsDetailRowSubtitleSize)
+                Text(it, color = colors.mutedText, fontSize = SettingsDetailRowSubtitleSize, lineHeight = SettingsDetailRowSubtitleLineHeight)
             }
         }
         if (selected) {
@@ -2235,7 +2364,7 @@ private fun SelectableTextOption(
         Column(Modifier.weight(1f)) {
             Text(title, color = if (enabled) colors.primaryText else colors.mutedText, fontSize = SettingsDetailRowTitleSize)
             subtitle?.takeIf { it.isNotBlank() }?.let {
-                Text(it, color = colors.mutedText, fontSize = SettingsDetailRowSubtitleSize)
+                Text(it, color = colors.mutedText, fontSize = SettingsDetailRowSubtitleSize, lineHeight = SettingsDetailRowSubtitleLineHeight)
             }
         }
         if (selected) {
@@ -2382,7 +2511,7 @@ private fun SettingsSubsectionHeader(
         }
         Column(verticalArrangement = Arrangement.spacedBy(1.dp)) {
             Text(title, color = colors.primaryText, fontSize = SettingsDetailTitleSize, fontWeight = FontWeight.Bold)
-            Text(subtitle, color = colors.secondaryText, fontSize = SettingsDetailSubtitleSize)
+            Text(subtitle, color = colors.secondaryText, fontSize = SettingsDetailSubtitleSize, lineHeight = SettingsDetailRowSubtitleLineHeight)
         }
     }
 }
@@ -2994,7 +3123,7 @@ private fun LyricsSearchOrderSettings(
                 )
                 Column(Modifier.weight(1f)) {
                     Text(source.label(), color = colors.primaryText, fontSize = SettingsDetailRowTitleSize)
-                    Text(source.subtitle(), color = colors.mutedText, fontSize = SettingsDetailRowSubtitleSize)
+                    Text(source.subtitle(), color = colors.mutedText, fontSize = SettingsDetailRowSubtitleSize, lineHeight = SettingsDetailRowSubtitleLineHeight)
                 }
             }
         }
@@ -3587,7 +3716,7 @@ private fun SettingsCheckboxRow(
         Column(Modifier.weight(1f)) {
             Text(label, color = if (enabled) colors.primaryText else colors.mutedText, fontSize = SettingsDetailRowTitleSize)
             subtitle?.takeIf { it.isNotBlank() }?.let {
-                Text(it, color = colors.mutedText, fontSize = SettingsDetailRowSubtitleSize)
+                Text(it, color = colors.mutedText, fontSize = SettingsDetailRowSubtitleSize, lineHeight = SettingsDetailRowSubtitleLineHeight)
             }
         }
         CompactSettingsSwitch(
@@ -3658,7 +3787,7 @@ fun SettingsRow(
     ) {
         Column(Modifier.weight(1f)) {
             Text(title, color = if (enabled) colors.primaryText else colors.mutedText, fontSize = SettingsDetailRowTitleSize)
-            Text(subtitle, color = colors.mutedText, fontSize = SettingsDetailRowSubtitleSize)
+            Text(subtitle, color = colors.mutedText, fontSize = SettingsDetailRowSubtitleSize, lineHeight = SettingsDetailRowSubtitleLineHeight)
         }
         value?.takeIf { it.isNotBlank() }?.let {
             Text(
@@ -3769,12 +3898,14 @@ private fun Float.preampLabel(): String =
 private val CrossfadeDurationOptions = listOf(0, 3, 5, 8, 12)
 private val PreampDbOptions = listOf(6f, 5f, 4f, 3f, 2f, 1f, 0f, -1f, -2f, -3f, -4f, -5f, -6f, -9f, -12f)
 private val SettingsRowHorizontalPadding = 14.dp
-private val SettingsDetailRowVerticalPadding = 6.dp
+private val SettingsDetailRowVerticalPadding = 2.dp
+private val SettingsDetailItemSpacing = 2.dp
 private val SettingsCategoryTitleSize = 17.sp
 private val SettingsDetailTitleSize = 16.sp
 private val SettingsDetailSubtitleSize = 11.sp
 private val SettingsDetailRowTitleSize = 14.sp
 private val SettingsDetailRowSubtitleSize = 11.sp
+private val SettingsDetailRowSubtitleLineHeight = 13.sp
 private val SettingsDetailTinyTextSize = 10.sp
 private val SettingsSectionTitleSize = 13.sp
 private const val NewRadioDjId = "__new_radio_dj__"

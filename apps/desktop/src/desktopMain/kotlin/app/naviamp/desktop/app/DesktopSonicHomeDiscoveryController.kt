@@ -75,6 +75,7 @@ internal class DesktopSonicHomeDiscoveryController(
         val track = rowTracks.firstOrNull { candidate -> candidate.id.value == request.track.id } ?: return
         when (request.action) {
             SharedTrackRowAction.Select -> playRow(rowTracks, track)
+            SharedTrackRowAction.PlayNext -> playNext(track)
             SharedTrackRowAction.AddToQueue -> addTracksToQueue(listOf(track), "track")
             SharedTrackRowAction.StartRadio,
             SharedTrackRowAction.PlayTrackRadioNext,
@@ -84,6 +85,15 @@ internal class DesktopSonicHomeDiscoveryController(
             SharedTrackRowAction.CreatePlaylistAndAdd,
             -> Unit
         }
+    }
+
+    private fun playNext(track: Track) {
+        val update = PlaybackQueueManager().playNextTracks(
+            currentQueue = playlistEngine.queue,
+            tracksToAdd = listOf(track),
+            label = "track",
+        )
+        applyPlaybackQueueUpdate(update, setConnectionStatus, playlistEngine::replaceQueue)
     }
 
     private fun playRow(rowTracks: List<Track>, track: Track) {

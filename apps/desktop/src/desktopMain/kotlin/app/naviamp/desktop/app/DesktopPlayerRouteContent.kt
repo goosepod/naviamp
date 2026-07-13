@@ -148,7 +148,14 @@ internal fun ColumnScope.DesktopPlayerRouteContent(
                 NowPlayingItemAction.AddTrackRadioToQueue ->
                     action.track?.let(appActions::addTrackRadioToQueue)
                 NowPlayingItemAction.PlayNext -> {
-                    if (action.isRelated) action.track?.let(playlistsController::playNext)
+                    nowPlayingQueueIndex(request.item)?.let { index ->
+                        onQueueAction(
+                            NowPlayingQueueActionRequest(
+                                action = NowPlayingQueueAction.MoveToNext,
+                                queueIndex = index,
+                            ),
+                        )
+                    } ?: action.track?.let(playlistsController::playNext)
                 }
                 NowPlayingItemAction.AddToQueue -> {
                     if (action.isRelated) action.track?.let(playlistsController::addTrackToQueue)

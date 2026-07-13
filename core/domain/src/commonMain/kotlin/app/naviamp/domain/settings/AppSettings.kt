@@ -128,8 +128,30 @@ data class InterfaceSettings(
     val checkForUpdates: Boolean = true,
     val startPlayingOnLaunch: Boolean = false,
     val nowPlaying: NowPlayingDisplaySettings = NowPlayingDisplaySettings(),
+    val trackSwipes: TrackSwipeSettings = TrackSwipeSettings(),
 ) {
     fun normalized(): InterfaceSettings = copy(nowPlaying = nowPlaying.normalized())
+}
+
+@Serializable
+data class TrackSwipeSettings(
+    val libraryRight: TrackSwipeAction = TrackSwipeAction.PlayNext,
+    val libraryLeft: TrackSwipeAction = TrackSwipeAction.None,
+    val queueRight: TrackSwipeAction = TrackSwipeAction.PlayNext,
+    val queueLeft: TrackSwipeAction = TrackSwipeAction.Remove,
+    val relatedRight: TrackSwipeAction = TrackSwipeAction.PlayNext,
+    val relatedLeft: TrackSwipeAction = TrackSwipeAction.None,
+)
+
+@Serializable
+enum class TrackSwipeAction {
+    None,
+    PlayNext,
+    AddToQueue,
+    AddToPlaylist,
+    Download,
+    StartRadio,
+    Remove,
 }
 
 @Serializable

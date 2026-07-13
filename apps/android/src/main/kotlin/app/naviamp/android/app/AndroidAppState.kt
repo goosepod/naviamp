@@ -102,6 +102,7 @@ class AndroidAppState(
     var downloadRefreshToken by mutableStateOf(0)
     var libraryStatus by mutableStateOf<String?>(null)
     var isLibrarySyncing by mutableStateOf(false)
+    var isHomeRefreshing by mutableStateOf(false)
     var editingConnection by mutableStateOf(false)
     var restoringConnection by mutableStateOf(canAutoConnect)
     var savedMediaSources by mutableStateOf(initialSavedMediaSources)

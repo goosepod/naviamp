@@ -18,6 +18,8 @@ import app.naviamp.domain.settings.InterfaceSettings
 import app.naviamp.domain.settings.NowPlayingDisplaySettings
 import app.naviamp.domain.settings.SampleRateConverter
 import app.naviamp.domain.settings.SampleRateMatching
+import app.naviamp.domain.settings.TrackSwipeAction
+import app.naviamp.domain.settings.TrackSwipeSettings
 
 class DesktopSettingsStoreTest {
     @Test
@@ -37,6 +39,24 @@ class DesktopSettingsStoreTest {
 
         assertEquals(true, store.loadInterfaceSettings().startPlayingOnLaunch)
         assertEquals(expected, store.loadInterfaceSettings().nowPlaying)
+    }
+
+    @Test
+    fun saveInterfaceSettingsRoundTripsTrackSwipeActions() {
+        val path = createTempDirectory().resolve("settings.json")
+        val store = DesktopSettingsStore(path)
+        val expected = TrackSwipeSettings(
+            libraryRight = TrackSwipeAction.AddToPlaylist,
+            libraryLeft = TrackSwipeAction.Download,
+            queueRight = TrackSwipeAction.StartRadio,
+            queueLeft = TrackSwipeAction.Remove,
+            relatedRight = TrackSwipeAction.AddToQueue,
+            relatedLeft = TrackSwipeAction.None,
+        )
+
+        store.saveInterfaceSettings(InterfaceSettings(trackSwipes = expected))
+
+        assertEquals(expected, store.loadInterfaceSettings().trackSwipes)
     }
 
     @Test

@@ -181,6 +181,28 @@ class PlaybackQueueTest {
         assertEquals(originalUpcoming, restored.queue.upNext())
     }
 
+    @Test
+    fun moveUpcomingTrackToNextReordersWithoutDuplicating() {
+        val queue = PlaybackQueue(
+            tracks = listOf(track("1"), track("2"), track("3"), track("4")),
+            currentIndex = 0,
+        ).moveToNext(3)
+
+        assertEquals(listOf(track("1"), track("4"), track("2"), track("3")), queue.tracks)
+        assertEquals(0, queue.currentIndex)
+    }
+
+    @Test
+    fun moveHistoryTrackToNextPreservesCurrentTrack() {
+        val queue = PlaybackQueue(
+            tracks = listOf(track("1"), track("2"), track("3"), track("4")),
+            currentIndex = 2,
+        ).moveToNext(0)
+
+        assertEquals(listOf(track("2"), track("3"), track("1"), track("4")), queue.tracks)
+        assertEquals(track("3"), queue.current)
+    }
+
     private fun track(id: String): Track =
         Track(
             id = TrackId(id),
