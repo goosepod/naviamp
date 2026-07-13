@@ -98,6 +98,9 @@ data class NaviampNowPlayingItemUi(
     val subtitle: String,
     val meta: String = "",
     val coverArtUrl: String? = null,
+    val favoriteActive: Boolean = false,
+    val hasAlbum: Boolean = false,
+    val hasArtist: Boolean = false,
 )
 
 data class NaviampNowPlayingActions(
@@ -1720,6 +1723,7 @@ private fun NowPlayingSidePanel(
             onClick = onClick,
             rowActions = rowActions,
             onAction = actions.onQueueItemAction,
+            canToggleFavorite = nowPlaying.canFavorite,
             swipeRightAction = if (selectedTab == NaviampNowPlayingTab.Related) {
                 swipeSettings.relatedRight
             } else {
@@ -2254,6 +2258,7 @@ private fun NowPlayingItemList(
     swipeRightAction: TrackSwipeAction = TrackSwipeAction.None,
     swipeLeftAction: TrackSwipeAction = TrackSwipeAction.None,
     queueContext: Boolean = false,
+    canToggleFavorite: Boolean = false,
 ) {
     if (items.isEmpty()) {
         Box(modifier = modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
@@ -2270,11 +2275,28 @@ private fun NowPlayingItemList(
             val selected = item.id == currentId
             var menuExpanded by remember { mutableStateOf(false) }
             var playlistDialogOpen by remember { mutableStateOf(false) }
+            val visibleRowActions = rowActions.filter { action ->
+                when (action.action) {
+                    NaviampAction.GoToAlbum -> item.hasAlbum
+                    NaviampAction.GoToArtist -> item.hasArtist
+                    else -> true
+                }
+            } + listOfNotNull(
+                NaviampAction.ToggleFavorite.takeIf {
+                    canToggleFavorite && rowActions.none { action -> action.action == NaviampAction.ToggleFavorite }
+                }?.let { action ->
+                    NaviampActionSpec(
+                        action = action,
+                        label = if (item.favoriteActive) "Unfavorite" else "Favorite",
+                    )
+                },
+            )
             SwipeActionContainer(
                 swipeRight = nowPlayingSwipeActionVisual(
                     swipeRightAction,
                     item,
                     queueContext,
+                    canToggleFavorite,
                     onAddToPlaylist = {
                         if (useInlinePlaylistPicker) playlistDialogOpen = true
                         else onAction(nowPlayingItemActionRequest(item, NowPlayingItemAction.AddToPlaylist))
@@ -2285,6 +2307,7 @@ private fun NowPlayingItemList(
                     swipeLeftAction,
                     item,
                     queueContext,
+                    canToggleFavorite,
                     onAddToPlaylist = {
                         if (useInlinePlaylistPicker) playlistDialogOpen = true
                         else onAction(nowPlayingItemActionRequest(item, NowPlayingItemAction.AddToPlaylist))
@@ -2316,13 +2339,18 @@ private fun NowPlayingItemList(
                         onClick = { menuExpanded = true },
                         modifier = Modifier.size(28.dp),
                     ) {
-                        Text("⋮", color = colors.secondaryText, fontSize = 15.sp)
+                        Icon(
+                            imageVector = NaviampTransportIcons.MoreVertical,
+                            contentDescription = "More actions",
+                            tint = colors.secondaryText,
+                            modifier = Modifier.size(17.dp),
+                        )
                     }
                     NaviampDropdownMenu(
                         expanded = menuExpanded,
                         onDismissRequest = { menuExpanded = false },
                     ) {
-                        rowActions.forEach { action ->
+                        visibleRowActions.forEach { action ->
                             NaviampDropdownMenuItem(
                                 label = action.label,
                                 icon = action.icon,
@@ -2356,6 +2384,8 @@ private fun NowPlayingItemList(
                                             onAction(nowPlayingItemActionRequest(item, NowPlayingItemAction.GoToAlbum))
                                         NaviampAction.GoToArtist ->
                                             onAction(nowPlayingItemActionRequest(item, NowPlayingItemAction.GoToArtist))
+                                        NaviampAction.ToggleFavorite ->
+                                            onAction(nowPlayingItemActionRequest(item, NowPlayingItemAction.ToggleFavorite))
                                         NaviampAction.AddToPlaylist -> {
                                             if (useInlinePlaylistPicker) {
                                                 playlistDialogOpen = true
@@ -2406,10 +2436,11 @@ private fun NowPlayingItemList(
     }
 }
 
-private fun nowPlayingSwipeActionVisual(
+internal fun nowPlayingSwipeActionVisual(
     action: TrackSwipeAction,
     item: NaviampNowPlayingItemUi,
     queueContext: Boolean,
+    canToggleFavorite: Boolean,
     onAddToPlaylist: () -> Unit,
     onAction: (NowPlayingItemActionRequest) -> Unit,
 ): TrackSwipeActionVisual? = when (action) {
@@ -2427,6 +2458,24 @@ private fun nowPlayingSwipeActionVisual(
     TrackSwipeAction.StartRadio -> swipeVisual("Start radio", NaviampTransportIcons.Radio) {
         onAction(nowPlayingItemActionRequest(item, NowPlayingItemAction.StartRadio))
     }
+    TrackSwipeAction.ToggleFavorite -> if (canToggleFavorite) {
+        swipeVisual(
+            if (item.favoriteActive) "Unfavorite" else "Favorite",
+            if (item.favoriteActive) NaviampTransportIcons.HeartFilled else NaviampTransportIcons.Heart,
+        ) {
+            onAction(nowPlayingItemActionRequest(item, NowPlayingItemAction.ToggleFavorite))
+        }
+    } else null
+    TrackSwipeAction.GoToAlbum -> if (item.hasAlbum) {
+        swipeVisual("Go to album", NaviampIcons.Album) {
+            onAction(nowPlayingItemActionRequest(item, NowPlayingItemAction.GoToAlbum))
+        }
+    } else null
+    TrackSwipeAction.GoToArtist -> if (item.hasArtist) {
+        swipeVisual("Go to artist", NaviampIcons.Artist) {
+            onAction(nowPlayingItemActionRequest(item, NowPlayingItemAction.GoToArtist))
+        }
+    } else null
     TrackSwipeAction.Remove -> {
         val index = nowPlayingQueueIndex(item)
         if (!queueContext || index == null) {

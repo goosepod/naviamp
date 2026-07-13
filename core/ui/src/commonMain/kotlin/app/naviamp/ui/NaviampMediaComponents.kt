@@ -84,6 +84,10 @@ fun TrackRow(
             SharedTrackRowAction.Download -> onDownload?.invoke(request.track)
             SharedTrackRowAction.AddToPlaylist -> onAddToPlaylist?.invoke(request.track)
             SharedTrackRowAction.CreatePlaylistAndAdd -> Unit
+            SharedTrackRowAction.ToggleFavorite,
+            SharedTrackRowAction.GoToAlbum,
+            SharedTrackRowAction.GoToArtist,
+            -> Unit
         }
     },
     reservePopularIndicatorSpace: Boolean = false,
@@ -186,9 +190,23 @@ fun TrackRow(
             canDownload = canDownload,
             canAddToQueue = canAddToQueue,
             canAddToPlaylist = canAddToPlaylist,
+            canToggleFavorite = track.canToggleFavorite,
+            favoriteActive = track.favoriteActive,
+            hasAlbum = track.hasAlbum,
+            hasArtist = track.hasArtist,
             canShowDetails = track.detailSections.isNotEmpty(),
         ).mapNotNull { action ->
             when (action.action) {
+                NaviampAction.PlayNext -> if (canAddToQueue) {
+                    NaviampRowMenuItem(
+                        action.label,
+                        action.icon,
+                        { onTrackAction(SharedTrackRowActionRequest(track, SharedTrackRowAction.PlayNext)) },
+                        action.enabled,
+                    )
+                } else {
+                    null
+                }
                 NaviampAction.StartTrackRadio -> if (canStartRadio) {
                     NaviampRowMenuItem(
                         action.label,
@@ -249,6 +267,36 @@ fun TrackRow(
                 } else {
                     null
                 }
+                NaviampAction.ToggleFavorite -> if (track.canToggleFavorite) {
+                    NaviampRowMenuItem(
+                        action.label,
+                        action.icon,
+                        { onTrackAction(SharedTrackRowActionRequest(track, SharedTrackRowAction.ToggleFavorite)) },
+                        action.enabled,
+                    )
+                } else {
+                    null
+                }
+                NaviampAction.GoToAlbum -> if (track.hasAlbum) {
+                    NaviampRowMenuItem(
+                        action.label,
+                        action.icon,
+                        { onTrackAction(SharedTrackRowActionRequest(track, SharedTrackRowAction.GoToAlbum)) },
+                        action.enabled,
+                    )
+                } else {
+                    null
+                }
+                NaviampAction.GoToArtist -> if (track.hasArtist) {
+                    NaviampRowMenuItem(
+                        action.label,
+                        action.icon,
+                        { onTrackAction(SharedTrackRowActionRequest(track, SharedTrackRowAction.GoToArtist)) },
+                        action.enabled,
+                    )
+                } else {
+                    null
+                }
                 NaviampAction.TrackDetails -> NaviampRowMenuItem(
                     action.label,
                     action.icon,
@@ -293,6 +341,9 @@ private fun trackSwipeActionVisual(
         TrackSwipeAction.AddToPlaylist -> SharedTrackRowAction.AddToPlaylist.takeIf { canAddToPlaylist }
         TrackSwipeAction.Download -> SharedTrackRowAction.Download.takeIf { canDownload }
         TrackSwipeAction.StartRadio -> SharedTrackRowAction.StartRadio.takeIf { canStartRadio }
+        TrackSwipeAction.ToggleFavorite -> SharedTrackRowAction.ToggleFavorite.takeIf { track.canToggleFavorite }
+        TrackSwipeAction.GoToAlbum -> SharedTrackRowAction.GoToAlbum.takeIf { track.hasAlbum }
+        TrackSwipeAction.GoToArtist -> SharedTrackRowAction.GoToArtist.takeIf { track.hasArtist }
     } ?: return null
     val (label, icon) = when (action) {
         TrackSwipeAction.PlayNext -> "Play next" to NaviampIcons.Queue
@@ -300,6 +351,11 @@ private fun trackSwipeActionVisual(
         TrackSwipeAction.AddToPlaylist -> "Add to playlist" to NaviampIcons.Playlist
         TrackSwipeAction.Download -> "Download" to NaviampIcons.Downloads
         TrackSwipeAction.StartRadio -> "Start radio" to NaviampTransportIcons.Radio
+        TrackSwipeAction.ToggleFavorite ->
+            (if (track.favoriteActive) "Unfavorite" else "Favorite") to
+                (if (track.favoriteActive) NaviampTransportIcons.HeartFilled else NaviampTransportIcons.Heart)
+        TrackSwipeAction.GoToAlbum -> "Go to album" to NaviampIcons.Album
+        TrackSwipeAction.GoToArtist -> "Go to artist" to NaviampIcons.Artist
         TrackSwipeAction.None,
         TrackSwipeAction.Remove,
         -> return null

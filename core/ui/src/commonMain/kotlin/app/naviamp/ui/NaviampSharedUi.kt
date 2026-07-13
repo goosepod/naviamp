@@ -1810,7 +1810,7 @@ private fun AlbumDetailContent(
             }
         }
         Column(
-            verticalArrangement = Arrangement.spacedBy(2.dp),
+            verticalArrangement = Arrangement.spacedBy(5.dp),
             modifier = Modifier
                 .weight(1f)
                 .verticalScroll(rememberScrollState()),

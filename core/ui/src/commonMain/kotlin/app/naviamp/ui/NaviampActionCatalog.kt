@@ -52,20 +52,31 @@ fun trackRowActions(
     canDownload: Boolean = false,
     canAddToQueue: Boolean = false,
     canAddToPlaylist: Boolean = false,
+    canToggleFavorite: Boolean = false,
+    favoriteActive: Boolean = false,
+    hasAlbum: Boolean = false,
+    hasArtist: Boolean = false,
     canShowDetails: Boolean = true,
 ): List<NaviampActionSpec> =
     listOfNotNull(
+        NaviampAction.PlayNext.takeIf { canAddToQueue }?.toSpec(),
         NaviampAction.StartTrackRadio.takeIf { canStartRadio }?.toSpec(),
         NaviampAction.PlayTrackRadioNext.takeIf { canStartRadio }?.toSpec(),
         NaviampAction.AddTrackRadioToQueue.takeIf { canStartRadio }?.toSpec(),
         NaviampAction.DownloadTrack.takeIf { canDownload }?.toSpec(),
         NaviampAction.AddToQueue.takeIf { canAddToQueue }?.toSpec(),
         NaviampAction.AddToPlaylist.takeIf { canAddToPlaylist }?.toSpec(),
+        NaviampAction.ToggleFavorite.takeIf { canToggleFavorite }?.toSpec(
+            label = if (favoriteActive) "Unfavorite" else "Favorite",
+        ),
+        NaviampAction.GoToAlbum.takeIf { hasAlbum }?.toSpec(),
+        NaviampAction.GoToArtist.takeIf { hasArtist }?.toSpec(),
         NaviampAction.TrackDetails.takeIf { canShowDetails }?.toSpec(),
     )
 
 fun queueRowActions(): List<NaviampActionSpec> =
     listOf(
+        NaviampAction.PlayNext.toSpec(),
         NaviampAction.StartTrackRadio.toSpec(),
         NaviampAction.PlayTrackRadioNext.toSpec(),
         NaviampAction.AddTrackRadioToQueue.toSpec(),

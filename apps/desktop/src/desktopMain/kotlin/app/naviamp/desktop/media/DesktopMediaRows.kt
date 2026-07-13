@@ -347,6 +347,9 @@ fun DesktopTrackRow(
     canDownload: Boolean = onDownload != null,
     canAddToQueue: Boolean = onAddToQueue != null,
     canAddToPlaylist: Boolean = onAddToPlaylist != null,
+    canToggleFavorite: Boolean = true,
+    canGoToAlbum: Boolean = track.albumId != null,
+    canGoToArtist: Boolean = track.artistId != null,
     onTrackAction: ((SharedTrackRowActionRequest) -> Unit)? = null,
     onClick: (() -> Unit)? = null,
 ) {
@@ -357,6 +360,10 @@ fun DesktopTrackRow(
         coverArtUrl = coverArtUrl,
         meta = index?.toString().orEmpty(),
         popular = popular,
+        favoriteActive = track.favoritedAtIso8601 != null,
+        canToggleFavorite = canToggleFavorite,
+        hasAlbum = canGoToAlbum,
+        hasArtist = canGoToArtist,
         detailSections = track.toNowPlayingDetailSections(),
     )
     TrackRow(
@@ -399,6 +406,10 @@ fun DesktopTrackRow(
                     Unit
                 }
                 SharedTrackRowAction.CreatePlaylistAndAdd -> Unit
+                SharedTrackRowAction.ToggleFavorite,
+                SharedTrackRowAction.GoToAlbum,
+                SharedTrackRowAction.GoToArtist,
+                -> Unit
             }
         },
         modifier = modifier,

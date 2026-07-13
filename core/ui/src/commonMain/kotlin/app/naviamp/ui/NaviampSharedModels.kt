@@ -95,6 +95,10 @@ data class SharedTrackRowUi(
     val coverArtUrl: String? = null,
     val meta: String = "",
     val popular: Boolean = false,
+    val favoriteActive: Boolean = false,
+    val canToggleFavorite: Boolean = true,
+    val hasAlbum: Boolean = false,
+    val hasArtist: Boolean = false,
     val detailSections: List<NaviampDetailSectionUi> = emptyList(),
 )
 
@@ -108,6 +112,9 @@ enum class SharedTrackRowAction {
     Download,
     AddToPlaylist,
     CreatePlaylistAndAdd,
+    ToggleFavorite,
+    GoToAlbum,
+    GoToArtist,
 }
 
 data class SharedTrackRowActionRequest(
@@ -138,6 +145,9 @@ data class SharedTrackRowActionHandlers(
     val onDownload: (SharedTrackRowUi) -> Unit = {},
     val onAddToPlaylist: (SharedTrackRowUi, NaviampPlaylistChoiceUi?) -> Unit = { _, _ -> },
     val onCreatePlaylistAndAdd: (SharedTrackRowUi, String) -> Unit = { _, _ -> },
+    val onToggleFavorite: (SharedTrackRowUi) -> Unit = {},
+    val onGoToAlbum: (SharedTrackRowUi) -> Unit = {},
+    val onGoToArtist: (SharedTrackRowUi) -> Unit = {},
 )
 
 fun handleSharedTrackRowAction(
@@ -155,6 +165,9 @@ fun handleSharedTrackRowAction(
         SharedTrackRowAction.AddToPlaylist -> handlers.onAddToPlaylist(request.track, request.playlistChoice)
         SharedTrackRowAction.CreatePlaylistAndAdd ->
             request.playlistName?.let { name -> handlers.onCreatePlaylistAndAdd(request.track, name) }
+        SharedTrackRowAction.ToggleFavorite -> handlers.onToggleFavorite(request.track)
+        SharedTrackRowAction.GoToAlbum -> handlers.onGoToAlbum(request.track)
+        SharedTrackRowAction.GoToArtist -> handlers.onGoToArtist(request.track)
     }
 }
 

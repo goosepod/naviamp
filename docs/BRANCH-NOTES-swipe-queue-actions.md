@@ -29,9 +29,19 @@
   - Add to playlist
   - Download
   - Start radio
+  - Favorite or unfavorite
+  - Go to album
+  - Go to artist
   - Remove from queue (queue context only)
+- [x] Only expose Go to album and Go to artist gestures on tracks with the corresponding metadata.
+  - Suppress redundant Go to album gestures inside that album and Go to artist gestures inside that artist.
+  - Preserve these capabilities through desktop track-row adapters, including artist Popular Tracks.
 - [x] Persist swipe settings on desktop and Android and include them in settings sync.
 - [x] Tighten settings page rows and multi-line description spacing to match the main Settings screen.
+- [x] Refine album details for narrow desktop windows.
+  - Increase spacing between album track rows on desktop and Android.
+  - Keep Play, Shuffle, Download, album radio, and Add to queue visible.
+  - Move Add to playlist and Favorite into an overflow menu when space is limited, while showing all actions at wider widths.
 - [x] Add pull-to-refresh to Home on desktop and Android.
 - [x] Add a three-dot Home menu with a Refresh action using the same Home refresh path.
 - [x] Compile the shared UI, desktop app, and Android debug app successfully.
@@ -39,19 +49,16 @@
 
 ## Not completed / future candidates
 
-- [ ] Add more optional swipe actions:
-  - Favorite or unfavorite the track.
-  - Go to album.
-  - Go to artist.
-  - Share the track.
-  - Open track information or lyrics.
-- [ ] Decide whether users need per-screen overrides beyond the current Library, Queue, and Related groups.
-- [ ] Add automated UI tests for swipe distance, cancellation, direction, action triggering, and destructive-action availability.
-- [ ] Manually verify the final Home pull-to-refresh gesture and overflow Refresh action on both Windows and Android.
-- [ ] Review accessibility details for swipe-only discovery and ensure every configured action remains available through a visible menu.
+- [x] Keep the current Library, Queue, and Related groups without additional per-screen overrides.
+- [x] Add automated UI tests for swipe distance, cancellation, direction, action triggering, and destructive-action availability.
+- [x] Manually verify the final Home pull-to-refresh gesture and overflow Refresh action on Windows, macOS, and Android.
+- [x] Review accessibility details for swipe-only discovery and ensure every configured action remains available through a visible menu.
+  - Label track overflow buttons as More actions for assistive technology.
+  - Keep every configurable swipe action available in the corresponding visible track menu, with capability-aware Favorite, album, and artist actions.
+  - Explain in Swipe Actions settings that gestures are shortcuts and the actions remain available through track menus.
 
 ## Before merging
 
 - [ ] Resolve or move any worthwhile future candidates to the permanent quality-of-life tracker.
-- [ ] Complete final desktop and Android manual testing.
+- [x] Complete final Windows, macOS, and Android manual testing.
 - [ ] Delete this file.

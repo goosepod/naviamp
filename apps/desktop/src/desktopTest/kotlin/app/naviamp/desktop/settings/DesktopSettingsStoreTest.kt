@@ -47,11 +47,11 @@ class DesktopSettingsStoreTest {
         val store = DesktopSettingsStore(path)
         val expected = TrackSwipeSettings(
             libraryRight = TrackSwipeAction.AddToPlaylist,
-            libraryLeft = TrackSwipeAction.Download,
-            queueRight = TrackSwipeAction.StartRadio,
+            libraryLeft = TrackSwipeAction.ToggleFavorite,
+            queueRight = TrackSwipeAction.GoToAlbum,
             queueLeft = TrackSwipeAction.Remove,
             relatedRight = TrackSwipeAction.AddToQueue,
-            relatedLeft = TrackSwipeAction.None,
+            relatedLeft = TrackSwipeAction.GoToArtist,
         )
 
         store.saveInterfaceSettings(InterfaceSettings(trackSwipes = expected))

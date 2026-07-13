@@ -186,7 +186,18 @@ internal fun androidMainShellActions(
         saveInternetRadioStation = shellMediaController::saveInternetRadioStation,
         deleteInternetRadioStation = shellMediaController::deleteInternetRadioStation,
         handleShellHomeStationSelected = shellMediaController::handleShellHomeStationSelected,
-        handleSonicDiscoveryTrackAction = sonicHomeDiscoveryController::handleAction,
+        handleSonicDiscoveryTrackAction = { request ->
+            val track = sonicHomeDiscoveryController.trackFor(request)
+            when (request.action) {
+                app.naviamp.ui.SharedTrackRowAction.ToggleFavorite ->
+                    track?.let(mediaAppController::toggleTrackFavorite)
+                app.naviamp.ui.SharedTrackRowAction.GoToAlbum ->
+                    track?.let(shellMediaController::handleTrackGoToAlbum)
+                app.naviamp.ui.SharedTrackRowAction.GoToArtist ->
+                    track?.let(shellMediaController::handleTrackGoToArtist)
+                else -> sonicHomeDiscoveryController.handleAction(request)
+            }
+        },
         closeActiveDetail = navigationController::closeActiveDetail,
         handleShellResume = shellPlaybackController::resume,
         playAdjacentTrack = playbackAppController::playAdjacentTrack,
@@ -220,6 +231,7 @@ internal fun androidMainShellActions(
         handleAddTrackRadioToQueue = trackActionController::addTrackRadioToQueue,
         resolveNowPlayingItemTrack = mediaAppController::resolveNowPlayingItemTrack,
         addTrackToPlaylist = playlistActionController::addTrackToPlaylist,
+        toggleTrackFavorite = mediaAppController::toggleTrackFavorite,
         toggleCurrentFavorite = mediaAppController::toggleCurrentFavorite,
         handleShellRatingSelected = shellMediaController::handleShellRatingSelected,
     )

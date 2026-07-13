@@ -1586,7 +1586,18 @@ fun NaviampApp(
                             onClearLibrary = { appActions.clearLibraryData() },
                             onRefreshLibrary = { libraryController.startLibrarySync(force = true) },
                             onResetDatabase = { appActions.resetDatabase() },
-                            onSonicHomeDiscoveryTrackAction = sonicHomeDiscoveryController::handleAction,
+                            onSonicHomeDiscoveryTrackAction = { request ->
+                                val track = sonicHomeDiscoveryController.trackFor(request)
+                                when (request.action) {
+                                    app.naviamp.ui.SharedTrackRowAction.ToggleFavorite ->
+                                        track?.let(appActions::toggleTrackFavorite)
+                                    app.naviamp.ui.SharedTrackRowAction.GoToAlbum ->
+                                        track?.let(appActions::openTrackAlbumDetails)
+                                    app.naviamp.ui.SharedTrackRowAction.GoToArtist ->
+                                        track?.let(appActions::openTrackArtistDetails)
+                                    else -> sonicHomeDiscoveryController.handleAction(request)
+                                }
+                            },
                         )
                         DesktopAppDialogs(
                             appColors = appColors,

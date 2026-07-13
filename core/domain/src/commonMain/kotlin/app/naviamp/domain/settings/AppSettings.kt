@@ -151,6 +151,9 @@ enum class TrackSwipeAction {
     AddToPlaylist,
     Download,
     StartRadio,
+    ToggleFavorite,
+    GoToAlbum,
+    GoToArtist,
     Remove,
 }
 

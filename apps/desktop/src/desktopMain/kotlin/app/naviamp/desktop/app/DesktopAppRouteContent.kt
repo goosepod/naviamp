@@ -431,6 +431,9 @@ fun ColumnScope.DesktopAppRouteContent(
                                 SharedTrackRowAction.AddToQueue -> playlistsController.addTrackToQueue(track)
                                 SharedTrackRowAction.AddToPlaylist -> playlistsController.openTrackAddToPlaylist(track)
                                 SharedTrackRowAction.CreatePlaylistAndAdd -> Unit
+                                SharedTrackRowAction.ToggleFavorite -> appActions.toggleTrackFavorite(track)
+                                SharedTrackRowAction.GoToAlbum -> appActions.openTrackAlbumDetails(track)
+                                SharedTrackRowAction.GoToArtist -> appActions.openTrackArtistDetails(track)
                             }
                         }
                     },
@@ -460,6 +463,9 @@ fun ColumnScope.DesktopAppRouteContent(
                                 SharedTrackRowAction.AddToQueue -> playlistsController.addTrackToQueue(track)
                                 SharedTrackRowAction.AddToPlaylist -> playlistsController.openTrackAddToPlaylist(track)
                                 SharedTrackRowAction.CreatePlaylistAndAdd -> Unit
+                                SharedTrackRowAction.ToggleFavorite -> appActions.toggleTrackFavorite(track)
+                                SharedTrackRowAction.GoToAlbum -> appActions.openTrackAlbumDetails(track)
+                                SharedTrackRowAction.GoToArtist -> appActions.openTrackArtistDetails(track)
                             }
                         }
                     },
@@ -500,6 +506,9 @@ fun ColumnScope.DesktopAppRouteContent(
                                     SharedTrackRowAction.AddToPlaylist,
                                     SharedTrackRowAction.CreatePlaylistAndAdd,
                                     -> Unit
+                                    SharedTrackRowAction.ToggleFavorite -> appActions.toggleTrackFavorite(track)
+                                    SharedTrackRowAction.GoToAlbum -> appActions.openTrackAlbumDetails(track)
+                                    SharedTrackRowAction.GoToArtist -> appActions.openTrackArtistDetails(track)
                                 }
                             }
                     },
@@ -553,6 +562,9 @@ fun ColumnScope.DesktopAppRouteContent(
                                 SharedTrackRowAction.AddToQueue -> playlistsController.addTrackToQueue(track)
                                 SharedTrackRowAction.AddToPlaylist -> playlistsController.openTrackAddToPlaylist(track)
                                 SharedTrackRowAction.CreatePlaylistAndAdd -> Unit
+                                SharedTrackRowAction.ToggleFavorite -> appActions.toggleTrackFavorite(track)
+                                SharedTrackRowAction.GoToAlbum -> appActions.openTrackAlbumDetails(track)
+                                SharedTrackRowAction.GoToArtist -> appActions.openTrackArtistDetails(track)
                             }
                         }
                     },
@@ -619,6 +631,9 @@ fun ColumnScope.DesktopAppRouteContent(
                                 SharedTrackRowAction.AddToQueue -> appActions.addSearchTrackToQueue(index)
                                 SharedTrackRowAction.AddToPlaylist -> appActions.openSearchTrackAddToPlaylist(index)
                                 SharedTrackRowAction.CreatePlaylistAndAdd -> Unit
+                                SharedTrackRowAction.ToggleFavorite -> appActions.toggleTrackFavorite(track)
+                                SharedTrackRowAction.GoToAlbum -> appActions.openTrackAlbumDetails(track)
+                                SharedTrackRowAction.GoToArtist -> appActions.openTrackArtistDetails(track)
                             }
                         }
                     },

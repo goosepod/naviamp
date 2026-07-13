@@ -52,8 +52,10 @@ class SettingsSyncDocumentTest {
                     ),
                     trackSwipes = TrackSwipeSettings(
                         libraryRight = TrackSwipeAction.AddToPlaylist,
+                        libraryLeft = TrackSwipeAction.ToggleFavorite,
+                        queueRight = TrackSwipeAction.GoToAlbum,
                         queueLeft = TrackSwipeAction.Remove,
-                        relatedLeft = TrackSwipeAction.Download,
+                        relatedLeft = TrackSwipeAction.GoToArtist,
                     ),
                 ),
                 playback = PlaybackSettings(
@@ -95,8 +97,10 @@ class SettingsSyncDocumentTest {
         assertTrue(decoded.preferences.interfaceSettings.nowPlaying.scrollArtistName)
         assertTrue(decoded.preferences.interfaceSettings.nowPlaying.scrollAlbumName)
         assertEquals(TrackSwipeAction.AddToPlaylist, decoded.preferences.interfaceSettings.trackSwipes.libraryRight)
+        assertEquals(TrackSwipeAction.ToggleFavorite, decoded.preferences.interfaceSettings.trackSwipes.libraryLeft)
+        assertEquals(TrackSwipeAction.GoToAlbum, decoded.preferences.interfaceSettings.trackSwipes.queueRight)
         assertEquals(TrackSwipeAction.Remove, decoded.preferences.interfaceSettings.trackSwipes.queueLeft)
-        assertEquals(TrackSwipeAction.Download, decoded.preferences.interfaceSettings.trackSwipes.relatedLeft)
+        assertEquals(TrackSwipeAction.GoToArtist, decoded.preferences.interfaceSettings.trackSwipes.relatedLeft)
     }
 
     @Test

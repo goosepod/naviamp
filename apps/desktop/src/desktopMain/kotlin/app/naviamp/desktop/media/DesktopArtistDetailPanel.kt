@@ -314,6 +314,7 @@ fun DesktopArtistDetailPanel(
                                 canStartRadio = true,
                                 canDownload = false,
                                 canAddToQueue = true,
+                                canGoToArtist = false,
                                 onTrackAction = onPopularTrackAction,
                             )
                         }

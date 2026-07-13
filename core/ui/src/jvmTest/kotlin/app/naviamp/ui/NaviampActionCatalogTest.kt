@@ -15,6 +15,7 @@ class NaviampActionCatalogTest {
 
         assertEquals(
             listOf(
+                NaviampAction.PlayNext,
                 NaviampAction.StartTrackRadio,
                 NaviampAction.PlayTrackRadioNext,
                 NaviampAction.AddTrackRadioToQueue,
@@ -28,9 +29,34 @@ class NaviampActionCatalogTest {
     }
 
     @Test
+    fun trackRowActionsExposeAllCapabilityAwareSwipeActionsInTheMenu() {
+        val actions = trackRowActions(
+            canAddToQueue = true,
+            canToggleFavorite = true,
+            favoriteActive = true,
+            hasAlbum = true,
+            hasArtist = true,
+            canShowDetails = false,
+        )
+
+        assertEquals(
+            listOf(
+                NaviampAction.PlayNext,
+                NaviampAction.AddToQueue,
+                NaviampAction.ToggleFavorite,
+                NaviampAction.GoToAlbum,
+                NaviampAction.GoToArtist,
+            ),
+            actions.map { it.action },
+        )
+        assertEquals("Unfavorite", actions.first { it.action == NaviampAction.ToggleFavorite }.label)
+    }
+
+    @Test
     fun queueRowActionsReplaceTrackDetailsWithArtistAndAlbumNavigation() {
         assertEquals(
             listOf(
+                NaviampAction.PlayNext,
                 NaviampAction.StartTrackRadio,
                 NaviampAction.PlayTrackRadioNext,
                 NaviampAction.AddTrackRadioToQueue,

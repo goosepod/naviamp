@@ -169,6 +169,8 @@ internal fun ColumnScope.DesktopPlayerRouteContent(
                     action.track?.let(appActions::openTrackAlbumDetails)
                 NowPlayingItemAction.GoToArtist ->
                     action.track?.let(appActions::openTrackArtistDetails)
+                NowPlayingItemAction.ToggleFavorite ->
+                    action.track?.let(appActions::toggleTrackFavorite)
                 NowPlayingItemAction.RemoveFromQueue ->
                     nowPlayingQueueIndex(request.item)?.let { index ->
                         onQueueAction(

@@ -470,7 +470,7 @@ private fun ExperienceSettingsPage.subtitle(): String =
         ExperienceSettingsPage.Player -> stringResource(Res.string.settings_experience_player_subtitle)
         ExperienceSettingsPage.RelatedTracks -> stringResource(Res.string.settings_experience_related_tracks_subtitle)
         ExperienceSettingsPage.Lyrics -> stringResource(Res.string.settings_lyrics_subtitle)
-        ExperienceSettingsPage.SwipeActions -> "Choose left and right track actions"
+        ExperienceSettingsPage.SwipeActions -> "Choose gesture shortcuts; actions stay available in each track's More actions menu"
     }
 
 private enum class SwipeActionSlot(val title: String, val subtitle: String) {
@@ -550,6 +550,9 @@ private fun swipeActionChoices(slot: SwipeActionSlot): List<TrackSwipeAction> = 
         TrackSwipeAction.AddToPlaylist,
         TrackSwipeAction.Download,
         TrackSwipeAction.StartRadio,
+        TrackSwipeAction.ToggleFavorite,
+        TrackSwipeAction.GoToAlbum,
+        TrackSwipeAction.GoToArtist,
         TrackSwipeAction.Remove,
     )
     else -> listOf(
@@ -559,6 +562,9 @@ private fun swipeActionChoices(slot: SwipeActionSlot): List<TrackSwipeAction> = 
         TrackSwipeAction.AddToPlaylist,
         TrackSwipeAction.Download,
         TrackSwipeAction.StartRadio,
+        TrackSwipeAction.ToggleFavorite,
+        TrackSwipeAction.GoToAlbum,
+        TrackSwipeAction.GoToArtist,
     )
 }
 
@@ -569,6 +575,9 @@ private fun TrackSwipeAction.label(): String = when (this) {
     TrackSwipeAction.AddToPlaylist -> "Add to playlist"
     TrackSwipeAction.Download -> "Download"
     TrackSwipeAction.StartRadio -> "Start radio"
+    TrackSwipeAction.ToggleFavorite -> "Favorite / unfavorite"
+    TrackSwipeAction.GoToAlbum -> "Go to album"
+    TrackSwipeAction.GoToArtist -> "Go to artist"
     TrackSwipeAction.Remove -> "Remove"
 }
 
@@ -579,6 +588,9 @@ private fun TrackSwipeAction.subtitle(): String = when (this) {
     TrackSwipeAction.AddToPlaylist -> "Open the playlist picker"
     TrackSwipeAction.Download -> "Save the track for offline playback"
     TrackSwipeAction.StartRadio -> "Build a radio queue from the track"
+    TrackSwipeAction.ToggleFavorite -> "Toggle the track's favorite status"
+    TrackSwipeAction.GoToAlbum -> "Open the track's album"
+    TrackSwipeAction.GoToArtist -> "Open the track's artist"
     TrackSwipeAction.Remove -> "Remove the track from this queue"
 }
 

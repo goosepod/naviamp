@@ -67,9 +67,18 @@ internal class AndroidSonicHomeDiscoveryController(
             SharedTrackRowAction.Download,
             SharedTrackRowAction.AddToPlaylist,
             SharedTrackRowAction.CreatePlaylistAndAdd,
+            SharedTrackRowAction.ToggleFavorite,
+            SharedTrackRowAction.GoToAlbum,
+            SharedTrackRowAction.GoToArtist,
             -> Unit
         }
     }
+
+    fun trackFor(request: SharedHomeDiscoveryTrackActionRequest): Track? =
+        state.sonicHomeDiscoveryRows.rows
+            .firstOrNull { row -> row.id.value == request.rowId }
+            ?.tracks
+            ?.firstOrNull { track -> track.id.value == request.track.id }
 
     private fun playNext(track: Track) {
         val update = PlaybackQueueManager().playNextTracks(

@@ -184,6 +184,9 @@ fun Track.toSharedTrackRowUi(
         coverArtUrl = coverArtUrl(coverArtId ?: fallbackCoverArtId),
         meta = durationSeconds?.durationLabel().orEmpty(),
         popular = popular,
+        favoriteActive = favoritedAtIso8601 != null,
+        hasAlbum = albumId != null,
+        hasArtist = artistId != null,
         detailSections = toNowPlayingDetailSections(),
     )
 
@@ -194,7 +197,11 @@ fun Track.toDownloadedTrackUi(
 ): NaviampDownloadedTrackUi =
     NaviampDownloadedTrackUi(
         id = id,
-        track = toSharedTrackRowUi(coverArtUrl),
+        track = toSharedTrackRowUi(coverArtUrl).copy(
+            canToggleFavorite = false,
+            hasAlbum = false,
+            hasArtist = false,
+        ),
         sizeBytes = sizeBytes,
     )
 
@@ -205,6 +212,9 @@ fun Track.toNowPlayingItemUi(coverArtUrl: (String?) -> String?): NaviampNowPlayi
         subtitle = listOfNotNull(artistName, albumTitle).joinToString(" - "),
         meta = durationSeconds?.durationLabel().orEmpty(),
         coverArtUrl = coverArtUrl(coverArtId),
+        favoriteActive = favoritedAtIso8601 != null,
+        hasAlbum = albumId != null,
+        hasArtist = artistId != null,
     )
 
 fun Track.toNowPlayingItemUi(
@@ -218,6 +228,9 @@ fun Track.toNowPlayingItemUi(
         subtitle = artistName,
         meta = meta,
         coverArtUrl = coverArtUrl,
+        favoriteActive = favoritedAtIso8601 != null,
+        hasAlbum = albumId != null,
+        hasArtist = artistId != null,
     )
 
 fun List<Track>.toNowPlayingItemUis(
@@ -364,6 +377,7 @@ enum class NowPlayingItemAction {
     Download,
     GoToAlbum,
     GoToArtist,
+    ToggleFavorite,
     RemoveFromQueue,
 }
 
@@ -1142,7 +1156,7 @@ fun AlbumDetails.toSharedAlbumDetailUi(
                 coverArtUrl,
                 fallbackCoverArtId = album.coverArtId ?: album.id.value,
                 popular = it.id.value in popularTrackIds,
-            )
+            ).copy(hasAlbum = false)
         },
         totalDurationLabel = tracks.totalDurationLabel(),
     )
@@ -1170,7 +1184,7 @@ fun ArtistDetails.toSharedArtistDetailUi(
         ),
         localLibraryLabel = artistLocalLibraryLabel(albums.size, popularTracks.size),
         biography = info?.biography,
-        popularTracks = popularTracks.map { it.toSharedTrackRowUi(coverArtUrl) },
+        popularTracks = popularTracks.map { it.toSharedTrackRowUi(coverArtUrl).copy(hasArtist = false) },
         popularTracksStatus = popularTracksStatus,
         similarArtists = similarArtists.map { it.toSharedSimilarArtistUi() },
         similarArtistsStatus = similarArtistsStatus,

@@ -96,6 +96,10 @@ internal class AndroidMediaAppController(
         toggleAndroidCurrentFavorite(scope, state, playbackEngine, storage)
     }
 
+    fun toggleTrackFavorite(track: Track) {
+        toggleAndroidTrackFavorite(scope, state, playbackEngine, track, storage)
+    }
+
     fun openArtistDetails(
         artistId: ArtistId,
         fallbackName: String? = null,

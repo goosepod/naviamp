@@ -195,6 +195,7 @@ fun androidAppShellActions(
     handleAddTrackRadioToQueue: (Track) -> Unit,
     resolveNowPlayingItemTrack: (NaviampNowPlayingItemUi) -> Track?,
     addTrackToPlaylist: (Track, NaviampPlaylistChoiceUi?, String?) -> Unit,
+    toggleTrackFavorite: (Track) -> Unit,
     handleQueueItemAction: (NowPlayingItemActionRequest) -> Unit = { request ->
         val action = request.resolveAction(fallbackTrack = resolveNowPlayingItemTrack(request.item))
         when (action.action) {
@@ -209,6 +210,7 @@ fun androidAppShellActions(
             NowPlayingItemAction.Download -> action.track?.let(downloadTrack)
             NowPlayingItemAction.GoToAlbum -> action.track?.let(handleTrackGoToAlbum)
             NowPlayingItemAction.GoToArtist -> action.track?.let(handleTrackGoToArtist)
+            NowPlayingItemAction.ToggleFavorite -> action.track?.let(toggleTrackFavorite)
             NowPlayingItemAction.RemoveFromQueue ->
                 (request.target as? app.naviamp.ui.NowPlayingItemTarget.QueueIndex)
                     ?.let { handleQueueItemRemoveFromQueue(it.index) }

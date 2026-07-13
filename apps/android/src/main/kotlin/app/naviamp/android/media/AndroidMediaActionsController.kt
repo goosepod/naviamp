@@ -243,18 +243,28 @@ fun toggleAndroidCurrentFavorite(
     pendingProviderActions: PendingProviderActionRepository? = null,
 ) {
     val currentTrack = state.nowPlaying ?: return
+    toggleAndroidTrackFavorite(scope, state, playbackEngine, currentTrack, pendingProviderActions)
+}
+
+fun toggleAndroidTrackFavorite(
+    scope: CoroutineScope,
+    state: AndroidAppState,
+    playbackEngine: AndroidPlaybackEngine,
+    track: Track,
+    pendingProviderActions: PendingProviderActionRepository? = null,
+) {
     scope.launch {
-        val favorite = currentTrack.favoritedAtIso8601 == null
-        AndroidPlaybackNotificationControls.isFavorite = favorite
+        val favorite = track.favoritedAtIso8601 == null
+        if (state.nowPlaying?.id == track.id) AndroidPlaybackNotificationControls.isFavorite = favorite
         if (state.provider == null && state.activeSourceId != null && pendingProviderActions != null) {
             pendingProviderActions.enqueuePendingProviderAction(
                 sourceId = state.activeSourceId!!,
                 actionType = PendingActionTrackFavorite,
-                entityId = currentTrack.id.value,
+                entityId = track.id.value,
                 boolValue = favorite,
                 replaceMatchingEntityAction = true,
             )
-            val updatedTrack = currentTrack.copy(favoritedAtIso8601 = if (favorite) "local" else null)
+            val updatedTrack = track.copy(favoritedAtIso8601 = if (favorite) "local" else null)
             androidMediaMetadataMutationController(
                 state = state,
                 playbackEngine = playbackEngine,
@@ -270,8 +280,8 @@ fun toggleAndroidCurrentFavorite(
             state = state,
             playbackEngine = playbackEngine,
             pendingProviderActions = pendingProviderActions,
-        ).toggleTrackFavoriteResult(currentTrack)
-        if (!result.shouldRunPlatformSideEffects) {
+        ).toggleTrackFavoriteResult(track)
+        if (!result.shouldRunPlatformSideEffects && state.nowPlaying?.id == track.id) {
             AndroidPlaybackNotificationControls.isFavorite = !favorite
         }
     }
@@ -413,6 +423,9 @@ internal class AndroidTrackActionController(
     private val downloadTrack: (Track) -> Unit,
     private val addTrackToPlaylist: (Track, NaviampPlaylistChoiceUi?, String?) -> Unit,
     private val removeDownload: (NaviampDownloadedTrackUi) -> Unit,
+    private val toggleTrackFavorite: (Track) -> Unit,
+    private val openTrackAlbum: (Track) -> Unit,
+    private val openTrackArtist: (Track) -> Unit,
 ) {
     fun handleDownloadedTrackSelected(download: NaviampDownloadedTrackUi) {
         playAndroidDownloadedTrack(state, download) { track, queue -> playTrack(track, queue) }
@@ -459,6 +472,9 @@ internal class AndroidTrackActionController(
             SharedTrackRowAction.AddToPlaylist -> addTrackToPlaylist(track, resolved.playlistChoice, null)
             SharedTrackRowAction.CreatePlaylistAndAdd ->
                 resolved.playlistName?.let { name -> addTrackToPlaylist(track, null, name) }
+            SharedTrackRowAction.ToggleFavorite -> toggleTrackFavorite(track)
+            SharedTrackRowAction.GoToAlbum -> openTrackAlbum(track)
+            SharedTrackRowAction.GoToArtist -> openTrackArtist(track)
         }
     }
 

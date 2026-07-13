@@ -4,6 +4,7 @@ import app.naviamp.domain.Artist
 import app.naviamp.domain.ArtistDetails
 import app.naviamp.domain.ArtistId
 import app.naviamp.domain.ArtistInfo
+import app.naviamp.domain.AlbumId
 import app.naviamp.domain.Track
 import app.naviamp.domain.TrackId
 import app.naviamp.domain.media.RelatedTracksSource
@@ -42,6 +43,30 @@ class MediaUiMappersTest {
         assertEquals("2:05", ui.track.meta)
         assertEquals("cover://cover-1", ui.track.coverArtUrl)
         assertEquals(12_345L, ui.sizeBytes)
+    }
+
+    @Test
+    fun sharedTrackRowsExposeFavoriteAndNavigationSwipeCapabilities() {
+        val track = Track(
+            id = TrackId("track-1"),
+            title = "Track One",
+            artistId = ArtistId("artist-1"),
+            artistName = "Artist",
+            albumId = AlbumId("album-1"),
+            albumTitle = "Album",
+            durationSeconds = 125,
+            coverArtId = null,
+            audioInfo = null,
+            replayGain = null,
+            favoritedAtIso8601 = "2026-07-13T00:00:00Z",
+        )
+
+        val ui = track.toSharedTrackRowUi(coverArtUrl = { null })
+
+        assertTrue(ui.favoriteActive)
+        assertTrue(ui.canToggleFavorite)
+        assertTrue(ui.hasAlbum)
+        assertTrue(ui.hasArtist)
     }
 
     @Test
@@ -169,6 +194,34 @@ class MediaUiMappersTest {
 
         assertEquals(fallbackTrack, action.track)
         assertEquals("New Mix", action.playlistName)
+    }
+
+    @Test
+    fun sharedTrackRowNavigationAndFavoriteActionsDispatch() {
+        val track = SharedTrackRowUi(id = "track", title = "Track", subtitle = "Artist")
+        val received = mutableListOf<SharedTrackRowAction>()
+        val handlers = SharedTrackRowActionHandlers(
+            onToggleFavorite = { received += SharedTrackRowAction.ToggleFavorite },
+            onGoToAlbum = { received += SharedTrackRowAction.GoToAlbum },
+            onGoToArtist = { received += SharedTrackRowAction.GoToArtist },
+        )
+
+        listOf(
+            SharedTrackRowAction.ToggleFavorite,
+            SharedTrackRowAction.GoToAlbum,
+            SharedTrackRowAction.GoToArtist,
+        ).forEach { action ->
+            handleSharedTrackRowAction(SharedTrackRowActionRequest(track, action), handlers)
+        }
+
+        assertEquals(
+            listOf(
+                SharedTrackRowAction.ToggleFavorite,
+                SharedTrackRowAction.GoToAlbum,
+                SharedTrackRowAction.GoToArtist,
+            ),
+            received,
+        )
     }
 
     @Test

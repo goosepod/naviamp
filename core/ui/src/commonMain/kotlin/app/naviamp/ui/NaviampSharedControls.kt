@@ -395,7 +395,12 @@ fun NaviampRowOverflowMenu(
             onClick = { expanded = true },
             modifier = Modifier.size(28.dp),
         ) {
-            Text("⋮", color = colors.mutedText, fontSize = 15.sp)
+            Icon(
+                imageVector = NaviampTransportIcons.MoreVertical,
+                contentDescription = "More actions",
+                tint = colors.mutedText,
+                modifier = Modifier.size(17.dp),
+            )
         }
         NaviampDropdownMenu(
             expanded = expanded,
