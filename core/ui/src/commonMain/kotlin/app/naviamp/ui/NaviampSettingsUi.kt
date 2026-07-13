@@ -102,7 +102,12 @@ data class NaviampAboutUi(
     val version: String = "Unknown",
     val buildNumber: String = "Unknown",
     val libraries: List<String> = DefaultNaviampLibraries,
-    val changelog: List<String> = DefaultNaviampChangelog,
+    val changelog: List<NaviampChangelogSectionUi> = DefaultNaviampChangelog,
+)
+
+data class NaviampChangelogSectionUi(
+    val title: String,
+    val entries: List<String>,
 )
 
 data class NaviampSavedConnectionUi(
@@ -779,8 +784,27 @@ fun NaviampAboutSettingsSection(
                     if (about.changelog.isEmpty()) {
                         Text(stringResource(Res.string.settings_about_empty_changelog), color = colors.secondaryText, fontSize = SettingsDetailRowSubtitleSize)
                     } else {
-                        about.changelog.forEach { entry ->
-                            Text(entry, color = colors.secondaryText, fontSize = SettingsDetailRowSubtitleSize)
+                        about.changelog.forEach { section ->
+                            Text(
+                                section.title,
+                                color = colors.primaryText,
+                                fontSize = SettingsDetailRowTitleSize,
+                                fontWeight = FontWeight.SemiBold,
+                            )
+                            section.entries.forEach { entry ->
+                                Row(
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                    verticalAlignment = Alignment.Top,
+                                ) {
+                                    Text("•", color = colors.primaryText, fontSize = SettingsDetailRowSubtitleSize)
+                                    Text(
+                                        entry,
+                                        color = colors.secondaryText,
+                                        fontSize = SettingsDetailRowSubtitleSize,
+                                        modifier = Modifier.weight(1f),
+                                    )
+                                }
+                            }
                         }
                     }
                 }
@@ -1255,11 +1279,26 @@ private val DefaultNaviampLibraries = listOf(
 )
 
 private val DefaultNaviampChangelog = listOf(
-    "First full public release of Naviamp.",
-    "Polished the project presentation with a product-focused README, screenshots, contribution guide, code of conduct, and security policy.",
-    "Highlighted Sonic Analysis, Smart Playlists, internet radio, lyrics, waveforms, visualizers, and customizable Now Playing behavior.",
-    "Switched Naviamp to GPLv3 licensing.",
-    "Moved internal planning notes out of the tracked repository.",
+    NaviampChangelogSectionUi(
+        title = "Features",
+        entries = listOf(
+            "Added configurable left and right swipe actions for Library, Queue, Related, and Sonic track lists.",
+            "Added a visible Play Next priority queue that preserves insertion order ahead of the regular queue.",
+            "Added pull-to-refresh and an overflow Refresh action to Home.",
+            "Improved album and artist detail actions for narrow and wide layouts.",
+        ),
+    ),
+    NaviampChangelogSectionUi(
+        title = "Bug Fixes",
+        entries = listOf(
+            "Fixed duplicate queue occurrences causing Play Next loops and duplicate-row crashes on Android.",
+            "Fixed restored Android queues and waveforms so they work before playback is resumed or skipped.",
+            "Fixed incomplete or stale waveform data and improved waveform contrast across player backgrounds.",
+            "Fixed seeking backward while a desktop crossfade is active.",
+            "Improved Now Playing gradients so light and secondary album-art colors remain visible.",
+            "Fixed Popular Tracks swipe behavior and track metadata navigation.",
+        ),
+    ),
 )
 
 @Composable

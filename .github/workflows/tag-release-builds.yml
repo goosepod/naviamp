@@ -192,9 +192,12 @@ jobs:
         run: |
           if [ -f CHANGELOG.md ]; then
             awk -v tag="${GITHUB_REF_NAME}" '
-              $0 == "## " tag { capture = 1; print; next }
-              capture && /^## / { exit }
-              capture { print }
+              $0 == "## " tag { release = 1; print; print ""; next }
+              release && /^## / { exit }
+              release && $0 == "### Features" { public = 1; print; next }
+              release && $0 == "### Bug Fixes" { public = 1; print; next }
+              release && /^### / { public = 0; next }
+              release && public { print }
             ' CHANGELOG.md > "$RUNNER_TEMP/release-notes.md"
           fi
 

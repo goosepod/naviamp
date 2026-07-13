@@ -1,6 +1,29 @@
 # Changelog
 
-Notable user-facing changes are summarized here. Internal development notes and task-tracking documents are intentionally not included.
+Release changes are grouped into user-facing Features, Bug Fixes, and deployment or infrastructure-related System Settings. Internal task-tracking notes are intentionally not included.
+
+## v1.1.0
+
+### Features
+
+- Added configurable left and right swipe actions for Library, Queue, Related, and Sonic track lists across desktop and Android.
+- Added a visible Play Next priority queue that preserves insertion order ahead of the regular queue and remains stable while shuffling.
+- Added pull-to-refresh and an overflow Refresh action to Home.
+- Improved album and artist detail actions for narrow and wide layouts.
+
+### Bug Fixes
+
+- Fixed duplicate queue occurrences causing Play Next loops and duplicate-row crashes on Android.
+- Fixed restored Android queues and waveforms so they work before playback is resumed or skipped.
+- Fixed incomplete or stale waveform data and improved waveform contrast across player backgrounds.
+- Fixed seeking backward while a desktop crossfade is active.
+- Improved Now Playing gradients so light and secondary album-art colors remain visible.
+- Fixed Popular Tracks swipe behavior and track metadata navigation.
+
+### System Settings
+
+- Added automated coverage for swipe gestures, queue occurrences, player colors, waveform validation, and Android playback-session restoration.
+- Updated release automation to publish only Features and Bug Fixes while retaining deployment and infrastructure changes in this changelog.
 
 ## v1.0.0
 
