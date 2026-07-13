@@ -4,6 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -1987,27 +1988,50 @@ private fun ArtistDetailContent(
                         overflow = TextOverflow.Ellipsis,
                     )
                 }
-                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                    MiniPlayerIconButton(colors, detail.albums.isNotEmpty(), NaviampTransportIcons.Radio, "Start artist radio", onArtistRadio)
-                    MiniPlayerIconButton(colors, detail.albums.isNotEmpty(), NaviampIcons.Queue, "Add artist to queue", onArtistAddToQueue)
-                    MiniPlayerIconButton(colors, detail.albums.isNotEmpty(), NaviampIcons.Playlist, "Add artist to playlist") {
-                        addArtistToPlaylistOpen = true
+                BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
+                    val compactActions = maxWidth < ArtistActionsExpandedMinWidth
+                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                        MiniPlayerIconButton(colors, detail.albums.isNotEmpty(), NaviampTransportIcons.Radio, "Start artist radio", onArtistRadio)
+                        MiniPlayerIconButton(
+                            colors,
+                            detail.artist.canFavorite,
+                            NaviampTransportIcons.Heart,
+                            if (detail.artist.favoriteActive) "Remove artist favorite" else "Favorite artist",
+                            onArtistFavoriteToggled,
+                        )
+                        MiniPlayerIconButton(colors, detail.popularTracks.isNotEmpty(), NaviampTransportIcons.Play, "Play popular tracks", onPopularPlay)
+                        MiniPlayerIconButton(
+                            colors,
+                            true,
+                            NaviampIcons.Artist,
+                            if (similarArtistsVisible) "Hide similar artists" else "Find similar artists",
+                            onFindSimilarArtists,
+                        )
+                        if (compactActions) {
+                            NaviampRowOverflowMenu(
+                                colors = colors,
+                                items = listOf(
+                                    NaviampRowMenuItem(
+                                        label = "Add artist to queue",
+                                        icon = NaviampIcons.Queue,
+                                        enabled = detail.albums.isNotEmpty(),
+                                        onClick = onArtistAddToQueue,
+                                    ),
+                                    NaviampRowMenuItem(
+                                        label = "Add artist to playlist",
+                                        icon = NaviampIcons.Playlist,
+                                        enabled = detail.albums.isNotEmpty(),
+                                        onClick = { addArtistToPlaylistOpen = true },
+                                    ),
+                                ),
+                            )
+                        } else {
+                            MiniPlayerIconButton(colors, detail.albums.isNotEmpty(), NaviampIcons.Queue, "Add artist to queue", onArtistAddToQueue)
+                            MiniPlayerIconButton(colors, detail.albums.isNotEmpty(), NaviampIcons.Playlist, "Add artist to playlist") {
+                                addArtistToPlaylistOpen = true
+                            }
+                        }
                     }
-                    MiniPlayerIconButton(
-                        colors,
-                        detail.artist.canFavorite,
-                        NaviampTransportIcons.Heart,
-                        if (detail.artist.favoriteActive) "Remove artist favorite" else "Favorite artist",
-                        onArtistFavoriteToggled,
-                    )
-                    MiniPlayerIconButton(colors, detail.popularTracks.isNotEmpty(), NaviampTransportIcons.Play, "Play popular tracks", onPopularPlay)
-                    MiniPlayerIconButton(
-                        colors,
-                        true,
-                        NaviampIcons.Artist,
-                        if (similarArtistsVisible) "Hide similar artists" else "Find similar artists",
-                        onFindSimilarArtists,
-                    )
                 }
                 detail.biography
                     ?.normalizedBiography()
@@ -2548,3 +2572,5 @@ private fun String.normalizedBiography(): String =
                 .replace(Regex("\\s*\\R\\s*"), " ")
                 .trim()
         }
+
+private val ArtistActionsExpandedMinWidth = 232.dp

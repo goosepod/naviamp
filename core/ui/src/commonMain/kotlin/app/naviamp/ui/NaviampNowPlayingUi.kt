@@ -1379,6 +1379,7 @@ private fun WaveformScrubber(
 ) {
     var latestValue by remember(value) { mutableFloatStateOf(value.coerceIn(0f, 1f)) }
     val displayAmplitudes = remember(amplitudes) { cleanWaveformAmplitudes(amplitudes) }
+    val readableAccent = colors.accent.mix(colors.primaryText, 0.48f)
 
     Box(
         modifier = modifier
@@ -1411,8 +1412,8 @@ private fun WaveformScrubber(
                 val ratio = if (visibleBars == 1) 0f else index / (visibleBars - 1f)
                 val color = when {
                     !enabled -> colors.mutedText.copy(alpha = 0.28f)
-                    ratio <= value -> colors.accent.copy(alpha = 0.94f)
-                    else -> colors.primaryText.copy(alpha = 0.30f)
+                    ratio <= value -> readableAccent.copy(alpha = 0.98f)
+                    else -> colors.primaryText.copy(alpha = 0.42f)
                 }
                 val x = index * step + step / 2f
                 drawLine(
@@ -1456,14 +1457,14 @@ private fun DrawScope.drawFallbackScrubLine(
     val endX = size.width * value.coerceIn(0f, 1f)
     val disabledAlpha = if (enabled) 1f else 0.42f
     drawLine(
-        color = colors.primaryText.copy(alpha = 0.24f * disabledAlpha),
+        color = colors.primaryText.copy(alpha = 0.42f * disabledAlpha),
         start = Offset.Zero.copy(y = centerY),
         end = Offset(size.width, centerY),
         strokeWidth = 5f,
         cap = StrokeCap.Round,
     )
     drawLine(
-        color = colors.accent.copy(alpha = 0.88f * disabledAlpha),
+        color = colors.accent.mix(colors.primaryText, 0.48f).copy(alpha = 0.98f * disabledAlpha),
         start = Offset.Zero.copy(y = centerY),
         end = Offset(endX, centerY),
         strokeWidth = 5f,

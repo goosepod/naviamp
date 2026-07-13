@@ -326,6 +326,7 @@ jfloatArray waveform_levels(JNIEnv* env, jint stream, jint bucketCount) {
     std::vector<float> levels(static_cast<size_t>(safeBucketCount), 0.0f);
     double bucketSeconds = durationSeconds / safeBucketCount;
     bool anyLevel = false;
+    bool complete = true;
     for (int bucket = 0; bucket < safeBucketCount; ++bucket) {
         double remaining = bucketSeconds;
         double weightedSquareSum = 0.0;
@@ -334,6 +335,7 @@ jfloatArray waveform_levels(JNIEnv* env, jint stream, jint bucketCount) {
             float level = 0.0f;
             float windowSeconds = static_cast<float>(std::min(remaining, 1.0));
             if (!BASS_ChannelGetLevelEx(handle, &level, windowSeconds, BASS_LEVEL_MONO | BASS_LEVEL_RMS)) {
+                complete = false;
                 break;
             }
             float clampedLevel = std::max(0.0f, std::min(level, 1.0f));
@@ -347,9 +349,10 @@ jfloatArray waveform_levels(JNIEnv* env, jint stream, jint bucketCount) {
                 std::sqrt(weightedSquareSum / measuredSeconds)
             );
         }
+        if (!complete) break;
     }
 
-    if (!anyLevel) return env->NewFloatArray(0);
+    if (!anyLevel || !complete) return env->NewFloatArray(0);
     jfloatArray result = env->NewFloatArray(static_cast<jsize>(safeBucketCount));
     env->SetFloatArrayRegion(result, 0, static_cast<jsize>(safeBucketCount), levels.data());
     return result;

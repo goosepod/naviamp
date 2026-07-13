@@ -51,19 +51,33 @@ data class NaviampPlayerColors(
                 palette.accent.hsvValue(),
             ).coerceIn(0f, 1f)
             val lightArtwork = ((artworkLift - 0.42f) / 0.42f).coerceIn(0f, 1f)
+            val lightPresence = (palette.lightSampleRatio / 0.65f).coerceIn(0f, 1f)
+            val secondaryHueStrength = ((palette.primary.hueDistance(secondary) - 0.08f) / 0.24f)
+                .coerceIn(0f, 1f)
             val left = palette.primary
-                .mix(Color.White, 0.04f + lightArtwork * 0.04f)
-                .mix(Color.Black, 0.36f - lightArtwork * 0.14f)
-                .mix(colors.background, 0.14f)
-            val middle = palette.accent
-                .mix(palette.primary, 0.28f)
-                .mix(Color.White, lightArtwork * 0.05f)
-                .mix(Color.Black, 0.44f - lightArtwork * 0.18f)
+                .mix(Color.White, 0.03f + lightPresence * 0.14f)
+                .mix(Color.Black, 0.30f - lightArtwork * 0.08f)
                 .mix(colors.background, 0.08f)
+            val middle = palette.accent
+                .mix(palette.primary, 0.18f)
+                .mix(secondary, secondaryHueStrength * 0.40f)
+                .mix(Color.White, 0.02f + lightPresence * 0.16f)
+                .mix(Color.Black, 0.34f - lightArtwork * 0.08f - secondaryHueStrength * 0.08f)
+                .mix(colors.background, 0.06f)
+                .preserveDistinctHue(
+                    strength = secondaryHueStrength,
+                    minimumValue = 0.28f,
+                    minimumSaturation = 0.30f,
+                )
             val right = secondary
-                .mix(Color.White, lightArtwork * 0.03f)
-                .mix(Color.Black, 0.62f - lightArtwork * 0.20f)
-                .mix(colors.background, 0.10f)
+                .mix(Color.White, 0.02f + lightPresence * 0.18f)
+                .mix(Color.Black, 0.40f - lightArtwork * 0.10f - secondaryHueStrength * 0.14f)
+                .mix(colors.background, 0.06f)
+                .preserveDistinctHue(
+                    strength = secondaryHueStrength,
+                    minimumValue = 0.36f,
+                    minimumSaturation = 0.46f,
+                )
             return NaviampPlayerColors(
                 backgroundStart = left,
                 backgroundMid = middle,
@@ -78,6 +92,7 @@ data class NaviampAlbumPalette(
     val primary: Color,
     val secondary: Color,
     val accent: Color,
+    val lightSampleRatio: Float = 0f,
 ) {
     companion object {
         fun fallback(color: Color): NaviampAlbumPalette =
@@ -97,10 +112,16 @@ data class NaviampRgbSample(
 
 fun naviampAlbumPalette(samples: Iterable<NaviampRgbSample>): NaviampAlbumPalette? {
     val buckets = mutableMapOf<Int, ColorBucket>()
+    var sampleCount = 0
+    var lightSampleCount = 0
     samples.forEach { sample ->
         val hsv = rgbToHsv(sample.red, sample.green, sample.blue)
         val saturation = hsv[1]
         val brightness = hsv[2]
+        sampleCount += 1
+        if (brightness >= 0.82f && saturation <= 0.22f) {
+            lightSampleCount += 1
+        }
         if (saturation > 0.06f && brightness in 0.12f..0.96f) {
             val key = ((sample.red / 32) shl 10) or ((sample.green / 32) shl 5) or (sample.blue / 32)
             buckets.getOrPut(key) { ColorBucket() }
@@ -113,8 +134,10 @@ fun naviampAlbumPalette(samples: Iterable<NaviampRgbSample>): NaviampAlbumPalett
         .sortedByDescending { it.score() }
 
     val primary = candidates.firstOrNull() ?: return null
-    val secondary = candidates.firstOrNull { primary.colorDistance(it) > 0.045f }
-        ?: candidates.firstOrNull { primary.hueDistance(it) > 0.08f }
+    val secondary = candidates
+        .filter { primary.hueDistance(it) > 0.10f }
+        .maxByOrNull { it.score() * (1.0 + primary.hueDistance(it) * 2.0) }
+        ?: candidates.firstOrNull { primary.colorDistance(it) > 0.045f }
         ?: candidates.getOrNull(1)
         ?: primary
     val accent = candidates
@@ -126,6 +149,7 @@ fun naviampAlbumPalette(samples: Iterable<NaviampRgbSample>): NaviampAlbumPalett
         primary = primary.color(),
         secondary = secondary.color(),
         accent = accent.color(),
+        lightSampleRatio = if (sampleCount == 0) 0f else lightSampleCount.toFloat() / sampleCount,
     )
 }
 
@@ -199,6 +223,21 @@ fun Color.shiftHue(amount: Float): Color {
 
 private fun Color.hsvValue(): Float =
     rgbToHsv((red * 255).toInt(), (green * 255).toInt(), (blue * 255).toInt())[2]
+
+private fun Color.preserveDistinctHue(
+    strength: Float,
+    minimumValue: Float,
+    minimumSaturation: Float,
+): Color {
+    if (strength <= 0f) return this
+    val hsv = rgbToHsv((red * 255).toInt(), (green * 255).toInt(), (blue * 255).toInt())
+    return hsvToColor(
+        hue = hsv[0],
+        saturation = maxOf(hsv[1], minimumSaturation * strength),
+        value = maxOf(hsv[2], minimumValue * strength),
+        alpha = alpha,
+    )
+}
 
 fun Color.hueDistance(other: Color): Float {
     val hsv = rgbToHsv((red * 255).toInt(), (green * 255).toInt(), (blue * 255).toInt())

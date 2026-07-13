@@ -63,6 +63,7 @@ import app.naviamp.domain.playback.planBassPlaybackPrePlay
 import app.naviamp.domain.playback.planBassPlaybackStart
 import app.naviamp.domain.playback.playbackSourceHandle
 import app.naviamp.domain.playback.playbackUserVolumeFactor
+import app.naviamp.domain.playback.shouldRestoreCurrentSourceForSeek
 import app.naviamp.domain.playback.playbackReplayGainAdjustment
 import app.naviamp.domain.playback.preparedBassPlaybackAdopted
 import app.naviamp.domain.playback.preparedBassPlaybackFailed
@@ -346,7 +347,12 @@ class AndroidBassPlaybackEngine(
     }
 
     override fun seek(positionSeconds: Double) {
+        val restoreCurrentSource = shouldRestoreCurrentSourceForSeek(
+            preparedHandle = preparedStream,
+            crossfadeActive = crossfadeDurationSeconds > 0,
+        )
         freePreparedStream()
+        if (restoreCurrentSource) applyVolume()
         seekStreamPosition(positionSeconds)
     }
 

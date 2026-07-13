@@ -4,6 +4,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Row
@@ -65,6 +66,7 @@ fun DesktopArtistDetailPanel(
         ?: artistDetails?.info?.smallImageUrl
     var biographyExpanded by remember(effectiveArtist?.id) { mutableStateOf(false) }
     var artistImageOpen by remember(effectiveArtist?.id) { mutableStateOf(false) }
+    var actionMenuExpanded by remember(effectiveArtist?.id) { mutableStateOf(false) }
     val similarArtistsVisible = similarArtists.isNotEmpty() || similarArtistsStatus != null
     val artistItem = effectiveArtist?.toSharedMediaItemUi(
         coverArtUrl = { imageUrl },
@@ -153,53 +155,100 @@ fun DesktopArtistDetailPanel(
                         color = appColors.secondaryText,
                         fontSize = 12.sp,
                     )
-                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                        DetailActionIconButton(
-                            appColors = appColors,
-                            icon = TransportIcons.Radio,
-                            contentDescription = "Start artist radio",
-                            enabled = details.albums.isNotEmpty(),
-                            onClick = { requestArtistAction(SharedMediaItemAction.StartRadio) },
-                        )
-                        DetailActionIconButton(
-                            appColors = appColors,
-                            icon = DesktopNavigationIcons.Queue,
-                            contentDescription = "Add artist to queue",
-                            enabled = details.albums.isNotEmpty(),
-                            onClick = { requestArtistAction(SharedMediaItemAction.AddToQueue) },
-                        )
-                        DetailActionIconButton(
-                            appColors = appColors,
-                            icon = DesktopNavigationIcons.Playlist,
-                            contentDescription = "Add artist to playlist",
-                            enabled = details.albums.isNotEmpty(),
-                            onClick = { requestArtistAction(SharedMediaItemAction.AddToPlaylist) },
-                        )
-                        DetailActionIconButton(
-                            appColors = appColors,
-                            icon = TransportIcons.Heart,
-                            contentDescription = if (effectiveArtist?.favoritedAtIso8601 != null) {
-                                "Remove artist favorite"
+                    BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
+                        val showAllActions = maxWidth >= ArtistActionsExpandedMinWidth
+                        val actionButtonSize = if (showAllActions) 36.dp else 32.dp
+                        val actionIconSize = if (showAllActions) 22.dp else 20.dp
+                        Row(horizontalArrangement = Arrangement.spacedBy(if (showAllActions) 4.dp else 2.dp)) {
+                            DetailActionIconButton(
+                                appColors = appColors,
+                                icon = TransportIcons.Radio,
+                                contentDescription = "Start artist radio",
+                                enabled = details.albums.isNotEmpty(),
+                                buttonSize = actionButtonSize,
+                                iconSize = actionIconSize,
+                                onClick = { requestArtistAction(SharedMediaItemAction.StartRadio) },
+                            )
+                            DetailActionIconButton(
+                                appColors = appColors,
+                                icon = TransportIcons.Heart,
+                                contentDescription = if (effectiveArtist?.favoritedAtIso8601 != null) {
+                                    "Remove artist favorite"
+                                } else {
+                                    "Favorite artist"
+                                },
+                                enabled = effectiveArtist != null,
+                                buttonSize = actionButtonSize,
+                                iconSize = actionIconSize,
+                                onClick = { requestArtistAction(SharedMediaItemAction.ToggleFavorite) },
+                            )
+                            DetailActionIconButton(
+                                appColors = appColors,
+                                icon = TransportIcons.Play,
+                                contentDescription = "Play popular tracks",
+                                enabled = popularTracks.isNotEmpty(),
+                                buttonSize = actionButtonSize,
+                                iconSize = actionIconSize,
+                                onClick = { requestPopularTracksAction(SharedTrackGroupAction.Play) },
+                            )
+                            DetailActionIconButton(
+                                appColors = appColors,
+                                icon = DesktopNavigationIcons.Artist,
+                                contentDescription = if (similarArtistsVisible) "Hide similar artists" else "Find similar artists",
+                                enabled = effectiveArtist != null,
+                                buttonSize = actionButtonSize,
+                                iconSize = actionIconSize,
+                                onClick = { requestArtistAction(SharedMediaItemAction.FindSimilar) },
+                            )
+                            if (showAllActions) {
+                                DetailActionIconButton(
+                                    appColors = appColors,
+                                    icon = DesktopNavigationIcons.Queue,
+                                    contentDescription = "Add artist to queue",
+                                    enabled = details.albums.isNotEmpty(),
+                                    onClick = { requestArtistAction(SharedMediaItemAction.AddToQueue) },
+                                )
+                                DetailActionIconButton(
+                                    appColors = appColors,
+                                    icon = DesktopNavigationIcons.Playlist,
+                                    contentDescription = "Add artist to playlist",
+                                    enabled = details.albums.isNotEmpty(),
+                                    onClick = { requestArtistAction(SharedMediaItemAction.AddToPlaylist) },
+                                )
                             } else {
-                                "Favorite artist"
-                            },
-                            enabled = effectiveArtist != null,
-                            onClick = { requestArtistAction(SharedMediaItemAction.ToggleFavorite) },
-                        )
-                        DetailActionIconButton(
-                            appColors = appColors,
-                            icon = TransportIcons.Play,
-                            contentDescription = "Play popular tracks",
-                            enabled = popularTracks.isNotEmpty(),
-                            onClick = { requestPopularTracksAction(SharedTrackGroupAction.Play) },
-                        )
-                        DetailActionIconButton(
-                            appColors = appColors,
-                            icon = DesktopNavigationIcons.Artist,
-                            contentDescription = if (similarArtistsVisible) "Hide similar artists" else "Find similar artists",
-                            enabled = effectiveArtist != null,
-                            onClick = { requestArtistAction(SharedMediaItemAction.FindSimilar) },
-                        )
+                                Box {
+                                    IconButton(
+                                        onClick = { actionMenuExpanded = true },
+                                        modifier = Modifier.size(actionButtonSize),
+                                    ) {
+                                        Text("⋮", color = appColors.primaryText, fontSize = 17.sp)
+                                    }
+                                    DesktopNaviampDropdownMenu(
+                                        expanded = actionMenuExpanded,
+                                        onDismissRequest = { actionMenuExpanded = false },
+                                    ) {
+                                        DesktopNaviampDropdownMenuItem(
+                                            label = "Add artist to queue",
+                                            icon = DesktopNavigationIcons.Queue,
+                                            enabled = details.albums.isNotEmpty(),
+                                            onClick = {
+                                                actionMenuExpanded = false
+                                                requestArtistAction(SharedMediaItemAction.AddToQueue)
+                                            },
+                                        )
+                                        DesktopNaviampDropdownMenuItem(
+                                            label = "Add artist to playlist",
+                                            icon = DesktopNavigationIcons.Playlist,
+                                            enabled = details.albums.isNotEmpty(),
+                                            onClick = {
+                                                actionMenuExpanded = false
+                                                requestArtistAction(SharedMediaItemAction.AddToPlaylist)
+                                            },
+                                        )
+                                    }
+                                }
+                            }
+                        }
                     }
                     details.info?.biography
                         ?.takeIf { it.isNotBlank() }
@@ -433,3 +482,5 @@ private fun String.normalizedBiography(): String =
                 .replace(Regex("\\s*\\R\\s*"), " ")
                 .trim()
         }
+
+private val ArtistActionsExpandedMinWidth = 240.dp

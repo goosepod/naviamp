@@ -107,6 +107,11 @@ fun crossfadeDurationMillis(seconds: Int): Int =
 fun shouldQueueMixerSources(crossfadeDurationSeconds: Int): Boolean =
     normalizedCrossfadeDurationSeconds(crossfadeDurationSeconds) <= 0
 
+fun shouldRestoreCurrentSourceForSeek(
+    preparedHandle: Int,
+    crossfadeActive: Boolean,
+): Boolean = preparedHandle != 0 && crossfadeActive
+
 fun bassPlaybackFeatureSupport(supportsMixer: Boolean): BassPlaybackFeatureSupport =
     BassPlaybackFeatureSupport(
         supportsGapless = supportsMixer,

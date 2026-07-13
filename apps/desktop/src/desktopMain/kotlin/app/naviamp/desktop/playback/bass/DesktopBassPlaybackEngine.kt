@@ -64,6 +64,7 @@ import app.naviamp.domain.playback.playbackReplayGainAdjustment
 import app.naviamp.domain.playback.preparedBassPlaybackAdopted
 import app.naviamp.domain.playback.preparedBassPlaybackFailed
 import app.naviamp.domain.playback.preparedBassPlaybackSucceeded
+import app.naviamp.domain.playback.shouldRestoreCurrentSourceForSeek
 import app.naviamp.domain.playback.targetOutputSampleRate
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -310,7 +311,15 @@ class DesktopBassPlaybackEngine(
         val handle = playbackSourceHandle(stream, currentSourceStream)
         val bass = backend ?: return
         if (handle != 0) {
+            val restoreCurrentSource = shouldRestoreCurrentSourceForSeek(
+                preparedHandle = preparedStream,
+                crossfadeActive = crossfadeActive,
+            )
             freePreparedStream()
+            if (restoreCurrentSource) {
+                crossfadeActive = false
+                applyOutputVolume(bass)
+            }
             seekCurrentSource(bass, positionSeconds)
         }
     }

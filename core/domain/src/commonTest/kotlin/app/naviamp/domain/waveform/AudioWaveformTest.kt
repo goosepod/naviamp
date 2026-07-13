@@ -39,6 +39,23 @@ class AudioWaveformTest {
     }
 
     @Test
+    fun rejectsIncompleteFloatPcmWaveform() {
+        var supplied = false
+
+        val waveform = normalizeFloatPcmWaveform(
+            totalSamples = 100,
+            bucketCount = 10,
+        ) { buffer ->
+            if (supplied) return@normalizeFloatPcmWaveform 0
+            supplied = true
+            floatArrayOf(0.5f, 1.0f).copyInto(buffer)
+            2
+        }
+
+        assertEquals(null, waveform)
+    }
+
+    @Test
     fun analyzesFloatPcmThroughBassBackendPort() {
         val waveform = analyzeBassFloatPcmWaveform(
             bass = FakeBassAudioBackend(listOf(floatArrayOf(0.5f), floatArrayOf(1.0f))),
@@ -66,11 +83,30 @@ class AudioWaveformTest {
     }
 
     @Test
-    fun suppressesIsolatedLeadingWaveformSpike() {
-        val waveform = cleanWaveformAmplitudes(listOf(1.0f) + List(31) { 0.08f })
+    fun rejectsTruncatedBassWaveformLevelsAndFallsBackToPcm() {
+        val waveform = analyzeBassFloatPcmWaveform(
+            bass = FakeBassAudioBackend(
+                chunks = listOf(FloatArray(20) { 0.5f }),
+                waveformLevels = floatArrayOf(0.8f, 1.0f) + FloatArray(18),
+            ),
+            stream = BassStreamHandle(7),
+            bucketCount = 20,
+        )
 
-        assertEquals(0.08f, waveform.first())
-        assertEquals(0.08f, waveform[1])
+        assertNotNull(waveform)
+        assertEquals(20, waveform.amplitudes.size)
+        assertEquals(List(20) { 1.0f }, waveform.amplitudes)
+    }
+
+    @Test
+    fun suppressesIsolatedLeadingWaveformSpikeAndRestoresDynamicRange() {
+        val waveform = cleanWaveformAmplitudes(
+            listOf(1.0f, 0.08f, 0.12f) + List(29) { 0.10f },
+        )
+
+        assertEquals(2f / 3f, waveform.first())
+        assertEquals(2f / 3f, waveform[1])
+        assertEquals(1.0f, waveform[2])
     }
 
     @Test
@@ -82,9 +118,9 @@ class AudioWaveformTest {
 
     @Test
     fun buildsStableWaveformQualityKeys() {
-        assertEquals("original:waveform-v4", StreamQuality.Original.waveformCacheKey())
+        assertEquals("original:waveform-v7", StreamQuality.Original.waveformCacheKey())
         assertEquals(
-            "transcoded:opus:128:waveform-v4",
+            "transcoded:opus:128:waveform-v7",
             StreamQuality.Transcoded(AudioCodec.Opus, 128).waveformCacheKey(),
         )
     }

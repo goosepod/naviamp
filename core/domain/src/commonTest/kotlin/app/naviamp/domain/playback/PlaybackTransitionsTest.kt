@@ -621,6 +621,28 @@ class PlaybackTransitionsTest {
         assertTrue(shouldContinueBassPlaybackPolling(BassActiveState.Paused))
     }
 
+    @Test
+    fun restoresCurrentSourceWhenSeekingDuringPreparedCrossfade() {
+        assertTrue(
+            shouldRestoreCurrentSourceForSeek(
+                preparedHandle = 9,
+                crossfadeActive = true,
+            ),
+        )
+        assertFalse(
+            shouldRestoreCurrentSourceForSeek(
+                preparedHandle = 0,
+                crossfadeActive = true,
+            ),
+        )
+        assertFalse(
+            shouldRestoreCurrentSourceForSeek(
+                preparedHandle = 9,
+                crossfadeActive = false,
+            ),
+        )
+    }
+
     private fun track(id: String): Track =
         Track(
             id = TrackId(id),

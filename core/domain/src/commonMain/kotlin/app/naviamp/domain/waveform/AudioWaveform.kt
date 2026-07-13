@@ -23,7 +23,7 @@ fun StreamQuality.waveformCacheKey(): String =
     when (this) {
         StreamQuality.Original -> "original"
         is StreamQuality.Transcoded -> "transcoded:${codec.name.lowercase()}:$bitrateKbps"
-    } + ":waveform-v4"
+    } + ":waveform-v7"
 
 fun playbackFraction(positionSeconds: Double?, durationSeconds: Double?): Double {
     val position = positionSeconds ?: return 0.0
@@ -117,6 +117,7 @@ fun normalizeFloatPcmWaveform(
     }
 
     if (sampleIndex <= 0) return null
+    if (sampleIndex.toDouble() / totalSamples < MinDecodedSampleCoverage) return null
 
     repeat(bucketCount) { bucket ->
         val count = bucketCounts[bucket]
@@ -137,7 +138,8 @@ private fun normalizeBuckets(buckets: FloatArray): AudioWaveform {
 
 fun cleanWaveformAmplitudes(amplitudes: List<Float>): List<Float> {
     if (amplitudes.size < MinSpikeSuppressionBuckets) return amplitudes
-    return amplitudes.mapIndexed { index, amplitude ->
+    var suppressedSpike = false
+    val cleaned = amplitudes.mapIndexed { index, amplitude ->
         val previous = amplitudes.getOrNull(index - 1)
         val next = amplitudes.getOrNull(index + 1)
         val neighborPeak = listOfNotNull(previous, next).maxOrNull() ?: 0f
@@ -145,15 +147,24 @@ fun cleanWaveformAmplitudes(amplitudes: List<Float>): List<Float> {
             neighborPeak <= IsolatedSpikeNeighborMax &&
             amplitude >= neighborPeak * IsolatedSpikeRatio
         ) {
+            suppressedSpike = true
             neighborPeak
         } else {
             amplitude
         }
     }
+    if (!suppressedSpike) return cleaned
+
+    // The rejected spike may have been the value used to normalize every
+    // bucket. Restore the remaining waveform's dynamic range after removing it.
+    val cleanedMax = cleaned.maxOrNull() ?: 0f
+    if (cleanedMax <= 0f) return cleaned
+    return cleaned.map { (it / cleanedMax).coerceIn(0f, 1f) }
 }
 
 private const val RmsWeight = 0.82f
 private const val PeakWeight = 0.18f
+private const val MinDecodedSampleCoverage = 0.98
 private const val MinSpikeSuppressionBuckets = 16
 private const val IsolatedSpikeAmplitude = 0.92f
 private const val IsolatedSpikeNeighborMax = 0.35f
