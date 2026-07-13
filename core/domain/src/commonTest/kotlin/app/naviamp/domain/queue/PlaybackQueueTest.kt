@@ -67,6 +67,34 @@ class PlaybackQueueTest {
     }
 
     @Test
+    fun replacingUpcomingTracksKeepsTheCurrentDuplicateOccurrence() {
+        val duplicate = track("duplicate")
+        val queue = PlaybackQueue(
+            tracks = listOf(track("before"), duplicate, track("middle"), duplicate, track("old-upcoming")),
+            currentIndex = 3,
+        ).replaceUpcomingTracks(
+            currentTrack = duplicate,
+            upcomingTracks = listOf(track("replacement")),
+        )
+
+        assertEquals(
+            listOf(track("before"), duplicate, track("middle"), duplicate, track("replacement")),
+            queue.tracks,
+        )
+        assertEquals(3, queue.currentIndex)
+        assertEquals(track("replacement"), queue.upNext().single())
+    }
+
+    @Test
+    fun resolvingTrackOccurrencePrefersTheValidatedQueueIndex() {
+        val duplicate = track("duplicate")
+        val tracks = listOf(track("before"), duplicate, track("middle"), duplicate)
+
+        assertEquals(3, resolveTrackOccurrenceIndex(tracks, duplicate, preferredIndex = 3))
+        assertEquals(1, resolveTrackOccurrenceIndex(tracks, duplicate, preferredIndex = 2))
+    }
+
+    @Test
     fun removingPriorityTrackShrinksPriorityBlock() {
         val queue = PlaybackQueue(
             tracks = listOf(track("current"), track("priority-1"), track("priority-2"), track("context")),

@@ -3,6 +3,7 @@ package app.naviamp.domain.playback
 import app.naviamp.domain.StreamQuality
 import app.naviamp.domain.StreamRequest
 import app.naviamp.domain.Track
+import app.naviamp.domain.queue.resolveTrackOccurrenceIndex
 
 data class PlaybackTargetPlan(
     val engineStartPositionSeconds: Double?,
@@ -141,6 +142,7 @@ fun planPlaybackTrackStarted(
 fun planPlaybackStart(
     track: Track,
     requestedQueue: List<Track>?,
+    requestedQueueIndex: Int? = null,
     activeQueue: List<Track>,
     quality: StreamQuality,
     startPositionSeconds: Double?,
@@ -159,7 +161,12 @@ fun planPlaybackStart(
     val restoredStartPosition = target.engineStartPositionSeconds?.takeIf { it > 0.0 }
     return PlaybackStartPlan(
         queue = queue,
-        queueIndex = queue.indexOfFirst { it.id == track.id }.takeIf { it >= 0 } ?: 0,
+        queueIndex = resolveTrackOccurrenceIndex(
+            tracks = queue,
+            track = track,
+            preferredIndex = requestedQueueIndex,
+        )
+            ?: 0,
         target = target,
         restoredStartPositionSeconds = restoredStartPosition,
         initialProgress = restoredStartPosition?.let { positionSeconds ->

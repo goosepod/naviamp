@@ -363,7 +363,7 @@ fun androidNowPlayingUi(
             relatedTracksSource = relatedTracksSource,
             relatedSimilarityByTrackId = relatedSimilarityByTrackId,
             repeatMode = repeatMode,
-            itemIds = NowPlayingSectionItemIds.TrackIds,
+            itemIds = NowPlayingSectionItemIds.QueueAndRelatedIndexes,
         )
         val capabilities = nowPlayingTrackCapabilities(
             isLiveStream = false,

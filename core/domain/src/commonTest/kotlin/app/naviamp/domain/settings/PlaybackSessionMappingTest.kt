@@ -162,6 +162,34 @@ class PlaybackSessionMappingTest {
     }
 
     @Test
+    fun restoredPausedTrackPreparesSidecarsWithoutStartingPlayback() {
+        assertEquals(
+            PlaybackSessionRestoreEffects(startPlayback = false, prepareSidecars = true),
+            planPlaybackSessionRestoreEffects(
+                restored = true,
+                hasCurrentTrack = true,
+                startPlayingOnLaunch = false,
+            ),
+        )
+        assertEquals(
+            PlaybackSessionRestoreEffects(startPlayback = true, prepareSidecars = false),
+            planPlaybackSessionRestoreEffects(
+                restored = true,
+                hasCurrentTrack = true,
+                startPlayingOnLaunch = true,
+            ),
+        )
+        assertEquals(
+            PlaybackSessionRestoreEffects(startPlayback = false, prepareSidecars = false),
+            planPlaybackSessionRestoreEffects(
+                restored = false,
+                hasCurrentTrack = true,
+                startPlayingOnLaunch = false,
+            ),
+        )
+    }
+
+    @Test
     fun playbackSessionThrottleRequiresSourceTargetAndElapsedIntervalUnlessForced() {
         assertEquals(
             true,

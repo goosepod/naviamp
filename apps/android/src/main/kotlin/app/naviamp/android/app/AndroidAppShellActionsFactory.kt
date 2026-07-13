@@ -46,6 +46,7 @@ import app.naviamp.ui.StationRowAction
 import app.naviamp.ui.StationRowActionRequest
 import app.naviamp.ui.SharedTrackRowActionRequest
 import app.naviamp.ui.resolveAction
+import app.naviamp.ui.nowPlayingQueueIndex
 import app.naviamp.ui.toNaviampRoute
 
 fun androidAppShellActions(
@@ -188,6 +189,7 @@ fun androidAppShellActions(
     handleShellQueueItemRadio: (NaviampNowPlayingItemUi) -> Unit,
     handleQueueItemPlayNext: (NaviampNowPlayingItemUi) -> Unit,
     handleQueueItemAddToQueue: (NaviampNowPlayingItemUi) -> Unit,
+    handleQueueItemSelected: (Int) -> Unit,
     handleQueueItemRemoveFromQueue: (Int) -> Unit,
     handleQueueItemMoveNext: (Int) -> Unit,
     handleEmptyQueue: () -> Unit,
@@ -606,18 +608,20 @@ fun androidAppShellActions(
             },
             onNowPlayingSelectionAction = { request: NowPlayingSelectionActionRequest ->
                 when (request.action) {
-                    NowPlayingSelectionAction.SelectQueueItem,
-                    NowPlayingSelectionAction.SelectRelatedItem -> {
-                        handleShellTrackSelected(
-                            SharedTrackRowUi(
-                                id = request.item.id,
-                                title = request.item.title,
-                                subtitle = request.item.subtitle,
-                                coverArtUrl = request.item.coverArtUrl,
-                                meta = request.item.meta,
-                            ),
-                        )
-                    }
+                    NowPlayingSelectionAction.SelectQueueItem ->
+                        nowPlayingQueueIndex(request.item)?.let(handleQueueItemSelected)
+                    NowPlayingSelectionAction.SelectRelatedItem ->
+                        resolveNowPlayingItemTrack(request.item)?.let { track ->
+                            handleShellTrackSelected(
+                                SharedTrackRowUi(
+                                    id = track.id.value,
+                                    title = request.item.title,
+                                    subtitle = request.item.subtitle,
+                                    coverArtUrl = request.item.coverArtUrl,
+                                    meta = request.item.meta,
+                                ),
+                            )
+                        }
                     NowPlayingSelectionAction.SelectRadioStation ->
                         homeState.radioStations.firstOrNull { it.id == request.item.id }
                             ?.let(handleRadioStationSelected)

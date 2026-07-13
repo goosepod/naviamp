@@ -335,6 +335,7 @@ class AndroidPlaylistEngine(
         return playbackQueueController.nextGaplessQueueIndexForExternalQueue(
             tracks = activeQueue(),
             currentTrack = state.nowPlaying,
+            currentIndex = state.playbackQueue.currentIndex,
             repeatMode = state.repeatMode,
             playNextCount = state.playbackQueue.playNextCount,
         )

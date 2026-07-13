@@ -3,6 +3,7 @@ package app.naviamp.domain.playback
 import app.naviamp.domain.Track
 import app.naviamp.domain.queue.PlaybackQueue
 import app.naviamp.domain.queue.RepeatMode
+import app.naviamp.domain.queue.resolveTrackOccurrenceIndex
 
 class PlaybackQueueController(
     initialQueue: PlaybackQueue = PlaybackQueue(),
@@ -49,6 +50,12 @@ class PlaybackQueueController(
         playbackSessionId += 1
         applyMutation(update)
         return true
+    }
+
+    fun restoreOrClear(restoredQueue: PlaybackQueue): Boolean {
+        if (restore(restoredQueue)) return true
+        clear()
+        return false
     }
 
     fun clear() {
@@ -196,17 +203,21 @@ class PlaybackQueueController(
     fun nextGaplessQueueIndexForExternalQueue(
         tracks: List<Track>,
         currentTrack: Track?,
+        currentIndex: Int? = null,
         repeatMode: RepeatMode,
         playNextCount: Int = 0,
     ): Int? {
         val current = currentTrack ?: return null
-        val currentIndex = tracks.indexOfFirst { it.id == current.id }
-        if (currentIndex < 0) return null
+        val resolvedCurrentIndex = resolveTrackOccurrenceIndex(
+            tracks = tracks,
+            track = current,
+            preferredIndex = currentIndex,
+        ) ?: return null
         replaceQueue(
             queue = PlaybackQueue(
                 tracks = tracks,
-                currentIndex = currentIndex,
-                playNextCount = playNextCount.coerceIn(0, tracks.size - currentIndex - 1),
+                currentIndex = resolvedCurrentIndex,
+                playNextCount = playNextCount.coerceIn(0, tracks.size - resolvedCurrentIndex - 1),
             ),
             clearPreparedNext = false,
         )

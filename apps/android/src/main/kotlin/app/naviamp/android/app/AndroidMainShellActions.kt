@@ -224,6 +224,7 @@ internal fun androidMainShellActions(
         handleQueueItemAddToQueue = { item ->
             mediaAppController.resolveNowPlayingItemTrack(item)?.let(mediaAppController::addToQueue)
         },
+        handleQueueItemSelected = playbackAppController::playQueueTrack,
         handleQueueItemRemoveFromQueue = mediaAppController::removeFromQueue,
         handleQueueItemMoveNext = mediaAppController::moveQueueTrackNext,
         handleEmptyQueue = mediaAppController::emptyQueue,

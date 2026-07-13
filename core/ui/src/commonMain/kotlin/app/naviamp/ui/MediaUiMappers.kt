@@ -520,6 +520,9 @@ fun nowPlayingQueueItemId(index: Int): String = "queue:$index"
 
 fun nowPlayingRelatedItemId(index: Int): String = "related:$index"
 
+fun nowPlayingListItemKey(index: Int, item: NaviampNowPlayingItemUi): String =
+    "$index:${item.id}"
+
 fun nowPlayingItemTarget(item: NaviampNowPlayingItemUi): NowPlayingItemTarget =
     item.id.removePrefix("queue:")
         .takeIf { it != item.id }

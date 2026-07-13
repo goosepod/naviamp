@@ -13,6 +13,7 @@ import app.naviamp.domain.queue.RepeatMode
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertNotEquals
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
@@ -362,6 +363,22 @@ class MediaUiMappersTest {
         )
 
         assertEquals(listOf(true, true, false), sections.upNext.map { it.playNextPriority })
+    }
+
+    @Test
+    fun nowPlayingListKeysRemainUniqueForDuplicateTracks() {
+        val duplicate = NaviampNowPlayingItemUi(
+            id = "duplicate-track",
+            title = "Duplicate",
+            subtitle = "Artist",
+        )
+
+        assertEquals("0:duplicate-track", nowPlayingListItemKey(0, duplicate))
+        assertEquals("1:duplicate-track", nowPlayingListItemKey(1, duplicate))
+        assertNotEquals(
+            nowPlayingListItemKey(0, duplicate),
+            nowPlayingListItemKey(1, duplicate),
+        )
     }
 
     @Test

@@ -156,8 +156,11 @@ data class PlaybackQueue(
         upcomingTracks: List<Track>,
         maxHistory: Int? = null,
     ): PlaybackQueue {
-        val currentQueueIndex = tracks.indexOfFirst { it.id == currentTrack.id }
-            .takeIf { it >= 0 }
+        val currentQueueIndex = resolveTrackOccurrenceIndex(
+            tracks = tracks,
+            track = currentTrack,
+            preferredIndex = currentIndex,
+        )
             ?: currentIndex
         val currentQueueTrack = tracks.getOrNull(currentQueueIndex) ?: currentTrack
         val prunedTrackCount = maxHistory
@@ -289,6 +292,15 @@ data class PlaybackQueue(
         )
     }
 }
+
+fun resolveTrackOccurrenceIndex(
+    tracks: List<Track>,
+    track: Track,
+    preferredIndex: Int? = null,
+): Int? =
+    preferredIndex
+        ?.takeIf { index -> tracks.getOrNull(index)?.id == track.id }
+        ?: tracks.indexOfFirst { it.id == track.id }.takeIf { it >= 0 }
 
 data class UpcomingShuffleToggle(
     val queue: PlaybackQueue,

@@ -60,6 +60,24 @@ class PlaybackQueueControllerTest {
     }
 
     @Test
+    fun restoreOrClearSynchronizesRestoredTrackAndRadioSessions() {
+        val controller = PlaybackQueueController(
+            PlaybackQueue(listOf(track("stale")), currentIndex = 0),
+        )
+        val restored = PlaybackQueue(
+            tracks = listOf(track("current"), track("priority"), track("context")),
+            currentIndex = 0,
+            playNextCount = 1,
+        )
+
+        assertEquals(true, controller.restoreOrClear(restored))
+        assertEquals(restored, controller.queue)
+
+        assertEquals(false, controller.restoreOrClear(PlaybackQueue()))
+        assertEquals(PlaybackQueue(), controller.queue)
+    }
+
+    @Test
     fun navigationSelectionsAdvanceSessionForUserNavigation() {
         val tracks = listOf(track("one"), track("two"))
         val controller = PlaybackQueueController()
@@ -80,6 +98,37 @@ class PlaybackQueueControllerTest {
         val wrappedPrevious = assertNotNull(controller.adjacent(offset = -1))
         assertEquals(4, wrappedPrevious.sessionId)
         assertEquals(1, wrappedPrevious.queue.currentIndex)
+    }
+
+    @Test
+    fun navigationConsumesPriorityBlockBeforeDuplicateContextOccurrence() {
+        val priorityDuplicate = track("pardon")
+        val controller = PlaybackQueueController(
+            PlaybackQueue(
+                tracks = listOf(
+                    track("current"),
+                    priorityDuplicate,
+                    track("how-much-longer"),
+                    track("kryptonite"),
+                    priorityDuplicate,
+                    track("after"),
+                ),
+                currentIndex = 0,
+                playNextCount = 3,
+            ),
+        )
+
+        val visited = buildList {
+            repeat(5) {
+                add(assertNotNull(assertNotNull(controller.next()).track).id.value)
+            }
+        }
+
+        assertEquals(
+            listOf("pardon", "how-much-longer", "kryptonite", "pardon", "after"),
+            visited,
+        )
+        assertEquals(0, controller.queue.playNextCount)
     }
 
     @Test
@@ -153,6 +202,24 @@ class PlaybackQueueControllerTest {
             ),
         )
         assertEquals(PlaybackQueue(), controller.queue)
+    }
+
+    @Test
+    fun externalQueueNextIndexUsesExplicitDuplicateOccurrence() {
+        val duplicate = track("duplicate")
+        val tracks = listOf(track("before"), duplicate, track("middle"), duplicate, track("after"))
+        val controller = PlaybackQueueController()
+
+        assertEquals(
+            4,
+            controller.nextGaplessQueueIndexForExternalQueue(
+                tracks = tracks,
+                currentTrack = duplicate,
+                currentIndex = 3,
+                repeatMode = RepeatMode.Off,
+            ),
+        )
+        assertEquals(3, controller.queue.currentIndex)
     }
 
     private fun track(id: String): Track =

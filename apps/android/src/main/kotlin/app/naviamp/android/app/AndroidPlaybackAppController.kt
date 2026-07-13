@@ -9,12 +9,12 @@ import app.naviamp.domain.InternetRadioStation
 import app.naviamp.domain.StreamQuality
 import app.naviamp.domain.Track
 import app.naviamp.domain.isInternetRadioTrack
-import app.naviamp.domain.playback.PlaybackAdjacentAction
 import app.naviamp.domain.playback.PlaybackAudioAssetRepository
 import app.naviamp.domain.playback.PlaybackProgress
+import app.naviamp.domain.playback.PlaybackQueueControlManager
 import app.naviamp.domain.playback.PlaybackQueueController
+import app.naviamp.domain.playback.PlaybackQueueSelection
 import app.naviamp.domain.playback.PlaybackSource
-import app.naviamp.domain.playback.planPlaybackAdjacentAction
 import app.naviamp.domain.playback.planPlaybackSeek
 import app.naviamp.domain.playback.shouldReplayCurrentForSeek
 import app.naviamp.domain.queue.PlaybackQueue
@@ -42,6 +42,8 @@ internal class AndroidPlaybackAppController(
     private val sonicAutoplayService: SonicAutoplayService,
     private val onSyncedSettingsChanged: () -> Unit = {},
 ) {
+    private val queueControls = PlaybackQueueControlManager()
+
     fun handlePlaybackProgressChanged(sessionToken: Long, progress: PlaybackProgress) {
         handleAndroidPlaybackProgressChanged(
             context = context,
@@ -67,6 +69,7 @@ internal class AndroidPlaybackAppController(
         openNowPlaying: Boolean = true,
         startPositionSeconds: Double? = null,
         keepRadioQueueActive: Boolean = false,
+        selectedQueue: PlaybackQueue? = null,
     ) {
         playAndroidTrack(
             scope = scope,
@@ -76,6 +79,7 @@ internal class AndroidPlaybackAppController(
             playbackQueueController = queueController,
             track = track,
             queue = queue,
+            selectedQueue = selectedQueue,
             openNowPlaying = openNowPlaying,
             startPositionSeconds = startPositionSeconds,
             keepRadioQueueActive = keepRadioQueueActive,
@@ -146,39 +150,52 @@ internal class AndroidPlaybackAppController(
         offset: Int,
         finishedTrack: Boolean = false,
     ) {
-        when (
-            val action = planPlaybackAdjacentAction(
-                currentTrack = state.nowPlaying,
-                activeQueue = activeQueue(),
-                offset = offset,
-                repeatMode = state.repeatMode,
+        if (
+            offset < 0 &&
+            queueControls.shouldRestartInsteadOfPrevious(
                 previousButtonBehavior = state.playbackSettings.previousButtonBehavior,
                 positionSeconds = state.playbackProgress.positionSeconds,
                 restartThresholdSeconds = 3.0,
             )
         ) {
-            PlaybackAdjacentAction.None -> {
-                if (offset > 0) appendSonicAutoplayAndAdvance()
-            }
-            PlaybackAdjacentAction.RestartCurrent -> performSeek(0.0)
-            is PlaybackAdjacentAction.PlayTrack -> {
-                val nextQueue = if (
-                    finishedTrack &&
-                    offset > 0 &&
-                    state.playbackSettings.removePlayedTracksFromQueue
-                ) {
-                    val nextIndex = action.queue.indexOfFirst { track -> track.id == action.track.id }
-                    PlaybackQueue(action.queue, nextIndex).removePlayedHistory().tracks
-                } else {
-                    action.queue
-                }
-                playTrack(
-                    action.track,
-                    nextQueue,
-                    openNowPlaying = false,
-                )
-            }
+            performSeek(0.0)
+            return
         }
+        val selection = queueController.adjacent(offset) ?: run {
+            if (offset > 0) appendSonicAutoplayAndAdvance()
+            return
+        }
+        playQueueSelection(selection, removePlayedHistory = finishedTrack && offset > 0)
+    }
+
+    fun playQueueTrack(index: Int) {
+        queueController.jumpTo(index)?.let { selection ->
+            playQueueSelection(selection)
+        }
+    }
+
+    private fun playQueueSelection(
+        selection: PlaybackQueueSelection,
+        removePlayedHistory: Boolean = false,
+    ) {
+        val selectedQueue = if (
+            removePlayedHistory && state.playbackSettings.removePlayedTracksFromQueue
+        ) {
+            selection.queue.removePlayedHistory()
+        } else {
+            selection.queue
+        }
+        if (selectedQueue != selection.queue) {
+            queueController.replaceQueue(selectedQueue)
+        }
+        val selectedTrack = selectedQueue.current ?: return
+        state.playbackQueue = selectedQueue
+        playTrack(
+            track = selectedTrack,
+            queue = selectedQueue.tracks,
+            openNowPlaying = false,
+            selectedQueue = selectedQueue,
+        )
     }
 
     private fun appendSonicAutoplayAndAdvance() {

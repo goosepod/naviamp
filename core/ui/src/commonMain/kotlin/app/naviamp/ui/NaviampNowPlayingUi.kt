@@ -2274,7 +2274,7 @@ private fun NowPlayingItemList(
         verticalArrangement = Arrangement.spacedBy(5.dp),
         modifier = modifier.fillMaxWidth(),
     ) {
-        itemsIndexed(items, key = { _, item -> item.id }) { index, item ->
+        itemsIndexed(items, key = ::nowPlayingListItemKey) { index, item ->
             if (item.playNextPriority && index == 0) {
                 QueueSectionHeader("PLAY NEXT", colors)
             } else if (!item.playNextPriority && index > 0 && items[index - 1].playNextPriority) {

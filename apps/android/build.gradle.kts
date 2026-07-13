@@ -83,6 +83,10 @@ android {
             path = project.layout.projectDirectory.file("../../native/bass-jni/CMakeLists.txt").asFile
         }
     }
+
+    testOptions {
+        unitTests.isReturnDefaultValues = true
+    }
 }
 
 kotlin {
@@ -107,6 +111,7 @@ dependencies {
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.ktor.client.cio)
     implementation(libs.sqldelight.android.driver)
+    testImplementation(kotlin("test"))
 }
 
 tasks.register("verifyDebugBassNativePackage") {

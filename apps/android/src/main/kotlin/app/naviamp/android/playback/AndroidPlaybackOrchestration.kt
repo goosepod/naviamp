@@ -66,6 +66,7 @@ fun playAndroidTrack(
     playbackQueueController: PlaybackQueueController,
     track: Track,
     queue: List<Track>? = null,
+    selectedQueue: PlaybackQueue? = null,
     openNowPlaying: Boolean = true,
     startPositionSeconds: Double? = null,
     keepRadioQueueActive: Boolean = false,
@@ -100,9 +101,13 @@ fun playAndroidTrack(
                 status = "Connect before playing a track."
                 return@with
             }
+            val occurrenceQueue = selectedQueue ?: playbackQueue.takeIf { queueState ->
+                queue == queueState.tracks && queueState.current?.id == track.id
+            }
             val startPlan = planPlaybackStart(
                 track = track,
-                requestedQueue = queue,
+                requestedQueue = occurrenceQueue?.tracks ?: queue,
+                requestedQueueIndex = occurrenceQueue?.currentIndex,
                 activeQueue = activeQueue(),
                 quality = streamQuality,
                 startPositionSeconds = startPositionSeconds,
@@ -117,10 +122,18 @@ fun playAndroidTrack(
                 )
             }.onSuccess { streamUrl ->
                 playbackEngine.applyTlsSettings(activeTlsSettings)
-                playbackQueueController.start(
-                    tracks = startPlan.queue,
-                    index = startPlan.queueIndex,
-                )
+                val selectedQueueState = occurrenceQueue?.takeIf { queueState ->
+                    queueState.current?.id == track.id &&
+                        queueState.currentIndex == startPlan.queueIndex
+                }
+                if (selectedQueueState != null) {
+                    playbackQueueController.replaceQueue(selectedQueueState)
+                } else {
+                    playbackQueueController.start(
+                        tracks = startPlan.queue,
+                        index = startPlan.queueIndex,
+                    )
+                }
                 playbackQueue = playbackQueueController.queue
                 val trackStartedPlan = planPlaybackTrackStarted(
                     previousTrack = nowPlaying,

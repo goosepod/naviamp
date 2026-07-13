@@ -3,6 +3,7 @@ package app.naviamp.android
 import app.naviamp.android.playback.AndroidPlaybackNotificationControls
 import app.naviamp.domain.Track
 import app.naviamp.domain.cache.PlaybackSessionRepository
+import app.naviamp.domain.queue.PlaybackQueue
 import app.naviamp.domain.settings.PlaybackSessionRestorePlan
 import app.naviamp.domain.settings.PlaybackSessionSavePlan
 import app.naviamp.domain.settings.planPlaybackSessionRestore
@@ -58,6 +59,7 @@ fun restoreAndroidPlaybackSession(
     playbackSessionRepository: PlaybackSessionRepository,
     sourceId: String,
     loadRelatedTracks: (Track) -> Unit,
+    synchronizePlaybackQueue: (PlaybackQueue) -> Unit,
 ): Boolean {
     with(state) {
         val session = playbackSessionRepository.loadPlaybackSession(sourceId)
@@ -82,6 +84,7 @@ fun restoreAndroidPlaybackSession(
                 playbackProgress = plan.playbackProgress
                 restoredStartPositionSeconds = null
                 nowPlayingOpen = true
+                synchronizePlaybackQueue(plan.playbackQueue)
                 android.util.Log.i("NaviampSession", "Restored station source=$sourceId name=${plan.station.name}")
                 status = plan.status
                 return true
@@ -95,6 +98,7 @@ fun restoreAndroidPlaybackSession(
                 nowPlayingOpen = true
                 playbackProgress = plan.playbackProgress
                 restoredStartPositionSeconds = plan.restoredStartPositionSeconds
+                synchronizePlaybackQueue(plan.playbackQueue)
                 loadRelatedTracks(plan.currentTrack)
                 android.util.Log.i(
                     "NaviampSession",

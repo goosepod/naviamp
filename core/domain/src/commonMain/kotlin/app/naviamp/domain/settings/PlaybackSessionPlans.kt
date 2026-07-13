@@ -48,6 +48,23 @@ sealed interface PlaybackSessionRestorePlan {
     }
 }
 
+data class PlaybackSessionRestoreEffects(
+    val startPlayback: Boolean,
+    val prepareSidecars: Boolean,
+)
+
+fun planPlaybackSessionRestoreEffects(
+    restored: Boolean,
+    hasCurrentTrack: Boolean,
+    startPlayingOnLaunch: Boolean,
+): PlaybackSessionRestoreEffects {
+    val restoredTrackAvailable = restored && hasCurrentTrack
+    return PlaybackSessionRestoreEffects(
+        startPlayback = restoredTrackAvailable && startPlayingOnLaunch,
+        prepareSidecars = restoredTrackAvailable && !startPlayingOnLaunch,
+    )
+}
+
 fun shouldThrottlePlaybackSessionSave(
     activeSourceId: String?,
     hasPlaybackTarget: Boolean,

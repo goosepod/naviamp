@@ -6,6 +6,7 @@ import app.naviamp.domain.playback.PlaybackQueueController
 import app.naviamp.domain.playback.PlaybackQueueManager
 import app.naviamp.domain.playback.PlaybackState
 import app.naviamp.domain.queue.PlaybackQueue
+import app.naviamp.domain.queue.resolveTrackOccurrenceIndex
 import app.naviamp.domain.settings.RecentRadioStream
 import app.naviamp.ui.NaviampNowPlayingItemUi
 import app.naviamp.ui.resolveNowPlayingItemTrack
@@ -46,8 +47,11 @@ internal class AndroidShellPlaybackController(
     fun toggleShuffle() {
         val currentTrack = state.nowPlaying ?: return
         val queue = activeQueue()
-        val currentIndex = queue.indexOfFirst { it.id == currentTrack.id }
-        if (currentIndex < 0) return
+        val currentIndex = resolveTrackOccurrenceIndex(
+            tracks = queue,
+            track = currentTrack,
+            preferredIndex = state.playbackQueue.currentIndex,
+        ) ?: return
         playbackQueueController.replaceQueue(
             PlaybackQueue(
                 tracks = queue,

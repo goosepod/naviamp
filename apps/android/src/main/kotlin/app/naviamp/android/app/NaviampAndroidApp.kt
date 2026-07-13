@@ -384,6 +384,15 @@ fun NaviampAndroidApp(
                     )
                 }
             },
+            prepareRestoredTrackSidecars = {
+                appState.provider?.let { activeProvider ->
+                    androidPlaylistEngine.startSidecarPrep(
+                        sessionToken = appState.playbackSessionToken,
+                        activeProvider = activeProvider,
+                        queue = appState.playbackQueue,
+                    )
+                }
+            },
             startAndroidLibrarySync = { force -> startAndroidLibrarySync(scope, appState, storage, force) },
             checkAndroidLibraryFreshness = { checkAndroidLibraryFreshness(scope, appState, storage, storage) },
         )

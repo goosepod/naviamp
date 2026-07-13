@@ -67,6 +67,31 @@ class PlaybackTargetPlanTest {
     }
 
     @Test
+    fun playbackStartUsesExplicitOccurrenceForDuplicateTrack() {
+        val target = track("duplicate")
+        val queue = listOf(
+            track("current"),
+            target,
+            track("middle"),
+            target,
+            track("after"),
+        )
+
+        val plan = planPlaybackStart(
+            track = target,
+            requestedQueue = queue,
+            requestedQueueIndex = 3,
+            activeQueue = queue,
+            quality = StreamQuality.Original,
+            startPositionSeconds = null,
+            hasLocalAudio = false,
+        )
+
+        assertEquals(3, plan.queueIndex)
+        assertEquals("after", plan.queue[plan.queueIndex + 1].id.value)
+    }
+
+    @Test
     fun playbackStartFallsBackToActiveQueueThenSingleTrack() {
         val target = track("two")
         val activePlan = planPlaybackStart(

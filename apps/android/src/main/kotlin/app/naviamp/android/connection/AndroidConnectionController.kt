@@ -14,6 +14,7 @@ import app.naviamp.domain.provider.PendingProviderActionRepository
 import app.naviamp.domain.playback.PlaybackQueueController
 import app.naviamp.domain.settings.RecentRadioStream
 import app.naviamp.domain.settings.ConnectionFormState
+import app.naviamp.domain.settings.planPlaybackSessionRestoreEffects
 import app.naviamp.domain.settings.connectionFormError
 import app.naviamp.domain.settings.toConnectionHeaderDefinitions
 import app.naviamp.domain.settings.toConnectionSecondaryUrls
@@ -48,11 +49,18 @@ class AndroidConnectionSessionController(
     private val preloadPlaylistTracks: (NavidromeProvider, List<Playlist>) -> Unit,
     private val loadRelatedTracks: (Track) -> Unit,
     private val startRestoredTrackPlayback: () -> Unit,
+    private val prepareRestoredTrackSidecars: () -> Unit,
     private val startAndroidLibrarySync: (Boolean) -> Unit,
     private val checkAndroidLibraryFreshness: () -> Unit,
 ) {
     fun restorePlaybackSession(sourceId: String): Boolean =
-        restoreAndroidPlaybackSession(state, storage, sourceId, loadRelatedTracks)
+        restoreAndroidPlaybackSession(
+            state = state,
+            playbackSessionRepository = storage,
+            sourceId = sourceId,
+            loadRelatedTracks = loadRelatedTracks,
+            synchronizePlaybackQueue = queueController::restoreOrClear,
+        )
 
     fun connectWithNavidromeConnection(connection: NavidromeConnection) {
         val restoreExistingPlayback = state.restoringConnection
@@ -73,6 +81,7 @@ class AndroidConnectionSessionController(
             restoreExistingPlayback = restoreExistingPlayback,
             startPlayingOnLaunch = settingsStore.loadInterfaceSettings().startPlayingOnLaunch,
             startRestoredTrackPlayback = startRestoredTrackPlayback,
+            prepareRestoredTrackSidecars = prepareRestoredTrackSidecars,
             startAndroidLibrarySync = startAndroidLibrarySync,
             checkAndroidLibraryFreshness = checkAndroidLibraryFreshness,
             recentRadioStreams = settingsStore.loadRecentRadioStreams(),
@@ -200,6 +209,7 @@ fun startNavidromeConnection(
     restoreExistingPlayback: Boolean = true,
     startPlayingOnLaunch: Boolean = false,
     startRestoredTrackPlayback: () -> Unit = {},
+    prepareRestoredTrackSidecars: () -> Unit = {},
     startAndroidLibrarySync: (Boolean) -> Unit,
     checkAndroidLibraryFreshness: () -> Unit,
     recentRadioStreams: List<RecentRadioStream> = emptyList(),
@@ -261,7 +271,15 @@ fun startNavidromeConnection(
                 )
                 if (restoreExistingPlayback) {
                     val restored = restorePlaybackSession(session.sourceId)
-                    if (restored && startPlayingOnLaunch && nowPlaying != null) {
+                    val restoreEffects = planPlaybackSessionRestoreEffects(
+                        restored = restored,
+                        hasCurrentTrack = nowPlaying != null,
+                        startPlayingOnLaunch = startPlayingOnLaunch,
+                    )
+                    if (restoreEffects.prepareSidecars) {
+                        prepareRestoredTrackSidecars()
+                    }
+                    if (restoreEffects.startPlayback) {
                         startRestoredTrackPlayback()
                     }
                 }
