@@ -1282,21 +1282,17 @@ private val DefaultNaviampChangelog = listOf(
     NaviampChangelogSectionUi(
         title = "Features",
         entries = listOf(
-            "Added configurable left and right swipe actions for Library, Queue, Related, and Sonic track lists.",
-            "Added a visible Play Next priority queue that preserves insertion order ahead of the regular queue.",
-            "Added pull-to-refresh and an overflow Refresh action to Home.",
-            "Improved album and artist detail actions for narrow and wide layouts.",
+            "Added Android Auto voice search for library tracks, albums, and artists.",
         ),
     ),
     NaviampChangelogSectionUi(
         title = "Bug Fixes",
         entries = listOf(
-            "Fixed duplicate queue occurrences causing Play Next loops and duplicate-row crashes on Android.",
-            "Fixed restored Android queues and waveforms so they work before playback is resumed or skipped.",
-            "Fixed incomplete or stale waveform data and improved waveform contrast across player backgrounds.",
-            "Fixed seeking backward while a desktop crossfade is active.",
-            "Improved Now Playing gradients so light and secondary album-art colors remain visible.",
-            "Fixed Popular Tracks swipe behavior and track metadata navigation.",
+            "Fixed Android Auto crossfades, gapless transitions, and tracks restarting after prepared playback transitions.",
+            "Made Android Auto manual skips start promptly and prevented stale browse or search results from replacing newer selections.",
+            "Fixed queue removals and reordering so an obsolete prepared track cannot play on Android or desktop.",
+            "Protected saved Android credentials with Keystore-backed encryption and excluded credential-bearing data from backup and device transfer.",
+            "Restricted exported Android playback commands to trusted Naviamp controls while preserving Android Auto and notification controls.",
         ),
     ),
 )

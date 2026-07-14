@@ -2,6 +2,25 @@
 
 Release changes are grouped into user-facing Features, Bug Fixes, and deployment or infrastructure-related System Settings. Internal task-tracking notes are intentionally not included.
 
+## v1.1.1
+
+### Features
+
+- Added Android Auto voice search for library tracks, albums, and artists.
+
+### Bug Fixes
+
+- Fixed Android Auto crossfades, gapless transitions, and tracks restarting after prepared playback transitions.
+- Made Android Auto manual skips start promptly and prevented stale browse or search results from replacing newer selections.
+- Fixed queue removals and reordering so an obsolete prepared track cannot play on Android or desktop.
+- Protected saved Android credentials with Keystore-backed encryption and excluded credential-bearing data from backup and device transfer.
+- Restricted exported Android playback commands to trusted Naviamp controls while preserving Android Auto and notification controls.
+
+### System Settings
+
+- Added automated coverage for prepared-next invalidation, Android Auto selection cancellation, playback-command authorization, credential protection, and backup rules.
+- Replaced the unbounded Android playback wake lock with a renewable bounded lease and cleaned up obsolete Android SDK checks.
+
 ## v1.1.0
 
 ### Features
