@@ -2,6 +2,7 @@ package app.naviamp.android.playback
 
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
@@ -35,6 +36,29 @@ class AndroidAutoSelectionJobsTest {
 
         assertTrue(first.isCancelled)
         assertEquals("second", completedSelection)
+        scope.cancel()
+    }
+
+    @Test
+    fun explicitCancellationStopsPendingSelection() = runBlocking {
+        val scope = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined)
+        val jobs = AndroidAutoSelectionJobs(scope)
+        val started = CompletableDeferred<Unit>()
+        val keepRunning = CompletableDeferred<Unit>()
+        var completed = false
+
+        val selection = jobs.launch {
+            started.complete(Unit)
+            keepRunning.await()
+            completed = true
+        }
+        started.await()
+
+        jobs.cancel()
+        selection.join()
+
+        assertTrue(selection.isCancelled)
+        assertFalse(completed)
         scope.cancel()
     }
 }

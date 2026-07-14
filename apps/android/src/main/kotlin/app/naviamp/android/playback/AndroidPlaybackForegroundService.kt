@@ -444,10 +444,12 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
     }
 
     private fun handleServiceAutoPlayPause() {
+        cancelPendingServiceSelection()
         servicePlaybackRuntimeController.handleAutoPlayPause()
     }
 
     private fun handleAutoPlayPause() {
+        cancelPendingServiceSelection()
         if (servicePlaybackRuntimeController.ownsPlayback()) {
             handleServiceAutoPlayPause()
             return
@@ -457,18 +459,21 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
     }
 
     private fun handleAutoPrevious() {
+        cancelPendingServiceSelection()
         if (playServiceOwnedAdjacent(-1)) return
         AndroidPlaybackNotificationControls.onPrevious?.invoke()
             ?: playSavedSessionAdjacent(-1)
     }
 
     private fun handleAutoNext() {
+        cancelPendingServiceSelection()
         if (playServiceOwnedAdjacent(1)) return
         AndroidPlaybackNotificationControls.onNext?.invoke()
             ?: playSavedSessionAdjacent(1)
     }
 
     private fun handleAutoStop(reason: String) {
+        cancelPendingServiceSelection()
         if (servicePlaybackRuntimeController.ownsPlayback()) {
             stopServiceOwnedPlayback(reason)
             return
@@ -478,6 +483,7 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
     }
 
     private fun handleAutoSeek(positionMillis: Long) {
+        cancelPendingServiceSelection()
         if (servicePlaybackRuntimeController.ownsPlayback()) {
             seekServiceOwnedPlayback(positionMillis)
             return
@@ -497,6 +503,7 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
     }
 
     private fun pausePlaybackForRouteDisconnect(reason: String) {
+        cancelPendingServiceSelection()
         if (!AndroidPlaybackNotificationControls.isPlaying) return
         Log.i("NaviampAutoCommand", "Pausing playback after route disconnect: $reason")
         if (servicePlaybackRuntimeController.ownsPlayback()) {
@@ -515,6 +522,7 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
     }
 
     private fun stopPlaybackForUserRequest(reason: String) {
+        cancelPendingServiceSelection()
         if (servicePlaybackRuntimeController.ownsPlayback()) {
             stopServiceOwnedPlayback(reason)
         } else {
@@ -1293,6 +1301,7 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
             .orEmpty()
 
     private fun playServiceAutoQueueItem(index: Int) {
+        cancelPendingServiceSelection()
         val queue = currentAutoQueue
         if (index !in queue.indices) return
         val storage = serviceStorage

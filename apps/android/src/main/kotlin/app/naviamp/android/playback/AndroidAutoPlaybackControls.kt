@@ -54,9 +54,8 @@ object AndroidAutoPlaybackControls {
     const val CommandPrevious = "previous"
     const val CommandNext = "next"
 
-    fun isNonPlayableMediaId(mediaId: String): Boolean {
-        if (playableDetailPrefixes.any(mediaId::startsWith)) return false
-        return mediaId == MediaIdNoSource ||
+    fun isNonPlayableMediaId(mediaId: String): Boolean =
+        mediaId == MediaIdNoSource ||
             mediaId.endsWith(".empty") ||
             mediaId.endsWith(".error") ||
             mediaId in nonPlayableContainerIds ||
@@ -66,19 +65,6 @@ object AndroidAutoPlaybackControls {
             mediaId.startsWith(MediaIdAlbumPrefix) ||
             mediaId.startsWith(MediaIdPlaylistPrefix) ||
             mediaId.startsWith(MediaIdSmartPlaylists)
-    }
-
-    private val playableDetailPrefixes = setOf(
-        MediaIdArtistPlayPrefix,
-        MediaIdArtistTrackPrefix,
-        MediaIdArtistShufflePrefix,
-        MediaIdAlbumPlayPrefix,
-        MediaIdAlbumTrackPrefix,
-        MediaIdAlbumShufflePrefix,
-        MediaIdPlaylistPlayPrefix,
-        MediaIdPlaylistShufflePrefix,
-        MediaIdPlaylistTrackPrefix,
-    )
 
     private val nonPlayableContainerIds = setOf(
         MediaIdRoot,
