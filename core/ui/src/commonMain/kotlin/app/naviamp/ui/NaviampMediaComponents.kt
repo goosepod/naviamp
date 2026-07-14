@@ -335,6 +335,10 @@ private fun trackSwipeActionVisual(
     val rowAction = when (action) {
         TrackSwipeAction.None,
         TrackSwipeAction.Remove,
+        TrackSwipeAction.MoveUp,
+        TrackSwipeAction.MoveDown,
+        TrackSwipeAction.MoveToTop,
+        TrackSwipeAction.MoveToBottom,
         -> return null
         TrackSwipeAction.PlayNext -> SharedTrackRowAction.PlayNext.takeIf { canAddToQueue }
         TrackSwipeAction.AddToQueue -> SharedTrackRowAction.AddToQueue.takeIf { canAddToQueue }
@@ -358,6 +362,10 @@ private fun trackSwipeActionVisual(
         TrackSwipeAction.GoToArtist -> "Go to artist" to NaviampIcons.Artist
         TrackSwipeAction.None,
         TrackSwipeAction.Remove,
+        TrackSwipeAction.MoveUp,
+        TrackSwipeAction.MoveDown,
+        TrackSwipeAction.MoveToTop,
+        TrackSwipeAction.MoveToBottom,
         -> return null
     }
     return TrackSwipeActionVisual(
@@ -380,6 +388,7 @@ internal fun SwipeActionContainer(
     modifier: Modifier = Modifier,
     swipeRight: TrackSwipeActionVisual? = null,
     swipeLeft: TrackSwipeActionVisual? = null,
+    clipContent: Boolean = true,
     content: @Composable (Modifier) -> Unit,
 ) {
     if (swipeRight == null && swipeLeft == null) {
@@ -402,7 +411,13 @@ internal fun SwipeActionContainer(
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(5.dp)),
+            .then(
+                if (clipContent) {
+                    Modifier.clip(RoundedCornerShape(5.dp))
+                } else {
+                    Modifier
+                },
+            ),
     ) {
         visibleAction?.let { action ->
             Row(

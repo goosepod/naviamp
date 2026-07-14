@@ -12,7 +12,6 @@ plugins {
 }
 
 val composeVersion = libs.versions.compose.get()
-val composeMaterial3Version = "1.8.2"
 val naviampVersionName = rootProject.file("VERSION").readText().trim()
 val naviampVersionCode = rootProject.file("VERSION_CODE").readText().trim()
 val naviampNativePackageVersion = nativeDistributionPackageVersion(naviampVersionName)
@@ -228,7 +227,7 @@ kotlin {
                 implementation(project(":core:ui"))
                 implementation(project(":providers:navidrome"))
                 implementation(compose.desktop.currentOs)
-                implementation("org.jetbrains.compose.material3:material3:$composeMaterial3Version")
+                implementation(libs.compose.material3)
                 implementation("org.jetbrains.compose.components:components-resources:$composeVersion")
                 implementation(libs.kotlinx.coroutines.core)
                 implementation(libs.kotlinx.serialization.json)

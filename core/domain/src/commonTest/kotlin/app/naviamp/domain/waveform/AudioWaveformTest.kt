@@ -99,6 +99,29 @@ class AudioWaveformTest {
     }
 
     @Test
+    fun rejectsSparseBassWaveformLevelsAndFallsBackToPcm() {
+        val sparseLevels = FloatArray(100).also { levels ->
+            levels[0] = 0.8f
+            levels[25] = 1.0f
+            levels[50] = 0.7f
+            levels[75] = 0.9f
+            levels[99] = 0.6f
+        }
+        val waveform = analyzeBassFloatPcmWaveform(
+            bass = FakeBassAudioBackend(
+                chunks = listOf(FloatArray(100) { 0.5f }),
+                waveformLevels = sparseLevels,
+            ),
+            stream = BassStreamHandle(7),
+            bucketCount = 100,
+        )
+
+        assertNotNull(waveform)
+        assertEquals(100, waveform.amplitudes.size)
+        assertEquals(List(100) { 1.0f }, waveform.amplitudes)
+    }
+
+    @Test
     fun suppressesIsolatedLeadingWaveformSpikeAndRestoresDynamicRange() {
         val waveform = cleanWaveformAmplitudes(
             listOf(1.0f, 0.08f, 0.12f) + List(29) { 0.10f },
@@ -118,9 +141,9 @@ class AudioWaveformTest {
 
     @Test
     fun buildsStableWaveformQualityKeys() {
-        assertEquals("original:waveform-v7", StreamQuality.Original.waveformCacheKey())
+        assertEquals("original:waveform-v9", StreamQuality.Original.waveformCacheKey())
         assertEquals(
-            "transcoded:opus:128:waveform-v7",
+            "transcoded:opus:128:waveform-v9",
             StreamQuality.Transcoded(AudioCodec.Opus, 128).waveformCacheKey(),
         )
     }

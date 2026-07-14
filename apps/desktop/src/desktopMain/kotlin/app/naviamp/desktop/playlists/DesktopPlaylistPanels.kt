@@ -35,17 +35,24 @@ import app.naviamp.domain.Playlist
 import app.naviamp.domain.Track
 import app.naviamp.domain.smartplaylist.SmartPlaylistDefinition
 import app.naviamp.domain.smartplaylist.SmartPlaylistDraft
+import app.naviamp.domain.settings.ConnectionFormMusicFolder
 import app.naviamp.ui.NaviampAction
 import app.naviamp.ui.NaviampActionSpec
+import app.naviamp.ui.NaviampDetailAction
+import app.naviamp.ui.NaviampResponsiveActionRow
 import app.naviamp.ui.SharedMediaItemAction
 import app.naviamp.ui.SharedMediaItemActionRequest
 import app.naviamp.ui.SharedMediaItemKind
+import app.naviamp.ui.SharedTrackRowAction
 import app.naviamp.ui.SharedTrackRowActionRequest
 import app.naviamp.ui.SmartPlaylistBuilderDialog
+import app.naviamp.ui.SmartPlaylistTrackList
+import app.naviamp.ui.StandardPlaylistManagementList
 import app.naviamp.ui.actionRequest
 import app.naviamp.ui.playlistRowActions
 import app.naviamp.ui.toSpec
 import app.naviamp.ui.toSharedMediaItemUi
+import app.naviamp.ui.toSharedTrackRowUi
 import kotlinx.coroutines.launch
 
 enum class DesktopPlaylistSortMode(val label: String) {
@@ -70,6 +77,8 @@ fun DesktopPlaylistsPanel(
     onSmartPlaylistSaveWithPassword: suspend (SmartPlaylistDefinition, String) -> Unit,
     onSmartPlaylistUpdateWithPassword: suspend (Playlist, SmartPlaylistDefinition, String) -> Unit,
     onSmartPlaylistLoad: suspend (Playlist) -> SmartPlaylistDefinition,
+    availableLibraries: List<ConnectionFormMusicFolder> = emptyList(),
+    selectedConnectionLibraryIds: List<String> = emptyList(),
 ) {
     var smartPlaylistBuilderOpen by remember { mutableStateOf(false) }
     var smartPlaylistEditTarget by remember { mutableStateOf<Playlist?>(null) }
@@ -173,6 +182,8 @@ fun DesktopPlaylistsPanel(
             initialDraft = smartPlaylistInitialDraft,
             title = if (editTarget == null) "Smart playlist" else "Edit smart playlist",
             saveLabel = if (editTarget == null) "Save" else "Update",
+            availableLibraries = availableLibraries,
+            selectedConnectionLibraryIds = selectedConnectionLibraryIds,
             onDismissRequest = {
                 smartPlaylistBuilderOpen = false
                 smartPlaylistEditTarget = null
@@ -294,8 +305,18 @@ fun DesktopPlaylistDetailPanel(
     onBack: () -> Unit,
     onPlaylistAction: (SharedMediaItemActionRequest) -> Unit,
     onTrackAction: (SharedTrackRowActionRequest) -> Unit,
+    onUpdateStandardPlaylist: suspend (Playlist, List<Track>) -> Unit,
+    onSmartPlaylistUpdate: suspend (Playlist, SmartPlaylistDefinition) -> Unit,
+    onSmartPlaylistUpdateWithPassword: suspend (Playlist, SmartPlaylistDefinition, String) -> Unit,
+    onSmartPlaylistLoad: suspend (Playlist) -> SmartPlaylistDefinition,
+    availableLibraries: List<ConnectionFormMusicFolder> = emptyList(),
+    selectedConnectionLibraryIds: List<String> = emptyList(),
 ) {
     var bulkToolsOpen by remember { mutableStateOf(false) }
+    var smartPlaylistEditorOpen by remember { mutableStateOf(false) }
+    var smartPlaylistInitialDraft by remember { mutableStateOf(SmartPlaylistDraft()) }
+    var smartPlaylistLoadMessage by remember { mutableStateOf<String?>(null) }
+    val coroutineScope = rememberCoroutineScope()
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(2.dp)) {
             IconButton(onClick = onBack, modifier = Modifier.size(32.dp)) {
@@ -306,14 +327,12 @@ fun DesktopPlaylistDetailPanel(
                     modifier = Modifier.size(18.dp),
                 )
             }
-            if (playlist?.isSmart == true) {
-                Icon(
-                    imageVector = DesktopNavigationIcons.Brain,
-                    contentDescription = "Smart playlist",
-                    tint = appColors.secondaryText,
-                    modifier = Modifier.size(18.dp),
-                )
-            }
+            Icon(
+                imageVector = if (playlist?.isSmart == true) DesktopNavigationIcons.Brain else DesktopNavigationIcons.Playlist,
+                contentDescription = if (playlist?.isSmart == true) "Smart playlist" else "Playlist",
+                tint = appColors.secondaryText,
+                modifier = Modifier.size(18.dp),
+            )
             Text(
                 playlist?.name ?: "Playlist",
                 color = appColors.primaryText,
@@ -342,8 +361,8 @@ fun DesktopPlaylistDetailPanel(
                     val playlistActions = playlistRowActions(
                         canDownload = tracks.isNotEmpty(),
                         canAddToQueue = tracks.isNotEmpty(),
-                        canAddToPlaylist = tracks.isNotEmpty(),
-                        canRename = playlist != null,
+                        canAddToPlaylist = tracks.isNotEmpty() && playlist?.isSmart == false,
+                        canRename = playlist?.isSmart == false,
                         canDelete = playlist != null,
                     )
                     val renameAction = playlistActions.playlistAction(NaviampAction.RenamePlaylist)
@@ -351,47 +370,67 @@ fun DesktopPlaylistDetailPanel(
                     val downloadAction = playlistActions.playlistAction(NaviampAction.DownloadPlaylist)
                     val addToQueueAction = playlistActions.playlistAction(NaviampAction.AddToQueue)
                     val addToPlaylistAction = playlistActions.playlistAction(NaviampAction.AddPlaylistToPlaylist)
-                    DetailActionIconButton(appColors, TransportIcons.Play, "Play playlist", tracks.isNotEmpty()) {
-                        request(SharedMediaItemAction.Play)
-                    }
-                    DetailActionIconButton(appColors, TransportIcons.Shuffle, "Play playlist in random order", tracks.size > 1) {
-                        request(SharedMediaItemAction.Shuffle, shuffle = true)
-                    }
-                    DetailActionIconButton(appColors, renameAction.icon, renameAction.label, renameAction.enabled) {
-                        request(SharedMediaItemAction.Rename)
-                    }
-                    DetailActionIconButton(appColors, deleteAction.icon, deleteAction.label, deleteAction.enabled) {
-                        request(SharedMediaItemAction.Delete)
-                    }
-                    DetailActionIconButton(appColors, downloadAction.icon, downloadAction.label, downloadAction.enabled) {
-                        request(SharedMediaItemAction.Download)
-                    }
-                    DetailActionIconButton(appColors, addToQueueAction.icon, addToQueueAction.label, addToQueueAction.enabled) {
-                        request(SharedMediaItemAction.AddToQueue)
-                    }
-                    DetailActionIconButton(appColors, addToPlaylistAction.icon, addToPlaylistAction.label, addToPlaylistAction.enabled) {
-                        request(SharedMediaItemAction.AddToPlaylist)
-                    }
-                    DetailActionIconButton(appColors, DesktopNavigationIcons.Settings, "Playlist bulk tools", tracks.isNotEmpty()) {
-                        bulkToolsOpen = true
-                    }
+                    NaviampResponsiveActionRow(
+                        colors = appColors,
+                        actions = buildList {
+                            add(NaviampDetailAction("Play playlist", TransportIcons.Play, { request(SharedMediaItemAction.Play) }, tracks.isNotEmpty()))
+                            add(NaviampDetailAction("Play playlist in random order", TransportIcons.Shuffle, { request(SharedMediaItemAction.Shuffle, shuffle = true) }, tracks.size > 1))
+                            if (playlist?.isSmart == true) {
+                                add(NaviampDetailAction("Edit smart playlist", DesktopNavigationIcons.Brain, {
+                                    coroutineScope.launch {
+                                        runCatching { onSmartPlaylistLoad(playlist) }
+                                            .onSuccess { definition ->
+                                                smartPlaylistInitialDraft = SmartPlaylistDraft.fromDefinition(definition)
+                                                smartPlaylistEditorOpen = true
+                                                smartPlaylistLoadMessage = null
+                                            }
+                                            .onFailure { error ->
+                                                smartPlaylistLoadMessage = error.message ?: "Could not load smart playlist rules."
+                                            }
+                                    }
+                                }))
+                            } else if (playlist != null) {
+                                add(NaviampDetailAction(renameAction.label, renameAction.icon, { request(SharedMediaItemAction.Rename) }, renameAction.enabled))
+                            }
+                            add(NaviampDetailAction(downloadAction.label, downloadAction.icon, { request(SharedMediaItemAction.Download) }, downloadAction.enabled))
+                            add(NaviampDetailAction(addToQueueAction.label, addToQueueAction.icon, { request(SharedMediaItemAction.AddToQueue) }, addToQueueAction.enabled))
+                            if (playlist?.isSmart == false) {
+                                add(NaviampDetailAction(addToPlaylistAction.label, addToPlaylistAction.icon, { request(SharedMediaItemAction.AddToPlaylist) }, addToPlaylistAction.enabled))
+                                add(NaviampDetailAction("Playlist tools", DesktopNavigationIcons.Settings, { bulkToolsOpen = true }, tracks.isNotEmpty()))
+                            }
+                            add(NaviampDetailAction(deleteAction.label, deleteAction.icon, { request(SharedMediaItemAction.Delete) }, deleteAction.enabled))
+                        },
+                    )
+                }
+                smartPlaylistLoadMessage?.let {
+                    Text(it, color = appColors.secondaryText, fontSize = 11.sp)
                 }
             }
         }
-        tracks.forEachIndexed { index, track ->
-            DesktopTrackRow(
-                appColors = appColors,
-                track = track,
-                index = index + 1,
-                subtitle = track.artistName,
-                background = false,
-                horizontalPadding = 0.dp,
-                verticalPadding = 0.dp,
-                canStartRadio = true,
-                canDownload = true,
-                canAddToQueue = true,
-                canAddToPlaylist = true,
-                onTrackAction = onTrackAction,
+        if (playlist?.isSmart == true) {
+            SmartPlaylistTrackList(
+                colors = appColors,
+                tracks = tracks.map { it.toSharedTrackRowUi(coverArtUrl) },
+                onTrackSelected = { row ->
+                    tracks.firstOrNull { it.id.value == row.id }?.let { track ->
+                        onTrackAction(SharedTrackRowActionRequest(track.toSharedTrackRowUi(coverArtUrl), SharedTrackRowAction.Select))
+                    }
+                },
+            )
+        } else if (playlist != null) {
+            StandardPlaylistManagementList(
+                colors = appColors,
+                initialTracks = tracks.map { it.toSharedTrackRowUi(coverArtUrl) },
+                onTrackSelected = { row ->
+                    onTrackAction(SharedTrackRowActionRequest(row, SharedTrackRowAction.Select))
+                },
+                onSave = { editedRows ->
+                    val editedTracks = editedRows.map { row ->
+                        tracks.firstOrNull { track -> track.id.value == row.id }
+                            ?: throw IllegalArgumentException("Track ${row.title} is no longer in the playlist.")
+                    }
+                    onUpdateStandardPlaylist(playlist, editedTracks)
+                },
             )
         }
     }
@@ -425,6 +464,30 @@ fun DesktopPlaylistDetailPanel(
                         playlistName = name,
                     ),
                 )
+            },
+        )
+    }
+    if (smartPlaylistEditorOpen && playlist != null) {
+        SmartPlaylistBuilderDialog(
+            colors = appColors,
+            initialDraft = smartPlaylistInitialDraft,
+            title = "Edit smart playlist",
+            saveLabel = "Update",
+            availableLibraries = availableLibraries,
+            selectedConnectionLibraryIds = selectedConnectionLibraryIds,
+            onDismissRequest = {
+                smartPlaylistEditorOpen = false
+                smartPlaylistInitialDraft = SmartPlaylistDraft()
+            },
+            onSave = { definition ->
+                onSmartPlaylistUpdate(playlist, definition)
+                smartPlaylistEditorOpen = false
+                smartPlaylistInitialDraft = SmartPlaylistDraft()
+            },
+            onSaveWithPassword = { definition, password ->
+                onSmartPlaylistUpdateWithPassword(playlist, definition, password)
+                smartPlaylistEditorOpen = false
+                smartPlaylistInitialDraft = SmartPlaylistDraft()
             },
         )
     }

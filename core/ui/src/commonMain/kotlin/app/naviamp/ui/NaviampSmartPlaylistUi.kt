@@ -30,6 +30,7 @@ import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.platform.testTag
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -49,6 +50,7 @@ import app.naviamp.domain.smartplaylist.SmartPlaylistValueType
 import app.naviamp.domain.smartplaylist.displayLabel
 import app.naviamp.domain.smartplaylist.updated
 import app.naviamp.domain.smartplaylist.valueLabel
+import app.naviamp.domain.settings.ConnectionFormMusicFolder
 import androidx.compose.ui.window.PopupProperties
 import kotlinx.coroutines.launch
 
@@ -58,11 +60,21 @@ fun SmartPlaylistBuilderDialog(
     initialDraft: SmartPlaylistDraft = SmartPlaylistDraft(),
     title: String = "Smart playlist",
     saveLabel: String = "Save",
+    availableLibraries: List<ConnectionFormMusicFolder> = emptyList(),
+    selectedConnectionLibraryIds: List<String> = emptyList(),
     onDismissRequest: () -> Unit,
     onSave: suspend (SmartPlaylistDefinition) -> Unit,
     onSaveWithPassword: (suspend (SmartPlaylistDefinition, String) -> Unit)? = null,
 ) {
-    var draft by remember(initialDraft) { mutableStateOf(initialDraft) }
+    var draft by remember(initialDraft, selectedConnectionLibraryIds) {
+        mutableStateOf(
+            if (initialDraft.selectedLibraryIds == null && selectedConnectionLibraryIds.size > 1) {
+                initialDraft.copy(selectedLibraryIds = selectedConnectionLibraryIds)
+            } else {
+                initialDraft
+            },
+        )
+    }
     var importJson by remember { mutableStateOf("") }
     var importMessage by remember { mutableStateOf<String?>(null) }
     var importOpen by remember { mutableStateOf(false) }
@@ -71,6 +83,7 @@ fun SmartPlaylistBuilderDialog(
     var passwordPromptOpen by remember { mutableStateOf(false) }
     var password by remember { mutableStateOf("") }
     var passwordSaving by remember { mutableStateOf(false) }
+    var passwordError by remember { mutableStateOf<String?>(null) }
     var pendingPasswordDefinition by remember { mutableStateOf<SmartPlaylistDefinition?>(null) }
     val coroutineScope = rememberCoroutineScope()
     val definition = remember(draft) {
@@ -178,6 +191,8 @@ fun SmartPlaylistBuilderDialog(
                 SmartPlaylistCustomControls(
                     colors = colors,
                     draft = draft,
+                    availableLibraries = availableLibraries,
+                    selectedConnectionLibraryIds = selectedConnectionLibraryIds,
                     onDraftChange = { draft = it },
                 )
                 saveMessage?.let { message ->
@@ -201,6 +216,7 @@ fun SmartPlaylistBuilderDialog(
         },
         confirmButton = {
             TextButton(
+                modifier = Modifier.testTag(SmartPlaylistSaveTestTag),
                 enabled = definition.isSuccess && !saving,
                 onClick = {
                     val smartPlaylist = definition.getOrThrow()
@@ -218,6 +234,7 @@ fun SmartPlaylistBuilderDialog(
                             if (onSaveWithPassword != null && error.requiresSmartPlaylistPassword()) {
                                 pendingPasswordDefinition = smartPlaylist
                                 password = ""
+                                passwordError = null
                                 passwordPromptOpen = true
                                 saveMessage = "Enter your Navidrome password to enable smart playlist saving."
                             } else {
@@ -247,6 +264,7 @@ fun SmartPlaylistBuilderDialog(
                     passwordPromptOpen = false
                     pendingPasswordDefinition = null
                     password = ""
+                    passwordError = null
                 }
             },
             title = { Text("Navidrome password") },
@@ -258,23 +276,31 @@ fun SmartPlaylistBuilderDialog(
                         fontSize = 12.sp,
                     )
                     OutlinedTextField(
+                        modifier = Modifier.fillMaxWidth().testTag(SmartPlaylistPasswordFieldTestTag),
                         value = password,
-                        onValueChange = { password = it },
+                        onValueChange = {
+                            password = it
+                            passwordError = null
+                        },
                         label = { Text("Password", color = colors.secondaryText) },
                         singleLine = true,
                         visualTransformation = PasswordVisualTransformation(),
                         textStyle = TextStyle(fontSize = 13.sp),
-                        modifier = Modifier.fillMaxWidth(),
                     )
+                    passwordError?.let { message ->
+                        Text(message, color = colors.secondaryText, fontSize = 12.sp)
+                    }
                 }
             },
             confirmButton = {
                 TextButton(
+                    modifier = Modifier.testTag(SmartPlaylistPasswordSaveTestTag),
                     enabled = pendingDefinition != null && password.isNotBlank() && !passwordSaving,
                     onClick = {
                         val definitionToSave = pendingDefinition ?: return@TextButton
                         val passwordToUse = password
                         passwordSaving = true
+                        passwordError = null
                         coroutineScope.launch {
                             runCatching {
                                 onSaveWithPassword?.invoke(definitionToSave, passwordToUse)
@@ -283,10 +309,11 @@ fun SmartPlaylistBuilderDialog(
                                 passwordPromptOpen = false
                                 pendingPasswordDefinition = null
                                 password = ""
+                                passwordError = null
                                 onDismissRequest()
                             }.onFailure { error ->
                                 passwordSaving = false
-                                saveMessage = error.message ?: "Could not authenticate with Navidrome."
+                                passwordError = error.message ?: "Could not authenticate with Navidrome."
                             }
                         }
                     },
@@ -301,6 +328,7 @@ fun SmartPlaylistBuilderDialog(
                         passwordPromptOpen = false
                         pendingPasswordDefinition = null
                         password = ""
+                        passwordError = null
                     },
                 ) {
                     Text("Cancel")
@@ -313,12 +341,54 @@ fun SmartPlaylistBuilderDialog(
     }
 }
 
+internal const val SmartPlaylistSaveTestTag = "smart-playlist-save"
+internal const val SmartPlaylistPasswordFieldTestTag = "smart-playlist-password"
+internal const val SmartPlaylistPasswordSaveTestTag = "smart-playlist-password-save"
+
 @Composable
 private fun SmartPlaylistCustomControls(
     colors: NaviampColors,
     draft: SmartPlaylistDraft,
+    availableLibraries: List<ConnectionFormMusicFolder>,
+    selectedConnectionLibraryIds: List<String>,
     onDraftChange: (SmartPlaylistDraft) -> Unit,
 ) {
+    if (selectedConnectionLibraryIds.size > 1) {
+        val selectedIds = draft.selectedLibraryIds.orEmpty().toSet()
+        val libraries = selectedConnectionLibraryIds.map { id ->
+            availableLibraries.firstOrNull { library -> library.id == id }
+                ?: ConnectionFormMusicFolder(id = id, name = id)
+        }
+        SmartPlaylistSection(title = "Libraries", colors = colors) {
+            Text(
+                "Choose which of this connection's libraries the playlist can use.",
+                color = colors.secondaryText,
+                fontSize = 12.sp,
+            )
+            libraries.forEach { library ->
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Checkbox(
+                        checked = library.id in selectedIds,
+                        onCheckedChange = { checked ->
+                            val updated = if (checked) {
+                                selectedIds + library.id
+                            } else {
+                                selectedIds - library.id
+                            }
+                            if (updated.isNotEmpty()) {
+                                onDraftChange(
+                                    draft.copy(
+                                        selectedLibraryIds = selectedConnectionLibraryIds.filter { it in updated },
+                                    ),
+                                )
+                            }
+                        },
+                    )
+                    Text(library.name, color = colors.primaryText, fontSize = 13.sp)
+                }
+            }
+        }
+    }
     SmartPlaylistSection(title = "Filters", colors = colors) {
         SmartPlaylistDropdown(
             label = "Match",
@@ -747,6 +817,9 @@ private fun List<SmartPlaylistFieldOption>.smartPlaylistMenuOrder(commonFields: 
 
 private fun Throwable.requiresSmartPlaylistPassword(): Boolean {
     val message = message.orEmpty()
-    return message.contains("password", ignoreCase = true) &&
-        message.contains("smart playlist", ignoreCase = true)
+    return message.contains("HTTP 401", ignoreCase = true) ||
+        (
+            message.contains("password", ignoreCase = true) &&
+                message.contains("smart playlist", ignoreCase = true)
+            )
 }

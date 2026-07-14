@@ -138,6 +138,43 @@ class DesktopPlaylistsController(
         applyPlaylistListApplication(refreshedPlaylists)
     }
 
+    suspend fun updateStandardPlaylistTracks(playlist: Playlist, tracks: List<Track>) {
+        val activeProvider = provider()
+            ?: throw IllegalStateException("Connect to Navidrome before editing playlists.")
+        require(!playlist.isSmart) { "Smart Playlist tracks are controlled by their rules." }
+        val currentTracks = playlistTracksById[playlist.id]
+            ?: selectedPlaylistTracks.takeIf { selectedPlaylist?.id == playlist.id }
+            ?: emptyList()
+        status = "Saving ${playlist.name}..."
+        try {
+            withContext(Dispatchers.IO) {
+                activeProvider.replacePlaylistTracks(
+                    playlistId = playlist.id,
+                    currentTrackCount = currentTracks.size,
+                    trackIds = tracks.map { it.id },
+                )
+                providerResponseService.invalidatePlaylistResponses(activeProvider, playlist.id)
+            }
+            val refreshedTracks = withContext(Dispatchers.IO) {
+                providerResponseService.playlistTracks(activeProvider, playlist.id)
+            }
+            val refreshedPlaylists = withContext(Dispatchers.IO) {
+                providerResponseService.playlists(activeProvider, limit = 500)
+            }
+            val refreshedPlaylist = refreshedPlaylists.firstOrNull { it.id == playlist.id }
+                ?: playlist.copy(trackCount = refreshedTracks.size)
+            playlistTracksById = playlistTracksById + (playlist.id to refreshedTracks)
+            applyPlaylistListApplication(refreshedPlaylists)
+            if (selectedPlaylist?.id == playlist.id) {
+                applySelectedPlaylistDetails(refreshedPlaylist, refreshedTracks, "Updated playlist.")
+            }
+            status = "Updated playlist."
+        } catch (error: Exception) {
+            status = error.message ?: "Could not update playlist."
+            throw error
+        }
+    }
+
     fun refreshPlaylists(useCache: Boolean = true) {
         val activeProvider = provider() ?: return
         status = playlistListLoadingStatus()

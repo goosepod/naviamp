@@ -2524,6 +2524,11 @@ internal fun nowPlayingSwipeActionVisual(
             }
         }
     }
+    TrackSwipeAction.MoveUp,
+    TrackSwipeAction.MoveDown,
+    TrackSwipeAction.MoveToTop,
+    TrackSwipeAction.MoveToBottom,
+    -> null
 }
 
 private fun swipeVisual(

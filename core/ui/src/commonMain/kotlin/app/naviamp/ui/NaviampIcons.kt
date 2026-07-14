@@ -386,6 +386,25 @@ object NaviampIcons {
         lineTo(12f, 15f)
         lineTo(18f, 9f)
     }
+    val ChevronUp = icon("ChevronUp") {
+        moveTo(6f, 15f)
+        lineTo(12f, 9f)
+        lineTo(18f, 15f)
+    }
+    val MoveToTop = icon("MoveToTop") {
+        moveTo(5f, 5f)
+        lineTo(19f, 5f)
+        moveTo(6f, 15f)
+        lineTo(12f, 9f)
+        lineTo(18f, 15f)
+    }
+    val MoveToBottom = icon("MoveToBottom") {
+        moveTo(5f, 19f)
+        lineTo(19f, 19f)
+        moveTo(6f, 9f)
+        lineTo(12f, 15f)
+        lineTo(18f, 9f)
+    }
     val Back = icon("Back") {
         moveTo(15f, 5f)
         lineTo(8f, 12f)

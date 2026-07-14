@@ -14,6 +14,7 @@ import app.naviamp.domain.settings.PlaybackSettings
 import app.naviamp.ui.NaviampVisualizer
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
@@ -46,6 +47,7 @@ class AndroidPlaybackSessionControllerTest {
 
         assertEquals(3, state.playbackQueue.currentIndex)
         assertEquals(state.playbackQueue, queueController.queue)
+        assertFalse(state.nowPlayingOpen)
         assertEquals("after", assertNotNull(queueController.next()).track?.id?.value)
     }
 

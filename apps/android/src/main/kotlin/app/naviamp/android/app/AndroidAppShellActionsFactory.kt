@@ -145,6 +145,7 @@ fun androidAppShellActions(
     addPlaylistToPlaylist: (Playlist, NaviampPlaylistChoiceUi?, String?) -> Unit,
     renamePlaylist: (Playlist, String) -> Unit,
     deletePlaylist: (Playlist) -> Unit,
+    updateStandardPlaylistTracks: suspend (Playlist, List<Track>) -> Unit,
     saveSmartPlaylist: suspend (SmartPlaylistDefinition) -> Unit,
     updateSmartPlaylist: suspend (Playlist, SmartPlaylistDefinition) -> Unit,
     saveSmartPlaylistWithPassword: suspend (SmartPlaylistDefinition, String) -> Unit,
@@ -226,6 +227,7 @@ fun androidAppShellActions(
             onRouteSelected = { route ->
                 navigationState = navigationState.copy(route = route.toNaviampRoute())
                 contentState = contentState.clearDetails()
+                artistDetailBackStack = emptyList()
                 nowPlayingOpen = false
             },
             onConnectionFormChanged = handleConnectionFormChanged,
@@ -478,6 +480,16 @@ fun androidAppShellActions(
                 }
             },
             onSmartPlaylistSave = { definition -> saveSmartPlaylist(definition) },
+            onStandardPlaylistUpdate = { playlistItem, trackRows ->
+                val playlist = homeState.playlists.firstOrNull { it.id == playlistItem.id }
+                    ?: throw IllegalArgumentException("Playlist not found.")
+                val sourceTracks = playlistTracksById[playlist.id].orEmpty()
+                val editedTracks = trackRows.map { row ->
+                    sourceTracks.firstOrNull { track -> track.id.value == row.id }
+                        ?: throw IllegalArgumentException("Track ${row.title} is no longer in the playlist.")
+                }
+                updateStandardPlaylistTracks(playlist, editedTracks)
+            },
             onSmartPlaylistUpdate = { playlist, definition ->
                 homeState.playlists.firstOrNull { it.id == playlist.id }?.let { updateSmartPlaylist(it, definition) }
                     ?: run { status = "Playlist not found." }
@@ -504,13 +516,7 @@ fun androidAppShellActions(
             onHomeStationSelected = handleShellHomeStationSelected,
             onSonicDiscoveryTrackAction = handleSonicDiscoveryTrackAction,
             onOpenNowPlaying = { nowPlayingOpen = true },
-            onCloseNowPlaying = {
-                if (nowPlayingOpen) {
-                    nowPlayingOpen = false
-                } else {
-                    closeActiveDetail()
-                }
-            },
+            onCloseNowPlaying = { nowPlayingOpen = false },
             onNowPlayingPlaybackAction = { request ->
                 when (request.action) {
                     NowPlayingPlaybackAction.Pause -> playbackEngine.pause()

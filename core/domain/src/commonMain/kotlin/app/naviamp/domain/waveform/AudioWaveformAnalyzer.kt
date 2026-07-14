@@ -51,7 +51,7 @@ private fun FloatArray.hasPlausibleDecodedCoverage(): Boolean {
     val signalBucketCount = count { kotlin.math.abs(it) > SilentBucketThreshold }
     val minimumLastSignalBucket = (size * MinimumDecodedBucketCoverage).toInt()
     val minimumSignalBucketCount = (size * MinimumSignalBucketRatio).toInt()
-    return lastSignalBucket >= minimumLastSignalBucket || signalBucketCount > minimumSignalBucketCount
+    return lastSignalBucket >= minimumLastSignalBucket && signalBucketCount > minimumSignalBucketCount
 }
 
 private const val MinCoverageValidationBuckets = 16

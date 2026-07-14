@@ -192,6 +192,8 @@ class AndroidSettingsStore(
                 queueLeft = enumPreference(KeySwipeQueueLeft, TrackSwipeAction.Remove),
                 relatedRight = enumPreference(KeySwipeRelatedRight, TrackSwipeAction.PlayNext),
                 relatedLeft = enumPreference(KeySwipeRelatedLeft, TrackSwipeAction.None),
+                playlistEditRight = enumPreference(KeySwipePlaylistEditRight, TrackSwipeAction.None),
+                playlistEditLeft = enumPreference(KeySwipePlaylistEditLeft, TrackSwipeAction.None),
             ),
         ).normalized()
 
@@ -212,6 +214,8 @@ class AndroidSettingsStore(
             .putString(KeySwipeQueueLeft, settings.normalized().trackSwipes.queueLeft.name)
             .putString(KeySwipeRelatedRight, settings.normalized().trackSwipes.relatedRight.name)
             .putString(KeySwipeRelatedLeft, settings.normalized().trackSwipes.relatedLeft.name)
+            .putString(KeySwipePlaylistEditRight, settings.normalized().trackSwipes.playlistEditRight.name)
+            .putString(KeySwipePlaylistEditLeft, settings.normalized().trackSwipes.playlistEditLeft.name)
             .apply()
     }
 
@@ -569,6 +573,8 @@ private const val KeySwipeQueueRight = "swipe_queue_right"
 private const val KeySwipeQueueLeft = "swipe_queue_left"
 private const val KeySwipeRelatedRight = "swipe_related_right"
 private const val KeySwipeRelatedLeft = "swipe_related_left"
+private const val KeySwipePlaylistEditRight = "swipe_playlist_edit_right"
+private const val KeySwipePlaylistEditLeft = "swipe_playlist_edit_left"
 private const val KeyLrclibLyricsEnabled = "lrclib_lyrics_enabled"
 private const val KeyPreferSyncedLyrics = "prefer_synced_lyrics"
 private const val KeyLyricsSearchOrder = "lyrics_search_order"

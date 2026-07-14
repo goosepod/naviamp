@@ -184,6 +184,7 @@ fun AndroidAppShellContent(
         onPlaylistCopy = actions.onPlaylistCopy,
         onPlaylistRename = actions.onPlaylistRename,
         onPlaylistDelete = actions.onPlaylistDelete,
+        onStandardPlaylistUpdate = actions.onStandardPlaylistUpdate,
         onMediaItemAction = actions.onMediaItemAction,
         onSmartPlaylistSave = actions.onSmartPlaylistSave,
         onSmartPlaylistUpdate = actions.onSmartPlaylistUpdate,

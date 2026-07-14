@@ -10,6 +10,7 @@ data class SmartPlaylistDraft(
     val limitMode: SmartPlaylistLimitMode = SmartPlaylistLimitMode.TrackCount,
     val limit: Int = 100,
     val isPublic: Boolean = false,
+    val selectedLibraryIds: List<String>? = null,
 ) {
     fun toDefinition(): SmartPlaylistDefinition {
         val validConditions = conditions.mapNotNull { it.toConditionOrNull() }
@@ -26,6 +27,7 @@ data class SmartPlaylistDraft(
             limit = limit.takeIf { limitMode == SmartPlaylistLimitMode.TrackCount },
             limitPercent = limit.takeIf { limitMode == SmartPlaylistLimitMode.Percent },
             isPublic = isPublic,
+            libraryIds = selectedLibraryIds,
         )
     }
 
@@ -56,6 +58,7 @@ data class SmartPlaylistDraft(
                 limitMode = limitMode,
                 limit = definition.limitPercent ?: definition.limit ?: 100,
                 isPublic = definition.isPublic ?: false,
+                selectedLibraryIds = definition.libraryIds,
             )
         }
     }

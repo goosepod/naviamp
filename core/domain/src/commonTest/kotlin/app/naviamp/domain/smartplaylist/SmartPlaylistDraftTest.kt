@@ -343,4 +343,26 @@ class SmartPlaylistDraftTest {
             draft.conditions.map { it.operator },
         )
     }
+
+    @Test
+    fun selectedLibrariesRoundTripThroughEditorDraft() {
+        val original = SmartPlaylistDefinition(
+            name = "Library subset",
+            match = SmartPlaylistMatch.Any,
+            rules = listOf(
+                SmartPlaylistCondition(
+                    operator = SmartPlaylistOperator.Is,
+                    field = SmartPlaylistFields.Artist,
+                    value = SmartPlaylistValue.Text("Ascendant"),
+                ),
+            ),
+            libraryIds = listOf("2", "4"),
+        )
+
+        val restored = SmartPlaylistDraft.fromDefinition(original).toDefinition()
+
+        assertEquals(listOf("2", "4"), restored.libraryIds)
+        assertEquals(SmartPlaylistMatch.Any, restored.match)
+        assertEquals(original.rules, restored.rules)
+    }
 }

@@ -31,6 +31,7 @@ data class SmartPlaylistDefinition(
     val limit: Int? = null,
     val limitPercent: Int? = null,
     val isPublic: Boolean? = null,
+    val libraryIds: List<String>? = null,
 ) {
     init {
         require(name.isNotBlank()) { "Smart playlist name is required." }

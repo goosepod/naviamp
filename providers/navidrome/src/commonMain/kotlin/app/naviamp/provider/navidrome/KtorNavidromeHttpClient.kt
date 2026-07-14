@@ -22,16 +22,31 @@ class KtorNavidromeHttpClient(
     private val rateLimitBackoff = NavidromeRateLimitBackoff()
 
     override suspend fun get(url: String): String =
-        request(url = url, method = HttpMethod.Get)
+        getResponse(url).body
 
     override suspend fun get(url: String, headers: Map<String, String>): String =
+        getResponse(url, headers).body
+
+    override suspend fun getResponse(url: String, headers: Map<String, String>): NavidromeHttpResponse =
         request(url = url, method = HttpMethod.Get, headers = headers)
 
     override suspend fun postJson(url: String, body: String, headers: Map<String, String>): String =
-        request(url = url, method = HttpMethod.Post, body = body, headers = headers)
+        postJsonResponse(url, body, headers).body
+
+    override suspend fun postJsonResponse(
+        url: String,
+        body: String,
+        headers: Map<String, String>,
+    ): NavidromeHttpResponse = request(url = url, method = HttpMethod.Post, body = body, headers = headers)
 
     override suspend fun putJson(url: String, body: String, headers: Map<String, String>): String =
-        request(url = url, method = HttpMethod.Put, body = body, headers = headers)
+        putJsonResponse(url, body, headers).body
+
+    override suspend fun putJsonResponse(
+        url: String,
+        body: String,
+        headers: Map<String, String>,
+    ): NavidromeHttpResponse = request(url = url, method = HttpMethod.Put, body = body, headers = headers)
 
     override suspend fun getBytes(url: String, headers: Map<String, String>): ByteArray? =
         requestBytes(url = url, headers = mapOf(HttpHeaders.Accept to "*/*") + headers)
@@ -48,7 +63,7 @@ class KtorNavidromeHttpClient(
         method: HttpMethod,
         body: String? = null,
         headers: Map<String, String> = emptyMap(),
-    ): String {
+    ): NavidromeHttpResponse {
         val startedAt = navidromeCurrentTimeMillis()
         return runCatching {
             rateLimitBackoff.activeExceptionOrNull()?.let { throw it }
@@ -67,7 +82,10 @@ class KtorNavidromeHttpClient(
                 rateLimitBackoff.record(statusCode, response.headers[HttpHeaders.RetryAfter])?.let { throw it }
                 throw NavidromeException("Navidrome returned HTTP $statusCode.")
             }
-            response.body<String>().also {
+            NavidromeHttpResponse(
+                body = response.body<String>(),
+                headers = response.headers.entries().associate { (name, values) -> name to values.joinToString(",") },
+            ).also {
                 recordApiCall(
                     method = method.value,
                     url = url,

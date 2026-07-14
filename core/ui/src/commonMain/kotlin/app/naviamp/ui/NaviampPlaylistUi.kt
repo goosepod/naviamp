@@ -4,11 +4,14 @@ import app.naviamp.ui.generated.resources.Res
 import app.naviamp.ui.generated.resources.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -28,6 +31,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.layout.boundsInWindow
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
@@ -35,6 +41,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.naviamp.domain.smartplaylist.SmartPlaylistDefinition
 import app.naviamp.domain.smartplaylist.SmartPlaylistDraft
+import app.naviamp.domain.settings.ConnectionFormMusicFolder
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.stringResource
 
@@ -57,6 +64,8 @@ internal fun PlaylistsContent(
     },
     onSmartPlaylistLoad: suspend (SharedMediaItemUi) -> SmartPlaylistDefinition,
     playlistChoices: List<NaviampPlaylistChoiceUi>,
+    availableLibraries: List<ConnectionFormMusicFolder> = emptyList(),
+    selectedConnectionLibraryIds: List<String> = emptyList(),
 ) {
     var playlistToRename by remember { mutableStateOf<SharedMediaItemUi?>(null) }
     var playlistToDelete by remember { mutableStateOf<SharedMediaItemUi?>(null) }
@@ -239,6 +248,8 @@ internal fun PlaylistsContent(
             } else {
                 stringResource(Res.string.playlists_update)
             },
+            availableLibraries = availableLibraries,
+            selectedConnectionLibraryIds = selectedConnectionLibraryIds,
             onDismissRequest = {
                 smartPlaylistBuilderOpen = false
                 smartPlaylistEditTarget = null
@@ -344,17 +355,24 @@ private fun PlaylistListRow(
             }
             Text(playlist.subtitle, color = colors.secondaryText, fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
-        MiniPlayerIconButton(colors, true, NaviampTransportIcons.Play, stringResource(Res.string.playlists_play)) {
-            onAction(playlist.actionRequest(SharedMediaItemAction.Play, kind = SharedMediaItemKind.Playlist))
-        }
+        MiniPlayerIconButton(
+            colors,
+            true,
+            NaviampTransportIcons.Play,
+            stringResource(Res.string.playlists_play),
+            onClick = {
+                onAction(playlist.actionRequest(SharedMediaItemAction.Play, kind = SharedMediaItemKind.Playlist))
+            },
+        )
         MiniPlayerIconButton(
             colors,
             playlist.meta != "1 track",
             NaviampTransportIcons.Shuffle,
             stringResource(Res.string.playlists_shuffle),
-        ) {
-            onAction(playlist.actionRequest(SharedMediaItemAction.Shuffle, kind = SharedMediaItemKind.Playlist))
-        }
+            onClick = {
+                onAction(playlist.actionRequest(SharedMediaItemAction.Shuffle, kind = SharedMediaItemKind.Playlist))
+            },
+        )
         NaviampRowOverflowMenu(
             colors = colors,
             items = playlistRowActions(
@@ -420,25 +438,36 @@ internal fun PlaylistDetailContent(
     onCopyPlaylist: (String, Boolean) -> Unit,
     onRenamePlaylist: (SharedMediaItemUi, String) -> Unit,
     onDeletePlaylist: (SharedMediaItemUi) -> Unit,
+    onUpdateStandardPlaylist: suspend (SharedMediaItemUi, List<SharedTrackRowUi>) -> Unit,
+    onSmartPlaylistUpdate: suspend (SharedMediaItemUi, SmartPlaylistDefinition) -> Unit,
+    onSmartPlaylistUpdateWithPassword: suspend (SharedMediaItemUi, SmartPlaylistDefinition, String) -> Unit,
+    onSmartPlaylistLoad: suspend (SharedMediaItemUi) -> SmartPlaylistDefinition,
     onTrackSelected: (SharedTrackRowUi) -> Unit,
     onTrackAddToQueue: (SharedTrackRowUi) -> Unit,
     playlistChoices: List<NaviampPlaylistChoiceUi>,
+    availableLibraries: List<ConnectionFormMusicFolder> = emptyList(),
+    selectedConnectionLibraryIds: List<String> = emptyList(),
 ) {
     var renameOpen by remember { mutableStateOf(false) }
     var deleteOpen by remember { mutableStateOf(false) }
     var addToPlaylistOpen by remember { mutableStateOf(false) }
     var bulkToolsOpen by remember { mutableStateOf(false) }
-    val handleTrackAction: (SharedTrackRowActionRequest) -> Unit = { request ->
-        handleSharedTrackRowAction(
-            request,
-            SharedTrackRowActionHandlers(
-                onSelect = onTrackSelected,
-                onAddToQueue = onTrackAddToQueue,
-            ),
-        )
-    }
+    var smartPlaylistEditorOpen by remember { mutableStateOf(false) }
+    var smartPlaylistInitialDraft by remember { mutableStateOf(SmartPlaylistDraft()) }
+    var smartPlaylistLoadMessage by remember { mutableStateOf<String?>(null) }
+    val detailScrollState = rememberScrollState()
+    var detailViewportBounds by remember { mutableStateOf(Rect.Zero) }
+    val coroutineScope = rememberCoroutineScope()
 
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .onGloballyPositioned { coordinates ->
+                detailViewportBounds = coordinates.boundsInWindow()
+            }
+            .verticalScroll(detailScrollState),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(2.dp)) {
             IconButton(onClick = onBack, modifier = Modifier.size(32.dp)) {
                 Icon(
@@ -448,15 +477,20 @@ internal fun PlaylistDetailContent(
                     modifier = Modifier.size(18.dp),
                 )
             }
-            if (detail.playlist.isSmartPlaylist) {
-                Icon(
-                    NaviampIcons.Brain,
-                    contentDescription = stringResource(Res.string.playlists_smart),
-                    tint = colors.secondaryText,
-                    modifier = Modifier.size(18.dp),
-                )
-            }
-            Text(detail.playlist.title, color = colors.primaryText, fontWeight = FontWeight.Bold, fontSize = 18.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Icon(
+                if (detail.playlist.isSmartPlaylist) NaviampIcons.Brain else NaviampIcons.Playlist,
+                contentDescription = if (detail.playlist.isSmartPlaylist) stringResource(Res.string.playlists_smart) else stringResource(Res.string.playlists_title),
+                tint = colors.secondaryText,
+                modifier = Modifier.size(18.dp),
+            )
+            Text(
+                detail.playlist.title,
+                color = colors.primaryText,
+                fontWeight = FontWeight.Bold,
+                fontSize = 18.sp,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
         }
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
             MultiCoverArt(
@@ -468,75 +502,61 @@ internal fun PlaylistDetailContent(
             )
             Column(verticalArrangement = Arrangement.spacedBy(4.dp), modifier = Modifier.weight(1f)) {
                 Text(detail.playlist.subtitle, color = colors.secondaryText, fontSize = 12.sp)
-                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                    MiniPlayerIconButton(
-                        colors,
-                        detail.tracks.isNotEmpty(),
-                        NaviampTransportIcons.Play,
-                        stringResource(Res.string.playlists_play),
-                        onPlayPlaylist,
-                    )
-                    MiniPlayerIconButton(
-                        colors,
-                        detail.tracks.size > 1,
-                        NaviampTransportIcons.Shuffle,
-                        stringResource(Res.string.playlists_shuffle),
-                        onShufflePlaylist,
-                    )
-                    MiniPlayerIconButton(
-                        colors,
-                        detail.tracks.isNotEmpty(),
-                        NaviampIcons.Queue,
-                        stringResource(Res.string.playlists_add_to_queue),
-                        onAddPlaylistToQueue,
-                    )
-                    MiniPlayerIconButton(
-                        colors,
-                        detail.tracks.isNotEmpty(),
-                        NaviampIcons.Downloads,
-                        stringResource(Res.string.playlists_download),
-                        onDownloadPlaylist,
-                    )
-                    MiniPlayerIconButton(
-                        colors,
-                        detail.tracks.isNotEmpty(),
-                        NaviampIcons.Playlist,
-                        stringResource(Res.string.playlists_add_to_playlist),
-                    ) {
-                        addToPlaylistOpen = true
-                    }
-                    MiniPlayerIconButton(
-                        colors,
-                        detail.tracks.isNotEmpty(),
-                        NaviampIcons.Settings,
-                        stringResource(Res.string.playlists_bulk_tools_title),
-                    ) {
-                        bulkToolsOpen = true
-                    }
-                    MiniPlayerIconButton(
-                        colors,
-                        true,
-                        NaviampIcons.Edit,
-                        stringResource(Res.string.playlists_rename_title),
-                        { renameOpen = true },
-                    )
-                    MiniPlayerIconButton(
-                        colors,
-                        true,
-                        NaviampIcons.Trash,
-                        stringResource(Res.string.playlists_delete_title),
-                        { deleteOpen = true },
-                    )
-                }
+                NaviampResponsiveActionRow(
+                    colors = colors,
+                    actions = buildList {
+                        add(NaviampDetailAction(stringResource(Res.string.playlists_play), NaviampTransportIcons.Play, onPlayPlaylist, detail.tracks.isNotEmpty()))
+                        add(NaviampDetailAction(stringResource(Res.string.playlists_shuffle), NaviampTransportIcons.Shuffle, onShufflePlaylist, detail.tracks.size > 1))
+                        if (detail.playlist.isSmartPlaylist) {
+                            add(NaviampDetailAction(stringResource(Res.string.playlists_edit_smart), NaviampIcons.Brain, {
+                            coroutineScope.launch {
+                                runCatching { onSmartPlaylistLoad(detail.playlist) }
+                                    .onSuccess { definition ->
+                                        smartPlaylistInitialDraft = SmartPlaylistDraft.fromDefinition(definition)
+                                        smartPlaylistEditorOpen = true
+                                        smartPlaylistLoadMessage = null
+                                    }
+                                    .onFailure { error ->
+                                        smartPlaylistLoadMessage = error.message.orEmpty()
+                                }
+                            }
+                            }))
+                        } else {
+                            add(NaviampDetailAction(stringResource(Res.string.playlists_rename_title), NaviampIcons.Edit, { renameOpen = true }))
+                        }
+                        add(NaviampDetailAction(stringResource(Res.string.playlists_add_to_queue), NaviampIcons.Queue, onAddPlaylistToQueue, detail.tracks.isNotEmpty()))
+                        add(NaviampDetailAction(stringResource(Res.string.playlists_download), NaviampIcons.Downloads, onDownloadPlaylist, detail.tracks.isNotEmpty()))
+                        if (!detail.playlist.isSmartPlaylist) {
+                            add(NaviampDetailAction(stringResource(Res.string.playlists_add_to_playlist), NaviampIcons.Playlist, { addToPlaylistOpen = true }, detail.tracks.isNotEmpty()))
+                            add(NaviampDetailAction(stringResource(Res.string.playlists_bulk_tools_title), NaviampIcons.Settings, { bulkToolsOpen = true }, detail.tracks.isNotEmpty()))
+                        }
+                        add(NaviampDetailAction(stringResource(Res.string.playlists_delete_title), NaviampIcons.Trash, { deleteOpen = true }))
+                    },
+                )
             }
         }
-        detail.tracks.forEach { track ->
-            TrackRow(
-                track,
-                colors,
-                onTrackSelected,
-                onAddToQueue = onTrackAddToQueue,
-                onTrackAction = handleTrackAction,
+        if (detail.playlist.isSmartPlaylist) {
+            SmartPlaylistTrackList(
+                colors = colors,
+                tracks = detail.tracks,
+                onTrackSelected = onTrackSelected,
+            )
+        } else {
+            StandardPlaylistManagementList(
+                colors = colors,
+                initialTracks = detail.tracks,
+                onTrackSelected = onTrackSelected,
+                onSave = { tracks -> onUpdateStandardPlaylist(detail.playlist, tracks) },
+                scrollState = detailScrollState,
+                dragViewportTop = detailViewportBounds.top,
+                dragViewportBottom = detailViewportBounds.bottom,
+            )
+        }
+        smartPlaylistLoadMessage?.let { message ->
+            Text(
+                message.ifBlank { stringResource(Res.string.playlists_load_smart_failed) },
+                color = colors.secondaryText,
+                fontSize = 12.sp,
             )
         }
     }
@@ -597,6 +617,30 @@ internal fun PlaylistDetailContent(
             onCreateAndAdd = { name ->
                 bulkToolsOpen = false
                 onCreatePlaylistAndAddPlaylist(name)
+            },
+        )
+    }
+    if (smartPlaylistEditorOpen) {
+        SmartPlaylistBuilderDialog(
+            colors = colors,
+            initialDraft = smartPlaylistInitialDraft,
+            title = stringResource(Res.string.playlists_edit_smart),
+            saveLabel = stringResource(Res.string.playlists_update),
+            availableLibraries = availableLibraries,
+            selectedConnectionLibraryIds = selectedConnectionLibraryIds,
+            onDismissRequest = {
+                smartPlaylistEditorOpen = false
+                smartPlaylistInitialDraft = SmartPlaylistDraft()
+            },
+            onSave = { definition ->
+                onSmartPlaylistUpdate(detail.playlist, definition)
+                smartPlaylistEditorOpen = false
+                smartPlaylistInitialDraft = SmartPlaylistDraft()
+            },
+            onSaveWithPassword = { definition, password ->
+                onSmartPlaylistUpdateWithPassword(detail.playlist, definition, password)
+                smartPlaylistEditorOpen = false
+                smartPlaylistInitialDraft = SmartPlaylistDraft()
             },
         )
     }

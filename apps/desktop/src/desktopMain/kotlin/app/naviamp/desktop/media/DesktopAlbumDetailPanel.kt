@@ -34,6 +34,8 @@ import app.naviamp.domain.AlbumDetails
 import app.naviamp.domain.Track
 import app.naviamp.ui.SharedMediaItemAction
 import app.naviamp.ui.ExpandedMediaImageDialog
+import app.naviamp.ui.NaviampDetailAction
+import app.naviamp.ui.NaviampResponsiveActionRow
 import app.naviamp.ui.SharedMediaItemActionRequest
 import app.naviamp.ui.SharedMediaItemKind
 import app.naviamp.ui.SharedTrackRowActionRequest
@@ -55,7 +57,6 @@ fun DesktopAlbumDetailPanel(
 ) {
     val effectiveAlbumId = albumDetails?.album?.id ?: album?.id
     var albumImageOpen by remember(effectiveAlbumId) { mutableStateOf(false) }
-    var actionMenuExpanded by remember(effectiveAlbumId) { mutableStateOf(false) }
     Column(
         verticalArrangement = Arrangement.spacedBy(3.dp),
         modifier = Modifier.fillMaxSize(),
@@ -139,7 +140,7 @@ fun DesktopAlbumDetailPanel(
                 status?.let {
                     Text(it, color = appColors.secondaryText, fontSize = 11.sp)
                 }
-                BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
+                Box(modifier = Modifier.fillMaxWidth()) {
                     val effectiveAlbum = albumDetails?.album ?: album
                     val albumItem = effectiveAlbum?.toSharedMediaItemUi(
                         coverArtUrl = { coverArtUrl },
@@ -151,112 +152,23 @@ fun DesktopAlbumDetailPanel(
                         }
                     }
                     val tracksAvailable = albumDetails?.tracks?.isNotEmpty() == true
-                    val showAllActions = maxWidth >= 288.dp
-                    val actionButtonSize = if (showAllActions) 36.dp else 32.dp
-                    val actionIconSize = if (showAllActions) 22.dp else 20.dp
-                    Row(horizontalArrangement = Arrangement.spacedBy(if (showAllActions) 6.dp else 2.dp)) {
-                        DetailActionIconButton(
-                            appColors = appColors,
-                            icon = TransportIcons.Play,
-                            contentDescription = "Play album",
-                            enabled = tracksAvailable,
-                            buttonSize = actionButtonSize,
-                            iconSize = actionIconSize,
-                            onClick = { request(SharedMediaItemAction.Play) },
-                        )
-                        DetailActionIconButton(
-                            appColors = appColors,
-                            icon = TransportIcons.Shuffle,
-                            contentDescription = "Shuffle album",
-                            enabled = (albumDetails?.tracks?.size ?: 0) > 1,
-                            buttonSize = actionButtonSize,
-                            iconSize = actionIconSize,
-                            onClick = { request(SharedMediaItemAction.Shuffle, shuffle = true) },
-                        )
-                        DetailActionIconButton(
-                            appColors = appColors,
-                            icon = DesktopNavigationIcons.Downloads,
-                            contentDescription = "Download album",
-                            enabled = tracksAvailable,
-                            buttonSize = actionButtonSize,
-                            iconSize = actionIconSize,
-                            onClick = { request(SharedMediaItemAction.Download) },
-                        )
-                        DetailActionIconButton(
-                            appColors = appColors,
-                            icon = TransportIcons.Radio,
-                            contentDescription = "Start album radio",
-                            enabled = tracksAvailable,
-                            buttonSize = actionButtonSize,
-                            iconSize = actionIconSize,
-                            onClick = { request(SharedMediaItemAction.StartRadio) },
-                        )
-                        DetailActionIconButton(
-                            appColors = appColors,
-                            icon = DesktopNavigationIcons.Queue,
-                            contentDescription = "Add album to queue",
-                            enabled = tracksAvailable,
-                            buttonSize = actionButtonSize,
-                            iconSize = actionIconSize,
-                            onClick = { request(SharedMediaItemAction.AddToQueue) },
-                        )
-                        if (showAllActions) {
-                            DetailActionIconButton(
-                                appColors = appColors,
-                                icon = DesktopNavigationIcons.Playlist,
-                                contentDescription = "Add album to playlist",
-                                enabled = tracksAvailable,
-                                onClick = { request(SharedMediaItemAction.AddToPlaylist) },
-                            )
-                            DetailActionIconButton(
-                                appColors = appColors,
-                                icon = TransportIcons.Heart,
-                                contentDescription = if (effectiveAlbum?.favoritedAtIso8601 != null) {
-                                    "Remove album favorite"
-                                } else {
-                                    "Favorite album"
-                                },
-                                enabled = effectiveAlbum != null,
-                                onClick = { request(SharedMediaItemAction.ToggleFavorite) },
-                            )
-                        } else {
-                            Box {
-                                IconButton(
-                                    onClick = { actionMenuExpanded = true },
-                                    modifier = Modifier.size(actionButtonSize),
-                                ) {
-                                    Text("⋮", color = appColors.primaryText, fontSize = 17.sp)
-                                }
-                                DesktopNaviampDropdownMenu(
-                                    expanded = actionMenuExpanded,
-                                    onDismissRequest = { actionMenuExpanded = false },
-                                ) {
-                                    DesktopNaviampDropdownMenuItem(
-                                        label = "Add album to playlist",
-                                        icon = DesktopNavigationIcons.Playlist,
-                                        enabled = tracksAvailable,
-                                        onClick = {
-                                            actionMenuExpanded = false
-                                            request(SharedMediaItemAction.AddToPlaylist)
-                                        },
-                                    )
-                                    DesktopNaviampDropdownMenuItem(
-                                        label = if (effectiveAlbum?.favoritedAtIso8601 != null) {
-                                            "Remove album favorite"
-                                        } else {
-                                            "Favorite album"
-                                        },
-                                        icon = TransportIcons.Heart,
-                                        enabled = effectiveAlbum != null,
-                                        onClick = {
-                                            actionMenuExpanded = false
-                                            request(SharedMediaItemAction.ToggleFavorite)
-                                        },
-                                    )
-                                }
-                            }
-                        }
-                    }
+                    NaviampResponsiveActionRow(
+                        colors = appColors,
+                        actions = listOf(
+                            NaviampDetailAction("Play album", TransportIcons.Play, { request(SharedMediaItemAction.Play) }, tracksAvailable),
+                            NaviampDetailAction("Shuffle album", TransportIcons.Shuffle, { request(SharedMediaItemAction.Shuffle, shuffle = true) }, (albumDetails?.tracks?.size ?: 0) > 1),
+                            NaviampDetailAction("Download album", DesktopNavigationIcons.Downloads, { request(SharedMediaItemAction.Download) }, tracksAvailable),
+                            NaviampDetailAction("Start album radio", TransportIcons.Radio, { request(SharedMediaItemAction.StartRadio) }, tracksAvailable),
+                            NaviampDetailAction("Add album to queue", DesktopNavigationIcons.Queue, { request(SharedMediaItemAction.AddToQueue) }, tracksAvailable),
+                            NaviampDetailAction("Add album to playlist", DesktopNavigationIcons.Playlist, { request(SharedMediaItemAction.AddToPlaylist) }, tracksAvailable),
+                            NaviampDetailAction(
+                                if (effectiveAlbum?.favoritedAtIso8601 != null) "Remove album favorite" else "Favorite album",
+                                TransportIcons.Heart,
+                                { request(SharedMediaItemAction.ToggleFavorite) },
+                                effectiveAlbum != null,
+                            ),
+                        ),
+                    )
                 }
             }
         }

@@ -83,7 +83,6 @@ fun restoreAndroidPlaybackSession(
                 playbackQueue = plan.playbackQueue
                 playbackProgress = plan.playbackProgress
                 restoredStartPositionSeconds = null
-                nowPlayingOpen = true
                 synchronizePlaybackQueue(plan.playbackQueue)
                 android.util.Log.i("NaviampSession", "Restored station source=$sourceId name=${plan.station.name}")
                 status = plan.status
@@ -95,7 +94,6 @@ fun restoreAndroidPlaybackSession(
                 nowPlaying = plan.currentTrack
                 nowPlayingStation = null
                 nowPlayingStreamMetadata = plan.streamMetadata
-                nowPlayingOpen = true
                 playbackProgress = plan.playbackProgress
                 restoredStartPositionSeconds = plan.restoredStartPositionSeconds
                 synchronizePlaybackQueue(plan.playbackQueue)

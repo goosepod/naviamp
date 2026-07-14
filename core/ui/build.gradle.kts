@@ -1,7 +1,6 @@
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 val composeVersion = libs.versions.compose.get()
-val composeMaterial3Version = "1.8.2"
 
 plugins {
     alias(libs.plugins.android.library)
@@ -23,7 +22,7 @@ kotlin {
             implementation(project(":core:domain"))
             implementation(libs.kotlinx.serialization.json)
             implementation("org.jetbrains.compose.foundation:foundation:$composeVersion")
-            implementation("org.jetbrains.compose.material3:material3:$composeMaterial3Version")
+            implementation(libs.compose.material3)
             implementation("org.jetbrains.compose.runtime:runtime:$composeVersion")
             implementation("org.jetbrains.compose.ui:ui:$composeVersion")
             implementation("org.jetbrains.compose.components:components-resources:$composeVersion")

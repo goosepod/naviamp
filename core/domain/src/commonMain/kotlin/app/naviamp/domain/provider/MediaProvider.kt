@@ -55,6 +55,9 @@ interface MediaProvider {
     suspend fun addTracksToPlaylist(playlistId: String, trackIds: List<TrackId>) {
         throw UnsupportedOperationException("Playlist edits are not supported by $displayName.")
     }
+    suspend fun replacePlaylistTracks(playlistId: String, currentTrackCount: Int, trackIds: List<TrackId>) {
+        throw UnsupportedOperationException("Playlist track replacement is not supported by $displayName.")
+    }
     suspend fun renamePlaylist(playlistId: String, name: String) {
         throw UnsupportedOperationException("Playlist edits are not supported by $displayName.")
     }

@@ -213,6 +213,7 @@ data class AndroidAppShellActions(
     val onPlaylistCopy: (SharedPlaylistDetailUi, String, Boolean) -> Unit,
     val onPlaylistRename: (SharedMediaItemUi, String) -> Unit,
     val onPlaylistDelete: (SharedMediaItemUi) -> Unit,
+    val onStandardPlaylistUpdate: suspend (SharedMediaItemUi, List<SharedTrackRowUi>) -> Unit,
     val onMediaItemAction: (SharedMediaItemActionRequest) -> Unit,
     val onSmartPlaylistSave: suspend (SmartPlaylistDefinition) -> Unit,
     val onSmartPlaylistUpdate: suspend (SharedMediaItemUi, SmartPlaylistDefinition) -> Unit,

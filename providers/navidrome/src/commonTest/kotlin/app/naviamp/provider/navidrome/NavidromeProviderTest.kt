@@ -13,6 +13,7 @@ import app.naviamp.domain.popular.NavidromeAgentMetadataSource
 import app.naviamp.domain.smartplaylist.SmartPlaylistCondition
 import app.naviamp.domain.smartplaylist.SmartPlaylistDefinition
 import app.naviamp.domain.smartplaylist.SmartPlaylistFields
+import app.naviamp.domain.smartplaylist.SmartPlaylistMatch
 import app.naviamp.domain.smartplaylist.SmartPlaylistOperator
 import app.naviamp.domain.smartplaylist.SmartPlaylistSort
 import app.naviamp.domain.smartplaylist.SmartPlaylistValue
@@ -836,6 +837,35 @@ class NavidromeProviderTest {
     }
 
     @Test
+    fun playlistsRecognizeOpenSubsonicSmartPlaylistMetadata() = runTest {
+        val provider = NavidromeProvider(
+            connection = connection("https://music.example.test"),
+            httpClient = FakeHttpClient(
+                """
+                {
+                  "subsonic-response": {
+                    "status": "ok",
+                    "playlists": {
+                      "playlist": [
+                        {
+                          "id": "smart-1",
+                          "name": "Work Ambient",
+                          "songCount": 123,
+                          "readonly": true,
+                          "validUntil": "2026-07-14T20:00:00Z"
+                        }
+                      ]
+                    }
+                  }
+                }
+                """.trimIndent(),
+            ),
+        )
+
+        assertTrue(provider.playlists().single().isSmart)
+    }
+
+    @Test
     fun playlistsScopesRequestsToSelectedMusicFolders() = runTest {
         val httpClient = SequencedHttpClient(
             listOf(
@@ -958,6 +988,22 @@ class NavidromeProviderTest {
     }
 
     @Test
+    fun createSmartPlaylistRetainsRefreshedNativeTokenFromResponseHeader() = runTest {
+        val httpClient = RecordingNativeHttpClient(
+            response = """{"data":{"id":"smart-1","name":"Road Smart"}}""",
+            responseHeaders = mapOf("X-ND-Authorization" to "refreshed-native-token"),
+        )
+        val provider = NavidromeProvider(
+            connection = connection("https://music.example.test", nativeToken = "native-token"),
+            httpClient = httpClient,
+        )
+
+        provider.createSmartPlaylist(smartPlaylistDefinition())
+
+        assertEquals("refreshed-native-token", provider.connectionWithCurrentNativeToken().nativeToken)
+    }
+
+    @Test
     fun createSmartPlaylistScopesDefinitionToSelectedMusicFolder() = runTest {
         val httpClient = RecordingNativeHttpClient(
             """
@@ -980,6 +1026,69 @@ class NavidromeProviderTest {
 
         assertEquals(
             """{"name":"Road Smart","comment":"Fresh tracks","public":true,"rules":{"all":[{"is":{"library_id":2}},{"is":{"loved":true}}],"sort":"-rating","limit":25}}""",
+            httpClient.postBodies.single(),
+        )
+    }
+
+    @Test
+    fun createSmartPlaylistPreservesTopLevelAnyWhenScopingToSelectedMusicFolder() = runTest {
+        val httpClient = RecordingNativeHttpClient(
+            """
+            {
+              "data": {
+                "id": "smart-1",
+                "name": "Work Ambient"
+              }
+            }
+            """.trimIndent(),
+        )
+        val provider = NavidromeProvider(
+            connection = connection("https://music.example.test", nativeToken = "native-token").copy(
+                selectedMusicFolderIds = listOf("2"),
+            ),
+            httpClient = httpClient,
+        )
+        val definition = SmartPlaylistDefinition(
+            name = "Work Ambient",
+            match = SmartPlaylistMatch.Any,
+            rules = listOf(
+                SmartPlaylistCondition(
+                    SmartPlaylistOperator.Is,
+                    SmartPlaylistFields.Artist,
+                    SmartPlaylistValue.Text("Ascendant"),
+                ),
+                SmartPlaylistCondition(
+                    SmartPlaylistOperator.Is,
+                    SmartPlaylistFields.Artist,
+                    SmartPlaylistValue.Text("S1gns Of L1fe"),
+                ),
+            ),
+        )
+
+        provider.createSmartPlaylist(definition)
+
+        assertEquals(
+            """{"name":"Work Ambient","rules":{"all":[{"is":{"library_id":2}},{"any":[{"is":{"artist":"Ascendant"}},{"is":{"artist":"S1gns Of L1fe"}}]}]}}""",
+            httpClient.postBodies.single(),
+        )
+    }
+
+    @Test
+    fun createSmartPlaylistUsesEditorLibrarySubsetInsteadOfWholeConnectionSelection() = runTest {
+        val httpClient = RecordingNativeHttpClient(
+            """{"data":{"id":"smart-1","name":"Road Smart"}}""",
+        )
+        val provider = NavidromeProvider(
+            connection = connection("https://music.example.test", nativeToken = "native-token").copy(
+                selectedMusicFolderIds = listOf("2", "4", "6"),
+            ),
+            httpClient = httpClient,
+        )
+
+        provider.createSmartPlaylist(smartPlaylistDefinition().copy(libraryIds = listOf("4", "6")))
+
+        assertEquals(
+            """{"name":"Road Smart","comment":"Fresh tracks","public":true,"rules":{"all":[{"any":[{"is":{"library_id":4}},{"is":{"library_id":6}}]},{"is":{"loved":true}}],"sort":"-rating","limit":25}}""",
             httpClient.postBodies.single(),
         )
     }
@@ -1089,6 +1198,49 @@ class NavidromeProviderTest {
     }
 
     @Test
+    fun smartPlaylistDefinitionRestoresTopLevelAnyAfterRemovingInjectedScope() = runTest {
+        val httpClient = RecordingNativeHttpClient(
+            """
+            {
+              "data": {
+                "id": "smart-1",
+                "name": "Work Ambient",
+                "rules": {
+                  "all": [
+                    { "is": { "library_id": 2 } },
+                    {
+                      "any": [
+                        { "is": { "artist": "Ascendant" } },
+                        { "is": { "artist": "S1gns Of L1fe" } }
+                      ]
+                    }
+                  ]
+                }
+              }
+            }
+            """.trimIndent(),
+        )
+        val provider = NavidromeProvider(
+            connection = connection("https://music.example.test", nativeToken = "native-token").copy(
+                selectedMusicFolderIds = listOf("2"),
+            ),
+            httpClient = httpClient,
+        )
+
+        val definition = provider.smartPlaylistDefinition("smart-1")
+
+        assertEquals(SmartPlaylistMatch.Any, definition.match)
+        assertEquals(listOf("2"), definition.libraryIds)
+        assertEquals(2, definition.rules.size)
+        assertEquals(
+            listOf("Ascendant", "S1gns Of L1fe"),
+            definition.rules.map { rule ->
+                ((rule as SmartPlaylistCondition).value as SmartPlaylistValue.Text).value
+            },
+        )
+    }
+
+    @Test
     fun createSmartPlaylistRequiresNativeToken() = runTest {
         val provider = NavidromeProvider(
             connection = connection("https://music.example.test"),
@@ -1100,6 +1252,34 @@ class NavidromeProviderTest {
         }
 
         assertEquals("Reconnect to Navidrome with your password before saving smart playlists.", error.message)
+    }
+
+    @Test
+    fun createSmartPlaylistSurfacesExpiredNativeToken() = runTest {
+        val provider = NavidromeProvider(
+            connection = connection("https://music.example.test", nativeToken = "expired-token"),
+            httpClient = FailingNativeHttpClient(),
+        )
+
+        val error = assertFailsWith<NavidromeException> {
+            provider.createSmartPlaylist(smartPlaylistDefinition())
+        }
+
+        assertEquals("Navidrome returned HTTP 401.", error.message)
+    }
+
+    @Test
+    fun updateSmartPlaylistSurfacesExpiredNativeToken() = runTest {
+        val provider = NavidromeProvider(
+            connection = connection("https://music.example.test", nativeToken = "expired-token"),
+            httpClient = FailingNativeHttpClient(),
+        )
+
+        val error = assertFailsWith<NavidromeException> {
+            provider.updateSmartPlaylist("smart-1", smartPlaylistDefinition())
+        }
+
+        assertEquals("Navidrome returned HTTP 401.", error.message)
     }
 
     @Test
@@ -1126,6 +1306,23 @@ class NavidromeProviderTest {
 
         assertEquals(
             "https://music.example.test/rest/updatePlaylist.view?u=demo&t=token&s=salt&v=1.16.1&$ExpectedClientQuery&f=json&playlistId=playlist-1&songIdToAdd=track-1&songIdToAdd=track-2",
+            httpClient.urls.single(),
+        )
+    }
+
+    @Test
+    fun replacePlaylistTracksRemovesExistingEntriesAndAddsDraftOrder() = runTest {
+        val httpClient = RecordingHttpClient()
+        val provider = NavidromeProvider(connection("https://music.example.test"), httpClient)
+
+        provider.replacePlaylistTracks(
+            playlistId = "playlist-1",
+            currentTrackCount = 3,
+            trackIds = listOf(TrackId("track-3"), TrackId("track-1")),
+        )
+
+        assertEquals(
+            "https://music.example.test/rest/updatePlaylist.view?u=demo&t=token&s=salt&v=1.16.1&$ExpectedClientQuery&f=json&playlistId=playlist-1&songIndexToRemove=0&songIndexToRemove=1&songIndexToRemove=2&songIdToAdd=track-3&songIdToAdd=track-1",
             httpClient.urls.single(),
         )
     }
@@ -1775,7 +1972,10 @@ class NavidromeProviderTest {
         }
     }
 
-    private class RecordingNativeHttpClient(private val response: String) : NavidromeHttpClient {
+    private class RecordingNativeHttpClient(
+        private val response: String,
+        private val responseHeaders: Map<String, String> = emptyMap(),
+    ) : NavidromeHttpClient {
         val getUrls = mutableListOf<String>()
         val getHeaders = mutableListOf<Map<String, String>>()
         val postUrls = mutableListOf<String>()
@@ -1793,6 +1993,9 @@ class NavidromeProviderTest {
             return response
         }
 
+        override suspend fun getResponse(url: String, headers: Map<String, String>): NavidromeHttpResponse =
+            NavidromeHttpResponse(get(url, headers), responseHeaders)
+
         override suspend fun postJson(url: String, body: String, headers: Map<String, String>): String {
             postUrls += url
             postBodies += body
@@ -1800,12 +2003,40 @@ class NavidromeProviderTest {
             return response
         }
 
+        override suspend fun postJsonResponse(
+            url: String,
+            body: String,
+            headers: Map<String, String>,
+        ): NavidromeHttpResponse = NavidromeHttpResponse(postJson(url, body, headers), responseHeaders)
+
         override suspend fun putJson(url: String, body: String, headers: Map<String, String>): String {
             putUrls += url
             putBodies += body
             putHeaders += headers
             return response
         }
+
+        override suspend fun putJsonResponse(
+            url: String,
+            body: String,
+            headers: Map<String, String>,
+        ): NavidromeHttpResponse = NavidromeHttpResponse(putJson(url, body, headers), responseHeaders)
+    }
+
+    private class FailingNativeHttpClient : NavidromeHttpClient {
+        override suspend fun get(url: String): String = throw NavidromeException("Navidrome returned HTTP 401.")
+
+        override suspend fun postJson(
+            url: String,
+            body: String,
+            headers: Map<String, String>,
+        ): String = throw NavidromeException("Navidrome returned HTTP 401.")
+
+        override suspend fun putJson(
+            url: String,
+            body: String,
+            headers: Map<String, String>,
+        ): String = throw NavidromeException("Navidrome returned HTTP 401.")
     }
 
 private fun radioResponse(responseKey: String, trackId: String, title: String): String =

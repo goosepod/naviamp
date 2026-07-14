@@ -141,6 +141,8 @@ data class TrackSwipeSettings(
     val queueLeft: TrackSwipeAction = TrackSwipeAction.Remove,
     val relatedRight: TrackSwipeAction = TrackSwipeAction.PlayNext,
     val relatedLeft: TrackSwipeAction = TrackSwipeAction.None,
+    val playlistEditRight: TrackSwipeAction = TrackSwipeAction.None,
+    val playlistEditLeft: TrackSwipeAction = TrackSwipeAction.None,
 )
 
 @Serializable
@@ -155,7 +157,20 @@ enum class TrackSwipeAction {
     GoToAlbum,
     GoToArtist,
     Remove,
+    MoveUp,
+    MoveDown,
+    MoveToTop,
+    MoveToBottom,
 }
+
+val PlaylistEditSwipeActions: List<TrackSwipeAction> = listOf(
+    TrackSwipeAction.None,
+    TrackSwipeAction.Remove,
+    TrackSwipeAction.MoveUp,
+    TrackSwipeAction.MoveDown,
+    TrackSwipeAction.MoveToTop,
+    TrackSwipeAction.MoveToBottom,
+)
 
 @Serializable
 data class NowPlayingDisplaySettings(

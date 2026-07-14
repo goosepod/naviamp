@@ -23,6 +23,24 @@ import app.naviamp.domain.settings.TrackSwipeSettings
 
 class DesktopSettingsStoreTest {
     @Test
+    fun saveConnectionPersistsRotatedNativeToken() {
+        val path = createTempDirectory().resolve("settings.json")
+        val store = DesktopSettingsStore(path)
+
+        store.saveConnection(
+            NavidromeConnection(
+                baseUrl = "https://music.example.test",
+                username = "demo",
+                token = "subsonic-token",
+                salt = "salt",
+                nativeToken = "rotated-native-token",
+            ),
+        )
+
+        assertEquals("rotated-native-token", store.loadConnection()?.nativeToken)
+    }
+
+    @Test
     fun saveInterfaceSettingsRoundTripsNowPlayingCustomization() {
         val path = createTempDirectory().resolve("settings.json")
         val store = DesktopSettingsStore(path)
@@ -52,6 +70,8 @@ class DesktopSettingsStoreTest {
             queueLeft = TrackSwipeAction.Remove,
             relatedRight = TrackSwipeAction.AddToQueue,
             relatedLeft = TrackSwipeAction.GoToArtist,
+            playlistEditRight = TrackSwipeAction.MoveToTop,
+            playlistEditLeft = TrackSwipeAction.Remove,
         )
 
         store.saveInterfaceSettings(InterfaceSettings(trackSwipes = expected))

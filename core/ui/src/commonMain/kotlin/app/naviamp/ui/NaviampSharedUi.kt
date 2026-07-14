@@ -17,6 +17,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.Icon
@@ -258,6 +259,7 @@ fun NaviampSharedAppShell(
     onPlaylistCopy: (SharedPlaylistDetailUi, String, Boolean) -> Unit = { _, _, _ -> },
     onPlaylistRename: (SharedMediaItemUi, String) -> Unit = { _, _ -> },
     onPlaylistDelete: (SharedMediaItemUi) -> Unit = {},
+    onStandardPlaylistUpdate: suspend (SharedMediaItemUi, List<SharedTrackRowUi>) -> Unit = { _, _ -> },
     onMediaItemAction: (SharedMediaItemActionRequest) -> Unit = { request ->
         handleSharedMediaItemAction(
             request,
@@ -622,6 +624,7 @@ fun NaviampSharedAppShell(
                             onPlaylistCopy = onPlaylistCopy,
                             onPlaylistRename = onPlaylistRename,
                             onPlaylistDelete = onPlaylistDelete,
+                            onStandardPlaylistUpdate = onStandardPlaylistUpdate,
                             onMediaItemAction = onMediaItemAction,
                             onSmartPlaylistSave = onSmartPlaylistSave,
                             onSmartPlaylistUpdate = onSmartPlaylistUpdate,
@@ -741,12 +744,12 @@ fun NaviampConnectionForm(
             )
         }
         onImportSettingsSyncFile?.let { importSettings ->
-            TextButton(
+            ConnectionFormTextAction(
+                label = "Import provider settings",
+                colors = colors,
                 enabled = !isConnecting,
                 onClick = importSettings,
-            ) {
-                Text("Import provider settings", color = if (isConnecting) colors.mutedText else colors.accent)
-            }
+            )
             settingsSyncStatus?.let {
                 Text(it, color = colors.secondaryText, fontSize = 12.sp)
             }
@@ -781,12 +784,11 @@ fun NaviampConnectionForm(
                 modifier = Modifier.weight(1f),
             )
         }
-        TextButton(onClick = { advancedVisible = !advancedVisible }) {
-            Text(
-                if (advancedVisible) "Hide Advanced" else "Show Advanced",
-                color = colors.accent,
-            )
-        }
+        ConnectionFormTextAction(
+            label = if (advancedVisible) "Hide Advanced" else "Show Advanced",
+            colors = colors,
+            onClick = { advancedVisible = !advancedVisible },
+        )
         if (advancedVisible) {
             SettingsSectionTitle("Libraries", colors)
             MusicFolderMultiSelect(
@@ -865,13 +867,13 @@ fun NaviampConnectionForm(
                     }
                 }
             }
-            TextButton(
+            ConnectionFormTextAction(
+                label = "Add fallback URL",
+                colors = colors,
                 onClick = {
                     onFormChanged(form.copy(secondaryUrls = form.secondaryUrls + ConnectionFormSecondaryUrl()))
                 },
-            ) {
-                Text("Add fallback URL", color = colors.accent)
-            }
+            )
             SettingsSectionTitle("Headers", colors)
             form.customHeaders.forEachIndexed { index, header ->
                 Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -923,13 +925,13 @@ fun NaviampConnectionForm(
                     }
                 }
             }
-            TextButton(
+            ConnectionFormTextAction(
+                label = "Add header",
+                colors = colors,
                 onClick = {
                     onFormChanged(form.copy(customHeaders = form.customHeaders + ConnectionFormHeader()))
                 },
-            ) {
-                Text("Add header", color = colors.accent)
-            }
+            )
         }
         connectionStatus?.let {
             Text(it, color = colors.secondaryText, fontSize = 11.sp)
@@ -950,6 +952,27 @@ fun NaviampConnectionForm(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun ConnectionFormTextAction(
+    label: String,
+    colors: NaviampColors,
+    enabled: Boolean = true,
+    onClick: () -> Unit,
+) {
+    TextButton(
+        enabled = enabled,
+        onClick = onClick,
+        colors = ButtonDefaults.textButtonColors(
+            contentColor = colors.primaryText,
+            containerColor = colors.controlSurface.copy(alpha = 0.42f),
+            disabledContentColor = colors.secondaryText.copy(alpha = 0.78f),
+            disabledContainerColor = colors.controlSurface.copy(alpha = 0.18f),
+        ),
+    ) {
+        Text(label, fontWeight = FontWeight.SemiBold)
     }
 }
 
@@ -1196,6 +1219,7 @@ private fun ConnectedContent(
     onPlaylistCopy: (SharedPlaylistDetailUi, String, Boolean) -> Unit,
     onPlaylistRename: (SharedMediaItemUi, String) -> Unit,
     onPlaylistDelete: (SharedMediaItemUi) -> Unit,
+    onStandardPlaylistUpdate: suspend (SharedMediaItemUi, List<SharedTrackRowUi>) -> Unit,
     onMediaItemAction: (SharedMediaItemActionRequest) -> Unit,
     onSmartPlaylistSave: suspend (SmartPlaylistDefinition) -> Unit,
     onSmartPlaylistUpdate: suspend (SharedMediaItemUi, SmartPlaylistDefinition) -> Unit,
@@ -1390,11 +1414,17 @@ private fun ConnectedContent(
             onCopyPlaylist = { name, deduplicate -> onPlaylistCopy(playlistDetail, name, deduplicate) },
             onRenamePlaylist = onPlaylistRename,
             onDeletePlaylist = onPlaylistDelete,
+            onUpdateStandardPlaylist = onStandardPlaylistUpdate,
+            onSmartPlaylistUpdate = onSmartPlaylistUpdate,
+            onSmartPlaylistUpdateWithPassword = onSmartPlaylistUpdateWithPassword,
+            onSmartPlaylistLoad = onSmartPlaylistLoad,
             onTrackSelected = onPlaylistTrackSelected,
             onTrackAddToQueue = { track ->
                 onTrackAction(SharedTrackRowActionRequest(track, SharedTrackRowAction.AddToQueue))
             },
             playlistChoices = playlistChoices,
+            availableLibraries = availableMusicFolders,
+            selectedConnectionLibraryIds = connectionForm.selectedMusicFolderIds,
         )
         else -> when (selectedRoute) {
             SharedRoute.Home -> SharedHomeRoute(
@@ -1440,6 +1470,8 @@ private fun ConnectedContent(
                     onSmartPlaylistUpdateWithPassword = onSmartPlaylistUpdateWithPassword,
                     onSmartPlaylistLoad = onSmartPlaylistLoad,
                     playlistChoices = playlistChoices,
+                    availableLibraries = availableMusicFolders,
+                    selectedConnectionLibraryIds = connectionForm.selectedMusicFolderIds,
                 )
             }
             SharedRoute.Library -> PullToRefreshRoute(
@@ -1791,23 +1823,23 @@ private fun AlbumDetailContent(
                     color = colors.mutedText,
                     fontSize = 12.sp,
                 )
-                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                    MiniPlayerIconButton(colors, detail.tracks.isNotEmpty(), NaviampTransportIcons.Play, "Play album", onPlayAlbum)
-                    MiniPlayerIconButton(colors, detail.tracks.size > 1, NaviampTransportIcons.Shuffle, "Shuffle album", onShuffleAlbum)
-                    MiniPlayerIconButton(colors, detail.tracks.isNotEmpty(), NaviampTransportIcons.Radio, "Start album radio", onAlbumRadio)
-                    MiniPlayerIconButton(colors, detail.tracks.isNotEmpty(), NaviampIcons.Downloads, "Download album", onAlbumDownload)
-                    MiniPlayerIconButton(colors, detail.tracks.isNotEmpty(), NaviampIcons.Queue, "Add album to queue", onAlbumAddToQueue)
-                    MiniPlayerIconButton(colors, detail.tracks.isNotEmpty(), NaviampIcons.Playlist, "Add album to playlist") {
-                        addAlbumToPlaylistOpen = true
-                    }
-                    MiniPlayerIconButton(
-                        colors,
-                        detail.album.canFavorite,
-                        NaviampTransportIcons.Heart,
-                        if (detail.album.favoriteActive) "Remove album favorite" else "Favorite album",
-                        onAlbumFavoriteToggled,
-                    )
-                }
+                NaviampResponsiveActionRow(
+                    colors = colors,
+                    actions = listOf(
+                        NaviampDetailAction("Play album", NaviampTransportIcons.Play, onPlayAlbum, detail.tracks.isNotEmpty()),
+                        NaviampDetailAction("Shuffle album", NaviampTransportIcons.Shuffle, onShuffleAlbum, detail.tracks.size > 1),
+                        NaviampDetailAction("Start album radio", NaviampTransportIcons.Radio, onAlbumRadio, detail.tracks.isNotEmpty()),
+                        NaviampDetailAction("Download album", NaviampIcons.Downloads, onAlbumDownload, detail.tracks.isNotEmpty()),
+                        NaviampDetailAction("Add album to queue", NaviampIcons.Queue, onAlbumAddToQueue, detail.tracks.isNotEmpty()),
+                        NaviampDetailAction("Add album to playlist", NaviampIcons.Playlist, { addAlbumToPlaylistOpen = true }, detail.tracks.isNotEmpty()),
+                        NaviampDetailAction(
+                            if (detail.album.favoriteActive) "Remove album favorite" else "Favorite album",
+                            NaviampTransportIcons.Heart,
+                            onAlbumFavoriteToggled,
+                            detail.album.canFavorite,
+                        ),
+                    ),
+                )
             }
         }
         Column(
@@ -1988,51 +2020,27 @@ private fun ArtistDetailContent(
                         overflow = TextOverflow.Ellipsis,
                     )
                 }
-                BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
-                    val compactActions = maxWidth < ArtistActionsExpandedMinWidth
-                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                        MiniPlayerIconButton(colors, detail.albums.isNotEmpty(), NaviampTransportIcons.Radio, "Start artist radio", onArtistRadio)
-                        MiniPlayerIconButton(
-                            colors,
-                            detail.artist.canFavorite,
-                            NaviampTransportIcons.Heart,
+                NaviampResponsiveActionRow(
+                    colors = colors,
+                    actions = listOf(
+                        NaviampDetailAction("Start artist radio", NaviampTransportIcons.Radio, onArtistRadio, detail.albums.isNotEmpty()),
+                        NaviampDetailAction(
                             if (detail.artist.favoriteActive) "Remove artist favorite" else "Favorite artist",
+                            NaviampTransportIcons.Heart,
                             onArtistFavoriteToggled,
-                        )
-                        MiniPlayerIconButton(colors, detail.popularTracks.isNotEmpty(), NaviampTransportIcons.Play, "Play popular tracks", onPopularPlay)
-                        MiniPlayerIconButton(
-                            colors,
-                            true,
-                            NaviampIcons.Artist,
+                            detail.artist.canFavorite,
+                        ),
+                        NaviampDetailAction("Play popular tracks", NaviampTransportIcons.Play, onPopularPlay, detail.popularTracks.isNotEmpty()),
+                        NaviampDetailAction(
                             if (similarArtistsVisible) "Hide similar artists" else "Find similar artists",
+                            NaviampIcons.Artist,
                             onFindSimilarArtists,
-                        )
-                        if (compactActions) {
-                            NaviampRowOverflowMenu(
-                                colors = colors,
-                                items = listOf(
-                                    NaviampRowMenuItem(
-                                        label = "Add artist to queue",
-                                        icon = NaviampIcons.Queue,
-                                        enabled = detail.albums.isNotEmpty(),
-                                        onClick = onArtistAddToQueue,
-                                    ),
-                                    NaviampRowMenuItem(
-                                        label = "Add artist to playlist",
-                                        icon = NaviampIcons.Playlist,
-                                        enabled = detail.albums.isNotEmpty(),
-                                        onClick = { addArtistToPlaylistOpen = true },
-                                    ),
-                                ),
-                            )
-                        } else {
-                            MiniPlayerIconButton(colors, detail.albums.isNotEmpty(), NaviampIcons.Queue, "Add artist to queue", onArtistAddToQueue)
-                            MiniPlayerIconButton(colors, detail.albums.isNotEmpty(), NaviampIcons.Playlist, "Add artist to playlist") {
-                                addArtistToPlaylistOpen = true
-                            }
-                        }
-                    }
-                }
+                            selected = similarArtistsVisible,
+                        ),
+                        NaviampDetailAction("Add artist to queue", NaviampIcons.Queue, onArtistAddToQueue, detail.albums.isNotEmpty()),
+                        NaviampDetailAction("Add artist to playlist", NaviampIcons.Playlist, { addArtistToPlaylistOpen = true }, detail.albums.isNotEmpty()),
+                    ),
+                )
                 detail.biography
                     ?.normalizedBiography()
                     ?.takeIf { it.isNotBlank() }

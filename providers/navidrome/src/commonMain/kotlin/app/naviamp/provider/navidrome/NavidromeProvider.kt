@@ -94,6 +94,10 @@ class NavidromeProvider(
                 normalized.name to value
             }
             .toMap()
+    private var nativeToken: String? = connection.nativeToken
+
+    fun connectionWithCurrentNativeToken(): NavidromeConnection =
+        connection.copy(nativeToken = nativeToken)
     private val baseCapabilities: ProviderCapabilities =
         ProviderCapabilities(
             supportsStreamingTranscode = true,
@@ -534,7 +538,7 @@ class NavidromeProvider(
     override suspend fun smartPlaylistDefinition(playlistId: String): SmartPlaylistDefinition {
         val response = getNativeJson("playlist/${playlistId.urlEncode()}")
         return SmartPlaylistDefinition.fromJsonObject(response.toNativeDataObject())
-            .withoutSelectedMusicFolderScopeForEditing()
+            .withoutLibraryScopeForEditing()
     }
 
     override suspend fun addTracksToPlaylist(playlistId: String, trackIds: List<TrackId>) {
@@ -542,6 +546,22 @@ class NavidromeProvider(
         get(
             endpoint = "updatePlaylist.view",
             params = listOf("playlistId" to playlistId) + trackIds.map { "songIdToAdd" to it.value },
+        )
+    }
+
+    override suspend fun replacePlaylistTracks(
+        playlistId: String,
+        currentTrackCount: Int,
+        trackIds: List<TrackId>,
+    ) {
+        require(currentTrackCount >= 0) { "Current playlist track count cannot be negative." }
+        get(
+            endpoint = "updatePlaylist.view",
+            params = buildList {
+                add("playlistId" to playlistId)
+                repeat(currentTrackCount) { index -> add("songIndexToRemove" to index.toString()) }
+                trackIds.forEach { trackId -> add("songIdToAdd" to trackId.value) }
+            },
         )
     }
 
@@ -1053,7 +1073,7 @@ class NavidromeProvider(
 
     private suspend fun postNativeJson(endpoint: String, body: String): JsonObject =
         nativeJsonResponse(
-            httpClient.postJson(
+            httpClient.postJsonResponse(
                 url = nativeApiUrl(endpoint),
                 body = body,
                 headers = customHeaders + nativeAuthHeaders(),
@@ -1062,7 +1082,7 @@ class NavidromeProvider(
 
     private suspend fun getNativeJson(endpoint: String): JsonObject =
         nativeJsonResponse(
-            httpClient.get(
+            httpClient.getResponse(
                 url = nativeApiUrl(endpoint),
                 headers = customHeaders + nativeAuthHeaders(),
             ),
@@ -1070,23 +1090,29 @@ class NavidromeProvider(
 
     private suspend fun putNativeJson(endpoint: String, body: String): JsonObject =
         nativeJsonResponse(
-            httpClient.putJson(
+            httpClient.putJsonResponse(
                 url = nativeApiUrl(endpoint),
                 body = body,
                 headers = customHeaders + nativeAuthHeaders(),
             ),
         )
 
-    private fun nativeJsonResponse(body: String): JsonObject =
-        json.parseToJsonElement(body).jsonObject
+    private fun nativeJsonResponse(response: NavidromeHttpResponse): JsonObject {
+        response.header(NavidromeNativeAuthorizationHeader)
+            ?.removePrefix("Bearer ")
+            ?.trim()
+            ?.takeIf { it.isNotBlank() }
+            ?.let { refreshedToken -> nativeToken = refreshedToken }
+        return json.parseToJsonElement(response.body).jsonObject
+    }
 
     private fun JsonObject.toNativeDataObject(): JsonObject =
         this["data"]?.jsonObject ?: this
 
     private fun nativeAuthHeaders(): Map<String, String> {
-        val token = connection.nativeToken?.takeIf { it.isNotBlank() }
+        val token = nativeToken?.takeIf { it.isNotBlank() }
             ?: throw NavidromeException("Reconnect to Navidrome with your password before saving smart playlists.")
-        return mapOf("x-nd-authorization" to "Bearer $token")
+        return mapOf(NavidromeNativeAuthorizationHeader to "Bearer $token")
     }
 
     private fun JsonObject.subsonicResponse(): JsonObject =
@@ -1111,33 +1137,45 @@ class NavidromeProvider(
         "${connection.normalizedBaseUrl}/api/${endpoint.trimStart('/')}"
 
     private fun SmartPlaylistDefinition.withSelectedMusicFolderScope(): SmartPlaylistDefinition {
-        if (selectedMusicFolderIds.isEmpty() || rules.any { it.isLibraryScopeRule() }) return this
+        val targetLibraryIds = normalizedMusicFolderIds(libraryIds ?: selectedMusicFolderIds)
+        if (targetLibraryIds.isEmpty()) return copy(libraryIds = null)
+        if (rules.any { it.isLibraryScopeRule() }) return copy(libraryIds = null)
+        val scopedRules = when (match) {
+            SmartPlaylistMatch.All -> rules
+            SmartPlaylistMatch.Any -> listOf(SmartPlaylistGroup(SmartPlaylistMatch.Any, rules))
+        }
         return copy(
             match = SmartPlaylistMatch.All,
-            rules = listOf(selectedMusicFolderRule()) + rules,
+            rules = listOf(selectedMusicFolderRule(targetLibraryIds)) + scopedRules,
+            libraryIds = null,
         )
-        }
-
-    private fun SmartPlaylistDefinition.withoutSelectedMusicFolderScopeForEditing(): SmartPlaylistDefinition {
-        if (selectedMusicFolderIds.isEmpty() || match != SmartPlaylistMatch.All || rules.isEmpty()) return this
-        val firstRule = rules.first()
-        if (!firstRule.matchesSelectedMusicFolderScope()) return this
-        val userRules = rules.drop(1)
-        if (userRules.isEmpty()) return this
-        return copy(rules = userRules)
     }
 
-    private fun selectedMusicFolderRule(): SmartPlaylistRule =
-        if (selectedMusicFolderIds.size == 1) {
+    private fun SmartPlaylistDefinition.withoutLibraryScopeForEditing(): SmartPlaylistDefinition {
+        if (match != SmartPlaylistMatch.All || rules.isEmpty()) return this
+        val firstRule = rules.first()
+        val scopedLibraryIds = firstRule.libraryScopeIds()?.toList() ?: return this
+        val userRules = rules.drop(1)
+        if (userRules.isEmpty()) return this
+        val wrappedAny = userRules.singleOrNull() as? SmartPlaylistGroup
+        return if (wrappedAny?.match == SmartPlaylistMatch.Any) {
+            copy(match = SmartPlaylistMatch.Any, rules = wrappedAny.rules, libraryIds = scopedLibraryIds)
+        } else {
+            copy(match = SmartPlaylistMatch.All, rules = userRules, libraryIds = scopedLibraryIds)
+        }
+    }
+
+    private fun selectedMusicFolderRule(libraryIds: List<String>): SmartPlaylistRule =
+        if (libraryIds.size == 1) {
             SmartPlaylistCondition(
                 operator = SmartPlaylistOperator.Is,
                 field = SmartPlaylistFields.LibraryId,
-                value = SmartPlaylistValue.Number(selectedMusicFolderIds.single().toLongOrNull() ?: 0L),
+                value = SmartPlaylistValue.Number(libraryIds.single().toLongOrNull() ?: 0L),
             )
         } else {
             SmartPlaylistGroup(
                 match = SmartPlaylistMatch.Any,
-                rules = selectedMusicFolderIds.map { musicFolderId ->
+                rules = libraryIds.map { musicFolderId ->
                     SmartPlaylistCondition(
                         operator = SmartPlaylistOperator.Is,
                         field = SmartPlaylistFields.LibraryId,
@@ -1152,9 +1190,6 @@ class NavidromeProvider(
             is SmartPlaylistCondition -> field == SmartPlaylistFields.LibraryId
             is SmartPlaylistGroup -> rules.any { it.isLibraryScopeRule() }
         }
-
-    private fun SmartPlaylistRule.matchesSelectedMusicFolderScope(): Boolean =
-        libraryScopeIds() == selectedMusicFolderIds.toSet()
 
     private fun SmartPlaylistRule.libraryScopeIds(): Set<String>? =
         when (this) {
@@ -1264,6 +1299,7 @@ class NavidromeProvider(
 
     private fun JsonObject.isSmartPlaylistObject(): Boolean =
         this["rules"] != null ||
+            this["validUntil"] != null ||
             booleanValue("smart") == true ||
             booleanValue("smartPlaylist") == true ||
             stringValue("type")?.equals("smart", ignoreCase = true) == true
@@ -1430,12 +1466,24 @@ class NavidromeProvider(
 interface NavidromeHttpClient {
     suspend fun get(url: String): String
     suspend fun get(url: String, headers: Map<String, String>): String = get(url)
+    suspend fun getResponse(url: String, headers: Map<String, String> = emptyMap()): NavidromeHttpResponse =
+        NavidromeHttpResponse(get(url, headers))
     suspend fun postJson(url: String, body: String, headers: Map<String, String> = emptyMap()): String {
         throw UnsupportedOperationException("POST is not supported by this Navidrome HTTP client.")
     }
+    suspend fun postJsonResponse(
+        url: String,
+        body: String,
+        headers: Map<String, String> = emptyMap(),
+    ): NavidromeHttpResponse = NavidromeHttpResponse(postJson(url, body, headers))
     suspend fun putJson(url: String, body: String, headers: Map<String, String> = emptyMap()): String {
         throw UnsupportedOperationException("PUT is not supported by this Navidrome HTTP client.")
     }
+    suspend fun putJsonResponse(
+        url: String,
+        body: String,
+        headers: Map<String, String> = emptyMap(),
+    ): NavidromeHttpResponse = NavidromeHttpResponse(putJson(url, body, headers))
     suspend fun getBytes(url: String, headers: Map<String, String> = emptyMap()): ByteArray? {
         throw UnsupportedOperationException("Binary GET is not supported by this Navidrome HTTP client.")
     }
@@ -1447,6 +1495,16 @@ interface NavidromeHttpClient {
         throw UnsupportedOperationException("Streaming download is not supported by this Navidrome HTTP client.")
     }
 }
+
+data class NavidromeHttpResponse(
+    val body: String,
+    val headers: Map<String, String> = emptyMap(),
+) {
+    fun header(name: String): String? =
+        headers.entries.firstOrNull { (key, _) -> key.equals(name, ignoreCase = true) }?.value
+}
+
+internal const val NavidromeNativeAuthorizationHeader = "x-nd-authorization"
 
 data class NavidromeApiCall(
     val method: String,

@@ -793,7 +793,11 @@ fun NaviampApp(
         provider = { connectedProvider },
         appRoute = { appRoute },
         setAppRoute = { route -> appRoute = route },
-        openPlayerOnTrackStart = { openPlayerOnTrackStart },
+        openPlayerOnTrackStart = {
+            openPlayerOnTrackStart.also { shouldOpen ->
+                if (shouldOpen) openPlayerOnTrackStart = false
+            }
+        },
         nowPlayingTrack = { nowPlayingTrack },
         setNowPlayingTrack = { track -> nowPlayingTrack = track },
         setNowPlayingCoverArtUrl = { url -> nowPlayingCoverArtUrl = url },

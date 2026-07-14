@@ -538,6 +538,8 @@ fun ColumnScope.DesktopAppRouteContent(
                     onSmartPlaylistSaveWithPassword = smartPlaylistsController::saveSmartPlaylistWithPassword,
                     onSmartPlaylistUpdateWithPassword = smartPlaylistsController::updateSmartPlaylistWithPassword,
                     onSmartPlaylistLoad = smartPlaylistsController::loadSmartPlaylistDefinition,
+                    availableLibraries = availableMusicFolders,
+                    selectedConnectionLibraryIds = connectionForm.selectedMusicFolderIds,
                 )
                 DesktopAppRoute.PlaylistDetail -> DesktopPlaylistDetailPanel(
                     appColors = appColors,
@@ -568,6 +570,12 @@ fun ColumnScope.DesktopAppRouteContent(
                             }
                         }
                     },
+                    onUpdateStandardPlaylist = playlistsController::updateStandardPlaylistTracks,
+                    onSmartPlaylistUpdate = smartPlaylistsController::updateSmartPlaylist,
+                    onSmartPlaylistUpdateWithPassword = smartPlaylistsController::updateSmartPlaylistWithPassword,
+                    onSmartPlaylistLoad = smartPlaylistsController::loadSmartPlaylistDefinition,
+                    availableLibraries = availableMusicFolders,
+                    selectedConnectionLibraryIds = connectionForm.selectedMusicFolderIds,
                 )
                 DesktopAppRoute.Library -> {
                     DesktopLibraryListLoadMoreEffect(

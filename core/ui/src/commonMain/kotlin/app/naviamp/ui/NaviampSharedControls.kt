@@ -5,6 +5,7 @@ import app.naviamp.ui.generated.resources.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -246,16 +247,23 @@ internal fun MiniPlayerIconButton(
     icon: ImageVector,
     contentDescription: String,
     onClick: () -> Unit,
+    selected: Boolean = false,
 ) {
     IconButton(
         enabled = enabled,
         onClick = onClick,
-        modifier = Modifier.size(38.dp),
+        modifier = Modifier
+            .size(38.dp)
+            .clip(RoundedCornerShape(19.dp))
+            .background(if (selected && enabled) colors.primaryText.copy(alpha = 0.14f) else Color.Transparent),
     ) {
         Icon(
             imageVector = icon,
             contentDescription = contentDescription,
-            tint = if (enabled) colors.primaryText else colors.mutedText,
+            tint = when {
+                !enabled -> colors.mutedText
+                else -> colors.primaryText
+            },
             modifier = Modifier.size(22.dp),
         )
     }
@@ -381,11 +389,69 @@ data class NaviampRowMenuItem(
     val enabled: Boolean = true,
 )
 
+data class NaviampDetailAction(
+    val label: String,
+    val icon: ImageVector,
+    val onClick: () -> Unit,
+    val enabled: Boolean = true,
+    val selected: Boolean = false,
+)
+
+internal fun responsiveVisibleActionCount(
+    availableWidthDp: Float,
+    actionCount: Int,
+    actionSlotWidthDp: Float = 44f,
+): Int {
+    if (actionCount <= 0 || availableWidthDp <= 0f) return 0
+    val availableSlots = (availableWidthDp / actionSlotWidthDp).toInt().coerceAtLeast(1)
+    return if (actionCount <= availableSlots) actionCount else (availableSlots - 1).coerceAtLeast(0)
+}
+
+@Composable
+fun NaviampResponsiveActionRow(
+    colors: NaviampColors,
+    actions: List<NaviampDetailAction>,
+    modifier: Modifier = Modifier,
+) {
+    if (actions.isEmpty()) return
+    BoxWithConstraints(modifier = modifier.fillMaxWidth()) {
+        val visibleCount = responsiveVisibleActionCount(maxWidth.value, actions.size)
+        val visibleActions = actions.take(visibleCount)
+        val hiddenActions = actions.drop(visibleCount)
+        Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+            visibleActions.forEach { action ->
+                MiniPlayerIconButton(
+                    colors = colors,
+                    enabled = action.enabled,
+                    icon = action.icon,
+                    contentDescription = action.label,
+                    onClick = action.onClick,
+                    selected = action.selected,
+                )
+            }
+            if (hiddenActions.isNotEmpty()) {
+                NaviampRowOverflowMenu(
+                    colors = colors,
+                    items = hiddenActions.map { action ->
+                        NaviampRowMenuItem(action.label, action.icon, action.onClick, action.enabled)
+                    },
+                    buttonSize = 38.dp,
+                    iconSize = 22.dp,
+                    selected = hiddenActions.any { it.selected },
+                )
+            }
+        }
+    }
+}
+
 @Composable
 fun NaviampRowOverflowMenu(
     colors: NaviampColors,
     items: List<NaviampRowMenuItem>,
     modifier: Modifier = Modifier,
+    buttonSize: androidx.compose.ui.unit.Dp = 28.dp,
+    iconSize: androidx.compose.ui.unit.Dp = 17.dp,
+    selected: Boolean = false,
 ) {
     if (items.isEmpty()) return
 
@@ -393,13 +459,16 @@ fun NaviampRowOverflowMenu(
     Box(modifier = modifier) {
         IconButton(
             onClick = { expanded = true },
-            modifier = Modifier.size(28.dp),
+            modifier = Modifier
+                .size(buttonSize)
+                .clip(RoundedCornerShape(buttonSize / 2))
+                .background(if (selected) colors.primaryText.copy(alpha = 0.14f) else Color.Transparent),
         ) {
             Icon(
                 imageVector = NaviampTransportIcons.MoreVertical,
                 contentDescription = "More actions",
-                tint = colors.mutedText,
-                modifier = Modifier.size(17.dp),
+                tint = if (selected) colors.primaryText else colors.mutedText,
+                modifier = Modifier.size(iconSize),
             )
         }
         NaviampDropdownMenu(

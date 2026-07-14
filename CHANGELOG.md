@@ -2,6 +2,28 @@
 
 Release changes are grouped into user-facing Features, Bug Fixes, and deployment or infrastructure-related System Settings. Internal task-tracking notes are intentionally not included.
 
+## v1.2.0
+
+### Features
+
+- Added dedicated standard playlist editing with drag reordering, track removal, undo, save and cancel controls, and configurable editing-only swipe actions.
+- Added Smart Playlist editing with single- and multi-library targeting, preserved rule grouping, and refreshed results after updates.
+- Made album, artist, and playlist action rows adapt to the available width while keeping additional actions in an overflow menu.
+
+### Bug Fixes
+
+- Fixed expired Navidrome authentication while creating or updating Smart Playlists by refreshing rotated native tokens and retrying after reauthentication.
+- Prevented automatic track changes and restored playback sessions from opening Now Playing or interrupting in-progress Smart Playlist edits.
+- Fixed playlist detail layouts, compact-screen scrolling, drag auto-scrolling, dragged-item layering, action contrast, and Smart Playlist-specific controls.
+- Fixed incomplete waveform analysis and invalid cached waveforms that produced sparse or misleading progress displays.
+- Fixed Android notification artwork updates occurring from a background thread.
+- Fixed Library navigation behaving like artist-detail Back after browsing through Similar Artists.
+
+### System Settings
+
+- Upgraded Compose Material 3 to 1.9.0 through the shared version catalog and validated Android API 36 compatibility.
+- Added automated coverage for playlist editing, Smart Playlist library scoping and authentication, waveform validation, responsive action rows, and settings persistence.
+
 ## v1.1.1
 
 ### Features

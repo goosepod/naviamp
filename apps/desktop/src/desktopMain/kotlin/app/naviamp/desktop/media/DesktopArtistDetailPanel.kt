@@ -32,6 +32,8 @@ import app.naviamp.domain.Track
 import app.naviamp.domain.popular.SimilarArtistMatch
 import app.naviamp.ui.SharedMediaItemAction
 import app.naviamp.ui.ExpandedMediaImageDialog
+import app.naviamp.ui.NaviampDetailAction
+import app.naviamp.ui.NaviampResponsiveActionRow
 import app.naviamp.ui.SharedMediaItemActionRequest
 import app.naviamp.ui.SharedMediaItemKind
 import app.naviamp.ui.SharedTrackGroupAction
@@ -66,7 +68,6 @@ fun DesktopArtistDetailPanel(
         ?: artistDetails?.info?.smallImageUrl
     var biographyExpanded by remember(effectiveArtist?.id) { mutableStateOf(false) }
     var artistImageOpen by remember(effectiveArtist?.id) { mutableStateOf(false) }
-    var actionMenuExpanded by remember(effectiveArtist?.id) { mutableStateOf(false) }
     val similarArtistsVisible = similarArtists.isNotEmpty() || similarArtistsStatus != null
     val artistItem = effectiveArtist?.toSharedMediaItemUi(
         coverArtUrl = { imageUrl },
@@ -155,101 +156,28 @@ fun DesktopArtistDetailPanel(
                         color = appColors.secondaryText,
                         fontSize = 12.sp,
                     )
-                    BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
-                        val showAllActions = maxWidth >= ArtistActionsExpandedMinWidth
-                        val actionButtonSize = if (showAllActions) 36.dp else 32.dp
-                        val actionIconSize = if (showAllActions) 22.dp else 20.dp
-                        Row(horizontalArrangement = Arrangement.spacedBy(if (showAllActions) 4.dp else 2.dp)) {
-                            DetailActionIconButton(
-                                appColors = appColors,
-                                icon = TransportIcons.Radio,
-                                contentDescription = "Start artist radio",
-                                enabled = details.albums.isNotEmpty(),
-                                buttonSize = actionButtonSize,
-                                iconSize = actionIconSize,
-                                onClick = { requestArtistAction(SharedMediaItemAction.StartRadio) },
-                            )
-                            DetailActionIconButton(
-                                appColors = appColors,
-                                icon = TransportIcons.Heart,
-                                contentDescription = if (effectiveArtist?.favoritedAtIso8601 != null) {
-                                    "Remove artist favorite"
-                                } else {
-                                    "Favorite artist"
-                                },
-                                enabled = effectiveArtist != null,
-                                buttonSize = actionButtonSize,
-                                iconSize = actionIconSize,
-                                onClick = { requestArtistAction(SharedMediaItemAction.ToggleFavorite) },
-                            )
-                            DetailActionIconButton(
-                                appColors = appColors,
-                                icon = TransportIcons.Play,
-                                contentDescription = "Play popular tracks",
-                                enabled = popularTracks.isNotEmpty(),
-                                buttonSize = actionButtonSize,
-                                iconSize = actionIconSize,
-                                onClick = { requestPopularTracksAction(SharedTrackGroupAction.Play) },
-                            )
-                            DetailActionIconButton(
-                                appColors = appColors,
-                                icon = DesktopNavigationIcons.Artist,
-                                contentDescription = if (similarArtistsVisible) "Hide similar artists" else "Find similar artists",
-                                enabled = effectiveArtist != null,
-                                buttonSize = actionButtonSize,
-                                iconSize = actionIconSize,
-                                onClick = { requestArtistAction(SharedMediaItemAction.FindSimilar) },
-                            )
-                            if (showAllActions) {
-                                DetailActionIconButton(
-                                    appColors = appColors,
-                                    icon = DesktopNavigationIcons.Queue,
-                                    contentDescription = "Add artist to queue",
-                                    enabled = details.albums.isNotEmpty(),
-                                    onClick = { requestArtistAction(SharedMediaItemAction.AddToQueue) },
-                                )
-                                DetailActionIconButton(
-                                    appColors = appColors,
-                                    icon = DesktopNavigationIcons.Playlist,
-                                    contentDescription = "Add artist to playlist",
-                                    enabled = details.albums.isNotEmpty(),
-                                    onClick = { requestArtistAction(SharedMediaItemAction.AddToPlaylist) },
-                                )
-                            } else {
-                                Box {
-                                    IconButton(
-                                        onClick = { actionMenuExpanded = true },
-                                        modifier = Modifier.size(actionButtonSize),
-                                    ) {
-                                        Text("⋮", color = appColors.primaryText, fontSize = 17.sp)
-                                    }
-                                    DesktopNaviampDropdownMenu(
-                                        expanded = actionMenuExpanded,
-                                        onDismissRequest = { actionMenuExpanded = false },
-                                    ) {
-                                        DesktopNaviampDropdownMenuItem(
-                                            label = "Add artist to queue",
-                                            icon = DesktopNavigationIcons.Queue,
-                                            enabled = details.albums.isNotEmpty(),
-                                            onClick = {
-                                                actionMenuExpanded = false
-                                                requestArtistAction(SharedMediaItemAction.AddToQueue)
-                                            },
-                                        )
-                                        DesktopNaviampDropdownMenuItem(
-                                            label = "Add artist to playlist",
-                                            icon = DesktopNavigationIcons.Playlist,
-                                            enabled = details.albums.isNotEmpty(),
-                                            onClick = {
-                                                actionMenuExpanded = false
-                                                requestArtistAction(SharedMediaItemAction.AddToPlaylist)
-                                            },
-                                        )
-                                    }
-                                }
-                            }
-                        }
-                    }
+                    NaviampResponsiveActionRow(
+                        colors = appColors,
+                        actions = listOf(
+                            NaviampDetailAction("Start artist radio", TransportIcons.Radio, { requestArtistAction(SharedMediaItemAction.StartRadio) }, details.albums.isNotEmpty()),
+                            NaviampDetailAction(
+                                if (effectiveArtist?.favoritedAtIso8601 != null) "Remove artist favorite" else "Favorite artist",
+                                TransportIcons.Heart,
+                                { requestArtistAction(SharedMediaItemAction.ToggleFavorite) },
+                                effectiveArtist != null,
+                            ),
+                            NaviampDetailAction("Play popular tracks", TransportIcons.Play, { requestPopularTracksAction(SharedTrackGroupAction.Play) }, popularTracks.isNotEmpty()),
+                            NaviampDetailAction(
+                                if (similarArtistsVisible) "Hide similar artists" else "Find similar artists",
+                                DesktopNavigationIcons.Artist,
+                                { requestArtistAction(SharedMediaItemAction.FindSimilar) },
+                                effectiveArtist != null,
+                                selected = similarArtistsVisible,
+                            ),
+                            NaviampDetailAction("Add artist to queue", DesktopNavigationIcons.Queue, { requestArtistAction(SharedMediaItemAction.AddToQueue) }, details.albums.isNotEmpty()),
+                            NaviampDetailAction("Add artist to playlist", DesktopNavigationIcons.Playlist, { requestArtistAction(SharedMediaItemAction.AddToPlaylist) }, details.albums.isNotEmpty()),
+                        ),
+                    )
                     details.info?.biography
                         ?.takeIf { it.isNotBlank() }
                         ?.let { biography ->

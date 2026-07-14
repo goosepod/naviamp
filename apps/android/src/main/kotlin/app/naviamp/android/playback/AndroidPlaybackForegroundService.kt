@@ -17,6 +17,8 @@ import android.media.AudioManager
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
 import android.support.v4.media.MediaBrowserCompat
 import android.support.v4.media.MediaDescriptionCompat
@@ -82,6 +84,8 @@ private const val VoiceArtistScanLimit = 5_000L
 private const val AndroidAutoTemplateTrackScanLimit = 5_000L
 private const val AndroidAutoSmartTemplateTrackLimit = 100
 class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
+    private val mainHandler = Handler(Looper.getMainLooper())
+    private var serviceActive = false
     private var mediaSession: MediaSessionCompat? = null
     private var browserSessionTokenSet = false
     private var serviceStorageInstance: AndroidStorageDependencies? = null
@@ -165,6 +169,7 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
 
     override fun onCreate() {
         super.onCreate()
+        serviceActive = true
         serviceCreated = true
         ensureNotificationChannel()
         ensureMediaSession()
@@ -173,6 +178,8 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
     }
 
     override fun onDestroy() {
+        serviceActive = false
+        mainHandler.removeCallbacksAndMessages(null)
         serviceSelectionJobs?.cancel()
         serviceSelectionJobs = null
         pausePlaybackForRouteDisconnect("service destroyed")
@@ -415,8 +422,11 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
                 return@thread
             }
             loadingNotificationCoverArtUrl = null
-            val manager = getSystemService(NotificationManager::class.java)
-            manager.notify(NotificationId, buildNotification(metadata, largeIcon = bitmap))
+            mainHandler.post {
+                if (!serviceActive || currentMetadata.coverArtUrl != coverArtUrl) return@post
+                val manager = getSystemService(NotificationManager::class.java)
+                manager.notify(NotificationId, buildNotification(metadata, largeIcon = bitmap))
+            }
         }
     }
 

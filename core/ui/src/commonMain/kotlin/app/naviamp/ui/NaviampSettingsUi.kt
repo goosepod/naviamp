@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.FilterChip
@@ -70,6 +71,7 @@ import app.naviamp.domain.settings.MaxWaveformBucketCount
 import app.naviamp.domain.settings.MinReplayGainPreampDb
 import app.naviamp.domain.settings.MinWaveformBucketCount
 import app.naviamp.domain.settings.PlaybackSettings
+import app.naviamp.domain.settings.PlaylistEditSwipeActions
 import app.naviamp.domain.settings.SampleRateConverter
 import app.naviamp.domain.settings.SampleRateMatching
 import app.naviamp.domain.settings.AudioOutputDeviceMode
@@ -485,6 +487,8 @@ private enum class SwipeActionSlot(val title: String, val subtitle: String) {
     QueueLeft("Queue: swipe left", "Back To and Up Next"),
     RelatedRight("Related: swipe right", "Related and Sonic recommendations"),
     RelatedLeft("Related: swipe left", "Related and Sonic recommendations"),
+    PlaylistEditRight("Playlist editing: swipe right", "Reorder or remove tracks in the playlist editor"),
+    PlaylistEditLeft("Playlist editing: swipe left", "Reorder or remove tracks in the playlist editor"),
 }
 
 @Composable
@@ -532,6 +536,8 @@ private fun app.naviamp.domain.settings.TrackSwipeSettings.action(slot: SwipeAct
     SwipeActionSlot.QueueLeft -> queueLeft
     SwipeActionSlot.RelatedRight -> relatedRight
     SwipeActionSlot.RelatedLeft -> relatedLeft
+    SwipeActionSlot.PlaylistEditRight -> playlistEditRight
+    SwipeActionSlot.PlaylistEditLeft -> playlistEditLeft
 }
 
 private fun app.naviamp.domain.settings.TrackSwipeSettings.withAction(
@@ -544,9 +550,14 @@ private fun app.naviamp.domain.settings.TrackSwipeSettings.withAction(
     SwipeActionSlot.QueueLeft -> copy(queueLeft = action)
     SwipeActionSlot.RelatedRight -> copy(relatedRight = action)
     SwipeActionSlot.RelatedLeft -> copy(relatedLeft = action)
+    SwipeActionSlot.PlaylistEditRight -> copy(playlistEditRight = action)
+    SwipeActionSlot.PlaylistEditLeft -> copy(playlistEditLeft = action)
 }
 
 private fun swipeActionChoices(slot: SwipeActionSlot): List<TrackSwipeAction> = when (slot) {
+    SwipeActionSlot.PlaylistEditRight,
+    SwipeActionSlot.PlaylistEditLeft,
+    -> PlaylistEditSwipeActions
     SwipeActionSlot.QueueRight,
     SwipeActionSlot.QueueLeft,
     -> listOf(
@@ -584,6 +595,10 @@ private fun TrackSwipeAction.label(): String = when (this) {
     TrackSwipeAction.GoToAlbum -> "Go to album"
     TrackSwipeAction.GoToArtist -> "Go to artist"
     TrackSwipeAction.Remove -> "Remove"
+    TrackSwipeAction.MoveUp -> "Move up"
+    TrackSwipeAction.MoveDown -> "Move down"
+    TrackSwipeAction.MoveToTop -> "Move to top"
+    TrackSwipeAction.MoveToBottom -> "Move to bottom"
 }
 
 private fun TrackSwipeAction.subtitle(): String = when (this) {
@@ -597,6 +612,10 @@ private fun TrackSwipeAction.subtitle(): String = when (this) {
     TrackSwipeAction.GoToAlbum -> "Open the track's album"
     TrackSwipeAction.GoToArtist -> "Open the track's artist"
     TrackSwipeAction.Remove -> "Remove the track from this queue"
+    TrackSwipeAction.MoveUp -> "Move the track one position earlier"
+    TrackSwipeAction.MoveDown -> "Move the track one position later"
+    TrackSwipeAction.MoveToTop -> "Move the track to the beginning"
+    TrackSwipeAction.MoveToBottom -> "Move the track to the end"
 }
 
 @Composable
@@ -1136,11 +1155,17 @@ private fun NaviampSavedConnectionRow(
     onDelete: () -> Unit,
     onConnect: () -> Unit,
 ) {
+    val cardShape = RoundedCornerShape(6.dp)
     Column(
         verticalArrangement = Arrangement.spacedBy(6.dp),
         modifier = Modifier
             .fillMaxWidth()
-            .border(1.dp, if (connection.current) colors.accent else colors.border, RoundedCornerShape(6.dp))
+            .background(colors.controlSurface.copy(alpha = 0.20f), cardShape)
+            .border(
+                1.dp,
+                if (connection.current) colors.primaryText.copy(alpha = 0.52f) else colors.border,
+                cardShape,
+            )
             .padding(horizontal = 10.dp, vertical = 8.dp),
     ) {
         Row(
@@ -1159,7 +1184,15 @@ private fun NaviampSavedConnectionRow(
                 )
             }
             if (connection.current) {
-                Text(stringResource(Res.string.common_current), color = colors.accent, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+                Text(
+                    stringResource(Res.string.common_current),
+                    color = colors.primaryText,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier
+                        .background(colors.controlSurface.copy(alpha = 0.52f), RoundedCornerShape(999.dp))
+                        .padding(horizontal = 8.dp, vertical = 3.dp),
+                )
             }
             IconButton(enabled = enabled, onClick = onEdit, modifier = Modifier.size(32.dp)) {
                 Icon(NaviampIcons.Edit, contentDescription = stringResource(Res.string.settings_source_edit_content_description), tint = if (enabled) colors.primaryText else colors.mutedText)
@@ -1197,10 +1230,16 @@ private fun NaviampSavedConnectionRow(
             enabled = enabled,
             onClick = onConnect,
             modifier = Modifier.fillMaxWidth(),
+            colors = ButtonDefaults.textButtonColors(
+                contentColor = colors.primaryText,
+                containerColor = colors.controlSurface.copy(alpha = 0.42f),
+                disabledContentColor = colors.secondaryText.copy(alpha = 0.78f),
+                disabledContainerColor = colors.controlSurface.copy(alpha = 0.18f),
+            ),
         ) {
             Text(
                 if (connection.current) stringResource(Res.string.common_reconnect) else stringResource(Res.string.common_connect),
-                color = if (enabled) colors.accent else colors.mutedText,
+                fontWeight = FontWeight.SemiBold,
             )
         }
     }
@@ -1282,17 +1321,20 @@ private val DefaultNaviampChangelog = listOf(
     NaviampChangelogSectionUi(
         title = "Features",
         entries = listOf(
-            "Added Android Auto voice search for library tracks, albums, and artists.",
+            "Added dedicated standard playlist editing with drag reordering, track removal, undo, save and cancel controls, and configurable editing-only swipe actions.",
+            "Added Smart Playlist editing with single- and multi-library targeting, preserved rule grouping, and refreshed results after updates.",
+            "Made album, artist, and playlist action rows adapt to the available width while keeping additional actions in an overflow menu.",
         ),
     ),
     NaviampChangelogSectionUi(
         title = "Bug Fixes",
         entries = listOf(
-            "Fixed Android Auto crossfades, gapless transitions, and tracks restarting after prepared playback transitions.",
-            "Made Android Auto manual skips start promptly and prevented stale browse or search results from replacing newer selections.",
-            "Fixed queue removals and reordering so an obsolete prepared track cannot play on Android or desktop.",
-            "Protected saved Android credentials with Keystore-backed encryption and excluded credential-bearing data from backup and device transfer.",
-            "Restricted exported Android playback commands to trusted Naviamp controls while preserving Android Auto and notification controls.",
+            "Fixed expired Navidrome authentication while creating or updating Smart Playlists by refreshing rotated native tokens and retrying after reauthentication.",
+            "Prevented automatic track changes and restored playback sessions from opening Now Playing or interrupting in-progress Smart Playlist edits.",
+            "Fixed playlist detail layouts, compact-screen scrolling, drag auto-scrolling, dragged-item layering, action contrast, and Smart Playlist-specific controls.",
+            "Fixed incomplete waveform analysis and invalid cached waveforms that produced sparse or misleading progress displays.",
+            "Fixed Android notification artwork updates occurring from a background thread.",
+            "Fixed Library navigation behaving like artist-detail Back after browsing through Similar Artists.",
         ),
     ),
 )

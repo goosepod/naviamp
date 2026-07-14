@@ -2,7 +2,6 @@ import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import java.util.zip.ZipFile
 
 val composeVersion = libs.versions.compose.get()
-val composeMaterial3Version = "1.8.2"
 val naviampVersionName = rootProject.file("VERSION").readText().trim()
 val naviampVersionCode = rootProject.file("VERSION_CODE").readText().trim().toInt()
 val androidReleaseKeystore = providers.environmentVariable("NAVIAMP_ANDROID_KEYSTORE")
@@ -104,7 +103,7 @@ dependencies {
     implementation(libs.androidx.media)
     implementation(libs.androidx.profileinstaller)
     implementation("org.jetbrains.compose.foundation:foundation:$composeVersion")
-    implementation("org.jetbrains.compose.material3:material3:$composeMaterial3Version")
+    implementation(libs.compose.material3)
     implementation("org.jetbrains.compose.runtime:runtime:$composeVersion")
     implementation("org.jetbrains.compose.ui:ui:$composeVersion")
     implementation(libs.kotlinx.coroutines.core)

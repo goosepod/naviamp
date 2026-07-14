@@ -506,8 +506,9 @@ private suspend fun refreshAndroidSmartPlaylistProvider(
     val activeProvider = state.provider
         ?: throw IllegalStateException("Connect to Navidrome before saving smart playlists.")
     val savedConnection = state.savedConnectionForLogin
-    if (savedConnection?.nativeToken?.isNotBlank() == true) return activeProvider
-    val passwordToUse = passwordOverride?.takeIf { it.isNotBlank() } ?: state.password.takeIf { it.isNotBlank() }
+    val explicitPassword = passwordOverride?.takeIf { it.isNotBlank() }
+    if (explicitPassword == null && savedConnection?.nativeToken?.isNotBlank() == true) return activeProvider
+    val passwordToUse = explicitPassword ?: state.password.takeIf { it.isNotBlank() }
         ?: return activeProvider
     val connection = savedConnection
         ?: throw IllegalStateException("Reconnect to Navidrome with your password before saving smart playlists.")
@@ -531,6 +532,26 @@ private suspend fun refreshAndroidSmartPlaylistProvider(
     return refreshedProvider
 }
 
+private fun persistAndroidSmartPlaylistNativeToken(
+    state: AndroidAppState,
+    storage: AndroidStorageDependencies?,
+    provider: NavidromeProvider,
+) {
+    val refreshedConnection = provider.connectionWithCurrentNativeToken()
+    val refreshedToken = refreshedConnection.nativeToken?.takeIf { it.isNotBlank() } ?: return
+    if (state.savedConnectionForLogin?.nativeToken == refreshedToken) return
+    state.savedConnectionForLogin = refreshedConnection
+    storage?.let { dependencies ->
+        val mediaSource = dependencies.upsertProviderMediaSource(
+            connection = refreshedConnection.toProviderMediaSourceConnection(),
+            cacheNamespace = provider.cacheNamespace,
+            providerId = provider.id.value,
+        )
+        state.activeSourceId = mediaSource.id
+        state.savedMediaSources = dependencies.mediaSources().visibleServerConnections(state.activeSourceId)
+    }
+}
+
 suspend fun saveAndroidSmartPlaylist(
     scope: CoroutineScope,
     state: AndroidAppState,
@@ -549,6 +570,7 @@ suspend fun saveAndroidSmartPlaylist(
             providerResponseService = providerResponseService,
         )
         state.playlistTracksById = update.playlistTracksById
+        persistAndroidSmartPlaylistNativeToken(state, storage, activeProvider)
         applyAndroidPlaylistListApplication(state, update.playlists)
         preloadAndroidPlaylistTracks(scope, state, activeProvider, update.playlists, providerResponseCacheRepository = null)
         state.status = update.status
@@ -593,6 +615,7 @@ suspend fun updateAndroidSmartPlaylist(
             providerResponseService = providerResponseService,
         )
         state.playlistTracksById = update.playlistTracksById
+        persistAndroidSmartPlaylistNativeToken(state, storage, activeProvider)
         applyAndroidPlaylistListApplication(state, update.playlists)
         update.selectionApplication?.let { selection ->
             state.contentState = state.contentState.showPlaylist(selection.playlist, selection.tracks)
@@ -609,12 +632,15 @@ suspend fun updateAndroidSmartPlaylist(
 suspend fun loadAndroidSmartPlaylistDefinition(
     state: AndroidAppState,
     playlist: Playlist,
+    storage: AndroidStorageDependencies? = null,
 ): SmartPlaylistDefinition {
     val activeProvider = state.provider
         ?: throw IllegalStateException("Connect to Navidrome before editing smart playlists.")
-    return withContext(Dispatchers.IO) {
+    val definition = withContext(Dispatchers.IO) {
         activeProvider.loadSmartPlaylistDefinition(playlist)
     }
+    persistAndroidSmartPlaylistNativeToken(state, storage, activeProvider)
+    return definition
 }
 
 internal class AndroidPlaylistActionController(
@@ -638,6 +664,37 @@ internal class AndroidPlaylistActionController(
 
     fun deletePlaylist(playlist: Playlist) {
         deleteAndroidPlaylist(scope, state, playlist, storage)
+    }
+
+    suspend fun updateStandardPlaylistTracks(playlist: Playlist, tracks: List<Track>) {
+        val activeProvider = state.provider
+            ?: throw IllegalStateException("Connect to Navidrome before editing playlists.")
+        require(!playlist.isSmart) { "Smart Playlist tracks are controlled by their rules." }
+        val currentTracks = state.playlistTracksById[playlist.id]
+            ?: state.selectedPlaylistTracks.takeIf { state.selectedPlaylist?.id == playlist.id }
+            ?: emptyList()
+        state.status = "Saving ${playlist.name}..."
+        try {
+            withContext(Dispatchers.IO) {
+                activeProvider.replacePlaylistTracks(
+                    playlistId = playlist.id,
+                    currentTrackCount = currentTracks.size,
+                    trackIds = tracks.map { it.id },
+                )
+                ProviderResponseService(storage).invalidatePlaylistResponses(activeProvider, playlist.id)
+            }
+            refreshAndroidPlaylistDetailsFromServer(
+                state = state,
+                activeProvider = activeProvider,
+                playlist = playlist,
+                showLoadingStatus = false,
+                providerResponseCacheRepository = storage,
+            )
+            state.status = "Updated playlist."
+        } catch (error: Exception) {
+            state.status = error.message ?: "Could not update playlist."
+            throw error
+        }
     }
 
     fun preloadPlaylistTracks(activeProvider: NavidromeProvider, playlists: List<Playlist>) {
@@ -665,7 +722,7 @@ internal class AndroidPlaylistActionController(
     }
 
     suspend fun loadSmartPlaylistDefinition(playlist: Playlist): SmartPlaylistDefinition =
-        loadAndroidSmartPlaylistDefinition(state, playlist)
+        loadAndroidSmartPlaylistDefinition(state, playlist, storage)
 
     fun addTrackToPlaylist(
         track: Track,

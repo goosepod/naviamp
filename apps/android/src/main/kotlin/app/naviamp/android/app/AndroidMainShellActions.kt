@@ -173,6 +173,7 @@ internal fun androidMainShellActions(
         addPlaylistToPlaylist = playlistActionController::addPlaylistToPlaylist,
         renamePlaylist = playlistActionController::renamePlaylist,
         deletePlaylist = playlistActionController::deletePlaylist,
+        updateStandardPlaylistTracks = playlistActionController::updateStandardPlaylistTracks,
         saveSmartPlaylist = playlistActionController::saveSmartPlaylist,
         updateSmartPlaylist = playlistActionController::updateSmartPlaylist,
         saveSmartPlaylistWithPassword = playlistActionController::saveSmartPlaylistWithPassword,

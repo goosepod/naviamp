@@ -61,6 +61,7 @@ class DesktopSmartPlaylistsController(
                     providerResponseService = providerResponseService,
                 )
             }
+            persistNativeTokenIfChanged(activeProvider)
             playlistsController.updatePlaylistTracksById(update.playlistTracksById)
             playlistsController.applyRefreshedPlaylists(update.playlists)
             playlistsController.updateStatus(update.status)
@@ -104,6 +105,7 @@ class DesktopSmartPlaylistsController(
                     providerResponseService = providerResponseService,
                 )
             }
+            persistNativeTokenIfChanged(activeProvider)
             playlistsController.updatePlaylistTracksById(update.playlistTracksById)
             playlistsController.applyRefreshedPlaylists(update.playlists)
             update.selectionApplication?.let { selection ->
@@ -125,8 +127,10 @@ class DesktopSmartPlaylistsController(
             ?: throw IllegalStateException("Connect to Navidrome before editing smart playlists.")
         playlistsController.updateStatus(smartPlaylistLoadingRulesStatus(playlist))
         return try {
-            withContext(Dispatchers.IO) { activeProvider.loadSmartPlaylistDefinition(playlist) }
-                .also { playlistsController.updateStatus(null) }
+            val definition = withContext(Dispatchers.IO) { activeProvider.loadSmartPlaylistDefinition(playlist) }
+            persistNativeTokenIfChanged(activeProvider)
+            playlistsController.updateStatus(null)
+            definition
         } catch (error: Exception) {
             playlistsController.updateStatus(smartPlaylistLoadErrorMessage(error))
             throw error
@@ -139,8 +143,9 @@ class DesktopSmartPlaylistsController(
         val activeProvider = provider()
             ?: throw IllegalStateException("Connect to Navidrome before saving smart playlists.")
         val savedConnection = savedConnectionForLogin()
-        if (savedConnection?.nativeToken?.isNotBlank() == true) return activeProvider
-        val passwordToUse = passwordOverride?.takeIf { it.isNotBlank() } ?: password().takeIf { it.isNotBlank() }
+        val explicitPassword = passwordOverride?.takeIf { it.isNotBlank() }
+        if (explicitPassword == null && savedConnection?.nativeToken?.isNotBlank() == true) return activeProvider
+        val passwordToUse = explicitPassword ?: password().takeIf { it.isNotBlank() }
             ?: return activeProvider
         val connection = savedConnection
             ?: throw IllegalStateException("Reconnect to Navidrome with your password before saving smart playlists.")
@@ -161,6 +166,21 @@ class DesktopSmartPlaylistsController(
         clearPassword()
         setConnectionStatus("Smart playlist authentication refreshed.")
         return refreshedProvider
+    }
+
+    private fun persistNativeTokenIfChanged(activeProvider: NavidromeProvider) {
+        val refreshedConnection = activeProvider.connectionWithCurrentNativeToken()
+        val refreshedToken = refreshedConnection.nativeToken?.takeIf { it.isNotBlank() } ?: return
+        if (savedConnectionForLogin()?.nativeToken == refreshedToken) return
+        val mediaSource = providerMediaSourceRepository.upsertProviderMediaSource(
+            connection = refreshedConnection.toProviderMediaSourceConnection(),
+            cacheNamespace = activeProvider.cacheNamespace,
+            providerId = activeProvider.id.value,
+        )
+        setConnectedSourceId(mediaSource.id)
+        setSavedConnectionForLogin(refreshedConnection)
+        settingsStore.saveConnection(refreshedConnection)
+        incrementMediaSourcesRevision()
     }
 
 }
