@@ -7,6 +7,7 @@ import android.media.AudioManager
 import android.net.Uri
 import android.os.Build
 import android.os.PowerManager
+import android.os.SystemClock
 import android.util.Log
 import app.naviamp.domain.bass.BassAudioBackend
 import app.naviamp.domain.bass.BassCreatedPlayback
@@ -108,6 +109,8 @@ class AndroidBassPlaybackEngine(
     private var currentRequest: PlaybackRequest? = null
     private var preparedRequest: PlaybackRequest? = null
     private var preparedReplayGainFactor: Float = 1f
+    private val preparedNextLock = Any()
+    private var preparedNextGeneration: Long = 0L
     private var playbackId: Int = 0
     private var playbackJob: Job? = null
     private var crossfadeDurationSeconds: Int = 0
@@ -133,6 +136,7 @@ class AndroidBassPlaybackEngine(
             setReferenceCounted(false)
         }
     }
+    private var playbackWakeLockAcquiredAtMillis: Long = 0L
     @Volatile
     private var currentVisualizerFrame: PlaybackVisualizerFrame? = null
     private val audioFocusChangeListener = AudioManager.OnAudioFocusChangeListener { focusChange ->
@@ -449,17 +453,20 @@ class AndroidBassPlaybackEngine(
     }
 
     override fun prepareNext(request: PlaybackRequest) {
-        val plan = planPreparedBassPlayback(
-            playbackHandle = stream,
-            currentSourceHandle = currentSourceStream,
-            preparedRequest = preparedRequest,
-            preparedHandle = preparedStream,
-            supportsMixer = bass.supportsMixer,
-            request = request,
-            allowDirectFallback = false,
-        )
+        val (plan, generation) = synchronized(preparedNextLock) {
+            val planned = planPreparedBassPlayback(
+                playbackHandle = stream,
+                currentSourceHandle = currentSourceStream,
+                preparedRequest = preparedRequest,
+                preparedHandle = preparedStream,
+                supportsMixer = bass.supportsMixer,
+                request = request,
+                allowDirectFallback = false,
+            )
+            if (planned != PreparedBassPlaybackPlan.ReusePrepared) freePreparedStream()
+            planned to preparedNextGeneration
+        }
         if (plan == PreparedBassPlaybackPlan.ReusePrepared) return
-        freePreparedStream()
         if (plan == PreparedBassPlaybackPlan.NotSupported) return
         val mixerPlan = plan as PreparedBassPlaybackPlan.PrepareMixer
         runCatching {
@@ -477,16 +484,29 @@ class AndroidBassPlaybackEngine(
             ).getOrThrow()
             prepared.sourceHandle
         }.onSuccess { handle ->
-            applyPreparedUpdate(
-                preparedBassPlaybackSucceeded(
-                    preparedHandle = handle,
-                    request = request,
-                    replayGainAdjustment = mixerPlan.replayGainAdjustment,
-                ),
-            )
+            synchronized(preparedNextLock) {
+                if (generation != preparedNextGeneration) {
+                    bass.releaseBassStream(handle)
+                } else {
+                    applyPreparedUpdate(
+                        preparedBassPlaybackSucceeded(
+                            preparedHandle = handle,
+                            request = request,
+                            replayGainAdjustment = mixerPlan.replayGainAdjustment,
+                        ),
+                    )
+                }
+            }
         }.onFailure { error ->
             Log.w(Tag, error.message ?: "Could not prepare next BASS stream.", error)
             applyPreparedUpdate(preparedBassPlaybackFailed(error))
+        }
+    }
+
+    override fun clearPreparedNext() {
+        synchronized(preparedNextLock) {
+            preparedNextGeneration += 1L
+            freePreparedStream()
         }
     }
 
@@ -528,6 +548,7 @@ class AndroidBassPlaybackEngine(
                     )
                 }
                 update.progress?.let { onProgressChanged?.invoke(it) }
+                renewPlaybackWakeLockIfNeeded()
                 update.metadata?.let { onMetadataChanged?.invoke(it) }
                 if (update.finished) {
                     Log.i(
@@ -629,44 +650,31 @@ class AndroidBassPlaybackEngine(
     }
 
     private fun requestAudioFocus(): Boolean {
-        val result = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val request = audioFocusRequest ?: AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN)
-                .setAudioAttributes(
-                    AudioAttributes.Builder()
-                        .setUsage(AudioAttributes.USAGE_MEDIA)
-                        .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
-                        .build(),
-                )
-                .setOnAudioFocusChangeListener(audioFocusChangeListener)
-                .setAcceptsDelayedFocusGain(false)
-                .setWillPauseWhenDucked(false)
-                .build()
-                .also { audioFocusRequest = it }
-            audioManager.requestAudioFocus(request)
-        } else {
-            @Suppress("DEPRECATION")
-            audioManager.requestAudioFocus(
-                audioFocusChangeListener,
-                AudioManager.STREAM_MUSIC,
-                AudioManager.AUDIOFOCUS_GAIN,
+        val request = audioFocusRequest ?: AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN)
+            .setAudioAttributes(
+                AudioAttributes.Builder()
+                    .setUsage(AudioAttributes.USAGE_MEDIA)
+                    .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
+                    .build(),
             )
-        }
+            .setOnAudioFocusChangeListener(audioFocusChangeListener)
+            .setAcceptsDelayedFocusGain(false)
+            .setWillPauseWhenDucked(false)
+            .build()
+            .also { audioFocusRequest = it }
+        val result = audioManager.requestAudioFocus(request)
         return result == AudioManager.AUDIOFOCUS_REQUEST_GRANTED
     }
 
     private fun abandonAudioFocus() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            audioFocusRequest?.let { audioManager.abandonAudioFocusRequest(it) }
-        } else {
-            @Suppress("DEPRECATION")
-            audioManager.abandonAudioFocus(audioFocusChangeListener)
-        }
+        audioFocusRequest?.let { audioManager.abandonAudioFocusRequest(it) }
     }
 
     private fun acquirePlaybackWakeLock() {
         runCatching {
             if (!playbackWakeLock.isHeld) {
-                playbackWakeLock.acquire()
+                playbackWakeLock.acquire(PlaybackWakeLockTimeoutMillis)
+                playbackWakeLockAcquiredAtMillis = SystemClock.elapsedRealtime()
                 Log.i(Tag, "Playback wake lock acquired")
             }
         }.onFailure { error ->
@@ -678,10 +686,23 @@ class AndroidBassPlaybackEngine(
         runCatching {
             if (playbackWakeLock.isHeld) {
                 playbackWakeLock.release()
+                playbackWakeLockAcquiredAtMillis = 0L
                 Log.i(Tag, "Playback wake lock released")
             }
         }.onFailure { error ->
             Log.w(Tag, "Could not release playback wake lock", error)
+        }
+    }
+
+    private fun renewPlaybackWakeLockIfNeeded() {
+        if (!playbackWakeLock.isHeld) return
+        if (SystemClock.elapsedRealtime() - playbackWakeLockAcquiredAtMillis < PlaybackWakeLockRenewalMillis) return
+        runCatching {
+            playbackWakeLock.release()
+            playbackWakeLock.acquire(PlaybackWakeLockTimeoutMillis)
+            playbackWakeLockAcquiredAtMillis = SystemClock.elapsedRealtime()
+        }.onFailure { error ->
+            Log.w(Tag, "Could not renew playback wake lock", error)
         }
     }
 
@@ -828,4 +849,6 @@ private fun Int.audioFocusChangeName(): String =
 private const val FocusDuckVolumeFactor = 0.25f
 private const val StartSeekRetryCount = 80
 private const val StartSeekRetryDelayMillis = 100L
+private const val PlaybackWakeLockTimeoutMillis = 15 * 60 * 1_000L
+private const val PlaybackWakeLockRenewalMillis = 5 * 60 * 1_000L
 private const val Tag = "NaviampBass"

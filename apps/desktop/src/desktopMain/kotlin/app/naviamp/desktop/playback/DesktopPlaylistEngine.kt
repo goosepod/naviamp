@@ -86,6 +86,12 @@ class DesktopPlaylistEngine(
         replayGainForTrack = ::replayGainForTrack,
     )
 
+    init {
+        queueController.setPreparedNextInvalidationHandler {
+            (playbackEngine as? QueueAwarePlaybackEngine)?.clearPreparedNext()
+        }
+    }
+
     val queue: PlaybackQueue
         get() = queueController.queue
 
@@ -563,7 +569,11 @@ class DesktopPlaylistEngine(
             if (activeSessionId != queueController.playbackSessionId) return@launch
             try {
                 val prepared = preparedNextPlaybackCoordinator.request(work) ?: return@launch
-                if (activeSessionId == queueController.playbackSessionId) {
+                if (
+                    activeSessionId == queueController.playbackSessionId &&
+                    queueController.preparedNextIndex == work.markPreparedNextIndex &&
+                    queueController.queue.tracks.getOrNull(work.markPreparedNextIndex)?.id == work.plan.track.id
+                ) {
                     withContext(Dispatchers.IO) {
                         queueAwareEngine.prepareNext(prepared.request)
                     }

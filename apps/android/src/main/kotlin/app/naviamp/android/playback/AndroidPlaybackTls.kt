@@ -1,5 +1,6 @@
 package app.naviamp.android.playback
 
+import android.annotation.SuppressLint
 import app.naviamp.provider.navidrome.NavidromeTlsSettings
 import java.io.FileInputStream
 import java.security.KeyStore
@@ -83,6 +84,8 @@ object AndroidPlaybackTls {
         }
     }
 
+    // This manager is reachable only when the user explicitly enables skip-TLS-verification.
+    @SuppressLint("CustomX509TrustManager")
     private object TrustAllCertificates : X509TrustManager {
         override fun checkClientTrusted(chain: Array<java.security.cert.X509Certificate>, authType: String) = Unit
         override fun checkServerTrusted(chain: Array<java.security.cert.X509Certificate>, authType: String) = Unit

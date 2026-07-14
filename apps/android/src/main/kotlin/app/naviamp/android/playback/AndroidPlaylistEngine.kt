@@ -92,6 +92,12 @@ class AndroidPlaylistEngine(
         },
     )
 
+    init {
+        playbackQueueController.setPreparedNextInvalidationHandler {
+            (playbackEngine as? QueueAwarePlaybackEngine)?.clearPreparedNext()
+        }
+    }
+
     suspend fun cacheAudioTrackForPlayback(
         sourceId: String,
         activeProvider: NavidromeProvider,
@@ -196,6 +202,10 @@ class AndroidPlaylistEngine(
             }.onSuccess { prepared ->
                 prepared ?: return@onSuccess
                 if (sessionToken != state.playbackSessionToken) return@onSuccess
+                if (playbackQueueController.preparedNextIndex != work.markPreparedNextIndex) return@onSuccess
+                if (playbackQueueController.queue.tracks.getOrNull(work.markPreparedNextIndex)?.id != work.plan.track.id) {
+                    return@onSuccess
+                }
                 queueAwareEngine.prepareNext(prepared.request)
             }.onFailure {
                 playbackQueueController.clearPreparedNext()

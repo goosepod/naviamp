@@ -82,8 +82,8 @@ fun appendAndroidTracksToQueue(
         update = update,
         setStatus = { status -> state.status = status },
         replaceQueue = { queue ->
-            playbackQueueController.replaceQueue(state.playbackQueue)
-            playbackQueueController.replaceQueue(queue)
+            playbackQueueController.replaceQueue(state.playbackQueue, clearPreparedNext = false)
+            playbackQueueController.replaceQueue(queue, clearPreparedNext = false)
             state.playbackQueue = playbackQueueController.queue
         },
     )
@@ -171,8 +171,8 @@ fun appendAndroidArtistPopularTracksToQueue(
         update = update,
         setStatus = { status -> state.status = status },
         replaceQueue = { queue ->
-            playbackQueueController.replaceQueue(state.playbackQueue)
-            playbackQueueController.replaceQueue(queue)
+            playbackQueueController.replaceQueue(state.playbackQueue, clearPreparedNext = false)
+            playbackQueueController.replaceQueue(queue, clearPreparedNext = false)
             state.playbackQueue = playbackQueueController.queue
         },
     )

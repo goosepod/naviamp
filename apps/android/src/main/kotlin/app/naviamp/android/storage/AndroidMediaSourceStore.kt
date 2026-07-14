@@ -1,5 +1,6 @@
 package app.naviamp.android
 
+import app.naviamp.android.security.AndroidCredentialProtector
 import app.naviamp.domain.cache.MediaSourceRepository
 import app.naviamp.domain.cache.ProviderMediaSourceConnection
 import app.naviamp.domain.cache.ProviderMediaSourceRepository
@@ -19,9 +20,14 @@ import kotlinx.serialization.json.Json
 class AndroidMediaSourceStore(
     private val queries: NaviampStorageQueries,
     private val nowMillis: () -> Long,
+    private val credentialProtector: AndroidCredentialProtector,
     private val json: Json = Json { ignoreUnknownKeys = true },
 ) : MediaSourceRepository,
     ProviderMediaSourceRepository {
+    init {
+        migrateStoredCredentials()
+    }
+
     override fun latestMediaSource(): SavedMediaSource? =
         queries.selectLatestMediaSource().executeAsOneOrNull()?.toSavedMediaSource()
 
@@ -55,13 +61,15 @@ class AndroidMediaSourceStore(
             display_name = displayName,
             base_url = connection.baseUrl,
             username = connection.username,
-            token = connection.token,
-            salt = connection.salt,
-            native_token = connection.nativeToken,
+            token = credentialProtector.protect(connection.token).orEmpty(),
+            salt = credentialProtector.protect(connection.salt).orEmpty(),
+            native_token = credentialProtector.protect(connection.nativeToken),
             insecure_skip_tls_verification = if (connection.tlsSettings.insecureSkipTlsVerification) 1 else 0,
             custom_certificate_path = connection.tlsSettings.customCertificatePath?.takeIf { it.isNotBlank() },
             client_certificate_keystore_path = connection.tlsSettings.clientCertificateKeyStorePath?.takeIf { it.isNotBlank() },
-            client_certificate_keystore_password = connection.tlsSettings.clientCertificateKeyStorePassword,
+            client_certificate_keystore_password = credentialProtector.protect(
+                connection.tlsSettings.clientCertificateKeyStorePassword,
+            ),
             secondary_urls_json = encodeSecondaryUrls(connection.secondaryUrls),
             custom_headers_json = encodeCustomHeaders(connection.customHeaders),
             selected_music_folder_ids_json = encodeMusicFolderIds(connection.selectedMusicFolderIds),
@@ -81,13 +89,15 @@ class AndroidMediaSourceStore(
             display_name = displayName,
             base_url = connection.baseUrl,
             username = connection.username,
-            token = connection.token,
-            salt = connection.salt,
-            native_token = connection.nativeToken,
+            token = credentialProtector.protect(connection.token).orEmpty(),
+            salt = credentialProtector.protect(connection.salt).orEmpty(),
+            native_token = credentialProtector.protect(connection.nativeToken),
             insecure_skip_tls_verification = if (connection.tlsSettings.insecureSkipTlsVerification) 1 else 0,
             custom_certificate_path = connection.tlsSettings.customCertificatePath?.takeIf { it.isNotBlank() },
             client_certificate_keystore_path = connection.tlsSettings.clientCertificateKeyStorePath?.takeIf { it.isNotBlank() },
-            client_certificate_keystore_password = connection.tlsSettings.clientCertificateKeyStorePassword,
+            client_certificate_keystore_password = credentialProtector.protect(
+                connection.tlsSettings.clientCertificateKeyStorePassword,
+            ),
             secondary_urls_json = encodeSecondaryUrls(connection.secondaryUrls),
             custom_headers_json = encodeCustomHeaders(connection.customHeaders),
             selected_music_folder_ids_json = encodeMusicFolderIds(connection.selectedMusicFolderIds),
@@ -141,7 +151,15 @@ class AndroidMediaSourceStore(
     private fun encodeCustomHeaders(headers: List<ConnectionHeaderDefinition>): String? =
         json.encodeToString(
             ListSerializer(ConnectionHeaderDefinition.serializer()),
-            headers.mapNotNull { it.normalized() },
+            headers.mapNotNull { header ->
+                header.normalized()?.let { normalized ->
+                    if (normalized.valueIsSecret) {
+                        normalized.copy(value = credentialProtector.protect(normalized.value))
+                    } else {
+                        normalized
+                    }
+                }
+            },
         ).takeUnless { it == "[]" }
 
     private fun decodeSecondaryUrls(text: String?): List<ConnectionSecondaryUrl> =
@@ -156,7 +174,15 @@ class AndroidMediaSourceStore(
         text?.let {
             runCatching {
                 json.decodeFromString(ListSerializer(ConnectionHeaderDefinition.serializer()), it)
-                    .mapNotNull { header -> header.normalized() }
+                    .mapNotNull { header ->
+                        header.normalized()?.let { normalized ->
+                            if (normalized.valueIsSecret) {
+                                normalized.copy(value = credentialProtector.reveal(normalized.value))
+                            } else {
+                                normalized
+                            }
+                        }
+                    }
             }.getOrDefault(emptyList())
         }.orEmpty()
 
@@ -178,13 +204,63 @@ class AndroidMediaSourceStore(
             secondaryUrls = decodeSecondaryUrls(secondary_urls_json),
             customHeaders = decodeCustomHeaders(custom_headers_json),
             selectedMusicFolderIds = decodeMusicFolderIds(selected_music_folder_ids_json),
+            credentialProtector = credentialProtector,
         )
+
+    private fun migrateStoredCredentials() {
+        queries.selectMediaSources().executeAsList().forEach { source ->
+            val customHeaders = source.custom_headers_json
+                ?.let {
+                    runCatching {
+                        json.decodeFromString(ListSerializer(ConnectionHeaderDefinition.serializer()), it)
+                    }.getOrDefault(emptyList())
+                }.orEmpty()
+            val needsMigration = listOf(
+                source.token,
+                source.salt,
+                source.native_token,
+                source.client_certificate_keystore_password,
+            ).any { value -> !value.isNullOrEmpty() && !credentialProtector.isProtected(value) } ||
+                customHeaders.any { header ->
+                    header.valueIsSecret && !header.value.isNullOrEmpty() && !credentialProtector.isProtected(header.value)
+                }
+            if (!needsMigration) return@forEach
+            queries.updateMediaSource(
+                provider_id = source.provider_id,
+                cache_namespace = source.cache_namespace,
+                server_connection_key = source.server_connection_key,
+                library_scope_key = source.library_scope_key,
+                display_name = source.display_name,
+                base_url = source.base_url,
+                username = source.username,
+                token = credentialProtector.protect(source.token).orEmpty(),
+                salt = credentialProtector.protect(source.salt).orEmpty(),
+                native_token = credentialProtector.protect(source.native_token),
+                insecure_skip_tls_verification = source.insecure_skip_tls_verification,
+                custom_certificate_path = source.custom_certificate_path,
+                client_certificate_keystore_path = source.client_certificate_keystore_path,
+                client_certificate_keystore_password = credentialProtector.protect(
+                    source.client_certificate_keystore_password,
+                ),
+                secondary_urls_json = source.secondary_urls_json,
+                custom_headers_json = encodeCustomHeaders(customHeaders),
+                selected_music_folder_ids_json = source.selected_music_folder_ids_json,
+                last_connected_at_epoch_millis = source.last_connected_at_epoch_millis,
+                last_sync_started_at_epoch_millis = source.last_sync_started_at_epoch_millis,
+                last_sync_completed_at_epoch_millis = source.last_sync_completed_at_epoch_millis,
+                last_library_scan_signature = source.last_library_scan_signature,
+                last_library_scan_checked_at_epoch_millis = source.last_library_scan_checked_at_epoch_millis,
+                id = source.id,
+            )
+        }
+    }
 }
 
 private fun Media_source.toSavedMediaSource(
     secondaryUrls: List<ConnectionSecondaryUrl>,
     customHeaders: List<ConnectionHeaderDefinition>,
     selectedMusicFolderIds: List<String>,
+    credentialProtector: AndroidCredentialProtector,
 ): SavedMediaSource =
     SavedMediaSource(
         id = id,
@@ -193,14 +269,14 @@ private fun Media_source.toSavedMediaSource(
         displayName = display_name.takeUnless { it == "Navidrome" } ?: base_url,
         baseUrl = base_url,
         username = username,
-        token = token,
-        salt = salt,
-        nativeToken = native_token,
+        token = credentialProtector.reveal(token).orEmpty(),
+        salt = credentialProtector.reveal(salt).orEmpty(),
+        nativeToken = credentialProtector.reveal(native_token),
         tlsSettings = ConnectionTlsSettings(
             insecureSkipTlsVerification = insecure_skip_tls_verification != 0L,
             customCertificatePath = custom_certificate_path,
             clientCertificateKeyStorePath = client_certificate_keystore_path,
-            clientCertificateKeyStorePassword = client_certificate_keystore_password,
+            clientCertificateKeyStorePassword = credentialProtector.reveal(client_certificate_keystore_password),
         ),
         secondaryUrls = secondaryUrls,
         customHeaders = customHeaders,

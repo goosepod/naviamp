@@ -1,6 +1,7 @@
 package app.naviamp.android
 
 import android.content.Context
+import app.naviamp.android.security.AndroidKeystoreCredentialProtector
 import app.cash.sqldelight.db.SqlDriver
 import app.cash.sqldelight.driver.android.AndroidSqliteDriver
 import app.naviamp.domain.Album
@@ -114,6 +115,7 @@ class AndroidStorage(
     private val mediaSources = AndroidMediaSourceStore(
         queries = queries,
         nowMillis = ::nowMillis,
+        credentialProtector = AndroidKeystoreCredentialProtector(),
     )
     private val libraryIndex = AndroidLibraryIndexStore(
         queries = queries,

@@ -9,6 +9,7 @@ class PlaybackQueueController(
     initialQueue: PlaybackQueue = PlaybackQueue(),
 ) {
     private val queueManager = PlaybackQueueManager()
+    private var preparedNextInvalidationHandler: (() -> Unit)? = null
 
     var queue: PlaybackQueue = initialQueue
         private set
@@ -71,7 +72,7 @@ class PlaybackQueueController(
     ) {
         if (incrementSession) playbackSessionId += 1
         this.queue = queue
-        if (clearPreparedNext) preparedNextIndex = null
+        if (clearPreparedNext) invalidatePreparedNext()
     }
 
     fun updateTrack(updatedTrack: Track): PlaybackQueue? {
@@ -239,6 +240,10 @@ class PlaybackQueueController(
         preparedNextIndex = null
     }
 
+    fun setPreparedNextInvalidationHandler(handler: (() -> Unit)?) {
+        preparedNextInvalidationHandler = handler
+    }
+
     private fun selectQueue(
         selectedQueue: PlaybackQueue,
         sessionId: Int,
@@ -251,7 +256,13 @@ class PlaybackQueueController(
 
     private fun applyMutation(update: PlaybackQueueMutationUpdate) {
         queue = update.queue
-        if (update.clearPreparedNext) preparedNextIndex = null
+        if (update.clearPreparedNext) invalidatePreparedNext()
+    }
+
+    private fun invalidatePreparedNext() {
+        if (preparedNextIndex == null) return
+        preparedNextIndex = null
+        preparedNextInvalidationHandler?.invoke()
     }
 }
 

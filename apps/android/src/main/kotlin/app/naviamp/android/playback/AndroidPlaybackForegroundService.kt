@@ -66,6 +66,7 @@ import app.naviamp.domain.settings.RecentRadioStream
 import app.naviamp.domain.settings.SavedTrack
 import app.naviamp.domain.settings.playbackSessionFromQueue
 import app.naviamp.domain.smartplaylist.SmartPlaylistTemplates
+import app.naviamp.domain.source.SavedMediaSource
 import app.naviamp.provider.navidrome.NavidromeProvider
 import app.naviamp.provider.navidrome.toNavidromeConnection
 import app.naviamp.ui.defaultRadioArtworkUrl
@@ -73,6 +74,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
+import java.security.MessageDigest
+import java.util.UUID
 import kotlin.concurrent.thread
 
 private const val VoiceArtistScanLimit = 5_000L
@@ -205,6 +208,16 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        if (
+            isProtectedPlaybackServiceAction(intent?.action) &&
+            !isAuthorizedPlaybackServiceCommand(
+                suppliedCapability = intent?.getStringExtra(ExtraCommandCapability),
+                expectedCapability = CommandCapability,
+            )
+        ) {
+            Log.w("NaviampAutoCommand", "Rejecting unauthorized playback service action=${intent?.action}")
+            return START_NOT_STICKY
+        }
         when (intent?.action) {
             ActionPlayPause -> {
                 handleAutoPlayPause()
@@ -360,6 +373,7 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
                 action.hashCode(),
                 Intent(this, AndroidPlaybackForegroundService::class.java)
                     .setAction(action)
+                    .putExtra(ExtraCommandCapability, CommandCapability)
                     .putExtra(ExtraTitle, currentMetadata.title)
                     .putExtra(ExtraSubtitle, currentMetadata.subtitle)
                     .putExtra(ExtraCoverArtUrl, currentMetadata.coverArtUrl),
@@ -373,6 +387,7 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
             ActionStop.hashCode(),
             Intent(this, AndroidPlaybackForegroundService::class.java)
                 .setAction(ActionStop)
+                .putExtra(ExtraCommandCapability, CommandCapability)
                 .putExtra(ExtraTitle, currentMetadata.title)
                 .putExtra(ExtraSubtitle, currentMetadata.subtitle)
                 .putExtra(ExtraCoverArtUrl, currentMetadata.coverArtUrl),
@@ -546,7 +561,13 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
     }
 
     private fun syncAutoQueue(queue: PlaybackQueue) {
-        autoQueueController.replaceQueue(queue)
+        val preservesPreparedNext =
+            autoQueueController.preparedNextIndex == queue.currentIndex &&
+                autoQueueController.queue.tracks.map { it.id } == queue.tracks.map { it.id }
+        autoQueueController.replaceQueue(
+            queue = queue,
+            clearPreparedNext = !preservesPreparedNext,
+        )
         currentAutoQueue = autoQueueController.queue.tracks
         currentAutoQueueIndex = autoQueueController.queue.currentIndex
     }
@@ -976,28 +997,90 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
             playServiceTrackQueue(storage, source.id, queue, queue.indexOfFirst { it.id == track.id }.coerceAtLeast(0))
             return true
         }
-        snapshot.albums.firstOrNull()?.let { album ->
-            val tracks = storage.libraryTracksForAlbum(source.id, album.id, 200)
-                .ifEmpty { storage.libraryTracksForAlbumTitle(source.id, album.title, album.artistName, 200) }
-            if (tracks.isNotEmpty()) {
-                Log.i("NaviampAutoCommand", "Auto voice search matched album=${album.title}")
-                playServiceTrackQueue(storage, source.id, tracks, 0)
-                return true
-            }
-            Log.w("NaviampAutoCommand", "Auto voice album match had no tracks album=${album.title}")
+        val exactArtist = snapshot.artists.firstOrNull { it.name.equals(trimmedQuery, ignoreCase = true) }
+        if (exactArtist != null) {
+            playServiceVoiceArtistMatch(storage, source, exactArtist)
+            return true
         }
-        snapshot.artists.forEach { artist ->
-            val tracks = storage.libraryTracksForArtist(source.id, artist.id, 200)
-                .ifEmpty { storage.libraryTracksForArtistName(source.id, artist.name, 200) }
-            if (tracks.isNotEmpty()) {
-                Log.i("NaviampAutoCommand", "Auto voice search matched artist=${artist.name}")
-                playServiceTrackQueue(storage, source.id, tracks, 0)
-                return true
-            }
-            Log.w("NaviampAutoCommand", "Auto voice artist match had no tracks artist=${artist.name}")
+        val exactAlbum = snapshot.albums.firstOrNull { it.title.equals(trimmedQuery, ignoreCase = true) }
+        val album = exactAlbum ?: snapshot.albums.firstOrNull()
+        if (album != null) {
+            playServiceVoiceAlbumMatch(storage, source, album)
+            return true
+        }
+        snapshot.artists.firstOrNull()?.let { artist ->
+            playServiceVoiceArtistMatch(storage, source, artist)
+            return true
         }
         Log.w("NaviampAutoCommand", "No Auto voice search match query=$trimmedQuery")
         return false
+    }
+
+    private fun playServiceVoiceAlbumMatch(
+        storage: AndroidStorageDependencies,
+        source: SavedMediaSource,
+        album: Album,
+    ) {
+        val provider = NavidromeProvider(source.toNavidromeConnection())
+        launchServiceSelection {
+            runCatching {
+                loadServiceAlbumTracks(
+                    libraryIndexRepository = storage,
+                    providerResponseCacheRepository = storage,
+                    sourceId = source.id,
+                    provider = provider,
+                    albumId = album.id.value,
+                    albumTitle = album.title,
+                    albumArtist = album.artistName,
+                )
+            }.onSuccess { tracks ->
+                if (tracks.isNotEmpty()) {
+                    Log.i("NaviampAutoCommand", "Auto voice search matched album=${album.title}")
+                    playServiceTrackQueue(storage, source.id, tracks, 0)
+                } else {
+                    Log.w("NaviampAutoCommand", "Auto voice album match had no tracks album=${album.title}")
+                    AndroidPlaybackNotificationControls.isPlaying = false
+                    updateMediaSessionPlaybackState()
+                }
+            }.onFailure { error ->
+                Log.w("NaviampAutoCommand", "Could not start Auto voice album=${album.title}", error)
+                AndroidPlaybackNotificationControls.isPlaying = false
+                updateMediaSessionPlaybackState()
+            }
+        }
+    }
+
+    private fun playServiceVoiceArtistMatch(
+        storage: AndroidStorageDependencies,
+        source: SavedMediaSource,
+        artist: Artist,
+    ) {
+        val provider = NavidromeProvider(source.toNavidromeConnection())
+        launchServiceSelection {
+            runCatching {
+                loadServiceArtistTracks(
+                    libraryIndexRepository = storage,
+                    providerResponseCacheRepository = storage,
+                    sourceId = source.id,
+                    provider = provider,
+                    artistId = artist.id.value,
+                    artistName = artist.name,
+                )
+            }.onSuccess { tracks ->
+                if (tracks.isNotEmpty()) {
+                    Log.i("NaviampAutoCommand", "Auto voice search matched artist=${artist.name}")
+                    playServiceTrackQueue(storage, source.id, tracks, 0)
+                } else {
+                    Log.w("NaviampAutoCommand", "Auto voice artist match had no tracks artist=${artist.name}")
+                    AndroidPlaybackNotificationControls.isPlaying = false
+                    updateMediaSessionPlaybackState()
+                }
+            }.onFailure { error ->
+                Log.w("NaviampAutoCommand", "Could not start Auto voice artist=${artist.name}", error)
+                AndroidPlaybackNotificationControls.isPlaying = false
+                updateMediaSessionPlaybackState()
+            }
+        }
     }
 
     private fun playServiceDownloadedMusicSearch(
@@ -1896,6 +1979,9 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
             "NaviampAutoCommand",
             "Publishing native Auto queue count=${queue.size} index=$currentAutoQueueIndex",
         )
+        val coverArtProvider = serviceStorage.latestNavidromeSource()
+            ?.toNavidromeConnection()
+            ?.let(::NavidromeProvider)
         session.setQueueTitle("Queue")
         session.setQueue(
             queue.mapIndexed { index, track ->
@@ -1906,7 +1992,8 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
                         .setSubtitle(track.artistName)
                         .setDescription(track.albumTitle)
                         .apply {
-                            val artUrl = serviceStorage.savedCoverArtUrl(track)
+                            val coverArtId = track.coverArtId ?: track.albumId?.value
+                            val artUrl = coverArtId?.let { id -> coverArtProvider?.coverArtUrl(id) }
                             artUrl?.let { setIconUri(Uri.parse(it)) }
                         }
                         .build(),
@@ -2031,7 +2118,6 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
     }
 
     private fun ensureNotificationChannel() {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
         val manager = getSystemService(NotificationManager::class.java)
         val channel = NotificationChannel(
             ChannelId,
@@ -2067,6 +2153,8 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
         private const val ExtraFromEngine = "fromEngine"
         private const val ExtraPositionMillis = "positionMillis"
         private const val ExtraDurationMillis = "durationMillis"
+        private const val ExtraCommandCapability = "commandCapability"
+        private val CommandCapability = UUID.randomUUID().toString()
         private val PlayerNotificationColor = Color.rgb(82, 35, 31)
         private var currentMetadata = AndroidPlaybackNotificationMetadata()
         private var currentLargeIcon: Bitmap? = null
@@ -2084,15 +2172,12 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
         fun start(context: Context, metadata: AndroidPlaybackNotificationMetadata) {
             val intent = Intent(context, AndroidPlaybackForegroundService::class.java)
                 .setAction(ActionStart)
+                .putExtra(ExtraCommandCapability, CommandCapability)
                 .putExtra(ExtraTitle, metadata.title)
                 .putExtra(ExtraSubtitle, metadata.subtitle)
                 .putExtra(ExtraCoverArtUrl, metadata.coverArtUrl)
             runCatching {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                    context.startForegroundService(intent)
-                } else {
-                    context.startService(intent)
-                }
+                context.startForegroundService(intent)
             }.onFailure { error ->
                 Log.w("NaviampAutoCommand", "Could not start playback foreground service", error)
             }
@@ -2102,6 +2187,7 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
             if (!serviceCreated) return
             val intent = Intent(context, AndroidPlaybackForegroundService::class.java)
                 .setAction(ActionUpdate)
+                .putExtra(ExtraCommandCapability, CommandCapability)
                 .putExtra(ExtraTitle, metadata.title)
                 .putExtra(ExtraSubtitle, metadata.subtitle)
                 .putExtra(ExtraCoverArtUrl, metadata.coverArtUrl)
@@ -2117,6 +2203,7 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
                 context.startService(
                     Intent(context, AndroidPlaybackForegroundService::class.java)
                         .setAction(ActionStop)
+                        .putExtra(ExtraCommandCapability, CommandCapability)
                         .putExtra(ExtraFromEngine, true),
                 )
             }.onFailure { error ->
@@ -2130,6 +2217,7 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
                 context.startService(
                     Intent(context, AndroidPlaybackForegroundService::class.java)
                         .setAction(ActionProgress)
+                        .putExtra(ExtraCommandCapability, CommandCapability)
                         .putExtra(ExtraPositionMillis, positionMillis ?: -1L)
                         .putExtra(ExtraDurationMillis, durationMillis ?: -1L),
                 )
@@ -2139,6 +2227,17 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
         }
     }
 }
+
+internal fun isAuthorizedPlaybackServiceCommand(
+    suppliedCapability: String?,
+    expectedCapability: String,
+): Boolean {
+    val supplied = suppliedCapability?.encodeToByteArray() ?: return false
+    return MessageDigest.isEqual(supplied, expectedCapability.encodeToByteArray())
+}
+
+private fun isProtectedPlaybackServiceAction(action: String?): Boolean =
+    action?.startsWith("app.naviamp.android.playback.") == true
 
 private enum class ServiceRepeatMode {
     Off,
@@ -2304,15 +2403,3 @@ private fun String.voiceSearchKey(): String =
         .replace("ph", "f")
         .replace(Regex("\\b(the|a|an)\\b"), " ")
         .filter { it.isLetterOrDigit() }
-
-private fun MediaSourceRepository.savedCoverArtUrl(track: Track): String? {
-    val coverArtId = track.coverArtId ?: track.albumId?.value ?: return null
-    val connection = latestMediaSource()?.toNavidromeConnection() ?: return null
-    return NavidromeProvider(connection).coverArtUrl(coverArtId)
-}
-
-private fun MediaSourceRepository.savedCoverArtUrl(album: Album): String? {
-    val coverArtId = album.coverArtId ?: album.id.value
-    val connection = latestMediaSource()?.toNavidromeConnection() ?: return null
-    return NavidromeProvider(connection).coverArtUrl(coverArtId)
-}

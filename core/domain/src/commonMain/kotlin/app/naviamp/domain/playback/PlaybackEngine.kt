@@ -37,6 +37,8 @@ interface QueueAwarePlaybackEngine : PlaybackEngine {
     fun setCrossfadeDuration(seconds: Int)
 
     fun prepareNext(request: PlaybackRequest)
+
+    fun clearPreparedNext()
 }
 
 interface VisualizerPlaybackEngine : PlaybackEngine {

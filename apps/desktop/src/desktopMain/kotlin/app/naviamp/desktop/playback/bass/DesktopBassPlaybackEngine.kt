@@ -133,6 +133,8 @@ class DesktopBassPlaybackEngine(
     private var preparedRequest: PlaybackRequest? = null
     private var preparedReplayGainAdjustment: PlaybackReplayGainAdjustment? = null
     private var preparedError: String? = null
+    private val preparedNextLock = Any()
+    private var preparedNextGeneration: Long = 0L
     private var endSyncCallbacks: MutableMap<Int, Int> = mutableMapOf()
     private var crossfadeDurationSeconds: Int = 0
     private var crossfadeActive: Boolean = false
@@ -381,17 +383,20 @@ class DesktopBassPlaybackEngine(
 
     override fun prepareNext(request: PlaybackRequest) {
         val bass = backend ?: return
-        val plan = planPreparedBassPlayback(
-            playbackHandle = stream,
-            currentSourceHandle = currentSourceStream,
-            preparedRequest = preparedRequest,
-            preparedHandle = preparedStream,
-            supportsMixer = bass.supportsMixer,
-            request = request,
-            allowDirectFallback = true,
-        )
+        val (plan, generation) = synchronized(preparedNextLock) {
+            val planned = planPreparedBassPlayback(
+                playbackHandle = stream,
+                currentSourceHandle = currentSourceStream,
+                preparedRequest = preparedRequest,
+                preparedHandle = preparedStream,
+                supportsMixer = bass.supportsMixer,
+                request = request,
+                allowDirectFallback = true,
+            )
+            if (planned != PreparedBassPlaybackPlan.ReusePrepared) freePreparedStream()
+            planned to preparedNextGeneration
+        }
         if (plan == PreparedBassPlaybackPlan.ReusePrepared) return
-        freePreparedStream()
         if (plan == PreparedBassPlaybackPlan.NotSupported) return
         runCatching {
             ensureInitialized(bass)
@@ -437,10 +442,26 @@ class DesktopBassPlaybackEngine(
                 -> error("Unsupported prepared playback plan: $plan")
             }
         }.onSuccess { update ->
-            applyPreparedUpdate(update)
+            synchronized(preparedNextLock) {
+                if (generation != preparedNextGeneration) {
+                    bass.releaseBassStream(update.preparedHandle)
+                        .onFailure { lastError = it.message }
+                    endSyncCallbacks.remove(update.preparedHandle)
+                    crossfadeActive = false
+                } else {
+                    applyPreparedUpdate(update)
+                }
+            }
         }.onFailure { error ->
             applyPreparedUpdate(preparedBassPlaybackFailed(error))
             lastError = preparedError
+        }
+    }
+
+    override fun clearPreparedNext() {
+        synchronized(preparedNextLock) {
+            preparedNextGeneration += 1L
+            freePreparedStream()
         }
     }
 

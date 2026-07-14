@@ -171,6 +171,38 @@ class PlaybackQueueControllerTest {
     }
 
     @Test
+    fun nextChangingQueueMutationInvalidatesPreparedEngineState() {
+        val tracks = listOf(track("one"), track("two"), track("three"))
+        var invalidations = 0
+        val controller = PlaybackQueueController(PlaybackQueue(tracks, currentIndex = 0)).apply {
+            setPreparedNextInvalidationHandler { invalidations += 1 }
+            markPreparedNext(1)
+        }
+
+        controller.replaceQueue(
+            PlaybackQueue(listOf(tracks[0], tracks[2]), currentIndex = 0),
+        )
+
+        assertNull(controller.preparedNextIndex)
+        assertEquals(1, invalidations)
+    }
+
+    @Test
+    fun appendOnlyQueueMutationPreservesPreparedEngineState() {
+        val tracks = listOf(track("one"), track("two"))
+        var invalidations = 0
+        val controller = PlaybackQueueController(PlaybackQueue(tracks, currentIndex = 0)).apply {
+            setPreparedNextInvalidationHandler { invalidations += 1 }
+            markPreparedNext(1)
+        }
+
+        controller.appendTracks(listOf(track("three")))
+
+        assertEquals(1, controller.preparedNextIndex)
+        assertEquals(0, invalidations)
+    }
+
+    @Test
     fun externalQueueNextIndexSyncsQueueRepeatModeAndPreservesPreparedNext() {
         val tracks = listOf(track("one"), track("two"))
         val controller = PlaybackQueueController()

@@ -1,6 +1,8 @@
 package app.naviamp.android
 
 import android.content.Context
+import app.naviamp.android.security.AndroidCredentialProtector
+import app.naviamp.android.security.AndroidKeystoreCredentialProtector
 import app.naviamp.domain.playback.EqualizerBandFrequencies
 import app.naviamp.domain.playback.EqualizerProfile
 import app.naviamp.domain.playback.EqualizerPreset
@@ -39,17 +41,27 @@ import kotlinx.serialization.json.Json
 class AndroidSettingsStore(
     context: Context,
 ) {
-    private val preferences = context.applicationContext.getSharedPreferences(
+    private val appContext = context.applicationContext
+    private val credentialProtector: AndroidCredentialProtector = AndroidKeystoreCredentialProtector()
+    private val preferences = appContext.getSharedPreferences(
         PreferencesName,
         Context.MODE_PRIVATE,
     )
+    private val credentialPreferences = appContext.getSharedPreferences(
+        CredentialPreferencesName,
+        Context.MODE_PRIVATE,
+    )
+
+    init {
+        migrateLegacyCredentials()
+    }
 
     fun loadConnection(savedConnection: NavidromeConnection? = null): ConnectionFormState =
         ConnectionFormState(
             displayName = savedConnection?.displayName ?: preferences.getString(KeyDisplayName, "").orEmpty(),
             serverUrl = savedConnection?.baseUrl ?: preferences.getString(KeyServerUrl, "").orEmpty(),
             username = savedConnection?.username ?: preferences.getString(KeyUsername, "").orEmpty(),
-            password = preferences.getString(KeyPassword, "").orEmpty(),
+            password = loadCredential(KeyPassword),
             skipTlsVerification = savedConnection?.tlsSettings?.insecureSkipTlsVerification
                 ?: preferences.getBoolean(KeySkipTlsVerification, false),
             customCertificatePath = savedConnection?.tlsSettings?.customCertificatePath
@@ -57,7 +69,7 @@ class AndroidSettingsStore(
             clientCertificatePath = savedConnection?.tlsSettings?.clientCertificateKeyStorePath
                 ?: preferences.getString(KeyClientCertificatePath, "").orEmpty(),
             clientCertificatePassword = savedConnection?.tlsSettings?.clientCertificateKeyStorePassword
-                ?: preferences.getString(KeyClientCertificatePassword, "").orEmpty(),
+                ?: loadCredential(KeyClientCertificatePassword),
             secondaryUrls = savedConnection?.secondaryUrls?.map { url ->
                 ConnectionFormSecondaryUrl(
                     url = url.url,
@@ -70,7 +82,7 @@ class AndroidSettingsStore(
                     value = header.value.orEmpty(),
                     valueIsSecret = header.valueIsSecret,
                 )
-            } ?: decodeList(KeyCustomHeaders, ConnectionFormHeader.serializer()),
+            } ?: loadConnectionHeaders(),
             selectedMusicFolderIds = savedConnection?.selectedMusicFolderIds
                 ?: decodeList(KeySelectedMusicFolderIds, String.serializer()),
         )
@@ -80,14 +92,27 @@ class AndroidSettingsStore(
             .putString(KeyDisplayName, connection.displayName.trim())
             .putString(KeyServerUrl, connection.serverUrl.trim())
             .putString(KeyUsername, connection.username)
-            .putString(KeyPassword, connection.password)
+            .remove(KeyPassword)
             .putBoolean(KeySkipTlsVerification, connection.skipTlsVerification)
             .putString(KeyCustomCertificatePath, connection.customCertificatePath.trim())
             .putString(KeyClientCertificatePath, connection.clientCertificatePath.trim())
-            .putString(KeyClientCertificatePassword, connection.clientCertificatePassword)
+            .remove(KeyClientCertificatePassword)
             .putString(KeySecondaryUrls, encodeList(connection.secondaryUrls, ConnectionFormSecondaryUrl.serializer()))
-            .putString(KeyCustomHeaders, encodeList(connection.customHeaders, ConnectionFormHeader.serializer()))
+            .putString(
+                KeyCustomHeaders,
+                encodeList(
+                    connection.customHeaders.map { header ->
+                        if (header.valueIsSecret) header.copy(value = "") else header
+                    },
+                    ConnectionFormHeader.serializer(),
+                ),
+            )
             .putString(KeySelectedMusicFolderIds, encodeList(connection.selectedMusicFolderIds, String.serializer()))
+            .apply()
+        credentialPreferences.edit()
+            .putString(KeyPassword, credentialProtector.protect(connection.password))
+            .putString(KeyClientCertificatePassword, credentialProtector.protect(connection.clientCertificatePassword))
+            .putString(KeyCustomHeaders, encodeSecretHeaders(connection.customHeaders))
             .apply()
     }
 
@@ -329,7 +354,83 @@ class AndroidSettingsStore(
 
     fun clear() {
         preferences.edit().clear().apply()
+        credentialPreferences.edit().clear().apply()
     }
+
+    private fun migrateLegacyCredentials() {
+        val legacyPassword = preferences.getString(KeyPassword, null)
+        val legacyCertificatePassword = preferences.getString(KeyClientCertificatePassword, null)
+        val legacyHeaders = decodeList(KeyCustomHeaders, ConnectionFormHeader.serializer())
+        val secretHeaders = legacyHeaders.map { header ->
+            if (header.valueIsSecret && header.value.isNotEmpty()) {
+                header.copy(value = credentialProtector.protect(header.value).orEmpty())
+            } else {
+                ConnectionFormHeader()
+            }
+        }
+        val credentialEditor = credentialPreferences.edit()
+        if (!credentialPreferences.contains(KeyPassword) && legacyPassword != null) {
+            credentialEditor.putString(KeyPassword, credentialProtector.protect(legacyPassword))
+        }
+        if (!credentialPreferences.contains(KeyClientCertificatePassword) && legacyCertificatePassword != null) {
+            credentialEditor.putString(
+                KeyClientCertificatePassword,
+                credentialProtector.protect(legacyCertificatePassword),
+            )
+        }
+        if (!credentialPreferences.contains(KeyCustomHeaders) && secretHeaders.any { it.valueIsSecret }) {
+            credentialEditor.putString(
+                KeyCustomHeaders,
+                JsonSettings.encodeToString(ListSerializer(ConnectionFormHeader.serializer()), secretHeaders),
+            )
+        }
+        credentialEditor.apply()
+        if (legacyPassword != null || legacyCertificatePassword != null || secretHeaders.any { it.valueIsSecret }) {
+            preferences.edit()
+                .remove(KeyPassword)
+                .remove(KeyClientCertificatePassword)
+                .putString(
+                    KeyCustomHeaders,
+                    encodeList(
+                        legacyHeaders.map { header -> if (header.valueIsSecret) header.copy(value = "") else header },
+                        ConnectionFormHeader.serializer(),
+                    ),
+                )
+                .apply()
+        }
+    }
+
+    private fun loadCredential(key: String): String =
+        credentialProtector.reveal(credentialPreferences.getString(key, null)).orEmpty()
+
+    private fun loadConnectionHeaders(): List<ConnectionFormHeader> {
+        val headers = decodeList(KeyCustomHeaders, ConnectionFormHeader.serializer())
+        val secretValues = credentialPreferences.getString(KeyCustomHeaders, null)
+            ?.let { encoded ->
+                runCatching {
+                    JsonSettings.decodeFromString(ListSerializer(ConnectionFormHeader.serializer()), encoded)
+                }.getOrDefault(emptyList())
+            }.orEmpty()
+        return headers.mapIndexed { index, header ->
+            val secret = secretValues.getOrNull(index)
+                ?.takeIf { it.valueIsSecret && it.name == header.name }
+                ?.value
+                ?.let(credentialProtector::reveal)
+            if (header.valueIsSecret) header.copy(value = secret.orEmpty()) else header
+        }
+    }
+
+    private fun encodeSecretHeaders(headers: List<ConnectionFormHeader>): String =
+        JsonSettings.encodeToString(
+            ListSerializer(ConnectionFormHeader.serializer()),
+            headers.map { header ->
+                if (header.valueIsSecret) {
+                    header.copy(value = credentialProtector.protect(header.value).orEmpty())
+                } else {
+                    ConnectionFormHeader()
+                }
+            },
+        )
 
     private inline fun <reified T : Enum<T>> enumPreference(key: String, defaultValue: T): T =
         preferences.getString(key, null)
@@ -429,6 +530,7 @@ private fun android.content.SharedPreferences.Editor.putEqualizerSettings(
 }
 
 private const val PreferencesName = "naviamp_android_settings"
+internal const val CredentialPreferencesName = "naviamp_android_credentials"
 private const val KeyDisplayName = "display_name"
 private const val KeyServerUrl = "server_url"
 private const val KeyUsername = "username"

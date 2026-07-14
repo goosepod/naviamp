@@ -45,6 +45,7 @@ import app.naviamp.domain.settings.PlaybackSessionRestorePlan
 import app.naviamp.domain.settings.planPlaybackSessionRestore
 import app.naviamp.domain.settings.effectiveForEngine
 import app.naviamp.domain.settings.withPlaybackPosition
+import app.naviamp.domain.source.SavedMediaSource
 import app.naviamp.provider.navidrome.NavidromeProvider
 import app.naviamp.provider.navidrome.toNavidromeConnection
 import kotlinx.coroutines.Dispatchers
@@ -70,6 +71,7 @@ internal class AndroidServicePlaybackRuntimeController(
 ) {
     private val queueManager = PlaybackQueueManager()
     private var serviceOwnedPlayback = false
+    private var serviceMediaSource: SavedMediaSource? = null
     private var lastServiceSessionSaveAtMillis = 0L
     private var lastServicePlaybackState: PlaybackState? = null
     private var pendingServiceSeekPositionSeconds: Double? = null
@@ -79,6 +81,14 @@ internal class AndroidServicePlaybackRuntimeController(
     private var servicePlaybackSettings = PlaybackSettings()
     private var servicePlaybackSessionToken: Long = 0L
     private var submittedServicePlayReportSessionToken: Long? = null
+
+    init {
+        queueController.setPreparedNextInvalidationHandler {
+            servicePreparedNextJob?.cancel()
+            servicePreparedNextJob = null
+            (AndroidPlaybackRuntime.get(context).playbackEngine as? QueueAwarePlaybackEngine)?.clearPreparedNext()
+        }
+    }
 
     fun ownsPlayback(): Boolean = serviceOwnedPlayback
 
@@ -140,7 +150,7 @@ internal class AndroidServicePlaybackRuntimeController(
 
     fun playSavedSessionAdjacent(delta: Int) {
         val storage = storage()
-        val sourceId = storage.latestNavidromeSource()?.id ?: return
+        val sourceId = serviceMediaSource(storage)?.id ?: return
         val session = storage.loadPlaybackSession(sourceId) ?: return
         val nextSession = session.adjacentTrackSession(delta) ?: return
         storage.savePlaybackSession(sourceId = sourceId, session = nextSession)
@@ -164,19 +174,24 @@ internal class AndroidServicePlaybackRuntimeController(
             return true
         }
         val storage = storage()
-        val sourceId = storage.latestNavidromeSource()?.id ?: return false
+        val sourceId = serviceMediaSource(storage)?.id ?: return false
         Log.i(
             "NaviampAutoCommand",
             "Service-owned queue advancing delta=$delta from=${currentQueueIndex()} to=${update.queue.currentIndex} size=${update.queue.tracks.size}",
         )
-        queueController.replaceQueue(update.queue)
+        val selectingPreparedNext =
+            delta == 1 && queueController.preparedNextIndex == update.queue.currentIndex
+        queueController.replaceQueue(
+            queue = update.queue,
+            clearPreparedNext = !selectingPreparedNext,
+        )
         playTrackQueue(storage, sourceId, update.queue.tracks, update.queue.currentIndex)
         return true
     }
 
     fun playSavedSession(existingSession: PlaybackSessionSettings? = null) {
         val storage = storage()
-        val source = storage.latestNavidromeSource() ?: return
+        val source = serviceMediaSource(storage) ?: return
         val session = existingSession ?: storage.loadPlaybackSession(source.id) ?: return
         val restorePlan = planPlaybackSessionRestore(session)
         if (restorePlan is PlaybackSessionRestorePlan.InternetRadio) {
@@ -198,6 +213,7 @@ internal class AndroidServicePlaybackRuntimeController(
         val audioAssets = AndroidPlaybackAudioAssets(storage, storage)
         val quality = StreamQuality.Original
         val startPositionSeconds = restorePlan.restoredStartPositionSeconds?.takeIf { it > 0.0 }
+        val coverArtUrl = (track.coverArtId ?: track.albumId?.value)?.let(provider::coverArtUrl)
 
         runtime.playbackEngine.applyTlsSettings(connection.tlsSettings)
         (runtime.playbackEngine as? QueueAwarePlaybackEngine)
@@ -215,7 +231,7 @@ internal class AndroidServicePlaybackRuntimeController(
         val metadata = AndroidPlaybackNotificationMetadata(
             title = track.title,
             subtitle = track.artistName,
-            coverArtUrl = storage.savedCoverArtUrl(track),
+            coverArtUrl = coverArtUrl,
         )
         setCurrentMetadata(metadata)
         metadata.coverArtUrl?.let { loadCoverArt(it, metadata) }
@@ -244,7 +260,7 @@ internal class AndroidServicePlaybackRuntimeController(
                 runtime.playbackEngine.updateNotificationMetadata(
                     title = track.title,
                     subtitle = track.artistName,
-                    coverArtUrl = storage.savedCoverArtUrl(track),
+                    coverArtUrl = coverArtUrl,
                 )
                 startServiceAudioPrefetch(
                     runtime = runtime,
@@ -377,7 +393,7 @@ internal class AndroidServicePlaybackRuntimeController(
             supportsCrossfade = runtime.playbackEngine.supportsCrossfade,
         ) ?: return
         val storage = storage()
-        val source = storage.latestNavidromeSource() ?: return
+        val source = serviceMediaSource(storage) ?: return
         val provider = NavidromeProvider(source.toNavidromeConnection())
         val sessionToken = servicePlaybackSessionToken
         val coordinator = PreparedNextPlaybackCoordinator(
@@ -406,6 +422,8 @@ internal class AndroidServicePlaybackRuntimeController(
                     if (sessionToken != servicePlaybackSessionToken || !serviceOwnedPlayback) {
                         return@onSuccess
                     }
+                    if (queueController.preparedNextIndex != work.markPreparedNextIndex) return@onSuccess
+                    if (currentQueue().getOrNull(work.markPreparedNextIndex)?.id != work.plan.track.id) return@onSuccess
                     queueAwareEngine.prepareNext(prepared.request)
                 }
                 .onFailure { error ->
@@ -443,7 +461,7 @@ internal class AndroidServicePlaybackRuntimeController(
     private fun maybeReportServicePlayed(sourceId: String, progress: PlaybackProgress) {
         val track = currentQueue().getOrNull(currentQueueIndex()) ?: return
         val storage = storage()
-        val source = storage.latestNavidromeSource() ?: return
+        val source = serviceMediaSource(storage) ?: return
         val provider = NavidromeProvider(source.toNavidromeConnection())
         val durationSeconds = progress.durationSeconds ?: track.durationSeconds?.toDouble()
         val activeSessionToken = servicePlaybackSessionToken
@@ -472,7 +490,7 @@ internal class AndroidServicePlaybackRuntimeController(
 
     private fun savePlaybackPosition(positionSeconds: Double) {
         val storage = storage()
-        val sourceId = storage.latestNavidromeSource()?.id ?: return
+        val sourceId = serviceMediaSource(storage)?.id ?: return
         val session = storage.loadPlaybackSession(sourceId) ?: return
         storage.savePlaybackSession(
             sourceId = sourceId,
@@ -501,13 +519,22 @@ internal class AndroidServicePlaybackRuntimeController(
             PlaybackQueueFinishedCommand.ReplayCurrent,
             PlaybackQueueFinishedCommand.PlayNext,
             -> {
-                queueController.replaceQueue(update.queue)
+                val selectingPreparedNext =
+                    update.command == PlaybackQueueFinishedCommand.PlayNext &&
+                        queueController.preparedNextIndex == update.queue.currentIndex
+                queueController.replaceQueue(
+                    queue = update.queue,
+                    clearPreparedNext = !selectingPreparedNext,
+                )
                 val storage = storage()
-                val sourceId = storage.latestNavidromeSource()?.id ?: return
+                val sourceId = serviceMediaSource(storage)?.id ?: return
                 playTrackQueue(storage, sourceId, update.queue.tracks, update.queue.currentIndex)
             }
         }
     }
+
+    private fun serviceMediaSource(storage: AndroidStorageDependencies): SavedMediaSource? =
+        serviceMediaSource ?: storage.latestNavidromeSource()?.also { serviceMediaSource = it }
 
     private fun startServiceAudioPrefetch(
         runtime: AndroidPlaybackRuntime,
@@ -586,18 +613,6 @@ internal fun planAndroidServicePreparedNextPlayback(
             gaplessPrepareWindowSeconds = AndroidGaplessPrepareWindowSeconds,
         ),
     )
-}
-
-private fun MediaSourceRepository.savedCoverArtUrl(track: Track): String? {
-    val coverArtId = track.coverArtId ?: track.albumId?.value ?: return null
-    val connection = latestMediaSource()?.toNavidromeConnection() ?: return null
-    return NavidromeProvider(connection).coverArtUrl(coverArtId)
-}
-
-private fun MediaSourceRepository.savedCoverArtUrl(album: Album): String? {
-    val coverArtId = album.coverArtId ?: album.id.value
-    val connection = latestMediaSource()?.toNavidromeConnection() ?: return null
-    return NavidromeProvider(connection).coverArtUrl(coverArtId)
 }
 
 private suspend fun AndroidStorageDependencies.warmServiceCoverArt(

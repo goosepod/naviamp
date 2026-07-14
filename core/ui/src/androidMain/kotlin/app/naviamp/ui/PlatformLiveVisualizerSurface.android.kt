@@ -979,6 +979,7 @@ private val NaviampVisualizer.historyFilterMode: Int
         else -> BitmapShader.FILTER_MODE_LINEAR
     }
 
+@RequiresApi(Build.VERSION_CODES.TIRAMISU)
 private fun Bitmap.newClampShader(filterMode: Int = BitmapShader.FILTER_MODE_LINEAR): BitmapShader =
     BitmapShader(this, Shader.TileMode.CLAMP, Shader.TileMode.CLAMP).apply {
         setFilterMode(filterMode)
