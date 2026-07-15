@@ -28,6 +28,8 @@ import app.naviamp.domain.TrackId
 import app.naviamp.domain.provider.AlbumListType
 import app.naviamp.domain.provider.ConnectionValidation
 import app.naviamp.domain.provider.LibraryScanStatus
+import app.naviamp.domain.provider.MediaPage
+import app.naviamp.domain.provider.MediaPageRequest
 import app.naviamp.domain.provider.MediaProvider
 import app.naviamp.domain.provider.MediaSearchResults
 import app.naviamp.domain.provider.ProviderCapabilities
@@ -272,6 +274,19 @@ class NavidromeProvider(
         }.distinctBy { it.id }
             .take(limit)
 
+    override suspend fun artistsPage(request: MediaPageRequest): MediaPage<Artist> =
+        pageAcrossSelectedMusicFolders(
+            request = request,
+            itemKey = { artist -> artist.id.value },
+        ) { musicFolderId, limit, offset ->
+            searchForMusicFolder(
+                query = "",
+                artistCount = limit,
+                artistOffset = offset,
+                musicFolderId = musicFolderId,
+            ).artists
+        }
+
     private suspend fun artistsForMusicFolder(musicFolderId: String?): List<Artist> {
         val response = get(
             endpoint = "getArtists.view",
@@ -306,6 +321,14 @@ class NavidromeProvider(
         return albumsForMusicFolder(limit, offset, musicFolderId = null)
     }
 
+    override suspend fun albumsPage(request: MediaPageRequest): MediaPage<Album> =
+        pageAcrossSelectedMusicFolders(
+            request = request,
+            itemKey = { album -> album.id.value },
+        ) { musicFolderId, limit, offset ->
+            albumsForMusicFolder(limit = limit, offset = offset, musicFolderId = musicFolderId)
+        }
+
     private suspend fun albumsForMusicFolder(limit: Int, offset: Int, musicFolderId: String?): List<Album> {
         val response = get(
             endpoint = "getAlbumList2.view",
@@ -323,7 +346,21 @@ class NavidromeProvider(
         }
     }
 
-    override suspend fun tracks(limit: Int): List<Track> = emptyList()
+    override suspend fun tracks(limit: Int): List<Track> =
+        tracksPage(MediaPageRequest(limit = limit.coerceAtMost(app.naviamp.domain.provider.MaximumMediaPageSize))).items
+
+    override suspend fun tracksPage(request: MediaPageRequest): MediaPage<Track> =
+        pageAcrossSelectedMusicFolders(
+            request = request,
+            itemKey = { track -> track.id.value },
+        ) { musicFolderId, limit, offset ->
+            searchForMusicFolder(
+                query = "",
+                songCount = limit,
+                songOffset = offset,
+                musicFolderId = musicFolderId,
+            ).tracks
+        }
 
     override suspend fun search(query: String, limit: Int): MediaSearchResults {
         val trimmedQuery = query.trim()
@@ -333,7 +370,9 @@ class NavidromeProvider(
             val results = selectedMusicFolderIds.map { musicFolderId ->
                 searchForMusicFolder(
                     query = trimmedQuery,
-                    limit = limit,
+                    artistCount = limit,
+                    albumCount = limit,
+                    songCount = limit,
                     musicFolderId = musicFolderId,
                 )
             }
@@ -346,23 +385,72 @@ class NavidromeProvider(
 
         return searchForMusicFolder(
             query = trimmedQuery,
-            limit = limit,
+            artistCount = limit,
+            albumCount = limit,
+            songCount = limit,
             musicFolderId = null,
         )
     }
 
+    override suspend fun searchArtistsPage(query: String, request: MediaPageRequest): MediaPage<Artist> =
+        pageAcrossSelectedMusicFolders(
+            request = request,
+            itemKey = { artist -> artist.id.value },
+        ) { musicFolderId, limit, offset ->
+            searchForMusicFolder(
+                query = query.trim(),
+                artistCount = limit,
+                artistOffset = offset,
+                musicFolderId = musicFolderId,
+            ).artists
+        }
+
+    override suspend fun searchAlbumsPage(query: String, request: MediaPageRequest): MediaPage<Album> =
+        pageAcrossSelectedMusicFolders(
+            request = request,
+            itemKey = { album -> album.id.value },
+        ) { musicFolderId, limit, offset ->
+            searchForMusicFolder(
+                query = query.trim(),
+                albumCount = limit,
+                albumOffset = offset,
+                musicFolderId = musicFolderId,
+            ).albums
+        }
+
+    override suspend fun searchTracksPage(query: String, request: MediaPageRequest): MediaPage<Track> =
+        pageAcrossSelectedMusicFolders(
+            request = request,
+            itemKey = { track -> track.id.value },
+        ) { musicFolderId, limit, offset ->
+            searchForMusicFolder(
+                query = query.trim(),
+                songCount = limit,
+                songOffset = offset,
+                musicFolderId = musicFolderId,
+            ).tracks
+        }
+
     private suspend fun searchForMusicFolder(
         query: String,
-        limit: Int,
+        artistCount: Int = 0,
+        artistOffset: Int = 0,
+        albumCount: Int = 0,
+        albumOffset: Int = 0,
+        songCount: Int = 0,
+        songOffset: Int = 0,
         musicFolderId: String?,
     ): MediaSearchResults {
         val response = get(
             endpoint = "search3.view",
             params = buildMap {
                 put("query", query)
-                put("artistCount", limit.toString())
-                put("albumCount", limit.toString())
-                put("songCount", limit.toString())
+                put("artistCount", artistCount.toString())
+                put("artistOffset", artistOffset.toString())
+                put("albumCount", albumCount.toString())
+                put("albumOffset", albumOffset.toString())
+                put("songCount", songCount.toString())
+                put("songOffset", songOffset.toString())
                 musicFolderId?.let { put("musicFolderId", it) }
             },
         )
@@ -380,6 +468,71 @@ class NavidromeProvider(
                 (song as? JsonObject)?.toTrack()
             },
         )
+    }
+
+    private suspend fun <T> pageAcrossSelectedMusicFolders(
+        request: MediaPageRequest,
+        itemKey: (T) -> String,
+        load: suspend (musicFolderId: String?, limit: Int, offset: Int) -> List<T>,
+    ): MediaPage<T> {
+        if (selectedMusicFolderIds.isEmpty()) {
+            val items = load(null, request.limit, request.offset).distinctBy(itemKey)
+            return MediaPage(
+                items = items,
+                offset = request.offset,
+                limit = request.limit,
+                hasMore = items.size == request.limit,
+            )
+        }
+
+        val start = request.continuationToken?.toFolderPagePosition()
+            ?: FolderPagePosition(folderIndex = 0, folderOffset = 0).also {
+                require(request.offset == 0) {
+                    "Paged multi-library requests after the first page must use the provider continuation token."
+                }
+            }
+        var folderIndex = start.folderIndex
+        var folderOffset = start.folderOffset
+        var remaining = request.limit
+        val items = mutableListOf<T>()
+        val seenKeys = mutableSetOf<String>()
+
+        while (remaining > 0 && folderIndex < selectedMusicFolderIds.size) {
+            val page = load(selectedMusicFolderIds[folderIndex], remaining, folderOffset)
+            page.forEach { item -> if (seenKeys.add(itemKey(item))) items += item }
+            if (page.size < remaining) {
+                remaining -= page.size
+                folderIndex += 1
+                folderOffset = 0
+            } else {
+                folderOffset += page.size
+                remaining = 0
+            }
+        }
+
+        val hasMore = folderIndex < selectedMusicFolderIds.size
+        return MediaPage(
+            items = items,
+            offset = request.offset,
+            limit = request.limit,
+            hasMore = hasMore,
+            nextContinuationToken = if (hasMore) "$folderIndex:$folderOffset" else null,
+        )
+    }
+
+    private data class FolderPagePosition(
+        val folderIndex: Int,
+        val folderOffset: Int,
+    )
+
+    private fun String.toFolderPagePosition(): FolderPagePosition {
+        val parts = split(':', limit = 2)
+        val folderIndex = parts.getOrNull(0)?.toIntOrNull()
+        val folderOffset = parts.getOrNull(1)?.toIntOrNull()
+        require(folderIndex != null && folderIndex >= 0 && folderOffset != null && folderOffset >= 0) {
+            "Invalid provider continuation token."
+        }
+        return FolderPagePosition(folderIndex, folderOffset)
     }
 
     override suspend fun popularTracks(artist: Artist, limit: Int): ArtistPopularTracksResult {

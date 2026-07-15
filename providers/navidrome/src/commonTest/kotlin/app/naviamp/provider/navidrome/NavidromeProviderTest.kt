@@ -586,7 +586,7 @@ class NavidromeProviderTest {
         val results = provider.search("from duck till dawn")
 
         assertEquals(
-            "https://music.example.test/rest/search3.view?u=demo&t=token&s=salt&v=1.16.1&$ExpectedClientQuery&f=json&query=from+duck+till+dawn&artistCount=20&albumCount=20&songCount=20&musicFolderId=2",
+            "https://music.example.test/rest/search3.view?u=demo&t=token&s=salt&v=1.16.1&$ExpectedClientQuery&f=json&query=from+duck+till+dawn&artistCount=20&artistOffset=0&albumCount=20&albumOffset=0&songCount=20&songOffset=0&musicFolderId=2",
             httpClient.urls.single(),
         )
         assertEquals("Classical Search Result", results.tracks.single().title)
@@ -798,6 +798,53 @@ class NavidromeProviderTest {
         )
         assertEquals(listOf("Technique"), page.items.map { it.title })
         assertFalse(page.hasMore)
+    }
+
+    @Test
+    fun artistPageUsesEmptySearchWithServerSidePaging() = runTest {
+        val httpClient = RecordingResponseHttpClient(searchArtistResponse("artist-1", "New Order"))
+        val provider = NavidromeProvider(
+            connection = connection("https://music.example.test"),
+            httpClient = httpClient,
+        )
+
+        val page = provider.artistsPage(MediaPageRequest(offset = 75, limit = 25))
+
+        assertEquals(
+            "https://music.example.test/rest/search3.view?u=demo&t=token&s=salt&v=1.16.1&$ExpectedClientQuery&f=json&query=&artistCount=25&artistOffset=75&albumCount=0&albumOffset=0&songCount=0&songOffset=0",
+            httpClient.urls.single(),
+        )
+        assertEquals(listOf("New Order"), page.items.map { it.name })
+        assertFalse(page.hasMore)
+    }
+
+    @Test
+    fun multiLibraryArtistPagesAdvanceWithoutRefetchingEarlierPages() = runTest {
+        val httpClient = SequencedHttpClient(
+            listOf(
+                searchArtistsResponse("artist-1" to "A", "artist-2" to "B"),
+                searchArtistsResponse(),
+                searchArtistsResponse("artist-3" to "C"),
+            ),
+        )
+        val provider = NavidromeProvider(
+            connection = connection("https://music.example.test").copy(
+                selectedMusicFolderIds = listOf("rock", "archive"),
+            ),
+            httpClient = httpClient,
+        )
+
+        val first = provider.artistsPage(MediaPageRequest(limit = 2))
+        val second = provider.artistsPage(requireNotNull(first.nextRequest))
+
+        assertEquals(listOf("A", "B"), first.items.map { it.name })
+        assertEquals("0:2", first.nextContinuationToken)
+        assertEquals(listOf("C"), second.items.map { it.name })
+        assertFalse(second.hasMore)
+        assertTrue(httpClient.urls[1].contains("artistOffset=2"))
+        assertTrue(httpClient.urls[1].contains("musicFolderId=rock"))
+        assertTrue(httpClient.urls[2].contains("artistOffset=0"))
+        assertTrue(httpClient.urls[2].contains("musicFolderId=archive"))
     }
 
     @Test
@@ -1927,6 +1974,23 @@ class NavidromeProviderTest {
                   "name": "$title",
                   "artist": "$artist"
                 }
+              ]
+            }
+          }
+        }
+        """.trimIndent()
+
+    private fun searchArtistResponse(id: String, name: String): String =
+        searchArtistsResponse(id to name)
+
+    private fun searchArtistsResponse(vararg artists: Pair<String, String>): String =
+        """
+        {
+          "subsonic-response": {
+            "status": "ok",
+            "searchResult3": {
+              "artist": [
+                ${artists.joinToString(",") { (id, name) -> """{"id":"$id","name":"$name"}""" }}
               ]
             }
           }

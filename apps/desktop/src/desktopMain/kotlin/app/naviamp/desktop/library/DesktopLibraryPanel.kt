@@ -51,7 +51,6 @@ fun DesktopLibraryPanel(
     onQueryChanged: (String) -> Unit,
     onTabSelected: (DesktopLibraryTab) -> Unit,
     onLoadMore: () -> Unit,
-    onJumpToLetter: (Char) -> Unit,
     onMediaItemAction: (SharedMediaItemActionRequest) -> Unit,
     onRefreshLibrary: () -> Unit,
 ) {
@@ -203,11 +202,6 @@ fun DesktopLibraryPanel(
                     Box(Modifier.height(24.dp))
                 }
             }
-            LetterRail(
-                appColors = appColors,
-                enabled = query.isBlank(),
-                onJumpToLetter = onJumpToLetter,
-            )
         }
     }
 }
@@ -232,33 +226,6 @@ fun DesktopLibraryListLoadMoreEffect(
         val lastVisible = listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: return@LaunchedEffect
         if (visibleCount > 0 && lastVisible >= visibleCount - 8) {
             onLoadMore()
-        }
-    }
-}
-
-@Composable
-private fun LetterRail(
-    appColors: DesktopAppColors,
-    enabled: Boolean,
-    onJumpToLetter: (Char) -> Unit,
-) {
-    val scrollState = rememberScrollState()
-    Column(
-        verticalArrangement = Arrangement.spacedBy(3.dp),
-        modifier = Modifier
-            .width(18.dp)
-            .padding(top = 2.dp)
-            .verticalScroll(scrollState),
-    ) {
-        LibraryJumpLetters.forEach { letter ->
-            Text(
-                letter.toString(),
-                color = if (enabled) appColors.secondaryText else appColors.mutedText.copy(alpha = 0.45f),
-                fontSize = 10.sp,
-                modifier = Modifier.clickable(enabled = enabled) {
-                    onJumpToLetter(letter)
-                },
-            )
         }
     }
 }

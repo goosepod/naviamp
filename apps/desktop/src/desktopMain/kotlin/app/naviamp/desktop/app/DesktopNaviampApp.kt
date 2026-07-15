@@ -696,7 +696,6 @@ fun NaviampApp(
         libraryIndexRepository = storage,
         mediaSourceRepository = storage,
         cacheMaintenanceRepository = storage,
-        libraryOffsetForLetter = storage::libraryOffsetForLetter,
         librarySync = librarySync,
         provider = { connectedProvider },
         sourceId = { connectedSourceId },

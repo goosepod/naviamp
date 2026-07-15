@@ -599,7 +599,6 @@ fun ColumnScope.DesktopAppRouteContent(
                         onQueryChanged = onLibraryQueryChanged,
                         onTabSelected = libraryController::selectLibraryTab,
                         onLoadMore = libraryController::loadMoreLibraryRows,
-                        onJumpToLetter = libraryController::jumpLibraryToLetter,
                         onMediaItemAction = { request ->
                             librarySnapshot.artists
                                 .firstOrNull { artist -> artist.id.value == request.item.id }

@@ -4,7 +4,6 @@ import app.naviamp.domain.cache.StorageCacheStats
 
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import app.naviamp.domain.app.cacheDataClearedStatus
@@ -16,10 +15,12 @@ import app.naviamp.domain.cache.MediaSourceRepository
 import app.naviamp.domain.library.LibrarySyncCoordinator
 import app.naviamp.domain.library.libraryConnectionRequiredStatus
 import app.naviamp.domain.library.libraryFreshnessUpdate
-import app.naviamp.domain.library.libraryLimitForOffset
+import app.naviamp.domain.provider.ApiCatalogService
+import app.naviamp.domain.provider.MediaPageRequest
 import app.naviamp.domain.provider.MediaProvider
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -28,7 +29,6 @@ class DesktopLibraryController(
     private val libraryIndexRepository: LocalLibraryIndexRepository,
     private val mediaSourceRepository: MediaSourceRepository,
     private val cacheMaintenanceRepository: CacheMaintenanceRepository<StorageCacheStats>,
-    private val libraryOffsetForLetter: (sourceId: String, tab: DesktopLibraryTab, letter: Char) -> Long,
     private val librarySync: DesktopLibrarySync,
     private val provider: () -> MediaProvider?,
     private val sourceId: () -> String?,
@@ -39,8 +39,6 @@ class DesktopLibraryController(
         private set
     var tab by mutableStateOf(DesktopLibraryTab.Artists)
         private set
-    var limit by mutableIntStateOf(LibraryPageSize)
-        private set
     var snapshot by mutableStateOf(LibrarySnapshot())
         private set
     var status by mutableStateOf<String?>(null)
@@ -48,17 +46,46 @@ class DesktopLibraryController(
     var syncing by mutableStateOf(false)
         private set
 
+    private val catalogService = ApiCatalogService(provider)
+    private val artistsPager = catalogService.artistsPager(
+        scope = scope,
+        query = { query },
+        initialRequest = MediaPageRequest(limit = LibraryPageSize),
+    )
+    private val albumsPager = catalogService.albumsPager(
+        scope = scope,
+        query = { query },
+        initialRequest = MediaPageRequest(limit = LibraryPageSize),
+    )
+
+    init {
+        scope.launch {
+            artistsPager.state.collect { state ->
+                snapshot = snapshot.copy(artists = state.items)
+                if (tab == DesktopLibraryTab.Artists) status = state.errorMessage
+            }
+        }
+        scope.launch {
+            albumsPager.state.collect { state ->
+                snapshot = snapshot.copy(albums = state.items)
+                if (tab == DesktopLibraryTab.Albums) status = state.errorMessage
+            }
+        }
+    }
+
     fun updateQuery(query: String) {
         this.query = query
     }
 
     fun applyClearedState(snapshot: LibrarySnapshot, status: String?) {
-        this.snapshot = snapshot
+        artistsPager.cancel()
+        albumsPager.cancel()
+        this.snapshot = LibrarySnapshot()
         this.status = status
     }
 
     fun refreshAfterQueryOrSourceChange() {
-        limit = LibraryPageSize
+        snapshot = LibrarySnapshot()
         refreshLibrarySnapshot()
         scope.launch {
             listState.scrollToItem(0)
@@ -66,39 +93,30 @@ class DesktopLibraryController(
     }
 
     fun refreshLibrarySnapshot() {
-        val activeSourceId = sourceId()
-        if (activeSourceId == null) {
+        if (provider() == null) {
             snapshot = LibrarySnapshot()
             status = libraryConnectionRequiredStatus()
             return
         }
-        snapshot = libraryIndexRepository.librarySnapshotFor(activeSourceId, query, limit)
+        status = null
+        when (tab) {
+            DesktopLibraryTab.Artists -> artistsPager.refresh()
+            DesktopLibraryTab.Albums -> albumsPager.refresh()
+        }
     }
 
     fun loadMoreLibraryRows() {
-        val nextLimit = nextLibraryLimit(snapshot, tab, limit, LibraryPageSize)
-        if (nextLimit == limit) return
-        limit = nextLimit
-        refreshLibrarySnapshot()
+        when (tab) {
+            DesktopLibraryTab.Artists -> artistsPager.loadNext()
+            DesktopLibraryTab.Albums -> albumsPager.loadNext()
+        }
     }
 
     fun selectLibraryTab(tab: DesktopLibraryTab) {
         this.tab = tab
-        limit = LibraryPageSize
         refreshLibrarySnapshot()
         scope.launch {
             listState.scrollToItem(0)
-        }
-    }
-
-    fun jumpLibraryToLetter(letter: Char) {
-        val activeSourceId = sourceId() ?: return
-        if (query.isNotBlank()) return
-        val offset = libraryOffsetForLetter(activeSourceId, tab, letter).toInt()
-        limit = libraryLimitForOffset(offset, LibraryPageSize)
-        refreshLibrarySnapshot()
-        scope.launch {
-            listState.scrollToItem((offset + 1).coerceAtLeast(0))
         }
     }
 

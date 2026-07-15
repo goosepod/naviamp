@@ -14,6 +14,7 @@ const val MaximumMediaPageSize: Int = 200
 data class MediaPageRequest(
     val offset: Int = 0,
     val limit: Int = DefaultMediaPageSize,
+    val continuationToken: String? = null,
 ) {
     init {
         require(offset >= 0) { "Media page offset must not be negative." }
@@ -28,10 +29,15 @@ data class MediaPage<T>(
     val offset: Int,
     val limit: Int,
     val hasMore: Boolean,
+    val nextContinuationToken: String? = null,
 ) {
     val nextRequest: MediaPageRequest?
         get() = if (hasMore) {
-            MediaPageRequest(offset = offset + items.size, limit = limit)
+            MediaPageRequest(
+                offset = offset + items.size,
+                limit = limit,
+                continuationToken = nextContinuationToken,
+            )
         } else {
             null
         }
