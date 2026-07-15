@@ -2,6 +2,34 @@
 
 Release changes are grouped into user-facing Features, Bug Fixes, and deployment or infrastructure-related System Settings. Internal task-tracking notes are intentionally not included.
 
+## v1.3.0
+
+### Features
+
+- Added release-aware artist discographies with album, EP, single, live, compilation, remix, and soundtrack sections plus explicit-content indicators.
+- Added configurable album list or artwork-grid layouts, release-type grouping, and sorting by year or title across desktop and Android.
+- Moved connected catalog browsing to shared paged Navidrome APIs while preserving fast artist search and A-Z navigation with a lightweight local index.
+- Added visible download jobs with progress, cancellation, retry, completed-file quality details, and configurable download swipe actions.
+- Added configurable download and audio-cache locations, including Android storage selection for devices with SD cards.
+- Added keep-downloaded playlists, Smart Playlists, and favorites with automatic missing-track reconciliation.
+- Added a playback preference to choose downloaded files first or prefer the server with downloaded-file fallback.
+
+### Bug Fixes
+
+- Fixed download transcoding so selected codec and bitrate settings are honored and accurately displayed.
+- Fixed completed download activity, downloaded-file size totals, album artwork, refresh behavior, and externally removed-file detection.
+- Fixed waveform generation that could remain unfinished for an entire track.
+- Fixed Android storage-location crashes and missing keep-downloaded tables in databases created by development builds.
+- Fixed the Sonic track overflow menu crash and restored transparent bottom navigation backgrounds.
+- Standardized page headings, action alignment, search-field spacing, and compact search styling across desktop and Android.
+
+### System Settings
+
+- Replaced the mirrored album and track catalog with bounded cross-platform paging and retained only local data with durable offline value.
+- Added a database migration that clears legacy catalog mirrors and oversized artwork blobs, then reclaims freed SQLite pages.
+- Bounded persistent artwork caching to appropriately sized 512 px browsing images and 1024 px Now Playing images.
+- Added cross-platform coverage for paging, release sections, download jobs, keep-downloaded policies, playback source selection, migrations, and settings persistence.
+
 ## v1.2.0
 
 ### Features

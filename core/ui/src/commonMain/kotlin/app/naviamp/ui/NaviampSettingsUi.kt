@@ -1443,20 +1443,23 @@ private val DefaultNaviampChangelog = listOf(
     NaviampChangelogSectionUi(
         title = "Features",
         entries = listOf(
-            "Added dedicated standard playlist editing with drag reordering, track removal, undo, save and cancel controls, and configurable editing-only swipe actions.",
-            "Added Smart Playlist editing with single- and multi-library targeting, preserved rule grouping, and refreshed results after updates.",
-            "Made album, artist, and playlist action rows adapt to the available width while keeping additional actions in an overflow menu.",
+            "Added release-aware discographies with configurable album sections, artwork grids, and sorting.",
+            "Moved connected catalog browsing to shared paged APIs with fast artist search and A-Z navigation.",
+            "Added visible download progress, cancellation, retry, completed-file quality details, and configurable swipe actions.",
+            "Added configurable download and audio-cache locations, including Android SD-card storage selection.",
+            "Added keep-downloaded playlists, Smart Playlists, and favorites with automatic reconciliation.",
+            "Added a playback preference for downloaded-first or server-first audio selection.",
         ),
     ),
     NaviampChangelogSectionUi(
         title = "Bug Fixes",
         entries = listOf(
-            "Fixed expired Navidrome authentication while creating or updating Smart Playlists by refreshing rotated native tokens and retrying after reauthentication.",
-            "Prevented automatic track changes and restored playback sessions from opening Now Playing or interrupting in-progress Smart Playlist edits.",
-            "Fixed playlist detail layouts, compact-screen scrolling, drag auto-scrolling, dragged-item layering, action contrast, and Smart Playlist-specific controls.",
-            "Fixed incomplete waveform analysis and invalid cached waveforms that produced sparse or misleading progress displays.",
-            "Fixed Android notification artwork updates occurring from a background thread.",
-            "Fixed Library navigation behaving like artist-detail Back after browsing through Similar Artists.",
+            "Fixed download transcodes so the selected codec and bitrate are honored and displayed accurately.",
+            "Fixed completed download activity, storage totals, album artwork, refresh behavior, and externally removed files.",
+            "Fixed waveform generation that could remain unfinished for an entire track.",
+            "Fixed Android storage-location crashes and missing keep-downloaded database tables.",
+            "Fixed the Sonic overflow menu crash and restored transparent bottom navigation backgrounds.",
+            "Standardized page headings, action alignment, and compact search styling across desktop and Android.",
         ),
     ),
 )
