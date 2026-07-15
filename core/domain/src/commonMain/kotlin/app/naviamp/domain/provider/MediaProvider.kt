@@ -33,6 +33,8 @@ interface MediaProvider {
     suspend fun artist(artistId: ArtistId): ArtistDetails
     suspend fun artists(limit: Int = 50): List<Artist>
     suspend fun albums(limit: Int = 50, offset: Int = 0): List<Album> = emptyList()
+    suspend fun albumsPage(request: MediaPageRequest = MediaPageRequest()): MediaPage<Album> =
+        request.toMediaPage(albums(limit = request.limit, offset = request.offset))
     suspend fun albumList(type: AlbumListType, limit: Int = 20): List<Album> = emptyList()
     suspend fun albumsByGenre(genre: String, limit: Int = 20): List<Album> = emptyList()
     suspend fun albumsByYear(fromYear: Int, toYear: Int, limit: Int = 20): List<Album> = emptyList()

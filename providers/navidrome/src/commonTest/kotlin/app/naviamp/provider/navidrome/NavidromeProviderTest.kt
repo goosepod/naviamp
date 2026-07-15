@@ -9,6 +9,7 @@ import app.naviamp.domain.StreamQuality
 import app.naviamp.domain.StreamRequest
 import app.naviamp.domain.TrackId
 import app.naviamp.domain.provider.AlbumListType
+import app.naviamp.domain.provider.MediaPageRequest
 import app.naviamp.domain.network.NaviampClientName
 import app.naviamp.domain.popular.NavidromeAgentMetadataSource
 import app.naviamp.domain.smartplaylist.SmartPlaylistCondition
@@ -777,6 +778,26 @@ class NavidromeProviderTest {
             httpClient.urls.single(),
         )
         assertEquals("Technique", albums.single().title)
+    }
+
+    @Test
+    fun albumPageSendsTheBoundedLimitAndOffsetToNavidrome() = runTest {
+        val httpClient = RecordingResponseHttpClient(
+            albumListResponse(albumId = "album-1", title = "Technique", artist = "New Order"),
+        )
+        val provider = NavidromeProvider(
+            connection = connection("https://music.example.test"),
+            httpClient = httpClient,
+        )
+
+        val page = provider.albumsPage(MediaPageRequest(offset = 50, limit = 25))
+
+        assertEquals(
+            "https://music.example.test/rest/getAlbumList2.view?u=demo&t=token&s=salt&v=1.16.1&$ExpectedClientQuery&f=json&type=alphabeticalByName&size=25&offset=50",
+            httpClient.urls.single(),
+        )
+        assertEquals(listOf("Technique"), page.items.map { it.title })
+        assertFalse(page.hasMore)
     }
 
     @Test
