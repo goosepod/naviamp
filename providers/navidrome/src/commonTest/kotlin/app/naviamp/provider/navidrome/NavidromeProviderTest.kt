@@ -9,6 +9,7 @@ import app.naviamp.domain.StreamQuality
 import app.naviamp.domain.StreamRequest
 import app.naviamp.domain.TrackId
 import app.naviamp.domain.provider.AlbumListType
+import app.naviamp.domain.provider.CoverArtSize
 import app.naviamp.domain.provider.MediaPageRequest
 import app.naviamp.domain.network.NaviampClientName
 import app.naviamp.domain.popular.NavidromeAgentMetadataSource
@@ -81,7 +82,19 @@ class NavidromeProviderTest {
         val url = provider.coverArtUrl("cover-1")
 
         assertEquals(
-            "https://music.example.test/rest/getCoverArt.view?u=demo&t=token&s=salt&v=1.16.1&$ExpectedClientQuery&f=json&id=cover-1",
+            "https://music.example.test/rest/getCoverArt.view?u=demo&t=token&s=salt&v=1.16.1&$ExpectedClientQuery&f=json&id=cover-1&size=512",
+            url,
+        )
+    }
+
+    @Test
+    fun heroCoverArtUrlRequestsA1024PixelImage() {
+        val provider = NavidromeProvider(connection("https://music.example.test"))
+
+        val url = provider.coverArtUrl("cover-1", CoverArtSize.Hero)
+
+        assertEquals(
+            "https://music.example.test/rest/getCoverArt.view?u=demo&t=token&s=salt&v=1.16.1&$ExpectedClientQuery&f=json&id=cover-1&size=1024",
             url,
         )
     }
@@ -667,7 +680,7 @@ class NavidromeProviderTest {
         assertEquals("artist-2", artists.single().sourceArtistId)
         assertEquals("Electronic", artists.single().name)
         assertEquals(
-            "https://music.example.test/rest/getCoverArt.view?u=demo&t=token&s=salt&v=1.16.1&$ExpectedClientQuery&f=json&id=artist-2-cover",
+            "https://music.example.test/rest/getCoverArt.view?u=demo&t=token&s=salt&v=1.16.1&$ExpectedClientQuery&f=json&id=artist-2-cover&size=512",
             artists.single().imageUrl,
         )
         assertEquals("https://musicbrainz.org/artist/55f1f4e6-2a97-4da6-9a7c-b451a2f22475", artists.single().externalUrl)

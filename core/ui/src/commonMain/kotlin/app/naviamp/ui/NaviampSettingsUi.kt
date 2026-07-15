@@ -195,7 +195,7 @@ fun NaviampSharedSettingsContent(
 
     Column(
         verticalArrangement = Arrangement.spacedBy(
-            if (selectedCategory == null) 10.dp else SettingsDetailItemSpacing,
+            if (selectedCategory == null) 8.dp else SettingsDetailItemSpacing,
         ),
     ) {
         selectedCategory?.let { category ->
@@ -313,7 +313,7 @@ fun NaviampSharedSettingsContent(
                 )
             }
         } ?: run {
-            Text(languagePack.settingsTitle(), color = colors.primaryText, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+            NaviampPageTitle(languagePack.settingsTitle(), colors)
             val currentConnection = savedConnections.firstOrNull { it.current }
             NaviampSettingsCategory.entries.forEach { category ->
                 SettingsCategoryRow(

@@ -364,6 +364,10 @@ fun NaviampAndroidApp(
         )
     }
 
+    val apiLibraryController = remember(appState, storage) {
+        AndroidApiLibraryController(scope = scope, state = appState, libraryIndexRepository = storage)
+    }
+
     val connectionSessionController = remember(appState, storage, settingsStore, playbackQueueController) {
         AndroidConnectionSessionController(
             scope = scope,
@@ -393,11 +397,15 @@ fun NaviampAndroidApp(
                     )
                 }
             },
-            startAndroidLibrarySync = { force -> startAndroidLibrarySync(scope, appState, storage, force) },
-            checkAndroidLibraryFreshness = { checkAndroidLibraryFreshness(scope, appState, storage, storage) },
+            startAndroidLibrarySync = { apiLibraryController.refresh() },
+            checkAndroidLibraryFreshness = {},
         )
     }
     restorePlaybackSessionAction = connectionSessionController::restorePlaybackSession
+
+    LaunchedEffect(appState.provider) {
+        apiLibraryController.refresh()
+    }
 
     AndroidAppPersistenceEffects(
         state = appState,
@@ -405,7 +413,7 @@ fun NaviampAndroidApp(
         cacheMaintenanceRepository = storage,
         updateAudioCacheLimit = storage::updateAudioCacheLimit,
         savePlaybackSessionThrottled = playbackAppController::savePlaybackSessionThrottled,
-        checkAndroidLibraryFreshness = { checkAndroidLibraryFreshness(scope, appState, storage, storage) },
+        checkAndroidLibraryFreshness = {},
     )
 
     val sonicPathController = remember(appState) {
@@ -878,6 +886,7 @@ fun NaviampAndroidApp(
         sonicMixController = sonicMixController,
         sonicHomeDiscoveryController = sonicHomeDiscoveryController,
         nowPlayingSidecarController = nowPlayingSidecarController,
+        apiLibraryController = apiLibraryController,
         onSyncedSettingsChanged = { onSyncedSettingsChanged() },
     )
 

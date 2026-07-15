@@ -47,6 +47,13 @@ class AndroidLibraryIndexStore(
         }
     }
 
+    override fun replaceLibraryArtists(sourceId: String, artists: List<Artist>) {
+        queries.transaction {
+            queries.clearLibraryArtistsForSource(sourceId)
+            upsertLibraryArtists(sourceId, artists)
+        }
+    }
+
     override fun upsertLibraryAlbums(sourceId: String, albums: List<Album>) {
         val now = nowMillis()
         queries.transaction {

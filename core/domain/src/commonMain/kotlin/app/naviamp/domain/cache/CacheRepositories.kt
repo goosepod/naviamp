@@ -27,6 +27,8 @@ interface ImageCacheRepository {
     suspend fun imageBytes(url: String): ByteArray
 }
 
+const val MaximumPersistentArtworkCacheBytes: Long = 96L * 1024L * 1024L
+
 interface ProviderResponseCacheRepository {
     suspend fun <T> cachedProviderResponse(
         provider: MediaProvider,
@@ -277,6 +279,10 @@ interface LocalLibraryIndexRepository : ArtistPopularTracksRepository {
     fun markLibrarySyncCompleted(sourceId: String)
 
     fun upsertLibraryArtists(sourceId: String, artists: List<Artist>)
+
+    fun replaceLibraryArtists(sourceId: String, artists: List<Artist>) {
+        upsertLibraryArtists(sourceId, artists)
+    }
 
     fun upsertLibraryAlbums(sourceId: String, albums: List<Album>)
 

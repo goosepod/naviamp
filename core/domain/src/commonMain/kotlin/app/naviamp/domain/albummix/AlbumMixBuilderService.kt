@@ -106,10 +106,18 @@ fun albumMixBuilderService(
                 }
         },
         albumsForArtist = { artist, limit ->
-            sourceId()
-                ?.let { activeSourceId -> localAlbumSearch(activeSourceId, artist.name, limit) }
+            provider()
+                ?.let { activeProvider ->
+                    runCatching { activeProvider.artist(artist.id).albums }.getOrDefault(emptyList())
+                }
                 .orEmpty()
-                .filter { album -> album.artistName.equals(artist.name, ignoreCase = true) }
+                .ifEmpty {
+                    sourceId()
+                        ?.let { activeSourceId -> localAlbumSearch(activeSourceId, artist.name, limit) }
+                        .orEmpty()
+                        .filter { album -> album.artistName.equals(artist.name, ignoreCase = true) }
+                }
+                .take(limit.toInt())
         },
         albumTracks = { album, limit ->
             val localTracks = sourceId()

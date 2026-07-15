@@ -85,4 +85,4 @@ private fun localFileFromUrl(url: String): File? =
 private fun String.safeFileName(): String =
     replace(Regex("[^A-Za-z0-9._-]"), "_").take(96).ifBlank { "track" }
 
-private const val WaveformCacheVersion = "bass-v9"
+private const val WaveformCacheVersion = "bass-v10"

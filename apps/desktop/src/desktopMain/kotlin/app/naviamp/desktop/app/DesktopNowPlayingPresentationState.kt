@@ -14,6 +14,7 @@ import app.naviamp.domain.Track
 import app.naviamp.domain.playback.PlaybackState
 import app.naviamp.domain.playback.PlaybackStreamMetadata
 import app.naviamp.domain.playback.PlaybackVisualizerFrame
+import app.naviamp.domain.provider.CoverArtSize
 import app.naviamp.desktop.settings.VisualizerSettings
 import app.naviamp.provider.navidrome.NavidromeProvider
 import app.naviamp.ui.NaviampPlayerColors
@@ -93,8 +94,11 @@ internal fun rememberDesktopNowPlayingPresentationState(
     provider: NavidromeProvider?,
 ): DesktopNowPlayingPresentationState {
     val state = remember { DesktopNowPlayingPresentationState(initialVisualizerSettings) }
+    val heroCoverArtUrl = nowPlayingTrack?.coverArtId
+        ?.let { provider?.coverArtUrl(it, CoverArtSize.Hero) }
+        ?: currentCoverArtUrl
     val effectiveCoverArtUrl = effectiveNowPlayingCoverArtUrl(
-        currentCoverArtUrl = currentCoverArtUrl,
+        currentCoverArtUrl = heroCoverArtUrl,
         nowPlayingTrack = nowPlayingTrack,
         nowPlayingStation = nowPlayingStation,
         streamMetadata = streamMetadata,

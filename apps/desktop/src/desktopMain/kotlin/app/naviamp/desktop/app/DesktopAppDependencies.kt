@@ -5,7 +5,6 @@ import app.naviamp.desktop.playback.DesktopPlaylistEngine
 import app.naviamp.desktop.settings.DesktopSettingsStore
 import app.naviamp.domain.audio.AudioMetadataSidecarService
 import app.naviamp.domain.cache.ImageCacheRepository
-import app.naviamp.domain.cache.ProviderResponseService
 import app.naviamp.domain.lyrics.LyricsSidecarService
 import app.naviamp.domain.playback.PlaybackEngine
 import app.naviamp.domain.playback.PlaybackSidecarService
@@ -13,6 +12,7 @@ import app.naviamp.domain.popular.ArtistPopularTracksService
 import app.naviamp.domain.popular.ProviderArtistPopularTracksClient
 import app.naviamp.domain.popular.ProviderSimilarArtistsClient
 import app.naviamp.domain.popular.SimilarArtistsService
+import app.naviamp.domain.popular.SessionArtistPopularTracksRepository
 import app.naviamp.domain.waveform.AudioWaveformService
 import app.naviamp.provider.navidrome.NavidromeProvider
 import java.nio.file.Path
@@ -22,6 +22,7 @@ class DesktopAppDependencies(
     val playbackEngine: PlaybackEngine = DesktopPlaybackEngineFactory.createDefault(),
     val storage: DesktopStorageDependencies = DesktopStorageDependencies(),
 ) {
+    private val sessionPopularTracks = SessionArtistPopularTracksRepository()
     var waveformsEnabledProvider: () -> Boolean = { true }
     var waveformBucketCountProvider: () -> Int = { app.naviamp.domain.settings.DefaultWaveformBucketCount }
 
@@ -69,11 +70,13 @@ class DesktopAppDependencies(
         providerProvider: () -> NavidromeProvider?,
     ): ArtistPopularTracksService =
         ArtistPopularTracksService(
-            repository = storage,
+            repository = sessionPopularTracks,
             libraryTracksForArtist = { artist, limit ->
-                val sourceId = sourceIdProvider().orEmpty()
-                storage.libraryTracksForArtist(sourceId, artist.id, limit)
-                    .ifEmpty { storage.libraryTracksForArtistName(sourceId, artist.name, limit) }
+                providerProvider()?.artist(artist.id)?.albums
+                    .orEmpty()
+                    .take(DesktopPopularTrackAlbumFallbackLimit)
+                    .flatMap { album -> providerProvider()?.album(album.id)?.tracks.orEmpty() }
+                    .take(limit.toInt())
             },
             client = ProviderArtistPopularTracksClient(providerProvider),
         )
@@ -84,7 +87,7 @@ class DesktopAppDependencies(
     ): SimilarArtistsService =
         SimilarArtistsService(
             libraryArtistsSearch = { query, limit ->
-                storage.searchLibrary(sourceIdProvider().orEmpty(), query, limit).artists
+                providerProvider()?.search(query, limit.toInt())?.artists.orEmpty()
             },
             client = ProviderSimilarArtistsClient(providerProvider),
         )
@@ -107,9 +110,6 @@ class DesktopAppDependencies(
             playbackAudioAssets = playbackAudioAssets,
         )
 
-    fun librarySync(): DesktopLibrarySync =
-        DesktopLibrarySync(
-            libraryIndexRepository = storage,
-            providerResponseService = ProviderResponseService(storage),
-        )
 }
+
+private const val DesktopPopularTrackAlbumFallbackLimit = 4

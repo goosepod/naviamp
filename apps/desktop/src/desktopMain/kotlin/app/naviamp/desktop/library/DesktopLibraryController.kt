@@ -11,25 +11,18 @@ import app.naviamp.domain.app.libraryIndexClearedStatus
 import app.naviamp.domain.cache.CacheMaintenanceRepository
 import app.naviamp.domain.cache.LocalLibraryIndexRepository
 import app.naviamp.domain.cache.LibrarySnapshot
-import app.naviamp.domain.cache.MediaSourceRepository
-import app.naviamp.domain.library.LibrarySyncCoordinator
 import app.naviamp.domain.library.libraryConnectionRequiredStatus
-import app.naviamp.domain.library.libraryFreshnessUpdate
-import app.naviamp.domain.provider.ApiCatalogService
-import app.naviamp.domain.provider.MediaPageRequest
+import app.naviamp.domain.library.ArtistLibraryIndex
 import app.naviamp.domain.provider.MediaProvider
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 class DesktopLibraryController(
     private val scope: CoroutineScope,
     private val libraryIndexRepository: LocalLibraryIndexRepository,
-    private val mediaSourceRepository: MediaSourceRepository,
     private val cacheMaintenanceRepository: CacheMaintenanceRepository<StorageCacheStats>,
-    private val librarySync: DesktopLibrarySync,
     private val provider: () -> MediaProvider?,
     private val sourceId: () -> String?,
     private val setConnectionStatus: (String) -> Unit,
@@ -46,40 +39,13 @@ class DesktopLibraryController(
     var syncing by mutableStateOf(false)
         private set
 
-    private val catalogService = ApiCatalogService(provider)
-    private val artistsPager = catalogService.artistsPager(
-        scope = scope,
-        query = { query },
-        initialRequest = MediaPageRequest(limit = LibraryPageSize),
-    )
-    private val albumsPager = catalogService.albumsPager(
-        scope = scope,
-        query = { query },
-        initialRequest = MediaPageRequest(limit = LibraryPageSize),
-    )
-
-    init {
-        scope.launch {
-            artistsPager.state.collect { state ->
-                snapshot = snapshot.copy(artists = state.items)
-                if (tab == DesktopLibraryTab.Artists) status = state.errorMessage
-            }
-        }
-        scope.launch {
-            albumsPager.state.collect { state ->
-                snapshot = snapshot.copy(albums = state.items)
-                if (tab == DesktopLibraryTab.Albums) status = state.errorMessage
-            }
-        }
-    }
+    private val artistIndex = ArtistLibraryIndex(libraryIndexRepository)
 
     fun updateQuery(query: String) {
         this.query = query
     }
 
     fun applyClearedState(snapshot: LibrarySnapshot, status: String?) {
-        artistsPager.cancel()
-        albumsPager.cancel()
         this.snapshot = LibrarySnapshot()
         this.status = status
     }
@@ -93,90 +59,48 @@ class DesktopLibraryController(
     }
 
     fun refreshLibrarySnapshot() {
-        if (provider() == null) {
+        val activeSourceId = sourceId()
+        if (activeSourceId == null) {
             snapshot = LibrarySnapshot()
             status = libraryConnectionRequiredStatus()
             return
         }
-        status = null
-        when (tab) {
-            DesktopLibraryTab.Artists -> artistsPager.refresh()
-            DesktopLibraryTab.Albums -> albumsPager.refresh()
-        }
+        snapshot = artistIndex.snapshot(activeSourceId, query)
+        status = if (snapshot.artists.isEmpty()) "No artists indexed yet. Refresh to load them." else null
     }
 
-    fun loadMoreLibraryRows() {
-        when (tab) {
-            DesktopLibraryTab.Artists -> artistsPager.loadNext()
-            DesktopLibraryTab.Albums -> albumsPager.loadNext()
+    fun refreshArtistIndex() {
+        if (syncing) return
+        val activeProvider = provider()
+        val activeSourceId = sourceId()
+        if (activeProvider == null || activeSourceId == null) {
+            refreshLibrarySnapshot()
+            return
         }
-    }
-
-    fun selectLibraryTab(tab: DesktopLibraryTab) {
-        this.tab = tab
-        refreshLibrarySnapshot()
+        syncing = true
+        status = "Refreshing artists…"
         scope.launch {
-            listState.scrollToItem(0)
+            runCatching {
+                withContext(Dispatchers.IO) {
+                    artistIndex.refresh(activeSourceId, activeProvider)
+                }
+            }.onSuccess {
+                snapshot = artistIndex.snapshot(activeSourceId, query)
+                status = "${snapshot.artists.size} artists indexed."
+            }.onFailure { error ->
+                status = "Could not refresh artists: ${error.message ?: error::class.simpleName}"
+            }
+            syncing = false
         }
     }
 
-    fun startLibrarySync(force: Boolean = false) {
-        val coordinator = librarySyncCoordinator()
-        scope.launch {
-            val uiContext = coroutineContext
-            coordinator.startSync(
-                force = force,
-                sync = { sourceId, provider, setProgressStatus ->
-                    withContext(Dispatchers.IO) {
-                        librarySync.syncAndMarkScanChecked(
-                            sourceId = sourceId,
-                            provider = provider,
-                            onProgress = { progress ->
-                                withContext(uiContext) {
-                                    setProgressStatus(progress.label())
-                                }
-                            },
-                        )
-                    }
-                },
-                onCompleted = { refreshLibrarySnapshot() },
-            )
-        }
-    }
-
-    private fun librarySyncCoordinator(): LibrarySyncCoordinator =
-        LibrarySyncCoordinator(
-            provider = provider,
-            sourceId = sourceId,
-            syncing = { syncing },
-            setSyncing = { nextSyncing -> syncing = nextSyncing },
-            status = { status },
-            setStatus = { nextStatus -> status = nextStatus },
-            libraryIndexRepository = libraryIndexRepository,
-            mediaSourceRepository = mediaSourceRepository,
-        )
-
-    fun checkLibraryFreshness() {
-        val coordinator = librarySyncCoordinator()
-        scope.launch {
-            coordinator.checkFreshness(
-                loadFreshness = { sourceId, provider, currentStatus ->
-                    withContext(Dispatchers.IO) {
-                        libraryFreshnessUpdate(
-                            sourceId = sourceId,
-                            provider = provider,
-                            mediaSourceRepository = mediaSourceRepository,
-                            currentStatus = currentStatus,
-                        )
-                    }
-                },
-                markScanChecked = { sourceId, signature ->
-                    withContext(Dispatchers.IO) {
-                        libraryIndexRepository.markLibraryScanChecked(sourceId, signature)
-                    }
-                },
-            )
-        }
+    fun jumpLibraryToLetter(letter: Char) {
+        if (query.isNotBlank()) return
+        val boundary = if (letter == '#') "" else letter.lowercaseChar().toString()
+        val offset = snapshot.artists.indexOfFirst { artist ->
+            artist.name.lowercase() >= boundary
+        }.takeIf { it >= 0 } ?: return
+        scope.launch { listState.scrollToItem(offset + 1) }
     }
 
     fun clearCacheData() {

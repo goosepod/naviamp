@@ -67,6 +67,7 @@ import app.naviamp.desktop.settings.CacheSettings
 import app.naviamp.desktop.settings.PlaybackSettings
 import app.naviamp.ui.NaviampAboutSettingsSection
 import app.naviamp.ui.NaviampAboutUi
+import app.naviamp.ui.NaviampPageTitle
 import app.naviamp.ui.NaviampAudioCacheSettingsSection
 import app.naviamp.ui.NaviampConnectionForm
 import app.naviamp.ui.NaviampDebugPlaybackSettingsSection
@@ -369,7 +370,7 @@ fun DesktopSettingsPanel(
                 verticalArrangement = Arrangement.spacedBy(8.dp),
                 modifier = Modifier.fillMaxSize(),
             ) {
-                Text(languagePack.settingsTitle(), color = appColors.primaryText, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
+                NaviampPageTitle(languagePack.settingsTitle(), appColors)
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                     modifier = Modifier
@@ -499,8 +500,8 @@ private fun SettingsCategoryList(
             .verticalScroll(rememberScrollState())
             .padding(end = 10.dp),
     ) {
-        Text(languagePack.settingsTitle(), color = appColors.primaryText, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
-        Spacer(modifier = Modifier.height(8.dp))
+        NaviampPageTitle(languagePack.settingsTitle(), appColors)
+        Spacer(modifier = Modifier.height(6.dp))
         NaviampSettingsCategory.entries.forEach { category ->
             SettingsCategoryRow(
                 appColors = appColors,

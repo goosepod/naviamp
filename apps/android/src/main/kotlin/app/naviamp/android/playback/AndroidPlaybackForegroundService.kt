@@ -67,7 +67,6 @@ import app.naviamp.domain.settings.RecentRadioKind
 import app.naviamp.domain.settings.RecentRadioStream
 import app.naviamp.domain.settings.SavedTrack
 import app.naviamp.domain.settings.playbackSessionFromQueue
-import app.naviamp.domain.smartplaylist.SmartPlaylistTemplates
 import app.naviamp.domain.source.SavedMediaSource
 import app.naviamp.provider.navidrome.NavidromeProvider
 import app.naviamp.provider.navidrome.toNavidromeConnection
@@ -80,9 +79,7 @@ import java.security.MessageDigest
 import java.util.UUID
 import kotlin.concurrent.thread
 
-private const val VoiceArtistScanLimit = 5_000L
-private const val AndroidAutoTemplateTrackScanLimit = 5_000L
-private const val AndroidAutoSmartTemplateTrackLimit = 100
+private const val AndroidAutoArtistAlbumFallbackLimit = 4
 class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
     private val mainHandler = Handler(Looper.getMainLooper())
     private var serviceActive = false
@@ -682,20 +679,6 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
                 }
                 true
             }
-            mediaId.startsWith(AndroidAutoPlaybackControls.MediaIdSmartTemplatePrefix) -> {
-                val templateIndex = Uri.decode(mediaId.removePrefix(AndroidAutoPlaybackControls.MediaIdSmartTemplatePrefix))
-                    .toIntOrNull()
-                    ?: return false
-                val template = SmartPlaylistTemplates.recommended.getOrNull(templateIndex) ?: return false
-                val tracks = smartTemplateTracks(storage, sourceId, template.title)
-                if (tracks.isEmpty()) {
-                    Log.w("NaviampAutoCommand", "Auto smart template had no tracks title=${template.title}")
-                    return false
-                }
-                Log.i("NaviampAutoCommand", "Auto playing smart template=${template.title} count=${tracks.size}")
-                playServiceTrackQueue(storage, sourceId, tracks, currentIndex = 0)
-                true
-            }
             mediaId.startsWith(AndroidAutoPlaybackControls.MediaIdPlaylistPlayPrefix) -> {
                 val playlistId = Uri.decode(mediaId.removePrefix(AndroidAutoPlaybackControls.MediaIdPlaylistPlayPrefix))
                 val provider = NavidromeProvider(source.toNavidromeConnection())
@@ -792,11 +775,26 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
                 false
             }
             mediaId.startsWith(AndroidAutoPlaybackControls.MediaIdTrackPrefix) -> {
-                val trackId = Uri.decode(mediaId.removePrefix(AndroidAutoPlaybackControls.MediaIdTrackPrefix))
-                val track = storage.libraryTrack(sourceId, TrackId(trackId)) ?: return false
-                val queue = serviceQueueForLibraryTrack(storage, sourceId, track)
-                val index = queue.indexOfFirst { it.id == track.id }.coerceAtLeast(0)
-                playServiceTrackQueue(storage, sourceId, queue, index)
+                val parts = mediaId.removePrefix(AndroidAutoPlaybackControls.MediaIdTrackPrefix).mediaIdParts()
+                val trackId = parts.getOrNull(0).orEmpty()
+                if (trackId.isBlank()) return false
+                val track = if (parts.size > 1) {
+                    Track(
+                        id = TrackId(trackId),
+                        title = parts.getOrNull(1).orEmpty().ifBlank { "Track" },
+                        artistId = parts.getOrNull(2)?.takeIf { it.isNotBlank() }?.let(::ArtistId),
+                        artistName = parts.getOrNull(3).orEmpty(),
+                        albumId = parts.getOrNull(4)?.takeIf { it.isNotBlank() }?.let(::AlbumId),
+                        albumTitle = parts.getOrNull(5)?.takeIf { it.isNotBlank() },
+                        durationSeconds = parts.getOrNull(6)?.toIntOrNull(),
+                        coverArtId = parts.getOrNull(7)?.takeIf { it.isNotBlank() },
+                        audioInfo = null,
+                        replayGain = null,
+                    )
+                } else {
+                    storage.libraryTrack(sourceId, TrackId(trackId)) ?: return false
+                }
+                playServiceTrackQueue(storage, sourceId, listOf(track), 0)
                 true
             }
             mediaId.startsWith(AndroidAutoPlaybackControls.MediaIdArtistTrackPrefix) -> {
@@ -1000,30 +998,44 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
             Log.w("NaviampAutoCommand", "No Auto radio match for query=$trimmedQuery normalized=$radioQuery")
             return false
         }
-        val snapshot = storage.searchLibrary(source.id, trimmedQuery, AndroidAutoBrowseLimit.toLong(), 0)
-        snapshot.tracks.firstOrNull()?.let { track ->
-            Log.i("NaviampAutoCommand", "Auto voice search matched track=${track.title}")
-            val queue = serviceQueueForLibraryTrack(storage, source.id, track)
-            playServiceTrackQueue(storage, source.id, queue, queue.indexOfFirst { it.id == track.id }.coerceAtLeast(0))
-            return true
+        val provider = NavidromeProvider(source.toNavidromeConnection())
+        launchServiceSelection {
+            runCatching {
+                withContext(Dispatchers.IO) {
+                    val results = provider.search(trimmedQuery, AndroidAutoBrowseLimit)
+                    val track = results.tracks.firstOrNull()
+                    val artist = results.artists.firstOrNull { it.name.equals(trimmedQuery, ignoreCase = true) }
+                        ?: results.artists.firstOrNull()
+                    val album = results.albums.firstOrNull { it.title.equals(trimmedQuery, ignoreCase = true) }
+                        ?: results.albums.firstOrNull()
+                    when {
+                        track != null -> {
+                            Log.i("NaviampAutoCommand", "Auto voice search matched track=${track.title}")
+                            listOf(track)
+                        }
+                        album != null -> provider.album(album.id).tracks
+                        artist != null -> loadServiceArtistTracks(
+                            libraryIndexRepository = storage,
+                            providerResponseCacheRepository = storage,
+                            sourceId = source.id,
+                            provider = provider,
+                            artistId = artist.id.value,
+                            artistName = artist.name,
+                        )
+                        else -> emptyList()
+                    }
+                }
+            }
+                .onSuccess { tracks ->
+                    if (tracks.isEmpty()) {
+                        Log.w("NaviampAutoCommand", "No Auto voice search match query=$trimmedQuery")
+                    } else {
+                        playServiceTrackQueue(storage, source.id, tracks, 0)
+                    }
+                }
+                .onFailure { error -> Log.w("NaviampAutoCommand", "Auto voice search failed query=$trimmedQuery", error) }
         }
-        val exactArtist = snapshot.artists.firstOrNull { it.name.equals(trimmedQuery, ignoreCase = true) }
-        if (exactArtist != null) {
-            playServiceVoiceArtistMatch(storage, source, exactArtist)
-            return true
-        }
-        val exactAlbum = snapshot.albums.firstOrNull { it.title.equals(trimmedQuery, ignoreCase = true) }
-        val album = exactAlbum ?: snapshot.albums.firstOrNull()
-        if (album != null) {
-            playServiceVoiceAlbumMatch(storage, source, album)
-            return true
-        }
-        snapshot.artists.firstOrNull()?.let { artist ->
-            playServiceVoiceArtistMatch(storage, source, artist)
-            return true
-        }
-        Log.w("NaviampAutoCommand", "No Auto voice search match query=$trimmedQuery")
-        return false
+        return true
     }
 
     private fun playServiceVoiceAlbumMatch(
@@ -1242,31 +1254,46 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
         sourceId: String,
         query: String,
     ): Boolean {
-        val searchArtists = libraryIndexRepository.searchLibrary(sourceId, query, AndroidAutoBrowseLimit.toLong(), 0).artists
-        val artist = searchArtists.firstOrNull { it.name.equals(query, ignoreCase = true) }
-            ?: searchArtists.firstOrNull()
-            ?: findVoiceArtistMatch(libraryIndexRepository, sourceId, query)
-            ?: return false
         val source = mediaSourceRepository.latestMediaSource() ?: return false
         val provider = NavidromeProvider(source.toNavidromeConnection())
-        val recent = RecentRadioStream(
-            id = "artist:${artist.id.value}",
-            label = "${artist.name} Radio",
-            kind = RecentRadioKind.Artist,
-            artist = app.naviamp.domain.settings.SavedArtist.fromArtist(artist),
-        )
         launchServiceSelection {
-            val radioService = RadioService(
-                provider = provider,
-                tuning = AndroidSettingsStore(applicationContext).loadPlaybackSettings().radioTuning,
-            )
-            runCatching { withContext(Dispatchers.IO) { radioService.artistRadio(artist.id) } }
-                .onSuccess { tracks ->
+            runCatching {
+                withContext(Dispatchers.IO) {
+                    val results = provider.search(query, AndroidAutoBrowseLimit)
+                    val artist = results.artists.firstOrNull { it.name.equals(query, ignoreCase = true) }
+                        ?: results.artists.firstOrNull()
+                    val tracks = if (artist != null) {
+                        RadioService(
+                            provider = provider,
+                            tuning = AndroidSettingsStore(applicationContext).loadPlaybackSettings().radioTuning,
+                        ).artistRadio(artist.id)
+                    } else {
+                        provider.randomSongs(genre = query)
+                    }
+                    artist to tracks
+                }
+            }
+                .onSuccess { (artist, tracks) ->
+                    val recent = if (artist != null) {
+                        RecentRadioStream(
+                            id = "artist:${artist.id.value}",
+                            label = "${artist.name} Radio",
+                            kind = RecentRadioKind.Artist,
+                            artist = app.naviamp.domain.settings.SavedArtist.fromArtist(artist),
+                        )
+                    } else {
+                        RecentRadioStream(
+                            id = "genre:${query.lowercase()}",
+                            label = "${query.replaceFirstChar { it.titlecase() }} Radio",
+                            kind = RecentRadioKind.Genre,
+                            genre = query,
+                        )
+                    }
                     rememberRecentRadioStream(recent.withRadioCoverArtIds(tracks))
                     playServiceTrackQueue(playbackSessionRepository, sourceId, tracks, currentIndex = 0)
                 }
                 .onFailure { error ->
-                    Log.w("NaviampAutoCommand", "Could not start artist radio search=${artist.name}", error)
+                    Log.w("NaviampAutoCommand", "Could not start radio search=$query", error)
                     AndroidPlaybackNotificationControls.isPlaying = false
                     updateMediaSessionPlaybackState()
                 }
@@ -1349,50 +1376,6 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
         updateMediaSessionPlaybackState()
     }
 
-    private fun smartTemplateTracks(
-        storage: AndroidStorageDependencies,
-        sourceId: String,
-        title: String,
-    ): List<Track> {
-        val snapshot = storage.librarySnapshot(sourceId, AndroidAutoTemplateTrackScanLimit, 0)
-        val tracks = snapshot.tracks
-        return when (title) {
-            "Recently Played" -> tracks
-                .filter { it.lastPlayedAtIso8601 != null }
-                .sortedByDescending { it.lastPlayedAtIso8601 }
-            "Never Played" -> tracks
-                .filter { (it.playCount ?: 0) == 0 }
-                .shuffled()
-            "High Rated" -> tracks
-                .filter { (it.userRating ?: 0) >= 4 }
-                .sortedWith(compareByDescending<Track> { it.userRating ?: 0 }.thenBy { it.title.lowercase() })
-            "Favorite Albums" -> {
-                val favoriteAlbumIds = snapshot.albums
-                    .filter { it.favoritedAtIso8601 != null }
-                    .map { it.id }
-                    .toSet()
-                tracks
-                    .filter { track -> track.albumId?.let { it in favoriteAlbumIds } == true }
-                    .sortedWith(compareBy<Track> { it.albumTitle.orEmpty().lowercase() }.thenBy { it.title.lowercase() })
-            }
-            "Recently Added but Unplayed" -> tracks
-                .filter { (it.playCount ?: 0) == 0 }
-                .sortedByDescending { albumRecentlyAddedKey(snapshot.albums, it) }
-            "Long-Unheard Favorites" -> tracks
-                .filter { it.favoritedAtIso8601 != null }
-                .sortedBy { it.lastPlayedAtIso8601 ?: "" }
-            else -> emptyList()
-        }
-            .distinctBy { it.id }
-            .take(AndroidAutoSmartTemplateTrackLimit)
-    }
-
-    private fun albumRecentlyAddedKey(albums: List<Album>, track: Track): String =
-        track.albumId
-            ?.let { albumId -> albums.firstOrNull { it.id == albumId } }
-            ?.recentlyAddedAtIso8601
-            .orEmpty()
-
     private fun playServiceAutoQueueItem(index: Int) {
         cancelPendingServiceSelection()
         val queue = currentAutoQueue
@@ -1411,19 +1394,9 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
         albumTitle: String?,
         albumArtist: String?,
     ): List<Track> =
-        libraryIndexRepository.libraryTracksForAlbum(sourceId, AlbumId(albumId), AndroidAutoBrowseLimit.toLong())
-            .ifEmpty {
-                albumTitle?.let { title ->
-                    libraryIndexRepository.libraryTracksForAlbumTitle(sourceId, title, albumArtist, AndroidAutoBrowseLimit.toLong())
-                }.orEmpty()
-            }
-            .ifEmpty {
-                runCatching {
-                    withContext(Dispatchers.IO) {
-                        providerResponseService(providerResponseCacheRepository).album(provider, AlbumId(albumId)).tracks
-                    }
-                }.getOrDefault(emptyList())
-            }
+        runCatching {
+            withContext(Dispatchers.IO) { provider.album(AlbumId(albumId)).tracks }
+        }.getOrDefault(emptyList())
 
     private suspend fun loadServicePlaylistTracks(
         providerResponseCacheRepository: ProviderResponseCacheRepository,
@@ -1444,29 +1417,26 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
         artistId: String,
         artistName: String?,
     ): List<Track> =
-        artistId.takeIf { it.isNotBlank() }
-            ?.let { id -> libraryIndexRepository.libraryTracksForArtist(sourceId, ArtistId(id), AndroidAutoBrowseLimit.toLong()) }
-            .orEmpty()
-            .ifEmpty {
-                artistName?.let { name ->
-                    libraryIndexRepository.libraryTracksForArtistName(sourceId, name, AndroidAutoBrowseLimit.toLong())
-                }.orEmpty()
-            }
-            .ifEmpty {
-                artistId.takeIf { it.isNotBlank() }?.let { id ->
-                    runCatching {
-                        withContext(Dispatchers.IO) {
-                            provider.artist(ArtistId(id)).albums.flatMap { album ->
-                                provider.album(album.id).tracks
-                            }
-                        }
-                    }.onSuccess { tracks ->
-                        Log.i("NaviampAutoCommand", "Auto artist provider fallback artist=$id count=${tracks.size}")
-                    }.onFailure { error ->
-                        Log.w("NaviampAutoCommand", "Auto artist provider fallback failed artist=$id", error)
-                    }.getOrDefault(emptyList())
-                }.orEmpty()
-            }
+        artistId.takeIf { it.isNotBlank() }?.let { id ->
+            runCatching {
+                withContext(Dispatchers.IO) {
+                    val artist = Artist(ArtistId(id), artistName.orEmpty().ifBlank { "Artist" })
+                    val popular = provider.popularTracks(artist, AndroidAutoBrowseLimit)
+                    popular.candidates.mapNotNull { candidate ->
+                        popular.matchedTracksBySourceTrackId[candidate.sourceTrackId]
+                    }.ifEmpty {
+                        provider.artist(artist.id).albums
+                            .take(AndroidAutoArtistAlbumFallbackLimit)
+                            .flatMap { album -> provider.album(album.id).tracks }
+                            .take(AndroidAutoBrowseLimit)
+                    }
+                }
+            }.onSuccess { tracks ->
+                Log.i("NaviampAutoCommand", "Auto artist provider tracks artist=$id count=${tracks.size}")
+            }.onFailure { error ->
+                Log.w("NaviampAutoCommand", "Auto artist provider failed artist=$id", error)
+            }.getOrDefault(emptyList())
+        }.orEmpty()
 
     private fun playServiceTrackRadio(
         playbackSessionRepository: PlaybackSessionRepository,
@@ -2379,24 +2349,6 @@ private fun String.radioSearchQuery(): String? {
         .replace(Regex("\\s+"), " ")
         .trim()
         .takeIf { it.isNotBlank() }
-}
-
-private fun findVoiceArtistMatch(
-    libraryIndexRepository: LocalLibraryIndexRepository,
-    sourceId: String,
-    query: String,
-): Artist? {
-    val queryKey = query.voiceSearchKey()
-    if (queryKey.isBlank()) return null
-    return libraryIndexRepository.librarySnapshot(sourceId, VoiceArtistScanLimit, 0)
-        .artists
-        .mapNotNull { artist ->
-            val score = voiceArtistMatchScore(queryKey, artist.name.voiceSearchKey())
-            if (score == null) null else artist to score
-        }
-        .sortedWith(compareBy<Pair<Artist, Int>> { it.second }.thenBy { it.first.name.length })
-        .firstOrNull()
-        ?.first
 }
 
 private fun voiceArtistMatchScore(queryKey: String, artistKey: String): Int? =

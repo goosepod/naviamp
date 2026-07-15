@@ -64,6 +64,38 @@ interface ArtistPopularTracksRepository {
     )
 }
 
+class SessionArtistPopularTracksRepository : ArtistPopularTracksRepository {
+    private val matchesByKey = mutableMapOf<SessionPopularTracksKey, List<ArtistPopularTrackMatch>>()
+
+    override fun artistPopularTracks(
+        sourceId: String,
+        artistId: ArtistId,
+        source: String,
+    ): List<ArtistPopularTrackMatch> =
+        matchesByKey[SessionPopularTracksKey(sourceId, artistId, source)].orEmpty()
+
+    override fun replaceArtistPopularTracks(
+        sourceId: String,
+        artistId: ArtistId,
+        source: String,
+        candidates: List<ArtistPopularTrackCandidate>,
+        matchedTracksBySourceTrackId: Map<String, Track>,
+        fetchedAtEpochMillis: Long,
+    ) {
+        matchesByKey[SessionPopularTracksKey(sourceId, artistId, source)] = candidates.mapNotNull { candidate ->
+            matchedTracksBySourceTrackId[candidate.sourceTrackId]?.let { track ->
+                ArtistPopularTrackMatch(candidate, track, fetchedAtEpochMillis)
+            }
+        }
+    }
+}
+
+private data class SessionPopularTracksKey(
+    val sourceId: String,
+    val artistId: ArtistId,
+    val source: String,
+)
+
 class ArtistPopularTracksService(
     private val repository: ArtistPopularTracksRepository,
     private val libraryTracksForArtist: suspend (Artist, Long) -> List<Track>,

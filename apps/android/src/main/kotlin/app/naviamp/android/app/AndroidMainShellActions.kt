@@ -32,6 +32,7 @@ internal fun androidMainShellActions(
     sonicMixController: AndroidSonicMixController,
     sonicHomeDiscoveryController: AndroidSonicHomeDiscoveryController,
     nowPlayingSidecarController: AndroidNowPlayingSidecarController,
+    apiLibraryController: AndroidApiLibraryController,
     onSyncedSettingsChanged: () -> Unit = {},
 ): AndroidAppShellActions =
     androidAppShellActions(
@@ -135,7 +136,9 @@ internal fun androidMainShellActions(
         handleSonicMixSaveAsPlaylist = { name ->
             playlistActionController.saveTracksAsPlaylist(name, sonicMixController.playlistTracks(), "sonic mix")
         },
-        startAndroidLibrarySync = { force -> startAndroidLibrarySync(scope, state, storage, force) },
+        updateAndroidLibraryQuery = apiLibraryController::updateQuery,
+        refreshAndroidLibrary = apiLibraryController::refresh,
+        loadNextAndroidLibraryPage = apiLibraryController::loadNext,
         refreshPlaylists = playlistActionController::refreshPlaylists,
         refreshInternetRadioStations = shellMediaController::refreshInternetRadioStations,
         handleShellTrackSelected = shellMediaController::handleShellTrackSelected,

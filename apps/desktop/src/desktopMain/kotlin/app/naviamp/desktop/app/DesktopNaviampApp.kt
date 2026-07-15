@@ -153,7 +153,6 @@ fun NaviampApp(
             playbackSettingsProvider = { playbackSettings },
         )
     }
-    val librarySync = remember(dependencies) { dependencies.librarySync() }
     val libraryListState = rememberLazyListState()
     val coroutineScope = rememberCoroutineScope()
     val restoredTrackSession = remember(savedPlaybackSession) { savedPlaybackSession?.restoredTrackSession() }
@@ -692,11 +691,9 @@ fun NaviampApp(
 
     val libraryController = remember {
         DesktopLibraryController(
-        scope = coroutineScope,
-        libraryIndexRepository = storage,
-        mediaSourceRepository = storage,
-        cacheMaintenanceRepository = storage,
-        librarySync = librarySync,
+            scope = coroutineScope,
+            libraryIndexRepository = storage,
+            cacheMaintenanceRepository = storage,
         provider = { connectedProvider },
         sourceId = { connectedSourceId },
         setConnectionStatus = { status -> connectionStatus = status },
@@ -773,8 +770,8 @@ fun NaviampApp(
         loadHomeContent = { provider -> loadHomeContentAction.value(provider) },
         refreshPlaylists = { refreshPlaylistsAction.value() },
         refreshInternetRadioStations = internetRadioController::refreshStations,
-        startLibrarySync = libraryController::startLibrarySync,
-        checkLibraryFreshness = libraryController::checkLibraryFreshness,
+        startLibrarySync = { libraryController.refreshArtistIndex() },
+        checkLibraryFreshness = {},
         connectedSourceId = { connectedSourceId },
         savedConnectionForLogin = { connectionForm.savedConnectionForLogin },
         setSavedConnectionForLogin = { connection -> connectionForm.savedConnectionForLogin = connection },
@@ -1587,7 +1584,7 @@ fun NaviampApp(
                             onOpenStatsForNerds = { showStatsForNerds = true },
                             onClearCache = { appActions.clearCacheData() },
                             onClearLibrary = { appActions.clearLibraryData() },
-                            onRefreshLibrary = { libraryController.startLibrarySync(force = true) },
+                            onRefreshLibrary = libraryController::refreshLibrarySnapshot,
                             onResetDatabase = { appActions.resetDatabase() },
                             onSonicHomeDiscoveryTrackAction = { request ->
                                 val track = sonicHomeDiscoveryController.trackFor(request)

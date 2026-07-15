@@ -34,6 +34,7 @@ import app.naviamp.domain.cache.LyricsOffsetRepository
 import app.naviamp.domain.cache.LyricsSidecarCacheService
 import app.naviamp.domain.cache.LyricsSidecarRepository
 import app.naviamp.domain.cache.MediaSourceRepository
+import app.naviamp.domain.cache.MaximumPersistentArtworkCacheBytes
 import app.naviamp.domain.cache.ObjectByteStoreService
 import app.naviamp.domain.cache.ProviderMediaSourceConnection
 import app.naviamp.domain.cache.ProviderMediaSourceRepository
@@ -76,7 +77,7 @@ import kotlin.io.path.exists
 
 class DesktopCache(
     private val databasePath: Path = defaultCacheDatabasePath(),
-    private val maxImageCacheBytes: Long = 500L * 1024L * 1024L,
+    private val maxImageCacheBytes: Long = MaximumPersistentArtworkCacheBytes,
     private var maxAudioCacheBytes: Long = 2L * 1024L * 1024L * 1024L,
     private val maxAudioWaveformCacheBytes: Long = 32L * 1024L * 1024L,
     private val maxHotImageBytes: Long = 32L * 1024L * 1024L,
@@ -676,8 +677,7 @@ class DesktopCache(
         decode: (String) -> T,
         encode: (T) -> String,
         fetch: suspend () -> T,
-    ): T =
-        providerResponseCache.cachedProviderResponse(provider, resourceType, resourceId, decode, encode, fetch)
+    ): T = fetch()
 
     override fun invalidateProviderResponses(
         provider: MediaProvider,
@@ -771,6 +771,7 @@ private fun createDatabase(path: Path): NaviampStorageDatabase {
     configureSqliteLockHandling(driver)
     val newVersion = NaviampStorageDatabase.Schema.version
     var shouldRunLegacyLyricsOffsetCleanup = false
+    var shouldReclaimMigratedDatabase = false
     if (!exists) {
         NaviampStorageDatabase.Schema.create(driver)
         driver.setDatabaseVersion(newVersion)
@@ -781,6 +782,7 @@ private fun createDatabase(path: Path): NaviampStorageDatabase {
         } else if (oldVersion in 1 until newVersion) {
             NaviampStorageDatabase.Schema.migrate(driver, oldVersion, newVersion)
             driver.setDatabaseVersion(newVersion)
+            shouldReclaimMigratedDatabase = true
         }
     }
     ensureMediaSourceLibraryScanSchema(driver)
@@ -793,6 +795,9 @@ private fun createDatabase(path: Path): NaviampStorageDatabase {
     if (shouldRunLegacyLyricsOffsetCleanup) {
         clearLegacyLyricsOffsets(driver)
         driver.setDatabaseVersion(newVersion)
+    }
+    if (shouldReclaimMigratedDatabase) {
+        driver.execute(null, "VACUUM", 0)
     }
     driver.execute(null, "PRAGMA foreign_keys=ON", 0)
     return NaviampStorageDatabase(driver)

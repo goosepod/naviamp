@@ -76,6 +76,7 @@ fun rememberAndroidAppShellUiState(
             playlistTracksById = playlistTracksById,
             sonicHomeDiscoveryRows = sonicHomeDiscoveryRows,
             searchResults = searchResults,
+            libraryArtists = libraryArtists,
             libraryStatus = libraryStatus,
             isLibrarySyncing = isLibrarySyncing,
             downloadedTracks = downloadedTracks,

@@ -161,6 +161,12 @@ interface MediaProvider {
         throw UnsupportedOperationException("Track ratings are not supported by $displayName.")
     }
     fun coverArtUrl(coverArtId: String): String
+    fun coverArtUrl(coverArtId: String, size: CoverArtSize): String = coverArtUrl(coverArtId)
+}
+
+enum class CoverArtSize(val pixels: Int) {
+    Thumbnail(512),
+    Hero(1024),
 }
 
 data class MediaSearchResults(

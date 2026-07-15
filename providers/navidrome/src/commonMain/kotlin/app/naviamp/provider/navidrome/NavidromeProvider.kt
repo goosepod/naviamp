@@ -27,6 +27,7 @@ import app.naviamp.domain.Track
 import app.naviamp.domain.TrackId
 import app.naviamp.domain.provider.AlbumListType
 import app.naviamp.domain.provider.ConnectionValidation
+import app.naviamp.domain.provider.CoverArtSize
 import app.naviamp.domain.provider.LibraryScanStatus
 import app.naviamp.domain.provider.MediaPage
 import app.naviamp.domain.provider.MediaPageRequest
@@ -1047,7 +1048,16 @@ class NavidromeProvider(
     }
 
     override fun coverArtUrl(coverArtId: String): String =
-        url("getCoverArt.view", mapOf("id" to coverArtId))
+        coverArtUrl(coverArtId, CoverArtSize.Thumbnail)
+
+    override fun coverArtUrl(coverArtId: String, size: CoverArtSize): String =
+        url(
+            "getCoverArt.view",
+            mapOf(
+                "id" to coverArtId,
+                "size" to size.pixels.toString(),
+            ),
+        )
 
     fun ownsUrl(url: String): Boolean =
         url.startsWith("${connection.normalizedBaseUrl}/", ignoreCase = true)
