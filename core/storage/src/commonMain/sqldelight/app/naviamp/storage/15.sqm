@@ -27,3 +27,19 @@ CREATE TABLE keep_downloaded_managed_track (
 
 CREATE INDEX keep_downloaded_collection_track_remote
 ON keep_downloaded_collection_track(source_id, remote_track_id);
+
+-- Naviamp's library catalog is API-first from this version forward. Preserve
+-- user-owned/offline state, but discard server mirrors, response payloads, and
+-- legacy full-resolution artwork so they cannot retain the old footprint.
+DELETE FROM artist_popular_track;
+DELETE FROM library_track;
+DELETE FROM library_album;
+DELETE FROM library_artist;
+DELETE FROM cached_response;
+DELETE FROM cached_image;
+
+UPDATE media_source
+SET last_sync_started_at_epoch_millis = NULL,
+    last_sync_completed_at_epoch_millis = NULL,
+    last_library_scan_signature = NULL,
+    last_library_scan_checked_at_epoch_millis = NULL;

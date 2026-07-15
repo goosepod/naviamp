@@ -15,6 +15,7 @@ import app.naviamp.domain.popular.ArtistPopularTracksService
 import app.naviamp.domain.popular.ProviderArtistPopularTracksClient
 import app.naviamp.domain.popular.ProviderSimilarArtistsClient
 import app.naviamp.domain.popular.SimilarArtistsService
+import app.naviamp.domain.popular.SessionArtistPopularTracksRepository
 import app.naviamp.domain.radio.InternetRadioStationManager
 import app.naviamp.provider.navidrome.NavidromeProvider
 import java.io.File
@@ -31,6 +32,8 @@ class AndroidAppDependencies(
             cacheSettings.customAudioCacheDirectory?.let { storage.updateAudioCacheDirectory(File(it)) }
         }
     }
+
+    private val sessionPopularTracks = SessionArtistPopularTracksRepository()
     val imageCacheRepository: ImageCacheRepository = storage
     val sidecarStatusRepository: SidecarStatusRepository = storage
     val providerResponseService: ProviderResponseService = ProviderResponseService(storage)
@@ -58,27 +61,11 @@ class AndroidAppDependencies(
         providerProvider: () -> NavidromeProvider?,
     ): ArtistPopularTracksService =
         ArtistPopularTracksService(
-            repository = storage,
+            repository = sessionPopularTracks,
             libraryTracksForArtist = { artist, limit ->
-                val sourceId = activeSourceIdProvider()
-                val indexedTracks = sourceId
-                    ?.let { storage.libraryTracksForArtist(it, artist.id, limit) }
+                providerProvider()
+                    ?.tracksForArtist(artist.id, limit.coerceAtMost(AndroidPopularTrackFallbackLimit))
                     .orEmpty()
-                    .ifEmpty {
-                        sourceId
-                            ?.let { storage.libraryTracksForArtistName(it, artist.name, limit) }
-                            .orEmpty()
-                    }
-                indexedTracks.ifEmpty {
-                    providerProvider()
-                        ?.tracksForArtist(artist.id, limit.coerceAtMost(AndroidPopularTrackFallbackLimit))
-                        .orEmpty()
-                        .also { fetchedTracks ->
-                            if (sourceId != null && fetchedTracks.isNotEmpty()) {
-                                storage.upsertLibraryTracks(sourceId, fetchedTracks)
-                            }
-                        }
-                }
             },
             client = ProviderArtistPopularTracksClient(providerProvider),
         )
@@ -89,13 +76,7 @@ class AndroidAppDependencies(
     ): SimilarArtistsService =
         SimilarArtistsService(
             libraryArtistsSearch = { artistName, limit ->
-                val sourceId = activeSourceIdProvider()
-                val indexedArtists = sourceId
-                    ?.let { storage.searchLibrary(it, artistName, limit, 0).artists }
-                    .orEmpty()
-                indexedArtists.ifEmpty {
-                    providerProvider()?.search(artistName, limit.toInt())?.artists.orEmpty()
-                }
+                providerProvider()?.search(artistName, limit.toInt())?.artists.orEmpty()
             },
             client = ProviderSimilarArtistsClient(providerProvider),
         )

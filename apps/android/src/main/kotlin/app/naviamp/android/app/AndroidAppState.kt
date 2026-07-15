@@ -98,6 +98,7 @@ class AndroidAppState(
     var playlistTracksById by mutableStateOf<Map<String, List<Track>>>(emptyMap())
     var isPlaylistRefreshing by mutableStateOf(false)
     var libraryQuery by mutableStateOf("")
+    var libraryArtists by mutableStateOf<List<Artist>>(emptyList())
     var storageStats by mutableStateOf(initialStorageStats)
     var downloadedTracks by mutableStateOf<List<AndroidDownloadedTrack>>(emptyList())
     var downloadStatus by mutableStateOf<String?>(null)

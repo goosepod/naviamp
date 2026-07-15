@@ -23,7 +23,8 @@ import app.naviamp.domain.cache.PlaybackHistoryRepository
 import app.naviamp.domain.cache.ProviderResponseCacheRepository
 import app.naviamp.domain.cache.ProviderResponseService
 import app.naviamp.domain.provider.AlbumListType
-import app.naviamp.domain.smartplaylist.SmartPlaylistTemplates
+import app.naviamp.domain.provider.ApiCatalogService
+import app.naviamp.domain.provider.MediaPageRequest
 import app.naviamp.provider.navidrome.NavidromeProvider
 import app.naviamp.provider.navidrome.toNavidromeConnection
 import app.naviamp.ui.defaultRadioArtworkUrl
@@ -131,7 +132,7 @@ internal class AndroidAutoBrowseController(
                         browsableItem(
                             AndroidAutoPlaybackControls.MediaIdSmartPlaylists,
                             "Smart Playlists",
-                            "Saved smart playlists and templates",
+                            "Saved Navidrome smart playlists",
                         ),
                     ) + playlists.filterNot { it.isSmart }.map { playlist ->
                         val fallbackArtUri = runCatching {
@@ -152,14 +153,7 @@ internal class AndroidAutoBrowseController(
                 val savedSmartPlaylists = withContext(Dispatchers.IO) {
                     providerResponseService(storage).playlists(provider, AndroidAutoBrowseLimit)
                 }.filter { it.isSmart }.map(::playlistItem)
-                val templates = SmartPlaylistTemplates.recommended.mapIndexed { index, template ->
-                    playableItem(
-                        mediaId = "${AndroidAutoPlaybackControls.MediaIdSmartTemplatePrefix}$index",
-                        title = template.title,
-                        subtitle = template.description,
-                    )
-                }
-                (savedSmartPlaylists + templates).toMutableList()
+                savedSmartPlaylists.toMutableList()
             }
             return
         }
@@ -187,6 +181,44 @@ internal class AndroidAutoBrowseController(
             }
             return
         }
+        if (parentId == AndroidAutoPlaybackControls.MediaIdLibraryArtists ||
+            parentId == AndroidAutoPlaybackControls.MediaIdChartsArtists
+        ) {
+            loadAsyncChildren(parentId, result) {
+                val source = storage.latestNavidromeSource() ?: return@loadAsyncChildren noSourceItems()
+                val provider = NavidromeProvider(source.toNavidromeConnection())
+                withContext(Dispatchers.IO) {
+                    ApiCatalogService { provider }
+                        .artistsPage("", MediaPageRequest(limit = AndroidAutoBrowseLimit))
+                        .items
+                }.map(::artistItem).toMutableList()
+            }
+            return
+        }
+        if (parentId == AndroidAutoPlaybackControls.MediaIdLibraryAlbums) {
+            loadAsyncChildren(parentId, result) {
+                val source = storage.latestNavidromeSource() ?: return@loadAsyncChildren noSourceItems()
+                val provider = NavidromeProvider(source.toNavidromeConnection())
+                withContext(Dispatchers.IO) {
+                    ApiCatalogService { provider }
+                        .albumsPage("", MediaPageRequest(limit = AndroidAutoBrowseLimit))
+                        .items
+                }.map(::albumItem).toMutableList()
+            }
+            return
+        }
+        if (parentId == AndroidAutoPlaybackControls.MediaIdLibraryTracks) {
+            loadAsyncChildren(parentId, result) {
+                val source = storage.latestNavidromeSource() ?: return@loadAsyncChildren noSourceItems()
+                val provider = NavidromeProvider(source.toNavidromeConnection())
+                withContext(Dispatchers.IO) {
+                    ApiCatalogService { provider }
+                        .tracksPage("", MediaPageRequest(limit = AndroidAutoBrowseLimit))
+                        .items
+                }.map(::trackItem).toMutableList()
+            }
+            return
+        }
         val children = when (parentId) {
             AndroidAutoPlaybackControls.MediaIdRoot -> autoRootItems(storage, sourceId)
             AndroidAutoPlaybackControls.MediaIdHome -> mutableListOf(
@@ -197,36 +229,10 @@ internal class AndroidAutoBrowseController(
             )
             AndroidAutoPlaybackControls.MediaIdLibrary -> mutableListOf(
                 browsableItem(AndroidAutoPlaybackControls.MediaIdPlaylists, "Playlists", "Saved Navidrome playlists"),
-                browsableItem(AndroidAutoPlaybackControls.MediaIdSmartPlaylists, "Smart Playlists", "Saved smart playlists and templates"),
+                browsableItem(AndroidAutoPlaybackControls.MediaIdSmartPlaylists, "Smart Playlists", "Saved Navidrome smart playlists"),
                 browsableItem(AndroidAutoPlaybackControls.MediaIdRadioRecent, "Recent", "Radio you started from Naviamp"),
                 playableItem(AndroidAutoPlaybackControls.MediaIdRadioLibrary, "Library Radio", "Random tracks from your library"),
             )
-            AndroidAutoPlaybackControls.MediaIdLibraryArtists -> {
-                sourceId?.let { id ->
-                    storage.librarySnapshot(id, VoiceArtistScanLimit, 0)
-                        .artists
-                        .groupBy { it.name.autoArtistGroupKey() }
-                        .toSortedMap(compareBy<String> { if (it == "#") "0" else it })
-                        .map { (group, artists) ->
-                            browsableItem(
-                                mediaId = "${AndroidAutoPlaybackControls.MediaIdArtistGroupPrefix}${Uri.encode(group)}",
-                                title = group,
-                                subtitle = "${artists.size} artists",
-                            )
-                        }
-                        .toMutableList()
-                } ?: noSourceItems()
-            }
-            AndroidAutoPlaybackControls.MediaIdLibraryAlbums -> {
-                sourceId?.let { id ->
-                    storage.librarySnapshot(id, AndroidAutoBrowseLimit.toLong(), 0).albums.map(::albumItem).toMutableList()
-                } ?: noSourceItems()
-            }
-            AndroidAutoPlaybackControls.MediaIdLibraryTracks -> {
-                sourceId?.let { id ->
-                    storage.librarySnapshot(id, AndroidAutoBrowseLimit.toLong(), 0).tracks.map(::trackItem).toMutableList()
-                } ?: noSourceItems()
-            }
             AndroidAutoPlaybackControls.MediaIdRadio -> mutableListOf(
                 browsableItem(AndroidAutoPlaybackControls.MediaIdRadioRecent, "Recent", "Radio you started from Naviamp"),
                 browsableItem(AndroidAutoPlaybackControls.MediaIdRadioStations, "Internet Radio", "Saved Navidrome stations"),
@@ -237,7 +243,6 @@ internal class AndroidAutoBrowseController(
                 browsableItem(AndroidAutoPlaybackControls.MediaIdRadioRecent, "Recent", "Radio you started from Naviamp"),
                 browsableItem(AndroidAutoPlaybackControls.MediaIdHomeDjs, "DJs", "Saved radio tuning presets"),
                 browsableItem(AndroidAutoPlaybackControls.MediaIdSmartPlaylists, "Smart Playlists", "Saved smart playlists and templates"),
-                browsableItem(AndroidAutoPlaybackControls.MediaIdHomeSmartTemplates, "Smart Templates", "Generated playlist starts"),
             )
             AndroidAutoPlaybackControls.MediaIdHomeDjs -> storage.radioDjPresets()
                 .map { dj ->
@@ -245,15 +250,6 @@ internal class AndroidAutoBrowseController(
                         mediaId = "${AndroidAutoPlaybackControls.MediaIdRadioDjPrefix}${Uri.encode(dj.id)}",
                         title = dj.name,
                         subtitle = "DJ preset",
-                    )
-                }
-                .toMutableList()
-            AndroidAutoPlaybackControls.MediaIdHomeSmartTemplates -> SmartPlaylistTemplates.recommended
-                .mapIndexed { index, template ->
-                    playableItem(
-                        mediaId = "${AndroidAutoPlaybackControls.MediaIdSmartTemplatePrefix}$index",
-                        title = template.title,
-                        subtitle = template.description,
                     )
                 }
                 .toMutableList()
@@ -276,11 +272,6 @@ internal class AndroidAutoBrowseController(
                 browsableItem(AndroidAutoPlaybackControls.MediaIdChartsAlbums, "Top Albums", "Frequently played albums"),
                 browsableItem(AndroidAutoPlaybackControls.MediaIdChartsTracks, "Top Tracks", "Recently played tracks"),
             )
-            AndroidAutoPlaybackControls.MediaIdChartsArtists -> {
-                sourceId?.let { id ->
-                    storage.librarySnapshot(id, AndroidAutoBrowseLimit.toLong(), 0).artists.map(::artistItem).toMutableList()
-                } ?: noSourceItems()
-            }
             AndroidAutoPlaybackControls.MediaIdChartsTracks -> {
                 sourceId?.let { id ->
                     recentPlaybackHistoryItems(storage, id).toMutableList()
@@ -361,14 +352,19 @@ internal class AndroidAutoBrowseController(
         when {
             parentId.startsWith(AndroidAutoPlaybackControls.MediaIdArtistGroupPrefix) -> {
                 val group = Uri.decode(parentId.removePrefix(AndroidAutoPlaybackControls.MediaIdArtistGroupPrefix))
-                sourceId?.let { id ->
-                    storage.librarySnapshot(id, VoiceArtistScanLimit, 0)
-                        .artists
+                loadAsyncChildren(parentId, result) {
+                    val source = storage.latestNavidromeSource() ?: return@loadAsyncChildren noSourceItems()
+                    val provider = NavidromeProvider(source.toNavidromeConnection())
+                    withContext(Dispatchers.IO) {
+                        ApiCatalogService { provider }
+                            .artistsPage("", MediaPageRequest(limit = AndroidAutoBrowseLimit))
+                            .items
+                    }
                         .filter { it.name.autoArtistGroupKey() == group }
-                        .take(AndroidAutoBrowseLimit)
                         .map(::artistItem)
                         .toMutableList()
-                } ?: noSourceItems()
+                }
+                null
             }
             parentId.startsWith(AndroidAutoPlaybackControls.MediaIdQueuePagePrefix) -> {
                 val page = Uri.decode(parentId.removePrefix(AndroidAutoPlaybackControls.MediaIdQueuePagePrefix))
@@ -589,7 +585,16 @@ internal class AndroidAutoBrowseController(
 
     private fun trackItem(
         track: Track,
-        mediaId: String = "${AndroidAutoPlaybackControls.MediaIdTrackPrefix}${Uri.encode(track.id.value)}",
+        mediaId: String = AndroidAutoPlaybackControls.MediaIdTrackPrefix + listOf(
+            Uri.encode(track.id.value),
+            Uri.encode(track.title),
+            Uri.encode(track.artistId?.value.orEmpty()),
+            Uri.encode(track.artistName),
+            Uri.encode(track.albumId?.value.orEmpty()),
+            Uri.encode(track.albumTitle.orEmpty()),
+            Uri.encode(track.durationSeconds?.toString().orEmpty()),
+            Uri.encode(track.coverArtId.orEmpty()),
+        ).joinToString(MediaIdPartSeparator),
         includeArt: Boolean = true,
     ): MediaBrowserCompat.MediaItem =
         playableItem(
@@ -643,19 +648,14 @@ internal class AndroidAutoBrowseController(
             if (trimmed.isBlank()) return@withContext mutableListOf()
             val storage = storage()
             val source = storage.latestNavidromeSource() ?: return@withContext noSourceItems()
-            val local = storage.searchLibrary(source.id, trimmed, AndroidAutoBrowseLimit.toLong(), 0)
             val provider = NavidromeProvider(source.toNavidromeConnection())
-            val remote = if (local.isEmpty) {
-                runCatching {
-                    providerResponseService(storage).search(provider, trimmed, AndroidAutoBrowseLimit)
-                }.getOrNull()
-            } else {
-                null
-            }
+            val remote = runCatching {
+                provider.search(trimmed, AndroidAutoBrowseLimit)
+            }.getOrNull()
             buildList {
-                addAll(local.artists.ifEmpty { remote?.artists.orEmpty() }.take(8).map(::artistItem))
-                addAll(local.albums.ifEmpty { remote?.albums.orEmpty() }.take(12).map(::albumItem))
-                addAll(local.tracks.ifEmpty { remote?.tracks.orEmpty() }.take(AndroidAutoBrowseLimit).map(::trackItem))
+                addAll(remote?.artists.orEmpty().take(8).map(::artistItem))
+                addAll(remote?.albums.orEmpty().take(12).map(::albumItem))
+                addAll(remote?.tracks.orEmpty().take(AndroidAutoBrowseLimit).map(::trackItem))
             }.toMutableList()
         }
 
@@ -814,7 +814,6 @@ internal class AndroidAutoBrowseController(
 private const val AndroidAutoBrowseLimit = 50
 private const val AndroidAutoQueuePageSize = 1
 private const val MediaIdPartSeparator = "|"
-private const val VoiceArtistScanLimit = 5_000L
 
 private fun Bundle.hasBrowsePagination(): Boolean =
     getInt(MediaBrowserCompat.EXTRA_PAGE, -1) >= 0 &&

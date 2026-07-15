@@ -15,7 +15,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -39,6 +38,7 @@ import app.naviamp.domain.settings.ConnectionFormMusicFolder
 import app.naviamp.ui.NaviampAction
 import app.naviamp.ui.NaviampActionSpec
 import app.naviamp.ui.NaviampDetailAction
+import app.naviamp.ui.NaviampPageTitle
 import app.naviamp.ui.NaviampResponsiveActionRow
 import app.naviamp.ui.SharedMediaItemAction
 import app.naviamp.ui.SharedMediaItemActionRequest
@@ -102,7 +102,7 @@ fun DesktopPlaylistsPanel(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier.fillMaxWidth(),
         ) {
-            Text("Playlists", color = appColors.primaryText, style = MaterialTheme.typography.titleMedium)
+            NaviampPageTitle("Playlists", appColors)
             Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                 IconButton(
                     onClick = {

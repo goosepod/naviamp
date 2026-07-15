@@ -11,8 +11,10 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -25,9 +27,12 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -43,6 +48,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.naviamp.ui.generated.resources.Res
 import app.naviamp.ui.generated.resources.*
+import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.stringResource
 import app.naviamp.domain.cache.DownloadJob
 import app.naviamp.domain.cache.DownloadJobItemStatus
@@ -64,16 +70,14 @@ fun SharedHome(
     onAlbumFavoriteToggled: (SharedMediaItemUi) -> Unit = {},
     onRefresh: () -> Unit = {},
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier.fillMaxWidth(),
         ) {
-            Text(
-                stringResource(Res.string.home_music_title),
-                color = colors.primaryText,
-                fontSize = 20.sp,
-                fontWeight = FontWeight.Bold,
+            NaviampPageTitle(
+                title = stringResource(Res.string.home_music_title),
+                colors = colors,
                 modifier = Modifier.weight(1f),
             )
             NaviampRowOverflowMenu(
@@ -391,33 +395,22 @@ internal fun SearchContent(
         )
     }
     Column(
-        verticalArrangement = Arrangement.spacedBy(12.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
         modifier = Modifier.fillMaxSize(),
     ) {
-        Text(stringResource(Res.string.search_title), color = colors.primaryText, fontSize = 20.sp, fontWeight = FontWeight.Bold)
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.fillMaxWidth(),
-        ) {
-            NaviampTextField(
-                value = query,
-                onValueChange = onQueryChanged,
-                label = stringResource(Res.string.search_tracks_label),
-                colors = colors,
-                modifier = Modifier.weight(1f).focusRequester(searchFocusRequester),
-            )
-            if (query.isNotBlank() || !results.isEmpty) {
-                IconButton(
-                    onClick = {
-                        onClearSearch()
-                        searchFocusRequester.requestFocus()
-                    },
-                ) {
-                    Icon(NaviampIcons.Close, contentDescription = stringResource(Res.string.search_clear), tint = colors.secondaryText)
-                }
-            }
-        }
+        NaviampPageTitle(stringResource(Res.string.search_title), colors)
+        NaviampCompactSearchField(
+            value = query,
+            onValueChange = onQueryChanged,
+            placeholder = stringResource(Res.string.search_tracks_label),
+            colors = colors,
+            onClear = {
+                onClearSearch()
+                searchFocusRequester.requestFocus()
+            },
+            showClear = query.isNotBlank() || !results.isEmpty,
+            modifier = Modifier.padding(horizontal = 8.dp).focusRequester(searchFocusRequester),
+        )
         if (query.isNotBlank() && results.isEmpty) {
             Text(stringResource(Res.string.search_no_matches), color = colors.secondaryText, fontSize = 12.sp)
         }
@@ -449,7 +442,7 @@ internal fun MediaListContent(
 ) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
-        verticalArrangement = Arrangement.spacedBy(10.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         item {
             Text(title, color = colors.primaryText, fontSize = 20.sp, fontWeight = FontWeight.Bold)
@@ -481,10 +474,13 @@ internal fun LibraryContent(
     syncStatus: NaviampLibrarySyncStatusUi,
     onQueryChanged: (String) -> Unit,
     onRefreshLibrary: () -> Unit,
+    onLoadMore: () -> Unit,
     onArtistSelected: (SharedMediaItemUi) -> Unit,
     onArtistFavoriteToggled: (SharedMediaItemUi) -> Unit = {},
 ) {
     val searchFocusRequester = remember { FocusRequester() }
+    val listState = rememberLazyListState()
+    val scope = rememberCoroutineScope()
     val filteredItems = remember(items, query) {
         val normalizedQuery = query.trim().lowercase()
         if (normalizedQuery.isBlank()) {
@@ -497,40 +493,33 @@ internal fun LibraryContent(
             }
         }
     }
-    LazyColumn(
+    Row(
         modifier = Modifier.fillMaxSize(),
-        verticalArrangement = Arrangement.spacedBy(10.dp),
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
     ) {
-        item {
-            Text(stringResource(Res.string.library_title), color = colors.primaryText, fontSize = 20.sp, fontWeight = FontWeight.Bold)
-        }
-        item {
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                NaviampTextField(
-                    value = query,
-                    onValueChange = onQueryChanged,
-                    label = stringResource(Res.string.library_search_artists),
-                    colors = colors,
-                    modifier = Modifier.weight(1f).focusRequester(searchFocusRequester),
-                )
-                if (query.isNotBlank()) {
-                    IconButton(
-                        onClick = {
-                            onQueryChanged("")
-                            searchFocusRequester.requestFocus()
-                        },
-                    ) {
-                        Icon(NaviampIcons.Close, contentDescription = stringResource(Res.string.library_clear_search), tint = colors.secondaryText)
-                    }
-                }
-            }
-        }
-        syncStatus.message?.let { message ->
+        LazyColumn(
+            state = listState,
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
             item {
+            NaviampPageTitle(stringResource(Res.string.library_title), colors)
+            }
+            item {
+            NaviampCompactSearchField(
+                value = query,
+                onValueChange = onQueryChanged,
+                placeholder = stringResource(Res.string.library_search_artists),
+                colors = colors,
+                onClear = {
+                    onQueryChanged("")
+                    searchFocusRequester.requestFocus()
+                },
+                modifier = Modifier.padding(horizontal = 8.dp).focusRequester(searchFocusRequester),
+            )
+            }
+            syncStatus.message?.let { message ->
+                item {
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalAlignment = Alignment.CenterVertically,
@@ -554,28 +543,49 @@ internal fun LibraryContent(
                         }
                     }
                 }
+                }
             }
-        }
-        if (filteredItems.isEmpty()) {
-            item {
+            if (filteredItems.isEmpty()) {
+                item {
                 Text(
                     if (query.isBlank()) stringResource(Res.string.library_no_artists) else stringResource(Res.string.library_no_artist_matches),
                     color = colors.secondaryText,
                     fontSize = 13.sp,
                 )
+                }
+            }
+            items(
+                items = filteredItems,
+                key = { item -> item.id },
+            ) { item ->
+                SharedMediaRow(
+                    item = item,
+                    colors = colors,
+                    onClick = { onArtistSelected(item) },
+                    onFavoriteToggled = onArtistFavoriteToggled,
+                    itemKind = SharedMediaItemKind.Artist,
+                )
             }
         }
-        items(
-            items = filteredItems,
-            key = { item -> item.id },
-        ) { item ->
-            SharedMediaRow(
-                item = item,
-                colors = colors,
-                onClick = { onArtistSelected(item) },
-                onFavoriteToggled = onArtistFavoriteToggled,
-                itemKind = SharedMediaItemKind.Artist,
-            )
+        if (query.isBlank()) {
+            Column(
+                verticalArrangement = Arrangement.spacedBy(2.dp),
+                modifier = Modifier.width(18.dp).verticalScroll(rememberScrollState()),
+            ) {
+                (listOf('#') + ('A'..'Z')).forEach { letter ->
+                    Text(
+                        text = letter.toString(),
+                        color = colors.secondaryText,
+                        fontSize = 10.sp,
+                        modifier = Modifier.clickable {
+                            val boundary = if (letter == '#') "" else letter.lowercaseChar().toString()
+                            val index = filteredItems.indexOfFirst { item -> item.title.lowercase() >= boundary }
+                            val headerCount = 2 + if (syncStatus.message != null) 1 else 0
+                            if (index >= 0) scope.launch { listState.scrollToItem(index + headerCount) }
+                        },
+                    )
+                }
+            }
         }
     }
 }
@@ -629,7 +639,7 @@ internal fun DownloadsContent(
         item {
             Row(verticalAlignment = Alignment.Top, modifier = Modifier.fillMaxWidth()) {
                 Column(verticalArrangement = Arrangement.spacedBy(2.dp), modifier = Modifier.weight(1f)) {
-                    Text(stringResource(Res.string.downloads_offline_title), color = colors.primaryText, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                    NaviampPageTitle(stringResource(Res.string.downloads_offline_title), colors)
                     Text(
                         stringResource(
                             Res.string.downloads_summary,

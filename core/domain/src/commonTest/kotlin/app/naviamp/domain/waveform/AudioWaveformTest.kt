@@ -68,10 +68,10 @@ class AudioWaveformTest {
     }
 
     @Test
-    fun prefersBassWaveformLevelsWhenAvailable() {
+    fun usesSequentialPcmInsteadOfSlowLevelWindows() {
         val waveform = analyzeBassFloatPcmWaveform(
             bass = FakeBassAudioBackend(
-                chunks = listOf(floatArrayOf(0.1f)),
+                chunks = listOf(floatArrayOf(0.25f), floatArrayOf(1.0f)),
                 waveformLevels = floatArrayOf(0.25f, 1.0f),
             ),
             stream = BassStreamHandle(7),
@@ -83,7 +83,7 @@ class AudioWaveformTest {
     }
 
     @Test
-    fun rejectsTruncatedBassWaveformLevelsAndFallsBackToPcm() {
+    fun analyzesPcmWhenBassWaveformLevelsWouldBeTruncated() {
         val waveform = analyzeBassFloatPcmWaveform(
             bass = FakeBassAudioBackend(
                 chunks = listOf(FloatArray(20) { 0.5f }),
@@ -99,7 +99,7 @@ class AudioWaveformTest {
     }
 
     @Test
-    fun rejectsSparseBassWaveformLevelsAndFallsBackToPcm() {
+    fun analyzesPcmWhenBassWaveformLevelsWouldBeSparse() {
         val sparseLevels = FloatArray(100).also { levels ->
             levels[0] = 0.8f
             levels[25] = 1.0f
@@ -141,9 +141,9 @@ class AudioWaveformTest {
 
     @Test
     fun buildsStableWaveformQualityKeys() {
-        assertEquals("original:waveform-v9", StreamQuality.Original.waveformCacheKey())
+        assertEquals("original:waveform-v10", StreamQuality.Original.waveformCacheKey())
         assertEquals(
-            "transcoded:opus:128:waveform-v9",
+            "transcoded:opus:128:waveform-v10",
             StreamQuality.Transcoded(AudioCodec.Opus, 128).waveformCacheKey(),
         )
     }

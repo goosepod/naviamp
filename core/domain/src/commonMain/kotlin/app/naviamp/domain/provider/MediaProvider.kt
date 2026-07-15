@@ -32,14 +32,55 @@ interface MediaProvider {
     suspend fun album(albumId: AlbumId): AlbumDetails
     suspend fun artist(artistId: ArtistId): ArtistDetails
     suspend fun artists(limit: Int = 50): List<Artist>
+    suspend fun artistsPage(request: MediaPageRequest = MediaPageRequest()): MediaPage<Artist> =
+        if (request.offset == 0) {
+            request.toMediaPage(artists(limit = request.limit))
+        } else {
+            request.toMediaPage(emptyList())
+        }
     suspend fun albums(limit: Int = 50, offset: Int = 0): List<Album> = emptyList()
+    suspend fun albumsPage(request: MediaPageRequest = MediaPageRequest()): MediaPage<Album> =
+        request.toMediaPage(albums(limit = request.limit, offset = request.offset))
     suspend fun albumList(type: AlbumListType, limit: Int = 20): List<Album> = emptyList()
     suspend fun albumsByGenre(genre: String, limit: Int = 20): List<Album> = emptyList()
     suspend fun albumsByYear(fromYear: Int, toYear: Int, limit: Int = 20): List<Album> = emptyList()
     suspend fun tracks(limit: Int = 50): List<Track>
     suspend fun favoriteTracks(limit: Int = 5000): List<Track> =
         tracks(limit).filter { it.favoritedAtIso8601 != null }
+    suspend fun tracksPage(request: MediaPageRequest = MediaPageRequest()): MediaPage<Track> =
+        if (request.offset == 0) {
+            request.toMediaPage(tracks(limit = request.limit))
+        } else {
+            request.toMediaPage(emptyList())
+        }
     suspend fun search(query: String, limit: Int = 20): MediaSearchResults
+    suspend fun searchArtistsPage(
+        query: String,
+        request: MediaPageRequest = MediaPageRequest(),
+    ): MediaPage<Artist> =
+        if (request.offset == 0) {
+            request.toMediaPage(search(query, request.limit).artists)
+        } else {
+            request.toMediaPage(emptyList())
+        }
+    suspend fun searchAlbumsPage(
+        query: String,
+        request: MediaPageRequest = MediaPageRequest(),
+    ): MediaPage<Album> =
+        if (request.offset == 0) {
+            request.toMediaPage(search(query, request.limit).albums)
+        } else {
+            request.toMediaPage(emptyList())
+        }
+    suspend fun searchTracksPage(
+        query: String,
+        request: MediaPageRequest = MediaPageRequest(),
+    ): MediaPage<Track> =
+        if (request.offset == 0) {
+            request.toMediaPage(search(query, request.limit).tracks)
+        } else {
+            request.toMediaPage(emptyList())
+        }
     suspend fun playlists(limit: Int = 20): List<Playlist> = emptyList()
     suspend fun playlistTracks(playlistId: String): List<Track> = emptyList()
     suspend fun createPlaylist(name: String, trackIds: List<TrackId>): Playlist {
@@ -122,6 +163,12 @@ interface MediaProvider {
         throw UnsupportedOperationException("Track ratings are not supported by $displayName.")
     }
     fun coverArtUrl(coverArtId: String): String
+    fun coverArtUrl(coverArtId: String, size: CoverArtSize): String = coverArtUrl(coverArtId)
+}
+
+enum class CoverArtSize(val pixels: Int) {
+    Thumbnail(512),
+    Hero(1024),
 }
 
 data class MediaSearchResults(

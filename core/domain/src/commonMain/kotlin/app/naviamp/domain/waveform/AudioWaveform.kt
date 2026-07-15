@@ -23,7 +23,7 @@ fun StreamQuality.waveformCacheKey(): String =
     when (this) {
         StreamQuality.Original -> "original"
         is StreamQuality.Transcoded -> "transcoded:${codec.name.lowercase()}:$bitrateKbps"
-    } + ":waveform-v9"
+    } + ":waveform-v10"
 
 fun playbackFraction(positionSeconds: Double?, durationSeconds: Double?): Double {
     val position = positionSeconds ?: return 0.0

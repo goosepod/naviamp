@@ -3,11 +3,7 @@ package app.naviamp.desktop
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
@@ -18,6 +14,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.naviamp.domain.provider.MediaSearchResults
+import app.naviamp.ui.NaviampPageTitle
 import app.naviamp.ui.SharedMediaItemActionRequest
 import app.naviamp.ui.SharedTrackRowActionRequest
 
@@ -35,41 +32,19 @@ fun DesktopSearchPanel(
     onTrackAction: (SharedTrackRowActionRequest) -> Unit,
 ) {
     val searchFocusRequester = remember { FocusRequester() }
-    val textFieldColors = OutlinedTextFieldDefaults.colors(
-        focusedTextColor = appColors.primaryText,
-        unfocusedTextColor = appColors.primaryText,
-        focusedLabelColor = appColors.primaryText,
-        unfocusedLabelColor = appColors.secondaryText,
-        cursorColor = appColors.primaryText,
-        focusedBorderColor = appColors.accent,
-        unfocusedBorderColor = appColors.border,
-    )
-
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        OutlinedTextField(
+        NaviampPageTitle("Search", appColors)
+        DesktopCompactSearchField(
             value = query,
             onValueChange = onQueryChanged,
-            label = { Text("Search music") },
-            trailingIcon = {
-                if (query.isNotBlank() || !results.isEmpty || status != null || isSearching) {
-                    IconButton(
-                        onClick = {
-                            onClearSearch()
-                            searchFocusRequester.requestFocus()
-                        },
-                    ) {
-                        Icon(
-                            imageVector = DesktopNavigationIcons.Close,
-                            contentDescription = "Clear search",
-                            tint = appColors.secondaryText,
-                        )
-                    }
-                }
+            placeholder = "Search music",
+            appColors = appColors,
+            onClear = {
+                onClearSearch()
+                searchFocusRequester.requestFocus()
             },
-            singleLine = true,
-            textStyle = MaterialTheme.typography.bodySmall,
-            colors = textFieldColors,
-            modifier = Modifier.fillMaxWidth().focusRequester(searchFocusRequester),
+            showClear = query.isNotBlank() || !results.isEmpty || status != null || isSearching,
+            modifier = Modifier.padding(horizontal = 8.dp).focusRequester(searchFocusRequester),
         )
 
         status?.let {

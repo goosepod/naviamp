@@ -90,6 +90,7 @@ class AndroidStorage(
     SidecarStatusRepository,
     AutoCloseable {
     private val appContext = context.applicationContext
+    private val databaseExistedBeforeOpen = appContext.getDatabasePath(DatabaseName).exists()
     private val driver = createAndroidStorageDriver(appContext).also {
         it.configureSqliteLockHandling()
         it.ensureMediaSourceNetworkOptionsSchema()
@@ -98,6 +99,17 @@ class AndroidStorage(
         it.ensureLibraryTrackPlayMetadataSchema()
         it.ensureRadioDjPresetSchema()
         it.ensureKeepDownloadedSchema()
+        if (databaseExistedBeforeOpen) {
+            val maintenancePreferences = appContext.getSharedPreferences(
+                DatabaseMaintenancePreferences,
+                Context.MODE_PRIVATE,
+            )
+            val schemaVersion = NaviampStorageDatabase.Schema.version
+            if (maintenancePreferences.getLong(LastReclaimedSchemaVersion, 0L) < schemaVersion) {
+                it.execute(null, "VACUUM", 0)
+                maintenancePreferences.edit().putLong(LastReclaimedSchemaVersion, schemaVersion).apply()
+            }
+        }
         it.execute(null, "PRAGMA foreign_keys=ON", 0)
     }
     private val database = NaviampStorageDatabase(driver)
@@ -291,8 +303,7 @@ class AndroidStorage(
         decode: (String) -> T,
         encode: (T) -> String,
         fetch: suspend () -> T,
-    ): T =
-        providerResponseCache.cachedProviderResponse(provider, resourceType, resourceId, decode, encode, fetch)
+    ): T = fetch()
 
     override fun invalidateProviderResponses(
         provider: MediaProvider,
@@ -1017,6 +1028,8 @@ private fun SqlDriver.tableHasColumn(tableName: String, columnName: String): Boo
 }
 
 private const val DatabaseName = "naviamp-storage.db"
+private const val DatabaseMaintenancePreferences = "naviamp-storage-maintenance"
+private const val LastReclaimedSchemaVersion = "last-reclaimed-schema-version"
 private const val SqliteBusyTimeoutMillis = 10_000
 private const val MaxAudioWaveformCacheBytes = 32L * 1024L * 1024L
 private const val ProtectedAudioCacheQueueWindow = 11

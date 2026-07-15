@@ -31,6 +31,7 @@ import app.naviamp.ui.DownloadedTrackActionRequest
 import app.naviamp.ui.NaviampAction
 import app.naviamp.ui.NaviampDownloadedTrackUi
 import app.naviamp.ui.NaviampIcons
+import app.naviamp.ui.NaviampPageTitle
 import app.naviamp.ui.NaviampTransportIcons
 import app.naviamp.ui.LocalTrackSwipeSettings
 import app.naviamp.ui.SwipeActionContainer
@@ -74,9 +75,7 @@ fun DesktopDownloadsPanel(
     }
     Column(
         verticalArrangement = Arrangement.spacedBy(8.dp),
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 8.dp, vertical = 10.dp),
+        modifier = Modifier.fillMaxWidth(),
     ) {
         Row(
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -84,12 +83,7 @@ fun DesktopDownloadsPanel(
             modifier = Modifier.fillMaxWidth(),
         ) {
             Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                Text(
-                    "Downloads",
-                    color = appColors.primaryText,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 18.sp,
-                )
+                NaviampPageTitle("Downloads", appColors)
                 Text(
                     "${downloads.size} files - ${downloadBytes.storageBytesLabel()} of " +
                         maxDownloadBytes.storageBytesLabel(),

@@ -40,12 +40,14 @@ class DesktopObjectByteStore(
 
     private fun trim() {
         var cacheSize = queries.imageCacheSize().executeAsOne()
-        if (cacheSize <= maxImageCacheBytes) return
-
-        queries.oldestImages(100).executeAsList().forEach { image ->
-            if (cacheSize <= maxImageCacheBytes) return
-            queries.deleteImage(image.url)
-            cacheSize -= image.size_bytes
+        while (cacheSize > maxImageCacheBytes) {
+            val oldest = queries.oldestImages(100).executeAsList()
+            if (oldest.isEmpty()) return
+            oldest.forEach { image ->
+                if (cacheSize <= maxImageCacheBytes) return
+                queries.deleteImage(image.url)
+                cacheSize -= image.size_bytes
+            }
         }
     }
 }

@@ -108,6 +108,7 @@ internal fun DesktopAppControllerEffects(
     }
 
     LaunchedEffect(libraryController.query, connectedSourceId) {
+        if (libraryController.query.isNotBlank()) delay(250)
         libraryController.refreshAfterQueryOrSourceChange()
     }
 

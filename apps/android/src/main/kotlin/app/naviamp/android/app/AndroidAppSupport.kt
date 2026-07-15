@@ -35,6 +35,7 @@ import app.naviamp.domain.playback.VisualizerPlaybackEngine
 import app.naviamp.domain.playback.label
 import app.naviamp.domain.sonichome.SonicHomeDiscoveryRows
 import app.naviamp.domain.provider.MediaProvider
+import app.naviamp.domain.provider.CoverArtSize
 import app.naviamp.domain.provider.MediaSearchResults
 import app.naviamp.domain.popular.SimilarArtistMatch
 import app.naviamp.domain.queue.PlaybackQueue
@@ -137,6 +138,7 @@ fun rememberAndroidShellModels(
     keepDownloadedPlaylistIds: Set<String>,
     sonicHomeDiscoveryRows: SonicHomeDiscoveryRows,
     searchResults: MediaSearchResults,
+    libraryArtists: List<Artist>,
     libraryStatus: String?,
     isLibrarySyncing: Boolean,
     downloadedTracks: List<AndroidDownloadedTrack>,
@@ -168,6 +170,7 @@ fun rememberAndroidShellModels(
         keepDownloadedPlaylistIds,
         sonicHomeDiscoveryRows,
         searchResults,
+        libraryArtists,
         libraryStatus,
         isLibrarySyncing,
         downloadedTracks,
@@ -199,6 +202,7 @@ fun rememberAndroidShellModels(
             keepDownloadedPlaylistIds = keepDownloadedPlaylistIds,
             sonicHomeDiscoveryRows = sonicHomeDiscoveryRows,
             searchResults = searchResults,
+            libraryArtists = libraryArtists,
             libraryStatus = libraryStatus,
             isLibrarySyncing = isLibrarySyncing,
             downloadedTracks = downloadedTracks,
@@ -232,6 +236,7 @@ fun androidShellModels(
     keepDownloadedPlaylistIds: Set<String>,
     sonicHomeDiscoveryRows: SonicHomeDiscoveryRows,
     searchResults: MediaSearchResults,
+    libraryArtists: List<Artist>,
     libraryStatus: String?,
     isLibrarySyncing: Boolean,
     downloadedTracks: List<AndroidDownloadedTrack>,
@@ -276,7 +281,7 @@ fun androidShellModels(
             canFavoriteArtists = canFavoriteArtists,
             canFavoriteAlbums = canFavoriteAlbums,
         ),
-        libraryArtists = homeState.artists.map { it.toSharedMediaItemUi(coverArtUrl, canFavoriteArtists) },
+        libraryArtists = libraryArtists.map { it.toSharedMediaItemUi(coverArtUrl, canFavoriteArtists) },
         librarySyncStatus = NaviampLibrarySyncStatusUi(
             message = libraryStatus,
             isSyncing = isLibrarySyncing,
@@ -385,7 +390,8 @@ fun androidNowPlayingUi(
             canSaveQueueAsPlaylist = canSaveQueueAsPlaylist,
         )
         val resolvedCoverArtUrl = effectiveNowPlayingCoverArtUrl(
-            currentCoverArtUrl = track.coverArtUrl(provider),
+            currentCoverArtUrl = (track.coverArtId ?: track.albumId?.value)
+                ?.let { provider?.coverArtUrl(it, CoverArtSize.Hero) },
             nowPlayingTrack = track,
             nowPlayingStation = nowPlayingStation,
             streamMetadata = nowPlayingStreamMetadata,

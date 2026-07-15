@@ -154,6 +154,7 @@ fun AndroidAppShellContent(
         onLibraryQueryChanged = actions.onLibraryQueryChanged,
         onRefreshHome = actions.onRefreshHome,
         onRefreshLibrary = actions.onRefreshLibrary,
+        onLoadMoreLibrary = actions.onLoadMoreLibrary,
         onRefreshPlaylists = actions.onRefreshPlaylists,
         onRefreshRadioStations = actions.onRefreshRadioStations,
         onTrackSelected = actions.onTrackSelected,

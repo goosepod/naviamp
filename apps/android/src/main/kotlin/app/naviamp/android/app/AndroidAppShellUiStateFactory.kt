@@ -84,6 +84,7 @@ fun rememberAndroidAppShellUiState(
             keepDownloadedPlaylistIds = keepDownloadedPolicies.mapTo(mutableSetOf()) { it.collectionId },
             sonicHomeDiscoveryRows = sonicHomeDiscoveryRows,
             searchResults = searchResults,
+            libraryArtists = libraryArtists,
             libraryStatus = libraryStatus,
             isLibrarySyncing = isLibrarySyncing,
             downloadedTracks = downloadedTracks,

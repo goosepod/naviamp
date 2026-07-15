@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
@@ -24,6 +25,7 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -830,18 +832,13 @@ fun ArtistMixBuilderContent(
     onPlayMix: () -> Unit,
     showPlayMixButton: Boolean = true,
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Row(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier.fillMaxWidth(),
         ) {
-            Text(
-                stringResource(Res.string.mix_artist_builder_title),
-                color = colors.primaryText,
-                fontSize = 20.sp,
-                fontWeight = FontWeight.Bold,
-            )
+            NaviampPageTitle(stringResource(Res.string.mix_artist_builder_title), colors)
             if (builder.query.isNotBlank() || builder.selectedArtists.isNotEmpty()) {
                 TextButton(onClick = onReset) {
                     Text(stringResource(Res.string.common_reset), fontSize = 12.sp)
@@ -919,18 +916,13 @@ fun AlbumMixBuilderContent(
     onPlayMix: () -> Unit,
     showPlayMixButton: Boolean = true,
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Row(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier.fillMaxWidth(),
         ) {
-            Text(
-                stringResource(Res.string.mix_album_builder_title),
-                color = colors.primaryText,
-                fontSize = 20.sp,
-                fontWeight = FontWeight.Bold,
-            )
+            NaviampPageTitle(stringResource(Res.string.mix_album_builder_title), colors)
             if (builder.query.isNotBlank() || builder.selectedAlbums.isNotEmpty()) {
                 TextButton(onClick = onReset) {
                     Text(stringResource(Res.string.common_reset), fontSize = 12.sp)
@@ -1008,18 +1000,13 @@ fun GenreMixBuilderContent(
     onPlayMix: () -> Unit,
     showPlayMixButton: Boolean = true,
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Row(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier.fillMaxWidth(),
         ) {
-            Text(
-                stringResource(Res.string.mix_genre_builder_title),
-                color = colors.primaryText,
-                fontSize = 20.sp,
-                fontWeight = FontWeight.Bold,
-            )
+            NaviampPageTitle(stringResource(Res.string.mix_genre_builder_title), colors)
             if (builder.query.isNotBlank() || builder.selectedGenres.isNotEmpty()) {
                 TextButton(onClick = onReset) {
                     Text(stringResource(Res.string.common_reset), fontSize = 12.sp)
@@ -1095,18 +1082,13 @@ fun SonicPathBuilderContent(
     onAddPathToQueue: () -> Unit,
     showPathActions: Boolean = true,
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Row(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier.fillMaxWidth(),
         ) {
-            Text(
-                stringResource(Res.string.sonic_path_title),
-                color = colors.primaryText,
-                fontSize = 20.sp,
-                fontWeight = FontWeight.Bold,
-            )
+            NaviampPageTitle(stringResource(Res.string.sonic_path_title), colors)
             if (
                 builder.startQuery.isNotBlank() ||
                 builder.endQuery.isNotBlank() ||
@@ -1228,18 +1210,13 @@ fun SonicMixBuilderContent(
     onAddMixToQueue: () -> Unit,
     showMixActions: Boolean = true,
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Row(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier.fillMaxWidth(),
         ) {
-            Text(
-                stringResource(Res.string.nav_sonic_mix),
-                color = colors.primaryText,
-                fontSize = 20.sp,
-                fontWeight = FontWeight.Bold,
-            )
+            NaviampPageTitle(stringResource(Res.string.nav_sonic_mix), colors)
             if (
                 builder.query.isNotBlank() ||
                 builder.selectedTracks.isNotEmpty() ||
@@ -1642,10 +1619,18 @@ fun InternetRadioContent(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier.fillMaxWidth(),
         ) {
-            Text("Internet Radio", color = colors.primaryText, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+            NaviampPageTitle("Internet Radio", colors)
             Row(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
                 if (onSaveStation != null) {
-                    Button(onClick = { creatingStation = true }, modifier = Modifier.height(34.dp)) {
+                    Button(
+                        onClick = { creatingStation = true },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = colors.primaryText.copy(alpha = 0.12f),
+                            contentColor = colors.primaryText,
+                        ),
+                        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 4.dp),
+                        modifier = Modifier.height(34.dp),
+                    ) {
                         Text("New station", fontSize = 12.sp)
                     }
                 }

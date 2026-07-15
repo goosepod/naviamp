@@ -185,6 +185,7 @@ data class AndroidAppShellActions(
     val onLibraryQueryChanged: (String) -> Unit,
     val onRefreshHome: () -> Unit,
     val onRefreshLibrary: () -> Unit,
+    val onLoadMoreLibrary: () -> Unit,
     val onRefreshPlaylists: () -> Unit,
     val onRefreshRadioStations: () -> Unit,
     val onTrackSelected: (SharedTrackRowUi) -> Unit,

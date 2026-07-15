@@ -122,12 +122,7 @@ internal fun PlaylistsContent(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier.fillMaxWidth(),
         ) {
-            Text(
-                stringResource(Res.string.playlists_title),
-                color = colors.primaryText,
-                fontSize = 20.sp,
-                fontWeight = FontWeight.Bold,
-            )
+            NaviampPageTitle(stringResource(Res.string.playlists_title), colors)
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 IconButton(
                     onClick = { smartPlaylistBuilderOpen = true },

@@ -3,6 +3,7 @@ package app.naviamp.ui
 import app.naviamp.ui.generated.resources.Res
 import app.naviamp.ui.generated.resources.*
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -16,6 +17,7 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.DropdownMenu
@@ -34,13 +36,17 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
@@ -49,6 +55,61 @@ import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import org.jetbrains.compose.resources.stringResource
+
+@Composable
+internal fun NaviampCompactSearchField(
+    value: String,
+    placeholder: String,
+    colors: NaviampColors,
+    onValueChange: (String) -> Unit,
+    onClear: () -> Unit,
+    showClear: Boolean = value.isNotBlank(),
+    modifier: Modifier = Modifier,
+) {
+    BasicTextField(
+        value = value,
+        onValueChange = onValueChange,
+        singleLine = true,
+        textStyle = MaterialTheme.typography.bodyMedium.copy(color = colors.primaryText),
+        cursorBrush = SolidColor(colors.primaryText),
+        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+        modifier = modifier
+            .fillMaxWidth()
+            .height(40.dp)
+            .clip(RoundedCornerShape(7.dp))
+            .background(colors.primaryText.copy(alpha = 0.13f)),
+        decorationBox = { innerTextField ->
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.padding(horizontal = 10.dp),
+            ) {
+                Icon(
+                    imageVector = NaviampIcons.Search,
+                    contentDescription = null,
+                    tint = colors.secondaryText,
+                    modifier = Modifier.size(17.dp),
+                )
+                Box(modifier = Modifier.weight(1f).padding(horizontal = 9.dp)) {
+                    if (value.isEmpty()) {
+                        Text(placeholder, color = colors.secondaryText, style = MaterialTheme.typography.bodyMedium)
+                    }
+                    innerTextField()
+                }
+                if (showClear) {
+                    Icon(
+                        imageVector = NaviampIcons.Close,
+                        contentDescription = null,
+                        tint = colors.secondaryText,
+                        modifier = Modifier
+                            .size(18.dp)
+                            .semantics { contentDescription = "Clear search" }
+                            .clickable(onClick = onClear),
+                    )
+                }
+            }
+        },
+    )
+}
 
 @Composable
 internal fun NaviampTextField(

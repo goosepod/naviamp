@@ -536,7 +536,7 @@ fun ColumnScope.DesktopAppRouteContent(
                     keepDownloadedPlaylistIds = keepDownloadedPolicies.mapTo(mutableSetOf()) { it.collectionId },
                     recentPlaylistIds = recentPlaylistIds,
                     sortMode = playlistSortMode,
-                    status = playlistStatus ?: connectionStatus,
+                    status = playlistStatus ?: connectionStatus.pageStatusOrNull(),
                     coverArtUrl = coverArtUrl,
                     onSortModeChanged = onPlaylistSortModeChanged,
                     onPlaylistAction = { request ->
@@ -597,34 +597,22 @@ fun ColumnScope.DesktopAppRouteContent(
                     selectedConnectionLibraryIds = connectionForm.selectedMusicFolderIds,
                 )
                 DesktopAppRoute.Library -> {
-                    DesktopLibraryListLoadMoreEffect(
-                        selectedTab = libraryTab,
-                        snapshot = librarySnapshot,
-                        listState = libraryListState,
-                        onLoadMore = libraryController::loadMoreLibraryRows,
-                    )
                     DesktopLibraryPanel(
                         appColors = appColors,
                         snapshot = librarySnapshot,
                         query = libraryQuery,
-                        selectedTab = libraryTab,
-                        status = libraryStatus ?: connectionStatus,
+                        status = libraryStatus ?: connectionStatus.pageStatusOrNull(),
                         isSyncing = isLibrarySyncing,
                         listState = libraryListState,
                         coverArtUrl = coverArtUrl,
                         onQueryChanged = onLibraryQueryChanged,
-                        onTabSelected = libraryController::selectLibraryTab,
-                        onLoadMore = libraryController::loadMoreLibraryRows,
                         onJumpToLetter = libraryController::jumpLibraryToLetter,
                         onMediaItemAction = { request ->
                             librarySnapshot.artists
                                 .firstOrNull { artist -> artist.id.value == request.item.id }
                                 ?.let { artist -> handleArtistMediaAction(request.action, artist) }
-                                ?: librarySnapshot.albums
-                                    .firstOrNull { album -> album.id.value == request.item.id }
-                                    ?.let { album -> handleAlbumMediaAction(request.action, album) }
                         },
-                        onRefreshLibrary = { libraryController.startLibrarySync(force = true) },
+                        onRefreshLibrary = libraryController::refreshArtistIndex,
                     )
                 }
                 DesktopAppRoute.Search -> DesktopSearchPanel(
@@ -884,7 +872,7 @@ fun ColumnScope.DesktopAppRouteContent(
                     DesktopInternetRadioPanel(
                         appColors = appColors,
                         stations = internetRadioStations,
-                        status = internetRadioStatus ?: connectionStatus,
+                        status = internetRadioStatus ?: connectionStatus.pageStatusOrNull(),
                         onStationAction = { request ->
                             internetRadioStations.firstOrNull { station -> station.id == request.station.id }?.let { station ->
                                 when (request.action) {
@@ -1039,3 +1027,9 @@ fun ColumnScope.DesktopAppRouteContent(
         )
     }
 }
+
+private fun String?.pageStatusOrNull(): String? =
+    this?.takeUnless { status ->
+        status.startsWith("Connected to Navidrome", ignoreCase = true) ||
+            status.startsWith("Connected to ", ignoreCase = true)
+    }
