@@ -312,6 +312,7 @@ fun NaviampNowPlayingPanel(
                     onTabSelected = { selectedTab = it },
                     showStationList = showStationList,
                     showLyrics = nowPlaying.lyricsVisible,
+                    compactQueueRows = true,
                     actions = actions,
                     modifier = Modifier
                         .weight(1.1f)
@@ -960,18 +961,20 @@ private fun NowPlayingDetails(
                     }
                 }
             }
-            IconButton(
-                onClick = { actions.display(NowPlayingDisplayAction.Collapse) },
-                modifier = Modifier
-                    .requiredSize(bottomActionButtonSize)
-                    .align(Alignment.Center),
-            ) {
-                Icon(
-                    imageVector = NaviampIcons.ChevronDown,
-                    contentDescription = "Back",
-                    tint = colors.secondaryText,
-                    modifier = Modifier.requiredSize(bottomActionIconSize),
-                )
+            Box(modifier = Modifier.align(Alignment.Center)) {
+                NaviampTooltip("Collapse player", colors) {
+                    IconButton(
+                        onClick = { actions.display(NowPlayingDisplayAction.Collapse) },
+                        modifier = Modifier.requiredSize(bottomActionButtonSize),
+                    ) {
+                        Icon(
+                            imageVector = NaviampIcons.ChevronDown,
+                            contentDescription = "Collapse player",
+                            tint = colors.secondaryText,
+                            modifier = Modifier.requiredSize(bottomActionIconSize),
+                        )
+                    }
+                }
             }
             Row(
                 verticalAlignment = Alignment.CenterVertically,
@@ -1639,6 +1642,7 @@ private fun NowPlayingSidePanel(
     onTabSelected: (NaviampNowPlayingTab) -> Unit,
     showStationList: Boolean,
     showLyrics: Boolean,
+    compactQueueRows: Boolean = false,
     actions: NaviampNowPlayingActions,
     modifier: Modifier = Modifier,
 ) {
@@ -1738,6 +1742,7 @@ private fun NowPlayingSidePanel(
                 swipeSettings.queueLeft
             },
             queueContext = selectedTab != NaviampNowPlayingTab.Related,
+            compactRows = compactQueueRows,
             modifier = Modifier.weight(if (showLyrics) 0.62f else 1f),
         )
         if (showLyrics) {
@@ -2262,6 +2267,7 @@ private fun NowPlayingItemList(
     swipeLeftAction: TrackSwipeAction = TrackSwipeAction.None,
     queueContext: Boolean = false,
     canToggleFavorite: Boolean = false,
+    compactRows: Boolean = false,
 ) {
     if (items.isEmpty()) {
         Box(modifier = modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
@@ -2271,7 +2277,7 @@ private fun NowPlayingItemList(
     }
     LazyColumn(
         state = listState,
-        verticalArrangement = Arrangement.spacedBy(5.dp),
+        verticalArrangement = Arrangement.spacedBy(if (compactRows) 2.dp else 5.dp),
         modifier = modifier.fillMaxWidth(),
     ) {
         itemsIndexed(items, key = ::nowPlayingListItemKey) { index, item ->
@@ -2323,93 +2329,98 @@ private fun NowPlayingItemList(
                     onAction = onAction,
                 ),
             ) { swipeModifier ->
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                modifier = swipeModifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(5.dp))
-                    .background(if (selected) Color.White.copy(alpha = 0.12f) else Color.Black.copy(alpha = 0.10f))
-                    .clickable { onClick(item) }
-                    .padding(horizontal = 6.dp, vertical = 5.dp),
-            ) {
-                PlatformCoverArt(item.coverArtUrl, colors, 32.dp, 4.dp)
-                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                    Text(item.title, color = colors.primaryText, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                    Text(item.subtitle, color = colors.secondaryText, fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                }
-                if (item.meta.isNotBlank()) {
-                    Text(item.meta, color = colors.mutedText, fontSize = 10.sp)
-                }
-                if (showActions) {
-                    Box {
-                    IconButton(
-                        onClick = { menuExpanded = true },
-                        modifier = Modifier.size(28.dp),
-                    ) {
-                        Icon(
-                            imageVector = NaviampTransportIcons.MoreVertical,
-                            contentDescription = "More actions",
-                            tint = colors.secondaryText,
-                            modifier = Modifier.size(17.dp),
-                        )
+                val artworkSize = if (compactRows) 28.dp else 32.dp
+                val rowSpacing = if (compactRows) 6.dp else 8.dp
+                val rowVerticalPadding = if (compactRows) 3.dp else 5.dp
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(rowSpacing),
+                    modifier = swipeModifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(5.dp))
+                        .background(if (selected) Color.White.copy(alpha = 0.12f) else Color.Black.copy(alpha = 0.10f))
+                        .clickable { onClick(item) }
+                        .padding(horizontal = 6.dp, vertical = rowVerticalPadding),
+                ) {
+                    PlatformCoverArt(item.coverArtUrl, colors, artworkSize, 4.dp)
+                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        Text(item.title, color = colors.primaryText, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        Text(item.subtitle, color = colors.secondaryText, fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     }
-                    NaviampDropdownMenu(
-                        expanded = menuExpanded,
-                        onDismissRequest = { menuExpanded = false },
-                    ) {
-                        visibleRowActions.forEach { action ->
-                            NaviampDropdownMenuItem(
-                                label = action.label,
-                                icon = action.icon,
-                                enabled = action.enabled,
-                                onClick = {
-                                    menuExpanded = false
-                                    when (action.action) {
-                                        NaviampAction.PlayNext ->
-                                            onAction(nowPlayingItemActionRequest(item, NowPlayingItemAction.PlayNext))
-                                        NaviampAction.AddToQueue ->
-                                            onAction(nowPlayingItemActionRequest(item, NowPlayingItemAction.AddToQueue))
-                                        NaviampAction.StartTrackRadio ->
-                                            onAction(nowPlayingItemActionRequest(item, NowPlayingItemAction.StartRadio))
-                                        NaviampAction.PlayTrackRadioNext ->
-                                            onAction(nowPlayingItemActionRequest(item, NowPlayingItemAction.PlayTrackRadioNext))
-                                        NaviampAction.AddTrackRadioToQueue ->
-                                            onAction(nowPlayingItemActionRequest(item, NowPlayingItemAction.AddTrackRadioToQueue))
-                                        NaviampAction.RemoveFromQueue ->
-                                            nowPlayingQueueIndex(item)?.let { index ->
-                                                onAction(
-                                                    NowPlayingItemActionRequest(
-                                                        item = item,
-                                                        target = NowPlayingItemTarget.QueueIndex(index),
-                                                        action = NowPlayingItemAction.RemoveFromQueue,
-                                                    ),
-                                                )
+                    if (item.meta.isNotBlank()) {
+                        Text(item.meta, color = colors.mutedText, fontSize = 10.sp)
+                    }
+                    if (showActions) {
+                        Box {
+                            NaviampTooltip("More actions", colors) {
+                                IconButton(
+                                    onClick = { menuExpanded = true },
+                                    modifier = Modifier.size(28.dp),
+                                ) {
+                                    Icon(
+                                        imageVector = NaviampTransportIcons.MoreVertical,
+                                        contentDescription = "More actions",
+                                        tint = colors.secondaryText,
+                                        modifier = Modifier.size(17.dp),
+                                    )
+                                }
+                            }
+                            NaviampDropdownMenu(
+                                expanded = menuExpanded,
+                                onDismissRequest = { menuExpanded = false },
+                            ) {
+                                visibleRowActions.forEach { action ->
+                                    NaviampDropdownMenuItem(
+                                        label = action.label,
+                                        icon = action.icon,
+                                        enabled = action.enabled,
+                                        onClick = {
+                                            menuExpanded = false
+                                            when (action.action) {
+                                                NaviampAction.PlayNext ->
+                                                    onAction(nowPlayingItemActionRequest(item, NowPlayingItemAction.PlayNext))
+                                                NaviampAction.AddToQueue ->
+                                                    onAction(nowPlayingItemActionRequest(item, NowPlayingItemAction.AddToQueue))
+                                                NaviampAction.StartTrackRadio ->
+                                                    onAction(nowPlayingItemActionRequest(item, NowPlayingItemAction.StartRadio))
+                                                NaviampAction.PlayTrackRadioNext ->
+                                                    onAction(nowPlayingItemActionRequest(item, NowPlayingItemAction.PlayTrackRadioNext))
+                                                NaviampAction.AddTrackRadioToQueue ->
+                                                    onAction(nowPlayingItemActionRequest(item, NowPlayingItemAction.AddTrackRadioToQueue))
+                                                NaviampAction.RemoveFromQueue ->
+                                                    nowPlayingQueueIndex(item)?.let { index ->
+                                                        onAction(
+                                                            NowPlayingItemActionRequest(
+                                                                item = item,
+                                                                target = NowPlayingItemTarget.QueueIndex(index),
+                                                                action = NowPlayingItemAction.RemoveFromQueue,
+                                                            ),
+                                                        )
+                                                    }
+                                                NaviampAction.DownloadTrack ->
+                                                    onAction(nowPlayingItemActionRequest(item, NowPlayingItemAction.Download))
+                                                NaviampAction.GoToAlbum ->
+                                                    onAction(nowPlayingItemActionRequest(item, NowPlayingItemAction.GoToAlbum))
+                                                NaviampAction.GoToArtist ->
+                                                    onAction(nowPlayingItemActionRequest(item, NowPlayingItemAction.GoToArtist))
+                                                NaviampAction.ToggleFavorite ->
+                                                    onAction(nowPlayingItemActionRequest(item, NowPlayingItemAction.ToggleFavorite))
+                                                NaviampAction.AddToPlaylist -> {
+                                                    if (useInlinePlaylistPicker) {
+                                                        playlistDialogOpen = true
+                                                    } else {
+                                                        onAction(nowPlayingItemActionRequest(item, NowPlayingItemAction.AddToPlaylist))
+                                                    }
+                                                }
+                                                else -> Unit
                                             }
-                                        NaviampAction.DownloadTrack ->
-                                            onAction(nowPlayingItemActionRequest(item, NowPlayingItemAction.Download))
-                                        NaviampAction.GoToAlbum ->
-                                            onAction(nowPlayingItemActionRequest(item, NowPlayingItemAction.GoToAlbum))
-                                        NaviampAction.GoToArtist ->
-                                            onAction(nowPlayingItemActionRequest(item, NowPlayingItemAction.GoToArtist))
-                                        NaviampAction.ToggleFavorite ->
-                                            onAction(nowPlayingItemActionRequest(item, NowPlayingItemAction.ToggleFavorite))
-                                        NaviampAction.AddToPlaylist -> {
-                                            if (useInlinePlaylistPicker) {
-                                                playlistDialogOpen = true
-                                            } else {
-                                                onAction(nowPlayingItemActionRequest(item, NowPlayingItemAction.AddToPlaylist))
-                                            }
-                                        }
-                                        else -> Unit
-                                    }
-                                },
-                            )
+                                        },
+                                    )
+                                }
+                            }
                         }
                     }
-                    }
                 }
-            }
             }
             if (playlistDialogOpen) {
                 AddToPlaylistDialog(
@@ -2559,38 +2570,40 @@ fun NaviampTransportIconButton(
     modifier: Modifier = Modifier,
     onClick: () -> Unit,
 ) {
-    Box(
-        contentAlignment = Alignment.Center,
-        modifier = modifier
-            .requiredSize(buttonSize)
-            .clip(RoundedCornerShape(999.dp))
-            .background(
-                when {
-                    prominent -> colors.accent.copy(alpha = if (enabled) 0.28f else 0.10f)
-                    selected -> colors.accent.copy(alpha = 0.18f)
-                    else -> Color.Transparent
-                },
+    NaviampTooltip(contentDescription, colors) {
+        Box(
+            contentAlignment = Alignment.Center,
+            modifier = modifier
+                .requiredSize(buttonSize)
+                .clip(RoundedCornerShape(999.dp))
+                .background(
+                    when {
+                        prominent -> colors.accent.copy(alpha = if (enabled) 0.28f else 0.10f)
+                        selected -> colors.accent.copy(alpha = 0.18f)
+                        else -> Color.Transparent
+                    },
+                )
+                .clickable(
+                    enabled = enabled,
+                    onClick = onClick,
+                ),
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = contentDescription,
+                tint = if (enabled) colors.primaryText else colors.mutedText.copy(alpha = 0.55f),
+                modifier = Modifier.requiredSize(iconSize),
             )
-            .clickable(
-                enabled = enabled,
-                onClick = onClick,
-            ),
-    ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = contentDescription,
-            tint = if (enabled) colors.primaryText else colors.mutedText.copy(alpha = 0.55f),
-            modifier = Modifier.requiredSize(iconSize),
-        )
-        centerText?.let {
-            Text(
-                it,
-                color = colors.primaryText,
-                fontSize = 9.sp,
-                fontWeight = FontWeight.Bold,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.align(Alignment.Center),
-            )
+            centerText?.let {
+                Text(
+                    it,
+                    color = colors.primaryText,
+                    fontSize = 9.sp,
+                    fontWeight = FontWeight.Bold,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.align(Alignment.Center),
+                )
+            }
         }
     }
 }

@@ -376,6 +376,8 @@ class MediaUiMappersTest {
         assertEquals(listOf("one"), sections.backTo.map { it.id })
         assertEquals(listOf("three"), sections.upNext.map { it.id })
         assertEquals(listOf("related"), sections.related.map { it.id })
+        assertEquals(listOf("2:05"), sections.backTo.map { it.meta })
+        assertEquals(listOf("2:05"), sections.upNext.map { it.meta })
         assertEquals(true, sections.hasPrevious)
         assertEquals(true, sections.hasNext)
         assertEquals(false, sections.shuffleEnabled)
@@ -398,6 +400,8 @@ class MediaUiMappersTest {
         assertEquals(listOf(nowPlayingQueueItemId(1), nowPlayingQueueItemId(0)), sections.backTo.map { it.id })
         assertEquals(listOf(nowPlayingQueueItemId(3)), sections.upNext.map { it.id })
         assertEquals(listOf(nowPlayingRelatedItemId(0)), sections.related.map { it.id })
+        assertEquals(listOf("2:05", "2:05"), sections.backTo.map { it.meta })
+        assertEquals(listOf("2:05"), sections.upNext.map { it.meta })
         assertEquals(true, sections.hasPrevious)
         assertEquals(true, sections.hasNext)
         assertEquals(false, sections.shuffleEnabled)
@@ -426,6 +430,24 @@ class MediaUiMappersTest {
         )
 
         assertEquals(listOf(true, true, false), sections.upNext.map { it.playNextPriority })
+    }
+
+    @Test
+    fun nowPlayingSectionsLeaveUnknownQueueDurationsBlank() {
+        val current = track("current")
+        val unknownDuration = track("unknown").copy(durationSeconds = null)
+
+        val sections = PlaybackQueue(
+            tracks = listOf(current, unknownDuration),
+            currentIndex = 0,
+        ).toNowPlayingSectionsUi(
+            relatedTracks = emptyList(),
+            coverArtUrl = { null },
+            sonicSimilarityEnabled = false,
+            repeatMode = RepeatMode.Off,
+        )
+
+        assertEquals("", sections.upNext.single().meta)
     }
 
     @Test

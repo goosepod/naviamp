@@ -91,6 +91,13 @@ expect fun rememberPlatformCoverArtPlayerColors(
 ): NaviampPlayerColors
 
 @Composable
+expect fun NaviampTooltip(
+    text: String,
+    colors: NaviampColors,
+    content: @Composable () -> Unit,
+)
+
+@Composable
 @NonRestartableComposable
 fun NaviampSharedAppShell(
     modifier: Modifier = Modifier,

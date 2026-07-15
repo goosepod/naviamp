@@ -373,12 +373,12 @@ private fun nowPlayingSectionsUi(
         backTo = backTo.toNowPlayingItemUis(
             coverArtUrl = coverArtUrl,
             id = { index, track -> queueItemId(index, firstBackToQueueIndex - index, track) },
-            meta = { "" },
+            meta = { track -> track.durationSeconds?.durationLabel().orEmpty() },
         ),
         upNext = upNext.toNowPlayingItemUis(
             coverArtUrl = coverArtUrl,
             id = { index, track -> queueItemId(index, firstUpNextQueueIndex + index, track) },
-            meta = { "" },
+            meta = { track -> track.durationSeconds?.durationLabel().orEmpty() },
         ).mapIndexed { index, item ->
             item.copy(playNextPriority = index < playNextCount.coerceIn(0, upNext.size))
         },

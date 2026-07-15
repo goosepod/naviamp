@@ -6,18 +6,18 @@
 - **Title:** Little suggestions and scrobbles
 - **Reporter:** `mauriva`
 - **Reported environment:** Naviamp v1.2.0 on Windows with a Velvet OpenSonic server
-- **Status:** Triaged; implementation and Velvet reproduction pending
+- **Status:** UI polish implemented on `fix/issue-1-now-playing-polish`; play-reporting follow-up pending
 
 ### Visible Tooltips for Unfamiliar Icons
 
 The shared icon controls already provide accessibility `contentDescription` values, including the Now Playing transport controls. Compose Desktop does not turn those descriptions into visible hover tooltips, so Windows users can still be left guessing what an icon does.
 
-Implementation work:
+Implementation notes:
 
-- Add a reusable tooltip wrapper for shared icon buttons, starting with `NaviampTransportIconButton` in `NaviampNowPlayingUi.kt`.
-- Apply the same behavior to Now Playing tab actions, queue overflow actions, and other icon-only desktop controls.
-- Keep accessibility descriptions intact and avoid changing touch behavior on Android.
-- Use the existing action label or content description as the tooltip text so labels cannot drift apart.
+- Added a shared `NaviampTooltip` expect/actual wrapper.
+- Desktop renders visible Compose tooltips for the shared transport/icon buttons, the collapse button, and queue overflow actions.
+- Android keeps the previous touch behavior through a no-op actual while retaining accessibility descriptions.
+- Tooltip text comes from the same content descriptions or action labels used by the controls.
 
 Acceptance criteria:
 
@@ -31,12 +31,13 @@ Acceptance criteria:
 
 Current queue density is controlled by a 32 dp cover, 5 dp row padding, 8 dp internal spacing, and 5 dp spacing between rows in `NaviampNowPlayingUi.kt`.
 
-Implementation work:
+Implementation notes:
 
-- Populate Back To and Up Next metadata with `track.durationSeconds?.durationLabel()`.
-- Preserve similarity metadata for Related/Sonic rows.
-- Add a denser desktop/wide-player queue presentation without making Android rows too small for touch.
-- Check title, artist, duration, artwork, overflow-menu alignment, Play Next headers, and selected-row highlighting on Windows at multiple scaling levels.
+- Back To and Up Next rows now populate metadata with `track.durationSeconds?.durationLabel()`.
+- Missing durations remain blank.
+- Related/Sonic rows keep similarity metadata.
+- The wide desktop Now Playing side panel uses denser queue rows; the compact/mobile layout keeps the existing touch-sized rows.
+- Mapper tests cover queue durations, unknown durations, and preserve related metadata behavior.
 
 Acceptance criteria:
 
@@ -45,7 +46,7 @@ Acceptance criteria:
 - More queue tracks fit vertically while titles and artists remain readable.
 - Queue swipe actions and overflow menus continue to work on desktop and Android.
 
-### Verify and Harden Scrobbling with Velvet
+### Verify and Harden Play Reporting
 
 Scrobbling is already implemented in Naviamp rather than entirely missing:
 
@@ -57,26 +58,31 @@ Scrobbling is already implemented in Naviamp rather than entirely missing:
 
 The main diagnostic gap is that desktop wraps both requests in `runCatching` and discards failures. A Velvet incompatibility, rejected parameter, authentication problem, or server-side Last.fm forwarding failure is therefore invisible to the user and difficult to diagnose. Android has durable pending provider actions for failed reports; desktop does not have equivalent persistence.
 
+Current Navidrome also has a newer `reportPlayback.view` endpoint behind the OpenSubsonic playback-reporting extension. That endpoint accepts `mediaId`, `mediaType=song`, `positionMs`, and a playback `state` such as `starting`, `playing`, `paused`, or `stopped`. Navidrome uses the final stopped report to increment play counts and dispatch Last.fm/ListenBrainz scrobbles after the same 50 percent or 240 second threshold. This may be a better compatibility path for Navidrome/OpenSubsonic servers than only sending legacy `scrobble.view` requests.
+
 Investigation and implementation work:
 
-- Reproduce against Velvet using a Windows build and confirm whether both the Now Playing and submitted scrobble requests reach the server.
+- Gate any `reportPlayback.view` experiment on the server advertising the playback-reporting extension, then fall back to legacy `scrobble.view`.
+- Confirm the exact advertised extension name/version from Navidrome and other OpenSubsonic-compatible servers before implementing.
+- Map Naviamp playback lifecycle events to `starting`, `playing`, `paused`, and `stopped` without double-submitting a legacy scrobble and a reportPlayback stopped event.
+- Confirm Navidrome receives reports from Naviamp and forwards accepted scrobbles to the configured Last.fm and ListenBrainz accounts.
+- If Velvet testing becomes available from a reporter, confirm whether both the Now Playing and submitted scrobble requests reach the server.
 - Capture the HTTP status and OpenSubsonic error payload without logging credentials or authentication query values.
-- Confirm Velvet accepts `submission`, `time`, and Naviamp's track IDs exactly as sent.
-- Confirm Velvet is responsible for forwarding accepted server scrobbles to Last.fm and distinguish an accepted OpenSubsonic report from a failed Last.fm delivery.
 - Add visible diagnostics or sanitized logging when play reporting fails instead of silently swallowing the error.
 - Consider using the shared pending-provider-action mechanism on desktop so transient failures can retry safely.
-- Add a compatibility test using a Velvet-shaped response once the failure is understood.
+- Add compatibility tests for both legacy `scrobble.view` and capability-gated `reportPlayback.view` behavior.
 
 Acceptance criteria:
 
-- A track played past the reporting threshold from Naviamp on Windows appears in the server's play history and reaches the configured Last.fm account.
-- Now Playing and final submission are sent at most once per playback session under normal conditions.
+- A track played past the reporting threshold from Naviamp on Windows appears in the server's play history and reaches the configured Last.fm and ListenBrainz accounts.
+- Now Playing and final submission are sent without duplicate scrobbles under normal conditions.
 - Reporting failures are observable without exposing credentials.
 - Transient failures do not permanently suppress later play reports.
 
 ### Suggested Order
 
-1. Add sanitized desktop play-report diagnostics and reproduce with Velvet.
-2. Restore queue duration metadata and tune desktop queue density.
-3. Add reusable visible tooltips to icon-only desktop controls.
+1. Verify this branch visually on Windows for tooltip placement and queue density.
+2. Add sanitized desktop play-report diagnostics.
+3. Prototype capability-gated `reportPlayback.view` against Navidrome with Last.fm and ListenBrainz enabled.
+4. Use reporter-provided Velvet logs or a Velvet test environment only if that compatibility issue remains reproducible outside Navidrome.
 
