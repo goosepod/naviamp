@@ -1,5 +1,7 @@
 package app.naviamp.domain
 
+import kotlinx.serialization.Serializable
+
 @JvmInline
 value class ProviderId(val value: String)
 
@@ -39,7 +41,16 @@ data class Album(
     val recentlyAddedAtIso8601: String?,
     val releaseYear: Int? = null,
     val favoritedAtIso8601: String? = null,
+    val releaseTypes: List<String> = emptyList(),
+    val explicitStatus: AlbumExplicitStatus = AlbumExplicitStatus.Unknown,
 )
+
+@Serializable
+enum class AlbumExplicitStatus {
+    Unknown,
+    Clean,
+    Explicit,
+}
 
 data class AlbumDetails(
     val album: Album,

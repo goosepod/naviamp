@@ -127,10 +127,26 @@ data class InterfaceSettings(
     val language: InterfaceLanguage = InterfaceLanguage.System,
     val checkForUpdates: Boolean = true,
     val startPlayingOnLaunch: Boolean = false,
+    val albumCollectionLayout: AlbumCollectionLayout = AlbumCollectionLayout.List,
+    val albumSortOrder: AlbumSortOrder = AlbumSortOrder.ReleaseYearAscending,
+    val groupAlbumsByReleaseType: Boolean = true,
     val nowPlaying: NowPlayingDisplaySettings = NowPlayingDisplaySettings(),
     val trackSwipes: TrackSwipeSettings = TrackSwipeSettings(),
 ) {
     fun normalized(): InterfaceSettings = copy(nowPlaying = nowPlaying.normalized())
+}
+
+@Serializable
+enum class AlbumCollectionLayout(val label: String) {
+    List("List"),
+    Grid("Grid"),
+}
+
+@Serializable
+enum class AlbumSortOrder(val label: String) {
+    ReleaseYearAscending("Release year - oldest first"),
+    ReleaseYearDescending("Release year - newest first"),
+    Title("Title"),
 }
 
 @Serializable

@@ -17,6 +17,8 @@ import app.naviamp.domain.settings.ConnectionFormHeader
 import app.naviamp.domain.settings.ConnectionFormSecondaryUrl
 import app.naviamp.domain.settings.CacheSettings
 import app.naviamp.domain.settings.InterfaceLanguage
+import app.naviamp.domain.settings.AlbumCollectionLayout
+import app.naviamp.domain.settings.AlbumSortOrder
 import app.naviamp.domain.settings.InterfaceSettings
 import app.naviamp.domain.settings.NowPlayingDisplaySettings
 import app.naviamp.domain.settings.LyricsSourcePreference
@@ -177,6 +179,9 @@ class AndroidSettingsStore(
             language = enumPreference(KeyInterfaceLanguage, InterfaceLanguage.System),
             checkForUpdates = preferences.getBoolean(KeyCheckForUpdates, true),
             startPlayingOnLaunch = preferences.getBoolean(KeyStartPlayingOnLaunch, false),
+            albumCollectionLayout = enumPreference(KeyAlbumCollectionLayout, AlbumCollectionLayout.List),
+            albumSortOrder = enumPreference(KeyAlbumSortOrder, AlbumSortOrder.ReleaseYearAscending),
+            groupAlbumsByReleaseType = preferences.getBoolean(KeyGroupAlbumsByReleaseType, true),
             nowPlaying = NowPlayingDisplaySettings(
                 showAlbumYear = preferences.getBoolean(KeyNowPlayingShowAlbumYear, true),
                 showAudioInfo = preferences.getBoolean(KeyNowPlayingShowAudioInfo, true),
@@ -202,6 +207,9 @@ class AndroidSettingsStore(
             .putString(KeyInterfaceLanguage, settings.normalized().language.name)
             .putBoolean(KeyCheckForUpdates, settings.normalized().checkForUpdates)
             .putBoolean(KeyStartPlayingOnLaunch, settings.normalized().startPlayingOnLaunch)
+            .putString(KeyAlbumCollectionLayout, settings.normalized().albumCollectionLayout.name)
+            .putString(KeyAlbumSortOrder, settings.normalized().albumSortOrder.name)
+            .putBoolean(KeyGroupAlbumsByReleaseType, settings.normalized().groupAlbumsByReleaseType)
             .putBoolean(KeyNowPlayingShowAlbumYear, settings.normalized().nowPlaying.showAlbumYear)
             .putBoolean(KeyNowPlayingShowAudioInfo, settings.normalized().nowPlaying.showAudioInfo)
             .putBoolean(KeyNowPlayingShowVolumeBar, settings.normalized().nowPlaying.showVolumeBar)
@@ -561,6 +569,9 @@ private const val KeyEqualizerBandPrefix = "equalizer_band"
 private const val KeyDebugLoggingEnabled = "debug_logging_enabled"
 private const val KeyCheckForUpdates = "check_for_updates"
 private const val KeyStartPlayingOnLaunch = "start_playing_on_launch"
+private const val KeyAlbumCollectionLayout = "album_collection_layout"
+private const val KeyAlbumSortOrder = "album_sort_order"
+private const val KeyGroupAlbumsByReleaseType = "group_albums_by_release_type"
 private const val KeyNowPlayingShowAlbumYear = "now_playing_show_album_year"
 private const val KeyNowPlayingShowAudioInfo = "now_playing_show_audio_info"
 private const val KeyNowPlayingShowVolumeBar = "now_playing_show_volume_bar"

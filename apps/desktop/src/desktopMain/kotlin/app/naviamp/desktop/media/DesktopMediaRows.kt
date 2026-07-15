@@ -24,6 +24,8 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.naviamp.domain.Album
+import app.naviamp.domain.AlbumExplicitStatus
+import app.naviamp.domain.media.releaseSection
 import app.naviamp.domain.Artist
 import app.naviamp.domain.Track
 import app.naviamp.ui.NaviampAction
@@ -217,8 +219,9 @@ fun DesktopAlbumRow(
         title = album.title,
         subtitle = album.artistName,
         meta = listOfNotNull(
-            "Album",
+            album.releaseSection().label.removeSuffix("s"),
             album.releaseYear?.toString(),
+            "Explicit".takeIf { album.explicitStatus == AlbumExplicitStatus.Explicit },
         ).joinToString(" "),
         coverArtUrl = coverArtUrl,
         favoriteActive = album.favoritedAtIso8601 != null,

@@ -2,6 +2,7 @@ package app.naviamp.ui
 
 import app.naviamp.domain.Album
 import app.naviamp.domain.AlbumDetails
+import app.naviamp.domain.AlbumExplicitStatus
 import app.naviamp.domain.Artist
 import app.naviamp.domain.ArtistDetails
 import app.naviamp.domain.Genre
@@ -17,6 +18,8 @@ import app.naviamp.domain.audio.replayGainFromAudioTags
 import app.naviamp.domain.home.HomeContent
 import app.naviamp.domain.home.homeStations
 import app.naviamp.domain.media.RelatedTracksSource
+import app.naviamp.domain.media.groupedByReleaseSection
+import app.naviamp.domain.settings.AlbumSortOrder
 import app.naviamp.domain.playback.PlaybackProgress
 import app.naviamp.domain.playback.PlaybackReplayGain
 import app.naviamp.domain.playback.PlaybackRequest
@@ -59,11 +62,31 @@ fun Album.toSharedMediaItemUi(
         id = id.value,
         title = title,
         subtitle = artistName,
-        meta = releaseYear?.toString().orEmpty(),
+        meta = listOfNotNull(
+            releaseYear?.toString(),
+            "Explicit".takeIf { explicitStatus == AlbumExplicitStatus.Explicit },
+        ).joinToString(" "),
+        releaseYear = releaseYear,
         coverArtUrl = coverArtUrl(coverArtId ?: id.value),
         favoriteActive = favoritedAtIso8601 != null,
         canFavorite = canFavorite,
     )
+
+fun List<SharedMediaItemUi>.sortedForAlbumDisplay(order: AlbumSortOrder): List<SharedMediaItemUi> =
+    when (order) {
+        AlbumSortOrder.ReleaseYearAscending -> sortedWith(
+            compareBy<SharedMediaItemUi> { it.releaseYear ?: Int.MAX_VALUE }
+                .thenBy(String.CASE_INSENSITIVE_ORDER) { it.title },
+        )
+        AlbumSortOrder.ReleaseYearDescending -> sortedWith(
+            compareByDescending<SharedMediaItemUi> { it.releaseYear ?: Int.MIN_VALUE }
+                .thenBy(String.CASE_INSENSITIVE_ORDER) { it.title },
+        )
+        AlbumSortOrder.Title -> sortedWith(
+            compareBy(String.CASE_INSENSITIVE_ORDER, SharedMediaItemUi::title)
+                .thenBy { it.releaseYear ?: Int.MAX_VALUE },
+        )
+    }
 
 fun Playlist.toSharedMediaItemUi(
     coverArtUrl: (String?) -> String?,
@@ -1187,6 +1210,12 @@ fun ArtistDetails.toSharedArtistDetailUi(
                 ?: coverArtUrl(artist.id.value),
         ),
         albums = albums.map { it.toSharedMediaItemUi(coverArtUrl, canFavoriteAlbums) },
+        albumSections = albums.groupedByReleaseSection().map { group ->
+            SharedAlbumSectionUi(
+                title = group.section.label,
+                albums = group.albums.map { it.toSharedMediaItemUi(coverArtUrl, canFavoriteAlbums) },
+            )
+        },
         sourceContextLabel = artistSourceContextLabel(
             hasProviderMetadata = info != null,
             hasLocalLibraryMatches = albums.isNotEmpty() || popularTracks.isNotEmpty(),

@@ -6,6 +6,8 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -29,12 +31,17 @@ import androidx.compose.ui.unit.sp
 import app.naviamp.domain.Artist
 import app.naviamp.domain.ArtistDetails
 import app.naviamp.domain.Track
+import app.naviamp.domain.media.groupedByReleaseSection
+import app.naviamp.domain.media.sortedForAlbumDisplay
+import app.naviamp.domain.settings.AlbumCollectionLayout
+import app.naviamp.domain.settings.AlbumSortOrder
 import app.naviamp.domain.popular.SimilarArtistMatch
 import app.naviamp.ui.SharedMediaItemAction
 import app.naviamp.ui.ExpandedMediaImageDialog
 import app.naviamp.ui.NaviampDetailAction
 import app.naviamp.ui.NaviampResponsiveActionRow
 import app.naviamp.ui.SharedMediaItemActionRequest
+import app.naviamp.ui.SharedAlbumGridTile
 import app.naviamp.ui.SharedMediaItemKind
 import app.naviamp.ui.SharedTrackGroupAction
 import app.naviamp.ui.SharedTrackGroupActionRequest
@@ -42,7 +49,11 @@ import app.naviamp.ui.SharedTrackRowActionRequest
 import app.naviamp.ui.actionRequest
 import app.naviamp.ui.toSharedMediaItemUi
 import app.naviamp.ui.toSharedTrackRowUi
+import app.naviamp.ui.albumRowActions
+import app.naviamp.ui.NaviampAction
+import app.naviamp.ui.NaviampRowMenuItem
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun DesktopArtistDetailPanel(
     appColors: DesktopAppColors,
@@ -54,6 +65,9 @@ fun DesktopArtistDetailPanel(
     popularTracksStatus: String?,
     similarArtistsStatus: String?,
     coverArtUrl: (String?) -> String?,
+    albumCollectionLayout: AlbumCollectionLayout,
+    albumSortOrder: AlbumSortOrder,
+    groupAlbumsByReleaseType: Boolean,
     onBack: () -> Unit,
     onSimilarArtistSelected: (Artist) -> Unit,
     onSimilarArtistExternalSelected: (String) -> Unit,
@@ -298,24 +312,87 @@ fun DesktopArtistDetailPanel(
                     }
                 }
                 Text(
-                    "Albums".uppercase(),
+                    "Discography".uppercase(),
                     color = appColors.primaryText,
                     fontWeight = FontWeight.Bold,
                     fontSize = 12.sp,
                 )
-                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                    details.albums.forEach { album ->
-                        DesktopAlbumRow(
-                            appColors = appColors,
-                            album = album,
-                            coverArtUrl = coverArtUrl(album.coverArtId),
-                            canStartRadio = true,
-                            canDownload = true,
-                            canAddToQueue = true,
-                            canAddToPlaylist = true,
-                            canFavorite = true,
-                            onItemAction = onAlbumAction,
-                        )
+                val visibleSections = if (groupAlbumsByReleaseType) {
+                    details.albums.groupedByReleaseSection()
+                } else {
+                    listOf(app.naviamp.domain.media.AlbumReleaseSectionGroup(
+                        section = app.naviamp.domain.media.AlbumReleaseSection.Albums,
+                        albums = details.albums,
+                    ))
+                }.map { section ->
+                    section.copy(albums = section.albums.sortedForAlbumDisplay(albumSortOrder))
+                }
+                visibleSections.forEach { section ->
+                    Text(
+                        section.section.label.uppercase(),
+                        color = appColors.primaryText,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 12.sp,
+                    )
+                    if (albumCollectionLayout == AlbumCollectionLayout.Grid) {
+                        FlowRow(
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                            verticalArrangement = Arrangement.spacedBy(14.dp),
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            section.albums.forEach { album ->
+                                val item = album.toSharedMediaItemUi(coverArtUrl, canFavorite = true)
+                                val menuItems = albumRowActions(
+                                    canStartRadio = true,
+                                    canDownload = true,
+                                    canAddToQueue = true,
+                                    canAddToPlaylist = true,
+                                    canFavorite = false,
+                                    favoriteActive = item.favoriteActive,
+                                ).mapNotNull { action ->
+                                    val sharedAction = when (action.action) {
+                                        NaviampAction.StartAlbumRadio -> SharedMediaItemAction.StartRadio
+                                        NaviampAction.DownloadAlbum -> SharedMediaItemAction.Download
+                                        NaviampAction.AddToQueue -> SharedMediaItemAction.AddToQueue
+                                        NaviampAction.AddToPlaylist -> SharedMediaItemAction.AddToPlaylist
+                                        else -> null
+                                    }
+                                    sharedAction?.let { mappedAction ->
+                                        NaviampRowMenuItem(
+                                            action.label,
+                                            action.icon,
+                                            { onAlbumAction(item.actionRequest(mappedAction, kind = SharedMediaItemKind.Album)) },
+                                            action.enabled,
+                                        )
+                                    }
+                                }
+                                SharedAlbumGridTile(
+                                    item = item,
+                                    colors = appColors,
+                                    onClick = { onAlbumAction(item.actionRequest(SharedMediaItemAction.Select, kind = SharedMediaItemKind.Album)) },
+                                    menuItems = menuItems,
+                                    onFavoriteToggled = { selected ->
+                                        onAlbumAction(selected.actionRequest(SharedMediaItemAction.ToggleFavorite, kind = SharedMediaItemKind.Album))
+                                    },
+                                )
+                            }
+                        }
+                    } else {
+                        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                            section.albums.forEach { album ->
+                                DesktopAlbumRow(
+                                    appColors = appColors,
+                                    album = album,
+                                    coverArtUrl = coverArtUrl(album.coverArtId),
+                                    canStartRadio = true,
+                                    canDownload = true,
+                                    canAddToQueue = true,
+                                    canAddToPlaylist = true,
+                                    canFavorite = true,
+                                    onItemAction = onAlbumAction,
+                                )
+                            }
+                        }
                     }
                 }
             }

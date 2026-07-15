@@ -3,6 +3,7 @@ package app.naviamp.domain.cache
 import app.naviamp.domain.Album
 import app.naviamp.domain.AlbumDetails
 import app.naviamp.domain.AlbumId
+import app.naviamp.domain.AlbumExplicitStatus
 import app.naviamp.domain.Artist
 import app.naviamp.domain.ArtistDetails
 import app.naviamp.domain.ArtistId
@@ -401,6 +402,8 @@ private data class AlbumDto(
     val recentlyAddedAtIso8601: String? = null,
     val releaseYear: Int? = null,
     val favoritedAtIso8601: String? = null,
+    val releaseTypes: List<String> = emptyList(),
+    val explicitStatus: AlbumExplicitStatus = AlbumExplicitStatus.Unknown,
 ) {
     fun toAlbum(): Album =
         Album(
@@ -411,6 +414,8 @@ private data class AlbumDto(
             recentlyAddedAtIso8601 = recentlyAddedAtIso8601,
             releaseYear = releaseYear,
             favoritedAtIso8601 = favoritedAtIso8601,
+            releaseTypes = releaseTypes,
+            explicitStatus = explicitStatus,
         )
 
     companion object {
@@ -423,6 +428,8 @@ private data class AlbumDto(
                 recentlyAddedAtIso8601 = album.recentlyAddedAtIso8601,
                 releaseYear = album.releaseYear,
                 favoritedAtIso8601 = album.favoritedAtIso8601,
+                releaseTypes = album.releaseTypes,
+                explicitStatus = album.explicitStatus,
             )
     }
 }

@@ -4,6 +4,8 @@ import app.naviamp.domain.Artist
 import app.naviamp.domain.ArtistDetails
 import app.naviamp.domain.ArtistId
 import app.naviamp.domain.ArtistInfo
+import app.naviamp.domain.Album
+import app.naviamp.domain.AlbumExplicitStatus
 import app.naviamp.domain.AlbumId
 import app.naviamp.domain.Track
 import app.naviamp.domain.TrackId
@@ -87,6 +89,36 @@ class MediaUiMappersTest {
 
         assertEquals("https://images.test/large.jpg", ui.artist.coverArtUrl)
         assertEquals("Artist biography", ui.biography)
+    }
+
+    @Test
+    fun artistDetailUiBuildsReleaseSectionsAndExplicitMetadata() {
+        val ui = ArtistDetails(
+            artist = Artist(ArtistId("artist-1"), "Artist One"),
+            albums = listOf(
+                Album(
+                    id = AlbumId("album-1"),
+                    title = "Studio Album",
+                    artistName = "Artist One",
+                    coverArtId = null,
+                    recentlyAddedAtIso8601 = null,
+                    releaseYear = 2026,
+                    releaseTypes = listOf("Album"),
+                    explicitStatus = AlbumExplicitStatus.Explicit,
+                ),
+                Album(
+                    id = AlbumId("ep-1"),
+                    title = "Short Release",
+                    artistName = "Artist One",
+                    coverArtId = null,
+                    recentlyAddedAtIso8601 = null,
+                    releaseTypes = listOf("EP"),
+                ),
+            ),
+        ).toSharedArtistDetailUi(coverArtUrl = { null })
+
+        assertEquals(listOf("Albums", "EPs"), ui.albumSections.map { it.title })
+        assertEquals("2026 Explicit", ui.albumSections.first().albums.single().meta)
     }
 
     @Test

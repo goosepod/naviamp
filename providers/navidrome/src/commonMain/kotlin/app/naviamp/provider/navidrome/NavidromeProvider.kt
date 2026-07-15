@@ -2,6 +2,7 @@ package app.naviamp.provider.navidrome
 
 import app.naviamp.domain.Album
 import app.naviamp.domain.AlbumDetails
+import app.naviamp.domain.AlbumExplicitStatus
 import app.naviamp.domain.AlbumId
 import app.naviamp.domain.Artist
 import app.naviamp.domain.ArtistDetails
@@ -1260,6 +1261,14 @@ class NavidromeProvider(
             recentlyAddedAtIso8601 = stringValue("created"),
             releaseYear = intValue("year"),
             favoritedAtIso8601 = stringValue("starred"),
+            releaseTypes = arrayValue("releaseTypes").mapNotNull { value ->
+                runCatching { value.jsonPrimitive.contentOrNull }.getOrNull()
+            }.filter { it.isNotBlank() }.distinct(),
+            explicitStatus = when (stringValue("explicitStatus")?.lowercase()) {
+                "explicit" -> AlbumExplicitStatus.Explicit
+                "clean" -> AlbumExplicitStatus.Clean
+                else -> AlbumExplicitStatus.Unknown
+            },
         )
 
     private fun JsonObject.toArtist(): Artist =

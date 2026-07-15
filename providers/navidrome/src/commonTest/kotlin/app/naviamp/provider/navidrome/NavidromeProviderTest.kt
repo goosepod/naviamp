@@ -1,6 +1,7 @@
 package app.naviamp.provider.navidrome
 
 import app.naviamp.domain.AlbumId
+import app.naviamp.domain.AlbumExplicitStatus
 import app.naviamp.domain.Artist
 import app.naviamp.domain.ArtistId
 import app.naviamp.domain.AudioCodec
@@ -363,6 +364,8 @@ class NavidromeProviderTest {
                       "year": 1985,
                       "created": "2026-05-08T12:00:00Z",
                       "starred": "2026-05-10T08:00:00Z",
+                      "releaseTypes": ["Album", "Remixes"],
+                      "explicitStatus": "explicit",
                       "song": [
                         {
                           "id": "track-1",
@@ -410,6 +413,8 @@ class NavidromeProviderTest {
         assertEquals("album-1", details.tracks.first().albumId?.value)
         assertEquals(1985, details.album.releaseYear)
         assertEquals("2026-05-10T08:00:00Z", details.album.favoritedAtIso8601)
+        assertEquals(listOf("Album", "Remixes"), details.album.releaseTypes)
+        assertEquals(AlbumExplicitStatus.Explicit, details.album.explicitStatus)
         assertEquals(1985, details.tracks.first().albumReleaseYear)
         assertEquals(259, details.tracks.first().durationSeconds)
         assertEquals("FLAC", details.tracks.first().audioInfo?.codec)

@@ -6,6 +6,8 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -54,6 +56,8 @@ import app.naviamp.domain.settings.ConnectionFormHeader
 import app.naviamp.domain.settings.ConnectionFormMusicFolder
 import app.naviamp.domain.settings.ConnectionFormSecondaryUrl
 import app.naviamp.domain.settings.InterfaceSettings
+import app.naviamp.domain.settings.AlbumCollectionLayout
+import app.naviamp.domain.settings.AlbumSortOrder
 import app.naviamp.domain.settings.toggleSelectedMusicFolderId
 import app.naviamp.domain.smartplaylist.SmartPlaylistDefinition
 
@@ -1350,6 +1354,9 @@ private fun ConnectedContent(
         artistDetail != null -> ArtistDetailContent(
             colors = colors,
             detail = artistDetail,
+            albumCollectionLayout = interfaceSettings.albumCollectionLayout,
+            albumSortOrder = interfaceSettings.albumSortOrder,
+            groupAlbumsByReleaseType = interfaceSettings.groupAlbumsByReleaseType,
             onBack = onCloseNowPlaying,
             onArtistRadio = { onArtistRadio(artistDetail) },
             onArtistShuffle = { onArtistShuffle(artistDetail) },
@@ -1921,10 +1928,14 @@ private fun AlbumDetailContent(
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun ArtistDetailContent(
     colors: NaviampColors,
     detail: SharedArtistDetailUi,
+    albumCollectionLayout: AlbumCollectionLayout,
+    albumSortOrder: AlbumSortOrder,
+    groupAlbumsByReleaseType: Boolean,
     onBack: () -> Unit,
     onArtistRadio: () -> Unit,
     onArtistShuffle: () -> Unit,
@@ -1985,6 +1996,32 @@ private fun ArtistDetailContent(
         )
     }
     val similarArtistsVisible = detail.similarArtists.isNotEmpty() || detail.similarArtistsStatus != null
+    val albumMenuItems: (SharedMediaItemUi) -> List<NaviampRowMenuItem> = { album ->
+        albumRowActions(
+            canStartRadio = true,
+            canDownload = true,
+            canAddToQueue = true,
+            canAddToPlaylist = true,
+            canFavorite = false,
+            favoriteActive = album.favoriteActive,
+        ).mapNotNull { action ->
+            val requestAction = when (action.action) {
+                NaviampAction.StartAlbumRadio -> SharedMediaItemAction.StartRadio
+                NaviampAction.DownloadAlbum -> SharedMediaItemAction.Download
+                NaviampAction.AddToQueue -> SharedMediaItemAction.AddToQueue
+                NaviampAction.AddToPlaylist -> SharedMediaItemAction.AddToPlaylist
+                else -> null
+            }
+            requestAction?.let {
+                NaviampRowMenuItem(
+                    action.label,
+                    action.icon,
+                    { handleAlbumAction(album.actionRequest(it, kind = SharedMediaItemKind.Album)) },
+                    action.enabled,
+                )
+            }
+        }
+    }
 
     Column(
         verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -2131,60 +2168,52 @@ private fun ArtistDetailContent(
                     }
                 }
             }
-            Text("Albums", color = colors.primaryText, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+            Text("Discography", color = colors.primaryText, fontSize = 20.sp, fontWeight = FontWeight.Bold)
             if (detail.albums.isEmpty()) {
                 Text("No albums found.", color = colors.secondaryText, fontSize = 13.sp)
             } else {
-                detail.albums.forEach { album ->
-                    SharedMediaRow(
-                        item = album,
-                        colors = colors,
-                        itemKind = SharedMediaItemKind.Album,
-                        onClick = { onAlbumSelected(album) },
-                        onItemAction = handleAlbumAction,
-                        menuItems = albumRowActions(
-                            canStartRadio = true,
-                            canDownload = true,
-                            canAddToQueue = true,
-                            canAddToPlaylist = true,
-                            canFavorite = album.canFavorite,
-                            favoriteActive = album.favoriteActive,
-                        ).mapNotNull { action ->
-                            when (action.action) {
-                                NaviampAction.StartAlbumRadio -> NaviampRowMenuItem(
-                                    action.label,
-                                    action.icon,
-                                    { handleAlbumAction(album.actionRequest(SharedMediaItemAction.StartRadio, kind = SharedMediaItemKind.Album)) },
-                                    action.enabled,
+                val visibleSections = if (groupAlbumsByReleaseType) {
+                    detail.albumSections
+                } else {
+                    listOf(SharedAlbumSectionUi("Albums", detail.albums))
+                }.map { section ->
+                    section.copy(albums = section.albums.sortedForAlbumDisplay(albumSortOrder))
+                }
+                visibleSections.forEach { section ->
+                    Text(section.title.uppercase(), color = colors.primaryText, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                    if (albumCollectionLayout == AlbumCollectionLayout.Grid) {
+                        FlowRow(
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                            verticalArrangement = Arrangement.spacedBy(14.dp),
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            section.albums.forEach { album ->
+                                SharedAlbumGridTile(
+                                    item = album,
+                                    colors = colors,
+                                    onClick = { onAlbumSelected(album) },
+                                    menuItems = albumMenuItems(album),
+                                    onFavoriteToggled = { selected ->
+                                        handleAlbumAction(selected.actionRequest(SharedMediaItemAction.ToggleFavorite, kind = SharedMediaItemKind.Album))
+                                    },
                                 )
-                                NaviampAction.DownloadAlbum -> NaviampRowMenuItem(
-                                    action.label,
-                                    action.icon,
-                                    { handleAlbumAction(album.actionRequest(SharedMediaItemAction.Download, kind = SharedMediaItemKind.Album)) },
-                                    action.enabled,
-                                )
-                                NaviampAction.AddToQueue -> NaviampRowMenuItem(
-                                    action.label,
-                                    action.icon,
-                                    { handleAlbumAction(album.actionRequest(SharedMediaItemAction.AddToQueue, kind = SharedMediaItemKind.Album)) },
-                                    action.enabled,
-                                )
-                                NaviampAction.AddToPlaylist -> NaviampRowMenuItem(
-                                    action.label,
-                                    action.icon,
-                                    { handleAlbumAction(album.actionRequest(SharedMediaItemAction.AddToPlaylist, kind = SharedMediaItemKind.Album)) },
-                                    action.enabled,
-                                )
-                                NaviampAction.ToggleFavorite -> NaviampRowMenuItem(
-                                    action.label,
-                                    action.icon,
-                                    { handleAlbumAction(album.actionRequest(SharedMediaItemAction.ToggleFavorite, kind = SharedMediaItemKind.Album)) },
-                                    action.enabled,
-                                )
-                                else -> null
                             }
-                        },
-                    )
+                        }
+                    } else {
+                        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                            section.albums.forEach { album ->
+                                SharedMediaRow(
+                                    item = album,
+                                    colors = colors,
+                                    itemKind = SharedMediaItemKind.Album,
+                                    onClick = { onAlbumSelected(album) },
+                                    onItemAction = handleAlbumAction,
+                                    menuItems = albumMenuItems(album),
+                                    onFavoriteToggled = onAlbumFavoriteToggled,
+                                )
+                            }
+                        }
+                    }
                 }
             }
         }

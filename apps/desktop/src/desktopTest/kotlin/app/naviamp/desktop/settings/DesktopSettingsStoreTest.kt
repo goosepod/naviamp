@@ -15,6 +15,8 @@ import kotlin.io.path.writeText
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import app.naviamp.domain.settings.InterfaceSettings
+import app.naviamp.domain.settings.AlbumCollectionLayout
+import app.naviamp.domain.settings.AlbumSortOrder
 import app.naviamp.domain.settings.NowPlayingDisplaySettings
 import app.naviamp.domain.settings.SampleRateConverter
 import app.naviamp.domain.settings.SampleRateMatching
@@ -57,6 +59,24 @@ class DesktopSettingsStoreTest {
 
         assertEquals(true, store.loadInterfaceSettings().startPlayingOnLaunch)
         assertEquals(expected, store.loadInterfaceSettings().nowPlaying)
+    }
+
+    @Test
+    fun saveInterfaceSettingsRoundTripsAlbumPresentation() {
+        val path = createTempDirectory().resolve("settings.json")
+        val store = DesktopSettingsStore(path)
+
+        store.saveInterfaceSettings(
+            InterfaceSettings(
+                albumCollectionLayout = AlbumCollectionLayout.Grid,
+                albumSortOrder = AlbumSortOrder.Title,
+                groupAlbumsByReleaseType = false,
+            ),
+        )
+
+        assertEquals(AlbumCollectionLayout.Grid, store.loadInterfaceSettings().albumCollectionLayout)
+        assertEquals(AlbumSortOrder.Title, store.loadInterfaceSettings().albumSortOrder)
+        assertEquals(false, store.loadInterfaceSettings().groupAlbumsByReleaseType)
     }
 
     @Test

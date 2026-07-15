@@ -83,6 +83,8 @@ import app.naviamp.domain.settings.StreamQualityPreference
 import app.naviamp.domain.settings.StreamingCodec
 import app.naviamp.domain.settings.TrackSwipeAction
 import app.naviamp.domain.settings.UpNextSelectionBehavior
+import app.naviamp.domain.settings.AlbumCollectionLayout
+import app.naviamp.domain.settings.AlbumSortOrder
 import app.naviamp.domain.settings.normalizedLyricsSearchOrder
 import app.naviamp.ui.generated.resources.Res
 import app.naviamp.ui.generated.resources.*
@@ -394,6 +396,11 @@ fun NaviampExperienceSettingsSection(
                 interfaceSettings = interfaceSettings,
                 onInterfaceSettingsChanged = onInterfaceSettingsChanged,
             )
+            ExperienceSettingsPage.Albums -> AlbumExperienceSettings(
+                colors = colors,
+                interfaceSettings = interfaceSettings,
+                onInterfaceSettingsChanged = onInterfaceSettingsChanged,
+            )
         }
     } ?: run {
         if (showQueueBehavior) {
@@ -424,6 +431,14 @@ fun NaviampExperienceSettingsSection(
             ) {
                 selectedSection = ExperienceSettingsPage.RelatedTracks
             }
+        }
+        SettingsRow(
+            title = ExperienceSettingsPage.Albums.title(),
+            subtitle = ExperienceSettingsPage.Albums.subtitle(),
+            colors = colors,
+            value = interfaceSettings.albumCollectionLayout.label,
+        ) {
+            selectedSection = ExperienceSettingsPage.Albums
         }
         SettingsRow(
             title = ExperienceSettingsPage.SwipeActions.title(),
@@ -459,6 +474,7 @@ private enum class ExperienceSettingsPage(
     Player("Player", "Queue, Back To, and Up Next behavior"),
     RelatedTracks("Related Tracks", "Sonic similarity and autoplay"),
     Lyrics("Lyrics", "Download and source order"),
+    Albums("Albums", "Choose list or album-art grid presentation"),
     SwipeActions("Swipe Actions", "Track gestures by list type"),
 }
 
@@ -468,6 +484,7 @@ private fun ExperienceSettingsPage.title(): String =
         ExperienceSettingsPage.Player -> stringResource(Res.string.settings_experience_player_title)
         ExperienceSettingsPage.RelatedTracks -> stringResource(Res.string.settings_experience_related_tracks_title)
         ExperienceSettingsPage.Lyrics -> stringResource(Res.string.settings_lyrics_title)
+        ExperienceSettingsPage.Albums -> "Albums"
         ExperienceSettingsPage.SwipeActions -> "Swipe Actions"
     }
 
@@ -477,8 +494,82 @@ private fun ExperienceSettingsPage.subtitle(): String =
         ExperienceSettingsPage.Player -> stringResource(Res.string.settings_experience_player_subtitle)
         ExperienceSettingsPage.RelatedTracks -> stringResource(Res.string.settings_experience_related_tracks_subtitle)
         ExperienceSettingsPage.Lyrics -> stringResource(Res.string.settings_lyrics_subtitle)
+        ExperienceSettingsPage.Albums -> "Choose how album collections are presented"
         ExperienceSettingsPage.SwipeActions -> "Choose gesture shortcuts; actions stay available in each track's More actions menu"
     }
+
+@Composable
+private fun AlbumExperienceSettings(
+    colors: NaviampColors,
+    interfaceSettings: InterfaceSettings,
+    onInterfaceSettingsChanged: (InterfaceSettings) -> Unit,
+) {
+    var selectedPage by remember { mutableStateOf<AlbumExperiencePage?>(null) }
+
+    selectedPage?.let { page ->
+        SettingsSubsectionHeader(page.title, page.subtitle, colors) { selectedPage = null }
+        when (page) {
+            AlbumExperiencePage.Presentation -> AlbumCollectionLayout.entries.forEach { layout ->
+                SelectableSettingsRow(
+                    title = layout.label,
+                    subtitle = when (layout) {
+                        AlbumCollectionLayout.List -> "Show album details in compact rows"
+                        AlbumCollectionLayout.Grid -> "Browse albums by cover art in a responsive grid"
+                    },
+                    selected = interfaceSettings.albumCollectionLayout == layout,
+                    colors = colors,
+                ) {
+                    onInterfaceSettingsChanged(interfaceSettings.copy(albumCollectionLayout = layout))
+                }
+            }
+            AlbumExperiencePage.Sorting -> AlbumSortOrder.entries.forEach { order ->
+                SelectableSettingsRow(
+                    title = order.label,
+                    subtitle = when (order) {
+                        AlbumSortOrder.ReleaseYearAscending -> "Show the earliest releases first"
+                        AlbumSortOrder.ReleaseYearDescending -> "Show the newest releases first"
+                        AlbumSortOrder.Title -> "Sort alphabetically by album title"
+                    },
+                    selected = interfaceSettings.albumSortOrder == order,
+                    colors = colors,
+                ) {
+                    onInterfaceSettingsChanged(interfaceSettings.copy(albumSortOrder = order))
+                }
+            }
+        }
+    } ?: run {
+        SettingsRow(
+            title = AlbumExperiencePage.Presentation.title,
+            subtitle = AlbumExperiencePage.Presentation.subtitle,
+            colors = colors,
+            value = interfaceSettings.albumCollectionLayout.label,
+        ) {
+            selectedPage = AlbumExperiencePage.Presentation
+        }
+        SettingsRow(
+            title = AlbumExperiencePage.Sorting.title,
+            subtitle = AlbumExperiencePage.Sorting.subtitle,
+            colors = colors,
+            value = interfaceSettings.albumSortOrder.label,
+        ) {
+            selectedPage = AlbumExperiencePage.Sorting
+        }
+        SettingsCheckboxRow(
+            colors = colors,
+            checked = interfaceSettings.groupAlbumsByReleaseType,
+            label = "Separate albums by release type",
+            subtitle = "Show albums, EPs, singles, live releases, compilations, remixes, and soundtracks in their own sections",
+            onCheckedChange = { enabled ->
+                onInterfaceSettingsChanged(interfaceSettings.copy(groupAlbumsByReleaseType = enabled))
+            },
+        )
+    }
+}
+
+private enum class AlbumExperiencePage(val title: String, val subtitle: String) {
+    Presentation("Presentation", "Choose list or album-art grid presentation"),
+    Sorting("Sorting", "Choose how albums are ordered"),
+}
 
 private enum class SwipeActionSlot(val title: String, val subtitle: String) {
     LibraryRight("Library: swipe right", "Search, albums, playlists, and library tracks"),
@@ -3987,8 +4078,8 @@ private fun Float.preampLabel(): String =
 private val CrossfadeDurationOptions = listOf(0, 3, 5, 8, 12)
 private val PreampDbOptions = listOf(6f, 5f, 4f, 3f, 2f, 1f, 0f, -1f, -2f, -3f, -4f, -5f, -6f, -9f, -12f)
 private val SettingsRowHorizontalPadding = 14.dp
-private val SettingsDetailRowVerticalPadding = 2.dp
-private val SettingsDetailItemSpacing = 2.dp
+private val SettingsDetailRowVerticalPadding = 4.dp
+private val SettingsDetailItemSpacing = 4.dp
 private val SettingsCategoryTitleSize = 17.sp
 private val SettingsDetailTitleSize = 16.sp
 private val SettingsDetailSubtitleSize = 11.sp

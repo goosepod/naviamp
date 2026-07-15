@@ -222,6 +222,7 @@ data class SharedMediaItemUi(
     val title: String,
     val subtitle: String,
     val meta: String = "",
+    val releaseYear: Int? = null,
     val coverArtUrl: String? = null,
     val coverArtUrls: List<String> = emptyList(),
     val isSmartPlaylist: Boolean = false,
@@ -359,6 +360,7 @@ data class SharedAlbumDetailUi(
 data class SharedArtistDetailUi(
     val artist: SharedMediaItemUi,
     val albums: List<SharedMediaItemUi>,
+    val albumSections: List<SharedAlbumSectionUi> = emptyList(),
     val sourceContextLabel: String = "",
     val localLibraryLabel: String = "",
     val biography: String? = null,
@@ -366,6 +368,11 @@ data class SharedArtistDetailUi(
     val popularTracksStatus: String? = null,
     val similarArtists: List<SharedSimilarArtistUi> = emptyList(),
     val similarArtistsStatus: String? = null,
+)
+
+data class SharedAlbumSectionUi(
+    val title: String,
+    val albums: List<SharedMediaItemUi>,
 )
 
 data class SharedSimilarArtistUi(

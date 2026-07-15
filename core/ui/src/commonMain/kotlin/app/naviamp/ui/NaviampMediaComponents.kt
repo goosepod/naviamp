@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -704,6 +705,86 @@ fun SharedMediaRow(
         val allMenuItems = listOfNotNull(favoriteMenuItem) + menuItems
         if (allMenuItems.isNotEmpty()) {
             NaviampRowOverflowMenu(colors = colors, items = allMenuItems)
+        }
+    }
+}
+
+@Composable
+fun SharedAlbumGridTile(
+    item: SharedMediaItemUi,
+    colors: NaviampColors,
+    onClick: () -> Unit,
+    menuItems: List<NaviampRowMenuItem> = emptyList(),
+    onFavoriteToggled: ((SharedMediaItemUi) -> Unit)? = null,
+    modifier: Modifier = Modifier,
+) {
+    val favoriteMenuItem = if (item.canFavorite && onFavoriteToggled != null) {
+        NaviampRowMenuItem(
+            label = if (item.favoriteActive) "Remove favorite" else "Favorite",
+            icon = NaviampTransportIcons.Heart,
+            onClick = { onFavoriteToggled(item) },
+        )
+    } else {
+        null
+    }
+    Column(
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+        modifier = modifier.width(144.dp),
+    ) {
+        Box(
+            modifier = Modifier
+                .clip(RoundedCornerShape(8.dp))
+                .clickable(onClick = onClick),
+        ) {
+            PlatformCoverArt(item.coverArtUrl, colors, 144.dp, 8.dp)
+            if (item.favoriteActive) {
+                Icon(
+                    imageVector = NaviampTransportIcons.Heart,
+                    contentDescription = "Favorite",
+                    tint = colors.accent,
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(7.dp)
+                        .size(17.dp),
+                )
+            }
+        }
+        Row(verticalAlignment = Alignment.Top) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    item.title,
+                    color = colors.primaryText,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    lineHeight = 15.sp,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Spacer(Modifier.height(2.dp))
+                Text(
+                    item.subtitle,
+                    color = colors.secondaryText,
+                    fontSize = 11.sp,
+                    lineHeight = 13.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                item.meta.takeIf { it.isNotBlank() }?.let { meta ->
+                    Spacer(Modifier.height(2.dp))
+                    Text(
+                        meta,
+                        color = colors.mutedText,
+                        fontSize = 10.sp,
+                        lineHeight = 12.sp,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+            }
+            val allMenuItems = listOfNotNull(favoriteMenuItem) + menuItems
+            if (allMenuItems.isNotEmpty()) {
+                NaviampRowOverflowMenu(colors = colors, items = allMenuItems)
+            }
         }
     }
 }
