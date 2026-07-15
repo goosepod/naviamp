@@ -14,6 +14,7 @@ import app.naviamp.domain.settings.streamQualityForNetwork
 import app.naviamp.ui.NaviampAboutUi
 import app.naviamp.ui.NaviampSavedConnectionUi
 import app.naviamp.ui.NaviampOfflineDashboardUi
+import app.naviamp.ui.NaviampStorageLocationUi
 import app.naviamp.ui.SharedAlbumMixBuilderUi
 import app.naviamp.ui.SharedArtistMixBuilderUi
 import app.naviamp.ui.SharedGenreMixBuilderUi
@@ -34,6 +35,12 @@ fun rememberAndroidAppShellUiState(
     sonicMixBuilder: SharedSonicMixBuilderUi,
 ): AndroidAppShellUiState =
     with(state) {
+        val downloadLocations = androidDownloadStorageLocations(context).map { location ->
+            NaviampStorageLocationUi(location.id, location.label, location.directory.absolutePath)
+        }
+        val audioCacheLocations = androidAudioCacheStorageLocations(context).map { location ->
+            NaviampStorageLocationUi(location.id, location.label, location.directory.absolutePath)
+        }
         val activeQueueForUi = playbackQueue.tracks.ifEmpty { allKnownTracks(searchResults, albumDetail) }
         val streamQualityForUi = playbackSettings.streamQualityForNetwork(context.isActiveNetworkMobileData())
         val diagnostics = rememberAndroidDiagnostics(
@@ -74,6 +81,7 @@ fun rememberAndroidAppShellUiState(
             sonicSimilarityEnabled = playbackSettings.sonicSimilarityEnabled,
             homeState = homeState,
             playlistTracksById = playlistTracksById,
+            keepDownloadedPlaylistIds = keepDownloadedPolicies.mapTo(mutableSetOf()) { it.collectionId },
             sonicHomeDiscoveryRows = sonicHomeDiscoveryRows,
             searchResults = searchResults,
             libraryStatus = libraryStatus,
@@ -217,6 +225,18 @@ fun rememberAndroidAppShellUiState(
                 maxAudioCacheBytes = cacheSettings.maxAudioCacheBytes,
             ),
             downloadStatus = downloadStatus,
+            downloadJobs = downloadJobs,
+            keepFavoritesDownloaded = keepDownloadedPolicies.any {
+                it.kind == app.naviamp.domain.cache.KeepDownloadedCollectionKind.Favorites
+            },
+            downloadLocations = downloadLocations,
+            audioCacheLocations = audioCacheLocations,
+            selectedDownloadLocationId = downloadLocations
+                .firstOrNull { it.path == cacheSettings.customDownloadDirectory }?.id
+                ?: downloadLocations.firstOrNull()?.id,
+            selectedAudioCacheLocationId = audioCacheLocations
+                .firstOrNull { it.path == cacheSettings.customAudioCacheDirectory }?.id
+                ?: audioCacheLocations.firstOrNull()?.id,
             playlistItems = shellModels.playlistItems,
             recentPlaylistIds = recentPlaylistIds,
             playlistSortMode = playlistSortMode,

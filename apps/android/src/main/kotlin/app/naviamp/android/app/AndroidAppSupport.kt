@@ -69,6 +69,7 @@ import app.naviamp.ui.SharedRoute
 import app.naviamp.ui.SharedSearchResultsUi
 import app.naviamp.ui.SharedSimilarArtistUi
 import app.naviamp.ui.toDownloadedTrackUi
+import app.naviamp.domain.cache.downloadedAudioQualityLabel
 import app.naviamp.ui.nowPlayingSectionsUi
 import app.naviamp.ui.toTrackNowPlayingUi
 import app.naviamp.ui.toPlaylistChoiceUi
@@ -133,6 +134,7 @@ fun rememberAndroidShellModels(
     sonicSimilarityEnabled: Boolean,
     homeState: HomeContent,
     playlistTracksById: Map<String, List<Track>>,
+    keepDownloadedPlaylistIds: Set<String>,
     sonicHomeDiscoveryRows: SonicHomeDiscoveryRows,
     searchResults: MediaSearchResults,
     libraryStatus: String?,
@@ -163,6 +165,7 @@ fun rememberAndroidShellModels(
         sonicSimilarityEnabled,
         homeState,
         playlistTracksById,
+        keepDownloadedPlaylistIds,
         sonicHomeDiscoveryRows,
         searchResults,
         libraryStatus,
@@ -193,6 +196,7 @@ fun rememberAndroidShellModels(
             sonicSimilarityEnabled = sonicSimilarityEnabled,
             homeState = homeState,
             playlistTracksById = playlistTracksById,
+            keepDownloadedPlaylistIds = keepDownloadedPlaylistIds,
             sonicHomeDiscoveryRows = sonicHomeDiscoveryRows,
             searchResults = searchResults,
             libraryStatus = libraryStatus,
@@ -225,6 +229,7 @@ fun androidShellModels(
     sonicSimilarityEnabled: Boolean,
     homeState: HomeContent,
     playlistTracksById: Map<String, List<Track>>,
+    keepDownloadedPlaylistIds: Set<String>,
     sonicHomeDiscoveryRows: SonicHomeDiscoveryRows,
     searchResults: MediaSearchResults,
     libraryStatus: String?,
@@ -260,6 +265,7 @@ fun androidShellModels(
         home = homeState.toSharedHomeUi(
             coverArtUrl = coverArtUrl,
             playlistTracksById = playlistTracksById,
+            keepDownloadedPlaylistIds = keepDownloadedPlaylistIds,
             sonicDiscoveryRows = sonicHomeDiscoveryRows,
             canFavoriteAlbums = canFavoriteAlbums,
             showSonicPathBuilder = sonicSimilarityEnabled && provider?.capabilities?.supportsSonicSimilarity == true,
@@ -279,6 +285,7 @@ fun androidShellModels(
             download.track.toDownloadedTrackUi(
                 id = download.file.absolutePath,
                 sizeBytes = download.sizeBytes,
+                qualityLabel = downloadedAudioQualityLabel(download.qualityKey, download.track.audioInfo, download.contentType),
                 coverArtUrl = coverArtUrl,
             )
         },
@@ -286,6 +293,7 @@ fun androidShellModels(
             it.toSharedMediaItemUi(
                 coverArtUrl = coverArtUrl,
                 tracks = playlistTracksById[it.id].orEmpty(),
+                keepDownloadedActive = it.id in keepDownloadedPlaylistIds,
             )
         },
         playlistChoices = playlistChoices,

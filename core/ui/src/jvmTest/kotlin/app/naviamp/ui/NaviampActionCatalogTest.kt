@@ -102,4 +102,13 @@ class NaviampActionCatalogTest {
             actions.map { it.action },
         )
     }
+
+    @Test
+    fun keepDownloadedPlaylistActionReflectsCurrentPolicy() {
+        val inactive = playlistRowActions(canKeepDownloaded = true).single()
+        val active = playlistRowActions(canKeepDownloaded = true, keepDownloadedActive = true).single()
+
+        assertEquals("Keep downloaded", inactive.label)
+        assertEquals("Stop keeping downloaded", active.label)
+    }
 }

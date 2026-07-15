@@ -75,6 +75,7 @@ import app.naviamp.ui.NaviampExperienceSettingsSection
 import app.naviamp.ui.NaviampLanguageSettingsSection
 import app.naviamp.ui.NaviampPlaybackSettingsSection
 import app.naviamp.ui.NaviampSettingsCategory
+import app.naviamp.ui.NaviampStorageLocationUi
 import app.naviamp.ui.NaviampDiagnosticsSectionUi
 import app.naviamp.ui.NaviampDiagnosticsUi
 import app.naviamp.ui.categoryLabel
@@ -269,6 +270,26 @@ fun DesktopSettingsPanel(
                 onPlaybackSettingsChanged = onPlaybackSettingsChanged,
                 onPlaybackSettingsChangedAndRedownload = onPlaybackSettingsChangedAndRedownload,
                 onCacheSettingsChanged = onCacheSettingsChanged,
+                locations = buildList {
+                    add(NaviampStorageLocationUi("default", "Default folder", DesktopDownloadDirectories.defaultDirectory().toString()))
+                    cacheSettings.customDownloadDirectory?.let { add(NaviampStorageLocationUi("custom", "Current custom folder", it)) }
+                    add(NaviampStorageLocationUi("choose", "Choose another folder…", "Select any writable folder"))
+                },
+                selectedLocationId = if (cacheSettings.customDownloadDirectory == null) "default" else "custom",
+                onLocationChanged = { location ->
+                    when (location.id) {
+                        "default" -> onCacheSettingsChanged(cacheSettings.copy(customDownloadDirectory = null).normalized())
+                        "choose" -> {
+                            val current = cacheSettings.customDownloadDirectory ?: DesktopDownloadDirectories.defaultDirectory().toString()
+                            chooseDirectory(current, "Choose download location")?.let { selected ->
+                                runCatching { DesktopDownloadDirectories.prepare(selected.toPath()) }
+                                    .onSuccess { directory ->
+                                        onCacheSettingsChanged(cacheSettings.copy(customDownloadDirectory = directory.toString()).normalized())
+                                    }
+                            }
+                        }
+                    }
+                },
             )
             NaviampSettingsCategory.AudioCache -> NaviampAudioCacheSettingsSection(
                 colors = appColors,
@@ -279,6 +300,26 @@ fun DesktopSettingsPanel(
                     ).let { rows -> listOf(NaviampDiagnosticsSectionUi("Storage", rows)) },
                 ),
                 onCacheSettingsChanged = onCacheSettingsChanged,
+                locations = buildList {
+                    add(NaviampStorageLocationUi("default", "Default folder", defaultAudioCacheDirectory().toString()))
+                    cacheSettings.customAudioCacheDirectory?.let { add(NaviampStorageLocationUi("custom", "Current custom folder", it)) }
+                    add(NaviampStorageLocationUi("choose", "Choose another folder…", "Select any writable folder"))
+                },
+                selectedLocationId = if (cacheSettings.customAudioCacheDirectory == null) "default" else "custom",
+                onLocationChanged = { location ->
+                    when (location.id) {
+                        "default" -> onCacheSettingsChanged(cacheSettings.copy(customAudioCacheDirectory = null).normalized())
+                        "choose" -> {
+                            val current = cacheSettings.customAudioCacheDirectory ?: defaultAudioCacheDirectory().toString()
+                            chooseDirectory(current, "Choose cache location")?.let { selected ->
+                                runCatching { selected.toPath().also(java.nio.file.Files::createDirectories).toAbsolutePath().normalize() }
+                                    .onSuccess { directory ->
+                                        onCacheSettingsChanged(cacheSettings.copy(customAudioCacheDirectory = directory.toString()).normalized())
+                                    }
+                            }
+                        }
+                    }
+                },
             )
             NaviampSettingsCategory.Debugging -> {
                 Column(

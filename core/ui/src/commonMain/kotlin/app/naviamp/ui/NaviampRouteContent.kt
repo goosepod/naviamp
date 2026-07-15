@@ -17,7 +17,9 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -42,6 +44,9 @@ import androidx.compose.ui.unit.sp
 import app.naviamp.ui.generated.resources.Res
 import app.naviamp.ui.generated.resources.*
 import org.jetbrains.compose.resources.stringResource
+import app.naviamp.domain.cache.DownloadJob
+import app.naviamp.domain.cache.DownloadJobItemStatus
+import app.naviamp.domain.cache.DownloadJobStatus
 
 @Composable
 fun SharedHome(
@@ -580,14 +585,24 @@ internal fun DownloadsContent(
     colors: NaviampColors,
     downloads: List<NaviampDownloadedTrackUi>,
     status: String?,
-    downloadBytes: Long,
+    downloadJobs: List<DownloadJob>,
     maxDownloadBytes: Long,
     offlineDashboard: NaviampOfflineDashboardUi,
     playlistChoices: List<NaviampPlaylistChoiceUi>,
     playlistActionStatus: String?,
     onDownloadAction: (DownloadedTrackActionRequest) -> Unit,
+    onCancelDownloadJob: (String) -> Unit,
+    onRetryDownloadJob: (String) -> Unit,
+    onRefreshDownloads: () -> Unit,
+    keepFavoritesDownloaded: Boolean,
+    onToggleKeepFavoritesDownloaded: () -> Unit,
+    onDeleteAllDownloads: () -> Unit,
 ) {
     var downloadForPlaylist by remember { mutableStateOf<NaviampDownloadedTrackUi?>(null) }
+    var offlineDashboardExpanded by remember { mutableStateOf(false) }
+    var confirmDeleteAll by remember { mutableStateOf(false) }
+    val swipeSettings = LocalTrackSwipeSettings.current
+    val visibleDownloadBytes = downloads.totalDownloadBytes()
     val handleDownloadAction: (DownloadedTrackActionRequest) -> Unit = { request ->
         handleDownloadedTrackAction(
             request,
@@ -601,9 +616,9 @@ internal fun DownloadsContent(
             ),
         )
     }
-    val remainingBytes = (maxDownloadBytes - downloadBytes).coerceAtLeast(0L)
+    val remainingBytes = (maxDownloadBytes - visibleDownloadBytes).coerceAtLeast(0L)
     val usedPercent = if (maxDownloadBytes > 0L) {
-        ((downloadBytes.toDouble() / maxDownloadBytes.toDouble()) * 100.0).coerceIn(0.0, 100.0)
+        ((visibleDownloadBytes.toDouble() / maxDownloadBytes.toDouble()) * 100.0).coerceIn(0.0, 100.0)
     } else {
         0.0
     }
@@ -612,37 +627,85 @@ internal fun DownloadsContent(
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         item {
-            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                Text(stringResource(Res.string.downloads_offline_title), color = colors.primaryText, fontSize = 20.sp, fontWeight = FontWeight.Bold)
-                Text(
-                    stringResource(
-                        Res.string.downloads_summary,
-                        downloads.size,
-                        downloadBytes.storageBytesLabel(),
-                        maxDownloadBytes.storageBytesLabel(),
+            Row(verticalAlignment = Alignment.Top, modifier = Modifier.fillMaxWidth()) {
+                Column(verticalArrangement = Arrangement.spacedBy(2.dp), modifier = Modifier.weight(1f)) {
+                    Text(stringResource(Res.string.downloads_offline_title), color = colors.primaryText, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                    Text(
+                        stringResource(
+                            Res.string.downloads_summary,
+                            downloads.size,
+                            visibleDownloadBytes.storageBytesLabel(),
+                            maxDownloadBytes.storageBytesLabel(),
+                        ),
+                        color = colors.secondaryText,
+                        fontSize = 12.sp,
+                    )
+                    Text(
+                        stringResource(
+                            Res.string.downloads_remaining,
+                            remainingBytes.storageBytesLabel(),
+                            usedPercent.oneDecimalLabel() + "%",
+                        ),
+                        color = colors.mutedText,
+                        fontSize = 11.sp,
+                    )
+                }
+                NaviampRowOverflowMenu(
+                    colors = colors,
+                    items = listOf(
+                        NaviampRowMenuItem("Refresh", NaviampIcons.Refresh, onRefreshDownloads),
+                        NaviampRowMenuItem(
+                            if (keepFavoritesDownloaded) "Stop keeping favorites downloaded" else "Keep favorites downloaded",
+                            NaviampTransportIcons.Heart,
+                            onToggleKeepFavoritesDownloaded,
+                        ),
+                        NaviampRowMenuItem("Delete All", NaviampIcons.Trash, { confirmDeleteAll = true }, downloads.isNotEmpty()),
                     ),
-                    color = colors.secondaryText,
-                    fontSize = 12.sp,
-                )
-                Text(
-                    stringResource(
-                        Res.string.downloads_remaining,
-                        remainingBytes.storageBytesLabel(),
-                        usedPercent.oneDecimalLabel(),
-                    ),
-                    color = colors.mutedText,
-                    fontSize = 11.sp,
                 )
             }
         }
         item {
-            OfflineDashboardSummary(
-                colors = colors,
-                downloads = downloads,
-                downloadBytes = downloadBytes,
-                maxDownloadBytes = maxDownloadBytes,
-                offlineDashboard = offlineDashboard,
-            )
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(7.dp))
+                    .background(Color.Black.copy(alpha = 0.12f))
+                    .clickable { offlineDashboardExpanded = !offlineDashboardExpanded }
+                    .padding(horizontal = 10.dp, vertical = 8.dp),
+            ) {
+                Text("Offline dashboard", color = colors.primaryText, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
+                Icon(
+                    if (offlineDashboardExpanded) NaviampIcons.ChevronUp else NaviampIcons.ChevronDown,
+                    contentDescription = if (offlineDashboardExpanded) "Hide offline dashboard" else "Show offline dashboard",
+                    tint = colors.secondaryText,
+                    modifier = Modifier.size(18.dp),
+                )
+            }
+        }
+        if (offlineDashboardExpanded) {
+            item {
+                OfflineDashboardSummary(
+                    colors = colors,
+                    downloads = downloads,
+                    downloadBytes = visibleDownloadBytes,
+                    maxDownloadBytes = maxDownloadBytes,
+                    offlineDashboard = offlineDashboard,
+                )
+            }
+        }
+        if (downloadJobs.isNotEmpty()) {
+            item {
+                Text("DOWNLOAD ACTIVITY", color = colors.primaryText, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+            }
+            items(downloadJobs, key = { job -> job.id }) { job ->
+                DownloadJobCard(
+                    colors = colors,
+                    job = job,
+                    onCancel = { onCancelDownloadJob(job.id) },
+                    onRetry = { onRetryDownloadJob(job.id) },
+                )
+            }
         }
         status?.takeIf { it.isNotBlank() }?.let { message ->
             item {
@@ -658,23 +721,33 @@ internal fun DownloadsContent(
             items = downloads,
             key = { item -> item.id },
         ) { download ->
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable {
-                        handleDownloadAction(DownloadedTrackActionRequest(download, DownloadedTrackAction.Select))
+            SwipeActionContainer(
+                swipeRight = downloadedTrackSwipeActionVisual(swipeSettings.downloadsRight, download, handleDownloadAction),
+                swipeLeft = downloadedTrackSwipeActionVisual(swipeSettings.downloadsLeft, download, handleDownloadAction),
+            ) { swipeModifier ->
+                Row(
+                    modifier = swipeModifier
+                        .background(Color.Black.copy(alpha = 0.12f), RoundedCornerShape(5.dp))
+                        .clickable {
+                            handleDownloadAction(DownloadedTrackActionRequest(download, DownloadedTrackAction.Select))
+                        }
+                        .padding(horizontal = 6.dp, vertical = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    PlatformCoverArt(download.track.coverArtUrl, colors, 42.dp, 4.dp)
+                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        Text(download.track.title, color = colors.primaryText, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        Text(download.track.subtitle, color = colors.secondaryText, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        Text(
+                            listOf(download.track.meta, download.qualityLabel, download.sizeBytes.storageBytesLabel()).filter { it.isNotBlank() }.joinToString(" · "),
+                            color = colors.mutedText,
+                            fontSize = 10.sp,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
                     }
-                    .padding(vertical = 6.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                PlatformCoverArt(download.track.coverArtUrl, colors, 38.dp, 4.dp)
-                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                    Text(download.track.title, color = colors.primaryText, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                    Text(download.track.subtitle, color = colors.secondaryText, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                }
-                Text(download.sizeBytes.storageBytesLabel(), color = colors.mutedText, fontSize = 11.sp)
-                NaviampRowOverflowMenu(
+                    NaviampRowOverflowMenu(
                     colors = colors,
                     items = downloadRowActions(canRemove = true, canAddToPlaylist = true).mapNotNull { action ->
                         when (action.action) {
@@ -701,7 +774,8 @@ internal fun DownloadsContent(
                             else -> null
                         }
                     },
-                )
+                    )
+                }
             }
         }
     }
@@ -734,6 +808,73 @@ internal fun DownloadsContent(
                 )
             },
         )
+    }
+    if (confirmDeleteAll) {
+        AlertDialog(
+            onDismissRequest = { confirmDeleteAll = false },
+            title = { Text("Delete all downloads?") },
+            text = { Text("This removes every downloaded file shown for the active source. This cannot be undone.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    confirmDeleteAll = false
+                    onDeleteAllDownloads()
+                }) { Text("Delete All") }
+            },
+            dismissButton = {
+                TextButton(onClick = { confirmDeleteAll = false }) { Text("Cancel") }
+            },
+        )
+    }
+}
+
+@Composable
+private fun DownloadJobCard(
+    colors: NaviampColors,
+    job: DownloadJob,
+    onCancel: () -> Unit,
+    onRetry: () -> Unit,
+) {
+    val activeItem = job.items.firstOrNull { it.status == DownloadJobItemStatus.Downloading }
+    val failedItem = job.items.firstOrNull { it.status == DownloadJobItemStatus.Failed }
+    val statusLabel = when (job.status) {
+        DownloadJobStatus.Queued -> "Queued"
+        DownloadJobStatus.Running -> "${job.completedCount} of ${job.totalCount}"
+        DownloadJobStatus.Completed -> "Completed · ${job.totalCount} tracks"
+        DownloadJobStatus.Failed -> "Failed · ${job.completedCount} of ${job.totalCount} saved"
+        DownloadJobStatus.Cancelled -> "Cancelled · ${job.completedCount} of ${job.totalCount} saved"
+    }
+    Column(
+        verticalArrangement = Arrangement.spacedBy(5.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(8.dp))
+            .background(Color.Black.copy(alpha = 0.14f))
+            .padding(horizontal = 10.dp, vertical = 8.dp),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(1.dp)) {
+                Text(job.label, color = colors.primaryText, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(statusLabel, color = colors.secondaryText, fontSize = 11.sp)
+            }
+            if (job.canCancel) TextButton(onClick = onCancel) { Text("Cancel") }
+            if (job.canRetry) TextButton(onClick = onRetry) { Text("Retry") }
+        }
+        LinearProgressIndicator(
+            progress = { job.progress },
+            modifier = Modifier.fillMaxWidth(),
+            color = colors.primaryText,
+            trackColor = colors.mutedText.copy(alpha = 0.25f),
+        )
+        activeItem?.let { item ->
+            Text("Downloading ${item.track.title}", color = colors.secondaryText, fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        }
+        failedItem?.let { item ->
+            Text(
+                "${item.track.title}: ${item.failureMessage ?: "Download failed"}",
+                color = colors.secondaryText,
+                fontSize = 11.sp,
+            )
+        }
     }
 }
 

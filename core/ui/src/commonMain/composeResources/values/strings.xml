@@ -170,6 +170,8 @@
     <string name="settings_downloads_title">Downloads</string>
     <string name="settings_downloads_saved_files_title">Saved Files</string>
     <string name="settings_downloads_saved_files_subtitle">Quality for newly saved files.</string>
+    <string name="settings_downloads_playback_title">Downloaded Track Playback</string>
+    <string name="settings_downloads_playback_subtitle">Choose whether saved files or the server are tried first.</string>
     <string name="settings_downloads_mobile_data">Allow downloads on mobile data</string>
     <string name="settings_downloads_offline_mode">Offline Mode</string>
     <string name="settings_downloads_offline_mode_subtitle">Search only downloaded tracks while Offline Mode is enabled.</string>
@@ -347,9 +349,9 @@
     <string name="library_no_artists">No library artists found.</string>
     <string name="library_no_artist_matches">No library artists match.</string>
 
-    <string name="downloads_offline_title">Offline Mode</string>
+    <string name="downloads_offline_title">Downloads</string>
     <string name="downloads_summary">%1$d files - %2$s of %3$s</string>
-    <string name="downloads_remaining">%1$s remaining - %2$s%% used</string>
+    <string name="downloads_remaining">%1$s remaining - %2$s used</string>
     <string name="downloads_empty">Downloaded tracks will appear here.</string>
     <string name="offline_ready">Ready for offline playback and Android Auto Downloads browsing.</string>
     <string name="offline_not_ready">Download albums, playlists, or tracks before using offline mode.</string>

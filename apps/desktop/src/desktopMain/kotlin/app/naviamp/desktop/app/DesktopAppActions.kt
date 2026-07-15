@@ -116,12 +116,36 @@ class DesktopAppActions(
         downloadsController.downloadPlaylist(playlist)
     }
 
+    fun toggleKeepDownloadedPlaylist(playlist: Playlist) {
+        downloadsController.toggleKeepDownloadedPlaylist(playlist)
+    }
+
     fun removeDownloadedTrack(download: DownloadedTrack) {
         downloadsController.removeDownloadedTrack(download)
     }
 
     fun playDownloadedTrack(downloads: List<DownloadedTrack>, index: Int) {
         downloadsController.playDownloadedTrack(downloads, index)
+    }
+
+    fun cancelDownloadJob(jobId: String) {
+        downloadsController.cancelDownloadJob(jobId)
+    }
+
+    fun retryDownloadJob(jobId: String) {
+        downloadsController.retryDownloadJob(jobId)
+    }
+
+    fun refreshDownloads() {
+        downloadsController.refreshDownloads()
+    }
+
+    fun toggleKeepDownloadedFavorites() {
+        downloadsController.toggleKeepDownloadedFavorites()
+    }
+
+    fun deleteAllDownloads() {
+        downloadsController.deleteAllDownloads()
     }
 
     fun playRadio(request: RadioRequest) {

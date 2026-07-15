@@ -80,7 +80,7 @@ class NavidromeProviderTest {
         val url = provider.coverArtUrl("cover-1")
 
         assertEquals(
-            "https://music.example.test/rest/getCoverArt.view?u=demo&t=token&s=salt&v=1.16.1&$ExpectedClientQuery&f=json&id=cover-1",
+            "https://music.example.test/rest/getCoverArt.view?u=demo&t=token&s=salt&v=1.16.1&$ExpectedClientQuery&f=json&id=cover-1&size=512",
             url,
         )
     }
@@ -345,6 +345,39 @@ class NavidromeProviderTest {
         assertEquals("New Order", albums.first().artistName)
         assertEquals(1985, albums.first().releaseYear)
         assertEquals("2026-05-10T08:00:00Z", albums.first().favoritedAtIso8601)
+    }
+
+    @Test
+    fun favoriteTracksMapsStarredSongs() = runTest {
+        val provider = NavidromeProvider(
+            connection = connection("https://music.example.test"),
+            httpClient = FakeHttpClient(
+                """
+                {
+                  "subsonic-response": {
+                    "status": "ok",
+                    "starred2": {
+                      "song": [
+                        {
+                          "id": "favorite-1",
+                          "title": "Favorite Song",
+                          "artist": "Favorite Artist",
+                          "album": "Favorite Album",
+                          "duration": 180,
+                          "starred": "2026-07-15T12:00:00Z"
+                        }
+                      ]
+                    }
+                  }
+                }
+                """.trimIndent(),
+            ),
+        )
+
+        val tracks = provider.favoriteTracks()
+
+        assertEquals(listOf("favorite-1"), tracks.map { it.id.value })
+        assertEquals("2026-07-15T12:00:00Z", tracks.single().favoritedAtIso8601)
     }
 
     @Test
@@ -666,7 +699,7 @@ class NavidromeProviderTest {
         assertEquals("artist-2", artists.single().sourceArtistId)
         assertEquals("Electronic", artists.single().name)
         assertEquals(
-            "https://music.example.test/rest/getCoverArt.view?u=demo&t=token&s=salt&v=1.16.1&$ExpectedClientQuery&f=json&id=artist-2-cover",
+            "https://music.example.test/rest/getCoverArt.view?u=demo&t=token&s=salt&v=1.16.1&$ExpectedClientQuery&f=json&id=artist-2-cover&size=512",
             artists.single().imageUrl,
         )
         assertEquals("https://musicbrainz.org/artist/55f1f4e6-2a97-4da6-9a7c-b451a2f22475", artists.single().externalUrl)

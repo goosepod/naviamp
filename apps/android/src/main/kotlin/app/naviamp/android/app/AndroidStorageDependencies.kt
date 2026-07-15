@@ -11,6 +11,7 @@ import app.naviamp.domain.cache.CacheMaintenanceRepository
 import app.naviamp.domain.cache.DownloadReplacementRepository
 import app.naviamp.domain.cache.DownloadRepository
 import app.naviamp.domain.cache.ImageCacheRepository
+import app.naviamp.domain.cache.KeepDownloadedRepository
 import app.naviamp.domain.cache.LocalLibraryIndexRepository
 import app.naviamp.domain.cache.LyricsOffsetRepository
 import app.naviamp.domain.cache.LyricsSidecarRepository
@@ -40,6 +41,7 @@ class AndroidStorageDependencies(
     LyricsOffsetRepository by storage,
     DownloadRepository<AndroidDownloadedAudioFile, AndroidDownloadedTrack> by storage,
     DownloadReplacementRepository<AndroidDownloadedAudioFile> by storage,
+    KeepDownloadedRepository by storage,
     PlaybackHistoryRepository<AndroidPlaybackHistoryItem> by storage,
     MediaSourceRepository by storage,
     ProviderMediaSourceRepository by storage,
@@ -65,6 +67,9 @@ class AndroidStorageDependencies(
     fun latestNavidromeSource(): SavedMediaSource? =
         storage.latestNavidromeSource()
 
+    fun updateDownloadDirectory(directory: java.io.File) = storage.updateDownloadDirectory(directory)
+    fun updateAudioCacheDirectory(directory: java.io.File) = storage.updateAudioCacheDirectory(directory)
+
     fun libraryTrack(sourceId: String, trackId: TrackId): Track? =
         storage.libraryTrack(sourceId, trackId)
 
@@ -81,12 +86,6 @@ class AndroidStorageDependencies(
             override fun recentlyPlayedTracks(sourceId: String, limit: Long) =
                 recentlyPlayedLibraryTracks(sourceId, limit)
         }
-
-    suspend fun imageBytes(
-        url: String,
-        fetch: suspend () -> ByteArray,
-    ): ByteArray =
-        storage.imageBytes(url, fetch)
 
     override fun close() {
         storage.close()

@@ -66,6 +66,7 @@ import app.naviamp.domain.playback.preparedBassPlaybackFailed
 import app.naviamp.domain.playback.preparedBassPlaybackSucceeded
 import app.naviamp.domain.playback.shouldRestoreCurrentSourceForSeek
 import app.naviamp.domain.playback.targetOutputSampleRate
+import app.naviamp.domain.playback.downloadFallbackRequest
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -188,18 +189,20 @@ class DesktopBassPlaybackEngine(
         job = scope.launch(Dispatchers.IO) {
             var createdPlayback: BassPlaybackActivationUpdate? = null
             var retriedAfterBassReset = false
+            var activeRequest = request
+            var triedFallback = false
             try {
                 while (isCurrentPlayback(currentPlaybackId)) {
                     try {
                         ensureInitialized(bass, targetSampleRateHz)
                         val creationPlan = planBassPlaybackCreation(
-                            request = request,
+                            request = activeRequest,
                             supportsMixer = bass.supportsMixer,
                             requireMediaId = false,
                         )
                         createdPlayback = createPlayback(
                             bass = bass,
-                            request = request,
+                            request = activeRequest,
                             plan = creationPlan,
                         ).getOrThrow()
                         if (!isCurrentPlayback(currentPlaybackId)) {
@@ -216,7 +219,7 @@ class DesktopBassPlaybackEngine(
                         applyOutputVolume(bass)
                         applyEqualizer(bass)
                         val startPlan = planBassPlaybackStart(
-                            request = request,
+                            request = activeRequest,
                             policy = BassPlaybackStartPolicy.DesktopEngine,
                         )
                         if (startPlan.shouldSeekBeforePlay) {
@@ -261,6 +264,17 @@ class DesktopBassPlaybackEngine(
                         ) {
                             retriedAfterBassReset = true
                             lastError = exception.message
+                            resetBassAfterPlaybackFailure(bass)
+                            onStateChanged(PlaybackState.Loading)
+                            continue
+                        }
+                        val fallbackRequest = activeRequest.downloadFallbackRequest(lastProgress.positionSeconds)
+                        if (!triedFallback && fallbackRequest != null && isCurrentPlayback(currentPlaybackId)) {
+                            triedFallback = true
+                            retriedAfterBassReset = false
+                            activeRequest = fallbackRequest
+                            currentRequest = activeRequest
+                            lastRequestUrl = activeRequest.url
                             resetBassAfterPlaybackFailure(bass)
                             onStateChanged(PlaybackState.Loading)
                             continue

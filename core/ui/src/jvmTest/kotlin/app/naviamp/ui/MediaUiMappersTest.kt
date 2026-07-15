@@ -12,6 +12,7 @@ import app.naviamp.domain.TrackId
 import app.naviamp.domain.media.RelatedTracksSource
 import app.naviamp.domain.queue.PlaybackQueue
 import app.naviamp.domain.queue.RepeatMode
+import app.naviamp.domain.settings.TrackSwipeAction
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -36,6 +37,7 @@ class MediaUiMappersTest {
         val ui = track.toDownloadedTrackUi(
             id = "/downloads/track-1.mp3",
             sizeBytes = 12_345L,
+            qualityLabel = "MP3 · 320 kbps",
             coverArtUrl = { coverArtId -> coverArtId?.let { "cover://$it" } },
         )
 
@@ -46,6 +48,7 @@ class MediaUiMappersTest {
         assertEquals("2:05", ui.track.meta)
         assertEquals("cover://cover-1", ui.track.coverArtUrl)
         assertEquals(12_345L, ui.sizeBytes)
+        assertEquals("MP3 · 320 kbps", ui.qualityLabel)
     }
 
     @Test
@@ -312,6 +315,34 @@ class MediaUiMappersTest {
         )
 
         assertEquals("/downloads/track.mp3" to "New Mix", received)
+    }
+
+    @Test
+    fun downloadedTrackTotalUsesOnlyVisibleItemsAndIgnoresInvalidSizes() {
+        val track = SharedTrackRowUi(id = "track-1", title = "Track", subtitle = "Artist")
+        val downloads = listOf(
+            NaviampDownloadedTrackUi(id = "one", track = track, sizeBytes = 3_000_000L),
+            NaviampDownloadedTrackUi(id = "two", track = track, sizeBytes = 2_000_000L),
+            NaviampDownloadedTrackUi(id = "invalid", track = track, sizeBytes = -1L),
+        )
+
+        assertEquals(5_000_000L, downloads.totalDownloadBytes())
+    }
+
+    @Test
+    fun downloadedTrackSwipeVisualDispatchesConfiguredAction() {
+        val download = NaviampDownloadedTrackUi(
+            id = "/downloads/track.opus",
+            track = SharedTrackRowUi(id = "track-1", title = "Track", subtitle = "Artist"),
+            sizeBytes = 123L,
+            qualityLabel = "OPUS · 128 kbps",
+        )
+        var received: DownloadedTrackActionRequest? = null
+
+        downloadedTrackSwipeActionVisual(TrackSwipeAction.Play, download) { received = it }?.onTriggered?.invoke()
+
+        assertEquals(DownloadedTrackAction.Select, received?.action)
+        assertEquals(download, received?.download)
     }
 
     @Test

@@ -306,9 +306,9 @@ fun SharedBottomNavigationBar(
     Row(
         horizontalArrangement = Arrangement.SpaceEvenly,
         verticalAlignment = Alignment.CenterVertically,
+        // Keep the navigation chrome transparent so the page background remains continuous.
         modifier = Modifier
             .fillMaxWidth()
-            .background(Color.Black.copy(alpha = 0.28f))
             .padding(vertical = 2.dp),
     ) {
         bottomRoutes.forEach { route ->

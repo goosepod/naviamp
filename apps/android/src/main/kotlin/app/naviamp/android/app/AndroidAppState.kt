@@ -1,6 +1,8 @@
 package app.naviamp.android
 
 import app.naviamp.domain.cache.StorageCacheStats
+import app.naviamp.domain.cache.DownloadJob
+import app.naviamp.domain.cache.KeepDownloadedCollectionPolicy
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -99,6 +101,8 @@ class AndroidAppState(
     var storageStats by mutableStateOf(initialStorageStats)
     var downloadedTracks by mutableStateOf<List<AndroidDownloadedTrack>>(emptyList())
     var downloadStatus by mutableStateOf<String?>(null)
+    var downloadJobs by mutableStateOf<List<DownloadJob>>(emptyList())
+    var keepDownloadedPolicies by mutableStateOf<List<KeepDownloadedCollectionPolicy>>(emptyList())
     var downloadRefreshToken by mutableStateOf(0)
     var libraryStatus by mutableStateOf<String?>(null)
     var isLibrarySyncing by mutableStateOf(false)

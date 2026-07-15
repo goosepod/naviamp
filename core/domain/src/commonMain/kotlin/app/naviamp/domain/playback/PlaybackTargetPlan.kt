@@ -87,6 +87,7 @@ fun <SessionId> planPlaylistTrackStartWork(
     track: Track,
     playbackSource: PlaybackSource,
     streamUrl: String,
+    fallbackStreamUrl: String? = null,
     replayGainMode: ReplayGainMode,
     replayGainPreampDb: Float = 0f,
     replayGain: PlaybackReplayGain?,
@@ -103,6 +104,7 @@ fun <SessionId> planPlaylistTrackStartWork(
         coverArtUrl = coverArtUrl,
         request = PlaybackRequest(
             url = streamUrl,
+            fallbackUrl = fallbackStreamUrl,
             mediaId = track.id.value,
             samplingRateHz = track.audioInfo?.samplingRateHz,
             replayGainMode = if (supportsReplayGain) replayGainMode else ReplayGainMode.Off,

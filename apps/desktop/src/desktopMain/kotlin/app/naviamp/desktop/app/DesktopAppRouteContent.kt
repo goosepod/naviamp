@@ -29,6 +29,8 @@ import app.naviamp.domain.InternetRadioStation
 import app.naviamp.domain.Playlist
 import app.naviamp.domain.Track
 import app.naviamp.domain.cache.LibrarySnapshot
+import app.naviamp.domain.cache.DownloadJob
+import app.naviamp.domain.cache.KeepDownloadedCollectionPolicy
 import app.naviamp.domain.cache.StorageCacheStats
 import app.naviamp.domain.playback.AudioOutputDevicePlaybackEngine
 import app.naviamp.domain.home.HomeContent
@@ -177,6 +179,8 @@ fun ColumnScope.DesktopAppRouteContent(
     connectedSourceId: String?,
     downloadRefreshToken: Int,
     downloadStatus: String?,
+    downloadJobs: List<DownloadJob>,
+    keepDownloadedPolicies: List<KeepDownloadedCollectionPolicy>,
     cacheSettings: CacheSettings,
     cacheStats: StorageCacheStats,
     settingsSyncDirectoryPath: String?,
@@ -335,6 +339,10 @@ fun ColumnScope.DesktopAppRouteContent(
         }
     }
     fun handleSelectedPlaylistMediaAction(request: SharedMediaItemActionRequest) {
+        if (request.textValue == app.naviamp.ui.KeepDownloadedActionValue) {
+            selectedPlaylist?.let(appActions::toggleKeepDownloadedPlaylist)
+            return
+        }
         when (request.action) {
             SharedMediaItemAction.Play -> appActions.playPlaylistDetails()
             SharedMediaItemAction.Shuffle -> appActions.playPlaylistDetails(shuffle = true)
@@ -525,6 +533,7 @@ fun ColumnScope.DesktopAppRouteContent(
                     appColors = appColors,
                     playlists = playlists,
                     playlistTracks = { playlist -> playlistTracksById[playlist.id].orEmpty() },
+                    keepDownloadedPlaylistIds = keepDownloadedPolicies.mapTo(mutableSetOf()) { it.collectionId },
                     recentPlaylistIds = recentPlaylistIds,
                     sortMode = playlistSortMode,
                     status = playlistStatus ?: connectionStatus,
@@ -533,7 +542,13 @@ fun ColumnScope.DesktopAppRouteContent(
                     onPlaylistAction = { request ->
                         playlists
                             .firstOrNull { playlist -> playlist.id == request.item.id }
-                            ?.let { playlist -> handlePlaylistMediaAction(request.action, playlist, request.shuffle) }
+                            ?.let { playlist ->
+                                if (request.textValue == app.naviamp.ui.KeepDownloadedActionValue) {
+                                    appActions.toggleKeepDownloadedPlaylist(playlist)
+                                } else {
+                                    handlePlaylistMediaAction(request.action, playlist, request.shuffle)
+                                }
+                            }
                     },
                     onRefreshPlaylists = { playlistsController.refreshPlaylists(useCache = false) },
                     onSmartPlaylistSave = smartPlaylistsController::saveSmartPlaylist,
@@ -548,6 +563,7 @@ fun ColumnScope.DesktopAppRouteContent(
                     appColors = appColors,
                     playlist = selectedPlaylist,
                     tracks = selectedPlaylistTracks,
+                    keepDownloaded = selectedPlaylist?.id in keepDownloadedPolicies.map { it.collectionId },
                     status = selectedPlaylistStatus ?: playlistStatus,
                     playlistCoverArtUrl = selectedPlaylist?.coverArtId?.let(coverArtUrl),
                     coverArtUrl = coverArtUrl,
@@ -887,16 +903,24 @@ fun ColumnScope.DesktopAppRouteContent(
                     connectedSourceId = connectedSourceId,
                     downloadRefreshToken = downloadRefreshToken,
                     downloadCount = cacheStats.downloadCount,
-                    downloadBytes = cacheStats.downloadBytes,
                     maxDownloadBytes = cacheSettings.maxDownloadBytes,
                     audioCacheCount = cacheStats.audioCount,
                     audioCacheBytes = cacheStats.audioBytes,
                     maxAudioCacheBytes = cacheSettings.maxAudioCacheBytes,
-                    status = downloadStatus ?: connectionStatus,
+                    status = downloadStatus,
+                    downloadJobs = downloadJobs,
                     coverArtUrl = coverArtUrl,
                     downloadedTracks = downloadedTracks,
                     onPlayDownloadedTrack = appActions::playDownloadedTrack,
                     onRemoveDownloadedTrack = appActions::removeDownloadedTrack,
+                    onCancelDownloadJob = appActions::cancelDownloadJob,
+                    onRetryDownloadJob = appActions::retryDownloadJob,
+                    onRefreshDownloads = appActions::refreshDownloads,
+                    keepFavoritesDownloaded = keepDownloadedPolicies.any {
+                        it.kind == app.naviamp.domain.cache.KeepDownloadedCollectionKind.Favorites
+                    },
+                    onToggleKeepFavoritesDownloaded = appActions::toggleKeepDownloadedFavorites,
+                    onDeleteAllDownloads = appActions::deleteAllDownloads,
                     onAddDownloadedTrackToPlaylist = { download ->
                         playlistsController.openTrackAddToPlaylist(download.track)
                     },

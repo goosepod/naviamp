@@ -27,6 +27,7 @@ import app.naviamp.domain.playback.PreparedNextPlaybackWork
 import app.naviamp.domain.playback.QueueAwarePlaybackEngine
 import app.naviamp.domain.playback.ReplayGainSource
 import app.naviamp.domain.playback.canReportPlaybackTrack
+import app.naviamp.domain.playback.fallbackPlaybackUrl
 import app.naviamp.domain.playback.hasPendingSeekReachedTarget
 import app.naviamp.domain.playback.playbackStreamUrl
 import app.naviamp.domain.playback.playbackRequestForTrack
@@ -249,13 +250,18 @@ internal class AndroidServicePlaybackRuntimeController(
                     track = track,
                     quality = quality,
                     audioCachingEnabled = true,
+                    downloadedTrackPlayback = playbackSettings.downloadedTrackPlayback,
                     startPositionSeconds = startPositionSeconds,
                     audioAssets = audioAssets,
                 )
                 val streamUrl = audioSourcePlan.playbackStreamUrl(
                     providerStreamUrl = { target -> provider.streamUrl(target.providerStreamRequest) },
                 )
-                streamUrl to audioSourcePlan.target.engineStartPositionSeconds
+                Triple(
+                    streamUrl,
+                    audioSourcePlan.target.engineStartPositionSeconds,
+                    audioSourcePlan.fallbackPlaybackUrl(),
+                )
             }.onSuccess { playbackTarget ->
                 runtime.playbackEngine.updateNotificationMetadata(
                     title = track.title,
@@ -278,6 +284,7 @@ internal class AndroidServicePlaybackRuntimeController(
                     request = playbackRequestForTrack(
                         track = track,
                         url = playbackTarget.first,
+                        fallbackUrl = playbackTarget.third,
                         replayGainMode = playbackSettings.replayGainMode,
                         replayGainPreampDb = playbackSettings.replayGainPreampDb,
                         supportsReplayGain = runtime.playbackEngine.supportsReplayGain,
@@ -402,6 +409,7 @@ internal class AndroidServicePlaybackRuntimeController(
             quality = { StreamQuality.Original },
             audioCachingEnabled = { true },
             audioAssets = AndroidPlaybackAudioAssets(storage, storage),
+            downloadedTrackPlayback = { playbackSettings.downloadedTrackPlayback },
             replayGainMode = { playbackSettings.replayGainMode },
             replayGainPreampDb = { playbackSettings.replayGainPreampDb },
             supportsReplayGain = { runtime.playbackEngine.supportsReplayGain },

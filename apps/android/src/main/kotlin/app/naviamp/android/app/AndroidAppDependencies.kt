@@ -17,6 +17,7 @@ import app.naviamp.domain.popular.ProviderSimilarArtistsClient
 import app.naviamp.domain.popular.SimilarArtistsService
 import app.naviamp.domain.radio.InternetRadioStationManager
 import app.naviamp.provider.navidrome.NavidromeProvider
+import java.io.File
 
 class AndroidAppDependencies(
     context: Context,
@@ -24,6 +25,12 @@ class AndroidAppDependencies(
     val storage: AndroidStorageDependencies = AndroidStorageDependencies(context),
     val settingsStore: AndroidSettingsStore = AndroidSettingsStore(context),
 ) : AutoCloseable {
+    init {
+        settingsStore.loadCacheSettings().let { cacheSettings ->
+            cacheSettings.customDownloadDirectory?.let { storage.updateDownloadDirectory(File(it)) }
+            cacheSettings.customAudioCacheDirectory?.let { storage.updateAudioCacheDirectory(File(it)) }
+        }
+    }
     val imageCacheRepository: ImageCacheRepository = storage
     val sidecarStatusRepository: SidecarStatusRepository = storage
     val providerResponseService: ProviderResponseService = ProviderResponseService(storage)

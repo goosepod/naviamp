@@ -4,6 +4,7 @@ import androidx.compose.ui.Modifier
 import app.naviamp.domain.InternetRadioStation
 import app.naviamp.domain.Playlist
 import app.naviamp.domain.Track
+import app.naviamp.domain.cache.DownloadJob
 import app.naviamp.domain.settings.ConnectionFormMusicFolder
 import app.naviamp.domain.settings.ConnectionFormState
 import app.naviamp.domain.settings.CacheSettings
@@ -13,6 +14,7 @@ import app.naviamp.domain.smartplaylist.SmartPlaylistDefinition
 import app.naviamp.ui.NaviampDiagnosticsUi
 import app.naviamp.ui.NaviampDownloadedTrackUi
 import app.naviamp.ui.NaviampOfflineDashboardUi
+import app.naviamp.ui.NaviampStorageLocationUi
 import app.naviamp.ui.NaviampLibrarySyncStatusUi
 import app.naviamp.ui.NaviampPlaylistChoiceUi
 import app.naviamp.ui.NaviampVisualizer
@@ -93,6 +95,12 @@ data class AndroidAppShellUiState(
     val maxDownloadBytes: Long,
     val offlineDashboard: NaviampOfflineDashboardUi,
     val downloadStatus: String?,
+    val downloadJobs: List<DownloadJob>,
+    val keepFavoritesDownloaded: Boolean,
+    val downloadLocations: List<NaviampStorageLocationUi>,
+    val audioCacheLocations: List<NaviampStorageLocationUi>,
+    val selectedDownloadLocationId: String?,
+    val selectedAudioCacheLocationId: String?,
     val playlistItems: List<SharedMediaItemUi>,
     val recentPlaylistIds: List<String>,
     val playlistSortMode: SharedPlaylistSortMode,
@@ -123,6 +131,8 @@ data class AndroidAppShellActions(
     val onPlaybackSettingsChanged: (PlaybackSettings) -> Unit,
     val onPlaybackSettingsChangedAndRedownload: (PlaybackSettings) -> Unit,
     val onCacheSettingsChanged: (CacheSettings) -> Unit,
+    val onDownloadLocationChanged: (NaviampStorageLocationUi) -> Unit,
+    val onAudioCacheLocationChanged: (NaviampStorageLocationUi) -> Unit,
     val onClearCache: () -> Unit,
     val onClearLibrary: () -> Unit,
     val onResetDatabase: () -> Unit,
@@ -179,6 +189,11 @@ data class AndroidAppShellActions(
     val onRefreshRadioStations: () -> Unit,
     val onTrackSelected: (SharedTrackRowUi) -> Unit,
     val onDownloadedTrackAction: (DownloadedTrackActionRequest) -> Unit,
+    val onCancelDownloadJob: (String) -> Unit,
+    val onRetryDownloadJob: (String) -> Unit,
+    val onRefreshDownloads: () -> Unit,
+    val onToggleKeepFavoritesDownloaded: () -> Unit,
+    val onDeleteAllDownloads: () -> Unit,
     val onAlbumSelected: (SharedMediaItemUi) -> Unit,
     val onAlbumFavoriteToggled: (SharedMediaItemUi) -> Unit,
     val onMixAlbumSelected: (SharedMediaItemUi) -> Unit,

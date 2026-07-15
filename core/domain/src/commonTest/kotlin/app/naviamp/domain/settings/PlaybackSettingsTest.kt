@@ -2,6 +2,8 @@ package app.naviamp.domain.settings
 
 import app.naviamp.domain.Track
 import app.naviamp.domain.TrackId
+import app.naviamp.domain.AudioCodec
+import app.naviamp.domain.StreamQuality
 import app.naviamp.domain.playback.PlaybackEngine
 import app.naviamp.domain.playback.PlaybackProgress
 import app.naviamp.domain.playback.PlaybackRequest
@@ -15,6 +17,33 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 
 class PlaybackSettingsTest {
+    @Test
+    fun downloadedTrackSwipesDefaultToPlayAndRemove() {
+        val swipes = TrackSwipeSettings()
+
+        assertEquals(TrackSwipeAction.Play, swipes.downloadsRight)
+        assertEquals(TrackSwipeAction.Remove, swipes.downloadsLeft)
+    }
+
+    @Test
+    fun downloadStreamQualityUsesTheDedicatedDownloadPreference() {
+        val settings = PlaybackSettings(
+            wifiStreamingQuality = StreamQualityPreference(
+                mode = StreamQualityMode.Original,
+            ),
+            downloadQuality = StreamQualityPreference(
+                mode = StreamQualityMode.Transcode,
+                codec = StreamingCodec.Opus,
+                bitrateKbps = 128,
+            ),
+        )
+
+        assertEquals(
+            StreamQuality.Transcoded(AudioCodec.Opus, 128),
+            settings.downloadStreamQuality(),
+        )
+    }
+
     @Test
     fun sampleRateConvertersMapToBassSrcQualityLevels() {
         assertEquals(listOf(0, 1, 2, 3, 4), SampleRateConverter.entries.map { it.bassQuality })

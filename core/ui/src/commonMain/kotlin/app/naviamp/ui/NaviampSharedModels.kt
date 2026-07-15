@@ -175,6 +175,7 @@ data class NaviampDownloadedTrackUi(
     val id: String,
     val track: SharedTrackRowUi,
     val sizeBytes: Long,
+    val qualityLabel: String = "",
 )
 
 data class NaviampOfflineDashboardUi(
@@ -226,6 +227,7 @@ data class SharedMediaItemUi(
     val coverArtUrl: String? = null,
     val coverArtUrls: List<String> = emptyList(),
     val isSmartPlaylist: Boolean = false,
+    val keepDownloadedActive: Boolean = false,
     val favoriteActive: Boolean = false,
     val canFavorite: Boolean = false,
 )

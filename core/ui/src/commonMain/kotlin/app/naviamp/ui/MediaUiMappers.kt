@@ -91,6 +91,7 @@ fun List<SharedMediaItemUi>.sortedForAlbumDisplay(order: AlbumSortOrder): List<S
 fun Playlist.toSharedMediaItemUi(
     coverArtUrl: (String?) -> String?,
     tracks: List<Track> = emptyList(),
+    keepDownloadedActive: Boolean = false,
 ): SharedMediaItemUi =
     SharedMediaItemUi(
         id = id,
@@ -100,6 +101,7 @@ fun Playlist.toSharedMediaItemUi(
         coverArtUrl = coverArtUrl(coverArtId),
         coverArtUrls = tracks.mapNotNull { coverArtUrl(it.coverArtId) }.distinct().take(4),
         isSmartPlaylist = isSmart,
+        keepDownloadedActive = keepDownloadedActive,
     )
 
 fun InternetRadioStation.toSharedMediaItemUi(): SharedMediaItemUi =
@@ -126,6 +128,7 @@ fun InternetRadioStation.defaultRadioArtworkUrl(): String =
 fun HomeContent.toSharedHomeUi(
     coverArtUrl: (String?) -> String?,
     playlistTracksById: Map<String, List<Track>> = emptyMap(),
+    keepDownloadedPlaylistIds: Set<String> = emptySet(),
     sonicDiscoveryRows: SonicHomeDiscoveryRows = SonicHomeDiscoveryRows(),
     canFavoriteAlbums: Boolean = false,
     showSonicPathBuilder: Boolean = false,
@@ -149,6 +152,7 @@ fun HomeContent.toSharedHomeUi(
             playlist.toSharedMediaItemUi(
                 coverArtUrl = coverArtUrl,
                 tracks = playlistTracksById[playlist.id].orEmpty(),
+                keepDownloadedActive = playlist.id in keepDownloadedPlaylistIds,
             )
         },
         recentRadioStreams = recentRadioStreams.map {
@@ -216,6 +220,7 @@ fun Track.toSharedTrackRowUi(
 fun Track.toDownloadedTrackUi(
     id: String,
     sizeBytes: Long,
+    qualityLabel: String = "",
     coverArtUrl: (String?) -> String?,
 ): NaviampDownloadedTrackUi =
     NaviampDownloadedTrackUi(
@@ -226,6 +231,7 @@ fun Track.toDownloadedTrackUi(
             hasArtist = false,
         ),
         sizeBytes = sizeBytes,
+        qualityLabel = qualityLabel,
     )
 
 fun Track.toNowPlayingItemUi(coverArtUrl: (String?) -> String?): NaviampNowPlayingItemUi =

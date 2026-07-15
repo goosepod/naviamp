@@ -15,6 +15,7 @@ import app.naviamp.domain.playback.PlaybackState
 import app.naviamp.domain.playback.PlaybackStreamMetadata
 import app.naviamp.domain.playback.PlaybackTrackStartEffectApplier
 import app.naviamp.domain.playback.applyPlaybackTrackStartEffects
+import app.naviamp.domain.playback.fallbackPlaybackUrl
 import app.naviamp.domain.playback.planPlaylistTrackStartWork
 import app.naviamp.domain.playback.planPlaybackProgressUpdate
 import app.naviamp.domain.playback.planPlaybackStart
@@ -94,6 +95,7 @@ fun playAndroidTrack(
                 track = track,
                 quality = streamQuality,
                 audioCachingEnabled = true,
+                downloadedTrackPlayback = playbackSettings.downloadedTrackPlayback,
                 startPositionSeconds = startPositionSeconds,
                 audioAssets = audioAssets,
             )
@@ -174,6 +176,7 @@ fun playAndroidTrack(
                     track = track,
                     playbackSource = audioSourcePlan.source,
                     streamUrl = streamUrl,
+                    fallbackStreamUrl = audioSourcePlan.fallbackPlaybackUrl(),
                     replayGainMode = playbackSettings.replayGainMode,
                     replayGainPreampDb = playbackSettings.replayGainPreampDb,
                     replayGain = track.replayGain?.let { PlaybackReplayGain(it, ReplayGainSource.Provider) },

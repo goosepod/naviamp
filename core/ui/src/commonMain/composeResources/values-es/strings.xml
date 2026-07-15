@@ -170,6 +170,8 @@
     <string name="settings_downloads_title">Descargas</string>
     <string name="settings_downloads_saved_files_title">Archivos guardados</string>
     <string name="settings_downloads_saved_files_subtitle">Calidad para archivos guardados nuevos.</string>
+    <string name="settings_downloads_playback_title">Reproducción de pistas descargadas</string>
+    <string name="settings_downloads_playback_subtitle">Elige si se intentan primero los archivos guardados o el servidor.</string>
     <string name="settings_downloads_mobile_data">Permitir descargas con datos móviles</string>
     <string name="settings_downloads_offline_mode">Modo sin conexión</string>
     <string name="settings_downloads_offline_mode_subtitle">Buscar solo pistas descargadas mientras el modo sin conexión esté activado.</string>
@@ -347,7 +349,7 @@
     <string name="library_no_artists">No se encontraron artistas en la biblioteca.</string>
     <string name="library_no_artist_matches">Ningún artista coincide.</string>
 
-    <string name="downloads_offline_title">Modo sin conexión</string>
+    <string name="downloads_offline_title">Descargas</string>
     <string name="downloads_summary">%1$d archivos - %2$s de %3$s</string>
     <string name="downloads_remaining">%1$s restantes - %2$s%% usado</string>
     <string name="downloads_empty">Las pistas descargadas aparecerán aquí.</string>

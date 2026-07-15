@@ -3,6 +3,9 @@ package app.naviamp.domain.cache
 import app.naviamp.domain.StreamQuality
 import app.naviamp.domain.Track
 import app.naviamp.domain.provider.MediaProvider
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 
 enum class DownloadBlockReason {
     MissingConnection,
@@ -61,6 +64,7 @@ suspend fun downloadTracksWithStatus(
     deduplicateTracks: Boolean = true,
     includeCompletedCount: Boolean = true,
     setStatus: (String) -> Unit,
+    onJobUpdate: (DownloadJobUpdate) -> Unit = {},
     downloadTrack: suspend (Track) -> Unit,
 ): DownloadTracksResult {
     val plan = planDownloadTracks(
@@ -77,19 +81,31 @@ suspend fun downloadTracksWithStatus(
     }
 
     setStatus(downloadStartingStatus(label))
+    onJobUpdate(DownloadJobUpdate.Started)
     var completed = 0
     return try {
         plan.tracks.forEachIndexed { index, track ->
+            currentCoroutineContext().ensureActive()
             if (plan.tracks.size > 1) {
                 setStatus(downloadProgressStatus(label, index, plan.tracks.size))
             }
+            onJobUpdate(DownloadJobUpdate.TrackStarted(track.id.value))
             downloadTrack(track)
             completed += 1
+            onJobUpdate(DownloadJobUpdate.TrackCompleted(track.id.value))
         }
         setStatus(downloadCompletedStatus(label, if (includeCompletedCount) completed else null))
+        onJobUpdate(DownloadJobUpdate.Completed)
         DownloadTracksResult.Completed(completed)
+    } catch (cancelled: CancellationException) {
+        onJobUpdate(DownloadJobUpdate.Cancelled)
+        throw cancelled
     } catch (error: Exception) {
         setStatus(downloadErrorStatus(label, error))
+        onJobUpdate(DownloadJobUpdate.Failed(
+            trackId = plan.tracks.getOrNull(completed)?.id?.value,
+            message = error.message ?: error::class.simpleName ?: "Download failed",
+        ))
         DownloadTracksResult.Failed(completed, error)
     }
 }
@@ -101,6 +117,7 @@ suspend fun redownloadTracksWithStatus(
     isActiveNetworkMobileData: Boolean = false,
     allowMobileDownloads: Boolean = true,
     setStatus: (String) -> Unit,
+    onJobUpdate: (DownloadJobUpdate) -> Unit = {},
     replaceTrack: suspend (Track) -> Unit,
 ): DownloadTracksResult =
     downloadTracksWithStatus(
@@ -113,6 +130,7 @@ suspend fun redownloadTracksWithStatus(
         deduplicateTracks = true,
         includeCompletedCount = true,
         setStatus = setStatus,
+        onJobUpdate = onJobUpdate,
         downloadTrack = replaceTrack,
     )
 
@@ -134,6 +152,7 @@ class DownloadService<DownloadedFile, DownloadedTrack>(
         allowMobileDownloads: Boolean = true,
         includeCompletedCount: Boolean = true,
         setStatus: (String) -> Unit,
+        onJobUpdate: (DownloadJobUpdate) -> Unit = {},
     ): DownloadTracksResult {
         val activeSourceId = sourceId
         val activeProvider = provider
@@ -147,6 +166,7 @@ class DownloadService<DownloadedFile, DownloadedTrack>(
             deduplicateTracks = true,
             includeCompletedCount = includeCompletedCount,
             setStatus = setStatus,
+            onJobUpdate = onJobUpdate,
             downloadTrack = { track ->
                 downloadRepository.downloadAudioTrack(
                     sourceId = requireNotNull(activeSourceId),
@@ -168,6 +188,7 @@ class DownloadService<DownloadedFile, DownloadedTrack>(
         isActiveNetworkMobileData: Boolean = false,
         allowMobileDownloads: Boolean = true,
         setStatus: (String) -> Unit,
+        onJobUpdate: (DownloadJobUpdate) -> Unit = {},
     ): DownloadTracksResult {
         val activeSourceId = sourceId
         val activeProvider = provider
@@ -178,6 +199,7 @@ class DownloadService<DownloadedFile, DownloadedTrack>(
             isActiveNetworkMobileData = isActiveNetworkMobileData,
             allowMobileDownloads = allowMobileDownloads,
             setStatus = setStatus,
+            onJobUpdate = onJobUpdate,
             replaceTrack = { track ->
                 replacementRepository.replaceDownloadedAudioTrack(
                     sourceId = requireNotNull(activeSourceId),
@@ -202,6 +224,7 @@ suspend fun <DownloadedFile, DownloadedTrack, Stats> DownloadService<DownloadedF
     allowMobileDownloads: Boolean = true,
     includeCompletedCount: Boolean = true,
     setStatus: (String) -> Unit,
+    onJobUpdate: (DownloadJobUpdate) -> Unit = {},
     shouldRefreshDownloads: (DownloadTracksResult) -> Boolean = ::shouldRefreshDownloadsAfter,
     loadStats: (suspend () -> Stats)? = null,
 ): DownloadExecutionResult<Stats> {
@@ -216,6 +239,7 @@ suspend fun <DownloadedFile, DownloadedTrack, Stats> DownloadService<DownloadedF
         allowMobileDownloads = allowMobileDownloads,
         includeCompletedCount = includeCompletedCount,
         setStatus = setStatus,
+        onJobUpdate = onJobUpdate,
     )
     val refreshDownloads = shouldRefreshDownloads(result)
     return DownloadExecutionResult(
@@ -234,6 +258,7 @@ suspend fun <DownloadedFile, DownloadedTrack, Stats> DownloadService<DownloadedF
     isActiveNetworkMobileData: Boolean = false,
     allowMobileDownloads: Boolean = true,
     setStatus: (String) -> Unit,
+    onJobUpdate: (DownloadJobUpdate) -> Unit = {},
     loadStats: (suspend () -> Stats)? = null,
 ): DownloadExecutionResult<Stats> {
     val result = redownloadTracksWithStatus(
@@ -245,6 +270,7 @@ suspend fun <DownloadedFile, DownloadedTrack, Stats> DownloadService<DownloadedF
         isActiveNetworkMobileData = isActiveNetworkMobileData,
         allowMobileDownloads = allowMobileDownloads,
         setStatus = setStatus,
+        onJobUpdate = onJobUpdate,
     )
     val refreshDownloads = shouldRefreshDownloadsAfter(result)
     return DownloadExecutionResult(

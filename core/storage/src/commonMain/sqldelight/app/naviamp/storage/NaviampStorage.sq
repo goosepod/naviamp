@@ -144,6 +144,33 @@ CREATE TABLE downloaded_audio (
   PRIMARY KEY(source_id, remote_track_id, quality_key)
 );
 
+CREATE TABLE keep_downloaded_collection (
+  source_id TEXT NOT NULL REFERENCES media_source(id) ON DELETE CASCADE,
+  collection_kind TEXT NOT NULL,
+  collection_id TEXT NOT NULL,
+  name TEXT NOT NULL,
+  remove_unneeded_files INTEGER NOT NULL DEFAULT 0,
+  updated_at_epoch_millis INTEGER NOT NULL,
+  PRIMARY KEY(source_id, collection_kind, collection_id)
+);
+
+CREATE TABLE keep_downloaded_collection_track (
+  source_id TEXT NOT NULL,
+  collection_kind TEXT NOT NULL,
+  collection_id TEXT NOT NULL,
+  remote_track_id TEXT NOT NULL,
+  PRIMARY KEY(source_id, collection_kind, collection_id, remote_track_id),
+  FOREIGN KEY(source_id, collection_kind, collection_id)
+    REFERENCES keep_downloaded_collection(source_id, collection_kind, collection_id)
+    ON DELETE CASCADE
+);
+
+CREATE TABLE keep_downloaded_managed_track (
+  source_id TEXT NOT NULL REFERENCES media_source(id) ON DELETE CASCADE,
+  remote_track_id TEXT NOT NULL,
+  PRIMARY KEY(source_id, remote_track_id)
+);
+
 CREATE TABLE cached_audio_waveform (
   source_id TEXT NOT NULL REFERENCES media_source(id) ON DELETE CASCADE,
   remote_track_id TEXT NOT NULL,
@@ -292,6 +319,9 @@ ON cached_audio(source_id, last_accessed_epoch_millis);
 
 CREATE INDEX downloaded_audio_source_downloaded_at
 ON downloaded_audio(source_id, downloaded_at_epoch_millis);
+
+CREATE INDEX keep_downloaded_collection_track_remote
+ON keep_downloaded_collection_track(source_id, remote_track_id);
 
 CREATE INDEX cached_audio_waveform_access
 ON cached_audio_waveform(last_accessed_epoch_millis);
@@ -917,6 +947,76 @@ downloadedAudioSize:
 SELECT COALESCE(SUM(size_bytes), 0)
 FROM downloaded_audio;
 
+selectKeepDownloadedPolicies:
+SELECT *
+FROM keep_downloaded_collection
+WHERE source_id = ?
+ORDER BY name COLLATE NOCASE;
+
+selectKeepDownloadedPolicy:
+SELECT *
+FROM keep_downloaded_collection
+WHERE source_id = ?
+AND collection_kind = ?
+AND collection_id = ?;
+
+upsertKeepDownloadedPolicy:
+INSERT OR REPLACE INTO keep_downloaded_collection(
+  source_id,
+  collection_kind,
+  collection_id,
+  name,
+  remove_unneeded_files,
+  updated_at_epoch_millis
+) VALUES (?, ?, ?, ?, ?, ?);
+
+deleteKeepDownloadedPolicy:
+DELETE FROM keep_downloaded_collection
+WHERE source_id = ?
+AND collection_kind = ?
+AND collection_id = ?;
+
+selectKeepDownloadedTrackIds:
+SELECT remote_track_id
+FROM keep_downloaded_collection_track
+WHERE source_id = ?
+AND collection_kind = ?
+AND collection_id = ?;
+
+selectKeepDownloadedTrackIdsForOtherPolicies:
+SELECT DISTINCT remote_track_id
+FROM keep_downloaded_collection_track
+WHERE source_id = ?
+AND (collection_kind != ? OR collection_id != ?);
+
+deleteKeepDownloadedCollectionTracks:
+DELETE FROM keep_downloaded_collection_track
+WHERE source_id = ?
+AND collection_kind = ?
+AND collection_id = ?;
+
+insertKeepDownloadedCollectionTrack:
+INSERT OR IGNORE INTO keep_downloaded_collection_track(
+  source_id,
+  collection_kind,
+  collection_id,
+  remote_track_id
+) VALUES (?, ?, ?, ?);
+
+selectManagedKeepDownloadedTrackIds:
+SELECT remote_track_id
+FROM keep_downloaded_managed_track
+WHERE source_id = ?;
+
+insertManagedKeepDownloadedTrack:
+INSERT OR IGNORE INTO keep_downloaded_managed_track(source_id, remote_track_id)
+VALUES (?, ?);
+
+deleteManagedKeepDownloadedTrack:
+DELETE FROM keep_downloaded_managed_track
+WHERE source_id = ?
+AND remote_track_id = ?;
+
 oldestCachedAudio:
 SELECT *
 FROM cached_audio
@@ -1207,6 +1307,9 @@ DELETE FROM cached_audio;
 
 clearDownloads:
 DELETE FROM downloaded_audio;
+
+clearKeepDownloadedPolicies:
+DELETE FROM keep_downloaded_collection;
 
 clearAudioWaveforms:
 DELETE FROM cached_audio_waveform;

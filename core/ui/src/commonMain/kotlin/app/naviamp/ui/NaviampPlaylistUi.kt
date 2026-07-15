@@ -377,6 +377,8 @@ private fun PlaylistListRow(
             colors = colors,
             items = playlistRowActions(
                 canDownload = true,
+                canKeepDownloaded = true,
+                keepDownloadedActive = playlist.keepDownloadedActive,
                 canAddToQueue = true,
                 canAddToPlaylist = true,
                 canRename = true,
@@ -388,6 +390,20 @@ private fun PlaylistListRow(
                         action.label,
                         action.icon,
                         { onAction(playlist.actionRequest(SharedMediaItemAction.Download, kind = SharedMediaItemKind.Playlist)) },
+                        action.enabled,
+                    )
+                    NaviampAction.KeepPlaylistDownloaded -> NaviampRowMenuItem(
+                        action.label,
+                        action.icon,
+                        {
+                            onAction(
+                                playlist.actionRequest(
+                                    SharedMediaItemAction.Download,
+                                    kind = SharedMediaItemKind.Playlist,
+                                    textValue = KeepDownloadedActionValue,
+                                ),
+                            )
+                        },
                         action.enabled,
                     )
                     NaviampAction.AddToQueue -> NaviampRowMenuItem(
@@ -423,6 +439,8 @@ private fun PlaylistListRow(
         )
     }
 }
+
+const val KeepDownloadedActionValue = "keep-downloaded"
 
 @Composable
 internal fun PlaylistDetailContent(

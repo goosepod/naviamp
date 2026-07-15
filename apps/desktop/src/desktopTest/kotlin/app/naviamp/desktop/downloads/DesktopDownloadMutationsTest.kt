@@ -45,6 +45,7 @@ class DesktopDownloadMutationsTest {
             path = Path.of("/tmp/$id.mp3"),
             sizeBytes = 123L,
             contentType = "audio/mpeg",
+            qualityKey = "original",
             downloadedAtEpochMillis = 1L,
         )
 }

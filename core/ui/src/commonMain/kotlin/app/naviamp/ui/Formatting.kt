@@ -84,6 +84,9 @@ fun Double.twoDecimalLabel(): String =
 fun Double.oneDecimalLabel(): String =
     "%.1f".format(this)
 
+fun Iterable<NaviampDownloadedTrackUi>.totalDownloadBytes(): Long =
+    sumOf { download -> download.sizeBytes.coerceAtLeast(0L) }
+
 fun Double.sixDecimalLabel(): String =
     round(this * 1_000_000.0).div(1_000_000.0).toString()
 

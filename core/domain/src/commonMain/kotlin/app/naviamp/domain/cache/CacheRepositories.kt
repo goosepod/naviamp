@@ -25,6 +25,11 @@ interface ImageCacheRepository {
     suspend fun cachedImageBytes(url: String): ByteArray?
 
     suspend fun imageBytes(url: String): ByteArray
+
+    suspend fun imageBytes(
+        url: String,
+        fetch: suspend () -> ByteArray,
+    ): ByteArray = imageBytes(url)
 }
 
 interface ProviderResponseCacheRepository {

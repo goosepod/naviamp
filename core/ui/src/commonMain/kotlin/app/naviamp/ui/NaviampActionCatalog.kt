@@ -14,6 +14,7 @@ enum class NaviampAction(
     DownloadTrack("Download track", NaviampIcons.Downloads),
     DownloadAlbum("Download album", NaviampIcons.Downloads),
     DownloadPlaylist("Download playlist", NaviampIcons.Downloads),
+    KeepPlaylistDownloaded("Keep downloaded", NaviampIcons.Downloads),
     RemoveDownload("Remove download", NaviampIcons.Trash),
     PlayNext("Play next", NaviampIcons.Player),
     AddToQueue("Add to queue", NaviampIcons.Queue),
@@ -131,6 +132,8 @@ fun artistRowActions(
 
 fun playlistRowActions(
     canDownload: Boolean = false,
+    canKeepDownloaded: Boolean = false,
+    keepDownloadedActive: Boolean = false,
     canAddToQueue: Boolean = false,
     canAddToPlaylist: Boolean = false,
     canRename: Boolean = false,
@@ -139,6 +142,9 @@ fun playlistRowActions(
 ): List<NaviampActionSpec> =
     listOfNotNull(
         NaviampAction.DownloadPlaylist.takeIf { canDownload }?.toSpec(),
+        NaviampAction.KeepPlaylistDownloaded.takeIf { canKeepDownloaded }?.toSpec(
+            label = if (keepDownloadedActive) "Stop keeping downloaded" else "Keep downloaded",
+        ),
         NaviampAction.AddToQueue.takeIf { canAddToQueue }?.toSpec(),
         NaviampAction.AddPlaylistToPlaylist.takeIf { canAddToPlaylist }?.toSpec(),
         NaviampAction.RenamePlaylist.takeIf { canRename }?.toSpec(),

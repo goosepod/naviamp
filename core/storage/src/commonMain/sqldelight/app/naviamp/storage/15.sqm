@@ -1,0 +1,29 @@
+CREATE TABLE keep_downloaded_collection (
+  source_id TEXT NOT NULL REFERENCES media_source(id) ON DELETE CASCADE,
+  collection_kind TEXT NOT NULL,
+  collection_id TEXT NOT NULL,
+  name TEXT NOT NULL,
+  remove_unneeded_files INTEGER NOT NULL DEFAULT 0,
+  updated_at_epoch_millis INTEGER NOT NULL,
+  PRIMARY KEY(source_id, collection_kind, collection_id)
+);
+
+CREATE TABLE keep_downloaded_collection_track (
+  source_id TEXT NOT NULL,
+  collection_kind TEXT NOT NULL,
+  collection_id TEXT NOT NULL,
+  remote_track_id TEXT NOT NULL,
+  PRIMARY KEY(source_id, collection_kind, collection_id, remote_track_id),
+  FOREIGN KEY(source_id, collection_kind, collection_id)
+    REFERENCES keep_downloaded_collection(source_id, collection_kind, collection_id)
+    ON DELETE CASCADE
+);
+
+CREATE TABLE keep_downloaded_managed_track (
+  source_id TEXT NOT NULL REFERENCES media_source(id) ON DELETE CASCADE,
+  remote_track_id TEXT NOT NULL,
+  PRIMARY KEY(source_id, remote_track_id)
+);
+
+CREATE INDEX keep_downloaded_collection_track_remote
+ON keep_downloaded_collection_track(source_id, remote_track_id);

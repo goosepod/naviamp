@@ -65,6 +65,7 @@ fun DesktopPlaylistsPanel(
     appColors: DesktopAppColors,
     playlists: List<Playlist>,
     playlistTracks: (Playlist) -> List<Track>,
+    keepDownloadedPlaylistIds: Set<String>,
     recentPlaylistIds: List<String>,
     sortMode: DesktopPlaylistSortMode,
     status: String?,
@@ -157,6 +158,7 @@ fun DesktopPlaylistsPanel(
                 coverArtUrl = coverArtUrl,
                 playlistCoverArtUrl = coverArtUrl(playlist.coverArtId),
                 tracks = playlistTracks(playlist),
+                keepDownloaded = playlist.id in keepDownloadedPlaylistIds,
                 onPlaylistAction = onPlaylistAction,
                 onEditSmartPlaylist = {
                     coroutineScope.launch {
@@ -220,10 +222,11 @@ private fun PlaylistListRow(
     coverArtUrl: (String?) -> String?,
     playlistCoverArtUrl: String?,
     tracks: List<Track>,
+    keepDownloaded: Boolean,
     onPlaylistAction: (SharedMediaItemActionRequest) -> Unit,
     onEditSmartPlaylist: () -> Unit,
 ) {
-    val playlistItem = playlist.toSharedMediaItemUi(coverArtUrl, tracks)
+    val playlistItem = playlist.toSharedMediaItemUi(coverArtUrl, tracks, keepDownloaded)
     fun request(action: SharedMediaItemAction, shuffle: Boolean = false) {
         onPlaylistAction(playlistItem.actionRequest(action, kind = SharedMediaItemKind.Playlist, shuffle = shuffle))
     }
@@ -264,6 +267,8 @@ private fun PlaylistListRow(
             appColors = appColors,
             items = playlistRowActions(
                 canDownload = true,
+                canKeepDownloaded = true,
+                keepDownloadedActive = keepDownloaded,
                 canAddToQueue = true,
                 canAddToPlaylist = true,
                 canRename = true,
@@ -280,6 +285,15 @@ private fun PlaylistListRow(
                     }
                     NaviampAction.DownloadPlaylist -> action.toPlaylistRowMenuItem {
                         request(SharedMediaItemAction.Download)
+                    }
+                    NaviampAction.KeepPlaylistDownloaded -> action.toPlaylistRowMenuItem {
+                        onPlaylistAction(
+                            playlistItem.actionRequest(
+                                SharedMediaItemAction.Download,
+                                kind = SharedMediaItemKind.Playlist,
+                                textValue = app.naviamp.ui.KeepDownloadedActionValue,
+                            ),
+                        )
                     }
                     NaviampAction.AddToQueue -> action.toPlaylistRowMenuItem {
                         request(SharedMediaItemAction.AddToQueue)
@@ -299,6 +313,7 @@ fun DesktopPlaylistDetailPanel(
     appColors: DesktopAppColors,
     playlist: Playlist?,
     tracks: List<Track>,
+    keepDownloaded: Boolean,
     status: String?,
     playlistCoverArtUrl: String?,
     coverArtUrl: (String?) -> String?,
@@ -352,7 +367,7 @@ fun DesktopPlaylistDetailPanel(
                 Text(playlist?.summaryLabel() ?: "${tracks.size} tracks", color = appColors.secondaryText, fontSize = 12.sp)
                 status?.let { Text(it, color = appColors.secondaryText, fontSize = 11.sp) }
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    val playlistItem = playlist?.toSharedMediaItemUi(coverArtUrl, tracks)
+                    val playlistItem = playlist?.toSharedMediaItemUi(coverArtUrl, tracks, keepDownloaded)
                     fun request(action: SharedMediaItemAction, shuffle: Boolean = false) {
                         playlistItem?.let { item ->
                             onPlaylistAction(item.actionRequest(action, kind = SharedMediaItemKind.Playlist, shuffle = shuffle))
@@ -360,6 +375,8 @@ fun DesktopPlaylistDetailPanel(
                     }
                     val playlistActions = playlistRowActions(
                         canDownload = tracks.isNotEmpty(),
+                        canKeepDownloaded = playlist != null,
+                        keepDownloadedActive = keepDownloaded,
                         canAddToQueue = tracks.isNotEmpty(),
                         canAddToPlaylist = tracks.isNotEmpty() && playlist?.isSmart == false,
                         canRename = playlist?.isSmart == false,
@@ -368,6 +385,7 @@ fun DesktopPlaylistDetailPanel(
                     val renameAction = playlistActions.playlistAction(NaviampAction.RenamePlaylist)
                     val deleteAction = playlistActions.playlistAction(NaviampAction.DeletePlaylist)
                     val downloadAction = playlistActions.playlistAction(NaviampAction.DownloadPlaylist)
+                    val keepDownloadedAction = playlistActions.playlistAction(NaviampAction.KeepPlaylistDownloaded)
                     val addToQueueAction = playlistActions.playlistAction(NaviampAction.AddToQueue)
                     val addToPlaylistAction = playlistActions.playlistAction(NaviampAction.AddPlaylistToPlaylist)
                     NaviampResponsiveActionRow(
@@ -393,6 +411,24 @@ fun DesktopPlaylistDetailPanel(
                                 add(NaviampDetailAction(renameAction.label, renameAction.icon, { request(SharedMediaItemAction.Rename) }, renameAction.enabled))
                             }
                             add(NaviampDetailAction(downloadAction.label, downloadAction.icon, { request(SharedMediaItemAction.Download) }, downloadAction.enabled))
+                            add(
+                                NaviampDetailAction(
+                                    keepDownloadedAction.label,
+                                    keepDownloadedAction.icon,
+                                    {
+                                        playlistItem?.let { item ->
+                                            onPlaylistAction(
+                                                item.actionRequest(
+                                                    SharedMediaItemAction.Download,
+                                                    kind = SharedMediaItemKind.Playlist,
+                                                    textValue = app.naviamp.ui.KeepDownloadedActionValue,
+                                                ),
+                                            )
+                                        }
+                                    },
+                                    keepDownloadedAction.enabled,
+                                ),
+                            )
                             add(NaviampDetailAction(addToQueueAction.label, addToQueueAction.icon, { request(SharedMediaItemAction.AddToQueue) }, addToQueueAction.enabled))
                             if (playlist?.isSmart == false) {
                                 add(NaviampDetailAction(addToPlaylistAction.label, addToPlaylistAction.icon, { request(SharedMediaItemAction.AddToPlaylist) }, addToPlaylistAction.enabled))

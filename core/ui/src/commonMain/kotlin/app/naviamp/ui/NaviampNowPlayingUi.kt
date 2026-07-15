@@ -2476,7 +2476,9 @@ internal fun nowPlayingSwipeActionVisual(
     onAddToPlaylist: () -> Unit,
     onAction: (NowPlayingItemActionRequest) -> Unit,
 ): TrackSwipeActionVisual? = when (action) {
-    TrackSwipeAction.None -> null
+    TrackSwipeAction.None,
+    TrackSwipeAction.Play,
+    -> null
     TrackSwipeAction.PlayNext -> swipeVisual("Play next", NaviampIcons.Queue) {
         onAction(nowPlayingItemActionRequest(item, NowPlayingItemAction.PlayNext))
     }

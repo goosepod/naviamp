@@ -250,6 +250,7 @@ data class PlaybackVisualizerFrame(
 
 data class PlaybackRequest(
     val url: String,
+    val fallbackUrl: String? = null,
     val mediaId: String? = null,
     val samplingRateHz: Int? = null,
     val replayGainMode: ReplayGainMode = ReplayGainMode.Off,
@@ -257,6 +258,15 @@ data class PlaybackRequest(
     val replayGain: PlaybackReplayGain? = null,
     val startPositionSeconds: Double? = null,
 )
+
+fun PlaybackRequest.downloadFallbackRequest(positionSeconds: Double? = null): PlaybackRequest? =
+    fallbackUrl?.let { downloadedUrl ->
+        copy(
+            url = downloadedUrl,
+            fallbackUrl = null,
+            startPositionSeconds = positionSeconds ?: startPositionSeconds,
+        )
+    }
 
 data class PlaybackReplayGain(
     val replayGain: ReplayGain,

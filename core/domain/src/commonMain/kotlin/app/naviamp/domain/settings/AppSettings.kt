@@ -159,11 +159,14 @@ data class TrackSwipeSettings(
     val relatedLeft: TrackSwipeAction = TrackSwipeAction.None,
     val playlistEditRight: TrackSwipeAction = TrackSwipeAction.None,
     val playlistEditLeft: TrackSwipeAction = TrackSwipeAction.None,
+    val downloadsRight: TrackSwipeAction = TrackSwipeAction.Play,
+    val downloadsLeft: TrackSwipeAction = TrackSwipeAction.Remove,
 )
 
 @Serializable
 enum class TrackSwipeAction {
     None,
+    Play,
     PlayNext,
     AddToQueue,
     AddToPlaylist,
@@ -240,8 +243,24 @@ data class PlaybackSettings(
         bitrateKbps = 192,
     ),
     val downloadQuality: StreamQualityPreference = StreamQualityPreference(),
+    val downloadedTrackPlayback: DownloadedTrackPlayback = DownloadedTrackPlayback.PreferDownloaded,
     val allowMobileDownloads: Boolean = false,
 )
+
+@Serializable
+enum class DownloadedTrackPlayback(
+    val label: String,
+    val subtitle: String,
+) {
+    PreferDownloaded(
+        label = "Prefer downloads",
+        subtitle = "Play saved files first and stream only when no download is available.",
+    ),
+    PreferServer(
+        label = "Prefer server",
+        subtitle = "Stream first and fall back to a saved file if streaming fails.",
+    ),
+}
 
 @Serializable
 enum class SampleRateConverter(val bassQuality: Int, val label: String, val subtitle: String) {
@@ -469,6 +488,7 @@ data class CacheSettings(
     val waveformBucketCount: Int = DefaultWaveformBucketCount,
     val maxAudioCacheBytes: Long = 2L * 1024L * 1024L * 1024L,
     val maxDownloadBytes: Long = 10L * 1024L * 1024L * 1024L,
+    val customAudioCacheDirectory: String? = null,
     val customDownloadDirectory: String? = null,
 ) {
     fun normalized(): CacheSettings =
@@ -477,6 +497,7 @@ data class CacheSettings(
             waveformBucketCount = waveformBucketCount.coerceIn(MinWaveformBucketCount, MaxWaveformBucketCount),
             maxAudioCacheBytes = maxAudioCacheBytes.coerceIn(256L * 1024L * 1024L, 20L * 1024L * 1024L * 1024L),
             maxDownloadBytes = maxDownloadBytes.coerceIn(512L * 1024L * 1024L, 100L * 1024L * 1024L * 1024L),
+            customAudioCacheDirectory = customAudioCacheDirectory?.trim()?.takeIf { it.isNotEmpty() },
             customDownloadDirectory = customDownloadDirectory?.trim()?.takeIf { it.isNotEmpty() },
         )
 }

@@ -926,8 +926,9 @@ fun NaviampApp(
     val downloadsController = remember {
         DesktopDownloadsController(
         scope = coroutineScope,
-        downloadRepository = storage,
-        downloadReplacementRepository = storage,
+            downloadRepository = storage,
+            downloadReplacementRepository = storage,
+            keepDownloadedRepository = storage,
         cacheMaintenanceRepository = storage,
         providerResponseCacheRepository = storage,
         playbackEngine = playbackEngine,
@@ -1115,6 +1116,9 @@ fun NaviampApp(
         setLastContentRoute = { route -> lastContentRoute = route },
         setNowPlayingVisualizerFrame = nowPlayingPresentation::updateVisualizerFrame,
         updateAudioCacheLimit = { maxBytes -> storage.updateAudioCacheLimit(maxBytes) },
+        updateAudioCacheDirectory = { path ->
+            runCatching { storage.updateAudioCacheDirectory(path?.let(java.nio.file.Path::of) ?: defaultAudioCacheDirectory()) }
+        },
         updateDownloadDirectory = { path ->
             runCatching {
                 storage.updateDownloadDirectory(DesktopDownloadDirectories.fromSetting(path))
@@ -1242,6 +1246,18 @@ fun NaviampApp(
             }
         }.onSuccess { folders ->
             availableMusicFolders = connectionFormMusicFolders(folders.map { folder -> folder.id to folder.name })
+        }
+    }
+
+    LaunchedEffect(connectedSourceId) {
+        downloadsController.reloadKeepDownloadedPolicies()
+    }
+    LaunchedEffect(
+        playlistsController.playlists.map { playlist -> Triple(playlist.id, playlist.trackCount, playlist.isSmart) },
+        nowPlayingTrack?.favoritedAtIso8601,
+    ) {
+        if (downloadsController.keepDownloadedPolicies.isNotEmpty()) {
+            downloadsController.reconcileKeepDownloadedCollections()
         }
     }
 
@@ -1546,6 +1562,8 @@ fun NaviampApp(
                             connectedSourceId = connectedSourceId,
                             downloadRefreshToken = downloadsController.refreshToken,
                             downloadStatus = downloadsController.status,
+                            downloadJobs = downloadsController.downloadJobs,
+                            keepDownloadedPolicies = downloadsController.keepDownloadedPolicies,
                             cacheSettings = cacheSettings,
                             cacheStats = cacheStats,
                             downloadedTracks = storage::downloadedTracks,

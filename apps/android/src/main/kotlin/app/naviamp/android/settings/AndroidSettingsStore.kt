@@ -16,6 +16,7 @@ import app.naviamp.domain.settings.ConnectionFormState
 import app.naviamp.domain.settings.ConnectionFormHeader
 import app.naviamp.domain.settings.ConnectionFormSecondaryUrl
 import app.naviamp.domain.settings.CacheSettings
+import app.naviamp.domain.settings.DownloadedTrackPlayback
 import app.naviamp.domain.settings.InterfaceLanguage
 import app.naviamp.domain.settings.AlbumCollectionLayout
 import app.naviamp.domain.settings.AlbumSortOrder
@@ -171,6 +172,10 @@ class AndroidSettingsStore(
                 bitrateKey = KeyDownloadBitrate,
                 defaultValue = StreamQualityPreference(),
             ),
+            downloadedTrackPlayback = enumPreference(
+                KeyDownloadedTrackPlayback,
+                DownloadedTrackPlayback.PreferDownloaded,
+            ),
             allowMobileDownloads = preferences.getBoolean(KeyAllowMobileDownloads, false),
         )
 
@@ -199,6 +204,8 @@ class AndroidSettingsStore(
                 relatedLeft = enumPreference(KeySwipeRelatedLeft, TrackSwipeAction.None),
                 playlistEditRight = enumPreference(KeySwipePlaylistEditRight, TrackSwipeAction.None),
                 playlistEditLeft = enumPreference(KeySwipePlaylistEditLeft, TrackSwipeAction.None),
+                downloadsRight = enumPreference(KeySwipeDownloadsRight, TrackSwipeAction.Play),
+                downloadsLeft = enumPreference(KeySwipeDownloadsLeft, TrackSwipeAction.Remove),
             ),
         ).normalized()
 
@@ -224,6 +231,8 @@ class AndroidSettingsStore(
             .putString(KeySwipeRelatedLeft, settings.normalized().trackSwipes.relatedLeft.name)
             .putString(KeySwipePlaylistEditRight, settings.normalized().trackSwipes.playlistEditRight.name)
             .putString(KeySwipePlaylistEditLeft, settings.normalized().trackSwipes.playlistEditLeft.name)
+            .putString(KeySwipeDownloadsRight, settings.normalized().trackSwipes.downloadsRight.name)
+            .putString(KeySwipeDownloadsLeft, settings.normalized().trackSwipes.downloadsLeft.name)
             .apply()
     }
 
@@ -274,6 +283,7 @@ class AndroidSettingsStore(
                 bitrateKey = KeyDownloadBitrate,
                 preference = settings.downloadQuality,
             )
+            .putString(KeyDownloadedTrackPlayback, settings.downloadedTrackPlayback.name)
             .putBoolean(KeyAllowMobileDownloads, settings.allowMobileDownloads)
             .apply()
     }
@@ -287,6 +297,8 @@ class AndroidSettingsStore(
             waveformBucketCount = preferences.getInt(KeyWaveformBucketCount, CacheSettings().waveformBucketCount),
             maxAudioCacheBytes = preferences.getLong(KeyMaxAudioCacheBytes, CacheSettings().maxAudioCacheBytes),
             maxDownloadBytes = preferences.getLong(KeyMaxDownloadBytes, CacheSettings().maxDownloadBytes),
+            customAudioCacheDirectory = preferences.getString(KeyCustomAudioCacheDirectory, null),
+            customDownloadDirectory = preferences.getString(KeyCustomDownloadDirectory, null),
         ).normalized()
 
     fun saveCacheSettings(settings: CacheSettings) {
@@ -299,6 +311,8 @@ class AndroidSettingsStore(
             .putInt(KeyWaveformBucketCount, normalized.waveformBucketCount)
             .putLong(KeyMaxAudioCacheBytes, normalized.maxAudioCacheBytes)
             .putLong(KeyMaxDownloadBytes, normalized.maxDownloadBytes)
+            .putString(KeyCustomAudioCacheDirectory, normalized.customAudioCacheDirectory)
+            .putString(KeyCustomDownloadDirectory, normalized.customDownloadDirectory)
             .apply()
     }
 
@@ -586,6 +600,8 @@ private const val KeySwipeRelatedRight = "swipe_related_right"
 private const val KeySwipeRelatedLeft = "swipe_related_left"
 private const val KeySwipePlaylistEditRight = "swipe_playlist_edit_right"
 private const val KeySwipePlaylistEditLeft = "swipe_playlist_edit_left"
+private const val KeySwipeDownloadsRight = "swipe_downloads_right"
+private const val KeySwipeDownloadsLeft = "swipe_downloads_left"
 private const val KeyLrclibLyricsEnabled = "lrclib_lyrics_enabled"
 private const val KeyPreferSyncedLyrics = "prefer_synced_lyrics"
 private const val KeyLyricsSearchOrder = "lyrics_search_order"
@@ -608,6 +624,7 @@ private const val KeyMobileStreamBitrate = "mobile_stream_bitrate"
 private const val KeyDownloadQualityMode = "download_quality_mode"
 private const val KeyDownloadCodec = "download_codec"
 private const val KeyDownloadBitrate = "download_bitrate"
+private const val KeyDownloadedTrackPlayback = "downloaded_track_playback"
 private const val KeyAllowMobileDownloads = "allow_mobile_downloads"
 private const val KeyAudioCachingEnabled = "audio_caching_enabled"
 private const val KeyOfflineModeEnabled = "offline_mode_enabled"
@@ -616,6 +633,8 @@ private const val KeyWaveformsEnabled = "waveforms_enabled"
 private const val KeyWaveformBucketCount = "waveform_bucket_count"
 private const val KeyMaxAudioCacheBytes = "max_audio_cache_bytes"
 private const val KeyMaxDownloadBytes = "max_download_bytes"
+private const val KeyCustomAudioCacheDirectory = "custom_audio_cache_directory"
+private const val KeyCustomDownloadDirectory = "custom_download_directory"
 private const val KeySelectedVisualizer = "selected_visualizer"
 private const val KeyRecentRadioStreams = "recent_radio_streams"
 private const val KeyRecentInternetRadioStations = "recent_internet_radio_stations"

@@ -335,6 +335,7 @@ private fun trackSwipeActionVisual(
 ): TrackSwipeActionVisual? {
     val rowAction = when (action) {
         TrackSwipeAction.None,
+        TrackSwipeAction.Play,
         TrackSwipeAction.Remove,
         TrackSwipeAction.MoveUp,
         TrackSwipeAction.MoveDown,
@@ -362,6 +363,7 @@ private fun trackSwipeActionVisual(
         TrackSwipeAction.GoToAlbum -> "Go to album" to NaviampIcons.Album
         TrackSwipeAction.GoToArtist -> "Go to artist" to NaviampIcons.Artist
         TrackSwipeAction.None,
+        TrackSwipeAction.Play,
         TrackSwipeAction.Remove,
         TrackSwipeAction.MoveUp,
         TrackSwipeAction.MoveDown,
@@ -377,7 +379,7 @@ private fun trackSwipeActionVisual(
     )
 }
 
-internal data class TrackSwipeActionVisual(
+data class TrackSwipeActionVisual(
     val label: String,
     val icon: androidx.compose.ui.graphics.vector.ImageVector,
     val background: Color,
@@ -385,7 +387,7 @@ internal data class TrackSwipeActionVisual(
 )
 
 @Composable
-internal fun SwipeActionContainer(
+fun SwipeActionContainer(
     modifier: Modifier = Modifier,
     swipeRight: TrackSwipeActionVisual? = null,
     swipeLeft: TrackSwipeActionVisual? = null,
@@ -461,6 +463,32 @@ internal fun SwipeActionContainer(
                 },
         )
     }
+}
+
+fun downloadedTrackSwipeActionVisual(
+    action: TrackSwipeAction,
+    download: NaviampDownloadedTrackUi,
+    onAction: (DownloadedTrackActionRequest) -> Unit,
+): TrackSwipeActionVisual? = when (action) {
+    TrackSwipeAction.Play -> TrackSwipeActionVisual(
+        label = "Play",
+        icon = NaviampTransportIcons.Play,
+        background = Color(0xFF2E7D32),
+        onTriggered = { onAction(DownloadedTrackActionRequest(download, DownloadedTrackAction.Select)) },
+    )
+    TrackSwipeAction.AddToPlaylist -> TrackSwipeActionVisual(
+        label = "Add to playlist",
+        icon = NaviampIcons.Playlist,
+        background = Color(0xFF315D9E),
+        onTriggered = { onAction(DownloadedTrackActionRequest(download, DownloadedTrackAction.AddToPlaylist)) },
+    )
+    TrackSwipeAction.Remove -> TrackSwipeActionVisual(
+        label = "Remove download",
+        icon = NaviampIcons.Trash,
+        background = Color(0xFF9B2C2C),
+        onTriggered = { onAction(DownloadedTrackActionRequest(download, DownloadedTrackAction.Remove)) },
+    )
+    else -> null
 }
 
 @Composable

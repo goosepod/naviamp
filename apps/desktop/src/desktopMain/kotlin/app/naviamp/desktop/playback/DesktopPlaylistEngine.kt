@@ -32,6 +32,7 @@ import app.naviamp.domain.playback.PlaybackSidecarService
 import app.naviamp.domain.playback.currentTrackSidecarWork
 import app.naviamp.domain.playback.emptyPlaybackAudioAssetRepository
 import app.naviamp.domain.playback.finished
+import app.naviamp.domain.playback.fallbackPlaybackUrl
 import app.naviamp.domain.playback.initialAudioPrefetchStats
 import app.naviamp.domain.playback.planPlaylistTrackStartWork
 import app.naviamp.domain.playback.planAudioPrefetchWork
@@ -80,6 +81,7 @@ class DesktopPlaylistEngine(
         quality = { streamQuality },
         audioCachingEnabled = audioCachingEnabledProvider,
         audioAssets = this.playbackAudioAssets,
+        downloadedTrackPlayback = { playbackSettingsProvider().downloadedTrackPlayback },
         replayGainMode = { replayGainMode },
         replayGainPreampDb = { replayGainPreampDb },
         supportsReplayGain = { playbackEngine.supportsReplayGain },
@@ -301,6 +303,7 @@ class DesktopPlaylistEngine(
                     track = track,
                     playbackSource = playbackTarget.source,
                     streamUrl = playbackTarget.url,
+                    fallbackStreamUrl = playbackTarget.fallbackUrl,
                     replayGainMode = replayGainMode,
                     replayGainPreampDb = replayGainPreampDb,
                     replayGain = replayGain,
@@ -357,6 +360,7 @@ class DesktopPlaylistEngine(
             track = track,
             quality = quality,
             audioCachingEnabled = audioCachingEnabledProvider(),
+            downloadedTrackPlayback = playbackSettingsProvider().downloadedTrackPlayback,
             startPositionSeconds = startPositionSeconds,
             audioAssets = playbackAudioAssets,
         )
@@ -364,6 +368,7 @@ class DesktopPlaylistEngine(
             url = plan.playbackStreamUrl(
                 providerStreamUrl = { target -> provider.streamUrl(target.providerStreamRequest) },
             ),
+            fallbackUrl = plan.fallbackPlaybackUrl(),
             source = plan.source,
             engineStartPositionSeconds = plan.target.engineStartPositionSeconds,
         )
@@ -605,6 +610,7 @@ class DesktopPlaylistEngine(
 
 private data class PlaybackTarget(
     val url: String,
+    val fallbackUrl: String?,
     val source: PlaybackSource,
     val engineStartPositionSeconds: Double?,
 )

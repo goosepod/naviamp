@@ -487,6 +487,24 @@ class NavidromeProvider(
         return playlistTracksForMusicFolder(playlistId, musicFolderId = null)
     }
 
+    override suspend fun favoriteTracks(limit: Int): List<Track> {
+        val musicFolderIds = selectedMusicFolderIds.ifEmpty { listOf(null) }
+        return musicFolderIds
+            .flatMap { musicFolderId ->
+                val response = get(
+                    endpoint = "getStarred2.view",
+                    params = musicFolderId?.let { mapOf("musicFolderId" to it) }.orEmpty(),
+                )
+                response.subsonicResponse()["starred2"]
+                    ?.jsonObject
+                    ?.arrayValue("song")
+                    .orEmpty()
+                    .mapNotNull { song -> (song as? JsonObject)?.toTrack() }
+            }
+            .distinctBy { it.id }
+            .take(limit)
+    }
+
     private suspend fun playlistTracksForMusicFolder(playlistId: String, musicFolderId: String?): List<Track> {
         val response = get(
             endpoint = "getPlaylist.view",
@@ -894,7 +912,13 @@ class NavidromeProvider(
     }
 
     override fun coverArtUrl(coverArtId: String): String =
-        url("getCoverArt.view", mapOf("id" to coverArtId))
+        url(
+            "getCoverArt.view",
+            mapOf(
+                "id" to coverArtId,
+                "size" to DefaultCoverArtSizePx.toString(),
+            ),
+        )
 
     fun ownsUrl(url: String): Boolean =
         url.startsWith("${connection.normalizedBaseUrl}/", ignoreCase = true)
@@ -1471,6 +1495,8 @@ class NavidromeProvider(
                 )
             }
 }
+
+private const val DefaultCoverArtSizePx = 512
 
 interface NavidromeHttpClient {
     suspend fun get(url: String): String

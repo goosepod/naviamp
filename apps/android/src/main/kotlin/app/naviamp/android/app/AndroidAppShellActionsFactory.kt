@@ -114,6 +114,11 @@ fun androidAppShellActions(
     refreshInternetRadioStations: () -> Unit,
     handleShellTrackSelected: (SharedTrackRowUi) -> Unit,
     handleDownloadedTrackAction: (DownloadedTrackActionRequest) -> Unit,
+    cancelDownloadJob: (String) -> Unit,
+    retryDownloadJob: (String) -> Unit,
+    refreshDownloads: () -> Unit,
+    toggleKeepFavoritesDownloaded: () -> Unit,
+    deleteAllDownloads: () -> Unit,
     handleShellAlbumSelected: (SharedMediaItemUi) -> Unit,
     handleAlbumFavoriteToggled: (SharedMediaItemUi) -> Unit,
     handleMixAlbumSelected: (SharedMediaItemUi) -> Unit,
@@ -141,6 +146,7 @@ fun androidAppShellActions(
     openPlaylistDetails: (Playlist) -> Unit,
     playPlaylist: (Playlist, Boolean) -> Unit,
     downloadPlaylist: (Playlist) -> Unit,
+    toggleKeepDownloadedPlaylist: (Playlist) -> Unit,
     addPlaylistToQueue: (Playlist) -> Unit,
     addPlaylistToPlaylist: (Playlist, NaviampPlaylistChoiceUi?, String?) -> Unit,
     renamePlaylist: (Playlist, String) -> Unit,
@@ -246,6 +252,12 @@ fun androidAppShellActions(
             onPlaybackSettingsChanged = handlePlaybackSettingsChanged,
             onPlaybackSettingsChangedAndRedownload = handlePlaybackSettingsChangedAndRedownload,
             onCacheSettingsChanged = handleCacheSettingsChanged,
+            onDownloadLocationChanged = { location ->
+                handleCacheSettingsChanged(cacheSettings.copy(customDownloadDirectory = location.path).normalized())
+            },
+            onAudioCacheLocationChanged = { location ->
+                handleCacheSettingsChanged(cacheSettings.copy(customAudioCacheDirectory = location.path).normalized())
+            },
             onClearCache = handleClearCache,
             onClearLibrary = handleClearLibrary,
             onResetDatabase = handleResetDatabase,
@@ -309,6 +321,11 @@ fun androidAppShellActions(
             onRefreshRadioStations = refreshInternetRadioStations,
             onTrackSelected = handleShellTrackSelected,
             onDownloadedTrackAction = handleDownloadedTrackAction,
+            onCancelDownloadJob = cancelDownloadJob,
+            onRetryDownloadJob = retryDownloadJob,
+            onRefreshDownloads = refreshDownloads,
+            onToggleKeepFavoritesDownloaded = toggleKeepFavoritesDownloaded,
+            onDeleteAllDownloads = deleteAllDownloads,
             onAlbumSelected = handleShellAlbumSelected,
             onAlbumFavoriteToggled = handleAlbumFavoriteToggled,
             onMixAlbumSelected = handleMixAlbumSelected,
@@ -441,7 +458,13 @@ fun androidAppShellActions(
                                 SharedMediaItemAction.Play -> playPlaylist(playlist, false)
                                 SharedMediaItemAction.Shuffle -> playPlaylist(playlist, true)
                                 SharedMediaItemAction.AddToQueue -> addPlaylistToQueue(playlist)
-                                SharedMediaItemAction.Download -> downloadPlaylist(playlist)
+                                SharedMediaItemAction.Download -> {
+                                    if (request.textValue == app.naviamp.ui.KeepDownloadedActionValue) {
+                                        toggleKeepDownloadedPlaylist(playlist)
+                                    } else {
+                                        downloadPlaylist(playlist)
+                                    }
+                                }
                                 SharedMediaItemAction.AddToPlaylist ->
                                     addPlaylistToPlaylist(playlist, request.playlistChoice, null)
                                 SharedMediaItemAction.CreatePlaylistAndAdd ->

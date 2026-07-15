@@ -170,6 +170,14 @@ internal class AndroidSettingsMaintenanceController(
         state.cacheSettings = settings.normalized()
         settingsStore.saveCacheSettings(state.cacheSettings)
         storage.updateAudioCacheLimit(state.cacheSettings.maxAudioCacheBytes)
+        storage.updateDownloadDirectory(
+            state.cacheSettings.customDownloadDirectory?.let { java.io.File(it) }
+                ?: java.io.File(context.filesDir, "downloads"),
+        )
+        storage.updateAudioCacheDirectory(
+            state.cacheSettings.customAudioCacheDirectory?.let { java.io.File(it) }
+                ?: java.io.File(context.cacheDir, "audio-cache"),
+        )
         state.storageStats = storage.stats()
     }
 

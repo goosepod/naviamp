@@ -50,6 +50,7 @@ fun DesktopAppEffects(
     setLastContentRoute: (DesktopAppRoute) -> Unit,
     setNowPlayingVisualizerFrame: (PlaybackVisualizerFrame?) -> Unit,
     updateAudioCacheLimit: (Long) -> Unit,
+    updateAudioCacheDirectory: (String?) -> Unit,
     updateDownloadDirectory: (String?) -> Unit,
     cancelAudioPrefetch: () -> Unit,
     saveNavigationSettings: (NavigationSettings) -> Unit,
@@ -63,9 +64,11 @@ fun DesktopAppEffects(
     DisposableEffect(imageCacheRepository, connectedProvider) {
         setJvmPlatformCoverArtByteLoader { url ->
             jvmGeneratedCoverArtBytes(url)
-                ?: connectedProvider
-                ?.takeIf { it.ownsUrl(url) }
-                ?.bytes(url)
+                ?: connectedProvider?.takeIf { it.ownsUrl(url) }?.let { provider ->
+                    imageCacheRepository.imageBytes(url) {
+                        provider.bytes(url) ?: throw IllegalStateException("Could not download cover art.")
+                    }
+                }
                 ?: imageCacheRepository.imageBytes(url)
         }
         onDispose {
@@ -174,6 +177,10 @@ fun DesktopAppEffects(
 
     LaunchedEffect(cacheSettings.maxAudioCacheBytes) {
         updateAudioCacheLimit(cacheSettings.maxAudioCacheBytes)
+    }
+
+    LaunchedEffect(cacheSettings.customAudioCacheDirectory) {
+        updateAudioCacheDirectory(cacheSettings.customAudioCacheDirectory)
     }
 
     LaunchedEffect(cacheSettings.customDownloadDirectory) {

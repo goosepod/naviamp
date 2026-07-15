@@ -9,6 +9,7 @@ import app.naviamp.domain.cache.CacheMaintenanceRepository
 import app.naviamp.domain.cache.DownloadReplacementRepository
 import app.naviamp.domain.cache.DownloadRepository
 import app.naviamp.domain.cache.ImageCacheRepository
+import app.naviamp.domain.cache.KeepDownloadedRepository
 import app.naviamp.domain.cache.LocalLibraryIndexRepository
 import app.naviamp.domain.cache.LyricsOffsetRepository
 import app.naviamp.domain.cache.LyricsSidecarRepository
@@ -38,6 +39,7 @@ class DesktopStorageDependencies(
     SidecarStatusRepository by cache,
     DownloadRepository<DownloadedAudioFile, DownloadedTrack> by cache,
     DownloadReplacementRepository<DownloadedAudioFile> by cache,
+    KeepDownloadedRepository by cache,
     MediaSourceRepository by cache,
     ProviderMediaSourceRepository by cache,
     LocalLibraryIndexRepository by cache,
@@ -66,6 +68,10 @@ class DesktopStorageDependencies(
 
     fun downloadDirectory(): Path =
         cache.downloadDirectory()
+
+    fun updateAudioCacheDirectory(directory: Path) = cache.updateAudioCacheDirectory(directory)
+
+    fun audioCacheDirectory(): Path = cache.audioCacheDirectory()
 
     fun asHomeLibraryRepository(): HomeLibraryRepository =
         object : HomeLibraryRepository {

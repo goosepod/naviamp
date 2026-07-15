@@ -16,6 +16,11 @@ import app.naviamp.domain.provider.MediaProvider
 import app.naviamp.domain.provider.MediaSearchResults
 import app.naviamp.domain.provider.ProviderCapabilities
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.runCurrent
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -135,6 +140,56 @@ class DownloadPlansTest {
             ),
             statuses,
         )
+    }
+
+    @Test
+    fun downloadTracksWithStatusEmitsStructuredProgress() = runTest {
+        val updates = mutableListOf<DownloadJobUpdate>()
+
+        downloadTracksWithStatus(
+            label = "Album",
+            tracks = listOf(track("one"), track("two")),
+            hasProvider = true,
+            hasSource = true,
+            setStatus = {},
+            onJobUpdate = updates::add,
+            downloadTrack = {},
+        )
+
+        assertEquals(
+            listOf(
+                DownloadJobUpdate.Started,
+                DownloadJobUpdate.TrackStarted("one"),
+                DownloadJobUpdate.TrackCompleted("one"),
+                DownloadJobUpdate.TrackStarted("two"),
+                DownloadJobUpdate.TrackCompleted("two"),
+                DownloadJobUpdate.Completed,
+            ),
+            updates,
+        )
+    }
+
+    @Test
+    @OptIn(ExperimentalCoroutinesApi::class)
+    fun cancellationIsReportedAsCancelledInsteadOfFailed() = runTest {
+        val updates = mutableListOf<DownloadJobUpdate>()
+        val job = launch {
+            downloadTracksWithStatus(
+                label = "Album",
+                tracks = listOf(track("one")),
+                hasProvider = true,
+                hasSource = true,
+                setStatus = {},
+                onJobUpdate = updates::add,
+                downloadTrack = { awaitCancellation() },
+            )
+        }
+
+        runCurrent()
+        job.cancelAndJoin()
+
+        assertEquals(DownloadJobUpdate.Cancelled, updates.last())
+        assertFalse(updates.any { it is DownloadJobUpdate.Failed })
     }
 
     @Test

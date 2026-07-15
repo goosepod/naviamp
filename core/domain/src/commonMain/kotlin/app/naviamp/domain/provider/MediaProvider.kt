@@ -37,6 +37,8 @@ interface MediaProvider {
     suspend fun albumsByGenre(genre: String, limit: Int = 20): List<Album> = emptyList()
     suspend fun albumsByYear(fromYear: Int, toYear: Int, limit: Int = 20): List<Album> = emptyList()
     suspend fun tracks(limit: Int = 50): List<Track>
+    suspend fun favoriteTracks(limit: Int = 5000): List<Track> =
+        tracks(limit).filter { it.favoritedAtIso8601 != null }
     suspend fun search(query: String, limit: Int = 20): MediaSearchResults
     suspend fun playlists(limit: Int = 20): List<Playlist> = emptyList()
     suspend fun playlistTracks(playlistId: String): List<Track> = emptyList()

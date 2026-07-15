@@ -1,6 +1,7 @@
 package app.naviamp.android
 
 import android.content.Context
+import android.database.sqlite.SQLiteDatabase
 import app.naviamp.android.security.AndroidKeystoreCredentialProtector
 import app.cash.sqldelight.db.SqlDriver
 import app.cash.sqldelight.driver.android.AndroidSqliteDriver
@@ -21,6 +22,9 @@ import app.naviamp.domain.cache.AudioWaveformStorageRepository
 import app.naviamp.domain.cache.CacheMaintenanceRepository
 import app.naviamp.domain.cache.DownloadReplacementRepository
 import app.naviamp.domain.cache.DownloadRepository
+import app.naviamp.domain.cache.KeepDownloadedCollectionKind
+import app.naviamp.domain.cache.KeepDownloadedCollectionPolicy
+import app.naviamp.domain.cache.KeepDownloadedRepository
 import app.naviamp.domain.cache.ImageCacheRepository
 import app.naviamp.domain.cache.LibraryAlbumYear
 import app.naviamp.domain.cache.LibraryIndexStats
@@ -74,6 +78,7 @@ class AndroidStorage(
     LyricsOffsetRepository,
     DownloadRepository<AndroidDownloadedAudioFile, AndroidDownloadedTrack>,
     DownloadReplacementRepository<AndroidDownloadedAudioFile>,
+    KeepDownloadedRepository,
     PlaybackHistoryRepository<AndroidPlaybackHistoryItem>,
     MediaSourceRepository,
     ProviderMediaSourceRepository,
@@ -85,17 +90,14 @@ class AndroidStorage(
     SidecarStatusRepository,
     AutoCloseable {
     private val appContext = context.applicationContext
-    private val driver = AndroidSqliteDriver(
-        schema = NaviampStorageDatabase.Schema,
-        context = appContext,
-        name = DatabaseName,
-    ).also {
+    private val driver = createAndroidStorageDriver(appContext).also {
         it.configureSqliteLockHandling()
         it.ensureMediaSourceNetworkOptionsSchema()
         it.ensureTrackLyricsOffsetSchema()
         it.ensurePendingProviderActionSchema()
         it.ensureLibraryTrackPlayMetadataSchema()
         it.ensureRadioDjPresetSchema()
+        it.ensureKeepDownloadedSchema()
         it.execute(null, "PRAGMA foreign_keys=ON", 0)
     }
     private val database = NaviampStorageDatabase(driver)
@@ -157,15 +159,19 @@ class AndroidStorage(
         httpClient = httpClient,
     )
 
-    val audioCacheDirectory: File = File(appContext.cacheDir, "audio-cache")
-    val downloadDirectory: File = File(appContext.filesDir, "downloads")
+    var audioCacheDirectory: File = File(appContext.cacheDir, "audio-cache")
+        private set
+    var downloadDirectory: File = File(appContext.filesDir, "downloads")
+        private set
     private var maxAudioCacheBytes: Long = 2L * 1024L * 1024L * 1024L
+    private val audioCacheByteStore = AndroidMutableAudioByteStore(audioCacheDirectory)
     private val audioCacheByteStoreService = AudioByteStoreService(
-        store = AndroidAudioByteStore(audioCacheDirectory),
+        store = audioCacheByteStore,
         httpClient = httpClient,
     )
+    private val downloadAudioByteStore = AndroidMutableAudioByteStore(downloadDirectory)
     private val downloadAudioByteStoreService = AudioByteStoreService(
-        store = AndroidAudioByteStore(downloadDirectory),
+        store = downloadAudioByteStore,
         httpClient = httpClient,
     )
     private val audioStore = AndroidAudioStore(
@@ -180,6 +186,18 @@ class AndroidStorage(
 
     override fun close() {
         driver.close()
+    }
+
+    fun updateDownloadDirectory(directory: File) {
+        directory.mkdirs()
+        downloadDirectory = directory
+        downloadAudioByteStore.updateDirectory(directory)
+    }
+
+    fun updateAudioCacheDirectory(directory: File) {
+        directory.mkdirs()
+        audioCacheDirectory = directory
+        audioCacheByteStore.updateDirectory(directory)
     }
 
     override fun latestMediaSource(): SavedMediaSource? =
@@ -258,7 +276,7 @@ class AndroidStorage(
             imageByteStoreService.cachedBytes(url)
         }
 
-    suspend fun imageBytes(
+    override suspend fun imageBytes(
         url: String,
         fetch: suspend () -> ByteArray,
     ): ByteArray =
@@ -368,6 +386,65 @@ class AndroidStorage(
 
     fun removeDownloadedAudioForTrack(sourceId: String, trackId: TrackId) {
         removeDownloadedAudio(sourceId, trackId)
+    }
+
+    override fun keepDownloadedPolicies(sourceId: String): List<KeepDownloadedCollectionPolicy> =
+        queries.selectKeepDownloadedPolicies(sourceId).executeAsList().map { row ->
+            KeepDownloadedCollectionPolicy(
+                sourceId = row.source_id,
+                kind = KeepDownloadedCollectionKind.valueOf(row.collection_kind),
+                collectionId = row.collection_id,
+                name = row.name,
+                removeUnneededFiles = row.remove_unneeded_files != 0L,
+            )
+        }
+
+    override fun keepDownloadedPolicy(sourceId: String, kind: KeepDownloadedCollectionKind, collectionId: String) =
+        queries.selectKeepDownloadedPolicy(sourceId, kind.name, collectionId).executeAsOneOrNull()?.let { row ->
+            KeepDownloadedCollectionPolicy(
+                sourceId = row.source_id,
+                kind = KeepDownloadedCollectionKind.valueOf(row.collection_kind),
+                collectionId = row.collection_id,
+                name = row.name,
+                removeUnneededFiles = row.remove_unneeded_files != 0L,
+            )
+        }
+
+    override fun upsertKeepDownloadedPolicy(policy: KeepDownloadedCollectionPolicy) {
+        queries.upsertKeepDownloadedPolicy(
+            policy.sourceId,
+            policy.kind.name,
+            policy.collectionId,
+            policy.name,
+            if (policy.removeUnneededFiles) 1L else 0L,
+            nowMillis(),
+        )
+    }
+
+    override fun deleteKeepDownloadedPolicy(sourceId: String, kind: KeepDownloadedCollectionKind, collectionId: String) {
+        queries.deleteKeepDownloadedPolicy(sourceId, kind.name, collectionId)
+    }
+
+    override fun keepDownloadedTrackIds(sourceId: String, kind: KeepDownloadedCollectionKind, collectionId: String) =
+        queries.selectKeepDownloadedTrackIds(sourceId, kind.name, collectionId).executeAsList().toSet()
+
+    override fun replaceKeepDownloadedTrackIds(policy: KeepDownloadedCollectionPolicy, trackIds: Set<String>) {
+        queries.transaction {
+            upsertKeepDownloadedPolicy(policy)
+            queries.deleteKeepDownloadedCollectionTracks(policy.sourceId, policy.kind.name, policy.collectionId)
+            trackIds.forEach { queries.insertKeepDownloadedCollectionTrack(policy.sourceId, policy.kind.name, policy.collectionId, it) }
+        }
+    }
+
+    override fun managedKeepDownloadedTrackIds(sourceId: String) =
+        queries.selectManagedKeepDownloadedTrackIds(sourceId).executeAsList().toSet()
+
+    override fun markManagedKeepDownloadedTracks(sourceId: String, trackIds: Set<String>) {
+        queries.transaction { trackIds.forEach { queries.insertManagedKeepDownloadedTrack(sourceId, it) } }
+    }
+
+    override fun unmarkManagedKeepDownloadedTracks(sourceId: String, trackIds: Set<String>) {
+        queries.transaction { trackIds.forEach { queries.deleteManagedKeepDownloadedTrack(sourceId, it) } }
     }
 
     override suspend fun cachedAudioWaveform(
@@ -660,6 +737,7 @@ data class AndroidDownloadedTrack(
     val file: File,
     val sizeBytes: Long,
     val contentType: String?,
+    val qualityKey: String,
     val downloadedAtEpochMillis: Long,
 )
 
@@ -708,7 +786,36 @@ private class AndroidAudioByteStore(
     }
 }
 
+private class AndroidMutableAudioByteStore(initialDirectory: File) : AudioByteStore {
+    @Volatile private var store = AndroidAudioByteStore(initialDirectory)
+    fun updateDirectory(directory: File) { store = AndroidAudioByteStore(directory) }
+    override suspend fun writeAudioBytes(fileName: String, errorMessage: String, writeBytes: suspend (AudioByteWriter) -> Boolean): StoredAudioBytes =
+        store.writeAudioBytes(fileName, errorMessage, writeBytes)
+    override fun deleteAudioBytes(filePath: String) = store.deleteAudioBytes(filePath)
+}
+
 private fun nowMillis(): Long = System.currentTimeMillis()
+
+private fun createAndroidStorageDriver(context: Context): AndroidSqliteDriver {
+    val databaseFile = context.getDatabasePath(DatabaseName)
+    if (databaseFile.exists()) {
+        val installedVersion = runCatching {
+            SQLiteDatabase.openDatabase(
+                databaseFile.absolutePath,
+                null,
+                SQLiteDatabase.OPEN_READONLY,
+            ).use { database -> database.version.toLong() }
+        }.getOrNull()
+        if (installedVersion != null && installedVersion > NaviampStorageDatabase.Schema.version) {
+            context.deleteDatabase(DatabaseName)
+        }
+    }
+    return AndroidSqliteDriver(
+        schema = NaviampStorageDatabase.Schema,
+        context = context,
+        name = DatabaseName,
+    )
+}
 
 private fun SqlDriver.configureSqliteLockHandling() {
     executeQuery(
@@ -764,6 +871,59 @@ private fun SqlDriver.ensureTrackLyricsOffsetSchema() {
           updated_at_epoch_millis INTEGER NOT NULL,
           PRIMARY KEY(source_id, remote_track_id)
         )
+        """.trimIndent(),
+        0,
+    )
+}
+
+private fun SqlDriver.ensureKeepDownloadedSchema() {
+    execute(
+        null,
+        """
+        CREATE TABLE IF NOT EXISTS keep_downloaded_collection (
+          source_id TEXT NOT NULL REFERENCES media_source(id) ON DELETE CASCADE,
+          collection_kind TEXT NOT NULL,
+          collection_id TEXT NOT NULL,
+          name TEXT NOT NULL,
+          remove_unneeded_files INTEGER NOT NULL DEFAULT 0,
+          updated_at_epoch_millis INTEGER NOT NULL,
+          PRIMARY KEY(source_id, collection_kind, collection_id)
+        )
+        """.trimIndent(),
+        0,
+    )
+    execute(
+        null,
+        """
+        CREATE TABLE IF NOT EXISTS keep_downloaded_collection_track (
+          source_id TEXT NOT NULL,
+          collection_kind TEXT NOT NULL,
+          collection_id TEXT NOT NULL,
+          remote_track_id TEXT NOT NULL,
+          PRIMARY KEY(source_id, collection_kind, collection_id, remote_track_id),
+          FOREIGN KEY(source_id, collection_kind, collection_id)
+            REFERENCES keep_downloaded_collection(source_id, collection_kind, collection_id)
+            ON DELETE CASCADE
+        )
+        """.trimIndent(),
+        0,
+    )
+    execute(
+        null,
+        """
+        CREATE TABLE IF NOT EXISTS keep_downloaded_managed_track (
+          source_id TEXT NOT NULL REFERENCES media_source(id) ON DELETE CASCADE,
+          remote_track_id TEXT NOT NULL,
+          PRIMARY KEY(source_id, remote_track_id)
+        )
+        """.trimIndent(),
+        0,
+    )
+    execute(
+        null,
+        """
+        CREATE INDEX IF NOT EXISTS keep_downloaded_collection_track_remote
+        ON keep_downloaded_collection_track(source_id, remote_track_id)
         """.trimIndent(),
         0,
     )

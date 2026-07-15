@@ -8,6 +8,7 @@ import app.naviamp.domain.StreamRequest
 import app.naviamp.domain.Track
 import app.naviamp.domain.TrackId
 import app.naviamp.domain.cache.AudioByteStoreService
+import app.naviamp.domain.cache.downloadContentType
 import app.naviamp.domain.cache.CachedAudioEvictionCandidate
 import app.naviamp.domain.cache.planAudioCacheEviction
 import app.naviamp.domain.provider.MediaProvider
@@ -204,11 +205,12 @@ class DesktopAudioStore(
 
             val qualityKey = quality.cacheKey()
             val streamUrl = provider.streamUrl(StreamRequest(trackId = track.id, quality = quality))
+            val downloadContentType = quality.downloadContentType(track.audioInfo?.contentType)
             val stored = downloadAudioByteStoreService.writeProviderAudio(
                 sourceId = sourceId,
                 trackId = track.id,
                 qualityKey = qualityKey,
-                contentType = track.audioInfo?.contentType,
+                contentType = downloadContentType,
                 provider = provider,
                 streamUrl = streamUrl,
                 errorMessage = "Could not download audio track.",
@@ -219,11 +221,11 @@ class DesktopAudioStore(
                 throw IllegalStateException("Download storage limit exceeded.")
             }
             val target = Path.of(stored.filePath)
-            upsertDownloadedAudio(sourceId, track, qualityKey, stored.filePath, stored.sizeBytes, track.audioInfo?.contentType, nowMillis())
+            upsertDownloadedAudio(sourceId, track, qualityKey, stored.filePath, stored.sizeBytes, downloadContentType, nowMillis())
             DownloadedAudioFile(
                 path = target,
                 sizeBytes = stored.sizeBytes,
-                contentType = track.audioInfo?.contentType,
+                contentType = downloadContentType,
             )
         }
 
@@ -240,11 +242,12 @@ class DesktopAudioStore(
                 .executeAsList()
                 .filter { row -> row.remote_track_id == track.id.value }
             val streamUrl = provider.streamUrl(StreamRequest(trackId = track.id, quality = quality))
+            val downloadContentType = quality.downloadContentType(track.audioInfo?.contentType)
             val stored = downloadAudioByteStoreService.writeProviderAudio(
                 sourceId = sourceId,
                 trackId = track.id,
                 qualityKey = qualityKey,
-                contentType = track.audioInfo?.contentType,
+                contentType = downloadContentType,
                 provider = provider,
                 streamUrl = streamUrl,
                 errorMessage = "Could not download audio track.",
@@ -262,11 +265,11 @@ class DesktopAudioStore(
             }
             queries.deleteDownloadedAudioForTrack(sourceId, track.id.value)
             val target = Path.of(stored.filePath)
-            upsertDownloadedAudio(sourceId, track, qualityKey, stored.filePath, stored.sizeBytes, track.audioInfo?.contentType, nowMillis())
+            upsertDownloadedAudio(sourceId, track, qualityKey, stored.filePath, stored.sizeBytes, downloadContentType, nowMillis())
             DownloadedAudioFile(
                 path = target,
                 sizeBytes = stored.sizeBytes,
-                contentType = track.audioInfo?.contentType,
+                contentType = downloadContentType,
             )
         }
 
@@ -277,6 +280,7 @@ class DesktopAudioStore(
                 path = Path.of(row.file_path),
                 sizeBytes = row.size_bytes,
                 contentType = row.content_type,
+                qualityKey = row.quality_key,
                 downloadedAtEpochMillis = row.downloaded_at_epoch_millis,
             )
         }

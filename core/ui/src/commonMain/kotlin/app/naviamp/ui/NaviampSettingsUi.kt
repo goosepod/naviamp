@@ -63,6 +63,7 @@ import app.naviamp.domain.settings.CacheSettings
 import app.naviamp.domain.settings.ConnectionFormMusicFolder
 import app.naviamp.domain.settings.ConnectionFormState
 import app.naviamp.domain.settings.DefaultWaveformBucketCount
+import app.naviamp.domain.settings.DownloadedTrackPlayback
 import app.naviamp.domain.settings.InterfaceLanguage
 import app.naviamp.domain.settings.InterfaceSettings
 import app.naviamp.domain.settings.LyricsSourcePreference
@@ -101,6 +102,8 @@ data class NaviampDiagnosticsSectionUi(
     val title: String,
     val rows: List<Pair<String, String>>,
 )
+
+data class NaviampStorageLocationUi(val id: String, val label: String, val path: String)
 
 data class NaviampAboutUi(
     val version: String = "Unknown",
@@ -187,6 +190,12 @@ fun NaviampSharedSettingsContent(
     showQueueBehavior: Boolean = true,
     showDebugLogging: Boolean = true,
     showMobileNetworkQuality: Boolean = false,
+    downloadLocations: List<NaviampStorageLocationUi> = emptyList(),
+    audioCacheLocations: List<NaviampStorageLocationUi> = emptyList(),
+    selectedDownloadLocationId: String? = null,
+    selectedAudioCacheLocationId: String? = null,
+    onDownloadLocationChanged: (NaviampStorageLocationUi) -> Unit = {},
+    onAudioCacheLocationChanged: (NaviampStorageLocationUi) -> Unit = {},
 ) {
     var selectedCategory by remember { mutableStateOf<NaviampSettingsCategory?>(null) }
     val languagePack = remember(interfaceSettings.language) {
@@ -279,12 +288,18 @@ fun NaviampSharedSettingsContent(
                     onPlaybackSettingsChanged = onPlaybackSettingsChanged,
                     onPlaybackSettingsChangedAndRedownload = onPlaybackSettingsChangedAndRedownload,
                     onCacheSettingsChanged = onCacheSettingsChanged,
+                    locations = downloadLocations,
+                    selectedLocationId = selectedDownloadLocationId,
+                    onLocationChanged = onDownloadLocationChanged,
                 )
                 NaviampSettingsCategory.AudioCache -> NaviampAudioCacheSettingsSection(
                     colors = colors,
                     cacheSettings = cacheSettings,
                     diagnostics = diagnostics,
                     onCacheSettingsChanged = onCacheSettingsChanged,
+                    locations = audioCacheLocations,
+                    selectedLocationId = selectedAudioCacheLocationId,
+                    onLocationChanged = onAudioCacheLocationChanged,
                 )
                 NaviampSettingsCategory.Debugging -> {
                     if (showDebugLogging) {
@@ -580,6 +595,8 @@ private enum class SwipeActionSlot(val title: String, val subtitle: String) {
     RelatedLeft("Related: swipe left", "Related and Sonic recommendations"),
     PlaylistEditRight("Playlist editing: swipe right", "Reorder or remove tracks in the playlist editor"),
     PlaylistEditLeft("Playlist editing: swipe left", "Reorder or remove tracks in the playlist editor"),
+    DownloadsRight("Downloads: swipe right", "Downloaded tracks in Offline Mode"),
+    DownloadsLeft("Downloads: swipe left", "Downloaded tracks in Offline Mode"),
 }
 
 @Composable
@@ -629,6 +646,8 @@ private fun app.naviamp.domain.settings.TrackSwipeSettings.action(slot: SwipeAct
     SwipeActionSlot.RelatedLeft -> relatedLeft
     SwipeActionSlot.PlaylistEditRight -> playlistEditRight
     SwipeActionSlot.PlaylistEditLeft -> playlistEditLeft
+    SwipeActionSlot.DownloadsRight -> downloadsRight
+    SwipeActionSlot.DownloadsLeft -> downloadsLeft
 }
 
 private fun app.naviamp.domain.settings.TrackSwipeSettings.withAction(
@@ -643,6 +662,8 @@ private fun app.naviamp.domain.settings.TrackSwipeSettings.withAction(
     SwipeActionSlot.RelatedLeft -> copy(relatedLeft = action)
     SwipeActionSlot.PlaylistEditRight -> copy(playlistEditRight = action)
     SwipeActionSlot.PlaylistEditLeft -> copy(playlistEditLeft = action)
+    SwipeActionSlot.DownloadsRight -> copy(downloadsRight = action)
+    SwipeActionSlot.DownloadsLeft -> copy(downloadsLeft = action)
 }
 
 private fun swipeActionChoices(slot: SwipeActionSlot): List<TrackSwipeAction> = when (slot) {
@@ -662,6 +683,14 @@ private fun swipeActionChoices(slot: SwipeActionSlot): List<TrackSwipeAction> = 
         TrackSwipeAction.GoToArtist,
         TrackSwipeAction.Remove,
     )
+    SwipeActionSlot.DownloadsRight,
+    SwipeActionSlot.DownloadsLeft,
+    -> listOf(
+        TrackSwipeAction.None,
+        TrackSwipeAction.Play,
+        TrackSwipeAction.AddToPlaylist,
+        TrackSwipeAction.Remove,
+    )
     else -> listOf(
         TrackSwipeAction.None,
         TrackSwipeAction.PlayNext,
@@ -677,6 +706,7 @@ private fun swipeActionChoices(slot: SwipeActionSlot): List<TrackSwipeAction> = 
 
 private fun TrackSwipeAction.label(): String = when (this) {
     TrackSwipeAction.None -> "No action"
+    TrackSwipeAction.Play -> "Play"
     TrackSwipeAction.PlayNext -> "Play next"
     TrackSwipeAction.AddToQueue -> "Add to queue"
     TrackSwipeAction.AddToPlaylist -> "Add to playlist"
@@ -694,6 +724,7 @@ private fun TrackSwipeAction.label(): String = when (this) {
 
 private fun TrackSwipeAction.subtitle(): String = when (this) {
     TrackSwipeAction.None -> "Disable this swipe direction"
+    TrackSwipeAction.Play -> "Play this downloaded track"
     TrackSwipeAction.PlayNext -> "Insert or move the track directly after the current track"
     TrackSwipeAction.AddToQueue -> "Append the track to the end of Up Next"
     TrackSwipeAction.AddToPlaylist -> "Open the playlist picker"
@@ -1765,6 +1796,9 @@ fun NaviampDownloadsSettingsSection(
     onPlaybackSettingsChanged: (PlaybackSettings) -> Unit,
     onPlaybackSettingsChangedAndRedownload: (PlaybackSettings) -> Unit = onPlaybackSettingsChanged,
     onCacheSettingsChanged: (CacheSettings) -> Unit,
+    locations: List<NaviampStorageLocationUi> = emptyList(),
+    selectedLocationId: String? = null,
+    onLocationChanged: (NaviampStorageLocationUi) -> Unit = {},
 ) {
     val normalized = cacheSettings.normalized()
     var selectedPage by remember { mutableStateOf<DownloadsSettingsPage?>(null) }
@@ -1787,6 +1821,16 @@ fun NaviampDownloadsSettingsSection(
                 preference = playbackSettings.downloadQuality,
                 onPreferenceChanged = { preference -> applyDownloadQuality(preference) },
             )
+            DownloadsSettingsPage.Playback -> DownloadedTrackPlayback.entries.forEach { preference ->
+                SelectableSettingsRow(
+                    colors = colors,
+                    title = preference.label,
+                    subtitle = preference.subtitle,
+                    selected = preference == playbackSettings.downloadedTrackPlayback,
+                ) {
+                    onPlaybackSettingsChanged(playbackSettings.copy(downloadedTrackPlayback = preference))
+                }
+            }
             DownloadsSettingsPage.StorageBudget -> DownloadBudgetOptions.forEach { bytes ->
                 SelectableSettingsRow(
                     colors = colors,
@@ -1794,6 +1838,11 @@ fun NaviampDownloadsSettingsSection(
                     selected = bytes == normalized.maxDownloadBytes,
                 ) {
                     onCacheSettingsChanged(normalized.copy(maxDownloadBytes = bytes).normalized())
+                }
+            }
+            DownloadsSettingsPage.Location -> locations.forEach { location ->
+                SelectableSettingsRow(colors = colors, title = location.label, subtitle = location.path, selected = location.id == selectedLocationId) {
+                    onLocationChanged(location)
                 }
             }
         }
@@ -1822,6 +1871,14 @@ fun NaviampDownloadsSettingsSection(
     ) {
         selectedPage = DownloadsSettingsPage.SavedFiles
     }
+    SettingsRow(
+        title = stringResource(Res.string.settings_downloads_playback_title),
+        subtitle = stringResource(Res.string.settings_downloads_playback_subtitle),
+        colors = colors,
+        value = playbackSettings.downloadedTrackPlayback.label,
+    ) {
+        selectedPage = DownloadsSettingsPage.Playback
+    }
     if (showMobileNetworkQuality) {
         SettingsCheckboxRow(
             colors = colors,
@@ -1849,6 +1906,12 @@ fun NaviampDownloadsSettingsSection(
     ) {
         selectedPage = DownloadsSettingsPage.StorageBudget
     }
+    if (locations.isNotEmpty()) {
+        val selected = locations.firstOrNull { it.id == selectedLocationId } ?: locations.first()
+        SettingsRow("Download location", "Where newly saved files are stored", colors, selected.label) {
+            selectedPage = DownloadsSettingsPage.Location
+        }
+    }
     Column(
         verticalArrangement = Arrangement.spacedBy(6.dp),
         modifier = Modifier.fillMaxWidth().padding(horizontal = SettingsRowHorizontalPadding),
@@ -1865,21 +1928,27 @@ private enum class DownloadsSettingsPage(
     val subtitle: String,
 ) {
     SavedFiles("Saved Files", "Quality for newly saved files"),
+    Playback("Downloaded Track Playback", "Choose whether saved files or the server are tried first"),
     StorageBudget("Download Storage Budget", "Maximum space for saved files"),
+    Location("Download Location", "Internal, device, or removable storage"),
 }
 
 @Composable
 private fun DownloadsSettingsPage.title(): String =
     when (this) {
         DownloadsSettingsPage.SavedFiles -> stringResource(Res.string.settings_downloads_saved_files_title)
+        DownloadsSettingsPage.Playback -> stringResource(Res.string.settings_downloads_playback_title)
         DownloadsSettingsPage.StorageBudget -> stringResource(Res.string.settings_downloads_storage_budget_title)
+        DownloadsSettingsPage.Location -> "Download Location"
     }
 
 @Composable
 private fun DownloadsSettingsPage.subtitle(): String =
     when (this) {
         DownloadsSettingsPage.SavedFiles -> stringResource(Res.string.settings_downloads_saved_files_subtitle)
+        DownloadsSettingsPage.Playback -> stringResource(Res.string.settings_downloads_playback_subtitle)
         DownloadsSettingsPage.StorageBudget -> stringResource(Res.string.settings_downloads_storage_budget_subtitle)
+        DownloadsSettingsPage.Location -> "Internal, device, or removable storage"
     }
 
 @Composable
@@ -1888,6 +1957,9 @@ fun NaviampAudioCacheSettingsSection(
     cacheSettings: CacheSettings,
     diagnostics: NaviampDiagnosticsUi,
     onCacheSettingsChanged: (CacheSettings) -> Unit,
+    locations: List<NaviampStorageLocationUi> = emptyList(),
+    selectedLocationId: String? = null,
+    onLocationChanged: (NaviampStorageLocationUi) -> Unit = {},
 ) {
     val normalized = cacheSettings.normalized()
     var selectedPage by remember { mutableStateOf<AudioCacheSettingsPage?>(null) }
@@ -1912,6 +1984,11 @@ fun NaviampAudioCacheSettingsSection(
                     selected = bytes == normalized.maxAudioCacheBytes,
                 ) {
                     onCacheSettingsChanged(normalized.copy(maxAudioCacheBytes = bytes).normalized())
+                }
+            }
+            AudioCacheSettingsPage.Location -> locations.forEach { location ->
+                SelectableSettingsRow(colors = colors, title = location.label, subtitle = location.path, selected = location.id == selectedLocationId) {
+                    onLocationChanged(location)
                 }
             }
         }
@@ -1948,6 +2025,12 @@ fun NaviampAudioCacheSettingsSection(
     ) {
         selectedPage = AudioCacheSettingsPage.AudioCacheBudget
     }
+    if (locations.isNotEmpty()) {
+        val selected = locations.firstOrNull { it.id == selectedLocationId } ?: locations.first()
+        SettingsRow("Cache location", "Where newly prefetched audio is stored", colors, selected.label) {
+            selectedPage = AudioCacheSettingsPage.Location
+        }
+    }
     Column(
         verticalArrangement = Arrangement.spacedBy(6.dp),
         modifier = Modifier.fillMaxWidth().padding(horizontal = SettingsRowHorizontalPadding),
@@ -1965,6 +2048,7 @@ private enum class AudioCacheSettingsPage(
 ) {
     PrefetchDepth("Prefetch Depth", "Tracks to cache ahead in the play queue"),
     AudioCacheBudget("Audio Cache Budget", "Maximum space for prefetched audio"),
+    Location("Cache Location", "Internal, device, or removable storage"),
 }
 
 @Composable
@@ -1972,6 +2056,7 @@ private fun AudioCacheSettingsPage.title(): String =
     when (this) {
         AudioCacheSettingsPage.PrefetchDepth -> stringResource(Res.string.settings_audio_cache_prefetch_depth_title)
         AudioCacheSettingsPage.AudioCacheBudget -> stringResource(Res.string.settings_audio_cache_budget_title)
+        AudioCacheSettingsPage.Location -> "Cache Location"
     }
 
 @Composable
@@ -1979,6 +2064,7 @@ private fun AudioCacheSettingsPage.subtitle(): String =
     when (this) {
         AudioCacheSettingsPage.PrefetchDepth -> stringResource(Res.string.settings_audio_cache_prefetch_depth_subtitle)
         AudioCacheSettingsPage.AudioCacheBudget -> stringResource(Res.string.settings_audio_cache_budget_subtitle)
+        AudioCacheSettingsPage.Location -> "Internal, device, or removable storage"
     }
 
 @Composable

@@ -143,9 +143,11 @@ fun NaviampAndroidApp(
     with(appState) {
     DisposableEffect(provider) {
         setAndroidPlatformCoverArtByteLoader { url ->
-            provider
-                ?.takeIf { it.ownsUrl(url) }
-                ?.bytes(url)
+            provider?.takeIf { it.ownsUrl(url) }?.let { activeProvider ->
+                dependencies.imageCacheRepository.imageBytes(url) {
+                    activeProvider.bytes(url) ?: throw IllegalStateException("Could not download cover art.")
+                }
+            } ?: dependencies.imageCacheRepository.imageBytes(url)
         }
         onDispose { resetAndroidPlatformCoverArtByteLoader() }
     }
@@ -348,6 +350,17 @@ fun NaviampAndroidApp(
             storage = storage,
             findKnownTrack = mediaAppController::findKnownTrack,
         )
+    }
+    LaunchedEffect(appState.activeSourceId) {
+        downloadActionController.reloadKeepDownloadedPolicies()
+    }
+    LaunchedEffect(
+        appState.homeState.playlists.map { playlist -> Triple(playlist.id, playlist.trackCount, playlist.isSmart) },
+        appState.nowPlaying?.favoritedAtIso8601,
+    ) {
+        if (appState.keepDownloadedPolicies.isNotEmpty()) {
+            downloadActionController.reconcileKeepDownloadedCollections()
+        }
     }
 
     val settingsMaintenanceController = remember(appState, storage, settingsStore, context) {

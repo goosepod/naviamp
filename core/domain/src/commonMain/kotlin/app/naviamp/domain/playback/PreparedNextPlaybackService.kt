@@ -4,6 +4,7 @@ import app.naviamp.domain.StreamQuality
 import app.naviamp.domain.Track
 import app.naviamp.domain.provider.MediaProvider
 import app.naviamp.domain.queue.PlaybackQueue
+import app.naviamp.domain.settings.DownloadedTrackPlayback
 
 data class PreparedNextPlaybackRequest(
     val nextQueueIndex: Int,
@@ -30,6 +31,7 @@ class PreparedNextPlaybackCoordinator(
     private val quality: () -> StreamQuality?,
     private val audioCachingEnabled: () -> Boolean,
     private val audioAssets: PlaybackAudioAssetRepository,
+    private val downloadedTrackPlayback: () -> DownloadedTrackPlayback = { DownloadedTrackPlayback.PreferDownloaded },
     private val replayGainMode: () -> ReplayGainMode,
     private val replayGainPreampDb: () -> Float = { 0f },
     private val supportsReplayGain: () -> Boolean,
@@ -78,6 +80,7 @@ class PreparedNextPlaybackCoordinator(
             quality = currentQuality,
             audioCachingEnabled = audioCachingEnabled(),
             audioAssets = audioAssets,
+            downloadedTrackPlayback = downloadedTrackPlayback(),
             replayGainMode = replayGainMode(),
             replayGainPreampDb = replayGainPreampDb(),
             supportsReplayGain = supportsReplayGain(),
@@ -140,6 +143,7 @@ suspend fun prepareNextPlaybackRequest(
     quality: StreamQuality,
     audioCachingEnabled: Boolean,
     audioAssets: PlaybackAudioAssetRepository,
+    downloadedTrackPlayback: DownloadedTrackPlayback = DownloadedTrackPlayback.PreferDownloaded,
     replayGainMode: ReplayGainMode,
     replayGainPreampDb: Float = 0f,
     supportsReplayGain: Boolean,
@@ -163,6 +167,7 @@ suspend fun prepareNextPlaybackRequest(
         quality = quality,
         audioCachingEnabled = audioCachingEnabled,
         audioAssets = audioAssets,
+        downloadedTrackPlayback = downloadedTrackPlayback,
         replayGainMode = replayGainMode,
         replayGainPreampDb = replayGainPreampDb,
         supportsReplayGain = supportsReplayGain,
@@ -177,6 +182,7 @@ suspend fun preparedNextPlaybackRequest(
     quality: StreamQuality,
     audioCachingEnabled: Boolean,
     audioAssets: PlaybackAudioAssetRepository,
+    downloadedTrackPlayback: DownloadedTrackPlayback = DownloadedTrackPlayback.PreferDownloaded,
     replayGainMode: ReplayGainMode,
     replayGainPreampDb: Float = 0f,
     supportsReplayGain: Boolean,
@@ -189,6 +195,7 @@ suspend fun preparedNextPlaybackRequest(
         quality = quality,
         audioCachingEnabled = audioCachingEnabled,
         audioAssets = audioAssets,
+        downloadedTrackPlayback = downloadedTrackPlayback,
     )
     val streamUrl = audioSourcePlan.playbackStreamUrl(
         providerStreamUrl = { target -> provider.streamUrl(target.providerStreamRequest) },
@@ -199,6 +206,7 @@ suspend fun preparedNextPlaybackRequest(
         request = playbackRequestForTrack(
             track = track,
             url = streamUrl,
+            fallbackUrl = audioSourcePlan.fallbackPlaybackUrl(),
             replayGainMode = replayGainMode,
             replayGainPreampDb = replayGainPreampDb,
             supportsReplayGain = supportsReplayGain,
@@ -210,6 +218,7 @@ suspend fun preparedNextPlaybackRequest(
 fun playbackRequestForTrack(
     track: Track,
     url: String,
+    fallbackUrl: String? = null,
     replayGainMode: ReplayGainMode,
     replayGainPreampDb: Float = 0f,
     supportsReplayGain: Boolean,
@@ -218,6 +227,7 @@ fun playbackRequestForTrack(
 ): PlaybackRequest =
     PlaybackRequest(
         url = url,
+        fallbackUrl = fallbackUrl,
         mediaId = track.id.value,
         samplingRateHz = track.audioInfo?.samplingRateHz,
         replayGainMode = if (supportsReplayGain) replayGainMode else ReplayGainMode.Off,

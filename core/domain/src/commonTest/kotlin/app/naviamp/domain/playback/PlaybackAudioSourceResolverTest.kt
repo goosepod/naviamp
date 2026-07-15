@@ -4,6 +4,7 @@ import app.naviamp.domain.AudioCodec
 import app.naviamp.domain.StreamQuality
 import app.naviamp.domain.Track
 import app.naviamp.domain.TrackId
+import app.naviamp.domain.settings.DownloadedTrackPlayback
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -38,6 +39,55 @@ class PlaybackAudioSourceResolverTest {
 
         assertEquals(localAudio("downloaded"), plan.localAudio)
         assertEquals(PlaybackSource.DownloadedFile, plan.source)
+    }
+
+    @Test
+    fun preferServerKeepsDownloadAsFallback() = runTest {
+        val plan = resolvePlaybackAudioSource(
+            sourceId = "source",
+            track = track("one"),
+            quality = StreamQuality.Original,
+            audioCachingEnabled = false,
+            audioAssets = fakeAudioAssets(downloadedForTrack = "downloaded-opus"),
+            downloadedTrackPlayback = DownloadedTrackPlayback.PreferServer,
+        )
+
+        assertNull(plan.localAudio)
+        assertEquals(localAudio("downloaded-opus"), plan.fallbackLocalAudio)
+        assertEquals(PlaybackSource.ProviderStreamCacheDisabled, plan.source)
+        assertEquals("file:///tmp/downloaded-opus", plan.fallbackPlaybackUrl())
+    }
+
+    @Test
+    fun preferServerUsesDownloadWhenProviderUrlCannotBeCreated() = runTest {
+        val plan = resolvePlaybackAudioSource(
+            sourceId = "source",
+            track = track("one"),
+            quality = StreamQuality.Original,
+            audioCachingEnabled = false,
+            audioAssets = fakeAudioAssets(downloadedForTrack = "downloaded-opus"),
+            downloadedTrackPlayback = DownloadedTrackPlayback.PreferServer,
+        )
+
+        val url = plan.playbackStreamUrl { error("Server unavailable") }
+
+        assertEquals("file:///tmp/downloaded-opus", url)
+    }
+
+    @Test
+    fun playbackFailureSwitchesToDownloadOnceAndKeepsPosition() {
+        val request = PlaybackRequest(
+            url = "https://server/stream",
+            fallbackUrl = "file:///tmp/downloaded-opus",
+            startPositionSeconds = 2.0,
+        )
+
+        val fallback = request.downloadFallbackRequest(positionSeconds = 18.5)
+
+        assertEquals("file:///tmp/downloaded-opus", fallback?.url)
+        assertEquals(18.5, fallback?.startPositionSeconds)
+        assertNull(fallback?.fallbackUrl)
+        assertNull(fallback?.downloadFallbackRequest())
     }
 
     @Test
