@@ -808,6 +808,7 @@ fun NaviampApp(
         clearSubmittedPlayReportSessionId = { submittedPlayReportSessionId = null },
         incrementNowPlayingWaveformReloadToken = nowPlayingController::incrementWaveformReloadToken,
         reportNowPlaying = playbackController::reportNowPlaying,
+        maybeReportPlaybackState = playbackController::maybeReportPlaybackState,
         clearShuffleSnapshot = playbackController::clearShuffleSnapshot,
         refillRadioIfNeeded = radioController::refillIfNeeded,
         activeQueue = { playlistEngine.queue },

@@ -37,6 +37,7 @@ fun desktopPlaylistCallbacks(
     clearSubmittedPlayReportSessionId: () -> Unit,
     incrementNowPlayingWaveformReloadToken: () -> Unit,
     reportNowPlaying: (Track) -> Unit,
+    maybeReportPlaybackState: (PlaybackState, PlaybackProgress) -> Unit,
     clearShuffleSnapshot: () -> Unit,
     refillRadioIfNeeded: (PlaybackQueue) -> Unit,
     activeQueue: () -> PlaybackQueue,
@@ -102,6 +103,7 @@ fun desktopPlaylistCallbacks(
         },
         onPlaybackStateChanged = { state ->
             setPlaybackState(state)
+            maybeReportPlaybackState(state, playbackProgress())
         },
         onPlaybackProgressChanged = progressChanged@{ progress ->
             val pendingSeek = pendingSeekPositionSeconds()
@@ -133,6 +135,7 @@ fun desktopPlaylistCallbacks(
             val mergedProgress = plan.progress ?: return@progressChanged
             if (plan.shouldSavePlaybackPosition) maybeSavePlaybackPosition(mergedProgress)
             if (plan.shouldReportPlayed) maybeReportPlayed(mergedProgress)
+            maybeReportPlaybackState(PlaybackState.Playing, mergedProgress)
             if (plan.shouldUpdateUi) {
                 setPlaybackProgress(mergedProgress)
                 setLastPlaybackProgressUiUpdateMillis(now)

@@ -51,6 +51,7 @@ internal class AndroidPlaybackAppController(
             sessionToken = sessionToken,
             progress = progress,
             maybeReportPlayed = playbackReportController::maybeReportPlayed,
+            maybeReportPlaybackState = playbackReportController::maybeReportPlaybackState,
             prepareNextIfNeeded = playlistEngine::prepareNextIfNeeded,
         )
     }
@@ -93,6 +94,7 @@ internal class AndroidPlaybackAppController(
             startAudioPrefetch = playlistEngine::startAudioPrefetch,
             startSidecarPrep = playlistEngine::startSidecarPrep,
             handlePlaybackProgressChanged = ::handlePlaybackProgressChanged,
+            maybeReportPlaybackState = playbackReportController::maybeReportPlaybackState,
             playAdjacentTrack = ::playAdjacentTrack,
             coverArtUrl = { item, provider -> item.savedCoverArtUrl(provider, storage.latestNavidromeSource()) },
         )

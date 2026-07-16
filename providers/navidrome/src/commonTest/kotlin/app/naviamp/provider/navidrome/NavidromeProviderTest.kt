@@ -11,6 +11,7 @@ import app.naviamp.domain.TrackId
 import app.naviamp.domain.provider.AlbumListType
 import app.naviamp.domain.provider.CoverArtSize
 import app.naviamp.domain.provider.MediaPageRequest
+import app.naviamp.domain.provider.PlaybackReportState
 import app.naviamp.domain.network.NaviampClientName
 import app.naviamp.domain.popular.NavidromeAgentMetadataSource
 import app.naviamp.domain.smartplaylist.SmartPlaylistCondition
@@ -2036,6 +2037,56 @@ class NavidromeProviderTest {
             "https://music.example.test/rest/reportPlayback.view?u=demo&t=token&s=salt&v=1.16.1&$ExpectedClientQuery&f=json&mediaId=track-1&mediaType=song&positionMs=125400&state=stopped",
             httpClient.urls.last(),
         )
+    }
+
+    @Test
+    fun reportPlaybackStateUsesPlaybackReportWithIgnoreScrobbleWhenExtensionIsAdvertised() = runTest {
+        val httpClient = SequencedHttpClient(
+            listOf(
+                okResponse(),
+                openSubsonicExtensionsResponse("playbackReport"),
+                okResponse(),
+            ),
+        )
+        val provider = NavidromeProvider(
+            connection = connection("https://music.example.test"),
+            httpClient = httpClient,
+        )
+
+        provider.validateConnection()
+        provider.reportPlaybackState(
+            trackId = TrackId("track-1"),
+            state = PlaybackReportState.Playing,
+            positionSeconds = 45.25,
+        )
+
+        assertEquals(
+            "https://music.example.test/rest/reportPlayback.view?u=demo&t=token&s=salt&v=1.16.1&$ExpectedClientQuery&f=json&mediaId=track-1&mediaType=song&positionMs=45250&state=playing&ignoreScrobble=true",
+            httpClient.urls.last(),
+        )
+    }
+
+    @Test
+    fun reportPlaybackStateDoesNothingWhenExtensionIsMissing() = runTest {
+        val httpClient = SequencedHttpClient(
+            listOf(
+                okResponse(),
+                openSubsonicExtensionsResponse(),
+            ),
+        )
+        val provider = NavidromeProvider(
+            connection = connection("https://music.example.test"),
+            httpClient = httpClient,
+        )
+
+        provider.validateConnection()
+        provider.reportPlaybackState(
+            trackId = TrackId("track-1"),
+            state = PlaybackReportState.Paused,
+            positionSeconds = 45.25,
+        )
+
+        assertEquals(2, httpClient.urls.size)
     }
 
     @Test

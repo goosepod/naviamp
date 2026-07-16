@@ -33,6 +33,7 @@ import app.naviamp.domain.provider.MediaPage
 import app.naviamp.domain.provider.MediaPageRequest
 import app.naviamp.domain.provider.MediaProvider
 import app.naviamp.domain.provider.MediaSearchResults
+import app.naviamp.domain.provider.PlaybackReportState
 import app.naviamp.domain.provider.ProviderCapabilities
 import app.naviamp.domain.provider.SonicSimilarTrack
 import app.naviamp.domain.provider.SonicPathMatch
@@ -70,9 +71,6 @@ data class NavidromeMusicFolder(
     val id: String,
     val name: String,
 )
-
-private const val PlaybackReportStateStarting = "starting"
-private const val PlaybackReportStateStopped = "stopped"
 
 class NavidromeProvider(
     private val connection: NavidromeConnection,
@@ -1010,7 +1008,7 @@ class NavidromeProvider(
         if (supportsPlaybackReport) {
             reportPlayback(
                 trackId = trackId,
-                state = PlaybackReportStateStarting,
+                state = PlaybackReportState.Starting,
                 positionMs = 0,
             )
         } else {
@@ -1027,7 +1025,7 @@ class NavidromeProvider(
         if (supportsPlaybackReport && positionMs != null) {
             reportPlayback(
                 trackId = trackId,
-                state = PlaybackReportStateStopped,
+                state = PlaybackReportState.Stopped,
                 positionMs = positionMs,
             )
         } else {
@@ -1037,6 +1035,21 @@ class NavidromeProvider(
                 playedAtEpochMillis = playedAtEpochMillis,
             )
         }
+    }
+
+    override suspend fun reportPlaybackState(
+        trackId: TrackId,
+        state: PlaybackReportState,
+        positionSeconds: Double?,
+        ignoreScrobble: Boolean,
+    ) {
+        if (!supportsPlaybackReport) return
+        reportPlayback(
+            trackId = trackId,
+            state = state,
+            positionMs = positionSeconds?.takeIf { it >= 0.0 }?.let { (it * 1000).toLong() } ?: 0L,
+            ignoreScrobble = ignoreScrobble,
+        )
     }
 
     override suspend fun streamUrl(request: StreamRequest): String {
@@ -1227,17 +1240,19 @@ class NavidromeProvider(
 
     private suspend fun reportPlayback(
         trackId: TrackId,
-        state: String,
+        state: PlaybackReportState,
         positionMs: Long,
+        ignoreScrobble: Boolean = false,
     ) {
         get(
             endpoint = "reportPlayback.view",
-            params = mapOf(
-                "mediaId" to trackId.value,
-                "mediaType" to "song",
-                "positionMs" to positionMs.coerceAtLeast(0L).toString(),
-                "state" to state,
-            ),
+            params = buildMap {
+                put("mediaId", trackId.value)
+                put("mediaType", "song")
+                put("positionMs", positionMs.coerceAtLeast(0L).toString())
+                put("state", state.providerValue)
+                if (ignoreScrobble) put("ignoreScrobble", "true")
+            },
         )
     }
 

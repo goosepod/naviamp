@@ -142,6 +142,12 @@ interface MediaProvider {
     suspend fun lyrics(trackId: TrackId): Lyrics? = null
     suspend fun reportNowPlaying(trackId: TrackId) = Unit
     suspend fun reportPlayed(trackId: TrackId, playedAtEpochMillis: Long, positionSeconds: Double? = null) = Unit
+    suspend fun reportPlaybackState(
+        trackId: TrackId,
+        state: PlaybackReportState,
+        positionSeconds: Double?,
+        ignoreScrobble: Boolean = true,
+    ) = Unit
     suspend fun streamUrl(request: StreamRequest): String
     suspend fun downloadStream(
         url: String,
@@ -164,6 +170,13 @@ interface MediaProvider {
     }
     fun coverArtUrl(coverArtId: String): String
     fun coverArtUrl(coverArtId: String, size: CoverArtSize): String = coverArtUrl(coverArtId)
+}
+
+enum class PlaybackReportState(val providerValue: String) {
+    Starting("starting"),
+    Playing("playing"),
+    Paused("paused"),
+    Stopped("stopped"),
 }
 
 enum class CoverArtSize(val pixels: Int) {

@@ -81,6 +81,7 @@ fun playAndroidTrack(
     startAudioPrefetch: (Long, NavidromeProvider, PlaybackQueue) -> Unit,
     startSidecarPrep: (Long, NavidromeProvider, PlaybackQueue) -> Unit,
     handlePlaybackProgressChanged: (Long, PlaybackProgress) -> Unit,
+    maybeReportPlaybackState: (PlaybackState, PlaybackProgress) -> Unit,
     playAdjacentTrack: (Int, Boolean) -> Unit,
     coverArtUrl: (Track, NavidromeProvider?) -> String? = { item, provider -> item.coverArtUrl(provider) },
 ) {
@@ -240,6 +241,7 @@ fun playAndroidTrack(
                     request = trackStartWork.request,
                     onStateChanged = { playbackState ->
                         state.playbackState = playbackState
+                        maybeReportPlaybackState(playbackState, state.playbackProgress)
                         when (playbackState) {
                             PlaybackState.Finished -> effectsPlan.finishedAdjacentOffset?.let { offset ->
                                 playAdjacentTrack(offset, true)
@@ -367,6 +369,7 @@ fun handleAndroidPlaybackProgressChanged(
     sessionToken: Long,
     progress: PlaybackProgress,
     maybeReportPlayed: (PlaybackProgress) -> Unit,
+    maybeReportPlaybackState: (PlaybackState, PlaybackProgress) -> Unit,
     prepareNextIfNeeded: (Long, PlaybackProgress) -> Unit,
 ) {
     with(state) {
@@ -402,6 +405,7 @@ fun handleAndroidPlaybackProgressChanged(
         }
         playbackProgress = plan.progress ?: return
         if (plan.shouldReportPlayed) maybeReportPlayed(playbackProgress)
+        maybeReportPlaybackState(PlaybackState.Playing, playbackProgress)
         val positionMillis = playbackProgress.positionSeconds?.secondsToMillis()
         val durationMillis = playbackProgress.durationSeconds
             ?.secondsToMillis()
