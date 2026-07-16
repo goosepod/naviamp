@@ -493,7 +493,13 @@ internal class AndroidServicePlaybackRuntimeController(
             withContext(Dispatchers.IO) {
                 provider
                     .withAndroidPendingActions(sourceId, storage)
-                    .reportPlayed(track.id, playedAtEpochMillis)
+                    .reportPlayed(
+                        track.id,
+                        playedAtEpochMillis,
+                        positionSeconds = progress.positionSeconds.takeIf {
+                            playbackSettings.playReportDurationPercent >= 50
+                        },
+                    )
             }
         }
     }

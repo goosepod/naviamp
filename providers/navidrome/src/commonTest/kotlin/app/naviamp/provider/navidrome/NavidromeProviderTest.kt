@@ -1992,6 +1992,75 @@ class NavidromeProviderTest {
         )
     }
 
+    @Test
+    fun reportNowPlayingUsesPlaybackReportWhenExtensionIsAdvertised() = runTest {
+        val httpClient = SequencedHttpClient(
+            listOf(
+                okResponse(),
+                openSubsonicExtensionsResponse("playbackReport"),
+                okResponse(),
+            ),
+        )
+        val provider = NavidromeProvider(
+            connection = connection("https://music.example.test"),
+            httpClient = httpClient,
+        )
+
+        provider.validateConnection()
+        provider.reportNowPlaying(TrackId("track-1"))
+
+        assertEquals(
+            "https://music.example.test/rest/reportPlayback.view?u=demo&t=token&s=salt&v=1.16.1&$ExpectedClientQuery&f=json&mediaId=track-1&mediaType=song&positionMs=0&state=starting",
+            httpClient.urls.last(),
+        )
+    }
+
+    @Test
+    fun reportPlayedUsesPlaybackReportWhenExtensionIsAdvertisedAndPositionIsKnown() = runTest {
+        val httpClient = SequencedHttpClient(
+            listOf(
+                okResponse(),
+                openSubsonicExtensionsResponse("playbackReport"),
+                okResponse(),
+            ),
+        )
+        val provider = NavidromeProvider(
+            connection = connection("https://music.example.test"),
+            httpClient = httpClient,
+        )
+
+        provider.validateConnection()
+        provider.reportPlayed(TrackId("track-1"), playedAtEpochMillis = 1_778_526_000_000L, positionSeconds = 125.4)
+
+        assertEquals(
+            "https://music.example.test/rest/reportPlayback.view?u=demo&t=token&s=salt&v=1.16.1&$ExpectedClientQuery&f=json&mediaId=track-1&mediaType=song&positionMs=125400&state=stopped",
+            httpClient.urls.last(),
+        )
+    }
+
+    @Test
+    fun reportPlayedFallsBackToScrobbleWhenPlaybackReportPositionIsUnknown() = runTest {
+        val httpClient = SequencedHttpClient(
+            listOf(
+                okResponse(),
+                openSubsonicExtensionsResponse("playbackReport"),
+                okResponse(),
+            ),
+        )
+        val provider = NavidromeProvider(
+            connection = connection("https://music.example.test"),
+            httpClient = httpClient,
+        )
+
+        provider.validateConnection()
+        provider.reportPlayed(TrackId("track-1"), playedAtEpochMillis = 1_778_526_000_000L)
+
+        assertEquals(
+            "https://music.example.test/rest/scrobble.view?u=demo&t=token&s=salt&v=1.16.1&$ExpectedClientQuery&f=json&id=track-1&submission=true&time=1778526000000",
+            httpClient.urls.last(),
+        )
+    }
+
     private fun smartPlaylistDefinition(): SmartPlaylistDefinition =
         SmartPlaylistDefinition(
             name = "Road Smart",
@@ -2200,3 +2269,29 @@ private fun radioResponse(responseKey: String, trackId: String, title: String): 
 }
 
 private val ExpectedClientQuery = "c=${NaviampClientName.urlEncode()}"
+
+private fun okResponse(): String = """
+    {
+      "subsonic-response": {
+        "status": "ok",
+        "version": "1.16.1",
+        "serverVersion": "0.62.0"
+      }
+    }
+""".trimIndent()
+
+private fun openSubsonicExtensionsResponse(vararg names: String): String {
+    val extensions = names.joinToString(",\n") { name ->
+        """          { "name": "$name", "versions": [1] }"""
+    }
+    return """
+        {
+          "subsonic-response": {
+            "status": "ok",
+            "openSubsonicExtensions": [
+$extensions
+            ]
+          }
+        }
+    """.trimIndent()
+}

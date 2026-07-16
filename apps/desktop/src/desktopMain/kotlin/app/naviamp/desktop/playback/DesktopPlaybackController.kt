@@ -252,7 +252,13 @@ class DesktopPlaybackController(
         scope.launch {
             runCatching {
                 withContext(Dispatchers.IO) {
-                    activeProvider.reportPlayed(track.id, System.currentTimeMillis())
+                    activeProvider.reportPlayed(
+                        track.id,
+                        System.currentTimeMillis(),
+                        positionSeconds = progress.positionSeconds.takeIf {
+                            settings.playReportDurationPercent >= 50
+                        },
+                    )
                 }
             }.onFailure {
                 if (submittedPlayReportSessionId() == activeSessionId) {

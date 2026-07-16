@@ -105,7 +105,13 @@ internal class AndroidPlaybackReportController(
         scope.launch {
             val result = runCatching {
                 withContext(Dispatchers.IO) {
-                    activeProvider.reportPlayed(track.id, playedAtEpochMillis)
+                    activeProvider.reportPlayed(
+                        track.id,
+                        playedAtEpochMillis,
+                        positionSeconds = progress.positionSeconds.takeIf {
+                            settings.playReportDurationPercent >= 50
+                        },
+                    )
                 }
             }
             if (result.isFailure) {

@@ -203,6 +203,7 @@ class InternetRadioStationManagerTest {
         override suspend fun reportPlayed(
             trackId: TrackId,
             playedAtEpochMillis: Long,
+            positionSeconds: Double?,
         ) = Unit
     }
 }

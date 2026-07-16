@@ -143,7 +143,7 @@ private class RecordingMediaProvider(
         calls += "now-playing:${trackId.value}"
     }
 
-    override suspend fun reportPlayed(trackId: TrackId, playedAtEpochMillis: Long) {
+    override suspend fun reportPlayed(trackId: TrackId, playedAtEpochMillis: Long, positionSeconds: Double?) {
         calls += "played:${trackId.value}:$playedAtEpochMillis"
     }
 

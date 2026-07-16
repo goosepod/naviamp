@@ -51,20 +51,19 @@ Acceptance criteria:
 
 Scrobbling is already implemented in Naviamp rather than entirely missing:
 
-- `NavidromeProvider.reportNowPlaying()` calls `scrobble.view` with `submission=false`.
-- `NavidromeProvider.reportPlayed()` calls `scrobble.view` with `submission=true` and a playback timestamp.
+- `NavidromeProvider.reportNowPlaying()` uses `reportPlayback.view` with `state=starting` when the server advertises the OpenSubsonic `playbackReport` extension, otherwise it falls back to `scrobble.view` with `submission=false`.
+- `NavidromeProvider.reportPlayed()` uses `reportPlayback.view` with `state=stopped` when `playbackReport` is advertised and Naviamp has a known playback position. It falls back to `scrobble.view` with `submission=true` and a playback timestamp when the extension is absent or when the configured trigger is earlier than Navidrome's server-side stopped-event threshold.
 - The provider advertises `supportsPlayReporting = true`.
 - Desktop reports Now Playing when a track starts and submits a play after 50 percent of the track or 240 seconds, whichever comes first.
 - Provider tests already verify the generated OpenSubsonic request URLs.
 
 The main diagnostic gap is that desktop wraps both requests in `runCatching` and discards failures. A Velvet incompatibility, rejected parameter, authentication problem, or server-side Last.fm forwarding failure is therefore invisible to the user and difficult to diagnose. Android has durable pending provider actions for failed reports; desktop does not have equivalent persistence.
 
-Current Navidrome also has a newer `reportPlayback.view` endpoint behind the OpenSubsonic playback-reporting extension. That endpoint accepts `mediaId`, `mediaType=song`, `positionMs`, and a playback `state` such as `starting`, `playing`, `paused`, or `stopped`. Navidrome uses the final stopped report to increment play counts and dispatch Last.fm/ListenBrainz scrobbles after the same 50 percent or 240 second threshold. This may be a better compatibility path for Navidrome/OpenSubsonic servers than only sending legacy `scrobble.view` requests.
+Current Navidrome also has a newer `reportPlayback.view` endpoint behind the OpenSubsonic playback-reporting extension. That endpoint accepts `mediaId`, `mediaType=song`, `positionMs`, and a playback `state` such as `starting`, `playing`, `paused`, or `stopped`. Navidrome uses the final stopped report to increment play counts and dispatch Last.fm/ListenBrainz scrobbles after the same 50 percent or 240 second threshold. Naviamp now prefers this endpoint when available, while retaining legacy `scrobble.view` for compatibility and for earlier client-side trigger choices.
 
 Investigation and implementation work:
 
-- Gate any `reportPlayback.view` experiment on the server advertising the playback-reporting extension, then fall back to legacy `scrobble.view`.
-- Confirm the exact advertised extension name/version from Navidrome and other OpenSubsonic-compatible servers before implementing.
+- Confirm the compatibility behavior against a real Navidrome server advertising `playbackReport` version 1.
 - Map Naviamp playback lifecycle events to `starting`, `playing`, `paused`, and `stopped` without double-submitting a legacy scrobble and a reportPlayback stopped event.
 - Confirm Navidrome receives reports from Naviamp and forwards accepted scrobbles to the configured Last.fm and ListenBrainz accounts.
 - If Velvet testing becomes available from a reporter, confirm whether both the Now Playing and submitted scrobble requests reach the server.

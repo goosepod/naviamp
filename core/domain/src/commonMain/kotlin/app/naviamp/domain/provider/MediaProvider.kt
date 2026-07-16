@@ -141,7 +141,7 @@ interface MediaProvider {
     ): List<SonicPathMatch> = emptyList()
     suspend fun lyrics(trackId: TrackId): Lyrics? = null
     suspend fun reportNowPlaying(trackId: TrackId) = Unit
-    suspend fun reportPlayed(trackId: TrackId, playedAtEpochMillis: Long) = Unit
+    suspend fun reportPlayed(trackId: TrackId, playedAtEpochMillis: Long, positionSeconds: Double? = null) = Unit
     suspend fun streamUrl(request: StreamRequest): String
     suspend fun downloadStream(
         url: String,

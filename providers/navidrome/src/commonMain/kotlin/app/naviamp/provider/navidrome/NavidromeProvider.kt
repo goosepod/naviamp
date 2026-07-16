@@ -71,6 +71,9 @@ data class NavidromeMusicFolder(
     val name: String,
 )
 
+private const val PlaybackReportStateStarting = "starting"
+private const val PlaybackReportStateStopped = "stopped"
+
 class NavidromeProvider(
     private val connection: NavidromeConnection,
     private val httpClient: NavidromeHttpClient = createDefaultNavidromeHttpClient(connection.tlsSettings),
@@ -119,6 +122,7 @@ class NavidromeProvider(
     override var capabilities: ProviderCapabilities = baseCapabilities
         private set
     private var supportsEnhancedSongLyrics: Boolean = false
+    private var supportsPlaybackReport: Boolean = false
 
     private val json = Json { ignoreUnknownKeys = true }
 
@@ -131,6 +135,10 @@ class NavidromeProvider(
                 name = "sonicSimilarity",
                 minimumVersion = 1,
             ),
+        )
+        supportsPlaybackReport = extensionVersions.supportsOpenSubsonicExtension(
+            name = "playbackReport",
+            minimumVersion = 1,
         )
         supportsEnhancedSongLyrics = extensionVersions.supportsOpenSubsonicExtension(
             name = "songLyrics",
@@ -999,19 +1007,36 @@ class NavidromeProvider(
     }
 
     override suspend fun reportNowPlaying(trackId: TrackId) {
-        scrobble(
-            trackId = trackId,
-            submission = false,
-            playedAtEpochMillis = null,
-        )
+        if (supportsPlaybackReport) {
+            reportPlayback(
+                trackId = trackId,
+                state = PlaybackReportStateStarting,
+                positionMs = 0,
+            )
+        } else {
+            scrobble(
+                trackId = trackId,
+                submission = false,
+                playedAtEpochMillis = null,
+            )
+        }
     }
 
-    override suspend fun reportPlayed(trackId: TrackId, playedAtEpochMillis: Long) {
-        scrobble(
-            trackId = trackId,
-            submission = true,
-            playedAtEpochMillis = playedAtEpochMillis,
-        )
+    override suspend fun reportPlayed(trackId: TrackId, playedAtEpochMillis: Long, positionSeconds: Double?) {
+        val positionMs = positionSeconds?.takeIf { it >= 0.0 }?.let { (it * 1000).toLong() }
+        if (supportsPlaybackReport && positionMs != null) {
+            reportPlayback(
+                trackId = trackId,
+                state = PlaybackReportStateStopped,
+                positionMs = positionMs,
+            )
+        } else {
+            scrobble(
+                trackId = trackId,
+                submission = true,
+                playedAtEpochMillis = playedAtEpochMillis,
+            )
+        }
     }
 
     override suspend fun streamUrl(request: StreamRequest): String {
@@ -1197,6 +1222,22 @@ class NavidromeProvider(
                 put("submission", submission.toString())
                 playedAtEpochMillis?.let { put("time", it.toString()) }
             },
+        )
+    }
+
+    private suspend fun reportPlayback(
+        trackId: TrackId,
+        state: String,
+        positionMs: Long,
+    ) {
+        get(
+            endpoint = "reportPlayback.view",
+            params = mapOf(
+                "mediaId" to trackId.value,
+                "mediaType" to "song",
+                "positionMs" to positionMs.coerceAtLeast(0L).toString(),
+                "state" to state,
+            ),
         )
     }
 

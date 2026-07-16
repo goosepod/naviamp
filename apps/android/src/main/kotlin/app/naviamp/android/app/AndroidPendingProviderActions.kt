@@ -36,9 +36,9 @@ internal fun MediaProvider.withAndroidPendingActions(
             }
         }
 
-        override suspend fun reportPlayed(trackId: TrackId, playedAtEpochMillis: Long) {
+        override suspend fun reportPlayed(trackId: TrackId, playedAtEpochMillis: Long, positionSeconds: Double?) {
             runCatching {
-                delegate.reportPlayed(trackId, playedAtEpochMillis)
+                delegate.reportPlayed(trackId, playedAtEpochMillis, positionSeconds)
             }.onFailure {
                 sourceId?.let { activeSourceId ->
                     repository.enqueuePendingProviderAction(
