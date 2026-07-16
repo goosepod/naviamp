@@ -5,7 +5,7 @@ This document is the durable plan and progress tracker for Naviamp 2.0. Update i
 ## Project Status
 
 - **Target release:** `2.0.0`
-- **Working branch:** `codex/v2-cross-platform-app`
+- **Working branch:** `feature/v2-cross-platform-app`
 - **Status:** Planning complete; implementation not started
 - **Release policy:** Feature development for the v1 line is frozen. Only bug fixes should be released from v1 while this work is underway.
 - **Versioning rule:** Do not change `VERSION` to `2.0.0` until the release-preparation milestone. Development builds and intermediate branches must remain clearly distinguishable from a finished v2 release.
@@ -261,7 +261,7 @@ Use this table to track contract and implementation coverage. Add rows when new 
 Before starting work on any computer:
 
 1. Fetch `origin`.
-2. Check out `codex/v2-cross-platform-app`.
+2. Check out `feature/v2-cross-platform-app`.
 3. Pull with fast-forward only.
 4. Read this document and choose the first unchecked item whose prerequisites are complete.
 5. Confirm the worktree is clean and inspect recent commits before editing.
