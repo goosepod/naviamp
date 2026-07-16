@@ -1,0 +1,209 @@
+# Naviamp 2.0 Platform Baseline
+
+This document records the Android and Desktop baseline before application orchestration moves into the shared Naviamp 2.0 runtime. Update it when ownership moves or a verification command changes.
+
+- **Snapshot date:** 2026-07-16
+- **Source branch:** `feature/v2-cross-platform-app`
+- **Baseline commit:** `a48bf38f`
+- **Architecture decision:** [ADR 0001: Shared Runtime and Thin Platform Hosts](architecture/0001-shared-runtime-thin-hosts.md)
+- **Migration tracker:** [Naviamp 2.0 Cross-Platform Plan](v2-cross-platform-plan.md)
+
+## Reproducible Baseline
+
+Run commands from the repository root. `ANDROID_HOME` must point at a usable Android SDK even for some Desktop Gradle configurations.
+
+| Purpose | Command | Expected result or artifact |
+| --- | --- | --- |
+| Version consistency | `make version-check` | Version validation succeeds. |
+| Shared and Desktop tests | `make desktop-test` | Gradle `desktopTest` succeeds. |
+| Android debug build | `make android-debug` | `apps/android/build/outputs/apk/debug/android-debug.apk` |
+| Android packaged BASS check | `./gradlew :apps:android:verifyDebugBassNativePackage` | Debug APK contains JNI and BASS libraries for every packaged ABI. |
+| Local macOS app | `make macos-test` | Stages and opens `build/local-test/Naviamp.app`. |
+| macOS standalone archive | `make macos-standalone` | Release archive under `apps/desktop/build/compose/distributions`. |
+| Windows app image | `make windows-test` | Windows app image, when run on Windows. |
+| Linux app image | `make linux-test` | Linux app image, when run on Linux. |
+
+Windows and Linux packaging must be verified on their target operating systems. The v2 work must not treat a macOS JVM compile as proof that native libraries or `jpackage` layouts work elsewhere.
+
+### Baseline Verification Record
+
+Verified on macOS ARM64 on 2026-07-16:
+
+- `./gradlew desktopTest :apps:android:assembleDebug` — successful; 173 tasks considered.
+- `./gradlew :core:domain:allTests :core:ui:jvmTest :providers:navidrome:jvmTest :apps:desktop:desktopTest :apps:android:testDebugUnitTest :apps:android:verifyDebugBassNativePackage` — successful; 210 tasks considered.
+- Android debug artifact created and its packaged BASS/JNI libraries verified.
+
+This proves the shared JVM/Android compilation, checked-in unit tests, Desktop tests, Android unit tests, debug APK assembly, and Android native-library package check at the baseline. It does not replace interactive launch testing or Windows/Linux packaging verification.
+
+## Current Module Targets
+
+| Module | Current targets | v2 implication |
+| --- | --- | --- |
+| `core:domain` | Android, JVM | Add Apple targets; currently has paired Android/JVM implementations for HTTP, URL encoding, time, and audio byte storage. |
+| `core:storage` | Android, JVM | Add Apple targets and a native SQLDelight driver supplied by the iOS host. |
+| `core:ui` | Android, JVM | Add Apple targets and iOS implementations for cover art, tooltips, sleep-timer effects, and visualizer surfaces. |
+| `providers:navidrome` | Android, JVM | Add Apple targets and a Darwin Ktor implementation without weakening existing TLS behavior on Android/Desktop. |
+| `apps:android` | Android application | Reduce to lifecycle, service, MediaSession, permission, notification, Android Auto, and Android service adapters. |
+| `apps:desktop` | Desktop JVM application | Reduce to window, menu, updater, packaging, and Desktop service adapters. |
+| `apps:ios` | Not present on this branch | Add a thin Xcode/SwiftUI host only after the shared dependency graph can link for iOS. |
+
+## Existing Shared Foundation
+
+The migration starts with substantial shared behavior rather than an empty multiplatform shell:
+
+- Domain models and provider contracts
+- Playback engine interfaces and optional capability interfaces
+- Queue selection, mutation, lifecycle, restoration, and transition rules
+- BASS playback creation, start, preparation, and polling plans
+- Library paging, freshness, synchronization decisions, and API catalog services
+- Playlist mutation and playback plans
+- Radio, Sonic Mix, Sonic Path, Sonic Autoplay, and mix-builder services
+- Downloads, audio cache, sidecar, waveform, lyrics, and keep-downloaded rules
+- Settings models and synchronization mapping
+- Shared Compose screens and UI models
+- SQLDelight schema and repository contracts
+- Navidrome/OpenSubsonic provider behavior
+
+The v2 task is primarily to move ownership and coordination of these pieces out of platform applications, not to rewrite their underlying rules.
+
+## Current Composition Roots
+
+### Desktop
+
+`apps/desktop/.../app/Main.kt` owns the JVM entry point. It currently:
+
+- configures native application name, appearance, and icon;
+- creates `DesktopAppDependencies` inside the Compose application;
+- restores and persists window size;
+- owns the Desktop window and minimum size;
+- stops playback during normal window closure;
+- calls the Desktop-only `NaviampApp` composition root.
+
+`DesktopAppDependencies` constructs Desktop settings, BASS playback, JDBC storage, cache/sidecar services, waveform analysis, popular-track services, and playlist playback.
+
+`DesktopNaviampApp.kt` is approximately 1,684 lines and still assembles substantial product behavior in the Desktop application. Desktop controllers separately own connection lifecycle, playlists, media actions, radio, search, downloads, navigation, Sonic features, settings maintenance, and Now Playing presentation.
+
+### Android
+
+`apps/android/.../app/MainActivity.kt` owns the Activity entry point. It currently:
+
+- handles notification, Android Auto, deep-link, and settings-import intents;
+- configures edge-to-edge system bars and safe-area/IME padding;
+- requests notification permission;
+- calls the Android-only `NaviampAndroidApp` composition root.
+
+`AndroidAppDependencies` constructs Android settings, Android BASS runtime access, Android storage, cache/sidecar services, waveform support, popular-track services, and playlist playback.
+
+`NaviampAndroidApp.kt` is approximately 922 lines and assembles Android product controllers and UI actions. `AndroidPlaybackForegroundService.kt` is approximately 2,367 lines and owns essential service-lifetime playback, MediaSession, notification, restoration, and Android Auto behavior.
+
+The foreground service cannot simply be deleted or made UI-owned. The shared runtime needs a lifecycle-safe playback/session contract that allows Android playback to outlive an Activity while Desktop and iOS supply their own lifecycle adapters.
+
+## Current Platform Ownership
+
+| Concern | Android owner | Desktop owner | Shared migration target |
+| --- | --- | --- | --- |
+| Application composition | `NaviampAndroidApp` | `NaviampApp` | Shared application runtime and shared Compose entry point |
+| Mutable application state | `AndroidAppState` plus service state | Desktop state assembled in `DesktopNaviampApp` | Shared state holder with lifecycle inputs |
+| Navigation | Android navigation controller/actions | Desktop route state/controllers | Shared navigation state and actions |
+| Provider connection | Android connection controller | Desktop connection lifecycle | Shared connection coordinator with platform secret/TLS services |
+| Media browsing/actions | Android media controllers | Desktop media/controllers | Shared application controller using `MediaProvider` |
+| Playlists | Android playlist controllers | Desktop playlist controllers | Shared playlist coordinator |
+| Radio/Sonic features | Android-specific coordinators | Desktop-specific coordinators | Shared application orchestration around existing domain services |
+| Playback policy | Split between app, playlist engine, and service | Split between app and playlist engine | Shared queue/playback coordinator |
+| Playback device | Android BASS runtime/service | Desktop BASS engine | Platform `PlaybackEngine`; BASS required on all final v2 platforms |
+| Background media controls | Foreground service and MediaSession | Desktop integration | Platform media-session/remote-control adapter |
+| Settings | `AndroidSettingsStore` | `DesktopSettingsStore` | Shared settings contracts and models with platform persistence |
+| Credentials | Android Keystore protector | Stored in Desktop settings JSON | Platform `SecretStore`; Desktop hardening and iOS Keychain required |
+| Database | Android SQLDelight driver in Android storage | JDBC SQLDelight driver in Desktop cache | Platform driver factory with shared storage behavior |
+| Files/downloads/cache | Android app/storage locations | Desktop filesystem locations | Platform filesystem/location contract |
+| Connectivity/mobile-data policy | Android system connectivity checks | Desktop/network assumptions | Platform connectivity snapshot/flow |
+| Cover art and visualizers | Android UI actuals/BASS | Desktop UI actuals/native surfaces | Shared UI contracts with platform actuals |
+| Window, menus, updater | Not applicable | Desktop application | Remains Desktop-only |
+| Notifications and permissions | Android platform | Desktop platform | Remain platform adapters |
+| Android Auto | Android platform/service | Not applicable | Remains Android host integration over shared catalog/queue contracts |
+
+## Shared-Looking Code That Still Contains Platform Product Behavior
+
+These are the first extraction candidates. Move behavior behind shared contracts before changing the launchers:
+
+1. Android and Desktop independently assemble connection, media, playlist, radio, search, download, and Sonic controllers.
+2. Each platform independently maps controller functions into shared shell actions and UI state.
+3. Android and Desktop settings stores combine persistence mechanics with application-level settings ownership.
+4. Storage driver construction and a large amount of storage behavior live inside the application modules rather than behind a narrow platform factory.
+5. Popular-track fallback behavior differs between Android and Desktop dependency containers.
+6. Playback queue orchestration is split between platform playlist engines, application controllers, and Android's foreground service.
+7. Pending provider actions and retry ownership are not yet uniformly platform-independent.
+8. Desktop credentials require a secure-store migration rather than being passed through the general settings JSON.
+
+Extraction should proceed by behavior slice, with characterization tests, rather than by moving whole large files at once.
+
+## Platform Capability Model
+
+Every platform-facing feature must have one of these states:
+
+- **Required:** Must work before v2.0.0 ships on that platform.
+- **Optional:** Supported when the operating system or installed components provide it; UI must disclose availability.
+- **Temporary:** Allowed during migration but cannot satisfy final v2 exit criteria.
+- **Unsupported:** Intentionally unavailable with a documented product reason and no misleading controls.
+
+Capability checks belong in immutable platform capability data or narrow service interfaces. Shared UI consumes those capabilities; it must not inspect an operating-system name.
+
+### Target v2 Capability Matrix
+
+| Capability | Android | Desktop | iOS |
+| --- | --- | --- | --- |
+| Shared UI/navigation/product behavior | Required | Required | Required |
+| BASS playback | Required | Required | Required |
+| AVPlayer playback | Unsupported | Unsupported | Temporary proof of concept only |
+| Streaming and downloaded playback | Required | Required | Required |
+| Background playback | Required | Required while app runs | Required |
+| OS media controls/metadata | Required | Required where OS supports it | Required |
+| Queue/session restoration | Required | Required | Required |
+| Gapless, ReplayGain, and crossfade | Required where currently supported | Required where currently supported | Required final target; individually capability-gated until verified |
+| Equalizer | Required where currently supported | Required where currently supported | Required final target |
+| Waveforms and BASS visualizer data | Required | Required | Required final target |
+| Audio output selection | Optional by platform/device | Optional by platform/device | Optional by Apple/BASS capability |
+| Secure credential storage | Required | Required | Required |
+| Endpoint failover and OpenSubsonic capabilities | Required | Required | Required |
+| Custom CA/client certificates | Required | Required | Required or explicitly blocked from release pending a security decision |
+| Downloads/cache/offline mode | Required | Required | Required |
+| Android Auto | Required existing behavior | Unsupported | Unsupported |
+| Desktop updater and native packages | Unsupported | Required | Unsupported |
+| Control Center/lock-screen commands | Unsupported | Unsupported | Required |
+
+## Regression Coverage Snapshot
+
+Checked-in `*Test.kt` files at the baseline:
+
+| Module | Test files |
+| --- | ---: |
+| `core:domain` | 83 |
+| `core:storage` | 0 |
+| `core:ui` | 14 |
+| `providers:navidrome` | 5 |
+| `apps:desktop` | 9 |
+| `apps:android` | 7 |
+
+The number of files is not a quality score, but it exposes migration risk. Domain rules have substantial coverage; storage behavior and platform composition boundaries need more direct characterization.
+
+Before moving ownership, add or confirm tests for:
+
+- application initialization and connection restoration;
+- application-state and navigation restoration;
+- queue restoration across host lifecycle changes;
+- provider-action retry and deduplication on both hosts;
+- playback transition and prepared-next behavior through the host adapter;
+- settings round trips through a shared contract;
+- storage migrations and driver parity;
+- Android service reconnection after Activity recreation;
+- capability-gated action/UI behavior.
+
+## Migration Order Derived from the Baseline
+
+1. Introduce contracts and tests around existing behavior without changing ownership.
+2. Move pure application state/actions from the two platform composition roots into a shared runtime.
+3. Keep Android's service as the playback process owner while adapting it to shared session commands/state.
+4. Make Desktop consume the same runtime through Desktop service adapters.
+5. Add Apple targets only after shared boundaries no longer depend on Android or JVM application classes.
+6. Add the thin iOS host and native playback proof of concept.
+7. Complete BASS iOS integration and parity before v2 release preparation.
