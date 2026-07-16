@@ -172,8 +172,14 @@ class DesktopPlaybackController(
         ) {
             PlaybackQueueNavigationCommand.None -> Unit
             PlaybackQueueNavigationCommand.RestartCurrent -> performSeek(0.0)
-            PlaybackQueueNavigationCommand.Previous -> playlistEngine.previous(scope)
-            PlaybackQueueNavigationCommand.Next -> playlistEngine.next(scope)
+            PlaybackQueueNavigationCommand.Previous -> {
+                reportCurrentTrackStopped()
+                playlistEngine.previous(scope)
+            }
+            PlaybackQueueNavigationCommand.Next -> {
+                reportCurrentTrackStopped()
+                playlistEngine.next(scope)
+            }
             is PlaybackQueueNavigationCommand.JumpTo -> Unit
         }
     }
@@ -181,7 +187,10 @@ class DesktopPlaybackController(
     fun handleNextButton() {
         setOpenPlayerOnTrackStart(false)
         when (queueManager.nextCommand(playbackQueue(), repeatMode())) {
-            PlaybackQueueNavigationCommand.Next -> playlistEngine.next(scope)
+            PlaybackQueueNavigationCommand.Next -> {
+                reportCurrentTrackStopped()
+                playlistEngine.next(scope)
+            }
             PlaybackQueueNavigationCommand.None,
             PlaybackQueueNavigationCommand.Previous,
             PlaybackQueueNavigationCommand.RestartCurrent,
@@ -196,11 +205,14 @@ class DesktopPlaybackController(
     ) {
         setOpenPlayerOnTrackStart(false)
         when (val command = queueManager.jumpCommand(playbackQueue(), index, moveSelectedToCurrent)) {
-            is PlaybackQueueNavigationCommand.JumpTo -> playlistEngine.jumpTo(
-                scope = scope,
-                index = command.index,
-                moveSelectedToCurrent = command.moveSelectedToCurrent,
-            )
+            is PlaybackQueueNavigationCommand.JumpTo -> {
+                reportCurrentTrackStopped()
+                playlistEngine.jumpTo(
+                    scope = scope,
+                    index = command.index,
+                    moveSelectedToCurrent = command.moveSelectedToCurrent,
+                )
+            }
             PlaybackQueueNavigationCommand.None,
             PlaybackQueueNavigationCommand.Previous,
             PlaybackQueueNavigationCommand.Next,
@@ -264,6 +276,10 @@ class DesktopPlaybackController(
                 }
             }
         }
+    }
+
+    private fun reportCurrentTrackStopped() {
+        maybeReportPlaybackState(PlaybackState.Stopped, playbackProgress())
     }
 
 }

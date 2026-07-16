@@ -15,6 +15,7 @@ import app.naviamp.domain.playback.PlaybackQueueControlManager
 import app.naviamp.domain.playback.PlaybackQueueController
 import app.naviamp.domain.playback.PlaybackQueueSelection
 import app.naviamp.domain.playback.PlaybackSource
+import app.naviamp.domain.playback.PlaybackState
 import app.naviamp.domain.playback.planPlaybackSeek
 import app.naviamp.domain.playback.shouldReplayCurrentForSeek
 import app.naviamp.domain.queue.PlaybackQueue
@@ -166,13 +167,19 @@ internal class AndroidPlaybackAppController(
             if (offset > 0) appendSonicAutoplayAndAdvance()
             return
         }
+        reportCurrentTrackStopped()
         playQueueSelection(selection, removePlayedHistory = finishedTrack && offset > 0)
     }
 
     fun playQueueTrack(index: Int) {
         queueController.jumpTo(index)?.let { selection ->
+            reportCurrentTrackStopped()
             playQueueSelection(selection)
         }
+    }
+
+    private fun reportCurrentTrackStopped() {
+        playbackReportController.maybeReportPlaybackState(PlaybackState.Stopped, state.playbackProgress)
     }
 
     private fun playQueueSelection(

@@ -158,6 +158,7 @@ internal class AndroidServicePlaybackRuntimeController(
         val sourceId = serviceMediaSource(storage)?.id ?: return
         val session = storage.loadPlaybackSession(sourceId) ?: return
         val nextSession = session.adjacentTrackSession(delta) ?: return
+        maybeReportServicePlaybackState(PlaybackState.Stopped)
         storage.savePlaybackSession(sourceId = sourceId, session = nextSession)
         playSavedSession(nextSession)
     }
@@ -184,6 +185,7 @@ internal class AndroidServicePlaybackRuntimeController(
             "NaviampAutoCommand",
             "Service-owned queue advancing delta=$delta from=${currentQueueIndex()} to=${update.queue.currentIndex} size=${update.queue.tracks.size}",
         )
+        maybeReportServicePlaybackState(PlaybackState.Stopped)
         val selectingPreparedNext =
             delta == 1 && queueController.preparedNextIndex == update.queue.currentIndex
         queueController.replaceQueue(

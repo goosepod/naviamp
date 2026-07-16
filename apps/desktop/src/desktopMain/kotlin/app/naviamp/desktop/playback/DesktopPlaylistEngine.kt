@@ -523,6 +523,7 @@ class DesktopPlaylistEngine(
         if (activeSessionId != queueController.playbackSessionId) return
 
         if (state == PlaybackState.Finished) {
+            callbacks?.onPlaybackStateChanged(state)
             var selection = queueController.finishedSelection(removePlayedTracksFromQueue)
             if (selection == null && removePlayedTracksFromQueue) {
                 callbacks?.onQueueChanged(queueController.queue)
@@ -542,7 +543,6 @@ class DesktopPlaylistEngine(
                 playQueueSelection(scope, selection)
                 return
             }
-            callbacks?.onPlaybackStateChanged(state)
         } else {
             callbacks?.onPlaybackStateChanged(state)
         }
