@@ -20,6 +20,11 @@ data class Artist(
     val favoritedAtIso8601: String? = null,
 )
 
+data class ArtistCredit(
+    val id: ArtistId?,
+    val name: String,
+)
+
 data class ArtistDetails(
     val artist: Artist,
     val albums: List<Album>,
@@ -43,6 +48,7 @@ data class Album(
     val favoritedAtIso8601: String? = null,
     val releaseTypes: List<String> = emptyList(),
     val explicitStatus: AlbumExplicitStatus = AlbumExplicitStatus.Unknown,
+    val artistCredits: List<ArtistCredit> = emptyList(),
 )
 
 @Serializable
@@ -76,7 +82,28 @@ data class Track(
     val playCount: Int? = null,
     val lastPlayedAtIso8601: String? = null,
     val musicFolderId: String? = null,
+    val artistCredits: List<ArtistCredit> = emptyList(),
 )
+
+fun Track.resolvedArtistCredits(): List<ArtistCredit> =
+    artistCredits
+        .filter { it.name.isNotBlank() }
+        .distinctBy { credit -> credit.id?.value ?: credit.name.lowercase() }
+        .ifEmpty {
+            listOfNotNull(
+                artistName.takeIf { it.isNotBlank() }?.let { ArtistCredit(artistId, it) },
+            )
+        }
+
+fun Album.resolvedArtistCredits(): List<ArtistCredit> =
+    artistCredits
+        .filter { it.name.isNotBlank() }
+        .distinctBy { credit -> credit.id?.value ?: credit.name.lowercase() }
+        .ifEmpty {
+            listOfNotNull(
+                artistName.takeIf { it.isNotBlank() }?.let { ArtistCredit(id = null, name = it) },
+            )
+        }
 
 data class AudioInfo(
     val codec: String?,

@@ -99,7 +99,13 @@ data class SharedTrackRowUi(
     val canToggleFavorite: Boolean = true,
     val hasAlbum: Boolean = false,
     val hasArtist: Boolean = false,
+    val artistCredits: List<SharedArtistCreditUi> = emptyList(),
     val detailSections: List<NaviampDetailSectionUi> = emptyList(),
+)
+
+data class SharedArtistCreditUi(
+    val id: String?,
+    val name: String,
 )
 
 enum class SharedTrackRowAction {
@@ -564,6 +570,7 @@ data class NowPlayingUi(
     val id: String = "",
     val title: String,
     val subtitle: String,
+    val artistCredits: List<SharedArtistCreditUi> = emptyList(),
     val stateLabel: String,
     val coverArtUrl: String? = null,
     val isLive: Boolean = false,

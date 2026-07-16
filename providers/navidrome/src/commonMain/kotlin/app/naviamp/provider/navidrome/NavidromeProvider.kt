@@ -5,6 +5,7 @@ import app.naviamp.domain.AlbumDetails
 import app.naviamp.domain.AlbumExplicitStatus
 import app.naviamp.domain.AlbumId
 import app.naviamp.domain.Artist
+import app.naviamp.domain.ArtistCredit
 import app.naviamp.domain.ArtistDetails
 import app.naviamp.domain.ArtistId
 import app.naviamp.domain.ArtistInfo
@@ -1463,6 +1464,7 @@ class NavidromeProvider(
                 "clean" -> AlbumExplicitStatus.Clean
                 else -> AlbumExplicitStatus.Unknown
             },
+            artistCredits = structuredArtistCredits(),
         )
 
     private fun JsonObject.toArtist(): Artist =
@@ -1553,7 +1555,21 @@ class NavidromeProvider(
                 ?: stringValue("lastPlayed")
                 ?: stringValue("lastPlayedAt"),
             musicFolderId = stringValue("musicFolderId"),
+            artistCredits = structuredArtistCredits(),
         )
+
+    private fun JsonObject.structuredArtistCredits(): List<ArtistCredit> =
+        arrayValue("artists")
+            .mapNotNull { value ->
+                val artist = value as? JsonObject ?: return@mapNotNull null
+                val name = artist.stringValue("name")?.trim()?.takeIf { it.isNotEmpty() }
+                    ?: return@mapNotNull null
+                ArtistCredit(
+                    id = artist.stringValue("id")?.trim()?.takeIf { it.isNotEmpty() }?.let(::ArtistId),
+                    name = name,
+                )
+            }
+            .distinctBy { credit -> credit.id?.value ?: credit.name.lowercase() }
 
     private suspend fun <T> forSelectedMusicFolders(
         block: suspend (musicFolderId: String?) -> List<T>,

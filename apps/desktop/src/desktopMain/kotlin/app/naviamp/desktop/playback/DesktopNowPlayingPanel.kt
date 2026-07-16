@@ -226,6 +226,8 @@ fun DesktopNowPlayingPanel(
                             playlistChoice = request.playlistChoice,
                             playlistName = request.playlistName,
                             rating = request.rating,
+                            artistId = request.artistId,
+                            artistName = request.artistName,
                         ),
                     )
                 }

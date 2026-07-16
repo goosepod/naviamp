@@ -1,6 +1,7 @@
 package app.naviamp.ui
 
 import app.naviamp.domain.Artist
+import app.naviamp.domain.ArtistCredit
 import app.naviamp.domain.ArtistDetails
 import app.naviamp.domain.ArtistId
 import app.naviamp.domain.ArtistInfo
@@ -65,6 +66,10 @@ class MediaUiMappersTest {
             audioInfo = null,
             replayGain = null,
             favoritedAtIso8601 = "2026-07-13T00:00:00Z",
+            artistCredits = listOf(
+                ArtistCredit(ArtistId("artist-1"), "Artist"),
+                ArtistCredit(ArtistId("artist-2"), "Featured Artist"),
+            ),
         )
 
         val ui = track.toSharedTrackRowUi(coverArtUrl = { null })
@@ -73,6 +78,8 @@ class MediaUiMappersTest {
         assertTrue(ui.canToggleFavorite)
         assertTrue(ui.hasAlbum)
         assertTrue(ui.hasArtist)
+        assertEquals(listOf("artist-1", "artist-2"), ui.artistCredits.mapNotNull { it.id })
+        assertEquals(listOf("Artist", "Featured Artist"), ui.artistCredits.map { it.name })
     }
 
     @Test

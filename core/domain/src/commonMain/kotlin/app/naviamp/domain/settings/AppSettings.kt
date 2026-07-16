@@ -3,6 +3,7 @@ package app.naviamp.domain.settings
 import app.naviamp.domain.Album
 import app.naviamp.domain.AlbumId
 import app.naviamp.domain.Artist
+import app.naviamp.domain.ArtistCredit
 import app.naviamp.domain.ArtistId
 import app.naviamp.domain.AudioInfo
 import app.naviamp.domain.AudioCodec
@@ -734,6 +735,7 @@ data class SavedTrack(
     val playCount: Int? = null,
     val lastPlayedAtIso8601: String? = null,
     val musicFolderId: String? = null,
+    val artistCredits: List<SavedArtistCredit> = emptyList(),
 ) {
     fun toTrack(): Track =
         Track(
@@ -755,6 +757,7 @@ data class SavedTrack(
             playCount = playCount,
             lastPlayedAtIso8601 = lastPlayedAtIso8601,
             musicFolderId = musicFolderId,
+            artistCredits = artistCredits.map { it.toArtistCredit() },
         )
 
     companion object {
@@ -777,7 +780,21 @@ data class SavedTrack(
                 playCount = track.playCount,
                 lastPlayedAtIso8601 = track.lastPlayedAtIso8601,
                 musicFolderId = track.musicFolderId,
+                artistCredits = track.artistCredits.map(SavedArtistCredit::fromArtistCredit),
             )
+    }
+}
+
+@Serializable
+data class SavedArtistCredit(
+    val id: String? = null,
+    val name: String,
+) {
+    fun toArtistCredit(): ArtistCredit = ArtistCredit(id?.let(::ArtistId), name)
+
+    companion object {
+        fun fromArtistCredit(credit: ArtistCredit): SavedArtistCredit =
+            SavedArtistCredit(id = credit.id?.value, name = credit.name)
     }
 }
 

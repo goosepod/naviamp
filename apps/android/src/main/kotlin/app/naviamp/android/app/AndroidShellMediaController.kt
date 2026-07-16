@@ -2,6 +2,7 @@ package app.naviamp.android
 
 import app.naviamp.android.playback.AndroidPlaybackEngine
 import app.naviamp.domain.Album
+import app.naviamp.domain.ArtistId
 import app.naviamp.domain.InternetRadioStation
 import app.naviamp.domain.Track
 import app.naviamp.domain.home.HomeStationLibrary
@@ -184,9 +185,12 @@ internal class AndroidShellMediaController(
         deleteAndroidInternetRadioStation(scope, state, internetRadioStationManager, station)
     }
 
-    fun handleShellGoToArtist() {
+    fun handleShellGoToArtist(artistId: String?, artistName: String?) {
         val currentTrack = state.nowPlaying ?: return
-        currentTrack.artistId?.let { openArtistDetails(it, currentTrack.artistName) }
+        val selectedArtistId = artistId?.takeIf { it.isNotBlank() }?.let(::ArtistId) ?: currentTrack.artistId
+        selectedArtistId?.let {
+            openArtistDetails(it, artistName?.takeIf(String::isNotBlank) ?: currentTrack.artistName)
+        }
     }
 
     fun handleTrackGoToArtist(track: Track) {

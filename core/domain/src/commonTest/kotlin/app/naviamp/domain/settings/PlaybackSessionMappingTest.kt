@@ -1,6 +1,8 @@
 package app.naviamp.domain.settings
 
 import app.naviamp.domain.InternetRadioStation
+import app.naviamp.domain.ArtistCredit
+import app.naviamp.domain.ArtistId
 import app.naviamp.domain.Track
 import app.naviamp.domain.TrackId
 import app.naviamp.domain.playback.PlaybackProgress
@@ -9,6 +11,22 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 
 class PlaybackSessionMappingTest {
+    @Test
+    fun playbackSessionPreservesStructuredArtistCredits() {
+        val original = track("multi").copy(
+            artistCredits = listOf(
+                ArtistCredit(ArtistId("artist-1"), "Artist One"),
+                ArtistCredit(ArtistId("artist-2"), "Artist Two"),
+            ),
+        )
+
+        val restored = PlaybackSessionSettings.fromTracks(listOf(original), currentIndex = 0)
+            ?.toTracks()
+            ?.single()
+
+        assertEquals(original.artistCredits, restored?.artistCredits)
+    }
+
     @Test
     fun restoredTrackSessionBuildsQueueAndProgressFromSavedSession() {
         val session = PlaybackSessionSettings.fromTracks(

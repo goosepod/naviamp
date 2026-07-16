@@ -192,7 +192,7 @@ fun androidAppShellActions(
     handleCancelSleepTimer: () -> Unit,
     downloadTrack: (Track) -> Unit,
     handleShellGoToAlbum: () -> Unit,
-    handleShellGoToArtist: () -> Unit,
+    handleShellGoToArtist: (artistId: String?, artistName: String?) -> Unit,
     handleTrackGoToAlbum: (Track) -> Unit,
     handleTrackGoToArtist: (Track) -> Unit,
     handleShellQueueItemRadio: (NaviampNowPlayingItemUi) -> Unit,
@@ -619,7 +619,8 @@ fun androidAppShellActions(
                         request.playlistName?.let(handleNowPlayingCreatePlaylistAndAdd)
                     NowPlayingCurrentTrackAction.Download -> nowPlaying?.let(downloadTrack)
                     NowPlayingCurrentTrackAction.GoToAlbum -> handleShellGoToAlbum()
-                    NowPlayingCurrentTrackAction.GoToArtist -> handleShellGoToArtist()
+                    NowPlayingCurrentTrackAction.GoToArtist ->
+                        handleShellGoToArtist(request.artistId, request.artistName)
                     NowPlayingCurrentTrackAction.ToggleFavorite -> toggleCurrentFavorite()
                     NowPlayingCurrentTrackAction.SetRating -> handleShellRatingSelected(request.rating)
                 }

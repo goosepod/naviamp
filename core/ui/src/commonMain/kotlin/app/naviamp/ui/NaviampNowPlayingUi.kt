@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.requiredHeight
@@ -102,6 +103,7 @@ data class NaviampNowPlayingItemUi(
     val favoriteActive: Boolean = false,
     val hasAlbum: Boolean = false,
     val hasArtist: Boolean = false,
+    val artistCredits: List<SharedArtistCreditUi> = emptyList(),
     val playNextPriority: Boolean = false,
 )
 
@@ -168,6 +170,7 @@ data class NaviampNowPlayingActions(
         playlistChoice: NaviampPlaylistChoiceUi? = null,
         playlistName: String? = null,
         rating: Int? = null,
+        artistCredit: SharedArtistCreditUi? = null,
     ) {
         onCurrentTrackAction(
             NowPlayingCurrentTrackUiActionRequest(
@@ -175,6 +178,8 @@ data class NaviampNowPlayingActions(
                 playlistChoice = playlistChoice,
                 playlistName = playlistName,
                 rating = rating,
+                artistId = artistCredit?.id,
+                artistName = artistCredit?.name,
             ),
         )
     }
@@ -723,17 +728,51 @@ private fun NowPlayingDetails(
                         marqueeEnabled = displaySettings.scrollTrackTitle && nowPlaying.id.isNotBlank(),
                         modifier = Modifier.fillMaxWidth(),
                     )
-                    NowPlayingIdentityText(
-                        text = nowPlaying.subtitle,
-                        color = colors.secondaryText,
-                        fontSize = metadataFontSize,
-                        height = metadataLineHeight.value.dp,
-                        marqueeEnabled = displaySettings.scrollArtistName && !nowPlaying.isLive,
-                        modifier = Modifier.clickable(
-                            enabled = !nowPlaying.isLive,
-                            onClick = { actions.currentTrack(NowPlayingCurrentTrackAction.GoToArtist) },
-                        ),
-                    )
+                    if (!nowPlaying.isLive && nowPlaying.artistCredits.size > 1) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.Center,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(metadataLineHeight.value.dp)
+                                .horizontalScroll(rememberScrollState()),
+                        ) {
+                            nowPlaying.artistCredits.forEachIndexed { index, credit ->
+                                if (index > 0) {
+                                    Text("  •  ", color = colors.mutedText, fontSize = metadataFontSize.sp)
+                                }
+                                Text(
+                                    text = credit.name,
+                                    color = colors.secondaryText,
+                                    fontSize = metadataFontSize.sp,
+                                    modifier = Modifier.clickable(enabled = credit.id != null) {
+                                        actions.currentTrack(
+                                            action = NowPlayingCurrentTrackAction.GoToArtist,
+                                            artistCredit = credit,
+                                        )
+                                    },
+                                )
+                            }
+                        }
+                    } else {
+                        val artistCredit = nowPlaying.artistCredits.firstOrNull()
+                        NowPlayingIdentityText(
+                            text = nowPlaying.subtitle,
+                            color = colors.secondaryText,
+                            fontSize = metadataFontSize,
+                            height = metadataLineHeight.value.dp,
+                            marqueeEnabled = displaySettings.scrollArtistName && !nowPlaying.isLive,
+                            modifier = Modifier.clickable(
+                                enabled = !nowPlaying.isLive,
+                                onClick = {
+                                    actions.currentTrack(
+                                        action = NowPlayingCurrentTrackAction.GoToArtist,
+                                        artistCredit = artistCredit,
+                                    )
+                                },
+                            ),
+                        )
+                    }
                     val albumText = when {
                         nowPlaying.isLive -> "Live stream"
                         nowPlaying.albumTitle.isNotBlank() && displaySettings.showAlbumYear && nowPlaying.albumYear != null ->

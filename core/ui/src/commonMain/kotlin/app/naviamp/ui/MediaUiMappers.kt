@@ -12,6 +12,7 @@ import app.naviamp.domain.Playlist
 import app.naviamp.domain.StreamQuality
 import app.naviamp.domain.Track
 import app.naviamp.domain.TrackId
+import app.naviamp.domain.resolvedArtistCredits
 import app.naviamp.domain.isInternetRadioTrack
 import app.naviamp.domain.audio.AudioTag
 import app.naviamp.domain.audio.replayGainFromAudioTags
@@ -213,7 +214,8 @@ fun Track.toSharedTrackRowUi(
         popular = popular,
         favoriteActive = favoritedAtIso8601 != null,
         hasAlbum = albumId != null,
-        hasArtist = artistId != null,
+        hasArtist = resolvedArtistCredits().any { it.id != null },
+        artistCredits = toSharedArtistCreditUis(),
         detailSections = toNowPlayingDetailSections(),
     )
 
@@ -243,7 +245,8 @@ fun Track.toNowPlayingItemUi(coverArtUrl: (String?) -> String?): NaviampNowPlayi
         coverArtUrl = coverArtUrl(coverArtId),
         favoriteActive = favoritedAtIso8601 != null,
         hasAlbum = albumId != null,
-        hasArtist = artistId != null,
+        hasArtist = resolvedArtistCredits().any { it.id != null },
+        artistCredits = toSharedArtistCreditUis(),
     )
 
 fun Track.toNowPlayingItemUi(
@@ -259,7 +262,8 @@ fun Track.toNowPlayingItemUi(
         coverArtUrl = coverArtUrl,
         favoriteActive = favoritedAtIso8601 != null,
         hasAlbum = albumId != null,
-        hasArtist = artistId != null,
+        hasArtist = resolvedArtistCredits().any { it.id != null },
+        artistCredits = toSharedArtistCreditUis(),
     )
 
 fun List<Track>.toNowPlayingItemUis(
@@ -273,6 +277,11 @@ fun List<Track>.toNowPlayingItemUis(
             coverArtUrl = coverArtUrl(track),
             meta = meta(track),
         )
+    }
+
+fun Track.toSharedArtistCreditUis(): List<SharedArtistCreditUi> =
+    resolvedArtistCredits().map { credit ->
+        SharedArtistCreditUi(id = credit.id?.value, name = credit.name)
     }
 
 enum class NowPlayingSectionItemIds {
@@ -439,6 +448,8 @@ data class NowPlayingCurrentTrackActionRequest(
     val playlistChoice: NaviampPlaylistChoiceUi? = null,
     val playlistName: String? = null,
     val rating: Int? = null,
+    val artistId: String? = null,
+    val artistName: String? = null,
 )
 
 data class NowPlayingCurrentTrackUiActionRequest(
@@ -446,6 +457,8 @@ data class NowPlayingCurrentTrackUiActionRequest(
     val playlistChoice: NaviampPlaylistChoiceUi? = null,
     val playlistName: String? = null,
     val rating: Int? = null,
+    val artistId: String? = null,
+    val artistName: String? = null,
 )
 
 enum class NowPlayingPlaybackAction {
@@ -956,6 +969,7 @@ fun Track.toNowPlayingUi(config: NowPlayingTrackUiConfig): NowPlayingUi =
         id = id.value,
         title = title,
         subtitle = artistName,
+        artistCredits = toSharedArtistCreditUis(),
         stateLabel = config.stateLabel,
         coverArtUrl = config.coverArtUrl,
         albumLine = nowPlayingAlbumLine(),

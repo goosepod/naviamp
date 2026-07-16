@@ -5,6 +5,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import app.naviamp.domain.Track
+import app.naviamp.domain.Artist
+import app.naviamp.domain.ArtistId
 import app.naviamp.domain.internetRadioStationId
 import app.naviamp.domain.isInternetRadioTrack
 import app.naviamp.domain.playback.PlaybackEngine
@@ -127,8 +129,20 @@ internal fun ColumnScope.DesktopPlayerRouteContent(
                     appActions.downloadTrack(request.track)
                 NowPlayingCurrentTrackAction.GoToAlbum ->
                     appActions.openTrackAlbumDetails(request.track)
-                NowPlayingCurrentTrackAction.GoToArtist ->
-                    appActions.openTrackArtistDetails(request.track)
+                NowPlayingCurrentTrackAction.GoToArtist -> {
+                    val artistId = request.artistId
+                    if (artistId != null) {
+                        appActions.openArtistDetails(
+                            Artist(
+                                id = ArtistId(artistId),
+                                name = request.artistName?.ifBlank { request.track.artistName } ?: request.track.artistName,
+                            ),
+                            backRouteOverride = DesktopAppRoute.Player,
+                        )
+                    } else {
+                        appActions.openTrackArtistDetails(request.track)
+                    }
+                }
                 NowPlayingCurrentTrackAction.ToggleFavorite ->
                     appActions.toggleTrackFavorite(request.track)
                 NowPlayingCurrentTrackAction.SetRating ->

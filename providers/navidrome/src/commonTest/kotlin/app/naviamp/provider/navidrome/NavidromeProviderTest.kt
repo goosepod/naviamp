@@ -408,6 +408,10 @@ class NavidromeProviderTest {
                       "id": "album-1",
                       "name": "Low-Life",
                       "artist": "New Order",
+                      "artists": [
+                        {"id": "artist-1", "name": "New Order"},
+                        {"id": "artist-2", "name": "Gillian Gilbert"}
+                      ],
                       "coverArt": "cover-1",
                       "year": 1985,
                       "created": "2026-05-08T12:00:00Z",
@@ -420,6 +424,10 @@ class NavidromeProviderTest {
                           "title": "Love Vigilantes",
                           "artistId": "artist-1",
                           "artist": "New Order",
+                          "artists": [
+                            {"id": "artist-1", "name": "New Order"},
+                            {"id": "artist-3", "name": "Arthur Baker"}
+                          ],
                           "albumId": "album-1",
                           "album": "Low-Life",
                           "year": 1985,
@@ -458,6 +466,9 @@ class NavidromeProviderTest {
         assertEquals("track-1", details.tracks.first().id.value)
         assertEquals("Love Vigilantes", details.tracks.first().title)
         assertEquals("artist-1", details.tracks.first().artistId?.value)
+        assertEquals(listOf("artist-1", "artist-3"), details.tracks.first().artistCredits.mapNotNull { it.id?.value })
+        assertEquals(listOf("New Order", "Arthur Baker"), details.tracks.first().artistCredits.map { it.name })
+        assertEquals(listOf("New Order", "Gillian Gilbert"), details.album.artistCredits.map { it.name })
         assertEquals("album-1", details.tracks.first().albumId?.value)
         assertEquals(1985, details.album.releaseYear)
         assertEquals("2026-05-10T08:00:00Z", details.album.favoritedAtIso8601)
@@ -570,6 +581,10 @@ class NavidromeProviderTest {
                           "title": "Love Vigilantes",
                           "artistId": "artist-1",
                           "artist": "New Order",
+                          "artists": [
+                            {"id": "artist-1", "name": "New Order"},
+                            {"id": "artist-3", "name": "Arthur Baker"}
+                          ],
                           "albumId": "album-1",
                           "album": "Low-Life",
                           "year": 1985,
@@ -594,6 +609,7 @@ class NavidromeProviderTest {
         assertEquals("Low-Life", results.albums.first().title)
         assertEquals("Love Vigilantes", results.tracks.first().title)
         assertEquals("artist-1", results.tracks.first().artistId?.value)
+        assertEquals(listOf("New Order", "Arthur Baker"), results.tracks.first().artistCredits.map { it.name })
         assertEquals("album-1", results.tracks.first().albumId?.value)
         assertEquals(1985, results.albums.first().releaseYear)
         assertEquals(1985, results.tracks.first().albumReleaseYear)
