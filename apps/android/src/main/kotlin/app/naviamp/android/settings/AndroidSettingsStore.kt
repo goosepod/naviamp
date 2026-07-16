@@ -20,6 +20,10 @@ import app.naviamp.domain.settings.DownloadedTrackPlayback
 import app.naviamp.domain.settings.InterfaceLanguage
 import app.naviamp.domain.settings.AlbumCollectionLayout
 import app.naviamp.domain.settings.AlbumSortOrder
+import app.naviamp.domain.settings.AppBackgroundStyle
+import app.naviamp.domain.settings.AuroraTone
+import app.naviamp.domain.settings.DefaultSingleColorHex
+import app.naviamp.domain.settings.DefaultAlbumBlurRadiusDp
 import app.naviamp.domain.settings.InterfaceSettings
 import app.naviamp.domain.settings.NowPlayingDisplaySettings
 import app.naviamp.domain.settings.LyricsSourcePreference
@@ -185,6 +189,10 @@ class AndroidSettingsStore(
             language = enumPreference(KeyInterfaceLanguage, InterfaceLanguage.System),
             checkForUpdates = preferences.getBoolean(KeyCheckForUpdates, true),
             startPlayingOnLaunch = preferences.getBoolean(KeyStartPlayingOnLaunch, false),
+            appBackgroundStyle = enumPreference(KeyAppBackgroundStyle, AppBackgroundStyle.Aurora),
+            auroraTone = enumPreference(KeyAuroraTone, AuroraTone.Dark),
+            albumBlurRadiusDp = preferences.getInt(KeyAlbumBlurRadiusDp, DefaultAlbumBlurRadiusDp),
+            singleColorHex = preferences.getString(KeySingleColorHex, DefaultSingleColorHex).orEmpty(),
             albumCollectionLayout = enumPreference(KeyAlbumCollectionLayout, AlbumCollectionLayout.List),
             albumSortOrder = enumPreference(KeyAlbumSortOrder, AlbumSortOrder.ReleaseYearAscending),
             groupAlbumsByReleaseType = preferences.getBoolean(KeyGroupAlbumsByReleaseType, true),
@@ -216,6 +224,10 @@ class AndroidSettingsStore(
             .putString(KeyInterfaceLanguage, settings.normalized().language.name)
             .putBoolean(KeyCheckForUpdates, settings.normalized().checkForUpdates)
             .putBoolean(KeyStartPlayingOnLaunch, settings.normalized().startPlayingOnLaunch)
+            .putString(KeyAppBackgroundStyle, settings.normalized().appBackgroundStyle.name)
+            .putString(KeyAuroraTone, settings.normalized().auroraTone.name)
+            .putInt(KeyAlbumBlurRadiusDp, settings.normalized().albumBlurRadiusDp)
+            .putString(KeySingleColorHex, settings.normalized().singleColorHex)
             .putString(KeyAlbumCollectionLayout, settings.normalized().albumCollectionLayout.name)
             .putString(KeyAlbumSortOrder, settings.normalized().albumSortOrder.name)
             .putBoolean(KeyGroupAlbumsByReleaseType, settings.normalized().groupAlbumsByReleaseType)
@@ -587,6 +599,10 @@ private const val KeyDebugLoggingEnabled = "debug_logging_enabled"
 private const val KeyCheckForUpdates = "check_for_updates"
 private const val KeyStartPlayingOnLaunch = "start_playing_on_launch"
 private const val KeyShowDesktopTooltips = "show_desktop_tooltips"
+private const val KeyAppBackgroundStyle = "app_background_style"
+private const val KeyAuroraTone = "aurora_tone"
+private const val KeyAlbumBlurRadiusDp = "album_blur_radius_dp"
+private const val KeySingleColorHex = "single_color_hex"
 private const val KeyAlbumCollectionLayout = "album_collection_layout"
 private const val KeyAlbumSortOrder = "album_sort_order"
 private const val KeyGroupAlbumsByReleaseType = "group_albums_by_release_type"

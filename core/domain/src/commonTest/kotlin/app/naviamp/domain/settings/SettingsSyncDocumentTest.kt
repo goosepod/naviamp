@@ -42,6 +42,10 @@ class SettingsSyncDocumentTest {
             preferences = SettingsSyncPreferences(
                 interfaceSettings = InterfaceSettings(
                     startPlayingOnLaunch = true,
+                    appBackgroundStyle = AppBackgroundStyle.AlbumBlur,
+                    auroraTone = AuroraTone.Light,
+                    albumBlurRadiusDp = 40,
+                    singleColorHex = "#123456",
                     nowPlaying = NowPlayingDisplaySettings(
                         showAlbumYear = false,
                         showAudioInfo = false,
@@ -92,6 +96,10 @@ class SettingsSyncDocumentTest {
         assertEquals("Road DJ", decoded.preferences.playback.radioDjs.single().name)
         assertEquals("Waveform", decoded.preferences.visualizer.selectedVisualizer)
         assertTrue(decoded.preferences.interfaceSettings.startPlayingOnLaunch)
+        assertEquals(AppBackgroundStyle.AlbumBlur, decoded.preferences.interfaceSettings.appBackgroundStyle)
+        assertEquals(AuroraTone.Light, decoded.preferences.interfaceSettings.auroraTone)
+        assertEquals(40, decoded.preferences.interfaceSettings.albumBlurRadiusDp)
+        assertEquals("#123456", decoded.preferences.interfaceSettings.singleColorHex)
         assertFalse(decoded.preferences.interfaceSettings.nowPlaying.showAlbumYear)
         assertFalse(decoded.preferences.interfaceSettings.nowPlaying.showAudioInfo)
         assertFalse(decoded.preferences.interfaceSettings.nowPlaying.showVolumeBar)
@@ -105,6 +113,17 @@ class SettingsSyncDocumentTest {
         assertEquals(TrackSwipeAction.GoToArtist, decoded.preferences.interfaceSettings.trackSwipes.relatedLeft)
         assertEquals(TrackSwipeAction.MoveDown, decoded.preferences.interfaceSettings.trackSwipes.playlistEditRight)
         assertEquals(TrackSwipeAction.MoveToBottom, decoded.preferences.interfaceSettings.trackSwipes.playlistEditLeft)
+    }
+
+    @Test
+    fun interfaceBackgroundDefaultsAndNormalizesHexColor() {
+        assertEquals(AppBackgroundStyle.Aurora, InterfaceSettings().appBackgroundStyle)
+        assertEquals(AuroraTone.Dark, InterfaceSettings().auroraTone)
+        assertEquals(DefaultAlbumBlurRadiusDp, InterfaceSettings().albumBlurRadiusDp)
+        assertEquals(MaxAlbumBlurRadiusDp, InterfaceSettings(albumBlurRadiusDp = 999).normalized().albumBlurRadiusDp)
+        assertEquals(MinAlbumBlurRadiusDp, InterfaceSettings(albumBlurRadiusDp = -1).normalized().albumBlurRadiusDp)
+        assertEquals("#A1B2C3", InterfaceSettings(singleColorHex = "a1b2c3").normalized().singleColorHex)
+        assertEquals(DefaultSingleColorHex, InterfaceSettings(singleColorHex = "not-a-color").normalized().singleColorHex)
     }
 
     @Test

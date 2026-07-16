@@ -128,13 +128,48 @@ data class InterfaceSettings(
     val checkForUpdates: Boolean = true,
     val startPlayingOnLaunch: Boolean = false,
     val showDesktopTooltips: Boolean = true,
+    val appBackgroundStyle: AppBackgroundStyle = AppBackgroundStyle.Aurora,
+    val auroraTone: AuroraTone = AuroraTone.Dark,
+    val albumBlurRadiusDp: Int = DefaultAlbumBlurRadiusDp,
+    val singleColorHex: String = DefaultSingleColorHex,
     val albumCollectionLayout: AlbumCollectionLayout = AlbumCollectionLayout.List,
     val albumSortOrder: AlbumSortOrder = AlbumSortOrder.ReleaseYearAscending,
     val groupAlbumsByReleaseType: Boolean = true,
     val nowPlaying: NowPlayingDisplaySettings = NowPlayingDisplaySettings(),
     val trackSwipes: TrackSwipeSettings = TrackSwipeSettings(),
 ) {
-    fun normalized(): InterfaceSettings = copy(nowPlaying = nowPlaying.normalized())
+    fun normalized(): InterfaceSettings = copy(
+        albumBlurRadiusDp = albumBlurRadiusDp.coerceIn(MinAlbumBlurRadiusDp, MaxAlbumBlurRadiusDp),
+        singleColorHex = normalizedSingleColorHex(singleColorHex),
+        nowPlaying = nowPlaying.normalized(),
+    )
+}
+
+@Serializable
+enum class AppBackgroundStyle(val label: String) {
+    Aurora("Aurora"),
+    AlbumBlur("Album Blur"),
+    SingleColor("Single Color"),
+}
+
+@Serializable
+enum class AuroraTone(val label: String) {
+    Dark("Dark"),
+    Light("Light"),
+}
+
+const val DefaultSingleColorHex = "#32253F"
+const val MinAlbumBlurRadiusDp = 8
+const val MaxAlbumBlurRadiusDp = 48
+const val DefaultAlbumBlurRadiusDp = 28
+
+fun normalizedSingleColorHex(value: String): String {
+    val digits = value.trim().removePrefix("#")
+    return if (digits.length == 6 && digits.all { it.isDigit() || it.lowercaseChar() in 'a'..'f' }) {
+        "#${digits.uppercase()}"
+    } else {
+        DefaultSingleColorHex
+    }
 }
 
 @Serializable

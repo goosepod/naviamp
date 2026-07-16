@@ -17,6 +17,8 @@ import kotlin.test.assertEquals
 import app.naviamp.domain.settings.InterfaceSettings
 import app.naviamp.domain.settings.AlbumCollectionLayout
 import app.naviamp.domain.settings.AlbumSortOrder
+import app.naviamp.domain.settings.AppBackgroundStyle
+import app.naviamp.domain.settings.AuroraTone
 import app.naviamp.domain.settings.NowPlayingDisplaySettings
 import app.naviamp.domain.settings.SampleRateConverter
 import app.naviamp.domain.settings.SampleRateMatching
@@ -84,6 +86,26 @@ class DesktopSettingsStoreTest {
         assertEquals(AlbumCollectionLayout.Grid, store.loadInterfaceSettings().albumCollectionLayout)
         assertEquals(AlbumSortOrder.Title, store.loadInterfaceSettings().albumSortOrder)
         assertEquals(false, store.loadInterfaceSettings().groupAlbumsByReleaseType)
+    }
+
+    @Test
+    fun saveInterfaceSettingsRoundTripsAppBackground() {
+        val path = createTempDirectory().resolve("settings.json")
+        val store = DesktopSettingsStore(path)
+
+        store.saveInterfaceSettings(
+            InterfaceSettings(
+                appBackgroundStyle = AppBackgroundStyle.SingleColor,
+                auroraTone = AuroraTone.Light,
+                albumBlurRadiusDp = 36,
+                singleColorHex = "#1a2b3c",
+            ),
+        )
+
+        assertEquals(AppBackgroundStyle.SingleColor, store.loadInterfaceSettings().appBackgroundStyle)
+        assertEquals(AuroraTone.Light, store.loadInterfaceSettings().auroraTone)
+        assertEquals(36, store.loadInterfaceSettings().albumBlurRadiusDp)
+        assertEquals("#1A2B3C", store.loadInterfaceSettings().singleColorHex)
     }
 
     @Test

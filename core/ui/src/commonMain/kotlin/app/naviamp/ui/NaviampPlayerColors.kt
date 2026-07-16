@@ -3,10 +3,12 @@ package app.naviamp.ui
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import app.naviamp.domain.settings.AuroraTone
 import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.pow
+import kotlin.math.roundToInt
 
 data class NaviampPlayerColors(
     val backgroundStart: Color,
@@ -27,6 +29,17 @@ data class NaviampPlayerColors(
     val gradientColors: List<Color>
         get() = listOf(backgroundStart, backgroundMid, backgroundEnd)
 
+    fun withAuroraTone(tone: AuroraTone): NaviampPlayerColors =
+        when (tone) {
+            AuroraTone.Dark -> this
+            AuroraTone.Light -> copy(
+                backgroundStart = backgroundStart.mix(Color.White, 0.18f),
+                backgroundMid = backgroundMid.mix(Color.White, 0.22f),
+                backgroundEnd = backgroundEnd.mix(Color.White, 0.26f),
+                accent = accent.mix(Color.White, 0.10f),
+            )
+        }
+
     companion object {
         fun solid(color: Color): NaviampPlayerColors =
             NaviampPlayerColors(
@@ -38,6 +51,16 @@ data class NaviampPlayerColors(
 
         fun fallback(colors: NaviampColors): NaviampPlayerColors =
             from(NaviampAlbumPalette.fallback(colors.albumArtPlaceholder), colors)
+
+        fun fromSingleColor(color: Color, colors: NaviampColors): NaviampPlayerColors =
+            from(
+                NaviampAlbumPalette(
+                    primary = color.vibrantVariant(hueShift = 0f, minimumValue = 0.48f),
+                    secondary = color.vibrantVariant(hueShift = 0.10f, minimumValue = 0.56f),
+                    accent = color.vibrantVariant(hueShift = -0.06f, minimumValue = 0.82f),
+                ),
+                colors,
+            )
 
         fun from(palette: NaviampAlbumPalette, colors: NaviampColors): NaviampPlayerColors {
             val secondary = if (palette.primary.hueDistance(palette.secondary) < 0.08f) {
@@ -86,6 +109,50 @@ data class NaviampPlayerColors(
             )
         }
     }
+}
+
+fun naviampColorFromHex(value: String): Color? {
+    val digits = value.trim().removePrefix("#")
+    if (digits.length != 6 || digits.any { !it.isDigit() && it.lowercaseChar() !in 'a'..'f' }) return null
+    val rgb = digits.toIntOrNull(16) ?: return null
+    return Color(
+        red = (rgb shr 16) and 0xFF,
+        green = (rgb shr 8) and 0xFF,
+        blue = rgb and 0xFF,
+    )
+}
+
+fun naviampColorToHex(color: Color): String =
+    buildString {
+        append('#')
+        listOf(color.red, color.green, color.blue).forEach { channel ->
+            append((channel * 255f).roundToInt().coerceIn(0, 255).toString(16).padStart(2, '0').uppercase())
+        }
+    }
+
+fun naviampColorToHsv(color: Color): FloatArray =
+    rgbToHsv(
+        red = (color.red * 255f).roundToInt(),
+        green = (color.green * 255f).roundToInt(),
+        blue = (color.blue * 255f).roundToInt(),
+    )
+
+fun naviampColorFromHsv(hue: Float, saturation: Float, value: Float): Color =
+    hsvToColor(
+        hue = ((hue % 1f) + 1f) % 1f,
+        saturation = saturation.coerceIn(0f, 1f),
+        value = value.coerceIn(0f, 1f),
+        alpha = 1f,
+    )
+
+private fun Color.vibrantVariant(hueShift: Float, minimumValue: Float): Color {
+    val hsv = rgbToHsv((red * 255).toInt(), (green * 255).toInt(), (blue * 255).toInt())
+    return hsvToColor(
+        hue = ((hsv[0] + hueShift) % 1f + 1f) % 1f,
+        saturation = hsv[1].coerceAtLeast(0.58f),
+        value = hsv[2].coerceAtLeast(minimumValue),
+        alpha = 1f,
+    )
 }
 
 data class NaviampAlbumPalette(

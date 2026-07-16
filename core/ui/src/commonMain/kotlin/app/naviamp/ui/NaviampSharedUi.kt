@@ -59,6 +59,8 @@ import app.naviamp.domain.settings.ConnectionFormSecondaryUrl
 import app.naviamp.domain.settings.InterfaceSettings
 import app.naviamp.domain.settings.AlbumCollectionLayout
 import app.naviamp.domain.settings.AlbumSortOrder
+import app.naviamp.domain.settings.AppBackgroundStyle
+import app.naviamp.domain.settings.DefaultSingleColorHex
 import app.naviamp.domain.settings.toggleSelectedMusicFolderId
 import app.naviamp.domain.smartplaylist.SmartPlaylistDefinition
 
@@ -404,10 +406,17 @@ fun NaviampSharedAppShell(
                 selectedRoute == SharedRoute.Radio ||
                 selectedRoute == SharedRoute.Downloads
             )
-    val nowPlayingPlayerColors = if (nowPlaying != null) {
+    val albumPlayerColors = if (nowPlaying != null) {
         rememberPlatformCoverArtPlayerColors(nowPlaying.coverArtUrl, colors)
     } else {
         NaviampPlayerColors.fallback(colors)
+    }
+    val singleBackgroundColor = naviampColorFromHex(interfaceSettings.singleColorHex)
+        ?: naviampColorFromHex(DefaultSingleColorHex)!!
+    val nowPlayingPlayerColors = when (interfaceSettings.appBackgroundStyle) {
+        AppBackgroundStyle.SingleColor -> NaviampPlayerColors.fromSingleColor(singleBackgroundColor, colors)
+        AppBackgroundStyle.Aurora -> albumPlayerColors.withAuroraTone(interfaceSettings.auroraTone)
+        AppBackgroundStyle.AlbumBlur -> albumPlayerColors
     }
     val nowPlayingActions = NaviampNowPlayingActions(
         onPlaybackAction = onNowPlayingPlaybackAction,
@@ -418,7 +427,6 @@ fun NaviampSharedAppShell(
         onSelectionAction = onNowPlayingSelectionAction,
         onQueueItemAction = onQueueItemAction,
     )
-    val backgroundGradientColors = nowPlayingPlayerColors.gradientColors
     MaterialTheme(
         colorScheme = darkColorScheme(
             background = colors.background,
@@ -431,14 +439,26 @@ fun NaviampSharedAppShell(
         typography = rememberNaviampTypography(),
     ) {
         Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(
-                    Brush.linearGradient(
-                        backgroundGradientColors,
-                    ),
-                ),
+            modifier = Modifier.fillMaxSize(),
         ) {
+            when (interfaceSettings.appBackgroundStyle) {
+                AppBackgroundStyle.Aurora -> Box(
+                    Modifier
+                        .fillMaxSize()
+                        .background(Brush.linearGradient(nowPlayingPlayerColors.gradientColors)),
+                )
+                AppBackgroundStyle.AlbumBlur -> NaviampAlbumBlurBackground(
+                    url = nowPlaying?.coverArtUrl,
+                    colors = colors,
+                    playerColors = nowPlayingPlayerColors,
+                    blurRadiusDp = interfaceSettings.albumBlurRadiusDp,
+                )
+                AppBackgroundStyle.SingleColor -> Box(
+                    Modifier
+                        .fillMaxSize()
+                        .background(singleBackgroundColor),
+                )
+            }
             Column(
                 modifier
                     .fillMaxSize(),
@@ -1303,10 +1323,17 @@ private fun ConnectedContent(
 ) {
     var saveSonicPathDialogOpen by remember { mutableStateOf(false) }
     var saveSonicMixDialogOpen by remember { mutableStateOf(false) }
-    val nowPlayingPlayerColors = if (nowPlayingOpen && nowPlaying != null) {
+    val albumPlayerColors = if (nowPlayingOpen && nowPlaying != null) {
         rememberPlatformCoverArtPlayerColors(nowPlaying.coverArtUrl, colors)
     } else {
         NaviampPlayerColors.fallback(colors)
+    }
+    val singleBackgroundColor = naviampColorFromHex(interfaceSettings.singleColorHex)
+        ?: naviampColorFromHex(DefaultSingleColorHex)!!
+    val nowPlayingPlayerColors = when (interfaceSettings.appBackgroundStyle) {
+        AppBackgroundStyle.SingleColor -> NaviampPlayerColors.fromSingleColor(singleBackgroundColor, colors)
+        AppBackgroundStyle.Aurora -> albumPlayerColors.withAuroraTone(interfaceSettings.auroraTone)
+        AppBackgroundStyle.AlbumBlur -> albumPlayerColors
     }
 
     when {

@@ -15,6 +15,9 @@ import app.naviamp.domain.playback.PlaybackState
 import app.naviamp.domain.playback.PlaybackStreamMetadata
 import app.naviamp.domain.playback.PlaybackVisualizerFrame
 import app.naviamp.domain.provider.CoverArtSize
+import app.naviamp.domain.settings.AppBackgroundStyle
+import app.naviamp.domain.settings.DefaultSingleColorHex
+import app.naviamp.domain.settings.InterfaceSettings
 import app.naviamp.desktop.settings.VisualizerSettings
 import app.naviamp.provider.navidrome.NavidromeProvider
 import app.naviamp.ui.NaviampPlayerColors
@@ -22,6 +25,7 @@ import app.naviamp.ui.NaviampVisualizer
 import app.naviamp.ui.NaviampRadioArtworkLookupEffect
 import app.naviamp.ui.effectiveNowPlayingCoverArtUrl
 import app.naviamp.ui.isNaviampVisualizerVisible
+import app.naviamp.ui.naviampColorFromHex
 import app.naviamp.ui.naviampVisualizerFromName
 import app.naviamp.ui.rememberPlatformCoverArtPlayerColors
 
@@ -87,6 +91,7 @@ internal class DesktopNowPlayingPresentationState(
 internal fun rememberDesktopNowPlayingPresentationState(
     initialVisualizerSettings: VisualizerSettings,
     appColors: DesktopAppColors,
+    interfaceSettings: InterfaceSettings,
     currentCoverArtUrl: String?,
     nowPlayingTrack: Track?,
     nowPlayingStation: InternetRadioStation?,
@@ -105,10 +110,22 @@ internal fun rememberDesktopNowPlayingPresentationState(
         radioTrackArtworkByKey = state.radioTrackArtworkByKey,
     )
     val coverArtPlayerColors = rememberPlatformCoverArtPlayerColors(effectiveCoverArtUrl, appColors)
-    val targetBackgroundColors = if (nowPlayingTrack != null) {
-        coverArtPlayerColors
-    } else {
-        NaviampPlayerColors.solid(appColors.background)
+    val targetBackgroundColors = when (interfaceSettings.appBackgroundStyle) {
+        AppBackgroundStyle.SingleColor -> NaviampPlayerColors.fromSingleColor(
+            naviampColorFromHex(interfaceSettings.singleColorHex)
+                ?: naviampColorFromHex(DefaultSingleColorHex)!!,
+            appColors,
+        )
+        AppBackgroundStyle.Aurora -> if (nowPlayingTrack != null || nowPlayingStation != null) {
+            coverArtPlayerColors.withAuroraTone(interfaceSettings.auroraTone)
+        } else {
+            NaviampPlayerColors.solid(appColors.background)
+        }
+        AppBackgroundStyle.AlbumBlur -> if (nowPlayingTrack != null || nowPlayingStation != null) {
+            coverArtPlayerColors
+        } else {
+            NaviampPlayerColors.solid(appColors.background)
+        }
     }
 
     NaviampRadioArtworkLookupEffect(

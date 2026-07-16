@@ -1,7 +1,9 @@
 package app.naviamp.ui
 
 import androidx.compose.ui.graphics.Color
+import app.naviamp.domain.settings.AuroraTone
 import kotlin.test.Test
+import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
@@ -48,6 +50,29 @@ class NaviampPlayerColorsTest {
         val lightGradient = NaviampPlayerColors.from(lightPalette, NaviampColors.Dark)
         assertTrue(lightGradient.backgroundMid.channelAverage() > darkGradient.backgroundMid.channelAverage())
         assertTrue(lightGradient.backgroundEnd.channelAverage() > darkGradient.backgroundEnd.channelAverage())
+    }
+
+    @Test
+    fun singleColorPaletteKeepsSelectedHueButCreatesReadableEnergy() {
+        val selected = naviampColorFromHex("#24364A")
+        assertNotNull(selected)
+
+        val palette = NaviampPlayerColors.fromSingleColor(selected, NaviampColors.Dark)
+
+        assertTrue(palette.accent.channelAverage() > selected.channelAverage())
+        assertTrue(palette.gradientColors.distinct().size > 1)
+        assertEquals(null, naviampColorFromHex("#xyzxyz"))
+    }
+
+    @Test
+    fun lightAuroraLiftsGradientAndColorPickerRoundTrips() {
+        val dark = NaviampPlayerColors.fromSingleColor(Color(0xFF24364A), NaviampColors.Dark)
+        val light = dark.withAuroraTone(AuroraTone.Light)
+
+        assertTrue(light.backgroundStart.channelAverage() > dark.backgroundStart.channelAverage())
+        assertTrue(light.backgroundMid.channelAverage() > dark.backgroundMid.channelAverage())
+        val picked = naviampColorFromHsv(0.58f, 0.72f, 0.46f)
+        assertEquals(naviampColorToHex(picked), naviampColorToHex(naviampColorFromHex(naviampColorToHex(picked))!!))
     }
 }
 

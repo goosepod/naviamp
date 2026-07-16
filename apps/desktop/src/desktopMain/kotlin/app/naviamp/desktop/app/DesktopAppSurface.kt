@@ -13,7 +13,12 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
+import app.naviamp.domain.settings.AppBackgroundStyle
+import app.naviamp.domain.settings.DefaultSingleColorHex
+import app.naviamp.domain.settings.InterfaceSettings
+import app.naviamp.ui.NaviampAlbumBlurBackground
 import app.naviamp.ui.NaviampPlayerColors
+import app.naviamp.ui.naviampColorFromHex
 import app.naviamp.ui.rememberNaviampTypography
 
 @Composable
@@ -25,6 +30,8 @@ internal fun DesktopAppSurface(
     backgroundMid: Color,
     backgroundEnd: Color,
     targetBackgroundColors: NaviampPlayerColors,
+    coverArtUrl: String?,
+    interfaceSettings: InterfaceSettings,
     onCloseStatsForNerds: () -> Unit,
     content: @Composable () -> Unit,
 ) {
@@ -51,18 +58,33 @@ internal fun DesktopAppSurface(
                     Offset(widthPx * 1.08f, heightPx * 0.82f)
                 }
 
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(
-                            NaviampPlayerColors(
-                                backgroundStart = backgroundStart,
-                                backgroundMid = backgroundMid,
-                                backgroundEnd = backgroundEnd,
-                                accent = targetBackgroundColors.accent,
-                            ).backgroundBrush(gradientEnd),
-                        ),
-                ) {
+                val animatedPlayerColors = NaviampPlayerColors(
+                    backgroundStart = backgroundStart,
+                    backgroundMid = backgroundMid,
+                    backgroundEnd = backgroundEnd,
+                    accent = targetBackgroundColors.accent,
+                )
+                val singleColor = naviampColorFromHex(interfaceSettings.singleColorHex)
+                    ?: naviampColorFromHex(DefaultSingleColorHex)!!
+                Box(modifier = Modifier.fillMaxSize()) {
+                    when (interfaceSettings.appBackgroundStyle) {
+                        AppBackgroundStyle.Aurora -> Box(
+                            Modifier
+                                .fillMaxSize()
+                                .background(animatedPlayerColors.backgroundBrush(gradientEnd)),
+                        )
+                        AppBackgroundStyle.AlbumBlur -> NaviampAlbumBlurBackground(
+                            url = coverArtUrl,
+                            colors = appColors,
+                            playerColors = animatedPlayerColors,
+                            blurRadiusDp = interfaceSettings.albumBlurRadiusDp,
+                        )
+                        AppBackgroundStyle.SingleColor -> Box(
+                            Modifier
+                                .fillMaxSize()
+                                .background(singleColor),
+                        )
+                    }
                     content()
                 }
             }

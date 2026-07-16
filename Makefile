@@ -59,7 +59,7 @@ clean-generated: clean
 macos-test:
 	ANDROID_HOME="$(ANDROID_HOME)" $(GRADLE) $(GRADLE_COMMON) $(MACOS_DESKTOP_PROPS) :apps:desktop:stageLocalTestApp
 	-pkill -f "$(CURDIR)/build/local-test/Naviamp.app/Contents/MacOS/Naviamp"
-	open build/local-test/Naviamp.app
+	open -n build/local-test/Naviamp.app
 
 .PHONY: macos-stage
 macos-stage:

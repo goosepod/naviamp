@@ -60,6 +60,10 @@ import app.naviamp.domain.radio.RadioFamiliarity
 import app.naviamp.domain.radio.RadioArtistRunMode
 import app.naviamp.domain.radio.RadioTuningSettings
 import app.naviamp.domain.settings.CacheSettings
+import app.naviamp.domain.settings.AppBackgroundStyle
+import app.naviamp.domain.settings.AuroraTone
+import app.naviamp.domain.settings.MaxAlbumBlurRadiusDp
+import app.naviamp.domain.settings.MinAlbumBlurRadiusDp
 import app.naviamp.domain.settings.ConnectionFormMusicFolder
 import app.naviamp.domain.settings.ConnectionFormState
 import app.naviamp.domain.settings.DefaultWaveformBucketCount
@@ -418,6 +422,11 @@ fun NaviampExperienceSettingsSection(
                 interfaceSettings = interfaceSettings,
                 onInterfaceSettingsChanged = onInterfaceSettingsChanged,
             )
+            ExperienceSettingsPage.AppBackground -> AppBackgroundSettings(
+                colors = colors,
+                interfaceSettings = interfaceSettings,
+                onInterfaceSettingsChanged = onInterfaceSettingsChanged,
+            )
         }
     } ?: run {
         if (showQueueBehavior) {
@@ -448,6 +457,14 @@ fun NaviampExperienceSettingsSection(
             ) {
                 selectedSection = ExperienceSettingsPage.RelatedTracks
             }
+        }
+        SettingsRow(
+            title = ExperienceSettingsPage.AppBackground.title(),
+            subtitle = ExperienceSettingsPage.AppBackground.subtitle(),
+            colors = colors,
+            value = interfaceSettings.appBackgroundStyle.label,
+        ) {
+            selectedSection = ExperienceSettingsPage.AppBackground
         }
         SettingsRow(
             title = ExperienceSettingsPage.Albums.title(),
@@ -502,6 +519,7 @@ private enum class ExperienceSettingsPage(
     Player("Player", "Queue, Back To, and Up Next behavior"),
     RelatedTracks("Related Tracks", "Sonic similarity and autoplay"),
     Lyrics("Lyrics", "Download and source order"),
+    AppBackground("App Background", "Choose Aurora, blurred album art, or a solid color"),
     Albums("Albums", "Choose list or album-art grid presentation"),
     SwipeActions("Swipe Actions", "Track gestures by list type"),
 }
@@ -512,6 +530,7 @@ private fun ExperienceSettingsPage.title(): String =
         ExperienceSettingsPage.Player -> stringResource(Res.string.settings_experience_player_title)
         ExperienceSettingsPage.RelatedTracks -> stringResource(Res.string.settings_experience_related_tracks_title)
         ExperienceSettingsPage.Lyrics -> stringResource(Res.string.settings_lyrics_title)
+        ExperienceSettingsPage.AppBackground -> "App Background"
         ExperienceSettingsPage.Albums -> "Albums"
         ExperienceSettingsPage.SwipeActions -> "Swipe Actions"
     }
@@ -522,9 +541,182 @@ private fun ExperienceSettingsPage.subtitle(): String =
         ExperienceSettingsPage.Player -> stringResource(Res.string.settings_experience_player_subtitle)
         ExperienceSettingsPage.RelatedTracks -> stringResource(Res.string.settings_experience_related_tracks_subtitle)
         ExperienceSettingsPage.Lyrics -> stringResource(Res.string.settings_lyrics_subtitle)
+        ExperienceSettingsPage.AppBackground -> "Choose the canvas behind Naviamp"
         ExperienceSettingsPage.Albums -> "Choose how album collections are presented"
         ExperienceSettingsPage.SwipeActions -> "Choose gesture shortcuts; actions stay available in each track's More actions menu"
     }
+
+@Composable
+private fun AppBackgroundSettings(
+    colors: NaviampColors,
+    interfaceSettings: InterfaceSettings,
+    onInterfaceSettingsChanged: (InterfaceSettings) -> Unit,
+) {
+    AppBackgroundStyle.entries.forEach { style ->
+        SelectableSettingsRow(
+            title = style.label,
+            subtitle = when (style) {
+                AppBackgroundStyle.Aurora -> "Naviamp's dynamic album-color gradient"
+                AppBackgroundStyle.AlbumBlur -> "Fill the app with heavily blurred current album art"
+                AppBackgroundStyle.SingleColor -> "Use one custom dark color throughout the app"
+            },
+            selected = interfaceSettings.appBackgroundStyle == style,
+            colors = colors,
+        ) {
+            onInterfaceSettingsChanged(interfaceSettings.copy(appBackgroundStyle = style).normalized())
+        }
+    }
+
+    if (interfaceSettings.appBackgroundStyle == AppBackgroundStyle.AlbumBlur) {
+        CompactBackgroundSlider(
+            label = "Blur amount",
+            value = interfaceSettings.albumBlurRadiusDp.toFloat(),
+            valueRange = MinAlbumBlurRadiusDp.toFloat()..MaxAlbumBlurRadiusDp.toFloat(),
+            valueText = "${interfaceSettings.albumBlurRadiusDp}dp",
+            colors = colors,
+            onValueChange = { radius ->
+                onInterfaceSettingsChanged(
+                    interfaceSettings.copy(albumBlurRadiusDp = radius.toInt()).normalized(),
+                )
+            },
+        )
+    }
+
+    if (interfaceSettings.appBackgroundStyle == AppBackgroundStyle.Aurora) {
+        SettingsSectionTitle("Aurora tone", colors)
+        AuroraTone.entries.forEach { tone ->
+            SelectableSettingsRow(
+                title = tone.label,
+                subtitle = when (tone) {
+                    AuroraTone.Dark -> "Keep the current deep album-color gradient"
+                    AuroraTone.Light -> "Lift the gradient toward brighter album colors"
+                },
+                selected = interfaceSettings.auroraTone == tone,
+                colors = colors,
+            ) {
+                onInterfaceSettingsChanged(interfaceSettings.copy(auroraTone = tone).normalized())
+            }
+        }
+    }
+
+    if (interfaceSettings.appBackgroundStyle == AppBackgroundStyle.SingleColor) {
+        var colorDraft by remember(interfaceSettings.singleColorHex) {
+            mutableStateOf(interfaceSettings.singleColorHex)
+        }
+        val previewColor = naviampColorFromHex(colorDraft)
+            ?: naviampColorFromHex(interfaceSettings.singleColorHex)
+            ?: colors.background
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = SettingsRowHorizontalPadding, vertical = 10.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Box(
+                Modifier
+                    .size(44.dp)
+                    .background(previewColor, RoundedCornerShape(8.dp))
+                    .border(1.dp, colors.border, RoundedCornerShape(8.dp)),
+            )
+            OutlinedTextField(
+                value = colorDraft,
+                onValueChange = { input ->
+                    colorDraft = input.take(7).uppercase()
+                    if (naviampColorFromHex(colorDraft) != null) {
+                        onInterfaceSettingsChanged(
+                            interfaceSettings.copy(singleColorHex = colorDraft).normalized(),
+                        )
+                    }
+                },
+                singleLine = true,
+                label = { Text("Color (hex)") },
+                supportingText = { Text("Use a dark color to keep text readable") },
+                modifier = Modifier.weight(1f),
+            )
+        }
+        val selectedColor = naviampColorFromHex(interfaceSettings.singleColorHex) ?: colors.background
+        val hsv = naviampColorToHsv(selectedColor)
+        CompactBackgroundSlider(
+            label = "Hue",
+            value = hsv[0] * 360f,
+            valueRange = 0f..360f,
+            valueText = "${(hsv[0] * 360f).toInt()}°",
+            colors = colors,
+            onValueChange = { hue ->
+                onInterfaceSettingsChanged(
+                    interfaceSettings.copy(
+                        singleColorHex = naviampColorToHex(
+                            naviampColorFromHsv(hue / 360f, hsv[1], hsv[2]),
+                        ),
+                    ).normalized(),
+                )
+            },
+        )
+        CompactBackgroundSlider(
+            label = "Saturation",
+            value = hsv[1] * 100f,
+            valueRange = 0f..100f,
+            valueText = "${(hsv[1] * 100f).toInt()}%",
+            colors = colors,
+            onValueChange = { saturation ->
+                onInterfaceSettingsChanged(
+                    interfaceSettings.copy(
+                        singleColorHex = naviampColorToHex(
+                            naviampColorFromHsv(hsv[0], saturation / 100f, hsv[2]),
+                        ),
+                    ).normalized(),
+                )
+            },
+        )
+        CompactBackgroundSlider(
+            label = "Brightness",
+            value = hsv[2] * 100f,
+            valueRange = 8f..70f,
+            valueText = "${(hsv[2] * 100f).toInt()}%",
+            colors = colors,
+            onValueChange = { brightness ->
+                onInterfaceSettingsChanged(
+                    interfaceSettings.copy(
+                        singleColorHex = naviampColorToHex(
+                            naviampColorFromHsv(hsv[0], hsv[1], brightness / 100f),
+                        ),
+                    ).normalized(),
+                )
+            },
+        )
+    }
+}
+
+@Composable
+private fun CompactBackgroundSlider(
+    label: String,
+    value: Float,
+    valueRange: ClosedFloatingPointRange<Float>,
+    valueText: String,
+    colors: NaviampColors,
+    onValueChange: (Float) -> Unit,
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = SettingsRowHorizontalPadding, vertical = 3.dp),
+    ) {
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+            Text(label, color = colors.primaryText, fontSize = SettingsDetailRowTitleSize)
+            Text(valueText, color = colors.secondaryText, fontSize = SettingsDetailRowSubtitleSize)
+        }
+        Slider(
+            value = value.coerceIn(valueRange.start, valueRange.endInclusive),
+            onValueChange = onValueChange,
+            valueRange = valueRange,
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(26.dp)
+                .graphicsLayer(scaleY = 0.72f),
+        )
+    }
+}
 
 @Composable
 private fun AlbumExperienceSettings(

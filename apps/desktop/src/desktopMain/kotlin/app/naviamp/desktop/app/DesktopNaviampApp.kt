@@ -245,6 +245,7 @@ fun NaviampApp(
     val nowPlayingPresentation = rememberDesktopNowPlayingPresentationState(
         initialVisualizerSettings = savedVisualizer,
         appColors = appColors,
+        interfaceSettings = interfaceSettings,
         currentCoverArtUrl = nowPlayingCoverArtUrl,
         nowPlayingTrack = nowPlayingTrack,
         nowPlayingStation = nowPlayingInternetRadioStation,
@@ -1382,6 +1383,8 @@ fun NaviampApp(
             backgroundMid = nowPlayingPresentation.backgroundMid,
             backgroundEnd = nowPlayingPresentation.backgroundEnd,
             targetBackgroundColors = nowPlayingPresentation.targetBackgroundColors,
+            coverArtUrl = nowPlayingPresentation.effectiveCoverArtUrl,
+            interfaceSettings = interfaceSettings,
             onCloseStatsForNerds = { showStatsForNerds = false },
     ) {
             Column(
