@@ -13,6 +13,14 @@ import kotlin.test.assertTrue
 
 class NaviampApplicationRuntimeTest {
     @Test
+    fun exposesInjectedNavigationControllerAsPartOfSharedRuntime() {
+        val navigation = NaviampNavigationController()
+        val fixture = RuntimeFixture(navigation = navigation)
+
+        assertSame(navigation, fixture.runtime.navigation)
+    }
+
+    @Test
     fun restoresOnceThenForwardsForegroundAndBackgroundEvents() = runTest {
         val fixture = RuntimeFixture()
 
@@ -75,12 +83,13 @@ private class RuntimeFixture(
     restoreFailures: Int = 0,
     failure: Throwable = IllegalStateException("operation failed"),
     shutdownFails: Boolean = false,
+    navigation: NaviampNavigationController = NaviampNavigationController(),
 ) {
     val connectivitySnapshot = NaviampConnectivitySnapshot(available = true, mobileData = true)
     val session = RecordingSession(restoreFailures, failure, shutdownFails)
     val reportedCauses = mutableListOf<Throwable?>()
     val runtime = NaviampApplicationRuntime(
-        NaviampPlatformServices(
+        services = NaviampPlatformServices(
             capabilities = PlatformCapabilities().withStatus(
                 PlatformCapability.BackgroundPlayback,
                 PlatformCapabilityStatus.Available,
@@ -89,6 +98,7 @@ private class RuntimeFixture(
             connectivity = NaviampConnectivityMonitor { connectivitySnapshot },
             errorReporter = NaviampRuntimeErrorReporter { _, cause -> reportedCauses += cause },
         ),
+        navigation = navigation,
     )
 }
 

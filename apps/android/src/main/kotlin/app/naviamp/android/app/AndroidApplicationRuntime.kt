@@ -7,6 +7,7 @@ import app.naviamp.app.NaviampApplicationRuntime
 import app.naviamp.app.NaviampApplicationSession
 import app.naviamp.app.NaviampConnectivityMonitor
 import app.naviamp.app.NaviampConnectivitySnapshot
+import app.naviamp.app.NaviampNavigationController
 import app.naviamp.app.NaviampPlatformServices
 import app.naviamp.app.NaviampRuntimeErrorReporter
 import app.naviamp.domain.app.PlatformCapabilities
@@ -27,11 +28,12 @@ internal class AndroidApplicationSession(
 
 internal fun androidApplicationRuntime(
     context: Context,
+    navigation: NaviampNavigationController,
     restoreSavedSession: () -> Unit,
 ): NaviampApplicationRuntime {
     val applicationContext = context.applicationContext
     return NaviampApplicationRuntime(
-        NaviampPlatformServices(
+        services = NaviampPlatformServices(
             capabilities = PlatformCapabilities(),
             session = AndroidApplicationSession(restoreSavedSession),
             connectivity = NaviampConnectivityMonitor {
@@ -47,5 +49,6 @@ internal fun androidApplicationRuntime(
                 Log.e("NaviampRuntime", "${error.operation}: ${error.message}", cause)
             },
         ),
+        navigation = navigation,
     )
 }

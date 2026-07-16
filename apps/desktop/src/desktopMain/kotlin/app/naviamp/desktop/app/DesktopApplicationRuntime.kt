@@ -4,6 +4,7 @@ import app.naviamp.app.NaviampApplicationRuntime
 import app.naviamp.app.NaviampApplicationSession
 import app.naviamp.app.NaviampConnectivityMonitor
 import app.naviamp.app.NaviampConnectivitySnapshot
+import app.naviamp.app.NaviampNavigationController
 import app.naviamp.app.NaviampPlatformServices
 import app.naviamp.app.NaviampRuntimeErrorReporter
 import app.naviamp.domain.app.PlatformCapabilities
@@ -19,10 +20,11 @@ internal class DesktopApplicationSession(
 }
 
 internal fun desktopApplicationRuntime(
+    navigation: NaviampNavigationController,
     hasSavedConnection: Boolean,
     restoreSavedSession: () -> Unit,
 ): NaviampApplicationRuntime = NaviampApplicationRuntime(
-    NaviampPlatformServices(
+    services = NaviampPlatformServices(
         capabilities = PlatformCapabilities(),
         session = DesktopApplicationSession(hasSavedConnection, restoreSavedSession),
         // Desktop currently has no live OS connectivity monitor. Preserve its online-first behavior
@@ -35,4 +37,5 @@ internal fun desktopApplicationRuntime(
             cause?.printStackTrace(System.err)
         },
     ),
+    navigation = navigation,
 )

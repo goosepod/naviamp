@@ -21,6 +21,7 @@ import app.naviamp.domain.Track
 import app.naviamp.domain.TrackId
 import app.naviamp.domain.app.NaviampContentState
 import app.naviamp.domain.app.NaviampNavigationState
+import app.naviamp.app.NaviampNavigationController
 import app.naviamp.domain.audio.AudioTag
 import app.naviamp.domain.media.RelatedTracksSource
 import app.naviamp.domain.playback.PlaybackProgress
@@ -112,7 +113,8 @@ class AndroidAppState(
     var restoringConnection by mutableStateOf(canAutoConnect)
     var savedMediaSources by mutableStateOf(initialSavedMediaSources)
     var savedConnectionForLogin by mutableStateOf(initialSavedConnectionForLogin)
-    var navigationState by mutableStateOf(NaviampNavigationState())
+    internal val sharedNavigationController = NaviampNavigationController()
+    var navigationState by AndroidNavigationStateProperty(sharedNavigationController)
     val selectedRoute: SharedRoute get() = navigationState.route.toSharedRoute()
     var provider by mutableStateOf<NavidromeProvider?>(null)
     var activeSourceId by mutableStateOf<String?>(savedSourceId)

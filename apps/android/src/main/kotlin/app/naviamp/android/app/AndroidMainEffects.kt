@@ -44,6 +44,7 @@ internal fun AndroidMainEffects(
     val applicationRuntime = remember(context, connectionSessionController) {
         androidApplicationRuntime(
             context = context,
+            navigation = state.sharedNavigationController,
             restoreSavedSession = connectionSessionController::autoConnect,
         )
     }

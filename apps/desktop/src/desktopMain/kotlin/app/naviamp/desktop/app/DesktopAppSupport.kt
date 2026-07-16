@@ -30,12 +30,12 @@ fun restoredRoute(
         savedRouteName = savedRouteName,
         hasConnection = hasConnection,
         hasRestoredTrack = hasRestoredTrack,
-    ).toAppRoute()
+    ).toDesktopAppRoute()
 
 fun restoredLastContentRoute(savedRouteName: String?): DesktopAppRoute =
-    restoredSharedLastContentRoute(savedRouteName).toAppRoute()
+    restoredSharedLastContentRoute(savedRouteName).toDesktopAppRoute()
 
-private fun NaviampRoute.toAppRoute(): DesktopAppRoute =
+internal fun NaviampRoute.toDesktopAppRoute(): DesktopAppRoute =
     when (this) {
         NaviampRoute.Player -> DesktopAppRoute.Player
         NaviampRoute.Home -> DesktopAppRoute.Home

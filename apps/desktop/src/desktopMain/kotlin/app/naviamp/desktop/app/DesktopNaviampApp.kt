@@ -24,6 +24,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import app.naviamp.domain.Track
 import app.naviamp.domain.TrackId
+import app.naviamp.app.NaviampNavigationController
+import app.naviamp.domain.app.NaviampNavigationState
 import app.naviamp.domain.cache.ImageCacheRepository
 import app.naviamp.domain.cache.ProviderResponseService
 import app.naviamp.domain.playback.PlaybackProgress
@@ -190,18 +192,26 @@ fun NaviampApp(
     var homeContent by remember { mutableStateOf(HomeContent()) }
     var homeStatus by remember { mutableStateOf<String?>(null) }
     var recentRadioStreams by remember { mutableStateOf(savedRecentRadioStreams) }
-    var appRoute by remember {
-        mutableStateOf(
-            restoredRoute(
-                savedRouteName = savedNavigation.route,
-                hasConnection = savedConnection != null,
-                hasRestoredTrack = restoredTrack != null,
+    val navigationController = remember {
+        NaviampNavigationController(
+            NaviampNavigationState(
+                route = restoredRoute(
+                    savedRouteName = savedNavigation.route,
+                    hasConnection = savedConnection != null,
+                    hasRestoredTrack = restoredTrack != null,
+                ).toNaviampRoute(),
+                lastContentRoute = restoredLastContentRoute(savedNavigation.lastContentRoute).toNaviampRoute(),
             ),
         )
     }
-    var lastContentRoute by remember {
-        mutableStateOf(restoredLastContentRoute(savedNavigation.lastContentRoute))
+    val currentRouteProperty = remember {
+        DesktopNavigationRouteProperty(navigationController, DesktopNavigationField.CurrentRoute)
     }
+    var appRoute by currentRouteProperty
+    val lastContentRouteProperty = remember {
+        DesktopNavigationRouteProperty(navigationController, DesktopNavigationField.LastContentRoute)
+    }
+    var lastContentRoute by lastContentRouteProperty
     var nowPlayingTrack by remember { mutableStateOf(restoredTrack) }
     var nowPlayingCoverArtUrl by remember { mutableStateOf<String?>(null) }
     var nowPlayingLyricsVisible by remember { mutableStateOf(false) }
@@ -1127,6 +1137,7 @@ fun NaviampApp(
         searchController = searchController,
         libraryController = libraryController,
         mixBuilderController = mixBuilderController,
+        navigationController = navigationController,
         hasSavedConnection = savedConnection != null,
         connectToServer = { connectionLifecycleController.connectToServer(restoreSavedSession = true) },
         nowPlayingTrack = nowPlayingTrack,
