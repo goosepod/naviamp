@@ -2,6 +2,21 @@
 
 Release changes are grouped into user-facing Features, Bug Fixes, and deployment or infrastructure-related System Settings. Internal task-tracking notes are intentionally not included.
 
+## v1.4.0
+
+### Features
+
+- Added Now Playing queue polish with track durations and a denser desktop side-panel layout.
+- Added desktop hover tooltips for icon-only controls with a Settings > Experience toggle.
+- Moved playback reporting to the OpenSubsonic `reportPlayback` flow and let the server own scrobble timing.
+- Added playback state heartbeats and final stopped reports so Navidrome can update Now Playing and scrobble completed plays.
+- Added Android parity for playback-report transitions across regular playback and service-owned playback.
+
+### Bug Fixes
+
+- Fixed desktop and Android playback transitions so a final stopped report is sent before moving to another track.
+- Removed the legacy `scrobble.view` reporting path and obsolete client-side played/scrobble timing setting.
+
 ## v1.3.0
 
 ### Features
