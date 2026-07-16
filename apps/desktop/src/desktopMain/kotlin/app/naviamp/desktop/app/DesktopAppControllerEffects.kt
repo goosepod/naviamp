@@ -2,6 +2,8 @@ package app.naviamp.desktop
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
+import app.naviamp.app.NaviampHostLifecycleEvent
 import app.naviamp.domain.Playlist
 import app.naviamp.domain.Track
 import app.naviamp.domain.app.StorageStatsRefreshIntervalMillis
@@ -49,6 +51,12 @@ internal fun DesktopAppControllerEffects(
     loadStorageStats: suspend () -> StorageCacheStats,
     setCacheStats: (StorageCacheStats) -> Unit,
 ) {
+    val applicationRuntime = remember {
+        desktopApplicationRuntime(
+            hasSavedConnection = hasSavedConnection,
+            restoreSavedSession = connectToServer,
+        )
+    }
     LaunchedEffect(
         nowPlayingTrack?.id,
         connectedSourceId,
@@ -97,10 +105,9 @@ internal fun DesktopAppControllerEffects(
         }
     }
 
-    LaunchedEffect(Unit) {
-        if (hasSavedConnection) {
-            connectToServer()
-        }
+    LaunchedEffect(applicationRuntime) {
+        applicationRuntime.handle(NaviampHostLifecycleEvent.Start)
+        applicationRuntime.handle(NaviampHostLifecycleEvent.EnterForeground)
     }
 
     LaunchedEffect(searchController.query, connectedProvider) {

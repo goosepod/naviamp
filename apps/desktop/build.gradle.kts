@@ -222,6 +222,7 @@ kotlin {
             resources.srcDir(generatedDesktopBuildInfoResources)
 
             dependencies {
+                implementation(project(":core:app"))
                 implementation(project(":core:domain"))
                 implementation(project(":core:storage"))
                 implementation(project(":core:ui"))
@@ -239,6 +240,7 @@ kotlin {
         val desktopTest by getting {
             dependencies {
                 implementation(libs.kotlin.test)
+                implementation(libs.kotlinx.coroutines.test)
             }
         }
     }

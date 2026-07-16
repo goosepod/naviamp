@@ -3,6 +3,9 @@ package app.naviamp.android
 import androidx.activity.compose.BackHandler
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
+import androidx.compose.ui.platform.LocalContext
+import app.naviamp.app.NaviampHostLifecycleEvent
 import app.naviamp.domain.cache.ProviderResponseCacheRepository
 import app.naviamp.domain.isInternetRadioTrack
 import app.naviamp.domain.playback.SleepTimerController
@@ -37,6 +40,13 @@ internal fun AndroidMainEffects(
     onAutoPlayMediaIdConsumed: () -> Unit,
     onAutoCommandConsumed: () -> Unit,
 ) {
+    val context = LocalContext.current
+    val applicationRuntime = remember(context, connectionSessionController) {
+        androidApplicationRuntime(
+            context = context,
+            restoreSavedSession = connectionSessionController::autoConnect,
+        )
+    }
     with(state) {
         LaunchedEffect(query, provider) {
             searchController.load(query, debounce = true)
@@ -118,8 +128,9 @@ internal fun AndroidMainEffects(
             }
         }
 
-        LaunchedEffect(Unit) {
-            connectionSessionController.autoConnect()
+        LaunchedEffect(applicationRuntime) {
+            applicationRuntime.handle(NaviampHostLifecycleEvent.Start)
+            applicationRuntime.handle(NaviampHostLifecycleEvent.EnterForeground)
         }
 
         LaunchedEffect(

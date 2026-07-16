@@ -6,7 +6,7 @@ This document is the durable plan and progress tracker for Naviamp 2.0. Update i
 
 - **Target release:** `2.0.0`
 - **Working branch:** `feature/v2-cross-platform-app`
-- **Status:** Milestone 2 in progress; the shared lifecycle/runtime bootstrap is established
+- **Status:** Milestone 2 in progress; Android and Desktop startup now enter the shared runtime
 - **Release policy:** Feature development for the v1 line is frozen. Only bug fixes should be released from v1 while this work is underway.
 - **Versioning rule:** Do not change `VERSION` to `2.0.0` until the release-preparation milestone. Development builds and intermediate branches must remain clearly distinguishable from a finished v2 release.
 - **Primary objective:** One shared Naviamp application, UI, and behavior hosted by thin Android, Desktop, and iOS applications.
@@ -109,7 +109,7 @@ Use explicit dependency construction unless a dependency-injection framework pro
 
 - [x] Add the shared application module or equivalent shared composition layer. `core:app` now compiles on Android, JVM, iOS device, and iOS simulator.
 - [ ] Define a platform-services container and narrow interfaces for every platform dependency. The initial `NaviampPlatformServices` boundary covers capabilities, session lifecycle, connectivity, and error reporting; add playback, persistence, secrets, files, and OS integrations only as their owners are extracted.
-- [ ] Move common session initialization into the shared runtime. The runtime now invokes an injected restoration boundary exactly once and supports retry after failure; existing Android/Desktop initialization still needs adapters and migration.
+- [x] Move common session initialization into the shared runtime. Android and Desktop now replace their direct one-shot auto-connect effects with thin session adapters and enter the same once-only runtime gate. The adapters deliberately initiate the existing asynchronous host restoration controllers; moving the provider and playback restoration implementations themselves into shared owners remains part of the later coordination work.
 - [ ] Move common navigation ownership into the shared runtime.
 - [ ] Move common queue, Now Playing, provider-action, settings, download, and cache coordination into shared owners.
 - [ ] Eliminate direct Android or Desktop API access from the shared runtime.
@@ -297,10 +297,11 @@ Record architecture decisions here or link a dedicated decision record.
 | 2026-07-16 | Start from current `main`; do not merge the old `codex/ios-app` scaffold. | The old branch is incomplete and substantially diverged, but it may be inspected for isolated lessons. |
 | 2026-07-16 | Retain Naviamp's provider, paging, modular boundaries, and test-first behavior. | These are stronger foundations than the reference application and are required for large libraries and advanced server support. |
 | 2026-07-16 | Have the iOS host select and create the database directory, then pass it to `core:storage`. | The host can use Apple's Application Support APIs and backup policy while shared storage safely owns SQLDelight schema creation and migration. |
+| 2026-07-16 | Keep Android Activity shutdown separate from shared session shutdown during host adaptation. | Android playback is owned by the foreground service and must be allowed to outlive the Compose UI; the Android startup adapter therefore restores through the shared runtime but intentionally performs no Activity-owned playback shutdown. |
 
 ## Current Handoff
 
-- **Last completed item:** Added `core:app` with the first explicit platform-services container and a shared, serialized lifecycle/session runtime covering restoration, foreground, background, shutdown, connectivity snapshots, capabilities, cancellation, and structured errors.
-- **Next recommended item:** Adapt the existing Android and Desktop session-initialization paths to the shared session contract behind characterization tests, without moving Android service-owned playback into the UI lifecycle.
-- **Verification:** `core:app` compiled for iOS device and Android; its common runtime tests passed on iOS simulator and JVM. Checks ran with at most two Gradle workers.
+- **Last completed item:** Adapted Android and Desktop saved-session startup to `NaviampApplicationRuntime`. Both hosts now use thin session adapters and the same serialized, once-only restoration gate. Android's adapter intentionally leaves shutdown as a no-op so the foreground playback service remains authoritative.
+- **Next recommended item:** Define the first shared navigation state and controller behind characterization tests, then adapt one low-risk route transition from each host without removing platform back-stack integration.
+- **Verification:** `:apps:android:testDebugUnitTest` and `:apps:desktop:desktopTest` passed together with at most two Gradle workers. The tests cover once-only host restoration, Desktop startup without a saved connection, and Android's non-owning Activity session boundary.
 - **Known blockers:** None.

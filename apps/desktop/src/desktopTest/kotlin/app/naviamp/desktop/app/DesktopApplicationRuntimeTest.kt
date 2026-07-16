@@ -1,0 +1,44 @@
+package app.naviamp.desktop
+
+import app.naviamp.app.NaviampApplicationRuntime
+import app.naviamp.app.NaviampConnectivityMonitor
+import app.naviamp.app.NaviampConnectivitySnapshot
+import app.naviamp.app.NaviampHostLifecycleEvent
+import app.naviamp.app.NaviampPlatformServices
+import app.naviamp.app.NaviampRuntimeErrorReporter
+import app.naviamp.domain.app.PlatformCapabilities
+import kotlinx.coroutines.test.runTest
+import kotlin.test.Test
+import kotlin.test.assertEquals
+
+class DesktopApplicationRuntimeTest {
+    @Test
+    fun restoresSavedConnectionOnce() = runTest {
+        var restorations = 0
+        val runtime = runtimeWith(DesktopApplicationSession(true) { restorations += 1 })
+
+        runtime.handle(NaviampHostLifecycleEvent.Start)
+        runtime.handle(NaviampHostLifecycleEvent.Start)
+
+        assertEquals(1, restorations)
+    }
+
+    @Test
+    fun skipsRestorationWithoutSavedConnection() = runTest {
+        var restorations = 0
+        val runtime = runtimeWith(DesktopApplicationSession(false) { restorations += 1 })
+
+        runtime.handle(NaviampHostLifecycleEvent.Start)
+
+        assertEquals(0, restorations)
+    }
+
+    private fun runtimeWith(session: DesktopApplicationSession) = NaviampApplicationRuntime(
+        NaviampPlatformServices(
+            capabilities = PlatformCapabilities(),
+            session = session,
+            connectivity = NaviampConnectivityMonitor { NaviampConnectivitySnapshot(true) },
+            errorReporter = NaviampRuntimeErrorReporter { _, _ -> },
+        ),
+    )
+}

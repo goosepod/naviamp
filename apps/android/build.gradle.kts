@@ -95,6 +95,7 @@ kotlin {
 }
 
 dependencies {
+    implementation(project(":core:app"))
     implementation(project(":core:domain"))
     implementation(project(":core:storage"))
     implementation(project(":core:ui"))
@@ -111,6 +112,7 @@ dependencies {
     implementation(libs.ktor.client.cio)
     implementation(libs.sqldelight.android.driver)
     testImplementation(kotlin("test"))
+    testImplementation(libs.kotlinx.coroutines.test)
 }
 
 tasks.register("verifyDebugBassNativePackage") {
