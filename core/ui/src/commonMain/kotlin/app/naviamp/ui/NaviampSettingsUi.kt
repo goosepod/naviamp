@@ -1648,23 +1648,19 @@ private val DefaultNaviampChangelog = listOf(
     NaviampChangelogSectionUi(
         title = "Features",
         entries = listOf(
-            "Added release-aware discographies with configurable album sections, artwork grids, and sorting.",
-            "Moved connected catalog browsing to shared paged APIs with fast artist search and A-Z navigation.",
-            "Added visible download progress, cancellation, retry, completed-file quality details, and configurable swipe actions.",
-            "Added configurable download and audio-cache locations, including Android SD-card storage selection.",
-            "Added keep-downloaded playlists, Smart Playlists, and favorites with automatic reconciliation.",
-            "Added a playback preference for downloaded-first or server-first audio selection.",
+            "Added customizable Aurora, Album Blur, and Single Color app backgrounds.",
+            "Added separate navigation for every credited artist on multi-artist tracks.",
+            "Expanded Library Radio to queue up to 500 random songs with Radio DJ tuning.",
+            "Added full-catalog Play and Shuffle actions to artist pages.",
         ),
     ),
     NaviampChangelogSectionUi(
         title = "Bug Fixes",
         entries = listOf(
-            "Fixed download transcodes so the selected codec and bitrate are honored and displayed accurately.",
-            "Fixed completed download activity, storage totals, album artwork, refresh behavior, and externally removed files.",
-            "Fixed waveform generation that could remain unfinished for an entire track.",
-            "Fixed Android storage-location crashes and missing keep-downloaded database tables.",
-            "Fixed the Sonic overflow menu crash and restored transparent bottom navigation backgrounds.",
-            "Standardized page headings, action alignment, and compact search styling across desktop and Android.",
+            "Improved compact Now Playing spacing and moved volume below the transport controls.",
+            "Made single- and multi-artist rows use consistent spacing and marquee behavior.",
+            "Prevented backgrounds and album art from flashing between track changes.",
+            "Fixed first-track waveforms sometimes remaining unavailable after playback starts.",
         ),
     ),
 )

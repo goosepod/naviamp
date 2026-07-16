@@ -2,7 +2,7 @@
 
 Release changes are grouped into user-facing Features, Bug Fixes, and deployment or infrastructure-related System Settings. Internal task-tracking notes are intentionally not included.
 
-## Unreleased
+## v1.5.0
 
 ### Features
 
