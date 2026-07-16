@@ -159,6 +159,7 @@ internal fun androidMainShellActions(
         addTracksToPlaylist = playlistActionController::addTracksToPlaylist,
         handleTrackAction = trackActionController::handleTrackAction,
         handleShellArtistRadio = artistActionController::handleShellArtistRadio,
+        handleShellArtistPlay = artistActionController::handleShellArtistPlay,
         handleShellArtistShuffle = artistActionController::handleShellArtistShuffle,
         loadArtistTracks = artistActionController::loadArtistTracks,
         handleArtistPopularPlay = artistActionController::handleArtistPopularPlay,

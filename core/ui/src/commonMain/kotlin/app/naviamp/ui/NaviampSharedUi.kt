@@ -262,6 +262,7 @@ fun NaviampSharedAppShell(
     onArtistSelected: (SharedMediaItemUi) -> Unit,
     onArtistFavoriteToggled: (SharedMediaItemUi) -> Unit = {},
     onArtistRadio: (SharedArtistDetailUi) -> Unit = {},
+    onArtistPlay: (SharedArtistDetailUi) -> Unit = {},
     onArtistShuffle: (SharedArtistDetailUi) -> Unit = {},
     onArtistAddToQueue: (SharedArtistDetailUi) -> Unit = {},
     onArtistAddToPlaylist: (SharedArtistDetailUi, NaviampPlaylistChoiceUi?) -> Unit = { _, _ -> },
@@ -406,18 +407,15 @@ fun NaviampSharedAppShell(
                 selectedRoute == SharedRoute.Radio ||
                 selectedRoute == SharedRoute.Downloads
             )
-    val albumPlayerColors = if (nowPlaying != null) {
-        rememberPlatformCoverArtPlayerColors(nowPlaying.coverArtUrl, colors)
-    } else {
-        NaviampPlayerColors.fallback(colors)
-    }
+    val albumPlayerColors = rememberPlatformCoverArtPlayerColors(nowPlaying?.coverArtUrl, colors)
     val singleBackgroundColor = naviampColorFromHex(interfaceSettings.singleColorHex)
         ?: naviampColorFromHex(DefaultSingleColorHex)!!
-    val nowPlayingPlayerColors = when (interfaceSettings.appBackgroundStyle) {
+    val targetNowPlayingPlayerColors = when (interfaceSettings.appBackgroundStyle) {
         AppBackgroundStyle.SingleColor -> NaviampPlayerColors.fromSingleColor(singleBackgroundColor, colors)
         AppBackgroundStyle.Aurora -> albumPlayerColors.withAuroraTone(interfaceSettings.auroraTone)
         AppBackgroundStyle.AlbumBlur -> albumPlayerColors
     }
+    val nowPlayingPlayerColors = animatedNaviampPlayerColors(targetNowPlayingPlayerColors)
     val nowPlayingActions = NaviampNowPlayingActions(
         onPlaybackAction = onNowPlayingPlaybackAction,
         onDisplayAction = onNowPlayingDisplayAction,
@@ -663,6 +661,7 @@ fun NaviampSharedAppShell(
                             onArtistSelected = onArtistSelected,
                             onArtistFavoriteToggled = onArtistFavoriteToggled,
                             onArtistRadio = onArtistRadio,
+                            onArtistPlay = onArtistPlay,
                             onArtistShuffle = onArtistShuffle,
                             onArtistAddToQueue = onArtistAddToQueue,
                             onArtistAddToPlaylist = onArtistAddToPlaylist,
@@ -1271,6 +1270,7 @@ private fun ConnectedContent(
     onArtistSelected: (SharedMediaItemUi) -> Unit,
     onArtistFavoriteToggled: (SharedMediaItemUi) -> Unit,
     onArtistRadio: (SharedArtistDetailUi) -> Unit,
+    onArtistPlay: (SharedArtistDetailUi) -> Unit,
     onArtistShuffle: (SharedArtistDetailUi) -> Unit,
     onArtistAddToQueue: (SharedArtistDetailUi) -> Unit,
     onArtistAddToPlaylist: (SharedArtistDetailUi, NaviampPlaylistChoiceUi?) -> Unit,
@@ -1323,18 +1323,15 @@ private fun ConnectedContent(
 ) {
     var saveSonicPathDialogOpen by remember { mutableStateOf(false) }
     var saveSonicMixDialogOpen by remember { mutableStateOf(false) }
-    val albumPlayerColors = if (nowPlayingOpen && nowPlaying != null) {
-        rememberPlatformCoverArtPlayerColors(nowPlaying.coverArtUrl, colors)
-    } else {
-        NaviampPlayerColors.fallback(colors)
-    }
+    val albumPlayerColors = rememberPlatformCoverArtPlayerColors(nowPlaying?.coverArtUrl, colors)
     val singleBackgroundColor = naviampColorFromHex(interfaceSettings.singleColorHex)
         ?: naviampColorFromHex(DefaultSingleColorHex)!!
-    val nowPlayingPlayerColors = when (interfaceSettings.appBackgroundStyle) {
+    val targetNowPlayingPlayerColors = when (interfaceSettings.appBackgroundStyle) {
         AppBackgroundStyle.SingleColor -> NaviampPlayerColors.fromSingleColor(singleBackgroundColor, colors)
         AppBackgroundStyle.Aurora -> albumPlayerColors.withAuroraTone(interfaceSettings.auroraTone)
         AppBackgroundStyle.AlbumBlur -> albumPlayerColors
     }
+    val nowPlayingPlayerColors = animatedNaviampPlayerColors(targetNowPlayingPlayerColors)
 
     when {
         nowPlayingOpen && nowPlaying != null -> FullNowPlaying(
@@ -1445,7 +1442,8 @@ private fun ConnectedContent(
             groupAlbumsByReleaseType = interfaceSettings.groupAlbumsByReleaseType,
             onBack = onCloseNowPlaying,
             onArtistRadio = { onArtistRadio(artistDetail) },
-            onArtistShuffle = { onArtistShuffle(artistDetail) },
+            onArtistPlay = { albums -> onArtistPlay(artistDetail.copy(albums = albums)) },
+            onArtistShuffle = { albums -> onArtistShuffle(artistDetail.copy(albums = albums)) },
             onArtistAddToQueue = { onArtistAddToQueue(artistDetail) },
             onArtistAddToPlaylist = { playlist -> onArtistAddToPlaylist(artistDetail, playlist) },
             onArtistCreatePlaylistAndAdd = { name -> onArtistCreatePlaylistAndAdd(artistDetail, name) },
@@ -2033,7 +2031,8 @@ private fun ArtistDetailContent(
     groupAlbumsByReleaseType: Boolean,
     onBack: () -> Unit,
     onArtistRadio: () -> Unit,
-    onArtistShuffle: () -> Unit,
+    onArtistPlay: (List<SharedMediaItemUi>) -> Unit,
+    onArtistShuffle: (List<SharedMediaItemUi>) -> Unit,
     onArtistAddToQueue: () -> Unit,
     onArtistAddToPlaylist: (NaviampPlaylistChoiceUi?) -> Unit,
     onArtistCreatePlaylistAndAdd: (String) -> Unit,
@@ -2091,6 +2090,14 @@ private fun ArtistDetailContent(
         )
     }
     val similarArtistsVisible = detail.similarArtists.isNotEmpty() || detail.similarArtistsStatus != null
+    val visibleAlbumSections = if (groupAlbumsByReleaseType) {
+        detail.albumSections
+    } else {
+        listOf(SharedAlbumSectionUi("Albums", detail.albums))
+    }.map { section ->
+        section.copy(albums = section.albums.sortedForAlbumDisplay(albumSortOrder))
+    }
+    val displayedAlbums = visibleAlbumSections.flatMap { section -> section.albums }
     val albumMenuItems: (SharedMediaItemUi) -> List<NaviampRowMenuItem> = { album ->
         albumRowActions(
             canStartRadio = true,
@@ -2157,6 +2164,7 @@ private fun ArtistDetailContent(
                 NaviampResponsiveActionRow(
                     colors = colors,
                     actions = listOf(
+                        NaviampDetailAction("Play artist catalog", NaviampTransportIcons.Play, { onArtistPlay(displayedAlbums) }, displayedAlbums.isNotEmpty()),
                         NaviampDetailAction("Start artist radio", NaviampTransportIcons.Radio, onArtistRadio, detail.albums.isNotEmpty()),
                         NaviampDetailAction(
                             if (detail.artist.favoriteActive) "Remove artist favorite" else "Favorite artist",
@@ -2164,7 +2172,6 @@ private fun ArtistDetailContent(
                             onArtistFavoriteToggled,
                             detail.artist.canFavorite,
                         ),
-                        NaviampDetailAction("Play popular tracks", NaviampTransportIcons.Play, onPopularPlay, detail.popularTracks.isNotEmpty()),
                         NaviampDetailAction(
                             if (similarArtistsVisible) "Hide similar artists" else "Find similar artists",
                             NaviampIcons.Artist,
@@ -2173,6 +2180,7 @@ private fun ArtistDetailContent(
                         ),
                         NaviampDetailAction("Add artist to queue", NaviampIcons.Queue, onArtistAddToQueue, detail.albums.isNotEmpty()),
                         NaviampDetailAction("Add artist to playlist", NaviampIcons.Playlist, { addArtistToPlaylistOpen = true }, detail.albums.isNotEmpty()),
+                        NaviampDetailAction("Shuffle artist catalog", NaviampTransportIcons.Shuffle, { onArtistShuffle(displayedAlbums) }, displayedAlbums.isNotEmpty()),
                     ),
                 )
                 detail.biography
@@ -2269,14 +2277,7 @@ private fun ArtistDetailContent(
             if (detail.albums.isEmpty()) {
                 Text("No albums found.", color = colors.secondaryText, fontSize = 13.sp)
             } else {
-                val visibleSections = if (groupAlbumsByReleaseType) {
-                    detail.albumSections
-                } else {
-                    listOf(SharedAlbumSectionUi("Albums", detail.albums))
-                }.map { section ->
-                    section.copy(albums = section.albums.sortedForAlbumDisplay(albumSortOrder))
-                }
-                visibleSections.forEach { section ->
+                visibleAlbumSections.forEach { section ->
                     Text(section.title.uppercase(), color = colors.primaryText, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                     if (albumCollectionLayout == AlbumCollectionLayout.Grid) {
                         FlowRow(

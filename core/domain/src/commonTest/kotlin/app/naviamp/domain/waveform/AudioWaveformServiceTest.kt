@@ -27,8 +27,11 @@ import kotlin.test.assertNull
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.test.runTest
 
 class AudioWaveformServiceTest {
@@ -256,6 +259,53 @@ class AudioWaveformServiceTest {
         assertEquals(1, repository.stored.size)
         assertSame(generated, results[0].waveform)
         assertSame(generated, results[1].waveform)
+    }
+
+    @Test
+    fun activeWaiterRetriesWhenWaveformAnalysisOwnerIsCancelled() = runTest {
+        val generated = AudioWaveform(listOf(0.2f, 0.7f))
+        val repository = RecordingWaveformRepository()
+        val firstAnalysisStarted = CompletableDeferred<Unit>()
+        var analysisCount = 0
+        val analyzer = RecordingWaveformAnalyzer(generated) {
+            analysisCount += 1
+            if (analysisCount == 1) {
+                firstAnalysisStarted.complete(Unit)
+                awaitCancellation()
+            }
+        }
+        val service = service(
+            repository = repository,
+            analyzer = analyzer,
+            audioAssets = RecordingAudioAssets(cached = "cache/song.flac"),
+        )
+
+        val owner = async {
+            service.loadOrCreateWaveform(
+                sourceId = "source",
+                provider = FakeMediaProvider(),
+                track = track(),
+                quality = StreamQuality.Original,
+                audioCachingEnabled = true,
+            )
+        }
+        firstAnalysisStarted.await()
+        val waiter = async(start = CoroutineStart.UNDISPATCHED) {
+            service.loadOrCreateWaveform(
+                sourceId = "source",
+                provider = FakeMediaProvider(),
+                track = track(),
+                quality = StreamQuality.Original,
+                audioCachingEnabled = true,
+            )
+        }
+
+        owner.cancelAndJoin()
+        val result = waiter.await()
+
+        assertEquals(2, analysisCount)
+        assertSame(generated, result.waveform)
+        assertEquals(1, repository.stored.size)
     }
 
     private fun service(

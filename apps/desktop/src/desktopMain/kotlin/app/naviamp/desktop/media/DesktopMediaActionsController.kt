@@ -72,6 +72,25 @@ class DesktopMediaActionsController(
         playTracks(tracks, index = index)
     }
 
+    fun playArtistCatalog(albums: List<Album>, shuffle: Boolean) {
+        val activeProvider = provider() ?: return
+        scope.launch {
+            setConnectionStatus("Loading artist catalog...")
+            runCatching {
+                albums.flatMap { album -> activeProvider.album(album.id).tracks }
+            }.onSuccess { tracks ->
+                if (tracks.isEmpty()) {
+                    setConnectionStatus("No artist tracks found.")
+                } else {
+                    setConnectionStatus("")
+                    playTracks(tracks, index = 0, shuffle = shuffle)
+                }
+            }.onFailure { error ->
+                setConnectionStatus(error.message ?: "Could not load the artist catalog.")
+            }
+        }
+    }
+
     fun addPopularTracksToQueue(tracks: List<Track>) {
         val update = PlaybackQueueManager().appendTracks(
             currentQueue = playlistEngine.queue,

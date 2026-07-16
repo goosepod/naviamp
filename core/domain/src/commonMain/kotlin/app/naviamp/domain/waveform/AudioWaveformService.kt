@@ -11,7 +11,10 @@ import app.naviamp.domain.playback.resolvePlaybackAudioSource
 import app.naviamp.domain.playback.waveformStatus
 import app.naviamp.domain.provider.MediaProvider
 import app.naviamp.domain.settings.DefaultWaveformBucketCount
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
@@ -90,39 +93,52 @@ class AudioWaveformService(
         }
 
         val inFlightKey = waveformInFlightKey(sourceId, track, quality, bucketCount)
-        var ownsAnalysis = false
-        val inFlightResult = inFlightMutex.withLock {
-            inFlightWaveforms[inFlightKey] ?: CompletableDeferred<AudioWaveformServiceResult>()
-                .also { deferred ->
-                    inFlightWaveforms[inFlightKey] = deferred
-                    ownsAnalysis = true
+        while (true) {
+            var ownsAnalysis = false
+            val inFlightResult = inFlightMutex.withLock {
+                inFlightWaveforms[inFlightKey] ?: CompletableDeferred<AudioWaveformServiceResult>()
+                    .also { deferred ->
+                        inFlightWaveforms[inFlightKey] = deferred
+                        ownsAnalysis = true
+                    }
+            }
+            if (!ownsAnalysis) {
+                try {
+                    return@withContext inFlightResult.await()
+                } catch (error: CancellationException) {
+                    currentCoroutineContext().ensureActive()
+                    inFlightMutex.withLock {
+                        if (inFlightWaveforms[inFlightKey] === inFlightResult && inFlightResult.isCancelled) {
+                            inFlightWaveforms.remove(inFlightKey)
+                        }
+                    }
+                    continue
                 }
-        }
-        if (!ownsAnalysis) {
-            return@withContext inFlightResult.await()
-        }
+            }
 
-        try {
-            val result = loadOrCreateWaveformAfterCacheLookup(
-                sourceId = sourceId,
-                provider = provider,
-                track = track,
-                quality = quality,
-                audioCachingEnabled = audioCachingEnabled,
-                bucketCount = bucketCount,
-            )
-            inFlightResult.complete(result)
-            return@withContext result
-        } catch (error: Throwable) {
-            inFlightResult.completeExceptionally(error)
-            throw error
-        } finally {
-            inFlightMutex.withLock {
-                if (inFlightWaveforms[inFlightKey] === inFlightResult) {
-                    inFlightWaveforms.remove(inFlightKey)
+            try {
+                val result = loadOrCreateWaveformAfterCacheLookup(
+                    sourceId = sourceId,
+                    provider = provider,
+                    track = track,
+                    quality = quality,
+                    audioCachingEnabled = audioCachingEnabled,
+                    bucketCount = bucketCount,
+                )
+                inFlightResult.complete(result)
+                return@withContext result
+            } catch (error: Throwable) {
+                inFlightResult.completeExceptionally(error)
+                throw error
+            } finally {
+                inFlightMutex.withLock {
+                    if (inFlightWaveforms[inFlightKey] === inFlightResult) {
+                        inFlightWaveforms.remove(inFlightKey)
+                    }
                 }
             }
         }
+        error("Waveform analysis retry loop exited unexpectedly")
     }
 
     private suspend fun loadOrCreateWaveformAfterCacheLookup(

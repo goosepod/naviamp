@@ -1,5 +1,10 @@
 package app.naviamp.ui
 
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.tween
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -109,6 +114,19 @@ data class NaviampPlayerColors(
             )
         }
     }
+}
+
+@Composable
+fun animatedNaviampPlayerColors(
+    target: NaviampPlayerColors,
+    durationMillis: Int = 180,
+): NaviampPlayerColors {
+    val animationSpec = tween<Color>(durationMillis = durationMillis, easing = LinearEasing)
+    val backgroundStart by animateColorAsState(target.backgroundStart, animationSpec, label = "playerBackgroundStart")
+    val backgroundMid by animateColorAsState(target.backgroundMid, animationSpec, label = "playerBackgroundMid")
+    val backgroundEnd by animateColorAsState(target.backgroundEnd, animationSpec, label = "playerBackgroundEnd")
+    val accent by animateColorAsState(target.accent, animationSpec, label = "playerAccent")
+    return NaviampPlayerColors(backgroundStart, backgroundMid, backgroundEnd, accent)
 }
 
 fun naviampColorFromHex(value: String): Color? {

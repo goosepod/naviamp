@@ -28,6 +28,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import app.naviamp.domain.Album
 import app.naviamp.domain.Artist
 import app.naviamp.domain.ArtistDetails
 import app.naviamp.domain.Track
@@ -72,6 +73,7 @@ fun DesktopArtistDetailPanel(
     onSimilarArtistSelected: (Artist) -> Unit,
     onSimilarArtistExternalSelected: (String) -> Unit,
     onArtistAction: (SharedMediaItemActionRequest) -> Unit,
+    onArtistCatalogPlay: (List<Album>, Boolean) -> Unit,
     onPopularTracksAction: (SharedTrackGroupActionRequest) -> Unit,
     onPopularTrackAction: (SharedTrackRowActionRequest) -> Unit,
     onAlbumAction: (SharedMediaItemActionRequest) -> Unit,
@@ -83,6 +85,21 @@ fun DesktopArtistDetailPanel(
     var biographyExpanded by remember(effectiveArtist?.id) { mutableStateOf(false) }
     var artistImageOpen by remember(effectiveArtist?.id) { mutableStateOf(false) }
     val similarArtistsVisible = similarArtists.isNotEmpty() || similarArtistsStatus != null
+    val visibleAlbumSections = artistDetails?.let { details ->
+        if (groupAlbumsByReleaseType) {
+            details.albums.groupedByReleaseSection()
+        } else {
+            listOf(
+                app.naviamp.domain.media.AlbumReleaseSectionGroup(
+                    section = app.naviamp.domain.media.AlbumReleaseSection.Albums,
+                    albums = details.albums,
+                ),
+            )
+        }.map { section ->
+            section.copy(albums = section.albums.sortedForAlbumDisplay(albumSortOrder))
+        }
+    }.orEmpty()
+    val displayedAlbums = visibleAlbumSections.flatMap { section -> section.albums }
     val artistItem = effectiveArtist?.toSharedMediaItemUi(
         coverArtUrl = { imageUrl },
         canFavorite = true,
@@ -173,6 +190,7 @@ fun DesktopArtistDetailPanel(
                     NaviampResponsiveActionRow(
                         colors = appColors,
                         actions = listOf(
+                            NaviampDetailAction("Play artist catalog", TransportIcons.Play, { onArtistCatalogPlay(displayedAlbums, false) }, displayedAlbums.isNotEmpty()),
                             NaviampDetailAction("Start artist radio", TransportIcons.Radio, { requestArtistAction(SharedMediaItemAction.StartRadio) }, details.albums.isNotEmpty()),
                             NaviampDetailAction(
                                 if (effectiveArtist?.favoritedAtIso8601 != null) "Remove artist favorite" else "Favorite artist",
@@ -180,7 +198,6 @@ fun DesktopArtistDetailPanel(
                                 { requestArtistAction(SharedMediaItemAction.ToggleFavorite) },
                                 effectiveArtist != null,
                             ),
-                            NaviampDetailAction("Play popular tracks", TransportIcons.Play, { requestPopularTracksAction(SharedTrackGroupAction.Play) }, popularTracks.isNotEmpty()),
                             NaviampDetailAction(
                                 if (similarArtistsVisible) "Hide similar artists" else "Find similar artists",
                                 DesktopNavigationIcons.Artist,
@@ -190,6 +207,7 @@ fun DesktopArtistDetailPanel(
                             ),
                             NaviampDetailAction("Add artist to queue", DesktopNavigationIcons.Queue, { requestArtistAction(SharedMediaItemAction.AddToQueue) }, details.albums.isNotEmpty()),
                             NaviampDetailAction("Add artist to playlist", DesktopNavigationIcons.Playlist, { requestArtistAction(SharedMediaItemAction.AddToPlaylist) }, details.albums.isNotEmpty()),
+                            NaviampDetailAction("Shuffle artist catalog", TransportIcons.Shuffle, { onArtistCatalogPlay(displayedAlbums, true) }, displayedAlbums.isNotEmpty()),
                         ),
                     )
                     details.info?.biography
@@ -317,17 +335,7 @@ fun DesktopArtistDetailPanel(
                     fontWeight = FontWeight.Bold,
                     fontSize = 12.sp,
                 )
-                val visibleSections = if (groupAlbumsByReleaseType) {
-                    details.albums.groupedByReleaseSection()
-                } else {
-                    listOf(app.naviamp.domain.media.AlbumReleaseSectionGroup(
-                        section = app.naviamp.domain.media.AlbumReleaseSection.Albums,
-                        albums = details.albums,
-                    ))
-                }.map { section ->
-                    section.copy(albums = section.albums.sortedForAlbumDisplay(albumSortOrder))
-                }
-                visibleSections.forEach { section ->
+                visibleAlbumSections.forEach { section ->
                     Text(
                         section.section.label.uppercase(),
                         color = appColors.primaryText,

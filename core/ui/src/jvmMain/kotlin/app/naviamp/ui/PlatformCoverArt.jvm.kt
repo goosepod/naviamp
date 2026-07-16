@@ -67,16 +67,16 @@ actual fun PlatformCoverArt(
     size: Dp,
     cornerRadius: Dp,
 ) {
-    var image by remember(url) { mutableStateOf(url?.let { JvmCoverArtCache.cachedImage(it) }) }
+    var image by remember { mutableStateOf(url?.let { JvmCoverArtCache.cachedImage(it) }) }
 
     LaunchedEffect(url) {
         if (url == null) {
             image = null
             return@LaunchedEffect
         }
-        image = runCatching {
+        runCatching {
             JvmCoverArtCache.image(url)
-        }.getOrNull()
+        }.getOrNull()?.let { loadedImage -> image = loadedImage }
     }
 
     Box(
@@ -148,21 +148,18 @@ actual fun rememberPlatformCoverArtPlayerColors(
     url: String?,
     colors: NaviampColors,
 ): NaviampPlayerColors {
-    var playerColors by remember(url, colors) {
+    var playerColors by remember(colors) {
         mutableStateOf(
             url?.let { JvmCoverArtCache.cachedPlayerColors(it, colors) }
                 ?: NaviampPlayerColors.fallback(colors),
         )
     }
 
-    LaunchedEffect(url) {
-        playerColors = if (url == null) {
-            NaviampPlayerColors.fallback(colors)
-        } else {
-            runCatching {
-                JvmCoverArtCache.playerColors(url, colors)
-            }.getOrNull() ?: NaviampPlayerColors.fallback(colors)
-        }
+    LaunchedEffect(url, colors) {
+        if (url == null) return@LaunchedEffect
+        runCatching {
+            JvmCoverArtCache.playerColors(url, colors)
+        }.getOrNull()?.let { loadedColors -> playerColors = loadedColors }
     }
 
     return playerColors
@@ -301,13 +298,18 @@ private object JvmCoverArtCache {
 
     suspend fun image(url: String): ImageBitmap =
         cachedImage(url) ?: withContext(Dispatchers.IO) {
-            cachedImage(url) ?: SkiaImage.makeFromEncoded(platformCoverArtByteLoader(url))
-                .toComposeImageBitmap()
-                .also { image ->
-                    synchronized(images) {
-                        images[url] = image
+            cachedImage(url) ?: platformCoverArtByteLoader(url).let { bytes ->
+                SkiaImage.makeFromEncoded(bytes).toComposeImageBitmap()
+                    .also { image ->
+                        synchronized(images) {
+                            images[url] = image
+                        }
+                        val samples = jvmRgbSamples(bytes)
+                        synchronized(palettes) {
+                            palettes[url] = samples
+                        }
                     }
-                }
+            }
         }
 
     suspend fun shaderImage(url: String): SkiaImage =
@@ -347,3 +349,9 @@ private object JvmCoverArtCache {
 
 internal suspend fun jvmPlatformCoverArtShaderImage(url: String): SkiaImage =
     JvmCoverArtCache.shaderImage(url)
+
+internal suspend fun jvmPlatformCoverArtPlayerColors(
+    url: String,
+    colors: NaviampColors = NaviampColors.Dark,
+): NaviampPlayerColors =
+    JvmCoverArtCache.playerColors(url, colors)

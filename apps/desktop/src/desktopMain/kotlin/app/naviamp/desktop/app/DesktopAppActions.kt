@@ -76,6 +76,10 @@ class DesktopAppActions(
         mediaActionsController.playPopularTracks(tracks, index)
     }
 
+    fun playArtistCatalog(albums: List<Album>, shuffle: Boolean = false) {
+        mediaActionsController.playArtistCatalog(albums, shuffle)
+    }
+
     fun addPopularTracksToQueue(tracks: List<Track>) {
         mediaActionsController.addPopularTracksToQueue(tracks)
     }

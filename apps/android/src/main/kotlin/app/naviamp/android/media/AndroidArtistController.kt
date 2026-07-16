@@ -234,9 +234,13 @@ fun loadAndroidArtistTracks(
     scope: CoroutineScope,
     state: AndroidAppState,
     providerResponseCacheRepository: ProviderResponseCacheRepository,
+    albumIdsInDisplayOrder: List<String>? = null,
     action: (List<Track>) -> Unit,
 ) {
-    val albums = state.artistDetail?.albums.orEmpty()
+    val artistAlbums = state.artistDetail?.albums.orEmpty()
+    val albums = albumIdsInDisplayOrder
+        ?.mapNotNull { albumId -> artistAlbums.firstOrNull { album -> album.id.value == albumId } }
+        ?: artistAlbums
     val activeProvider = state.provider ?: return
     val providerResponseService = ProviderResponseService(providerResponseCacheRepository)
     scope.launch {
@@ -335,12 +339,32 @@ internal class AndroidArtistActionController(
     }
 
     fun loadArtistTracks(action: (List<Track>) -> Unit) {
-        loadAndroidArtistTracks(scope, state, providerResponseCacheRepository, action)
+        loadArtistTracks(detail = null, action = action)
     }
 
-    fun handleShellArtistShuffle() {
-        loadArtistTracks { artistTracks ->
-            val queue = artistTracks.distinctBy { it.id }.shuffled()
+    private fun loadArtistTracks(
+        detail: SharedArtistDetailUi?,
+        action: (List<Track>) -> Unit,
+    ) {
+        loadAndroidArtistTracks(
+            scope = scope,
+            state = state,
+            providerResponseCacheRepository = providerResponseCacheRepository,
+            albumIdsInDisplayOrder = detail?.albums?.map { album -> album.id },
+            action = action,
+        )
+    }
+
+    fun handleShellArtistPlay(detail: SharedArtistDetailUi) {
+        loadArtistTracks(detail) { artistTracks ->
+            artistTracks.firstOrNull()?.let { playTrack(it, artistTracks) }
+                ?: run { state.status = "No artist tracks found." }
+        }
+    }
+
+    fun handleShellArtistShuffle(detail: SharedArtistDetailUi) {
+        loadArtistTracks(detail) { artistTracks ->
+            val queue = artistTracks.shuffled()
             queue.firstOrNull()?.let { playTrack(it, queue) }
                 ?: run { state.status = "No artist tracks found." }
         }

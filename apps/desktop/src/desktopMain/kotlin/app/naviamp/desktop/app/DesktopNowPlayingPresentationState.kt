@@ -116,12 +116,12 @@ internal fun rememberDesktopNowPlayingPresentationState(
                 ?: naviampColorFromHex(DefaultSingleColorHex)!!,
             appColors,
         )
-        AppBackgroundStyle.Aurora -> if (nowPlayingTrack != null || nowPlayingStation != null) {
+        AppBackgroundStyle.Aurora -> if (effectiveCoverArtUrl != null) {
             coverArtPlayerColors.withAuroraTone(interfaceSettings.auroraTone)
         } else {
             NaviampPlayerColors.solid(appColors.background)
         }
-        AppBackgroundStyle.AlbumBlur -> if (nowPlayingTrack != null || nowPlayingStation != null) {
+        AppBackgroundStyle.AlbumBlur -> if (effectiveCoverArtUrl != null) {
             coverArtPlayerColors
         } else {
             NaviampPlayerColors.solid(appColors.background)

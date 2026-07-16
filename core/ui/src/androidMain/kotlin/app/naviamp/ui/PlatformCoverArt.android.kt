@@ -175,23 +175,20 @@ actual fun rememberPlatformCoverArtPlayerColors(
     colors: NaviampColors,
 ): NaviampPlayerColors {
     val context = LocalContext.current
-    var playerColors by remember {
+    var playerColors by remember(colors) {
         mutableStateOf(NaviampPlayerColors.fallback(colors))
     }
 
-    LaunchedEffect(url) {
-        playerColors = if (url == null) {
-            NaviampPlayerColors.fallback(colors)
-        } else {
-            runCatching {
-                withContext(Dispatchers.IO) {
-                    AndroidCoverArtCache.imageBytes(context, url)
-                        ?.let { decodeSampledBitmap(it, PaletteBitmapSidePx) }
-                        ?.albumPalette()
-                        ?.let { NaviampPlayerColors.from(it, colors) }
-                }
-            }.getOrNull() ?: NaviampPlayerColors.fallback(colors)
-        }
+    LaunchedEffect(url, colors) {
+        if (url == null) return@LaunchedEffect
+        runCatching {
+            withContext(Dispatchers.IO) {
+                AndroidCoverArtCache.imageBytes(context, url)
+                    ?.let { decodeSampledBitmap(it, PaletteBitmapSidePx) }
+                    ?.albumPalette()
+                    ?.let { NaviampPlayerColors.from(it, colors) }
+            }
+        }.getOrNull()?.let { loadedColors -> playerColors = loadedColors }
     }
 
     return playerColors

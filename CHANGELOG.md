@@ -9,11 +9,14 @@ Release changes are grouped into user-facing Features, Bug Fixes, and deployment
 - Added customizable app backgrounds with the default Aurora gradient in light or dark emphasis, an adjustable Album Blur treatment, and a user-selected Single Color.
 - Added structured multi-artist credits with separate artist-page navigation from Now Playing and shared track rows on desktop and Android, including exact-name fallback for legacy combined Navidrome credits.
 - Expanded Library Radio to queue Navidrome's full bounded 500-song random set while preserving Radio DJ tuning across the returned tracks.
+- Changed artist-page header playback to Play and Shuffle the full catalog in its displayed album order while keeping Popular Tracks playback in its own section.
 
 ### Bug Fixes
 
 - Refined compact Now Playing spacing, moved volume below the transport controls, and hid volume at the minimum desktop height so the remaining controls stay comfortably separated.
 - Made single- and multi-artist lines use consistent spacing and the configured artist-name marquee behavior.
+- Prevented Aurora backgrounds and cover art from flashing through empty fallback states between tracks by retaining the current visuals until preloaded replacements are ready.
+- Prevented first-track waveforms from being lost when startup navigation cancels the original shared analysis request.
 
 ## v1.4.0
 

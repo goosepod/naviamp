@@ -510,6 +510,7 @@ fun ColumnScope.DesktopAppRouteContent(
                         (selectedArtistDetails?.artist ?: selectedArtist)
                             ?.let { artist -> handleArtistMediaAction(request.action, artist) }
                     },
+                    onArtistCatalogPlay = appActions::playArtistCatalog,
                     onPopularTracksAction = ::handlePopularTracksGroupAction,
                     onPopularTrackAction = { request ->
                         selectedArtistPopularTracks

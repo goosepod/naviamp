@@ -176,6 +176,7 @@ fun AndroidAppShellContent(
         onAlbumCreatePlaylistAndAdd = actions.onAlbumCreatePlaylistAndAdd,
         onTrackAction = actions.onTrackAction,
         onArtistRadio = actions.onArtistRadio,
+        onArtistPlay = actions.onArtistPlay,
         onArtistShuffle = actions.onArtistShuffle,
         onArtistAddToQueue = actions.onArtistAddToQueue,
         onArtistAddToPlaylist = actions.onArtistAddToPlaylist,

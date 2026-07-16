@@ -207,6 +207,7 @@ data class AndroidAppShellActions(
     val onAlbumCreatePlaylistAndAdd: (SharedAlbumDetailUi, String) -> Unit,
     val onTrackAction: (SharedTrackRowActionRequest) -> Unit,
     val onArtistRadio: (SharedArtistDetailUi) -> Unit,
+    val onArtistPlay: (SharedArtistDetailUi) -> Unit,
     val onArtistShuffle: (SharedArtistDetailUi) -> Unit,
     val onArtistAddToQueue: (SharedArtistDetailUi) -> Unit,
     val onArtistAddToPlaylist: (SharedArtistDetailUi, NaviampPlaylistChoiceUi?) -> Unit,
