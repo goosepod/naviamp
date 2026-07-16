@@ -48,6 +48,7 @@ import app.naviamp.ui.artistRowActions
 import app.naviamp.ui.compactFavoriteRatingLabel
 import app.naviamp.ui.durationLabel
 import app.naviamp.ui.toNowPlayingDetailSections
+import app.naviamp.ui.toSharedArtistCreditUis
 import app.naviamp.ui.trackRowActions
 
 @Composable
@@ -352,7 +353,7 @@ fun DesktopTrackRow(
     canAddToPlaylist: Boolean = onAddToPlaylist != null,
     canToggleFavorite: Boolean = true,
     canGoToAlbum: Boolean = track.albumId != null,
-    canGoToArtist: Boolean = track.artistId != null,
+    canGoToArtist: Boolean = track.toSharedArtistCreditUis().any { it.id != null },
     onTrackAction: ((SharedTrackRowActionRequest) -> Unit)? = null,
     onClick: (() -> Unit)? = null,
 ) {
@@ -367,6 +368,8 @@ fun DesktopTrackRow(
         canToggleFavorite = canToggleFavorite,
         hasAlbum = canGoToAlbum,
         hasArtist = canGoToArtist,
+        artistCredits = track.toSharedArtistCreditUis(),
+        albumTitle = track.albumTitle?.takeIf { subtitle != track.artistName },
         detailSections = track.toNowPlayingDetailSections(),
     )
     TrackRow(

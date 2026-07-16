@@ -2,6 +2,18 @@
 
 Release changes are grouped into user-facing Features, Bug Fixes, and deployment or infrastructure-related System Settings. Internal task-tracking notes are intentionally not included.
 
+## Unreleased
+
+### Features
+
+- Added customizable app backgrounds with the default Aurora gradient in light or dark emphasis, an adjustable Album Blur treatment, and a user-selected Single Color.
+- Added structured multi-artist credits with separate artist-page navigation from Now Playing and shared track rows on desktop and Android, including exact-name fallback for legacy combined Navidrome credits.
+
+### Bug Fixes
+
+- Refined compact Now Playing spacing, moved volume below the transport controls, and hid volume at the minimum desktop height so the remaining controls stay comfortably separated.
+- Made single- and multi-artist lines use consistent spacing and the configured artist-name marquee behavior.
+
 ## v1.4.0
 
 ### Features

@@ -100,6 +100,7 @@ data class SharedTrackRowUi(
     val hasAlbum: Boolean = false,
     val hasArtist: Boolean = false,
     val artistCredits: List<SharedArtistCreditUi> = emptyList(),
+    val albumTitle: String? = null,
     val detailSections: List<NaviampDetailSectionUi> = emptyList(),
 )
 
@@ -128,6 +129,8 @@ data class SharedTrackRowActionRequest(
     val action: SharedTrackRowAction,
     val playlistChoice: NaviampPlaylistChoiceUi? = null,
     val playlistName: String? = null,
+    val artistId: String? = null,
+    val artistName: String? = null,
 )
 
 enum class SharedTrackGroupAction {
@@ -442,6 +445,8 @@ data class SharedHomeDiscoveryTrackActionRequest(
     val rowId: String,
     val track: SharedTrackRowUi,
     val action: SharedTrackRowAction,
+    val artistId: String? = null,
+    val artistName: String? = null,
 )
 
 data class SharedMixBuilderUi(

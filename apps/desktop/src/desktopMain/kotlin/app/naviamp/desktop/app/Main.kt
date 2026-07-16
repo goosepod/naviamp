@@ -54,7 +54,7 @@ fun main() {
             LaunchedEffect(window, darkTitleBar) {
                 configureNativeTitleBar(window, darkTitleBar)
             }
-            window.minimumSize = Dimension(320, 430)
+            window.minimumSize = Dimension(320, 500)
             NaviampApp(
                 dependencies = appDependencies,
             )

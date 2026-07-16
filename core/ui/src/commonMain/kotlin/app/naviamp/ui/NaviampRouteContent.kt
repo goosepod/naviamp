@@ -254,6 +254,8 @@ private fun SonicDiscoverySection(
                                     rowId = row.id,
                                     track = request.track,
                                     action = request.action,
+                                    artistId = request.artistId,
+                                    artistName = request.artistName,
                                 ),
                             )
                         },

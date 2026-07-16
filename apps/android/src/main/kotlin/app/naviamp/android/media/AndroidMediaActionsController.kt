@@ -425,7 +425,7 @@ internal class AndroidTrackActionController(
     private val removeDownload: (NaviampDownloadedTrackUi) -> Unit,
     private val toggleTrackFavorite: (Track) -> Unit,
     private val openTrackAlbum: (Track) -> Unit,
-    private val openTrackArtist: (Track) -> Unit,
+    private val openTrackArtist: (Track, String?, String?) -> Unit,
 ) {
     fun handleDownloadedTrackSelected(download: NaviampDownloadedTrackUi) {
         playAndroidDownloadedTrack(state, download) { track, queue -> playTrack(track, queue) }
@@ -474,7 +474,7 @@ internal class AndroidTrackActionController(
                 resolved.playlistName?.let { name -> addTrackToPlaylist(track, null, name) }
             SharedTrackRowAction.ToggleFavorite -> toggleTrackFavorite(track)
             SharedTrackRowAction.GoToAlbum -> openTrackAlbum(track)
-            SharedTrackRowAction.GoToArtist -> openTrackArtist(track)
+            SharedTrackRowAction.GoToArtist -> openTrackArtist(track, resolved.artistId, resolved.artistName)
         }
     }
 

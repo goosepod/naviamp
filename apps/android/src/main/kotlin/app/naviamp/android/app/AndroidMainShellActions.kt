@@ -204,7 +204,13 @@ internal fun androidMainShellActions(
                 app.naviamp.ui.SharedTrackRowAction.GoToAlbum ->
                     track?.let(shellMediaController::handleTrackGoToAlbum)
                 app.naviamp.ui.SharedTrackRowAction.GoToArtist ->
-                    track?.let(shellMediaController::handleTrackGoToArtist)
+                    track?.let { selectedTrack ->
+                        shellMediaController.handleTrackGoToArtist(
+                            selectedTrack,
+                            request.artistId,
+                            request.artistName,
+                        )
+                    }
                 else -> sonicHomeDiscoveryController.handleAction(request)
             }
         },

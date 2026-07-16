@@ -17,6 +17,9 @@ import app.naviamp.ui.SharedHomeStationUi
 import app.naviamp.ui.SharedMediaItemUi
 import app.naviamp.ui.SharedTrackRowUi
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 internal class AndroidShellMediaController(
     private val scope: CoroutineScope,
@@ -187,13 +190,36 @@ internal class AndroidShellMediaController(
 
     fun handleShellGoToArtist(artistId: String?, artistName: String?) {
         val currentTrack = state.nowPlaying ?: return
-        val selectedArtistId = artistId?.takeIf { it.isNotBlank() }?.let(::ArtistId) ?: currentTrack.artistId
-        selectedArtistId?.let {
-            openArtistDetails(it, artistName?.takeIf(String::isNotBlank) ?: currentTrack.artistName)
-        }
+        handleTrackGoToArtist(currentTrack, artistId, artistName)
     }
 
     fun handleTrackGoToArtist(track: Track) {
+        handleTrackGoToArtist(track, artistId = null, artistName = null)
+    }
+
+    fun handleTrackGoToArtist(track: Track, artistId: String?, artistName: String?) {
+        val selectedName = artistName?.takeIf { it.isNotBlank() }
+        val selectedArtistId = artistId?.takeIf { it.isNotBlank() }?.let(::ArtistId)
+        if (selectedArtistId != null) {
+            openArtistDetails(selectedArtistId, selectedName ?: track.artistName)
+            return
+        }
+        if (selectedName != null) {
+            scope.launch {
+                val match = runCatching {
+                    withContext(Dispatchers.IO) {
+                        state.provider?.search(selectedName, limit = 20)?.artists
+                            ?.firstOrNull { candidate -> candidate.name.equals(selectedName, ignoreCase = true) }
+                    }
+                }.getOrNull()
+                if (match != null) {
+                    openArtistDetails(match.id, match.name)
+                } else {
+                    state.status = "Could not find artist $selectedName."
+                }
+            }
+            return
+        }
         track.artistId?.let { openArtistDetails(it, track.artistName) }
     }
 }

@@ -441,7 +441,11 @@ fun ColumnScope.DesktopAppRouteContent(
                                 SharedTrackRowAction.CreatePlaylistAndAdd -> Unit
                                 SharedTrackRowAction.ToggleFavorite -> appActions.toggleTrackFavorite(track)
                                 SharedTrackRowAction.GoToAlbum -> appActions.openTrackAlbumDetails(track)
-                                SharedTrackRowAction.GoToArtist -> appActions.openTrackArtistDetails(track)
+                                SharedTrackRowAction.GoToArtist -> appActions.openTrackArtistDetails(
+                                    track,
+                                    artistId = request.artistId,
+                                    artistName = request.artistName,
+                                )
                             }
                         }
                     },
@@ -473,7 +477,12 @@ fun ColumnScope.DesktopAppRouteContent(
                                 SharedTrackRowAction.CreatePlaylistAndAdd -> Unit
                                 SharedTrackRowAction.ToggleFavorite -> appActions.toggleTrackFavorite(track)
                                 SharedTrackRowAction.GoToAlbum -> appActions.openTrackAlbumDetails(track)
-                                SharedTrackRowAction.GoToArtist -> appActions.openTrackArtistDetails(track)
+                                SharedTrackRowAction.GoToArtist -> appActions.openTrackArtistDetails(
+                                    track,
+                                    artistId = request.artistId,
+                                    artistName = request.artistName,
+                                    backRouteOverride = DesktopAppRoute.AlbumDetail,
+                                )
                             }
                         }
                     },
@@ -519,7 +528,11 @@ fun ColumnScope.DesktopAppRouteContent(
                                     -> Unit
                                     SharedTrackRowAction.ToggleFavorite -> appActions.toggleTrackFavorite(track)
                                     SharedTrackRowAction.GoToAlbum -> appActions.openTrackAlbumDetails(track)
-                                    SharedTrackRowAction.GoToArtist -> appActions.openTrackArtistDetails(track)
+                                    SharedTrackRowAction.GoToArtist -> appActions.openTrackArtistDetails(
+                                        track,
+                                        artistId = request.artistId,
+                                        artistName = request.artistName,
+                                    )
                                 }
                             }
                     },
@@ -585,7 +598,11 @@ fun ColumnScope.DesktopAppRouteContent(
                                 SharedTrackRowAction.CreatePlaylistAndAdd -> Unit
                                 SharedTrackRowAction.ToggleFavorite -> appActions.toggleTrackFavorite(track)
                                 SharedTrackRowAction.GoToAlbum -> appActions.openTrackAlbumDetails(track)
-                                SharedTrackRowAction.GoToArtist -> appActions.openTrackArtistDetails(track)
+                                SharedTrackRowAction.GoToArtist -> appActions.openTrackArtistDetails(
+                                    track,
+                                    artistId = request.artistId,
+                                    artistName = request.artistName,
+                                )
                             }
                         }
                     },
@@ -648,7 +665,11 @@ fun ColumnScope.DesktopAppRouteContent(
                                 SharedTrackRowAction.CreatePlaylistAndAdd -> Unit
                                 SharedTrackRowAction.ToggleFavorite -> appActions.toggleTrackFavorite(track)
                                 SharedTrackRowAction.GoToAlbum -> appActions.openTrackAlbumDetails(track)
-                                SharedTrackRowAction.GoToArtist -> appActions.openTrackArtistDetails(track)
+                                SharedTrackRowAction.GoToArtist -> appActions.openTrackArtistDetails(
+                                    track,
+                                    artistId = request.artistId,
+                                    artistName = request.artistName,
+                                )
                             }
                         }
                     },

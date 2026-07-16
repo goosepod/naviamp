@@ -80,6 +80,28 @@ class MediaUiMappersTest {
         assertTrue(ui.hasArtist)
         assertEquals(listOf("artist-1", "artist-2"), ui.artistCredits.mapNotNull { it.id })
         assertEquals(listOf("Artist", "Featured Artist"), ui.artistCredits.map { it.name })
+        assertEquals("Album", ui.albumTitle)
+    }
+
+    @Test
+    fun legacyCombinedArtistNamesBecomeSeparateResolvableCredits() {
+        val track = Track(
+            id = TrackId("track-1"),
+            title = "Inhale - Carlita Remix",
+            artistId = ArtistId("combined-artist"),
+            artistName = "RÜFÜS DU SOL, Carlita",
+            albumId = null,
+            albumTitle = null,
+            durationSeconds = null,
+            coverArtId = null,
+            audioInfo = null,
+            replayGain = null,
+        )
+
+        val ui = track.toSharedTrackRowUi(coverArtUrl = { null })
+
+        assertEquals(listOf("RÜFÜS DU SOL", "Carlita"), ui.artistCredits.map { it.name })
+        assertTrue(ui.artistCredits.all { it.id == null })
     }
 
     @Test
@@ -215,6 +237,8 @@ class MediaUiMappersTest {
             track = SharedTrackRowUi(id = "track-two", title = "Track Two", subtitle = "Artist"),
             action = SharedTrackRowAction.AddToPlaylist,
             playlistChoice = NaviampPlaylistChoiceUi(id = "playlist-1", name = "Road Mix"),
+            artistId = "artist-2",
+            artistName = "Featured Artist",
         )
 
         val action = request.resolveAction(knownTracks = listOf(track("track-one"), track("track-two")))
@@ -222,6 +246,8 @@ class MediaUiMappersTest {
         assertEquals(SharedTrackRowAction.AddToPlaylist, action.action)
         assertEquals("track-two", action.track?.id?.value)
         assertEquals("Road Mix", action.playlistChoice?.name)
+        assertEquals("artist-2", action.artistId)
+        assertEquals("Featured Artist", action.artistName)
     }
 
     @Test

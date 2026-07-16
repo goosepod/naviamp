@@ -337,8 +337,13 @@ class DesktopAppActions(
         artistController.openArtistDetails(artist, backRouteOverride, pushCurrentArtist)
     }
 
-    fun openTrackArtistDetails(track: Track, backRouteOverride: DesktopAppRoute = DesktopAppRoute.Player) {
-        artistController.openTrackArtistDetails(track, backRouteOverride)
+    fun openTrackArtistDetails(
+        track: Track,
+        artistId: String? = null,
+        artistName: String? = null,
+        backRouteOverride: DesktopAppRoute = DesktopAppRoute.Player,
+    ) {
+        artistController.openTrackArtistDetails(track, artistId, artistName, backRouteOverride)
     }
 
     fun closeArtistDetails() {

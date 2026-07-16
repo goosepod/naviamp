@@ -10,12 +10,12 @@ The goal is simple: keep your music on your server, but make browsing, playback,
 
 ## Highlights
 
-- Browse albums, artists, tracks, playlists, genres, favorites, recently added music, recently played music, and random library picks.
+- Browse albums, artists, tracks, playlists, genres, favorites, recently added music, recently played music, and random library picks, with separate navigation for every credited track artist.
 - Play from a focused Now Playing screen with queue controls, waveforms, ratings, favorites, lyrics, volume, repeat, shuffle, and track details close at hand.
 - Build smarter listening sessions with Sonic Analysis, Sonic Mix, Sonic Path, sonic-backed track radio, sonic autoplay, and related-track queues when your server supports it.
 - Create and edit smart playlists, then save generated sonic results and normal track selections back to your server.
 - Use internet radio alongside your library, including station browsing, playback, and now-playing metadata.
-- Customize the player with album-art-driven colors, waveform display, compact layouts, display toggles, and desktop visualizers.
+- Customize the player with Aurora gradients, adjustable blurred album art, a selected solid color, album-art-driven accents, waveform display, compact layouts, display toggles, and desktop visualizers.
 - Tune playback with ReplayGain, gapless playback, crossfade, sample-rate converter quality, and sample-rate matching.
 - Follow along with embedded or downloaded lyrics, including synced lyric highlighting where available.
 - Keep the same app model across macOS, Windows, Linux, and Android, with shared UI and playback behavior wherever the platforms allow it.
@@ -86,6 +86,8 @@ Playback features include:
 - Sample-rate matching for users who want the output device to follow the current track where the platform allows it.
 - Waveform-based seeking.
 - Configurable Now Playing metadata, including album year, bitrate info, volume bar, and long-text scrolling.
+- Individually clickable artist credits, including multi-artist tracks and compatible legacy display credits.
+- A compact desktop layout that moves volume below transport controls and hides it when vertical space is constrained.
 
 ## Visualizers
 

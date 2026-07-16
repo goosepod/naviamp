@@ -5,6 +5,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import app.naviamp.domain.Artist
 import app.naviamp.domain.ArtistDetails
+import app.naviamp.domain.ArtistId
 import app.naviamp.domain.Track
 import app.naviamp.domain.cache.LocalLibraryIndexRepository
 import app.naviamp.domain.cache.ProviderResponseCacheRepository
@@ -149,7 +150,47 @@ class DesktopArtistController(
         }
     }
 
-    fun openTrackArtistDetails(track: Track, backRouteOverride: DesktopAppRoute = DesktopAppRoute.Player) {
+    fun openTrackArtistDetails(
+        track: Track,
+        artistId: String? = null,
+        artistName: String? = null,
+        backRouteOverride: DesktopAppRoute = DesktopAppRoute.Player,
+    ) {
+        val selectedName = artistName?.takeIf { it.isNotBlank() }
+        val artist = artistId?.takeIf { it.isNotBlank() }?.let { id ->
+            Artist(
+                id = ArtistId(id),
+                name = selectedName ?: track.artistName,
+            )
+        }
+        if (artist != null) {
+            openArtistDetails(artist, backRouteOverride = backRouteOverride)
+            return
+        }
+        if (selectedName != null) {
+            val localMatch = sourceId()?.let { id ->
+                libraryIndexRepository.searchLibrary(id, selectedName, limit = 20).artists
+                    .firstOrNull { candidate -> candidate.name.equals(selectedName, ignoreCase = true) }
+            }
+            if (localMatch != null) {
+                openArtistDetails(localMatch, backRouteOverride = backRouteOverride)
+                return
+            }
+            scope.launch {
+                val remoteMatch = runCatching {
+                    withContext(Dispatchers.IO) {
+                        provider()?.search(selectedName, limit = 20)?.artists
+                            ?.firstOrNull { candidate -> candidate.name.equals(selectedName, ignoreCase = true) }
+                    }
+                }.getOrNull()
+                if (remoteMatch != null) {
+                    openArtistDetails(remoteMatch, backRouteOverride = backRouteOverride)
+                } else {
+                    selectedArtistStatus = "Could not find artist $selectedName."
+                }
+            }
+            return
+        }
         openArtistDetails(trackArtist(track) ?: return, backRouteOverride = backRouteOverride)
     }
 

@@ -5,6 +5,8 @@ import app.naviamp.ui.generated.resources.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -186,7 +188,39 @@ fun TrackRow(
         }
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(titleSubtitleSpacing)) {
             Text(track.title, color = colors.primaryText, style = titleStyle, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Text(track.subtitle, color = colors.secondaryText, style = subtitleStyle, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            if (track.artistCredits.size > 1) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.horizontalScroll(rememberScrollState()),
+                ) {
+                    track.artistCredits.forEachIndexed { index, credit ->
+                        if (index > 0) {
+                            Text(" • ", color = colors.mutedText, style = subtitleStyle)
+                        }
+                        Text(
+                            text = credit.name,
+                            color = colors.secondaryText,
+                            style = subtitleStyle,
+                            maxLines = 1,
+                            modifier = Modifier.clickable {
+                                onTrackAction(
+                                    SharedTrackRowActionRequest(
+                                        track = track,
+                                        action = SharedTrackRowAction.GoToArtist,
+                                        artistId = credit.id,
+                                        artistName = credit.name,
+                                    ),
+                                )
+                            },
+                        )
+                    }
+                    track.albumTitle?.takeIf { it.isNotBlank() }?.let { albumTitle ->
+                        Text(" - $albumTitle", color = colors.secondaryText, style = subtitleStyle)
+                    }
+                }
+            } else {
+                Text(track.subtitle, color = colors.secondaryText, style = subtitleStyle, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
         }
         trailingContent?.invoke(this)
         val rowActions = trackRowActions(

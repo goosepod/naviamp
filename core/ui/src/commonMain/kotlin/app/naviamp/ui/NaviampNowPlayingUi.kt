@@ -605,7 +605,7 @@ private fun NowPlayingDetails(
     val canTogglePlayback = nowPlaying.canPlayPause
     val height = availableHeight ?: Dp.Unspecified
     val pinBottomActions = !mobileLayout && height != Dp.Unspecified
-    val showVolume = !compactLayout || height == Dp.Unspecified || height >= 220.dp
+    val showVolume = !compactLayout || height == Dp.Unspecified || height >= 250.dp
     val showRating = !compactLayout || height == Dp.Unspecified || height >= 150.dp
     val showAudioInfo = displaySettings.showAudioInfo && (!compactLayout || height == Dp.Unspecified || height >= 150.dp)
     val showTrackIdentity = !compactLayout || height == Dp.Unspecified || height >= 135.dp
@@ -728,34 +728,20 @@ private fun NowPlayingDetails(
                         marqueeEnabled = displaySettings.scrollTrackTitle && nowPlaying.id.isNotBlank(),
                         modifier = Modifier.fillMaxWidth(),
                     )
-                    if (!nowPlaying.isLive && nowPlaying.artistCredits.size > 1) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.Center,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(metadataLineHeight.value.dp)
-                                .horizontalScroll(rememberScrollState()),
-                        ) {
-                            nowPlaying.artistCredits.forEachIndexed { index, credit ->
-                                if (index > 0) {
-                                    Text("  •  ", color = colors.mutedText, fontSize = metadataFontSize.sp)
-                                }
-                                Text(
-                                    text = credit.name,
-                                    color = colors.secondaryText,
-                                    fontSize = metadataFontSize.sp,
-                                    modifier = Modifier.clickable(enabled = credit.id != null) {
-                                        actions.currentTrack(
-                                            action = NowPlayingCurrentTrackAction.GoToArtist,
-                                            artistCredit = credit,
-                                        )
-                                    },
+                    if (!nowPlaying.isLive && nowPlaying.artistCredits.isNotEmpty()) {
+                        NowPlayingArtistCreditsLine(
+                            credits = nowPlaying.artistCredits,
+                            colors = colors,
+                            fontSize = metadataFontSize,
+                            marqueeEnabled = displaySettings.scrollArtistName,
+                            onArtistSelected = { credit ->
+                                actions.currentTrack(
+                                    action = NowPlayingCurrentTrackAction.GoToArtist,
+                                    artistCredit = credit,
                                 )
-                            }
-                        }
+                            },
+                        )
                     } else {
-                        val artistCredit = nowPlaying.artistCredits.firstOrNull()
                         NowPlayingIdentityText(
                             text = nowPlaying.subtitle,
                             color = colors.secondaryText,
@@ -765,10 +751,7 @@ private fun NowPlayingDetails(
                             modifier = Modifier.clickable(
                                 enabled = !nowPlaying.isLive,
                                 onClick = {
-                                    actions.currentTrack(
-                                        action = NowPlayingCurrentTrackAction.GoToArtist,
-                                        artistCredit = artistCredit,
-                                    )
+                                    actions.currentTrack(NowPlayingCurrentTrackAction.GoToArtist)
                                 },
                             ),
                         )
@@ -845,18 +828,6 @@ private fun NowPlayingDetails(
                 }
         }
 
-        if (volumeVisible) {
-            VolumeRow(
-                value = volumeValue,
-                isChangingVolume = { isChangingVolume = it },
-                onValueChanged = {
-                    volumeValue = it
-                    actions.changeVolume((it * 100).toInt().coerceIn(0, 100))
-                },
-                colors = controlColors,
-            )
-        }
-
         Row(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = Alignment.CenterVertically,
@@ -924,6 +895,18 @@ private fun NowPlayingDetails(
                 iconSize = secondaryTransportIconSize,
                 centerText = if (nowPlaying.repeatMode == NaviampRepeatMode.Track) "1" else null,
                 onClick = { actions.playback(NowPlayingPlaybackAction.CycleRepeatMode) },
+            )
+        }
+
+        if (volumeVisible) {
+            VolumeRow(
+                value = volumeValue,
+                isChangingVolume = { isChangingVolume = it },
+                onValueChanged = {
+                    volumeValue = it
+                    actions.changeVolume((it * 100).toInt().coerceIn(0, 100))
+                },
+                colors = controlColors,
             )
         }
 
@@ -2730,6 +2713,107 @@ private fun BouncingTitleText(
                     (width - placeable.width) / 2
                 }
                 placeable.placeRelative(x, (height - placeable.height) / 2)
+            }
+        }
+    }
+}
+
+@Composable
+private fun NowPlayingArtistCreditsLine(
+    credits: List<SharedArtistCreditUi>,
+    colors: NaviampColors,
+    fontSize: Int,
+    marqueeEnabled: Boolean,
+    onArtistSelected: (SharedArtistCreditUi) -> Unit,
+) {
+    val content: @Composable () -> Unit = {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center,
+        ) {
+            credits.forEachIndexed { index, credit ->
+                if (index > 0) {
+                    Text("  •  ", color = colors.mutedText, fontSize = fontSize.sp)
+                }
+                Text(
+                    text = credit.name,
+                    color = colors.secondaryText,
+                    fontSize = fontSize.sp,
+                    maxLines = 1,
+                    softWrap = false,
+                    modifier = Modifier.clickable { onArtistSelected(credit) },
+                )
+            }
+        }
+    }
+
+    if (!marqueeEnabled) {
+        Row(
+            horizontalArrangement = Arrangement.Center,
+            modifier = Modifier
+                .fillMaxWidth()
+                .horizontalScroll(rememberScrollState()),
+        ) {
+            content()
+        }
+        return
+    }
+
+    val contentKey = credits.joinToString(separator = "|") { credit -> "${credit.id}:${credit.name}" }
+    val offset = remember(contentKey) { Animatable(0f) }
+    var containerWidth by remember { mutableStateOf(0) }
+    var contentWidth by remember(contentKey, fontSize) { mutableStateOf(0) }
+    val overflow = (contentWidth - containerWidth).coerceAtLeast(0)
+
+    LaunchedEffect(contentKey, overflow) {
+        offset.snapTo(0f)
+        if (overflow > 0) {
+            while (true) {
+                kotlinx.coroutines.delay(800)
+                offset.animateTo(
+                    targetValue = -overflow.toFloat(),
+                    animationSpec = tween(
+                        durationMillis = (overflow * 24).coerceAtLeast(1800),
+                        easing = LinearEasing,
+                    ),
+                )
+                kotlinx.coroutines.delay(800)
+                offset.animateTo(
+                    targetValue = 0f,
+                    animationSpec = tween(
+                        durationMillis = (overflow * 24).coerceAtLeast(1800),
+                        easing = LinearEasing,
+                    ),
+                )
+            }
+        }
+    }
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(2.dp))
+            .onSizeChanged { containerWidth = it.width },
+    ) {
+        Layout(
+            content = {
+                Row(modifier = Modifier.onSizeChanged { contentWidth = it.width }) {
+                    content()
+                }
+            },
+            modifier = Modifier.fillMaxWidth(),
+        ) { measurables, constraints ->
+            val placeable = measurables.first().measure(
+                Constraints(
+                    minWidth = 0,
+                    maxWidth = Constraints.Infinity,
+                    minHeight = 0,
+                    maxHeight = constraints.maxHeight,
+                ),
+            )
+            layout(constraints.maxWidth, placeable.height) {
+                val x = if (overflow > 0) offset.value.roundToInt() else (constraints.maxWidth - placeable.width) / 2
+                placeable.placeRelative(x, 0)
             }
         }
     }

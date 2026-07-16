@@ -85,15 +85,29 @@ data class Track(
     val artistCredits: List<ArtistCredit> = emptyList(),
 )
 
-fun Track.resolvedArtistCredits(): List<ArtistCredit> =
-    artistCredits
+fun Track.resolvedArtistCredits(): List<ArtistCredit> {
+    val structuredCredits = artistCredits
         .filter { it.name.isNotBlank() }
         .distinctBy { credit -> credit.id?.value ?: credit.name.lowercase() }
-        .ifEmpty {
-            listOfNotNull(
-                artistName.takeIf { it.isNotBlank() }?.let { ArtistCredit(artistId, it) },
-            )
+    val legacyNames = artistName
+        .split(',', ';')
+        .map(String::trim)
+        .filter(String::isNotBlank)
+        .distinctBy(String::lowercase)
+
+    if (legacyNames.size > structuredCredits.size && legacyNames.size > 1) {
+        return legacyNames.map { name ->
+            structuredCredits.firstOrNull { credit -> credit.name.equals(name, ignoreCase = true) }
+                ?: ArtistCredit(id = null, name = name)
         }
+    }
+
+    return structuredCredits.ifEmpty {
+        listOfNotNull(
+            artistName.takeIf { it.isNotBlank() }?.let { ArtistCredit(artistId, it) },
+        )
+    }
+}
 
 fun Album.resolvedArtistCredits(): List<ArtistCredit> =
     artistCredits

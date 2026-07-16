@@ -855,7 +855,9 @@ fun NaviampAndroidApp(
                 toggleAndroidTrackFavorite(scope, appState, playbackEngine, track, storage)
             },
             openTrackAlbum = shellMediaController::handleTrackGoToAlbum,
-            openTrackArtist = shellMediaController::handleTrackGoToArtist,
+            openTrackArtist = { track, artistId, artistName ->
+                shellMediaController.handleTrackGoToArtist(track, artistId, artistName)
+            },
         )
     }
 

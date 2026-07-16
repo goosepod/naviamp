@@ -216,6 +216,7 @@ fun Track.toSharedTrackRowUi(
         hasAlbum = albumId != null,
         hasArtist = resolvedArtistCredits().any { it.id != null },
         artistCredits = toSharedArtistCreditUis(),
+        albumTitle = albumTitle,
         detailSections = toNowPlayingDetailSections(),
     )
 
@@ -645,6 +646,12 @@ data class ResolvedSharedTrackRowAction(
 
     val playlistName: String?
         get() = request.playlistName
+
+    val artistId: String?
+        get() = request.artistId
+
+    val artistName: String?
+        get() = request.artistName
 }
 
 fun SharedTrackRowActionRequest.resolveAction(
