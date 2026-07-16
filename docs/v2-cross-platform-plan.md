@@ -6,7 +6,7 @@ This document is the durable plan and progress tracker for Naviamp 2.0. Update i
 
 - **Target release:** `2.0.0`
 - **Working branch:** `feature/v2-cross-platform-app`
-- **Status:** Milestone 0 complete; Milestone 1 ready to begin
+- **Status:** Milestone 1 in progress; `core:domain` is Apple-compatible
 - **Release policy:** Feature development for the v1 line is frozen. Only bug fixes should be released from v1 while this work is underway.
 - **Versioning rule:** Do not change `VERSION` to `2.0.0` until the release-preparation milestone. Development builds and intermediate branches must remain clearly distinguishable from a finished v2 release.
 - **Primary objective:** One shared Naviamp application, UI, and behavior hosted by thin Android, Desktop, and iOS applications.
@@ -91,17 +91,17 @@ Use explicit dependency construction unless a dependency-injection framework pro
 
 ### Milestone 1: Make the Shared Dependency Graph Apple-Compatible
 
-- [ ] Add `iosArm64` and `iosSimulatorArm64` targets to `core:domain`.
+- [x] Add `iosArm64` and `iosSimulatorArm64` targets to `core:domain`. Device compilation and the full common-domain simulator test suite pass.
 - [ ] Add both iOS targets to `core:storage`.
 - [ ] Add both iOS targets to `core:ui`.
 - [ ] Add both iOS targets to `providers:navidrome`.
 - [ ] Introduce common source-set hierarchy where it reduces duplicate Apple target configuration.
-- [ ] Implement iOS time, hashing, URL, encoding, connectivity, and other domain platform functions.
-- [ ] Add the Ktor Darwin engine and iOS provider client construction.
+- [ ] Implement iOS time, hashing, URL, encoding, connectivity, and other domain platform functions. Time, SHA-256, and form URL encoding are complete in `core:domain`; remaining module seams are pending.
+- [ ] Add the Ktor Darwin engine and iOS provider client construction. The shared domain HTTP client now resolves Darwin; provider client construction remains pending.
 - [ ] Explicitly capability-gate provider features whose TLS or certificate behavior is not yet available on iOS.
 - [ ] Add the SQLDelight native driver and safe iOS database path construction.
 - [ ] Add initial iOS `actual` implementations or honest no-op capability fallbacks for UI platform hooks.
-- [ ] Run iOS compilation in CI on every v2 change.
+- [x] Run iOS compilation in CI on every v2 change. Branch CI compiles the device domain target and runs its simulator suite; expand the command as each shared module becomes Apple-compatible.
 
 **Exit criteria:** All shared modules compile and link for an Apple Silicon iOS simulator without weakening Android or Desktop tests.
 
@@ -299,7 +299,7 @@ Record architecture decisions here or link a dedicated decision record.
 
 ## Current Handoff
 
-- **Last completed item:** Completed Milestone 0 by strengthening Android/Desktop playback-session boundary tests and recording the migration regression contracts.
-- **Next recommended item:** Begin Milestone 1 with Apple target configuration in `core:domain`, then implement or isolate its Android/JVM platform functions for iOS compilation.
-- **Verification:** Targeted session tests and the full shared, provider, Desktop, Android, and packaged BASS/JNI verification suite passed.
+- **Last completed item:** Added Apple targets, Darwin HTTP support, native platform actuals, native-safe common code, simulator tests, and branch CI for `core:domain`.
+- **Next recommended item:** Add Apple targets and a Native SQLDelight driver boundary to `core:storage`.
+- **Verification:** `core:domain` compiled for iOS device and simulator; its full simulator, JVM, and Android test suites passed.
 - **Known blockers:** None.

@@ -87,7 +87,14 @@ class AudioByteStoreService(
 
 fun stableAudioFileName(sourceId: String, trackId: String, qualityKey: String): String {
     val digest = sha256("$sourceId:$trackId:$qualityKey".encodeToByteArray())
-    return digest.joinToString("") { byte -> "%02x".format(byte.toInt() and 0xff) }.take(32)
+    val hex = "0123456789abcdef"
+    return buildString(digest.size * 2) {
+        for (byte in digest) {
+            val value = byte.toInt() and 0xff
+            append(hex[value shr 4])
+            append(hex[value and 0x0f])
+        }
+    }.take(32)
 }
 
 fun String?.audioExtension(): String =

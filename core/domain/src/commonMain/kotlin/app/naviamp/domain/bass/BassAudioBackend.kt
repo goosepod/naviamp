@@ -10,6 +10,7 @@ import app.naviamp.domain.playback.planPreparedMixerTransition
 import app.naviamp.domain.playback.playbackSourceHandle
 import app.naviamp.domain.playback.playbackVisualizerFrameFromFft
 import app.naviamp.domain.playback.playbackVolumeApplicationPlan
+import kotlin.jvm.JvmInline
 
 @JvmInline
 value class BassStreamHandle(val value: Int)

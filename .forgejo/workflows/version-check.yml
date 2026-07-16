@@ -28,4 +28,24 @@ jobs:
         run: scripts/validate-version.sh
 
       - name: Require version bump from main
+        if: github.ref != 'refs/heads/feature/v2-cross-platform-app' && github.head_ref != 'feature/v2-cross-platform-app'
         run: scripts/check-version-bump.sh origin/main
+
+  ios-domain:
+    name: iOS core domain
+    runs-on: macos-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Android SDK for Gradle configuration
+        uses: android-actions/setup-android@v3
+
+      - name: Compile iOS device target and run simulator tests
+        run: ./gradlew :core:domain:compileKotlinIosArm64 :core:domain:iosSimulatorArm64Test

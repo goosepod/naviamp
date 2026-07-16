@@ -1,6 +1,7 @@
 package app.naviamp.domain
 
 import kotlinx.serialization.Serializable
+import kotlin.jvm.JvmInline
 
 @JvmInline
 value class ProviderId(val value: String)

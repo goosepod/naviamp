@@ -40,7 +40,7 @@ This proves the shared JVM/Android compilation, checked-in unit tests, Desktop t
 
 | Module | Current targets | v2 implication |
 | --- | --- | --- |
-| `core:domain` | Android, JVM | Add Apple targets; currently has paired Android/JVM implementations for HTTP, URL encoding, time, and audio byte storage. |
+| `core:domain` | Android, JVM, iOS device, iOS simulator | Apple targets, Darwin shared HTTP, native time/encoding/hash actuals, and simulator tests were added in Milestone 1. |
 | `core:storage` | Android, JVM | Add Apple targets and a native SQLDelight driver supplied by the iOS host. |
 | `core:ui` | Android, JVM | Add Apple targets and iOS implementations for cover art, tooltips, sleep-timer effects, and visualizer surfaces. |
 | `providers:navidrome` | Android, JVM | Add Apple targets and a Darwin Ktor implementation without weakening existing TLS behavior on Android/Desktop. |
