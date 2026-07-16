@@ -140,7 +140,6 @@ class DesktopSettingsStoreTest {
                 volumePercent = 72,
                 debugLoggingEnabled = true,
                 removePlayedTracksFromQueue = true,
-                playReportDurationPercent = 25,
             ),
         )
 
@@ -159,7 +158,6 @@ class DesktopSettingsStoreTest {
         assertEquals(72, store.loadPlaybackSettings().volumePercent)
         assertEquals(true, store.loadPlaybackSettings().debugLoggingEnabled)
         assertEquals(true, store.loadPlaybackSettings().removePlayedTracksFromQueue)
-        assertEquals(25, store.loadPlaybackSettings().playReportDurationPercent)
         assertEquals("user", store.loadConnection()?.username)
     }
 

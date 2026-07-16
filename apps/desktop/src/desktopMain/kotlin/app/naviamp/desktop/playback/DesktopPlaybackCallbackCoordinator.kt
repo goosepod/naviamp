@@ -34,7 +34,6 @@ fun desktopPlaylistCallbacks(
     setNowPlayingInternetRadioStation: (app.naviamp.domain.InternetRadioStation?) -> Unit,
     setNowPlayingStreamMetadata: (PlaybackStreamMetadata) -> Unit,
     incrementPlayReportSessionId: () -> Unit,
-    clearSubmittedPlayReportSessionId: () -> Unit,
     incrementNowPlayingWaveformReloadToken: () -> Unit,
     reportNowPlaying: (Track) -> Unit,
     maybeReportPlaybackState: (PlaybackState, PlaybackProgress) -> Unit,
@@ -53,7 +52,6 @@ fun desktopPlaylistCallbacks(
     lastPlaybackProgressUiUpdateMillis: () -> Long,
     setLastPlaybackProgressUiUpdateMillis: (Long) -> Unit,
     maybeSavePlaybackPosition: (PlaybackProgress) -> Unit,
-    maybeReportPlayed: (PlaybackProgress) -> Unit,
 ): PlaylistCallbacks =
     PlaylistCallbacks(
         onTrackStarted = { track, coverArtUrl ->
@@ -81,7 +79,6 @@ fun desktopPlaylistCallbacks(
                     setNowPlayingTrack = { startedTrack -> setNowPlayingTrack(startedTrack) },
                     setNowPlayingCoverArtUrl = setNowPlayingCoverArtUrl,
                     incrementPlayReportSession = incrementPlayReportSessionId,
-                    clearSubmittedPlayReportSession = clearSubmittedPlayReportSessionId,
                     openNowPlaying = { setAppRoute(DesktopAppRoute.Player) },
                     reportNowPlaying = reportNowPlaying,
                     resetSidecars = {
@@ -134,7 +131,6 @@ fun desktopPlaylistCallbacks(
             }
             val mergedProgress = plan.progress ?: return@progressChanged
             if (plan.shouldSavePlaybackPosition) maybeSavePlaybackPosition(mergedProgress)
-            if (plan.shouldReportPlayed) maybeReportPlayed(mergedProgress)
             maybeReportPlaybackState(PlaybackState.Playing, mergedProgress)
             if (plan.shouldUpdateUi) {
                 setPlaybackProgress(mergedProgress)

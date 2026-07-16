@@ -273,7 +273,6 @@ class PlaybackProgressTest {
 
         assertEquals(14.0, plan.progress?.positionSeconds)
         assertEquals(180.0, plan.progress?.durationSeconds)
-        assertEquals(true, plan.shouldReportPlayed)
         assertEquals(true, plan.shouldPublishExternalProgress)
         assertEquals(true, plan.shouldPrepareNext)
     }
@@ -303,7 +302,6 @@ class PlaybackProgressTest {
         assertEquals(42.0, plan.progress?.positionSeconds)
         assertEquals(180.0, plan.progress?.durationSeconds)
         assertEquals(true, plan.shouldSavePlaybackPosition)
-        assertEquals(true, plan.shouldReportPlayed)
         assertEquals(true, plan.shouldUpdateUi)
         assertEquals(false, plan.shouldPublishExternalProgress)
         assertEquals(false, plan.shouldPrepareNext)
@@ -352,7 +350,6 @@ class PlaybackProgressTest {
             externalProgressPublishIntervalMillis = Long.MAX_VALUE,
             resetUnknownProgress = false,
             mergeMissingProgressFields = false,
-            reportPlayed = false,
             prepareNext = false,
             lastUiUpdateMillis = 1_000,
             positionThresholdSeconds = 0.45,
@@ -361,7 +358,6 @@ class PlaybackProgressTest {
 
         assertEquals(8.0, plan.progress?.positionSeconds)
         assertEquals(null, plan.progress?.durationSeconds)
-        assertEquals(false, plan.shouldReportPlayed)
         assertEquals(true, plan.shouldUpdateUi)
         assertEquals(false, plan.shouldPrepareNext)
     }

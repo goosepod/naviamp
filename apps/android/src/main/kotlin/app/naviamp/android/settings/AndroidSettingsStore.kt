@@ -144,10 +144,6 @@ class AndroidSettingsStore(
                 UpNextSelectionBehavior.MoveSelectedToCurrent,
             ),
             removePlayedTracksFromQueue = preferences.getBoolean(KeyRemovePlayedTracksFromQueue, false),
-            playReportDurationPercent = preferences.getInt(
-                KeyPlayReportDurationPercent,
-                PlaybackSettings().playReportDurationPercent,
-            ),
             radioTuning = RadioTuningSettings(
                 familiarity = enumPreference(KeyRadioFamiliarity, RadioFamiliarity.Balanced),
                 artistSpread = enumPreference(KeyRadioArtistSpread, RadioArtistSpread.Balanced),
@@ -267,7 +263,6 @@ class AndroidSettingsStore(
             .putString(KeyPreviousButtonBehavior, settings.previousButtonBehavior.name)
             .putString(KeyUpNextSelectionBehavior, settings.upNextSelectionBehavior.name)
             .putBoolean(KeyRemovePlayedTracksFromQueue, settings.removePlayedTracksFromQueue)
-            .putInt(KeyPlayReportDurationPercent, settings.normalized().playReportDurationPercent)
             .putString(KeyRadioFamiliarity, settings.radioTuning.familiarity.name)
             .putString(KeyRadioArtistSpread, settings.radioTuning.artistSpread.name)
             .putBoolean(KeyRadioSameDecadeOnly, settings.radioTuning.sameDecadeOnly)
@@ -619,7 +614,6 @@ private const val KeySonicAutoplayEnabled = "sonic_autoplay_enabled"
 private const val KeyPreviousButtonBehavior = "previous_button_behavior"
 private const val KeyUpNextSelectionBehavior = "up_next_selection_behavior"
 private const val KeyRemovePlayedTracksFromQueue = "remove_played_tracks_from_queue"
-private const val KeyPlayReportDurationPercent = "play_report_duration_percent"
 private const val KeyRadioFamiliarity = "radio_familiarity"
 private const val KeyRadioArtistSpread = "radio_artist_spread"
 private const val KeyRadioSameDecadeOnly = "radio_same_decade_only"

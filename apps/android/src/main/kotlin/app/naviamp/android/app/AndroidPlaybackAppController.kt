@@ -50,7 +50,6 @@ internal class AndroidPlaybackAppController(
             state = state,
             sessionToken = sessionToken,
             progress = progress,
-            maybeReportPlayed = playbackReportController::maybeReportPlayed,
             maybeReportPlaybackState = playbackReportController::maybeReportPlaybackState,
             prepareNextIfNeeded = playlistEngine::prepareNextIfNeeded,
         )

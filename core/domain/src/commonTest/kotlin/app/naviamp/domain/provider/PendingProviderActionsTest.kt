@@ -20,7 +20,6 @@ class PendingProviderActionsTest {
         val repository = FakePendingProviderActionRepository(
             pendingActions = listOf(
                 pendingAction(1, PendingActionReportNowPlaying, "track-1"),
-                pendingAction(2, PendingActionReportPlayed, "track-1", longValue = 1234),
                 pendingAction(3, PendingActionTrackFavorite, "track-1", boolValue = true),
                 pendingAction(4, PendingActionArtistFavorite, "artist-1", boolValue = false),
                 pendingAction(5, PendingActionAlbumFavorite, "album-1", boolValue = true),
@@ -30,18 +29,17 @@ class PendingProviderActionsTest {
 
         val result = replayPendingProviderActions("source", provider, repository)
 
-        assertEquals(PendingProviderActionSyncResult(attempted = 5, completed = 5, failed = 0), result)
+        assertEquals(PendingProviderActionSyncResult(attempted = 4, completed = 4, failed = 0), result)
         assertEquals(
             listOf(
                 "now-playing:track-1",
-                "played:track-1:1234",
                 "track-favorite:track-1:true",
                 "artist-favorite:artist-1:false",
                 "album-favorite:album-1:true",
             ),
             provider.calls,
         )
-        assertEquals(listOf(1L, 2L, 3L, 4L, 5L), repository.deletedActionIds)
+        assertEquals(listOf(1L, 3L, 4L, 5L), repository.deletedActionIds)
         assertEquals(emptyList(), repository.failedActionIds)
     }
 
@@ -141,10 +139,6 @@ private class RecordingMediaProvider(
 
     override suspend fun reportNowPlaying(trackId: TrackId) {
         calls += "now-playing:${trackId.value}"
-    }
-
-    override suspend fun reportPlayed(trackId: TrackId, playedAtEpochMillis: Long, positionSeconds: Double?) {
-        calls += "played:${trackId.value}:$playedAtEpochMillis"
     }
 
     override suspend fun setTrackFavorite(trackId: TrackId, favorite: Boolean) {

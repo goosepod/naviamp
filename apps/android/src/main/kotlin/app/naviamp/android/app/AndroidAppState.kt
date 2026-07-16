@@ -139,7 +139,6 @@ class AndroidAppState(
     var pendingSeekIssuedAtMillis by mutableStateOf<Long?>(null)
     var pendingRestoreStartPositionSeconds by mutableStateOf<Double?>(null)
     var playbackSessionToken by mutableStateOf(0L)
-    var submittedPlayReportSessionToken by mutableStateOf<Long?>(null)
     var volumePercent by mutableStateOf(100)
     var waveformByTrackId by mutableStateOf<Map<String, AudioWaveform>>(emptyMap())
     var audioTagsByTrackId by mutableStateOf<Map<String, List<AudioTag>>>(emptyMap())

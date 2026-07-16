@@ -1005,50 +1005,24 @@ class NavidromeProvider(
     }
 
     override suspend fun reportNowPlaying(trackId: TrackId) {
-        if (supportsPlaybackReport) {
-            reportPlayback(
-                trackId = trackId,
-                state = PlaybackReportState.Starting,
-                positionMs = 0,
-            )
-        } else {
-            scrobble(
-                trackId = trackId,
-                submission = false,
-                playedAtEpochMillis = null,
-            )
-        }
-    }
-
-    override suspend fun reportPlayed(trackId: TrackId, playedAtEpochMillis: Long, positionSeconds: Double?) {
-        val positionMs = positionSeconds?.takeIf { it >= 0.0 }?.let { (it * 1000).toLong() }
-        if (supportsPlaybackReport && positionMs != null) {
-            reportPlayback(
-                trackId = trackId,
-                state = PlaybackReportState.Stopped,
-                positionMs = positionMs,
-            )
-        } else {
-            scrobble(
-                trackId = trackId,
-                submission = true,
-                playedAtEpochMillis = playedAtEpochMillis,
-            )
-        }
+        if (!supportsPlaybackReport) return
+        reportPlayback(
+            trackId = trackId,
+            state = PlaybackReportState.Starting,
+            positionMs = 0,
+        )
     }
 
     override suspend fun reportPlaybackState(
         trackId: TrackId,
         state: PlaybackReportState,
         positionSeconds: Double?,
-        ignoreScrobble: Boolean,
     ) {
         if (!supportsPlaybackReport) return
         reportPlayback(
             trackId = trackId,
             state = state,
             positionMs = positionSeconds?.takeIf { it >= 0.0 }?.let { (it * 1000).toLong() } ?: 0L,
-            ignoreScrobble = ignoreScrobble,
         )
     }
 
@@ -1223,26 +1197,10 @@ class NavidromeProvider(
             listOfNotNull(intValue("version"))
         }
 
-    private suspend fun scrobble(
-        trackId: TrackId,
-        submission: Boolean,
-        playedAtEpochMillis: Long?,
-    ) {
-        get(
-            endpoint = "scrobble.view",
-            params = buildMap {
-                put("id", trackId.value)
-                put("submission", submission.toString())
-                playedAtEpochMillis?.let { put("time", it.toString()) }
-            },
-        )
-    }
-
     private suspend fun reportPlayback(
         trackId: TrackId,
         state: PlaybackReportState,
         positionMs: Long,
-        ignoreScrobble: Boolean = false,
     ) {
         get(
             endpoint = "reportPlayback.view",
@@ -1251,7 +1209,6 @@ class NavidromeProvider(
                 put("mediaType", "song")
                 put("positionMs", positionMs.coerceAtLeast(0L).toString())
                 put("state", state.providerValue)
-                if (ignoreScrobble) put("ignoreScrobble", "true")
             },
         )
     }

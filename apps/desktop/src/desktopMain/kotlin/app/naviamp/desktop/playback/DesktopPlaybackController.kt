@@ -16,13 +16,11 @@ import app.naviamp.domain.playback.planPlaybackSeek
 import app.naviamp.domain.playback.playbackPlayPauseCommand
 import app.naviamp.domain.playback.shouldReplayCurrentForSeek
 import app.naviamp.domain.playback.shouldSavePlaybackPosition
-import app.naviamp.domain.playback.shouldSubmitPlayReport
 import app.naviamp.domain.provider.MediaProvider
 import app.naviamp.domain.provider.PlaybackReportState
 import app.naviamp.domain.queue.PlaybackQueue
 import app.naviamp.domain.queue.RepeatMode
 import app.naviamp.domain.settings.UpNextSelectionBehavior
-import app.naviamp.domain.settings.normalized
 import app.naviamp.domain.settings.playbackSessionFromQueue
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -77,8 +75,6 @@ class DesktopPlaybackController(
     private val lastSavedPlaybackPositionSeconds: () -> Double?,
     private val setLastSavedPlaybackPositionSeconds: (Double?) -> Unit,
     private val playReportSessionId: () -> Int,
-    private val submittedPlayReportSessionId: () -> Int?,
-    private val setSubmittedPlayReportSessionId: (Int?) -> Unit,
     private val setPendingSeekPositionSeconds: (Double?) -> Unit,
     private val setPendingSeekIssuedAtMillis: (Long?) -> Unit,
     private val setOpenPlayerOnTrackStart: (Boolean) -> Unit,
@@ -264,52 +260,12 @@ class DesktopPlaybackController(
                         trackId = track.id,
                         state = reportState,
                         positionSeconds = progress.positionSeconds,
-                        ignoreScrobble = true,
                     )
                 }
             }
         }
     }
 
-    fun maybeReportPlayed(progress: PlaybackProgress) {
-        val activeProvider = provider() ?: return
-        val track = nowPlayingTrack() ?: return
-        val durationSeconds = progress.durationSeconds ?: track.durationSeconds?.toDouble()
-        val settings = playbackSettings().normalized()
-        if (
-            !shouldSubmitPlayReport(
-                supportsPlayReporting = activeProvider.capabilities.supportsPlayReporting,
-                isInternetRadioTrack = track.isInternetRadioTrack(),
-                activeSessionId = playReportSessionId(),
-                submittedSessionId = submittedPlayReportSessionId(),
-                positionSeconds = progress.positionSeconds,
-                durationSeconds = durationSeconds,
-                durationFraction = settings.playReportDurationPercent / 100.0,
-            )
-        ) {
-            return
-        }
-
-        val activeSessionId = playReportSessionId()
-        setSubmittedPlayReportSessionId(activeSessionId)
-        scope.launch {
-            runCatching {
-                withContext(Dispatchers.IO) {
-                    activeProvider.reportPlayed(
-                        track.id,
-                        System.currentTimeMillis(),
-                        positionSeconds = progress.positionSeconds.takeIf {
-                            settings.playReportDurationPercent >= 50
-                        },
-                    )
-                }
-            }.onFailure {
-                if (submittedPlayReportSessionId() == activeSessionId) {
-                    setSubmittedPlayReportSessionId(null)
-                }
-            }
-        }
-    }
 }
 
 private fun PlaybackState.toPlaybackReportState(): PlaybackReportState? =

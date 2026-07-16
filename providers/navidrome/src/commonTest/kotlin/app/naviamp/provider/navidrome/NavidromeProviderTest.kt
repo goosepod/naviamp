@@ -1962,7 +1962,7 @@ class NavidromeProviderTest {
     }
 
     @Test
-    fun reportNowPlayingUsesScrobbleWithoutSubmission() = runTest {
+    fun reportNowPlayingDoesNothingWhenPlaybackReportExtensionIsMissing() = runTest {
         val httpClient = RecordingHttpClient()
         val provider = NavidromeProvider(
             connection = connection("https://music.example.test"),
@@ -1971,26 +1971,7 @@ class NavidromeProviderTest {
 
         provider.reportNowPlaying(TrackId("track-1"))
 
-        assertEquals(
-            "https://music.example.test/rest/scrobble.view?u=demo&t=token&s=salt&v=1.16.1&$ExpectedClientQuery&f=json&id=track-1&submission=false",
-            httpClient.urls.single(),
-        )
-    }
-
-    @Test
-    fun reportPlayedUsesScrobbleWithSubmissionTime() = runTest {
-        val httpClient = RecordingHttpClient()
-        val provider = NavidromeProvider(
-            connection = connection("https://music.example.test"),
-            httpClient = httpClient,
-        )
-
-        provider.reportPlayed(TrackId("track-1"), playedAtEpochMillis = 1_778_526_000_000L)
-
-        assertEquals(
-            "https://music.example.test/rest/scrobble.view?u=demo&t=token&s=salt&v=1.16.1&$ExpectedClientQuery&f=json&id=track-1&submission=true&time=1778526000000",
-            httpClient.urls.single(),
-        )
+        assertEquals(emptyList(), httpClient.urls)
     }
 
     @Test
@@ -2017,30 +1998,7 @@ class NavidromeProviderTest {
     }
 
     @Test
-    fun reportPlayedUsesPlaybackReportWhenExtensionIsAdvertisedAndPositionIsKnown() = runTest {
-        val httpClient = SequencedHttpClient(
-            listOf(
-                okResponse(),
-                openSubsonicExtensionsResponse("playbackReport"),
-                okResponse(),
-            ),
-        )
-        val provider = NavidromeProvider(
-            connection = connection("https://music.example.test"),
-            httpClient = httpClient,
-        )
-
-        provider.validateConnection()
-        provider.reportPlayed(TrackId("track-1"), playedAtEpochMillis = 1_778_526_000_000L, positionSeconds = 125.4)
-
-        assertEquals(
-            "https://music.example.test/rest/reportPlayback.view?u=demo&t=token&s=salt&v=1.16.1&$ExpectedClientQuery&f=json&mediaId=track-1&mediaType=song&positionMs=125400&state=stopped",
-            httpClient.urls.last(),
-        )
-    }
-
-    @Test
-    fun reportPlaybackStateUsesPlaybackReportWithIgnoreScrobbleWhenExtensionIsAdvertised() = runTest {
+    fun reportPlaybackStateUsesPlaybackReportWhenExtensionIsAdvertised() = runTest {
         val httpClient = SequencedHttpClient(
             listOf(
                 okResponse(),
@@ -2061,7 +2019,7 @@ class NavidromeProviderTest {
         )
 
         assertEquals(
-            "https://music.example.test/rest/reportPlayback.view?u=demo&t=token&s=salt&v=1.16.1&$ExpectedClientQuery&f=json&mediaId=track-1&mediaType=song&positionMs=45250&state=playing&ignoreScrobble=true",
+            "https://music.example.test/rest/reportPlayback.view?u=demo&t=token&s=salt&v=1.16.1&$ExpectedClientQuery&f=json&mediaId=track-1&mediaType=song&positionMs=45250&state=playing",
             httpClient.urls.last(),
         )
     }
@@ -2087,29 +2045,6 @@ class NavidromeProviderTest {
         )
 
         assertEquals(2, httpClient.urls.size)
-    }
-
-    @Test
-    fun reportPlayedFallsBackToScrobbleWhenPlaybackReportPositionIsUnknown() = runTest {
-        val httpClient = SequencedHttpClient(
-            listOf(
-                okResponse(),
-                openSubsonicExtensionsResponse("playbackReport"),
-                okResponse(),
-            ),
-        )
-        val provider = NavidromeProvider(
-            connection = connection("https://music.example.test"),
-            httpClient = httpClient,
-        )
-
-        provider.validateConnection()
-        provider.reportPlayed(TrackId("track-1"), playedAtEpochMillis = 1_778_526_000_000L)
-
-        assertEquals(
-            "https://music.example.test/rest/scrobble.view?u=demo&t=token&s=salt&v=1.16.1&$ExpectedClientQuery&f=json&id=track-1&submission=true&time=1778526000000",
-            httpClient.urls.last(),
-        )
     }
 
     private fun smartPlaylistDefinition(): SmartPlaylistDefinition =

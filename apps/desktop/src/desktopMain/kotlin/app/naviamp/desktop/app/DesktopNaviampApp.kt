@@ -242,7 +242,6 @@ fun NaviampApp(
     var pendingSeekIssuedAtMillis by remember { mutableStateOf<Long?>(null) }
     var lastPlaybackProgressUiUpdateMillis by remember { mutableLongStateOf(0L) }
     var playReportSessionId by remember { mutableStateOf(0) }
-    var submittedPlayReportSessionId by remember { mutableStateOf<Int?>(null) }
     val nowPlayingPresentation = rememberDesktopNowPlayingPresentationState(
         initialVisualizerSettings = savedVisualizer,
         appColors = appColors,
@@ -273,8 +272,6 @@ fun NaviampApp(
         lastSavedPlaybackPositionSeconds = { lastSavedPlaybackPositionSeconds },
         setLastSavedPlaybackPositionSeconds = { position -> lastSavedPlaybackPositionSeconds = position },
         playReportSessionId = { playReportSessionId },
-        submittedPlayReportSessionId = { submittedPlayReportSessionId },
-        setSubmittedPlayReportSessionId = { sessionId -> submittedPlayReportSessionId = sessionId },
         setPendingSeekPositionSeconds = { position -> pendingSeekPositionSeconds = position },
         setPendingSeekIssuedAtMillis = { millis -> pendingSeekIssuedAtMillis = millis },
         setOpenPlayerOnTrackStart = { shouldOpen -> openPlayerOnTrackStart = shouldOpen },
@@ -805,7 +802,6 @@ fun NaviampApp(
         setNowPlayingInternetRadioStation = { station -> nowPlayingInternetRadioStation = station },
         setNowPlayingStreamMetadata = { metadata -> nowPlayingStreamMetadata = metadata },
         incrementPlayReportSessionId = { playReportSessionId++ },
-        clearSubmittedPlayReportSessionId = { submittedPlayReportSessionId = null },
         incrementNowPlayingWaveformReloadToken = nowPlayingController::incrementWaveformReloadToken,
         reportNowPlaying = playbackController::reportNowPlaying,
         maybeReportPlaybackState = playbackController::maybeReportPlaybackState,
@@ -824,7 +820,6 @@ fun NaviampApp(
         lastPlaybackProgressUiUpdateMillis = { lastPlaybackProgressUiUpdateMillis },
         setLastPlaybackProgressUiUpdateMillis = { millis -> lastPlaybackProgressUiUpdateMillis = millis },
         maybeSavePlaybackPosition = playbackController::maybeSavePlaybackPosition,
-        maybeReportPlayed = playbackController::maybeReportPlayed,
     )
     playlistCallbacksRef.value = playlistCallbacks
 

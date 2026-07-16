@@ -183,7 +183,6 @@ class DesktopInternetRadioController(
                     externalProgressPublishIntervalMillis = Long.MAX_VALUE,
                     resetUnknownProgress = false,
                     mergeMissingProgressFields = false,
-                    reportPlayed = false,
                     prepareNext = false,
                     lastUiUpdateMillis = lastProgressUiUpdateMillis(),
                     positionThresholdSeconds = PlaybackProgressUiUpdateThresholdSeconds,

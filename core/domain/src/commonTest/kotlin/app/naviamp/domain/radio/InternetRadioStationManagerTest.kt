@@ -199,12 +199,6 @@ class InternetRadioStationManagerTest {
 
         override fun coverArtUrl(coverArtId: String): String =
             error("unused")
-
-        override suspend fun reportPlayed(
-            trackId: TrackId,
-            playedAtEpochMillis: Long,
-            positionSeconds: Double?,
-        ) = Unit
     }
 }
 

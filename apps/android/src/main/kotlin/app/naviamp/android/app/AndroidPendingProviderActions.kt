@@ -7,7 +7,6 @@ import app.naviamp.domain.provider.MediaProvider
 import app.naviamp.domain.provider.PendingActionAlbumFavorite
 import app.naviamp.domain.provider.PendingActionArtistFavorite
 import app.naviamp.domain.provider.PendingActionReportNowPlaying
-import app.naviamp.domain.provider.PendingActionReportPlayed
 import app.naviamp.domain.provider.PendingActionTrackFavorite
 import app.naviamp.domain.provider.PendingProviderActionRepository
 import app.naviamp.domain.provider.replayPendingProviderActions
@@ -31,21 +30,6 @@ internal fun MediaProvider.withAndroidPendingActions(
                         sourceId = activeSourceId,
                         actionType = PendingActionReportNowPlaying,
                         entityId = trackId.value,
-                    )
-                } ?: throw it
-            }
-        }
-
-        override suspend fun reportPlayed(trackId: TrackId, playedAtEpochMillis: Long, positionSeconds: Double?) {
-            runCatching {
-                delegate.reportPlayed(trackId, playedAtEpochMillis, positionSeconds)
-            }.onFailure {
-                sourceId?.let { activeSourceId ->
-                    repository.enqueuePendingProviderAction(
-                        sourceId = activeSourceId,
-                        actionType = PendingActionReportPlayed,
-                        entityId = trackId.value,
-                        longValue = playedAtEpochMillis,
                     )
                 } ?: throw it
             }

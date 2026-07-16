@@ -50,7 +50,6 @@ data class PlaybackProgressUpdatePlan(
     val clearPendingSeek: Boolean = false,
     val clearPendingRestoreStart: Boolean = false,
     val shouldSavePlaybackPosition: Boolean = false,
-    val shouldReportPlayed: Boolean = false,
     val shouldUpdateUi: Boolean = false,
     val shouldPublishExternalProgress: Boolean = false,
     val shouldPrepareNext: Boolean = false,
@@ -73,7 +72,6 @@ fun planPlaybackProgressUpdate(
     mergeMissingProgressFields: Boolean = true,
     keepPreviousOnLargeBackwardProgressJump: Boolean = false,
     savePlaybackPosition: Boolean = false,
-    reportPlayed: Boolean = true,
     prepareNext: Boolean = true,
     lastUiUpdateMillis: Long? = null,
     positionThresholdSeconds: Double? = null,
@@ -140,7 +138,6 @@ fun planPlaybackProgressUpdate(
         clearPendingSeek = clearPendingSeek,
         clearPendingRestoreStart = clearPendingRestoreStart,
         shouldSavePlaybackPosition = savePlaybackPosition,
-        shouldReportPlayed = reportPlayed,
         shouldUpdateUi = shouldUpdateUi(
             pendingSeekPositionSeconds = pendingSeekPositionSeconds,
             currentProgress = currentProgress,

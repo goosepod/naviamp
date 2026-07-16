@@ -44,7 +44,6 @@ fun beginAndroidPlaybackSession(
 ): Long {
     with(state) {
         playbackSessionToken += 1
-        submittedPlayReportSessionToken = null
         audioPrefetchJob?.cancel()
         audioPrefetchJob = null
         sidecarPrepJob?.cancel()
@@ -368,7 +367,6 @@ fun handleAndroidPlaybackProgressChanged(
     state: AndroidAppState,
     sessionToken: Long,
     progress: PlaybackProgress,
-    maybeReportPlayed: (PlaybackProgress) -> Unit,
     maybeReportPlaybackState: (PlaybackState, PlaybackProgress) -> Unit,
     prepareNextIfNeeded: (Long, PlaybackProgress) -> Unit,
 ) {
@@ -404,7 +402,6 @@ fun handleAndroidPlaybackProgressChanged(
             pendingRestoreStartPositionSeconds = null
         }
         playbackProgress = plan.progress ?: return
-        if (plan.shouldReportPlayed) maybeReportPlayed(playbackProgress)
         maybeReportPlaybackState(PlaybackState.Playing, playbackProgress)
         val positionMillis = playbackProgress.positionSeconds?.secondsToMillis()
         val durationMillis = playbackProgress.durationSeconds

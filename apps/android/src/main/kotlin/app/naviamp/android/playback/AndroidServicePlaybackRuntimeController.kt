@@ -37,7 +37,6 @@ import app.naviamp.domain.playback.planAudioPrefetchWork
 import app.naviamp.domain.playback.resolvePlaybackAudioSource
 import app.naviamp.domain.playback.runAudioPrefetch
 import app.naviamp.domain.playback.preparedNextPlaybackWork
-import app.naviamp.domain.playback.shouldSubmitPlayReport
 import app.naviamp.domain.playback.shouldIgnoreProgressForPendingSeek
 import app.naviamp.domain.provider.PlaybackReportState
 import app.naviamp.domain.queue.PlaybackQueue
@@ -84,7 +83,6 @@ internal class AndroidServicePlaybackRuntimeController(
     private var servicePreparedNextJob: Job? = null
     private var servicePlaybackSettings = PlaybackSettings()
     private var servicePlaybackSessionToken: Long = 0L
-    private var submittedServicePlayReportSessionToken: Long? = null
     private var lastServicePlaybackStateReportSessionToken: Long? = null
     private var lastServicePlaybackStateReportState: PlaybackReportState? = null
     private var lastServicePlaybackStateReportAtMillis: Long = 0L
@@ -311,7 +309,6 @@ internal class AndroidServicePlaybackRuntimeController(
     fun markStarted() {
         serviceOwnedPlayback = true
         servicePlaybackSessionToken = System.nanoTime()
-        submittedServicePlayReportSessionToken = null
         lastServiceSessionSaveAtMillis = 0L
         lastServicePlaybackState = null
         serviceAudioPrefetchJob?.cancel()
@@ -390,7 +387,6 @@ internal class AndroidServicePlaybackRuntimeController(
         }
         prepareNextIfNeeded(progress)
         maybeReportServicePlaybackState(PlaybackState.Playing, progress)
-        maybeReportServicePlayed(sourceId, progress)
     }
 
     private fun prepareNextIfNeeded(progress: PlaybackProgress) {
@@ -474,44 +470,6 @@ internal class AndroidServicePlaybackRuntimeController(
         }
     }
 
-    private fun maybeReportServicePlayed(sourceId: String, progress: PlaybackProgress) {
-        val track = currentQueue().getOrNull(currentQueueIndex()) ?: return
-        val storage = storage()
-        val source = serviceMediaSource(storage) ?: return
-        val provider = NavidromeProvider(source.toNavidromeConnection())
-        val durationSeconds = progress.durationSeconds ?: track.durationSeconds?.toDouble()
-        val activeSessionToken = servicePlaybackSessionToken
-        val playbackSettings = AndroidSettingsStore(context).loadPlaybackSettings()
-        if (
-            !shouldSubmitPlayReport(
-                supportsPlayReporting = provider.capabilities.supportsPlayReporting,
-                isInternetRadioTrack = track.isInternetRadioTrack(),
-                activeSessionId = activeSessionToken,
-                submittedSessionId = submittedServicePlayReportSessionToken,
-                positionSeconds = progress.positionSeconds,
-                durationSeconds = durationSeconds,
-                durationFraction = playbackSettings.playReportDurationPercent / 100.0,
-            )
-        ) {
-            return
-        }
-        val playedAtEpochMillis = System.currentTimeMillis()
-        submittedServicePlayReportSessionToken = activeSessionToken
-        AndroidPlaybackRuntime.get(context).scope.launch {
-            withContext(Dispatchers.IO) {
-                provider
-                    .withAndroidPendingActions(sourceId, storage)
-                    .reportPlayed(
-                        track.id,
-                        playedAtEpochMillis,
-                        positionSeconds = progress.positionSeconds.takeIf {
-                            playbackSettings.playReportDurationPercent >= 50
-                        },
-                    )
-            }
-        }
-    }
-
     private fun maybeReportServicePlaybackState(
         playbackState: PlaybackState,
         progress: PlaybackProgress = PlaybackProgress(
@@ -553,7 +511,6 @@ internal class AndroidServicePlaybackRuntimeController(
                         trackId = track.id,
                         state = reportState,
                         positionSeconds = progress.positionSeconds,
-                        ignoreScrobble = true,
                     )
             }
         }

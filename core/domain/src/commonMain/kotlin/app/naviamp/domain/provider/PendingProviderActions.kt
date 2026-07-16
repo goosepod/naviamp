@@ -5,7 +5,6 @@ import app.naviamp.domain.ArtistId
 import app.naviamp.domain.TrackId
 
 const val PendingActionReportNowPlaying = "report_now_playing"
-const val PendingActionReportPlayed = "report_played"
 const val PendingActionTrackFavorite = "track_favorite"
 const val PendingActionArtistFavorite = "artist_favorite"
 const val PendingActionAlbumFavorite = "album_favorite"
@@ -77,7 +76,6 @@ suspend fun replayPendingProviderActions(
 private suspend fun PendingProviderAction.applyTo(provider: MediaProvider) {
     when (actionType) {
         PendingActionReportNowPlaying -> provider.reportNowPlaying(TrackId(entityId))
-        PendingActionReportPlayed -> provider.reportPlayed(TrackId(entityId), requireNotNull(longValue))
         PendingActionTrackFavorite -> provider.setTrackFavorite(TrackId(entityId), requireNotNull(boolValue))
         PendingActionArtistFavorite -> provider.setArtistFavorite(ArtistId(entityId), requireNotNull(boolValue))
         PendingActionAlbumFavorite -> provider.setAlbumFavorite(AlbumId(entityId), requireNotNull(boolValue))

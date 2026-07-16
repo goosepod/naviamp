@@ -234,7 +234,6 @@ data class PlaybackSettings(
     val previousButtonBehavior: PreviousButtonBehavior = PreviousButtonBehavior.RestartThenPrevious,
     val upNextSelectionBehavior: UpNextSelectionBehavior = UpNextSelectionBehavior.MoveSelectedToCurrent,
     val removePlayedTracksFromQueue: Boolean = false,
-    val playReportDurationPercent: Int = DefaultPlayReportDurationPercent,
     val radioTuning: RadioTuningSettings = RadioTuningSettings(),
     val radioDjs: List<RadioDjPreset> = emptyList(),
     val activeRadioDjId: String? = null,
@@ -249,16 +248,8 @@ data class PlaybackSettings(
     val allowMobileDownloads: Boolean = false,
 )
 
-const val DefaultPlayReportDurationPercent = 50
-const val MinPlayReportDurationPercent = 0
-const val MaxPlayReportDurationPercent = 100
-
 fun PlaybackSettings.normalized(): PlaybackSettings =
     copy(
-        playReportDurationPercent = playReportDurationPercent.coerceIn(
-            MinPlayReportDurationPercent,
-            MaxPlayReportDurationPercent,
-        ),
         lyricsSearchOrder = lyricsSearchOrder.normalizedLyricsSearchOrder(),
         radioDjs = radioDjs.map { it.normalized() },
         outputDevice = outputDevice.normalized(),
@@ -376,10 +367,6 @@ fun PlaybackSettings.effectiveForEngine(playbackEngine: PlaybackEngine): Playbac
         wifiStreamingQuality = wifiStreamingQuality.normalized(),
         mobileStreamingQuality = mobileStreamingQuality.normalized(),
         downloadQuality = downloadQuality.normalized(),
-        playReportDurationPercent = playReportDurationPercent.coerceIn(
-            MinPlayReportDurationPercent,
-            MaxPlayReportDurationPercent,
-        ),
     )
 }
 

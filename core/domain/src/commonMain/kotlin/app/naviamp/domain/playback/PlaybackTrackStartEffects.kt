@@ -11,7 +11,6 @@ data class PlaybackTrackStartEffectApplier(
     val setNowPlayingCoverArtUrl: (String?) -> Unit = {},
     val applyFavoriteState: (Boolean, Boolean) -> Unit = { _, _ -> },
     val incrementPlayReportSession: () -> Unit = {},
-    val clearSubmittedPlayReportSession: () -> Unit = {},
     val savePlaybackSession: () -> Unit = {},
     val openNowPlaying: () -> Unit = {},
     val reportNowPlaying: (Track) -> Unit = {},
@@ -41,7 +40,6 @@ fun applyPlaybackTrackStartEffects(
     applier.setNowPlayingCoverArtUrl(coverArtUrl)
     applier.applyFavoriteState(presentation.canFavoriteTrack, presentation.isFavoriteTrack)
     applier.incrementPlayReportSession()
-    applier.clearSubmittedPlayReportSession()
     if (effects.savePlaybackSession) applier.savePlaybackSession()
     if (presentation.shouldOpenNowPlaying) applier.openNowPlaying()
     if (presentation.shouldReportNowPlaying) applier.reportNowPlaying(track)
