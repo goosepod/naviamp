@@ -13,10 +13,18 @@ kotlin {
         }
     }
     jvm()
+    iosArm64()
+    iosSimulatorArm64()
 
     sourceSets {
         commonMain.dependencies {
             implementation(libs.sqldelight.runtime)
+        }
+        commonTest.dependencies {
+            implementation(libs.kotlin.test)
+        }
+        iosMain.dependencies {
+            implementation(libs.sqldelight.native.driver)
         }
     }
 }

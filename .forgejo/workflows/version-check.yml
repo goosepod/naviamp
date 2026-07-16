@@ -31,8 +31,8 @@ jobs:
         if: github.ref != 'refs/heads/feature/v2-cross-platform-app' && github.head_ref != 'feature/v2-cross-platform-app'
         run: scripts/check-version-bump.sh origin/main
 
-  ios-domain:
-    name: iOS core domain
+  ios-shared:
+    name: iOS shared modules
     runs-on: macos-latest
     steps:
       - name: Check out repository
@@ -47,5 +47,5 @@ jobs:
       - name: Set up Android SDK for Gradle configuration
         uses: android-actions/setup-android@v3
 
-      - name: Compile iOS device target and run simulator tests
-        run: ./gradlew :core:domain:compileKotlinIosArm64 :core:domain:iosSimulatorArm64Test
+      - name: Compile iOS device targets and run simulator tests
+        run: ./gradlew :core:domain:compileKotlinIosArm64 :core:domain:iosSimulatorArm64Test :core:storage:compileKotlinIosArm64 :core:storage:iosSimulatorArm64Test

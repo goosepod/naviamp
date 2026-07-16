@@ -6,7 +6,7 @@ This document is the durable plan and progress tracker for Naviamp 2.0. Update i
 
 - **Target release:** `2.0.0`
 - **Working branch:** `feature/v2-cross-platform-app`
-- **Status:** Milestone 1 in progress; `core:domain` is Apple-compatible
+- **Status:** Milestone 1 in progress; `core:domain` and `core:storage` are Apple-compatible
 - **Release policy:** Feature development for the v1 line is frozen. Only bug fixes should be released from v1 while this work is underway.
 - **Versioning rule:** Do not change `VERSION` to `2.0.0` until the release-preparation milestone. Development builds and intermediate branches must remain clearly distinguishable from a finished v2 release.
 - **Primary objective:** One shared Naviamp application, UI, and behavior hosted by thin Android, Desktop, and iOS applications.
@@ -92,16 +92,16 @@ Use explicit dependency construction unless a dependency-injection framework pro
 ### Milestone 1: Make the Shared Dependency Graph Apple-Compatible
 
 - [x] Add `iosArm64` and `iosSimulatorArm64` targets to `core:domain`. Device compilation and the full common-domain simulator test suite pass.
-- [ ] Add both iOS targets to `core:storage`.
+- [x] Add both iOS targets to `core:storage`. Device compilation and the common storage simulator tests pass.
 - [ ] Add both iOS targets to `core:ui`.
 - [ ] Add both iOS targets to `providers:navidrome`.
 - [ ] Introduce common source-set hierarchy where it reduces duplicate Apple target configuration.
 - [ ] Implement iOS time, hashing, URL, encoding, connectivity, and other domain platform functions. Time, SHA-256, and form URL encoding are complete in `core:domain`; remaining module seams are pending.
 - [ ] Add the Ktor Darwin engine and iOS provider client construction. The shared domain HTTP client now resolves Darwin; provider client construction remains pending.
 - [ ] Explicitly capability-gate provider features whose TLS or certificate behavior is not yet available on iOS.
-- [ ] Add the SQLDelight native driver and safe iOS database path construction.
+- [x] Add the SQLDelight native driver and safe iOS database path construction. `IosStorageDriverFactory` accepts a validated host-selected absolute directory and configures WAL, foreign keys, and a busy timeout; the future iOS host remains responsible for creating its Application Support directory.
 - [ ] Add initial iOS `actual` implementations or honest no-op capability fallbacks for UI platform hooks.
-- [x] Run iOS compilation in CI on every v2 change. Branch CI compiles the device domain target and runs its simulator suite; expand the command as each shared module becomes Apple-compatible.
+- [x] Run iOS compilation in CI on every v2 change. Branch CI compiles the device targets and runs simulator tests for both `core:domain` and `core:storage`; expand the command as each shared module becomes Apple-compatible.
 
 **Exit criteria:** All shared modules compile and link for an Apple Silicon iOS simulator without weakening Android or Desktop tests.
 
@@ -296,10 +296,11 @@ Record architecture decisions here or link a dedicated decision record.
 | 2026-07-16 | Allow AVPlayer for an early iOS proof of concept, but require BASS as the final iOS playback engine. | Native playback de-risks Apple lifecycle integration; BASS provides the desired final performance and advanced features. |
 | 2026-07-16 | Start from current `main`; do not merge the old `codex/ios-app` scaffold. | The old branch is incomplete and substantially diverged, but it may be inspected for isolated lessons. |
 | 2026-07-16 | Retain Naviamp's provider, paging, modular boundaries, and test-first behavior. | These are stronger foundations than the reference application and are required for large libraries and advanced server support. |
+| 2026-07-16 | Have the iOS host select and create the database directory, then pass it to `core:storage`. | The host can use Apple's Application Support APIs and backup policy while shared storage safely owns SQLDelight schema creation and migration. |
 
 ## Current Handoff
 
-- **Last completed item:** Added Apple targets, Darwin HTTP support, native platform actuals, native-safe common code, simulator tests, and branch CI for `core:domain`.
-- **Next recommended item:** Add Apple targets and a Native SQLDelight driver boundary to `core:storage`.
-- **Verification:** `core:domain` compiled for iOS device and simulator; its full simulator, JVM, and Android test suites passed.
+- **Last completed item:** Added Apple targets and tests to `core:storage`, plus a native SQLDelight driver factory that uses a validated iOS-host-selected database location.
+- **Next recommended item:** Add Apple targets and honest iOS platform-hook fallbacks to `core:ui`.
+- **Verification:** `core:storage` compiled for iOS device, iOS simulator, Android, and JVM; its JVM and iOS simulator tests passed. Existing `core:domain` Apple verification remains in branch CI.
 - **Known blockers:** None.
