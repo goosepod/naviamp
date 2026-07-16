@@ -6,7 +6,7 @@ This document is the durable plan and progress tracker for Naviamp 2.0. Update i
 
 - **Target release:** `2.0.0`
 - **Working branch:** `feature/v2-cross-platform-app`
-- **Status:** Milestone 1 in progress; `core:domain`, `core:storage`, and `core:ui` are Apple-compatible
+- **Status:** Milestone 1 complete; the shared dependency graph is Apple-compatible
 - **Release policy:** Feature development for the v1 line is frozen. Only bug fixes should be released from v1 while this work is underway.
 - **Versioning rule:** Do not change `VERSION` to `2.0.0` until the release-preparation milestone. Development builds and intermediate branches must remain clearly distinguishable from a finished v2 release.
 - **Primary objective:** One shared Naviamp application, UI, and behavior hosted by thin Android, Desktop, and iOS applications.
@@ -94,14 +94,14 @@ Use explicit dependency construction unless a dependency-injection framework pro
 - [x] Add `iosArm64` and `iosSimulatorArm64` targets to `core:domain`. Device compilation and the full common-domain simulator test suite pass.
 - [x] Add both iOS targets to `core:storage`. Device compilation and the common storage simulator tests pass.
 - [x] Add both iOS targets to `core:ui`. Device and Apple Silicon simulator compilation pass without weakening JVM tests or Android compilation.
-- [ ] Add both iOS targets to `providers:navidrome`.
-- [ ] Introduce common source-set hierarchy where it reduces duplicate Apple target configuration.
-- [ ] Implement iOS time, hashing, URL, encoding, connectivity, and other domain platform functions. Time, SHA-256, and form URL encoding are complete in `core:domain`; remaining module seams are pending.
-- [ ] Add the Ktor Darwin engine and iOS provider client construction. The shared domain HTTP client now resolves Darwin; provider client construction remains pending.
-- [ ] Explicitly capability-gate provider features whose TLS or certificate behavior is not yet available on iOS.
+- [x] Add both iOS targets to `providers:navidrome`. Device compilation and the full common provider simulator test suite pass.
+- [x] Introduce common source-set hierarchy where it reduces duplicate Apple target configuration. Kotlin's default hierarchy supplies shared `appleMain`/`iosMain` source sets; no custom hierarchy is currently needed.
+- [x] Implement iOS time, hashing, URL, encoding, connectivity, and other domain platform functions. Shared code now provides native-safe time, SHA-256, MD5, form encoding, and fail-closed capability defaults; future live connectivity monitoring remains a platform service in Milestone 2 rather than an unresolved compilation seam.
+- [x] Add the Ktor Darwin engine and iOS provider client construction. Both the shared domain client and Navidrome provider resolve Darwin on iOS.
+- [x] Explicitly capability-gate provider features whose TLS or certificate behavior is not yet available on iOS. Insecure verification, custom server certificates, and client certificates are reported unavailable and rejected before creating an iOS client.
 - [x] Add the SQLDelight native driver and safe iOS database path construction. `IosStorageDriverFactory` accepts a validated host-selected absolute directory and configures WAL, foreign keys, and a busy timeout; the future iOS host remains responsible for creating its Application Support directory.
 - [x] Add initial iOS `actual` implementations or honest no-op capability fallbacks for UI platform hooks. iOS uses native time, touch-first tooltip passthrough, the shared constrained Canvas visualizer, and stable artwork/fallback colors until authenticated image loading and native decoding are connected through the future host.
-- [x] Run iOS compilation in CI on every v2 change. Branch CI verifies `core:domain`, `core:storage`, and both `core:ui` Apple targets; expand the command as each shared module becomes Apple-compatible.
+- [x] Run iOS compilation in CI on every v2 change. Branch CI verifies device compilation and simulator tests across `core:domain`, `core:storage`, `core:ui`, and `providers:navidrome`.
 
 **Exit criteria:** All shared modules compile and link for an Apple Silicon iOS simulator without weakening Android or Desktop tests.
 
@@ -300,7 +300,7 @@ Record architecture decisions here or link a dedicated decision record.
 
 ## Current Handoff
 
-- **Last completed item:** Added Apple targets to `core:ui`, removed JVM-only formatting and dispatcher assumptions from common UI code, and supplied explicit iOS hooks for time, tooltips, artwork, colors, and visualizers.
-- **Next recommended item:** Add Apple targets and Darwin client construction to `providers:navidrome`, then capability-gate unsupported iOS TLS and certificate options.
-- **Verification:** `core:ui` compiled for iOS device, iOS simulator, and Android; its JVM test suite passed. The checks ran with at most two Gradle workers.
+- **Last completed item:** Completed Milestone 1 by adding Apple targets and Darwin client construction to `providers:navidrome`, moving MD5/form encoding into common code, making diagnostic history native-safe, and failing closed for unsupported advanced iOS TLS modes.
+- **Next recommended item:** Begin Milestone 2 by defining the shared application module, its platform-services container, and the first independently testable composition boundary.
+- **Verification:** `providers:navidrome` compiled for iOS device, iOS simulator, and Android; its full common suite passed on the iOS simulator and JVM. Checks ran with at most two Gradle workers.
 - **Known blockers:** None.

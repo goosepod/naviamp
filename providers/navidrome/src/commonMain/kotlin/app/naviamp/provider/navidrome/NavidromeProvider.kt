@@ -67,6 +67,8 @@ import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.longOrNull
 import kotlinx.serialization.json.put
+import kotlin.concurrent.atomics.AtomicReference
+import kotlin.concurrent.atomics.ExperimentalAtomicApi
 
 data class NavidromeMusicFolder(
     val id: String,
@@ -1736,24 +1738,21 @@ data class NavidromeApiCall(
     val errorMessage: String?,
 )
 
+@OptIn(ExperimentalAtomicApi::class)
 object NavidromeApiCallHistory {
     private const val MaxCalls = 150
-    private val lock = Any()
-    private val calls = ArrayDeque<NavidromeApiCall>()
+    private val calls = AtomicReference<List<NavidromeApiCall>>(emptyList())
 
     fun record(call: NavidromeApiCall) {
-        synchronized(lock) {
-            calls.addLast(call)
-            while (calls.size > MaxCalls) {
-                calls.removeFirst()
-            }
+        while (true) {
+            val current = calls.load()
+            val updated = (current + call).takeLast(MaxCalls)
+            if (calls.compareAndSet(current, updated)) return
         }
     }
 
     fun recent(limit: Int = 50): List<NavidromeApiCall> =
-        synchronized(lock) {
-            calls.takeLast(limit.coerceAtLeast(0)).asReversed()
-        }
+        calls.load().takeLast(limit.coerceAtLeast(0)).asReversed()
 }
 
 fun recordNavidromeApiCall(

@@ -4,11 +4,8 @@ import io.ktor.client.HttpClient
 import io.ktor.client.engine.cio.CIO
 import io.ktor.network.tls.CertificateAndKey
 import java.io.FileInputStream
-import java.net.URLEncoder
-import java.nio.charset.StandardCharsets
 import java.security.Key
 import java.security.KeyStore
-import java.security.MessageDigest
 import java.security.PrivateKey
 import java.security.SecureRandom
 import java.security.cert.CertificateFactory
@@ -21,16 +18,6 @@ import javax.net.ssl.SSLContext
 import javax.net.ssl.TrustManager
 import javax.net.ssl.TrustManagerFactory
 import javax.net.ssl.X509TrustManager
-
-actual fun navidromeMd5(value: String): String {
-    val digest = MessageDigest.getInstance("MD5").digest(value.toByteArray())
-    return digest.joinToString(separator = "") { byte ->
-        byte.toUByte().toString(radix = 16).padStart(2, '0')
-    }
-}
-
-actual fun String.urlEncode(): String =
-    URLEncoder.encode(this, StandardCharsets.UTF_8)
 
 actual fun createDefaultNavidromeHttpClient(tlsSettings: NavidromeTlsSettings): NavidromeHttpClient =
     KtorNavidromeHttpClient(createDefaultNavidromeKtorClient(tlsSettings))
@@ -58,6 +45,13 @@ actual fun createDefaultNavidromeKtorClient(tlsSettings: NavidromeTlsSettings): 
 }
 
 internal actual fun navidromeCurrentTimeMillis(): Long = System.currentTimeMillis()
+
+actual fun navidromeTlsCapabilities(): NavidromeTlsCapabilities =
+    NavidromeTlsCapabilities(
+        insecureSkipVerification = true,
+        customServerCertificates = true,
+        clientCertificates = true,
+    )
 
 object NavidromeTls {
     private val platformSslContext: SSLContext = SSLContext.getDefault()
@@ -155,4 +149,3 @@ object NavidromeTls {
         override fun getAcceptedIssuers(): Array<java.security.cert.X509Certificate> = emptyArray()
     }
 }
-
