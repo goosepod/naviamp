@@ -1,6 +1,8 @@
 .gradle/
 .codex/
 .local-docs/
+# Synced private product watchlist; the local path may be a symlink.
+/docs/competitive-feature-watchlist.md
 build/
 out/
 .idea/
