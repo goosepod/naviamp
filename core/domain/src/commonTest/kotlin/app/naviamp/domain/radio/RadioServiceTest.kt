@@ -83,6 +83,19 @@ class RadioServiceTest {
     }
 
     @Test
+    fun libraryRadioRequestsAndReturnsTheMaximumRandomSongSet() = runTest {
+        val randomTracks = (1..500).map { index -> track("random-$index") }
+        val provider = FakeRadioProvider(randomTracks = randomTracks)
+        val service = RadioService(provider)
+
+        val tracks = service.libraryRadio()
+
+        assertEquals(500, provider.lastRandomSongsLimit)
+        assertEquals(500, tracks.size)
+        assertEquals(randomTracks.map { it.id }, tracks.map { it.id })
+    }
+
+    @Test
     fun tunedRadioTracksCanPreferFavorites() {
         val tracks = listOf(
             track("plain", playCount = 20),
@@ -312,6 +325,7 @@ class RadioServiceTest {
         private val supportsSonicSimilarity: Boolean = false,
         private val sonicTracks: List<Track> = emptyList(),
         private val radioTracks: List<Track> = emptyList(),
+        private val randomTracks: List<Track> = emptyList(),
         private val artistAlbums: List<Album> = listOf(album("album-one")),
         private val albumTracksById: Map<AlbumId, List<Track>> = mapOf(
             AlbumId("album-one") to listOf(track("album-track")),
@@ -329,6 +343,7 @@ class RadioServiceTest {
         )
         var albumCalls: Int = 0
         var artistCalls: Int = 0
+        var lastRandomSongsLimit: Int? = null
 
         override suspend fun validateConnection(): ConnectionValidation =
             error("unused")
@@ -357,6 +372,16 @@ class RadioServiceTest {
 
         override suspend fun sonicSimilarTracks(trackId: TrackId, count: Int): List<Track> =
             sonicTracks
+
+        override suspend fun randomSongs(
+            limit: Int,
+            genre: String?,
+            fromYear: Int?,
+            toYear: Int?,
+        ): List<Track> {
+            lastRandomSongsLimit = limit
+            return randomTracks
+        }
 
         override suspend fun search(query: String, limit: Int): MediaSearchResults =
             error("unused")

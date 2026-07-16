@@ -8,6 +8,7 @@ Release changes are grouped into user-facing Features, Bug Fixes, and deployment
 
 - Added customizable app backgrounds with the default Aurora gradient in light or dark emphasis, an adjustable Album Blur treatment, and a user-selected Single Color.
 - Added structured multi-artist credits with separate artist-page navigation from Now Playing and shared track rows on desktop and Android, including exact-name fallback for legacy combined Navidrome credits.
+- Expanded Library Radio to queue Navidrome's full bounded 500-song random set while preserving Radio DJ tuning across the returned tracks.
 
 ### Bug Fixes
 

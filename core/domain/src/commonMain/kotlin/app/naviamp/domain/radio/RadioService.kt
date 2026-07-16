@@ -63,8 +63,15 @@ class RadioService(
     }
 
     suspend fun libraryRadio(): List<Track> =
-        provider.randomSongs(limit = fetchCount)
-            .let { tracks -> tunedRadioTracks(seedTrack = null, tracks = tracks, tuning = tuning, targetCount = count) }
+        provider.randomSongs(limit = LibraryRadioCount)
+            .let { tracks ->
+                tunedRadioTracks(
+                    seedTrack = null,
+                    tracks = tracks,
+                    tuning = tuning,
+                    targetCount = LibraryRadioCount,
+                )
+            }
 
     suspend fun genreRadio(genre: String): List<Track> =
         provider.randomSongs(limit = fetchCount, genre = genre)
@@ -122,5 +129,6 @@ class RadioService(
 
     private companion object {
         const val DefaultRadioCount = 50
+        const val LibraryRadioCount = 500
     }
 }
