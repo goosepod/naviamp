@@ -4,6 +4,7 @@ import app.naviamp.domain.InternetRadioStation
 import app.naviamp.domain.Track
 import app.naviamp.domain.TrackId
 import app.naviamp.domain.settings.PlaybackSessionSettings
+import app.naviamp.domain.settings.SavedTrack
 import app.naviamp.domain.source.ConnectionTlsSettings
 import app.naviamp.domain.source.SavedMediaSource
 import app.naviamp.provider.navidrome.NavidromeConnection
@@ -11,6 +12,7 @@ import app.naviamp.provider.navidrome.NavidromeProvider
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class DesktopConnectionFormTest {
@@ -101,6 +103,41 @@ class DesktopConnectionFormTest {
         val radioPlan = assertIs<DesktopRestoredPlaybackSession.InternetRadio>(plan)
         assertEquals("station-1", radioPlan.station.id)
         assertEquals("Deep Space", radioPlan.track.title)
+    }
+
+    @Test
+    fun restoredPlaybackSessionRejectsInvalidTrackIndex() {
+        val plan = restoredDesktopPlaybackSession(
+            savedPlaybackSession = PlaybackSessionSettings(
+                tracks = listOf(SavedTrack.fromTrack(track("track-1"))),
+                currentIndex = 4,
+                positionSeconds = 42.0,
+            ),
+            provider = NavidromeProvider(navidromeConnection()),
+        )
+
+        assertNull(plan)
+    }
+
+    @Test
+    fun restoredPlaybackSessionPreservesOccurrenceAndPlayNextBoundary() {
+        val duplicate = track("duplicate")
+        val tracks = listOf(track("before"), duplicate, duplicate, track("after"))
+        val plan = restoredDesktopPlaybackSession(
+            savedPlaybackSession = PlaybackSessionSettings.fromTracks(
+                tracks = tracks,
+                currentIndex = 2,
+                playNextCount = 1,
+                positionSeconds = 42.0,
+            ),
+            provider = NavidromeProvider(navidromeConnection()),
+        )
+
+        val queuePlan = assertIs<DesktopRestoredPlaybackSession.TrackQueue>(plan)
+        assertEquals(2, queuePlan.session.currentIndex)
+        assertEquals(1, queuePlan.session.playbackQueue.playNextCount)
+        assertEquals(4, queuePlan.session.playbackQueue.tracks.size)
+        assertEquals("after", queuePlan.session.playbackQueue.upNext().single().id.value)
     }
 
     private fun savedSource(

@@ -6,7 +6,7 @@ This document is the durable plan and progress tracker for Naviamp 2.0. Update i
 
 - **Target release:** `2.0.0`
 - **Working branch:** `feature/v2-cross-platform-app`
-- **Status:** Milestone 0 in progress; baseline and architecture guardrails established
+- **Status:** Milestone 0 complete; Milestone 1 ready to begin
 - **Release policy:** Feature development for the v1 line is frozen. Only bug fixes should be released from v1 while this work is underway.
 - **Versioning rule:** Do not change `VERSION` to `2.0.0` until the release-preparation milestone. Development builds and intermediate branches must remain clearly distinguishable from a finished v2 release.
 - **Primary objective:** One shared Naviamp application, UI, and behavior hosted by thin Android, Desktop, and iOS applications.
@@ -82,7 +82,7 @@ Use explicit dependency construction unless a dependency-injection framework pro
 - [x] Record the current Android and Desktop test/build commands and expected artifacts. See [Platform Baseline](v2-platform-baseline.md).
 - [x] Record the current application entry points, controllers, service ownership, and dependency construction. See [Platform Baseline](v2-platform-baseline.md#current-composition-roots).
 - [x] Identify Android-only and Desktop-only behavior currently embedded in shared-looking code. See [Platform Baseline](v2-platform-baseline.md#shared-looking-code-that-still-contains-platform-product-behavior).
-- [ ] Add or strengthen tests around queue restoration, playback transitions, provider actions, downloads, and settings before moving their owners.
+- [x] Add or strengthen tests around queue restoration, playback transitions, provider actions, downloads, and settings before moving their owners. See [Migration Regression Contracts](v2-regression-contracts.md).
 - [x] Define the platform capability model and the required v2 parity matrix. The initial fail-closed registry is in `core:domain`; the target matrix is in the [Platform Baseline](v2-platform-baseline.md#platform-capability-model).
 - [x] Add an architecture decision record for the shared runtime and thin-host approach. See [ADR 0001](architecture/0001-shared-runtime-thin-hosts.md).
 - [x] Confirm v1 bug-fix branches remain based on `main` or the designated v1 maintenance branch and are not accidentally coupled to v2 work. This branch is v2-only; v1 fixes start from `main` and are merged independently.
@@ -299,7 +299,7 @@ Record architecture decisions here or link a dedicated decision record.
 
 ## Current Handoff
 
-- **Last completed item:** Recorded the Android/Desktop baseline, accepted the shared-runtime ADR, and introduced the fail-closed shared platform capability registry.
-- **Next recommended item:** Complete Milestone 0 regression characterization around the application/session boundaries that will move first.
-- **Verification:** Shared, provider, Desktop, and Android unit tests passed; Android debug assembly and packaged BASS/JNI verification passed. Commands and scope are recorded in the platform baseline.
+- **Last completed item:** Completed Milestone 0 by strengthening Android/Desktop playback-session boundary tests and recording the migration regression contracts.
+- **Next recommended item:** Begin Milestone 1 with Apple target configuration in `core:domain`, then implement or isolate its Android/JVM platform functions for iOS compilation.
+- **Verification:** Targeted session tests and the full shared, provider, Desktop, Android, and packaged BASS/JNI verification suite passed.
 - **Known blockers:** None.

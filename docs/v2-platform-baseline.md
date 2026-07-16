@@ -7,6 +7,7 @@ This document records the Android and Desktop baseline before application orches
 - **Baseline commit:** `a48bf38f`
 - **Architecture decision:** [ADR 0001: Shared Runtime and Thin Platform Hosts](architecture/0001-shared-runtime-thin-hosts.md)
 - **Migration tracker:** [Naviamp 2.0 Cross-Platform Plan](v2-cross-platform-plan.md)
+- **Regression contracts:** [Naviamp 2.0 Migration Regression Contracts](v2-regression-contracts.md)
 
 ## Reproducible Baseline
 
@@ -197,6 +198,8 @@ Before moving ownership, add or confirm tests for:
 - storage migrations and driver parity;
 - Android service reconnection after Activity recreation;
 - capability-gated action/UI behavior.
+
+The durable invariant-to-test map and extraction gate are recorded in [Naviamp 2.0 Migration Regression Contracts](v2-regression-contracts.md). The first follow-up strengthened Android and Desktop session restoration coverage for internet radio, invalid saved state, duplicate occurrences, and explicit Play Next boundaries.
 
 ## Migration Order Derived from the Baseline
 
