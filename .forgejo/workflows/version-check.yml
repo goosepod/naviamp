@@ -50,6 +50,8 @@ jobs:
       - name: Compile iOS device targets and run simulator tests
         run: >
           ./gradlew
+          :core:app:compileKotlinIosArm64
+          :core:app:iosSimulatorArm64Test
           :core:domain:compileKotlinIosArm64
           :core:domain:iosSimulatorArm64Test
           :core:storage:compileKotlinIosArm64

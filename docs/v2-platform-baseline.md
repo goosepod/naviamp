@@ -40,6 +40,7 @@ This proves the shared JVM/Android compilation, checked-in unit tests, Desktop t
 
 | Module | Current targets | v2 implication |
 | --- | --- | --- |
+| `core:app` | Android, JVM, iOS device, iOS simulator | The first shared runtime boundary owns serialized lifecycle/session bootstrap, connectivity snapshots, platform capabilities, and error reporting. Android and Desktop adoption is intentionally pending. |
 | `core:domain` | Android, JVM, iOS device, iOS simulator | Apple targets, Darwin shared HTTP, native time/encoding/hash actuals, and simulator tests were added in Milestone 1. |
 | `core:storage` | Android, JVM, iOS device, iOS simulator | Apple targets and the native SQLDelight driver boundary are present. The iOS host must create and supply its OS-approved Application Support directory. |
 | `core:ui` | Android, JVM, iOS device, iOS simulator | Apple targets compile with explicit initial hooks: touch-first tooltip passthrough, native time, shared Canvas visualizers, and placeholder artwork/fallback colors until the iOS host provides authenticated image bytes and native decoding. |

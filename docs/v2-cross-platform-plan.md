@@ -6,7 +6,7 @@ This document is the durable plan and progress tracker for Naviamp 2.0. Update i
 
 - **Target release:** `2.0.0`
 - **Working branch:** `feature/v2-cross-platform-app`
-- **Status:** Milestone 1 complete; the shared dependency graph is Apple-compatible
+- **Status:** Milestone 2 in progress; the shared lifecycle/runtime bootstrap is established
 - **Release policy:** Feature development for the v1 line is frozen. Only bug fixes should be released from v1 while this work is underway.
 - **Versioning rule:** Do not change `VERSION` to `2.0.0` until the release-preparation milestone. Development builds and intermediate branches must remain clearly distinguishable from a finished v2 release.
 - **Primary objective:** One shared Naviamp application, UI, and behavior hosted by thin Android, Desktop, and iOS applications.
@@ -107,15 +107,15 @@ Use explicit dependency construction unless a dependency-injection framework pro
 
 ### Milestone 2: Establish the Shared Application Runtime
 
-- [ ] Add the shared application module or equivalent shared composition layer.
-- [ ] Define a platform-services container and narrow interfaces for every platform dependency.
-- [ ] Move common session initialization into the shared runtime.
+- [x] Add the shared application module or equivalent shared composition layer. `core:app` now compiles on Android, JVM, iOS device, and iOS simulator.
+- [ ] Define a platform-services container and narrow interfaces for every platform dependency. The initial `NaviampPlatformServices` boundary covers capabilities, session lifecycle, connectivity, and error reporting; add playback, persistence, secrets, files, and OS integrations only as their owners are extracted.
+- [ ] Move common session initialization into the shared runtime. The runtime now invokes an injected restoration boundary exactly once and supports retry after failure; existing Android/Desktop initialization still needs adapters and migration.
 - [ ] Move common navigation ownership into the shared runtime.
 - [ ] Move common queue, Now Playing, provider-action, settings, download, and cache coordination into shared owners.
 - [ ] Eliminate direct Android or Desktop API access from the shared runtime.
-- [ ] Add lifecycle inputs for foreground, background, shutdown, and restoration events.
-- [ ] Add shared error reporting and capability-aware UI behavior.
-- [ ] Test the shared application controller independently of all three platform hosts.
+- [x] Add lifecycle inputs for foreground, background, shutdown, and restoration events. `NaviampApplicationRuntime` serializes events and preserves Android service ownership through an injected session contract.
+- [ ] Add shared error reporting and capability-aware UI behavior. Bootstrap failures are structured and reported without swallowing coroutine cancellation; shared UI consumption remains pending.
+- [ ] Test the shared application controller independently of all three platform hosts. The lifecycle/bootstrap controller has common tests on JVM and iOS simulator; extend them as navigation and product coordinators move into `core:app`.
 
 **Exit criteria:** A single runtime can be constructed with fake platform services and drive the main Naviamp flows in tests.
 
@@ -239,7 +239,7 @@ Use this table to track contract and implementation coverage. Add rows when new 
 
 | Service | Shared contract | Android | Desktop | iOS |
 | --- | --- | --- | --- | --- |
-| Application lifecycle | [ ] | [ ] | [ ] | [ ] |
+| Application lifecycle | `NaviampApplicationRuntime` and `NaviampApplicationSession` | [ ] | [ ] | [ ] |
 | Playback engine | Existing; adapt | BASS | BASS | AVPlayer POC, then BASS |
 | Media/remote controls | [ ] | MediaSession | Desktop integration | MPRemoteCommandCenter |
 | Now Playing metadata | [ ] | MediaSession | Desktop integration | MPNowPlayingInfoCenter |
@@ -248,7 +248,7 @@ Use this table to track contract and implementation coverage. Add rows when new 
 | Database driver | [ ] | Android SQLite | JDBC/native | Native SQLite |
 | Secret storage | [ ] | Keystore-backed | OS-appropriate | Keychain |
 | Files and storage locations | [ ] | [ ] | [ ] | [ ] |
-| Connectivity | [ ] | [ ] | [ ] | NWPathMonitor or equivalent |
+| Connectivity | `NaviampConnectivityMonitor` snapshot boundary | [ ] | [ ] | NWPathMonitor or equivalent |
 | Downloads/background work | [ ] | Foreground/background service | Desktop job | iOS-compatible strategy |
 | Notifications | [ ] | [ ] | [ ] | [ ] |
 | Cover art loading | [ ] | [ ] | [ ] | [ ] |
@@ -300,7 +300,7 @@ Record architecture decisions here or link a dedicated decision record.
 
 ## Current Handoff
 
-- **Last completed item:** Completed Milestone 1 by adding Apple targets and Darwin client construction to `providers:navidrome`, moving MD5/form encoding into common code, making diagnostic history native-safe, and failing closed for unsupported advanced iOS TLS modes.
-- **Next recommended item:** Begin Milestone 2 by defining the shared application module, its platform-services container, and the first independently testable composition boundary.
-- **Verification:** `providers:navidrome` compiled for iOS device, iOS simulator, and Android; its full common suite passed on the iOS simulator and JVM. Checks ran with at most two Gradle workers.
+- **Last completed item:** Added `core:app` with the first explicit platform-services container and a shared, serialized lifecycle/session runtime covering restoration, foreground, background, shutdown, connectivity snapshots, capabilities, cancellation, and structured errors.
+- **Next recommended item:** Adapt the existing Android and Desktop session-initialization paths to the shared session contract behind characterization tests, without moving Android service-owned playback into the UI lifecycle.
+- **Verification:** `core:app` compiled for iOS device and Android; its common runtime tests passed on iOS simulator and JVM. Checks ran with at most two Gradle workers.
 - **Known blockers:** None.
