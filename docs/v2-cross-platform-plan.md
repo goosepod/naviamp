@@ -6,7 +6,7 @@ This document is the durable plan and progress tracker for Naviamp 2.0. Update i
 
 - **Target release:** `2.0.0`
 - **Working branch:** `feature/v2-cross-platform-app`
-- **Status:** Milestone 1 in progress; `core:domain` and `core:storage` are Apple-compatible
+- **Status:** Milestone 1 in progress; `core:domain`, `core:storage`, and `core:ui` are Apple-compatible
 - **Release policy:** Feature development for the v1 line is frozen. Only bug fixes should be released from v1 while this work is underway.
 - **Versioning rule:** Do not change `VERSION` to `2.0.0` until the release-preparation milestone. Development builds and intermediate branches must remain clearly distinguishable from a finished v2 release.
 - **Primary objective:** One shared Naviamp application, UI, and behavior hosted by thin Android, Desktop, and iOS applications.
@@ -93,15 +93,15 @@ Use explicit dependency construction unless a dependency-injection framework pro
 
 - [x] Add `iosArm64` and `iosSimulatorArm64` targets to `core:domain`. Device compilation and the full common-domain simulator test suite pass.
 - [x] Add both iOS targets to `core:storage`. Device compilation and the common storage simulator tests pass.
-- [ ] Add both iOS targets to `core:ui`.
+- [x] Add both iOS targets to `core:ui`. Device and Apple Silicon simulator compilation pass without weakening JVM tests or Android compilation.
 - [ ] Add both iOS targets to `providers:navidrome`.
 - [ ] Introduce common source-set hierarchy where it reduces duplicate Apple target configuration.
 - [ ] Implement iOS time, hashing, URL, encoding, connectivity, and other domain platform functions. Time, SHA-256, and form URL encoding are complete in `core:domain`; remaining module seams are pending.
 - [ ] Add the Ktor Darwin engine and iOS provider client construction. The shared domain HTTP client now resolves Darwin; provider client construction remains pending.
 - [ ] Explicitly capability-gate provider features whose TLS or certificate behavior is not yet available on iOS.
 - [x] Add the SQLDelight native driver and safe iOS database path construction. `IosStorageDriverFactory` accepts a validated host-selected absolute directory and configures WAL, foreign keys, and a busy timeout; the future iOS host remains responsible for creating its Application Support directory.
-- [ ] Add initial iOS `actual` implementations or honest no-op capability fallbacks for UI platform hooks.
-- [x] Run iOS compilation in CI on every v2 change. Branch CI compiles the device targets and runs simulator tests for both `core:domain` and `core:storage`; expand the command as each shared module becomes Apple-compatible.
+- [x] Add initial iOS `actual` implementations or honest no-op capability fallbacks for UI platform hooks. iOS uses native time, touch-first tooltip passthrough, the shared constrained Canvas visualizer, and stable artwork/fallback colors until authenticated image loading and native decoding are connected through the future host.
+- [x] Run iOS compilation in CI on every v2 change. Branch CI verifies `core:domain`, `core:storage`, and both `core:ui` Apple targets; expand the command as each shared module becomes Apple-compatible.
 
 **Exit criteria:** All shared modules compile and link for an Apple Silicon iOS simulator without weakening Android or Desktop tests.
 
@@ -300,7 +300,7 @@ Record architecture decisions here or link a dedicated decision record.
 
 ## Current Handoff
 
-- **Last completed item:** Added Apple targets and tests to `core:storage`, plus a native SQLDelight driver factory that uses a validated iOS-host-selected database location.
-- **Next recommended item:** Add Apple targets and honest iOS platform-hook fallbacks to `core:ui`.
-- **Verification:** `core:storage` compiled for iOS device, iOS simulator, Android, and JVM; its JVM and iOS simulator tests passed. Existing `core:domain` Apple verification remains in branch CI.
+- **Last completed item:** Added Apple targets to `core:ui`, removed JVM-only formatting and dispatcher assumptions from common UI code, and supplied explicit iOS hooks for time, tooltips, artwork, colors, and visualizers.
+- **Next recommended item:** Add Apple targets and Darwin client construction to `providers:navidrome`, then capability-gate unsupported iOS TLS and certificate options.
+- **Verification:** `core:ui` compiled for iOS device, iOS simulator, and Android; its JVM test suite passed. The checks ran with at most two Gradle workers.
 - **Known blockers:** None.

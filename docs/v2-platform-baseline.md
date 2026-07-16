@@ -42,7 +42,7 @@ This proves the shared JVM/Android compilation, checked-in unit tests, Desktop t
 | --- | --- | --- |
 | `core:domain` | Android, JVM, iOS device, iOS simulator | Apple targets, Darwin shared HTTP, native time/encoding/hash actuals, and simulator tests were added in Milestone 1. |
 | `core:storage` | Android, JVM, iOS device, iOS simulator | Apple targets and the native SQLDelight driver boundary are present. The iOS host must create and supply its OS-approved Application Support directory. |
-| `core:ui` | Android, JVM | Add Apple targets and iOS implementations for cover art, tooltips, sleep-timer effects, and visualizer surfaces. |
+| `core:ui` | Android, JVM, iOS device, iOS simulator | Apple targets compile with explicit initial hooks: touch-first tooltip passthrough, native time, shared Canvas visualizers, and placeholder artwork/fallback colors until the iOS host provides authenticated image bytes and native decoding. |
 | `providers:navidrome` | Android, JVM | Add Apple targets and a Darwin Ktor implementation without weakening existing TLS behavior on Android/Desktop. |
 | `apps:android` | Android application | Reduce to lifecycle, service, MediaSession, permission, notification, Android Auto, and Android service adapters. |
 | `apps:desktop` | Desktop JVM application | Reduce to window, menu, updater, packaging, and Desktop service adapters. |

@@ -4356,13 +4356,13 @@ private fun Int.equalizerFrequencyLabel(): String =
     if (this >= 1_000) "${this / 1_000} kHz" else "$this Hz"
 
 private fun Float.equalizerGainLabel(): String =
-    if (this == 0f) "0 dB" else "%+.1f dB".format(this)
+    if (this == 0f) "0 dB" else "${signedOneDecimalLabel()} dB"
 
 private fun Float.preampLabel(): String =
     when {
         this == 0f -> "0 dB"
-        this % 1f == 0f -> "%+d dB".format(this.toInt())
-        else -> "%+.1f dB".format(this)
+        this % 1f == 0f -> "${toInt().signedLabel()} dB"
+        else -> "${signedOneDecimalLabel()} dB"
     }
 
 private val CrossfadeDurationOptions = listOf(0, 3, 5, 8, 12)

@@ -35,5 +35,14 @@ class FormattingTest {
             PlaybackProgress(positionSeconds = 250.0, durationSeconds = null).fraction(effectiveDurationSeconds = 100.0),
         )
     }
-}
 
+    @Test
+    fun commonNumericFormattingKeepsExpectedPrecisionAndSigns() {
+        assertEquals("1.0 KB", 1024L.bytesLabel())
+        assertEquals("1.5 GB", (1536L * 1024L * 1024L).storageBytesLabel())
+        assertEquals("12.3", 12.34.oneDecimalLabel())
+        assertEquals("+2.5", 2.5f.signedOneDecimalLabel())
+        assertEquals("-3.0", (-3f).signedOneDecimalLabel())
+        assertEquals("+4", 4.signedLabel())
+    }
+}

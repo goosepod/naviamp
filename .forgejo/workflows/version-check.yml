@@ -48,4 +48,11 @@ jobs:
         uses: android-actions/setup-android@v3
 
       - name: Compile iOS device targets and run simulator tests
-        run: ./gradlew :core:domain:compileKotlinIosArm64 :core:domain:iosSimulatorArm64Test :core:storage:compileKotlinIosArm64 :core:storage:iosSimulatorArm64Test
+        run: >
+          ./gradlew
+          :core:domain:compileKotlinIosArm64
+          :core:domain:iosSimulatorArm64Test
+          :core:storage:compileKotlinIosArm64
+          :core:storage:iosSimulatorArm64Test
+          :core:ui:compileKotlinIosArm64
+          :core:ui:compileKotlinIosSimulatorArm64
