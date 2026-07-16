@@ -16,6 +16,7 @@ Implementation notes:
 
 - Added a shared `NaviampTooltip` expect/actual wrapper.
 - Desktop renders visible Compose tooltips for the shared transport/icon buttons, the collapse button, and queue overflow actions.
+- Desktop hover tooltips can be turned on or off from Settings > Experience.
 - Android keeps the previous touch behavior through a no-op actual while retaining accessibility descriptions.
 - Tooltip text comes from the same content descriptions or action labels used by the controls.
 
@@ -69,6 +70,7 @@ Investigation and implementation work:
 - If Velvet testing becomes available from a reporter, confirm whether both the Now Playing and submitted scrobble requests reach the server.
 - Capture the HTTP status and OpenSubsonic error payload without logging credentials or authentication query values.
 - Add visible diagnostics or sanitized logging when play reporting fails instead of silently swallowing the error.
+- Let users choose when Naviamp submits the played/scrobble event from Settings > Experience > Player. Current choices are Start of playback, 10%, 25%, and 50%.
 - Consider using the shared pending-provider-action mechanism on desktop so transient failures can retry safely.
 - Add compatibility tests for both legacy `scrobble.view` and capability-gated `reportPlayback.view` behavior.
 

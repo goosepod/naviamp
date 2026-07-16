@@ -8,10 +8,14 @@ fun playReportThresholdSeconds(
     durationFraction: Double = DefaultPlayReportDurationFraction,
     maxThresholdSeconds: Double = DefaultPlayReportMaxThresholdSeconds,
 ): Double =
-    durationSeconds
-        ?.takeIf { it > 0.0 }
-        ?.let { minOf(it * durationFraction, maxThresholdSeconds) }
-        ?: maxThresholdSeconds
+    if (durationFraction <= 0.0) {
+        0.0
+    } else {
+        durationSeconds
+            ?.takeIf { it > 0.0 }
+            ?.let { minOf(it * durationFraction, maxThresholdSeconds) }
+            ?: maxThresholdSeconds
+    }
 
 fun canReportPlaybackTrack(
     supportsPlayReporting: Boolean,

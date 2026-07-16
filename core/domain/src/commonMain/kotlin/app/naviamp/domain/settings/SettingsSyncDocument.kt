@@ -114,12 +114,7 @@ data class SettingsSyncPreferences(
     fun normalized(): SettingsSyncPreferences =
         copy(
             interfaceSettings = interfaceSettings.normalized(),
-            playback = playback.copy(
-                wifiStreamingQuality = playback.wifiStreamingQuality.normalized(),
-                mobileStreamingQuality = playback.mobileStreamingQuality.normalized(),
-                downloadQuality = playback.downloadQuality.normalized(),
-                radioDjs = playback.radioDjs.map { it.normalized() },
-            ),
+            playback = playback.normalized(),
             recentRadioStreams = recentRadioStreams.take(MaxSyncedRecentItems),
             recentInternetRadioStations = recentInternetRadioStations.take(MaxSyncedRecentItems),
         )

@@ -236,6 +236,7 @@ fun DesktopSettingsPanel(
                 cacheSettings = cacheSettings,
                 showQueueBehavior = true,
                 showLrclibLyrics = true,
+                showTooltipPreference = true,
                 supportsSonicSimilarity = supportsSonicSimilarity,
                 onInterfaceSettingsChanged = onInterfaceSettingsChanged,
                 onPlaybackSettingsChanged = onPlaybackSettingsChanged,

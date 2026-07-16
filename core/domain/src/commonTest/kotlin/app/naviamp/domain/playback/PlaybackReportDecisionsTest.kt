@@ -13,6 +13,12 @@ class PlaybackReportDecisionsTest {
     }
 
     @Test
+    fun playReportThresholdCanTriggerAtPlaybackStart() {
+        assertEquals(0.0, playReportThresholdSeconds(100.0, durationFraction = 0.0))
+        assertEquals(0.0, playReportThresholdSeconds(null, durationFraction = 0.0))
+    }
+
+    @Test
     fun playbackTrackReportingRequiresProviderSupportAndNonRadioTrack() {
         assertEquals(
             false,
@@ -120,6 +126,22 @@ class PlaybackReportDecisionsTest {
                 submittedSessionId = null,
                 positionSeconds = 50.0,
                 durationSeconds = 100.0,
+            ),
+        )
+    }
+
+    @Test
+    fun playReportSubmissionCanTriggerAtPlaybackStart() {
+        assertEquals(
+            true,
+            shouldSubmitPlayReport(
+                supportsPlayReporting = true,
+                isInternetRadioTrack = false,
+                activeSessionId = 2,
+                submittedSessionId = null,
+                positionSeconds = 0.0,
+                durationSeconds = null,
+                durationFraction = 0.0,
             ),
         )
     }

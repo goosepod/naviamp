@@ -36,6 +36,7 @@ import app.naviamp.domain.settings.TrackSwipeAction
 import app.naviamp.domain.settings.TrackSwipeSettings
 import app.naviamp.domain.settings.UpNextSelectionBehavior
 import app.naviamp.domain.settings.VisualizerSettings
+import app.naviamp.domain.settings.normalized
 import app.naviamp.provider.navidrome.NavidromeConnection
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.builtins.serializer
@@ -143,6 +144,10 @@ class AndroidSettingsStore(
                 UpNextSelectionBehavior.MoveSelectedToCurrent,
             ),
             removePlayedTracksFromQueue = preferences.getBoolean(KeyRemovePlayedTracksFromQueue, false),
+            playReportDurationPercent = preferences.getInt(
+                KeyPlayReportDurationPercent,
+                PlaybackSettings().playReportDurationPercent,
+            ),
             radioTuning = RadioTuningSettings(
                 familiarity = enumPreference(KeyRadioFamiliarity, RadioFamiliarity.Balanced),
                 artistSpread = enumPreference(KeyRadioArtistSpread, RadioArtistSpread.Balanced),
@@ -177,7 +182,7 @@ class AndroidSettingsStore(
                 DownloadedTrackPlayback.PreferDownloaded,
             ),
             allowMobileDownloads = preferences.getBoolean(KeyAllowMobileDownloads, false),
-        )
+        ).normalized()
 
     fun loadInterfaceSettings(): InterfaceSettings =
         InterfaceSettings(
@@ -187,6 +192,7 @@ class AndroidSettingsStore(
             albumCollectionLayout = enumPreference(KeyAlbumCollectionLayout, AlbumCollectionLayout.List),
             albumSortOrder = enumPreference(KeyAlbumSortOrder, AlbumSortOrder.ReleaseYearAscending),
             groupAlbumsByReleaseType = preferences.getBoolean(KeyGroupAlbumsByReleaseType, true),
+            showDesktopTooltips = preferences.getBoolean(KeyShowDesktopTooltips, true),
             nowPlaying = NowPlayingDisplaySettings(
                 showAlbumYear = preferences.getBoolean(KeyNowPlayingShowAlbumYear, true),
                 showAudioInfo = preferences.getBoolean(KeyNowPlayingShowAudioInfo, true),
@@ -217,6 +223,7 @@ class AndroidSettingsStore(
             .putString(KeyAlbumCollectionLayout, settings.normalized().albumCollectionLayout.name)
             .putString(KeyAlbumSortOrder, settings.normalized().albumSortOrder.name)
             .putBoolean(KeyGroupAlbumsByReleaseType, settings.normalized().groupAlbumsByReleaseType)
+            .putBoolean(KeyShowDesktopTooltips, settings.normalized().showDesktopTooltips)
             .putBoolean(KeyNowPlayingShowAlbumYear, settings.normalized().nowPlaying.showAlbumYear)
             .putBoolean(KeyNowPlayingShowAudioInfo, settings.normalized().nowPlaying.showAudioInfo)
             .putBoolean(KeyNowPlayingShowVolumeBar, settings.normalized().nowPlaying.showVolumeBar)
@@ -260,6 +267,7 @@ class AndroidSettingsStore(
             .putString(KeyPreviousButtonBehavior, settings.previousButtonBehavior.name)
             .putString(KeyUpNextSelectionBehavior, settings.upNextSelectionBehavior.name)
             .putBoolean(KeyRemovePlayedTracksFromQueue, settings.removePlayedTracksFromQueue)
+            .putInt(KeyPlayReportDurationPercent, settings.normalized().playReportDurationPercent)
             .putString(KeyRadioFamiliarity, settings.radioTuning.familiarity.name)
             .putString(KeyRadioArtistSpread, settings.radioTuning.artistSpread.name)
             .putBoolean(KeyRadioSameDecadeOnly, settings.radioTuning.sameDecadeOnly)
@@ -583,6 +591,7 @@ private const val KeyEqualizerBandPrefix = "equalizer_band"
 private const val KeyDebugLoggingEnabled = "debug_logging_enabled"
 private const val KeyCheckForUpdates = "check_for_updates"
 private const val KeyStartPlayingOnLaunch = "start_playing_on_launch"
+private const val KeyShowDesktopTooltips = "show_desktop_tooltips"
 private const val KeyAlbumCollectionLayout = "album_collection_layout"
 private const val KeyAlbumSortOrder = "album_sort_order"
 private const val KeyGroupAlbumsByReleaseType = "group_albums_by_release_type"
@@ -610,6 +619,7 @@ private const val KeySonicAutoplayEnabled = "sonic_autoplay_enabled"
 private const val KeyPreviousButtonBehavior = "previous_button_behavior"
 private const val KeyUpNextSelectionBehavior = "up_next_selection_behavior"
 private const val KeyRemovePlayedTracksFromQueue = "remove_played_tracks_from_queue"
+private const val KeyPlayReportDurationPercent = "play_report_duration_percent"
 private const val KeyRadioFamiliarity = "radio_familiarity"
 private const val KeyRadioArtistSpread = "radio_artist_spread"
 private const val KeyRadioSameDecadeOnly = "radio_same_decade_only"

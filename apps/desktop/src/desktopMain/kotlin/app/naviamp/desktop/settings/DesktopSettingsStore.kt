@@ -3,6 +3,7 @@ package app.naviamp.desktop.settings
 import app.naviamp.domain.source.ConnectionHeaderDefinition
 import app.naviamp.domain.source.ConnectionSecondaryUrl
 import app.naviamp.domain.settings.InterfaceSettings
+import app.naviamp.domain.settings.normalized
 import app.naviamp.provider.navidrome.NavidromeConnection
 import app.naviamp.domain.cache.PlaybackSessionRepository
 import app.naviamp.provider.navidrome.NavidromeTlsSettings
@@ -54,7 +55,7 @@ class DesktopSettingsStore(
     }
 
     fun loadPlaybackSettings(): PlaybackSettings =
-        loadSettings().playback
+        loadSettings().playback.normalized()
 
     fun loadInterfaceSettings(): InterfaceSettings =
         loadSettings().interfaceSettings.normalized()
@@ -64,7 +65,7 @@ class DesktopSettingsStore(
     }
 
     fun savePlaybackSettings(playbackSettings: PlaybackSettings) {
-        saveSettings(loadSettings().copy(playback = playbackSettings))
+        saveSettings(loadSettings().copy(playback = playbackSettings.normalized()))
     }
 
     fun loadVisualizerSettings(): VisualizerSettings =

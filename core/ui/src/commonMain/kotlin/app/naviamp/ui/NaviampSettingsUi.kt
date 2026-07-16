@@ -87,6 +87,7 @@ import app.naviamp.domain.settings.UpNextSelectionBehavior
 import app.naviamp.domain.settings.AlbumCollectionLayout
 import app.naviamp.domain.settings.AlbumSortOrder
 import app.naviamp.domain.settings.normalizedLyricsSearchOrder
+import app.naviamp.domain.settings.normalized
 import app.naviamp.ui.generated.resources.Res
 import app.naviamp.ui.generated.resources.*
 import app.naviamp.ui.generated.resources.naviamp
@@ -375,6 +376,7 @@ fun NaviampExperienceSettingsSection(
     cacheSettings: CacheSettings,
     showQueueBehavior: Boolean,
     showLrclibLyrics: Boolean,
+    showTooltipPreference: Boolean = false,
     supportsSonicSimilarity: Boolean,
     onInterfaceSettingsChanged: (InterfaceSettings) -> Unit,
     onPlaybackSettingsChanged: (PlaybackSettings) -> Unit,
@@ -471,6 +473,17 @@ fun NaviampExperienceSettingsSection(
                 onInterfaceSettingsChanged(interfaceSettings.copy(startPlayingOnLaunch = enabled))
             },
         )
+        if (showTooltipPreference) {
+            SettingsCheckboxRow(
+                colors = colors,
+                checked = interfaceSettings.showDesktopTooltips,
+                label = "Show hover tooltips",
+                subtitle = "Show labels when hovering over icon-only controls on desktop.",
+                onCheckedChange = { enabled ->
+                    onInterfaceSettingsChanged(interfaceSettings.copy(showDesktopTooltips = enabled).normalized())
+                },
+            )
+        }
         SettingsCheckboxRow(
             colors = colors,
             checked = interfaceSettings.checkForUpdates,
@@ -3012,6 +3025,16 @@ private fun PlayerExperienceSettings(
                     onPlaybackSettingsChanged(playbackSettings.copy(upNextSelectionBehavior = behavior))
                 }
             }
+            PlayerBehaviorPage.PlayReportTrigger -> PlayReportTriggerPercentOptions.forEach { percent ->
+                SelectableSettingsRow(
+                    colors = colors,
+                    title = playReportTriggerLabel(percent),
+                    subtitle = playReportTriggerSubtitle(percent),
+                    selected = playbackSettings.normalized().playReportDurationPercent == percent,
+                ) {
+                    onPlaybackSettingsChanged(playbackSettings.copy(playReportDurationPercent = percent).normalized())
+                }
+            }
             PlayerBehaviorPage.Waveforms -> WaveformSettings(
                 colors = colors,
                 cacheSettings = cacheSettings,
@@ -3046,6 +3069,14 @@ private fun PlayerExperienceSettings(
     ) {
         selectedPage = PlayerBehaviorPage.UpNextSelection
     }
+    SettingsRow(
+        title = PlayerBehaviorPage.PlayReportTrigger.title(),
+        subtitle = PlayerBehaviorPage.PlayReportTrigger.subtitle(),
+        colors = colors,
+        value = playReportTriggerLabel(playbackSettings.normalized().playReportDurationPercent),
+    ) {
+        selectedPage = PlayerBehaviorPage.PlayReportTrigger
+    }
     NowPlayingDisplaySettings(
         colors = colors,
         interfaceSettings = interfaceSettings,
@@ -3071,6 +3102,7 @@ private enum class PlayerBehaviorPage(
 ) {
     PreviousClick("Previous Click", "Back button behavior"),
     UpNextSelection("Up Next Selection", "What happens when choosing a queued track"),
+    PlayReportTrigger("Played/Scrobble Trigger", "When a track counts as played"),
     Waveforms("Waveforms", "Track waveforms and detail"),
 }
 
@@ -3079,6 +3111,7 @@ private fun PlayerBehaviorPage.title(): String =
     when (this) {
         PlayerBehaviorPage.PreviousClick -> stringResource(Res.string.settings_player_previous_click_title)
         PlayerBehaviorPage.UpNextSelection -> stringResource(Res.string.settings_player_up_next_title)
+        PlayerBehaviorPage.PlayReportTrigger -> "Played/Scrobble Trigger"
         PlayerBehaviorPage.Waveforms -> stringResource(Res.string.settings_experience_waveforms_title)
     }
 
@@ -3087,7 +3120,20 @@ private fun PlayerBehaviorPage.subtitle(): String =
     when (this) {
         PlayerBehaviorPage.PreviousClick -> stringResource(Res.string.settings_player_previous_click_subtitle)
         PlayerBehaviorPage.UpNextSelection -> stringResource(Res.string.settings_player_up_next_subtitle)
+        PlayerBehaviorPage.PlayReportTrigger -> "Choose when Naviamp submits the played/scrobble event."
         PlayerBehaviorPage.Waveforms -> stringResource(Res.string.settings_experience_waveforms_subtitle)
+    }
+
+private val PlayReportTriggerPercentOptions = listOf(0, 10, 25, 50)
+
+private fun playReportTriggerLabel(percent: Int): String =
+    if (percent <= 0) "Start of playback" else "$percent%"
+
+private fun playReportTriggerSubtitle(percent: Int): String =
+    if (percent <= 0) {
+        "Submit as soon as playback starts."
+    } else {
+        "Submit after $percent% of the track, with the existing long-track cap."
     }
 
 @Composable

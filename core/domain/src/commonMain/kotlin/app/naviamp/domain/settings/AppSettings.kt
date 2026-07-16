@@ -127,6 +127,7 @@ data class InterfaceSettings(
     val language: InterfaceLanguage = InterfaceLanguage.System,
     val checkForUpdates: Boolean = true,
     val startPlayingOnLaunch: Boolean = false,
+    val showDesktopTooltips: Boolean = true,
     val albumCollectionLayout: AlbumCollectionLayout = AlbumCollectionLayout.List,
     val albumSortOrder: AlbumSortOrder = AlbumSortOrder.ReleaseYearAscending,
     val groupAlbumsByReleaseType: Boolean = true,
@@ -233,6 +234,7 @@ data class PlaybackSettings(
     val previousButtonBehavior: PreviousButtonBehavior = PreviousButtonBehavior.RestartThenPrevious,
     val upNextSelectionBehavior: UpNextSelectionBehavior = UpNextSelectionBehavior.MoveSelectedToCurrent,
     val removePlayedTracksFromQueue: Boolean = false,
+    val playReportDurationPercent: Int = DefaultPlayReportDurationPercent,
     val radioTuning: RadioTuningSettings = RadioTuningSettings(),
     val radioDjs: List<RadioDjPreset> = emptyList(),
     val activeRadioDjId: String? = null,
@@ -246,6 +248,25 @@ data class PlaybackSettings(
     val downloadedTrackPlayback: DownloadedTrackPlayback = DownloadedTrackPlayback.PreferDownloaded,
     val allowMobileDownloads: Boolean = false,
 )
+
+const val DefaultPlayReportDurationPercent = 50
+const val MinPlayReportDurationPercent = 0
+const val MaxPlayReportDurationPercent = 100
+
+fun PlaybackSettings.normalized(): PlaybackSettings =
+    copy(
+        playReportDurationPercent = playReportDurationPercent.coerceIn(
+            MinPlayReportDurationPercent,
+            MaxPlayReportDurationPercent,
+        ),
+        lyricsSearchOrder = lyricsSearchOrder.normalizedLyricsSearchOrder(),
+        radioDjs = radioDjs.map { it.normalized() },
+        outputDevice = outputDevice.normalized(),
+        equalizer = equalizer.normalized(),
+        wifiStreamingQuality = wifiStreamingQuality.normalized(),
+        mobileStreamingQuality = mobileStreamingQuality.normalized(),
+        downloadQuality = downloadQuality.normalized(),
+    )
 
 @Serializable
 enum class DownloadedTrackPlayback(
@@ -355,6 +376,10 @@ fun PlaybackSettings.effectiveForEngine(playbackEngine: PlaybackEngine): Playbac
         wifiStreamingQuality = wifiStreamingQuality.normalized(),
         mobileStreamingQuality = mobileStreamingQuality.normalized(),
         downloadQuality = downloadQuality.normalized(),
+        playReportDurationPercent = playReportDurationPercent.coerceIn(
+            MinPlayReportDurationPercent,
+            MaxPlayReportDurationPercent,
+        ),
     )
 }
 

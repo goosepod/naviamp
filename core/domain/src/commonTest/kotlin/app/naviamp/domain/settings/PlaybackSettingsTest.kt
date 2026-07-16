@@ -116,6 +116,12 @@ class PlaybackSettingsTest {
     }
 
     @Test
+    fun normalizedPlaybackSettingsClampPlayReportTriggerPercent() {
+        assertEquals(0, PlaybackSettings(playReportDurationPercent = -1).normalized().playReportDurationPercent)
+        assertEquals(100, PlaybackSettings(playReportDurationPercent = 250).normalized().playReportDurationPercent)
+    }
+
+    @Test
     fun audioOutputDevicePreferenceFallsBackToFollowSystemWithoutPinnedDeviceId() {
         val preference = AudioOutputDevicePreference(
             mode = AudioOutputDeviceMode.Pinned,

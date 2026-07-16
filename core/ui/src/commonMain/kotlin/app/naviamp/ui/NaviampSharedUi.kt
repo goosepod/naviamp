@@ -372,7 +372,10 @@ fun NaviampSharedAppShell(
     val colors = NaviampColors.Dark
     var availableUpdate by remember { mutableStateOf<NaviampAvailableUpdate?>(null) }
     val uriHandler = LocalUriHandler.current
-    CompositionLocalProvider(LocalTrackSwipeSettings provides interfaceSettings.trackSwipes) {
+    CompositionLocalProvider(
+        LocalTrackSwipeSettings provides interfaceSettings.trackSwipes,
+        LocalNaviampTooltipsEnabled provides interfaceSettings.showDesktopTooltips,
+    ) {
     NaviampUpdateCheckEffect(
         enabled = interfaceSettings.checkForUpdates,
         currentVersion = about.version,
@@ -1859,8 +1862,10 @@ private fun AlbumDetailContent(
             .verticalScroll(rememberScrollState()),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            IconButton(onClick = onBack, modifier = Modifier.size(36.dp)) {
-                Icon(NaviampIcons.Back, contentDescription = "Back", tint = colors.primaryText)
+            NaviampTooltip("Back", colors) {
+                IconButton(onClick = onBack, modifier = Modifier.size(36.dp)) {
+                    Icon(NaviampIcons.Back, contentDescription = "Back", tint = colors.primaryText)
+                }
             }
         }
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -2093,8 +2098,10 @@ private fun ArtistDetailContent(
             .verticalScroll(rememberScrollState()),
     ) {
         Row(verticalAlignment = Alignment.Top, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            IconButton(onClick = onBack, modifier = Modifier.size(36.dp)) {
-                Icon(NaviampIcons.Back, contentDescription = "Back", tint = colors.primaryText)
+            NaviampTooltip("Back", colors) {
+                IconButton(onClick = onBack, modifier = Modifier.size(36.dp)) {
+                    Icon(NaviampIcons.Back, contentDescription = "Back", tint = colors.primaryText)
+                }
             }
             Box(
                 modifier = Modifier.clickable(
@@ -2440,16 +2447,18 @@ private fun SimilarArtistRow(
             )
         }
         if (!opensLocalArtist && externalUrl != null) {
-            IconButton(
-                onClick = { onSimilarArtistExternalSelected(externalUrl) },
-                modifier = Modifier.size(34.dp),
-            ) {
-                Icon(
-                    imageVector = NaviampIcons.ExternalLink,
-                    contentDescription = "View in browser",
-                    tint = colors.secondaryText,
-                    modifier = Modifier.size(18.dp),
-                )
+            NaviampTooltip("View in browser", colors) {
+                IconButton(
+                    onClick = { onSimilarArtistExternalSelected(externalUrl) },
+                    modifier = Modifier.size(34.dp),
+                ) {
+                    Icon(
+                        imageVector = NaviampIcons.ExternalLink,
+                        contentDescription = "View in browser",
+                        tint = colors.secondaryText,
+                        modifier = Modifier.size(18.dp),
+                    )
+                }
             }
         } else {
             Icon(

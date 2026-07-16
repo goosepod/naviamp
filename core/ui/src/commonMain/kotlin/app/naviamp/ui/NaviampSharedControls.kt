@@ -274,30 +274,32 @@ private fun TransportIconButton(
     selected: Boolean = false,
     size: Dp = 46.dp,
 ) {
-    IconButton(
-        onClick = onClick,
-        enabled = enabled,
-        modifier = Modifier
-            .size(size)
-            .clip(RoundedCornerShape(size / 2))
-            .background(
-                when {
-                    !enabled -> colors.controlSurface.copy(alpha = 0.55f)
-                    selected -> colors.primaryText
-                    else -> colors.accent
+    NaviampTooltip(contentDescription, colors) {
+        IconButton(
+            onClick = onClick,
+            enabled = enabled,
+            modifier = Modifier
+                .size(size)
+                .clip(RoundedCornerShape(size / 2))
+                .background(
+                    when {
+                        !enabled -> colors.controlSurface.copy(alpha = 0.55f)
+                        selected -> colors.primaryText
+                        else -> colors.accent
+                    },
+                ),
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = contentDescription,
+                tint = when {
+                    !enabled -> colors.mutedText
+                    selected -> colors.background
+                    else -> colors.onAccent
                 },
-            ),
-    ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = contentDescription,
-            tint = when {
-                !enabled -> colors.mutedText
-                selected -> colors.background
-                else -> colors.onAccent
-            },
-            modifier = Modifier.size(size * 0.48f),
-        )
+                modifier = Modifier.size(size * 0.48f),
+            )
+        }
     }
 }
 
@@ -310,23 +312,25 @@ internal fun MiniPlayerIconButton(
     onClick: () -> Unit,
     selected: Boolean = false,
 ) {
-    IconButton(
-        enabled = enabled,
-        onClick = onClick,
-        modifier = Modifier
-            .size(38.dp)
-            .clip(RoundedCornerShape(19.dp))
-            .background(if (selected && enabled) colors.primaryText.copy(alpha = 0.14f) else Color.Transparent),
-    ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = contentDescription,
-            tint = when {
-                !enabled -> colors.mutedText
-                else -> colors.primaryText
-            },
-            modifier = Modifier.size(22.dp),
-        )
+    NaviampTooltip(contentDescription, colors) {
+        IconButton(
+            enabled = enabled,
+            onClick = onClick,
+            modifier = Modifier
+                .size(38.dp)
+                .clip(RoundedCornerShape(19.dp))
+                .background(if (selected && enabled) colors.primaryText.copy(alpha = 0.14f) else Color.Transparent),
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = contentDescription,
+                tint = when {
+                    !enabled -> colors.mutedText
+                    else -> colors.primaryText
+                },
+                modifier = Modifier.size(22.dp),
+            )
+        }
     }
 }
 
@@ -373,13 +377,15 @@ fun SharedBottomNavigationBar(
             .padding(vertical = 2.dp),
     ) {
         bottomRoutes.forEach { route ->
-            IconButton(onClick = { onRouteSelected(route) }, modifier = Modifier.size(42.dp)) {
-                Icon(
-                    route.icon,
-                    contentDescription = route.label,
-                    tint = if (route == selectedRoute) colors.primaryText else colors.mutedText,
-                    modifier = Modifier.size(21.dp),
-                )
+            NaviampTooltip(route.label, colors) {
+                IconButton(onClick = { onRouteSelected(route) }, modifier = Modifier.size(42.dp)) {
+                    Icon(
+                        route.icon,
+                        contentDescription = route.label,
+                        tint = if (route == selectedRoute) colors.primaryText else colors.mutedText,
+                        modifier = Modifier.size(21.dp),
+                    )
+                }
             }
         }
     }
@@ -518,19 +524,21 @@ fun NaviampRowOverflowMenu(
 
     var expanded by remember { mutableStateOf(false) }
     Box(modifier = modifier) {
-        IconButton(
-            onClick = { expanded = true },
-            modifier = Modifier
-                .size(buttonSize)
-                .clip(RoundedCornerShape(buttonSize / 2))
-                .background(if (selected) colors.primaryText.copy(alpha = 0.14f) else Color.Transparent),
-        ) {
-            Icon(
-                imageVector = NaviampTransportIcons.MoreVertical,
-                contentDescription = "More actions",
-                tint = if (selected) colors.primaryText else colors.mutedText,
-                modifier = Modifier.size(iconSize),
-            )
+        NaviampTooltip("More actions", colors) {
+            IconButton(
+                onClick = { expanded = true },
+                modifier = Modifier
+                    .size(buttonSize)
+                    .clip(RoundedCornerShape(buttonSize / 2))
+                    .background(if (selected) colors.primaryText.copy(alpha = 0.14f) else Color.Transparent),
+            ) {
+                Icon(
+                    imageVector = NaviampTransportIcons.MoreVertical,
+                    contentDescription = "More actions",
+                    tint = if (selected) colors.primaryText else colors.mutedText,
+                    modifier = Modifier.size(iconSize),
+                )
+            }
         }
         NaviampDropdownMenu(
             expanded = expanded,

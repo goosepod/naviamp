@@ -58,6 +58,7 @@ import app.naviamp.domain.settings.TrackSwipeSettings
 import kotlin.math.roundToInt
 
 val LocalTrackSwipeSettings = compositionLocalOf { TrackSwipeSettings() }
+val LocalNaviampTooltipsEnabled = compositionLocalOf { true }
 
 enum class TrackSwipeContext { Library, Related }
 

@@ -21,6 +21,7 @@ import app.naviamp.domain.provider.MediaProvider
 import app.naviamp.domain.queue.PlaybackQueue
 import app.naviamp.domain.queue.RepeatMode
 import app.naviamp.domain.settings.UpNextSelectionBehavior
+import app.naviamp.domain.settings.normalized
 import app.naviamp.domain.settings.playbackSessionFromQueue
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -231,6 +232,7 @@ class DesktopPlaybackController(
         val activeProvider = provider() ?: return
         val track = nowPlayingTrack() ?: return
         val durationSeconds = progress.durationSeconds ?: track.durationSeconds?.toDouble()
+        val settings = playbackSettings().normalized()
         if (
             !shouldSubmitPlayReport(
                 supportsPlayReporting = activeProvider.capabilities.supportsPlayReporting,
@@ -239,6 +241,7 @@ class DesktopPlaybackController(
                 submittedSessionId = submittedPlayReportSessionId(),
                 positionSeconds = progress.positionSeconds,
                 durationSeconds = durationSeconds,
+                durationFraction = settings.playReportDurationPercent / 100.0,
             )
         ) {
             return

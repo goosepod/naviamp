@@ -1374,7 +1374,10 @@ fun NaviampApp(
         }
     }
 
-    CompositionLocalProvider(app.naviamp.ui.LocalTrackSwipeSettings provides interfaceSettings.trackSwipes) {
+    CompositionLocalProvider(
+        app.naviamp.ui.LocalTrackSwipeSettings provides interfaceSettings.trackSwipes,
+        app.naviamp.ui.LocalNaviampTooltipsEnabled provides interfaceSettings.showDesktopTooltips,
+    ) {
     DesktopAppSurface(
             colorScheme = colorScheme,
             appColors = appColors,

@@ -473,6 +473,7 @@ internal class AndroidServicePlaybackRuntimeController(
         val provider = NavidromeProvider(source.toNavidromeConnection())
         val durationSeconds = progress.durationSeconds ?: track.durationSeconds?.toDouble()
         val activeSessionToken = servicePlaybackSessionToken
+        val playbackSettings = AndroidSettingsStore(context).loadPlaybackSettings()
         if (
             !shouldSubmitPlayReport(
                 supportsPlayReporting = provider.capabilities.supportsPlayReporting,
@@ -481,6 +482,7 @@ internal class AndroidServicePlaybackRuntimeController(
                 submittedSessionId = submittedServicePlayReportSessionToken,
                 positionSeconds = progress.positionSeconds,
                 durationSeconds = durationSeconds,
+                durationFraction = playbackSettings.playReportDurationPercent / 100.0,
             )
         ) {
             return

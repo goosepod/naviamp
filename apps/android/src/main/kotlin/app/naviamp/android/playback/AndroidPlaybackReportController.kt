@@ -8,6 +8,7 @@ import app.naviamp.domain.playback.shouldSubmitPlayReport
 import app.naviamp.domain.provider.PendingActionReportNowPlaying
 import app.naviamp.domain.provider.PendingActionReportPlayed
 import app.naviamp.domain.provider.PendingProviderActionRepository
+import app.naviamp.domain.settings.normalized
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -66,6 +67,7 @@ internal class AndroidPlaybackReportController(
         val track = state.nowPlaying ?: return
         val durationSeconds = progress.durationSeconds ?: track.durationSeconds?.toDouble()
         val activeSourceId = state.activeSourceId
+        val settings = state.playbackSettings.normalized()
         if (
             !shouldSubmitPlayReport(
                 supportsPlayReporting = activeProvider?.capabilities?.supportsPlayReporting ?: (activeSourceId != null),
@@ -74,6 +76,7 @@ internal class AndroidPlaybackReportController(
                 submittedSessionId = state.submittedPlayReportSessionToken,
                 positionSeconds = progress.positionSeconds,
                 durationSeconds = durationSeconds,
+                durationFraction = settings.playReportDurationPercent / 100.0,
             )
         ) {
             return
