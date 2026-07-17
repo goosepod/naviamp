@@ -6,6 +6,8 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
 import app.naviamp.app.NaviampHostLifecycleEvent
+import app.naviamp.app.NaviampApplicationComposition
+import app.naviamp.app.NaviampApplicationServices
 import app.naviamp.app.NaviampPlaybackSessionController
 import app.naviamp.app.NaviampPlaybackExecution
 import app.naviamp.domain.cache.ProviderResponseCacheRepository
@@ -39,21 +41,26 @@ internal fun AndroidMainEffects(
     connectionSessionController: AndroidConnectionSessionController,
     playbackSessions: NaviampPlaybackSessionController,
     playbackExecution: NaviampPlaybackExecution,
+    applicationServices: NaviampApplicationServices<*, *, *>,
     sleepTimerController: SleepTimerController,
     providerResponseCacheRepository: ProviderResponseCacheRepository,
     onAutoPlayMediaIdConsumed: () -> Unit,
     onAutoCommandConsumed: () -> Unit,
 ) {
     val context = LocalContext.current
-    val applicationRuntime = remember(context, connectionSessionController) {
-        androidApplicationRuntime(
-            context = context,
-            controllers = state.sharedControllers,
-            playbackSessions = playbackSessions,
-            playbackExecution = playbackExecution,
-            restoreSavedSession = connectionSessionController::autoConnect,
+    val application = remember(context, connectionSessionController, applicationServices) {
+        NaviampApplicationComposition(
+            runtime = androidApplicationRuntime(
+                context = context,
+                controllers = state.sharedControllers,
+                playbackSessions = playbackSessions,
+                playbackExecution = playbackExecution,
+                restoreSavedSession = connectionSessionController::autoConnect,
+            ),
+            services = applicationServices,
         )
     }
+    val applicationRuntime = application.runtime
     with(state) {
         LaunchedEffect(query, provider) {
             searchController.load(query, debounce = true)

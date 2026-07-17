@@ -129,6 +129,7 @@ fun NaviampSharedAppShell(
     supportsSonicSimilarity: Boolean = false,
     supportsDownloads: Boolean = false,
     supportsApplicationUpdates: Boolean = false,
+    connectionCapabilities: NaviampConnectionCapabilitiesUi = NaviampConnectionCapabilitiesUi(),
     showMobileNetworkQuality: Boolean = false,
     query: String,
     home: SharedHomeUi,
@@ -497,6 +498,7 @@ fun NaviampSharedAppShell(
                             isReconnect = connected,
                             availableMusicFolders = availableMusicFolders,
                             musicFoldersStatus = musicFoldersStatus,
+                            capabilities = connectionCapabilities,
                             settingsSyncStatus = settingsSyncStatus,
                             onFormChanged = onConnectionFormChanged,
                             onConnect = onConnect,
@@ -564,6 +566,7 @@ fun NaviampSharedAppShell(
                             supportsCrossfade = supportsCrossfade,
                             supportsEqualizer = supportsEqualizer,
                             supportsSonicSimilarity = supportsSonicSimilarity,
+                            connectionCapabilities = connectionCapabilities,
                             showMobileNetworkQuality = showMobileNetworkQuality,
                             onEditConnection = onEditConnection,
                             onNewConnection = onNewConnection,
@@ -791,6 +794,7 @@ fun NaviampConnectionForm(
     settingsSyncStatus: String? = null,
     availableMusicFolders: List<ConnectionFormMusicFolder> = emptyList(),
     musicFoldersStatus: String? = null,
+    capabilities: NaviampConnectionCapabilitiesUi = NaviampConnectionCapabilitiesUi(),
     modifier: Modifier = Modifier,
     onFormChanged: (ConnectionFormState) -> Unit,
     onConnect: () -> Unit,
@@ -865,39 +869,47 @@ fun NaviampConnectionForm(
                     onFormChanged(form.copy(selectedMusicFolderIds = ids))
                 },
             )
-            SettingsSectionTitle("TLS", colors)
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                Checkbox(
-                    checked = form.skipTlsVerification,
-                    onCheckedChange = { onFormChanged(form.copy(skipTlsVerification = it)) },
-                )
-                Text("Skip TLS certificate verification", color = colors.secondaryText, fontSize = 13.sp)
+            if (capabilities.insecureServerVerification || capabilities.customServerCertificates) {
+                SettingsSectionTitle("TLS", colors)
             }
-            NaviampTextField(
-                value = form.customCertificatePath,
-                onValueChange = { onFormChanged(form.copy(customCertificatePath = it)) },
-                label = "Trusted certificate or CA file",
-                colors = colors,
-                enabled = !form.skipTlsVerification,
-            )
-            SettingsSectionTitle("mTLS", colors)
-            NaviampTextField(
-                value = form.clientCertificatePath,
-                onValueChange = { onFormChanged(form.copy(clientCertificatePath = it)) },
-                label = "Client certificate PKCS12 file",
-                colors = colors,
-            )
-            NaviampTextField(
-                value = form.clientCertificatePassword,
-                onValueChange = { onFormChanged(form.copy(clientCertificatePassword = it)) },
-                label = "Client certificate password",
-                colors = colors,
-                isPassword = true,
-            )
+            if (capabilities.insecureServerVerification) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    Checkbox(
+                        checked = form.skipTlsVerification,
+                        onCheckedChange = { onFormChanged(form.copy(skipTlsVerification = it)) },
+                    )
+                    Text("Skip TLS certificate verification", color = colors.secondaryText, fontSize = 13.sp)
+                }
+            }
+            if (capabilities.customServerCertificates) {
+                NaviampTextField(
+                    value = form.customCertificatePath,
+                    onValueChange = { onFormChanged(form.copy(customCertificatePath = it)) },
+                    label = "Trusted certificate or CA file",
+                    colors = colors,
+                    enabled = !form.skipTlsVerification,
+                )
+            }
+            if (capabilities.clientCertificates) {
+                SettingsSectionTitle("mTLS", colors)
+                NaviampTextField(
+                    value = form.clientCertificatePath,
+                    onValueChange = { onFormChanged(form.copy(clientCertificatePath = it)) },
+                    label = "Client certificate PKCS12 file",
+                    colors = colors,
+                )
+                NaviampTextField(
+                    value = form.clientCertificatePassword,
+                    onValueChange = { onFormChanged(form.copy(clientCertificatePassword = it)) },
+                    label = "Client certificate password",
+                    colors = colors,
+                    isPassword = true,
+                )
+            }
             SettingsSectionTitle("Fallback URLs", colors)
             form.secondaryUrls.forEachIndexed { index, entry ->
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
@@ -1178,6 +1190,7 @@ private fun ConnectedContent(
     supportsCrossfade: Boolean = false,
     supportsEqualizer: Boolean = false,
     supportsSonicSimilarity: Boolean = false,
+    connectionCapabilities: NaviampConnectionCapabilitiesUi = NaviampConnectionCapabilitiesUi(),
     showMobileNetworkQuality: Boolean = false,
     onEditConnection: () -> Unit,
     onNewConnection: () -> Unit,
@@ -1367,6 +1380,7 @@ private fun ConnectedContent(
             supportsCrossfade = supportsCrossfade,
             supportsEqualizer = supportsEqualizer,
             supportsSonicSimilarity = supportsSonicSimilarity,
+            connectionCapabilities = connectionCapabilities,
             showMobileNetworkQuality = showMobileNetworkQuality,
             downloadBytes = downloadBytes,
             downloadLocations = downloadLocations,
@@ -2550,6 +2564,7 @@ private fun SettingsContent(
     supportsCrossfade: Boolean,
     supportsEqualizer: Boolean,
     supportsSonicSimilarity: Boolean,
+    connectionCapabilities: NaviampConnectionCapabilitiesUi,
     showMobileNetworkQuality: Boolean,
     downloadBytes: Long,
     downloadLocations: List<NaviampStorageLocationUi>,
@@ -2601,6 +2616,7 @@ private fun SettingsContent(
         supportsCrossfade = supportsCrossfade,
         supportsEqualizer = supportsEqualizer,
         supportsSonicSimilarity = supportsSonicSimilarity,
+        connectionCapabilities = connectionCapabilities,
         showMobileNetworkQuality = showMobileNetworkQuality,
         downloadBytes = downloadBytes,
         downloadLocations = downloadLocations,

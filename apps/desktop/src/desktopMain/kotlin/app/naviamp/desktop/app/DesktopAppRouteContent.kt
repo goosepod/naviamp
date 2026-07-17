@@ -46,6 +46,7 @@ import app.naviamp.ui.AlbumMixBuilderContent
 import app.naviamp.ui.ArtistMixBuilderContent
 import app.naviamp.ui.GenreMixBuilderContent
 import app.naviamp.ui.NaviampAboutUi
+import app.naviamp.ui.NaviampConnectionCapabilitiesUi
 import app.naviamp.ui.SharedAlbumMixBuilderUi
 import app.naviamp.ui.SharedArtistMixBuilderUi
 import app.naviamp.ui.SharedGenreMixBuilderUi
@@ -973,6 +974,13 @@ fun ColumnScope.DesktopAppRouteContent(
                     audioOutputDevices =
                         (playbackEngine as? AudioOutputDevicePlaybackEngine)?.outputDevices().orEmpty(),
                     supportsSonicSimilarity = supportsSonicSimilarity,
+                    connectionCapabilities = NaviampConnectionCapabilitiesUi(
+                        insecureServerVerification = DesktopCapabilityPresentation.insecureServerVerification.visible,
+                        customServerCertificates = DesktopCapabilityPresentation.customServerCertificates.visible,
+                        clientCertificates = DesktopCapabilityPresentation.clientCertificates.visible,
+                    ),
+                    supportsSettingsSync = DesktopCapabilityPresentation.settingsImportExport.visible &&
+                        DesktopCapabilityPresentation.fileSelection.visible,
                     onServerUrlChanged = connectionForm::updateServerUrl,
                     onConnectionNameChanged = { connectionForm.connectionName = it },
                     onUsernameChanged = connectionForm::updateUsername,

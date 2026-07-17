@@ -16,6 +16,7 @@ import app.naviamp.ui.NaviampDownloadedTrackUi
 import app.naviamp.ui.NaviampOfflineDashboardUi
 import app.naviamp.ui.NaviampStorageLocationUi
 import app.naviamp.ui.NaviampLibrarySyncStatusUi
+import app.naviamp.ui.NaviampConnectionCapabilitiesUi
 import app.naviamp.ui.NaviampPlaylistChoiceUi
 import app.naviamp.ui.NaviampVisualizer
 import app.naviamp.ui.DownloadedTrackActionRequest
@@ -77,6 +78,8 @@ data class AndroidAppShellUiState(
     val supportsDownloads: Boolean,
     val supportsSettingsImportExport: Boolean,
     val supportsApplicationUpdates: Boolean,
+    val connectionCapabilities: NaviampConnectionCapabilitiesUi,
+    val supportsFileSelection: Boolean,
     val showMobileNetworkQuality: Boolean,
     val selectedVisualizer: NaviampVisualizer,
     val visualizerBandsProvider: () -> List<Float>,

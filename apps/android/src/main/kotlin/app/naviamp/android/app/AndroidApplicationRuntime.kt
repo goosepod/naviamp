@@ -21,6 +21,7 @@ internal val AndroidPlatformCapabilities: PlatformCapabilities = listOf(
     PlatformCapability.BackgroundPlayback,
     PlatformCapability.SystemMediaControls,
     PlatformCapability.SecureCredentialStorage,
+    PlatformCapability.InsecureServerVerification,
     PlatformCapability.CustomServerCertificates,
     PlatformCapability.ClientCertificates,
     PlatformCapability.Downloads,

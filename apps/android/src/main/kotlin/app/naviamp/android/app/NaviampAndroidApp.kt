@@ -964,6 +964,7 @@ fun NaviampAndroidApp(
         connectionSessionController = connectionSessionController,
         playbackSessions = playbackSessions,
         playbackExecution = playbackAppController,
+        applicationServices = applicationServices,
         sleepTimerController = sleepTimerController,
         providerResponseCacheRepository = storage,
         onAutoPlayMediaIdConsumed = onAutoPlayMediaIdConsumed,

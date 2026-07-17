@@ -13,6 +13,7 @@ enum class PlatformCapability {
     BackgroundPlayback,
     SystemMediaControls,
     SecureCredentialStorage,
+    InsecureServerVerification,
     CustomServerCertificates,
     ClientCertificates,
     Downloads,

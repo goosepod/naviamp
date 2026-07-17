@@ -635,6 +635,12 @@ data class NaviampSleepTimerUi(
     val label: String = "Sleep timer",
 )
 
+data class NaviampConnectionCapabilitiesUi(
+    val insecureServerVerification: Boolean = false,
+    val customServerCertificates: Boolean = false,
+    val clientCertificates: Boolean = false,
+)
+
 data class NaviampLyricLineUi(
     val startMillis: Long?,
     val text: String,

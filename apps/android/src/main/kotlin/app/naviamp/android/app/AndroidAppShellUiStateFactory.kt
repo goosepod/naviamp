@@ -14,6 +14,7 @@ import app.naviamp.domain.provider.allKnownTracks
 import app.naviamp.domain.settings.selectedMusicFolderSummary
 import app.naviamp.domain.settings.streamQualityForNetwork
 import app.naviamp.ui.NaviampAboutUi
+import app.naviamp.ui.NaviampConnectionCapabilitiesUi
 import app.naviamp.ui.NaviampSavedConnectionUi
 import app.naviamp.ui.NaviampOfflineDashboardUi
 import app.naviamp.ui.NaviampStorageLocationUi
@@ -172,6 +173,12 @@ fun rememberAndroidAppShellUiState(
             supportsDownloads = AndroidCapabilityPresentation.downloads.visible,
             supportsSettingsImportExport = AndroidCapabilityPresentation.settingsImportExport.visible,
             supportsApplicationUpdates = AndroidCapabilityPresentation.applicationUpdates.visible,
+            connectionCapabilities = NaviampConnectionCapabilitiesUi(
+                insecureServerVerification = AndroidCapabilityPresentation.insecureServerVerification.visible,
+                customServerCertificates = AndroidCapabilityPresentation.customServerCertificates.visible,
+                clientCertificates = AndroidCapabilityPresentation.clientCertificates.visible,
+            ),
+            supportsFileSelection = AndroidCapabilityPresentation.fileSelection.visible,
             showMobileNetworkQuality = true,
             selectedVisualizer = selectedVisualizer,
             visualizerBandsProvider = { visualizerFrame?.bands.orEmpty() },

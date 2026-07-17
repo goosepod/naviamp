@@ -4,7 +4,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import app.naviamp.app.NaviampHostLifecycleEvent
+import app.naviamp.app.NaviampApplicationComposition
 import app.naviamp.app.NaviampApplicationControllers
+import app.naviamp.app.NaviampApplicationServices
 import app.naviamp.app.NaviampPlaybackSessionController
 import app.naviamp.app.NaviampPlaybackExecution
 import app.naviamp.domain.Playlist
@@ -35,6 +37,7 @@ internal fun DesktopAppControllerEffects(
     applicationControllers: NaviampApplicationControllers,
     playbackSessions: NaviampPlaybackSessionController,
     playbackExecution: NaviampPlaybackExecution,
+    applicationServices: NaviampApplicationServices<*, *, *>,
     hasSavedConnection: Boolean,
     connectToServer: () -> Unit,
     nowPlayingTrack: Track?,
@@ -57,15 +60,19 @@ internal fun DesktopAppControllerEffects(
     loadStorageStats: suspend () -> StorageCacheStats,
     setCacheStats: (StorageCacheStats) -> Unit,
 ) {
-    val applicationRuntime = remember {
-        desktopApplicationRuntime(
-            controllers = applicationControllers,
-            playbackSessions = playbackSessions,
-            playbackExecution = playbackExecution,
-            hasSavedConnection = hasSavedConnection,
-            restoreSavedSession = connectToServer,
+    val application = remember(applicationServices) {
+        NaviampApplicationComposition(
+            runtime = desktopApplicationRuntime(
+                controllers = applicationControllers,
+                playbackSessions = playbackSessions,
+                playbackExecution = playbackExecution,
+                hasSavedConnection = hasSavedConnection,
+                restoreSavedSession = connectToServer,
+            ),
+            services = applicationServices,
         )
     }
+    val applicationRuntime = application.runtime
     LaunchedEffect(
         nowPlayingTrack?.id,
         connectedSourceId,

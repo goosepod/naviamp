@@ -1217,6 +1217,7 @@ fun NaviampApp(
         applicationControllers = applicationControllers,
         playbackSessions = playbackSessions,
         playbackExecution = playbackController,
+        applicationServices = applicationServices,
         hasSavedConnection = savedConnection != null,
         connectToServer = { connectionLifecycleController.connectToServer(restoreSavedSession = true) },
         nowPlayingTrack = nowPlayingTrack,

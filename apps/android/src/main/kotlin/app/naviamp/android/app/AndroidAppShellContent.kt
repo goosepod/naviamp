@@ -43,6 +43,7 @@ fun AndroidAppShellContent(
         supportsSonicSimilarity = state.supportsSonicSimilarity,
         supportsDownloads = state.supportsDownloads,
         supportsApplicationUpdates = state.supportsApplicationUpdates,
+        connectionCapabilities = state.connectionCapabilities,
         showMobileNetworkQuality = state.showMobileNetworkQuality,
         selectedVisualizer = state.selectedVisualizer,
         visualizerBandsProvider = state.visualizerBandsProvider,
@@ -91,10 +92,18 @@ fun AndroidAppShellContent(
         onEditSavedConnection = actions.onEditSavedConnection,
         onConnectSavedConnection = actions.onConnectSavedConnection,
         onDeleteSavedConnection = actions.onDeleteSavedConnection,
-        onImportSettingsSyncFile = onImportSettingsSyncFile.takeIf { state.supportsSettingsImportExport },
-        onChooseSettingsSyncFolder = onChooseSettingsSyncFolder.takeIf { state.supportsSettingsImportExport },
-        onImportSettingsSyncFolder = onImportSettingsSyncFolder.takeIf { state.supportsSettingsImportExport },
-        onExportSettingsSyncFolder = onExportSettingsSyncFolder.takeIf { state.supportsSettingsImportExport },
+        onImportSettingsSyncFile = onImportSettingsSyncFile.takeIf {
+            state.supportsSettingsImportExport && state.supportsFileSelection
+        },
+        onChooseSettingsSyncFolder = onChooseSettingsSyncFolder.takeIf {
+            state.supportsSettingsImportExport && state.supportsFileSelection
+        },
+        onImportSettingsSyncFolder = onImportSettingsSyncFolder.takeIf {
+            state.supportsSettingsImportExport && state.supportsFileSelection
+        },
+        onExportSettingsSyncFolder = onExportSettingsSyncFolder.takeIf {
+            state.supportsSettingsImportExport && state.supportsFileSelection
+        },
         settingsSyncAutoExportEnabled = settingsSyncAutoExportEnabled,
         onSettingsSyncAutoExportChanged = onSettingsSyncAutoExportChanged,
         onCancelEditConnection = actions.onCancelEditConnection,

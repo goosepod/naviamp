@@ -79,6 +79,7 @@ import app.naviamp.ui.NaviampSettingsCategory
 import app.naviamp.ui.NaviampStorageLocationUi
 import app.naviamp.ui.NaviampDiagnosticsSectionUi
 import app.naviamp.ui.NaviampDiagnosticsUi
+import app.naviamp.ui.NaviampConnectionCapabilitiesUi
 import app.naviamp.ui.categoryLabel
 import app.naviamp.ui.categorySubtitle
 import app.naviamp.ui.languageTitle
@@ -130,6 +131,8 @@ fun DesktopSettingsPanel(
     supportsAudioOutputDeviceSelection: Boolean,
     audioOutputDevices: List<AudioOutputDevice>,
     supportsSonicSimilarity: Boolean,
+    connectionCapabilities: NaviampConnectionCapabilitiesUi,
+    supportsSettingsSync: Boolean,
     onServerUrlChanged: (String) -> Unit,
     onConnectionNameChanged: (String) -> Unit,
     onUsernameChanged: (String) -> Unit,
@@ -200,6 +203,8 @@ fun DesktopSettingsPanel(
                 settingsSyncDirectoryPath = settingsSyncDirectoryPath,
                 settingsSyncAutoExportEnabled = settingsSyncAutoExportEnabled,
                 settingsSyncStatus = settingsSyncStatus,
+                connectionCapabilities = connectionCapabilities,
+                supportsSettingsSync = supportsSettingsSync,
                 onServerUrlChanged = onServerUrlChanged,
                 onConnectionNameChanged = onConnectionNameChanged,
                 onUsernameChanged = onUsernameChanged,
@@ -639,10 +644,15 @@ private fun FirstRunConnectionChoice(
     appColors: DesktopAppColors,
     onNewConnection: () -> Unit,
     onSettingsSyncDirectorySelectedForImport: (String) -> Unit,
+    supportsSettingsSync: Boolean,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Text(
-            "Start with a new server or import an existing settings sync folder.",
+            if (supportsSettingsSync) {
+                "Start with a new server or import an existing settings sync folder."
+            } else {
+                "Set up a server to get started."
+            },
             color = appColors.secondaryText,
             fontSize = 12.sp,
         )
@@ -654,15 +664,17 @@ private fun FirstRunConnectionChoice(
             ) {
                 Text("Set up server", fontSize = 12.sp)
             }
-            TextButton(
-                onClick = {
-                    chooseDirectory(System.getProperty("user.home"), "Choose settings sync folder")?.let { selected ->
-                        onSettingsSyncDirectorySelectedForImport(selected.absolutePath)
-                    }
-                },
-                modifier = Modifier.height(30.dp),
-            ) {
-                Text("Use sync folder", fontSize = 12.sp)
+            if (supportsSettingsSync) {
+                TextButton(
+                    onClick = {
+                        chooseDirectory(System.getProperty("user.home"), "Choose settings sync folder")?.let { selected ->
+                            onSettingsSyncDirectorySelectedForImport(selected.absolutePath)
+                        }
+                    },
+                    modifier = Modifier.height(30.dp),
+                ) {
+                    Text("Use sync folder", fontSize = 12.sp)
+                }
             }
         }
     }
@@ -693,6 +705,8 @@ private fun ConnectionsSettings(
     settingsSyncDirectoryPath: String?,
     settingsSyncAutoExportEnabled: Boolean,
     settingsSyncStatus: String?,
+    connectionCapabilities: NaviampConnectionCapabilitiesUi,
+    supportsSettingsSync: Boolean,
     onServerUrlChanged: (String) -> Unit,
     onConnectionNameChanged: (String) -> Unit,
     onUsernameChanged: (String) -> Unit,
@@ -753,6 +767,7 @@ private fun ConnectionsSettings(
                 connectionStatus = connectionStatus,
                 availableMusicFolders = availableMusicFolders,
                 musicFoldersStatus = musicFoldersStatus,
+                capabilities = connectionCapabilities,
                 onFormChanged = { form ->
                     onServerUrlChanged(form.serverUrl)
                     onUsernameChanged(form.username)
@@ -786,6 +801,7 @@ private fun ConnectionsSettings(
                             appColors = appColors,
                             onNewConnection = onNewConnection,
                             onSettingsSyncDirectorySelectedForImport = onSettingsSyncDirectorySelectedForImport,
+                            supportsSettingsSync = supportsSettingsSync,
                         )
                     }
                 } else {
@@ -897,14 +913,16 @@ private fun ConnectionsSettings(
                 ) {
                     sourcePage = DesktopSourceSettingsPage.Connections
                 }
-                DesktopSourceSubpageRow(
-                    title = "Settings Sync",
-                    subtitle = "Folder-based settings sync.",
-                    value = settingsSyncDirectoryPath?.let { "Configured" },
-                    appColors = appColors,
-                    enabled = !isConnecting,
-                ) {
-                    sourcePage = DesktopSourceSettingsPage.SettingsSync
+                if (supportsSettingsSync) {
+                    DesktopSourceSubpageRow(
+                        title = "Settings Sync",
+                        subtitle = "Folder-based settings sync.",
+                        value = settingsSyncDirectoryPath?.let { "Configured" },
+                        appColors = appColors,
+                        enabled = !isConnecting,
+                    ) {
+                        sourcePage = DesktopSourceSettingsPage.SettingsSync
+                    }
                 }
                 connectionStatus?.let {
                     Text(it, color = appColors.secondaryText, fontSize = 12.sp)
