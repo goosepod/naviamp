@@ -25,6 +25,8 @@ import androidx.compose.ui.unit.dp
 import app.naviamp.domain.Track
 import app.naviamp.domain.TrackId
 import app.naviamp.app.NaviampNavigationController
+import app.naviamp.app.NaviampLivePlaybackController
+import app.naviamp.app.NaviampLivePlaybackState
 import app.naviamp.app.NaviampPlaybackSessionController
 import app.naviamp.domain.app.NaviampNavigationState
 import app.naviamp.domain.cache.ImageCacheRepository
@@ -214,16 +216,28 @@ fun NaviampApp(
         DesktopNavigationRouteProperty(navigationController, DesktopNavigationField.LastContentRoute)
     }
     var lastContentRoute by lastContentRouteProperty
-    var nowPlayingTrack by remember { mutableStateOf(restoredTrack) }
+    val livePlaybackController = remember {
+        NaviampLivePlaybackController(
+            NaviampLivePlaybackState(
+                currentTrack = restoredTrack,
+                currentStation = restoredInternetRadioStation,
+                queue = savedPlaybackSession?.restoredPlaybackQueue() ?: PlaybackQueue(),
+            ),
+        )
+    }
+    val currentTrackProperty = remember { desktopCurrentTrackProperty(livePlaybackController) }
+    var nowPlayingTrack by currentTrackProperty
     var nowPlayingCoverArtUrl by remember { mutableStateOf<String?>(null) }
     var nowPlayingLyricsVisible by remember { mutableStateOf(false) }
-    var nowPlayingInternetRadioStation by remember { mutableStateOf(restoredInternetRadioStation) }
+    val currentStationProperty = remember { desktopCurrentStationProperty(livePlaybackController) }
+    var nowPlayingInternetRadioStation by currentStationProperty
     var nowPlayingStreamMetadata by remember { mutableStateOf(PlaybackStreamMetadata()) }
-    var playbackState by remember { mutableStateOf<PlaybackState>(PlaybackState.Idle) }
-    var playbackProgress by remember { mutableStateOf(PlaybackProgress.Unknown) }
-    var playbackQueue by remember {
-        mutableStateOf(savedPlaybackSession?.restoredPlaybackQueue() ?: PlaybackQueue())
-    }
+    val playbackStateProperty = remember { desktopPlaybackStateProperty(livePlaybackController) }
+    var playbackState by playbackStateProperty
+    val playbackProgressProperty = remember { desktopPlaybackProgressProperty(livePlaybackController) }
+    var playbackProgress by playbackProgressProperty
+    val playbackQueueProperty = remember { desktopPlaybackQueueProperty(livePlaybackController) }
+    var playbackQueue by playbackQueueProperty
     var sleepTimer by remember { mutableStateOf<SleepTimerState?>(null) }
     var sleepTimerNowEpochMillis by remember { mutableLongStateOf(System.currentTimeMillis()) }
     playlistEngine.setSonicAutoplayTracksProvider { queue ->
@@ -1139,6 +1153,7 @@ fun NaviampApp(
         libraryController = libraryController,
         mixBuilderController = mixBuilderController,
         navigationController = navigationController,
+        livePlaybackController = livePlaybackController,
         playbackSessions = playbackSessions,
         hasSavedConnection = savedConnection != null,
         connectToServer = { connectionLifecycleController.connectToServer(restoreSavedSession = true) },

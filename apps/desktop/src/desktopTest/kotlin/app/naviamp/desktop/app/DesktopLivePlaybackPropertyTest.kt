@@ -1,0 +1,25 @@
+package app.naviamp.desktop
+
+import app.naviamp.app.NaviampLivePlaybackController
+import app.naviamp.domain.playback.PlaybackProgress
+import app.naviamp.domain.playback.PlaybackState
+import kotlin.test.Test
+import kotlin.test.assertEquals
+
+class DesktopLivePlaybackPropertyTest {
+    @Test
+    fun typedPropertiesWriteIntoOneSharedPlaybackSnapshot() {
+        val controller = NaviampLivePlaybackController()
+        var playbackState by desktopPlaybackStateProperty(controller)
+        var progress by desktopPlaybackProgressProperty(controller)
+        val updatedProgress = PlaybackProgress(positionSeconds = 15.0, durationSeconds = 180.0)
+
+        playbackState = PlaybackState.Playing
+        progress = updatedProgress
+
+        assertEquals(PlaybackState.Playing, playbackState)
+        assertEquals(updatedProgress, progress)
+        assertEquals(PlaybackState.Playing, controller.state.value.playbackState)
+        assertEquals(updatedProgress, controller.state.value.progress)
+    }
+}

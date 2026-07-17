@@ -8,6 +8,7 @@ import app.naviamp.app.NaviampApplicationSession
 import app.naviamp.app.NaviampConnectivityMonitor
 import app.naviamp.app.NaviampConnectivitySnapshot
 import app.naviamp.app.NaviampNavigationController
+import app.naviamp.app.NaviampLivePlaybackController
 import app.naviamp.app.NaviampPlaybackSessionController
 import app.naviamp.app.NaviampPlatformServices
 import app.naviamp.app.NaviampRuntimeErrorReporter
@@ -30,6 +31,7 @@ internal class AndroidApplicationSession(
 internal fun androidApplicationRuntime(
     context: Context,
     navigation: NaviampNavigationController,
+    playback: NaviampLivePlaybackController,
     playbackSessions: NaviampPlaybackSessionController,
     restoreSavedSession: () -> Unit,
 ): NaviampApplicationRuntime {
@@ -53,5 +55,6 @@ internal fun androidApplicationRuntime(
             },
         ),
         navigation = navigation,
+        playback = playback,
     )
 }

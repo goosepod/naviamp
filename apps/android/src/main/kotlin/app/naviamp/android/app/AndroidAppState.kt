@@ -22,6 +22,7 @@ import app.naviamp.domain.TrackId
 import app.naviamp.domain.app.NaviampContentState
 import app.naviamp.domain.app.NaviampNavigationState
 import app.naviamp.app.NaviampNavigationController
+import app.naviamp.app.NaviampLivePlaybackController
 import app.naviamp.domain.audio.AudioTag
 import app.naviamp.domain.media.RelatedTracksSource
 import app.naviamp.domain.playback.PlaybackProgress
@@ -126,12 +127,30 @@ class AndroidAppState(
     var validation by mutableStateOf<ConnectionValidation?>(null)
     var status by mutableStateOf("Connect to Navidrome to start Android playback.")
     var tracks by mutableStateOf<List<Track>>(emptyList())
-    var nowPlaying by mutableStateOf<Track?>(null)
-    var nowPlayingStation by mutableStateOf<InternetRadioStation?>(null)
+    internal val sharedLivePlaybackController = NaviampLivePlaybackController()
+    private var livePlaybackState by AndroidLivePlaybackStateProperty(sharedLivePlaybackController)
+    var nowPlaying: Track?
+        get() = livePlaybackState.currentTrack
+        set(value) {
+            livePlaybackState = livePlaybackState.copy(currentTrack = value)
+        }
+    var nowPlayingStation: InternetRadioStation?
+        get() = livePlaybackState.currentStation
+        set(value) {
+            livePlaybackState = livePlaybackState.copy(currentStation = value)
+        }
     var nowPlayingStreamMetadata by mutableStateOf(PlaybackStreamMetadata())
     var nowPlayingOpen by mutableStateOf(false)
-    var playbackState by mutableStateOf<PlaybackState>(PlaybackState.Idle)
-    var playbackProgress by mutableStateOf(PlaybackProgress.Unknown)
+    var playbackState: PlaybackState
+        get() = livePlaybackState.playbackState
+        set(value) {
+            livePlaybackState = livePlaybackState.copy(playbackState = value)
+        }
+    var playbackProgress: PlaybackProgress
+        get() = livePlaybackState.progress
+        set(value) {
+            livePlaybackState = livePlaybackState.copy(progress = value)
+        }
     var visualizerFrame by mutableStateOf<PlaybackVisualizerFrame?>(null)
     var visualizerRequestedVisible by mutableStateOf(false)
     var selectedVisualizer by mutableStateOf(initialSelectedVisualizer)
@@ -144,7 +163,11 @@ class AndroidAppState(
     var volumePercent by mutableStateOf(100)
     var waveformByTrackId by mutableStateOf<Map<String, AudioWaveform>>(emptyMap())
     var audioTagsByTrackId by mutableStateOf<Map<String, List<AudioTag>>>(emptyMap())
-    var playbackQueue by mutableStateOf(PlaybackQueue())
+    var playbackQueue: PlaybackQueue
+        get() = livePlaybackState.queue
+        set(value) {
+            livePlaybackState = livePlaybackState.copy(queue = value)
+        }
     var sleepTimer by mutableStateOf<SleepTimerState?>(null)
     var sleepTimerNowEpochMillis by mutableStateOf(System.currentTimeMillis())
     var shuffledUpNextSnapshot by mutableStateOf<List<Track>?>(null)

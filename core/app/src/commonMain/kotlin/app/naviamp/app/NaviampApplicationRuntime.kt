@@ -41,6 +41,7 @@ data class NaviampRuntimeState(
 class NaviampApplicationRuntime(
     val services: NaviampPlatformServices,
     val navigation: NaviampNavigationController = NaviampNavigationController(),
+    val playback: NaviampLivePlaybackController = NaviampLivePlaybackController(),
 ) {
     private val eventMutex = Mutex()
     private val mutableState = MutableStateFlow(NaviampRuntimeState())

@@ -47,6 +47,7 @@ internal fun AndroidMainEffects(
         androidApplicationRuntime(
             context = context,
             navigation = state.sharedNavigationController,
+            playback = state.sharedLivePlaybackController,
             playbackSessions = playbackSessions,
             restoreSavedSession = connectionSessionController::autoConnect,
         )

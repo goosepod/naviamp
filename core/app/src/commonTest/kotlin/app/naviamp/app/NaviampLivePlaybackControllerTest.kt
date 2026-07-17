@@ -1,0 +1,60 @@
+package app.naviamp.app
+
+import app.naviamp.domain.InternetRadioStation
+import app.naviamp.domain.Track
+import app.naviamp.domain.TrackId
+import app.naviamp.domain.playback.PlaybackProgress
+import app.naviamp.domain.playback.PlaybackState
+import app.naviamp.domain.queue.PlaybackQueue
+import kotlin.test.Test
+import kotlin.test.assertEquals
+
+class NaviampLivePlaybackControllerTest {
+    @Test
+    fun fieldUpdatesPreserveTheRestOfThePlaybackSnapshot() {
+        val track = track("one")
+        val queue = PlaybackQueue(listOf(track), currentIndex = 0)
+        val controller = NaviampLivePlaybackController(
+            NaviampLivePlaybackState(currentTrack = track, queue = queue),
+        )
+        val station = InternetRadioStation("station", "Station", "https://radio.example.test")
+        val progress = PlaybackProgress(positionSeconds = 12.0, durationSeconds = 180.0)
+
+        controller.updateCurrentStation(station)
+        controller.updateProgress(progress)
+        controller.updatePlaybackState(PlaybackState.Playing)
+
+        assertEquals(track, controller.state.value.currentTrack)
+        assertEquals(station, controller.state.value.currentStation)
+        assertEquals(queue, controller.state.value.queue)
+        assertEquals(progress, controller.state.value.progress)
+        assertEquals(PlaybackState.Playing, controller.state.value.playbackState)
+    }
+
+    @Test
+    fun replacesRestoredPlaybackStateAtomically() {
+        val track = track("restored")
+        val restored = NaviampLivePlaybackState(
+            currentTrack = track,
+            queue = PlaybackQueue(listOf(track), currentIndex = 0),
+            progress = PlaybackProgress(positionSeconds = 42.0, durationSeconds = 180.0),
+            playbackState = PlaybackState.Paused,
+        )
+        val controller = NaviampLivePlaybackController()
+
+        controller.replace(restored)
+
+        assertEquals(restored, controller.state.value)
+    }
+
+    private fun track(id: String) = Track(
+        id = TrackId(id),
+        title = "Track $id",
+        artistName = "Artist",
+        albumTitle = "Album",
+        durationSeconds = 180,
+        coverArtId = null,
+        audioInfo = null,
+        replayGain = null,
+    )
+}

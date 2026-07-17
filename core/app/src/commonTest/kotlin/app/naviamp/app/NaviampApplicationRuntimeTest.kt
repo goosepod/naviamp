@@ -23,6 +23,14 @@ class NaviampApplicationRuntimeTest {
     }
 
     @Test
+    fun exposesInjectedLivePlaybackControllerAsPartOfSharedRuntime() {
+        val playback = NaviampLivePlaybackController()
+        val fixture = RuntimeFixture(playback = playback)
+
+        assertSame(playback, fixture.runtime.playback)
+    }
+
+    @Test
     fun restoresOnceThenForwardsForegroundAndBackgroundEvents() = runTest {
         val fixture = RuntimeFixture()
 
@@ -86,6 +94,7 @@ private class RuntimeFixture(
     failure: Throwable = IllegalStateException("operation failed"),
     shutdownFails: Boolean = false,
     navigation: NaviampNavigationController = NaviampNavigationController(),
+    playback: NaviampLivePlaybackController = NaviampLivePlaybackController(),
 ) {
     val connectivitySnapshot = NaviampConnectivitySnapshot(available = true, mobileData = true)
     val session = RecordingSession(restoreFailures, failure, shutdownFails)
@@ -102,6 +111,7 @@ private class RuntimeFixture(
             errorReporter = NaviampRuntimeErrorReporter { _, cause -> reportedCauses += cause },
         ),
         navigation = navigation,
+        playback = playback,
     )
 }
 
