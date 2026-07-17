@@ -73,6 +73,53 @@ class NaviampPlaybackQueueCoordinatorTest {
     }
 
     @Test
+    fun remainingVisibleMutationsUpdateTheSharedQueueSnapshot() {
+        val first = track("first")
+        val second = track("second")
+        val third = track("third")
+        val replacement = track("replacement")
+        val playback = NaviampLivePlaybackController(
+            NaviampLivePlaybackState(
+                queue = PlaybackQueue(listOf(first, second, third), currentIndex = 0),
+            ),
+        )
+        val coordinator = NaviampPlaybackQueueCoordinator(playback)
+
+        assertTrue(coordinator.moveToNext(2).changed)
+        assertEquals(listOf(first, third, second), playback.state.value.queue.tracks)
+        assertEquals(1, playback.state.value.queue.playNextCount)
+
+        val updatedThird = third.copy(title = "Updated third")
+        assertTrue(coordinator.updateTrack(updatedThird).changed)
+        assertEquals(updatedThird, playback.state.value.queue.tracks[1])
+
+        assertTrue(coordinator.replaceUpcomingTracks(first, listOf(replacement)).changed)
+        assertEquals(listOf(first, updatedThird, replacement), playback.state.value.queue.tracks)
+
+        assertTrue(coordinator.clearUpcoming().changed)
+        assertEquals(listOf(first), playback.state.value.queue.tracks)
+    }
+
+    @Test
+    fun shuffleAndRestoreUseOneSharedSnapshot() {
+        val first = track("first")
+        val upcoming = listOf(track("second"), track("third"), track("fourth"))
+        val initialQueue = PlaybackQueue(listOf(first) + upcoming, currentIndex = 0)
+        val playback = NaviampLivePlaybackController(
+            NaviampLivePlaybackState(queue = initialQueue),
+        )
+        val coordinator = NaviampPlaybackQueueCoordinator(playback)
+
+        val shuffled = coordinator.toggleUpcomingShuffle(null)
+        assertTrue(shuffled.changed)
+        assertEquals(upcoming.toSet(), playback.state.value.queue.upNext().toSet())
+
+        val restored = coordinator.toggleUpcomingShuffle(shuffled.shuffledSnapshot)
+        assertTrue(restored.changed)
+        assertEquals(initialQueue, playback.state.value.queue)
+    }
+
+    @Test
     fun rejectedMutationsLeaveTheSharedSnapshotUntouched() {
         val first = track("first")
         val initialQueue = PlaybackQueue(listOf(first), currentIndex = 0)

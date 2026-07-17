@@ -3,7 +3,6 @@ package app.naviamp.android
 import app.naviamp.android.playback.AndroidPlaybackEngine
 import app.naviamp.domain.Track
 import app.naviamp.domain.playback.PlaybackQueueController
-import app.naviamp.domain.playback.PlaybackQueueManager
 import app.naviamp.domain.playback.PlaybackState
 import app.naviamp.domain.queue.PlaybackQueue
 import app.naviamp.domain.queue.resolveTrackOccurrenceIndex
@@ -52,20 +51,20 @@ internal class AndroidShellPlaybackController(
             track = currentTrack,
             preferredIndex = state.playbackQueue.currentIndex,
         ) ?: return
-        playbackQueueController.replaceQueue(
+        val normalizedQueue = state.sharedQueueCoordinator.replaceQueue(
             PlaybackQueue(
                 tracks = queue,
                 currentIndex = currentIndex,
                 playNextCount = state.playbackQueue.playNextCount.coerceIn(0, queue.size - currentIndex - 1),
             ),
         )
-        val update = PlaybackQueueManager().toggleUpcomingShuffle(
-            playbackQueueController.queue,
-            state.shuffledUpNextSnapshot,
+        playbackQueueController.replaceQueue(
+            normalizedQueue.queue,
+            clearPreparedNext = normalizedQueue.clearPreparedNext,
         )
+        val update = state.sharedQueueCoordinator.toggleUpcomingShuffle(state.shuffledUpNextSnapshot)
         if (!update.changed) return
         playbackQueueController.replaceQueue(update.queue)
-        state.playbackQueue = update.queue
         state.shuffledUpNextSnapshot = update.shuffledSnapshot
     }
 

@@ -239,10 +239,18 @@ fun toggleAndroidCurrentFavorite(
     scope: CoroutineScope,
     state: AndroidAppState,
     playbackEngine: AndroidPlaybackEngine,
+    playbackQueueController: PlaybackQueueController? = null,
     pendingProviderActions: PendingProviderActionRepository? = null,
 ) {
     val currentTrack = state.nowPlaying ?: return
-    toggleAndroidTrackFavorite(scope, state, playbackEngine, currentTrack, pendingProviderActions)
+    toggleAndroidTrackFavorite(
+        scope = scope,
+        state = state,
+        playbackEngine = playbackEngine,
+        track = currentTrack,
+        playbackQueueController = playbackQueueController,
+        pendingProviderActions = pendingProviderActions,
+    )
 }
 
 fun toggleAndroidTrackFavorite(
@@ -250,6 +258,7 @@ fun toggleAndroidTrackFavorite(
     state: AndroidAppState,
     playbackEngine: AndroidPlaybackEngine,
     track: Track,
+    playbackQueueController: PlaybackQueueController? = null,
     pendingProviderActions: PendingProviderActionRepository? = null,
 ) {
     scope.launch {
@@ -267,6 +276,7 @@ fun toggleAndroidTrackFavorite(
             androidMediaMetadataMutationController(
                 state = state,
                 playbackEngine = playbackEngine,
+                playbackQueueController = playbackQueueController,
             ).applyTrackUpdateResult(updatedTrack)
             state.status = if (favorite) {
                 "Favorite will sync when you reconnect."
@@ -278,6 +288,7 @@ fun toggleAndroidTrackFavorite(
         val result = androidMediaMetadataMutationController(
             state = state,
             playbackEngine = playbackEngine,
+            playbackQueueController = playbackQueueController,
             pendingProviderActions = pendingProviderActions,
         ).toggleTrackFavoriteResult(track)
         if (!result.shouldRunPlatformSideEffects && state.nowPlaying?.id == track.id) {
@@ -290,17 +301,23 @@ fun setAndroidCurrentTrackRating(
     scope: CoroutineScope,
     state: AndroidAppState,
     playbackEngine: AndroidPlaybackEngine,
+    playbackQueueController: PlaybackQueueController? = null,
     rating: Int?,
 ) {
     val currentTrack = state.nowPlaying ?: return
     scope.launch {
-        androidMediaMetadataMutationController(state, playbackEngine).setTrackRating(currentTrack, rating)
+        androidMediaMetadataMutationController(
+            state = state,
+            playbackEngine = playbackEngine,
+            playbackQueueController = playbackQueueController,
+        ).setTrackRating(currentTrack, rating)
     }
 }
 
 private fun androidMediaMetadataMutationController(
     state: AndroidAppState,
     playbackEngine: AndroidPlaybackEngine?,
+    playbackQueueController: PlaybackQueueController? = null,
     pendingProviderActions: PendingProviderActionRepository? = null,
 ): MediaMetadataMutationController =
     mediaMetadataMutationController(
@@ -341,6 +358,13 @@ private fun androidMediaMetadataMutationController(
             state.albumMixSuggestions = state.albumMixSuggestions.withUpdatedAlbum(album)
         },
         afterTrackUpdate = { updatedTrack, updatedNowPlaying ->
+            val queueUpdate = state.sharedQueueCoordinator.updateTrack(updatedTrack)
+            if (queueUpdate.changed) {
+                playbackQueueController?.replaceQueue(
+                    queueUpdate.queue,
+                    clearPreparedNext = queueUpdate.clearPreparedNext,
+                )
+            }
             if (playbackEngine != null && updatedNowPlaying?.id == updatedTrack.id) {
                 updateAndroidNotificationFavoriteState(state, updatedNowPlaying)
                 playbackEngine.updateNotificationMetadata(

@@ -67,15 +67,17 @@ internal class AndroidMediaAppController(
     }
 
     fun moveQueueTrackNext(index: Int) {
-        val queue = state.playbackQueue.moveToNext(index)
-        state.playbackQueue = queue
-        queueController.replaceQueue(queue)
+        val update = state.sharedQueueCoordinator.moveToNext(index)
+        if (update.changed) {
+            queueController.replaceQueue(update.queue, clearPreparedNext = update.clearPreparedNext)
+        }
     }
 
     fun emptyQueue() {
-        val queue = state.playbackQueue.clearUpcoming()
-        state.playbackQueue = queue
-        queueController.replaceQueue(queue)
+        val update = state.sharedQueueCoordinator.clearUpcoming()
+        if (update.changed) {
+            queueController.replaceQueue(update.queue, clearPreparedNext = update.clearPreparedNext)
+        }
     }
 
     fun loadRelatedTracks(track: Track) {
@@ -88,14 +90,28 @@ internal class AndroidMediaAppController(
 
     fun applyTrackMetadataUpdate(updatedTrack: Track) {
         applyAndroidTrackMetadataUpdate(state, playbackEngine, updatedTrack)
+        queueController.replaceQueue(state.playbackQueue, clearPreparedNext = false)
     }
 
     fun toggleCurrentFavorite() {
-        toggleAndroidCurrentFavorite(scope, state, playbackEngine, storage)
+        toggleAndroidCurrentFavorite(
+            scope = scope,
+            state = state,
+            playbackEngine = playbackEngine,
+            playbackQueueController = queueController,
+            pendingProviderActions = storage,
+        )
     }
 
     fun toggleTrackFavorite(track: Track) {
-        toggleAndroidTrackFavorite(scope, state, playbackEngine, track, storage)
+        toggleAndroidTrackFavorite(
+            scope = scope,
+            state = state,
+            playbackEngine = playbackEngine,
+            track = track,
+            playbackQueueController = queueController,
+            pendingProviderActions = storage,
+        )
     }
 
     fun openArtistDetails(

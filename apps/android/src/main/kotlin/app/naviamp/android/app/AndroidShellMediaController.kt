@@ -140,7 +140,7 @@ internal class AndroidShellMediaController(
     }
 
     fun handleShellRatingSelected(rating: Int?) {
-        setAndroidCurrentTrackRating(scope, state, playbackEngine, rating)
+        setAndroidCurrentTrackRating(scope, state, playbackEngine, queueController, rating)
     }
 
     fun handleMixAlbumSelected(selectedAlbum: SharedMediaItemUi) {

@@ -861,7 +861,14 @@ fun NaviampAndroidApp(
             addTrackToPlaylist = playlistActionController::addTrackToPlaylist,
             removeDownload = downloadActionController::removeDownload,
             toggleTrackFavorite = { track ->
-                toggleAndroidTrackFavorite(scope, appState, playbackEngine, track, storage)
+                toggleAndroidTrackFavorite(
+                    scope = scope,
+                    state = appState,
+                    playbackEngine = playbackEngine,
+                    track = track,
+                    playbackQueueController = playbackQueueController,
+                    pendingProviderActions = storage,
+                )
             },
             openTrackAlbum = shellMediaController::handleTrackGoToAlbum,
             openTrackArtist = { track, artistId, artistName ->

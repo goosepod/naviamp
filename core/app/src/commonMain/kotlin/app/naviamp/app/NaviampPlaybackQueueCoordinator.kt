@@ -4,6 +4,7 @@ import app.naviamp.domain.Track
 import app.naviamp.domain.playback.PlaybackQueueManager
 import app.naviamp.domain.playback.PlaybackQueueMutationUpdate
 import app.naviamp.domain.playback.PlaybackQueueSelectionUpdate
+import app.naviamp.domain.playback.PlaybackShuffleUpdate
 import app.naviamp.domain.playback.PlaybackQueueUpdate
 import app.naviamp.domain.queue.PlaybackQueue
 
@@ -81,6 +82,30 @@ class NaviampPlaybackQueueCoordinator(
         ).also(::commit)
     }
 
+    fun moveToNext(index: Int): PlaybackQueueMutationUpdate =
+        mutateQueue(clearPreparedNext = true) { queue -> queue.moveToNext(index) }
+
+    fun clearUpcoming(): PlaybackQueueMutationUpdate =
+        mutateQueue(clearPreparedNext = true, transform = PlaybackQueue::clearUpcoming)
+
+    fun updateTrack(updatedTrack: Track): PlaybackQueueMutationUpdate =
+        queueManager.updateTrack(currentQueue, updatedTrack).also(::commit)
+
+    fun replaceUpcomingTracks(
+        currentTrack: Track,
+        upcomingTracks: List<Track>,
+        maxHistory: Int? = null,
+    ): PlaybackQueueMutationUpdate =
+        queueManager.replaceUpcomingTracks(
+            currentQueue = currentQueue,
+            currentTrack = currentTrack,
+            upcomingTracks = upcomingTracks,
+            maxHistory = maxHistory,
+        ).also(::commit)
+
+    fun toggleUpcomingShuffle(shuffledSnapshot: List<Track>?): PlaybackShuffleUpdate =
+        queueManager.toggleUpcomingShuffle(currentQueue, shuffledSnapshot).also(::commit)
+
     fun selectIndex(
         index: Int,
         moveSelectedToCurrent: Boolean = true,
@@ -104,5 +129,22 @@ class NaviampPlaybackQueueCoordinator(
 
     private fun commit(update: PlaybackQueueSelectionUpdate) {
         if (update.changed) playback.updateQueue(update.queue)
+    }
+
+    private fun commit(update: PlaybackShuffleUpdate) {
+        if (update.changed) playback.updateQueue(update.queue)
+    }
+
+    private inline fun mutateQueue(
+        clearPreparedNext: Boolean,
+        transform: (PlaybackQueue) -> PlaybackQueue,
+    ): PlaybackQueueMutationUpdate {
+        val queue = currentQueue
+        val updatedQueue = transform(queue)
+        return PlaybackQueueMutationUpdate(
+            queue = updatedQueue,
+            changed = updatedQueue != queue,
+            clearPreparedNext = clearPreparedNext,
+        ).also(::commit)
     }
 }

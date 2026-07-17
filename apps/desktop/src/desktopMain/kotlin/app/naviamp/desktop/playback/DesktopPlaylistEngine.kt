@@ -15,7 +15,6 @@ import app.naviamp.domain.playback.PlaybackEngine
 import app.naviamp.domain.playback.PlaybackAudioAssetRepository
 import app.naviamp.domain.playback.PlaybackProgress
 import app.naviamp.domain.playback.PlaybackQueueController
-import app.naviamp.domain.playback.PlaybackQueueManager
 import app.naviamp.domain.playback.PlaybackQueueSelection
 import app.naviamp.domain.playback.PlaybackReplayGain
 import app.naviamp.domain.playback.AudioPrefetchStats
@@ -179,8 +178,13 @@ class DesktopPlaylistEngine(
     }
 
     fun updateTrack(updatedTrack: Track) {
-        queueController.updateTrack(updatedTrack)?.let { updatedQueue ->
-            callbacks?.onQueueChanged(updatedQueue)
+        val update = queueCoordinator.updateTrack(updatedTrack)
+        if (update.changed) {
+            queueController.replaceQueue(
+                update.queue,
+                clearPreparedNext = update.clearPreparedNext,
+            )
+            callbacks?.onQueueChanged(update.queue)
         }
     }
 
@@ -212,9 +216,13 @@ class DesktopPlaylistEngine(
         upcomingTracks: List<Track>,
         maxHistory: Int? = null,
     ) {
-        callbacks?.onQueueChanged(
-            queueController.replaceUpcomingTracks(currentTrack, upcomingTracks, maxHistory),
+        val update = queueCoordinator.replaceUpcomingTracks(currentTrack, upcomingTracks, maxHistory)
+        if (!update.changed) return
+        queueController.replaceQueue(
+            update.queue,
+            clearPreparedNext = update.clearPreparedNext,
         )
+        callbacks?.onQueueChanged(update.queue)
     }
 
     fun setPlaybackTransitionSettings(
@@ -275,7 +283,7 @@ class DesktopPlaylistEngine(
     }
 
     fun toggleUpcomingShuffle(shuffledSnapshot: List<Track>?): List<Track>? {
-        val update = PlaybackQueueManager().toggleUpcomingShuffle(queueController.queue, shuffledSnapshot)
+        val update = queueCoordinator.toggleUpcomingShuffle(shuffledSnapshot)
         if (!update.changed) return shuffledSnapshot
         queueController.replaceQueue(update.queue)
         callbacks?.onQueueChanged(update.queue)
