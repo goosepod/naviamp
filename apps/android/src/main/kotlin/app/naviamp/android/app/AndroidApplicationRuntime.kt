@@ -11,6 +11,7 @@ import app.naviamp.app.NaviampNavigationController
 import app.naviamp.app.NaviampLivePlaybackController
 import app.naviamp.app.NaviampPlaybackSessionController
 import app.naviamp.app.NaviampPlaybackQueueCoordinator
+import app.naviamp.app.NaviampPlaybackExecution
 import app.naviamp.app.NaviampPlatformServices
 import app.naviamp.app.NaviampRuntimeErrorReporter
 import app.naviamp.domain.app.PlatformCapabilities
@@ -35,6 +36,7 @@ internal fun androidApplicationRuntime(
     playback: NaviampLivePlaybackController,
     queueCoordinator: NaviampPlaybackQueueCoordinator,
     playbackSessions: NaviampPlaybackSessionController,
+    playbackExecution: NaviampPlaybackExecution,
     restoreSavedSession: () -> Unit,
 ): NaviampApplicationRuntime {
     val applicationContext = context.applicationContext
@@ -43,6 +45,7 @@ internal fun androidApplicationRuntime(
             capabilities = PlatformCapabilities(),
             session = AndroidApplicationSession(restoreSavedSession),
             playbackSessions = playbackSessions,
+            playbackExecution = playbackExecution,
             connectivity = NaviampConnectivityMonitor {
                 val connectivityManager = applicationContext
                     .getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager

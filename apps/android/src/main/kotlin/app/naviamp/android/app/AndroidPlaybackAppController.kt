@@ -6,6 +6,8 @@ import app.naviamp.android.playback.AndroidPlaybackForegroundService
 import app.naviamp.android.playback.AndroidPlaybackNotificationControls
 import app.naviamp.app.NaviampPlaybackSessionController
 import app.naviamp.app.NaviampPlaybackQueueCoordinator
+import app.naviamp.app.NaviampPlaybackCommandController
+import app.naviamp.app.NaviampPlaybackExecution
 import app.naviamp.domain.Album
 import app.naviamp.domain.InternetRadioStation
 import app.naviamp.domain.StreamQuality
@@ -46,7 +48,9 @@ internal class AndroidPlaybackAppController(
     private val loadRelatedTracks: (Track) -> Unit,
     private val sonicAutoplayService: SonicAutoplayService,
     private val onSyncedSettingsChanged: () -> Unit = {},
-) {
+) : NaviampPlaybackExecution {
+    private val playbackCommands = NaviampPlaybackCommandController(this)
+
     fun handlePlaybackProgressChanged(sessionToken: Long, progress: PlaybackProgress) {
         handleAndroidPlaybackProgressChanged(
             context = context,
@@ -140,16 +144,25 @@ internal class AndroidPlaybackAppController(
         AndroidPlaybackForegroundService.updateProgress(context, positionMillis, durationMillis)
         state.pendingSeekPositionSeconds = seekPlan.pendingSeekPositionSeconds
         state.pendingSeekIssuedAtMillis = System.currentTimeMillis()
-        if (currentTrack != null && seekPlan.shouldReplayCurrent) {
-            playTrack(
-                track = currentTrack,
-                queue = state.playbackQueue.tracks.takeIf { it.isNotEmpty() },
-                openNowPlaying = false,
-                startPositionSeconds = seekPlan.pendingSeekPositionSeconds,
-            )
+        playbackCommands.executeSeek(seekPlan)
+    }
+
+    override fun seek(positionSeconds: Double) {
+        playbackEngine.seek(positionSeconds)
+    }
+
+    override fun replayCurrent(positionSeconds: Double) {
+        val currentTrack = state.nowPlaying
+        if (currentTrack == null) {
+            playbackEngine.seek(positionSeconds)
             return
         }
-        playbackEngine.seek(seekPlan.pendingSeekPositionSeconds)
+        playTrack(
+            track = currentTrack,
+            queue = state.playbackQueue.tracks.takeIf { it.isNotEmpty() },
+            openNowPlaying = false,
+            startPositionSeconds = positionSeconds,
+        )
     }
 
     fun playAdjacentTrack(

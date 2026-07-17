@@ -107,12 +107,19 @@ private class RuntimeFixture(
             ),
             session = session,
             playbackSessions = NaviampPlaybackSessionController(EmptyPlaybackSessionRepository),
+            playbackExecution = NoOpPlaybackExecution,
             connectivity = NaviampConnectivityMonitor { connectivitySnapshot },
             errorReporter = NaviampRuntimeErrorReporter { _, cause -> reportedCauses += cause },
         ),
         navigation = navigation,
         playback = playback,
     )
+}
+
+private object NoOpPlaybackExecution : NaviampPlaybackExecution {
+    override fun seek(positionSeconds: Double) = Unit
+
+    override fun replayCurrent(positionSeconds: Double) = Unit
 }
 
 private object EmptyPlaybackSessionRepository : PlaybackSessionRepository {

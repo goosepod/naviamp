@@ -5,6 +5,8 @@ import app.naviamp.desktop.settings.PlaybackSettings
 import app.naviamp.domain.Track
 import app.naviamp.app.NaviampPlaybackSessionController
 import app.naviamp.app.NaviampPlaybackQueueCoordinator
+import app.naviamp.app.NaviampPlaybackCommandController
+import app.naviamp.app.NaviampPlaybackExecution
 import app.naviamp.domain.isInternetRadioTrack
 import app.naviamp.domain.playback.PlaybackEngine
 import app.naviamp.domain.playback.PlaybackPlayPauseCommand
@@ -80,7 +82,8 @@ class DesktopPlaybackController(
     private val setPendingSeekPositionSeconds: (Double?) -> Unit,
     private val setPendingSeekIssuedAtMillis: (Long?) -> Unit,
     private val setOpenPlayerOnTrackStart: (Boolean) -> Unit,
-) {
+) : NaviampPlaybackExecution {
+    private val playbackCommands = NaviampPlaybackCommandController(this)
     private val queueManager = PlaybackQueueManager()
     private var lastPlaybackStateReportSessionId: Int? = null
     private var lastPlaybackStateReportState: PlaybackReportState? = null
@@ -139,11 +142,15 @@ class DesktopPlaybackController(
         setPendingSeekIssuedAtMillis(System.currentTimeMillis())
         setPlaybackProgress(seekPlan.progress)
         maybeSavePlaybackPosition(seekPlan.progress)
-        if (seekPlan.shouldReplayCurrent) {
-            playlistEngine.playCurrent(scope, seekPlan.pendingSeekPositionSeconds)
-            return
-        }
-        playbackEngine.seek(seekPlan.pendingSeekPositionSeconds)
+        playbackCommands.executeSeek(seekPlan)
+    }
+
+    override fun seek(positionSeconds: Double) {
+        playbackEngine.seek(positionSeconds)
+    }
+
+    override fun replayCurrent(positionSeconds: Double) {
+        playlistEngine.playCurrent(scope, positionSeconds)
     }
 
     fun canUsePreviousButton(): Boolean =

@@ -888,6 +888,7 @@ fun NaviampAndroidApp(
         sonicHomeDiscoveryController = sonicHomeDiscoveryController,
         connectionSessionController = connectionSessionController,
         playbackSessions = playbackSessions,
+        playbackExecution = playbackAppController,
         sleepTimerController = sleepTimerController,
         providerResponseCacheRepository = storage,
         onAutoPlayMediaIdConsumed = onAutoPlayMediaIdConsumed,

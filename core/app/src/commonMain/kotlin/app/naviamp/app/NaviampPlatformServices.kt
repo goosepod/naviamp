@@ -52,6 +52,7 @@ data class NaviampPlatformServices(
     val capabilities: PlatformCapabilities,
     val session: NaviampApplicationSession,
     val playbackSessions: NaviampPlaybackSessionController,
+    val playbackExecution: NaviampPlaybackExecution,
     val connectivity: NaviampConnectivityMonitor,
     val errorReporter: NaviampRuntimeErrorReporter,
 )

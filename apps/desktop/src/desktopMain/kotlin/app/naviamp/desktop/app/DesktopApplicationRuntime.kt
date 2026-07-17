@@ -8,6 +8,7 @@ import app.naviamp.app.NaviampNavigationController
 import app.naviamp.app.NaviampLivePlaybackController
 import app.naviamp.app.NaviampPlaybackSessionController
 import app.naviamp.app.NaviampPlaybackQueueCoordinator
+import app.naviamp.app.NaviampPlaybackExecution
 import app.naviamp.app.NaviampPlatformServices
 import app.naviamp.app.NaviampRuntimeErrorReporter
 import app.naviamp.domain.app.PlatformCapabilities
@@ -27,6 +28,7 @@ internal fun desktopApplicationRuntime(
     playback: NaviampLivePlaybackController,
     queueCoordinator: NaviampPlaybackQueueCoordinator,
     playbackSessions: NaviampPlaybackSessionController,
+    playbackExecution: NaviampPlaybackExecution,
     hasSavedConnection: Boolean,
     restoreSavedSession: () -> Unit,
 ): NaviampApplicationRuntime = NaviampApplicationRuntime(
@@ -34,6 +36,7 @@ internal fun desktopApplicationRuntime(
         capabilities = PlatformCapabilities(),
         session = DesktopApplicationSession(hasSavedConnection, restoreSavedSession),
         playbackSessions = playbackSessions,
+        playbackExecution = playbackExecution,
         // Desktop currently has no live OS connectivity monitor. Preserve its online-first behavior
         // behind the contract until the dedicated Desktop platform service is extracted.
         connectivity = NaviampConnectivityMonitor {

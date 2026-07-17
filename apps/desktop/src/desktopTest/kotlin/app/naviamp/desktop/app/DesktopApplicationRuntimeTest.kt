@@ -6,6 +6,7 @@ import app.naviamp.app.NaviampConnectivitySnapshot
 import app.naviamp.app.NaviampHostLifecycleEvent
 import app.naviamp.app.NaviampPlatformServices
 import app.naviamp.app.NaviampPlaybackSessionController
+import app.naviamp.app.NaviampPlaybackExecution
 import app.naviamp.app.NaviampRuntimeErrorReporter
 import app.naviamp.domain.app.PlatformCapabilities
 import app.naviamp.domain.cache.PlaybackSessionRepository
@@ -41,10 +42,17 @@ class DesktopApplicationRuntimeTest {
             capabilities = PlatformCapabilities(),
             session = session,
             playbackSessions = NaviampPlaybackSessionController(EmptyPlaybackSessionRepository),
+            playbackExecution = NoOpPlaybackExecution,
             connectivity = NaviampConnectivityMonitor { NaviampConnectivitySnapshot(true) },
             errorReporter = NaviampRuntimeErrorReporter { _, _ -> },
         ),
     )
+}
+
+private object NoOpPlaybackExecution : NaviampPlaybackExecution {
+    override fun seek(positionSeconds: Double) = Unit
+
+    override fun replayCurrent(positionSeconds: Double) = Unit
 }
 
 private object EmptyPlaybackSessionRepository : PlaybackSessionRepository {
