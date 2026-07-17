@@ -70,7 +70,7 @@ fun markAndroidSettingsSyncChangedAndAutoExport(
         if (!settingsStore.loadSettingsSync().autoExportEnabled) return
         val treeUri = settingsStore.loadSettingsSync().treeUri?.let(Uri::parse) ?: return
         runCatching {
-            AndroidSettingsSyncFile.write(context, treeUri, document)
+            AndroidSettingsSyncDocumentStore(context, treeUri).write(document)
         }.onSuccess {
             settingsStore.saveSettingsSync(
                 settingsStore.loadSettingsSync().copy(

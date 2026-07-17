@@ -17,34 +17,34 @@ fun AndroidAppShellContent(
 ) {
     NaviampSharedAppShell(
         modifier = state.modifier,
-        status = state.status,
+        status = state.connection.status,
         serverVersion = state.connection.serverVersion,
         connected = state.connection.connected,
-        editingConnection = state.editingConnection,
+        editingConnection = state.connection.editingConnection,
         restoringConnection = state.connection.restoringConnection,
-        connectionForm = state.connectionForm,
+        connectionForm = state.connection.form,
         interfaceSettings = state.interfaceSettings,
-        savedConnections = state.savedConnections,
-        isConnectionFormOpen = state.editingConnection,
+        savedConnections = state.connection.savedConnections,
+        isConnectionFormOpen = state.connection.editingConnection,
         isConnecting = state.connection.isConnecting,
-        connectionStatus = state.status,
+        connectionStatus = state.connection.status,
         settingsSyncStatus = settingsSyncStatus,
-        availableMusicFolders = state.availableMusicFolders,
-        musicFoldersStatus = state.musicFoldersStatus,
-        hasSavedConnection = state.hasSavedConnection,
+        availableMusicFolders = state.connection.availableMusicFolders,
+        musicFoldersStatus = state.connection.musicFoldersStatus,
+        hasSavedConnection = state.connection.hasSavedConnection,
         playbackSettings = state.playbackSettings,
         cacheSettings = state.cacheSettings,
         diagnostics = state.diagnostics,
         about = state.about,
-        supportsReplayGain = state.supportsReplayGain,
-        supportsGapless = state.supportsGapless,
-        supportsCrossfade = state.supportsCrossfade,
-        supportsEqualizer = state.supportsEqualizer,
-        supportsSonicSimilarity = state.supportsSonicSimilarity,
-        supportsDownloads = state.supportsDownloads,
-        supportsApplicationUpdates = state.supportsApplicationUpdates,
-        connectionCapabilities = state.connectionCapabilities,
-        showMobileNetworkQuality = state.showMobileNetworkQuality,
+        supportsReplayGain = state.capabilities.replayGain,
+        supportsGapless = state.capabilities.gapless,
+        supportsCrossfade = state.capabilities.crossfade,
+        supportsEqualizer = state.capabilities.equalizer,
+        supportsSonicSimilarity = state.capabilities.sonicSimilarity,
+        supportsDownloads = state.capabilities.downloads,
+        supportsApplicationUpdates = state.capabilities.applicationUpdates,
+        connectionCapabilities = state.capabilities.connection,
+        showMobileNetworkQuality = state.capabilities.showMobileNetworkQuality,
         selectedVisualizer = state.selectedVisualizer,
         visualizerBandsProvider = state.visualizerBandsProvider,
         query = state.query,
@@ -93,16 +93,16 @@ fun AndroidAppShellContent(
         onConnectSavedConnection = actions.onConnectSavedConnection,
         onDeleteSavedConnection = actions.onDeleteSavedConnection,
         onImportSettingsSyncFile = onImportSettingsSyncFile.takeIf {
-            state.supportsSettingsImportExport && state.supportsFileSelection
+            state.capabilities.settingsImportExport && state.capabilities.fileSelection
         },
         onChooseSettingsSyncFolder = onChooseSettingsSyncFolder.takeIf {
-            state.supportsSettingsImportExport && state.supportsFileSelection
+            state.capabilities.settingsImportExport && state.capabilities.fileSelection
         },
         onImportSettingsSyncFolder = onImportSettingsSyncFolder.takeIf {
-            state.supportsSettingsImportExport && state.supportsFileSelection
+            state.capabilities.settingsImportExport && state.capabilities.fileSelection
         },
         onExportSettingsSyncFolder = onExportSettingsSyncFolder.takeIf {
-            state.supportsSettingsImportExport && state.supportsFileSelection
+            state.capabilities.settingsImportExport && state.capabilities.fileSelection
         },
         settingsSyncAutoExportEnabled = settingsSyncAutoExportEnabled,
         onSettingsSyncAutoExportChanged = onSettingsSyncAutoExportChanged,

@@ -2,6 +2,7 @@ package app.naviamp.android.security
 
 import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
+import app.naviamp.storage.StorageCredentialProtector
 import java.security.KeyStore
 import java.util.Base64
 import javax.crypto.Cipher
@@ -9,13 +10,7 @@ import javax.crypto.KeyGenerator
 import javax.crypto.SecretKey
 import javax.crypto.spec.GCMParameterSpec
 
-interface AndroidCredentialProtector {
-    fun protect(value: String?): String?
-
-    fun reveal(value: String?): String?
-
-    fun isProtected(value: String?): Boolean
-}
+typealias AndroidCredentialProtector = StorageCredentialProtector
 
 internal class AesGcmCredentialProtector(
     private val key: () -> SecretKey,

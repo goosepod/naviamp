@@ -651,7 +651,7 @@ fun NaviampAndroidApp(
 
     fun writeProviderSettingsSync(treeUri: Uri, document: SettingsSyncDocument, statusMessage: () -> String) {
         runCatching {
-            AndroidSettingsSyncFile.write(context, treeUri, document)
+            AndroidSettingsSyncDocumentStore(context, treeUri).write(document)
         }.onSuccess {
             markProviderPushSucceeded()
             publishSettingsSyncStatus(statusMessage())
@@ -728,7 +728,7 @@ fun NaviampAndroidApp(
         var providerReadError: String? = null
         if (treeUri != null) {
             runCatching {
-                AndroidSettingsSyncFile.read(context, treeUri)
+                AndroidSettingsSyncDocumentStore(context, treeUri).read()
             }.onSuccess { document ->
                 providerDocument = document
                 providerFileMissing = document == null

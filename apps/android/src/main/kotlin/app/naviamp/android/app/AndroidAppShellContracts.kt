@@ -5,9 +5,8 @@ import app.naviamp.domain.InternetRadioStation
 import app.naviamp.domain.Playlist
 import app.naviamp.domain.Track
 import app.naviamp.domain.cache.DownloadJob
-import app.naviamp.domain.settings.ConnectionFormMusicFolder
-import app.naviamp.domain.settings.ConnectionFormState
 import app.naviamp.domain.settings.CacheSettings
+import app.naviamp.domain.settings.ConnectionFormState
 import app.naviamp.domain.settings.InterfaceSettings
 import app.naviamp.domain.settings.PlaybackSettings
 import app.naviamp.domain.smartplaylist.SmartPlaylistDefinition
@@ -16,7 +15,6 @@ import app.naviamp.ui.NaviampDownloadedTrackUi
 import app.naviamp.ui.NaviampOfflineDashboardUi
 import app.naviamp.ui.NaviampStorageLocationUi
 import app.naviamp.ui.NaviampLibrarySyncStatusUi
-import app.naviamp.ui.NaviampConnectionCapabilitiesUi
 import app.naviamp.ui.NaviampPlaylistChoiceUi
 import app.naviamp.ui.NaviampVisualizer
 import app.naviamp.ui.DownloadedTrackActionRequest
@@ -53,34 +51,18 @@ import app.naviamp.ui.SharedSonicPathBuilderUi
 import app.naviamp.ui.StationRowActionRequest
 import app.naviamp.ui.SharedTrackRowActionRequest
 import app.naviamp.ui.SharedTrackRowUi
-import app.naviamp.app.NaviampConnectionRuntimeState
+import app.naviamp.ui.NaviampShellCapabilitiesUi
+import app.naviamp.ui.NaviampShellConnectionUi
 
 data class AndroidAppShellUiState(
     val modifier: Modifier,
-    val status: String,
-    val connection: NaviampConnectionRuntimeState,
-    val editingConnection: Boolean,
-    val connectionForm: ConnectionFormState,
-    val availableMusicFolders: List<ConnectionFormMusicFolder>,
-    val musicFoldersStatus: String?,
-    val savedConnections: List<NaviampSavedConnectionUi>,
-    val hasSavedConnection: Boolean,
+    val connection: NaviampShellConnectionUi,
     val interfaceSettings: InterfaceSettings,
     val playbackSettings: PlaybackSettings,
     val cacheSettings: CacheSettings,
     val diagnostics: NaviampDiagnosticsUi,
     val about: NaviampAboutUi,
-    val supportsReplayGain: Boolean,
-    val supportsGapless: Boolean,
-    val supportsCrossfade: Boolean,
-    val supportsEqualizer: Boolean,
-    val supportsSonicSimilarity: Boolean,
-    val supportsDownloads: Boolean,
-    val supportsSettingsImportExport: Boolean,
-    val supportsApplicationUpdates: Boolean,
-    val connectionCapabilities: NaviampConnectionCapabilitiesUi,
-    val supportsFileSelection: Boolean,
-    val showMobileNetworkQuality: Boolean,
+    val capabilities: NaviampShellCapabilitiesUi,
     val selectedVisualizer: NaviampVisualizer,
     val visualizerBandsProvider: () -> List<Float>,
     val query: String,

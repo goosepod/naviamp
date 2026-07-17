@@ -67,6 +67,7 @@ import app.naviamp.provider.navidrome.NavidromeConnection
 import app.naviamp.provider.navidrome.NavidromeProvider
 import app.naviamp.provider.navidrome.resolvedDisplayName
 import app.naviamp.storage.NaviampStorageDatabase
+import app.naviamp.storage.StorageMediaSourceStore
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.withContext
@@ -118,7 +119,7 @@ class DesktopCache(
         store = DesktopSidecarStatusStore(queries),
         nowMillis = ::nowMillis,
     )
-    private val mediaSources = DesktopMediaSourceStore(
+    private val mediaSources = StorageMediaSourceStore(
         queries = queries,
         nowMillis = ::nowMillis,
     )

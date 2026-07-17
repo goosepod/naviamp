@@ -17,10 +17,11 @@ import app.naviamp.storage.Library_track
 import app.naviamp.storage.NaviampStorageQueries
 import app.naviamp.storage.SelectArtistPopularTracks
 import app.naviamp.storage.SelectRecentlyPlayedLibraryTracks
+import app.naviamp.storage.StorageMediaSourceStore
 
 class AndroidLibraryIndexStore(
     private val queries: NaviampStorageQueries,
-    private val mediaSources: AndroidMediaSourceStore,
+    private val mediaSources: StorageMediaSourceStore,
     private val nowMillis: () -> Long,
 ) : LocalLibraryIndexRepository {
     override fun mediaSource(sourceId: String) =

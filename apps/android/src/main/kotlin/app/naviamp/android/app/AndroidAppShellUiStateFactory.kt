@@ -18,6 +18,8 @@ import app.naviamp.ui.NaviampConnectionCapabilitiesUi
 import app.naviamp.ui.NaviampSavedConnectionUi
 import app.naviamp.ui.NaviampOfflineDashboardUi
 import app.naviamp.ui.NaviampStorageLocationUi
+import app.naviamp.ui.NaviampShellCapabilitiesUi
+import app.naviamp.ui.NaviampShellConnectionUi
 import app.naviamp.ui.SharedAlbumMixBuilderUi
 import app.naviamp.ui.SharedArtistMixBuilderUi
 import app.naviamp.ui.SharedGenreMixBuilderUi
@@ -140,46 +142,53 @@ fun rememberAndroidAppShellUiState(
 
         AndroidAppShellUiState(
             modifier = modifier,
-            status = status,
-            connection = connectionRuntimeState,
-            editingConnection = editingConnection,
-            connectionForm = shellModels.connectionForm,
-            availableMusicFolders = shellModels.availableMusicFolders,
-            musicFoldersStatus = shellModels.musicFoldersStatus,
-            savedConnections = savedMediaSources.map { source ->
-                NaviampSavedConnectionUi(
-                    id = source.id,
-                    displayName = source.displayName,
-                    serverUrl = source.baseUrl,
-                    username = source.username,
-                    selectedLibrarySummary = selectedMusicFolderSummary(
-                        selectedIds = source.selectedMusicFolderIds,
-                        availableFolders = availableMusicFolders,
-                    ),
-                    current = source.id == activeSourceId,
-                )
-            },
-            hasSavedConnection = savedConnectionForLogin != null,
+            connection = NaviampShellConnectionUi(
+                status = status,
+                serverVersion = connectionRuntimeState.serverVersion,
+                connected = connectionRuntimeState.connected,
+                editingConnection = editingConnection,
+                restoringConnection = connectionRuntimeState.restoringConnection,
+                isConnecting = connectionRuntimeState.isConnecting,
+                form = shellModels.connectionForm,
+                availableMusicFolders = shellModels.availableMusicFolders,
+                musicFoldersStatus = shellModels.musicFoldersStatus,
+                savedConnections = savedMediaSources.map { source ->
+                    NaviampSavedConnectionUi(
+                        id = source.id,
+                        displayName = source.displayName,
+                        serverUrl = source.baseUrl,
+                        username = source.username,
+                        selectedLibrarySummary = selectedMusicFolderSummary(
+                            selectedIds = source.selectedMusicFolderIds,
+                            availableFolders = availableMusicFolders,
+                        ),
+                        current = source.id == activeSourceId,
+                    )
+                },
+                hasSavedConnection = savedConnectionForLogin != null,
+            ),
             interfaceSettings = interfaceSettings,
             playbackSettings = playbackSettings,
             cacheSettings = cacheSettings,
             diagnostics = diagnostics,
             about = context.androidAboutUi(),
-            supportsReplayGain = playbackEngine.supportsReplayGain,
-            supportsGapless = playbackEngine.supportsGapless,
-            supportsCrossfade = playbackEngine.supportsCrossfade,
-            supportsEqualizer = (playbackEngine as? EqualizerPlaybackEngine)?.supportsEqualizer == true,
-            supportsSonicSimilarity = provider?.capabilities?.supportsSonicSimilarity == true,
-            supportsDownloads = AndroidCapabilityPresentation.downloads.visible,
-            supportsSettingsImportExport = AndroidCapabilityPresentation.settingsImportExport.visible,
-            supportsApplicationUpdates = AndroidCapabilityPresentation.applicationUpdates.visible,
-            connectionCapabilities = NaviampConnectionCapabilitiesUi(
-                insecureServerVerification = AndroidCapabilityPresentation.insecureServerVerification.visible,
-                customServerCertificates = AndroidCapabilityPresentation.customServerCertificates.visible,
-                clientCertificates = AndroidCapabilityPresentation.clientCertificates.visible,
+            capabilities = NaviampShellCapabilitiesUi(
+                replayGain = playbackEngine.supportsReplayGain,
+                gapless = playbackEngine.supportsGapless,
+                crossfade = playbackEngine.supportsCrossfade,
+                equalizer = (playbackEngine as? EqualizerPlaybackEngine)?.supportsEqualizer == true,
+                sonicSimilarity = provider?.capabilities?.supportsSonicSimilarity == true,
+                downloads = AndroidCapabilityPresentation.downloads.visible,
+                settingsImportExport = AndroidCapabilityPresentation.settingsImportExport.visible,
+                applicationUpdates = AndroidCapabilityPresentation.applicationUpdates.visible,
+                fileSelection = AndroidCapabilityPresentation.fileSelection.visible,
+                showMobileNetworkQuality = true,
+                connection = NaviampConnectionCapabilitiesUi(
+                    insecureServerVerification = AndroidCapabilityPresentation.insecureServerVerification.visible,
+                    customServerCertificates = AndroidCapabilityPresentation.customServerCertificates.visible,
+                    clientCertificates = AndroidCapabilityPresentation.clientCertificates.visible,
+                ),
             ),
-            supportsFileSelection = AndroidCapabilityPresentation.fileSelection.visible,
-            showMobileNetworkQuality = true,
             selectedVisualizer = selectedVisualizer,
             visualizerBandsProvider = { visualizerFrame?.bands.orEmpty() },
             query = query,

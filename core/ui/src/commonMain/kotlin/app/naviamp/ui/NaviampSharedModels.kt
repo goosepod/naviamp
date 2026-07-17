@@ -5,6 +5,8 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import app.naviamp.domain.playback.PlaybackState
 import app.naviamp.domain.playback.PlaybackVisualizerFrame
 import app.naviamp.domain.radio.RadioDjPreset
+import app.naviamp.domain.settings.ConnectionFormMusicFolder
+import app.naviamp.domain.settings.ConnectionFormState
 import app.naviamp.domain.waveform.AudioWaveform
 
 data class NaviampColors(
@@ -639,6 +641,34 @@ data class NaviampConnectionCapabilitiesUi(
     val insecureServerVerification: Boolean = false,
     val customServerCertificates: Boolean = false,
     val clientCertificates: Boolean = false,
+)
+
+data class NaviampShellConnectionUi(
+    val status: String = "",
+    val serverVersion: String? = null,
+    val connected: Boolean = false,
+    val editingConnection: Boolean = false,
+    val restoringConnection: Boolean = false,
+    val isConnecting: Boolean = false,
+    val form: ConnectionFormState = ConnectionFormState(),
+    val availableMusicFolders: List<ConnectionFormMusicFolder> = emptyList(),
+    val musicFoldersStatus: String? = null,
+    val savedConnections: List<NaviampSavedConnectionUi> = emptyList(),
+    val hasSavedConnection: Boolean = false,
+)
+
+data class NaviampShellCapabilitiesUi(
+    val replayGain: Boolean = false,
+    val gapless: Boolean = true,
+    val crossfade: Boolean = false,
+    val equalizer: Boolean = false,
+    val sonicSimilarity: Boolean = false,
+    val downloads: Boolean = false,
+    val settingsImportExport: Boolean = false,
+    val applicationUpdates: Boolean = false,
+    val fileSelection: Boolean = false,
+    val showMobileNetworkQuality: Boolean = false,
+    val connection: NaviampConnectionCapabilitiesUi = NaviampConnectionCapabilitiesUi(),
 )
 
 data class NaviampLyricLineUi(

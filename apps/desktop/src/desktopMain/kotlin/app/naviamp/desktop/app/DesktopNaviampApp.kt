@@ -54,7 +54,7 @@ import app.naviamp.domain.radio.RadioTuningSettings
 import app.naviamp.desktop.settings.PlaybackSettings
 import app.naviamp.desktop.settings.PlaybackSessionSettings
 import app.naviamp.desktop.settings.RecentRadioStream
-import app.naviamp.desktop.settings.DesktopSettingsSyncFile
+import app.naviamp.desktop.settings.DesktopSettingsSyncDocumentStore
 import app.naviamp.desktop.settings.DesktopSettingsSyncSettings
 import app.naviamp.desktop.settings.VisualizerSettings
 import app.naviamp.app.NaviampSettingsSyncController
@@ -544,12 +544,13 @@ fun NaviampApp(
             settingsSyncStatus = "Choose a settings sync folder first."
             return
         }
+        val documentStore = DesktopSettingsSyncDocumentStore(directory)
         runCatching {
-            DesktopSettingsSyncFile.write(directory, document)
-            DesktopSettingsSyncFile.syncFile(directory).fileName
+            documentStore.write(document)
+            documentStore.displayName
         }.onSuccess { fileName ->
             settingsSyncController.documentWritten(document)
-            publishSettingsSyncStatus(statusMessage(fileName.toString()))
+            publishSettingsSyncStatus(statusMessage(fileName))
         }.onFailure { error ->
             publishSettingsSyncStatus(
                 error.message ?: "Could not export settings sync file.",
@@ -622,7 +623,7 @@ fun NaviampApp(
 
     fun importSettingsSyncFromDirectory(directory: Path) {
         runCatching {
-            val document = DesktopSettingsSyncFile.read(directory)
+            val document = DesktopSettingsSyncDocumentStore(directory).read()
                 ?: error("No settings sync file found in that folder.")
             settingsSyncController.applySyncedDocument(document)
         }.onSuccess { result ->
@@ -659,7 +660,7 @@ fun NaviampApp(
     LaunchedEffect(Unit) {
         val directory = settingsSyncDirectory() ?: return@LaunchedEffect
         runCatching {
-            val providerDocument = DesktopSettingsSyncFile.read(directory)
+            val providerDocument = DesktopSettingsSyncDocumentStore(directory).read()
             settingsSyncController.reconcileDocuments(
                 localMirrorDocument = null,
                 providerDocument = providerDocument,

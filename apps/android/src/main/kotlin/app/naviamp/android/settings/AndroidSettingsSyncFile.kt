@@ -3,6 +3,7 @@ package app.naviamp.android
 import android.content.Context
 import android.net.Uri
 import android.provider.DocumentsContract
+import app.naviamp.app.NaviampSettingsSyncDocumentStore
 import app.naviamp.domain.settings.SettingsSyncDocument
 import app.naviamp.domain.settings.SettingsSyncFileName
 import app.naviamp.domain.settings.SettingsSyncJson
@@ -88,6 +89,19 @@ object AndroidSettingsSyncFile {
             }
         }
         return false
+    }
+}
+
+class AndroidSettingsSyncDocumentStore(
+    private val context: Context,
+    private val treeUri: Uri,
+) : NaviampSettingsSyncDocumentStore {
+    override val displayName: String = SettingsSyncFileName
+
+    override fun read(): SettingsSyncDocument? = AndroidSettingsSyncFile.read(context, treeUri)
+
+    override fun write(document: SettingsSyncDocument) {
+        AndroidSettingsSyncFile.write(context, treeUri, document)
     }
 }
 

@@ -1,5 +1,6 @@
 package app.naviamp.desktop.settings
 
+import app.naviamp.app.NaviampSettingsSyncDocumentStore
 import app.naviamp.domain.settings.SettingsSyncDocument
 import app.naviamp.domain.settings.SettingsSyncFileName
 import app.naviamp.domain.settings.SettingsSyncJson
@@ -31,5 +32,17 @@ object DesktopSettingsSyncFile {
     fun write(directory: Path, document: SettingsSyncDocument) {
         val prepared = prepareDirectory(directory)
         syncFile(prepared).writeText(SettingsSyncJson.encode(document))
+    }
+}
+
+class DesktopSettingsSyncDocumentStore(
+    private val directory: Path,
+) : NaviampSettingsSyncDocumentStore {
+    override val displayName: String = SettingsSyncFileName
+
+    override fun read(): SettingsSyncDocument? = DesktopSettingsSyncFile.read(directory)
+
+    override fun write(document: SettingsSyncDocument) {
+        DesktopSettingsSyncFile.write(directory, document)
     }
 }

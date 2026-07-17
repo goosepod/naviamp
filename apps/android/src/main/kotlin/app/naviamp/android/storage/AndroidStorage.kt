@@ -62,6 +62,7 @@ import app.naviamp.provider.navidrome.NavidromeProvider
 import app.naviamp.provider.navidrome.resolvedDisplayName
 import app.naviamp.provider.navidrome.toNavidromeConnection
 import app.naviamp.storage.NaviampStorageDatabase
+import app.naviamp.storage.StorageMediaSourceStore
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
@@ -126,7 +127,7 @@ class AndroidStorage(
         store = AndroidSidecarStatusStore(queries),
         nowMillis = ::nowMillis,
     )
-    private val mediaSources = AndroidMediaSourceStore(
+    private val mediaSources = StorageMediaSourceStore(
         queries = queries,
         nowMillis = ::nowMillis,
         credentialProtector = AndroidKeystoreCredentialProtector(),
