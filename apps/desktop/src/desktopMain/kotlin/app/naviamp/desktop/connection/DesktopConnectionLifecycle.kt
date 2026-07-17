@@ -1,11 +1,11 @@
 package app.naviamp.desktop
 
 import app.naviamp.domain.Track
+import app.naviamp.app.NaviampPlaybackSessionController
 import app.naviamp.domain.app.databaseResetStatus
 import app.naviamp.domain.cache.CacheMaintenanceRepository
 import app.naviamp.domain.cache.LibrarySnapshot
 import app.naviamp.domain.cache.MediaSourceRepository
-import app.naviamp.domain.cache.PlaybackSessionRepository
 import app.naviamp.domain.cache.ProviderMediaSourceRepository
 import app.naviamp.domain.cache.StorageCacheStats
 import app.naviamp.domain.home.HomeContent
@@ -14,7 +14,6 @@ import app.naviamp.domain.playback.PlaybackProgress
 import app.naviamp.domain.playback.PlaybackState
 import app.naviamp.domain.playback.PlaybackStreamMetadata
 import app.naviamp.domain.queue.PlaybackQueue
-import app.naviamp.domain.settings.PlaybackSessionSettings
 import app.naviamp.domain.settings.connectionFormError
 import app.naviamp.domain.source.SavedMediaSource
 import app.naviamp.domain.source.ConnectionHeaderDefinition
@@ -57,7 +56,7 @@ class DesktopConnectionLifecycleController(
     private val mediaSourceRepository: MediaSourceRepository,
     private val providerMediaSourceRepository: ProviderMediaSourceRepository,
     private val settingsStore: DesktopSettingsStore,
-    private val playbackSessionRepository: PlaybackSessionRepository,
+    private val playbackSessions: NaviampPlaybackSessionController,
     private val playbackEngine: PlaybackEngine,
     private val playlistEngine: DesktopPlaylistEngine,
     private val stopRadioContinuation: () -> Unit,
@@ -77,7 +76,6 @@ class DesktopConnectionLifecycleController(
     private val selectedMusicFolderIds: () -> List<String>,
     private val isConnecting: () -> Boolean,
     private val setConnecting: (Boolean) -> Unit,
-    private val savedPlaybackSession: () -> PlaybackSessionSettings?,
     private val playlistCallbacks: () -> PlaylistCallbacks,
     private val streamQuality: () -> StreamQuality,
     private val replayGainMode: () -> ReplayGainMode,
@@ -168,7 +166,7 @@ class DesktopConnectionLifecycleController(
             setPlaybackState(PlaybackState.Idle)
             setPlaybackProgress(PlaybackProgress.Unknown)
             setPlaybackQueue(PlaybackQueue())
-            playbackSessionRepository.savePlaybackSession(null)
+            playbackSessions.clear()
         }
 
         scope.launch {
@@ -240,7 +238,7 @@ class DesktopConnectionLifecycleController(
         stopRadioContinuation()
         playlistEngine.clear()
         playbackEngine.stop()
-        playbackSessionRepository.savePlaybackSession(null)
+        playbackSessions.clear()
         applyClearedConnectionState(DesktopActiveConnectionClearState())
     }
 
@@ -282,7 +280,7 @@ class DesktopConnectionLifecycleController(
     }
 
     private fun restorePlaybackSession(provider: NavidromeProvider) {
-        when (val restoredSession = restoredDesktopPlaybackSession(savedPlaybackSession(), provider)) {
+        when (val restoredSession = restoredDesktopPlaybackSession(playbackSessions.restorePlan(), provider)) {
             is DesktopRestoredPlaybackSession.InternetRadio -> {
                 setNowPlayingInternetRadioStation(restoredSession.station)
                 setNowPlayingStreamMetadata(PlaybackStreamMetadata())

@@ -3,6 +3,8 @@ package app.naviamp.app
 import app.naviamp.domain.app.PlatformCapabilities
 import app.naviamp.domain.app.PlatformCapability
 import app.naviamp.domain.app.PlatformCapabilityStatus
+import app.naviamp.domain.cache.PlaybackSessionRepository
+import app.naviamp.domain.settings.PlaybackSessionSettings
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
@@ -95,11 +97,18 @@ private class RuntimeFixture(
                 PlatformCapabilityStatus.Available,
             ),
             session = session,
+            playbackSessions = NaviampPlaybackSessionController(EmptyPlaybackSessionRepository),
             connectivity = NaviampConnectivityMonitor { connectivitySnapshot },
             errorReporter = NaviampRuntimeErrorReporter { _, cause -> reportedCauses += cause },
         ),
         navigation = navigation,
     )
+}
+
+private object EmptyPlaybackSessionRepository : PlaybackSessionRepository {
+    override fun loadPlaybackSession(sourceId: String?): PlaybackSessionSettings? = null
+
+    override fun savePlaybackSession(session: PlaybackSessionSettings?, sourceId: String?) = Unit
 }
 
 private class RecordingSession(

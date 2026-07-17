@@ -14,6 +14,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import app.naviamp.app.NaviampPlaybackSessionController
 import app.naviamp.android.playback.AndroidPlaybackEngine
 import app.naviamp.domain.AlbumDetails
 import app.naviamp.domain.Lyrics
@@ -93,6 +94,7 @@ fun NaviampAndroidApp(
     val playbackEngine: AndroidPlaybackEngine = playbackRuntime.playbackEngine
     val waveformAnalyzer = playbackRuntime.waveformAnalyzer
     val storage = dependencies.storage
+    val playbackSessions = remember(storage) { NaviampPlaybackSessionController(storage) }
     val sidecarStatusRepository = dependencies.sidecarStatusRepository
     val playbackAudioAssets = dependencies.playbackAudioAssets
     val audioMetadataSidecarService = dependencies.audioMetadataSidecarService
@@ -231,12 +233,13 @@ fun NaviampAndroidApp(
         SonicAutoplayService(provider = { appState.provider })
     }
 
-    val playbackAppController = remember(appState, storage, settingsStore, context) {
+    val playbackAppController = remember(appState, storage, playbackSessions, settingsStore, context) {
         AndroidPlaybackAppController(
             context = context,
             scope = scope,
             state = appState,
             storage = storage,
+            playbackSessions = playbackSessions,
             settingsStore = settingsStore,
             audioAssets = playbackAudioAssets,
             playbackEngine = playbackEngine,
@@ -379,11 +382,18 @@ fun NaviampAndroidApp(
         AndroidApiLibraryController(scope = scope, state = appState, libraryIndexRepository = storage)
     }
 
-    val connectionSessionController = remember(appState, storage, settingsStore, playbackQueueController) {
+    val connectionSessionController = remember(
+        appState,
+        storage,
+        playbackSessions,
+        settingsStore,
+        playbackQueueController,
+    ) {
         AndroidConnectionSessionController(
             scope = scope,
             state = appState,
             storage = storage,
+            playbackSessions = playbackSessions,
             settingsStore = settingsStore,
             savedConnection = savedConnection,
             playbackEngine = playbackEngine,
@@ -869,6 +879,7 @@ fun NaviampAndroidApp(
         mixBuilderController = mixBuilderController,
         sonicHomeDiscoveryController = sonicHomeDiscoveryController,
         connectionSessionController = connectionSessionController,
+        playbackSessions = playbackSessions,
         sleepTimerController = sleepTimerController,
         providerResponseCacheRepository = storage,
         onAutoPlayMediaIdConsumed = onAutoPlayMediaIdConsumed,

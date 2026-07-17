@@ -6,6 +6,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
 import app.naviamp.app.NaviampHostLifecycleEvent
+import app.naviamp.app.NaviampPlaybackSessionController
 import app.naviamp.domain.cache.ProviderResponseCacheRepository
 import app.naviamp.domain.isInternetRadioTrack
 import app.naviamp.domain.playback.SleepTimerController
@@ -35,6 +36,7 @@ internal fun AndroidMainEffects(
     mixBuilderController: AndroidMixBuilderController,
     sonicHomeDiscoveryController: AndroidSonicHomeDiscoveryController,
     connectionSessionController: AndroidConnectionSessionController,
+    playbackSessions: NaviampPlaybackSessionController,
     sleepTimerController: SleepTimerController,
     providerResponseCacheRepository: ProviderResponseCacheRepository,
     onAutoPlayMediaIdConsumed: () -> Unit,
@@ -45,6 +47,7 @@ internal fun AndroidMainEffects(
         androidApplicationRuntime(
             context = context,
             navigation = state.sharedNavigationController,
+            playbackSessions = playbackSessions,
             restoreSavedSession = connectionSessionController::autoConnect,
         )
     }

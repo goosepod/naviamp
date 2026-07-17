@@ -25,6 +25,7 @@ import androidx.compose.ui.unit.dp
 import app.naviamp.domain.Track
 import app.naviamp.domain.TrackId
 import app.naviamp.app.NaviampNavigationController
+import app.naviamp.app.NaviampPlaybackSessionController
 import app.naviamp.domain.app.NaviampNavigationState
 import app.naviamp.domain.cache.ImageCacheRepository
 import app.naviamp.domain.cache.ProviderResponseService
@@ -100,6 +101,7 @@ fun NaviampApp(
     val appColors = DesktopAppColors.Dark
     val colorScheme = darkColorScheme()
     val settingsStore = dependencies.settingsStore
+    val playbackSessions = remember(settingsStore) { NaviampPlaybackSessionController(settingsStore) }
     val about = remember { loadDesktopAboutUi() }
     val playbackEngine = dependencies.playbackEngine
     val storage = dependencies.storage
@@ -111,7 +113,7 @@ fun NaviampApp(
             ?.withNativeTokenFrom(savedSettingsConnection)
             ?: savedSettingsConnection
     }
-    val savedPlaybackSession = remember { settingsStore.loadPlaybackSession() }
+    val savedPlaybackSession = remember { playbackSessions.load() }
     val savedVisualizer = remember { settingsStore.loadVisualizerSettings() }
     val savedNavigation = remember { settingsStore.loadNavigationSettings() }
     val savedSearch = remember { settingsStore.loadSearchSettings() }
@@ -267,7 +269,7 @@ fun NaviampApp(
     val playbackController = remember {
         DesktopPlaybackController(
         scope = coroutineScope,
-        playbackSessionRepository = settingsStore,
+        playbackSessions = playbackSessions,
         playbackEngine = playbackEngine,
         playlistEngine = playlistEngine,
         provider = { connectedProvider },
@@ -651,7 +653,7 @@ fun NaviampApp(
         DesktopInternetRadioController(
         scope = coroutineScope,
         settingsStore = settingsStore,
-        playbackSessionRepository = settingsStore,
+        playbackSessions = playbackSessions,
         playbackEngine = playbackEngine,
         playlistEngine = playlistEngine,
         provider = { connectedProvider },
@@ -719,7 +721,7 @@ fun NaviampApp(
         mediaSourceRepository = storage,
         providerMediaSourceRepository = storage,
         settingsStore = settingsStore,
-        playbackSessionRepository = settingsStore,
+        playbackSessions = playbackSessions,
         playbackEngine = playbackEngine,
         playlistEngine = playlistEngine,
         stopRadioContinuation = radioController::stopContinuation,
@@ -751,7 +753,6 @@ fun NaviampApp(
         selectedMusicFolderIds = { connectionForm.selectedMusicFolderIds },
         isConnecting = { isConnecting },
         setConnecting = { connecting -> isConnecting = connecting },
-        savedPlaybackSession = { savedPlaybackSession },
         playlistCallbacks = { playlistCallbacksRef.value ?: error("Playlist callbacks are not ready.") },
         streamQuality = { playbackSettings.streamQuality(playbackEngine) },
         replayGainMode = { playbackSettings.replayGainMode },
@@ -1138,6 +1139,7 @@ fun NaviampApp(
         libraryController = libraryController,
         mixBuilderController = mixBuilderController,
         navigationController = navigationController,
+        playbackSessions = playbackSessions,
         hasSavedConnection = savedConnection != null,
         connectToServer = { connectionLifecycleController.connectToServer(restoreSavedSession = true) },
         nowPlayingTrack = nowPlayingTrack,

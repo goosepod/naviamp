@@ -8,8 +8,9 @@ import app.naviamp.domain.cache.ProviderMediaSourceRepository
 import app.naviamp.domain.source.ConnectionHeaderDefinition
 import app.naviamp.domain.source.ConnectionSecondaryUrl
 import app.naviamp.domain.settings.PlaybackSessionSettings
+import app.naviamp.domain.settings.PlaybackSessionRestorePlan
+import app.naviamp.domain.settings.planPlaybackSessionRestore
 import app.naviamp.domain.settings.RestoredPlaybackSession
-import app.naviamp.domain.settings.restoredTrackSession
 import app.naviamp.domain.source.ProviderConnectionLifecycleRequest
 import app.naviamp.domain.source.ProviderConnectionSession
 import app.naviamp.domain.source.openProviderConnectionSession
@@ -95,21 +96,23 @@ private fun NavidromeConnection.toProviderMediaSourceConnection(): ProviderMedia
 fun restoredDesktopPlaybackSession(
     savedPlaybackSession: PlaybackSessionSettings?,
     provider: NavidromeProvider,
-): DesktopRestoredPlaybackSession? {
-    val session = savedPlaybackSession ?: return null
-    val internetRadioStation = session.internetRadioStation?.toStation()
-    val restoredTrackSession = session.restoredTrackSession()
-    val currentTrack = restoredTrackSession?.currentTrack ?: session.currentTrack()
-    if (internetRadioStation != null && currentTrack != null) {
-        return DesktopRestoredPlaybackSession.InternetRadio(
-            station = internetRadioStation,
-            track = currentTrack,
+): DesktopRestoredPlaybackSession? =
+    restoredDesktopPlaybackSession(planPlaybackSessionRestore(savedPlaybackSession), provider)
+
+fun restoredDesktopPlaybackSession(
+    plan: PlaybackSessionRestorePlan,
+    provider: NavidromeProvider,
+): DesktopRestoredPlaybackSession? =
+    when (plan) {
+        PlaybackSessionRestorePlan.None -> null
+        is PlaybackSessionRestorePlan.InternetRadio -> plan.currentTrack?.let { track ->
+            DesktopRestoredPlaybackSession.InternetRadio(
+                station = plan.station,
+                track = track,
+            )
+        }
+        is PlaybackSessionRestorePlan.TrackSession -> DesktopRestoredPlaybackSession.TrackQueue(
+            session = plan.restoredSession,
+            coverArtUrl = plan.currentTrack.coverArtId?.let(provider::coverArtUrl),
         )
     }
-    return restoredTrackSession?.let {
-        DesktopRestoredPlaybackSession.TrackQueue(
-            session = it,
-            coverArtUrl = it.currentTrack.coverArtId?.let(provider::coverArtUrl),
-        )
-    }
-}

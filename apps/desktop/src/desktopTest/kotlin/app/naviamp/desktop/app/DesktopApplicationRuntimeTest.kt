@@ -5,8 +5,11 @@ import app.naviamp.app.NaviampConnectivityMonitor
 import app.naviamp.app.NaviampConnectivitySnapshot
 import app.naviamp.app.NaviampHostLifecycleEvent
 import app.naviamp.app.NaviampPlatformServices
+import app.naviamp.app.NaviampPlaybackSessionController
 import app.naviamp.app.NaviampRuntimeErrorReporter
 import app.naviamp.domain.app.PlatformCapabilities
+import app.naviamp.domain.cache.PlaybackSessionRepository
+import app.naviamp.domain.settings.PlaybackSessionSettings
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -37,8 +40,15 @@ class DesktopApplicationRuntimeTest {
         NaviampPlatformServices(
             capabilities = PlatformCapabilities(),
             session = session,
+            playbackSessions = NaviampPlaybackSessionController(EmptyPlaybackSessionRepository),
             connectivity = NaviampConnectivityMonitor { NaviampConnectivitySnapshot(true) },
             errorReporter = NaviampRuntimeErrorReporter { _, _ -> },
         ),
     )
+}
+
+private object EmptyPlaybackSessionRepository : PlaybackSessionRepository {
+    override fun loadPlaybackSession(sourceId: String?): PlaybackSessionSettings? = null
+
+    override fun savePlaybackSession(session: PlaybackSessionSettings?, sourceId: String?) = Unit
 }

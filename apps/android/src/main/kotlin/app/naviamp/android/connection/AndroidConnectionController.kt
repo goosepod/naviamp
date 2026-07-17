@@ -2,6 +2,7 @@ package app.naviamp.android
 
 import app.naviamp.android.playback.AndroidPlaybackEngine
 import app.naviamp.android.playback.AndroidPlaybackTls
+import app.naviamp.app.NaviampPlaybackSessionController
 import app.naviamp.domain.Playlist
 import app.naviamp.domain.app.NaviampRoute
 import app.naviamp.domain.cache.ProviderMediaSourceConnection
@@ -42,6 +43,7 @@ class AndroidConnectionSessionController(
     private val scope: CoroutineScope,
     private val state: AndroidAppState,
     private val storage: AndroidStorageDependencies,
+    private val playbackSessions: NaviampPlaybackSessionController,
     private val settingsStore: AndroidSettingsStore,
     private val savedConnection: ConnectionFormState,
     private val playbackEngine: AndroidPlaybackEngine,
@@ -56,7 +58,7 @@ class AndroidConnectionSessionController(
     fun restorePlaybackSession(sourceId: String): Boolean =
         restoreAndroidPlaybackSession(
             state = state,
-            playbackSessionRepository = storage,
+            playbackSessions = playbackSessions,
             sourceId = sourceId,
             loadRelatedTracks = loadRelatedTracks,
             synchronizePlaybackQueue = queueController::restoreOrClear,

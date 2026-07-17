@@ -51,6 +51,7 @@ fun interface NaviampRuntimeErrorReporter {
 data class NaviampPlatformServices(
     val capabilities: PlatformCapabilities,
     val session: NaviampApplicationSession,
+    val playbackSessions: NaviampPlaybackSessionController,
     val connectivity: NaviampConnectivityMonitor,
     val errorReporter: NaviampRuntimeErrorReporter,
 )

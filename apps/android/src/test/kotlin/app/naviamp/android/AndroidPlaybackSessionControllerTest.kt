@@ -1,5 +1,6 @@
 package app.naviamp.android
 
+import app.naviamp.app.NaviampPlaybackSessionController
 import app.naviamp.domain.InternetRadioStation
 import app.naviamp.domain.Track
 import app.naviamp.domain.TrackId
@@ -42,7 +43,7 @@ class AndroidPlaybackSessionControllerTest {
         assertTrue(
             restoreAndroidPlaybackSession(
                 state = state,
-                playbackSessionRepository = TestPlaybackSessionRepository(session),
+                playbackSessions = NaviampPlaybackSessionController(TestPlaybackSessionRepository(session)),
                 sourceId = "source",
                 loadRelatedTracks = {},
                 synchronizePlaybackQueue = queueController::restoreOrClear,
@@ -74,8 +75,8 @@ class AndroidPlaybackSessionControllerTest {
         assertTrue(
             restoreAndroidPlaybackSession(
                 state = state,
-                playbackSessionRepository = TestPlaybackSessionRepository(
-                    PlaybackSessionSettings.fromInternetRadioStation(station),
+                playbackSessions = NaviampPlaybackSessionController(
+                    TestPlaybackSessionRepository(PlaybackSessionSettings.fromInternetRadioStation(station)),
                 ),
                 sourceId = "source",
                 loadRelatedTracks = { relatedTrack = it },
@@ -114,7 +115,7 @@ class AndroidPlaybackSessionControllerTest {
         assertFalse(
             restoreAndroidPlaybackSession(
                 state = state,
-                playbackSessionRepository = TestPlaybackSessionRepository(invalidSession),
+                playbackSessions = NaviampPlaybackSessionController(TestPlaybackSessionRepository(invalidSession)),
                 sourceId = "source",
                 loadRelatedTracks = { relatedCalls += 1 },
                 synchronizePlaybackQueue = { synchronizeCalls += 1 },

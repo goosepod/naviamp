@@ -1,38 +1,35 @@
 package app.naviamp.android
 
 import app.naviamp.android.playback.AndroidPlaybackNotificationControls
+import app.naviamp.app.NaviampPlaybackSessionController
+import app.naviamp.app.NaviampPlaybackSessionSaveRequest
 import app.naviamp.domain.Track
-import app.naviamp.domain.cache.PlaybackSessionRepository
 import app.naviamp.domain.queue.PlaybackQueue
 import app.naviamp.domain.settings.PlaybackSessionRestorePlan
-import app.naviamp.domain.settings.PlaybackSessionSavePlan
-import app.naviamp.domain.settings.planPlaybackSessionRestore
-import app.naviamp.domain.settings.planPlaybackSessionSave
 import app.naviamp.domain.settings.shouldThrottlePlaybackSessionSave
 
 fun saveAndroidPlaybackSession(
     state: AndroidAppState,
-    playbackSessionRepository: PlaybackSessionRepository,
+    playbackSessions: NaviampPlaybackSessionController,
 ) {
     with(state) {
         val sourceId = activeSourceId ?: return
-        val plan = planPlaybackSessionSave(
-            activeSourceId = sourceId,
-            station = nowPlayingStation,
-            currentTrack = nowPlaying,
-            playbackQueue = playbackQueue,
-            progressPositionSeconds = playbackProgress.positionSeconds,
-            notificationPositionSeconds = AndroidPlaybackNotificationControls.positionMillis?.let { it / 1_000.0 },
-            existingSession = playbackSessionRepository.loadPlaybackSession(sourceId),
+        playbackSessions.planAndSave(
+            NaviampPlaybackSessionSaveRequest(
+                sourceId = sourceId,
+                station = nowPlayingStation,
+                currentTrack = nowPlaying,
+                playbackQueue = playbackQueue,
+                progressPositionSeconds = playbackProgress.positionSeconds,
+                platformPositionSeconds = AndroidPlaybackNotificationControls.positionMillis?.let { it / 1_000.0 },
+            ),
         )
-        if (plan !is PlaybackSessionSavePlan.Save) return
-        playbackSessionRepository.savePlaybackSession(session = plan.session, sourceId = sourceId)
     }
 }
 
 fun saveAndroidPlaybackSessionThrottled(
     state: AndroidAppState,
-    playbackSessionRepository: PlaybackSessionRepository,
+    playbackSessions: NaviampPlaybackSessionController,
     force: Boolean = false,
 ) {
     with(state) {
@@ -50,20 +47,20 @@ fun saveAndroidPlaybackSessionThrottled(
             return
         }
         lastPlaybackSessionSaveAtMillis = now
-        saveAndroidPlaybackSession(state, playbackSessionRepository)
+        saveAndroidPlaybackSession(state, playbackSessions)
     }
 }
 
 fun restoreAndroidPlaybackSession(
     state: AndroidAppState,
-    playbackSessionRepository: PlaybackSessionRepository,
+    playbackSessions: NaviampPlaybackSessionController,
     sourceId: String,
     loadRelatedTracks: (Track) -> Unit,
     synchronizePlaybackQueue: (PlaybackQueue) -> Unit,
 ): Boolean {
     with(state) {
-        val session = playbackSessionRepository.loadPlaybackSession(sourceId)
-        val plan = planPlaybackSessionRestore(session)
+        val session = playbackSessions.load(sourceId)
+        val plan = playbackSessions.restorePlan(sourceId)
         when (plan) {
             PlaybackSessionRestorePlan.None -> {
                 if (session == null) {

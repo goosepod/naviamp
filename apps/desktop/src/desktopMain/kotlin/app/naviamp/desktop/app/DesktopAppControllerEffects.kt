@@ -5,6 +5,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import app.naviamp.app.NaviampHostLifecycleEvent
 import app.naviamp.app.NaviampNavigationController
+import app.naviamp.app.NaviampPlaybackSessionController
 import app.naviamp.domain.Playlist
 import app.naviamp.domain.Track
 import app.naviamp.domain.app.StorageStatsRefreshIntervalMillis
@@ -31,6 +32,7 @@ internal fun DesktopAppControllerEffects(
     libraryController: DesktopLibraryController,
     mixBuilderController: DesktopMixBuilderController,
     navigationController: NaviampNavigationController,
+    playbackSessions: NaviampPlaybackSessionController,
     hasSavedConnection: Boolean,
     connectToServer: () -> Unit,
     nowPlayingTrack: Track?,
@@ -56,6 +58,7 @@ internal fun DesktopAppControllerEffects(
     val applicationRuntime = remember {
         desktopApplicationRuntime(
             navigation = navigationController,
+            playbackSessions = playbackSessions,
             hasSavedConnection = hasSavedConnection,
             restoreSavedSession = connectToServer,
         )
