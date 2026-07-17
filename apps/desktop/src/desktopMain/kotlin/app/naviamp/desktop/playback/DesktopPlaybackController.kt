@@ -23,7 +23,6 @@ import app.naviamp.domain.playback.PlaybackQueueManager
 import app.naviamp.domain.playback.PlaybackQueueNavigationCommand
 import app.naviamp.domain.playback.shouldSavePlaybackPosition
 import app.naviamp.domain.provider.MediaProvider
-import app.naviamp.domain.provider.PendingProviderActionRepository
 import app.naviamp.domain.queue.PlaybackQueue
 import app.naviamp.domain.queue.RepeatMode
 import app.naviamp.domain.settings.UpNextSelectionBehavior
@@ -53,7 +52,7 @@ class DesktopPlaybackController(
     private val playlistEngine: DesktopPlaylistEngine,
     private val provider: () -> MediaProvider?,
     private val sourceId: () -> String?,
-    pendingProviderActions: PendingProviderActionRepository,
+    private val providerActions: NaviampProviderActionController,
     private val playbackSettings: () -> PlaybackSettings,
     private val playbackQueue: () -> PlaybackQueue,
     private val playbackProgress: () -> PlaybackProgress,
@@ -71,7 +70,6 @@ class DesktopPlaybackController(
     private val playbackCommands = NaviampPlaybackCommandController(this, livePlayback)
     private val queueManager = PlaybackQueueManager()
     private val reporting = NaviampPlaybackReportingController()
-    private val providerActions = NaviampProviderActionController(pendingProviderActions)
 
     fun savePlaybackSession(
         queue: PlaybackQueue,

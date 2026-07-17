@@ -29,7 +29,6 @@ import app.naviamp.app.NaviampApplicationControllers
 import app.naviamp.app.NaviampLivePlaybackState
 import app.naviamp.app.NaviampPlaybackSessionController
 import app.naviamp.app.NaviampCacheSettingsController
-import app.naviamp.app.NaviampProviderActionController
 import app.naviamp.domain.app.NaviampNavigationState
 import app.naviamp.domain.cache.ImageCacheRepository
 import app.naviamp.domain.cache.ProviderResponseService
@@ -206,6 +205,7 @@ fun NaviampApp(
                 currentStation = restoredInternetRadioStation,
                 queue = savedPlaybackSession?.restoredPlaybackQueue() ?: PlaybackQueue(),
             ),
+            pendingProviderActions = storage,
         )
     }
     val connectionRuntimeState by applicationControllers.connection.state.collectAsState()
@@ -298,7 +298,7 @@ fun NaviampApp(
             playlistEngine = playlistEngine,
             provider = { connectedProvider },
             sourceId = { connectedSourceId },
-            pendingProviderActions = storage,
+            providerActions = applicationControllers.providerActions,
             playbackSettings = { playbackSettings },
             playbackQueue = { playbackQueue },
             playbackProgress = { playbackProgress },
@@ -1029,9 +1029,7 @@ fun NaviampApp(
     )
     }
 
-    val providerActionController = remember {
-        NaviampProviderActionController(storage)
-    }
+    val providerActionController = applicationControllers.providerActions
 
     val mediaActionsController = remember {
         DesktopMediaActionsController(

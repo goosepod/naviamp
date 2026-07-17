@@ -1,6 +1,7 @@
 package app.naviamp.app
 
 import app.naviamp.domain.app.NaviampNavigationState
+import app.naviamp.domain.provider.PendingProviderActionRepository
 
 /**
  * Shared stateful controller graph used by every platform host.
@@ -13,15 +14,18 @@ class NaviampApplicationControllers private constructor(
     val navigation: NaviampNavigationController,
     val playback: NaviampLivePlaybackController,
     val connection: NaviampConnectionController,
+    val providerActions: NaviampProviderActionController,
 ) {
     constructor(
         initialNavigationState: NaviampNavigationState = NaviampNavigationState(),
         initialPlaybackState: NaviampLivePlaybackState = NaviampLivePlaybackState(),
         initialConnectionState: NaviampConnectionRuntimeState = NaviampConnectionRuntimeState(),
+        pendingProviderActions: PendingProviderActionRepository,
     ) : this(
         navigation = NaviampNavigationController(initialNavigationState),
         playback = NaviampLivePlaybackController(initialPlaybackState),
         connection = NaviampConnectionController(initialConnectionState),
+        providerActions = NaviampProviderActionController(pendingProviderActions),
     )
 
     val queue = NaviampPlaybackQueueCoordinator(playback)
@@ -31,6 +35,7 @@ class NaviampApplicationControllers private constructor(
             navigation: NaviampNavigationController,
             playback: NaviampLivePlaybackController,
             connection: NaviampConnectionController = NaviampConnectionController(),
-        ) = NaviampApplicationControllers(navigation, playback, connection)
+            providerActions: NaviampProviderActionController,
+        ) = NaviampApplicationControllers(navigation, playback, connection, providerActions)
     }
 }

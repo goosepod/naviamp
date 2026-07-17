@@ -36,6 +36,7 @@ import app.naviamp.android.MainActivity
 import app.naviamp.android.markAndroidSettingsSyncChangedAndAutoExport
 import app.naviamp.android.resolveInternetRadioStreamUrl
 import app.naviamp.android.withAndroidPendingActions
+import app.naviamp.app.NaviampProviderActionController
 import app.naviamp.domain.Album
 import app.naviamp.domain.AlbumId
 import app.naviamp.domain.Artist
@@ -91,6 +92,9 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
     private val notificationArtHttpClient = KtorSharedHttpClient()
     private val serviceStorage: AndroidStorageDependencies
         get() = serviceStorageInstance ?: AndroidStorageDependencies(applicationContext).also { serviceStorageInstance = it }
+    private val serviceProviderActions: NaviampProviderActionController by lazy {
+        NaviampProviderActionController(serviceStorage)
+    }
     private val autoQueueController = PlaybackQueueController()
     private val autoBrowseController: AndroidAutoBrowseController by lazy {
         AndroidAutoBrowseController(
@@ -139,6 +143,7 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
         AndroidServicePlaybackRuntimeController(
             context = applicationContext,
             storage = { serviceStorage },
+            providerActions = serviceProviderActions,
             queueController = autoQueueController,
             currentQueue = { currentAutoQueue },
             currentQueueIndex = { currentAutoQueueIndex },
@@ -1908,7 +1913,7 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
             AndroidPlaybackRuntime.get(applicationContext).scope.launch {
                 withContext(Dispatchers.IO) {
                     provider
-                        .withAndroidPendingActions(source.id, storage)
+                        .withAndroidPendingActions(source.id, serviceProviderActions)
                         .setTrackFavorite(track.id, nextFavorite)
                 }
             }

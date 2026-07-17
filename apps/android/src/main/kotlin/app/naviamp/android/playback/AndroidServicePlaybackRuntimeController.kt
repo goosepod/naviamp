@@ -13,6 +13,7 @@ import app.naviamp.app.NaviampLivePlaybackState
 import app.naviamp.app.NaviampPlaybackReportingController
 import app.naviamp.app.NaviampPlaybackStateReportRequest
 import app.naviamp.app.NaviampPlaybackQueueCoordinator
+import app.naviamp.app.NaviampProviderActionController
 import app.naviamp.domain.Album
 import app.naviamp.domain.InternetRadioStation
 import app.naviamp.domain.StreamQuality
@@ -61,6 +62,7 @@ import kotlinx.coroutines.withContext
 internal class AndroidServicePlaybackRuntimeController(
     private val context: Context,
     private val storage: () -> AndroidStorageDependencies,
+    private val providerActions: NaviampProviderActionController,
     private val queueController: PlaybackQueueController,
     private val currentQueue: () -> List<Track>,
     private val currentQueueIndex: () -> Int,
@@ -467,7 +469,7 @@ internal class AndroidServicePlaybackRuntimeController(
         AndroidPlaybackRuntime.get(context).scope.launch {
             withContext(Dispatchers.IO) {
                 provider
-                    .withAndroidPendingActions(sourceId, storage)
+                    .withAndroidPendingActions(sourceId, providerActions)
                     .reportNowPlaying(track.id)
             }
         }
@@ -498,7 +500,7 @@ internal class AndroidServicePlaybackRuntimeController(
         AndroidPlaybackRuntime.get(context).scope.launch {
             withContext(Dispatchers.IO) {
                 provider
-                    .withAndroidPendingActions(source.id, storage)
+                    .withAndroidPendingActions(source.id, providerActions)
                     .reportPlaybackState(
                         trackId = report.trackId,
                         state = report.state,

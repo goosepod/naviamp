@@ -8,8 +8,6 @@ import app.naviamp.domain.playback.canReportPlaybackTrack
 import app.naviamp.app.NaviampPlaybackReportingController
 import app.naviamp.app.NaviampPlaybackStateReportRequest
 import app.naviamp.app.NaviampProviderActionController
-import app.naviamp.domain.provider.PendingActionReportNowPlaying
-import app.naviamp.domain.provider.PendingProviderActionRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -18,10 +16,9 @@ import kotlinx.coroutines.withContext
 internal class AndroidPlaybackReportController(
     private val scope: CoroutineScope,
     private val state: AndroidAppState,
-    private val pendingProviderActions: PendingProviderActionRepository,
+    private val providerActions: NaviampProviderActionController,
 ) {
     private val reporting = NaviampPlaybackReportingController()
-    private val providerActions = NaviampProviderActionController(pendingProviderActions)
 
     fun reportNowPlaying(track: Track) {
         val activeProvider = state.provider
@@ -37,11 +34,7 @@ internal class AndroidPlaybackReportController(
             val sourceId = state.activeSourceId ?: return
             scope.launch {
                 withContext(Dispatchers.IO) {
-                    pendingProviderActions.enqueuePendingProviderAction(
-                        sourceId = sourceId,
-                        actionType = PendingActionReportNowPlaying,
-                        entityId = track.id.value,
-                    )
+                    providerActions.enqueueNowPlaying(sourceId, track.id)
                 }
             }
             return

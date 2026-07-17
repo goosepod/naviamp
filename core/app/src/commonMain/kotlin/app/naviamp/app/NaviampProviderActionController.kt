@@ -16,6 +16,24 @@ import app.naviamp.domain.provider.replayPendingProviderActions
 class NaviampProviderActionController(
     private val repository: PendingProviderActionRepository,
 ) {
+    fun enqueueNowPlaying(sourceId: String, trackId: TrackId) {
+        repository.enqueuePendingProviderAction(
+            sourceId = sourceId,
+            actionType = PendingActionReportNowPlaying,
+            entityId = trackId.value,
+        )
+    }
+
+    fun enqueueTrackFavorite(sourceId: String, trackId: TrackId, favorite: Boolean) {
+        repository.enqueuePendingProviderAction(
+            sourceId = sourceId,
+            actionType = PendingActionTrackFavorite,
+            entityId = trackId.value,
+            boolValue = favorite,
+            replaceMatchingEntityAction = true,
+        )
+    }
+
     fun offlineCapable(provider: MediaProvider, sourceId: String?): MediaProvider =
         object : MediaProvider by provider {
             override suspend fun reportNowPlaying(trackId: TrackId) {

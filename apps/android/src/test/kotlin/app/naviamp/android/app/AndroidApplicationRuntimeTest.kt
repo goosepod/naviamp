@@ -1,6 +1,7 @@
 package app.naviamp.android
 
 import app.naviamp.app.NaviampApplicationRuntime
+import app.naviamp.app.NaviampApplicationControllers
 import app.naviamp.app.NaviampConnectivityMonitor
 import app.naviamp.app.NaviampConnectivitySnapshot
 import app.naviamp.app.NaviampHostLifecycleEvent
@@ -10,6 +11,8 @@ import app.naviamp.app.NaviampPlaybackExecution
 import app.naviamp.app.NaviampRuntimeErrorReporter
 import app.naviamp.domain.app.PlatformCapabilities
 import app.naviamp.domain.cache.PlaybackSessionRepository
+import app.naviamp.domain.provider.PendingProviderAction
+import app.naviamp.domain.provider.PendingProviderActionRepository
 import app.naviamp.domain.settings.PlaybackSessionSettings
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
@@ -29,6 +32,7 @@ class AndroidApplicationRuntimeTest {
                 connectivity = NaviampConnectivityMonitor { NaviampConnectivitySnapshot(true) },
                 errorReporter = NaviampRuntimeErrorReporter { _, _ -> },
             ),
+            NaviampApplicationControllers(pendingProviderActions = EmptyRuntimePendingProviderActions),
         )
 
         runtime.handle(NaviampHostLifecycleEvent.Start)
@@ -37,6 +41,21 @@ class AndroidApplicationRuntimeTest {
 
         assertEquals(1, restorations)
     }
+}
+
+private object EmptyRuntimePendingProviderActions : PendingProviderActionRepository {
+    override fun enqueuePendingProviderAction(
+        sourceId: String,
+        actionType: String,
+        entityId: String,
+        boolValue: Boolean?,
+        longValue: Long?,
+        replaceMatchingEntityAction: Boolean,
+    ) = Unit
+
+    override fun pendingProviderActions(sourceId: String, limit: Int): List<PendingProviderAction> = emptyList()
+    override fun deletePendingProviderAction(id: Long) = Unit
+    override fun markPendingProviderActionFailed(id: Long, errorMessage: String?) = Unit
 }
 
 private object NoOpPlaybackExecution : NaviampPlaybackExecution {

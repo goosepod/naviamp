@@ -99,7 +99,7 @@ internal class AndroidMediaAppController(
             state = state,
             playbackEngine = playbackEngine,
             playbackQueueController = queueController,
-            pendingProviderActions = storage,
+            providerActions = state.sharedControllers.providerActions,
         )
     }
 
@@ -110,7 +110,7 @@ internal class AndroidMediaAppController(
             playbackEngine = playbackEngine,
             track = track,
             playbackQueueController = queueController,
-            pendingProviderActions = storage,
+            providerActions = state.sharedControllers.providerActions,
         )
     }
 

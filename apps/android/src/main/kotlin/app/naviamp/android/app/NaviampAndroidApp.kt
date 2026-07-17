@@ -123,6 +123,7 @@ fun NaviampAndroidApp(
         savedInterfaceSettings = savedInterfaceSettings,
         savedPlaybackSettings = savedPlaybackSettings,
         savedCacheSettings = savedCacheSettings,
+        pendingProviderActions = storage,
         savedSourceId = savedProviderSource?.id,
         initialSavedMediaSources = savedMediaSources,
         initialSavedConnectionForLogin = savedProviderConnection,
@@ -175,7 +176,7 @@ fun NaviampAndroidApp(
         state = appState,
         bassLoadReport = bassLoadReport,
         playbackEngine = playbackEngine,
-        pendingProviderActions = storage,
+        providerActions = appState.sharedControllers.providerActions,
         openNowPlayingRequest = openNowPlayingRequest,
         autoPlayMediaIdRequest = autoPlayMediaIdRequest,
         autoCommandRequest = autoCommandRequest,
@@ -193,8 +194,8 @@ fun NaviampAndroidApp(
             currentStreamQuality = playbackQualityController::currentStreamQuality,
         )
     }
-    val playbackReportController = remember(appState, storage) {
-        AndroidPlaybackReportController(scope, appState, storage)
+    val playbackReportController = remember(appState) {
+        AndroidPlaybackReportController(scope, appState, appState.sharedControllers.providerActions)
     }
 
     val searchController = remember(appState, storage) { AndroidSearchController(appState, storage) }
@@ -840,7 +841,7 @@ fun NaviampAndroidApp(
                     playbackEngine = playbackEngine,
                     track = track,
                     playbackQueueController = playbackQueueController,
-                    pendingProviderActions = storage,
+                    providerActions = appState.sharedControllers.providerActions,
                 )
             },
             openTrackAlbum = shellMediaController::handleTrackGoToAlbum,

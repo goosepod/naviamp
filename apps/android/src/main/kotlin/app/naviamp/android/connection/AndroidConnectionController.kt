@@ -5,6 +5,7 @@ import app.naviamp.android.playback.AndroidPlaybackTls
 import app.naviamp.app.NaviampConnectionAttemptPlan
 import app.naviamp.app.NaviampConnectionRestorationSource
 import app.naviamp.app.NaviampPlaybackSessionController
+import app.naviamp.app.NaviampProviderActionController
 import app.naviamp.domain.Playlist
 import app.naviamp.domain.app.NaviampRoute
 import app.naviamp.domain.cache.ProviderMediaSourceConnection
@@ -13,7 +14,6 @@ import app.naviamp.domain.cache.ProviderResponseCacheRepository
 import app.naviamp.domain.InternetRadioStation
 import app.naviamp.domain.Track
 import app.naviamp.domain.home.HomeLibraryRepository
-import app.naviamp.domain.provider.PendingProviderActionRepository
 import app.naviamp.domain.playback.PlaybackQueueController
 import app.naviamp.domain.settings.RecentRadioStream
 import app.naviamp.domain.settings.ConnectionFormState
@@ -95,7 +95,7 @@ class AndroidConnectionSessionController(
             connection = connection,
             providerMediaSourceRepository = storage,
             providerResponseCacheRepository = storage,
-            pendingProviderActionRepository = storage,
+            providerActions = state.sharedControllers.providerActions,
             homeLibraryRepository = storage.asHomeLibraryRepository(),
             playbackEngine = playbackEngine,
             preloadPlaylistTracks = preloadPlaylistTracks,
@@ -231,7 +231,7 @@ fun startNavidromeConnection(
     connection: NavidromeConnection,
     providerMediaSourceRepository: ProviderMediaSourceRepository,
     providerResponseCacheRepository: ProviderResponseCacheRepository,
-    pendingProviderActionRepository: PendingProviderActionRepository,
+    providerActions: NaviampProviderActionController,
     homeLibraryRepository: HomeLibraryRepository? = null,
     playbackEngine: AndroidPlaybackEngine,
     preloadPlaylistTracks: (NavidromeProvider, List<Playlist>) -> Unit,
@@ -292,7 +292,7 @@ fun startNavidromeConnection(
                     scope = scope,
                     sourceId = session.sourceId,
                     provider = nextProvider,
-                    repository = pendingProviderActionRepository,
+                    controller = providerActions,
                     setStatus = { syncStatus ->
                         if (nowPlaying == null && nowPlayingStation == null) {
                             status = syncStatus

@@ -32,6 +32,7 @@ import app.naviamp.domain.playback.SleepTimerState
 import app.naviamp.domain.provider.ConnectionValidation
 import app.naviamp.domain.provider.MediaSearchResults
 import app.naviamp.domain.provider.PendingPlaybackAction
+import app.naviamp.domain.provider.PendingProviderActionRepository
 import app.naviamp.domain.popular.SimilarArtistMatch
 import app.naviamp.domain.queue.PlaybackQueue
 import app.naviamp.domain.queue.RepeatMode
@@ -60,6 +61,7 @@ class AndroidAppState(
     savedInterfaceSettings: InterfaceSettings,
     savedPlaybackSettings: PlaybackSettings,
     savedCacheSettings: CacheSettings,
+    pendingProviderActions: PendingProviderActionRepository,
     savedSourceId: String?,
     initialSavedMediaSources: List<SavedMediaSource>,
     initialSavedConnectionForLogin: NavidromeConnection?,
@@ -111,7 +113,9 @@ class AndroidAppState(
     var editingConnection by mutableStateOf(false)
     var savedMediaSources by mutableStateOf(initialSavedMediaSources)
     var savedConnectionForLogin by mutableStateOf(initialSavedConnectionForLogin)
-    internal val sharedControllers = NaviampApplicationControllers()
+    internal val sharedControllers = NaviampApplicationControllers(
+        pendingProviderActions = pendingProviderActions,
+    )
     internal val sharedNavigationController = sharedControllers.navigation
     var navigationState by AndroidNavigationStateProperty(sharedNavigationController)
     val selectedRoute: SharedRoute get() = navigationState.route.toSharedRoute()
@@ -231,6 +235,7 @@ fun rememberAndroidAppState(
     savedInterfaceSettings: InterfaceSettings,
     savedPlaybackSettings: PlaybackSettings,
     savedCacheSettings: CacheSettings,
+    pendingProviderActions: PendingProviderActionRepository,
     savedSourceId: String?,
     initialSavedMediaSources: List<SavedMediaSource>,
     initialSavedConnectionForLogin: NavidromeConnection?,
@@ -246,6 +251,7 @@ fun rememberAndroidAppState(
             savedInterfaceSettings = savedInterfaceSettings,
             savedPlaybackSettings = savedPlaybackSettings,
             savedCacheSettings = savedCacheSettings,
+            pendingProviderActions = pendingProviderActions,
             savedSourceId = savedSourceId,
             initialSavedMediaSources = initialSavedMediaSources,
             initialSavedConnectionForLogin = initialSavedConnectionForLogin,

@@ -147,7 +147,9 @@ internal fun androidMainShellActions(
         toggleKeepFavoritesDownloaded = downloadActionController::toggleKeepDownloadedFavorites,
         deleteAllDownloads = downloadActionController::deleteAllDownloads,
         handleShellAlbumSelected = shellMediaController::handleShellAlbumSelected,
-        handleAlbumFavoriteToggled = { item -> toggleAndroidAlbumFavorite(scope, state, item, storage) },
+        handleAlbumFavoriteToggled = { item ->
+            toggleAndroidAlbumFavorite(scope, state, item, state.sharedControllers.providerActions)
+        },
         handleMixAlbumSelected = shellMediaController::handleMixAlbumSelected,
         handleShellAlbumPlay = shellMediaController::handleShellAlbumPlay,
         handleShellAlbumTrackSelected = shellMediaController::handleShellAlbumTrackSelected,
@@ -170,7 +172,9 @@ internal fun androidMainShellActions(
         openArtistDetails = { artistId, fallbackName ->
             mediaAppController.openArtistDetails(artistId, fallbackName)
         },
-        handleArtistFavoriteToggled = { item -> toggleAndroidArtistFavorite(scope, state, item, storage) },
+        handleArtistFavoriteToggled = { item ->
+            toggleAndroidArtistFavorite(scope, state, item, state.sharedControllers.providerActions)
+        },
         handleArtistAlbumRadio = artistActionController::handleArtistAlbumRadio,
         loadArtistAlbumTracks = artistActionController::loadArtistAlbumTracks,
         openPlaylistDetails = playlistActionController::openPlaylistDetails,

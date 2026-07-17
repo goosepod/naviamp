@@ -14,6 +14,7 @@ import app.naviamp.domain.provider.ConnectionValidation
 import app.naviamp.domain.provider.MediaProvider
 import app.naviamp.domain.provider.MediaSearchResults
 import app.naviamp.domain.provider.PendingActionReportNowPlaying
+import app.naviamp.domain.provider.PendingActionTrackFavorite
 import app.naviamp.domain.provider.PendingProviderAction
 import app.naviamp.domain.provider.PendingProviderActionRepository
 import app.naviamp.domain.provider.ProviderCapabilities
@@ -30,7 +31,24 @@ class NaviampProviderActionControllerTest {
 
         controller.offlineCapable(provider, "source").reportNowPlaying(TrackId("track"))
 
-        assertEquals(listOf("source:$PendingActionReportNowPlaying:track"), repository.enqueued)
+        assertEquals(listOf("source:$PendingActionReportNowPlaying:track:null:false"), repository.enqueued)
+    }
+
+    @Test
+    fun explicitOfflineActionsUseTheSameGraphOwnedQueuePolicy() {
+        val repository = RecordingPendingActions()
+        val controller = NaviampProviderActionController(repository)
+
+        controller.enqueueNowPlaying("source", TrackId("track"))
+        controller.enqueueTrackFavorite("source", TrackId("track"), favorite = true)
+
+        assertEquals(
+            listOf(
+                "source:$PendingActionReportNowPlaying:track:null:false",
+                "source:$PendingActionTrackFavorite:track:true:true",
+            ),
+            repository.enqueued,
+        )
     }
 }
 
@@ -45,7 +63,7 @@ private class RecordingPendingActions : PendingProviderActionRepository {
         longValue: Long?,
         replaceMatchingEntityAction: Boolean,
     ) {
-        enqueued += "$sourceId:$actionType:$entityId"
+        enqueued += "$sourceId:$actionType:$entityId:$boolValue:$replaceMatchingEntityAction"
     }
 
     override fun pendingProviderActions(sourceId: String, limit: Int): List<PendingProviderAction> = emptyList()

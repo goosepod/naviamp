@@ -8,6 +8,8 @@ import app.naviamp.domain.cache.PlaybackSessionRepository
 import app.naviamp.domain.cache.StorageCacheStats
 import app.naviamp.domain.playback.PlaybackProgress
 import app.naviamp.domain.playback.PlaybackQueueController
+import app.naviamp.domain.provider.PendingProviderAction
+import app.naviamp.domain.provider.PendingProviderActionRepository
 import app.naviamp.domain.queue.PlaybackQueue
 import app.naviamp.domain.settings.CacheSettings
 import app.naviamp.domain.settings.ConnectionFormState
@@ -135,6 +137,7 @@ class AndroidPlaybackSessionControllerTest {
             savedInterfaceSettings = InterfaceSettings(),
             savedPlaybackSettings = PlaybackSettings(),
             savedCacheSettings = CacheSettings(),
+            pendingProviderActions = EmptyPendingProviderActions,
             savedSourceId = "source",
             initialSavedMediaSources = emptyList(),
             initialSavedConnectionForLogin = null,
@@ -156,6 +159,21 @@ class AndroidPlaybackSessionControllerTest {
             audioInfo = null,
             replayGain = null,
         )
+}
+
+private object EmptyPendingProviderActions : PendingProviderActionRepository {
+    override fun enqueuePendingProviderAction(
+        sourceId: String,
+        actionType: String,
+        entityId: String,
+        boolValue: Boolean?,
+        longValue: Long?,
+        replaceMatchingEntityAction: Boolean,
+    ) = Unit
+
+    override fun pendingProviderActions(sourceId: String, limit: Int): List<PendingProviderAction> = emptyList()
+    override fun deletePendingProviderAction(id: Long) = Unit
+    override fun markPendingProviderActionFailed(id: Long, errorMessage: String?) = Unit
 }
 
 private class TestPlaybackSessionRepository(

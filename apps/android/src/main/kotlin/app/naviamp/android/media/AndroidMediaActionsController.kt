@@ -18,12 +18,11 @@ import app.naviamp.domain.media.withUpdatedArtist
 import app.naviamp.domain.playback.PlaybackQueueController
 import app.naviamp.domain.playback.applyPlaybackQueueUpdate
 import app.naviamp.app.NaviampPlaybackQueueCoordinator
+import app.naviamp.app.NaviampProviderActionController
 import app.naviamp.domain.provider.addToPlaylistErrorMessage
 import app.naviamp.domain.provider.addToPlaylistLoadingStatus
 import app.naviamp.domain.provider.addTracksToPlaylistApplication
 import app.naviamp.domain.provider.PlaylistHomeProjection
-import app.naviamp.domain.provider.PendingActionTrackFavorite
-import app.naviamp.domain.provider.PendingProviderActionRepository
 import app.naviamp.domain.radio.RadioService
 import app.naviamp.ui.SharedTrackRowUi
 import app.naviamp.ui.SharedTrackRowAction
@@ -209,13 +208,13 @@ fun toggleAndroidArtistFavorite(
     scope: CoroutineScope,
     state: AndroidAppState,
     item: SharedMediaItemUi,
-    pendingProviderActions: PendingProviderActionRepository? = null,
+    providerActions: NaviampProviderActionController? = null,
 ) {
     scope.launch {
         androidMediaMetadataMutationController(
             state = state,
             playbackEngine = null,
-            pendingProviderActions = pendingProviderActions,
+            providerActions = providerActions,
         ).toggleArtistFavoriteById(item.id)
     }
 }
@@ -224,13 +223,13 @@ fun toggleAndroidAlbumFavorite(
     scope: CoroutineScope,
     state: AndroidAppState,
     item: SharedMediaItemUi,
-    pendingProviderActions: PendingProviderActionRepository? = null,
+    providerActions: NaviampProviderActionController? = null,
 ) {
     scope.launch {
         androidMediaMetadataMutationController(
             state = state,
             playbackEngine = null,
-            pendingProviderActions = pendingProviderActions,
+            providerActions = providerActions,
         ).toggleAlbumFavoriteById(item.id)
     }
 }
@@ -240,7 +239,7 @@ fun toggleAndroidCurrentFavorite(
     state: AndroidAppState,
     playbackEngine: AndroidPlaybackEngine,
     playbackQueueController: PlaybackQueueController? = null,
-    pendingProviderActions: PendingProviderActionRepository? = null,
+    providerActions: NaviampProviderActionController? = null,
 ) {
     val currentTrack = state.nowPlaying ?: return
     toggleAndroidTrackFavorite(
@@ -249,7 +248,7 @@ fun toggleAndroidCurrentFavorite(
         playbackEngine = playbackEngine,
         track = currentTrack,
         playbackQueueController = playbackQueueController,
-        pendingProviderActions = pendingProviderActions,
+        providerActions = providerActions,
     )
 }
 
@@ -259,19 +258,13 @@ fun toggleAndroidTrackFavorite(
     playbackEngine: AndroidPlaybackEngine,
     track: Track,
     playbackQueueController: PlaybackQueueController? = null,
-    pendingProviderActions: PendingProviderActionRepository? = null,
+    providerActions: NaviampProviderActionController? = null,
 ) {
     scope.launch {
         val favorite = track.favoritedAtIso8601 == null
         if (state.nowPlaying?.id == track.id) AndroidPlaybackNotificationControls.isFavorite = favorite
-        if (state.provider == null && state.activeSourceId != null && pendingProviderActions != null) {
-            pendingProviderActions.enqueuePendingProviderAction(
-                sourceId = state.activeSourceId!!,
-                actionType = PendingActionTrackFavorite,
-                entityId = track.id.value,
-                boolValue = favorite,
-                replaceMatchingEntityAction = true,
-            )
+        if (state.provider == null && state.activeSourceId != null && providerActions != null) {
+            providerActions.enqueueTrackFavorite(state.activeSourceId!!, track.id, favorite)
             val updatedTrack = track.copy(favoritedAtIso8601 = if (favorite) "local" else null)
             androidMediaMetadataMutationController(
                 state = state,
@@ -289,7 +282,7 @@ fun toggleAndroidTrackFavorite(
             state = state,
             playbackEngine = playbackEngine,
             playbackQueueController = playbackQueueController,
-            pendingProviderActions = pendingProviderActions,
+            providerActions = providerActions,
         ).toggleTrackFavoriteResult(track)
         if (!result.shouldRunPlatformSideEffects && state.nowPlaying?.id == track.id) {
             AndroidPlaybackNotificationControls.isFavorite = !favorite
@@ -318,13 +311,13 @@ private fun androidMediaMetadataMutationController(
     state: AndroidAppState,
     playbackEngine: AndroidPlaybackEngine?,
     playbackQueueController: PlaybackQueueController? = null,
-    pendingProviderActions: PendingProviderActionRepository? = null,
+    providerActions: NaviampProviderActionController? = null,
 ): MediaMetadataMutationController =
     mediaMetadataMutationController(
         provider = provider@{
             val activeProvider = state.provider ?: return@provider null
-            val repository = pendingProviderActions ?: return@provider activeProvider
-            activeProvider.withAndroidPendingActions(state.activeSourceId, repository)
+            val controller = providerActions ?: return@provider activeProvider
+            activeProvider.withAndroidPendingActions(state.activeSourceId, controller)
         },
         favoritedAtIso8601 = { "local" },
         setStatus = { status -> state.status = status },

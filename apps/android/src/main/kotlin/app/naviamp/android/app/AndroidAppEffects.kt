@@ -21,8 +21,8 @@ import app.naviamp.domain.playback.PlaybackState
 import app.naviamp.domain.playback.QueueAwarePlaybackEngine
 import app.naviamp.domain.playback.VisualizerPlaybackEngine
 import app.naviamp.app.NaviampNowPlayingHeartbeatRequest
+import app.naviamp.app.NaviampProviderActionController
 import app.naviamp.app.runNaviampNowPlayingHeartbeat
-import app.naviamp.domain.provider.PendingProviderActionRepository
 import app.naviamp.ui.SharedRoute
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -33,7 +33,7 @@ fun AndroidAppRuntimeEffects(
     state: AndroidAppState,
     bassLoadReport: AndroidBassLoadReport,
     playbackEngine: AndroidPlaybackEngine,
-    pendingProviderActions: PendingProviderActionRepository,
+    providerActions: NaviampProviderActionController,
     openNowPlayingRequest: Int,
     autoPlayMediaIdRequest: String?,
     autoCommandRequest: String?,
@@ -62,7 +62,7 @@ fun AndroidAppRuntimeEffects(
                 report = { trackId ->
                     withContext(Dispatchers.IO) {
                         activeProvider
-                            .withAndroidPendingActions(activeSourceId, pendingProviderActions)
+                            .withAndroidPendingActions(activeSourceId, providerActions)
                             .reportNowPlaying(trackId)
                     }
                 },
