@@ -7,6 +7,8 @@ import app.naviamp.app.NaviampPlaybackSessionController
 import app.naviamp.app.NaviampPlaybackQueueCoordinator
 import app.naviamp.app.NaviampPlaybackCommandController
 import app.naviamp.app.NaviampPlaybackExecution
+import app.naviamp.app.NaviampPlaybackSeekRequest
+import app.naviamp.app.NaviampLivePlaybackController
 import app.naviamp.domain.isInternetRadioTrack
 import app.naviamp.domain.playback.PlaybackEngine
 import app.naviamp.domain.playback.PlaybackPlayPauseCommand
@@ -15,9 +17,7 @@ import app.naviamp.domain.playback.PlaybackState
 import app.naviamp.domain.playback.canReportPlaybackTrack
 import app.naviamp.domain.playback.PlaybackQueueManager
 import app.naviamp.domain.playback.PlaybackQueueNavigationCommand
-import app.naviamp.domain.playback.planPlaybackSeek
 import app.naviamp.domain.playback.playbackPlayPauseCommand
-import app.naviamp.domain.playback.shouldReplayCurrentForSeek
 import app.naviamp.domain.playback.shouldSavePlaybackPosition
 import app.naviamp.domain.provider.MediaProvider
 import app.naviamp.domain.provider.PlaybackReportState
@@ -63,6 +63,7 @@ internal fun handleDesktopQueueIndexSelected(
 class DesktopPlaybackController(
     private val scope: CoroutineScope,
     private val playbackSessions: NaviampPlaybackSessionController,
+    private val livePlayback: NaviampLivePlaybackController,
     private val queueCoordinator: NaviampPlaybackQueueCoordinator,
     private val playbackEngine: PlaybackEngine,
     private val playlistEngine: DesktopPlaylistEngine,
@@ -79,11 +80,9 @@ class DesktopPlaybackController(
     private val lastSavedPlaybackPositionSeconds: () -> Double?,
     private val setLastSavedPlaybackPositionSeconds: (Double?) -> Unit,
     private val playReportSessionId: () -> Int,
-    private val setPendingSeekPositionSeconds: (Double?) -> Unit,
-    private val setPendingSeekIssuedAtMillis: (Long?) -> Unit,
     private val setOpenPlayerOnTrackStart: (Boolean) -> Unit,
 ) : NaviampPlaybackExecution {
-    private val playbackCommands = NaviampPlaybackCommandController(this)
+    private val playbackCommands = NaviampPlaybackCommandController(this, livePlayback)
     private val queueManager = PlaybackQueueManager()
     private var lastPlaybackStateReportSessionId: Int? = null
     private var lastPlaybackStateReportState: PlaybackReportState? = null
@@ -129,20 +128,16 @@ class DesktopPlaybackController(
     fun performSeek(positionSeconds: Double) {
         val streamQuality = playbackSettings().streamQuality(playbackEngine)
         val playbackSource = playlistEngine.cacheRuntimeStats().playbackSource
-        val track = nowPlayingTrack()
-        val seekPlan = planPlaybackSeek(
-            isInternetRadioTrack = track?.isInternetRadioTrack() == true,
-            positionSeconds = positionSeconds,
-            currentProgress = playbackProgress(),
-            trackDurationSeconds = track?.durationSeconds,
-            streamQuality = streamQuality,
-            shouldReplayTranscodedStream = shouldReplayCurrentForSeek(playbackSource),
+        val seekPlan = playbackCommands.seek(
+            NaviampPlaybackSeekRequest(
+                positionSeconds = positionSeconds,
+                streamQuality = streamQuality,
+                playbackSource = playbackSource,
+                issuedAtMillis = System.currentTimeMillis(),
+            ),
         ) ?: return
-        setPendingSeekPositionSeconds(seekPlan.pendingSeekPositionSeconds)
-        setPendingSeekIssuedAtMillis(System.currentTimeMillis())
         setPlaybackProgress(seekPlan.progress)
         maybeSavePlaybackPosition(seekPlan.progress)
-        playbackCommands.executeSeek(seekPlan)
     }
 
     override fun seek(positionSeconds: Double) {
@@ -154,12 +149,7 @@ class DesktopPlaybackController(
     }
 
     fun canUsePreviousButton(): Boolean =
-        queueManager.canUsePreviousButton(
-            queue = playbackQueue(),
-            previousButtonBehavior = playbackSettings().previousButtonBehavior,
-            positionSeconds = playbackProgress().positionSeconds,
-            restartThresholdSeconds = PreviousRestartThresholdSeconds,
-        )
+        queueCoordinator.canUsePreviousButton(playbackSettings().previousButtonBehavior)
 
     fun canUseNextButton(): Boolean =
         queueManager.canUseNextButton(
@@ -172,8 +162,6 @@ class DesktopPlaybackController(
         when (
             queueCoordinator.previousCommand(
                 previousButtonBehavior = playbackSettings().previousButtonBehavior,
-                positionSeconds = playbackProgress().positionSeconds,
-                restartThresholdSeconds = PreviousRestartThresholdSeconds,
             )
         ) {
             PlaybackQueueNavigationCommand.None -> Unit

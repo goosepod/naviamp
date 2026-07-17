@@ -8,6 +8,7 @@ import app.naviamp.domain.playback.PlaybackQueueMutationUpdate
 import app.naviamp.domain.playback.PlaybackQueueSelectionUpdate
 import app.naviamp.domain.playback.PlaybackShuffleUpdate
 import app.naviamp.domain.playback.PlaybackQueueUpdate
+import app.naviamp.domain.playback.DefaultPreviousRestartThresholdSeconds
 import app.naviamp.domain.queue.PlaybackQueue
 import app.naviamp.domain.queue.RepeatMode
 import app.naviamp.domain.radio.generatedRadioTracksToAppend
@@ -173,14 +174,20 @@ class NaviampPlaybackQueueCoordinator(
 
     fun previousCommand(
         previousButtonBehavior: PreviousButtonBehavior,
-        positionSeconds: Double?,
-        restartThresholdSeconds: Double,
     ): PlaybackQueueNavigationCommand =
         queueManager.previousCommand(
             queue = currentQueue,
             previousButtonBehavior = previousButtonBehavior,
-            positionSeconds = positionSeconds,
-            restartThresholdSeconds = restartThresholdSeconds,
+            positionSeconds = playback.state.value.progress.positionSeconds,
+            restartThresholdSeconds = DefaultPreviousRestartThresholdSeconds,
+        )
+
+    fun canUsePreviousButton(previousButtonBehavior: PreviousButtonBehavior): Boolean =
+        queueManager.canUsePreviousButton(
+            queue = currentQueue,
+            previousButtonBehavior = previousButtonBehavior,
+            positionSeconds = playback.state.value.progress.positionSeconds,
+            restartThresholdSeconds = DefaultPreviousRestartThresholdSeconds,
         )
 
     fun nextCommand(): PlaybackQueueNavigationCommand =

@@ -18,7 +18,6 @@ internal class AndroidLivePlaybackStateProperty(
     }
 
     override operator fun setValue(thisRef: Any?, property: KProperty<*>, value: NaviampLivePlaybackState) {
-        if (controller.state.value == value) return
         controller.replace(value)
         revision.intValue += 1
     }

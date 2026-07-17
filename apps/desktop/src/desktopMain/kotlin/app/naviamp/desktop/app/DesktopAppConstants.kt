@@ -1,7 +1,5 @@
 package app.naviamp.desktop
 
-const val PreviousRestartThresholdSeconds = 10.0
-
 const val LibraryPageSize = 50
 const val PlaybackPositionSaveThresholdSeconds = 5.0
 const val PlaybackProgressUiUpdateIntervalMillis = 500L

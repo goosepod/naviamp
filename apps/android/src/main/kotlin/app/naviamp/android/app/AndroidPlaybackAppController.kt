@@ -8,6 +8,7 @@ import app.naviamp.app.NaviampPlaybackSessionController
 import app.naviamp.app.NaviampPlaybackQueueCoordinator
 import app.naviamp.app.NaviampPlaybackCommandController
 import app.naviamp.app.NaviampPlaybackExecution
+import app.naviamp.app.NaviampPlaybackSeekRequest
 import app.naviamp.domain.Album
 import app.naviamp.domain.InternetRadioStation
 import app.naviamp.domain.StreamQuality
@@ -20,8 +21,6 @@ import app.naviamp.domain.playback.PlaybackQueueNavigationCommand
 import app.naviamp.domain.playback.PlaybackQueueSelection
 import app.naviamp.domain.playback.PlaybackSource
 import app.naviamp.domain.playback.PlaybackState
-import app.naviamp.domain.playback.planPlaybackSeek
-import app.naviamp.domain.playback.shouldReplayCurrentForSeek
 import app.naviamp.domain.queue.PlaybackQueue
 import app.naviamp.domain.radio.recentRadioStreamsWith
 import app.naviamp.domain.settings.RecentRadioStream
@@ -49,7 +48,10 @@ internal class AndroidPlaybackAppController(
     private val sonicAutoplayService: SonicAutoplayService,
     private val onSyncedSettingsChanged: () -> Unit = {},
 ) : NaviampPlaybackExecution {
-    private val playbackCommands = NaviampPlaybackCommandController(this)
+    private val playbackCommands = NaviampPlaybackCommandController(
+        execution = this,
+        playback = state.sharedLivePlaybackController,
+    )
 
     fun handlePlaybackProgressChanged(sessionToken: Long, progress: PlaybackProgress) {
         handleAndroidPlaybackProgressChanged(
@@ -123,14 +125,13 @@ internal class AndroidPlaybackAppController(
     }
 
     fun performSeek(positionSeconds: Double) {
-        val currentTrack = state.nowPlaying
-        val seekPlan = planPlaybackSeek(
-            isInternetRadioTrack = currentTrack?.isInternetRadioTrack() == true,
-            positionSeconds = positionSeconds,
-            currentProgress = state.playbackProgress,
-            trackDurationSeconds = currentTrack?.durationSeconds,
-            streamQuality = currentStreamQuality(),
-            shouldReplayTranscodedStream = shouldReplayCurrentForSeek(PlaybackSource.ProviderStream),
+        val seekPlan = playbackCommands.seek(
+            NaviampPlaybackSeekRequest(
+                positionSeconds = positionSeconds,
+                streamQuality = currentStreamQuality(),
+                playbackSource = PlaybackSource.ProviderStream,
+                issuedAtMillis = System.currentTimeMillis(),
+            ),
         ) ?: return
         if (seekPlan.shouldClearRestoredStartPosition) {
             state.restoredStartPositionSeconds = null
@@ -142,9 +143,6 @@ internal class AndroidPlaybackAppController(
         AndroidPlaybackNotificationControls.positionMillis = positionMillis
         AndroidPlaybackNotificationControls.durationMillis = durationMillis
         AndroidPlaybackForegroundService.updateProgress(context, positionMillis, durationMillis)
-        state.pendingSeekPositionSeconds = seekPlan.pendingSeekPositionSeconds
-        state.pendingSeekIssuedAtMillis = System.currentTimeMillis()
-        playbackCommands.executeSeek(seekPlan)
     }
 
     override fun seek(positionSeconds: Double) {
@@ -173,8 +171,6 @@ internal class AndroidPlaybackAppController(
             offset < 0 &&
             queueCoordinator.previousCommand(
                 previousButtonBehavior = state.playbackSettings.previousButtonBehavior,
-                positionSeconds = state.playbackProgress.positionSeconds,
-                restartThresholdSeconds = 3.0,
             ) == PlaybackQueueNavigationCommand.RestartCurrent
         ) {
             performSeek(0.0)

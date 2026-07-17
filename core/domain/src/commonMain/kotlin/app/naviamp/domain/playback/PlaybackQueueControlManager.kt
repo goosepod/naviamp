@@ -4,6 +4,8 @@ import app.naviamp.domain.queue.PlaybackQueue
 import app.naviamp.domain.queue.RepeatMode
 import app.naviamp.domain.settings.PreviousButtonBehavior
 
+const val DefaultPreviousRestartThresholdSeconds = 3.0
+
 class PlaybackQueueControlManager {
     fun cycleRepeatMode(currentMode: RepeatMode): RepeatMode =
         when (currentMode) {

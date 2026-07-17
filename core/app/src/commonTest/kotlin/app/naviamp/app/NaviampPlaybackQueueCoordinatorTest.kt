@@ -130,6 +130,10 @@ class NaviampPlaybackQueueCoordinatorTest {
         val playback = NaviampLivePlaybackController(
             NaviampLivePlaybackState(
                 queue = PlaybackQueue(listOf(first, second), currentIndex = 0),
+                progress = app.naviamp.domain.playback.PlaybackProgress(
+                    positionSeconds = 8.0,
+                    durationSeconds = 180.0,
+                ),
             ),
         )
         val coordinator = NaviampPlaybackQueueCoordinator(playback)
@@ -146,8 +150,6 @@ class NaviampPlaybackQueueCoordinatorTest {
             PlaybackQueueNavigationCommand.RestartCurrent,
             coordinator.previousCommand(
                 previousButtonBehavior = PreviousButtonBehavior.RestartThenPrevious,
-                positionSeconds = 8.0,
-                restartThresholdSeconds = 3.0,
             ),
         )
 

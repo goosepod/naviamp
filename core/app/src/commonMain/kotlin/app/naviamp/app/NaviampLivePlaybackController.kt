@@ -16,6 +16,8 @@ data class NaviampLivePlaybackState(
     val currentStation: InternetRadioStation? = null,
     val queue: PlaybackQueue = PlaybackQueue(),
     val progress: PlaybackProgress = PlaybackProgress.Unknown,
+    val pendingSeekPositionSeconds: Double? = null,
+    val pendingSeekIssuedAtMillis: Long? = null,
     val playbackState: PlaybackState = PlaybackState.Idle,
     val repeatMode: RepeatMode = RepeatMode.Off,
 )
@@ -40,6 +42,28 @@ class NaviampLivePlaybackController(
     fun updateQueue(queue: PlaybackQueue) = update { current -> current.copy(queue = queue) }
 
     fun updateProgress(progress: PlaybackProgress) = update { current -> current.copy(progress = progress) }
+
+    fun updatePendingSeek(
+        positionSeconds: Double?,
+        issuedAtMillis: Long?,
+    ) = update { current ->
+        current.copy(
+            pendingSeekPositionSeconds = positionSeconds,
+            pendingSeekIssuedAtMillis = issuedAtMillis,
+        )
+    }
+
+    fun applySeekPlan(
+        progress: PlaybackProgress,
+        pendingPositionSeconds: Double,
+        issuedAtMillis: Long,
+    ) = update { current ->
+        current.copy(
+            progress = progress,
+            pendingSeekPositionSeconds = pendingPositionSeconds,
+            pendingSeekIssuedAtMillis = issuedAtMillis,
+        )
+    }
 
     fun updatePlaybackState(playbackState: PlaybackState) =
         update { current -> current.copy(playbackState = playbackState) }

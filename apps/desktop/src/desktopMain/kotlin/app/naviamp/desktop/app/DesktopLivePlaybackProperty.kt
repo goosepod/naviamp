@@ -25,7 +25,6 @@ internal class DesktopLivePlaybackProperty<T>(
     }
 
     override operator fun setValue(thisRef: Any?, property: KProperty<*>, value: T) {
-        if (read(controller.state.value) == value) return
         write(controller, value)
         revision.intValue += 1
     }
@@ -52,6 +51,22 @@ internal fun desktopPlaybackQueueProperty(controller: NaviampLivePlaybackControl
 internal fun desktopPlaybackProgressProperty(controller: NaviampLivePlaybackController) =
     DesktopLivePlaybackProperty(controller, NaviampLivePlaybackState::progress) { owner, value: PlaybackProgress ->
         owner.updateProgress(value)
+    }
+
+internal fun desktopPendingSeekPositionProperty(controller: NaviampLivePlaybackController) =
+    DesktopLivePlaybackProperty(
+        controller,
+        NaviampLivePlaybackState::pendingSeekPositionSeconds,
+    ) { owner, value: Double? ->
+        owner.updatePendingSeek(value, owner.state.value.pendingSeekIssuedAtMillis)
+    }
+
+internal fun desktopPendingSeekIssuedAtProperty(controller: NaviampLivePlaybackController) =
+    DesktopLivePlaybackProperty(
+        controller,
+        NaviampLivePlaybackState::pendingSeekIssuedAtMillis,
+    ) { owner, value: Long? ->
+        owner.updatePendingSeek(owner.state.value.pendingSeekPositionSeconds, value)
     }
 
 internal fun desktopPlaybackStateProperty(controller: NaviampLivePlaybackController) =

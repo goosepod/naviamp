@@ -239,6 +239,10 @@ fun NaviampApp(
     var playbackState by playbackStateProperty
     val playbackProgressProperty = remember { desktopPlaybackProgressProperty(livePlaybackController) }
     var playbackProgress by playbackProgressProperty
+    val pendingSeekPositionProperty = remember { desktopPendingSeekPositionProperty(livePlaybackController) }
+    var pendingSeekPositionSeconds by pendingSeekPositionProperty
+    val pendingSeekIssuedAtProperty = remember { desktopPendingSeekIssuedAtProperty(livePlaybackController) }
+    var pendingSeekIssuedAtMillis by pendingSeekIssuedAtProperty
     val playbackQueueProperty = remember { desktopPlaybackQueueProperty(livePlaybackController) }
     var playbackQueue by playbackQueueProperty
     var sleepTimer by remember { mutableStateOf<SleepTimerState?>(null) }
@@ -268,8 +272,6 @@ fun NaviampApp(
     var lastSavedPlaybackPositionSeconds by remember {
         mutableStateOf(savedPlaybackSession?.positionSeconds?.takeIf { it > 0.0 })
     }
-    var pendingSeekPositionSeconds by remember { mutableStateOf<Double?>(null) }
-    var pendingSeekIssuedAtMillis by remember { mutableStateOf<Long?>(null) }
     var lastPlaybackProgressUiUpdateMillis by remember { mutableLongStateOf(0L) }
     var playReportSessionId by remember { mutableStateOf(0) }
     val nowPlayingPresentation = rememberDesktopNowPlayingPresentationState(
@@ -286,28 +288,27 @@ fun NaviampApp(
 
     val playbackController = remember {
         DesktopPlaybackController(
-        scope = coroutineScope,
-        playbackSessions = playbackSessions,
-        queueCoordinator = queueCoordinator,
-        playbackEngine = playbackEngine,
-        playlistEngine = playlistEngine,
-        provider = { connectedProvider },
-        playbackSettings = { playbackSettings },
-        playbackQueue = { playbackQueue },
-        playbackProgress = { playbackProgress },
-        setPlaybackProgress = { progress -> playbackProgress = progress },
-        nowPlayingTrack = { nowPlayingTrack },
-        repeatMode = { repeatMode },
-        setRepeatMode = { mode -> repeatMode = mode },
-        shuffledUpNextSnapshot = { shuffledUpNextSnapshot },
-        setShuffledUpNextSnapshot = { snapshot -> shuffledUpNextSnapshot = snapshot },
-        lastSavedPlaybackPositionSeconds = { lastSavedPlaybackPositionSeconds },
-        setLastSavedPlaybackPositionSeconds = { position -> lastSavedPlaybackPositionSeconds = position },
-        playReportSessionId = { playReportSessionId },
-        setPendingSeekPositionSeconds = { position -> pendingSeekPositionSeconds = position },
-        setPendingSeekIssuedAtMillis = { millis -> pendingSeekIssuedAtMillis = millis },
-        setOpenPlayerOnTrackStart = { shouldOpen -> openPlayerOnTrackStart = shouldOpen },
-    )
+            scope = coroutineScope,
+            playbackSessions = playbackSessions,
+            livePlayback = livePlaybackController,
+            queueCoordinator = queueCoordinator,
+            playbackEngine = playbackEngine,
+            playlistEngine = playlistEngine,
+            provider = { connectedProvider },
+            playbackSettings = { playbackSettings },
+            playbackQueue = { playbackQueue },
+            playbackProgress = { playbackProgress },
+            setPlaybackProgress = { progress -> playbackProgress = progress },
+            nowPlayingTrack = { nowPlayingTrack },
+            repeatMode = { repeatMode },
+            setRepeatMode = { mode -> repeatMode = mode },
+            shuffledUpNextSnapshot = { shuffledUpNextSnapshot },
+            setShuffledUpNextSnapshot = { snapshot -> shuffledUpNextSnapshot = snapshot },
+            lastSavedPlaybackPositionSeconds = { lastSavedPlaybackPositionSeconds },
+            setLastSavedPlaybackPositionSeconds = { position -> lastSavedPlaybackPositionSeconds = position },
+            playReportSessionId = { playReportSessionId },
+            setOpenPlayerOnTrackStart = { shouldOpen -> openPlayerOnTrackStart = shouldOpen },
+        )
     }
 
     val sleepTimerController = remember {

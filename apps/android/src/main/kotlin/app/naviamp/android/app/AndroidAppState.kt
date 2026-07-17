@@ -158,8 +158,16 @@ class AndroidAppState(
     var selectedVisualizer by mutableStateOf(initialSelectedVisualizer)
     val visualizerVisible: Boolean
         get() = isNaviampVisualizerVisible(visualizerRequestedVisible, playbackState)
-    var pendingSeekPositionSeconds by mutableStateOf<Double?>(null)
-    var pendingSeekIssuedAtMillis by mutableStateOf<Long?>(null)
+    var pendingSeekPositionSeconds: Double?
+        get() = livePlaybackState.pendingSeekPositionSeconds
+        set(value) {
+            livePlaybackState = livePlaybackState.copy(pendingSeekPositionSeconds = value)
+        }
+    var pendingSeekIssuedAtMillis: Long?
+        get() = livePlaybackState.pendingSeekIssuedAtMillis
+        set(value) {
+            livePlaybackState = livePlaybackState.copy(pendingSeekIssuedAtMillis = value)
+        }
     var pendingRestoreStartPositionSeconds by mutableStateOf<Double?>(null)
     var playbackSessionToken by mutableStateOf(0L)
     var volumePercent by mutableStateOf(100)
