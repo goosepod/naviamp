@@ -19,6 +19,7 @@ class NaviampDownloadJobControllerTest {
 
         val job = assertNotNull(controller.create("Album", listOf(track("one")), replaceExisting = true))
         assertEquals("download-000000000001", job.id)
+        assertEquals(listOf(job), controller.currentJobs)
         controller.registerCancellation(job.id) { cancelled = true }
         controller.update(job.id, DownloadJobUpdate.TrackCompleted("one"))
         assertTrue(controller.cancel(job.id))

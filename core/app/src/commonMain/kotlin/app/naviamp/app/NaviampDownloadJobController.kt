@@ -37,6 +37,8 @@ class NaviampDownloadJobController(
     private val replacementJobs = mutableSetOf<String>()
     private var nextJobId = 0L
 
+    val currentJobs: List<DownloadJob> get() = jobs()
+
     fun create(label: String, tracks: List<Track>, replaceExisting: Boolean): DownloadJob? {
         val job = createDownloadJob(newJobId(), label, tracks).takeIf { it.items.isNotEmpty() } ?: return null
         setJobs(jobs().withDownloadJob(job))

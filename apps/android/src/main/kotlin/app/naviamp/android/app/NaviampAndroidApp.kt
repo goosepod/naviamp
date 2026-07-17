@@ -20,6 +20,8 @@ import app.naviamp.app.NaviampCacheMaintenanceController
 import app.naviamp.app.NaviampCacheSettingsController
 import app.naviamp.app.NaviampApplicationStatusArea
 import app.naviamp.app.NaviampApplicationStatusLevel
+import app.naviamp.app.NaviampDownloadCoordinator
+import app.naviamp.app.NaviampDownloadJobController
 import app.naviamp.android.playback.AndroidPlaybackEngine
 import app.naviamp.domain.AlbumDetails
 import app.naviamp.domain.Lyrics
@@ -82,6 +84,8 @@ import app.naviamp.ui.resetAndroidPlatformCoverArtByteLoader
 import app.naviamp.ui.setAndroidPlatformCoverArtByteLoader
 import app.naviamp.ui.toSharedSearchResultsUi
 import java.io.File
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 @Composable
 fun NaviampAndroidApp(
@@ -346,27 +350,6 @@ fun NaviampAndroidApp(
         )
     }
 
-    val downloadActionController = remember(appState, storage, context) {
-        AndroidDownloadActionController(
-            context = context,
-            scope = scope,
-            state = appState,
-            storage = storage,
-            findKnownTrack = mediaAppController::findKnownTrack,
-        )
-    }
-    LaunchedEffect(appState.activeSourceId) {
-        downloadActionController.reloadKeepDownloadedPolicies()
-    }
-    LaunchedEffect(
-        appState.homeState.playlists.map { playlist -> Triple(playlist.id, playlist.trackCount, playlist.isSmart) },
-        appState.nowPlaying?.favoritedAtIso8601,
-    ) {
-        if (appState.keepDownloadedPolicies.isNotEmpty()) {
-            downloadActionController.reconcileKeepDownloadedCollections()
-        }
-    }
-
     val cacheSettingsController = remember(appState, storage, settingsStore, context) {
         NaviampCacheSettingsController(
             setSettings = { settings -> appState.cacheSettings = settings },
@@ -397,6 +380,22 @@ fun NaviampAndroidApp(
                     message = status,
                 )
             },
+        )
+    }
+    val downloadJobsController = remember(appState) {
+        NaviampDownloadJobController(
+            jobs = { appState.downloadJobs },
+            setJobs = { jobs -> appState.downloadJobs = jobs },
+        )
+    }
+    val downloadCoordinator = remember(storage, downloadJobsController) {
+        NaviampDownloadCoordinator(
+            downloadRepository = storage,
+            downloadReplacementRepository = storage,
+            keepDownloadedRepository = storage,
+            jobs = downloadJobsController,
+            downloadedTrackId = { download: AndroidDownloadedTrack -> download.track.id.value },
+            loadStats = { withContext(Dispatchers.IO) { storage.stats() } },
         )
     }
 
@@ -522,6 +521,8 @@ fun NaviampAndroidApp(
         playbackEngine,
         cacheSettingsController,
         cacheMaintenanceController,
+        downloadJobsController,
+        downloadCoordinator,
     ) {
         NaviampApplicationServices(
             settingsSync = NaviampSettingsSyncController(
@@ -553,9 +554,34 @@ fun NaviampAndroidApp(
             ),
             cacheSettings = cacheSettingsController,
             cacheMaintenance = cacheMaintenanceController,
+            downloadJobs = downloadJobsController,
+            downloads = downloadCoordinator,
         )
     }
     val settingsSyncController = applicationServices.settingsSync
+
+    val downloadActionController = remember(appState, storage, context, applicationServices) {
+        AndroidDownloadActionController(
+            context = context,
+            scope = scope,
+            state = appState,
+            storage = storage,
+            findKnownTrack = mediaAppController::findKnownTrack,
+            downloadJobs = applicationServices.downloadJobs,
+            downloads = applicationServices.downloads,
+        )
+    }
+    LaunchedEffect(appState.activeSourceId) {
+        downloadActionController.reloadKeepDownloadedPolicies()
+    }
+    LaunchedEffect(
+        appState.homeState.playlists.map { playlist -> Triple(playlist.id, playlist.trackCount, playlist.isSmart) },
+        appState.nowPlaying?.favoritedAtIso8601,
+    ) {
+        if (appState.keepDownloadedPolicies.isNotEmpty()) {
+            downloadActionController.reconcileKeepDownloadedCollections()
+        }
+    }
 
     val settingsMaintenanceController = remember(appState, storage, settingsStore, context) {
         AndroidSettingsMaintenanceController(

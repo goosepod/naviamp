@@ -7,10 +7,12 @@ import androidx.compose.runtime.setValue
 import app.naviamp.domain.Album
 import app.naviamp.domain.Playlist
 import app.naviamp.domain.Track
-import app.naviamp.domain.cache.DownloadReplacementRepository
 import app.naviamp.app.NaviampDownloadJobController
 import app.naviamp.app.NaviampDownloadCoordinator
 import app.naviamp.app.NaviampDownloadExecutionRequest
+import app.naviamp.app.NaviampApplicationStatusArea
+import app.naviamp.app.NaviampApplicationStatusController
+import app.naviamp.app.NaviampApplicationStatusLevel
 import app.naviamp.app.downloadsDeletedStatus
 import app.naviamp.app.downloadsRefreshStatus
 import app.naviamp.app.keepDownloadedDisabledStatus
@@ -46,9 +48,11 @@ import kotlinx.coroutines.withContext
 class DesktopDownloadsController(
     private val scope: CoroutineScope,
     private val downloadRepository: DownloadRepository<DownloadedAudioFile, DownloadedTrack>,
-    private val downloadReplacementRepository: DownloadReplacementRepository<DownloadedAudioFile>,
     private val keepDownloadedRepository: KeepDownloadedRepository,
     private val cacheMaintenanceRepository: CacheMaintenanceRepository<StorageCacheStats>,
+    private val jobController: NaviampDownloadJobController,
+    private val downloads: NaviampDownloadCoordinator<DownloadedAudioFile, DownloadedTrack, StorageCacheStats>,
+    private val applicationStatus: NaviampApplicationStatusController,
     providerResponseCacheRepository: ProviderResponseCacheRepository,
     private val playbackEngine: PlaybackEngine,
     private val playbackSettings: () -> PlaybackSettings,
@@ -66,27 +70,22 @@ class DesktopDownloadsController(
         private set
     var refreshToken by mutableIntStateOf(0)
         private set
-    var downloadJobs by mutableStateOf<List<DownloadJob>>(emptyList())
-        private set
+    val downloadJobs: List<DownloadJob> get() = jobController.currentJobs
     var keepDownloadedPolicies by mutableStateOf<List<KeepDownloadedCollectionPolicy>>(emptyList())
         private set
 
     private val providerResponseService = ProviderResponseService(providerResponseCacheRepository)
-    private val jobController = NaviampDownloadJobController(
-        jobs = { downloadJobs },
-        setJobs = { jobs -> downloadJobs = jobs },
-    )
-    private val downloads = NaviampDownloadCoordinator(
-        downloadRepository = downloadRepository,
-        downloadReplacementRepository = downloadReplacementRepository,
-        keepDownloadedRepository = keepDownloadedRepository,
-        jobs = jobController,
-        downloadedTrackId = { download: DownloadedTrack -> download.track.id.value },
-        loadStats = { withContext(Dispatchers.IO) { cacheMaintenanceRepository.stats() } },
-    )
-
     private fun incrementRefreshToken() {
         refreshToken += 1
+    }
+
+    private fun updateStatus(message: String) {
+        status = message
+        applicationStatus.publish(
+            area = NaviampApplicationStatusArea.Downloads,
+            level = NaviampApplicationStatusLevel.Information,
+            message = message,
+        )
     }
 
     fun downloadTracks(label: String, tracks: List<Track>) {
@@ -97,11 +96,11 @@ class DesktopDownloadsController(
         val activeProvider = provider()
         val activeSourceId = sourceId()
         if (activeProvider == null || activeSourceId == null) {
-            status = downloadConnectionRequiredStatus()
+            updateStatus(downloadConnectionRequiredStatus())
             return
         }
         val initialJob = jobController.create(label, tracks, replaceExisting) ?: run {
-            status = noTracksToDownloadStatus()
+            updateStatus(noTracksToDownloadStatus())
             return
         }
         val jobId = initialJob.id
@@ -121,7 +120,7 @@ class DesktopDownloadsController(
                         replaceExisting = replaceExisting,
                         refreshDownloadsAfter = { result -> result !is DownloadTracksResult.Blocked },
                     ),
-                    setStatus = { downloadStatus -> status = downloadStatus },
+                    setStatus = ::updateStatus,
                 )
                 if (result.refreshDownloads) {
                     incrementRefreshToken()
@@ -163,10 +162,10 @@ class DesktopDownloadsController(
 
     fun downloadAlbum(album: Album) {
         val activeProvider = provider() ?: run {
-            status = downloadConnectionRequiredStatus()
+            updateStatus(downloadConnectionRequiredStatus())
             return
         }
-        status = "Loading ${album.title}..."
+        updateStatus("Loading ${album.title}...")
         scope.launch {
             try {
                 val tracks = withContext(Dispatchers.IO) {
@@ -174,17 +173,17 @@ class DesktopDownloadsController(
                 }
                 downloadTracks(album.title, tracks)
             } catch (exception: Exception) {
-                status = exception.message ?: "Could not load ${album.title}."
+                updateStatus(exception.message ?: "Could not load ${album.title}.")
             }
         }
     }
 
     fun downloadPlaylist(playlist: Playlist) {
         val activeProvider = provider() ?: run {
-            status = downloadConnectionRequiredStatus()
+            updateStatus(downloadConnectionRequiredStatus())
             return
         }
-        status = "Loading ${playlist.name}..."
+        updateStatus("Loading ${playlist.name}...")
         scope.launch {
             try {
                 val tracks = withContext(Dispatchers.IO) {
@@ -192,7 +191,7 @@ class DesktopDownloadsController(
                 }
                 downloadTracks(playlist.name, tracks)
             } catch (exception: Exception) {
-                status = exception.message ?: "Could not load ${playlist.name}."
+                updateStatus(exception.message ?: "Could not load ${playlist.name}.")
             }
         }
     }
@@ -208,11 +207,11 @@ class DesktopDownloadsController(
         if (existing != null) {
             keepDownloadedRepository.deleteKeepDownloadedPolicy(activeSourceId, kind, playlist.id)
             reloadKeepDownloadedPolicies()
-            status = keepDownloadedDisabledStatus(playlist.name)
+            updateStatus(keepDownloadedDisabledStatus(playlist.name))
             return
         }
         val activeProvider = provider() ?: run {
-            status = downloadConnectionRequiredStatus()
+            updateStatus(downloadConnectionRequiredStatus())
             return
         }
         scope.launch {
@@ -222,7 +221,7 @@ class DesktopDownloadsController(
                     KeepDownloadedCollectionPolicy(activeSourceId, kind, playlist.id, playlist.name),
                     tracks,
                 )
-            }.onFailure { error -> status = keepDownloadedErrorStatus(playlist.name, error) }
+            }.onFailure { error -> updateStatus(keepDownloadedErrorStatus(playlist.name, error)) }
         }
     }
 
@@ -233,11 +232,11 @@ class DesktopDownloadsController(
         if (existing != null) {
             keepDownloadedRepository.deleteKeepDownloadedPolicy(activeSourceId, kind, FavoritesCollectionId)
             reloadKeepDownloadedPolicies()
-            status = keepDownloadedDisabledStatus("Favorites")
+            updateStatus(keepDownloadedDisabledStatus("Favorites"))
             return
         }
         val activeProvider = provider() ?: run {
-            status = downloadConnectionRequiredStatus()
+            updateStatus(downloadConnectionRequiredStatus())
             return
         }
         scope.launch {
@@ -247,7 +246,7 @@ class DesktopDownloadsController(
                     KeepDownloadedCollectionPolicy(activeSourceId, kind, FavoritesCollectionId, "Favorite tracks"),
                     tracks,
                 )
-            }.onFailure { error -> status = keepDownloadedErrorStatus("favorites", error) }
+            }.onFailure { error -> updateStatus(keepDownloadedErrorStatus("favorites", error)) }
         }
     }
 
@@ -266,7 +265,7 @@ class DesktopDownloadsController(
                         }
                     }
                     reconcileKeepDownloadedPolicy(policy, tracks)
-                }.onFailure { error -> status = keepDownloadedRefreshErrorStatus(policy.name, error) }
+                }.onFailure { error -> updateStatus(keepDownloadedRefreshErrorStatus(policy.name, error)) }
             }
         }
     }
@@ -275,7 +274,7 @@ class DesktopDownloadsController(
         val plan = downloads.reconcile(policy, tracks)
         reloadKeepDownloadedPolicies()
         if (plan.tracksToDownload.isEmpty()) {
-            status = keepDownloadedUpToDateStatus(policy.name)
+            updateStatus(keepDownloadedUpToDateStatus(policy.name))
         } else {
             downloadTracks(keepingDownloadedLabel(policy.name), plan.tracksToDownload)
         }
@@ -286,7 +285,7 @@ class DesktopDownloadsController(
         val activeSourceId = sourceId() ?: return
         downloadRepository.removeDownloadedAudio(activeSourceId, download.track.id)
         incrementRefreshToken()
-        status = downloadedTrackRemovedStatus(download.track.title)
+        updateStatus(downloadedTrackRemovedStatus(download.track.title))
     }
 
     fun refreshDownloads() {
@@ -302,7 +301,7 @@ class DesktopDownloadsController(
             }
             incrementRefreshToken()
             setCacheStats(withContext(Dispatchers.IO) { cacheMaintenanceRepository.stats() })
-            status = downloadsRefreshStatus(removed)
+            updateStatus(downloadsRefreshStatus(removed))
             reconcileKeepDownloadedCollections()
         }
     }
@@ -319,7 +318,7 @@ class DesktopDownloadsController(
             }
             incrementRefreshToken()
             setCacheStats(withContext(Dispatchers.IO) { cacheMaintenanceRepository.stats() })
-            status = downloadsDeletedStatus(downloads.size)
+            updateStatus(downloadsDeletedStatus(downloads.size))
         }
     }
 

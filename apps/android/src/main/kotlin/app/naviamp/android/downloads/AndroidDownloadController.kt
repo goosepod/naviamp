@@ -4,6 +4,8 @@ import app.naviamp.domain.cache.StorageCacheStats
 import app.naviamp.app.NaviampDownloadJobController
 import app.naviamp.app.NaviampDownloadCoordinator
 import app.naviamp.app.NaviampDownloadExecutionRequest
+import app.naviamp.app.NaviampApplicationStatusArea
+import app.naviamp.app.NaviampApplicationStatusLevel
 import app.naviamp.app.downloadsDeletedStatus
 import app.naviamp.app.downloadsRefreshStatus
 import app.naviamp.app.keepDownloadedDisabledStatus
@@ -31,6 +33,15 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
+private fun AndroidAppState.publishDownloadStatus(message: String) {
+    downloadStatus = message
+    sharedControllers.status.publish(
+        area = NaviampApplicationStatusArea.Downloads,
+        level = NaviampApplicationStatusLevel.Information,
+        message = message,
+    )
+}
+
 fun removeAndroidDownload(
     scope: CoroutineScope,
     state: AndroidAppState,
@@ -52,11 +63,9 @@ fun removeAndroidDownload(
             }.onSuccess {
                 downloadRefreshToken += 1
                 storageStats = withContext(Dispatchers.IO) { cacheMaintenanceRepository.stats() }
-                downloadStatus = downloadedTrackRemovedStatus(track.title)
-                status = downloadStatus.orEmpty()
+                publishDownloadStatus(downloadedTrackRemovedStatus(track.title))
             }.onFailure { error ->
-                downloadStatus = downloadRemoveErrorStatus(error)
-                status = downloadStatus.orEmpty()
+                publishDownloadStatus(downloadRemoveErrorStatus(error))
             }
         }
     }
@@ -68,20 +77,9 @@ internal class AndroidDownloadActionController(
     private val state: AndroidAppState,
     private val storage: AndroidStorageDependencies,
     private val findKnownTrack: (String) -> Track?,
+    private val downloadJobs: NaviampDownloadJobController,
+    private val downloads: NaviampDownloadCoordinator<AndroidDownloadedAudioFile, AndroidDownloadedTrack, StorageCacheStats>,
 ) {
-    private val downloadJobs = NaviampDownloadJobController(
-        jobs = { state.downloadJobs },
-        setJobs = { jobs -> state.downloadJobs = jobs },
-    )
-    private val downloads = NaviampDownloadCoordinator(
-        downloadRepository = storage,
-        downloadReplacementRepository = storage,
-        keepDownloadedRepository = storage,
-        jobs = downloadJobs,
-        downloadedTrackId = { download: AndroidDownloadedTrack -> download.track.id.value },
-        loadStats = { withContext(Dispatchers.IO) { storage.stats() } },
-    )
-
     fun downloadTrack(track: Track) {
         launchDownloadJob(
             label = track.title,
@@ -125,19 +123,16 @@ internal class AndroidDownloadActionController(
         includeCompletedCount: Boolean = true,
     ) {
         if (state.provider == null || state.activeSourceId == null) {
-            state.downloadStatus = downloadConnectionRequiredStatus()
-            state.status = state.downloadStatus.orEmpty()
+            state.publishDownloadStatus(downloadConnectionRequiredStatus())
             return
         }
         if (context.isActiveNetworkMobileData() && !state.playbackSettings.allowMobileDownloads) {
-            state.downloadStatus = downloadMobileDataDisabledStatus()
-            state.status = state.downloadStatus.orEmpty()
+            state.publishDownloadStatus(downloadMobileDataDisabledStatus())
             return
         }
         val initialJob = downloadJobs.create(label, tracksToDownload, replaceExisting)
         if (initialJob == null) {
-            state.downloadStatus = noTracksToDownloadStatus()
-            state.status = state.downloadStatus.orEmpty()
+            state.publishDownloadStatus(noTracksToDownloadStatus())
             return
         }
         val jobId = initialJob.id
@@ -157,8 +152,7 @@ internal class AndroidDownloadActionController(
                     includeCompletedCount = includeCompletedCount,
                 ),
                 setStatus = { message ->
-                    state.downloadStatus = message
-                    state.status = message
+                    state.publishDownloadStatus(message)
                 },
             )
             if (result.refreshDownloads) {
@@ -185,8 +179,7 @@ internal class AndroidDownloadActionController(
         if (existing != null) {
             storage.deleteKeepDownloadedPolicy(sourceId, kind, playlist.id)
             reloadKeepDownloadedPolicies()
-            state.downloadStatus = keepDownloadedDisabledStatus(playlist.name)
-            state.status = state.downloadStatus.orEmpty()
+            state.publishDownloadStatus(keepDownloadedDisabledStatus(playlist.name))
             return
         }
         val provider = state.provider ?: return
@@ -198,8 +191,7 @@ internal class AndroidDownloadActionController(
                     tracks,
                 )
             }.onFailure { error ->
-                state.downloadStatus = keepDownloadedErrorStatus(playlist.name, error)
-                state.status = state.downloadStatus.orEmpty()
+                state.publishDownloadStatus(keepDownloadedErrorStatus(playlist.name, error))
             }
         }
     }
@@ -211,8 +203,7 @@ internal class AndroidDownloadActionController(
         if (existing != null) {
             storage.deleteKeepDownloadedPolicy(sourceId, kind, FavoritesCollectionId)
             reloadKeepDownloadedPolicies()
-            state.downloadStatus = keepDownloadedDisabledStatus("Favorites")
-            state.status = state.downloadStatus.orEmpty()
+            state.publishDownloadStatus(keepDownloadedDisabledStatus("Favorites"))
             return
         }
         val provider = state.provider ?: return
@@ -224,8 +215,7 @@ internal class AndroidDownloadActionController(
                     tracks,
                 )
             }.onFailure { error ->
-                state.downloadStatus = keepDownloadedErrorStatus("favorites", error)
-                state.status = state.downloadStatus.orEmpty()
+                state.publishDownloadStatus(keepDownloadedErrorStatus("favorites", error))
             }
         }
     }
@@ -246,8 +236,7 @@ internal class AndroidDownloadActionController(
                     }
                     reconcileKeepDownloadedPolicy(policy, tracks)
                 }.onFailure { error ->
-                    state.downloadStatus = keepDownloadedRefreshErrorStatus(policy.name, error)
-                    state.status = state.downloadStatus.orEmpty()
+                    state.publishDownloadStatus(keepDownloadedRefreshErrorStatus(policy.name, error))
                 }
             }
         }
@@ -257,8 +246,7 @@ internal class AndroidDownloadActionController(
         val plan = downloads.reconcile(policy, tracks)
         reloadKeepDownloadedPolicies()
         if (plan.tracksToDownload.isEmpty()) {
-            state.downloadStatus = keepDownloadedUpToDateStatus(policy.name)
-            state.status = state.downloadStatus.orEmpty()
+            state.publishDownloadStatus(keepDownloadedUpToDateStatus(policy.name))
         } else {
             downloadTracks(plan.tracksToDownload, keepingDownloadedLabel(policy.name))
         }
@@ -287,8 +275,7 @@ internal class AndroidDownloadActionController(
             }
             state.downloadRefreshToken += 1
             state.storageStats = withContext(Dispatchers.IO) { storage.stats() }
-            state.downloadStatus = downloadsRefreshStatus(removed)
-            state.status = state.downloadStatus.orEmpty()
+            state.publishDownloadStatus(downloadsRefreshStatus(removed))
             reconcileKeepDownloadedCollections()
         }
     }
@@ -303,8 +290,7 @@ internal class AndroidDownloadActionController(
             }
             state.downloadRefreshToken += 1
             state.storageStats = withContext(Dispatchers.IO) { storage.stats() }
-            state.downloadStatus = downloadsDeletedStatus(count)
-            state.status = state.downloadStatus.orEmpty()
+            state.publishDownloadStatus(downloadsDeletedStatus(count))
         }
     }
 }

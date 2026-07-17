@@ -30,11 +30,14 @@ import app.naviamp.app.NaviampApplicationServices
 import app.naviamp.app.NaviampCacheMaintenanceController
 import app.naviamp.app.NaviampApplicationStatusArea
 import app.naviamp.app.NaviampApplicationStatusLevel
+import app.naviamp.app.NaviampDownloadCoordinator
+import app.naviamp.app.NaviampDownloadJobController
 import app.naviamp.app.NaviampLivePlaybackState
 import app.naviamp.app.NaviampPlaybackSessionController
 import app.naviamp.app.NaviampCacheSettingsController
 import app.naviamp.domain.app.NaviampNavigationState
 import app.naviamp.domain.cache.ImageCacheRepository
+import app.naviamp.domain.cache.DownloadJob
 import app.naviamp.domain.cache.ProviderResponseService
 import app.naviamp.domain.playback.PlaybackProgress
 import app.naviamp.desktop.playback.PlaylistCallbacks
@@ -141,6 +144,7 @@ fun NaviampApp(
         }
     }
     var cacheStats by remember { mutableStateOf(StorageCacheStats()) }
+    var downloadJobs by remember { mutableStateOf<List<DownloadJob>>(emptyList()) }
     var connectedSourceId by remember { mutableStateOf(savedMediaSource?.id) }
     val desktopPlaybackAudioAssets = dependencies.playbackAudioAssets
     val audioMetadataSidecarService = dependencies.audioMetadataSidecarService
@@ -445,7 +449,28 @@ fun NaviampApp(
         }
     }
 
-    val applicationServices = remember(storage, settingsStore) {
+    val downloadJobsController = remember {
+        NaviampDownloadJobController(
+            jobs = { downloadJobs },
+            setJobs = { jobs -> downloadJobs = jobs },
+        )
+    }
+    val downloadCoordinator = remember(storage, downloadJobsController) {
+        NaviampDownloadCoordinator(
+            downloadRepository = storage,
+            downloadReplacementRepository = storage,
+            keepDownloadedRepository = storage,
+            jobs = downloadJobsController,
+            downloadedTrackId = { download: DownloadedTrack -> download.track.id.value },
+            loadStats = { withContext(Dispatchers.IO) { storage.stats() } },
+        )
+    }
+    val applicationServices = remember(
+        storage,
+        settingsStore,
+        downloadJobsController,
+        downloadCoordinator,
+    ) {
         NaviampApplicationServices(
             settingsSync = NaviampSettingsSyncController(
                 deviceId = DesktopSettingsSyncDeviceId,
@@ -480,6 +505,8 @@ fun NaviampApp(
                     )
                 },
             ),
+            downloadJobs = downloadJobsController,
+            downloads = downloadCoordinator,
         )
     }
     val settingsSyncController = applicationServices.settingsSync
@@ -947,9 +974,11 @@ fun NaviampApp(
         DesktopDownloadsController(
         scope = coroutineScope,
             downloadRepository = storage,
-            downloadReplacementRepository = storage,
-            keepDownloadedRepository = storage,
+        keepDownloadedRepository = storage,
         cacheMaintenanceRepository = storage,
+        jobController = applicationServices.downloadJobs,
+        downloads = applicationServices.downloads,
+        applicationStatus = applicationControllers.status,
         providerResponseCacheRepository = storage,
         playbackEngine = playbackEngine,
         playbackSettings = { playbackSettings },
