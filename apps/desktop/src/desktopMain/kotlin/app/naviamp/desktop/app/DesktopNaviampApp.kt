@@ -51,10 +51,13 @@ import app.naviamp.desktop.settings.DesktopSettingsSyncFile
 import app.naviamp.desktop.settings.DesktopSettingsSyncSettings
 import app.naviamp.desktop.settings.VisualizerSettings
 import app.naviamp.app.NaviampSettingsSyncController
+import app.naviamp.app.settingsSyncAutoExportStatus
+import app.naviamp.app.settingsSyncImportStatus
+import app.naviamp.app.settingsSyncLocationStatus
+import app.naviamp.app.settingsSyncReconciliationStatus
 import app.naviamp.domain.settings.SettingsSyncDocument
 import app.naviamp.domain.settings.SettingsSyncLocalSnapshot
 import app.naviamp.domain.settings.SettingsSyncOperationKind
-import app.naviamp.domain.settings.SettingsSyncOperationResult
 import app.naviamp.domain.settings.SettingsSyncRuntimeState
 import app.naviamp.domain.settings.effectiveForEngine
 import app.naviamp.domain.settings.PlaybackSettingsMaintenanceController
@@ -459,34 +462,8 @@ fun NaviampApp(
             lastLocalUpdateEpochMillis = settingsSyncSettings.lastLocalUpdateEpochMillis,
             lastAppliedSyncUpdateEpochMillis = settingsSyncSettings.lastAppliedSyncUpdateEpochMillis,
         ))
-        settingsSyncStatus = if (settingsSyncSettings.directoryPath == null) {
-            "Settings sync disabled."
-        } else {
-            "Settings sync folder selected."
-        }
+        settingsSyncStatus = settingsSyncLocationStatus(settingsSyncSettings.directoryPath != null)
     }
-
-    fun settingsSyncImportStatus(result: SettingsSyncOperationResult): String =
-        if (result.hasServerProfiles) {
-            "Settings imported. Enter the Navidrome password to finish connecting."
-        } else {
-            "Settings imported."
-        }
-
-    fun settingsSyncStartupStatus(result: SettingsSyncOperationResult): String =
-        when (result.kind) {
-            SettingsSyncOperationKind.Imported -> if (result.hasServerProfiles) {
-                "Settings sync imported newer shared settings. Enter the Navidrome password to finish connecting."
-            } else {
-                "Settings sync imported newer shared settings."
-            }
-            SettingsSyncOperationKind.NoOp -> "Settings sync is up to date."
-            SettingsSyncOperationKind.UnsupportedSyncFile ->
-                "Settings sync file was created by a newer Naviamp version."
-            SettingsSyncOperationKind.NeedsSetupChoice -> "Choose how to set up Naviamp."
-            SettingsSyncOperationKind.MissingSyncLocation -> "Choose a settings sync folder first."
-            SettingsSyncOperationKind.Exported -> "Settings sync exported local settings."
-        }
 
     fun writeSettingsSync(
         document: SettingsSyncDocument,
@@ -524,11 +501,7 @@ fun NaviampApp(
         saveSettingsSyncSettings(settingsSyncSettings.copy(
             autoExportEnabled = enabled && settingsSyncSettings.directoryPath != null,
         ))
-        settingsSyncStatus = if (settingsSyncSettings.autoExportEnabled) {
-            "Auto-export enabled."
-        } else {
-            "Auto-export disabled."
-        }
+        settingsSyncStatus = settingsSyncAutoExportStatus(settingsSyncSettings.autoExportEnabled)
         if (settingsSyncSettings.autoExportEnabled) {
             autoExportSettingsSync()
         }
@@ -580,7 +553,7 @@ fun NaviampApp(
                 ?: error("No settings sync file found in that folder.")
             settingsSyncController.applySyncedDocument(document)
         }.onSuccess { result ->
-            settingsSyncStatus = settingsSyncImportStatus(result)
+            settingsSyncStatus = settingsSyncImportStatus(result.hasServerProfiles)
         }.onFailure { error ->
             settingsSyncStatus = error.message ?: "Could not import settings sync file."
         }
@@ -610,18 +583,20 @@ fun NaviampApp(
     LaunchedEffect(Unit) {
         val directory = settingsSyncDirectory() ?: return@LaunchedEffect
         runCatching {
-            val syncedDocument = DesktopSettingsSyncFile.read(directory)
-            settingsSyncController.reconcileStartup(
-                syncedDocument = syncedDocument,
+            val providerDocument = DesktopSettingsSyncFile.read(directory)
+            settingsSyncController.reconcileDocuments(
+                localMirrorDocument = null,
+                providerDocument = providerDocument,
                 syncLocationConfigured = true,
             )
-        }.onSuccess { result ->
+        }.onSuccess { reconciliation ->
+            val result = reconciliation.result
             if (result.kind == SettingsSyncOperationKind.Exported) {
                 result.documentToWrite?.let { document ->
                     writeSettingsSync(document) { fileName -> "Settings sync exported local settings to $fileName." }
                 }
             } else {
-                settingsSyncStatus = settingsSyncStartupStatus(result)
+                settingsSyncStatus = settingsSyncReconciliationStatus(result)
             }
         }.onFailure { error ->
             settingsSyncStatus = error.message ?: "Could not check settings sync folder."

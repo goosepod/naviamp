@@ -6,7 +6,7 @@ import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import app.naviamp.domain.app.cacheDataClearedStatus
+import app.naviamp.app.NaviampCacheMaintenanceController
 import app.naviamp.domain.app.libraryIndexClearedStatus
 import app.naviamp.domain.cache.CacheMaintenanceRepository
 import app.naviamp.domain.cache.LocalLibraryIndexRepository
@@ -40,6 +40,10 @@ class DesktopLibraryController(
         private set
 
     private val artistIndex = ArtistLibraryIndex(libraryIndexRepository)
+    private val cacheMaintenance = NaviampCacheMaintenanceController(
+        repository = cacheMaintenanceRepository,
+        setStatus = setConnectionStatus,
+    )
 
     fun updateQuery(query: String) {
         this.query = query
@@ -104,8 +108,7 @@ class DesktopLibraryController(
     }
 
     fun clearCacheData() {
-        cacheMaintenanceRepository.clearCacheData()
-        setConnectionStatus(cacheDataClearedStatus(detailed = true))
+        cacheMaintenance.clearCache(detailedStatus = true)
     }
 
     fun clearLibraryData() {

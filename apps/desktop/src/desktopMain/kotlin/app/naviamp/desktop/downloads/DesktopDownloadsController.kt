@@ -11,6 +11,14 @@ import app.naviamp.domain.cache.DownloadReplacementRepository
 import app.naviamp.app.NaviampDownloadJobController
 import app.naviamp.app.NaviampDownloadCoordinator
 import app.naviamp.app.NaviampDownloadExecutionRequest
+import app.naviamp.app.downloadsDeletedStatus
+import app.naviamp.app.downloadsRefreshStatus
+import app.naviamp.app.keepDownloadedDisabledStatus
+import app.naviamp.app.keepDownloadedErrorStatus
+import app.naviamp.app.keepDownloadedRefreshErrorStatus
+import app.naviamp.app.keepDownloadedUpToDateStatus
+import app.naviamp.app.keepingDownloadedLabel
+import app.naviamp.app.noTracksToDownloadStatus
 import app.naviamp.domain.cache.DownloadRepository
 import app.naviamp.domain.cache.DownloadJob
 import app.naviamp.domain.cache.DownloadTracksResult
@@ -93,7 +101,7 @@ class DesktopDownloadsController(
             return
         }
         val initialJob = jobController.create(label, tracks, replaceExisting) ?: run {
-            status = "No tracks to download."
+            status = noTracksToDownloadStatus()
             return
         }
         val jobId = initialJob.id
@@ -200,7 +208,7 @@ class DesktopDownloadsController(
         if (existing != null) {
             keepDownloadedRepository.deleteKeepDownloadedPolicy(activeSourceId, kind, playlist.id)
             reloadKeepDownloadedPolicies()
-            status = "${playlist.name} will no longer be kept downloaded. Existing files were kept."
+            status = keepDownloadedDisabledStatus(playlist.name)
             return
         }
         val activeProvider = provider() ?: run {
@@ -214,7 +222,7 @@ class DesktopDownloadsController(
                     KeepDownloadedCollectionPolicy(activeSourceId, kind, playlist.id, playlist.name),
                     tracks,
                 )
-            }.onFailure { error -> status = error.message ?: "Could not keep ${playlist.name} downloaded." }
+            }.onFailure { error -> status = keepDownloadedErrorStatus(playlist.name, error) }
         }
     }
 
@@ -225,7 +233,7 @@ class DesktopDownloadsController(
         if (existing != null) {
             keepDownloadedRepository.deleteKeepDownloadedPolicy(activeSourceId, kind, FavoritesCollectionId)
             reloadKeepDownloadedPolicies()
-            status = "Favorites will no longer be kept downloaded. Existing files were kept."
+            status = keepDownloadedDisabledStatus("Favorites")
             return
         }
         val activeProvider = provider() ?: run {
@@ -239,7 +247,7 @@ class DesktopDownloadsController(
                     KeepDownloadedCollectionPolicy(activeSourceId, kind, FavoritesCollectionId, "Favorite tracks"),
                     tracks,
                 )
-            }.onFailure { error -> status = error.message ?: "Could not keep favorites downloaded." }
+            }.onFailure { error -> status = keepDownloadedErrorStatus("favorites", error) }
         }
     }
 
@@ -258,7 +266,7 @@ class DesktopDownloadsController(
                         }
                     }
                     reconcileKeepDownloadedPolicy(policy, tracks)
-                }.onFailure { error -> status = error.message ?: "Could not refresh ${policy.name}." }
+                }.onFailure { error -> status = keepDownloadedRefreshErrorStatus(policy.name, error) }
             }
         }
     }
@@ -267,9 +275,9 @@ class DesktopDownloadsController(
         val plan = downloads.reconcile(policy, tracks)
         reloadKeepDownloadedPolicies()
         if (plan.tracksToDownload.isEmpty()) {
-            status = "${policy.name} is up to date."
+            status = keepDownloadedUpToDateStatus(policy.name)
         } else {
-            downloadTracks("Keeping ${policy.name} downloaded", plan.tracksToDownload)
+            downloadTracks(keepingDownloadedLabel(policy.name), plan.tracksToDownload)
         }
         if (plan.trackIdsToRemove.isNotEmpty()) incrementRefreshToken()
     }
@@ -294,7 +302,7 @@ class DesktopDownloadsController(
             }
             incrementRefreshToken()
             setCacheStats(withContext(Dispatchers.IO) { cacheMaintenanceRepository.stats() })
-            status = if (removed == 0) "Downloads are up to date." else "Removed $removed missing download${if (removed == 1) "" else "s"}."
+            status = downloadsRefreshStatus(removed)
             reconcileKeepDownloadedCollections()
         }
     }
@@ -311,7 +319,7 @@ class DesktopDownloadsController(
             }
             incrementRefreshToken()
             setCacheStats(withContext(Dispatchers.IO) { cacheMaintenanceRepository.stats() })
-            status = "Deleted ${downloads.size} download${if (downloads.size == 1) "" else "s"}."
+            status = downloadsDeletedStatus(downloads.size)
         }
     }
 

@@ -2,12 +2,12 @@ package app.naviamp.android
 
 import app.naviamp.domain.cache.StorageCacheStats
 import app.naviamp.app.NaviampCacheSettingsController
+import app.naviamp.app.NaviampCacheMaintenanceController
 
 import android.content.Context
 import app.naviamp.domain.app.NaviampContentState
 import app.naviamp.domain.app.NaviampNavigationState
 import app.naviamp.domain.app.NaviampRoute
-import app.naviamp.domain.app.cacheDataClearedStatus
 import app.naviamp.domain.app.databaseResetStatus
 import app.naviamp.domain.app.libraryIndexClearedStatus
 import app.naviamp.domain.cache.CacheMaintenanceRepository
@@ -77,10 +77,12 @@ fun handleAndroidClearCache(
     state: AndroidAppState,
     cacheMaintenanceRepository: CacheMaintenanceRepository<StorageCacheStats>,
 ) {
-    cacheMaintenanceRepository.clearCacheData()
-    clearAndroidFileCaches(context)
-    clearAndroidDerivedMediaState(state)
-    state.status = cacheDataClearedStatus()
+    NaviampCacheMaintenanceController(
+        repository = cacheMaintenanceRepository,
+        clearPlatformCaches = { clearAndroidFileCaches(context) },
+        clearDerivedState = { clearAndroidDerivedMediaState(state) },
+        setStatus = { status -> state.status = status },
+    ).clearCache()
 }
 
 fun handleAndroidClearLibrary(

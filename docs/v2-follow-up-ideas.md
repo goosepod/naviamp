@@ -12,19 +12,21 @@ This document tracks useful ideas that come up during the v2 migration but are n
 
 ## Ideas
 
-### BlurHash Artwork Placeholders and Backgrounds
+### BlurHash versus ThumbHash Artwork Placeholders and Backgrounds
 
 - **Status:** Idea
-- **Source:** [woltapp/blurhash](https://github.com/woltapp/blurhash)
-- **Concept:** Investigate BlurHash support for artwork placeholders and as an alternate album-art-derived app background source.
-- **Why it may fit:** A BlurHash can provide a compact, stable visual approximation of album art before the full image loads. It may also be useful as a cheaper background source than decoding and blurring full album art every time.
+- **Sources:** [woltapp/blurhash](https://github.com/woltapp/blurhash), [evanw/thumbhash](https://github.com/evanw/thumbhash)
+- **Concept:** Compare BlurHash and ThumbHash for artwork placeholders and as alternate album-art-derived app background sources, then select one algorithm or deliberately reject both.
+- **Why it may fit:** Either hash can provide a compact, stable visual approximation of album art before the full image loads and may be cheaper than decoding and blurring full album art for every background. ThumbHash specifically claims better detail and color accuracy at a similar size, plus encoded aspect ratio and alpha support, while BlurHash offers configurable components and a broader established implementation ecosystem. Naviamp needs its own measurements and visual comparison instead of choosing from those claims alone.
 - **Questions to answer:**
-  - Does Navidrome expose artwork BlurHashes through the Subsonic/OpenSubsonic API, or are they only internal?
-  - If the server does not expose BlurHashes, should Naviamp generate and cache them locally after fetching cover art?
-  - Is a BlurHash-derived background visually better than the current album blur option, or should it be used only as a loading/transition placeholder?
+  - Does Navidrome expose either artwork hash through the Subsonic/OpenSubsonic API, or are its placeholders only internal?
+  - If the server does not expose a usable hash, should Naviamp generate and cache one locally after fetching cover art?
+  - Which algorithm produces better artwork placeholders and full-app backgrounds across dark, light, colorful, monochrome, square, non-square, and transparent artwork?
+  - How do encoded size, encode/decode time, allocation, memory use, cache cost, aspect-ratio handling, and transition smoothness compare on Android, Desktop, and iOS?
+  - Is either hash-derived background visually better than the current album blur option, or should hashes be used only as loading and transition placeholders?
   - Can the same decoded colors feed the existing highlight-color and visualizer-color pipeline?
-  - What quality, performance, and memory tradeoffs exist on Android, Desktop, and iOS?
-- **Implementation notes to investigate later:** Check Kotlin Multiplatform compatibility for available BlurHash libraries, including `woltapp/blurhash`; verify license compatibility; prototype with existing artwork cache inputs; compare startup, track-change, and same-album transition behavior against the current gradient and album blur backgrounds.
+  - Can one shared Kotlin Multiplatform implementation be used for encoding and decoding on all three platforms, or would either option require native wrappers or separate host code?
+- **Implementation notes to investigate later:** Verify API availability and both licenses; evaluate maintained Kotlin Multiplatform implementations and the feasibility of a small shared implementation; build an identical artwork corpus and benchmark harness for both algorithms; prototype with existing artwork-cache inputs; and compare startup, track-change, same-album transitions, placeholder-to-art transitions, and background rendering against the current Aurora and Album Blur options. Record the results before selecting an algorithm.
 
 ## Promotion Checklist
 

@@ -33,14 +33,16 @@ import app.naviamp.domain.popular.SimilarArtistMatch
 import app.naviamp.domain.queue.RepeatMode
 import app.naviamp.domain.settings.effectiveForEngine
 import app.naviamp.app.NaviampSettingsSyncController
+import app.naviamp.app.settingsSyncAutoExportStatus
+import app.naviamp.app.settingsSyncImportStatus
+import app.naviamp.app.settingsSyncLocationStatus
+import app.naviamp.app.settingsSyncReconciliationStatus
 import app.naviamp.domain.settings.SettingsSyncDocument
 import app.naviamp.domain.settings.SettingsSyncLocalSnapshot
 import app.naviamp.domain.settings.SettingsSyncOperationKind
-import app.naviamp.domain.settings.SettingsSyncOperationResult
 import app.naviamp.domain.settings.SettingsSyncRuntimeState
 import app.naviamp.domain.settings.SettingsSyncMirrorDocumentSource
 import app.naviamp.domain.settings.VisualizerSettings
-import app.naviamp.domain.settings.selectSettingsSyncMirrorDocument
 import app.naviamp.domain.sonicautoplay.SonicAutoplayService
 import app.naviamp.provider.navidrome.NavidromeApiCall
 import app.naviamp.provider.navidrome.NavidromeApiCallHistory
@@ -519,13 +521,6 @@ fun NaviampAndroidApp(
         },
     )
 
-    fun settingsSyncImportStatus(result: SettingsSyncOperationResult): String =
-        if (result.hasServerProfiles) {
-            "Settings imported. Enter the Navidrome password to finish connecting."
-        } else {
-            "Settings imported."
-        }
-
     fun saveSettingsSyncMirror(document: SettingsSyncDocument) {
         settingsSyncMirrorStore.write(document)
         settingsSyncController.documentWritten(document)
@@ -649,14 +644,13 @@ fun NaviampAndroidApp(
             }
         }
 
-        val selection = selectSettingsSyncMirrorDocument(
+        val reconciliation = settingsSyncController.reconcileDocuments(
             localMirrorDocument = localMirrorDocument,
             providerDocument = providerDocument,
-        )
-        val result = settingsSyncController.reconcileStartup(
-            syncedDocument = selection.document,
             syncLocationConfigured = true,
         )
+        val selection = reconciliation.selection
+        val result = reconciliation.result
         when (result.kind) {
             SettingsSyncOperationKind.Imported -> {
                 selection.document?.let { document ->
@@ -672,7 +666,7 @@ fun NaviampAndroidApp(
                         markProviderPullSucceeded()
                     }
                 }
-                settingsSyncStatus = settingsSyncImportStatus(result)
+                settingsSyncStatus = settingsSyncImportStatus(result.hasServerProfiles)
             }
             SettingsSyncOperationKind.Exported -> {
                 result.documentToWrite?.let { document ->
@@ -688,12 +682,10 @@ fun NaviampAndroidApp(
                     settingsSyncStatus = "$statusPrefix is up to date."
                 }
             }
-            SettingsSyncOperationKind.UnsupportedSyncFile ->
-                settingsSyncStatus = "Settings sync file was created by a newer Naviamp version."
-            SettingsSyncOperationKind.NeedsSetupChoice ->
-                settingsSyncStatus = "Choose how to set up Naviamp."
-            SettingsSyncOperationKind.MissingSyncLocation ->
-                settingsSyncStatus = "Choose a settings sync folder first."
+            SettingsSyncOperationKind.UnsupportedSyncFile,
+            SettingsSyncOperationKind.NeedsSetupChoice,
+            SettingsSyncOperationKind.MissingSyncLocation,
+            -> settingsSyncStatus = settingsSyncReconciliationStatus(result)
         }
         if (providerReadError != null && selection.document == null) {
             settingsSyncStatus = providerReadError
@@ -715,11 +707,7 @@ fun NaviampAndroidApp(
                 autoExportEnabled = enabled && settingsSyncSettings.treeUri != null,
             ),
         )
-        settingsSyncStatus = if (settingsSyncSettings.autoExportEnabled) {
-            "Auto-sync enabled."
-        } else {
-            "Auto-sync disabled."
-        }
+        settingsSyncStatus = settingsSyncAutoExportStatus(settingsSyncSettings.autoExportEnabled)
         if (settingsSyncSettings.autoExportEnabled) {
             autoExportSettingsSync()
         }
@@ -759,7 +747,7 @@ fun NaviampAndroidApp(
                 )
             }
             saveSettingsSyncSettings(settingsSyncSettings.copy(treeUri = uri.toString()))
-            settingsSyncStatus = "Settings sync folder selected."
+            settingsSyncStatus = settingsSyncLocationStatus(configured = true)
             syncSettingsNow(statusPrefix = "Settings sync")
         }
     }

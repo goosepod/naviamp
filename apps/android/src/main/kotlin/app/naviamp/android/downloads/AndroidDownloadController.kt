@@ -4,6 +4,14 @@ import app.naviamp.domain.cache.StorageCacheStats
 import app.naviamp.app.NaviampDownloadJobController
 import app.naviamp.app.NaviampDownloadCoordinator
 import app.naviamp.app.NaviampDownloadExecutionRequest
+import app.naviamp.app.downloadsDeletedStatus
+import app.naviamp.app.downloadsRefreshStatus
+import app.naviamp.app.keepDownloadedDisabledStatus
+import app.naviamp.app.keepDownloadedErrorStatus
+import app.naviamp.app.keepDownloadedRefreshErrorStatus
+import app.naviamp.app.keepDownloadedUpToDateStatus
+import app.naviamp.app.keepingDownloadedLabel
+import app.naviamp.app.noTracksToDownloadStatus
 
 import android.content.Context
 import app.naviamp.domain.Track
@@ -128,7 +136,7 @@ internal class AndroidDownloadActionController(
         }
         val initialJob = downloadJobs.create(label, tracksToDownload, replaceExisting)
         if (initialJob == null) {
-            state.downloadStatus = "No tracks to download."
+            state.downloadStatus = noTracksToDownloadStatus()
             state.status = state.downloadStatus.orEmpty()
             return
         }
@@ -177,7 +185,7 @@ internal class AndroidDownloadActionController(
         if (existing != null) {
             storage.deleteKeepDownloadedPolicy(sourceId, kind, playlist.id)
             reloadKeepDownloadedPolicies()
-            state.downloadStatus = "${playlist.name} will no longer be kept downloaded. Existing files were kept."
+            state.downloadStatus = keepDownloadedDisabledStatus(playlist.name)
             state.status = state.downloadStatus.orEmpty()
             return
         }
@@ -190,7 +198,7 @@ internal class AndroidDownloadActionController(
                     tracks,
                 )
             }.onFailure { error ->
-                state.downloadStatus = error.message ?: "Could not keep ${playlist.name} downloaded."
+                state.downloadStatus = keepDownloadedErrorStatus(playlist.name, error)
                 state.status = state.downloadStatus.orEmpty()
             }
         }
@@ -203,7 +211,7 @@ internal class AndroidDownloadActionController(
         if (existing != null) {
             storage.deleteKeepDownloadedPolicy(sourceId, kind, FavoritesCollectionId)
             reloadKeepDownloadedPolicies()
-            state.downloadStatus = "Favorites will no longer be kept downloaded. Existing files were kept."
+            state.downloadStatus = keepDownloadedDisabledStatus("Favorites")
             state.status = state.downloadStatus.orEmpty()
             return
         }
@@ -216,7 +224,7 @@ internal class AndroidDownloadActionController(
                     tracks,
                 )
             }.onFailure { error ->
-                state.downloadStatus = error.message ?: "Could not keep favorites downloaded."
+                state.downloadStatus = keepDownloadedErrorStatus("favorites", error)
                 state.status = state.downloadStatus.orEmpty()
             }
         }
@@ -238,7 +246,7 @@ internal class AndroidDownloadActionController(
                     }
                     reconcileKeepDownloadedPolicy(policy, tracks)
                 }.onFailure { error ->
-                    state.downloadStatus = error.message ?: "Could not refresh ${policy.name}."
+                    state.downloadStatus = keepDownloadedRefreshErrorStatus(policy.name, error)
                     state.status = state.downloadStatus.orEmpty()
                 }
             }
@@ -249,10 +257,10 @@ internal class AndroidDownloadActionController(
         val plan = downloads.reconcile(policy, tracks)
         reloadKeepDownloadedPolicies()
         if (plan.tracksToDownload.isEmpty()) {
-            state.downloadStatus = "${policy.name} is up to date."
+            state.downloadStatus = keepDownloadedUpToDateStatus(policy.name)
             state.status = state.downloadStatus.orEmpty()
         } else {
-            downloadTracks(plan.tracksToDownload, "Keeping ${policy.name} downloaded")
+            downloadTracks(plan.tracksToDownload, keepingDownloadedLabel(policy.name))
         }
         if (plan.trackIdsToRemove.isNotEmpty()) state.downloadRefreshToken += 1
     }
@@ -279,7 +287,7 @@ internal class AndroidDownloadActionController(
             }
             state.downloadRefreshToken += 1
             state.storageStats = withContext(Dispatchers.IO) { storage.stats() }
-            state.downloadStatus = if (removed == 0) "Downloads are up to date." else "Removed $removed missing download${if (removed == 1) "" else "s"}."
+            state.downloadStatus = downloadsRefreshStatus(removed)
             state.status = state.downloadStatus.orEmpty()
             reconcileKeepDownloadedCollections()
         }
@@ -295,7 +303,7 @@ internal class AndroidDownloadActionController(
             }
             state.downloadRefreshToken += 1
             state.storageStats = withContext(Dispatchers.IO) { storage.stats() }
-            state.downloadStatus = "Deleted $count download${if (count == 1) "" else "s"}."
+            state.downloadStatus = downloadsDeletedStatus(count)
             state.status = state.downloadStatus.orEmpty()
         }
     }
