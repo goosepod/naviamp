@@ -102,7 +102,7 @@ class DesktopPlaybackController(
     }
 
     fun cycleRepeatMode() {
-        val mode = queueManager.cycleRepeatMode(repeatMode())
+        val mode = queueCoordinator.cycleRepeatMode()
         setRepeatMode(mode)
         playlistEngine.setRepeatMode(mode)
     }
@@ -163,8 +163,7 @@ class DesktopPlaybackController(
     fun handlePreviousButton() {
         setOpenPlayerOnTrackStart(false)
         when (
-            queueManager.previousCommand(
-                queue = playbackQueue(),
+            queueCoordinator.previousCommand(
                 previousButtonBehavior = playbackSettings().previousButtonBehavior,
                 positionSeconds = playbackProgress().positionSeconds,
                 restartThresholdSeconds = PreviousRestartThresholdSeconds,
@@ -186,7 +185,7 @@ class DesktopPlaybackController(
 
     fun handleNextButton() {
         setOpenPlayerOnTrackStart(false)
-        when (queueManager.nextCommand(playbackQueue(), repeatMode())) {
+        when (queueCoordinator.nextCommand()) {
             PlaybackQueueNavigationCommand.Next -> {
                 reportCurrentTrackStopped()
                 playlistEngine.next(scope)

@@ -173,7 +173,11 @@ class AndroidAppState(
     var sleepTimer by mutableStateOf<SleepTimerState?>(null)
     var sleepTimerNowEpochMillis by mutableStateOf(System.currentTimeMillis())
     var shuffledUpNextSnapshot by mutableStateOf<List<Track>?>(null)
-    var repeatMode by mutableStateOf(RepeatMode.Off)
+    var repeatMode: RepeatMode
+        get() = livePlaybackState.repeatMode
+        set(value) {
+            livePlaybackState = livePlaybackState.copy(repeatMode = value)
+        }
     var radioQueueActive by mutableStateOf(false)
     var radioRefilling by mutableStateOf(false)
     var isInternetRadioRefreshing by mutableStateOf(false)

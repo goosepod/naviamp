@@ -256,7 +256,8 @@ fun NaviampApp(
     var statsForNerdsRefreshTick by remember { mutableIntStateOf(0) }
     var openPlayerOnTrackStart by remember { mutableStateOf(false) }
     var shuffledUpNextSnapshot by remember { mutableStateOf<List<Track>?>(null) }
-    var repeatMode by remember { mutableStateOf(RepeatMode.Off) }
+    val repeatModeProperty = remember { desktopRepeatModeProperty(livePlaybackController) }
+    var repeatMode by repeatModeProperty
     var radioQueueActive by remember { mutableStateOf(false) }
     var isRadioRefilling by remember { mutableStateOf(false) }
     var lastRadioRefillSeedId by remember { mutableStateOf<TrackId?>(null) }

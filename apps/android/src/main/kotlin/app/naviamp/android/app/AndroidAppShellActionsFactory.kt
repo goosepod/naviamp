@@ -4,7 +4,6 @@ import app.naviamp.android.playback.AndroidPlaybackEngine
 import app.naviamp.domain.InternetRadioStation
 import app.naviamp.domain.Playlist
 import app.naviamp.domain.Track
-import app.naviamp.domain.playback.PlaybackQueueManager
 import app.naviamp.domain.playback.playbackVolumeCommand
 import app.naviamp.domain.radio.RadioTuningSettings
 import app.naviamp.domain.playback.SleepTimerRequest
@@ -555,7 +554,7 @@ fun androidAppShellActions(
                     NowPlayingPlaybackAction.Next -> playAdjacentTrack(1)
                     NowPlayingPlaybackAction.ToggleShuffle -> handleShellToggleShuffle()
                     NowPlayingPlaybackAction.CycleRepeatMode -> {
-                        repeatMode = PlaybackQueueManager().cycleRepeatMode(repeatMode)
+                        repeatMode = sharedQueueCoordinator.cycleRepeatMode()
                     }
                     NowPlayingPlaybackAction.ChangeVolume -> request.volumePercent?.let { percent ->
                         val command = playbackVolumeCommand(

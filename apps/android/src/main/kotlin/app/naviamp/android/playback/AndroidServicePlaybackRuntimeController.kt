@@ -10,6 +10,9 @@ import app.naviamp.android.AndroidStorageDependencies
 import app.naviamp.android.PlaybackStateReportIntervalMillis
 import app.naviamp.android.toPlaybackReportState
 import app.naviamp.android.withAndroidPendingActions
+import app.naviamp.app.NaviampLivePlaybackController
+import app.naviamp.app.NaviampLivePlaybackState
+import app.naviamp.app.NaviampPlaybackQueueCoordinator
 import app.naviamp.domain.Album
 import app.naviamp.domain.InternetRadioStation
 import app.naviamp.domain.StreamQuality
@@ -73,6 +76,8 @@ internal class AndroidServicePlaybackRuntimeController(
     private val playInternetRadioStation: (MediaSourceRepository, PlaybackSessionRepository, String, InternetRadioStation) -> Unit,
 ) {
     private val queueManager = PlaybackQueueManager()
+    private val transitionPlayback = NaviampLivePlaybackController()
+    private val queueCoordinator = NaviampPlaybackQueueCoordinator(transitionPlayback)
     private var serviceOwnedPlayback = false
     private var serviceMediaSource: SavedMediaSource? = null
     private var lastServiceSessionSaveAtMillis = 0L
@@ -165,11 +170,10 @@ internal class AndroidServicePlaybackRuntimeController(
 
     fun playServiceOwnedAdjacent(delta: Int): Boolean {
         if (!serviceOwnedPlayback) return false
-        val update = queueManager.selectAdjacent(
-            queue = PlaybackQueue(currentQueue(), currentQueueIndex()),
-            offset = delta,
-            repeatMode = repeatMode(),
+        synchronizeTransitionState(
+            PlaybackQueue(currentQueue(), currentQueueIndex()),
         )
+        val update = queueCoordinator.selectAdjacent(delta)
         if (!update.changed) {
             Log.i(
                 "NaviampAutoCommand",
@@ -532,9 +536,10 @@ internal class AndroidServicePlaybackRuntimeController(
         val removePlayedTracksFromQueue = AndroidSettingsStore(context)
             .loadPlaybackSettings()
             .removePlayedTracksFromQueue
-        val update = queueManager.finishCurrentTrack(
-            queue = PlaybackQueue(currentQueue(), currentQueueIndex()),
-            repeatMode = repeatMode(),
+        synchronizeTransitionState(
+            PlaybackQueue(currentQueue(), currentQueueIndex()),
+        )
+        val update = queueCoordinator.finishCurrentTrack(
             removePlayedTracksFromQueue = removePlayedTracksFromQueue,
         )
         when (update.command) {
@@ -561,6 +566,15 @@ internal class AndroidServicePlaybackRuntimeController(
                 playTrackQueue(storage, sourceId, update.queue.tracks, update.queue.currentIndex)
             }
         }
+    }
+
+    private fun synchronizeTransitionState(queue: PlaybackQueue) {
+        transitionPlayback.replace(
+            NaviampLivePlaybackState(
+                queue = queue,
+                repeatMode = repeatMode(),
+            ),
+        )
     }
 
     private fun serviceMediaSource(storage: AndroidStorageDependencies): SavedMediaSource? =

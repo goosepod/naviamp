@@ -6,6 +6,7 @@ import app.naviamp.domain.TrackId
 import app.naviamp.domain.playback.PlaybackProgress
 import app.naviamp.domain.playback.PlaybackState
 import app.naviamp.domain.queue.PlaybackQueue
+import app.naviamp.domain.queue.RepeatMode
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
@@ -23,12 +24,14 @@ class NaviampLivePlaybackControllerTest {
         controller.updateCurrentStation(station)
         controller.updateProgress(progress)
         controller.updatePlaybackState(PlaybackState.Playing)
+        controller.updateRepeatMode(RepeatMode.Queue)
 
         assertEquals(track, controller.state.value.currentTrack)
         assertEquals(station, controller.state.value.currentStation)
         assertEquals(queue, controller.state.value.queue)
         assertEquals(progress, controller.state.value.progress)
         assertEquals(PlaybackState.Playing, controller.state.value.playbackState)
+        assertEquals(RepeatMode.Queue, controller.state.value.repeatMode)
     }
 
     @Test

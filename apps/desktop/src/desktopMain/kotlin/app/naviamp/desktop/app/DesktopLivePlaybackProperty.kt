@@ -8,6 +8,7 @@ import app.naviamp.domain.Track
 import app.naviamp.domain.playback.PlaybackProgress
 import app.naviamp.domain.playback.PlaybackState
 import app.naviamp.domain.queue.PlaybackQueue
+import app.naviamp.domain.queue.RepeatMode
 import kotlin.properties.ReadWriteProperty
 import kotlin.reflect.KProperty
 
@@ -56,4 +57,9 @@ internal fun desktopPlaybackProgressProperty(controller: NaviampLivePlaybackCont
 internal fun desktopPlaybackStateProperty(controller: NaviampLivePlaybackController) =
     DesktopLivePlaybackProperty(controller, NaviampLivePlaybackState::playbackState) { owner, value: PlaybackState ->
         owner.updatePlaybackState(value)
+    }
+
+internal fun desktopRepeatModeProperty(controller: NaviampLivePlaybackController) =
+    DesktopLivePlaybackProperty(controller, NaviampLivePlaybackState::repeatMode) { owner, value: RepeatMode ->
+        owner.updateRepeatMode(value)
     }

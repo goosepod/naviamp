@@ -5,6 +5,7 @@ import app.naviamp.domain.Track
 import app.naviamp.domain.playback.PlaybackProgress
 import app.naviamp.domain.playback.PlaybackState
 import app.naviamp.domain.queue.PlaybackQueue
+import app.naviamp.domain.queue.RepeatMode
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -16,6 +17,7 @@ data class NaviampLivePlaybackState(
     val queue: PlaybackQueue = PlaybackQueue(),
     val progress: PlaybackProgress = PlaybackProgress.Unknown,
     val playbackState: PlaybackState = PlaybackState.Idle,
+    val repeatMode: RepeatMode = RepeatMode.Off,
 )
 
 /** Shared owner of live, user-visible playback state; it does not execute audio commands. */
@@ -41,6 +43,9 @@ class NaviampLivePlaybackController(
 
     fun updatePlaybackState(playbackState: PlaybackState) =
         update { current -> current.copy(playbackState = playbackState) }
+
+    fun updateRepeatMode(repeatMode: RepeatMode) =
+        update { current -> current.copy(repeatMode = repeatMode) }
 
     private inline fun update(transform: (NaviampLivePlaybackState) -> NaviampLivePlaybackState) {
         mutableState.update(transform)

@@ -3,6 +3,10 @@ package app.naviamp.app
 import app.naviamp.domain.Track
 import app.naviamp.domain.TrackId
 import app.naviamp.domain.queue.PlaybackQueue
+import app.naviamp.domain.queue.RepeatMode
+import app.naviamp.domain.playback.PlaybackQueueFinishedCommand
+import app.naviamp.domain.playback.PlaybackQueueNavigationCommand
+import app.naviamp.domain.settings.PreviousButtonBehavior
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -116,6 +120,54 @@ class NaviampPlaybackQueueCoordinatorTest {
 
         val restored = coordinator.toggleUpcomingShuffle(shuffled.shuffledSnapshot)
         assertTrue(restored.changed)
+        assertEquals(initialQueue, playback.state.value.queue)
+    }
+
+    @Test
+    fun adjacentAndFinishedTransitionsUseSharedRepeatState() {
+        val first = track("first")
+        val second = track("second")
+        val playback = NaviampLivePlaybackController(
+            NaviampLivePlaybackState(
+                queue = PlaybackQueue(listOf(first, second), currentIndex = 0),
+            ),
+        )
+        val coordinator = NaviampPlaybackQueueCoordinator(playback)
+
+        assertEquals(PlaybackQueueNavigationCommand.Next, coordinator.nextCommand())
+        assertTrue(coordinator.selectNext().changed)
+        assertEquals(second, playback.state.value.queue.current)
+
+        assertEquals(RepeatMode.Queue, coordinator.cycleRepeatMode())
+        assertTrue(coordinator.selectNext().changed)
+        assertEquals(first, playback.state.value.queue.current)
+
+        assertEquals(
+            PlaybackQueueNavigationCommand.RestartCurrent,
+            coordinator.previousCommand(
+                previousButtonBehavior = PreviousButtonBehavior.RestartThenPrevious,
+                positionSeconds = 8.0,
+                restartThresholdSeconds = 3.0,
+            ),
+        )
+
+        val finished = coordinator.finishCurrentTrack(removePlayedTracksFromQueue = true)
+        assertEquals(PlaybackQueueFinishedCommand.PlayNext, finished.command)
+        assertEquals(second, playback.state.value.queue.current)
+    }
+
+    @Test
+    fun repeatTrackFinishedTransitionKeepsTheCurrentQueue() {
+        val first = track("first")
+        val initialQueue = PlaybackQueue(listOf(first), currentIndex = 0)
+        val playback = NaviampLivePlaybackController(
+            NaviampLivePlaybackState(queue = initialQueue, repeatMode = RepeatMode.Track),
+        )
+        val coordinator = NaviampPlaybackQueueCoordinator(playback)
+
+        val finished = coordinator.finishCurrentTrack()
+
+        assertEquals(PlaybackQueueFinishedCommand.ReplayCurrent, finished.command)
         assertEquals(initialQueue, playback.state.value.queue)
     }
 

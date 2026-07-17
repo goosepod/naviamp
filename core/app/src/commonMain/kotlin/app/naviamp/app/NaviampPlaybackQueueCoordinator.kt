@@ -2,11 +2,15 @@ package app.naviamp.app
 
 import app.naviamp.domain.Track
 import app.naviamp.domain.playback.PlaybackQueueManager
+import app.naviamp.domain.playback.PlaybackQueueFinishedUpdate
+import app.naviamp.domain.playback.PlaybackQueueNavigationCommand
 import app.naviamp.domain.playback.PlaybackQueueMutationUpdate
 import app.naviamp.domain.playback.PlaybackQueueSelectionUpdate
 import app.naviamp.domain.playback.PlaybackShuffleUpdate
 import app.naviamp.domain.playback.PlaybackQueueUpdate
 import app.naviamp.domain.queue.PlaybackQueue
+import app.naviamp.domain.queue.RepeatMode
+import app.naviamp.domain.settings.PreviousButtonBehavior
 
 /**
  * Shared coordinator for queue lifecycle decisions and bounded user mutations.
@@ -106,6 +110,48 @@ class NaviampPlaybackQueueCoordinator(
     fun toggleUpcomingShuffle(shuffledSnapshot: List<Track>?): PlaybackShuffleUpdate =
         queueManager.toggleUpcomingShuffle(currentQueue, shuffledSnapshot).also(::commit)
 
+    fun cycleRepeatMode(): RepeatMode =
+        queueManager.cycleRepeatMode(playback.state.value.repeatMode).also(playback::updateRepeatMode)
+
+    fun previousCommand(
+        previousButtonBehavior: PreviousButtonBehavior,
+        positionSeconds: Double?,
+        restartThresholdSeconds: Double,
+    ): PlaybackQueueNavigationCommand =
+        queueManager.previousCommand(
+            queue = currentQueue,
+            previousButtonBehavior = previousButtonBehavior,
+            positionSeconds = positionSeconds,
+            restartThresholdSeconds = restartThresholdSeconds,
+        )
+
+    fun nextCommand(): PlaybackQueueNavigationCommand =
+        queueManager.nextCommand(currentQueue, playback.state.value.repeatMode)
+
+    fun selectNext(): PlaybackQueueSelectionUpdate =
+        queueManager.selectNext(currentQueue, playback.state.value.repeatMode).also(::commit)
+
+    fun selectPrevious(): PlaybackQueueSelectionUpdate =
+        queueManager.selectPrevious(currentQueue, playback.state.value.repeatMode).also(::commit)
+
+    fun selectAdjacent(
+        offset: Int,
+        wrapQueue: Boolean = true,
+    ): PlaybackQueueSelectionUpdate =
+        queueManager.selectAdjacent(
+            queue = currentQueue,
+            offset = offset,
+            repeatMode = playback.state.value.repeatMode,
+            wrapQueue = wrapQueue,
+        ).also(::commit)
+
+    fun finishCurrentTrack(removePlayedTracksFromQueue: Boolean = false): PlaybackQueueFinishedUpdate =
+        queueManager.finishCurrentTrack(
+            queue = currentQueue,
+            repeatMode = playback.state.value.repeatMode,
+            removePlayedTracksFromQueue = removePlayedTracksFromQueue,
+        ).also(::commit)
+
     fun selectIndex(
         index: Int,
         moveSelectedToCurrent: Boolean = true,
@@ -133,6 +179,10 @@ class NaviampPlaybackQueueCoordinator(
 
     private fun commit(update: PlaybackShuffleUpdate) {
         if (update.changed) playback.updateQueue(update.queue)
+    }
+
+    private fun commit(update: PlaybackQueueFinishedUpdate) {
+        if (update.queue != currentQueue) playback.updateQueue(update.queue)
     }
 
     private inline fun mutateQueue(

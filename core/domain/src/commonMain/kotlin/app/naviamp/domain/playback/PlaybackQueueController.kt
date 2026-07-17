@@ -117,9 +117,7 @@ class PlaybackQueueController(
 
     fun next(): PlaybackQueueSelection? {
         val update = queueManager.selectNext(queue, repeatMode)
-        if (!update.changed) return null
-        playbackSessionId += 1
-        return selectQueue(update.queue, playbackSessionId)
+        return applySelection(update)
     }
 
     fun playCurrent(): PlaybackQueueSelection? {
@@ -138,16 +136,12 @@ class PlaybackQueueController(
             index = index,
             moveSelectedToCurrent = moveSelectedToCurrent,
         )
-        if (!update.changed) return null
-        playbackSessionId += 1
-        return selectQueue(update.queue, playbackSessionId)
+        return applySelection(update)
     }
 
     fun previous(): PlaybackQueueSelection? {
         val update = queueManager.selectPrevious(queue, repeatMode)
-        if (!update.changed) return null
-        playbackSessionId += 1
-        return selectQueue(update.queue, playbackSessionId)
+        return applySelection(update)
     }
 
     fun adjacent(
@@ -160,9 +154,7 @@ class PlaybackQueueController(
             repeatMode = repeatMode,
             wrapQueue = wrapQueue,
         )
-        if (!update.changed) return null
-        playbackSessionId += 1
-        return selectQueue(update.queue, playbackSessionId)
+        return applySelection(update)
     }
 
     fun toggleUpcomingShuffle(shuffledSnapshot: List<Track>?): PlaybackShuffleToggle? {
@@ -184,6 +176,16 @@ class PlaybackQueueController(
             repeatMode = repeatMode,
             removePlayedTracksFromQueue = removePlayedTracksFromQueue,
         )
+        return applyFinishedUpdate(update)
+    }
+
+    fun applySelection(update: PlaybackQueueSelectionUpdate): PlaybackQueueSelection? {
+        if (!update.changed) return null
+        playbackSessionId += 1
+        return selectQueue(update.queue, playbackSessionId)
+    }
+
+    fun applyFinishedUpdate(update: PlaybackQueueFinishedUpdate): PlaybackQueueSelection? {
         if (!update.shouldPlay) {
             if (update.queue != queue) applyMutation(
                 PlaybackQueueMutationUpdate(

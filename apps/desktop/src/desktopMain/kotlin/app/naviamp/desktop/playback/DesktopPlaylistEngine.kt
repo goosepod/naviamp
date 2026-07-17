@@ -249,7 +249,7 @@ class DesktopPlaylistEngine(
     }
 
     fun next(scope: CoroutineScope) {
-        queueController.next()?.let { selection ->
+        queueController.applySelection(queueCoordinator.selectNext())?.let { selection ->
             playQueueSelection(scope, selection)
         }
     }
@@ -277,7 +277,7 @@ class DesktopPlaylistEngine(
     }
 
     fun previous(scope: CoroutineScope) {
-        queueController.previous()?.let { selection ->
+        queueController.applySelection(queueCoordinator.selectPrevious())?.let { selection ->
             playQueueSelection(scope, selection)
         }
     }
@@ -539,7 +539,9 @@ class DesktopPlaylistEngine(
 
         if (state == PlaybackState.Finished) {
             callbacks?.onPlaybackStateChanged(state)
-            var selection = queueController.finishedSelection(removePlayedTracksFromQueue)
+            var selection = queueController.applyFinishedUpdate(
+                queueCoordinator.finishCurrentTrack(removePlayedTracksFromQueue),
+            )
             if (selection == null && removePlayedTracksFromQueue) {
                 callbacks?.onQueueChanged(queueController.queue)
             }
@@ -551,7 +553,9 @@ class DesktopPlaylistEngine(
                 if (tracks.isNotEmpty()) {
                     queueController.appendTracks(tracks)
                     callbacks?.onQueueChanged(queueController.queue)
-                    selection = queueController.finishedSelection(removePlayedTracksFromQueue)
+                    selection = queueController.applyFinishedUpdate(
+                        queueCoordinator.finishCurrentTrack(removePlayedTracksFromQueue),
+                    )
                 }
             }
             if (selection != null) {
