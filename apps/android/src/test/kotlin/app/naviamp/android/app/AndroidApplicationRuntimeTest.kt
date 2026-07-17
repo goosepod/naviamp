@@ -50,6 +50,8 @@ private object NoOpPlaybackExecution : NaviampPlaybackExecution {
 
     override fun replayCurrent(positionSeconds: Double) = Unit
 
+    override fun setVolume(percent: Int) = Unit
+
     override fun stop() = Unit
 }
 

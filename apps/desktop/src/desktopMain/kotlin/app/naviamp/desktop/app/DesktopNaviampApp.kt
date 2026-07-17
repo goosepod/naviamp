@@ -1132,6 +1132,7 @@ fun NaviampApp(
         nowPlayingVisualizerVisible = nowPlayingVisualizerVisible,
         appRoute = appRoute,
         playbackSettings = playbackSettings,
+        changePlaybackVolume = { percent -> playbackController.changeVolume(percent) },
         cacheSettings = cacheSettings,
         albumDetailBackRoute = albumController.albumDetailBackRoute,
         artistDetailBackRoute = artistController.artistDetailBackRoute,

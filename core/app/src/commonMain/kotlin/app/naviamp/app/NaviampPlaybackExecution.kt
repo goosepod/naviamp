@@ -6,8 +6,10 @@ import app.naviamp.domain.playback.PlaybackPlayPauseCommand
 import app.naviamp.domain.playback.PlaybackSource
 import app.naviamp.domain.playback.PlaybackState
 import app.naviamp.domain.playback.PlaybackSeekPlan
+import app.naviamp.domain.playback.PlaybackVolumeCommand
 import app.naviamp.domain.playback.planPlaybackSeek
 import app.naviamp.domain.playback.playbackPlayPauseCommand
+import app.naviamp.domain.playback.playbackVolumeCommand
 import app.naviamp.domain.playback.shouldReplayCurrentForSeek
 
 data class NaviampPlaybackSeekRequest(
@@ -33,6 +35,8 @@ interface NaviampPlaybackExecution {
     fun seek(positionSeconds: Double)
 
     fun replayCurrent(positionSeconds: Double)
+
+    fun setVolume(percent: Int)
 
     fun stop()
 }
@@ -98,6 +102,19 @@ class NaviampPlaybackCommandController(
             execution.seek(plan.pendingSeekPositionSeconds)
         }
     }
+
+    fun changeVolume(
+        requestedPercent: Int,
+        supportsSoftwareVolume: Boolean,
+    ): PlaybackVolumeCommand =
+        playbackVolumeCommand(
+            requestedPercent = requestedPercent,
+            supportsSoftwareVolume = supportsSoftwareVolume,
+        ).also { command ->
+            if (command.shouldApplyToEngine) {
+                execution.setVolume(command.volumePercent)
+            }
+        }
 
     fun stop() {
         execution.stop()

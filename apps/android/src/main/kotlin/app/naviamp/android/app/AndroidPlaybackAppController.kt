@@ -21,6 +21,7 @@ import app.naviamp.domain.playback.PlaybackQueueNavigationCommand
 import app.naviamp.domain.playback.PlaybackQueueSelection
 import app.naviamp.domain.playback.PlaybackSource
 import app.naviamp.domain.playback.PlaybackState
+import app.naviamp.domain.playback.PlaybackVolumeCommand
 import app.naviamp.domain.queue.PlaybackQueue
 import app.naviamp.domain.radio.recentRadioStreamsWith
 import app.naviamp.domain.settings.RecentRadioStream
@@ -192,6 +193,16 @@ internal class AndroidPlaybackAppController(
             openNowPlaying = false,
             startPositionSeconds = positionSeconds,
         )
+    }
+
+    fun changeVolume(requestedPercent: Int): PlaybackVolumeCommand =
+        playbackCommands.changeVolume(
+            requestedPercent = requestedPercent,
+            supportsSoftwareVolume = playbackEngine.supportsSoftwareVolume,
+        )
+
+    override fun setVolume(percent: Int) {
+        playbackEngine.setVolume(percent)
     }
 
     override fun stop() {

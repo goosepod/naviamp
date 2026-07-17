@@ -1,6 +1,5 @@
 package app.naviamp.android
 
-import app.naviamp.android.playback.AndroidPlaybackEngine
 import app.naviamp.domain.playback.SleepTimerController
 import app.naviamp.ui.nowPlayingQueueIndex
 import kotlinx.coroutines.CoroutineScope
@@ -12,7 +11,6 @@ internal fun androidMainShellActions(
     scope: CoroutineScope,
     state: AndroidAppState,
     storage: AndroidStorageDependencies,
-    playbackEngine: AndroidPlaybackEngine,
     settingsStore: AndroidSettingsStore,
     searchController: AndroidSearchController,
     mediaAppController: AndroidMediaAppController,
@@ -37,7 +35,7 @@ internal fun androidMainShellActions(
 ): AndroidAppShellActions =
     androidAppShellActions(
         state = state,
-        playbackEngine = playbackEngine,
+        changePlaybackVolume = playbackAppController::changeVolume,
         settingsStore = settingsStore,
         onSyncedSettingsChanged = onSyncedSettingsChanged,
         handleConnectionFormChanged = settingsMaintenanceController::handleConnectionFormChanged,

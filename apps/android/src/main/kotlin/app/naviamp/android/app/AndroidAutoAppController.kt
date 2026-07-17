@@ -74,6 +74,10 @@ internal class AndroidAutoAppController(
         performSeek(positionSeconds)
     }
 
+    override fun setVolume(percent: Int) {
+        playbackEngine.setVolume(percent)
+    }
+
     override fun stop() {
         savePlaybackSessionThrottled(true)
         playbackEngine.stop()

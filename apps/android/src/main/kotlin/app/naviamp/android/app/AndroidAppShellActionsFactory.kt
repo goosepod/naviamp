@@ -1,10 +1,9 @@
 package app.naviamp.android
 
-import app.naviamp.android.playback.AndroidPlaybackEngine
 import app.naviamp.domain.InternetRadioStation
 import app.naviamp.domain.Playlist
 import app.naviamp.domain.Track
-import app.naviamp.domain.playback.playbackVolumeCommand
+import app.naviamp.domain.playback.PlaybackVolumeCommand
 import app.naviamp.domain.radio.RadioTuningSettings
 import app.naviamp.domain.playback.SleepTimerRequest
 import app.naviamp.domain.settings.CacheSettings
@@ -50,7 +49,7 @@ import app.naviamp.ui.toNaviampRoute
 
 fun androidAppShellActions(
     state: AndroidAppState,
-    playbackEngine: AndroidPlaybackEngine,
+    changePlaybackVolume: (Int) -> PlaybackVolumeCommand,
     settingsStore: AndroidSettingsStore,
     onSyncedSettingsChanged: () -> Unit = {},
     handleConnectionFormChanged: (ConnectionFormState) -> Unit,
@@ -558,14 +557,8 @@ fun androidAppShellActions(
                         repeatMode = sharedQueueCoordinator.cycleRepeatMode()
                     }
                     NowPlayingPlaybackAction.ChangeVolume -> request.volumePercent?.let { percent ->
-                        val command = playbackVolumeCommand(
-                            requestedPercent = percent,
-                            supportsSoftwareVolume = playbackEngine.supportsSoftwareVolume,
-                        )
+                        val command = changePlaybackVolume(percent)
                         volumePercent = command.volumePercent
-                        if (command.shouldApplyToEngine) {
-                            playbackEngine.setVolume(command.volumePercent)
-                        }
                     }
                 }
             },

@@ -339,7 +339,7 @@ fun NaviampAndroidApp(
             setSleepTimer = { timer -> appState.sleepTimer = timer },
             setSleepTimerNowEpochMillis = { millis -> appState.sleepTimerNowEpochMillis = millis },
             setStatus = { status -> appState.status = status },
-            stopPlayback = playbackEngine::stop,
+            stopPlayback = playbackAppController::stop,
             nowEpochMillis = { System.currentTimeMillis() },
         )
     }
@@ -899,7 +899,6 @@ fun NaviampAndroidApp(
         scope = scope,
         state = appState,
         storage = storage,
-        playbackEngine = playbackEngine,
         settingsStore = settingsStore,
         searchController = searchController,
         mediaAppController = mediaAppController,

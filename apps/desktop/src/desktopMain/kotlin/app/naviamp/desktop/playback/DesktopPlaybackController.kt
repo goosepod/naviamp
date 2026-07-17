@@ -13,6 +13,7 @@ import app.naviamp.domain.isInternetRadioTrack
 import app.naviamp.domain.playback.PlaybackEngine
 import app.naviamp.domain.playback.PlaybackProgress
 import app.naviamp.domain.playback.PlaybackState
+import app.naviamp.domain.playback.PlaybackVolumeCommand
 import app.naviamp.domain.playback.canReportPlaybackTrack
 import app.naviamp.domain.playback.PlaybackQueueManager
 import app.naviamp.domain.playback.PlaybackQueueNavigationCommand
@@ -141,6 +142,16 @@ class DesktopPlaybackController(
 
     override fun replayCurrent(positionSeconds: Double) {
         playlistEngine.playCurrent(scope, positionSeconds)
+    }
+
+    fun changeVolume(requestedPercent: Int): PlaybackVolumeCommand =
+        playbackCommands.changeVolume(
+            requestedPercent = requestedPercent,
+            supportsSoftwareVolume = playbackEngine.supportsSoftwareVolume,
+        )
+
+    override fun setVolume(percent: Int) {
+        playbackEngine.setVolume(percent)
     }
 
     override fun stop() {

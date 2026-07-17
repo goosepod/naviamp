@@ -74,6 +74,21 @@ class NaviampPlaybackExecutionTest {
         assertEquals(listOf(30.0), execution.seeks)
     }
 
+    @Test
+    fun volumeRequestsUseSharedPlanningBeforePlatformExecution() {
+        val execution = RecordingPlaybackExecution()
+        val controller = NaviampPlaybackCommandController(execution, NaviampLivePlaybackController())
+
+        val supported = controller.changeVolume(requestedPercent = 120, supportsSoftwareVolume = true)
+        val unsupported = controller.changeVolume(requestedPercent = 25, supportsSoftwareVolume = false)
+
+        assertEquals(100, supported.volumePercent)
+        assertEquals(true, supported.shouldApplyToEngine)
+        assertEquals(100, unsupported.volumePercent)
+        assertEquals(false, unsupported.shouldApplyToEngine)
+        assertEquals(listOf(100), execution.volumes)
+    }
+
     private fun seekPlan(positionSeconds: Double, replayCurrent: Boolean) = PlaybackSeekPlan(
         progress = PlaybackProgress(positionSeconds = positionSeconds, durationSeconds = 180.0),
         shouldReplayCurrent = replayCurrent,
@@ -99,6 +114,7 @@ private class RecordingPlaybackExecution : NaviampPlaybackExecution {
     var stops = 0
     val seeks = mutableListOf<Double>()
     val replays = mutableListOf<Double>()
+    val volumes = mutableListOf<Int>()
 
     override fun pause() {
         pauses += 1
@@ -119,6 +135,10 @@ private class RecordingPlaybackExecution : NaviampPlaybackExecution {
 
     override fun replayCurrent(positionSeconds: Double) {
         replays += positionSeconds
+    }
+
+    override fun setVolume(percent: Int) {
+        volumes += percent
     }
 
     override fun stop() {
