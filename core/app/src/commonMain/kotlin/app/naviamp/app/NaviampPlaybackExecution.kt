@@ -2,9 +2,12 @@ package app.naviamp.app
 
 import app.naviamp.domain.StreamQuality
 import app.naviamp.domain.isInternetRadioTrack
+import app.naviamp.domain.playback.PlaybackPlayPauseCommand
 import app.naviamp.domain.playback.PlaybackSource
+import app.naviamp.domain.playback.PlaybackState
 import app.naviamp.domain.playback.PlaybackSeekPlan
 import app.naviamp.domain.playback.planPlaybackSeek
+import app.naviamp.domain.playback.playbackPlayPauseCommand
 import app.naviamp.domain.playback.shouldReplayCurrentForSeek
 
 data class NaviampPlaybackSeekRequest(
@@ -21,9 +24,17 @@ data class NaviampPlaybackSeekRequest(
  * audio, and any platform lifecycle requirements.
  */
 interface NaviampPlaybackExecution {
+    fun pause()
+
+    fun resume()
+
+    fun startOrRestore(): Boolean
+
     fun seek(positionSeconds: Double)
 
     fun replayCurrent(positionSeconds: Double)
+
+    fun stop()
 }
 
 /** Shared command owner that translates product decisions into host audio operations. */
@@ -31,6 +42,35 @@ class NaviampPlaybackCommandController(
     private val execution: NaviampPlaybackExecution,
     private val playback: NaviampLivePlaybackController,
 ) {
+    fun playPause(
+        hasPlaybackTarget: Boolean = playback.state.value.hasPlaybackTarget,
+        startOrRestore: (() -> Boolean)? = null,
+    ): Boolean =
+        executePlayPause(
+            playbackPlayPauseCommand(
+                playbackState = playback.state.value.playbackState,
+                hasPlaybackTarget = hasPlaybackTarget,
+            ),
+            startOrRestore = startOrRestore,
+        )
+
+    fun executePlayPause(
+        command: PlaybackPlayPauseCommand,
+        startOrRestore: (() -> Boolean)? = null,
+    ): Boolean =
+        when (command) {
+            PlaybackPlayPauseCommand.Pause -> {
+                execution.pause()
+                true
+            }
+            PlaybackPlayPauseCommand.Resume -> {
+                execution.resume()
+                true
+            }
+            PlaybackPlayPauseCommand.StartOrRestore -> startOrRestore?.invoke() ?: execution.startOrRestore()
+            PlaybackPlayPauseCommand.None -> false
+        }
+
     fun seek(request: NaviampPlaybackSeekRequest): PlaybackSeekPlan? {
         val state = playback.state.value
         val currentTrack = state.currentTrack
@@ -58,4 +98,14 @@ class NaviampPlaybackCommandController(
             execution.seek(plan.pendingSeekPositionSeconds)
         }
     }
+
+    fun stop() {
+        execution.stop()
+    }
 }
+
+private val NaviampLivePlaybackState.hasPlaybackTarget: Boolean
+    get() = currentTrack != null ||
+        currentStation != null ||
+        queue.current != null ||
+        playbackState != PlaybackState.Idle

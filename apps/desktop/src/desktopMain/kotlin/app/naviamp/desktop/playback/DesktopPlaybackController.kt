@@ -11,13 +11,11 @@ import app.naviamp.app.NaviampPlaybackSeekRequest
 import app.naviamp.app.NaviampLivePlaybackController
 import app.naviamp.domain.isInternetRadioTrack
 import app.naviamp.domain.playback.PlaybackEngine
-import app.naviamp.domain.playback.PlaybackPlayPauseCommand
 import app.naviamp.domain.playback.PlaybackProgress
 import app.naviamp.domain.playback.PlaybackState
 import app.naviamp.domain.playback.canReportPlaybackTrack
 import app.naviamp.domain.playback.PlaybackQueueManager
 import app.naviamp.domain.playback.PlaybackQueueNavigationCommand
-import app.naviamp.domain.playback.playbackPlayPauseCommand
 import app.naviamp.domain.playback.shouldSavePlaybackPosition
 import app.naviamp.domain.provider.MediaProvider
 import app.naviamp.domain.provider.PlaybackReportState
@@ -29,25 +27,6 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-
-internal fun handleDesktopPlayPauseCommand(
-    playbackState: PlaybackState,
-    hasPlaybackTarget: Boolean,
-    playbackEngine: PlaybackEngine,
-    startOrRestorePlayback: () -> Unit,
-) {
-    when (
-        playbackPlayPauseCommand(
-            playbackState = playbackState,
-            hasPlaybackTarget = hasPlaybackTarget,
-        )
-    ) {
-        PlaybackPlayPauseCommand.Pause -> playbackEngine.pause()
-        PlaybackPlayPauseCommand.Resume -> playbackEngine.resume()
-        PlaybackPlayPauseCommand.StartOrRestore -> startOrRestorePlayback()
-        PlaybackPlayPauseCommand.None -> Unit
-    }
-}
 
 internal fun handleDesktopQueueIndexSelected(
     playbackController: DesktopPlaybackController,
@@ -125,6 +104,22 @@ class DesktopPlaybackController(
         savePlaybackSession(playbackQueue(), positionSeconds)
     }
 
+    fun handlePlayPauseCommand(startOrRestorePlayback: () -> Boolean): Boolean =
+        playbackCommands.playPause(
+            hasPlaybackTarget = nowPlayingTrack() != null || livePlayback.state.value.currentStation != null,
+            startOrRestore = startOrRestorePlayback,
+        )
+
+    override fun pause() {
+        playbackEngine.pause()
+    }
+
+    override fun resume() {
+        playbackEngine.resume()
+    }
+
+    override fun startOrRestore(): Boolean = false
+
     fun performSeek(positionSeconds: Double) {
         val streamQuality = playbackSettings().streamQuality(playbackEngine)
         val playbackSource = playlistEngine.cacheRuntimeStats().playbackSource
@@ -146,6 +141,10 @@ class DesktopPlaybackController(
 
     override fun replayCurrent(positionSeconds: Double) {
         playlistEngine.playCurrent(scope, positionSeconds)
+    }
+
+    override fun stop() {
+        playbackEngine.stop()
     }
 
     fun canUsePreviousButton(): Boolean =

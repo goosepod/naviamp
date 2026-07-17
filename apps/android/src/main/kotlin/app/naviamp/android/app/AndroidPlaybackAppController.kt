@@ -145,6 +145,37 @@ internal class AndroidPlaybackAppController(
         AndroidPlaybackForegroundService.updateProgress(context, positionMillis, durationMillis)
     }
 
+    fun handlePlayPauseCommand(): Boolean =
+        playbackCommands.playPause(
+            hasPlaybackTarget = state.nowPlaying != null ||
+                state.nowPlayingStation != null ||
+                state.activeSourceId != null,
+        )
+
+    override fun pause() {
+        playbackEngine.pause()
+    }
+
+    override fun resume() {
+        playbackEngine.resume()
+    }
+
+    override fun startOrRestore(): Boolean {
+        state.nowPlayingStation?.let { station ->
+            playInternetRadioStation(station)
+            return true
+        }
+        val currentTrack = state.nowPlaying ?: return false
+        playTrack(
+            track = currentTrack,
+            queue = state.playbackQueue.tracks.takeIf { it.isNotEmpty() },
+            openNowPlaying = false,
+            startPositionSeconds = state.restoredStartPositionSeconds,
+        )
+        state.restoredStartPositionSeconds = null
+        return true
+    }
+
     override fun seek(positionSeconds: Double) {
         playbackEngine.seek(positionSeconds)
     }
@@ -161,6 +192,11 @@ internal class AndroidPlaybackAppController(
             openNowPlaying = false,
             startPositionSeconds = positionSeconds,
         )
+    }
+
+    override fun stop() {
+        savePlaybackSessionThrottled(force = true)
+        playbackEngine.stop()
     }
 
     fun playAdjacentTrack(

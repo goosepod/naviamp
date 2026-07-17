@@ -320,7 +320,7 @@ fun NaviampApp(
         setSleepTimer = { timer -> sleepTimer = timer },
         setSleepTimerNowEpochMillis = { millis -> sleepTimerNowEpochMillis = millis },
         setStatus = { status -> connectionStatus = status },
-        stopPlayback = playbackEngine::stop,
+        stopPlayback = playbackController::stop,
         nowEpochMillis = { System.currentTimeMillis() },
     )
     }
@@ -709,15 +709,11 @@ fun NaviampApp(
     }
 
     fun handlePlayPauseCommand() {
-        handleDesktopPlayPauseCommand(
-            playbackState = playbackState,
-            hasPlaybackTarget = nowPlayingTrack != null || nowPlayingInternetRadioStation != null,
-            playbackEngine = playbackEngine,
-            startOrRestorePlayback = {
-                openPlayerOnTrackStart = false
-                internetRadioController.playCurrentSelection()
-            },
-        )
+        playbackController.handlePlayPauseCommand {
+            openPlayerOnTrackStart = false
+            internetRadioController.playCurrentSelection()
+            true
+        }
     }
 
     val libraryController = remember {

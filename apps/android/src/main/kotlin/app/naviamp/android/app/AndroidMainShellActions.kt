@@ -216,7 +216,7 @@ internal fun androidMainShellActions(
             }
         },
         closeActiveDetail = navigationController::closeActiveDetail,
-        handleShellResume = shellPlaybackController::resume,
+        handleShellPlayPause = playbackAppController::handlePlayPauseCommand,
         playAdjacentTrack = playbackAppController::playAdjacentTrack,
         performSeek = playbackAppController::performSeek,
         handleShellToggleShuffle = shellPlaybackController::toggleShuffle,

@@ -5,11 +5,11 @@ import android.util.Log
 import app.naviamp.android.playback.AndroidAutoPlaybackControls
 import app.naviamp.android.playback.AndroidPlaybackEngine
 import app.naviamp.android.playback.AndroidPlaybackNotificationControls
+import app.naviamp.app.NaviampPlaybackCommandController
+import app.naviamp.app.NaviampPlaybackExecution
 import app.naviamp.domain.InternetRadioStation
 import app.naviamp.domain.Track
 import app.naviamp.domain.TrackId
-import app.naviamp.domain.playback.PlaybackPlayPauseCommand
-import app.naviamp.domain.playback.playbackPlayPauseCommand
 import kotlinx.coroutines.CoroutineScope
 
 internal class AndroidAutoAppController(
@@ -25,44 +25,58 @@ internal class AndroidAutoAppController(
     private val toggleCurrentFavorite: () -> Unit,
     private val startCurrentTrackRadio: () -> Unit,
     private val savePlaybackSessionThrottled: (Boolean) -> Unit,
-) {
-    fun handlePlayPauseCommand(): Boolean {
-        return when (
-            playbackPlayPauseCommand(
-                playbackState = state.playbackState,
-                hasPlaybackTarget = state.nowPlaying != null ||
-                    state.nowPlayingStation != null ||
-                    state.activeSourceId != null,
-            )
-        ) {
-            PlaybackPlayPauseCommand.Pause -> {
-                playbackEngine.pause()
-                true
-            }
-            PlaybackPlayPauseCommand.Resume -> {
-                playbackEngine.resume()
-                true
-            }
-            PlaybackPlayPauseCommand.StartOrRestore -> {
-                if (state.nowPlaying == null && state.nowPlayingStation == null) {
-                    state.activeSourceId?.let(restorePlaybackSession)
-                }
-                state.nowPlayingStation?.let { station ->
-                    playInternetRadioStation(station)
-                    return true
-                }
-                val currentTrack = state.nowPlaying ?: return false
-                playTrack(
-                    currentTrack,
-                    state.playbackQueue.tracks.takeIf { it.isNotEmpty() },
-                    false,
-                    state.restoredStartPositionSeconds,
-                )
-                state.restoredStartPositionSeconds = null
-                true
-            }
-            PlaybackPlayPauseCommand.None -> false
+) : NaviampPlaybackExecution {
+    private val playbackCommands = NaviampPlaybackCommandController(
+        execution = this,
+        playback = state.sharedLivePlaybackController,
+    )
+
+    fun handlePlayPauseCommand(): Boolean =
+        playbackCommands.playPause(
+            hasPlaybackTarget = state.nowPlaying != null ||
+                state.nowPlayingStation != null ||
+                state.activeSourceId != null,
+        )
+
+    override fun pause() {
+        playbackEngine.pause()
+    }
+
+    override fun resume() {
+        playbackEngine.resume()
+    }
+
+    override fun startOrRestore(): Boolean {
+        if (state.nowPlaying == null && state.nowPlayingStation == null) {
+            state.activeSourceId?.let(restorePlaybackSession)
         }
+        state.nowPlayingStation?.let { station ->
+            playInternetRadioStation(station)
+            return true
+        }
+        val currentTrack = state.nowPlaying ?: return false
+        playTrack(
+            currentTrack,
+            state.playbackQueue.tracks.takeIf { it.isNotEmpty() },
+            false,
+            state.restoredStartPositionSeconds,
+        )
+        state.restoredStartPositionSeconds = null
+        return true
+    }
+
+    override fun seek(positionSeconds: Double) {
+        performSeek(positionSeconds)
+    }
+
+    override fun replayCurrent(positionSeconds: Double) {
+        startOrRestore()
+        performSeek(positionSeconds)
+    }
+
+    override fun stop() {
+        savePlaybackSessionThrottled(true)
+        playbackEngine.stop()
     }
 
     fun handleCommand(command: String): Boolean =
@@ -93,8 +107,7 @@ internal class AndroidAutoAppController(
         AndroidPlaybackNotificationControls.onToggleFavorite = { toggleCurrentFavorite() }
         AndroidPlaybackNotificationControls.onStartTrackRadio = { startCurrentTrackRadio() }
         AndroidPlaybackNotificationControls.onStop = {
-            savePlaybackSessionThrottled(true)
-            playbackEngine.stop()
+            playbackCommands.stop()
         }
         AndroidPlaybackNotificationControls.onSeekTo = seekHandler@{ positionMillis ->
             val normalizedPositionMillis = normalizeAndroidAutoSeekPositionMillis(

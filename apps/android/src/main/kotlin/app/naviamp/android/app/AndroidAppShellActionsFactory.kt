@@ -178,7 +178,7 @@ fun androidAppShellActions(
     handleShellHomeStationSelected: (SharedHomeStationUi) -> Unit,
     handleSonicDiscoveryTrackAction: (SharedHomeDiscoveryTrackActionRequest) -> Unit,
     closeActiveDetail: () -> Unit,
-    handleShellResume: () -> Unit,
+    handleShellPlayPause: () -> Unit,
     playAdjacentTrack: (Int) -> Unit,
     performSeek: (Double) -> Unit,
     handleShellToggleShuffle: () -> Unit,
@@ -546,9 +546,10 @@ fun androidAppShellActions(
             onCloseNowPlaying = { nowPlayingOpen = false },
             onNowPlayingPlaybackAction = { request ->
                 when (request.action) {
-                    NowPlayingPlaybackAction.Pause -> playbackEngine.pause()
-                    NowPlayingPlaybackAction.Resume -> handleShellResume()
-                    NowPlayingPlaybackAction.PlayCurrent -> handleShellResume()
+                    NowPlayingPlaybackAction.Pause,
+                    NowPlayingPlaybackAction.Resume,
+                    NowPlayingPlaybackAction.PlayCurrent,
+                    -> handleShellPlayPause()
                     NowPlayingPlaybackAction.Seek -> request.seekSeconds?.let(performSeek)
                     NowPlayingPlaybackAction.Previous -> playAdjacentTrack(-1)
                     NowPlayingPlaybackAction.Next -> playAdjacentTrack(1)

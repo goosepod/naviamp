@@ -50,9 +50,17 @@ class DesktopApplicationRuntimeTest {
 }
 
 private object NoOpPlaybackExecution : NaviampPlaybackExecution {
+    override fun pause() = Unit
+
+    override fun resume() = Unit
+
+    override fun startOrRestore(): Boolean = false
+
     override fun seek(positionSeconds: Double) = Unit
 
     override fun replayCurrent(positionSeconds: Double) = Unit
+
+    override fun stop() = Unit
 }
 
 private object EmptyPlaybackSessionRepository : PlaybackSessionRepository {
