@@ -12,6 +12,20 @@ This document tracks useful ideas that come up during the v2 migration but are n
 
 ## Ideas
 
+### Configurable Keyboard Playback Controls
+
+- **Status:** Idea
+- **Concept:** Add keyboard shortcuts for controlling playback and provide settings that let users view and customize those bindings.
+- **Why it may fit:** Keyboard control makes Desktop playback faster without requiring the Naviamp window or a specific control to have pointer focus. A shared command-to-binding model could also support physical keyboards on Android and iOS while leaving operating-system media keys and remote-control integrations with their platform hosts.
+- **Controls to consider:** Play/pause, previous, next, stop, seek backward/forward, volume up/down, mute, shuffle, repeat, favorite, and opening or focusing Now Playing.
+- **Questions to answer:**
+  - Which shortcuts should work globally while Naviamp is running, and which should require the app to have focus?
+  - What default bindings avoid common operating-system and text-entry conflicts?
+  - Should media keys be fixed platform integrations, configurable alongside keyboard shortcuts, or both?
+  - How should duplicate bindings, unsupported keys, modifier-only input, and restoring defaults behave?
+  - Can shortcut definitions and validation live in shared code while each host supplies key-event capture and global-hotkey capabilities?
+- **Settings notes:** Add a Keyboard Controls settings area that lists commands and current bindings, supports recording or clearing a binding, detects conflicts before saving, and provides a restore-defaults action. Capability-gate global shortcuts on platforms where they cannot be registered safely or consistently.
+
 ### BlurHash versus ThumbHash Artwork Placeholders and Backgrounds
 
 - **Status:** Idea
