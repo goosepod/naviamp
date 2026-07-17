@@ -135,7 +135,6 @@ class AndroidPlaybackSessionControllerTest {
             savedInterfaceSettings = InterfaceSettings(),
             savedPlaybackSettings = PlaybackSettings(),
             savedCacheSettings = CacheSettings(),
-            canAutoConnect = false,
             savedSourceId = "source",
             initialSavedMediaSources = emptyList(),
             initialSavedConnectionForLogin = null,

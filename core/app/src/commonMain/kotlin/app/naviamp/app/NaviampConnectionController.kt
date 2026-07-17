@@ -23,7 +23,11 @@ data class NaviampConnectionRuntimeState(
     val sourceId: String? = null,
     val serverVersion: String? = null,
     val status: String? = null,
-)
+) {
+    val isConnecting: Boolean get() = phase == NaviampConnectionPhase.Connecting
+    val connected: Boolean get() = phase == NaviampConnectionPhase.Connected
+    val restoringConnection: Boolean get() = isConnecting && restoringSavedSession
+}
 
 data class NaviampConnectionAttemptPlan(
     val restoreSavedSession: Boolean,

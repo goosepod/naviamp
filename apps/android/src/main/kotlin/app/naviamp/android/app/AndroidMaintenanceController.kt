@@ -127,7 +127,7 @@ fun handleAndroidResetDatabase(
     state.clientCertificatePath = ""
     state.clientCertificatePassword = ""
     state.editingConnection = true
-    state.restoringConnection = false
+    state.sharedControllers.connection.disconnected()
     state.navigationState = NaviampNavigationState(route = NaviampRoute.Settings)
     clearAndroidDerivedMediaState(state)
     state.status = databaseResetStatus()

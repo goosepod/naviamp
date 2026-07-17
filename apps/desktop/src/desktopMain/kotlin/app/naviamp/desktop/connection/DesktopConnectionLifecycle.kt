@@ -76,8 +76,6 @@ class DesktopConnectionLifecycleController(
     private val secondaryUrls: () -> List<ConnectionSecondaryUrl>,
     private val customHeaders: () -> List<ConnectionHeaderDefinition>,
     private val selectedMusicFolderIds: () -> List<String>,
-    private val isConnecting: () -> Boolean,
-    private val setConnecting: (Boolean) -> Unit,
     private val playlistCallbacks: () -> PlaylistCallbacks,
     private val streamQuality: () -> StreamQuality,
     private val replayGainMode: () -> ReplayGainMode,
@@ -140,7 +138,6 @@ class DesktopConnectionLifecycleController(
     }
 
     fun connectToServer(restoreSavedSession: Boolean = false) {
-        if (isConnecting()) return
         val formError = connectionFormError(
             serverUrl = serverUrl(),
             username = username(),
@@ -155,7 +152,6 @@ class DesktopConnectionLifecycleController(
         }
         val attempt = connectionController.begin(restoreSavedSession) ?: return
 
-        setConnecting(true)
         setConnectionStatus("Connecting to Navidrome...")
         if (attempt.clearExistingPlayback) {
             setHomeContent(HomeContent())
@@ -238,8 +234,6 @@ class DesktopConnectionLifecycleController(
                 val failureStatus = connectionFailureStatus(exception, fallback = "Could not connect to Navidrome.")
                 setConnectionStatus(failureStatus)
                 connectionController.failed(failureStatus)
-            } finally {
-                setConnecting(false)
             }
         }
     }

@@ -85,7 +85,7 @@ fun applyAndroidSettingsSyncDocument(
         settingsStore.saveConnection(importedConnection)
         state.applyConnectionForm(importedConnection)
         state.savedConnectionForLogin = null
-        state.restoringConnection = false
+        state.sharedControllers.connection.disconnected()
         state.editingConnection = true
         state.navigationState = state.navigationState.copy(route = NaviampRoute.Settings)
         state.status = if (importedProfiles.importedCount > 1) {

@@ -13,6 +13,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.NonRestartableComposable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
@@ -168,7 +169,6 @@ fun NaviampApp(
     var availableMusicFolders by remember { mutableStateOf(emptyList<ConnectionFormMusicFolder>()) }
     var musicFoldersStatus by remember { mutableStateOf<String?>(null) }
     var mediaSourcesRevision by remember { mutableIntStateOf(0) }
-    var isConnecting by remember { mutableStateOf(false) }
     var connectionStatus by remember { mutableStateOf<String?>(null) }
     var settingsSyncSettings by remember { mutableStateOf(savedSettingsSync.normalized()) }
     var settingsSyncStatus by remember { mutableStateOf<String?>(null) }
@@ -208,6 +208,8 @@ fun NaviampApp(
             ),
         )
     }
+    val connectionRuntimeState by applicationControllers.connection.state.collectAsState()
+    val isConnecting = connectionRuntimeState.isConnecting
     val navigationController = applicationControllers.navigation
     val currentRouteProperty = remember {
         DesktopNavigationRouteProperty(navigationController, DesktopNavigationField.CurrentRoute)
@@ -738,8 +740,6 @@ fun NaviampApp(
         secondaryUrls = { connectionForm.secondaryUrls.toConnectionSecondaryUrls() },
         customHeaders = { connectionForm.customHeaders.toConnectionHeaderDefinitions() },
         selectedMusicFolderIds = { connectionForm.selectedMusicFolderIds },
-        isConnecting = { isConnecting },
-        setConnecting = { connecting -> isConnecting = connecting },
         playlistCallbacks = { playlistCallbacksRef.value ?: error("Playlist callbacks are not ready.") },
         streamQuality = { playbackSettings.streamQuality(playbackEngine) },
         replayGainMode = { playbackSettings.replayGainMode },

@@ -52,14 +52,13 @@ import app.naviamp.ui.SharedSonicPathBuilderUi
 import app.naviamp.ui.StationRowActionRequest
 import app.naviamp.ui.SharedTrackRowActionRequest
 import app.naviamp.ui.SharedTrackRowUi
+import app.naviamp.app.NaviampConnectionRuntimeState
 
 data class AndroidAppShellUiState(
     val modifier: Modifier,
     val status: String,
-    val serverVersion: String?,
-    val connected: Boolean,
+    val connection: NaviampConnectionRuntimeState,
     val editingConnection: Boolean,
-    val restoringConnection: Boolean,
     val connectionForm: ConnectionFormState,
     val availableMusicFolders: List<ConnectionFormMusicFolder>,
     val musicFoldersStatus: String?,

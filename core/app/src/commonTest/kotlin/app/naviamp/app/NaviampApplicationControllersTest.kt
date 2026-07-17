@@ -30,11 +30,13 @@ class NaviampApplicationControllersTest {
     fun fromPreservesControllersWhileCreatingTheirSharedQueueOwner() {
         val navigation = NaviampNavigationController()
         val playback = NaviampLivePlaybackController()
+        val connection = NaviampConnectionController()
 
-        val controllers = NaviampApplicationControllers.from(navigation, playback)
+        val controllers = NaviampApplicationControllers.from(navigation, playback, connection)
 
         assertSame(navigation, controllers.navigation)
         assertSame(playback, controllers.playback)
+        assertSame(connection, controllers.connection)
     }
 
     @Test

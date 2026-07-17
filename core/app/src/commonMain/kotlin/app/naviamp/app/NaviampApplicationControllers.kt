@@ -12,22 +12,25 @@ import app.naviamp.domain.app.NaviampNavigationState
 class NaviampApplicationControllers private constructor(
     val navigation: NaviampNavigationController,
     val playback: NaviampLivePlaybackController,
+    val connection: NaviampConnectionController,
 ) {
     constructor(
         initialNavigationState: NaviampNavigationState = NaviampNavigationState(),
         initialPlaybackState: NaviampLivePlaybackState = NaviampLivePlaybackState(),
+        initialConnectionState: NaviampConnectionRuntimeState = NaviampConnectionRuntimeState(),
     ) : this(
         navigation = NaviampNavigationController(initialNavigationState),
         playback = NaviampLivePlaybackController(initialPlaybackState),
+        connection = NaviampConnectionController(initialConnectionState),
     )
 
     val queue = NaviampPlaybackQueueCoordinator(playback)
-    val connection = NaviampConnectionController()
 
     companion object {
         fun from(
             navigation: NaviampNavigationController,
             playback: NaviampLivePlaybackController,
-        ) = NaviampApplicationControllers(navigation, playback)
+            connection: NaviampConnectionController = NaviampConnectionController(),
+        ) = NaviampApplicationControllers(navigation, playback, connection)
     }
 }

@@ -60,7 +60,6 @@ class AndroidAppState(
     savedInterfaceSettings: InterfaceSettings,
     savedPlaybackSettings: PlaybackSettings,
     savedCacheSettings: CacheSettings,
-    canAutoConnect: Boolean,
     savedSourceId: String?,
     initialSavedMediaSources: List<SavedMediaSource>,
     initialSavedConnectionForLogin: NavidromeConnection?,
@@ -110,7 +109,6 @@ class AndroidAppState(
     var isLibrarySyncing by mutableStateOf(false)
     var isHomeRefreshing by mutableStateOf(false)
     var editingConnection by mutableStateOf(false)
-    var restoringConnection by mutableStateOf(canAutoConnect)
     var savedMediaSources by mutableStateOf(initialSavedMediaSources)
     var savedConnectionForLogin by mutableStateOf(initialSavedConnectionForLogin)
     internal val sharedControllers = NaviampApplicationControllers()
@@ -233,7 +231,6 @@ fun rememberAndroidAppState(
     savedInterfaceSettings: InterfaceSettings,
     savedPlaybackSettings: PlaybackSettings,
     savedCacheSettings: CacheSettings,
-    canAutoConnect: Boolean,
     savedSourceId: String?,
     initialSavedMediaSources: List<SavedMediaSource>,
     initialSavedConnectionForLogin: NavidromeConnection?,
@@ -249,7 +246,6 @@ fun rememberAndroidAppState(
             savedInterfaceSettings = savedInterfaceSettings,
             savedPlaybackSettings = savedPlaybackSettings,
             savedCacheSettings = savedCacheSettings,
-            canAutoConnect = canAutoConnect,
             savedSourceId = savedSourceId,
             initialSavedMediaSources = initialSavedMediaSources,
             initialSavedConnectionForLogin = initialSavedConnectionForLogin,

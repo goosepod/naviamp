@@ -74,8 +74,18 @@ class AndroidConnectionSessionController(
             },
         )
 
-    fun connectWithNavidromeConnection(connection: NavidromeConnection) {
-        val attempt = state.sharedControllers.connection.begin(state.restoringConnection) ?: return
+    fun connectWithNavidromeConnection(
+        connection: NavidromeConnection,
+        restoreSavedSession: Boolean = false,
+    ) {
+        val attempt = state.sharedControllers.connection.begin(restoreSavedSession) ?: return
+        startPreparedConnection(connection, attempt)
+    }
+
+    private fun startPreparedConnection(
+        connection: NavidromeConnection,
+        attempt: NaviampConnectionAttemptPlan,
+    ) {
         if (attempt.clearExistingPlayback) {
             resetAndroidPlaybackState(state, playbackEngine, queueController)
         }
@@ -108,12 +118,15 @@ class AndroidConnectionSessionController(
         )
     }
 
-    fun connectToNavidrome() {
+    fun connectToNavidrome(restoreSavedSession: Boolean = false) {
+        val attempt = state.sharedControllers.connection.begin(restoreSavedSession) ?: return
         startNavidromeConnectionFromForm(
             scope = scope,
             state = state,
             settingsStore = settingsStore,
-            connectWithNavidromeConnection = ::connectWithNavidromeConnection,
+            connectWithNavidromeConnection = { connection ->
+                startPreparedConnection(connection, attempt)
+            },
         )
     }
 
@@ -125,8 +138,11 @@ class AndroidConnectionSessionController(
             password = savedConnection.password,
         )) {
             NaviampConnectionRestorationSource.SavedProviderConnection ->
-                state.savedConnectionForLogin?.let(::connectWithNavidromeConnection)
-            NaviampConnectionRestorationSource.SavedCredentials -> connectToNavidrome()
+                state.savedConnectionForLogin?.let { connection ->
+                    connectWithNavidromeConnection(connection, restoreSavedSession = true)
+                }
+            NaviampConnectionRestorationSource.SavedCredentials ->
+                connectToNavidrome(restoreSavedSession = true)
             NaviampConnectionRestorationSource.None -> Unit
         }
     }
@@ -135,7 +151,6 @@ class AndroidConnectionSessionController(
         state.savedConnectionForLogin = null
         state.applyConnectionForm(ConnectionFormState())
         state.editingConnection = true
-        state.restoringConnection = false
         state.status = "Add a Navidrome connection."
     }
 
@@ -144,7 +159,6 @@ class AndroidConnectionSessionController(
         state.savedConnectionForLogin = connection
         state.applyConnectionForm(settingsStore.loadConnection(connection).copy(password = ""))
         state.editingConnection = true
-        state.restoringConnection = false
         state.status = "Editing saved connection. Leave password blank to reuse it."
     }
 
@@ -308,7 +322,6 @@ fun startNavidromeConnection(
                 if (nowPlaying == null && nowPlayingStation == null) {
                     status = connectedStatus
                 }
-                restoringConnection = false
                 editingConnection = false
                 navigationState = navigationState.copy(route = NaviampRoute.Home)
                 startAndroidLibrarySync(attempt.runFullLibraryRefresh)
@@ -320,7 +333,6 @@ fun startNavidromeConnection(
                 )
             }.onFailure { error ->
                 status = connectionFailureStatus(error)
-                restoringConnection = false
                 provider = null
                 validation = null
                 state.sharedControllers.connection.failed(status)
@@ -366,7 +378,6 @@ fun startNavidromeConnectionFromForm(
     )
     if (formError != null) {
         state.status = formError
-        state.restoringConnection = false
         state.sharedControllers.connection.failed(formError)
         return
     }
@@ -401,7 +412,6 @@ fun startNavidromeConnectionFromForm(
             connectWithNavidromeConnection(connection)
         }.onFailure { error ->
             state.status = connectionFailureStatus(error)
-            state.restoringConnection = false
             state.provider = null
             state.validation = null
             state.sharedControllers.connection.failed(state.status)

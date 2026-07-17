@@ -33,13 +33,17 @@ class NaviampConnectionControllerTest {
         assertTrue(fresh.clearExistingPlayback)
         assertTrue(fresh.clearProviderData)
         assertTrue(fresh.runFullLibraryRefresh)
+        assertTrue(controller.state.value.isConnecting)
+        assertFalse(controller.state.value.restoringConnection)
 
         controller.connected("source", "1.0", "Connected.")
+        assertTrue(controller.state.value.connected)
         val restored = controller.begin(restoreSavedSession = true)!!
         assertFalse(restored.clearExistingPlayback)
         assertFalse(restored.clearProviderData)
         assertFalse(restored.runFullLibraryRefresh)
         assertTrue(restored.restoreSavedSession)
+        assertTrue(controller.state.value.restoringConnection)
     }
 
     @Test

@@ -3,6 +3,8 @@ package app.naviamp.android
 import android.content.Context
 import android.os.Build
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import app.naviamp.android.playback.AndroidBassLoadReport
 import app.naviamp.android.playback.AndroidPlaybackEngine
@@ -35,6 +37,7 @@ fun rememberAndroidAppShellUiState(
     sonicMixBuilder: SharedSonicMixBuilderUi,
 ): AndroidAppShellUiState =
     with(state) {
+        val connectionRuntimeState by sharedControllers.connection.state.collectAsState()
         val downloadLocations = androidDownloadStorageLocations(context).map { location ->
             NaviampStorageLocationUi(location.id, location.label, location.directory.absolutePath)
         }
@@ -137,10 +140,8 @@ fun rememberAndroidAppShellUiState(
         AndroidAppShellUiState(
             modifier = modifier,
             status = status,
-            serverVersion = validation?.serverVersion,
-            connected = provider != null,
+            connection = connectionRuntimeState,
             editingConnection = editingConnection,
-            restoringConnection = restoringConnection,
             connectionForm = shellModels.connectionForm,
             availableMusicFolders = shellModels.availableMusicFolders,
             musicFoldersStatus = shellModels.musicFoldersStatus,

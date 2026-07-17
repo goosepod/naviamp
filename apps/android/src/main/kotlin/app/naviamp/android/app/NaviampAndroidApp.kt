@@ -105,12 +105,6 @@ fun NaviampAndroidApp(
     val savedMediaSources = remember { storage.mediaSources().visibleServerConnections(savedProviderSource?.id) }
     val savedProviderConnection = savedProviderSource?.toNavidromeConnection()
     val savedConnection = remember { settingsStore.loadConnection(savedProviderConnection) }
-    val canAutoConnect = savedProviderConnection != null ||
-        (
-            savedConnection.serverUrl.isNotBlank() &&
-                savedConnection.username.isNotBlank() &&
-                savedConnection.password.isNotBlank()
-            )
     val savedPlaybackSettings = remember {
         val settings = settingsStore.loadPlaybackSettings()
         val storedDjs = storage.radioDjPresets()
@@ -129,7 +123,6 @@ fun NaviampAndroidApp(
         savedInterfaceSettings = savedInterfaceSettings,
         savedPlaybackSettings = savedPlaybackSettings,
         savedCacheSettings = savedCacheSettings,
-        canAutoConnect = canAutoConnect,
         savedSourceId = savedProviderSource?.id,
         initialSavedMediaSources = savedMediaSources,
         initialSavedConnectionForLogin = savedProviderConnection,
