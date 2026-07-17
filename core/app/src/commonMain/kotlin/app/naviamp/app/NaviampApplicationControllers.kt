@@ -16,6 +16,7 @@ private data class NaviampControllerGraph(
     val connection: NaviampConnectionController,
     val providerActions: NaviampProviderActionController,
     val status: NaviampApplicationStatusController,
+    val playbackReporting: NaviampPlaybackReportingController,
 )
 
 private fun createNaviampControllerGraph(
@@ -31,6 +32,7 @@ private fun createNaviampControllerGraph(
         connection = NaviampConnectionController(initialConnectionState, status),
         providerActions = NaviampProviderActionController(pendingProviderActions, status),
         status = status,
+        playbackReporting = NaviampPlaybackReportingController(),
     )
 }
 
@@ -40,6 +42,7 @@ class NaviampApplicationControllers private constructor(graph: NaviampController
     val connection = graph.connection
     val providerActions = graph.providerActions
     val status = graph.status
+    val playbackReporting = graph.playbackReporting
 
     constructor(
         initialNavigationState: NaviampNavigationState = NaviampNavigationState(),
@@ -64,8 +67,16 @@ class NaviampApplicationControllers private constructor(graph: NaviampController
             connection: NaviampConnectionController = NaviampConnectionController(),
             providerActions: NaviampProviderActionController,
             status: NaviampApplicationStatusController = NaviampApplicationStatusController(),
+            playbackReporting: NaviampPlaybackReportingController = NaviampPlaybackReportingController(),
         ) = NaviampApplicationControllers(
-            NaviampControllerGraph(navigation, playback, connection, providerActions, status),
+            NaviampControllerGraph(
+                navigation,
+                playback,
+                connection,
+                providerActions,
+                status,
+                playbackReporting,
+            ),
         )
     }
 }

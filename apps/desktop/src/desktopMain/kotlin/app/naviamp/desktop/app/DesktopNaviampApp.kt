@@ -324,6 +324,7 @@ fun NaviampApp(
             setLastSavedPlaybackPositionSeconds = { position -> lastSavedPlaybackPositionSeconds = position },
             playReportSessionId = { playReportSessionId },
             setOpenPlayerOnTrackStart = { shouldOpen -> openPlayerOnTrackStart = shouldOpen },
+            reporting = applicationControllers.playbackReporting,
         )
     }
 
@@ -512,6 +513,18 @@ fun NaviampApp(
     val settingsSyncController = applicationServices.settingsSync
     val cacheSettingsController = applicationServices.cacheSettings
 
+    fun publishSettingsSyncStatus(
+        message: String,
+        level: NaviampApplicationStatusLevel = NaviampApplicationStatusLevel.Information,
+    ) {
+        settingsSyncStatus = message
+        applicationControllers.status.publish(
+            area = NaviampApplicationStatusArea.SettingsSync,
+            level = level,
+            message = message,
+        )
+    }
+
     fun updateSettingsSyncDirectory(path: String?) {
         saveSettingsSyncSettings(DesktopSettingsSyncSettings(
             directoryPath = path,
@@ -536,9 +549,12 @@ fun NaviampApp(
             DesktopSettingsSyncFile.syncFile(directory).fileName
         }.onSuccess { fileName ->
             settingsSyncController.documentWritten(document)
-            settingsSyncStatus = statusMessage(fileName.toString())
+            publishSettingsSyncStatus(statusMessage(fileName.toString()))
         }.onFailure { error ->
-            settingsSyncStatus = error.message ?: "Could not export settings sync file."
+            publishSettingsSyncStatus(
+                error.message ?: "Could not export settings sync file.",
+                NaviampApplicationStatusLevel.Error,
+            )
         }
     }
 
@@ -610,9 +626,12 @@ fun NaviampApp(
                 ?: error("No settings sync file found in that folder.")
             settingsSyncController.applySyncedDocument(document)
         }.onSuccess { result ->
-            settingsSyncStatus = settingsSyncImportStatus(result.hasServerProfiles)
+            publishSettingsSyncStatus(settingsSyncImportStatus(result.hasServerProfiles))
         }.onFailure { error ->
-            settingsSyncStatus = error.message ?: "Could not import settings sync file."
+            publishSettingsSyncStatus(
+                error.message ?: "Could not import settings sync file.",
+                NaviampApplicationStatusLevel.Error,
+            )
         }
     }
 
@@ -653,10 +672,13 @@ fun NaviampApp(
                     writeSettingsSync(document) { fileName -> "Settings sync exported local settings to $fileName." }
                 }
             } else {
-                settingsSyncStatus = settingsSyncReconciliationStatus(result)
+                publishSettingsSyncStatus(settingsSyncReconciliationStatus(result))
             }
         }.onFailure { error ->
-            settingsSyncStatus = error.message ?: "Could not check settings sync folder."
+            publishSettingsSyncStatus(
+                error.message ?: "Could not check settings sync folder.",
+                NaviampApplicationStatusLevel.Error,
+            )
         }
     }
 

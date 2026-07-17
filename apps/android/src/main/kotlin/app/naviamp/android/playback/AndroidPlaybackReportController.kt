@@ -17,9 +17,8 @@ internal class AndroidPlaybackReportController(
     private val scope: CoroutineScope,
     private val state: AndroidAppState,
     private val providerActions: NaviampProviderActionController,
+    private val reporting: NaviampPlaybackReportingController,
 ) {
-    private val reporting = NaviampPlaybackReportingController()
-
     fun reportNowPlaying(track: Track) {
         val activeProvider = state.provider
         if (

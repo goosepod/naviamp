@@ -206,7 +206,12 @@ fun NaviampAndroidApp(
         )
     }
     val playbackReportController = remember(appState) {
-        AndroidPlaybackReportController(scope, appState, appState.sharedControllers.providerActions)
+        AndroidPlaybackReportController(
+            scope,
+            appState,
+            appState.sharedControllers.providerActions,
+            appState.sharedControllers.playbackReporting,
+        )
     }
 
     val searchController = remember(appState, storage) { AndroidSearchController(appState, storage) }
@@ -560,6 +565,18 @@ fun NaviampAndroidApp(
     }
     val settingsSyncController = applicationServices.settingsSync
 
+    fun publishSettingsSyncStatus(
+        message: String,
+        level: NaviampApplicationStatusLevel = NaviampApplicationStatusLevel.Information,
+    ) {
+        settingsSyncStatus = message
+        appState.sharedControllers.status.publish(
+            area = NaviampApplicationStatusArea.SettingsSync,
+            level = level,
+            message = message,
+        )
+    }
+
     val downloadActionController = remember(appState, storage, context, applicationServices) {
         AndroidDownloadActionController(
             context = context,
@@ -637,11 +654,14 @@ fun NaviampAndroidApp(
             AndroidSettingsSyncFile.write(context, treeUri, document)
         }.onSuccess {
             markProviderPushSucceeded()
-            settingsSyncStatus = statusMessage()
+            publishSettingsSyncStatus(statusMessage())
         }.onFailure { error ->
             val message = error.message ?: "Could not sync settings with provider."
             markProviderSyncFailed(message)
-            settingsSyncStatus = "Settings saved locally. Provider sync pending: $message"
+            publishSettingsSyncStatus(
+                "Settings saved locally. Provider sync pending: $message",
+                NaviampApplicationStatusLevel.Warning,
+            )
         }
     }
 
@@ -650,8 +670,7 @@ fun NaviampAndroidApp(
             saveSettingsSyncMirror(document)
         }.onFailure { error ->
             val message = error.message ?: "Could not save local settings mirror."
-            settingsSyncStatus = message
-            appState.status = message
+            publishSettingsSyncStatus(message, NaviampApplicationStatusLevel.Error)
             return
         }
         val treeUri = settingsSyncTreeUri()
@@ -683,11 +702,10 @@ fun NaviampAndroidApp(
                 runCatching {
                     saveSettingsSyncMirror(document)
                 }.onSuccess {
-                    settingsSyncStatus = "Settings saved locally. Sync now when ready."
+                    publishSettingsSyncStatus("Settings saved locally. Sync now when ready.")
                 }.onFailure { error ->
                     val message = error.message ?: "Could not save local settings mirror."
-                    settingsSyncStatus = message
-                    appState.status = message
+                    publishSettingsSyncStatus(message, NaviampApplicationStatusLevel.Error)
                 }
             }
         }
@@ -698,8 +716,7 @@ fun NaviampAndroidApp(
         runCatching { settingsSyncMirrorStore.read() }
             .onFailure { error ->
                 val message = error.message ?: "Could not read local settings mirror."
-                settingsSyncStatus = message
-                appState.status = message
+                publishSettingsSyncStatus(message, NaviampApplicationStatusLevel.Error)
             }
             .getOrNull()
 
@@ -736,15 +753,14 @@ fun NaviampAndroidApp(
                         saveSettingsSyncMirror(document)
                     }.onFailure { error ->
                         val message = error.message ?: "Could not save local settings mirror."
-                        settingsSyncStatus = message
-                        appState.status = message
+                        publishSettingsSyncStatus(message, NaviampApplicationStatusLevel.Error)
                         return
                     }
                     if (selection.source == SettingsSyncMirrorDocumentSource.Provider) {
                         markProviderPullSucceeded()
                     }
                 }
-                settingsSyncStatus = settingsSyncImportStatus(result.hasServerProfiles)
+                publishSettingsSyncStatus(settingsSyncImportStatus(result.hasServerProfiles))
             }
             SettingsSyncOperationKind.Exported -> {
                 result.documentToWrite?.let { document ->
@@ -755,18 +771,21 @@ fun NaviampAndroidApp(
                 if (providerFileMissing && localMirrorDocument != null && treeUri != null) {
                     writeProviderSettingsSync(treeUri, localMirrorDocument) { "$statusPrefix created provider file." }
                 } else if (providerReadError != null && localMirrorDocument != null) {
-                    settingsSyncStatus = "Local settings mirror is ready. Provider sync pending: $providerReadError"
+                    publishSettingsSyncStatus(
+                        "Local settings mirror is ready. Provider sync pending: $providerReadError",
+                        NaviampApplicationStatusLevel.Warning,
+                    )
                 } else {
-                    settingsSyncStatus = "$statusPrefix is up to date."
+                    publishSettingsSyncStatus("$statusPrefix is up to date.")
                 }
             }
             SettingsSyncOperationKind.UnsupportedSyncFile,
             SettingsSyncOperationKind.NeedsSetupChoice,
             SettingsSyncOperationKind.MissingSyncLocation,
-            -> settingsSyncStatus = settingsSyncReconciliationStatus(result)
+            -> publishSettingsSyncStatus(settingsSyncReconciliationStatus(result))
         }
         if (providerReadError != null && selection.document == null) {
-            settingsSyncStatus = providerReadError
+            publishSettingsSyncStatus(providerReadError, NaviampApplicationStatusLevel.Warning)
         }
     }
 
@@ -806,11 +825,10 @@ fun NaviampAndroidApp(
                     playbackEngine = playbackEngine,
                 )
             }.onSuccess { message ->
-                settingsSyncStatus = message
+                publishSettingsSyncStatus(message)
             }.onFailure { error ->
                 val message = error.message ?: "Could not import settings file."
-                settingsSyncStatus = message
-                appState.status = message
+                publishSettingsSyncStatus(message, NaviampApplicationStatusLevel.Error)
             }
         }
     }
@@ -851,11 +869,10 @@ fun NaviampAndroidApp(
                 playbackEngine = playbackEngine,
             )
         }.onSuccess { message ->
-            settingsSyncStatus = message
+            publishSettingsSyncStatus(message)
         }.onFailure { error ->
             val message = error.message ?: "Could not import settings file."
-            settingsSyncStatus = message
-            appState.status = message
+            publishSettingsSyncStatus(message, NaviampApplicationStatusLevel.Error)
         }
         onSettingsSyncImportUriConsumed()
     }

@@ -66,11 +66,10 @@ class DesktopPlaybackController(
     private val setLastSavedPlaybackPositionSeconds: (Double?) -> Unit,
     private val playReportSessionId: () -> Int,
     private val setOpenPlayerOnTrackStart: (Boolean) -> Unit,
+    private val reporting: NaviampPlaybackReportingController,
 ) : NaviampPlaybackExecution {
     private val playbackCommands = NaviampPlaybackCommandController(this, livePlayback)
     private val queueManager = PlaybackQueueManager()
-    private val reporting = NaviampPlaybackReportingController()
-
     fun savePlaybackSession(
         queue: PlaybackQueue,
         positionSeconds: Double? = playbackProgress().positionSeconds,

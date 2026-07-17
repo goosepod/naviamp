@@ -10,6 +10,7 @@ enum class NaviampApplicationStatusArea {
     ProviderActions,
     CacheMaintenance,
     Downloads,
+    SettingsSync,
 }
 
 enum class NaviampApplicationStatusLevel {

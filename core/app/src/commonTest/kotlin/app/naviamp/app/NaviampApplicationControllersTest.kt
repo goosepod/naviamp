@@ -32,13 +32,21 @@ class NaviampApplicationControllersTest {
         val playback = NaviampLivePlaybackController()
         val connection = NaviampConnectionController()
         val providerActions = NaviampProviderActionController(EmptyPendingProviderActions)
+        val playbackReporting = NaviampPlaybackReportingController()
 
-        val controllers = NaviampApplicationControllers.from(navigation, playback, connection, providerActions)
+        val controllers = NaviampApplicationControllers.from(
+            navigation,
+            playback,
+            connection,
+            providerActions,
+            playbackReporting = playbackReporting,
+        )
 
         assertSame(navigation, controllers.navigation)
         assertSame(playback, controllers.playback)
         assertSame(connection, controllers.connection)
         assertSame(providerActions, controllers.providerActions)
+        assertSame(playbackReporting, controllers.playbackReporting)
     }
 
     @Test
