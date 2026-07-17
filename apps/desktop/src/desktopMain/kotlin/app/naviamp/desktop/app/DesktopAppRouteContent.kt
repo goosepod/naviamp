@@ -28,7 +28,6 @@ import app.naviamp.domain.ArtistDetails
 import app.naviamp.domain.InternetRadioStation
 import app.naviamp.domain.Playlist
 import app.naviamp.domain.Track
-import app.naviamp.domain.cache.LibrarySnapshot
 import app.naviamp.domain.cache.DownloadJob
 import app.naviamp.domain.cache.KeepDownloadedCollectionPolicy
 import app.naviamp.domain.cache.StorageCacheStats
@@ -37,16 +36,18 @@ import app.naviamp.domain.home.HomeContent
 import app.naviamp.domain.playback.EqualizerPlaybackEngine
 import app.naviamp.domain.playback.PlaybackEngine
 import app.naviamp.domain.popular.SimilarArtistMatch
-import app.naviamp.domain.provider.MediaSearchResults
-import app.naviamp.domain.settings.ConnectionFormMusicFolder
+import app.naviamp.domain.settings.ConnectionFormState
 import app.naviamp.domain.settings.InterfaceSettings
-import app.naviamp.domain.source.SavedMediaSource
 import app.naviamp.domain.sonichome.SonicHomeDiscoveryRows
 import app.naviamp.ui.AlbumMixBuilderContent
 import app.naviamp.ui.ArtistMixBuilderContent
 import app.naviamp.ui.GenreMixBuilderContent
 import app.naviamp.ui.NaviampAboutUi
-import app.naviamp.ui.NaviampConnectionCapabilitiesUi
+import app.naviamp.ui.NaviampSavedConnectionUi
+import app.naviamp.ui.NaviampLibraryScreenUi
+import app.naviamp.ui.NaviampSearchScreenUi
+import app.naviamp.ui.NaviampShellCapabilitiesUi
+import app.naviamp.ui.NaviampShellConnectionUi
 import app.naviamp.ui.SharedAlbumMixBuilderUi
 import app.naviamp.ui.SharedArtistMixBuilderUi
 import app.naviamp.ui.SharedGenreMixBuilderUi
@@ -74,7 +75,8 @@ import app.naviamp.ui.toSharedHomeUi
 fun ColumnScope.DesktopAppRouteContent(
     appColors: DesktopAppColors,
     appRoute: DesktopAppRoute,
-    connectionStatus: String?,
+    connection: NaviampShellConnectionUi,
+    capabilities: NaviampShellCapabilitiesUi,
     about: NaviampAboutUi,
     homeStatus: String?,
     homeContent: HomeContent,
@@ -114,17 +116,11 @@ fun ColumnScope.DesktopAppRouteContent(
     selectedPlaylist: Playlist?,
     selectedPlaylistTracks: List<Track>,
     selectedPlaylistStatus: String?,
-    librarySnapshot: LibrarySnapshot,
-    libraryQuery: String,
+    library: NaviampLibraryScreenUi,
     libraryTab: DesktopLibraryTab,
-    libraryStatus: String?,
-    isLibrarySyncing: Boolean,
     libraryListState: LazyListState,
     onLibraryQueryChanged: (String) -> Unit,
-    searchQuery: String,
-    searchResults: MediaSearchResults,
-    searchStatus: String?,
-    isSearching: Boolean,
+    search: NaviampSearchScreenUi,
     artistMixBuilder: SharedArtistMixBuilderUi,
     onArtistMixQueryChanged: (String) -> Unit,
     onArtistMixSearch: () -> Unit,
@@ -188,20 +184,15 @@ fun ColumnScope.DesktopAppRouteContent(
     settingsSyncAutoExportEnabled: Boolean,
     settingsSyncStatus: String?,
     downloadedTracks: (sourceId: String) -> List<DownloadedTrack>,
-    connectionForm: DesktopConnectionFormStateHolder,
-    availableMusicFolders: List<ConnectionFormMusicFolder>,
-    musicFoldersStatus: String?,
-    savedMediaSources: List<SavedMediaSource>,
-    isConnecting: Boolean,
     interfaceSettings: InterfaceSettings,
     playbackSettings: PlaybackSettings,
     playbackEngine: PlaybackEngine,
-    supportsSonicSimilarity: Boolean,
+    onConnectionFormChanged: (ConnectionFormState) -> Unit,
     onConnect: () -> Unit,
     onNewConnection: () -> Unit,
-    onEditConnection: (SavedMediaSource) -> Unit,
-    onConnectSavedConnection: (SavedMediaSource) -> Unit,
-    onDeleteConnection: (SavedMediaSource) -> Unit,
+    onEditConnection: (NaviampSavedConnectionUi) -> Unit,
+    onConnectSavedConnection: (NaviampSavedConnectionUi) -> Unit,
+    onDeleteConnection: (NaviampSavedConnectionUi) -> Unit,
     onCancelConnectionForm: () -> Unit,
     onSettingsSyncDirectoryChanged: (String?) -> Unit,
     onSettingsSyncDirectorySelectedForImport: (String) -> Unit,
@@ -227,8 +218,8 @@ fun ColumnScope.DesktopAppRouteContent(
         playlistTracksById = playlistTracksById,
         sonicDiscoveryRows = sonicHomeDiscoveryRows,
         canFavoriteAlbums = true,
-        showSonicPathBuilder = playbackSettings.sonicSimilarityEnabled && supportsSonicSimilarity,
-        showSonicMixBuilder = playbackSettings.sonicSimilarityEnabled && supportsSonicSimilarity,
+        showSonicPathBuilder = playbackSettings.sonicSimilarityEnabled && capabilities.sonicSimilarity,
+        showSonicMixBuilder = playbackSettings.sonicSimilarityEnabled && capabilities.sonicSimilarity,
     )
     fun openMixBuilder(builder: SharedMixBuilderUi) {
         when (builder.id) {
@@ -551,7 +542,7 @@ fun ColumnScope.DesktopAppRouteContent(
                     keepDownloadedPlaylistIds = keepDownloadedPolicies.mapTo(mutableSetOf()) { it.collectionId },
                     recentPlaylistIds = recentPlaylistIds,
                     sortMode = playlistSortMode,
-                    status = playlistStatus ?: connectionStatus.pageStatusOrNull(),
+                    status = playlistStatus ?: connection.status.pageStatusOrNull(),
                     coverArtUrl = coverArtUrl,
                     onSortModeChanged = onPlaylistSortModeChanged,
                     onPlaylistAction = { request ->
@@ -571,8 +562,8 @@ fun ColumnScope.DesktopAppRouteContent(
                     onSmartPlaylistSaveWithPassword = smartPlaylistsController::saveSmartPlaylistWithPassword,
                     onSmartPlaylistUpdateWithPassword = smartPlaylistsController::updateSmartPlaylistWithPassword,
                     onSmartPlaylistLoad = smartPlaylistsController::loadSmartPlaylistDefinition,
-                    availableLibraries = availableMusicFolders,
-                    selectedConnectionLibraryIds = connectionForm.selectedMusicFolderIds,
+                    availableLibraries = connection.availableMusicFolders,
+                    selectedConnectionLibraryIds = connection.form.selectedMusicFolderIds,
                 )
                 DesktopAppRoute.PlaylistDetail -> DesktopPlaylistDetailPanel(
                     appColors = appColors,
@@ -612,22 +603,22 @@ fun ColumnScope.DesktopAppRouteContent(
                     onSmartPlaylistUpdate = smartPlaylistsController::updateSmartPlaylist,
                     onSmartPlaylistUpdateWithPassword = smartPlaylistsController::updateSmartPlaylistWithPassword,
                     onSmartPlaylistLoad = smartPlaylistsController::loadSmartPlaylistDefinition,
-                    availableLibraries = availableMusicFolders,
-                    selectedConnectionLibraryIds = connectionForm.selectedMusicFolderIds,
+                    availableLibraries = connection.availableMusicFolders,
+                    selectedConnectionLibraryIds = connection.form.selectedMusicFolderIds,
                 )
                 DesktopAppRoute.Library -> {
                     DesktopLibraryPanel(
                         appColors = appColors,
-                        snapshot = librarySnapshot,
-                        query = libraryQuery,
-                        status = libraryStatus ?: connectionStatus.pageStatusOrNull(),
-                        isSyncing = isLibrarySyncing,
+                        snapshot = libraryController.snapshot,
+                        query = library.query,
+                        status = library.syncStatus.message ?: connection.status.pageStatusOrNull(),
+                        isSyncing = library.syncStatus.isSyncing,
                         listState = libraryListState,
                         coverArtUrl = coverArtUrl,
                         onQueryChanged = onLibraryQueryChanged,
                         onJumpToLetter = libraryController::jumpLibraryToLetter,
                         onMediaItemAction = { request ->
-                            librarySnapshot.artists
+                            libraryController.snapshot.artists
                                 .firstOrNull { artist -> artist.id.value == request.item.id }
                                 ?.let { artist -> handleArtistMediaAction(request.action, artist) }
                         },
@@ -636,24 +627,24 @@ fun ColumnScope.DesktopAppRouteContent(
                 }
                 DesktopAppRoute.Search -> DesktopSearchPanel(
                     appColors = appColors,
-                    query = searchQuery,
-                    results = searchResults,
-                    status = searchStatus,
-                    isSearching = isSearching,
+                    query = search.query,
+                    results = searchController.results,
+                    status = search.status,
+                    isSearching = search.searching,
                     coverArtUrl = coverArtUrl,
                     onQueryChanged = searchController::updateQuery,
                     onClearSearch = searchController::clearSearch,
                     onMediaItemAction = { request ->
-                        searchResults.artists
+                        searchController.results.artists
                             .firstOrNull { artist -> artist.id.value == request.item.id }
                             ?.let { artist -> handleArtistMediaAction(request.action, artist) }
-                            ?: searchResults.albums
+                            ?: searchController.results.albums
                                 .firstOrNull { album -> album.id.value == request.item.id }
                                 ?.let { album -> handleAlbumMediaAction(request.action, album) }
                     },
                     onTrackAction = { request ->
-                        val index = searchResults.tracks.indexOfFirst { track -> track.id.value == request.track.id }
-                        val track = searchResults.tracks.getOrNull(index)
+                        val index = searchController.results.tracks.indexOfFirst { track -> track.id.value == request.track.id }
+                        val track = searchController.results.tracks.getOrNull(index)
                         if (track != null) {
                             when (request.action) {
                                 SharedTrackRowAction.Select -> appActions.playSearchTrack(index)
@@ -895,7 +886,7 @@ fun ColumnScope.DesktopAppRouteContent(
                     DesktopInternetRadioPanel(
                         appColors = appColors,
                         stations = internetRadioStations,
-                        status = internetRadioStatus ?: connectionStatus.pageStatusOrNull(),
+                        status = internetRadioStatus ?: connection.status.pageStatusOrNull(),
                         onStationAction = { request ->
                             internetRadioStations.firstOrNull { station -> station.id == request.station.id }?.let { station ->
                                 when (request.action) {
@@ -938,25 +929,25 @@ fun ColumnScope.DesktopAppRouteContent(
                 )
                 DesktopAppRoute.Settings -> DesktopSettingsPanel(
                     appColors = appColors,
-                    serverUrl = connectionForm.serverUrl,
-                    connectionName = connectionForm.connectionName,
-                    username = connectionForm.username,
-                    password = connectionForm.password,
-                    insecureSkipTlsVerification = connectionForm.insecureSkipTlsVerification,
-                    customCertificatePath = connectionForm.customCertificatePath,
-                    clientCertificateKeyStorePath = connectionForm.clientCertificateKeyStorePath,
-                    clientCertificateKeyStorePassword = connectionForm.clientCertificateKeyStorePassword,
-                    secondaryUrls = connectionForm.secondaryUrls,
-                    customHeaders = connectionForm.customHeaders,
-                    selectedMusicFolderIds = connectionForm.selectedMusicFolderIds,
-                    availableMusicFolders = availableMusicFolders,
-                    musicFoldersStatus = musicFoldersStatus,
-                    savedConnections = savedMediaSources,
+                    serverUrl = connection.form.serverUrl,
+                    connectionName = connection.form.displayName,
+                    username = connection.form.username,
+                    password = connection.form.password,
+                    insecureSkipTlsVerification = connection.form.skipTlsVerification,
+                    customCertificatePath = connection.form.customCertificatePath,
+                    clientCertificateKeyStorePath = connection.form.clientCertificatePath,
+                    clientCertificateKeyStorePassword = connection.form.clientCertificatePassword,
+                    secondaryUrls = connection.form.secondaryUrls,
+                    customHeaders = connection.form.customHeaders,
+                    selectedMusicFolderIds = connection.form.selectedMusicFolderIds,
+                    availableMusicFolders = connection.availableMusicFolders,
+                    musicFoldersStatus = connection.musicFoldersStatus,
+                    savedConnections = connection.savedConnections,
                     currentSourceId = connectedSourceId,
-                    hasSavedConnection = connectionForm.savedConnectionForLogin != null,
-                    isConnectionFormOpen = connectionForm.isOpen,
-                    isConnecting = isConnecting,
-                    connectionStatus = connectionStatus,
+                    hasSavedConnection = connection.hasSavedConnection,
+                    isConnectionFormOpen = connection.editingConnection,
+                    isConnecting = connection.isConnecting,
+                    connectionStatus = connection.status,
                     interfaceSettings = interfaceSettings,
                     playbackSettings = playbackSettings,
                     cacheSettings = cacheSettings,
@@ -965,47 +956,38 @@ fun ColumnScope.DesktopAppRouteContent(
                     settingsSyncAutoExportEnabled = settingsSyncAutoExportEnabled,
                     settingsSyncStatus = settingsSyncStatus,
                     about = about,
-                    supportsReplayGain = playbackEngine.supportsReplayGain,
-                    supportsGapless = playbackEngine.supportsGapless,
-                    supportsCrossfade = playbackEngine.supportsCrossfade,
-                    supportsEqualizer = (playbackEngine as? EqualizerPlaybackEngine)?.supportsEqualizer == true,
+                    supportsReplayGain = capabilities.replayGain,
+                    supportsGapless = capabilities.gapless,
+                    supportsCrossfade = capabilities.crossfade,
+                    supportsEqualizer = capabilities.equalizer,
                     supportsAudioOutputDeviceSelection =
                         (playbackEngine as? AudioOutputDevicePlaybackEngine)?.supportsAudioOutputDeviceSelection == true,
                     audioOutputDevices =
                         (playbackEngine as? AudioOutputDevicePlaybackEngine)?.outputDevices().orEmpty(),
-                    supportsSonicSimilarity = supportsSonicSimilarity,
-                    connectionCapabilities = NaviampConnectionCapabilitiesUi(
-                        insecureServerVerification = DesktopCapabilityPresentation.insecureServerVerification.visible,
-                        customServerCertificates = DesktopCapabilityPresentation.customServerCertificates.visible,
-                        clientCertificates = DesktopCapabilityPresentation.clientCertificates.visible,
-                    ),
-                    supportsSettingsSync = DesktopCapabilityPresentation.settingsImportExport.visible &&
-                        DesktopCapabilityPresentation.fileSelection.visible,
-                    supportsFileSelection = DesktopCapabilityPresentation.fileSelection.visible,
-                    onServerUrlChanged = connectionForm::updateServerUrl,
-                    onConnectionNameChanged = { connectionForm.connectionName = it },
-                    onUsernameChanged = connectionForm::updateUsername,
-                    onPasswordChanged = { connectionForm.password = it },
+                    supportsSonicSimilarity = capabilities.sonicSimilarity,
+                    connectionCapabilities = capabilities.connection,
+                    supportsSettingsSync = capabilities.settingsImportExport && capabilities.fileSelection,
+                    supportsFileSelection = capabilities.fileSelection,
+                    onServerUrlChanged = { onConnectionFormChanged(connection.form.copy(serverUrl = it)) },
+                    onConnectionNameChanged = { onConnectionFormChanged(connection.form.copy(displayName = it)) },
+                    onUsernameChanged = { onConnectionFormChanged(connection.form.copy(username = it)) },
+                    onPasswordChanged = { onConnectionFormChanged(connection.form.copy(password = it)) },
                     onInsecureSkipTlsVerificationChanged = {
-                        connectionForm.insecureSkipTlsVerification = it
+                        onConnectionFormChanged(connection.form.copy(skipTlsVerification = it))
                     },
                     onCustomCertificatePathChanged = {
-                        connectionForm.customCertificatePath = it
+                        onConnectionFormChanged(connection.form.copy(customCertificatePath = it))
                     },
                     onClientCertificateKeyStorePathChanged = {
-                        connectionForm.clientCertificateKeyStorePath = it
+                        onConnectionFormChanged(connection.form.copy(clientCertificatePath = it))
                     },
                     onClientCertificateKeyStorePasswordChanged = {
-                        connectionForm.clientCertificateKeyStorePassword = it
+                        onConnectionFormChanged(connection.form.copy(clientCertificatePassword = it))
                     },
-                    onSecondaryUrlsChanged = {
-                        connectionForm.secondaryUrls = it
-                    },
-                    onCustomHeadersChanged = {
-                        connectionForm.customHeaders = it
-                    },
+                    onSecondaryUrlsChanged = { onConnectionFormChanged(connection.form.copy(secondaryUrls = it)) },
+                    onCustomHeadersChanged = { onConnectionFormChanged(connection.form.copy(customHeaders = it)) },
                     onSelectedMusicFolderIdsChanged = {
-                        connectionForm.selectedMusicFolderIds = it
+                        onConnectionFormChanged(connection.form.copy(selectedMusicFolderIds = it))
                     },
                     onConnect = onConnect,
                     onNewConnection = onNewConnection,

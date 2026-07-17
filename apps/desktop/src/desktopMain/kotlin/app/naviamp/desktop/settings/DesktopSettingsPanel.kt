@@ -51,7 +51,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import app.naviamp.domain.source.SavedMediaSource
 import app.naviamp.domain.playback.AudioOutputDevice
 import app.naviamp.domain.settings.ConnectionFormHeader
 import app.naviamp.domain.settings.ConnectionFormMusicFolder
@@ -62,7 +61,6 @@ import app.naviamp.domain.settings.InterfaceSettings
 import app.naviamp.domain.settings.MaxWaveformBucketCount
 import app.naviamp.domain.settings.MinWaveformBucketCount
 import app.naviamp.domain.settings.SettingsSyncFileName
-import app.naviamp.domain.settings.selectedMusicFolderSummary
 import app.naviamp.desktop.settings.CacheSettings
 import app.naviamp.desktop.settings.PlaybackSettings
 import app.naviamp.ui.NaviampAboutSettingsSection
@@ -77,6 +75,7 @@ import app.naviamp.ui.NaviampLanguageSettingsSection
 import app.naviamp.ui.NaviampPlaybackSettingsSection
 import app.naviamp.ui.NaviampSettingsCategory
 import app.naviamp.ui.NaviampStorageLocationUi
+import app.naviamp.ui.NaviampSavedConnectionUi
 import app.naviamp.ui.NaviampDiagnosticsSectionUi
 import app.naviamp.ui.NaviampDiagnosticsUi
 import app.naviamp.ui.NaviampConnectionCapabilitiesUi
@@ -110,7 +109,7 @@ fun DesktopSettingsPanel(
     selectedMusicFolderIds: List<String>,
     availableMusicFolders: List<ConnectionFormMusicFolder>,
     musicFoldersStatus: String?,
-    savedConnections: List<SavedMediaSource>,
+    savedConnections: List<NaviampSavedConnectionUi>,
     currentSourceId: String?,
     hasSavedConnection: Boolean,
     isConnectionFormOpen: Boolean,
@@ -147,9 +146,9 @@ fun DesktopSettingsPanel(
     onSelectedMusicFolderIdsChanged: (List<String>) -> Unit,
     onConnect: () -> Unit,
     onNewConnection: () -> Unit,
-    onEditConnection: (SavedMediaSource) -> Unit,
-    onDeleteConnection: (SavedMediaSource) -> Unit,
-    onConnectSavedConnection: (SavedMediaSource) -> Unit,
+    onEditConnection: (NaviampSavedConnectionUi) -> Unit,
+    onDeleteConnection: (NaviampSavedConnectionUi) -> Unit,
+    onConnectSavedConnection: (NaviampSavedConnectionUi) -> Unit,
     onCancelConnectionForm: () -> Unit,
     onSettingsSyncDirectoryChanged: (String?) -> Unit,
     onSettingsSyncDirectorySelectedForImport: (String) -> Unit,
@@ -701,7 +700,7 @@ private fun ConnectionsSettings(
     selectedMusicFolderIds: List<String>,
     availableMusicFolders: List<ConnectionFormMusicFolder>,
     musicFoldersStatus: String?,
-    savedConnections: List<SavedMediaSource>,
+    savedConnections: List<NaviampSavedConnectionUi>,
     currentSourceId: String?,
     hasSavedConnection: Boolean,
     isConnectionFormOpen: Boolean,
@@ -725,9 +724,9 @@ private fun ConnectionsSettings(
     onSelectedMusicFolderIdsChanged: (List<String>) -> Unit,
     onConnect: () -> Unit,
     onNewConnection: () -> Unit,
-    onEditConnection: (SavedMediaSource) -> Unit,
-    onDeleteConnection: (SavedMediaSource) -> Unit,
-    onConnectSavedConnection: (SavedMediaSource) -> Unit,
+    onEditConnection: (NaviampSavedConnectionUi) -> Unit,
+    onDeleteConnection: (NaviampSavedConnectionUi) -> Unit,
+    onConnectSavedConnection: (NaviampSavedConnectionUi) -> Unit,
     onCancelConnectionForm: () -> Unit,
     onSettingsSyncDirectoryChanged: (String?) -> Unit,
     onSettingsSyncDirectorySelectedForImport: (String) -> Unit,
@@ -735,7 +734,7 @@ private fun ConnectionsSettings(
     onSettingsSyncExport: () -> Unit,
     onSettingsSyncImport: () -> Unit,
 ) {
-    var connectionPendingDelete by remember { mutableStateOf<SavedMediaSource?>(null) }
+    var connectionPendingDelete by remember { mutableStateOf<NaviampSavedConnectionUi?>(null) }
     var sourcePage by remember { mutableStateOf<DesktopSourceSettingsPage?>(null) }
 
     Column(
@@ -815,10 +814,7 @@ private fun ConnectionsSettings(
                             SavedConnectionRow(
                                 appColors = appColors,
                                 connection = connection,
-                                selectedLibrarySummary = selectedMusicFolderSummary(
-                                    selectedIds = connection.selectedMusicFolderIds,
-                                    availableFolders = availableMusicFolders,
-                                ),
+                                selectedLibrarySummary = connection.selectedLibrarySummary,
                                 selected = connection.id == currentSourceId,
                                 enabled = !isConnecting,
                                 onEdit = { onEditConnection(connection) },
@@ -1101,7 +1097,7 @@ private fun connectionSubScreenDivider(appColors: DesktopAppColors) {
 @Composable
 private fun SavedConnectionRow(
     appColors: DesktopAppColors,
-    connection: SavedMediaSource,
+    connection: NaviampSavedConnectionUi,
     selectedLibrarySummary: String,
     selected: Boolean,
     enabled: Boolean,
@@ -1164,7 +1160,7 @@ private fun SavedConnectionRow(
             overflow = TextOverflow.Ellipsis,
         )
         Text(
-            connection.baseUrl,
+            connection.serverUrl,
             color = appColors.secondaryText,
             fontSize = 12.sp,
             maxLines = 1,
@@ -1208,7 +1204,7 @@ private fun ConnectionActionIconButton(
 
 @Composable
 private fun DeleteConnectionDialog(
-    connection: SavedMediaSource,
+    connection: NaviampSavedConnectionUi,
     onDismiss: () -> Unit,
     onConfirm: () -> Unit,
 ) {

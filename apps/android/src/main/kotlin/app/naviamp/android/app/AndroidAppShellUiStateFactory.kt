@@ -16,6 +16,8 @@ import app.naviamp.domain.settings.streamQualityForNetwork
 import app.naviamp.ui.NaviampAboutUi
 import app.naviamp.ui.NaviampConnectionCapabilitiesUi
 import app.naviamp.ui.NaviampSavedConnectionUi
+import app.naviamp.ui.NaviampLibraryScreenUi
+import app.naviamp.ui.NaviampSearchScreenUi
 import app.naviamp.ui.NaviampOfflineDashboardUi
 import app.naviamp.ui.NaviampStorageLocationUi
 import app.naviamp.ui.NaviampShellCapabilitiesUi
@@ -191,10 +193,12 @@ fun rememberAndroidAppShellUiState(
             ),
             selectedVisualizer = selectedVisualizer,
             visualizerBandsProvider = { visualizerFrame?.bands.orEmpty() },
-            query = query,
+            search = NaviampSearchScreenUi(
+                query = query,
+                results = shellModels.searchResults,
+            ),
             home = shellModels.home,
             homeRefreshing = isHomeRefreshing,
-            searchResults = shellModels.searchResults,
             artistMixBuilder = SharedArtistMixBuilderUi(
                 query = artistMixQuery,
                 selectedArtists = artistMixSelectedArtists.map { artist ->
@@ -234,9 +238,11 @@ fun rememberAndroidAppShellUiState(
             ),
             sonicPathBuilder = sonicPathBuilder,
             sonicMixBuilder = sonicMixBuilder,
-            libraryArtists = shellModels.libraryArtists,
-            libraryQuery = libraryQuery,
-            librarySyncStatus = shellModels.librarySyncStatus,
+            library = NaviampLibraryScreenUi(
+                artists = shellModels.libraryArtists,
+                query = libraryQuery,
+                syncStatus = shellModels.librarySyncStatus,
+            ),
             downloads = shellModels.downloads,
             downloadBytes = storageStats.downloadBytes,
             maxDownloadBytes = cacheSettings.maxDownloadBytes,

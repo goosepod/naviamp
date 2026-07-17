@@ -66,6 +66,7 @@ import app.naviamp.domain.settings.SettingsSyncDocument
 import app.naviamp.domain.settings.SettingsSyncLocalSnapshot
 import app.naviamp.domain.settings.SettingsSyncOperationKind
 import app.naviamp.domain.settings.SettingsSyncRuntimeState
+import app.naviamp.domain.settings.ConnectionFormState
 import app.naviamp.domain.settings.effectiveForEngine
 import app.naviamp.domain.settings.PlaybackSettingsMaintenanceController
 import app.naviamp.domain.settings.SavedInternetRadioStation
@@ -77,6 +78,7 @@ import app.naviamp.domain.settings.InterfaceSettings
 import app.naviamp.domain.settings.playbackSettingsChange
 import app.naviamp.domain.settings.restoredPlaybackQueue
 import app.naviamp.domain.settings.restoredTrackSession
+import app.naviamp.domain.settings.selectedMusicFolderSummary
 import app.naviamp.domain.settings.toConnectionHeaderDefinitions
 import app.naviamp.domain.settings.toConnectionSecondaryUrls
 import app.naviamp.domain.source.ConnectionTlsSettings
@@ -87,6 +89,13 @@ import app.naviamp.provider.navidrome.NavidromeProvider
 import app.naviamp.provider.navidrome.toNavidromeConnection
 import app.naviamp.provider.navidrome.withNativeTokenFromPassword
 import app.naviamp.ui.NaviampSleepTimerUi
+import app.naviamp.ui.NaviampConnectionCapabilitiesUi
+import app.naviamp.ui.NaviampSavedConnectionUi
+import app.naviamp.ui.NaviampLibraryScreenUi
+import app.naviamp.ui.NaviampLibrarySyncStatusUi
+import app.naviamp.ui.NaviampSearchScreenUi
+import app.naviamp.ui.NaviampShellCapabilitiesUi
+import app.naviamp.ui.NaviampShellConnectionUi
 import app.naviamp.ui.NaviampSleepTimerExpiryEffect
 import app.naviamp.ui.NowPlayingDisplayAction
 import app.naviamp.ui.NowPlayingDisplayActionRequest
@@ -101,6 +110,8 @@ import app.naviamp.ui.NowPlayingSleepTimerActionRequest
 import app.naviamp.ui.naviampVisualizerFromName
 import app.naviamp.ui.nowPlayingQueueIndex
 import app.naviamp.ui.nowPlayingRelatedIndex
+import app.naviamp.ui.toSharedMediaItemUi
+import app.naviamp.ui.toSharedSearchResultsUi
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.nio.file.Path
@@ -1352,6 +1363,60 @@ fun NaviampApp(
     val savedMediaSources = mediaSourcesRevision.let {
         storage.mediaSources().visibleServerConnections(connectedSourceId)
     }
+    val shellConnection = NaviampShellConnectionUi(
+        status = connectionStatus,
+        serverVersion = connectionRuntimeState.serverVersion,
+        connected = connectionRuntimeState.connected,
+        editingConnection = connectionForm.isOpen,
+        restoringConnection = connectionRuntimeState.restoringConnection,
+        isConnecting = connectionRuntimeState.isConnecting,
+        form = ConnectionFormState(
+            displayName = connectionForm.connectionName,
+            serverUrl = connectionForm.serverUrl,
+            username = connectionForm.username,
+            password = connectionForm.password,
+            skipTlsVerification = connectionForm.insecureSkipTlsVerification,
+            customCertificatePath = connectionForm.customCertificatePath,
+            clientCertificatePath = connectionForm.clientCertificateKeyStorePath,
+            clientCertificatePassword = connectionForm.clientCertificateKeyStorePassword,
+            secondaryUrls = connectionForm.secondaryUrls,
+            customHeaders = connectionForm.customHeaders,
+            selectedMusicFolderIds = connectionForm.selectedMusicFolderIds,
+        ),
+        availableMusicFolders = availableMusicFolders,
+        musicFoldersStatus = musicFoldersStatus,
+        savedConnections = savedMediaSources.map { source ->
+            NaviampSavedConnectionUi(
+                id = source.id,
+                displayName = source.displayName,
+                serverUrl = source.baseUrl,
+                username = source.username,
+                selectedLibrarySummary = selectedMusicFolderSummary(
+                    selectedIds = source.selectedMusicFolderIds,
+                    availableFolders = availableMusicFolders,
+                ),
+                current = source.id == connectedSourceId,
+            )
+        },
+        hasSavedConnection = connectionForm.savedConnectionForLogin != null,
+    )
+    val shellCapabilities = NaviampShellCapabilitiesUi(
+        replayGain = playbackEngine.supportsReplayGain,
+        gapless = playbackEngine.supportsGapless,
+        crossfade = playbackEngine.supportsCrossfade,
+        equalizer = (playbackEngine as? app.naviamp.domain.playback.EqualizerPlaybackEngine)
+            ?.supportsEqualizer == true,
+        sonicSimilarity = connectedProvider?.capabilities?.supportsSonicSimilarity == true,
+        downloads = DesktopCapabilityPresentation.downloads.visible,
+        settingsImportExport = DesktopCapabilityPresentation.settingsImportExport.visible,
+        applicationUpdates = DesktopCapabilityPresentation.applicationUpdates.visible,
+        fileSelection = DesktopCapabilityPresentation.fileSelection.visible,
+        connection = NaviampConnectionCapabilitiesUi(
+            insecureServerVerification = DesktopCapabilityPresentation.insecureServerVerification.visible,
+            customServerCertificates = DesktopCapabilityPresentation.customServerCertificates.visible,
+            clientCertificates = DesktopCapabilityPresentation.clientCertificates.visible,
+        ),
+    )
     val statsForNerdsInfo = desktopStatsForNerdsInfoOrNull(
         showStatsForNerds = showStatsForNerds,
         appRoute = appRoute,
@@ -1534,7 +1599,8 @@ fun NaviampApp(
                         DesktopAppRouteContent(
                             appColors = appColors,
                             appRoute = appRoute,
-                            connectionStatus = connectionStatus,
+                            connection = shellConnection,
+                            capabilities = shellCapabilities,
                             about = about,
                             homeStatus = homeStatus,
                             homeContent = homeContent,
@@ -1578,17 +1644,36 @@ fun NaviampApp(
                             selectedPlaylist = playlistsController.selectedPlaylist,
                             selectedPlaylistTracks = playlistsController.selectedPlaylistTracks,
                             selectedPlaylistStatus = playlistsController.selectedPlaylistStatus,
-                            librarySnapshot = libraryController.snapshot,
-                            libraryQuery = libraryController.query,
+                            library = NaviampLibraryScreenUi(
+                                artists = libraryController.snapshot.artists.map { artist ->
+                                    artist.toSharedMediaItemUi(
+                                        coverArtUrl = { coverArtId ->
+                                            coverArtId?.let { connectedProvider?.coverArtUrl(it) }
+                                        },
+                                        canFavorite = true,
+                                    )
+                                },
+                                query = libraryController.query,
+                                syncStatus = NaviampLibrarySyncStatusUi(
+                                    message = libraryController.status,
+                                    isSyncing = libraryController.syncing,
+                                ),
+                            ),
                             libraryTab = libraryController.tab,
-                            libraryStatus = libraryController.status,
-                            isLibrarySyncing = libraryController.syncing,
                             libraryListState = libraryListState,
                             onLibraryQueryChanged = libraryController::updateQuery,
-                            searchQuery = searchController.query,
-                            searchResults = searchController.results,
-                            searchStatus = searchController.status,
-                            isSearching = searchController.searching,
+                            search = NaviampSearchScreenUi(
+                                query = searchController.query,
+                                results = searchController.results.toSharedSearchResultsUi(
+                                    coverArtUrl = { coverArtId ->
+                                        coverArtId?.let { connectedProvider?.coverArtUrl(it) }
+                                    },
+                                    canFavoriteArtists = true,
+                                    canFavoriteAlbums = true,
+                                ),
+                                status = searchController.status,
+                                searching = searchController.searching,
+                            ),
                             artistMixBuilder = mixBuilderController.artistUi(
                                 coverArtUrl = { coverArtId -> coverArtId?.let { connectedProvider?.coverArtUrl(it) } },
                             ),
@@ -1669,24 +1754,39 @@ fun NaviampApp(
                             cacheSettings = cacheSettings,
                             cacheStats = cacheStats,
                             downloadedTracks = storage::downloadedTracks,
-                            connectionForm = connectionForm,
-                            availableMusicFolders = availableMusicFolders,
-                            musicFoldersStatus = musicFoldersStatus,
-                            savedMediaSources = savedMediaSources,
-                            isConnecting = isConnecting,
                             interfaceSettings = interfaceSettings,
                             playbackSettings = playbackSettings,
                             playbackEngine = playbackEngine,
-                            supportsSonicSimilarity =
-                                connectedProvider?.capabilities?.supportsSonicSimilarity == true,
                             settingsSyncDirectoryPath = settingsSyncSettings.directoryPath,
                             settingsSyncAutoExportEnabled = settingsSyncSettings.autoExportEnabled,
                             settingsSyncStatus = settingsSyncStatus,
                             onConnect = { appActions.connectToServer() },
                             onNewConnection = connectionLifecycleController::openNewConnectionForm,
-                            onEditConnection = connectionLifecycleController::openSavedConnectionForm,
-                            onConnectSavedConnection = connectionLifecycleController::connectSavedConnection,
-                            onDeleteConnection = { source -> appActions.deleteConnection(source) },
+                            onConnectionFormChanged = { form ->
+                                connectionForm.connectionName = form.displayName
+                                connectionForm.updateServerUrl(form.serverUrl)
+                                connectionForm.updateUsername(form.username)
+                                connectionForm.password = form.password
+                                connectionForm.insecureSkipTlsVerification = form.skipTlsVerification
+                                connectionForm.customCertificatePath = form.customCertificatePath
+                                connectionForm.clientCertificateKeyStorePath = form.clientCertificatePath
+                                connectionForm.clientCertificateKeyStorePassword = form.clientCertificatePassword
+                                connectionForm.secondaryUrls = form.secondaryUrls
+                                connectionForm.customHeaders = form.customHeaders
+                                connectionForm.selectedMusicFolderIds = form.selectedMusicFolderIds
+                            },
+                            onEditConnection = { item ->
+                                savedMediaSources.firstOrNull { it.id == item.id }
+                                    ?.let(connectionLifecycleController::openSavedConnectionForm)
+                            },
+                            onConnectSavedConnection = { item ->
+                                savedMediaSources.firstOrNull { it.id == item.id }
+                                    ?.let(connectionLifecycleController::connectSavedConnection)
+                            },
+                            onDeleteConnection = { item ->
+                                savedMediaSources.firstOrNull { it.id == item.id }
+                                    ?.let(appActions::deleteConnection)
+                            },
                             onCancelConnectionForm = connectionLifecycleController::closeConnectionForm,
                             onSettingsSyncDirectoryChanged = ::updateSettingsSyncDirectory,
                             onSettingsSyncDirectorySelectedForImport = ::selectSettingsSyncDirectoryAndImport,

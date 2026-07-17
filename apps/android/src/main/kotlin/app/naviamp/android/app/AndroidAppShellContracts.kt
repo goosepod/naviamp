@@ -14,7 +14,6 @@ import app.naviamp.ui.NaviampDiagnosticsUi
 import app.naviamp.ui.NaviampDownloadedTrackUi
 import app.naviamp.ui.NaviampOfflineDashboardUi
 import app.naviamp.ui.NaviampStorageLocationUi
-import app.naviamp.ui.NaviampLibrarySyncStatusUi
 import app.naviamp.ui.NaviampPlaylistChoiceUi
 import app.naviamp.ui.NaviampVisualizer
 import app.naviamp.ui.DownloadedTrackActionRequest
@@ -43,7 +42,6 @@ import app.naviamp.ui.NaviampSavedConnectionUi
 import app.naviamp.ui.SharedPlaylistDetailUi
 import app.naviamp.ui.SharedPlaylistSortMode
 import app.naviamp.ui.SharedRoute
-import app.naviamp.ui.SharedSearchResultsUi
 import app.naviamp.ui.SharedSimilarArtistUi
 import app.naviamp.ui.SharedSonicMixBiasUi
 import app.naviamp.ui.SharedSonicMixBuilderUi
@@ -53,6 +51,8 @@ import app.naviamp.ui.SharedTrackRowActionRequest
 import app.naviamp.ui.SharedTrackRowUi
 import app.naviamp.ui.NaviampShellCapabilitiesUi
 import app.naviamp.ui.NaviampShellConnectionUi
+import app.naviamp.ui.NaviampLibraryScreenUi
+import app.naviamp.ui.NaviampSearchScreenUi
 
 data class AndroidAppShellUiState(
     val modifier: Modifier,
@@ -65,18 +65,15 @@ data class AndroidAppShellUiState(
     val capabilities: NaviampShellCapabilitiesUi,
     val selectedVisualizer: NaviampVisualizer,
     val visualizerBandsProvider: () -> List<Float>,
-    val query: String,
+    val search: NaviampSearchScreenUi,
     val home: SharedHomeUi,
     val homeRefreshing: Boolean,
-    val searchResults: SharedSearchResultsUi,
     val artistMixBuilder: SharedArtistMixBuilderUi,
     val albumMixBuilder: SharedAlbumMixBuilderUi,
     val genreMixBuilder: SharedGenreMixBuilderUi,
     val sonicPathBuilder: SharedSonicPathBuilderUi,
     val sonicMixBuilder: SharedSonicMixBuilderUi,
-    val libraryArtists: List<SharedMediaItemUi>,
-    val libraryQuery: String,
-    val librarySyncStatus: NaviampLibrarySyncStatusUi,
+    val library: NaviampLibraryScreenUi,
     val downloads: List<NaviampDownloadedTrackUi>,
     val downloadBytes: Long,
     val maxDownloadBytes: Long,

@@ -500,6 +500,19 @@ data class SharedSearchResultsUi(
         get() = artists.isEmpty() && albums.isEmpty() && tracks.isEmpty()
 }
 
+data class NaviampSearchScreenUi(
+    val query: String = "",
+    val results: SharedSearchResultsUi = SharedSearchResultsUi(),
+    val status: String? = null,
+    val searching: Boolean = false,
+)
+
+data class NaviampLibraryScreenUi(
+    val artists: List<SharedMediaItemUi> = emptyList(),
+    val query: String = "",
+    val syncStatus: NaviampLibrarySyncStatusUi = NaviampLibrarySyncStatusUi(),
+)
+
 data class SharedArtistMixBuilderUi(
     val query: String = "",
     val selectedArtists: List<SharedMediaItemUi> = emptyList(),
@@ -644,7 +657,7 @@ data class NaviampConnectionCapabilitiesUi(
 )
 
 data class NaviampShellConnectionUi(
-    val status: String = "",
+    val status: String? = null,
     val serverVersion: String? = null,
     val connected: Boolean = false,
     val editingConnection: Boolean = false,
