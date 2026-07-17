@@ -13,7 +13,7 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import app.naviamp.domain.provider.MediaSearchResults
+import app.naviamp.ui.NaviampSearchScreenUi
 import app.naviamp.ui.NaviampPageTitle
 import app.naviamp.ui.SharedMediaItemActionRequest
 import app.naviamp.ui.SharedTrackRowActionRequest
@@ -21,16 +21,16 @@ import app.naviamp.ui.SharedTrackRowActionRequest
 @Composable
 fun DesktopSearchPanel(
     appColors: DesktopAppColors,
-    query: String,
-    results: MediaSearchResults,
-    status: String?,
-    isSearching: Boolean,
-    coverArtUrl: (String?) -> String?,
+    search: NaviampSearchScreenUi,
     onQueryChanged: (String) -> Unit,
     onClearSearch: () -> Unit,
     onMediaItemAction: (SharedMediaItemActionRequest) -> Unit,
     onTrackAction: (SharedTrackRowActionRequest) -> Unit,
 ) {
+    val query = search.query
+    val results = search.results
+    val status = search.status
+    val isSearching = search.searching
     val searchFocusRequester = remember { FocusRequester() }
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         NaviampPageTitle("Search", appColors)
@@ -60,15 +60,12 @@ fun DesktopSearchPanel(
         if (results.artists.isNotEmpty()) {
             SearchSection(title = "Artists", appColors = appColors) {
                 results.artists.forEach { artist ->
-                    DesktopArtistRow(
+                    DesktopSharedArtistRow(
                         appColors = appColors,
-                        artist = artist,
-                        coverArtUrl = coverArtUrl(artist.id.value),
-                        showCoverArt = true,
+                        item = artist,
                         canStartRadio = true,
                         canAddToQueue = true,
                         canAddToPlaylist = true,
-                        canFavorite = true,
                         onItemAction = onMediaItemAction,
                     )
                 }
@@ -78,15 +75,13 @@ fun DesktopSearchPanel(
         if (results.albums.isNotEmpty()) {
             SearchSection(title = "Albums", appColors = appColors) {
                 results.albums.forEach { album ->
-                    DesktopAlbumRow(
+                    DesktopSharedAlbumRow(
                         appColors = appColors,
-                        album = album,
-                        coverArtUrl = coverArtUrl(album.coverArtId),
+                        item = album,
                         canStartRadio = true,
                         canDownload = true,
                         canAddToQueue = true,
                         canAddToPlaylist = true,
-                        canFavorite = true,
                         onItemAction = onMediaItemAction,
                     )
                 }
@@ -96,11 +91,9 @@ fun DesktopSearchPanel(
         if (results.tracks.isNotEmpty()) {
             SearchSection(title = "Tracks", appColors = appColors) {
                 results.tracks.forEach { track ->
-                    DesktopTrackRow(
+                    DesktopSharedTrackRow(
                         appColors = appColors,
                         track = track,
-                        coverArtUrl = coverArtUrl(track.coverArtId),
-                        showCoverArt = true,
                         canStartRadio = true,
                         canDownload = true,
                         canAddToQueue = true,

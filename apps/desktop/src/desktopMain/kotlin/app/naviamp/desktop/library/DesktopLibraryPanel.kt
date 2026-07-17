@@ -26,24 +26,23 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import app.naviamp.domain.cache.LibrarySnapshot
+import app.naviamp.ui.NaviampLibraryScreenUi
 import app.naviamp.ui.NaviampPageTitle
 import app.naviamp.ui.SharedMediaItemActionRequest
 
 @Composable
 fun DesktopLibraryPanel(
     appColors: DesktopAppColors,
-    snapshot: LibrarySnapshot,
-    query: String,
-    status: String?,
-    isSyncing: Boolean,
+    library: NaviampLibraryScreenUi,
     listState: LazyListState,
-    coverArtUrl: (String?) -> String?,
     onQueryChanged: (String) -> Unit,
     onJumpToLetter: (Char) -> Unit,
     onMediaItemAction: (SharedMediaItemActionRequest) -> Unit,
     onRefreshLibrary: () -> Unit,
 ) {
+    val query = library.query
+    val status = library.syncStatus.message
+    val isSyncing = library.syncStatus.isSyncing
     val searchFocusRequester = remember { FocusRequester() }
     Column(
         verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -109,21 +108,18 @@ fun DesktopLibraryPanel(
                 item {
                     Text("Artists", color = appColors.primaryText, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
                 }
-                if (snapshot.artists.isEmpty()) {
+                if (library.artists.isEmpty()) {
                     item {
                         Text("Nothing here yet.", color = appColors.secondaryText, fontSize = 12.sp)
                     }
                 }
-                items(snapshot.artists, key = { it.id.value }) { artist ->
-                    DesktopArtistRow(
+                items(library.artists, key = { it.id }) { artist ->
+                    DesktopSharedArtistRow(
                         appColors = appColors,
-                        artist = artist,
-                        coverArtUrl = coverArtUrl(artist.id.value),
-                        showCoverArt = true,
+                        item = artist,
                         canStartRadio = true,
                         canAddToQueue = true,
                         canAddToPlaylist = true,
-                        canFavorite = true,
                         onItemAction = onMediaItemAction,
                     )
                 }

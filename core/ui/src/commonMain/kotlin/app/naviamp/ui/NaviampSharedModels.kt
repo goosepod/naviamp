@@ -96,6 +96,7 @@ data class SharedTrackRowUi(
     val subtitle: String,
     val coverArtUrl: String? = null,
     val meta: String = "",
+    val ratingLabel: String? = null,
     val popular: Boolean = false,
     val favoriteActive: Boolean = false,
     val canToggleFavorite: Boolean = true,

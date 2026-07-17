@@ -150,7 +150,7 @@ class MediaUiMappersTest {
         ).toSharedArtistDetailUi(coverArtUrl = { null })
 
         assertEquals(listOf("Albums", "EPs"), ui.albumSections.map { it.title })
-        assertEquals("2026 Explicit", ui.albumSections.first().albums.single().meta)
+        assertEquals("Album 2026 Explicit", ui.albumSections.first().albums.single().meta)
     }
 
     @Test

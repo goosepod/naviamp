@@ -149,48 +149,16 @@ fun DesktopArtistRow(
             -> Unit
         }
     }
-    SharedMediaRow(
+    DesktopSharedArtistRow(
+        appColors = appColors,
         item = item,
-        colors = appColors,
-        onClick = onClick,
-        itemKind = SharedMediaItemKind.Artist,
-        onItemAction = handleItemAction,
-        menuItems = artistRowActions(
-            canStartRadio = canStartRadio,
-            canAddToQueue = canAddToQueue,
-            canAddToPlaylist = canAddToPlaylist,
-        ).mapNotNull { action ->
-            when (action.action) {
-                NaviampAction.StartArtistRadio -> if (canStartRadio) {
-                    action.toRowMenuItem {
-                        handleItemAction(item.actionRequest(SharedMediaItemAction.StartRadio, kind = SharedMediaItemKind.Artist))
-                    }.toSharedMenuItem()
-                } else {
-                    null
-                }
-                NaviampAction.AddToQueue -> if (canAddToQueue) {
-                    action.toRowMenuItem {
-                        handleItemAction(item.actionRequest(SharedMediaItemAction.AddToQueue, kind = SharedMediaItemKind.Artist))
-                    }.toSharedMenuItem()
-                } else {
-                    null
-                }
-                NaviampAction.AddToPlaylist -> if (canAddToPlaylist) {
-                    action.toRowMenuItem {
-                        handleItemAction(item.actionRequest(SharedMediaItemAction.AddToPlaylist, kind = SharedMediaItemKind.Artist))
-                    }.toSharedMenuItem()
-                } else {
-                    null
-                }
-                else -> null
-            }
-        },
-        onFavoriteToggled = onFavoriteToggle?.let { toggle -> { toggle() } },
-        canSelect = onClick != null || onItemAction != null,
-        canToggleFavorite = canFavorite,
-        coverArtSize = coverArtSize,
-        coverArtCornerRadius = coverArtSize / 2,
         modifier = modifier,
+        coverArtSize = coverArtSize,
+        canStartRadio = canStartRadio,
+        canAddToQueue = canAddToQueue,
+        canAddToPlaylist = canAddToPlaylist,
+        canSelect = onClick != null || onItemAction != null,
+        onItemAction = handleItemAction,
     )
 }
 
@@ -268,57 +236,18 @@ fun DesktopAlbumRow(
             -> Unit
         }
     }
-    SharedMediaRow(
+    DesktopSharedAlbumRow(
+        appColors = appColors,
         item = item,
-        colors = appColors,
-        onClick = onClick,
-        itemKind = SharedMediaItemKind.Album,
-        onItemAction = handleItemAction,
-        menuItems = albumRowActions(
-            canStartRadio = canStartRadio,
-            canDownload = canDownload,
-            canAddToQueue = canAddToQueue,
-            canAddToPlaylist = canAddToPlaylist,
-        ).mapNotNull { action ->
-            when (action.action) {
-                NaviampAction.StartAlbumRadio -> if (canStartRadio) {
-                    action.toRowMenuItem {
-                        handleItemAction(item.actionRequest(SharedMediaItemAction.StartRadio, kind = SharedMediaItemKind.Album))
-                    }.toSharedMenuItem()
-                } else {
-                    null
-                }
-                NaviampAction.DownloadAlbum -> if (canDownload) {
-                    action.toRowMenuItem {
-                        handleItemAction(item.actionRequest(SharedMediaItemAction.Download, kind = SharedMediaItemKind.Album))
-                    }.toSharedMenuItem()
-                } else {
-                    null
-                }
-                NaviampAction.AddToQueue -> if (canAddToQueue) {
-                    action.toRowMenuItem {
-                        handleItemAction(item.actionRequest(SharedMediaItemAction.AddToQueue, kind = SharedMediaItemKind.Album))
-                    }.toSharedMenuItem()
-                } else {
-                    null
-                }
-                NaviampAction.AddToPlaylist -> if (canAddToPlaylist) {
-                    action.toRowMenuItem {
-                        handleItemAction(item.actionRequest(SharedMediaItemAction.AddToPlaylist, kind = SharedMediaItemKind.Album))
-                    }.toSharedMenuItem()
-                } else {
-                    null
-                }
-                else -> null
-            }
-        },
-        onFavoriteToggled = onFavoriteToggle?.let { toggle -> { toggle() } },
-        canSelect = onClick != null || onItemAction != null,
-        canToggleFavorite = canFavorite,
-        coverArtSize = coverArtSize,
-        coverArtCornerRadius = 4.dp,
-        verticalPadding = verticalPadding,
         modifier = modifier,
+        coverArtSize = coverArtSize,
+        verticalPadding = verticalPadding,
+        canStartRadio = canStartRadio,
+        canDownload = canDownload,
+        canAddToQueue = canAddToQueue,
+        canAddToPlaylist = canAddToPlaylist,
+        canSelect = onClick != null || onItemAction != null,
+        onItemAction = handleItemAction,
     )
 }
 
@@ -438,6 +367,173 @@ fun DesktopTrackRow(
                 track = track,
                 showDuration = showDuration,
             )
+        },
+    )
+}
+
+@Composable
+fun DesktopSharedArtistRow(
+    appColors: DesktopAppColors,
+    item: SharedMediaItemUi,
+    modifier: Modifier = Modifier,
+    coverArtSize: Dp = 44.dp,
+    canStartRadio: Boolean = false,
+    canAddToQueue: Boolean = false,
+    canAddToPlaylist: Boolean = false,
+    canSelect: Boolean = true,
+    onItemAction: (SharedMediaItemActionRequest) -> Unit,
+) {
+    DesktopSharedMediaItemRow(
+        appColors = appColors,
+        item = item,
+        kind = SharedMediaItemKind.Artist,
+        actions = artistRowActions(
+            canStartRadio = canStartRadio,
+            canAddToQueue = canAddToQueue,
+            canAddToPlaylist = canAddToPlaylist,
+        ).mapNotNull { action ->
+            when (action.action) {
+                NaviampAction.StartArtistRadio -> action to SharedMediaItemAction.StartRadio
+                NaviampAction.AddToQueue -> action to SharedMediaItemAction.AddToQueue
+                NaviampAction.AddToPlaylist -> action to SharedMediaItemAction.AddToPlaylist
+                else -> null
+            }
+        },
+        coverArtSize = coverArtSize,
+        coverArtCornerRadius = coverArtSize / 2,
+        canSelect = canSelect,
+        onItemAction = onItemAction,
+        modifier = modifier,
+    )
+}
+
+@Composable
+fun DesktopSharedAlbumRow(
+    appColors: DesktopAppColors,
+    item: SharedMediaItemUi,
+    modifier: Modifier = Modifier,
+    coverArtSize: Dp = 44.dp,
+    verticalPadding: Dp = 7.dp,
+    canStartRadio: Boolean = false,
+    canDownload: Boolean = false,
+    canAddToQueue: Boolean = false,
+    canAddToPlaylist: Boolean = false,
+    canSelect: Boolean = true,
+    onItemAction: (SharedMediaItemActionRequest) -> Unit,
+) {
+    DesktopSharedMediaItemRow(
+        appColors = appColors,
+        item = item,
+        kind = SharedMediaItemKind.Album,
+        actions = albumRowActions(
+            canStartRadio = canStartRadio,
+            canDownload = canDownload,
+            canAddToQueue = canAddToQueue,
+            canAddToPlaylist = canAddToPlaylist,
+        ).mapNotNull { action ->
+            when (action.action) {
+                NaviampAction.StartAlbumRadio -> action to SharedMediaItemAction.StartRadio
+                NaviampAction.DownloadAlbum -> action to SharedMediaItemAction.Download
+                NaviampAction.AddToQueue -> action to SharedMediaItemAction.AddToQueue
+                NaviampAction.AddToPlaylist -> action to SharedMediaItemAction.AddToPlaylist
+                else -> null
+            }
+        },
+        coverArtSize = coverArtSize,
+        coverArtCornerRadius = 4.dp,
+        verticalPadding = verticalPadding,
+        canSelect = canSelect,
+        onItemAction = onItemAction,
+        modifier = modifier,
+    )
+}
+
+@Composable
+private fun DesktopSharedMediaItemRow(
+    appColors: DesktopAppColors,
+    item: SharedMediaItemUi,
+    kind: SharedMediaItemKind,
+    actions: List<Pair<NaviampActionSpec, SharedMediaItemAction>>,
+    coverArtSize: Dp,
+    coverArtCornerRadius: Dp,
+    verticalPadding: Dp = 7.dp,
+    canSelect: Boolean,
+    onItemAction: (SharedMediaItemActionRequest) -> Unit,
+    modifier: Modifier,
+) {
+    SharedMediaRow(
+        item = item,
+        colors = appColors,
+        itemKind = kind,
+        onItemAction = onItemAction,
+        menuItems = actions.map { (spec, action) ->
+            spec.toRowMenuItem {
+                onItemAction(item.actionRequest(action, kind = kind))
+            }.toSharedMenuItem()
+        },
+        onFavoriteToggled = if (item.canFavorite) {
+            { selected ->
+                onItemAction(selected.actionRequest(SharedMediaItemAction.ToggleFavorite, kind = kind))
+            }
+        } else {
+            null
+        },
+        canSelect = canSelect,
+        canToggleFavorite = item.canFavorite,
+        coverArtSize = coverArtSize,
+        coverArtCornerRadius = coverArtCornerRadius,
+        verticalPadding = verticalPadding,
+        modifier = modifier,
+    )
+}
+
+@Composable
+fun DesktopSharedTrackRow(
+    appColors: DesktopAppColors,
+    track: SharedTrackRowUi,
+    modifier: Modifier = Modifier,
+    coverArtSize: Dp = 44.dp,
+    canStartRadio: Boolean = false,
+    canDownload: Boolean = false,
+    canAddToQueue: Boolean = false,
+    canAddToPlaylist: Boolean = false,
+    showMenu: Boolean = false,
+    onTrackAction: (SharedTrackRowActionRequest) -> Unit,
+) {
+    TrackRow(
+        track = track.copy(meta = ""),
+        colors = appColors,
+        onTrackSelected = null,
+        canSelect = true,
+        canStartRadio = canStartRadio,
+        canDownload = canDownload,
+        canAddToQueue = canAddToQueue,
+        canAddToPlaylist = canAddToPlaylist,
+        onTrackAction = onTrackAction,
+        modifier = modifier,
+        background = true,
+        horizontalPadding = 6.dp,
+        verticalPadding = 3.dp,
+        showCoverArt = true,
+        coverArtSize = coverArtSize,
+        coverArtCornerRadius = 4.dp,
+        titleStyle = TextStyle(fontSize = 13.sp, fontWeight = FontWeight.SemiBold),
+        subtitleStyle = TextStyle(fontSize = 11.sp),
+        metaStyle = TextStyle(fontSize = 13.sp, lineHeight = 16.sp),
+        titleSubtitleSpacing = 0.dp,
+        showMenu = showMenu,
+        trailingContent = {
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(5.dp, Alignment.End),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                track.ratingLabel?.let { rating ->
+                    Text(rating, color = appColors.primaryText, fontSize = 11.sp)
+                }
+                if (track.meta.isNotBlank()) {
+                    Text(track.meta, color = appColors.mutedText, fontSize = 11.sp)
+                }
+            }
         },
     )
 }

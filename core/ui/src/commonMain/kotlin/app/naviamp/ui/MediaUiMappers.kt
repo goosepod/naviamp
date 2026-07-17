@@ -20,6 +20,7 @@ import app.naviamp.domain.home.HomeContent
 import app.naviamp.domain.home.homeStations
 import app.naviamp.domain.media.RelatedTracksSource
 import app.naviamp.domain.media.groupedByReleaseSection
+import app.naviamp.domain.media.releaseSection
 import app.naviamp.domain.settings.AlbumSortOrder
 import app.naviamp.domain.playback.PlaybackProgress
 import app.naviamp.domain.playback.PlaybackReplayGain
@@ -64,6 +65,7 @@ fun Album.toSharedMediaItemUi(
         title = title,
         subtitle = artistName,
         meta = listOfNotNull(
+            releaseSection().label.removeSuffix("s"),
             releaseYear?.toString(),
             "Explicit".takeIf { explicitStatus == AlbumExplicitStatus.Explicit },
         ).joinToString(" "),
@@ -211,6 +213,7 @@ fun Track.toSharedTrackRowUi(
         subtitle = listOfNotNull(artistName, albumTitle).joinToString(" - "),
         coverArtUrl = coverArtUrl(coverArtId ?: fallbackCoverArtId),
         meta = durationSeconds?.durationLabel().orEmpty(),
+        ratingLabel = compactFavoriteRatingLabel(),
         popular = popular,
         favoriteActive = favoritedAtIso8601 != null,
         hasAlbum = albumId != null,

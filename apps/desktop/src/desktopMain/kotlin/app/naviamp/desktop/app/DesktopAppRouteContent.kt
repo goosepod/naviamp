@@ -609,44 +609,50 @@ fun ColumnScope.DesktopAppRouteContent(
                 DesktopAppRoute.Library -> {
                     DesktopLibraryPanel(
                         appColors = appColors,
-                        snapshot = libraryController.snapshot,
-                        query = library.query,
-                        status = library.syncStatus.message ?: connection.status.pageStatusOrNull(),
-                        isSyncing = library.syncStatus.isSyncing,
+                        library = library.copy(
+                            syncStatus = library.syncStatus.copy(
+                                message = library.syncStatus.message ?: connection.status.pageStatusOrNull(),
+                            ),
+                        ),
                         listState = libraryListState,
-                        coverArtUrl = coverArtUrl,
                         onQueryChanged = onLibraryQueryChanged,
                         onJumpToLetter = libraryController::jumpLibraryToLetter,
                         onMediaItemAction = { request ->
-                            libraryController.snapshot.artists
-                                .firstOrNull { artist -> artist.id.value == request.item.id }
-                                ?.let { artist -> handleArtistMediaAction(request.action, artist) }
+                            resolveDesktopMediaItemAction(
+                                request = request,
+                                artists = libraryController.snapshot.artists,
+                                onArtistAction = { action, artist ->
+                                    handleArtistMediaAction(action.action, artist)
+                                },
+                            )
                         },
                         onRefreshLibrary = libraryController::refreshArtistIndex,
                     )
                 }
                 DesktopAppRoute.Search -> DesktopSearchPanel(
                     appColors = appColors,
-                    query = search.query,
-                    results = searchController.results,
-                    status = search.status,
-                    isSearching = search.searching,
-                    coverArtUrl = coverArtUrl,
+                    search = search,
                     onQueryChanged = searchController::updateQuery,
                     onClearSearch = searchController::clearSearch,
                     onMediaItemAction = { request ->
-                        searchController.results.artists
-                            .firstOrNull { artist -> artist.id.value == request.item.id }
-                            ?.let { artist -> handleArtistMediaAction(request.action, artist) }
-                            ?: searchController.results.albums
-                                .firstOrNull { album -> album.id.value == request.item.id }
-                                ?.let { album -> handleAlbumMediaAction(request.action, album) }
+                        resolveDesktopMediaItemAction(
+                            request = request,
+                            artists = searchController.results.artists,
+                            albums = searchController.results.albums,
+                            onArtistAction = { action, artist ->
+                                handleArtistMediaAction(action.action, artist)
+                            },
+                            onAlbumAction = { action, album ->
+                                handleAlbumMediaAction(action.action, album)
+                            },
+                        )
                     },
                     onTrackAction = { request ->
-                        val index = searchController.results.tracks.indexOfFirst { track -> track.id.value == request.track.id }
-                        val track = searchController.results.tracks.getOrNull(index)
-                        if (track != null) {
-                            when (request.action) {
+                        resolveDesktopTrackAction(
+                            request = request,
+                            tracks = searchController.results.tracks,
+                        ) { action, index, track ->
+                            when (action.action) {
                                 SharedTrackRowAction.Select -> appActions.playSearchTrack(index)
                                 SharedTrackRowAction.PlayNext -> playlistsController.playNext(track)
                                 SharedTrackRowAction.StartRadio -> appActions.playSearchTrackRadio(index)
@@ -660,8 +666,8 @@ fun ColumnScope.DesktopAppRouteContent(
                                 SharedTrackRowAction.GoToAlbum -> appActions.openTrackAlbumDetails(track)
                                 SharedTrackRowAction.GoToArtist -> appActions.openTrackArtistDetails(
                                     track,
-                                    artistId = request.artistId,
-                                    artistName = request.artistName,
+                                    artistId = action.artistId,
+                                    artistName = action.artistName,
                                 )
                             }
                         }
