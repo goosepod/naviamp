@@ -49,6 +49,7 @@ class NaviampApplicationRuntime(
     val navigation: NaviampNavigationController get() = controllers.navigation
     val playback: NaviampLivePlaybackController get() = controllers.playback
     val queueCoordinator: NaviampPlaybackQueueCoordinator get() = controllers.queue
+    val connection: NaviampConnectionController get() = controllers.connection
 
     suspend fun handle(event: NaviampHostLifecycleEvent) {
         eventMutex.withLock {

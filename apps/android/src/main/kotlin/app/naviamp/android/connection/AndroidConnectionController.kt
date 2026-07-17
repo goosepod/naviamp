@@ -2,6 +2,8 @@ package app.naviamp.android
 
 import app.naviamp.android.playback.AndroidPlaybackEngine
 import app.naviamp.android.playback.AndroidPlaybackTls
+import app.naviamp.app.NaviampConnectionAttemptPlan
+import app.naviamp.app.NaviampConnectionRestorationSource
 import app.naviamp.app.NaviampPlaybackSessionController
 import app.naviamp.domain.Playlist
 import app.naviamp.domain.app.NaviampRoute
@@ -73,8 +75,8 @@ class AndroidConnectionSessionController(
         )
 
     fun connectWithNavidromeConnection(connection: NavidromeConnection) {
-        val restoreExistingPlayback = state.restoringConnection
-        if (!restoreExistingPlayback) {
+        val attempt = state.sharedControllers.connection.begin(state.restoringConnection) ?: return
+        if (attempt.clearExistingPlayback) {
             resetAndroidPlaybackState(state, playbackEngine, queueController)
         }
         startNavidromeConnection(
@@ -88,7 +90,7 @@ class AndroidConnectionSessionController(
             playbackEngine = playbackEngine,
             preloadPlaylistTracks = preloadPlaylistTracks,
             restorePlaybackSession = ::restorePlaybackSession,
-            restoreExistingPlayback = restoreExistingPlayback,
+            attempt = attempt,
             startPlayingOnLaunch = settingsStore.loadInterfaceSettings().startPlayingOnLaunch,
             startRestoredTrackPlayback = startRestoredTrackPlayback,
             prepareRestoredTrackSidecars = prepareRestoredTrackSidecars,
@@ -116,13 +118,16 @@ class AndroidConnectionSessionController(
     }
 
     fun autoConnect() {
-        when {
-            state.savedConnectionForLogin != null -> connectWithNavidromeConnection(state.savedConnectionForLogin!!)
-            savedConnection.serverUrl.isNotBlank() &&
-                savedConnection.username.isNotBlank() &&
-                savedConnection.password.isNotBlank() -> {
-                connectToNavidrome()
-            }
+        when (state.sharedControllers.connection.restorationSource(
+            hasSavedProviderConnection = state.savedConnectionForLogin != null,
+            serverUrl = savedConnection.serverUrl,
+            username = savedConnection.username,
+            password = savedConnection.password,
+        )) {
+            NaviampConnectionRestorationSource.SavedProviderConnection ->
+                state.savedConnectionForLogin?.let(::connectWithNavidromeConnection)
+            NaviampConnectionRestorationSource.SavedCredentials -> connectToNavidrome()
+            NaviampConnectionRestorationSource.None -> Unit
         }
     }
 
@@ -164,6 +169,7 @@ class AndroidConnectionSessionController(
             state.validation = null
             state.activeTlsSettings = NavidromeTlsSettings()
             state.savedConnectionForLogin = null
+            state.sharedControllers.connection.disconnected()
             state.editingConnection = true
             state.navigationState = state.navigationState.copy(route = NaviampRoute.Settings)
             clearAndroidDerivedMediaState(state)
@@ -216,7 +222,7 @@ fun startNavidromeConnection(
     playbackEngine: AndroidPlaybackEngine,
     preloadPlaylistTracks: (NavidromeProvider, List<Playlist>) -> Unit,
     restorePlaybackSession: (String) -> Boolean,
-    restoreExistingPlayback: Boolean = true,
+    attempt: NaviampConnectionAttemptPlan,
     startPlayingOnLaunch: Boolean = false,
     startRestoredTrackPlayback: () -> Unit = {},
     prepareRestoredTrackSidecars: () -> Unit = {},
@@ -279,7 +285,7 @@ fun startNavidromeConnection(
                         }
                     },
                 )
-                if (restoreExistingPlayback) {
+                if (attempt.restoreSavedSession) {
                     val restored = restorePlaybackSession(session.sourceId)
                     val restoreEffects = planPlaybackSessionRestoreEffects(
                         restored = restored,
@@ -295,22 +301,29 @@ fun startNavidromeConnection(
                 }
                 session.connection.baseUrl
             }.onSuccess { activeUrl ->
+                val connectedStatus = connectionStatusWithActiveUrl(
+                    primaryUrl = connection.baseUrl,
+                    activeUrl = activeUrl,
+                )
                 if (nowPlaying == null && nowPlayingStation == null) {
-                    status = connectionStatusWithActiveUrl(
-                        primaryUrl = connection.baseUrl,
-                        activeUrl = activeUrl,
-                    )
+                    status = connectedStatus
                 }
                 restoringConnection = false
                 editingConnection = false
                 navigationState = navigationState.copy(route = NaviampRoute.Home)
-                startAndroidLibrarySync(false)
+                startAndroidLibrarySync(attempt.runFullLibraryRefresh)
                 checkAndroidLibraryFreshness()
+                state.sharedControllers.connection.connected(
+                    sourceId = activeSourceId.orEmpty(),
+                    serverVersion = validation?.serverVersion,
+                    status = connectedStatus,
+                )
             }.onFailure { error ->
                 status = connectionFailureStatus(error)
                 restoringConnection = false
                 provider = null
                 validation = null
+                state.sharedControllers.connection.failed(status)
             }
         }
     }
@@ -354,6 +367,7 @@ fun startNavidromeConnectionFromForm(
     if (formError != null) {
         state.status = formError
         state.restoringConnection = false
+        state.sharedControllers.connection.failed(formError)
         return
     }
     val tlsSettings = navidromeTlsSettingsFromForm(
@@ -390,6 +404,7 @@ fun startNavidromeConnectionFromForm(
             state.restoringConnection = false
             state.provider = null
             state.validation = null
+            state.sharedControllers.connection.failed(state.status)
         }
     }
 }

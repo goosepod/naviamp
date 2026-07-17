@@ -1,7 +1,8 @@
 package app.naviamp.desktop
 
-import app.naviamp.domain.Track
+import app.naviamp.app.NaviampConnectionController
 import app.naviamp.app.NaviampPlaybackSessionController
+import app.naviamp.domain.Track
 import app.naviamp.domain.app.databaseResetStatus
 import app.naviamp.domain.cache.CacheMaintenanceRepository
 import app.naviamp.domain.cache.LibrarySnapshot
@@ -57,6 +58,7 @@ class DesktopConnectionLifecycleController(
     private val providerMediaSourceRepository: ProviderMediaSourceRepository,
     private val settingsStore: DesktopSettingsStore,
     private val playbackSessions: NaviampPlaybackSessionController,
+    private val connectionController: NaviampConnectionController,
     private val playbackEngine: PlaybackEngine,
     private val playlistEngine: DesktopPlaylistEngine,
     private val stopRadioContinuation: () -> Unit,
@@ -148,12 +150,14 @@ class DesktopConnectionLifecycleController(
         if (formError != null) {
             setConnectionStatus(formError)
             setAppRoute(DesktopAppRoute.Settings)
+            connectionController.failed(formError)
             return
         }
+        val attempt = connectionController.begin(restoreSavedSession) ?: return
 
         setConnecting(true)
         setConnectionStatus("Connecting to Navidrome...")
-        if (!restoreSavedSession) {
+        if (attempt.clearExistingPlayback) {
             setHomeContent(HomeContent())
             setHomeStatus(null)
             stopRadioContinuation()
@@ -191,14 +195,14 @@ class DesktopConnectionLifecycleController(
                     savedConnectionForLogin = savedConnectionForLogin(),
                     cacheMaintenanceRepository = cacheMaintenanceRepository,
                     providerMediaSourceRepository = providerMediaSourceRepository,
-                    clearProviderData = !restoreSavedSession,
+                    clearProviderData = attempt.clearProviderData,
                 )
                 val connection = session.connection
                 val provider = session.provider
                 setConnectedProvider(provider)
                 setConnectedSourceId(session.sourceId)
                 incrementMediaSourcesRevision()
-                if (restoreSavedSession) {
+                if (attempt.restoreSavedSession) {
                     restorePlaybackSession(provider)
                 }
                 settingsStore.saveConnection(connection)
@@ -211,23 +215,29 @@ class DesktopConnectionLifecycleController(
                 if (appRoute() == DesktopAppRoute.Settings) {
                     setAppRoute(DesktopAppRoute.Home)
                 }
-                setConnectionStatus(
-                    navidromeConnectionSuccessStatus(
-                        validation = session.validation,
-                        activeUrl = session.connection.baseUrl,
-                        primaryUrl = serverUrl(),
-                    ),
+                val connectedStatus = navidromeConnectionSuccessStatus(
+                    validation = session.validation,
+                    activeUrl = session.connection.baseUrl,
+                    primaryUrl = serverUrl(),
+                )
+                setConnectionStatus(connectedStatus)
+                connectionController.connected(
+                    sourceId = session.sourceId,
+                    serverVersion = session.validation.serverVersion,
+                    status = connectedStatus,
                 )
                 refreshLibrarySnapshot()
                 loadHomeContent(provider)
                 refreshPlaylists()
                 refreshInternetRadioStations()
-                startLibrarySync(!restoreSavedSession)
+                startLibrarySync(attempt.runFullLibraryRefresh)
                 checkLibraryFreshness()
             } catch (exception: Exception) {
                 setConnectedProvider(null)
                 setAppRoute(DesktopAppRoute.Settings)
-                setConnectionStatus(connectionFailureStatus(exception, fallback = "Could not connect to Navidrome."))
+                val failureStatus = connectionFailureStatus(exception, fallback = "Could not connect to Navidrome.")
+                setConnectionStatus(failureStatus)
+                connectionController.failed(failureStatus)
             } finally {
                 setConnecting(false)
             }
@@ -240,6 +250,7 @@ class DesktopConnectionLifecycleController(
         playbackEngine.stop()
         playbackSessions.clear()
         applyClearedConnectionState(DesktopActiveConnectionClearState())
+        connectionController.disconnected()
     }
 
     fun resetDatabase() {

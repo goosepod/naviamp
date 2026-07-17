@@ -708,6 +708,7 @@ fun NaviampApp(
         providerMediaSourceRepository = storage,
         settingsStore = settingsStore,
         playbackSessions = playbackSessions,
+        connectionController = applicationControllers.connection,
         playbackEngine = playbackEngine,
         playlistEngine = playlistEngine,
         stopRadioContinuation = radioController::stopContinuation,

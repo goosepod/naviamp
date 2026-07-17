@@ -36,4 +36,11 @@ class NaviampApplicationControllersTest {
         assertSame(navigation, controllers.navigation)
         assertSame(playback, controllers.playback)
     }
+
+    @Test
+    fun controllerGraphIncludesConnectionLifecycleState() {
+        val controllers = NaviampApplicationControllers()
+
+        assertEquals(NaviampConnectionPhase.Disconnected, controllers.connection.state.value.phase)
+    }
 }

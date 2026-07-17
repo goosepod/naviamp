@@ -22,6 +22,7 @@ class NaviampApplicationControllers private constructor(
     )
 
     val queue = NaviampPlaybackQueueCoordinator(playback)
+    val connection = NaviampConnectionController()
 
     companion object {
         fun from(
