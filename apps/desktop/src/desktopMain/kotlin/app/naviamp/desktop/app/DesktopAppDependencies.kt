@@ -1,5 +1,6 @@
 package app.naviamp.desktop
 
+import app.naviamp.app.NaviampPlaybackQueueCoordinator
 import app.naviamp.desktop.playback.DesktopPlaybackEngineFactory
 import app.naviamp.desktop.playback.DesktopPlaylistEngine
 import app.naviamp.desktop.settings.DesktopSettingsStore
@@ -93,6 +94,7 @@ class DesktopAppDependencies(
         )
 
     fun playlistEngine(
+        queueCoordinator: NaviampPlaybackQueueCoordinator,
         sourceIdProvider: () -> String?,
         audioCachingEnabledProvider: () -> Boolean,
         audioPrefetchDepthProvider: () -> Int,
@@ -100,6 +102,7 @@ class DesktopAppDependencies(
     ): DesktopPlaylistEngine =
         DesktopPlaylistEngine(
             playbackEngine = playbackEngine,
+            queueCoordinator = queueCoordinator,
             sourceIdProvider = sourceIdProvider,
             audioCachingEnabledProvider = audioCachingEnabledProvider,
             audioPrefetchDepthProvider = audioPrefetchDepthProvider,

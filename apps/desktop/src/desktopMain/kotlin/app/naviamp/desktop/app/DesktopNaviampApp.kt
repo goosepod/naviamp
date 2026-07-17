@@ -152,14 +152,6 @@ fun NaviampApp(
     }
     dependencies.waveformsEnabledProvider = { cacheSettings.waveformsEnabled }
     dependencies.waveformBucketCountProvider = { cacheSettings.normalized().waveformBucketCount }
-    val playlistEngine = remember(dependencies) {
-        dependencies.playlistEngine(
-            sourceIdProvider = { connectedSourceId },
-            audioCachingEnabledProvider = { cacheSettings.audioCachingEnabled },
-            audioPrefetchDepthProvider = { cacheSettings.audioPrefetchDepth },
-            playbackSettingsProvider = { playbackSettings },
-        )
-    }
     val libraryListState = rememberLazyListState()
     val coroutineScope = rememberCoroutineScope()
     val restoredTrackSession = remember(savedPlaybackSession) { savedPlaybackSession?.restoredTrackSession() }
@@ -227,6 +219,15 @@ fun NaviampApp(
         )
     }
     val queueCoordinator = remember { NaviampPlaybackQueueCoordinator(livePlaybackController) }
+    val playlistEngine = remember(dependencies, queueCoordinator) {
+        dependencies.playlistEngine(
+            queueCoordinator = queueCoordinator,
+            sourceIdProvider = { connectedSourceId },
+            audioCachingEnabledProvider = { cacheSettings.audioCachingEnabled },
+            audioPrefetchDepthProvider = { cacheSettings.audioPrefetchDepth },
+            playbackSettingsProvider = { playbackSettings },
+        )
+    }
     val currentTrackProperty = remember { desktopCurrentTrackProperty(livePlaybackController) }
     var nowPlayingTrack by currentTrackProperty
     var nowPlayingCoverArtUrl by remember { mutableStateOf<String?>(null) }

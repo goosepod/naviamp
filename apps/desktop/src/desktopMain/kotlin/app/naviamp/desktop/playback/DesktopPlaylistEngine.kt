@@ -1,5 +1,6 @@
 package app.naviamp.desktop.playback
 
+import app.naviamp.app.NaviampPlaybackQueueCoordinator
 import app.naviamp.desktop.CachedAudioFile
 import app.naviamp.desktop.CachedAudioMetadata
 import app.naviamp.desktop.toPlaybackLocalAudio
@@ -51,6 +52,7 @@ import kotlinx.coroutines.withContext
 
 class DesktopPlaylistEngine(
     private val playbackEngine: PlaybackEngine,
+    private val queueCoordinator: NaviampPlaybackQueueCoordinator,
     private val sourceIdProvider: () -> String? = { null },
     private val audioCachingEnabledProvider: () -> Boolean = { true },
     private val audioPrefetchDepthProvider: () -> Int = { DefaultAudioPrefetchDepth },
@@ -124,7 +126,9 @@ class DesktopPlaylistEngine(
         audioPrefetchJob = null
         audioPrefetchStats = AudioPrefetchStats()
 
-        queueController.start(tracks, index)?.let { selection ->
+        val update = queueCoordinator.startQueue(tracks, index)
+        if (!update.changed) return
+        queueController.start(update.queue.tracks, update.queue.currentIndex)?.let { selection ->
             playQueueSelection(scope, selection)
         }
     }
@@ -138,7 +142,8 @@ class DesktopPlaylistEngine(
         callbacks: PlaylistCallbacks,
         initialProgress: PlaybackProgress = PlaybackProgress.Unknown,
     ) {
-        if (!queueController.restore(queue)) return
+        val update = queueCoordinator.restoreQueue(queue)
+        if (!update.changed || !queueController.restore(update.queue)) return
         this.provider = provider
         this.streamQuality = quality
         this.replayGainMode = replayGainMode
@@ -149,12 +154,13 @@ class DesktopPlaylistEngine(
         audioPrefetchJob?.cancel()
         audioPrefetchJob = null
         audioPrefetchStats = AudioPrefetchStats()
-        callbacks.onQueueChanged(queue)
+        callbacks.onQueueChanged(update.queue)
         callbacks.onPlaybackProgressChanged(initialProgress)
         callbacks.onPlaybackStateChanged(PlaybackState.Idle)
     }
 
     fun clear() {
+        val update = queueCoordinator.clearQueue()
         queueController.clear()
         currentTrackSidecarJob?.cancel()
         currentTrackSidecarJob = null
@@ -163,7 +169,7 @@ class DesktopPlaylistEngine(
         audioPrefetchStats = AudioPrefetchStats()
         playbackSource = PlaybackSource.Unknown
         playbackEngine.stop()
-        callbacks?.onQueueChanged(queue)
+        callbacks?.onQueueChanged(update.queue)
     }
 
     fun cancelAudioPrefetch() {
@@ -192,12 +198,13 @@ class DesktopPlaylistEngine(
         incrementSession: Boolean = false,
         clearPreparedNext: Boolean = true,
     ) {
+        val update = queueCoordinator.replaceQueue(queue, clearPreparedNext)
         queueController.replaceQueue(
-            queue = queue,
+            queue = update.queue,
             incrementSession = incrementSession,
             clearPreparedNext = clearPreparedNext,
         )
-        callbacks?.onQueueChanged(queue)
+        callbacks?.onQueueChanged(update.queue)
     }
 
     fun replaceUpcomingTracks(

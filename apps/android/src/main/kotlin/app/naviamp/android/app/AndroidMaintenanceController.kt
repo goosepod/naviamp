@@ -65,8 +65,8 @@ fun resetAndroidPlaybackState(
     state.nowPlayingOpen = false
     state.visualizerFrame = null
     state.visualizerRequestedVisible = false
+    state.sharedQueueCoordinator.clearQueue()
     queueController.clear()
-    state.playbackQueue = queueController.queue
     state.shuffledUpNextSnapshot = null
     state.restoredStartPositionSeconds = null
 }

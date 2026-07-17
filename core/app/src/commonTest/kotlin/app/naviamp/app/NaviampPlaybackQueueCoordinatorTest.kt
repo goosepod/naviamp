@@ -10,6 +10,44 @@ import kotlin.test.assertTrue
 
 class NaviampPlaybackQueueCoordinatorTest {
     @Test
+    fun lifecycleDecisionsUpdateTheSharedQueueSnapshot() {
+        val first = track("first")
+        val second = track("second")
+        val playback = NaviampLivePlaybackController()
+        val coordinator = NaviampPlaybackQueueCoordinator(playback)
+
+        val started = coordinator.startQueue(listOf(first, second), index = 1)
+        assertTrue(started.changed)
+        assertEquals(second, playback.state.value.queue.current)
+
+        val replacement = PlaybackQueue(listOf(second, first), currentIndex = 0, playNextCount = 8)
+        assertTrue(coordinator.replaceQueue(replacement).changed)
+        assertEquals(replacement, playback.state.value.queue)
+
+        val restored = coordinator.restoreQueue(replacement)
+        assertTrue(restored.changed)
+        assertEquals(1, restored.queue.playNextCount)
+        assertEquals(restored.queue, playback.state.value.queue)
+
+        assertTrue(coordinator.clearQueue().changed)
+        assertEquals(PlaybackQueue(), playback.state.value.queue)
+    }
+
+    @Test
+    fun invalidLifecycleRequestsDoNotReplaceTheVisibleQueue() {
+        val first = track("first")
+        val initialQueue = PlaybackQueue(listOf(first), currentIndex = 0)
+        val playback = NaviampLivePlaybackController(
+            NaviampLivePlaybackState(queue = initialQueue),
+        )
+        val coordinator = NaviampPlaybackQueueCoordinator(playback)
+
+        assertFalse(coordinator.startQueue(emptyList(), index = 0).changed)
+        assertFalse(coordinator.restoreQueue(PlaybackQueue()).changed)
+        assertEquals(initialQueue, playback.state.value.queue)
+    }
+
+    @Test
     fun boundedMutationsUpdateTheSharedQueueSnapshot() {
         val first = track("first")
         val second = track("second")

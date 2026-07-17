@@ -4,6 +4,7 @@ import android.content.Context
 import app.naviamp.android.playback.AndroidPlaybackForegroundService
 import app.naviamp.android.playback.AndroidPlaybackEngine
 import app.naviamp.android.playback.AndroidPlaybackNotificationControls
+import app.naviamp.app.NaviampPlaybackQueueCoordinator
 import app.naviamp.domain.InternetRadioStation
 import app.naviamp.domain.StreamQuality
 import app.naviamp.domain.Track
@@ -64,6 +65,7 @@ fun playAndroidTrack(
     audioAssets: PlaybackAudioAssetRepository,
     playbackEngine: AndroidPlaybackEngine,
     playbackQueueController: PlaybackQueueController,
+    queueCoordinator: NaviampPlaybackQueueCoordinator,
     track: Track,
     queue: List<Track>? = null,
     selectedQueue: PlaybackQueue? = null,
@@ -129,14 +131,22 @@ fun playAndroidTrack(
                         queueState.currentIndex == startPlan.queueIndex
                 }
                 if (selectedQueueState != null) {
-                    playbackQueueController.replaceQueue(selectedQueueState)
+                    val update = queueCoordinator.replaceQueue(selectedQueueState)
+                    playbackQueueController.replaceQueue(
+                        update.queue,
+                        clearPreparedNext = update.clearPreparedNext,
+                    )
                 } else {
-                    playbackQueueController.start(
+                    val update = queueCoordinator.startQueue(
                         tracks = startPlan.queue,
                         index = startPlan.queueIndex,
                     )
+                    if (!update.changed) return@onSuccess
+                    playbackQueueController.start(
+                        tracks = update.queue.tracks,
+                        index = update.queue.currentIndex,
+                    )
                 }
-                playbackQueue = playbackQueueController.queue
                 val trackStartedPlan = planPlaybackTrackStarted(
                     previousTrack = nowPlaying,
                     track = track,
@@ -265,6 +275,7 @@ fun playAndroidInternetRadioStation(
     settingsStore: AndroidSettingsStore,
     playbackEngine: AndroidPlaybackEngine,
     playbackQueueController: PlaybackQueueController,
+    queueCoordinator: NaviampPlaybackQueueCoordinator,
     station: InternetRadioStation,
     savePlaybackSessionThrottled: (force: Boolean) -> Unit,
     handlePlaybackProgressChanged: (Long, PlaybackProgress) -> Unit,
@@ -295,7 +306,10 @@ fun playAndroidInternetRadioStation(
                 state.lastRadioRefillSeedId = null
             },
             clearShuffleSnapshot = { state.shuffledUpNextSnapshot = null },
-            clearPlaybackQueue = { playbackQueueController.clear() },
+            clearPlaybackQueue = {
+                queueCoordinator.clearQueue()
+                playbackQueueController.clear()
+            },
             setNowPlayingTrack = { track -> state.nowPlaying = track },
             applyFavoriteState = { canFavorite, isFavorite ->
                 AndroidPlaybackNotificationControls.canFavorite = canFavorite

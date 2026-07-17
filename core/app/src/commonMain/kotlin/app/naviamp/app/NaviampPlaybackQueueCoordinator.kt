@@ -5,9 +5,10 @@ import app.naviamp.domain.playback.PlaybackQueueManager
 import app.naviamp.domain.playback.PlaybackQueueMutationUpdate
 import app.naviamp.domain.playback.PlaybackQueueSelectionUpdate
 import app.naviamp.domain.playback.PlaybackQueueUpdate
+import app.naviamp.domain.queue.PlaybackQueue
 
 /**
- * Shared coordinator for bounded, user-initiated queue mutations.
+ * Shared coordinator for queue lifecycle decisions and bounded user mutations.
  *
  * It owns the user-visible queue snapshot. Platform playback engines still mirror the returned
  * queue and remain responsible for preparing audio and executing play, seek, and stop commands.
@@ -16,6 +17,28 @@ class NaviampPlaybackQueueCoordinator(
     private val playback: NaviampLivePlaybackController,
     private val queueManager: PlaybackQueueManager = PlaybackQueueManager(),
 ) {
+    fun startQueue(
+        tracks: List<Track>,
+        index: Int,
+    ): PlaybackQueueMutationUpdate =
+        queueManager.startQueue(tracks, index).also(::commit)
+
+    fun replaceQueue(
+        queue: PlaybackQueue,
+        clearPreparedNext: Boolean = true,
+    ): PlaybackQueueMutationUpdate =
+        PlaybackQueueMutationUpdate(
+            queue = queue,
+            changed = queue != currentQueue,
+            clearPreparedNext = clearPreparedNext,
+        ).also(::commit)
+
+    fun restoreQueue(queue: PlaybackQueue): PlaybackQueueMutationUpdate =
+        queueManager.restoreQueue(queue).also(::commit)
+
+    fun clearQueue(): PlaybackQueueMutationUpdate =
+        queueManager.clearQueue().also(::commit)
+
     fun appendTracks(
         tracksToAdd: List<Track>,
         label: String = "tracks",

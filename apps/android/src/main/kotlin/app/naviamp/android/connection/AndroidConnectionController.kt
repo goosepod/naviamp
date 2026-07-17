@@ -61,7 +61,15 @@ class AndroidConnectionSessionController(
             playbackSessions = playbackSessions,
             sourceId = sourceId,
             loadRelatedTracks = loadRelatedTracks,
-            synchronizePlaybackQueue = queueController::restoreOrClear,
+            synchronizePlaybackQueue = { queue ->
+                val update = state.sharedQueueCoordinator.restoreQueue(queue)
+                if (update.changed) {
+                    queueController.restore(update.queue)
+                } else {
+                    state.sharedQueueCoordinator.clearQueue()
+                    queueController.clear()
+                }
+            },
         )
 
     fun connectWithNavidromeConnection(connection: NavidromeConnection) {
