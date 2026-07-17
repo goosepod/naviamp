@@ -5,7 +5,6 @@ import app.naviamp.domain.ArtistId
 import app.naviamp.domain.Track
 import app.naviamp.domain.provider.allKnownTracks
 import app.naviamp.domain.playback.PlaybackQueueController
-import app.naviamp.domain.playback.PlaybackQueueManager
 import app.naviamp.domain.playback.applyPlaybackQueueUpdate
 import app.naviamp.domain.popular.ArtistPopularTracksService
 import app.naviamp.ui.NaviampNowPlayingItemUi
@@ -35,7 +34,7 @@ internal class AndroidMediaAppController(
         ) ?: findKnownTrack(item.id)
 
     fun appendTracksToQueue(tracksToAdd: List<Track>, label: String = "tracks") {
-        appendAndroidTracksToQueue(state, queueController, tracksToAdd, label)
+        appendAndroidTracksToQueue(state, state.sharedQueueCoordinator, queueController, tracksToAdd, label)
     }
 
     fun playNext(track: Track) {
@@ -43,8 +42,7 @@ internal class AndroidMediaAppController(
     }
 
     fun playNextTracks(tracksToAdd: List<Track>, label: String = "tracks") {
-        val update = PlaybackQueueManager().playNextTracks(
-            currentQueue = state.playbackQueue,
+        val update = state.sharedQueueCoordinator.playNextTracks(
             tracksToAdd = tracksToAdd,
             label = label,
         )
@@ -52,7 +50,6 @@ internal class AndroidMediaAppController(
             update = update,
             setStatus = { status -> state.status = status },
             replaceQueue = { queue ->
-                state.playbackQueue = queue
                 queueController.replaceQueue(queue)
             },
         )
@@ -63,9 +60,10 @@ internal class AndroidMediaAppController(
     }
 
     fun removeFromQueue(index: Int) {
-        val queue = state.playbackQueue.removeAt(index)
-        state.playbackQueue = queue
-        queueController.replaceQueue(queue)
+        val update = state.sharedQueueCoordinator.removeAt(index)
+        if (update.changed) {
+            queueController.replaceQueue(update.queue, clearPreparedNext = update.clearPreparedNext)
+        }
     }
 
     fun moveQueueTrackNext(index: Int) {

@@ -7,6 +7,7 @@ import app.naviamp.app.NaviampConnectivitySnapshot
 import app.naviamp.app.NaviampNavigationController
 import app.naviamp.app.NaviampLivePlaybackController
 import app.naviamp.app.NaviampPlaybackSessionController
+import app.naviamp.app.NaviampPlaybackQueueCoordinator
 import app.naviamp.app.NaviampPlatformServices
 import app.naviamp.app.NaviampRuntimeErrorReporter
 import app.naviamp.domain.app.PlatformCapabilities
@@ -24,6 +25,7 @@ internal class DesktopApplicationSession(
 internal fun desktopApplicationRuntime(
     navigation: NaviampNavigationController,
     playback: NaviampLivePlaybackController,
+    queueCoordinator: NaviampPlaybackQueueCoordinator,
     playbackSessions: NaviampPlaybackSessionController,
     hasSavedConnection: Boolean,
     restoreSavedSession: () -> Unit,
@@ -44,4 +46,5 @@ internal fun desktopApplicationRuntime(
     ),
     navigation = navigation,
     playback = playback,
+    queueCoordinator = queueCoordinator,
 )

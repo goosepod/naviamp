@@ -5,6 +5,7 @@ import app.naviamp.android.playback.AndroidPlaybackEngine
 import app.naviamp.android.playback.AndroidPlaybackForegroundService
 import app.naviamp.android.playback.AndroidPlaybackNotificationControls
 import app.naviamp.app.NaviampPlaybackSessionController
+import app.naviamp.app.NaviampPlaybackQueueCoordinator
 import app.naviamp.domain.Album
 import app.naviamp.domain.InternetRadioStation
 import app.naviamp.domain.StreamQuality
@@ -32,6 +33,7 @@ internal class AndroidPlaybackAppController(
     private val state: AndroidAppState,
     private val storage: AndroidStorageDependencies,
     private val playbackSessions: NaviampPlaybackSessionController,
+    private val queueCoordinator: NaviampPlaybackQueueCoordinator,
     private val settingsStore: AndroidSettingsStore,
     private val audioAssets: PlaybackAudioAssetRepository,
     private val playbackEngine: AndroidPlaybackEngine,
@@ -174,6 +176,7 @@ internal class AndroidPlaybackAppController(
     }
 
     fun playQueueTrack(index: Int) {
+        if (!queueCoordinator.selectIndex(index).changed) return
         queueController.jumpTo(index)?.let { selection ->
             reportCurrentTrackStopped()
             playQueueSelection(selection)

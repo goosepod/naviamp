@@ -47,8 +47,8 @@ import app.naviamp.domain.provider.refreshPlaylistListState
 import app.naviamp.domain.provider.renamePlaylistAndRefresh
 import app.naviamp.domain.provider.saveQueueAsPlaylistApplication
 import app.naviamp.domain.provider.preloadPlaylistTracksStateUpdate
-import app.naviamp.domain.playback.PlaybackQueueManager
 import app.naviamp.domain.playback.applyPlaybackQueueUpdate
+import app.naviamp.app.NaviampPlaybackQueueCoordinator
 import app.naviamp.domain.settings.PlaybackSettings
 import app.naviamp.desktop.playback.PlaylistCallbacks
 import app.naviamp.desktop.playback.DesktopPlaylistEngine
@@ -63,6 +63,7 @@ class DesktopPlaylistsController(
     private val settingsStore: DesktopSettingsStore,
     private val playbackEngine: PlaybackEngine,
     private val playlistEngine: DesktopPlaylistEngine,
+    private val queueCoordinator: NaviampPlaybackQueueCoordinator,
     private val providerResponseService: ProviderResponseService,
     private val provider: () -> MediaProvider?,
     private val playbackSettings: () -> PlaybackSettings,
@@ -285,8 +286,7 @@ class DesktopPlaylistsController(
                 val tracksToAdd = withContext(Dispatchers.IO) {
                     resolveAddToPlaylistTargetTracks(activeProvider, target)
                 }
-                val update = PlaybackQueueManager().appendTracks(
-                    currentQueue = playlistEngine.queue,
+                val update = queueCoordinator.appendTracks(
                     tracksToAdd = tracksToAdd,
                 )
                 applyPlaybackQueueUpdate(
@@ -341,8 +341,7 @@ class DesktopPlaylistsController(
     }
 
     fun playNext(track: Track) {
-        val update = PlaybackQueueManager().playNextTracks(
-            currentQueue = playlistEngine.queue,
+        val update = queueCoordinator.playNextTracks(
             tracksToAdd = listOf(track),
         )
         applyPlaybackQueueUpdate(

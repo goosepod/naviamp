@@ -7,6 +7,7 @@ import app.naviamp.app.NaviampHostLifecycleEvent
 import app.naviamp.app.NaviampNavigationController
 import app.naviamp.app.NaviampLivePlaybackController
 import app.naviamp.app.NaviampPlaybackSessionController
+import app.naviamp.app.NaviampPlaybackQueueCoordinator
 import app.naviamp.domain.Playlist
 import app.naviamp.domain.Track
 import app.naviamp.domain.app.StorageStatsRefreshIntervalMillis
@@ -34,6 +35,7 @@ internal fun DesktopAppControllerEffects(
     mixBuilderController: DesktopMixBuilderController,
     navigationController: NaviampNavigationController,
     livePlaybackController: NaviampLivePlaybackController,
+    queueCoordinator: NaviampPlaybackQueueCoordinator,
     playbackSessions: NaviampPlaybackSessionController,
     hasSavedConnection: Boolean,
     connectToServer: () -> Unit,
@@ -61,6 +63,7 @@ internal fun DesktopAppControllerEffects(
         desktopApplicationRuntime(
             navigation = navigationController,
             playback = livePlaybackController,
+            queueCoordinator = queueCoordinator,
             playbackSessions = playbackSessions,
             hasSavedConnection = hasSavedConnection,
             restoreSavedSession = connectToServer,

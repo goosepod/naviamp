@@ -4,6 +4,7 @@ import app.naviamp.desktop.playback.DesktopPlaylistEngine
 import app.naviamp.desktop.settings.PlaybackSettings
 import app.naviamp.domain.Track
 import app.naviamp.app.NaviampPlaybackSessionController
+import app.naviamp.app.NaviampPlaybackQueueCoordinator
 import app.naviamp.domain.isInternetRadioTrack
 import app.naviamp.domain.playback.PlaybackEngine
 import app.naviamp.domain.playback.PlaybackPlayPauseCommand
@@ -60,6 +61,7 @@ internal fun handleDesktopQueueIndexSelected(
 class DesktopPlaybackController(
     private val scope: CoroutineScope,
     private val playbackSessions: NaviampPlaybackSessionController,
+    private val queueCoordinator: NaviampPlaybackQueueCoordinator,
     private val playbackEngine: PlaybackEngine,
     private val playlistEngine: DesktopPlaylistEngine,
     private val provider: () -> MediaProvider?,
@@ -204,6 +206,7 @@ class DesktopPlaybackController(
         setOpenPlayerOnTrackStart(false)
         when (val command = queueManager.jumpCommand(playbackQueue(), index, moveSelectedToCurrent)) {
             is PlaybackQueueNavigationCommand.JumpTo -> {
+                if (!queueCoordinator.selectIndex(index, moveSelectedToCurrent).changed) return
                 reportCurrentTrackStopped()
                 playlistEngine.jumpTo(
                     scope = scope,

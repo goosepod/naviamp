@@ -240,6 +240,7 @@ fun NaviampAndroidApp(
             state = appState,
             storage = storage,
             playbackSessions = playbackSessions,
+            queueCoordinator = appState.sharedQueueCoordinator,
             settingsStore = settingsStore,
             audioAssets = playbackAudioAssets,
             playbackEngine = playbackEngine,

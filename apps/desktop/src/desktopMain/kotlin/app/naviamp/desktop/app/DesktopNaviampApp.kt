@@ -28,6 +28,7 @@ import app.naviamp.app.NaviampNavigationController
 import app.naviamp.app.NaviampLivePlaybackController
 import app.naviamp.app.NaviampLivePlaybackState
 import app.naviamp.app.NaviampPlaybackSessionController
+import app.naviamp.app.NaviampPlaybackQueueCoordinator
 import app.naviamp.domain.app.NaviampNavigationState
 import app.naviamp.domain.cache.ImageCacheRepository
 import app.naviamp.domain.cache.ProviderResponseService
@@ -225,6 +226,7 @@ fun NaviampApp(
             ),
         )
     }
+    val queueCoordinator = remember { NaviampPlaybackQueueCoordinator(livePlaybackController) }
     val currentTrackProperty = remember { desktopCurrentTrackProperty(livePlaybackController) }
     var nowPlayingTrack by currentTrackProperty
     var nowPlayingCoverArtUrl by remember { mutableStateOf<String?>(null) }
@@ -284,6 +286,7 @@ fun NaviampApp(
         DesktopPlaybackController(
         scope = coroutineScope,
         playbackSessions = playbackSessions,
+        queueCoordinator = queueCoordinator,
         playbackEngine = playbackEngine,
         playlistEngine = playlistEngine,
         provider = { connectedProvider },
@@ -987,6 +990,7 @@ fun NaviampApp(
         settingsStore = settingsStore,
         playbackEngine = playbackEngine,
         playlistEngine = playlistEngine,
+        queueCoordinator = queueCoordinator,
         providerResponseService = ProviderResponseService(storage),
         provider = { connectedProvider },
         playbackSettings = { playbackSettings },
@@ -1055,6 +1059,7 @@ fun NaviampApp(
         trackMetadataRepository = storage,
         playbackEngine = playbackEngine,
         playlistEngine = playlistEngine,
+        queueCoordinator = queueCoordinator,
         provider = { connectedProvider },
         playbackSettings = { playbackSettings },
         playlistCallbacks = { playlistCallbacks },
@@ -1154,6 +1159,7 @@ fun NaviampApp(
         mixBuilderController = mixBuilderController,
         navigationController = navigationController,
         livePlaybackController = livePlaybackController,
+        queueCoordinator = queueCoordinator,
         playbackSessions = playbackSessions,
         hasSavedConnection = savedConnection != null,
         connectToServer = { connectionLifecycleController.connectToServer(restoreSavedSession = true) },
@@ -1375,7 +1381,9 @@ fun NaviampApp(
                 }
             NowPlayingQueueAction.RemoveFromQueue ->
                 request.queueIndex?.let { index ->
-                    playlistEngine.replaceQueue(playbackQueue.removeAt(index))
+                    queueCoordinator.removeAt(index).takeIf { it.changed }?.let { update ->
+                        playlistEngine.replaceQueue(update.queue)
+                    }
                 }
             NowPlayingQueueAction.EmptyQueue ->
                 playlistEngine.replaceQueue(playbackQueue.clearUpcoming())
