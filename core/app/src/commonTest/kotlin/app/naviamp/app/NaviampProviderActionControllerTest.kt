@@ -83,7 +83,7 @@ class NaviampProviderActionControllerTest {
     }
 }
 
-private class RecordingPendingActions : PendingProviderActionRepository {
+internal class RecordingPendingActions : PendingProviderActionRepository {
     val enqueued = mutableListOf<String>()
     val pending = mutableListOf<PendingProviderAction>()
 
@@ -107,7 +107,7 @@ private class RecordingPendingActions : PendingProviderActionRepository {
     override fun markPendingProviderActionFailed(id: Long, errorMessage: String?) = Unit
 }
 
-private fun pendingAction(id: Long, entityId: String) = PendingProviderAction(
+internal fun pendingAction(id: Long, entityId: String) = PendingProviderAction(
     id = id,
     sourceId = "source",
     actionType = PendingActionReportNowPlaying,
@@ -115,7 +115,7 @@ private fun pendingAction(id: Long, entityId: String) = PendingProviderAction(
     createdAtEpochMillis = 0,
 )
 
-private class RecordingProvider(private val failReports: Boolean) : MediaProvider {
+internal class RecordingProvider(private val failReports: Boolean) : MediaProvider {
     override val id = ProviderId("fake")
     override val displayName = "Fake"
     override val capabilities = ProviderCapabilities(false, false, false, false, false)

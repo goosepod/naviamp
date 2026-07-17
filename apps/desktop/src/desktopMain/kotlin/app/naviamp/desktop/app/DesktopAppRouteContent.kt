@@ -981,6 +981,7 @@ fun ColumnScope.DesktopAppRouteContent(
                     ),
                     supportsSettingsSync = DesktopCapabilityPresentation.settingsImportExport.visible &&
                         DesktopCapabilityPresentation.fileSelection.visible,
+                    supportsFileSelection = DesktopCapabilityPresentation.fileSelection.visible,
                     onServerUrlChanged = connectionForm::updateServerUrl,
                     onConnectionNameChanged = { connectionForm.connectionName = it },
                     onUsernameChanged = connectionForm::updateUsername,

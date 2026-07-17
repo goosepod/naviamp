@@ -133,6 +133,7 @@ fun DesktopSettingsPanel(
     supportsSonicSimilarity: Boolean,
     connectionCapabilities: NaviampConnectionCapabilitiesUi,
     supportsSettingsSync: Boolean,
+    supportsFileSelection: Boolean,
     onServerUrlChanged: (String) -> Unit,
     onConnectionNameChanged: (String) -> Unit,
     onUsernameChanged: (String) -> Unit,
@@ -280,7 +281,9 @@ fun DesktopSettingsPanel(
                 locations = buildList {
                     add(NaviampStorageLocationUi("default", "Default folder", DesktopDownloadDirectories.defaultDirectory().toString()))
                     cacheSettings.customDownloadDirectory?.let { add(NaviampStorageLocationUi("custom", "Current custom folder", it)) }
-                    add(NaviampStorageLocationUi("choose", "Choose another folder…", "Select any writable folder"))
+                    if (supportsFileSelection) {
+                        add(NaviampStorageLocationUi("choose", "Choose another folder…", "Select any writable folder"))
+                    }
                 },
                 selectedLocationId = if (cacheSettings.customDownloadDirectory == null) "default" else "custom",
                 onLocationChanged = { location ->
@@ -310,7 +313,9 @@ fun DesktopSettingsPanel(
                 locations = buildList {
                     add(NaviampStorageLocationUi("default", "Default folder", defaultAudioCacheDirectory().toString()))
                     cacheSettings.customAudioCacheDirectory?.let { add(NaviampStorageLocationUi("custom", "Current custom folder", it)) }
-                    add(NaviampStorageLocationUi("choose", "Choose another folder…", "Select any writable folder"))
+                    if (supportsFileSelection) {
+                        add(NaviampStorageLocationUi("choose", "Choose another folder…", "Select any writable folder"))
+                    }
                 },
                 selectedLocationId = if (cacheSettings.customAudioCacheDirectory == null) "default" else "custom",
                 onLocationChanged = { location ->
@@ -1268,153 +1273,6 @@ private fun LocalDataActionRow(
             modifier = Modifier.fillMaxWidth(),
         )
     }
-}
-
-@Composable
-private fun CacheSettingsSection(
-    appColors: DesktopAppColors,
-    cacheSettings: CacheSettings,
-    cacheStats: StorageCacheStats,
-    onCacheSettingsChanged: (CacheSettings) -> Unit,
-) {
-    var downloadPathStatus by remember { mutableStateOf<String?>(null) }
-    SettingsSectionTitle("Cache", appColors)
-    Text(
-        "Audio cache: ${cacheStats.audioCount} files, ${cacheStats.audioBytes.storageBytesLabel()} used of " +
-            cacheSettings.maxAudioCacheBytes.storageBytesLabel(),
-        color = appColors.secondaryText,
-        fontSize = 12.sp,
-    )
-    Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
-        Checkbox(
-            checked = cacheSettings.audioCachingEnabled,
-            onCheckedChange = { enabled ->
-                onCacheSettingsChanged(cacheSettings.copy(audioCachingEnabled = enabled).normalized())
-            },
-        )
-        Text("Enable audio prefetch", color = appColors.secondaryText, fontSize = 12.sp)
-    }
-    DetentIntSettingsSlider(
-        title = "Prefetch depth",
-        value = cacheSettings.audioPrefetchDepth,
-        detents = PrefetchDepthOptions,
-        snapDistance = 0.12f,
-        enabled = cacheSettings.audioCachingEnabled,
-        valueLabel = { depth -> if (depth == 0) "Off" else depth.toString() },
-        appColors = appColors,
-        onValueChanged = { depth ->
-            onCacheSettingsChanged(cacheSettings.copy(audioPrefetchDepth = depth).normalized())
-        },
-    )
-    DetentByteSettingsSlider(
-        title = "Audio cache budget",
-        valueBytes = cacheSettings.maxAudioCacheBytes,
-        detents = AudioCacheBudgetOptions,
-        snapDistance = 0.12f,
-        appColors = appColors,
-        onValueChanged = { bytes ->
-            onCacheSettingsChanged(cacheSettings.copy(maxAudioCacheBytes = bytes).normalized())
-        },
-    )
-    Text(
-        "Waveforms: ${cacheStats.audioWaveformCount} files, ${cacheStats.audioWaveformBytes.storageBytesLabel()}",
-        color = appColors.secondaryText,
-        fontSize = 12.sp,
-    )
-    Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
-        Checkbox(
-            checked = cacheSettings.waveformsEnabled,
-            onCheckedChange = { enabled ->
-                onCacheSettingsChanged(cacheSettings.copy(waveformsEnabled = enabled).normalized())
-            },
-        )
-        Text("Generate track waveforms", color = appColors.secondaryText, fontSize = 12.sp)
-    }
-    DetentIntSettingsSlider(
-        title = "Waveform detail",
-        value = cacheSettings.waveformBucketCount,
-        detents = WaveformBucketCountOptions,
-        snapDistance = 0.12f,
-        enabled = cacheSettings.waveformsEnabled,
-        valueLabel = { count -> "$count steps" },
-        appColors = appColors,
-        onValueChanged = { count ->
-            onCacheSettingsChanged(cacheSettings.copy(waveformBucketCount = count).normalized())
-        },
-    )
-    Text(
-        "Downloads: ${cacheStats.downloadCount} files, ${cacheStats.downloadBytes.storageBytesLabel()} used of " +
-            cacheSettings.maxDownloadBytes.storageBytesLabel(),
-        color = appColors.secondaryText,
-        fontSize = 12.sp,
-    )
-    Text(
-        "Download location",
-        color = appColors.primaryText,
-        fontSize = 13.sp,
-        fontWeight = FontWeight.SemiBold,
-    )
-    Row(
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier.fillMaxWidth(),
-    ) {
-        val effectiveDownloadDirectory = cacheSettings.customDownloadDirectory
-            ?: DesktopDownloadDirectories.defaultDirectory().toString()
-        Text(
-            effectiveDownloadDirectory,
-            color = appColors.secondaryText,
-            fontSize = 12.sp,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.weight(1f),
-        )
-        TextButton(
-            onClick = {
-                chooseDirectory(effectiveDownloadDirectory, "Choose download location")?.let { selected ->
-                    runCatching {
-                        DesktopDownloadDirectories.prepare(selected.toPath())
-                    }.onSuccess { directory ->
-                        downloadPathStatus = null
-                        onCacheSettingsChanged(
-                            cacheSettings.copy(customDownloadDirectory = directory.toString()).normalized(),
-                        )
-                    }.onFailure { error ->
-                        downloadPathStatus = error.message ?: "Could not use that download location."
-                    }
-                }
-            },
-        ) {
-            Text("Choose")
-        }
-        TextButton(
-            enabled = cacheSettings.customDownloadDirectory != null,
-            onClick = {
-                downloadPathStatus = null
-                onCacheSettingsChanged(cacheSettings.copy(customDownloadDirectory = null).normalized())
-            },
-        ) {
-            Text("Reset")
-        }
-    }
-    Text(
-        "Existing downloads stay where they are. New downloads use this location.",
-        color = appColors.secondaryText,
-        fontSize = 12.sp,
-    )
-    downloadPathStatus?.let { status ->
-        Text(status, color = MaterialTheme.colorScheme.error, fontSize = 12.sp)
-    }
-    DetentByteSettingsSlider(
-        title = "Download storage budget",
-        valueBytes = cacheSettings.maxDownloadBytes,
-        detents = DownloadBudgetOptions,
-        snapDistance = 0.12f,
-        appColors = appColors,
-        onValueChanged = { bytes ->
-            onCacheSettingsChanged(cacheSettings.copy(maxDownloadBytes = bytes).normalized())
-        },
-    )
 }
 
 private sealed interface DirectoryPickerResult {

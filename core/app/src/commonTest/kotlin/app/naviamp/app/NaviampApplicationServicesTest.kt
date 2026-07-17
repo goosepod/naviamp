@@ -10,8 +10,6 @@ import app.naviamp.domain.StreamQuality
 import app.naviamp.domain.Track
 import app.naviamp.domain.TrackId
 import app.naviamp.domain.provider.MediaProvider
-import app.naviamp.domain.provider.PendingProviderAction
-import app.naviamp.domain.provider.PendingProviderActionRepository
 import app.naviamp.domain.app.PlatformCapabilities
 import app.naviamp.domain.app.PlatformCapability
 import app.naviamp.domain.app.PlatformCapabilityStatus
@@ -77,9 +75,12 @@ class NaviampApplicationServicesTest {
         var syncState = SettingsSyncRuntimeState()
         var cacheStatus: String? = null
         var jobs = emptyList<DownloadJob>()
-        val session = RecordingApplicationSession()
+        val session = RecordingApplicationSession(restoreFailures = 1)
+        val pendingActions = RecordingPendingActions().apply {
+            pending += pendingAction(id = 1, entityId = "queued-track")
+        }
         val controllers = NaviampApplicationControllers(
-            pendingProviderActions = EmptyCompositionPendingActions,
+            pendingProviderActions = pendingActions,
         )
         val runtime = NaviampApplicationRuntime(
             services = NaviampPlatformServices(
@@ -123,6 +124,21 @@ class NaviampApplicationServicesTest {
         val composition = NaviampApplicationComposition(runtime, services)
 
         composition.runtime.handle(NaviampHostLifecycleEvent.Start)
+        assertEquals(NaviampRuntimePhase.Failed, composition.runtime.state.value.phase)
+        composition.runtime.handle(NaviampHostLifecycleEvent.Start)
+
+        val firstConnectionPlan = composition.controllers.connection.begin(restoreSavedSession = true)
+        composition.controllers.connection.failed("Server unavailable.")
+        val retryConnectionPlan = composition.controllers.connection.begin(restoreSavedSession = true)
+        composition.controllers.connection.connected(
+            sourceId = "source",
+            serverVersion = "1.2.3",
+            status = "Connected.",
+        )
+        val replayResult = composition.controllers.providerActions.replay(
+            sourceId = "source",
+            provider = RecordingProvider(failReports = false),
+        )
         val exported = composition.services.settingsSync.exportCurrent(markChanged = true)
         composition.services.cacheMaintenance.clearCache()
         val job = composition.services.downloadJobs.create(
@@ -132,7 +148,17 @@ class NaviampApplicationServicesTest {
         )
 
         assertEquals(NaviampRuntimePhase.Ready, composition.runtime.state.value.phase)
-        assertEquals(listOf("restore"), session.events)
+        assertEquals(listOf("restore", "restore"), session.events)
+        assertTrue(firstConnectionPlan?.restoreSavedSession == true)
+        assertTrue(retryConnectionPlan?.restoreSavedSession == true)
+        assertEquals(NaviampConnectionPhase.Connected, composition.controllers.connection.state.value.phase)
+        assertEquals("source", composition.controllers.connection.state.value.sourceId)
+        assertEquals(1, replayResult.completed)
+        assertTrue(pendingActions.pending.isEmpty())
+        assertEquals(
+            "Synced 1 offline action.",
+            composition.controllers.status.state.value?.message,
+        )
         assertSame(controllers, composition.controllers)
         assertTrue(composition.capabilities.downloads.enabled)
         assertEquals(SettingsSyncOperationKind.Exported, exported.kind)
@@ -214,11 +240,15 @@ private object EmptyCacheMaintenanceRepository : CacheMaintenanceRepository<Unit
     override fun stats() = Unit
 }
 
-private class RecordingApplicationSession : NaviampApplicationSession {
+private class RecordingApplicationSession(private var restoreFailures: Int = 0) : NaviampApplicationSession {
     val events = mutableListOf<String>()
 
     override suspend fun restore() {
         events += "restore"
+        if (restoreFailures > 0) {
+            restoreFailures -= 1
+            error("restore failed")
+        }
     }
 }
 
@@ -235,19 +265,4 @@ private object EmptyCompositionPlaybackExecution : NaviampPlaybackExecution {
     override fun replayCurrent(positionSeconds: Double) = Unit
     override fun setVolume(percent: Int) = Unit
     override fun stop() = Unit
-}
-
-private object EmptyCompositionPendingActions : PendingProviderActionRepository {
-    override fun enqueuePendingProviderAction(
-        sourceId: String,
-        actionType: String,
-        entityId: String,
-        boolValue: Boolean?,
-        longValue: Long?,
-        replaceMatchingEntityAction: Boolean,
-    ) = Unit
-
-    override fun pendingProviderActions(sourceId: String, limit: Int): List<PendingProviderAction> = emptyList()
-    override fun deletePendingProviderAction(id: Long) = Unit
-    override fun markPendingProviderActionFailed(id: Long, errorMessage: String?) = Unit
 }
