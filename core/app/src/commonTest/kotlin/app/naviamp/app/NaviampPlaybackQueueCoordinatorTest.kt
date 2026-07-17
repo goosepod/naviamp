@@ -204,6 +204,61 @@ class NaviampPlaybackQueueCoordinatorTest {
         assertEquals(listOf(first), playback.state.value.queue.tracks)
     }
 
+    @Test
+    fun generatedRadioBatchesApplyOnlyForTheCurrentRequest() {
+        val seed = track("seed")
+        val existing = track("existing")
+        val fetched = track("fetched")
+        val playback = NaviampLivePlaybackController(
+            NaviampLivePlaybackState(queue = PlaybackQueue(listOf(seed, existing), currentIndex = 0)),
+        )
+        val coordinator = NaviampPlaybackQueueCoordinator(playback)
+
+        val stale = coordinator.appendGeneratedRadioTracks(
+            seedTrack = seed,
+            fetchedTracks = listOf(existing, fetched),
+            requestIsCurrent = false,
+        )
+        assertFalse(stale.tracksChanged)
+        assertEquals(listOf(seed, existing), playback.state.value.queue.tracks)
+
+        val applied = coordinator.appendGeneratedRadioTracks(
+            seedTrack = seed,
+            fetchedTracks = listOf(existing, fetched),
+            requestIsCurrent = true,
+        )
+        assertTrue(applied.tracksChanged)
+        assertEquals(listOf(seed, existing, fetched), playback.state.value.queue.tracks)
+    }
+
+    @Test
+    fun generatedRadioUpcomingAndSonicContinuationUseTheSharedQueueSnapshot() {
+        val history = track("history")
+        val current = track("current")
+        val oldUpcoming = track("old-upcoming")
+        val radioTrack = track("radio")
+        val sonicTrack = track("sonic")
+        val playback = NaviampLivePlaybackController(
+            NaviampLivePlaybackState(
+                queue = PlaybackQueue(listOf(history, current, oldUpcoming), currentIndex = 1),
+            ),
+        )
+        val coordinator = NaviampPlaybackQueueCoordinator(playback)
+
+        assertTrue(
+            coordinator.replaceGeneratedRadioUpcomingTracks(
+                currentTrack = current,
+                fetchedTracks = listOf(radioTrack),
+                requestIsCurrent = true,
+            ).changed,
+        )
+        assertEquals(listOf(history, current, radioTrack), playback.state.value.queue.tracks)
+
+        val sonic = coordinator.appendSonicContinuationTracks(listOf(radioTrack, sonicTrack))
+        assertTrue(sonic.tracksChanged)
+        assertEquals(listOf(history, current, radioTrack, sonicTrack), playback.state.value.queue.tracks)
+    }
+
     private fun track(id: String) = Track(
         id = TrackId(id),
         title = "Track $id",

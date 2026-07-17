@@ -15,7 +15,9 @@ import app.naviamp.domain.playback.PlaybackEngine
 import app.naviamp.domain.playback.PlaybackAudioAssetRepository
 import app.naviamp.domain.playback.PlaybackProgress
 import app.naviamp.domain.playback.PlaybackQueueController
+import app.naviamp.domain.playback.PlaybackQueueMutationUpdate
 import app.naviamp.domain.playback.PlaybackQueueSelection
+import app.naviamp.domain.playback.PlaybackQueueUpdate
 import app.naviamp.domain.playback.PlaybackReplayGain
 import app.naviamp.domain.playback.AudioPrefetchStats
 import app.naviamp.domain.playback.CacheRuntimeStats
@@ -192,9 +194,22 @@ class DesktopPlaylistEngine(
         tracks: List<Track>,
         maxHistory: Int? = null,
     ) {
-        queueController.appendTracks(tracks, maxHistory)?.let { updatedQueue ->
-            callbacks?.onQueueChanged(updatedQueue)
-        }
+        applyQueueUpdate(queueCoordinator.appendTracks(tracks, maxHistory = maxHistory))
+    }
+
+    fun applyQueueUpdate(update: PlaybackQueueUpdate) {
+        if (!update.tracksChanged) return
+        queueController.replaceQueue(update.queue)
+        callbacks?.onQueueChanged(update.queue)
+    }
+
+    fun applyQueueMutation(update: PlaybackQueueMutationUpdate) {
+        if (!update.changed) return
+        queueController.replaceQueue(
+            update.queue,
+            clearPreparedNext = update.clearPreparedNext,
+        )
+        callbacks?.onQueueChanged(update.queue)
     }
 
     fun replaceQueue(
@@ -216,13 +231,9 @@ class DesktopPlaylistEngine(
         upcomingTracks: List<Track>,
         maxHistory: Int? = null,
     ) {
-        val update = queueCoordinator.replaceUpcomingTracks(currentTrack, upcomingTracks, maxHistory)
-        if (!update.changed) return
-        queueController.replaceQueue(
-            update.queue,
-            clearPreparedNext = update.clearPreparedNext,
+        applyQueueMutation(
+            queueCoordinator.replaceUpcomingTracks(currentTrack, upcomingTracks, maxHistory),
         )
-        callbacks?.onQueueChanged(update.queue)
     }
 
     fun setPlaybackTransitionSettings(
@@ -551,8 +562,7 @@ class DesktopPlaylistEngine(
                 }
                 if (activeSessionId != queueController.playbackSessionId) return
                 if (tracks.isNotEmpty()) {
-                    queueController.appendTracks(tracks)
-                    callbacks?.onQueueChanged(queueController.queue)
+                    applyQueueUpdate(queueCoordinator.appendSonicContinuationTracks(tracks))
                     selection = queueController.applyFinishedUpdate(
                         queueCoordinator.finishCurrentTrack(removePlayedTracksFromQueue),
                     )

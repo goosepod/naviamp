@@ -28,7 +28,6 @@ import app.naviamp.domain.radio.artistMixSeededRadioRequest
 import app.naviamp.domain.radio.albumRecentRadioStream
 import app.naviamp.domain.radio.artistRecentRadioStream
 import app.naviamp.domain.radio.decadeRecentRadioStream
-import app.naviamp.domain.radio.generatedRadioTracksToAppend
 import app.naviamp.domain.radio.genreRecentRadioStream
 import app.naviamp.domain.radio.genreMixRadioRequest
 import app.naviamp.domain.radio.internetRadioDeleteErrorStatus
@@ -66,12 +65,14 @@ fun appendAndroidGeneratedRadioTracks(
     with(state) {
         if (nowPlaying?.id != seedTrack.id) return
         val previousQueue = playbackQueue
-        val newTracks = generatedRadioTracksToAppend(seedTrack, fetchedTracks, playbackQueue.tracks)
-        if (newTracks.isNotEmpty()) {
-            playbackQueue = playbackQueue.copy(tracks = playbackQueue.tracks + newTracks)
-        }
-        if (playbackQueue != previousQueue) {
-            queueController.replaceQueue(playbackQueue, clearPreparedNext = false)
+        val update = sharedQueueCoordinator.appendGeneratedRadioTracks(
+            seedTrack = seedTrack,
+            fetchedTracks = fetchedTracks,
+            requestIsCurrent = true,
+        )
+        if (update.tracksChanged) {
+            queueController.replaceQueue(previousQueue, clearPreparedNext = false)
+            queueController.replaceQueue(update.queue, clearPreparedNext = false)
         }
     }
 }
@@ -110,19 +111,17 @@ fun refillAndroidRadioIfNeeded(
                 }
             ) {
                 is SeededRadioExpansionResult.Ready -> {
-                    val newTracks = generatedRadioTracksToAppend(
+                    val previousQueue = state.playbackQueue
+                    val update = state.sharedQueueCoordinator.appendGeneratedRadioTracks(
                         seedTrack = seedTrack,
                         fetchedTracks = result.fetchedTracks,
-                        queuedTracks = state.playbackQueue.tracks,
+                        requestIsCurrent = state.radioQueueActive &&
+                            state.lastRadioRefillSeedId == seedTrack.id,
+                        maxHistory = AndroidRadioQueueHistoryLimit,
                     )
-                    if (state.radioQueueActive && newTracks.isNotEmpty()) {
-                        queueController.replaceQueue(state.playbackQueue, clearPreparedNext = false)
-                        queueController.appendTracks(
-                            tracks = newTracks,
-                            maxHistory = AndroidRadioQueueHistoryLimit,
-                        )?.let { updatedQueue ->
-                            state.playbackQueue = updatedQueue
-                        }
+                    if (update.tracksChanged) {
+                        queueController.replaceQueue(previousQueue, clearPreparedNext = false)
+                        queueController.replaceQueue(update.queue, clearPreparedNext = false)
                         state.status = "Extending radio queue (${state.playbackQueue.tracks.size} tracks)..."
                     }
                 }
@@ -177,7 +176,12 @@ fun startAndroidSeededRadio(
                     val queue = result.queue
                     result.recentRadioStream?.let(rememberRecentRadioStream)
                     if (nowPlaying?.id == seedTrack.id) {
-                        playbackQueue = PlaybackQueue(tracks = queue, currentIndex = 0)
+                        appendAndroidGeneratedRadioTracks(
+                            state = state,
+                            queueController = queueController,
+                            seedTrack = seedTrack,
+                            fetchedTracks = queue.drop(1),
+                        )
                     }
                     status = "Building $statusLabel queue..."
                 }
@@ -727,8 +731,10 @@ fun startAndroidTrackRadioQueue(
                     if (playSeed) {
                         playTrack(track, queue)
                     } else {
-                        queueController.replaceQueue(PlaybackQueue(tracks = queue, currentIndex = 0))
-                        playbackQueue = queueController.queue
+                        val update = sharedQueueCoordinator.replaceQueue(
+                            PlaybackQueue(tracks = queue, currentIndex = 0),
+                        )
+                        queueController.replaceQueue(update.queue)
                         relatedTracks = queue.drop(1)
                         relatedTracksSource = RelatedTracksSource.ProviderRadio
                         relatedSimilarityByTrackId = emptyMap()

@@ -10,6 +10,9 @@ import app.naviamp.domain.playback.PlaybackShuffleUpdate
 import app.naviamp.domain.playback.PlaybackQueueUpdate
 import app.naviamp.domain.queue.PlaybackQueue
 import app.naviamp.domain.queue.RepeatMode
+import app.naviamp.domain.radio.generatedRadioTracksToAppend
+import app.naviamp.domain.radio.generatedRadioUpcomingTracks
+import app.naviamp.domain.radio.generatedRadioUpcomingTracksToAppend
 import app.naviamp.domain.settings.PreviousButtonBehavior
 
 /**
@@ -107,6 +110,61 @@ class NaviampPlaybackQueueCoordinator(
             maxHistory = maxHistory,
         ).also(::commit)
 
+    fun appendGeneratedRadioTracks(
+        seedTrack: Track,
+        fetchedTracks: List<Track>,
+        requestIsCurrent: Boolean,
+        maxHistory: Int? = null,
+    ): PlaybackQueueUpdate =
+        appendTracks(
+            tracksToAdd = if (requestIsCurrent) {
+                generatedRadioTracksToAppend(seedTrack, fetchedTracks, currentQueue.tracks)
+            } else {
+                emptyList()
+            },
+            label = "radio tracks",
+            maxHistory = maxHistory,
+        )
+
+    fun replaceGeneratedRadioUpcomingTracks(
+        currentTrack: Track,
+        fetchedTracks: List<Track>,
+        requestIsCurrent: Boolean,
+        maxHistory: Int? = null,
+    ): PlaybackQueueMutationUpdate =
+        if (requestIsCurrent) {
+            replaceUpcomingTracks(
+                currentTrack = currentTrack,
+                upcomingTracks = generatedRadioUpcomingTracks(currentTrack, fetchedTracks),
+                maxHistory = maxHistory,
+            )
+        } else {
+            unchangedMutation()
+        }
+
+    fun appendGeneratedRadioUpcomingTracks(
+        currentTrack: Track,
+        fetchedTracks: List<Track>,
+        requestIsCurrent: Boolean,
+        maxHistory: Int? = null,
+    ): PlaybackQueueUpdate =
+        appendTracks(
+            tracksToAdd = if (requestIsCurrent) {
+                generatedRadioUpcomingTracksToAppend(currentTrack, fetchedTracks, currentQueue.tracks)
+            } else {
+                emptyList()
+            },
+            label = "radio tracks",
+            maxHistory = maxHistory,
+        )
+
+    fun appendSonicContinuationTracks(tracks: List<Track>): PlaybackQueueUpdate =
+        appendTracks(
+            tracksToAdd = tracks,
+            label = "Sonic Autoplay tracks",
+            deduplicateExisting = true,
+        )
+
     fun toggleUpcomingShuffle(shuffledSnapshot: List<Track>?): PlaybackShuffleUpdate =
         queueManager.toggleUpcomingShuffle(currentQueue, shuffledSnapshot).also(::commit)
 
@@ -197,4 +255,10 @@ class NaviampPlaybackQueueCoordinator(
             clearPreparedNext = clearPreparedNext,
         ).also(::commit)
     }
+
+    private fun unchangedMutation(): PlaybackQueueMutationUpdate =
+        PlaybackQueueMutationUpdate(
+            queue = currentQueue,
+            changed = false,
+        )
 }

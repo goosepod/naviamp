@@ -640,6 +640,7 @@ fun NaviampApp(
         libraryIndexRepository = storage,
         providerResponseService = ProviderResponseService(storage),
         playlistEngine = playlistEngine,
+        queueCoordinator = queueCoordinator,
         provider = { connectedProvider },
         sourceId = { connectedSourceId },
         streamQuality = { playbackSettings.streamQuality(playbackEngine) },

@@ -1,5 +1,6 @@
 package app.naviamp.desktop
 
+import app.naviamp.app.NaviampPlaybackQueueCoordinator
 import app.naviamp.desktop.playback.PlaylistCallbacks
 import app.naviamp.desktop.playback.DesktopPlaylistEngine
 import app.naviamp.desktop.settings.RecentRadioStream
@@ -14,8 +15,6 @@ import app.naviamp.domain.cache.ProviderResponseService
 import app.naviamp.domain.home.HomeContent
 import app.naviamp.domain.playback.ReplayGainMode
 import app.naviamp.domain.provider.AlbumListType
-import app.naviamp.domain.playback.PlaybackQueueManager
-import app.naviamp.domain.playback.applyPlaybackQueueUpdate
 import app.naviamp.domain.queue.PlaybackQueue
 import app.naviamp.domain.queue.RepeatMode
 import app.naviamp.domain.radio.RadioRequest
@@ -70,6 +69,7 @@ class DesktopRadioController(
     private val libraryIndexRepository: LocalLibraryIndexRepository,
     private val providerResponseService: ProviderResponseService,
     private val playlistEngine: DesktopPlaylistEngine,
+    private val queueCoordinator: NaviampPlaybackQueueCoordinator,
     private val provider: () -> NavidromeProvider?,
     private val sourceId: () -> String?,
     private val streamQuality: () -> StreamQuality,
@@ -126,6 +126,7 @@ class DesktopRadioController(
             ) {
                 is SeededRadioExpansionResult.Ready -> {
                     appendGeneratedRadioTracks(
+                        queueCoordinator = queueCoordinator,
                         playlistEngine = playlistEngine,
                         radioQueueActive = isRadioQueueActive(),
                         radioSession = activeRadioSessionId,
@@ -242,8 +243,7 @@ class DesktopRadioController(
                     return@launch
                 }
                 val update = if (insertNext) {
-                    PlaybackQueueManager().playNextTracks(
-                        currentQueue = playlistEngine.queue,
+                    queueCoordinator.playNextTracks(
                         tracksToAdd = tracks,
                         label = label,
                         existingTracks = playlistEngine.queue.tracks,
@@ -251,8 +251,7 @@ class DesktopRadioController(
                         maxHistory = RadioQueueHistoryLimit,
                     )
                 } else {
-                    PlaybackQueueManager().appendTracks(
-                        currentQueue = playlistEngine.queue,
+                    queueCoordinator.appendTracks(
                         tracksToAdd = tracks,
                         label = label,
                         existingTracks = playlistEngine.queue.tracks,
@@ -260,11 +259,8 @@ class DesktopRadioController(
                         maxHistory = RadioQueueHistoryLimit,
                     )
                 }
-                applyPlaybackQueueUpdate(
-                    update = update,
-                    setStatus = setConnectionStatus,
-                    replaceQueue = playlistEngine::replaceQueue,
-                )
+                setConnectionStatus(update.status)
+                playlistEngine.applyQueueUpdate(update)
             } catch (exception: Exception) {
                 setConnectionStatus(exception.message ?: "Could not load track radio.")
             }
@@ -469,6 +465,7 @@ class DesktopRadioController(
                 is SeededRadioBuildResult.Ready -> {
                     result.recentRadioStream?.let(rememberRadioStream)
                     appendGeneratedRadioTracks(
+                        queueCoordinator = queueCoordinator,
                         playlistEngine = playlistEngine,
                         radioQueueActive = isRadioQueueActive(),
                         radioSession = activeRadioSessionId,
@@ -498,6 +495,7 @@ class DesktopRadioController(
                 }
                 if (result !is SeededRadioExpansionResult.Ready) return@forEach
                 appendGeneratedRadioTracks(
+                    queueCoordinator = queueCoordinator,
                     playlistEngine = playlistEngine,
                     radioQueueActive = isRadioQueueActive(),
                     radioSession = activeRadioSessionId,
@@ -545,6 +543,7 @@ class DesktopRadioController(
                 is SeededRadioBuildResult.Ready -> {
                     result.recentRadioStream?.let(rememberRadioStream)
                     replaceGeneratedRadioUpcomingTracks(
+                        queueCoordinator = queueCoordinator,
                         playlistEngine = playlistEngine,
                         radioQueueActive = isRadioQueueActive(),
                         radioSession = activeRadioSessionId,
@@ -573,6 +572,7 @@ class DesktopRadioController(
                 }
                 if (result !is SeededRadioExpansionResult.Ready) return@forEach
                 appendGeneratedRadioUpcomingTracks(
+                    queueCoordinator = queueCoordinator,
                     playlistEngine = playlistEngine,
                     radioQueueActive = isRadioQueueActive(),
                     radioSession = activeRadioSessionId,

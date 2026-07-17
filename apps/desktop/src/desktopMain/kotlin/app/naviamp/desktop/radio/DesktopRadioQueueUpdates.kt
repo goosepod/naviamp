@@ -1,12 +1,11 @@
 package app.naviamp.desktop
 
+import app.naviamp.app.NaviampPlaybackQueueCoordinator
 import app.naviamp.desktop.playback.DesktopPlaylistEngine
 import app.naviamp.domain.Track
-import app.naviamp.domain.radio.generatedRadioAppendTracksForSession
-import app.naviamp.domain.radio.generatedRadioUpcomingAppendTracksForSession
-import app.naviamp.domain.radio.generatedRadioUpcomingReplacementForSession
 
 fun appendGeneratedRadioTracks(
+    queueCoordinator: NaviampPlaybackQueueCoordinator,
     playlistEngine: DesktopPlaylistEngine,
     radioQueueActive: Boolean,
     radioSession: Int,
@@ -15,23 +14,17 @@ fun appendGeneratedRadioTracks(
     fetchedTracks: List<Track>,
     maxHistory: Int,
 ) {
-    val newTracks = generatedRadioAppendTracksForSession(
-        radioQueueActive = radioQueueActive,
-        radioSession = radioSession,
-        currentRadioSession = currentRadioSession,
+    val update = queueCoordinator.appendGeneratedRadioTracks(
         seedTrack = seedTrack,
         fetchedTracks = fetchedTracks,
-        queuedTracks = playlistEngine.queue.tracks,
+        requestIsCurrent = radioQueueActive && radioSession == currentRadioSession,
+        maxHistory = maxHistory,
     )
-    if (newTracks.isNotEmpty()) {
-        playlistEngine.appendTracks(
-            tracks = newTracks,
-            maxHistory = maxHistory,
-        )
-    }
+    playlistEngine.applyQueueUpdate(update)
 }
 
 fun replaceGeneratedRadioUpcomingTracks(
+    queueCoordinator: NaviampPlaybackQueueCoordinator,
     playlistEngine: DesktopPlaylistEngine,
     radioQueueActive: Boolean,
     radioSession: Int,
@@ -40,21 +33,17 @@ fun replaceGeneratedRadioUpcomingTracks(
     fetchedTracks: List<Track>,
     maxHistory: Int,
 ) {
-    val upcomingTracks = generatedRadioUpcomingReplacementForSession(
-        radioQueueActive = radioQueueActive,
-        radioSession = radioSession,
-        currentRadioSession = currentRadioSession,
+    val update = queueCoordinator.replaceGeneratedRadioUpcomingTracks(
         currentTrack = currentTrack,
         fetchedTracks = fetchedTracks,
-    ) ?: return
-    playlistEngine.replaceUpcomingTracks(
-        currentTrack = currentTrack,
-        upcomingTracks = upcomingTracks,
+        requestIsCurrent = radioQueueActive && radioSession == currentRadioSession,
         maxHistory = maxHistory,
     )
+    playlistEngine.applyQueueMutation(update)
 }
 
 fun appendGeneratedRadioUpcomingTracks(
+    queueCoordinator: NaviampPlaybackQueueCoordinator,
     playlistEngine: DesktopPlaylistEngine,
     radioQueueActive: Boolean,
     radioSession: Int,
@@ -63,18 +52,11 @@ fun appendGeneratedRadioUpcomingTracks(
     fetchedTracks: List<Track>,
     maxHistory: Int,
 ) {
-    val newTracks = generatedRadioUpcomingAppendTracksForSession(
-        radioQueueActive = radioQueueActive,
-        radioSession = radioSession,
-        currentRadioSession = currentRadioSession,
+    val update = queueCoordinator.appendGeneratedRadioUpcomingTracks(
         currentTrack = currentTrack,
         fetchedTracks = fetchedTracks,
-        queuedTracks = playlistEngine.queue.tracks,
+        requestIsCurrent = radioQueueActive && radioSession == currentRadioSession,
+        maxHistory = maxHistory,
     )
-    if (newTracks.isNotEmpty()) {
-        playlistEngine.appendTracks(
-            tracks = newTracks,
-            maxHistory = maxHistory,
-        )
-    }
+    playlistEngine.applyQueueUpdate(update)
 }

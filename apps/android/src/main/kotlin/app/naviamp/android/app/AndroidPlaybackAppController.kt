@@ -214,8 +214,11 @@ internal class AndroidPlaybackAppController(
         if (state.provider?.capabilities?.supportsSonicSimilarity != true) return
         scope.launch {
             val tracks = sonicAutoplayService.continuationTracks(queueController.queue)
-            val updatedQueue = queueController.appendTracks(tracks) ?: return@launch
-            state.playbackQueue = updatedQueue
+            val previousQueue = state.playbackQueue
+            val update = queueCoordinator.appendSonicContinuationTracks(tracks)
+            if (!update.tracksChanged) return@launch
+            queueController.replaceQueue(previousQueue)
+            queueController.replaceQueue(update.queue)
             savePlaybackSessionThrottled(force = true)
             playAdjacentTrack(1)
         }
