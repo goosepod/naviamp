@@ -72,19 +72,6 @@ fun resetAndroidPlaybackState(
     state.restoredStartPositionSeconds = null
 }
 
-fun handleAndroidClearCache(
-    context: Context,
-    state: AndroidAppState,
-    cacheMaintenanceRepository: CacheMaintenanceRepository<StorageCacheStats>,
-) {
-    NaviampCacheMaintenanceController(
-        repository = cacheMaintenanceRepository,
-        clearPlatformCaches = { clearAndroidFileCaches(context) },
-        clearDerivedState = { clearAndroidDerivedMediaState(state) },
-        setStatus = { status -> state.status = status },
-    ).clearCache()
-}
-
 fun handleAndroidClearLibrary(
     state: AndroidAppState,
     libraryIndexRepository: LocalLibraryIndexRepository,
@@ -142,6 +129,8 @@ internal class AndroidSettingsMaintenanceController(
     private val queueController: PlaybackQueueController,
     private val reloadVisibleLyrics: () -> Unit,
     private val redownloadTracks: (List<Track>, String) -> Unit,
+    private val cacheSettingsController: NaviampCacheSettingsController,
+    private val cacheMaintenanceController: NaviampCacheMaintenanceController<StorageCacheStats>,
     private val onSyncedSettingsChanged: () -> Unit = {},
 ) {
     private val playbackSettingsMaintenanceController = PlaybackSettingsMaintenanceController(
@@ -154,23 +143,6 @@ internal class AndroidSettingsMaintenanceController(
         downloadedTracks = { state.downloadedTracks.map { it.track } },
         redownloadTracks = redownloadTracks,
     )
-    private val cacheSettingsController = NaviampCacheSettingsController(
-        setSettings = { settings -> state.cacheSettings = settings },
-        saveSettings = settingsStore::saveCacheSettings,
-        applyPlatformSettings = { settings ->
-            storage.updateAudioCacheLimit(settings.maxAudioCacheBytes)
-            storage.updateDownloadDirectory(
-                settings.customDownloadDirectory?.let(::File)
-                    ?: File(context.filesDir, "downloads"),
-            )
-            storage.updateAudioCacheDirectory(
-                settings.customAudioCacheDirectory?.let(::File)
-                    ?: File(context.cacheDir, "audio-cache"),
-            )
-            state.storageStats = storage.stats()
-        },
-    )
-
     fun handleConnectionFormChanged(form: ConnectionFormState) {
         state.applyConnectionForm(form)
     }
@@ -190,7 +162,7 @@ internal class AndroidSettingsMaintenanceController(
     }
 
     fun handleClearCache() {
-        handleAndroidClearCache(context, state, storage)
+        cacheMaintenanceController.clearCache()
     }
 
     fun handleClearLibrary() {

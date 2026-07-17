@@ -8,7 +8,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import app.naviamp.app.NaviampCacheMaintenanceController
 import app.naviamp.domain.app.libraryIndexClearedStatus
-import app.naviamp.domain.cache.CacheMaintenanceRepository
 import app.naviamp.domain.cache.LocalLibraryIndexRepository
 import app.naviamp.domain.cache.LibrarySnapshot
 import app.naviamp.domain.library.libraryConnectionRequiredStatus
@@ -22,7 +21,7 @@ import kotlinx.coroutines.withContext
 class DesktopLibraryController(
     private val scope: CoroutineScope,
     private val libraryIndexRepository: LocalLibraryIndexRepository,
-    private val cacheMaintenanceRepository: CacheMaintenanceRepository<StorageCacheStats>,
+    private val cacheMaintenance: NaviampCacheMaintenanceController<StorageCacheStats>,
     private val provider: () -> MediaProvider?,
     private val sourceId: () -> String?,
     private val setConnectionStatus: (String) -> Unit,
@@ -40,11 +39,6 @@ class DesktopLibraryController(
         private set
 
     private val artistIndex = ArtistLibraryIndex(libraryIndexRepository)
-    private val cacheMaintenance = NaviampCacheMaintenanceController(
-        repository = cacheMaintenanceRepository,
-        setStatus = setConnectionStatus,
-    )
-
     fun updateQuery(query: String) {
         this.query = query
     }

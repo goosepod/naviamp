@@ -26,6 +26,10 @@ import androidx.compose.ui.unit.dp
 import app.naviamp.domain.Track
 import app.naviamp.domain.TrackId
 import app.naviamp.app.NaviampApplicationControllers
+import app.naviamp.app.NaviampApplicationServices
+import app.naviamp.app.NaviampCacheMaintenanceController
+import app.naviamp.app.NaviampApplicationStatusArea
+import app.naviamp.app.NaviampApplicationStatusLevel
 import app.naviamp.app.NaviampLivePlaybackState
 import app.naviamp.app.NaviampPlaybackSessionController
 import app.naviamp.app.NaviampCacheSettingsController
@@ -441,25 +445,45 @@ fun NaviampApp(
         }
     }
 
-    val settingsSyncController = NaviampSettingsSyncController(
-        deviceId = DesktopSettingsSyncDeviceId,
-        state = ::settingsSyncRuntimeState,
-        saveState = ::saveSettingsSyncRuntimeState,
-        nowEpochMillis = { System.currentTimeMillis() },
-        snapshot = {
-            SettingsSyncLocalSnapshot(
-                serverProfiles = storage.mediaSources(),
-                interfaceSettings = interfaceSettings,
-                playback = playbackSettings,
-                visualizer = VisualizerSettings(
-                    selectedVisualizer = nowPlayingPresentation.selectedVisualizer.name,
-                ),
-                recentRadioStreams = recentRadioStreams,
-                recentInternetRadioStations = settingsStore.loadRecentInternetRadioStations(),
-            )
-        },
-        applyDocument = ::applySettingsSyncDocument,
-    )
+    val applicationServices = remember(storage, settingsStore) {
+        NaviampApplicationServices(
+            settingsSync = NaviampSettingsSyncController(
+                deviceId = DesktopSettingsSyncDeviceId,
+                state = ::settingsSyncRuntimeState,
+                saveState = ::saveSettingsSyncRuntimeState,
+                nowEpochMillis = { System.currentTimeMillis() },
+                snapshot = {
+                    SettingsSyncLocalSnapshot(
+                        serverProfiles = storage.mediaSources(),
+                        interfaceSettings = interfaceSettings,
+                        playback = playbackSettings,
+                        visualizer = VisualizerSettings(
+                            selectedVisualizer = nowPlayingPresentation.selectedVisualizer.name,
+                        ),
+                        recentRadioStreams = recentRadioStreams,
+                        recentInternetRadioStations = settingsStore.loadRecentInternetRadioStations(),
+                    )
+                },
+                applyDocument = ::applySettingsSyncDocument,
+            ),
+            cacheSettings = NaviampCacheSettingsController(
+                setSettings = { settings -> cacheSettings = settings },
+                saveSettings = settingsStore::saveCacheSettings,
+            ),
+            cacheMaintenance = NaviampCacheMaintenanceController(
+                repository = storage,
+                setStatus = { status ->
+                    applicationControllers.status.publish(
+                        area = NaviampApplicationStatusArea.CacheMaintenance,
+                        level = NaviampApplicationStatusLevel.Information,
+                        message = status,
+                    )
+                },
+            ),
+        )
+    }
+    val settingsSyncController = applicationServices.settingsSync
+    val cacheSettingsController = applicationServices.cacheSettings
 
     fun updateSettingsSyncDirectory(path: String?) {
         saveSettingsSyncSettings(DesktopSettingsSyncSettings(
@@ -695,7 +719,7 @@ fun NaviampApp(
         DesktopLibraryController(
             scope = coroutineScope,
             libraryIndexRepository = storage,
-            cacheMaintenanceRepository = storage,
+            cacheMaintenance = applicationServices.cacheMaintenance,
         provider = { connectedProvider },
         sourceId = { connectedSourceId },
         setConnectionStatus = { status -> connectionStatus = status },
@@ -958,13 +982,6 @@ fun NaviampApp(
         redownloadTracks = downloadsController::redownloadTracks,
     )
     }
-    val cacheSettingsController = remember {
-        NaviampCacheSettingsController(
-            setSettings = { settings -> cacheSettings = settings },
-            saveSettings = settingsStore::saveCacheSettings,
-        )
-    }
-
     val playlistsController = remember {
         DesktopPlaylistsController(
         scope = coroutineScope,

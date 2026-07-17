@@ -15,6 +15,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import app.naviamp.app.NaviampPlaybackSessionController
+import app.naviamp.app.NaviampApplicationServices
+import app.naviamp.app.NaviampCacheMaintenanceController
+import app.naviamp.app.NaviampCacheSettingsController
+import app.naviamp.app.NaviampApplicationStatusArea
+import app.naviamp.app.NaviampApplicationStatusLevel
 import app.naviamp.android.playback.AndroidPlaybackEngine
 import app.naviamp.domain.AlbumDetails
 import app.naviamp.domain.Lyrics
@@ -76,6 +81,8 @@ import app.naviamp.ui.label as streamQualityLabel
 import app.naviamp.ui.resetAndroidPlatformCoverArtByteLoader
 import app.naviamp.ui.setAndroidPlatformCoverArtByteLoader
 import app.naviamp.ui.toSharedSearchResultsUi
+import java.io.File
+
 @Composable
 fun NaviampAndroidApp(
     openNowPlayingRequest: Int = 0,
@@ -360,17 +367,36 @@ fun NaviampAndroidApp(
         }
     }
 
-    val settingsMaintenanceController = remember(appState, storage, settingsStore, context) {
-        AndroidSettingsMaintenanceController(
-            context = context,
-            state = appState,
-            storage = storage,
-            settingsStore = settingsStore,
-            playbackEngine = playbackEngine,
-            queueController = playbackQueueController,
-            reloadVisibleLyrics = nowPlayingSidecarController::reloadVisibleLyrics,
-            redownloadTracks = downloadActionController::redownloadTracks,
-            onSyncedSettingsChanged = { onSyncedSettingsChanged() },
+    val cacheSettingsController = remember(appState, storage, settingsStore, context) {
+        NaviampCacheSettingsController(
+            setSettings = { settings -> appState.cacheSettings = settings },
+            saveSettings = settingsStore::saveCacheSettings,
+            applyPlatformSettings = { settings ->
+                storage.updateAudioCacheLimit(settings.maxAudioCacheBytes)
+                storage.updateDownloadDirectory(
+                    settings.customDownloadDirectory?.let(::File)
+                        ?: File(context.filesDir, "downloads"),
+                )
+                storage.updateAudioCacheDirectory(
+                    settings.customAudioCacheDirectory?.let(::File)
+                        ?: File(context.cacheDir, "audio-cache"),
+                )
+                appState.storageStats = storage.stats()
+            },
+        )
+    }
+    val cacheMaintenanceController = remember(appState, storage, context) {
+        NaviampCacheMaintenanceController(
+            repository = storage,
+            clearPlatformCaches = { clearAndroidFileCaches(context) },
+            clearDerivedState = { clearAndroidDerivedMediaState(appState) },
+            setStatus = { status ->
+                appState.sharedControllers.status.publish(
+                    area = NaviampApplicationStatusArea.CacheMaintenance,
+                    level = NaviampApplicationStatusLevel.Information,
+                    message = status,
+                )
+            },
         )
     }
 
@@ -489,31 +515,63 @@ fun NaviampAndroidApp(
     fun settingsSyncTreeUri(): Uri? =
         settingsSyncSettings.treeUri?.let(Uri::parse)
 
-    val settingsSyncController = NaviampSettingsSyncController(
-        deviceId = AndroidSettingsSyncDeviceId,
-        state = ::settingsSyncRuntimeState,
-        saveState = ::saveSettingsSyncRuntimeState,
-        nowEpochMillis = { System.currentTimeMillis() },
-        snapshot = {
-            SettingsSyncLocalSnapshot(
-                serverProfiles = storage.mediaSources(),
-                interfaceSettings = appState.interfaceSettings,
-                playback = appState.playbackSettings,
-                visualizer = VisualizerSettings(selectedVisualizer = appState.selectedVisualizer.name),
-                recentRadioStreams = settingsStore.loadRecentRadioStreams(),
-                recentInternetRadioStations = settingsStore.loadRecentInternetRadioStations(),
-            )
-        },
-        applyDocument = { document ->
-            applyAndroidSettingsSyncDocument(
-                document = document,
-                state = appState,
-                settingsStore = settingsStore,
-                storage = storage,
-                playbackEngine = playbackEngine,
-            )
-        },
-    )
+    val applicationServices = remember(
+        appState,
+        storage,
+        settingsStore,
+        playbackEngine,
+        cacheSettingsController,
+        cacheMaintenanceController,
+    ) {
+        NaviampApplicationServices(
+            settingsSync = NaviampSettingsSyncController(
+                deviceId = AndroidSettingsSyncDeviceId,
+                state = ::settingsSyncRuntimeState,
+                saveState = ::saveSettingsSyncRuntimeState,
+                nowEpochMillis = { System.currentTimeMillis() },
+                snapshot = {
+                    SettingsSyncLocalSnapshot(
+                        serverProfiles = storage.mediaSources(),
+                        interfaceSettings = appState.interfaceSettings,
+                        playback = appState.playbackSettings,
+                        visualizer = VisualizerSettings(
+                            selectedVisualizer = appState.selectedVisualizer.name,
+                        ),
+                        recentRadioStreams = settingsStore.loadRecentRadioStreams(),
+                        recentInternetRadioStations = settingsStore.loadRecentInternetRadioStations(),
+                    )
+                },
+                applyDocument = { document ->
+                    applyAndroidSettingsSyncDocument(
+                        document = document,
+                        state = appState,
+                        settingsStore = settingsStore,
+                        storage = storage,
+                        playbackEngine = playbackEngine,
+                    )
+                },
+            ),
+            cacheSettings = cacheSettingsController,
+            cacheMaintenance = cacheMaintenanceController,
+        )
+    }
+    val settingsSyncController = applicationServices.settingsSync
+
+    val settingsMaintenanceController = remember(appState, storage, settingsStore, context) {
+        AndroidSettingsMaintenanceController(
+            context = context,
+            state = appState,
+            storage = storage,
+            settingsStore = settingsStore,
+            playbackEngine = playbackEngine,
+            queueController = playbackQueueController,
+            reloadVisibleLyrics = nowPlayingSidecarController::reloadVisibleLyrics,
+            redownloadTracks = downloadActionController::redownloadTracks,
+            cacheSettingsController = applicationServices.cacheSettings,
+            cacheMaintenanceController = applicationServices.cacheMaintenance,
+            onSyncedSettingsChanged = { onSyncedSettingsChanged() },
+        )
+    }
 
     fun saveSettingsSyncMirror(document: SettingsSyncDocument) {
         settingsSyncMirrorStore.write(document)
