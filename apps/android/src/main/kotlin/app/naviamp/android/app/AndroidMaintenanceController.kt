@@ -1,6 +1,7 @@
 package app.naviamp.android
 
 import app.naviamp.domain.cache.StorageCacheStats
+import app.naviamp.app.NaviampCacheSettingsController
 
 import android.content.Context
 import app.naviamp.domain.app.NaviampContentState
@@ -151,6 +152,22 @@ internal class AndroidSettingsMaintenanceController(
         downloadedTracks = { state.downloadedTracks.map { it.track } },
         redownloadTracks = redownloadTracks,
     )
+    private val cacheSettingsController = NaviampCacheSettingsController(
+        setSettings = { settings -> state.cacheSettings = settings },
+        saveSettings = settingsStore::saveCacheSettings,
+        applyPlatformSettings = { settings ->
+            storage.updateAudioCacheLimit(settings.maxAudioCacheBytes)
+            storage.updateDownloadDirectory(
+                settings.customDownloadDirectory?.let(::File)
+                    ?: File(context.filesDir, "downloads"),
+            )
+            storage.updateAudioCacheDirectory(
+                settings.customAudioCacheDirectory?.let(::File)
+                    ?: File(context.cacheDir, "audio-cache"),
+            )
+            state.storageStats = storage.stats()
+        },
+    )
 
     fun handleConnectionFormChanged(form: ConnectionFormState) {
         state.applyConnectionForm(form)
@@ -167,18 +184,7 @@ internal class AndroidSettingsMaintenanceController(
     }
 
     fun handleCacheSettingsChanged(settings: CacheSettings) {
-        state.cacheSettings = settings.normalized()
-        settingsStore.saveCacheSettings(state.cacheSettings)
-        storage.updateAudioCacheLimit(state.cacheSettings.maxAudioCacheBytes)
-        storage.updateDownloadDirectory(
-            state.cacheSettings.customDownloadDirectory?.let { java.io.File(it) }
-                ?: java.io.File(context.filesDir, "downloads"),
-        )
-        storage.updateAudioCacheDirectory(
-            state.cacheSettings.customAudioCacheDirectory?.let { java.io.File(it) }
-                ?: java.io.File(context.cacheDir, "audio-cache"),
-        )
-        state.storageStats = storage.stats()
+        cacheSettingsController.apply(settings)
     }
 
     fun handleClearCache() {

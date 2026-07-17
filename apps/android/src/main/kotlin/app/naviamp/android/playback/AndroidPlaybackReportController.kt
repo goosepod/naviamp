@@ -5,9 +5,11 @@ import app.naviamp.domain.isInternetRadioTrack
 import app.naviamp.domain.playback.PlaybackProgress
 import app.naviamp.domain.playback.PlaybackState
 import app.naviamp.domain.playback.canReportPlaybackTrack
+import app.naviamp.app.NaviampPlaybackReportingController
+import app.naviamp.app.NaviampPlaybackStateReportRequest
+import app.naviamp.app.NaviampProviderActionController
 import app.naviamp.domain.provider.PendingActionReportNowPlaying
 import app.naviamp.domain.provider.PendingProviderActionRepository
-import app.naviamp.domain.provider.PlaybackReportState
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -18,9 +20,8 @@ internal class AndroidPlaybackReportController(
     private val state: AndroidAppState,
     private val pendingProviderActions: PendingProviderActionRepository,
 ) {
-    private var lastPlaybackStateReportSessionToken: Long? = null
-    private var lastPlaybackStateReportState: PlaybackReportState? = null
-    private var lastPlaybackStateReportAtMillis: Long = 0L
+    private val reporting = NaviampPlaybackReportingController()
+    private val providerActions = NaviampProviderActionController(pendingProviderActions)
 
     fun reportNowPlaying(track: Track) {
         val activeProvider = state.provider
@@ -46,74 +47,40 @@ internal class AndroidPlaybackReportController(
             return
         }
         scope.launch {
-            val result = runCatching {
+            runCatching {
                 withContext(Dispatchers.IO) {
-                    activeProvider.reportNowPlaying(track.id)
-                }
-            }
-            if (result.isFailure) {
-                state.activeSourceId?.let { sourceId ->
-                    withContext(Dispatchers.IO) {
-                        pendingProviderActions.enqueuePendingProviderAction(
-                            sourceId = sourceId,
-                            actionType = PendingActionReportNowPlaying,
-                            entityId = track.id.value,
-                        )
-                    }
+                    providerActions
+                        .offlineCapable(activeProvider, state.activeSourceId)
+                        .reportNowPlaying(track.id)
                 }
             }
         }
     }
 
     fun maybeReportPlaybackState(playbackState: PlaybackState, progress: PlaybackProgress = state.playbackProgress) {
-        val reportState = playbackState.toPlaybackReportState() ?: return
         val activeProvider = state.provider ?: return
         val track = state.nowPlaying ?: return
-        if (
-            !canReportPlaybackTrack(
-                supportsPlayReporting = activeProvider.capabilities.supportsPlayReporting,
+        val report = reporting.stateReport(
+            NaviampPlaybackStateReportRequest(
+                sessionId = state.playbackSessionToken,
+                trackId = track.id,
                 isInternetRadioTrack = track.isInternetRadioTrack(),
-            )
-        ) {
-            return
-        }
-        val activeSessionToken = state.playbackSessionToken
-        val nowMillis = System.currentTimeMillis()
-        val sameSession = lastPlaybackStateReportSessionToken == activeSessionToken
-        val sameState = lastPlaybackStateReportState == reportState
-        val shouldReport = !sameSession ||
-            !sameState ||
-            (reportState == PlaybackReportState.Playing &&
-                nowMillis - lastPlaybackStateReportAtMillis >= PlaybackStateReportIntervalMillis)
-        if (!shouldReport) return
-
-        lastPlaybackStateReportSessionToken = activeSessionToken
-        lastPlaybackStateReportState = reportState
-        lastPlaybackStateReportAtMillis = nowMillis
+                supportsPlayReporting = activeProvider.capabilities.supportsPlayReporting,
+                playbackState = playbackState,
+                progress = progress,
+                nowEpochMillis = System.currentTimeMillis(),
+            ),
+        ) ?: return
         scope.launch {
             runCatching {
                 withContext(Dispatchers.IO) {
                     activeProvider.reportPlaybackState(
-                        trackId = track.id,
-                        state = reportState,
-                        positionSeconds = progress.positionSeconds,
+                        trackId = report.trackId,
+                        state = report.state,
+                        positionSeconds = report.positionSeconds,
                     )
                 }
             }
         }
     }
 }
-
-internal fun PlaybackState.toPlaybackReportState(): PlaybackReportState? =
-    when (this) {
-        PlaybackState.Loading -> PlaybackReportState.Starting
-        PlaybackState.Playing -> PlaybackReportState.Playing
-        PlaybackState.Paused -> PlaybackReportState.Paused
-        PlaybackState.Stopped,
-        PlaybackState.Finished,
-        is PlaybackState.Error,
-        -> PlaybackReportState.Stopped
-        PlaybackState.Idle -> null
-    }
-
-internal const val PlaybackStateReportIntervalMillis = 15_000L

@@ -4,10 +4,12 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import app.naviamp.domain.Track
+import app.naviamp.domain.TrackId
 import app.naviamp.domain.isInternetRadioTrack
 import app.naviamp.domain.cache.ImageCacheRepository
 import app.naviamp.domain.playback.CrossfadeSettings
-import app.naviamp.domain.playback.DefaultNowPlayingHeartbeatIntervalMillis
+import app.naviamp.app.NaviampNowPlayingHeartbeatRequest
+import app.naviamp.app.runNaviampNowPlayingHeartbeat
 import app.naviamp.domain.playback.DefaultDesktopVisualizerFrameIntervalMillis
 import app.naviamp.domain.playback.AudioOutputDevicePlaybackEngine
 import app.naviamp.domain.playback.EqualizerPlaybackEngine
@@ -17,7 +19,6 @@ import app.naviamp.domain.playback.PlaybackEngine
 import app.naviamp.domain.playback.PlaybackState
 import app.naviamp.domain.playback.PlaybackVisualizerFrame
 import app.naviamp.domain.playback.VisualizerPlaybackEngine
-import app.naviamp.domain.playback.shouldReportNowPlaying
 import app.naviamp.desktop.playback.DesktopPlaylistEngine
 import app.naviamp.desktop.settings.CacheSettings
 import app.naviamp.desktop.settings.NavigationSettings
@@ -37,6 +38,7 @@ fun DesktopAppEffects(
     playlistEngine: DesktopPlaylistEngine,
     imageCacheRepository: ImageCacheRepository,
     connectedProvider: NavidromeProvider?,
+    reportNowPlaying: suspend (TrackId) -> Unit,
     nowPlayingTrack: Track?,
     playbackState: PlaybackState,
     nowPlayingVisualizerVisible: Boolean,
@@ -128,24 +130,19 @@ fun DesktopAppEffects(
     LaunchedEffect(connectedProvider, nowPlayingTrack?.id, playbackState) {
         val provider = connectedProvider ?: return@LaunchedEffect
         val track = nowPlayingTrack ?: return@LaunchedEffect
-        if (
-            !shouldReportNowPlaying(
-                supportsPlayReporting = provider.capabilities.supportsPlayReporting,
+        runNaviampNowPlayingHeartbeat(
+            request = NaviampNowPlayingHeartbeatRequest(
+                trackId = track.id,
                 isInternetRadioTrack = track.isInternetRadioTrack(),
+                supportsPlayReporting = provider.capabilities.supportsPlayReporting,
                 playbackState = playbackState,
-            )
-        ) {
-            return@LaunchedEffect
-        }
-
-        while (true) {
-            runCatching {
+            ),
+            report = { trackId ->
                 withContext(Dispatchers.IO) {
-                    provider.reportNowPlaying(track.id)
+                    reportNowPlaying(trackId)
                 }
-            }
-            delay(DefaultNowPlayingHeartbeatIntervalMillis)
-        }
+            },
+        )
     }
 
     LaunchedEffect(playbackEngine, playbackState, nowPlayingVisualizerVisible, appRoute) {

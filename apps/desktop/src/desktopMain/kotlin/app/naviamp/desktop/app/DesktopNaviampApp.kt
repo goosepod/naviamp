@@ -28,6 +28,8 @@ import app.naviamp.app.NaviampNavigationController
 import app.naviamp.app.NaviampLivePlaybackController
 import app.naviamp.app.NaviampLivePlaybackState
 import app.naviamp.app.NaviampPlaybackSessionController
+import app.naviamp.app.NaviampCacheSettingsController
+import app.naviamp.app.NaviampProviderActionController
 import app.naviamp.app.NaviampPlaybackQueueCoordinator
 import app.naviamp.domain.app.NaviampNavigationState
 import app.naviamp.domain.cache.ImageCacheRepository
@@ -295,6 +297,8 @@ fun NaviampApp(
             playbackEngine = playbackEngine,
             playlistEngine = playlistEngine,
             provider = { connectedProvider },
+            sourceId = { connectedSourceId },
+            pendingProviderActions = storage,
             playbackSettings = { playbackSettings },
             playbackQueue = { playbackQueue },
             playbackProgress = { playbackProgress },
@@ -983,6 +987,12 @@ fun NaviampApp(
         redownloadTracks = downloadsController::redownloadTracks,
     )
     }
+    val cacheSettingsController = remember {
+        NaviampCacheSettingsController(
+            setSettings = { settings -> cacheSettings = settings },
+            saveSettings = settingsStore::saveCacheSettings,
+        )
+    }
 
     val playlistsController = remember {
         DesktopPlaylistsController(
@@ -1053,6 +1063,10 @@ fun NaviampApp(
     )
     }
 
+    val providerActionController = remember {
+        NaviampProviderActionController(storage)
+    }
+
     val mediaActionsController = remember {
         DesktopMediaActionsController(
         scope = coroutineScope,
@@ -1060,7 +1074,11 @@ fun NaviampApp(
         playbackEngine = playbackEngine,
         playlistEngine = playlistEngine,
         queueCoordinator = queueCoordinator,
-        provider = { connectedProvider },
+        provider = {
+            connectedProvider?.let { provider ->
+                providerActionController.offlineCapable(provider, connectedSourceId)
+            }
+        },
         playbackSettings = { playbackSettings },
         playlistCallbacks = { playlistCallbacks },
         albumTracks = { albumController.selectedAlbumDetails?.tracks.orEmpty() },
@@ -1127,6 +1145,7 @@ fun NaviampApp(
         playlistEngine = playlistEngine,
         imageCacheRepository = imageCacheRepository,
         connectedProvider = connectedProvider,
+        reportNowPlaying = { trackId -> playbackController.reportNowPlaying(trackId) },
         nowPlayingTrack = nowPlayingTrack,
         playbackState = playbackState,
         nowPlayingVisualizerVisible = nowPlayingVisualizerVisible,
@@ -1645,10 +1664,7 @@ fun NaviampApp(
                             onPlaybackSettingsChanged = settingsMaintenanceController::applyPlaybackSettings,
                             onPlaybackSettingsChangedAndRedownload =
                                 settingsMaintenanceController::applyPlaybackSettingsAndRedownload,
-                            onCacheSettingsChanged = { settings ->
-                                cacheSettings = settings.normalized()
-                                settingsStore.saveCacheSettings(cacheSettings)
-                            },
+                            onCacheSettingsChanged = cacheSettingsController::apply,
                             onOpenStatsForNerds = { showStatsForNerds = true },
                             onClearCache = { appActions.clearCacheData() },
                             onClearLibrary = { appActions.clearLibraryData() },

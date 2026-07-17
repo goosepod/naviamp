@@ -1,6 +1,7 @@
 package app.naviamp.android
 
 import app.naviamp.domain.cache.StorageCacheStats
+import app.naviamp.app.NaviampDownloadJobController
 
 import android.content.Context
 import app.naviamp.domain.Track
@@ -8,13 +9,9 @@ import app.naviamp.domain.cache.CacheMaintenanceRepository
 import app.naviamp.domain.cache.DownloadReplacementRepository
 import app.naviamp.domain.cache.DownloadRepository
 import app.naviamp.domain.cache.DownloadService
-import app.naviamp.domain.cache.DownloadJob
 import app.naviamp.domain.cache.DownloadJobUpdate
 import app.naviamp.domain.cache.KeepDownloadedCollectionKind
 import app.naviamp.domain.cache.KeepDownloadedCollectionPolicy
-import app.naviamp.domain.cache.createDownloadJob
-import app.naviamp.domain.cache.updated
-import app.naviamp.domain.cache.withDownloadJob
 import app.naviamp.domain.cache.planKeepDownloadedReconciliation
 import app.naviamp.domain.cache.downloadRemoveErrorStatus
 import app.naviamp.domain.cache.downloadConnectionRequiredStatus
@@ -191,9 +188,10 @@ internal class AndroidDownloadActionController(
     private val storage: AndroidStorageDependencies,
     private val findKnownTrack: (String) -> Track?,
 ) {
-    private val activeDownloadJobs = mutableMapOf<String, Job>()
-    private val replacementDownloadJobs = mutableSetOf<String>()
-    private var nextDownloadJobId = 0L
+    private val downloadJobs = NaviampDownloadJobController(
+        jobs = { state.downloadJobs },
+        setJobs = { jobs -> state.downloadJobs = jobs },
+    )
 
     fun downloadTrack(track: Track) {
         launchDownloadJob(track.title, listOf(track), replaceExisting = false)
@@ -208,9 +206,7 @@ internal class AndroidDownloadActionController(
     }
 
     fun cancelDownloadJob(jobId: String) {
-        val completedAny = state.downloadJobs.firstOrNull { it.id == jobId }?.completedCount?.let { it > 0 } == true
-        activeDownloadJobs.remove(jobId)?.cancel()
-        updateDownloadJob(jobId, DownloadJobUpdate.Cancelled)
+        val completedAny = downloadJobs.cancel(jobId)
         if (completedAny) {
             state.downloadRefreshToken += 1
             scope.launch {
@@ -220,17 +216,15 @@ internal class AndroidDownloadActionController(
     }
 
     fun retryDownloadJob(jobId: String) {
-        val failedJob = state.downloadJobs.firstOrNull { it.id == jobId && it.canRetry } ?: return
+        val retry = downloadJobs.retry(jobId) ?: return
         launchDownloadJob(
-            label = failedJob.label,
-            tracksToDownload = failedJob.retryTracks,
-            replaceExisting = jobId in replacementDownloadJobs,
+            label = retry.label,
+            tracksToDownload = retry.tracks,
+            replaceExisting = retry.replaceExisting,
         )
     }
 
     private fun launchDownloadJob(label: String, tracksToDownload: List<Track>, replaceExisting: Boolean) {
-        val jobId = newDownloadJobId()
-        val initialJob = createDownloadJob(jobId, label, tracksToDownload)
         if (state.provider == null || state.activeSourceId == null) {
             state.downloadStatus = downloadConnectionRequiredStatus()
             state.status = state.downloadStatus.orEmpty()
@@ -241,13 +235,13 @@ internal class AndroidDownloadActionController(
             state.status = state.downloadStatus.orEmpty()
             return
         }
-        if (initialJob.items.isEmpty()) {
+        val initialJob = downloadJobs.create(label, tracksToDownload, replaceExisting)
+        if (initialJob == null) {
             state.downloadStatus = "No tracks to download."
             state.status = state.downloadStatus.orEmpty()
             return
         }
-        state.downloadJobs = state.downloadJobs.withDownloadJob(initialJob)
-        if (replaceExisting) replacementDownloadJobs += jobId
+        val jobId = initialJob.id
         val job = if (replaceExisting) {
             redownloadAndroidTracks(
                 context = context,
@@ -273,18 +267,12 @@ internal class AndroidDownloadActionController(
                 onJobUpdate = { updateDownloadJob(jobId, it) },
             )
         }
-        activeDownloadJobs[jobId] = job
-        job.invokeOnCompletion { activeDownloadJobs.remove(jobId) }
+        downloadJobs.registerCancellation(jobId, job::cancel)
+        job.invokeOnCompletion { downloadJobs.complete(jobId) }
     }
 
     private fun updateDownloadJob(jobId: String, update: DownloadJobUpdate) {
-        val current = state.downloadJobs.firstOrNull { it.id == jobId } ?: return
-        state.downloadJobs = state.downloadJobs.withDownloadJob(current.updated(update))
-    }
-
-    private fun newDownloadJobId(): String {
-        nextDownloadJobId += 1
-        return "download-${nextDownloadJobId.toString().padStart(12, '0')}"
+        downloadJobs.update(jobId, update)
     }
 
     fun downloadPlaylist(playlist: Playlist) {

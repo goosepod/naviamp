@@ -8,6 +8,7 @@ import app.naviamp.domain.Album
 import app.naviamp.domain.Playlist
 import app.naviamp.domain.Track
 import app.naviamp.domain.cache.DownloadReplacementRepository
+import app.naviamp.app.NaviampDownloadJobController
 import app.naviamp.domain.cache.DownloadRepository
 import app.naviamp.domain.cache.DownloadService
 import app.naviamp.domain.cache.DownloadTracksResult
@@ -24,9 +25,6 @@ import app.naviamp.domain.cache.downloadConnectionRequiredStatus
 import app.naviamp.domain.cache.downloadTracksWithRefresh
 import app.naviamp.domain.cache.downloadedTrackRemovedStatus
 import app.naviamp.domain.cache.redownloadTracksWithRefresh
-import app.naviamp.domain.cache.createDownloadJob
-import app.naviamp.domain.cache.updated
-import app.naviamp.domain.cache.withDownloadJob
 import app.naviamp.domain.cache.planKeepDownloadedReconciliation
 import app.naviamp.domain.playback.PlaybackEngine
 import app.naviamp.domain.provider.MediaProvider
@@ -39,7 +37,6 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import kotlinx.coroutines.Job
 
 class DesktopDownloadsController(
     private val scope: CoroutineScope,
@@ -70,9 +67,10 @@ class DesktopDownloadsController(
         private set
 
     private val providerResponseService = ProviderResponseService(providerResponseCacheRepository)
-    private val activeDownloadJobs = mutableMapOf<String, Job>()
-    private val replacementDownloadJobs = mutableSetOf<String>()
-    private var nextDownloadJobId = 0L
+    private val jobController = NaviampDownloadJobController(
+        jobs = { downloadJobs },
+        setJobs = { jobs -> downloadJobs = jobs },
+    )
 
     private fun incrementRefreshToken() {
         refreshToken += 1
@@ -86,13 +84,16 @@ class DesktopDownloadsController(
         val activeProvider = provider()
         val activeSourceId = sourceId()
         val downloadService = DownloadService(downloadRepository, downloadReplacementRepository)
-        val jobId = newDownloadJobId()
-        val initialJob = createDownloadJob(jobId, label, tracks)
-        if (initialJob.items.isNotEmpty() && activeProvider != null && activeSourceId != null) {
-            downloadJobs = downloadJobs.withDownloadJob(initialJob)
-            if (replaceExisting) replacementDownloadJobs += jobId
+        if (activeProvider == null || activeSourceId == null) {
+            status = downloadConnectionRequiredStatus()
+            return
         }
-        activeDownloadJobs[jobId] = scope.launch {
+        val initialJob = jobController.create(label, tracks, replaceExisting) ?: run {
+            status = "No tracks to download."
+            return
+        }
+        val jobId = initialJob.id
+        val job = scope.launch {
             val quality = playbackSettings().downloadStreamQuality()
             val maxDownloadBytes = cacheSettings().maxDownloadBytes
             try {
@@ -126,9 +127,10 @@ class DesktopDownloadsController(
                     result.stats?.let(setCacheStats)
                 }
             } finally {
-                activeDownloadJobs.remove(jobId)
+                jobController.complete(jobId)
             }
         }
+        jobController.registerCancellation(jobId, job::cancel)
     }
 
     fun downloadTrack(track: Track) {
@@ -140,9 +142,7 @@ class DesktopDownloadsController(
     }
 
     fun cancelDownloadJob(jobId: String) {
-        val completedAny = downloadJobs.firstOrNull { it.id == jobId }?.completedCount?.let { it > 0 } == true
-        activeDownloadJobs.remove(jobId)?.cancel()
-        updateDownloadJob(jobId, DownloadJobUpdate.Cancelled)
+        val completedAny = jobController.cancel(jobId)
         if (completedAny) {
             incrementRefreshToken()
             scope.launch {
@@ -152,22 +152,16 @@ class DesktopDownloadsController(
     }
 
     fun retryDownloadJob(jobId: String) {
-        val failedJob = downloadJobs.firstOrNull { it.id == jobId && it.canRetry } ?: return
+        val retry = jobController.retry(jobId) ?: return
         launchDownloadJob(
-            label = failedJob.label,
-            tracks = failedJob.retryTracks,
-            replaceExisting = jobId in replacementDownloadJobs,
+            label = retry.label,
+            tracks = retry.tracks,
+            replaceExisting = retry.replaceExisting,
         )
     }
 
     private fun updateDownloadJob(jobId: String, update: DownloadJobUpdate) {
-        val current = downloadJobs.firstOrNull { it.id == jobId } ?: return
-        downloadJobs = downloadJobs.withDownloadJob(current.updated(update))
-    }
-
-    private fun newDownloadJobId(): String {
-        nextDownloadJobId += 1
-        return "download-${nextDownloadJobId.toString().padStart(12, '0')}"
+        jobController.update(jobId, update)
     }
 
     fun downloadAlbum(album: Album) {

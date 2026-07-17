@@ -13,7 +13,6 @@ import app.naviamp.domain.app.shouldRefreshStorageStats
 import app.naviamp.domain.cache.CacheMaintenanceRepository
 import app.naviamp.domain.cache.DownloadRepository
 import app.naviamp.domain.library.LibraryFreshnessCheckIntervalMillis
-import app.naviamp.domain.playback.DefaultNowPlayingHeartbeatIntervalMillis
 import app.naviamp.domain.playback.DefaultVisualizerFrameIntervalMillis
 import app.naviamp.domain.playback.EqualizerPlaybackEngine
 import app.naviamp.domain.playback.SampleRateConverterPlaybackEngine
@@ -21,7 +20,8 @@ import app.naviamp.domain.playback.SampleRateMatchingPlaybackEngine
 import app.naviamp.domain.playback.PlaybackState
 import app.naviamp.domain.playback.QueueAwarePlaybackEngine
 import app.naviamp.domain.playback.VisualizerPlaybackEngine
-import app.naviamp.domain.playback.shouldReportNowPlaying
+import app.naviamp.app.NaviampNowPlayingHeartbeatRequest
+import app.naviamp.app.runNaviampNowPlayingHeartbeat
 import app.naviamp.domain.provider.PendingProviderActionRepository
 import app.naviamp.ui.SharedRoute
 import kotlinx.coroutines.Dispatchers
@@ -52,26 +52,21 @@ fun AndroidAppRuntimeEffects(
         LaunchedEffect(provider, nowPlaying?.id, playbackState) {
             val activeProvider = provider ?: return@LaunchedEffect
             val track = nowPlaying ?: return@LaunchedEffect
-            if (
-                !shouldReportNowPlaying(
-                    supportsPlayReporting = activeProvider.capabilities.supportsPlayReporting,
+            runNaviampNowPlayingHeartbeat(
+                request = NaviampNowPlayingHeartbeatRequest(
+                    trackId = track.id,
                     isInternetRadioTrack = track.isInternetRadioTrack(),
+                    supportsPlayReporting = activeProvider.capabilities.supportsPlayReporting,
                     playbackState = playbackState,
-                )
-            ) {
-                return@LaunchedEffect
-            }
-
-            while (true) {
-                runCatching {
+                ),
+                report = { trackId ->
                     withContext(Dispatchers.IO) {
                         activeProvider
                             .withAndroidPendingActions(activeSourceId, pendingProviderActions)
-                            .reportNowPlaying(track.id)
+                            .reportNowPlaying(trackId)
                     }
-                }
-                delay(DefaultNowPlayingHeartbeatIntervalMillis)
-            }
+                },
+            )
         }
 
         LaunchedEffect(playbackEngine, playbackState, visualizerVisible, nowPlayingOpen) {

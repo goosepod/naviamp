@@ -7,11 +7,11 @@ import app.naviamp.android.AndroidGaplessPrepareWindowSeconds
 import app.naviamp.android.AndroidPlaybackSessionSaveIntervalMillis
 import app.naviamp.android.AndroidSettingsStore
 import app.naviamp.android.AndroidStorageDependencies
-import app.naviamp.android.PlaybackStateReportIntervalMillis
-import app.naviamp.android.toPlaybackReportState
 import app.naviamp.android.withAndroidPendingActions
 import app.naviamp.app.NaviampLivePlaybackController
 import app.naviamp.app.NaviampLivePlaybackState
+import app.naviamp.app.NaviampPlaybackReportingController
+import app.naviamp.app.NaviampPlaybackStateReportRequest
 import app.naviamp.app.NaviampPlaybackQueueCoordinator
 import app.naviamp.domain.Album
 import app.naviamp.domain.InternetRadioStation
@@ -41,7 +41,6 @@ import app.naviamp.domain.playback.resolvePlaybackAudioSource
 import app.naviamp.domain.playback.runAudioPrefetch
 import app.naviamp.domain.playback.preparedNextPlaybackWork
 import app.naviamp.domain.playback.shouldIgnoreProgressForPendingSeek
-import app.naviamp.domain.provider.PlaybackReportState
 import app.naviamp.domain.queue.PlaybackQueue
 import app.naviamp.domain.queue.RepeatMode
 import app.naviamp.domain.settings.PlaybackSessionSettings
@@ -88,9 +87,7 @@ internal class AndroidServicePlaybackRuntimeController(
     private var servicePreparedNextJob: Job? = null
     private var servicePlaybackSettings = PlaybackSettings()
     private var servicePlaybackSessionToken: Long = 0L
-    private var lastServicePlaybackStateReportSessionToken: Long? = null
-    private var lastServicePlaybackStateReportState: PlaybackReportState? = null
-    private var lastServicePlaybackStateReportAtMillis: Long = 0L
+    private val reporting = NaviampPlaybackReportingController()
 
     init {
         queueController.setPreparedNextInvalidationHandler {
@@ -483,40 +480,29 @@ internal class AndroidServicePlaybackRuntimeController(
             durationSeconds = AndroidPlaybackNotificationControls.durationMillis?.let { it / 1_000.0 },
         ),
     ) {
-        val reportState = playbackState.toPlaybackReportState() ?: return
         val track = currentQueue().getOrNull(currentQueueIndex()) ?: return
         val storage = storage()
         val source = serviceMediaSource(storage) ?: return
         val provider = NavidromeProvider(source.toNavidromeConnection())
-        if (
-            !canReportPlaybackTrack(
-                supportsPlayReporting = provider.capabilities.supportsPlayReporting,
+        val report = reporting.stateReport(
+            NaviampPlaybackStateReportRequest(
+                sessionId = servicePlaybackSessionToken,
+                trackId = track.id,
                 isInternetRadioTrack = track.isInternetRadioTrack(),
-            )
-        ) {
-            return
-        }
-        val activeSessionToken = servicePlaybackSessionToken
-        val nowMillis = System.currentTimeMillis()
-        val sameSession = lastServicePlaybackStateReportSessionToken == activeSessionToken
-        val sameState = lastServicePlaybackStateReportState == reportState
-        val shouldReport = !sameSession ||
-            !sameState ||
-            (reportState == PlaybackReportState.Playing &&
-                nowMillis - lastServicePlaybackStateReportAtMillis >= PlaybackStateReportIntervalMillis)
-        if (!shouldReport) return
-
-        lastServicePlaybackStateReportSessionToken = activeSessionToken
-        lastServicePlaybackStateReportState = reportState
-        lastServicePlaybackStateReportAtMillis = nowMillis
+                supportsPlayReporting = provider.capabilities.supportsPlayReporting,
+                playbackState = playbackState,
+                progress = progress,
+                nowEpochMillis = System.currentTimeMillis(),
+            ),
+        ) ?: return
         AndroidPlaybackRuntime.get(context).scope.launch {
             withContext(Dispatchers.IO) {
                 provider
                     .withAndroidPendingActions(source.id, storage)
                     .reportPlaybackState(
-                        trackId = track.id,
-                        state = reportState,
-                        positionSeconds = progress.positionSeconds,
+                        trackId = report.trackId,
+                        state = report.state,
+                        positionSeconds = report.positionSeconds,
                     )
             }
         }

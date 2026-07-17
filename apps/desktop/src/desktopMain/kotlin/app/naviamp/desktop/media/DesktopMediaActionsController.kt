@@ -14,11 +14,11 @@ import app.naviamp.domain.media.trackPlaybackSelection
 import app.naviamp.domain.playback.PlaybackEngine
 import app.naviamp.domain.playback.applyPlaybackQueueUpdate
 import app.naviamp.app.NaviampPlaybackQueueCoordinator
+import app.naviamp.domain.provider.MediaProvider
 import app.naviamp.domain.provider.MediaSearchResults
 import app.naviamp.desktop.playback.PlaylistCallbacks
 import app.naviamp.desktop.playback.DesktopPlaylistEngine
 import app.naviamp.desktop.settings.PlaybackSettings
-import app.naviamp.provider.navidrome.NavidromeProvider
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import java.time.Instant
@@ -29,7 +29,7 @@ class DesktopMediaActionsController(
     private val playbackEngine: PlaybackEngine,
     private val playlistEngine: DesktopPlaylistEngine,
     private val queueCoordinator: NaviampPlaybackQueueCoordinator,
-    private val provider: () -> NavidromeProvider?,
+    private val provider: () -> MediaProvider?,
     private val playbackSettings: () -> PlaybackSettings,
     private val playlistCallbacks: () -> PlaylistCallbacks,
     private val albumTracks: () -> List<Track>,

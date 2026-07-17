@@ -3,11 +3,15 @@ package app.naviamp.desktop
 import app.naviamp.desktop.playback.DesktopPlaylistEngine
 import app.naviamp.desktop.settings.PlaybackSettings
 import app.naviamp.domain.Track
+import app.naviamp.domain.TrackId
 import app.naviamp.app.NaviampPlaybackSessionController
 import app.naviamp.app.NaviampPlaybackQueueCoordinator
 import app.naviamp.app.NaviampPlaybackCommandController
 import app.naviamp.app.NaviampPlaybackExecution
 import app.naviamp.app.NaviampPlaybackSeekRequest
+import app.naviamp.app.NaviampPlaybackReportingController
+import app.naviamp.app.NaviampPlaybackStateReportRequest
+import app.naviamp.app.NaviampProviderActionController
 import app.naviamp.app.NaviampLivePlaybackController
 import app.naviamp.domain.isInternetRadioTrack
 import app.naviamp.domain.playback.PlaybackEngine
@@ -19,7 +23,7 @@ import app.naviamp.domain.playback.PlaybackQueueManager
 import app.naviamp.domain.playback.PlaybackQueueNavigationCommand
 import app.naviamp.domain.playback.shouldSavePlaybackPosition
 import app.naviamp.domain.provider.MediaProvider
-import app.naviamp.domain.provider.PlaybackReportState
+import app.naviamp.domain.provider.PendingProviderActionRepository
 import app.naviamp.domain.queue.PlaybackQueue
 import app.naviamp.domain.queue.RepeatMode
 import app.naviamp.domain.settings.UpNextSelectionBehavior
@@ -48,6 +52,8 @@ class DesktopPlaybackController(
     private val playbackEngine: PlaybackEngine,
     private val playlistEngine: DesktopPlaylistEngine,
     private val provider: () -> MediaProvider?,
+    private val sourceId: () -> String?,
+    pendingProviderActions: PendingProviderActionRepository,
     private val playbackSettings: () -> PlaybackSettings,
     private val playbackQueue: () -> PlaybackQueue,
     private val playbackProgress: () -> PlaybackProgress,
@@ -64,9 +70,8 @@ class DesktopPlaybackController(
 ) : NaviampPlaybackExecution {
     private val playbackCommands = NaviampPlaybackCommandController(this, livePlayback)
     private val queueManager = PlaybackQueueManager()
-    private var lastPlaybackStateReportSessionId: Int? = null
-    private var lastPlaybackStateReportState: PlaybackReportState? = null
-    private var lastPlaybackStateReportAtMillis: Long = 0L
+    private val reporting = NaviampPlaybackReportingController()
+    private val providerActions = NaviampProviderActionController(pendingProviderActions)
 
     fun savePlaybackSession(
         queue: PlaybackQueue,
@@ -239,44 +244,38 @@ class DesktopPlaybackController(
         scope.launch {
             runCatching {
                 withContext(Dispatchers.IO) {
-                    activeProvider.reportNowPlaying(track.id)
+                    reportNowPlaying(track.id)
                 }
             }
         }
     }
 
+    suspend fun reportNowPlaying(trackId: TrackId) {
+        val activeProvider = provider() ?: return
+        providerActions.offlineCapable(activeProvider, sourceId()).reportNowPlaying(trackId)
+    }
+
     fun maybeReportPlaybackState(state: PlaybackState, progress: PlaybackProgress = playbackProgress()) {
-        val reportState = state.toPlaybackReportState() ?: return
         val activeProvider = provider() ?: return
         val track = nowPlayingTrack() ?: return
-        if (
-            !canReportPlaybackTrack(
-                supportsPlayReporting = activeProvider.capabilities.supportsPlayReporting,
+        val report = reporting.stateReport(
+            NaviampPlaybackStateReportRequest(
+                sessionId = playReportSessionId().toLong(),
+                trackId = track.id,
                 isInternetRadioTrack = track.isInternetRadioTrack(),
-            )
-        ) {
-            return
-        }
-        val activeSessionId = playReportSessionId()
-        val nowMillis = System.currentTimeMillis()
-        val sameSession = lastPlaybackStateReportSessionId == activeSessionId
-        val sameState = lastPlaybackStateReportState == reportState
-        val shouldReport = !sameSession ||
-            !sameState ||
-            (reportState == PlaybackReportState.Playing &&
-                nowMillis - lastPlaybackStateReportAtMillis >= PlaybackStateReportIntervalMillis)
-        if (!shouldReport) return
-
-        lastPlaybackStateReportSessionId = activeSessionId
-        lastPlaybackStateReportState = reportState
-        lastPlaybackStateReportAtMillis = nowMillis
+                supportsPlayReporting = activeProvider.capabilities.supportsPlayReporting,
+                playbackState = state,
+                progress = progress,
+                nowEpochMillis = System.currentTimeMillis(),
+            ),
+        ) ?: return
         scope.launch {
             runCatching {
                 withContext(Dispatchers.IO) {
                     activeProvider.reportPlaybackState(
-                        trackId = track.id,
-                        state = reportState,
-                        positionSeconds = progress.positionSeconds,
+                        trackId = report.trackId,
+                        state = report.state,
+                        positionSeconds = report.positionSeconds,
                     )
                 }
             }
@@ -288,17 +287,3 @@ class DesktopPlaybackController(
     }
 
 }
-
-private fun PlaybackState.toPlaybackReportState(): PlaybackReportState? =
-    when (this) {
-        PlaybackState.Loading -> PlaybackReportState.Starting
-        PlaybackState.Playing -> PlaybackReportState.Playing
-        PlaybackState.Paused -> PlaybackReportState.Paused
-        PlaybackState.Stopped,
-        PlaybackState.Finished,
-        is PlaybackState.Error,
-        -> PlaybackReportState.Stopped
-        PlaybackState.Idle -> null
-    }
-
-private const val PlaybackStateReportIntervalMillis = 15_000L
