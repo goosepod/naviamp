@@ -10,6 +10,7 @@ import app.naviamp.app.NaviampPlaybackSessionController
 import app.naviamp.app.NaviampPlaybackExecution
 import app.naviamp.app.NaviampRuntimeErrorReporter
 import app.naviamp.domain.app.PlatformCapabilities
+import app.naviamp.domain.app.PlatformCapability
 import app.naviamp.domain.cache.PlaybackSessionRepository
 import app.naviamp.domain.provider.PendingProviderAction
 import app.naviamp.domain.provider.PendingProviderActionRepository
@@ -17,8 +18,21 @@ import app.naviamp.domain.settings.PlaybackSessionSettings
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertTrue
 
 class AndroidApplicationRuntimeTest {
+    @Test
+    fun declaresImplementedAndroidCapabilities() {
+        assertTrue(AndroidPlatformCapabilities.supports(PlatformCapability.BackgroundPlayback))
+        assertTrue(AndroidPlatformCapabilities.supports(PlatformCapability.SystemMediaControls))
+        assertTrue(AndroidPlatformCapabilities.supports(PlatformCapability.SecureCredentialStorage))
+        assertTrue(AndroidPlatformCapabilities.supports(PlatformCapability.Downloads))
+        assertTrue(AndroidPlatformCapabilities.supports(PlatformCapability.SettingsImportExport))
+        assertTrue(AndroidPlatformCapabilities.supports(PlatformCapability.AutomotiveBrowsing))
+        assertFalse(AndroidPlatformCapabilities.supports(PlatformCapability.Sharing))
+    }
+
     @Test
     fun activityBootstrapRestoresOnceAndDoesNotOwnShutdown() = runTest {
         var restorations = 0

@@ -10,6 +10,7 @@ import app.naviamp.app.NaviampPlaybackSessionController
 import app.naviamp.app.NaviampPlaybackExecution
 import app.naviamp.app.NaviampRuntimeErrorReporter
 import app.naviamp.domain.app.PlatformCapabilities
+import app.naviamp.domain.app.PlatformCapability
 import app.naviamp.domain.cache.PlaybackSessionRepository
 import app.naviamp.domain.provider.PendingProviderAction
 import app.naviamp.domain.provider.PendingProviderActionRepository
@@ -17,8 +18,21 @@ import app.naviamp.domain.settings.PlaybackSessionSettings
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertTrue
 
 class DesktopApplicationRuntimeTest {
+    @Test
+    fun declaresImplementedDesktopCapabilities() {
+        assertTrue(DesktopPlatformCapabilities.supports(PlatformCapability.BackgroundPlayback))
+        assertTrue(DesktopPlatformCapabilities.supports(PlatformCapability.Downloads))
+        assertTrue(DesktopPlatformCapabilities.supports(PlatformCapability.SettingsImportExport))
+        assertTrue(DesktopPlatformCapabilities.supports(PlatformCapability.FileSelection))
+        assertFalse(DesktopPlatformCapabilities.supports(PlatformCapability.SystemMediaControls))
+        assertFalse(DesktopPlatformCapabilities.supports(PlatformCapability.SecureCredentialStorage))
+        assertFalse(DesktopPlatformCapabilities.supports(PlatformCapability.AutomotiveBrowsing))
+    }
+
     @Test
     fun restoresSavedConnectionOnce() = runTest {
         var restorations = 0

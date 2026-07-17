@@ -127,6 +127,8 @@ fun NaviampSharedAppShell(
     supportsCrossfade: Boolean = false,
     supportsEqualizer: Boolean = false,
     supportsSonicSimilarity: Boolean = false,
+    supportsDownloads: Boolean = false,
+    supportsApplicationUpdates: Boolean = false,
     showMobileNetworkQuality: Boolean = false,
     query: String,
     home: SharedHomeUi,
@@ -380,12 +382,12 @@ fun NaviampSharedAppShell(
         LocalNaviampTooltipsEnabled provides interfaceSettings.showDesktopTooltips,
     ) {
     NaviampUpdateCheckEffect(
-        enabled = interfaceSettings.checkForUpdates,
+        enabled = supportsApplicationUpdates && interfaceSettings.checkForUpdates,
         currentVersion = about.version,
         onUpdateAvailable = { availableUpdate = it },
     )
-    LaunchedEffect(interfaceSettings.checkForUpdates) {
-        if (!interfaceSettings.checkForUpdates) availableUpdate = null
+    LaunchedEffect(interfaceSettings.checkForUpdates, supportsApplicationUpdates) {
+        if (!interfaceSettings.checkForUpdates || !supportsApplicationUpdates) availableUpdate = null
     }
     val showFullNowPlaying = connected && !editingConnection && !restoringConnection && nowPlayingOpen && nowPlaying != null
     val routeUsesOwnScroll = connected &&
@@ -723,6 +725,7 @@ fun NaviampSharedAppShell(
                     SharedBottomNavigationBar(
                         colors = colors,
                         selectedRoute = selectedRoute,
+                        supportsDownloads = supportsDownloads,
                         onRouteSelected = {
                             onCloseNowPlaying()
                             onRouteSelected(it)

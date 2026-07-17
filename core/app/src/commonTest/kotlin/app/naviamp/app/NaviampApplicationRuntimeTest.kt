@@ -43,6 +43,7 @@ class NaviampApplicationRuntimeTest {
         assertEquals(NaviampRuntimePhase.Background, fixture.runtime.state.value.phase)
         assertEquals(fixture.connectivitySnapshot, fixture.runtime.state.value.connectivity)
         assertTrue(fixture.runtime.services.capabilities.supports(PlatformCapability.BackgroundPlayback))
+        assertTrue(fixture.runtime.capabilityPresentation.backgroundPlayback.enabled)
     }
 
     @Test
@@ -64,6 +65,18 @@ class NaviampApplicationRuntimeTest {
         assertEquals(NaviampRuntimePhase.Ready, fixture.runtime.state.value.phase)
         assertEquals(null, fixture.runtime.applicationStatus.state.value)
         assertEquals(listOf("restore", "restore"), fixture.session.events)
+    }
+
+    @Test
+    fun foregroundRefreshesConnectivityFromTheHostService() = runTest {
+        val fixture = RuntimeFixture()
+
+        fixture.runtime.handle(NaviampHostLifecycleEvent.Start)
+        fixture.connectivitySnapshot = NaviampConnectivitySnapshot(available = true, mobileData = false)
+        fixture.runtime.handle(NaviampHostLifecycleEvent.EnterForeground)
+
+        assertEquals(fixture.connectivitySnapshot, fixture.runtime.state.value.connectivity)
+        assertEquals(NaviampRuntimePhase.Foreground, fixture.runtime.state.value.phase)
     }
 
     @Test
@@ -99,7 +112,7 @@ private class RuntimeFixture(
     navigation: NaviampNavigationController = NaviampNavigationController(),
     playback: NaviampLivePlaybackController = NaviampLivePlaybackController(),
 ) {
-    val connectivitySnapshot = NaviampConnectivitySnapshot(available = true, mobileData = true)
+    var connectivitySnapshot = NaviampConnectivitySnapshot(available = true, mobileData = true)
     val session = RecordingSession(restoreFailures, failure, shutdownFails)
     val reportedCauses = mutableListOf<Throwable?>()
     val runtime = NaviampApplicationRuntime(

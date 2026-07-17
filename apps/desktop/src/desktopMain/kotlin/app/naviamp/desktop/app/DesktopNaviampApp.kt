@@ -1753,6 +1753,7 @@ fun NaviampApp(
                         }
                         DesktopBottomNavigationBar(
                             appColors = appColors,
+                            supportsDownloads = DesktopCapabilityPresentation.downloads.visible,
                             selectedRoute = when (appRoute) {
                                 DesktopAppRoute.AlbumDetail -> if (albumController.albumDetailBackRoute == DesktopAppRoute.ArtistDetail) {
                                     artistController.artistDetailBackRoute

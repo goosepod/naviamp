@@ -62,11 +62,13 @@ val DesktopBottomNavigationItems = listOf(
 fun DesktopBottomNavigationBar(
     appColors: DesktopAppColors,
     selectedRoute: DesktopAppRoute,
+    supportsDownloads: Boolean = false,
     onRouteSelected: (DesktopAppRoute) -> Unit,
 ) {
     SharedBottomNavigationBar(
         colors = appColors,
         selectedRoute = selectedRoute.toSharedRoute(),
+        supportsDownloads = supportsDownloads,
         onRouteSelected = { route -> onRouteSelected(route.toAppRoute()) },
     )
 }

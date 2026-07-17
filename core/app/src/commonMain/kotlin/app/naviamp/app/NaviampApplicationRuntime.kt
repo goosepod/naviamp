@@ -52,6 +52,7 @@ class NaviampApplicationRuntime(
     val connection: NaviampConnectionController get() = controllers.connection
     val providerActions: NaviampProviderActionController get() = controllers.providerActions
     val applicationStatus: NaviampApplicationStatusController get() = controllers.status
+    val capabilityPresentation = NaviampCapabilityPresentation(services.capabilities)
 
     suspend fun handle(event: NaviampHostLifecycleEvent) {
         eventMutex.withLock {

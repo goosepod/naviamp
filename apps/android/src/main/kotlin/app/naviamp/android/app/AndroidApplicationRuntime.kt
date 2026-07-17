@@ -6,6 +6,7 @@ import android.util.Log
 import app.naviamp.app.NaviampApplicationRuntime
 import app.naviamp.app.NaviampApplicationControllers
 import app.naviamp.app.NaviampApplicationSession
+import app.naviamp.app.NaviampCapabilityPresentation
 import app.naviamp.app.NaviampConnectivityMonitor
 import app.naviamp.app.NaviampConnectivitySnapshot
 import app.naviamp.app.NaviampPlaybackSessionController
@@ -13,6 +14,25 @@ import app.naviamp.app.NaviampPlaybackExecution
 import app.naviamp.app.NaviampPlatformServices
 import app.naviamp.app.NaviampRuntimeErrorReporter
 import app.naviamp.domain.app.PlatformCapabilities
+import app.naviamp.domain.app.PlatformCapability
+import app.naviamp.domain.app.PlatformCapabilityStatus
+
+internal val AndroidPlatformCapabilities: PlatformCapabilities = listOf(
+    PlatformCapability.BackgroundPlayback,
+    PlatformCapability.SystemMediaControls,
+    PlatformCapability.SecureCredentialStorage,
+    PlatformCapability.CustomServerCertificates,
+    PlatformCapability.ClientCertificates,
+    PlatformCapability.Downloads,
+    PlatformCapability.OfflinePlayback,
+    PlatformCapability.SettingsImportExport,
+    PlatformCapability.FileSelection,
+    PlatformCapability.ApplicationUpdates,
+    PlatformCapability.AutomotiveBrowsing,
+).fold(PlatformCapabilities()) { capabilities, capability ->
+    capabilities.withStatus(capability, PlatformCapabilityStatus.Available)
+}
+internal val AndroidCapabilityPresentation = NaviampCapabilityPresentation(AndroidPlatformCapabilities)
 
 /**
  * Thin Android adapter for shared application startup.
@@ -38,7 +58,7 @@ internal fun androidApplicationRuntime(
     val applicationContext = context.applicationContext
     return NaviampApplicationRuntime(
         services = NaviampPlatformServices(
-            capabilities = PlatformCapabilities(),
+            capabilities = AndroidPlatformCapabilities,
             session = AndroidApplicationSession(restoreSavedSession),
             playbackSessions = playbackSessions,
             playbackExecution = playbackExecution,
