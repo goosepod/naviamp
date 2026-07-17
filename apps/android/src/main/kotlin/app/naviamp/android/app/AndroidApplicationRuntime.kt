@@ -4,13 +4,11 @@ import android.content.Context
 import android.net.ConnectivityManager
 import android.util.Log
 import app.naviamp.app.NaviampApplicationRuntime
+import app.naviamp.app.NaviampApplicationControllers
 import app.naviamp.app.NaviampApplicationSession
 import app.naviamp.app.NaviampConnectivityMonitor
 import app.naviamp.app.NaviampConnectivitySnapshot
-import app.naviamp.app.NaviampNavigationController
-import app.naviamp.app.NaviampLivePlaybackController
 import app.naviamp.app.NaviampPlaybackSessionController
-import app.naviamp.app.NaviampPlaybackQueueCoordinator
 import app.naviamp.app.NaviampPlaybackExecution
 import app.naviamp.app.NaviampPlatformServices
 import app.naviamp.app.NaviampRuntimeErrorReporter
@@ -32,9 +30,7 @@ internal class AndroidApplicationSession(
 
 internal fun androidApplicationRuntime(
     context: Context,
-    navigation: NaviampNavigationController,
-    playback: NaviampLivePlaybackController,
-    queueCoordinator: NaviampPlaybackQueueCoordinator,
+    controllers: NaviampApplicationControllers,
     playbackSessions: NaviampPlaybackSessionController,
     playbackExecution: NaviampPlaybackExecution,
     restoreSavedSession: () -> Unit,
@@ -59,8 +55,6 @@ internal fun androidApplicationRuntime(
                 Log.e("NaviampRuntime", "${error.operation}: ${error.message}", cause)
             },
         ),
-        navigation = navigation,
-        playback = playback,
-        queueCoordinator = queueCoordinator,
+        controllers = controllers,
     )
 }

@@ -48,9 +48,7 @@ internal fun AndroidMainEffects(
     val applicationRuntime = remember(context, connectionSessionController) {
         androidApplicationRuntime(
             context = context,
-            navigation = state.sharedNavigationController,
-            playback = state.sharedLivePlaybackController,
-            queueCoordinator = state.sharedQueueCoordinator,
+            controllers = state.sharedControllers,
             playbackSessions = playbackSessions,
             playbackExecution = playbackExecution,
             restoreSavedSession = connectionSessionController::autoConnect,

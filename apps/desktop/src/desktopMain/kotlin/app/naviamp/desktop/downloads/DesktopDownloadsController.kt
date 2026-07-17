@@ -9,11 +9,11 @@ import app.naviamp.domain.Playlist
 import app.naviamp.domain.Track
 import app.naviamp.domain.cache.DownloadReplacementRepository
 import app.naviamp.app.NaviampDownloadJobController
+import app.naviamp.app.NaviampDownloadCoordinator
+import app.naviamp.app.NaviampDownloadExecutionRequest
 import app.naviamp.domain.cache.DownloadRepository
-import app.naviamp.domain.cache.DownloadService
-import app.naviamp.domain.cache.DownloadTracksResult
 import app.naviamp.domain.cache.DownloadJob
-import app.naviamp.domain.cache.DownloadJobUpdate
+import app.naviamp.domain.cache.DownloadTracksResult
 import app.naviamp.domain.cache.KeepDownloadedCollectionKind
 import app.naviamp.domain.cache.KeepDownloadedCollectionPolicy
 import app.naviamp.domain.cache.KeepDownloadedRepository
@@ -22,10 +22,7 @@ import app.naviamp.domain.cache.ProviderResponseCacheRepository
 import app.naviamp.domain.cache.ProviderResponseService
 import app.naviamp.domain.cache.StorageCacheStats
 import app.naviamp.domain.cache.downloadConnectionRequiredStatus
-import app.naviamp.domain.cache.downloadTracksWithRefresh
 import app.naviamp.domain.cache.downloadedTrackRemovedStatus
-import app.naviamp.domain.cache.redownloadTracksWithRefresh
-import app.naviamp.domain.cache.planKeepDownloadedReconciliation
 import app.naviamp.domain.playback.PlaybackEngine
 import app.naviamp.domain.provider.MediaProvider
 import app.naviamp.domain.settings.CacheSettings
@@ -71,6 +68,14 @@ class DesktopDownloadsController(
         jobs = { downloadJobs },
         setJobs = { jobs -> downloadJobs = jobs },
     )
+    private val downloads = NaviampDownloadCoordinator(
+        downloadRepository = downloadRepository,
+        downloadReplacementRepository = downloadReplacementRepository,
+        keepDownloadedRepository = keepDownloadedRepository,
+        jobs = jobController,
+        downloadedTrackId = { download: DownloadedTrack -> download.track.id.value },
+        loadStats = { withContext(Dispatchers.IO) { cacheMaintenanceRepository.stats() } },
+    )
 
     private fun incrementRefreshToken() {
         refreshToken += 1
@@ -83,7 +88,6 @@ class DesktopDownloadsController(
     private fun launchDownloadJob(label: String, tracks: List<Track>, replaceExisting: Boolean) {
         val activeProvider = provider()
         val activeSourceId = sourceId()
-        val downloadService = DownloadService(downloadRepository, downloadReplacementRepository)
         if (activeProvider == null || activeSourceId == null) {
             status = downloadConnectionRequiredStatus()
             return
@@ -97,31 +101,20 @@ class DesktopDownloadsController(
             val quality = playbackSettings().downloadStreamQuality()
             val maxDownloadBytes = cacheSettings().maxDownloadBytes
             try {
-                val result = if (replaceExisting) {
-                    downloadService.redownloadTracksWithRefresh(
-                        tracks = tracks,
-                        sourceId = activeSourceId,
-                        provider = activeProvider,
-                        quality = quality,
-                        maxDownloadBytes = maxDownloadBytes,
-                        setStatus = { downloadStatus -> status = downloadStatus },
-                        onJobUpdate = { updateDownloadJob(jobId, it) },
-                        loadStats = { withContext(Dispatchers.IO) { cacheMaintenanceRepository.stats() } },
-                    )
-                } else {
-                    downloadService.downloadTracksWithRefresh(
+                val result = downloads.execute(
+                    request = NaviampDownloadExecutionRequest(
+                        jobId = jobId,
                         label = label,
                         tracks = tracks,
                         sourceId = activeSourceId,
                         provider = activeProvider,
                         quality = quality,
                         maxDownloadBytes = maxDownloadBytes,
-                        setStatus = { downloadStatus -> status = downloadStatus },
-                        onJobUpdate = { updateDownloadJob(jobId, it) },
-                        shouldRefreshDownloads = { it !is DownloadTracksResult.Blocked },
-                        loadStats = { withContext(Dispatchers.IO) { cacheMaintenanceRepository.stats() } },
-                    )
-                }
+                        replaceExisting = replaceExisting,
+                        refreshDownloadsAfter = { result -> result !is DownloadTracksResult.Blocked },
+                    ),
+                    setStatus = { downloadStatus -> status = downloadStatus },
+                )
                 if (result.refreshDownloads) {
                     incrementRefreshToken()
                     result.stats?.let(setCacheStats)
@@ -158,10 +151,6 @@ class DesktopDownloadsController(
             tracks = retry.tracks,
             replaceExisting = retry.replaceExisting,
         )
-    }
-
-    private fun updateDownloadJob(jobId: String, update: DownloadJobUpdate) {
-        jobController.update(jobId, update)
     }
 
     fun downloadAlbum(album: Album) {
@@ -275,29 +264,7 @@ class DesktopDownloadsController(
     }
 
     private fun reconcileKeepDownloadedPolicy(policy: KeepDownloadedCollectionPolicy, tracks: List<Track>) {
-        val downloadedIds = downloadRepository.downloadedTracks(policy.sourceId).mapTo(mutableSetOf()) { it.track.id.value }
-        val otherRequiredIds = keepDownloadedRepository.keepDownloadedPolicies(policy.sourceId)
-            .filterNot { it.kind == policy.kind && it.collectionId == policy.collectionId }
-            .flatMapTo(mutableSetOf()) {
-                keepDownloadedRepository.keepDownloadedTrackIds(it.sourceId, it.kind, it.collectionId)
-            }
-        val plan = planKeepDownloadedReconciliation(
-            tracks = tracks,
-            previousTrackIds = keepDownloadedRepository.keepDownloadedTrackIds(policy.sourceId, policy.kind, policy.collectionId),
-            downloadedTrackIds = downloadedIds,
-            managedTrackIds = keepDownloadedRepository.managedKeepDownloadedTrackIds(policy.sourceId),
-            trackIdsRequiredByOtherPolicies = otherRequiredIds,
-            removeUnneededFiles = policy.removeUnneededFiles,
-        )
-        keepDownloadedRepository.replaceKeepDownloadedTrackIds(policy, plan.nextTrackIds)
-        keepDownloadedRepository.markManagedKeepDownloadedTracks(
-            policy.sourceId,
-            plan.tracksToDownload.mapTo(mutableSetOf()) { it.id.value },
-        )
-        plan.trackIdsToRemove.forEach { trackId ->
-            downloadRepository.removeDownloadedAudio(policy.sourceId, app.naviamp.domain.TrackId(trackId))
-        }
-        keepDownloadedRepository.unmarkManagedKeepDownloadedTracks(policy.sourceId, plan.trackIdsToRemove)
+        val plan = downloads.reconcile(policy, tracks)
         reloadKeepDownloadedPolicies()
         if (plan.tracksToDownload.isEmpty()) {
             status = "${policy.name} is up to date."

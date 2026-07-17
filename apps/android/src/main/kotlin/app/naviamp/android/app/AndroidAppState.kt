@@ -21,9 +21,7 @@ import app.naviamp.domain.Track
 import app.naviamp.domain.TrackId
 import app.naviamp.domain.app.NaviampContentState
 import app.naviamp.domain.app.NaviampNavigationState
-import app.naviamp.app.NaviampNavigationController
-import app.naviamp.app.NaviampLivePlaybackController
-import app.naviamp.app.NaviampPlaybackQueueCoordinator
+import app.naviamp.app.NaviampApplicationControllers
 import app.naviamp.domain.audio.AudioTag
 import app.naviamp.domain.media.RelatedTracksSource
 import app.naviamp.domain.playback.PlaybackProgress
@@ -115,7 +113,8 @@ class AndroidAppState(
     var restoringConnection by mutableStateOf(canAutoConnect)
     var savedMediaSources by mutableStateOf(initialSavedMediaSources)
     var savedConnectionForLogin by mutableStateOf(initialSavedConnectionForLogin)
-    internal val sharedNavigationController = NaviampNavigationController()
+    internal val sharedControllers = NaviampApplicationControllers()
+    internal val sharedNavigationController = sharedControllers.navigation
     var navigationState by AndroidNavigationStateProperty(sharedNavigationController)
     val selectedRoute: SharedRoute get() = navigationState.route.toSharedRoute()
     var provider by mutableStateOf<NavidromeProvider?>(null)
@@ -128,8 +127,8 @@ class AndroidAppState(
     var validation by mutableStateOf<ConnectionValidation?>(null)
     var status by mutableStateOf("Connect to Navidrome to start Android playback.")
     var tracks by mutableStateOf<List<Track>>(emptyList())
-    internal val sharedLivePlaybackController = NaviampLivePlaybackController()
-    internal val sharedQueueCoordinator = NaviampPlaybackQueueCoordinator(sharedLivePlaybackController)
+    internal val sharedLivePlaybackController = sharedControllers.playback
+    internal val sharedQueueCoordinator = sharedControllers.queue
     private var livePlaybackState by AndroidLivePlaybackStateProperty(sharedLivePlaybackController)
     var nowPlaying: Track?
         get() = livePlaybackState.currentTrack

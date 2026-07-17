@@ -2,23 +2,19 @@ package app.naviamp.android
 
 import app.naviamp.domain.cache.StorageCacheStats
 import app.naviamp.app.NaviampDownloadJobController
+import app.naviamp.app.NaviampDownloadCoordinator
+import app.naviamp.app.NaviampDownloadExecutionRequest
 
 import android.content.Context
 import app.naviamp.domain.Track
 import app.naviamp.domain.cache.CacheMaintenanceRepository
-import app.naviamp.domain.cache.DownloadReplacementRepository
 import app.naviamp.domain.cache.DownloadRepository
-import app.naviamp.domain.cache.DownloadService
-import app.naviamp.domain.cache.DownloadJobUpdate
 import app.naviamp.domain.cache.KeepDownloadedCollectionKind
 import app.naviamp.domain.cache.KeepDownloadedCollectionPolicy
-import app.naviamp.domain.cache.planKeepDownloadedReconciliation
 import app.naviamp.domain.cache.downloadRemoveErrorStatus
 import app.naviamp.domain.cache.downloadConnectionRequiredStatus
 import app.naviamp.domain.cache.downloadMobileDataDisabledStatus
-import app.naviamp.domain.cache.downloadTracksWithRefresh
 import app.naviamp.domain.cache.downloadedTrackRemovedStatus
-import app.naviamp.domain.cache.redownloadTracksWithRefresh
 import app.naviamp.domain.Playlist
 import app.naviamp.domain.settings.downloadStreamQuality
 import app.naviamp.ui.NaviampDownloadedTrackUi
@@ -26,129 +22,6 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import kotlinx.coroutines.Job
-
-fun downloadAndroidTrack(
-    context: Context,
-    scope: CoroutineScope,
-    state: AndroidAppState,
-    downloadRepository: DownloadRepository<AndroidDownloadedAudioFile, AndroidDownloadedTrack>,
-    downloadReplacementRepository: DownloadReplacementRepository<AndroidDownloadedAudioFile>,
-    cacheMaintenanceRepository: CacheMaintenanceRepository<StorageCacheStats>,
-    track: Track,
-    onJobUpdate: (DownloadJobUpdate) -> Unit = {},
-): Job {
-    val activeProvider = state.provider
-    val sourceId = state.activeSourceId
-    val downloadService = DownloadService(downloadRepository, downloadReplacementRepository)
-    return scope.launch {
-        with(state) {
-            val quality = playbackSettings.downloadStreamQuality()
-            val result = downloadService.downloadTracksWithRefresh(
-                label = track.title,
-                tracks = listOf(track),
-                sourceId = sourceId,
-                provider = activeProvider,
-                quality = quality,
-                maxDownloadBytes = cacheSettings.maxDownloadBytes,
-                isActiveNetworkMobileData = context.isActiveNetworkMobileData(),
-                allowMobileDownloads = playbackSettings.allowMobileDownloads,
-                includeCompletedCount = false,
-                setStatus = { message ->
-                    downloadStatus = message
-                    status = message
-                },
-                onJobUpdate = onJobUpdate,
-                loadStats = { withContext(Dispatchers.IO) { cacheMaintenanceRepository.stats() } },
-            )
-            if (result.refreshDownloads) {
-                downloadRefreshToken += 1
-                result.stats?.let { storageStats = it }
-            }
-        }
-    }
-}
-
-fun downloadAndroidTracks(
-    context: Context,
-    scope: CoroutineScope,
-    state: AndroidAppState,
-    downloadRepository: DownloadRepository<AndroidDownloadedAudioFile, AndroidDownloadedTrack>,
-    downloadReplacementRepository: DownloadReplacementRepository<AndroidDownloadedAudioFile>,
-    cacheMaintenanceRepository: CacheMaintenanceRepository<StorageCacheStats>,
-    tracksToDownload: List<Track>,
-    label: String = "tracks",
-    onJobUpdate: (DownloadJobUpdate) -> Unit = {},
-): Job {
-    val activeProvider = state.provider
-    val sourceId = state.activeSourceId
-    val downloadService = DownloadService(downloadRepository, downloadReplacementRepository)
-    return scope.launch {
-        with(state) {
-            val quality = playbackSettings.downloadStreamQuality()
-            val result = downloadService.downloadTracksWithRefresh(
-                label = label,
-                tracks = tracksToDownload,
-                sourceId = sourceId,
-                provider = activeProvider,
-                quality = quality,
-                maxDownloadBytes = cacheSettings.maxDownloadBytes,
-                isActiveNetworkMobileData = context.isActiveNetworkMobileData(),
-                allowMobileDownloads = playbackSettings.allowMobileDownloads,
-                setStatus = { message ->
-                    downloadStatus = message
-                    status = message
-                },
-                onJobUpdate = onJobUpdate,
-                loadStats = { withContext(Dispatchers.IO) { cacheMaintenanceRepository.stats() } },
-            )
-            if (result.refreshDownloads) {
-                downloadRefreshToken += 1
-                result.stats?.let { storageStats = it }
-            }
-        }
-    }
-}
-
-fun redownloadAndroidTracks(
-    context: Context,
-    scope: CoroutineScope,
-    state: AndroidAppState,
-    downloadRepository: DownloadRepository<AndroidDownloadedAudioFile, AndroidDownloadedTrack>,
-    downloadReplacementRepository: DownloadReplacementRepository<AndroidDownloadedAudioFile>,
-    cacheMaintenanceRepository: CacheMaintenanceRepository<StorageCacheStats>,
-    tracksToDownload: List<Track>,
-    label: String = "downloads",
-    onJobUpdate: (DownloadJobUpdate) -> Unit = {},
-): Job {
-    val activeProvider = state.provider
-    val sourceId = state.activeSourceId
-    val downloadService = DownloadService(downloadRepository, downloadReplacementRepository)
-    return scope.launch {
-        with(state) {
-            val quality = playbackSettings.downloadStreamQuality()
-            val result = downloadService.redownloadTracksWithRefresh(
-                tracks = tracksToDownload,
-                sourceId = sourceId,
-                provider = activeProvider,
-                quality = quality,
-                maxDownloadBytes = cacheSettings.maxDownloadBytes,
-                isActiveNetworkMobileData = context.isActiveNetworkMobileData(),
-                allowMobileDownloads = playbackSettings.allowMobileDownloads,
-                setStatus = { message ->
-                    downloadStatus = message
-                    status = message
-                },
-                onJobUpdate = onJobUpdate,
-                loadStats = { withContext(Dispatchers.IO) { cacheMaintenanceRepository.stats() } },
-            )
-            if (result.refreshDownloads) {
-                downloadRefreshToken += 1
-                result.stats?.let { storageStats = it }
-            }
-        }
-    }
-}
 
 fun removeAndroidDownload(
     scope: CoroutineScope,
@@ -192,9 +65,22 @@ internal class AndroidDownloadActionController(
         jobs = { state.downloadJobs },
         setJobs = { jobs -> state.downloadJobs = jobs },
     )
+    private val downloads = NaviampDownloadCoordinator(
+        downloadRepository = storage,
+        downloadReplacementRepository = storage,
+        keepDownloadedRepository = storage,
+        jobs = downloadJobs,
+        downloadedTrackId = { download: AndroidDownloadedTrack -> download.track.id.value },
+        loadStats = { withContext(Dispatchers.IO) { storage.stats() } },
+    )
 
     fun downloadTrack(track: Track) {
-        launchDownloadJob(track.title, listOf(track), replaceExisting = false)
+        launchDownloadJob(
+            label = track.title,
+            tracksToDownload = listOf(track),
+            replaceExisting = false,
+            includeCompletedCount = false,
+        )
     }
 
     fun downloadTracks(tracksToDownload: List<Track>, label: String = "tracks") {
@@ -224,7 +110,12 @@ internal class AndroidDownloadActionController(
         )
     }
 
-    private fun launchDownloadJob(label: String, tracksToDownload: List<Track>, replaceExisting: Boolean) {
+    private fun launchDownloadJob(
+        label: String,
+        tracksToDownload: List<Track>,
+        replaceExisting: Boolean,
+        includeCompletedCount: Boolean = true,
+    ) {
         if (state.provider == null || state.activeSourceId == null) {
             state.downloadStatus = downloadConnectionRequiredStatus()
             state.status = state.downloadStatus.orEmpty()
@@ -242,37 +133,33 @@ internal class AndroidDownloadActionController(
             return
         }
         val jobId = initialJob.id
-        val job = if (replaceExisting) {
-            redownloadAndroidTracks(
-                context = context,
-                scope = scope,
-                state = state,
-                downloadRepository = storage,
-                downloadReplacementRepository = storage,
-                cacheMaintenanceRepository = storage,
-                tracksToDownload = tracksToDownload,
-                label = label,
-                onJobUpdate = { updateDownloadJob(jobId, it) },
+        val job = scope.launch {
+            val result = downloads.execute(
+                request = NaviampDownloadExecutionRequest(
+                    jobId = jobId,
+                    label = label,
+                    tracks = tracksToDownload,
+                    sourceId = state.activeSourceId,
+                    provider = state.provider,
+                    quality = state.playbackSettings.downloadStreamQuality(),
+                    maxDownloadBytes = state.cacheSettings.maxDownloadBytes,
+                    replaceExisting = replaceExisting,
+                    isActiveNetworkMobileData = context.isActiveNetworkMobileData(),
+                    allowMobileDownloads = state.playbackSettings.allowMobileDownloads,
+                    includeCompletedCount = includeCompletedCount,
+                ),
+                setStatus = { message ->
+                    state.downloadStatus = message
+                    state.status = message
+                },
             )
-        } else {
-            downloadAndroidTracks(
-                context = context,
-                scope = scope,
-                state = state,
-                downloadRepository = storage,
-                downloadReplacementRepository = storage,
-                cacheMaintenanceRepository = storage,
-                tracksToDownload = tracksToDownload,
-                label = label,
-                onJobUpdate = { updateDownloadJob(jobId, it) },
-            )
+            if (result.refreshDownloads) {
+                state.downloadRefreshToken += 1
+                result.stats?.let { stats -> state.storageStats = stats }
+            }
         }
         downloadJobs.registerCancellation(jobId, job::cancel)
         job.invokeOnCompletion { downloadJobs.complete(jobId) }
-    }
-
-    private fun updateDownloadJob(jobId: String, update: DownloadJobUpdate) {
-        downloadJobs.update(jobId, update)
     }
 
     fun downloadPlaylist(playlist: Playlist) {
@@ -359,22 +246,7 @@ internal class AndroidDownloadActionController(
     }
 
     private fun reconcileKeepDownloadedPolicy(policy: KeepDownloadedCollectionPolicy, tracks: List<Track>) {
-        val downloadedIds = storage.downloadedTracks(policy.sourceId).mapTo(mutableSetOf()) { it.track.id.value }
-        val otherRequiredIds = storage.keepDownloadedPolicies(policy.sourceId)
-            .filterNot { it.kind == policy.kind && it.collectionId == policy.collectionId }
-            .flatMapTo(mutableSetOf()) { storage.keepDownloadedTrackIds(it.sourceId, it.kind, it.collectionId) }
-        val plan = planKeepDownloadedReconciliation(
-            tracks = tracks,
-            previousTrackIds = storage.keepDownloadedTrackIds(policy.sourceId, policy.kind, policy.collectionId),
-            downloadedTrackIds = downloadedIds,
-            managedTrackIds = storage.managedKeepDownloadedTrackIds(policy.sourceId),
-            trackIdsRequiredByOtherPolicies = otherRequiredIds,
-            removeUnneededFiles = policy.removeUnneededFiles,
-        )
-        storage.replaceKeepDownloadedTrackIds(policy, plan.nextTrackIds)
-        storage.markManagedKeepDownloadedTracks(policy.sourceId, plan.tracksToDownload.mapTo(mutableSetOf()) { it.id.value })
-        plan.trackIdsToRemove.forEach { storage.removeDownloadedAudio(policy.sourceId, app.naviamp.domain.TrackId(it)) }
-        storage.unmarkManagedKeepDownloadedTracks(policy.sourceId, plan.trackIdsToRemove)
+        val plan = downloads.reconcile(policy, tracks)
         reloadKeepDownloadedPolicies()
         if (plan.tracksToDownload.isEmpty()) {
             state.downloadStatus = "${policy.name} is up to date."

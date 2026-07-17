@@ -32,7 +32,7 @@ import app.naviamp.domain.playback.label
 import app.naviamp.domain.popular.SimilarArtistMatch
 import app.naviamp.domain.queue.RepeatMode
 import app.naviamp.domain.settings.effectiveForEngine
-import app.naviamp.domain.settings.SettingsSyncCoordinator
+import app.naviamp.app.NaviampSettingsSyncController
 import app.naviamp.domain.settings.SettingsSyncDocument
 import app.naviamp.domain.settings.SettingsSyncLocalSnapshot
 import app.naviamp.domain.settings.SettingsSyncOperationKind
@@ -40,7 +40,6 @@ import app.naviamp.domain.settings.SettingsSyncOperationResult
 import app.naviamp.domain.settings.SettingsSyncRuntimeState
 import app.naviamp.domain.settings.SettingsSyncMirrorDocumentSource
 import app.naviamp.domain.settings.VisualizerSettings
-import app.naviamp.domain.settings.buildSettingsSyncDocument
 import app.naviamp.domain.settings.selectSettingsSyncMirrorDocument
 import app.naviamp.domain.sonicautoplay.SonicAutoplayService
 import app.naviamp.provider.navidrome.NavidromeApiCall
@@ -494,37 +493,30 @@ fun NaviampAndroidApp(
     fun settingsSyncTreeUri(): Uri? =
         settingsSyncSettings.treeUri?.let(Uri::parse)
 
-    fun buildLocalSettingsSyncDocument(updatedAtEpochMillis: Long): SettingsSyncDocument =
-        buildSettingsSyncDocument(
-            snapshot = SettingsSyncLocalSnapshot(
+    val settingsSyncController = NaviampSettingsSyncController(
+        deviceId = AndroidSettingsSyncDeviceId,
+        state = ::settingsSyncRuntimeState,
+        saveState = ::saveSettingsSyncRuntimeState,
+        nowEpochMillis = { System.currentTimeMillis() },
+        snapshot = {
+            SettingsSyncLocalSnapshot(
                 serverProfiles = storage.mediaSources(),
                 interfaceSettings = appState.interfaceSettings,
                 playback = appState.playbackSettings,
                 visualizer = VisualizerSettings(selectedVisualizer = appState.selectedVisualizer.name),
                 recentRadioStreams = settingsStore.loadRecentRadioStreams(),
                 recentInternetRadioStations = settingsStore.loadRecentInternetRadioStations(),
-            ),
-            nowEpochMillis = updatedAtEpochMillis,
-            deviceId = AndroidSettingsSyncDeviceId,
-        )
-
-    fun applySettingsSyncDocument(document: SettingsSyncDocument) {
-        applyAndroidSettingsSyncDocument(
-            document = document,
-            state = appState,
-            settingsStore = settingsStore,
-            storage = storage,
-            playbackEngine = playbackEngine,
-        )
-    }
-
-    val settingsSyncCoordinator = SettingsSyncCoordinator(
-        deviceId = AndroidSettingsSyncDeviceId,
-        state = ::settingsSyncRuntimeState,
-        saveState = ::saveSettingsSyncRuntimeState,
-        nowEpochMillis = { System.currentTimeMillis() },
-        buildLocalDocument = ::buildLocalSettingsSyncDocument,
-        applyDocument = ::applySettingsSyncDocument,
+            )
+        },
+        applyDocument = { document ->
+            applyAndroidSettingsSyncDocument(
+                document = document,
+                state = appState,
+                settingsStore = settingsStore,
+                storage = storage,
+                playbackEngine = playbackEngine,
+            )
+        },
     )
 
     fun settingsSyncImportStatus(result: SettingsSyncOperationResult): String =
@@ -536,7 +528,7 @@ fun NaviampAndroidApp(
 
     fun saveSettingsSyncMirror(document: SettingsSyncDocument) {
         settingsSyncMirrorStore.write(document)
-        settingsSyncCoordinator.documentWritten(document)
+        settingsSyncController.documentWritten(document)
         saveSettingsSyncSettings(
             settingsSyncSettings.copy(
                 lastMirrorUpdateEpochMillis = document.updatedAtEpochMillis,
@@ -598,20 +590,20 @@ fun NaviampAndroidApp(
     }
 
     fun writeCurrentSettingsSync(statusMessage: () -> String) {
-        settingsSyncCoordinator.exportCurrent().documentToWrite?.let { document ->
+        settingsSyncController.exportCurrent().documentToWrite?.let { document ->
             writeMirrorAndTryProvider(document = document, statusMessage = statusMessage)
         }
     }
 
     fun autoExportSettingsSync() {
-        settingsSyncCoordinator.autoExport()?.documentToWrite?.let { document ->
+        settingsSyncController.autoExport()?.documentToWrite?.let { document ->
             writeMirrorAndTryProvider(document) { "Settings auto-synced to provider." }
         }
     }
 
     fun markAndAutoExportSettingsSync() {
-        settingsSyncCoordinator.markLocalChanged()
-        settingsSyncCoordinator.exportCurrent().documentToWrite?.let { document ->
+        settingsSyncController.markLocalChanged()
+        settingsSyncController.exportCurrent().documentToWrite?.let { document ->
             if (settingsSyncSettings.autoExportEnabled) {
                 writeMirrorAndTryProvider(document) { "Settings auto-synced to provider." }
             } else {
@@ -661,7 +653,7 @@ fun NaviampAndroidApp(
             localMirrorDocument = localMirrorDocument,
             providerDocument = providerDocument,
         )
-        val result = settingsSyncCoordinator.reconcileStartup(
+        val result = settingsSyncController.reconcileStartup(
             syncedDocument = selection.document,
             syncLocationConfigured = true,
         )
@@ -713,7 +705,7 @@ fun NaviampAndroidApp(
     }
 
     fun exportSettingsSyncFolder() {
-        settingsSyncCoordinator.markLocalChanged()
+        settingsSyncController.markLocalChanged()
         writeCurrentSettingsSync { "Settings exported to sync provider." }
     }
 

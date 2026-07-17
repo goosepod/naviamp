@@ -111,8 +111,7 @@ private class RuntimeFixture(
             connectivity = NaviampConnectivityMonitor { connectivitySnapshot },
             errorReporter = NaviampRuntimeErrorReporter { _, cause -> reportedCauses += cause },
         ),
-        navigation = navigation,
-        playback = playback,
+        controllers = NaviampApplicationControllers.from(navigation, playback),
     )
 }
 

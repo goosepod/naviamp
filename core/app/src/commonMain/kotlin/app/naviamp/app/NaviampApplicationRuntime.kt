@@ -40,14 +40,15 @@ data class NaviampRuntimeState(
  */
 class NaviampApplicationRuntime(
     val services: NaviampPlatformServices,
-    val navigation: NaviampNavigationController = NaviampNavigationController(),
-    val playback: NaviampLivePlaybackController = NaviampLivePlaybackController(),
-    val queueCoordinator: NaviampPlaybackQueueCoordinator = NaviampPlaybackQueueCoordinator(playback),
+    val controllers: NaviampApplicationControllers = NaviampApplicationControllers(),
 ) {
     private val eventMutex = Mutex()
     private val mutableState = MutableStateFlow(NaviampRuntimeState())
 
     val state: StateFlow<NaviampRuntimeState> = mutableState.asStateFlow()
+    val navigation: NaviampNavigationController get() = controllers.navigation
+    val playback: NaviampLivePlaybackController get() = controllers.playback
+    val queueCoordinator: NaviampPlaybackQueueCoordinator get() = controllers.queue
 
     suspend fun handle(event: NaviampHostLifecycleEvent) {
         eventMutex.withLock {
