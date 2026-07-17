@@ -293,11 +293,6 @@ fun startNavidromeConnection(
                     sourceId = session.sourceId,
                     provider = nextProvider,
                     controller = providerActions,
-                    setStatus = { syncStatus ->
-                        if (nowPlaying == null && nowPlayingStation == null) {
-                            status = syncStatus
-                        }
-                    },
                 )
                 if (attempt.restoreSavedSession) {
                     val restored = restorePlaybackSession(session.sourceId)

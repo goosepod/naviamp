@@ -17,15 +17,10 @@ internal fun syncAndroidPendingProviderActions(
     sourceId: String,
     provider: MediaProvider,
     controller: NaviampProviderActionController,
-    setStatus: (String) -> Unit = {},
 ) {
     scope.launch {
-        val result = withContext(Dispatchers.IO) {
+        withContext(Dispatchers.IO) {
             controller.replay(sourceId, provider)
-        }
-        when {
-            result.completed > 0 && result.failed == 0 -> setStatus("Synced ${result.completed} offline actions.")
-            result.completed > 0 -> setStatus("Synced ${result.completed} offline actions; ${result.failed} still pending.")
         }
     }
 }

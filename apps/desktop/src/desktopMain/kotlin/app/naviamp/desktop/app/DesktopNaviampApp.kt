@@ -209,7 +209,11 @@ fun NaviampApp(
         )
     }
     val connectionRuntimeState by applicationControllers.connection.state.collectAsState()
+    val applicationStatus by applicationControllers.status.state.collectAsState()
     val isConnecting = connectionRuntimeState.isConnecting
+    LaunchedEffect(applicationStatus?.sequence) {
+        applicationStatus?.let { connectionStatus = it.message }
+    }
     val navigationController = applicationControllers.navigation
     val currentRouteProperty = remember {
         DesktopNavigationRouteProperty(navigationController, DesktopNavigationField.CurrentRoute)
@@ -711,6 +715,7 @@ fun NaviampApp(
         settingsStore = settingsStore,
         playbackSessions = playbackSessions,
         connectionController = applicationControllers.connection,
+        providerActions = applicationControllers.providerActions,
         playbackEngine = playbackEngine,
         playlistEngine = playlistEngine,
         stopRadioContinuation = radioController::stopContinuation,

@@ -15,6 +15,7 @@ import app.naviamp.domain.provider.replayPendingProviderActions
 /** Coordinates provider mutations that can be replayed after an offline or failed request. */
 class NaviampProviderActionController(
     private val repository: PendingProviderActionRepository,
+    private val applicationStatus: NaviampApplicationStatusController? = null,
 ) {
     fun enqueueNowPlaying(sourceId: String, trackId: TrackId) {
         repository.enqueuePendingProviderAction(
@@ -61,8 +62,21 @@ class NaviampProviderActionController(
             }
         }
 
-    suspend fun replay(sourceId: String, provider: MediaProvider): PendingProviderActionSyncResult =
-        replayPendingProviderActions(sourceId, provider, repository)
+    suspend fun replay(sourceId: String, provider: MediaProvider): PendingProviderActionSyncResult {
+        val result = replayPendingProviderActions(sourceId, provider, repository)
+        providerActionSyncStatus(result)?.let { status ->
+            applicationStatus?.publish(
+                area = NaviampApplicationStatusArea.ProviderActions,
+                level = if (result.failed > 0) {
+                    NaviampApplicationStatusLevel.Warning
+                } else {
+                    NaviampApplicationStatusLevel.Information
+                },
+                message = status,
+            )
+        }
+        return result
+    }
 
     private suspend fun runOrEnqueue(
         sourceId: String?,
@@ -85,3 +99,18 @@ class NaviampProviderActionController(
         }
     }
 }
+
+fun providerActionSyncStatus(result: PendingProviderActionSyncResult): String? =
+    when {
+        result.attempted == 0 -> null
+        result.completed > 0 && result.failed == 0 ->
+            "Synced ${result.completed} offline ${result.completed.providerActionLabel()}."
+        result.completed > 0 ->
+            "Synced ${result.completed} offline ${result.completed.providerActionLabel()}; " +
+                "${result.failed} still pending."
+        else ->
+            "Could not sync ${result.failed} offline ${result.failed.providerActionLabel()}; " +
+                if (result.failed == 1) "it remains pending." else "they remain pending."
+    }
+
+private fun Int.providerActionLabel(): String = if (this == 1) "action" else "actions"

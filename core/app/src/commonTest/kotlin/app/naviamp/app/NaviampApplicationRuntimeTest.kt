@@ -55,11 +55,14 @@ class NaviampApplicationRuntimeTest {
         assertEquals(NaviampRuntimePhase.Failed, fixture.runtime.state.value.phase)
         assertEquals(NaviampRuntimeOperation.Restore, fixture.runtime.state.value.lastError?.operation)
         assertEquals("restore failed", fixture.runtime.state.value.lastError?.message)
+        assertEquals(NaviampApplicationStatusArea.Runtime, fixture.runtime.applicationStatus.state.value?.area)
+        assertEquals(NaviampApplicationStatusLevel.Error, fixture.runtime.applicationStatus.state.value?.level)
         assertSame(failure, fixture.reportedCauses.single())
 
         fixture.runtime.handle(NaviampHostLifecycleEvent.Start)
 
         assertEquals(NaviampRuntimePhase.Ready, fixture.runtime.state.value.phase)
+        assertEquals(null, fixture.runtime.applicationStatus.state.value)
         assertEquals(listOf("restore", "restore"), fixture.session.events)
     }
 

@@ -48,7 +48,8 @@ class NaviampConnectionControllerTest {
 
     @Test
     fun duplicateConnectAttemptsAreRejectedUntilTheFirstCompletes() {
-        val controller = NaviampConnectionController()
+        val applicationStatus = NaviampApplicationStatusController()
+        val controller = NaviampConnectionController(applicationStatus = applicationStatus)
 
         controller.begin(restoreSavedSession = false)
 
@@ -56,5 +57,8 @@ class NaviampConnectionControllerTest {
         controller.failed("No route")
         assertEquals(NaviampConnectionPhase.Failed, controller.state.value.phase)
         assertEquals("No route", controller.state.value.status)
+        assertEquals(NaviampApplicationStatusArea.Connection, applicationStatus.state.value?.area)
+        assertEquals(NaviampApplicationStatusLevel.Error, applicationStatus.state.value?.level)
+        assertEquals("No route", applicationStatus.state.value?.message)
     }
 }

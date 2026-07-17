@@ -21,6 +21,7 @@ import app.naviamp.domain.provider.ProviderCapabilities
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNull
 
 class NaviampProviderActionControllerTest {
     @Test
@@ -50,10 +51,41 @@ class NaviampProviderActionControllerTest {
             repository.enqueued,
         )
     }
+
+    @Test
+    fun replayPublishesSharedSuccessAndFailureStatusPolicy() = runTest {
+        val applicationStatus = NaviampApplicationStatusController()
+        val repository = RecordingPendingActions().apply {
+            pending += pendingAction(id = 1, entityId = "first")
+            pending += pendingAction(id = 2, entityId = "second")
+        }
+        val controller = NaviampProviderActionController(repository, applicationStatus)
+
+        val result = controller.replay("source", RecordingProvider(failReports = true))
+
+        assertEquals(2, result.failed)
+        assertEquals(NaviampApplicationStatusArea.ProviderActions, applicationStatus.state.value?.area)
+        assertEquals(NaviampApplicationStatusLevel.Warning, applicationStatus.state.value?.level)
+        assertEquals(
+            "Could not sync 2 offline actions; they remain pending.",
+            applicationStatus.state.value?.message,
+        )
+    }
+
+    @Test
+    fun replayWithNoPendingActionsDoesNotPublishStatus() = runTest {
+        val applicationStatus = NaviampApplicationStatusController()
+        val controller = NaviampProviderActionController(RecordingPendingActions(), applicationStatus)
+
+        controller.replay("source", RecordingProvider(failReports = false))
+
+        assertNull(applicationStatus.state.value)
+    }
 }
 
 private class RecordingPendingActions : PendingProviderActionRepository {
     val enqueued = mutableListOf<String>()
+    val pending = mutableListOf<PendingProviderAction>()
 
     override fun enqueuePendingProviderAction(
         sourceId: String,
@@ -66,10 +98,22 @@ private class RecordingPendingActions : PendingProviderActionRepository {
         enqueued += "$sourceId:$actionType:$entityId:$boolValue:$replaceMatchingEntityAction"
     }
 
-    override fun pendingProviderActions(sourceId: String, limit: Int): List<PendingProviderAction> = emptyList()
-    override fun deletePendingProviderAction(id: Long) = Unit
+    override fun pendingProviderActions(sourceId: String, limit: Int): List<PendingProviderAction> =
+        pending.filter { it.sourceId == sourceId }.take(limit)
+
+    override fun deletePendingProviderAction(id: Long) {
+        pending.removeAll { it.id == id }
+    }
     override fun markPendingProviderActionFailed(id: Long, errorMessage: String?) = Unit
 }
+
+private fun pendingAction(id: Long, entityId: String) = PendingProviderAction(
+    id = id,
+    sourceId = "source",
+    actionType = PendingActionReportNowPlaying,
+    entityId = entityId,
+    createdAtEpochMillis = 0,
+)
 
 private class RecordingProvider(private val failReports: Boolean) : MediaProvider {
     override val id = ProviderId("fake")

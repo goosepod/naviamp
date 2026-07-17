@@ -39,6 +39,7 @@ data class NaviampConnectionAttemptPlan(
 /** Shared connection/restoration lifecycle; hosts retain provider construction and I/O. */
 class NaviampConnectionController(
     initialState: NaviampConnectionRuntimeState = NaviampConnectionRuntimeState(),
+    private val applicationStatus: NaviampApplicationStatusController? = null,
 ) {
     private val mutableState = MutableStateFlow(initialState)
     val state: StateFlow<NaviampConnectionRuntimeState> = mutableState.asStateFlow()
@@ -63,6 +64,11 @@ class NaviampConnectionController(
             restoringSavedSession = restoreSavedSession,
             status = "Connecting...",
         )
+        applicationStatus?.publish(
+            area = NaviampApplicationStatusArea.Connection,
+            level = NaviampApplicationStatusLevel.Information,
+            message = "Connecting...",
+        )
         return NaviampConnectionAttemptPlan(
             restoreSavedSession = restoreSavedSession,
             clearExistingPlayback = !restoreSavedSession,
@@ -78,6 +84,11 @@ class NaviampConnectionController(
             serverVersion = serverVersion,
             status = status,
         )
+        applicationStatus?.publish(
+            area = NaviampApplicationStatusArea.Connection,
+            level = NaviampApplicationStatusLevel.Information,
+            message = status,
+        )
     }
 
     fun failed(status: String) {
@@ -85,9 +96,23 @@ class NaviampConnectionController(
             phase = NaviampConnectionPhase.Failed,
             status = status,
         )
+        applicationStatus?.publish(
+            area = NaviampApplicationStatusArea.Connection,
+            level = NaviampApplicationStatusLevel.Error,
+            message = status,
+        )
     }
 
     fun disconnected(status: String? = null) {
         mutableState.value = NaviampConnectionRuntimeState(status = status)
+        if (status == null) {
+            applicationStatus?.clear(NaviampApplicationStatusArea.Connection)
+        } else {
+            applicationStatus?.publish(
+                area = NaviampApplicationStatusArea.Connection,
+                level = NaviampApplicationStatusLevel.Information,
+                message = status,
+            )
+        }
     }
 }

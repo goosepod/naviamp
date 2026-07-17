@@ -51,6 +51,7 @@ class NaviampApplicationRuntime(
     val queueCoordinator: NaviampPlaybackQueueCoordinator get() = controllers.queue
     val connection: NaviampConnectionController get() = controllers.connection
     val providerActions: NaviampProviderActionController get() = controllers.providerActions
+    val applicationStatus: NaviampApplicationStatusController get() = controllers.status
 
     suspend fun handle(event: NaviampHostLifecycleEvent) {
         eventMutex.withLock {
@@ -65,6 +66,7 @@ class NaviampApplicationRuntime(
 
     private suspend fun start() {
         if (state.value.phase !in setOf(NaviampRuntimePhase.Created, NaviampRuntimePhase.Failed)) return
+        applicationStatus.clear(NaviampApplicationStatusArea.Runtime)
         mutableState.value = state.value.copy(
             phase = NaviampRuntimePhase.Restoring,
             connectivity = services.connectivity.currentSnapshot(),
@@ -130,6 +132,11 @@ class NaviampApplicationRuntime(
                 message = cause.message ?: "Naviamp runtime operation failed.",
             )
             mutableState.value = onFailure(state.value, error)
+            applicationStatus.publish(
+                area = NaviampApplicationStatusArea.Runtime,
+                level = NaviampApplicationStatusLevel.Error,
+                message = error.message,
+            )
             services.errorReporter.report(error, cause)
         }
     }

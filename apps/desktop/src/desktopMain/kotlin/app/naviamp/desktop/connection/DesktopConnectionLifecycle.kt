@@ -2,6 +2,7 @@ package app.naviamp.desktop
 
 import app.naviamp.app.NaviampConnectionController
 import app.naviamp.app.NaviampPlaybackSessionController
+import app.naviamp.app.NaviampProviderActionController
 import app.naviamp.domain.Track
 import app.naviamp.domain.app.databaseResetStatus
 import app.naviamp.domain.cache.CacheMaintenanceRepository
@@ -59,6 +60,7 @@ class DesktopConnectionLifecycleController(
     private val settingsStore: DesktopSettingsStore,
     private val playbackSessions: NaviampPlaybackSessionController,
     private val connectionController: NaviampConnectionController,
+    private val providerActions: NaviampProviderActionController,
     private val playbackEngine: PlaybackEngine,
     private val playlistEngine: DesktopPlaylistEngine,
     private val stopRadioContinuation: () -> Unit,
@@ -222,6 +224,9 @@ class DesktopConnectionLifecycleController(
                     serverVersion = session.validation.serverVersion,
                     status = connectedStatus,
                 )
+                scope.launch {
+                    providerActions.replay(session.sourceId, provider)
+                }
                 refreshLibrarySnapshot()
                 loadHomeContent(provider)
                 refreshPlaylists()

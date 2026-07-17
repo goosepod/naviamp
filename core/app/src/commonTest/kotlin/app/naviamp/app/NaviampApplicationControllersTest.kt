@@ -46,5 +46,7 @@ class NaviampApplicationControllersTest {
         val controllers = NaviampApplicationControllers(pendingProviderActions = EmptyPendingProviderActions)
 
         assertEquals(NaviampConnectionPhase.Disconnected, controllers.connection.state.value.phase)
+        controllers.connection.failed("Unavailable")
+        assertEquals("Unavailable", controllers.status.state.value?.message)
     }
 }

@@ -5,6 +5,8 @@ import app.naviamp.domain.cache.StorageCacheStats
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import app.naviamp.android.playback.AndroidBassLoadReport
 import app.naviamp.android.playback.AndroidPlaybackEngine
 import app.naviamp.domain.isInternetRadioTrack
@@ -38,7 +40,13 @@ fun AndroidAppRuntimeEffects(
     autoPlayMediaIdRequest: String?,
     autoCommandRequest: String?,
 ) {
+    val applicationStatus by state.sharedControllers.status.state.collectAsState()
+
     with(state) {
+        LaunchedEffect(applicationStatus?.sequence) {
+            applicationStatus?.let { status = it.message }
+        }
+
         LaunchedEffect(bassLoadReport) {
             if (!bassLoadReport.available) {
                 status = "BASS libraries are bundled but did not load on this device."
