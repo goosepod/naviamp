@@ -41,6 +41,21 @@ This document tracks useful ideas that come up during the v2 migration but are n
   - Should lock-screen widgets, Live Activities, or platform-specific equivalents be separate later enhancements rather than part of the initial home-screen widget scope?
 - **Implementation notes to investigate later:** Define a small shared, serializable widget snapshot and playback-action vocabulary. Keep Android App Widget/Glance and iOS WidgetKit timelines, intents, storage sharing, refresh scheduling, deep links, and rendering in their native hosts. Prototype action delivery and stale-state recovery on physical devices before committing to feature parity claims.
 
+### Desktop Dock and Taskbar Player Controls
+
+- **Status:** Idea
+- **Concept:** Add playback controls and useful status actions to Naviamp's desktop application icon through the native macOS Dock, Windows taskbar, and supported Linux desktop integrations.
+- **Why it may fit:** Dock or taskbar controls provide quick access to playback without bringing the full window forward. The command meanings can reuse Naviamp's shared playback controller, while registration, menus, icon badges, previews, and operating-system lifecycle handling remain Desktop host responsibilities.
+- **Controls and information to consider:** Play/pause, previous, next, stop, favorite, current track and artist, open or focus Now Playing, show or hide the main window, and quit Naviamp without accidentally terminating background playback where the platform distinguishes those actions.
+- **Questions to answer:**
+  - Which native surfaces are appropriate on macOS, Windows, and the Linux desktop environments Naviamp supports?
+  - Should controls appear in a right-click icon menu, taskbar thumbnail toolbar, jump list, badge or progress indicator, system tray menu, or some combination?
+  - How should actions behave when no track is loaded, the server is disconnected, or the main window has been closed while playback continues?
+  - Can every action route into the existing shared playback command controller without creating a second application runtime?
+  - Which dynamic metadata can be updated reliably without excessive operating-system calls or stale menus?
+  - Should users be able to choose which commands appear, disable dynamic dock/taskbar content, or keep only standard window actions?
+- **Implementation notes to investigate later:** Define a shared snapshot and action vocabulary that can also support mobile widgets and keyboard controls. Implement each operating system's icon/menu/taskbar adapter in the Desktop host, capability-gate unsupported presentation features, and test packaged applications rather than relying only on development launches.
+
 ### BlurHash versus ThumbHash Artwork Placeholders and Backgrounds
 
 - **Status:** Idea
