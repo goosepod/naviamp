@@ -2,6 +2,8 @@
 
 This document is the durable plan and progress tracker for Naviamp 2.0. Update it in the same commit as each completed milestone so work can move safely between computers and contributors.
 
+Ideas discovered during the migration that should not interrupt the active checklist are tracked in [Naviamp Follow-Up Ideas](v2-follow-up-ideas.md).
+
 ## Project Status
 
 - **Target release:** `2.0.0`
