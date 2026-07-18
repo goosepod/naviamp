@@ -51,7 +51,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import app.naviamp.domain.playback.AudioOutputDevice
 import app.naviamp.domain.settings.ConnectionFormHeader
 import app.naviamp.domain.settings.ConnectionFormMusicFolder
 import app.naviamp.domain.settings.ConnectionFormSecondaryUrl
@@ -80,6 +79,7 @@ import app.naviamp.ui.NaviampDiagnosticsSectionUi
 import app.naviamp.ui.NaviampDiagnosticsUi
 import app.naviamp.ui.NaviampConnectionCapabilitiesUi
 import app.naviamp.ui.NaviampConnectionSettingsUi
+import app.naviamp.ui.NaviampPlaybackSettingsUi
 import app.naviamp.ui.categoryLabel
 import app.naviamp.ui.categorySubtitle
 import app.naviamp.ui.languageTitle
@@ -100,20 +100,13 @@ fun DesktopSettingsPanel(
     connectionSettings: NaviampConnectionSettingsUi,
     currentSourceId: String?,
     interfaceSettings: InterfaceSettings,
-    playbackSettings: PlaybackSettings,
+    playback: NaviampPlaybackSettingsUi,
     cacheSettings: CacheSettings,
     cacheStats: StorageCacheStats,
     settingsSyncDirectoryPath: String?,
     settingsSyncAutoExportEnabled: Boolean,
     settingsSyncStatus: String?,
     about: NaviampAboutUi,
-    supportsReplayGain: Boolean,
-    supportsGapless: Boolean,
-    supportsCrossfade: Boolean,
-    supportsEqualizer: Boolean,
-    supportsAudioOutputDeviceSelection: Boolean,
-    audioOutputDevices: List<AudioOutputDevice>,
-    supportsSonicSimilarity: Boolean,
     onServerUrlChanged: (String) -> Unit,
     onConnectionNameChanged: (String) -> Unit,
     onUsernameChanged: (String) -> Unit,
@@ -169,6 +162,14 @@ fun DesktopSettingsPanel(
     val connectionCapabilities = connectionSettings.capabilities
     val supportsSettingsSync = connectionSettings.settingsSyncAvailable
     val supportsFileSelection = connectionSettings.fileSelectionAvailable
+    val playbackSettings = playback.settings
+    val supportsReplayGain = playback.replayGainAvailable
+    val supportsGapless = playback.gaplessAvailable
+    val supportsCrossfade = playback.crossfadeAvailable
+    val supportsEqualizer = playback.equalizerAvailable
+    val supportsAudioOutputDeviceSelection = playback.audioOutputDeviceSelectionAvailable
+    val audioOutputDevices = playback.audioOutputDevices
+    val supportsSonicSimilarity = playback.sonicSimilarityAvailable
     var selectedCategory by remember { mutableStateOf(NaviampSettingsCategory.Source) }
     var statusClickCount by remember { mutableIntStateOf(0) }
     var lastStatusClickMillis by remember { mutableStateOf(0L) }
@@ -261,7 +262,7 @@ fun DesktopSettingsPanel(
                 supportsAudioOutputDeviceSelection = supportsAudioOutputDeviceSelection,
                 audioOutputDevices = audioOutputDevices,
                 supportsSonicSimilarity = supportsSonicSimilarity,
-                downloadBytes = cacheStats.downloadBytes,
+                downloadBytes = playback.downloadBytes,
                 onPlaybackSettingsChanged = onPlaybackSettingsChanged,
                 onPlaybackSettingsChangedAndRedownload = onPlaybackSettingsChangedAndRedownload,
             )
@@ -277,7 +278,7 @@ fun DesktopSettingsPanel(
                     ).let { rows -> listOf(NaviampDiagnosticsSectionUi("Storage", rows)) },
                 ),
                 showMobileNetworkQuality = false,
-                downloadBytes = cacheStats.downloadBytes,
+                downloadBytes = playback.downloadBytes,
                 onPlaybackSettingsChanged = onPlaybackSettingsChanged,
                 onPlaybackSettingsChangedAndRedownload = onPlaybackSettingsChangedAndRedownload,
                 onCacheSettingsChanged = onCacheSettingsChanged,

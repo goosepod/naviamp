@@ -4,9 +4,11 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import app.naviamp.domain.playback.PlaybackState
 import app.naviamp.domain.playback.PlaybackVisualizerFrame
+import app.naviamp.domain.playback.AudioOutputDevice
 import app.naviamp.domain.radio.RadioDjPreset
 import app.naviamp.domain.settings.ConnectionFormMusicFolder
 import app.naviamp.domain.settings.ConnectionFormState
+import app.naviamp.domain.settings.PlaybackSettings
 import app.naviamp.domain.waveform.AudioWaveform
 
 data class NaviampColors(
@@ -743,6 +745,18 @@ data class NaviampConnectionSettingsUi(
     val fileSelectionAvailable: Boolean = false,
 )
 
+data class NaviampPlaybackSettingsUi(
+    val settings: PlaybackSettings = PlaybackSettings(),
+    val replayGainAvailable: Boolean = false,
+    val gaplessAvailable: Boolean = true,
+    val crossfadeAvailable: Boolean = false,
+    val equalizerAvailable: Boolean = false,
+    val audioOutputDeviceSelectionAvailable: Boolean = false,
+    val audioOutputDevices: List<AudioOutputDevice> = emptyList(),
+    val sonicSimilarityAvailable: Boolean = false,
+    val downloadBytes: Long = 0L,
+)
+
 data class NaviampShellCapabilitiesUi(
     val replayGain: Boolean = false,
     val gapless: Boolean = true,
@@ -765,6 +779,24 @@ fun NaviampShellConnectionUi.toConnectionSettingsUi(
         capabilities = capabilities.connection,
         settingsSyncAvailable = capabilities.settingsImportExport && capabilities.fileSelection,
         fileSelectionAvailable = capabilities.fileSelection,
+    )
+
+fun PlaybackSettings.toPlaybackSettingsUi(
+    capabilities: NaviampShellCapabilitiesUi,
+    audioOutputDeviceSelectionAvailable: Boolean = false,
+    audioOutputDevices: List<AudioOutputDevice> = emptyList(),
+    downloadBytes: Long = 0L,
+): NaviampPlaybackSettingsUi =
+    NaviampPlaybackSettingsUi(
+        settings = this,
+        replayGainAvailable = capabilities.replayGain,
+        gaplessAvailable = capabilities.gapless,
+        crossfadeAvailable = capabilities.crossfade,
+        equalizerAvailable = capabilities.equalizer,
+        audioOutputDeviceSelectionAvailable = audioOutputDeviceSelectionAvailable,
+        audioOutputDevices = audioOutputDevices,
+        sonicSimilarityAvailable = capabilities.sonicSimilarity,
+        downloadBytes = downloadBytes,
     )
 
 data class NaviampLyricLineUi(

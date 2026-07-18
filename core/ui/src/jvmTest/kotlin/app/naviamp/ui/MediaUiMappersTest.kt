@@ -54,6 +54,35 @@ class MediaUiMappersTest {
     }
 
     @Test
+    fun playbackSettingsUseSharedCapabilitiesAndHostAudioDevices() {
+        val settings = app.naviamp.domain.settings.PlaybackSettings(sonicSimilarityEnabled = true)
+        val devices = listOf(app.naviamp.domain.playback.AudioOutputDevice("device-1", "Speakers"))
+
+        val ui = settings.toPlaybackSettingsUi(
+            capabilities = NaviampShellCapabilitiesUi(
+                replayGain = true,
+                gapless = false,
+                crossfade = true,
+                equalizer = true,
+                sonicSimilarity = true,
+            ),
+            audioOutputDeviceSelectionAvailable = true,
+            audioOutputDevices = devices,
+            downloadBytes = 42L,
+        )
+
+        assertEquals(settings, ui.settings)
+        assertTrue(ui.replayGainAvailable)
+        assertFalse(ui.gaplessAvailable)
+        assertTrue(ui.crossfadeAvailable)
+        assertTrue(ui.equalizerAvailable)
+        assertTrue(ui.audioOutputDeviceSelectionAvailable)
+        assertEquals(devices, ui.audioOutputDevices)
+        assertTrue(ui.sonicSimilarityAvailable)
+        assertEquals(42L, ui.downloadBytes)
+    }
+
+    @Test
     fun internetRadioModelsPreserveEditableFieldsAndNormalizeDrafts() {
         val station = InternetRadioStation(
             id = "station-1",

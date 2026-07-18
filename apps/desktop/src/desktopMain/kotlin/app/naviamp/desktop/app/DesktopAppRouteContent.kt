@@ -74,6 +74,7 @@ import app.naviamp.ui.SonicMixBuilderContent
 import app.naviamp.ui.SonicPathBuilderContent
 import app.naviamp.ui.toSharedHomeUi
 import app.naviamp.ui.toConnectionSettingsUi
+import app.naviamp.ui.toPlaybackSettingsUi
 
 @Composable
 fun ColumnScope.DesktopAppRouteContent(
@@ -955,22 +956,20 @@ fun ColumnScope.DesktopAppRouteContent(
                     connectionSettings = connection.toConnectionSettingsUi(capabilities),
                     currentSourceId = connectedSourceId,
                     interfaceSettings = interfaceSettings,
-                    playbackSettings = playbackSettings,
+                    playback = playbackSettings.toPlaybackSettingsUi(
+                        capabilities = capabilities,
+                        audioOutputDeviceSelectionAvailable =
+                            (playbackEngine as? AudioOutputDevicePlaybackEngine)?.supportsAudioOutputDeviceSelection == true,
+                        audioOutputDevices =
+                            (playbackEngine as? AudioOutputDevicePlaybackEngine)?.outputDevices().orEmpty(),
+                        downloadBytes = cacheStats.downloadBytes,
+                    ),
                     cacheSettings = cacheSettings,
                     cacheStats = cacheStats,
                     settingsSyncDirectoryPath = settingsSyncDirectoryPath,
                     settingsSyncAutoExportEnabled = settingsSyncAutoExportEnabled,
                     settingsSyncStatus = settingsSyncStatus,
                     about = about,
-                    supportsReplayGain = capabilities.replayGain,
-                    supportsGapless = capabilities.gapless,
-                    supportsCrossfade = capabilities.crossfade,
-                    supportsEqualizer = capabilities.equalizer,
-                    supportsAudioOutputDeviceSelection =
-                        (playbackEngine as? AudioOutputDevicePlaybackEngine)?.supportsAudioOutputDeviceSelection == true,
-                    audioOutputDevices =
-                        (playbackEngine as? AudioOutputDevicePlaybackEngine)?.outputDevices().orEmpty(),
-                    supportsSonicSimilarity = capabilities.sonicSimilarity,
                     onServerUrlChanged = { onConnectionFormChanged(connection.form.copy(serverUrl = it)) },
                     onConnectionNameChanged = { onConnectionFormChanged(connection.form.copy(displayName = it)) },
                     onUsernameChanged = { onConnectionFormChanged(connection.form.copy(username = it)) },
