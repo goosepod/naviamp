@@ -50,9 +50,6 @@ import app.naviamp.ui.generated.resources.Res
 import app.naviamp.ui.generated.resources.*
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.stringResource
-import app.naviamp.domain.cache.DownloadJob
-import app.naviamp.domain.cache.DownloadJobItemStatus
-import app.naviamp.domain.cache.DownloadJobStatus
 
 @Composable
 fun SharedHome(
@@ -595,21 +592,17 @@ internal fun LibraryContent(
 @Composable
 internal fun DownloadsContent(
     colors: NaviampColors,
-    downloads: List<NaviampDownloadedTrackUi>,
-    status: String?,
-    downloadJobs: List<DownloadJob>,
-    maxDownloadBytes: Long,
-    offlineDashboard: NaviampOfflineDashboardUi,
+    screen: NaviampDownloadsScreenUi,
     playlistChoices: List<NaviampPlaylistChoiceUi>,
     playlistActionStatus: String?,
     onDownloadAction: (DownloadedTrackActionRequest) -> Unit,
     onCancelDownloadJob: (String) -> Unit,
     onRetryDownloadJob: (String) -> Unit,
     onRefreshDownloads: () -> Unit,
-    keepFavoritesDownloaded: Boolean,
     onToggleKeepFavoritesDownloaded: () -> Unit,
     onDeleteAllDownloads: () -> Unit,
 ) {
+    val downloads = screen.downloads
     var downloadForPlaylist by remember { mutableStateOf<NaviampDownloadedTrackUi?>(null) }
     var offlineDashboardExpanded by remember { mutableStateOf(false) }
     var confirmDeleteAll by remember { mutableStateOf(false) }
@@ -628,9 +621,9 @@ internal fun DownloadsContent(
             ),
         )
     }
-    val remainingBytes = (maxDownloadBytes - visibleDownloadBytes).coerceAtLeast(0L)
-    val usedPercent = if (maxDownloadBytes > 0L) {
-        ((visibleDownloadBytes.toDouble() / maxDownloadBytes.toDouble()) * 100.0).coerceIn(0.0, 100.0)
+    val remainingBytes = (screen.maxDownloadBytes - visibleDownloadBytes).coerceAtLeast(0L)
+    val usedPercent = if (screen.maxDownloadBytes > 0L) {
+        ((visibleDownloadBytes.toDouble() / screen.maxDownloadBytes.toDouble()) * 100.0).coerceIn(0.0, 100.0)
     } else {
         0.0
     }
@@ -647,7 +640,7 @@ internal fun DownloadsContent(
                             Res.string.downloads_summary,
                             downloads.size,
                             visibleDownloadBytes.storageBytesLabel(),
-                            maxDownloadBytes.storageBytesLabel(),
+                            screen.maxDownloadBytes.storageBytesLabel(),
                         ),
                         color = colors.secondaryText,
                         fontSize = 12.sp,
@@ -667,7 +660,7 @@ internal fun DownloadsContent(
                     items = listOf(
                         NaviampRowMenuItem("Refresh", NaviampIcons.Refresh, onRefreshDownloads),
                         NaviampRowMenuItem(
-                            if (keepFavoritesDownloaded) "Stop keeping favorites downloaded" else "Keep favorites downloaded",
+                            if (screen.keepFavoritesDownloaded) "Stop keeping favorites downloaded" else "Keep favorites downloaded",
                             NaviampTransportIcons.Heart,
                             onToggleKeepFavoritesDownloaded,
                         ),
@@ -701,16 +694,16 @@ internal fun DownloadsContent(
                     colors = colors,
                     downloads = downloads,
                     downloadBytes = visibleDownloadBytes,
-                    maxDownloadBytes = maxDownloadBytes,
-                    offlineDashboard = offlineDashboard,
+                    maxDownloadBytes = screen.maxDownloadBytes,
+                    offlineDashboard = screen.offlineDashboard,
                 )
             }
         }
-        if (downloadJobs.isNotEmpty()) {
+        if (screen.jobs.isNotEmpty()) {
             item {
                 Text("DOWNLOAD ACTIVITY", color = colors.primaryText, fontSize = 12.sp, fontWeight = FontWeight.Bold)
             }
-            items(downloadJobs, key = { job -> job.id }) { job ->
+            items(screen.jobs, key = { job -> job.id }) { job ->
                 DownloadJobCard(
                     colors = colors,
                     job = job,
@@ -719,7 +712,7 @@ internal fun DownloadsContent(
                 )
             }
         }
-        status?.takeIf { it.isNotBlank() }?.let { message ->
+        screen.status?.takeIf { it.isNotBlank() }?.let { message ->
             item {
                 Text(message, color = colors.secondaryText, fontSize = 12.sp)
             }
@@ -842,19 +835,10 @@ internal fun DownloadsContent(
 @Composable
 private fun DownloadJobCard(
     colors: NaviampColors,
-    job: DownloadJob,
+    job: NaviampDownloadJobUi,
     onCancel: () -> Unit,
     onRetry: () -> Unit,
 ) {
-    val activeItem = job.items.firstOrNull { it.status == DownloadJobItemStatus.Downloading }
-    val failedItem = job.items.firstOrNull { it.status == DownloadJobItemStatus.Failed }
-    val statusLabel = when (job.status) {
-        DownloadJobStatus.Queued -> "Queued"
-        DownloadJobStatus.Running -> "${job.completedCount} of ${job.totalCount}"
-        DownloadJobStatus.Completed -> "Completed · ${job.totalCount} tracks"
-        DownloadJobStatus.Failed -> "Failed · ${job.completedCount} of ${job.totalCount} saved"
-        DownloadJobStatus.Cancelled -> "Cancelled · ${job.completedCount} of ${job.totalCount} saved"
-    }
     Column(
         verticalArrangement = Arrangement.spacedBy(5.dp),
         modifier = Modifier
@@ -866,7 +850,7 @@ private fun DownloadJobCard(
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(1.dp)) {
                 Text(job.label, color = colors.primaryText, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                Text(statusLabel, color = colors.secondaryText, fontSize = 11.sp)
+                Text(job.statusLabel, color = colors.secondaryText, fontSize = 11.sp)
             }
             if (job.canCancel) TextButton(onClick = onCancel) { Text("Cancel") }
             if (job.canRetry) TextButton(onClick = onRetry) { Text("Retry") }
@@ -877,12 +861,12 @@ private fun DownloadJobCard(
             color = colors.primaryText,
             trackColor = colors.mutedText.copy(alpha = 0.25f),
         )
-        activeItem?.let { item ->
-            Text("Downloading ${item.track.title}", color = colors.secondaryText, fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        job.activeItemLabel?.let { label ->
+            Text(label, color = colors.secondaryText, fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
-        failedItem?.let { item ->
+        job.failedItemLabel?.let { label ->
             Text(
-                "${item.track.title}: ${item.failureMessage ?: "Download failed"}",
+                label,
                 color = colors.secondaryText,
                 fontSize = 11.sp,
             )

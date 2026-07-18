@@ -4,15 +4,13 @@ import androidx.compose.ui.Modifier
 import app.naviamp.domain.InternetRadioStation
 import app.naviamp.domain.Playlist
 import app.naviamp.domain.Track
-import app.naviamp.domain.cache.DownloadJob
 import app.naviamp.domain.settings.CacheSettings
 import app.naviamp.domain.settings.InterfaceSettings
 import app.naviamp.domain.settings.PlaybackSettings
 import app.naviamp.domain.smartplaylist.SmartPlaylistDefinition
 import app.naviamp.ui.NaviampDiagnosticsUi
 import app.naviamp.ui.NaviampConnectionSettingsActions
-import app.naviamp.ui.NaviampDownloadedTrackUi
-import app.naviamp.ui.NaviampOfflineDashboardUi
+import app.naviamp.ui.NaviampDownloadsScreenUi
 import app.naviamp.ui.NaviampStorageLocationUi
 import app.naviamp.ui.NaviampSettingsMaintenanceActions
 import app.naviamp.ui.NaviampSettingsValueActions
@@ -78,13 +76,7 @@ data class AndroidAppShellUiState(
     val sonicPathBuilder: SharedSonicPathBuilderUi,
     val sonicMixBuilder: SharedSonicMixBuilderUi,
     val library: NaviampLibraryScreenUi,
-    val downloads: List<NaviampDownloadedTrackUi>,
-    val downloadBytes: Long,
-    val maxDownloadBytes: Long,
-    val offlineDashboard: NaviampOfflineDashboardUi,
-    val downloadStatus: String?,
-    val downloadJobs: List<DownloadJob>,
-    val keepFavoritesDownloaded: Boolean,
+    val downloads: NaviampDownloadsScreenUi,
     val downloadLocations: List<NaviampStorageLocationUi>,
     val audioCacheLocations: List<NaviampStorageLocationUi>,
     val selectedDownloadLocationId: String?,

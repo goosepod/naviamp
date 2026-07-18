@@ -19,6 +19,7 @@ import app.naviamp.ui.NaviampSavedConnectionUi
 import app.naviamp.ui.NaviampLibraryScreenUi
 import app.naviamp.ui.NaviampSearchScreenUi
 import app.naviamp.ui.NaviampOfflineDashboardUi
+import app.naviamp.ui.NaviampDownloadsScreenUi
 import app.naviamp.ui.NaviampStorageLocationUi
 import app.naviamp.ui.NaviampShellCapabilitiesUi
 import app.naviamp.ui.NaviampShellConnectionUi
@@ -30,6 +31,7 @@ import app.naviamp.ui.SharedSonicPathBuilderUi
 import app.naviamp.ui.toSharedGenreMixItemUi
 import app.naviamp.ui.toSharedMediaItemUi
 import app.naviamp.ui.toNaviampSleepTimerUi
+import app.naviamp.ui.toDownloadJobUi
 
 @Composable
 fun rememberAndroidAppShellUiState(
@@ -243,19 +245,21 @@ fun rememberAndroidAppShellUiState(
                 query = libraryQuery,
                 syncStatus = shellModels.librarySyncStatus,
             ),
-            downloads = shellModels.downloads,
-            downloadBytes = storageStats.downloadBytes,
-            maxDownloadBytes = cacheSettings.maxDownloadBytes,
-            offlineDashboard = NaviampOfflineDashboardUi(
-                audioCacheCount = storageStats.audioCount,
-                audioCacheBytes = storageStats.audioBytes,
-                maxAudioCacheBytes = cacheSettings.maxAudioCacheBytes,
+            downloads = NaviampDownloadsScreenUi(
+                downloads = shellModels.downloads,
+                status = downloadStatus,
+                jobs = downloadJobs.map { it.toDownloadJobUi() },
+                downloadBytes = storageStats.downloadBytes,
+                maxDownloadBytes = cacheSettings.maxDownloadBytes,
+                offlineDashboard = NaviampOfflineDashboardUi(
+                    audioCacheCount = storageStats.audioCount,
+                    audioCacheBytes = storageStats.audioBytes,
+                    maxAudioCacheBytes = cacheSettings.maxAudioCacheBytes,
+                ),
+                keepFavoritesDownloaded = keepDownloadedPolicies.any {
+                    it.kind == app.naviamp.domain.cache.KeepDownloadedCollectionKind.Favorites
+                },
             ),
-            downloadStatus = downloadStatus,
-            downloadJobs = downloadJobs,
-            keepFavoritesDownloaded = keepDownloadedPolicies.any {
-                it.kind == app.naviamp.domain.cache.KeepDownloadedCollectionKind.Favorites
-            },
             downloadLocations = downloadLocations,
             audioCacheLocations = audioCacheLocations,
             selectedDownloadLocationId = downloadLocations

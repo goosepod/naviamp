@@ -52,7 +52,6 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.window.Dialog
 import app.naviamp.domain.InternetRadioStation
-import app.naviamp.domain.cache.DownloadJob
 import app.naviamp.domain.settings.ConnectionFormHeader
 import app.naviamp.domain.settings.ConnectionFormMusicFolder
 import app.naviamp.domain.settings.ConnectionFormSecondaryUrl
@@ -122,13 +121,7 @@ fun NaviampSharedAppShell(
     libraryArtists: List<SharedMediaItemUi>,
     libraryQuery: String = "",
     librarySyncStatus: NaviampLibrarySyncStatusUi = NaviampLibrarySyncStatusUi(),
-    downloads: List<NaviampDownloadedTrackUi> = emptyList(),
-    downloadBytes: Long = 0L,
-    maxDownloadBytes: Long = 0L,
-    offlineDashboard: NaviampOfflineDashboardUi = NaviampOfflineDashboardUi(),
-    downloadStatus: String? = null,
-    downloadJobs: List<DownloadJob> = emptyList(),
-    keepFavoritesDownloaded: Boolean = false,
+    downloads: NaviampDownloadsScreenUi = NaviampDownloadsScreenUi(),
     playlistItems: List<SharedMediaItemUi>,
     recentPlaylistIds: List<String> = emptyList(),
     playlistSortMode: SharedPlaylistSortMode = SharedPlaylistSortMode.Alphabetical,
@@ -472,12 +465,6 @@ fun NaviampSharedAppShell(
                             libraryQuery = libraryQuery,
                             librarySyncStatus = librarySyncStatus,
                             downloads = downloads,
-                            downloadBytes = downloadBytes,
-                            maxDownloadBytes = maxDownloadBytes,
-                            offlineDashboard = offlineDashboard,
-                            downloadStatus = downloadStatus,
-                            downloadJobs = downloadJobs,
-                            keepFavoritesDownloaded = keepFavoritesDownloaded,
                             playlistItems = playlistItems,
                             recentPlaylistIds = recentPlaylistIds,
                             playlistSortMode = playlistSortMode,
@@ -1018,13 +1005,7 @@ private fun ConnectedContent(
     libraryArtists: List<SharedMediaItemUi>,
     libraryQuery: String,
     librarySyncStatus: NaviampLibrarySyncStatusUi,
-    downloads: List<NaviampDownloadedTrackUi>,
-    downloadBytes: Long,
-    maxDownloadBytes: Long,
-    offlineDashboard: NaviampOfflineDashboardUi,
-    downloadStatus: String?,
-    downloadJobs: List<DownloadJob>,
-    keepFavoritesDownloaded: Boolean,
+    downloads: NaviampDownloadsScreenUi,
     playlistItems: List<SharedMediaItemUi>,
     recentPlaylistIds: List<String>,
     playlistSortMode: SharedPlaylistSortMode,
@@ -1513,12 +1494,7 @@ private fun ConnectedContent(
             SharedRoute.Settings -> Unit
             SharedRoute.Downloads -> DownloadsContent(
                 colors = colors,
-                downloads = downloads,
-                status = downloadStatus,
-                downloadJobs = downloadJobs,
-                keepFavoritesDownloaded = keepFavoritesDownloaded,
-                maxDownloadBytes = maxDownloadBytes,
-                offlineDashboard = offlineDashboard,
+                screen = downloads,
                 playlistChoices = playlistChoices,
                 playlistActionStatus = playlistActionStatus,
                 onDownloadAction = onDownloadedTrackAction,

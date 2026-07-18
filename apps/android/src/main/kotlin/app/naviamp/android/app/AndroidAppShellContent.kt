@@ -22,7 +22,7 @@ fun AndroidAppShellContent(
         general = state.interfaceSettings.toGeneralSettingsUi(state.about),
         playback = state.playbackSettings.toPlaybackSettingsUi(
             capabilities = state.capabilities,
-            downloadBytes = state.downloadBytes,
+            downloadBytes = state.downloads.downloadBytes,
         ),
         cache = NaviampCacheSettingsUi(
             settings = state.cacheSettings,
@@ -51,12 +51,6 @@ fun AndroidAppShellContent(
         libraryQuery = state.library.query,
         librarySyncStatus = state.library.syncStatus,
         downloads = state.downloads,
-        downloadBytes = state.downloadBytes,
-        maxDownloadBytes = state.maxDownloadBytes,
-        offlineDashboard = state.offlineDashboard,
-        downloadStatus = state.downloadStatus,
-        downloadJobs = state.downloadJobs,
-        keepFavoritesDownloaded = state.keepFavoritesDownloaded,
         playlistItems = state.playlistItems,
         recentPlaylistIds = state.recentPlaylistIds,
         playlistSortMode = state.playlistSortMode,
