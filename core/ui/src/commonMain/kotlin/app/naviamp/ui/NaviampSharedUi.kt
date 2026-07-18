@@ -120,8 +120,7 @@ fun NaviampSharedAppShell(
     downloads: NaviampDownloadsScreenUi = NaviampDownloadsScreenUi(),
     playlists: NaviampPlaylistsScreenUi,
     playlistChoices: List<NaviampPlaylistChoiceUi> = emptyList(),
-    radioStations: List<InternetRadioStation>,
-    radioRefreshing: Boolean = false,
+    radio: NaviampInternetRadioScreenUi,
     albumDetail: SharedAlbumDetailUi?,
     artistDetail: SharedArtistDetailUi?,
     playlistDetail: SharedPlaylistDetailUi? = null,
@@ -435,8 +434,7 @@ fun NaviampSharedAppShell(
                             downloads = downloads,
                             playlists = playlists,
                             playlistChoices = playlistChoices,
-                            radioStations = radioStations,
-                            radioRefreshing = radioRefreshing,
+                            radio = radio,
                             albumDetail = albumDetail,
                             artistDetail = artistDetail,
                             playlistDetail = playlistDetail,
@@ -954,8 +952,7 @@ private fun ConnectedContent(
     downloads: NaviampDownloadsScreenUi,
     playlists: NaviampPlaylistsScreenUi,
     playlistChoices: List<NaviampPlaylistChoiceUi>,
-    radioStations: List<InternetRadioStation>,
-    radioRefreshing: Boolean,
+    radio: NaviampInternetRadioScreenUi,
     albumDetail: SharedAlbumDetailUi?,
     artistDetail: SharedArtistDetailUi?,
     playlistDetail: SharedPlaylistDetailUi?,
@@ -1217,7 +1214,9 @@ private fun ConnectedContent(
                 onRecentRadioSelected = onRecentRadioSelected,
                 onMixBuilderSelected = onMixBuilderSelected,
                 onInternetRadioStationSelected = { item ->
-                    radioStations.firstOrNull { it.id == item.id }?.let(onRadioStationSelected)
+                    radio.stations.firstOrNull { it.item.id == item.id }
+                        ?.toInternetRadioStation()
+                        ?.let(onRadioStationSelected)
                 },
                 onHomeStationSelected = onHomeStationSelected,
                 onSonicDiscoveryTrackAction = onSonicDiscoveryTrackAction,
@@ -1405,15 +1404,13 @@ private fun ConnectedContent(
                 }
             }
             SharedRoute.Radio -> PullToRefreshRoute(
-                isRefreshing = radioRefreshing,
+                isRefreshing = radio.refreshing,
                 onRefresh = onRefreshRadioStations,
                 useScrollContainer = true,
             ) {
                 InternetRadioContent(
                     colors = colors,
-                    screen = NaviampInternetRadioScreenUi(
-                        stations = radioStations.map { it.toInternetRadioStationUi() },
-                    ),
+                    screen = radio,
                     onStationAction = onStationAction,
                     onSaveStation = { onRadioStationSave(it.toInternetRadioStation()) },
                 )

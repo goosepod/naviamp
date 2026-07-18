@@ -57,6 +57,7 @@ import app.naviamp.ui.NaviampSearchScreenUi
 import app.naviamp.ui.NaviampSearchActions
 import app.naviamp.ui.NaviampPlaylistsScreenUi
 import app.naviamp.ui.NaviampPlaylistsActions
+import app.naviamp.ui.NaviampInternetRadioScreenUi
 
 data class AndroidAppShellUiState(
     val modifier: Modifier,
@@ -85,8 +86,7 @@ data class AndroidAppShellUiState(
     val selectedAudioCacheLocationId: String?,
     val playlists: NaviampPlaylistsScreenUi,
     val playlistChoices: List<NaviampPlaylistChoiceUi>,
-    val radioStations: List<InternetRadioStation>,
-    val radioRefreshing: Boolean,
+    val radio: NaviampInternetRadioScreenUi,
     val albumDetail: SharedAlbumDetailUi?,
     val artistDetail: SharedArtistDetailUi?,
     val playlistDetail: SharedPlaylistDetailUi?,

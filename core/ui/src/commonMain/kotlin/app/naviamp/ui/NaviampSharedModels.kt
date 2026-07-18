@@ -424,6 +424,7 @@ data class NaviampInternetRadioStationEditUi(
 data class NaviampInternetRadioScreenUi(
     val stations: List<NaviampInternetRadioStationUi> = emptyList(),
     val status: String? = null,
+    val refreshing: Boolean = false,
 )
 
 data class NaviampAlbumDetailScreenUi(

@@ -175,6 +175,7 @@ class MediaUiMappersTest {
         assertEquals("station-1", ui.item.id)
         assertEquals("Deep Space One", ui.item.title)
         assertEquals(station.streamUrl, ui.streamUrl)
+        assertEquals(station, ui.toInternetRadioStation())
         assertEquals("station-1", updated.id)
         assertEquals("Updated Station", updated.name)
         assertEquals("https://example.test/updated", updated.streamUrl)

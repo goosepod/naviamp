@@ -19,6 +19,7 @@ import app.naviamp.ui.NaviampSavedConnectionUi
 import app.naviamp.ui.NaviampLibraryScreenUi
 import app.naviamp.ui.NaviampSearchScreenUi
 import app.naviamp.ui.NaviampPlaylistsScreenUi
+import app.naviamp.ui.NaviampInternetRadioScreenUi
 import app.naviamp.ui.NaviampOfflineDashboardUi
 import app.naviamp.ui.NaviampDownloadsScreenUi
 import app.naviamp.ui.NaviampStorageLocationUi
@@ -33,6 +34,7 @@ import app.naviamp.ui.toSharedGenreMixItemUi
 import app.naviamp.ui.toSharedMediaItemUi
 import app.naviamp.ui.toNaviampSleepTimerUi
 import app.naviamp.ui.toDownloadJobUi
+import app.naviamp.ui.toInternetRadioStationUi
 
 @Composable
 fun rememberAndroidAppShellUiState(
@@ -277,8 +279,10 @@ fun rememberAndroidAppShellUiState(
                 refreshing = isPlaylistRefreshing,
             ),
             playlistChoices = shellModels.playlistChoices,
-            radioStations = homeState.radioStations,
-            radioRefreshing = isInternetRadioRefreshing,
+            radio = NaviampInternetRadioScreenUi(
+                stations = homeState.radioStations.map { it.toInternetRadioStationUi() },
+                refreshing = isInternetRadioRefreshing,
+            ),
             albumDetail = shellModels.albumDetail,
             artistDetail = shellModels.artistDetail,
             playlistDetail = shellModels.playlistDetail,

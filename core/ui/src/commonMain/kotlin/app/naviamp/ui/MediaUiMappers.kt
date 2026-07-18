@@ -126,6 +126,14 @@ fun InternetRadioStation.toInternetRadioStationUi(): NaviampInternetRadioStation
         homePageUrl = homePageUrl,
     )
 
+fun NaviampInternetRadioStationUi.toInternetRadioStation(): InternetRadioStation =
+    InternetRadioStation(
+        id = item.id,
+        name = item.title,
+        streamUrl = streamUrl,
+        homePageUrl = homePageUrl,
+    )
+
 fun NaviampInternetRadioStationEditUi.toInternetRadioStation(): InternetRadioStation =
     InternetRadioStation(
         id = id ?: streamUrl.trim(),
