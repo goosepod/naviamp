@@ -19,6 +19,7 @@ import app.naviamp.ui.NaviampConnectionSettingsActions
 import app.naviamp.ui.NaviampDownloadsActions
 import app.naviamp.ui.NaviampLibraryActions
 import app.naviamp.ui.NaviampPlaylistChoiceUi
+import app.naviamp.ui.NaviampPlaylistsActions
 import app.naviamp.ui.NaviampSavedConnectionUi
 import app.naviamp.ui.NaviampSearchActions
 import app.naviamp.ui.NaviampVisualizer
@@ -357,8 +358,28 @@ fun androidAppShellActions(
                 onRefresh = refreshAndroidLibrary,
                 onLoadMore = loadNextAndroidLibraryPage,
             ),
+            playlistsActions = NaviampPlaylistsActions(
+                onRefresh = refreshPlaylists,
+                onSortModeChanged = { playlistSortMode = it },
+                onSmartPlaylistSave = { definition -> saveSmartPlaylist(definition) },
+                onSmartPlaylistUpdate = { playlist, definition ->
+                    homeState.playlists.firstOrNull { it.id == playlist.id }?.let { updateSmartPlaylist(it, definition) }
+                        ?: run { status = "Playlist not found." }
+                },
+                onSmartPlaylistSaveWithPassword = { definition, password ->
+                    saveSmartPlaylistWithPassword(definition, password)
+                },
+                onSmartPlaylistUpdateWithPassword = { playlist, definition, password ->
+                    homeState.playlists.firstOrNull { it.id == playlist.id }?.let {
+                        updateSmartPlaylistWithPassword(it, definition, password)
+                    } ?: run { status = "Playlist not found." }
+                },
+                onSmartPlaylistLoad = { playlist ->
+                    homeState.playlists.firstOrNull { it.id == playlist.id }?.let { loadSmartPlaylist(it) }
+                        ?: throw IllegalArgumentException("Playlist not found.")
+                },
+            ),
             onRefreshHome = refreshHome,
-            onRefreshPlaylists = refreshPlaylists,
             onRefreshRadioStations = refreshInternetRadioStations,
             onTrackSelected = handleShellTrackSelected,
             onAlbumSelected = handleShellAlbumSelected,
@@ -399,7 +420,6 @@ fun androidAppShellActions(
                 homeState.playlists.firstOrNull { it.id == selectedPlaylist.id }?.let(openPlaylistDetails)
                     ?: run { status = "Playlist not found." }
             },
-            onPlaylistSortModeChanged = { playlistSortMode = it },
             onPlaylistPlay = { selectedPlaylist, shuffle ->
                 homeState.playlists.firstOrNull { it.id == selectedPlaylist.id }?.let { playPlaylist(it, shuffle) }
                     ?: run { status = "Playlist not found." }
@@ -538,7 +558,6 @@ fun androidAppShellActions(
                     -> Unit
                 }
             },
-            onSmartPlaylistSave = { definition -> saveSmartPlaylist(definition) },
             onStandardPlaylistUpdate = { playlistItem, trackRows ->
                 val playlist = homeState.playlists.firstOrNull { it.id == playlistItem.id }
                     ?: throw IllegalArgumentException("Playlist not found.")
@@ -548,22 +567,6 @@ fun androidAppShellActions(
                         ?: throw IllegalArgumentException("Track ${row.title} is no longer in the playlist.")
                 }
                 updateStandardPlaylistTracks(playlist, editedTracks)
-            },
-            onSmartPlaylistUpdate = { playlist, definition ->
-                homeState.playlists.firstOrNull { it.id == playlist.id }?.let { updateSmartPlaylist(it, definition) }
-                    ?: run { status = "Playlist not found." }
-            },
-            onSmartPlaylistSaveWithPassword = { definition, password ->
-                saveSmartPlaylistWithPassword(definition, password)
-            },
-            onSmartPlaylistUpdateWithPassword = { playlist, definition, password ->
-                homeState.playlists.firstOrNull { it.id == playlist.id }?.let {
-                    updateSmartPlaylistWithPassword(it, definition, password)
-                } ?: run { status = "Playlist not found." }
-            },
-            onSmartPlaylistLoad = { playlist ->
-                homeState.playlists.firstOrNull { it.id == playlist.id }?.let { loadSmartPlaylist(it) }
-                    ?: throw IllegalArgumentException("Playlist not found.")
             },
             onPlaylistBack = { closeActivePlaylist() },
             onPlaylistTrackSelected = handlePlaylistTrackSelected,

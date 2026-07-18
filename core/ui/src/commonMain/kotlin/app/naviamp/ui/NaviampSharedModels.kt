@@ -12,6 +12,7 @@ import app.naviamp.domain.settings.ConnectionFormState
 import app.naviamp.domain.settings.PlaybackSettings
 import app.naviamp.domain.settings.CacheSettings
 import app.naviamp.domain.settings.InterfaceSettings
+import app.naviamp.domain.smartplaylist.SmartPlaylistDefinition
 import app.naviamp.domain.waveform.AudioWaveform
 
 data class NaviampColors(
@@ -475,6 +476,22 @@ data class NaviampPlaylistsScreenUi(
     val sortMode: SharedPlaylistSortMode = SharedPlaylistSortMode.Alphabetical,
     val status: String? = null,
     val refreshing: Boolean = false,
+)
+
+data class NaviampPlaylistsActions(
+    val onRefresh: () -> Unit = {},
+    val onSortModeChanged: (SharedPlaylistSortMode) -> Unit = {},
+    val onSmartPlaylistSave: suspend (SmartPlaylistDefinition) -> Unit = {},
+    val onSmartPlaylistUpdate: suspend (SharedMediaItemUi, SmartPlaylistDefinition) -> Unit = { _, _ -> },
+    val onSmartPlaylistSaveWithPassword: suspend (SmartPlaylistDefinition, String) -> Unit = { definition, _ ->
+        onSmartPlaylistSave(definition)
+    },
+    val onSmartPlaylistUpdateWithPassword: suspend (SharedMediaItemUi, SmartPlaylistDefinition, String) -> Unit = { playlist, definition, _ ->
+        onSmartPlaylistUpdate(playlist, definition)
+    },
+    val onSmartPlaylistLoad: suspend (SharedMediaItemUi) -> SmartPlaylistDefinition = {
+        throw UnsupportedOperationException("Smart playlist loading is not available.")
+    },
 )
 
 data class NaviampPlaylistDetailScreenUi(

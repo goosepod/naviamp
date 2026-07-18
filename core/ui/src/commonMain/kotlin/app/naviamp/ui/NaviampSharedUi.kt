@@ -61,7 +61,6 @@ import app.naviamp.domain.settings.AlbumSortOrder
 import app.naviamp.domain.settings.AppBackgroundStyle
 import app.naviamp.domain.settings.DefaultSingleColorHex
 import app.naviamp.domain.settings.toggleSelectedMusicFolderId
-import app.naviamp.domain.smartplaylist.SmartPlaylistDefinition
 
 @Composable
 expect fun PlatformCoverArt(
@@ -144,8 +143,8 @@ fun NaviampSharedAppShell(
     sonicMixActions: SharedSonicMixBuilderActions = SharedSonicMixBuilderActions(),
     downloadsActions: NaviampDownloadsActions = NaviampDownloadsActions(),
     libraryActions: NaviampLibraryActions = NaviampLibraryActions(),
+    playlistsActions: NaviampPlaylistsActions = NaviampPlaylistsActions(),
     onRefreshHome: () -> Unit = {},
-    onRefreshPlaylists: () -> Unit = {},
     onRefreshRadioStations: () -> Unit = {},
     onTrackSelected: (SharedTrackRowUi) -> Unit,
     onAlbumSelected: (SharedMediaItemUi) -> Unit,
@@ -181,7 +180,6 @@ fun NaviampSharedAppShell(
     onSimilarArtistSelected: (SharedSimilarArtistUi) -> Unit = {},
     onSimilarArtistExternalSelected: (String) -> Unit = {},
     onPlaylistSelected: (SharedMediaItemUi) -> Unit,
-    onPlaylistSortModeChanged: (SharedPlaylistSortMode) -> Unit = {},
     onPlaylistPlay: (SharedMediaItemUi, Boolean) -> Unit = { _, _ -> },
     onPlaylistAddToQueue: (SharedPlaylistDetailUi) -> Unit = {},
     onPlaylistAddToPlaylist: (SharedPlaylistDetailUi, NaviampPlaylistChoiceUi?) -> Unit = { _, _ -> },
@@ -226,17 +224,6 @@ fun NaviampSharedAppShell(
                 onDelete = onPlaylistDelete,
             ),
         )
-    },
-    onSmartPlaylistSave: suspend (SmartPlaylistDefinition) -> Unit = {},
-    onSmartPlaylistUpdate: suspend (SharedMediaItemUi, SmartPlaylistDefinition) -> Unit = { _, _ -> },
-    onSmartPlaylistSaveWithPassword: suspend (SmartPlaylistDefinition, String) -> Unit = { definition, _ ->
-        onSmartPlaylistSave(definition)
-    },
-    onSmartPlaylistUpdateWithPassword: suspend (SharedMediaItemUi, SmartPlaylistDefinition, String) -> Unit = { playlist, definition, _ ->
-        onSmartPlaylistUpdate(playlist, definition)
-    },
-    onSmartPlaylistLoad: suspend (SharedMediaItemUi) -> SmartPlaylistDefinition = {
-        throw UnsupportedOperationException("Smart playlist loading is not available.")
     },
     onPlaylistBack: () -> Unit = {},
     onPlaylistTrackSelected: (SharedTrackRowUi) -> Unit = {},
@@ -474,8 +461,8 @@ fun NaviampSharedAppShell(
             sonicMixActions = sonicMixActions,
                             downloadsActions = downloadsActions,
                             libraryActions = libraryActions,
+                            playlistsActions = playlistsActions,
                             onRefreshHome = onRefreshHome,
-                            onRefreshPlaylists = onRefreshPlaylists,
                             onRefreshRadioStations = onRefreshRadioStations,
                             onTrackSelected = onTrackSelected,
                             onAlbumSelected = onAlbumSelected,
@@ -511,7 +498,6 @@ fun NaviampSharedAppShell(
                             onSimilarArtistSelected = onSimilarArtistSelected,
                             onSimilarArtistExternalSelected = onSimilarArtistExternalSelected,
                             onPlaylistSelected = onPlaylistSelected,
-                            onPlaylistSortModeChanged = onPlaylistSortModeChanged,
                             onPlaylistPlay = onPlaylistPlay,
                             onPlaylistAddToQueue = onPlaylistAddToQueue,
                             onPlaylistAddToPlaylist = onPlaylistAddToPlaylist,
@@ -521,11 +507,6 @@ fun NaviampSharedAppShell(
                             onPlaylistDelete = onPlaylistDelete,
                             onStandardPlaylistUpdate = onStandardPlaylistUpdate,
                             onMediaItemAction = onMediaItemAction,
-                            onSmartPlaylistSave = onSmartPlaylistSave,
-                            onSmartPlaylistUpdate = onSmartPlaylistUpdate,
-                            onSmartPlaylistSaveWithPassword = onSmartPlaylistSaveWithPassword,
-                            onSmartPlaylistUpdateWithPassword = onSmartPlaylistUpdateWithPassword,
-                            onSmartPlaylistLoad = onSmartPlaylistLoad,
                             onPlaylistBack = onPlaylistBack,
                             onPlaylistTrackSelected = onPlaylistTrackSelected,
                             onTrackAddToQueue = onTrackAddToQueue,
@@ -999,8 +980,8 @@ private fun ConnectedContent(
     sonicMixActions: SharedSonicMixBuilderActions,
     downloadsActions: NaviampDownloadsActions,
     libraryActions: NaviampLibraryActions,
+    playlistsActions: NaviampPlaylistsActions,
     onRefreshHome: () -> Unit,
-    onRefreshPlaylists: () -> Unit,
     onRefreshRadioStations: () -> Unit,
     onTrackSelected: (SharedTrackRowUi) -> Unit,
     onAlbumSelected: (SharedMediaItemUi) -> Unit,
@@ -1036,7 +1017,6 @@ private fun ConnectedContent(
     onSimilarArtistSelected: (SharedSimilarArtistUi) -> Unit,
     onSimilarArtistExternalSelected: (String) -> Unit,
     onPlaylistSelected: (SharedMediaItemUi) -> Unit,
-    onPlaylistSortModeChanged: (SharedPlaylistSortMode) -> Unit,
     onPlaylistPlay: (SharedMediaItemUi, Boolean) -> Unit,
     onPlaylistAddToQueue: (SharedPlaylistDetailUi) -> Unit,
     onPlaylistAddToPlaylist: (SharedPlaylistDetailUi, NaviampPlaylistChoiceUi?) -> Unit,
@@ -1046,11 +1026,6 @@ private fun ConnectedContent(
     onPlaylistDelete: (SharedMediaItemUi) -> Unit,
     onStandardPlaylistUpdate: suspend (SharedMediaItemUi, List<SharedTrackRowUi>) -> Unit,
     onMediaItemAction: (SharedMediaItemActionRequest) -> Unit,
-    onSmartPlaylistSave: suspend (SmartPlaylistDefinition) -> Unit,
-    onSmartPlaylistUpdate: suspend (SharedMediaItemUi, SmartPlaylistDefinition) -> Unit,
-    onSmartPlaylistSaveWithPassword: suspend (SmartPlaylistDefinition, String) -> Unit,
-    onSmartPlaylistUpdateWithPassword: suspend (SharedMediaItemUi, SmartPlaylistDefinition, String) -> Unit,
-    onSmartPlaylistLoad: suspend (SharedMediaItemUi) -> SmartPlaylistDefinition,
     onPlaylistBack: () -> Unit,
     onPlaylistTrackSelected: (SharedTrackRowUi) -> Unit,
     onTrackAddToQueue: (SharedTrackRowUi) -> Unit,
@@ -1218,9 +1193,9 @@ private fun ConnectedContent(
             onRenamePlaylist = onPlaylistRename,
             onDeletePlaylist = onPlaylistDelete,
             onUpdateStandardPlaylist = onStandardPlaylistUpdate,
-            onSmartPlaylistUpdate = onSmartPlaylistUpdate,
-            onSmartPlaylistUpdateWithPassword = onSmartPlaylistUpdateWithPassword,
-            onSmartPlaylistLoad = onSmartPlaylistLoad,
+            onSmartPlaylistUpdate = playlistsActions.onSmartPlaylistUpdate,
+            onSmartPlaylistUpdateWithPassword = playlistsActions.onSmartPlaylistUpdateWithPassword,
+            onSmartPlaylistLoad = playlistsActions.onSmartPlaylistLoad,
             onTrackSelected = onPlaylistTrackSelected,
             onTrackAddToQueue = { track ->
                 onTrackAction(SharedTrackRowActionRequest(track, SharedTrackRowAction.AddToQueue))
@@ -1256,7 +1231,7 @@ private fun ConnectedContent(
             )
             SharedRoute.Playlists -> PullToRefreshRoute(
                 isRefreshing = playlists.refreshing,
-                onRefresh = onRefreshPlaylists,
+                onRefresh = playlistsActions.onRefresh,
                 useScrollContainer = true,
             ) {
                 PlaylistsContent(
@@ -1265,13 +1240,13 @@ private fun ConnectedContent(
                     recentPlaylistIds = playlists.recentPlaylistIds,
                     sortMode = playlists.sortMode,
                     status = playlists.status,
-                    onSortModeChanged = onPlaylistSortModeChanged,
+                    onSortModeChanged = playlistsActions.onSortModeChanged,
                     onPlaylistAction = onMediaItemAction,
-                    onSmartPlaylistSave = onSmartPlaylistSave,
-                    onSmartPlaylistUpdate = onSmartPlaylistUpdate,
-                    onSmartPlaylistSaveWithPassword = onSmartPlaylistSaveWithPassword,
-                    onSmartPlaylistUpdateWithPassword = onSmartPlaylistUpdateWithPassword,
-                    onSmartPlaylistLoad = onSmartPlaylistLoad,
+                    onSmartPlaylistSave = playlistsActions.onSmartPlaylistSave,
+                    onSmartPlaylistUpdate = playlistsActions.onSmartPlaylistUpdate,
+                    onSmartPlaylistSaveWithPassword = playlistsActions.onSmartPlaylistSaveWithPassword,
+                    onSmartPlaylistUpdateWithPassword = playlistsActions.onSmartPlaylistUpdateWithPassword,
+                    onSmartPlaylistLoad = playlistsActions.onSmartPlaylistLoad,
                     playlistChoices = playlistChoices,
                     availableLibraries = availableMusicFolders,
                     selectedConnectionLibraryIds = connectionForm.selectedMusicFolderIds,

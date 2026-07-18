@@ -359,6 +359,7 @@ Record architecture decisions here or link a dedicated decision record.
 | 2026-07-18 | Carry grouped search and library presentation through the public shared shell. | `NaviampSearchScreenUi` and `NaviampLibraryScreenUi` should remain intact from Android through the private route renderer so query, results, sync, and paging-related presentation do not expand back into flat shell fields. |
 | 2026-07-18 | Carry focused search and library actions through the public shared shell. | Query, submit/clear, refresh, and paging intent belong in `NaviampSearchActions` and `NaviampLibraryActions`; media selection and favorite actions remain route-shared, while provider, playback, and navigation execution stay host-owned. |
 | 2026-07-18 | Carry grouped playlist-list presentation through the public shared shell. | Playlist rows, recent IDs, sort mode, refresh state, and the status shared by playlist dialogs should remain one `NaviampPlaylistsScreenUi` from Android through route rendering, avoiding duplicate status ownership. |
+| 2026-07-18 | Carry focused playlist actions through the public shared shell. | Refresh, sorting, and smart-playlist create/edit/load operations belong in `NaviampPlaylistsActions`; playlist row actions remain on the route-shared typed media dispatcher, while provider mutations, playback, and navigation remain host-owned. |
 
 ## Shared Controller Construction Audit
 
@@ -384,7 +385,7 @@ The 2026-07-17 audit covers every current application entry point:
 
 ## Current Handoff
 
-- **Last completed item:** Android and the public/private shared shell now carry playlist-list presentation as one `NaviampPlaylistsScreenUi`, including refresh state and the shared playlist-dialog status. Playlist choices remain a separate cross-feature input used by downloads and media-detail dialogs.
-- **Next recommended item:** Introduce a focused `NaviampPlaylistsActions` contract for refresh, sorting, row actions, and smart-playlist operations. Keep provider mutations, playlist-detail playback, and navigation execution in their current host/shared executors.
+- **Last completed item:** Android and the public/private shared shell now carry playlist-list presentation and focused intent as `NaviampPlaylistsScreenUi` and `NaviampPlaylistsActions`. Playlist choices remain a separate cross-feature input; typed row actions stay shared across media kinds, while provider mutations, playback, and navigation remain host-owned.
+- **Next recommended item:** Carry `NaviampInternetRadioScreenUi` through the Android/public/private shell instead of raw `InternetRadioStation` lists and a separate refresh flag, then group radio refresh/edit intent while keeping provider mutations and external navigation host-owned.
 - **Verification:** `:core:domain:jvmTest`, `:core:app:jvmTest`, `:core:storage:jvmTest`, `:core:ui:jvmTest`, `:apps:android:testDebugUnitTest`, `:apps:desktop:desktopTest`, `:core:app:iosSimulatorArm64Test`, `:core:storage:compileKotlinIosSimulatorArm64`, and `:core:ui:compileKotlinIosSimulatorArm64` pass together with at most two Gradle workers.
 - **Known blockers:** None.

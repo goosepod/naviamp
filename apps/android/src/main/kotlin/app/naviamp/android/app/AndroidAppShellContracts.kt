@@ -7,7 +7,6 @@ import app.naviamp.domain.Track
 import app.naviamp.domain.settings.CacheSettings
 import app.naviamp.domain.settings.InterfaceSettings
 import app.naviamp.domain.settings.PlaybackSettings
-import app.naviamp.domain.smartplaylist.SmartPlaylistDefinition
 import app.naviamp.ui.NaviampDiagnosticsUi
 import app.naviamp.ui.NaviampConnectionSettingsActions
 import app.naviamp.ui.NaviampDownloadsScreenUi
@@ -41,7 +40,6 @@ import app.naviamp.ui.SharedMediaItemActionRequest
 import app.naviamp.ui.SharedMediaItemUi
 import app.naviamp.ui.SharedMixBuilderUi
 import app.naviamp.ui.SharedPlaylistDetailUi
-import app.naviamp.ui.SharedPlaylistSortMode
 import app.naviamp.ui.SharedRoute
 import app.naviamp.ui.SharedSimilarArtistUi
 import app.naviamp.ui.SharedSonicMixBuilderActions
@@ -58,6 +56,7 @@ import app.naviamp.ui.NaviampLibraryActions
 import app.naviamp.ui.NaviampSearchScreenUi
 import app.naviamp.ui.NaviampSearchActions
 import app.naviamp.ui.NaviampPlaylistsScreenUi
+import app.naviamp.ui.NaviampPlaylistsActions
 
 data class AndroidAppShellUiState(
     val modifier: Modifier,
@@ -109,8 +108,8 @@ data class AndroidAppShellActions(
     val sonicMixActions: SharedSonicMixBuilderActions,
     val downloadsActions: NaviampDownloadsActions,
     val libraryActions: NaviampLibraryActions,
+    val playlistsActions: NaviampPlaylistsActions,
     val onRefreshHome: () -> Unit,
-    val onRefreshPlaylists: () -> Unit,
     val onRefreshRadioStations: () -> Unit,
     val onTrackSelected: (SharedTrackRowUi) -> Unit,
     val onAlbumSelected: (SharedMediaItemUi) -> Unit,
@@ -140,7 +139,6 @@ data class AndroidAppShellActions(
     val onArtistSelected: (SharedMediaItemUi) -> Unit,
     val onArtistFavoriteToggled: (SharedMediaItemUi) -> Unit,
     val onPlaylistSelected: (SharedMediaItemUi) -> Unit,
-    val onPlaylistSortModeChanged: (SharedPlaylistSortMode) -> Unit,
     val onPlaylistPlay: (SharedMediaItemUi, Boolean) -> Unit,
     val onPlaylistAddToQueue: (SharedPlaylistDetailUi) -> Unit,
     val onPlaylistAddToPlaylist: (SharedPlaylistDetailUi, NaviampPlaylistChoiceUi?) -> Unit,
@@ -150,11 +148,6 @@ data class AndroidAppShellActions(
     val onPlaylistDelete: (SharedMediaItemUi) -> Unit,
     val onStandardPlaylistUpdate: suspend (SharedMediaItemUi, List<SharedTrackRowUi>) -> Unit,
     val onMediaItemAction: (SharedMediaItemActionRequest) -> Unit,
-    val onSmartPlaylistSave: suspend (SmartPlaylistDefinition) -> Unit,
-    val onSmartPlaylistUpdate: suspend (SharedMediaItemUi, SmartPlaylistDefinition) -> Unit,
-    val onSmartPlaylistSaveWithPassword: suspend (SmartPlaylistDefinition, String) -> Unit,
-    val onSmartPlaylistUpdateWithPassword: suspend (SharedMediaItemUi, SmartPlaylistDefinition, String) -> Unit,
-    val onSmartPlaylistLoad: suspend (SharedMediaItemUi) -> SmartPlaylistDefinition,
     val onPlaylistBack: () -> Unit,
     val onPlaylistTrackSelected: (SharedTrackRowUi) -> Unit,
     val onRecentRadioSelected: (SharedMediaItemUi) -> Unit,
