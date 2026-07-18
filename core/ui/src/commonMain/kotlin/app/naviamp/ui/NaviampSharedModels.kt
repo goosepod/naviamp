@@ -778,6 +778,12 @@ data class NaviampMediaActions(
     val onMediaItemAction: ((SharedMediaItemActionRequest) -> Unit)? = null,
 )
 
+data class NaviampShellNavigationActions(
+    val onRouteSelected: (SharedRoute) -> Unit = {},
+    val onOpenNowPlaying: () -> Unit = {},
+    val onCloseNowPlaying: () -> Unit = {},
+)
+
 data class SharedSonicPathBuilderActions(
     val onStartQueryChanged: (String) -> Unit = {},
     val onEndQueryChanged: (String) -> Unit = {},

@@ -20,6 +20,7 @@ import app.naviamp.ui.NaviampConnectionSettingsActions
 import app.naviamp.ui.NaviampDownloadsActions
 import app.naviamp.ui.NaviampHomeActions
 import app.naviamp.ui.NaviampMediaActions
+import app.naviamp.ui.NaviampShellNavigationActions
 import app.naviamp.ui.NaviampLibraryActions
 import app.naviamp.ui.NaviampInternetRadioActions
 import app.naviamp.ui.NaviampAlbumDetailActions
@@ -251,12 +252,16 @@ fun androidAppShellActions(
 ): AndroidAppShellActions =
     with(state) {
         AndroidAppShellActions(
-            onRouteSelected = { route ->
-                navigationState = navigationState.copy(route = route.toNaviampRoute())
-                contentState = contentState.clearDetails()
-                artistDetailBackStack = emptyList()
-                nowPlayingOpen = false
-            },
+            navigationActions = NaviampShellNavigationActions(
+                onRouteSelected = { route ->
+                    navigationState = navigationState.copy(route = route.toNaviampRoute())
+                    contentState = contentState.clearDetails()
+                    artistDetailBackStack = emptyList()
+                    nowPlayingOpen = false
+                },
+                onOpenNowPlaying = { nowPlayingOpen = true },
+                onCloseNowPlaying = { nowPlayingOpen = false },
+            ),
             connectionActions = NaviampConnectionSettingsActions(
                 onFormChanged = handleConnectionFormChanged,
                 onConnect = { connectToNavidrome() },
@@ -645,8 +650,6 @@ fun androidAppShellActions(
                 }
             },
             ),
-            onOpenNowPlaying = { nowPlayingOpen = true },
-            onCloseNowPlaying = { nowPlayingOpen = false },
             nowPlayingActions = NaviampNowPlayingActions(
             onPlaybackAction = { request ->
                 when (request.action) {

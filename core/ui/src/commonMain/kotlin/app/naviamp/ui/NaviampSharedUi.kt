@@ -127,7 +127,7 @@ fun NaviampSharedAppShell(
     visualizerBandsProvider: () -> List<Float> = { nowPlaying?.visualizerFrame?.bands.orEmpty() },
     selectedVisualizer: NaviampVisualizer = NaviampVisualizer.AudioSphere,
     selectedRoute: SharedRoute,
-    onRouteSelected: (SharedRoute) -> Unit,
+    navigationActions: NaviampShellNavigationActions,
     connectionActions: NaviampConnectionSettingsActions,
     syncActions: NaviampSettingsSyncActions = NaviampSettingsSyncActions(),
     valueActions: NaviampSettingsValueActions = NaviampSettingsValueActions(),
@@ -147,8 +147,6 @@ fun NaviampSharedAppShell(
     playlistDetailActions: NaviampPlaylistDetailActions = NaviampPlaylistDetailActions(),
     homeActions: NaviampHomeActions = NaviampHomeActions(),
     mediaActions: NaviampMediaActions,
-    onOpenNowPlaying: () -> Unit,
-    onCloseNowPlaying: () -> Unit,
     nowPlayingActions: NaviampNowPlayingActions = NaviampNowPlayingActions(),
 ) {
     val resolvedMediaItemAction = mediaActions.onMediaItemAction ?: { request ->
@@ -389,8 +387,6 @@ fun NaviampSharedAppShell(
                             playlistDetailActions = playlistDetailActions,
                             homeActions = homeActions,
                             mediaActions = resolvedMediaActions,
-                            onOpenNowPlaying = onOpenNowPlaying,
-                            onCloseNowPlaying = onCloseNowPlaying,
                             nowPlayingActions = nowPlayingActions,
                         )
                     }
@@ -400,7 +396,7 @@ fun NaviampSharedAppShell(
                         NaviampMiniNowPlaying(
                             nowPlaying = nowPlaying,
                             colors = colors,
-                            onOpen = onOpenNowPlaying,
+                            onOpen = navigationActions.onOpenNowPlaying,
                             actions = nowPlayingActions,
                             modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp),
                         )
@@ -410,8 +406,8 @@ fun NaviampSharedAppShell(
                         selectedRoute = selectedRoute,
                         supportsDownloads = supportsDownloads,
                         onRouteSelected = {
-                            onCloseNowPlaying()
-                            onRouteSelected(it)
+                            navigationActions.onCloseNowPlaying()
+                            navigationActions.onRouteSelected(it)
                         },
                     )
                 }
@@ -856,8 +852,6 @@ private fun ConnectedContent(
     playlistDetailActions: NaviampPlaylistDetailActions,
     homeActions: NaviampHomeActions,
     mediaActions: NaviampMediaActions,
-    onOpenNowPlaying: () -> Unit,
-    onCloseNowPlaying: () -> Unit,
     nowPlayingActions: NaviampNowPlayingActions,
 ) {
     val onTrackSelected = mediaActions.onTrackSelected

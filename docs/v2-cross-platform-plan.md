@@ -368,6 +368,7 @@ Record architecture decisions here or link a dedicated decision record.
 | 2026-07-18 | Carry grouped Home presentation through the public shared shell. | Mapped Home sections and refresh state should remain one `NaviampHomeScreenUi` from the Android state factory through route rendering rather than crossing the shell as separate fields. |
 | 2026-07-18 | Carry focused Home actions through the public shared shell. | Refresh, recent-radio selection, mix-builder selection, Home station selection, and Sonic discovery track intent belong in `NaviampHomeActions`; route-shared media intent remains on typed media contracts, while provider, playback, and navigation execution stay host-owned. |
 | 2026-07-18 | Carry route-shared media intent through one public shell contract. | Track selection/actions and album, artist, and playlist selection or mutation intent belong in `NaviampMediaActions`; its optional typed media dispatcher preserves the shell's default request routing while allowing Android to execute richer provider, playback, and playlist behavior. |
+| 2026-07-18 | Group shell navigation intent at the public boundary. | Route selection and opening or closing Now Playing belong in `NaviampShellNavigationActions`; selected route and visibility remain presentation state, while Android retains detail-stack cleanup and navigation-state execution. |
 
 ## Shared Controller Construction Audit
 
@@ -393,7 +394,7 @@ The 2026-07-17 audit covers every current application entry point:
 
 ## Current Handoff
 
-- **Last completed item:** Android and the public/private shared shell now carry route-wide track, album, artist, playlist, and typed media intent as one `NaviampMediaActions`. Android supplies its richer dispatcher, while the public shell retains its prior default typed request routing for simpler hosts.
-- **Next recommended item:** Group route selection and opening or closing Now Playing into a small shell-navigation action contract. Keep the selected route and Now Playing visibility in presentation state, and keep back-stack ownership or platform navigation execution host-owned.
+- **Last completed item:** Android and the public shared shell now carry route selection and opening or closing Now Playing as one `NaviampShellNavigationActions`. Android retains detail-stack cleanup and navigation-state mutation, while shared UI owns bottom-navigation interaction policy.
+- **Next recommended item:** Group the remaining shell-chrome presentation inputs—selected route, Now Playing visibility, capability-derived navigation/update flags, and selected visualizer—into a focused shared model. Keep `NowPlayingUi` content and the visualizer frame provider separate because they have distinct update cadence and execution concerns.
 - **Verification:** `:core:domain:jvmTest`, `:core:app:jvmTest`, `:core:storage:jvmTest`, `:core:ui:jvmTest`, `:apps:android:testDebugUnitTest`, `:apps:desktop:desktopTest`, `:core:app:iosSimulatorArm64Test`, `:core:storage:compileKotlinIosSimulatorArm64`, and `:core:ui:compileKotlinIosSimulatorArm64` pass together with at most two Gradle workers.
 - **Known blockers:** None.

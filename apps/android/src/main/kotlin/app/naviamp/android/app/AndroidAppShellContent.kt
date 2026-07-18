@@ -56,7 +56,7 @@ fun AndroidAppShellContent(
         nowPlaying = state.nowPlaying,
         nowPlayingOpen = state.nowPlayingOpen,
         selectedRoute = state.selectedRoute,
-        onRouteSelected = actions.onRouteSelected,
+        navigationActions = actions.navigationActions,
         connectionActions = actions.connectionActions,
         syncActions = syncActions,
         valueActions = actions.valueActions,
@@ -76,8 +76,6 @@ fun AndroidAppShellContent(
         playlistDetailActions = actions.playlistDetailActions,
         homeActions = actions.homeActions,
         mediaActions = actions.mediaActions,
-        onOpenNowPlaying = actions.onOpenNowPlaying,
-        onCloseNowPlaying = actions.onCloseNowPlaying,
         nowPlayingActions = actions.nowPlayingActions,
     )
 }

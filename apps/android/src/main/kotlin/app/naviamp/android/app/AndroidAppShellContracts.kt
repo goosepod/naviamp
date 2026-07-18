@@ -25,6 +25,7 @@ import app.naviamp.ui.SharedGenreMixBuilderActions
 import app.naviamp.ui.NaviampHomeScreenUi
 import app.naviamp.ui.NaviampHomeActions
 import app.naviamp.ui.NaviampMediaActions
+import app.naviamp.ui.NaviampShellNavigationActions
 import app.naviamp.ui.SharedRoute
 import app.naviamp.ui.SharedSonicMixBuilderActions
 import app.naviamp.ui.SharedSonicMixBuilderUi
@@ -83,7 +84,7 @@ data class AndroidAppShellUiState(
 )
 
 data class AndroidAppShellActions(
-    val onRouteSelected: (SharedRoute) -> Unit,
+    val navigationActions: NaviampShellNavigationActions,
     val connectionActions: NaviampConnectionSettingsActions,
     val valueActions: NaviampSettingsValueActions,
     val maintenanceActions: NaviampSettingsMaintenanceActions,
@@ -102,7 +103,5 @@ data class AndroidAppShellActions(
     val playlistDetailActions: NaviampPlaylistDetailActions,
     val homeActions: NaviampHomeActions,
     val mediaActions: NaviampMediaActions,
-    val onOpenNowPlaying: () -> Unit,
-    val onCloseNowPlaying: () -> Unit,
     val nowPlayingActions: NaviampNowPlayingActions,
 )
