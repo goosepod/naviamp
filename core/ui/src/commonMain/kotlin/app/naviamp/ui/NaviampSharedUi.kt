@@ -146,25 +146,20 @@ fun NaviampSharedAppShell(
     artistDetailActions: NaviampArtistDetailActions = NaviampArtistDetailActions(),
     playlistDetailActions: NaviampPlaylistDetailActions = NaviampPlaylistDetailActions(),
     homeActions: NaviampHomeActions = NaviampHomeActions(),
-    onTrackSelected: (SharedTrackRowUi) -> Unit,
-    onAlbumSelected: (SharedMediaItemUi) -> Unit,
-    onAlbumFavoriteToggled: (SharedMediaItemUi) -> Unit = {},
-    onMixAlbumSelected: (SharedMediaItemUi) -> Unit = onAlbumSelected,
-    onArtistSelected: (SharedMediaItemUi) -> Unit,
-    onArtistFavoriteToggled: (SharedMediaItemUi) -> Unit = {},
-    onPlaylistSelected: (SharedMediaItemUi) -> Unit,
-    onPlaylistPlay: (SharedMediaItemUi, Boolean) -> Unit = { _, _ -> },
-    onPlaylistRename: (SharedMediaItemUi, String) -> Unit = { _, _ -> },
-    onPlaylistDelete: (SharedMediaItemUi) -> Unit = {},
-    onMediaItemAction: (SharedMediaItemActionRequest) -> Unit = { request ->
+    mediaActions: NaviampMediaActions,
+    onOpenNowPlaying: () -> Unit,
+    onCloseNowPlaying: () -> Unit,
+    nowPlayingActions: NaviampNowPlayingActions = NaviampNowPlayingActions(),
+) {
+    val resolvedMediaItemAction = mediaActions.onMediaItemAction ?: { request ->
         handleSharedMediaItemAction(
             request,
             SharedMediaItemActionHandlers(
                 onSelect = { item ->
                     when (request.kind) {
-                        SharedMediaItemKind.Album -> onAlbumSelected(item)
-                        SharedMediaItemKind.Artist -> onArtistSelected(item)
-                        SharedMediaItemKind.Playlist -> onPlaylistSelected(item)
+                        SharedMediaItemKind.Album -> mediaActions.onAlbumSelected(item)
+                        SharedMediaItemKind.Artist -> mediaActions.onArtistSelected(item)
+                        SharedMediaItemKind.Playlist -> mediaActions.onPlaylistSelected(item)
                         SharedMediaItemKind.Unknown,
                         SharedMediaItemKind.RadioStation,
                         SharedMediaItemKind.MixBuilder,
@@ -173,13 +168,13 @@ fun NaviampSharedAppShell(
                 },
                 onPlay = { item, shuffle ->
                     if (request.kind == SharedMediaItemKind.Playlist) {
-                        onPlaylistPlay(item, shuffle)
+                        mediaActions.onPlaylistPlay(item, shuffle)
                     }
                 },
                 onToggleFavorite = { item ->
                     when (request.kind) {
-                        SharedMediaItemKind.Album -> onAlbumFavoriteToggled(item)
-                        SharedMediaItemKind.Artist -> onArtistFavoriteToggled(item)
+                        SharedMediaItemKind.Album -> mediaActions.onAlbumFavoriteToggled(item)
+                        SharedMediaItemKind.Artist -> mediaActions.onArtistFavoriteToggled(item)
                         SharedMediaItemKind.Unknown,
                         SharedMediaItemKind.Playlist,
                         SharedMediaItemKind.RadioStation,
@@ -187,17 +182,13 @@ fun NaviampSharedAppShell(
                         -> Unit
                     }
                 },
-                onRename = onPlaylistRename,
+                onRename = mediaActions.onPlaylistRename,
                 onEditSmartPlaylist = {},
-                onDelete = onPlaylistDelete,
+                onDelete = mediaActions.onPlaylistDelete,
             ),
         )
-    },
-    onTrackAction: (SharedTrackRowActionRequest) -> Unit = {},
-    onOpenNowPlaying: () -> Unit,
-    onCloseNowPlaying: () -> Unit,
-    nowPlayingActions: NaviampNowPlayingActions = NaviampNowPlayingActions(),
-) {
+    }
+    val resolvedMediaActions = mediaActions.copy(onMediaItemAction = resolvedMediaItemAction)
     val connection = connectionSettings.connection
     val status = connection.status.orEmpty()
     val serverVersion = connection.serverVersion
@@ -397,18 +388,7 @@ fun NaviampSharedAppShell(
                             artistDetailActions = artistDetailActions,
                             playlistDetailActions = playlistDetailActions,
                             homeActions = homeActions,
-                            onTrackSelected = onTrackSelected,
-                            onAlbumSelected = onAlbumSelected,
-                            onAlbumFavoriteToggled = onAlbumFavoriteToggled,
-                            onMixAlbumSelected = onMixAlbumSelected,
-                            onArtistSelected = onArtistSelected,
-                            onArtistFavoriteToggled = onArtistFavoriteToggled,
-                            onPlaylistSelected = onPlaylistSelected,
-                            onPlaylistPlay = onPlaylistPlay,
-                            onPlaylistRename = onPlaylistRename,
-                            onPlaylistDelete = onPlaylistDelete,
-                            onMediaItemAction = onMediaItemAction,
-                            onTrackAction = onTrackAction,
+                            mediaActions = resolvedMediaActions,
                             onOpenNowPlaying = onOpenNowPlaying,
                             onCloseNowPlaying = onCloseNowPlaying,
                             nowPlayingActions = nowPlayingActions,
@@ -875,22 +855,23 @@ private fun ConnectedContent(
     artistDetailActions: NaviampArtistDetailActions,
     playlistDetailActions: NaviampPlaylistDetailActions,
     homeActions: NaviampHomeActions,
-    onTrackSelected: (SharedTrackRowUi) -> Unit,
-    onAlbumSelected: (SharedMediaItemUi) -> Unit,
-    onAlbumFavoriteToggled: (SharedMediaItemUi) -> Unit,
-    onMixAlbumSelected: (SharedMediaItemUi) -> Unit,
-    onArtistSelected: (SharedMediaItemUi) -> Unit,
-    onArtistFavoriteToggled: (SharedMediaItemUi) -> Unit,
-    onPlaylistSelected: (SharedMediaItemUi) -> Unit,
-    onPlaylistPlay: (SharedMediaItemUi, Boolean) -> Unit,
-    onPlaylistRename: (SharedMediaItemUi, String) -> Unit,
-    onPlaylistDelete: (SharedMediaItemUi) -> Unit,
-    onMediaItemAction: (SharedMediaItemActionRequest) -> Unit,
-    onTrackAction: (SharedTrackRowActionRequest) -> Unit,
+    mediaActions: NaviampMediaActions,
     onOpenNowPlaying: () -> Unit,
     onCloseNowPlaying: () -> Unit,
     nowPlayingActions: NaviampNowPlayingActions,
 ) {
+    val onTrackSelected = mediaActions.onTrackSelected
+    val onAlbumSelected = mediaActions.onAlbumSelected
+    val onAlbumFavoriteToggled = mediaActions.onAlbumFavoriteToggled
+    val onMixAlbumSelected = mediaActions.onMixAlbumSelected
+    val onTrackAction = mediaActions.onTrackAction
+    val onArtistSelected = mediaActions.onArtistSelected
+    val onArtistFavoriteToggled = mediaActions.onArtistFavoriteToggled
+    val onPlaylistSelected = mediaActions.onPlaylistSelected
+    val onPlaylistPlay = mediaActions.onPlaylistPlay
+    val onPlaylistRename = mediaActions.onPlaylistRename
+    val onPlaylistDelete = mediaActions.onPlaylistDelete
+    val onMediaItemAction = requireNotNull(mediaActions.onMediaItemAction)
     val selectedAlbumDetail = albumDetail.detail
     val selectedArtistDetail = artistDetail.detail
     val selectedPlaylistDetail = playlistDetail.detail

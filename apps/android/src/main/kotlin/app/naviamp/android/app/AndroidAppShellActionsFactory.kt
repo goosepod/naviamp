@@ -19,6 +19,7 @@ import app.naviamp.ui.NaviampNowPlayingActions
 import app.naviamp.ui.NaviampConnectionSettingsActions
 import app.naviamp.ui.NaviampDownloadsActions
 import app.naviamp.ui.NaviampHomeActions
+import app.naviamp.ui.NaviampMediaActions
 import app.naviamp.ui.NaviampLibraryActions
 import app.naviamp.ui.NaviampInternetRadioActions
 import app.naviamp.ui.NaviampAlbumDetailActions
@@ -508,6 +509,7 @@ fun androidAppShellActions(
                 onStationSelected = handleShellHomeStationSelected,
                 onSonicDiscoveryTrackAction = handleSonicDiscoveryTrackAction,
             ),
+            mediaActions = NaviampMediaActions(
             onTrackSelected = handleShellTrackSelected,
             onAlbumSelected = handleShellAlbumSelected,
             onAlbumFavoriteToggled = handleAlbumFavoriteToggled,
@@ -642,6 +644,7 @@ fun androidAppShellActions(
                     -> Unit
                 }
             },
+            ),
             onOpenNowPlaying = { nowPlayingOpen = true },
             onCloseNowPlaying = { nowPlayingOpen = false },
             nowPlayingActions = NaviampNowPlayingActions(

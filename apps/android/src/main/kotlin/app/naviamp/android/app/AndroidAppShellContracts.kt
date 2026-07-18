@@ -24,15 +24,12 @@ import app.naviamp.ui.SharedGenreMixBuilderUi
 import app.naviamp.ui.SharedGenreMixBuilderActions
 import app.naviamp.ui.NaviampHomeScreenUi
 import app.naviamp.ui.NaviampHomeActions
-import app.naviamp.ui.SharedMediaItemActionRequest
-import app.naviamp.ui.SharedMediaItemUi
+import app.naviamp.ui.NaviampMediaActions
 import app.naviamp.ui.SharedRoute
 import app.naviamp.ui.SharedSonicMixBuilderActions
 import app.naviamp.ui.SharedSonicMixBuilderUi
 import app.naviamp.ui.SharedSonicPathBuilderActions
 import app.naviamp.ui.SharedSonicPathBuilderUi
-import app.naviamp.ui.SharedTrackRowActionRequest
-import app.naviamp.ui.SharedTrackRowUi
 import app.naviamp.ui.NaviampShellCapabilitiesUi
 import app.naviamp.ui.NaviampShellConnectionUi
 import app.naviamp.ui.NaviampLibraryScreenUi
@@ -104,18 +101,7 @@ data class AndroidAppShellActions(
     val artistDetailActions: NaviampArtistDetailActions,
     val playlistDetailActions: NaviampPlaylistDetailActions,
     val homeActions: NaviampHomeActions,
-    val onTrackSelected: (SharedTrackRowUi) -> Unit,
-    val onAlbumSelected: (SharedMediaItemUi) -> Unit,
-    val onAlbumFavoriteToggled: (SharedMediaItemUi) -> Unit,
-    val onMixAlbumSelected: (SharedMediaItemUi) -> Unit,
-    val onTrackAction: (SharedTrackRowActionRequest) -> Unit,
-    val onArtistSelected: (SharedMediaItemUi) -> Unit,
-    val onArtistFavoriteToggled: (SharedMediaItemUi) -> Unit,
-    val onPlaylistSelected: (SharedMediaItemUi) -> Unit,
-    val onPlaylistPlay: (SharedMediaItemUi, Boolean) -> Unit,
-    val onPlaylistRename: (SharedMediaItemUi, String) -> Unit,
-    val onPlaylistDelete: (SharedMediaItemUi) -> Unit,
-    val onMediaItemAction: (SharedMediaItemActionRequest) -> Unit,
+    val mediaActions: NaviampMediaActions,
     val onOpenNowPlaying: () -> Unit,
     val onCloseNowPlaying: () -> Unit,
     val nowPlayingActions: NaviampNowPlayingActions,

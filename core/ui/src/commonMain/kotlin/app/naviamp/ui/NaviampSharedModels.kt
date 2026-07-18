@@ -763,6 +763,21 @@ data class NaviampHomeActions(
     val onSonicDiscoveryTrackAction: (SharedHomeDiscoveryTrackActionRequest) -> Unit = {},
 )
 
+data class NaviampMediaActions(
+    val onTrackSelected: (SharedTrackRowUi) -> Unit = {},
+    val onAlbumSelected: (SharedMediaItemUi) -> Unit = {},
+    val onAlbumFavoriteToggled: (SharedMediaItemUi) -> Unit = {},
+    val onMixAlbumSelected: (SharedMediaItemUi) -> Unit = {},
+    val onTrackAction: (SharedTrackRowActionRequest) -> Unit = {},
+    val onArtistSelected: (SharedMediaItemUi) -> Unit = {},
+    val onArtistFavoriteToggled: (SharedMediaItemUi) -> Unit = {},
+    val onPlaylistSelected: (SharedMediaItemUi) -> Unit = {},
+    val onPlaylistPlay: (SharedMediaItemUi, Boolean) -> Unit = { _, _ -> },
+    val onPlaylistRename: (SharedMediaItemUi, String) -> Unit = { _, _ -> },
+    val onPlaylistDelete: (SharedMediaItemUi) -> Unit = {},
+    val onMediaItemAction: ((SharedMediaItemActionRequest) -> Unit)? = null,
+)
+
 data class SharedSonicPathBuilderActions(
     val onStartQueryChanged: (String) -> Unit = {},
     val onEndQueryChanged: (String) -> Unit = {},
