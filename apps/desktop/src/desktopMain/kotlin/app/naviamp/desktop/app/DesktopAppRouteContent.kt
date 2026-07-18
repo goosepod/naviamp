@@ -67,8 +67,9 @@ import app.naviamp.ui.SharedMediaItemAction
 import app.naviamp.ui.SharedMediaItemActionRequest
 import app.naviamp.ui.SharedMediaItemUi
 import app.naviamp.ui.SharedMixBuilderUi
-import app.naviamp.ui.SharedSonicMixBiasUi
+import app.naviamp.ui.SharedSonicMixBuilderActions
 import app.naviamp.ui.SharedSonicMixBuilderUi
+import app.naviamp.ui.SharedSonicPathBuilderActions
 import app.naviamp.ui.SharedSonicPathBuilderUi
 import app.naviamp.ui.SharedTrackGroupAction
 import app.naviamp.ui.SharedTrackGroupActionRequest
@@ -131,32 +132,9 @@ fun ColumnScope.DesktopAppRouteContent(
     genreMixBuilder: SharedGenreMixBuilderUi,
     genreMixActions: SharedGenreMixBuilderActions,
     sonicPathBuilder: SharedSonicPathBuilderUi,
-    onSonicPathStartQueryChanged: (String) -> Unit,
-    onSonicPathEndQueryChanged: (String) -> Unit,
-    onSonicPathStartSearch: () -> Unit,
-    onSonicPathEndSearch: () -> Unit,
-    onSonicPathStartTrackSelected: (SharedTrackRowUi) -> Unit,
-    onSonicPathEndTrackSelected: (SharedTrackRowUi) -> Unit,
-    onSonicPathStartTrackCleared: () -> Unit,
-    onSonicPathEndTrackCleared: () -> Unit,
-    onSonicPathCountChanged: (Int) -> Unit,
-    onSonicPathBuild: () -> Unit,
-    onSonicPathReset: () -> Unit,
-    onSonicPathPlay: () -> Unit,
-    onSonicPathAddToQueue: () -> Unit,
-    onSonicPathSaveAsPlaylist: (String) -> Unit,
+    sonicPathActions: SharedSonicPathBuilderActions,
     sonicMixBuilder: SharedSonicMixBuilderUi,
-    onSonicMixQueryChanged: (String) -> Unit,
-    onSonicMixSearch: () -> Unit,
-    onSonicMixTrackSelected: (SharedTrackRowUi) -> Unit,
-    onSonicMixTrackRemoved: (SharedTrackRowUi) -> Unit,
-    onSonicMixTargetLengthChanged: (Int) -> Unit,
-    onSonicMixBiasChanged: (SharedSonicMixBiasUi) -> Unit,
-    onSonicMixBuild: () -> Unit,
-    onSonicMixReset: () -> Unit,
-    onSonicMixPlay: () -> Unit,
-    onSonicMixAddToQueue: () -> Unit,
-    onSonicMixSaveAsPlaylist: (String) -> Unit,
+    sonicMixActions: SharedSonicMixBuilderActions,
     internetRadio: NaviampInternetRadioScreenUi,
     internetRadioActionSources: DesktopInternetRadioActionSources,
     onSaveInternetRadioStation: (InternetRadioStation) -> Unit,
@@ -778,19 +756,7 @@ fun ColumnScope.DesktopAppRouteContent(
                         SonicPathBuilderContent(
                             colors = appColors,
                             builder = sonicPathBuilder,
-                            onStartQueryChanged = onSonicPathStartQueryChanged,
-                            onEndQueryChanged = onSonicPathEndQueryChanged,
-                            onStartSearch = onSonicPathStartSearch,
-                            onEndSearch = onSonicPathEndSearch,
-                            onStartTrackSelected = onSonicPathStartTrackSelected,
-                            onEndTrackSelected = onSonicPathEndTrackSelected,
-                            onStartTrackCleared = onSonicPathStartTrackCleared,
-                            onEndTrackCleared = onSonicPathEndTrackCleared,
-                            onCountChanged = onSonicPathCountChanged,
-                            onBuildPath = onSonicPathBuild,
-                            onReset = onSonicPathReset,
-                            onPlayPath = onSonicPathPlay,
-                            onAddPathToQueue = onSonicPathAddToQueue,
+                            actions = sonicPathActions,
                             showPathActions = false,
                         )
                     }
@@ -800,7 +766,7 @@ fun ColumnScope.DesktopAppRouteContent(
                             modifier = Modifier.fillMaxWidth(),
                         ) {
                             Button(
-                                onClick = onSonicPathPlay,
+                                onClick = sonicPathActions.onPlay,
                                 colors = ButtonDefaults.buttonColors(
                                     containerColor = appColors.accent,
                                     contentColor = appColors.onAccent,
@@ -810,7 +776,7 @@ fun ColumnScope.DesktopAppRouteContent(
                                 Text("Play Path")
                             }
                             Button(
-                                onClick = onSonicPathAddToQueue,
+                                onClick = sonicPathActions.onAddToQueue,
                                 modifier = Modifier.weight(1f),
                             ) {
                                 Text("Add to Queue")
@@ -836,16 +802,7 @@ fun ColumnScope.DesktopAppRouteContent(
                         SonicMixBuilderContent(
                             colors = appColors,
                             builder = sonicMixBuilder,
-                            onQueryChanged = onSonicMixQueryChanged,
-                            onSearch = onSonicMixSearch,
-                            onTrackSelected = onSonicMixTrackSelected,
-                            onTrackRemoved = onSonicMixTrackRemoved,
-                            onTargetLengthChanged = onSonicMixTargetLengthChanged,
-                            onBiasChanged = onSonicMixBiasChanged,
-                            onBuildMix = onSonicMixBuild,
-                            onReset = onSonicMixReset,
-                            onPlayMix = onSonicMixPlay,
-                            onAddMixToQueue = onSonicMixAddToQueue,
+                            actions = sonicMixActions,
                             showMixActions = false,
                         )
                     }
@@ -855,7 +812,7 @@ fun ColumnScope.DesktopAppRouteContent(
                             modifier = Modifier.fillMaxWidth(),
                         ) {
                             Button(
-                                onClick = onSonicMixPlay,
+                                onClick = sonicMixActions.onPlay,
                                 colors = ButtonDefaults.buttonColors(
                                     containerColor = appColors.accent,
                                     contentColor = appColors.onAccent,
@@ -865,7 +822,7 @@ fun ColumnScope.DesktopAppRouteContent(
                                 Text("Play Mix")
                             }
                             Button(
-                                onClick = onSonicMixAddToQueue,
+                                onClick = sonicMixActions.onAddToQueue,
                                 modifier = Modifier.weight(1f),
                             ) {
                                 Text("Add to Queue")
@@ -994,7 +951,7 @@ fun ColumnScope.DesktopAppRouteContent(
             description = "Save this Sonic Path in order as a server playlist.",
             onDismissRequest = { saveSonicPathDialogOpen = false },
             onSave = { name ->
-                onSonicPathSaveAsPlaylist(name)
+                sonicPathActions.onSaveAsPlaylist(name)
                 saveSonicPathDialogOpen = false
             },
         )
@@ -1007,7 +964,7 @@ fun ColumnScope.DesktopAppRouteContent(
             description = "Save this Sonic Mix in order as a server playlist.",
             onDismissRequest = { saveSonicMixDialogOpen = false },
             onSave = { name ->
-                onSonicMixSaveAsPlaylist(name)
+                sonicMixActions.onSaveAsPlaylist(name)
                 saveSonicMixDialogOpen = false
             },
         )

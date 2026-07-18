@@ -654,6 +654,23 @@ data class SharedSonicPathBuilderUi(
         get() = pathTracks.isNotEmpty()
 }
 
+data class SharedSonicPathBuilderActions(
+    val onStartQueryChanged: (String) -> Unit = {},
+    val onEndQueryChanged: (String) -> Unit = {},
+    val onStartSearch: () -> Unit = {},
+    val onEndSearch: () -> Unit = {},
+    val onStartTrackSelected: (SharedTrackRowUi) -> Unit = {},
+    val onEndTrackSelected: (SharedTrackRowUi) -> Unit = {},
+    val onStartTrackCleared: () -> Unit = {},
+    val onEndTrackCleared: () -> Unit = {},
+    val onCountChanged: (Int) -> Unit = {},
+    val onBuild: () -> Unit = {},
+    val onReset: () -> Unit = {},
+    val onPlay: () -> Unit = {},
+    val onAddToQueue: () -> Unit = {},
+    val onSaveAsPlaylist: (String) -> Unit = {},
+)
+
 data class SharedSonicMixBuilderUi(
     val query: String = "",
     val selectedTracks: List<SharedTrackRowUi> = emptyList(),
@@ -670,6 +687,20 @@ data class SharedSonicMixBuilderUi(
     val hasMix: Boolean
         get() = mixTracks.isNotEmpty()
 }
+
+data class SharedSonicMixBuilderActions(
+    val onQueryChanged: (String) -> Unit = {},
+    val onSearch: () -> Unit = {},
+    val onTrackSelected: (SharedTrackRowUi) -> Unit = {},
+    val onTrackRemoved: (SharedTrackRowUi) -> Unit = {},
+    val onTargetLengthChanged: (Int) -> Unit = {},
+    val onBiasChanged: (SharedSonicMixBiasUi) -> Unit = {},
+    val onBuild: () -> Unit = {},
+    val onReset: () -> Unit = {},
+    val onPlay: () -> Unit = {},
+    val onAddToQueue: () -> Unit = {},
+    val onSaveAsPlaylist: (String) -> Unit = {},
+)
 
 enum class SharedSonicMixBiasUi(val label: String) {
     Balanced("Balanced"),

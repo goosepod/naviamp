@@ -1104,21 +1104,22 @@ fun GenreMixBuilderContent(
 fun SonicPathBuilderContent(
     colors: NaviampColors,
     builder: SharedSonicPathBuilderUi,
-    onStartQueryChanged: (String) -> Unit,
-    onEndQueryChanged: (String) -> Unit,
-    onStartSearch: () -> Unit,
-    onEndSearch: () -> Unit,
-    onStartTrackSelected: (SharedTrackRowUi) -> Unit,
-    onEndTrackSelected: (SharedTrackRowUi) -> Unit,
-    onStartTrackCleared: () -> Unit,
-    onEndTrackCleared: () -> Unit,
-    onCountChanged: (Int) -> Unit,
-    onBuildPath: () -> Unit,
-    onReset: () -> Unit,
-    onPlayPath: () -> Unit,
-    onAddPathToQueue: () -> Unit,
+    actions: SharedSonicPathBuilderActions,
     showPathActions: Boolean = true,
 ) {
+    val onStartQueryChanged = actions.onStartQueryChanged
+    val onEndQueryChanged = actions.onEndQueryChanged
+    val onStartSearch = actions.onStartSearch
+    val onEndSearch = actions.onEndSearch
+    val onStartTrackSelected = actions.onStartTrackSelected
+    val onEndTrackSelected = actions.onEndTrackSelected
+    val onStartTrackCleared = actions.onStartTrackCleared
+    val onEndTrackCleared = actions.onEndTrackCleared
+    val onCountChanged = actions.onCountChanged
+    val onBuildPath = actions.onBuild
+    val onReset = actions.onReset
+    val onPlayPath = actions.onPlay
+    val onAddPathToQueue = actions.onAddToQueue
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Row(
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -1235,18 +1236,19 @@ fun SonicPathBuilderContent(
 fun SonicMixBuilderContent(
     colors: NaviampColors,
     builder: SharedSonicMixBuilderUi,
-    onQueryChanged: (String) -> Unit,
-    onSearch: () -> Unit,
-    onTrackSelected: (SharedTrackRowUi) -> Unit,
-    onTrackRemoved: (SharedTrackRowUi) -> Unit,
-    onTargetLengthChanged: (Int) -> Unit,
-    onBiasChanged: (SharedSonicMixBiasUi) -> Unit,
-    onBuildMix: () -> Unit,
-    onReset: () -> Unit,
-    onPlayMix: () -> Unit,
-    onAddMixToQueue: () -> Unit,
+    actions: SharedSonicMixBuilderActions,
     showMixActions: Boolean = true,
 ) {
+    val onQueryChanged = actions.onQueryChanged
+    val onSearch = actions.onSearch
+    val onTrackSelected = actions.onTrackSelected
+    val onTrackRemoved = actions.onTrackRemoved
+    val onTargetLengthChanged = actions.onTargetLengthChanged
+    val onBiasChanged = actions.onBiasChanged
+    val onBuildMix = actions.onBuild
+    val onReset = actions.onReset
+    val onPlayMix = actions.onPlay
+    val onAddMixToQueue = actions.onAddToQueue
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Row(
             horizontalArrangement = Arrangement.SpaceBetween,
