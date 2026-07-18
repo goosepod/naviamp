@@ -48,9 +48,7 @@ class MediaUiMappersTest {
         assertEquals(connection, withoutPicker.connection)
         assertTrue(withoutPicker.capabilities.clientCertificates)
         assertFalse(withoutPicker.settingsSyncAvailable)
-        assertFalse(withoutPicker.fileSelectionAvailable)
         assertTrue(withPicker.settingsSyncAvailable)
-        assertTrue(withPicker.fileSelectionAvailable)
     }
 
     @Test
@@ -80,6 +78,36 @@ class MediaUiMappersTest {
         assertEquals(devices, ui.audioOutputDevices)
         assertTrue(ui.sonicSimilarityAvailable)
         assertEquals(42L, ui.downloadBytes)
+    }
+
+    @Test
+    fun cacheSettingsBuildSharedDiagnosticsAndFileSelectionState() {
+        val settings = app.naviamp.domain.settings.CacheSettings(maxDownloadBytes = 5_000_000L)
+        val stats = app.naviamp.domain.cache.StorageCacheStats(
+            audioBytes = 1_000L,
+            downloadBytes = 2_000L,
+            imageBytes = 3_000L,
+        )
+
+        val ui = settings.toCacheSettingsUi(
+            stats = stats,
+            capabilities = NaviampShellCapabilitiesUi(fileSelection = true),
+        )
+
+        assertEquals(settings, ui.settings)
+        assertEquals(
+            listOf(
+                "Audio cache" to stats.audioBytes.storageBytesLabel(),
+                "Downloads" to stats.downloadBytes.storageBytesLabel(),
+                "Images" to stats.imageBytes.storageBytesLabel(),
+            ),
+            ui.downloadsDiagnostics.sections.single().rows,
+        )
+        assertEquals(
+            listOf("Audio cache" to stats.audioBytes.storageBytesLabel()),
+            ui.audioCacheDiagnostics.sections.single().rows,
+        )
+        assertTrue(ui.fileSelectionAvailable)
     }
 
     @Test

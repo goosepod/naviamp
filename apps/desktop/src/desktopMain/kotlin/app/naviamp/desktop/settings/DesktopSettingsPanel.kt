@@ -1,7 +1,5 @@
 package app.naviamp.desktop
 
-import app.naviamp.domain.cache.StorageCacheStats
-
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -75,11 +73,10 @@ import app.naviamp.ui.NaviampPlaybackSettingsSection
 import app.naviamp.ui.NaviampSettingsCategory
 import app.naviamp.ui.NaviampStorageLocationUi
 import app.naviamp.ui.NaviampSavedConnectionUi
-import app.naviamp.ui.NaviampDiagnosticsSectionUi
-import app.naviamp.ui.NaviampDiagnosticsUi
 import app.naviamp.ui.NaviampConnectionCapabilitiesUi
 import app.naviamp.ui.NaviampConnectionSettingsUi
 import app.naviamp.ui.NaviampPlaybackSettingsUi
+import app.naviamp.ui.NaviampCacheSettingsUi
 import app.naviamp.ui.categoryLabel
 import app.naviamp.ui.categorySubtitle
 import app.naviamp.ui.languageTitle
@@ -101,8 +98,7 @@ fun DesktopSettingsPanel(
     currentSourceId: String?,
     interfaceSettings: InterfaceSettings,
     playback: NaviampPlaybackSettingsUi,
-    cacheSettings: CacheSettings,
-    cacheStats: StorageCacheStats,
+    cache: NaviampCacheSettingsUi,
     settingsSyncDirectoryPath: String?,
     settingsSyncAutoExportEnabled: Boolean,
     settingsSyncStatus: String?,
@@ -161,7 +157,8 @@ fun DesktopSettingsPanel(
     val connectionStatus = connection.status
     val connectionCapabilities = connectionSettings.capabilities
     val supportsSettingsSync = connectionSettings.settingsSyncAvailable
-    val supportsFileSelection = connectionSettings.fileSelectionAvailable
+    val cacheSettings = cache.settings
+    val supportsFileSelection = cache.fileSelectionAvailable
     val playbackSettings = playback.settings
     val supportsReplayGain = playback.replayGainAvailable
     val supportsGapless = playback.gaplessAvailable
@@ -270,13 +267,7 @@ fun DesktopSettingsPanel(
                 colors = appColors,
                 playbackSettings = playbackSettings,
                 cacheSettings = cacheSettings,
-                diagnostics = NaviampDiagnosticsUi(
-                    listOf(
-                        "Audio cache" to cacheStats.audioBytes.storageBytesLabel(),
-                        "Downloads" to cacheStats.downloadBytes.storageBytesLabel(),
-                        "Images" to cacheStats.imageBytes.storageBytesLabel(),
-                    ).let { rows -> listOf(NaviampDiagnosticsSectionUi("Storage", rows)) },
-                ),
+                diagnostics = cache.downloadsDiagnostics,
                 showMobileNetworkQuality = false,
                 downloadBytes = playback.downloadBytes,
                 onPlaybackSettingsChanged = onPlaybackSettingsChanged,
@@ -308,11 +299,7 @@ fun DesktopSettingsPanel(
             NaviampSettingsCategory.AudioCache -> NaviampAudioCacheSettingsSection(
                 colors = appColors,
                 cacheSettings = cacheSettings,
-                diagnostics = NaviampDiagnosticsUi(
-                    listOf(
-                        "Audio cache" to cacheStats.audioBytes.storageBytesLabel(),
-                    ).let { rows -> listOf(NaviampDiagnosticsSectionUi("Storage", rows)) },
-                ),
+                diagnostics = cache.audioCacheDiagnostics,
                 onCacheSettingsChanged = onCacheSettingsChanged,
                 locations = buildList {
                     add(NaviampStorageLocationUi("default", "Default folder", defaultAudioCacheDirectory().toString()))

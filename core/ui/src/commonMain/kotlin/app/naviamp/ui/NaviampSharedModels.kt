@@ -5,10 +5,12 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import app.naviamp.domain.playback.PlaybackState
 import app.naviamp.domain.playback.PlaybackVisualizerFrame
 import app.naviamp.domain.playback.AudioOutputDevice
+import app.naviamp.domain.cache.StorageCacheStats
 import app.naviamp.domain.radio.RadioDjPreset
 import app.naviamp.domain.settings.ConnectionFormMusicFolder
 import app.naviamp.domain.settings.ConnectionFormState
 import app.naviamp.domain.settings.PlaybackSettings
+import app.naviamp.domain.settings.CacheSettings
 import app.naviamp.domain.waveform.AudioWaveform
 
 data class NaviampColors(
@@ -742,7 +744,6 @@ data class NaviampConnectionSettingsUi(
     val connection: NaviampShellConnectionUi = NaviampShellConnectionUi(),
     val capabilities: NaviampConnectionCapabilitiesUi = NaviampConnectionCapabilitiesUi(),
     val settingsSyncAvailable: Boolean = false,
-    val fileSelectionAvailable: Boolean = false,
 )
 
 data class NaviampPlaybackSettingsUi(
@@ -755,6 +756,13 @@ data class NaviampPlaybackSettingsUi(
     val audioOutputDevices: List<AudioOutputDevice> = emptyList(),
     val sonicSimilarityAvailable: Boolean = false,
     val downloadBytes: Long = 0L,
+)
+
+data class NaviampCacheSettingsUi(
+    val settings: CacheSettings = CacheSettings(),
+    val downloadsDiagnostics: NaviampDiagnosticsUi = NaviampDiagnosticsUi(),
+    val audioCacheDiagnostics: NaviampDiagnosticsUi = NaviampDiagnosticsUi(),
+    val fileSelectionAvailable: Boolean = false,
 )
 
 data class NaviampShellCapabilitiesUi(
@@ -778,7 +786,6 @@ fun NaviampShellConnectionUi.toConnectionSettingsUi(
         connection = this,
         capabilities = capabilities.connection,
         settingsSyncAvailable = capabilities.settingsImportExport && capabilities.fileSelection,
-        fileSelectionAvailable = capabilities.fileSelection,
     )
 
 fun PlaybackSettings.toPlaybackSettingsUi(
@@ -797,6 +804,35 @@ fun PlaybackSettings.toPlaybackSettingsUi(
         audioOutputDevices = audioOutputDevices,
         sonicSimilarityAvailable = capabilities.sonicSimilarity,
         downloadBytes = downloadBytes,
+    )
+
+fun CacheSettings.toCacheSettingsUi(
+    stats: StorageCacheStats,
+    capabilities: NaviampShellCapabilitiesUi,
+): NaviampCacheSettingsUi =
+    NaviampCacheSettingsUi(
+        settings = this,
+        downloadsDiagnostics = NaviampDiagnosticsUi(
+            sections = listOf(
+                NaviampDiagnosticsSectionUi(
+                    title = "Storage",
+                    rows = listOf(
+                        "Audio cache" to stats.audioBytes.storageBytesLabel(),
+                        "Downloads" to stats.downloadBytes.storageBytesLabel(),
+                        "Images" to stats.imageBytes.storageBytesLabel(),
+                    ),
+                ),
+            ),
+        ),
+        audioCacheDiagnostics = NaviampDiagnosticsUi(
+            sections = listOf(
+                NaviampDiagnosticsSectionUi(
+                    title = "Storage",
+                    rows = listOf("Audio cache" to stats.audioBytes.storageBytesLabel()),
+                ),
+            ),
+        ),
+        fileSelectionAvailable = capabilities.fileSelection,
     )
 
 data class NaviampLyricLineUi(

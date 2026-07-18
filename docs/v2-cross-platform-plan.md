@@ -343,6 +343,7 @@ Record architecture decisions here or link a dedicated decision record.
 | 2026-07-17 | Render Desktop Internet Radio from grouped shared presentation. | Station rows and editable fields should cross the shell boundary without raw provider models; Desktop resolves current stable IDs and converts validated edit drafts before invoking provider mutations. |
 | 2026-07-17 | Group Desktop connection settings at the shared boundary. | The connection form, saved sources, loading state, and capability-controlled fields should enter settings as one `NaviampConnectionSettingsUi`; native pickers, credential storage, and platform service application remain Desktop responsibilities. |
 | 2026-07-17 | Group Desktop playback settings at the shared boundary. | Playback values, shared feature capabilities, host audio-device availability, and download usage should enter settings as one `NaviampPlaybackSettingsUi`; BASS device enumeration remains a Desktop adapter input. |
+| 2026-07-17 | Group Desktop cache and download settings at the shared boundary. | Cache limits, shared storage diagnostics, and file-selection availability should enter settings as one `NaviampCacheSettingsUi`; directory discovery, folder preparation, and destructive maintenance remain Desktop operations. |
 
 ## Shared Controller Construction Audit
 
@@ -368,7 +369,7 @@ The 2026-07-17 audit covers every current application entry point:
 
 ## Current Handoff
 
-- **Last completed item:** Desktop settings now receives playback values, feature availability, host audio devices, Sonic similarity availability, and download usage through one `NaviampPlaybackSettingsUi`. Shared mapping applies the shell capability matrix, while Desktop still enumerates BASS output devices and executes playback-setting changes.
-- **Next recommended item:** Finish the current settings convergence pass with a grouped cache/download model. Reuse shared cache settings and diagnostics while keeping filesystem locations, folder creation, and destructive maintenance dialogs in Desktop adapters.
+- **Last completed item:** Desktop settings now receives cache values, file-selection availability, and shared download/audio-cache diagnostics through one `NaviampCacheSettingsUi`. Desktop still discovers default directories, prepares selected folders, and owns destructive maintenance dialogs and callbacks.
+- **Next recommended item:** Group the remaining settings-sync, interface, and About presentation inputs, then audit `DesktopSettingsPanel` for host behavior that can move behind narrower adapters without moving native dialogs or filesystem work into shared code.
 - **Verification:** `:core:domain:jvmTest`, `:core:app:jvmTest`, `:core:storage:jvmTest`, `:core:ui:jvmTest`, `:apps:android:testDebugUnitTest`, `:apps:desktop:desktopTest`, `:core:app:iosSimulatorArm64Test`, `:core:storage:compileKotlinIosSimulatorArm64`, and `:core:ui:compileKotlinIosSimulatorArm64` pass together with at most two Gradle workers.
 - **Known blockers:** None.

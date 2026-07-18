@@ -75,6 +75,7 @@ import app.naviamp.ui.SonicPathBuilderContent
 import app.naviamp.ui.toSharedHomeUi
 import app.naviamp.ui.toConnectionSettingsUi
 import app.naviamp.ui.toPlaybackSettingsUi
+import app.naviamp.ui.toCacheSettingsUi
 
 @Composable
 fun ColumnScope.DesktopAppRouteContent(
@@ -964,8 +965,7 @@ fun ColumnScope.DesktopAppRouteContent(
                             (playbackEngine as? AudioOutputDevicePlaybackEngine)?.outputDevices().orEmpty(),
                         downloadBytes = cacheStats.downloadBytes,
                     ),
-                    cacheSettings = cacheSettings,
-                    cacheStats = cacheStats,
+                    cache = cacheSettings.toCacheSettingsUi(cacheStats, capabilities),
                     settingsSyncDirectoryPath = settingsSyncDirectoryPath,
                     settingsSyncAutoExportEnabled = settingsSyncAutoExportEnabled,
                     settingsSyncStatus = settingsSyncStatus,
