@@ -365,6 +365,7 @@ Record architecture decisions here or link a dedicated decision record.
 | 2026-07-18 | Carry grouped media-detail presentation through the public shared shell. | Album, artist, and playlist selection, mapped detail content, and detail-local status should remain in `NaviampAlbumDetailScreenUi`, `NaviampArtistDetailScreenUi`, and `NaviampPlaylistDetailScreenUi`; provider loading and domain resolution remain host-owned. |
 | 2026-07-18 | Carry focused media-detail actions through the public shared shell. | Album, artist, and playlist detail intent should cross the shell in `NaviampAlbumDetailActions`, `NaviampArtistDetailActions`, and `NaviampPlaylistDetailActions`; Android remains responsible for resolving current domain objects and executing playback, provider I/O, mutations, and navigation. |
 | 2026-07-18 | Carry grouped Now Playing actions through the public shared shell. | Playback, display, current-track, queue, sleep-timer, selection, and queue-item intent already form one `NaviampNowPlayingActions` contract and should not be expanded back into individual callbacks at the Android boundary. |
+| 2026-07-18 | Carry grouped Home presentation through the public shared shell. | Mapped Home sections and refresh state should remain one `NaviampHomeScreenUi` from the Android state factory through route rendering rather than crossing the shell as separate fields. |
 
 ## Shared Controller Construction Audit
 
@@ -390,7 +391,7 @@ The 2026-07-17 audit covers every current application entry point:
 
 ## Current Handoff
 
-- **Last completed item:** Android and the public/private shared shell now carry Now Playing intent as one `NaviampNowPlayingActions` contract. Android still executes playback, display, queue, sleep-timer, selection, and queue-item operations, while the shell no longer reconstructs the contract from seven callbacks.
-- **Next recommended item:** Introduce `NaviampHomeScreenUi` so mapped Home content and refresh state cross the Android/public/private shell as one presentation group before consolidating Home-specific actions.
+- **Last completed item:** Android and the public/private shared shell now carry mapped Home content and refresh state as one `NaviampHomeScreenUi`. Android still builds Home from provider/domain state, while shared route rendering consumes the grouped presentation model directly.
+- **Next recommended item:** Introduce `NaviampHomeActions` for refresh, recent-radio selection, mix-builder selection, Home station selection, and Sonic discovery track intent. Keep route-shared album, playlist, and typed media actions on their existing contracts, and keep provider/playback/navigation execution host-owned.
 - **Verification:** `:core:domain:jvmTest`, `:core:app:jvmTest`, `:core:storage:jvmTest`, `:core:ui:jvmTest`, `:apps:android:testDebugUnitTest`, `:apps:desktop:desktopTest`, `:core:app:iosSimulatorArm64Test`, `:core:storage:compileKotlinIosSimulatorArm64`, and `:core:ui:compileKotlinIosSimulatorArm64` pass together with at most two Gradle workers.
 - **Known blockers:** None.

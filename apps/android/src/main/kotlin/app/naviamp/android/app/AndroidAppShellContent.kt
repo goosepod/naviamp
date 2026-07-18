@@ -40,7 +40,6 @@ fun AndroidAppShellContent(
         visualizerBandsProvider = state.visualizerBandsProvider,
         search = state.search,
         home = state.home,
-        homeRefreshing = state.homeRefreshing,
         artistMixBuilder = state.artistMixBuilder,
         albumMixBuilder = state.albumMixBuilder,
         genreMixBuilder = state.genreMixBuilder,

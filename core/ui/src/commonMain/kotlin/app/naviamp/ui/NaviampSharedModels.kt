@@ -750,6 +750,11 @@ data class SharedSonicPathBuilderUi(
         get() = pathTracks.isNotEmpty()
 }
 
+data class NaviampHomeScreenUi(
+    val content: SharedHomeUi = SharedHomeUi(),
+    val refreshing: Boolean = false,
+)
+
 data class SharedSonicPathBuilderActions(
     val onStartQueryChanged: (String) -> Unit = {},
     val onEndQueryChanged: (String) -> Unit = {},

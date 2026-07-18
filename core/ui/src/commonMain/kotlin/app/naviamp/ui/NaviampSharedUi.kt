@@ -108,8 +108,7 @@ fun NaviampSharedAppShell(
     supportsDownloads: Boolean = false,
     supportsApplicationUpdates: Boolean = false,
     search: NaviampSearchScreenUi,
-    home: SharedHomeUi,
-    homeRefreshing: Boolean = false,
+    home: NaviampHomeScreenUi,
     artistMixBuilder: SharedArtistMixBuilderUi = SharedArtistMixBuilderUi(),
     albumMixBuilder: SharedAlbumMixBuilderUi = SharedAlbumMixBuilderUi(),
     genreMixBuilder: SharedGenreMixBuilderUi = SharedGenreMixBuilderUi(),
@@ -361,7 +360,6 @@ fun NaviampSharedAppShell(
                             colors = colors,
                             selectedRoute = selectedRoute,
                             home = home,
-                            homeRefreshing = homeRefreshing,
                             search = search,
             artistMixBuilder = artistMixBuilder,
             albumMixBuilder = albumMixBuilder,
@@ -843,8 +841,7 @@ private fun MusicFolderMultiSelect(
 private fun ConnectedContent(
     colors: NaviampColors,
     selectedRoute: SharedRoute,
-    home: SharedHomeUi,
-    homeRefreshing: Boolean,
+    home: NaviampHomeScreenUi,
     search: NaviampSearchScreenUi,
     artistMixBuilder: SharedArtistMixBuilderUi,
     albumMixBuilder: SharedAlbumMixBuilderUi,
@@ -1075,8 +1072,8 @@ private fun ConnectedContent(
         else -> when (selectedRoute) {
             SharedRoute.Home -> SharedHomeRoute(
                 colors = colors,
-                home = home,
-                isRefreshing = homeRefreshing,
+                home = home.content,
+                isRefreshing = home.refreshing,
                 onRefresh = onRefreshHome,
                 onAlbumSelected = onAlbumSelected,
                 onAlbumFavoriteToggled = onAlbumFavoriteToggled,

@@ -20,6 +20,7 @@ import app.naviamp.ui.NaviampLibraryScreenUi
 import app.naviamp.ui.NaviampSearchScreenUi
 import app.naviamp.ui.NaviampPlaylistsScreenUi
 import app.naviamp.ui.NaviampInternetRadioScreenUi
+import app.naviamp.ui.NaviampHomeScreenUi
 import app.naviamp.ui.NaviampAlbumDetailScreenUi
 import app.naviamp.ui.NaviampArtistDetailScreenUi
 import app.naviamp.ui.NaviampPlaylistDetailScreenUi
@@ -205,8 +206,10 @@ fun rememberAndroidAppShellUiState(
                 query = query,
                 results = shellModels.searchResults,
             ),
-            home = shellModels.home,
-            homeRefreshing = isHomeRefreshing,
+            home = NaviampHomeScreenUi(
+                content = shellModels.home,
+                refreshing = isHomeRefreshing,
+            ),
             artistMixBuilder = SharedArtistMixBuilderUi(
                 query = artistMixQuery,
                 selectedArtists = artistMixSelectedArtists.map { artist ->

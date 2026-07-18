@@ -24,7 +24,7 @@ import app.naviamp.ui.SharedGenreMixBuilderUi
 import app.naviamp.ui.SharedGenreMixBuilderActions
 import app.naviamp.ui.SharedHomeDiscoveryTrackActionRequest
 import app.naviamp.ui.SharedHomeStationUi
-import app.naviamp.ui.SharedHomeUi
+import app.naviamp.ui.NaviampHomeScreenUi
 import app.naviamp.ui.SharedMediaItemActionRequest
 import app.naviamp.ui.SharedMediaItemUi
 import app.naviamp.ui.SharedMixBuilderUi
@@ -64,8 +64,7 @@ data class AndroidAppShellUiState(
     val selectedVisualizer: NaviampVisualizer,
     val visualizerBandsProvider: () -> List<Float>,
     val search: NaviampSearchScreenUi,
-    val home: SharedHomeUi,
-    val homeRefreshing: Boolean,
+    val home: NaviampHomeScreenUi,
     val artistMixBuilder: SharedArtistMixBuilderUi,
     val albumMixBuilder: SharedAlbumMixBuilderUi,
     val genreMixBuilder: SharedGenreMixBuilderUi,
