@@ -119,12 +119,8 @@ fun NaviampSharedAppShell(
     sonicMixBuilder: SharedSonicMixBuilderUi = SharedSonicMixBuilderUi(),
     library: NaviampLibraryScreenUi,
     downloads: NaviampDownloadsScreenUi = NaviampDownloadsScreenUi(),
-    playlistItems: List<SharedMediaItemUi>,
-    recentPlaylistIds: List<String> = emptyList(),
-    playlistSortMode: SharedPlaylistSortMode = SharedPlaylistSortMode.Alphabetical,
+    playlists: NaviampPlaylistsScreenUi,
     playlistChoices: List<NaviampPlaylistChoiceUi> = emptyList(),
-    playlistActionStatus: String? = null,
-    playlistRefreshing: Boolean = false,
     radioStations: List<InternetRadioStation>,
     radioRefreshing: Boolean = false,
     albumDetail: SharedAlbumDetailUi?,
@@ -450,12 +446,8 @@ fun NaviampSharedAppShell(
             sonicMixBuilder = sonicMixBuilder,
                             library = library,
                             downloads = downloads,
-                            playlistItems = playlistItems,
-                            recentPlaylistIds = recentPlaylistIds,
-                            playlistSortMode = playlistSortMode,
+                            playlists = playlists,
                             playlistChoices = playlistChoices,
-                            playlistActionStatus = playlistActionStatus,
-                            playlistRefreshing = playlistRefreshing,
                             radioStations = radioStations,
                             radioRefreshing = radioRefreshing,
                             albumDetail = albumDetail,
@@ -979,12 +971,8 @@ private fun ConnectedContent(
     sonicMixBuilder: SharedSonicMixBuilderUi,
     library: NaviampLibraryScreenUi,
     downloads: NaviampDownloadsScreenUi,
-    playlistItems: List<SharedMediaItemUi>,
-    recentPlaylistIds: List<String>,
-    playlistSortMode: SharedPlaylistSortMode,
+    playlists: NaviampPlaylistsScreenUi,
     playlistChoices: List<NaviampPlaylistChoiceUi>,
-    playlistActionStatus: String?,
-    playlistRefreshing: Boolean,
     radioStations: List<InternetRadioStation>,
     radioRefreshing: Boolean,
     albumDetail: SharedAlbumDetailUi?,
@@ -1156,7 +1144,7 @@ private fun ConnectedContent(
                 )
             },
             playlistChoices = playlistChoices,
-            playlistActionStatus = playlistActionStatus,
+            playlistActionStatus = playlists.status,
         )
         artistDetail != null -> ArtistDetailContent(
             colors = colors,
@@ -1207,7 +1195,7 @@ private fun ConnectedContent(
             onAlbumAction = onMediaItemAction,
             onAlbumFavoriteToggled = onAlbumFavoriteToggled,
             playlistChoices = playlistChoices,
-            playlistActionStatus = playlistActionStatus,
+            playlistActionStatus = playlists.status,
         )
         playlistDetail != null -> PlaylistDetailContent(
             colors = colors,
@@ -1267,16 +1255,16 @@ private fun ConnectedContent(
                 },
             )
             SharedRoute.Playlists -> PullToRefreshRoute(
-                isRefreshing = playlistRefreshing,
+                isRefreshing = playlists.refreshing,
                 onRefresh = onRefreshPlaylists,
                 useScrollContainer = true,
             ) {
                 PlaylistsContent(
                     colors = colors,
-                    playlists = playlistItems,
-                    recentPlaylistIds = recentPlaylistIds,
-                    sortMode = playlistSortMode,
-                    status = playlistActionStatus,
+                    playlists = playlists.playlists,
+                    recentPlaylistIds = playlists.recentPlaylistIds,
+                    sortMode = playlists.sortMode,
+                    status = playlists.status,
                     onSortModeChanged = onPlaylistSortModeChanged,
                     onPlaylistAction = onMediaItemAction,
                     onSmartPlaylistSave = onSmartPlaylistSave,
@@ -1461,14 +1449,14 @@ private fun ConnectedContent(
                 screen = downloads,
                 actions = downloadsActions,
                 playlistChoices = playlistChoices,
-                playlistActionStatus = playlistActionStatus,
+                playlistActionStatus = playlists.status,
             )
         }
     }
     if (saveSonicPathDialogOpen) {
         SaveQueueAsPlaylistDialog(
             colors = colors,
-            status = playlistActionStatus,
+            status = playlists.status,
             title = "Save path as playlist",
             description = "Save this Sonic Path in order as a server playlist.",
             onDismissRequest = { saveSonicPathDialogOpen = false },
@@ -1481,7 +1469,7 @@ private fun ConnectedContent(
     if (saveSonicMixDialogOpen) {
         SaveQueueAsPlaylistDialog(
             colors = colors,
-            status = playlistActionStatus,
+            status = playlists.status,
             title = "Save mix as playlist",
             description = "Save this Sonic Mix in order as a server playlist.",
             onDismissRequest = { saveSonicMixDialogOpen = false },

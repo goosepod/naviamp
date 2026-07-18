@@ -18,6 +18,7 @@ import app.naviamp.ui.NaviampConnectionCapabilitiesUi
 import app.naviamp.ui.NaviampSavedConnectionUi
 import app.naviamp.ui.NaviampLibraryScreenUi
 import app.naviamp.ui.NaviampSearchScreenUi
+import app.naviamp.ui.NaviampPlaylistsScreenUi
 import app.naviamp.ui.NaviampOfflineDashboardUi
 import app.naviamp.ui.NaviampDownloadsScreenUi
 import app.naviamp.ui.NaviampStorageLocationUi
@@ -268,12 +269,14 @@ fun rememberAndroidAppShellUiState(
             selectedAudioCacheLocationId = audioCacheLocations
                 .firstOrNull { it.path == cacheSettings.customAudioCacheDirectory }?.id
                 ?: audioCacheLocations.firstOrNull()?.id,
-            playlistItems = shellModels.playlistItems,
-            recentPlaylistIds = recentPlaylistIds,
-            playlistSortMode = playlistSortMode,
+            playlists = NaviampPlaylistsScreenUi(
+                playlists = shellModels.playlistItems,
+                recentPlaylistIds = recentPlaylistIds,
+                sortMode = playlistSortMode,
+                status = playlistActionStatus,
+                refreshing = isPlaylistRefreshing,
+            ),
             playlistChoices = shellModels.playlistChoices,
-            playlistActionStatus = playlistActionStatus,
-            playlistRefreshing = isPlaylistRefreshing,
             radioStations = homeState.radioStations,
             radioRefreshing = isInternetRadioRefreshing,
             albumDetail = shellModels.albumDetail,
