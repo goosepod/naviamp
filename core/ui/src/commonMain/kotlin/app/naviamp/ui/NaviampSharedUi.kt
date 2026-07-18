@@ -145,7 +145,7 @@ fun NaviampSharedAppShell(
     albumDetailActions: NaviampAlbumDetailActions = NaviampAlbumDetailActions(),
     artistDetailActions: NaviampArtistDetailActions = NaviampArtistDetailActions(),
     playlistDetailActions: NaviampPlaylistDetailActions = NaviampPlaylistDetailActions(),
-    onRefreshHome: () -> Unit = {},
+    homeActions: NaviampHomeActions = NaviampHomeActions(),
     onTrackSelected: (SharedTrackRowUi) -> Unit,
     onAlbumSelected: (SharedMediaItemUi) -> Unit,
     onAlbumFavoriteToggled: (SharedMediaItemUi) -> Unit = {},
@@ -194,10 +194,6 @@ fun NaviampSharedAppShell(
         )
     },
     onTrackAction: (SharedTrackRowActionRequest) -> Unit = {},
-    onRecentRadioSelected: (SharedMediaItemUi) -> Unit = {},
-    onMixBuilderSelected: (SharedMixBuilderUi) -> Unit = {},
-    onHomeStationSelected: (SharedHomeStationUi) -> Unit = {},
-    onSonicDiscoveryTrackAction: (SharedHomeDiscoveryTrackActionRequest) -> Unit = {},
     onOpenNowPlaying: () -> Unit,
     onCloseNowPlaying: () -> Unit,
     nowPlayingActions: NaviampNowPlayingActions = NaviampNowPlayingActions(),
@@ -400,7 +396,7 @@ fun NaviampSharedAppShell(
                             albumDetailActions = albumDetailActions,
                             artistDetailActions = artistDetailActions,
                             playlistDetailActions = playlistDetailActions,
-                            onRefreshHome = onRefreshHome,
+                            homeActions = homeActions,
                             onTrackSelected = onTrackSelected,
                             onAlbumSelected = onAlbumSelected,
                             onAlbumFavoriteToggled = onAlbumFavoriteToggled,
@@ -413,10 +409,6 @@ fun NaviampSharedAppShell(
                             onPlaylistDelete = onPlaylistDelete,
                             onMediaItemAction = onMediaItemAction,
                             onTrackAction = onTrackAction,
-                            onRecentRadioSelected = onRecentRadioSelected,
-                            onMixBuilderSelected = onMixBuilderSelected,
-                            onHomeStationSelected = onHomeStationSelected,
-                            onSonicDiscoveryTrackAction = onSonicDiscoveryTrackAction,
                             onOpenNowPlaying = onOpenNowPlaying,
                             onCloseNowPlaying = onCloseNowPlaying,
                             nowPlayingActions = nowPlayingActions,
@@ -882,7 +874,7 @@ private fun ConnectedContent(
     albumDetailActions: NaviampAlbumDetailActions,
     artistDetailActions: NaviampArtistDetailActions,
     playlistDetailActions: NaviampPlaylistDetailActions,
-    onRefreshHome: () -> Unit,
+    homeActions: NaviampHomeActions,
     onTrackSelected: (SharedTrackRowUi) -> Unit,
     onAlbumSelected: (SharedMediaItemUi) -> Unit,
     onAlbumFavoriteToggled: (SharedMediaItemUi) -> Unit,
@@ -895,10 +887,6 @@ private fun ConnectedContent(
     onPlaylistDelete: (SharedMediaItemUi) -> Unit,
     onMediaItemAction: (SharedMediaItemActionRequest) -> Unit,
     onTrackAction: (SharedTrackRowActionRequest) -> Unit,
-    onRecentRadioSelected: (SharedMediaItemUi) -> Unit,
-    onMixBuilderSelected: (SharedMixBuilderUi) -> Unit,
-    onHomeStationSelected: (SharedHomeStationUi) -> Unit,
-    onSonicDiscoveryTrackAction: (SharedHomeDiscoveryTrackActionRequest) -> Unit,
     onOpenNowPlaying: () -> Unit,
     onCloseNowPlaying: () -> Unit,
     nowPlayingActions: NaviampNowPlayingActions,
@@ -1074,13 +1062,13 @@ private fun ConnectedContent(
                 colors = colors,
                 home = home.content,
                 isRefreshing = home.refreshing,
-                onRefresh = onRefreshHome,
+                onRefresh = homeActions.onRefresh,
                 onAlbumSelected = onAlbumSelected,
                 onAlbumFavoriteToggled = onAlbumFavoriteToggled,
                 onMixAlbumSelected = onMixAlbumSelected,
                 onPlaylistSelected = onPlaylistSelected,
-                onRecentRadioSelected = onRecentRadioSelected,
-                onMixBuilderSelected = onMixBuilderSelected,
+                onRecentRadioSelected = homeActions.onRecentRadioSelected,
+                onMixBuilderSelected = homeActions.onMixBuilderSelected,
                 onInternetRadioStationSelected = { item ->
                     radio.stations.firstOrNull { it.item.id == item.id }
                         ?.let { station ->
@@ -1089,8 +1077,8 @@ private fun ConnectedContent(
                             )
                         }
                 },
-                onHomeStationSelected = onHomeStationSelected,
-                onSonicDiscoveryTrackAction = onSonicDiscoveryTrackAction,
+                onHomeStationSelected = homeActions.onStationSelected,
+                onSonicDiscoveryTrackAction = homeActions.onSonicDiscoveryTrackAction,
                 onRecentlyPlayedTrackAction = { request ->
                     if (request.action == SharedTrackRowAction.Select) {
                         onTrackSelected(request.track)

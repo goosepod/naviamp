@@ -18,6 +18,7 @@ import app.naviamp.ui.NaviampNowPlayingItemUi
 import app.naviamp.ui.NaviampNowPlayingActions
 import app.naviamp.ui.NaviampConnectionSettingsActions
 import app.naviamp.ui.NaviampDownloadsActions
+import app.naviamp.ui.NaviampHomeActions
 import app.naviamp.ui.NaviampLibraryActions
 import app.naviamp.ui.NaviampInternetRadioActions
 import app.naviamp.ui.NaviampAlbumDetailActions
@@ -500,7 +501,13 @@ fun androidAppShellActions(
                 onTrackSelected = handlePlaylistTrackSelected,
                 onTrackAction = handleTrackAction,
             ),
-            onRefreshHome = refreshHome,
+            homeActions = NaviampHomeActions(
+                onRefresh = refreshHome,
+                onRecentRadioSelected = handleRecentRadioSelected,
+                onMixBuilderSelected = handleMixBuilderSelected,
+                onStationSelected = handleShellHomeStationSelected,
+                onSonicDiscoveryTrackAction = handleSonicDiscoveryTrackAction,
+            ),
             onTrackSelected = handleShellTrackSelected,
             onAlbumSelected = handleShellAlbumSelected,
             onAlbumFavoriteToggled = handleAlbumFavoriteToggled,
@@ -635,10 +642,6 @@ fun androidAppShellActions(
                     -> Unit
                 }
             },
-            onRecentRadioSelected = handleRecentRadioSelected,
-            onMixBuilderSelected = handleMixBuilderSelected,
-            onHomeStationSelected = handleShellHomeStationSelected,
-            onSonicDiscoveryTrackAction = handleSonicDiscoveryTrackAction,
             onOpenNowPlaying = { nowPlayingOpen = true },
             onCloseNowPlaying = { nowPlayingOpen = false },
             nowPlayingActions = NaviampNowPlayingActions(

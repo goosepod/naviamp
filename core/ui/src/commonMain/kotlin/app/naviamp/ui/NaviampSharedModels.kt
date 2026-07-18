@@ -755,6 +755,14 @@ data class NaviampHomeScreenUi(
     val refreshing: Boolean = false,
 )
 
+data class NaviampHomeActions(
+    val onRefresh: () -> Unit = {},
+    val onRecentRadioSelected: (SharedMediaItemUi) -> Unit = {},
+    val onMixBuilderSelected: (SharedMixBuilderUi) -> Unit = {},
+    val onStationSelected: (SharedHomeStationUi) -> Unit = {},
+    val onSonicDiscoveryTrackAction: (SharedHomeDiscoveryTrackActionRequest) -> Unit = {},
+)
+
 data class SharedSonicPathBuilderActions(
     val onStartQueryChanged: (String) -> Unit = {},
     val onEndQueryChanged: (String) -> Unit = {},
