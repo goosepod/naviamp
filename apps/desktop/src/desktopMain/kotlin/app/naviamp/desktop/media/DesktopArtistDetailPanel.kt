@@ -28,70 +28,57 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import app.naviamp.domain.Album
-import app.naviamp.domain.Artist
-import app.naviamp.domain.ArtistDetails
-import app.naviamp.domain.Track
-import app.naviamp.domain.media.groupedByReleaseSection
-import app.naviamp.domain.media.sortedForAlbumDisplay
 import app.naviamp.domain.settings.AlbumCollectionLayout
 import app.naviamp.domain.settings.AlbumSortOrder
-import app.naviamp.domain.popular.SimilarArtistMatch
+import app.naviamp.ui.NaviampArtistDetailScreenUi
 import app.naviamp.ui.SharedMediaItemAction
 import app.naviamp.ui.ExpandedMediaImageDialog
 import app.naviamp.ui.NaviampDetailAction
 import app.naviamp.ui.NaviampResponsiveActionRow
 import app.naviamp.ui.SharedMediaItemActionRequest
 import app.naviamp.ui.SharedAlbumGridTile
+import app.naviamp.ui.SharedAlbumSectionUi
 import app.naviamp.ui.SharedMediaItemKind
+import app.naviamp.ui.SharedMediaItemUi
+import app.naviamp.ui.SharedSimilarArtistUi
 import app.naviamp.ui.SharedTrackGroupAction
 import app.naviamp.ui.SharedTrackGroupActionRequest
 import app.naviamp.ui.SharedTrackRowActionRequest
 import app.naviamp.ui.actionRequest
-import app.naviamp.ui.toSharedMediaItemUi
-import app.naviamp.ui.toSharedTrackRowUi
 import app.naviamp.ui.albumRowActions
 import app.naviamp.ui.NaviampAction
 import app.naviamp.ui.NaviampRowMenuItem
+import app.naviamp.ui.sortedForAlbumDisplay
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun DesktopArtistDetailPanel(
     appColors: DesktopAppColors,
-    artist: Artist?,
-    artistDetails: ArtistDetails?,
-    popularTracks: List<Track>,
-    similarArtists: List<SimilarArtistMatch>,
-    status: String?,
-    popularTracksStatus: String?,
-    similarArtistsStatus: String?,
-    coverArtUrl: (String?) -> String?,
+    screen: NaviampArtistDetailScreenUi,
     albumCollectionLayout: AlbumCollectionLayout,
     albumSortOrder: AlbumSortOrder,
     groupAlbumsByReleaseType: Boolean,
     onBack: () -> Unit,
-    onSimilarArtistSelected: (Artist) -> Unit,
-    onSimilarArtistExternalSelected: (String) -> Unit,
+    onSimilarArtistSelected: (SharedSimilarArtistUi) -> Unit,
     onArtistAction: (SharedMediaItemActionRequest) -> Unit,
-    onArtistCatalogPlay: (List<Album>, Boolean) -> Unit,
+    onArtistCatalogPlay: (List<SharedMediaItemUi>, Boolean) -> Unit,
     onPopularTracksAction: (SharedTrackGroupActionRequest) -> Unit,
     onPopularTrackAction: (SharedTrackRowActionRequest) -> Unit,
     onAlbumAction: (SharedMediaItemActionRequest) -> Unit,
 ) {
-    val effectiveArtist = artistDetails?.artist ?: artist
-    val imageUrl = artistDetails?.info?.largeImageUrl
-        ?: artistDetails?.info?.mediumImageUrl
-        ?: artistDetails?.info?.smallImageUrl
-    var biographyExpanded by remember(effectiveArtist?.id) { mutableStateOf(false) }
-    var artistImageOpen by remember(effectiveArtist?.id) { mutableStateOf(false) }
-    val similarArtistsVisible = similarArtists.isNotEmpty() || similarArtistsStatus != null
-    val visibleAlbumSections = artistDetails?.let { details ->
+    val detail = screen.detail
+    val artist = detail?.artist ?: screen.selectedArtist
+    val imageUrl = artist?.coverArtUrl
+    var biographyExpanded by remember(artist?.id) { mutableStateOf(false) }
+    var artistImageOpen by remember(artist?.id) { mutableStateOf(false) }
+    val similarArtistsVisible = detail?.let { it.similarArtists.isNotEmpty() || it.similarArtistsStatus != null } == true
+    val visibleAlbumSections = detail?.let { details ->
         if (groupAlbumsByReleaseType) {
-            details.albums.groupedByReleaseSection()
+            details.albumSections
         } else {
             listOf(
-                app.naviamp.domain.media.AlbumReleaseSectionGroup(
-                    section = app.naviamp.domain.media.AlbumReleaseSection.Albums,
+                SharedAlbumSectionUi(
+                    title = "Albums",
                     albums = details.albums,
                 ),
             )
@@ -100,19 +87,15 @@ fun DesktopArtistDetailPanel(
         }
     }.orEmpty()
     val displayedAlbums = visibleAlbumSections.flatMap { section -> section.albums }
-    val artistItem = effectiveArtist?.toSharedMediaItemUi(
-        coverArtUrl = { imageUrl },
-        canFavorite = true,
-    )
     fun requestArtistAction(action: SharedMediaItemAction) {
-        artistItem?.let { item ->
+        artist?.let { item ->
             onArtistAction(item.actionRequest(action, kind = SharedMediaItemKind.Artist))
         }
     }
     fun requestPopularTracksAction(action: SharedTrackGroupAction) {
         onPopularTracksAction(
             SharedTrackGroupActionRequest(
-                tracks = popularTracks.map { track -> track.toSharedTrackRowUi(coverArtUrl) },
+                tracks = detail?.popularTracks.orEmpty(),
                 action = action,
             ),
         )
@@ -140,7 +123,7 @@ fun DesktopArtistDetailPanel(
                 )
             }
             Text(
-                effectiveArtist?.name ?: "Artist",
+                artist?.title ?: "Artist",
                 color = appColors.primaryText,
                 fontWeight = FontWeight.Bold,
                 fontSize = 16.sp,
@@ -172,16 +155,16 @@ fun DesktopArtistDetailPanel(
                 modifier = Modifier.weight(1f),
             ) {
                 Text(
-                    effectiveArtist?.name ?: "",
+                    artist?.title ?: "",
                     color = appColors.primaryText,
                     fontWeight = FontWeight.Bold,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
-                status?.let {
+                screen.status?.let {
                     Text(it, color = appColors.secondaryText, fontSize = 11.sp)
                 }
-                artistDetails?.let { details ->
+                detail?.let { details ->
                     Text(
                         "${details.albums.size} albums, EPs, and singles",
                         color = appColors.secondaryText,
@@ -193,16 +176,16 @@ fun DesktopArtistDetailPanel(
                             NaviampDetailAction("Play artist catalog", TransportIcons.Play, { onArtistCatalogPlay(displayedAlbums, false) }, displayedAlbums.isNotEmpty()),
                             NaviampDetailAction("Start artist radio", TransportIcons.Radio, { requestArtistAction(SharedMediaItemAction.StartRadio) }, details.albums.isNotEmpty()),
                             NaviampDetailAction(
-                                if (effectiveArtist?.favoritedAtIso8601 != null) "Remove artist favorite" else "Favorite artist",
+                                if (artist?.favoriteActive == true) "Remove artist favorite" else "Favorite artist",
                                 TransportIcons.Heart,
                                 { requestArtistAction(SharedMediaItemAction.ToggleFavorite) },
-                                effectiveArtist != null,
+                                artist?.canFavorite == true,
                             ),
                             NaviampDetailAction(
                                 if (similarArtistsVisible) "Hide similar artists" else "Find similar artists",
                                 DesktopNavigationIcons.Artist,
                                 { requestArtistAction(SharedMediaItemAction.FindSimilar) },
-                                effectiveArtist != null,
+                                artist != null,
                                 selected = similarArtistsVisible,
                             ),
                             NaviampDetailAction("Add artist to queue", DesktopNavigationIcons.Queue, { requestArtistAction(SharedMediaItemAction.AddToQueue) }, details.albums.isNotEmpty()),
@@ -210,7 +193,7 @@ fun DesktopArtistDetailPanel(
                             NaviampDetailAction("Shuffle artist catalog", TransportIcons.Shuffle, { onArtistCatalogPlay(displayedAlbums, true) }, displayedAlbums.isNotEmpty()),
                         ),
                     )
-                    details.info?.biography
+                    details.biography
                         ?.takeIf { it.isNotBlank() }
                         ?.let { biography ->
                             val normalizedBiography = biography.normalizedBiography()
@@ -241,7 +224,7 @@ fun DesktopArtistDetailPanel(
             }
         }
 
-        artistDetails?.let { details ->
+        detail?.let { details ->
             Column(
                 verticalArrangement = Arrangement.spacedBy(6.dp),
             ) {
@@ -260,32 +243,31 @@ fun DesktopArtistDetailPanel(
                             appColors = appColors,
                             icon = DesktopNavigationIcons.Artist,
                             contentDescription = "Hide similar artists",
-                            enabled = effectiveArtist != null,
+                            enabled = artist != null,
                             onClick = { requestArtistAction(SharedMediaItemAction.FindSimilar) },
                         )
                     }
-                    similarArtistsStatus?.let {
+                    details.similarArtistsStatus?.let {
                         Text(it, color = appColors.secondaryText, fontSize = 11.sp)
                     }
                     Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                        similarArtists.forEach { similarArtist ->
+                        details.similarArtists.forEach { similarArtist ->
                             SimilarArtistRow(
                                 appColors = appColors,
                                 similarArtist = similarArtist,
                                 onSimilarArtistSelected = onSimilarArtistSelected,
-                                onSimilarArtistExternalSelected = onSimilarArtistExternalSelected,
                             )
                         }
                     }
                 }
-                if (popularTracks.isNotEmpty() || popularTracksStatus != null) {
+                if (details.popularTracks.isNotEmpty() || details.popularTracksStatus != null) {
                     Text(
                         "Popular Tracks".uppercase(),
                         color = appColors.primaryText,
                         fontWeight = FontWeight.Bold,
                         fontSize = 12.sp,
                     )
-                    if (popularTracks.isNotEmpty()) {
+                    if (details.popularTracks.isNotEmpty()) {
                         Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
                             DetailActionIconButton(
                                 appColors = appColors,
@@ -310,20 +292,17 @@ fun DesktopArtistDetailPanel(
                             )
                         }
                     }
-                    popularTracksStatus?.let {
+                    details.popularTracksStatus?.let {
                         Text(it, color = appColors.secondaryText, fontSize = 11.sp)
                     }
                     Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                        popularTracks.forEach { track ->
-                            DesktopTrackRow(
+                        details.popularTracks.forEach { track ->
+                            DesktopSharedTrackRow(
                                 appColors = appColors,
                                 track = track,
-                                coverArtUrl = coverArtUrl(track.coverArtId),
-                                showCoverArt = true,
                                 canStartRadio = true,
                                 canDownload = false,
                                 canAddToQueue = true,
-                                canGoToArtist = false,
                                 onTrackAction = onPopularTrackAction,
                             )
                         }
@@ -337,7 +316,7 @@ fun DesktopArtistDetailPanel(
                 )
                 visibleAlbumSections.forEach { section ->
                     Text(
-                        section.section.label.uppercase(),
+                        section.title.uppercase(),
                         color = appColors.primaryText,
                         fontWeight = FontWeight.Bold,
                         fontSize = 12.sp,
@@ -349,7 +328,7 @@ fun DesktopArtistDetailPanel(
                             modifier = Modifier.fillMaxWidth(),
                         ) {
                             section.albums.forEach { album ->
-                                val item = album.toSharedMediaItemUi(coverArtUrl, canFavorite = true)
+                                val item = album
                                 val menuItems = albumRowActions(
                                     canStartRadio = true,
                                     canDownload = true,
@@ -388,15 +367,13 @@ fun DesktopArtistDetailPanel(
                     } else {
                         Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                             section.albums.forEach { album ->
-                                DesktopAlbumRow(
+                                DesktopSharedAlbumRow(
                                     appColors = appColors,
-                                    album = album,
-                                    coverArtUrl = coverArtUrl(album.coverArtId),
+                                    item = album,
                                     canStartRadio = true,
                                     canDownload = true,
                                     canAddToQueue = true,
                                     canAddToPlaylist = true,
-                                    canFavorite = true,
                                     onItemAction = onAlbumAction,
                                 )
                             }
@@ -419,27 +396,20 @@ fun DesktopArtistDetailPanel(
 @Composable
 private fun SimilarArtistRow(
     appColors: DesktopAppColors,
-    similarArtist: SimilarArtistMatch,
-    onSimilarArtistSelected: (Artist) -> Unit,
-    onSimilarArtistExternalSelected: (String) -> Unit,
+    similarArtist: SharedSimilarArtistUi,
+    onSimilarArtistSelected: (SharedSimilarArtistUi) -> Unit,
 ) {
-    val localArtist = similarArtist.matchedArtist
-    val externalUrl = similarArtist.candidate.externalUrl
+    val hasTarget = similarArtist.localArtistId != null || similarArtist.externalUrl != null
     Row(
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(enabled = localArtist != null || externalUrl != null) {
-                when {
-                    localArtist != null -> onSimilarArtistSelected(localArtist)
-                    externalUrl != null -> onSimilarArtistExternalSelected(externalUrl)
-                }
-            },
+            .clickable(enabled = hasTarget) { onSimilarArtistSelected(similarArtist) },
     ) {
         DesktopCoverArtThumb(
             appColors = appColors,
-            coverArtUrl = similarArtist.candidate.imageUrl,
+            coverArtUrl = similarArtist.imageUrl,
             size = 36.dp,
             cornerRadius = 18.dp,
         )
@@ -448,7 +418,7 @@ private fun SimilarArtistRow(
             modifier = Modifier.weight(1f),
         ) {
             Text(
-                similarArtist.candidate.name,
+                similarArtist.title,
                 color = appColors.primaryText,
                 fontWeight = FontWeight.SemiBold,
                 fontSize = 12.sp,
@@ -456,16 +426,16 @@ private fun SimilarArtistRow(
                 overflow = TextOverflow.Ellipsis,
             )
             Text(
-                if (localArtist != null) "In library" else "View in browser",
+                similarArtist.subtitle,
                 color = appColors.secondaryText,
                 fontSize = 10.sp,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
         }
-        if (localArtist == null && externalUrl != null) {
+        if (similarArtist.localArtistId == null && similarArtist.externalUrl != null) {
             IconButton(
-                onClick = { onSimilarArtistExternalSelected(externalUrl) },
+                onClick = { onSimilarArtistSelected(similarArtist) },
                 modifier = Modifier.size(32.dp),
             ) {
                 Icon(

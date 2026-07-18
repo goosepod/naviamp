@@ -22,9 +22,7 @@ import androidx.compose.ui.unit.dp
 import app.naviamp.desktop.settings.CacheSettings
 import app.naviamp.desktop.settings.PlaybackSettings
 import app.naviamp.domain.Album
-import app.naviamp.domain.AlbumDetails
 import app.naviamp.domain.Artist
-import app.naviamp.domain.ArtistDetails
 import app.naviamp.domain.InternetRadioStation
 import app.naviamp.domain.Playlist
 import app.naviamp.domain.Track
@@ -35,7 +33,6 @@ import app.naviamp.domain.playback.AudioOutputDevicePlaybackEngine
 import app.naviamp.domain.home.HomeContent
 import app.naviamp.domain.playback.EqualizerPlaybackEngine
 import app.naviamp.domain.playback.PlaybackEngine
-import app.naviamp.domain.popular.SimilarArtistMatch
 import app.naviamp.domain.settings.ConnectionFormState
 import app.naviamp.domain.settings.InterfaceSettings
 import app.naviamp.domain.sonichome.SonicHomeDiscoveryRows
@@ -43,8 +40,12 @@ import app.naviamp.ui.AlbumMixBuilderContent
 import app.naviamp.ui.ArtistMixBuilderContent
 import app.naviamp.ui.GenreMixBuilderContent
 import app.naviamp.ui.NaviampAboutUi
+import app.naviamp.ui.NaviampAlbumDetailScreenUi
+import app.naviamp.ui.NaviampArtistDetailScreenUi
 import app.naviamp.ui.NaviampSavedConnectionUi
 import app.naviamp.ui.NaviampLibraryScreenUi
+import app.naviamp.ui.NaviampPlaylistDetailScreenUi
+import app.naviamp.ui.NaviampPlaylistsScreenUi
 import app.naviamp.ui.NaviampSearchScreenUi
 import app.naviamp.ui.NaviampShellCapabilitiesUi
 import app.naviamp.ui.NaviampShellConnectionUi
@@ -65,6 +66,7 @@ import app.naviamp.ui.SharedTrackGroupAction
 import app.naviamp.ui.SharedTrackGroupActionRequest
 import app.naviamp.ui.SharedTrackRowAction
 import app.naviamp.ui.SharedTrackRowUi
+import app.naviamp.ui.SharedPlaylistSortMode
 import app.naviamp.ui.SaveQueueAsPlaylistDialog
 import app.naviamp.ui.StationRowAction
 import app.naviamp.ui.SonicMixBuilderContent
@@ -93,29 +95,17 @@ fun ColumnScope.DesktopAppRouteContent(
     onRouteSelected: (DesktopAppRoute) -> Unit,
     onOpenArtistMixBuilder: () -> Unit,
     onOpenAlbumMixBuilder: () -> Unit,
-    selectedAlbum: Album?,
-    selectedAlbumDetails: AlbumDetails?,
-    selectedAlbumStatus: String?,
+    albumDetail: NaviampAlbumDetailScreenUi,
     albumDetailBackRoute: DesktopAppRoute,
-    selectedArtist: Artist?,
-    selectedArtistDetails: ArtistDetails?,
-    selectedArtistPopularTracks: List<Track>,
-    selectedArtistSimilarArtists: List<SimilarArtistMatch>,
-    selectedArtistStatus: String?,
-    selectedArtistPopularTracksStatus: String?,
-    selectedArtistSimilarArtistsStatus: String?,
+    artistDetail: NaviampArtistDetailScreenUi,
+    detailActionSources: DesktopDetailActionSources,
     artistDetailBackRoute: DesktopAppRoute,
-    playlists: List<Playlist>,
-    playlistTracksById: Map<String, List<Track>>,
-    recentPlaylistIds: List<String>,
-    playlistSortMode: DesktopPlaylistSortMode,
-    playlistStatus: String?,
-    onPlaylistSortModeChanged: (DesktopPlaylistSortMode) -> Unit,
+    playlists: NaviampPlaylistsScreenUi,
+    playlistDetail: NaviampPlaylistDetailScreenUi,
+    playlistActionSources: DesktopPlaylistActionSources,
+    onPlaylistSortModeChanged: (SharedPlaylistSortMode) -> Unit,
     onPlaylistRenameRequested: (Playlist) -> Unit,
     onPlaylistDeleteRequested: (Playlist) -> Unit,
-    selectedPlaylist: Playlist?,
-    selectedPlaylistTracks: List<Track>,
-    selectedPlaylistStatus: String?,
     library: NaviampLibraryScreenUi,
     libraryTab: DesktopLibraryTab,
     libraryListState: LazyListState,
@@ -215,7 +205,7 @@ fun ColumnScope.DesktopAppRouteContent(
     val contentScrollState = rememberScrollState()
     val sharedHome = homeContent.toSharedHomeUi(
         coverArtUrl = coverArtUrl,
-        playlistTracksById = playlistTracksById,
+        playlistTracksById = playlistActionSources.playlistTracksById,
         sonicDiscoveryRows = sonicHomeDiscoveryRows,
         canFavoriteAlbums = true,
         showSonicPathBuilder = playbackSettings.sonicSimilarityEnabled && capabilities.sonicSimilarity,
@@ -288,7 +278,9 @@ fun ColumnScope.DesktopAppRouteContent(
             SharedMediaItemAction.Download -> appActions.downloadCurrentAlbum()
             SharedMediaItemAction.AddToQueue -> appActions.addCurrentAlbumToQueue()
             SharedMediaItemAction.AddToPlaylist -> appActions.openCurrentAlbumAddToPlaylist()
-            SharedMediaItemAction.ToggleFavorite -> (selectedAlbumDetails?.album ?: selectedAlbum)?.let {
+            SharedMediaItemAction.ToggleFavorite -> (
+                detailActionSources.albumDetail?.album ?: detailActionSources.selectedAlbum
+                )?.let {
                 appActions.toggleAlbumFavorite(it)
             }
             SharedMediaItemAction.Select,
@@ -332,7 +324,7 @@ fun ColumnScope.DesktopAppRouteContent(
     }
     fun handleSelectedPlaylistMediaAction(request: SharedMediaItemActionRequest) {
         if (request.textValue == app.naviamp.ui.KeepDownloadedActionValue) {
-            selectedPlaylist?.let(appActions::toggleKeepDownloadedPlaylist)
+            playlistActionSources.selectedPlaylist?.let(appActions::toggleKeepDownloadedPlaylist)
             return
         }
         when (request.action) {
@@ -348,9 +340,9 @@ fun ColumnScope.DesktopAppRouteContent(
             SharedMediaItemAction.CopyPlaylistDeduplicated,
             -> request.playlistName?.let { name ->
                 val tracks = if (request.action == SharedMediaItemAction.CopyPlaylistDeduplicated) {
-                    selectedPlaylistTracks.distinctBy { track -> track.id }
+                    playlistActionSources.selectedPlaylistTracks.distinctBy { track -> track.id }
                 } else {
-                    selectedPlaylistTracks
+                    playlistActionSources.selectedPlaylistTracks
                 }
                 playlistsController.saveTracksAsPlaylist(name = name, tracks = tracks, label = "playlist")
             }
@@ -367,9 +359,9 @@ fun ColumnScope.DesktopAppRouteContent(
     fun handlePopularTracksGroupAction(request: SharedTrackGroupActionRequest) {
         if (request.tracks.isEmpty()) return
         when (request.action) {
-            SharedTrackGroupAction.Play -> appActions.playPopularTracks(selectedArtistPopularTracks)
-            SharedTrackGroupAction.StartRadio -> appActions.playPopularTracksRadio(selectedArtistPopularTracks)
-            SharedTrackGroupAction.AddToQueue -> appActions.addPopularTracksToQueue(selectedArtistPopularTracks)
+            SharedTrackGroupAction.Play -> appActions.playPopularTracks(detailActionSources.artistPopularTracks)
+            SharedTrackGroupAction.StartRadio -> appActions.playPopularTracksRadio(detailActionSources.artistPopularTracks)
+            SharedTrackGroupAction.AddToQueue -> appActions.addPopularTracksToQueue(detailActionSources.artistPopularTracks)
         }
     }
 
@@ -444,19 +436,11 @@ fun ColumnScope.DesktopAppRouteContent(
                 )
                 DesktopAppRoute.AlbumDetail -> DesktopAlbumDetailPanel(
                     appColors = appColors,
-                    album = selectedAlbum,
-                    albumDetails = selectedAlbumDetails,
-                    status = selectedAlbumStatus,
-                    coverArtUrl = (
-                        selectedAlbumDetails?.album?.coverArtId ?: selectedAlbum?.coverArtId
-                        )?.let(coverArtUrl),
-                    popularTrackIds = selectedArtistPopularTracks.map { it.id.value }.toSet(),
+                    screen = albumDetail,
                     onBack = { onRouteSelected(albumDetailBackRoute) },
                     onAlbumAction = { request -> handleSelectedAlbumMediaAction(request.action) },
                     onTrackAction = { request ->
-                        val index = selectedAlbumDetails?.tracks?.indexOfFirst { track -> track.id.value == request.track.id } ?: -1
-                        val track = selectedAlbumDetails?.tracks?.getOrNull(index)
-                        if (track != null) {
+                        detailActionSources.albumTrack(request.track.id)?.let { (index, track) ->
                             when (request.action) {
                                 SharedTrackRowAction.Select -> appActions.playAlbumDetails(index = index)
                                 SharedTrackRowAction.PlayNext -> playlistsController.playNext(track)
@@ -478,35 +462,44 @@ fun ColumnScope.DesktopAppRouteContent(
                             }
                         }
                     },
-                    onArtistSelected = { track ->
-                        appActions.openTrackArtistDetails(track, backRouteOverride = DesktopAppRoute.AlbumDetail)
+                    onArtistSelected = { request ->
+                        detailActionSources.albumTrack(request.track.id)?.second?.let { track ->
+                            appActions.openTrackArtistDetails(
+                                track,
+                                artistId = request.artistId,
+                                artistName = request.artistName,
+                                backRouteOverride = DesktopAppRoute.AlbumDetail,
+                            )
+                        }
                     },
                 )
                 DesktopAppRoute.ArtistDetail -> DesktopArtistDetailPanel(
                     appColors = appColors,
-                    artist = selectedArtist,
-                    artistDetails = selectedArtistDetails,
-                    popularTracks = selectedArtistPopularTracks,
-                    similarArtists = selectedArtistSimilarArtists,
-                    status = selectedArtistStatus,
-                    popularTracksStatus = selectedArtistPopularTracksStatus,
-                    similarArtistsStatus = selectedArtistSimilarArtistsStatus,
-                    coverArtUrl = coverArtUrl,
+                    screen = artistDetail,
                     albumCollectionLayout = interfaceSettings.albumCollectionLayout,
                     albumSortOrder = interfaceSettings.albumSortOrder,
                     groupAlbumsByReleaseType = interfaceSettings.groupAlbumsByReleaseType,
                     onBack = appActions::closeArtistDetails,
-                    onSimilarArtistSelected = appActions::openArtistDetails,
-                    onSimilarArtistExternalSelected = appActions::openExternalArtistUrl,
+                    onSimilarArtistSelected = { item ->
+                        val (localArtist, externalUrl) = detailActionSources.similarArtist(item)
+                        when {
+                            localArtist != null -> appActions.openArtistDetails(localArtist)
+                            externalUrl != null -> appActions.openExternalArtistUrl(externalUrl)
+                        }
+                    },
                     onArtistAction = { request ->
-                        (selectedArtistDetails?.artist ?: selectedArtist)
+                        detailActionSources.artist(request.item.id)
                             ?.let { artist -> handleArtistMediaAction(request.action, artist) }
                     },
-                    onArtistCatalogPlay = appActions::playArtistCatalog,
+                    onArtistCatalogPlay = { albums, shuffle ->
+                        appActions.playArtistCatalog(
+                            detailActionSources.artistAlbums(albums.map { it.id }),
+                            shuffle,
+                        )
+                    },
                     onPopularTracksAction = ::handlePopularTracksGroupAction,
                     onPopularTrackAction = { request ->
-                        selectedArtistPopularTracks
-                            .firstOrNull { track -> track.id.value == request.track.id }
+                        detailActionSources.popularTrack(request.track.id)
                             ?.let { track ->
                                 when (request.action) {
                                     SharedTrackRowAction.Select -> appActions.playSelectedPopularTrack(track)
@@ -530,24 +523,16 @@ fun ColumnScope.DesktopAppRouteContent(
                             }
                     },
                     onAlbumAction = { request ->
-                        selectedArtistDetails?.albums
-                            ?.firstOrNull { album -> album.id.value == request.item.id }
+                        detailActionSources.album(request.item.id)
                             ?.let { album -> handleAlbumMediaAction(request.action, album) }
                     },
                 )
                 DesktopAppRoute.Playlists -> DesktopPlaylistsPanel(
                     appColors = appColors,
-                    playlists = playlists,
-                    playlistTracks = { playlist -> playlistTracksById[playlist.id].orEmpty() },
-                    keepDownloadedPlaylistIds = keepDownloadedPolicies.mapTo(mutableSetOf()) { it.collectionId },
-                    recentPlaylistIds = recentPlaylistIds,
-                    sortMode = playlistSortMode,
-                    status = playlistStatus ?: connection.status.pageStatusOrNull(),
-                    coverArtUrl = coverArtUrl,
+                    screen = playlists.copy(status = playlists.status ?: connection.status.pageStatusOrNull()),
                     onSortModeChanged = onPlaylistSortModeChanged,
                     onPlaylistAction = { request ->
-                        playlists
-                            .firstOrNull { playlist -> playlist.id == request.item.id }
+                        playlistActionSources.playlist(request.item.id)
                             ?.let { playlist ->
                                 if (request.textValue == app.naviamp.ui.KeepDownloadedActionValue) {
                                     appActions.toggleKeepDownloadedPlaylist(playlist)
@@ -558,27 +543,32 @@ fun ColumnScope.DesktopAppRouteContent(
                     },
                     onRefreshPlaylists = { playlistsController.refreshPlaylists(useCache = false) },
                     onSmartPlaylistSave = smartPlaylistsController::saveSmartPlaylist,
-                    onSmartPlaylistUpdate = smartPlaylistsController::updateSmartPlaylist,
+                    onSmartPlaylistUpdate = { item, definition ->
+                        playlistActionSources.playlist(item.id)?.let { playlist ->
+                            smartPlaylistsController.updateSmartPlaylist(playlist, definition)
+                        }
+                    },
                     onSmartPlaylistSaveWithPassword = smartPlaylistsController::saveSmartPlaylistWithPassword,
-                    onSmartPlaylistUpdateWithPassword = smartPlaylistsController::updateSmartPlaylistWithPassword,
-                    onSmartPlaylistLoad = smartPlaylistsController::loadSmartPlaylistDefinition,
+                    onSmartPlaylistUpdateWithPassword = { item, definition, password ->
+                        playlistActionSources.playlist(item.id)?.let { playlist ->
+                            smartPlaylistsController.updateSmartPlaylistWithPassword(playlist, definition, password)
+                        }
+                    },
+                    onSmartPlaylistLoad = { item ->
+                        playlistActionSources.playlist(item.id)
+                            ?.let { smartPlaylistsController.loadSmartPlaylistDefinition(it) }
+                            ?: error("Playlist ${item.title} is no longer available.")
+                    },
                     availableLibraries = connection.availableMusicFolders,
                     selectedConnectionLibraryIds = connection.form.selectedMusicFolderIds,
                 )
                 DesktopAppRoute.PlaylistDetail -> DesktopPlaylistDetailPanel(
                     appColors = appColors,
-                    playlist = selectedPlaylist,
-                    tracks = selectedPlaylistTracks,
-                    keepDownloaded = selectedPlaylist?.id in keepDownloadedPolicies.map { it.collectionId },
-                    status = selectedPlaylistStatus ?: playlistStatus,
-                    playlistCoverArtUrl = selectedPlaylist?.coverArtId?.let(coverArtUrl),
-                    coverArtUrl = coverArtUrl,
+                    screen = playlistDetail.copy(status = playlistDetail.status ?: playlists.status),
                     onBack = { onRouteSelected(DesktopAppRoute.Playlists) },
                     onPlaylistAction = { request -> handleSelectedPlaylistMediaAction(request) },
                     onTrackAction = { request ->
-                        val index = selectedPlaylistTracks.indexOfFirst { track -> track.id.value == request.track.id }
-                        val track = selectedPlaylistTracks.getOrNull(index)
-                        if (track != null) {
+                        playlistActionSources.selectedTrack(request.track.id)?.let { (index, track) ->
                             when (request.action) {
                                 SharedTrackRowAction.Select -> appActions.playPlaylistDetails(index = index)
                                 SharedTrackRowAction.PlayNext -> playlistsController.playNext(track)
@@ -599,10 +589,28 @@ fun ColumnScope.DesktopAppRouteContent(
                             }
                         }
                     },
-                    onUpdateStandardPlaylist = playlistsController::updateStandardPlaylistTracks,
-                    onSmartPlaylistUpdate = smartPlaylistsController::updateSmartPlaylist,
-                    onSmartPlaylistUpdateWithPassword = smartPlaylistsController::updateSmartPlaylistWithPassword,
-                    onSmartPlaylistLoad = smartPlaylistsController::loadSmartPlaylistDefinition,
+                    onUpdateStandardPlaylist = { rows ->
+                        val playlist = playlistActionSources.selectedPlaylist
+                        val tracks = playlistActionSources.selectedTracks(rows)
+                        if (playlist != null && tracks != null) {
+                            playlistsController.updateStandardPlaylistTracks(playlist, tracks)
+                        }
+                    },
+                    onSmartPlaylistUpdate = { definition ->
+                        playlistActionSources.selectedPlaylist?.let { playlist ->
+                            smartPlaylistsController.updateSmartPlaylist(playlist, definition)
+                        }
+                    },
+                    onSmartPlaylistUpdateWithPassword = { definition, password ->
+                        playlistActionSources.selectedPlaylist?.let { playlist ->
+                            smartPlaylistsController.updateSmartPlaylistWithPassword(playlist, definition, password)
+                        }
+                    },
+                    onSmartPlaylistLoad = {
+                        playlistActionSources.selectedPlaylist
+                            ?.let { smartPlaylistsController.loadSmartPlaylistDefinition(it) }
+                            ?: error("The selected playlist is no longer available.")
+                    },
                     availableLibraries = connection.availableMusicFolders,
                     selectedConnectionLibraryIds = connection.form.selectedMusicFolderIds,
                 )
@@ -908,15 +916,22 @@ fun ColumnScope.DesktopAppRouteContent(
                 }
                 DesktopAppRoute.Downloads -> DesktopDownloadsRoute(
                     appColors = appColors,
-                    connectedSourceId = connectedSourceId,
-                    downloadRefreshToken = downloadRefreshToken,
-                    downloadCount = cacheStats.downloadCount,
-                    maxDownloadBytes = cacheSettings.maxDownloadBytes,
-                    audioCacheCount = cacheStats.audioCount,
-                    audioCacheBytes = cacheStats.audioBytes,
-                    maxAudioCacheBytes = cacheSettings.maxAudioCacheBytes,
-                    status = downloadStatus,
-                    downloadJobs = downloadJobs,
+                    source = DesktopDownloadsSourceState(
+                        connectedSourceId = connectedSourceId,
+                        refreshToken = downloadRefreshToken,
+                        downloadCount = cacheStats.downloadCount,
+                        maxDownloadBytes = cacheSettings.maxDownloadBytes,
+                        offlineDashboard = app.naviamp.ui.NaviampOfflineDashboardUi(
+                            audioCacheCount = cacheStats.audioCount,
+                            audioCacheBytes = cacheStats.audioBytes,
+                            maxAudioCacheBytes = cacheSettings.maxAudioCacheBytes,
+                        ),
+                        status = downloadStatus,
+                        jobs = downloadJobs,
+                        keepFavoritesDownloaded = keepDownloadedPolicies.any {
+                            it.kind == app.naviamp.domain.cache.KeepDownloadedCollectionKind.Favorites
+                        },
+                    ),
                     coverArtUrl = coverArtUrl,
                     downloadedTracks = downloadedTracks,
                     onPlayDownloadedTrack = appActions::playDownloadedTrack,
@@ -924,9 +939,6 @@ fun ColumnScope.DesktopAppRouteContent(
                     onCancelDownloadJob = appActions::cancelDownloadJob,
                     onRetryDownloadJob = appActions::retryDownloadJob,
                     onRefreshDownloads = appActions::refreshDownloads,
-                    keepFavoritesDownloaded = keepDownloadedPolicies.any {
-                        it.kind == app.naviamp.domain.cache.KeepDownloadedCollectionKind.Favorites
-                    },
                     onToggleKeepFavoritesDownloaded = appActions::toggleKeepDownloadedFavorites,
                     onDeleteAllDownloads = appActions::deleteAllDownloads,
                     onAddDownloadedTrackToPlaylist = { download ->

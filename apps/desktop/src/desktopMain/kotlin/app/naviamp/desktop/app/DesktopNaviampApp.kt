@@ -94,6 +94,10 @@ import app.naviamp.ui.NaviampSavedConnectionUi
 import app.naviamp.ui.NaviampLibraryScreenUi
 import app.naviamp.ui.NaviampLibrarySyncStatusUi
 import app.naviamp.ui.NaviampSearchScreenUi
+import app.naviamp.ui.NaviampAlbumDetailScreenUi
+import app.naviamp.ui.NaviampArtistDetailScreenUi
+import app.naviamp.ui.NaviampPlaylistDetailScreenUi
+import app.naviamp.ui.NaviampPlaylistsScreenUi
 import app.naviamp.ui.NaviampShellCapabilitiesUi
 import app.naviamp.ui.NaviampShellConnectionUi
 import app.naviamp.ui.NaviampSleepTimerExpiryEffect
@@ -111,6 +115,9 @@ import app.naviamp.ui.naviampVisualizerFromName
 import app.naviamp.ui.nowPlayingQueueIndex
 import app.naviamp.ui.nowPlayingRelatedIndex
 import app.naviamp.ui.toSharedMediaItemUi
+import app.naviamp.ui.toSharedAlbumDetailUi
+import app.naviamp.ui.toSharedArtistDetailUi
+import app.naviamp.ui.toSharedPlaylistDetailUi
 import app.naviamp.ui.toSharedSearchResultsUi
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -1621,29 +1628,80 @@ fun NaviampApp(
                             onOpenAlbumMixBuilder = {
                                 appRoute = DesktopAppRoute.AlbumMix
                             },
-                            selectedAlbum = albumController.selectedAlbum,
-                            selectedAlbumDetails = albumController.selectedAlbumDetails,
-                            selectedAlbumStatus = albumController.selectedAlbumStatus,
+                            albumDetail = NaviampAlbumDetailScreenUi(
+                                selectedAlbum = albumController.selectedAlbum?.toSharedMediaItemUi(
+                                    coverArtUrl = { coverArtId -> coverArtId?.let { connectedProvider?.coverArtUrl(it) } },
+                                    canFavorite = true,
+                                ),
+                                detail = albumController.selectedAlbumDetails?.toSharedAlbumDetailUi(
+                                    coverArtUrl = { coverArtId -> coverArtId?.let { connectedProvider?.coverArtUrl(it) } },
+                                    popularTrackIds = artistController.selectedArtistPopularTracks.mapTo(mutableSetOf()) { it.id.value },
+                                    canFavoriteAlbum = true,
+                                ),
+                                status = albumController.selectedAlbumStatus,
+                            ),
                             albumDetailBackRoute = albumController.albumDetailBackRoute,
-                            selectedArtist = artistController.selectedArtist,
-                            selectedArtistDetails = artistController.selectedArtistDetails,
-                            selectedArtistPopularTracks = artistController.selectedArtistPopularTracks,
-                            selectedArtistSimilarArtists = artistController.selectedArtistSimilarArtists,
-                            selectedArtistStatus = artistController.selectedArtistStatus,
-                            selectedArtistPopularTracksStatus = artistController.selectedArtistPopularTracksStatus,
-                            selectedArtistSimilarArtistsStatus = artistController.selectedArtistSimilarArtistsStatus,
+                            artistDetail = NaviampArtistDetailScreenUi(
+                                selectedArtist = artistController.selectedArtist?.toSharedMediaItemUi(
+                                    coverArtUrl = { coverArtId -> coverArtId?.let { connectedProvider?.coverArtUrl(it) } },
+                                    canFavorite = true,
+                                ),
+                                detail = artistController.selectedArtistDetails?.toSharedArtistDetailUi(
+                                    coverArtUrl = { coverArtId -> coverArtId?.let { connectedProvider?.coverArtUrl(it) } },
+                                    popularTracks = artistController.selectedArtistPopularTracks,
+                                    popularTracksStatus = artistController.selectedArtistPopularTracksStatus,
+                                    similarArtists = artistController.selectedArtistSimilarArtists,
+                                    similarArtistsStatus = artistController.selectedArtistSimilarArtistsStatus,
+                                    canFavoriteArtist = true,
+                                    canFavoriteAlbums = true,
+                                ),
+                                status = artistController.selectedArtistStatus,
+                            ),
+                            detailActionSources = DesktopDetailActionSources(
+                                selectedAlbum = albumController.selectedAlbum,
+                                albumDetail = albumController.selectedAlbumDetails,
+                                selectedArtist = artistController.selectedArtist,
+                                artistDetail = artistController.selectedArtistDetails,
+                                artistPopularTracks = artistController.selectedArtistPopularTracks,
+                                artistSimilarArtists = artistController.selectedArtistSimilarArtists,
+                            ),
                             artistDetailBackRoute = artistController.artistDetailBackRoute,
-                            playlists = playlistsController.playlists,
-                            playlistTracksById = playlistsController.playlistTracksById,
-                            recentPlaylistIds = playlistsController.recentPlaylistIds,
-                            playlistSortMode = playlistsController.sortMode,
-                            playlistStatus = playlistsController.status,
+                            playlists = NaviampPlaylistsScreenUi(
+                                playlists = playlistsController.playlists.map { playlist ->
+                                    playlist.toSharedMediaItemUi(
+                                        coverArtUrl = { coverArtId -> coverArtId?.let { connectedProvider?.coverArtUrl(it) } },
+                                        tracks = playlistsController.playlistTracksById[playlist.id].orEmpty(),
+                                        keepDownloadedActive = downloadsController.keepDownloadedPolicies.any { it.collectionId == playlist.id },
+                                    )
+                                },
+                                recentPlaylistIds = playlistsController.recentPlaylistIds,
+                                sortMode = playlistsController.sortMode,
+                                status = playlistsController.status,
+                            ),
+                            playlistDetail = NaviampPlaylistDetailScreenUi(
+                                selectedPlaylist = playlistsController.selectedPlaylist?.toSharedMediaItemUi(
+                                    coverArtUrl = { coverArtId -> coverArtId?.let { connectedProvider?.coverArtUrl(it) } },
+                                    tracks = playlistsController.selectedPlaylistTracks,
+                                    keepDownloadedActive = playlistsController.selectedPlaylist?.id
+                                        ?.let { id -> downloadsController.keepDownloadedPolicies.any { it.collectionId == id } } == true,
+                                ),
+                                detail = playlistsController.selectedPlaylist?.toSharedPlaylistDetailUi(
+                                    tracks = playlistsController.selectedPlaylistTracks,
+                                    coverArtUrl = { coverArtId -> coverArtId?.let { connectedProvider?.coverArtUrl(it) } },
+                                    keepDownloadedActive = playlistsController.selectedPlaylist?.id
+                                        ?.let { id -> downloadsController.keepDownloadedPolicies.any { it.collectionId == id } } == true,
+                                ),
+                                status = playlistsController.selectedPlaylistStatus,
+                            ),
+                            playlistActionSources = DesktopPlaylistActionSources(
+                                playlists = playlistsController.playlists,
+                                playlistTracksById = playlistsController.playlistTracksById,
+                                selectedPlaylist = playlistsController.selectedPlaylist,
+                                selectedPlaylistTracks = playlistsController.selectedPlaylistTracks,
+                            ),
                             onPlaylistSortModeChanged = playlistsController::updateSortMode,
                             onPlaylistRenameRequested = playlistsController::requestPlaylistRename,
                             onPlaylistDeleteRequested = playlistsController::requestPlaylistDelete,
-                            selectedPlaylist = playlistsController.selectedPlaylist,
-                            selectedPlaylistTracks = playlistsController.selectedPlaylistTracks,
-                            selectedPlaylistStatus = playlistsController.selectedPlaylistStatus,
                             library = NaviampLibraryScreenUi(
                                 artists = libraryController.snapshot.artists.map { artist ->
                                     artist.toSharedMediaItemUi(

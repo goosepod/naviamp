@@ -15,6 +15,9 @@ import app.naviamp.domain.TrackId
 import app.naviamp.domain.resolvedArtistCredits
 import app.naviamp.domain.isInternetRadioTrack
 import app.naviamp.domain.audio.AudioTag
+import app.naviamp.domain.cache.DownloadJob
+import app.naviamp.domain.cache.DownloadJobItemStatus
+import app.naviamp.domain.cache.DownloadJobStatus
 import app.naviamp.domain.audio.replayGainFromAudioTags
 import app.naviamp.domain.home.HomeContent
 import app.naviamp.domain.home.homeStations
@@ -101,6 +104,7 @@ fun Playlist.toSharedMediaItemUi(
         title = name,
         subtitle = "$trackCount tracks",
         meta = durationSeconds?.durationLabel().orEmpty(),
+        trackCount = trackCount,
         coverArtUrl = coverArtUrl(coverArtId),
         coverArtUrls = tracks.mapNotNull { coverArtUrl(it.coverArtId) }.distinct().take(4),
         isSmartPlaylist = isSmart,
@@ -1200,11 +1204,34 @@ fun Playlist.toPlaylistChoiceUi(): NaviampPlaylistChoiceUi =
 fun Playlist.toSharedPlaylistDetailUi(
     tracks: List<Track>,
     coverArtUrl: (String?) -> String?,
+    keepDownloadedActive: Boolean = false,
 ): SharedPlaylistDetailUi =
     SharedPlaylistDetailUi(
-        playlist = toSharedMediaItemUi(coverArtUrl, tracks),
+        playlist = toSharedMediaItemUi(coverArtUrl, tracks, keepDownloadedActive),
         tracks = tracks.map { it.toSharedTrackRowUi(coverArtUrl) },
     )
+
+fun DownloadJob.toDownloadJobUi(): NaviampDownloadJobUi {
+    val activeItem = items.firstOrNull { it.status == DownloadJobItemStatus.Downloading }
+    val failedItem = items.firstOrNull { it.status == DownloadJobItemStatus.Failed }
+    val statusLabel = when (status) {
+        DownloadJobStatus.Queued -> "Queued"
+        DownloadJobStatus.Running -> "$completedCount of $totalCount"
+        DownloadJobStatus.Completed -> "Completed - $totalCount tracks"
+        DownloadJobStatus.Failed -> "Failed - $completedCount of $totalCount saved"
+        DownloadJobStatus.Cancelled -> "Cancelled - $completedCount of $totalCount saved"
+    }
+    return NaviampDownloadJobUi(
+        id = id,
+        label = label,
+        statusLabel = statusLabel,
+        progress = progress,
+        canCancel = canCancel,
+        canRetry = canRetry,
+        activeItemLabel = activeItem?.let { "Downloading ${it.track.title}" },
+        failedItemLabel = failedItem?.let { "${it.track.title}: ${it.failureMessage ?: "Download failed"}" },
+    )
+}
 
 fun AlbumDetails.toSharedAlbumDetailUi(
     coverArtUrl: (String?) -> String?,

@@ -236,6 +236,7 @@ data class SharedMediaItemUi(
     val subtitle: String,
     val meta: String = "",
     val releaseYear: Int? = null,
+    val trackCount: Int? = null,
     val coverArtUrl: String? = null,
     val coverArtUrls: List<String> = emptyList(),
     val isSmartPlaylist: Boolean = false,
@@ -371,6 +372,33 @@ data class SharedAlbumDetailUi(
     val totalDurationLabel: String = "",
 )
 
+data class NaviampDownloadJobUi(
+    val id: String,
+    val label: String,
+    val statusLabel: String,
+    val progress: Float,
+    val canCancel: Boolean,
+    val canRetry: Boolean,
+    val activeItemLabel: String? = null,
+    val failedItemLabel: String? = null,
+)
+
+data class NaviampDownloadsScreenUi(
+    val downloads: List<NaviampDownloadedTrackUi> = emptyList(),
+    val status: String? = null,
+    val jobs: List<NaviampDownloadJobUi> = emptyList(),
+    val downloadBytes: Long = 0L,
+    val maxDownloadBytes: Long = 0L,
+    val offlineDashboard: NaviampOfflineDashboardUi = NaviampOfflineDashboardUi(),
+    val keepFavoritesDownloaded: Boolean = false,
+)
+
+data class NaviampAlbumDetailScreenUi(
+    val selectedAlbum: SharedMediaItemUi? = null,
+    val detail: SharedAlbumDetailUi? = null,
+    val status: String? = null,
+)
+
 data class SharedArtistDetailUi(
     val artist: SharedMediaItemUi,
     val albums: List<SharedMediaItemUi>,
@@ -382,6 +410,12 @@ data class SharedArtistDetailUi(
     val popularTracksStatus: String? = null,
     val similarArtists: List<SharedSimilarArtistUi> = emptyList(),
     val similarArtistsStatus: String? = null,
+)
+
+data class NaviampArtistDetailScreenUi(
+    val selectedArtist: SharedMediaItemUi? = null,
+    val detail: SharedArtistDetailUi? = null,
+    val status: String? = null,
 )
 
 data class SharedAlbumSectionUi(
@@ -401,6 +435,19 @@ data class SharedSimilarArtistUi(
 data class SharedPlaylistDetailUi(
     val playlist: SharedMediaItemUi,
     val tracks: List<SharedTrackRowUi>,
+)
+
+data class NaviampPlaylistsScreenUi(
+    val playlists: List<SharedMediaItemUi> = emptyList(),
+    val recentPlaylistIds: List<String> = emptyList(),
+    val sortMode: SharedPlaylistSortMode = SharedPlaylistSortMode.Alphabetical,
+    val status: String? = null,
+)
+
+data class NaviampPlaylistDetailScreenUi(
+    val selectedPlaylist: SharedMediaItemUi? = null,
+    val detail: SharedPlaylistDetailUi? = null,
+    val status: String? = null,
 )
 
 data class SharedHomeUi(

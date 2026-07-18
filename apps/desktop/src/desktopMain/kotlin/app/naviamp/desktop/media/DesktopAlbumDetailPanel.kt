@@ -29,9 +29,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import app.naviamp.domain.Album
-import app.naviamp.domain.AlbumDetails
-import app.naviamp.domain.Track
+import app.naviamp.ui.NaviampAlbumDetailScreenUi
 import app.naviamp.ui.SharedMediaItemAction
 import app.naviamp.ui.ExpandedMediaImageDialog
 import app.naviamp.ui.NaviampDetailAction
@@ -40,22 +38,20 @@ import app.naviamp.ui.SharedMediaItemActionRequest
 import app.naviamp.ui.SharedMediaItemKind
 import app.naviamp.ui.SharedTrackRowActionRequest
 import app.naviamp.ui.actionRequest
-import app.naviamp.ui.toSharedMediaItemUi
 
 @Composable
 fun DesktopAlbumDetailPanel(
     appColors: DesktopAppColors,
-    album: Album?,
-    albumDetails: AlbumDetails?,
-    status: String?,
-    coverArtUrl: String?,
-    popularTrackIds: Set<String> = emptySet(),
+    screen: NaviampAlbumDetailScreenUi,
     onBack: () -> Unit,
     onAlbumAction: (SharedMediaItemActionRequest) -> Unit,
     onTrackAction: (SharedTrackRowActionRequest) -> Unit,
-    onArtistSelected: (Track) -> Unit,
+    onArtistSelected: (SharedTrackRowActionRequest) -> Unit,
 ) {
-    val effectiveAlbumId = albumDetails?.album?.id ?: album?.id
+    val detail = screen.detail
+    val album = detail?.album ?: screen.selectedAlbum
+    val coverArtUrl = album?.coverArtUrl
+    val effectiveAlbumId = album?.id
     var albumImageOpen by remember(effectiveAlbumId) { mutableStateOf(false) }
     Column(
         verticalArrangement = Arrangement.spacedBy(3.dp),
@@ -77,7 +73,7 @@ fun DesktopAlbumDetailPanel(
                 )
             }
             Text(
-                albumDetails?.album?.title ?: album?.title ?: "Album",
+                album?.title ?: "Album",
                 color = appColors.primaryText,
                 fontWeight = FontWeight.Bold,
                 fontSize = 16.sp,
@@ -108,14 +104,26 @@ fun DesktopAlbumDetailPanel(
                 verticalArrangement = Arrangement.spacedBy(2.dp),
                 modifier = Modifier.weight(1f),
             ) {
-                val releaseYear = albumDetails?.album?.releaseYear ?: album?.releaseYear
-                val artistName = albumDetails?.album?.artistName ?: album?.artistName ?: ""
-                val artistTrack = albumDetails?.tracks
-                    ?.firstOrNull { it.artistId != null && it.artistName == artistName }
-                    ?: albumDetails?.tracks?.firstOrNull { it.artistId != null }
+                val releaseYear = album?.releaseYear
+                val artistName = album?.subtitle.orEmpty()
+                val artistTrack = detail?.tracks
+                    ?.firstOrNull { track -> track.artistCredits.any { credit -> credit.id != null && credit.name == artistName } }
+                    ?: detail?.tracks?.firstOrNull { track -> track.artistCredits.any { credit -> credit.id != null } }
                 if (artistTrack != null) {
                     TextButton(
-                        onClick = { onArtistSelected(artistTrack) },
+                        onClick = {
+                            val artistCredit = artistTrack.artistCredits
+                                .firstOrNull { credit -> credit.id != null && credit.name == artistName }
+                                ?: artistTrack.artistCredits.firstOrNull { credit -> credit.id != null }
+                            onArtistSelected(
+                                SharedTrackRowActionRequest(
+                                    track = artistTrack,
+                                    action = app.naviamp.ui.SharedTrackRowAction.GoToArtist,
+                                    artistId = artistCredit?.id,
+                                    artistName = artistCredit?.name ?: artistName,
+                                ),
+                            )
+                        },
                         contentPadding = PaddingValues(horizontal = 0.dp, vertical = 0.dp),
                         modifier = Modifier.height(24.dp),
                     ) {
@@ -137,35 +145,30 @@ fun DesktopAlbumDetailPanel(
                 releaseYear?.let {
                     Text(it.toString(), color = appColors.secondaryText, fontSize = 12.sp)
                 }
-                status?.let {
+                screen.status?.let {
                     Text(it, color = appColors.secondaryText, fontSize = 11.sp)
                 }
                 Box(modifier = Modifier.fillMaxWidth()) {
-                    val effectiveAlbum = albumDetails?.album ?: album
-                    val albumItem = effectiveAlbum?.toSharedMediaItemUi(
-                        coverArtUrl = { coverArtUrl },
-                        canFavorite = true,
-                    )
                     fun request(action: SharedMediaItemAction, shuffle: Boolean = false) {
-                        albumItem?.let { item ->
+                        album?.let { item ->
                             onAlbumAction(item.actionRequest(action, kind = SharedMediaItemKind.Album, shuffle = shuffle))
                         }
                     }
-                    val tracksAvailable = albumDetails?.tracks?.isNotEmpty() == true
+                    val tracksAvailable = detail?.tracks?.isNotEmpty() == true
                     NaviampResponsiveActionRow(
                         colors = appColors,
                         actions = listOf(
                             NaviampDetailAction("Play album", TransportIcons.Play, { request(SharedMediaItemAction.Play) }, tracksAvailable),
-                            NaviampDetailAction("Shuffle album", TransportIcons.Shuffle, { request(SharedMediaItemAction.Shuffle, shuffle = true) }, (albumDetails?.tracks?.size ?: 0) > 1),
+                            NaviampDetailAction("Shuffle album", TransportIcons.Shuffle, { request(SharedMediaItemAction.Shuffle, shuffle = true) }, (detail?.tracks?.size ?: 0) > 1),
                             NaviampDetailAction("Download album", DesktopNavigationIcons.Downloads, { request(SharedMediaItemAction.Download) }, tracksAvailable),
                             NaviampDetailAction("Start album radio", TransportIcons.Radio, { request(SharedMediaItemAction.StartRadio) }, tracksAvailable),
                             NaviampDetailAction("Add album to queue", DesktopNavigationIcons.Queue, { request(SharedMediaItemAction.AddToQueue) }, tracksAvailable),
                             NaviampDetailAction("Add album to playlist", DesktopNavigationIcons.Playlist, { request(SharedMediaItemAction.AddToPlaylist) }, tracksAvailable),
                             NaviampDetailAction(
-                                if (effectiveAlbum?.favoritedAtIso8601 != null) "Remove album favorite" else "Favorite album",
+                                if (album?.favoriteActive == true) "Remove album favorite" else "Favorite album",
                                 TransportIcons.Heart,
                                 { request(SharedMediaItemAction.ToggleFavorite) },
-                                effectiveAlbum != null,
+                                album?.canFavorite == true,
                             ),
                         ),
                     )
@@ -173,12 +176,12 @@ fun DesktopAlbumDetailPanel(
             }
         }
 
-        albumDetails?.let { details ->
+        detail?.let { details ->
             Text(
                 listOfNotNull(
                     "${details.tracks.size} tracks",
                     details.album.releaseYear?.toString(),
-                    "Total ${details.tracks.totalDurationLabel()}",
+                    "Total ${details.totalDurationLabel}",
                 ).joinToString(" - "),
                 color = appColors.secondaryText,
                 modifier = Modifier.fillMaxWidth(),
@@ -189,20 +192,16 @@ fun DesktopAlbumDetailPanel(
                     .weight(1f)
                     .verticalScroll(rememberScrollState()),
             ) {
-                val reservePopularIndicatorSpace = details.tracks.any { it.id.value in popularTrackIds }
+                val reservePopularIndicatorSpace = details.tracks.any { it.popular }
                 details.tracks.forEachIndexed { index, track ->
-                    DesktopTrackRow(
+                    DesktopSharedTrackRow(
                         appColors = appColors,
-                        track = track,
-                        canGoToAlbum = false,
-                        index = index + 1,
-                        subtitle = track.artistName,
+                        track = track.copy(meta = (index + 1).toString()),
+                        showCoverArt = false,
                         background = false,
                         horizontalPadding = 0.dp,
                         verticalPadding = 0.dp,
-                        verticalAlignment = Alignment.Top,
                         showMenu = true,
-                        popular = track.id.value in popularTrackIds,
                         reservePopularIndicatorSpace = reservePopularIndicatorSpace,
                         canStartRadio = true,
                         canDownload = true,
@@ -222,13 +221,4 @@ fun DesktopAlbumDetailPanel(
             onDismissRequest = { albumImageOpen = false },
         )
     }
-}
-
-private fun List<app.naviamp.domain.Track>.totalDurationLabel(): String {
-    val totalSeconds = mapNotNull { it.durationSeconds }.sum()
-    if (totalSeconds <= 0) return "--"
-    val hours = totalSeconds / 3600
-    val minutes = totalSeconds / 60
-    val remainingMinutes = (totalSeconds % 3600) / 60
-    return if (hours > 0) "${hours}h ${remainingMinutes}m" else "$minutes minutes"
 }

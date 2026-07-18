@@ -8,8 +8,13 @@ import app.naviamp.domain.ArtistInfo
 import app.naviamp.domain.Album
 import app.naviamp.domain.AlbumExplicitStatus
 import app.naviamp.domain.AlbumId
+import app.naviamp.domain.Playlist
 import app.naviamp.domain.Track
 import app.naviamp.domain.TrackId
+import app.naviamp.domain.cache.DownloadJob
+import app.naviamp.domain.cache.DownloadJobItem
+import app.naviamp.domain.cache.DownloadJobItemStatus
+import app.naviamp.domain.cache.DownloadJobStatus
 import app.naviamp.domain.media.RelatedTracksSource
 import app.naviamp.domain.queue.PlaybackQueue
 import app.naviamp.domain.queue.RepeatMode
@@ -22,6 +27,68 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class MediaUiMappersTest {
+    @Test
+    fun downloadJobUiCarriesProgressActionsAndItemStatus() {
+        val job = DownloadJob(
+            id = "job-1",
+            label = "Album",
+            items = listOf(
+                DownloadJobItem(track("one"), DownloadJobItemStatus.Completed),
+                DownloadJobItem(track("two"), DownloadJobItemStatus.Downloading),
+            ),
+            status = DownloadJobStatus.Running,
+        )
+
+        val ui = job.toDownloadJobUi()
+
+        assertEquals("job-1", ui.id)
+        assertEquals("1 of 2", ui.statusLabel)
+        assertEquals(0.5f, ui.progress)
+        assertTrue(ui.canCancel)
+        assertFalse(ui.canRetry)
+        assertEquals("Downloading two", ui.activeItemLabel)
+        assertNull(ui.failedItemLabel)
+    }
+
+    @Test
+    fun failedDownloadJobUiCarriesRetryAndFailureDetails() {
+        val job = DownloadJob(
+            id = "job-2",
+            label = "Playlist",
+            items = listOf(
+                DownloadJobItem(track("one"), DownloadJobItemStatus.Completed),
+                DownloadJobItem(
+                    track("two"),
+                    DownloadJobItemStatus.Failed,
+                    failureMessage = "Network unavailable",
+                ),
+            ),
+            status = DownloadJobStatus.Failed,
+        )
+
+        val ui = job.toDownloadJobUi()
+
+        assertEquals("Failed - 1 of 2 saved", ui.statusLabel)
+        assertFalse(ui.canCancel)
+        assertTrue(ui.canRetry)
+        assertEquals("two: Network unavailable", ui.failedItemLabel)
+    }
+
+    @Test
+    fun playlistUiCarriesTrackCountAndKeepDownloadedState() {
+        val playlist = Playlist("playlist", "Playlist", trackCount = 3, durationSeconds = 180)
+
+        val item = playlist.toSharedMediaItemUi(
+            coverArtUrl = { null },
+            tracks = emptyList(),
+            keepDownloadedActive = true,
+        )
+
+        assertEquals(3, item.trackCount)
+        assertTrue(item.keepDownloadedActive)
+        assertEquals("3 tracks", item.subtitle)
+    }
+
     @Test
     fun downloadedTrackUiUsesSharedTrackRowMapping() {
         val track = Track(

@@ -30,6 +30,8 @@ import app.naviamp.ui.DownloadedTrackAction
 import app.naviamp.ui.DownloadedTrackActionRequest
 import app.naviamp.ui.NaviampAction
 import app.naviamp.ui.NaviampDownloadedTrackUi
+import app.naviamp.ui.NaviampDownloadJobUi
+import app.naviamp.ui.NaviampDownloadsScreenUi
 import app.naviamp.ui.NaviampIcons
 import app.naviamp.ui.NaviampPageTitle
 import app.naviamp.ui.NaviampTransportIcons
@@ -39,29 +41,21 @@ import app.naviamp.ui.downloadedTrackSwipeActionVisual
 import app.naviamp.ui.downloadRowActions
 import app.naviamp.ui.oneDecimalLabel
 import app.naviamp.ui.storageBytesLabel
-import app.naviamp.domain.cache.DownloadJob
-import app.naviamp.domain.cache.DownloadJobItemStatus
-import app.naviamp.domain.cache.DownloadJobStatus
 
 @Composable
 fun DesktopDownloadsPanel(
     appColors: DesktopAppColors,
-    downloads: List<NaviampDownloadedTrackUi>,
-    status: String?,
-    downloadJobs: List<DownloadJob>,
-    downloadBytes: Long,
-    maxDownloadBytes: Long,
-    audioCacheCount: Long,
-    audioCacheBytes: Long,
-    maxAudioCacheBytes: Long,
+    screen: NaviampDownloadsScreenUi,
     onCancelDownloadJob: (String) -> Unit,
     onRetryDownloadJob: (String) -> Unit,
     onRefreshDownloads: () -> Unit,
-    keepFavoritesDownloaded: Boolean,
     onToggleKeepFavoritesDownloaded: () -> Unit,
     onDeleteAllDownloads: () -> Unit,
     onDownloadAction: (DownloadedTrackActionRequest) -> Unit,
 ) {
+    val downloads = screen.downloads
+    val downloadBytes = screen.downloadBytes
+    val maxDownloadBytes = screen.maxDownloadBytes
     var offlineDashboardExpanded by remember { mutableStateOf(false) }
     var confirmDeleteAll by remember { mutableStateOf(false) }
     val swipeSettings = LocalTrackSwipeSettings.current
@@ -101,7 +95,7 @@ fun DesktopDownloadsPanel(
                 items = listOf(
                     DesktopRowMenuItem("Refresh", NaviampIcons.Refresh, onRefreshDownloads),
                     DesktopRowMenuItem(
-                        if (keepFavoritesDownloaded) "Stop keeping favorites downloaded" else "Keep favorites downloaded",
+                        if (screen.keepFavoritesDownloaded) "Stop keeping favorites downloaded" else "Keep favorites downloaded",
                         NaviampTransportIcons.Heart,
                         onToggleKeepFavoritesDownloaded,
                     ),
@@ -129,15 +123,13 @@ fun DesktopDownloadsPanel(
                 downloads = downloads,
                 downloadBytes = downloadBytes,
                 maxDownloadBytes = maxDownloadBytes,
-                audioCacheCount = audioCacheCount,
-                audioCacheBytes = audioCacheBytes,
-                maxAudioCacheBytes = maxAudioCacheBytes,
+                offlineDashboard = screen.offlineDashboard,
             )
         }
 
-        if (downloadJobs.isNotEmpty()) {
+        if (screen.jobs.isNotEmpty()) {
             Text("DOWNLOAD ACTIVITY", color = appColors.primaryText, fontSize = 12.sp, fontWeight = FontWeight.Bold)
-            downloadJobs.forEach { job ->
+            screen.jobs.forEach { job ->
                 DesktopDownloadJobCard(
                     appColors = appColors,
                     job = job,
@@ -147,7 +139,7 @@ fun DesktopDownloadsPanel(
             }
         }
 
-        status?.let {
+        screen.status?.let {
             Text(it, color = appColors.secondaryText, fontSize = 12.sp)
         }
 
@@ -240,19 +232,10 @@ fun DesktopDownloadsPanel(
 @Composable
 private fun DesktopDownloadJobCard(
     appColors: DesktopAppColors,
-    job: DownloadJob,
+    job: NaviampDownloadJobUi,
     onCancel: () -> Unit,
     onRetry: () -> Unit,
 ) {
-    val activeItem = job.items.firstOrNull { it.status == DownloadJobItemStatus.Downloading }
-    val failedItem = job.items.firstOrNull { it.status == DownloadJobItemStatus.Failed }
-    val statusLabel = when (job.status) {
-        DownloadJobStatus.Queued -> "Queued"
-        DownloadJobStatus.Running -> "${job.completedCount} of ${job.totalCount}"
-        DownloadJobStatus.Completed -> "Completed · ${job.totalCount} tracks"
-        DownloadJobStatus.Failed -> "Failed · ${job.completedCount} of ${job.totalCount} saved"
-        DownloadJobStatus.Cancelled -> "Cancelled · ${job.completedCount} of ${job.totalCount} saved"
-    }
     Column(
         verticalArrangement = Arrangement.spacedBy(5.dp),
         modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(8.dp))
@@ -261,7 +244,7 @@ private fun DesktopDownloadJobCard(
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
             Column(Modifier.weight(1f)) {
                 Text(job.label, color = appColors.primaryText, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                Text(statusLabel, color = appColors.secondaryText, fontSize = 11.sp)
+                Text(job.statusLabel, color = appColors.secondaryText, fontSize = 11.sp)
             }
             if (job.canCancel) TextButton(onClick = onCancel) { Text("Cancel") }
             if (job.canRetry) TextButton(onClick = onRetry) { Text("Retry") }
@@ -272,8 +255,8 @@ private fun DesktopDownloadJobCard(
             color = appColors.primaryText,
             trackColor = appColors.mutedText.copy(alpha = 0.25f),
         )
-        activeItem?.let { Text("Downloading ${it.track.title}", color = appColors.secondaryText, fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis) }
-        failedItem?.let { Text("${it.track.title}: ${it.failureMessage ?: "Download failed"}", color = appColors.secondaryText, fontSize = 11.sp) }
+        job.activeItemLabel?.let { Text(it, color = appColors.secondaryText, fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis) }
+        job.failedItemLabel?.let { Text(it, color = appColors.secondaryText, fontSize = 11.sp) }
     }
 }
 
@@ -283,9 +266,7 @@ private fun DesktopOfflineDashboardSummary(
     downloads: List<NaviampDownloadedTrackUi>,
     downloadBytes: Long,
     maxDownloadBytes: Long,
-    audioCacheCount: Long,
-    audioCacheBytes: Long,
-    maxAudioCacheBytes: Long,
+    offlineDashboard: app.naviamp.ui.NaviampOfflineDashboardUi,
 ) {
     val ready = downloads.isNotEmpty()
     val readyMessage = if (ready) {
@@ -323,9 +304,9 @@ private fun DesktopOfflineDashboardSummary(
         DesktopOfflineDashboardMetric(
             appColors = appColors,
             label = "Playback cache",
-            value = audioCacheCount.toString(),
-            detail = "${audioCacheBytes.storageBytesLabel()} used - " +
-                "${storagePercentLabel(audioCacheBytes, maxAudioCacheBytes)} of streaming cache",
+            value = offlineDashboard.audioCacheCount.toString(),
+            detail = "${offlineDashboard.audioCacheBytes.storageBytesLabel()} used - " +
+                "${storagePercentLabel(offlineDashboard.audioCacheBytes, offlineDashboard.maxAudioCacheBytes)} of streaming cache",
         )
         DesktopOfflineDashboardMetric(
             appColors = appColors,

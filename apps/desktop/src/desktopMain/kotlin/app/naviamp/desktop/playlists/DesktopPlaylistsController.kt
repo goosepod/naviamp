@@ -53,6 +53,7 @@ import app.naviamp.domain.settings.PlaybackSettings
 import app.naviamp.desktop.playback.PlaylistCallbacks
 import app.naviamp.desktop.playback.DesktopPlaylistEngine
 import app.naviamp.desktop.settings.DesktopSettingsStore
+import app.naviamp.ui.SharedPlaylistSortMode
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -83,7 +84,7 @@ class DesktopPlaylistsController(
         private set
     var pendingPlaybackAction by mutableStateOf<PendingPlaybackAction?>(null)
         private set
-    var sortMode by mutableStateOf(DesktopPlaylistSortMode.Alphabetical)
+    var sortMode by mutableStateOf(SharedPlaylistSortMode.Alphabetical)
         private set
     var recentPlaylistIds by mutableStateOf(initialRecentPlaylistIds)
         private set
@@ -104,7 +105,7 @@ class DesktopPlaylistsController(
     var addToPlaylistStatus by mutableStateOf<String?>(null)
         private set
 
-    fun updateSortMode(mode: DesktopPlaylistSortMode) {
+    fun updateSortMode(mode: SharedPlaylistSortMode) {
         sortMode = mode
     }
 
