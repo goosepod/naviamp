@@ -1,8 +1,6 @@
 package app.naviamp.android
 
 import androidx.compose.ui.Modifier
-import app.naviamp.domain.Playlist
-import app.naviamp.domain.Track
 import app.naviamp.domain.settings.CacheSettings
 import app.naviamp.domain.settings.InterfaceSettings
 import app.naviamp.domain.settings.PlaybackSettings
@@ -24,10 +22,8 @@ import app.naviamp.ui.NowPlayingQueueActionRequest
 import app.naviamp.ui.NowPlayingSelectionActionRequest
 import app.naviamp.ui.NowPlayingSleepTimerActionRequest
 import app.naviamp.ui.NowPlayingUi
-import app.naviamp.ui.SharedAlbumDetailUi
 import app.naviamp.ui.SharedAlbumMixBuilderUi
 import app.naviamp.ui.SharedAlbumMixBuilderActions
-import app.naviamp.ui.SharedArtistDetailUi
 import app.naviamp.ui.SharedArtistMixBuilderUi
 import app.naviamp.ui.SharedArtistMixBuilderActions
 import app.naviamp.ui.SharedGenreMixBuilderUi
@@ -38,9 +34,7 @@ import app.naviamp.ui.SharedHomeUi
 import app.naviamp.ui.SharedMediaItemActionRequest
 import app.naviamp.ui.SharedMediaItemUi
 import app.naviamp.ui.SharedMixBuilderUi
-import app.naviamp.ui.SharedPlaylistDetailUi
 import app.naviamp.ui.SharedRoute
-import app.naviamp.ui.SharedSimilarArtistUi
 import app.naviamp.ui.SharedSonicMixBuilderActions
 import app.naviamp.ui.SharedSonicMixBuilderUi
 import app.naviamp.ui.SharedSonicPathBuilderActions
@@ -58,8 +52,11 @@ import app.naviamp.ui.NaviampPlaylistsActions
 import app.naviamp.ui.NaviampInternetRadioScreenUi
 import app.naviamp.ui.NaviampInternetRadioActions
 import app.naviamp.ui.NaviampAlbumDetailScreenUi
+import app.naviamp.ui.NaviampAlbumDetailActions
 import app.naviamp.ui.NaviampArtistDetailScreenUi
+import app.naviamp.ui.NaviampArtistDetailActions
 import app.naviamp.ui.NaviampPlaylistDetailScreenUi
+import app.naviamp.ui.NaviampPlaylistDetailActions
 
 data class AndroidAppShellUiState(
     val modifier: Modifier,
@@ -112,46 +109,22 @@ data class AndroidAppShellActions(
     val libraryActions: NaviampLibraryActions,
     val playlistsActions: NaviampPlaylistsActions,
     val radioActions: NaviampInternetRadioActions,
+    val albumDetailActions: NaviampAlbumDetailActions,
+    val artistDetailActions: NaviampArtistDetailActions,
+    val playlistDetailActions: NaviampPlaylistDetailActions,
     val onRefreshHome: () -> Unit,
     val onTrackSelected: (SharedTrackRowUi) -> Unit,
     val onAlbumSelected: (SharedMediaItemUi) -> Unit,
     val onAlbumFavoriteToggled: (SharedMediaItemUi) -> Unit,
     val onMixAlbumSelected: (SharedMediaItemUi) -> Unit,
-    val onAlbumPlay: (SharedAlbumDetailUi, Boolean) -> Unit,
-    val onAlbumTrackSelected: (SharedTrackRowUi) -> Unit,
-    val onAlbumRadio: (SharedAlbumDetailUi) -> Unit,
-    val onAlbumAddToQueue: (SharedAlbumDetailUi) -> Unit,
-    val onAlbumDownload: (SharedAlbumDetailUi) -> Unit,
-    val onAlbumAddToPlaylist: (SharedAlbumDetailUi, NaviampPlaylistChoiceUi?) -> Unit,
-    val onAlbumCreatePlaylistAndAdd: (SharedAlbumDetailUi, String) -> Unit,
     val onTrackAction: (SharedTrackRowActionRequest) -> Unit,
-    val onArtistRadio: (SharedArtistDetailUi) -> Unit,
-    val onArtistPlay: (SharedArtistDetailUi) -> Unit,
-    val onArtistShuffle: (SharedArtistDetailUi) -> Unit,
-    val onArtistAddToQueue: (SharedArtistDetailUi) -> Unit,
-    val onArtistAddToPlaylist: (SharedArtistDetailUi, NaviampPlaylistChoiceUi?) -> Unit,
-    val onArtistCreatePlaylistAndAdd: (SharedArtistDetailUi, String) -> Unit,
-    val onArtistPopularPlay: (SharedArtistDetailUi) -> Unit,
-    val onArtistPopularRadio: (SharedArtistDetailUi) -> Unit,
-    val onArtistPopularTrackSelected: (SharedTrackRowUi) -> Unit,
-    val onArtistPopularAddToQueue: (SharedArtistDetailUi) -> Unit,
-    val onFindSimilarArtists: (SharedArtistDetailUi) -> Unit,
-    val onSimilarArtistSelected: (SharedSimilarArtistUi) -> Unit,
-    val onSimilarArtistExternalSelected: (String) -> Unit,
     val onArtistSelected: (SharedMediaItemUi) -> Unit,
     val onArtistFavoriteToggled: (SharedMediaItemUi) -> Unit,
     val onPlaylistSelected: (SharedMediaItemUi) -> Unit,
     val onPlaylistPlay: (SharedMediaItemUi, Boolean) -> Unit,
-    val onPlaylistAddToQueue: (SharedPlaylistDetailUi) -> Unit,
-    val onPlaylistAddToPlaylist: (SharedPlaylistDetailUi, NaviampPlaylistChoiceUi?) -> Unit,
-    val onPlaylistCreatePlaylistAndAdd: (SharedPlaylistDetailUi, String) -> Unit,
-    val onPlaylistCopy: (SharedPlaylistDetailUi, String, Boolean) -> Unit,
     val onPlaylistRename: (SharedMediaItemUi, String) -> Unit,
     val onPlaylistDelete: (SharedMediaItemUi) -> Unit,
-    val onStandardPlaylistUpdate: suspend (SharedMediaItemUi, List<SharedTrackRowUi>) -> Unit,
     val onMediaItemAction: (SharedMediaItemActionRequest) -> Unit,
-    val onPlaylistBack: () -> Unit,
-    val onPlaylistTrackSelected: (SharedTrackRowUi) -> Unit,
     val onRecentRadioSelected: (SharedMediaItemUi) -> Unit,
     val onMixBuilderSelected: (SharedMixBuilderUi) -> Unit,
     val onHomeStationSelected: (SharedHomeStationUi) -> Unit,

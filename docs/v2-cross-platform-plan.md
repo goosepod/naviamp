@@ -363,6 +363,7 @@ Record architecture decisions here or link a dedicated decision record.
 | 2026-07-18 | Carry grouped Internet Radio presentation through the public shared shell. | Mapped station rows and refresh state should remain one `NaviampInternetRadioScreenUi` from the Android state factory through Home and Radio rendering; raw provider stations should not cross the shell state boundary. |
 | 2026-07-18 | Carry focused Internet Radio actions through the public shared shell. | Refresh, typed station row actions, and validated edit drafts belong in `NaviampInternetRadioActions`; Android resolves domain stations and performs provider mutations or playback selection. |
 | 2026-07-18 | Carry grouped media-detail presentation through the public shared shell. | Album, artist, and playlist selection, mapped detail content, and detail-local status should remain in `NaviampAlbumDetailScreenUi`, `NaviampArtistDetailScreenUi`, and `NaviampPlaylistDetailScreenUi`; provider loading and domain resolution remain host-owned. |
+| 2026-07-18 | Carry focused media-detail actions through the public shared shell. | Album, artist, and playlist detail intent should cross the shell in `NaviampAlbumDetailActions`, `NaviampArtistDetailActions`, and `NaviampPlaylistDetailActions`; Android remains responsible for resolving current domain objects and executing playback, provider I/O, mutations, and navigation. |
 
 ## Shared Controller Construction Audit
 
@@ -388,7 +389,7 @@ The 2026-07-17 audit covers every current application entry point:
 
 ## Current Handoff
 
-- **Last completed item:** Android and the public/private shared shell now carry album, artist, and playlist detail presentation as `NaviampAlbumDetailScreenUi`, `NaviampArtistDetailScreenUi`, and `NaviampPlaylistDetailScreenUi`. Shared rendering reads mapped detail content from those groups while Android retains provider loading and status ownership.
-- **Next recommended item:** Introduce focused album-, artist-, and playlist-detail action contracts so typed detail intent crosses the public/private shell without the current per-operation callback lists. Keep domain lookup, provider I/O, playback, mutation, and navigation execution host-owned.
+- **Last completed item:** Android and the public/private shared shell now carry album, artist, and playlist detail presentation and intent in paired screen/action contracts. Shared rendering emits typed detail actions while Android resolves current domain objects and executes playback, provider I/O, mutations, and navigation.
+- **Next recommended item:** Carry the existing `NaviampNowPlayingActions` contract through `AndroidAppShellActions` and the public shared shell instead of expanding it back into playback, display, queue, sleep-timer, selection, and item callbacks at the Android boundary.
 - **Verification:** `:core:domain:jvmTest`, `:core:app:jvmTest`, `:core:storage:jvmTest`, `:core:ui:jvmTest`, `:apps:android:testDebugUnitTest`, `:apps:desktop:desktopTest`, `:core:app:iosSimulatorArm64Test`, `:core:storage:compileKotlinIosSimulatorArm64`, and `:core:ui:compileKotlinIosSimulatorArm64` pass together with at most two Gradle workers.
 - **Known blockers:** None.

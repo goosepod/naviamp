@@ -19,6 +19,9 @@ import app.naviamp.ui.NaviampConnectionSettingsActions
 import app.naviamp.ui.NaviampDownloadsActions
 import app.naviamp.ui.NaviampLibraryActions
 import app.naviamp.ui.NaviampInternetRadioActions
+import app.naviamp.ui.NaviampAlbumDetailActions
+import app.naviamp.ui.NaviampArtistDetailActions
+import app.naviamp.ui.NaviampPlaylistDetailActions
 import app.naviamp.ui.NaviampPlaylistChoiceUi
 import app.naviamp.ui.NaviampPlaylistsActions
 import app.naviamp.ui.NaviampSavedConnectionUi
@@ -386,38 +389,122 @@ fun androidAppShellActions(
                 onStationAction = handleStationAction,
                 onSaveStation = { draft -> saveInternetRadioStation(draft.toInternetRadioStation()) },
             ),
+            albumDetailActions = NaviampAlbumDetailActions(
+                onBack = { nowPlayingOpen = false },
+                onPlay = { _, shuffle -> handleShellAlbumPlay(shuffle) },
+                onRadio = { handleShellAlbumRadio() },
+                onDownload = { downloadTracks(albumDetail?.tracks.orEmpty(), "album") },
+                onAddToQueue = { appendTracksToQueue(albumDetail?.tracks.orEmpty(), "album tracks") },
+                onAddToPlaylist = { _, playlist ->
+                    addTracksToPlaylist(albumDetail?.tracks.orEmpty(), playlist, null, "album")
+                },
+                onCreatePlaylistAndAdd = { _, name ->
+                    addTracksToPlaylist(albumDetail?.tracks.orEmpty(), null, name, "album")
+                },
+                onFavoriteToggled = handleAlbumFavoriteToggled,
+                onTrackSelected = handleShellAlbumTrackSelected,
+                onTrackAction = handleTrackAction,
+            ),
+            artistDetailActions = NaviampArtistDetailActions(
+                onBack = { nowPlayingOpen = false },
+                onRadio = handleShellArtistRadio,
+                onPlay = handleShellArtistPlay,
+                onShuffle = handleShellArtistShuffle,
+                onAddToQueue = { loadArtistTracks { appendTracksToQueue(it, "artist tracks") } },
+                onAddToPlaylist = { _, playlist -> loadArtistTracks { addTracksToPlaylist(it, playlist, null, "artist") } },
+                onCreatePlaylistAndAdd = { _, name -> loadArtistTracks { addTracksToPlaylist(it, null, name, "artist") } },
+                onFavoriteToggled = handleArtistFavoriteToggled,
+                onPopularPlay = handleArtistPopularPlay,
+                onPopularRadio = handleShellArtistPopularRadio,
+                onPopularAddToQueue = handleArtistPopularAddToQueue,
+                onPopularTrackSelected = handleArtistPopularTrackSelected,
+                onTrackAction = handleTrackAction,
+                onFindSimilar = { detail ->
+                    findSimilarArtists(app.naviamp.domain.ArtistId(detail.artist.id), detail.artist.title)
+                },
+                onSimilarArtistSelected = handleSimilarArtistSelected,
+                onSimilarArtistExternalSelected = openExternalArtistUrl,
+                onAlbumSelected = handleShellAlbumSelected,
+                onAlbumAction = { request ->
+                    when (request.action) {
+                        SharedMediaItemAction.Select -> handleShellAlbumSelected(request.item)
+                        SharedMediaItemAction.StartRadio -> handleArtistAlbumRadio(request.item)
+                        SharedMediaItemAction.AddToQueue ->
+                            loadArtistAlbumTracks(request.item) { appendTracksToQueue(it, "album tracks") }
+                        SharedMediaItemAction.Download ->
+                            loadArtistAlbumTracks(request.item) { downloadTracks(it, request.item.title) }
+                        SharedMediaItemAction.AddToPlaylist ->
+                            loadArtistAlbumTracks(request.item) {
+                                addTracksToPlaylist(it, request.playlistChoice, null, request.item.title)
+                            }
+                        SharedMediaItemAction.CreatePlaylistAndAdd ->
+                            loadArtistAlbumTracks(request.item) {
+                                addTracksToPlaylist(it, null, request.playlistName, request.item.title)
+                            }
+                        SharedMediaItemAction.ToggleFavorite -> handleAlbumFavoriteToggled(request.item)
+                        else -> Unit
+                    }
+                },
+                onAlbumFavoriteToggled = handleAlbumFavoriteToggled,
+            ),
+            playlistDetailActions = NaviampPlaylistDetailActions(
+                onBack = { closeActivePlaylist() },
+                onPlay = { selectedPlaylist, shuffle ->
+                    homeState.playlists.firstOrNull { it.id == selectedPlaylist.id }?.let { playPlaylist(it, shuffle) }
+                        ?: run { status = "Playlist not found." }
+                },
+                onAddToQueue = { appendTracksToQueue(selectedPlaylistTracks, "playlist tracks") },
+                onAddToPlaylist = { _, playlist ->
+                    selectedPlaylist?.let { addPlaylistToPlaylist(it, playlist, null) }
+                        ?: run { status = "Playlist not found." }
+                },
+                onCreatePlaylistAndAdd = { _, name ->
+                    selectedPlaylist?.let { addPlaylistToPlaylist(it, null, name) }
+                        ?: run { status = "Playlist not found." }
+                },
+                onCopy = { _, name, deduplicate ->
+                    val tracks = if (deduplicate) selectedPlaylistTracks.distinctBy { it.id } else selectedPlaylistTracks
+                    addTracksToPlaylist(tracks, null, name, "playlist")
+                },
+                onRename = { selectedPlaylist, name ->
+                    homeState.playlists.firstOrNull { it.id == selectedPlaylist.id }?.let { renamePlaylist(it, name) }
+                        ?: run { status = "Playlist not found." }
+                },
+                onDelete = { selectedPlaylist ->
+                    homeState.playlists.firstOrNull { it.id == selectedPlaylist.id }?.let(deletePlaylist)
+                        ?: run { status = "Playlist not found." }
+                },
+                onUpdateStandardPlaylist = { playlistItem, trackRows ->
+                    val playlist = homeState.playlists.firstOrNull { it.id == playlistItem.id }
+                        ?: throw IllegalArgumentException("Playlist not found.")
+                    val sourceTracks = playlistTracksById[playlist.id].orEmpty()
+                    val editedTracks = trackRows.map { row ->
+                        sourceTracks.firstOrNull { track -> track.id.value == row.id }
+                            ?: throw IllegalArgumentException("Track ${row.title} is no longer in the playlist.")
+                    }
+                    updateStandardPlaylistTracks(playlist, editedTracks)
+                },
+                onMediaItemAction = { request ->
+                    val playlist = homeState.playlists.firstOrNull { it.id == request.item.id }
+                    if (playlist == null) {
+                        status = "Playlist not found."
+                    } else if (request.action == SharedMediaItemAction.Download) {
+                        if (request.textValue == app.naviamp.ui.KeepDownloadedActionValue) {
+                            toggleKeepDownloadedPlaylist(playlist)
+                        } else {
+                            downloadPlaylist(playlist)
+                        }
+                    }
+                },
+                onTrackSelected = handlePlaylistTrackSelected,
+                onTrackAction = handleTrackAction,
+            ),
             onRefreshHome = refreshHome,
             onTrackSelected = handleShellTrackSelected,
             onAlbumSelected = handleShellAlbumSelected,
             onAlbumFavoriteToggled = handleAlbumFavoriteToggled,
             onMixAlbumSelected = handleMixAlbumSelected,
-            onAlbumPlay = { _, shuffle -> handleShellAlbumPlay(shuffle) },
-            onAlbumTrackSelected = handleShellAlbumTrackSelected,
-            onAlbumRadio = { handleShellAlbumRadio() },
-            onAlbumAddToQueue = { appendTracksToQueue(albumDetail?.tracks.orEmpty(), "album tracks") },
-            onAlbumDownload = { downloadTracks(albumDetail?.tracks.orEmpty(), "album") },
-            onAlbumAddToPlaylist = { _, playlist ->
-                addTracksToPlaylist(albumDetail?.tracks.orEmpty(), playlist, null, "album")
-            },
-            onAlbumCreatePlaylistAndAdd = { _, name ->
-                addTracksToPlaylist(albumDetail?.tracks.orEmpty(), null, name, "album")
-            },
             onTrackAction = handleTrackAction,
-            onArtistRadio = handleShellArtistRadio,
-            onArtistPlay = handleShellArtistPlay,
-            onArtistShuffle = handleShellArtistShuffle,
-            onArtistAddToQueue = { loadArtistTracks { appendTracksToQueue(it, "artist tracks") } },
-            onArtistAddToPlaylist = { _, playlist -> loadArtistTracks { addTracksToPlaylist(it, playlist, null, "artist") } },
-            onArtistCreatePlaylistAndAdd = { _, name -> loadArtistTracks { addTracksToPlaylist(it, null, name, "artist") } },
-            onArtistPopularPlay = handleArtistPopularPlay,
-            onArtistPopularRadio = handleShellArtistPopularRadio,
-            onArtistPopularTrackSelected = handleArtistPopularTrackSelected,
-            onArtistPopularAddToQueue = handleArtistPopularAddToQueue,
-            onFindSimilarArtists = { detail ->
-                findSimilarArtists(app.naviamp.domain.ArtistId(detail.artist.id), detail.artist.title)
-            },
-            onSimilarArtistSelected = handleSimilarArtistSelected,
-            onSimilarArtistExternalSelected = openExternalArtistUrl,
             onArtistSelected = { selectedArtist ->
                 openArtistDetails(app.naviamp.domain.ArtistId(selectedArtist.id), selectedArtist.title)
             },
@@ -429,23 +516,6 @@ fun androidAppShellActions(
             onPlaylistPlay = { selectedPlaylist, shuffle ->
                 homeState.playlists.firstOrNull { it.id == selectedPlaylist.id }?.let { playPlaylist(it, shuffle) }
                     ?: run { status = "Playlist not found." }
-            },
-            onPlaylistAddToQueue = { appendTracksToQueue(selectedPlaylistTracks, "playlist tracks") },
-            onPlaylistAddToPlaylist = { _, playlist ->
-                selectedPlaylist?.let { addPlaylistToPlaylist(it, playlist, null) }
-                    ?: run { status = "Playlist not found." }
-            },
-            onPlaylistCreatePlaylistAndAdd = { _, name ->
-                selectedPlaylist?.let { addPlaylistToPlaylist(it, null, name) }
-                    ?: run { status = "Playlist not found." }
-            },
-            onPlaylistCopy = { _, name, deduplicate ->
-                val tracks = if (deduplicate) {
-                    selectedPlaylistTracks.distinctBy { track -> track.id }
-                } else {
-                    selectedPlaylistTracks
-                }
-                addTracksToPlaylist(tracks, null, name, "playlist")
             },
             onPlaylistRename = { selectedPlaylist, name ->
                 homeState.playlists.firstOrNull { it.id == selectedPlaylist.id }?.let { renamePlaylist(it, name) }
@@ -564,18 +634,6 @@ fun androidAppShellActions(
                     -> Unit
                 }
             },
-            onStandardPlaylistUpdate = { playlistItem, trackRows ->
-                val playlist = homeState.playlists.firstOrNull { it.id == playlistItem.id }
-                    ?: throw IllegalArgumentException("Playlist not found.")
-                val sourceTracks = playlistTracksById[playlist.id].orEmpty()
-                val editedTracks = trackRows.map { row ->
-                    sourceTracks.firstOrNull { track -> track.id.value == row.id }
-                        ?: throw IllegalArgumentException("Track ${row.title} is no longer in the playlist.")
-                }
-                updateStandardPlaylistTracks(playlist, editedTracks)
-            },
-            onPlaylistBack = { closeActivePlaylist() },
-            onPlaylistTrackSelected = handlePlaylistTrackSelected,
             onRecentRadioSelected = handleRecentRadioSelected,
             onMixBuilderSelected = handleMixBuilderSelected,
             onHomeStationSelected = handleShellHomeStationSelected,
