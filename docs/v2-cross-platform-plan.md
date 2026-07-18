@@ -370,6 +370,7 @@ Record architecture decisions here or link a dedicated decision record.
 | 2026-07-18 | Carry route-shared media intent through one public shell contract. | Track selection/actions and album, artist, and playlist selection or mutation intent belong in `NaviampMediaActions`; its optional typed media dispatcher preserves the shell's default request routing while allowing Android to execute richer provider, playback, and playlist behavior. |
 | 2026-07-18 | Group shell navigation intent at the public boundary. | Route selection and opening or closing Now Playing belong in `NaviampShellNavigationActions`; selected route and visibility remain presentation state, while Android retains detail-stack cleanup and navigation-state execution. |
 | 2026-07-18 | Carry shell-chrome presentation through one focused shared model. | Selected route, Now Playing visibility, capability-derived navigation/update flags, and visualizer selection belong in `NaviampShellChromeUi`; live Now Playing content and the visualizer frame provider remain separate because they have distinct update cadence and execution concerns. |
+| 2026-07-18 | Build grouped Android settings presentation in the shell state factory. | `AndroidAppShellUiState` should carry `NaviampConnectionSettingsUi`, `NaviampGeneralSettingsUi`, `NaviampPlaybackSettingsUi`, and `NaviampCacheSettingsUi` directly; Android diagnostics, storage discovery, and capability calculation stay in the factory, while the grouped capability model remains available to launcher registration. |
 
 ## Shared Controller Construction Audit
 
@@ -395,7 +396,7 @@ The 2026-07-17 audit covers every current application entry point:
 
 ## Current Handoff
 
-- **Last completed item:** Android and the public/private shared shell now carry route, Now Playing visibility, navigation/update availability, and visualizer selection as one `NaviampShellChromeUi`. Live Now Playing content and visualizer frames remain separate high-frequency inputs.
-- **Next recommended item:** Have `AndroidAppShellUiState` carry the already-defined grouped connection, general, playback, and cache settings models directly. Move their final presentation mapping out of `AndroidAppShellContent` so the composable is a pass-through host adapter; keep Android diagnostics, storage discovery, and capability calculation in the state factory.
+- **Last completed item:** `AndroidAppShellUiState` now carries grouped connection, general, playback, and cache settings presentation directly. `AndroidAppShellContent` passes those models through unchanged; Android diagnostics, storage discovery, capabilities, and launcher gating remain factory or host concerns.
+- **Next recommended item:** Introduce a top-level shared shell presentation aggregate for the stable grouped screen models, shell chrome, playlist choices, and Now Playing presentation. Keep `Modifier`, the visualizer frame provider, settings-sync launcher state, and all action contracts outside that model so platform and high-frequency concerns do not pollute reusable presentation state.
 - **Verification:** `:core:domain:jvmTest`, `:core:app:jvmTest`, `:core:storage:jvmTest`, `:core:ui:jvmTest`, `:apps:android:testDebugUnitTest`, `:apps:desktop:desktopTest`, `:core:app:iosSimulatorArm64Test`, `:core:storage:compileKotlinIosSimulatorArm64`, and `:core:ui:compileKotlinIosSimulatorArm64` pass together with at most two Gradle workers.
 - **Known blockers:** None.

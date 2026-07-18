@@ -1,13 +1,9 @@
 package app.naviamp.android
 
 import androidx.compose.runtime.Composable
-import app.naviamp.ui.NaviampCacheSettingsUi
 import app.naviamp.ui.NaviampSettingsSyncActions
 import app.naviamp.ui.NaviampSettingsSyncUi
 import app.naviamp.ui.NaviampSharedAppShell
-import app.naviamp.ui.toConnectionSettingsUi
-import app.naviamp.ui.toGeneralSettingsUi
-import app.naviamp.ui.toPlaybackSettingsUi
 
 @Composable
 fun AndroidAppShellContent(
@@ -18,21 +14,10 @@ fun AndroidAppShellContent(
 ) {
     NaviampSharedAppShell(
         modifier = state.modifier,
-        connectionSettings = state.connection.toConnectionSettingsUi(state.capabilities),
-        general = state.interfaceSettings.toGeneralSettingsUi(state.about),
-        playback = state.playbackSettings.toPlaybackSettingsUi(
-            capabilities = state.capabilities,
-            downloadBytes = state.downloads.downloadBytes,
-        ),
-        cache = NaviampCacheSettingsUi(
-            settings = state.cacheSettings,
-            diagnostics = state.diagnostics,
-            fileSelectionAvailable = state.capabilities.fileSelection,
-            downloadLocations = state.downloadLocations,
-            audioCacheLocations = state.audioCacheLocations,
-            selectedDownloadLocationId = state.selectedDownloadLocationId,
-            selectedAudioCacheLocationId = state.selectedAudioCacheLocationId,
-        ),
+        connectionSettings = state.connectionSettings,
+        general = state.general,
+        playback = state.playback,
+        cache = state.cache,
         settingsSync = settingsSync,
         shellChrome = state.shellChrome,
         visualizerBandsProvider = state.visualizerBandsProvider,

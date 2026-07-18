@@ -14,6 +14,7 @@ import app.naviamp.domain.provider.allKnownTracks
 import app.naviamp.domain.settings.selectedMusicFolderSummary
 import app.naviamp.domain.settings.streamQualityForNetwork
 import app.naviamp.ui.NaviampAboutUi
+import app.naviamp.ui.NaviampCacheSettingsUi
 import app.naviamp.ui.NaviampConnectionCapabilitiesUi
 import app.naviamp.ui.NaviampSavedConnectionUi
 import app.naviamp.ui.NaviampLibraryScreenUi
@@ -40,6 +41,9 @@ import app.naviamp.ui.toSharedMediaItemUi
 import app.naviamp.ui.toNaviampSleepTimerUi
 import app.naviamp.ui.toDownloadJobUi
 import app.naviamp.ui.toInternetRadioStationUi
+import app.naviamp.ui.toConnectionSettingsUi
+import app.naviamp.ui.toGeneralSettingsUi
+import app.naviamp.ui.toPlaybackSettingsUi
 
 @Composable
 fun rememberAndroidAppShellUiState(
@@ -152,55 +156,71 @@ fun rememberAndroidAppShellUiState(
             activeRadioDjId = playbackSettings.activeRadioDjId,
         )
 
+        val shellCapabilities = NaviampShellCapabilitiesUi(
+            replayGain = playbackEngine.supportsReplayGain,
+            gapless = playbackEngine.supportsGapless,
+            crossfade = playbackEngine.supportsCrossfade,
+            equalizer = (playbackEngine as? EqualizerPlaybackEngine)?.supportsEqualizer == true,
+            sonicSimilarity = provider?.capabilities?.supportsSonicSimilarity == true,
+            downloads = AndroidCapabilityPresentation.downloads.visible,
+            settingsImportExport = AndroidCapabilityPresentation.settingsImportExport.visible,
+            applicationUpdates = AndroidCapabilityPresentation.applicationUpdates.visible,
+            fileSelection = AndroidCapabilityPresentation.fileSelection.visible,
+            showMobileNetworkQuality = true,
+            connection = NaviampConnectionCapabilitiesUi(
+                insecureServerVerification = AndroidCapabilityPresentation.insecureServerVerification.visible,
+                customServerCertificates = AndroidCapabilityPresentation.customServerCertificates.visible,
+                clientCertificates = AndroidCapabilityPresentation.clientCertificates.visible,
+            ),
+        )
+        val shellConnection = NaviampShellConnectionUi(
+            status = status,
+            serverVersion = connectionRuntimeState.serverVersion,
+            connected = connectionRuntimeState.connected,
+            editingConnection = editingConnection,
+            restoringConnection = connectionRuntimeState.restoringConnection,
+            isConnecting = connectionRuntimeState.isConnecting,
+            form = shellModels.connectionForm,
+            availableMusicFolders = shellModels.availableMusicFolders,
+            musicFoldersStatus = shellModels.musicFoldersStatus,
+            savedConnections = savedMediaSources.map { source ->
+                NaviampSavedConnectionUi(
+                    id = source.id,
+                    displayName = source.displayName,
+                    serverUrl = source.baseUrl,
+                    username = source.username,
+                    selectedLibrarySummary = selectedMusicFolderSummary(
+                        selectedIds = source.selectedMusicFolderIds,
+                        availableFolders = availableMusicFolders,
+                    ),
+                    current = source.id == activeSourceId,
+                )
+            },
+            hasSavedConnection = savedConnectionForLogin != null,
+        )
+
         AndroidAppShellUiState(
             modifier = modifier,
-            connection = NaviampShellConnectionUi(
-                status = status,
-                serverVersion = connectionRuntimeState.serverVersion,
-                connected = connectionRuntimeState.connected,
-                editingConnection = editingConnection,
-                restoringConnection = connectionRuntimeState.restoringConnection,
-                isConnecting = connectionRuntimeState.isConnecting,
-                form = shellModels.connectionForm,
-                availableMusicFolders = shellModels.availableMusicFolders,
-                musicFoldersStatus = shellModels.musicFoldersStatus,
-                savedConnections = savedMediaSources.map { source ->
-                    NaviampSavedConnectionUi(
-                        id = source.id,
-                        displayName = source.displayName,
-                        serverUrl = source.baseUrl,
-                        username = source.username,
-                        selectedLibrarySummary = selectedMusicFolderSummary(
-                            selectedIds = source.selectedMusicFolderIds,
-                            availableFolders = availableMusicFolders,
-                        ),
-                        current = source.id == activeSourceId,
-                    )
-                },
-                hasSavedConnection = savedConnectionForLogin != null,
+            connectionSettings = shellConnection.toConnectionSettingsUi(shellCapabilities),
+            general = interfaceSettings.toGeneralSettingsUi(context.androidAboutUi()),
+            playback = playbackSettings.toPlaybackSettingsUi(
+                capabilities = shellCapabilities,
+                downloadBytes = storageStats.downloadBytes,
             ),
-            interfaceSettings = interfaceSettings,
-            playbackSettings = playbackSettings,
-            cacheSettings = cacheSettings,
-            diagnostics = diagnostics,
-            about = context.androidAboutUi(),
-            capabilities = NaviampShellCapabilitiesUi(
-                replayGain = playbackEngine.supportsReplayGain,
-                gapless = playbackEngine.supportsGapless,
-                crossfade = playbackEngine.supportsCrossfade,
-                equalizer = (playbackEngine as? EqualizerPlaybackEngine)?.supportsEqualizer == true,
-                sonicSimilarity = provider?.capabilities?.supportsSonicSimilarity == true,
-                downloads = AndroidCapabilityPresentation.downloads.visible,
-                settingsImportExport = AndroidCapabilityPresentation.settingsImportExport.visible,
-                applicationUpdates = AndroidCapabilityPresentation.applicationUpdates.visible,
-                fileSelection = AndroidCapabilityPresentation.fileSelection.visible,
-                showMobileNetworkQuality = true,
-                connection = NaviampConnectionCapabilitiesUi(
-                    insecureServerVerification = AndroidCapabilityPresentation.insecureServerVerification.visible,
-                    customServerCertificates = AndroidCapabilityPresentation.customServerCertificates.visible,
-                    clientCertificates = AndroidCapabilityPresentation.clientCertificates.visible,
-                ),
+            cache = NaviampCacheSettingsUi(
+                settings = cacheSettings,
+                diagnostics = diagnostics,
+                fileSelectionAvailable = shellCapabilities.fileSelection,
+                downloadLocations = downloadLocations,
+                audioCacheLocations = audioCacheLocations,
+                selectedDownloadLocationId = downloadLocations
+                    .firstOrNull { it.path == cacheSettings.customDownloadDirectory }?.id
+                    ?: downloadLocations.firstOrNull()?.id,
+                selectedAudioCacheLocationId = audioCacheLocations
+                    .firstOrNull { it.path == cacheSettings.customAudioCacheDirectory }?.id
+                    ?: audioCacheLocations.firstOrNull()?.id,
             ),
+            capabilities = shellCapabilities,
             shellChrome = NaviampShellChromeUi(
                 selectedRoute = selectedRoute,
                 nowPlayingOpen = nowPlayingOpen,
@@ -276,14 +296,6 @@ fun rememberAndroidAppShellUiState(
                     it.kind == app.naviamp.domain.cache.KeepDownloadedCollectionKind.Favorites
                 },
             ),
-            downloadLocations = downloadLocations,
-            audioCacheLocations = audioCacheLocations,
-            selectedDownloadLocationId = downloadLocations
-                .firstOrNull { it.path == cacheSettings.customDownloadDirectory }?.id
-                ?: downloadLocations.firstOrNull()?.id,
-            selectedAudioCacheLocationId = audioCacheLocations
-                .firstOrNull { it.path == cacheSettings.customAudioCacheDirectory }?.id
-                ?: audioCacheLocations.firstOrNull()?.id,
             playlists = NaviampPlaylistsScreenUi(
                 playlists = shellModels.playlistItems,
                 recentPlaylistIds = recentPlaylistIds,
