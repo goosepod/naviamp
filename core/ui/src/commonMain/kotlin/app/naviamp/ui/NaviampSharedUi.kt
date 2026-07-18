@@ -201,13 +201,7 @@ fun NaviampSharedAppShell(
     onSonicDiscoveryTrackAction: (SharedHomeDiscoveryTrackActionRequest) -> Unit = {},
     onOpenNowPlaying: () -> Unit,
     onCloseNowPlaying: () -> Unit,
-    onNowPlayingPlaybackAction: (NowPlayingPlaybackActionRequest) -> Unit = {},
-    onNowPlayingDisplayAction: (NowPlayingDisplayActionRequest) -> Unit = {},
-    onNowPlayingCurrentTrackAction: (NowPlayingCurrentTrackUiActionRequest) -> Unit = {},
-    onNowPlayingQueueAction: (NowPlayingQueueActionRequest) -> Unit = {},
-    onNowPlayingSleepTimerAction: (NowPlayingSleepTimerActionRequest) -> Unit = {},
-    onNowPlayingSelectionAction: (NowPlayingSelectionActionRequest) -> Unit = {},
-    onQueueItemAction: (NowPlayingItemActionRequest) -> Unit = {},
+    nowPlayingActions: NaviampNowPlayingActions = NaviampNowPlayingActions(),
 ) {
     val connection = connectionSettings.connection
     val status = connection.status.orEmpty()
@@ -285,15 +279,6 @@ fun NaviampSharedAppShell(
         AppBackgroundStyle.AlbumBlur -> albumPlayerColors
     }
     val nowPlayingPlayerColors = animatedNaviampPlayerColors(targetNowPlayingPlayerColors)
-    val nowPlayingActions = NaviampNowPlayingActions(
-        onPlaybackAction = onNowPlayingPlaybackAction,
-        onDisplayAction = onNowPlayingDisplayAction,
-        onCurrentTrackAction = onNowPlayingCurrentTrackAction,
-        onQueueAction = onNowPlayingQueueAction,
-        onSleepTimerAction = onNowPlayingSleepTimerAction,
-        onSelectionAction = onNowPlayingSelectionAction,
-        onQueueItemAction = onQueueItemAction,
-    )
     MaterialTheme(
         colorScheme = darkColorScheme(
             background = colors.background,

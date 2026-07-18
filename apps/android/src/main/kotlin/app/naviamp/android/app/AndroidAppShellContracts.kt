@@ -14,14 +14,8 @@ import app.naviamp.ui.NaviampSettingsValueActions
 import app.naviamp.ui.NaviampPlaylistChoiceUi
 import app.naviamp.ui.NaviampVisualizer
 import app.naviamp.ui.NaviampAboutUi
-import app.naviamp.ui.NowPlayingCurrentTrackUiActionRequest
-import app.naviamp.ui.NowPlayingDisplayActionRequest
-import app.naviamp.ui.NowPlayingItemActionRequest
-import app.naviamp.ui.NowPlayingPlaybackActionRequest
-import app.naviamp.ui.NowPlayingQueueActionRequest
-import app.naviamp.ui.NowPlayingSelectionActionRequest
-import app.naviamp.ui.NowPlayingSleepTimerActionRequest
 import app.naviamp.ui.NowPlayingUi
+import app.naviamp.ui.NaviampNowPlayingActions
 import app.naviamp.ui.SharedAlbumMixBuilderUi
 import app.naviamp.ui.SharedAlbumMixBuilderActions
 import app.naviamp.ui.SharedArtistMixBuilderUi
@@ -131,11 +125,5 @@ data class AndroidAppShellActions(
     val onSonicDiscoveryTrackAction: (SharedHomeDiscoveryTrackActionRequest) -> Unit,
     val onOpenNowPlaying: () -> Unit,
     val onCloseNowPlaying: () -> Unit,
-    val onNowPlayingPlaybackAction: (NowPlayingPlaybackActionRequest) -> Unit,
-    val onNowPlayingDisplayAction: (NowPlayingDisplayActionRequest) -> Unit,
-    val onNowPlayingCurrentTrackAction: (NowPlayingCurrentTrackUiActionRequest) -> Unit,
-    val onNowPlayingQueueAction: (NowPlayingQueueActionRequest) -> Unit,
-    val onNowPlayingSleepTimerAction: (NowPlayingSleepTimerActionRequest) -> Unit,
-    val onNowPlayingSelectionAction: (NowPlayingSelectionActionRequest) -> Unit,
-    val onQueueItemAction: (NowPlayingItemActionRequest) -> Unit,
+    val nowPlayingActions: NaviampNowPlayingActions,
 )

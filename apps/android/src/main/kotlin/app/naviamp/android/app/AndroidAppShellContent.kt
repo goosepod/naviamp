@@ -94,12 +94,6 @@ fun AndroidAppShellContent(
         onSonicDiscoveryTrackAction = actions.onSonicDiscoveryTrackAction,
         onOpenNowPlaying = actions.onOpenNowPlaying,
         onCloseNowPlaying = actions.onCloseNowPlaying,
-        onNowPlayingPlaybackAction = actions.onNowPlayingPlaybackAction,
-        onNowPlayingDisplayAction = actions.onNowPlayingDisplayAction,
-        onNowPlayingCurrentTrackAction = actions.onNowPlayingCurrentTrackAction,
-        onNowPlayingQueueAction = actions.onNowPlayingQueueAction,
-        onNowPlayingSleepTimerAction = actions.onNowPlayingSleepTimerAction,
-        onNowPlayingSelectionAction = actions.onNowPlayingSelectionAction,
-        onQueueItemAction = actions.onQueueItemAction,
+        nowPlayingActions = actions.nowPlayingActions,
     )
 }

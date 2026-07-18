@@ -15,6 +15,7 @@ import app.naviamp.domain.smartplaylist.SmartPlaylistDefinition
 import app.naviamp.ui.SharedTrackRowUi
 import app.naviamp.ui.DownloadedTrackActionRequest
 import app.naviamp.ui.NaviampNowPlayingItemUi
+import app.naviamp.ui.NaviampNowPlayingActions
 import app.naviamp.ui.NaviampConnectionSettingsActions
 import app.naviamp.ui.NaviampDownloadsActions
 import app.naviamp.ui.NaviampLibraryActions
@@ -640,7 +641,8 @@ fun androidAppShellActions(
             onSonicDiscoveryTrackAction = handleSonicDiscoveryTrackAction,
             onOpenNowPlaying = { nowPlayingOpen = true },
             onCloseNowPlaying = { nowPlayingOpen = false },
-            onNowPlayingPlaybackAction = { request ->
+            nowPlayingActions = NaviampNowPlayingActions(
+            onPlaybackAction = { request ->
                 when (request.action) {
                     NowPlayingPlaybackAction.Pause,
                     NowPlayingPlaybackAction.Resume,
@@ -659,7 +661,7 @@ fun androidAppShellActions(
                     }
                 }
             },
-            onNowPlayingDisplayAction = { request ->
+            onDisplayAction = { request ->
                 when (request.action) {
                     NowPlayingDisplayAction.ToggleLyrics -> {
                         lyricsVisible = !lyricsVisible
@@ -702,7 +704,7 @@ fun androidAppShellActions(
                     }
                 }
             },
-            onNowPlayingCurrentTrackAction = { request: NowPlayingCurrentTrackUiActionRequest ->
+            onCurrentTrackAction = { request: NowPlayingCurrentTrackUiActionRequest ->
                 when (request.action) {
                     NowPlayingCurrentTrackAction.StartRadio -> handleShellTrackRadio()
                     NowPlayingCurrentTrackAction.AddToPlaylist ->
@@ -717,7 +719,7 @@ fun androidAppShellActions(
                     NowPlayingCurrentTrackAction.SetRating -> handleShellRatingSelected(request.rating)
                 }
             },
-            onNowPlayingQueueAction = { request: NowPlayingQueueActionRequest ->
+            onQueueAction = { request: NowPlayingQueueActionRequest ->
                 when (request.action) {
                     NowPlayingQueueAction.SaveQueueAsPlaylist -> request.playlistName?.let(handleSaveQueueAsPlaylist)
                     NowPlayingQueueAction.MoveToNext -> request.queueIndex?.let(handleQueueItemMoveNext)
@@ -725,13 +727,13 @@ fun androidAppShellActions(
                     NowPlayingQueueAction.EmptyQueue -> handleEmptyQueue()
                 }
             },
-            onNowPlayingSleepTimerAction = { request: NowPlayingSleepTimerActionRequest ->
+            onSleepTimerAction = { request: NowPlayingSleepTimerActionRequest ->
                 when (request.action) {
                     NowPlayingSleepTimerAction.Select -> request.request?.let(handleSleepTimerSelected)
                     NowPlayingSleepTimerAction.Cancel -> handleCancelSleepTimer()
                 }
             },
-            onNowPlayingSelectionAction = { request: NowPlayingSelectionActionRequest ->
+            onSelectionAction = { request: NowPlayingSelectionActionRequest ->
                 when (request.action) {
                     NowPlayingSelectionAction.SelectQueueItem ->
                         nowPlayingQueueIndex(request.item)?.let(handleQueueItemSelected)
@@ -753,5 +755,6 @@ fun androidAppShellActions(
                 }
             },
             onQueueItemAction = handleQueueItemAction,
+            ),
         )
     }
