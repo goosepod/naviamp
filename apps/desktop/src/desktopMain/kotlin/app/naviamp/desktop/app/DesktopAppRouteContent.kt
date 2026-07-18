@@ -73,6 +73,7 @@ import app.naviamp.ui.StationRowAction
 import app.naviamp.ui.SonicMixBuilderContent
 import app.naviamp.ui.SonicPathBuilderContent
 import app.naviamp.ui.toSharedHomeUi
+import app.naviamp.ui.toConnectionSettingsUi
 
 @Composable
 fun ColumnScope.DesktopAppRouteContent(
@@ -951,25 +952,8 @@ fun ColumnScope.DesktopAppRouteContent(
                 )
                 DesktopAppRoute.Settings -> DesktopSettingsPanel(
                     appColors = appColors,
-                    serverUrl = connection.form.serverUrl,
-                    connectionName = connection.form.displayName,
-                    username = connection.form.username,
-                    password = connection.form.password,
-                    insecureSkipTlsVerification = connection.form.skipTlsVerification,
-                    customCertificatePath = connection.form.customCertificatePath,
-                    clientCertificateKeyStorePath = connection.form.clientCertificatePath,
-                    clientCertificateKeyStorePassword = connection.form.clientCertificatePassword,
-                    secondaryUrls = connection.form.secondaryUrls,
-                    customHeaders = connection.form.customHeaders,
-                    selectedMusicFolderIds = connection.form.selectedMusicFolderIds,
-                    availableMusicFolders = connection.availableMusicFolders,
-                    musicFoldersStatus = connection.musicFoldersStatus,
-                    savedConnections = connection.savedConnections,
+                    connectionSettings = connection.toConnectionSettingsUi(capabilities),
                     currentSourceId = connectedSourceId,
-                    hasSavedConnection = connection.hasSavedConnection,
-                    isConnectionFormOpen = connection.editingConnection,
-                    isConnecting = connection.isConnecting,
-                    connectionStatus = connection.status,
                     interfaceSettings = interfaceSettings,
                     playbackSettings = playbackSettings,
                     cacheSettings = cacheSettings,
@@ -987,9 +971,6 @@ fun ColumnScope.DesktopAppRouteContent(
                     audioOutputDevices =
                         (playbackEngine as? AudioOutputDevicePlaybackEngine)?.outputDevices().orEmpty(),
                     supportsSonicSimilarity = capabilities.sonicSimilarity,
-                    connectionCapabilities = capabilities.connection,
-                    supportsSettingsSync = capabilities.settingsImportExport && capabilities.fileSelection,
-                    supportsFileSelection = capabilities.fileSelection,
                     onServerUrlChanged = { onConnectionFormChanged(connection.form.copy(serverUrl = it)) },
                     onConnectionNameChanged = { onConnectionFormChanged(connection.form.copy(displayName = it)) },
                     onUsernameChanged = { onConnectionFormChanged(connection.form.copy(username = it)) },

@@ -736,6 +736,13 @@ data class NaviampShellConnectionUi(
     val hasSavedConnection: Boolean = false,
 )
 
+data class NaviampConnectionSettingsUi(
+    val connection: NaviampShellConnectionUi = NaviampShellConnectionUi(),
+    val capabilities: NaviampConnectionCapabilitiesUi = NaviampConnectionCapabilitiesUi(),
+    val settingsSyncAvailable: Boolean = false,
+    val fileSelectionAvailable: Boolean = false,
+)
+
 data class NaviampShellCapabilitiesUi(
     val replayGain: Boolean = false,
     val gapless: Boolean = true,
@@ -749,6 +756,16 @@ data class NaviampShellCapabilitiesUi(
     val showMobileNetworkQuality: Boolean = false,
     val connection: NaviampConnectionCapabilitiesUi = NaviampConnectionCapabilitiesUi(),
 )
+
+fun NaviampShellConnectionUi.toConnectionSettingsUi(
+    capabilities: NaviampShellCapabilitiesUi,
+): NaviampConnectionSettingsUi =
+    NaviampConnectionSettingsUi(
+        connection = this,
+        capabilities = capabilities.connection,
+        settingsSyncAvailable = capabilities.settingsImportExport && capabilities.fileSelection,
+        fileSelectionAvailable = capabilities.fileSelection,
+    )
 
 data class NaviampLyricLineUi(
     val startMillis: Long?,

@@ -29,6 +29,31 @@ import kotlin.test.assertTrue
 
 class MediaUiMappersTest {
     @Test
+    fun connectionSettingsRequireImportExportAndFileSelectionForSync() {
+        val connection = NaviampShellConnectionUi(status = "Ready")
+        val withoutPicker = connection.toConnectionSettingsUi(
+            NaviampShellCapabilitiesUi(
+                settingsImportExport = true,
+                fileSelection = false,
+                connection = NaviampConnectionCapabilitiesUi(clientCertificates = true),
+            ),
+        )
+        val withPicker = connection.toConnectionSettingsUi(
+            NaviampShellCapabilitiesUi(
+                settingsImportExport = true,
+                fileSelection = true,
+            ),
+        )
+
+        assertEquals(connection, withoutPicker.connection)
+        assertTrue(withoutPicker.capabilities.clientCertificates)
+        assertFalse(withoutPicker.settingsSyncAvailable)
+        assertFalse(withoutPicker.fileSelectionAvailable)
+        assertTrue(withPicker.settingsSyncAvailable)
+        assertTrue(withPicker.fileSelectionAvailable)
+    }
+
+    @Test
     fun internetRadioModelsPreserveEditableFieldsAndNormalizeDrafts() {
         val station = InternetRadioStation(
             id = "station-1",

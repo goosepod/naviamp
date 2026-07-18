@@ -79,6 +79,7 @@ import app.naviamp.ui.NaviampSavedConnectionUi
 import app.naviamp.ui.NaviampDiagnosticsSectionUi
 import app.naviamp.ui.NaviampDiagnosticsUi
 import app.naviamp.ui.NaviampConnectionCapabilitiesUi
+import app.naviamp.ui.NaviampConnectionSettingsUi
 import app.naviamp.ui.categoryLabel
 import app.naviamp.ui.categorySubtitle
 import app.naviamp.ui.languageTitle
@@ -96,25 +97,8 @@ import kotlin.math.roundToInt
 fun DesktopSettingsPanel(
     modifier: Modifier = Modifier,
     appColors: DesktopAppColors,
-    serverUrl: String,
-    connectionName: String,
-    username: String,
-    password: String,
-    insecureSkipTlsVerification: Boolean,
-    customCertificatePath: String,
-    clientCertificateKeyStorePath: String,
-    clientCertificateKeyStorePassword: String,
-    secondaryUrls: List<ConnectionFormSecondaryUrl>,
-    customHeaders: List<ConnectionFormHeader>,
-    selectedMusicFolderIds: List<String>,
-    availableMusicFolders: List<ConnectionFormMusicFolder>,
-    musicFoldersStatus: String?,
-    savedConnections: List<NaviampSavedConnectionUi>,
+    connectionSettings: NaviampConnectionSettingsUi,
     currentSourceId: String?,
-    hasSavedConnection: Boolean,
-    isConnectionFormOpen: Boolean,
-    isConnecting: Boolean,
-    connectionStatus: String?,
     interfaceSettings: InterfaceSettings,
     playbackSettings: PlaybackSettings,
     cacheSettings: CacheSettings,
@@ -130,9 +114,6 @@ fun DesktopSettingsPanel(
     supportsAudioOutputDeviceSelection: Boolean,
     audioOutputDevices: List<AudioOutputDevice>,
     supportsSonicSimilarity: Boolean,
-    connectionCapabilities: NaviampConnectionCapabilitiesUi,
-    supportsSettingsSync: Boolean,
-    supportsFileSelection: Boolean,
     onServerUrlChanged: (String) -> Unit,
     onConnectionNameChanged: (String) -> Unit,
     onUsernameChanged: (String) -> Unit,
@@ -165,6 +146,29 @@ fun DesktopSettingsPanel(
     onRefreshLibrary: () -> Unit,
     onResetDatabase: () -> Unit,
 ) {
+    val connection = connectionSettings.connection
+    val form = connection.form
+    val serverUrl = form.serverUrl
+    val connectionName = form.displayName
+    val username = form.username
+    val password = form.password
+    val insecureSkipTlsVerification = form.skipTlsVerification
+    val customCertificatePath = form.customCertificatePath
+    val clientCertificateKeyStorePath = form.clientCertificatePath
+    val clientCertificateKeyStorePassword = form.clientCertificatePassword
+    val secondaryUrls = form.secondaryUrls
+    val customHeaders = form.customHeaders
+    val selectedMusicFolderIds = form.selectedMusicFolderIds
+    val availableMusicFolders = connection.availableMusicFolders
+    val musicFoldersStatus = connection.musicFoldersStatus
+    val savedConnections = connection.savedConnections
+    val hasSavedConnection = connection.hasSavedConnection
+    val isConnectionFormOpen = connection.editingConnection
+    val isConnecting = connection.isConnecting
+    val connectionStatus = connection.status
+    val connectionCapabilities = connectionSettings.capabilities
+    val supportsSettingsSync = connectionSettings.settingsSyncAvailable
+    val supportsFileSelection = connectionSettings.fileSelectionAvailable
     var selectedCategory by remember { mutableStateOf(NaviampSettingsCategory.Source) }
     var statusClickCount by remember { mutableIntStateOf(0) }
     var lastStatusClickMillis by remember { mutableStateOf(0L) }
