@@ -73,6 +73,7 @@ import app.naviamp.ui.NaviampSettingsCategory
 import app.naviamp.ui.NaviampStorageLocationUi
 import app.naviamp.ui.NaviampSavedConnectionUi
 import app.naviamp.ui.NaviampConnectionCapabilitiesUi
+import app.naviamp.ui.NaviampConnectionSettingsActions
 import app.naviamp.ui.NaviampConnectionSettingsUi
 import app.naviamp.ui.NaviampPlaybackSettingsUi
 import app.naviamp.ui.NaviampCacheSettingsUi
@@ -100,23 +101,7 @@ fun DesktopSettingsPanel(
     playback: NaviampPlaybackSettingsUi,
     cache: NaviampCacheSettingsUi,
     settingsSync: NaviampSettingsSyncUi,
-    onServerUrlChanged: (String) -> Unit,
-    onConnectionNameChanged: (String) -> Unit,
-    onUsernameChanged: (String) -> Unit,
-    onPasswordChanged: (String) -> Unit,
-    onInsecureSkipTlsVerificationChanged: (Boolean) -> Unit,
-    onCustomCertificatePathChanged: (String) -> Unit,
-    onClientCertificateKeyStorePathChanged: (String) -> Unit,
-    onClientCertificateKeyStorePasswordChanged: (String) -> Unit,
-    onSecondaryUrlsChanged: (List<ConnectionFormSecondaryUrl>) -> Unit,
-    onCustomHeadersChanged: (List<ConnectionFormHeader>) -> Unit,
-    onSelectedMusicFolderIdsChanged: (List<String>) -> Unit,
-    onConnect: () -> Unit,
-    onNewConnection: () -> Unit,
-    onEditConnection: (NaviampSavedConnectionUi) -> Unit,
-    onDeleteConnection: (NaviampSavedConnectionUi) -> Unit,
-    onConnectSavedConnection: (NaviampSavedConnectionUi) -> Unit,
-    onCancelConnectionForm: () -> Unit,
+    connectionActions: NaviampConnectionSettingsActions,
     onSettingsSyncDirectoryChanged: (String?) -> Unit,
     onSettingsSyncDirectorySelectedForImport: (String) -> Unit,
     onSettingsSyncAutoExportChanged: (Boolean) -> Unit,
@@ -210,23 +195,45 @@ fun DesktopSettingsPanel(
                 settingsSyncStatus = settingsSyncStatus,
                 connectionCapabilities = connectionCapabilities,
                 supportsSettingsSync = supportsSettingsSync,
-                onServerUrlChanged = onServerUrlChanged,
-                onConnectionNameChanged = onConnectionNameChanged,
-                onUsernameChanged = onUsernameChanged,
-                onPasswordChanged = onPasswordChanged,
-                onInsecureSkipTlsVerificationChanged = onInsecureSkipTlsVerificationChanged,
-                onCustomCertificatePathChanged = onCustomCertificatePathChanged,
-                onClientCertificateKeyStorePathChanged = onClientCertificateKeyStorePathChanged,
-                onClientCertificateKeyStorePasswordChanged = onClientCertificateKeyStorePasswordChanged,
-                onSecondaryUrlsChanged = onSecondaryUrlsChanged,
-                onCustomHeadersChanged = onCustomHeadersChanged,
-                onSelectedMusicFolderIdsChanged = onSelectedMusicFolderIdsChanged,
-                onConnect = onConnect,
-                onNewConnection = onNewConnection,
-                onEditConnection = onEditConnection,
-                onDeleteConnection = onDeleteConnection,
-                onConnectSavedConnection = onConnectSavedConnection,
-                onCancelConnectionForm = onCancelConnectionForm,
+                onServerUrlChanged = { value ->
+                    connectionActions.updateForm(form) { it.copy(serverUrl = value) }
+                },
+                onConnectionNameChanged = { value ->
+                    connectionActions.updateForm(form) { it.copy(displayName = value) }
+                },
+                onUsernameChanged = { value ->
+                    connectionActions.updateForm(form) { it.copy(username = value) }
+                },
+                onPasswordChanged = { value ->
+                    connectionActions.updateForm(form) { it.copy(password = value) }
+                },
+                onInsecureSkipTlsVerificationChanged = { value ->
+                    connectionActions.updateForm(form) { it.copy(skipTlsVerification = value) }
+                },
+                onCustomCertificatePathChanged = { value ->
+                    connectionActions.updateForm(form) { it.copy(customCertificatePath = value) }
+                },
+                onClientCertificateKeyStorePathChanged = { value ->
+                    connectionActions.updateForm(form) { it.copy(clientCertificatePath = value) }
+                },
+                onClientCertificateKeyStorePasswordChanged = { value ->
+                    connectionActions.updateForm(form) { it.copy(clientCertificatePassword = value) }
+                },
+                onSecondaryUrlsChanged = { value ->
+                    connectionActions.updateForm(form) { it.copy(secondaryUrls = value) }
+                },
+                onCustomHeadersChanged = { value ->
+                    connectionActions.updateForm(form) { it.copy(customHeaders = value) }
+                },
+                onSelectedMusicFolderIdsChanged = { value ->
+                    connectionActions.updateForm(form) { it.copy(selectedMusicFolderIds = value) }
+                },
+                onConnect = connectionActions.onConnect,
+                onNewConnection = connectionActions.onNewConnection,
+                onEditConnection = connectionActions.onEditConnection,
+                onDeleteConnection = connectionActions.onDeleteConnection,
+                onConnectSavedConnection = connectionActions.onConnectSavedConnection,
+                onCancelConnectionForm = connectionActions.onCancelConnectionForm,
                 onSettingsSyncDirectoryChanged = onSettingsSyncDirectoryChanged,
                 onSettingsSyncDirectorySelectedForImport = onSettingsSyncDirectorySelectedForImport,
                 onSettingsSyncAutoExportChanged = onSettingsSyncAutoExportChanged,

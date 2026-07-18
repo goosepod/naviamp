@@ -20,6 +20,7 @@ import app.naviamp.domain.media.RelatedTracksSource
 import app.naviamp.domain.queue.PlaybackQueue
 import app.naviamp.domain.queue.RepeatMode
 import app.naviamp.domain.settings.TrackSwipeAction
+import app.naviamp.domain.settings.ConnectionFormState
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -28,6 +29,18 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class MediaUiMappersTest {
+    @Test
+    fun connectionSettingsActionsUpdateTheCurrentFormAsOneValue() {
+        val original = ConnectionFormState(serverUrl = "https://old", username = "alice")
+        var updated: ConnectionFormState? = null
+        val actions = NaviampConnectionSettingsActions(onFormChanged = { updated = it })
+
+        actions.updateForm(original) { it.copy(serverUrl = "https://new") }
+
+        assertEquals("https://new", updated?.serverUrl)
+        assertEquals("alice", updated?.username)
+    }
+
     @Test
     fun connectionSettingsCarryConnectionAndTlsCapabilities() {
         val connection = NaviampShellConnectionUi(status = "Ready")

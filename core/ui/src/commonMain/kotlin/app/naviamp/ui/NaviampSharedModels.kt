@@ -747,6 +747,23 @@ data class NaviampConnectionSettingsUi(
     val currentSourceId: String? = null,
 )
 
+data class NaviampConnectionSettingsActions(
+    val onFormChanged: (ConnectionFormState) -> Unit = {},
+    val onConnect: () -> Unit = {},
+    val onNewConnection: () -> Unit = {},
+    val onEditConnection: (NaviampSavedConnectionUi) -> Unit = {},
+    val onDeleteConnection: (NaviampSavedConnectionUi) -> Unit = {},
+    val onConnectSavedConnection: (NaviampSavedConnectionUi) -> Unit = {},
+    val onCancelConnectionForm: () -> Unit = {},
+) {
+    fun updateForm(
+        current: ConnectionFormState,
+        transform: (ConnectionFormState) -> ConnectionFormState,
+    ) {
+        onFormChanged(transform(current))
+    }
+}
+
 data class NaviampSettingsSyncUi(
     val directoryPath: String? = null,
     val autoExportEnabled: Boolean = false,

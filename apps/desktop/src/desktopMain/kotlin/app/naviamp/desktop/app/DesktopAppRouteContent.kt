@@ -40,6 +40,7 @@ import app.naviamp.ui.AlbumMixBuilderContent
 import app.naviamp.ui.ArtistMixBuilderContent
 import app.naviamp.ui.GenreMixBuilderContent
 import app.naviamp.ui.NaviampAboutUi
+import app.naviamp.ui.NaviampConnectionSettingsActions
 import app.naviamp.ui.NaviampAlbumDetailScreenUi
 import app.naviamp.ui.NaviampArtistDetailScreenUi
 import app.naviamp.ui.NaviampSavedConnectionUi
@@ -976,33 +977,15 @@ fun ColumnScope.DesktopAppRouteContent(
                         status = settingsSyncStatus,
                         capabilities = capabilities,
                     ),
-                    onServerUrlChanged = { onConnectionFormChanged(connection.form.copy(serverUrl = it)) },
-                    onConnectionNameChanged = { onConnectionFormChanged(connection.form.copy(displayName = it)) },
-                    onUsernameChanged = { onConnectionFormChanged(connection.form.copy(username = it)) },
-                    onPasswordChanged = { onConnectionFormChanged(connection.form.copy(password = it)) },
-                    onInsecureSkipTlsVerificationChanged = {
-                        onConnectionFormChanged(connection.form.copy(skipTlsVerification = it))
-                    },
-                    onCustomCertificatePathChanged = {
-                        onConnectionFormChanged(connection.form.copy(customCertificatePath = it))
-                    },
-                    onClientCertificateKeyStorePathChanged = {
-                        onConnectionFormChanged(connection.form.copy(clientCertificatePath = it))
-                    },
-                    onClientCertificateKeyStorePasswordChanged = {
-                        onConnectionFormChanged(connection.form.copy(clientCertificatePassword = it))
-                    },
-                    onSecondaryUrlsChanged = { onConnectionFormChanged(connection.form.copy(secondaryUrls = it)) },
-                    onCustomHeadersChanged = { onConnectionFormChanged(connection.form.copy(customHeaders = it)) },
-                    onSelectedMusicFolderIdsChanged = {
-                        onConnectionFormChanged(connection.form.copy(selectedMusicFolderIds = it))
-                    },
-                    onConnect = onConnect,
-                    onNewConnection = onNewConnection,
-                    onEditConnection = onEditConnection,
-                    onConnectSavedConnection = onConnectSavedConnection,
-                    onDeleteConnection = onDeleteConnection,
-                    onCancelConnectionForm = onCancelConnectionForm,
+                    connectionActions = NaviampConnectionSettingsActions(
+                        onFormChanged = onConnectionFormChanged,
+                        onConnect = onConnect,
+                        onNewConnection = onNewConnection,
+                        onEditConnection = onEditConnection,
+                        onConnectSavedConnection = onConnectSavedConnection,
+                        onDeleteConnection = onDeleteConnection,
+                        onCancelConnectionForm = onCancelConnectionForm,
+                    ),
                     onSettingsSyncDirectoryChanged = onSettingsSyncDirectoryChanged,
                     onSettingsSyncDirectorySelectedForImport = onSettingsSyncDirectorySelectedForImport,
                     onSettingsSyncAutoExportChanged = onSettingsSyncAutoExportChanged,

@@ -346,6 +346,7 @@ Record architecture decisions here or link a dedicated decision record.
 | 2026-07-17 | Group Desktop cache and download settings at the shared boundary. | Cache limits, shared storage diagnostics, and file-selection availability should enter settings as one `NaviampCacheSettingsUi`; directory discovery, folder preparation, and destructive maintenance remain Desktop operations. |
 | 2026-07-17 | Group Desktop settings-sync presentation at the shared boundary. | Sync location, auto-export state, status, and capability availability should enter settings as one `NaviampSettingsSyncUi`; native directory selection and document-store I/O remain Desktop adapters. |
 | 2026-07-17 | Group Desktop interface and About presentation at the shared boundary. | Interface preferences and build/changelog presentation should enter settings as one `NaviampGeneralSettingsUi`; connection identity belongs to the connection-settings group rather than another flat panel argument. |
+| 2026-07-17 | Group Desktop connection settings actions at the shared boundary. | Form edits and connection lifecycle events should cross the host boundary as one explicit contract; provider construction, credentials, and connection I/O remain Desktop responsibilities. |
 
 ## Shared Controller Construction Audit
 
@@ -371,7 +372,7 @@ The 2026-07-17 audit covers every current application entry point:
 
 ## Current Handoff
 
-- **Last completed item:** Every Desktop settings presentation input now enters through five grouped shared models: connection, general/interface, playback, cache/download, and settings sync. `NaviampGeneralSettingsUi` groups interface and About state, and the active source ID now belongs to `NaviampConnectionSettingsUi`; the panel's remaining flat boundary is action callbacks.
-- **Next recommended item:** Group Desktop settings actions into focused connection, sync, value-update, and maintenance contracts. Keep native dialogs and filesystem execution in Desktop, but replace the remaining long flat callback list with explicit adapter groups before auditing other Desktop host behavior.
+- **Last completed item:** Desktop connection form edits and lifecycle events now enter settings through `NaviampConnectionSettingsActions`. The contract applies whole-form updates and keeps provider construction, credentials, and connection I/O in Desktop.
+- **Next recommended item:** Group the remaining Desktop settings actions into focused sync, value-update, and maintenance contracts. Keep native dialogs and filesystem execution in Desktop, but replace the remaining flat callback list before auditing other Desktop host behavior.
 - **Verification:** `:core:domain:jvmTest`, `:core:app:jvmTest`, `:core:storage:jvmTest`, `:core:ui:jvmTest`, `:apps:android:testDebugUnitTest`, `:apps:desktop:desktopTest`, `:core:app:iosSimulatorArm64Test`, `:core:storage:compileKotlinIosSimulatorArm64`, and `:core:ui:compileKotlinIosSimulatorArm64` pass together with at most two Gradle workers.
 - **Known blockers:** None.
