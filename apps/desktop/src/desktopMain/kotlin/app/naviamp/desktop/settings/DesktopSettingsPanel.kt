@@ -78,6 +78,9 @@ import app.naviamp.ui.NaviampConnectionSettingsUi
 import app.naviamp.ui.NaviampPlaybackSettingsUi
 import app.naviamp.ui.NaviampCacheSettingsUi
 import app.naviamp.ui.NaviampSettingsSyncUi
+import app.naviamp.ui.NaviampSettingsSyncActions
+import app.naviamp.ui.NaviampSettingsValueActions
+import app.naviamp.ui.NaviampSettingsMaintenanceActions
 import app.naviamp.ui.NaviampGeneralSettingsUi
 import app.naviamp.ui.categoryLabel
 import app.naviamp.ui.categorySubtitle
@@ -102,21 +105,24 @@ fun DesktopSettingsPanel(
     cache: NaviampCacheSettingsUi,
     settingsSync: NaviampSettingsSyncUi,
     connectionActions: NaviampConnectionSettingsActions,
-    onSettingsSyncDirectoryChanged: (String?) -> Unit,
-    onSettingsSyncDirectorySelectedForImport: (String) -> Unit,
-    onSettingsSyncAutoExportChanged: (Boolean) -> Unit,
-    onSettingsSyncExport: () -> Unit,
-    onSettingsSyncImport: () -> Unit,
-    onInterfaceSettingsChanged: (InterfaceSettings) -> Unit,
-    onPlaybackSettingsChanged: (PlaybackSettings) -> Unit,
-    onPlaybackSettingsChangedAndRedownload: (PlaybackSettings) -> Unit,
-    onCacheSettingsChanged: (CacheSettings) -> Unit,
-    onOpenStatsForNerds: () -> Unit,
-    onClearCache: () -> Unit,
-    onClearLibrary: () -> Unit,
-    onRefreshLibrary: () -> Unit,
-    onResetDatabase: () -> Unit,
+    syncActions: NaviampSettingsSyncActions,
+    valueActions: NaviampSettingsValueActions,
+    maintenanceActions: NaviampSettingsMaintenanceActions,
 ) {
+    val onSettingsSyncDirectoryChanged = syncActions.onDirectoryChanged
+    val onSettingsSyncDirectorySelectedForImport = syncActions.onDirectorySelectedForImport
+    val onSettingsSyncAutoExportChanged = syncActions.onAutoExportChanged
+    val onSettingsSyncExport = syncActions.onExport
+    val onSettingsSyncImport = syncActions.onImport
+    val onInterfaceSettingsChanged = valueActions.onInterfaceSettingsChanged
+    val onPlaybackSettingsChanged = valueActions.onPlaybackSettingsChanged
+    val onPlaybackSettingsChangedAndRedownload = valueActions.onPlaybackSettingsChangedAndRedownload
+    val onCacheSettingsChanged = valueActions.onCacheSettingsChanged
+    val onOpenStatsForNerds = maintenanceActions.onOpenStatsForNerds
+    val onClearCache = maintenanceActions.onClearCache
+    val onClearLibrary = maintenanceActions.onClearLibrary
+    val onRefreshLibrary = maintenanceActions.onRefreshLibrary
+    val onResetDatabase = maintenanceActions.onResetDatabase
     val connection = connectionSettings.connection
     val form = connection.form
     val serverUrl = form.serverUrl

@@ -41,6 +41,9 @@ import app.naviamp.ui.ArtistMixBuilderContent
 import app.naviamp.ui.GenreMixBuilderContent
 import app.naviamp.ui.NaviampAboutUi
 import app.naviamp.ui.NaviampConnectionSettingsActions
+import app.naviamp.ui.NaviampSettingsMaintenanceActions
+import app.naviamp.ui.NaviampSettingsSyncActions
+import app.naviamp.ui.NaviampSettingsValueActions
 import app.naviamp.ui.NaviampAlbumDetailScreenUi
 import app.naviamp.ui.NaviampArtistDetailScreenUi
 import app.naviamp.ui.NaviampSavedConnectionUi
@@ -986,20 +989,26 @@ fun ColumnScope.DesktopAppRouteContent(
                         onDeleteConnection = onDeleteConnection,
                         onCancelConnectionForm = onCancelConnectionForm,
                     ),
-                    onSettingsSyncDirectoryChanged = onSettingsSyncDirectoryChanged,
-                    onSettingsSyncDirectorySelectedForImport = onSettingsSyncDirectorySelectedForImport,
-                    onSettingsSyncAutoExportChanged = onSettingsSyncAutoExportChanged,
-                    onSettingsSyncExport = onSettingsSyncExport,
-                    onSettingsSyncImport = onSettingsSyncImport,
-                    onInterfaceSettingsChanged = onInterfaceSettingsChanged,
-                    onPlaybackSettingsChanged = onPlaybackSettingsChanged,
-                    onPlaybackSettingsChangedAndRedownload = onPlaybackSettingsChangedAndRedownload,
-                    onCacheSettingsChanged = onCacheSettingsChanged,
-                    onOpenStatsForNerds = onOpenStatsForNerds,
-                    onClearCache = onClearCache,
-                    onClearLibrary = onClearLibrary,
-                    onRefreshLibrary = onRefreshLibrary,
-                    onResetDatabase = onResetDatabase,
+                    syncActions = NaviampSettingsSyncActions(
+                        onDirectoryChanged = onSettingsSyncDirectoryChanged,
+                        onDirectorySelectedForImport = onSettingsSyncDirectorySelectedForImport,
+                        onAutoExportChanged = onSettingsSyncAutoExportChanged,
+                        onExport = onSettingsSyncExport,
+                        onImport = onSettingsSyncImport,
+                    ),
+                    valueActions = NaviampSettingsValueActions(
+                        onInterfaceSettingsChanged = onInterfaceSettingsChanged,
+                        onPlaybackSettingsChanged = onPlaybackSettingsChanged,
+                        onPlaybackSettingsChangedAndRedownload = onPlaybackSettingsChangedAndRedownload,
+                        onCacheSettingsChanged = onCacheSettingsChanged,
+                    ),
+                    maintenanceActions = NaviampSettingsMaintenanceActions(
+                        onOpenStatsForNerds = onOpenStatsForNerds,
+                        onClearCache = onClearCache,
+                        onClearLibrary = onClearLibrary,
+                        onRefreshLibrary = onRefreshLibrary,
+                        onResetDatabase = onResetDatabase,
+                    ),
                 )
             }
         }

@@ -347,6 +347,7 @@ Record architecture decisions here or link a dedicated decision record.
 | 2026-07-17 | Group Desktop settings-sync presentation at the shared boundary. | Sync location, auto-export state, status, and capability availability should enter settings as one `NaviampSettingsSyncUi`; native directory selection and document-store I/O remain Desktop adapters. |
 | 2026-07-17 | Group Desktop interface and About presentation at the shared boundary. | Interface preferences and build/changelog presentation should enter settings as one `NaviampGeneralSettingsUi`; connection identity belongs to the connection-settings group rather than another flat panel argument. |
 | 2026-07-17 | Group Desktop connection settings actions at the shared boundary. | Form edits and connection lifecycle events should cross the host boundary as one explicit contract; provider construction, credentials, and connection I/O remain Desktop responsibilities. |
+| 2026-07-17 | Group the remaining Desktop settings actions by responsibility. | Sync, value updates, and maintenance need stable shared contracts, while native dialogs, filesystem work, playback reconfiguration, and destructive execution remain Desktop adapters. |
 
 ## Shared Controller Construction Audit
 
@@ -372,7 +373,7 @@ The 2026-07-17 audit covers every current application entry point:
 
 ## Current Handoff
 
-- **Last completed item:** Desktop connection form edits and lifecycle events now enter settings through `NaviampConnectionSettingsActions`. The contract applies whole-form updates and keeps provider construction, credentials, and connection I/O in Desktop.
-- **Next recommended item:** Group the remaining Desktop settings actions into focused sync, value-update, and maintenance contracts. Keep native dialogs and filesystem execution in Desktop, but replace the remaining flat callback list before auditing other Desktop host behavior.
+- **Last completed item:** Every Desktop settings input now crosses the panel boundary through five grouped presentation models and four focused action contracts: connection, sync, value updates, and maintenance. Native dialogs, paths, filesystem work, playback reconfiguration, and destructive execution remain Desktop adapters.
+- **Next recommended item:** Audit `DesktopAppRouteContent` and its caller for the next domain-heavy flat boundary. Prefer the next complete shared screen or application-action contract over mechanically grouping callbacks whose platform lifetime or executor is intentionally distinct.
 - **Verification:** `:core:domain:jvmTest`, `:core:app:jvmTest`, `:core:storage:jvmTest`, `:core:ui:jvmTest`, `:apps:android:testDebugUnitTest`, `:apps:desktop:desktopTest`, `:core:app:iosSimulatorArm64Test`, `:core:storage:compileKotlinIosSimulatorArm64`, and `:core:ui:compileKotlinIosSimulatorArm64` pass together with at most two Gradle workers.
 - **Known blockers:** None.

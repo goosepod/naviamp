@@ -771,6 +771,29 @@ data class NaviampSettingsSyncUi(
     val available: Boolean = false,
 )
 
+data class NaviampSettingsSyncActions(
+    val onDirectoryChanged: (String?) -> Unit = {},
+    val onDirectorySelectedForImport: (String) -> Unit = {},
+    val onAutoExportChanged: (Boolean) -> Unit = {},
+    val onExport: () -> Unit = {},
+    val onImport: () -> Unit = {},
+)
+
+data class NaviampSettingsValueActions(
+    val onInterfaceSettingsChanged: (InterfaceSettings) -> Unit = {},
+    val onPlaybackSettingsChanged: (PlaybackSettings) -> Unit = {},
+    val onPlaybackSettingsChangedAndRedownload: (PlaybackSettings) -> Unit = {},
+    val onCacheSettingsChanged: (CacheSettings) -> Unit = {},
+)
+
+data class NaviampSettingsMaintenanceActions(
+    val onOpenStatsForNerds: () -> Unit = {},
+    val onClearCache: () -> Unit = {},
+    val onClearLibrary: () -> Unit = {},
+    val onRefreshLibrary: () -> Unit = {},
+    val onResetDatabase: () -> Unit = {},
+)
+
 data class NaviampGeneralSettingsUi(
     val interfaceSettings: InterfaceSettings = InterfaceSettings(),
     val about: NaviampAboutUi = NaviampAboutUi(),
