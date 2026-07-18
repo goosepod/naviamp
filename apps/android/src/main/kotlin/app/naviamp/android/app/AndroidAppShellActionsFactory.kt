@@ -31,6 +31,9 @@ import app.naviamp.ui.NowPlayingSelectionActionRequest
 import app.naviamp.ui.NowPlayingSleepTimerAction
 import app.naviamp.ui.NowPlayingSleepTimerActionRequest
 import app.naviamp.ui.SharedArtistDetailUi
+import app.naviamp.ui.SharedAlbumMixBuilderActions
+import app.naviamp.ui.SharedArtistMixBuilderActions
+import app.naviamp.ui.SharedGenreMixBuilderActions
 import app.naviamp.ui.SharedGenreMixItemUi
 import app.naviamp.ui.SharedHomeDiscoveryTrackActionRequest
 import app.naviamp.ui.SharedHomeStationUi
@@ -272,24 +275,30 @@ fun androidAppShellActions(
                 tracks = emptyList()
                 status = ""
             },
-            onArtistMixQueryChanged = { artistMixQuery = it },
-            onArtistMixSearch = handleArtistMixSearch,
-            onArtistMixArtistSelected = handleArtistMixArtistSelected,
-            onArtistMixArtistRemoved = handleArtistMixArtistRemoved,
-            onArtistMixReset = handleArtistMixReset,
-            onArtistMixPlay = handleArtistMixPlay,
-            onAlbumMixQueryChanged = { albumMixQuery = it },
-            onAlbumMixSearch = handleAlbumMixSearch,
-            onAlbumMixAlbumSelected = handleAlbumMixAlbumSelected,
-            onAlbumMixAlbumRemoved = handleAlbumMixAlbumRemoved,
-            onAlbumMixReset = handleAlbumMixReset,
-            onAlbumMixPlay = handleAlbumMixPlay,
-            onGenreMixQueryChanged = { genreMixQuery = it },
-            onGenreMixSearch = handleGenreMixSearch,
-            onGenreMixGenreSelected = handleGenreMixGenreSelected,
-            onGenreMixGenreRemoved = handleGenreMixGenreRemoved,
-            onGenreMixReset = handleGenreMixReset,
-            onGenreMixPlay = handleGenreMixPlay,
+            artistMixActions = SharedArtistMixBuilderActions(
+                onQueryChanged = { artistMixQuery = it },
+                onSearch = handleArtistMixSearch,
+                onArtistSelected = handleArtistMixArtistSelected,
+                onArtistRemoved = handleArtistMixArtistRemoved,
+                onReset = handleArtistMixReset,
+                onPlay = handleArtistMixPlay,
+            ),
+            albumMixActions = SharedAlbumMixBuilderActions(
+                onQueryChanged = { albumMixQuery = it },
+                onSearch = handleAlbumMixSearch,
+                onAlbumSelected = handleAlbumMixAlbumSelected,
+                onAlbumRemoved = handleAlbumMixAlbumRemoved,
+                onReset = handleAlbumMixReset,
+                onPlay = handleAlbumMixPlay,
+            ),
+            genreMixActions = SharedGenreMixBuilderActions(
+                onQueryChanged = { genreMixQuery = it },
+                onSearch = handleGenreMixSearch,
+                onGenreSelected = handleGenreMixGenreSelected,
+                onGenreRemoved = handleGenreMixGenreRemoved,
+                onReset = handleGenreMixReset,
+                onPlay = handleGenreMixPlay,
+            ),
             onSonicPathStartQueryChanged = handleSonicPathStartQueryChanged,
             onSonicPathEndQueryChanged = handleSonicPathEndQueryChanged,
             onSonicPathStartSearch = handleSonicPathStartSearch,

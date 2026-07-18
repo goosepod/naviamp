@@ -192,24 +192,9 @@ fun NaviampSharedAppShell(
     onQueryChanged: (String) -> Unit,
     onSearch: () -> Unit,
     onClearSearch: () -> Unit = {},
-    onArtistMixQueryChanged: (String) -> Unit = {},
-    onArtistMixSearch: () -> Unit = {},
-    onArtistMixArtistSelected: (SharedMediaItemUi) -> Unit = {},
-    onArtistMixArtistRemoved: (SharedMediaItemUi) -> Unit = {},
-    onArtistMixReset: () -> Unit = {},
-    onArtistMixPlay: () -> Unit = {},
-    onAlbumMixQueryChanged: (String) -> Unit = {},
-    onAlbumMixSearch: () -> Unit = {},
-    onAlbumMixAlbumSelected: (SharedMediaItemUi) -> Unit = {},
-    onAlbumMixAlbumRemoved: (SharedMediaItemUi) -> Unit = {},
-    onAlbumMixReset: () -> Unit = {},
-    onAlbumMixPlay: () -> Unit = {},
-    onGenreMixQueryChanged: (String) -> Unit = {},
-    onGenreMixSearch: () -> Unit = {},
-    onGenreMixGenreSelected: (SharedGenreMixItemUi) -> Unit = {},
-    onGenreMixGenreRemoved: (SharedGenreMixItemUi) -> Unit = {},
-    onGenreMixReset: () -> Unit = {},
-    onGenreMixPlay: () -> Unit = {},
+    artistMixActions: SharedArtistMixBuilderActions = SharedArtistMixBuilderActions(),
+    albumMixActions: SharedAlbumMixBuilderActions = SharedAlbumMixBuilderActions(),
+    genreMixActions: SharedGenreMixBuilderActions = SharedGenreMixBuilderActions(),
     onSonicPathStartQueryChanged: (String) -> Unit = {},
     onSonicPathEndQueryChanged: (String) -> Unit = {},
     onSonicPathStartSearch: () -> Unit = {},
@@ -594,24 +579,9 @@ fun NaviampSharedAppShell(
                             onQueryChanged = onQueryChanged,
                             onSearch = onSearch,
                             onClearSearch = onClearSearch,
-                            onArtistMixQueryChanged = onArtistMixQueryChanged,
-                            onArtistMixSearch = onArtistMixSearch,
-                            onArtistMixArtistSelected = onArtistMixArtistSelected,
-                            onArtistMixArtistRemoved = onArtistMixArtistRemoved,
-                            onArtistMixReset = onArtistMixReset,
-                            onArtistMixPlay = onArtistMixPlay,
-                            onAlbumMixQueryChanged = onAlbumMixQueryChanged,
-                            onAlbumMixSearch = onAlbumMixSearch,
-                            onAlbumMixAlbumSelected = onAlbumMixAlbumSelected,
-                            onAlbumMixAlbumRemoved = onAlbumMixAlbumRemoved,
-                            onAlbumMixReset = onAlbumMixReset,
-                            onAlbumMixPlay = onAlbumMixPlay,
-                            onGenreMixQueryChanged = onGenreMixQueryChanged,
-                            onGenreMixSearch = onGenreMixSearch,
-                            onGenreMixGenreSelected = onGenreMixGenreSelected,
-            onGenreMixGenreRemoved = onGenreMixGenreRemoved,
-            onGenreMixReset = onGenreMixReset,
-            onGenreMixPlay = onGenreMixPlay,
+                            artistMixActions = artistMixActions,
+                            albumMixActions = albumMixActions,
+                            genreMixActions = genreMixActions,
             onSonicPathStartQueryChanged = onSonicPathStartQueryChanged,
             onSonicPathEndQueryChanged = onSonicPathEndQueryChanged,
             onSonicPathStartSearch = onSonicPathStartSearch,
@@ -1215,24 +1185,9 @@ private fun ConnectedContent(
     onQueryChanged: (String) -> Unit,
     onSearch: () -> Unit,
     onClearSearch: () -> Unit,
-    onArtistMixQueryChanged: (String) -> Unit,
-    onArtistMixSearch: () -> Unit,
-    onArtistMixArtistSelected: (SharedMediaItemUi) -> Unit,
-    onArtistMixArtistRemoved: (SharedMediaItemUi) -> Unit,
-    onArtistMixReset: () -> Unit,
-    onArtistMixPlay: () -> Unit,
-    onAlbumMixQueryChanged: (String) -> Unit,
-    onAlbumMixSearch: () -> Unit,
-    onAlbumMixAlbumSelected: (SharedMediaItemUi) -> Unit,
-    onAlbumMixAlbumRemoved: (SharedMediaItemUi) -> Unit,
-    onAlbumMixReset: () -> Unit,
-    onAlbumMixPlay: () -> Unit,
-    onGenreMixQueryChanged: (String) -> Unit,
-    onGenreMixSearch: () -> Unit,
-    onGenreMixGenreSelected: (SharedGenreMixItemUi) -> Unit,
-    onGenreMixGenreRemoved: (SharedGenreMixItemUi) -> Unit,
-    onGenreMixReset: () -> Unit,
-    onGenreMixPlay: () -> Unit,
+    artistMixActions: SharedArtistMixBuilderActions,
+    albumMixActions: SharedAlbumMixBuilderActions,
+    genreMixActions: SharedGenreMixBuilderActions,
     onSonicPathStartQueryChanged: (String) -> Unit,
     onSonicPathEndQueryChanged: (String) -> Unit,
     onSonicPathStartSearch: () -> Unit,
@@ -1626,19 +1581,12 @@ private fun ConnectedContent(
                     ArtistMixBuilderContent(
                         colors = colors,
                         builder = artistMixBuilder,
-                        actions = SharedArtistMixBuilderActions(
-                            onQueryChanged = onArtistMixQueryChanged,
-                            onSearch = onArtistMixSearch,
-                            onArtistSelected = onArtistMixArtistSelected,
-                            onArtistRemoved = onArtistMixArtistRemoved,
-                            onReset = onArtistMixReset,
-                            onPlay = onArtistMixPlay,
-                        ),
+                        actions = artistMixActions,
                         showPlayMixButton = false,
                     )
                 }
                 if (artistMixBuilder.selectedArtists.isNotEmpty()) {
-                    PrimaryButton("Play Mix", colors, onClick = onArtistMixPlay)
+                    PrimaryButton("Play Mix", colors, onClick = artistMixActions.onPlay)
                 }
             }
             SharedRoute.AlbumMix -> Column(
@@ -1653,19 +1601,12 @@ private fun ConnectedContent(
                     AlbumMixBuilderContent(
                         colors = colors,
                         builder = albumMixBuilder,
-                        actions = SharedAlbumMixBuilderActions(
-                            onQueryChanged = onAlbumMixQueryChanged,
-                            onSearch = onAlbumMixSearch,
-                            onAlbumSelected = onAlbumMixAlbumSelected,
-                            onAlbumRemoved = onAlbumMixAlbumRemoved,
-                            onReset = onAlbumMixReset,
-                            onPlay = onAlbumMixPlay,
-                        ),
+                        actions = albumMixActions,
                         showPlayMixButton = false,
                     )
                 }
                 if (albumMixBuilder.selectedAlbums.isNotEmpty()) {
-                    PrimaryButton("Play Mix", colors, onClick = onAlbumMixPlay)
+                    PrimaryButton("Play Mix", colors, onClick = albumMixActions.onPlay)
                 }
             }
             SharedRoute.GenreMix -> Column(
@@ -1680,19 +1621,12 @@ private fun ConnectedContent(
                     GenreMixBuilderContent(
                         colors = colors,
                         builder = genreMixBuilder,
-                        actions = SharedGenreMixBuilderActions(
-                            onQueryChanged = onGenreMixQueryChanged,
-                            onSearch = onGenreMixSearch,
-                            onGenreSelected = onGenreMixGenreSelected,
-                            onGenreRemoved = onGenreMixGenreRemoved,
-                            onReset = onGenreMixReset,
-                            onPlay = onGenreMixPlay,
-                        ),
+                        actions = genreMixActions,
                         showPlayMixButton = false,
                     )
                 }
                 if (genreMixBuilder.selectedGenres.isNotEmpty()) {
-                    PrimaryButton("Play Mix", colors, onClick = onGenreMixPlay)
+                    PrimaryButton("Play Mix", colors, onClick = genreMixActions.onPlay)
                 }
             }
             SharedRoute.SonicPath -> Column(

@@ -350,6 +350,7 @@ Record architecture decisions here or link a dedicated decision record.
 | 2026-07-17 | Group the remaining Desktop settings actions by responsibility. | Sync, value updates, and maintenance need stable shared contracts, while native dialogs, filesystem work, playback reconfiguration, and destructive execution remain Desktop adapters. |
 | 2026-07-17 | Give artist, album, and genre mix builders shared action contracts. | Each builder's state and actions should cross Desktop and shared-composable boundaries together; provider queries, selection resolution, and playback execution remain controller responsibilities. |
 | 2026-07-17 | Give Sonic Path and Sonic Mix shared action contracts. | Editing, building, playback, queueing, and playlist-save intent belong to each builder contract; Desktop controllers still execute provider, audio, queue, and playlist operations. |
+| 2026-07-17 | Carry standard mix-builder contracts through the public shared shell. | Android and shared UI should pass artist, album, and genre actions as the same contracts used by builder content, eliminating repeated shell-layer callback lists without moving controller behavior. |
 
 ## Shared Controller Construction Audit
 
@@ -375,7 +376,7 @@ The 2026-07-17 audit covers every current application entry point:
 
 ## Current Handoff
 
-- **Last completed item:** All five mix builders now pair their shared presentation models with focused shared action contracts at the Desktop route and builder-content boundaries. Desktop controllers still own provider queries, ID resolution, audio/queue execution, and playlist persistence.
-- **Next recommended item:** Carry the five mix-builder action contracts through the public `NaviampSharedUi` shell boundary, replacing its remaining per-builder flat callbacks and updating Android/shared callers. Preserve the existing controller and platform execution ownership.
+- **Last completed item:** Artist, album, and genre mix actions now cross Android's shell-action aggregate, the public shared shell, private connected content, and builder content as focused contracts. Android handlers still own provider, selection, and playback behavior.
+- **Next recommended item:** Carry the Sonic Path and Sonic Mix contracts through the same Android and shared-shell layers, including queue and playlist-save intent, while preserving controller execution ownership.
 - **Verification:** `:core:domain:jvmTest`, `:core:app:jvmTest`, `:core:storage:jvmTest`, `:core:ui:jvmTest`, `:apps:android:testDebugUnitTest`, `:apps:desktop:desktopTest`, `:core:app:iosSimulatorArm64Test`, `:core:storage:compileKotlinIosSimulatorArm64`, and `:core:ui:compileKotlinIosSimulatorArm64` pass together with at most two Gradle workers.
 - **Known blockers:** None.

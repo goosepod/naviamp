@@ -28,9 +28,12 @@ import app.naviamp.ui.NowPlayingSleepTimerActionRequest
 import app.naviamp.ui.NowPlayingUi
 import app.naviamp.ui.SharedAlbumDetailUi
 import app.naviamp.ui.SharedAlbumMixBuilderUi
+import app.naviamp.ui.SharedAlbumMixBuilderActions
 import app.naviamp.ui.SharedArtistDetailUi
 import app.naviamp.ui.SharedArtistMixBuilderUi
+import app.naviamp.ui.SharedArtistMixBuilderActions
 import app.naviamp.ui.SharedGenreMixBuilderUi
+import app.naviamp.ui.SharedGenreMixBuilderActions
 import app.naviamp.ui.SharedGenreMixItemUi
 import app.naviamp.ui.SharedHomeDiscoveryTrackActionRequest
 import app.naviamp.ui.SharedHomeStationUi
@@ -123,24 +126,9 @@ data class AndroidAppShellActions(
     val onQueryChanged: (String) -> Unit,
     val onSearch: () -> Unit,
     val onClearSearch: () -> Unit,
-    val onArtistMixQueryChanged: (String) -> Unit,
-    val onArtistMixSearch: () -> Unit,
-    val onArtistMixArtistSelected: (SharedMediaItemUi) -> Unit,
-    val onArtistMixArtistRemoved: (SharedMediaItemUi) -> Unit,
-    val onArtistMixReset: () -> Unit,
-    val onArtistMixPlay: () -> Unit,
-    val onAlbumMixQueryChanged: (String) -> Unit,
-    val onAlbumMixSearch: () -> Unit,
-    val onAlbumMixAlbumSelected: (SharedMediaItemUi) -> Unit,
-    val onAlbumMixAlbumRemoved: (SharedMediaItemUi) -> Unit,
-    val onAlbumMixReset: () -> Unit,
-    val onAlbumMixPlay: () -> Unit,
-    val onGenreMixQueryChanged: (String) -> Unit,
-    val onGenreMixSearch: () -> Unit,
-    val onGenreMixGenreSelected: (SharedGenreMixItemUi) -> Unit,
-    val onGenreMixGenreRemoved: (SharedGenreMixItemUi) -> Unit,
-    val onGenreMixReset: () -> Unit,
-    val onGenreMixPlay: () -> Unit,
+    val artistMixActions: SharedArtistMixBuilderActions,
+    val albumMixActions: SharedAlbumMixBuilderActions,
+    val genreMixActions: SharedGenreMixBuilderActions,
     val onSonicPathStartQueryChanged: (String) -> Unit,
     val onSonicPathEndQueryChanged: (String) -> Unit,
     val onSonicPathStartSearch: () -> Unit,
