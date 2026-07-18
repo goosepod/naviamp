@@ -344,6 +344,7 @@ Record architecture decisions here or link a dedicated decision record.
 | 2026-07-17 | Group Desktop connection settings at the shared boundary. | The connection form, saved sources, loading state, and capability-controlled fields should enter settings as one `NaviampConnectionSettingsUi`; native pickers, credential storage, and platform service application remain Desktop responsibilities. |
 | 2026-07-17 | Group Desktop playback settings at the shared boundary. | Playback values, shared feature capabilities, host audio-device availability, and download usage should enter settings as one `NaviampPlaybackSettingsUi`; BASS device enumeration remains a Desktop adapter input. |
 | 2026-07-17 | Group Desktop cache and download settings at the shared boundary. | Cache limits, shared storage diagnostics, and file-selection availability should enter settings as one `NaviampCacheSettingsUi`; directory discovery, folder preparation, and destructive maintenance remain Desktop operations. |
+| 2026-07-17 | Group Desktop settings-sync presentation at the shared boundary. | Sync location, auto-export state, status, and capability availability should enter settings as one `NaviampSettingsSyncUi`; native directory selection and document-store I/O remain Desktop adapters. |
 
 ## Shared Controller Construction Audit
 
@@ -369,7 +370,7 @@ The 2026-07-17 audit covers every current application entry point:
 
 ## Current Handoff
 
-- **Last completed item:** Desktop settings now receives cache values, file-selection availability, and shared download/audio-cache diagnostics through one `NaviampCacheSettingsUi`. Desktop still discovers default directories, prepares selected folders, and owns destructive maintenance dialogs and callbacks.
-- **Next recommended item:** Group the remaining settings-sync, interface, and About presentation inputs, then audit `DesktopSettingsPanel` for host behavior that can move behind narrower adapters without moving native dialogs or filesystem work into shared code.
+- **Last completed item:** Desktop settings now receives sync location, auto-export state, status, and capability availability through one `NaviampSettingsSyncUi`. The shared mapper owns the import/export plus file-selection availability rule, while Desktop still owns native directory selection and document-store callbacks.
+- **Next recommended item:** Group the remaining interface and About presentation inputs, then audit `DesktopSettingsPanel` for host behavior that can move behind narrower adapters without moving native dialogs or filesystem work into shared code.
 - **Verification:** `:core:domain:jvmTest`, `:core:app:jvmTest`, `:core:storage:jvmTest`, `:core:ui:jvmTest`, `:apps:android:testDebugUnitTest`, `:apps:desktop:desktopTest`, `:core:app:iosSimulatorArm64Test`, `:core:storage:compileKotlinIosSimulatorArm64`, and `:core:ui:compileKotlinIosSimulatorArm64` pass together with at most two Gradle workers.
 - **Known blockers:** None.

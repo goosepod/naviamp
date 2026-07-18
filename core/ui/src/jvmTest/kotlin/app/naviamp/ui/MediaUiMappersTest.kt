@@ -29,26 +29,41 @@ import kotlin.test.assertTrue
 
 class MediaUiMappersTest {
     @Test
-    fun connectionSettingsRequireImportExportAndFileSelectionForSync() {
+    fun connectionSettingsCarryConnectionAndTlsCapabilities() {
         val connection = NaviampShellConnectionUi(status = "Ready")
-        val withoutPicker = connection.toConnectionSettingsUi(
+        val ui = connection.toConnectionSettingsUi(
             NaviampShellCapabilitiesUi(
-                settingsImportExport = true,
-                fileSelection = false,
                 connection = NaviampConnectionCapabilitiesUi(clientCertificates = true),
             ),
         )
-        val withPicker = connection.toConnectionSettingsUi(
-            NaviampShellCapabilitiesUi(
+
+        assertEquals(connection, ui.connection)
+        assertTrue(ui.capabilities.clientCertificates)
+    }
+
+    @Test
+    fun settingsSyncRequiresImportExportAndFileSelection() {
+        val withoutPicker = settingsSyncUi(
+            directoryPath = "sync",
+            autoExportEnabled = true,
+            status = "Ready",
+            capabilities = NaviampShellCapabilitiesUi(settingsImportExport = true),
+        )
+        val available = settingsSyncUi(
+            directoryPath = "sync",
+            autoExportEnabled = true,
+            status = "Ready",
+            capabilities = NaviampShellCapabilitiesUi(
                 settingsImportExport = true,
                 fileSelection = true,
             ),
         )
 
-        assertEquals(connection, withoutPicker.connection)
-        assertTrue(withoutPicker.capabilities.clientCertificates)
-        assertFalse(withoutPicker.settingsSyncAvailable)
-        assertTrue(withPicker.settingsSyncAvailable)
+        assertFalse(withoutPicker.available)
+        assertTrue(available.available)
+        assertEquals("sync", available.directoryPath)
+        assertTrue(available.autoExportEnabled)
+        assertEquals("Ready", available.status)
     }
 
     @Test

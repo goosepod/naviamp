@@ -77,6 +77,7 @@ import app.naviamp.ui.NaviampConnectionCapabilitiesUi
 import app.naviamp.ui.NaviampConnectionSettingsUi
 import app.naviamp.ui.NaviampPlaybackSettingsUi
 import app.naviamp.ui.NaviampCacheSettingsUi
+import app.naviamp.ui.NaviampSettingsSyncUi
 import app.naviamp.ui.categoryLabel
 import app.naviamp.ui.categorySubtitle
 import app.naviamp.ui.languageTitle
@@ -99,9 +100,7 @@ fun DesktopSettingsPanel(
     interfaceSettings: InterfaceSettings,
     playback: NaviampPlaybackSettingsUi,
     cache: NaviampCacheSettingsUi,
-    settingsSyncDirectoryPath: String?,
-    settingsSyncAutoExportEnabled: Boolean,
-    settingsSyncStatus: String?,
+    settingsSync: NaviampSettingsSyncUi,
     about: NaviampAboutUi,
     onServerUrlChanged: (String) -> Unit,
     onConnectionNameChanged: (String) -> Unit,
@@ -156,7 +155,10 @@ fun DesktopSettingsPanel(
     val isConnecting = connection.isConnecting
     val connectionStatus = connection.status
     val connectionCapabilities = connectionSettings.capabilities
-    val supportsSettingsSync = connectionSettings.settingsSyncAvailable
+    val settingsSyncDirectoryPath = settingsSync.directoryPath
+    val settingsSyncAutoExportEnabled = settingsSync.autoExportEnabled
+    val settingsSyncStatus = settingsSync.status
+    val supportsSettingsSync = settingsSync.available
     val cacheSettings = cache.settings
     val supportsFileSelection = cache.fileSelectionAvailable
     val playbackSettings = playback.settings

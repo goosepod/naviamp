@@ -76,6 +76,7 @@ import app.naviamp.ui.toSharedHomeUi
 import app.naviamp.ui.toConnectionSettingsUi
 import app.naviamp.ui.toPlaybackSettingsUi
 import app.naviamp.ui.toCacheSettingsUi
+import app.naviamp.ui.settingsSyncUi
 
 @Composable
 fun ColumnScope.DesktopAppRouteContent(
@@ -966,9 +967,12 @@ fun ColumnScope.DesktopAppRouteContent(
                         downloadBytes = cacheStats.downloadBytes,
                     ),
                     cache = cacheSettings.toCacheSettingsUi(cacheStats, capabilities),
-                    settingsSyncDirectoryPath = settingsSyncDirectoryPath,
-                    settingsSyncAutoExportEnabled = settingsSyncAutoExportEnabled,
-                    settingsSyncStatus = settingsSyncStatus,
+                    settingsSync = settingsSyncUi(
+                        directoryPath = settingsSyncDirectoryPath,
+                        autoExportEnabled = settingsSyncAutoExportEnabled,
+                        status = settingsSyncStatus,
+                        capabilities = capabilities,
+                    ),
                     about = about,
                     onServerUrlChanged = { onConnectionFormChanged(connection.form.copy(serverUrl = it)) },
                     onConnectionNameChanged = { onConnectionFormChanged(connection.form.copy(displayName = it)) },

@@ -743,7 +743,13 @@ data class NaviampShellConnectionUi(
 data class NaviampConnectionSettingsUi(
     val connection: NaviampShellConnectionUi = NaviampShellConnectionUi(),
     val capabilities: NaviampConnectionCapabilitiesUi = NaviampConnectionCapabilitiesUi(),
-    val settingsSyncAvailable: Boolean = false,
+)
+
+data class NaviampSettingsSyncUi(
+    val directoryPath: String? = null,
+    val autoExportEnabled: Boolean = false,
+    val status: String? = null,
+    val available: Boolean = false,
 )
 
 data class NaviampPlaybackSettingsUi(
@@ -785,7 +791,19 @@ fun NaviampShellConnectionUi.toConnectionSettingsUi(
     NaviampConnectionSettingsUi(
         connection = this,
         capabilities = capabilities.connection,
-        settingsSyncAvailable = capabilities.settingsImportExport && capabilities.fileSelection,
+    )
+
+fun settingsSyncUi(
+    directoryPath: String?,
+    autoExportEnabled: Boolean,
+    status: String?,
+    capabilities: NaviampShellCapabilitiesUi,
+): NaviampSettingsSyncUi =
+    NaviampSettingsSyncUi(
+        directoryPath = directoryPath,
+        autoExportEnabled = autoExportEnabled,
+        status = status,
+        available = capabilities.settingsImportExport && capabilities.fileSelection,
     )
 
 fun PlaybackSettings.toPlaybackSettingsUi(
