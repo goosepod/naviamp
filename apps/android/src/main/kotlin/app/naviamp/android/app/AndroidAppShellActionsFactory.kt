@@ -15,9 +15,12 @@ import app.naviamp.domain.smartplaylist.SmartPlaylistDefinition
 import app.naviamp.ui.SharedTrackRowUi
 import app.naviamp.ui.DownloadedTrackActionRequest
 import app.naviamp.ui.NaviampNowPlayingItemUi
+import app.naviamp.ui.NaviampConnectionSettingsActions
 import app.naviamp.ui.NaviampPlaylistChoiceUi
 import app.naviamp.ui.NaviampSavedConnectionUi
 import app.naviamp.ui.NaviampVisualizer
+import app.naviamp.ui.NaviampSettingsMaintenanceActions
+import app.naviamp.ui.NaviampSettingsValueActions
 import app.naviamp.ui.NowPlayingCurrentTrackAction
 import app.naviamp.ui.NowPlayingCurrentTrackUiActionRequest
 import app.naviamp.ui.NowPlayingDisplayAction
@@ -242,31 +245,37 @@ fun androidAppShellActions(
                 artistDetailBackStack = emptyList()
                 nowPlayingOpen = false
             },
-            onConnectionFormChanged = handleConnectionFormChanged,
-            onConnect = { connectToNavidrome() },
-            onEditConnection = { editingConnection = true },
-            onNewConnection = handleNewConnection,
-            onEditSavedConnection = handleEditSavedConnection,
-            onConnectSavedConnection = handleConnectSavedConnection,
-            onDeleteSavedConnection = handleDeleteSavedConnection,
-            onCancelEditConnection = { editingConnection = false },
-            onInterfaceSettingsChanged = { settings: InterfaceSettings ->
-                interfaceSettings = settings.normalized()
-                settingsStore.saveInterfaceSettings(interfaceSettings)
-                onSyncedSettingsChanged()
-            },
-            onPlaybackSettingsChanged = handlePlaybackSettingsChanged,
-            onPlaybackSettingsChangedAndRedownload = handlePlaybackSettingsChangedAndRedownload,
-            onCacheSettingsChanged = handleCacheSettingsChanged,
-            onDownloadLocationChanged = { location ->
-                handleCacheSettingsChanged(cacheSettings.copy(customDownloadDirectory = location.path).normalized())
-            },
-            onAudioCacheLocationChanged = { location ->
-                handleCacheSettingsChanged(cacheSettings.copy(customAudioCacheDirectory = location.path).normalized())
-            },
-            onClearCache = handleClearCache,
-            onClearLibrary = handleClearLibrary,
-            onResetDatabase = handleResetDatabase,
+            connectionActions = NaviampConnectionSettingsActions(
+                onFormChanged = handleConnectionFormChanged,
+                onConnect = { connectToNavidrome() },
+                onEditCurrentConnection = { editingConnection = true },
+                onNewConnection = handleNewConnection,
+                onEditConnection = handleEditSavedConnection,
+                onConnectSavedConnection = handleConnectSavedConnection,
+                onDeleteConnection = handleDeleteSavedConnection,
+                onCancelConnectionForm = { editingConnection = false },
+            ),
+            valueActions = NaviampSettingsValueActions(
+                onInterfaceSettingsChanged = { settings: InterfaceSettings ->
+                    interfaceSettings = settings.normalized()
+                    settingsStore.saveInterfaceSettings(interfaceSettings)
+                    onSyncedSettingsChanged()
+                },
+                onPlaybackSettingsChanged = handlePlaybackSettingsChanged,
+                onPlaybackSettingsChangedAndRedownload = handlePlaybackSettingsChangedAndRedownload,
+                onCacheSettingsChanged = handleCacheSettingsChanged,
+                onDownloadLocationChanged = { location ->
+                    handleCacheSettingsChanged(cacheSettings.copy(customDownloadDirectory = location.path).normalized())
+                },
+                onAudioCacheLocationChanged = { location ->
+                    handleCacheSettingsChanged(cacheSettings.copy(customAudioCacheDirectory = location.path).normalized())
+                },
+            ),
+            maintenanceActions = NaviampSettingsMaintenanceActions(
+                onClearCache = handleClearCache,
+                onClearLibrary = handleClearLibrary,
+                onResetDatabase = handleResetDatabase,
+            ),
             onQueryChanged = { contentState = contentState.copy(searchQuery = it) },
             onSearch = handleSearch,
             onClearSearch = {

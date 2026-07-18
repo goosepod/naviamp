@@ -59,6 +59,7 @@ import app.naviamp.ui.SharedTrackRowUi
 import app.naviamp.ui.NaviampDiagnosticsSectionUi
 import app.naviamp.ui.NaviampDiagnosticsUi
 import app.naviamp.ui.NaviampLibrarySyncStatusUi
+import app.naviamp.ui.NaviampSettingsSyncActions
 import app.naviamp.ui.NaviampSharedAppShell
 import app.naviamp.ui.NaviampRadioArtworkLookupEffect
 import app.naviamp.ui.naviampVisualizerFromName
@@ -83,6 +84,7 @@ import app.naviamp.ui.label as streamQualityLabel
 import app.naviamp.ui.resetAndroidPlatformCoverArtByteLoader
 import app.naviamp.ui.setAndroidPlatformCoverArtByteLoader
 import app.naviamp.ui.toSharedSearchResultsUi
+import app.naviamp.ui.settingsSyncUi
 import java.io.File
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -1001,13 +1003,27 @@ fun NaviampAndroidApp(
     AndroidAppShellContent(
         state = shellUiState,
         actions = shellActions,
-        settingsSyncStatus = settingsSyncStatus,
-        onImportSettingsSyncFile = openSettingsSyncImport,
-        onChooseSettingsSyncFolder = chooseSettingsSyncFolder,
-        onImportSettingsSyncFolder = ::importSettingsSyncFolder,
-        onExportSettingsSyncFolder = ::exportSettingsSyncFolder,
-        settingsSyncAutoExportEnabled = settingsSyncSettings.autoExportEnabled,
-        onSettingsSyncAutoExportChanged = ::updateSettingsSyncAutoExport,
+        settingsSync = settingsSyncUi(
+            directoryPath = null,
+            autoExportEnabled = settingsSyncSettings.autoExportEnabled,
+            status = settingsSyncStatus,
+            capabilities = shellUiState.capabilities,
+        ),
+        syncActions = NaviampSettingsSyncActions(
+            onAutoExportChanged = ::updateSettingsSyncAutoExport,
+            onImportFile = openSettingsSyncImport.takeIf {
+                shellUiState.capabilities.settingsImportExport && shellUiState.capabilities.fileSelection
+            },
+            onChooseFolder = chooseSettingsSyncFolder.takeIf {
+                shellUiState.capabilities.settingsImportExport && shellUiState.capabilities.fileSelection
+            },
+            onImportFolder = (::importSettingsSyncFolder).takeIf {
+                shellUiState.capabilities.settingsImportExport && shellUiState.capabilities.fileSelection
+            },
+            onExportFolder = (::exportSettingsSyncFolder).takeIf {
+                shellUiState.capabilities.settingsImportExport && shellUiState.capabilities.fileSelection
+            },
+        ),
     )
     }
 }

@@ -2,8 +2,9 @@ package app.naviamp.android
 
 import androidx.compose.runtime.Composable
 import app.naviamp.ui.NaviampCacheSettingsUi
+import app.naviamp.ui.NaviampSettingsSyncActions
+import app.naviamp.ui.NaviampSettingsSyncUi
 import app.naviamp.ui.NaviampSharedAppShell
-import app.naviamp.ui.settingsSyncUi
 import app.naviamp.ui.toConnectionSettingsUi
 import app.naviamp.ui.toGeneralSettingsUi
 import app.naviamp.ui.toPlaybackSettingsUi
@@ -12,13 +13,8 @@ import app.naviamp.ui.toPlaybackSettingsUi
 fun AndroidAppShellContent(
     state: AndroidAppShellUiState,
     actions: AndroidAppShellActions,
-    settingsSyncStatus: String? = null,
-    onImportSettingsSyncFile: (() -> Unit)? = null,
-    onChooseSettingsSyncFolder: (() -> Unit)? = null,
-    onImportSettingsSyncFolder: (() -> Unit)? = null,
-    onExportSettingsSyncFolder: (() -> Unit)? = null,
-    settingsSyncAutoExportEnabled: Boolean = false,
-    onSettingsSyncAutoExportChanged: ((Boolean) -> Unit)? = null,
+    settingsSync: NaviampSettingsSyncUi = NaviampSettingsSyncUi(),
+    syncActions: NaviampSettingsSyncActions = NaviampSettingsSyncActions(),
 ) {
     NaviampSharedAppShell(
         modifier = state.modifier,
@@ -37,12 +33,7 @@ fun AndroidAppShellContent(
             selectedDownloadLocationId = state.selectedDownloadLocationId,
             selectedAudioCacheLocationId = state.selectedAudioCacheLocationId,
         ),
-        settingsSync = settingsSyncUi(
-            directoryPath = null,
-            autoExportEnabled = settingsSyncAutoExportEnabled,
-            status = settingsSyncStatus,
-            capabilities = state.capabilities,
-        ),
+        settingsSync = settingsSync,
         supportsDownloads = state.capabilities.downloads,
         supportsApplicationUpdates = state.capabilities.applicationUpdates,
         selectedVisualizer = state.selectedVisualizer,
@@ -81,36 +72,10 @@ fun AndroidAppShellContent(
         nowPlayingOpen = state.nowPlayingOpen,
         selectedRoute = state.selectedRoute,
         onRouteSelected = actions.onRouteSelected,
-        onConnectionFormChanged = actions.onConnectionFormChanged,
-        onConnect = actions.onConnect,
-        onEditConnection = actions.onEditConnection,
-        onNewConnection = actions.onNewConnection,
-        onEditSavedConnection = actions.onEditSavedConnection,
-        onConnectSavedConnection = actions.onConnectSavedConnection,
-        onDeleteSavedConnection = actions.onDeleteSavedConnection,
-        onImportSettingsSyncFile = onImportSettingsSyncFile.takeIf {
-            state.capabilities.settingsImportExport && state.capabilities.fileSelection
-        },
-        onChooseSettingsSyncFolder = onChooseSettingsSyncFolder.takeIf {
-            state.capabilities.settingsImportExport && state.capabilities.fileSelection
-        },
-        onImportSettingsSyncFolder = onImportSettingsSyncFolder.takeIf {
-            state.capabilities.settingsImportExport && state.capabilities.fileSelection
-        },
-        onExportSettingsSyncFolder = onExportSettingsSyncFolder.takeIf {
-            state.capabilities.settingsImportExport && state.capabilities.fileSelection
-        },
-        onSettingsSyncAutoExportChanged = onSettingsSyncAutoExportChanged,
-        onCancelEditConnection = actions.onCancelEditConnection,
-        onInterfaceSettingsChanged = actions.onInterfaceSettingsChanged,
-        onPlaybackSettingsChanged = actions.onPlaybackSettingsChanged,
-        onPlaybackSettingsChangedAndRedownload = actions.onPlaybackSettingsChangedAndRedownload,
-        onCacheSettingsChanged = actions.onCacheSettingsChanged,
-        onDownloadLocationChanged = actions.onDownloadLocationChanged,
-        onAudioCacheLocationChanged = actions.onAudioCacheLocationChanged,
-        onClearCache = actions.onClearCache,
-        onClearLibrary = actions.onClearLibrary,
-        onResetDatabase = actions.onResetDatabase,
+        connectionActions = actions.connectionActions,
+        syncActions = syncActions,
+        valueActions = actions.valueActions,
+        maintenanceActions = actions.maintenanceActions,
         onQueryChanged = actions.onQueryChanged,
         onSearch = actions.onSearch,
         onClearSearch = actions.onClearSearch,

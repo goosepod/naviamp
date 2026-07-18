@@ -6,14 +6,16 @@ import app.naviamp.domain.Playlist
 import app.naviamp.domain.Track
 import app.naviamp.domain.cache.DownloadJob
 import app.naviamp.domain.settings.CacheSettings
-import app.naviamp.domain.settings.ConnectionFormState
 import app.naviamp.domain.settings.InterfaceSettings
 import app.naviamp.domain.settings.PlaybackSettings
 import app.naviamp.domain.smartplaylist.SmartPlaylistDefinition
 import app.naviamp.ui.NaviampDiagnosticsUi
+import app.naviamp.ui.NaviampConnectionSettingsActions
 import app.naviamp.ui.NaviampDownloadedTrackUi
 import app.naviamp.ui.NaviampOfflineDashboardUi
 import app.naviamp.ui.NaviampStorageLocationUi
+import app.naviamp.ui.NaviampSettingsMaintenanceActions
+import app.naviamp.ui.NaviampSettingsValueActions
 import app.naviamp.ui.NaviampPlaylistChoiceUi
 import app.naviamp.ui.NaviampVisualizer
 import app.naviamp.ui.DownloadedTrackActionRequest
@@ -34,14 +36,12 @@ import app.naviamp.ui.SharedArtistMixBuilderUi
 import app.naviamp.ui.SharedArtistMixBuilderActions
 import app.naviamp.ui.SharedGenreMixBuilderUi
 import app.naviamp.ui.SharedGenreMixBuilderActions
-import app.naviamp.ui.SharedGenreMixItemUi
 import app.naviamp.ui.SharedHomeDiscoveryTrackActionRequest
 import app.naviamp.ui.SharedHomeStationUi
 import app.naviamp.ui.SharedHomeUi
 import app.naviamp.ui.SharedMediaItemActionRequest
 import app.naviamp.ui.SharedMediaItemUi
 import app.naviamp.ui.SharedMixBuilderUi
-import app.naviamp.ui.NaviampSavedConnectionUi
 import app.naviamp.ui.SharedPlaylistDetailUi
 import app.naviamp.ui.SharedPlaylistSortMode
 import app.naviamp.ui.SharedRoute
@@ -107,23 +107,9 @@ data class AndroidAppShellUiState(
 
 data class AndroidAppShellActions(
     val onRouteSelected: (SharedRoute) -> Unit,
-    val onConnectionFormChanged: (ConnectionFormState) -> Unit,
-    val onConnect: () -> Unit,
-    val onEditConnection: () -> Unit,
-    val onNewConnection: () -> Unit,
-    val onEditSavedConnection: (NaviampSavedConnectionUi) -> Unit,
-    val onConnectSavedConnection: (NaviampSavedConnectionUi) -> Unit,
-    val onDeleteSavedConnection: (NaviampSavedConnectionUi) -> Unit,
-    val onCancelEditConnection: () -> Unit,
-    val onInterfaceSettingsChanged: (InterfaceSettings) -> Unit,
-    val onPlaybackSettingsChanged: (PlaybackSettings) -> Unit,
-    val onPlaybackSettingsChangedAndRedownload: (PlaybackSettings) -> Unit,
-    val onCacheSettingsChanged: (CacheSettings) -> Unit,
-    val onDownloadLocationChanged: (NaviampStorageLocationUi) -> Unit,
-    val onAudioCacheLocationChanged: (NaviampStorageLocationUi) -> Unit,
-    val onClearCache: () -> Unit,
-    val onClearLibrary: () -> Unit,
-    val onResetDatabase: () -> Unit,
+    val connectionActions: NaviampConnectionSettingsActions,
+    val valueActions: NaviampSettingsValueActions,
+    val maintenanceActions: NaviampSettingsMaintenanceActions,
     val onQueryChanged: (String) -> Unit,
     val onSearch: () -> Unit,
     val onClearSearch: () -> Unit,

@@ -808,6 +808,7 @@ data class NaviampConnectionSettingsUi(
 data class NaviampConnectionSettingsActions(
     val onFormChanged: (ConnectionFormState) -> Unit = {},
     val onConnect: () -> Unit = {},
+    val onEditCurrentConnection: () -> Unit = {},
     val onNewConnection: () -> Unit = {},
     val onEditConnection: (NaviampSavedConnectionUi) -> Unit = {},
     val onDeleteConnection: (NaviampSavedConnectionUi) -> Unit = {},
@@ -835,6 +836,10 @@ data class NaviampSettingsSyncActions(
     val onAutoExportChanged: (Boolean) -> Unit = {},
     val onExport: () -> Unit = {},
     val onImport: () -> Unit = {},
+    val onImportFile: (() -> Unit)? = null,
+    val onChooseFolder: (() -> Unit)? = null,
+    val onImportFolder: (() -> Unit)? = null,
+    val onExportFolder: (() -> Unit)? = null,
 )
 
 data class NaviampSettingsValueActions(
@@ -842,6 +847,8 @@ data class NaviampSettingsValueActions(
     val onPlaybackSettingsChanged: (PlaybackSettings) -> Unit = {},
     val onPlaybackSettingsChangedAndRedownload: (PlaybackSettings) -> Unit = {},
     val onCacheSettingsChanged: (CacheSettings) -> Unit = {},
+    val onDownloadLocationChanged: (NaviampStorageLocationUi) -> Unit = {},
+    val onAudioCacheLocationChanged: (NaviampStorageLocationUi) -> Unit = {},
 )
 
 data class NaviampSettingsMaintenanceActions(
