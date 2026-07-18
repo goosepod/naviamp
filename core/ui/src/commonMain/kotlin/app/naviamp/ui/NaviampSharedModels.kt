@@ -11,6 +11,7 @@ import app.naviamp.domain.settings.ConnectionFormMusicFolder
 import app.naviamp.domain.settings.ConnectionFormState
 import app.naviamp.domain.settings.PlaybackSettings
 import app.naviamp.domain.settings.CacheSettings
+import app.naviamp.domain.settings.InterfaceSettings
 import app.naviamp.domain.waveform.AudioWaveform
 
 data class NaviampColors(
@@ -743,6 +744,7 @@ data class NaviampShellConnectionUi(
 data class NaviampConnectionSettingsUi(
     val connection: NaviampShellConnectionUi = NaviampShellConnectionUi(),
     val capabilities: NaviampConnectionCapabilitiesUi = NaviampConnectionCapabilitiesUi(),
+    val currentSourceId: String? = null,
 )
 
 data class NaviampSettingsSyncUi(
@@ -750,6 +752,11 @@ data class NaviampSettingsSyncUi(
     val autoExportEnabled: Boolean = false,
     val status: String? = null,
     val available: Boolean = false,
+)
+
+data class NaviampGeneralSettingsUi(
+    val interfaceSettings: InterfaceSettings = InterfaceSettings(),
+    val about: NaviampAboutUi = NaviampAboutUi(),
 )
 
 data class NaviampPlaybackSettingsUi(
@@ -787,10 +794,12 @@ data class NaviampShellCapabilitiesUi(
 
 fun NaviampShellConnectionUi.toConnectionSettingsUi(
     capabilities: NaviampShellCapabilitiesUi,
+    currentSourceId: String? = null,
 ): NaviampConnectionSettingsUi =
     NaviampConnectionSettingsUi(
         connection = this,
         capabilities = capabilities.connection,
+        currentSourceId = currentSourceId,
     )
 
 fun settingsSyncUi(
@@ -804,6 +813,14 @@ fun settingsSyncUi(
         autoExportEnabled = autoExportEnabled,
         status = status,
         available = capabilities.settingsImportExport && capabilities.fileSelection,
+    )
+
+fun InterfaceSettings.toGeneralSettingsUi(
+    about: NaviampAboutUi,
+): NaviampGeneralSettingsUi =
+    NaviampGeneralSettingsUi(
+        interfaceSettings = this,
+        about = about,
     )
 
 fun PlaybackSettings.toPlaybackSettingsUi(

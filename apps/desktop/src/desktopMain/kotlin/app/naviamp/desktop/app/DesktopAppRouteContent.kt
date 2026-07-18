@@ -77,6 +77,7 @@ import app.naviamp.ui.toConnectionSettingsUi
 import app.naviamp.ui.toPlaybackSettingsUi
 import app.naviamp.ui.toCacheSettingsUi
 import app.naviamp.ui.settingsSyncUi
+import app.naviamp.ui.toGeneralSettingsUi
 
 @Composable
 fun ColumnScope.DesktopAppRouteContent(
@@ -955,9 +956,11 @@ fun ColumnScope.DesktopAppRouteContent(
                 )
                 DesktopAppRoute.Settings -> DesktopSettingsPanel(
                     appColors = appColors,
-                    connectionSettings = connection.toConnectionSettingsUi(capabilities),
-                    currentSourceId = connectedSourceId,
-                    interfaceSettings = interfaceSettings,
+                    connectionSettings = connection.toConnectionSettingsUi(
+                        capabilities = capabilities,
+                        currentSourceId = connectedSourceId,
+                    ),
+                    general = interfaceSettings.toGeneralSettingsUi(about),
                     playback = playbackSettings.toPlaybackSettingsUi(
                         capabilities = capabilities,
                         audioOutputDeviceSelectionAvailable =
@@ -973,7 +976,6 @@ fun ColumnScope.DesktopAppRouteContent(
                         status = settingsSyncStatus,
                         capabilities = capabilities,
                     ),
-                    about = about,
                     onServerUrlChanged = { onConnectionFormChanged(connection.form.copy(serverUrl = it)) },
                     onConnectionNameChanged = { onConnectionFormChanged(connection.form.copy(displayName = it)) },
                     onUsernameChanged = { onConnectionFormChanged(connection.form.copy(username = it)) },

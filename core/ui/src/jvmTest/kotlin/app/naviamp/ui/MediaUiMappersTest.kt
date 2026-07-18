@@ -32,13 +32,15 @@ class MediaUiMappersTest {
     fun connectionSettingsCarryConnectionAndTlsCapabilities() {
         val connection = NaviampShellConnectionUi(status = "Ready")
         val ui = connection.toConnectionSettingsUi(
-            NaviampShellCapabilitiesUi(
+            capabilities = NaviampShellCapabilitiesUi(
                 connection = NaviampConnectionCapabilitiesUi(clientCertificates = true),
             ),
+            currentSourceId = "source-1",
         )
 
         assertEquals(connection, ui.connection)
         assertTrue(ui.capabilities.clientCertificates)
+        assertEquals("source-1", ui.currentSourceId)
     }
 
     @Test
@@ -64,6 +66,19 @@ class MediaUiMappersTest {
         assertEquals("sync", available.directoryPath)
         assertTrue(available.autoExportEnabled)
         assertEquals("Ready", available.status)
+    }
+
+    @Test
+    fun generalSettingsGroupInterfaceAndAboutPresentation() {
+        val interfaceSettings = app.naviamp.domain.settings.InterfaceSettings(
+            language = app.naviamp.domain.settings.InterfaceLanguage.Spanish,
+        )
+        val about = NaviampAboutUi(version = "2.0", buildNumber = "42")
+
+        val ui = interfaceSettings.toGeneralSettingsUi(about)
+
+        assertEquals(interfaceSettings, ui.interfaceSettings)
+        assertEquals(about, ui.about)
     }
 
     @Test

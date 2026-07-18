@@ -61,7 +61,6 @@ import app.naviamp.domain.settings.SettingsSyncFileName
 import app.naviamp.desktop.settings.CacheSettings
 import app.naviamp.desktop.settings.PlaybackSettings
 import app.naviamp.ui.NaviampAboutSettingsSection
-import app.naviamp.ui.NaviampAboutUi
 import app.naviamp.ui.NaviampPageTitle
 import app.naviamp.ui.NaviampAudioCacheSettingsSection
 import app.naviamp.ui.NaviampConnectionForm
@@ -78,6 +77,7 @@ import app.naviamp.ui.NaviampConnectionSettingsUi
 import app.naviamp.ui.NaviampPlaybackSettingsUi
 import app.naviamp.ui.NaviampCacheSettingsUi
 import app.naviamp.ui.NaviampSettingsSyncUi
+import app.naviamp.ui.NaviampGeneralSettingsUi
 import app.naviamp.ui.categoryLabel
 import app.naviamp.ui.categorySubtitle
 import app.naviamp.ui.languageTitle
@@ -96,12 +96,10 @@ fun DesktopSettingsPanel(
     modifier: Modifier = Modifier,
     appColors: DesktopAppColors,
     connectionSettings: NaviampConnectionSettingsUi,
-    currentSourceId: String?,
-    interfaceSettings: InterfaceSettings,
+    general: NaviampGeneralSettingsUi,
     playback: NaviampPlaybackSettingsUi,
     cache: NaviampCacheSettingsUi,
     settingsSync: NaviampSettingsSyncUi,
-    about: NaviampAboutUi,
     onServerUrlChanged: (String) -> Unit,
     onConnectionNameChanged: (String) -> Unit,
     onUsernameChanged: (String) -> Unit,
@@ -155,6 +153,9 @@ fun DesktopSettingsPanel(
     val isConnecting = connection.isConnecting
     val connectionStatus = connection.status
     val connectionCapabilities = connectionSettings.capabilities
+    val currentSourceId = connectionSettings.currentSourceId
+    val interfaceSettings = general.interfaceSettings
+    val about = general.about
     val settingsSyncDirectoryPath = settingsSync.directoryPath
     val settingsSyncAutoExportEnabled = settingsSync.autoExportEnabled
     val settingsSyncStatus = settingsSync.status
