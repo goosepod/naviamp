@@ -361,6 +361,7 @@ Record architecture decisions here or link a dedicated decision record.
 | 2026-07-18 | Carry grouped playlist-list presentation through the public shared shell. | Playlist rows, recent IDs, sort mode, refresh state, and the status shared by playlist dialogs should remain one `NaviampPlaylistsScreenUi` from Android through route rendering, avoiding duplicate status ownership. |
 | 2026-07-18 | Carry focused playlist actions through the public shared shell. | Refresh, sorting, and smart-playlist create/edit/load operations belong in `NaviampPlaylistsActions`; playlist row actions remain on the route-shared typed media dispatcher, while provider mutations, playback, and navigation remain host-owned. |
 | 2026-07-18 | Carry grouped Internet Radio presentation through the public shared shell. | Mapped station rows and refresh state should remain one `NaviampInternetRadioScreenUi` from the Android state factory through Home and Radio rendering; raw provider stations should not cross the shell state boundary. |
+| 2026-07-18 | Carry focused Internet Radio actions through the public shared shell. | Refresh, typed station row actions, and validated edit drafts belong in `NaviampInternetRadioActions`; Android resolves domain stations and performs provider mutations or playback selection. |
 
 ## Shared Controller Construction Audit
 
@@ -386,7 +387,7 @@ The 2026-07-17 audit covers every current application entry point:
 
 ## Current Handoff
 
-- **Last completed item:** Android and the public/private shared shell now carry Internet Radio presentation as one `NaviampInternetRadioScreenUi`. Android maps provider stations once at the host boundary, and both Home and Radio consume the grouped rows and refresh state.
-- **Next recommended item:** Introduce a focused `NaviampInternetRadioActions` contract for refresh, typed station row actions, and validated edit drafts. Keep domain resolution, provider mutations, playback selection, and external navigation host-owned.
+- **Last completed item:** Android and the public/private shared shell now carry Internet Radio presentation and intent as `NaviampInternetRadioScreenUi` and `NaviampInternetRadioActions`. Shared UI handles only typed rows and edit drafts; Android resolves domain stations and performs provider mutations or playback selection.
+- **Next recommended item:** Carry `NaviampAlbumDetailScreenUi`, `NaviampArtistDetailScreenUi`, and `NaviampPlaylistDetailScreenUi` through the Android/public/private shell instead of nullable detail payloads alone, preserving loading/status state while keeping provider fetches, playback, mutations, and navigation host-owned.
 - **Verification:** `:core:domain:jvmTest`, `:core:app:jvmTest`, `:core:storage:jvmTest`, `:core:ui:jvmTest`, `:apps:android:testDebugUnitTest`, `:apps:desktop:desktopTest`, `:core:app:iosSimulatorArm64Test`, `:core:storage:compileKotlinIosSimulatorArm64`, and `:core:ui:compileKotlinIosSimulatorArm64` pass together with at most two Gradle workers.
 - **Known blockers:** None.

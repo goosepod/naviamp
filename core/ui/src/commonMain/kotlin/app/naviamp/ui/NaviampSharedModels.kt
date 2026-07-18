@@ -427,6 +427,12 @@ data class NaviampInternetRadioScreenUi(
     val refreshing: Boolean = false,
 )
 
+data class NaviampInternetRadioActions(
+    val onRefresh: () -> Unit = {},
+    val onStationAction: (StationRowActionRequest) -> Unit = {},
+    val onSaveStation: (NaviampInternetRadioStationEditUi) -> Unit = {},
+)
+
 data class NaviampAlbumDetailScreenUi(
     val selectedAlbum: SharedMediaItemUi? = null,
     val detail: SharedAlbumDetailUi? = null,

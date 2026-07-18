@@ -18,6 +18,7 @@ import app.naviamp.ui.NaviampNowPlayingItemUi
 import app.naviamp.ui.NaviampConnectionSettingsActions
 import app.naviamp.ui.NaviampDownloadsActions
 import app.naviamp.ui.NaviampLibraryActions
+import app.naviamp.ui.NaviampInternetRadioActions
 import app.naviamp.ui.NaviampPlaylistChoiceUi
 import app.naviamp.ui.NaviampPlaylistsActions
 import app.naviamp.ui.NaviampSavedConnectionUi
@@ -25,6 +26,7 @@ import app.naviamp.ui.NaviampSearchActions
 import app.naviamp.ui.NaviampVisualizer
 import app.naviamp.ui.NaviampSettingsMaintenanceActions
 import app.naviamp.ui.NaviampSettingsValueActions
+import app.naviamp.ui.toInternetRadioStation
 import app.naviamp.ui.NowPlayingCurrentTrackAction
 import app.naviamp.ui.NowPlayingCurrentTrackUiActionRequest
 import app.naviamp.ui.NowPlayingDisplayAction
@@ -379,8 +381,12 @@ fun androidAppShellActions(
                         ?: throw IllegalArgumentException("Playlist not found.")
                 },
             ),
+            radioActions = NaviampInternetRadioActions(
+                onRefresh = refreshInternetRadioStations,
+                onStationAction = handleStationAction,
+                onSaveStation = { draft -> saveInternetRadioStation(draft.toInternetRadioStation()) },
+            ),
             onRefreshHome = refreshHome,
-            onRefreshRadioStations = refreshInternetRadioStations,
             onTrackSelected = handleShellTrackSelected,
             onAlbumSelected = handleShellAlbumSelected,
             onAlbumFavoriteToggled = handleAlbumFavoriteToggled,
@@ -572,9 +578,6 @@ fun androidAppShellActions(
             onPlaylistTrackSelected = handlePlaylistTrackSelected,
             onRecentRadioSelected = handleRecentRadioSelected,
             onMixBuilderSelected = handleMixBuilderSelected,
-            onRadioStationSelected = handleRadioStationSelected,
-            onRadioStationSave = saveInternetRadioStation,
-            onStationAction = handleStationAction,
             onHomeStationSelected = handleShellHomeStationSelected,
             onSonicDiscoveryTrackAction = handleSonicDiscoveryTrackAction,
             onOpenNowPlaying = { nowPlayingOpen = true },

@@ -51,7 +51,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.window.Dialog
-import app.naviamp.domain.InternetRadioStation
 import app.naviamp.domain.settings.ConnectionFormHeader
 import app.naviamp.domain.settings.ConnectionFormMusicFolder
 import app.naviamp.domain.settings.ConnectionFormSecondaryUrl
@@ -143,8 +142,8 @@ fun NaviampSharedAppShell(
     downloadsActions: NaviampDownloadsActions = NaviampDownloadsActions(),
     libraryActions: NaviampLibraryActions = NaviampLibraryActions(),
     playlistsActions: NaviampPlaylistsActions = NaviampPlaylistsActions(),
+    radioActions: NaviampInternetRadioActions = NaviampInternetRadioActions(),
     onRefreshHome: () -> Unit = {},
-    onRefreshRadioStations: () -> Unit = {},
     onTrackSelected: (SharedTrackRowUi) -> Unit,
     onAlbumSelected: (SharedMediaItemUi) -> Unit,
     onAlbumFavoriteToggled: (SharedMediaItemUi) -> Unit = {},
@@ -241,9 +240,6 @@ fun NaviampSharedAppShell(
     },
     onRecentRadioSelected: (SharedMediaItemUi) -> Unit = {},
     onMixBuilderSelected: (SharedMixBuilderUi) -> Unit = {},
-    onRadioStationSelected: (InternetRadioStation) -> Unit,
-    onRadioStationSave: (InternetRadioStation) -> Unit = {},
-    onStationAction: (StationRowActionRequest) -> Unit = {},
     onHomeStationSelected: (SharedHomeStationUi) -> Unit = {},
     onSonicDiscoveryTrackAction: (SharedHomeDiscoveryTrackActionRequest) -> Unit = {},
     onOpenNowPlaying: () -> Unit,
@@ -460,8 +456,8 @@ fun NaviampSharedAppShell(
                             downloadsActions = downloadsActions,
                             libraryActions = libraryActions,
                             playlistsActions = playlistsActions,
+                            radioActions = radioActions,
                             onRefreshHome = onRefreshHome,
-                            onRefreshRadioStations = onRefreshRadioStations,
                             onTrackSelected = onTrackSelected,
                             onAlbumSelected = onAlbumSelected,
                             onAlbumFavoriteToggled = onAlbumFavoriteToggled,
@@ -511,9 +507,6 @@ fun NaviampSharedAppShell(
                             onTrackAction = onTrackAction,
                             onRecentRadioSelected = onRecentRadioSelected,
                             onMixBuilderSelected = onMixBuilderSelected,
-                            onRadioStationSelected = onRadioStationSelected,
-                            onRadioStationSave = onRadioStationSave,
-                            onStationAction = onStationAction,
                             onHomeStationSelected = onHomeStationSelected,
                             onSonicDiscoveryTrackAction = onSonicDiscoveryTrackAction,
                             onOpenNowPlaying = onOpenNowPlaying,
@@ -978,8 +971,8 @@ private fun ConnectedContent(
     downloadsActions: NaviampDownloadsActions,
     libraryActions: NaviampLibraryActions,
     playlistsActions: NaviampPlaylistsActions,
+    radioActions: NaviampInternetRadioActions,
     onRefreshHome: () -> Unit,
-    onRefreshRadioStations: () -> Unit,
     onTrackSelected: (SharedTrackRowUi) -> Unit,
     onAlbumSelected: (SharedMediaItemUi) -> Unit,
     onAlbumFavoriteToggled: (SharedMediaItemUi) -> Unit,
@@ -1029,9 +1022,6 @@ private fun ConnectedContent(
     onTrackAction: (SharedTrackRowActionRequest) -> Unit,
     onRecentRadioSelected: (SharedMediaItemUi) -> Unit,
     onMixBuilderSelected: (SharedMixBuilderUi) -> Unit,
-    onRadioStationSelected: (InternetRadioStation) -> Unit,
-    onRadioStationSave: (InternetRadioStation) -> Unit,
-    onStationAction: (StationRowActionRequest) -> Unit,
     onHomeStationSelected: (SharedHomeStationUi) -> Unit,
     onSonicDiscoveryTrackAction: (SharedHomeDiscoveryTrackActionRequest) -> Unit,
     onOpenNowPlaying: () -> Unit,
@@ -1215,8 +1205,11 @@ private fun ConnectedContent(
                 onMixBuilderSelected = onMixBuilderSelected,
                 onInternetRadioStationSelected = { item ->
                     radio.stations.firstOrNull { it.item.id == item.id }
-                        ?.toInternetRadioStation()
-                        ?.let(onRadioStationSelected)
+                        ?.let { station ->
+                            radioActions.onStationAction(
+                                StationRowActionRequest(station.item, StationRowAction.Select),
+                            )
+                        }
                 },
                 onHomeStationSelected = onHomeStationSelected,
                 onSonicDiscoveryTrackAction = onSonicDiscoveryTrackAction,
@@ -1405,14 +1398,14 @@ private fun ConnectedContent(
             }
             SharedRoute.Radio -> PullToRefreshRoute(
                 isRefreshing = radio.refreshing,
-                onRefresh = onRefreshRadioStations,
+                onRefresh = radioActions.onRefresh,
                 useScrollContainer = true,
             ) {
                 InternetRadioContent(
                     colors = colors,
                     screen = radio,
-                    onStationAction = onStationAction,
-                    onSaveStation = { onRadioStationSave(it.toInternetRadioStation()) },
+                    onStationAction = radioActions.onStationAction,
+                    onSaveStation = radioActions.onSaveStation,
                 )
             }
             SharedRoute.Settings -> Unit

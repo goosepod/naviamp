@@ -1,7 +1,6 @@
 package app.naviamp.android
 
 import androidx.compose.ui.Modifier
-import app.naviamp.domain.InternetRadioStation
 import app.naviamp.domain.Playlist
 import app.naviamp.domain.Track
 import app.naviamp.domain.settings.CacheSettings
@@ -46,7 +45,6 @@ import app.naviamp.ui.SharedSonicMixBuilderActions
 import app.naviamp.ui.SharedSonicMixBuilderUi
 import app.naviamp.ui.SharedSonicPathBuilderActions
 import app.naviamp.ui.SharedSonicPathBuilderUi
-import app.naviamp.ui.StationRowActionRequest
 import app.naviamp.ui.SharedTrackRowActionRequest
 import app.naviamp.ui.SharedTrackRowUi
 import app.naviamp.ui.NaviampShellCapabilitiesUi
@@ -58,6 +56,7 @@ import app.naviamp.ui.NaviampSearchActions
 import app.naviamp.ui.NaviampPlaylistsScreenUi
 import app.naviamp.ui.NaviampPlaylistsActions
 import app.naviamp.ui.NaviampInternetRadioScreenUi
+import app.naviamp.ui.NaviampInternetRadioActions
 
 data class AndroidAppShellUiState(
     val modifier: Modifier,
@@ -109,8 +108,8 @@ data class AndroidAppShellActions(
     val downloadsActions: NaviampDownloadsActions,
     val libraryActions: NaviampLibraryActions,
     val playlistsActions: NaviampPlaylistsActions,
+    val radioActions: NaviampInternetRadioActions,
     val onRefreshHome: () -> Unit,
-    val onRefreshRadioStations: () -> Unit,
     val onTrackSelected: (SharedTrackRowUi) -> Unit,
     val onAlbumSelected: (SharedMediaItemUi) -> Unit,
     val onAlbumFavoriteToggled: (SharedMediaItemUi) -> Unit,
@@ -152,9 +151,6 @@ data class AndroidAppShellActions(
     val onPlaylistTrackSelected: (SharedTrackRowUi) -> Unit,
     val onRecentRadioSelected: (SharedMediaItemUi) -> Unit,
     val onMixBuilderSelected: (SharedMixBuilderUi) -> Unit,
-    val onRadioStationSelected: (InternetRadioStation) -> Unit,
-    val onRadioStationSave: (InternetRadioStation) -> Unit,
-    val onStationAction: (StationRowActionRequest) -> Unit,
     val onHomeStationSelected: (SharedHomeStationUi) -> Unit,
     val onSonicDiscoveryTrackAction: (SharedHomeDiscoveryTrackActionRequest) -> Unit,
     val onOpenNowPlaying: () -> Unit,
