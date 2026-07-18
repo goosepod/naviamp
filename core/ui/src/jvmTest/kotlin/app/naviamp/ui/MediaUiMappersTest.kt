@@ -5,6 +5,7 @@ import app.naviamp.domain.ArtistCredit
 import app.naviamp.domain.ArtistDetails
 import app.naviamp.domain.ArtistId
 import app.naviamp.domain.ArtistInfo
+import app.naviamp.domain.InternetRadioStation
 import app.naviamp.domain.Album
 import app.naviamp.domain.AlbumExplicitStatus
 import app.naviamp.domain.AlbumId
@@ -27,6 +28,32 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class MediaUiMappersTest {
+    @Test
+    fun internetRadioModelsPreserveEditableFieldsAndNormalizeDrafts() {
+        val station = InternetRadioStation(
+            id = "station-1",
+            name = "Deep Space One",
+            streamUrl = "https://example.test/live",
+            homePageUrl = "https://example.test",
+        )
+
+        val ui = station.toInternetRadioStationUi()
+        val updated = NaviampInternetRadioStationEditUi(
+            id = ui.item.id,
+            name = " Updated Station ",
+            streamUrl = " https://example.test/updated ",
+            homePageUrl = "  ",
+        ).toInternetRadioStation()
+
+        assertEquals("station-1", ui.item.id)
+        assertEquals("Deep Space One", ui.item.title)
+        assertEquals(station.streamUrl, ui.streamUrl)
+        assertEquals("station-1", updated.id)
+        assertEquals("Updated Station", updated.name)
+        assertEquals("https://example.test/updated", updated.streamUrl)
+        assertNull(updated.homePageUrl)
+    }
+
     @Test
     fun downloadJobUiCarriesProgressActionsAndItemStatus() {
         val job = DownloadJob(

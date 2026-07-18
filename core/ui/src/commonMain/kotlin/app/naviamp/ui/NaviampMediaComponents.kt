@@ -54,7 +54,6 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import org.jetbrains.compose.resources.stringResource
-import app.naviamp.domain.InternetRadioStation
 import app.naviamp.domain.settings.TrackSwipeAction
 import app.naviamp.domain.settings.TrackSwipeSettings
 import kotlin.math.roundToInt
@@ -1627,16 +1626,16 @@ private fun ArtistMixArtistTile(
 @Composable
 fun InternetRadioContent(
     colors: NaviampColors,
-    stations: List<InternetRadioStation>,
-    status: String?,
+    screen: NaviampInternetRadioScreenUi,
     onStationAction: (StationRowActionRequest) -> Unit,
-    onSaveStation: ((InternetRadioStation) -> Unit)? = null,
+    onSaveStation: ((NaviampInternetRadioStationEditUi) -> Unit)? = null,
     headerActions: @Composable RowScope.() -> Unit = {},
 ) {
-    var stationBeingEdited by remember { mutableStateOf<InternetRadioStation?>(null) }
-    var stationBeingDeleted by remember { mutableStateOf<InternetRadioStation?>(null) }
+    val stations = screen.stations
+    var stationBeingEdited by remember { mutableStateOf<NaviampInternetRadioStationUi?>(null) }
+    var stationBeingDeleted by remember { mutableStateOf<NaviampInternetRadioStationUi?>(null) }
     var creatingStation by remember { mutableStateOf(false) }
-    val stationById = remember(stations) { stations.associateBy { station -> station.id } }
+    val stationById = remember(stations) { stations.associateBy { station -> station.item.id } }
     val handleStationAction: (StationRowActionRequest) -> Unit = { request ->
         handleStationRowAction(
             request,
@@ -1672,12 +1671,12 @@ fun InternetRadioContent(
                 headerActions()
             }
         }
-        status?.let { Text(it, color = colors.secondaryText, fontSize = 12.sp) }
+        screen.status?.let { Text(it, color = colors.secondaryText, fontSize = 12.sp) }
         if (stations.isEmpty()) {
             Text("Saved internet radio stations will appear here.", color = colors.secondaryText, fontSize = 12.sp)
         }
-        stations.sortedBy { it.name.lowercase() }.forEach { station ->
-            val stationItem = station.toSharedMediaItemUi()
+        stations.sortedBy { it.item.title.lowercase() }.forEach { station ->
+            val stationItem = station.item
             SharedMediaRow(
                 item = stationItem,
                 colors = colors,
@@ -1754,14 +1753,14 @@ fun InternetRadioContent(
         AlertDialog(
             onDismissRequest = { stationBeingDeleted = null },
             title = { Text("Delete station") },
-            text = { Text("Delete ${station.name}? This removes the server internet radio station.") },
+            text = { Text("Delete ${station.item.title}? This removes the server internet radio station.") },
             confirmButton = {
                 TextButton(
                     onClick = {
                         stationBeingDeleted = null
                         onStationAction(
                             StationRowActionRequest(
-                                station = station.toSharedMediaItemUi(),
+                                station = station.item,
                                 action = StationRowAction.Delete,
                             ),
                         )
@@ -1781,13 +1780,13 @@ fun InternetRadioContent(
 
 @Composable
 private fun InternetRadioStationDialog(
-    initialStation: InternetRadioStation?,
+    initialStation: NaviampInternetRadioStationUi?,
     onDismiss: () -> Unit,
-    onConfirm: (InternetRadioStation) -> Unit,
+    onConfirm: (NaviampInternetRadioStationEditUi) -> Unit,
 ) {
-    var name by remember(initialStation?.id) { mutableStateOf(initialStation?.name.orEmpty()) }
-    var streamUrl by remember(initialStation?.id) { mutableStateOf(initialStation?.streamUrl.orEmpty()) }
-    var homePageUrl by remember(initialStation?.id) { mutableStateOf(initialStation?.homePageUrl.orEmpty()) }
+    var name by remember(initialStation?.item?.id) { mutableStateOf(initialStation?.item?.title.orEmpty()) }
+    var streamUrl by remember(initialStation?.item?.id) { mutableStateOf(initialStation?.streamUrl.orEmpty()) }
+    var homePageUrl by remember(initialStation?.item?.id) { mutableStateOf(initialStation?.homePageUrl.orEmpty()) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -1804,8 +1803,8 @@ private fun InternetRadioStationDialog(
                 enabled = name.isNotBlank() && streamUrl.isNotBlank(),
                 onClick = {
                     onConfirm(
-                        InternetRadioStation(
-                            id = initialStation?.id ?: streamUrl.trim(),
+                        NaviampInternetRadioStationEditUi(
+                            id = initialStation?.item?.id,
                             name = name.trim(),
                             streamUrl = streamUrl.trim(),
                             homePageUrl = homePageUrl.trim().takeIf { it.isNotBlank() },

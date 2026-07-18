@@ -119,6 +119,21 @@ fun InternetRadioStation.toSharedMediaItemUi(): SharedMediaItemUi =
         coverArtUrl = radioStationArtworkUrl(this),
     )
 
+fun InternetRadioStation.toInternetRadioStationUi(): NaviampInternetRadioStationUi =
+    NaviampInternetRadioStationUi(
+        item = toSharedMediaItemUi(),
+        streamUrl = streamUrl,
+        homePageUrl = homePageUrl,
+    )
+
+fun NaviampInternetRadioStationEditUi.toInternetRadioStation(): InternetRadioStation =
+    InternetRadioStation(
+        id = id ?: streamUrl.trim(),
+        name = name.trim(),
+        streamUrl = streamUrl.trim(),
+        homePageUrl = homePageUrl?.trim()?.takeIf { it.isNotBlank() },
+    )
+
 fun Genre.toSharedGenreMixItemUi(): SharedGenreMixItemUi =
     SharedGenreMixItemUi(
         id = name,

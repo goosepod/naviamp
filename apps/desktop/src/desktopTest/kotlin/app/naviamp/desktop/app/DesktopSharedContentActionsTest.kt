@@ -6,6 +6,7 @@ import app.naviamp.domain.AlbumDetails
 import app.naviamp.domain.Artist
 import app.naviamp.domain.ArtistDetails
 import app.naviamp.domain.ArtistId
+import app.naviamp.domain.InternetRadioStation
 import app.naviamp.domain.Playlist
 import app.naviamp.domain.Track
 import app.naviamp.domain.TrackId
@@ -15,6 +16,7 @@ import app.naviamp.ui.SharedMediaItemAction
 import app.naviamp.ui.SharedMediaItemActionRequest
 import app.naviamp.ui.SharedMediaItemKind
 import app.naviamp.ui.SharedMediaItemUi
+import app.naviamp.ui.NaviampInternetRadioStationEditUi
 import app.naviamp.ui.SharedTrackRowAction
 import app.naviamp.ui.SharedTrackRowActionRequest
 import app.naviamp.ui.SharedTrackRowUi
@@ -139,6 +141,33 @@ class DesktopSharedContentActionsTest {
             sources.selectedTracks(listOf(sharedTrack("third"), sharedTrack("first"))),
         )
         assertNull(sources.selectedTracks(listOf(sharedTrack("first"), sharedTrack("missing"))))
+    }
+
+    @Test
+    fun internetRadioActionSourcesResolveCurrentIdsAndConvertEdits() {
+        val station = InternetRadioStation(
+            id = "station-1",
+            name = "Station",
+            streamUrl = "https://example.test/live",
+        )
+        val sources = DesktopInternetRadioActionSources(listOf(station))
+
+        assertEquals(station, sources.station("station-1"))
+        assertNull(sources.station("stale-station"))
+        assertEquals(
+            InternetRadioStation(
+                id = "station-1",
+                name = "Updated",
+                streamUrl = "https://example.test/updated",
+            ),
+            sources.station(
+                NaviampInternetRadioStationEditUi(
+                    id = "station-1",
+                    name = " Updated ",
+                    streamUrl = " https://example.test/updated ",
+                ),
+            ),
+        )
     }
 
     private fun album(id: String): Album = Album(

@@ -119,6 +119,7 @@ import app.naviamp.ui.toSharedAlbumDetailUi
 import app.naviamp.ui.toSharedArtistDetailUi
 import app.naviamp.ui.toSharedPlaylistDetailUi
 import app.naviamp.ui.toSharedSearchResultsUi
+import app.naviamp.ui.toInternetRadioStationUi
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.nio.file.Path
@@ -1800,8 +1801,13 @@ fun NaviampApp(
                                     label = "sonic mix",
                                 )
                             },
-                            internetRadioStations = internetRadioController.stations,
-                            internetRadioStatus = internetRadioController.status,
+                            internetRadio = app.naviamp.ui.NaviampInternetRadioScreenUi(
+                                stations = internetRadioController.stations.map { it.toInternetRadioStationUi() },
+                                status = internetRadioController.status,
+                            ),
+                            internetRadioActionSources = DesktopInternetRadioActionSources(
+                                stations = internetRadioController.stations,
+                            ),
                             onSaveInternetRadioStation = internetRadioController::saveStation,
                             onDeleteInternetRadioStation = internetRadioController::deleteStation,
                             connectedSourceId = connectedSourceId,

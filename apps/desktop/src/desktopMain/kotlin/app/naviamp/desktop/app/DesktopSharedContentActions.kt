@@ -4,6 +4,7 @@ import app.naviamp.domain.Album
 import app.naviamp.domain.AlbumDetails
 import app.naviamp.domain.Artist
 import app.naviamp.domain.ArtistDetails
+import app.naviamp.domain.InternetRadioStation
 import app.naviamp.domain.Track
 import app.naviamp.domain.popular.SimilarArtistMatch
 import app.naviamp.ui.SharedMediaItemActionRequest
@@ -11,6 +12,8 @@ import app.naviamp.ui.SharedMediaItemKind
 import app.naviamp.ui.SharedTrackRowActionRequest
 import app.naviamp.ui.SharedSimilarArtistUi
 import app.naviamp.ui.SharedTrackRowUi
+import app.naviamp.ui.NaviampInternetRadioStationEditUi
+import app.naviamp.ui.toInternetRadioStation
 
 data class DesktopDetailActionSources(
     val selectedAlbum: Album? = null,
@@ -69,6 +72,16 @@ data class DesktopPlaylistActionSources(
         val resolved = rows.mapNotNull { tracksById[it.id] }
         return resolved.takeIf { it.size == rows.size }
     }
+}
+
+data class DesktopInternetRadioActionSources(
+    val stations: List<InternetRadioStation> = emptyList(),
+) {
+    fun station(id: String): InternetRadioStation? =
+        stations.firstOrNull { it.id == id }
+
+    fun station(edit: NaviampInternetRadioStationEditUi): InternetRadioStation =
+        edit.toInternetRadioStation()
 }
 
 internal fun resolveDesktopMediaItemAction(

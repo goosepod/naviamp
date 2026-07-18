@@ -393,6 +393,24 @@ data class NaviampDownloadsScreenUi(
     val keepFavoritesDownloaded: Boolean = false,
 )
 
+data class NaviampInternetRadioStationUi(
+    val item: SharedMediaItemUi,
+    val streamUrl: String,
+    val homePageUrl: String? = null,
+)
+
+data class NaviampInternetRadioStationEditUi(
+    val id: String? = null,
+    val name: String = "",
+    val streamUrl: String = "",
+    val homePageUrl: String? = null,
+)
+
+data class NaviampInternetRadioScreenUi(
+    val stations: List<NaviampInternetRadioStationUi> = emptyList(),
+    val status: String? = null,
+)
+
 data class NaviampAlbumDetailScreenUi(
     val selectedAlbum: SharedMediaItemUi? = null,
     val detail: SharedAlbumDetailUi? = null,

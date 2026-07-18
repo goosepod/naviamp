@@ -44,6 +44,7 @@ import app.naviamp.ui.NaviampAlbumDetailScreenUi
 import app.naviamp.ui.NaviampArtistDetailScreenUi
 import app.naviamp.ui.NaviampSavedConnectionUi
 import app.naviamp.ui.NaviampLibraryScreenUi
+import app.naviamp.ui.NaviampInternetRadioScreenUi
 import app.naviamp.ui.NaviampPlaylistDetailScreenUi
 import app.naviamp.ui.NaviampPlaylistsScreenUi
 import app.naviamp.ui.NaviampSearchScreenUi
@@ -159,8 +160,8 @@ fun ColumnScope.DesktopAppRouteContent(
     onSonicMixPlay: () -> Unit,
     onSonicMixAddToQueue: () -> Unit,
     onSonicMixSaveAsPlaylist: (String) -> Unit,
-    internetRadioStations: List<InternetRadioStation>,
-    internetRadioStatus: String?,
+    internetRadio: NaviampInternetRadioScreenUi,
+    internetRadioActionSources: DesktopInternetRadioActionSources,
     onSaveInternetRadioStation: (InternetRadioStation) -> Unit,
     onDeleteInternetRadioStation: (InternetRadioStation) -> Unit,
     connectedSourceId: String?,
@@ -899,10 +900,11 @@ fun ColumnScope.DesktopAppRouteContent(
                 DesktopAppRoute.InternetRadio -> Column(verticalArrangement = Arrangement.spacedBy(18.dp)) {
                     DesktopInternetRadioPanel(
                         appColors = appColors,
-                        stations = internetRadioStations,
-                        status = internetRadioStatus ?: connection.status.pageStatusOrNull(),
+                        screen = internetRadio.copy(
+                            status = internetRadio.status ?: connection.status.pageStatusOrNull(),
+                        ),
                         onStationAction = { request ->
-                            internetRadioStations.firstOrNull { station -> station.id == request.station.id }?.let { station ->
+                            internetRadioActionSources.station(request.station.id)?.let { station ->
                                 when (request.action) {
                                     StationRowAction.Select -> internetRadioController.playStation(station)
                                     StationRowAction.Edit -> Unit
@@ -910,7 +912,9 @@ fun ColumnScope.DesktopAppRouteContent(
                                 }
                             }
                         },
-                        onSaveStation = onSaveInternetRadioStation,
+                        onSaveStation = { edit ->
+                            onSaveInternetRadioStation(internetRadioActionSources.station(edit))
+                        },
                         onRefreshStations = internetRadioController::refreshStations,
                     )
                 }

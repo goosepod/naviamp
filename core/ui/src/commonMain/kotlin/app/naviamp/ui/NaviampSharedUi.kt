@@ -1777,10 +1777,11 @@ private fun ConnectedContent(
             ) {
                 InternetRadioContent(
                     colors = colors,
-                    stations = radioStations,
-                    status = null,
+                    screen = NaviampInternetRadioScreenUi(
+                        stations = radioStations.map { it.toInternetRadioStationUi() },
+                    ),
                     onStationAction = onStationAction,
-                    onSaveStation = onRadioStationSave,
+                    onSaveStation = { onRadioStationSave(it.toInternetRadioStation()) },
                 )
             }
             SharedRoute.Settings -> Unit
