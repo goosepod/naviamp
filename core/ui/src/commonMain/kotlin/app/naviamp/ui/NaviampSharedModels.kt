@@ -398,6 +398,15 @@ data class NaviampDownloadsScreenUi(
     val keepFavoritesDownloaded: Boolean = false,
 )
 
+data class NaviampDownloadsActions(
+    val onTrackAction: (DownloadedTrackActionRequest) -> Unit = {},
+    val onCancelJob: (String) -> Unit = {},
+    val onRetryJob: (String) -> Unit = {},
+    val onRefresh: () -> Unit = {},
+    val onToggleKeepFavoritesDownloaded: () -> Unit = {},
+    val onDeleteAll: () -> Unit = {},
+)
+
 data class NaviampInternetRadioStationUi(
     val item: SharedMediaItemUi,
     val streamUrl: String,

@@ -11,12 +11,12 @@ import app.naviamp.domain.smartplaylist.SmartPlaylistDefinition
 import app.naviamp.ui.NaviampDiagnosticsUi
 import app.naviamp.ui.NaviampConnectionSettingsActions
 import app.naviamp.ui.NaviampDownloadsScreenUi
+import app.naviamp.ui.NaviampDownloadsActions
 import app.naviamp.ui.NaviampStorageLocationUi
 import app.naviamp.ui.NaviampSettingsMaintenanceActions
 import app.naviamp.ui.NaviampSettingsValueActions
 import app.naviamp.ui.NaviampPlaylistChoiceUi
 import app.naviamp.ui.NaviampVisualizer
-import app.naviamp.ui.DownloadedTrackActionRequest
 import app.naviamp.ui.NaviampAboutUi
 import app.naviamp.ui.NowPlayingCurrentTrackUiActionRequest
 import app.naviamp.ui.NowPlayingDisplayActionRequest
@@ -110,6 +110,7 @@ data class AndroidAppShellActions(
     val genreMixActions: SharedGenreMixBuilderActions,
     val sonicPathActions: SharedSonicPathBuilderActions,
     val sonicMixActions: SharedSonicMixBuilderActions,
+    val downloadsActions: NaviampDownloadsActions,
     val onLibraryQueryChanged: (String) -> Unit,
     val onRefreshHome: () -> Unit,
     val onRefreshLibrary: () -> Unit,
@@ -117,12 +118,6 @@ data class AndroidAppShellActions(
     val onRefreshPlaylists: () -> Unit,
     val onRefreshRadioStations: () -> Unit,
     val onTrackSelected: (SharedTrackRowUi) -> Unit,
-    val onDownloadedTrackAction: (DownloadedTrackActionRequest) -> Unit,
-    val onCancelDownloadJob: (String) -> Unit,
-    val onRetryDownloadJob: (String) -> Unit,
-    val onRefreshDownloads: () -> Unit,
-    val onToggleKeepFavoritesDownloaded: () -> Unit,
-    val onDeleteAllDownloads: () -> Unit,
     val onAlbumSelected: (SharedMediaItemUi) -> Unit,
     val onAlbumFavoriteToggled: (SharedMediaItemUi) -> Unit,
     val onMixAlbumSelected: (SharedMediaItemUi) -> Unit,

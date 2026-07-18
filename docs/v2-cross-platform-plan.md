@@ -355,6 +355,7 @@ Record architecture decisions here or link a dedicated decision record.
 | 2026-07-17 | Carry grouped settings presentation through the Android/shared shell. | Connection, general, playback, cache, and sync state should cross every host boundary in the same five models; Android diagnostics and storage-location presentation belong in those models, while Android I/O remains adapter-owned. |
 | 2026-07-17 | Carry grouped settings actions through the Android/shared shell. | Connection, sync, value-update, and maintenance intent should cross Android and shared UI as the same four contracts used by Desktop; document launchers and all platform execution remain host adapters. |
 | 2026-07-18 | Carry grouped downloads presentation through the Android/shared shell. | Download rows, mapped job progress, storage totals, status, and offline-dashboard state should cross Android and shared UI as one `NaviampDownloadsScreenUi`; durable work scheduling, repositories, and filesystem execution remain Android-owned. |
+| 2026-07-18 | Carry grouped downloads actions through the Android/shared shell. | Track actions, job cancellation and retry, refresh, keep-favorites policy, and delete-all intent should cross Android and shared UI as one `NaviampDownloadsActions`; Android coordinators, durable work, repositories, and filesystem execution remain the executors. |
 
 ## Shared Controller Construction Audit
 
@@ -380,7 +381,7 @@ The 2026-07-17 audit covers every current application entry point:
 
 ## Current Handoff
 
-- **Last completed item:** Android, Desktop, and the public/private shared shell now carry downloads presentation as one `NaviampDownloadsScreenUi`. Android maps shared download-job services into UI rows at the host boundary; durable work scheduling, repositories, and filesystem execution remain Android-owned.
-- **Next recommended item:** Group downloads intent at the Android/public shared-shell boundary behind one focused shared action contract. Preserve Android durable-work and filesystem ownership.
+- **Last completed item:** Android and the public/private shared shell now carry downloads presentation and intent as `NaviampDownloadsScreenUi` and `NaviampDownloadsActions`. Android maps shared job services into UI rows and supplies the action executors; durable work scheduling, repositories, and filesystem execution remain Android-owned.
+- **Next recommended item:** Carry the existing `NaviampSearchScreenUi` and `NaviampLibraryScreenUi` presentation groups through the public/private shared shell instead of decomposing them into flat fields, then group their focused actions without moving provider queries, paging, playback, or navigation execution.
 - **Verification:** `:core:domain:jvmTest`, `:core:app:jvmTest`, `:core:storage:jvmTest`, `:core:ui:jvmTest`, `:apps:android:testDebugUnitTest`, `:apps:desktop:desktopTest`, `:core:app:iosSimulatorArm64Test`, `:core:storage:compileKotlinIosSimulatorArm64`, and `:core:ui:compileKotlinIosSimulatorArm64` pass together with at most two Gradle workers.
 - **Known blockers:** None.

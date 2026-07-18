@@ -16,6 +16,7 @@ import app.naviamp.ui.SharedTrackRowUi
 import app.naviamp.ui.DownloadedTrackActionRequest
 import app.naviamp.ui.NaviampNowPlayingItemUi
 import app.naviamp.ui.NaviampConnectionSettingsActions
+import app.naviamp.ui.NaviampDownloadsActions
 import app.naviamp.ui.NaviampPlaylistChoiceUi
 import app.naviamp.ui.NaviampSavedConnectionUi
 import app.naviamp.ui.NaviampVisualizer
@@ -339,6 +340,14 @@ fun androidAppShellActions(
                 onAddToQueue = handleSonicMixAddToQueue,
                 onSaveAsPlaylist = handleSonicMixSaveAsPlaylist,
             ),
+            downloadsActions = NaviampDownloadsActions(
+                onTrackAction = handleDownloadedTrackAction,
+                onCancelJob = cancelDownloadJob,
+                onRetryJob = retryDownloadJob,
+                onRefresh = refreshDownloads,
+                onToggleKeepFavoritesDownloaded = toggleKeepFavoritesDownloaded,
+                onDeleteAll = deleteAllDownloads,
+            ),
             onLibraryQueryChanged = updateAndroidLibraryQuery,
             onRefreshHome = refreshHome,
             onRefreshLibrary = refreshAndroidLibrary,
@@ -346,12 +355,6 @@ fun androidAppShellActions(
             onRefreshPlaylists = refreshPlaylists,
             onRefreshRadioStations = refreshInternetRadioStations,
             onTrackSelected = handleShellTrackSelected,
-            onDownloadedTrackAction = handleDownloadedTrackAction,
-            onCancelDownloadJob = cancelDownloadJob,
-            onRetryDownloadJob = retryDownloadJob,
-            onRefreshDownloads = refreshDownloads,
-            onToggleKeepFavoritesDownloaded = toggleKeepFavoritesDownloaded,
-            onDeleteAllDownloads = deleteAllDownloads,
             onAlbumSelected = handleShellAlbumSelected,
             onAlbumFavoriteToggled = handleAlbumFavoriteToggled,
             onMixAlbumSelected = handleMixAlbumSelected,

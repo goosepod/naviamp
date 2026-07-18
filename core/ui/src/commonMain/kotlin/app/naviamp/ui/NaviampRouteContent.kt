@@ -593,14 +593,9 @@ internal fun LibraryContent(
 internal fun DownloadsContent(
     colors: NaviampColors,
     screen: NaviampDownloadsScreenUi,
+    actions: NaviampDownloadsActions,
     playlistChoices: List<NaviampPlaylistChoiceUi>,
     playlistActionStatus: String?,
-    onDownloadAction: (DownloadedTrackActionRequest) -> Unit,
-    onCancelDownloadJob: (String) -> Unit,
-    onRetryDownloadJob: (String) -> Unit,
-    onRefreshDownloads: () -> Unit,
-    onToggleKeepFavoritesDownloaded: () -> Unit,
-    onDeleteAllDownloads: () -> Unit,
 ) {
     val downloads = screen.downloads
     var downloadForPlaylist by remember { mutableStateOf<NaviampDownloadedTrackUi?>(null) }
@@ -612,12 +607,12 @@ internal fun DownloadsContent(
         handleDownloadedTrackAction(
             request,
             DownloadedTrackActionHandlers(
-                onSelect = { onDownloadAction(request) },
+                onSelect = { actions.onTrackAction(request) },
                 onAddToPlaylist = { download, playlist ->
-                    if (playlist == null) downloadForPlaylist = download else onDownloadAction(request)
+                    if (playlist == null) downloadForPlaylist = download else actions.onTrackAction(request)
                 },
-                onCreatePlaylistAndAdd = { _, _ -> onDownloadAction(request) },
-                onRemove = { onDownloadAction(request) },
+                onCreatePlaylistAndAdd = { _, _ -> actions.onTrackAction(request) },
+                onRemove = { actions.onTrackAction(request) },
             ),
         )
     }
@@ -658,11 +653,11 @@ internal fun DownloadsContent(
                 NaviampRowOverflowMenu(
                     colors = colors,
                     items = listOf(
-                        NaviampRowMenuItem("Refresh", NaviampIcons.Refresh, onRefreshDownloads),
+                        NaviampRowMenuItem("Refresh", NaviampIcons.Refresh, actions.onRefresh),
                         NaviampRowMenuItem(
                             if (screen.keepFavoritesDownloaded) "Stop keeping favorites downloaded" else "Keep favorites downloaded",
                             NaviampTransportIcons.Heart,
-                            onToggleKeepFavoritesDownloaded,
+                            actions.onToggleKeepFavoritesDownloaded,
                         ),
                         NaviampRowMenuItem("Delete All", NaviampIcons.Trash, { confirmDeleteAll = true }, downloads.isNotEmpty()),
                     ),
@@ -707,8 +702,8 @@ internal fun DownloadsContent(
                 DownloadJobCard(
                     colors = colors,
                     job = job,
-                    onCancel = { onCancelDownloadJob(job.id) },
-                    onRetry = { onRetryDownloadJob(job.id) },
+                    onCancel = { actions.onCancelJob(job.id) },
+                    onRetry = { actions.onRetryJob(job.id) },
                 )
             }
         }
@@ -822,7 +817,7 @@ internal fun DownloadsContent(
             confirmButton = {
                 TextButton(onClick = {
                     confirmDeleteAll = false
-                    onDeleteAllDownloads()
+                actions.onDeleteAll()
                 }) { Text("Delete All") }
             },
             dismissButton = {
