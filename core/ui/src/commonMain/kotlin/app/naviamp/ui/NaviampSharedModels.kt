@@ -866,14 +866,20 @@ data class NaviampPlaybackSettingsUi(
     val audioOutputDeviceSelectionAvailable: Boolean = false,
     val audioOutputDevices: List<AudioOutputDevice> = emptyList(),
     val sonicSimilarityAvailable: Boolean = false,
+    val showMobileNetworkQuality: Boolean = false,
     val downloadBytes: Long = 0L,
 )
 
 data class NaviampCacheSettingsUi(
     val settings: CacheSettings = CacheSettings(),
+    val diagnostics: NaviampDiagnosticsUi = NaviampDiagnosticsUi(),
     val downloadsDiagnostics: NaviampDiagnosticsUi = NaviampDiagnosticsUi(),
     val audioCacheDiagnostics: NaviampDiagnosticsUi = NaviampDiagnosticsUi(),
     val fileSelectionAvailable: Boolean = false,
+    val downloadLocations: List<NaviampStorageLocationUi> = emptyList(),
+    val audioCacheLocations: List<NaviampStorageLocationUi> = emptyList(),
+    val selectedDownloadLocationId: String? = null,
+    val selectedAudioCacheLocationId: String? = null,
 )
 
 data class NaviampShellCapabilitiesUi(
@@ -936,6 +942,7 @@ fun PlaybackSettings.toPlaybackSettingsUi(
         audioOutputDeviceSelectionAvailable = audioOutputDeviceSelectionAvailable,
         audioOutputDevices = audioOutputDevices,
         sonicSimilarityAvailable = capabilities.sonicSimilarity,
+        showMobileNetworkQuality = capabilities.showMobileNetworkQuality,
         downloadBytes = downloadBytes,
     )
 

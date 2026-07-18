@@ -1,7 +1,12 @@
 package app.naviamp.android
 
 import androidx.compose.runtime.Composable
+import app.naviamp.ui.NaviampCacheSettingsUi
 import app.naviamp.ui.NaviampSharedAppShell
+import app.naviamp.ui.settingsSyncUi
+import app.naviamp.ui.toConnectionSettingsUi
+import app.naviamp.ui.toGeneralSettingsUi
+import app.naviamp.ui.toPlaybackSettingsUi
 
 @Composable
 fun AndroidAppShellContent(
@@ -17,34 +22,29 @@ fun AndroidAppShellContent(
 ) {
     NaviampSharedAppShell(
         modifier = state.modifier,
-        status = state.connection.status.orEmpty(),
-        serverVersion = state.connection.serverVersion,
-        connected = state.connection.connected,
-        editingConnection = state.connection.editingConnection,
-        restoringConnection = state.connection.restoringConnection,
-        connectionForm = state.connection.form,
-        interfaceSettings = state.interfaceSettings,
-        savedConnections = state.connection.savedConnections,
-        isConnectionFormOpen = state.connection.editingConnection,
-        isConnecting = state.connection.isConnecting,
-        connectionStatus = state.connection.status,
-        settingsSyncStatus = settingsSyncStatus,
-        availableMusicFolders = state.connection.availableMusicFolders,
-        musicFoldersStatus = state.connection.musicFoldersStatus,
-        hasSavedConnection = state.connection.hasSavedConnection,
-        playbackSettings = state.playbackSettings,
-        cacheSettings = state.cacheSettings,
-        diagnostics = state.diagnostics,
-        about = state.about,
-        supportsReplayGain = state.capabilities.replayGain,
-        supportsGapless = state.capabilities.gapless,
-        supportsCrossfade = state.capabilities.crossfade,
-        supportsEqualizer = state.capabilities.equalizer,
-        supportsSonicSimilarity = state.capabilities.sonicSimilarity,
+        connectionSettings = state.connection.toConnectionSettingsUi(state.capabilities),
+        general = state.interfaceSettings.toGeneralSettingsUi(state.about),
+        playback = state.playbackSettings.toPlaybackSettingsUi(
+            capabilities = state.capabilities,
+            downloadBytes = state.downloadBytes,
+        ),
+        cache = NaviampCacheSettingsUi(
+            settings = state.cacheSettings,
+            diagnostics = state.diagnostics,
+            fileSelectionAvailable = state.capabilities.fileSelection,
+            downloadLocations = state.downloadLocations,
+            audioCacheLocations = state.audioCacheLocations,
+            selectedDownloadLocationId = state.selectedDownloadLocationId,
+            selectedAudioCacheLocationId = state.selectedAudioCacheLocationId,
+        ),
+        settingsSync = settingsSyncUi(
+            directoryPath = null,
+            autoExportEnabled = settingsSyncAutoExportEnabled,
+            status = settingsSyncStatus,
+            capabilities = state.capabilities,
+        ),
         supportsDownloads = state.capabilities.downloads,
         supportsApplicationUpdates = state.capabilities.applicationUpdates,
-        connectionCapabilities = state.capabilities.connection,
-        showMobileNetworkQuality = state.capabilities.showMobileNetworkQuality,
         selectedVisualizer = state.selectedVisualizer,
         visualizerBandsProvider = state.visualizerBandsProvider,
         query = state.search.query,
@@ -66,10 +66,6 @@ fun AndroidAppShellContent(
         downloadStatus = state.downloadStatus,
         downloadJobs = state.downloadJobs,
         keepFavoritesDownloaded = state.keepFavoritesDownloaded,
-        downloadLocations = state.downloadLocations,
-        audioCacheLocations = state.audioCacheLocations,
-        selectedDownloadLocationId = state.selectedDownloadLocationId,
-        selectedAudioCacheLocationId = state.selectedAudioCacheLocationId,
         playlistItems = state.playlistItems,
         recentPlaylistIds = state.recentPlaylistIds,
         playlistSortMode = state.playlistSortMode,
@@ -104,7 +100,6 @@ fun AndroidAppShellContent(
         onExportSettingsSyncFolder = onExportSettingsSyncFolder.takeIf {
             state.capabilities.settingsImportExport && state.capabilities.fileSelection
         },
-        settingsSyncAutoExportEnabled = settingsSyncAutoExportEnabled,
         onSettingsSyncAutoExportChanged = onSettingsSyncAutoExportChanged,
         onCancelEditConnection = actions.onCancelEditConnection,
         onInterfaceSettingsChanged = actions.onInterfaceSettingsChanged,
