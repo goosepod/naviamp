@@ -17,8 +17,10 @@ import app.naviamp.ui.DownloadedTrackActionRequest
 import app.naviamp.ui.NaviampNowPlayingItemUi
 import app.naviamp.ui.NaviampConnectionSettingsActions
 import app.naviamp.ui.NaviampDownloadsActions
+import app.naviamp.ui.NaviampLibraryActions
 import app.naviamp.ui.NaviampPlaylistChoiceUi
 import app.naviamp.ui.NaviampSavedConnectionUi
+import app.naviamp.ui.NaviampSearchActions
 import app.naviamp.ui.NaviampVisualizer
 import app.naviamp.ui.NaviampSettingsMaintenanceActions
 import app.naviamp.ui.NaviampSettingsValueActions
@@ -277,16 +279,18 @@ fun androidAppShellActions(
                 onClearLibrary = handleClearLibrary,
                 onResetDatabase = handleResetDatabase,
             ),
-            onQueryChanged = { contentState = contentState.copy(searchQuery = it) },
-            onSearch = handleSearch,
-            onClearSearch = {
-                contentState = contentState.copy(
-                    searchQuery = "",
-                    searchResults = app.naviamp.domain.provider.MediaSearchResults(),
-                )
-                tracks = emptyList()
-                status = ""
-            },
+            searchActions = NaviampSearchActions(
+                onQueryChanged = { contentState = contentState.copy(searchQuery = it) },
+                onSearch = handleSearch,
+                onClear = {
+                    contentState = contentState.copy(
+                        searchQuery = "",
+                        searchResults = app.naviamp.domain.provider.MediaSearchResults(),
+                    )
+                    tracks = emptyList()
+                    status = ""
+                },
+            ),
             artistMixActions = SharedArtistMixBuilderActions(
                 onQueryChanged = { artistMixQuery = it },
                 onSearch = handleArtistMixSearch,
@@ -348,10 +352,12 @@ fun androidAppShellActions(
                 onToggleKeepFavoritesDownloaded = toggleKeepFavoritesDownloaded,
                 onDeleteAll = deleteAllDownloads,
             ),
-            onLibraryQueryChanged = updateAndroidLibraryQuery,
+            libraryActions = NaviampLibraryActions(
+                onQueryChanged = updateAndroidLibraryQuery,
+                onRefresh = refreshAndroidLibrary,
+                onLoadMore = loadNextAndroidLibraryPage,
+            ),
             onRefreshHome = refreshHome,
-            onRefreshLibrary = refreshAndroidLibrary,
-            onLoadMoreLibrary = loadNextAndroidLibraryPage,
             onRefreshPlaylists = refreshPlaylists,
             onRefreshRadioStations = refreshInternetRadioStations,
             onTrackSelected = handleShellTrackSelected,

@@ -587,10 +587,22 @@ data class NaviampSearchScreenUi(
     val searching: Boolean = false,
 )
 
+data class NaviampSearchActions(
+    val onQueryChanged: (String) -> Unit = {},
+    val onSearch: () -> Unit = {},
+    val onClear: () -> Unit = {},
+)
+
 data class NaviampLibraryScreenUi(
     val artists: List<SharedMediaItemUi> = emptyList(),
     val query: String = "",
     val syncStatus: NaviampLibrarySyncStatusUi = NaviampLibrarySyncStatusUi(),
+)
+
+data class NaviampLibraryActions(
+    val onQueryChanged: (String) -> Unit = {},
+    val onRefresh: () -> Unit = {},
+    val onLoadMore: () -> Unit = {},
 )
 
 data class SharedArtistMixBuilderUi(

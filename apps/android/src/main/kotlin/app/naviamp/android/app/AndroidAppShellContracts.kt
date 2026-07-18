@@ -54,7 +54,9 @@ import app.naviamp.ui.SharedTrackRowUi
 import app.naviamp.ui.NaviampShellCapabilitiesUi
 import app.naviamp.ui.NaviampShellConnectionUi
 import app.naviamp.ui.NaviampLibraryScreenUi
+import app.naviamp.ui.NaviampLibraryActions
 import app.naviamp.ui.NaviampSearchScreenUi
+import app.naviamp.ui.NaviampSearchActions
 
 data class AndroidAppShellUiState(
     val modifier: Modifier,
@@ -102,19 +104,15 @@ data class AndroidAppShellActions(
     val connectionActions: NaviampConnectionSettingsActions,
     val valueActions: NaviampSettingsValueActions,
     val maintenanceActions: NaviampSettingsMaintenanceActions,
-    val onQueryChanged: (String) -> Unit,
-    val onSearch: () -> Unit,
-    val onClearSearch: () -> Unit,
+    val searchActions: NaviampSearchActions,
     val artistMixActions: SharedArtistMixBuilderActions,
     val albumMixActions: SharedAlbumMixBuilderActions,
     val genreMixActions: SharedGenreMixBuilderActions,
     val sonicPathActions: SharedSonicPathBuilderActions,
     val sonicMixActions: SharedSonicMixBuilderActions,
     val downloadsActions: NaviampDownloadsActions,
-    val onLibraryQueryChanged: (String) -> Unit,
+    val libraryActions: NaviampLibraryActions,
     val onRefreshHome: () -> Unit,
-    val onRefreshLibrary: () -> Unit,
-    val onLoadMoreLibrary: () -> Unit,
     val onRefreshPlaylists: () -> Unit,
     val onRefreshRadioStations: () -> Unit,
     val onTrackSelected: (SharedTrackRowUi) -> Unit,
