@@ -858,14 +858,15 @@ fun SharedAlbumGridTile(
 fun ArtistMixBuilderContent(
     colors: NaviampColors,
     builder: SharedArtistMixBuilderUi,
-    onQueryChanged: (String) -> Unit,
-    onSearch: () -> Unit,
-    onArtistSelected: (SharedMediaItemUi) -> Unit,
-    onArtistRemoved: (SharedMediaItemUi) -> Unit,
-    onReset: () -> Unit,
-    onPlayMix: () -> Unit,
+    actions: SharedArtistMixBuilderActions,
     showPlayMixButton: Boolean = true,
 ) {
+    val onQueryChanged = actions.onQueryChanged
+    val onSearch = actions.onSearch
+    val onArtistSelected = actions.onArtistSelected
+    val onArtistRemoved = actions.onArtistRemoved
+    val onReset = actions.onReset
+    val onPlayMix = actions.onPlay
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Row(
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -942,14 +943,15 @@ fun ArtistMixBuilderContent(
 fun AlbumMixBuilderContent(
     colors: NaviampColors,
     builder: SharedAlbumMixBuilderUi,
-    onQueryChanged: (String) -> Unit,
-    onSearch: () -> Unit,
-    onAlbumSelected: (SharedMediaItemUi) -> Unit,
-    onAlbumRemoved: (SharedMediaItemUi) -> Unit,
-    onReset: () -> Unit,
-    onPlayMix: () -> Unit,
+    actions: SharedAlbumMixBuilderActions,
     showPlayMixButton: Boolean = true,
 ) {
+    val onQueryChanged = actions.onQueryChanged
+    val onSearch = actions.onSearch
+    val onAlbumSelected = actions.onAlbumSelected
+    val onAlbumRemoved = actions.onAlbumRemoved
+    val onReset = actions.onReset
+    val onPlayMix = actions.onPlay
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Row(
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -1026,14 +1028,15 @@ fun AlbumMixBuilderContent(
 fun GenreMixBuilderContent(
     colors: NaviampColors,
     builder: SharedGenreMixBuilderUi,
-    onQueryChanged: (String) -> Unit,
-    onSearch: () -> Unit,
-    onGenreSelected: (SharedGenreMixItemUi) -> Unit,
-    onGenreRemoved: (SharedGenreMixItemUi) -> Unit,
-    onReset: () -> Unit,
-    onPlayMix: () -> Unit,
+    actions: SharedGenreMixBuilderActions,
     showPlayMixButton: Boolean = true,
 ) {
+    val onQueryChanged = actions.onQueryChanged
+    val onSearch = actions.onSearch
+    val onGenreSelected = actions.onGenreSelected
+    val onGenreRemoved = actions.onGenreRemoved
+    val onReset = actions.onReset
+    val onPlayMix = actions.onPlay
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Row(
             horizontalArrangement = Arrangement.SpaceBetween,

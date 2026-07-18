@@ -100,6 +100,9 @@ import app.naviamp.ui.NaviampPlaylistDetailScreenUi
 import app.naviamp.ui.NaviampPlaylistsScreenUi
 import app.naviamp.ui.NaviampShellCapabilitiesUi
 import app.naviamp.ui.NaviampShellConnectionUi
+import app.naviamp.ui.SharedAlbumMixBuilderActions
+import app.naviamp.ui.SharedArtistMixBuilderActions
+import app.naviamp.ui.SharedGenreMixBuilderActions
 import app.naviamp.ui.NaviampSleepTimerExpiryEffect
 import app.naviamp.ui.NowPlayingDisplayAction
 import app.naviamp.ui.NowPlayingDisplayActionRequest
@@ -1736,28 +1739,34 @@ fun NaviampApp(
                             artistMixBuilder = mixBuilderController.artistUi(
                                 coverArtUrl = { coverArtId -> coverArtId?.let { connectedProvider?.coverArtUrl(it) } },
                             ),
-                            onArtistMixQueryChanged = mixBuilderController::setArtistQuery,
-                            onArtistMixSearch = mixBuilderController::searchArtistSuggestions,
-                            onArtistMixArtistSelected = { item -> mixBuilderController.selectArtistByItemId(item.id) },
-                            onArtistMixArtistRemoved = { item -> mixBuilderController.removeArtistByItemId(item.id) },
-                            onArtistMixReset = mixBuilderController::resetArtistBuilder,
-                            onArtistMixPlay = { mixBuilderController.playArtistMix(radioController) },
+                            artistMixActions = SharedArtistMixBuilderActions(
+                                onQueryChanged = mixBuilderController::setArtistQuery,
+                                onSearch = mixBuilderController::searchArtistSuggestions,
+                                onArtistSelected = { item -> mixBuilderController.selectArtistByItemId(item.id) },
+                                onArtistRemoved = { item -> mixBuilderController.removeArtistByItemId(item.id) },
+                                onReset = mixBuilderController::resetArtistBuilder,
+                                onPlay = { mixBuilderController.playArtistMix(radioController) },
+                            ),
                             albumMixBuilder = mixBuilderController.albumUi(
                                 coverArtUrl = { coverArtId -> coverArtId?.let { connectedProvider?.coverArtUrl(it) } },
                             ),
-                            onAlbumMixQueryChanged = mixBuilderController::setAlbumQuery,
-                            onAlbumMixSearch = mixBuilderController::searchAlbumSuggestions,
-                            onAlbumMixAlbumSelected = { item -> mixBuilderController.selectAlbumByItemId(item.id) },
-                            onAlbumMixAlbumRemoved = { item -> mixBuilderController.removeAlbumByItemId(item.id) },
-                            onAlbumMixReset = mixBuilderController::resetAlbumBuilder,
-                            onAlbumMixPlay = { mixBuilderController.playAlbumMix(radioController) },
+                            albumMixActions = SharedAlbumMixBuilderActions(
+                                onQueryChanged = mixBuilderController::setAlbumQuery,
+                                onSearch = mixBuilderController::searchAlbumSuggestions,
+                                onAlbumSelected = { item -> mixBuilderController.selectAlbumByItemId(item.id) },
+                                onAlbumRemoved = { item -> mixBuilderController.removeAlbumByItemId(item.id) },
+                                onReset = mixBuilderController::resetAlbumBuilder,
+                                onPlay = { mixBuilderController.playAlbumMix(radioController) },
+                            ),
                             genreMixBuilder = mixBuilderController.genreUi(),
-                            onGenreMixQueryChanged = mixBuilderController::setGenreQuery,
-                            onGenreMixSearch = mixBuilderController::refreshGenreSuggestions,
-                            onGenreMixGenreSelected = { item -> mixBuilderController.selectGenreByItemId(item.id) },
-                            onGenreMixGenreRemoved = { item -> mixBuilderController.removeGenreByItemId(item.id) },
-                            onGenreMixReset = mixBuilderController::resetGenreBuilder,
-                            onGenreMixPlay = { mixBuilderController.playGenreMix(radioController) },
+                            genreMixActions = SharedGenreMixBuilderActions(
+                                onQueryChanged = mixBuilderController::setGenreQuery,
+                                onSearch = mixBuilderController::refreshGenreSuggestions,
+                                onGenreSelected = { item -> mixBuilderController.selectGenreByItemId(item.id) },
+                                onGenreRemoved = { item -> mixBuilderController.removeGenreByItemId(item.id) },
+                                onReset = mixBuilderController::resetGenreBuilder,
+                                onPlay = { mixBuilderController.playGenreMix(radioController) },
+                            ),
                             sonicPathBuilder = sonicPathController.ui(
                                 coverArtUrl = { coverArtId -> coverArtId?.let { connectedProvider?.coverArtUrl(it) } },
                             ),

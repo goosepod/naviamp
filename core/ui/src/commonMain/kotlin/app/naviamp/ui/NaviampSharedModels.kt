@@ -592,6 +592,15 @@ data class SharedArtistMixBuilderUi(
     val loading: Boolean = false,
 )
 
+data class SharedArtistMixBuilderActions(
+    val onQueryChanged: (String) -> Unit = {},
+    val onSearch: () -> Unit = {},
+    val onArtistSelected: (SharedMediaItemUi) -> Unit = {},
+    val onArtistRemoved: (SharedMediaItemUi) -> Unit = {},
+    val onReset: () -> Unit = {},
+    val onPlay: () -> Unit = {},
+)
+
 data class SharedAlbumMixBuilderUi(
     val query: String = "",
     val selectedAlbums: List<SharedMediaItemUi> = emptyList(),
@@ -600,12 +609,30 @@ data class SharedAlbumMixBuilderUi(
     val loading: Boolean = false,
 )
 
+data class SharedAlbumMixBuilderActions(
+    val onQueryChanged: (String) -> Unit = {},
+    val onSearch: () -> Unit = {},
+    val onAlbumSelected: (SharedMediaItemUi) -> Unit = {},
+    val onAlbumRemoved: (SharedMediaItemUi) -> Unit = {},
+    val onReset: () -> Unit = {},
+    val onPlay: () -> Unit = {},
+)
+
 data class SharedGenreMixBuilderUi(
     val query: String = "",
     val selectedGenres: List<SharedGenreMixItemUi> = emptyList(),
     val suggestedGenres: List<SharedGenreMixItemUi> = emptyList(),
     val status: String? = null,
     val loading: Boolean = false,
+)
+
+data class SharedGenreMixBuilderActions(
+    val onQueryChanged: (String) -> Unit = {},
+    val onSearch: () -> Unit = {},
+    val onGenreSelected: (SharedGenreMixItemUi) -> Unit = {},
+    val onGenreRemoved: (SharedGenreMixItemUi) -> Unit = {},
+    val onReset: () -> Unit = {},
+    val onPlay: () -> Unit = {},
 )
 
 data class SharedSonicPathBuilderUi(

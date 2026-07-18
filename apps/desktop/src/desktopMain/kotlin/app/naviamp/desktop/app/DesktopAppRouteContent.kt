@@ -55,8 +55,11 @@ import app.naviamp.ui.NaviampSearchScreenUi
 import app.naviamp.ui.NaviampShellCapabilitiesUi
 import app.naviamp.ui.NaviampShellConnectionUi
 import app.naviamp.ui.SharedAlbumMixBuilderUi
+import app.naviamp.ui.SharedAlbumMixBuilderActions
 import app.naviamp.ui.SharedArtistMixBuilderUi
+import app.naviamp.ui.SharedArtistMixBuilderActions
 import app.naviamp.ui.SharedGenreMixBuilderUi
+import app.naviamp.ui.SharedGenreMixBuilderActions
 import app.naviamp.ui.SharedGenreMixItemUi
 import app.naviamp.ui.SharedHomeRoute
 import app.naviamp.ui.SharedHomeDiscoveryTrackActionRequest
@@ -122,26 +125,11 @@ fun ColumnScope.DesktopAppRouteContent(
     onLibraryQueryChanged: (String) -> Unit,
     search: NaviampSearchScreenUi,
     artistMixBuilder: SharedArtistMixBuilderUi,
-    onArtistMixQueryChanged: (String) -> Unit,
-    onArtistMixSearch: () -> Unit,
-    onArtistMixArtistSelected: (SharedMediaItemUi) -> Unit,
-    onArtistMixArtistRemoved: (SharedMediaItemUi) -> Unit,
-    onArtistMixReset: () -> Unit,
-    onArtistMixPlay: () -> Unit,
+    artistMixActions: SharedArtistMixBuilderActions,
     albumMixBuilder: SharedAlbumMixBuilderUi,
-    onAlbumMixQueryChanged: (String) -> Unit,
-    onAlbumMixSearch: () -> Unit,
-    onAlbumMixAlbumSelected: (SharedMediaItemUi) -> Unit,
-    onAlbumMixAlbumRemoved: (SharedMediaItemUi) -> Unit,
-    onAlbumMixReset: () -> Unit,
-    onAlbumMixPlay: () -> Unit,
+    albumMixActions: SharedAlbumMixBuilderActions,
     genreMixBuilder: SharedGenreMixBuilderUi,
-    onGenreMixQueryChanged: (String) -> Unit,
-    onGenreMixSearch: () -> Unit,
-    onGenreMixGenreSelected: (SharedGenreMixItemUi) -> Unit,
-    onGenreMixGenreRemoved: (SharedGenreMixItemUi) -> Unit,
-    onGenreMixReset: () -> Unit,
-    onGenreMixPlay: () -> Unit,
+    genreMixActions: SharedGenreMixBuilderActions,
     sonicPathBuilder: SharedSonicPathBuilderUi,
     onSonicPathStartQueryChanged: (String) -> Unit,
     onSonicPathEndQueryChanged: (String) -> Unit,
@@ -703,18 +691,13 @@ fun ColumnScope.DesktopAppRouteContent(
                         ArtistMixBuilderContent(
                             colors = appColors,
                             builder = artistMixBuilder,
-                            onQueryChanged = onArtistMixQueryChanged,
-                            onSearch = onArtistMixSearch,
-                            onArtistSelected = onArtistMixArtistSelected,
-                            onArtistRemoved = onArtistMixArtistRemoved,
-                            onReset = onArtistMixReset,
-                            onPlayMix = onArtistMixPlay,
+                            actions = artistMixActions,
                             showPlayMixButton = false,
                         )
                     }
                     if (artistMixBuilder.selectedArtists.isNotEmpty()) {
                         Button(
-                            onClick = onArtistMixPlay,
+                            onClick = artistMixActions.onPlay,
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = appColors.accent,
                                 contentColor = appColors.onAccent,
@@ -737,18 +720,13 @@ fun ColumnScope.DesktopAppRouteContent(
                         AlbumMixBuilderContent(
                             colors = appColors,
                             builder = albumMixBuilder,
-                            onQueryChanged = onAlbumMixQueryChanged,
-                            onSearch = onAlbumMixSearch,
-                            onAlbumSelected = onAlbumMixAlbumSelected,
-                            onAlbumRemoved = onAlbumMixAlbumRemoved,
-                            onReset = onAlbumMixReset,
-                            onPlayMix = onAlbumMixPlay,
+                            actions = albumMixActions,
                             showPlayMixButton = false,
                         )
                     }
                     if (albumMixBuilder.selectedAlbums.isNotEmpty()) {
                         Button(
-                            onClick = onAlbumMixPlay,
+                            onClick = albumMixActions.onPlay,
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = appColors.accent,
                                 contentColor = appColors.onAccent,
@@ -771,18 +749,13 @@ fun ColumnScope.DesktopAppRouteContent(
                         GenreMixBuilderContent(
                             colors = appColors,
                             builder = genreMixBuilder,
-                            onQueryChanged = onGenreMixQueryChanged,
-                            onSearch = onGenreMixSearch,
-                            onGenreSelected = onGenreMixGenreSelected,
-                            onGenreRemoved = onGenreMixGenreRemoved,
-                            onReset = onGenreMixReset,
-                            onPlayMix = onGenreMixPlay,
+                            actions = genreMixActions,
                             showPlayMixButton = false,
                         )
                     }
                     if (genreMixBuilder.selectedGenres.isNotEmpty()) {
                         Button(
-                            onClick = onGenreMixPlay,
+                            onClick = genreMixActions.onPlay,
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = appColors.accent,
                                 contentColor = appColors.onAccent,

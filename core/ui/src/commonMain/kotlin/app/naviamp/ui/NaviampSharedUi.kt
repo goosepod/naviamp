@@ -1626,12 +1626,14 @@ private fun ConnectedContent(
                     ArtistMixBuilderContent(
                         colors = colors,
                         builder = artistMixBuilder,
-                        onQueryChanged = onArtistMixQueryChanged,
-                        onSearch = onArtistMixSearch,
-                        onArtistSelected = onArtistMixArtistSelected,
-                        onArtistRemoved = onArtistMixArtistRemoved,
-                        onReset = onArtistMixReset,
-                        onPlayMix = onArtistMixPlay,
+                        actions = SharedArtistMixBuilderActions(
+                            onQueryChanged = onArtistMixQueryChanged,
+                            onSearch = onArtistMixSearch,
+                            onArtistSelected = onArtistMixArtistSelected,
+                            onArtistRemoved = onArtistMixArtistRemoved,
+                            onReset = onArtistMixReset,
+                            onPlay = onArtistMixPlay,
+                        ),
                         showPlayMixButton = false,
                     )
                 }
@@ -1651,12 +1653,14 @@ private fun ConnectedContent(
                     AlbumMixBuilderContent(
                         colors = colors,
                         builder = albumMixBuilder,
-                        onQueryChanged = onAlbumMixQueryChanged,
-                        onSearch = onAlbumMixSearch,
-                        onAlbumSelected = onAlbumMixAlbumSelected,
-                        onAlbumRemoved = onAlbumMixAlbumRemoved,
-                        onReset = onAlbumMixReset,
-                        onPlayMix = onAlbumMixPlay,
+                        actions = SharedAlbumMixBuilderActions(
+                            onQueryChanged = onAlbumMixQueryChanged,
+                            onSearch = onAlbumMixSearch,
+                            onAlbumSelected = onAlbumMixAlbumSelected,
+                            onAlbumRemoved = onAlbumMixAlbumRemoved,
+                            onReset = onAlbumMixReset,
+                            onPlay = onAlbumMixPlay,
+                        ),
                         showPlayMixButton = false,
                     )
                 }
@@ -1676,12 +1680,14 @@ private fun ConnectedContent(
                     GenreMixBuilderContent(
                         colors = colors,
                         builder = genreMixBuilder,
-                        onQueryChanged = onGenreMixQueryChanged,
-                        onSearch = onGenreMixSearch,
-                        onGenreSelected = onGenreMixGenreSelected,
-                        onGenreRemoved = onGenreMixGenreRemoved,
-                        onReset = onGenreMixReset,
-                        onPlayMix = onGenreMixPlay,
+                        actions = SharedGenreMixBuilderActions(
+                            onQueryChanged = onGenreMixQueryChanged,
+                            onSearch = onGenreMixSearch,
+                            onGenreSelected = onGenreMixGenreSelected,
+                            onGenreRemoved = onGenreMixGenreRemoved,
+                            onReset = onGenreMixReset,
+                            onPlay = onGenreMixPlay,
+                        ),
                         showPlayMixButton = false,
                     )
                 }
