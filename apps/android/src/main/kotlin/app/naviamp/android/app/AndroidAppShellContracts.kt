@@ -46,8 +46,9 @@ import app.naviamp.ui.SharedPlaylistDetailUi
 import app.naviamp.ui.SharedPlaylistSortMode
 import app.naviamp.ui.SharedRoute
 import app.naviamp.ui.SharedSimilarArtistUi
-import app.naviamp.ui.SharedSonicMixBiasUi
+import app.naviamp.ui.SharedSonicMixBuilderActions
 import app.naviamp.ui.SharedSonicMixBuilderUi
+import app.naviamp.ui.SharedSonicPathBuilderActions
 import app.naviamp.ui.SharedSonicPathBuilderUi
 import app.naviamp.ui.StationRowActionRequest
 import app.naviamp.ui.SharedTrackRowActionRequest
@@ -129,31 +130,8 @@ data class AndroidAppShellActions(
     val artistMixActions: SharedArtistMixBuilderActions,
     val albumMixActions: SharedAlbumMixBuilderActions,
     val genreMixActions: SharedGenreMixBuilderActions,
-    val onSonicPathStartQueryChanged: (String) -> Unit,
-    val onSonicPathEndQueryChanged: (String) -> Unit,
-    val onSonicPathStartSearch: () -> Unit,
-    val onSonicPathEndSearch: () -> Unit,
-    val onSonicPathStartTrackSelected: (SharedTrackRowUi) -> Unit,
-    val onSonicPathEndTrackSelected: (SharedTrackRowUi) -> Unit,
-    val onSonicPathStartTrackCleared: () -> Unit,
-    val onSonicPathEndTrackCleared: () -> Unit,
-    val onSonicPathCountChanged: (Int) -> Unit,
-    val onSonicPathBuild: () -> Unit,
-    val onSonicPathReset: () -> Unit,
-    val onSonicPathPlay: () -> Unit,
-    val onSonicPathAddToQueue: () -> Unit,
-    val onSonicPathSaveAsPlaylist: (String) -> Unit,
-    val onSonicMixQueryChanged: (String) -> Unit,
-    val onSonicMixSearch: () -> Unit,
-    val onSonicMixTrackSelected: (SharedTrackRowUi) -> Unit,
-    val onSonicMixTrackRemoved: (SharedTrackRowUi) -> Unit,
-    val onSonicMixTargetLengthChanged: (Int) -> Unit,
-    val onSonicMixBiasChanged: (SharedSonicMixBiasUi) -> Unit,
-    val onSonicMixBuild: () -> Unit,
-    val onSonicMixReset: () -> Unit,
-    val onSonicMixPlay: () -> Unit,
-    val onSonicMixAddToQueue: () -> Unit,
-    val onSonicMixSaveAsPlaylist: (String) -> Unit,
+    val sonicPathActions: SharedSonicPathBuilderActions,
+    val sonicMixActions: SharedSonicMixBuilderActions,
     val onLibraryQueryChanged: (String) -> Unit,
     val onRefreshHome: () -> Unit,
     val onRefreshLibrary: () -> Unit,

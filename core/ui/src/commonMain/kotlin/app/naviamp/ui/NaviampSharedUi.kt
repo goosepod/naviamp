@@ -195,31 +195,8 @@ fun NaviampSharedAppShell(
     artistMixActions: SharedArtistMixBuilderActions = SharedArtistMixBuilderActions(),
     albumMixActions: SharedAlbumMixBuilderActions = SharedAlbumMixBuilderActions(),
     genreMixActions: SharedGenreMixBuilderActions = SharedGenreMixBuilderActions(),
-    onSonicPathStartQueryChanged: (String) -> Unit = {},
-    onSonicPathEndQueryChanged: (String) -> Unit = {},
-    onSonicPathStartSearch: () -> Unit = {},
-    onSonicPathEndSearch: () -> Unit = {},
-    onSonicPathStartTrackSelected: (SharedTrackRowUi) -> Unit = {},
-    onSonicPathEndTrackSelected: (SharedTrackRowUi) -> Unit = {},
-    onSonicPathStartTrackCleared: () -> Unit = {},
-    onSonicPathEndTrackCleared: () -> Unit = {},
-    onSonicPathCountChanged: (Int) -> Unit = {},
-    onSonicPathBuild: () -> Unit = {},
-    onSonicPathReset: () -> Unit = {},
-    onSonicPathPlay: () -> Unit = {},
-    onSonicPathAddToQueue: () -> Unit = {},
-    onSonicPathSaveAsPlaylist: (String) -> Unit = {},
-    onSonicMixQueryChanged: (String) -> Unit = {},
-    onSonicMixSearch: () -> Unit = {},
-    onSonicMixTrackSelected: (SharedTrackRowUi) -> Unit = {},
-    onSonicMixTrackRemoved: (SharedTrackRowUi) -> Unit = {},
-    onSonicMixTargetLengthChanged: (Int) -> Unit = {},
-    onSonicMixBiasChanged: (SharedSonicMixBiasUi) -> Unit = {},
-    onSonicMixBuild: () -> Unit = {},
-    onSonicMixReset: () -> Unit = {},
-    onSonicMixPlay: () -> Unit = {},
-    onSonicMixAddToQueue: () -> Unit = {},
-    onSonicMixSaveAsPlaylist: (String) -> Unit = {},
+    sonicPathActions: SharedSonicPathBuilderActions = SharedSonicPathBuilderActions(),
+    sonicMixActions: SharedSonicMixBuilderActions = SharedSonicMixBuilderActions(),
     onLibraryQueryChanged: (String) -> Unit = {},
     onRefreshHome: () -> Unit = {},
     onRefreshLibrary: () -> Unit = {},
@@ -582,31 +559,8 @@ fun NaviampSharedAppShell(
                             artistMixActions = artistMixActions,
                             albumMixActions = albumMixActions,
                             genreMixActions = genreMixActions,
-            onSonicPathStartQueryChanged = onSonicPathStartQueryChanged,
-            onSonicPathEndQueryChanged = onSonicPathEndQueryChanged,
-            onSonicPathStartSearch = onSonicPathStartSearch,
-            onSonicPathEndSearch = onSonicPathEndSearch,
-            onSonicPathStartTrackSelected = onSonicPathStartTrackSelected,
-            onSonicPathEndTrackSelected = onSonicPathEndTrackSelected,
-            onSonicPathStartTrackCleared = onSonicPathStartTrackCleared,
-            onSonicPathEndTrackCleared = onSonicPathEndTrackCleared,
-            onSonicPathCountChanged = onSonicPathCountChanged,
-            onSonicPathBuild = onSonicPathBuild,
-            onSonicPathReset = onSonicPathReset,
-            onSonicPathPlay = onSonicPathPlay,
-            onSonicPathAddToQueue = onSonicPathAddToQueue,
-            onSonicPathSaveAsPlaylist = onSonicPathSaveAsPlaylist,
-            onSonicMixQueryChanged = onSonicMixQueryChanged,
-            onSonicMixSearch = onSonicMixSearch,
-            onSonicMixTrackSelected = onSonicMixTrackSelected,
-            onSonicMixTrackRemoved = onSonicMixTrackRemoved,
-            onSonicMixTargetLengthChanged = onSonicMixTargetLengthChanged,
-            onSonicMixBiasChanged = onSonicMixBiasChanged,
-            onSonicMixBuild = onSonicMixBuild,
-            onSonicMixReset = onSonicMixReset,
-            onSonicMixPlay = onSonicMixPlay,
-            onSonicMixAddToQueue = onSonicMixAddToQueue,
-            onSonicMixSaveAsPlaylist = onSonicMixSaveAsPlaylist,
+            sonicPathActions = sonicPathActions,
+            sonicMixActions = sonicMixActions,
                             onLibraryQueryChanged = onLibraryQueryChanged,
                             onRefreshHome = onRefreshHome,
                             onRefreshLibrary = onRefreshLibrary,
@@ -1188,31 +1142,8 @@ private fun ConnectedContent(
     artistMixActions: SharedArtistMixBuilderActions,
     albumMixActions: SharedAlbumMixBuilderActions,
     genreMixActions: SharedGenreMixBuilderActions,
-    onSonicPathStartQueryChanged: (String) -> Unit,
-    onSonicPathEndQueryChanged: (String) -> Unit,
-    onSonicPathStartSearch: () -> Unit,
-    onSonicPathEndSearch: () -> Unit,
-    onSonicPathStartTrackSelected: (SharedTrackRowUi) -> Unit,
-    onSonicPathEndTrackSelected: (SharedTrackRowUi) -> Unit,
-    onSonicPathStartTrackCleared: () -> Unit,
-    onSonicPathEndTrackCleared: () -> Unit,
-    onSonicPathCountChanged: (Int) -> Unit,
-    onSonicPathBuild: () -> Unit,
-    onSonicPathReset: () -> Unit,
-    onSonicPathPlay: () -> Unit,
-    onSonicPathAddToQueue: () -> Unit,
-    onSonicPathSaveAsPlaylist: (String) -> Unit,
-    onSonicMixQueryChanged: (String) -> Unit,
-    onSonicMixSearch: () -> Unit,
-    onSonicMixTrackSelected: (SharedTrackRowUi) -> Unit,
-    onSonicMixTrackRemoved: (SharedTrackRowUi) -> Unit,
-    onSonicMixTargetLengthChanged: (Int) -> Unit,
-    onSonicMixBiasChanged: (SharedSonicMixBiasUi) -> Unit,
-    onSonicMixBuild: () -> Unit,
-    onSonicMixReset: () -> Unit,
-    onSonicMixPlay: () -> Unit,
-    onSonicMixAddToQueue: () -> Unit,
-    onSonicMixSaveAsPlaylist: (String) -> Unit,
+    sonicPathActions: SharedSonicPathBuilderActions,
+    sonicMixActions: SharedSonicMixBuilderActions,
     onLibraryQueryChanged: (String) -> Unit,
     onRefreshHome: () -> Unit,
     onRefreshLibrary: () -> Unit,
@@ -1641,31 +1572,16 @@ private fun ConnectedContent(
                     SonicPathBuilderContent(
                         colors = colors,
                         builder = sonicPathBuilder,
-                        actions = SharedSonicPathBuilderActions(
-                            onStartQueryChanged = onSonicPathStartQueryChanged,
-                            onEndQueryChanged = onSonicPathEndQueryChanged,
-                            onStartSearch = onSonicPathStartSearch,
-                            onEndSearch = onSonicPathEndSearch,
-                            onStartTrackSelected = onSonicPathStartTrackSelected,
-                            onEndTrackSelected = onSonicPathEndTrackSelected,
-                            onStartTrackCleared = onSonicPathStartTrackCleared,
-                            onEndTrackCleared = onSonicPathEndTrackCleared,
-                            onCountChanged = onSonicPathCountChanged,
-                            onBuild = onSonicPathBuild,
-                            onReset = onSonicPathReset,
-                            onPlay = onSonicPathPlay,
-                            onAddToQueue = onSonicPathAddToQueue,
-                            onSaveAsPlaylist = onSonicPathSaveAsPlaylist,
-                        ),
+                        actions = sonicPathActions,
                         showPathActions = false,
                     )
                 }
                 if (sonicPathBuilder.hasPath) {
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                        Button(onClick = onSonicPathPlay, modifier = Modifier.weight(1f)) {
+                        Button(onClick = sonicPathActions.onPlay, modifier = Modifier.weight(1f)) {
                             Text("Play Path")
                         }
-                        Button(onClick = onSonicPathAddToQueue, modifier = Modifier.weight(1f)) {
+                        Button(onClick = sonicPathActions.onAddToQueue, modifier = Modifier.weight(1f)) {
                             Text("Add to Queue")
                         }
                         Button(onClick = { saveSonicPathDialogOpen = true }, modifier = Modifier.weight(1f)) {
@@ -1686,28 +1602,16 @@ private fun ConnectedContent(
                     SonicMixBuilderContent(
                         colors = colors,
                         builder = sonicMixBuilder,
-                        actions = SharedSonicMixBuilderActions(
-                            onQueryChanged = onSonicMixQueryChanged,
-                            onSearch = onSonicMixSearch,
-                            onTrackSelected = onSonicMixTrackSelected,
-                            onTrackRemoved = onSonicMixTrackRemoved,
-                            onTargetLengthChanged = onSonicMixTargetLengthChanged,
-                            onBiasChanged = onSonicMixBiasChanged,
-                            onBuild = onSonicMixBuild,
-                            onReset = onSonicMixReset,
-                            onPlay = onSonicMixPlay,
-                            onAddToQueue = onSonicMixAddToQueue,
-                            onSaveAsPlaylist = onSonicMixSaveAsPlaylist,
-                        ),
+                        actions = sonicMixActions,
                         showMixActions = false,
                     )
                 }
                 if (sonicMixBuilder.hasMix) {
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                        Button(onClick = onSonicMixPlay, modifier = Modifier.weight(1f)) {
+                        Button(onClick = sonicMixActions.onPlay, modifier = Modifier.weight(1f)) {
                             Text("Play Mix")
                         }
-                        Button(onClick = onSonicMixAddToQueue, modifier = Modifier.weight(1f)) {
+                        Button(onClick = sonicMixActions.onAddToQueue, modifier = Modifier.weight(1f)) {
                             Text("Add to Queue")
                         }
                         Button(onClick = { saveSonicMixDialogOpen = true }, modifier = Modifier.weight(1f)) {
@@ -1758,7 +1662,7 @@ private fun ConnectedContent(
             description = "Save this Sonic Path in order as a server playlist.",
             onDismissRequest = { saveSonicPathDialogOpen = false },
             onSave = { name ->
-                onSonicPathSaveAsPlaylist(name)
+                sonicPathActions.onSaveAsPlaylist(name)
                 saveSonicPathDialogOpen = false
             },
         )
@@ -1771,7 +1675,7 @@ private fun ConnectedContent(
             description = "Save this Sonic Mix in order as a server playlist.",
             onDismissRequest = { saveSonicMixDialogOpen = false },
             onSave = { name ->
-                onSonicMixSaveAsPlaylist(name)
+                sonicMixActions.onSaveAsPlaylist(name)
                 saveSonicMixDialogOpen = false
             },
         )
