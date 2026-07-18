@@ -105,8 +105,7 @@ fun NaviampSharedAppShell(
     playback: NaviampPlaybackSettingsUi = NaviampPlaybackSettingsUi(),
     cache: NaviampCacheSettingsUi = NaviampCacheSettingsUi(),
     settingsSync: NaviampSettingsSyncUi = NaviampSettingsSyncUi(),
-    supportsDownloads: Boolean = false,
-    supportsApplicationUpdates: Boolean = false,
+    shellChrome: NaviampShellChromeUi = NaviampShellChromeUi(),
     search: NaviampSearchScreenUi,
     home: NaviampHomeScreenUi,
     artistMixBuilder: SharedArtistMixBuilderUi = SharedArtistMixBuilderUi(),
@@ -123,10 +122,7 @@ fun NaviampSharedAppShell(
     artistDetail: NaviampArtistDetailScreenUi,
     playlistDetail: NaviampPlaylistDetailScreenUi = NaviampPlaylistDetailScreenUi(),
     nowPlaying: NowPlayingUi?,
-    nowPlayingOpen: Boolean,
     visualizerBandsProvider: () -> List<Float> = { nowPlaying?.visualizerFrame?.bands.orEmpty() },
-    selectedVisualizer: NaviampVisualizer = NaviampVisualizer.AudioSphere,
-    selectedRoute: SharedRoute,
     navigationActions: NaviampShellNavigationActions,
     connectionActions: NaviampConnectionSettingsActions,
     syncActions: NaviampSettingsSyncActions = NaviampSettingsSyncActions(),
@@ -149,6 +145,10 @@ fun NaviampSharedAppShell(
     mediaActions: NaviampMediaActions,
     nowPlayingActions: NaviampNowPlayingActions = NaviampNowPlayingActions(),
 ) {
+    val supportsDownloads = shellChrome.supportsDownloads
+    val supportsApplicationUpdates = shellChrome.supportsApplicationUpdates
+    val selectedRoute = shellChrome.selectedRoute
+    val nowPlayingOpen = shellChrome.nowPlayingOpen
     val resolvedMediaItemAction = mediaActions.onMediaItemAction ?: { request ->
         handleSharedMediaItemAction(
             request,
@@ -343,7 +343,7 @@ fun NaviampSharedAppShell(
                     } else {
                         ConnectedContent(
                             colors = colors,
-                            selectedRoute = selectedRoute,
+                            shellChrome = shellChrome,
                             home = home,
                             search = search,
             artistMixBuilder = artistMixBuilder,
@@ -360,9 +360,7 @@ fun NaviampSharedAppShell(
                             artistDetail = artistDetail,
                             playlistDetail = playlistDetail,
                             nowPlaying = nowPlaying,
-                            nowPlayingOpen = nowPlayingOpen,
                             visualizerBandsProvider = visualizerBandsProvider,
-                            selectedVisualizer = selectedVisualizer,
                             connectionSettings = connectionSettings,
                             general = general,
                             playback = playback,
@@ -808,7 +806,7 @@ private fun MusicFolderMultiSelect(
 @Composable
 private fun ConnectedContent(
     colors: NaviampColors,
-    selectedRoute: SharedRoute,
+    shellChrome: NaviampShellChromeUi,
     home: NaviampHomeScreenUi,
     search: NaviampSearchScreenUi,
     artistMixBuilder: SharedArtistMixBuilderUi,
@@ -825,9 +823,7 @@ private fun ConnectedContent(
     artistDetail: NaviampArtistDetailScreenUi,
     playlistDetail: NaviampPlaylistDetailScreenUi,
     nowPlaying: NowPlayingUi?,
-    nowPlayingOpen: Boolean,
     visualizerBandsProvider: () -> List<Float>,
-    selectedVisualizer: NaviampVisualizer,
     connectionSettings: NaviampConnectionSettingsUi,
     general: NaviampGeneralSettingsUi,
     playback: NaviampPlaybackSettingsUi,
@@ -854,6 +850,9 @@ private fun ConnectedContent(
     mediaActions: NaviampMediaActions,
     nowPlayingActions: NaviampNowPlayingActions,
 ) {
+    val selectedRoute = shellChrome.selectedRoute
+    val nowPlayingOpen = shellChrome.nowPlayingOpen
+    val selectedVisualizer = shellChrome.selectedVisualizer
     val onTrackSelected = mediaActions.onTrackSelected
     val onAlbumSelected = mediaActions.onAlbumSelected
     val onAlbumFavoriteToggled = mediaActions.onAlbumFavoriteToggled

@@ -784,6 +784,14 @@ data class NaviampShellNavigationActions(
     val onCloseNowPlaying: () -> Unit = {},
 )
 
+data class NaviampShellChromeUi(
+    val selectedRoute: SharedRoute = SharedRoute.Home,
+    val nowPlayingOpen: Boolean = false,
+    val supportsDownloads: Boolean = false,
+    val supportsApplicationUpdates: Boolean = false,
+    val selectedVisualizer: NaviampVisualizer = NaviampVisualizer.AudioSphere,
+)
+
 data class SharedSonicPathBuilderActions(
     val onStartQueryChanged: (String) -> Unit = {},
     val onEndQueryChanged: (String) -> Unit = {},

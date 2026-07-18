@@ -12,7 +12,6 @@ import app.naviamp.ui.NaviampStorageLocationUi
 import app.naviamp.ui.NaviampSettingsMaintenanceActions
 import app.naviamp.ui.NaviampSettingsValueActions
 import app.naviamp.ui.NaviampPlaylistChoiceUi
-import app.naviamp.ui.NaviampVisualizer
 import app.naviamp.ui.NaviampAboutUi
 import app.naviamp.ui.NowPlayingUi
 import app.naviamp.ui.NaviampNowPlayingActions
@@ -26,7 +25,7 @@ import app.naviamp.ui.NaviampHomeScreenUi
 import app.naviamp.ui.NaviampHomeActions
 import app.naviamp.ui.NaviampMediaActions
 import app.naviamp.ui.NaviampShellNavigationActions
-import app.naviamp.ui.SharedRoute
+import app.naviamp.ui.NaviampShellChromeUi
 import app.naviamp.ui.SharedSonicMixBuilderActions
 import app.naviamp.ui.SharedSonicMixBuilderUi
 import app.naviamp.ui.SharedSonicPathBuilderActions
@@ -57,7 +56,7 @@ data class AndroidAppShellUiState(
     val diagnostics: NaviampDiagnosticsUi,
     val about: NaviampAboutUi,
     val capabilities: NaviampShellCapabilitiesUi,
-    val selectedVisualizer: NaviampVisualizer,
+    val shellChrome: NaviampShellChromeUi,
     val visualizerBandsProvider: () -> List<Float>,
     val search: NaviampSearchScreenUi,
     val home: NaviampHomeScreenUi,
@@ -79,8 +78,6 @@ data class AndroidAppShellUiState(
     val artistDetail: NaviampArtistDetailScreenUi,
     val playlistDetail: NaviampPlaylistDetailScreenUi,
     val nowPlaying: NowPlayingUi?,
-    val nowPlayingOpen: Boolean,
-    val selectedRoute: SharedRoute,
 )
 
 data class AndroidAppShellActions(

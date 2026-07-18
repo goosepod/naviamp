@@ -28,6 +28,7 @@ import app.naviamp.ui.NaviampOfflineDashboardUi
 import app.naviamp.ui.NaviampDownloadsScreenUi
 import app.naviamp.ui.NaviampStorageLocationUi
 import app.naviamp.ui.NaviampShellCapabilitiesUi
+import app.naviamp.ui.NaviampShellChromeUi
 import app.naviamp.ui.NaviampShellConnectionUi
 import app.naviamp.ui.SharedAlbumMixBuilderUi
 import app.naviamp.ui.SharedArtistMixBuilderUi
@@ -200,7 +201,13 @@ fun rememberAndroidAppShellUiState(
                     clientCertificates = AndroidCapabilityPresentation.clientCertificates.visible,
                 ),
             ),
-            selectedVisualizer = selectedVisualizer,
+            shellChrome = NaviampShellChromeUi(
+                selectedRoute = selectedRoute,
+                nowPlayingOpen = nowPlayingOpen,
+                supportsDownloads = AndroidCapabilityPresentation.downloads.visible,
+                supportsApplicationUpdates = AndroidCapabilityPresentation.applicationUpdates.visible,
+                selectedVisualizer = selectedVisualizer,
+            ),
             visualizerBandsProvider = { visualizerFrame?.bands.orEmpty() },
             search = NaviampSearchScreenUi(
                 query = query,
@@ -305,8 +312,6 @@ fun rememberAndroidAppShellUiState(
                 status = status.takeIf { shellModels.playlistDetail != null },
             ),
             nowPlaying = nowPlayingUi,
-            nowPlayingOpen = nowPlayingOpen,
-            selectedRoute = selectedRoute,
         )
     }
 
