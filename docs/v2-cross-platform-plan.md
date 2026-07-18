@@ -356,6 +356,7 @@ Record architecture decisions here or link a dedicated decision record.
 | 2026-07-17 | Carry grouped settings actions through the Android/shared shell. | Connection, sync, value-update, and maintenance intent should cross Android and shared UI as the same four contracts used by Desktop; document launchers and all platform execution remain host adapters. |
 | 2026-07-18 | Carry grouped downloads presentation through the Android/shared shell. | Download rows, mapped job progress, storage totals, status, and offline-dashboard state should cross Android and shared UI as one `NaviampDownloadsScreenUi`; durable work scheduling, repositories, and filesystem execution remain Android-owned. |
 | 2026-07-18 | Carry grouped downloads actions through the Android/shared shell. | Track actions, job cancellation and retry, refresh, keep-favorites policy, and delete-all intent should cross Android and shared UI as one `NaviampDownloadsActions`; Android coordinators, durable work, repositories, and filesystem execution remain the executors. |
+| 2026-07-18 | Carry grouped search and library presentation through the public shared shell. | `NaviampSearchScreenUi` and `NaviampLibraryScreenUi` should remain intact from Android through the private route renderer so query, results, sync, and paging-related presentation do not expand back into flat shell fields. |
 
 ## Shared Controller Construction Audit
 
@@ -381,7 +382,7 @@ The 2026-07-17 audit covers every current application entry point:
 
 ## Current Handoff
 
-- **Last completed item:** Android and the public/private shared shell now carry downloads presentation and intent as `NaviampDownloadsScreenUi` and `NaviampDownloadsActions`. Android maps shared job services into UI rows and supplies the action executors; durable work scheduling, repositories, and filesystem execution remain Android-owned.
-- **Next recommended item:** Carry the existing `NaviampSearchScreenUi` and `NaviampLibraryScreenUi` presentation groups through the public/private shared shell instead of decomposing them into flat fields, then group their focused actions without moving provider queries, paging, playback, or navigation execution.
+- **Last completed item:** Android and the public/private shared shell now carry `NaviampSearchScreenUi` and `NaviampLibraryScreenUi` intact instead of decomposing them into flat query, results, artist, and sync fields.
+- **Next recommended item:** Add focused `NaviampSearchActions` and `NaviampLibraryActions` contracts for query, submit/clear, refresh, and paging intent. Keep media selection/favorite actions shared with the other routes, and keep provider queries, paging, playback, and navigation execution host-owned.
 - **Verification:** `:core:domain:jvmTest`, `:core:app:jvmTest`, `:core:storage:jvmTest`, `:core:ui:jvmTest`, `:apps:android:testDebugUnitTest`, `:apps:desktop:desktopTest`, `:core:app:iosSimulatorArm64Test`, `:core:storage:compileKotlinIosSimulatorArm64`, and `:core:ui:compileKotlinIosSimulatorArm64` pass together with at most two Gradle workers.
 - **Known blockers:** None.
