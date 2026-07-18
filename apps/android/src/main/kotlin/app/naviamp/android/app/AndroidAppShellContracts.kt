@@ -57,6 +57,9 @@ import app.naviamp.ui.NaviampPlaylistsScreenUi
 import app.naviamp.ui.NaviampPlaylistsActions
 import app.naviamp.ui.NaviampInternetRadioScreenUi
 import app.naviamp.ui.NaviampInternetRadioActions
+import app.naviamp.ui.NaviampAlbumDetailScreenUi
+import app.naviamp.ui.NaviampArtistDetailScreenUi
+import app.naviamp.ui.NaviampPlaylistDetailScreenUi
 
 data class AndroidAppShellUiState(
     val modifier: Modifier,
@@ -86,9 +89,9 @@ data class AndroidAppShellUiState(
     val playlists: NaviampPlaylistsScreenUi,
     val playlistChoices: List<NaviampPlaylistChoiceUi>,
     val radio: NaviampInternetRadioScreenUi,
-    val albumDetail: SharedAlbumDetailUi?,
-    val artistDetail: SharedArtistDetailUi?,
-    val playlistDetail: SharedPlaylistDetailUi?,
+    val albumDetail: NaviampAlbumDetailScreenUi,
+    val artistDetail: NaviampArtistDetailScreenUi,
+    val playlistDetail: NaviampPlaylistDetailScreenUi,
     val nowPlaying: NowPlayingUi?,
     val nowPlayingOpen: Boolean,
     val selectedRoute: SharedRoute,

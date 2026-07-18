@@ -20,6 +20,9 @@ import app.naviamp.ui.NaviampLibraryScreenUi
 import app.naviamp.ui.NaviampSearchScreenUi
 import app.naviamp.ui.NaviampPlaylistsScreenUi
 import app.naviamp.ui.NaviampInternetRadioScreenUi
+import app.naviamp.ui.NaviampAlbumDetailScreenUi
+import app.naviamp.ui.NaviampArtistDetailScreenUi
+import app.naviamp.ui.NaviampPlaylistDetailScreenUi
 import app.naviamp.ui.NaviampOfflineDashboardUi
 import app.naviamp.ui.NaviampDownloadsScreenUi
 import app.naviamp.ui.NaviampStorageLocationUi
@@ -283,9 +286,21 @@ fun rememberAndroidAppShellUiState(
                 stations = homeState.radioStations.map { it.toInternetRadioStationUi() },
                 refreshing = isInternetRadioRefreshing,
             ),
-            albumDetail = shellModels.albumDetail,
-            artistDetail = shellModels.artistDetail,
-            playlistDetail = shellModels.playlistDetail,
+            albumDetail = NaviampAlbumDetailScreenUi(
+                selectedAlbum = shellModels.albumDetail?.album,
+                detail = shellModels.albumDetail,
+                status = status.takeIf { shellModels.albumDetail != null },
+            ),
+            artistDetail = NaviampArtistDetailScreenUi(
+                selectedArtist = shellModels.artistDetail?.artist,
+                detail = shellModels.artistDetail,
+                status = status.takeIf { shellModels.artistDetail != null },
+            ),
+            playlistDetail = NaviampPlaylistDetailScreenUi(
+                selectedPlaylist = shellModels.playlistDetail?.playlist,
+                detail = shellModels.playlistDetail,
+                status = status.takeIf { shellModels.playlistDetail != null },
+            ),
             nowPlaying = nowPlayingUi,
             nowPlayingOpen = nowPlayingOpen,
             selectedRoute = selectedRoute,

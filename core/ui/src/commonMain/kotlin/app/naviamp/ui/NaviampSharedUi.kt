@@ -120,9 +120,9 @@ fun NaviampSharedAppShell(
     playlists: NaviampPlaylistsScreenUi,
     playlistChoices: List<NaviampPlaylistChoiceUi> = emptyList(),
     radio: NaviampInternetRadioScreenUi,
-    albumDetail: SharedAlbumDetailUi?,
-    artistDetail: SharedArtistDetailUi?,
-    playlistDetail: SharedPlaylistDetailUi? = null,
+    albumDetail: NaviampAlbumDetailScreenUi,
+    artistDetail: NaviampArtistDetailScreenUi,
+    playlistDetail: NaviampPlaylistDetailScreenUi = NaviampPlaylistDetailScreenUi(),
     nowPlaying: NowPlayingUi?,
     nowPlayingOpen: Boolean,
     visualizerBandsProvider: () -> List<Float> = { nowPlaying?.visualizerFrame?.bands.orEmpty() },
@@ -305,9 +305,9 @@ fun NaviampSharedAppShell(
         !restoringConnection &&
         !showFullNowPlaying &&
         (
-            albumDetail != null ||
-                artistDetail != null ||
-                playlistDetail != null ||
+            albumDetail.detail != null ||
+                artistDetail.detail != null ||
+                playlistDetail.detail != null ||
                 selectedRoute == SharedRoute.Home ||
                 selectedRoute == SharedRoute.Playlists ||
                 selectedRoute == SharedRoute.Library ||
@@ -946,9 +946,9 @@ private fun ConnectedContent(
     playlists: NaviampPlaylistsScreenUi,
     playlistChoices: List<NaviampPlaylistChoiceUi>,
     radio: NaviampInternetRadioScreenUi,
-    albumDetail: SharedAlbumDetailUi?,
-    artistDetail: SharedArtistDetailUi?,
-    playlistDetail: SharedPlaylistDetailUi?,
+    albumDetail: NaviampAlbumDetailScreenUi,
+    artistDetail: NaviampArtistDetailScreenUi,
+    playlistDetail: NaviampPlaylistDetailScreenUi,
     nowPlaying: NowPlayingUi?,
     nowPlayingOpen: Boolean,
     visualizerBandsProvider: () -> List<Float>,
@@ -1028,6 +1028,9 @@ private fun ConnectedContent(
     onCloseNowPlaying: () -> Unit,
     nowPlayingActions: NaviampNowPlayingActions,
 ) {
+    val selectedAlbumDetail = albumDetail.detail
+    val selectedArtistDetail = artistDetail.detail
+    val selectedPlaylistDetail = playlistDetail.detail
     val connection = connectionSettings.connection
     val availableMusicFolders = connection.availableMusicFolders
     val connectionForm = connection.form
@@ -1068,18 +1071,18 @@ private fun ConnectedContent(
             valueActions = valueActions,
             maintenanceActions = maintenanceActions,
         )
-        albumDetail != null -> AlbumDetailContent(
+        selectedAlbumDetail != null -> AlbumDetailContent(
             colors = colors,
-            detail = albumDetail,
+            detail = selectedAlbumDetail,
             onBack = onCloseNowPlaying,
-            onPlayAlbum = { onAlbumPlay(albumDetail, false) },
-            onShuffleAlbum = { onAlbumPlay(albumDetail, true) },
-            onAlbumRadio = { onAlbumRadio(albumDetail) },
-            onAlbumDownload = { onAlbumDownload(albumDetail) },
-            onAlbumAddToQueue = { onAlbumAddToQueue(albumDetail) },
-            onAlbumAddToPlaylist = { playlist -> onAlbumAddToPlaylist(albumDetail, playlist) },
-            onAlbumCreatePlaylistAndAdd = { name -> onAlbumCreatePlaylistAndAdd(albumDetail, name) },
-            onAlbumFavoriteToggled = { onAlbumFavoriteToggled(albumDetail.album) },
+            onPlayAlbum = { onAlbumPlay(selectedAlbumDetail, false) },
+            onShuffleAlbum = { onAlbumPlay(selectedAlbumDetail, true) },
+            onAlbumRadio = { onAlbumRadio(selectedAlbumDetail) },
+            onAlbumDownload = { onAlbumDownload(selectedAlbumDetail) },
+            onAlbumAddToQueue = { onAlbumAddToQueue(selectedAlbumDetail) },
+            onAlbumAddToPlaylist = { playlist -> onAlbumAddToPlaylist(selectedAlbumDetail, playlist) },
+            onAlbumCreatePlaylistAndAdd = { name -> onAlbumCreatePlaylistAndAdd(selectedAlbumDetail, name) },
+            onAlbumFavoriteToggled = { onAlbumFavoriteToggled(selectedAlbumDetail.album) },
             onTrackSelected = onAlbumTrackSelected,
             onTrackAddToQueue = { track ->
                 onTrackAction(SharedTrackRowActionRequest(track, SharedTrackRowAction.AddToQueue))
@@ -1108,23 +1111,23 @@ private fun ConnectedContent(
             playlistChoices = playlistChoices,
             playlistActionStatus = playlists.status,
         )
-        artistDetail != null -> ArtistDetailContent(
+        selectedArtistDetail != null -> ArtistDetailContent(
             colors = colors,
-            detail = artistDetail,
+            detail = selectedArtistDetail,
             albumCollectionLayout = interfaceSettings.albumCollectionLayout,
             albumSortOrder = interfaceSettings.albumSortOrder,
             groupAlbumsByReleaseType = interfaceSettings.groupAlbumsByReleaseType,
             onBack = onCloseNowPlaying,
-            onArtistRadio = { onArtistRadio(artistDetail) },
-            onArtistPlay = { albums -> onArtistPlay(artistDetail.copy(albums = albums)) },
-            onArtistShuffle = { albums -> onArtistShuffle(artistDetail.copy(albums = albums)) },
-            onArtistAddToQueue = { onArtistAddToQueue(artistDetail) },
-            onArtistAddToPlaylist = { playlist -> onArtistAddToPlaylist(artistDetail, playlist) },
-            onArtistCreatePlaylistAndAdd = { name -> onArtistCreatePlaylistAndAdd(artistDetail, name) },
-            onArtistFavoriteToggled = { onArtistFavoriteToggled(artistDetail.artist) },
-            onPopularPlay = { onArtistPopularPlay(artistDetail) },
-            onPopularRadio = { onArtistPopularRadio(artistDetail) },
-            onPopularAddToQueue = { onArtistPopularAddToQueue(artistDetail) },
+            onArtistRadio = { onArtistRadio(selectedArtistDetail) },
+            onArtistPlay = { albums -> onArtistPlay(selectedArtistDetail.copy(albums = albums)) },
+            onArtistShuffle = { albums -> onArtistShuffle(selectedArtistDetail.copy(albums = albums)) },
+            onArtistAddToQueue = { onArtistAddToQueue(selectedArtistDetail) },
+            onArtistAddToPlaylist = { playlist -> onArtistAddToPlaylist(selectedArtistDetail, playlist) },
+            onArtistCreatePlaylistAndAdd = { name -> onArtistCreatePlaylistAndAdd(selectedArtistDetail, name) },
+            onArtistFavoriteToggled = { onArtistFavoriteToggled(selectedArtistDetail.artist) },
+            onPopularPlay = { onArtistPopularPlay(selectedArtistDetail) },
+            onPopularRadio = { onArtistPopularRadio(selectedArtistDetail) },
+            onPopularAddToQueue = { onArtistPopularAddToQueue(selectedArtistDetail) },
             onPopularTrackSelected = onArtistPopularTrackSelected,
             onPopularTrackAddToQueue = { track ->
                 onTrackAction(SharedTrackRowActionRequest(track, SharedTrackRowAction.AddToQueue))
@@ -1150,7 +1153,7 @@ private fun ConnectedContent(
                     ),
                 )
             },
-            onFindSimilarArtists = { onFindSimilarArtists(artistDetail) },
+            onFindSimilarArtists = { onFindSimilarArtists(selectedArtistDetail) },
             onSimilarArtistSelected = onSimilarArtistSelected,
             onSimilarArtistExternalSelected = onSimilarArtistExternalSelected,
             onAlbumSelected = onAlbumSelected,
@@ -1159,24 +1162,24 @@ private fun ConnectedContent(
             playlistChoices = playlistChoices,
             playlistActionStatus = playlists.status,
         )
-        playlistDetail != null -> PlaylistDetailContent(
+        selectedPlaylistDetail != null -> PlaylistDetailContent(
             colors = colors,
-            detail = playlistDetail,
+            detail = selectedPlaylistDetail,
             onBack = onPlaylistBack,
-            onPlayPlaylist = { onPlaylistPlay(playlistDetail.playlist, false) },
-            onShufflePlaylist = { onPlaylistPlay(playlistDetail.playlist, true) },
-            onAddPlaylistToQueue = { onPlaylistAddToQueue(playlistDetail) },
+            onPlayPlaylist = { onPlaylistPlay(selectedPlaylistDetail.playlist, false) },
+            onShufflePlaylist = { onPlaylistPlay(selectedPlaylistDetail.playlist, true) },
+            onAddPlaylistToQueue = { onPlaylistAddToQueue(selectedPlaylistDetail) },
             onDownloadPlaylist = {
                 onMediaItemAction(
-                    playlistDetail.playlist.actionRequest(
+                    selectedPlaylistDetail.playlist.actionRequest(
                         SharedMediaItemAction.Download,
                         kind = SharedMediaItemKind.Playlist,
                     ),
                 )
             },
-            onAddPlaylistToPlaylist = { playlist -> onPlaylistAddToPlaylist(playlistDetail, playlist) },
-            onCreatePlaylistAndAddPlaylist = { name -> onPlaylistCreatePlaylistAndAdd(playlistDetail, name) },
-            onCopyPlaylist = { name, deduplicate -> onPlaylistCopy(playlistDetail, name, deduplicate) },
+            onAddPlaylistToPlaylist = { playlist -> onPlaylistAddToPlaylist(selectedPlaylistDetail, playlist) },
+            onCreatePlaylistAndAddPlaylist = { name -> onPlaylistCreatePlaylistAndAdd(selectedPlaylistDetail, name) },
+            onCopyPlaylist = { name, deduplicate -> onPlaylistCopy(selectedPlaylistDetail, name, deduplicate) },
             onRenamePlaylist = onPlaylistRename,
             onDeletePlaylist = onPlaylistDelete,
             onUpdateStandardPlaylist = onStandardPlaylistUpdate,
