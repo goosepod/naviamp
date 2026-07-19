@@ -458,6 +458,18 @@ The 2026-07-17 audit found these remaining direct constructions intentional:
 
 Revisit an item only when its platform executor or lifetime is unified; do not move it merely to eliminate a constructor call.
 
+## Android Coordination Ownership Audit
+
+The 2026-07-19 Android audit found no remaining common queue, Now Playing, provider-action, settings-sync, download, or cache policy owned by the Activity composition root:
+
+- `AndroidAppState` exposes queue and Now Playing through the shared live-playback controller, while `AndroidPlaybackAppController` and Android Auto retain only their distinct playback execution and lifecycle adapters.
+- Android UI provider actions and playback reporting reuse `NaviampApplicationControllers`; the foreground service retains only the separately documented service-lifetime owners.
+- One `NaviampApplicationServices` assembly supplies settings sync, cache settings, cache maintenance, download jobs, and download coordination to the Android UI. Android settings-sync code retains URI permissions, document I/O, launcher results, and mirror/provider writes; shared reconciliation and status policy remain in `NaviampSettingsSyncController`.
+- `AndroidDownloadActionController` retains WorkManager/network execution and UI-triggered collection resolution while delegating job state, retry/cancellation intent, keep-downloaded planning, and maintenance policy to the injected shared download owners.
+- `AndroidSettingsMaintenanceController` retains Android storage and playback-engine effects while delegating cache normalization, persistence ordering, and maintenance sequencing to the injected shared cache owners.
+
+The remaining Android product-behavior reduction belongs to Milestone 4 and must preserve foreground-service, MediaSession, notification, permission, Android Auto, and storage-selection boundaries.
+
 ## File Selection and Sharing Audit
 
 The 2026-07-17 audit covers every current application entry point:
