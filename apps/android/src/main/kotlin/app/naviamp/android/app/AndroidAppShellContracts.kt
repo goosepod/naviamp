@@ -10,4 +10,3 @@ data class AndroidAppShellUiState(
     val capabilities: NaviampShellCapabilitiesUi,
     val visualizerBandsProvider: () -> List<Float>,
 )
-
