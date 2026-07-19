@@ -353,7 +353,7 @@ fun NaviampAndroidApp(
             setSleepTimerNowEpochMillis = { millis -> appState.sleepTimerNowEpochMillis = millis },
             setStatus = { status -> appState.status = status },
             stopPlayback = playbackAppController::stop,
-            nowEpochMillis = { System.currentTimeMillis() },
+            nowEpochMillis = AndroidSystemClock::nowEpochMillis,
         )
     }
 
@@ -536,7 +536,7 @@ fun NaviampAndroidApp(
                 deviceId = AndroidSettingsSyncDeviceId,
                 state = ::settingsSyncRuntimeState,
                 saveState = ::saveSettingsSyncRuntimeState,
-                nowEpochMillis = { System.currentTimeMillis() },
+                nowEpochMillis = AndroidSystemClock::nowEpochMillis,
                 snapshot = {
                     SettingsSyncLocalSnapshot(
                         serverProfiles = storage.mediaSources(),
@@ -632,7 +632,7 @@ fun NaviampAndroidApp(
     fun markProviderPullSucceeded() {
         saveSettingsSyncSettings(
             settingsSyncSettings.copy(
-                lastProviderPullEpochMillis = System.currentTimeMillis(),
+                lastProviderPullEpochMillis = AndroidSystemClock.nowEpochMillis(),
                 lastProviderError = null,
             ),
         )
@@ -641,7 +641,7 @@ fun NaviampAndroidApp(
     fun markProviderPushSucceeded() {
         saveSettingsSyncSettings(
             settingsSyncSettings.copy(
-                lastProviderPushEpochMillis = System.currentTimeMillis(),
+                lastProviderPushEpochMillis = AndroidSystemClock.nowEpochMillis(),
                 lastProviderError = null,
             ),
         )

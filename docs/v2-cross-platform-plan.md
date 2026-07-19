@@ -423,6 +423,7 @@ Record architecture decisions here or link a dedicated decision record.
 | 2026-07-19 | Close the Desktop shared-shell route-boundary migration. | Desktop route rendering now depends on shared shell state/actions and `NaviampRoute`; `DesktopAppColors`, the Library `LazyListState`, and late-bound settings-sync document adapters remain intentional host inputs, while native panel layouts remain thin renderers rather than product-state owners. |
 | 2026-07-19 | Add wall-clock time to the shared platform-service boundary. | Shared runtime owners should receive a narrow `NaviampClock`; Android and Desktop acquire system time in their hosts, while tests can supply deterministic time without exposing platform APIs to common coordination code. |
 | 2026-07-19 | Route Desktop shared owners through the host clock. | Sleep-timer state and settings-sync coordination now use `DesktopSystemClock`; Desktop's composition root no longer supplies direct wall-clock calls to shared controllers. |
+| 2026-07-19 | Route Android shared owners through the host clock. | Sleep-timer state, settings-sync coordination, and provider-sync success timestamps now use `AndroidSystemClock`; Activity composition and state no longer acquire wall-clock time directly. |
 
 ### Desktop Route Boundary Audit
 
@@ -460,7 +461,7 @@ The 2026-07-17 audit covers every current application entry point:
 
 ## Current Handoff
 
-- **Last completed item:** Desktop sleep-timer and settings-sync owners now consume the host-supplied platform clock.
-- **Next recommended item:** Route the corresponding Android shared owners through the Android platform clock; cross-platform Desktop packaging and a macOS launch remain Milestone 3 validation work on their respective hosts.
+- **Last completed item:** Android and Desktop shared sleep-timer and settings-sync owners now consume their host-supplied platform clocks.
+- **Next recommended item:** Continue Milestone 2 by auditing the remaining direct platform-service access in shared-owner composition before thinning Android shell adapters; cross-platform Desktop packaging and a macOS launch remain Milestone 3 validation work on their respective hosts.
 - **Verification:** `:core:domain:jvmTest`, `:core:app:jvmTest`, `:core:storage:jvmTest`, `:core:ui:jvmTest`, `:apps:android:testDebugUnitTest`, `:apps:desktop:desktopTest`, `:core:app:iosSimulatorArm64Test`, `:core:storage:compileKotlinIosSimulatorArm64`, and `:core:ui:compileKotlinIosSimulatorArm64` pass together with at most two Gradle workers.
 - **Known blockers:** None.

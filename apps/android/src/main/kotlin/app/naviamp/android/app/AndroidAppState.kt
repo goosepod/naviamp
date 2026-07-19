@@ -180,7 +180,7 @@ class AndroidAppState(
             livePlaybackState = livePlaybackState.copy(queue = value)
         }
     var sleepTimer by mutableStateOf<SleepTimerState?>(null)
-    var sleepTimerNowEpochMillis by mutableStateOf(System.currentTimeMillis())
+    var sleepTimerNowEpochMillis by mutableStateOf(AndroidSystemClock.nowEpochMillis())
     var shuffledUpNextSnapshot by mutableStateOf<List<Track>?>(null)
     var repeatMode: RepeatMode
         get() = livePlaybackState.repeatMode
