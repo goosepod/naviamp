@@ -137,9 +137,7 @@ fun ColumnScope.DesktopAppRouteContent(
                 )
                 DesktopAppRoute.Playlists -> DesktopPlaylistsPanel(
                     appColors = appColors,
-                    screen = sharedShellState.playlists.copy(
-                        status = sharedShellState.playlists.status ?: connection.status.pageStatusOrNull(),
-                    ),
+                    screen = sharedShellState.playlists,
                     actions = sharedShellActions.playlistsActions,
                     onPlaylistAction = sharedShellActions.mediaActions.onMediaItemAction ?: {},
                     availableLibraries = connection.availableMusicFolders,
@@ -158,12 +156,7 @@ fun ColumnScope.DesktopAppRouteContent(
                 DesktopAppRoute.Library -> {
                     DesktopLibraryPanel(
                         appColors = appColors,
-                        library = sharedShellState.library.copy(
-                            syncStatus = sharedShellState.library.syncStatus.copy(
-                                message = sharedShellState.library.syncStatus.message
-                                    ?: connection.status.pageStatusOrNull(),
-                            ),
-                        ),
+                        library = sharedShellState.library,
                         listState = libraryListState,
                         actions = sharedShellActions.libraryActions,
                         onJumpToLetter = sharedShellActions.libraryActions.onJumpToLetter,
@@ -359,9 +352,7 @@ fun ColumnScope.DesktopAppRouteContent(
                 DesktopAppRoute.InternetRadio -> Column(verticalArrangement = Arrangement.spacedBy(18.dp)) {
                     DesktopInternetRadioPanel(
                         appColors = appColors,
-                        screen = sharedShellState.radio.copy(
-                            status = sharedShellState.radio.status ?: connection.status.pageStatusOrNull(),
-                        ),
+                        screen = sharedShellState.radio,
                         actions = sharedShellActions.radioActions,
                     )
                 }
@@ -418,9 +409,3 @@ fun ColumnScope.DesktopAppRouteContent(
         )
     }
 }
-
-private fun String?.pageStatusOrNull(): String? =
-    this?.takeUnless { status ->
-        status.startsWith("Connected to Navidrome", ignoreCase = true) ||
-            status.startsWith("Connected to ", ignoreCase = true)
-    }

@@ -1669,6 +1669,10 @@ fun NaviampApp(
                             onExport = ::exportSettingsSync,
                             onImport = ::importSettingsSync,
                         )
+                        val connectionPageStatus = shellConnection.status?.takeUnless { status ->
+                            status.startsWith("Connected to Navidrome", ignoreCase = true) ||
+                                status.startsWith("Connected to ", ignoreCase = true)
+                        }
                         val desktopShellState = NaviampAppShellUiState(
                             connectionSettings = shellConnection.toConnectionSettingsUi(
                                 capabilities = shellCapabilities,
@@ -1771,7 +1775,7 @@ fun NaviampApp(
                                 },
                                 recentPlaylistIds = playlistsController.recentPlaylistIds,
                                 sortMode = playlistsController.sortMode,
-                                status = playlistsController.status,
+                                status = playlistsController.status ?: connectionPageStatus,
                             ),
                             playlistDetail = NaviampPlaylistDetailScreenUi(
                                 selectedPlaylist = playlistsController.selectedPlaylist?.toSharedMediaItemUi(
@@ -1799,7 +1803,7 @@ fun NaviampApp(
                                 },
                                 query = libraryController.query,
                                 syncStatus = NaviampLibrarySyncStatusUi(
-                                    message = libraryController.status,
+                                    message = libraryController.status ?: connectionPageStatus,
                                     isSyncing = libraryController.syncing,
                                 ),
                             ),
@@ -1817,7 +1821,7 @@ fun NaviampApp(
                             ),
                             radio = app.naviamp.ui.NaviampInternetRadioScreenUi(
                                 stations = internetRadioController.stations.map { it.toInternetRadioStationUi() },
-                                status = internetRadioController.status,
+                                status = internetRadioController.status ?: connectionPageStatus,
                             ),
                         )
                         val playlistActionSources = DesktopPlaylistActionSources(
