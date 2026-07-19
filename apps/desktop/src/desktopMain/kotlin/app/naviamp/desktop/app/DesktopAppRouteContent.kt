@@ -142,7 +142,8 @@ fun ColumnScope.DesktopAppRouteContent(
                     onMixAlbumSelected = sharedShellActions.mediaActions.onMixAlbumSelected,
                     onPlaylistSelected = sharedShellActions.mediaActions.onPlaylistSelected,
                     onRecentRadioSelected = sharedShellActions.homeActions.onRecentRadioSelected,
-                    onInternetRadioStationSelected = { item -> appActions.playHomeInternetRadio(item.id) },
+                    onInternetRadioStationSelected =
+                        sharedShellActions.homeActions.onInternetRadioStationSelected,
                     onMixBuilderSelected = sharedShellActions.homeActions.onMixBuilderSelected,
                     onHomeStationSelected = sharedShellActions.homeActions.onStationSelected,
                     onSonicDiscoveryTrackAction = sharedShellActions.homeActions.onSonicDiscoveryTrackAction,

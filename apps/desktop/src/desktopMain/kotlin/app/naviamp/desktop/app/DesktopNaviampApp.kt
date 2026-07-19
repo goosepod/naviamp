@@ -1829,6 +1829,9 @@ fun NaviampApp(
                             homeActions = NaviampHomeActions(
                                 onRefresh = { connectedProvider?.let(homeController::loadHomeContent) },
                                 onRecentRadioSelected = { item -> appActions.playHomeRecentRadio(item.id) },
+                                onInternetRadioStationSelected = { item ->
+                                    appActions.playHomeInternetRadio(item.id)
+                                },
                                 onMixBuilderSelected = { builder ->
                                     appRoute = when (builder.id) {
                                         "artist" -> DesktopAppRoute.ArtistMix

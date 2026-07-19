@@ -512,6 +512,11 @@ fun androidAppShellActions(
             homeActions = NaviampHomeActions(
                 onRefresh = refreshHome,
                 onRecentRadioSelected = handleRecentRadioSelected,
+                onInternetRadioStationSelected = { item ->
+                    homeState.radioStations.firstOrNull { station -> station.id == item.id }
+                        ?.let(handleRadioStationSelected)
+                        ?: run { status = "Station not found." }
+                },
                 onMixBuilderSelected = handleMixBuilderSelected,
                 onStationSelected = handleShellHomeStationSelected,
                 onSonicDiscoveryTrackAction = handleSonicDiscoveryTrackAction,

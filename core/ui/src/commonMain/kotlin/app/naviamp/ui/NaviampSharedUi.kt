@@ -1011,14 +1011,7 @@ private fun ConnectedContent(
                 onPlaylistSelected = onPlaylistSelected,
                 onRecentRadioSelected = homeActions.onRecentRadioSelected,
                 onMixBuilderSelected = homeActions.onMixBuilderSelected,
-                onInternetRadioStationSelected = { item ->
-                    radio.stations.firstOrNull { it.item.id == item.id }
-                        ?.let { station ->
-                            radioActions.onStationAction(
-                                StationRowActionRequest(station.item, StationRowAction.Select),
-                            )
-                        }
-                },
+                onInternetRadioStationSelected = homeActions.onInternetRadioStationSelected,
                 onHomeStationSelected = homeActions.onStationSelected,
                 onSonicDiscoveryTrackAction = homeActions.onSonicDiscoveryTrackAction,
                 onRecentlyPlayedTrackAction = homeActions.onRecentlyPlayedTrackAction,

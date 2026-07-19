@@ -401,6 +401,7 @@ Record architecture decisions here or link a dedicated decision record.
 | 2026-07-19 | Lift Desktop downloads presentation into the shared shell state. | Download rows, job progress, storage totals, offline diagnostics, status, and keep-favorites policy are composed once at the Desktop root; route rendering receives the grouped screen plus a temporary downloaded-file resolver for execution. |
 | 2026-07-19 | Lift Desktop download execution into the shared shell actions. | Downloaded-track selection, playlist, removal, job, refresh, keep-favorites, and delete-all intent resolve and execute through root-owned `NaviampDownloadsActions`; the private downloads route wrapper and raw downloaded-file route input are removed. |
 | 2026-07-19 | Route Desktop Home album and playlist selection through `NaviampMediaActions`. | Home album selection, favorite toggling, mix playback, and playlist selection are existing shared media responsibilities; Desktop now composes them at the root rather than closing over `DesktopAppActions` in route rendering. |
+| 2026-07-19 | Carry Home Internet Radio selection through `NaviampHomeActions`. | Internet Radio selection is Home-specific intent alongside recent-radio and station selection; Android retains current-ID lookup and status handling, while Desktop composes provider execution at the root. |
 
 ## Shared Controller Construction Audit
 
@@ -426,7 +427,7 @@ The 2026-07-17 audit covers every current application entry point:
 
 ## Current Handoff
 
-- **Last completed item:** Desktop Home album selection, favorite toggling, mix playback, and playlist selection now enter route rendering through root-owned `NaviampMediaActions`; those callbacks no longer close over `DesktopAppActions` in the route.
-- **Next recommended item:** Add Internet Radio selection to `NaviampHomeActions` so both shared Android and Desktop Home rendering consume one explicit contract. Then give indexed Library navigation a dedicated Library action field.
+- **Last completed item:** Home Internet Radio selection now travels through `NaviampHomeActions` on every host; Android retains current station lookup and status handling, while Desktop route rendering no longer owns provider execution.
+- **Next recommended item:** Add indexed jump navigation to `NaviampLibraryActions` and remove the final parallel Library callback from Desktop route rendering.
 - **Verification:** `:core:domain:jvmTest`, `:core:app:jvmTest`, `:core:storage:jvmTest`, `:core:ui:jvmTest`, `:apps:android:testDebugUnitTest`, `:apps:desktop:desktopTest`, `:core:app:iosSimulatorArm64Test`, `:core:storage:compileKotlinIosSimulatorArm64`, and `:core:ui:compileKotlinIosSimulatorArm64` pass together with at most two Gradle workers.
 - **Known blockers:** None.
