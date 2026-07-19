@@ -1871,6 +1871,7 @@ fun NaviampApp(
                             ),
                             mediaActions = desktopMediaActions(
                                 playlistActionSources = playlistActionSources,
+                                artists = libraryController.snapshot.artists,
                                 appActions = appActions,
                                 playlistsController = playlistsController,
                             ),
@@ -1999,7 +2000,7 @@ fun NaviampApp(
                             coverArtUrl = { coverArtId -> coverArtId?.let { connectedProvider?.coverArtUrl(it) } },
                             appActions = appActions,
                             playlistsController = playlistsController,
-                            libraryController = libraryController,
+                            onLibraryJumpToLetter = libraryController::jumpLibraryToLetter,
                             searchController = searchController,
                             libraryListState = libraryListState,
                             connectedSourceId = connectedSourceId,

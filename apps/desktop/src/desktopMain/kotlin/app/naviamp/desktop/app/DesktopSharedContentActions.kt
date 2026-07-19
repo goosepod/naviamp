@@ -312,6 +312,7 @@ internal fun desktopPlaylistDetailActions(
 
 internal fun desktopMediaActions(
     playlistActionSources: DesktopPlaylistActionSources,
+    artists: List<Artist>,
     appActions: DesktopAppActions,
     playlistsController: DesktopPlaylistsController,
 ): NaviampMediaActions = NaviampMediaActions(
@@ -342,6 +343,30 @@ internal fun desktopMediaActions(
                         SharedMediaItemAction.DeleteStation,
                         -> Unit
                     }
+                }
+            }
+        }
+        if (request.kind == SharedMediaItemKind.Artist) {
+            artists.firstOrNull { artist -> artist.id.value == request.item.id }?.let { artist ->
+                when (request.action) {
+                    SharedMediaItemAction.Select -> appActions.openArtistDetails(artist)
+                    SharedMediaItemAction.StartRadio -> appActions.playArtistRadio(artist)
+                    SharedMediaItemAction.FindSimilar -> appActions.findSimilarArtists(artist)
+                    SharedMediaItemAction.AddToQueue -> playlistsController.addArtistToQueue(artist)
+                    SharedMediaItemAction.AddToPlaylist -> playlistsController.openArtistAddToPlaylist(artist)
+                    SharedMediaItemAction.ToggleFavorite -> appActions.toggleArtistFavorite(artist)
+                    SharedMediaItemAction.Play,
+                    SharedMediaItemAction.Shuffle,
+                    SharedMediaItemAction.Download,
+                    SharedMediaItemAction.CreatePlaylistAndAdd,
+                    SharedMediaItemAction.CopyPlaylist,
+                    SharedMediaItemAction.CopyPlaylistDeduplicated,
+                    SharedMediaItemAction.Rename,
+                    SharedMediaItemAction.EditSmartPlaylist,
+                    SharedMediaItemAction.Delete,
+                    SharedMediaItemAction.EditStation,
+                    SharedMediaItemAction.DeleteStation,
+                    -> Unit
                 }
             }
         }

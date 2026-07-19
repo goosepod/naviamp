@@ -81,7 +81,7 @@ fun ColumnScope.DesktopAppRouteContent(
     coverArtUrl: (String?) -> String?,
     appActions: DesktopAppActions,
     playlistsController: DesktopPlaylistsController,
-    libraryController: DesktopLibraryController,
+    onLibraryJumpToLetter: (Char) -> Unit,
     searchController: DesktopSearchController,
     libraryListState: LazyListState,
     connectedSourceId: String?,
@@ -285,16 +285,8 @@ fun ColumnScope.DesktopAppRouteContent(
                         ),
                         listState = libraryListState,
                         actions = sharedShellActions.libraryActions,
-                        onJumpToLetter = libraryController::jumpLibraryToLetter,
-                        onMediaItemAction = { request ->
-                            resolveDesktopMediaItemAction(
-                                request = request,
-                                artists = libraryController.snapshot.artists,
-                                onArtistAction = { action, artist ->
-                                    handleArtistMediaAction(action.action, artist)
-                                },
-                            )
-                        },
+                        onJumpToLetter = onLibraryJumpToLetter,
+                        onMediaItemAction = sharedShellActions.mediaActions.onMediaItemAction ?: {},
                     )
                 }
                 DesktopAppRoute.Search -> DesktopSearchPanel(
