@@ -113,12 +113,8 @@ fun ColumnScope.DesktopAppRouteContent(
     onRouteSelected: (DesktopAppRoute) -> Unit,
     onOpenArtistMixBuilder: () -> Unit,
     onOpenAlbumMixBuilder: () -> Unit,
-    albumDetail: NaviampAlbumDetailScreenUi,
     albumDetailBackRoute: DesktopAppRoute,
-    artistDetail: NaviampArtistDetailScreenUi,
     detailActionSources: DesktopDetailActionSources,
-    playlists: NaviampPlaylistsScreenUi,
-    playlistDetail: NaviampPlaylistDetailScreenUi,
     playlistActionSources: DesktopPlaylistActionSources,
     onPlaylistSortModeChanged: (SharedPlaylistSortMode) -> Unit,
     onPlaylistRenameRequested: (Playlist) -> Unit,
@@ -224,11 +220,7 @@ fun ColumnScope.DesktopAppRouteContent(
         search = search,
         home = NaviampHomeScreenUi(content = sharedHome, refreshing = homeRefreshing),
         library = library,
-        playlists = playlists,
         radio = internetRadio,
-        albumDetail = albumDetail,
-        artistDetail = artistDetail,
-        playlistDetail = playlistDetail,
     )
     val baseSharedShellActions = shellActions.copy(
         navigationActions = NaviampShellNavigationActions(
