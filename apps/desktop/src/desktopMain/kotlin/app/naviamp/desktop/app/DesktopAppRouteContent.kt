@@ -49,6 +49,7 @@ import app.naviamp.ui.NaviampSettingsValueActions
 import app.naviamp.ui.NaviampAlbumDetailScreenUi
 import app.naviamp.ui.NaviampArtistDetailScreenUi
 import app.naviamp.ui.NaviampSavedConnectionUi
+import app.naviamp.ui.NaviampLibraryActions
 import app.naviamp.ui.NaviampLibraryScreenUi
 import app.naviamp.ui.NaviampHomeActions
 import app.naviamp.ui.NaviampHomeScreenUi
@@ -56,6 +57,7 @@ import app.naviamp.ui.NaviampInternetRadioScreenUi
 import app.naviamp.ui.NaviampPlaylistDetailScreenUi
 import app.naviamp.ui.NaviampPlaylistsScreenUi
 import app.naviamp.ui.NaviampSearchScreenUi
+import app.naviamp.ui.NaviampSearchActions
 import app.naviamp.ui.NaviampShellCapabilitiesUi
 import app.naviamp.ui.NaviampShellConnectionUi
 import app.naviamp.ui.NaviampShellChromeUi
@@ -281,6 +283,14 @@ fun ColumnScope.DesktopAppRouteContent(
             onMixBuilderSelected = ::openMixBuilder,
             onStationSelected = { station -> appActions.playHomeStation(station.id) },
             onSonicDiscoveryTrackAction = onSonicHomeDiscoveryTrackAction,
+        ),
+        searchActions = NaviampSearchActions(
+            onQueryChanged = searchController::updateQuery,
+            onClear = searchController::clearSearch,
+        ),
+        libraryActions = NaviampLibraryActions(
+            onQueryChanged = onLibraryQueryChanged,
+            onRefresh = libraryController::refreshArtistIndex,
         ),
     )
     fun handleArtistMediaAction(
@@ -691,7 +701,7 @@ fun ColumnScope.DesktopAppRouteContent(
                             ),
                         ),
                         listState = libraryListState,
-                        onQueryChanged = onLibraryQueryChanged,
+                        actions = sharedShellActions.libraryActions,
                         onJumpToLetter = libraryController::jumpLibraryToLetter,
                         onMediaItemAction = { request ->
                             resolveDesktopMediaItemAction(
@@ -702,14 +712,12 @@ fun ColumnScope.DesktopAppRouteContent(
                                 },
                             )
                         },
-                        onRefreshLibrary = libraryController::refreshArtistIndex,
                     )
                 }
                 DesktopAppRoute.Search -> DesktopSearchPanel(
                     appColors = appColors,
                     search = sharedShellState.search,
-                    onQueryChanged = searchController::updateQuery,
-                    onClearSearch = searchController::clearSearch,
+                    actions = sharedShellActions.searchActions,
                     onMediaItemAction = { request ->
                         resolveDesktopMediaItemAction(
                             request = request,

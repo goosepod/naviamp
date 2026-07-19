@@ -26,6 +26,7 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import app.naviamp.ui.NaviampLibraryActions
 import app.naviamp.ui.NaviampLibraryScreenUi
 import app.naviamp.ui.NaviampPageTitle
 import app.naviamp.ui.SharedMediaItemActionRequest
@@ -35,10 +36,9 @@ fun DesktopLibraryPanel(
     appColors: DesktopAppColors,
     library: NaviampLibraryScreenUi,
     listState: LazyListState,
-    onQueryChanged: (String) -> Unit,
+    actions: NaviampLibraryActions,
     onJumpToLetter: (Char) -> Unit,
     onMediaItemAction: (SharedMediaItemActionRequest) -> Unit,
-    onRefreshLibrary: () -> Unit,
 ) {
     val query = library.query
     val status = library.syncStatus.message
@@ -56,7 +56,7 @@ fun DesktopLibraryPanel(
             NaviampPageTitle("Library", appColors)
             DesktopPageOverflowMenu(
                 appColors = appColors,
-                onRefresh = onRefreshLibrary,
+                onRefresh = actions.onRefresh,
                 refreshEnabled = !isSyncing,
             )
         }
@@ -76,7 +76,7 @@ fun DesktopLibraryPanel(
                 if (message.startsWith("Library changed on server")) {
                     TextButton(
                         enabled = !isSyncing,
-                        onClick = onRefreshLibrary,
+                        onClick = actions.onRefresh,
                     ) {
                         Text(if (isSyncing) "Refreshing..." else "Refresh", fontSize = 12.sp)
                     }
@@ -86,11 +86,11 @@ fun DesktopLibraryPanel(
 
         DesktopCompactSearchField(
             value = query,
-            onValueChange = onQueryChanged,
+            onValueChange = actions.onQueryChanged,
             placeholder = "Search artists",
             appColors = appColors,
             onClear = {
-                onQueryChanged("")
+                actions.onQueryChanged("")
                 searchFocusRequester.requestFocus()
             },
             modifier = Modifier.padding(horizontal = 8.dp).focusRequester(searchFocusRequester),

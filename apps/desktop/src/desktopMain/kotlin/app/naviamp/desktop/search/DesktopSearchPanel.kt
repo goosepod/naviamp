@@ -13,6 +13,7 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import app.naviamp.ui.NaviampSearchActions
 import app.naviamp.ui.NaviampSearchScreenUi
 import app.naviamp.ui.NaviampPageTitle
 import app.naviamp.ui.SharedMediaItemActionRequest
@@ -22,8 +23,7 @@ import app.naviamp.ui.SharedTrackRowActionRequest
 fun DesktopSearchPanel(
     appColors: DesktopAppColors,
     search: NaviampSearchScreenUi,
-    onQueryChanged: (String) -> Unit,
-    onClearSearch: () -> Unit,
+    actions: NaviampSearchActions,
     onMediaItemAction: (SharedMediaItemActionRequest) -> Unit,
     onTrackAction: (SharedTrackRowActionRequest) -> Unit,
 ) {
@@ -36,11 +36,11 @@ fun DesktopSearchPanel(
         NaviampPageTitle("Search", appColors)
         DesktopCompactSearchField(
             value = query,
-            onValueChange = onQueryChanged,
+            onValueChange = actions.onQueryChanged,
             placeholder = "Search music",
             appColors = appColors,
             onClear = {
-                onClearSearch()
+                actions.onClear()
                 searchFocusRequester.requestFocus()
             },
             showClear = query.isNotBlank() || !results.isEmpty || status != null || isSearching,
