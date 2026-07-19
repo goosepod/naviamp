@@ -65,6 +65,7 @@ import app.naviamp.ui.SharedSonicPathBuilderActions
 import app.naviamp.ui.StationRowAction
 import app.naviamp.ui.StationRowActionRequest
 import app.naviamp.ui.SharedTrackRowActionRequest
+import app.naviamp.ui.SharedTrackRowAction
 import app.naviamp.ui.resolveAction
 import app.naviamp.ui.nowPlayingQueueIndex
 import app.naviamp.ui.toNaviampRoute
@@ -514,6 +515,13 @@ fun androidAppShellActions(
                 onMixBuilderSelected = handleMixBuilderSelected,
                 onStationSelected = handleShellHomeStationSelected,
                 onSonicDiscoveryTrackAction = handleSonicDiscoveryTrackAction,
+                onRecentlyPlayedTrackAction = { request ->
+                    if (request.action == SharedTrackRowAction.Select) {
+                        handleShellTrackSelected(request.track)
+                    } else {
+                        handleTrackAction(request)
+                    }
+                },
             ),
             mediaActions = NaviampMediaActions(
             onTrackSelected = handleShellTrackSelected,

@@ -761,6 +761,7 @@ data class NaviampHomeActions(
     val onMixBuilderSelected: (SharedMixBuilderUi) -> Unit = {},
     val onStationSelected: (SharedHomeStationUi) -> Unit = {},
     val onSonicDiscoveryTrackAction: (SharedHomeDiscoveryTrackActionRequest) -> Unit = {},
+    val onRecentlyPlayedTrackAction: (SharedTrackRowActionRequest) -> Unit = {},
 )
 
 data class NaviampMediaActions(

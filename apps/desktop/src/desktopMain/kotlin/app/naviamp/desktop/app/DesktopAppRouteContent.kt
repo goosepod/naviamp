@@ -25,7 +25,6 @@ import app.naviamp.domain.Track
 import app.naviamp.domain.cache.DownloadJob
 import app.naviamp.domain.cache.KeepDownloadedCollectionPolicy
 import app.naviamp.domain.cache.StorageCacheStats
-import app.naviamp.domain.home.HomeContent
 import app.naviamp.domain.playback.EqualizerPlaybackEngine
 import app.naviamp.domain.settings.ConnectionFormState
 import app.naviamp.domain.settings.InterfaceSettings
@@ -74,7 +73,6 @@ fun ColumnScope.DesktopAppRouteContent(
     appRoute: DesktopAppRoute,
     connection: NaviampShellConnectionUi,
     capabilities: NaviampShellCapabilitiesUi,
-    homeContent: HomeContent,
     coverArtUrl: (String?) -> String?,
     appActions: DesktopAppActions,
     playlistsController: DesktopPlaylistsController,
@@ -161,31 +159,7 @@ fun ColumnScope.DesktopAppRouteContent(
                     onMixBuilderSelected = sharedShellActions.homeActions.onMixBuilderSelected,
                     onHomeStationSelected = sharedShellActions.homeActions.onStationSelected,
                     onSonicDiscoveryTrackAction = sharedShellActions.homeActions.onSonicDiscoveryTrackAction,
-                    onRecentlyPlayedTrackAction = { request ->
-                        val tracks = homeContent.recentlyPlayedTracks
-                        val index = tracks.indexOfFirst { track -> track.id.value == request.track.id }
-                        val track = tracks.getOrNull(index)
-                        if (track != null) {
-                            when (request.action) {
-                                SharedTrackRowAction.Select -> appActions.playPopularTracks(tracks, index)
-                                SharedTrackRowAction.PlayNext -> playlistsController.playNext(track)
-                                SharedTrackRowAction.StartRadio -> appActions.playTrackRadio(track)
-                                SharedTrackRowAction.PlayTrackRadioNext -> appActions.playTrackRadioNext(track)
-                                SharedTrackRowAction.AddTrackRadioToQueue -> appActions.addTrackRadioToQueue(track)
-                                SharedTrackRowAction.Download -> appActions.downloadTrack(track)
-                                SharedTrackRowAction.AddToQueue -> playlistsController.addTrackToQueue(track)
-                                SharedTrackRowAction.AddToPlaylist -> playlistsController.openTrackAddToPlaylist(track)
-                                SharedTrackRowAction.CreatePlaylistAndAdd -> Unit
-                                SharedTrackRowAction.ToggleFavorite -> appActions.toggleTrackFavorite(track)
-                                SharedTrackRowAction.GoToAlbum -> appActions.openTrackAlbumDetails(track)
-                                SharedTrackRowAction.GoToArtist -> appActions.openTrackArtistDetails(
-                                    track,
-                                    artistId = request.artistId,
-                                    artistName = request.artistName,
-                                )
-                            }
-                        }
-                    },
+                    onRecentlyPlayedTrackAction = sharedShellActions.homeActions.onRecentlyPlayedTrackAction,
                 )
                 DesktopAppRoute.AlbumDetail -> DesktopAlbumDetailPanel(
                     appColors = appColors,

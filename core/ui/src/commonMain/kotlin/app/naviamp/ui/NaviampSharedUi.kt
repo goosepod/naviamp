@@ -1021,13 +1021,7 @@ private fun ConnectedContent(
                 },
                 onHomeStationSelected = homeActions.onStationSelected,
                 onSonicDiscoveryTrackAction = homeActions.onSonicDiscoveryTrackAction,
-                onRecentlyPlayedTrackAction = { request ->
-                    if (request.action == SharedTrackRowAction.Select) {
-                        onTrackSelected(request.track)
-                    } else {
-                        onTrackAction(request)
-                    }
-                },
+                onRecentlyPlayedTrackAction = homeActions.onRecentlyPlayedTrackAction,
             )
             SharedRoute.Playlists -> PullToRefreshRoute(
                 isRefreshing = playlists.refreshing,
