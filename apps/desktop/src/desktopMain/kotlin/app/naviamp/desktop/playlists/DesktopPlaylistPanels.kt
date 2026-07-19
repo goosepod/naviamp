@@ -35,6 +35,7 @@ import app.naviamp.domain.smartplaylist.SmartPlaylistDraft
 import app.naviamp.ui.NaviampAction
 import app.naviamp.ui.NaviampActionSpec
 import app.naviamp.ui.NaviampDetailAction
+import app.naviamp.ui.NaviampMediaActions
 import app.naviamp.ui.NaviampPageTitle
 import app.naviamp.ui.NaviampPlaylistDetailActions
 import app.naviamp.ui.NaviampPlaylistDetailScreenUi
@@ -62,7 +63,7 @@ fun DesktopPlaylistsPanel(
     appColors: DesktopAppColors,
     screen: NaviampPlaylistsScreenUi,
     actions: NaviampPlaylistsActions,
-    onPlaylistAction: (SharedMediaItemActionRequest) -> Unit,
+    mediaActions: NaviampMediaActions,
 ) {
     var smartPlaylistBuilderOpen by remember { mutableStateOf(false) }
     var smartPlaylistEditTarget by remember { mutableStateOf<SharedMediaItemUi?>(null) }
@@ -138,7 +139,7 @@ fun DesktopPlaylistsPanel(
             PlaylistListRow(
                 appColors = appColors,
                 playlist = playlist,
-                onPlaylistAction = onPlaylistAction,
+                onPlaylistAction = mediaActions.onMediaItemAction ?: {},
                 onEditSmartPlaylist = {
                     coroutineScope.launch {
                         runCatching {

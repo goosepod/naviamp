@@ -414,6 +414,7 @@ Record architecture decisions here or link a dedicated decision record.
 | 2026-07-19 | Remove transitional Desktop shell aliases. | Route rendering should refer directly to its `NaviampAppShellUiState` and `NaviampAppShellActions` inputs; aliases left from incremental migration obscure rather than strengthen the ownership boundary. |
 | 2026-07-19 | Carry route-shared media intent intact into Desktop Library. | Artist selection and row actions already belong to `NaviampMediaActions`; the Library panel should consume that grouped contract instead of receiving a route-expanded dispatcher callback. |
 | 2026-07-19 | Carry route-shared media intent intact into Desktop Search. | Artist, album, and track row actions share `NaviampMediaActions`; the Search panel should consume that contract instead of requiring route rendering to split media-item and track dispatchers. |
+| 2026-07-19 | Carry route-shared media intent intact into Desktop Playlists. | Playlist selection, playback, download, queue, and mutation requests already use the typed media dispatcher in `NaviampMediaActions`; smart-playlist authoring remains separately owned by `NaviampPlaylistsActions`. |
 
 ## Shared Controller Construction Audit
 
@@ -439,7 +440,7 @@ The 2026-07-17 audit covers every current application entry point:
 
 ## Current Handoff
 
-- **Last completed item:** Desktop Search now consumes artist, album, and track intent through `NaviampMediaActions`; the route no longer expands separate media-item and track dispatchers.
-- **Next recommended item:** Carry `NaviampMediaActions` intact into Desktop Playlists, then audit detail panels for any remaining expansion of grouped shared contracts.
+- **Last completed item:** Desktop Playlists now consumes typed row intent through `NaviampMediaActions` while smart-playlist authoring remains in `NaviampPlaylistsActions`; the route no longer expands the media dispatcher.
+- **Next recommended item:** Audit Desktop detail and Home panels for any remaining expansion of grouped shared contracts, then document which final route inputs are intentionally platform-owned.
 - **Verification:** `:core:domain:jvmTest`, `:core:app:jvmTest`, `:core:storage:jvmTest`, `:core:ui:jvmTest`, `:apps:android:testDebugUnitTest`, `:apps:desktop:desktopTest`, `:core:app:iosSimulatorArm64Test`, `:core:storage:compileKotlinIosSimulatorArm64`, and `:core:ui:compileKotlinIosSimulatorArm64` pass together with at most two Gradle workers.
 - **Known blockers:** None.

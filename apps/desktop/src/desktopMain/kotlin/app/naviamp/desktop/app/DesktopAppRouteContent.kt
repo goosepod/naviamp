@@ -135,7 +135,7 @@ fun ColumnScope.DesktopAppRouteContent(
                     appColors = appColors,
                     screen = shellState.playlists,
                     actions = shellActions.playlistsActions,
-                    onPlaylistAction = shellActions.mediaActions.onMediaItemAction ?: {},
+                    mediaActions = shellActions.mediaActions,
                 )
                 DesktopAppRoute.PlaylistDetail -> DesktopPlaylistDetailPanel(
                     appColors = appColors,
