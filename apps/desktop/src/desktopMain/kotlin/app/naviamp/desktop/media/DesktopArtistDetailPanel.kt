@@ -29,7 +29,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.naviamp.domain.settings.AlbumCollectionLayout
-import app.naviamp.domain.settings.AlbumSortOrder
+import app.naviamp.domain.settings.InterfaceSettings
 import app.naviamp.ui.NaviampArtistDetailScreenUi
 import app.naviamp.ui.NaviampArtistDetailActions
 import app.naviamp.ui.SharedMediaItemAction
@@ -56,9 +56,7 @@ import app.naviamp.ui.sortedForAlbumDisplay
 fun DesktopArtistDetailPanel(
     appColors: DesktopAppColors,
     screen: NaviampArtistDetailScreenUi,
-    albumCollectionLayout: AlbumCollectionLayout,
-    albumSortOrder: AlbumSortOrder,
-    groupAlbumsByReleaseType: Boolean,
+    interfaceSettings: InterfaceSettings,
     actions: NaviampArtistDetailActions,
 ) {
     val detail = screen.detail
@@ -68,7 +66,7 @@ fun DesktopArtistDetailPanel(
     var artistImageOpen by remember(artist?.id) { mutableStateOf(false) }
     val similarArtistsVisible = detail?.let { it.similarArtists.isNotEmpty() || it.similarArtistsStatus != null } == true
     val visibleAlbumSections = detail?.let { details ->
-        if (groupAlbumsByReleaseType) {
+        if (interfaceSettings.groupAlbumsByReleaseType) {
             details.albumSections
         } else {
             listOf(
@@ -78,7 +76,7 @@ fun DesktopArtistDetailPanel(
                 ),
             )
         }.map { section ->
-            section.copy(albums = section.albums.sortedForAlbumDisplay(albumSortOrder))
+            section.copy(albums = section.albums.sortedForAlbumDisplay(interfaceSettings.albumSortOrder))
         }
     }.orEmpty()
     val displayedAlbums = visibleAlbumSections.flatMap { section -> section.albums }
@@ -322,7 +320,7 @@ fun DesktopArtistDetailPanel(
                         fontWeight = FontWeight.Bold,
                         fontSize = 12.sp,
                     )
-                    if (albumCollectionLayout == AlbumCollectionLayout.Grid) {
+                    if (interfaceSettings.albumCollectionLayout == AlbumCollectionLayout.Grid) {
                         FlowRow(
                             horizontalArrangement = Arrangement.spacedBy(10.dp),
                             verticalArrangement = Arrangement.spacedBy(14.dp),

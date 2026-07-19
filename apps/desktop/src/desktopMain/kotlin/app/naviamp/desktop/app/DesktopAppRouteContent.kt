@@ -114,10 +114,7 @@ fun ColumnScope.DesktopAppRouteContent(
                 DesktopAppRoute.ArtistDetail -> DesktopArtistDetailPanel(
                     appColors = appColors,
                     screen = shellState.artistDetail,
-                    albumCollectionLayout = shellState.general.interfaceSettings.albumCollectionLayout,
-                    albumSortOrder = shellState.general.interfaceSettings.albumSortOrder,
-                    groupAlbumsByReleaseType =
-                        shellState.general.interfaceSettings.groupAlbumsByReleaseType,
+                    interfaceSettings = shellState.general.interfaceSettings,
                     actions = shellActions.artistDetailActions,
                 )
                 DesktopAppRoute.Playlists -> DesktopPlaylistsPanel(
