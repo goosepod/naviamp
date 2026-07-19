@@ -792,6 +792,30 @@ data class NaviampShellChromeUi(
     val selectedVisualizer: NaviampVisualizer = NaviampVisualizer.AudioSphere,
 )
 
+data class NaviampAppShellUiState(
+    val connectionSettings: NaviampConnectionSettingsUi = NaviampConnectionSettingsUi(),
+    val general: NaviampGeneralSettingsUi = NaviampGeneralSettingsUi(),
+    val playback: NaviampPlaybackSettingsUi = NaviampPlaybackSettingsUi(),
+    val cache: NaviampCacheSettingsUi = NaviampCacheSettingsUi(),
+    val shellChrome: NaviampShellChromeUi = NaviampShellChromeUi(),
+    val search: NaviampSearchScreenUi = NaviampSearchScreenUi(),
+    val home: NaviampHomeScreenUi = NaviampHomeScreenUi(),
+    val artistMixBuilder: SharedArtistMixBuilderUi = SharedArtistMixBuilderUi(),
+    val albumMixBuilder: SharedAlbumMixBuilderUi = SharedAlbumMixBuilderUi(),
+    val genreMixBuilder: SharedGenreMixBuilderUi = SharedGenreMixBuilderUi(),
+    val sonicPathBuilder: SharedSonicPathBuilderUi = SharedSonicPathBuilderUi(),
+    val sonicMixBuilder: SharedSonicMixBuilderUi = SharedSonicMixBuilderUi(),
+    val library: NaviampLibraryScreenUi = NaviampLibraryScreenUi(),
+    val downloads: NaviampDownloadsScreenUi = NaviampDownloadsScreenUi(),
+    val playlists: NaviampPlaylistsScreenUi = NaviampPlaylistsScreenUi(),
+    val playlistChoices: List<NaviampPlaylistChoiceUi> = emptyList(),
+    val radio: NaviampInternetRadioScreenUi = NaviampInternetRadioScreenUi(),
+    val albumDetail: NaviampAlbumDetailScreenUi = NaviampAlbumDetailScreenUi(),
+    val artistDetail: NaviampArtistDetailScreenUi = NaviampArtistDetailScreenUi(),
+    val playlistDetail: NaviampPlaylistDetailScreenUi = NaviampPlaylistDetailScreenUi(),
+    val nowPlaying: NowPlayingUi? = null,
+)
+
 data class SharedSonicPathBuilderActions(
     val onStartQueryChanged: (String) -> Unit = {},
     val onEndQueryChanged: (String) -> Unit = {},

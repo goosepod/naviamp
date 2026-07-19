@@ -14,6 +14,7 @@ import app.naviamp.domain.provider.allKnownTracks
 import app.naviamp.domain.settings.selectedMusicFolderSummary
 import app.naviamp.domain.settings.streamQualityForNetwork
 import app.naviamp.ui.NaviampAboutUi
+import app.naviamp.ui.NaviampAppShellUiState
 import app.naviamp.ui.NaviampCacheSettingsUi
 import app.naviamp.ui.NaviampConnectionCapabilitiesUi
 import app.naviamp.ui.NaviampSavedConnectionUi
@@ -201,6 +202,7 @@ fun rememberAndroidAppShellUiState(
 
         AndroidAppShellUiState(
             modifier = modifier,
+            presentation = NaviampAppShellUiState(
             connectionSettings = shellConnection.toConnectionSettingsUi(shellCapabilities),
             general = interfaceSettings.toGeneralSettingsUi(context.androidAboutUi()),
             playback = playbackSettings.toPlaybackSettingsUi(
@@ -220,7 +222,6 @@ fun rememberAndroidAppShellUiState(
                     .firstOrNull { it.path == cacheSettings.customAudioCacheDirectory }?.id
                     ?: audioCacheLocations.firstOrNull()?.id,
             ),
-            capabilities = shellCapabilities,
             shellChrome = NaviampShellChromeUi(
                 selectedRoute = selectedRoute,
                 nowPlayingOpen = nowPlayingOpen,
@@ -228,7 +229,6 @@ fun rememberAndroidAppShellUiState(
                 supportsApplicationUpdates = AndroidCapabilityPresentation.applicationUpdates.visible,
                 selectedVisualizer = selectedVisualizer,
             ),
-            visualizerBandsProvider = { visualizerFrame?.bands.orEmpty() },
             search = NaviampSearchScreenUi(
                 query = query,
                 results = shellModels.searchResults,
@@ -324,6 +324,9 @@ fun rememberAndroidAppShellUiState(
                 status = status.takeIf { shellModels.playlistDetail != null },
             ),
             nowPlaying = nowPlayingUi,
+            ),
+            capabilities = shellCapabilities,
+            visualizerBandsProvider = { visualizerFrame?.bands.orEmpty() },
         )
     }
 

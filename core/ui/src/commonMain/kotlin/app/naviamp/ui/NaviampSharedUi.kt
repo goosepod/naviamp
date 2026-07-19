@@ -100,29 +100,9 @@ expect fun NaviampTooltip(
 @NonRestartableComposable
 fun NaviampSharedAppShell(
     modifier: Modifier = Modifier,
-    connectionSettings: NaviampConnectionSettingsUi,
-    general: NaviampGeneralSettingsUi = NaviampGeneralSettingsUi(),
-    playback: NaviampPlaybackSettingsUi = NaviampPlaybackSettingsUi(),
-    cache: NaviampCacheSettingsUi = NaviampCacheSettingsUi(),
+    uiState: NaviampAppShellUiState,
     settingsSync: NaviampSettingsSyncUi = NaviampSettingsSyncUi(),
-    shellChrome: NaviampShellChromeUi = NaviampShellChromeUi(),
-    search: NaviampSearchScreenUi,
-    home: NaviampHomeScreenUi,
-    artistMixBuilder: SharedArtistMixBuilderUi = SharedArtistMixBuilderUi(),
-    albumMixBuilder: SharedAlbumMixBuilderUi = SharedAlbumMixBuilderUi(),
-    genreMixBuilder: SharedGenreMixBuilderUi = SharedGenreMixBuilderUi(),
-    sonicPathBuilder: SharedSonicPathBuilderUi = SharedSonicPathBuilderUi(),
-    sonicMixBuilder: SharedSonicMixBuilderUi = SharedSonicMixBuilderUi(),
-    library: NaviampLibraryScreenUi,
-    downloads: NaviampDownloadsScreenUi = NaviampDownloadsScreenUi(),
-    playlists: NaviampPlaylistsScreenUi,
-    playlistChoices: List<NaviampPlaylistChoiceUi> = emptyList(),
-    radio: NaviampInternetRadioScreenUi,
-    albumDetail: NaviampAlbumDetailScreenUi,
-    artistDetail: NaviampArtistDetailScreenUi,
-    playlistDetail: NaviampPlaylistDetailScreenUi = NaviampPlaylistDetailScreenUi(),
-    nowPlaying: NowPlayingUi?,
-    visualizerBandsProvider: () -> List<Float> = { nowPlaying?.visualizerFrame?.bands.orEmpty() },
+    visualizerBandsProvider: () -> List<Float> = { uiState.nowPlaying?.visualizerFrame?.bands.orEmpty() },
     navigationActions: NaviampShellNavigationActions,
     connectionActions: NaviampConnectionSettingsActions,
     syncActions: NaviampSettingsSyncActions = NaviampSettingsSyncActions(),
@@ -145,6 +125,27 @@ fun NaviampSharedAppShell(
     mediaActions: NaviampMediaActions,
     nowPlayingActions: NaviampNowPlayingActions = NaviampNowPlayingActions(),
 ) {
+    val connectionSettings = uiState.connectionSettings
+    val general = uiState.general
+    val playback = uiState.playback
+    val cache = uiState.cache
+    val shellChrome = uiState.shellChrome
+    val search = uiState.search
+    val home = uiState.home
+    val artistMixBuilder = uiState.artistMixBuilder
+    val albumMixBuilder = uiState.albumMixBuilder
+    val genreMixBuilder = uiState.genreMixBuilder
+    val sonicPathBuilder = uiState.sonicPathBuilder
+    val sonicMixBuilder = uiState.sonicMixBuilder
+    val library = uiState.library
+    val downloads = uiState.downloads
+    val playlists = uiState.playlists
+    val playlistChoices = uiState.playlistChoices
+    val radio = uiState.radio
+    val albumDetail = uiState.albumDetail
+    val artistDetail = uiState.artistDetail
+    val playlistDetail = uiState.playlistDetail
+    val nowPlaying = uiState.nowPlaying
     val supportsDownloads = shellChrome.supportsDownloads
     val supportsApplicationUpdates = shellChrome.supportsApplicationUpdates
     val selectedRoute = shellChrome.selectedRoute
@@ -343,28 +344,8 @@ fun NaviampSharedAppShell(
                     } else {
                         ConnectedContent(
                             colors = colors,
-                            shellChrome = shellChrome,
-                            home = home,
-                            search = search,
-            artistMixBuilder = artistMixBuilder,
-            albumMixBuilder = albumMixBuilder,
-            genreMixBuilder = genreMixBuilder,
-            sonicPathBuilder = sonicPathBuilder,
-            sonicMixBuilder = sonicMixBuilder,
-                            library = library,
-                            downloads = downloads,
-                            playlists = playlists,
-                            playlistChoices = playlistChoices,
-                            radio = radio,
-                            albumDetail = albumDetail,
-                            artistDetail = artistDetail,
-                            playlistDetail = playlistDetail,
-                            nowPlaying = nowPlaying,
+                            uiState = uiState,
                             visualizerBandsProvider = visualizerBandsProvider,
-                            connectionSettings = connectionSettings,
-                            general = general,
-                            playback = playback,
-                            cache = cache,
                             settingsSync = settingsSync,
                             connectionActions = connectionActions,
                             syncActions = syncActions,
@@ -806,28 +787,8 @@ private fun MusicFolderMultiSelect(
 @Composable
 private fun ConnectedContent(
     colors: NaviampColors,
-    shellChrome: NaviampShellChromeUi,
-    home: NaviampHomeScreenUi,
-    search: NaviampSearchScreenUi,
-    artistMixBuilder: SharedArtistMixBuilderUi,
-    albumMixBuilder: SharedAlbumMixBuilderUi,
-    genreMixBuilder: SharedGenreMixBuilderUi,
-    sonicPathBuilder: SharedSonicPathBuilderUi,
-    sonicMixBuilder: SharedSonicMixBuilderUi,
-    library: NaviampLibraryScreenUi,
-    downloads: NaviampDownloadsScreenUi,
-    playlists: NaviampPlaylistsScreenUi,
-    playlistChoices: List<NaviampPlaylistChoiceUi>,
-    radio: NaviampInternetRadioScreenUi,
-    albumDetail: NaviampAlbumDetailScreenUi,
-    artistDetail: NaviampArtistDetailScreenUi,
-    playlistDetail: NaviampPlaylistDetailScreenUi,
-    nowPlaying: NowPlayingUi?,
+    uiState: NaviampAppShellUiState,
     visualizerBandsProvider: () -> List<Float>,
-    connectionSettings: NaviampConnectionSettingsUi,
-    general: NaviampGeneralSettingsUi,
-    playback: NaviampPlaybackSettingsUi,
-    cache: NaviampCacheSettingsUi,
     settingsSync: NaviampSettingsSyncUi,
     connectionActions: NaviampConnectionSettingsActions,
     syncActions: NaviampSettingsSyncActions,
@@ -850,6 +811,27 @@ private fun ConnectedContent(
     mediaActions: NaviampMediaActions,
     nowPlayingActions: NaviampNowPlayingActions,
 ) {
+    val connectionSettings = uiState.connectionSettings
+    val general = uiState.general
+    val playback = uiState.playback
+    val cache = uiState.cache
+    val shellChrome = uiState.shellChrome
+    val search = uiState.search
+    val home = uiState.home
+    val artistMixBuilder = uiState.artistMixBuilder
+    val albumMixBuilder = uiState.albumMixBuilder
+    val genreMixBuilder = uiState.genreMixBuilder
+    val sonicPathBuilder = uiState.sonicPathBuilder
+    val sonicMixBuilder = uiState.sonicMixBuilder
+    val library = uiState.library
+    val downloads = uiState.downloads
+    val playlists = uiState.playlists
+    val playlistChoices = uiState.playlistChoices
+    val radio = uiState.radio
+    val albumDetail = uiState.albumDetail
+    val artistDetail = uiState.artistDetail
+    val playlistDetail = uiState.playlistDetail
+    val nowPlaying = uiState.nowPlaying
     val selectedRoute = shellChrome.selectedRoute
     val nowPlayingOpen = shellChrome.nowPlayingOpen
     val selectedVisualizer = shellChrome.selectedVisualizer
