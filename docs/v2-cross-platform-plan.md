@@ -470,6 +470,17 @@ The 2026-07-19 Android audit found no remaining common queue, Now Playing, provi
 
 The remaining Android product-behavior reduction belongs to Milestone 4 and must preserve foreground-service, MediaSession, notification, permission, Android Auto, and storage-selection boundaries.
 
+## Desktop Coordination Ownership Audit
+
+The 2026-07-19 Desktop audit confirmed that queue, Now Playing, provider actions, settings sync, cache maintenance, and download execution use the same shared owners as Android. It also found and removed one duplicated cross-host download policy:
+
+- `NaviampDownloadCoordinator` now owns keep-downloaded enable/disable decisions, playlist/favorites policy construction, and collection-kind dispatch. Android and Desktop retain provider fetch scheduling and platform download execution but no longer reproduce that product policy.
+- `DesktopPlaybackController` retains BASS execution, playlist-engine callbacks, and Desktop presentation effects while delegating queue mutations, transport decisions, live playback state, reporting, provider actions, and session persistence to injected shared owners.
+- Desktop settings-sync code retains native directory selection and document I/O; snapshot, timestamps, import/export, reconciliation, and status policy remain in the injected shared settings-sync controller.
+- `DesktopDownloadsController` and cache/library adapters consume the single `NaviampApplicationServices` graph and retain only filesystem, provider/network execution, native playback, and Compose-observable adaptation.
+
+The remaining Desktop entry-point reduction, BASS contract adaptation, OS-service adapters, and packaging verification belong to Milestone 3 rather than this coordination item.
+
 ## File Selection and Sharing Audit
 
 The 2026-07-17 audit covers every current application entry point:

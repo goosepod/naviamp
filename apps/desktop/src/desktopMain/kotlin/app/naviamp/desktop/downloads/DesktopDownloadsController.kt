@@ -10,6 +10,9 @@ import app.naviamp.domain.Track
 import app.naviamp.app.NaviampDownloadJobController
 import app.naviamp.app.NaviampDownloadCoordinator
 import app.naviamp.app.NaviampDownloadExecutionRequest
+import app.naviamp.app.NaviampKeepDownloadedToggleResult
+import app.naviamp.app.naviampKeepDownloadedFavoritesPolicy
+import app.naviamp.app.naviampKeepDownloadedPlaylistPolicy
 import app.naviamp.app.NaviampApplicationStatusArea
 import app.naviamp.app.NaviampApplicationStatusController
 import app.naviamp.app.NaviampApplicationStatusLevel
@@ -24,7 +27,6 @@ import app.naviamp.app.noTracksToDownloadStatus
 import app.naviamp.domain.cache.DownloadRepository
 import app.naviamp.domain.cache.DownloadJob
 import app.naviamp.domain.cache.DownloadTracksResult
-import app.naviamp.domain.cache.KeepDownloadedCollectionKind
 import app.naviamp.domain.cache.KeepDownloadedCollectionPolicy
 import app.naviamp.domain.cache.KeepDownloadedRepository
 import app.naviamp.domain.cache.CacheMaintenanceRepository
@@ -202,10 +204,8 @@ class DesktopDownloadsController(
 
     fun toggleKeepDownloadedPlaylist(playlist: Playlist) {
         val activeSourceId = sourceId() ?: return
-        val kind = if (playlist.isSmart) KeepDownloadedCollectionKind.SmartPlaylist else KeepDownloadedCollectionKind.Playlist
-        val existing = keepDownloadedRepository.keepDownloadedPolicy(activeSourceId, kind, playlist.id)
-        if (existing != null) {
-            keepDownloadedRepository.deleteKeepDownloadedPolicy(activeSourceId, kind, playlist.id)
+        val policy = naviampKeepDownloadedPlaylistPolicy(activeSourceId, playlist)
+        if (downloads.toggleKeepDownloaded(policy) == NaviampKeepDownloadedToggleResult.Disabled) {
             reloadKeepDownloadedPolicies()
             updateStatus(keepDownloadedDisabledStatus(playlist.name))
             return
@@ -217,20 +217,15 @@ class DesktopDownloadsController(
         scope.launch {
             runCatching {
                 val tracks = withContext(Dispatchers.IO) { providerResponseService.playlistTracks(activeProvider, playlist.id) }
-                reconcileKeepDownloadedPolicy(
-                    KeepDownloadedCollectionPolicy(activeSourceId, kind, playlist.id, playlist.name),
-                    tracks,
-                )
+                reconcileKeepDownloadedPolicy(policy, tracks)
             }.onFailure { error -> updateStatus(keepDownloadedErrorStatus(playlist.name, error)) }
         }
     }
 
     fun toggleKeepDownloadedFavorites() {
         val activeSourceId = sourceId() ?: return
-        val kind = KeepDownloadedCollectionKind.Favorites
-        val existing = keepDownloadedRepository.keepDownloadedPolicy(activeSourceId, kind, FavoritesCollectionId)
-        if (existing != null) {
-            keepDownloadedRepository.deleteKeepDownloadedPolicy(activeSourceId, kind, FavoritesCollectionId)
+        val policy = naviampKeepDownloadedFavoritesPolicy(activeSourceId)
+        if (downloads.toggleKeepDownloaded(policy) == NaviampKeepDownloadedToggleResult.Disabled) {
             reloadKeepDownloadedPolicies()
             updateStatus(keepDownloadedDisabledStatus("Favorites"))
             return
@@ -242,10 +237,7 @@ class DesktopDownloadsController(
         scope.launch {
             runCatching {
                 val tracks = withContext(Dispatchers.IO) { activeProvider.favoriteTracks() }
-                reconcileKeepDownloadedPolicy(
-                    KeepDownloadedCollectionPolicy(activeSourceId, kind, FavoritesCollectionId, "Favorite tracks"),
-                    tracks,
-                )
+                reconcileKeepDownloadedPolicy(policy, tracks)
             }.onFailure { error -> updateStatus(keepDownloadedErrorStatus("favorites", error)) }
         }
     }
@@ -257,12 +249,13 @@ class DesktopDownloadsController(
             scope.launch {
                 runCatching {
                     val tracks = withContext(Dispatchers.IO) {
-                        when (policy.kind) {
-                            KeepDownloadedCollectionKind.Playlist,
-                            KeepDownloadedCollectionKind.SmartPlaylist,
-                            -> providerResponseService.playlistTracks(activeProvider, policy.collectionId)
-                            KeepDownloadedCollectionKind.Favorites -> activeProvider.favoriteTracks()
-                        }
+                        downloads.loadKeepDownloadedTracks(
+                            policy = policy,
+                            loadPlaylistTracks = { playlistId ->
+                                providerResponseService.playlistTracks(activeProvider, playlistId)
+                            },
+                            loadFavoriteTracks = activeProvider::favoriteTracks,
+                        )
                     }
                     reconcileKeepDownloadedPolicy(policy, tracks)
                 }.onFailure { error -> updateStatus(keepDownloadedRefreshErrorStatus(policy.name, error)) }
@@ -340,5 +333,3 @@ class DesktopDownloadsController(
         )
     }
 }
-
-private const val FavoritesCollectionId = "favorite-tracks"

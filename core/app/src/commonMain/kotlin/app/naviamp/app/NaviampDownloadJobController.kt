@@ -1,8 +1,9 @@
 package app.naviamp.app
 
+import app.naviamp.domain.Playlist
+import app.naviamp.domain.StreamQuality
 import app.naviamp.domain.Track
 import app.naviamp.domain.TrackId
-import app.naviamp.domain.StreamQuality
 import app.naviamp.domain.cache.DownloadExecutionResult
 import app.naviamp.domain.cache.DownloadJob
 import app.naviamp.domain.cache.DownloadJobUpdate
@@ -11,6 +12,7 @@ import app.naviamp.domain.cache.DownloadRepository
 import app.naviamp.domain.cache.DownloadService
 import app.naviamp.domain.cache.DownloadTracksResult
 import app.naviamp.domain.cache.KeepDownloadedCollectionPolicy
+import app.naviamp.domain.cache.KeepDownloadedCollectionKind
 import app.naviamp.domain.cache.KeepDownloadedReconciliationPlan
 import app.naviamp.domain.cache.KeepDownloadedRepository
 import app.naviamp.domain.cache.createDownloadJob
@@ -27,6 +29,30 @@ data class NaviampDownloadRetry(
     val tracks: List<Track>,
     val replaceExisting: Boolean,
 )
+
+enum class NaviampKeepDownloadedToggleResult {
+    Enable,
+    Disabled,
+}
+
+fun naviampKeepDownloadedPlaylistPolicy(
+    sourceId: String,
+    playlist: Playlist,
+): KeepDownloadedCollectionPolicy =
+    KeepDownloadedCollectionPolicy(
+        sourceId = sourceId,
+        kind = if (playlist.isSmart) KeepDownloadedCollectionKind.SmartPlaylist else KeepDownloadedCollectionKind.Playlist,
+        collectionId = playlist.id,
+        name = playlist.name,
+    )
+
+fun naviampKeepDownloadedFavoritesPolicy(sourceId: String): KeepDownloadedCollectionPolicy =
+    KeepDownloadedCollectionPolicy(
+        sourceId = sourceId,
+        kind = KeepDownloadedCollectionKind.Favorites,
+        collectionId = FAVORITE_TRACKS_COLLECTION_ID,
+        name = "Favorite tracks",
+    )
 
 /** Owns observable download-job state, cancellation handles, retry intent, and stable job IDs. */
 class NaviampDownloadJobController(
@@ -183,4 +209,32 @@ class NaviampDownloadCoordinator<DownloadedFile, DownloadedTrack, Stats>(
         keepDownloadedRepository.unmarkManagedKeepDownloadedTracks(policy.sourceId, plan.trackIdsToRemove)
         return plan
     }
+
+    fun toggleKeepDownloaded(policy: KeepDownloadedCollectionPolicy): NaviampKeepDownloadedToggleResult {
+        val existing = keepDownloadedRepository.keepDownloadedPolicy(
+            policy.sourceId,
+            policy.kind,
+            policy.collectionId,
+        ) ?: return NaviampKeepDownloadedToggleResult.Enable
+        keepDownloadedRepository.deleteKeepDownloadedPolicy(
+            existing.sourceId,
+            existing.kind,
+            existing.collectionId,
+        )
+        return NaviampKeepDownloadedToggleResult.Disabled
+    }
+
+    suspend fun loadKeepDownloadedTracks(
+        policy: KeepDownloadedCollectionPolicy,
+        loadPlaylistTracks: suspend (String) -> List<Track>,
+        loadFavoriteTracks: suspend () -> List<Track>,
+    ): List<Track> =
+        when (policy.kind) {
+            KeepDownloadedCollectionKind.Playlist,
+            KeepDownloadedCollectionKind.SmartPlaylist,
+            -> loadPlaylistTracks(policy.collectionId)
+            KeepDownloadedCollectionKind.Favorites -> loadFavoriteTracks()
+        }
 }
+
+private const val FAVORITE_TRACKS_COLLECTION_ID = "favorite-tracks"

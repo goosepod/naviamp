@@ -23,6 +23,7 @@ import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
+import kotlin.test.assertNull
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
@@ -68,6 +69,47 @@ class NaviampApplicationServicesTest {
         assertSame(cacheMaintenance, services.cacheMaintenance)
         assertSame(downloadJobs, services.downloadJobs)
         assertSame(downloads, services.downloads)
+    }
+
+    @Test
+    fun downloadCoordinatorOwnsKeepDownloadedToggleAndCollectionDispatch() = runTest {
+        val store = RecordingDownloadStore()
+        val jobs = NaviampDownloadJobController(jobs = { emptyList() }, setJobs = {})
+        val downloads = NaviampDownloadCoordinator(
+            downloadRepository = store,
+            downloadReplacementRepository = store,
+            keepDownloadedRepository = store,
+            jobs = jobs,
+            downloadedTrackId = { _: Unit -> "" },
+            loadStats = { Unit },
+        )
+        val playlistPolicy = KeepDownloadedCollectionPolicy(
+            sourceId = "source",
+            kind = KeepDownloadedCollectionKind.Playlist,
+            collectionId = "playlist",
+            name = "Playlist",
+        )
+
+        assertEquals(NaviampKeepDownloadedToggleResult.Enable, downloads.toggleKeepDownloaded(playlistPolicy))
+        store.policy = playlistPolicy
+        assertEquals(NaviampKeepDownloadedToggleResult.Disabled, downloads.toggleKeepDownloaded(playlistPolicy))
+        assertNull(store.policy)
+        assertEquals(
+            "playlist",
+            downloads.loadKeepDownloadedTracks(
+                policy = playlistPolicy,
+                loadPlaylistTracks = { id -> listOf(compositionTrack(id)) },
+                loadFavoriteTracks = { error("favorite loader should not run") },
+            ).single().id.value,
+        )
+        assertEquals(
+            "favorites",
+            downloads.loadKeepDownloadedTracks(
+                policy = naviampKeepDownloadedFavoritesPolicy("source"),
+                loadPlaylistTracks = { error("playlist loader should not run") },
+                loadFavoriteTracks = { listOf(compositionTrack("favorites")) },
+            ).single().id.value,
+        )
     }
 
     @Test
@@ -231,6 +273,28 @@ private object EmptyDownloadStore :
     override fun managedKeepDownloadedTrackIds(sourceId: String) = emptySet<String>()
     override fun markManagedKeepDownloadedTracks(sourceId: String, trackIds: Set<String>) = Unit
     override fun unmarkManagedKeepDownloadedTracks(sourceId: String, trackIds: Set<String>) = Unit
+}
+
+private class RecordingDownloadStore :
+    DownloadRepository<Unit, Unit> by EmptyDownloadStore,
+    DownloadReplacementRepository<Unit> by EmptyDownloadStore,
+    KeepDownloadedRepository by EmptyDownloadStore {
+    var policy: KeepDownloadedCollectionPolicy? = null
+
+    override fun keepDownloadedPolicy(
+        sourceId: String,
+        kind: KeepDownloadedCollectionKind,
+        collectionId: String,
+    ): KeepDownloadedCollectionPolicy? =
+        policy?.takeIf { it.sourceId == sourceId && it.kind == kind && it.collectionId == collectionId }
+
+    override fun deleteKeepDownloadedPolicy(
+        sourceId: String,
+        kind: KeepDownloadedCollectionKind,
+        collectionId: String,
+    ) {
+        if (keepDownloadedPolicy(sourceId, kind, collectionId) != null) policy = null
+    }
 }
 
 private object EmptyCacheMaintenanceRepository : CacheMaintenanceRepository<Unit> {

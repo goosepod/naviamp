@@ -4,6 +4,9 @@ import app.naviamp.domain.cache.StorageCacheStats
 import app.naviamp.app.NaviampDownloadJobController
 import app.naviamp.app.NaviampDownloadCoordinator
 import app.naviamp.app.NaviampDownloadExecutionRequest
+import app.naviamp.app.NaviampKeepDownloadedToggleResult
+import app.naviamp.app.naviampKeepDownloadedFavoritesPolicy
+import app.naviamp.app.naviampKeepDownloadedPlaylistPolicy
 import app.naviamp.app.NaviampApplicationStatusArea
 import app.naviamp.app.NaviampApplicationStatusLevel
 import app.naviamp.app.downloadsDeletedStatus
@@ -19,7 +22,6 @@ import android.content.Context
 import app.naviamp.domain.Track
 import app.naviamp.domain.cache.CacheMaintenanceRepository
 import app.naviamp.domain.cache.DownloadRepository
-import app.naviamp.domain.cache.KeepDownloadedCollectionKind
 import app.naviamp.domain.cache.KeepDownloadedCollectionPolicy
 import app.naviamp.domain.cache.downloadRemoveErrorStatus
 import app.naviamp.domain.cache.downloadConnectionRequiredStatus
@@ -41,7 +43,6 @@ private fun AndroidAppState.publishDownloadStatus(message: String) {
         message = message,
     )
 }
-
 fun removeAndroidDownload(
     scope: CoroutineScope,
     state: AndroidAppState,
@@ -70,7 +71,6 @@ fun removeAndroidDownload(
         }
     }
 }
-
 internal class AndroidDownloadActionController(
     private val context: Context,
     private val scope: CoroutineScope,
@@ -174,10 +174,8 @@ internal class AndroidDownloadActionController(
 
     fun toggleKeepDownloadedPlaylist(playlist: Playlist) {
         val sourceId = state.activeSourceId ?: return
-        val kind = if (playlist.isSmart) KeepDownloadedCollectionKind.SmartPlaylist else KeepDownloadedCollectionKind.Playlist
-        val existing = storage.keepDownloadedPolicy(sourceId, kind, playlist.id)
-        if (existing != null) {
-            storage.deleteKeepDownloadedPolicy(sourceId, kind, playlist.id)
+        val policy = naviampKeepDownloadedPlaylistPolicy(sourceId, playlist)
+        if (downloads.toggleKeepDownloaded(policy) == NaviampKeepDownloadedToggleResult.Disabled) {
             reloadKeepDownloadedPolicies()
             state.publishDownloadStatus(keepDownloadedDisabledStatus(playlist.name))
             return
@@ -186,10 +184,7 @@ internal class AndroidDownloadActionController(
         scope.launch {
             runCatching {
                 val tracks = withContext(Dispatchers.IO) { provider.playlistTracks(playlist.id) }
-                reconcileKeepDownloadedPolicy(
-                    KeepDownloadedCollectionPolicy(sourceId, kind, playlist.id, playlist.name),
-                    tracks,
-                )
+                reconcileKeepDownloadedPolicy(policy, tracks)
             }.onFailure { error ->
                 state.publishDownloadStatus(keepDownloadedErrorStatus(playlist.name, error))
             }
@@ -198,22 +193,17 @@ internal class AndroidDownloadActionController(
 
     fun toggleKeepDownloadedFavorites() {
         val sourceId = state.activeSourceId ?: return
-        val kind = KeepDownloadedCollectionKind.Favorites
-        val existing = storage.keepDownloadedPolicy(sourceId, kind, FavoritesCollectionId)
-        if (existing != null) {
-            storage.deleteKeepDownloadedPolicy(sourceId, kind, FavoritesCollectionId)
+        val policy = naviampKeepDownloadedFavoritesPolicy(sourceId)
+        if (downloads.toggleKeepDownloaded(policy) == NaviampKeepDownloadedToggleResult.Disabled) {
             reloadKeepDownloadedPolicies()
-            state.publishDownloadStatus(keepDownloadedDisabledStatus("Favorites"))
+            state.publishDownloadStatus(keepDownloadedDisabledStatus(FAVORITES_DISPLAY_NAME))
             return
         }
         val provider = state.provider ?: return
         scope.launch {
             runCatching {
                 val tracks = withContext(Dispatchers.IO) { provider.favoriteTracks() }
-                reconcileKeepDownloadedPolicy(
-                    KeepDownloadedCollectionPolicy(sourceId, kind, FavoritesCollectionId, "Favorite tracks"),
-                    tracks,
-                )
+                reconcileKeepDownloadedPolicy(policy, tracks)
             }.onFailure { error ->
                 state.publishDownloadStatus(keepDownloadedErrorStatus("favorites", error))
             }
@@ -227,12 +217,11 @@ internal class AndroidDownloadActionController(
             scope.launch {
                 runCatching {
                     val tracks = withContext(Dispatchers.IO) {
-                        when (policy.kind) {
-                            KeepDownloadedCollectionKind.Playlist,
-                            KeepDownloadedCollectionKind.SmartPlaylist,
-                            -> provider.playlistTracks(policy.collectionId)
-                            KeepDownloadedCollectionKind.Favorites -> provider.favoriteTracks()
-                        }
+                        downloads.loadKeepDownloadedTracks(
+                            policy = policy,
+                            loadPlaylistTracks = provider::playlistTracks,
+                            loadFavoriteTracks = provider::favoriteTracks,
+                        )
                     }
                     reconcileKeepDownloadedPolicy(policy, tracks)
                 }.onFailure { error ->
@@ -295,4 +284,4 @@ internal class AndroidDownloadActionController(
     }
 }
 
-private const val FavoritesCollectionId = "favorite-tracks"
+private const val FAVORITES_DISPLAY_NAME = "Favorites"
