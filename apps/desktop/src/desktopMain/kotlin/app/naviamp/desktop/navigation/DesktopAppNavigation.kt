@@ -17,30 +17,7 @@ import app.naviamp.domain.app.NaviampRoute
 import app.naviamp.ui.SharedBottomNavigationBar
 import app.naviamp.ui.SharedRoute
 
-enum class DesktopAppRoute {
-    Player,
-    Home,
-    Playlists,
-    PlaylistDetail,
-    AlbumDetail,
-    ArtistDetail,
-    Library,
-    Search,
-    ArtistMix,
-    AlbumMix,
-    GenreMix,
-    SonicPath,
-    SonicMix,
-    InternetRadio,
-    Downloads,
-    Settings,
-    ;
-
-    companion object {
-        fun fromStoredName(name: String?): DesktopAppRoute =
-            entries.firstOrNull { it.name == name } ?: Home
-    }
-}
+typealias DesktopAppRoute = NaviampRoute
 
 data class DesktopBottomNavigationItem(
     val route: DesktopAppRoute,
@@ -53,7 +30,7 @@ val DesktopBottomNavigationItems = listOf(
     DesktopBottomNavigationItem(DesktopAppRoute.Playlists, "Playlists", DesktopNavigationIcons.Playlist),
     DesktopBottomNavigationItem(DesktopAppRoute.Library, "Library", DesktopNavigationIcons.Library),
     DesktopBottomNavigationItem(DesktopAppRoute.Search, "Search", DesktopNavigationIcons.Search),
-    DesktopBottomNavigationItem(DesktopAppRoute.InternetRadio, "Radio", DesktopNavigationIcons.InternetRadio),
+    DesktopBottomNavigationItem(DesktopAppRoute.Radio, "Radio", DesktopNavigationIcons.InternetRadio),
     DesktopBottomNavigationItem(DesktopAppRoute.Downloads, "Downloads", DesktopNavigationIcons.Downloads),
     DesktopBottomNavigationItem(DesktopAppRoute.Settings, "Settings", DesktopNavigationIcons.Settings),
 )
@@ -90,7 +67,7 @@ internal fun DesktopAppRoute.toSharedRoute(): SharedRoute =
         DesktopAppRoute.GenreMix -> SharedRoute.GenreMix
         DesktopAppRoute.SonicPath -> SharedRoute.SonicPath
         DesktopAppRoute.SonicMix -> SharedRoute.SonicMix
-        DesktopAppRoute.InternetRadio -> SharedRoute.Radio
+        DesktopAppRoute.Radio -> SharedRoute.Radio
         DesktopAppRoute.Downloads -> SharedRoute.Downloads
         DesktopAppRoute.Settings -> SharedRoute.Settings
     }
@@ -106,29 +83,9 @@ internal fun SharedRoute.toAppRoute(): DesktopAppRoute =
         SharedRoute.GenreMix -> DesktopAppRoute.GenreMix
         SharedRoute.SonicPath -> DesktopAppRoute.SonicPath
         SharedRoute.SonicMix -> DesktopAppRoute.SonicMix
-        SharedRoute.Radio -> DesktopAppRoute.InternetRadio
+        SharedRoute.Radio -> DesktopAppRoute.Radio
         SharedRoute.Downloads -> DesktopAppRoute.Downloads
         SharedRoute.Settings -> DesktopAppRoute.Settings
-    }
-
-fun DesktopAppRoute.toNaviampRoute(): NaviampRoute =
-    when (this) {
-        DesktopAppRoute.Player -> NaviampRoute.Player
-        DesktopAppRoute.Home -> NaviampRoute.Home
-        DesktopAppRoute.Playlists -> NaviampRoute.Playlists
-        DesktopAppRoute.PlaylistDetail -> NaviampRoute.PlaylistDetail
-        DesktopAppRoute.AlbumDetail -> NaviampRoute.AlbumDetail
-        DesktopAppRoute.ArtistDetail -> NaviampRoute.ArtistDetail
-        DesktopAppRoute.Library -> NaviampRoute.Library
-        DesktopAppRoute.Search -> NaviampRoute.Search
-        DesktopAppRoute.ArtistMix -> NaviampRoute.ArtistMix
-        DesktopAppRoute.AlbumMix -> NaviampRoute.AlbumMix
-        DesktopAppRoute.GenreMix -> NaviampRoute.GenreMix
-        DesktopAppRoute.SonicPath -> NaviampRoute.SonicPath
-        DesktopAppRoute.SonicMix -> NaviampRoute.SonicMix
-        DesktopAppRoute.InternetRadio -> NaviampRoute.Radio
-        DesktopAppRoute.Downloads -> NaviampRoute.Downloads
-        DesktopAppRoute.Settings -> NaviampRoute.Settings
     }
 
 @Composable

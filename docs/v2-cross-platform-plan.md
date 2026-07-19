@@ -418,6 +418,7 @@ Record architecture decisions here or link a dedicated decision record.
 | 2026-07-19 | Consume grouped Home presentation and intent in the shared route. | `NaviampHomeScreenUi` and `NaviampHomeActions` already define Home refresh, station, radio, mix-builder, discovery, and recently-played behavior; shared rendering should not expand them back into state fragments and callbacks. |
 | 2026-07-19 | Consume grouped route-shared media intent in Home. | Album selection, favorite toggling, mix playback, and playlist selection already belong to `NaviampMediaActions`; the shared Home renderer should consume that contract on both hosts rather than accepting four callbacks. |
 | 2026-07-19 | Consume grouped interface preferences in Desktop Artist Detail. | Album collection layout, sort order, and release-type grouping already travel together in `NaviampGeneralSettingsUi.interfaceSettings`; the panel should consume that focused model rather than three route-expanded values. |
+| 2026-07-19 | Back Desktop navigation directly with `NaviampRoute`. | Desktop's route enum duplicated every shared application route and required identity conversions around restoration, controller state, effects, and rendering; a compatibility type alias preserves local API names while the shared route is now the only route value type. |
 
 ## Shared Controller Construction Audit
 
@@ -443,7 +444,7 @@ The 2026-07-17 audit covers every current application entry point:
 
 ## Current Handoff
 
-- **Last completed item:** Desktop Artist Detail now consumes the grouped interface-settings model for album layout, sorting, and release grouping instead of three route-expanded preference values.
-- **Next recommended item:** Document the final intentional Desktop route inputs, then audit whether the remaining Desktop-specific panels can delegate directly to shared route content without losing native layout behavior.
+- **Last completed item:** Desktop navigation state, restoration, effects, and route rendering now use `NaviampRoute` directly; the duplicate enum and identity conversion functions are gone, with a temporary source-compatible alias remaining for local names.
+- **Next recommended item:** Remove the temporary `DesktopAppRoute` source alias from Desktop code, then document the final intentional Desktop route inputs and renderer ownership.
 - **Verification:** `:core:domain:jvmTest`, `:core:app:jvmTest`, `:core:storage:jvmTest`, `:core:ui:jvmTest`, `:apps:android:testDebugUnitTest`, `:apps:desktop:desktopTest`, `:core:app:iosSimulatorArm64Test`, `:core:storage:compileKotlinIosSimulatorArm64`, and `:core:ui:compileKotlinIosSimulatorArm64` pass together with at most two Gradle workers.
 - **Known blockers:** None.

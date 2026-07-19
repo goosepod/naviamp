@@ -30,27 +30,7 @@ fun restoredRoute(
         savedRouteName = savedRouteName,
         hasConnection = hasConnection,
         hasRestoredTrack = hasRestoredTrack,
-    ).toDesktopAppRoute()
+    )
 
 fun restoredLastContentRoute(savedRouteName: String?): DesktopAppRoute =
-    restoredSharedLastContentRoute(savedRouteName).toDesktopAppRoute()
-
-internal fun NaviampRoute.toDesktopAppRoute(): DesktopAppRoute =
-    when (this) {
-        NaviampRoute.Player -> DesktopAppRoute.Player
-        NaviampRoute.Home -> DesktopAppRoute.Home
-        NaviampRoute.Playlists -> DesktopAppRoute.Playlists
-        NaviampRoute.PlaylistDetail -> DesktopAppRoute.PlaylistDetail
-        NaviampRoute.AlbumDetail -> DesktopAppRoute.AlbumDetail
-        NaviampRoute.ArtistDetail -> DesktopAppRoute.ArtistDetail
-        NaviampRoute.Library -> DesktopAppRoute.Library
-        NaviampRoute.Search -> DesktopAppRoute.Search
-        NaviampRoute.ArtistMix -> DesktopAppRoute.ArtistMix
-        NaviampRoute.AlbumMix -> DesktopAppRoute.AlbumMix
-        NaviampRoute.GenreMix -> DesktopAppRoute.GenreMix
-        NaviampRoute.SonicPath -> DesktopAppRoute.SonicPath
-        NaviampRoute.SonicMix -> DesktopAppRoute.SonicMix
-        NaviampRoute.Radio -> DesktopAppRoute.InternetRadio
-        NaviampRoute.Downloads -> DesktopAppRoute.Downloads
-        NaviampRoute.Settings -> DesktopAppRoute.Settings
-    }
+    restoredSharedLastContentRoute(savedRouteName)

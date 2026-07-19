@@ -255,8 +255,8 @@ fun NaviampApp(
                     savedRouteName = savedNavigation.route,
                     hasConnection = savedConnection != null,
                     hasRestoredTrack = restoredTrack != null,
-                ).toNaviampRoute(),
-                lastContentRoute = restoredLastContentRoute(savedNavigation.lastContentRoute).toNaviampRoute(),
+                ),
+                lastContentRoute = restoredLastContentRoute(savedNavigation.lastContentRoute),
             ),
             initialPlaybackState = NaviampLivePlaybackState(
                 currentTrack = restoredTrack,

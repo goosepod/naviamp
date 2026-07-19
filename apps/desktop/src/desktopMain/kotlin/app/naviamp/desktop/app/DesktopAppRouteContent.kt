@@ -323,7 +323,7 @@ fun ColumnScope.DesktopAppRouteContent(
                         }
                     }
                 }
-                DesktopAppRoute.InternetRadio -> Column(verticalArrangement = Arrangement.spacedBy(18.dp)) {
+                DesktopAppRoute.Radio -> Column(verticalArrangement = Arrangement.spacedBy(18.dp)) {
                     DesktopInternetRadioPanel(
                         appColors = appColors,
                         screen = shellState.radio,

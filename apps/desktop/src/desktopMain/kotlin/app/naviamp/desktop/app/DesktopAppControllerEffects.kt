@@ -161,7 +161,7 @@ internal fun DesktopAppControllerEffects(
     }
 
     LaunchedEffect(showStatsForNerds, appRoute, statsForNerdsRefreshTick, downloadRefreshToken, mediaSourcesRevision) {
-        if (shouldRefreshStorageStats(appRoute.toNaviampRoute(), diagnosticsVisible = showStatsForNerds)) {
+        if (shouldRefreshStorageStats(appRoute, diagnosticsVisible = showStatsForNerds)) {
             setCacheStats(withContext(Dispatchers.IO) { loadStorageStats() })
         }
     }
