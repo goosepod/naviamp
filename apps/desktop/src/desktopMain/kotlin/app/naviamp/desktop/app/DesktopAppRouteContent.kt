@@ -56,6 +56,7 @@ import app.naviamp.ui.NaviampLibraryScreenUi
 import app.naviamp.ui.NaviampHomeActions
 import app.naviamp.ui.NaviampHomeScreenUi
 import app.naviamp.ui.NaviampInternetRadioScreenUi
+import app.naviamp.ui.NaviampInternetRadioActions
 import app.naviamp.ui.NaviampPlaylistDetailScreenUi
 import app.naviamp.ui.NaviampPlaylistDetailActions
 import app.naviamp.ui.NaviampPlaylistsActions
@@ -413,6 +414,21 @@ fun ColumnScope.DesktopAppRouteContent(
         genreMixActions = genreMixActions,
         sonicPathActions = sonicPathActions,
         sonicMixActions = sonicMixActions,
+        radioActions = NaviampInternetRadioActions(
+            onRefresh = internetRadioController::refreshStations,
+            onStationAction = { request ->
+                internetRadioActionSources.station(request.station.id)?.let { station ->
+                    when (request.action) {
+                        StationRowAction.Select -> internetRadioController.playStation(station)
+                        StationRowAction.Edit -> Unit
+                        StationRowAction.Delete -> onDeleteInternetRadioStation(station)
+                    }
+                }
+            },
+            onSaveStation = { edit ->
+                onSaveInternetRadioStation(internetRadioActionSources.station(edit))
+            },
+        ),
         albumDetailActions = NaviampAlbumDetailActions(
             onBack = { onRouteSelected(albumDetailBackRoute) },
             onPlay = { _, shuffle -> appActions.playAlbumDetails(shuffle = shuffle) },
@@ -926,19 +942,7 @@ fun ColumnScope.DesktopAppRouteContent(
                         screen = sharedShellState.radio.copy(
                             status = sharedShellState.radio.status ?: connection.status.pageStatusOrNull(),
                         ),
-                        onStationAction = { request ->
-                            internetRadioActionSources.station(request.station.id)?.let { station ->
-                                when (request.action) {
-                                    StationRowAction.Select -> internetRadioController.playStation(station)
-                                    StationRowAction.Edit -> Unit
-                                    StationRowAction.Delete -> onDeleteInternetRadioStation(station)
-                                }
-                            }
-                        },
-                        onSaveStation = { edit ->
-                            onSaveInternetRadioStation(internetRadioActionSources.station(edit))
-                        },
-                        onRefreshStations = internetRadioController::refreshStations,
+                        actions = sharedShellActions.radioActions,
                     )
                 }
                 DesktopAppRoute.Downloads -> DesktopDownloadsRoute(

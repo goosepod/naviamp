@@ -2,27 +2,24 @@ package app.naviamp.desktop
 
 import androidx.compose.runtime.Composable
 import app.naviamp.ui.InternetRadioContent
+import app.naviamp.ui.NaviampInternetRadioActions
 import app.naviamp.ui.NaviampInternetRadioScreenUi
-import app.naviamp.ui.NaviampInternetRadioStationEditUi
-import app.naviamp.ui.StationRowActionRequest
 
 @Composable
 fun DesktopInternetRadioPanel(
     appColors: DesktopAppColors,
     screen: NaviampInternetRadioScreenUi,
-    onStationAction: (StationRowActionRequest) -> Unit,
-    onSaveStation: (NaviampInternetRadioStationEditUi) -> Unit,
-    onRefreshStations: () -> Unit,
+    actions: NaviampInternetRadioActions,
 ) {
     InternetRadioContent(
         colors = appColors,
         screen = screen,
-        onStationAction = onStationAction,
-        onSaveStation = onSaveStation,
+        onStationAction = actions.onStationAction,
+        onSaveStation = actions.onSaveStation,
         headerActions = {
             DesktopPageOverflowMenu(
                 appColors = appColors,
-                onRefresh = onRefreshStations,
+                onRefresh = actions.onRefresh,
             )
         },
     )
