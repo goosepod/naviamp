@@ -60,7 +60,7 @@ internal class AndroidPlaybackReportController(
                 supportsPlayReporting = activeProvider.capabilities.supportsPlayReporting,
                 playbackState = playbackState,
                 progress = progress,
-                nowEpochMillis = System.currentTimeMillis(),
+                nowEpochMillis = AndroidSystemClock.nowEpochMillis(),
             ),
         ) ?: return
         scope.launch {

@@ -173,7 +173,7 @@ fun playAndroidTrack(
                         durationSeconds = track.durationSeconds?.toDouble(),
                     )
                     pendingSeekPositionSeconds = restoredPosition
-                    pendingSeekIssuedAtMillis = System.currentTimeMillis()
+                    pendingSeekIssuedAtMillis = AndroidSystemClock.nowEpochMillis()
                     pendingRestoreStartPositionSeconds = restoredPosition
                     AndroidPlaybackNotificationControls.positionMillis = restoredPosition.secondsToMillis()
                     AndroidPlaybackNotificationControls.durationMillis = track.durationSeconds?.toDouble()?.secondsToMillis()
@@ -385,7 +385,7 @@ fun handleAndroidPlaybackProgressChanged(
     prepareNextIfNeeded: (Long, PlaybackProgress) -> Unit,
 ) {
     with(state) {
-        val nowMillis = System.currentTimeMillis()
+        val nowMillis = AndroidSystemClock.nowEpochMillis()
         val plan = planPlaybackProgressUpdate(
             sessionToken = sessionToken,
             activeSessionToken = playbackSessionToken,

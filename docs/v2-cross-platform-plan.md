@@ -424,6 +424,7 @@ Record architecture decisions here or link a dedicated decision record.
 | 2026-07-19 | Add wall-clock time to the shared platform-service boundary. | Shared runtime owners should receive a narrow `NaviampClock`; Android and Desktop acquire system time in their hosts, while tests can supply deterministic time without exposing platform APIs to common coordination code. |
 | 2026-07-19 | Route Desktop shared owners through the host clock. | Sleep-timer state and settings-sync coordination now use `DesktopSystemClock`; Desktop's composition root no longer supplies direct wall-clock calls to shared controllers. |
 | 2026-07-19 | Route Android shared owners through the host clock. | Sleep-timer state, settings-sync coordination, and provider-sync success timestamps now use `AndroidSystemClock`; Activity composition and state no longer acquire wall-clock time directly. |
+| 2026-07-19 | Complete host-clock adoption at shared coordination call sites. | Android and Desktop connection cleanup, playback seek/progress/session/reporting, radio progress, and settings auto-export now acquire timestamps through their platform clock adapters; storage, native playback-engine, and host-only UI timestamps remain platform implementation details. |
 
 ### Desktop Route Boundary Audit
 
@@ -461,7 +462,7 @@ The 2026-07-17 audit covers every current application entry point:
 
 ## Current Handoff
 
-- **Last completed item:** Android and Desktop shared sleep-timer and settings-sync owners now consume their host-supplied platform clocks.
-- **Next recommended item:** Continue Milestone 2 by auditing the remaining direct platform-service access in shared-owner composition before thinning Android shell adapters; cross-platform Desktop packaging and a macOS launch remain Milestone 3 validation work on their respective hosts.
+- **Last completed item:** The remaining Android and Desktop shared coordination call sites now consume host-supplied platform clocks; direct timestamps left in storage, native engines, and host-only UI are intentional platform implementation details.
+- **Next recommended item:** Thin the redundant Android shell wrapper so shared shell presentation and intent cross the host boundary directly; cross-platform Desktop packaging and a macOS launch remain Milestone 3 validation work on their respective hosts.
 - **Verification:** `:core:domain:jvmTest`, `:core:app:jvmTest`, `:core:storage:jvmTest`, `:core:ui:jvmTest`, `:apps:android:testDebugUnitTest`, `:apps:desktop:desktopTest`, `:core:app:iosSimulatorArm64Test`, `:core:storage:compileKotlinIosSimulatorArm64`, and `:core:ui:compileKotlinIosSimulatorArm64` pass together with at most two Gradle workers.
 - **Known blockers:** None.

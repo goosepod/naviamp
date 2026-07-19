@@ -170,7 +170,7 @@ class DesktopInternetRadioController(
                 setPlaybackState(state)
             },
             onProgressChanged = { progress ->
-                val now = System.currentTimeMillis()
+                val now = DesktopSystemClock.nowEpochMillis()
                 val liveProgress = progress.copy(durationSeconds = null)
                 val progressPlan = planPlaybackProgressUpdate(
                     sessionToken = 1,

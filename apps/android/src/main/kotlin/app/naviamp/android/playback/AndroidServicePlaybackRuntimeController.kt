@@ -1,5 +1,7 @@
 package app.naviamp.android.playback
 
+import app.naviamp.android.AndroidSystemClock
+
 import android.content.Context
 import android.util.Log
 import app.naviamp.android.AndroidPlaybackAudioAssets
@@ -150,7 +152,7 @@ internal class AndroidServicePlaybackRuntimeController(
         val positionSeconds = (positionMillis.coerceAtLeast(0L) / 1_000.0)
         Log.i("NaviampAutoCommand", "Service seek requested seconds=$positionSeconds")
         pendingServiceSeekPositionSeconds = positionSeconds
-        pendingServiceSeekAtMillis = System.currentTimeMillis()
+        pendingServiceSeekAtMillis = AndroidSystemClock.nowEpochMillis()
         AndroidPlaybackNotificationControls.positionMillis = positionMillis.coerceAtLeast(0L)
         AndroidPlaybackRuntime.get(context).playbackEngine.seek(positionSeconds)
         savePlaybackPosition(positionSeconds)
@@ -341,7 +343,7 @@ internal class AndroidServicePlaybackRuntimeController(
         session: PlaybackSessionSettings,
         progress: PlaybackProgress,
     ) {
-        val now = System.currentTimeMillis()
+        val now = AndroidSystemClock.nowEpochMillis()
         val progressPositionSeconds = progress.positionSeconds
         if (progressPositionSeconds == null && progress.durationSeconds == null) return
         val pendingSeekPosition = pendingServiceSeekPositionSeconds
@@ -494,7 +496,7 @@ internal class AndroidServicePlaybackRuntimeController(
                 supportsPlayReporting = provider.capabilities.supportsPlayReporting,
                 playbackState = playbackState,
                 progress = progress,
-                nowEpochMillis = System.currentTimeMillis(),
+                nowEpochMillis = AndroidSystemClock.nowEpochMillis(),
             ),
         ) ?: return
         AndroidPlaybackRuntime.get(context).scope.launch {

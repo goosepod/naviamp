@@ -32,7 +32,7 @@ fun markAndroidSettingsSyncChangedAndAutoExport(
                 ),
             )
         },
-        nowEpochMillis = { System.currentTimeMillis() },
+        nowEpochMillis = AndroidSystemClock::nowEpochMillis,
         snapshot = {
             val storedPlayback = settingsStore.loadPlaybackSettings()
             val radioDjs = storage.radioDjPresets().ifEmpty { storedPlayback.radioDjs }
@@ -74,7 +74,7 @@ fun markAndroidSettingsSyncChangedAndAutoExport(
         }.onSuccess {
             settingsStore.saveSettingsSync(
                 settingsStore.loadSettingsSync().copy(
-                    lastProviderPushEpochMillis = System.currentTimeMillis(),
+                    lastProviderPushEpochMillis = AndroidSystemClock.nowEpochMillis(),
                     lastProviderError = null,
                 ),
             )

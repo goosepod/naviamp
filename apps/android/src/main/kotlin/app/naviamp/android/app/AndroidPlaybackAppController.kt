@@ -131,7 +131,7 @@ internal class AndroidPlaybackAppController(
                 positionSeconds = positionSeconds,
                 streamQuality = currentStreamQuality(),
                 playbackSource = PlaybackSource.ProviderStream,
-                issuedAtMillis = System.currentTimeMillis(),
+                issuedAtMillis = AndroidSystemClock.nowEpochMillis(),
             ),
         ) ?: return
         if (seekPlan.shouldClearRestoredStartPosition) {

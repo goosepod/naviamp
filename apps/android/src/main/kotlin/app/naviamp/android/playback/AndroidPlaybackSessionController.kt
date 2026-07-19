@@ -33,7 +33,7 @@ fun saveAndroidPlaybackSessionThrottled(
     force: Boolean = false,
 ) {
     with(state) {
-        val now = System.currentTimeMillis()
+        val now = AndroidSystemClock.nowEpochMillis()
         if (
             shouldThrottlePlaybackSessionSave(
                 activeSourceId = activeSourceId,

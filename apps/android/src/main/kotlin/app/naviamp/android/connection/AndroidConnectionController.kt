@@ -267,7 +267,7 @@ fun startNavidromeConnection(
                             AndroidPlaybackTls.applyDefaults(preparedConnection.tlsSettings)
                         },
                         pruneUnusedSourceScopesBeforeEpochMillis = unusedSourceScopeCleanupCutoff(
-                            System.currentTimeMillis(),
+                            AndroidSystemClock.nowEpochMillis(),
                         ),
                     ),
                     providerMediaSourceRepository = providerMediaSourceRepository,

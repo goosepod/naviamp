@@ -131,7 +131,7 @@ class DesktopPlaybackController(
                 positionSeconds = positionSeconds,
                 streamQuality = streamQuality,
                 playbackSource = playbackSource,
-                issuedAtMillis = System.currentTimeMillis(),
+                issuedAtMillis = DesktopSystemClock.nowEpochMillis(),
             ),
         ) ?: return
         setPlaybackProgress(seekPlan.progress)
@@ -263,7 +263,7 @@ class DesktopPlaybackController(
                 supportsPlayReporting = activeProvider.capabilities.supportsPlayReporting,
                 playbackState = state,
                 progress = progress,
-                nowEpochMillis = System.currentTimeMillis(),
+                nowEpochMillis = DesktopSystemClock.nowEpochMillis(),
             ),
         ) ?: return
         scope.launch {

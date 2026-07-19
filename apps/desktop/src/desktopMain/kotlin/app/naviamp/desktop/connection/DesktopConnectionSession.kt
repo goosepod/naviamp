@@ -72,7 +72,9 @@ suspend fun openDesktopConnectionSession(
             applyTlsDefaults = { connection -> NavidromeTls.applyJvmDefaults(connection.tlsSettings) },
             smartPlaylistAuthWarning = { prepared -> prepared.nativeAuthErrorMessage },
             clearProviderData = clearProviderData,
-            pruneUnusedSourceScopesBeforeEpochMillis = unusedSourceScopeCleanupCutoff(System.currentTimeMillis()),
+            pruneUnusedSourceScopesBeforeEpochMillis = unusedSourceScopeCleanupCutoff(
+                DesktopSystemClock.nowEpochMillis(),
+            ),
         ),
         cacheMaintenanceRepository = cacheMaintenanceRepository,
         providerMediaSourceRepository = providerMediaSourceRepository,

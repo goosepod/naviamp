@@ -1,5 +1,7 @@
 package app.naviamp.desktop.playback
 
+import app.naviamp.desktop.DesktopSystemClock
+
 import app.naviamp.domain.app.NaviampRoute
 
 import app.naviamp.domain.Lyrics
@@ -105,7 +107,7 @@ fun desktopPlaylistCallbacks(
         },
         onPlaybackProgressChanged = progressChanged@{ progress ->
             val pendingSeek = pendingSeekPositionSeconds()
-            val now = System.currentTimeMillis()
+            val now = DesktopSystemClock.nowEpochMillis()
             val plan = planPlaybackProgressUpdate(
                 sessionToken = 1,
                 activeSessionToken = 1,
