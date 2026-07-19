@@ -5,6 +5,8 @@ import app.naviamp.ui.nowPlayingQueueIndex
 import app.naviamp.ui.NaviampAppShellActions
 import app.naviamp.ui.NaviampDownloadsActions
 import app.naviamp.ui.NaviampLibraryActions
+import app.naviamp.ui.NaviampInternetRadioActions
+import app.naviamp.ui.NaviampPlaylistsActions
 import app.naviamp.ui.NaviampConnectionSettingsActions
 import app.naviamp.ui.NaviampSearchActions
 import app.naviamp.ui.NaviampSettingsMaintenanceActions
@@ -15,6 +17,8 @@ import app.naviamp.ui.SharedArtistMixBuilderActions
 import app.naviamp.ui.SharedGenreMixBuilderActions
 import app.naviamp.ui.SharedSonicMixBuilderActions
 import app.naviamp.ui.SharedSonicPathBuilderActions
+import app.naviamp.ui.StationRowAction
+import app.naviamp.ui.toInternetRadioStation
 import app.naviamp.ui.toNaviampRoute
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -221,8 +225,42 @@ internal fun androidMainShellActions(
             onRefresh = apiLibraryController::refresh,
             onLoadMore = apiLibraryController::loadNext,
         ),
-        refreshPlaylists = playlistActionController::refreshPlaylists,
-        refreshInternetRadioStations = shellMediaController::refreshInternetRadioStations,
+        playlistsActions = NaviampPlaylistsActions(
+            onRefresh = playlistActionController::refreshPlaylists,
+            onSortModeChanged = { state.playlistSortMode = it },
+            onSmartPlaylistSave = playlistActionController::saveSmartPlaylist,
+            onSmartPlaylistUpdate = { playlist, definition ->
+                state.homeState.playlists.firstOrNull { it.id == playlist.id }
+                    ?.let { playlistActionController.updateSmartPlaylist(it, definition) }
+                    ?: run { state.status = "Playlist not found." }
+            },
+            onSmartPlaylistSaveWithPassword = playlistActionController::saveSmartPlaylistWithPassword,
+            onSmartPlaylistUpdateWithPassword = { playlist, definition, password ->
+                state.homeState.playlists.firstOrNull { it.id == playlist.id }
+                    ?.let { playlistActionController.updateSmartPlaylistWithPassword(it, definition, password) }
+                    ?: run { state.status = "Playlist not found." }
+            },
+            onSmartPlaylistLoad = { playlist ->
+                state.homeState.playlists.firstOrNull { it.id == playlist.id }
+                    ?.let { playlistActionController.loadSmartPlaylistDefinition(it) }
+                    ?: throw IllegalArgumentException("Playlist not found.")
+            },
+        ),
+        radioActions = NaviampInternetRadioActions(
+            onRefresh = shellMediaController::refreshInternetRadioStations,
+            onStationAction = { request ->
+                state.homeState.radioStations.firstOrNull { it.id == request.station.id }?.let { station ->
+                    when (request.action) {
+                        StationRowAction.Select -> shellMediaController.handleRadioStationSelected(station)
+                        StationRowAction.Edit -> Unit
+                        StationRowAction.Delete -> shellMediaController.deleteInternetRadioStation(station)
+                    }
+                } ?: run { state.status = "Station not found." }
+            },
+            onSaveStation = { draft ->
+                shellMediaController.saveInternetRadioStation(draft.toInternetRadioStation())
+            },
+        ),
         handleShellTrackSelected = shellMediaController::handleShellTrackSelected,
         handleShellAlbumSelected = shellMediaController::handleShellAlbumSelected,
         handleAlbumFavoriteToggled = { item ->
@@ -264,18 +302,11 @@ internal fun androidMainShellActions(
         renamePlaylist = playlistActionController::renamePlaylist,
         deletePlaylist = playlistActionController::deletePlaylist,
         updateStandardPlaylistTracks = playlistActionController::updateStandardPlaylistTracks,
-        saveSmartPlaylist = playlistActionController::saveSmartPlaylist,
-        updateSmartPlaylist = playlistActionController::updateSmartPlaylist,
-        saveSmartPlaylistWithPassword = playlistActionController::saveSmartPlaylistWithPassword,
-        updateSmartPlaylistWithPassword = playlistActionController::updateSmartPlaylistWithPassword,
-        loadSmartPlaylist = playlistActionController::loadSmartPlaylistDefinition,
         closeActivePlaylist = navigationController::closeActivePlaylist,
         handlePlaylistTrackSelected = trackActionController::handlePlaylistTrackSelected,
         handleRecentRadioSelected = shellMediaController::handleShellRecentRadioSelected,
         handleMixBuilderSelected = navigationController::handleMixBuilderSelected,
         handleRadioStationSelected = shellMediaController::handleRadioStationSelected,
-        saveInternetRadioStation = shellMediaController::saveInternetRadioStation,
-        deleteInternetRadioStation = shellMediaController::deleteInternetRadioStation,
         handleShellHomeStationSelected = shellMediaController::handleShellHomeStationSelected,
         handleSonicDiscoveryTrackAction = { request ->
             val track = sonicHomeDiscoveryController.trackFor(request)

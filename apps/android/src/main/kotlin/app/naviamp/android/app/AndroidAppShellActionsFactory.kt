@@ -91,8 +91,8 @@ fun androidAppShellActions(
     sonicMixActions: SharedSonicMixBuilderActions,
     downloadsActions: NaviampDownloadsActions,
     libraryActions: NaviampLibraryActions,
-    refreshPlaylists: () -> Unit,
-    refreshInternetRadioStations: () -> Unit,
+    playlistsActions: NaviampPlaylistsActions,
+    radioActions: NaviampInternetRadioActions,
     handleShellTrackSelected: (SharedTrackRowUi) -> Unit,
     handleShellAlbumSelected: (SharedMediaItemUi) -> Unit,
     handleAlbumFavoriteToggled: (SharedMediaItemUi) -> Unit,
@@ -128,27 +128,11 @@ fun androidAppShellActions(
     renamePlaylist: (Playlist, String) -> Unit,
     deletePlaylist: (Playlist) -> Unit,
     updateStandardPlaylistTracks: suspend (Playlist, List<Track>) -> Unit,
-    saveSmartPlaylist: suspend (SmartPlaylistDefinition) -> Unit,
-    updateSmartPlaylist: suspend (Playlist, SmartPlaylistDefinition) -> Unit,
-    saveSmartPlaylistWithPassword: suspend (SmartPlaylistDefinition, String) -> Unit,
-    updateSmartPlaylistWithPassword: suspend (Playlist, SmartPlaylistDefinition, String) -> Unit,
-    loadSmartPlaylist: suspend (Playlist) -> SmartPlaylistDefinition,
     closeActivePlaylist: () -> Unit,
     handlePlaylistTrackSelected: (SharedTrackRowUi) -> Unit,
     handleRecentRadioSelected: (SharedMediaItemUi) -> Unit,
     handleMixBuilderSelected: (SharedMixBuilderUi) -> Unit,
     handleRadioStationSelected: (InternetRadioStation) -> Unit,
-    saveInternetRadioStation: (InternetRadioStation) -> Unit,
-    deleteInternetRadioStation: (InternetRadioStation) -> Unit,
-    handleStationAction: (StationRowActionRequest) -> Unit = { request ->
-        state.homeState.radioStations.firstOrNull { it.id == request.station.id }?.let { station ->
-            when (request.action) {
-                StationRowAction.Select -> handleRadioStationSelected(station)
-                StationRowAction.Edit -> Unit
-                StationRowAction.Delete -> deleteInternetRadioStation(station)
-            }
-        } ?: run { state.status = "Station not found." }
-    },
     handleShellHomeStationSelected: (SharedHomeStationUi) -> Unit,
     handleSonicDiscoveryTrackAction: (SharedHomeDiscoveryTrackActionRequest) -> Unit,
     closeActiveDetail: () -> Unit,
@@ -218,32 +202,8 @@ fun androidAppShellActions(
             sonicMixActions = sonicMixActions,
             downloadsActions = downloadsActions,
             libraryActions = libraryActions,
-            playlistsActions = NaviampPlaylistsActions(
-                onRefresh = refreshPlaylists,
-                onSortModeChanged = { playlistSortMode = it },
-                onSmartPlaylistSave = { definition -> saveSmartPlaylist(definition) },
-                onSmartPlaylistUpdate = { playlist, definition ->
-                    homeState.playlists.firstOrNull { it.id == playlist.id }?.let { updateSmartPlaylist(it, definition) }
-                        ?: run { status = "Playlist not found." }
-                },
-                onSmartPlaylistSaveWithPassword = { definition, password ->
-                    saveSmartPlaylistWithPassword(definition, password)
-                },
-                onSmartPlaylistUpdateWithPassword = { playlist, definition, password ->
-                    homeState.playlists.firstOrNull { it.id == playlist.id }?.let {
-                        updateSmartPlaylistWithPassword(it, definition, password)
-                    } ?: run { status = "Playlist not found." }
-                },
-                onSmartPlaylistLoad = { playlist ->
-                    homeState.playlists.firstOrNull { it.id == playlist.id }?.let { loadSmartPlaylist(it) }
-                        ?: throw IllegalArgumentException("Playlist not found.")
-                },
-            ),
-            radioActions = NaviampInternetRadioActions(
-                onRefresh = refreshInternetRadioStations,
-                onStationAction = handleStationAction,
-                onSaveStation = { draft -> saveInternetRadioStation(draft.toInternetRadioStation()) },
-            ),
+            playlistsActions = playlistsActions,
+            radioActions = radioActions,
             albumDetailActions = NaviampAlbumDetailActions(
                 onBack = { nowPlayingOpen = false },
                 onPlay = { _, shuffle -> handleShellAlbumPlay(shuffle) },
