@@ -13,6 +13,8 @@ import app.naviamp.ui.SharedTrackRowActionRequest
 import app.naviamp.ui.SharedSimilarArtistUi
 import app.naviamp.ui.SharedTrackRowUi
 import app.naviamp.ui.NaviampInternetRadioStationEditUi
+import app.naviamp.ui.NaviampInternetRadioActions
+import app.naviamp.ui.StationRowAction
 import app.naviamp.ui.toInternetRadioStation
 
 data class DesktopDetailActionSources(
@@ -83,6 +85,26 @@ data class DesktopInternetRadioActionSources(
     fun station(edit: NaviampInternetRadioStationEditUi): InternetRadioStation =
         edit.toInternetRadioStation()
 }
+
+internal fun desktopInternetRadioActions(
+    actionSources: DesktopInternetRadioActionSources,
+    onRefresh: () -> Unit,
+    onPlayStation: (InternetRadioStation) -> Unit,
+    onSaveStation: (InternetRadioStation) -> Unit,
+    onDeleteStation: (InternetRadioStation) -> Unit,
+): NaviampInternetRadioActions = NaviampInternetRadioActions(
+    onRefresh = onRefresh,
+    onStationAction = { request ->
+        actionSources.station(request.station.id)?.let { station ->
+            when (request.action) {
+                StationRowAction.Select -> onPlayStation(station)
+                StationRowAction.Edit -> Unit
+                StationRowAction.Delete -> onDeleteStation(station)
+            }
+        }
+    },
+    onSaveStation = { edit -> onSaveStation(actionSources.station(edit)) },
+)
 
 internal fun resolveDesktopMediaItemAction(
     request: SharedMediaItemActionRequest,

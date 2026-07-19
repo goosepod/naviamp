@@ -389,6 +389,7 @@ Record architecture decisions here or link a dedicated decision record.
 | 2026-07-19 | Lift Desktop Search and Library actions into the composition root. | Query, clear, and refresh intent should be composed beside the controllers and arrive only through `NaviampAppShellActions`; controller access remains in the route solely for stable-ID resolution and Desktop indexed navigation. |
 | 2026-07-19 | Lift Desktop connection, settings-value, and maintenance actions into the composition root. | Connection lifecycle, preference updates, cache configuration, diagnostics, and maintenance commands are application-root contracts; only settings-sync callbacks remain route-local because they bridge native directory selection and import/export operations. |
 | 2026-07-19 | Lift Desktop playlist-list actions into the composition root. | Refresh, sorting, and smart-playlist commands are complete root-owned contracts; the playlist resolver is composed once beside current controller state so stale shared IDs remain guarded without keeping action construction in route rendering. |
+| 2026-07-19 | Lift resolver-backed Desktop Internet Radio actions into the composition root. | A focused Desktop action factory resolves current station IDs and converts validated edit drafts before calling controller operations; route rendering receives only `NaviampInternetRadioActions` and no provider controller or domain station callbacks. |
 
 ## Shared Controller Construction Audit
 
@@ -414,7 +415,7 @@ The 2026-07-17 audit covers every current application entry point:
 
 ## Current Handoff
 
-- **Last completed item:** Desktop playlist-list actions now enter the route through composition-root `NaviampAppShellActions`; the playlist resolver is composed once beside current controller state, and the parallel sort callback plus route-local smart-playlist action construction are removed.
-- **Next recommended item:** Extract resolver-dependent Internet Radio action composition from route rendering while keeping station lookup and provider execution in the Desktop adapter. Keep media-detail and playlist-detail actions behind their existing stable-ID resolver sources.
+- **Last completed item:** Desktop Internet Radio actions now enter the route through composition-root `NaviampAppShellActions`; a focused Desktop adapter resolves current station IDs and edit drafts, removing the Radio controller and three parallel action inputs from route rendering.
+- **Next recommended item:** Extract resolver-backed album-detail action composition into a focused Desktop adapter and lift the resulting contract to the composition root. Keep artist-detail and playlist-detail actions behind their existing stable-ID resolver sources until their own focused slices.
 - **Verification:** `:core:domain:jvmTest`, `:core:app:jvmTest`, `:core:storage:jvmTest`, `:core:ui:jvmTest`, `:apps:android:testDebugUnitTest`, `:apps:desktop:desktopTest`, `:core:app:iosSimulatorArm64Test`, `:core:storage:compileKotlinIosSimulatorArm64`, and `:core:ui:compileKotlinIosSimulatorArm64` pass together with at most two Gradle workers.
 - **Known blockers:** None.

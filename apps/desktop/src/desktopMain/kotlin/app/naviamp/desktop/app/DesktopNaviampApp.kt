@@ -1769,6 +1769,9 @@ fun NaviampApp(
                             selectedPlaylist = playlistsController.selectedPlaylist,
                             selectedPlaylistTracks = playlistsController.selectedPlaylistTracks,
                         )
+                        val internetRadioActionSources = DesktopInternetRadioActionSources(
+                            stations = internetRadioController.stations,
+                        )
                         val builderShellActions = NaviampAppShellActions(
                             navigationActions = NaviampShellNavigationActions(
                                 onRouteSelected = { route -> appRoute = route.toAppRoute() },
@@ -1833,6 +1836,13 @@ fun NaviampApp(
                                         ?.let { smartPlaylistsController.loadSmartPlaylistDefinition(it) }
                                         ?: error("Playlist ${item.title} is no longer available.")
                                 },
+                            ),
+                            radioActions = desktopInternetRadioActions(
+                                actionSources = internetRadioActionSources,
+                                onRefresh = internetRadioController::refreshStations,
+                                onPlayStation = internetRadioController::playStation,
+                                onSaveStation = internetRadioController::saveStation,
+                                onDeleteStation = internetRadioController::deleteStation,
                             ),
                             connectionActions = NaviampConnectionSettingsActions(
                                 onFormChanged = { form ->
@@ -1959,7 +1969,6 @@ fun NaviampApp(
                             coverArtUrl = { coverArtId -> coverArtId?.let { connectedProvider?.coverArtUrl(it) } },
                             appActions = appActions,
                             playlistsController = playlistsController,
-                            internetRadioController = internetRadioController,
                             libraryController = libraryController,
                             searchController = searchController,
                             albumDetailBackRoute = albumController.albumDetailBackRoute,
@@ -1975,11 +1984,6 @@ fun NaviampApp(
                             onPlaylistRenameRequested = playlistsController::requestPlaylistRename,
                             onPlaylistDeleteRequested = playlistsController::requestPlaylistDelete,
                             libraryListState = libraryListState,
-                            internetRadioActionSources = DesktopInternetRadioActionSources(
-                                stations = internetRadioController.stations,
-                            ),
-                            onSaveInternetRadioStation = internetRadioController::saveStation,
-                            onDeleteInternetRadioStation = internetRadioController::deleteStation,
                             connectedSourceId = connectedSourceId,
                             downloadRefreshToken = downloadsController.refreshToken,
                             downloadStatus = downloadsController.status,

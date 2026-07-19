@@ -23,7 +23,6 @@ import app.naviamp.desktop.settings.CacheSettings
 import app.naviamp.desktop.settings.PlaybackSettings
 import app.naviamp.domain.Album
 import app.naviamp.domain.Artist
-import app.naviamp.domain.InternetRadioStation
 import app.naviamp.domain.Playlist
 import app.naviamp.domain.Track
 import app.naviamp.domain.cache.DownloadJob
@@ -51,7 +50,6 @@ import app.naviamp.ui.NaviampLibraryActions
 import app.naviamp.ui.NaviampLibraryScreenUi
 import app.naviamp.ui.NaviampHomeActions
 import app.naviamp.ui.NaviampInternetRadioScreenUi
-import app.naviamp.ui.NaviampInternetRadioActions
 import app.naviamp.ui.NaviampPlaylistDetailScreenUi
 import app.naviamp.ui.NaviampPlaylistDetailActions
 import app.naviamp.ui.NaviampPlaylistsScreenUi
@@ -72,7 +70,6 @@ import app.naviamp.ui.SharedTrackGroupActionRequest
 import app.naviamp.ui.SharedTrackRowAction
 import app.naviamp.ui.SharedTrackRowUi
 import app.naviamp.ui.SaveQueueAsPlaylistDialog
-import app.naviamp.ui.StationRowAction
 import app.naviamp.ui.SonicMixBuilderContent
 import app.naviamp.ui.SonicPathBuilderContent
 import app.naviamp.ui.settingsSyncUi
@@ -89,7 +86,6 @@ fun ColumnScope.DesktopAppRouteContent(
     coverArtUrl: (String?) -> String?,
     appActions: DesktopAppActions,
     playlistsController: DesktopPlaylistsController,
-    internetRadioController: DesktopInternetRadioController,
     libraryController: DesktopLibraryController,
     searchController: DesktopSearchController,
     albumDetailBackRoute: DesktopAppRoute,
@@ -98,9 +94,6 @@ fun ColumnScope.DesktopAppRouteContent(
     onPlaylistRenameRequested: (Playlist) -> Unit,
     onPlaylistDeleteRequested: (Playlist) -> Unit,
     libraryListState: LazyListState,
-    internetRadioActionSources: DesktopInternetRadioActionSources,
-    onSaveInternetRadioStation: (InternetRadioStation) -> Unit,
-    onDeleteInternetRadioStation: (InternetRadioStation) -> Unit,
     connectedSourceId: String?,
     downloadRefreshToken: Int,
     downloadStatus: String?,
@@ -250,21 +243,6 @@ fun ColumnScope.DesktopAppRouteContent(
         }
     }
     val sharedShellActions = baseSharedShellActions.copy(
-        radioActions = NaviampInternetRadioActions(
-            onRefresh = internetRadioController::refreshStations,
-            onStationAction = { request ->
-                internetRadioActionSources.station(request.station.id)?.let { station ->
-                    when (request.action) {
-                        StationRowAction.Select -> internetRadioController.playStation(station)
-                        StationRowAction.Edit -> Unit
-                        StationRowAction.Delete -> onDeleteInternetRadioStation(station)
-                    }
-                }
-            },
-            onSaveStation = { edit ->
-                onSaveInternetRadioStation(internetRadioActionSources.station(edit))
-            },
-        ),
         albumDetailActions = NaviampAlbumDetailActions(
             onBack = { shellActions.navigationActions.onRouteSelected(albumDetailBackRoute.toSharedRoute()) },
             onPlay = { _, shuffle -> appActions.playAlbumDetails(shuffle = shuffle) },
