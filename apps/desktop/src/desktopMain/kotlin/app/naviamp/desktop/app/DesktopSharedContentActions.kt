@@ -18,6 +18,8 @@ import app.naviamp.ui.NaviampAlbumDetailActions
 import app.naviamp.ui.NaviampArtistDetailActions
 import app.naviamp.ui.NaviampPlaylistDetailActions
 import app.naviamp.ui.NaviampMediaActions
+import app.naviamp.ui.NaviampDownloadsActions
+import app.naviamp.ui.DownloadedTrackAction
 import app.naviamp.ui.StationRowAction
 import app.naviamp.ui.SharedMediaItemAction
 import app.naviamp.ui.SharedTrackRowAction
@@ -420,6 +422,30 @@ internal fun desktopMediaActions(
             }
         }
     },
+)
+
+internal fun desktopDownloadsActions(
+    downloads: List<DownloadedTrack>,
+    appActions: DesktopAppActions,
+    playlistsController: DesktopPlaylistsController,
+): NaviampDownloadsActions = NaviampDownloadsActions(
+    onTrackAction = { request ->
+        val index = downloads.indexOfFirst { download -> download.path.toString() == request.download.id }
+        downloads.getOrNull(index)?.let { download ->
+            when (request.action) {
+                DownloadedTrackAction.Select -> appActions.playDownloadedTrack(downloads, index)
+                DownloadedTrackAction.AddToPlaylist ->
+                    playlistsController.openTrackAddToPlaylist(download.track)
+                DownloadedTrackAction.Remove -> appActions.removeDownloadedTrack(download)
+                DownloadedTrackAction.CreatePlaylistAndAdd -> Unit
+            }
+        }
+    },
+    onCancelJob = appActions::cancelDownloadJob,
+    onRetryJob = appActions::retryDownloadJob,
+    onRefresh = appActions::refreshDownloads,
+    onToggleKeepFavoritesDownloaded = appActions::toggleKeepDownloadedFavorites,
+    onDeleteAll = appActions::deleteAllDownloads,
 )
 
 internal fun resolveDesktopMediaItemAction(

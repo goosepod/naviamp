@@ -1958,6 +1958,11 @@ fun NaviampApp(
                                 appActions = appActions,
                                 playlistsController = playlistsController,
                             ),
+                            downloadsActions = desktopDownloadsActions(
+                                downloads = desktopDownloadedTracks,
+                                appActions = appActions,
+                                playlistsController = playlistsController,
+                            ),
                             connectionActions = NaviampConnectionSettingsActions(
                                 onFormChanged = { form ->
                                     connectionForm.connectionName = form.displayName
@@ -2083,7 +2088,6 @@ fun NaviampApp(
                             playlistsController = playlistsController,
                             onLibraryJumpToLetter = libraryController::jumpLibraryToLetter,
                             libraryListState = libraryListState,
-                            downloadedTracks = desktopDownloadedTracks,
                             interfaceSettings = interfaceSettings,
                             playbackSettings = playbackSettings,
                             settingsSyncDirectoryPath = settingsSyncSettings.directoryPath,

@@ -76,7 +76,6 @@ fun ColumnScope.DesktopAppRouteContent(
     settingsSyncDirectoryPath: String?,
     settingsSyncAutoExportEnabled: Boolean,
     settingsSyncStatus: String?,
-    downloadedTracks: List<DownloadedTrack>,
     interfaceSettings: InterfaceSettings,
     playbackSettings: PlaybackSettings,
     onSettingsSyncDirectoryChanged: (String?) -> Unit,
@@ -392,20 +391,16 @@ fun ColumnScope.DesktopAppRouteContent(
                         actions = sharedShellActions.radioActions,
                     )
                 }
-                DesktopAppRoute.Downloads -> DesktopDownloadsRoute(
+                DesktopAppRoute.Downloads -> DesktopDownloadsPanel(
                     appColors = appColors,
                     screen = sharedShellState.downloads,
-                    downloads = downloadedTracks,
-                    onPlayDownloadedTrack = appActions::playDownloadedTrack,
-                    onRemoveDownloadedTrack = appActions::removeDownloadedTrack,
-                    onCancelDownloadJob = appActions::cancelDownloadJob,
-                    onRetryDownloadJob = appActions::retryDownloadJob,
-                    onRefreshDownloads = appActions::refreshDownloads,
-                    onToggleKeepFavoritesDownloaded = appActions::toggleKeepDownloadedFavorites,
-                    onDeleteAllDownloads = appActions::deleteAllDownloads,
-                    onAddDownloadedTrackToPlaylist = { download ->
-                        playlistsController.openTrackAddToPlaylist(download.track)
-                    },
+                    onCancelDownloadJob = sharedShellActions.downloadsActions.onCancelJob,
+                    onRetryDownloadJob = sharedShellActions.downloadsActions.onRetryJob,
+                    onRefreshDownloads = sharedShellActions.downloadsActions.onRefresh,
+                    onToggleKeepFavoritesDownloaded =
+                        sharedShellActions.downloadsActions.onToggleKeepFavoritesDownloaded,
+                    onDeleteAllDownloads = sharedShellActions.downloadsActions.onDeleteAll,
+                    onDownloadAction = sharedShellActions.downloadsActions.onTrackAction,
                 )
                 DesktopAppRoute.Settings -> DesktopSettingsPanel(
                     appColors = appColors,

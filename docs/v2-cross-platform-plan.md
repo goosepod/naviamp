@@ -399,6 +399,7 @@ Record architecture decisions here or link a dedicated decision record.
 | 2026-07-19 | Lift Desktop Search media actions into the root media contract. | Search artist, album, and track intent now resolves against current route-specific results in the Desktop media adapter before playback, queue, download, favorite, playlist, or navigation execution; the route loses its Search controller and local media helpers. |
 | 2026-07-19 | Carry recently-played Home track intent through `NaviampHomeActions`. | Recently-played selection and row actions are part of the Home contract on every host; Desktop resolves current Home tracks at the composition root, and shared Android rendering no longer reconstructs the behavior from separate media callbacks. |
 | 2026-07-19 | Lift Desktop downloads presentation into the shared shell state. | Download rows, job progress, storage totals, offline diagnostics, status, and keep-favorites policy are composed once at the Desktop root; route rendering receives the grouped screen plus a temporary downloaded-file resolver for execution. |
+| 2026-07-19 | Lift Desktop download execution into the shared shell actions. | Downloaded-track selection, playlist, removal, job, refresh, keep-favorites, and delete-all intent resolve and execute through root-owned `NaviampDownloadsActions`; the private downloads route wrapper and raw downloaded-file route input are removed. |
 
 ## Shared Controller Construction Audit
 
@@ -424,7 +425,7 @@ The 2026-07-17 audit covers every current application entry point:
 
 ## Current Handoff
 
-- **Last completed item:** Desktop downloads presentation now enters route rendering through `NaviampAppShellUiState`; raw status, job, policy, cache, source, and refresh inputs are removed, with only a temporary downloaded-file resolver retained for execution.
-- **Next recommended item:** Lift Desktop download execution into `NaviampDownloadsActions`, then remove the private downloads route wrapper and temporary downloaded-file route input.
+- **Last completed item:** Desktop downloads presentation and execution now enter route rendering through `NaviampAppShellUiState` and `NaviampDownloadsActions`; the private route wrapper and every raw downloads route input are removed.
+- **Next recommended item:** Audit the remaining route inputs and lift composition-root-safe Home selection callbacks next. Keep indexed Library navigation and native settings-sync launchers narrow and route-local until dedicated contracts replace them.
 - **Verification:** `:core:domain:jvmTest`, `:core:app:jvmTest`, `:core:storage:jvmTest`, `:core:ui:jvmTest`, `:apps:android:testDebugUnitTest`, `:apps:desktop:desktopTest`, `:core:app:iosSimulatorArm64Test`, `:core:storage:compileKotlinIosSimulatorArm64`, and `:core:ui:compileKotlinIosSimulatorArm64` pass together with at most two Gradle workers.
 - **Known blockers:** None.
