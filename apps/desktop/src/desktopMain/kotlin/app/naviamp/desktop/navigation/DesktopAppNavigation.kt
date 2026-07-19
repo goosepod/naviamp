@@ -73,7 +73,7 @@ fun DesktopBottomNavigationBar(
     )
 }
 
-private fun DesktopAppRoute.toSharedRoute(): SharedRoute =
+internal fun DesktopAppRoute.toSharedRoute(): SharedRoute =
     when (this) {
         DesktopAppRoute.Player -> SharedRoute.Search
         DesktopAppRoute.Home -> SharedRoute.Home
@@ -95,7 +95,7 @@ private fun DesktopAppRoute.toSharedRoute(): SharedRoute =
         DesktopAppRoute.Settings -> SharedRoute.Settings
     }
 
-private fun SharedRoute.toAppRoute(): DesktopAppRoute =
+internal fun SharedRoute.toAppRoute(): DesktopAppRoute =
     when (this) {
         SharedRoute.Home -> DesktopAppRoute.Home
         SharedRoute.Playlists -> DesktopAppRoute.Playlists

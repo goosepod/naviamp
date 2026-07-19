@@ -40,6 +40,8 @@ import app.naviamp.ui.AlbumMixBuilderContent
 import app.naviamp.ui.ArtistMixBuilderContent
 import app.naviamp.ui.GenreMixBuilderContent
 import app.naviamp.ui.NaviampAboutUi
+import app.naviamp.ui.NaviampAppShellActions
+import app.naviamp.ui.NaviampAppShellUiState
 import app.naviamp.ui.NaviampConnectionSettingsActions
 import app.naviamp.ui.NaviampSettingsMaintenanceActions
 import app.naviamp.ui.NaviampSettingsSyncActions
@@ -48,12 +50,16 @@ import app.naviamp.ui.NaviampAlbumDetailScreenUi
 import app.naviamp.ui.NaviampArtistDetailScreenUi
 import app.naviamp.ui.NaviampSavedConnectionUi
 import app.naviamp.ui.NaviampLibraryScreenUi
+import app.naviamp.ui.NaviampHomeActions
+import app.naviamp.ui.NaviampHomeScreenUi
 import app.naviamp.ui.NaviampInternetRadioScreenUi
 import app.naviamp.ui.NaviampPlaylistDetailScreenUi
 import app.naviamp.ui.NaviampPlaylistsScreenUi
 import app.naviamp.ui.NaviampSearchScreenUi
 import app.naviamp.ui.NaviampShellCapabilitiesUi
 import app.naviamp.ui.NaviampShellConnectionUi
+import app.naviamp.ui.NaviampShellChromeUi
+import app.naviamp.ui.NaviampShellNavigationActions
 import app.naviamp.ui.SharedAlbumMixBuilderUi
 import app.naviamp.ui.SharedAlbumMixBuilderActions
 import app.naviamp.ui.SharedArtistMixBuilderUi
@@ -196,6 +202,87 @@ fun ColumnScope.DesktopAppRouteContent(
             "sonic-mix" -> onRouteSelected(DesktopAppRoute.SonicMix)
         }
     }
+    val sharedSettingsSync = settingsSyncUi(
+        directoryPath = settingsSyncDirectoryPath,
+        autoExportEnabled = settingsSyncAutoExportEnabled,
+        status = settingsSyncStatus,
+        capabilities = capabilities,
+    )
+    val sharedSettingsSyncActions = NaviampSettingsSyncActions(
+        onDirectoryChanged = onSettingsSyncDirectoryChanged,
+        onDirectorySelectedForImport = onSettingsSyncDirectorySelectedForImport,
+        onAutoExportChanged = onSettingsSyncAutoExportChanged,
+        onExport = onSettingsSyncExport,
+        onImport = onSettingsSyncImport,
+    )
+    val sharedShellState = NaviampAppShellUiState(
+        connectionSettings = connection.toConnectionSettingsUi(
+            capabilities = capabilities,
+            currentSourceId = connectedSourceId,
+        ),
+        general = interfaceSettings.toGeneralSettingsUi(about),
+        playback = playbackSettings.toPlaybackSettingsUi(
+            capabilities = capabilities,
+            audioOutputDeviceSelectionAvailable =
+                (playbackEngine as? AudioOutputDevicePlaybackEngine)?.supportsAudioOutputDeviceSelection == true,
+            audioOutputDevices =
+                (playbackEngine as? AudioOutputDevicePlaybackEngine)?.outputDevices().orEmpty(),
+            downloadBytes = cacheStats.downloadBytes,
+        ),
+        cache = cacheSettings.toCacheSettingsUi(cacheStats, capabilities),
+        shellChrome = NaviampShellChromeUi(
+            selectedRoute = appRoute.toSharedRoute(),
+            supportsDownloads = capabilities.downloads,
+            supportsApplicationUpdates = capabilities.applicationUpdates,
+        ),
+        search = search,
+        home = NaviampHomeScreenUi(content = sharedHome, refreshing = homeRefreshing),
+        artistMixBuilder = artistMixBuilder,
+        albumMixBuilder = albumMixBuilder,
+        genreMixBuilder = genreMixBuilder,
+        sonicPathBuilder = sonicPathBuilder,
+        sonicMixBuilder = sonicMixBuilder,
+        library = library,
+        playlists = playlists,
+        radio = internetRadio,
+        albumDetail = albumDetail,
+        artistDetail = artistDetail,
+        playlistDetail = playlistDetail,
+    )
+    val sharedShellActions = NaviampAppShellActions(
+        navigationActions = NaviampShellNavigationActions(
+            onRouteSelected = { route -> onRouteSelected(route.toAppRoute()) },
+        ),
+        connectionActions = NaviampConnectionSettingsActions(
+            onFormChanged = onConnectionFormChanged,
+            onConnect = onConnect,
+            onNewConnection = onNewConnection,
+            onEditConnection = onEditConnection,
+            onConnectSavedConnection = onConnectSavedConnection,
+            onDeleteConnection = onDeleteConnection,
+            onCancelConnectionForm = onCancelConnectionForm,
+        ),
+        valueActions = NaviampSettingsValueActions(
+            onInterfaceSettingsChanged = onInterfaceSettingsChanged,
+            onPlaybackSettingsChanged = onPlaybackSettingsChanged,
+            onPlaybackSettingsChangedAndRedownload = onPlaybackSettingsChangedAndRedownload,
+            onCacheSettingsChanged = onCacheSettingsChanged,
+        ),
+        maintenanceActions = NaviampSettingsMaintenanceActions(
+            onOpenStatsForNerds = onOpenStatsForNerds,
+            onClearCache = onClearCache,
+            onClearLibrary = onClearLibrary,
+            onRefreshLibrary = onRefreshLibrary,
+            onResetDatabase = onResetDatabase,
+        ),
+        homeActions = NaviampHomeActions(
+            onRefresh = onRefreshHome,
+            onRecentRadioSelected = { item -> appActions.playHomeRecentRadio(item.id) },
+            onMixBuilderSelected = ::openMixBuilder,
+            onStationSelected = { station -> appActions.playHomeStation(station.id) },
+            onSonicDiscoveryTrackAction = onSonicHomeDiscoveryTrackAction,
+        ),
+    )
     fun handleArtistMediaAction(
         requestAction: SharedMediaItemAction,
         artist: Artist,
@@ -372,18 +459,18 @@ fun ColumnScope.DesktopAppRouteContent(
                 DesktopAppRoute.Player -> Unit
                 DesktopAppRoute.Home -> SharedHomeRoute(
                     colors = appColors,
-                    home = sharedHome,
-                    isRefreshing = homeRefreshing,
-                    onRefresh = onRefreshHome,
+                    home = sharedShellState.home.content,
+                    isRefreshing = sharedShellState.home.refreshing,
+                    onRefresh = sharedShellActions.homeActions.onRefresh,
                     onAlbumSelected = { item -> appActions.openHomeAlbum(item.id) },
                     onAlbumFavoriteToggled = { item -> appActions.toggleHomeAlbumFavorite(item.id) },
                     onMixAlbumSelected = { item -> appActions.playHomeMixAlbum(item.id) },
                     onPlaylistSelected = { item -> appActions.openHomePlaylist(item.id) },
-                    onRecentRadioSelected = { item -> appActions.playHomeRecentRadio(item.id) },
+                    onRecentRadioSelected = sharedShellActions.homeActions.onRecentRadioSelected,
                     onInternetRadioStationSelected = { item -> appActions.playHomeInternetRadio(item.id) },
-                    onMixBuilderSelected = ::openMixBuilder,
-                    onHomeStationSelected = { station -> appActions.playHomeStation(station.id) },
-                    onSonicDiscoveryTrackAction = onSonicHomeDiscoveryTrackAction,
+                    onMixBuilderSelected = sharedShellActions.homeActions.onMixBuilderSelected,
+                    onHomeStationSelected = sharedShellActions.homeActions.onStationSelected,
+                    onSonicDiscoveryTrackAction = sharedShellActions.homeActions.onSonicDiscoveryTrackAction,
                     onRecentlyPlayedTrackAction = { request ->
                         val tracks = homeContent.recentlyPlayedTracks
                         val index = tracks.indexOfFirst { track -> track.id.value == request.track.id }
@@ -890,55 +977,15 @@ fun ColumnScope.DesktopAppRouteContent(
                 )
                 DesktopAppRoute.Settings -> DesktopSettingsPanel(
                     appColors = appColors,
-                    connectionSettings = connection.toConnectionSettingsUi(
-                        capabilities = capabilities,
-                        currentSourceId = connectedSourceId,
-                    ),
-                    general = interfaceSettings.toGeneralSettingsUi(about),
-                    playback = playbackSettings.toPlaybackSettingsUi(
-                        capabilities = capabilities,
-                        audioOutputDeviceSelectionAvailable =
-                            (playbackEngine as? AudioOutputDevicePlaybackEngine)?.supportsAudioOutputDeviceSelection == true,
-                        audioOutputDevices =
-                            (playbackEngine as? AudioOutputDevicePlaybackEngine)?.outputDevices().orEmpty(),
-                        downloadBytes = cacheStats.downloadBytes,
-                    ),
-                    cache = cacheSettings.toCacheSettingsUi(cacheStats, capabilities),
-                    settingsSync = settingsSyncUi(
-                        directoryPath = settingsSyncDirectoryPath,
-                        autoExportEnabled = settingsSyncAutoExportEnabled,
-                        status = settingsSyncStatus,
-                        capabilities = capabilities,
-                    ),
-                    connectionActions = NaviampConnectionSettingsActions(
-                        onFormChanged = onConnectionFormChanged,
-                        onConnect = onConnect,
-                        onNewConnection = onNewConnection,
-                        onEditConnection = onEditConnection,
-                        onConnectSavedConnection = onConnectSavedConnection,
-                        onDeleteConnection = onDeleteConnection,
-                        onCancelConnectionForm = onCancelConnectionForm,
-                    ),
-                    syncActions = NaviampSettingsSyncActions(
-                        onDirectoryChanged = onSettingsSyncDirectoryChanged,
-                        onDirectorySelectedForImport = onSettingsSyncDirectorySelectedForImport,
-                        onAutoExportChanged = onSettingsSyncAutoExportChanged,
-                        onExport = onSettingsSyncExport,
-                        onImport = onSettingsSyncImport,
-                    ),
-                    valueActions = NaviampSettingsValueActions(
-                        onInterfaceSettingsChanged = onInterfaceSettingsChanged,
-                        onPlaybackSettingsChanged = onPlaybackSettingsChanged,
-                        onPlaybackSettingsChangedAndRedownload = onPlaybackSettingsChangedAndRedownload,
-                        onCacheSettingsChanged = onCacheSettingsChanged,
-                    ),
-                    maintenanceActions = NaviampSettingsMaintenanceActions(
-                        onOpenStatsForNerds = onOpenStatsForNerds,
-                        onClearCache = onClearCache,
-                        onClearLibrary = onClearLibrary,
-                        onRefreshLibrary = onRefreshLibrary,
-                        onResetDatabase = onResetDatabase,
-                    ),
+                    connectionSettings = sharedShellState.connectionSettings,
+                    general = sharedShellState.general,
+                    playback = sharedShellState.playback,
+                    cache = sharedShellState.cache,
+                    settingsSync = sharedSettingsSync,
+                    connectionActions = sharedShellActions.connectionActions,
+                    syncActions = sharedSettingsSyncActions,
+                    valueActions = sharedShellActions.valueActions,
+                    maintenanceActions = sharedShellActions.maintenanceActions,
                 )
             }
         }
