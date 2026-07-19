@@ -99,7 +99,9 @@ import app.naviamp.ui.NaviampAlbumDetailScreenUi
 import app.naviamp.ui.NaviampAppShellActions
 import app.naviamp.ui.NaviampAppShellUiState
 import app.naviamp.ui.NaviampHomeScreenUi
+import app.naviamp.ui.NaviampHomeActions
 import app.naviamp.ui.NaviampShellChromeUi
+import app.naviamp.ui.NaviampShellNavigationActions
 import app.naviamp.ui.NaviampArtistDetailScreenUi
 import app.naviamp.ui.NaviampPlaylistDetailScreenUi
 import app.naviamp.ui.NaviampPlaylistsScreenUi
@@ -1756,6 +1758,36 @@ fun NaviampApp(
                             ),
                         )
                         val builderShellActions = NaviampAppShellActions(
+                            navigationActions = NaviampShellNavigationActions(
+                                onRouteSelected = { route -> appRoute = route.toAppRoute() },
+                            ),
+                            homeActions = NaviampHomeActions(
+                                onRefresh = { connectedProvider?.let(homeController::loadHomeContent) },
+                                onRecentRadioSelected = { item -> appActions.playHomeRecentRadio(item.id) },
+                                onMixBuilderSelected = { builder ->
+                                    appRoute = when (builder.id) {
+                                        "artist" -> DesktopAppRoute.ArtistMix
+                                        "album" -> DesktopAppRoute.AlbumMix
+                                        "genre" -> DesktopAppRoute.GenreMix
+                                        "sonic-path" -> DesktopAppRoute.SonicPath
+                                        "sonic-mix" -> DesktopAppRoute.SonicMix
+                                        else -> appRoute
+                                    }
+                                },
+                                onStationSelected = { station -> appActions.playHomeStation(station.id) },
+                                onSonicDiscoveryTrackAction = { request ->
+                                    val track = sonicHomeDiscoveryController.trackFor(request)
+                                    when (request.action) {
+                                        app.naviamp.ui.SharedTrackRowAction.ToggleFavorite ->
+                                            track?.let(appActions::toggleTrackFavorite)
+                                        app.naviamp.ui.SharedTrackRowAction.GoToAlbum ->
+                                            track?.let(appActions::openTrackAlbumDetails)
+                                        app.naviamp.ui.SharedTrackRowAction.GoToArtist ->
+                                            track?.let(appActions::openTrackArtistDetails)
+                                        else -> sonicHomeDiscoveryController.handleAction(request)
+                                    }
+                                },
+                            ),
                             artistMixActions = SharedArtistMixBuilderActions(
                                 onQueryChanged = mixBuilderController::setArtistQuery,
                                 onSearch = mixBuilderController::searchArtistSuggestions,
@@ -1830,7 +1862,6 @@ fun NaviampApp(
                             connection = shellConnection,
                             capabilities = shellCapabilities,
                             homeContent = homeContent,
-                            onRefreshHome = { connectedProvider?.let(homeController::loadHomeContent) },
                             coverArtUrl = { coverArtId -> coverArtId?.let { connectedProvider?.coverArtUrl(it) } },
                             appActions = appActions,
                             playlistsController = playlistsController,
@@ -1838,13 +1869,6 @@ fun NaviampApp(
                             libraryController = libraryController,
                             searchController = searchController,
                             smartPlaylistsController = smartPlaylistsController,
-                            onRouteSelected = { route -> appRoute = route },
-                            onOpenArtistMixBuilder = {
-                                appRoute = DesktopAppRoute.ArtistMix
-                            },
-                            onOpenAlbumMixBuilder = {
-                                appRoute = DesktopAppRoute.AlbumMix
-                            },
                             albumDetailBackRoute = albumController.albumDetailBackRoute,
                             detailActionSources = DesktopDetailActionSources(
                                 selectedAlbum = albumController.selectedAlbum,
@@ -1930,18 +1954,6 @@ fun NaviampApp(
                             onClearLibrary = { appActions.clearLibraryData() },
                             onRefreshLibrary = libraryController::refreshLibrarySnapshot,
                             onResetDatabase = { appActions.resetDatabase() },
-                            onSonicHomeDiscoveryTrackAction = { request ->
-                                val track = sonicHomeDiscoveryController.trackFor(request)
-                                when (request.action) {
-                                    app.naviamp.ui.SharedTrackRowAction.ToggleFavorite ->
-                                        track?.let(appActions::toggleTrackFavorite)
-                                    app.naviamp.ui.SharedTrackRowAction.GoToAlbum ->
-                                        track?.let(appActions::openTrackAlbumDetails)
-                                    app.naviamp.ui.SharedTrackRowAction.GoToArtist ->
-                                        track?.let(appActions::openTrackArtistDetails)
-                                    else -> sonicHomeDiscoveryController.handleAction(request)
-                                }
-                            },
                         )
                         DesktopAppDialogs(
                             appColors = appColors,

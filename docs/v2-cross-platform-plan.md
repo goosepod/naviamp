@@ -385,6 +385,7 @@ Record architecture decisions here or link a dedicated decision record.
 | 2026-07-18 | Lift Desktop media-detail and playlist presentation into the composition root. | Album, artist, playlist-list, and playlist-detail screen models are complete shared presentation products and should arrive only through `NaviampAppShellUiState`; resolver sources remain Desktop adapter inputs because they retain domain instances for execution. |
 | 2026-07-18 | Lift Desktop Library, Search, and Radio presentation into the composition root. | These grouped screen models should be composed once in `DesktopNaviampApp` and arrive only through `NaviampAppShellUiState`; controllers and station resolver sources remain route inputs only where action execution requires them. |
 | 2026-07-18 | Complete Desktop shell presentation composition at the application root. | Home, grouped settings, capability-derived shell chrome, audio-device presentation, and cache diagnostics should be assembled before route rendering; the playback engine remains a composition input and no longer needs to cross the route boundary after its UI facts are mapped. |
+| 2026-07-19 | Lift Desktop navigation and Home actions into the composition root. | Route selection, mix-builder routing, Home refresh, station selection, and Sonic discovery intent are complete composition-root contracts; detail back actions should reuse shared navigation rather than retaining another Desktop route callback. |
 
 ## Shared Controller Construction Audit
 
@@ -410,7 +411,7 @@ The 2026-07-17 audit covers every current application entry point:
 
 ## Current Handoff
 
-- **Last completed item:** `DesktopNaviampApp` now composes the complete stable `NaviampAppShellUiState`, including Home, grouped settings, shell chrome, builders, media details, playlists, Library, Search, and Radio. The redundant About, Home-refresh/discovery, and playback-engine route inputs are removed; action execution and transient native settings-sync inputs remain explicit.
-- **Next recommended item:** Lift the remaining composition-root-safe action groups into `NaviampAppShellActions`, starting with navigation, Home, Search, Library, and settings value/maintenance actions. Keep resolver-dependent media, playlist, and Radio actions in the Desktop adapter until their domain ports move outward.
+- **Last completed item:** Desktop navigation and Home actions now enter the route through composition-root `NaviampAppShellActions`. Raw route-selection, mix-builder routing, Home refresh, and Sonic discovery callbacks are removed, and detail back actions reuse shared navigation.
+- **Next recommended item:** Lift Search and Library actions into the composition-root aggregate and remove their parallel controller/query callbacks. Then lift connection and settings value/maintenance actions while leaving native settings-sync launch behavior explicit.
 - **Verification:** `:core:domain:jvmTest`, `:core:app:jvmTest`, `:core:storage:jvmTest`, `:core:ui:jvmTest`, `:apps:android:testDebugUnitTest`, `:apps:desktop:desktopTest`, `:core:app:iosSimulatorArm64Test`, `:core:storage:compileKotlinIosSimulatorArm64`, and `:core:ui:compileKotlinIosSimulatorArm64` pass together with at most two Gradle workers.
 - **Known blockers:** None.

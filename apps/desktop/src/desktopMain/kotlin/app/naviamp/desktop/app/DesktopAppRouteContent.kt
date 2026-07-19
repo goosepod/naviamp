@@ -88,7 +88,6 @@ fun ColumnScope.DesktopAppRouteContent(
     connection: NaviampShellConnectionUi,
     capabilities: NaviampShellCapabilitiesUi,
     homeContent: HomeContent,
-    onRefreshHome: () -> Unit,
     coverArtUrl: (String?) -> String?,
     appActions: DesktopAppActions,
     playlistsController: DesktopPlaylistsController,
@@ -96,9 +95,6 @@ fun ColumnScope.DesktopAppRouteContent(
     libraryController: DesktopLibraryController,
     searchController: DesktopSearchController,
     smartPlaylistsController: DesktopSmartPlaylistsController,
-    onRouteSelected: (DesktopAppRoute) -> Unit,
-    onOpenArtistMixBuilder: () -> Unit,
-    onOpenAlbumMixBuilder: () -> Unit,
     albumDetailBackRoute: DesktopAppRoute,
     detailActionSources: DesktopDetailActionSources,
     playlistActionSources: DesktopPlaylistActionSources,
@@ -144,20 +140,10 @@ fun ColumnScope.DesktopAppRouteContent(
     onClearLibrary: () -> Unit,
     onRefreshLibrary: () -> Unit,
     onResetDatabase: () -> Unit,
-    onSonicHomeDiscoveryTrackAction: (SharedHomeDiscoveryTrackActionRequest) -> Unit,
 ) {
     var saveSonicPathDialogOpen by remember { mutableStateOf(false) }
     var saveSonicMixDialogOpen by remember { mutableStateOf(false) }
     val contentScrollState = rememberScrollState()
-    fun openMixBuilder(builder: SharedMixBuilderUi) {
-        when (builder.id) {
-            "artist" -> onOpenArtistMixBuilder()
-            "album" -> onOpenAlbumMixBuilder()
-            "genre" -> onRouteSelected(DesktopAppRoute.GenreMix)
-            "sonic-path" -> onRouteSelected(DesktopAppRoute.SonicPath)
-            "sonic-mix" -> onRouteSelected(DesktopAppRoute.SonicMix)
-        }
-    }
     val sharedSettingsSync = settingsSyncUi(
         directoryPath = settingsSyncDirectoryPath,
         autoExportEnabled = settingsSyncAutoExportEnabled,
@@ -173,9 +159,6 @@ fun ColumnScope.DesktopAppRouteContent(
     )
     val sharedShellState = shellState
     val baseSharedShellActions = shellActions.copy(
-        navigationActions = NaviampShellNavigationActions(
-            onRouteSelected = { route -> onRouteSelected(route.toAppRoute()) },
-        ),
         connectionActions = NaviampConnectionSettingsActions(
             onFormChanged = onConnectionFormChanged,
             onConnect = onConnect,
@@ -197,13 +180,6 @@ fun ColumnScope.DesktopAppRouteContent(
             onClearLibrary = onClearLibrary,
             onRefreshLibrary = onRefreshLibrary,
             onResetDatabase = onResetDatabase,
-        ),
-        homeActions = NaviampHomeActions(
-            onRefresh = onRefreshHome,
-            onRecentRadioSelected = { item -> appActions.playHomeRecentRadio(item.id) },
-            onMixBuilderSelected = ::openMixBuilder,
-            onStationSelected = { station -> appActions.playHomeStation(station.id) },
-            onSonicDiscoveryTrackAction = onSonicHomeDiscoveryTrackAction,
         ),
         searchActions = NaviampSearchActions(
             onQueryChanged = searchController::updateQuery,
@@ -341,7 +317,7 @@ fun ColumnScope.DesktopAppRouteContent(
             },
         ),
         albumDetailActions = NaviampAlbumDetailActions(
-            onBack = { onRouteSelected(albumDetailBackRoute) },
+            onBack = { shellActions.navigationActions.onRouteSelected(albumDetailBackRoute.toSharedRoute()) },
             onPlay = { _, shuffle -> appActions.playAlbumDetails(shuffle = shuffle) },
             onRadio = { appActions.playCurrentAlbumRadio() },
             onDownload = { appActions.downloadCurrentAlbum() },
@@ -457,7 +433,7 @@ fun ColumnScope.DesktopAppRouteContent(
             },
         ),
         playlistDetailActions = NaviampPlaylistDetailActions(
-            onBack = { onRouteSelected(DesktopAppRoute.Playlists) },
+            onBack = { shellActions.navigationActions.onRouteSelected(app.naviamp.ui.SharedRoute.Playlists) },
             onMediaItemAction = ::handleSelectedPlaylistMediaAction,
             onTrackAction = { request ->
                 playlistActionSources.selectedTrack(request.track.id)?.let { (index, track) ->
