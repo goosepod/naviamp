@@ -800,6 +800,7 @@ data class NaviampShellChromeUi(
 )
 
 data class NaviampAppShellUiState(
+    val capabilities: NaviampShellCapabilitiesUi = NaviampShellCapabilitiesUi(),
     val connectionSettings: NaviampConnectionSettingsUi = NaviampConnectionSettingsUi(),
     val general: NaviampGeneralSettingsUi = NaviampGeneralSettingsUi(),
     val playback: NaviampPlaybackSettingsUi = NaviampPlaybackSettingsUi(),

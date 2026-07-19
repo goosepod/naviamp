@@ -5,7 +5,6 @@ import android.os.Build
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.ui.Modifier
 import app.naviamp.android.playback.AndroidBassLoadReport
 import app.naviamp.android.playback.AndroidPlaybackEngine
 import app.naviamp.domain.Track
@@ -49,13 +48,12 @@ import app.naviamp.ui.toPlaybackSettingsUi
 @Composable
 fun rememberAndroidAppShellUiState(
     state: AndroidAppState,
-    modifier: Modifier,
     context: Context,
     bassLoadReport: AndroidBassLoadReport,
     playbackEngine: AndroidPlaybackEngine,
     sonicPathBuilder: SharedSonicPathBuilderUi,
     sonicMixBuilder: SharedSonicMixBuilderUi,
-): AndroidAppShellUiState =
+): NaviampAppShellUiState =
     with(state) {
         val connectionRuntimeState by sharedControllers.connection.state.collectAsState()
         val downloadLocations = androidDownloadStorageLocations(context).map { location ->
@@ -200,9 +198,8 @@ fun rememberAndroidAppShellUiState(
             hasSavedConnection = savedConnectionForLogin != null,
         )
 
-        AndroidAppShellUiState(
-            modifier = modifier,
-            presentation = NaviampAppShellUiState(
+        NaviampAppShellUiState(
+            capabilities = shellCapabilities,
             connectionSettings = shellConnection.toConnectionSettingsUi(shellCapabilities),
             general = interfaceSettings.toGeneralSettingsUi(context.androidAboutUi()),
             playback = playbackSettings.toPlaybackSettingsUi(
@@ -328,9 +325,6 @@ fun rememberAndroidAppShellUiState(
                 selectedConnectionLibraryIds = shellModels.connectionForm.selectedMusicFolderIds,
             ),
             nowPlaying = nowPlayingUi,
-            ),
-            capabilities = shellCapabilities,
-            visualizerBandsProvider = { visualizerFrame?.bands.orEmpty() },
         )
     }
 

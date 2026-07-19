@@ -881,7 +881,6 @@ fun NaviampAndroidApp(
 
     val shellUiState = rememberAndroidAppShellUiState(
         state = appState,
-        modifier = modifier,
         context = context,
         bassLoadReport = bassLoadReport,
         playbackEngine = playbackEngine,
@@ -1001,9 +1000,9 @@ fun NaviampAndroidApp(
     )
 
     NaviampSharedAppShell(
-        modifier = shellUiState.modifier,
-        uiState = shellUiState.presentation,
-        visualizerBandsProvider = shellUiState.visualizerBandsProvider,
+        modifier = modifier,
+        uiState = shellUiState,
+        visualizerBandsProvider = { appState.visualizerFrame?.bands.orEmpty() },
         actions = shellActions,
         settingsSync = settingsSyncUi(
             directoryPath = null,

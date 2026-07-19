@@ -1676,6 +1676,7 @@ fun NaviampApp(
                                 status.startsWith("Connected to ", ignoreCase = true)
                         }
                         val desktopShellState = NaviampAppShellUiState(
+                            capabilities = shellCapabilities,
                             connectionSettings = shellConnection.toConnectionSettingsUi(
                                 capabilities = shellCapabilities,
                                 currentSourceId = connectedSourceId,
