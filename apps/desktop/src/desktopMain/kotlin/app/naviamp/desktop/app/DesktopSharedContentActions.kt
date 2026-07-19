@@ -320,6 +320,10 @@ internal fun desktopMediaActions(
     appActions: DesktopAppActions,
     playlistsController: DesktopPlaylistsController,
 ): NaviampMediaActions = NaviampMediaActions(
+    onAlbumSelected = { item -> appActions.openHomeAlbum(item.id) },
+    onAlbumFavoriteToggled = { item -> appActions.toggleHomeAlbumFavorite(item.id) },
+    onMixAlbumSelected = { item -> appActions.playHomeMixAlbum(item.id) },
+    onPlaylistSelected = { item -> appActions.openHomePlaylist(item.id) },
     onMediaItemAction = { request ->
         if (request.kind == SharedMediaItemKind.Playlist) {
             playlistActionSources.playlist(request.item.id)?.let { playlist ->

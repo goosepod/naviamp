@@ -400,6 +400,7 @@ Record architecture decisions here or link a dedicated decision record.
 | 2026-07-19 | Carry recently-played Home track intent through `NaviampHomeActions`. | Recently-played selection and row actions are part of the Home contract on every host; Desktop resolves current Home tracks at the composition root, and shared Android rendering no longer reconstructs the behavior from separate media callbacks. |
 | 2026-07-19 | Lift Desktop downloads presentation into the shared shell state. | Download rows, job progress, storage totals, offline diagnostics, status, and keep-favorites policy are composed once at the Desktop root; route rendering receives the grouped screen plus a temporary downloaded-file resolver for execution. |
 | 2026-07-19 | Lift Desktop download execution into the shared shell actions. | Downloaded-track selection, playlist, removal, job, refresh, keep-favorites, and delete-all intent resolve and execute through root-owned `NaviampDownloadsActions`; the private downloads route wrapper and raw downloaded-file route input are removed. |
+| 2026-07-19 | Route Desktop Home album and playlist selection through `NaviampMediaActions`. | Home album selection, favorite toggling, mix playback, and playlist selection are existing shared media responsibilities; Desktop now composes them at the root rather than closing over `DesktopAppActions` in route rendering. |
 
 ## Shared Controller Construction Audit
 
@@ -425,7 +426,7 @@ The 2026-07-17 audit covers every current application entry point:
 
 ## Current Handoff
 
-- **Last completed item:** Desktop downloads presentation and execution now enter route rendering through `NaviampAppShellUiState` and `NaviampDownloadsActions`; the private route wrapper and every raw downloads route input are removed.
-- **Next recommended item:** Audit the remaining route inputs and lift composition-root-safe Home selection callbacks next. Keep indexed Library navigation and native settings-sync launchers narrow and route-local until dedicated contracts replace them.
+- **Last completed item:** Desktop Home album selection, favorite toggling, mix playback, and playlist selection now enter route rendering through root-owned `NaviampMediaActions`; those callbacks no longer close over `DesktopAppActions` in the route.
+- **Next recommended item:** Add Internet Radio selection to `NaviampHomeActions` so both shared Android and Desktop Home rendering consume one explicit contract. Then give indexed Library navigation a dedicated Library action field.
 - **Verification:** `:core:domain:jvmTest`, `:core:app:jvmTest`, `:core:storage:jvmTest`, `:core:ui:jvmTest`, `:apps:android:testDebugUnitTest`, `:apps:desktop:desktopTest`, `:core:app:iosSimulatorArm64Test`, `:core:storage:compileKotlinIosSimulatorArm64`, and `:core:ui:compileKotlinIosSimulatorArm64` pass together with at most two Gradle workers.
 - **Known blockers:** None.
