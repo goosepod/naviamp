@@ -1680,6 +1680,37 @@ fun NaviampApp(
                                 ),
                                 status = playlistsController.selectedPlaylistStatus,
                             ),
+                            library = NaviampLibraryScreenUi(
+                                artists = libraryController.snapshot.artists.map { artist ->
+                                    artist.toSharedMediaItemUi(
+                                        coverArtUrl = { coverArtId ->
+                                            coverArtId?.let { connectedProvider?.coverArtUrl(it) }
+                                        },
+                                        canFavorite = true,
+                                    )
+                                },
+                                query = libraryController.query,
+                                syncStatus = NaviampLibrarySyncStatusUi(
+                                    message = libraryController.status,
+                                    isSyncing = libraryController.syncing,
+                                ),
+                            ),
+                            search = NaviampSearchScreenUi(
+                                query = searchController.query,
+                                results = searchController.results.toSharedSearchResultsUi(
+                                    coverArtUrl = { coverArtId ->
+                                        coverArtId?.let { connectedProvider?.coverArtUrl(it) }
+                                    },
+                                    canFavoriteArtists = true,
+                                    canFavoriteAlbums = true,
+                                ),
+                                status = searchController.status,
+                                searching = searchController.searching,
+                            ),
+                            radio = app.naviamp.ui.NaviampInternetRadioScreenUi(
+                                stations = internetRadioController.stations.map { it.toInternetRadioStationUi() },
+                                status = internetRadioController.status,
+                            ),
                         )
                         val builderShellActions = NaviampAppShellActions(
                             artistMixActions = SharedArtistMixBuilderActions(
@@ -1792,39 +1823,8 @@ fun NaviampApp(
                             onPlaylistSortModeChanged = playlistsController::updateSortMode,
                             onPlaylistRenameRequested = playlistsController::requestPlaylistRename,
                             onPlaylistDeleteRequested = playlistsController::requestPlaylistDelete,
-                            library = NaviampLibraryScreenUi(
-                                artists = libraryController.snapshot.artists.map { artist ->
-                                    artist.toSharedMediaItemUi(
-                                        coverArtUrl = { coverArtId ->
-                                            coverArtId?.let { connectedProvider?.coverArtUrl(it) }
-                                        },
-                                        canFavorite = true,
-                                    )
-                                },
-                                query = libraryController.query,
-                                syncStatus = NaviampLibrarySyncStatusUi(
-                                    message = libraryController.status,
-                                    isSyncing = libraryController.syncing,
-                                ),
-                            ),
                             libraryListState = libraryListState,
                             onLibraryQueryChanged = libraryController::updateQuery,
-                            search = NaviampSearchScreenUi(
-                                query = searchController.query,
-                                results = searchController.results.toSharedSearchResultsUi(
-                                    coverArtUrl = { coverArtId ->
-                                        coverArtId?.let { connectedProvider?.coverArtUrl(it) }
-                                    },
-                                    canFavoriteArtists = true,
-                                    canFavoriteAlbums = true,
-                                ),
-                                status = searchController.status,
-                                searching = searchController.searching,
-                            ),
-                            internetRadio = app.naviamp.ui.NaviampInternetRadioScreenUi(
-                                stations = internetRadioController.stations.map { it.toInternetRadioStationUi() },
-                                status = internetRadioController.status,
-                            ),
                             internetRadioActionSources = DesktopInternetRadioActionSources(
                                 stations = internetRadioController.stations,
                             ),

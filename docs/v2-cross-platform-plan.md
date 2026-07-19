@@ -383,6 +383,7 @@ Record architecture decisions here or link a dedicated decision record.
 | 2026-07-18 | Begin lifting Desktop shell aggregate construction into the composition root. | Builder presentation and action contracts are already complete composition-root products, so `DesktopNaviampApp` should seed `NaviampAppShellUiState` and `NaviampAppShellActions`; the route adapter may enrich those aggregates with resolver-dependent contracts during the transition. |
 | 2026-07-18 | Remove parallel Desktop builder route parameters after aggregate adoption. | Once builder state and actions arrive through the shell aggregates, retaining ten individual builder parameters would preserve duplicate ownership; unused Home status, artist back-route, and library-tab parameters should be removed in the same route-boundary audit. |
 | 2026-07-18 | Lift Desktop media-detail and playlist presentation into the composition root. | Album, artist, playlist-list, and playlist-detail screen models are complete shared presentation products and should arrive only through `NaviampAppShellUiState`; resolver sources remain Desktop adapter inputs because they retain domain instances for execution. |
+| 2026-07-18 | Lift Desktop Library, Search, and Radio presentation into the composition root. | These grouped screen models should be composed once in `DesktopNaviampApp` and arrive only through `NaviampAppShellUiState`; controllers and station resolver sources remain route inputs only where action execution requires them. |
 
 ## Shared Controller Construction Audit
 
@@ -408,7 +409,7 @@ The 2026-07-17 audit covers every current application entry point:
 
 ## Current Handoff
 
-- **Last completed item:** Album, artist, playlist-list, and playlist-detail presentation now enter the Desktop route only through the composition-root `NaviampAppShellUiState`. Their four parallel screen-model parameters are removed while domain resolver sources remain explicit Desktop inputs.
-- **Next recommended item:** Lift Library, Search, and Internet Radio presentation into the same composition-root shell state and remove their parallel parameters. Then finish the state lift with Home, settings, and shell chrome.
+- **Last completed item:** Library, Search, and Internet Radio presentation now enter the Desktop route only through the composition-root `NaviampAppShellUiState`; their three parallel screen-model parameters are removed while controllers and station resolver sources remain available for execution.
+- **Next recommended item:** Finish the Desktop state lift by composing Home, grouped settings, and shell chrome in `DesktopNaviampApp`, then remove the raw presentation inputs that become redundant while preserving native settings-sync and playback-engine adapters.
 - **Verification:** `:core:domain:jvmTest`, `:core:app:jvmTest`, `:core:storage:jvmTest`, `:core:ui:jvmTest`, `:apps:android:testDebugUnitTest`, `:apps:desktop:desktopTest`, `:core:app:iosSimulatorArm64Test`, `:core:storage:compileKotlinIosSimulatorArm64`, and `:core:ui:compileKotlinIosSimulatorArm64` pass together with at most two Gradle workers.
 - **Known blockers:** None.

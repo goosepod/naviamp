@@ -119,11 +119,8 @@ fun ColumnScope.DesktopAppRouteContent(
     onPlaylistSortModeChanged: (SharedPlaylistSortMode) -> Unit,
     onPlaylistRenameRequested: (Playlist) -> Unit,
     onPlaylistDeleteRequested: (Playlist) -> Unit,
-    library: NaviampLibraryScreenUi,
     libraryListState: LazyListState,
     onLibraryQueryChanged: (String) -> Unit,
-    search: NaviampSearchScreenUi,
-    internetRadio: NaviampInternetRadioScreenUi,
     internetRadioActionSources: DesktopInternetRadioActionSources,
     onSaveInternetRadioStation: (InternetRadioStation) -> Unit,
     onDeleteInternetRadioStation: (InternetRadioStation) -> Unit,
@@ -217,10 +214,7 @@ fun ColumnScope.DesktopAppRouteContent(
             supportsDownloads = capabilities.downloads,
             supportsApplicationUpdates = capabilities.applicationUpdates,
         ),
-        search = search,
         home = NaviampHomeScreenUi(content = sharedHome, refreshing = homeRefreshing),
-        library = library,
-        radio = internetRadio,
     )
     val baseSharedShellActions = shellActions.copy(
         navigationActions = NaviampShellNavigationActions(
