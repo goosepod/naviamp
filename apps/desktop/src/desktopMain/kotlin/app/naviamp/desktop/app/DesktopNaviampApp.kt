@@ -1863,6 +1863,12 @@ fun NaviampApp(
                                 appActions = appActions,
                                 playlistsController = playlistsController,
                             ),
+                            playlistDetailActions = desktopPlaylistDetailActions(
+                                actionSources = playlistActionSources,
+                                appActions = appActions,
+                                playlistsController = playlistsController,
+                                onBack = { appRoute = DesktopAppRoute.Playlists },
+                            ),
                             connectionActions = NaviampConnectionSettingsActions(
                                 onFormChanged = { form ->
                                     connectionForm.connectionName = form.displayName

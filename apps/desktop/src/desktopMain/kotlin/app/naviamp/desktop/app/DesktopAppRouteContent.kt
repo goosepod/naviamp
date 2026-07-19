@@ -49,7 +49,6 @@ import app.naviamp.ui.NaviampLibraryScreenUi
 import app.naviamp.ui.NaviampHomeActions
 import app.naviamp.ui.NaviampInternetRadioScreenUi
 import app.naviamp.ui.NaviampPlaylistDetailScreenUi
-import app.naviamp.ui.NaviampPlaylistDetailActions
 import app.naviamp.ui.NaviampPlaylistsScreenUi
 import app.naviamp.ui.NaviampSearchScreenUi
 import app.naviamp.ui.NaviampSearchActions
@@ -60,7 +59,6 @@ import app.naviamp.ui.SharedGenreMixItemUi
 import app.naviamp.ui.SharedHomeRoute
 import app.naviamp.ui.SharedHomeDiscoveryTrackActionRequest
 import app.naviamp.ui.SharedMediaItemAction
-import app.naviamp.ui.SharedMediaItemActionRequest
 import app.naviamp.ui.SharedMediaItemUi
 import app.naviamp.ui.SharedMixBuilderUi
 import app.naviamp.ui.SharedTrackGroupAction
@@ -204,74 +202,7 @@ fun ColumnScope.DesktopAppRouteContent(
             -> Unit
         }
     }
-    fun handleSelectedPlaylistMediaAction(request: SharedMediaItemActionRequest) {
-        if (request.textValue == app.naviamp.ui.KeepDownloadedActionValue) {
-            playlistActionSources.selectedPlaylist?.let(appActions::toggleKeepDownloadedPlaylist)
-            return
-        }
-        when (request.action) {
-            SharedMediaItemAction.Play -> appActions.playPlaylistDetails()
-            SharedMediaItemAction.Shuffle -> appActions.playPlaylistDetails(shuffle = true)
-            SharedMediaItemAction.Rename -> playlistsController.requestSelectedPlaylistRename()
-            SharedMediaItemAction.Delete -> playlistsController.requestSelectedPlaylistDelete()
-            SharedMediaItemAction.Download -> appActions.downloadSelectedPlaylist()
-            SharedMediaItemAction.AddToQueue -> playlistsController.addSelectedPlaylistToQueue()
-            SharedMediaItemAction.AddToPlaylist -> playlistsController.openSelectedPlaylistAddToPlaylist()
-            SharedMediaItemAction.CreatePlaylistAndAdd,
-            SharedMediaItemAction.CopyPlaylist,
-            SharedMediaItemAction.CopyPlaylistDeduplicated,
-            -> request.playlistName?.let { name ->
-                val tracks = if (request.action == SharedMediaItemAction.CopyPlaylistDeduplicated) {
-                    playlistActionSources.selectedPlaylistTracks.distinctBy { track -> track.id }
-                } else {
-                    playlistActionSources.selectedPlaylistTracks
-                }
-                playlistsController.saveTracksAsPlaylist(name = name, tracks = tracks, label = "playlist")
-            }
-            SharedMediaItemAction.Select,
-            SharedMediaItemAction.StartRadio,
-            SharedMediaItemAction.FindSimilar,
-            SharedMediaItemAction.ToggleFavorite,
-            SharedMediaItemAction.EditSmartPlaylist,
-            SharedMediaItemAction.EditStation,
-            SharedMediaItemAction.DeleteStation,
-            -> Unit
-        }
-    }
     val sharedShellActions = baseSharedShellActions.copy(
-        playlistDetailActions = NaviampPlaylistDetailActions(
-            onBack = { shellActions.navigationActions.onRouteSelected(app.naviamp.ui.SharedRoute.Playlists) },
-            onMediaItemAction = ::handleSelectedPlaylistMediaAction,
-            onTrackAction = { request ->
-                playlistActionSources.selectedTrack(request.track.id)?.let { (index, track) ->
-                    when (request.action) {
-                        SharedTrackRowAction.Select -> appActions.playPlaylistDetails(index = index)
-                        SharedTrackRowAction.PlayNext -> playlistsController.playNext(track)
-                        SharedTrackRowAction.StartRadio -> appActions.playTrackRadio(track)
-                        SharedTrackRowAction.PlayTrackRadioNext -> appActions.playTrackRadioNext(track)
-                        SharedTrackRowAction.AddTrackRadioToQueue -> appActions.addTrackRadioToQueue(track)
-                        SharedTrackRowAction.Download -> appActions.downloadTrack(track)
-                        SharedTrackRowAction.AddToQueue -> playlistsController.addTrackToQueue(track)
-                        SharedTrackRowAction.AddToPlaylist -> playlistsController.openTrackAddToPlaylist(track)
-                        SharedTrackRowAction.CreatePlaylistAndAdd -> Unit
-                        SharedTrackRowAction.ToggleFavorite -> appActions.toggleTrackFavorite(track)
-                        SharedTrackRowAction.GoToAlbum -> appActions.openTrackAlbumDetails(track)
-                        SharedTrackRowAction.GoToArtist -> appActions.openTrackArtistDetails(
-                            track,
-                            artistId = request.artistId,
-                            artistName = request.artistName,
-                        )
-                    }
-                }
-            },
-            onUpdateStandardPlaylist = { item, rows ->
-                val playlist = playlistActionSources.playlist(item.id)
-                val tracks = playlistActionSources.selectedTracks(rows)
-                if (playlist != null && tracks != null) {
-                    playlistsController.updateStandardPlaylistTracks(playlist, tracks)
-                }
-            },
-        ),
     )
 
     Box(
