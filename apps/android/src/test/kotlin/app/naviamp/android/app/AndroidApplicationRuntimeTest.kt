@@ -2,6 +2,7 @@ package app.naviamp.android
 
 import app.naviamp.app.NaviampApplicationRuntime
 import app.naviamp.app.NaviampApplicationControllers
+import app.naviamp.app.NaviampClock
 import app.naviamp.app.NaviampConnectivityMonitor
 import app.naviamp.app.NaviampConnectivitySnapshot
 import app.naviamp.app.NaviampHostLifecycleEvent
@@ -46,6 +47,7 @@ class AndroidApplicationRuntimeTest {
                 session = session,
                 playbackSessions = NaviampPlaybackSessionController(EmptyPlaybackSessionRepository),
                 playbackExecution = NoOpPlaybackExecution,
+                clock = NaviampClock { 0L },
                 connectivity = NaviampConnectivityMonitor { NaviampConnectivitySnapshot(true) },
                 errorReporter = NaviampRuntimeErrorReporter { _, _ -> },
             ),

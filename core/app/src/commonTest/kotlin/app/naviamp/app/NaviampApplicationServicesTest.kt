@@ -91,6 +91,7 @@ class NaviampApplicationServicesTest {
                 session = session,
                 playbackSessions = NaviampPlaybackSessionController(EmptyCompositionPlaybackSessions),
                 playbackExecution = EmptyCompositionPlaybackExecution,
+                clock = NaviampClock { 0L },
                 connectivity = NaviampConnectivityMonitor { NaviampConnectivitySnapshot(available = true) },
                 errorReporter = NaviampRuntimeErrorReporter { _, _ -> },
             ),

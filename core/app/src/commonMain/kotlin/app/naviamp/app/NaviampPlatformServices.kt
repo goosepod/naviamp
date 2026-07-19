@@ -12,6 +12,11 @@ fun interface NaviampConnectivityMonitor {
     fun currentSnapshot(): NaviampConnectivitySnapshot
 }
 
+/** Wall-clock time supplied by a host without exposing its platform time API. */
+fun interface NaviampClock {
+    fun nowEpochMillis(): Long
+}
+
 /**
  * Session work that must be coordinated with the host lifecycle.
  *
@@ -53,6 +58,7 @@ data class NaviampPlatformServices(
     val session: NaviampApplicationSession,
     val playbackSessions: NaviampPlaybackSessionController,
     val playbackExecution: NaviampPlaybackExecution,
+    val clock: NaviampClock,
     val connectivity: NaviampConnectivityMonitor,
     val errorReporter: NaviampRuntimeErrorReporter,
 )

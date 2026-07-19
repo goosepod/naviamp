@@ -7,6 +7,7 @@ import app.naviamp.app.NaviampApplicationRuntime
 import app.naviamp.app.NaviampApplicationControllers
 import app.naviamp.app.NaviampApplicationSession
 import app.naviamp.app.NaviampCapabilityPresentation
+import app.naviamp.app.NaviampClock
 import app.naviamp.app.NaviampConnectivityMonitor
 import app.naviamp.app.NaviampConnectivitySnapshot
 import app.naviamp.app.NaviampPlaybackSessionController
@@ -34,6 +35,7 @@ internal val AndroidPlatformCapabilities: PlatformCapabilities = listOf(
     capabilities.withStatus(capability, PlatformCapabilityStatus.Available)
 }
 internal val AndroidCapabilityPresentation = NaviampCapabilityPresentation(AndroidPlatformCapabilities)
+internal val AndroidSystemClock = NaviampClock(System::currentTimeMillis)
 
 /**
  * Thin Android adapter for shared application startup.
@@ -63,6 +65,7 @@ internal fun androidApplicationRuntime(
             session = AndroidApplicationSession(restoreSavedSession),
             playbackSessions = playbackSessions,
             playbackExecution = playbackExecution,
+            clock = AndroidSystemClock,
             connectivity = NaviampConnectivityMonitor {
                 val connectivityManager = applicationContext
                     .getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager

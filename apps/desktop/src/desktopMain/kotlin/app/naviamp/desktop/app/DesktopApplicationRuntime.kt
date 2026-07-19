@@ -4,6 +4,7 @@ import app.naviamp.app.NaviampApplicationRuntime
 import app.naviamp.app.NaviampApplicationControllers
 import app.naviamp.app.NaviampApplicationSession
 import app.naviamp.app.NaviampCapabilityPresentation
+import app.naviamp.app.NaviampClock
 import app.naviamp.app.NaviampConnectivityMonitor
 import app.naviamp.app.NaviampConnectivitySnapshot
 import app.naviamp.app.NaviampPlaybackSessionController
@@ -27,6 +28,7 @@ internal val DesktopPlatformCapabilities: PlatformCapabilities = listOf(
     capabilities.withStatus(capability, PlatformCapabilityStatus.Available)
 }
 internal val DesktopCapabilityPresentation = NaviampCapabilityPresentation(DesktopPlatformCapabilities)
+internal val DesktopSystemClock = NaviampClock(System::currentTimeMillis)
 
 /** Thin Desktop adapter that delegates restoration to the existing connection controller. */
 internal class DesktopApplicationSession(
@@ -50,6 +52,7 @@ internal fun desktopApplicationRuntime(
         session = DesktopApplicationSession(hasSavedConnection, restoreSavedSession),
         playbackSessions = playbackSessions,
         playbackExecution = playbackExecution,
+        clock = DesktopSystemClock,
         // Desktop currently has no live OS connectivity monitor. Preserve its online-first behavior
         // behind the contract until the dedicated Desktop platform service is extracted.
         connectivity = NaviampConnectivityMonitor {

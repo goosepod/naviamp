@@ -124,6 +124,7 @@ private class RuntimeFixture(
             session = session,
             playbackSessions = NaviampPlaybackSessionController(EmptyPlaybackSessionRepository),
             playbackExecution = NoOpPlaybackExecution,
+            clock = NaviampClock { 0L },
             connectivity = NaviampConnectivityMonitor { connectivitySnapshot },
             errorReporter = NaviampRuntimeErrorReporter { _, cause -> reportedCauses += cause },
         ),
