@@ -104,10 +104,7 @@ fun ColumnScope.DesktopAppRouteContent(
                     colors = appColors,
                     home = shellState.home,
                     actions = shellActions.homeActions,
-                    onAlbumSelected = shellActions.mediaActions.onAlbumSelected,
-                    onAlbumFavoriteToggled = shellActions.mediaActions.onAlbumFavoriteToggled,
-                    onMixAlbumSelected = shellActions.mediaActions.onMixAlbumSelected,
-                    onPlaylistSelected = shellActions.mediaActions.onPlaylistSelected,
+                    mediaActions = shellActions.mediaActions,
                 )
                 DesktopAppRoute.AlbumDetail -> DesktopAlbumDetailPanel(
                     appColors = appColors,

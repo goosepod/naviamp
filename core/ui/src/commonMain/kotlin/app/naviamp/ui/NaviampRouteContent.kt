@@ -147,10 +147,7 @@ fun SharedHomeRoute(
     colors: NaviampColors,
     home: NaviampHomeScreenUi,
     actions: NaviampHomeActions,
-    onAlbumSelected: (SharedMediaItemUi) -> Unit,
-    onMixAlbumSelected: (SharedMediaItemUi) -> Unit,
-    onPlaylistSelected: (SharedMediaItemUi) -> Unit,
-    onAlbumFavoriteToggled: (SharedMediaItemUi) -> Unit = {},
+    mediaActions: NaviampMediaActions,
 ) {
     PullToRefreshBox(
         isRefreshing = home.refreshing,
@@ -165,16 +162,16 @@ fun SharedHomeRoute(
             SharedHome(
                 colors = colors,
                 home = home.content,
-                onAlbumSelected = onAlbumSelected,
-                onMixAlbumSelected = onMixAlbumSelected,
-                onPlaylistSelected = onPlaylistSelected,
+                onAlbumSelected = mediaActions.onAlbumSelected,
+                onMixAlbumSelected = mediaActions.onMixAlbumSelected,
+                onPlaylistSelected = mediaActions.onPlaylistSelected,
                 onRecentRadioSelected = actions.onRecentRadioSelected,
                 onInternetRadioStationSelected = actions.onInternetRadioStationSelected,
                 onMixBuilderSelected = actions.onMixBuilderSelected,
                 onHomeStationSelected = actions.onStationSelected,
                 onSonicDiscoveryTrackAction = actions.onSonicDiscoveryTrackAction,
                 onRecentlyPlayedTrackAction = actions.onRecentlyPlayedTrackAction,
-                onAlbumFavoriteToggled = onAlbumFavoriteToggled,
+                onAlbumFavoriteToggled = mediaActions.onAlbumFavoriteToggled,
                 onRefresh = actions.onRefresh,
             )
         }

@@ -1004,10 +1004,7 @@ private fun ConnectedContent(
                 colors = colors,
                 home = home,
                 actions = homeActions,
-                onAlbumSelected = onAlbumSelected,
-                onAlbumFavoriteToggled = onAlbumFavoriteToggled,
-                onMixAlbumSelected = onMixAlbumSelected,
-                onPlaylistSelected = onPlaylistSelected,
+                mediaActions = mediaActions,
             )
             SharedRoute.Playlists -> PullToRefreshRoute(
                 isRefreshing = playlists.refreshing,
