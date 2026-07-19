@@ -80,7 +80,6 @@ fun androidAppShellActions(
     valueActions: NaviampSettingsValueActions,
     maintenanceActions: NaviampSettingsMaintenanceActions,
     searchActions: NaviampSearchActions,
-    refreshHome: () -> Unit,
     handlePlaybackSettingsChanged: (PlaybackSettings) -> Unit,
     handlePlaybackSettingsChangedAndRedownload: (PlaybackSettings) -> Unit,
     handleCurrentTrackRadioRefresh: () -> Unit,
@@ -96,6 +95,8 @@ fun androidAppShellActions(
     albumDetailActions: NaviampAlbumDetailActions,
     artistDetailActions: NaviampArtistDetailActions,
     playlistDetailActions: NaviampPlaylistDetailActions,
+    homeActions: NaviampHomeActions,
+    mediaActions: NaviampMediaActions,
     handleShellTrackSelected: (SharedTrackRowUi) -> Unit,
     handleShellAlbumSelected: (SharedMediaItemUi) -> Unit,
     handleAlbumFavoriteToggled: (SharedMediaItemUi) -> Unit,
@@ -193,161 +194,8 @@ fun androidAppShellActions(
             albumDetailActions = albumDetailActions,
             artistDetailActions = artistDetailActions,
             playlistDetailActions = playlistDetailActions,
-            homeActions = NaviampHomeActions(
-                onRefresh = refreshHome,
-                onRecentRadioSelected = handleRecentRadioSelected,
-                onInternetRadioStationSelected = { item ->
-                    homeState.radioStations.firstOrNull { station -> station.id == item.id }
-                        ?.let(handleRadioStationSelected)
-                        ?: run { status = "Station not found." }
-                },
-                onMixBuilderSelected = handleMixBuilderSelected,
-                onStationSelected = handleShellHomeStationSelected,
-                onSonicDiscoveryTrackAction = handleSonicDiscoveryTrackAction,
-                onRecentlyPlayedTrackAction = { request ->
-                    if (request.action == SharedTrackRowAction.Select) {
-                        handleShellTrackSelected(request.track)
-                    } else {
-                        handleTrackAction(request)
-                    }
-                },
-            ),
-            mediaActions = NaviampMediaActions(
-            onTrackSelected = handleShellTrackSelected,
-            onAlbumSelected = handleShellAlbumSelected,
-            onAlbumFavoriteToggled = handleAlbumFavoriteToggled,
-            onMixAlbumSelected = handleMixAlbumSelected,
-            onTrackAction = handleTrackAction,
-            onArtistSelected = { selectedArtist ->
-                openArtistDetails(app.naviamp.domain.ArtistId(selectedArtist.id), selectedArtist.title)
-            },
-            onArtistFavoriteToggled = handleArtistFavoriteToggled,
-            onPlaylistSelected = { selectedPlaylist ->
-                homeState.playlists.firstOrNull { it.id == selectedPlaylist.id }?.let(openPlaylistDetails)
-                    ?: run { status = "Playlist not found." }
-            },
-            onPlaylistPlay = { selectedPlaylist, shuffle ->
-                homeState.playlists.firstOrNull { it.id == selectedPlaylist.id }?.let { playPlaylist(it, shuffle) }
-                    ?: run { status = "Playlist not found." }
-            },
-            onPlaylistRename = { selectedPlaylist, name ->
-                homeState.playlists.firstOrNull { it.id == selectedPlaylist.id }?.let { renamePlaylist(it, name) }
-                    ?: run { status = "Playlist not found." }
-            },
-            onPlaylistDelete = { selectedPlaylist ->
-                homeState.playlists.firstOrNull { it.id == selectedPlaylist.id }?.let(deletePlaylist)
-                    ?: run { status = "Playlist not found." }
-            },
-            onMediaItemAction = { request ->
-                when (request.kind) {
-                    SharedMediaItemKind.Album -> {
-                        when (request.action) {
-                            SharedMediaItemAction.Select -> handleShellAlbumSelected(request.item)
-                            SharedMediaItemAction.StartRadio -> handleArtistAlbumRadio(request.item)
-                            SharedMediaItemAction.AddToQueue ->
-                                loadArtistAlbumTracks(request.item) { appendTracksToQueue(it, "album tracks") }
-                            SharedMediaItemAction.Download ->
-                                loadArtistAlbumTracks(request.item) { downloadTracks(it, request.item.title) }
-                            SharedMediaItemAction.AddToPlaylist ->
-                                loadArtistAlbumTracks(request.item) {
-                                    addTracksToPlaylist(it, request.playlistChoice, null, request.item.title)
-                                }
-                            SharedMediaItemAction.CreatePlaylistAndAdd ->
-                                loadArtistAlbumTracks(request.item) {
-                                    addTracksToPlaylist(it, null, request.playlistName, request.item.title)
-                                }
-                            SharedMediaItemAction.ToggleFavorite -> handleAlbumFavoriteToggled(request.item)
-                            SharedMediaItemAction.Play,
-                            SharedMediaItemAction.Shuffle,
-                            SharedMediaItemAction.FindSimilar,
-                            SharedMediaItemAction.CopyPlaylist,
-                            SharedMediaItemAction.CopyPlaylistDeduplicated,
-                            SharedMediaItemAction.Rename,
-                            SharedMediaItemAction.EditSmartPlaylist,
-                            SharedMediaItemAction.Delete,
-                            SharedMediaItemAction.EditStation,
-                            SharedMediaItemAction.DeleteStation,
-                            -> Unit
-                        }
-                    }
-                    SharedMediaItemKind.Artist -> {
-                        when (request.action) {
-                            SharedMediaItemAction.Select ->
-                                openArtistDetails(app.naviamp.domain.ArtistId(request.item.id), request.item.title)
-                            SharedMediaItemAction.ToggleFavorite -> handleArtistFavoriteToggled(request.item)
-                            SharedMediaItemAction.Play,
-                            SharedMediaItemAction.Shuffle,
-                            SharedMediaItemAction.StartRadio,
-                            SharedMediaItemAction.FindSimilar,
-                            SharedMediaItemAction.AddToQueue,
-                            SharedMediaItemAction.Download,
-                            SharedMediaItemAction.AddToPlaylist,
-                            SharedMediaItemAction.CreatePlaylistAndAdd,
-                            SharedMediaItemAction.CopyPlaylist,
-                            SharedMediaItemAction.CopyPlaylistDeduplicated,
-                            SharedMediaItemAction.Rename,
-                            SharedMediaItemAction.EditSmartPlaylist,
-                            SharedMediaItemAction.Delete,
-                            SharedMediaItemAction.EditStation,
-                            SharedMediaItemAction.DeleteStation,
-                            -> Unit
-                        }
-                    }
-                    SharedMediaItemKind.Playlist -> {
-                        val playlist = homeState.playlists.firstOrNull { it.id == request.item.id }
-                        if (playlist == null) {
-                            status = "Playlist not found."
-                        } else {
-                            when (request.action) {
-                                SharedMediaItemAction.Select -> openPlaylistDetails(playlist)
-                                SharedMediaItemAction.Play -> playPlaylist(playlist, false)
-                                SharedMediaItemAction.Shuffle -> playPlaylist(playlist, true)
-                                SharedMediaItemAction.AddToQueue -> addPlaylistToQueue(playlist)
-                                SharedMediaItemAction.Download -> {
-                                    if (request.textValue == app.naviamp.ui.KeepDownloadedActionValue) {
-                                        toggleKeepDownloadedPlaylist(playlist)
-                                    } else {
-                                        downloadPlaylist(playlist)
-                                    }
-                                }
-                                SharedMediaItemAction.AddToPlaylist ->
-                                    addPlaylistToPlaylist(playlist, request.playlistChoice, null)
-                                SharedMediaItemAction.CreatePlaylistAndAdd ->
-                                    addPlaylistToPlaylist(playlist, null, request.playlistName)
-                                SharedMediaItemAction.CopyPlaylist ->
-                                    addPlaylistToPlaylist(playlist, null, request.playlistName)
-                                SharedMediaItemAction.CopyPlaylistDeduplicated -> {
-                                    val tracks = if (selectedPlaylist?.id == playlist.id) {
-                                        selectedPlaylistTracks.distinctBy { track -> track.id }
-                                    } else {
-                                        emptyList()
-                                    }
-                                    if (tracks.isNotEmpty()) {
-                                        addTracksToPlaylist(tracks, null, request.playlistName, playlist.name)
-                                    } else {
-                                        status = "Open the playlist before copying a deduplicated version."
-                                    }
-                                }
-                                SharedMediaItemAction.Rename ->
-                                    request.textValue?.let { name -> renamePlaylist(playlist, name) }
-                                SharedMediaItemAction.Delete -> deletePlaylist(playlist)
-                                SharedMediaItemAction.StartRadio,
-                                SharedMediaItemAction.FindSimilar,
-                                SharedMediaItemAction.ToggleFavorite,
-                                SharedMediaItemAction.EditSmartPlaylist,
-                                SharedMediaItemAction.EditStation,
-                                SharedMediaItemAction.DeleteStation,
-                                -> Unit
-                            }
-                        }
-                    }
-                    SharedMediaItemKind.Unknown,
-                    SharedMediaItemKind.RadioStation,
-                    SharedMediaItemKind.MixBuilder,
-                    -> Unit
-                }
-            },
-            ),
+            homeActions = homeActions,
+            mediaActions = mediaActions,
             nowPlayingActions = NaviampNowPlayingActions(
             onPlaybackAction = { request ->
                 when (request.action) {

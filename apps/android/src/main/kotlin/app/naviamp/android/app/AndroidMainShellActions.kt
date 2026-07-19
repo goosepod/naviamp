@@ -126,32 +126,6 @@ internal fun androidMainShellActions(
                 state.status = ""
             },
         ),
-        refreshHome = {
-            val provider = state.provider
-            if (provider != null && !state.isHomeRefreshing) {
-                state.isHomeRefreshing = true
-                scope.launch {
-                    runCatching {
-                        withContext(Dispatchers.IO) {
-                            loadBrowseState(
-                                provider = provider,
-                                providerResponseCacheRepository = storage,
-                                libraryRepository = storage.asHomeLibraryRepository(),
-                                sourceId = state.activeSourceId,
-                                recentRadioStreams = state.homeState.recentRadioStreams,
-                                recentInternetRadioStations = state.homeState.recentInternetRadioStations,
-                            )
-                        }
-                    }.onSuccess { content ->
-                        state.homeState = content
-                        state.status = "Home refreshed."
-                    }.onFailure { error ->
-                        state.status = error.message ?: "Could not refresh Home."
-                    }
-                    state.isHomeRefreshing = false
-                }
-            }
-        },
         handlePlaybackSettingsChanged = settingsMaintenanceController::handlePlaybackSettingsChanged,
         handlePlaybackSettingsChangedAndRedownload = settingsMaintenanceController::handlePlaybackSettingsChangedAndRedownload,
         handleCurrentTrackRadioRefresh = shellPlaybackController::startCurrentTrackRadio,
@@ -284,6 +258,50 @@ internal fun androidMainShellActions(
             state = state,
             mediaController = mediaAppController,
             navigationController = navigationController,
+            trackActionController = trackActionController,
+            playlistActionController = playlistActionController,
+            downloadActionController = downloadActionController,
+        ),
+        homeActions = androidHomeActions(
+            state = state,
+            refreshHome = {
+                val provider = state.provider
+                if (provider != null && !state.isHomeRefreshing) {
+                    state.isHomeRefreshing = true
+                    scope.launch {
+                        runCatching {
+                            withContext(Dispatchers.IO) {
+                                loadBrowseState(
+                                    provider = provider,
+                                    providerResponseCacheRepository = storage,
+                                    libraryRepository = storage.asHomeLibraryRepository(),
+                                    sourceId = state.activeSourceId,
+                                    recentRadioStreams = state.homeState.recentRadioStreams,
+                                    recentInternetRadioStations = state.homeState.recentInternetRadioStations,
+                                )
+                            }
+                        }.onSuccess { content ->
+                            state.homeState = content
+                            state.status = "Home refreshed."
+                        }.onFailure { error ->
+                            state.status = error.message ?: "Could not refresh Home."
+                        }
+                        state.isHomeRefreshing = false
+                    }
+                }
+            },
+            mediaController = mediaAppController,
+            navigationController = navigationController,
+            shellMediaController = shellMediaController,
+            trackActionController = trackActionController,
+            sonicHomeDiscoveryController = sonicHomeDiscoveryController,
+        ),
+        mediaActions = androidMediaActions(
+            scope = scope,
+            state = state,
+            mediaController = mediaAppController,
+            shellMediaController = shellMediaController,
+            artistActionController = artistActionController,
             trackActionController = trackActionController,
             playlistActionController = playlistActionController,
             downloadActionController = downloadActionController,
