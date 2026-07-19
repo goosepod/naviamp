@@ -996,8 +996,8 @@ private fun ConnectedContent(
                 playlistDetailActions.onTrackAction(SharedTrackRowActionRequest(track, SharedTrackRowAction.AddToQueue))
             },
             playlistChoices = playlistChoices,
-            availableLibraries = availableMusicFolders,
-            selectedConnectionLibraryIds = connectionForm.selectedMusicFolderIds,
+            availableLibraries = playlistDetail.availableLibraries,
+            selectedConnectionLibraryIds = playlistDetail.selectedConnectionLibraryIds,
         )
         else -> when (selectedRoute) {
             SharedRoute.Home -> SharedHomeRoute(
@@ -1035,8 +1035,8 @@ private fun ConnectedContent(
                     onSmartPlaylistUpdateWithPassword = playlistsActions.onSmartPlaylistUpdateWithPassword,
                     onSmartPlaylistLoad = playlistsActions.onSmartPlaylistLoad,
                     playlistChoices = playlistChoices,
-                    availableLibraries = availableMusicFolders,
-                    selectedConnectionLibraryIds = connectionForm.selectedMusicFolderIds,
+                    availableLibraries = playlists.availableLibraries,
+                    selectedConnectionLibraryIds = playlists.selectedConnectionLibraryIds,
                 )
             }
             SharedRoute.Library -> PullToRefreshRoute(

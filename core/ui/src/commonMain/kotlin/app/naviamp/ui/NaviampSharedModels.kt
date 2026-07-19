@@ -518,6 +518,8 @@ data class NaviampPlaylistsScreenUi(
     val sortMode: SharedPlaylistSortMode = SharedPlaylistSortMode.Alphabetical,
     val status: String? = null,
     val refreshing: Boolean = false,
+    val availableLibraries: List<ConnectionFormMusicFolder> = emptyList(),
+    val selectedConnectionLibraryIds: List<String> = emptyList(),
 )
 
 data class NaviampPlaylistsActions(
@@ -540,6 +542,8 @@ data class NaviampPlaylistDetailScreenUi(
     val selectedPlaylist: SharedMediaItemUi? = null,
     val detail: SharedPlaylistDetailUi? = null,
     val status: String? = null,
+    val availableLibraries: List<ConnectionFormMusicFolder> = emptyList(),
+    val selectedConnectionLibraryIds: List<String> = emptyList(),
 )
 
 data class NaviampPlaylistDetailActions(

@@ -302,6 +302,8 @@ fun rememberAndroidAppShellUiState(
                 sortMode = playlistSortMode,
                 status = playlistActionStatus,
                 refreshing = isPlaylistRefreshing,
+                availableLibraries = shellModels.availableMusicFolders,
+                selectedConnectionLibraryIds = shellModels.connectionForm.selectedMusicFolderIds,
             ),
             playlistChoices = shellModels.playlistChoices,
             radio = NaviampInternetRadioScreenUi(
@@ -322,6 +324,8 @@ fun rememberAndroidAppShellUiState(
                 selectedPlaylist = shellModels.playlistDetail?.playlist,
                 detail = shellModels.playlistDetail,
                 status = status.takeIf { shellModels.playlistDetail != null },
+                availableLibraries = shellModels.availableMusicFolders,
+                selectedConnectionLibraryIds = shellModels.connectionForm.selectedMusicFolderIds,
             ),
             nowPlaying = nowPlayingUi,
             ),

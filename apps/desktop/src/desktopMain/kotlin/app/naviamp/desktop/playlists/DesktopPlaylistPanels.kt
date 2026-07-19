@@ -32,7 +32,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.naviamp.domain.smartplaylist.SmartPlaylistDefinition
 import app.naviamp.domain.smartplaylist.SmartPlaylistDraft
-import app.naviamp.domain.settings.ConnectionFormMusicFolder
 import app.naviamp.ui.NaviampAction
 import app.naviamp.ui.NaviampActionSpec
 import app.naviamp.ui.NaviampDetailAction
@@ -64,8 +63,6 @@ fun DesktopPlaylistsPanel(
     screen: NaviampPlaylistsScreenUi,
     actions: NaviampPlaylistsActions,
     onPlaylistAction: (SharedMediaItemActionRequest) -> Unit,
-    availableLibraries: List<ConnectionFormMusicFolder> = emptyList(),
-    selectedConnectionLibraryIds: List<String> = emptyList(),
 ) {
     var smartPlaylistBuilderOpen by remember { mutableStateOf(false) }
     var smartPlaylistEditTarget by remember { mutableStateOf<SharedMediaItemUi?>(null) }
@@ -166,8 +163,8 @@ fun DesktopPlaylistsPanel(
             initialDraft = smartPlaylistInitialDraft,
             title = if (editTarget == null) "Smart playlist" else "Edit smart playlist",
             saveLabel = if (editTarget == null) "Save" else "Update",
-            availableLibraries = availableLibraries,
-            selectedConnectionLibraryIds = selectedConnectionLibraryIds,
+            availableLibraries = screen.availableLibraries,
+            selectedConnectionLibraryIds = screen.selectedConnectionLibraryIds,
             onDismissRequest = {
                 smartPlaylistBuilderOpen = false
                 smartPlaylistEditTarget = null
@@ -289,8 +286,6 @@ fun DesktopPlaylistDetailPanel(
     screen: NaviampPlaylistDetailScreenUi,
     actions: NaviampPlaylistDetailActions,
     playlistsActions: NaviampPlaylistsActions,
-    availableLibraries: List<ConnectionFormMusicFolder> = emptyList(),
-    selectedConnectionLibraryIds: List<String> = emptyList(),
 ) {
     val detail = screen.detail
     val playlist = detail?.playlist ?: screen.selectedPlaylist
@@ -470,8 +465,8 @@ fun DesktopPlaylistDetailPanel(
             initialDraft = smartPlaylistInitialDraft,
             title = "Edit smart playlist",
             saveLabel = "Update",
-            availableLibraries = availableLibraries,
-            selectedConnectionLibraryIds = selectedConnectionLibraryIds,
+            availableLibraries = screen.availableLibraries,
+            selectedConnectionLibraryIds = screen.selectedConnectionLibraryIds,
             onDismissRequest = {
                 smartPlaylistEditorOpen = false
                 smartPlaylistInitialDraft = SmartPlaylistDraft()

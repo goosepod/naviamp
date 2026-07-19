@@ -43,7 +43,6 @@ import app.naviamp.ui.NaviampPlaylistDetailScreenUi
 import app.naviamp.ui.NaviampPlaylistsScreenUi
 import app.naviamp.ui.NaviampSearchScreenUi
 import app.naviamp.ui.NaviampSearchActions
-import app.naviamp.ui.NaviampShellConnectionUi
 import app.naviamp.ui.NaviampShellNavigationActions
 import app.naviamp.ui.SharedGenreMixItemUi
 import app.naviamp.ui.SharedHomeRoute
@@ -64,7 +63,6 @@ fun ColumnScope.DesktopAppRouteContent(
     shellActions: NaviampAppShellActions,
     appColors: DesktopAppColors,
     appRoute: DesktopAppRoute,
-    connection: NaviampShellConnectionUi,
     libraryListState: LazyListState,
     settingsSync: NaviampSettingsSyncUi,
     settingsSyncActions: NaviampSettingsSyncActions,
@@ -140,16 +138,12 @@ fun ColumnScope.DesktopAppRouteContent(
                     screen = sharedShellState.playlists,
                     actions = sharedShellActions.playlistsActions,
                     onPlaylistAction = sharedShellActions.mediaActions.onMediaItemAction ?: {},
-                    availableLibraries = connection.availableMusicFolders,
-                    selectedConnectionLibraryIds = connection.form.selectedMusicFolderIds,
                 )
                 DesktopAppRoute.PlaylistDetail -> DesktopPlaylistDetailPanel(
                     appColors = appColors,
                     screen = sharedShellState.playlistDetail,
                     actions = sharedShellActions.playlistDetailActions,
                     playlistsActions = sharedShellActions.playlistsActions,
-                    availableLibraries = connection.availableMusicFolders,
-                    selectedConnectionLibraryIds = connection.form.selectedMusicFolderIds,
                 )
                 DesktopAppRoute.Library -> {
                     DesktopLibraryPanel(

@@ -1776,6 +1776,8 @@ fun NaviampApp(
                                 recentPlaylistIds = playlistsController.recentPlaylistIds,
                                 sortMode = playlistsController.sortMode,
                                 status = playlistsController.status ?: connectionPageStatus,
+                                availableLibraries = shellConnection.availableMusicFolders,
+                                selectedConnectionLibraryIds = shellConnection.form.selectedMusicFolderIds,
                             ),
                             playlistDetail = NaviampPlaylistDetailScreenUi(
                                 selectedPlaylist = playlistsController.selectedPlaylist?.toSharedMediaItemUi(
@@ -1793,6 +1795,8 @@ fun NaviampApp(
                                 status = playlistsController.selectedPlaylistStatus
                                     ?: playlistsController.status
                                     ?: connectionPageStatus,
+                                availableLibraries = shellConnection.availableMusicFolders,
+                                selectedConnectionLibraryIds = shellConnection.form.selectedMusicFolderIds,
                             ),
                             library = NaviampLibraryScreenUi(
                                 artists = libraryController.snapshot.artists.map { artist ->
@@ -2107,7 +2111,6 @@ fun NaviampApp(
                             shellActions = desktopShellActions,
                             appColors = appColors,
                             appRoute = appRoute,
-                            connection = shellConnection,
                             libraryListState = libraryListState,
                             settingsSync = desktopSettingsSync,
                             settingsSyncActions = desktopSettingsSyncActions,
