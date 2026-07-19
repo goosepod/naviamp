@@ -2108,7 +2108,7 @@ fun NaviampApp(
                                 },
                             ),
                         )
-                        NaviampRouteContent(
+                        DesktopRouteContent(
                             shellState = desktopShellState,
                             shellActions = desktopShellActions,
                             appColors = appColors,

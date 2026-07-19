@@ -420,6 +420,19 @@ Record architecture decisions here or link a dedicated decision record.
 | 2026-07-19 | Consume grouped interface preferences in Desktop Artist Detail. | Album collection layout, sort order, and release-type grouping already travel together in `NaviampGeneralSettingsUi.interfaceSettings`; the panel should consume that focused model rather than three route-expanded values. |
 | 2026-07-19 | Back Desktop navigation directly with `NaviampRoute`. | Desktop's route enum duplicated every shared application route and required identity conversions around restoration, controller state, effects, and rendering; a compatibility type alias preserves local API names while the shared route is now the only route value type. |
 | 2026-07-19 | Remove the Desktop route compatibility alias. | Once every Desktop controller, effect, renderer, and test uses `NaviampRoute` directly, retaining `DesktopAppRoute` would imply platform route ownership that no longer exists; only the Desktop-to-`SharedRoute` navigation-bar mapping remains host UI glue. |
+| 2026-07-19 | Close the Desktop shared-shell route-boundary migration. | Desktop route rendering now depends on shared shell state/actions and `NaviampRoute`; `DesktopAppColors`, the Library `LazyListState`, and late-bound settings-sync document adapters remain intentional host inputs, while native panel layouts remain thin renderers rather than product-state owners. |
+
+### Desktop Route Boundary Audit
+
+The Desktop shared-shell migration leaves these route inputs intentionally separate:
+
+- `NaviampAppShellUiState` and `NaviampAppShellActions` are the complete stable product presentation and intent boundary.
+- `NaviampRoute` is shared application navigation state; Desktop only maps it to `SharedRoute` for bottom-navigation presentation and chooses native route layouts.
+- `DesktopAppColors` and the enclosing `ColumnScope` are Desktop Compose layout/theme inputs, not product state.
+- `LazyListState` stays host-owned because the Desktop alphabet rail and scroll position are a native Library interaction detail.
+- `NaviampSettingsSyncUi` and `NaviampSettingsSyncActions` remain late-bound because Desktop supplies native directory selection and document-store I/O, while Android supplies Activity-result launchers.
+
+Desktop-specific panels remain appropriate where they provide mouse/keyboard density, overflow menus, wide detail layouts, the alphabet rail, or native settings controls. They consume shared screen models and action contracts and do not justify moving those host layouts into common UI merely to reduce file count.
 
 ## Shared Controller Construction Audit
 
@@ -445,7 +458,7 @@ The 2026-07-17 audit covers every current application entry point:
 
 ## Current Handoff
 
-- **Last completed item:** Every Desktop controller, effect, renderer, and test now names `NaviampRoute` directly; the temporary `DesktopAppRoute` alias is gone and only bottom-navigation presentation mapping remains host-owned.
-- **Next recommended item:** Document the final intentional Desktop route inputs and renderer ownership, then close the current Desktop shell-boundary migration with the full verification gate.
+- **Last completed item:** The Desktop shared-shell route-boundary migration is complete: stable product state/actions and navigation are shared, while theme/layout, Library scroll state, and native settings-sync adapters are explicitly host-owned.
+- **Next recommended item:** Resume Milestone 2 at the remaining shared runtime coordination and platform-services seams before thinning Android; cross-platform Desktop packaging and a macOS launch remain Milestone 3 validation work on their respective hosts.
 - **Verification:** `:core:domain:jvmTest`, `:core:app:jvmTest`, `:core:storage:jvmTest`, `:core:ui:jvmTest`, `:apps:android:testDebugUnitTest`, `:apps:desktop:desktopTest`, `:core:app:iosSimulatorArm64Test`, `:core:storage:compileKotlinIosSimulatorArm64`, and `:core:ui:compileKotlinIosSimulatorArm64` pass together with at most two Gradle workers.
 - **Known blockers:** None.
