@@ -37,7 +37,6 @@ fun DesktopLibraryPanel(
     library: NaviampLibraryScreenUi,
     listState: LazyListState,
     actions: NaviampLibraryActions,
-    onJumpToLetter: (Char) -> Unit,
     onMediaItemAction: (SharedMediaItemActionRequest) -> Unit,
 ) {
     val query = library.query
@@ -130,7 +129,7 @@ fun DesktopLibraryPanel(
             LetterRail(
                 appColors = appColors,
                 enabled = query.isBlank(),
-                onJumpToLetter = onJumpToLetter,
+                onJumpToLetter = actions.onJumpToLetter,
             )
         }
     }

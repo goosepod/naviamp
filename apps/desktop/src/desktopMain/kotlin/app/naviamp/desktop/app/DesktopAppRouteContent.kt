@@ -151,7 +151,6 @@ fun ColumnScope.DesktopAppRouteContent(
                         library = sharedShellState.library,
                         listState = libraryListState,
                         actions = sharedShellActions.libraryActions,
-                        onJumpToLetter = sharedShellActions.libraryActions.onJumpToLetter,
                         onMediaItemAction = sharedShellActions.mediaActions.onMediaItemAction ?: {},
                     )
                 }
