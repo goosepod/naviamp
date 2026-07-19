@@ -374,6 +374,7 @@ Record architecture decisions here or link a dedicated decision record.
 | 2026-07-18 | Carry stable shell presentation as one reusable aggregate. | Grouped settings, screen models, shell chrome, playlist choices, and Now Playing presentation belong in `NaviampAppShellUiState`; modifiers, settings-sync launcher state, visualizer frame providers, capability gating, and action contracts remain outside because their platform ownership or update cadence differs. |
 | 2026-07-18 | Carry stable shell intent as one reusable aggregate. | Navigation, settings, media, builder, downloads, and Now Playing contracts belong in `NaviampAppShellActions`; settings-sync actions remain a late-bound input because Android supplies Activity-result launchers, and every platform executor remains behind the grouped callbacks. |
 | 2026-07-18 | Begin Desktop shared-shell adoption at Home and Settings. | The existing Desktop route adapter should construct `NaviampAppShellUiState` and `NaviampAppShellActions`, then consume their Home and grouped settings contracts first; Desktop player rendering, window/menu integration, native dialogs, BASS execution, and remaining route adapters stay unchanged during this behavior-preserving slice. |
+| 2026-07-18 | Route grouped Desktop screen presentation through the shared shell state. | Album, artist, playlist, library, search, builder, and Internet Radio models should be read from `NaviampAppShellUiState` while existing Desktop resolvers continue to execute domain and platform work. |
 
 ## Shared Controller Construction Audit
 
@@ -399,7 +400,7 @@ The 2026-07-17 audit covers every current application entry point:
 
 ## Current Handoff
 
-- **Last completed item:** Desktop now constructs the shared shell presentation and action aggregates inside its existing route adapter, and Home plus Settings consume those grouped contracts. Desktop-specific player, window/menu, native dialog, BASS, and settings-sync filesystem behavior remains unchanged.
-- **Next recommended item:** Route the remaining already-grouped Desktop album, artist, playlist, library, search, builder, and Internet Radio presentation through `NaviampAppShellUiState`. Keep the existing Desktop action resolvers until the matching `NaviampAppShellActions` fields are wired route by route, then move aggregate construction toward the Desktop composition root.
+- **Last completed item:** Every already-grouped Desktop route now reads album, artist, playlist, library, search, builder, Internet Radio, Home, and Settings presentation through `NaviampAppShellUiState`. Existing Desktop resolvers still own domain lookup and platform execution.
+- **Next recommended item:** Wire the matching `NaviampAppShellActions` fields into Desktop routes one focused group at a time, starting with search and library, then media details, playlists, builders, and Internet Radio. After the duplicate route-level callback construction is gone, move aggregate construction toward the Desktop composition root.
 - **Verification:** `:core:domain:jvmTest`, `:core:app:jvmTest`, `:core:storage:jvmTest`, `:core:ui:jvmTest`, `:apps:android:testDebugUnitTest`, `:apps:desktop:desktopTest`, `:core:app:iosSimulatorArm64Test`, `:core:storage:compileKotlinIosSimulatorArm64`, and `:core:ui:compileKotlinIosSimulatorArm64` pass together with at most two Gradle workers.
 - **Known blockers:** None.

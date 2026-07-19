@@ -499,7 +499,7 @@ fun ColumnScope.DesktopAppRouteContent(
                 )
                 DesktopAppRoute.AlbumDetail -> DesktopAlbumDetailPanel(
                     appColors = appColors,
-                    screen = albumDetail,
+                    screen = sharedShellState.albumDetail,
                     onBack = { onRouteSelected(albumDetailBackRoute) },
                     onAlbumAction = { request -> handleSelectedAlbumMediaAction(request.action) },
                     onTrackAction = { request ->
@@ -538,7 +538,7 @@ fun ColumnScope.DesktopAppRouteContent(
                 )
                 DesktopAppRoute.ArtistDetail -> DesktopArtistDetailPanel(
                     appColors = appColors,
-                    screen = artistDetail,
+                    screen = sharedShellState.artistDetail,
                     albumCollectionLayout = interfaceSettings.albumCollectionLayout,
                     albumSortOrder = interfaceSettings.albumSortOrder,
                     groupAlbumsByReleaseType = interfaceSettings.groupAlbumsByReleaseType,
@@ -592,7 +592,9 @@ fun ColumnScope.DesktopAppRouteContent(
                 )
                 DesktopAppRoute.Playlists -> DesktopPlaylistsPanel(
                     appColors = appColors,
-                    screen = playlists.copy(status = playlists.status ?: connection.status.pageStatusOrNull()),
+                    screen = sharedShellState.playlists.copy(
+                        status = sharedShellState.playlists.status ?: connection.status.pageStatusOrNull(),
+                    ),
                     onSortModeChanged = onPlaylistSortModeChanged,
                     onPlaylistAction = { request ->
                         playlistActionSources.playlist(request.item.id)
@@ -627,7 +629,9 @@ fun ColumnScope.DesktopAppRouteContent(
                 )
                 DesktopAppRoute.PlaylistDetail -> DesktopPlaylistDetailPanel(
                     appColors = appColors,
-                    screen = playlistDetail.copy(status = playlistDetail.status ?: playlists.status),
+                    screen = sharedShellState.playlistDetail.copy(
+                        status = sharedShellState.playlistDetail.status ?: sharedShellState.playlists.status,
+                    ),
                     onBack = { onRouteSelected(DesktopAppRoute.Playlists) },
                     onPlaylistAction = { request -> handleSelectedPlaylistMediaAction(request) },
                     onTrackAction = { request ->
@@ -680,9 +684,10 @@ fun ColumnScope.DesktopAppRouteContent(
                 DesktopAppRoute.Library -> {
                     DesktopLibraryPanel(
                         appColors = appColors,
-                        library = library.copy(
-                            syncStatus = library.syncStatus.copy(
-                                message = library.syncStatus.message ?: connection.status.pageStatusOrNull(),
+                        library = sharedShellState.library.copy(
+                            syncStatus = sharedShellState.library.syncStatus.copy(
+                                message = sharedShellState.library.syncStatus.message
+                                    ?: connection.status.pageStatusOrNull(),
                             ),
                         ),
                         listState = libraryListState,
@@ -702,7 +707,7 @@ fun ColumnScope.DesktopAppRouteContent(
                 }
                 DesktopAppRoute.Search -> DesktopSearchPanel(
                     appColors = appColors,
-                    search = search,
+                    search = sharedShellState.search,
                     onQueryChanged = searchController::updateQuery,
                     onClearSearch = searchController::clearSearch,
                     onMediaItemAction = { request ->
@@ -755,12 +760,12 @@ fun ColumnScope.DesktopAppRouteContent(
                     ) {
                         ArtistMixBuilderContent(
                             colors = appColors,
-                            builder = artistMixBuilder,
+                            builder = sharedShellState.artistMixBuilder,
                             actions = artistMixActions,
                             showPlayMixButton = false,
                         )
                     }
-                    if (artistMixBuilder.selectedArtists.isNotEmpty()) {
+                    if (sharedShellState.artistMixBuilder.selectedArtists.isNotEmpty()) {
                         Button(
                             onClick = artistMixActions.onPlay,
                             colors = ButtonDefaults.buttonColors(
@@ -784,12 +789,12 @@ fun ColumnScope.DesktopAppRouteContent(
                     ) {
                         AlbumMixBuilderContent(
                             colors = appColors,
-                            builder = albumMixBuilder,
+                            builder = sharedShellState.albumMixBuilder,
                             actions = albumMixActions,
                             showPlayMixButton = false,
                         )
                     }
-                    if (albumMixBuilder.selectedAlbums.isNotEmpty()) {
+                    if (sharedShellState.albumMixBuilder.selectedAlbums.isNotEmpty()) {
                         Button(
                             onClick = albumMixActions.onPlay,
                             colors = ButtonDefaults.buttonColors(
@@ -813,12 +818,12 @@ fun ColumnScope.DesktopAppRouteContent(
                     ) {
                         GenreMixBuilderContent(
                             colors = appColors,
-                            builder = genreMixBuilder,
+                            builder = sharedShellState.genreMixBuilder,
                             actions = genreMixActions,
                             showPlayMixButton = false,
                         )
                     }
-                    if (genreMixBuilder.selectedGenres.isNotEmpty()) {
+                    if (sharedShellState.genreMixBuilder.selectedGenres.isNotEmpty()) {
                         Button(
                             onClick = genreMixActions.onPlay,
                             colors = ButtonDefaults.buttonColors(
@@ -842,12 +847,12 @@ fun ColumnScope.DesktopAppRouteContent(
                     ) {
                         SonicPathBuilderContent(
                             colors = appColors,
-                            builder = sonicPathBuilder,
+                            builder = sharedShellState.sonicPathBuilder,
                             actions = sonicPathActions,
                             showPathActions = false,
                         )
                     }
-                    if (sonicPathBuilder.hasPath) {
+                    if (sharedShellState.sonicPathBuilder.hasPath) {
                         androidx.compose.foundation.layout.Row(
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
                             modifier = Modifier.fillMaxWidth(),
@@ -888,12 +893,12 @@ fun ColumnScope.DesktopAppRouteContent(
                     ) {
                         SonicMixBuilderContent(
                             colors = appColors,
-                            builder = sonicMixBuilder,
+                            builder = sharedShellState.sonicMixBuilder,
                             actions = sonicMixActions,
                             showMixActions = false,
                         )
                     }
-                    if (sonicMixBuilder.hasMix) {
+                    if (sharedShellState.sonicMixBuilder.hasMix) {
                         androidx.compose.foundation.layout.Row(
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
                             modifier = Modifier.fillMaxWidth(),
@@ -926,8 +931,8 @@ fun ColumnScope.DesktopAppRouteContent(
                 DesktopAppRoute.InternetRadio -> Column(verticalArrangement = Arrangement.spacedBy(18.dp)) {
                     DesktopInternetRadioPanel(
                         appColors = appColors,
-                        screen = internetRadio.copy(
-                            status = internetRadio.status ?: connection.status.pageStatusOrNull(),
+                        screen = sharedShellState.radio.copy(
+                            status = sharedShellState.radio.status ?: connection.status.pageStatusOrNull(),
                         ),
                         onStationAction = { request ->
                             internetRadioActionSources.station(request.station.id)?.let { station ->
