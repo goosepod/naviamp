@@ -5,11 +5,17 @@ import app.naviamp.ui.nowPlayingQueueIndex
 import app.naviamp.ui.NaviampAppShellActions
 import app.naviamp.ui.NaviampDownloadsActions
 import app.naviamp.ui.NaviampLibraryActions
+import app.naviamp.ui.NaviampConnectionSettingsActions
+import app.naviamp.ui.NaviampSearchActions
+import app.naviamp.ui.NaviampSettingsMaintenanceActions
+import app.naviamp.ui.NaviampSettingsValueActions
+import app.naviamp.ui.NaviampShellNavigationActions
 import app.naviamp.ui.SharedAlbumMixBuilderActions
 import app.naviamp.ui.SharedArtistMixBuilderActions
 import app.naviamp.ui.SharedGenreMixBuilderActions
 import app.naviamp.ui.SharedSonicMixBuilderActions
 import app.naviamp.ui.SharedSonicPathBuilderActions
+import app.naviamp.ui.toNaviampRoute
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -46,7 +52,76 @@ internal fun androidMainShellActions(
         changePlaybackVolume = playbackAppController::changeVolume,
         settingsStore = settingsStore,
         onSyncedSettingsChanged = onSyncedSettingsChanged,
-        handleConnectionFormChanged = settingsMaintenanceController::handleConnectionFormChanged,
+        navigationActions = NaviampShellNavigationActions(
+            onRouteSelected = { route ->
+                state.navigationState = state.navigationState.copy(route = route.toNaviampRoute())
+                state.contentState = state.contentState.clearDetails()
+                state.artistDetailBackStack = emptyList()
+                state.nowPlayingOpen = false
+            },
+            onOpenNowPlaying = { state.nowPlayingOpen = true },
+            onCloseNowPlaying = { state.nowPlayingOpen = false },
+        ),
+        connectionActions = NaviampConnectionSettingsActions(
+            onFormChanged = settingsMaintenanceController::handleConnectionFormChanged,
+            onConnect = connectionSessionController::connectToNavidrome,
+            onEditCurrentConnection = { state.editingConnection = true },
+            onNewConnection = connectionSessionController::openNewConnectionForm,
+            onEditConnection = { connection ->
+                state.savedMediaSources.firstOrNull { it.id == connection.id }
+                    ?.let(connectionSessionController::openSavedConnectionForm)
+                    ?: run { state.status = "Connection not found." }
+            },
+            onConnectSavedConnection = { connection ->
+                state.savedMediaSources.firstOrNull { it.id == connection.id }
+                    ?.let(connectionSessionController::connectSavedConnection)
+                    ?: run { state.status = "Connection not found." }
+            },
+            onDeleteConnection = { connection ->
+                state.savedMediaSources.firstOrNull { it.id == connection.id }
+                    ?.let(connectionSessionController::deleteConnection)
+                    ?: run { state.status = "Connection not found." }
+            },
+            onCancelConnectionForm = { state.editingConnection = false },
+        ),
+        valueActions = NaviampSettingsValueActions(
+            onInterfaceSettingsChanged = { settings ->
+                state.interfaceSettings = settings.normalized()
+                settingsStore.saveInterfaceSettings(state.interfaceSettings)
+                onSyncedSettingsChanged()
+            },
+            onPlaybackSettingsChanged = settingsMaintenanceController::handlePlaybackSettingsChanged,
+            onPlaybackSettingsChangedAndRedownload =
+                settingsMaintenanceController::handlePlaybackSettingsChangedAndRedownload,
+            onCacheSettingsChanged = settingsMaintenanceController::handleCacheSettingsChanged,
+            onDownloadLocationChanged = { location ->
+                settingsMaintenanceController.handleCacheSettingsChanged(
+                    state.cacheSettings.copy(customDownloadDirectory = location.path).normalized(),
+                )
+            },
+            onAudioCacheLocationChanged = { location ->
+                settingsMaintenanceController.handleCacheSettingsChanged(
+                    state.cacheSettings.copy(customAudioCacheDirectory = location.path).normalized(),
+                )
+            },
+        ),
+        maintenanceActions = NaviampSettingsMaintenanceActions(
+            onClearCache = settingsMaintenanceController::handleClearCache,
+            onClearLibrary = settingsMaintenanceController::handleClearLibrary,
+            onResetDatabase = settingsMaintenanceController::handleResetDatabase,
+        ),
+        searchActions = NaviampSearchActions(
+            onQueryChanged = { state.contentState = state.contentState.copy(searchQuery = it) },
+            onSearch = { searchController.launchSearch(scope) },
+            onClear = {
+                state.contentState = state.contentState.copy(
+                    searchQuery = "",
+                    searchResults = app.naviamp.domain.provider.MediaSearchResults(),
+                )
+                state.tracks = emptyList()
+                state.status = ""
+            },
+        ),
         refreshHome = {
             val provider = state.provider
             if (provider != null && !state.isHomeRefreshing) {
@@ -73,31 +148,9 @@ internal fun androidMainShellActions(
                 }
             }
         },
-        connectToNavidrome = connectionSessionController::connectToNavidrome,
-        handleNewConnection = connectionSessionController::openNewConnectionForm,
-        handleEditSavedConnection = { connection ->
-            state.savedMediaSources.firstOrNull { it.id == connection.id }
-                ?.let(connectionSessionController::openSavedConnectionForm)
-                ?: run { state.status = "Connection not found." }
-        },
-        handleConnectSavedConnection = { connection ->
-            state.savedMediaSources.firstOrNull { it.id == connection.id }
-                ?.let(connectionSessionController::connectSavedConnection)
-                ?: run { state.status = "Connection not found." }
-        },
-        handleDeleteSavedConnection = { connection ->
-            state.savedMediaSources.firstOrNull { it.id == connection.id }
-                ?.let(connectionSessionController::deleteConnection)
-                ?: run { state.status = "Connection not found." }
-        },
         handlePlaybackSettingsChanged = settingsMaintenanceController::handlePlaybackSettingsChanged,
         handlePlaybackSettingsChangedAndRedownload = settingsMaintenanceController::handlePlaybackSettingsChangedAndRedownload,
-        handleCacheSettingsChanged = settingsMaintenanceController::handleCacheSettingsChanged,
-        handleClearCache = settingsMaintenanceController::handleClearCache,
-        handleClearLibrary = settingsMaintenanceController::handleClearLibrary,
-        handleResetDatabase = settingsMaintenanceController::handleResetDatabase,
         handleCurrentTrackRadioRefresh = shellPlaybackController::startCurrentTrackRadio,
-        handleSearch = { searchController.launchSearch(scope) },
         artistMixActions = SharedArtistMixBuilderActions(
             onQueryChanged = { state.artistMixQuery = it },
             onSearch = mixBuilderController::searchArtistSuggestions,

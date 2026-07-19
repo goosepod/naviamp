@@ -75,21 +75,15 @@ fun androidAppShellActions(
     changePlaybackVolume: (Int) -> PlaybackVolumeCommand,
     settingsStore: AndroidSettingsStore,
     onSyncedSettingsChanged: () -> Unit = {},
-    handleConnectionFormChanged: (ConnectionFormState) -> Unit,
+    navigationActions: NaviampShellNavigationActions,
+    connectionActions: NaviampConnectionSettingsActions,
+    valueActions: NaviampSettingsValueActions,
+    maintenanceActions: NaviampSettingsMaintenanceActions,
+    searchActions: NaviampSearchActions,
     refreshHome: () -> Unit,
-    connectToNavidrome: () -> Unit,
-    handleNewConnection: () -> Unit,
-    handleEditSavedConnection: (NaviampSavedConnectionUi) -> Unit,
-    handleConnectSavedConnection: (NaviampSavedConnectionUi) -> Unit,
-    handleDeleteSavedConnection: (NaviampSavedConnectionUi) -> Unit,
     handlePlaybackSettingsChanged: (PlaybackSettings) -> Unit,
     handlePlaybackSettingsChangedAndRedownload: (PlaybackSettings) -> Unit,
-    handleCacheSettingsChanged: (CacheSettings) -> Unit,
-    handleClearCache: () -> Unit,
-    handleClearLibrary: () -> Unit,
-    handleResetDatabase: () -> Unit,
     handleCurrentTrackRadioRefresh: () -> Unit,
-    handleSearch: () -> Unit,
     artistMixActions: SharedArtistMixBuilderActions,
     albumMixActions: SharedAlbumMixBuilderActions,
     genreMixActions: SharedGenreMixBuilderActions,
@@ -212,59 +206,11 @@ fun androidAppShellActions(
 ): NaviampAppShellActions =
     with(state) {
         NaviampAppShellActions(
-            navigationActions = NaviampShellNavigationActions(
-                onRouteSelected = { route ->
-                    navigationState = navigationState.copy(route = route.toNaviampRoute())
-                    contentState = contentState.clearDetails()
-                    artistDetailBackStack = emptyList()
-                    nowPlayingOpen = false
-                },
-                onOpenNowPlaying = { nowPlayingOpen = true },
-                onCloseNowPlaying = { nowPlayingOpen = false },
-            ),
-            connectionActions = NaviampConnectionSettingsActions(
-                onFormChanged = handleConnectionFormChanged,
-                onConnect = { connectToNavidrome() },
-                onEditCurrentConnection = { editingConnection = true },
-                onNewConnection = handleNewConnection,
-                onEditConnection = handleEditSavedConnection,
-                onConnectSavedConnection = handleConnectSavedConnection,
-                onDeleteConnection = handleDeleteSavedConnection,
-                onCancelConnectionForm = { editingConnection = false },
-            ),
-            valueActions = NaviampSettingsValueActions(
-                onInterfaceSettingsChanged = { settings: InterfaceSettings ->
-                    interfaceSettings = settings.normalized()
-                    settingsStore.saveInterfaceSettings(interfaceSettings)
-                    onSyncedSettingsChanged()
-                },
-                onPlaybackSettingsChanged = handlePlaybackSettingsChanged,
-                onPlaybackSettingsChangedAndRedownload = handlePlaybackSettingsChangedAndRedownload,
-                onCacheSettingsChanged = handleCacheSettingsChanged,
-                onDownloadLocationChanged = { location ->
-                    handleCacheSettingsChanged(cacheSettings.copy(customDownloadDirectory = location.path).normalized())
-                },
-                onAudioCacheLocationChanged = { location ->
-                    handleCacheSettingsChanged(cacheSettings.copy(customAudioCacheDirectory = location.path).normalized())
-                },
-            ),
-            maintenanceActions = NaviampSettingsMaintenanceActions(
-                onClearCache = handleClearCache,
-                onClearLibrary = handleClearLibrary,
-                onResetDatabase = handleResetDatabase,
-            ),
-            searchActions = NaviampSearchActions(
-                onQueryChanged = { contentState = contentState.copy(searchQuery = it) },
-                onSearch = handleSearch,
-                onClear = {
-                    contentState = contentState.copy(
-                        searchQuery = "",
-                        searchResults = app.naviamp.domain.provider.MediaSearchResults(),
-                    )
-                    tracks = emptyList()
-                    status = ""
-                },
-            ),
+            navigationActions = navigationActions,
+            connectionActions = connectionActions,
+            valueActions = valueActions,
+            maintenanceActions = maintenanceActions,
+            searchActions = searchActions,
             artistMixActions = artistMixActions,
             albumMixActions = albumMixActions,
             genreMixActions = genreMixActions,
