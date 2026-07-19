@@ -1898,6 +1898,7 @@ fun NaviampApp(
                             libraryActions = NaviampLibraryActions(
                                 onQueryChanged = libraryController::updateQuery,
                                 onRefresh = libraryController::refreshArtistIndex,
+                                onJumpToLetter = libraryController::jumpLibraryToLetter,
                             ),
                             playlistsActions = NaviampPlaylistsActions(
                                 onRefresh = { playlistsController.refreshPlaylists(useCache = false) },
@@ -2089,7 +2090,6 @@ fun NaviampApp(
                             capabilities = shellCapabilities,
                             appActions = appActions,
                             playlistsController = playlistsController,
-                            onLibraryJumpToLetter = libraryController::jumpLibraryToLetter,
                             libraryListState = libraryListState,
                             interfaceSettings = interfaceSettings,
                             playbackSettings = playbackSettings,

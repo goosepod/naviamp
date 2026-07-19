@@ -71,7 +71,6 @@ fun ColumnScope.DesktopAppRouteContent(
     capabilities: NaviampShellCapabilitiesUi,
     appActions: DesktopAppActions,
     playlistsController: DesktopPlaylistsController,
-    onLibraryJumpToLetter: (Char) -> Unit,
     libraryListState: LazyListState,
     settingsSyncDirectoryPath: String?,
     settingsSyncAutoExportEnabled: Boolean,
@@ -193,7 +192,7 @@ fun ColumnScope.DesktopAppRouteContent(
                         ),
                         listState = libraryListState,
                         actions = sharedShellActions.libraryActions,
-                        onJumpToLetter = onLibraryJumpToLetter,
+                        onJumpToLetter = sharedShellActions.libraryActions.onJumpToLetter,
                         onMediaItemAction = sharedShellActions.mediaActions.onMediaItemAction ?: {},
                     )
                 }

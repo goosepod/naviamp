@@ -678,6 +678,7 @@ data class NaviampLibraryActions(
     val onQueryChanged: (String) -> Unit = {},
     val onRefresh: () -> Unit = {},
     val onLoadMore: () -> Unit = {},
+    val onJumpToLetter: (Char) -> Unit = {},
 )
 
 data class SharedArtistMixBuilderUi(
