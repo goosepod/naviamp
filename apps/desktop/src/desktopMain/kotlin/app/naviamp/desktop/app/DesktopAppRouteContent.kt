@@ -19,7 +19,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import app.naviamp.desktop.settings.PlaybackSettings
 import app.naviamp.domain.Track
 import app.naviamp.domain.playback.EqualizerPlaybackEngine
 import app.naviamp.domain.settings.ConnectionFormState
@@ -68,13 +67,10 @@ fun ColumnScope.DesktopAppRouteContent(
     appRoute: DesktopAppRoute,
     connection: NaviampShellConnectionUi,
     capabilities: NaviampShellCapabilitiesUi,
-    appActions: DesktopAppActions,
-    playlistsController: DesktopPlaylistsController,
     libraryListState: LazyListState,
     settingsSyncDirectoryPath: String?,
     settingsSyncAutoExportEnabled: Boolean,
     settingsSyncStatus: String?,
-    playbackSettings: PlaybackSettings,
     onSettingsSyncDirectoryChanged: (String?) -> Unit,
     onSettingsSyncDirectorySelectedForImport: (String) -> Unit,
     onSettingsSyncAutoExportChanged: (Boolean) -> Unit,

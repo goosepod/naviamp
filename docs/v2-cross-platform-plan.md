@@ -404,6 +404,7 @@ Record architecture decisions here or link a dedicated decision record.
 | 2026-07-19 | Carry Home Internet Radio selection through `NaviampHomeActions`. | Internet Radio selection is Home-specific intent alongside recent-radio and station selection; Android retains current-ID lookup and status handling, while Desktop composes provider execution at the root. |
 | 2026-07-19 | Carry indexed Library navigation through `NaviampLibraryActions`. | Alphabet-index jumps are Library intent even when only Desktop currently renders that control; the default keeps other hosts unaffected while Desktop removes its final parallel Library callback. |
 | 2026-07-19 | Read Desktop artist-detail preferences from grouped general presentation. | Album layout, sorting, and release grouping already live in `NaviampGeneralSettingsUi.interfaceSettings`; route rendering should consume that root-owned model rather than accepting a parallel domain settings input. |
+| 2026-07-19 | Remove stale Desktop route executor dependencies. | After media, detail, Home, downloads, and builder actions moved into shell contracts, `DesktopAppActions`, `DesktopPlaylistsController`, and raw playback settings were unused route inputs and should not imply execution ownership. |
 
 ## Shared Controller Construction Audit
 
@@ -429,7 +430,7 @@ The 2026-07-17 audit covers every current application entry point:
 
 ## Current Handoff
 
-- **Last completed item:** Desktop artist-detail album layout, sorting, and release grouping now come from root-owned `NaviampGeneralSettingsUi`; the parallel `InterfaceSettings` route input is removed.
-- **Next recommended item:** Remove the route's now-unused Desktop executor and playback-settings inputs, then group late-bound settings-sync presentation and actions without moving native launcher ownership.
+- **Last completed item:** Desktop route rendering no longer receives unused `DesktopAppActions`, `DesktopPlaylistsController`, or raw playback settings; execution ownership is represented only by the grouped shell contracts it consumes.
+- **Next recommended item:** Group late-bound settings-sync presentation and actions at the Desktop route boundary without moving native launcher ownership.
 - **Verification:** `:core:domain:jvmTest`, `:core:app:jvmTest`, `:core:storage:jvmTest`, `:core:ui:jvmTest`, `:apps:android:testDebugUnitTest`, `:apps:desktop:desktopTest`, `:core:app:iosSimulatorArm64Test`, `:core:storage:compileKotlinIosSimulatorArm64`, and `:core:ui:compileKotlinIosSimulatorArm64` pass together with at most two Gradle workers.
 - **Known blockers:** None.
