@@ -97,6 +97,7 @@ fun androidAppShellActions(
     playlistDetailActions: NaviampPlaylistDetailActions,
     homeActions: NaviampHomeActions,
     mediaActions: NaviampMediaActions,
+    nowPlayingActions: NaviampNowPlayingActions,
     handleShellTrackSelected: (SharedTrackRowUi) -> Unit,
     handleShellAlbumSelected: (SharedMediaItemUi) -> Unit,
     handleAlbumFavoriteToggled: (SharedMediaItemUi) -> Unit,
@@ -196,120 +197,6 @@ fun androidAppShellActions(
             playlistDetailActions = playlistDetailActions,
             homeActions = homeActions,
             mediaActions = mediaActions,
-            nowPlayingActions = NaviampNowPlayingActions(
-            onPlaybackAction = { request ->
-                when (request.action) {
-                    NowPlayingPlaybackAction.Pause,
-                    NowPlayingPlaybackAction.Resume,
-                    NowPlayingPlaybackAction.PlayCurrent,
-                    -> handleShellPlayPause()
-                    NowPlayingPlaybackAction.Seek -> request.seekSeconds?.let(performSeek)
-                    NowPlayingPlaybackAction.Previous -> playAdjacentTrack(-1)
-                    NowPlayingPlaybackAction.Next -> playAdjacentTrack(1)
-                    NowPlayingPlaybackAction.ToggleShuffle -> handleShellToggleShuffle()
-                    NowPlayingPlaybackAction.CycleRepeatMode -> {
-                        repeatMode = sharedQueueCoordinator.cycleRepeatMode()
-                    }
-                    NowPlayingPlaybackAction.ChangeVolume -> request.volumePercent?.let { percent ->
-                        val command = changePlaybackVolume(percent)
-                        volumePercent = command.volumePercent
-                    }
-                }
-            },
-            onDisplayAction = { request ->
-                when (request.action) {
-                    NowPlayingDisplayAction.ToggleLyrics -> {
-                        lyricsVisible = !lyricsVisible
-                        if (lyricsVisible) {
-                            nowPlaying?.let(loadLyrics)
-                        }
-                    }
-                    NowPlayingDisplayAction.ChangeLyricsOffset ->
-                        request.lyricsOffsetMillis?.let(handleLyricsOffsetChanged)
-                    NowPlayingDisplayAction.ToggleVisualizer ->
-                        visualizerRequestedVisible = !visualizerRequestedVisible
-                    NowPlayingDisplayAction.SelectVisualizer -> request.visualizer?.let { visualizer ->
-                        selectedVisualizer = visualizer
-                        if (visualizer == NaviampVisualizer.LyricMirrorTunnel) {
-                            nowPlaying?.let(loadLyrics)
-                        }
-                        settingsStore.saveVisualizerSettings(VisualizerSettings(selectedVisualizer = visualizer.name))
-                        onSyncedSettingsChanged()
-                    }
-                    NowPlayingDisplayAction.SelectRadioDj -> {
-                        val selectedDj = request.radioDjId
-                            ?.let { id -> playbackSettings.radioDjs.firstOrNull { it.id == id } }
-                        handlePlaybackSettingsChanged(
-                            playbackSettings.copy(
-                                radioTuning = selectedDj?.tuning ?: RadioTuningSettings(),
-                                activeRadioDjId = selectedDj?.id,
-                            ),
-                        )
-                        handleCurrentTrackRadioRefresh()
-                        status = selectedDj
-                            ?.let { "Selected ${it.name} DJ. Rebuilding Up Next..." }
-                            ?: "Default radio selected. Rebuilding Up Next..."
-                    }
-                    NowPlayingDisplayAction.Collapse -> {
-                        if (nowPlayingOpen) {
-                            nowPlayingOpen = false
-                        } else {
-                            closeActiveDetail()
-                        }
-                    }
-                }
-            },
-            onCurrentTrackAction = { request: NowPlayingCurrentTrackUiActionRequest ->
-                when (request.action) {
-                    NowPlayingCurrentTrackAction.StartRadio -> handleShellTrackRadio()
-                    NowPlayingCurrentTrackAction.AddToPlaylist ->
-                        handleNowPlayingAddToPlaylist(request.playlistChoice)
-                    NowPlayingCurrentTrackAction.CreatePlaylistAndAdd ->
-                        request.playlistName?.let(handleNowPlayingCreatePlaylistAndAdd)
-                    NowPlayingCurrentTrackAction.Download -> nowPlaying?.let(downloadTrack)
-                    NowPlayingCurrentTrackAction.GoToAlbum -> handleShellGoToAlbum()
-                    NowPlayingCurrentTrackAction.GoToArtist ->
-                        handleShellGoToArtist(request.artistId, request.artistName)
-                    NowPlayingCurrentTrackAction.ToggleFavorite -> toggleCurrentFavorite()
-                    NowPlayingCurrentTrackAction.SetRating -> handleShellRatingSelected(request.rating)
-                }
-            },
-            onQueueAction = { request: NowPlayingQueueActionRequest ->
-                when (request.action) {
-                    NowPlayingQueueAction.SaveQueueAsPlaylist -> request.playlistName?.let(handleSaveQueueAsPlaylist)
-                    NowPlayingQueueAction.MoveToNext -> request.queueIndex?.let(handleQueueItemMoveNext)
-                    NowPlayingQueueAction.RemoveFromQueue -> request.queueIndex?.let(handleQueueItemRemoveFromQueue)
-                    NowPlayingQueueAction.EmptyQueue -> handleEmptyQueue()
-                }
-            },
-            onSleepTimerAction = { request: NowPlayingSleepTimerActionRequest ->
-                when (request.action) {
-                    NowPlayingSleepTimerAction.Select -> request.request?.let(handleSleepTimerSelected)
-                    NowPlayingSleepTimerAction.Cancel -> handleCancelSleepTimer()
-                }
-            },
-            onSelectionAction = { request: NowPlayingSelectionActionRequest ->
-                when (request.action) {
-                    NowPlayingSelectionAction.SelectQueueItem ->
-                        nowPlayingQueueIndex(request.item)?.let(handleQueueItemSelected)
-                    NowPlayingSelectionAction.SelectRelatedItem ->
-                        resolveNowPlayingItemTrack(request.item)?.let { track ->
-                            handleShellTrackSelected(
-                                SharedTrackRowUi(
-                                    id = track.id.value,
-                                    title = request.item.title,
-                                    subtitle = request.item.subtitle,
-                                    coverArtUrl = request.item.coverArtUrl,
-                                    meta = request.item.meta,
-                                ),
-                            )
-                        }
-                    NowPlayingSelectionAction.SelectRadioStation ->
-                        homeState.radioStations.firstOrNull { it.id == request.item.id }
-                            ?.let(handleRadioStationSelected)
-                }
-            },
-            onQueueItemAction = handleQueueItemAction,
-            ),
+            nowPlayingActions = nowPlayingActions,
         )
     }

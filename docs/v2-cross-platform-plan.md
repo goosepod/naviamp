@@ -432,6 +432,7 @@ Record architecture decisions here or link a dedicated decision record.
 | 2026-07-19 | Carry grouped Android playlist-list and Internet Radio actions. | Playlist smart-definition resolution and station stable-ID resolution now live beside their focused Android controllers; the lower shell factory receives `NaviampPlaylistsActions` and `NaviampInternetRadioActions` intact. |
 | 2026-07-19 | Resolve Android detail actions before shell aggregation. | Focused album, artist, and playlist-detail factories resolve current domain objects through Android controllers and return the three shared detail action contracts; the lower shell factory no longer expands their callbacks or owns their resolution policy. |
 | 2026-07-19 | Resolve Android Home and cross-route media actions before shell aggregation. | Focused Android resolvers now own Home refresh, discovery routing, and current-domain lookup for album, artist, playlist, and track requests; `NaviampHomeActions` and `NaviampMediaActions` cross the lower boundary intact. |
+| 2026-07-19 | Resolve Android Now Playing actions before shell aggregation. | Transport, display, current-item, queue, sleep-timer, selection, and queue-row intent now resolve through a focused Android Now Playing adapter and cross composition as one `NaviampNowPlayingActions` contract. |
 
 ### Desktop Route Boundary Audit
 
@@ -469,7 +470,7 @@ The 2026-07-17 audit covers every current application entry point:
 
 ## Current Handoff
 
-- **Last completed item:** Android Home and cross-route media intent now crosses composition as focused shared action contracts alongside all detail and settings surfaces.
-- **Next recommended item:** Group Android Now Playing intent, then remove the obsolete lower action factory; cross-platform Desktop packaging and a macOS launch remain Milestone 3 validation work on their respective hosts.
+- **Last completed item:** Every Android shell surface now reaches aggregation as a complete shared action contract, including Now Playing.
+- **Next recommended item:** Remove the obsolete lower action factory and assemble `NaviampAppShellActions` directly in `AndroidMainShellActions`; cross-platform Desktop packaging and a macOS launch remain Milestone 3 validation work on their respective hosts.
 - **Verification:** `:core:domain:jvmTest`, `:core:app:jvmTest`, `:core:storage:jvmTest`, `:core:ui:jvmTest`, `:apps:android:testDebugUnitTest`, `:apps:desktop:desktopTest`, `:core:app:iosSimulatorArm64Test`, `:core:storage:compileKotlinIosSimulatorArm64`, and `:core:ui:compileKotlinIosSimulatorArm64` pass together with at most two Gradle workers.
 - **Known blockers:** None.
