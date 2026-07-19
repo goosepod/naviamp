@@ -156,8 +156,7 @@ fun ColumnScope.DesktopAppRouteContent(
                     appColors = appColors,
                     search = shellState.search,
                     actions = shellActions.searchActions,
-                    onMediaItemAction = shellActions.mediaActions.onMediaItemAction ?: {},
-                    onTrackAction = shellActions.mediaActions.onTrackAction,
+                    mediaActions = shellActions.mediaActions,
                 )
                 DesktopAppRoute.ArtistMix -> Column(
                     modifier = Modifier.fillMaxSize(),

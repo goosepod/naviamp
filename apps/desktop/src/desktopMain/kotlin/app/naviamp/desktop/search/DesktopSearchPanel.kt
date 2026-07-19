@@ -13,19 +13,17 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import app.naviamp.ui.NaviampMediaActions
 import app.naviamp.ui.NaviampSearchActions
 import app.naviamp.ui.NaviampSearchScreenUi
 import app.naviamp.ui.NaviampPageTitle
-import app.naviamp.ui.SharedMediaItemActionRequest
-import app.naviamp.ui.SharedTrackRowActionRequest
 
 @Composable
 fun DesktopSearchPanel(
     appColors: DesktopAppColors,
     search: NaviampSearchScreenUi,
     actions: NaviampSearchActions,
-    onMediaItemAction: (SharedMediaItemActionRequest) -> Unit,
-    onTrackAction: (SharedTrackRowActionRequest) -> Unit,
+    mediaActions: NaviampMediaActions,
 ) {
     val query = search.query
     val results = search.results
@@ -66,7 +64,7 @@ fun DesktopSearchPanel(
                         canStartRadio = true,
                         canAddToQueue = true,
                         canAddToPlaylist = true,
-                        onItemAction = onMediaItemAction,
+                        onItemAction = mediaActions.onMediaItemAction ?: {},
                     )
                 }
             }
@@ -82,7 +80,7 @@ fun DesktopSearchPanel(
                         canDownload = true,
                         canAddToQueue = true,
                         canAddToPlaylist = true,
-                        onItemAction = onMediaItemAction,
+                        onItemAction = mediaActions.onMediaItemAction ?: {},
                     )
                 }
             }
@@ -98,7 +96,7 @@ fun DesktopSearchPanel(
                         canDownload = true,
                         canAddToQueue = true,
                         canAddToPlaylist = true,
-                        onTrackAction = onTrackAction,
+                        onTrackAction = mediaActions.onTrackAction,
                     )
                 }
             }
