@@ -29,17 +29,13 @@ import app.naviamp.domain.Track
 import app.naviamp.domain.cache.DownloadJob
 import app.naviamp.domain.cache.KeepDownloadedCollectionPolicy
 import app.naviamp.domain.cache.StorageCacheStats
-import app.naviamp.domain.playback.AudioOutputDevicePlaybackEngine
 import app.naviamp.domain.home.HomeContent
 import app.naviamp.domain.playback.EqualizerPlaybackEngine
-import app.naviamp.domain.playback.PlaybackEngine
 import app.naviamp.domain.settings.ConnectionFormState
 import app.naviamp.domain.settings.InterfaceSettings
-import app.naviamp.domain.sonichome.SonicHomeDiscoveryRows
 import app.naviamp.ui.AlbumMixBuilderContent
 import app.naviamp.ui.ArtistMixBuilderContent
 import app.naviamp.ui.GenreMixBuilderContent
-import app.naviamp.ui.NaviampAboutUi
 import app.naviamp.ui.NaviampAppShellActions
 import app.naviamp.ui.NaviampAppShellUiState
 import app.naviamp.ui.NaviampConnectionSettingsActions
@@ -54,7 +50,6 @@ import app.naviamp.ui.NaviampSavedConnectionUi
 import app.naviamp.ui.NaviampLibraryActions
 import app.naviamp.ui.NaviampLibraryScreenUi
 import app.naviamp.ui.NaviampHomeActions
-import app.naviamp.ui.NaviampHomeScreenUi
 import app.naviamp.ui.NaviampInternetRadioScreenUi
 import app.naviamp.ui.NaviampInternetRadioActions
 import app.naviamp.ui.NaviampPlaylistDetailScreenUi
@@ -65,7 +60,6 @@ import app.naviamp.ui.NaviampSearchScreenUi
 import app.naviamp.ui.NaviampSearchActions
 import app.naviamp.ui.NaviampShellCapabilitiesUi
 import app.naviamp.ui.NaviampShellConnectionUi
-import app.naviamp.ui.NaviampShellChromeUi
 import app.naviamp.ui.NaviampShellNavigationActions
 import app.naviamp.ui.SharedGenreMixItemUi
 import app.naviamp.ui.SharedHomeRoute
@@ -83,12 +77,7 @@ import app.naviamp.ui.SaveQueueAsPlaylistDialog
 import app.naviamp.ui.StationRowAction
 import app.naviamp.ui.SonicMixBuilderContent
 import app.naviamp.ui.SonicPathBuilderContent
-import app.naviamp.ui.toSharedHomeUi
-import app.naviamp.ui.toConnectionSettingsUi
-import app.naviamp.ui.toPlaybackSettingsUi
-import app.naviamp.ui.toCacheSettingsUi
 import app.naviamp.ui.settingsSyncUi
-import app.naviamp.ui.toGeneralSettingsUi
 
 @Composable
 fun ColumnScope.DesktopAppRouteContent(
@@ -98,11 +87,8 @@ fun ColumnScope.DesktopAppRouteContent(
     appRoute: DesktopAppRoute,
     connection: NaviampShellConnectionUi,
     capabilities: NaviampShellCapabilitiesUi,
-    about: NaviampAboutUi,
     homeContent: HomeContent,
-    homeRefreshing: Boolean,
     onRefreshHome: () -> Unit,
-    sonicHomeDiscoveryRows: SonicHomeDiscoveryRows,
     coverArtUrl: (String?) -> String?,
     appActions: DesktopAppActions,
     playlistsController: DesktopPlaylistsController,
@@ -137,7 +123,6 @@ fun ColumnScope.DesktopAppRouteContent(
     downloadedTracks: (sourceId: String) -> List<DownloadedTrack>,
     interfaceSettings: InterfaceSettings,
     playbackSettings: PlaybackSettings,
-    playbackEngine: PlaybackEngine,
     onConnectionFormChanged: (ConnectionFormState) -> Unit,
     onConnect: () -> Unit,
     onNewConnection: () -> Unit,
@@ -164,14 +149,6 @@ fun ColumnScope.DesktopAppRouteContent(
     var saveSonicPathDialogOpen by remember { mutableStateOf(false) }
     var saveSonicMixDialogOpen by remember { mutableStateOf(false) }
     val contentScrollState = rememberScrollState()
-    val sharedHome = homeContent.toSharedHomeUi(
-        coverArtUrl = coverArtUrl,
-        playlistTracksById = playlistActionSources.playlistTracksById,
-        sonicDiscoveryRows = sonicHomeDiscoveryRows,
-        canFavoriteAlbums = true,
-        showSonicPathBuilder = playbackSettings.sonicSimilarityEnabled && capabilities.sonicSimilarity,
-        showSonicMixBuilder = playbackSettings.sonicSimilarityEnabled && capabilities.sonicSimilarity,
-    )
     fun openMixBuilder(builder: SharedMixBuilderUi) {
         when (builder.id) {
             "artist" -> onOpenArtistMixBuilder()
@@ -194,28 +171,7 @@ fun ColumnScope.DesktopAppRouteContent(
         onExport = onSettingsSyncExport,
         onImport = onSettingsSyncImport,
     )
-    val sharedShellState = shellState.copy(
-        connectionSettings = connection.toConnectionSettingsUi(
-            capabilities = capabilities,
-            currentSourceId = connectedSourceId,
-        ),
-        general = interfaceSettings.toGeneralSettingsUi(about),
-        playback = playbackSettings.toPlaybackSettingsUi(
-            capabilities = capabilities,
-            audioOutputDeviceSelectionAvailable =
-                (playbackEngine as? AudioOutputDevicePlaybackEngine)?.supportsAudioOutputDeviceSelection == true,
-            audioOutputDevices =
-                (playbackEngine as? AudioOutputDevicePlaybackEngine)?.outputDevices().orEmpty(),
-            downloadBytes = cacheStats.downloadBytes,
-        ),
-        cache = cacheSettings.toCacheSettingsUi(cacheStats, capabilities),
-        shellChrome = NaviampShellChromeUi(
-            selectedRoute = appRoute.toSharedRoute(),
-            supportsDownloads = capabilities.downloads,
-            supportsApplicationUpdates = capabilities.applicationUpdates,
-        ),
-        home = NaviampHomeScreenUi(content = sharedHome, refreshing = homeRefreshing),
-    )
+    val sharedShellState = shellState
     val baseSharedShellActions = shellActions.copy(
         navigationActions = NaviampShellNavigationActions(
             onRouteSelected = { route -> onRouteSelected(route.toAppRoute()) },

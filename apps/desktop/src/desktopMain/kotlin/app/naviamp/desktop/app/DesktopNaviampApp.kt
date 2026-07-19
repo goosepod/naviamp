@@ -40,6 +40,7 @@ import app.naviamp.domain.cache.ImageCacheRepository
 import app.naviamp.domain.cache.DownloadJob
 import app.naviamp.domain.cache.ProviderResponseService
 import app.naviamp.domain.playback.PlaybackProgress
+import app.naviamp.domain.playback.AudioOutputDevicePlaybackEngine
 import app.naviamp.desktop.playback.PlaylistCallbacks
 import app.naviamp.desktop.playback.desktopPlaylistCallbacks
 import app.naviamp.domain.playback.PlaybackState
@@ -97,6 +98,8 @@ import app.naviamp.ui.NaviampSearchScreenUi
 import app.naviamp.ui.NaviampAlbumDetailScreenUi
 import app.naviamp.ui.NaviampAppShellActions
 import app.naviamp.ui.NaviampAppShellUiState
+import app.naviamp.ui.NaviampHomeScreenUi
+import app.naviamp.ui.NaviampShellChromeUi
 import app.naviamp.ui.NaviampArtistDetailScreenUi
 import app.naviamp.ui.NaviampPlaylistDetailScreenUi
 import app.naviamp.ui.NaviampPlaylistsScreenUi
@@ -127,6 +130,11 @@ import app.naviamp.ui.toSharedArtistDetailUi
 import app.naviamp.ui.toSharedPlaylistDetailUi
 import app.naviamp.ui.toSharedSearchResultsUi
 import app.naviamp.ui.toInternetRadioStationUi
+import app.naviamp.ui.toCacheSettingsUi
+import app.naviamp.ui.toConnectionSettingsUi
+import app.naviamp.ui.toGeneralSettingsUi
+import app.naviamp.ui.toPlaybackSettingsUi
+import app.naviamp.ui.toSharedHomeUi
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.nio.file.Path
@@ -1581,7 +1589,6 @@ fun NaviampApp(
                     if (appRoute == DesktopAppRoute.Player && playerTrack != null) {
                         DesktopPlayerRouteContent(
                             appColors = appColors,
-                            playbackEngine = playbackEngine,
                             connectedProvider = connectedProvider,
                             nowPlayingTrack = playerTrack,
                             nowPlayingController = nowPlayingController,
@@ -1608,10 +1615,46 @@ fun NaviampApp(
                             onSleepTimerAction = handleNowPlayingSleepTimerAction,
                             onSelectionAction = handleNowPlayingSelectionAction,
                             appActions = appActions,
+                            playbackEngine = playbackEngine,
                             playlistsController = playlistsController,
                         )
                     } else {
                         val desktopShellState = NaviampAppShellUiState(
+                            connectionSettings = shellConnection.toConnectionSettingsUi(
+                                capabilities = shellCapabilities,
+                                currentSourceId = connectedSourceId,
+                            ),
+                            general = interfaceSettings.toGeneralSettingsUi(about),
+                            playback = playbackSettings.toPlaybackSettingsUi(
+                                capabilities = shellCapabilities,
+                                audioOutputDeviceSelectionAvailable =
+                                    (playbackEngine as? AudioOutputDevicePlaybackEngine)
+                                        ?.supportsAudioOutputDeviceSelection == true,
+                                audioOutputDevices =
+                                    (playbackEngine as? AudioOutputDevicePlaybackEngine)?.outputDevices().orEmpty(),
+                                downloadBytes = cacheStats.downloadBytes,
+                            ),
+                            cache = cacheSettings.toCacheSettingsUi(cacheStats, shellCapabilities),
+                            shellChrome = NaviampShellChromeUi(
+                                selectedRoute = appRoute.toSharedRoute(),
+                                supportsDownloads = shellCapabilities.downloads,
+                                supportsApplicationUpdates = shellCapabilities.applicationUpdates,
+                            ),
+                            home = NaviampHomeScreenUi(
+                                content = homeContent.toSharedHomeUi(
+                                    coverArtUrl = { coverArtId ->
+                                        coverArtId?.let { connectedProvider?.coverArtUrl(it) }
+                                    },
+                                    playlistTracksById = playlistsController.playlistTracksById,
+                                    sonicDiscoveryRows = sonicHomeDiscoveryController.rows,
+                                    canFavoriteAlbums = true,
+                                    showSonicPathBuilder =
+                                        playbackSettings.sonicSimilarityEnabled && shellCapabilities.sonicSimilarity,
+                                    showSonicMixBuilder =
+                                        playbackSettings.sonicSimilarityEnabled && shellCapabilities.sonicSimilarity,
+                                ),
+                                refreshing = homeController.refreshing,
+                            ),
                             artistMixBuilder = mixBuilderController.artistUi(
                                 coverArtUrl = { coverArtId -> coverArtId?.let { connectedProvider?.coverArtUrl(it) } },
                             ),
@@ -1786,11 +1829,8 @@ fun NaviampApp(
                             appRoute = appRoute,
                             connection = shellConnection,
                             capabilities = shellCapabilities,
-                            about = about,
                             homeContent = homeContent,
-                            homeRefreshing = homeController.refreshing,
                             onRefreshHome = { connectedProvider?.let(homeController::loadHomeContent) },
-                            sonicHomeDiscoveryRows = sonicHomeDiscoveryController.rows,
                             coverArtUrl = { coverArtId -> coverArtId?.let { connectedProvider?.coverArtUrl(it) } },
                             appActions = appActions,
                             playlistsController = playlistsController,
@@ -1840,7 +1880,6 @@ fun NaviampApp(
                             downloadedTracks = storage::downloadedTracks,
                             interfaceSettings = interfaceSettings,
                             playbackSettings = playbackSettings,
-                            playbackEngine = playbackEngine,
                             settingsSyncDirectoryPath = settingsSyncSettings.directoryPath,
                             settingsSyncAutoExportEnabled = settingsSyncSettings.autoExportEnabled,
                             settingsSyncStatus = settingsSyncStatus,
