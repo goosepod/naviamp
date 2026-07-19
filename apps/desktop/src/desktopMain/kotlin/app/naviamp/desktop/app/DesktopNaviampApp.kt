@@ -91,6 +91,7 @@ import app.naviamp.provider.navidrome.toNavidromeConnection
 import app.naviamp.provider.navidrome.withNativeTokenFromPassword
 import app.naviamp.ui.NaviampSleepTimerUi
 import app.naviamp.ui.NaviampConnectionCapabilitiesUi
+import app.naviamp.ui.NaviampConnectionSettingsActions
 import app.naviamp.ui.NaviampSavedConnectionUi
 import app.naviamp.ui.NaviampLibraryScreenUi
 import app.naviamp.ui.NaviampLibraryActions
@@ -104,6 +105,8 @@ import app.naviamp.ui.NaviampHomeScreenUi
 import app.naviamp.ui.NaviampHomeActions
 import app.naviamp.ui.NaviampShellChromeUi
 import app.naviamp.ui.NaviampShellNavigationActions
+import app.naviamp.ui.NaviampSettingsMaintenanceActions
+import app.naviamp.ui.NaviampSettingsValueActions
 import app.naviamp.ui.NaviampArtistDetailScreenUi
 import app.naviamp.ui.NaviampPlaylistDetailScreenUi
 import app.naviamp.ui.NaviampPlaylistsScreenUi
@@ -1798,6 +1801,54 @@ fun NaviampApp(
                                 onQueryChanged = libraryController::updateQuery,
                                 onRefresh = libraryController::refreshArtistIndex,
                             ),
+                            connectionActions = NaviampConnectionSettingsActions(
+                                onFormChanged = { form ->
+                                    connectionForm.connectionName = form.displayName
+                                    connectionForm.updateServerUrl(form.serverUrl)
+                                    connectionForm.updateUsername(form.username)
+                                    connectionForm.password = form.password
+                                    connectionForm.insecureSkipTlsVerification = form.skipTlsVerification
+                                    connectionForm.customCertificatePath = form.customCertificatePath
+                                    connectionForm.clientCertificateKeyStorePath = form.clientCertificatePath
+                                    connectionForm.clientCertificateKeyStorePassword = form.clientCertificatePassword
+                                    connectionForm.secondaryUrls = form.secondaryUrls
+                                    connectionForm.customHeaders = form.customHeaders
+                                    connectionForm.selectedMusicFolderIds = form.selectedMusicFolderIds
+                                },
+                                onConnect = { appActions.connectToServer() },
+                                onNewConnection = connectionLifecycleController::openNewConnectionForm,
+                                onEditConnection = { item ->
+                                    savedMediaSources.firstOrNull { it.id == item.id }
+                                        ?.let(connectionLifecycleController::openSavedConnectionForm)
+                                },
+                                onConnectSavedConnection = { item ->
+                                    savedMediaSources.firstOrNull { it.id == item.id }
+                                        ?.let(connectionLifecycleController::connectSavedConnection)
+                                },
+                                onDeleteConnection = { item ->
+                                    savedMediaSources.firstOrNull { it.id == item.id }
+                                        ?.let(appActions::deleteConnection)
+                                },
+                                onCancelConnectionForm = connectionLifecycleController::closeConnectionForm,
+                            ),
+                            valueActions = NaviampSettingsValueActions(
+                                onInterfaceSettingsChanged = { settings: InterfaceSettings ->
+                                    interfaceSettings = settings.normalized()
+                                    settingsStore.saveInterfaceSettings(interfaceSettings)
+                                    markAndAutoExportSettingsSync()
+                                },
+                                onPlaybackSettingsChanged = settingsMaintenanceController::applyPlaybackSettings,
+                                onPlaybackSettingsChangedAndRedownload =
+                                    settingsMaintenanceController::applyPlaybackSettingsAndRedownload,
+                                onCacheSettingsChanged = cacheSettingsController::apply,
+                            ),
+                            maintenanceActions = NaviampSettingsMaintenanceActions(
+                                onOpenStatsForNerds = { showStatsForNerds = true },
+                                onClearCache = { appActions.clearCacheData() },
+                                onClearLibrary = { appActions.clearLibraryData() },
+                                onRefreshLibrary = libraryController::refreshLibrarySnapshot,
+                                onResetDatabase = { appActions.resetDatabase() },
+                            ),
                             artistMixActions = SharedArtistMixBuilderActions(
                                 onQueryChanged = mixBuilderController::setArtistQuery,
                                 onSearch = mixBuilderController::searchArtistSuggestions,
@@ -1916,53 +1967,11 @@ fun NaviampApp(
                             settingsSyncDirectoryPath = settingsSyncSettings.directoryPath,
                             settingsSyncAutoExportEnabled = settingsSyncSettings.autoExportEnabled,
                             settingsSyncStatus = settingsSyncStatus,
-                            onConnect = { appActions.connectToServer() },
-                            onNewConnection = connectionLifecycleController::openNewConnectionForm,
-                            onConnectionFormChanged = { form ->
-                                connectionForm.connectionName = form.displayName
-                                connectionForm.updateServerUrl(form.serverUrl)
-                                connectionForm.updateUsername(form.username)
-                                connectionForm.password = form.password
-                                connectionForm.insecureSkipTlsVerification = form.skipTlsVerification
-                                connectionForm.customCertificatePath = form.customCertificatePath
-                                connectionForm.clientCertificateKeyStorePath = form.clientCertificatePath
-                                connectionForm.clientCertificateKeyStorePassword = form.clientCertificatePassword
-                                connectionForm.secondaryUrls = form.secondaryUrls
-                                connectionForm.customHeaders = form.customHeaders
-                                connectionForm.selectedMusicFolderIds = form.selectedMusicFolderIds
-                            },
-                            onEditConnection = { item ->
-                                savedMediaSources.firstOrNull { it.id == item.id }
-                                    ?.let(connectionLifecycleController::openSavedConnectionForm)
-                            },
-                            onConnectSavedConnection = { item ->
-                                savedMediaSources.firstOrNull { it.id == item.id }
-                                    ?.let(connectionLifecycleController::connectSavedConnection)
-                            },
-                            onDeleteConnection = { item ->
-                                savedMediaSources.firstOrNull { it.id == item.id }
-                                    ?.let(appActions::deleteConnection)
-                            },
-                            onCancelConnectionForm = connectionLifecycleController::closeConnectionForm,
                             onSettingsSyncDirectoryChanged = ::updateSettingsSyncDirectory,
                             onSettingsSyncDirectorySelectedForImport = ::selectSettingsSyncDirectoryAndImport,
                             onSettingsSyncAutoExportChanged = ::updateSettingsSyncAutoExport,
                             onSettingsSyncExport = ::exportSettingsSync,
                             onSettingsSyncImport = ::importSettingsSync,
-                            onInterfaceSettingsChanged = { settings: InterfaceSettings ->
-                                interfaceSettings = settings.normalized()
-                                settingsStore.saveInterfaceSettings(interfaceSettings)
-                                markAndAutoExportSettingsSync()
-                            },
-                            onPlaybackSettingsChanged = settingsMaintenanceController::applyPlaybackSettings,
-                            onPlaybackSettingsChangedAndRedownload =
-                                settingsMaintenanceController::applyPlaybackSettingsAndRedownload,
-                            onCacheSettingsChanged = cacheSettingsController::apply,
-                            onOpenStatsForNerds = { showStatsForNerds = true },
-                            onClearCache = { appActions.clearCacheData() },
-                            onClearLibrary = { appActions.clearLibraryData() },
-                            onRefreshLibrary = libraryController::refreshLibrarySnapshot,
-                            onResetDatabase = { appActions.resetDatabase() },
                         )
                         DesktopAppDialogs(
                             appColors = appColors,

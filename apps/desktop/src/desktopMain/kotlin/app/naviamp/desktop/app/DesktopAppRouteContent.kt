@@ -118,27 +118,11 @@ fun ColumnScope.DesktopAppRouteContent(
     downloadedTracks: (sourceId: String) -> List<DownloadedTrack>,
     interfaceSettings: InterfaceSettings,
     playbackSettings: PlaybackSettings,
-    onConnectionFormChanged: (ConnectionFormState) -> Unit,
-    onConnect: () -> Unit,
-    onNewConnection: () -> Unit,
-    onEditConnection: (NaviampSavedConnectionUi) -> Unit,
-    onConnectSavedConnection: (NaviampSavedConnectionUi) -> Unit,
-    onDeleteConnection: (NaviampSavedConnectionUi) -> Unit,
-    onCancelConnectionForm: () -> Unit,
     onSettingsSyncDirectoryChanged: (String?) -> Unit,
     onSettingsSyncDirectorySelectedForImport: (String) -> Unit,
     onSettingsSyncAutoExportChanged: (Boolean) -> Unit,
     onSettingsSyncExport: () -> Unit,
     onSettingsSyncImport: () -> Unit,
-    onInterfaceSettingsChanged: (InterfaceSettings) -> Unit,
-    onPlaybackSettingsChanged: (PlaybackSettings) -> Unit,
-    onPlaybackSettingsChangedAndRedownload: (PlaybackSettings) -> Unit,
-    onCacheSettingsChanged: (CacheSettings) -> Unit,
-    onOpenStatsForNerds: () -> Unit,
-    onClearCache: () -> Unit,
-    onClearLibrary: () -> Unit,
-    onRefreshLibrary: () -> Unit,
-    onResetDatabase: () -> Unit,
 ) {
     var saveSonicPathDialogOpen by remember { mutableStateOf(false) }
     var saveSonicMixDialogOpen by remember { mutableStateOf(false) }
@@ -158,28 +142,6 @@ fun ColumnScope.DesktopAppRouteContent(
     )
     val sharedShellState = shellState
     val baseSharedShellActions = shellActions.copy(
-        connectionActions = NaviampConnectionSettingsActions(
-            onFormChanged = onConnectionFormChanged,
-            onConnect = onConnect,
-            onNewConnection = onNewConnection,
-            onEditConnection = onEditConnection,
-            onConnectSavedConnection = onConnectSavedConnection,
-            onDeleteConnection = onDeleteConnection,
-            onCancelConnectionForm = onCancelConnectionForm,
-        ),
-        valueActions = NaviampSettingsValueActions(
-            onInterfaceSettingsChanged = onInterfaceSettingsChanged,
-            onPlaybackSettingsChanged = onPlaybackSettingsChanged,
-            onPlaybackSettingsChangedAndRedownload = onPlaybackSettingsChangedAndRedownload,
-            onCacheSettingsChanged = onCacheSettingsChanged,
-        ),
-        maintenanceActions = NaviampSettingsMaintenanceActions(
-            onOpenStatsForNerds = onOpenStatsForNerds,
-            onClearCache = onClearCache,
-            onClearLibrary = onClearLibrary,
-            onRefreshLibrary = onRefreshLibrary,
-            onResetDatabase = onResetDatabase,
-        ),
     )
     fun handleArtistMediaAction(
         requestAction: SharedMediaItemAction,
