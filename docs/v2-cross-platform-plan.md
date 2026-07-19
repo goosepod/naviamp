@@ -433,6 +433,7 @@ Record architecture decisions here or link a dedicated decision record.
 | 2026-07-19 | Resolve Android detail actions before shell aggregation. | Focused album, artist, and playlist-detail factories resolve current domain objects through Android controllers and return the three shared detail action contracts; the lower shell factory no longer expands their callbacks or owns their resolution policy. |
 | 2026-07-19 | Resolve Android Home and cross-route media actions before shell aggregation. | Focused Android resolvers now own Home refresh, discovery routing, and current-domain lookup for album, artist, playlist, and track requests; `NaviampHomeActions` and `NaviampMediaActions` cross the lower boundary intact. |
 | 2026-07-19 | Resolve Android Now Playing actions before shell aggregation. | Transport, display, current-item, queue, sleep-timer, selection, and queue-row intent now resolve through a focused Android Now Playing adapter and cross composition as one `NaviampNowPlayingActions` contract. |
+| 2026-07-19 | Complete the Android shared-shell action boundary. | `AndroidMainShellActions` now assembles `NaviampAppShellActions` directly from complete shared contracts produced beside focused Android controllers; the 100-plus-parameter lower factory and its flat callback expansion have been removed. |
 
 ### Desktop Route Boundary Audit
 
@@ -470,7 +471,7 @@ The 2026-07-17 audit covers every current application entry point:
 
 ## Current Handoff
 
-- **Last completed item:** Every Android shell surface now reaches aggregation as a complete shared action contract, including Now Playing.
-- **Next recommended item:** Remove the obsolete lower action factory and assemble `NaviampAppShellActions` directly in `AndroidMainShellActions`; cross-platform Desktop packaging and a macOS launch remain Milestone 3 validation work on their respective hosts.
+- **Last completed item:** The Android shared-shell action boundary is complete: every surface is grouped, resolver work is focused beside host controllers, and `AndroidMainShellActions` assembles the shared aggregate directly.
+- **Next recommended item:** Audit the remaining Android composition-root/controller ownership against Milestone 4, preserving service-owned playback and native Activity, MediaSession, notification, permission, and storage-selection integrations; cross-platform Desktop packaging and a macOS launch remain Milestone 3 validation work on their respective hosts.
 - **Verification:** `:core:domain:jvmTest`, `:core:app:jvmTest`, `:core:storage:jvmTest`, `:core:ui:jvmTest`, `:apps:android:testDebugUnitTest`, `:apps:desktop:desktopTest`, `:core:app:iosSimulatorArm64Test`, `:core:storage:compileKotlinIosSimulatorArm64`, and `:core:ui:compileKotlinIosSimulatorArm64` pass together with at most two Gradle workers.
 - **Known blockers:** None.

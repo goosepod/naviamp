@@ -51,11 +51,7 @@ internal fun androidMainShellActions(
     apiLibraryController: AndroidApiLibraryController,
     onSyncedSettingsChanged: () -> Unit = {},
 ): NaviampAppShellActions =
-    androidAppShellActions(
-        state = state,
-        changePlaybackVolume = playbackAppController::changeVolume,
-        settingsStore = settingsStore,
-        onSyncedSettingsChanged = onSyncedSettingsChanged,
+    NaviampAppShellActions(
         navigationActions = NaviampShellNavigationActions(
             onRouteSelected = { route ->
                 state.navigationState = state.navigationState.copy(route = route.toNaviampRoute())
@@ -126,9 +122,6 @@ internal fun androidMainShellActions(
                 state.status = ""
             },
         ),
-        handlePlaybackSettingsChanged = settingsMaintenanceController::handlePlaybackSettingsChanged,
-        handlePlaybackSettingsChangedAndRedownload = settingsMaintenanceController::handlePlaybackSettingsChangedAndRedownload,
-        handleCurrentTrackRadioRefresh = shellPlaybackController::startCurrentTrackRadio,
         artistMixActions = SharedArtistMixBuilderActions(
             onQueryChanged = { state.artistMixQuery = it },
             onSearch = mixBuilderController::searchArtistSuggestions,
@@ -322,89 +315,4 @@ internal fun androidMainShellActions(
             settingsMaintenanceController = settingsMaintenanceController,
             sleepTimerController = sleepTimerController,
         ),
-        handleShellTrackSelected = shellMediaController::handleShellTrackSelected,
-        handleShellAlbumSelected = shellMediaController::handleShellAlbumSelected,
-        handleAlbumFavoriteToggled = { item ->
-            toggleAndroidAlbumFavorite(scope, state, item, state.sharedControllers.providerActions)
-        },
-        handleMixAlbumSelected = shellMediaController::handleMixAlbumSelected,
-        appendTracksToQueue = mediaAppController::appendTracksToQueue,
-        downloadTracks = downloadActionController::downloadTracks,
-        addTracksToPlaylist = playlistActionController::addTracksToPlaylist,
-        handleTrackAction = trackActionController::handleTrackAction,
-        openArtistDetails = { artistId, fallbackName ->
-            mediaAppController.openArtistDetails(artistId, fallbackName)
-        },
-        handleArtistFavoriteToggled = { item ->
-            toggleAndroidArtistFavorite(scope, state, item, state.sharedControllers.providerActions)
-        },
-        handleArtistAlbumRadio = artistActionController::handleArtistAlbumRadio,
-        loadArtistAlbumTracks = artistActionController::loadArtistAlbumTracks,
-        openPlaylistDetails = playlistActionController::openPlaylistDetails,
-        playPlaylist = playlistActionController::playPlaylist,
-        downloadPlaylist = downloadActionController::downloadPlaylist,
-        toggleKeepDownloadedPlaylist = downloadActionController::toggleKeepDownloadedPlaylist,
-        addPlaylistToQueue = playlistActionController::addPlaylistToQueue,
-        addPlaylistToPlaylist = playlistActionController::addPlaylistToPlaylist,
-        renamePlaylist = playlistActionController::renamePlaylist,
-        deletePlaylist = playlistActionController::deletePlaylist,
-        handleRecentRadioSelected = shellMediaController::handleShellRecentRadioSelected,
-        handleMixBuilderSelected = navigationController::handleMixBuilderSelected,
-        handleRadioStationSelected = shellMediaController::handleRadioStationSelected,
-        handleShellHomeStationSelected = shellMediaController::handleShellHomeStationSelected,
-        handleSonicDiscoveryTrackAction = { request ->
-            val track = sonicHomeDiscoveryController.trackFor(request)
-            when (request.action) {
-                app.naviamp.ui.SharedTrackRowAction.ToggleFavorite ->
-                    track?.let(mediaAppController::toggleTrackFavorite)
-                app.naviamp.ui.SharedTrackRowAction.GoToAlbum ->
-                    track?.let(shellMediaController::handleTrackGoToAlbum)
-                app.naviamp.ui.SharedTrackRowAction.GoToArtist ->
-                    track?.let { selectedTrack ->
-                        shellMediaController.handleTrackGoToArtist(
-                            selectedTrack,
-                            request.artistId,
-                            request.artistName,
-                        )
-                    }
-                else -> sonicHomeDiscoveryController.handleAction(request)
-            }
-        },
-        closeActiveDetail = navigationController::closeActiveDetail,
-        handleShellPlayPause = playbackAppController::handlePlayPauseCommand,
-        playAdjacentTrack = playbackAppController::playAdjacentTrack,
-        performSeek = playbackAppController::performSeek,
-        handleShellToggleShuffle = shellPlaybackController::toggleShuffle,
-        loadLyrics = nowPlayingSidecarController::loadLyrics,
-        handleLyricsOffsetChanged = nowPlayingSidecarController::handleLyricsOffsetChanged,
-        handleShellTrackRadio = shellPlaybackController::startCurrentTrackRadio,
-        handleNowPlayingAddToPlaylist = trackActionController::handleNowPlayingAddToPlaylist,
-        handleNowPlayingCreatePlaylistAndAdd = trackActionController::handleNowPlayingCreatePlaylistAndAdd,
-        handleSaveQueueAsPlaylist = playlistActionController::saveQueueAsPlaylist,
-        handleSleepTimerSelected = sleepTimerController::select,
-        handleCancelSleepTimer = sleepTimerController::cancel,
-        downloadTrack = downloadActionController::downloadTrack,
-        handleShellGoToAlbum = shellMediaController::handleShellGoToAlbum,
-        handleShellGoToArtist = shellMediaController::handleShellGoToArtist,
-        handleTrackGoToAlbum = shellMediaController::handleTrackGoToAlbum,
-        handleTrackGoToArtist = shellMediaController::handleTrackGoToArtist,
-        handleShellQueueItemRadio = shellPlaybackController::startQueueItemRadio,
-        handleQueueItemPlayNext = { item ->
-            nowPlayingQueueIndex(item)?.let(mediaAppController::moveQueueTrackNext)
-                ?: mediaAppController.resolveNowPlayingItemTrack(item)?.let(mediaAppController::playNext)
-        },
-        handleQueueItemAddToQueue = { item ->
-            mediaAppController.resolveNowPlayingItemTrack(item)?.let(mediaAppController::addToQueue)
-        },
-        handleQueueItemSelected = playbackAppController::playQueueTrack,
-        handleQueueItemRemoveFromQueue = mediaAppController::removeFromQueue,
-        handleQueueItemMoveNext = mediaAppController::moveQueueTrackNext,
-        handleEmptyQueue = mediaAppController::emptyQueue,
-        handleTrackRadioNext = trackActionController::playTrackRadioNext,
-        handleAddTrackRadioToQueue = trackActionController::addTrackRadioToQueue,
-        resolveNowPlayingItemTrack = mediaAppController::resolveNowPlayingItemTrack,
-        addTrackToPlaylist = playlistActionController::addTrackToPlaylist,
-        toggleTrackFavorite = mediaAppController::toggleTrackFavorite,
-        toggleCurrentFavorite = mediaAppController::toggleCurrentFavorite,
-        handleShellRatingSelected = shellMediaController::handleShellRatingSelected,
     )
