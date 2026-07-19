@@ -2091,7 +2091,6 @@ fun NaviampApp(
                             appActions = appActions,
                             playlistsController = playlistsController,
                             libraryListState = libraryListState,
-                            interfaceSettings = interfaceSettings,
                             playbackSettings = playbackSettings,
                             settingsSyncDirectoryPath = settingsSyncSettings.directoryPath,
                             settingsSyncAutoExportEnabled = settingsSyncSettings.autoExportEnabled,

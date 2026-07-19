@@ -23,7 +23,6 @@ import app.naviamp.desktop.settings.PlaybackSettings
 import app.naviamp.domain.Track
 import app.naviamp.domain.playback.EqualizerPlaybackEngine
 import app.naviamp.domain.settings.ConnectionFormState
-import app.naviamp.domain.settings.InterfaceSettings
 import app.naviamp.ui.AlbumMixBuilderContent
 import app.naviamp.ui.ArtistMixBuilderContent
 import app.naviamp.ui.GenreMixBuilderContent
@@ -75,7 +74,6 @@ fun ColumnScope.DesktopAppRouteContent(
     settingsSyncDirectoryPath: String?,
     settingsSyncAutoExportEnabled: Boolean,
     settingsSyncStatus: String?,
-    interfaceSettings: InterfaceSettings,
     playbackSettings: PlaybackSettings,
     onSettingsSyncDirectoryChanged: (String?) -> Unit,
     onSettingsSyncDirectorySelectedForImport: (String) -> Unit,
@@ -156,9 +154,10 @@ fun ColumnScope.DesktopAppRouteContent(
                 DesktopAppRoute.ArtistDetail -> DesktopArtistDetailPanel(
                     appColors = appColors,
                     screen = sharedShellState.artistDetail,
-                    albumCollectionLayout = interfaceSettings.albumCollectionLayout,
-                    albumSortOrder = interfaceSettings.albumSortOrder,
-                    groupAlbumsByReleaseType = interfaceSettings.groupAlbumsByReleaseType,
+                    albumCollectionLayout = sharedShellState.general.interfaceSettings.albumCollectionLayout,
+                    albumSortOrder = sharedShellState.general.interfaceSettings.albumSortOrder,
+                    groupAlbumsByReleaseType =
+                        sharedShellState.general.interfaceSettings.groupAlbumsByReleaseType,
                     actions = sharedShellActions.artistDetailActions,
                 )
                 DesktopAppRoute.Playlists -> DesktopPlaylistsPanel(
