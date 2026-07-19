@@ -14,7 +14,9 @@ import app.naviamp.ui.SharedSimilarArtistUi
 import app.naviamp.ui.SharedTrackRowUi
 import app.naviamp.ui.NaviampInternetRadioStationEditUi
 import app.naviamp.ui.NaviampInternetRadioActions
+import app.naviamp.ui.NaviampAlbumDetailActions
 import app.naviamp.ui.StationRowAction
+import app.naviamp.ui.SharedTrackRowAction
 import app.naviamp.ui.toInternetRadioStation
 
 data class DesktopDetailActionSources(
@@ -104,6 +106,46 @@ internal fun desktopInternetRadioActions(
         }
     },
     onSaveStation = { edit -> onSaveStation(actionSources.station(edit)) },
+)
+
+internal fun desktopAlbumDetailActions(
+    actionSources: DesktopDetailActionSources,
+    appActions: DesktopAppActions,
+    playlistsController: DesktopPlaylistsController,
+    onBack: () -> Unit,
+): NaviampAlbumDetailActions = NaviampAlbumDetailActions(
+    onBack = onBack,
+    onPlay = { _, shuffle -> appActions.playAlbumDetails(shuffle = shuffle) },
+    onRadio = { appActions.playCurrentAlbumRadio() },
+    onDownload = { appActions.downloadCurrentAlbum() },
+    onAddToQueue = { appActions.addCurrentAlbumToQueue() },
+    onAddToPlaylist = { _, _ -> appActions.openCurrentAlbumAddToPlaylist() },
+    onFavoriteToggled = { item ->
+        actionSources.album(item.id)?.let(appActions::toggleAlbumFavorite)
+    },
+    onTrackAction = { request ->
+        actionSources.albumTrack(request.track.id)?.let { (index, track) ->
+            when (request.action) {
+                SharedTrackRowAction.Select -> appActions.playAlbumDetails(index = index)
+                SharedTrackRowAction.PlayNext -> playlistsController.playNext(track)
+                SharedTrackRowAction.StartRadio -> appActions.playTrackRadio(track)
+                SharedTrackRowAction.PlayTrackRadioNext -> appActions.playTrackRadioNext(track)
+                SharedTrackRowAction.AddTrackRadioToQueue -> appActions.addTrackRadioToQueue(track)
+                SharedTrackRowAction.Download -> appActions.downloadTrack(track)
+                SharedTrackRowAction.AddToQueue -> playlistsController.addTrackToQueue(track)
+                SharedTrackRowAction.AddToPlaylist -> playlistsController.openTrackAddToPlaylist(track)
+                SharedTrackRowAction.CreatePlaylistAndAdd -> Unit
+                SharedTrackRowAction.ToggleFavorite -> appActions.toggleTrackFavorite(track)
+                SharedTrackRowAction.GoToAlbum -> appActions.openTrackAlbumDetails(track)
+                SharedTrackRowAction.GoToArtist -> appActions.openTrackArtistDetails(
+                    track,
+                    artistId = request.artistId,
+                    artistName = request.artistName,
+                    backRouteOverride = DesktopAppRoute.AlbumDetail,
+                )
+            }
+        }
+    },
 )
 
 internal fun resolveDesktopMediaItemAction(

@@ -42,7 +42,6 @@ import app.naviamp.ui.NaviampSettingsMaintenanceActions
 import app.naviamp.ui.NaviampSettingsSyncActions
 import app.naviamp.ui.NaviampSettingsValueActions
 import app.naviamp.ui.NaviampAlbumDetailScreenUi
-import app.naviamp.ui.NaviampAlbumDetailActions
 import app.naviamp.ui.NaviampArtistDetailScreenUi
 import app.naviamp.ui.NaviampArtistDetailActions
 import app.naviamp.ui.NaviampSavedConnectionUi
@@ -88,7 +87,6 @@ fun ColumnScope.DesktopAppRouteContent(
     playlistsController: DesktopPlaylistsController,
     libraryController: DesktopLibraryController,
     searchController: DesktopSearchController,
-    albumDetailBackRoute: DesktopAppRoute,
     detailActionSources: DesktopDetailActionSources,
     playlistActionSources: DesktopPlaylistActionSources,
     onPlaylistRenameRequested: (Playlist) -> Unit,
@@ -243,40 +241,6 @@ fun ColumnScope.DesktopAppRouteContent(
         }
     }
     val sharedShellActions = baseSharedShellActions.copy(
-        albumDetailActions = NaviampAlbumDetailActions(
-            onBack = { shellActions.navigationActions.onRouteSelected(albumDetailBackRoute.toSharedRoute()) },
-            onPlay = { _, shuffle -> appActions.playAlbumDetails(shuffle = shuffle) },
-            onRadio = { appActions.playCurrentAlbumRadio() },
-            onDownload = { appActions.downloadCurrentAlbum() },
-            onAddToQueue = { appActions.addCurrentAlbumToQueue() },
-            onAddToPlaylist = { _, _ -> appActions.openCurrentAlbumAddToPlaylist() },
-            onFavoriteToggled = { item ->
-                detailActionSources.album(item.id)?.let(appActions::toggleAlbumFavorite)
-            },
-            onTrackAction = { request ->
-                detailActionSources.albumTrack(request.track.id)?.let { (index, track) ->
-                    when (request.action) {
-                        SharedTrackRowAction.Select -> appActions.playAlbumDetails(index = index)
-                        SharedTrackRowAction.PlayNext -> playlistsController.playNext(track)
-                        SharedTrackRowAction.StartRadio -> appActions.playTrackRadio(track)
-                        SharedTrackRowAction.PlayTrackRadioNext -> appActions.playTrackRadioNext(track)
-                        SharedTrackRowAction.AddTrackRadioToQueue -> appActions.addTrackRadioToQueue(track)
-                        SharedTrackRowAction.Download -> appActions.downloadTrack(track)
-                        SharedTrackRowAction.AddToQueue -> playlistsController.addTrackToQueue(track)
-                        SharedTrackRowAction.AddToPlaylist -> playlistsController.openTrackAddToPlaylist(track)
-                        SharedTrackRowAction.CreatePlaylistAndAdd -> Unit
-                        SharedTrackRowAction.ToggleFavorite -> appActions.toggleTrackFavorite(track)
-                        SharedTrackRowAction.GoToAlbum -> appActions.openTrackAlbumDetails(track)
-                        SharedTrackRowAction.GoToArtist -> appActions.openTrackArtistDetails(
-                            track,
-                            artistId = request.artistId,
-                            artistName = request.artistName,
-                            backRouteOverride = DesktopAppRoute.AlbumDetail,
-                        )
-                    }
-                }
-            },
-        ),
         artistDetailActions = NaviampArtistDetailActions(
             onBack = appActions::closeArtistDetails,
             onRadio = { details ->

@@ -1772,6 +1772,14 @@ fun NaviampApp(
                         val internetRadioActionSources = DesktopInternetRadioActionSources(
                             stations = internetRadioController.stations,
                         )
+                        val detailActionSources = DesktopDetailActionSources(
+                            selectedAlbum = albumController.selectedAlbum,
+                            albumDetail = albumController.selectedAlbumDetails,
+                            selectedArtist = artistController.selectedArtist,
+                            artistDetail = artistController.selectedArtistDetails,
+                            artistPopularTracks = artistController.selectedArtistPopularTracks,
+                            artistSimilarArtists = artistController.selectedArtistSimilarArtists,
+                        )
                         val builderShellActions = NaviampAppShellActions(
                             navigationActions = NaviampShellNavigationActions(
                                 onRouteSelected = { route -> appRoute = route.toAppRoute() },
@@ -1843,6 +1851,12 @@ fun NaviampApp(
                                 onPlayStation = internetRadioController::playStation,
                                 onSaveStation = internetRadioController::saveStation,
                                 onDeleteStation = internetRadioController::deleteStation,
+                            ),
+                            albumDetailActions = desktopAlbumDetailActions(
+                                actionSources = detailActionSources,
+                                appActions = appActions,
+                                playlistsController = playlistsController,
+                                onBack = { appRoute = albumController.albumDetailBackRoute },
                             ),
                             connectionActions = NaviampConnectionSettingsActions(
                                 onFormChanged = { form ->
@@ -1971,15 +1985,7 @@ fun NaviampApp(
                             playlistsController = playlistsController,
                             libraryController = libraryController,
                             searchController = searchController,
-                            albumDetailBackRoute = albumController.albumDetailBackRoute,
-                            detailActionSources = DesktopDetailActionSources(
-                                selectedAlbum = albumController.selectedAlbum,
-                                albumDetail = albumController.selectedAlbumDetails,
-                                selectedArtist = artistController.selectedArtist,
-                                artistDetail = artistController.selectedArtistDetails,
-                                artistPopularTracks = artistController.selectedArtistPopularTracks,
-                                artistSimilarArtists = artistController.selectedArtistSimilarArtists,
-                            ),
+                            detailActionSources = detailActionSources,
                             playlistActionSources = playlistActionSources,
                             onPlaylistRenameRequested = playlistsController::requestPlaylistRename,
                             onPlaylistDeleteRequested = playlistsController::requestPlaylistDelete,
