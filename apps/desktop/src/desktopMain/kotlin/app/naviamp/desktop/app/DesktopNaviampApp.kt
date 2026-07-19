@@ -93,8 +93,10 @@ import app.naviamp.ui.NaviampSleepTimerUi
 import app.naviamp.ui.NaviampConnectionCapabilitiesUi
 import app.naviamp.ui.NaviampSavedConnectionUi
 import app.naviamp.ui.NaviampLibraryScreenUi
+import app.naviamp.ui.NaviampLibraryActions
 import app.naviamp.ui.NaviampLibrarySyncStatusUi
 import app.naviamp.ui.NaviampSearchScreenUi
+import app.naviamp.ui.NaviampSearchActions
 import app.naviamp.ui.NaviampAlbumDetailScreenUi
 import app.naviamp.ui.NaviampAppShellActions
 import app.naviamp.ui.NaviampAppShellUiState
@@ -1788,6 +1790,14 @@ fun NaviampApp(
                                     }
                                 },
                             ),
+                            searchActions = NaviampSearchActions(
+                                onQueryChanged = searchController::updateQuery,
+                                onClear = searchController::clearSearch,
+                            ),
+                            libraryActions = NaviampLibraryActions(
+                                onQueryChanged = libraryController::updateQuery,
+                                onRefresh = libraryController::refreshArtistIndex,
+                            ),
                             artistMixActions = SharedArtistMixBuilderActions(
                                 onQueryChanged = mixBuilderController::setArtistQuery,
                                 onSearch = mixBuilderController::searchArtistSuggestions,
@@ -1888,7 +1898,6 @@ fun NaviampApp(
                             onPlaylistRenameRequested = playlistsController::requestPlaylistRename,
                             onPlaylistDeleteRequested = playlistsController::requestPlaylistDelete,
                             libraryListState = libraryListState,
-                            onLibraryQueryChanged = libraryController::updateQuery,
                             internetRadioActionSources = DesktopInternetRadioActionSources(
                                 stations = internetRadioController.stations,
                             ),

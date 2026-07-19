@@ -102,7 +102,6 @@ fun ColumnScope.DesktopAppRouteContent(
     onPlaylistRenameRequested: (Playlist) -> Unit,
     onPlaylistDeleteRequested: (Playlist) -> Unit,
     libraryListState: LazyListState,
-    onLibraryQueryChanged: (String) -> Unit,
     internetRadioActionSources: DesktopInternetRadioActionSources,
     onSaveInternetRadioStation: (InternetRadioStation) -> Unit,
     onDeleteInternetRadioStation: (InternetRadioStation) -> Unit,
@@ -180,14 +179,6 @@ fun ColumnScope.DesktopAppRouteContent(
             onClearLibrary = onClearLibrary,
             onRefreshLibrary = onRefreshLibrary,
             onResetDatabase = onResetDatabase,
-        ),
-        searchActions = NaviampSearchActions(
-            onQueryChanged = searchController::updateQuery,
-            onClear = searchController::clearSearch,
-        ),
-        libraryActions = NaviampLibraryActions(
-            onQueryChanged = onLibraryQueryChanged,
-            onRefresh = libraryController::refreshArtistIndex,
         ),
     )
     fun handleArtistMediaAction(
