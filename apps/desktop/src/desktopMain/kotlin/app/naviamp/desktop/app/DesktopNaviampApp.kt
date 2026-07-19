@@ -1871,7 +1871,13 @@ fun NaviampApp(
                             ),
                             mediaActions = desktopMediaActions(
                                 playlistActionSources = playlistActionSources,
-                                artists = libraryController.snapshot.artists,
+                                artists = if (appRoute == DesktopAppRoute.Search) {
+                                    searchController.results.artists
+                                } else {
+                                    libraryController.snapshot.artists
+                                },
+                                albums = searchController.results.albums,
+                                tracks = searchController.results.tracks,
                                 appActions = appActions,
                                 playlistsController = playlistsController,
                             ),
@@ -2001,7 +2007,6 @@ fun NaviampApp(
                             appActions = appActions,
                             playlistsController = playlistsController,
                             onLibraryJumpToLetter = libraryController::jumpLibraryToLetter,
-                            searchController = searchController,
                             libraryListState = libraryListState,
                             connectedSourceId = connectedSourceId,
                             downloadRefreshToken = downloadsController.refreshToken,

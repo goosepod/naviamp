@@ -396,6 +396,7 @@ Record architecture decisions here or link a dedicated decision record.
 | 2026-07-19 | Complete Desktop shell-action composition at the application root. | Once all screen-specific contracts arrive in `NaviampAppShellActions`, the route renderer should consume that aggregate directly instead of making empty copies; the root name now reflects the full shell rather than its earlier builder-only scope. |
 | 2026-07-19 | Lift Desktop playlist-list row actions into the root media contract. | Playlist selection, playback, download, queue, add-to-playlist, rename, delete, and keep-downloaded intent now resolve current IDs in a focused Desktop `NaviampMediaActions` adapter; the route loses its playlist resolver and mutation callbacks. |
 | 2026-07-19 | Lift Desktop Library artist actions into the root media contract. | Library selection, radio, similar-artist, queue, playlist, and favorite intent now resolve current artist IDs in the Desktop media adapter; route rendering keeps only the narrow indexed-jump callback rather than the Library controller. |
+| 2026-07-19 | Lift Desktop Search media actions into the root media contract. | Search artist, album, and track intent now resolves against current route-specific results in the Desktop media adapter before playback, queue, download, favorite, playlist, or navigation execution; the route loses its Search controller and local media helpers. |
 
 ## Shared Controller Construction Audit
 
@@ -421,7 +422,7 @@ The 2026-07-17 audit covers every current application entry point:
 
 ## Current Handoff
 
-- **Last completed item:** Desktop Library artist actions now enter route rendering through root-owned `NaviampMediaActions`; stable-ID lookup remains in the Desktop adapter, while the route receives only a narrow indexed-jump callback instead of the Library controller.
-- **Next recommended item:** Extend the root media adapter to resolve Search artists, albums, and tracks, then remove the Search controller and remaining media-action helpers from route rendering.
+- **Last completed item:** Desktop Search artist, album, and track actions now enter route rendering through root-owned `NaviampMediaActions`; current route-specific results remain in the Desktop adapter, while the route loses its Search controller and local media helpers.
+- **Next recommended item:** Audit the remaining route inputs for composition-root-safe Home and downloads action dispatch. Keep indexed Library navigation and native settings-sync launchers narrow and route-local until dedicated contracts replace them.
 - **Verification:** `:core:domain:jvmTest`, `:core:app:jvmTest`, `:core:storage:jvmTest`, `:core:ui:jvmTest`, `:apps:android:testDebugUnitTest`, `:apps:desktop:desktopTest`, `:core:app:iosSimulatorArm64Test`, `:core:storage:compileKotlinIosSimulatorArm64`, and `:core:ui:compileKotlinIosSimulatorArm64` pass together with at most two Gradle workers.
 - **Known blockers:** None.

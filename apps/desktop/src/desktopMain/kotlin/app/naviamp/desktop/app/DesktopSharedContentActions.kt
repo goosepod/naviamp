@@ -313,6 +313,8 @@ internal fun desktopPlaylistDetailActions(
 internal fun desktopMediaActions(
     playlistActionSources: DesktopPlaylistActionSources,
     artists: List<Artist>,
+    albums: List<Album>,
+    tracks: List<Track>,
     appActions: DesktopAppActions,
     playlistsController: DesktopPlaylistsController,
 ): NaviampMediaActions = NaviampMediaActions(
@@ -368,6 +370,53 @@ internal fun desktopMediaActions(
                     SharedMediaItemAction.DeleteStation,
                     -> Unit
                 }
+            }
+        }
+        if (request.kind == SharedMediaItemKind.Album) {
+            albums.firstOrNull { album -> album.id.value == request.item.id }?.let { album ->
+                when (request.action) {
+                    SharedMediaItemAction.Select -> appActions.openAlbumDetails(album)
+                    SharedMediaItemAction.StartRadio -> appActions.playAlbumRadio(album)
+                    SharedMediaItemAction.Download -> appActions.downloadAlbum(album)
+                    SharedMediaItemAction.AddToQueue -> playlistsController.addAlbumToQueue(album)
+                    SharedMediaItemAction.AddToPlaylist -> playlistsController.openAlbumAddToPlaylist(album)
+                    SharedMediaItemAction.ToggleFavorite -> appActions.toggleAlbumFavorite(album)
+                    SharedMediaItemAction.Play,
+                    SharedMediaItemAction.Shuffle,
+                    SharedMediaItemAction.FindSimilar,
+                    SharedMediaItemAction.CreatePlaylistAndAdd,
+                    SharedMediaItemAction.CopyPlaylist,
+                    SharedMediaItemAction.CopyPlaylistDeduplicated,
+                    SharedMediaItemAction.Rename,
+                    SharedMediaItemAction.EditSmartPlaylist,
+                    SharedMediaItemAction.Delete,
+                    SharedMediaItemAction.EditStation,
+                    SharedMediaItemAction.DeleteStation,
+                    -> Unit
+                }
+            }
+        }
+    },
+    onTrackAction = { request ->
+        val index = tracks.indexOfFirst { track -> track.id.value == request.track.id }
+        tracks.getOrNull(index)?.let { track ->
+            when (request.action) {
+                SharedTrackRowAction.Select -> appActions.playSearchTrack(index)
+                SharedTrackRowAction.PlayNext -> playlistsController.playNext(track)
+                SharedTrackRowAction.StartRadio -> appActions.playSearchTrackRadio(index)
+                SharedTrackRowAction.PlayTrackRadioNext -> appActions.playTrackRadioNext(track)
+                SharedTrackRowAction.AddTrackRadioToQueue -> appActions.addTrackRadioToQueue(track)
+                SharedTrackRowAction.Download -> appActions.downloadSearchTrack(index)
+                SharedTrackRowAction.AddToQueue -> appActions.addSearchTrackToQueue(index)
+                SharedTrackRowAction.AddToPlaylist -> appActions.openSearchTrackAddToPlaylist(index)
+                SharedTrackRowAction.CreatePlaylistAndAdd -> Unit
+                SharedTrackRowAction.ToggleFavorite -> appActions.toggleTrackFavorite(track)
+                SharedTrackRowAction.GoToAlbum -> appActions.openTrackAlbumDetails(track)
+                SharedTrackRowAction.GoToArtist -> appActions.openTrackArtistDetails(
+                    track,
+                    artistId = request.artistId,
+                    artistName = request.artistName,
+                )
             }
         }
     },

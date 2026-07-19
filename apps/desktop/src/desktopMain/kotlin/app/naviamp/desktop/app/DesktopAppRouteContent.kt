@@ -21,8 +21,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import app.naviamp.desktop.settings.CacheSettings
 import app.naviamp.desktop.settings.PlaybackSettings
-import app.naviamp.domain.Album
-import app.naviamp.domain.Artist
 import app.naviamp.domain.Track
 import app.naviamp.domain.cache.DownloadJob
 import app.naviamp.domain.cache.KeepDownloadedCollectionPolicy
@@ -57,7 +55,6 @@ import app.naviamp.ui.NaviampShellNavigationActions
 import app.naviamp.ui.SharedGenreMixItemUi
 import app.naviamp.ui.SharedHomeRoute
 import app.naviamp.ui.SharedHomeDiscoveryTrackActionRequest
-import app.naviamp.ui.SharedMediaItemAction
 import app.naviamp.ui.SharedMediaItemUi
 import app.naviamp.ui.SharedMixBuilderUi
 import app.naviamp.ui.SharedTrackGroupAction
@@ -82,7 +79,6 @@ fun ColumnScope.DesktopAppRouteContent(
     appActions: DesktopAppActions,
     playlistsController: DesktopPlaylistsController,
     onLibraryJumpToLetter: (Char) -> Unit,
-    searchController: DesktopSearchController,
     libraryListState: LazyListState,
     connectedSourceId: String?,
     downloadRefreshToken: Int,
@@ -120,56 +116,6 @@ fun ColumnScope.DesktopAppRouteContent(
         onImport = onSettingsSyncImport,
     )
     val sharedShellState = shellState
-    fun handleArtistMediaAction(
-        requestAction: SharedMediaItemAction,
-        artist: Artist,
-    ) {
-        when (requestAction) {
-            SharedMediaItemAction.Select -> appActions.openArtistDetails(artist)
-            SharedMediaItemAction.StartRadio -> appActions.playArtistRadio(artist)
-            SharedMediaItemAction.FindSimilar -> appActions.findSimilarArtists(artist)
-            SharedMediaItemAction.AddToQueue -> playlistsController.addArtistToQueue(artist)
-            SharedMediaItemAction.AddToPlaylist -> playlistsController.openArtistAddToPlaylist(artist)
-            SharedMediaItemAction.ToggleFavorite -> appActions.toggleArtistFavorite(artist)
-            SharedMediaItemAction.Play,
-            SharedMediaItemAction.Shuffle,
-            SharedMediaItemAction.Download,
-            SharedMediaItemAction.CreatePlaylistAndAdd,
-            SharedMediaItemAction.CopyPlaylist,
-            SharedMediaItemAction.CopyPlaylistDeduplicated,
-            SharedMediaItemAction.Rename,
-            SharedMediaItemAction.EditSmartPlaylist,
-            SharedMediaItemAction.Delete,
-            SharedMediaItemAction.EditStation,
-            SharedMediaItemAction.DeleteStation,
-            -> Unit
-        }
-    }
-    fun handleAlbumMediaAction(
-        requestAction: SharedMediaItemAction,
-        album: Album,
-    ) {
-        when (requestAction) {
-            SharedMediaItemAction.Select -> appActions.openAlbumDetails(album)
-            SharedMediaItemAction.StartRadio -> appActions.playAlbumRadio(album)
-            SharedMediaItemAction.Download -> appActions.downloadAlbum(album)
-            SharedMediaItemAction.AddToQueue -> playlistsController.addAlbumToQueue(album)
-            SharedMediaItemAction.AddToPlaylist -> playlistsController.openAlbumAddToPlaylist(album)
-            SharedMediaItemAction.ToggleFavorite -> appActions.toggleAlbumFavorite(album)
-            SharedMediaItemAction.Play,
-            SharedMediaItemAction.Shuffle,
-            SharedMediaItemAction.FindSimilar,
-            SharedMediaItemAction.CreatePlaylistAndAdd,
-            SharedMediaItemAction.CopyPlaylist,
-            SharedMediaItemAction.CopyPlaylistDeduplicated,
-            SharedMediaItemAction.Rename,
-            SharedMediaItemAction.EditSmartPlaylist,
-            SharedMediaItemAction.Delete,
-            SharedMediaItemAction.EditStation,
-            SharedMediaItemAction.DeleteStation,
-            -> Unit
-        }
-    }
     val sharedShellActions = shellActions
 
     Box(
@@ -293,44 +239,8 @@ fun ColumnScope.DesktopAppRouteContent(
                     appColors = appColors,
                     search = sharedShellState.search,
                     actions = sharedShellActions.searchActions,
-                    onMediaItemAction = { request ->
-                        resolveDesktopMediaItemAction(
-                            request = request,
-                            artists = searchController.results.artists,
-                            albums = searchController.results.albums,
-                            onArtistAction = { action, artist ->
-                                handleArtistMediaAction(action.action, artist)
-                            },
-                            onAlbumAction = { action, album ->
-                                handleAlbumMediaAction(action.action, album)
-                            },
-                        )
-                    },
-                    onTrackAction = { request ->
-                        resolveDesktopTrackAction(
-                            request = request,
-                            tracks = searchController.results.tracks,
-                        ) { action, index, track ->
-                            when (action.action) {
-                                SharedTrackRowAction.Select -> appActions.playSearchTrack(index)
-                                SharedTrackRowAction.PlayNext -> playlistsController.playNext(track)
-                                SharedTrackRowAction.StartRadio -> appActions.playSearchTrackRadio(index)
-                                SharedTrackRowAction.PlayTrackRadioNext -> appActions.playTrackRadioNext(track)
-                                SharedTrackRowAction.AddTrackRadioToQueue -> appActions.addTrackRadioToQueue(track)
-                                SharedTrackRowAction.Download -> appActions.downloadSearchTrack(index)
-                                SharedTrackRowAction.AddToQueue -> appActions.addSearchTrackToQueue(index)
-                                SharedTrackRowAction.AddToPlaylist -> appActions.openSearchTrackAddToPlaylist(index)
-                                SharedTrackRowAction.CreatePlaylistAndAdd -> Unit
-                                SharedTrackRowAction.ToggleFavorite -> appActions.toggleTrackFavorite(track)
-                                SharedTrackRowAction.GoToAlbum -> appActions.openTrackAlbumDetails(track)
-                                SharedTrackRowAction.GoToArtist -> appActions.openTrackArtistDetails(
-                                    track,
-                                    artistId = action.artistId,
-                                    artistName = action.artistName,
-                                )
-                            }
-                        }
-                    },
+                    onMediaItemAction = sharedShellActions.mediaActions.onMediaItemAction ?: {},
+                    onTrackAction = sharedShellActions.mediaActions.onTrackAction,
                 )
                 DesktopAppRoute.ArtistMix -> Column(
                     modifier = Modifier.fillMaxSize(),
