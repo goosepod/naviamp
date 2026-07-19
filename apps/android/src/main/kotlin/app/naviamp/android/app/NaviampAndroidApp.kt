@@ -1000,8 +1000,10 @@ fun NaviampAndroidApp(
         onSyncedSettingsChanged = { onSyncedSettingsChanged() },
     )
 
-    AndroidAppShellContent(
-        state = shellUiState,
+    NaviampSharedAppShell(
+        modifier = shellUiState.modifier,
+        uiState = shellUiState.presentation,
+        visualizerBandsProvider = shellUiState.visualizerBandsProvider,
         actions = shellActions,
         settingsSync = settingsSyncUi(
             directoryPath = null,
