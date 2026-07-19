@@ -1002,19 +1002,12 @@ private fun ConnectedContent(
         else -> when (selectedRoute) {
             SharedRoute.Home -> SharedHomeRoute(
                 colors = colors,
-                home = home.content,
-                isRefreshing = home.refreshing,
-                onRefresh = homeActions.onRefresh,
+                home = home,
+                actions = homeActions,
                 onAlbumSelected = onAlbumSelected,
                 onAlbumFavoriteToggled = onAlbumFavoriteToggled,
                 onMixAlbumSelected = onMixAlbumSelected,
                 onPlaylistSelected = onPlaylistSelected,
-                onRecentRadioSelected = homeActions.onRecentRadioSelected,
-                onMixBuilderSelected = homeActions.onMixBuilderSelected,
-                onInternetRadioStationSelected = homeActions.onInternetRadioStationSelected,
-                onHomeStationSelected = homeActions.onStationSelected,
-                onSonicDiscoveryTrackAction = homeActions.onSonicDiscoveryTrackAction,
-                onRecentlyPlayedTrackAction = homeActions.onRecentlyPlayedTrackAction,
             )
             SharedRoute.Playlists -> PullToRefreshRoute(
                 isRefreshing = playlists.refreshing,

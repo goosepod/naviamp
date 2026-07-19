@@ -415,6 +415,7 @@ Record architecture decisions here or link a dedicated decision record.
 | 2026-07-19 | Carry route-shared media intent intact into Desktop Library. | Artist selection and row actions already belong to `NaviampMediaActions`; the Library panel should consume that grouped contract instead of receiving a route-expanded dispatcher callback. |
 | 2026-07-19 | Carry route-shared media intent intact into Desktop Search. | Artist, album, and track row actions share `NaviampMediaActions`; the Search panel should consume that contract instead of requiring route rendering to split media-item and track dispatchers. |
 | 2026-07-19 | Carry route-shared media intent intact into Desktop Playlists. | Playlist selection, playback, download, queue, and mutation requests already use the typed media dispatcher in `NaviampMediaActions`; smart-playlist authoring remains separately owned by `NaviampPlaylistsActions`. |
+| 2026-07-19 | Consume grouped Home presentation and intent in the shared route. | `NaviampHomeScreenUi` and `NaviampHomeActions` already define Home refresh, station, radio, mix-builder, discovery, and recently-played behavior; shared rendering should not expand them back into state fragments and callbacks. |
 
 ## Shared Controller Construction Audit
 
@@ -440,7 +441,7 @@ The 2026-07-17 audit covers every current application entry point:
 
 ## Current Handoff
 
-- **Last completed item:** Desktop Playlists now consumes typed row intent through `NaviampMediaActions` while smart-playlist authoring remains in `NaviampPlaylistsActions`; the route no longer expands the media dispatcher.
-- **Next recommended item:** Audit Desktop detail and Home panels for any remaining expansion of grouped shared contracts, then document which final route inputs are intentionally platform-owned.
+- **Last completed item:** Shared Home rendering now consumes `NaviampHomeScreenUi` and `NaviampHomeActions` intact on Android and Desktop instead of expanding refresh and Home-specific callbacks.
+- **Next recommended item:** Carry route-shared album and playlist selection through `NaviampMediaActions` at the Home renderer boundary, then group Artist Detail interface preferences.
 - **Verification:** `:core:domain:jvmTest`, `:core:app:jvmTest`, `:core:storage:jvmTest`, `:core:ui:jvmTest`, `:apps:android:testDebugUnitTest`, `:apps:desktop:desktopTest`, `:core:app:iosSimulatorArm64Test`, `:core:storage:compileKotlinIosSimulatorArm64`, and `:core:ui:compileKotlinIosSimulatorArm64` pass together with at most two Gradle workers.
 - **Known blockers:** None.

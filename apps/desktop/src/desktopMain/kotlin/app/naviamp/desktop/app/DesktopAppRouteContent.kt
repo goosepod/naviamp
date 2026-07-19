@@ -102,20 +102,12 @@ fun ColumnScope.DesktopAppRouteContent(
                 DesktopAppRoute.Player -> Unit
                 DesktopAppRoute.Home -> SharedHomeRoute(
                     colors = appColors,
-                    home = shellState.home.content,
-                    isRefreshing = shellState.home.refreshing,
-                    onRefresh = shellActions.homeActions.onRefresh,
+                    home = shellState.home,
+                    actions = shellActions.homeActions,
                     onAlbumSelected = shellActions.mediaActions.onAlbumSelected,
                     onAlbumFavoriteToggled = shellActions.mediaActions.onAlbumFavoriteToggled,
                     onMixAlbumSelected = shellActions.mediaActions.onMixAlbumSelected,
                     onPlaylistSelected = shellActions.mediaActions.onPlaylistSelected,
-                    onRecentRadioSelected = shellActions.homeActions.onRecentRadioSelected,
-                    onInternetRadioStationSelected =
-                        shellActions.homeActions.onInternetRadioStationSelected,
-                    onMixBuilderSelected = shellActions.homeActions.onMixBuilderSelected,
-                    onHomeStationSelected = shellActions.homeActions.onStationSelected,
-                    onSonicDiscoveryTrackAction = shellActions.homeActions.onSonicDiscoveryTrackAction,
-                    onRecentlyPlayedTrackAction = shellActions.homeActions.onRecentlyPlayedTrackAction,
                 )
                 DesktopAppRoute.AlbumDetail -> DesktopAlbumDetailPanel(
                     appColors = appColors,

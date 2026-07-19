@@ -145,23 +145,16 @@ fun SharedHome(
 @Composable
 fun SharedHomeRoute(
     colors: NaviampColors,
-    home: SharedHomeUi,
-    isRefreshing: Boolean,
-    onRefresh: () -> Unit,
+    home: NaviampHomeScreenUi,
+    actions: NaviampHomeActions,
     onAlbumSelected: (SharedMediaItemUi) -> Unit,
     onMixAlbumSelected: (SharedMediaItemUi) -> Unit,
     onPlaylistSelected: (SharedMediaItemUi) -> Unit,
-    onRecentRadioSelected: (SharedMediaItemUi) -> Unit,
-    onInternetRadioStationSelected: (SharedMediaItemUi) -> Unit,
-    onMixBuilderSelected: (SharedMixBuilderUi) -> Unit,
-    onHomeStationSelected: (SharedHomeStationUi) -> Unit,
-    onSonicDiscoveryTrackAction: (SharedHomeDiscoveryTrackActionRequest) -> Unit = {},
-    onRecentlyPlayedTrackAction: (SharedTrackRowActionRequest) -> Unit = {},
     onAlbumFavoriteToggled: (SharedMediaItemUi) -> Unit = {},
 ) {
     PullToRefreshBox(
-        isRefreshing = isRefreshing,
-        onRefresh = onRefresh,
+        isRefreshing = home.refreshing,
+        onRefresh = actions.onRefresh,
         modifier = Modifier.fillMaxSize(),
     ) {
         Box(
@@ -171,18 +164,18 @@ fun SharedHomeRoute(
         ) {
             SharedHome(
                 colors = colors,
-                home = home,
+                home = home.content,
                 onAlbumSelected = onAlbumSelected,
                 onMixAlbumSelected = onMixAlbumSelected,
                 onPlaylistSelected = onPlaylistSelected,
-                onRecentRadioSelected = onRecentRadioSelected,
-                onInternetRadioStationSelected = onInternetRadioStationSelected,
-                onMixBuilderSelected = onMixBuilderSelected,
-                onHomeStationSelected = onHomeStationSelected,
-                onSonicDiscoveryTrackAction = onSonicDiscoveryTrackAction,
-                onRecentlyPlayedTrackAction = onRecentlyPlayedTrackAction,
+                onRecentRadioSelected = actions.onRecentRadioSelected,
+                onInternetRadioStationSelected = actions.onInternetRadioStationSelected,
+                onMixBuilderSelected = actions.onMixBuilderSelected,
+                onHomeStationSelected = actions.onStationSelected,
+                onSonicDiscoveryTrackAction = actions.onSonicDiscoveryTrackAction,
+                onRecentlyPlayedTrackAction = actions.onRecentlyPlayedTrackAction,
                 onAlbumFavoriteToggled = onAlbumFavoriteToggled,
-                onRefresh = onRefresh,
+                onRefresh = actions.onRefresh,
             )
         }
     }
