@@ -408,6 +408,11 @@ fun ColumnScope.DesktopAppRouteContent(
         }
     }
     val sharedShellActions = baseSharedShellActions.copy(
+        artistMixActions = artistMixActions,
+        albumMixActions = albumMixActions,
+        genreMixActions = genreMixActions,
+        sonicPathActions = sonicPathActions,
+        sonicMixActions = sonicMixActions,
         albumDetailActions = NaviampAlbumDetailActions(
             onBack = { onRouteSelected(albumDetailBackRoute) },
             onPlay = { _, shuffle -> appActions.playAlbumDetails(shuffle = shuffle) },
@@ -748,13 +753,13 @@ fun ColumnScope.DesktopAppRouteContent(
                         ArtistMixBuilderContent(
                             colors = appColors,
                             builder = sharedShellState.artistMixBuilder,
-                            actions = artistMixActions,
+                            actions = sharedShellActions.artistMixActions,
                             showPlayMixButton = false,
                         )
                     }
                     if (sharedShellState.artistMixBuilder.selectedArtists.isNotEmpty()) {
                         Button(
-                            onClick = artistMixActions.onPlay,
+                            onClick = sharedShellActions.artistMixActions.onPlay,
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = appColors.accent,
                                 contentColor = appColors.onAccent,
@@ -777,13 +782,13 @@ fun ColumnScope.DesktopAppRouteContent(
                         AlbumMixBuilderContent(
                             colors = appColors,
                             builder = sharedShellState.albumMixBuilder,
-                            actions = albumMixActions,
+                            actions = sharedShellActions.albumMixActions,
                             showPlayMixButton = false,
                         )
                     }
                     if (sharedShellState.albumMixBuilder.selectedAlbums.isNotEmpty()) {
                         Button(
-                            onClick = albumMixActions.onPlay,
+                            onClick = sharedShellActions.albumMixActions.onPlay,
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = appColors.accent,
                                 contentColor = appColors.onAccent,
@@ -806,13 +811,13 @@ fun ColumnScope.DesktopAppRouteContent(
                         GenreMixBuilderContent(
                             colors = appColors,
                             builder = sharedShellState.genreMixBuilder,
-                            actions = genreMixActions,
+                            actions = sharedShellActions.genreMixActions,
                             showPlayMixButton = false,
                         )
                     }
                     if (sharedShellState.genreMixBuilder.selectedGenres.isNotEmpty()) {
                         Button(
-                            onClick = genreMixActions.onPlay,
+                            onClick = sharedShellActions.genreMixActions.onPlay,
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = appColors.accent,
                                 contentColor = appColors.onAccent,
@@ -835,7 +840,7 @@ fun ColumnScope.DesktopAppRouteContent(
                         SonicPathBuilderContent(
                             colors = appColors,
                             builder = sharedShellState.sonicPathBuilder,
-                            actions = sonicPathActions,
+                            actions = sharedShellActions.sonicPathActions,
                             showPathActions = false,
                         )
                     }
@@ -845,7 +850,7 @@ fun ColumnScope.DesktopAppRouteContent(
                             modifier = Modifier.fillMaxWidth(),
                         ) {
                             Button(
-                                onClick = sonicPathActions.onPlay,
+                                onClick = sharedShellActions.sonicPathActions.onPlay,
                                 colors = ButtonDefaults.buttonColors(
                                     containerColor = appColors.accent,
                                     contentColor = appColors.onAccent,
@@ -855,7 +860,7 @@ fun ColumnScope.DesktopAppRouteContent(
                                 Text("Play Path")
                             }
                             Button(
-                                onClick = sonicPathActions.onAddToQueue,
+                                onClick = sharedShellActions.sonicPathActions.onAddToQueue,
                                 modifier = Modifier.weight(1f),
                             ) {
                                 Text("Add to Queue")
@@ -881,7 +886,7 @@ fun ColumnScope.DesktopAppRouteContent(
                         SonicMixBuilderContent(
                             colors = appColors,
                             builder = sharedShellState.sonicMixBuilder,
-                            actions = sonicMixActions,
+                            actions = sharedShellActions.sonicMixActions,
                             showMixActions = false,
                         )
                     }
@@ -891,7 +896,7 @@ fun ColumnScope.DesktopAppRouteContent(
                             modifier = Modifier.fillMaxWidth(),
                         ) {
                             Button(
-                                onClick = sonicMixActions.onPlay,
+                                onClick = sharedShellActions.sonicMixActions.onPlay,
                                 colors = ButtonDefaults.buttonColors(
                                     containerColor = appColors.accent,
                                     contentColor = appColors.onAccent,
@@ -901,7 +906,7 @@ fun ColumnScope.DesktopAppRouteContent(
                                 Text("Play Mix")
                             }
                             Button(
-                                onClick = sonicMixActions.onAddToQueue,
+                                onClick = sharedShellActions.sonicMixActions.onAddToQueue,
                                 modifier = Modifier.weight(1f),
                             ) {
                                 Text("Add to Queue")
@@ -990,7 +995,7 @@ fun ColumnScope.DesktopAppRouteContent(
             description = "Save this Sonic Path in order as a server playlist.",
             onDismissRequest = { saveSonicPathDialogOpen = false },
             onSave = { name ->
-                sonicPathActions.onSaveAsPlaylist(name)
+                sharedShellActions.sonicPathActions.onSaveAsPlaylist(name)
                 saveSonicPathDialogOpen = false
             },
         )
@@ -1003,7 +1008,7 @@ fun ColumnScope.DesktopAppRouteContent(
             description = "Save this Sonic Mix in order as a server playlist.",
             onDismissRequest = { saveSonicMixDialogOpen = false },
             onSave = { name ->
-                sonicMixActions.onSaveAsPlaylist(name)
+                sharedShellActions.sonicMixActions.onSaveAsPlaylist(name)
                 saveSonicMixDialogOpen = false
             },
         )

@@ -378,6 +378,7 @@ Record architecture decisions here or link a dedicated decision record.
 | 2026-07-18 | Route Desktop Search and Library intent through shared action contracts. | Query, clear, and refresh intent should enter the Desktop panels as `NaviampSearchActions` and `NaviampLibraryActions`; Desktop-only indexed-list navigation and stable-ID domain resolution remain explicit adapter callbacks. |
 | 2026-07-18 | Route Desktop album and artist detail intent through shared action contracts. | Detail panels should consume `NaviampAlbumDetailActions` and `NaviampArtistDetailActions` directly; Desktop resolves stable shared IDs into domain albums, artists, and tracks before invoking playback, queue, provider, or navigation executors. |
 | 2026-07-18 | Route Desktop playlist intent through shared action contracts. | Playlist list and detail panels should consume `NaviampPlaylistsActions` and `NaviampPlaylistDetailActions`; smart-playlist dialogs retain Desktop library inputs while provider mutations and stable-ID resolution stay in the route adapter. |
+| 2026-07-18 | Route every Desktop builder through the shared shell action aggregate. | Artist, album, genre, Sonic Path, and Sonic Mix content, route controls, and save dialogs should consume the same action objects carried by `NaviampAppShellActions`; their controllers remain Desktop executors. |
 
 ## Shared Controller Construction Audit
 
@@ -403,7 +404,7 @@ The 2026-07-17 audit covers every current application entry point:
 
 ## Current Handoff
 
-- **Last completed item:** Desktop playlist list and detail panels now consume `NaviampPlaylistsActions` and `NaviampPlaylistDetailActions` from the shared shell aggregate. Smart-playlist dialogs retain Desktop library inputs, while provider mutations, track mapping, and stable-ID resolution remain in the route adapter.
-- **Next recommended item:** Route artist, album, genre, Sonic Path, and Sonic Mix builder intent through the matching action fields already carried by `NaviampAppShellActions`. Then continue with Internet Radio before moving aggregate construction toward the Desktop composition root.
+- **Last completed item:** Desktop artist, album, genre, Sonic Path, and Sonic Mix builder content, route controls, and save dialogs now consume their matching action objects through `NaviampAppShellActions`; Desktop controllers remain the executors.
+- **Next recommended item:** Route Internet Radio intent through `NaviampInternetRadioActions`, retaining stable-ID station resolution and provider execution in Desktop. Then move shared shell aggregate construction toward the Desktop composition root and audit remaining parallel route parameters.
 - **Verification:** `:core:domain:jvmTest`, `:core:app:jvmTest`, `:core:storage:jvmTest`, `:core:ui:jvmTest`, `:apps:android:testDebugUnitTest`, `:apps:desktop:desktopTest`, `:core:app:iosSimulatorArm64Test`, `:core:storage:compileKotlinIosSimulatorArm64`, and `:core:ui:compileKotlinIosSimulatorArm64` pass together with at most two Gradle workers.
 - **Known blockers:** None.
