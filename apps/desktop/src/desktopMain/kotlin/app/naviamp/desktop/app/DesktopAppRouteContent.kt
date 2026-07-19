@@ -54,7 +54,6 @@ import app.naviamp.ui.NaviampInternetRadioScreenUi
 import app.naviamp.ui.NaviampInternetRadioActions
 import app.naviamp.ui.NaviampPlaylistDetailScreenUi
 import app.naviamp.ui.NaviampPlaylistDetailActions
-import app.naviamp.ui.NaviampPlaylistsActions
 import app.naviamp.ui.NaviampPlaylistsScreenUi
 import app.naviamp.ui.NaviampSearchScreenUi
 import app.naviamp.ui.NaviampSearchActions
@@ -72,7 +71,6 @@ import app.naviamp.ui.SharedTrackGroupAction
 import app.naviamp.ui.SharedTrackGroupActionRequest
 import app.naviamp.ui.SharedTrackRowAction
 import app.naviamp.ui.SharedTrackRowUi
-import app.naviamp.ui.SharedPlaylistSortMode
 import app.naviamp.ui.SaveQueueAsPlaylistDialog
 import app.naviamp.ui.StationRowAction
 import app.naviamp.ui.SonicMixBuilderContent
@@ -94,11 +92,9 @@ fun ColumnScope.DesktopAppRouteContent(
     internetRadioController: DesktopInternetRadioController,
     libraryController: DesktopLibraryController,
     searchController: DesktopSearchController,
-    smartPlaylistsController: DesktopSmartPlaylistsController,
     albumDetailBackRoute: DesktopAppRoute,
     detailActionSources: DesktopDetailActionSources,
     playlistActionSources: DesktopPlaylistActionSources,
-    onPlaylistSortModeChanged: (SharedPlaylistSortMode) -> Unit,
     onPlaylistRenameRequested: (Playlist) -> Unit,
     onPlaylistDeleteRequested: (Playlist) -> Unit,
     libraryListState: LazyListState,
@@ -362,27 +358,6 @@ fun ColumnScope.DesktopAppRouteContent(
             onAlbumAction = { request ->
                 detailActionSources.album(request.item.id)
                     ?.let { album -> handleAlbumMediaAction(request.action, album) }
-            },
-        ),
-        playlistsActions = NaviampPlaylistsActions(
-            onRefresh = { playlistsController.refreshPlaylists(useCache = false) },
-            onSortModeChanged = onPlaylistSortModeChanged,
-            onSmartPlaylistSave = smartPlaylistsController::saveSmartPlaylist,
-            onSmartPlaylistUpdate = { item, definition ->
-                playlistActionSources.playlist(item.id)?.let { playlist ->
-                    smartPlaylistsController.updateSmartPlaylist(playlist, definition)
-                }
-            },
-            onSmartPlaylistSaveWithPassword = smartPlaylistsController::saveSmartPlaylistWithPassword,
-            onSmartPlaylistUpdateWithPassword = { item, definition, password ->
-                playlistActionSources.playlist(item.id)?.let { playlist ->
-                    smartPlaylistsController.updateSmartPlaylistWithPassword(playlist, definition, password)
-                }
-            },
-            onSmartPlaylistLoad = { item ->
-                playlistActionSources.playlist(item.id)
-                    ?.let { smartPlaylistsController.loadSmartPlaylistDefinition(it) }
-                    ?: error("Playlist ${item.title} is no longer available.")
             },
         ),
         playlistDetailActions = NaviampPlaylistDetailActions(

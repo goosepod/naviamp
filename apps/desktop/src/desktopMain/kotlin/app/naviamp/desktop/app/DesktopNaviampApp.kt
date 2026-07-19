@@ -109,6 +109,7 @@ import app.naviamp.ui.NaviampSettingsMaintenanceActions
 import app.naviamp.ui.NaviampSettingsValueActions
 import app.naviamp.ui.NaviampArtistDetailScreenUi
 import app.naviamp.ui.NaviampPlaylistDetailScreenUi
+import app.naviamp.ui.NaviampPlaylistsActions
 import app.naviamp.ui.NaviampPlaylistsScreenUi
 import app.naviamp.ui.NaviampShellCapabilitiesUi
 import app.naviamp.ui.NaviampShellConnectionUi
@@ -1762,6 +1763,12 @@ fun NaviampApp(
                                 status = internetRadioController.status,
                             ),
                         )
+                        val playlistActionSources = DesktopPlaylistActionSources(
+                            playlists = playlistsController.playlists,
+                            playlistTracksById = playlistsController.playlistTracksById,
+                            selectedPlaylist = playlistsController.selectedPlaylist,
+                            selectedPlaylistTracks = playlistsController.selectedPlaylistTracks,
+                        )
                         val builderShellActions = NaviampAppShellActions(
                             navigationActions = NaviampShellNavigationActions(
                                 onRouteSelected = { route -> appRoute = route.toAppRoute() },
@@ -1800,6 +1807,32 @@ fun NaviampApp(
                             libraryActions = NaviampLibraryActions(
                                 onQueryChanged = libraryController::updateQuery,
                                 onRefresh = libraryController::refreshArtistIndex,
+                            ),
+                            playlistsActions = NaviampPlaylistsActions(
+                                onRefresh = { playlistsController.refreshPlaylists(useCache = false) },
+                                onSortModeChanged = playlistsController::updateSortMode,
+                                onSmartPlaylistSave = smartPlaylistsController::saveSmartPlaylist,
+                                onSmartPlaylistUpdate = { item, definition ->
+                                    playlistActionSources.playlist(item.id)?.let { playlist ->
+                                        smartPlaylistsController.updateSmartPlaylist(playlist, definition)
+                                    }
+                                },
+                                onSmartPlaylistSaveWithPassword =
+                                    smartPlaylistsController::saveSmartPlaylistWithPassword,
+                                onSmartPlaylistUpdateWithPassword = { item, definition, password ->
+                                    playlistActionSources.playlist(item.id)?.let { playlist ->
+                                        smartPlaylistsController.updateSmartPlaylistWithPassword(
+                                            playlist,
+                                            definition,
+                                            password,
+                                        )
+                                    }
+                                },
+                                onSmartPlaylistLoad = { item ->
+                                    playlistActionSources.playlist(item.id)
+                                        ?.let { smartPlaylistsController.loadSmartPlaylistDefinition(it) }
+                                        ?: error("Playlist ${item.title} is no longer available.")
+                                },
                             ),
                             connectionActions = NaviampConnectionSettingsActions(
                                 onFormChanged = { form ->
@@ -1929,7 +1962,6 @@ fun NaviampApp(
                             internetRadioController = internetRadioController,
                             libraryController = libraryController,
                             searchController = searchController,
-                            smartPlaylistsController = smartPlaylistsController,
                             albumDetailBackRoute = albumController.albumDetailBackRoute,
                             detailActionSources = DesktopDetailActionSources(
                                 selectedAlbum = albumController.selectedAlbum,
@@ -1939,13 +1971,7 @@ fun NaviampApp(
                                 artistPopularTracks = artistController.selectedArtistPopularTracks,
                                 artistSimilarArtists = artistController.selectedArtistSimilarArtists,
                             ),
-                            playlistActionSources = DesktopPlaylistActionSources(
-                                playlists = playlistsController.playlists,
-                                playlistTracksById = playlistsController.playlistTracksById,
-                                selectedPlaylist = playlistsController.selectedPlaylist,
-                                selectedPlaylistTracks = playlistsController.selectedPlaylistTracks,
-                            ),
-                            onPlaylistSortModeChanged = playlistsController::updateSortMode,
+                            playlistActionSources = playlistActionSources,
                             onPlaylistRenameRequested = playlistsController::requestPlaylistRename,
                             onPlaylistDeleteRequested = playlistsController::requestPlaylistDelete,
                             libraryListState = libraryListState,
