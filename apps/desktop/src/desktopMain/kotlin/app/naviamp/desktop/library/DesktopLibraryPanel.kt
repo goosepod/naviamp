@@ -28,8 +28,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.naviamp.ui.NaviampLibraryActions
 import app.naviamp.ui.NaviampLibraryScreenUi
+import app.naviamp.ui.NaviampMediaActions
 import app.naviamp.ui.NaviampPageTitle
-import app.naviamp.ui.SharedMediaItemActionRequest
 
 @Composable
 fun DesktopLibraryPanel(
@@ -37,7 +37,7 @@ fun DesktopLibraryPanel(
     library: NaviampLibraryScreenUi,
     listState: LazyListState,
     actions: NaviampLibraryActions,
-    onMediaItemAction: (SharedMediaItemActionRequest) -> Unit,
+    mediaActions: NaviampMediaActions,
 ) {
     val query = library.query
     val status = library.syncStatus.message
@@ -119,7 +119,7 @@ fun DesktopLibraryPanel(
                         canStartRadio = true,
                         canAddToQueue = true,
                         canAddToPlaylist = true,
-                        onItemAction = onMediaItemAction,
+                        onItemAction = mediaActions.onMediaItemAction ?: {},
                     )
                 }
                 item {

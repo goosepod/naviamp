@@ -149,7 +149,7 @@ fun ColumnScope.DesktopAppRouteContent(
                         library = shellState.library,
                         listState = libraryListState,
                         actions = shellActions.libraryActions,
-                        onMediaItemAction = shellActions.mediaActions.onMediaItemAction ?: {},
+                        mediaActions = shellActions.mediaActions,
                     )
                 }
                 DesktopAppRoute.Search -> DesktopSearchPanel(
