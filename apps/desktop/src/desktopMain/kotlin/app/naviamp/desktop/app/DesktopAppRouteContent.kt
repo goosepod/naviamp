@@ -124,8 +124,6 @@ fun ColumnScope.DesktopAppRouteContent(
         onImport = onSettingsSyncImport,
     )
     val sharedShellState = shellState
-    val baseSharedShellActions = shellActions.copy(
-    )
     fun handleArtistMediaAction(
         requestAction: SharedMediaItemAction,
         artist: Artist,
@@ -202,8 +200,7 @@ fun ColumnScope.DesktopAppRouteContent(
             -> Unit
         }
     }
-    val sharedShellActions = baseSharedShellActions.copy(
-    )
+    val sharedShellActions = shellActions
 
     Box(
         modifier = Modifier

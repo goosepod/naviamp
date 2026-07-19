@@ -1780,7 +1780,7 @@ fun NaviampApp(
                             artistPopularTracks = artistController.selectedArtistPopularTracks,
                             artistSimilarArtists = artistController.selectedArtistSimilarArtists,
                         )
-                        val builderShellActions = NaviampAppShellActions(
+                        val desktopShellActions = NaviampAppShellActions(
                             navigationActions = NaviampShellNavigationActions(
                                 onRouteSelected = { route -> appRoute = route.toAppRoute() },
                             ),
@@ -1985,7 +1985,7 @@ fun NaviampApp(
                         )
                         DesktopAppRouteContent(
                             shellState = desktopShellState,
-                            shellActions = builderShellActions,
+                            shellActions = desktopShellActions,
                             appColors = appColors,
                             appRoute = appRoute,
                             connection = shellConnection,

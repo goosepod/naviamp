@@ -393,6 +393,7 @@ Record architecture decisions here or link a dedicated decision record.
 | 2026-07-19 | Lift resolver-backed Desktop album-detail actions into the composition root. | A focused Desktop action factory resolves current album and track IDs before dispatching playback, queue, download, favorite, playlist, or navigation work; the route renderer no longer constructs album actions or owns the Desktop back route. |
 | 2026-07-19 | Lift resolver-backed Desktop artist-detail actions into the composition root. | A focused Desktop action factory resolves current artist, album, popular-track, and similar-artist IDs before executor dispatch; route rendering no longer receives the detail resolver or constructs artist actions. |
 | 2026-07-19 | Lift resolver-backed Desktop playlist-detail actions into the composition root. | A focused Desktop action factory resolves the selected playlist and tracks before playback, queue, download, copy, keep-downloaded, or reorder execution; route rendering retains the resolver only for playlist-list row dispatch. |
+| 2026-07-19 | Complete Desktop shell-action composition at the application root. | Once all screen-specific contracts arrive in `NaviampAppShellActions`, the route renderer should consume that aggregate directly instead of making empty copies; the root name now reflects the full shell rather than its earlier builder-only scope. |
 
 ## Shared Controller Construction Audit
 
@@ -418,7 +419,7 @@ The 2026-07-17 audit covers every current application entry point:
 
 ## Current Handoff
 
-- **Last completed item:** Desktop playlist-detail actions now enter the route through composition-root `NaviampAppShellActions`; a focused Desktop adapter retains selected-playlist and track resolution, while the route loses its playlist-detail action block.
-- **Next recommended item:** Remove the now-empty route-level shell action copies and consume the root-owned aggregate directly. Keep playlist-list row resolution route-local until the broader media-action boundary is audited.
+- **Last completed item:** Desktop shell actions are now composed completely at the application root and consumed directly by route rendering; the obsolete empty `copy()` chain and builder-only aggregate name are removed.
+- **Next recommended item:** Audit route-shared media actions and extract the composition-root-safe resolver dispatch into focused Desktop adapters, starting with playlist-list row actions. Keep indexed library navigation and native settings-sync launchers route-local until their boundaries are addressed separately.
 - **Verification:** `:core:domain:jvmTest`, `:core:app:jvmTest`, `:core:storage:jvmTest`, `:core:ui:jvmTest`, `:apps:android:testDebugUnitTest`, `:apps:desktop:desktopTest`, `:core:app:iosSimulatorArm64Test`, `:core:storage:compileKotlinIosSimulatorArm64`, and `:core:ui:compileKotlinIosSimulatorArm64` pass together with at most two Gradle workers.
 - **Known blockers:** None.
