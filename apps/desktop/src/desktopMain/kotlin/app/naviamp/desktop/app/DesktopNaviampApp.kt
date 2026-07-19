@@ -312,7 +312,7 @@ fun NaviampApp(
     val playbackQueueProperty = remember { desktopPlaybackQueueProperty(livePlaybackController) }
     var playbackQueue by playbackQueueProperty
     var sleepTimer by remember { mutableStateOf<SleepTimerState?>(null) }
-    var sleepTimerNowEpochMillis by remember { mutableLongStateOf(System.currentTimeMillis()) }
+    var sleepTimerNowEpochMillis by remember { mutableLongStateOf(DesktopSystemClock.nowEpochMillis()) }
     playlistEngine.setSonicAutoplayTracksProvider { queue ->
         val enabled = playbackSettings.sonicAutoplayEnabled &&
             connectedProvider?.capabilities?.supportsSonicSimilarity == true
@@ -390,7 +390,7 @@ fun NaviampApp(
         setSleepTimerNowEpochMillis = { millis -> sleepTimerNowEpochMillis = millis },
         setStatus = { status -> connectionStatus = status },
         stopPlayback = playbackController::stop,
-        nowEpochMillis = { System.currentTimeMillis() },
+        nowEpochMillis = DesktopSystemClock::nowEpochMillis,
     )
     }
 
@@ -529,7 +529,7 @@ fun NaviampApp(
                 deviceId = DesktopSettingsSyncDeviceId,
                 state = ::settingsSyncRuntimeState,
                 saveState = ::saveSettingsSyncRuntimeState,
-                nowEpochMillis = { System.currentTimeMillis() },
+                nowEpochMillis = DesktopSystemClock::nowEpochMillis,
                 snapshot = {
                     SettingsSyncLocalSnapshot(
                         serverProfiles = storage.mediaSources(),
