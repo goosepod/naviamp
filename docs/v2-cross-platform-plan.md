@@ -376,6 +376,7 @@ Record architecture decisions here or link a dedicated decision record.
 | 2026-07-18 | Begin Desktop shared-shell adoption at Home and Settings. | The existing Desktop route adapter should construct `NaviampAppShellUiState` and `NaviampAppShellActions`, then consume their Home and grouped settings contracts first; Desktop player rendering, window/menu integration, native dialogs, BASS execution, and remaining route adapters stay unchanged during this behavior-preserving slice. |
 | 2026-07-18 | Route grouped Desktop screen presentation through the shared shell state. | Album, artist, playlist, library, search, builder, and Internet Radio models should be read from `NaviampAppShellUiState` while existing Desktop resolvers continue to execute domain and platform work. |
 | 2026-07-18 | Route Desktop Search and Library intent through shared action contracts. | Query, clear, and refresh intent should enter the Desktop panels as `NaviampSearchActions` and `NaviampLibraryActions`; Desktop-only indexed-list navigation and stable-ID domain resolution remain explicit adapter callbacks. |
+| 2026-07-18 | Route Desktop album and artist detail intent through shared action contracts. | Detail panels should consume `NaviampAlbumDetailActions` and `NaviampArtistDetailActions` directly; Desktop resolves stable shared IDs into domain albums, artists, and tracks before invoking playback, queue, provider, or navigation executors. |
 
 ## Shared Controller Construction Audit
 
@@ -401,7 +402,7 @@ The 2026-07-17 audit covers every current application entry point:
 
 ## Current Handoff
 
-- **Last completed item:** Desktop Search and Library panels now consume their focused action contracts from `NaviampAppShellActions`. Search query/clear and Library query/refresh no longer cross those panel boundaries as individual callbacks; Desktop-only jump-to-letter and media resolution stay in the route adapter.
-- **Next recommended item:** Route album, artist, and playlist detail intent through `NaviampAlbumDetailActions`, `NaviampArtistDetailActions`, and `NaviampPlaylistDetailActions`, retaining only the stable-ID-to-domain resolution and platform execution required by Desktop. Then continue with playlists, builders, and Internet Radio before moving aggregate construction toward the Desktop composition root.
+- **Last completed item:** Desktop album and artist detail panels now consume `NaviampAlbumDetailActions` and `NaviampArtistDetailActions` from the shared shell aggregate. Stable-ID resolution and platform execution remain in the Desktop route adapter, and duplicate detail callback lists were removed from the panel boundary.
+- **Next recommended item:** Route playlist list and playlist detail intent through `NaviampPlaylistsActions` and `NaviampPlaylistDetailActions`, keeping only provider/domain resolution and Desktop smart-playlist dialog inputs outside the shared contracts. Then continue with builders and Internet Radio before moving aggregate construction toward the Desktop composition root.
 - **Verification:** `:core:domain:jvmTest`, `:core:app:jvmTest`, `:core:storage:jvmTest`, `:core:ui:jvmTest`, `:apps:android:testDebugUnitTest`, `:apps:desktop:desktopTest`, `:core:app:iosSimulatorArm64Test`, `:core:storage:compileKotlinIosSimulatorArm64`, and `:core:ui:compileKotlinIosSimulatorArm64` pass together with at most two Gradle workers.
 - **Known blockers:** None.

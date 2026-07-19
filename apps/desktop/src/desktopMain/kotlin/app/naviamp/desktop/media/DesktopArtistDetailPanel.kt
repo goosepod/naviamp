@@ -31,6 +31,7 @@ import androidx.compose.ui.unit.sp
 import app.naviamp.domain.settings.AlbumCollectionLayout
 import app.naviamp.domain.settings.AlbumSortOrder
 import app.naviamp.ui.NaviampArtistDetailScreenUi
+import app.naviamp.ui.NaviampArtistDetailActions
 import app.naviamp.ui.SharedMediaItemAction
 import app.naviamp.ui.ExpandedMediaImageDialog
 import app.naviamp.ui.NaviampDetailAction
@@ -58,13 +59,7 @@ fun DesktopArtistDetailPanel(
     albumCollectionLayout: AlbumCollectionLayout,
     albumSortOrder: AlbumSortOrder,
     groupAlbumsByReleaseType: Boolean,
-    onBack: () -> Unit,
-    onSimilarArtistSelected: (SharedSimilarArtistUi) -> Unit,
-    onArtistAction: (SharedMediaItemActionRequest) -> Unit,
-    onArtistCatalogPlay: (List<SharedMediaItemUi>, Boolean) -> Unit,
-    onPopularTracksAction: (SharedTrackGroupActionRequest) -> Unit,
-    onPopularTrackAction: (SharedTrackRowActionRequest) -> Unit,
-    onAlbumAction: (SharedMediaItemActionRequest) -> Unit,
+    actions: NaviampArtistDetailActions,
 ) {
     val detail = screen.detail
     val artist = detail?.artist ?: screen.selectedArtist
@@ -88,17 +83,23 @@ fun DesktopArtistDetailPanel(
     }.orEmpty()
     val displayedAlbums = visibleAlbumSections.flatMap { section -> section.albums }
     fun requestArtistAction(action: SharedMediaItemAction) {
-        artist?.let { item ->
-            onArtistAction(item.actionRequest(action, kind = SharedMediaItemKind.Artist))
+        val details = detail ?: return
+        when (action) {
+            SharedMediaItemAction.StartRadio -> actions.onRadio(details)
+            SharedMediaItemAction.AddToQueue -> actions.onAddToQueue(details)
+            SharedMediaItemAction.AddToPlaylist -> actions.onAddToPlaylist(details, null)
+            SharedMediaItemAction.ToggleFavorite -> artist?.let(actions.onFavoriteToggled)
+            SharedMediaItemAction.FindSimilar -> actions.onFindSimilar(details)
+            else -> Unit
         }
     }
     fun requestPopularTracksAction(action: SharedTrackGroupAction) {
-        onPopularTracksAction(
-            SharedTrackGroupActionRequest(
-                tracks = detail?.popularTracks.orEmpty(),
-                action = action,
-            ),
-        )
+        val details = detail ?: return
+        when (action) {
+            SharedTrackGroupAction.Play -> actions.onPopularPlay(details)
+            SharedTrackGroupAction.StartRadio -> actions.onPopularRadio(details)
+            SharedTrackGroupAction.AddToQueue -> actions.onPopularAddToQueue(details)
+        }
     }
 
     Column(
@@ -112,7 +113,7 @@ fun DesktopArtistDetailPanel(
             horizontalArrangement = Arrangement.spacedBy(2.dp),
         ) {
             IconButton(
-                onClick = onBack,
+                onClick = actions.onBack,
                 modifier = Modifier.size(32.dp),
             ) {
                 Icon(
@@ -173,7 +174,7 @@ fun DesktopArtistDetailPanel(
                     NaviampResponsiveActionRow(
                         colors = appColors,
                         actions = listOf(
-                            NaviampDetailAction("Play artist catalog", TransportIcons.Play, { onArtistCatalogPlay(displayedAlbums, false) }, displayedAlbums.isNotEmpty()),
+                            NaviampDetailAction("Play artist catalog", TransportIcons.Play, { actions.onPlay(details) }, displayedAlbums.isNotEmpty()),
                             NaviampDetailAction("Start artist radio", TransportIcons.Radio, { requestArtistAction(SharedMediaItemAction.StartRadio) }, details.albums.isNotEmpty()),
                             NaviampDetailAction(
                                 if (artist?.favoriteActive == true) "Remove artist favorite" else "Favorite artist",
@@ -190,7 +191,7 @@ fun DesktopArtistDetailPanel(
                             ),
                             NaviampDetailAction("Add artist to queue", DesktopNavigationIcons.Queue, { requestArtistAction(SharedMediaItemAction.AddToQueue) }, details.albums.isNotEmpty()),
                             NaviampDetailAction("Add artist to playlist", DesktopNavigationIcons.Playlist, { requestArtistAction(SharedMediaItemAction.AddToPlaylist) }, details.albums.isNotEmpty()),
-                            NaviampDetailAction("Shuffle artist catalog", TransportIcons.Shuffle, { onArtistCatalogPlay(displayedAlbums, true) }, displayedAlbums.isNotEmpty()),
+                            NaviampDetailAction("Shuffle artist catalog", TransportIcons.Shuffle, { actions.onShuffle(details) }, displayedAlbums.isNotEmpty()),
                         ),
                     )
                     details.biography
@@ -255,7 +256,7 @@ fun DesktopArtistDetailPanel(
                             SimilarArtistRow(
                                 appColors = appColors,
                                 similarArtist = similarArtist,
-                                onSimilarArtistSelected = onSimilarArtistSelected,
+                                onSimilarArtistSelected = actions.onSimilarArtistSelected,
                             )
                         }
                     }
@@ -303,7 +304,7 @@ fun DesktopArtistDetailPanel(
                                 canStartRadio = true,
                                 canDownload = false,
                                 canAddToQueue = true,
-                                onTrackAction = onPopularTrackAction,
+                                onTrackAction = actions.onTrackAction,
                             )
                         }
                     }
@@ -348,7 +349,7 @@ fun DesktopArtistDetailPanel(
                                         NaviampRowMenuItem(
                                             action.label,
                                             action.icon,
-                                            { onAlbumAction(item.actionRequest(mappedAction, kind = SharedMediaItemKind.Album)) },
+                                            { actions.onAlbumAction(item.actionRequest(mappedAction, kind = SharedMediaItemKind.Album)) },
                                             action.enabled,
                                         )
                                     }
@@ -356,10 +357,10 @@ fun DesktopArtistDetailPanel(
                                 SharedAlbumGridTile(
                                     item = item,
                                     colors = appColors,
-                                    onClick = { onAlbumAction(item.actionRequest(SharedMediaItemAction.Select, kind = SharedMediaItemKind.Album)) },
+                                    onClick = { actions.onAlbumAction(item.actionRequest(SharedMediaItemAction.Select, kind = SharedMediaItemKind.Album)) },
                                     menuItems = menuItems,
                                     onFavoriteToggled = { selected ->
-                                        onAlbumAction(selected.actionRequest(SharedMediaItemAction.ToggleFavorite, kind = SharedMediaItemKind.Album))
+                                        actions.onAlbumAction(selected.actionRequest(SharedMediaItemAction.ToggleFavorite, kind = SharedMediaItemKind.Album))
                                     },
                                 )
                             }
@@ -374,7 +375,7 @@ fun DesktopArtistDetailPanel(
                                     canDownload = true,
                                     canAddToQueue = true,
                                     canAddToPlaylist = true,
-                                    onItemAction = onAlbumAction,
+                                    onItemAction = actions.onAlbumAction,
                                 )
                             }
                         }

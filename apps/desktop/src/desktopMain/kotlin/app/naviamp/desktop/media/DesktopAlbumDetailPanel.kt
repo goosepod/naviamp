@@ -30,6 +30,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.naviamp.ui.NaviampAlbumDetailScreenUi
+import app.naviamp.ui.NaviampAlbumDetailActions
 import app.naviamp.ui.SharedMediaItemAction
 import app.naviamp.ui.ExpandedMediaImageDialog
 import app.naviamp.ui.NaviampDetailAction
@@ -43,10 +44,7 @@ import app.naviamp.ui.actionRequest
 fun DesktopAlbumDetailPanel(
     appColors: DesktopAppColors,
     screen: NaviampAlbumDetailScreenUi,
-    onBack: () -> Unit,
-    onAlbumAction: (SharedMediaItemActionRequest) -> Unit,
-    onTrackAction: (SharedTrackRowActionRequest) -> Unit,
-    onArtistSelected: (SharedTrackRowActionRequest) -> Unit,
+    actions: NaviampAlbumDetailActions,
 ) {
     val detail = screen.detail
     val album = detail?.album ?: screen.selectedAlbum
@@ -62,7 +60,7 @@ fun DesktopAlbumDetailPanel(
             horizontalArrangement = Arrangement.spacedBy(2.dp),
         ) {
             IconButton(
-                onClick = onBack,
+                onClick = actions.onBack,
                 modifier = Modifier.size(32.dp),
             ) {
                 Icon(
@@ -115,7 +113,7 @@ fun DesktopAlbumDetailPanel(
                             val artistCredit = artistTrack.artistCredits
                                 .firstOrNull { credit -> credit.id != null && credit.name == artistName }
                                 ?: artistTrack.artistCredits.firstOrNull { credit -> credit.id != null }
-                            onArtistSelected(
+                            actions.onTrackAction(
                                 SharedTrackRowActionRequest(
                                     track = artistTrack,
                                     action = app.naviamp.ui.SharedTrackRowAction.GoToArtist,
@@ -150,8 +148,17 @@ fun DesktopAlbumDetailPanel(
                 }
                 Box(modifier = Modifier.fillMaxWidth()) {
                     fun request(action: SharedMediaItemAction, shuffle: Boolean = false) {
-                        album?.let { item ->
-                            onAlbumAction(item.actionRequest(action, kind = SharedMediaItemKind.Album, shuffle = shuffle))
+                        val details = detail ?: return
+                        when (action) {
+                            SharedMediaItemAction.Play,
+                            SharedMediaItemAction.Shuffle,
+                            -> actions.onPlay(details, shuffle)
+                            SharedMediaItemAction.StartRadio -> actions.onRadio(details)
+                            SharedMediaItemAction.Download -> actions.onDownload(details)
+                            SharedMediaItemAction.AddToQueue -> actions.onAddToQueue(details)
+                            SharedMediaItemAction.AddToPlaylist -> actions.onAddToPlaylist(details, null)
+                            SharedMediaItemAction.ToggleFavorite -> album?.let(actions.onFavoriteToggled)
+                            else -> Unit
                         }
                     }
                     val tracksAvailable = detail?.tracks?.isNotEmpty() == true
@@ -207,7 +214,7 @@ fun DesktopAlbumDetailPanel(
                         canDownload = true,
                         canAddToQueue = true,
                         canAddToPlaylist = true,
-                        onTrackAction = onTrackAction,
+                        onTrackAction = actions.onTrackAction,
                     )
                 }
             }
