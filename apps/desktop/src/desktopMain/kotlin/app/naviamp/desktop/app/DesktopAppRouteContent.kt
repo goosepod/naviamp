@@ -43,7 +43,6 @@ import app.naviamp.ui.NaviampSettingsSyncActions
 import app.naviamp.ui.NaviampSettingsValueActions
 import app.naviamp.ui.NaviampAlbumDetailScreenUi
 import app.naviamp.ui.NaviampArtistDetailScreenUi
-import app.naviamp.ui.NaviampArtistDetailActions
 import app.naviamp.ui.NaviampSavedConnectionUi
 import app.naviamp.ui.NaviampLibraryActions
 import app.naviamp.ui.NaviampLibraryScreenUi
@@ -87,7 +86,6 @@ fun ColumnScope.DesktopAppRouteContent(
     playlistsController: DesktopPlaylistsController,
     libraryController: DesktopLibraryController,
     searchController: DesktopSearchController,
-    detailActionSources: DesktopDetailActionSources,
     playlistActionSources: DesktopPlaylistActionSources,
     onPlaylistRenameRequested: (Playlist) -> Unit,
     onPlaylistDeleteRequested: (Playlist) -> Unit,
@@ -241,67 +239,6 @@ fun ColumnScope.DesktopAppRouteContent(
         }
     }
     val sharedShellActions = baseSharedShellActions.copy(
-        artistDetailActions = NaviampArtistDetailActions(
-            onBack = appActions::closeArtistDetails,
-            onRadio = { details ->
-                detailActionSources.artist(details.artist.id)?.let(appActions::playArtistRadio)
-            },
-            onPlay = { details ->
-                appActions.playArtistCatalog(detailActionSources.artistAlbums(details.albums.map { it.id }), false)
-            },
-            onShuffle = { details ->
-                appActions.playArtistCatalog(detailActionSources.artistAlbums(details.albums.map { it.id }), true)
-            },
-            onAddToQueue = { details ->
-                detailActionSources.artist(details.artist.id)?.let(playlistsController::addArtistToQueue)
-            },
-            onAddToPlaylist = { details, _ ->
-                detailActionSources.artist(details.artist.id)?.let(playlistsController::openArtistAddToPlaylist)
-            },
-            onFavoriteToggled = { item ->
-                detailActionSources.artist(item.id)?.let(appActions::toggleArtistFavorite)
-            },
-            onPopularPlay = { appActions.playPopularTracks(detailActionSources.artistPopularTracks) },
-            onPopularRadio = { appActions.playPopularTracksRadio(detailActionSources.artistPopularTracks) },
-            onPopularAddToQueue = { appActions.addPopularTracksToQueue(detailActionSources.artistPopularTracks) },
-            onTrackAction = { request ->
-                detailActionSources.popularTrack(request.track.id)?.let { track ->
-                    when (request.action) {
-                        SharedTrackRowAction.Select -> appActions.playSelectedPopularTrack(track)
-                        SharedTrackRowAction.PlayNext -> playlistsController.playNext(track)
-                        SharedTrackRowAction.StartRadio -> appActions.playPopularTracksRadio(listOf(track))
-                        SharedTrackRowAction.PlayTrackRadioNext -> appActions.playTrackRadioNext(track)
-                        SharedTrackRowAction.AddTrackRadioToQueue -> appActions.addTrackRadioToQueue(track)
-                        SharedTrackRowAction.AddToQueue -> playlistsController.addTrackToQueue(track)
-                        SharedTrackRowAction.Download,
-                        SharedTrackRowAction.AddToPlaylist,
-                        SharedTrackRowAction.CreatePlaylistAndAdd,
-                        -> Unit
-                        SharedTrackRowAction.ToggleFavorite -> appActions.toggleTrackFavorite(track)
-                        SharedTrackRowAction.GoToAlbum -> appActions.openTrackAlbumDetails(track)
-                        SharedTrackRowAction.GoToArtist -> appActions.openTrackArtistDetails(
-                            track,
-                            artistId = request.artistId,
-                            artistName = request.artistName,
-                        )
-                    }
-                }
-            },
-            onFindSimilar = { details ->
-                detailActionSources.artist(details.artist.id)?.let(appActions::findSimilarArtists)
-            },
-            onSimilarArtistSelected = { item ->
-                val (localArtist, externalUrl) = detailActionSources.similarArtist(item)
-                when {
-                    localArtist != null -> appActions.openArtistDetails(localArtist)
-                    externalUrl != null -> appActions.openExternalArtistUrl(externalUrl)
-                }
-            },
-            onAlbumAction = { request ->
-                detailActionSources.album(request.item.id)
-                    ?.let { album -> handleAlbumMediaAction(request.action, album) }
-            },
-        ),
         playlistDetailActions = NaviampPlaylistDetailActions(
             onBack = { shellActions.navigationActions.onRouteSelected(app.naviamp.ui.SharedRoute.Playlists) },
             onMediaItemAction = ::handleSelectedPlaylistMediaAction,

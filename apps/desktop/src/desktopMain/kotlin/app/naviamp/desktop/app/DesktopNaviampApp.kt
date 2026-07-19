@@ -1858,6 +1858,11 @@ fun NaviampApp(
                                 playlistsController = playlistsController,
                                 onBack = { appRoute = albumController.albumDetailBackRoute },
                             ),
+                            artistDetailActions = desktopArtistDetailActions(
+                                actionSources = detailActionSources,
+                                appActions = appActions,
+                                playlistsController = playlistsController,
+                            ),
                             connectionActions = NaviampConnectionSettingsActions(
                                 onFormChanged = { form ->
                                     connectionForm.connectionName = form.displayName
@@ -1985,7 +1990,6 @@ fun NaviampApp(
                             playlistsController = playlistsController,
                             libraryController = libraryController,
                             searchController = searchController,
-                            detailActionSources = detailActionSources,
                             playlistActionSources = playlistActionSources,
                             onPlaylistRenameRequested = playlistsController::requestPlaylistRename,
                             onPlaylistDeleteRequested = playlistsController::requestPlaylistDelete,

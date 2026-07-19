@@ -15,7 +15,9 @@ import app.naviamp.ui.SharedTrackRowUi
 import app.naviamp.ui.NaviampInternetRadioStationEditUi
 import app.naviamp.ui.NaviampInternetRadioActions
 import app.naviamp.ui.NaviampAlbumDetailActions
+import app.naviamp.ui.NaviampArtistDetailActions
 import app.naviamp.ui.StationRowAction
+import app.naviamp.ui.SharedMediaItemAction
 import app.naviamp.ui.SharedTrackRowAction
 import app.naviamp.ui.toInternetRadioStation
 
@@ -143,6 +145,92 @@ internal fun desktopAlbumDetailActions(
                     artistName = request.artistName,
                     backRouteOverride = DesktopAppRoute.AlbumDetail,
                 )
+            }
+        }
+    },
+)
+
+internal fun desktopArtistDetailActions(
+    actionSources: DesktopDetailActionSources,
+    appActions: DesktopAppActions,
+    playlistsController: DesktopPlaylistsController,
+): NaviampArtistDetailActions = NaviampArtistDetailActions(
+    onBack = appActions::closeArtistDetails,
+    onRadio = { details ->
+        actionSources.artist(details.artist.id)?.let(appActions::playArtistRadio)
+    },
+    onPlay = { details ->
+        appActions.playArtistCatalog(actionSources.artistAlbums(details.albums.map { it.id }), false)
+    },
+    onShuffle = { details ->
+        appActions.playArtistCatalog(actionSources.artistAlbums(details.albums.map { it.id }), true)
+    },
+    onAddToQueue = { details ->
+        actionSources.artist(details.artist.id)?.let(playlistsController::addArtistToQueue)
+    },
+    onAddToPlaylist = { details, _ ->
+        actionSources.artist(details.artist.id)?.let(playlistsController::openArtistAddToPlaylist)
+    },
+    onFavoriteToggled = { item ->
+        actionSources.artist(item.id)?.let(appActions::toggleArtistFavorite)
+    },
+    onPopularPlay = { appActions.playPopularTracks(actionSources.artistPopularTracks) },
+    onPopularRadio = { appActions.playPopularTracksRadio(actionSources.artistPopularTracks) },
+    onPopularAddToQueue = { appActions.addPopularTracksToQueue(actionSources.artistPopularTracks) },
+    onTrackAction = { request ->
+        actionSources.popularTrack(request.track.id)?.let { track ->
+            when (request.action) {
+                SharedTrackRowAction.Select -> appActions.playSelectedPopularTrack(track)
+                SharedTrackRowAction.PlayNext -> playlistsController.playNext(track)
+                SharedTrackRowAction.StartRadio -> appActions.playPopularTracksRadio(listOf(track))
+                SharedTrackRowAction.PlayTrackRadioNext -> appActions.playTrackRadioNext(track)
+                SharedTrackRowAction.AddTrackRadioToQueue -> appActions.addTrackRadioToQueue(track)
+                SharedTrackRowAction.AddToQueue -> playlistsController.addTrackToQueue(track)
+                SharedTrackRowAction.Download,
+                SharedTrackRowAction.AddToPlaylist,
+                SharedTrackRowAction.CreatePlaylistAndAdd,
+                -> Unit
+                SharedTrackRowAction.ToggleFavorite -> appActions.toggleTrackFavorite(track)
+                SharedTrackRowAction.GoToAlbum -> appActions.openTrackAlbumDetails(track)
+                SharedTrackRowAction.GoToArtist -> appActions.openTrackArtistDetails(
+                    track,
+                    artistId = request.artistId,
+                    artistName = request.artistName,
+                )
+            }
+        }
+    },
+    onFindSimilar = { details ->
+        actionSources.artist(details.artist.id)?.let(appActions::findSimilarArtists)
+    },
+    onSimilarArtistSelected = { item ->
+        val (localArtist, externalUrl) = actionSources.similarArtist(item)
+        when {
+            localArtist != null -> appActions.openArtistDetails(localArtist)
+            externalUrl != null -> appActions.openExternalArtistUrl(externalUrl)
+        }
+    },
+    onAlbumAction = { request ->
+        actionSources.album(request.item.id)?.let { album ->
+            when (request.action) {
+                SharedMediaItemAction.Select -> appActions.openAlbumDetails(album)
+                SharedMediaItemAction.StartRadio -> appActions.playAlbumRadio(album)
+                SharedMediaItemAction.Download -> appActions.downloadAlbum(album)
+                SharedMediaItemAction.AddToQueue -> playlistsController.addAlbumToQueue(album)
+                SharedMediaItemAction.AddToPlaylist -> playlistsController.openAlbumAddToPlaylist(album)
+                SharedMediaItemAction.ToggleFavorite -> appActions.toggleAlbumFavorite(album)
+                SharedMediaItemAction.Play,
+                SharedMediaItemAction.Shuffle,
+                SharedMediaItemAction.FindSimilar,
+                SharedMediaItemAction.CreatePlaylistAndAdd,
+                SharedMediaItemAction.CopyPlaylist,
+                SharedMediaItemAction.CopyPlaylistDeduplicated,
+                SharedMediaItemAction.Rename,
+                SharedMediaItemAction.EditSmartPlaylist,
+                SharedMediaItemAction.Delete,
+                SharedMediaItemAction.EditStation,
+                SharedMediaItemAction.DeleteStation,
+                -> Unit
             }
         }
     },

@@ -391,6 +391,7 @@ Record architecture decisions here or link a dedicated decision record.
 | 2026-07-19 | Lift Desktop playlist-list actions into the composition root. | Refresh, sorting, and smart-playlist commands are complete root-owned contracts; the playlist resolver is composed once beside current controller state so stale shared IDs remain guarded without keeping action construction in route rendering. |
 | 2026-07-19 | Lift resolver-backed Desktop Internet Radio actions into the composition root. | A focused Desktop action factory resolves current station IDs and converts validated edit drafts before calling controller operations; route rendering receives only `NaviampInternetRadioActions` and no provider controller or domain station callbacks. |
 | 2026-07-19 | Lift resolver-backed Desktop album-detail actions into the composition root. | A focused Desktop action factory resolves current album and track IDs before dispatching playback, queue, download, favorite, playlist, or navigation work; the route renderer no longer constructs album actions or owns the Desktop back route. |
+| 2026-07-19 | Lift resolver-backed Desktop artist-detail actions into the composition root. | A focused Desktop action factory resolves current artist, album, popular-track, and similar-artist IDs before executor dispatch; route rendering no longer receives the detail resolver or constructs artist actions. |
 
 ## Shared Controller Construction Audit
 
@@ -416,7 +417,7 @@ The 2026-07-17 audit covers every current application entry point:
 
 ## Current Handoff
 
-- **Last completed item:** Desktop album-detail actions now enter the route through composition-root `NaviampAppShellActions`; a focused Desktop adapter retains current album/track resolution and executor dispatch, while the route loses its album-action block and back-route input.
-- **Next recommended item:** Extract resolver-backed artist-detail action composition into a focused Desktop adapter and lift the resulting contract to the composition root. Keep playlist-detail actions behind their existing stable-ID resolver source until the following focused slice.
+- **Last completed item:** Desktop artist-detail actions now enter the route through composition-root `NaviampAppShellActions`; a focused Desktop adapter retains artist, album, popular-track, and similar-artist resolution, while the route loses its detail resolver input and artist-action block.
+- **Next recommended item:** Extract resolver-backed playlist-detail action composition into a focused Desktop adapter and lift the resulting contract to the composition root. Keep playlist-list row resolution route-local until the broader media-action boundary is audited.
 - **Verification:** `:core:domain:jvmTest`, `:core:app:jvmTest`, `:core:storage:jvmTest`, `:core:ui:jvmTest`, `:apps:android:testDebugUnitTest`, `:apps:desktop:desktopTest`, `:core:app:iosSimulatorArm64Test`, `:core:storage:compileKotlinIosSimulatorArm64`, and `:core:ui:compileKotlinIosSimulatorArm64` pass together with at most two Gradle workers.
 - **Known blockers:** None.
