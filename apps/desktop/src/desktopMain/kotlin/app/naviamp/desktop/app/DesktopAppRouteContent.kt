@@ -67,12 +67,6 @@ import app.naviamp.ui.NaviampShellCapabilitiesUi
 import app.naviamp.ui.NaviampShellConnectionUi
 import app.naviamp.ui.NaviampShellChromeUi
 import app.naviamp.ui.NaviampShellNavigationActions
-import app.naviamp.ui.SharedAlbumMixBuilderUi
-import app.naviamp.ui.SharedAlbumMixBuilderActions
-import app.naviamp.ui.SharedArtistMixBuilderUi
-import app.naviamp.ui.SharedArtistMixBuilderActions
-import app.naviamp.ui.SharedGenreMixBuilderUi
-import app.naviamp.ui.SharedGenreMixBuilderActions
 import app.naviamp.ui.SharedGenreMixItemUi
 import app.naviamp.ui.SharedHomeRoute
 import app.naviamp.ui.SharedHomeDiscoveryTrackActionRequest
@@ -80,10 +74,6 @@ import app.naviamp.ui.SharedMediaItemAction
 import app.naviamp.ui.SharedMediaItemActionRequest
 import app.naviamp.ui.SharedMediaItemUi
 import app.naviamp.ui.SharedMixBuilderUi
-import app.naviamp.ui.SharedSonicMixBuilderActions
-import app.naviamp.ui.SharedSonicMixBuilderUi
-import app.naviamp.ui.SharedSonicPathBuilderActions
-import app.naviamp.ui.SharedSonicPathBuilderUi
 import app.naviamp.ui.SharedTrackGroupAction
 import app.naviamp.ui.SharedTrackGroupActionRequest
 import app.naviamp.ui.SharedTrackRowAction
@@ -109,7 +99,6 @@ fun ColumnScope.DesktopAppRouteContent(
     connection: NaviampShellConnectionUi,
     capabilities: NaviampShellCapabilitiesUi,
     about: NaviampAboutUi,
-    homeStatus: String?,
     homeContent: HomeContent,
     homeRefreshing: Boolean,
     onRefreshHome: () -> Unit,
@@ -128,7 +117,6 @@ fun ColumnScope.DesktopAppRouteContent(
     albumDetailBackRoute: DesktopAppRoute,
     artistDetail: NaviampArtistDetailScreenUi,
     detailActionSources: DesktopDetailActionSources,
-    artistDetailBackRoute: DesktopAppRoute,
     playlists: NaviampPlaylistsScreenUi,
     playlistDetail: NaviampPlaylistDetailScreenUi,
     playlistActionSources: DesktopPlaylistActionSources,
@@ -136,20 +124,9 @@ fun ColumnScope.DesktopAppRouteContent(
     onPlaylistRenameRequested: (Playlist) -> Unit,
     onPlaylistDeleteRequested: (Playlist) -> Unit,
     library: NaviampLibraryScreenUi,
-    libraryTab: DesktopLibraryTab,
     libraryListState: LazyListState,
     onLibraryQueryChanged: (String) -> Unit,
     search: NaviampSearchScreenUi,
-    artistMixBuilder: SharedArtistMixBuilderUi,
-    artistMixActions: SharedArtistMixBuilderActions,
-    albumMixBuilder: SharedAlbumMixBuilderUi,
-    albumMixActions: SharedAlbumMixBuilderActions,
-    genreMixBuilder: SharedGenreMixBuilderUi,
-    genreMixActions: SharedGenreMixBuilderActions,
-    sonicPathBuilder: SharedSonicPathBuilderUi,
-    sonicPathActions: SharedSonicPathBuilderActions,
-    sonicMixBuilder: SharedSonicMixBuilderUi,
-    sonicMixActions: SharedSonicMixBuilderActions,
     internetRadio: NaviampInternetRadioScreenUi,
     internetRadioActionSources: DesktopInternetRadioActionSources,
     onSaveInternetRadioStation: (InternetRadioStation) -> Unit,
