@@ -816,6 +816,29 @@ data class NaviampAppShellUiState(
     val nowPlaying: NowPlayingUi? = null,
 )
 
+data class NaviampAppShellActions(
+    val navigationActions: NaviampShellNavigationActions = NaviampShellNavigationActions(),
+    val connectionActions: NaviampConnectionSettingsActions = NaviampConnectionSettingsActions(),
+    val valueActions: NaviampSettingsValueActions = NaviampSettingsValueActions(),
+    val maintenanceActions: NaviampSettingsMaintenanceActions = NaviampSettingsMaintenanceActions(),
+    val searchActions: NaviampSearchActions = NaviampSearchActions(),
+    val artistMixActions: SharedArtistMixBuilderActions = SharedArtistMixBuilderActions(),
+    val albumMixActions: SharedAlbumMixBuilderActions = SharedAlbumMixBuilderActions(),
+    val genreMixActions: SharedGenreMixBuilderActions = SharedGenreMixBuilderActions(),
+    val sonicPathActions: SharedSonicPathBuilderActions = SharedSonicPathBuilderActions(),
+    val sonicMixActions: SharedSonicMixBuilderActions = SharedSonicMixBuilderActions(),
+    val downloadsActions: NaviampDownloadsActions = NaviampDownloadsActions(),
+    val libraryActions: NaviampLibraryActions = NaviampLibraryActions(),
+    val playlistsActions: NaviampPlaylistsActions = NaviampPlaylistsActions(),
+    val radioActions: NaviampInternetRadioActions = NaviampInternetRadioActions(),
+    val albumDetailActions: NaviampAlbumDetailActions = NaviampAlbumDetailActions(),
+    val artistDetailActions: NaviampArtistDetailActions = NaviampArtistDetailActions(),
+    val playlistDetailActions: NaviampPlaylistDetailActions = NaviampPlaylistDetailActions(),
+    val homeActions: NaviampHomeActions = NaviampHomeActions(),
+    val mediaActions: NaviampMediaActions = NaviampMediaActions(),
+    val nowPlayingActions: NaviampNowPlayingActions = NaviampNowPlayingActions(),
+)
+
 data class SharedSonicPathBuilderActions(
     val onStartQueryChanged: (String) -> Unit = {},
     val onEndQueryChanged: (String) -> Unit = {},

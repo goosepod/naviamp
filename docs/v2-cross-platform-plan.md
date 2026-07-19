@@ -372,6 +372,7 @@ Record architecture decisions here or link a dedicated decision record.
 | 2026-07-18 | Carry shell-chrome presentation through one focused shared model. | Selected route, Now Playing visibility, capability-derived navigation/update flags, and visualizer selection belong in `NaviampShellChromeUi`; live Now Playing content and the visualizer frame provider remain separate because they have distinct update cadence and execution concerns. |
 | 2026-07-18 | Build grouped Android settings presentation in the shell state factory. | `AndroidAppShellUiState` should carry `NaviampConnectionSettingsUi`, `NaviampGeneralSettingsUi`, `NaviampPlaybackSettingsUi`, and `NaviampCacheSettingsUi` directly; Android diagnostics, storage discovery, and capability calculation stay in the factory, while the grouped capability model remains available to launcher registration. |
 | 2026-07-18 | Carry stable shell presentation as one reusable aggregate. | Grouped settings, screen models, shell chrome, playlist choices, and Now Playing presentation belong in `NaviampAppShellUiState`; modifiers, settings-sync launcher state, visualizer frame providers, capability gating, and action contracts remain outside because their platform ownership or update cadence differs. |
+| 2026-07-18 | Carry stable shell intent as one reusable aggregate. | Navigation, settings, media, builder, downloads, and Now Playing contracts belong in `NaviampAppShellActions`; settings-sync actions remain a late-bound input because Android supplies Activity-result launchers, and every platform executor remains behind the grouped callbacks. |
 
 ## Shared Controller Construction Audit
 
@@ -397,7 +398,7 @@ The 2026-07-17 audit covers every current application entry point:
 
 ## Current Handoff
 
-- **Last completed item:** Android, the public shared shell, and its private connected renderer now carry stable grouped presentation as one `NaviampAppShellUiState`. Android retains only its modifier, capability group for launcher gating, and live visualizer provider outside that shared aggregate.
-- **Next recommended item:** Introduce a matching `NaviampAppShellActions` aggregate for the stable navigation, settings, media, builder, downloads, and Now Playing action contracts. Keep settings-sync actions separate because Android injects Activity result launchers after shell state construction, and keep every platform executor behind the supplied callbacks.
+- **Last completed item:** Android, the public shared shell, and its private connected renderer now carry stable intent as one `NaviampAppShellActions`; the platform-prefixed Android action contract has been removed. Settings-sync launchers remain the only late-bound action input.
+- **Next recommended item:** Begin Desktop adoption of the shared application entry point by constructing `NaviampAppShellUiState` and `NaviampAppShellActions` from the existing Desktop controllers and grouped models. Preserve Desktop window management, native dialogs, menu integration, BASS execution, and settings-sync filesystem adapters while replacing duplicated shell routing incrementally.
 - **Verification:** `:core:domain:jvmTest`, `:core:app:jvmTest`, `:core:storage:jvmTest`, `:core:ui:jvmTest`, `:apps:android:testDebugUnitTest`, `:apps:desktop:desktopTest`, `:core:app:iosSimulatorArm64Test`, `:core:storage:compileKotlinIosSimulatorArm64`, and `:core:ui:compileKotlinIosSimulatorArm64` pass together with at most two Gradle workers.
 - **Known blockers:** None.

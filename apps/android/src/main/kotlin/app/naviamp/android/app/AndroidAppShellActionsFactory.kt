@@ -15,6 +15,7 @@ import app.naviamp.domain.smartplaylist.SmartPlaylistDefinition
 import app.naviamp.ui.SharedTrackRowUi
 import app.naviamp.ui.DownloadedTrackActionRequest
 import app.naviamp.ui.NaviampNowPlayingItemUi
+import app.naviamp.ui.NaviampAppShellActions
 import app.naviamp.ui.NaviampNowPlayingActions
 import app.naviamp.ui.NaviampConnectionSettingsActions
 import app.naviamp.ui.NaviampDownloadsActions
@@ -249,9 +250,9 @@ fun androidAppShellActions(
     },
     toggleCurrentFavorite: () -> Unit,
     handleShellRatingSelected: (Int?) -> Unit,
-): AndroidAppShellActions =
+): NaviampAppShellActions =
     with(state) {
-        AndroidAppShellActions(
+        NaviampAppShellActions(
             navigationActions = NaviampShellNavigationActions(
                 onRouteSelected = { route ->
                     navigationState = navigationState.copy(route = route.toNaviampRoute())

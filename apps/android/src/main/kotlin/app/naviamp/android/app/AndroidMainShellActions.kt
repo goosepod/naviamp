@@ -2,6 +2,7 @@ package app.naviamp.android
 
 import app.naviamp.domain.playback.SleepTimerController
 import app.naviamp.ui.nowPlayingQueueIndex
+import app.naviamp.ui.NaviampAppShellActions
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -32,7 +33,7 @@ internal fun androidMainShellActions(
     nowPlayingSidecarController: AndroidNowPlayingSidecarController,
     apiLibraryController: AndroidApiLibraryController,
     onSyncedSettingsChanged: () -> Unit = {},
-): AndroidAppShellActions =
+): NaviampAppShellActions =
     androidAppShellActions(
         state = state,
         changePlaybackVolume = playbackAppController::changeVolume,

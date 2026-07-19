@@ -1,6 +1,7 @@
 package app.naviamp.android
 
 import androidx.compose.runtime.Composable
+import app.naviamp.ui.NaviampAppShellActions
 import app.naviamp.ui.NaviampSettingsSyncActions
 import app.naviamp.ui.NaviampSettingsSyncUi
 import app.naviamp.ui.NaviampSharedAppShell
@@ -8,7 +9,7 @@ import app.naviamp.ui.NaviampSharedAppShell
 @Composable
 fun AndroidAppShellContent(
     state: AndroidAppShellUiState,
-    actions: AndroidAppShellActions,
+    actions: NaviampAppShellActions,
     settingsSync: NaviampSettingsSyncUi = NaviampSettingsSyncUi(),
     syncActions: NaviampSettingsSyncActions = NaviampSettingsSyncActions(),
 ) {
@@ -17,26 +18,7 @@ fun AndroidAppShellContent(
         uiState = state.presentation,
         settingsSync = settingsSync,
         visualizerBandsProvider = state.visualizerBandsProvider,
-        navigationActions = actions.navigationActions,
-        connectionActions = actions.connectionActions,
+        actions = actions,
         syncActions = syncActions,
-        valueActions = actions.valueActions,
-        maintenanceActions = actions.maintenanceActions,
-        searchActions = actions.searchActions,
-        artistMixActions = actions.artistMixActions,
-        albumMixActions = actions.albumMixActions,
-        genreMixActions = actions.genreMixActions,
-        sonicPathActions = actions.sonicPathActions,
-        sonicMixActions = actions.sonicMixActions,
-        downloadsActions = actions.downloadsActions,
-        libraryActions = actions.libraryActions,
-        playlistsActions = actions.playlistsActions,
-        radioActions = actions.radioActions,
-        albumDetailActions = actions.albumDetailActions,
-        artistDetailActions = actions.artistDetailActions,
-        playlistDetailActions = actions.playlistDetailActions,
-        homeActions = actions.homeActions,
-        mediaActions = actions.mediaActions,
-        nowPlayingActions = actions.nowPlayingActions,
     )
 }

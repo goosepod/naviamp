@@ -103,28 +103,29 @@ fun NaviampSharedAppShell(
     uiState: NaviampAppShellUiState,
     settingsSync: NaviampSettingsSyncUi = NaviampSettingsSyncUi(),
     visualizerBandsProvider: () -> List<Float> = { uiState.nowPlaying?.visualizerFrame?.bands.orEmpty() },
-    navigationActions: NaviampShellNavigationActions,
-    connectionActions: NaviampConnectionSettingsActions,
+    actions: NaviampAppShellActions = NaviampAppShellActions(),
     syncActions: NaviampSettingsSyncActions = NaviampSettingsSyncActions(),
-    valueActions: NaviampSettingsValueActions = NaviampSettingsValueActions(),
-    maintenanceActions: NaviampSettingsMaintenanceActions = NaviampSettingsMaintenanceActions(),
-    searchActions: NaviampSearchActions = NaviampSearchActions(),
-    artistMixActions: SharedArtistMixBuilderActions = SharedArtistMixBuilderActions(),
-    albumMixActions: SharedAlbumMixBuilderActions = SharedAlbumMixBuilderActions(),
-    genreMixActions: SharedGenreMixBuilderActions = SharedGenreMixBuilderActions(),
-    sonicPathActions: SharedSonicPathBuilderActions = SharedSonicPathBuilderActions(),
-    sonicMixActions: SharedSonicMixBuilderActions = SharedSonicMixBuilderActions(),
-    downloadsActions: NaviampDownloadsActions = NaviampDownloadsActions(),
-    libraryActions: NaviampLibraryActions = NaviampLibraryActions(),
-    playlistsActions: NaviampPlaylistsActions = NaviampPlaylistsActions(),
-    radioActions: NaviampInternetRadioActions = NaviampInternetRadioActions(),
-    albumDetailActions: NaviampAlbumDetailActions = NaviampAlbumDetailActions(),
-    artistDetailActions: NaviampArtistDetailActions = NaviampArtistDetailActions(),
-    playlistDetailActions: NaviampPlaylistDetailActions = NaviampPlaylistDetailActions(),
-    homeActions: NaviampHomeActions = NaviampHomeActions(),
-    mediaActions: NaviampMediaActions,
-    nowPlayingActions: NaviampNowPlayingActions = NaviampNowPlayingActions(),
 ) {
+    val navigationActions = actions.navigationActions
+    val connectionActions = actions.connectionActions
+    val valueActions = actions.valueActions
+    val maintenanceActions = actions.maintenanceActions
+    val searchActions = actions.searchActions
+    val artistMixActions = actions.artistMixActions
+    val albumMixActions = actions.albumMixActions
+    val genreMixActions = actions.genreMixActions
+    val sonicPathActions = actions.sonicPathActions
+    val sonicMixActions = actions.sonicMixActions
+    val downloadsActions = actions.downloadsActions
+    val libraryActions = actions.libraryActions
+    val playlistsActions = actions.playlistsActions
+    val radioActions = actions.radioActions
+    val albumDetailActions = actions.albumDetailActions
+    val artistDetailActions = actions.artistDetailActions
+    val playlistDetailActions = actions.playlistDetailActions
+    val homeActions = actions.homeActions
+    val mediaActions = actions.mediaActions
+    val nowPlayingActions = actions.nowPlayingActions
     val connectionSettings = uiState.connectionSettings
     val general = uiState.general
     val playback = uiState.playback
@@ -187,7 +188,9 @@ fun NaviampSharedAppShell(
             ),
         )
     }
-    val resolvedMediaActions = mediaActions.copy(onMediaItemAction = resolvedMediaItemAction)
+    val resolvedActions = actions.copy(
+        mediaActions = mediaActions.copy(onMediaItemAction = resolvedMediaItemAction),
+    )
     val connection = connectionSettings.connection
     val status = connection.status.orEmpty()
     val serverVersion = connection.serverVersion
@@ -347,26 +350,8 @@ fun NaviampSharedAppShell(
                             uiState = uiState,
                             visualizerBandsProvider = visualizerBandsProvider,
                             settingsSync = settingsSync,
-                            connectionActions = connectionActions,
+                            actions = resolvedActions,
                             syncActions = syncActions,
-                            valueActions = valueActions,
-                            maintenanceActions = maintenanceActions,
-                            searchActions = searchActions,
-                            artistMixActions = artistMixActions,
-                            albumMixActions = albumMixActions,
-                            genreMixActions = genreMixActions,
-            sonicPathActions = sonicPathActions,
-            sonicMixActions = sonicMixActions,
-                            downloadsActions = downloadsActions,
-                            libraryActions = libraryActions,
-                            playlistsActions = playlistsActions,
-                            radioActions = radioActions,
-                            albumDetailActions = albumDetailActions,
-                            artistDetailActions = artistDetailActions,
-                            playlistDetailActions = playlistDetailActions,
-                            homeActions = homeActions,
-                            mediaActions = resolvedMediaActions,
-                            nowPlayingActions = nowPlayingActions,
                         )
                     }
                 }
@@ -790,27 +775,28 @@ private fun ConnectedContent(
     uiState: NaviampAppShellUiState,
     visualizerBandsProvider: () -> List<Float>,
     settingsSync: NaviampSettingsSyncUi,
-    connectionActions: NaviampConnectionSettingsActions,
+    actions: NaviampAppShellActions,
     syncActions: NaviampSettingsSyncActions,
-    valueActions: NaviampSettingsValueActions,
-    maintenanceActions: NaviampSettingsMaintenanceActions,
-    searchActions: NaviampSearchActions,
-    artistMixActions: SharedArtistMixBuilderActions,
-    albumMixActions: SharedAlbumMixBuilderActions,
-    genreMixActions: SharedGenreMixBuilderActions,
-    sonicPathActions: SharedSonicPathBuilderActions,
-    sonicMixActions: SharedSonicMixBuilderActions,
-    downloadsActions: NaviampDownloadsActions,
-    libraryActions: NaviampLibraryActions,
-    playlistsActions: NaviampPlaylistsActions,
-    radioActions: NaviampInternetRadioActions,
-    albumDetailActions: NaviampAlbumDetailActions,
-    artistDetailActions: NaviampArtistDetailActions,
-    playlistDetailActions: NaviampPlaylistDetailActions,
-    homeActions: NaviampHomeActions,
-    mediaActions: NaviampMediaActions,
-    nowPlayingActions: NaviampNowPlayingActions,
 ) {
+    val connectionActions = actions.connectionActions
+    val valueActions = actions.valueActions
+    val maintenanceActions = actions.maintenanceActions
+    val searchActions = actions.searchActions
+    val artistMixActions = actions.artistMixActions
+    val albumMixActions = actions.albumMixActions
+    val genreMixActions = actions.genreMixActions
+    val sonicPathActions = actions.sonicPathActions
+    val sonicMixActions = actions.sonicMixActions
+    val downloadsActions = actions.downloadsActions
+    val libraryActions = actions.libraryActions
+    val playlistsActions = actions.playlistsActions
+    val radioActions = actions.radioActions
+    val albumDetailActions = actions.albumDetailActions
+    val artistDetailActions = actions.artistDetailActions
+    val playlistDetailActions = actions.playlistDetailActions
+    val homeActions = actions.homeActions
+    val mediaActions = actions.mediaActions
+    val nowPlayingActions = actions.nowPlayingActions
     val connectionSettings = uiState.connectionSettings
     val general = uiState.general
     val playback = uiState.playback
