@@ -37,7 +37,9 @@ import app.naviamp.ui.NaviampAction
 import app.naviamp.ui.NaviampActionSpec
 import app.naviamp.ui.NaviampDetailAction
 import app.naviamp.ui.NaviampPageTitle
+import app.naviamp.ui.NaviampPlaylistDetailActions
 import app.naviamp.ui.NaviampPlaylistDetailScreenUi
+import app.naviamp.ui.NaviampPlaylistsActions
 import app.naviamp.ui.NaviampPlaylistsScreenUi
 import app.naviamp.ui.NaviampResponsiveActionRow
 import app.naviamp.ui.SharedMediaItemAction
@@ -60,14 +62,8 @@ import kotlinx.coroutines.launch
 fun DesktopPlaylistsPanel(
     appColors: DesktopAppColors,
     screen: NaviampPlaylistsScreenUi,
-    onSortModeChanged: (SharedPlaylistSortMode) -> Unit,
+    actions: NaviampPlaylistsActions,
     onPlaylistAction: (SharedMediaItemActionRequest) -> Unit,
-    onRefreshPlaylists: () -> Unit,
-    onSmartPlaylistSave: suspend (SmartPlaylistDefinition) -> Unit,
-    onSmartPlaylistUpdate: suspend (SharedMediaItemUi, SmartPlaylistDefinition) -> Unit,
-    onSmartPlaylistSaveWithPassword: suspend (SmartPlaylistDefinition, String) -> Unit,
-    onSmartPlaylistUpdateWithPassword: suspend (SharedMediaItemUi, SmartPlaylistDefinition, String) -> Unit,
-    onSmartPlaylistLoad: suspend (SharedMediaItemUi) -> SmartPlaylistDefinition,
     availableLibraries: List<ConnectionFormMusicFolder> = emptyList(),
     selectedConnectionLibraryIds: List<String> = emptyList(),
 ) {
@@ -112,7 +108,7 @@ fun DesktopPlaylistsPanel(
                 SharedPlaylistSortMode.entries.forEach { mode ->
                     FilterChip(
                         selected = screen.sortMode == mode,
-                        onClick = { onSortModeChanged(mode) },
+                        onClick = { actions.onSortModeChanged(mode) },
                         label = {
                             Icon(
                                 imageVector = when (mode) {
@@ -128,7 +124,7 @@ fun DesktopPlaylistsPanel(
                 }
                 DesktopPageOverflowMenu(
                     appColors = appColors,
-                    onRefresh = onRefreshPlaylists,
+                    onRefresh = actions.onRefresh,
                 )
             }
         }
@@ -149,7 +145,7 @@ fun DesktopPlaylistsPanel(
                 onEditSmartPlaylist = {
                     coroutineScope.launch {
                         runCatching {
-                            onSmartPlaylistLoad(playlist)
+                            actions.onSmartPlaylistLoad(playlist)
                         }.onSuccess { definition ->
                             smartPlaylistInitialDraft = SmartPlaylistDraft.fromDefinition(definition)
                             smartPlaylistEditTarget = playlist
@@ -179,9 +175,9 @@ fun DesktopPlaylistsPanel(
             },
             onSave = { definition ->
                 if (editTarget == null) {
-                    onSmartPlaylistSave(definition)
+                    actions.onSmartPlaylistSave(definition)
                 } else {
-                    onSmartPlaylistUpdate(editTarget, definition)
+                    actions.onSmartPlaylistUpdate(editTarget, definition)
                 }
                 smartPlaylistBuilderOpen = false
                 smartPlaylistEditTarget = null
@@ -189,9 +185,9 @@ fun DesktopPlaylistsPanel(
             },
             onSaveWithPassword = { definition, password ->
                 if (editTarget == null) {
-                    onSmartPlaylistSaveWithPassword(definition, password)
+                    actions.onSmartPlaylistSaveWithPassword(definition, password)
                 } else {
-                    onSmartPlaylistUpdateWithPassword(editTarget, definition, password)
+                    actions.onSmartPlaylistUpdateWithPassword(editTarget, definition, password)
                 }
                 smartPlaylistBuilderOpen = false
                 smartPlaylistEditTarget = null
@@ -291,13 +287,8 @@ private fun PlaylistListRow(
 fun DesktopPlaylistDetailPanel(
     appColors: DesktopAppColors,
     screen: NaviampPlaylistDetailScreenUi,
-    onBack: () -> Unit,
-    onPlaylistAction: (SharedMediaItemActionRequest) -> Unit,
-    onTrackAction: (SharedTrackRowActionRequest) -> Unit,
-    onUpdateStandardPlaylist: suspend (List<SharedTrackRowUi>) -> Unit,
-    onSmartPlaylistUpdate: suspend (SmartPlaylistDefinition) -> Unit,
-    onSmartPlaylistUpdateWithPassword: suspend (SmartPlaylistDefinition, String) -> Unit,
-    onSmartPlaylistLoad: suspend () -> SmartPlaylistDefinition,
+    actions: NaviampPlaylistDetailActions,
+    playlistsActions: NaviampPlaylistsActions,
     availableLibraries: List<ConnectionFormMusicFolder> = emptyList(),
     selectedConnectionLibraryIds: List<String> = emptyList(),
 ) {
@@ -311,7 +302,7 @@ fun DesktopPlaylistDetailPanel(
     val coroutineScope = rememberCoroutineScope()
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(2.dp)) {
-            IconButton(onClick = onBack, modifier = Modifier.size(32.dp)) {
+            IconButton(onClick = actions.onBack, modifier = Modifier.size(32.dp)) {
                 Icon(
                     imageVector = DesktopNavigationIcons.Back,
                     contentDescription = "Back",
@@ -346,7 +337,7 @@ fun DesktopPlaylistDetailPanel(
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     fun request(action: SharedMediaItemAction, shuffle: Boolean = false) {
                         playlist?.let { item ->
-                            onPlaylistAction(item.actionRequest(action, kind = SharedMediaItemKind.Playlist, shuffle = shuffle))
+                            actions.onMediaItemAction(item.actionRequest(action, kind = SharedMediaItemKind.Playlist, shuffle = shuffle))
                         }
                     }
                     val playlistActions = playlistRowActions(
@@ -372,7 +363,7 @@ fun DesktopPlaylistDetailPanel(
                             if (playlist?.isSmartPlaylist == true) {
                                 add(NaviampDetailAction("Edit smart playlist", DesktopNavigationIcons.Brain, {
                                     coroutineScope.launch {
-                                        runCatching { onSmartPlaylistLoad() }
+                                        runCatching { playlistsActions.onSmartPlaylistLoad(playlist) }
                                             .onSuccess { definition ->
                                                 smartPlaylistInitialDraft = SmartPlaylistDraft.fromDefinition(definition)
                                                 smartPlaylistEditorOpen = true
@@ -393,7 +384,7 @@ fun DesktopPlaylistDetailPanel(
                                     keepDownloadedAction.icon,
                                     {
                                         playlist?.let { item ->
-                                            onPlaylistAction(
+                                            actions.onMediaItemAction(
                                                 item.actionRequest(
                                                     SharedMediaItemAction.Download,
                                                     kind = SharedMediaItemKind.Playlist,
@@ -424,7 +415,7 @@ fun DesktopPlaylistDetailPanel(
                 colors = appColors,
                 tracks = tracks,
                 onTrackSelected = { row ->
-                    onTrackAction(SharedTrackRowActionRequest(row, SharedTrackRowAction.Select))
+                    actions.onTrackAction(SharedTrackRowActionRequest(row, SharedTrackRowAction.Select))
                 },
             )
         } else if (playlist != null) {
@@ -432,10 +423,10 @@ fun DesktopPlaylistDetailPanel(
                 colors = appColors,
                 initialTracks = tracks,
                 onTrackSelected = { row ->
-                    onTrackAction(SharedTrackRowActionRequest(row, SharedTrackRowAction.Select))
+                    actions.onTrackAction(SharedTrackRowActionRequest(row, SharedTrackRowAction.Select))
                 },
                 onSave = { editedRows ->
-                    onUpdateStandardPlaylist(editedRows)
+                    actions.onUpdateStandardPlaylist(playlist, editedRows)
                 },
             )
         }
@@ -453,7 +444,7 @@ fun DesktopPlaylistDetailPanel(
                 } else {
                     SharedMediaItemAction.CopyPlaylist
                 }
-                onPlaylistAction(
+                actions.onMediaItemAction(
                     playlist.actionRequest(
                         action = action,
                         kind = SharedMediaItemKind.Playlist,
@@ -463,7 +454,7 @@ fun DesktopPlaylistDetailPanel(
             },
             onCreateAndAdd = { name ->
                 bulkToolsOpen = false
-                onPlaylistAction(
+                actions.onMediaItemAction(
                     playlist.actionRequest(
                         action = SharedMediaItemAction.CreatePlaylistAndAdd,
                         kind = SharedMediaItemKind.Playlist,
@@ -486,12 +477,12 @@ fun DesktopPlaylistDetailPanel(
                 smartPlaylistInitialDraft = SmartPlaylistDraft()
             },
             onSave = { definition ->
-                onSmartPlaylistUpdate(definition)
+                playlistsActions.onSmartPlaylistUpdate(playlist, definition)
                 smartPlaylistEditorOpen = false
                 smartPlaylistInitialDraft = SmartPlaylistDraft()
             },
             onSaveWithPassword = { definition, password ->
-                onSmartPlaylistUpdateWithPassword(definition, password)
+                playlistsActions.onSmartPlaylistUpdateWithPassword(playlist, definition, password)
                 smartPlaylistEditorOpen = false
                 smartPlaylistInitialDraft = SmartPlaylistDraft()
             },

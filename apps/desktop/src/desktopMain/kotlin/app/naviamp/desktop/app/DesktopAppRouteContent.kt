@@ -57,6 +57,8 @@ import app.naviamp.ui.NaviampHomeActions
 import app.naviamp.ui.NaviampHomeScreenUi
 import app.naviamp.ui.NaviampInternetRadioScreenUi
 import app.naviamp.ui.NaviampPlaylistDetailScreenUi
+import app.naviamp.ui.NaviampPlaylistDetailActions
+import app.naviamp.ui.NaviampPlaylistsActions
 import app.naviamp.ui.NaviampPlaylistsScreenUi
 import app.naviamp.ui.NaviampSearchScreenUi
 import app.naviamp.ui.NaviampSearchActions
@@ -501,6 +503,60 @@ fun ColumnScope.DesktopAppRouteContent(
                     ?.let { album -> handleAlbumMediaAction(request.action, album) }
             },
         ),
+        playlistsActions = NaviampPlaylistsActions(
+            onRefresh = { playlistsController.refreshPlaylists(useCache = false) },
+            onSortModeChanged = onPlaylistSortModeChanged,
+            onSmartPlaylistSave = smartPlaylistsController::saveSmartPlaylist,
+            onSmartPlaylistUpdate = { item, definition ->
+                playlistActionSources.playlist(item.id)?.let { playlist ->
+                    smartPlaylistsController.updateSmartPlaylist(playlist, definition)
+                }
+            },
+            onSmartPlaylistSaveWithPassword = smartPlaylistsController::saveSmartPlaylistWithPassword,
+            onSmartPlaylistUpdateWithPassword = { item, definition, password ->
+                playlistActionSources.playlist(item.id)?.let { playlist ->
+                    smartPlaylistsController.updateSmartPlaylistWithPassword(playlist, definition, password)
+                }
+            },
+            onSmartPlaylistLoad = { item ->
+                playlistActionSources.playlist(item.id)
+                    ?.let { smartPlaylistsController.loadSmartPlaylistDefinition(it) }
+                    ?: error("Playlist ${item.title} is no longer available.")
+            },
+        ),
+        playlistDetailActions = NaviampPlaylistDetailActions(
+            onBack = { onRouteSelected(DesktopAppRoute.Playlists) },
+            onMediaItemAction = ::handleSelectedPlaylistMediaAction,
+            onTrackAction = { request ->
+                playlistActionSources.selectedTrack(request.track.id)?.let { (index, track) ->
+                    when (request.action) {
+                        SharedTrackRowAction.Select -> appActions.playPlaylistDetails(index = index)
+                        SharedTrackRowAction.PlayNext -> playlistsController.playNext(track)
+                        SharedTrackRowAction.StartRadio -> appActions.playTrackRadio(track)
+                        SharedTrackRowAction.PlayTrackRadioNext -> appActions.playTrackRadioNext(track)
+                        SharedTrackRowAction.AddTrackRadioToQueue -> appActions.addTrackRadioToQueue(track)
+                        SharedTrackRowAction.Download -> appActions.downloadTrack(track)
+                        SharedTrackRowAction.AddToQueue -> playlistsController.addTrackToQueue(track)
+                        SharedTrackRowAction.AddToPlaylist -> playlistsController.openTrackAddToPlaylist(track)
+                        SharedTrackRowAction.CreatePlaylistAndAdd -> Unit
+                        SharedTrackRowAction.ToggleFavorite -> appActions.toggleTrackFavorite(track)
+                        SharedTrackRowAction.GoToAlbum -> appActions.openTrackAlbumDetails(track)
+                        SharedTrackRowAction.GoToArtist -> appActions.openTrackArtistDetails(
+                            track,
+                            artistId = request.artistId,
+                            artistName = request.artistName,
+                        )
+                    }
+                }
+            },
+            onUpdateStandardPlaylist = { item, rows ->
+                val playlist = playlistActionSources.playlist(item.id)
+                val tracks = playlistActionSources.selectedTracks(rows)
+                if (playlist != null && tracks != null) {
+                    playlistsController.updateStandardPlaylistTracks(playlist, tracks)
+                }
+            },
+        ),
     )
 
     Box(
@@ -590,7 +646,7 @@ fun ColumnScope.DesktopAppRouteContent(
                     screen = sharedShellState.playlists.copy(
                         status = sharedShellState.playlists.status ?: connection.status.pageStatusOrNull(),
                     ),
-                    onSortModeChanged = onPlaylistSortModeChanged,
+                    actions = sharedShellActions.playlistsActions,
                     onPlaylistAction = { request ->
                         playlistActionSources.playlist(request.item.id)
                             ?.let { playlist ->
@@ -601,24 +657,6 @@ fun ColumnScope.DesktopAppRouteContent(
                                 }
                             }
                     },
-                    onRefreshPlaylists = { playlistsController.refreshPlaylists(useCache = false) },
-                    onSmartPlaylistSave = smartPlaylistsController::saveSmartPlaylist,
-                    onSmartPlaylistUpdate = { item, definition ->
-                        playlistActionSources.playlist(item.id)?.let { playlist ->
-                            smartPlaylistsController.updateSmartPlaylist(playlist, definition)
-                        }
-                    },
-                    onSmartPlaylistSaveWithPassword = smartPlaylistsController::saveSmartPlaylistWithPassword,
-                    onSmartPlaylistUpdateWithPassword = { item, definition, password ->
-                        playlistActionSources.playlist(item.id)?.let { playlist ->
-                            smartPlaylistsController.updateSmartPlaylistWithPassword(playlist, definition, password)
-                        }
-                    },
-                    onSmartPlaylistLoad = { item ->
-                        playlistActionSources.playlist(item.id)
-                            ?.let { smartPlaylistsController.loadSmartPlaylistDefinition(it) }
-                            ?: error("Playlist ${item.title} is no longer available.")
-                    },
                     availableLibraries = connection.availableMusicFolders,
                     selectedConnectionLibraryIds = connection.form.selectedMusicFolderIds,
                 )
@@ -627,52 +665,8 @@ fun ColumnScope.DesktopAppRouteContent(
                     screen = sharedShellState.playlistDetail.copy(
                         status = sharedShellState.playlistDetail.status ?: sharedShellState.playlists.status,
                     ),
-                    onBack = { onRouteSelected(DesktopAppRoute.Playlists) },
-                    onPlaylistAction = { request -> handleSelectedPlaylistMediaAction(request) },
-                    onTrackAction = { request ->
-                        playlistActionSources.selectedTrack(request.track.id)?.let { (index, track) ->
-                            when (request.action) {
-                                SharedTrackRowAction.Select -> appActions.playPlaylistDetails(index = index)
-                                SharedTrackRowAction.PlayNext -> playlistsController.playNext(track)
-                                SharedTrackRowAction.StartRadio -> appActions.playTrackRadio(track)
-                                SharedTrackRowAction.PlayTrackRadioNext -> appActions.playTrackRadioNext(track)
-                                SharedTrackRowAction.AddTrackRadioToQueue -> appActions.addTrackRadioToQueue(track)
-                                SharedTrackRowAction.Download -> appActions.downloadTrack(track)
-                                SharedTrackRowAction.AddToQueue -> playlistsController.addTrackToQueue(track)
-                                SharedTrackRowAction.AddToPlaylist -> playlistsController.openTrackAddToPlaylist(track)
-                                SharedTrackRowAction.CreatePlaylistAndAdd -> Unit
-                                SharedTrackRowAction.ToggleFavorite -> appActions.toggleTrackFavorite(track)
-                                SharedTrackRowAction.GoToAlbum -> appActions.openTrackAlbumDetails(track)
-                                SharedTrackRowAction.GoToArtist -> appActions.openTrackArtistDetails(
-                                    track,
-                                    artistId = request.artistId,
-                                    artistName = request.artistName,
-                                )
-                            }
-                        }
-                    },
-                    onUpdateStandardPlaylist = { rows ->
-                        val playlist = playlistActionSources.selectedPlaylist
-                        val tracks = playlistActionSources.selectedTracks(rows)
-                        if (playlist != null && tracks != null) {
-                            playlistsController.updateStandardPlaylistTracks(playlist, tracks)
-                        }
-                    },
-                    onSmartPlaylistUpdate = { definition ->
-                        playlistActionSources.selectedPlaylist?.let { playlist ->
-                            smartPlaylistsController.updateSmartPlaylist(playlist, definition)
-                        }
-                    },
-                    onSmartPlaylistUpdateWithPassword = { definition, password ->
-                        playlistActionSources.selectedPlaylist?.let { playlist ->
-                            smartPlaylistsController.updateSmartPlaylistWithPassword(playlist, definition, password)
-                        }
-                    },
-                    onSmartPlaylistLoad = {
-                        playlistActionSources.selectedPlaylist
-                            ?.let { smartPlaylistsController.loadSmartPlaylistDefinition(it) }
-                            ?: error("The selected playlist is no longer available.")
-                    },
+                    actions = sharedShellActions.playlistDetailActions,
+                    playlistsActions = sharedShellActions.playlistsActions,
                     availableLibraries = connection.availableMusicFolders,
                     selectedConnectionLibraryIds = connection.form.selectedMusicFolderIds,
                 )
