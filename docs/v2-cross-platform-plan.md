@@ -427,6 +427,7 @@ Record architecture decisions here or link a dedicated decision record.
 | 2026-07-19 | Complete host-clock adoption at shared coordination call sites. | Android and Desktop connection cleanup, playback seek/progress/session/reporting, radio progress, and settings auto-export now acquire timestamps through their platform clock adapters; storage, native playback-engine, and host-only UI timestamps remain platform implementation details. |
 | 2026-07-19 | Remove the Android shell forwarding composable. | The Android root now invokes `NaviampSharedAppShell` with the shared presentation and actions directly; a platform-named composable that only renamed and forwarded the same arguments did not represent an operating-system integration boundary. |
 | 2026-07-19 | Return shared shell presentation directly from Android composition. | `NaviampAppShellUiState` now carries the capability presentation used to derive its settings and actions; Android no longer wraps it with a platform-only state type, while the Compose modifier and live visualizer callback remain explicit host render inputs. |
+| 2026-07-19 | Carry grouped builder, Downloads, and Library actions across Android composition. | `AndroidMainShellActions` now constructs the seven existing shared action contracts beside their focused Android executors; the lower shell factory receives those contracts intact instead of expanding them into dozens of callbacks and reconstructing them. |
 
 ### Desktop Route Boundary Audit
 
@@ -464,7 +465,7 @@ The 2026-07-17 audit covers every current application entry point:
 
 ## Current Handoff
 
-- **Last completed item:** Android shell composition now returns `NaviampAppShellUiState` directly; modifier and live visualizer sampling remain explicit host render inputs.
-- **Next recommended item:** Thin Android action composition by replacing the flat callback expansion between `AndroidMainShellActions` and `androidAppShellActions` with grouped shared action contracts and focused host resolvers; cross-platform Desktop packaging and a macOS launch remain Milestone 3 validation work on their respective hosts.
+- **Last completed item:** Android builder, Downloads, and Library intent now crosses composition as grouped shared action contracts.
+- **Next recommended item:** Continue grouping Android settings, connection, navigation, Search, playlist, radio, detail, Home, media, and Now Playing action boundaries around focused host resolvers; cross-platform Desktop packaging and a macOS launch remain Milestone 3 validation work on their respective hosts.
 - **Verification:** `:core:domain:jvmTest`, `:core:app:jvmTest`, `:core:storage:jvmTest`, `:core:ui:jvmTest`, `:apps:android:testDebugUnitTest`, `:apps:desktop:desktopTest`, `:core:app:iosSimulatorArm64Test`, `:core:storage:compileKotlinIosSimulatorArm64`, and `:core:ui:compileKotlinIosSimulatorArm64` pass together with at most two Gradle workers.
 - **Known blockers:** None.

@@ -3,6 +3,13 @@ package app.naviamp.android
 import app.naviamp.domain.playback.SleepTimerController
 import app.naviamp.ui.nowPlayingQueueIndex
 import app.naviamp.ui.NaviampAppShellActions
+import app.naviamp.ui.NaviampDownloadsActions
+import app.naviamp.ui.NaviampLibraryActions
+import app.naviamp.ui.SharedAlbumMixBuilderActions
+import app.naviamp.ui.SharedArtistMixBuilderActions
+import app.naviamp.ui.SharedGenreMixBuilderActions
+import app.naviamp.ui.SharedSonicMixBuilderActions
+import app.naviamp.ui.SharedSonicPathBuilderActions
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -91,62 +98,79 @@ internal fun androidMainShellActions(
         handleResetDatabase = settingsMaintenanceController::handleResetDatabase,
         handleCurrentTrackRadioRefresh = shellPlaybackController::startCurrentTrackRadio,
         handleSearch = { searchController.launchSearch(scope) },
-        handleArtistMixSearch = mixBuilderController::searchArtistSuggestions,
-        handleArtistMixArtistSelected = { item -> mixBuilderController.selectArtistByItemId(item.id) },
-        handleArtistMixArtistRemoved = { item -> mixBuilderController.removeArtistByItemId(item.id) },
-        handleArtistMixReset = mixBuilderController::resetArtistBuilder,
-        handleArtistMixPlay = mixBuilderController::playArtistMix,
-        handleAlbumMixSearch = mixBuilderController::searchAlbumSuggestions,
-        handleAlbumMixAlbumSelected = { item -> mixBuilderController.selectAlbumByItemId(item.id) },
-        handleAlbumMixAlbumRemoved = { item -> mixBuilderController.removeAlbumByItemId(item.id) },
-        handleAlbumMixReset = mixBuilderController::resetAlbumBuilder,
-        handleAlbumMixPlay = mixBuilderController::playAlbumMix,
-        handleGenreMixSearch = mixBuilderController::refreshGenreSuggestions,
-        handleGenreMixGenreSelected = { item -> mixBuilderController.selectGenreByItemId(item.id) },
-        handleGenreMixGenreRemoved = { item -> mixBuilderController.removeGenreByItemId(item.id) },
-        handleGenreMixReset = mixBuilderController::resetGenreBuilder,
-        handleGenreMixPlay = mixBuilderController::playGenreMix,
-        handleSonicPathStartQueryChanged = sonicPathController::updateStartQuery,
-        handleSonicPathEndQueryChanged = sonicPathController::updateEndQuery,
-        handleSonicPathStartSearch = sonicPathController::searchStartTracks,
-        handleSonicPathEndSearch = sonicPathController::searchEndTracks,
-        handleSonicPathStartTrackSelected = sonicPathController::selectStartTrack,
-        handleSonicPathEndTrackSelected = sonicPathController::selectEndTrack,
-        handleSonicPathStartTrackCleared = sonicPathController::clearStartTrack,
-        handleSonicPathEndTrackCleared = sonicPathController::clearEndTrack,
-        handleSonicPathCountChanged = sonicPathController::updateCount,
-        handleSonicPathBuild = sonicPathController::buildPath,
-        handleSonicPathReset = sonicPathController::reset,
-        handleSonicPathPlay = sonicPathController::playPath,
-        handleSonicPathAddToQueue = sonicPathController::addPathToQueue,
-        handleSonicPathSaveAsPlaylist = { name ->
-            playlistActionController.saveTracksAsPlaylist(name, sonicPathController.playlistTracks(), "sonic path")
-        },
-        handleSonicMixQueryChanged = sonicMixController::updateQuery,
-        handleSonicMixSearch = sonicMixController::searchTracks,
-        handleSonicMixTrackSelected = sonicMixController::selectTrack,
-        handleSonicMixTrackRemoved = sonicMixController::removeTrack,
-        handleSonicMixTargetLengthChanged = sonicMixController::updateTargetLength,
-        handleSonicMixBiasChanged = sonicMixController::updateBias,
-        handleSonicMixBuild = sonicMixController::buildMix,
-        handleSonicMixReset = sonicMixController::reset,
-        handleSonicMixPlay = sonicMixController::playMix,
-        handleSonicMixAddToQueue = sonicMixController::addMixToQueue,
-        handleSonicMixSaveAsPlaylist = { name ->
-            playlistActionController.saveTracksAsPlaylist(name, sonicMixController.playlistTracks(), "sonic mix")
-        },
-        updateAndroidLibraryQuery = apiLibraryController::updateQuery,
-        refreshAndroidLibrary = apiLibraryController::refresh,
-        loadNextAndroidLibraryPage = apiLibraryController::loadNext,
+        artistMixActions = SharedArtistMixBuilderActions(
+            onQueryChanged = { state.artistMixQuery = it },
+            onSearch = mixBuilderController::searchArtistSuggestions,
+            onArtistSelected = { item -> mixBuilderController.selectArtistByItemId(item.id) },
+            onArtistRemoved = { item -> mixBuilderController.removeArtistByItemId(item.id) },
+            onReset = mixBuilderController::resetArtistBuilder,
+            onPlay = mixBuilderController::playArtistMix,
+        ),
+        albumMixActions = SharedAlbumMixBuilderActions(
+            onQueryChanged = { state.albumMixQuery = it },
+            onSearch = mixBuilderController::searchAlbumSuggestions,
+            onAlbumSelected = { item -> mixBuilderController.selectAlbumByItemId(item.id) },
+            onAlbumRemoved = { item -> mixBuilderController.removeAlbumByItemId(item.id) },
+            onReset = mixBuilderController::resetAlbumBuilder,
+            onPlay = mixBuilderController::playAlbumMix,
+        ),
+        genreMixActions = SharedGenreMixBuilderActions(
+            onQueryChanged = { state.genreMixQuery = it },
+            onSearch = mixBuilderController::refreshGenreSuggestions,
+            onGenreSelected = { item -> mixBuilderController.selectGenreByItemId(item.id) },
+            onGenreRemoved = { item -> mixBuilderController.removeGenreByItemId(item.id) },
+            onReset = mixBuilderController::resetGenreBuilder,
+            onPlay = mixBuilderController::playGenreMix,
+        ),
+        sonicPathActions = SharedSonicPathBuilderActions(
+            onStartQueryChanged = sonicPathController::updateStartQuery,
+            onEndQueryChanged = sonicPathController::updateEndQuery,
+            onStartSearch = sonicPathController::searchStartTracks,
+            onEndSearch = sonicPathController::searchEndTracks,
+            onStartTrackSelected = sonicPathController::selectStartTrack,
+            onEndTrackSelected = sonicPathController::selectEndTrack,
+            onStartTrackCleared = sonicPathController::clearStartTrack,
+            onEndTrackCleared = sonicPathController::clearEndTrack,
+            onCountChanged = sonicPathController::updateCount,
+            onBuild = sonicPathController::buildPath,
+            onReset = sonicPathController::reset,
+            onPlay = sonicPathController::playPath,
+            onAddToQueue = sonicPathController::addPathToQueue,
+            onSaveAsPlaylist = { name ->
+                playlistActionController.saveTracksAsPlaylist(name, sonicPathController.playlistTracks(), "sonic path")
+            },
+        ),
+        sonicMixActions = SharedSonicMixBuilderActions(
+            onQueryChanged = sonicMixController::updateQuery,
+            onSearch = sonicMixController::searchTracks,
+            onTrackSelected = sonicMixController::selectTrack,
+            onTrackRemoved = sonicMixController::removeTrack,
+            onTargetLengthChanged = sonicMixController::updateTargetLength,
+            onBiasChanged = sonicMixController::updateBias,
+            onBuild = sonicMixController::buildMix,
+            onReset = sonicMixController::reset,
+            onPlay = sonicMixController::playMix,
+            onAddToQueue = sonicMixController::addMixToQueue,
+            onSaveAsPlaylist = { name ->
+                playlistActionController.saveTracksAsPlaylist(name, sonicMixController.playlistTracks(), "sonic mix")
+            },
+        ),
+        downloadsActions = NaviampDownloadsActions(
+            onTrackAction = trackActionController::handleDownloadedTrackAction,
+            onCancelJob = downloadActionController::cancelDownloadJob,
+            onRetryJob = downloadActionController::retryDownloadJob,
+            onRefresh = downloadActionController::refreshDownloads,
+            onToggleKeepFavoritesDownloaded = downloadActionController::toggleKeepDownloadedFavorites,
+            onDeleteAll = downloadActionController::deleteAllDownloads,
+        ),
+        libraryActions = NaviampLibraryActions(
+            onQueryChanged = apiLibraryController::updateQuery,
+            onRefresh = apiLibraryController::refresh,
+            onLoadMore = apiLibraryController::loadNext,
+        ),
         refreshPlaylists = playlistActionController::refreshPlaylists,
         refreshInternetRadioStations = shellMediaController::refreshInternetRadioStations,
         handleShellTrackSelected = shellMediaController::handleShellTrackSelected,
-        handleDownloadedTrackAction = trackActionController::handleDownloadedTrackAction,
-        cancelDownloadJob = downloadActionController::cancelDownloadJob,
-        retryDownloadJob = downloadActionController::retryDownloadJob,
-        refreshDownloads = downloadActionController::refreshDownloads,
-        toggleKeepFavoritesDownloaded = downloadActionController::toggleKeepDownloadedFavorites,
-        deleteAllDownloads = downloadActionController::deleteAllDownloads,
         handleShellAlbumSelected = shellMediaController::handleShellAlbumSelected,
         handleAlbumFavoriteToggled = { item ->
             toggleAndroidAlbumFavorite(scope, state, item, state.sharedControllers.providerActions)
