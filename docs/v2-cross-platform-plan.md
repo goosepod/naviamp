@@ -410,6 +410,7 @@ Record architecture decisions here or link a dedicated decision record.
 | 2026-07-19 | Compose Desktop playlist-detail status at the root. | Detail-local loading or mutation status takes precedence, followed by playlist-list and connection failure status; route rendering should receive that resolved presentation rather than deriving it from sibling screen state. |
 | 2026-07-19 | Carry smart-playlist library choices in playlist screen models. | Available libraries and the active connection selection are focused smart-playlist presentation inputs on list and detail screens; both hosts compose them once, and Desktop route rendering no longer receives the full connection aggregate. |
 | 2026-07-19 | Consume indexed Library navigation from its grouped action contract. | `onJumpToLetter` already belongs to `NaviampLibraryActions`; the Desktop Library panel should read it there instead of requiring the route to pass the same callback twice. |
+| 2026-07-19 | Consume grouped Downloads intent in the Desktop panel. | Refresh, job control, keep-favorites policy, delete-all, and row intent already form `NaviampDownloadsActions`; route rendering should pass that contract intact instead of expanding six callbacks. |
 
 ## Shared Controller Construction Audit
 
@@ -435,7 +436,7 @@ The 2026-07-17 audit covers every current application entry point:
 
 ## Current Handoff
 
-- **Last completed item:** Desktop indexed Library navigation is now consumed directly from `NaviampLibraryActions`; the route no longer expands the grouped contract into a duplicate callback.
-- **Next recommended item:** Pass grouped Downloads intent into the Desktop panel, then remove the route renderer's obsolete shell-state and shell-action aliases while retaining platform-owned route, list-state, and settings-sync inputs.
+- **Last completed item:** The Desktop Downloads panel now consumes `NaviampDownloadsActions` intact; route rendering no longer expands refresh, job, policy, deletion, and row callbacks.
+- **Next recommended item:** Remove the route renderer's obsolete shell-state and shell-action aliases, then continue auditing panels that still expand grouped shared contracts while retaining platform-owned route, list-state, and settings-sync inputs.
 - **Verification:** `:core:domain:jvmTest`, `:core:app:jvmTest`, `:core:storage:jvmTest`, `:core:ui:jvmTest`, `:apps:android:testDebugUnitTest`, `:apps:desktop:desktopTest`, `:core:app:iosSimulatorArm64Test`, `:core:storage:compileKotlinIosSimulatorArm64`, and `:core:ui:compileKotlinIosSimulatorArm64` pass together with at most two Gradle workers.
 - **Known blockers:** None.

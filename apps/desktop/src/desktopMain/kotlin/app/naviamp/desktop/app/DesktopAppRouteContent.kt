@@ -350,13 +350,7 @@ fun ColumnScope.DesktopAppRouteContent(
                 DesktopAppRoute.Downloads -> DesktopDownloadsPanel(
                     appColors = appColors,
                     screen = sharedShellState.downloads,
-                    onCancelDownloadJob = sharedShellActions.downloadsActions.onCancelJob,
-                    onRetryDownloadJob = sharedShellActions.downloadsActions.onRetryJob,
-                    onRefreshDownloads = sharedShellActions.downloadsActions.onRefresh,
-                    onToggleKeepFavoritesDownloaded =
-                        sharedShellActions.downloadsActions.onToggleKeepFavoritesDownloaded,
-                    onDeleteAllDownloads = sharedShellActions.downloadsActions.onDeleteAll,
-                    onDownloadAction = sharedShellActions.downloadsActions.onTrackAction,
+                    actions = sharedShellActions.downloadsActions,
                 )
                 DesktopAppRoute.Settings -> DesktopSettingsPanel(
                     appColors = appColors,

@@ -31,6 +31,7 @@ import app.naviamp.ui.DownloadedTrackActionRequest
 import app.naviamp.ui.NaviampAction
 import app.naviamp.ui.NaviampDownloadedTrackUi
 import app.naviamp.ui.NaviampDownloadJobUi
+import app.naviamp.ui.NaviampDownloadsActions
 import app.naviamp.ui.NaviampDownloadsScreenUi
 import app.naviamp.ui.NaviampIcons
 import app.naviamp.ui.NaviampPageTitle
@@ -46,12 +47,7 @@ import app.naviamp.ui.storageBytesLabel
 fun DesktopDownloadsPanel(
     appColors: DesktopAppColors,
     screen: NaviampDownloadsScreenUi,
-    onCancelDownloadJob: (String) -> Unit,
-    onRetryDownloadJob: (String) -> Unit,
-    onRefreshDownloads: () -> Unit,
-    onToggleKeepFavoritesDownloaded: () -> Unit,
-    onDeleteAllDownloads: () -> Unit,
-    onDownloadAction: (DownloadedTrackActionRequest) -> Unit,
+    actions: NaviampDownloadsActions,
 ) {
     val downloads = screen.downloads
     val downloadBytes = screen.downloadBytes
@@ -93,11 +89,11 @@ fun DesktopDownloadsPanel(
             DesktopRowOverflowMenu(
                 appColors = appColors,
                 items = listOf(
-                    DesktopRowMenuItem("Refresh", NaviampIcons.Refresh, onRefreshDownloads),
+                    DesktopRowMenuItem("Refresh", NaviampIcons.Refresh, actions.onRefresh),
                     DesktopRowMenuItem(
                         if (screen.keepFavoritesDownloaded) "Stop keeping favorites downloaded" else "Keep favorites downloaded",
                         NaviampTransportIcons.Heart,
-                        onToggleKeepFavoritesDownloaded,
+                        actions.onToggleKeepFavoritesDownloaded,
                     ),
                     DesktopRowMenuItem("Delete All", NaviampIcons.Trash, { confirmDeleteAll = true }, downloads.isNotEmpty()),
                 ),
@@ -133,8 +129,8 @@ fun DesktopDownloadsPanel(
                 DesktopDownloadJobCard(
                     appColors = appColors,
                     job = job,
-                    onCancel = { onCancelDownloadJob(job.id) },
-                    onRetry = { onRetryDownloadJob(job.id) },
+                    onCancel = { actions.onCancelJob(job.id) },
+                    onRetry = { actions.onRetryJob(job.id) },
                 )
             }
         }
@@ -153,13 +149,13 @@ fun DesktopDownloadsPanel(
             downloads.forEach { download ->
                 val rowActions = downloadRowActions(canRemove = true, canAddToPlaylist = true)
                 SwipeActionContainer(
-                    swipeRight = downloadedTrackSwipeActionVisual(swipeSettings.downloadsRight, download, onDownloadAction),
-                    swipeLeft = downloadedTrackSwipeActionVisual(swipeSettings.downloadsLeft, download, onDownloadAction),
+                    swipeRight = downloadedTrackSwipeActionVisual(swipeSettings.downloadsRight, download, actions.onTrackAction),
+                    swipeLeft = downloadedTrackSwipeActionVisual(swipeSettings.downloadsLeft, download, actions.onTrackAction),
                 ) { swipeModifier ->
                     DesktopMediaRow(
                         appColors = appColors,
                         modifier = swipeModifier,
-                        onClick = { onDownloadAction(DownloadedTrackActionRequest(download, DownloadedTrackAction.Select)) },
+                        onClick = { actions.onTrackAction(DownloadedTrackActionRequest(download, DownloadedTrackAction.Select)) },
                         verticalPadding = 5.dp,
                     ) {
                         DesktopCoverArtThumb(
@@ -197,10 +193,10 @@ fun DesktopDownloadsPanel(
                             items = rowActions.mapNotNull { action ->
                                 when (action.action) {
                                     NaviampAction.AddToPlaylist -> DesktopRowMenuItem(action.label, action.icon, {
-                                        onDownloadAction(DownloadedTrackActionRequest(download, DownloadedTrackAction.AddToPlaylist))
+                                        actions.onTrackAction(DownloadedTrackActionRequest(download, DownloadedTrackAction.AddToPlaylist))
                                     }, action.enabled)
                                     NaviampAction.RemoveDownload -> DesktopRowMenuItem(action.label, action.icon, {
-                                        onDownloadAction(DownloadedTrackActionRequest(download, DownloadedTrackAction.Remove))
+                                        actions.onTrackAction(DownloadedTrackActionRequest(download, DownloadedTrackAction.Remove))
                                     }, action.enabled)
                                     else -> null
                                 }
@@ -219,7 +215,7 @@ fun DesktopDownloadsPanel(
             confirmButton = {
                 TextButton(onClick = {
                     confirmDeleteAll = false
-                    onDeleteAllDownloads()
+                    actions.onDeleteAll()
                 }) { Text("Delete All") }
             },
             dismissButton = {
