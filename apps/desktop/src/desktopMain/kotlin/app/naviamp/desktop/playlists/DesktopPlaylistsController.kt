@@ -1,5 +1,7 @@
 package app.naviamp.desktop
 
+import app.naviamp.domain.app.NaviampRoute
+
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -73,7 +75,7 @@ class DesktopPlaylistsController(
     private val homeContent: () -> HomeContent,
     private val setHomeContent: (HomeContent) -> Unit,
     private val setConnectionStatus: (String?) -> Unit,
-    private val setAppRoute: (DesktopAppRoute) -> Unit,
+    private val setAppRoute: (NaviampRoute) -> Unit,
     private val stopRadioContinuation: () -> Unit,
     private val clearShuffleSnapshot: () -> Unit,
     private val setOpenPlayerOnTrackStart: (Boolean) -> Unit,
@@ -450,7 +452,7 @@ class DesktopPlaylistsController(
         selectedPlaylist = playlist
         selectedPlaylistTracks = emptyList()
         selectedPlaylistStatus = playlistDetailsLoadingStatus(playlist)
-        setAppRoute(DesktopAppRoute.PlaylistDetail)
+        setAppRoute(NaviampRoute.PlaylistDetail)
         scope.launch {
             try {
                 refreshPlaylistDetailsFromServer(activeProvider, playlist, showLoadingStatus = false)
@@ -575,7 +577,7 @@ class DesktopPlaylistsController(
                 application.selectionApplication?.let { selection ->
                     selectedPlaylist = selection.selectedPlaylist
                     selectedPlaylistTracks = selection.selectedPlaylistTracks
-                    setAppRoute(DesktopAppRoute.Playlists)
+                    setAppRoute(NaviampRoute.Playlists)
                 }
                 playlistTracksById = application.playlistTracksById
                 recentPlaylistIds = application.recentPlaylistIds

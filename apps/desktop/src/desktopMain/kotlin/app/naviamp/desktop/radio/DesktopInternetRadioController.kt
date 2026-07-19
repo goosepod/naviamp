@@ -1,5 +1,7 @@
 package app.naviamp.desktop
 
+import app.naviamp.domain.app.NaviampRoute
+
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -78,7 +80,7 @@ class DesktopInternetRadioController(
     private val setLastProgressUiUpdateMillis: (Long) -> Unit,
     private val restoredPlaybackPositionSeconds: () -> Double?,
     private val setRestoredPlaybackPositionSeconds: (Double?) -> Unit,
-    private val setAppRoute: (DesktopAppRoute) -> Unit,
+    private val setAppRoute: (NaviampRoute) -> Unit,
 ) {
     var stations by mutableStateOf<List<InternetRadioStation>>(emptyList())
         private set
@@ -154,7 +156,7 @@ class DesktopInternetRadioController(
                 savePlaybackSession = {
                     playbackSessions.save(PlaybackSessionSettings.fromInternetRadioStation(station))
                 },
-                openNowPlaying = { setAppRoute(DesktopAppRoute.Player) },
+                openNowPlaying = { setAppRoute(NaviampRoute.Player) },
             ),
         )
         playbackEngine.play(

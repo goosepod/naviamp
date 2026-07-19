@@ -1,5 +1,7 @@
 package app.naviamp.desktop
 
+import app.naviamp.domain.app.NaviampRoute
+
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -42,14 +44,14 @@ fun DesktopAppEffects(
     nowPlayingTrack: Track?,
     playbackState: PlaybackState,
     nowPlayingVisualizerVisible: Boolean,
-    appRoute: DesktopAppRoute,
+    appRoute: NaviampRoute,
     playbackSettings: PlaybackSettings,
     changePlaybackVolume: (Int) -> Unit,
     cacheSettings: CacheSettings,
-    albumDetailBackRoute: DesktopAppRoute,
-    artistDetailBackRoute: DesktopAppRoute,
-    lastContentRoute: DesktopAppRoute,
-    setLastContentRoute: (DesktopAppRoute) -> Unit,
+    albumDetailBackRoute: NaviampRoute,
+    artistDetailBackRoute: NaviampRoute,
+    lastContentRoute: NaviampRoute,
+    setLastContentRoute: (NaviampRoute) -> Unit,
     setNowPlayingVisualizerFrame: (PlaybackVisualizerFrame?) -> Unit,
     updateAudioCacheLimit: (Long) -> Unit,
     updateAudioCacheDirectory: (String?) -> Unit,
@@ -151,13 +153,13 @@ fun DesktopAppEffects(
             setNowPlayingVisualizerFrame(null)
             return@LaunchedEffect
         }
-        if (!nowPlayingVisualizerVisible || appRoute != DesktopAppRoute.Player) {
+        if (!nowPlayingVisualizerVisible || appRoute != NaviampRoute.Player) {
             setNowPlayingVisualizerFrame(null)
             return@LaunchedEffect
         }
         while (
             nowPlayingVisualizerVisible &&
-            appRoute == DesktopAppRoute.Player &&
+            appRoute == NaviampRoute.Player &&
             (playbackState == PlaybackState.Playing || playbackState == PlaybackState.Loading)
         ) {
             setNowPlayingVisualizerFrame(visualizerEngine.visualizerFrame())
@@ -186,17 +188,17 @@ fun DesktopAppEffects(
 
     LaunchedEffect(appRoute, albumDetailBackRoute, artistDetailBackRoute) {
         if (
-            appRoute == DesktopAppRoute.Player ||
-            appRoute == DesktopAppRoute.AlbumDetail ||
-            appRoute == DesktopAppRoute.ArtistDetail ||
-            appRoute == DesktopAppRoute.PlaylistDetail
+            appRoute == NaviampRoute.Player ||
+            appRoute == NaviampRoute.AlbumDetail ||
+            appRoute == NaviampRoute.ArtistDetail ||
+            appRoute == NaviampRoute.PlaylistDetail
         ) {
             saveNavigationSettings(
                 NavigationSettings(
                     route = appRoute.name,
-                    lastContentRoute = if (appRoute == DesktopAppRoute.AlbumDetail) {
+                    lastContentRoute = if (appRoute == NaviampRoute.AlbumDetail) {
                         albumDetailBackRoute.name
-                    } else if (appRoute == DesktopAppRoute.ArtistDetail) {
+                    } else if (appRoute == NaviampRoute.ArtistDetail) {
                         artistDetailBackRoute.name
                     } else {
                         lastContentRoute.name

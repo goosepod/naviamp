@@ -1,5 +1,7 @@
 package app.naviamp.desktop
 
+import app.naviamp.domain.app.NaviampRoute
+
 import app.naviamp.domain.Album
 import app.naviamp.domain.AlbumDetails
 import app.naviamp.domain.Artist
@@ -147,7 +149,7 @@ internal fun desktopAlbumDetailActions(
                     track,
                     artistId = request.artistId,
                     artistName = request.artistName,
-                    backRouteOverride = DesktopAppRoute.AlbumDetail,
+                    backRouteOverride = NaviampRoute.AlbumDetail,
                 )
             }
         }

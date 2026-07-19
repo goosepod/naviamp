@@ -1,5 +1,7 @@
 package app.naviamp.desktop
 
+import app.naviamp.domain.app.NaviampRoute
+
 import app.naviamp.domain.InternetRadioStation
 import app.naviamp.domain.Track
 import app.naviamp.domain.cache.LibrarySnapshot
@@ -16,7 +18,7 @@ import app.naviamp.provider.navidrome.NavidromeProvider
 
 internal fun desktopStatsForNerdsInfoOrNull(
     showStatsForNerds: Boolean,
-    appRoute: DesktopAppRoute,
+    appRoute: NaviampRoute,
     connectionForm: DesktopConnectionFormStateHolder,
     connectedProvider: NavidromeProvider?,
     connectedSourceId: String?,

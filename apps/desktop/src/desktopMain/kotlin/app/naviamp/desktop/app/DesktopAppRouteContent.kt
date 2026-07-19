@@ -1,5 +1,7 @@
 package app.naviamp.desktop
 
+import app.naviamp.domain.app.NaviampRoute
+
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -58,11 +60,11 @@ import app.naviamp.ui.SonicMixBuilderContent
 import app.naviamp.ui.SonicPathBuilderContent
 
 @Composable
-fun ColumnScope.DesktopAppRouteContent(
+fun ColumnScope.NaviampRouteContent(
     shellState: NaviampAppShellUiState,
     shellActions: NaviampAppShellActions,
     appColors: DesktopAppColors,
-    appRoute: DesktopAppRoute,
+    appRoute: NaviampRoute,
     libraryListState: LazyListState,
     settingsSync: NaviampSettingsSyncUi,
     settingsSyncActions: NaviampSettingsSyncActions,
@@ -77,16 +79,16 @@ fun ColumnScope.DesktopAppRouteContent(
             .fillMaxWidth()
             .then(
                 if (
-                    appRoute == DesktopAppRoute.Home ||
-                        appRoute == DesktopAppRoute.Library ||
-                        appRoute == DesktopAppRoute.ArtistMix ||
-                        appRoute == DesktopAppRoute.AlbumMix ||
-                        appRoute == DesktopAppRoute.GenreMix ||
-                        appRoute == DesktopAppRoute.SonicPath ||
-                        appRoute == DesktopAppRoute.SonicMix ||
-                        appRoute == DesktopAppRoute.Settings ||
-                        appRoute == DesktopAppRoute.AlbumDetail ||
-                        appRoute == DesktopAppRoute.ArtistDetail
+                    appRoute == NaviampRoute.Home ||
+                        appRoute == NaviampRoute.Library ||
+                        appRoute == NaviampRoute.ArtistMix ||
+                        appRoute == NaviampRoute.AlbumMix ||
+                        appRoute == NaviampRoute.GenreMix ||
+                        appRoute == NaviampRoute.SonicPath ||
+                        appRoute == NaviampRoute.SonicMix ||
+                        appRoute == NaviampRoute.Settings ||
+                        appRoute == NaviampRoute.AlbumDetail ||
+                        appRoute == NaviampRoute.ArtistDetail
                 ) {
                     Modifier
                 } else {
@@ -99,37 +101,37 @@ fun ColumnScope.DesktopAppRouteContent(
             modifier = Modifier.fillMaxSize(),
         ) {
             when (appRoute) {
-                DesktopAppRoute.Player -> Unit
-                DesktopAppRoute.Home -> SharedHomeRoute(
+                NaviampRoute.Player -> Unit
+                NaviampRoute.Home -> SharedHomeRoute(
                     colors = appColors,
                     home = shellState.home,
                     actions = shellActions.homeActions,
                     mediaActions = shellActions.mediaActions,
                 )
-                DesktopAppRoute.AlbumDetail -> DesktopAlbumDetailPanel(
+                NaviampRoute.AlbumDetail -> DesktopAlbumDetailPanel(
                     appColors = appColors,
                     screen = shellState.albumDetail,
                     actions = shellActions.albumDetailActions,
                 )
-                DesktopAppRoute.ArtistDetail -> DesktopArtistDetailPanel(
+                NaviampRoute.ArtistDetail -> DesktopArtistDetailPanel(
                     appColors = appColors,
                     screen = shellState.artistDetail,
                     interfaceSettings = shellState.general.interfaceSettings,
                     actions = shellActions.artistDetailActions,
                 )
-                DesktopAppRoute.Playlists -> DesktopPlaylistsPanel(
+                NaviampRoute.Playlists -> DesktopPlaylistsPanel(
                     appColors = appColors,
                     screen = shellState.playlists,
                     actions = shellActions.playlistsActions,
                     mediaActions = shellActions.mediaActions,
                 )
-                DesktopAppRoute.PlaylistDetail -> DesktopPlaylistDetailPanel(
+                NaviampRoute.PlaylistDetail -> DesktopPlaylistDetailPanel(
                     appColors = appColors,
                     screen = shellState.playlistDetail,
                     actions = shellActions.playlistDetailActions,
                     playlistsActions = shellActions.playlistsActions,
                 )
-                DesktopAppRoute.Library -> {
+                NaviampRoute.Library -> {
                     DesktopLibraryPanel(
                         appColors = appColors,
                         library = shellState.library,
@@ -138,13 +140,13 @@ fun ColumnScope.DesktopAppRouteContent(
                         mediaActions = shellActions.mediaActions,
                     )
                 }
-                DesktopAppRoute.Search -> DesktopSearchPanel(
+                NaviampRoute.Search -> DesktopSearchPanel(
                     appColors = appColors,
                     search = shellState.search,
                     actions = shellActions.searchActions,
                     mediaActions = shellActions.mediaActions,
                 )
-                DesktopAppRoute.ArtistMix -> Column(
+                NaviampRoute.ArtistMix -> Column(
                     modifier = Modifier.fillMaxSize(),
                     verticalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
@@ -173,7 +175,7 @@ fun ColumnScope.DesktopAppRouteContent(
                         }
                     }
                 }
-                DesktopAppRoute.AlbumMix -> Column(
+                NaviampRoute.AlbumMix -> Column(
                     modifier = Modifier.fillMaxSize(),
                     verticalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
@@ -202,7 +204,7 @@ fun ColumnScope.DesktopAppRouteContent(
                         }
                     }
                 }
-                DesktopAppRoute.GenreMix -> Column(
+                NaviampRoute.GenreMix -> Column(
                     modifier = Modifier.fillMaxSize(),
                     verticalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
@@ -231,7 +233,7 @@ fun ColumnScope.DesktopAppRouteContent(
                         }
                     }
                 }
-                DesktopAppRoute.SonicPath -> Column(
+                NaviampRoute.SonicPath -> Column(
                     modifier = Modifier.fillMaxSize(),
                     verticalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
@@ -277,7 +279,7 @@ fun ColumnScope.DesktopAppRouteContent(
                         }
                     }
                 }
-                DesktopAppRoute.SonicMix -> Column(
+                NaviampRoute.SonicMix -> Column(
                     modifier = Modifier.fillMaxSize(),
                     verticalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
@@ -323,19 +325,19 @@ fun ColumnScope.DesktopAppRouteContent(
                         }
                     }
                 }
-                DesktopAppRoute.Radio -> Column(verticalArrangement = Arrangement.spacedBy(18.dp)) {
+                NaviampRoute.Radio -> Column(verticalArrangement = Arrangement.spacedBy(18.dp)) {
                     DesktopInternetRadioPanel(
                         appColors = appColors,
                         screen = shellState.radio,
                         actions = shellActions.radioActions,
                     )
                 }
-                DesktopAppRoute.Downloads -> DesktopDownloadsPanel(
+                NaviampRoute.Downloads -> DesktopDownloadsPanel(
                     appColors = appColors,
                     screen = shellState.downloads,
                     actions = shellActions.downloadsActions,
                 )
-                DesktopAppRoute.Settings -> DesktopSettingsPanel(
+                NaviampRoute.Settings -> DesktopSettingsPanel(
                     appColors = appColors,
                     connectionSettings = shellState.connectionSettings,
                     general = shellState.general,

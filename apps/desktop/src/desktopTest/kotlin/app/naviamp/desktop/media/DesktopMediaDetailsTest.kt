@@ -1,5 +1,7 @@
 package app.naviamp.desktop
 
+import app.naviamp.domain.app.NaviampRoute
+
 import app.naviamp.domain.Album
 import app.naviamp.domain.AlbumId
 import app.naviamp.domain.Artist
@@ -18,30 +20,30 @@ class DesktopMediaDetailsTest {
     @Test
     fun albumBackRouteUsesCurrentDetailRouteRules() {
         assertEquals(
-            DesktopAppRoute.Home,
+            NaviampRoute.Home,
             resolveAlbumDetailBackRoute(
-                currentRoute = DesktopAppRoute.Player,
-                currentBackRoute = DesktopAppRoute.Search,
-                lastContentRoute = DesktopAppRoute.Home,
+                currentRoute = NaviampRoute.Player,
+                currentBackRoute = NaviampRoute.Search,
+                lastContentRoute = NaviampRoute.Home,
                 backRouteOverride = null,
             ),
         )
         assertEquals(
-            DesktopAppRoute.ArtistDetail,
+            NaviampRoute.ArtistDetail,
             resolveAlbumDetailBackRoute(
-                currentRoute = DesktopAppRoute.ArtistDetail,
-                currentBackRoute = DesktopAppRoute.Home,
-                lastContentRoute = DesktopAppRoute.Search,
+                currentRoute = NaviampRoute.ArtistDetail,
+                currentBackRoute = NaviampRoute.Home,
+                lastContentRoute = NaviampRoute.Search,
                 backRouteOverride = null,
             ),
         )
         assertEquals(
-            DesktopAppRoute.Search,
+            NaviampRoute.Search,
             resolveAlbumDetailBackRoute(
-                currentRoute = DesktopAppRoute.Home,
-                currentBackRoute = DesktopAppRoute.Home,
-                lastContentRoute = DesktopAppRoute.Home,
-                backRouteOverride = DesktopAppRoute.Search,
+                currentRoute = NaviampRoute.Home,
+                currentBackRoute = NaviampRoute.Home,
+                lastContentRoute = NaviampRoute.Home,
+                backRouteOverride = NaviampRoute.Search,
             ),
         )
     }
@@ -54,15 +56,15 @@ class DesktopMediaDetailsTest {
         assertEquals(
             ArtistDetailNavigation(
                 backStack = listOf(currentArtist),
-                backRoute = DesktopAppRoute.Home,
+                backRoute = NaviampRoute.Home,
             ),
             artistDetailNavigation(
                 artist = nextArtist,
                 currentArtist = currentArtist,
-                currentRoute = DesktopAppRoute.ArtistDetail,
+                currentRoute = NaviampRoute.ArtistDetail,
                 currentBackStack = emptyList(),
-                currentBackRoute = DesktopAppRoute.Home,
-                lastContentRoute = DesktopAppRoute.Search,
+                currentBackRoute = NaviampRoute.Home,
+                lastContentRoute = NaviampRoute.Search,
                 backRouteOverride = null,
                 pushCurrentArtist = true,
             ),
@@ -74,15 +76,15 @@ class DesktopMediaDetailsTest {
         assertEquals(
             ArtistDetailNavigation(
                 backStack = emptyList(),
-                backRoute = DesktopAppRoute.Search,
+                backRoute = NaviampRoute.Search,
             ),
             artistDetailNavigation(
                 artist = artist("next"),
                 currentArtist = artist("current"),
-                currentRoute = DesktopAppRoute.Search,
+                currentRoute = NaviampRoute.Search,
                 currentBackStack = listOf(artist("old")),
-                currentBackRoute = DesktopAppRoute.Home,
-                lastContentRoute = DesktopAppRoute.Home,
+                currentBackRoute = NaviampRoute.Home,
+                lastContentRoute = NaviampRoute.Home,
                 backRouteOverride = null,
                 pushCurrentArtist = true,
             ),

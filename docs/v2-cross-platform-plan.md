@@ -419,6 +419,7 @@ Record architecture decisions here or link a dedicated decision record.
 | 2026-07-19 | Consume grouped route-shared media intent in Home. | Album selection, favorite toggling, mix playback, and playlist selection already belong to `NaviampMediaActions`; the shared Home renderer should consume that contract on both hosts rather than accepting four callbacks. |
 | 2026-07-19 | Consume grouped interface preferences in Desktop Artist Detail. | Album collection layout, sort order, and release-type grouping already travel together in `NaviampGeneralSettingsUi.interfaceSettings`; the panel should consume that focused model rather than three route-expanded values. |
 | 2026-07-19 | Back Desktop navigation directly with `NaviampRoute`. | Desktop's route enum duplicated every shared application route and required identity conversions around restoration, controller state, effects, and rendering; a compatibility type alias preserves local API names while the shared route is now the only route value type. |
+| 2026-07-19 | Remove the Desktop route compatibility alias. | Once every Desktop controller, effect, renderer, and test uses `NaviampRoute` directly, retaining `DesktopAppRoute` would imply platform route ownership that no longer exists; only the Desktop-to-`SharedRoute` navigation-bar mapping remains host UI glue. |
 
 ## Shared Controller Construction Audit
 
@@ -444,7 +445,7 @@ The 2026-07-17 audit covers every current application entry point:
 
 ## Current Handoff
 
-- **Last completed item:** Desktop navigation state, restoration, effects, and route rendering now use `NaviampRoute` directly; the duplicate enum and identity conversion functions are gone, with a temporary source-compatible alias remaining for local names.
-- **Next recommended item:** Remove the temporary `DesktopAppRoute` source alias from Desktop code, then document the final intentional Desktop route inputs and renderer ownership.
+- **Last completed item:** Every Desktop controller, effect, renderer, and test now names `NaviampRoute` directly; the temporary `DesktopAppRoute` alias is gone and only bottom-navigation presentation mapping remains host-owned.
+- **Next recommended item:** Document the final intentional Desktop route inputs and renderer ownership, then close the current Desktop shell-boundary migration with the full verification gate.
 - **Verification:** `:core:domain:jvmTest`, `:core:app:jvmTest`, `:core:storage:jvmTest`, `:core:ui:jvmTest`, `:apps:android:testDebugUnitTest`, `:apps:desktop:desktopTest`, `:core:app:iosSimulatorArm64Test`, `:core:storage:compileKotlinIosSimulatorArm64`, and `:core:ui:compileKotlinIosSimulatorArm64` pass together with at most two Gradle workers.
 - **Known blockers:** None.

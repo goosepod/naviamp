@@ -1,5 +1,7 @@
 package app.naviamp.desktop.playback
 
+import app.naviamp.domain.app.NaviampRoute
+
 import app.naviamp.domain.Lyrics
 import app.naviamp.domain.Track
 import app.naviamp.domain.audio.AudioTag
@@ -14,14 +16,13 @@ import app.naviamp.domain.playback.planPlaybackTrackStarted
 import app.naviamp.domain.provider.MediaProvider
 import app.naviamp.domain.queue.PlaybackQueue
 import app.naviamp.domain.waveform.AudioWaveform
-import app.naviamp.desktop.DesktopAppRoute
 import app.naviamp.desktop.PlaybackProgressUiUpdateIntervalMillis
 import app.naviamp.desktop.PlaybackProgressUiUpdateThresholdSeconds
 
 fun desktopPlaylistCallbacks(
     provider: () -> MediaProvider?,
-    appRoute: () -> DesktopAppRoute,
-    setAppRoute: (DesktopAppRoute) -> Unit,
+    appRoute: () -> NaviampRoute,
+    setAppRoute: (NaviampRoute) -> Unit,
     openPlayerOnTrackStart: () -> Boolean,
     nowPlayingTrack: () -> Track?,
     setNowPlayingTrack: (Track?) -> Unit,
@@ -59,7 +60,7 @@ fun desktopPlaylistCallbacks(
                 previousTrack = nowPlayingTrack(),
                 track = track,
                 openNowPlaying = openPlayerOnTrackStart(),
-                nowPlayingOpen = appRoute() == DesktopAppRoute.Player,
+                nowPlayingOpen = appRoute() == NaviampRoute.Player,
                 lyricsVisible = false,
                 supportsTrackFavorites = provider()?.capabilities?.supportsTrackFavorites == true,
             )
@@ -79,7 +80,7 @@ fun desktopPlaylistCallbacks(
                     setNowPlayingTrack = { startedTrack -> setNowPlayingTrack(startedTrack) },
                     setNowPlayingCoverArtUrl = setNowPlayingCoverArtUrl,
                     incrementPlayReportSession = incrementPlayReportSessionId,
-                    openNowPlaying = { setAppRoute(DesktopAppRoute.Player) },
+                    openNowPlaying = { setAppRoute(NaviampRoute.Player) },
                     reportNowPlaying = reportNowPlaying,
                     resetSidecars = {
                         setNowPlayingWaveform(null)

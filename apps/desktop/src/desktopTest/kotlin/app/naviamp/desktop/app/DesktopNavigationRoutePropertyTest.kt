@@ -18,11 +18,11 @@ class DesktopNavigationRoutePropertyTest {
         var current by DesktopNavigationRouteProperty(controller, DesktopNavigationField.CurrentRoute)
         var lastContent by DesktopNavigationRouteProperty(controller, DesktopNavigationField.LastContentRoute)
 
-        current = DesktopAppRoute.Settings
-        lastContent = DesktopAppRoute.Playlists
+        current = NaviampRoute.Settings
+        lastContent = NaviampRoute.Playlists
 
-        assertEquals(DesktopAppRoute.Settings, current)
-        assertEquals(DesktopAppRoute.Playlists, lastContent)
+        assertEquals(NaviampRoute.Settings, current)
+        assertEquals(NaviampRoute.Playlists, lastContent)
         assertEquals(NaviampRoute.Settings, controller.state.value.route)
         assertEquals(NaviampRoute.Playlists, controller.state.value.lastContentRoute)
     }

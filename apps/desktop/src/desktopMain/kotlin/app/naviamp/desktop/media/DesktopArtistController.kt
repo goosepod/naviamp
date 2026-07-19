@@ -1,5 +1,7 @@
 package app.naviamp.desktop
 
+import app.naviamp.domain.app.NaviampRoute
+
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -39,9 +41,9 @@ class DesktopArtistController(
     providerResponseCacheRepository: ProviderResponseCacheRepository,
     private val provider: () -> MediaProvider?,
     private val sourceId: () -> String?,
-    private val currentRoute: () -> DesktopAppRoute,
-    private val lastContentRoute: () -> DesktopAppRoute,
-    private val setRoute: (DesktopAppRoute) -> Unit,
+    private val currentRoute: () -> NaviampRoute,
+    private val lastContentRoute: () -> NaviampRoute,
+    private val setRoute: (NaviampRoute) -> Unit,
     private val popularTracksService: ArtistPopularTracksService,
     private val similarArtistsService: SimilarArtistsService,
 ) {
@@ -61,7 +63,7 @@ class DesktopArtistController(
         private set
     var selectedArtistSimilarArtistsStatus by mutableStateOf<String?>(null)
         private set
-    var artistDetailBackRoute by mutableStateOf(DesktopAppRoute.Search)
+    var artistDetailBackRoute by mutableStateOf(NaviampRoute.Search)
         private set
     private var artistDetailBackStack by mutableStateOf<List<Artist>>(emptyList())
 
@@ -109,7 +111,7 @@ class DesktopArtistController(
 
     fun openArtistDetails(
         artist: Artist,
-        backRouteOverride: DesktopAppRoute? = null,
+        backRouteOverride: NaviampRoute? = null,
         pushCurrentArtist: Boolean = true,
     ) {
         val activeProvider = provider() ?: return
@@ -131,7 +133,7 @@ class DesktopArtistController(
         selectedArtistPopularTracksStatus = null
         selectedArtistSimilarArtists = emptyList()
         selectedArtistSimilarArtistsStatus = null
-        setRoute(DesktopAppRoute.ArtistDetail)
+        setRoute(NaviampRoute.ArtistDetail)
         scope.launch {
             ArtistDetailFlowCoordinator(
                 setStatus = { status -> selectedArtistStatus = connectedDetailStatusAsNull(status) },
@@ -154,7 +156,7 @@ class DesktopArtistController(
         track: Track,
         artistId: String? = null,
         artistName: String? = null,
-        backRouteOverride: DesktopAppRoute = DesktopAppRoute.Player,
+        backRouteOverride: NaviampRoute = NaviampRoute.Player,
     ) {
         val selectedName = artistName?.takeIf { it.isNotBlank() }
         val artist = artistId?.takeIf { it.isNotBlank() }?.let { id ->

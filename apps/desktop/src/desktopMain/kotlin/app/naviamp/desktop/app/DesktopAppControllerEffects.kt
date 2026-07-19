@@ -1,5 +1,7 @@
 package app.naviamp.desktop
 
+import app.naviamp.domain.app.NaviampRoute
+
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
@@ -49,7 +51,7 @@ internal fun DesktopAppControllerEffects(
     playbackSettings: PlaybackSettings,
     nowPlayingLyricsVisible: Boolean,
     selectedVisualizer: NaviampVisualizer,
-    appRoute: DesktopAppRoute,
+    appRoute: NaviampRoute,
     selectedPlaylist: Playlist?,
     homeContent: HomeContent,
     showStatsForNerds: Boolean,
@@ -105,7 +107,7 @@ internal fun DesktopAppControllerEffects(
         val target = playlistDetailAutoRefreshTarget(
             provider = connectedProvider,
             playlist = selectedPlaylist,
-            enabled = appRoute == DesktopAppRoute.PlaylistDetail,
+            enabled = appRoute == NaviampRoute.PlaylistDetail,
         ) ?: return@LaunchedEffect
         runPlaylistDetailAutoRefresh(
             target = target,

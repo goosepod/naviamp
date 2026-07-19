@@ -25,12 +25,12 @@ fun restoredRoute(
     savedRouteName: String?,
     hasConnection: Boolean,
     hasRestoredTrack: Boolean,
-): DesktopAppRoute =
+): NaviampRoute =
     restoredNavigationRoute(
         savedRouteName = savedRouteName,
         hasConnection = hasConnection,
         hasRestoredTrack = hasRestoredTrack,
     )
 
-fun restoredLastContentRoute(savedRouteName: String?): DesktopAppRoute =
+fun restoredLastContentRoute(savedRouteName: String?): NaviampRoute =
     restoredSharedLastContentRoute(savedRouteName)

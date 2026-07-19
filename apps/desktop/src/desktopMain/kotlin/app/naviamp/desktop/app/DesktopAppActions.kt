@@ -1,5 +1,7 @@
 package app.naviamp.desktop
 
+import app.naviamp.domain.app.NaviampRoute
+
 import app.naviamp.domain.Album
 import app.naviamp.domain.AlbumDetails
 import app.naviamp.domain.Artist
@@ -40,7 +42,7 @@ class DesktopAppActions(
         connectionLifecycleController.connectToServer(restoreSavedSession)
     }
 
-    fun openAlbumDetails(album: Album, backRouteOverride: DesktopAppRoute? = null) {
+    fun openAlbumDetails(album: Album, backRouteOverride: NaviampRoute? = null) {
         albumController.openAlbumDetails(album, backRouteOverride)
     }
 
@@ -335,7 +337,7 @@ class DesktopAppActions(
 
     fun openArtistDetails(
         artist: Artist,
-        backRouteOverride: DesktopAppRoute? = null,
+        backRouteOverride: NaviampRoute? = null,
         pushCurrentArtist: Boolean = true,
     ) {
         artistController.openArtistDetails(artist, backRouteOverride, pushCurrentArtist)
@@ -345,7 +347,7 @@ class DesktopAppActions(
         track: Track,
         artistId: String? = null,
         artistName: String? = null,
-        backRouteOverride: DesktopAppRoute = DesktopAppRoute.Player,
+        backRouteOverride: NaviampRoute = NaviampRoute.Player,
     ) {
         artistController.openTrackArtistDetails(track, artistId, artistName, backRouteOverride)
     }

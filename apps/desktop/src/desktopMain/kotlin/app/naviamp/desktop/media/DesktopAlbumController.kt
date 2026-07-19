@@ -1,5 +1,7 @@
 package app.naviamp.desktop
 
+import app.naviamp.domain.app.NaviampRoute
+
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -23,9 +25,9 @@ class DesktopAlbumController(
     providerResponseCacheRepository: ProviderResponseCacheRepository,
     private val provider: () -> MediaProvider?,
     private val sourceId: () -> String?,
-    private val currentRoute: () -> DesktopAppRoute,
-    private val lastContentRoute: () -> DesktopAppRoute,
-    private val setRoute: (DesktopAppRoute) -> Unit,
+    private val currentRoute: () -> NaviampRoute,
+    private val lastContentRoute: () -> NaviampRoute,
+    private val setRoute: (NaviampRoute) -> Unit,
 ) {
     private val providerResponseService = ProviderResponseService(providerResponseCacheRepository)
 
@@ -35,14 +37,14 @@ class DesktopAlbumController(
         private set
     var selectedAlbumStatus by mutableStateOf<String?>(null)
         private set
-    var albumDetailBackRoute by mutableStateOf(DesktopAppRoute.Home)
+    var albumDetailBackRoute by mutableStateOf(NaviampRoute.Home)
         private set
 
     fun updateSelectedAlbumDetails(details: AlbumDetails?) {
         selectedAlbumDetails = details
     }
 
-    fun openAlbumDetails(album: Album, backRouteOverride: DesktopAppRoute? = null) {
+    fun openAlbumDetails(album: Album, backRouteOverride: NaviampRoute? = null) {
         val activeProvider = provider() ?: return
         albumDetailBackRoute =
             resolveAlbumDetailBackRoute(
@@ -53,7 +55,7 @@ class DesktopAlbumController(
             )
         selectedAlbum = album
         selectedAlbumDetails = null
-        setRoute(DesktopAppRoute.AlbumDetail)
+        setRoute(NaviampRoute.AlbumDetail)
         scope.launch {
             AlbumDetailFlowCoordinator(
                 setStatus = { status -> selectedAlbumStatus = connectedDetailStatusAsNull(status) },
@@ -73,6 +75,6 @@ class DesktopAlbumController(
     }
 
     fun openTrackAlbumDetails(track: Track) {
-        openAlbumDetails(trackAlbum(track) ?: return, backRouteOverride = DesktopAppRoute.Player)
+        openAlbumDetails(trackAlbum(track) ?: return, backRouteOverride = NaviampRoute.Player)
     }
 }

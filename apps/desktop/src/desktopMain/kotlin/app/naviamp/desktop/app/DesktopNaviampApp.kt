@@ -1,5 +1,7 @@
 package app.naviamp.desktop
 
+import app.naviamp.domain.app.NaviampRoute
+
 import app.naviamp.domain.cache.StorageCacheStats
 
 import androidx.compose.foundation.background
@@ -496,7 +498,7 @@ fun NaviampApp(
                 ),
             )
             connectionForm.isOpen = true
-            appRoute = DesktopAppRoute.Settings
+            appRoute = NaviampRoute.Settings
         }
     }
 
@@ -1602,7 +1604,7 @@ fun NaviampApp(
                     verticalArrangement = Arrangement.spacedBy(2.dp),
                 ) {
                     val playerTrack = nowPlayingTrack
-                    if (appRoute == DesktopAppRoute.Player && playerTrack != null) {
+                    if (appRoute == NaviampRoute.Player && playerTrack != null) {
                         DesktopPlayerRouteContent(
                             appColors = appColors,
                             connectedProvider = connectedProvider,
@@ -1859,11 +1861,11 @@ fun NaviampApp(
                                 },
                                 onMixBuilderSelected = { builder ->
                                     appRoute = when (builder.id) {
-                                        "artist" -> DesktopAppRoute.ArtistMix
-                                        "album" -> DesktopAppRoute.AlbumMix
-                                        "genre" -> DesktopAppRoute.GenreMix
-                                        "sonic-path" -> DesktopAppRoute.SonicPath
-                                        "sonic-mix" -> DesktopAppRoute.SonicMix
+                                        "artist" -> NaviampRoute.ArtistMix
+                                        "album" -> NaviampRoute.AlbumMix
+                                        "genre" -> NaviampRoute.GenreMix
+                                        "sonic-path" -> NaviampRoute.SonicPath
+                                        "sonic-mix" -> NaviampRoute.SonicMix
                                         else -> appRoute
                                     }
                                 },
@@ -1973,11 +1975,11 @@ fun NaviampApp(
                                 actionSources = playlistActionSources,
                                 appActions = appActions,
                                 playlistsController = playlistsController,
-                                onBack = { appRoute = DesktopAppRoute.Playlists },
+                                onBack = { appRoute = NaviampRoute.Playlists },
                             ),
                             mediaActions = desktopMediaActions(
                                 playlistActionSources = playlistActionSources,
-                                artists = if (appRoute == DesktopAppRoute.Search) {
+                                artists = if (appRoute == NaviampRoute.Search) {
                                     searchController.results.artists
                                 } else {
                                     libraryController.snapshot.artists
@@ -2106,7 +2108,7 @@ fun NaviampApp(
                                 },
                             ),
                         )
-                        DesktopAppRouteContent(
+                        NaviampRouteContent(
                             shellState = desktopShellState,
                             shellActions = desktopShellActions,
                             appColors = appColors,
@@ -2144,7 +2146,7 @@ fun NaviampApp(
                                 playbackState = playbackState,
                                 onPlaybackAction = handleNowPlayingPlaybackAction,
                                 onOpenPlayer = {
-                                    appRoute = DesktopAppRoute.Player
+                                    appRoute = NaviampRoute.Player
                                 },
                             )
                         }
@@ -2152,13 +2154,13 @@ fun NaviampApp(
                             appColors = appColors,
                             supportsDownloads = DesktopCapabilityPresentation.downloads.visible,
                             selectedRoute = when (appRoute) {
-                                DesktopAppRoute.AlbumDetail -> if (albumController.albumDetailBackRoute == DesktopAppRoute.ArtistDetail) {
+                                NaviampRoute.AlbumDetail -> if (albumController.albumDetailBackRoute == NaviampRoute.ArtistDetail) {
                                     artistController.artistDetailBackRoute
                                 } else {
                                     albumController.albumDetailBackRoute
                                 }
-                                DesktopAppRoute.ArtistDetail -> artistController.artistDetailBackRoute
-                                DesktopAppRoute.PlaylistDetail -> DesktopAppRoute.Playlists
+                                NaviampRoute.ArtistDetail -> artistController.artistDetailBackRoute
+                                NaviampRoute.PlaylistDetail -> NaviampRoute.Playlists
                                 else -> appRoute
                             },
                             onRouteSelected = { route ->

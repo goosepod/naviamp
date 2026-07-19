@@ -1,5 +1,7 @@
 package app.naviamp.desktop
 
+import app.naviamp.domain.app.NaviampRoute
+
 import app.naviamp.app.NaviampConnectionController
 import app.naviamp.app.NaviampPlaybackSessionController
 import app.naviamp.app.NaviampProviderActionController
@@ -113,8 +115,8 @@ class DesktopConnectionLifecycleController(
     private val applyConnectionFormState: (DesktopConnectionFormState) -> Unit,
     private val setConnectionFormOpen: (Boolean) -> Unit,
     private val setConnectionStatus: (String?) -> Unit,
-    private val setAppRoute: (DesktopAppRoute) -> Unit,
-    private val appRoute: () -> DesktopAppRoute,
+    private val setAppRoute: (NaviampRoute) -> Unit,
+    private val appRoute: () -> NaviampRoute,
     private val onSyncedSettingsChanged: () -> Unit = {},
 ) {
     fun openNewConnectionForm() {
@@ -148,7 +150,7 @@ class DesktopConnectionLifecycleController(
         )
         if (formError != null) {
             setConnectionStatus(formError)
-            setAppRoute(DesktopAppRoute.Settings)
+            setAppRoute(NaviampRoute.Settings)
             connectionController.failed(formError)
             return
         }
@@ -210,8 +212,8 @@ class DesktopConnectionLifecycleController(
                     clearPassword()
                 }
                 setConnectionFormOpen(false)
-                if (appRoute() == DesktopAppRoute.Settings) {
-                    setAppRoute(DesktopAppRoute.Home)
+                if (appRoute() == NaviampRoute.Settings) {
+                    setAppRoute(NaviampRoute.Home)
                 }
                 val connectedStatus = navidromeConnectionSuccessStatus(
                     validation = session.validation,
@@ -235,7 +237,7 @@ class DesktopConnectionLifecycleController(
                 checkLibraryFreshness()
             } catch (exception: Exception) {
                 setConnectedProvider(null)
-                setAppRoute(DesktopAppRoute.Settings)
+                setAppRoute(NaviampRoute.Settings)
                 val failureStatus = connectionFailureStatus(exception, fallback = "Could not connect to Navidrome.")
                 setConnectionStatus(failureStatus)
                 connectionController.failed(failureStatus)
@@ -260,7 +262,7 @@ class DesktopConnectionLifecycleController(
         onSyncedSettingsChanged()
         clearActiveConnectionState()
         setConnectionStatus(databaseResetStatus(savedServersRemoved = true))
-        setAppRoute(DesktopAppRoute.Settings)
+        setAppRoute(NaviampRoute.Settings)
     }
 
     fun deleteConnection(source: SavedMediaSource) {

@@ -1,5 +1,7 @@
 package app.naviamp.desktop
 
+import app.naviamp.domain.app.NaviampRoute
+
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -43,7 +45,7 @@ class DesktopNowPlayingController(
     private val sourceId: () -> String?,
     private val playbackSettings: () -> PlaybackSettings,
     private val cacheSettings: () -> CacheSettings,
-    private val appRoute: () -> DesktopAppRoute,
+    private val appRoute: () -> NaviampRoute,
     private val lyricsVisible: () -> Boolean,
     private val selectedVisualizer: () -> NaviampVisualizer,
     private val playbackQueue: () -> PlaybackQueue,
@@ -124,7 +126,7 @@ class DesktopNowPlayingController(
 
     suspend fun loadNowPlayingAnalysis() {
         val lyricMirrorTunnelVisible = selectedVisualizer() == NaviampVisualizer.LyricMirrorTunnel
-        val lyricsVisibleForWork = (lyricsVisible() || lyricMirrorTunnelVisible) && appRoute() == DesktopAppRoute.Player
+        val lyricsVisibleForWork = (lyricsVisible() || lyricMirrorTunnelVisible) && appRoute() == NaviampRoute.Player
         val track = nowPlayingTrack() ?: run {
             waveform = null
             waveformStatus = "No track"
