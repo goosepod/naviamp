@@ -109,6 +109,7 @@ import app.naviamp.ui.NaviampOfflineDashboardUi
 import app.naviamp.ui.NaviampShellChromeUi
 import app.naviamp.ui.NaviampShellNavigationActions
 import app.naviamp.ui.NaviampSettingsMaintenanceActions
+import app.naviamp.ui.NaviampSettingsSyncActions
 import app.naviamp.ui.NaviampSettingsValueActions
 import app.naviamp.ui.NaviampArtistDetailScreenUi
 import app.naviamp.ui.NaviampPlaylistDetailScreenUi
@@ -146,6 +147,7 @@ import app.naviamp.ui.toConnectionSettingsUi
 import app.naviamp.ui.toGeneralSettingsUi
 import app.naviamp.ui.toPlaybackSettingsUi
 import app.naviamp.ui.toSharedHomeUi
+import app.naviamp.ui.settingsSyncUi
 import app.naviamp.ui.toDownloadedTrackUi
 import app.naviamp.ui.toDownloadJobUi
 import app.naviamp.ui.totalDownloadBytes
@@ -1654,6 +1656,19 @@ fun NaviampApp(
                                 },
                             )
                         }
+                        val desktopSettingsSync = settingsSyncUi(
+                            directoryPath = settingsSyncSettings.directoryPath,
+                            autoExportEnabled = settingsSyncSettings.autoExportEnabled,
+                            status = settingsSyncStatus,
+                            capabilities = shellCapabilities,
+                        )
+                        val desktopSettingsSyncActions = NaviampSettingsSyncActions(
+                            onDirectoryChanged = ::updateSettingsSyncDirectory,
+                            onDirectorySelectedForImport = ::selectSettingsSyncDirectoryAndImport,
+                            onAutoExportChanged = ::updateSettingsSyncAutoExport,
+                            onExport = ::exportSettingsSync,
+                            onImport = ::importSettingsSync,
+                        )
                         val desktopShellState = NaviampAppShellUiState(
                             connectionSettings = shellConnection.toConnectionSettingsUi(
                                 capabilities = shellCapabilities,
@@ -2087,16 +2102,9 @@ fun NaviampApp(
                             appColors = appColors,
                             appRoute = appRoute,
                             connection = shellConnection,
-                            capabilities = shellCapabilities,
                             libraryListState = libraryListState,
-                            settingsSyncDirectoryPath = settingsSyncSettings.directoryPath,
-                            settingsSyncAutoExportEnabled = settingsSyncSettings.autoExportEnabled,
-                            settingsSyncStatus = settingsSyncStatus,
-                            onSettingsSyncDirectoryChanged = ::updateSettingsSyncDirectory,
-                            onSettingsSyncDirectorySelectedForImport = ::selectSettingsSyncDirectoryAndImport,
-                            onSettingsSyncAutoExportChanged = ::updateSettingsSyncAutoExport,
-                            onSettingsSyncExport = ::exportSettingsSync,
-                            onSettingsSyncImport = ::importSettingsSync,
+                            settingsSync = desktopSettingsSync,
+                            settingsSyncActions = desktopSettingsSyncActions,
                         )
                         DesktopAppDialogs(
                             appColors = appColors,

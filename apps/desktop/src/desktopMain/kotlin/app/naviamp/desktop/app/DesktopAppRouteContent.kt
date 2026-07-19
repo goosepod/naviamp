@@ -30,6 +30,7 @@ import app.naviamp.ui.NaviampAppShellUiState
 import app.naviamp.ui.NaviampConnectionSettingsActions
 import app.naviamp.ui.NaviampSettingsMaintenanceActions
 import app.naviamp.ui.NaviampSettingsSyncActions
+import app.naviamp.ui.NaviampSettingsSyncUi
 import app.naviamp.ui.NaviampSettingsValueActions
 import app.naviamp.ui.NaviampAlbumDetailScreenUi
 import app.naviamp.ui.NaviampArtistDetailScreenUi
@@ -42,7 +43,6 @@ import app.naviamp.ui.NaviampPlaylistDetailScreenUi
 import app.naviamp.ui.NaviampPlaylistsScreenUi
 import app.naviamp.ui.NaviampSearchScreenUi
 import app.naviamp.ui.NaviampSearchActions
-import app.naviamp.ui.NaviampShellCapabilitiesUi
 import app.naviamp.ui.NaviampShellConnectionUi
 import app.naviamp.ui.NaviampShellNavigationActions
 import app.naviamp.ui.SharedGenreMixItemUi
@@ -57,7 +57,6 @@ import app.naviamp.ui.SharedTrackRowUi
 import app.naviamp.ui.SaveQueueAsPlaylistDialog
 import app.naviamp.ui.SonicMixBuilderContent
 import app.naviamp.ui.SonicPathBuilderContent
-import app.naviamp.ui.settingsSyncUi
 
 @Composable
 fun ColumnScope.DesktopAppRouteContent(
@@ -66,33 +65,13 @@ fun ColumnScope.DesktopAppRouteContent(
     appColors: DesktopAppColors,
     appRoute: DesktopAppRoute,
     connection: NaviampShellConnectionUi,
-    capabilities: NaviampShellCapabilitiesUi,
     libraryListState: LazyListState,
-    settingsSyncDirectoryPath: String?,
-    settingsSyncAutoExportEnabled: Boolean,
-    settingsSyncStatus: String?,
-    onSettingsSyncDirectoryChanged: (String?) -> Unit,
-    onSettingsSyncDirectorySelectedForImport: (String) -> Unit,
-    onSettingsSyncAutoExportChanged: (Boolean) -> Unit,
-    onSettingsSyncExport: () -> Unit,
-    onSettingsSyncImport: () -> Unit,
+    settingsSync: NaviampSettingsSyncUi,
+    settingsSyncActions: NaviampSettingsSyncActions,
 ) {
     var saveSonicPathDialogOpen by remember { mutableStateOf(false) }
     var saveSonicMixDialogOpen by remember { mutableStateOf(false) }
     val contentScrollState = rememberScrollState()
-    val sharedSettingsSync = settingsSyncUi(
-        directoryPath = settingsSyncDirectoryPath,
-        autoExportEnabled = settingsSyncAutoExportEnabled,
-        status = settingsSyncStatus,
-        capabilities = capabilities,
-    )
-    val sharedSettingsSyncActions = NaviampSettingsSyncActions(
-        onDirectoryChanged = onSettingsSyncDirectoryChanged,
-        onDirectorySelectedForImport = onSettingsSyncDirectorySelectedForImport,
-        onAutoExportChanged = onSettingsSyncAutoExportChanged,
-        onExport = onSettingsSyncExport,
-        onImport = onSettingsSyncImport,
-    )
     val sharedShellState = shellState
     val sharedShellActions = shellActions
 
@@ -403,9 +382,9 @@ fun ColumnScope.DesktopAppRouteContent(
                     general = sharedShellState.general,
                     playback = sharedShellState.playback,
                     cache = sharedShellState.cache,
-                    settingsSync = sharedSettingsSync,
+                    settingsSync = settingsSync,
                     connectionActions = sharedShellActions.connectionActions,
-                    syncActions = sharedSettingsSyncActions,
+                    syncActions = settingsSyncActions,
                     valueActions = sharedShellActions.valueActions,
                     maintenanceActions = sharedShellActions.maintenanceActions,
                 )
