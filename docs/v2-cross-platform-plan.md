@@ -407,6 +407,7 @@ Record architecture decisions here or link a dedicated decision record.
 | 2026-07-19 | Remove stale Desktop route executor dependencies. | After media, detail, Home, downloads, and builder actions moved into shell contracts, `DesktopAppActions`, `DesktopPlaylistsController`, and raw playback settings were unused route inputs and should not imply execution ownership. |
 | 2026-07-19 | Group late-bound Desktop settings-sync state and actions. | Native directory selection and document I/O remain composition-root executors, while route rendering receives one `NaviampSettingsSyncUi` and one `NaviampSettingsSyncActions` contract instead of capabilities plus seven raw values and callbacks. |
 | 2026-07-19 | Compose Desktop connection status fallbacks at the root. | Playlist, Library, and Internet Radio screens should receive their final status in shared presentation models; successful connection messages remain shell chrome concerns and should not be rediscovered by route rendering. |
+| 2026-07-19 | Compose Desktop playlist-detail status at the root. | Detail-local loading or mutation status takes precedence, followed by playlist-list and connection failure status; route rendering should receive that resolved presentation rather than deriving it from sibling screen state. |
 
 ## Shared Controller Construction Audit
 
@@ -432,7 +433,7 @@ The 2026-07-17 audit covers every current application entry point:
 
 ## Current Handoff
 
-- **Last completed item:** Desktop connection status fallbacks are now composed into the Playlist, Library, and Internet Radio screen models at the composition root; route rendering consumes their final presentation directly.
-- **Next recommended item:** Compose the playlist-detail status fallback at the root, then move smart-playlist library choices into focused screen inputs so the route no longer needs the full connection aggregate.
+- **Last completed item:** Desktop playlist-detail status is now resolved at the composition root with detail, playlist-list, then connection-failure precedence; route rendering consumes the final screen model directly.
+- **Next recommended item:** Move smart-playlist library choices into focused playlist screen inputs so the route no longer needs the full connection aggregate.
 - **Verification:** `:core:domain:jvmTest`, `:core:app:jvmTest`, `:core:storage:jvmTest`, `:core:ui:jvmTest`, `:apps:android:testDebugUnitTest`, `:apps:desktop:desktopTest`, `:core:app:iosSimulatorArm64Test`, `:core:storage:compileKotlinIosSimulatorArm64`, and `:core:ui:compileKotlinIosSimulatorArm64` pass together with at most two Gradle workers.
 - **Known blockers:** None.

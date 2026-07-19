@@ -145,9 +145,7 @@ fun ColumnScope.DesktopAppRouteContent(
                 )
                 DesktopAppRoute.PlaylistDetail -> DesktopPlaylistDetailPanel(
                     appColors = appColors,
-                    screen = sharedShellState.playlistDetail.copy(
-                        status = sharedShellState.playlistDetail.status ?: sharedShellState.playlists.status,
-                    ),
+                    screen = sharedShellState.playlistDetail,
                     actions = sharedShellActions.playlistDetailActions,
                     playlistsActions = sharedShellActions.playlistsActions,
                     availableLibraries = connection.availableMusicFolders,

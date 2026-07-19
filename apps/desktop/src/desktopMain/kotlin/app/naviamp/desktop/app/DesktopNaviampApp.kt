@@ -1790,7 +1790,9 @@ fun NaviampApp(
                                     keepDownloadedActive = playlistsController.selectedPlaylist?.id
                                         ?.let { id -> downloadsController.keepDownloadedPolicies.any { it.collectionId == id } } == true,
                                 ),
-                                status = playlistsController.selectedPlaylistStatus,
+                                status = playlistsController.selectedPlaylistStatus
+                                    ?: playlistsController.status
+                                    ?: connectionPageStatus,
                             ),
                             library = NaviampLibraryScreenUi(
                                 artists = libraryController.snapshot.artists.map { artist ->
