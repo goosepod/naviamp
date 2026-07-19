@@ -17,6 +17,7 @@ import app.naviamp.ui.NaviampInternetRadioActions
 import app.naviamp.ui.NaviampAlbumDetailActions
 import app.naviamp.ui.NaviampArtistDetailActions
 import app.naviamp.ui.NaviampPlaylistDetailActions
+import app.naviamp.ui.NaviampMediaActions
 import app.naviamp.ui.StationRowAction
 import app.naviamp.ui.SharedMediaItemAction
 import app.naviamp.ui.SharedTrackRowAction
@@ -305,6 +306,44 @@ internal fun desktopPlaylistDetailActions(
         val tracks = actionSources.selectedTracks(rows)
         if (playlist != null && tracks != null) {
             playlistsController.updateStandardPlaylistTracks(playlist, tracks)
+        }
+    },
+)
+
+internal fun desktopMediaActions(
+    playlistActionSources: DesktopPlaylistActionSources,
+    appActions: DesktopAppActions,
+    playlistsController: DesktopPlaylistsController,
+): NaviampMediaActions = NaviampMediaActions(
+    onMediaItemAction = { request ->
+        if (request.kind == SharedMediaItemKind.Playlist) {
+            playlistActionSources.playlist(request.item.id)?.let { playlist ->
+                if (request.textValue == app.naviamp.ui.KeepDownloadedActionValue) {
+                    appActions.toggleKeepDownloadedPlaylist(playlist)
+                } else {
+                    when (request.action) {
+                        SharedMediaItemAction.Select -> appActions.openPlaylistDetails(playlist)
+                        SharedMediaItemAction.Play -> appActions.playPlaylist(playlist, request.shuffle)
+                        SharedMediaItemAction.Shuffle -> appActions.playPlaylist(playlist, shuffle = true)
+                        SharedMediaItemAction.Download -> appActions.downloadPlaylist(playlist)
+                        SharedMediaItemAction.AddToQueue -> playlistsController.addPlaylistToQueue(playlist)
+                        SharedMediaItemAction.AddToPlaylist ->
+                            playlistsController.openPlaylistAddToPlaylist(playlist)
+                        SharedMediaItemAction.Rename -> playlistsController.requestPlaylistRename(playlist)
+                        SharedMediaItemAction.Delete -> playlistsController.requestPlaylistDelete(playlist)
+                        SharedMediaItemAction.StartRadio,
+                        SharedMediaItemAction.FindSimilar,
+                        SharedMediaItemAction.ToggleFavorite,
+                        SharedMediaItemAction.CreatePlaylistAndAdd,
+                        SharedMediaItemAction.CopyPlaylist,
+                        SharedMediaItemAction.CopyPlaylistDeduplicated,
+                        SharedMediaItemAction.EditSmartPlaylist,
+                        SharedMediaItemAction.EditStation,
+                        SharedMediaItemAction.DeleteStation,
+                        -> Unit
+                    }
+                }
+            }
         }
     },
 )

@@ -23,7 +23,6 @@ import app.naviamp.desktop.settings.CacheSettings
 import app.naviamp.desktop.settings.PlaybackSettings
 import app.naviamp.domain.Album
 import app.naviamp.domain.Artist
-import app.naviamp.domain.Playlist
 import app.naviamp.domain.Track
 import app.naviamp.domain.cache.DownloadJob
 import app.naviamp.domain.cache.KeepDownloadedCollectionPolicy
@@ -84,9 +83,6 @@ fun ColumnScope.DesktopAppRouteContent(
     playlistsController: DesktopPlaylistsController,
     libraryController: DesktopLibraryController,
     searchController: DesktopSearchController,
-    playlistActionSources: DesktopPlaylistActionSources,
-    onPlaylistRenameRequested: (Playlist) -> Unit,
-    onPlaylistDeleteRequested: (Playlist) -> Unit,
     libraryListState: LazyListState,
     connectedSourceId: String?,
     downloadRefreshToken: Int,
@@ -169,32 +165,6 @@ fun ColumnScope.DesktopAppRouteContent(
             SharedMediaItemAction.Rename,
             SharedMediaItemAction.EditSmartPlaylist,
             SharedMediaItemAction.Delete,
-            SharedMediaItemAction.EditStation,
-            SharedMediaItemAction.DeleteStation,
-            -> Unit
-        }
-    }
-    fun handlePlaylistMediaAction(
-        requestAction: SharedMediaItemAction,
-        playlist: Playlist,
-        shuffle: Boolean = false,
-    ) {
-        when (requestAction) {
-            SharedMediaItemAction.Select -> appActions.openPlaylistDetails(playlist)
-            SharedMediaItemAction.Play -> appActions.playPlaylist(playlist, shuffle)
-            SharedMediaItemAction.Shuffle -> appActions.playPlaylist(playlist, shuffle = true)
-            SharedMediaItemAction.Download -> appActions.downloadPlaylist(playlist)
-            SharedMediaItemAction.AddToQueue -> playlistsController.addPlaylistToQueue(playlist)
-            SharedMediaItemAction.AddToPlaylist -> playlistsController.openPlaylistAddToPlaylist(playlist)
-            SharedMediaItemAction.Rename -> onPlaylistRenameRequested(playlist)
-            SharedMediaItemAction.Delete -> onPlaylistDeleteRequested(playlist)
-            SharedMediaItemAction.StartRadio,
-            SharedMediaItemAction.FindSimilar,
-            SharedMediaItemAction.ToggleFavorite,
-            SharedMediaItemAction.CreatePlaylistAndAdd,
-            SharedMediaItemAction.CopyPlaylist,
-            SharedMediaItemAction.CopyPlaylistDeduplicated,
-            SharedMediaItemAction.EditSmartPlaylist,
             SharedMediaItemAction.EditStation,
             SharedMediaItemAction.DeleteStation,
             -> Unit
@@ -290,16 +260,7 @@ fun ColumnScope.DesktopAppRouteContent(
                         status = sharedShellState.playlists.status ?: connection.status.pageStatusOrNull(),
                     ),
                     actions = sharedShellActions.playlistsActions,
-                    onPlaylistAction = { request ->
-                        playlistActionSources.playlist(request.item.id)
-                            ?.let { playlist ->
-                                if (request.textValue == app.naviamp.ui.KeepDownloadedActionValue) {
-                                    appActions.toggleKeepDownloadedPlaylist(playlist)
-                                } else {
-                                    handlePlaylistMediaAction(request.action, playlist, request.shuffle)
-                                }
-                            }
-                    },
+                    onPlaylistAction = sharedShellActions.mediaActions.onMediaItemAction ?: {},
                     availableLibraries = connection.availableMusicFolders,
                     selectedConnectionLibraryIds = connection.form.selectedMusicFolderIds,
                 )
