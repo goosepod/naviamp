@@ -95,6 +95,8 @@ import app.naviamp.ui.NaviampLibraryScreenUi
 import app.naviamp.ui.NaviampLibrarySyncStatusUi
 import app.naviamp.ui.NaviampSearchScreenUi
 import app.naviamp.ui.NaviampAlbumDetailScreenUi
+import app.naviamp.ui.NaviampAppShellActions
+import app.naviamp.ui.NaviampAppShellUiState
 import app.naviamp.ui.NaviampArtistDetailScreenUi
 import app.naviamp.ui.NaviampPlaylistDetailScreenUi
 import app.naviamp.ui.NaviampPlaylistsScreenUi
@@ -1609,7 +1611,91 @@ fun NaviampApp(
                             playlistsController = playlistsController,
                         )
                     } else {
+                        val builderShellState = NaviampAppShellUiState(
+                            artistMixBuilder = mixBuilderController.artistUi(
+                                coverArtUrl = { coverArtId -> coverArtId?.let { connectedProvider?.coverArtUrl(it) } },
+                            ),
+                            albumMixBuilder = mixBuilderController.albumUi(
+                                coverArtUrl = { coverArtId -> coverArtId?.let { connectedProvider?.coverArtUrl(it) } },
+                            ),
+                            genreMixBuilder = mixBuilderController.genreUi(),
+                            sonicPathBuilder = sonicPathController.ui(
+                                coverArtUrl = { coverArtId -> coverArtId?.let { connectedProvider?.coverArtUrl(it) } },
+                            ),
+                            sonicMixBuilder = sonicMixController.ui(
+                                coverArtUrl = { coverArtId -> coverArtId?.let { connectedProvider?.coverArtUrl(it) } },
+                            ),
+                        )
+                        val builderShellActions = NaviampAppShellActions(
+                            artistMixActions = SharedArtistMixBuilderActions(
+                                onQueryChanged = mixBuilderController::setArtistQuery,
+                                onSearch = mixBuilderController::searchArtistSuggestions,
+                                onArtistSelected = { item -> mixBuilderController.selectArtistByItemId(item.id) },
+                                onArtistRemoved = { item -> mixBuilderController.removeArtistByItemId(item.id) },
+                                onReset = mixBuilderController::resetArtistBuilder,
+                                onPlay = { mixBuilderController.playArtistMix(radioController) },
+                            ),
+                            albumMixActions = SharedAlbumMixBuilderActions(
+                                onQueryChanged = mixBuilderController::setAlbumQuery,
+                                onSearch = mixBuilderController::searchAlbumSuggestions,
+                                onAlbumSelected = { item -> mixBuilderController.selectAlbumByItemId(item.id) },
+                                onAlbumRemoved = { item -> mixBuilderController.removeAlbumByItemId(item.id) },
+                                onReset = mixBuilderController::resetAlbumBuilder,
+                                onPlay = { mixBuilderController.playAlbumMix(radioController) },
+                            ),
+                            genreMixActions = SharedGenreMixBuilderActions(
+                                onQueryChanged = mixBuilderController::setGenreQuery,
+                                onSearch = mixBuilderController::refreshGenreSuggestions,
+                                onGenreSelected = { item -> mixBuilderController.selectGenreByItemId(item.id) },
+                                onGenreRemoved = { item -> mixBuilderController.removeGenreByItemId(item.id) },
+                                onReset = mixBuilderController::resetGenreBuilder,
+                                onPlay = { mixBuilderController.playGenreMix(radioController) },
+                            ),
+                            sonicPathActions = SharedSonicPathBuilderActions(
+                                onStartQueryChanged = sonicPathController::updateStartQuery,
+                                onEndQueryChanged = sonicPathController::updateEndQuery,
+                                onStartSearch = sonicPathController::searchStartTracks,
+                                onEndSearch = sonicPathController::searchEndTracks,
+                                onStartTrackSelected = sonicPathController::selectStartTrack,
+                                onEndTrackSelected = sonicPathController::selectEndTrack,
+                                onStartTrackCleared = sonicPathController::clearStartTrack,
+                                onEndTrackCleared = sonicPathController::clearEndTrack,
+                                onCountChanged = sonicPathController::updateCount,
+                                onBuild = sonicPathController::buildPath,
+                                onReset = sonicPathController::reset,
+                                onPlay = sonicPathController::playPath,
+                                onAddToQueue = sonicPathController::addPathToQueue,
+                                onSaveAsPlaylist = { name ->
+                                    playlistsController.saveTracksAsPlaylist(
+                                        name = name,
+                                        tracks = sonicPathController.playlistTracks(),
+                                        label = "sonic path",
+                                    )
+                                },
+                            ),
+                            sonicMixActions = SharedSonicMixBuilderActions(
+                                onQueryChanged = sonicMixController::updateQuery,
+                                onSearch = sonicMixController::searchTracks,
+                                onTrackSelected = sonicMixController::selectTrack,
+                                onTrackRemoved = sonicMixController::removeTrack,
+                                onTargetLengthChanged = sonicMixController::updateTargetLength,
+                                onBiasChanged = sonicMixController::updateBias,
+                                onBuild = sonicMixController::buildMix,
+                                onReset = sonicMixController::reset,
+                                onPlay = sonicMixController::playMix,
+                                onAddToQueue = sonicMixController::addMixToQueue,
+                                onSaveAsPlaylist = { name ->
+                                    playlistsController.saveTracksAsPlaylist(
+                                        name = name,
+                                        tracks = sonicMixController.playlistTracks(),
+                                        label = "sonic mix",
+                                    )
+                                },
+                            ),
+                        )
                         DesktopAppRouteContent(
+                            shellState = builderShellState,
+                            shellActions = builderShellActions,
                             appColors = appColors,
                             appRoute = appRoute,
                             connection = shellConnection,

@@ -102,6 +102,8 @@ import app.naviamp.ui.toGeneralSettingsUi
 
 @Composable
 fun ColumnScope.DesktopAppRouteContent(
+    shellState: NaviampAppShellUiState,
+    shellActions: NaviampAppShellActions,
     appColors: DesktopAppColors,
     appRoute: DesktopAppRoute,
     connection: NaviampShellConnectionUi,
@@ -222,7 +224,7 @@ fun ColumnScope.DesktopAppRouteContent(
         onExport = onSettingsSyncExport,
         onImport = onSettingsSyncImport,
     )
-    val sharedShellState = NaviampAppShellUiState(
+    val sharedShellState = shellState.copy(
         connectionSettings = connection.toConnectionSettingsUi(
             capabilities = capabilities,
             currentSourceId = connectedSourceId,
@@ -244,11 +246,6 @@ fun ColumnScope.DesktopAppRouteContent(
         ),
         search = search,
         home = NaviampHomeScreenUi(content = sharedHome, refreshing = homeRefreshing),
-        artistMixBuilder = artistMixBuilder,
-        albumMixBuilder = albumMixBuilder,
-        genreMixBuilder = genreMixBuilder,
-        sonicPathBuilder = sonicPathBuilder,
-        sonicMixBuilder = sonicMixBuilder,
         library = library,
         playlists = playlists,
         radio = internetRadio,
@@ -256,7 +253,7 @@ fun ColumnScope.DesktopAppRouteContent(
         artistDetail = artistDetail,
         playlistDetail = playlistDetail,
     )
-    val baseSharedShellActions = NaviampAppShellActions(
+    val baseSharedShellActions = shellActions.copy(
         navigationActions = NaviampShellNavigationActions(
             onRouteSelected = { route -> onRouteSelected(route.toAppRoute()) },
         ),
@@ -409,11 +406,6 @@ fun ColumnScope.DesktopAppRouteContent(
         }
     }
     val sharedShellActions = baseSharedShellActions.copy(
-        artistMixActions = artistMixActions,
-        albumMixActions = albumMixActions,
-        genreMixActions = genreMixActions,
-        sonicPathActions = sonicPathActions,
-        sonicMixActions = sonicMixActions,
         radioActions = NaviampInternetRadioActions(
             onRefresh = internetRadioController::refreshStations,
             onStationAction = { request ->
