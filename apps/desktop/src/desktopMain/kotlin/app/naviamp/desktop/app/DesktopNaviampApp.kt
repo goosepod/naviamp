@@ -38,6 +38,7 @@ import app.naviamp.app.NaviampCacheSettingsController
 import app.naviamp.domain.app.NaviampNavigationState
 import app.naviamp.domain.cache.ImageCacheRepository
 import app.naviamp.domain.cache.DownloadJob
+import app.naviamp.domain.cache.downloadedAudioQualityLabel
 import app.naviamp.domain.cache.ProviderResponseService
 import app.naviamp.domain.playback.PlaybackProgress
 import app.naviamp.domain.playback.AudioOutputDevicePlaybackEngine
@@ -103,6 +104,8 @@ import app.naviamp.ui.NaviampAppShellActions
 import app.naviamp.ui.NaviampAppShellUiState
 import app.naviamp.ui.NaviampHomeScreenUi
 import app.naviamp.ui.NaviampHomeActions
+import app.naviamp.ui.NaviampDownloadsScreenUi
+import app.naviamp.ui.NaviampOfflineDashboardUi
 import app.naviamp.ui.NaviampShellChromeUi
 import app.naviamp.ui.NaviampShellNavigationActions
 import app.naviamp.ui.NaviampSettingsMaintenanceActions
@@ -143,6 +146,9 @@ import app.naviamp.ui.toConnectionSettingsUi
 import app.naviamp.ui.toGeneralSettingsUi
 import app.naviamp.ui.toPlaybackSettingsUi
 import app.naviamp.ui.toSharedHomeUi
+import app.naviamp.ui.toDownloadedTrackUi
+import app.naviamp.ui.toDownloadJobUi
+import app.naviamp.ui.totalDownloadBytes
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.nio.file.Path
@@ -1627,6 +1633,27 @@ fun NaviampApp(
                             playlistsController = playlistsController,
                         )
                     } else {
+                        val desktopDownloadedTracks = remember(
+                            connectedSourceId,
+                            downloadsController.refreshToken,
+                            cacheStats.downloadCount,
+                        ) {
+                            connectedSourceId?.let(storage::downloadedTracks).orEmpty()
+                        }
+                        val desktopDownloadItems = desktopDownloadedTracks.map { download ->
+                            download.track.toDownloadedTrackUi(
+                                id = download.path.toString(),
+                                sizeBytes = download.sizeBytes,
+                                qualityLabel = downloadedAudioQualityLabel(
+                                    download.qualityKey,
+                                    download.track.audioInfo,
+                                    download.contentType,
+                                ),
+                                coverArtUrl = { coverArtId ->
+                                    coverArtId?.let { connectedProvider?.coverArtUrl(it) }
+                                },
+                            )
+                        }
                         val desktopShellState = NaviampAppShellUiState(
                             connectionSettings = shellConnection.toConnectionSettingsUi(
                                 capabilities = shellCapabilities,
@@ -1662,6 +1689,21 @@ fun NaviampApp(
                                         playbackSettings.sonicSimilarityEnabled && shellCapabilities.sonicSimilarity,
                                 ),
                                 refreshing = homeController.refreshing,
+                            ),
+                            downloads = NaviampDownloadsScreenUi(
+                                downloads = desktopDownloadItems,
+                                status = downloadsController.status,
+                                jobs = downloadsController.downloadJobs.map { it.toDownloadJobUi() },
+                                downloadBytes = desktopDownloadItems.totalDownloadBytes(),
+                                maxDownloadBytes = cacheSettings.maxDownloadBytes,
+                                offlineDashboard = NaviampOfflineDashboardUi(
+                                    audioCacheCount = cacheStats.audioCount,
+                                    audioCacheBytes = cacheStats.audioBytes,
+                                    maxAudioCacheBytes = cacheSettings.maxAudioCacheBytes,
+                                ),
+                                keepFavoritesDownloaded = downloadsController.keepDownloadedPolicies.any {
+                                    it.kind == app.naviamp.domain.cache.KeepDownloadedCollectionKind.Favorites
+                                },
                             ),
                             artistMixBuilder = mixBuilderController.artistUi(
                                 coverArtUrl = { coverArtId -> coverArtId?.let { connectedProvider?.coverArtUrl(it) } },
@@ -2037,19 +2079,11 @@ fun NaviampApp(
                             appRoute = appRoute,
                             connection = shellConnection,
                             capabilities = shellCapabilities,
-                            coverArtUrl = { coverArtId -> coverArtId?.let { connectedProvider?.coverArtUrl(it) } },
                             appActions = appActions,
                             playlistsController = playlistsController,
                             onLibraryJumpToLetter = libraryController::jumpLibraryToLetter,
                             libraryListState = libraryListState,
-                            connectedSourceId = connectedSourceId,
-                            downloadRefreshToken = downloadsController.refreshToken,
-                            downloadStatus = downloadsController.status,
-                            downloadJobs = downloadsController.downloadJobs,
-                            keepDownloadedPolicies = downloadsController.keepDownloadedPolicies,
-                            cacheSettings = cacheSettings,
-                            cacheStats = cacheStats,
-                            downloadedTracks = storage::downloadedTracks,
+                            downloadedTracks = desktopDownloadedTracks,
                             interfaceSettings = interfaceSettings,
                             playbackSettings = playbackSettings,
                             settingsSyncDirectoryPath = settingsSyncSettings.directoryPath,

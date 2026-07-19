@@ -19,12 +19,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import app.naviamp.desktop.settings.CacheSettings
 import app.naviamp.desktop.settings.PlaybackSettings
 import app.naviamp.domain.Track
-import app.naviamp.domain.cache.DownloadJob
-import app.naviamp.domain.cache.KeepDownloadedCollectionPolicy
-import app.naviamp.domain.cache.StorageCacheStats
 import app.naviamp.domain.playback.EqualizerPlaybackEngine
 import app.naviamp.domain.settings.ConnectionFormState
 import app.naviamp.domain.settings.InterfaceSettings
@@ -73,22 +69,14 @@ fun ColumnScope.DesktopAppRouteContent(
     appRoute: DesktopAppRoute,
     connection: NaviampShellConnectionUi,
     capabilities: NaviampShellCapabilitiesUi,
-    coverArtUrl: (String?) -> String?,
     appActions: DesktopAppActions,
     playlistsController: DesktopPlaylistsController,
     onLibraryJumpToLetter: (Char) -> Unit,
     libraryListState: LazyListState,
-    connectedSourceId: String?,
-    downloadRefreshToken: Int,
-    downloadStatus: String?,
-    downloadJobs: List<DownloadJob>,
-    keepDownloadedPolicies: List<KeepDownloadedCollectionPolicy>,
-    cacheSettings: CacheSettings,
-    cacheStats: StorageCacheStats,
     settingsSyncDirectoryPath: String?,
     settingsSyncAutoExportEnabled: Boolean,
     settingsSyncStatus: String?,
-    downloadedTracks: (sourceId: String) -> List<DownloadedTrack>,
+    downloadedTracks: List<DownloadedTrack>,
     interfaceSettings: InterfaceSettings,
     playbackSettings: PlaybackSettings,
     onSettingsSyncDirectoryChanged: (String?) -> Unit,
@@ -406,24 +394,8 @@ fun ColumnScope.DesktopAppRouteContent(
                 }
                 DesktopAppRoute.Downloads -> DesktopDownloadsRoute(
                     appColors = appColors,
-                    source = DesktopDownloadsSourceState(
-                        connectedSourceId = connectedSourceId,
-                        refreshToken = downloadRefreshToken,
-                        downloadCount = cacheStats.downloadCount,
-                        maxDownloadBytes = cacheSettings.maxDownloadBytes,
-                        offlineDashboard = app.naviamp.ui.NaviampOfflineDashboardUi(
-                            audioCacheCount = cacheStats.audioCount,
-                            audioCacheBytes = cacheStats.audioBytes,
-                            maxAudioCacheBytes = cacheSettings.maxAudioCacheBytes,
-                        ),
-                        status = downloadStatus,
-                        jobs = downloadJobs,
-                        keepFavoritesDownloaded = keepDownloadedPolicies.any {
-                            it.kind == app.naviamp.domain.cache.KeepDownloadedCollectionKind.Favorites
-                        },
-                    ),
-                    coverArtUrl = coverArtUrl,
-                    downloadedTracks = downloadedTracks,
+                    screen = sharedShellState.downloads,
+                    downloads = downloadedTracks,
                     onPlayDownloadedTrack = appActions::playDownloadedTrack,
                     onRemoveDownloadedTrack = appActions::removeDownloadedTrack,
                     onCancelDownloadJob = appActions::cancelDownloadJob,
