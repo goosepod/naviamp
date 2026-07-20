@@ -15,7 +15,7 @@ class SeededRadioBuildEffectsTest {
         val recent = RecentRadioStream("radio", "Radio", RecentRadioKind.Track)
         val calls = mutableListOf<String>()
 
-        applySeededRadioBuildResult(
+        val applied = applySeededRadioBuildResult(
             result = SeededRadioBuildResult.Ready(listOf(seed, next), recent),
             requestIsCurrent = true,
             buildingStatus = "Building radio...",
@@ -27,6 +27,7 @@ class SeededRadioBuildEffectsTest {
             ),
         )
 
+        assertEquals(true, applied)
         assertEquals(listOf("recent:radio", "tracks:[next]", "status:Building radio..."), calls)
     }
 
@@ -35,7 +36,7 @@ class SeededRadioBuildEffectsTest {
         val recent = RecentRadioStream("radio", "Radio", RecentRadioKind.Track)
         val calls = mutableListOf<String>()
 
-        applySeededRadioBuildResult(
+        val applied = applySeededRadioBuildResult(
             result = SeededRadioBuildResult.Ready(listOf(track("seed")), recent),
             requestIsCurrent = false,
             buildingStatus = "Building",
@@ -47,6 +48,7 @@ class SeededRadioBuildEffectsTest {
             ),
         )
 
+        assertEquals(false, applied)
         assertEquals(listOf("recent"), calls)
     }
 

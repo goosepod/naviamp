@@ -527,8 +527,8 @@ The 2026-07-17 audit covers every current application entry point:
 
 ## Current Handoff
 
-- **Last completed item:** Desktop Internet Radio progress now uses the same shared progress planner and effect applier as Android. Common policy strips meaningless live-stream duration, throttles UI publication, and returns whether the host should advance its UI timestamp; platform clocks and observable state remain host inputs. The twenty-fifth delete-first correction removes a net 12 Desktop production lines, bringing the running reduction to 4,692 lines; `DesktopInternetRadioController` is now 238 lines.
-- **Next recommended item:** Apply shared seeded-radio build policy to Android's specialized track-radio path.
+- **Last completed item:** Android's specialized track-radio path now uses the same seeded-build result policy as the general Android and Desktop paths. The shared result reports whether current ready work was applied; Android retains only its full seed-queue installation, related-track presentation, and native queue-controller effects. This Android parity correction does not change Desktop production size.
+- **Next recommended item:** Share seeded-radio expansion result application across Android and Desktop, then continue the Desktop radio seed-selection audit.
 - **Verification:** On 2026-07-20, `:core:ui:jvmTest`, `:apps:desktop:desktopTest`, `:apps:android:compileDebugKotlin`, and `:core:ui:compileKotlinIosSimulatorArm64` passed after moving route-product composition into common UI. Desktop smoke testing then exposed infinite-height constraints where Downloads and playlist details were nested inside the route wrapper's vertical scroll even though both screens own scrolling, plus an unscrollable connection form because Settings does not own scrolling. The wrapper now adds scrolling only for Search, Playlists, Internet Radio, and Settings, with JVM regression coverage for the route policy.
 - **Known blockers:** None.
 

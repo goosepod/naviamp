@@ -706,54 +706,57 @@ fun startAndroidTrackRadioQueue(
         with(state) {
             status = "Starting ${track.title} radio..."
             val request = trackRadioRequest(track, playbackSettings.sonicSimilarityEnabled)
-            when (
-                val result = seededRadioBuildResult(
-                    request = request,
-                    radioService = RadioService(
-                        provider = activeProvider,
-                        count = AndroidInitialSimilarRadioCount,
-                        tuning = playbackSettings.radioTuning,
-                    ),
-                )
-            ) {
-                is SeededRadioBuildResult.Ready -> {
-                    val queue = result.queue
-                    result.recentRadioStream?.let(rememberRecentRadioStream)
-                    if (playSeed) {
-                        playTrack(track, queue)
-                    } else {
-                        val update = sharedQueueCoordinator.replaceQueue(
-                            PlaybackQueue(tracks = queue, currentIndex = 0),
-                        )
-                        queueController.replaceQueue(update.queue)
-                        relatedTracks = queue.drop(1)
-                        relatedTracksSource = RelatedTracksSource.ProviderRadio
-                        relatedSimilarityByTrackId = emptyMap()
-                        shuffledUpNextSnapshot = null
-                    }
-                    status = "Building ${track.title} radio queue..."
-                    radioContinuation.finishRefill(activeRadioSessionId)
-                    AndroidSimilarRadioExpansionCounts.forEach { count ->
-                        if (!radioContinuation.isCurrent(activeRadioSessionId) || nowPlaying?.id != track.id) return@launch
-                        val expansionResult = seededRadioExpansionResult(
-                            request = request,
-                            radioService = RadioService(
-                                provider = activeProvider,
-                                count = count,
-                                tuning = playbackSettings.radioTuning,
-                            ),
-                        )
-                        if (expansionResult !is SeededRadioExpansionResult.Ready) return@forEach
-                        appendAndroidGeneratedRadioTracks(state, queueController, track, expansionResult.fetchedTracks)
-                        status = "Building ${track.title} radio queue (${playbackQueue.tracks.size} tracks)..."
-                    }
-                    if (radioContinuation.isCurrent(activeRadioSessionId) && nowPlaying?.id == track.id) {
-                        status = "Track radio loaded."
-                    }
+            val result = seededRadioBuildResult(
+                request = request,
+                radioService = RadioService(
+                    provider = activeProvider,
+                    count = AndroidInitialSimilarRadioCount,
+                    tuning = playbackSettings.radioTuning,
+                ),
+            )
+            val buildApplied = applySeededRadioBuildResult(
+                result = result,
+                requestIsCurrent = radioContinuation.isCurrent(activeRadioSessionId),
+                buildingStatus = "Building ${track.title} radio queue...",
+                failureStatus = "Could not start track radio.",
+                applier = SeededRadioBuildEffectApplier(
+                    rememberRecentRadioStream = rememberRecentRadioStream,
+                    appendFetchedTracks = { fetchedTracks ->
+                        val queue = listOf(track) + fetchedTracks
+                        if (playSeed) {
+                            playTrack(track, queue)
+                        } else {
+                            val update = sharedQueueCoordinator.replaceQueue(
+                                PlaybackQueue(tracks = queue, currentIndex = 0),
+                            )
+                            queueController.replaceQueue(update.queue)
+                            relatedTracks = fetchedTracks
+                            relatedTracksSource = RelatedTracksSource.ProviderRadio
+                            relatedSimilarityByTrackId = emptyMap()
+                            shuffledUpNextSnapshot = null
+                        }
+                    },
+                    setStatus = { status = it },
+                ),
+            )
+            radioContinuation.finishRefill(activeRadioSessionId)
+            if (buildApplied) {
+                AndroidSimilarRadioExpansionCounts.forEach { count ->
+                    if (!radioContinuation.isCurrent(activeRadioSessionId) || nowPlaying?.id != track.id) return@launch
+                    val expansionResult = seededRadioExpansionResult(
+                        request = request,
+                        radioService = RadioService(
+                            provider = activeProvider,
+                            count = count,
+                            tuning = playbackSettings.radioTuning,
+                        ),
+                    )
+                    if (expansionResult !is SeededRadioExpansionResult.Ready) return@forEach
+                    appendAndroidGeneratedRadioTracks(state, queueController, track, expansionResult.fetchedTracks)
+                    status = "Building ${track.title} radio queue (${playbackQueue.tracks.size} tracks)..."
                 }
-                is SeededRadioBuildResult.Failed -> {
-                    radioContinuation.finishRefill(activeRadioSessionId)
-                    status = result.error.message ?: "Could not start track radio."
+                if (radioContinuation.isCurrent(activeRadioSessionId) && nowPlaying?.id == track.id) {
+                    status = "Track radio loaded."
                 }
             }
         }
