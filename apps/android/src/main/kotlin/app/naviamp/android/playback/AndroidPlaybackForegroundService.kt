@@ -20,13 +20,8 @@ import android.os.Handler
 import android.os.Looper
 import android.util.Log
 import android.support.v4.media.MediaBrowserCompat
-import android.support.v4.media.MediaDescriptionCompat
-import android.support.v4.media.MediaMetadataCompat
 import android.support.v4.media.session.MediaSessionCompat
-import android.support.v4.media.session.PlaybackStateCompat
 import androidx.media.MediaBrowserServiceCompat
-import androidx.media.MediaSessionManager
-import androidx.media.utils.MediaConstants
 import app.naviamp.android.AndroidStorageDependencies
 import app.naviamp.android.AndroidSettingsStore
 import app.naviamp.android.AndroidPlaybackAudioAssets
@@ -86,8 +81,6 @@ private const val AndroidAutoArtistAlbumFallbackLimit = 4
 class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
     private val mainHandler = Handler(Looper.getMainLooper())
     private var serviceActive = false
-    private var mediaSession: MediaSessionCompat? = null
-    private var browserSessionTokenSet = false
     private var serviceStorageInstance: AndroidStorageDependencies? = null
     private var loadingNotificationCoverArtUrl: String? = null
     private var serviceSelectionJobs: AndroidAutoSelectionJobs? = null
@@ -145,6 +138,14 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
             loadAlbumTracks = ::loadServiceAlbumTracks,
         )
     }
+    private val mediaBrowserController: AndroidMediaBrowserController by lazy {
+        AndroidMediaBrowserController(
+            context = applicationContext,
+            applicationUid = applicationInfo.uid,
+            hydrateSession = ::hydrateSavedPlaybackSession,
+            browse = autoBrowseController,
+        )
+    }
     private val autoCommandController: AndroidAutoCommandController by lazy {
         AndroidAutoCommandController(
             handleServiceAutoPlayPause = { handleServiceAutoPlayPause() },
@@ -163,6 +164,46 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
             repeatAction = ActionRepeat,
             queueAction = ActionQueue,
             trackRadioAction = ActionTrackRadio,
+        )
+    }
+    private val mediaSessionController: AndroidMediaSessionController by lazy {
+        AndroidMediaSessionController(
+            context = this,
+            storage = { serviceStorage },
+            queue = { currentAutoQueue },
+            queueIndex = { currentAutoQueueIndex },
+            metadata = { currentMetadata },
+            artwork = { currentLargeIcon },
+            shuffleEnabled = { serviceShuffleEnabled },
+            repeatMode = { serviceRepeatMode },
+            actions = AndroidMediaSessionActions(
+                play = {
+                    if (!AndroidPlaybackNotificationControls.isPlaying) {
+                        handleAutoPlayPause()
+                        refreshNotification(null)
+                    }
+                },
+                pause = {
+                    if (AndroidPlaybackNotificationControls.isPlaying) {
+                        handleAutoPlayPause()
+                        refreshNotification(null)
+                    }
+                },
+                previous = { handleAutoPrevious(); refreshNotification(null) },
+                next = { handleAutoNext(); refreshNotification(null) },
+                queueItem = { playServiceAutoQueueItem(it); refreshNotification(null) },
+                stop = { handleAutoStop("media session stop") },
+                seek = ::handleAutoSeek,
+                playMediaId = autoCommandController::playFromMediaId,
+                playSearch = autoCommandController::playFromSearch,
+                customAction = autoCommandController::customAction,
+            ),
+            publishBrowserToken = ::setSessionToken,
+            favoriteAction = ActionFavorite,
+            shuffleAction = ActionShuffle,
+            repeatAction = ActionRepeat,
+            trackRadioAction = ActionTrackRadio,
+            queueTrackPrefix = AndroidAutoPlaybackControls.MediaIdQueueTrackPrefix,
         )
     }
     private val serviceSessionController: AndroidPlaybackServiceSessionController by lazy {
@@ -222,11 +263,7 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
         serviceSelectionJobs = null
         pausePlaybackForRouteDisconnect("service destroyed")
         runCatching { unregisterReceiver(noisyAudioReceiver) }
-        mediaSession?.setCallback(null)
-        mediaSession?.release()
-        mediaSession = null
-        browserSessionTokenSet = false
-        resetMediaSessionPublishState()
+        mediaSessionController.release()
         serviceCreated = false
         super.onDestroy()
     }
@@ -292,7 +329,7 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
                     stopPlaybackForUserRequest("stop action")
                 }
                 stopForeground(STOP_FOREGROUND_REMOVE)
-                mediaSession?.isActive = false
+                mediaSessionController.setActive(false)
                 stopSelf()
                 return START_NOT_STICKY
             }
@@ -558,7 +595,7 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
     private fun stopPlaybackAndService(reason: String) {
         stopPlaybackForUserRequest(reason)
         stopForeground(STOP_FOREGROUND_REMOVE)
-        mediaSession?.isActive = false
+        mediaSessionController.setActive(false)
         stopSelf()
     }
 
@@ -1298,7 +1335,7 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
         syncAutoQueue(PlaybackQueue(tracks = tracks, currentIndex = currentIndex.coerceIn(tracks.indices)))
         val session = playbackSessionFromQueue(autoQueueController.queue) ?: return
         playbackSessionRepository.savePlaybackSession(sourceId = sourceId, session = session)
-        publishAutoQueue(ensureMediaSession())
+        mediaSessionController.publishQueue()
         updateMediaSessionPlaybackState()
     }
 
@@ -1567,206 +1604,34 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
         )
     }
 
-    private fun ensureMediaSession(): MediaSessionCompat =
-        mediaSession ?: MediaSessionCompat(this, "NaviampPlayback").apply {
-            resetMediaSessionPublishState()
-            setCallback(
-                object : MediaSessionCompat.Callback() {
-                    override fun onPlay() {
-                        if (!AndroidPlaybackNotificationControls.isPlaying) {
-                            handleAutoPlayPause()
-                            refreshNotification(null)
-                        }
-                    }
-
-                    override fun onPause() {
-                        if (AndroidPlaybackNotificationControls.isPlaying) {
-                            handleAutoPlayPause()
-                            refreshNotification(null)
-                        }
-                    }
-
-                    override fun onSkipToPrevious() {
-                        handleAutoPrevious()
-                        refreshNotification(null)
-                    }
-
-                    override fun onSkipToNext() {
-                        handleAutoNext()
-                        refreshNotification(null)
-                    }
-
-                    override fun onSkipToQueueItem(id: Long) {
-                        playServiceAutoQueueItem(id.toInt())
-                        refreshNotification(null)
-                    }
-
-                    override fun onStop() {
-                        handleAutoStop("media session stop")
-                    }
-
-                    override fun onSeekTo(pos: Long) {
-                        handleAutoSeek(pos)
-                    }
-
-                    override fun onRewind() {
-                        handleAutoSeek(
-                            ((AndroidPlaybackNotificationControls.positionMillis ?: 0L) - MediaSessionSeekStepMillis)
-                                .coerceAtLeast(0L),
-                        )
-                    }
-
-                    override fun onFastForward() {
-                        val currentPosition = AndroidPlaybackNotificationControls.positionMillis ?: 0L
-                        val duration = AndroidPlaybackNotificationControls.durationMillis
-                        val nextPosition = currentPosition + MediaSessionSeekStepMillis
-                        handleAutoSeek(
-                            if (duration != null && duration > 0L) {
-                                nextPosition.coerceAtMost(duration)
-                            } else {
-                                nextPosition
-                            },
-                        )
-                    }
-
-                    override fun onPlayFromMediaId(mediaId: String, extras: Bundle?) {
-                        autoCommandController.playFromMediaId(mediaId, extras)
-                    }
-
-                    override fun onPlayFromSearch(query: String, extras: Bundle?) {
-                        autoCommandController.playFromSearch(query, extras)
-                    }
-
-                    override fun onCustomAction(action: String, extras: android.os.Bundle?) {
-                        autoCommandController.customAction(action, extras)
-                    }
-                },
-            )
-            publishPlaybackState(this)
-            if (!browserSessionTokenSet) {
-                setSessionToken(sessionToken)
-                browserSessionTokenSet = true
-            }
-            this@AndroidPlaybackForegroundService.mediaSession = this
-        }
-
-    private fun resetMediaSessionPublishState() {
-        lastPublishedAutoQueueSignature = null
-        lastPublishedMediaMetadataSignature = null
-        lastPublishedPlaybackStateSignature = null
-    }
+    private fun ensureMediaSession(): MediaSessionCompat = mediaSessionController.ensure()
 
     override fun onGetRoot(
         clientPackageName: String,
         clientUid: Int,
         rootHints: Bundle?,
-    ): BrowserRoot? {
-        val remoteUser = MediaSessionManager.RemoteUserInfo(
-            clientPackageName,
-            -1,
-            clientUid,
-        )
-        val trusted = clientUid == applicationInfo.uid ||
-            MediaSessionManager.getSessionManager(applicationContext).isTrustedForMediaControl(remoteUser)
-        if (!trusted) {
-            Log.w("NaviampAutoCommand", "Rejecting untrusted media browser client=$clientPackageName uid=$clientUid")
-            return null
-        }
-        hydrateSavedPlaybackSession()
-        return BrowserRoot(
-            AndroidAutoPlaybackControls.MediaIdRoot,
-            Bundle().apply {
-                putBoolean(MediaConstants.BROWSER_SERVICE_EXTRAS_KEY_SEARCH_SUPPORTED, true)
-            },
-        )
-    }
+    ): BrowserRoot? = mediaBrowserController.root(clientPackageName, clientUid)
 
     override fun onLoadChildren(
         parentId: String,
         result: Result<MutableList<MediaBrowserCompat.MediaItem>>,
-    ) {
-        hydrateSavedPlaybackSession()
-        autoBrowseController.loadChildren(parentId, result)
-    }
+    ) = mediaBrowserController.loadChildren(parentId, result)
 
     override fun onLoadChildren(
         parentId: String,
         result: Result<MutableList<MediaBrowserCompat.MediaItem>>,
         options: Bundle,
-    ) {
-        hydrateSavedPlaybackSession()
-        autoBrowseController.loadChildren(parentId, result, options)
-    }
+    ) = mediaBrowserController.loadChildren(parentId, result, options)
 
     override fun onSearch(
         query: String,
         extras: Bundle?,
         result: Result<MutableList<MediaBrowserCompat.MediaItem>>,
-    ) {
-        hydrateSavedPlaybackSession()
-        autoBrowseController.search(query, extras, result)
-    }
+    ) = mediaBrowserController.search(query, extras, result)
 
     private fun updateMediaSession(metadata: AndroidPlaybackNotificationMetadata, largeIcon: Bitmap?) {
-        val session = ensureMediaSession()
-        currentMediaSessionDurationMillis = currentPlaybackDurationMillis()
-        publishAutoQueue(session)
-        val metadataSignature = mediaMetadataSignature(metadata, currentMediaSessionDurationMillis, largeIcon)
-        if (metadataSignature != lastPublishedMediaMetadataSignature) {
-            lastPublishedMediaMetadataSignature = metadataSignature
-            session.setMetadata(
-                MediaMetadataCompat.Builder()
-                    .putString(MediaMetadataCompat.METADATA_KEY_MEDIA_ID, currentMediaSessionMediaId())
-                    .putString(MediaMetadataCompat.METADATA_KEY_TITLE, metadata.title.orEmpty())
-                    .putString(MediaMetadataCompat.METADATA_KEY_ARTIST, metadata.subtitle.orEmpty())
-                    .apply {
-                        currentAutoQueue.getOrNull(currentAutoQueueIndex)?.albumTitle?.takeIf { it.isNotBlank() }?.let { album ->
-                            putString(MediaMetadataCompat.METADATA_KEY_ALBUM, album)
-                        }
-                    }
-                    .apply {
-                        currentMediaSessionDurationMillis?.takeIf { it > 0L }?.let { duration ->
-                            putLong(MediaMetadataCompat.METADATA_KEY_DURATION, duration)
-                        }
-                    }
-                    .apply {
-                        largeIcon?.let { art ->
-                            putBitmap(MediaMetadataCompat.METADATA_KEY_ALBUM_ART, art)
-                            putBitmap(MediaMetadataCompat.METADATA_KEY_ART, art)
-                        }
-                    }
-                    .build(),
-            )
-        }
-        publishPlaybackState(session)
-        session.isActive = true
+        mediaSessionController.update(metadata, largeIcon)
     }
-
-    private fun mediaMetadataSignature(
-        metadata: AndroidPlaybackNotificationMetadata,
-        durationMillis: Long?,
-        largeIcon: Bitmap?,
-    ): String =
-        listOf(
-            currentMediaSessionMediaId(),
-            metadata.title.orEmpty(),
-            metadata.subtitle.orEmpty(),
-            durationMillis?.toString().orEmpty(),
-            largeIcon?.generationId?.toString().orEmpty(),
-        ).joinToString("|")
-
-    private fun currentMediaSessionMediaId(): String =
-        currentAutoQueue.getOrNull(currentAutoQueueIndex)?.id?.value
-            ?: currentMetadata.coverArtUrl?.takeIf { it.isNotBlank() }
-            ?: "naviamp-now-playing"
-
-    private fun currentPlaybackDurationMillis(): Long? =
-        AndroidPlaybackNotificationControls.durationMillis
-            ?.takeIf { it > 0L }
-            ?: currentAutoQueue.getOrNull(currentAutoQueueIndex)
-                ?.durationSeconds
-                ?.takeIf { it > 0 }
-                ?.let { it * 1_000L }
 
     private fun toggleServiceShuffle() {
         serviceShuffleEnabled = !serviceShuffleEnabled
@@ -1776,7 +1641,7 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
             if (shuffled != null) {
                 currentAutoQueue = shuffled.queue.tracks
                 currentAutoQueueIndex = shuffled.queue.currentIndex
-                lastPublishedAutoQueueSignature = null
+                mediaSessionController.invalidateQueue()
                 val storage = serviceStorage
                 val sourceId = storage.latestNavidromeSource()?.id
                 val session = playbackSessionFromQueue(
@@ -1858,132 +1723,9 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
         )
     }
 
-    private fun publishAutoQueue(session: MediaSessionCompat) {
-        val queue = currentAutoQueue
-        val queueSignature = "$currentAutoQueueIndex:${queue.joinToString("|") { it.id.value }}"
-        if (queueSignature == lastPublishedAutoQueueSignature) return
-        lastPublishedAutoQueueSignature = queueSignature
-        if (queue.isEmpty()) {
-            Log.i("NaviampAutoCommand", "Publishing empty native Auto queue")
-            session.setQueue(emptyList())
-            session.setQueueTitle(null)
-            return
-        }
-        Log.i(
-            "NaviampAutoCommand",
-            "Publishing native Auto queue count=${queue.size} index=$currentAutoQueueIndex",
-        )
-        val coverArtProvider = serviceStorage.latestNavidromeSource()
-            ?.toNavidromeConnection()
-            ?.let(::NavidromeProvider)
-        session.setQueueTitle("Queue")
-        session.setQueue(
-            queue.mapIndexed { index, track ->
-                MediaSessionCompat.QueueItem(
-                    MediaDescriptionCompat.Builder()
-                        .setMediaId("${AndroidAutoPlaybackControls.MediaIdQueueTrackPrefix}${Uri.encode(index.toString())}")
-                        .setTitle(track.title)
-                        .setSubtitle(track.artistName)
-                        .setDescription(track.albumTitle)
-                        .apply {
-                            val coverArtId = track.coverArtId ?: track.albumId?.value
-                            val artUrl = coverArtId?.let { id -> coverArtProvider?.coverArtUrl(id) }
-                            artUrl?.let { setIconUri(Uri.parse(it)) }
-                        }
-                        .build(),
-                    index.toLong(),
-                )
-            },
-        )
-    }
-
     private fun updateMediaSessionPlaybackState() {
-        val session = ensureMediaSession()
-        if (currentMediaSessionDurationMillis != currentPlaybackDurationMillis()) {
-            updateMediaSession(currentMetadata, currentLargeIcon)
-            return
-        }
-        publishPlaybackState(session)
-        session.isActive = true
+        mediaSessionController.updatePlaybackState()
     }
-
-    private fun publishPlaybackState(session: MediaSessionCompat) {
-        val stateSignature = playbackStateSignature()
-        if (stateSignature == lastPublishedPlaybackStateSignature) return
-        lastPublishedPlaybackStateSignature = stateSignature
-        val favoriteIcon = if (AndroidPlaybackNotificationControls.isFavorite) {
-            R.drawable.ic_favorite_filled_24
-        } else {
-            R.drawable.ic_favorite_24
-        }
-        val favoriteTitle = if (AndroidPlaybackNotificationControls.isFavorite) "Unfavorite" else "Favorite"
-        session.setPlaybackState(buildPlaybackState(favoriteTitle, favoriteIcon))
-    }
-
-    private fun playbackStateSignature(): String =
-        listOf(
-            AndroidPlaybackNotificationControls.isPlaying.toString(),
-            AndroidPlaybackNotificationControls.positionMillis?.toString().orEmpty(),
-            AndroidPlaybackNotificationControls.durationMillis?.toString().orEmpty(),
-            AndroidPlaybackNotificationControls.canFavorite.toString(),
-            AndroidPlaybackNotificationControls.isFavorite.toString(),
-            serviceShuffleEnabled.toString(),
-            serviceRepeatMode.name,
-            currentAutoQueueIndex.toString(),
-            currentAutoQueue.getOrNull(currentAutoQueueIndex)?.id?.value.orEmpty(),
-        ).joinToString("|")
-
-    private fun buildPlaybackState(
-        favoriteTitle: String,
-        favoriteIcon: Int,
-    ): PlaybackStateCompat =
-        PlaybackStateCompat.Builder()
-            .setActions(
-                PlaybackStateCompat.ACTION_PLAY or
-                    PlaybackStateCompat.ACTION_PAUSE or
-                    PlaybackStateCompat.ACTION_PLAY_PAUSE or
-                    PlaybackStateCompat.ACTION_REWIND or
-                    PlaybackStateCompat.ACTION_SKIP_TO_PREVIOUS or
-                    PlaybackStateCompat.ACTION_SKIP_TO_NEXT or
-                    PlaybackStateCompat.ACTION_FAST_FORWARD or
-                    PlaybackStateCompat.ACTION_SKIP_TO_QUEUE_ITEM or
-                    PlaybackStateCompat.ACTION_PLAY_FROM_SEARCH or
-                    PlaybackStateCompat.ACTION_SEEK_TO or
-                    PlaybackStateCompat.ACTION_STOP,
-            )
-            .addCustomAction(ActionFavorite, favoriteTitle, favoriteIcon)
-            .addCustomAction(
-                ActionShuffle,
-                if (serviceShuffleEnabled) "Shuffle on" else "Shuffle off",
-                R.drawable.ic_shuffle_24,
-            )
-            .addCustomAction(
-                ActionRepeat,
-                when (serviceRepeatMode) {
-                    ServiceRepeatMode.Off -> "Repeat off"
-                    ServiceRepeatMode.All -> "Repeat all"
-                    ServiceRepeatMode.One -> "Repeat one"
-                },
-                R.drawable.ic_repeat_24,
-            )
-            .addCustomAction(ActionTrackRadio, "Start song radio", R.drawable.ic_auto_radio)
-            .setState(
-                if (AndroidPlaybackNotificationControls.isPlaying) {
-                    PlaybackStateCompat.STATE_PLAYING
-                } else {
-                    PlaybackStateCompat.STATE_PAUSED
-                },
-                AndroidPlaybackNotificationControls.positionMillis
-                    ?: PlaybackStateCompat.PLAYBACK_POSITION_UNKNOWN,
-                if (AndroidPlaybackNotificationControls.isPlaying) 1f else 0f,
-            )
-            .setActiveQueueItemId(
-                currentAutoQueueIndex
-                    .takeIf { it in currentAutoQueue.indices }
-                    ?.toLong()
-                    ?: -1L,
-            )
-            .build()
 
     private fun hydrateSavedPlaybackSession() {
         serviceSessionController.hydrateSavedPlaybackSession()
@@ -2040,7 +1782,6 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
         private const val ActionUpdate = "app.naviamp.android.playback.UPDATE"
         private const val ActionProgress = "app.naviamp.android.playback.PROGRESS"
         private const val AndroidAutoBrowseLimit = 50
-        private const val MediaSessionSeekStepMillis = 10_000L
         private const val ExtraTitle = "title"
         private const val ExtraSubtitle = "subtitle"
         private const val ExtraCoverArtUrl = "coverArtUrl"
@@ -2052,12 +1793,8 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
         private val PlayerNotificationColor = Color.rgb(82, 35, 31)
         private var currentMetadata = AndroidPlaybackNotificationMetadata()
         private var currentLargeIcon: Bitmap? = null
-        private var currentMediaSessionDurationMillis: Long? = null
         private var currentAutoQueue: List<Track> = emptyList()
         private var currentAutoQueueIndex: Int = -1
-        private var lastPublishedAutoQueueSignature: String? = null
-        private var lastPublishedMediaMetadataSignature: String? = null
-        private var lastPublishedPlaybackStateSignature: String? = null
         private var serviceShuffleEnabled = false
         private var serviceRepeatMode = ServiceRepeatMode.Off
         @Volatile
@@ -2132,12 +1869,6 @@ internal fun isAuthorizedPlaybackServiceCommand(
 
 private fun isProtectedPlaybackServiceAction(action: String?): Boolean =
     action?.startsWith("app.naviamp.android.playback.") == true
-
-private enum class ServiceRepeatMode {
-    Off,
-    All,
-    One,
-}
 
 internal fun Bitmap.dominantNotificationColor(): Int {
     var red = 0L
