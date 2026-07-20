@@ -137,6 +137,24 @@ class NaviampPlaybackQueueCoordinatorTest {
     }
 
     @Test
+    fun repeatCommandCyclesSharedStateBeforeMirroringToPlatform() {
+        val playback = NaviampLivePlaybackController()
+        val applied = mutableListOf<RepeatMode>()
+        val commands = NaviampPlaybackRepeatCommandController(
+            queue = NaviampPlaybackQueueCoordinator(playback),
+            execution = NaviampPlaybackRepeatModeExecution(applied::add),
+        )
+
+        assertEquals(RepeatMode.Queue, commands.cycle())
+        assertEquals(RepeatMode.Queue, playback.state.value.repeatMode)
+        assertEquals(listOf(RepeatMode.Queue), applied)
+
+        assertEquals(RepeatMode.Track, commands.cycle())
+        assertEquals(RepeatMode.Track, playback.state.value.repeatMode)
+        assertEquals(listOf(RepeatMode.Queue, RepeatMode.Track), applied)
+    }
+
+    @Test
     fun shuffleAndRestoreUseOneSharedSnapshot() {
         val first = track("first")
         val upcoming = listOf(track("second"), track("third"), track("fourth"))

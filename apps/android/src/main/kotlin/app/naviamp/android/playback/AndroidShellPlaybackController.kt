@@ -1,6 +1,8 @@
 package app.naviamp.android
 
 import app.naviamp.android.playback.AndroidPlaybackEngine
+import app.naviamp.app.NaviampPlaybackRepeatCommandController
+import app.naviamp.app.NaviampPlaybackRepeatModeExecution
 import app.naviamp.domain.Track
 import app.naviamp.domain.playback.PlaybackQueueController
 import app.naviamp.domain.playback.PlaybackState
@@ -21,6 +23,14 @@ internal class AndroidShellPlaybackController(
     private val playInternetRadioStation: (app.naviamp.domain.InternetRadioStation) -> Unit,
     private val rememberRecentRadioStream: (RecentRadioStream) -> Unit,
 ) {
+    private val repeatCommands = NaviampPlaybackRepeatCommandController(
+        queue = state.sharedQueueCoordinator,
+        execution = NaviampPlaybackRepeatModeExecution { mode ->
+            state.repeatMode = mode
+            playbackQueueController.setRepeatMode(mode)
+        },
+    )
+
     fun resume() {
         when (state.playbackState) {
             PlaybackState.Idle,
@@ -65,6 +75,10 @@ internal class AndroidShellPlaybackController(
         val update = state.sharedQueueCoordinator.toggleUpcomingShuffle()
         if (!update.changed) return
         playbackQueueController.replaceQueue(update.queue)
+    }
+
+    fun cycleRepeatMode() {
+        repeatCommands.cycle()
     }
 
     fun startTrackRadioQueue(track: Track, playSeed: Boolean) {

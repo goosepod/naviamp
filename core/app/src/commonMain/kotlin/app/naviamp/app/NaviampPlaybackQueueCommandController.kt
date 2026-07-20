@@ -1,6 +1,7 @@
 package app.naviamp.app
 
 import app.naviamp.domain.playback.PlaybackQueueMutationUpdate
+import app.naviamp.domain.queue.RepeatMode
 
 /** Applies shared user queue mutations to the playback engine owned by a platform host. */
 fun interface NaviampPlaybackQueueMutationExecution {
@@ -28,4 +29,16 @@ class NaviampPlaybackQueueCommandController(
 
     private fun apply(update: PlaybackQueueMutationUpdate): PlaybackQueueMutationUpdate =
         update.also { if (it.changed) execution.apply(it) }
+}
+
+fun interface NaviampPlaybackRepeatModeExecution {
+    fun apply(mode: RepeatMode)
+}
+
+/** Cycles shared repeat policy before mirroring the selected mode into a platform queue adapter. */
+class NaviampPlaybackRepeatCommandController(
+    private val queue: NaviampPlaybackQueueCoordinator,
+    private val execution: NaviampPlaybackRepeatModeExecution,
+) {
+    fun cycle(): RepeatMode = queue.cycleRepeatMode().also(execution::apply)
 }

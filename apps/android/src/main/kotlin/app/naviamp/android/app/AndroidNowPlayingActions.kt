@@ -44,9 +44,7 @@ internal fun androidNowPlayingActions(
             NowPlayingPlaybackAction.Previous -> playbackController.playAdjacentTrack(-1)
             NowPlayingPlaybackAction.Next -> playbackController.playAdjacentTrack(1)
             NowPlayingPlaybackAction.ToggleShuffle -> shellPlaybackController.toggleShuffle()
-            NowPlayingPlaybackAction.CycleRepeatMode -> {
-                state.repeatMode = state.sharedQueueCoordinator.cycleRepeatMode()
-            }
+            NowPlayingPlaybackAction.CycleRepeatMode -> shellPlaybackController.cycleRepeatMode()
             NowPlayingPlaybackAction.ChangeVolume -> request.volumePercent?.let { percent ->
                 state.volumePercent = playbackController.changeVolume(percent).volumePercent
             }
