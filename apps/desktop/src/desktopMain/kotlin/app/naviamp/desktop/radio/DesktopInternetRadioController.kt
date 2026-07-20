@@ -19,7 +19,6 @@ import app.naviamp.domain.playback.PlaybackProgress
 import app.naviamp.domain.playback.PlaybackState
 import app.naviamp.domain.playback.PlaybackStreamMetadata
 import app.naviamp.domain.playback.ReplayGainMode
-import app.naviamp.domain.playback.planPlaybackProgressUpdate
 import app.naviamp.domain.provider.MediaProvider
 import app.naviamp.domain.queue.PlaybackQueue
 import app.naviamp.domain.radio.internetRadioTrack
@@ -34,6 +33,7 @@ import app.naviamp.domain.radio.applyInternetRadioMetadataUpdate
 import app.naviamp.domain.radio.applyRememberInternetRadioStation
 import app.naviamp.domain.radio.applyInternetRadioStart
 import app.naviamp.domain.radio.applyInternetRadioPlaybackState
+import app.naviamp.domain.radio.applyInternetRadioPlaybackProgress
 import app.naviamp.domain.radio.internetRadioDeleteErrorStatus
 import app.naviamp.domain.radio.internetRadioDeleteLoadingStatus
 import app.naviamp.domain.radio.internetRadioRefreshErrorStatus
@@ -169,27 +169,15 @@ class DesktopInternetRadioController(
             onStateChanged = { applyInternetRadioPlaybackState(it, setPlaybackState) { message -> status = message } },
             onProgressChanged = { progress ->
                 val now = DesktopSystemClock.nowEpochMillis()
-                val liveProgress = progress.copy(durationSeconds = null)
-                val progressPlan = planPlaybackProgressUpdate(
-                    sessionToken = 1,
-                    activeSessionToken = 1,
-                    incomingProgress = liveProgress,
+                if (applyInternetRadioPlaybackProgress(
+                    incomingProgress = progress,
                     currentProgress = playbackProgress(),
-                    pendingSeekPositionSeconds = null,
-                    pendingSeekIssuedAtMillis = null,
-                    pendingRestoreStartPositionSeconds = null,
                     nowMillis = now,
-                    lastExternalProgressPublishAtMillis = 0,
-                    externalProgressPublishIntervalMillis = Long.MAX_VALUE,
-                    resetUnknownProgress = false,
-                    mergeMissingProgressFields = false,
-                    prepareNext = false,
                     lastUiUpdateMillis = lastProgressUiUpdateMillis(),
                     positionThresholdSeconds = PlaybackProgressUiUpdateThresholdSeconds,
                     uiUpdateIntervalMillis = PlaybackProgressUiUpdateIntervalMillis,
-                )
-                if (progressPlan.shouldUpdateUi) {
-                    setPlaybackProgress(progressPlan.progress ?: liveProgress)
+                    setPlaybackProgress = setPlaybackProgress,
+                )) {
                     setLastProgressUiUpdateMillis(now)
                 }
             },

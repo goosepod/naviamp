@@ -527,8 +527,8 @@ The 2026-07-17 audit covers every current application entry point:
 
 ## Current Handoff
 
-- **Last completed item:** Internet Radio playback-state callbacks now share publication and error-status policy across Android and Desktop. Both hosts publish the engine state before surfacing a stream error, while their observable state adapters remain native. The twenty-fourth delete-first correction removes one Desktop production line, bringing the running reduction to 4,680 lines; `DesktopInternetRadioController` is now 250 lines.
-- **Next recommended item:** Move Internet Radio playback-progress application through the shared progress-effect path, then apply shared seeded-radio build policy to Android's specialized track-radio path.
+- **Last completed item:** Desktop Internet Radio progress now uses the same shared progress planner and effect applier as Android. Common policy strips meaningless live-stream duration, throttles UI publication, and returns whether the host should advance its UI timestamp; platform clocks and observable state remain host inputs. The twenty-fifth delete-first correction removes a net 12 Desktop production lines, bringing the running reduction to 4,692 lines; `DesktopInternetRadioController` is now 238 lines.
+- **Next recommended item:** Apply shared seeded-radio build policy to Android's specialized track-radio path.
 - **Verification:** On 2026-07-20, `:core:ui:jvmTest`, `:apps:desktop:desktopTest`, `:apps:android:compileDebugKotlin`, and `:core:ui:compileKotlinIosSimulatorArm64` passed after moving route-product composition into common UI. Desktop smoke testing then exposed infinite-height constraints where Downloads and playlist details were nested inside the route wrapper's vertical scroll even though both screens own scrolling, plus an unscrollable connection form because Settings does not own scrolling. The wrapper now adds scrolling only for Search, Playlists, Internet Radio, and Settings, with JVM regression coverage for the route policy.
 - **Known blockers:** None.
 

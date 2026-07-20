@@ -4,6 +4,9 @@ import app.naviamp.domain.InternetRadioStation
 import app.naviamp.domain.Track
 import app.naviamp.domain.playback.PlaybackProgress
 import app.naviamp.domain.playback.PlaybackState
+import app.naviamp.domain.playback.PlaybackProgressEffectApplier
+import app.naviamp.domain.playback.applyPlaybackProgressEffects
+import app.naviamp.domain.playback.planPlaybackProgressUpdate
 import app.naviamp.domain.playback.PlaybackStreamMetadata
 import app.naviamp.domain.queue.PlaybackQueue
 import app.naviamp.domain.settings.SavedInternetRadioStation
@@ -126,4 +129,40 @@ fun applyInternetRadioPlaybackState(
 ) {
     setPlaybackState(state)
     if (state is PlaybackState.Error) setErrorStatus(state.message)
+}
+
+fun applyInternetRadioPlaybackProgress(
+    incomingProgress: PlaybackProgress,
+    currentProgress: PlaybackProgress,
+    nowMillis: Long,
+    lastUiUpdateMillis: Long,
+    positionThresholdSeconds: Double,
+    uiUpdateIntervalMillis: Long,
+    setPlaybackProgress: (PlaybackProgress) -> Unit,
+): Boolean {
+    val liveProgress = incomingProgress.copy(durationSeconds = null)
+    val plan = planPlaybackProgressUpdate(
+        sessionToken = 1,
+        activeSessionToken = 1,
+        incomingProgress = liveProgress,
+        currentProgress = currentProgress,
+        pendingSeekPositionSeconds = null,
+        pendingSeekIssuedAtMillis = null,
+        pendingRestoreStartPositionSeconds = null,
+        nowMillis = nowMillis,
+        lastExternalProgressPublishAtMillis = 0,
+        externalProgressPublishIntervalMillis = Long.MAX_VALUE,
+        resetUnknownProgress = false,
+        mergeMissingProgressFields = false,
+        prepareNext = false,
+        lastUiUpdateMillis = lastUiUpdateMillis,
+        positionThresholdSeconds = positionThresholdSeconds,
+        uiUpdateIntervalMillis = uiUpdateIntervalMillis,
+    )
+    val result = applyPlaybackProgressEffects(
+        plan = plan,
+        updateProgress = plan.shouldUpdateUi,
+        applier = PlaybackProgressEffectApplier(updateProgress = setPlaybackProgress),
+    )
+    return plan.shouldUpdateUi && result.progress != null
 }

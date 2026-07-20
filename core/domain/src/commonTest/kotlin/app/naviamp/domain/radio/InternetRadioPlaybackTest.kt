@@ -324,6 +324,24 @@ class InternetRadioPlaybackTest {
     }
 
     @Test
+    fun internetRadioProgressDropsDurationAndAppliesDueUiUpdate() {
+        var applied: PlaybackProgress? = null
+
+        val updated = applyInternetRadioPlaybackProgress(
+            incomingProgress = PlaybackProgress(positionSeconds = 8.0, durationSeconds = 300.0),
+            currentProgress = PlaybackProgress.Unknown,
+            nowMillis = 1_000,
+            lastUiUpdateMillis = 0,
+            positionThresholdSeconds = 0.25,
+            uiUpdateIntervalMillis = 250,
+            setPlaybackProgress = { applied = it },
+        )
+
+        assertEquals(true, updated)
+        assertEquals(PlaybackProgress(positionSeconds = 8.0, durationSeconds = null), applied)
+    }
+
+    @Test
     fun radioStreamResolverReturnsDirectAudioResponseUrl() = kotlinx.coroutines.test.runTest {
         val resolver = InternetRadioStreamResolver(
             FakeHttpClient(
