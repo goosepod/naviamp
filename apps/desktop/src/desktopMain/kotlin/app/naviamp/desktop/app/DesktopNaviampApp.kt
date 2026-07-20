@@ -127,6 +127,8 @@ import app.naviamp.ui.SharedSonicPathBuilderActions
 import app.naviamp.ui.SharedDetailActionSources
 import app.naviamp.ui.SharedInternetRadioActionSources
 import app.naviamp.ui.SharedPlaylistActionSources
+import app.naviamp.ui.ResolvedTrackRowActionHandlers
+import app.naviamp.ui.handleResolvedTrackRowAction
 import app.naviamp.ui.NaviampSleepTimerExpiryEffect
 import app.naviamp.ui.NowPlayingDisplayAction
 import app.naviamp.ui.NowPlayingDisplayActionRequest
@@ -1877,38 +1879,27 @@ fun NaviampApp(
                                 },
                                 onRecentlyPlayedTrackAction = { request ->
                                     val tracks = homeContent.recentlyPlayedTracks
-                                    val index = tracks.indexOfFirst { track -> track.id.value == request.track.id }
-                                    tracks.getOrNull(index)?.let { track ->
-                                        when (request.action) {
-                                            app.naviamp.ui.SharedTrackRowAction.Select ->
-                                                appActions.playPopularTracks(tracks, index)
-                                            app.naviamp.ui.SharedTrackRowAction.PlayNext ->
-                                                playlistsController.playNext(track)
-                                            app.naviamp.ui.SharedTrackRowAction.StartRadio ->
-                                                appActions.playTrackRadio(track)
-                                            app.naviamp.ui.SharedTrackRowAction.PlayTrackRadioNext ->
-                                                appActions.playTrackRadioNext(track)
-                                            app.naviamp.ui.SharedTrackRowAction.AddTrackRadioToQueue ->
-                                                appActions.addTrackRadioToQueue(track)
-                                            app.naviamp.ui.SharedTrackRowAction.Download ->
-                                                appActions.downloadTrack(track)
-                                            app.naviamp.ui.SharedTrackRowAction.AddToQueue ->
-                                                playlistsController.addTrackToQueue(track)
-                                            app.naviamp.ui.SharedTrackRowAction.AddToPlaylist ->
+                                    handleResolvedTrackRowAction(
+                                        request,
+                                        tracks,
+                                        ResolvedTrackRowActionHandlers(
+                                            onSelect = { index, _ -> appActions.playPopularTracks(tracks, index) },
+                                            onPlayNext = playlistsController::playNext,
+                                            onStartRadio = { _, track -> appActions.playTrackRadio(track) },
+                                            onPlayTrackRadioNext = appActions::playTrackRadioNext,
+                                            onAddTrackRadioToQueue = appActions::addTrackRadioToQueue,
+                                            onDownload = { _, track -> appActions.downloadTrack(track) },
+                                            onAddToQueue = { _, track -> playlistsController.addTrackToQueue(track) },
+                                            onAddToPlaylist = { _, track, _ ->
                                                 playlistsController.openTrackAddToPlaylist(track)
-                                            app.naviamp.ui.SharedTrackRowAction.CreatePlaylistAndAdd -> Unit
-                                            app.naviamp.ui.SharedTrackRowAction.ToggleFavorite ->
-                                                appActions.toggleTrackFavorite(track)
-                                            app.naviamp.ui.SharedTrackRowAction.GoToAlbum ->
-                                                appActions.openTrackAlbumDetails(track)
-                                            app.naviamp.ui.SharedTrackRowAction.GoToArtist ->
-                                                appActions.openTrackArtistDetails(
-                                                    track,
-                                                    artistId = request.artistId,
-                                                    artistName = request.artistName,
-                                                )
-                                        }
-                                    }
+                                            },
+                                            onToggleFavorite = appActions::toggleTrackFavorite,
+                                            onGoToAlbum = appActions::openTrackAlbumDetails,
+                                            onGoToArtist = { track, artistId, artistName ->
+                                                appActions.openTrackArtistDetails(track, artistId, artistName)
+                                            },
+                                        ),
+                                    )
                                 },
                             ),
                             searchActions = NaviampSearchActions(
