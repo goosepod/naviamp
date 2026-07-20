@@ -527,8 +527,8 @@ The 2026-07-17 audit covers every current application entry point:
 
 ## Current Handoff
 
-- **Last completed item:** Android and Desktop radio coordination now use `NaviampRadioContinuationController` for session invalidation, active/refilling state, refill-seed identity, and stale completion protection. Android removed its three independently mutable radio-continuation fields; platform hosts retain only provider loading, queue execution, and lifecycle work.
-- **Next recommended item:** Extract common seeded-radio build application from the Desktop and Android executors.
+- **Last completed item:** Android and Desktop now apply initial seeded-radio build results through one shared effect policy: recent metadata is retained, stale queue/status work is rejected, only tracks after the seed are appended, and provider errors use consistent fallback handling. Hosts retain their native queue mutation and observable status adapters. This cross-host parity extraction is line-neutral in Desktop production code and is not counted as a delete-first correction.
+- **Next recommended item:** Continue with the next delete-first policy seam in Desktop Internet Radio.
 - **Verification:** On 2026-07-20, `:core:ui:jvmTest`, `:apps:desktop:desktopTest`, `:apps:android:compileDebugKotlin`, and `:core:ui:compileKotlinIosSimulatorArm64` passed after moving route-product composition into common UI. Desktop smoke testing then exposed infinite-height constraints where Downloads and playlist details were nested inside the route wrapper's vertical scroll even though both screens own scrolling, plus an unscrollable connection form because Settings does not own scrolling. The wrapper now adds scrolling only for Search, Playlists, Internet Radio, and Settings, with JVM regression coverage for the route policy.
 - **Known blockers:** None.
 

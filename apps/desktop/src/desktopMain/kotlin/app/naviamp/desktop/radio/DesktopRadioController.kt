@@ -23,6 +23,8 @@ import app.naviamp.domain.radio.RadioSeedResult
 import app.naviamp.domain.radio.RadioTuningSettings
 import app.naviamp.domain.radio.SeededRadioRequest
 import app.naviamp.domain.radio.SeededRadioBuildResult
+import app.naviamp.domain.radio.SeededRadioBuildEffectApplier
+import app.naviamp.domain.radio.applySeededRadioBuildResult
 import app.naviamp.domain.radio.SeededRadioExpansionResult
 import app.naviamp.domain.radio.albumMixSeededRadioRequest
 import app.naviamp.domain.radio.albumSeededRadioRequest
@@ -420,31 +422,29 @@ class DesktopRadioController(
         )
 
         scope.launch {
-            when (
-                val result = withContext(Dispatchers.IO) {
+            val result = withContext(Dispatchers.IO) {
                     seededRadioBuildResult(request, radioService(provider, count = InitialSimilarRadioCount))
                 }
-            ) {
-                is SeededRadioBuildResult.Ready -> {
-                    result.recentRadioStream?.let(rememberRadioStream)
+            applySeededRadioBuildResult(
+                result = result,
+                requestIsCurrent = continuation.isCurrent(activeRadioSessionId),
+                buildingStatus = "Building ${request.label} queue...",
+                failureStatus = "Could not build ${request.label}.",
+                applier = SeededRadioBuildEffectApplier(
+                    rememberRecentRadioStream = rememberRadioStream,
+                    appendFetchedTracks = { fetchedTracks ->
                     playlistEngine.applyQueueUpdate(
                         queueCoordinator.appendGeneratedRadioTracks(
-                        seedTrack = request.seedTrack,
-                        fetchedTracks = result.queue.drop(1),
-                        requestIsCurrent = continuation.isCurrent(activeRadioSessionId),
-                        maxHistory = RadioQueueHistoryLimit,
+                            seedTrack = request.seedTrack,
+                            fetchedTracks = fetchedTracks,
+                            requestIsCurrent = true,
+                            maxHistory = RadioQueueHistoryLimit,
                         ),
                     )
-                    if (continuation.isCurrent(activeRadioSessionId)) {
-                        setConnectionStatus("Building ${request.label} queue...")
-                    }
-                }
-                is SeededRadioBuildResult.Failed -> {
-                    if (continuation.isCurrent(activeRadioSessionId)) {
-                        setConnectionStatus(result.error.message ?: "Could not build ${request.label}.")
-                    }
-                }
-            }
+                    },
+                    setStatus = setConnectionStatus,
+                ),
+            )
             continuation.finishRefill(activeRadioSessionId)
 
             SimilarRadioExpansionCounts.forEach { count ->

@@ -21,6 +21,8 @@ import app.naviamp.domain.radio.InternetRadioStationManager
 import app.naviamp.domain.radio.RadioService
 import app.naviamp.domain.radio.RadioRequestStartResult
 import app.naviamp.domain.radio.SeededRadioBuildResult
+import app.naviamp.domain.radio.SeededRadioBuildEffectApplier
+import app.naviamp.domain.radio.applySeededRadioBuildResult
 import app.naviamp.domain.radio.SeededRadioExpansionResult
 import app.naviamp.domain.radio.RadioSeedResult
 import app.naviamp.domain.radio.albumMixSeededRadioRequest
@@ -153,8 +155,7 @@ fun startAndroidSeededRadio(
     playTrack(seedTrack, seedQueue)
     scope.launch {
         with(state) {
-            when (
-                val result = seededRadioBuildResult(
+            val result = seededRadioBuildResult(
                     seedTrack = seedTrack,
                     recentRadioStream = recentRadioStream,
                     radioService = RadioService(
@@ -165,26 +166,24 @@ fun startAndroidSeededRadio(
                     ),
                     loadRest = loadRest,
                 )
-            ) {
-                is SeededRadioBuildResult.Ready -> {
-                    val queue = result.queue
-                    result.recentRadioStream?.let(rememberRecentRadioStream)
-                    if (nowPlaying?.id == seedTrack.id) {
+            applySeededRadioBuildResult(
+                result = result,
+                requestIsCurrent = radioContinuation.isCurrent(activeRadioSessionId) && nowPlaying?.id == seedTrack.id,
+                buildingStatus = "Building $statusLabel queue...",
+                failureStatus = "Could not build $statusLabel.",
+                applier = SeededRadioBuildEffectApplier(
+                    rememberRecentRadioStream = rememberRecentRadioStream,
+                    appendFetchedTracks = { fetchedTracks ->
                         appendAndroidGeneratedRadioTracks(
                             state = state,
                             queueController = queueController,
                             seedTrack = seedTrack,
-                            fetchedTracks = queue.drop(1),
+                            fetchedTracks = fetchedTracks,
                         )
-                    }
-                    status = "Building $statusLabel queue..."
-                }
-                is SeededRadioBuildResult.Failed -> {
-                    if (nowPlaying?.id == seedTrack.id) {
-                        status = result.error.message ?: "Could not build $statusLabel."
-                    }
-                }
-            }
+                    },
+                    setStatus = { status = it },
+                ),
+            )
 
             radioContinuation.finishRefill(activeRadioSessionId)
             AndroidSimilarRadioExpansionCounts.forEach { count ->
