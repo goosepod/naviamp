@@ -92,7 +92,6 @@ import app.naviamp.provider.navidrome.NavidromeConnection
 import app.naviamp.provider.navidrome.NavidromeProvider
 import app.naviamp.provider.navidrome.toNavidromeConnection
 import app.naviamp.provider.navidrome.withNativeTokenFromPassword
-import app.naviamp.ui.NaviampSleepTimerUi
 import app.naviamp.ui.NaviampConnectionCapabilitiesUi
 import app.naviamp.ui.NaviampConnectionSettingsActions
 import app.naviamp.ui.NaviampSavedConnectionUi
@@ -1574,6 +1573,41 @@ fun NaviampApp(
                     ?.let(internetRadioController::playStation)
         }
     }
+    val desktopNowPlayingPresentation = rememberDesktopNowPlayingPresentation(
+        playbackEngine = playbackEngine,
+        connectedProvider = connectedProvider,
+        nowPlayingTrack = nowPlayingTrack,
+        nowPlayingController = nowPlayingController,
+        nowPlayingPresentation = nowPlayingPresentation,
+        nowPlayingStreamMetadata = nowPlayingStreamMetadata,
+        nowPlayingLyricsVisible = nowPlayingLyricsVisible,
+        nowPlayingVisualizerVisible = nowPlayingVisualizerVisible,
+        playbackQueue = playbackQueue,
+        internetRadioController = internetRadioController,
+        nowPlayingInternetRadioStationId = nowPlayingInternetRadioStation?.id,
+        playbackController = playbackController,
+        shuffledUpNextSnapshot = shuffledUpNextSnapshot,
+        repeatMode = repeatMode,
+        playbackState = playbackState,
+        playbackProgress = playbackProgress,
+        playbackSettings = playbackSettings,
+        interfaceSettings = interfaceSettings,
+        cacheSettings = cacheSettings,
+        sleepTimer = sleepTimer,
+        sleepTimerNowEpochMillis = sleepTimerNowEpochMillis,
+    )
+    val desktopNowPlayingActions = desktopNowPlayingActions(
+        nowPlayingTrack = nowPlayingTrack,
+        playbackQueue = playbackQueue,
+        relatedTracks = nowPlayingController.relatedTracks,
+        appActions = appActions,
+        playlistsController = playlistsController,
+        onPlaybackAction = handleNowPlayingPlaybackAction,
+        onDisplayAction = handleNowPlayingDisplayAction,
+        onQueueAction = handleNowPlayingQueueAction,
+        onSleepTimerAction = handleNowPlayingSleepTimerAction,
+        onSelectionAction = handleNowPlayingSelectionAction,
+    )
 
     CompositionLocalProvider(
         app.naviamp.ui.LocalTrackSwipeSettings provides interfaceSettings.trackSwipes,
@@ -1601,34 +1635,8 @@ fun NaviampApp(
                     if (appRoute == NaviampRoute.Player && playerTrack != null) {
                         DesktopPlayerRouteContent(
                             appColors = appColors,
-                            connectedProvider = connectedProvider,
-                            nowPlayingTrack = playerTrack,
-                            nowPlayingController = nowPlayingController,
-                            nowPlayingPresentation = nowPlayingPresentation,
-                            nowPlayingStreamMetadata = nowPlayingStreamMetadata,
-                            nowPlayingLyricsVisible = nowPlayingLyricsVisible,
-                            nowPlayingVisualizerVisible = nowPlayingVisualizerVisible,
-                            playbackQueue = playbackQueue,
-                            internetRadioController = internetRadioController,
-                            nowPlayingInternetRadioStationId = nowPlayingInternetRadioStation?.id,
-                            playbackController = playbackController,
-                            shuffledUpNextSnapshot = shuffledUpNextSnapshot,
-                            repeatMode = repeatMode,
-                            playbackState = playbackState,
-                            playbackProgress = playbackProgress,
-                            playbackSettings = playbackSettings,
-                            interfaceSettings = interfaceSettings,
-                            cacheSettings = cacheSettings,
-                            sleepTimer = sleepTimer,
-                            sleepTimerNowEpochMillis = sleepTimerNowEpochMillis,
-                            onPlaybackAction = handleNowPlayingPlaybackAction,
-                            onDisplayAction = handleNowPlayingDisplayAction,
-                            onQueueAction = handleNowPlayingQueueAction,
-                            onSleepTimerAction = handleNowPlayingSleepTimerAction,
-                            onSelectionAction = handleNowPlayingSelectionAction,
-                            appActions = appActions,
-                            playbackEngine = playbackEngine,
-                            playlistsController = playlistsController,
+                            presentation = desktopNowPlayingPresentation,
+                            actions = desktopNowPlayingActions,
                         )
                     } else {
                         val desktopDownloadedTracks = remember(
@@ -1637,20 +1645,6 @@ fun NaviampApp(
                             cacheStats.downloadCount,
                         ) {
                             connectedSourceId?.let(storage::downloadedTracks).orEmpty()
-                        }
-                        val desktopDownloadItems = desktopDownloadedTracks.map { download ->
-                            download.track.toDownloadedTrackUi(
-                                id = download.path.toString(),
-                                sizeBytes = download.sizeBytes,
-                                qualityLabel = downloadedAudioQualityLabel(
-                                    download.qualityKey,
-                                    download.track.audioInfo,
-                                    download.contentType,
-                                ),
-                                coverArtUrl = { coverArtId ->
-                                    coverArtId?.let { connectedProvider?.coverArtUrl(it) }
-                                },
-                            )
                         }
                         val desktopSettingsSync = settingsSyncUi(
                             directoryPath = settingsSyncSettings.directoryPath,
@@ -1665,166 +1659,33 @@ fun NaviampApp(
                             onExport = ::exportSettingsSync,
                             onImport = ::importSettingsSync,
                         )
-                        val connectionPageStatus = shellConnection.status?.takeUnless { status ->
-                            status.startsWith("Connected to Navidrome", ignoreCase = true) ||
-                                status.startsWith("Connected to ", ignoreCase = true)
-                        }
-                        val desktopShellState = NaviampAppShellUiState(
-                            capabilities = shellCapabilities,
-                            connectionSettings = shellConnection.toConnectionSettingsUi(
+                        val desktopShellState = desktopAppShellUiState(
+                            DesktopAppShellStateContext(
                                 capabilities = shellCapabilities,
-                                currentSourceId = connectedSourceId,
-                            ),
-                            general = interfaceSettings.toGeneralSettingsUi(about),
-                            playback = playbackSettings.toPlaybackSettingsUi(
-                                capabilities = shellCapabilities,
-                                audioOutputDeviceSelectionAvailable =
-                                    (playbackEngine as? AudioOutputDevicePlaybackEngine)
-                                        ?.supportsAudioOutputDeviceSelection == true,
-                                audioOutputDevices =
-                                    (playbackEngine as? AudioOutputDevicePlaybackEngine)?.outputDevices().orEmpty(),
-                                downloadBytes = cacheStats.downloadBytes,
-                            ),
-                            cache = cacheSettings.toCacheSettingsUi(cacheStats, shellCapabilities),
-                            shellChrome = NaviampShellChromeUi(
-                                selectedRoute = appRoute.toSharedRoute(),
-                                supportsDownloads = shellCapabilities.downloads,
-                                supportsApplicationUpdates = shellCapabilities.applicationUpdates,
-                            ),
-                            home = NaviampHomeScreenUi(
-                                content = homeContent.toSharedHomeUi(
-                                    coverArtUrl = { coverArtId ->
-                                        coverArtId?.let { connectedProvider?.coverArtUrl(it) }
-                                    },
-                                    playlistTracksById = playlistsController.playlistTracksById,
-                                    sonicDiscoveryRows = sonicHomeDiscoveryController.rows,
-                                    canFavoriteAlbums = true,
-                                    showSonicPathBuilder =
-                                        playbackSettings.sonicSimilarityEnabled && shellCapabilities.sonicSimilarity,
-                                    showSonicMixBuilder =
-                                        playbackSettings.sonicSimilarityEnabled && shellCapabilities.sonicSimilarity,
-                                ),
-                                refreshing = homeController.refreshing,
-                            ),
-                            downloads = NaviampDownloadsScreenUi(
-                                downloads = desktopDownloadItems,
-                                status = downloadsController.status,
-                                jobs = downloadsController.downloadJobs.map { it.toDownloadJobUi() },
-                                downloadBytes = desktopDownloadItems.totalDownloadBytes(),
-                                maxDownloadBytes = cacheSettings.maxDownloadBytes,
-                                offlineDashboard = NaviampOfflineDashboardUi(
-                                    audioCacheCount = cacheStats.audioCount,
-                                    audioCacheBytes = cacheStats.audioBytes,
-                                    maxAudioCacheBytes = cacheSettings.maxAudioCacheBytes,
-                                ),
-                                keepFavoritesDownloaded = downloadsController.keepDownloadedPolicies.any {
-                                    it.kind == app.naviamp.domain.cache.KeepDownloadedCollectionKind.Favorites
-                                },
-                            ),
-                            artistMixBuilder = mixBuilderController.artistUi(
-                                coverArtUrl = { coverArtId -> coverArtId?.let { connectedProvider?.coverArtUrl(it) } },
-                            ),
-                            albumMixBuilder = mixBuilderController.albumUi(
-                                coverArtUrl = { coverArtId -> coverArtId?.let { connectedProvider?.coverArtUrl(it) } },
-                            ),
-                            genreMixBuilder = mixBuilderController.genreUi(),
-                            sonicPathBuilder = sonicPathController.ui(
-                                coverArtUrl = { coverArtId -> coverArtId?.let { connectedProvider?.coverArtUrl(it) } },
-                            ),
-                            sonicMixBuilder = sonicMixController.ui(
-                                coverArtUrl = { coverArtId -> coverArtId?.let { connectedProvider?.coverArtUrl(it) } },
-                            ),
-                            albumDetail = NaviampAlbumDetailScreenUi(
-                                selectedAlbum = albumController.selectedAlbum?.toSharedMediaItemUi(
-                                    coverArtUrl = { coverArtId -> coverArtId?.let { connectedProvider?.coverArtUrl(it) } },
-                                    canFavorite = true,
-                                ),
-                                detail = albumController.selectedAlbumDetails?.toSharedAlbumDetailUi(
-                                    coverArtUrl = { coverArtId -> coverArtId?.let { connectedProvider?.coverArtUrl(it) } },
-                                    popularTrackIds = artistController.selectedArtistPopularTracks.mapTo(mutableSetOf()) { it.id.value },
-                                    canFavoriteAlbum = true,
-                                ),
-                                status = albumController.selectedAlbumStatus,
-                            ),
-                            artistDetail = NaviampArtistDetailScreenUi(
-                                selectedArtist = artistController.selectedArtist?.toSharedMediaItemUi(
-                                    coverArtUrl = { coverArtId -> coverArtId?.let { connectedProvider?.coverArtUrl(it) } },
-                                    canFavorite = true,
-                                ),
-                                detail = artistController.selectedArtistDetails?.toSharedArtistDetailUi(
-                                    coverArtUrl = { coverArtId -> coverArtId?.let { connectedProvider?.coverArtUrl(it) } },
-                                    popularTracks = artistController.selectedArtistPopularTracks,
-                                    popularTracksStatus = artistController.selectedArtistPopularTracksStatus,
-                                    similarArtists = artistController.selectedArtistSimilarArtists,
-                                    similarArtistsStatus = artistController.selectedArtistSimilarArtistsStatus,
-                                    canFavoriteArtist = true,
-                                    canFavoriteAlbums = true,
-                                ),
-                                status = artistController.selectedArtistStatus,
-                            ),
-                            playlists = NaviampPlaylistsScreenUi(
-                                playlists = playlistsController.playlists.map { playlist ->
-                                    playlist.toSharedMediaItemUi(
-                                        coverArtUrl = { coverArtId -> coverArtId?.let { connectedProvider?.coverArtUrl(it) } },
-                                        tracks = playlistsController.playlistTracksById[playlist.id].orEmpty(),
-                                        keepDownloadedActive = downloadsController.keepDownloadedPolicies.any { it.collectionId == playlist.id },
-                                    )
-                                },
-                                recentPlaylistIds = playlistsController.recentPlaylistIds,
-                                sortMode = playlistsController.sortMode,
-                                status = playlistsController.status ?: connectionPageStatus,
-                                availableLibraries = shellConnection.availableMusicFolders,
-                                selectedConnectionLibraryIds = shellConnection.form.selectedMusicFolderIds,
-                            ),
-                            playlistDetail = NaviampPlaylistDetailScreenUi(
-                                selectedPlaylist = playlistsController.selectedPlaylist?.toSharedMediaItemUi(
-                                    coverArtUrl = { coverArtId -> coverArtId?.let { connectedProvider?.coverArtUrl(it) } },
-                                    tracks = playlistsController.selectedPlaylistTracks,
-                                    keepDownloadedActive = playlistsController.selectedPlaylist?.id
-                                        ?.let { id -> downloadsController.keepDownloadedPolicies.any { it.collectionId == id } } == true,
-                                ),
-                                detail = playlistsController.selectedPlaylist?.toSharedPlaylistDetailUi(
-                                    tracks = playlistsController.selectedPlaylistTracks,
-                                    coverArtUrl = { coverArtId -> coverArtId?.let { connectedProvider?.coverArtUrl(it) } },
-                                    keepDownloadedActive = playlistsController.selectedPlaylist?.id
-                                        ?.let { id -> downloadsController.keepDownloadedPolicies.any { it.collectionId == id } } == true,
-                                ),
-                                status = playlistsController.selectedPlaylistStatus
-                                    ?: playlistsController.status
-                                    ?: connectionPageStatus,
-                                availableLibraries = shellConnection.availableMusicFolders,
-                                selectedConnectionLibraryIds = shellConnection.form.selectedMusicFolderIds,
-                            ),
-                            library = NaviampLibraryScreenUi(
-                                artists = libraryController.snapshot.artists.map { artist ->
-                                    artist.toSharedMediaItemUi(
-                                        coverArtUrl = { coverArtId ->
-                                            coverArtId?.let { connectedProvider?.coverArtUrl(it) }
-                                        },
-                                        canFavorite = true,
-                                    )
-                                },
-                                query = libraryController.query,
-                                syncStatus = NaviampLibrarySyncStatusUi(
-                                    message = libraryController.status ?: connectionPageStatus,
-                                    isSyncing = libraryController.syncing,
-                                ),
-                            ),
-                            search = NaviampSearchScreenUi(
-                                query = searchController.query,
-                                results = searchController.results.toSharedSearchResultsUi(
-                                    coverArtUrl = { coverArtId ->
-                                        coverArtId?.let { connectedProvider?.coverArtUrl(it) }
-                                    },
-                                    canFavoriteArtists = true,
-                                    canFavoriteAlbums = true,
-                                ),
-                                status = searchController.status,
-                                searching = searchController.searching,
-                            ),
-                            radio = app.naviamp.ui.NaviampInternetRadioScreenUi(
-                                stations = internetRadioController.stations.map { it.toInternetRadioStationUi() },
-                                status = internetRadioController.status ?: connectionPageStatus,
+                                connection = shellConnection,
+                                connectedSourceId = connectedSourceId,
+                                provider = connectedProvider,
+                                route = appRoute,
+                                about = about,
+                                playbackEngine = playbackEngine,
+                                interfaceSettings = interfaceSettings,
+                                playbackSettings = playbackSettings,
+                                cacheSettings = cacheSettings,
+                                cacheStats = cacheStats,
+                                homeContent = homeContent,
+                                homeController = homeController,
+                                downloadsController = downloadsController,
+                                downloadedTracks = desktopDownloadedTracks,
+                                mixBuilderController = mixBuilderController,
+                                sonicPathController = sonicPathController,
+                                sonicMixController = sonicMixController,
+                                sonicHomeDiscoveryController = sonicHomeDiscoveryController,
+                                albumController = albumController,
+                                artistController = artistController,
+                                playlistsController = playlistsController,
+                                libraryController = libraryController,
+                                searchController = searchController,
+                                internetRadioController = internetRadioController,
                             ),
                         )
                         val playlistActionSources = SharedPlaylistActionSources(
@@ -2120,36 +1981,17 @@ fun NaviampApp(
                             onDismissDeletePlaylist = playlistsController::dismissDelete,
                             onDeletePlaylist = appActions::deletePlaylist,
                         )
-                        if (nowPlayingTrack != null && !connectionForm.isOpen) {
-                            DesktopMiniPlayerPanel(
-                                appColors = appColors,
-                                nowPlayingTrack = nowPlayingTrack,
-                                coverArtUrl = nowPlayingPresentation.effectiveCoverArtUrl,
-                                hasPrevious = playbackController.canUsePreviousButton(),
-                                hasNext = playbackQueue.hasNext(),
-                                playbackState = playbackState,
-                                onPlaybackAction = handleNowPlayingPlaybackAction,
-                                onOpenPlayer = {
-                                    appRoute = NaviampRoute.Player
-                                },
-                            )
-                        }
-                        DesktopBottomNavigationBar(
+                        DesktopShellChrome(
                             appColors = appColors,
+                            presentation = desktopNowPlayingPresentation,
+                            nowPlayingActions = desktopNowPlayingActions,
+                            showMiniPlayer = nowPlayingTrack != null && !connectionForm.isOpen,
                             supportsDownloads = DesktopCapabilityPresentation.downloads.visible,
-                            selectedRoute = when (appRoute) {
-                                NaviampRoute.AlbumDetail -> if (albumController.albumDetailBackRoute == NaviampRoute.ArtistDetail) {
-                                    artistController.artistDetailBackRoute
-                                } else {
-                                    albumController.albumDetailBackRoute
-                                }
-                                NaviampRoute.ArtistDetail -> artistController.artistDetailBackRoute
-                                NaviampRoute.PlaylistDetail -> NaviampRoute.Playlists
-                                else -> appRoute
-                            },
-                            onRouteSelected = { route ->
-                                appRoute = route
-                            },
+                            selectedRoute = appRoute,
+                            albumDetailBackRoute = albumController.albumDetailBackRoute,
+                            artistDetailBackRoute = artistController.artistDetailBackRoute,
+                            onOpenPlayer = { appRoute = NaviampRoute.Player },
+                            onRouteSelected = { route -> appRoute = route },
                         )
     }
 }
