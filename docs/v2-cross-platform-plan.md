@@ -8,7 +8,7 @@ Ideas discovered during the migration that should not interrupt the active check
 
 - **Target release:** `2.0.0`
 - **Working branch:** `feature/v2-cross-platform-app`
-- **Status:** Milestone 3 in progress after completing the shared application runtime foundation in Milestone 2
+- **Status:** Milestone 3 complete; Milestone 4 Android thin-host conversion is next
 - **Release policy:** Feature development for the v1 line is frozen. Only bug fixes should be released from v1 while this work is underway.
 - **Versioning rule:** Do not change `VERSION` to `2.0.0` until the release-preparation milestone. Development builds and intermediate branches must remain clearly distinguishable from a finished v2 release.
 - **Primary objective:** One shared Naviamp application, UI, and behavior hosted by thin Android, Desktop, and iOS applications.
@@ -121,7 +121,7 @@ Use explicit dependency construction unless a dependency-injection framework pro
 
 **Exit criteria:** A single runtime can be constructed with fake platform services and drive the main Naviamp flows in tests.
 
-### Milestone 3: Convert Desktop to a Thin Host
+### Milestone 3: Convert Desktop to a Thin Host — Complete
 
 - [x] Move all remaining shared product behavior out of the Desktop entry point and Desktop-only controllers. The final ownership audit found no remaining parallel Android/Desktop product policy: shared owners define queue, playback, radio, provider-action, settings, cache, download, playlist, and route behavior, while Desktop production code is limited to composition, observable host-state adaptation, provider/native execution, persistence, or operating-system integration.
   - [x] Move queue mutation, repeat, shuffle, navigation-command, generated-queue, and session-persistence decisions into shared playback owners.
@@ -151,9 +151,9 @@ Use explicit dependency construction unless a dependency-injection framework pro
   - [x] Replace the deliberate Desktop pass-through credential protector with an OS-backed secure-storage adapter. `DesktopCredentialProtector` encrypts persisted values with AES-256-GCM and keeps its random master key in macOS Keychain, Windows DPAPI-protected app data, or Linux Secret Service. Both `StorageMediaSourceStore` and the legacy Desktop settings connection mirror now use it, automatically migrating plaintext tokens, salts, native tokens, client-certificate passwords, and secret header values without changing the shared storage contract.
   - [x] Complete the Desktop filesystem and HTTP ownership audit and add narrow platform contracts only where a shared owner actually consumes them. Common production source sets contain no JVM file APIs; paths crossing shared boundaries are opaque strings interpreted by native playback or host stores. Existing repository, byte-store, settings-document, and database-driver contracts cover every shared filesystem consumer. The audit removed hidden client construction from `ObjectByteStoreService` and `InternetRadioStreamResolver`: hosts now supply fetch callbacks or `SharedHttpClient`, while Desktop retains path selection, atomic file operations, cleanup, and Ktor/TLS construction.
 - [x] Verify macOS, Windows, and Linux packaging assumptions remain valid. Compose targets DMG, MSI, EXE, DEB, and RPM with platform icons and normalized versions; target-specific Make commands correctly refuse cross-OS `jpackage` builds. `verifyDesktopPackagingInputs` now checks icons, the required macOS ARM64/Windows x64/Linux x64 BASS inventory, and native JNI/visualizer sources before any app-image or installer task. GitHub tag builds already exercise all targets, and Forgejo main builds now include the previously missing Linux zip/DEB/RPM job. Linux documentation and CI include the Secret Service tooling required by secure credentials.
-- [ ] Run Desktop tests and launch the macOS application for functional verification.
+- [x] Run Desktop tests and launch the macOS application for functional verification. `make desktop-test` passed, `make macos-test` built a verified app image with the complete BASS/JNI/Metal resource set, and the staged `Naviamp.app` launched and remained running with the existing connection restored. The live launch also migrated the settings credential mirror to encrypted envelopes backed by macOS Keychain.
 
-**Exit criteria:** Desktop launches the shared runtime and contains only host/platform integration code outside shared modules.
+**Exit criteria achieved 2026-07-20:** Desktop launches the shared runtime and contains only host/platform integration code outside shared modules. Relative to `main`, `desktopMain` is a net 4,151 production lines smaller after adding the new OS-backed secure-storage adapter and packaging guards.
 
 ### Milestone 4: Convert Android to a Thin Host
 
@@ -482,6 +482,7 @@ Record architecture decisions here or link a dedicated decision record.
 | 2026-07-20 | Protect Desktop credentials with operating-system secure storage. | A Desktop AES-256-GCM protector now stores its random master key in macOS Keychain, Windows DPAPI-protected app data, or Linux Secret Service. The SQLDelight media-source store and legacy settings connection mirror both use the protector and migrate plaintext tokens, salts, native tokens, client-certificate passwords, and secret headers. Focused crypto and settings-migration tests plus the full Desktop suite passed. |
 | 2026-07-20 | Close the Desktop filesystem and HTTP ownership audit. | Common production code contains no JVM filesystem APIs and consumes files through database-driver, document-store, repository, byte-store, and opaque local-path contracts. Hidden Ktor construction was removed from the shared object-byte and Internet Radio services; Android and Desktop now provide fetch/client execution. Desktop retains native paths, atomic file operations, cleanup, and TLS/client construction. Domain tests, Desktop tests, Android compilation, and iOS compilation passed. |
 | 2026-07-20 | Verify all Desktop packaging assumptions. | A host-independent Gradle check now validates icons, required BASS libraries for macOS ARM64, Windows x64, and Linux x64, plus JNI and platform visualizer sources before packaging. DMG/MSI/EXE/DEB/RPM configuration, version normalization, target-OS Make guards, and artifact paths were audited. Forgejo main builds gained Linux parity with the existing GitHub tag matrix, including Secret Service tooling required at Linux runtime. |
+| 2026-07-20 | Complete Milestone 3 Desktop thin-host conversion. | The full Desktop suite passed; `make macos-test` built, resource-verified, staged, and launched `Naviamp.app`, and the user confirmed the app remained open and running with the existing connection restored. Live startup migrated the settings credential mirror through macOS Keychain-backed encryption. Desktop now contains only composition/state adapters, native BASS execution, provider/persistence execution, and OS integration, with a net 4,151 fewer `desktopMain` production lines than `main`. |
 
 ### Desktop Route Boundary Audit
 
@@ -599,9 +600,9 @@ The 2026-07-17 audit covers every current application entry point:
 
 ## Current Handoff
 
-- **Last completed item:** Desktop packaging assumptions are verified and guarded by a cross-platform input check. Forgejo main CI now includes Linux parity, and Linux secure-storage prerequisites are explicit.
-- **Next recommended item:** Run the final Desktop test suite, build and verify the macOS app image, launch it, and record the Milestone 3 closure state.
-- **Verification:** On 2026-07-20, `:apps:desktop:verifyDesktopPackagingInputs` passed after validating all three platform icon, BASS, JNI, and visualizer source inventories; both edited release workflows parse as valid YAML.
+- **Last completed item:** Milestone 3 is complete. Desktop is a thin host around the shared runtime/UI contracts, the packaged macOS app is running successfully, service and packaging boundaries are audited, and `desktopMain` is a net 4,151 production lines smaller than `main`.
+- **Next recommended item:** Begin Milestone 4 by auditing the remaining Android Activity, application-controller, and foreground-service product behavior against the shared owners established in Milestones 2 and 3.
+- **Verification:** On 2026-07-20, `make desktop-test` passed. `make macos-test` then ran `verifyDesktopPackagingInputs`, built and verified the packaged BASS/JNI/Metal resources, staged `build/local-test/Naviamp.app`, and launched it successfully; the user confirmed the app remained open and running. Earlier closure checks also passed `:core:domain:allTests`, Android compilation, and iOS compilation.
 - **Known blockers:** None.
 
-Milestone 3 now uses delete-first accounting: every product-behavior extraction must report its net `apps/desktop/src/desktopMain` line change, moving code between Desktop files does not count as thinning, and a new host adapter must delete at least as much Desktop production code as it adds unless it implements a genuinely OS-specific service.
+Milestone 3 used delete-first accounting: every product-behavior extraction reported its net `apps/desktop/src/desktopMain` line change, moving code between Desktop files did not count as thinning, and new host adapters were justified as genuine OS-specific services. Preserve the same discipline during the Android thin-host conversion.
