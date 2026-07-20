@@ -125,15 +125,13 @@ class DesktopRadioController(
                 }
             ) {
                 is SeededRadioExpansionResult.Ready -> {
-                    appendGeneratedRadioTracks(
-                        queueCoordinator = queueCoordinator,
-                        playlistEngine = playlistEngine,
-                        radioQueueActive = isRadioQueueActive(),
-                        radioSession = activeRadioSessionId,
-                        currentRadioSession = radioSessionId(),
+                    playlistEngine.applyQueueUpdate(
+                        queueCoordinator.appendGeneratedRadioTracks(
                         seedTrack = seedTrack,
                         fetchedTracks = result.fetchedTracks,
+                        requestIsCurrent = isRadioQueueActive() && activeRadioSessionId == radioSessionId(),
                         maxHistory = RadioQueueHistoryLimit,
+                        ),
                     )
                 }
                 is SeededRadioExpansionResult.Failed -> {
@@ -464,15 +462,13 @@ class DesktopRadioController(
             ) {
                 is SeededRadioBuildResult.Ready -> {
                     result.recentRadioStream?.let(rememberRadioStream)
-                    appendGeneratedRadioTracks(
-                        queueCoordinator = queueCoordinator,
-                        playlistEngine = playlistEngine,
-                        radioQueueActive = isRadioQueueActive(),
-                        radioSession = activeRadioSessionId,
-                        currentRadioSession = radioSessionId(),
+                    playlistEngine.applyQueueUpdate(
+                        queueCoordinator.appendGeneratedRadioTracks(
                         seedTrack = request.seedTrack,
                         fetchedTracks = result.queue.drop(1),
+                        requestIsCurrent = isRadioQueueActive() && activeRadioSessionId == radioSessionId(),
                         maxHistory = RadioQueueHistoryLimit,
+                        ),
                     )
                     if (activeRadioSessionId == radioSessionId()) {
                         setConnectionStatus("Building ${request.label} queue...")
@@ -494,15 +490,13 @@ class DesktopRadioController(
                     seededRadioExpansionResult(request, radioService(provider, count = count))
                 }
                 if (result !is SeededRadioExpansionResult.Ready) return@forEach
-                appendGeneratedRadioTracks(
-                    queueCoordinator = queueCoordinator,
-                    playlistEngine = playlistEngine,
-                    radioQueueActive = isRadioQueueActive(),
-                    radioSession = activeRadioSessionId,
-                    currentRadioSession = radioSessionId(),
+                playlistEngine.applyQueueUpdate(
+                    queueCoordinator.appendGeneratedRadioTracks(
                     seedTrack = request.seedTrack,
                     fetchedTracks = result.fetchedTracks,
+                    requestIsCurrent = isRadioQueueActive() && activeRadioSessionId == radioSessionId(),
                     maxHistory = RadioQueueHistoryLimit,
+                    ),
                 )
                 if (activeRadioSessionId == radioSessionId()) {
                     setConnectionStatus("Building ${request.label} queue (${playlistEngine.queue.tracks.size} tracks)...")
@@ -542,15 +536,13 @@ class DesktopRadioController(
             ) {
                 is SeededRadioBuildResult.Ready -> {
                     result.recentRadioStream?.let(rememberRadioStream)
-                    replaceGeneratedRadioUpcomingTracks(
-                        queueCoordinator = queueCoordinator,
-                        playlistEngine = playlistEngine,
-                        radioQueueActive = isRadioQueueActive(),
-                        radioSession = activeRadioSessionId,
-                        currentRadioSession = radioSessionId(),
+                    playlistEngine.applyQueueMutation(
+                        queueCoordinator.replaceGeneratedRadioUpcomingTracks(
                         currentTrack = track,
                         fetchedTracks = result.queue.drop(1),
+                        requestIsCurrent = isRadioQueueActive() && activeRadioSessionId == radioSessionId(),
                         maxHistory = RadioQueueHistoryLimit,
+                        ),
                     )
                     if (activeRadioSessionId == radioSessionId()) {
                         setConnectionStatus("Building ${track.title} radio queue...")
@@ -571,15 +563,13 @@ class DesktopRadioController(
                     seededRadioExpansionResult(request, radioService(provider, count = count))
                 }
                 if (result !is SeededRadioExpansionResult.Ready) return@forEach
-                appendGeneratedRadioUpcomingTracks(
-                    queueCoordinator = queueCoordinator,
-                    playlistEngine = playlistEngine,
-                    radioQueueActive = isRadioQueueActive(),
-                    radioSession = activeRadioSessionId,
-                    currentRadioSession = radioSessionId(),
+                playlistEngine.applyQueueUpdate(
+                    queueCoordinator.appendGeneratedRadioUpcomingTracks(
                     currentTrack = track,
                     fetchedTracks = result.fetchedTracks,
+                    requestIsCurrent = isRadioQueueActive() && activeRadioSessionId == radioSessionId(),
                     maxHistory = RadioQueueHistoryLimit,
+                    ),
                 )
                 if (activeRadioSessionId == radioSessionId()) {
                     setConnectionStatus("Building ${track.title} radio queue (${playlistEngine.queue.tracks.size} tracks)...")
