@@ -56,7 +56,6 @@ import app.naviamp.desktop.settings.DesktopSettingsSyncSettings
 import app.naviamp.desktop.settings.VisualizerSettings
 import app.naviamp.domain.settings.SettingsSyncLocalSnapshot
 import app.naviamp.domain.settings.SettingsSyncRuntimeState
-import app.naviamp.domain.settings.ConnectionFormState
 import app.naviamp.domain.settings.effectiveForEngine
 import app.naviamp.domain.settings.PlaybackSettingsMaintenanceController
 import app.naviamp.domain.settings.SavedInternetRadioStation
@@ -65,7 +64,6 @@ import app.naviamp.domain.settings.InterfaceSettings
 import app.naviamp.domain.settings.playbackSettingsChange
 import app.naviamp.domain.settings.restoredPlaybackQueue
 import app.naviamp.domain.settings.restoredTrackSession
-import app.naviamp.domain.settings.selectedMusicFolderSummary
 import app.naviamp.domain.settings.toConnectionHeaderDefinitions
 import app.naviamp.domain.settings.toConnectionSecondaryUrls
 import app.naviamp.domain.source.visibleServerConnections
@@ -73,9 +71,6 @@ import app.naviamp.domain.sonicautoplay.SonicAutoplayService
 import app.naviamp.provider.navidrome.NavidromeConnection
 import app.naviamp.provider.navidrome.NavidromeProvider
 import app.naviamp.provider.navidrome.withNativeTokenFromPassword
-import app.naviamp.ui.NaviampConnectionCapabilitiesUi
-import app.naviamp.ui.NaviampConnectionSettingsActions
-import app.naviamp.ui.NaviampSavedConnectionUi
 import app.naviamp.ui.NaviampLibraryScreenUi
 import app.naviamp.ui.NaviampLibraryActions
 import app.naviamp.ui.NaviampLibrarySyncStatusUi
@@ -90,15 +85,11 @@ import app.naviamp.ui.NaviampDownloadsScreenUi
 import app.naviamp.ui.NaviampOfflineDashboardUi
 import app.naviamp.ui.NaviampShellChromeUi
 import app.naviamp.ui.NaviampShellNavigationActions
-import app.naviamp.ui.NaviampSettingsMaintenanceActions
 import app.naviamp.ui.NaviampSettingsSyncActions
-import app.naviamp.ui.NaviampSettingsValueActions
 import app.naviamp.ui.NaviampArtistDetailScreenUi
 import app.naviamp.ui.NaviampPlaylistDetailScreenUi
 import app.naviamp.ui.NaviampPlaylistsActions
 import app.naviamp.ui.NaviampPlaylistsScreenUi
-import app.naviamp.ui.NaviampShellCapabilitiesUi
-import app.naviamp.ui.NaviampShellConnectionUi
 import app.naviamp.ui.SharedAlbumMixBuilderActions
 import app.naviamp.ui.SharedArtistMixBuilderActions
 import app.naviamp.ui.SharedGenreMixBuilderActions
@@ -1030,59 +1021,18 @@ fun NaviampApp(
     val savedMediaSources = mediaSourcesRevision.let {
         storage.mediaSources().visibleServerConnections(connectedSourceId)
     }
-    val shellConnection = NaviampShellConnectionUi(
+    val shellConnection = desktopShellConnection(
         status = connectionStatus,
-        serverVersion = connectionRuntimeState.serverVersion,
-        connected = connectionRuntimeState.connected,
-        editingConnection = connectionForm.isOpen,
-        restoringConnection = connectionRuntimeState.restoringConnection,
-        isConnecting = connectionRuntimeState.isConnecting,
-        form = ConnectionFormState(
-            displayName = connectionForm.connectionName,
-            serverUrl = connectionForm.serverUrl,
-            username = connectionForm.username,
-            password = connectionForm.password,
-            skipTlsVerification = connectionForm.insecureSkipTlsVerification,
-            customCertificatePath = connectionForm.customCertificatePath,
-            clientCertificatePath = connectionForm.clientCertificateKeyStorePath,
-            clientCertificatePassword = connectionForm.clientCertificateKeyStorePassword,
-            secondaryUrls = connectionForm.secondaryUrls,
-            customHeaders = connectionForm.customHeaders,
-            selectedMusicFolderIds = connectionForm.selectedMusicFolderIds,
-        ),
+        runtimeState = connectionRuntimeState,
+        connectionForm = connectionForm,
         availableMusicFolders = availableMusicFolders,
         musicFoldersStatus = musicFoldersStatus,
-        savedConnections = savedMediaSources.map { source ->
-            NaviampSavedConnectionUi(
-                id = source.id,
-                displayName = source.displayName,
-                serverUrl = source.baseUrl,
-                username = source.username,
-                selectedLibrarySummary = selectedMusicFolderSummary(
-                    selectedIds = source.selectedMusicFolderIds,
-                    availableFolders = availableMusicFolders,
-                ),
-                current = source.id == connectedSourceId,
-            )
-        },
-        hasSavedConnection = connectionForm.savedConnectionForLogin != null,
+        savedMediaSources = savedMediaSources,
+        connectedSourceId = connectedSourceId,
     )
-    val shellCapabilities = NaviampShellCapabilitiesUi(
-        replayGain = playbackEngine.supportsReplayGain,
-        gapless = playbackEngine.supportsGapless,
-        crossfade = playbackEngine.supportsCrossfade,
-        equalizer = (playbackEngine as? app.naviamp.domain.playback.EqualizerPlaybackEngine)
-            ?.supportsEqualizer == true,
-        sonicSimilarity = connectedProvider?.capabilities?.supportsSonicSimilarity == true,
-        downloads = DesktopCapabilityPresentation.downloads.visible,
-        settingsImportExport = DesktopCapabilityPresentation.settingsImportExport.visible,
-        applicationUpdates = DesktopCapabilityPresentation.applicationUpdates.visible,
-        fileSelection = DesktopCapabilityPresentation.fileSelection.visible,
-        connection = NaviampConnectionCapabilitiesUi(
-            insecureServerVerification = DesktopCapabilityPresentation.insecureServerVerification.visible,
-            customServerCertificates = DesktopCapabilityPresentation.customServerCertificates.visible,
-            clientCertificates = DesktopCapabilityPresentation.clientCertificates.visible,
-        ),
+    val shellCapabilities = desktopShellCapabilities(
+        playbackEngine = playbackEngine,
+        connectedProvider = connectedProvider,
     )
     val statsForNerdsInfo = desktopStatsForNerdsInfoOrNull(
         showStatsForNerds = showStatsForNerds,
@@ -1299,53 +1249,25 @@ fun NaviampApp(
                                 internetRadioController = internetRadioController,
                             ),
                         )
-                        val connectionActions = NaviampConnectionSettingsActions(
-                            onFormChanged = { form ->
-                                connectionForm.connectionName = form.displayName
-                                connectionForm.updateServerUrl(form.serverUrl)
-                                connectionForm.updateUsername(form.username)
-                                connectionForm.password = form.password
-                                connectionForm.insecureSkipTlsVerification = form.skipTlsVerification
-                                connectionForm.customCertificatePath = form.customCertificatePath
-                                connectionForm.clientCertificateKeyStorePath = form.clientCertificatePath
-                                connectionForm.clientCertificateKeyStorePassword = form.clientCertificatePassword
-                                connectionForm.secondaryUrls = form.secondaryUrls
-                                connectionForm.customHeaders = form.customHeaders
-                                connectionForm.selectedMusicFolderIds = form.selectedMusicFolderIds
-                            },
-                            onConnect = { appActions.connectToServer() },
-                            onNewConnection = connectionLifecycleController::openNewConnectionForm,
-                            onEditConnection = { item ->
-                                savedMediaSources.firstOrNull { it.id == item.id }
-                                    ?.let(connectionLifecycleController::openSavedConnectionForm)
-                            },
-                            onConnectSavedConnection = { item ->
-                                savedMediaSources.firstOrNull { it.id == item.id }
-                                    ?.let(connectionLifecycleController::connectSavedConnection)
-                            },
-                            onDeleteConnection = { item ->
-                                savedMediaSources.firstOrNull { it.id == item.id }
-                                    ?.let(appActions::deleteConnection)
-                            },
-                            onCancelConnectionForm = connectionLifecycleController::closeConnectionForm,
+                        val connectionActions = desktopConnectionSettingsActions(
+                            connectionForm = connectionForm,
+                            savedMediaSources = savedMediaSources,
+                            appActions = appActions,
+                            connectionLifecycleController = connectionLifecycleController,
                         )
-                        val valueActions = NaviampSettingsValueActions(
-                            onInterfaceSettingsChanged = { settings: InterfaceSettings ->
+                        val valueActions = desktopSettingsValueActions(
+                            onInterfaceSettingsChanged = { settings ->
                                 interfaceSettings = settings.normalized()
                                 settingsStore.saveInterfaceSettings(interfaceSettings)
                                 settingsSyncHost.markChangedAndAutoExport()
                             },
-                            onPlaybackSettingsChanged = settingsMaintenanceController::applyPlaybackSettings,
-                            onPlaybackSettingsChangedAndRedownload =
-                                settingsMaintenanceController::applyPlaybackSettingsAndRedownload,
-                            onCacheSettingsChanged = cacheSettingsController::apply,
+                            settingsMaintenanceController = settingsMaintenanceController,
+                            cacheSettingsController = cacheSettingsController,
                         )
-                        val maintenanceActions = NaviampSettingsMaintenanceActions(
+                        val maintenanceActions = desktopSettingsMaintenanceActions(
                             onOpenStatsForNerds = { showStatsForNerds = true },
-                            onClearCache = { appActions.clearCacheData() },
-                            onClearLibrary = { appActions.clearLibraryData() },
-                            onRefreshLibrary = libraryController::refreshLibrarySnapshot,
-                            onResetDatabase = { appActions.resetDatabase() },
+                            appActions = appActions,
+                            libraryController = libraryController,
                         )
                         val desktopShellActions = desktopAppShellActions(
                             DesktopAppShellActionContext(

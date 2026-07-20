@@ -2,6 +2,9 @@ package app.naviamp.desktop
 
 import app.naviamp.domain.app.NaviampRoute
 import app.naviamp.domain.home.HomeContent
+import app.naviamp.domain.settings.InterfaceSettings
+import app.naviamp.domain.settings.PlaybackSettingsMaintenanceController
+import app.naviamp.domain.source.SavedMediaSource
 import app.naviamp.provider.navidrome.NavidromeProvider
 import app.naviamp.ui.NaviampAppShellActions
 import app.naviamp.ui.NaviampConnectionSettingsActions
@@ -22,6 +25,65 @@ import app.naviamp.ui.SharedSonicMixBuilderActions
 import app.naviamp.ui.SharedSonicPathBuilderActions
 import app.naviamp.ui.SharedTrackRowAction
 import app.naviamp.ui.handleResolvedTrackRowAction
+
+internal fun desktopConnectionSettingsActions(
+    connectionForm: DesktopConnectionFormStateHolder,
+    savedMediaSources: List<SavedMediaSource>,
+    appActions: DesktopAppActions,
+    connectionLifecycleController: DesktopConnectionLifecycleController,
+): NaviampConnectionSettingsActions = NaviampConnectionSettingsActions(
+    onFormChanged = { form ->
+        connectionForm.connectionName = form.displayName
+        connectionForm.updateServerUrl(form.serverUrl)
+        connectionForm.updateUsername(form.username)
+        connectionForm.password = form.password
+        connectionForm.insecureSkipTlsVerification = form.skipTlsVerification
+        connectionForm.customCertificatePath = form.customCertificatePath
+        connectionForm.clientCertificateKeyStorePath = form.clientCertificatePath
+        connectionForm.clientCertificateKeyStorePassword = form.clientCertificatePassword
+        connectionForm.secondaryUrls = form.secondaryUrls
+        connectionForm.customHeaders = form.customHeaders
+        connectionForm.selectedMusicFolderIds = form.selectedMusicFolderIds
+    },
+    onConnect = { appActions.connectToServer() },
+    onNewConnection = connectionLifecycleController::openNewConnectionForm,
+    onEditConnection = { item ->
+        savedMediaSources.firstOrNull { it.id == item.id }
+            ?.let(connectionLifecycleController::openSavedConnectionForm)
+    },
+    onConnectSavedConnection = { item ->
+        savedMediaSources.firstOrNull { it.id == item.id }
+            ?.let(connectionLifecycleController::connectSavedConnection)
+    },
+    onDeleteConnection = { item ->
+        savedMediaSources.firstOrNull { it.id == item.id }
+            ?.let(appActions::deleteConnection)
+    },
+    onCancelConnectionForm = connectionLifecycleController::closeConnectionForm,
+)
+
+internal fun desktopSettingsValueActions(
+    onInterfaceSettingsChanged: (InterfaceSettings) -> Unit,
+    settingsMaintenanceController: PlaybackSettingsMaintenanceController,
+    cacheSettingsController: app.naviamp.app.NaviampCacheSettingsController,
+): NaviampSettingsValueActions = NaviampSettingsValueActions(
+    onInterfaceSettingsChanged = onInterfaceSettingsChanged,
+    onPlaybackSettingsChanged = settingsMaintenanceController::applyPlaybackSettings,
+    onPlaybackSettingsChangedAndRedownload = settingsMaintenanceController::applyPlaybackSettingsAndRedownload,
+    onCacheSettingsChanged = cacheSettingsController::apply,
+)
+
+internal fun desktopSettingsMaintenanceActions(
+    onOpenStatsForNerds: () -> Unit,
+    appActions: DesktopAppActions,
+    libraryController: DesktopLibraryController,
+): NaviampSettingsMaintenanceActions = NaviampSettingsMaintenanceActions(
+    onOpenStatsForNerds = onOpenStatsForNerds,
+    onClearCache = appActions::clearCacheData,
+    onClearLibrary = appActions::clearLibraryData,
+    onRefreshLibrary = libraryController::refreshLibrarySnapshot,
+    onResetDatabase = appActions::resetDatabase,
+)
 
 internal data class DesktopAppShellActionContext(
     val route: NaviampRoute,

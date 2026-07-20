@@ -8,6 +8,11 @@ import app.naviamp.domain.playback.AudioOutputDevicePlaybackEngine
 import app.naviamp.domain.playback.PlaybackEngine
 import app.naviamp.domain.settings.CacheSettings
 import app.naviamp.domain.settings.InterfaceSettings
+import app.naviamp.domain.settings.ConnectionFormState
+import app.naviamp.domain.settings.ConnectionFormMusicFolder
+import app.naviamp.domain.settings.selectedMusicFolderSummary
+import app.naviamp.domain.source.SavedMediaSource
+import app.naviamp.app.NaviampConnectionRuntimeState
 import app.naviamp.desktop.settings.PlaybackSettings
 import app.naviamp.provider.navidrome.NavidromeProvider
 import app.naviamp.ui.NaviampAboutUi
@@ -26,6 +31,8 @@ import app.naviamp.ui.NaviampSearchScreenUi
 import app.naviamp.ui.NaviampShellCapabilitiesUi
 import app.naviamp.ui.NaviampShellChromeUi
 import app.naviamp.ui.NaviampShellConnectionUi
+import app.naviamp.ui.NaviampConnectionCapabilitiesUi
+import app.naviamp.ui.NaviampSavedConnectionUi
 import app.naviamp.ui.toCacheSettingsUi
 import app.naviamp.ui.toConnectionSettingsUi
 import app.naviamp.ui.toDownloadJobUi
@@ -40,6 +47,74 @@ import app.naviamp.ui.toSharedMediaItemUi
 import app.naviamp.ui.toSharedPlaylistDetailUi
 import app.naviamp.ui.toSharedSearchResultsUi
 import app.naviamp.ui.totalDownloadBytes
+
+internal fun desktopShellConnection(
+    status: String?,
+    runtimeState: NaviampConnectionRuntimeState,
+    connectionForm: DesktopConnectionFormStateHolder,
+    availableMusicFolders: List<ConnectionFormMusicFolder>,
+    musicFoldersStatus: String?,
+    savedMediaSources: List<SavedMediaSource>,
+    connectedSourceId: String?,
+): NaviampShellConnectionUi =
+    NaviampShellConnectionUi(
+        status = status,
+        serverVersion = runtimeState.serverVersion,
+        connected = runtimeState.connected,
+        editingConnection = connectionForm.isOpen,
+        restoringConnection = runtimeState.restoringConnection,
+        isConnecting = runtimeState.isConnecting,
+        form = ConnectionFormState(
+            displayName = connectionForm.connectionName,
+            serverUrl = connectionForm.serverUrl,
+            username = connectionForm.username,
+            password = connectionForm.password,
+            skipTlsVerification = connectionForm.insecureSkipTlsVerification,
+            customCertificatePath = connectionForm.customCertificatePath,
+            clientCertificatePath = connectionForm.clientCertificateKeyStorePath,
+            clientCertificatePassword = connectionForm.clientCertificateKeyStorePassword,
+            secondaryUrls = connectionForm.secondaryUrls,
+            customHeaders = connectionForm.customHeaders,
+            selectedMusicFolderIds = connectionForm.selectedMusicFolderIds,
+        ),
+        availableMusicFolders = availableMusicFolders,
+        musicFoldersStatus = musicFoldersStatus,
+        savedConnections = savedMediaSources.map { source ->
+            NaviampSavedConnectionUi(
+                id = source.id,
+                displayName = source.displayName,
+                serverUrl = source.baseUrl,
+                username = source.username,
+                selectedLibrarySummary = selectedMusicFolderSummary(
+                    selectedIds = source.selectedMusicFolderIds,
+                    availableFolders = availableMusicFolders,
+                ),
+                current = source.id == connectedSourceId,
+            )
+        },
+        hasSavedConnection = connectionForm.savedConnectionForLogin != null,
+    )
+
+internal fun desktopShellCapabilities(
+    playbackEngine: PlaybackEngine,
+    connectedProvider: NavidromeProvider?,
+): NaviampShellCapabilitiesUi = NaviampShellCapabilitiesUi(
+    replayGain = playbackEngine.supportsReplayGain,
+    gapless = playbackEngine.supportsGapless,
+    crossfade = playbackEngine.supportsCrossfade,
+    equalizer = (playbackEngine as? app.naviamp.domain.playback.EqualizerPlaybackEngine)
+        ?.supportsEqualizer == true,
+    sonicSimilarity = connectedProvider?.capabilities?.supportsSonicSimilarity == true,
+    downloads = DesktopCapabilityPresentation.downloads.visible,
+    settingsImportExport = DesktopCapabilityPresentation.settingsImportExport.visible,
+    applicationUpdates = DesktopCapabilityPresentation.applicationUpdates.visible,
+    fileSelection = DesktopCapabilityPresentation.fileSelection.visible,
+    connection = NaviampConnectionCapabilitiesUi(
+        insecureServerVerification = DesktopCapabilityPresentation.insecureServerVerification.visible,
+        customServerCertificates = DesktopCapabilityPresentation.customServerCertificates.visible,
+        clientCertificates = DesktopCapabilityPresentation.clientCertificates.visible,
+    ),
+)
 
 internal data class DesktopAppShellStateContext(
     val capabilities: NaviampShellCapabilitiesUi,
