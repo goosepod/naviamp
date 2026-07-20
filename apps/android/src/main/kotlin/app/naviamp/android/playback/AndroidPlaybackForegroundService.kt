@@ -1602,7 +1602,6 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
                         },
                         onProgressChanged = { progress ->
                             handleServicePlaybackProgress(
-                                playbackSessionRepository,
                                 sourceId,
                                 PlaybackSessionSettings.fromInternetRadioStation(station),
                                 progress,
@@ -1652,13 +1651,11 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
     }
 
     private fun handleServicePlaybackProgress(
-        playbackSessionRepository: PlaybackSessionRepository,
         sourceId: String,
         session: PlaybackSessionSettings,
         progress: PlaybackProgress,
     ) {
         servicePlaybackRuntimeController.handlePlaybackProgress(
-            playbackSessionRepository = playbackSessionRepository,
             sourceId = sourceId,
             session = session,
             progress = progress,

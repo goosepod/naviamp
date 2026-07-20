@@ -19,12 +19,37 @@ import app.naviamp.domain.provider.MediaProvider
 import app.naviamp.domain.provider.MediaSearchResults
 import app.naviamp.domain.provider.ProviderCapabilities
 import app.naviamp.domain.queue.PlaybackQueue
+import app.naviamp.domain.queue.RepeatMode
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
 import kotlinx.coroutines.test.runTest
 
 class PreparedNextPlaybackServiceTest {
+    @Test
+    fun repeatAwareWorkSelectsNextQueueTrackForCrossfade() {
+        val work = preparedNextPlaybackWork(
+            queue = PlaybackQueue(
+                tracks = listOf(track("current"), track("next")),
+                currentIndex = 0,
+            ),
+            repeatMode = RepeatMode.Off,
+            progress = PlaybackProgress(positionSeconds = 96.0, durationSeconds = 100.0),
+            preparedNextIndex = null,
+            settings = PreparedNextPlaybackSettings(
+                gaplessEnabled = false,
+                supportsGapless = true,
+                crossfadeDurationSeconds = 5,
+                supportsCrossfade = true,
+                gaplessPrepareWindowSeconds = 2.0,
+            ),
+        )
+
+        assertEquals(1, work?.markPreparedNextIndex)
+        assertEquals(PrepareNextPlaybackReason.Crossfade, work?.plan?.reason)
+        assertEquals("next", work?.plan?.track?.id?.value)
+    }
+
     @Test
     fun sharedTrackRequestIncludesPreparedPlaybackIdentityMetadata() {
         val replayGain = ReplayGain(

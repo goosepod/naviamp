@@ -24,7 +24,9 @@ import app.naviamp.domain.settings.toConnectionSecondaryUrls
 import app.naviamp.domain.settings.toSelectedMusicFolderIds
 import app.naviamp.domain.source.SavedMediaSource
 import app.naviamp.domain.source.ProviderConnectionLifecycleRequest
+import app.naviamp.domain.source.connectedMediaSourceStatus
 import app.naviamp.domain.source.connectionFailureStatus
+import app.naviamp.domain.source.deletedMediaSourceUpdate
 import app.naviamp.domain.source.effectiveServerConnectionKey
 import app.naviamp.domain.source.openProviderConnectionSession
 import app.naviamp.domain.source.unusedSourceScopeCleanupCutoff
@@ -176,7 +178,14 @@ class AndroidConnectionSessionController(
             .filter { it.effectiveServerConnectionKey() == serverConnectionKey }
             .forEach { storage.deleteMediaSource(it.id) }
         state.savedMediaSources = storage.mediaSources().visibleServerConnections(state.activeSourceId)
-        if (state.activeSourceId == source.id) {
+        val savedConnection = state.savedConnectionForLogin
+        val update = deletedMediaSourceUpdate(
+            source = source,
+            connectedSourceId = state.activeSourceId,
+            savedConnectionBaseUrl = savedConnection?.baseUrl,
+            savedConnectionUsername = savedConnection?.username,
+        )
+        if (update.clearConnectedSource) {
             resetAndroidPlaybackState(state, playbackEngine, queueController)
             state.provider = null
             state.activeSourceId = null
@@ -187,12 +196,10 @@ class AndroidConnectionSessionController(
             state.editingConnection = true
             state.navigationState = state.navigationState.copy(route = NaviampRoute.Settings)
             clearAndroidDerivedMediaState(state)
-        } else if (state.savedConnectionForLogin?.baseUrl == source.baseUrl &&
-            state.savedConnectionForLogin?.username == source.username
-        ) {
+        } else if (update.clearSavedConnectionForLogin) {
             state.savedConnectionForLogin = null
         }
-        state.status = "Deleted ${source.displayName}."
+        state.status = update.status
     }
 }
 
@@ -310,7 +317,7 @@ fun startNavidromeConnection(
                 }
                 session.connection.baseUrl
             }.onSuccess { activeUrl ->
-                val connectedStatus = connectionStatusWithActiveUrl(
+                val connectedStatus = connectedMediaSourceStatus(
                     primaryUrl = connection.baseUrl,
                     activeUrl = activeUrl,
                 )
@@ -349,16 +356,6 @@ private fun NavidromeConnection.toProviderMediaSourceConnection(): ProviderMedia
         customHeaders = customHeaders,
         selectedMusicFolderIds = selectedMusicFolderIds,
     )
-
-private fun connectionStatusWithActiveUrl(primaryUrl: String, activeUrl: String): String {
-    val normalizedPrimary = primaryUrl.trim().trimEnd('/')
-    val normalizedActive = activeUrl.trim().trimEnd('/')
-    return if (normalizedActive.isNotBlank() && normalizedActive != normalizedPrimary) {
-        "Connected via $normalizedActive."
-    } else {
-        "Connected."
-    }
-}
 
 fun startNavidromeConnectionFromForm(
     scope: CoroutineScope,

@@ -23,6 +23,7 @@ import app.naviamp.app.keepDownloadedErrorStatus
 import app.naviamp.app.keepDownloadedRefreshErrorStatus
 import app.naviamp.app.keepDownloadedReconciliationApplication
 import app.naviamp.app.noTracksToDownloadStatus
+import app.naviamp.app.naviampDownloadPreflightStatus
 import app.naviamp.domain.cache.DownloadRepository
 import app.naviamp.domain.cache.DownloadJob
 import app.naviamp.domain.cache.DownloadTracksResult
@@ -96,8 +97,14 @@ class DesktopDownloadsController(
     private fun launchDownloadJob(label: String, tracks: List<Track>, replaceExisting: Boolean) {
         val activeProvider = provider()
         val activeSourceId = sourceId()
-        if (activeProvider == null || activeSourceId == null) {
-            updateStatus(downloadConnectionRequiredStatus())
+        val blockedStatus = naviampDownloadPreflightStatus(
+            providerAvailable = activeProvider != null,
+            sourceId = activeSourceId,
+            isActiveNetworkMobileData = false,
+            allowMobileDownloads = true,
+        )
+        if (blockedStatus != null) {
+            updateStatus(blockedStatus)
             return
         }
         val initialJob = jobController.create(label, tracks, replaceExisting) ?: run {

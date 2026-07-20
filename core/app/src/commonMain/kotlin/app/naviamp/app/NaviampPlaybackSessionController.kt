@@ -106,6 +106,30 @@ class NaviampPlaybackSessionController(
         rememberSavedPosition(sourceId, session)
     }
 
+    fun saveSessionThrottled(
+        session: PlaybackSessionSettings?,
+        sourceId: String? = null,
+        force: Boolean,
+        nowMillis: Long,
+        saveIntervalMillis: Long,
+    ): Boolean {
+        if (
+            shouldThrottlePlaybackSessionSave(
+                activeSourceId = sourceId,
+                hasPlaybackTarget = session?.currentTrack() != null,
+                force = force,
+                nowMillis = nowMillis,
+                lastSavedAtMillis = lastSavedAtMillis[sourceId] ?: 0L,
+                saveIntervalMillis = saveIntervalMillis,
+            )
+        ) {
+            return false
+        }
+        lastSavedAtMillis[sourceId] = nowMillis
+        save(session, sourceId)
+        return true
+    }
+
     fun saveQueue(
         playbackQueue: PlaybackQueue,
         positionSeconds: Double?,

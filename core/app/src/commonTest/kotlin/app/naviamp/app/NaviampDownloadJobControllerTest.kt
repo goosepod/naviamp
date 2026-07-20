@@ -15,6 +15,36 @@ import kotlin.test.assertTrue
 
 class NaviampDownloadJobControllerTest {
     @Test
+    fun preflightRequiresConnectionAndHonorsMobileDataSetting() {
+        assertEquals(
+            "Connect to Navidrome before downloading.",
+            naviampDownloadPreflightStatus(
+                providerAvailable = false,
+                sourceId = null,
+                isActiveNetworkMobileData = false,
+                allowMobileDownloads = true,
+            ),
+        )
+        assertEquals(
+            "Downloads over mobile data are disabled.",
+            naviampDownloadPreflightStatus(
+                providerAvailable = true,
+                sourceId = "source",
+                isActiveNetworkMobileData = true,
+                allowMobileDownloads = false,
+            ),
+        )
+        assertNull(
+            naviampDownloadPreflightStatus(
+                providerAvailable = true,
+                sourceId = "source",
+                isActiveNetworkMobileData = false,
+                allowMobileDownloads = false,
+            ),
+        )
+    }
+
+    @Test
     fun ownsStableIdsUpdatesCancellationAndReplacementRetryIntent() {
         var jobs = emptyList<DownloadJob>()
         var cancelled = false

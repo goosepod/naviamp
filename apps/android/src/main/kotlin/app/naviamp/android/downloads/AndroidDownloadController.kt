@@ -16,6 +16,7 @@ import app.naviamp.app.keepDownloadedErrorStatus
 import app.naviamp.app.keepDownloadedRefreshErrorStatus
 import app.naviamp.app.keepDownloadedReconciliationApplication
 import app.naviamp.app.noTracksToDownloadStatus
+import app.naviamp.app.naviampDownloadPreflightStatus
 
 import android.content.Context
 import app.naviamp.domain.Track
@@ -23,8 +24,6 @@ import app.naviamp.domain.cache.CacheMaintenanceRepository
 import app.naviamp.domain.cache.DownloadRepository
 import app.naviamp.domain.cache.KeepDownloadedCollectionPolicy
 import app.naviamp.domain.cache.downloadRemoveErrorStatus
-import app.naviamp.domain.cache.downloadConnectionRequiredStatus
-import app.naviamp.domain.cache.downloadMobileDataDisabledStatus
 import app.naviamp.domain.cache.downloadedTrackRemovedStatus
 import app.naviamp.domain.Playlist
 import app.naviamp.domain.settings.downloadStreamQuality
@@ -121,12 +120,15 @@ internal class AndroidDownloadActionController(
         replaceExisting: Boolean,
         includeCompletedCount: Boolean = true,
     ) {
-        if (state.provider == null || state.activeSourceId == null) {
-            state.publishDownloadStatus(downloadConnectionRequiredStatus())
-            return
-        }
-        if (context.isActiveNetworkMobileData() && !state.playbackSettings.allowMobileDownloads) {
-            state.publishDownloadStatus(downloadMobileDataDisabledStatus())
+        val isMobileData = context.isActiveNetworkMobileData()
+        val blockedStatus = naviampDownloadPreflightStatus(
+            providerAvailable = state.provider != null,
+            sourceId = state.activeSourceId,
+            isActiveNetworkMobileData = isMobileData,
+            allowMobileDownloads = state.playbackSettings.allowMobileDownloads,
+        )
+        if (blockedStatus != null) {
+            state.publishDownloadStatus(blockedStatus)
             return
         }
         val initialJob = downloadJobs.create(label, tracksToDownload, replaceExisting)
@@ -146,7 +148,7 @@ internal class AndroidDownloadActionController(
                     quality = state.playbackSettings.downloadStreamQuality(),
                     maxDownloadBytes = state.cacheSettings.maxDownloadBytes,
                     replaceExisting = replaceExisting,
-                    isActiveNetworkMobileData = context.isActiveNetworkMobileData(),
+                    isActiveNetworkMobileData = isMobileData,
                     allowMobileDownloads = state.playbackSettings.allowMobileDownloads,
                     includeCompletedCount = includeCompletedCount,
                 ),

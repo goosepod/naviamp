@@ -9,10 +9,47 @@ import app.naviamp.domain.settings.PlaybackSessionSavePlan
 import app.naviamp.domain.settings.PlaybackSessionSettings
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertIs
 import kotlin.test.assertNull
+import kotlin.test.assertTrue
 
 class NaviampPlaybackSessionControllerTest {
+    @Test
+    fun arbitrarySessionSaveUsesSharedTimeThrottle() {
+        val repository = RecordingPlaybackSessionRepository()
+        val controller = NaviampPlaybackSessionController(repository)
+        val session = PlaybackSessionSettings.fromTracks(listOf(track("current")), currentIndex = 0)
+
+        assertTrue(
+            controller.saveSessionThrottled(
+                session = session,
+                sourceId = "source",
+                force = false,
+                nowMillis = 30_000L,
+                saveIntervalMillis = 30_000L,
+            ),
+        )
+        assertFalse(
+            controller.saveSessionThrottled(
+                session = session,
+                sourceId = "source",
+                force = false,
+                nowMillis = 40_000L,
+                saveIntervalMillis = 30_000L,
+            ),
+        )
+        assertTrue(
+            controller.saveSessionThrottled(
+                session = session,
+                sourceId = "source",
+                force = true,
+                nowMillis = 40_000L,
+                saveIntervalMillis = 30_000L,
+            ),
+        )
+    }
+
     @Test
     fun plansPersistsAndRestoresTrackSessionWithinSourceScope() {
         val repository = RecordingPlaybackSessionRepository()

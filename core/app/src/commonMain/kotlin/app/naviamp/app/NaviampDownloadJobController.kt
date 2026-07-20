@@ -11,6 +11,8 @@ import app.naviamp.domain.cache.DownloadReplacementRepository
 import app.naviamp.domain.cache.DownloadRepository
 import app.naviamp.domain.cache.DownloadService
 import app.naviamp.domain.cache.DownloadTracksResult
+import app.naviamp.domain.cache.downloadConnectionRequiredStatus
+import app.naviamp.domain.cache.downloadMobileDataDisabledStatus
 import app.naviamp.domain.cache.KeepDownloadedCollectionPolicy
 import app.naviamp.domain.cache.KeepDownloadedCollectionKind
 import app.naviamp.domain.cache.KeepDownloadedReconciliationPlan
@@ -29,6 +31,18 @@ data class NaviampDownloadRetry(
     val tracks: List<Track>,
     val replaceExisting: Boolean,
 )
+
+fun naviampDownloadPreflightStatus(
+    providerAvailable: Boolean,
+    sourceId: String?,
+    isActiveNetworkMobileData: Boolean,
+    allowMobileDownloads: Boolean,
+): String? =
+    when {
+        !providerAvailable || sourceId == null -> downloadConnectionRequiredStatus()
+        isActiveNetworkMobileData && !allowMobileDownloads -> downloadMobileDataDisabledStatus()
+        else -> null
+    }
 
 enum class NaviampKeepDownloadedToggleResult {
     Enable,

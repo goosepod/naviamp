@@ -13,6 +13,7 @@ import app.naviamp.android.withAndroidPendingActions
 import app.naviamp.app.NaviampLivePlaybackController
 import app.naviamp.app.NaviampLivePlaybackState
 import app.naviamp.app.NaviampPlaybackReportingController
+import app.naviamp.app.NaviampPlaybackSessionController
 import app.naviamp.app.NaviampNowPlayingReportRequest
 import app.naviamp.app.NaviampPlaybackStateReportRequest
 import app.naviamp.app.NaviampPlaybackQueueCoordinator
@@ -28,22 +29,19 @@ import app.naviamp.domain.playback.PlaybackProgress
 import app.naviamp.domain.playback.PlaybackReplayGain
 import app.naviamp.domain.playback.PlaybackQueueController
 import app.naviamp.domain.playback.PlaybackQueueFinishedCommand
-import app.naviamp.domain.playback.PlaybackQueueManager
 import app.naviamp.domain.playback.PlaybackState
 import app.naviamp.domain.playback.PreparedNextPlaybackCoordinator
 import app.naviamp.domain.playback.PreparedNextPlaybackSettings
-import app.naviamp.domain.playback.PreparedNextPlaybackWork
 import app.naviamp.domain.playback.QueueAwarePlaybackEngine
 import app.naviamp.domain.playback.ReplayGainSource
 import app.naviamp.domain.playback.fallbackPlaybackUrl
-import app.naviamp.domain.playback.hasPendingSeekReachedTarget
+import app.naviamp.domain.playback.planPlaybackProgressUpdate
 import app.naviamp.domain.playback.playbackStreamUrl
 import app.naviamp.domain.playback.playbackRequestForTrack
 import app.naviamp.domain.playback.planAudioPrefetchWork
 import app.naviamp.domain.playback.resolvePlaybackAudioSource
 import app.naviamp.domain.playback.runAudioPrefetch
 import app.naviamp.domain.playback.preparedNextPlaybackWork
-import app.naviamp.domain.playback.shouldIgnoreProgressForPendingSeek
 import app.naviamp.domain.queue.PlaybackQueue
 import app.naviamp.domain.queue.RepeatMode
 import app.naviamp.domain.settings.PlaybackSessionSettings
@@ -78,12 +76,11 @@ internal class AndroidServicePlaybackRuntimeController(
     private val playTrackQueue: (PlaybackSessionRepository, String, List<Track>, Int) -> Unit,
     private val playInternetRadioStation: (MediaSourceRepository, PlaybackSessionRepository, String, InternetRadioStation) -> Unit,
 ) {
-    private val queueManager = PlaybackQueueManager()
     private val transitionPlayback = NaviampLivePlaybackController()
     private val queueCoordinator = NaviampPlaybackQueueCoordinator(transitionPlayback)
+    private val playbackSessions by lazy { NaviampPlaybackSessionController(storage()) }
     private var serviceOwnedPlayback = false
     private var serviceMediaSource: SavedMediaSource? = null
-    private var lastServiceSessionSaveAtMillis = 0L
     private var lastServicePlaybackState: PlaybackState? = null
     private var pendingServiceSeekPositionSeconds: Double? = null
     private var pendingServiceSeekAtMillis = 0L
@@ -162,10 +159,10 @@ internal class AndroidServicePlaybackRuntimeController(
     fun playSavedSessionAdjacent(delta: Int) {
         val storage = storage()
         val sourceId = serviceMediaSource(storage)?.id ?: return
-        val session = storage.loadPlaybackSession(sourceId) ?: return
+        val session = playbackSessions.load(sourceId) ?: return
         val nextSession = session.adjacentTrackSession(delta) ?: return
         maybeReportServicePlaybackState(PlaybackState.Stopped)
-        storage.savePlaybackSession(sourceId = sourceId, session = nextSession)
+        playbackSessions.save(session = nextSession, sourceId = sourceId)
         playSavedSession(nextSession)
     }
 
@@ -204,7 +201,7 @@ internal class AndroidServicePlaybackRuntimeController(
     fun playSavedSession(existingSession: PlaybackSessionSettings? = null) {
         val storage = storage()
         val source = serviceMediaSource(storage) ?: return
-        val session = existingSession ?: storage.loadPlaybackSession(source.id) ?: return
+        val session = existingSession ?: playbackSessions.load(source.id) ?: return
         val restorePlan = planPlaybackSessionRestore(session)
         if (restorePlan is PlaybackSessionRestorePlan.InternetRadio) {
             playInternetRadioStation(storage, storage, source.id, restorePlan.station)
@@ -303,7 +300,7 @@ internal class AndroidServicePlaybackRuntimeController(
                         startPositionSeconds = playbackTarget.second,
                     ),
                     onStateChanged = { state -> handlePlaybackStateChanged(state, handleFinished = true) },
-                    onProgressChanged = { progress -> handlePlaybackProgress(storage, source.id, session, progress) },
+                    onProgressChanged = { progress -> handlePlaybackProgress(source.id, session, progress) },
                 )
             }.onFailure { error ->
                 Log.w("NaviampAutoCommand", "Service saved-session playback failed", error)
@@ -316,7 +313,6 @@ internal class AndroidServicePlaybackRuntimeController(
     fun markStarted() {
         serviceOwnedPlayback = true
         servicePlaybackSessionToken = System.nanoTime()
-        lastServiceSessionSaveAtMillis = 0L
         lastServicePlaybackState = null
         serviceAudioPrefetchJob?.cancel()
         serviceAudioPrefetchJob = null
@@ -338,42 +334,42 @@ internal class AndroidServicePlaybackRuntimeController(
     }
 
     fun handlePlaybackProgress(
-        playbackSessionRepository: PlaybackSessionRepository,
         sourceId: String,
         session: PlaybackSessionSettings,
         progress: PlaybackProgress,
     ) {
         val now = AndroidSystemClock.nowEpochMillis()
-        val progressPositionSeconds = progress.positionSeconds
-        if (progressPositionSeconds == null && progress.durationSeconds == null) return
-        val pendingSeekPosition = pendingServiceSeekPositionSeconds
-        if (
-            shouldIgnoreProgressForPendingSeek(
-                pendingSeekPositionSeconds = pendingSeekPosition,
-                pendingSeekIssuedAtMillis = pendingServiceSeekAtMillis,
-                incomingPositionSeconds = progressPositionSeconds,
-                nowMillis = now,
-                toleranceSeconds = ServiceSeekToleranceSeconds,
-                staleWindowMillis = ServiceSeekStaleProgressWindowMillis,
-            )
-        ) {
-            return
-        }
-        if (
-            hasPendingSeekReachedTarget(
-                pendingSeekPositionSeconds = pendingSeekPosition,
-                incomingPositionSeconds = progressPositionSeconds,
-                toleranceSeconds = ServiceSeekToleranceSeconds,
-            )
-        ) {
-            pendingServiceSeekPositionSeconds = null
-        }
+        if (progress.positionSeconds == null && progress.durationSeconds == null) return
+        val previousProgress = PlaybackProgress(
+            positionSeconds = AndroidPlaybackNotificationControls.positionMillis?.let { it / 1_000.0 },
+            durationSeconds = AndroidPlaybackNotificationControls.durationMillis?.let { it / 1_000.0 },
+        )
+        val plan = planPlaybackProgressUpdate(
+            sessionToken = servicePlaybackSessionToken,
+            activeSessionToken = servicePlaybackSessionToken,
+            incomingProgress = progress,
+            currentProgress = previousProgress,
+            pendingSeekPositionSeconds = pendingServiceSeekPositionSeconds,
+            pendingSeekIssuedAtMillis = pendingServiceSeekAtMillis.takeIf { pendingServiceSeekPositionSeconds != null },
+            pendingRestoreStartPositionSeconds = null,
+            nowMillis = now,
+            lastExternalProgressPublishAtMillis = 0L,
+            externalProgressPublishIntervalMillis = 0L,
+            toleranceSeconds = ServiceSeekToleranceSeconds,
+            staleWindowMillis = ServiceSeekStaleProgressWindowMillis,
+            resetUnknownProgress = false,
+            savePlaybackPosition = true,
+        )
+        if (plan.ignore) return
+        if (plan.clearPendingSeek) pendingServiceSeekPositionSeconds = null
+        val appliedProgress = plan.progress ?: progress
+        val progressPositionSeconds = appliedProgress.positionSeconds
         val previousPositionMillis = AndroidPlaybackNotificationControls.positionMillis
         val positionMillis = progressPositionSeconds
             ?.takeIf { it >= 0.0 }
             ?.let { (it * 1_000.0).toLong() }
         val previousDurationMillis = AndroidPlaybackNotificationControls.durationMillis
-        val durationMillis = progress.durationSeconds
+        val durationMillis = appliedProgress.durationSeconds
             ?.takeIf { it > 0.0 }
             ?.let { (it * 1_000.0).toLong() }
         AndroidPlaybackNotificationControls.positionMillis = positionMillis ?: previousPositionMillis
@@ -385,15 +381,15 @@ internal class AndroidServicePlaybackRuntimeController(
         } else if (!AndroidPlaybackNotificationControls.isPlaying && positionChanged) {
             updateMediaSessionPlaybackState()
         }
-        if (now - lastServiceSessionSaveAtMillis >= ServicePlaybackSessionSaveIntervalMillis) {
-            lastServiceSessionSaveAtMillis = now
-            playbackSessionRepository.savePlaybackSession(
-                sourceId = sourceId,
-                session = session.withPlaybackPosition(progressPositionSeconds),
-            )
-        }
-        prepareNextIfNeeded(progress)
-        maybeReportServicePlaybackState(PlaybackState.Playing, progress)
+        playbackSessions.saveSessionThrottled(
+            session = session.withPlaybackPosition(progressPositionSeconds),
+            sourceId = sourceId,
+            force = false,
+            nowMillis = now,
+            saveIntervalMillis = ServicePlaybackSessionSaveIntervalMillis,
+        )
+        prepareNextIfNeeded(appliedProgress)
+        maybeReportServicePlaybackState(PlaybackState.Playing, appliedProgress)
     }
 
     private fun prepareNextIfNeeded(progress: PlaybackProgress) {
@@ -401,14 +397,18 @@ internal class AndroidServicePlaybackRuntimeController(
         val queueAwareEngine = runtime.playbackEngine as? QueueAwarePlaybackEngine ?: return
         val playbackSettings = servicePlaybackSettings
         val queue = PlaybackQueue(currentQueue(), currentQueueIndex())
-        val work = planAndroidServicePreparedNextPlayback(
+        val work = preparedNextPlaybackWork(
             queue = queue,
             repeatMode = repeatMode(),
             progress = progress,
             preparedNextIndex = queueController.preparedNextIndex,
-            playbackSettings = playbackSettings,
-            supportsGapless = runtime.playbackEngine.supportsGapless,
-            supportsCrossfade = runtime.playbackEngine.supportsCrossfade,
+            settings = PreparedNextPlaybackSettings(
+                gaplessEnabled = playbackSettings.gaplessEnabled,
+                supportsGapless = runtime.playbackEngine.supportsGapless,
+                crossfadeDurationSeconds = playbackSettings.crossfadeDurationSeconds,
+                supportsCrossfade = runtime.playbackEngine.supportsCrossfade,
+                gaplessPrepareWindowSeconds = AndroidGaplessPrepareWindowSeconds,
+            ),
         ) ?: return
         val storage = storage()
         val source = serviceMediaSource(storage) ?: return
@@ -515,9 +515,9 @@ internal class AndroidServicePlaybackRuntimeController(
         val storage = storage()
         val sourceId = serviceMediaSource(storage)?.id ?: return
         val session = storage.loadPlaybackSession(sourceId) ?: return
-        storage.savePlaybackSession(
-            sourceId = sourceId,
+        playbackSessions.save(
             session = session.withPlaybackPosition(positionSeconds),
+            sourceId = sourceId,
         )
     }
 
@@ -621,31 +621,6 @@ internal class AndroidServicePlaybackRuntimeController(
         const val ServiceSeekStaleProgressWindowMillis = 1_500L
         const val ServiceIgnoreZeroSeekAfterSeconds = 3.0
     }
-}
-
-internal fun planAndroidServicePreparedNextPlayback(
-    queue: PlaybackQueue,
-    repeatMode: RepeatMode,
-    progress: PlaybackProgress,
-    preparedNextIndex: Int?,
-    playbackSettings: PlaybackSettings,
-    supportsGapless: Boolean,
-    supportsCrossfade: Boolean,
-): PreparedNextPlaybackWork? {
-    val nextQueueIndex = PlaybackQueueManager().nextPreparedQueueIndex(queue, repeatMode)
-    return preparedNextPlaybackWork(
-        queue = queue,
-        progress = progress,
-        nextQueueIndex = nextQueueIndex,
-        preparedNextIndex = preparedNextIndex,
-        settings = PreparedNextPlaybackSettings(
-            gaplessEnabled = playbackSettings.gaplessEnabled,
-            supportsGapless = supportsGapless,
-            crossfadeDurationSeconds = playbackSettings.crossfadeDurationSeconds,
-            supportsCrossfade = supportsCrossfade,
-            gaplessPrepareWindowSeconds = AndroidGaplessPrepareWindowSeconds,
-        ),
-    )
 }
 
 private suspend fun AndroidStorageDependencies.warmServiceCoverArt(

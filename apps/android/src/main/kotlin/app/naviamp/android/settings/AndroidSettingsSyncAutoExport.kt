@@ -1,7 +1,7 @@
 package app.naviamp.android
 
 import android.content.Context
-import android.net.Uri
+import app.naviamp.app.NaviampApplicationStatusLevel
 import app.naviamp.app.NaviampSettingsSyncController
 import app.naviamp.domain.settings.SettingsSyncLocalSnapshot
 import app.naviamp.domain.settings.SettingsSyncRuntimeState
@@ -47,45 +47,15 @@ fun markAndroidSettingsSyncChangedAndAutoExport(
         },
         applyDocument = {},
     )
-    controller.markLocalChanged()
-    controller.exportCurrent().documentToWrite?.let { document ->
-        runCatching {
-            AndroidSettingsSyncMirrorStore(context).write(document)
-        }.onSuccess {
-            controller.documentWritten(document)
-            settingsStore.saveSettingsSync(
-                settingsStore.loadSettingsSync().copy(
-                    lastMirrorUpdateEpochMillis = document.updatedAtEpochMillis,
-                    lastProviderError = null,
-                ),
-            )
-        }.onFailure { error ->
-            settingsStore.saveSettingsSync(
-                settingsStore.loadSettingsSync().copy(
-                    lastProviderError = error.message ?: "Could not save local settings mirror.",
-                ),
-            )
-            return
-        }
-        if (!settingsStore.loadSettingsSync().autoExportEnabled) return
-        val treeUri = settingsStore.loadSettingsSync().treeUri?.let(Uri::parse) ?: return
-        runCatching {
-            AndroidSettingsSyncDocumentStore(context, treeUri).write(document)
-        }.onSuccess {
-            settingsStore.saveSettingsSync(
-                settingsStore.loadSettingsSync().copy(
-                    lastProviderPushEpochMillis = AndroidSystemClock.nowEpochMillis(),
-                    lastProviderError = null,
-                ),
-            )
-        }.onFailure { error ->
-            settingsStore.saveSettingsSync(
-                settingsStore.loadSettingsSync().copy(
-                    lastProviderError = error.message ?: "Could not sync settings with provider.",
-                ),
-            )
-        }
-    }
+    AndroidSettingsSyncHost(
+        context = context,
+        controller = controller,
+        mirrorStore = AndroidSettingsSyncMirrorStore(context),
+        settings = settingsStore::loadSettingsSync,
+        saveSettings = settingsStore::saveSettingsSync,
+        setStatus = {},
+        publishStatus = { _: String, _: NaviampApplicationStatusLevel -> },
+    ).markChangedAndAutoExport()
 }
 
 private const val AndroidSettingsSyncDeviceId = "android"
