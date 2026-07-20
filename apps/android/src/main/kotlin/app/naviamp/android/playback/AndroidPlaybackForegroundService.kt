@@ -95,6 +95,22 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
     private val serviceProviderActions: NaviampProviderActionController by lazy {
         NaviampProviderActionController(serviceStorage)
     }
+    private val serviceSettingsStore: AndroidSettingsStore by lazy {
+        AndroidSettingsStore(applicationContext)
+    }
+    private val recentRadioStreamController: NaviampRecentRadioStreamController by lazy {
+        NaviampRecentRadioStreamController(
+            load = serviceSettingsStore::loadRecentRadioStreams,
+            save = serviceSettingsStore::saveRecentRadioStreams,
+            onChanged = {
+                markAndroidSettingsSyncChangedAndAutoExport(
+                    context = applicationContext,
+                    settingsStore = serviceSettingsStore,
+                    storage = serviceStorage,
+                )
+            },
+        )
+    }
     private val autoQueueController = PlaybackQueueController()
     private val autoBrowseController: AndroidAutoBrowseController by lazy {
         AndroidAutoBrowseController(
@@ -1614,35 +1630,23 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
     }
 
     private fun rememberRecentRadioStream(stream: RecentRadioStream) {
-        val settingsStore = AndroidSettingsStore(applicationContext)
-        NaviampRecentRadioStreamController(
-            load = settingsStore::loadRecentRadioStreams,
-            save = settingsStore::saveRecentRadioStreams,
-            onChanged = {
-                markAndroidSettingsSyncChangedAndAutoExport(
-                    context = applicationContext,
-                    settingsStore = settingsStore,
-                    storage = serviceStorage,
-                )
-            },
-        ).remember(stream)
+        recentRadioStreamController.remember(stream)
     }
 
     private fun rememberRecentInternetRadioStation(station: InternetRadioStation) {
-        val settingsStore = AndroidSettingsStore(applicationContext)
         applyRememberInternetRadioStation(
             plan = planRememberInternetRadioStation(
                 station = station,
                 recentStations = emptyList(),
-                recentSavedStations = settingsStore.loadRecentInternetRadioStations(),
+                recentSavedStations = serviceSettingsStore.loadRecentInternetRadioStations(),
             ),
             applier = InternetRadioRecentStationApplier(
-                saveRecentStations = settingsStore::saveRecentInternetRadioStations,
+                saveRecentStations = serviceSettingsStore::saveRecentInternetRadioStations,
             ),
         )
         markAndroidSettingsSyncChangedAndAutoExport(
             context = applicationContext,
-            settingsStore = settingsStore,
+            settingsStore = serviceSettingsStore,
             storage = serviceStorage,
         )
     }

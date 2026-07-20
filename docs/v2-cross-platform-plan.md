@@ -481,6 +481,16 @@ The 2026-07-17 audit found these remaining direct constructions intentional:
 
 Revisit an item only when its platform executor or lifetime is unified; do not move it merely to eliminate a constructor call.
 
+### Radio Controller Construction Follow-up
+
+The 2026-07-20 follow-up found that the Android foreground service recreated its recent-radio controller and settings adapter for each remembered stream. Both are now stable service-scoped owners, matching the lifetime of service playback and settings-sync notification. The remaining construction sites are intentional:
+
+- Desktop radio and Internet Radio controllers bind BASS, Desktop playlist execution, Compose-observable state, and the Desktop coroutine lifetime.
+- The Android UI radio path binds Activity state and the Android playlist engine.
+- The Android foreground-service path binds MediaSession, notification, and service-survival behavior and must not retain Activity-owned controllers.
+
+Do not merge these constructors until their native executor and lifecycle boundaries actually converge.
+
 ## Android Coordination Ownership Audit
 
 The 2026-07-19 Android audit found no remaining common queue, Now Playing, provider-action, settings-sync, download, or cache policy owned by the Activity composition root:
@@ -517,8 +527,8 @@ The 2026-07-17 audit covers every current application entry point:
 
 ## Current Handoff
 
-- **Last completed item:** Android and Desktop now construct track-start presentation and execution effects through one shared plan. Host adapters still execute native queue/session setup, restored-position handling, sidecars, notifications, and audio-engine work, but no longer repeat the product-policy composition step.
-- **Next recommended item:** Reassess the radio controller construction cluster and remove the next redundant host seam.
+- **Last completed item:** The radio construction audit made recent-radio settings and coordination stable owners of the Android foreground-service lifetime instead of rebuilding them per stream. Desktop, Android UI, and Android service radio controllers remain separate only where their native executors and lifetimes differ.
+- **Next recommended item:** Continue the playlist callback audit at queue and playback-state application, then return to the larger Desktop radio and Internet Radio classes for delete-first product-policy extraction.
 - **Verification:** On 2026-07-20, `:core:ui:jvmTest`, `:apps:desktop:desktopTest`, `:apps:android:compileDebugKotlin`, and `:core:ui:compileKotlinIosSimulatorArm64` passed after moving route-product composition into common UI. Desktop smoke testing then exposed infinite-height constraints where Downloads and playlist details were nested inside the route wrapper's vertical scroll even though both screens own scrolling, plus an unscrollable connection form because Settings does not own scrolling. The wrapper now adds scrolling only for Search, Playlists, Internet Radio, and Settings, with JVM regression coverage for the route policy.
 - **Known blockers:** None.
 
