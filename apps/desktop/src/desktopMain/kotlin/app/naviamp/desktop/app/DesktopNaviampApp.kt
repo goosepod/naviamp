@@ -13,7 +13,6 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.NonRestartableComposable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -69,8 +68,6 @@ import app.naviamp.domain.settings.effectiveForEngine
 import app.naviamp.domain.settings.PlaybackSettingsMaintenanceController
 import app.naviamp.domain.settings.SavedInternetRadioStation
 import app.naviamp.domain.settings.ConnectionFormMusicFolder
-import app.naviamp.domain.settings.connectionFormMusicFolders
-import app.naviamp.domain.settings.defaultSelectedMusicFolderIds
 import app.naviamp.domain.settings.importSettingsSyncServerProfiles
 import app.naviamp.domain.settings.InterfaceSettings
 import app.naviamp.domain.settings.playbackSettingsChange
@@ -79,7 +76,6 @@ import app.naviamp.domain.settings.restoredTrackSession
 import app.naviamp.domain.settings.selectedMusicFolderSummary
 import app.naviamp.domain.settings.toConnectionHeaderDefinitions
 import app.naviamp.domain.settings.toConnectionSecondaryUrls
-import app.naviamp.domain.source.ConnectionTlsSettings
 import app.naviamp.domain.source.visibleServerConnections
 import app.naviamp.domain.sonicautoplay.SonicAutoplayService
 import app.naviamp.provider.navidrome.NavidromeConnection
@@ -269,9 +265,6 @@ fun NaviampApp(
     val connectionRuntimeState by applicationControllers.connection.state.collectAsState()
     val applicationStatus by applicationControllers.status.state.collectAsState()
     val isConnecting = connectionRuntimeState.isConnecting
-    LaunchedEffect(applicationStatus?.sequence) {
-        applicationStatus?.let { connectionStatus = it.message }
-    }
     val navigationController = applicationControllers.navigation
     val currentRouteProperty = remember {
         DesktopNavigationRouteProperty(navigationController, DesktopNavigationField.CurrentRoute)
@@ -575,9 +568,6 @@ fun NaviampApp(
         )
     }
 
-    LaunchedEffect(settingsSyncHost) {
-        settingsSyncHost.reconcileAtStartup()
-    }
 
     val playlistCallbacksRef = remember { mutableStateOf<PlaylistCallbacks?>(null) }
     val radioController = remember {
@@ -858,20 +848,6 @@ fun NaviampApp(
         )
     }
 
-    LaunchedEffect(
-        connectedProvider,
-        connectedSourceId,
-        playbackSettings.sonicSimilarityEnabled,
-        connectedProvider?.capabilities?.supportsSonicSimilarity,
-        libraryController.syncing,
-        nowPlayingTrack?.id,
-        playbackQueue.tracks.size,
-    ) {
-        val enabled = playbackSettings.sonicSimilarityEnabled &&
-            connectedProvider?.capabilities?.supportsSonicSimilarity == true &&
-            !libraryController.syncing
-        sonicHomeDiscoveryController.loadIfNeeded(enabled)
-    }
 
     val searchController = remember {
         DesktopSearchController(
@@ -1138,109 +1114,30 @@ fun NaviampApp(
         setCacheStats = { stats -> cacheStats = stats },
     )
 
-    LaunchedEffect(
-        connectionForm.isOpen,
-        connectionForm.serverUrl,
-        connectionForm.username,
-        connectionForm.password,
-        connectionForm.insecureSkipTlsVerification,
-        connectionForm.customCertificatePath,
-        connectionForm.clientCertificateKeyStorePath,
-        connectionForm.clientCertificateKeyStorePassword,
-        connectionForm.secondaryUrls,
-        connectionForm.customHeaders,
-        connectionForm.savedConnectionForLogin,
-    ) {
-        if (!connectionForm.isOpen) {
-            musicFoldersStatus = null
-            return@LaunchedEffect
-        }
-        val baseUrl = connectionForm.serverUrl.trim()
-        val username = connectionForm.username.trim()
-        val savedLogin = connectionForm.savedConnectionForLogin
-        val password = connectionForm.password
-        if (baseUrl.isEmpty() || username.isEmpty() || (savedLogin == null && password.isBlank())) {
-            availableMusicFolders = emptyList()
-            musicFoldersStatus = "Enter connection details to load libraries."
-            return@LaunchedEffect
-        }
-
-        musicFoldersStatus = "Loading libraries..."
-        val tlsSettings = ConnectionTlsSettings(
-            insecureSkipTlsVerification = connectionForm.insecureSkipTlsVerification,
-            customCertificatePath = connectionForm.customCertificatePath.ifBlank { null },
-            clientCertificateKeyStorePath = connectionForm.clientCertificateKeyStorePath.ifBlank { null },
-            clientCertificateKeyStorePassword = connectionForm.clientCertificateKeyStorePassword.ifBlank { null },
-        )
-        val secondaryUrls = connectionForm.secondaryUrls.toConnectionSecondaryUrls()
-        val customHeaders = connectionForm.customHeaders.toConnectionHeaderDefinitions()
-        val lookupConnection = if (savedLogin != null && password.isBlank()) {
-            savedLogin.copy(
-                baseUrl = baseUrl,
-                username = username,
-                tlsSettings = tlsSettings,
-                secondaryUrls = secondaryUrls,
-                customHeaders = customHeaders,
-            )
-        } else {
-            NavidromeConnection.fromPassword(
-                baseUrl = baseUrl,
-                username = username,
-                password = password,
-                displayName = connectionForm.connectionName.ifBlank { null },
-                tlsSettings = tlsSettings,
-                secondaryUrls = secondaryUrls,
-                customHeaders = customHeaders,
-            )
-        }
-        val result = runCatching {
-            withContext(Dispatchers.IO) {
-                NavidromeProvider(lookupConnection).musicFolders()
-            }
-        }
-        result.fold(
-            onSuccess = { folders ->
-                val choices = connectionFormMusicFolders(folders.map { folder -> folder.id to folder.name })
-                availableMusicFolders = choices
-                musicFoldersStatus = when {
-                    choices.isEmpty() -> "No libraries returned by the server."
-                    else -> null
-                }
-                connectionForm.selectedMusicFolderIds = defaultSelectedMusicFolderIds(
-                    selectedIds = connectionForm.selectedMusicFolderIds,
-                    availableFolders = choices,
-                )
-            },
-            onFailure = { error ->
-                availableMusicFolders = emptyList()
-                musicFoldersStatus = "Could not load libraries: ${error.message ?: error::class.simpleName}"
-            },
-        )
-    }
-
-    LaunchedEffect(connectedProvider, connectedSourceId, connectionForm.isOpen) {
-        val provider = connectedProvider
-        if (connectionForm.isOpen || provider == null) return@LaunchedEffect
-        runCatching {
-            withContext(Dispatchers.IO) {
-                provider.musicFolders()
-            }
-        }.onSuccess { folders ->
-            availableMusicFolders = connectionFormMusicFolders(folders.map { folder -> folder.id to folder.name })
-        }
-    }
-
-    LaunchedEffect(connectedSourceId) {
-        downloadsController.reloadKeepDownloadedPolicies()
-    }
-    LaunchedEffect(
-        playlistsController.playlists.map { playlist -> Triple(playlist.id, playlist.trackCount, playlist.isSmart) },
-        nowPlayingTrack?.favoritedAtIso8601,
-    ) {
-        if (downloadsController.keepDownloadedPolicies.isNotEmpty()) {
-            downloadsController.reconcileKeepDownloadedCollections()
-        }
-    }
+    DesktopHostEffects(
+        applicationStatusSequence = applicationStatus?.sequence,
+        applicationStatusMessage = applicationStatus?.message,
+        setConnectionStatus = { status -> connectionStatus = status },
+        settingsSyncHost = settingsSyncHost,
+        sonicHomeDiscoveryController = sonicHomeDiscoveryController,
+        sonicDiscoveryProvider = connectedProvider,
+        sonicDiscoveryEnabled = playbackSettings.sonicSimilarityEnabled &&
+            connectedProvider?.capabilities?.supportsSonicSimilarity == true &&
+            !libraryController.syncing,
+        sonicDiscoverySourceId = connectedSourceId,
+        sonicDiscoveryTrackId = nowPlayingTrack?.id?.value,
+        sonicDiscoveryQueueSize = playbackQueue.tracks.size,
+        connectionForm = connectionForm,
+        connectedProvider = connectedProvider,
+        connectedSourceId = connectedSourceId,
+        setAvailableMusicFolders = { folders -> availableMusicFolders = folders },
+        setMusicFoldersStatus = { status -> musicFoldersStatus = status },
+        downloadsController = downloadsController,
+        playlistSignatures = playlistsController.playlists.map { playlist ->
+            "${playlist.id}:${playlist.trackCount}:${playlist.isSmart}"
+        },
+        nowPlayingFavoriteTimestamp = nowPlayingTrack?.favoritedAtIso8601,
+    )
 
     loadHomeContentAction.value = homeController::loadHomeContent
     refreshPlaylistsAction.value = playlistsController::refreshPlaylists
