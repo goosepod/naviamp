@@ -672,7 +672,6 @@ fun NaviampApp(
         savePlaybackSession = playbackController::savePlaybackSession,
         playbackProgress = { playbackProgress },
         setPlaybackProgress = { progress -> playbackProgress = progress },
-        setPlaybackState = { state -> playbackState = state },
         pendingSeekPositionSeconds = { pendingSeekPositionSeconds },
         setPendingSeekPositionSeconds = { position -> pendingSeekPositionSeconds = position },
         pendingSeekIssuedAtMillis = { pendingSeekIssuedAtMillis },

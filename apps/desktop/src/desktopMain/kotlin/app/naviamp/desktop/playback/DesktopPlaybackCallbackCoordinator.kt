@@ -49,7 +49,6 @@ fun desktopPlaylistCallbacks(
     savePlaybackSession: (PlaybackQueue, Double?) -> Unit,
     playbackProgress: () -> PlaybackProgress,
     setPlaybackProgress: (PlaybackProgress) -> Unit,
-    setPlaybackState: (PlaybackState) -> Unit,
     pendingSeekPositionSeconds: () -> Double?,
     setPendingSeekPositionSeconds: (Double?) -> Unit,
     pendingSeekIssuedAtMillis: () -> Long?,
@@ -103,8 +102,11 @@ fun desktopPlaylistCallbacks(
             )
         },
         onPlaybackStateChanged = { state ->
-            setPlaybackState(state)
-            maybeReportPlaybackState(state, playbackProgress())
+            livePlayback.applyPlaybackStateChange(
+                playbackState = state,
+                progress = playbackProgress(),
+                report = maybeReportPlaybackState,
+            )
         },
         onPlaybackProgressChanged = progressChanged@{ progress ->
             val pendingSeek = pendingSeekPositionSeconds()

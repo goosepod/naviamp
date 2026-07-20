@@ -246,8 +246,11 @@ fun playAndroidTrack(
                     scope = scope,
                     request = trackStartWork.request,
                     onStateChanged = { playbackState ->
-                        state.playbackState = playbackState
-                        maybeReportPlaybackState(playbackState, state.playbackProgress)
+                        state.sharedLivePlaybackController.applyPlaybackStateChange(
+                            playbackState = playbackState,
+                            progress = state.playbackProgress,
+                            report = maybeReportPlaybackState,
+                        )
                         when (playbackState) {
                             PlaybackState.Finished -> effectsPlan.finishedAdjacentOffset?.let { offset ->
                                 playAdjacentTrack(offset, true)

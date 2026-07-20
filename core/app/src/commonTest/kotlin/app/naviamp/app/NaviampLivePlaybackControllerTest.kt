@@ -67,6 +67,25 @@ class NaviampLivePlaybackControllerTest {
         assertEquals(queue, publishedQueueAtPersistence)
     }
 
+    @Test
+    fun playbackStateChangePublishesBeforeReporting() {
+        val progress = PlaybackProgress(positionSeconds = 23.0, durationSeconds = 180.0)
+        val controller = NaviampLivePlaybackController(
+            NaviampLivePlaybackState(progress = progress),
+        )
+        var reportedState: PlaybackState? = null
+        var publishedStateAtReport: PlaybackState? = null
+
+        controller.applyPlaybackStateChange(PlaybackState.Playing) { state, reportedProgress ->
+            reportedState = state
+            publishedStateAtReport = controller.state.value.playbackState
+            assertEquals(progress, reportedProgress)
+        }
+
+        assertEquals(PlaybackState.Playing, reportedState)
+        assertEquals(PlaybackState.Playing, publishedStateAtReport)
+    }
+
     private fun track(id: String) = Track(
         id = TrackId(id),
         title = "Track $id",

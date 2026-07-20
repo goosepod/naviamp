@@ -78,6 +78,15 @@ class NaviampLivePlaybackController(
     fun updatePlaybackState(playbackState: PlaybackState) =
         update { current -> current.copy(playbackState = playbackState) }
 
+    fun applyPlaybackStateChange(
+        playbackState: PlaybackState,
+        progress: PlaybackProgress = state.value.progress,
+        report: (PlaybackState, PlaybackProgress) -> Unit,
+    ) {
+        updatePlaybackState(playbackState)
+        report(playbackState, progress)
+    }
+
     fun updateRepeatMode(repeatMode: RepeatMode) =
         update { current -> current.copy(repeatMode = repeatMode) }
 
