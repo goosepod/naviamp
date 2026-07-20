@@ -3,7 +3,6 @@ package app.naviamp.desktop
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -18,16 +17,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import app.naviamp.domain.Album
-import app.naviamp.domain.AlbumExplicitStatus
-import app.naviamp.domain.media.releaseSection
-import app.naviamp.domain.Artist
-import app.naviamp.domain.Track
 import app.naviamp.ui.NaviampAction
 import app.naviamp.ui.NaviampActionSpec
 import app.naviamp.ui.NaviampIcons
@@ -38,18 +31,12 @@ import app.naviamp.ui.SharedMediaItemAction
 import app.naviamp.ui.SharedMediaItemActionRequest
 import app.naviamp.ui.SharedMediaItemUi
 import app.naviamp.ui.SharedMediaRow
-import app.naviamp.ui.SharedTrackRowAction
 import app.naviamp.ui.SharedTrackRowActionRequest
 import app.naviamp.ui.SharedTrackRowUi
 import app.naviamp.ui.TrackRow
 import app.naviamp.ui.actionRequest
 import app.naviamp.ui.albumRowActions
 import app.naviamp.ui.artistRowActions
-import app.naviamp.ui.compactFavoriteRatingLabel
-import app.naviamp.ui.durationLabel
-import app.naviamp.ui.toNowPlayingDetailSections
-import app.naviamp.ui.toSharedArtistCreditUis
-import app.naviamp.ui.trackRowActions
 
 @Composable
 fun DesktopMediaRow(
@@ -82,292 +69,6 @@ fun DesktopMediaRow(
         horizontalArrangement = horizontalArrangement,
         modifier = rowModifier,
         content = content,
-    )
-}
-
-@Composable
-fun DesktopArtistRow(
-    appColors: DesktopAppColors,
-    artist: Artist,
-    modifier: Modifier = Modifier,
-    coverArtUrl: String? = null,
-    showCoverArt: Boolean = false,
-    coverArtSize: Dp = 44.dp,
-    onClick: (() -> Unit)? = null,
-    onStartRadio: (() -> Unit)? = null,
-    onAddToQueue: (() -> Unit)? = null,
-    onAddToPlaylist: (() -> Unit)? = null,
-    onFavoriteToggle: (() -> Unit)? = null,
-    canStartRadio: Boolean = onStartRadio != null,
-    canAddToQueue: Boolean = onAddToQueue != null,
-    canAddToPlaylist: Boolean = onAddToPlaylist != null,
-    canFavorite: Boolean = onFavoriteToggle != null,
-    onItemAction: ((SharedMediaItemActionRequest) -> Unit)? = null,
-) {
-    val item = SharedMediaItemUi(
-        id = artist.id.value,
-        title = artist.name,
-        subtitle = "Artist",
-        coverArtUrl = coverArtUrl.takeIf { showCoverArt },
-        favoriteActive = artist.favoritedAtIso8601 != null,
-        canFavorite = canFavorite,
-    )
-    val handleItemAction = onItemAction ?: { request: SharedMediaItemActionRequest ->
-        when (request.action) {
-            SharedMediaItemAction.Select -> {
-                onClick?.invoke()
-                Unit
-            }
-            SharedMediaItemAction.StartRadio -> {
-                onStartRadio?.invoke()
-                Unit
-            }
-            SharedMediaItemAction.AddToQueue -> {
-                onAddToQueue?.invoke()
-                Unit
-            }
-            SharedMediaItemAction.AddToPlaylist -> {
-                onAddToPlaylist?.invoke()
-                Unit
-            }
-            SharedMediaItemAction.ToggleFavorite -> {
-                onFavoriteToggle?.invoke()
-                Unit
-            }
-            SharedMediaItemAction.Play,
-            SharedMediaItemAction.Shuffle,
-            SharedMediaItemAction.FindSimilar,
-            SharedMediaItemAction.Download,
-            SharedMediaItemAction.CreatePlaylistAndAdd,
-            SharedMediaItemAction.CopyPlaylist,
-            SharedMediaItemAction.CopyPlaylistDeduplicated,
-            SharedMediaItemAction.Rename,
-            SharedMediaItemAction.EditSmartPlaylist,
-            SharedMediaItemAction.Delete,
-            SharedMediaItemAction.EditStation,
-            SharedMediaItemAction.DeleteStation,
-            -> Unit
-        }
-    }
-    DesktopSharedArtistRow(
-        appColors = appColors,
-        item = item,
-        modifier = modifier,
-        coverArtSize = coverArtSize,
-        canStartRadio = canStartRadio,
-        canAddToQueue = canAddToQueue,
-        canAddToPlaylist = canAddToPlaylist,
-        canSelect = onClick != null || onItemAction != null,
-        onItemAction = handleItemAction,
-    )
-}
-
-@Composable
-fun DesktopAlbumRow(
-    appColors: DesktopAppColors,
-    album: Album,
-    coverArtUrl: String?,
-    modifier: Modifier = Modifier,
-    coverArtSize: Dp = 44.dp,
-    verticalPadding: Dp = 7.dp,
-    onClick: (() -> Unit)? = null,
-    onStartRadio: (() -> Unit)? = null,
-    onDownload: (() -> Unit)? = null,
-    onAddToQueue: (() -> Unit)? = null,
-    onAddToPlaylist: (() -> Unit)? = null,
-    onFavoriteToggle: (() -> Unit)? = null,
-    canStartRadio: Boolean = onStartRadio != null,
-    canDownload: Boolean = onDownload != null,
-    canAddToQueue: Boolean = onAddToQueue != null,
-    canAddToPlaylist: Boolean = onAddToPlaylist != null,
-    canFavorite: Boolean = onFavoriteToggle != null,
-    onItemAction: ((SharedMediaItemActionRequest) -> Unit)? = null,
-) {
-    val item = SharedMediaItemUi(
-        id = album.id.value,
-        title = album.title,
-        subtitle = album.artistName,
-        meta = listOfNotNull(
-            album.releaseSection().label.removeSuffix("s"),
-            album.releaseYear?.toString(),
-            "Explicit".takeIf { album.explicitStatus == AlbumExplicitStatus.Explicit },
-        ).joinToString(" "),
-        coverArtUrl = coverArtUrl,
-        favoriteActive = album.favoritedAtIso8601 != null,
-        canFavorite = canFavorite,
-    )
-    val handleItemAction = onItemAction ?: { request: SharedMediaItemActionRequest ->
-        when (request.action) {
-            SharedMediaItemAction.Select -> {
-                onClick?.invoke()
-                Unit
-            }
-            SharedMediaItemAction.StartRadio -> {
-                onStartRadio?.invoke()
-                Unit
-            }
-            SharedMediaItemAction.Download -> {
-                onDownload?.invoke()
-                Unit
-            }
-            SharedMediaItemAction.AddToQueue -> {
-                onAddToQueue?.invoke()
-                Unit
-            }
-            SharedMediaItemAction.AddToPlaylist -> {
-                onAddToPlaylist?.invoke()
-                Unit
-            }
-            SharedMediaItemAction.ToggleFavorite -> {
-                onFavoriteToggle?.invoke()
-                Unit
-            }
-            SharedMediaItemAction.Play,
-            SharedMediaItemAction.Shuffle,
-            SharedMediaItemAction.FindSimilar,
-            SharedMediaItemAction.CreatePlaylistAndAdd,
-            SharedMediaItemAction.CopyPlaylist,
-            SharedMediaItemAction.CopyPlaylistDeduplicated,
-            SharedMediaItemAction.Rename,
-            SharedMediaItemAction.EditSmartPlaylist,
-            SharedMediaItemAction.Delete,
-            SharedMediaItemAction.EditStation,
-            SharedMediaItemAction.DeleteStation,
-            -> Unit
-        }
-    }
-    DesktopSharedAlbumRow(
-        appColors = appColors,
-        item = item,
-        modifier = modifier,
-        coverArtSize = coverArtSize,
-        verticalPadding = verticalPadding,
-        canStartRadio = canStartRadio,
-        canDownload = canDownload,
-        canAddToQueue = canAddToQueue,
-        canAddToPlaylist = canAddToPlaylist,
-        canSelect = onClick != null || onItemAction != null,
-        onItemAction = handleItemAction,
-    )
-}
-
-@Composable
-fun DesktopTrackRow(
-    appColors: DesktopAppColors,
-    track: Track,
-    modifier: Modifier = Modifier,
-    coverArtUrl: String? = null,
-    showCoverArt: Boolean = false,
-    coverArtSize: Dp = 44.dp,
-    index: Int? = null,
-    titleStyle: TextStyle = TextStyle(fontSize = 13.sp, fontWeight = FontWeight.SemiBold),
-    subtitleStyle: TextStyle = TextStyle(fontSize = 11.sp),
-    subtitle: String = listOfNotNull(track.artistName, track.albumTitle).joinToString(" - "),
-    background: Boolean = true,
-    horizontalPadding: Dp = 6.dp,
-    verticalPadding: Dp = 3.dp,
-    verticalAlignment: Alignment.Vertical = Alignment.CenterVertically,
-    leadingContent: (@Composable RowScope.() -> Unit)? = null,
-    showDuration: Boolean = true,
-    showMenu: Boolean = false,
-    popular: Boolean = false,
-    reservePopularIndicatorSpace: Boolean = false,
-    onStartRadio: (() -> Unit)? = null,
-    onDownload: (() -> Unit)? = null,
-    onAddToQueue: (() -> Unit)? = null,
-    onAddToPlaylist: (() -> Unit)? = null,
-    canStartRadio: Boolean = onStartRadio != null,
-    canDownload: Boolean = onDownload != null,
-    canAddToQueue: Boolean = onAddToQueue != null,
-    canAddToPlaylist: Boolean = onAddToPlaylist != null,
-    canToggleFavorite: Boolean = true,
-    canGoToAlbum: Boolean = track.albumId != null,
-    canGoToArtist: Boolean = track.toSharedArtistCreditUis().any { it.id != null },
-    onTrackAction: ((SharedTrackRowActionRequest) -> Unit)? = null,
-    onClick: (() -> Unit)? = null,
-) {
-    val sharedTrack = SharedTrackRowUi(
-        id = track.id.value,
-        title = track.title,
-        subtitle = subtitle,
-        coverArtUrl = coverArtUrl,
-        meta = index?.toString().orEmpty(),
-        popular = popular,
-        favoriteActive = track.favoritedAtIso8601 != null,
-        canToggleFavorite = canToggleFavorite,
-        hasAlbum = canGoToAlbum,
-        hasArtist = canGoToArtist,
-        artistCredits = track.toSharedArtistCreditUis(),
-        albumTitle = track.albumTitle?.takeIf { subtitle != track.artistName },
-        detailSections = track.toNowPlayingDetailSections(),
-    )
-    TrackRow(
-        track = sharedTrack,
-        colors = appColors,
-        onTrackSelected = onClick?.let { click -> { _: SharedTrackRowUi -> click() } },
-        onStartRadio = onStartRadio?.let { startRadio -> { _: SharedTrackRowUi -> startRadio() } },
-        onDownload = onDownload?.let { download -> { _: SharedTrackRowUi -> download() } },
-        onAddToQueue = onAddToQueue?.let { addToQueue -> { _: SharedTrackRowUi -> addToQueue() } },
-        onAddToPlaylist = onAddToPlaylist?.let { addToPlaylist -> { _: SharedTrackRowUi -> addToPlaylist() } },
-        canSelect = onClick != null || onTrackAction != null,
-        canStartRadio = canStartRadio,
-        canDownload = canDownload,
-        canAddToQueue = canAddToQueue,
-        canAddToPlaylist = canAddToPlaylist,
-        onTrackAction = onTrackAction ?: { request ->
-            when (request.action) {
-                SharedTrackRowAction.Select -> {
-                    onClick?.invoke()
-                    Unit
-                }
-                SharedTrackRowAction.PlayNext -> Unit
-                SharedTrackRowAction.StartRadio -> {
-                    onStartRadio?.invoke()
-                    Unit
-                }
-                SharedTrackRowAction.PlayTrackRadioNext,
-                SharedTrackRowAction.AddTrackRadioToQueue,
-                -> Unit
-                SharedTrackRowAction.AddToQueue -> {
-                    onAddToQueue?.invoke()
-                    Unit
-                }
-                SharedTrackRowAction.Download -> {
-                    onDownload?.invoke()
-                    Unit
-                }
-                SharedTrackRowAction.AddToPlaylist -> {
-                    onAddToPlaylist?.invoke()
-                    Unit
-                }
-                SharedTrackRowAction.CreatePlaylistAndAdd -> Unit
-                SharedTrackRowAction.ToggleFavorite,
-                SharedTrackRowAction.GoToAlbum,
-                SharedTrackRowAction.GoToArtist,
-                -> Unit
-            }
-        },
-        modifier = modifier,
-        background = background,
-        horizontalPadding = horizontalPadding,
-        verticalPadding = verticalPadding,
-        showCoverArt = showCoverArt,
-        coverArtSize = coverArtSize,
-        coverArtCornerRadius = 4.dp,
-        titleStyle = titleStyle,
-        subtitleStyle = subtitleStyle,
-        metaStyle = TextStyle(fontSize = 13.sp, lineHeight = 16.sp),
-        titleSubtitleSpacing = 0.dp,
-        showMenu = showMenu,
-        reservePopularIndicatorSpace = reservePopularIndicatorSpace || index != null,
-        leadingContent = leadingContent,
-        trailingContent = {
-            DesktopTrackMetadataTrailing(
-                appColors = appColors,
-                track = track,
-                showDuration = showDuration,
-            )
-        },
     )
 }
 
@@ -567,51 +268,5 @@ private fun NaviampActionSpec.toRowMenuItem(onClick: () -> Unit): DesktopRowMenu
 
 private fun DesktopRowMenuItem.toSharedMenuItem(): NaviampRowMenuItem =
     NaviampRowMenuItem(label = label, icon = icon, onClick = onClick, enabled = enabled)
-
-@Composable
-fun DesktopTrackMetadataTrailing(
-    appColors: DesktopAppColors,
-    track: Track,
-    showDuration: Boolean,
-) {
-    Row(
-        horizontalArrangement = Arrangement.spacedBy(5.dp, Alignment.End),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        track.compactFavoriteRatingLabel()?.let {
-            Text(it, color = appColors.primaryText, fontSize = 11.sp)
-        }
-        if (showDuration) {
-            Text(track.durationLabel(), color = appColors.mutedText, fontSize = 11.sp)
-        }
-    }
-}
-
-@Composable
-private fun MediaTextBlock(
-    appColors: DesktopAppColors,
-    title: String,
-    subtitle: String,
-    modifier: Modifier = Modifier,
-    titleStyle: TextStyle = TextStyle(fontWeight = FontWeight.SemiBold),
-    subtitleStyle: TextStyle = TextStyle(fontSize = 11.sp),
-) {
-    Column(modifier = modifier) {
-        Text(
-            title,
-            color = appColors.primaryText,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            style = titleStyle,
-        )
-        Text(
-            subtitle,
-            color = appColors.secondaryText,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            style = subtitleStyle,
-        )
-    }
-}
 
 private val MediaRowOverlay = androidx.compose.ui.graphics.Color.Black.copy(alpha = 0.12f)

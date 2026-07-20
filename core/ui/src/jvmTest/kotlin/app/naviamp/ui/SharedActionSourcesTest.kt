@@ -111,6 +111,76 @@ class SharedActionSourcesTest {
         )
     }
 
+    @Test
+    fun resolvedTrackActionsDispatchTheCurrentDomainTrackAndRequestMetadata() {
+        val tracks = listOf(track("first"), track("second"))
+        var selected: Pair<Int, Track>? = null
+        var artistTarget: Triple<Track, String?, String?>? = null
+
+        handleResolvedTrackRowAction(
+            request = SharedTrackRowActionRequest(sharedTrack("second"), SharedTrackRowAction.Select),
+            tracks = tracks,
+            handlers = ResolvedTrackRowActionHandlers(onSelect = { index, track -> selected = index to track }),
+        )
+        handleResolvedTrackRowAction(
+            request = SharedTrackRowActionRequest(
+                track = sharedTrack("first"),
+                action = SharedTrackRowAction.GoToArtist,
+                artistId = "artist-id",
+                artistName = "Artist Name",
+            ),
+            tracks = tracks,
+            handlers = ResolvedTrackRowActionHandlers(
+                onGoToArtist = { track, id, name -> artistTarget = Triple(track, id, name) },
+            ),
+        )
+
+        assertEquals(1 to tracks[1], selected)
+        assertEquals(Triple(tracks[0], "artist-id", "Artist Name"), artistTarget)
+    }
+
+    @Test
+    fun resolvedMediaActionsPreserveShuffleDownloadAndDeduplicatedCopyIntent() {
+        val playlist = Playlist("playlist", "Playlist", trackCount = 3)
+        val item = SharedMediaItemUi(id = playlist.id, title = playlist.name, subtitle = "Playlist")
+        var shuffle: Boolean? = null
+        var downloadValue: String? = null
+        var copy: Pair<String, Boolean>? = null
+        val handlers = ResolvedMediaItemActionHandlers<Playlist>(
+            onPlay = { _, requestedShuffle -> shuffle = requestedShuffle },
+            onDownload = { _, value -> downloadValue = value },
+            onCopy = { _, name, deduplicate -> copy = name to deduplicate },
+        )
+
+        handleResolvedMediaItemAction(
+            SharedMediaItemActionRequest(item, SharedMediaItemAction.Shuffle),
+            playlist,
+            handlers,
+        )
+        handleResolvedMediaItemAction(
+            SharedMediaItemActionRequest(
+                item,
+                SharedMediaItemAction.Download,
+                textValue = KeepDownloadedActionValue,
+            ),
+            playlist,
+            handlers,
+        )
+        handleResolvedMediaItemAction(
+            SharedMediaItemActionRequest(
+                item,
+                SharedMediaItemAction.CopyPlaylistDeduplicated,
+                playlistName = "Copy",
+            ),
+            playlist,
+            handlers,
+        )
+
+        assertEquals(true, shuffle)
+        assertEquals(KeepDownloadedActionValue, downloadValue)
+        assertEquals("Copy" to true, copy)
+    }
+
     private fun album(id: String): Album = Album(
         id = AlbumId(id),
         title = id,
