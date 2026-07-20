@@ -39,21 +39,10 @@ fun ColumnScope.NaviampProductRouteContent(
             .weight(1f)
             .fillMaxWidth()
             .then(
-                if (
-                    appRoute == NaviampRoute.Home ||
-                        appRoute == NaviampRoute.Library ||
-                        appRoute == NaviampRoute.ArtistMix ||
-                        appRoute == NaviampRoute.AlbumMix ||
-                        appRoute == NaviampRoute.GenreMix ||
-                        appRoute == NaviampRoute.SonicPath ||
-                        appRoute == NaviampRoute.SonicMix ||
-                        appRoute == NaviampRoute.Settings ||
-                        appRoute == NaviampRoute.AlbumDetail ||
-                        appRoute == NaviampRoute.ArtistDetail
-                ) {
-                    Modifier
-                } else {
+                if (naviampProductRouteUsesOuterVerticalScroll(appRoute)) {
                     Modifier.verticalScroll(contentScrollState)
+                } else {
+                    Modifier
                 },
             ),
     ) {
@@ -335,3 +324,25 @@ fun ColumnScope.NaviampProductRouteContent(
         )
     }
 }
+
+internal fun naviampProductRouteUsesOuterVerticalScroll(route: NaviampRoute): Boolean =
+    when (route) {
+        NaviampRoute.Search,
+        NaviampRoute.Playlists,
+        NaviampRoute.PlaylistDetail,
+        NaviampRoute.Radio,
+        -> true
+        NaviampRoute.Player,
+        NaviampRoute.Home,
+        NaviampRoute.Library,
+        NaviampRoute.ArtistMix,
+        NaviampRoute.AlbumMix,
+        NaviampRoute.GenreMix,
+        NaviampRoute.SonicPath,
+        NaviampRoute.SonicMix,
+        NaviampRoute.Downloads,
+        NaviampRoute.Settings,
+        NaviampRoute.AlbumDetail,
+        NaviampRoute.ArtistDetail,
+        -> false
+    }
