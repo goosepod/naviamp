@@ -31,6 +31,7 @@ import app.naviamp.domain.queue.PlaybackQueue
 import app.naviamp.domain.radio.InternetRadioStartApplier
 import app.naviamp.domain.radio.InternetRadioMetadataUpdateApplier
 import app.naviamp.domain.radio.applyInternetRadioStart
+import app.naviamp.domain.radio.applyInternetRadioPlaybackState
 import app.naviamp.domain.radio.applyInternetRadioMetadataUpdate
 import app.naviamp.domain.radio.planInternetRadioMetadataUpdate
 import app.naviamp.domain.radio.planInternetRadioPlaybackRequest
@@ -337,10 +338,7 @@ fun playAndroidInternetRadioStation(
                 scope = scope,
                 request = requestPlan.request,
                 onStateChanged = { playbackState ->
-                    state.playbackState = playbackState
-                    if (playbackState is PlaybackState.Error) {
-                        state.status = playbackState.message
-                    }
+                    applyInternetRadioPlaybackState(playbackState, { state.playbackState = it }) { state.status = it }
                 },
                 onProgressChanged = { progress -> handlePlaybackProgressChanged(sessionToken, progress) },
                 onMetadataChanged = { metadata ->

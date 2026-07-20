@@ -33,6 +33,7 @@ import app.naviamp.domain.radio.internetRadioStationOperationResult
 import app.naviamp.domain.radio.applyInternetRadioMetadataUpdate
 import app.naviamp.domain.radio.applyRememberInternetRadioStation
 import app.naviamp.domain.radio.applyInternetRadioStart
+import app.naviamp.domain.radio.applyInternetRadioPlaybackState
 import app.naviamp.domain.radio.internetRadioDeleteErrorStatus
 import app.naviamp.domain.radio.internetRadioDeleteLoadingStatus
 import app.naviamp.domain.radio.internetRadioRefreshErrorStatus
@@ -165,9 +166,7 @@ class DesktopInternetRadioController(
                 streamUrl = station.streamUrl,
                 replayGainMode = ReplayGainMode.Off,
             ).request,
-            onStateChanged = { state ->
-                setPlaybackState(state)
-            },
+            onStateChanged = { applyInternetRadioPlaybackState(it, setPlaybackState) { message -> status = message } },
             onProgressChanged = { progress ->
                 val now = DesktopSystemClock.nowEpochMillis()
                 val liveProgress = progress.copy(durationSeconds = null)

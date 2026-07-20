@@ -3,6 +3,7 @@ package app.naviamp.domain.radio
 import app.naviamp.domain.InternetRadioStation
 import app.naviamp.domain.Track
 import app.naviamp.domain.playback.PlaybackProgress
+import app.naviamp.domain.playback.PlaybackState
 import app.naviamp.domain.playback.PlaybackStreamMetadata
 import app.naviamp.domain.queue.PlaybackQueue
 import app.naviamp.domain.settings.SavedInternetRadioStation
@@ -116,4 +117,13 @@ fun planInternetRadioStart(
         engineMediaId = station.id,
         replayGainOff = true,
     )
+}
+
+fun applyInternetRadioPlaybackState(
+    state: PlaybackState,
+    setPlaybackState: (PlaybackState) -> Unit,
+    setErrorStatus: (String) -> Unit = {},
+) {
+    setPlaybackState(state)
+    if (state is PlaybackState.Error) setErrorStatus(state.message)
 }

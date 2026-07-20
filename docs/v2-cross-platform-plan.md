@@ -527,8 +527,8 @@ The 2026-07-17 audit covers every current application entry point:
 
 ## Current Handoff
 
-- **Last completed item:** Internet Radio refresh, save, and delete now share operation-result and application policy across Android and Desktop. Successful station replacement occurs before status clearing, and provider exceptions receive the same message/fallback handling; hosts retain coroutine dispatch, refresh re-entry protection, and observable state adapters. The twenty-third delete-first correction removes a net one Desktop production line, bringing the running reduction to 4,679 lines; `DesktopInternetRadioController` is now 251 lines.
-- **Next recommended item:** Continue the Internet Radio audit at playback progress/state callbacks, then apply the shared seeded-radio build policy to Android's specialized track-radio path.
+- **Last completed item:** Internet Radio playback-state callbacks now share publication and error-status policy across Android and Desktop. Both hosts publish the engine state before surfacing a stream error, while their observable state adapters remain native. The twenty-fourth delete-first correction removes one Desktop production line, bringing the running reduction to 4,680 lines; `DesktopInternetRadioController` is now 250 lines.
+- **Next recommended item:** Move Internet Radio playback-progress application through the shared progress-effect path, then apply shared seeded-radio build policy to Android's specialized track-radio path.
 - **Verification:** On 2026-07-20, `:core:ui:jvmTest`, `:apps:desktop:desktopTest`, `:apps:android:compileDebugKotlin`, and `:core:ui:compileKotlinIosSimulatorArm64` passed after moving route-product composition into common UI. Desktop smoke testing then exposed infinite-height constraints where Downloads and playlist details were nested inside the route wrapper's vertical scroll even though both screens own scrolling, plus an unscrollable connection form because Settings does not own scrolling. The wrapper now adds scrolling only for Search, Playlists, Internet Radio, and Settings, with JVM regression coverage for the route policy.
 - **Known blockers:** None.
 
