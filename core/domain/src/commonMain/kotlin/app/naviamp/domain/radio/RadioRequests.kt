@@ -57,6 +57,43 @@ sealed interface SeededRadioExpansionResult {
     ) : SeededRadioExpansionResult
 }
 
+sealed interface TrackRadioLoadResult {
+    data class Ready(val tracks: List<Track>) : TrackRadioLoadResult
+    data object Empty : TrackRadioLoadResult
+    data class Failed(val error: Throwable) : TrackRadioLoadResult
+}
+
+fun trackRadioLoadingStatus(): String = "Loading track radio..."
+
+fun trackRadioLoadStatus(result: TrackRadioLoadResult): String? =
+    when (result) {
+        is TrackRadioLoadResult.Ready -> null
+        TrackRadioLoadResult.Empty -> "Track radio did not return any tracks."
+        is TrackRadioLoadResult.Failed -> result.error.message ?: "Could not load track radio."
+    }
+
+suspend fun trackRadioLoadResult(
+    seedTrack: Track,
+    radioService: RadioService,
+    preferSonicSimilarity: Boolean,
+): TrackRadioLoadResult =
+    trackRadioLoadResult(seedTrack) {
+        radioService.trackRadio(seedTrack, preferSonicSimilarity)
+    }
+
+suspend fun trackRadioLoadResult(
+    seedTrack: Track,
+    loadTracks: suspend () -> List<Track>,
+): TrackRadioLoadResult =
+    runCatching {
+        loadTracks()
+            .filterNot { track -> track.id == seedTrack.id }
+            .distinctBy { track -> track.id }
+            .let { tracks ->
+                if (tracks.isEmpty()) TrackRadioLoadResult.Empty else TrackRadioLoadResult.Ready(tracks)
+            }
+    }.getOrElse(TrackRadioLoadResult::Failed)
+
 suspend fun radioRequestStartResult(
     request: RadioRequest,
     radioService: RadioService,

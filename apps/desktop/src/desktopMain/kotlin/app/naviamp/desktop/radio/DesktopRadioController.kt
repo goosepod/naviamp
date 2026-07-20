@@ -43,6 +43,10 @@ import app.naviamp.domain.radio.shouldFinishRadioRefillForSession
 import app.naviamp.domain.radio.seededRadioBuildResult
 import app.naviamp.domain.radio.seededRadioExpansionResult
 import app.naviamp.domain.radio.trackRadioRequest
+import app.naviamp.domain.radio.TrackRadioLoadResult
+import app.naviamp.domain.radio.trackRadioLoadResult
+import app.naviamp.domain.radio.trackRadioLoadingStatus
+import app.naviamp.domain.radio.trackRadioLoadStatus
 import app.naviamp.domain.radio.withRadioCoverArtIds
 import app.naviamp.provider.navidrome.NavidromeProvider
 import kotlinx.coroutines.CoroutineScope
@@ -229,20 +233,19 @@ class DesktopRadioController(
     ) {
         val activeProvider = provider() ?: return
         val label = "track radio"
-        setConnectionStatus("Loading $label...")
+        setConnectionStatus(trackRadioLoadingStatus())
         scope.launch {
-            try {
-                val tracks = withContext(Dispatchers.IO) {
-                    radioService(activeProvider, count = InitialSimilarRadioCount)
-                        .trackRadio(track, preferSonicSimilarity())
-                }.filterNot { radioTrack -> radioTrack.id == track.id }
-                if (tracks.isEmpty()) {
-                    setConnectionStatus("Track radio did not return any tracks.")
-                    return@launch
-                }
-                val update = if (insertNext) {
+            when (val result = withContext(Dispatchers.IO) {
+                trackRadioLoadResult(
+                    seedTrack = track,
+                    radioService = radioService(activeProvider, count = InitialSimilarRadioCount),
+                    preferSonicSimilarity = preferSonicSimilarity(),
+                )
+            }) {
+                is TrackRadioLoadResult.Ready -> {
+                    val update = if (insertNext) {
                     queueCoordinator.playNextTracks(
-                        tracksToAdd = tracks,
+                        tracksToAdd = result.tracks,
                         label = label,
                         existingTracks = playlistEngine.queue.tracks,
                         deduplicateExisting = true,
@@ -250,7 +253,7 @@ class DesktopRadioController(
                     )
                 } else {
                     queueCoordinator.appendTracks(
-                        tracksToAdd = tracks,
+                        tracksToAdd = result.tracks,
                         label = label,
                         existingTracks = playlistEngine.queue.tracks,
                         deduplicateExisting = true,
@@ -259,8 +262,8 @@ class DesktopRadioController(
                 }
                 setConnectionStatus(update.status)
                 playlistEngine.applyQueueUpdate(update)
-            } catch (exception: Exception) {
-                setConnectionStatus(exception.message ?: "Could not load track radio.")
+                }
+                else -> setConnectionStatus(trackRadioLoadStatus(result))
             }
         }
     }

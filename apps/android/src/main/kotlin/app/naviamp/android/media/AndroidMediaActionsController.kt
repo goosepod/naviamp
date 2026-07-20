@@ -24,6 +24,10 @@ import app.naviamp.domain.provider.addToPlaylistLoadingStatus
 import app.naviamp.domain.provider.addTracksToPlaylistApplication
 import app.naviamp.domain.provider.PlaylistHomeProjection
 import app.naviamp.domain.radio.RadioService
+import app.naviamp.domain.radio.TrackRadioLoadResult
+import app.naviamp.domain.radio.trackRadioLoadResult
+import app.naviamp.domain.radio.trackRadioLoadingStatus
+import app.naviamp.domain.radio.trackRadioLoadStatus
 import app.naviamp.ui.SharedTrackRowUi
 import app.naviamp.ui.SharedTrackRowAction
 import app.naviamp.ui.SharedTrackRowActionRequest
@@ -507,28 +511,27 @@ internal class AndroidTrackActionController(
         insertNext: Boolean,
     ) {
         val provider = state.provider ?: return
-        state.status = "Loading track radio..."
+        state.status = trackRadioLoadingStatus()
         scope.launch {
-            try {
-                val tracks = withContext(Dispatchers.IO) {
-                    RadioService(
+            when (val result = withContext(Dispatchers.IO) {
+                trackRadioLoadResult(
+                    seedTrack = track,
+                    radioService = RadioService(
                         provider = provider,
                         count = AndroidInitialSimilarRadioCount,
                         tuning = state.playbackSettings.radioTuning,
-                    )
-                        .trackRadio(track, state.playbackSettings.sonicSimilarityEnabled)
-                }.filterNot { radioTrack -> radioTrack.id == track.id }
-                if (tracks.isEmpty()) {
-                    state.status = "Track radio did not return any tracks."
-                    return@launch
-                }
+                    ),
+                    preferSonicSimilarity = state.playbackSettings.sonicSimilarityEnabled,
+                )
+            }) {
+                is TrackRadioLoadResult.Ready -> {
                 if (insertNext) {
-                    playNextTracks(tracks, "track radio")
+                    playNextTracks(result.tracks, "track radio")
                 } else {
-                    appendTracksToQueue(tracks, "track radio")
+                    appendTracksToQueue(result.tracks, "track radio")
                 }
-            } catch (error: Exception) {
-                state.status = error.message ?: "Could not load track radio."
+                }
+                else -> state.status = trackRadioLoadStatus(result) ?: "Could not load track radio."
             }
         }
     }

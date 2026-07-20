@@ -517,8 +517,8 @@ The 2026-07-17 audit covers every current application entry point:
 
 ## Current Handoff
 
-- **Last completed item:** Desktop radio queue growth now consumes `NaviampPlaybackQueueCoordinator` directly. The redundant 62-line `DesktopRadioQueueUpdates` pass-through and ten additional call-site lines were deleted, bringing the twenty delete-first Desktop corrections to 4,625 net production lines removed. Shared queue policy and Desktop native queue application remain visibly separate.
-- **Next recommended item:** Extract the duplicated Android/Desktop track-radio loading result and status policy, then continue auditing playlist callback ownership before grouping any remaining controller construction.
+- **Last completed item:** `TrackRadioLoadResult` now owns track-radio seed removal, deduplication, empty-result handling, failure mapping, and shared status text for Android and Desktop. Hosts retain provider execution scheduling and their different queue-application mechanisms. Common tests cover ready, empty, and failed results. The delete-first Desktop total remains 4,625 net production lines because this cross-host policy extraction adds three net Desktop adapter lines.
+- **Next recommended item:** Replace repeated recent-radio load, deduplicate, limit, save, and settings-sync notification sequences with one shared application controller, while retaining host UI-state updates and Android service lifetime ownership.
 - **Verification:** On 2026-07-20, `:core:ui:jvmTest`, `:apps:desktop:desktopTest`, `:apps:android:compileDebugKotlin`, and `:core:ui:compileKotlinIosSimulatorArm64` passed after moving route-product composition into common UI. Desktop smoke testing then exposed infinite-height constraints where Downloads and playlist details were nested inside the route wrapper's vertical scroll even though both screens own scrolling, plus an unscrollable connection form because Settings does not own scrolling. The wrapper now adds scrolling only for Search, Playlists, Internet Radio, and Settings, with JVM regression coverage for the route policy.
 - **Known blockers:** None.
 
