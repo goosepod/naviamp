@@ -46,6 +46,7 @@ import app.naviamp.domain.playback.VisualizerBandCount
 import app.naviamp.domain.playback.VisualizerPlaybackEngine
 import app.naviamp.domain.playback.BassPlaybackPollingState
 import app.naviamp.domain.playback.BassPlaybackPollingPolicy
+import app.naviamp.domain.playback.BassPlaybackExecutionCoordinator
 import app.naviamp.domain.playback.BassPlaybackCleanupReset
 import app.naviamp.domain.playback.BassPlaybackCreationPlan
 import app.naviamp.domain.playback.BassPlaybackStartPolicy
@@ -107,18 +108,14 @@ class AndroidBassPlaybackEngine(
     private var stream: Int = 0
     private var currentSourceStream: Int = 0
     private var preparedStream: Int = 0
-    private var currentRequest: PlaybackRequest? = null
     private var preparedRequest: PlaybackRequest? = null
     private var preparedReplayGainFactor: Float = 1f
     private val preparedNextLock = Any()
     private var preparedNextGeneration: Long = 0L
-    private var playbackId: Int = 0
+    private val execution = BassPlaybackExecutionCoordinator()
     private var playbackJob: Job? = null
     private var crossfadeDurationSeconds: Int = 0
     private var progressJob: Job? = null
-    private var onStateChanged: ((PlaybackState) -> Unit)? = null
-    private var onProgressChanged: ((PlaybackProgress) -> Unit)? = null
-    private var onMetadataChanged: ((PlaybackStreamMetadata) -> Unit)? = null
     private var notificationMetadata = AndroidPlaybackNotificationMetadata()
     private var volumePercent: Int = 100
     private var replayGainFactor: Float = 1f
@@ -212,10 +209,7 @@ class AndroidBassPlaybackEngine(
         onProgressChanged: (PlaybackProgress) -> Unit,
         onMetadataChanged: (PlaybackStreamMetadata) -> Unit,
     ) {
-        currentRequest = request
-        this.onStateChanged = onStateChanged
-        this.onProgressChanged = onProgressChanged
-        this.onMetadataChanged = onMetadataChanged
+        execution.attach(request, onStateChanged, onProgressChanged, onMetadataChanged)
         if (!requestAudioFocus()) {
             Log.w(Tag, "Audio focus request denied before playback")
             onStateChanged(PlaybackState.Error("Audio focus is currently held by another app."))
@@ -239,7 +233,7 @@ class AndroidBassPlaybackEngine(
             AndroidPlaybackForegroundService.update(appContext, notificationMetadata)
             return
         }
-        val currentPlaybackId = nextPlaybackId()
+        val currentPlaybackId = execution.nextPlaybackId()
         stopStreamOnly(invalidatePlayback = false)
         onStateChanged(PlaybackState.Loading)
         onProgressChanged(PlaybackProgress.Unknown)
@@ -249,7 +243,7 @@ class AndroidBassPlaybackEngine(
         playbackJob = scope.launch(Dispatchers.IO) {
             var createdPlayback: BassCreatedPlayback? = null
             var activeRequest = request
-            while (isCurrentPlayback(currentPlaybackId)) {
+            while (execution.isCurrent(currentPlaybackId)) {
                 try {
                     ensureInitialized(targetSampleRateHz)
                     val verifyNet = !tlsSettings.insecureSkipTlsVerification
@@ -266,7 +260,7 @@ class AndroidBassPlaybackEngine(
                         request = activeRequest,
                         plan = creationPlan,
                     ).also { createdPlayback = it }
-                    if (!isCurrentPlayback(currentPlaybackId)) {
+                    if (!execution.isCurrent(currentPlaybackId)) {
                         releaseCreatedPlayback(playback)
                         createdPlayback = null
                         return@launch
@@ -296,7 +290,7 @@ class AndroidBassPlaybackEngine(
                     )
                     if (prePlayPlan.shouldMuteBeforePlay) setPlaybackMuted(true)
                     check(bass.play(handle).isSuccess) { errorMessage("BASS_ChannelPlay failed") }
-                    if (!isCurrentPlayback(currentPlaybackId)) return@launch
+                    if (!execution.isCurrent(currentPlaybackId)) return@launch
                     if (prePlayPlan.shouldRetrySeekAfterPlay) {
                         val startPositionSeconds = requireNotNull(startPlan.startSeekSeconds)
                         val seekedAfterPlay = retryStartSeek(handle, currentPlaybackId, startPositionSeconds)
@@ -311,7 +305,7 @@ class AndroidBassPlaybackEngine(
                 } catch (error: Throwable) {
                     createdPlayback?.let(::releaseCreatedPlayback)
                     createdPlayback = null
-                    if (!isCurrentPlayback(currentPlaybackId)) return@launch
+                    if (!execution.isCurrent(currentPlaybackId)) return@launch
                     val fallbackRequest = activeRequest.downloadFallbackRequest(
                         AndroidPlaybackNotificationControls.positionMillis?.div(1_000.0),
                     )
@@ -344,7 +338,7 @@ class AndroidBassPlaybackEngine(
             releasePlaybackWakeLock()
             AndroidPlaybackNotificationControls.isPlaying = false
             AndroidPlaybackForegroundService.update(appContext, notificationMetadata)
-            onStateChanged?.invoke(PlaybackState.Paused)
+            execution.publishState(PlaybackState.Paused)
         }
     }
 
@@ -356,7 +350,7 @@ class AndroidBassPlaybackEngine(
             acquirePlaybackWakeLock()
             AndroidPlaybackNotificationControls.isPlaying = true
             AndroidPlaybackForegroundService.update(appContext, notificationMetadata)
-            onStateChanged?.invoke(PlaybackState.Playing)
+            execution.publishState(PlaybackState.Playing)
         }
     }
 
@@ -386,7 +380,7 @@ class AndroidBassPlaybackEngine(
         positionSeconds: Double,
     ): Boolean {
         repeat(StartSeekRetryCount) { attempt ->
-            if (stream != handle || !isCurrentPlayback(currentPlaybackId)) return false
+            if (stream != handle || !execution.isCurrent(currentPlaybackId)) return false
             delay(StartSeekRetryDelayMillis)
             Log.i(Tag, "Retrying BASS start seek attempt=${attempt + 1} seconds=$positionSeconds")
             if (seekStreamPosition(positionSeconds)) {
@@ -408,11 +402,11 @@ class AndroidBassPlaybackEngine(
         duckedForFocusLoss = false
         abandonAudioFocus()
         releasePlaybackWakeLock()
-        currentRequest = null
+        execution.clearRequest()
         AndroidPlaybackNotificationControls.isPlaying = false
         AndroidPlaybackForegroundService.stop(appContext)
-        onProgressChanged?.invoke(PlaybackProgress.Unknown)
-        onStateChanged?.invoke(PlaybackState.Stopped)
+        execution.publishProgress(PlaybackProgress.Unknown)
+        execution.publishState(PlaybackState.Stopped)
     }
 
     override fun release() {
@@ -421,15 +415,12 @@ class AndroidBassPlaybackEngine(
         duckedForFocusLoss = false
         abandonAudioFocus()
         releasePlaybackWakeLock()
-        currentRequest = null
+        execution.clear()
         AndroidPlaybackNotificationControls.clear()
         AndroidPlaybackForegroundService.stop(appContext)
         bass.free()
         bassInitialized = false
         activeOutputSampleRateHz = null
-        onStateChanged = null
-        onProgressChanged = null
-        onMetadataChanged = null
     }
 
     override fun visualizerFrame(): PlaybackVisualizerFrame? {
@@ -452,7 +443,7 @@ class AndroidBassPlaybackEngine(
     }
 
     override fun setReplayGain(mode: ReplayGainMode, preampDb: Float) {
-        val request = currentRequest ?: return
+        val request = execution.currentRequest ?: return
         replayGainFactor = playbackReplayGainAdjustment(
             request.copy(
                 replayGainMode = mode,
@@ -542,7 +533,7 @@ class AndroidBassPlaybackEngine(
         progressJob?.cancel()
         progressJob = scope.launch {
             var pollingState = BassPlaybackPollingState()
-            while (isActive && stream == handle && isCurrentPlayback(currentPlaybackId)) {
+            while (isActive && stream == handle && execution.isCurrent(currentPlaybackId)) {
                 val snapshot = bass.bassPlaybackSnapshot(handle, currentSourceStream)
                 val update = planBassPlaybackPollingUpdate(
                     snapshot = snapshot,
@@ -557,9 +548,9 @@ class AndroidBassPlaybackEngine(
                             "position=${snapshot.progress.positionSeconds} duration=${snapshot.progress.durationSeconds}",
                     )
                 }
-                update.progress?.let { onProgressChanged?.invoke(it) }
+                update.progress?.let(execution::publishProgress)
                 renewPlaybackWakeLockIfNeeded()
-                update.metadata?.let { onMetadataChanged?.invoke(it) }
+                update.metadata?.let(execution::publishMetadata)
                 if (update.finished) {
                     Log.i(
                         Tag,
@@ -567,7 +558,7 @@ class AndroidBassPlaybackEngine(
                     )
                     handlePlaybackFinished()
                 }
-                update.playbackState?.let { onStateChanged?.invoke(it) }
+                update.playbackState?.let(execution::publishState)
                 if (update.finished) {
                     return@launch
                 }
@@ -588,7 +579,7 @@ class AndroidBassPlaybackEngine(
         cancelPlaybackJob: Boolean = true,
     ) {
         if (invalidatePlayback) {
-            nextPlaybackId()
+            execution.invalidate()
         }
         if (cancelPlaybackJob) {
             playbackJob?.cancel()
@@ -642,7 +633,7 @@ class AndroidBassPlaybackEngine(
             releasePlaybackWakeLock()
             AndroidPlaybackNotificationControls.isPlaying = false
             AndroidPlaybackForegroundService.update(appContext, notificationMetadata)
-            onStateChanged?.invoke(PlaybackState.Paused)
+            execution.publishState(PlaybackState.Paused)
         }
     }
 
@@ -655,7 +646,7 @@ class AndroidBassPlaybackEngine(
             acquirePlaybackWakeLock()
             AndroidPlaybackNotificationControls.isPlaying = true
             AndroidPlaybackForegroundService.update(appContext, notificationMetadata)
-            onStateChanged?.invoke(PlaybackState.Playing)
+            execution.publishState(PlaybackState.Playing)
         }
     }
 
@@ -762,7 +753,7 @@ class AndroidBassPlaybackEngine(
             replayGainFactor = preparedReplayGainFactor,
         ) ?: return false
         val source = update.currentSourceHandle
-        val currentPlaybackId = nextPlaybackId()
+        val currentPlaybackId = execution.nextPlaybackId()
         bass.adoptPreparedBassSource(
             playbackHandle = stream,
             currentSourceHandle = currentSourceStream,
@@ -826,13 +817,6 @@ class AndroidBassPlaybackEngine(
         )
     }
 
-    private fun nextPlaybackId(): Int {
-        playbackId += 1
-        return playbackId
-    }
-
-    private fun isCurrentPlayback(id: Int): Boolean =
-        playbackId == id
 }
 
 private fun localFileFromUrl(url: String): File? =
