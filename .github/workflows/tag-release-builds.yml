@@ -159,8 +159,8 @@ jobs:
           distribution: temurin
           java-version: "21"
 
-      - name: Install Linux packaging tools
-        run: sudo apt-get update && sudo apt-get install -y fakeroot rpm
+      - name: Install Linux packaging and secure-storage tools
+        run: sudo apt-get update && sudo apt-get install -y fakeroot rpm libsecret-tools
 
       - name: Build Linux standalone zip and installers
         run: ./gradlew $GRADLE_COMMON -Pnaviamp.bass.platform=linux-x64 :apps:desktop:packageReleaseDistributable :apps:desktop:packageReleaseDistributionForCurrentOS

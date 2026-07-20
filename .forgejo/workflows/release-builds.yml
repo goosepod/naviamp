@@ -128,3 +128,33 @@ jobs:
           name: naviamp-macos-dmg
           if-no-files-found: error
           path: apps/desktop/build/compose/binaries/**/*.dmg
+
+  linux:
+    name: Linux standalone and installers
+    needs: version
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Install Linux packaging and secure-storage tools
+        run: sudo apt-get update && sudo apt-get install -y fakeroot rpm libsecret-tools
+
+      - name: Build Linux standalone zip and installers
+        run: ./gradlew $GRADLE_COMMON -Pnaviamp.bass.platform=linux-x64 :apps:desktop:packageReleaseDistributable :apps:desktop:packageReleaseDistributionForCurrentOS
+
+      - name: Upload Linux artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: naviamp-linux
+          if-no-files-found: error
+          path: |
+            apps/desktop/build/compose/distributions/Naviamp-linux-x64-release.zip
+            apps/desktop/build/compose/binaries/**/*.deb
+            apps/desktop/build/compose/binaries/**/*.rpm

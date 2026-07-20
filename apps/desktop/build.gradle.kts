@@ -344,6 +344,7 @@ tasks.matching {
         it.name == "packageDistributionForCurrentOS" ||
         it.name == "packageReleaseDistributionForCurrentOS"
 }.configureEach {
+    dependsOn("verifyDesktopPackagingInputs")
     dependsOn(copyDesktopBassAppResources)
     dependsOn(copyDesktopBassJniAppResources)
     dependsOn(copyDesktopVisualizerMetalAppResources)
@@ -376,6 +377,7 @@ fun Zip.packageDesktopApp(archiveNameSuffix: String) {
 tasks.register("verifyDesktopDistributable") {
     group = "verification"
     description = "Verifies that the desktop app image contains the native playback resources needed at runtime."
+    dependsOn("verifyDesktopPackagingInputs")
     dependsOn("createDistributable")
 
     doLast {
@@ -408,6 +410,44 @@ tasks.register("verifyDesktopDistributable") {
             check(visualizerMetal.canExecute()) {
                 "Desktop package Metal visualizer library is not executable: ${visualizerMetal.absolutePath}"
             }
+        }
+    }
+}
+
+tasks.register("verifyDesktopPackagingInputs") {
+    group = "verification"
+    description = "Verifies icons, vendored BASS libraries, and native source inputs for every supported Desktop target."
+
+    doLast {
+        val icons = listOf(
+            project.file("src/desktopMain/resources/icons/naviamp.icns"),
+            project.file("src/desktopMain/resources/icons/naviamp.ico"),
+            project.file("src/desktopMain/resources/icons/naviamp.png"),
+        )
+        check(icons.all { it.isFile && it.length() > 0L }) {
+            "Desktop packaging icons are missing: ${icons.filterNot { it.isFile && it.length() > 0L }.joinToString()}"
+        }
+
+        listOf("macos-arm64", "windows-x64", "linux-x64").forEach { platform ->
+            val vendorDir = layout.projectDirectory.dir("vendor/bass/$platform").asFile
+            val required = listOf("bass", "bassmix", "bassflac", "bassopus")
+                .map { desktopLibraryName(it, platform) }
+            val missing = required.filterNot { vendorDir.resolve(it).isFile }
+            check(missing.isEmpty()) {
+                "$platform is missing required vendored BASS libraries: ${missing.joinToString()}"
+            }
+        }
+
+        val nativeInputs = listOf(
+            rootProject.file("native/bass-jni/CMakeLists.txt"),
+            rootProject.file("native/bass-jni/src/naviamp_bass_jni.cpp"),
+            rootProject.file("native/visualizer-metal/CMakeLists.txt"),
+            rootProject.file("native/visualizer-metal/src/naviamp_visualizer_metal.mm"),
+            rootProject.file("native/visualizer-opengl/CMakeLists.txt"),
+            rootProject.file("native/visualizer-opengl/src/naviamp_visualizer_opengl.cpp"),
+        )
+        check(nativeInputs.all { it.isFile && it.length() > 0L }) {
+            "Desktop native build inputs are missing: ${nativeInputs.filterNot { it.isFile && it.length() > 0L }.joinToString()}"
         }
     }
 }

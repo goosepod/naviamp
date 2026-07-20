@@ -166,6 +166,8 @@ make linux-standalone
 make linux-installer
 ```
 
+Desktop credentials use the operating system's secure store: macOS Keychain on macOS, DPAPI on Windows, and Secret Service on Linux. Linux installations therefore need `secret-tool` (normally supplied by the `libsecret-tools` package) and an available Secret Service implementation such as GNOME Keyring or KDE Wallet.
+
 Android release builds require a local signing configuration. Use `.env.android-signing.example` as the template for the required signing values.
 
 ## Project Layout

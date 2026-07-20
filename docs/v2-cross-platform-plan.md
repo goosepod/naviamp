@@ -150,7 +150,7 @@ Use explicit dependency construction unless a dependency-injection framework pro
   - [x] Supply shared connectivity snapshots through `DesktopConnectivityMonitor` and structured failures through `DesktopRuntimeErrorReporter`.
   - [x] Replace the deliberate Desktop pass-through credential protector with an OS-backed secure-storage adapter. `DesktopCredentialProtector` encrypts persisted values with AES-256-GCM and keeps its random master key in macOS Keychain, Windows DPAPI-protected app data, or Linux Secret Service. Both `StorageMediaSourceStore` and the legacy Desktop settings connection mirror now use it, automatically migrating plaintext tokens, salts, native tokens, client-certificate passwords, and secret header values without changing the shared storage contract.
   - [x] Complete the Desktop filesystem and HTTP ownership audit and add narrow platform contracts only where a shared owner actually consumes them. Common production source sets contain no JVM file APIs; paths crossing shared boundaries are opaque strings interpreted by native playback or host stores. Existing repository, byte-store, settings-document, and database-driver contracts cover every shared filesystem consumer. The audit removed hidden client construction from `ObjectByteStoreService` and `InternetRadioStreamResolver`: hosts now supply fetch callbacks or `SharedHttpClient`, while Desktop retains path selection, atomic file operations, cleanup, and Ktor/TLS construction.
-- [ ] Verify macOS, Windows, and Linux packaging assumptions remain valid.
+- [x] Verify macOS, Windows, and Linux packaging assumptions remain valid. Compose targets DMG, MSI, EXE, DEB, and RPM with platform icons and normalized versions; target-specific Make commands correctly refuse cross-OS `jpackage` builds. `verifyDesktopPackagingInputs` now checks icons, the required macOS ARM64/Windows x64/Linux x64 BASS inventory, and native JNI/visualizer sources before any app-image or installer task. GitHub tag builds already exercise all targets, and Forgejo main builds now include the previously missing Linux zip/DEB/RPM job. Linux documentation and CI include the Secret Service tooling required by secure credentials.
 - [ ] Run Desktop tests and launch the macOS application for functional verification.
 
 **Exit criteria:** Desktop launches the shared runtime and contains only host/platform integration code outside shared modules.
@@ -481,6 +481,7 @@ Record architecture decisions here or link a dedicated decision record.
 | 2026-07-20 | Resolve application-update execution through host services. | Common UI now depends on the narrow `NaviampApplicationUpdateChecker` capability and retains release parsing, version comparison, polling, and dialog presentation without constructing HTTP. Android and Desktop each inject a host-created HTTP checker; Desktop now receives the same capability-gated update dialog behavior that Android already exposed. JVM updater tests plus Desktop, Android, and iOS compilation passed. |
 | 2026-07-20 | Protect Desktop credentials with operating-system secure storage. | A Desktop AES-256-GCM protector now stores its random master key in macOS Keychain, Windows DPAPI-protected app data, or Linux Secret Service. The SQLDelight media-source store and legacy settings connection mirror both use the protector and migrate plaintext tokens, salts, native tokens, client-certificate passwords, and secret headers. Focused crypto and settings-migration tests plus the full Desktop suite passed. |
 | 2026-07-20 | Close the Desktop filesystem and HTTP ownership audit. | Common production code contains no JVM filesystem APIs and consumes files through database-driver, document-store, repository, byte-store, and opaque local-path contracts. Hidden Ktor construction was removed from the shared object-byte and Internet Radio services; Android and Desktop now provide fetch/client execution. Desktop retains native paths, atomic file operations, cleanup, and TLS/client construction. Domain tests, Desktop tests, Android compilation, and iOS compilation passed. |
+| 2026-07-20 | Verify all Desktop packaging assumptions. | A host-independent Gradle check now validates icons, required BASS libraries for macOS ARM64, Windows x64, and Linux x64, plus JNI and platform visualizer sources before packaging. DMG/MSI/EXE/DEB/RPM configuration, version normalization, target-OS Make guards, and artifact paths were audited. Forgejo main builds gained Linux parity with the existing GitHub tag matrix, including Secret Service tooling required at Linux runtime. |
 
 ### Desktop Route Boundary Audit
 
@@ -573,6 +574,18 @@ The 2026-07-20 audit established these final service boundaries:
 
 No additional filesystem facade was added because no shared owner consumes arbitrary filesystem operations. Adding one would expose more platform surface without removing host code or enabling another platform.
 
+## Desktop Packaging Assumption Audit
+
+The 2026-07-20 audit confirmed:
+
+- Compose packages DMG on macOS, MSI and EXE on Windows, and DEB and RPM on Linux, with valid platform icons and version transformations.
+- Each target packages its matching vendored BASS, BASSmix, BASSFLAC, and BASSopus libraries plus the built JNI bridge. macOS additionally builds Metal visualization; Windows builds OpenGL visualization; Linux intentionally uses the shared Compose visualizer path.
+- `jpackage` app images and installers remain target-OS builds. Make targets reject unsupported cross-host invocation, while GitHub tag CI runs all three operating systems.
+- Forgejo main release CI now mirrors the Linux zip/DEB/RPM job instead of validating only Windows and macOS Desktop artifacts.
+- Linux secure credentials require `secret-tool` and a Secret Service implementation; CI installs `libsecret-tools`, and the runtime prerequisite is documented for standalone users.
+
+`verifyDesktopPackagingInputs` checks the cross-platform source and vendor inventory on every packaging path. Target-specific native compilation and installer creation remain CI responsibilities because a macOS host cannot prove Windows or Linux `jpackage` output.
+
 ## File Selection and Sharing Audit
 
 The 2026-07-17 audit covers every current application entry point:
@@ -586,9 +599,9 @@ The 2026-07-17 audit covers every current application entry point:
 
 ## Current Handoff
 
-- **Last completed item:** The Desktop filesystem and HTTP audit is closed. Shared production code contains no JVM filesystem APIs, existing narrow storage/document contracts cover all shared consumers, and hidden Ktor construction was removed from shared object-byte and Internet Radio services in favor of host-supplied execution.
-- **Next recommended item:** Verify the current macOS, Windows, and Linux packaging configuration and native-resource assumptions.
-- **Verification:** On 2026-07-20, `:core:domain:allTests`, `:apps:desktop:desktopTest`, `:apps:android:compileDebugKotlin`, and `:core:ui:compileKotlinIosSimulatorArm64` passed after the filesystem/HTTP ownership cleanup.
+- **Last completed item:** Desktop packaging assumptions are verified and guarded by a cross-platform input check. Forgejo main CI now includes Linux parity, and Linux secure-storage prerequisites are explicit.
+- **Next recommended item:** Run the final Desktop test suite, build and verify the macOS app image, launch it, and record the Milestone 3 closure state.
+- **Verification:** On 2026-07-20, `:apps:desktop:verifyDesktopPackagingInputs` passed after validating all three platform icon, BASS, JNI, and visualizer source inventories; both edited release workflows parse as valid YAML.
 - **Known blockers:** None.
 
 Milestone 3 now uses delete-first accounting: every product-behavior extraction must report its net `apps/desktop/src/desktopMain` line change, moving code between Desktop files does not count as thinning, and a new host adapter must delete at least as much Desktop production code as it adds unless it implements a genuinely OS-specific service.
