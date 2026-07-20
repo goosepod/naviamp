@@ -35,6 +35,7 @@ import app.naviamp.ui.NaviampAlbumDetailContent
 import app.naviamp.ui.NaviampArtistDetailContent
 import app.naviamp.ui.NaviampPlaylistsContent
 import app.naviamp.ui.NaviampPlaylistDetailContent
+import app.naviamp.ui.NaviampInternetRadioContent
 import app.naviamp.ui.SharedHomeRoute
 import app.naviamp.ui.SaveQueueAsPlaylistDialog
 import app.naviamp.ui.SonicMixBuilderContent
@@ -312,13 +313,11 @@ fun ColumnScope.DesktopRouteContent(
                         }
                     }
                 }
-                NaviampRoute.Radio -> Column(verticalArrangement = Arrangement.spacedBy(18.dp)) {
-                    DesktopInternetRadioPanel(
-                        appColors = appColors,
-                        screen = shellState.radio,
-                        actions = shellActions.radioActions,
-                    )
-                }
+                NaviampRoute.Radio -> NaviampInternetRadioContent(
+                    colors = appColors,
+                    screen = shellState.radio,
+                    actions = shellActions.radioActions,
+                )
                 NaviampRoute.Downloads -> NaviampDownloadsContent(
                     colors = appColors,
                     screen = shellState.downloads,

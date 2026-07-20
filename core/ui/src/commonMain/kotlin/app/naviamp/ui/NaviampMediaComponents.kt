@@ -29,6 +29,7 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -1626,6 +1627,29 @@ private fun ArtistMixArtistTile(
             overflow = TextOverflow.Ellipsis,
         )
     }
+}
+
+@Composable
+fun NaviampInternetRadioContent(
+    colors: NaviampColors,
+    screen: NaviampInternetRadioScreenUi,
+    actions: NaviampInternetRadioActions,
+) {
+    InternetRadioContent(
+        colors = colors,
+        screen = screen,
+        onStationAction = actions.onStationAction,
+        onSaveStation = actions.onSaveStation,
+        headerActions = {
+            IconButton(onClick = actions.onRefresh, enabled = !screen.refreshing) {
+                Icon(
+                    NaviampIcons.Refresh,
+                    contentDescription = "Refresh internet radio stations",
+                    tint = colors.primaryText,
+                )
+            }
+        },
+    )
 }
 
 @Composable

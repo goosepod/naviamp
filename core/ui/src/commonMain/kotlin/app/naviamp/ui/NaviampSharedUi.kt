@@ -1064,11 +1064,10 @@ private fun ConnectedContent(
                 onRefresh = radioActions.onRefresh,
                 useScrollContainer = true,
             ) {
-                InternetRadioContent(
+                NaviampInternetRadioContent(
                     colors = colors,
                     screen = radio,
-                    onStationAction = radioActions.onStationAction,
-                    onSaveStation = radioActions.onSaveStation,
+                    actions = radioActions,
                 )
             }
             SharedRoute.Settings -> Unit
