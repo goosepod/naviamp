@@ -352,6 +352,19 @@ fun NaviampApp(
     )
     val nowPlayingVisualizerVisible = nowPlayingPresentation.isVisualizerVisible(playbackState)
 
+    val playbackReporting = remember {
+        DesktopPlaybackReportingAdapter(
+            scope = coroutineScope,
+            provider = { connectedProvider },
+            sourceId = { connectedSourceId },
+            providerActions = applicationControllers.providerActions,
+            reporting = applicationControllers.playbackReporting,
+            playbackProgress = { playbackProgress },
+            nowPlayingTrack = { nowPlayingTrack },
+            playReportSessionId = { playReportSessionId },
+        )
+    }
+
     val playbackController = remember {
         DesktopPlaybackController(
             scope = coroutineScope,
@@ -360,18 +373,15 @@ fun NaviampApp(
             queueCoordinator = queueCoordinator,
             playbackEngine = playbackEngine,
             playlistEngine = playlistEngine,
-            provider = { connectedProvider },
             sourceId = { connectedSourceId },
-            providerActions = applicationControllers.providerActions,
             playbackSettings = { playbackSettings },
             playbackQueue = { playbackQueue },
             playbackProgress = { playbackProgress },
             setPlaybackProgress = { progress -> playbackProgress = progress },
             nowPlayingTrack = { nowPlayingTrack },
             setRepeatMode = { mode -> repeatMode = mode },
-            playReportSessionId = { playReportSessionId },
             setOpenPlayerOnTrackStart = { shouldOpen -> openPlayerOnTrackStart = shouldOpen },
-            reporting = applicationControllers.playbackReporting,
+            reporting = playbackReporting,
         )
     }
 

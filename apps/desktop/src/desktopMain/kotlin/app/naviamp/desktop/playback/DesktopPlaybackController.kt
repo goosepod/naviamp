@@ -11,30 +11,21 @@ import app.naviamp.app.NaviampPlaybackQueueCommandController
 import app.naviamp.app.NaviampPlaybackQueueMutationExecution
 import app.naviamp.app.NaviampPlaybackNavigationCommandController
 import app.naviamp.app.NaviampPlaybackNavigationExecution
-import app.naviamp.app.NaviampNowPlayingReportRequest
 import app.naviamp.app.NaviampPlaybackRepeatCommandController
 import app.naviamp.app.NaviampPlaybackRepeatModeExecution
 import app.naviamp.app.NaviampPlaybackCommandController
 import app.naviamp.app.NaviampPlaybackExecution
 import app.naviamp.app.NaviampPlaybackSeekRequest
-import app.naviamp.app.NaviampPlaybackReportingController
-import app.naviamp.app.NaviampPlaybackStateReportRequest
-import app.naviamp.app.NaviampProviderActionController
 import app.naviamp.app.NaviampLivePlaybackController
-import app.naviamp.domain.isInternetRadioTrack
 import app.naviamp.domain.playback.PlaybackEngine
 import app.naviamp.domain.playback.PlaybackProgress
 import app.naviamp.domain.playback.PlaybackState
 import app.naviamp.domain.playback.PlaybackVolumeCommand
 import app.naviamp.domain.playback.PlaybackQueueNavigationCommand
-import app.naviamp.domain.provider.MediaProvider
 import app.naviamp.domain.queue.PlaybackQueue
 import app.naviamp.domain.queue.RepeatMode
 import app.naviamp.domain.settings.UpNextSelectionBehavior
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 
 internal fun handleDesktopQueueIndexSelected(
     playbackController: DesktopPlaybackController,
@@ -47,25 +38,22 @@ internal fun handleDesktopQueueIndexSelected(
     )
 }
 
-class DesktopPlaybackController(
+internal class DesktopPlaybackController(
     private val scope: CoroutineScope,
     private val playbackSessions: NaviampPlaybackSessionController,
     private val livePlayback: NaviampLivePlaybackController,
     private val queueCoordinator: NaviampPlaybackQueueCoordinator,
     private val playbackEngine: PlaybackEngine,
     private val playlistEngine: DesktopPlaylistEngine,
-    private val provider: () -> MediaProvider?,
     private val sourceId: () -> String?,
-    private val providerActions: NaviampProviderActionController,
     private val playbackSettings: () -> PlaybackSettings,
     private val playbackQueue: () -> PlaybackQueue,
     private val playbackProgress: () -> PlaybackProgress,
     private val setPlaybackProgress: (PlaybackProgress) -> Unit,
     private val nowPlayingTrack: () -> Track?,
     private val setRepeatMode: (RepeatMode) -> Unit,
-    private val playReportSessionId: () -> Int,
     private val setOpenPlayerOnTrackStart: (Boolean) -> Unit,
-    private val reporting: NaviampPlaybackReportingController,
+    private val reporting: DesktopPlaybackReportingAdapter,
 ) : NaviampPlaybackExecution {
     private val playbackCommands = NaviampPlaybackCommandController(this, livePlayback)
     private val queueCommands = NaviampPlaybackQueueCommandController(
@@ -229,53 +217,13 @@ class DesktopPlaybackController(
     }
 
     fun reportNowPlaying(track: Track) {
-        val activeProvider = provider() ?: return
-        val report = reporting.nowPlayingReport(
-            NaviampNowPlayingReportRequest(
-                trackId = track.id,
-                supportsPlayReporting = activeProvider.capabilities.supportsPlayReporting,
-                isInternetRadioTrack = track.isInternetRadioTrack(),
-            ),
-        ) ?: return
-        scope.launch {
-            runCatching {
-                withContext(Dispatchers.IO) {
-                    reportNowPlaying(report.trackId)
-                }
-            }
-        }
+        reporting.reportNowPlaying(track)
     }
 
-    suspend fun reportNowPlaying(trackId: TrackId) {
-        val activeProvider = provider() ?: return
-        providerActions.offlineCapable(activeProvider, sourceId()).reportNowPlaying(trackId)
-    }
+    suspend fun reportNowPlaying(trackId: TrackId) = reporting.reportNowPlaying(trackId)
 
     fun maybeReportPlaybackState(state: PlaybackState, progress: PlaybackProgress = playbackProgress()) {
-        val activeProvider = provider() ?: return
-        val track = nowPlayingTrack() ?: return
-        val report = reporting.stateReport(
-            NaviampPlaybackStateReportRequest(
-                sessionId = playReportSessionId().toLong(),
-                trackId = track.id,
-                isInternetRadioTrack = track.isInternetRadioTrack(),
-                supportsPlayReporting = activeProvider.capabilities.supportsPlayReporting,
-                playbackState = state,
-                progress = progress,
-                nowEpochMillis = DesktopSystemClock.nowEpochMillis(),
-            ),
-        ) ?: return
-        scope.launch {
-            runCatching {
-                withContext(Dispatchers.IO) {
-                    activeProvider.reportPlaybackState(
-                        trackId = report.trackId,
-                        state = report.state,
-                        positionSeconds = report.positionSeconds,
-                    )
-                }
-            }
-        }
+        reporting.maybeReportPlaybackState(state, progress)
     }
 
     private fun reportCurrentTrackStopped() {
