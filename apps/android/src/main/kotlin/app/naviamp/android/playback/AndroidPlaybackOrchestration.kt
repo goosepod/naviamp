@@ -199,11 +199,7 @@ fun playAndroidTrack(
                     effects = effectsPlan,
                     applier = PlaybackTrackStartEffectApplier(
                         clearShuffleSnapshot = { shuffledUpNextSnapshot = null },
-                        clearRadioContinuation = {
-                            radioQueueActive = false
-                            radioRefilling = false
-                            lastRadioRefillSeedId = null
-                        },
+                        clearRadioContinuation = radioContinuation::stop,
                         clearInternetRadioNowPlaying = { nowPlayingStation = null },
                         resetStreamMetadata = { nowPlayingStreamMetadata = PlaybackStreamMetadata() },
                         setNowPlayingTrack = { startedTrack -> nowPlaying = startedTrack },
@@ -300,11 +296,7 @@ fun playAndroidInternetRadioStation(
             setRecentStations = { recentStations ->
                 state.homeState = state.homeState.copy(recentInternetRadioStations = recentStations)
             },
-            clearRadioContinuation = {
-                state.radioQueueActive = false
-                state.radioRefilling = false
-                state.lastRadioRefillSeedId = null
-            },
+            clearRadioContinuation = state.radioContinuation::stop,
             clearShuffleSnapshot = { state.shuffledUpNextSnapshot = null },
             clearPlaybackQueue = {
                 queueCoordinator.clearQueue()

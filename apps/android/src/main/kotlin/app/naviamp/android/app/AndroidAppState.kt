@@ -22,6 +22,7 @@ import app.naviamp.domain.TrackId
 import app.naviamp.domain.app.NaviampContentState
 import app.naviamp.domain.app.NaviampNavigationState
 import app.naviamp.app.NaviampApplicationControllers
+import app.naviamp.app.NaviampRadioContinuationController
 import app.naviamp.domain.audio.AudioTag
 import app.naviamp.domain.media.RelatedTracksSource
 import app.naviamp.domain.playback.PlaybackProgress
@@ -191,10 +192,8 @@ class AndroidAppState(
         set(value) {
             livePlaybackState = livePlaybackState.copy(repeatMode = value)
         }
-    var radioQueueActive by mutableStateOf(false)
-    var radioRefilling by mutableStateOf(false)
+    internal val radioContinuation = NaviampRadioContinuationController()
     var isInternetRadioRefreshing by mutableStateOf(false)
-    var lastRadioRefillSeedId by mutableStateOf<TrackId?>(null)
     var radioTrackArtworkByKey by mutableStateOf<Map<String, String?>>(emptyMap())
     var relatedTracks by mutableStateOf<List<Track>>(emptyList())
     var relatedTracksSource by mutableStateOf(RelatedTracksSource.None)
