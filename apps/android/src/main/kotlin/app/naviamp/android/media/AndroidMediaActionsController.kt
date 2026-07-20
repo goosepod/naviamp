@@ -28,14 +28,15 @@ import app.naviamp.domain.radio.applyTrackRadioLoadResult
 import app.naviamp.domain.radio.trackRadioLoadResult
 import app.naviamp.domain.radio.trackRadioLoadingStatus
 import app.naviamp.ui.SharedTrackRowUi
-import app.naviamp.ui.SharedTrackRowAction
 import app.naviamp.ui.SharedTrackRowActionRequest
-import app.naviamp.ui.DownloadedTrackAction
 import app.naviamp.ui.DownloadedTrackActionRequest
+import app.naviamp.ui.DownloadedTrackActionHandlers
 import app.naviamp.ui.NaviampDownloadedTrackUi
 import app.naviamp.ui.NaviampPlaylistChoiceUi
+import app.naviamp.ui.ResolvedTrackRowActionHandlers
 import app.naviamp.ui.SharedMediaItemUi
-import app.naviamp.ui.resolveAction
+import app.naviamp.ui.handleDownloadedTrackAction as dispatchDownloadedTrackAction
+import app.naviamp.ui.handleResolvedTrackRowAction
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -446,55 +447,52 @@ internal class AndroidTrackActionController(
     private val openTrackAlbum: (Track) -> Unit,
     private val openTrackArtist: (Track, String?, String?) -> Unit,
 ) {
-    fun handleDownloadedTrackSelected(download: NaviampDownloadedTrackUi) {
-        playAndroidDownloadedTrack(state, download) { track, queue -> playTrack(track, queue) }
-    }
-
-    fun handleDownloadedTrackAddToPlaylist(download: NaviampDownloadedTrackUi, playlist: NaviampPlaylistChoiceUi?) {
-        withAndroidDownloadedTrack(state, download) { track -> addTrackToPlaylist(track, playlist, null) }
-    }
-
-    fun handleDownloadedTrackCreatePlaylistAndAdd(download: NaviampDownloadedTrackUi, name: String) {
-        withAndroidDownloadedTrack(state, download) { track -> addTrackToPlaylist(track, null, name) }
-    }
-
     fun handleDownloadedTrackAction(request: DownloadedTrackActionRequest) {
-        when (request.action) {
-            DownloadedTrackAction.Select -> handleDownloadedTrackSelected(request.download)
-            DownloadedTrackAction.AddToPlaylist ->
-                handleDownloadedTrackAddToPlaylist(request.download, request.playlistChoice)
-            DownloadedTrackAction.CreatePlaylistAndAdd ->
-                request.playlistName?.let { name -> handleDownloadedTrackCreatePlaylistAndAdd(request.download, name) }
-            DownloadedTrackAction.Remove -> removeDownload(request.download)
-        }
+        dispatchDownloadedTrackAction(
+            request = request,
+            handlers = DownloadedTrackActionHandlers(
+                onSelect = { download ->
+                    playAndroidDownloadedTrack(state, download) { track, queue -> playTrack(track, queue) }
+                },
+                onAddToPlaylist = { download, playlist ->
+                    withAndroidDownloadedTrack(state, download) { track -> addTrackToPlaylist(track, playlist, null) }
+                },
+                onCreatePlaylistAndAdd = { download, name ->
+                    withAndroidDownloadedTrack(state, download) { track -> addTrackToPlaylist(track, null, name) }
+                },
+                onRemove = removeDownload,
+            ),
+        )
     }
 
     fun handleTrackAction(request: SharedTrackRowActionRequest) {
-        val resolved = request.resolveAction(
-            knownTracks = activeQueue(),
-            fallbackTrack = findKnownTrack(request.track.id),
-        )
-        val track = resolved.track
-        if (track == null) {
+        val tracks = activeQueue()
+        val fallbackTrack = findKnownTrack(request.track.id)
+        val resolvedTracks = if (tracks.any { it.id.value == request.track.id } || fallbackTrack == null) {
+            tracks
+        } else {
+            tracks + fallbackTrack
+        }
+        if (resolvedTracks.none { it.id.value == request.track.id }) {
             state.status = "Track not found."
             return
         }
-        when (resolved.action) {
-            SharedTrackRowAction.Select,
-            SharedTrackRowAction.StartRadio,
-            -> Unit
-            SharedTrackRowAction.PlayNext -> playNextTracks(listOf(track), "track")
-            SharedTrackRowAction.PlayTrackRadioNext -> playTrackRadioNext(track)
-            SharedTrackRowAction.AddTrackRadioToQueue -> addTrackRadioToQueue(track)
-            SharedTrackRowAction.AddToQueue -> appendTracksToQueue(listOf(track), "track")
-            SharedTrackRowAction.Download -> downloadTrack(track)
-            SharedTrackRowAction.AddToPlaylist -> addTrackToPlaylist(track, resolved.playlistChoice, null)
-            SharedTrackRowAction.CreatePlaylistAndAdd ->
-                resolved.playlistName?.let { name -> addTrackToPlaylist(track, null, name) }
-            SharedTrackRowAction.ToggleFavorite -> toggleTrackFavorite(track)
-            SharedTrackRowAction.GoToAlbum -> openTrackAlbum(track)
-            SharedTrackRowAction.GoToArtist -> openTrackArtist(track, resolved.artistId, resolved.artistName)
-        }
+        handleResolvedTrackRowAction(
+            request = request,
+            tracks = resolvedTracks,
+            handlers = ResolvedTrackRowActionHandlers(
+                onPlayNext = { track -> playNextTracks(listOf(track), "track") },
+                onPlayTrackRadioNext = ::playTrackRadioNext,
+                onAddTrackRadioToQueue = ::addTrackRadioToQueue,
+                onAddToQueue = { _, track -> appendTracksToQueue(listOf(track), "track") },
+                onDownload = { _, track -> downloadTrack(track) },
+                onAddToPlaylist = { _, track, playlist -> addTrackToPlaylist(track, playlist, null) },
+                onCreatePlaylistAndAdd = { track, name -> addTrackToPlaylist(track, null, name) },
+                onToggleFavorite = toggleTrackFavorite,
+                onGoToAlbum = openTrackAlbum,
+                onGoToArtist = openTrackArtist,
+            ),
+        )
     }
 
     fun playTrackRadioNext(track: Track) {

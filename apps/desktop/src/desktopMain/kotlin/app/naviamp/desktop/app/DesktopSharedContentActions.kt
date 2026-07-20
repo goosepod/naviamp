@@ -20,7 +20,8 @@ import app.naviamp.ui.NaviampArtistDetailActions
 import app.naviamp.ui.NaviampPlaylistDetailActions
 import app.naviamp.ui.NaviampMediaActions
 import app.naviamp.ui.NaviampDownloadsActions
-import app.naviamp.ui.DownloadedTrackAction
+import app.naviamp.ui.DownloadedTrackActionHandlers
+import app.naviamp.ui.handleDownloadedTrackAction
 import app.naviamp.ui.StationRowAction
 
 internal fun desktopInternetRadioActions(
@@ -310,13 +311,17 @@ internal fun desktopDownloadsActions(
     onTrackAction = { request ->
         val index = downloads.indexOfFirst { download -> download.path.toString() == request.download.id }
         downloads.getOrNull(index)?.let { download ->
-            when (request.action) {
-                DownloadedTrackAction.Select -> appActions.playDownloadedTrack(downloads, index)
-                DownloadedTrackAction.AddToPlaylist ->
-                    playlistsController.openTrackAddToPlaylist(download.track)
-                DownloadedTrackAction.Remove -> appActions.removeDownloadedTrack(download)
-                DownloadedTrackAction.CreatePlaylistAndAdd -> Unit
-            }
+            handleDownloadedTrackAction(
+                request = request,
+                handlers = DownloadedTrackActionHandlers(
+                    onSelect = { appActions.playDownloadedTrack(downloads, index) },
+                    onAddToPlaylist = { _, _ -> playlistsController.openTrackAddToPlaylist(download.track) },
+                    onCreatePlaylistAndAdd = { _, name ->
+                        playlistsController.saveTracksAsPlaylist(name, listOf(download.track), "track")
+                    },
+                    onRemove = { appActions.removeDownloadedTrack(download) },
+                ),
+            )
         }
     },
     onCancelJob = appActions::cancelDownloadJob,
