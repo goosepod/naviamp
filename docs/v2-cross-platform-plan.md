@@ -527,8 +527,8 @@ The 2026-07-17 audit covers every current application entry point:
 
 ## Current Handoff
 
-- **Last completed item:** Playback-state callback application now belongs to `NaviampLivePlaybackController` on Android and Desktop. The new state is published before the host reporting adapter runs, giving both platforms the same ordering without sharing their provider or offline-report execution lifetimes.
-- **Next recommended item:** Return to the larger Desktop radio and Internet Radio classes for the next delete-first product-policy extraction.
+- **Last completed item:** `NaviampRadioContinuationController` now owns Desktop radio session invalidation, active/refilling state, and refill-seed identity. This removes four Desktop composition states and eight getter/setter constructor seams while preserving provider loading, BASS queue execution, and coroutine lifetimes in the host. The twenty-second delete-first correction removes a net 40 Desktop production lines, bringing the running reduction to 4,678 lines; `DesktopNaviampApp` is now 1,420 lines and `DesktopRadioController` is 555 lines.
+- **Next recommended item:** Adopt the shared continuation owner in Android radio coordination, then continue extracting common seeded-radio build application from the Desktop and Android executors.
 - **Verification:** On 2026-07-20, `:core:ui:jvmTest`, `:apps:desktop:desktopTest`, `:apps:android:compileDebugKotlin`, and `:core:ui:compileKotlinIosSimulatorArm64` passed after moving route-product composition into common UI. Desktop smoke testing then exposed infinite-height constraints where Downloads and playlist details were nested inside the route wrapper's vertical scroll even though both screens own scrolling, plus an unscrollable connection form because Settings does not own scrolling. The wrapper now adds scrolling only for Search, Playlists, Internet Radio, and Settings, with JVM regression coverage for the route policy.
 - **Known blockers:** None.
 

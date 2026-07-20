@@ -25,13 +25,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import app.naviamp.domain.Track
-import app.naviamp.domain.TrackId
 import app.naviamp.app.NaviampApplicationControllers
 import app.naviamp.app.NaviampApplicationStatusArea
 import app.naviamp.app.NaviampApplicationStatusLevel
 import app.naviamp.app.NaviampLivePlaybackState
 import app.naviamp.app.NaviampPlaybackSessionController
 import app.naviamp.app.NaviampRecentRadioStreamController
+import app.naviamp.app.NaviampRadioContinuationController
 import app.naviamp.domain.app.NaviampNavigationState
 import app.naviamp.domain.cache.ImageCacheRepository
 import app.naviamp.domain.cache.DownloadJob
@@ -287,10 +287,7 @@ fun NaviampApp(
     var shuffledUpNextSnapshot by shuffledUpNextSnapshotProperty
     val repeatModeProperty = remember { desktopRepeatModeProperty(livePlaybackController) }
     var repeatMode by repeatModeProperty
-    var radioQueueActive by remember { mutableStateOf(false) }
-    var isRadioRefilling by remember { mutableStateOf(false) }
-    var lastRadioRefillSeedId by remember { mutableStateOf<TrackId?>(null) }
-    var radioSessionId by remember { mutableStateOf(0) }
+    val radioContinuation = remember { NaviampRadioContinuationController() }
     var restoredPlaybackPositionSeconds by remember {
         mutableStateOf(savedPlaybackSession?.positionSeconds?.takeIf { it > 0.0 })
     }
@@ -489,14 +486,7 @@ fun NaviampApp(
             nowPlayingController.incrementWaveformReloadToken()
         },
         setConnectionStatus = { status -> connectionStatus = status },
-        radioSessionId = { radioSessionId },
-        setRadioSessionId = { sessionId -> radioSessionId = sessionId },
-        isRadioQueueActive = { radioQueueActive },
-        setRadioQueueActive = { isActive -> radioQueueActive = isActive },
-        isRadioRefilling = { isRadioRefilling },
-        setRadioRefilling = { isRefilling -> isRadioRefilling = isRefilling },
-        lastRadioRefillSeedId = { lastRadioRefillSeedId },
-        setLastRadioRefillSeedId = { trackId -> lastRadioRefillSeedId = trackId },
+        continuation = radioContinuation,
         setOpenPlayerOnTrackStart = { shouldOpen -> openPlayerOnTrackStart = shouldOpen },
     )
     }
