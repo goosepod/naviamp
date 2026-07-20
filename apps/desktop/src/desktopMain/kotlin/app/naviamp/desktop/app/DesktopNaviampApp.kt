@@ -164,31 +164,12 @@ fun NaviampApp(
     val playbackEngine = dependencies.playbackEngine
     val storage = dependencies.storage
     val imageCacheRepository: ImageCacheRepository = dependencies.imageCacheRepository
-    val savedMediaSource = remember { storage.latestMediaSource() }
-    val savedSettingsConnection = remember { settingsStore.loadConnection()?.toConnection() }
-    val savedConnection = remember {
-        savedMediaSource?.toNavidromeConnection()
-            ?.withNativeTokenFrom(savedSettingsConnection)
-            ?: savedSettingsConnection
+    val restoredAppState = remember(storage, settingsStore, playbackSessions) {
+        loadDesktopRestoredAppState(storage, settingsStore, playbackSessions)
     }
-    val savedPlaybackSession = remember { playbackSessions.load() }
-    val savedVisualizer = remember { settingsStore.loadVisualizerSettings() }
-    val savedNavigation = remember { settingsStore.loadNavigationSettings() }
-    val savedSearch = remember { settingsStore.loadSearchSettings() }
-    val savedRecentRadioStreams = remember { settingsStore.loadRecentRadioStreams() }
-    val savedRecentPlaylistIds = remember { settingsStore.loadRecentPlaylistIds() }
-    val savedRecentInternetRadioStations = remember { settingsStore.loadRecentInternetRadioStations() }
-    val savedSettingsSync = remember { settingsStore.loadSettingsSync() }
-    val savedPlaybackSettings = remember {
-        val settings = settingsStore.loadPlaybackSettings()
-        val storedDjs = storage.radioDjPresets()
-        if (storedDjs.isEmpty() && settings.radioDjs.isNotEmpty()) {
-            storage.replaceRadioDjPresets(settings.radioDjs)
-            settings.copy(radioDjs = storage.radioDjPresets())
-        } else {
-            settings.copy(radioDjs = storedDjs)
-        }
-    }
+    val savedMediaSource = restoredAppState.mediaSource
+    val savedConnection = restoredAppState.connection
+    val savedPlaybackSession = restoredAppState.playbackSession
     var cacheStats by remember { mutableStateOf(StorageCacheStats()) }
     var downloadJobs by remember { mutableStateOf<List<DownloadJob>>(emptyList()) }
     var connectedSourceId by remember { mutableStateOf(savedMediaSource?.id) }
@@ -204,7 +185,7 @@ fun NaviampApp(
         mutableStateOf(settingsStore.loadInterfaceSettings().normalized())
     }
     var playbackSettings by remember {
-        mutableStateOf(savedPlaybackSettings.effectiveForEngine(playbackEngine))
+        mutableStateOf(restoredAppState.playbackSettings.effectiveForEngine(playbackEngine))
     }
     dependencies.waveformsEnabledProvider = { cacheSettings.waveformsEnabled }
     dependencies.waveformBucketCountProvider = { cacheSettings.normalized().waveformBucketCount }
@@ -223,7 +204,7 @@ fun NaviampApp(
     var musicFoldersStatus by remember { mutableStateOf<String?>(null) }
     var mediaSourcesRevision by remember { mutableIntStateOf(0) }
     var connectionStatus by remember { mutableStateOf<String?>(null) }
-    var settingsSyncSettings by remember { mutableStateOf(savedSettingsSync.normalized()) }
+    var settingsSyncSettings by remember { mutableStateOf(restoredAppState.settingsSync.normalized()) }
     var settingsSyncStatus by remember { mutableStateOf<String?>(null) }
     var connectedProvider by remember { mutableStateOf<NavidromeProvider?>(null) }
     val sonicAutoplayService = remember {
@@ -243,16 +224,16 @@ fun NaviampApp(
     }
     var homeContent by remember { mutableStateOf(HomeContent()) }
     var homeStatus by remember { mutableStateOf<String?>(null) }
-    var recentRadioStreams by remember { mutableStateOf(savedRecentRadioStreams) }
+    var recentRadioStreams by remember { mutableStateOf(restoredAppState.recentRadioStreams) }
     val applicationControllers = remember {
         NaviampApplicationControllers(
             initialNavigationState = NaviampNavigationState(
                 route = restoredRoute(
-                    savedRouteName = savedNavigation.route,
+                    savedRouteName = restoredAppState.navigation.route,
                     hasConnection = savedConnection != null,
                     hasRestoredTrack = restoredTrack != null,
                 ),
-                lastContentRoute = restoredLastContentRoute(savedNavigation.lastContentRoute),
+                lastContentRoute = restoredLastContentRoute(restoredAppState.navigation.lastContentRoute),
             ),
             initialPlaybackState = NaviampLivePlaybackState(
                 currentTrack = restoredTrack,
@@ -332,7 +313,7 @@ fun NaviampApp(
     var lastPlaybackProgressUiUpdateMillis by remember { mutableLongStateOf(0L) }
     var playReportSessionId by remember { mutableStateOf(0) }
     val nowPlayingPresentation = rememberDesktopNowPlayingPresentationState(
-        initialVisualizerSettings = savedVisualizer,
+        initialVisualizerSettings = restoredAppState.visualizer,
         appColors = appColors,
         interfaceSettings = interfaceSettings,
         currentCoverArtUrl = nowPlayingCoverArtUrl,
@@ -616,7 +597,7 @@ fun NaviampApp(
         stationManager = InternetRadioStationManager(ProviderResponseService(storage)),
         homeContent = { homeContent },
         setHomeContent = { content -> homeContent = content },
-        initialRecentStations = savedRecentInternetRadioStations.map { it.toStation() },
+        initialRecentStations = restoredAppState.recentInternetRadioStations.map { it.toStation() },
         saveRecentInternetRadioStations = settingsSyncHost::saveRecentInternetRadioStations,
         stopRadioContinuation = radioController::stopContinuation,
         clearShuffleSnapshot = playbackController::clearShuffleSnapshot,
@@ -861,7 +842,7 @@ fun NaviampApp(
                 .orEmpty()
                 .map { it.track }
         },
-        initialQuery = savedSearch.query,
+        initialQuery = restoredAppState.search.query,
     )
     }
 
@@ -917,7 +898,7 @@ fun NaviampApp(
         provider = { connectedProvider },
         playbackSettings = { playbackSettings },
         playlistCallbacks = { playlistCallbacks },
-        initialRecentPlaylistIds = savedRecentPlaylistIds,
+        initialRecentPlaylistIds = restoredAppState.recentPlaylistIds,
         homeContent = { homeContent },
         setHomeContent = { content -> homeContent = content },
         setConnectionStatus = { status -> connectionStatus = status },
@@ -1532,11 +1513,4 @@ fun NaviampApp(
 }
 }
 }
-}
-
-private fun NavidromeConnection.withNativeTokenFrom(fallback: NavidromeConnection?): NavidromeConnection {
-    if (nativeToken?.isNotBlank() == true) return this
-    val fallbackToken = fallback?.nativeToken?.takeIf { it.isNotBlank() } ?: return this
-    val matchesSavedConnection = fallback.baseUrl == baseUrl && fallback.username == username
-    return if (matchesSavedConnection) copy(nativeToken = fallbackToken) else this
 }
