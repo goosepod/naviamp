@@ -46,8 +46,12 @@ import app.naviamp.domain.provider.queuePlaylistSaveLoadingStatus
 import app.naviamp.domain.provider.recentPlaylistIdsAfterPlayed
 import app.naviamp.domain.provider.refreshPlaylistDetailsApplication
 import app.naviamp.domain.provider.refreshPlaylistListState
+import app.naviamp.domain.provider.replaceStandardPlaylistTracks
 import app.naviamp.domain.provider.renamePlaylistAndRefresh
 import app.naviamp.domain.provider.saveQueueAsPlaylistApplication
+import app.naviamp.domain.provider.standardPlaylistTracksUpdateErrorMessage
+import app.naviamp.domain.provider.standardPlaylistTracksUpdateLoadingStatus
+import app.naviamp.domain.provider.standardPlaylistTracksUpdateSuccessStatus
 import app.naviamp.domain.provider.preloadPlaylistTracksStateUpdate
 import app.naviamp.domain.playback.applyPlaybackQueueUpdate
 import app.naviamp.app.NaviampPlaybackQueueCoordinator
@@ -145,19 +149,13 @@ class DesktopPlaylistsController(
     suspend fun updateStandardPlaylistTracks(playlist: Playlist, tracks: List<Track>) {
         val activeProvider = provider()
             ?: throw IllegalStateException("Connect to Navidrome before editing playlists.")
-        require(!playlist.isSmart) { "Smart Playlist tracks are controlled by their rules." }
         val currentTracks = playlistTracksById[playlist.id]
             ?: selectedPlaylistTracks.takeIf { selectedPlaylist?.id == playlist.id }
             ?: emptyList()
-        status = "Saving ${playlist.name}..."
+        status = standardPlaylistTracksUpdateLoadingStatus(playlist)
         try {
             withContext(Dispatchers.IO) {
-                activeProvider.replacePlaylistTracks(
-                    playlistId = playlist.id,
-                    currentTrackCount = currentTracks.size,
-                    trackIds = tracks.map { it.id },
-                )
-                providerResponseService.invalidatePlaylistResponses(activeProvider, playlist.id)
+                activeProvider.replaceStandardPlaylistTracks(playlist, currentTracks, tracks, providerResponseService)
             }
             val refreshedTracks = withContext(Dispatchers.IO) {
                 providerResponseService.playlistTracks(activeProvider, playlist.id)
@@ -170,11 +168,11 @@ class DesktopPlaylistsController(
             playlistTracksById = playlistTracksById + (playlist.id to refreshedTracks)
             applyPlaylistListApplication(refreshedPlaylists)
             if (selectedPlaylist?.id == playlist.id) {
-                applySelectedPlaylistDetails(refreshedPlaylist, refreshedTracks, "Updated playlist.")
+                applySelectedPlaylistDetails(refreshedPlaylist, refreshedTracks, standardPlaylistTracksUpdateSuccessStatus())
             }
-            status = "Updated playlist."
+            status = standardPlaylistTracksUpdateSuccessStatus()
         } catch (error: Exception) {
-            status = error.message ?: "Could not update playlist."
+            status = standardPlaylistTracksUpdateErrorMessage(error)
             throw error
         }
     }

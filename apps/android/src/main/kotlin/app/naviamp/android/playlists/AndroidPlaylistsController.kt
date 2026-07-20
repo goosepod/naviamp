@@ -32,8 +32,12 @@ import app.naviamp.domain.provider.queuePlaylistSaveErrorMessage
 import app.naviamp.domain.provider.queuePlaylistSaveLoadingStatus
 import app.naviamp.domain.provider.refreshPlaylistDetailsApplication
 import app.naviamp.domain.provider.refreshPlaylistListState
+import app.naviamp.domain.provider.replaceStandardPlaylistTracks
 import app.naviamp.domain.provider.renamePlaylistAndRefresh
 import app.naviamp.domain.provider.saveQueueAsPlaylistApplication
+import app.naviamp.domain.provider.standardPlaylistTracksUpdateErrorMessage
+import app.naviamp.domain.provider.standardPlaylistTracksUpdateLoadingStatus
+import app.naviamp.domain.provider.standardPlaylistTracksUpdateSuccessStatus
 import app.naviamp.domain.provider.selectedPlaylistTracksForPlayback
 import app.naviamp.domain.provider.loadSmartPlaylistDefinition
 import app.naviamp.domain.provider.smartPlaylistSaveErrorMessage
@@ -669,19 +673,13 @@ internal class AndroidPlaylistActionController(
     suspend fun updateStandardPlaylistTracks(playlist: Playlist, tracks: List<Track>) {
         val activeProvider = state.provider
             ?: throw IllegalStateException("Connect to Navidrome before editing playlists.")
-        require(!playlist.isSmart) { "Smart Playlist tracks are controlled by their rules." }
         val currentTracks = state.playlistTracksById[playlist.id]
             ?: state.selectedPlaylistTracks.takeIf { state.selectedPlaylist?.id == playlist.id }
             ?: emptyList()
-        state.status = "Saving ${playlist.name}..."
+        state.status = standardPlaylistTracksUpdateLoadingStatus(playlist)
         try {
             withContext(Dispatchers.IO) {
-                activeProvider.replacePlaylistTracks(
-                    playlistId = playlist.id,
-                    currentTrackCount = currentTracks.size,
-                    trackIds = tracks.map { it.id },
-                )
-                ProviderResponseService(storage).invalidatePlaylistResponses(activeProvider, playlist.id)
+                activeProvider.replaceStandardPlaylistTracks(playlist, currentTracks, tracks, ProviderResponseService(storage))
             }
             refreshAndroidPlaylistDetailsFromServer(
                 state = state,
@@ -690,9 +688,9 @@ internal class AndroidPlaylistActionController(
                 showLoadingStatus = false,
                 providerResponseCacheRepository = storage,
             )
-            state.status = "Updated playlist."
+            state.status = standardPlaylistTracksUpdateSuccessStatus()
         } catch (error: Exception) {
-            state.status = error.message ?: "Could not update playlist."
+            state.status = standardPlaylistTracksUpdateErrorMessage(error)
             throw error
         }
     }
