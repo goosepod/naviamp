@@ -10,7 +10,9 @@ import app.naviamp.domain.audio.AudioTag
 import app.naviamp.domain.playback.PlaybackProgress
 import app.naviamp.domain.playback.PlaybackState
 import app.naviamp.domain.playback.PlaybackStreamMetadata
+import app.naviamp.domain.playback.PlaybackProgressEffectApplier
 import app.naviamp.domain.playback.PlaybackTrackStartEffectApplier
+import app.naviamp.domain.playback.applyPlaybackProgressEffects
 import app.naviamp.domain.playback.applyPlaybackTrackStartEffects
 import app.naviamp.domain.playback.planPlaybackProgressUpdate
 import app.naviamp.domain.playback.planPlaybackTrackStartEffects
@@ -127,16 +129,23 @@ fun desktopPlaylistCallbacks(
                 positionThresholdSeconds = PlaybackProgressUiUpdateThresholdSeconds,
                 uiUpdateIntervalMillis = PlaybackProgressUiUpdateIntervalMillis,
             )
-            if (plan.ignore) return@progressChanged
-            if (plan.clearPendingSeek) {
-                setPendingSeekPositionSeconds(null)
-                setPendingSeekIssuedAtMillis(null)
-            }
-            val mergedProgress = plan.progress ?: return@progressChanged
-            if (plan.shouldSavePlaybackPosition) maybeSavePlaybackPosition(mergedProgress)
-            maybeReportPlaybackState(PlaybackState.Playing, mergedProgress)
+            val result = applyPlaybackProgressEffects(
+                plan = plan,
+                updateProgress = plan.shouldUpdateUi,
+                applier = PlaybackProgressEffectApplier(
+                    clearPendingSeek = {
+                        setPendingSeekPositionSeconds(null)
+                        setPendingSeekIssuedAtMillis(null)
+                    },
+                    savePlaybackPosition = maybeSavePlaybackPosition,
+                    reportPlaybackProgress = { mergedProgress ->
+                        maybeReportPlaybackState(PlaybackState.Playing, mergedProgress)
+                    },
+                    updateProgress = setPlaybackProgress,
+                ),
+            )
+            if (result.ignored || result.progress == null) return@progressChanged
             if (plan.shouldUpdateUi) {
-                setPlaybackProgress(mergedProgress)
                 setLastPlaybackProgressUiUpdateMillis(now)
             }
         },

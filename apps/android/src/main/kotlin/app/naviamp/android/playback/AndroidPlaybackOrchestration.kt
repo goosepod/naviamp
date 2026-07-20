@@ -16,6 +16,8 @@ import app.naviamp.domain.playback.PlaybackState
 import app.naviamp.domain.playback.PlaybackStreamMetadata
 import app.naviamp.domain.playback.PlaybackTrackStartEffectApplier
 import app.naviamp.domain.playback.applyPlaybackTrackStartEffects
+import app.naviamp.domain.playback.applyPlaybackProgressEffects
+import app.naviamp.domain.playback.PlaybackProgressEffectApplier
 import app.naviamp.domain.playback.fallbackPlaybackUrl
 import app.naviamp.domain.playback.planPlaylistTrackStartWork
 import app.naviamp.domain.playback.planPlaybackProgressUpdate
@@ -398,25 +400,29 @@ fun handleAndroidPlaybackProgressChanged(
             lastExternalProgressPublishAtMillis = lastAndroidAutoProgressPublishAtMillis,
             externalProgressPublishIntervalMillis = AndroidAutoProgressPublishIntervalMillis,
         )
-        if (plan.ignore) return
-        if (plan.resetToUnknown) {
-            pendingSeekPositionSeconds = null
-            pendingSeekIssuedAtMillis = null
-            playbackProgress = PlaybackProgress.Unknown
+        val result = applyPlaybackProgressEffects(
+            plan = plan,
+            applier = PlaybackProgressEffectApplier(
+                clearPendingSeek = {
+                    pendingSeekPositionSeconds = null
+                    pendingSeekIssuedAtMillis = null
+                },
+                clearPendingRestoreStart = { pendingRestoreStartPositionSeconds = null },
+                resetProgress = { playbackProgress = PlaybackProgress.Unknown },
+                reportPlaybackProgress = { mergedProgress ->
+                    maybeReportPlaybackState(PlaybackState.Playing, mergedProgress)
+                },
+                updateProgress = { mergedProgress -> playbackProgress = mergedProgress },
+            ),
+        )
+        if (result.ignored) return
+        if (result.resetToUnknown) {
             AndroidPlaybackNotificationControls.positionMillis = null
             AndroidPlaybackNotificationControls.durationMillis = null
             AndroidPlaybackForegroundService.updateProgress(context, null, null)
             return
         }
-        if (plan.clearPendingSeek) {
-            pendingSeekPositionSeconds = null
-            pendingSeekIssuedAtMillis = null
-        }
-        if (plan.clearPendingRestoreStart) {
-            pendingRestoreStartPositionSeconds = null
-        }
-        playbackProgress = plan.progress ?: return
-        maybeReportPlaybackState(PlaybackState.Playing, playbackProgress)
+        playbackProgress = result.progress ?: return
         val positionMillis = playbackProgress.positionSeconds?.secondsToMillis()
         val durationMillis = playbackProgress.durationSeconds
             ?.secondsToMillis()

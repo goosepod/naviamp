@@ -517,8 +517,8 @@ The 2026-07-17 audit covers every current application entry point:
 
 ## Current Handoff
 
-- **Last completed item:** `NaviampRecentRadioStreamController` now owns recent-radio load, deduplication, limiting, persistence, and settings-sync change notification for Desktop, Android UI, and the Android playback service. Hosts retain only their UI-state refresh or service-lifetime construction. Shared JVM and iOS tests cover ordering, persistence, and notification. Removing the Desktop helper produces another 13 net Desktop production lines removed, bringing the twenty-one delete-first corrections to 4,638 lines; `DesktopNaviampApp` is currently 1,431 lines because its explicit three-line controller wiring replaces a hidden helper call.
-- **Next recommended item:** Continue the playlist callback audit by separating common playback-progress and track-start application from Desktop sidecar/UI adapters, then reassess the radio controller construction cluster.
+- **Last completed item:** Playback progress planning and effect application now share one domain path across Android and Desktop. Hosts retain their distinct UI throttling, notification publication, next-track preparation, and clock acquisition, while pending-seek clearing, restore clearing, reset, persistence, reporting, and state-update ordering are applied consistently.
+- **Next recommended item:** Complete the matching track-start application audit, then reassess the radio controller construction cluster.
 - **Verification:** On 2026-07-20, `:core:ui:jvmTest`, `:apps:desktop:desktopTest`, `:apps:android:compileDebugKotlin`, and `:core:ui:compileKotlinIosSimulatorArm64` passed after moving route-product composition into common UI. Desktop smoke testing then exposed infinite-height constraints where Downloads and playlist details were nested inside the route wrapper's vertical scroll even though both screens own scrolling, plus an unscrollable connection form because Settings does not own scrolling. The wrapper now adds scrolling only for Search, Playlists, Internet Radio, and Settings, with JVM regression coverage for the route policy.
 - **Known blockers:** None.
 
