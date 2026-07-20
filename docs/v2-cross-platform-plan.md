@@ -513,9 +513,9 @@ The 2026-07-17 audit covers every current application entry point:
 
 ## Current Handoff
 
-- **Last completed item:** Desktop and the shared shell now render public `NaviampInternetRadioContent` from the complete Internet Radio screen/action contract, including capability-aware station editing and explicit refresh. Deleting the forwarding-only `DesktopInternetRadioPanel` reduced `desktopMain` by 27 net production lines; the twelve delete-first corrections total 3,996 net lines removed.
-- **Next recommended item:** Narrow Desktop Settings to native picker and storage-location adapters around a complete shared settings route API, keeping file dialogs and filesystem preparation in the host.
-- **Verification:** On 2026-07-19, the combined `:core:ui:jvmTest`, `:core:ui:compileKotlinIosSimulatorArm64`, `:apps:desktop:desktopTest`, and `:apps:android:testDebugUnitTest` gate passed after the shared Internet Radio route migration. Windows compiled the iOS simulator sources; simulator linking and execution remain a macOS CI responsibility.
+- **Last completed item:** Public `NaviampSettingsContent` now expands the complete grouped settings presentation and action contracts for both shared-shell and Desktop rendering. `DesktopSettingsPanel` retains only native directory selection, storage-location adaptation, and filesystem preparation; its shared settings wiring was removed for 34 net fewer `desktopMain` production lines. The thirteen delete-first corrections total 4,030 net lines removed.
+- **Next recommended item:** Promote the complete Now Playing rendering contract and reduce `DesktopPlayerRouteContent`/`DesktopNowPlayingPanel` to playback-engine and host action adapters, preserving visualizer, lyrics, waveform, queue, radio, rating, and sleep-timer behavior.
+- **Verification:** On 2026-07-19, the combined `:core:ui:jvmTest`, `:core:ui:compileKotlinIosSimulatorArm64`, `:apps:desktop:desktopTest`, and `:apps:android:testDebugUnitTest` gate passed after narrowing the Desktop Settings host adapter. Windows compiled the iOS simulator sources; simulator linking and execution remain a macOS CI responsibility.
 - **Known blockers:** None.
 
 Milestone 3 now uses delete-first accounting: every product-behavior extraction must report its net `apps/desktop/src/desktopMain` line change, moving code between Desktop files does not count as thinning, and a new host adapter must delete at least as much Desktop production code as it adds unless it implements a genuinely OS-specific service.

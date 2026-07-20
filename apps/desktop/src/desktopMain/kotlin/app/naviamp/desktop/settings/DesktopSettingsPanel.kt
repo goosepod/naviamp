@@ -11,7 +11,7 @@ import app.naviamp.ui.NaviampSettingsMaintenanceActions
 import app.naviamp.ui.NaviampSettingsSyncActions
 import app.naviamp.ui.NaviampSettingsSyncUi
 import app.naviamp.ui.NaviampSettingsValueActions
-import app.naviamp.ui.NaviampSharedSettingsContent
+import app.naviamp.ui.NaviampSettingsContent
 import app.naviamp.ui.NaviampStorageLocationUi
 import java.awt.FileDialog
 import java.awt.Frame
@@ -65,67 +65,19 @@ fun DesktopSettingsPanel(
         }
     }
 
-    NaviampSharedSettingsContent(
-        colors = appColors,
-        modifier = modifier,
-        interfaceSettings = general.interfaceSettings,
-        playbackSettings = playback.settings,
-        cacheSettings = cacheSettings,
-        diagnostics = cache.diagnostics,
-        downloadsDiagnostics = cache.downloadsDiagnostics,
-        audioCacheDiagnostics = cache.audioCacheDiagnostics,
-        about = general.about,
-        savedConnections = connection.savedConnections,
-        isConnectionFormOpen = connection.editingConnection,
-        isConnecting = connection.isConnecting,
-        connectionStatus = connection.status,
-        settingsSyncStatus = settingsSync.status,
-        availableMusicFolders = connection.availableMusicFolders,
-        musicFoldersStatus = connection.musicFoldersStatus,
-        connectionForm = connection.form,
-        hasSavedConnection = connection.hasSavedConnection,
-        onEditConnection = connectionActions.onEditCurrentConnection,
-        onNewConnection = connectionActions.onNewConnection,
-        onEditSavedConnection = connectionActions.onEditConnection,
-        onConnectSavedConnection = connectionActions.onConnectSavedConnection,
-        onDeleteSavedConnection = connectionActions.onDeleteConnection,
-        onImportSettingsSyncFile = (syncActions.onImportFile ?: importSettingsSyncDirectory)
-            .takeIf { settingsSync.available },
-        onChooseSettingsSyncFolder = (syncActions.onChooseFolder ?: chooseSettingsSyncFolder)
-            .takeIf { settingsSync.available },
-        onImportSettingsSyncFolder = (syncActions.onImportFolder ?: syncActions.onImport)
-            .takeIf { settingsSync.available },
-        onExportSettingsSyncFolder = (syncActions.onExportFolder ?: syncActions.onExport)
-            .takeIf { settingsSync.available },
-        settingsSyncAutoExportEnabled = settingsSync.autoExportEnabled,
-        onSettingsSyncAutoExportChanged = syncActions.onAutoExportChanged.takeIf { settingsSync.available },
-        onConnectionFormChanged = connectionActions.onFormChanged,
-        onConnect = connectionActions.onConnect,
-        onCancelConnectionForm = connectionActions.onCancelConnectionForm,
-        onInterfaceSettingsChanged = valueActions.onInterfaceSettingsChanged,
-        onPlaybackSettingsChanged = valueActions.onPlaybackSettingsChanged,
-        onPlaybackSettingsChangedAndRedownload = valueActions.onPlaybackSettingsChangedAndRedownload,
-        onCacheSettingsChanged = valueActions.onCacheSettingsChanged,
-        onClearCache = maintenanceActions.onClearCache,
-        onClearLibrary = maintenanceActions.onClearLibrary,
-        onRefreshLibrary = maintenanceActions.onRefreshLibrary,
-        onResetDatabase = maintenanceActions.onResetDatabase,
-        onOpenStatsForNerds = maintenanceActions.onOpenStatsForNerds,
-        supportsReplayGain = playback.replayGainAvailable,
-        supportsGapless = playback.gaplessAvailable,
-        supportsCrossfade = playback.crossfadeAvailable,
-        supportsEqualizer = playback.equalizerAvailable,
-        supportsAudioOutputDeviceSelection = playback.audioOutputDeviceSelectionAvailable,
-        audioOutputDevices = playback.audioOutputDevices,
-        supportsSonicSimilarity = playback.sonicSimilarityAvailable,
-        downloadBytes = playback.downloadBytes,
-        showMobileNetworkQuality = playback.showMobileNetworkQuality,
-        showTooltipPreference = true,
-        connectionCapabilities = connectionSettings.capabilities,
+    val adaptedCache = cache.copy(
         downloadLocations = downloadLocations,
         audioCacheLocations = audioCacheLocations,
         selectedDownloadLocationId = if (cacheSettings.customDownloadDirectory == null) "default" else "custom",
         selectedAudioCacheLocationId = if (cacheSettings.customAudioCacheDirectory == null) "default" else "custom",
+    )
+    val adaptedSyncActions = syncActions.copy(
+        onImportFile = (syncActions.onImportFile ?: importSettingsSyncDirectory).takeIf { settingsSync.available },
+        onChooseFolder = (syncActions.onChooseFolder ?: chooseSettingsSyncFolder).takeIf { settingsSync.available },
+        onImportFolder = (syncActions.onImportFolder ?: syncActions.onImport).takeIf { settingsSync.available },
+        onExportFolder = (syncActions.onExportFolder ?: syncActions.onExport).takeIf { settingsSync.available },
+    )
+    val adaptedValueActions = valueActions.copy(
         onDownloadLocationChanged = { location ->
             when (location.id) {
                 "default" -> valueActions.onCacheSettingsChanged(
@@ -169,6 +121,20 @@ fun DesktopSettingsPanel(
                 else -> valueActions.onAudioCacheLocationChanged(location)
             }
         },
+    )
+
+    NaviampSettingsContent(
+        colors = appColors,
+        modifier = modifier,
+        connectionSettings = connectionSettings,
+        general = general,
+        playback = playback,
+        cache = adaptedCache,
+        settingsSync = settingsSync,
+        connectionActions = connectionActions,
+        syncActions = adaptedSyncActions,
+        valueActions = adaptedValueActions,
+        maintenanceActions = maintenanceActions,
     )
 }
 

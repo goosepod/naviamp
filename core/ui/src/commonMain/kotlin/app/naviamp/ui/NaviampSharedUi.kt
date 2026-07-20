@@ -865,7 +865,7 @@ private fun ConnectedContent(
             actions = nowPlayingActions,
             displaySettings = interfaceSettings.nowPlaying,
         )
-        selectedRoute == SharedRoute.Settings -> SettingsContent(
+        selectedRoute == SharedRoute.Settings -> NaviampSettingsContent(
             colors = colors,
             connectionSettings = connectionSettings,
             general = general,
@@ -1897,8 +1897,9 @@ private fun FullNowPlaying(
 }
 
 @Composable
-private fun SettingsContent(
+fun NaviampSettingsContent(
     colors: NaviampColors,
+    modifier: Modifier = Modifier,
     connectionSettings: NaviampConnectionSettingsUi,
     general: NaviampGeneralSettingsUi,
     playback: NaviampPlaybackSettingsUi,
@@ -1912,10 +1913,13 @@ private fun SettingsContent(
     val connection = connectionSettings.connection
     NaviampSharedSettingsContent(
         colors = colors,
+        modifier = modifier,
         interfaceSettings = general.interfaceSettings,
         playbackSettings = playback.settings,
         cacheSettings = cache.settings,
         diagnostics = cache.diagnostics,
+        downloadsDiagnostics = cache.downloadsDiagnostics,
+        audioCacheDiagnostics = cache.audioCacheDiagnostics,
         about = general.about,
         savedConnections = connection.savedConnections,
         isConnectionFormOpen = connection.editingConnection,
@@ -1945,12 +1949,12 @@ private fun SettingsContent(
         onEditSavedConnection = connectionActions.onEditConnection,
         onConnectSavedConnection = connectionActions.onConnectSavedConnection,
         onDeleteSavedConnection = connectionActions.onDeleteConnection,
-        onImportSettingsSyncFile = syncActions.onImportFile,
-        onChooseSettingsSyncFolder = syncActions.onChooseFolder,
-        onImportSettingsSyncFolder = syncActions.onImportFolder,
-        onExportSettingsSyncFolder = syncActions.onExportFolder,
+        onImportSettingsSyncFile = syncActions.onImportFile.takeIf { settingsSync.available },
+        onChooseSettingsSyncFolder = syncActions.onChooseFolder.takeIf { settingsSync.available },
+        onImportSettingsSyncFolder = syncActions.onImportFolder.takeIf { settingsSync.available },
+        onExportSettingsSyncFolder = syncActions.onExportFolder.takeIf { settingsSync.available },
         settingsSyncAutoExportEnabled = settingsSync.autoExportEnabled,
-        onSettingsSyncAutoExportChanged = syncActions.onAutoExportChanged,
+        onSettingsSyncAutoExportChanged = syncActions.onAutoExportChanged.takeIf { settingsSync.available },
         onConnectionFormChanged = connectionActions.onFormChanged,
         onConnect = connectionActions.onConnect,
         onCancelConnectionForm = connectionActions.onCancelConnectionForm,
@@ -1962,7 +1966,10 @@ private fun SettingsContent(
         onAudioCacheLocationChanged = valueActions.onAudioCacheLocationChanged,
         onClearCache = maintenanceActions.onClearCache,
         onClearLibrary = maintenanceActions.onClearLibrary,
+        onRefreshLibrary = maintenanceActions.onRefreshLibrary,
         onResetDatabase = maintenanceActions.onResetDatabase,
+        onOpenStatsForNerds = maintenanceActions.onOpenStatsForNerds,
+        showTooltipPreference = true,
     )
 }
 
