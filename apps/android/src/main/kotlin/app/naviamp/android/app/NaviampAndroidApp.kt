@@ -41,15 +41,9 @@ import app.naviamp.domain.popular.SimilarArtistMatch
 import app.naviamp.domain.queue.RepeatMode
 import app.naviamp.domain.settings.effectiveForEngine
 import app.naviamp.app.NaviampSettingsSyncController
-import app.naviamp.app.settingsSyncAutoExportStatus
-import app.naviamp.app.settingsSyncImportStatus
 import app.naviamp.app.settingsSyncLocationStatus
-import app.naviamp.app.settingsSyncReconciliationStatus
-import app.naviamp.domain.settings.SettingsSyncDocument
 import app.naviamp.domain.settings.SettingsSyncLocalSnapshot
-import app.naviamp.domain.settings.SettingsSyncOperationKind
 import app.naviamp.domain.settings.SettingsSyncRuntimeState
-import app.naviamp.domain.settings.SettingsSyncMirrorDocumentSource
 import app.naviamp.domain.settings.VisualizerSettings
 import app.naviamp.domain.sonicautoplay.SonicAutoplayService
 import app.naviamp.provider.navidrome.NavidromeApiCall
@@ -523,9 +517,6 @@ fun NaviampAndroidApp(
         )
     }
 
-    fun settingsSyncTreeUri(): Uri? =
-        settingsSyncSettings.treeUri?.let(Uri::parse)
-
     val applicationServices = remember(
         appState,
         storage,
@@ -583,6 +574,18 @@ fun NaviampAndroidApp(
             message = message,
         )
     }
+    val settingsSyncHost = remember(context, settingsSyncController, settingsSyncMirrorStore) {
+        AndroidSettingsSyncHost(
+            context = context,
+            controller = settingsSyncController,
+            mirrorStore = settingsSyncMirrorStore,
+            settings = { settingsSyncSettings },
+            saveSettings = ::saveSettingsSyncSettings,
+            setStatus = { status -> settingsSyncStatus = status },
+            publishStatus = ::publishSettingsSyncStatus,
+        )
+    }
+    onSyncedSettingsChanged = settingsSyncHost::markChangedAndAutoExport
 
     val downloadActionController = remember(appState, storage, context, applicationServices) {
         AndroidDownloadActionController(
@@ -623,200 +626,6 @@ fun NaviampAndroidApp(
         )
     }
 
-    fun saveSettingsSyncMirror(document: SettingsSyncDocument) {
-        settingsSyncMirrorStore.write(document)
-        settingsSyncController.documentWritten(document)
-        saveSettingsSyncSettings(
-            settingsSyncSettings.copy(
-                lastMirrorUpdateEpochMillis = document.updatedAtEpochMillis,
-                lastProviderError = null,
-            ),
-        )
-    }
-
-    fun markProviderPullSucceeded() {
-        saveSettingsSyncSettings(
-            settingsSyncSettings.copy(
-                lastProviderPullEpochMillis = AndroidSystemClock.nowEpochMillis(),
-                lastProviderError = null,
-            ),
-        )
-    }
-
-    fun markProviderPushSucceeded() {
-        saveSettingsSyncSettings(
-            settingsSyncSettings.copy(
-                lastProviderPushEpochMillis = AndroidSystemClock.nowEpochMillis(),
-                lastProviderError = null,
-            ),
-        )
-    }
-
-    fun markProviderSyncFailed(message: String) {
-        saveSettingsSyncSettings(settingsSyncSettings.copy(lastProviderError = message))
-    }
-
-    fun writeProviderSettingsSync(treeUri: Uri, document: SettingsSyncDocument, statusMessage: () -> String) {
-        runCatching {
-            AndroidSettingsSyncDocumentStore(context, treeUri).write(document)
-        }.onSuccess {
-            markProviderPushSucceeded()
-            publishSettingsSyncStatus(statusMessage())
-        }.onFailure { error ->
-            val message = error.message ?: "Could not sync settings with provider."
-            markProviderSyncFailed(message)
-            publishSettingsSyncStatus(
-                "Settings saved locally. Provider sync pending: $message",
-                NaviampApplicationStatusLevel.Warning,
-            )
-        }
-    }
-
-    fun writeMirrorAndTryProvider(document: SettingsSyncDocument, statusMessage: () -> String) {
-        runCatching {
-            saveSettingsSyncMirror(document)
-        }.onFailure { error ->
-            val message = error.message ?: "Could not save local settings mirror."
-            publishSettingsSyncStatus(message, NaviampApplicationStatusLevel.Error)
-            return
-        }
-        val treeUri = settingsSyncTreeUri()
-        if (treeUri == null) {
-            settingsSyncStatus = "Settings saved locally. Choose a sync folder to sync provider."
-            return
-        }
-        writeProviderSettingsSync(treeUri = treeUri, document = document, statusMessage = statusMessage)
-    }
-
-    fun writeCurrentSettingsSync(statusMessage: () -> String) {
-        settingsSyncController.exportCurrent().documentToWrite?.let { document ->
-            writeMirrorAndTryProvider(document = document, statusMessage = statusMessage)
-        }
-    }
-
-    fun autoExportSettingsSync() {
-        settingsSyncController.autoExport()?.documentToWrite?.let { document ->
-            writeMirrorAndTryProvider(document) { "Settings auto-synced to provider." }
-        }
-    }
-
-    fun markAndAutoExportSettingsSync() {
-        settingsSyncController.markLocalChanged()
-        settingsSyncController.exportCurrent().documentToWrite?.let { document ->
-            if (settingsSyncSettings.autoExportEnabled) {
-                writeMirrorAndTryProvider(document) { "Settings auto-synced to provider." }
-            } else {
-                runCatching {
-                    saveSettingsSyncMirror(document)
-                }.onSuccess {
-                    publishSettingsSyncStatus("Settings saved locally. Sync now when ready.")
-                }.onFailure { error ->
-                    val message = error.message ?: "Could not save local settings mirror."
-                    publishSettingsSyncStatus(message, NaviampApplicationStatusLevel.Error)
-                }
-            }
-        }
-    }
-    onSyncedSettingsChanged = ::markAndAutoExportSettingsSync
-
-    fun readLocalSettingsSyncMirror(): SettingsSyncDocument? =
-        runCatching { settingsSyncMirrorStore.read() }
-            .onFailure { error ->
-                val message = error.message ?: "Could not read local settings mirror."
-                publishSettingsSyncStatus(message, NaviampApplicationStatusLevel.Error)
-            }
-            .getOrNull()
-
-    fun syncSettingsNow(statusPrefix: String = "Settings sync") {
-        val treeUri = settingsSyncTreeUri()
-        val localMirrorDocument = readLocalSettingsSyncMirror()
-        var providerDocument: SettingsSyncDocument? = null
-        var providerFileMissing = false
-        var providerReadError: String? = null
-        if (treeUri != null) {
-            runCatching {
-                AndroidSettingsSyncDocumentStore(context, treeUri).read()
-            }.onSuccess { document ->
-                providerDocument = document
-                providerFileMissing = document == null
-                if (document != null) markProviderPullSucceeded()
-            }.onFailure { error ->
-                providerReadError = error.message ?: "Could not read settings sync provider."
-                markProviderSyncFailed(providerReadError.orEmpty())
-            }
-        }
-
-        val reconciliation = settingsSyncController.reconcileDocuments(
-            localMirrorDocument = localMirrorDocument,
-            providerDocument = providerDocument,
-            syncLocationConfigured = true,
-        )
-        val selection = reconciliation.selection
-        val result = reconciliation.result
-        when (result.kind) {
-            SettingsSyncOperationKind.Imported -> {
-                selection.document?.let { document ->
-                    runCatching {
-                        saveSettingsSyncMirror(document)
-                    }.onFailure { error ->
-                        val message = error.message ?: "Could not save local settings mirror."
-                        publishSettingsSyncStatus(message, NaviampApplicationStatusLevel.Error)
-                        return
-                    }
-                    if (selection.source == SettingsSyncMirrorDocumentSource.Provider) {
-                        markProviderPullSucceeded()
-                    }
-                }
-                publishSettingsSyncStatus(settingsSyncImportStatus(result.hasServerProfiles))
-            }
-            SettingsSyncOperationKind.Exported -> {
-                result.documentToWrite?.let { document ->
-                    writeMirrorAndTryProvider(document) { "$statusPrefix exported local settings." }
-                }
-            }
-            SettingsSyncOperationKind.NoOp -> {
-                if (providerFileMissing && localMirrorDocument != null && treeUri != null) {
-                    writeProviderSettingsSync(treeUri, localMirrorDocument) { "$statusPrefix created provider file." }
-                } else if (providerReadError != null && localMirrorDocument != null) {
-                    publishSettingsSyncStatus(
-                        "Local settings mirror is ready. Provider sync pending: $providerReadError",
-                        NaviampApplicationStatusLevel.Warning,
-                    )
-                } else {
-                    publishSettingsSyncStatus("$statusPrefix is up to date.")
-                }
-            }
-            SettingsSyncOperationKind.UnsupportedSyncFile,
-            SettingsSyncOperationKind.NeedsSetupChoice,
-            SettingsSyncOperationKind.MissingSyncLocation,
-            -> publishSettingsSyncStatus(settingsSyncReconciliationStatus(result))
-        }
-        if (providerReadError != null && selection.document == null) {
-            publishSettingsSyncStatus(providerReadError, NaviampApplicationStatusLevel.Warning)
-        }
-    }
-
-    fun importSettingsSyncFolder() {
-        syncSettingsNow(statusPrefix = "Manual sync")
-    }
-
-    fun exportSettingsSyncFolder() {
-        settingsSyncController.markLocalChanged()
-        writeCurrentSettingsSync { "Settings exported to sync provider." }
-    }
-
-    fun updateSettingsSyncAutoExport(enabled: Boolean) {
-        saveSettingsSyncSettings(
-            settingsSyncSettings.copy(
-                autoExportEnabled = enabled && settingsSyncSettings.treeUri != null,
-            ),
-        )
-        settingsSyncStatus = settingsSyncAutoExportStatus(settingsSyncSettings.autoExportEnabled)
-        if (settingsSyncSettings.autoExportEnabled) {
-            autoExportSettingsSync()
-        }
-    }
-
     val settingsSyncImportLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
         if (uri == null) {
             settingsSyncStatus = "Settings import cancelled."
@@ -851,7 +660,7 @@ fun NaviampAndroidApp(
             }
             saveSettingsSyncSettings(settingsSyncSettings.copy(treeUri = uri.toString()))
             settingsSyncStatus = settingsSyncLocationStatus(configured = true)
-            syncSettingsNow(statusPrefix = "Settings sync")
+            settingsSyncHost.syncNow(statusPrefix = "Settings sync")
         }
     }
     val openSettingsSyncImport = {
@@ -861,7 +670,7 @@ fun NaviampAndroidApp(
         settingsSyncFolderLauncher.launch(null)
     }
     LaunchedEffect(Unit) {
-        syncSettingsNow(statusPrefix = "Settings sync")
+        settingsSyncHost.syncNow(statusPrefix = "Settings sync")
     }
     LaunchedEffect(settingsSyncImportUriRequest) {
         val uri = settingsSyncImportUriRequest ?: return@LaunchedEffect
@@ -1016,17 +825,17 @@ fun NaviampAndroidApp(
             capabilities = shellUiState.capabilities,
         ),
         syncActions = NaviampSettingsSyncActions(
-            onAutoExportChanged = ::updateSettingsSyncAutoExport,
+            onAutoExportChanged = settingsSyncHost::updateAutoExport,
             onImportFile = openSettingsSyncImport.takeIf {
                 shellUiState.capabilities.settingsImportExport && shellUiState.capabilities.fileSelection
             },
             onChooseFolder = chooseSettingsSyncFolder.takeIf {
                 shellUiState.capabilities.settingsImportExport && shellUiState.capabilities.fileSelection
             },
-            onImportFolder = (::importSettingsSyncFolder).takeIf {
+            onImportFolder = ({ settingsSyncHost.syncNow(statusPrefix = "Manual sync") }).takeIf {
                 shellUiState.capabilities.settingsImportExport && shellUiState.capabilities.fileSelection
             },
-            onExportFolder = (::exportSettingsSyncFolder).takeIf {
+            onExportFolder = (settingsSyncHost::exportToProvider).takeIf {
                 shellUiState.capabilities.settingsImportExport && shellUiState.capabilities.fileSelection
             },
         ),
