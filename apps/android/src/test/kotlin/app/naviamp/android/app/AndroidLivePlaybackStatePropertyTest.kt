@@ -18,4 +18,17 @@ class AndroidLivePlaybackStatePropertyTest {
         assertEquals(playing, state)
         assertEquals(playing, controller.state.value)
     }
+
+    @Test
+    fun recreatedUiPropertyAttachesToExistingSharedPlaybackState() {
+        val playing = NaviampLivePlaybackState(playbackState = PlaybackState.Playing)
+        val controller = NaviampLivePlaybackController(playing)
+        var firstActivityState by AndroidLivePlaybackStateProperty(controller)
+
+        val recreatedActivityState by AndroidLivePlaybackStateProperty(controller)
+
+        assertEquals(playing, recreatedActivityState)
+        firstActivityState = playing.copy(playbackState = PlaybackState.Paused)
+        assertEquals(PlaybackState.Paused, recreatedActivityState.playbackState)
+    }
 }

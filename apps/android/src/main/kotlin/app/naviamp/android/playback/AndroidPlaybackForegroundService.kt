@@ -245,7 +245,7 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
     }
     private val serviceSessionController: AndroidPlaybackServiceSessionController by lazy {
         AndroidPlaybackServiceSessionController(
-            storage = { serviceStorage },
+            sessions = AndroidPlaybackServiceStorageSessionStore { serviceStorage },
             currentMetadata = { currentMetadata },
             setCurrentMetadata = ::setCurrentMetadata,
             syncQueue = ::syncAutoQueue,
@@ -306,7 +306,10 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
     }
 
     override fun onUnbind(intent: Intent?): Boolean {
-        if (servicePlaybackRuntimeController.ownsPlayback()) {
+        if (
+            androidPlaybackServiceRetention(servicePlaybackRuntimeController.ownsPlayback()) ==
+            AndroidPlaybackServiceRetention.KeepAlive
+        ) {
             Log.i("NaviampAutoCommand", "Android Auto browser unbound while service owns playback; keeping playback alive")
             updateMediaSessionPlaybackState()
             return super.onUnbind(intent)
@@ -316,7 +319,10 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
     }
 
     override fun onTaskRemoved(rootIntent: Intent?) {
-        if (servicePlaybackRuntimeController.ownsPlayback()) {
+        if (
+            androidPlaybackServiceRetention(servicePlaybackRuntimeController.ownsPlayback()) ==
+            AndroidPlaybackServiceRetention.KeepAlive
+        ) {
             Log.i("NaviampAutoCommand", "Phone task removed while service owns playback; keeping Auto session alive")
             updateMediaSessionPlaybackState()
             super.onTaskRemoved(rootIntent)
@@ -327,6 +333,7 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        val startPlan = planAndroidPlaybackServiceStart(intentPresent = intent != null)
         if (
             isProtectedPlaybackServiceAction(intent?.action) &&
             !isAuthorizedPlaybackServiceCommand(
@@ -398,7 +405,11 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
             else -> {
                 ensureNotificationChannel()
                 val metadata = intent.toMetadata()
-                if (!startForegroundSafely(metadata)) {
+                if (startPlan.republishMediaSession) {
+                    updateMediaSession(currentMetadata, currentLargeIcon)
+                    updateMediaSessionPlaybackState()
+                }
+                if (startPlan.publishNotification && !startForegroundSafely(metadata)) {
                     stopSelf(startId)
                     return START_NOT_STICKY
                 }
