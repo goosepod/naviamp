@@ -143,13 +143,13 @@ Use explicit dependency construction unless a dependency-injection framework pro
   - [x] Confirm that Desktop menus and native desktop notifications are not currently implemented; add them only through future Desktop host adapters.
   - [x] Resolve the updater boundary. `NaviampApplicationUpdateChecker` is the narrow shared capability contract, `HttpNaviampApplicationUpdateChecker` applies shared release/version policy to an injected client, and Android and Desktop each construct the HTTP client in their host composition. Shared UI no longer creates a network client, and the reusable capability-gated effect now gives Desktop the same update dialog behavior as Android.
 - [x] Adapt the existing Desktop BASS implementation to the shared playback contract. The 2026-07-19 contract audit confirmed that play, pause/resume, source-aware seek, clamped software volume with ReplayGain, and prepared-next queue adoption implement the shared contract while native polling and end-sync callbacks correctly remain in the host. Desktop BASS `stop()` publishes `PlaybackState.Stopped` and `PlaybackProgress.Unknown` before clearing callbacks, matching the observable contract used by the shared runtime and Android. The optional shared `ReleasablePlaybackEngine` boundary now separates one-way native process shutdown from ordinary restartable stop behavior; Desktop releases BASS exactly once from its window-close host path without changing Android service ownership.
-- [ ] Adapt Desktop database, secret, filesystem, connectivity, and HTTP services to shared platform contracts.
+- [x] Adapt Desktop database, secret, filesystem, connectivity, and HTTP services to shared platform contracts. Shared code now consumes database-driver, credential-protector, document-store, connectivity, repository/byte-store, and HTTP-client boundaries; Desktop supplies the JDBC/SQLDelight, secure-storage, path/file, connectivity, TLS, and client implementations.
   - [x] Isolate Desktop SQLite driver creation, directory setup, JDBC configuration, and WAL/busy-timeout behavior behind `StorageDatabaseDriverFactory`.
   - [x] Use `StorageMediaSourceStore` for shared media-source SQL, mapping, and credential policy.
   - [x] Route settings-sync document access through the shared document-store boundary while retaining paths and native dialogs in Desktop.
   - [x] Supply shared connectivity snapshots through `DesktopConnectivityMonitor` and structured failures through `DesktopRuntimeErrorReporter`.
   - [x] Replace the deliberate Desktop pass-through credential protector with an OS-backed secure-storage adapter. `DesktopCredentialProtector` encrypts persisted values with AES-256-GCM and keeps its random master key in macOS Keychain, Windows DPAPI-protected app data, or Linux Secret Service. Both `StorageMediaSourceStore` and the legacy Desktop settings connection mirror now use it, automatically migrating plaintext tokens, salts, native tokens, client-certificate passwords, and secret header values without changing the shared storage contract.
-  - [ ] Complete the Desktop filesystem and HTTP ownership audit and add narrow platform contracts only where a shared owner actually consumes them.
+  - [x] Complete the Desktop filesystem and HTTP ownership audit and add narrow platform contracts only where a shared owner actually consumes them. Common production source sets contain no JVM file APIs; paths crossing shared boundaries are opaque strings interpreted by native playback or host stores. Existing repository, byte-store, settings-document, and database-driver contracts cover every shared filesystem consumer. The audit removed hidden client construction from `ObjectByteStoreService` and `InternetRadioStreamResolver`: hosts now supply fetch callbacks or `SharedHttpClient`, while Desktop retains path selection, atomic file operations, cleanup, and Ktor/TLS construction.
 - [ ] Verify macOS, Windows, and Linux packaging assumptions remain valid.
 - [ ] Run Desktop tests and launch the macOS application for functional verification.
 
@@ -480,6 +480,7 @@ Record architecture decisions here or link a dedicated decision record.
 | 2026-07-20 | Close the final Desktop product-ownership audit. | No parallel Android/Desktop product policy remains in the audited Desktop entry point, controllers, or large adapters. The audit removed the now-unreferenced 272-line legacy Desktop media-row surface; remaining large files are composition/state adapters, BASS and native queue execution, provider/coroutine executors, SQLDelight/filesystem stores, or Desktop-only presentation. `desktopMain` is a net 4,408 production lines smaller than `main`. |
 | 2026-07-20 | Resolve application-update execution through host services. | Common UI now depends on the narrow `NaviampApplicationUpdateChecker` capability and retains release parsing, version comparison, polling, and dialog presentation without constructing HTTP. Android and Desktop each inject a host-created HTTP checker; Desktop now receives the same capability-gated update dialog behavior that Android already exposed. JVM updater tests plus Desktop, Android, and iOS compilation passed. |
 | 2026-07-20 | Protect Desktop credentials with operating-system secure storage. | A Desktop AES-256-GCM protector now stores its random master key in macOS Keychain, Windows DPAPI-protected app data, or Linux Secret Service. The SQLDelight media-source store and legacy settings connection mirror both use the protector and migrate plaintext tokens, salts, native tokens, client-certificate passwords, and secret headers. Focused crypto and settings-migration tests plus the full Desktop suite passed. |
+| 2026-07-20 | Close the Desktop filesystem and HTTP ownership audit. | Common production code contains no JVM filesystem APIs and consumes files through database-driver, document-store, repository, byte-store, and opaque local-path contracts. Hidden Ktor construction was removed from the shared object-byte and Internet Radio services; Android and Desktop now provide fetch/client execution. Desktop retains native paths, atomic file operations, cleanup, and TLS/client construction. Domain tests, Desktop tests, Android compilation, and iOS compilation passed. |
 
 ### Desktop Route Boundary Audit
 
@@ -560,6 +561,18 @@ The 2026-07-20 closure audit found no remaining product decision implemented ind
 
 The audit also found that `DesktopMediaRows` had no callers after shared media rows took ownership, so the obsolete 272-line surface was deleted. Future product behavior must enter through a shared owner or shared UI/action contract; a Desktop controller may add only the native execution or lifecycle adapter required to consume it.
 
+## Desktop Filesystem and HTTP Ownership Audit
+
+The 2026-07-20 audit established these final service boundaries:
+
+- Common application, domain, storage, UI, and provider production source sets do not import JVM file, path, AWT, or Swing APIs. `StorageDatabaseLocation` validates a portable directory string, while the host database-driver factory interprets it.
+- Shared cache and download owners use repository, object-byte-store, audio-byte-store, and maintenance contracts. Desktop owns directories, atomic moves, partial-file cleanup, byte streams, and filesystem traversal.
+- Settings sync uses `NaviampSettingsSyncDocumentStore`; Desktop owns native file/directory dialogs and path-backed document I/O.
+- Local playback paths remain opaque strings in shared playback contracts and are interpreted only by BASS/native host adapters.
+- `SharedHttpClient` is the portable network boundary. `ObjectByteStoreService` now receives a host fetch callback instead of constructing Ktor, and `InternetRadioStreamResolver` requires an injected client. Host composition owns concrete clients, headers, TLS material, and execution lifetime.
+
+No additional filesystem facade was added because no shared owner consumes arbitrary filesystem operations. Adding one would expose more platform surface without removing host code or enabling another platform.
+
 ## File Selection and Sharing Audit
 
 The 2026-07-17 audit covers every current application entry point:
@@ -573,9 +586,9 @@ The 2026-07-17 audit covers every current application entry point:
 
 ## Current Handoff
 
-- **Last completed item:** Desktop credentials are encrypted through a host adapter backed by macOS Keychain, Windows DPAPI, or Linux Secret Service. Both SQLDelight media sources and the legacy settings connection mirror migrate and protect every persisted credential field.
-- **Next recommended item:** Complete the Desktop filesystem and HTTP ownership audit, adding contracts only where shared code consumes a genuinely platform-specific operation.
-- **Verification:** On 2026-07-20, focused Desktop credential crypto and settings migration tests passed as part of `:apps:desktop:desktopTest`, together with `:apps:desktop:compileKotlinDesktop`.
+- **Last completed item:** The Desktop filesystem and HTTP audit is closed. Shared production code contains no JVM filesystem APIs, existing narrow storage/document contracts cover all shared consumers, and hidden Ktor construction was removed from shared object-byte and Internet Radio services in favor of host-supplied execution.
+- **Next recommended item:** Verify the current macOS, Windows, and Linux packaging configuration and native-resource assumptions.
+- **Verification:** On 2026-07-20, `:core:domain:allTests`, `:apps:desktop:desktopTest`, `:apps:android:compileDebugKotlin`, and `:core:ui:compileKotlinIosSimulatorArm64` passed after the filesystem/HTTP ownership cleanup.
 - **Known blockers:** None.
 
 Milestone 3 now uses delete-first accounting: every product-behavior extraction must report its net `apps/desktop/src/desktopMain` line change, moving code between Desktop files does not count as thinning, and a new host adapter must delete at least as much Desktop production code as it adds unless it implements a genuinely OS-specific service.

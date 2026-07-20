@@ -1,7 +1,5 @@
 package app.naviamp.domain.cache
 
-import app.naviamp.domain.network.KtorSharedHttpClient
-
 data class StoredObjectBytes(
     val key: String,
     val sizeBytes: Long,
@@ -20,7 +18,6 @@ interface ObjectByteStore {
 
 class ObjectByteStoreService(
     private val store: ObjectByteStore,
-    private val httpClient: KtorSharedHttpClient = KtorSharedHttpClient(),
 ) {
     suspend fun cachedBytes(key: String): ByteArray? =
         store.objectBytes(key)
@@ -32,8 +29,4 @@ class ObjectByteStoreService(
         store.objectBytes(key)
             ?: fetch().also { bytes -> store.writeObjectBytes(key, bytes) }
 
-    suspend fun remoteBytes(url: String): ByteArray =
-        bytes(url) {
-            httpClient.getBytes(url) ?: throw IllegalStateException("Could not download bytes.")
-        }
 }

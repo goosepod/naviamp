@@ -163,7 +163,6 @@ class DesktopCache(
             nowMillis = ::nowMillis,
             maxImageCacheBytes = maxImageCacheBytes,
         ),
-        httpClient = httpClient,
     )
     private val audioCacheByteStore = DesktopMutableAudioByteStore(audioCacheDirectory)
     private val audioCacheByteStoreService = AudioByteStoreService(
@@ -188,7 +187,9 @@ class DesktopCache(
         hotImages.get(url)?.let { return it }
 
         return withContext(Dispatchers.IO + NonCancellable) {
-            val bytes = imageByteStoreService.remoteBytes(url)
+            val bytes = imageByteStoreService.bytes(url) {
+                httpClient.getBytes(url) ?: throw IllegalStateException("Could not download image bytes.")
+            }
             hotImages.put(url, bytes)
             bytes
         }

@@ -169,7 +169,6 @@ class AndroidStorage(
             queries = queries,
             nowMillis = ::nowMillis,
         ),
-        httpClient = httpClient,
     )
 
     var audioCacheDirectory: File = File(appContext.cacheDir, "audio-cache")
@@ -281,7 +280,9 @@ class AndroidStorage(
 
     override suspend fun imageBytes(url: String): ByteArray =
         withContext(Dispatchers.IO) {
-            imageByteStoreService.remoteBytes(url)
+            imageByteStoreService.bytes(url) {
+                httpClient.getBytes(url) ?: throw IllegalStateException("Could not download image bytes.")
+            }
         }
 
     override suspend fun cachedImageBytes(url: String): ByteArray? =
