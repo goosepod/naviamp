@@ -1,10 +1,7 @@
 package app.naviamp.android
 
 import android.content.Context
-import android.database.sqlite.SQLiteDatabase
 import app.naviamp.android.security.AndroidKeystoreCredentialProtector
-import app.cash.sqldelight.db.SqlDriver
-import app.cash.sqldelight.driver.android.AndroidSqliteDriver
 import app.naviamp.domain.Album
 import app.naviamp.domain.AlbumId
 import app.naviamp.domain.Artist
@@ -63,6 +60,7 @@ import app.naviamp.provider.navidrome.resolvedDisplayName
 import app.naviamp.provider.navidrome.toNavidromeConnection
 import app.naviamp.storage.NaviampStorageDatabase
 import app.naviamp.storage.StorageMediaSourceStore
+import app.naviamp.storage.StorageDatabaseLocation
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
@@ -91,28 +89,12 @@ class AndroidStorage(
     SidecarStatusRepository,
     AutoCloseable {
     private val appContext = context.applicationContext
-    private val databaseExistedBeforeOpen = appContext.getDatabasePath(DatabaseName).exists()
-    private val driver = createAndroidStorageDriver(appContext).also {
-        it.configureSqliteLockHandling()
-        it.ensureMediaSourceNetworkOptionsSchema()
-        it.ensureTrackLyricsOffsetSchema()
-        it.ensurePendingProviderActionSchema()
-        it.ensureLibraryTrackPlayMetadataSchema()
-        it.ensureRadioDjPresetSchema()
-        it.ensureKeepDownloadedSchema()
-        if (databaseExistedBeforeOpen) {
-            val maintenancePreferences = appContext.getSharedPreferences(
-                DatabaseMaintenancePreferences,
-                Context.MODE_PRIVATE,
-            )
-            val schemaVersion = NaviampStorageDatabase.Schema.version
-            if (maintenancePreferences.getLong(LastReclaimedSchemaVersion, 0L) < schemaVersion) {
-                it.execute(null, "VACUUM", 0)
-                maintenancePreferences.edit().putLong(LastReclaimedSchemaVersion, schemaVersion).apply()
-            }
-        }
-        it.execute(null, "PRAGMA foreign_keys=ON", 0)
-    }
+    private val driver = AndroidStorageDatabaseDriverFactory(appContext).create(
+        StorageDatabaseLocation(
+            directoryPath = requireNotNull(appContext.getDatabasePath(AndroidStorageDatabaseName).parent),
+            fileName = AndroidStorageDatabaseName,
+        ),
+    )
     private val database = NaviampStorageDatabase(driver)
     private val queries = database.naviampStorageQueries
     private val json = Json {
@@ -717,7 +699,7 @@ class AndroidStorage(
 
     override fun stats(): StorageCacheStats =
         maintenance.stats(
-            databaseLabel = DatabaseName,
+            databaseLabel = AndroidStorageDatabaseName,
             audioCacheDirectory = audioCacheDirectory.absolutePath,
             downloadDirectory = downloadDirectory.absolutePath,
         )
@@ -809,229 +791,5 @@ private class AndroidMutableAudioByteStore(initialDirectory: File) : AudioByteSt
 
 private fun nowMillis(): Long = System.currentTimeMillis()
 
-private fun createAndroidStorageDriver(context: Context): AndroidSqliteDriver {
-    val databaseFile = context.getDatabasePath(DatabaseName)
-    if (databaseFile.exists()) {
-        val installedVersion = runCatching {
-            SQLiteDatabase.openDatabase(
-                databaseFile.absolutePath,
-                null,
-                SQLiteDatabase.OPEN_READONLY,
-            ).use { database -> database.version.toLong() }
-        }.getOrNull()
-        if (installedVersion != null && installedVersion > NaviampStorageDatabase.Schema.version) {
-            context.deleteDatabase(DatabaseName)
-        }
-    }
-    return AndroidSqliteDriver(
-        schema = NaviampStorageDatabase.Schema,
-        context = context,
-        name = DatabaseName,
-    )
-}
-
-private fun SqlDriver.configureSqliteLockHandling() {
-    executeQuery(
-        identifier = null,
-        sql = "PRAGMA busy_timeout=$SqliteBusyTimeoutMillis",
-        mapper = { cursor ->
-            while (cursor.next().value) {
-                // Drain the pragma result row on Android.
-            }
-            app.cash.sqldelight.db.QueryResult.Unit
-        },
-        parameters = 0,
-    )
-    executeQuery(
-        identifier = null,
-        sql = "PRAGMA journal_mode=WAL",
-        mapper = { cursor ->
-            while (cursor.next().value) {
-                // Drain the pragma result row on Android.
-            }
-            app.cash.sqldelight.db.QueryResult.Unit
-        },
-        parameters = 0,
-    )
-}
-
-private fun SqlDriver.ensureMediaSourceNetworkOptionsSchema() {
-    if (!tableHasColumn("media_source", "secondary_urls_json")) {
-        execute(null, "ALTER TABLE media_source ADD COLUMN secondary_urls_json TEXT", 0)
-    }
-    if (!tableHasColumn("media_source", "custom_headers_json")) {
-        execute(null, "ALTER TABLE media_source ADD COLUMN custom_headers_json TEXT", 0)
-    }
-    if (!tableHasColumn("media_source", "selected_music_folder_ids_json")) {
-        execute(null, "ALTER TABLE media_source ADD COLUMN selected_music_folder_ids_json TEXT", 0)
-    }
-    if (!tableHasColumn("media_source", "server_connection_key")) {
-        execute(null, "ALTER TABLE media_source ADD COLUMN server_connection_key TEXT", 0)
-    }
-    if (!tableHasColumn("media_source", "library_scope_key")) {
-        execute(null, "ALTER TABLE media_source ADD COLUMN library_scope_key TEXT", 0)
-    }
-}
-
-private fun SqlDriver.ensureTrackLyricsOffsetSchema() {
-    execute(
-        null,
-        """
-        CREATE TABLE IF NOT EXISTS track_lyrics_offset (
-          source_id TEXT NOT NULL REFERENCES media_source(id) ON DELETE CASCADE,
-          remote_track_id TEXT NOT NULL,
-          offset_millis INTEGER NOT NULL,
-          updated_at_epoch_millis INTEGER NOT NULL,
-          PRIMARY KEY(source_id, remote_track_id)
-        )
-        """.trimIndent(),
-        0,
-    )
-}
-
-private fun SqlDriver.ensureKeepDownloadedSchema() {
-    execute(
-        null,
-        """
-        CREATE TABLE IF NOT EXISTS keep_downloaded_collection (
-          source_id TEXT NOT NULL REFERENCES media_source(id) ON DELETE CASCADE,
-          collection_kind TEXT NOT NULL,
-          collection_id TEXT NOT NULL,
-          name TEXT NOT NULL,
-          remove_unneeded_files INTEGER NOT NULL DEFAULT 0,
-          updated_at_epoch_millis INTEGER NOT NULL,
-          PRIMARY KEY(source_id, collection_kind, collection_id)
-        )
-        """.trimIndent(),
-        0,
-    )
-    execute(
-        null,
-        """
-        CREATE TABLE IF NOT EXISTS keep_downloaded_collection_track (
-          source_id TEXT NOT NULL,
-          collection_kind TEXT NOT NULL,
-          collection_id TEXT NOT NULL,
-          remote_track_id TEXT NOT NULL,
-          PRIMARY KEY(source_id, collection_kind, collection_id, remote_track_id),
-          FOREIGN KEY(source_id, collection_kind, collection_id)
-            REFERENCES keep_downloaded_collection(source_id, collection_kind, collection_id)
-            ON DELETE CASCADE
-        )
-        """.trimIndent(),
-        0,
-    )
-    execute(
-        null,
-        """
-        CREATE TABLE IF NOT EXISTS keep_downloaded_managed_track (
-          source_id TEXT NOT NULL REFERENCES media_source(id) ON DELETE CASCADE,
-          remote_track_id TEXT NOT NULL,
-          PRIMARY KEY(source_id, remote_track_id)
-        )
-        """.trimIndent(),
-        0,
-    )
-    execute(
-        null,
-        """
-        CREATE INDEX IF NOT EXISTS keep_downloaded_collection_track_remote
-        ON keep_downloaded_collection_track(source_id, remote_track_id)
-        """.trimIndent(),
-        0,
-    )
-}
-
-private fun SqlDriver.ensurePendingProviderActionSchema() {
-    execute(
-        null,
-        """
-        CREATE TABLE IF NOT EXISTS pending_provider_action (
-          id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
-          source_id TEXT NOT NULL REFERENCES media_source(id) ON DELETE CASCADE,
-          action_type TEXT NOT NULL,
-          entity_id TEXT NOT NULL,
-          bool_value INTEGER,
-          long_value INTEGER,
-          created_at_epoch_millis INTEGER NOT NULL,
-          last_attempt_at_epoch_millis INTEGER,
-          attempt_count INTEGER NOT NULL DEFAULT 0,
-          last_error TEXT
-        )
-        """.trimIndent(),
-        0,
-    )
-    execute(
-        null,
-        """
-        CREATE INDEX IF NOT EXISTS pending_provider_action_source_created
-        ON pending_provider_action(source_id, created_at_epoch_millis)
-        """.trimIndent(),
-        0,
-    )
-}
-
-private fun SqlDriver.ensureLibraryTrackPlayMetadataSchema() {
-    if (!tableHasColumn("library_track", "play_count")) {
-        execute(null, "ALTER TABLE library_track ADD COLUMN play_count INTEGER", 0)
-    }
-    if (!tableHasColumn("library_track", "last_played_at_iso8601")) {
-        execute(null, "ALTER TABLE library_track ADD COLUMN last_played_at_iso8601 TEXT", 0)
-    }
-}
-
-private fun SqlDriver.ensureRadioDjPresetSchema() {
-    execute(
-        null,
-        """
-        CREATE TABLE IF NOT EXISTS radio_dj_preset (
-          id TEXT NOT NULL PRIMARY KEY,
-          name TEXT NOT NULL,
-          familiarity TEXT NOT NULL,
-          artist_spread TEXT NOT NULL,
-          same_decade_only INTEGER NOT NULL,
-          artist_run_mode TEXT NOT NULL,
-          same_artist_run_length INTEGER NOT NULL,
-          other_artist_run_length INTEGER NOT NULL,
-          sort_order INTEGER NOT NULL,
-          created_at_epoch_millis INTEGER NOT NULL,
-          updated_at_epoch_millis INTEGER NOT NULL
-        )
-        """.trimIndent(),
-        0,
-    )
-    execute(
-        null,
-        """
-        CREATE INDEX IF NOT EXISTS radio_dj_preset_sort
-        ON radio_dj_preset(sort_order, name)
-        """.trimIndent(),
-        0,
-    )
-}
-
-private fun SqlDriver.tableHasColumn(tableName: String, columnName: String): Boolean {
-    var found = false
-    executeQuery(
-        identifier = null,
-        sql = "PRAGMA table_info($tableName)",
-        mapper = { cursor ->
-            while (cursor.next().value) {
-                if (cursor.getString(1) == columnName) {
-                    found = true
-                    break
-                }
-            }
-            app.cash.sqldelight.db.QueryResult.Unit
-        },
-        parameters = 0,
-    )
-    return found
-}
-
-private const val DatabaseName = "naviamp-storage.db"
-private const val DatabaseMaintenancePreferences = "naviamp-storage-maintenance"
-private const val LastReclaimedSchemaVersion = "last-reclaimed-schema-version"
-private const val SqliteBusyTimeoutMillis = 10_000
 private const val MaxAudioWaveformCacheBytes = 32L * 1024L * 1024L
 private const val ProtectedAudioCacheQueueWindow = 11
