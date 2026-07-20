@@ -30,6 +30,28 @@ suspend fun radioSeedResult(
         RadioSeedResult.Failed(error)
     }
 
+fun applyRadioSeedResult(
+    result: RadioSeedResult,
+    missingStatus: String,
+    failureStatus: String,
+    startWithSeed: (Track) -> Unit,
+    setStatus: (String) -> Unit,
+): Boolean =
+    when (result) {
+        is RadioSeedResult.Ready -> {
+            startWithSeed(result.seedTrack)
+            true
+        }
+        RadioSeedResult.Missing -> {
+            setStatus(missingStatus)
+            false
+        }
+        is RadioSeedResult.Failed -> {
+            setStatus(result.error.message ?: failureStatus)
+            false
+        }
+    }
+
 suspend fun selectArtistRadioSeedTrack(
     artist: Artist,
     sourceId: String?,

@@ -105,6 +105,39 @@ class RadioSeedsTest {
         assertEquals(error, failed.error)
     }
 
+    @Test
+    fun seedResultStartsReadySeedAndReportsMissingOrFailure() {
+        val seed = track("seed")
+        val calls = mutableListOf<String>()
+
+        val readyApplied = applyRadioSeedResult(
+            result = RadioSeedResult.Ready(seed),
+            missingStatus = "Missing",
+            failureStatus = "Failed",
+            startWithSeed = { calls += "seed:${it.id.value}" },
+            setStatus = { calls += "status:$it" },
+        )
+        val missingApplied = applyRadioSeedResult(
+            result = RadioSeedResult.Missing,
+            missingStatus = "Missing",
+            failureStatus = "Failed",
+            startWithSeed = { calls += "unexpected" },
+            setStatus = { calls += "status:$it" },
+        )
+        val failedApplied = applyRadioSeedResult(
+            result = RadioSeedResult.Failed(IllegalStateException("Provider failed")),
+            missingStatus = "Missing",
+            failureStatus = "Failed",
+            startWithSeed = { calls += "unexpected" },
+            setStatus = { calls += "status:$it" },
+        )
+
+        assertEquals(true, readyApplied)
+        assertEquals(false, missingApplied)
+        assertEquals(false, failedApplied)
+        assertEquals(listOf("seed:seed", "status:Missing", "status:Provider failed"), calls)
+    }
+
     private fun artist(): Artist =
         Artist(id = ArtistId("artist-1"), name = "New Order")
 
