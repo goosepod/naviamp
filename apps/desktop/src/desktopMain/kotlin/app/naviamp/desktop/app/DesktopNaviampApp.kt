@@ -124,6 +124,9 @@ import app.naviamp.ui.SharedArtistMixBuilderActions
 import app.naviamp.ui.SharedGenreMixBuilderActions
 import app.naviamp.ui.SharedSonicMixBuilderActions
 import app.naviamp.ui.SharedSonicPathBuilderActions
+import app.naviamp.ui.SharedDetailActionSources
+import app.naviamp.ui.SharedInternetRadioActionSources
+import app.naviamp.ui.SharedPlaylistActionSources
 import app.naviamp.ui.NaviampSleepTimerExpiryEffect
 import app.naviamp.ui.NowPlayingDisplayAction
 import app.naviamp.ui.NowPlayingDisplayActionRequest
@@ -1822,16 +1825,16 @@ fun NaviampApp(
                                 status = internetRadioController.status ?: connectionPageStatus,
                             ),
                         )
-                        val playlistActionSources = DesktopPlaylistActionSources(
+                        val playlistActionSources = SharedPlaylistActionSources(
                             playlists = playlistsController.playlists,
                             playlistTracksById = playlistsController.playlistTracksById,
                             selectedPlaylist = playlistsController.selectedPlaylist,
                             selectedPlaylistTracks = playlistsController.selectedPlaylistTracks,
                         )
-                        val internetRadioActionSources = DesktopInternetRadioActionSources(
+                        val internetRadioActionSources = SharedInternetRadioActionSources(
                             stations = internetRadioController.stations,
                         )
-                        val detailActionSources = DesktopDetailActionSources(
+                        val detailActionSources = SharedDetailActionSources(
                             selectedAlbum = albumController.selectedAlbum,
                             albumDetail = albumController.selectedAlbumDetails,
                             selectedArtist = artistController.selectedArtist,

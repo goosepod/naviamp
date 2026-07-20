@@ -1,4 +1,4 @@
-package app.naviamp.desktop
+package app.naviamp.ui
 
 import app.naviamp.domain.Album
 import app.naviamp.domain.AlbumId
@@ -12,70 +12,11 @@ import app.naviamp.domain.Track
 import app.naviamp.domain.TrackId
 import app.naviamp.domain.popular.SimilarArtistCandidate
 import app.naviamp.domain.popular.SimilarArtistMatch
-import app.naviamp.ui.SharedMediaItemAction
-import app.naviamp.ui.SharedMediaItemActionRequest
-import app.naviamp.ui.SharedMediaItemKind
-import app.naviamp.ui.SharedMediaItemUi
-import app.naviamp.ui.NaviampInternetRadioStationEditUi
-import app.naviamp.ui.SharedTrackRowAction
-import app.naviamp.ui.SharedTrackRowActionRequest
-import app.naviamp.ui.SharedTrackRowUi
-import app.naviamp.ui.SharedSimilarArtistUi
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
 
-class DesktopSharedContentActionsTest {
-    @Test
-    fun mediaActionsResolveByKindAndSharedId() {
-        val artist = Artist(ArtistId("shared-id"), "Artist")
-        val album = Album(
-            id = AlbumId("shared-id"),
-            title = "Album",
-            artistName = artist.name,
-            coverArtId = null,
-            recentlyAddedAtIso8601 = null,
-        )
-        var resolvedArtist: Artist? = null
-        var resolvedAlbum: Album? = null
-
-        resolveDesktopMediaItemAction(
-            request = SharedMediaItemActionRequest(
-                item = SharedMediaItemUi("shared-id", "Artist", "Artist"),
-                action = SharedMediaItemAction.Select,
-                kind = SharedMediaItemKind.Artist,
-            ),
-            artists = listOf(artist),
-            albums = listOf(album),
-            onArtistAction = { _, selected -> resolvedArtist = selected },
-            onAlbumAction = { _, selected -> resolvedAlbum = selected },
-        )
-
-        assertEquals(artist, resolvedArtist)
-        assertNull(resolvedAlbum)
-    }
-
-    @Test
-    fun trackActionsPreserveTheDomainResultIndex() {
-        val tracks = listOf(track("first"), track("target"), track("last"))
-        var resolvedIndex: Int? = null
-        var resolvedTrack: Track? = null
-
-        resolveDesktopTrackAction(
-            request = SharedTrackRowActionRequest(
-                track = SharedTrackRowUi("target", "Target", "Artist"),
-                action = SharedTrackRowAction.Select,
-            ),
-            tracks = tracks,
-        ) { _, index, selected ->
-            resolvedIndex = index
-            resolvedTrack = selected
-        }
-
-        assertEquals(1, resolvedIndex)
-        assertEquals(tracks[1], resolvedTrack)
-    }
-
+class SharedActionSourcesTest {
     @Test
     fun detailActionSourcesResolveSharedIdsWithoutLeakingDomainModelsToPanels() {
         val selectedAlbum = album("selected")
@@ -95,7 +36,7 @@ class DesktopSharedContentActionsTest {
             ),
             matchedArtist = similarArtist,
         )
-        val sources = DesktopDetailActionSources(
+        val sources = SharedDetailActionSources(
             selectedAlbum = selectedAlbum,
             albumDetail = AlbumDetails(detailAlbum, detailTracks),
             selectedArtist = selectedArtist,
@@ -127,7 +68,7 @@ class DesktopSharedContentActionsTest {
     fun playlistActionSourcesPreserveTrackOrderAndRejectStaleRows() {
         val playlist = Playlist("playlist", "Playlist", trackCount = 3)
         val tracks = listOf(track("first"), track("second"), track("third"))
-        val sources = DesktopPlaylistActionSources(
+        val sources = SharedPlaylistActionSources(
             playlists = listOf(playlist),
             playlistTracksById = mapOf(playlist.id to tracks),
             selectedPlaylist = playlist,
@@ -150,7 +91,7 @@ class DesktopSharedContentActionsTest {
             name = "Station",
             streamUrl = "https://example.test/live",
         )
-        val sources = DesktopInternetRadioActionSources(listOf(station))
+        val sources = SharedInternetRadioActionSources(listOf(station))
 
         assertEquals(station, sources.station("station-1"))
         assertNull(sources.station("stale-station"))
