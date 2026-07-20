@@ -76,6 +76,30 @@ class NaviampPlaybackSessionControllerTest {
     }
 
     @Test
+    fun queueSaveMapsAndPersistsThroughTheSharedOwner() {
+        val current = track("current")
+        val next = track("next")
+        val queue = PlaybackQueue(
+            tracks = listOf(current, next),
+            currentIndex = 0,
+            playNextCount = 1,
+        )
+        val repository = RecordingPlaybackSessionRepository()
+        val controller = NaviampPlaybackSessionController(repository)
+
+        val session = controller.saveQueue(
+            playbackQueue = queue,
+            positionSeconds = 37.0,
+            sourceId = "source",
+        )
+
+        assertEquals(session, repository.sessions["source"])
+        assertEquals(37.0, session?.positionSeconds)
+        assertEquals(1, session?.playNextCount)
+        assertEquals(current.id, session?.currentTrack()?.id)
+    }
+
+    @Test
     fun positionSaveUsesPersistedPositionAndRemembersSuccessfulUpdates() {
         val current = track("one")
         val queue = PlaybackQueue(listOf(current), currentIndex = 0)

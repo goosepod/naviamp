@@ -31,7 +31,6 @@ import app.naviamp.domain.provider.MediaProvider
 import app.naviamp.domain.queue.PlaybackQueue
 import app.naviamp.domain.queue.RepeatMode
 import app.naviamp.domain.settings.UpNextSelectionBehavior
-import app.naviamp.domain.settings.playbackSessionFromQueue
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -88,7 +87,7 @@ class DesktopPlaybackController(
         queue: PlaybackQueue,
         positionSeconds: Double? = playbackProgress().positionSeconds,
     ) {
-        playbackSessions.save(playbackSessionFromQueue(queue, positionSeconds))
+        playbackSessions.saveQueue(queue, positionSeconds)
     }
 
     fun clearShuffleSnapshot() {

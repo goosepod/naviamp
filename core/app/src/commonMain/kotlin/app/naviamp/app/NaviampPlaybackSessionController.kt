@@ -10,6 +10,7 @@ import app.naviamp.domain.settings.PlaybackSessionSavePlan
 import app.naviamp.domain.settings.PlaybackSessionSettings
 import app.naviamp.domain.settings.planPlaybackSessionRestore
 import app.naviamp.domain.settings.planPlaybackSessionSave
+import app.naviamp.domain.settings.playbackSessionFromQueue
 import app.naviamp.domain.settings.shouldThrottlePlaybackSessionSave
 
 data class NaviampPlaybackSessionSaveRequest(
@@ -104,6 +105,15 @@ class NaviampPlaybackSessionController(
         repository.savePlaybackSession(session, sourceId)
         rememberSavedPosition(sourceId, session)
     }
+
+    fun saveQueue(
+        playbackQueue: PlaybackQueue,
+        positionSeconds: Double?,
+        sourceId: String? = null,
+    ): PlaybackSessionSettings? =
+        playbackSessionFromQueue(playbackQueue, positionSeconds).also { session ->
+            save(session, sourceId)
+        }
 
     fun clear(sourceId: String? = null) {
         save(session = null, sourceId = sourceId)
