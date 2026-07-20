@@ -352,6 +352,8 @@ class DesktopBassPlaybackEngine(
     override fun stop() {
         freePreparedStream()
         stopActiveStream()
+        currentOnProgressChanged?.invoke(PlaybackProgress.Unknown)
+        onStateChanged?.invoke(PlaybackState.Stopped)
         onStateChanged = null
         currentScope = null
         currentRequest = null
