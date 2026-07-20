@@ -50,6 +50,23 @@ class NaviampLivePlaybackControllerTest {
         assertEquals(restored, controller.state.value)
     }
 
+    @Test
+    fun queueChangePublishesBeforePersistence() {
+        val track = track("queued")
+        val queue = PlaybackQueue(listOf(track), currentIndex = 0)
+        val controller = NaviampLivePlaybackController()
+        var persistedQueue: PlaybackQueue? = null
+        var publishedQueueAtPersistence: PlaybackQueue? = null
+
+        controller.applyQueueChange(queue, positionSeconds = 17.0) { savedQueue, _ ->
+            persistedQueue = savedQueue
+            publishedQueueAtPersistence = controller.state.value.queue
+        }
+
+        assertEquals(queue, persistedQueue)
+        assertEquals(queue, publishedQueueAtPersistence)
+    }
+
     private fun track(id: String) = Track(
         id = TrackId(id),
         title = "Track $id",

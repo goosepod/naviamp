@@ -42,6 +42,15 @@ class NaviampLivePlaybackController(
 
     fun updateQueue(queue: PlaybackQueue) = update { current -> current.copy(queue = queue) }
 
+    fun applyQueueChange(
+        queue: PlaybackQueue,
+        positionSeconds: Double?,
+        persist: (PlaybackQueue, Double?) -> Unit,
+    ) {
+        updateQueue(queue)
+        persist(queue, positionSeconds)
+    }
+
     fun updateProgress(progress: PlaybackProgress) = update { current -> current.copy(progress = progress) }
 
     fun updatePendingSeek(

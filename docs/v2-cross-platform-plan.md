@@ -527,8 +527,8 @@ The 2026-07-17 audit covers every current application entry point:
 
 ## Current Handoff
 
-- **Last completed item:** The radio construction audit made recent-radio settings and coordination stable owners of the Android foreground-service lifetime instead of rebuilding them per stream. Desktop, Android UI, and Android service radio controllers remain separate only where their native executors and lifetimes differ.
-- **Next recommended item:** Continue the playlist callback audit at queue and playback-state application, then return to the larger Desktop radio and Internet Radio classes for delete-first product-policy extraction.
+- **Last completed item:** Queue callback application now belongs to `NaviampLivePlaybackController`: the shared queue is published before the host persistence adapter runs. Desktop no longer independently sequences its observable queue and saved playback session.
+- **Next recommended item:** Move playback-state publication and reporting through the same shared live-playback boundary, then return to the larger Desktop radio and Internet Radio classes for delete-first product-policy extraction.
 - **Verification:** On 2026-07-20, `:core:ui:jvmTest`, `:apps:desktop:desktopTest`, `:apps:android:compileDebugKotlin`, and `:core:ui:compileKotlinIosSimulatorArm64` passed after moving route-product composition into common UI. Desktop smoke testing then exposed infinite-height constraints where Downloads and playlist details were nested inside the route wrapper's vertical scroll even though both screens own scrolling, plus an unscrollable connection form because Settings does not own scrolling. The wrapper now adds scrolling only for Search, Playlists, Internet Radio, and Settings, with JVM regression coverage for the route policy.
 - **Known blockers:** None.
 

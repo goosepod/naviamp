@@ -1,5 +1,6 @@
 package app.naviamp.desktop.playback
 
+import app.naviamp.app.NaviampLivePlaybackController
 import app.naviamp.desktop.DesktopSystemClock
 
 import app.naviamp.domain.app.NaviampRoute
@@ -44,7 +45,7 @@ fun desktopPlaylistCallbacks(
     clearShuffleSnapshot: () -> Unit,
     refillRadioIfNeeded: (PlaybackQueue) -> Unit,
     activeQueue: () -> PlaybackQueue,
-    setPlaybackQueue: (PlaybackQueue) -> Unit,
+    livePlayback: NaviampLivePlaybackController,
     savePlaybackSession: (PlaybackQueue, Double?) -> Unit,
     playbackProgress: () -> PlaybackProgress,
     setPlaybackProgress: (PlaybackProgress) -> Unit,
@@ -95,8 +96,11 @@ fun desktopPlaylistCallbacks(
             )
         },
         onQueueChanged = { queue ->
-            setPlaybackQueue(queue)
-            savePlaybackSession(queue, playbackProgress().positionSeconds)
+            livePlayback.applyQueueChange(
+                queue = queue,
+                positionSeconds = playbackProgress().positionSeconds,
+                persist = savePlaybackSession,
+            )
         },
         onPlaybackStateChanged = { state ->
             setPlaybackState(state)

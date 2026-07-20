@@ -668,7 +668,7 @@ fun NaviampApp(
         clearShuffleSnapshot = playbackController::clearShuffleSnapshot,
         refillRadioIfNeeded = radioController::refillIfNeeded,
         activeQueue = { playlistEngine.queue },
-        setPlaybackQueue = { queue -> playbackQueue = queue },
+        livePlayback = applicationControllers.playback,
         savePlaybackSession = playbackController::savePlaybackSession,
         playbackProgress = { playbackProgress },
         setPlaybackProgress = { progress -> playbackProgress = progress },
