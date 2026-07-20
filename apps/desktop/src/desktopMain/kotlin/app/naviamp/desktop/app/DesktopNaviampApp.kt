@@ -31,6 +31,7 @@ import app.naviamp.app.NaviampApplicationStatusArea
 import app.naviamp.app.NaviampApplicationStatusLevel
 import app.naviamp.app.NaviampLivePlaybackState
 import app.naviamp.app.NaviampPlaybackSessionController
+import app.naviamp.app.NaviampRecentRadioStreamController
 import app.naviamp.domain.app.NaviampNavigationState
 import app.naviamp.domain.cache.ImageCacheRepository
 import app.naviamp.domain.cache.DownloadJob
@@ -450,15 +451,17 @@ fun NaviampApp(
         )
     }
 
-    fun rememberRadioStream(stream: RecentRadioStream) {
-        rememberDesktopRadioStream(
-            stream = stream,
-            recentRadioStreams = recentRadioStreams,
-            setRecentRadioStreams = { streams -> recentRadioStreams = streams },
-            saveRecentRadioStreams = settingsSyncHost::saveRecentRadioStreams,
-            homeContent = homeContent,
-            setHomeContent = { content -> homeContent = content },
+    val recentRadioStreamController = remember(settingsStore, settingsSyncHost) {
+        NaviampRecentRadioStreamController(
+            load = settingsStore::loadRecentRadioStreams,
+            save = settingsSyncHost::saveRecentRadioStreams,
         )
+    }
+
+    fun rememberRadioStream(stream: RecentRadioStream) {
+        val updatedStreams = recentRadioStreamController.remember(stream)
+        recentRadioStreams = updatedStreams
+        homeContent = homeContent.copy(recentRadioStreams = updatedStreams)
     }
 
 

@@ -37,6 +37,7 @@ import app.naviamp.android.markAndroidSettingsSyncChangedAndAutoExport
 import app.naviamp.android.resolveInternetRadioStreamUrl
 import app.naviamp.android.withAndroidPendingActions
 import app.naviamp.app.NaviampProviderActionController
+import app.naviamp.app.NaviampRecentRadioStreamController
 import app.naviamp.domain.Album
 import app.naviamp.domain.AlbumId
 import app.naviamp.domain.Artist
@@ -61,7 +62,6 @@ import app.naviamp.domain.radio.RadioService
 import app.naviamp.domain.radio.InternetRadioRecentStationApplier
 import app.naviamp.domain.radio.applyRememberInternetRadioStation
 import app.naviamp.domain.radio.planRememberInternetRadioStation
-import app.naviamp.domain.radio.recentRadioStreamsWith
 import app.naviamp.domain.radio.withRadioCoverArtIds
 import app.naviamp.domain.settings.PlaybackSessionSettings
 import app.naviamp.domain.settings.RecentRadioKind
@@ -1615,14 +1615,17 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
 
     private fun rememberRecentRadioStream(stream: RecentRadioStream) {
         val settingsStore = AndroidSettingsStore(applicationContext)
-        settingsStore.saveRecentRadioStreams(
-            recentRadioStreamsWith(settingsStore.loadRecentRadioStreams(), stream),
-        )
-        markAndroidSettingsSyncChangedAndAutoExport(
-            context = applicationContext,
-            settingsStore = settingsStore,
-            storage = serviceStorage,
-        )
+        NaviampRecentRadioStreamController(
+            load = settingsStore::loadRecentRadioStreams,
+            save = settingsStore::saveRecentRadioStreams,
+            onChanged = {
+                markAndroidSettingsSyncChangedAndAutoExport(
+                    context = applicationContext,
+                    settingsStore = settingsStore,
+                    storage = serviceStorage,
+                )
+            },
+        ).remember(stream)
     }
 
     private fun rememberRecentInternetRadioStation(station: InternetRadioStation) {

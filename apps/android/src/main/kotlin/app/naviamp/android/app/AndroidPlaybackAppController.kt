@@ -9,6 +9,7 @@ import app.naviamp.app.NaviampPlaybackQueueCoordinator
 import app.naviamp.app.NaviampPlaybackCommandController
 import app.naviamp.app.NaviampPlaybackExecution
 import app.naviamp.app.NaviampPlaybackSeekRequest
+import app.naviamp.app.NaviampRecentRadioStreamController
 import app.naviamp.domain.Album
 import app.naviamp.domain.InternetRadioStation
 import app.naviamp.domain.StreamQuality
@@ -23,7 +24,6 @@ import app.naviamp.domain.playback.PlaybackSource
 import app.naviamp.domain.playback.PlaybackState
 import app.naviamp.domain.playback.PlaybackVolumeCommand
 import app.naviamp.domain.queue.PlaybackQueue
-import app.naviamp.domain.radio.recentRadioStreamsWith
 import app.naviamp.domain.settings.RecentRadioStream
 import app.naviamp.domain.sonicautoplay.SonicAutoplayService
 import kotlinx.coroutines.CoroutineScope
@@ -52,6 +52,11 @@ internal class AndroidPlaybackAppController(
     private val playbackCommands = NaviampPlaybackCommandController(
         execution = this,
         playback = state.sharedLivePlaybackController,
+    )
+    private val recentRadioStreams = NaviampRecentRadioStreamController(
+        load = settingsStore::loadRecentRadioStreams,
+        save = settingsStore::saveRecentRadioStreams,
+        onChanged = onSyncedSettingsChanged,
     )
 
     fun handlePlaybackProgressChanged(sessionToken: Long, progress: PlaybackProgress) {
@@ -281,10 +286,7 @@ internal class AndroidPlaybackAppController(
     }
 
     fun rememberRecentRadioStream(stream: RecentRadioStream) {
-        val recentStreams = recentRadioStreamsWith(settingsStore.loadRecentRadioStreams(), stream)
-        settingsStore.saveRecentRadioStreams(recentStreams)
-        state.homeState = state.homeState.copy(recentRadioStreams = recentStreams)
-        onSyncedSettingsChanged()
+        state.homeState = state.homeState.copy(recentRadioStreams = recentRadioStreams.remember(stream))
     }
 
     fun startTrackRadio(track: Track) {
