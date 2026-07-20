@@ -8,7 +8,6 @@ import app.naviamp.app.NaviampClock
 import app.naviamp.app.NaviampPlaybackSessionController
 import app.naviamp.app.NaviampPlaybackExecution
 import app.naviamp.app.NaviampPlatformServices
-import app.naviamp.app.NaviampRuntimeErrorReporter
 import app.naviamp.domain.app.PlatformCapabilities
 import app.naviamp.domain.app.PlatformCapability
 import app.naviamp.domain.app.PlatformCapabilityStatus
@@ -52,10 +51,7 @@ internal fun desktopApplicationRuntime(
         playbackExecution = playbackExecution,
         clock = DesktopSystemClock,
         connectivity = DesktopConnectivityMonitor(),
-        errorReporter = NaviampRuntimeErrorReporter { error, cause ->
-            System.err.println("Naviamp runtime ${error.operation}: ${error.message}")
-            cause?.printStackTrace(System.err)
-        },
+        errorReporter = DesktopRuntimeErrorReporter(),
     ),
     controllers = controllers,
 )
