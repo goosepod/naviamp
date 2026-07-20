@@ -877,43 +877,10 @@ private fun ConnectedContent(
             valueActions = valueActions,
             maintenanceActions = maintenanceActions,
         )
-        selectedAlbumDetail != null -> AlbumDetailContent(
+        selectedAlbumDetail != null -> NaviampAlbumDetailContent(
             colors = colors,
-            detail = selectedAlbumDetail,
-            onBack = albumDetailActions.onBack,
-            onPlayAlbum = { albumDetailActions.onPlay(selectedAlbumDetail, false) },
-            onShuffleAlbum = { albumDetailActions.onPlay(selectedAlbumDetail, true) },
-            onAlbumRadio = { albumDetailActions.onRadio(selectedAlbumDetail) },
-            onAlbumDownload = { albumDetailActions.onDownload(selectedAlbumDetail) },
-            onAlbumAddToQueue = { albumDetailActions.onAddToQueue(selectedAlbumDetail) },
-            onAlbumAddToPlaylist = { playlist -> albumDetailActions.onAddToPlaylist(selectedAlbumDetail, playlist) },
-            onAlbumCreatePlaylistAndAdd = { name -> albumDetailActions.onCreatePlaylistAndAdd(selectedAlbumDetail, name) },
-            onAlbumFavoriteToggled = { albumDetailActions.onFavoriteToggled(selectedAlbumDetail.album) },
-            onTrackSelected = albumDetailActions.onTrackSelected,
-            onTrackAddToQueue = { track ->
-                albumDetailActions.onTrackAction(SharedTrackRowActionRequest(track, SharedTrackRowAction.AddToQueue))
-            },
-            onTrackDownload = { track ->
-                albumDetailActions.onTrackAction(SharedTrackRowActionRequest(track, SharedTrackRowAction.Download))
-            },
-            onTrackAddToPlaylist = { track, playlist ->
-                albumDetailActions.onTrackAction(
-                    SharedTrackRowActionRequest(
-                        track = track,
-                        action = SharedTrackRowAction.AddToPlaylist,
-                        playlistChoice = playlist,
-                    ),
-                )
-            },
-            onTrackCreatePlaylistAndAdd = { track, name ->
-                albumDetailActions.onTrackAction(
-                    SharedTrackRowActionRequest(
-                        track = track,
-                        action = SharedTrackRowAction.CreatePlaylistAndAdd,
-                        playlistName = name,
-                    ),
-                )
-            },
+            screen = NaviampAlbumDetailScreenUi(detail = selectedAlbumDetail),
+            actions = albumDetailActions,
             playlistChoices = playlistChoices,
             playlistActionStatus = playlists.status,
         )
@@ -1246,6 +1213,48 @@ private fun PullToRefreshRoute(
 }
 
 @Composable
+fun NaviampAlbumDetailContent(
+    colors: NaviampColors,
+    screen: NaviampAlbumDetailScreenUi,
+    actions: NaviampAlbumDetailActions,
+    playlistChoices: List<NaviampPlaylistChoiceUi> = emptyList(),
+    playlistActionStatus: String? = null,
+) {
+    val detail = screen.detail
+    if (detail == null) {
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxSize()) {
+            IconButton(onClick = actions.onBack, modifier = Modifier.size(36.dp)) {
+                Icon(NaviampIcons.Back, contentDescription = "Back", tint = colors.primaryText)
+            }
+            Text(
+                screen.selectedAlbum?.title ?: "Album",
+                color = colors.primaryText,
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Bold,
+            )
+            screen.status?.let { Text(it, color = colors.secondaryText) }
+        }
+        return
+    }
+    AlbumDetailContent(
+        colors = colors,
+        detail = detail,
+        onBack = actions.onBack,
+        onPlayAlbum = { actions.onPlay(detail, false) },
+        onShuffleAlbum = { actions.onPlay(detail, true) },
+        onAlbumRadio = { actions.onRadio(detail) },
+        onAlbumDownload = { actions.onDownload(detail) },
+        onAlbumAddToQueue = { actions.onAddToQueue(detail) },
+        onAlbumAddToPlaylist = { playlist -> actions.onAddToPlaylist(detail, playlist) },
+        onAlbumCreatePlaylistAndAdd = { name -> actions.onCreatePlaylistAndAdd(detail, name) },
+        onAlbumFavoriteToggled = { actions.onFavoriteToggled(detail.album) },
+        onTrackAction = actions.onTrackAction,
+        playlistChoices = playlistChoices,
+        playlistActionStatus = playlistActionStatus,
+    )
+}
+
+@Composable
 private fun AlbumDetailContent(
     colors: NaviampColors,
     detail: SharedAlbumDetailUi,
@@ -1258,11 +1267,7 @@ private fun AlbumDetailContent(
     onAlbumAddToPlaylist: (NaviampPlaylistChoiceUi?) -> Unit,
     onAlbumCreatePlaylistAndAdd: (String) -> Unit,
     onAlbumFavoriteToggled: () -> Unit,
-    onTrackSelected: (SharedTrackRowUi) -> Unit,
-    onTrackAddToQueue: (SharedTrackRowUi) -> Unit,
-    onTrackDownload: (SharedTrackRowUi) -> Unit,
-    onTrackAddToPlaylist: (SharedTrackRowUi, NaviampPlaylistChoiceUi?) -> Unit,
-    onTrackCreatePlaylistAndAdd: (SharedTrackRowUi, String) -> Unit,
+    onTrackAction: (SharedTrackRowActionRequest) -> Unit,
     playlistChoices: List<NaviampPlaylistChoiceUi>,
     playlistActionStatus: String?,
 ) {
@@ -1270,18 +1275,11 @@ private fun AlbumDetailContent(
     var trackForPlaylist by remember(detail.album.id) { mutableStateOf<SharedTrackRowUi?>(null) }
     var albumImageOpen by remember(detail.album.id) { mutableStateOf(false) }
     val handleTrackAction: (SharedTrackRowActionRequest) -> Unit = { request ->
-        handleSharedTrackRowAction(
-            request,
-            SharedTrackRowActionHandlers(
-                onSelect = onTrackSelected,
-                onAddToQueue = onTrackAddToQueue,
-                onDownload = onTrackDownload,
-                onAddToPlaylist = { track, playlist ->
-                    if (playlist == null) trackForPlaylist = track else onTrackAddToPlaylist(track, playlist)
-                },
-                onCreatePlaylistAndAdd = onTrackCreatePlaylistAndAdd,
-            ),
-        )
+        if (request.action == SharedTrackRowAction.AddToPlaylist && request.playlistChoice == null) {
+            trackForPlaylist = request.track
+        } else {
+            onTrackAction(request)
+        }
     }
 
     Column(
@@ -1357,9 +1355,9 @@ private fun AlbumDetailContent(
                 TrackRow(
                     track.copy(meta = (index + 1).toString()),
                     colors,
-                    onTrackSelected,
-                    onAddToQueue = onTrackAddToQueue,
-                    onDownload = onTrackDownload,
+                    onTrackSelected = { handleTrackAction(SharedTrackRowActionRequest(it, SharedTrackRowAction.Select)) },
+                    onAddToQueue = { handleTrackAction(SharedTrackRowActionRequest(it, SharedTrackRowAction.AddToQueue)) },
+                    onDownload = { handleTrackAction(SharedTrackRowActionRequest(it, SharedTrackRowAction.Download)) },
                     onAddToPlaylist = { selectedTrack -> trackForPlaylist = selectedTrack },
                     onTrackAction = handleTrackAction,
                     reservePopularIndicatorSpace = reservePopularIndicatorSpace,
