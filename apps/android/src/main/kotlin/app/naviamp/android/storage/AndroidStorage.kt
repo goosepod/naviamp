@@ -11,9 +11,6 @@ import app.naviamp.domain.StreamQuality
 import app.naviamp.domain.Track
 import app.naviamp.domain.TrackId
 import app.naviamp.domain.cache.AudioCacheRepository
-import app.naviamp.domain.cache.AudioByteStore
-import app.naviamp.domain.cache.AudioByteStoreService
-import app.naviamp.domain.cache.AudioByteWriter
 import app.naviamp.domain.cache.AudioWaveformCacheRepository
 import app.naviamp.domain.cache.AudioWaveformStorageRepository
 import app.naviamp.domain.cache.CacheMaintenanceRepository
@@ -40,7 +37,6 @@ import app.naviamp.domain.cache.ProviderResponseCacheService
 import app.naviamp.domain.cache.ProviderResponseCacheRepository
 import app.naviamp.domain.cache.SidecarStatusRepository
 import app.naviamp.domain.cache.SidecarStatusService
-import app.naviamp.domain.cache.StoredAudioBytes
 import app.naviamp.domain.cache.StorageCacheStats
 import app.naviamp.domain.network.KtorSharedHttpClient
 import app.naviamp.domain.popular.ArtistPopularTrackCandidate
@@ -153,45 +149,34 @@ class AndroidStorage(
         ),
     )
 
-    var audioCacheDirectory: File = File(appContext.cacheDir, "audio-cache")
-        private set
-    var downloadDirectory: File = File(appContext.filesDir, "downloads")
-        private set
+    private val audioFiles = AndroidAudioFileServices(
+        initialAudioCacheDirectory = File(appContext.cacheDir, "audio-cache"),
+        initialDownloadDirectory = File(appContext.filesDir, "downloads"),
+        httpClient = httpClient,
+    )
+    val audioCacheDirectory: File
+        get() = audioFiles.audioCacheDirectory
+    val downloadDirectory: File
+        get() = audioFiles.downloadDirectory
     private var maxAudioCacheBytes: Long = 2L * 1024L * 1024L * 1024L
-    private val audioCacheByteStore = AndroidMutableAudioByteStore(audioCacheDirectory)
-    private val audioCacheByteStoreService = AudioByteStoreService(
-        store = audioCacheByteStore,
-        httpClient = httpClient,
-    )
-    private val downloadAudioByteStore = AndroidMutableAudioByteStore(downloadDirectory)
-    private val downloadAudioByteStoreService = AudioByteStoreService(
-        store = downloadAudioByteStore,
-        httpClient = httpClient,
-    )
     private val audioStore = AndroidAudioStore(
         queries = queries,
-        audioCacheByteStoreService = audioCacheByteStoreService,
-        downloadAudioByteStoreService = downloadAudioByteStoreService,
+        audioCacheByteStoreService = audioFiles.audioCacheByteStoreService,
+        downloadAudioByteStoreService = audioFiles.downloadAudioByteStoreService,
         nowMillis = ::nowMillis,
         maxAudioCacheBytes = maxAudioCacheBytes,
         protectedTrackIds = ::protectedCachedAudioTrackIds,
     )
-    private val fileTreeCleaner = AndroidFileTreeCleaner()
-
     override fun close() {
         driver.close()
     }
 
     fun updateDownloadDirectory(directory: File) {
-        directory.mkdirs()
-        downloadDirectory = directory
-        downloadAudioByteStore.updateDirectory(directory)
+        audioFiles.updateDownloadDirectory(directory)
     }
 
     fun updateAudioCacheDirectory(directory: File) {
-        directory.mkdirs()
-        audioCacheDirectory = directory
-        audioCacheByteStore.updateDirectory(directory)
+        audioFiles.updateAudioCacheDirectory(directory)
     }
 
     override fun latestMediaSource(): SavedMediaSource? =
@@ -666,12 +651,12 @@ class AndroidStorage(
 
     override fun clearCacheData() {
         maintenance.clearCacheDataRows()
-        fileTreeCleaner.clearDirectoryContents(audioCacheDirectory)
+        audioFiles.clearAudioCache()
     }
 
     override fun clearDownloadData() {
         maintenance.clearDownloadDataRows()
-        fileTreeCleaner.clearDirectoryContents(downloadDirectory)
+        audioFiles.clearDownloads()
     }
 
     override fun clearLibraryData(sourceId: String?) {
@@ -735,59 +720,6 @@ data class AndroidDownloadedTrack(
     val qualityKey: String,
     val downloadedAtEpochMillis: Long,
 )
-
-private fun StreamQuality.cacheKey(): String =
-    when (this) {
-        StreamQuality.Original -> "original"
-        is StreamQuality.Transcoded -> "transcoded:${codec.name.lowercase()}:$bitrateKbps"
-    }
-
-private fun moveDownloadedAudio(temp: File, target: File) {
-    if (!temp.renameTo(target)) {
-        temp.copyTo(target, overwrite = true)
-        temp.delete()
-    }
-}
-
-private class AndroidAudioByteStore(
-    private val directory: File,
-) : AudioByteStore {
-    override suspend fun writeAudioBytes(
-        fileName: String,
-        errorMessage: String,
-        writeBytes: suspend (AudioByteWriter) -> Boolean,
-    ): StoredAudioBytes {
-        directory.mkdirs()
-        val target = File(directory, fileName)
-        val temp = File(directory, "${target.name}.tmp")
-        return try {
-            temp.outputStream().use { output ->
-                val writer = AudioByteWriter { bytes, count -> output.write(bytes, 0, count) }
-                if (!writeBytes(writer)) throw IllegalStateException(errorMessage)
-            }
-            moveDownloadedAudio(temp, target)
-            StoredAudioBytes(
-                filePath = target.absolutePath,
-                sizeBytes = target.length(),
-            )
-        } catch (exception: Exception) {
-            temp.delete()
-            throw exception
-        }
-    }
-
-    override fun deleteAudioBytes(filePath: String) {
-        File(filePath).delete()
-    }
-}
-
-private class AndroidMutableAudioByteStore(initialDirectory: File) : AudioByteStore {
-    @Volatile private var store = AndroidAudioByteStore(initialDirectory)
-    fun updateDirectory(directory: File) { store = AndroidAudioByteStore(directory) }
-    override suspend fun writeAudioBytes(fileName: String, errorMessage: String, writeBytes: suspend (AudioByteWriter) -> Boolean): StoredAudioBytes =
-        store.writeAudioBytes(fileName, errorMessage, writeBytes)
-    override fun deleteAudioBytes(filePath: String) = store.deleteAudioBytes(filePath)
-}
 
 private fun nowMillis(): Long = System.currentTimeMillis()
 
