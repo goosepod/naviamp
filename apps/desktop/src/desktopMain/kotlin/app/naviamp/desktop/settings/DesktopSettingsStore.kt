@@ -7,6 +7,8 @@ import app.naviamp.domain.settings.normalized
 import app.naviamp.provider.navidrome.NavidromeConnection
 import app.naviamp.domain.cache.PlaybackSessionRepository
 import app.naviamp.provider.navidrome.NavidromeTlsSettings
+import app.naviamp.desktop.security.DesktopCredentialProtector
+import app.naviamp.storage.StorageCredentialProtector
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonObject
@@ -18,6 +20,7 @@ import kotlin.io.path.writeText
 
 class DesktopSettingsStore(
     private val settingsPath: Path = defaultSettingsPath(),
+    private val credentialProtector: StorageCredentialProtector = DesktopCredentialProtector(),
 ) : PlaybackSessionRepository {
     private val json = Json {
         ignoreUnknownKeys = true
@@ -146,6 +149,13 @@ class DesktopSettingsStore(
     }
 
     private fun loadSettings(): DesktopSettings {
+        val stored = loadStoredSettings()
+        val protected = stored.withProtectedCredentials(credentialProtector)
+        if (protected != stored) saveStoredSettings(protected)
+        return protected.withRevealedCredentials(credentialProtector)
+    }
+
+    private fun loadStoredSettings(): DesktopSettings {
         if (!settingsPath.exists()) return DesktopSettings()
         val text = settingsPath.readText()
 
@@ -163,6 +173,10 @@ class DesktopSettingsStore(
     }
 
     private fun saveSettings(settings: DesktopSettings) {
+        saveStoredSettings(settings.withProtectedCredentials(credentialProtector))
+    }
+
+    private fun saveStoredSettings(settings: DesktopSettings) {
         Files.createDirectories(settingsPath.parent)
         settingsPath.writeText(json.encodeToString(settings))
     }
@@ -242,6 +256,26 @@ data class SavedConnection(
             selectedMusicFolderIds = selectedMusicFolderIds,
         )
 }
+
+private fun DesktopSettings.withProtectedCredentials(
+    protector: StorageCredentialProtector,
+): DesktopSettings = copy(connection = connection?.transformCredentials(protector::protect))
+
+private fun DesktopSettings.withRevealedCredentials(
+    protector: StorageCredentialProtector,
+): DesktopSettings = copy(connection = connection?.transformCredentials(protector::reveal))
+
+private fun SavedConnection.transformCredentials(
+    transform: (String?) -> String?,
+): SavedConnection = copy(
+    token = transform(token).orEmpty(),
+    salt = transform(salt).orEmpty(),
+    nativeToken = transform(nativeToken),
+    clientCertificateKeyStorePassword = transform(clientCertificateKeyStorePassword),
+    customHeaders = customHeaders.map { header ->
+        if (header.valueIsSecret) header.copy(value = transform(header.value)) else header
+    },
+)
 
 private fun defaultSettingsPath(): Path {
     val os = System.getProperty("os.name").lowercase()

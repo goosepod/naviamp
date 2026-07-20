@@ -66,9 +66,11 @@ import app.naviamp.domain.waveform.AudioWaveformAnalyzer as DomainAudioWaveformA
 import app.naviamp.provider.navidrome.NavidromeConnection
 import app.naviamp.provider.navidrome.NavidromeProvider
 import app.naviamp.provider.navidrome.resolvedDisplayName
+import app.naviamp.desktop.security.DesktopCredentialProtector
 import app.naviamp.storage.NaviampStorageDatabase
 import app.naviamp.storage.StorageMediaSourceStore
 import app.naviamp.storage.StorageDatabaseLocation
+import app.naviamp.storage.StorageCredentialProtector
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.withContext
@@ -88,6 +90,7 @@ class DesktopCache(
     private val maxHotImageBytes: Long = 32L * 1024L * 1024L,
     private var audioCacheDirectory: Path = defaultAudioCacheDirectory(),
     private var downloadDirectory: Path = DesktopDownloadDirectories.defaultDirectory(),
+    credentialProtector: StorageCredentialProtector = DesktopCredentialProtector(),
 ) : ImageCacheRepository,
     ProviderResponseCacheRepository,
     AudioCacheRepository<CachedAudioFile, CachedAudioMetadata>,
@@ -123,6 +126,7 @@ class DesktopCache(
     private val mediaSources = StorageMediaSourceStore(
         queries = queries,
         nowMillis = ::nowMillis,
+        credentialProtector = credentialProtector,
     )
     private val libraryIndex = DesktopLibraryIndexStore(
         queries = queries,

@@ -148,7 +148,7 @@ Use explicit dependency construction unless a dependency-injection framework pro
   - [x] Use `StorageMediaSourceStore` for shared media-source SQL, mapping, and credential policy.
   - [x] Route settings-sync document access through the shared document-store boundary while retaining paths and native dialogs in Desktop.
   - [x] Supply shared connectivity snapshots through `DesktopConnectivityMonitor` and structured failures through `DesktopRuntimeErrorReporter`.
-  - [ ] Replace the deliberate Desktop pass-through credential protector with an OS-backed secure-storage adapter.
+  - [x] Replace the deliberate Desktop pass-through credential protector with an OS-backed secure-storage adapter. `DesktopCredentialProtector` encrypts persisted values with AES-256-GCM and keeps its random master key in macOS Keychain, Windows DPAPI-protected app data, or Linux Secret Service. Both `StorageMediaSourceStore` and the legacy Desktop settings connection mirror now use it, automatically migrating plaintext tokens, salts, native tokens, client-certificate passwords, and secret header values without changing the shared storage contract.
   - [ ] Complete the Desktop filesystem and HTTP ownership audit and add narrow platform contracts only where a shared owner actually consumes them.
 - [ ] Verify macOS, Windows, and Linux packaging assumptions remain valid.
 - [ ] Run Desktop tests and launch the macOS application for functional verification.
@@ -479,6 +479,7 @@ Record architecture decisions here or link a dedicated decision record.
 | 2026-07-20 | Reduce the Desktop composition root to composition and host effects. | Connection/capability presentation mapping and grouped settings actions moved into focused shell factories, reducing `DesktopNaviampApp` from 1,420 to 1,342 lines. Its remaining state bridges expose shared runtime/controller state to Compose; its effects execute provider, filesystem, persistence, BASS, dialog, window, and coroutine work owned by the host. The extraction adds a net 59 `desktopMain` production lines because it is a logical-boundary split rather than product-code removal, so it claims no thinning credit. |
 | 2026-07-20 | Close the final Desktop product-ownership audit. | No parallel Android/Desktop product policy remains in the audited Desktop entry point, controllers, or large adapters. The audit removed the now-unreferenced 272-line legacy Desktop media-row surface; remaining large files are composition/state adapters, BASS and native queue execution, provider/coroutine executors, SQLDelight/filesystem stores, or Desktop-only presentation. `desktopMain` is a net 4,408 production lines smaller than `main`. |
 | 2026-07-20 | Resolve application-update execution through host services. | Common UI now depends on the narrow `NaviampApplicationUpdateChecker` capability and retains release parsing, version comparison, polling, and dialog presentation without constructing HTTP. Android and Desktop each inject a host-created HTTP checker; Desktop now receives the same capability-gated update dialog behavior that Android already exposed. JVM updater tests plus Desktop, Android, and iOS compilation passed. |
+| 2026-07-20 | Protect Desktop credentials with operating-system secure storage. | A Desktop AES-256-GCM protector now stores its random master key in macOS Keychain, Windows DPAPI-protected app data, or Linux Secret Service. The SQLDelight media-source store and legacy settings connection mirror both use the protector and migrate plaintext tokens, salts, native tokens, client-certificate passwords, and secret headers. Focused crypto and settings-migration tests plus the full Desktop suite passed. |
 
 ### Desktop Route Boundary Audit
 
@@ -572,9 +573,9 @@ The 2026-07-17 audit covers every current application entry point:
 
 ## Current Handoff
 
-- **Last completed item:** Application-update execution now crosses a narrow injected capability. Android and Desktop construct their HTTP checker in host composition, common UI retains release/version policy and presentation without constructing network infrastructure, and Desktop now receives the same capability-gated update dialog behavior as Android.
-- **Next recommended item:** Replace the deliberate Desktop pass-through credential protector with an OS-backed secure-storage adapter.
-- **Verification:** On 2026-07-20, `:core:ui:jvmTest`, `:apps:desktop:compileKotlinDesktop`, `:apps:desktop:desktopTest`, `:apps:android:compileDebugKotlin`, and `:core:ui:compileKotlinIosSimulatorArm64` passed with the injected application-update checker. Earlier Desktop smoke testing also verified the corrected Downloads, playlist-detail, and connection-form scroll ownership.
+- **Last completed item:** Desktop credentials are encrypted through a host adapter backed by macOS Keychain, Windows DPAPI, or Linux Secret Service. Both SQLDelight media sources and the legacy settings connection mirror migrate and protect every persisted credential field.
+- **Next recommended item:** Complete the Desktop filesystem and HTTP ownership audit, adding contracts only where shared code consumes a genuinely platform-specific operation.
+- **Verification:** On 2026-07-20, focused Desktop credential crypto and settings migration tests passed as part of `:apps:desktop:desktopTest`, together with `:apps:desktop:compileKotlinDesktop`.
 - **Known blockers:** None.
 
 Milestone 3 now uses delete-first accounting: every product-behavior extraction must report its net `apps/desktop/src/desktopMain` line change, moving code between Desktop files does not count as thinning, and a new host adapter must delete at least as much Desktop production code as it adds unless it implements a genuinely OS-specific service.

@@ -9,11 +9,15 @@ import app.naviamp.domain.Track
 import app.naviamp.domain.TrackId
 import app.naviamp.provider.navidrome.NavidromeConnection
 import app.naviamp.provider.navidrome.NavidromeTlsSettings
+import app.naviamp.storage.PassthroughStorageCredentialProtector
+import app.naviamp.desktop.security.DesktopCredentialProtector
 import kotlin.io.path.createTempDirectory
 import kotlin.io.path.readText
 import kotlin.io.path.writeText
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import javax.crypto.spec.SecretKeySpec
 import app.naviamp.domain.settings.InterfaceSettings
 import app.naviamp.domain.settings.AlbumCollectionLayout
 import app.naviamp.domain.settings.AlbumSortOrder
@@ -29,7 +33,7 @@ class DesktopSettingsStoreTest {
     @Test
     fun saveConnectionPersistsRotatedNativeToken() {
         val path = createTempDirectory().resolve("settings.json")
-        val store = DesktopSettingsStore(path)
+        val store = DesktopSettingsStore(path, PassthroughStorageCredentialProtector)
 
         store.saveConnection(
             NavidromeConnection(
@@ -47,7 +51,7 @@ class DesktopSettingsStoreTest {
     @Test
     fun saveInterfaceSettingsRoundTripsNowPlayingCustomization() {
         val path = createTempDirectory().resolve("settings.json")
-        val store = DesktopSettingsStore(path)
+        val store = DesktopSettingsStore(path, PassthroughStorageCredentialProtector)
         val expected = NowPlayingDisplaySettings(
             showAlbumYear = false,
             showAudioInfo = false,
@@ -73,7 +77,7 @@ class DesktopSettingsStoreTest {
     @Test
     fun saveInterfaceSettingsRoundTripsAlbumPresentation() {
         val path = createTempDirectory().resolve("settings.json")
-        val store = DesktopSettingsStore(path)
+        val store = DesktopSettingsStore(path, PassthroughStorageCredentialProtector)
 
         store.saveInterfaceSettings(
             InterfaceSettings(
@@ -91,7 +95,7 @@ class DesktopSettingsStoreTest {
     @Test
     fun saveInterfaceSettingsRoundTripsAppBackground() {
         val path = createTempDirectory().resolve("settings.json")
-        val store = DesktopSettingsStore(path)
+        val store = DesktopSettingsStore(path, PassthroughStorageCredentialProtector)
 
         store.saveInterfaceSettings(
             InterfaceSettings(
@@ -111,7 +115,7 @@ class DesktopSettingsStoreTest {
     @Test
     fun saveInterfaceSettingsRoundTripsTrackSwipeActions() {
         val path = createTempDirectory().resolve("settings.json")
-        val store = DesktopSettingsStore(path)
+        val store = DesktopSettingsStore(path, PassthroughStorageCredentialProtector)
         val expected = TrackSwipeSettings(
             libraryRight = TrackSwipeAction.AddToPlaylist,
             libraryLeft = TrackSwipeAction.ToggleFavorite,
@@ -142,7 +146,7 @@ class DesktopSettingsStoreTest {
             """.trimIndent(),
         )
 
-        val connection = DesktopSettingsStore(path).loadConnection()
+        val connection = DesktopSettingsStore(path, PassthroughStorageCredentialProtector).loadConnection()
 
         assertEquals("https://music.example.test", connection?.baseUrl)
         assertEquals("user", connection?.username)
@@ -151,9 +155,38 @@ class DesktopSettingsStoreTest {
     }
 
     @Test
+    fun loadConnectionMigratesLegacyCredentialsToEncryptedSettings() {
+        val path = createTempDirectory().resolve("settings.json")
+        path.writeText(
+            """
+            {
+              "baseUrl": "https://music.example.test",
+              "username": "user",
+              "token": "plain-token",
+              "salt": "plain-salt",
+              "nativeToken": "plain-native-token"
+            }
+            """.trimIndent(),
+        )
+        val protector = DesktopCredentialProtector {
+            SecretKeySpec(ByteArray(32) { index -> index.toByte() }, "AES")
+        }
+
+        val connection = DesktopSettingsStore(path, protector).loadConnection()
+
+        assertEquals("plain-token", connection?.token)
+        assertEquals("plain-salt", connection?.salt)
+        assertEquals("plain-native-token", connection?.nativeToken)
+        val migrated = path.readText()
+        assertFalse(migrated.contains("plain-token"))
+        assertFalse(migrated.contains("plain-salt"))
+        assertFalse(migrated.contains("plain-native-token"))
+    }
+
+    @Test
     fun saveConnectionPreservesPlaybackSettings() {
         val path = createTempDirectory().resolve("settings.json")
-        val store = DesktopSettingsStore(path)
+        val store = DesktopSettingsStore(path, PassthroughStorageCredentialProtector)
         store.savePlaybackSettings(
             PlaybackSettings(
                 replayGainMode = ReplayGainMode.Album,
@@ -186,7 +219,7 @@ class DesktopSettingsStoreTest {
     @Test
     fun saveConnectionRoundTripsTlsSettings() {
         val path = createTempDirectory().resolve("settings.json")
-        val store = DesktopSettingsStore(path)
+        val store = DesktopSettingsStore(path, PassthroughStorageCredentialProtector)
 
         store.saveConnection(
             NavidromeConnection(
@@ -213,7 +246,7 @@ class DesktopSettingsStoreTest {
     @Test
     fun savePlaybackSettingsWritesSettingsDocument() {
         val path = createTempDirectory().resolve("settings.json")
-        val store = DesktopSettingsStore(path)
+        val store = DesktopSettingsStore(path, PassthroughStorageCredentialProtector)
 
         store.savePlaybackSettings(
             PlaybackSettings(
@@ -248,7 +281,7 @@ class DesktopSettingsStoreTest {
     @Test
     fun saveSettingsSyncRoundTripsMetadata() {
         val path = createTempDirectory().resolve("settings.json")
-        val store = DesktopSettingsStore(path)
+        val store = DesktopSettingsStore(path, PassthroughStorageCredentialProtector)
 
         store.saveSettingsSync(
             DesktopSettingsSyncSettings(
@@ -269,7 +302,7 @@ class DesktopSettingsStoreTest {
     @Test
     fun saveWindowSettingsPreservesConnection() {
         val path = createTempDirectory().resolve("settings.json")
-        val store = DesktopSettingsStore(path)
+        val store = DesktopSettingsStore(path, PassthroughStorageCredentialProtector)
         store.saveConnection(
             NavidromeConnection(
                 baseUrl = "https://music.example.test",
@@ -289,7 +322,7 @@ class DesktopSettingsStoreTest {
     @Test
     fun savePlaybackSessionRoundTripsCurrentQueue() {
         val path = createTempDirectory().resolve("settings.json")
-        val store = DesktopSettingsStore(path)
+        val store = DesktopSettingsStore(path, PassthroughStorageCredentialProtector)
         val first = Track(
             id = TrackId("first"),
             title = "First Track",
@@ -339,7 +372,7 @@ class DesktopSettingsStoreTest {
     @Test
     fun savePlaybackSessionRoundTripsInternetRadioStation() {
         val path = createTempDirectory().resolve("settings.json")
-        val store = DesktopSettingsStore(path)
+        val store = DesktopSettingsStore(path, PassthroughStorageCredentialProtector)
 
         store.savePlaybackSession(
             PlaybackSessionSettings.fromInternetRadioStation(
@@ -361,7 +394,7 @@ class DesktopSettingsStoreTest {
     @Test
     fun saveNavigationSettingsPreservesPlaybackSession() {
         val path = createTempDirectory().resolve("settings.json")
-        val store = DesktopSettingsStore(path)
+        val store = DesktopSettingsStore(path, PassthroughStorageCredentialProtector)
         store.savePlaybackSettings(
             PlaybackSettings(
                 replayGainMode = ReplayGainMode.Track,
@@ -380,7 +413,7 @@ class DesktopSettingsStoreTest {
     @Test
     fun saveSearchSettingsPreservesNavigation() {
         val path = createTempDirectory().resolve("settings.json")
-        val store = DesktopSettingsStore(path)
+        val store = DesktopSettingsStore(path, PassthroughStorageCredentialProtector)
         store.saveNavigationSettings(NavigationSettings(route = "Search"))
 
         store.saveSearchSettings(SearchSettings(query = "new order"))
@@ -392,7 +425,7 @@ class DesktopSettingsStoreTest {
     @Test
     fun saveSettingsSyncPreservesConnectionAndNormalizesDirectory() {
         val path = createTempDirectory().resolve("settings.json")
-        val store = DesktopSettingsStore(path)
+        val store = DesktopSettingsStore(path, PassthroughStorageCredentialProtector)
         store.saveConnection(
             NavidromeConnection(
                 baseUrl = "https://music.example.test",
