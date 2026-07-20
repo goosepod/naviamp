@@ -12,7 +12,6 @@ import android.content.IntentFilter
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Color
-import android.graphics.drawable.Icon
 import android.media.AudioManager
 import android.net.Uri
 import android.os.Build
@@ -93,6 +92,24 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
     private var loadingNotificationCoverArtUrl: String? = null
     private var serviceSelectionJobs: AndroidAutoSelectionJobs? = null
     private val notificationArtHttpClient = KtorSharedHttpClient()
+    private val notificationFactory by lazy {
+        AndroidPlaybackNotificationFactory(
+            context = this,
+            channelId = ChannelId,
+            contentIntent = ::notificationContentIntent,
+            deleteIntent = ::stopPendingIntent,
+            actionIntent = ::notificationActionPendingIntent,
+            mediaSessionToken = {
+                ensureMediaSession().sessionToken.token as android.media.session.MediaSession.Token
+            },
+            publishMediaSession = ::updateMediaSession,
+            playerColor = PlayerNotificationColor,
+            previousAction = ActionPrevious,
+            playPauseAction = ActionPlayPause,
+            nextAction = ActionNext,
+            favoriteAction = ActionFavorite,
+        )
+    }
     private val serviceStorage: AndroidStorageDependencies
         get() = serviceStorageInstance ?: AndroidStorageDependencies(applicationContext).also { serviceStorageInstance = it }
     private val serviceProviderActions: NaviampProviderActionController by lazy {
@@ -345,7 +362,11 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
             currentLargeIcon = largeIcon
         }
         val coverArt = largeIcon ?: currentLargeIcon
-        val activityIntent = PendingIntent.getActivity(
+        return notificationFactory.build(metadata, coverArt)
+    }
+
+    private fun notificationContentIntent(): PendingIntent =
+        PendingIntent.getActivity(
             this,
             0,
             Intent(this, MainActivity::class.java)
@@ -353,61 +374,19 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
                 .addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP),
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
         )
-        val playPauseAction = if (AndroidPlaybackNotificationControls.isPlaying) {
-            notificationAction(ActionPlayPause, android.R.drawable.ic_media_pause, "Pause")
-        } else {
-            notificationAction(ActionPlayPause, android.R.drawable.ic_media_play, "Play")
-        }
-        val favoriteAction = if (AndroidPlaybackNotificationControls.isFavorite) {
-            notificationAction(ActionFavorite, R.drawable.ic_favorite_filled_24, "Unfavorite")
-        } else {
-            notificationAction(ActionFavorite, R.drawable.ic_favorite_24, "Favorite")
-        }
-        val notificationColor = coverArt?.dominantColor() ?: PlayerNotificationColor
-        updateMediaSession(metadata, coverArt)
-        return Notification.Builder(this, ChannelId)
-            .setContentTitle(metadata.title?.takeIf { it.isNotBlank() } ?: "Naviamp is playing")
-            .setContentText(metadata.subtitle?.takeIf { it.isNotBlank() } ?: "Audio playback is active")
-            .setSmallIcon(android.R.drawable.ic_media_play)
-            .setLargeIcon(coverArt)
-            .setContentIntent(activityIntent)
-            .setDeleteIntent(stopPendingIntent())
-            .addAction(notificationAction(ActionPrevious, android.R.drawable.ic_media_previous, "Previous"))
-            .addAction(playPauseAction)
-            .addAction(notificationAction(ActionNext, android.R.drawable.ic_media_next, "Next"))
-            .addAction(favoriteAction)
-            .setStyle(
-                Notification.MediaStyle()
-                    .setMediaSession(
-                        ensureMediaSession().sessionToken.token as android.media.session.MediaSession.Token,
-                    )
-                    .setShowActionsInCompactView(0, 1, 2),
-            )
-            .setColor(notificationColor)
-            .setColorized(true)
-            .setOngoing(true)
-            .setOnlyAlertOnce(true)
-            .setShowWhen(false)
-            .setVisibility(Notification.VISIBILITY_PUBLIC)
-            .build()
-    }
 
-    private fun notificationAction(action: String, icon: Int, title: String): Notification.Action =
-        Notification.Action.Builder(
-            Icon.createWithResource(this, icon),
-            title,
-            PendingIntent.getService(
-                this,
-                action.hashCode(),
-                Intent(this, AndroidPlaybackForegroundService::class.java)
-                    .setAction(action)
-                    .putExtra(ExtraCommandCapability, CommandCapability)
-                    .putExtra(ExtraTitle, currentMetadata.title)
-                    .putExtra(ExtraSubtitle, currentMetadata.subtitle)
-                    .putExtra(ExtraCoverArtUrl, currentMetadata.coverArtUrl),
-                PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
-            ),
-        ).build()
+    private fun notificationActionPendingIntent(action: String): PendingIntent =
+        PendingIntent.getService(
+            this,
+            action.hashCode(),
+            Intent(this, AndroidPlaybackForegroundService::class.java)
+                .setAction(action)
+                .putExtra(ExtraCommandCapability, CommandCapability)
+                .putExtra(ExtraTitle, currentMetadata.title)
+                .putExtra(ExtraSubtitle, currentMetadata.subtitle)
+                .putExtra(ExtraCoverArtUrl, currentMetadata.coverArtUrl),
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
+        )
 
     private fun stopPendingIntent(): PendingIntent =
         PendingIntent.getService(
@@ -2160,7 +2139,7 @@ private enum class ServiceRepeatMode {
     One,
 }
 
-private fun Bitmap.dominantColor(): Int {
+internal fun Bitmap.dominantNotificationColor(): Int {
     var red = 0L
     var green = 0L
     var blue = 0L
