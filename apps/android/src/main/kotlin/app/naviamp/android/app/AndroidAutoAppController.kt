@@ -1,7 +1,7 @@
 package app.naviamp.android
 
-import android.net.Uri
 import android.util.Log
+import app.naviamp.android.playback.AndroidAutoMediaIdParser
 import app.naviamp.android.playback.AndroidAutoPlaybackControls
 import app.naviamp.android.playback.AndroidPlaybackEngine
 import app.naviamp.android.playback.AndroidPlaybackNotificationControls
@@ -10,6 +10,7 @@ import app.naviamp.app.NaviampPlaybackExecution
 import app.naviamp.domain.InternetRadioStation
 import app.naviamp.domain.Track
 import app.naviamp.domain.TrackId
+import app.naviamp.domain.playback.CatalogPlaybackIntent
 import kotlinx.coroutines.CoroutineScope
 
 internal class AndroidAutoAppController(
@@ -138,9 +139,9 @@ internal class AndroidAutoAppController(
 
     fun playMediaId(mediaId: String): Boolean {
         val sourceId = state.activeSourceId
-        val handled = when {
-            mediaId == AndroidAutoPlaybackControls.MediaIdNowPlaying -> handlePlayPauseCommand()
-            mediaId == AndroidAutoPlaybackControls.MediaIdRadioLibrary -> {
+        val handled = when (val selection = AndroidAutoMediaIdParser.parse(mediaId)) {
+            CatalogPlaybackIntent.Resume -> handlePlayPauseCommand()
+            CatalogPlaybackIntent.LibraryRadio -> {
                 startAndroidRadioTracks(
                     scope = scope,
                     state = state,
@@ -151,9 +152,8 @@ internal class AndroidAutoAppController(
                 }
                 true
             }
-            mediaId.startsWith(AndroidAutoPlaybackControls.MediaIdTrackPrefix) && sourceId != null -> {
-                val trackId = Uri.decode(mediaId.removePrefix(AndroidAutoPlaybackControls.MediaIdTrackPrefix))
-                storage.libraryTrack(sourceId, TrackId(trackId))?.let { track ->
+            is CatalogPlaybackIntent.Track -> if (sourceId != null) {
+                storage.libraryTrack(sourceId, TrackId(selection.id))?.let { track ->
                     val queue = track.albumId?.let { storage.libraryTracksForAlbum(sourceId, it, 200) }
                         ?.takeIf { tracks -> tracks.any { it.id == track.id } }
                         ?: track.artistId?.let { storage.libraryTracksForArtist(sourceId, it, 200) }
@@ -164,10 +164,9 @@ internal class AndroidAutoAppController(
                     state.status = "Track is not available in the local library index."
                     false
                 }
-            }
-            mediaId.startsWith(AndroidAutoPlaybackControls.MediaIdDownloadPrefix) && sourceId != null -> {
-                val trackId = Uri.decode(mediaId.removePrefix(AndroidAutoPlaybackControls.MediaIdDownloadPrefix))
-                val download = storage.downloadedTracks(sourceId).firstOrNull { it.track.id.value == trackId }
+            } else false
+            is CatalogPlaybackIntent.Download -> if (sourceId != null) {
+                val download = storage.downloadedTracks(sourceId).firstOrNull { it.track.id.value == selection.trackId }
                 if (download != null) {
                     val queue = storage.downloadedTracks(sourceId).map { it.track }
                     playTrack(download.track, queue, false, null)
@@ -176,7 +175,7 @@ internal class AndroidAutoAppController(
                     state.status = "Downloaded track is not available."
                     false
                 }
-            }
+            } else false
             else -> {
                 state.status = "Open Naviamp on your phone before starting Android Auto playback."
                 false

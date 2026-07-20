@@ -25,6 +25,7 @@ import app.naviamp.domain.cache.ProviderResponseService
 import app.naviamp.domain.provider.AlbumListType
 import app.naviamp.domain.provider.ApiCatalogService
 import app.naviamp.domain.provider.MediaPageRequest
+import app.naviamp.domain.playback.queueBrowsePage
 import app.naviamp.provider.navidrome.NavidromeProvider
 import app.naviamp.provider.navidrome.toNavidromeConnection
 import app.naviamp.ui.defaultRadioArtworkUrl
@@ -532,37 +533,30 @@ internal class AndroidAutoBrowseController(
     private fun queuePageItems(page: Int): MutableList<MediaBrowserCompat.MediaItem> {
         val queue = currentQueue()
         if (queue.isEmpty()) return mutableListOf()
-        val startIndex = currentQueueIndex().takeIf { it in queue.indices } ?: 0
-        val ordered = queue.indices.map { offset ->
-            val index = (startIndex + offset) % queue.size
-            index to queue[index]
-        }
-        val pageSize = AndroidAutoQueuePageSize
-        val pageStart = (page * pageSize).coerceAtMost(ordered.lastIndex)
-        val pageItems = ordered.drop(pageStart).take(pageSize)
+        val plan = queueBrowsePage(queue.size, currentQueueIndex(), page, AndroidAutoQueuePageSize)
         return buildList {
-            if (ordered.size > pageStart + pageSize) {
+            plan.nextPage?.let { nextPage ->
                 add(
                     browsableItem(
-                        mediaId = "${AndroidAutoPlaybackControls.MediaIdQueuePagePrefix}${Uri.encode((page + 1).toString())}",
+                        mediaId = "${AndroidAutoPlaybackControls.MediaIdQueuePagePrefix}${Uri.encode(nextPage.toString())}",
                         title = "More queue",
-                        subtitle = "${pageStart + pageSize + 1}-${min(pageStart + pageSize * 2, ordered.size)} of ${ordered.size}",
+                        subtitle = "${plan.lastOrdinal + 1}-${(plan.lastOrdinal + AndroidAutoQueuePageSize).coerceAtMost(plan.totalItems)} of ${plan.totalItems}",
                     ),
                 )
             }
-            if (page > 0) {
+            plan.previousPage?.let { previousPage ->
                 add(
                     browsableItem(
-                        mediaId = "${AndroidAutoPlaybackControls.MediaIdQueuePagePrefix}${Uri.encode((page - 1).toString())}",
+                        mediaId = "${AndroidAutoPlaybackControls.MediaIdQueuePagePrefix}${Uri.encode(previousPage.toString())}",
                         title = "Previous queue",
-                        subtitle = "${(pageStart - pageSize + 1).coerceAtLeast(1)}-$pageStart of ${ordered.size}",
+                        subtitle = "${(plan.firstOrdinal - AndroidAutoQueuePageSize).coerceAtLeast(1)}-${plan.firstOrdinal - 1} of ${plan.totalItems}",
                     ),
                 )
             }
-            pageItems.forEach { (index, track) ->
+            plan.indexedItems.forEach { index ->
                 add(
                     trackItem(
-                        track = track,
+                        track = queue[index],
                         mediaId = "${AndroidAutoPlaybackControls.MediaIdQueueTrackPrefix}${Uri.encode(index.toString())}",
                     ),
                 )
@@ -813,7 +807,7 @@ internal class AndroidAutoBrowseController(
 
 private const val AndroidAutoBrowseLimit = 50
 private const val AndroidAutoQueuePageSize = 1
-private const val MediaIdPartSeparator = "|"
+internal const val MediaIdPartSeparator = "|"
 
 private fun Bundle.hasBrowsePagination(): Boolean =
     getInt(MediaBrowserCompat.EXTRA_PAGE, -1) >= 0 &&
