@@ -157,13 +157,42 @@ Use explicit dependency construction unless a dependency-injection framework pro
 
 ### Milestone 4: Convert Android to a Thin Host
 
-- [ ] Move remaining shared product behavior out of the Activity, Android app controller, and playback service.
-- [ ] Keep Activity lifecycle, foreground service, MediaSession, notifications, permissions, Android Auto, and storage selection in the Android host.
-- [ ] Adapt the Android BASS implementation to the shared playback contract.
-- [ ] Preserve service-owned playback when the UI process or Activity is recreated.
-- [ ] Adapt Android database, secret, filesystem, connectivity, and HTTP services to the shared platform contracts. Media-source SQL, mapping, and credential migration now use `StorageMediaSourceStore`, with Android Keystore encryption supplied through `StorageCredentialProtector`. Settings mirror and provider document access implement the shared document-store boundary while URI permissions remain in the host.
-- [ ] Verify downloads, cache, offline playback, background playback, and queue restoration on a physical device.
-- [ ] Run Android tests, assemble the application, install it, and launch it.
+The 2026-07-20 entry audit split this milestone into ownership, lifecycle, platform-service, and validation work. `MainActivity` is already a thin 97-line operating-system entry point, and Android already launches `NaviampApplicationRuntime`, uses the shared application/service controller graph, and implements the shared playback interfaces. The remaining production concentration is not in the Activity: it is primarily `AndroidPlaybackForegroundService` (2,379 lines), `NaviampAndroidApp` (1,038), `AndroidStorage` (1,037), `AndroidAutoBrowseController` (897), and the Android playback, radio, playlist, and settings adapters. Those files must first lose any remaining product policy and then be decomposed along stable host responsibilities; moving their code into differently named Android files does not satisfy this milestone.
+
+- [ ] Move remaining shared product behavior out of the Android UI composition, app controllers, playback service, and Android Auto implementation.
+  - [x] Keep `MainActivity` limited to lifecycle setup, permission requests, incoming Android intents, system insets, and mounting the Android composition root.
+  - [x] Launch the shared application runtime and shared application/service controller graph rather than maintaining an Android-only product runtime.
+  - [ ] Audit `NaviampAndroidApp` and its shell/state/action factories; leave only Compose observation, Activity-result launchers, Android effects, and host-adapter construction.
+  - [ ] Audit the Android playback, playlist, radio, mix, media, connection, download, and settings controllers for validation, queue, retry, reconciliation, or mutation policy still duplicated outside shared owners.
+  - [ ] Audit `AndroidPlaybackForegroundService` and `AndroidServicePlaybackRuntimeController`; move reusable playback-session, reporting, source-resolution, prefetch, prepared-next, and queue decisions behind shared owners while retaining service lifetime and native execution in Android.
+  - [ ] Audit `AndroidAutoBrowseController` and Android Auto command routing; keep car APIs, stable media IDs, pagination, and safety limits in Android while sharing catalog selection and playback/queue policy where it matches the normal application.
+  - [ ] After ownership is correct, split the remaining large Android files by logical host responsibility and compose them from focused adapters. Do not create another monolithic composition root or merely relocate code between Android files.
+  - [ ] Run a final Android-versus-Desktop product-ownership audit and remove obsolete Android-only surfaces before closing this item.
+- [x] Keep Android operating-system integration in the Android host. The source audit confirmed that Activity lifecycle and intents, foreground-service lifetime, MediaSession and notifications, permissions, audio focus and wake locks, Android Auto APIs, storage selection, URI permissions, and native BASS/JNI calls remain under `apps/android`; common production code does not import those Android APIs.
+- [x] Adapt the Android BASS engine to the shared playback contract. `AndroidPlaybackEngine` extends the shared `PlaybackEngine`, and `AndroidBassPlaybackEngine` also implements the shared queue-aware, visualizer, equalizer, ReplayGain, sample-rate-converter, and sample-rate-matching feature contracts. Android UI and Android Auto execution adapters dispatch common transport decisions through `NaviampPlaybackCommandController`. Converging duplicated service/Auto product policy is tracked by the ownership items above rather than by adding Android behavior to the engine contract.
+- [ ] Preserve service-owned playback when the Activity is recreated, the task is removed, or Android restarts the service.
+  - [x] Keep Activity shutdown separate from playback ownership. `AndroidApplicationSession` deliberately does not stop playback, and its test proves Activity bootstrap restores once without claiming shutdown.
+  - [x] Keep service-owned playback alive across UI unbind and task removal, use sticky service restart, and hydrate the saved playback session when the foreground service is created.
+  - [ ] Add focused tests for service ownership, null-intent sticky restart, restored queue/position, notification and MediaSession republishing, and UI reattachment after Activity recreation.
+  - [ ] Verify Activity recreation, task removal, background/foreground transitions, and service restart with active playback on a physical device. Treat full operating-system process death as persisted-session restoration, not in-memory playback survival.
+- [ ] Adapt Android database, secret, filesystem, connectivity, and HTTP services to the shared platform contracts.
+  - [x] Use `StorageMediaSourceStore` for shared media-source SQL, mapping, and credential migration, with Android Keystore encryption supplied through `StorageCredentialProtector`.
+  - [x] Route settings mirror and provider document access through `NaviampSettingsSyncDocumentStore` while retaining Android URI permissions and document selection in the host.
+  - [x] Supply shared connectivity snapshots and structured runtime failures through the Android runtime adapters.
+  - [ ] Isolate Android SQLDelight driver creation, schema migration, and database setup behind `StorageDatabaseDriverFactory`; `AndroidStorage` still constructs `AndroidSqliteDriver` directly.
+  - [ ] Complete an Android filesystem and HTTP ownership audit. Retain ContentResolver, files, paths, atomic moves, storage-volume discovery, Ktor/TLS construction, and native playback paths in Android, adding a narrow shared contract only where shared product code consumes the operation.
+- [ ] Verify Android behavior on a physical device.
+  - [ ] Connect, browse, search, and start track, album, playlist, radio, and downloaded playback.
+  - [ ] Verify download completion while the Activity is foregrounded and backgrounded, plus cancellation, retry, keep-downloaded reconciliation, cache limits, and offline playback. Record whether Activity-scope execution meets the product requirement or durable WorkManager/foreground-service execution is needed.
+  - [ ] Verify notification, lock-screen, headset, and MediaSession transport controls plus audio-focus and route-change behavior.
+  - [ ] Verify background playback, Activity recreation, task removal, service restart, queue/position restoration, and relaunch attachment to current playback.
+  - [ ] Verify internal/removable storage selection and persisted settings import/export URI access.
+  - [ ] Verify Android Auto browsing, search, queue paging, playback, and transport controls on a compatible vehicle, head unit, or Desktop Head Unit.
+- [ ] Complete the Android build and launch gate.
+  - [x] Run the Android unit tests. `:apps:android:testDebugUnitTest` passed on 2026-07-20.
+  - [ ] Run the focused shared core, UI, storage, and provider test suites after the ownership migrations are complete.
+  - [x] Assemble the debug application and verify the packaged BASS native libraries. `:apps:android:assembleDebug` and `:apps:android:verifyDebugBassNativePackage` passed on 2026-07-20 for all four configured Android ABIs.
+  - [ ] Install the current build on a connected device, launch it, and record the device/API level used for the Milestone 4 acceptance pass.
 
 **Exit criteria:** Android launches the same shared runtime as Desktop without losing background playback or Android-specific integrations.
 
@@ -483,6 +512,7 @@ Record architecture decisions here or link a dedicated decision record.
 | 2026-07-20 | Close the Desktop filesystem and HTTP ownership audit. | Common production code contains no JVM filesystem APIs and consumes files through database-driver, document-store, repository, byte-store, and opaque local-path contracts. Hidden Ktor construction was removed from the shared object-byte and Internet Radio services; Android and Desktop now provide fetch/client execution. Desktop retains native paths, atomic file operations, cleanup, and TLS/client construction. Domain tests, Desktop tests, Android compilation, and iOS compilation passed. |
 | 2026-07-20 | Verify all Desktop packaging assumptions. | A host-independent Gradle check now validates icons, required BASS libraries for macOS ARM64, Windows x64, and Linux x64, plus JNI and platform visualizer sources before packaging. DMG/MSI/EXE/DEB/RPM configuration, version normalization, target-OS Make guards, and artifact paths were audited. Forgejo main builds gained Linux parity with the existing GitHub tag matrix, including Secret Service tooling required at Linux runtime. |
 | 2026-07-20 | Complete Milestone 3 Desktop thin-host conversion. | The full Desktop suite passed; `make macos-test` built, resource-verified, staged, and launched `Naviamp.app`, and the user confirmed the app remained open and running with the existing connection restored. Live startup migrated the settings credential mirror through macOS Keychain-backed encryption. Desktop now contains only composition/state adapters, native BASS execution, provider/persistence execution, and OS integration, with a net 4,151 fewer `desktopMain` production lines than `main`. |
+| 2026-07-20 | Audit and restructure Milestone 4 before Android migration. | The audit checked off the thin Activity boundary, shared runtime/controller adoption, Android host ownership of OS integrations, the Android BASS shared contract, existing service-survival foundations, shared media-source/credential/document/connectivity adapters, Android unit tests, debug assembly, and native-package verification. It split the remaining work into product-ownership audits, service lifecycle tests, database/filesystem/HTTP adapters, logical file decomposition, and an explicit physical-device matrix. It also corrected the stale claim that downloads use WorkManager: current downloads run in the Activity coroutine scope, so their required background durability must be decided from device testing. |
 
 ### Desktop Route Boundary Audit
 
@@ -535,7 +565,7 @@ The 2026-07-19 Android audit found no remaining common queue, Now Playing, provi
 - `AndroidAppState` exposes queue and Now Playing through the shared live-playback controller, while `AndroidPlaybackAppController` and Android Auto retain only their distinct playback execution and lifecycle adapters.
 - Android UI provider actions and playback reporting reuse `NaviampApplicationControllers`; the foreground service retains only the separately documented service-lifetime owners.
 - One `NaviampApplicationServices` assembly supplies settings sync, cache settings, cache maintenance, download jobs, and download coordination to the Android UI. Android settings-sync code retains URI permissions, document I/O, launcher results, and mirror/provider writes; shared reconciliation and status policy remain in `NaviampSettingsSyncController`.
-- `AndroidDownloadActionController` retains WorkManager/network execution and UI-triggered collection resolution while delegating job state, retry/cancellation intent, keep-downloaded planning, and maintenance policy to the injected shared download owners.
+- `AndroidDownloadActionController` retains Activity-scope coroutine/network execution and UI-triggered collection resolution while delegating job state, retry/cancellation intent, keep-downloaded planning, and maintenance policy to the injected shared download owners. It does not currently use WorkManager; Milestone 4 physical testing must therefore verify the intended foreground/background lifetime and document whether durable operating-system-scheduled downloads are required.
 - `AndroidSettingsMaintenanceController` retains Android storage and playback-engine effects while delegating cache normalization, persistence ordering, and maintenance sequencing to the injected shared cache owners.
 
 The remaining Android product-behavior reduction belongs to Milestone 4 and must preserve foreground-service, MediaSession, notification, permission, Android Auto, and storage-selection boundaries.
@@ -600,9 +630,9 @@ The 2026-07-17 audit covers every current application entry point:
 
 ## Current Handoff
 
-- **Last completed item:** Milestone 3 is complete. Desktop is a thin host around the shared runtime/UI contracts, the packaged macOS app is running successfully, service and packaging boundaries are audited, and `desktopMain` is a net 4,151 production lines smaller than `main`.
-- **Next recommended item:** Begin Milestone 4 by auditing the remaining Android Activity, application-controller, and foreground-service product behavior against the shared owners established in Milestones 2 and 3.
-- **Verification:** On 2026-07-20, `make desktop-test` passed. `make macos-test` then ran `verifyDesktopPackagingInputs`, built and verified the packaged BASS/JNI/Metal resources, staged `build/local-test/Naviamp.app`, and launched it successfully; the user confirmed the app remained open and running. Earlier closure checks also passed `:core:domain:allTests`, Android compilation, and iOS compilation.
+- **Last completed item:** The Milestone 4 entry audit is complete. Android already has a thin Activity, the shared runtime/controller graph, host-confined OS integrations, and a shared-contract BASS engine; the remaining ownership, lifecycle, platform-service, decomposition, and physical-device work is now expressed as independently closable checklist items.
+- **Next recommended item:** Audit `NaviampAndroidApp` and its shell/state/action factories first, extracting only duplicated product policy and leaving Compose observation, Activity-result launchers, Android effects, and host-adapter construction. Record net Android production-line movement separately from logical file splits.
+- **Verification:** On 2026-07-20, `:apps:android:testDebugUnitTest`, `:apps:android:assembleDebug`, and `:apps:android:verifyDebugBassNativePackage` passed; the package check covered all four configured Android ABIs. Milestone 3 verification remains `make desktop-test` plus the successfully launched and user-confirmed macOS package.
 - **Known blockers:** None.
 
-Milestone 3 used delete-first accounting: every product-behavior extraction reported its net `apps/desktop/src/desktopMain` line change, moving code between Desktop files did not count as thinning, and new host adapters were justified as genuine OS-specific services. Preserve the same discipline during the Android thin-host conversion.
+Milestone 3 used delete-first accounting: every product-behavior extraction reported its net `apps/desktop/src/desktopMain` line change, moving code between Desktop files did not count as thinning, and new host adapters were justified as genuine OS-specific services. Preserve the same discipline during the Android thin-host conversion, using the audited 20,407 Android production lines as the entry snapshot while reporting logical file splits separately from actual thinning.
