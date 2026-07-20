@@ -22,8 +22,7 @@ import app.naviamp.domain.playback.fallbackPlaybackUrl
 import app.naviamp.domain.playback.planPlaylistTrackStartWork
 import app.naviamp.domain.playback.planPlaybackProgressUpdate
 import app.naviamp.domain.playback.planPlaybackStart
-import app.naviamp.domain.playback.planPlaybackTrackStartEffects
-import app.naviamp.domain.playback.planPlaybackTrackStarted
+import app.naviamp.domain.playback.planPlaybackTrackStart
 import app.naviamp.domain.playback.ReplayGainMode
 import app.naviamp.domain.playback.ReplayGainSource
 import app.naviamp.domain.playback.playbackStreamUrl
@@ -149,7 +148,7 @@ fun playAndroidTrack(
                         index = update.queue.currentIndex,
                     )
                 }
-                val trackStartedPlan = planPlaybackTrackStarted(
+                val effectsPlan = planPlaybackTrackStart(
                     previousTrack = nowPlaying,
                     track = track,
                     openNowPlaying = openNowPlaying,
@@ -157,10 +156,6 @@ fun playAndroidTrack(
                     lyricsVisible = lyricsVisible,
                     supportsTrackFavorites = activeProvider?.capabilities?.supportsTrackFavorites
                         ?: (activeSourceId != null),
-                )
-                val effectsPlan = planPlaybackTrackStartEffects(
-                    track = track,
-                    presentation = trackStartedPlan,
                     startPlan = startPlan,
                     keepRadioQueueActive = keepRadioQueueActive,
                 )

@@ -15,8 +15,7 @@ import app.naviamp.domain.playback.PlaybackTrackStartEffectApplier
 import app.naviamp.domain.playback.applyPlaybackProgressEffects
 import app.naviamp.domain.playback.applyPlaybackTrackStartEffects
 import app.naviamp.domain.playback.planPlaybackProgressUpdate
-import app.naviamp.domain.playback.planPlaybackTrackStartEffects
-import app.naviamp.domain.playback.planPlaybackTrackStarted
+import app.naviamp.domain.playback.planPlaybackTrackStart
 import app.naviamp.domain.provider.MediaProvider
 import app.naviamp.domain.queue.PlaybackQueue
 import app.naviamp.domain.waveform.AudioWaveform
@@ -60,17 +59,13 @@ fun desktopPlaylistCallbacks(
 ): PlaylistCallbacks =
     PlaylistCallbacks(
         onTrackStarted = { track, coverArtUrl ->
-            val trackStartedPlan = planPlaybackTrackStarted(
+            val effectsPlan = planPlaybackTrackStart(
                 previousTrack = nowPlayingTrack(),
                 track = track,
                 openNowPlaying = openPlayerOnTrackStart(),
                 nowPlayingOpen = appRoute() == NaviampRoute.Player,
                 lyricsVisible = false,
                 supportsTrackFavorites = provider()?.capabilities?.supportsTrackFavorites == true,
-            )
-            val effectsPlan = planPlaybackTrackStartEffects(
-                track = track,
-                presentation = trackStartedPlan,
                 keepRadioQueueActive = true,
             )
             applyPlaybackTrackStartEffects(

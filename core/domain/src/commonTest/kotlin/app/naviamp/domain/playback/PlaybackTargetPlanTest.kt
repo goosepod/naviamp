@@ -242,6 +242,29 @@ class PlaybackTargetPlanTest {
     }
 
     @Test
+    fun trackStartPlanCombinesPresentationAndExecutionPolicy() {
+        val target = track("one", favorited = true)
+
+        val effects = planPlaybackTrackStart(
+            previousTrack = track("previous"),
+            track = target,
+            openNowPlaying = true,
+            nowPlayingOpen = false,
+            lyricsVisible = true,
+            supportsTrackFavorites = true,
+            keepRadioQueueActive = false,
+        )
+
+        assertEquals(true, effects.presentation.trackChanged)
+        assertEquals(true, effects.presentation.shouldOpenNowPlaying)
+        assertEquals(true, effects.presentation.shouldLoadLyrics)
+        assertEquals(true, effects.presentation.canFavoriteTrack)
+        assertEquals(true, effects.presentation.isFavoriteTrack)
+        assertEquals(true, effects.clearRadioContinuation)
+        assertEquals("one", effects.engineMediaId)
+    }
+
+    @Test
     fun playlistTrackStartWorkBuildsSharedPlaybackRequest() {
         val target = track("one")
         val replayGain = PlaybackReplayGain(

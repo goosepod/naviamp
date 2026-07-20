@@ -517,8 +517,8 @@ The 2026-07-17 audit covers every current application entry point:
 
 ## Current Handoff
 
-- **Last completed item:** Playback progress planning and effect application now share one domain path across Android and Desktop. Hosts retain their distinct UI throttling, notification publication, next-track preparation, and clock acquisition, while pending-seek clearing, restore clearing, reset, persistence, reporting, and state-update ordering are applied consistently.
-- **Next recommended item:** Complete the matching track-start application audit, then reassess the radio controller construction cluster.
+- **Last completed item:** Android and Desktop now construct track-start presentation and execution effects through one shared plan. Host adapters still execute native queue/session setup, restored-position handling, sidecars, notifications, and audio-engine work, but no longer repeat the product-policy composition step.
+- **Next recommended item:** Reassess the radio controller construction cluster and remove the next redundant host seam.
 - **Verification:** On 2026-07-20, `:core:ui:jvmTest`, `:apps:desktop:desktopTest`, `:apps:android:compileDebugKotlin`, and `:core:ui:compileKotlinIosSimulatorArm64` passed after moving route-product composition into common UI. Desktop smoke testing then exposed infinite-height constraints where Downloads and playlist details were nested inside the route wrapper's vertical scroll even though both screens own scrolling, plus an unscrollable connection form because Settings does not own scrolling. The wrapper now adds scrolling only for Search, Playlists, Internet Radio, and Settings, with JVM regression coverage for the route policy.
 - **Known blockers:** None.
 
