@@ -884,54 +884,13 @@ private fun ConnectedContent(
             playlistChoices = playlistChoices,
             playlistActionStatus = playlists.status,
         )
-        selectedArtistDetail != null -> ArtistDetailContent(
+        selectedArtistDetail != null -> NaviampArtistDetailContent(
             colors = colors,
-            detail = selectedArtistDetail,
+            screen = NaviampArtistDetailScreenUi(detail = selectedArtistDetail),
             albumCollectionLayout = interfaceSettings.albumCollectionLayout,
             albumSortOrder = interfaceSettings.albumSortOrder,
             groupAlbumsByReleaseType = interfaceSettings.groupAlbumsByReleaseType,
-            onBack = artistDetailActions.onBack,
-            onArtistRadio = { artistDetailActions.onRadio(selectedArtistDetail) },
-            onArtistPlay = { albums -> artistDetailActions.onPlay(selectedArtistDetail.copy(albums = albums)) },
-            onArtistShuffle = { albums -> artistDetailActions.onShuffle(selectedArtistDetail.copy(albums = albums)) },
-            onArtistAddToQueue = { artistDetailActions.onAddToQueue(selectedArtistDetail) },
-            onArtistAddToPlaylist = { playlist -> artistDetailActions.onAddToPlaylist(selectedArtistDetail, playlist) },
-            onArtistCreatePlaylistAndAdd = { name -> artistDetailActions.onCreatePlaylistAndAdd(selectedArtistDetail, name) },
-            onArtistFavoriteToggled = { artistDetailActions.onFavoriteToggled(selectedArtistDetail.artist) },
-            onPopularPlay = { artistDetailActions.onPopularPlay(selectedArtistDetail) },
-            onPopularRadio = { artistDetailActions.onPopularRadio(selectedArtistDetail) },
-            onPopularAddToQueue = { artistDetailActions.onPopularAddToQueue(selectedArtistDetail) },
-            onPopularTrackSelected = artistDetailActions.onPopularTrackSelected,
-            onPopularTrackAddToQueue = { track ->
-                artistDetailActions.onTrackAction(SharedTrackRowActionRequest(track, SharedTrackRowAction.AddToQueue))
-            },
-            onPopularTrackDownload = { track ->
-                artistDetailActions.onTrackAction(SharedTrackRowActionRequest(track, SharedTrackRowAction.Download))
-            },
-            onPopularTrackAddToPlaylist = { track, playlist ->
-                artistDetailActions.onTrackAction(
-                    SharedTrackRowActionRequest(
-                        track = track,
-                        action = SharedTrackRowAction.AddToPlaylist,
-                        playlistChoice = playlist,
-                    ),
-                )
-            },
-            onPopularTrackCreatePlaylistAndAdd = { track, name ->
-                artistDetailActions.onTrackAction(
-                    SharedTrackRowActionRequest(
-                        track = track,
-                        action = SharedTrackRowAction.CreatePlaylistAndAdd,
-                        playlistName = name,
-                    ),
-                )
-            },
-            onFindSimilarArtists = { artistDetailActions.onFindSimilar(selectedArtistDetail) },
-            onSimilarArtistSelected = artistDetailActions.onSimilarArtistSelected,
-            onSimilarArtistExternalSelected = artistDetailActions.onSimilarArtistExternalSelected,
-            onAlbumSelected = artistDetailActions.onAlbumSelected,
-            onAlbumAction = artistDetailActions.onAlbumAction,
-            onAlbumFavoriteToggled = artistDetailActions.onAlbumFavoriteToggled,
+            actions = artistDetailActions,
             playlistChoices = playlistChoices,
             playlistActionStatus = playlists.status,
         )
@@ -1425,6 +1384,63 @@ private fun AlbumDetailContent(
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
+fun NaviampArtistDetailContent(
+    colors: NaviampColors,
+    screen: NaviampArtistDetailScreenUi,
+    albumCollectionLayout: AlbumCollectionLayout,
+    albumSortOrder: AlbumSortOrder,
+    groupAlbumsByReleaseType: Boolean,
+    actions: NaviampArtistDetailActions,
+    playlistChoices: List<NaviampPlaylistChoiceUi> = emptyList(),
+    playlistActionStatus: String? = null,
+) {
+    val detail = screen.detail
+    if (detail == null) {
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxSize()) {
+            IconButton(onClick = actions.onBack, modifier = Modifier.size(36.dp)) {
+                Icon(NaviampIcons.Back, contentDescription = "Back", tint = colors.primaryText)
+            }
+            Text(
+                screen.selectedArtist?.title ?: "Artist",
+                color = colors.primaryText,
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Bold,
+            )
+            screen.status?.let { Text(it, color = colors.secondaryText) }
+        }
+        return
+    }
+    ArtistDetailContent(
+        colors = colors,
+        detail = detail,
+        albumCollectionLayout = albumCollectionLayout,
+        albumSortOrder = albumSortOrder,
+        groupAlbumsByReleaseType = groupAlbumsByReleaseType,
+        onBack = actions.onBack,
+        onArtistRadio = { actions.onRadio(detail) },
+        onArtistPlay = { albums -> actions.onPlay(detail.copy(albums = albums)) },
+        onArtistShuffle = { albums -> actions.onShuffle(detail.copy(albums = albums)) },
+        onArtistAddToQueue = { actions.onAddToQueue(detail) },
+        onArtistAddToPlaylist = { playlist -> actions.onAddToPlaylist(detail, playlist) },
+        onArtistCreatePlaylistAndAdd = { name -> actions.onCreatePlaylistAndAdd(detail, name) },
+        onArtistFavoriteToggled = { actions.onFavoriteToggled(detail.artist) },
+        onPopularPlay = { actions.onPopularPlay(detail) },
+        onPopularRadio = { actions.onPopularRadio(detail) },
+        onPopularAddToQueue = { actions.onPopularAddToQueue(detail) },
+        onPopularTrackAction = actions.onTrackAction,
+        onFindSimilarArtists = { actions.onFindSimilar(detail) },
+        onSimilarArtistSelected = actions.onSimilarArtistSelected,
+        onSimilarArtistExternalSelected = actions.onSimilarArtistExternalSelected,
+        onAlbumSelected = actions.onAlbumSelected,
+        onAlbumFavoriteToggled = actions.onAlbumFavoriteToggled,
+        onAlbumAction = actions.onAlbumAction,
+        playlistChoices = playlistChoices,
+        playlistActionStatus = playlistActionStatus,
+    )
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
 private fun ArtistDetailContent(
     colors: NaviampColors,
     detail: SharedArtistDetailUi,
@@ -1442,11 +1458,7 @@ private fun ArtistDetailContent(
     onPopularPlay: () -> Unit,
     onPopularRadio: () -> Unit,
     onPopularAddToQueue: () -> Unit,
-    onPopularTrackSelected: (SharedTrackRowUi) -> Unit,
-    onPopularTrackAddToQueue: (SharedTrackRowUi) -> Unit,
-    onPopularTrackDownload: (SharedTrackRowUi) -> Unit,
-    onPopularTrackAddToPlaylist: (SharedTrackRowUi, NaviampPlaylistChoiceUi?) -> Unit,
-    onPopularTrackCreatePlaylistAndAdd: (SharedTrackRowUi, String) -> Unit,
+    onPopularTrackAction: (SharedTrackRowActionRequest) -> Unit,
     onFindSimilarArtists: () -> Unit,
     onSimilarArtistSelected: (SharedSimilarArtistUi) -> Unit,
     onSimilarArtistExternalSelected: (String) -> Unit,
@@ -1478,18 +1490,11 @@ private fun ArtistDetailContent(
         )
     }
     val handlePopularTrackAction: (SharedTrackRowActionRequest) -> Unit = { request ->
-        handleSharedTrackRowAction(
-            request,
-            SharedTrackRowActionHandlers(
-                onSelect = onPopularTrackSelected,
-                onAddToQueue = onPopularTrackAddToQueue,
-                onDownload = onPopularTrackDownload,
-                onAddToPlaylist = { track, playlist ->
-                    if (playlist == null) popularTrackForPlaylist = track else onPopularTrackAddToPlaylist(track, playlist)
-                },
-                onCreatePlaylistAndAdd = onPopularTrackCreatePlaylistAndAdd,
-            ),
-        )
+        if (request.action == SharedTrackRowAction.AddToPlaylist && request.playlistChoice == null) {
+            popularTrackForPlaylist = request.track
+        } else {
+            onPopularTrackAction(request)
+        }
     }
     val similarArtistsVisible = detail.similarArtists.isNotEmpty() || detail.similarArtistsStatus != null
     val visibleAlbumSections = if (groupAlbumsByReleaseType) {
@@ -1666,9 +1671,9 @@ private fun ArtistDetailContent(
                         TrackRow(
                             track.copy(meta = (index + 1).toString()),
                             colors,
-                            onPopularTrackSelected,
-                            onAddToQueue = onPopularTrackAddToQueue,
-                            onDownload = onPopularTrackDownload,
+                            onTrackSelected = { handlePopularTrackAction(SharedTrackRowActionRequest(it, SharedTrackRowAction.Select)) },
+                            onAddToQueue = { handlePopularTrackAction(SharedTrackRowActionRequest(it, SharedTrackRowAction.AddToQueue)) },
+                            onDownload = { handlePopularTrackAction(SharedTrackRowActionRequest(it, SharedTrackRowAction.Download)) },
                             onAddToPlaylist = { selectedTrack -> popularTrackForPlaylist = selectedTrack },
                             onTrackAction = handlePopularTrackAction,
                         )

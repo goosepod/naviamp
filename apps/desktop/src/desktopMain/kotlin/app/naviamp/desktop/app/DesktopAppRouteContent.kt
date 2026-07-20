@@ -32,6 +32,7 @@ import app.naviamp.ui.NaviampDownloadsContent
 import app.naviamp.ui.NaviampSearchContent
 import app.naviamp.ui.NaviampLibraryContent
 import app.naviamp.ui.NaviampAlbumDetailContent
+import app.naviamp.ui.NaviampArtistDetailContent
 import app.naviamp.ui.SharedHomeRoute
 import app.naviamp.ui.SaveQueueAsPlaylistDialog
 import app.naviamp.ui.SonicMixBuilderContent
@@ -93,11 +94,15 @@ fun ColumnScope.DesktopRouteContent(
                     playlistChoices = shellState.playlistChoices,
                     playlistActionStatus = shellState.playlists.status,
                 )
-                NaviampRoute.ArtistDetail -> DesktopArtistDetailPanel(
-                    appColors = appColors,
+                NaviampRoute.ArtistDetail -> NaviampArtistDetailContent(
+                    colors = appColors,
                     screen = shellState.artistDetail,
-                    interfaceSettings = shellState.general.interfaceSettings,
+                    albumCollectionLayout = shellState.general.interfaceSettings.albumCollectionLayout,
+                    albumSortOrder = shellState.general.interfaceSettings.albumSortOrder,
+                    groupAlbumsByReleaseType = shellState.general.interfaceSettings.groupAlbumsByReleaseType,
                     actions = shellActions.artistDetailActions,
+                    playlistChoices = shellState.playlistChoices,
+                    playlistActionStatus = shellState.playlists.status,
                 )
                 NaviampRoute.Playlists -> DesktopPlaylistsPanel(
                     appColors = appColors,

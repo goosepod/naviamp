@@ -513,9 +513,9 @@ The 2026-07-17 audit covers every current application entry point:
 
 ## Current Handoff
 
-- **Last completed item:** Desktop and the shared shell now render public `NaviampAlbumDetailContent` from the complete album-detail screen/action contract. Shared Album Detail owns expanded artwork, playlist dialogs, and complete track action requests, including artist navigation metadata. Deleting `DesktopAlbumDetailPanel` reduced `desktopMain` by 228 net production lines; the eight delete-first corrections total 2,932 net lines removed.
-- **Next recommended item:** Promote artist-detail rendering to its public shared screen/action contract, then delete the Desktop composition while preserving expanded artwork, grouped albums, sorting, related artists, and complete track/media actions.
-- **Verification:** On 2026-07-19, the combined `:core:ui:jvmTest`, `:core:ui:compileKotlinIosSimulatorArm64`, `:apps:desktop:desktopTest`, and `:apps:android:testDebugUnitTest` gate passed after the shared Album Detail route migration. Windows compiled the iOS simulator sources; simulator linking and execution remain a macOS CI responsibility.
+- **Last completed item:** Desktop and the shared shell now render public `NaviampArtistDetailContent` from the complete artist-detail screen/action contract. Shared Artist Detail owns expanded artwork, grouped/sorted album presentation, biography expansion, similar artists, playlist dialogs, and complete popular-track/media requests. Deleting `DesktopArtistDetailPanel` reduced `desktopMain` by 463 net production lines; the nine delete-first corrections total 3,395 net lines removed.
+- **Next recommended item:** Promote the complete Playlists route to its public shared screen/action contracts, then delete the corresponding Desktop composition before migrating Playlist Detail.
+- **Verification:** On 2026-07-19, the combined `:core:ui:jvmTest`, `:core:ui:compileKotlinIosSimulatorArm64`, `:apps:desktop:desktopTest`, and `:apps:android:testDebugUnitTest` gate passed after the shared Artist Detail route migration. Windows compiled the iOS simulator sources; simulator linking and execution remain a macOS CI responsibility.
 - **Known blockers:** None.
 
 Milestone 3 now uses delete-first accounting: every product-behavior extraction must report its net `apps/desktop/src/desktopMain` line change, moving code between Desktop files does not count as thinning, and a new host adapter must delete at least as much Desktop production code as it adds unless it implements a genuinely OS-specific service.
