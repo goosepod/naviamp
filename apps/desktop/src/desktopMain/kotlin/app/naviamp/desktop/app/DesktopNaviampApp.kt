@@ -43,7 +43,6 @@ import app.naviamp.desktop.playback.desktopPlaylistCallbacks
 import app.naviamp.domain.playback.PlaybackState
 import app.naviamp.domain.playback.PlaybackStreamMetadata
 import app.naviamp.domain.playback.SleepTimerState
-import app.naviamp.domain.playback.SleepTimerController
 import app.naviamp.domain.home.HomeContent
 import app.naviamp.domain.queue.PlaybackQueue
 import app.naviamp.domain.queue.RepeatMode
@@ -109,7 +108,6 @@ import app.naviamp.ui.SharedInternetRadioActionSources
 import app.naviamp.ui.SharedPlaylistActionSources
 import app.naviamp.ui.ResolvedTrackRowActionHandlers
 import app.naviamp.ui.handleResolvedTrackRowAction
-import app.naviamp.ui.NaviampSleepTimerExpiryEffect
 import app.naviamp.ui.NowPlayingDisplayAction
 import app.naviamp.ui.NowPlayingDisplayActionRequest
 import app.naviamp.ui.NowPlayingPlaybackAction
@@ -163,11 +161,6 @@ fun NaviampApp(
     var cacheStats by remember { mutableStateOf(StorageCacheStats()) }
     var downloadJobs by remember { mutableStateOf<List<DownloadJob>>(emptyList()) }
     var connectedSourceId by remember { mutableStateOf(savedMediaSource?.id) }
-    val desktopPlaybackAudioAssets = dependencies.playbackAudioAssets
-    val audioMetadataSidecarService = dependencies.audioMetadataSidecarService
-    val lyricsSidecarService = dependencies.lyricsSidecarService
-    val audioWaveformService = dependencies.audioWaveformService
-    val playbackSidecarService = dependencies.playbackSidecarService
     var cacheSettings by remember {
         mutableStateOf(settingsStore.loadCacheSettings().normalized())
     }
@@ -302,95 +295,52 @@ fun NaviampApp(
     }
     var lastPlaybackProgressUiUpdateMillis by remember { mutableLongStateOf(0L) }
     var playReportSessionId by remember { mutableStateOf(0) }
-    val nowPlayingPresentation = rememberDesktopNowPlayingPresentationState(
-        initialVisualizerSettings = restoredAppState.visualizer,
-        appColors = appColors,
-        interfaceSettings = interfaceSettings,
-        currentCoverArtUrl = nowPlayingCoverArtUrl,
-        nowPlayingTrack = nowPlayingTrack,
-        nowPlayingStation = nowPlayingInternetRadioStation,
-        streamMetadata = nowPlayingStreamMetadata,
-        provider = connectedProvider,
-    )
-    val nowPlayingVisualizerVisible = nowPlayingPresentation.isVisualizerVisible(playbackState)
-
-    val playbackReporting = remember {
-        DesktopPlaybackReportingAdapter(
-            scope = coroutineScope,
+    val playbackGraph = rememberDesktopPlaybackControllerGraph(
+        dependencies = dependencies,
+        scope = coroutineScope,
+        playbackSessions = playbackSessions,
+        applicationControllers = applicationControllers,
+        livePlayback = livePlaybackController,
+        queueCoordinator = queueCoordinator,
+        playlistEngine = playlistEngine,
+        bindings = DesktopPlaybackGraphBindings(
             provider = { connectedProvider },
             sourceId = { connectedSourceId },
-            providerActions = applicationControllers.providerActions,
-            reporting = applicationControllers.playbackReporting,
-            playbackProgress = { playbackProgress },
-            nowPlayingTrack = { nowPlayingTrack },
-            playReportSessionId = { playReportSessionId },
-        )
-    }
-
-    val playbackController = remember {
-        DesktopPlaybackController(
-            scope = coroutineScope,
-            playbackSessions = playbackSessions,
-            livePlayback = livePlaybackController,
-            queueCoordinator = queueCoordinator,
-            playbackEngine = playbackEngine,
-            playlistEngine = playlistEngine,
-            sourceId = { connectedSourceId },
             playbackSettings = { playbackSettings },
+            cacheSettings = { cacheSettings },
+            route = { appRoute },
+            lyricsVisible = { nowPlayingLyricsVisible },
             playbackQueue = { playbackQueue },
             playbackProgress = { playbackProgress },
             setPlaybackProgress = { progress -> playbackProgress = progress },
+            playbackState = { playbackState },
             nowPlayingTrack = { nowPlayingTrack },
+            nowPlayingCoverArtUrl = { nowPlayingCoverArtUrl },
+            playReportSessionId = { playReportSessionId },
             setRepeatMode = { mode -> repeatMode = mode },
             setOpenPlayerOnTrackStart = { shouldOpen -> openPlayerOnTrackStart = shouldOpen },
-            reporting = playbackReporting,
-        )
-    }
-
-    val sleepTimerController = remember {
-        SleepTimerController(
-        nowPlaying = { nowPlayingTrack },
-        playbackQueue = { playbackQueue },
-        playbackProgress = { playbackProgress },
-        playbackState = { playbackState },
-        setSleepTimer = { timer -> sleepTimer = timer },
-        setSleepTimerNowEpochMillis = { millis -> sleepTimerNowEpochMillis = millis },
-        setStatus = { status -> connectionStatus = status },
-        stopPlayback = playbackController::stop,
-        nowEpochMillis = DesktopSystemClock::nowEpochMillis,
+            setSleepTimer = { timer -> sleepTimer = timer },
+            setSleepTimerNowEpochMillis = { millis -> sleepTimerNowEpochMillis = millis },
+            setStatus = { status -> connectionStatus = status },
+        ),
+        snapshot = DesktopNowPlayingSnapshot(
+            initialVisualizerSettings = restoredAppState.visualizer,
+            appColors = appColors,
+            interfaceSettings = interfaceSettings,
+            currentCoverArtUrl = nowPlayingCoverArtUrl,
+            track = nowPlayingTrack,
+            station = nowPlayingInternetRadioStation,
+            streamMetadata = nowPlayingStreamMetadata,
+            provider = connectedProvider,
+            playbackState = playbackState,
+            sleepTimer = sleepTimer,
+        ),
     )
-    }
-
-    NaviampSleepTimerExpiryEffect(
-        sleepTimer = sleepTimer,
-        snapshot = sleepTimerController.snapshot(),
-        onTick = sleepTimerController::tick,
-        onExpired = sleepTimerController::expire,
-    )
-
-    val nowPlayingController = remember {
-        DesktopNowPlayingController(
-        audioWaveformService = audioWaveformService,
-        lyricsSidecarService = lyricsSidecarService,
-        audioMetadataSidecarService = audioMetadataSidecarService,
-        localLibraryIndexRepository = storage,
-        lyricsOffsetRepository = storage,
-        playbackAudioAssets = desktopPlaybackAudioAssets,
-        playbackEngine = playbackEngine,
-        provider = { connectedProvider },
-        sourceId = { connectedSourceId },
-        playbackSettings = { playbackSettings },
-        cacheSettings = { cacheSettings },
-        appRoute = { appRoute },
-        lyricsVisible = { nowPlayingLyricsVisible },
-        selectedVisualizer = { nowPlayingPresentation.selectedVisualizer },
-        playbackQueue = { playbackQueue },
-        nowPlayingTrack = { nowPlayingTrack },
-        nowPlayingCoverArtUrl = {
-            nowPlayingPresentation.effectiveCoverArtUrl
-        },
-    )
-    }
+    val nowPlayingPresentation = playbackGraph.presentation
+    val nowPlayingVisualizerVisible = playbackGraph.visualizerVisible
+    val playbackController = playbackGraph.playback
+    val sleepTimerController = playbackGraph.sleepTimer
+    val nowPlayingController = playbackGraph.nowPlaying
 
     fun handleQueueIndexSelected(queueIndex: Int) {
         handleDesktopQueueIndexSelected(
