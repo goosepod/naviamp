@@ -29,11 +29,7 @@ import app.naviamp.domain.provider.PlaylistHomeProjection
 import app.naviamp.domain.provider.playlistListApplication
 import app.naviamp.domain.provider.playlistListErrorMessage
 import app.naviamp.domain.provider.playlistListLoadingStatus
-import app.naviamp.domain.provider.playlistPlaybackCompletionApplication
-import app.naviamp.domain.provider.playlistPlaybackErrorMessage
 import app.naviamp.domain.provider.playlistPlaybackPreparedApplication
-import app.naviamp.domain.provider.playlistPlaybackStartApplication
-import app.naviamp.domain.provider.playlistPlaybackStartPlan
 import app.naviamp.domain.provider.playlistDetailPlaybackPreparedApplication
 import app.naviamp.domain.provider.preparePlaylistDetailPlaybackApplication
 import app.naviamp.domain.provider.preparePlaylistPlaybackApplication
@@ -55,6 +51,8 @@ import app.naviamp.domain.provider.standardPlaylistTracksUpdateSuccessStatus
 import app.naviamp.domain.provider.preloadPlaylistTracksStateUpdate
 import app.naviamp.domain.playback.applyPlaybackQueueUpdate
 import app.naviamp.app.NaviampPlaybackQueueCoordinator
+import app.naviamp.app.NaviampPlaylistPlaybackController
+import app.naviamp.app.NaviampPlaylistPlaybackEffects
 import app.naviamp.domain.settings.PlaybackSettings
 import app.naviamp.desktop.playback.PlaylistCallbacks
 import app.naviamp.desktop.playback.DesktopPlaylistEngine
@@ -84,6 +82,8 @@ class DesktopPlaylistsController(
     private val clearShuffleSnapshot: () -> Unit,
     private val setOpenPlayerOnTrackStart: (Boolean) -> Unit,
 ) {
+    private val playback = NaviampPlaylistPlaybackController()
+
     var playlists by mutableStateOf<List<Playlist>>(emptyList())
         private set
     var status by mutableStateOf<String?>(null)
@@ -390,17 +390,32 @@ class DesktopPlaylistsController(
 
     fun playPlaylist(playlist: Playlist, shuffle: Boolean = false) {
         val activeProvider = provider() ?: return
-        val startPlan = playlistPlaybackStartPlan(playlist, shuffle, pendingPlaybackAction)
-        val startApplication = playlistPlaybackStartApplication(startPlan)
-        if (!startPlan.shouldStart) {
-            setConnectionStatus(startApplication.status)
-            return
-        }
-        pendingPlaybackAction = startApplication.pendingPlaybackAction
-        setConnectionStatus(startApplication.status)
+        val effects = NaviampPlaylistPlaybackEffects(
+            pendingPlaybackAction = { pendingPlaybackAction },
+            setPendingPlaybackAction = { pendingPlaybackAction = it },
+            setStatus = setConnectionStatus,
+            applyPrepared = { prepared ->
+                playlistTracksById = prepared.playlistTracksById
+                val work = prepared.playbackWork
+                setConnectionStatus(prepared.status)
+                if (work != null) {
+                    playTracks(
+                        playlist = playlist,
+                        activeProvider = activeProvider,
+                        tracks = work.playbackTracks,
+                        index = work.playbackIndex,
+                        recentPlaylistIdsAfterPlayback = work.recentPlaylistIds,
+                    )
+                }
+            },
+        )
+        val startPlan = playback.begin(playlist, shuffle, effects) ?: return
         scope.launch {
-            try {
-                val update = withContext(Dispatchers.IO) {
+            playback.execute(
+                playlist = playlist,
+                plan = startPlan,
+                loadPrepared = {
+                    val update = withContext(Dispatchers.IO) {
                     activeProvider.preparePlaylistPlaybackApplication(
                         playlist = playlist,
                         shuffle = shuffle,
@@ -412,36 +427,11 @@ class DesktopPlaylistsController(
                         providerResponseService = providerResponseService,
                         emptyStatus = "${playlist.name} did not return any tracks.",
                     )
-                }
-                val prepared = playlistPlaybackPreparedApplication(update)
-                playlistTracksById = prepared.playlistTracksById
-                val work = prepared.playbackWork
-                if (work == null) {
-                    setConnectionStatus(prepared.status)
-                    return@launch
-                }
-                setConnectionStatus(prepared.status)
-                pendingPlaybackAction =
-                    playlistPlaybackCompletionApplication(
-                        pending = pendingPlaybackAction,
-                        completed = startPlan.action,
-                    ).pendingPlaybackAction
-                playTracks(
-                    playlist = playlist,
-                    activeProvider = activeProvider,
-                    tracks = work.playbackTracks,
-                    index = work.playbackIndex,
-                    recentPlaylistIdsAfterPlayback = work.recentPlaylistIds,
-                )
-            } catch (exception: Exception) {
-                setConnectionStatus(playlistPlaybackErrorMessage(exception, playlist))
-            } finally {
-                pendingPlaybackAction =
-                    playlistPlaybackCompletionApplication(
-                        pending = pendingPlaybackAction,
-                        completed = startPlan.action,
-                    ).pendingPlaybackAction
-            }
+                    }
+                    playlistPlaybackPreparedApplication(update)
+                },
+                effects = effects,
+            )
         }
     }
 
@@ -463,17 +453,34 @@ class DesktopPlaylistsController(
     fun playPlaylistDetails(index: Int = 0, shuffle: Boolean = false) {
         val activeProvider = provider() ?: return
         val playlist = selectedPlaylist ?: return
-        val startPlan = playlistPlaybackStartPlan(playlist, shuffle, pendingPlaybackAction)
-        val startApplication = playlistPlaybackStartApplication(startPlan)
-        if (!startPlan.shouldStart) {
-            selectedPlaylistStatus = startApplication.status
-            return
-        }
-        pendingPlaybackAction = startApplication.pendingPlaybackAction
-        selectedPlaylistStatus = startApplication.status
+        val effects = NaviampPlaylistPlaybackEffects(
+            pendingPlaybackAction = { pendingPlaybackAction },
+            setPendingPlaybackAction = { pendingPlaybackAction = it },
+            setStatus = { selectedPlaylistStatus = it },
+            applyPrepared = { prepared ->
+                playlistTracksById = prepared.playlistTracksById
+                prepared.loadedTracksToStore?.let { loadedTracks ->
+                    selectedPlaylistTracks = loadedTracks
+                }
+                prepared.playbackWork?.let { work ->
+                    playTracks(
+                        playlist = playlist,
+                        activeProvider = activeProvider,
+                        tracks = work.playbackTracks,
+                        index = work.playbackIndex,
+                        recentPlaylistIdsAfterPlayback = work.recentPlaylistIds,
+                    )
+                }
+                selectedPlaylistStatus = prepared.status
+            },
+        )
+        val startPlan = playback.begin(playlist, shuffle, effects) ?: return
         scope.launch {
-            try {
-                val update = withContext(Dispatchers.IO) {
+            playback.execute(
+                playlist = playlist,
+                plan = startPlan,
+                loadPrepared = {
+                    val update = withContext(Dispatchers.IO) {
                     activeProvider.preparePlaylistDetailPlaybackApplication(
                         playlist = playlist,
                         shuffle = shuffle,
@@ -484,34 +491,11 @@ class DesktopPlaylistsController(
                         providerResponseService = providerResponseService,
                         requestedIndex = index,
                     )
-                }
-                val prepared = playlistDetailPlaybackPreparedApplication(update)
-                playlistTracksById = prepared.playlistTracksById
-                prepared.loadedTracksToStore?.let { loadedTracks ->
-                    selectedPlaylistTracks = loadedTracks
-                }
-                val work = prepared.playbackWork
-                if (work == null) {
-                    selectedPlaylistStatus = prepared.status
-                    return@launch
-                }
-                playTracks(
-                    playlist = playlist,
-                    activeProvider = activeProvider,
-                    tracks = work.playbackTracks,
-                    index = work.playbackIndex,
-                    recentPlaylistIdsAfterPlayback = work.recentPlaylistIds,
-                )
-                selectedPlaylistStatus = null
-            } catch (exception: Exception) {
-                selectedPlaylistStatus = playlistPlaybackErrorMessage(exception, playlist)
-            } finally {
-                pendingPlaybackAction =
-                    playlistPlaybackCompletionApplication(
-                        pending = pendingPlaybackAction,
-                        completed = startPlan.action,
-                    ).pendingPlaybackAction
-            }
+                    }
+                    playlistDetailPlaybackPreparedApplication(update)
+                },
+                effects = effects,
+            )
         }
     }
 

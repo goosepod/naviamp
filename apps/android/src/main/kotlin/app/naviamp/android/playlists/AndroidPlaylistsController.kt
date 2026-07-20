@@ -2,6 +2,8 @@ package app.naviamp.android
 
 import app.naviamp.domain.Playlist
 import app.naviamp.domain.Track
+import app.naviamp.app.NaviampPlaylistPlaybackController
+import app.naviamp.app.NaviampPlaylistPlaybackEffects
 import app.naviamp.domain.cache.ProviderMediaSourceConnection
 import app.naviamp.domain.app.NaviampRoute
 import app.naviamp.domain.cache.downloadConnectionRequiredStatus
@@ -18,11 +20,7 @@ import app.naviamp.domain.provider.playlistDetailsLoadedStatus
 import app.naviamp.domain.provider.playlistDetailsLoadingStatus
 import app.naviamp.domain.provider.playlistDetailsOpenPlan
 import app.naviamp.domain.provider.playlistListApplication
-import app.naviamp.domain.provider.playlistPlaybackCompletionApplication
-import app.naviamp.domain.provider.playlistPlaybackErrorMessage
 import app.naviamp.domain.provider.playlistPlaybackPreparedApplication
-import app.naviamp.domain.provider.playlistPlaybackStartApplication
-import app.naviamp.domain.provider.playlistPlaybackStartPlan
 import app.naviamp.domain.provider.preparePlaylistPlaybackApplication
 import app.naviamp.domain.provider.playlistRenameApplication
 import app.naviamp.domain.provider.playlistRenameErrorMessage
@@ -133,37 +131,16 @@ fun playAndroidPlaylist(
 ) {
     val activeProvider = state.provider ?: return
     val providerResponseService = providerResponseCacheRepository?.let { ProviderResponseService(it) }
-    val startPlan = playlistPlaybackStartPlan(playlist, shuffle, state.pendingPlaybackAction)
-    val startApplication = playlistPlaybackStartApplication(startPlan)
-    with(state) {
-        if (!startPlan.shouldStart) {
-            playlistActionStatus = startApplication.status
-            status = startApplication.status
-            return
-        }
-        pendingPlaybackAction = startApplication.pendingPlaybackAction
-        playlistActionStatus = startApplication.status
-        status = startApplication.status
-    }
-    scope.launch {
-        with(state) {
-            try {
-                val update = runCatching {
-                    activeProvider.preparePlaylistPlaybackApplication(
-                        playlist = playlist,
-                        shuffle = shuffle,
-                        selectedPlaylist = selectedPlaylist,
-                        selectedPlaylistTracks = selectedPlaylistTracks,
-                        recentPlaylistIds = recentPlaylistIds,
-                        recentPlaylistLimit = 20,
-                        currentPlaylistTracksById = playlistTracksById,
-                        providerResponseService = providerResponseService,
-                    )
-                }.getOrElse { error ->
-                    status = playlistPlaybackErrorMessage(error, playlist)
-                    return@launch
-                }
-                val prepared = playlistPlaybackPreparedApplication(update)
+    val playback = NaviampPlaylistPlaybackController()
+    val effects = NaviampPlaylistPlaybackEffects(
+        pendingPlaybackAction = { state.pendingPlaybackAction },
+        setPendingPlaybackAction = { state.pendingPlaybackAction = it },
+        setStatus = { updatedStatus ->
+            state.playlistActionStatus = updatedStatus
+            updatedStatus?.let { state.status = it }
+        },
+        applyPrepared = { prepared ->
+            with(state) {
                 playlistTracksById = prepared.playlistTracksById
                 playlistActionStatus = null
                 prepared.status?.let { status = it }
@@ -175,13 +152,30 @@ fun playAndroidPlaylist(
                     recentPlaylistIds = work.recentPlaylistIds
                     playTrack(work.firstTrack, work.playbackTracks)
                 }
-            } finally {
-                pendingPlaybackAction = playlistPlaybackCompletionApplication(
-                    pending = pendingPlaybackAction,
-                    completed = startPlan.action,
-                ).pendingPlaybackAction
             }
-        }
+        },
+    )
+    val startPlan = playback.begin(playlist, shuffle, effects) ?: return
+    scope.launch {
+        playback.execute(
+            playlist = playlist,
+            plan = startPlan,
+            loadPrepared = {
+                val update =
+                    activeProvider.preparePlaylistPlaybackApplication(
+                        playlist = playlist,
+                        shuffle = shuffle,
+                        selectedPlaylist = state.selectedPlaylist,
+                        selectedPlaylistTracks = state.selectedPlaylistTracks,
+                        recentPlaylistIds = state.recentPlaylistIds,
+                        recentPlaylistLimit = 20,
+                        currentPlaylistTracksById = state.playlistTracksById,
+                        providerResponseService = providerResponseService,
+                    )
+                playlistPlaybackPreparedApplication(update)
+            },
+            effects = effects,
+        )
     }
 }
 
