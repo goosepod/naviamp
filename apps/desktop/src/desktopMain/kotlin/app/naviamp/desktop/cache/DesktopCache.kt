@@ -1,7 +1,7 @@
 package app.naviamp.desktop
 
-import app.cash.sqldelight.driver.jdbc.sqlite.JdbcSqliteDriver
 import app.cash.sqldelight.db.QueryResult
+import app.cash.sqldelight.db.SqlDriver
 import app.naviamp.domain.Album
 import app.naviamp.domain.AlbumDetails
 import app.naviamp.domain.AlbumId
@@ -68,6 +68,7 @@ import app.naviamp.provider.navidrome.NavidromeProvider
 import app.naviamp.provider.navidrome.resolvedDisplayName
 import app.naviamp.storage.NaviampStorageDatabase
 import app.naviamp.storage.StorageMediaSourceStore
+import app.naviamp.storage.StorageDatabaseLocation
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.withContext
@@ -846,11 +847,14 @@ data class DownloadedTrack(
 )
 
 private fun createDatabase(path: Path): NaviampStorageDatabase {
-    Files.createDirectories(path.parent)
-    val exists = path.exists()
-    registerSqliteDriver()
-    val driver = JdbcSqliteDriver("jdbc:sqlite:${path.toAbsolutePath()}")
-    configureSqliteLockHandling(driver)
+    val absolutePath = path.toAbsolutePath()
+    val exists = absolutePath.exists()
+    val driver = DesktopStorageDatabaseDriverFactory.create(
+        StorageDatabaseLocation(
+            directoryPath = absolutePath.parent.toString(),
+            fileName = absolutePath.fileName.toString(),
+        ),
+    )
     val newVersion = NaviampStorageDatabase.Schema.version
     var shouldRunLegacyLyricsOffsetCleanup = false
     var shouldReclaimMigratedDatabase = false
@@ -886,31 +890,22 @@ private fun createDatabase(path: Path): NaviampStorageDatabase {
     return NaviampStorageDatabase(driver)
 }
 
-private fun configureSqliteLockHandling(driver: JdbcSqliteDriver) {
-    driver.execute(null, "PRAGMA busy_timeout=$SqliteBusyTimeoutMillis", 0)
-    driver.execute(null, "PRAGMA journal_mode=WAL", 0)
-}
-
-private fun registerSqliteDriver() {
-    Class.forName("org.sqlite.JDBC")
-}
-
-private fun JdbcSqliteDriver.databaseVersion(): Long =
+private fun SqlDriver.databaseVersion(): Long =
     executeQuery(null, "PRAGMA user_version", { cursor ->
         QueryResult.Value(if (cursor.next().value) cursor.getLong(0) ?: 0L else 0L)
     }, 0).value
 
-private fun JdbcSqliteDriver.setDatabaseVersion(version: Long) {
+private fun SqlDriver.setDatabaseVersion(version: Long) {
     execute(null, "PRAGMA user_version = $version", 0)
 }
 
-private fun clearLegacyLyricsOffsets(driver: JdbcSqliteDriver) {
+private fun clearLegacyLyricsOffsets(driver: SqlDriver) {
     driver.execute(null, "DELETE FROM track_lyrics_offset", 0)
     driver.execute(null, "DELETE FROM cached_lyrics", 0)
     driver.execute(null, "DELETE FROM cached_sidecar_status WHERE sidecar_type = 'lyrics'", 0)
 }
 
-private fun ensureMediaSourceLibraryScanSchema(driver: JdbcSqliteDriver) {
+private fun ensureMediaSourceLibraryScanSchema(driver: SqlDriver) {
     if (!driver.tableHasColumn("media_source", "native_token")) {
         driver.execute(null, "ALTER TABLE media_source ADD COLUMN native_token TEXT", 0)
     }
@@ -937,7 +932,7 @@ private fun ensureMediaSourceLibraryScanSchema(driver: JdbcSqliteDriver) {
     }
 }
 
-private fun JdbcSqliteDriver.tableHasColumn(tableName: String, columnName: String): Boolean =
+private fun SqlDriver.tableHasColumn(tableName: String, columnName: String): Boolean =
     executeQuery(null, "PRAGMA table_info($tableName)", { cursor ->
         var found = false
         while (cursor.next().value) {
@@ -949,7 +944,7 @@ private fun JdbcSqliteDriver.tableHasColumn(tableName: String, columnName: Strin
         QueryResult.Value(found)
     }, 0).value
 
-private fun ensureArtistPopularTracksSchema(driver: JdbcSqliteDriver) {
+private fun ensureArtistPopularTracksSchema(driver: SqlDriver) {
     driver.execute(
         null,
         """
@@ -987,7 +982,7 @@ private fun ensureArtistPopularTracksSchema(driver: JdbcSqliteDriver) {
     )
 }
 
-private fun ensureCachedSidecarStatusSchema(driver: JdbcSqliteDriver) {
+private fun ensureCachedSidecarStatusSchema(driver: SqlDriver) {
     driver.execute(
         null,
         """
@@ -1015,7 +1010,7 @@ private fun ensureCachedSidecarStatusSchema(driver: JdbcSqliteDriver) {
     )
 }
 
-private fun ensureTrackLyricsOffsetSchema(driver: JdbcSqliteDriver) {
+private fun ensureTrackLyricsOffsetSchema(driver: SqlDriver) {
     driver.execute(
         null,
         """
@@ -1031,7 +1026,7 @@ private fun ensureTrackLyricsOffsetSchema(driver: JdbcSqliteDriver) {
     )
 }
 
-private fun ensureKeepDownloadedSchema(driver: JdbcSqliteDriver) {
+private fun ensureKeepDownloadedSchema(driver: SqlDriver) {
     driver.execute(
         null,
         """
@@ -1084,7 +1079,7 @@ private fun ensureKeepDownloadedSchema(driver: JdbcSqliteDriver) {
     )
 }
 
-private fun ensurePendingProviderActionSchema(driver: JdbcSqliteDriver) {
+private fun ensurePendingProviderActionSchema(driver: SqlDriver) {
     driver.execute(
         null,
         """
@@ -1113,7 +1108,7 @@ private fun ensurePendingProviderActionSchema(driver: JdbcSqliteDriver) {
     )
 }
 
-private fun ensureLibraryTrackPlayMetadataSchema(driver: JdbcSqliteDriver) {
+private fun ensureLibraryTrackPlayMetadataSchema(driver: SqlDriver) {
     if (!driver.tableHasColumn("library_track", "play_count")) {
         driver.execute(null, "ALTER TABLE library_track ADD COLUMN play_count INTEGER", 0)
     }
@@ -1122,7 +1117,7 @@ private fun ensureLibraryTrackPlayMetadataSchema(driver: JdbcSqliteDriver) {
     }
 }
 
-private fun ensureRadioDjPresetSchema(driver: JdbcSqliteDriver) {
+private fun ensureRadioDjPresetSchema(driver: SqlDriver) {
     driver.execute(
         null,
         """
@@ -1151,8 +1146,6 @@ private fun ensureRadioDjPresetSchema(driver: JdbcSqliteDriver) {
         0,
     )
 }
-
-private const val SqliteBusyTimeoutMillis = 10_000
 
 private fun defaultCacheDatabasePath(): Path {
     val databasePath = defaultAppDataDirectory().resolve("storage.db")
