@@ -13,6 +13,41 @@ import kotlin.test.assertFailsWith
 
 class NaviampPlaybackReportingControllerTest {
     @Test
+    fun initialNowPlayingEligibilityIsShared() {
+        val controller = NaviampPlaybackReportingController()
+        val trackId = TrackId("track")
+
+        assertEquals(
+            trackId,
+            controller.nowPlayingReport(
+                NaviampNowPlayingReportRequest(
+                    trackId = trackId,
+                    isInternetRadioTrack = false,
+                    supportsPlayReporting = true,
+                ),
+            )?.trackId,
+        )
+        assertNull(
+            controller.nowPlayingReport(
+                NaviampNowPlayingReportRequest(
+                    trackId = trackId,
+                    isInternetRadioTrack = false,
+                    supportsPlayReporting = false,
+                ),
+            ),
+        )
+        assertNull(
+            controller.nowPlayingReport(
+                NaviampNowPlayingReportRequest(
+                    trackId = trackId,
+                    isInternetRadioTrack = true,
+                    supportsPlayReporting = true,
+                ),
+            ),
+        )
+    }
+
+    @Test
     fun reportsStateChangesAndThrottlesRepeatedPlayingUpdates() {
         val controller = NaviampPlaybackReportingController()
 

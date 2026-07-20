@@ -13,6 +13,7 @@ import app.naviamp.android.withAndroidPendingActions
 import app.naviamp.app.NaviampLivePlaybackController
 import app.naviamp.app.NaviampLivePlaybackState
 import app.naviamp.app.NaviampPlaybackReportingController
+import app.naviamp.app.NaviampNowPlayingReportRequest
 import app.naviamp.app.NaviampPlaybackStateReportRequest
 import app.naviamp.app.NaviampPlaybackQueueCoordinator
 import app.naviamp.app.NaviampProviderActionController
@@ -34,7 +35,6 @@ import app.naviamp.domain.playback.PreparedNextPlaybackSettings
 import app.naviamp.domain.playback.PreparedNextPlaybackWork
 import app.naviamp.domain.playback.QueueAwarePlaybackEngine
 import app.naviamp.domain.playback.ReplayGainSource
-import app.naviamp.domain.playback.canReportPlaybackTrack
 import app.naviamp.domain.playback.fallbackPlaybackUrl
 import app.naviamp.domain.playback.hasPendingSeekReachedTarget
 import app.naviamp.domain.playback.playbackStreamUrl
@@ -460,19 +460,18 @@ internal class AndroidServicePlaybackRuntimeController(
         provider: NavidromeProvider,
         track: Track,
     ) {
-        if (
-            !canReportPlaybackTrack(
+        val report = reporting.nowPlayingReport(
+            NaviampNowPlayingReportRequest(
+                trackId = track.id,
                 supportsPlayReporting = provider.capabilities.supportsPlayReporting,
                 isInternetRadioTrack = track.isInternetRadioTrack(),
-            )
-        ) {
-            return
-        }
+            ),
+        ) ?: return
         AndroidPlaybackRuntime.get(context).scope.launch {
             withContext(Dispatchers.IO) {
                 provider
                     .withAndroidPendingActions(sourceId, providerActions)
-                    .reportNowPlaying(track.id)
+                    .reportNowPlaying(report.trackId)
             }
         }
     }

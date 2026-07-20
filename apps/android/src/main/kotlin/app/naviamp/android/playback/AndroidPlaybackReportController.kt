@@ -4,7 +4,7 @@ import app.naviamp.domain.Track
 import app.naviamp.domain.isInternetRadioTrack
 import app.naviamp.domain.playback.PlaybackProgress
 import app.naviamp.domain.playback.PlaybackState
-import app.naviamp.domain.playback.canReportPlaybackTrack
+import app.naviamp.app.NaviampNowPlayingReportRequest
 import app.naviamp.app.NaviampPlaybackReportingController
 import app.naviamp.app.NaviampPlaybackStateReportRequest
 import app.naviamp.app.NaviampProviderActionController
@@ -21,19 +21,18 @@ internal class AndroidPlaybackReportController(
 ) {
     fun reportNowPlaying(track: Track) {
         val activeProvider = state.provider
-        if (
-            !canReportPlaybackTrack(
+        val report = reporting.nowPlayingReport(
+            NaviampNowPlayingReportRequest(
+                trackId = track.id,
                 supportsPlayReporting = activeProvider?.capabilities?.supportsPlayReporting ?: (state.activeSourceId != null),
                 isInternetRadioTrack = track.isInternetRadioTrack(),
-            )
-        ) {
-            return
-        }
+            ),
+        ) ?: return
         if (activeProvider == null) {
             val sourceId = state.activeSourceId ?: return
             scope.launch {
                 withContext(Dispatchers.IO) {
-                    providerActions.enqueueNowPlaying(sourceId, track.id)
+                    providerActions.enqueueNowPlaying(sourceId, report.trackId)
                 }
             }
             return
@@ -43,7 +42,7 @@ internal class AndroidPlaybackReportController(
                 withContext(Dispatchers.IO) {
                     providerActions
                         .offlineCapable(activeProvider, state.activeSourceId)
-                        .reportNowPlaying(track.id)
+                        .reportNowPlaying(report.trackId)
                 }
             }
         }

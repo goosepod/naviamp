@@ -11,6 +11,7 @@ import app.naviamp.app.NaviampPlaybackQueueCommandController
 import app.naviamp.app.NaviampPlaybackQueueMutationExecution
 import app.naviamp.app.NaviampPlaybackNavigationCommandController
 import app.naviamp.app.NaviampPlaybackNavigationExecution
+import app.naviamp.app.NaviampNowPlayingReportRequest
 import app.naviamp.app.NaviampPlaybackRepeatCommandController
 import app.naviamp.app.NaviampPlaybackRepeatModeExecution
 import app.naviamp.app.NaviampPlaybackCommandController
@@ -25,7 +26,6 @@ import app.naviamp.domain.playback.PlaybackEngine
 import app.naviamp.domain.playback.PlaybackProgress
 import app.naviamp.domain.playback.PlaybackState
 import app.naviamp.domain.playback.PlaybackVolumeCommand
-import app.naviamp.domain.playback.canReportPlaybackTrack
 import app.naviamp.domain.playback.PlaybackQueueNavigationCommand
 import app.naviamp.domain.provider.MediaProvider
 import app.naviamp.domain.queue.PlaybackQueue
@@ -230,18 +230,17 @@ class DesktopPlaybackController(
 
     fun reportNowPlaying(track: Track) {
         val activeProvider = provider() ?: return
-        if (
-            !canReportPlaybackTrack(
+        val report = reporting.nowPlayingReport(
+            NaviampNowPlayingReportRequest(
+                trackId = track.id,
                 supportsPlayReporting = activeProvider.capabilities.supportsPlayReporting,
                 isInternetRadioTrack = track.isInternetRadioTrack(),
-            )
-        ) {
-            return
-        }
+            ),
+        ) ?: return
         scope.launch {
             runCatching {
                 withContext(Dispatchers.IO) {
-                    reportNowPlaying(track.id)
+                    reportNowPlaying(report.trackId)
                 }
             }
         }

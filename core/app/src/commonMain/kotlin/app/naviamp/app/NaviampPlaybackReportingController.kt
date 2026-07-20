@@ -28,6 +28,14 @@ data class NaviampPlaybackStateReport(
     val positionSeconds: Double?,
 )
 
+data class NaviampNowPlayingReportRequest(
+    val trackId: TrackId,
+    val isInternetRadioTrack: Boolean,
+    val supportsPlayReporting: Boolean,
+)
+
+data class NaviampNowPlayingReport(val trackId: TrackId)
+
 data class NaviampNowPlayingHeartbeatRequest(
     val trackId: TrackId,
     val isInternetRadioTrack: Boolean,
@@ -68,6 +76,18 @@ class NaviampPlaybackReportingController(
     private var lastSessionId: Long? = null
     private var lastState: PlaybackReportState? = null
     private var lastReportAtMillis: Long = 0L
+
+    fun nowPlayingReport(request: NaviampNowPlayingReportRequest): NaviampNowPlayingReport? =
+        if (
+            canReportPlaybackTrack(
+                supportsPlayReporting = request.supportsPlayReporting,
+                isInternetRadioTrack = request.isInternetRadioTrack,
+            )
+        ) {
+            NaviampNowPlayingReport(request.trackId)
+        } else {
+            null
+        }
 
     fun stateReport(request: NaviampPlaybackStateReportRequest): NaviampPlaybackStateReport? {
         val reportState = request.playbackState.toPlaybackReportState() ?: return null
