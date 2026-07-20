@@ -329,7 +329,6 @@ internal fun naviampProductRouteUsesOuterVerticalScroll(route: NaviampRoute): Bo
     when (route) {
         NaviampRoute.Search,
         NaviampRoute.Playlists,
-        NaviampRoute.PlaylistDetail,
         NaviampRoute.Radio,
         -> true
         NaviampRoute.Player,
@@ -344,5 +343,6 @@ internal fun naviampProductRouteUsesOuterVerticalScroll(route: NaviampRoute): Bo
         NaviampRoute.Settings,
         NaviampRoute.AlbumDetail,
         NaviampRoute.ArtistDetail,
+        NaviampRoute.PlaylistDetail,
         -> false
     }

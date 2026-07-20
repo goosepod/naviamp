@@ -12,10 +12,14 @@ class NaviampProductRouteContentTest {
     }
 
     @Test
+    fun playlistDetailsOwnTheirVerticalScroll() {
+        assertFalse(naviampProductRouteUsesOuterVerticalScroll(NaviampRoute.PlaylistDetail))
+    }
+
+    @Test
     fun simpleColumnRoutesUseOuterVerticalScroll() {
         assertTrue(naviampProductRouteUsesOuterVerticalScroll(NaviampRoute.Search))
         assertTrue(naviampProductRouteUsesOuterVerticalScroll(NaviampRoute.Playlists))
-        assertTrue(naviampProductRouteUsesOuterVerticalScroll(NaviampRoute.PlaylistDetail))
         assertTrue(naviampProductRouteUsesOuterVerticalScroll(NaviampRoute.Radio))
     }
 }
