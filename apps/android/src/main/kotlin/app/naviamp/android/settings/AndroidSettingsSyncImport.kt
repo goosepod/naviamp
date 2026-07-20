@@ -6,8 +6,7 @@ import app.naviamp.android.playback.AndroidPlaybackEngine
 import app.naviamp.domain.app.NaviampRoute
 import app.naviamp.domain.settings.SettingsSyncDocument
 import app.naviamp.domain.settings.SettingsSyncJson
-import app.naviamp.domain.settings.effectiveForEngine
-import app.naviamp.domain.settings.importSettingsSyncServerProfiles
+import app.naviamp.domain.settings.applySettingsSyncDocument
 import app.naviamp.ui.naviampVisualizerFromName
 
 fun importAndroidSettingsSyncDocument(
@@ -55,30 +54,30 @@ fun applyAndroidSettingsSyncDocument(
     storage: AndroidStorageDependencies,
     playbackEngine: AndroidPlaybackEngine,
 ): String {
-    val preferences = document.preferences
-    val importedPlayback = preferences.playback.effectiveForEngine(playbackEngine)
+    val applied = applySettingsSyncDocument(
+        document = document,
+        playbackEngine = playbackEngine,
+        mediaSourceRepository = storage,
+        radioDjPresetRepository = storage,
+    )
 
-    state.interfaceSettings = preferences.interfaceSettings.normalized()
+    state.interfaceSettings = applied.interfaceSettings
     settingsStore.saveInterfaceSettings(state.interfaceSettings)
 
-    storage.replaceRadioDjPresets(importedPlayback.radioDjs)
-    state.playbackSettings = importedPlayback.copy(radioDjs = storage.radioDjPresets())
+    state.playbackSettings = applied.playbackSettings
     settingsStore.savePlaybackSettings(state.playbackSettings)
 
-    state.selectedVisualizer = naviampVisualizerFromName(preferences.visualizer.selectedVisualizer)
-    settingsStore.saveVisualizerSettings(preferences.visualizer)
+    state.selectedVisualizer = naviampVisualizerFromName(applied.visualizer.selectedVisualizer)
+    settingsStore.saveVisualizerSettings(applied.visualizer)
 
-    settingsStore.saveRecentRadioStreams(preferences.recentRadioStreams)
-    settingsStore.saveRecentInternetRadioStations(preferences.recentInternetRadioStations)
+    settingsStore.saveRecentRadioStreams(applied.recentRadioStreams)
+    settingsStore.saveRecentInternetRadioStations(applied.recentInternetRadioStations)
     state.homeState = state.homeState.copy(
-        recentRadioStreams = preferences.recentRadioStreams,
-        recentInternetRadioStations = preferences.recentInternetRadioStations.map { it.toStation() },
+        recentRadioStreams = applied.recentRadioStreams,
+        recentInternetRadioStations = applied.recentInternetRadioStations.map { it.toStation() },
     )
 
-    val importedProfiles = importSettingsSyncServerProfiles(
-        serverProfiles = document.serverProfiles,
-        repository = storage,
-    )
+    val importedProfiles = applied.importedServerProfiles
     state.savedMediaSources = storage.mediaSources()
     val importedConnection = importedProfiles.firstConnectionForm
     if (importedConnection != null) {

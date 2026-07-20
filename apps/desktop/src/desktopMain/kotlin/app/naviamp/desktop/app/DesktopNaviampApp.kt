@@ -52,23 +52,15 @@ import app.naviamp.domain.radio.RadioTuningSettings
 import app.naviamp.desktop.settings.PlaybackSettings
 import app.naviamp.desktop.settings.PlaybackSessionSettings
 import app.naviamp.desktop.settings.RecentRadioStream
-import app.naviamp.desktop.settings.DesktopSettingsSyncDocumentStore
 import app.naviamp.desktop.settings.DesktopSettingsSyncSettings
 import app.naviamp.desktop.settings.VisualizerSettings
-import app.naviamp.app.settingsSyncAutoExportStatus
-import app.naviamp.app.settingsSyncImportStatus
-import app.naviamp.app.settingsSyncLocationStatus
-import app.naviamp.app.settingsSyncReconciliationStatus
-import app.naviamp.domain.settings.SettingsSyncDocument
 import app.naviamp.domain.settings.SettingsSyncLocalSnapshot
-import app.naviamp.domain.settings.SettingsSyncOperationKind
 import app.naviamp.domain.settings.SettingsSyncRuntimeState
 import app.naviamp.domain.settings.ConnectionFormState
 import app.naviamp.domain.settings.effectiveForEngine
 import app.naviamp.domain.settings.PlaybackSettingsMaintenanceController
 import app.naviamp.domain.settings.SavedInternetRadioStation
 import app.naviamp.domain.settings.ConnectionFormMusicFolder
-import app.naviamp.domain.settings.importSettingsSyncServerProfiles
 import app.naviamp.domain.settings.InterfaceSettings
 import app.naviamp.domain.settings.playbackSettingsChange
 import app.naviamp.domain.settings.restoredPlaybackQueue
@@ -80,7 +72,6 @@ import app.naviamp.domain.source.visibleServerConnections
 import app.naviamp.domain.sonicautoplay.SonicAutoplayService
 import app.naviamp.provider.navidrome.NavidromeConnection
 import app.naviamp.provider.navidrome.NavidromeProvider
-import app.naviamp.provider.navidrome.toNavidromeConnection
 import app.naviamp.provider.navidrome.withNativeTokenFromPassword
 import app.naviamp.ui.NaviampConnectionCapabilitiesUi
 import app.naviamp.ui.NaviampConnectionSettingsActions
@@ -129,7 +120,6 @@ import app.naviamp.ui.NowPlayingSelectionAction
 import app.naviamp.ui.NowPlayingSelectionActionRequest
 import app.naviamp.ui.NowPlayingSleepTimerAction
 import app.naviamp.ui.NowPlayingSleepTimerActionRequest
-import app.naviamp.ui.naviampVisualizerFromName
 import app.naviamp.ui.nowPlayingQueueIndex
 import app.naviamp.ui.nowPlayingRelatedIndex
 import app.naviamp.ui.toSharedMediaItemUi
@@ -436,47 +426,19 @@ fun NaviampApp(
         )
     }
 
-    fun applySettingsSyncDocument(document: SettingsSyncDocument) {
-        val importedPlayback = document.preferences.playback.effectiveForEngine(playbackEngine)
-        interfaceSettings = document.preferences.interfaceSettings.normalized()
-        settingsStore.saveInterfaceSettings(interfaceSettings)
-        storage.replaceRadioDjPresets(importedPlayback.radioDjs)
-        playbackSettings = importedPlayback.copy(radioDjs = storage.radioDjPresets())
-        settingsStore.savePlaybackSettings(playbackSettings.copy(radioDjs = emptyList()))
-        settingsStore.saveVisualizerSettings(document.preferences.visualizer)
-        nowPlayingPresentation.selectVisualizer(
-            naviampVisualizerFromName(document.preferences.visualizer.selectedVisualizer),
+    val settingsSyncDocumentApplicator = remember(storage, settingsStore, playbackEngine, connectionForm) {
+        DesktopSettingsSyncDocumentApplicator(
+            settingsStore = settingsStore,
+            storage = storage,
+            playbackEngine = playbackEngine,
+            setInterfaceSettings = { settings -> interfaceSettings = settings },
+            setPlaybackSettings = { settings -> playbackSettings = settings },
+            selectVisualizer = nowPlayingPresentation::selectVisualizer,
+            setRecentRadioStreams = { streams -> recentRadioStreams = streams },
+            connectionForm = connectionForm,
+            onServerProfilesImported = { mediaSourcesRevision++ },
+            setRoute = { route -> appRoute = route },
         )
-        recentRadioStreams = document.preferences.recentRadioStreams
-        settingsStore.saveRecentRadioStreams(recentRadioStreams)
-        settingsStore.saveRecentInternetRadioStations(document.preferences.recentInternetRadioStations)
-
-        val importedProfiles = importSettingsSyncServerProfiles(
-            serverProfiles = document.serverProfiles,
-            repository = storage,
-        )
-        if (importedProfiles.importedCount > 0) {
-            mediaSourcesRevision++
-        }
-
-        importedProfiles.firstConnectionForm?.let { form ->
-            connectionForm.apply(
-                DesktopConnectionFormState(
-                    serverUrl = form.serverUrl,
-                    connectionName = form.displayName,
-                    username = form.username,
-                    password = "",
-                    insecureSkipTlsVerification = form.skipTlsVerification,
-                    customCertificatePath = form.customCertificatePath,
-                    clientCertificateKeyStorePath = form.clientCertificatePath,
-                    clientCertificateKeyStorePassword = "",
-                    secondaryUrls = form.secondaryUrls,
-                    customHeaders = form.customHeaders,
-                ),
-            )
-            connectionForm.isOpen = true
-            appRoute = NaviampRoute.Settings
-        }
     }
 
     val applicationServices = remember(storage, settingsStore) {
@@ -498,7 +460,7 @@ fun NaviampApp(
                     recentInternetRadioStations = settingsStore.loadRecentInternetRadioStations(),
                 )
             },
-            applySettingsSyncDocument = ::applySettingsSyncDocument,
+            applySettingsSyncDocument = settingsSyncDocumentApplicator::apply,
             setCacheSettings = { settings -> cacheSettings = settings },
             saveCacheSettings = settingsStore::saveCacheSettings,
             publishCacheStatus = { status, level ->
