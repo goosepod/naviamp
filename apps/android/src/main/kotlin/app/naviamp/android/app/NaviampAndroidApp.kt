@@ -29,6 +29,7 @@ import app.naviamp.domain.app.NaviampRoute
 import app.naviamp.domain.provider.ConnectionValidation
 import app.naviamp.domain.home.HomeDate
 import app.naviamp.domain.home.HomeService
+import app.naviamp.domain.network.KtorSharedHttpClient
 import app.naviamp.domain.playback.PlaybackQueueController
 import app.naviamp.domain.playback.PlaybackStreamMetadata
 import app.naviamp.domain.playback.PlaybackVisualizerFrame
@@ -61,6 +62,7 @@ import app.naviamp.ui.NaviampDiagnosticsUi
 import app.naviamp.ui.NaviampLibrarySyncStatusUi
 import app.naviamp.ui.NaviampSettingsSyncActions
 import app.naviamp.ui.NaviampSharedAppShell
+import app.naviamp.ui.HttpNaviampApplicationUpdateChecker
 import app.naviamp.ui.NaviampRadioArtworkLookupEffect
 import app.naviamp.ui.naviampVisualizerFromName
 import app.naviamp.ui.NowPlayingUi
@@ -102,6 +104,9 @@ fun NaviampAndroidApp(
 ) {
     val context = LocalContext.current
     val dependencies = remember(context) { AndroidAppDependencyStore.get(context) }
+    val applicationUpdateChecker = remember {
+        HttpNaviampApplicationUpdateChecker(KtorSharedHttpClient())
+    }
     val playbackRuntime = dependencies.playbackRuntime
     val scope = playbackRuntime.scope
     val bassLoadReport = playbackRuntime.bassLoadReport
@@ -1025,6 +1030,7 @@ fun NaviampAndroidApp(
                 shellUiState.capabilities.settingsImportExport && shellUiState.capabilities.fileSelection
             },
         ),
+        applicationUpdateChecker = applicationUpdateChecker,
     )
     }
 }

@@ -21,7 +21,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -44,7 +43,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -106,6 +104,7 @@ fun NaviampSharedAppShell(
     visualizerBandsProvider: () -> List<Float> = { uiState.nowPlaying?.visualizerFrame?.bands.orEmpty() },
     actions: NaviampAppShellActions = NaviampAppShellActions(),
     syncActions: NaviampSettingsSyncActions = NaviampSettingsSyncActions(),
+    applicationUpdateChecker: NaviampApplicationUpdateChecker? = null,
 ) {
     val navigationActions = actions.navigationActions
     val connectionActions = actions.connectionActions
@@ -225,20 +224,15 @@ fun NaviampSharedAppShell(
     val selectedDownloadLocationId = cache.selectedDownloadLocationId
     val selectedAudioCacheLocationId = cache.selectedAudioCacheLocationId
     val colors = NaviampColors.Dark
-    var availableUpdate by remember { mutableStateOf<NaviampAvailableUpdate?>(null) }
-    val uriHandler = LocalUriHandler.current
     CompositionLocalProvider(
         LocalTrackSwipeSettings provides interfaceSettings.trackSwipes,
         LocalNaviampTooltipsEnabled provides interfaceSettings.showDesktopTooltips,
     ) {
-    NaviampUpdateCheckEffect(
+    NaviampApplicationUpdateEffect(
         enabled = supportsApplicationUpdates && interfaceSettings.checkForUpdates,
         currentVersion = about.version,
-        onUpdateAvailable = { availableUpdate = it },
+        checker = applicationUpdateChecker,
     )
-    LaunchedEffect(interfaceSettings.checkForUpdates, supportsApplicationUpdates) {
-        if (!interfaceSettings.checkForUpdates || !supportsApplicationUpdates) availableUpdate = null
-    }
     val showFullNowPlaying = connected && !editingConnection && !restoringConnection && nowPlayingOpen && nowPlaying != null
     val routeUsesOwnScroll = connected &&
         !editingConnection &&
@@ -380,30 +374,6 @@ fun NaviampSharedAppShell(
         }
     }
 
-    availableUpdate?.let { update ->
-        AlertDialog(
-            onDismissRequest = { availableUpdate = null },
-            title = { Text("Naviamp Update Available") },
-            text = {
-                Text("${update.name} is available. You are currently running ${about.version}.")
-            },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        availableUpdate = null
-                        uriHandler.openUri(update.releaseUrl)
-                    },
-                ) {
-                    Text("View Release")
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { availableUpdate = null }) {
-                    Text("Later")
-                }
-            },
-        )
-    }
     }
 }
 

@@ -45,6 +45,7 @@ import app.naviamp.domain.playback.PlaybackState
 import app.naviamp.domain.playback.PlaybackStreamMetadata
 import app.naviamp.domain.playback.SleepTimerState
 import app.naviamp.domain.home.HomeContent
+import app.naviamp.domain.network.KtorSharedHttpClient
 import app.naviamp.domain.queue.PlaybackQueue
 import app.naviamp.domain.queue.RepeatMode
 import app.naviamp.domain.radio.InternetRadioStationManager
@@ -81,6 +82,8 @@ import app.naviamp.ui.NaviampAppShellActions
 import app.naviamp.ui.NaviampAppShellUiState
 import app.naviamp.ui.NaviampHomeScreenUi
 import app.naviamp.ui.NaviampHomeActions
+import app.naviamp.ui.HttpNaviampApplicationUpdateChecker
+import app.naviamp.ui.NaviampApplicationUpdateEffect
 import app.naviamp.ui.NaviampDownloadsScreenUi
 import app.naviamp.ui.NaviampOfflineDashboardUi
 import app.naviamp.ui.NaviampShellChromeUi
@@ -141,6 +144,9 @@ fun NaviampApp(
     val settingsStore = dependencies.settingsStore
     val playbackSessions = remember(settingsStore) { NaviampPlaybackSessionController(settingsStore) }
     val about = remember { loadDesktopAboutUi() }
+    val applicationUpdateChecker = remember {
+        HttpNaviampApplicationUpdateChecker(KtorSharedHttpClient())
+    }
     val playbackEngine = dependencies.playbackEngine
     val storage = dependencies.storage
     val imageCacheRepository: ImageCacheRepository = dependencies.imageCacheRepository
@@ -159,6 +165,11 @@ fun NaviampApp(
     var interfaceSettings by remember {
         mutableStateOf(settingsStore.loadInterfaceSettings().normalized())
     }
+    NaviampApplicationUpdateEffect(
+        enabled = DesktopCapabilityPresentation.applicationUpdates.visible && interfaceSettings.checkForUpdates,
+        currentVersion = about.version,
+        checker = applicationUpdateChecker,
+    )
     var playbackSettings by remember {
         mutableStateOf(restoredAppState.playbackSettings.effectiveForEngine(playbackEngine))
     }

@@ -23,6 +23,20 @@ class NaviampUpdateCheckerTest {
     }
 
     @Test
+    fun injectedHttpCheckerUsesHostClient() = kotlinx.coroutines.test.runTest {
+        val checker = HttpNaviampApplicationUpdateChecker(
+            FakeUpdateHttpClient(
+                """{"tag_name":"v0.18.0","name":"Naviamp 0.18.0","html_url":"https://example.test/v0.18.0"}""",
+            ),
+        )
+
+        val update = checker.latestUpdate("v0.17.0")
+
+        assertNotNull(update)
+        assertTrue(update.releaseUrl == "https://example.test/v0.18.0")
+    }
+
+    @Test
     fun comparesReleaseVersionsNumerically() {
         assertTrue(isNewerNaviampVersion("v0.18.0", "v0.17.9"))
         assertTrue(isNewerNaviampVersion("v1.0.0", "0.99.0"))
