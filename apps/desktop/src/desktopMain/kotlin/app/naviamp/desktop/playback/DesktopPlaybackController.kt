@@ -24,7 +24,6 @@ import app.naviamp.domain.playback.PlaybackProgress
 import app.naviamp.domain.playback.PlaybackState
 import app.naviamp.domain.playback.PlaybackVolumeCommand
 import app.naviamp.domain.playback.canReportPlaybackTrack
-import app.naviamp.domain.playback.PlaybackQueueManager
 import app.naviamp.domain.playback.PlaybackQueueNavigationCommand
 import app.naviamp.domain.provider.MediaProvider
 import app.naviamp.domain.queue.PlaybackQueue
@@ -62,7 +61,6 @@ class DesktopPlaybackController(
     private val playbackProgress: () -> PlaybackProgress,
     private val setPlaybackProgress: (PlaybackProgress) -> Unit,
     private val nowPlayingTrack: () -> Track?,
-    private val repeatMode: () -> RepeatMode,
     private val setRepeatMode: (RepeatMode) -> Unit,
     private val playReportSessionId: () -> Int,
     private val setOpenPlayerOnTrackStart: (Boolean) -> Unit,
@@ -80,7 +78,6 @@ class DesktopPlaybackController(
             playlistEngine.setRepeatMode(mode)
         },
     )
-    private val queueManager = PlaybackQueueManager()
     fun savePlaybackSession(
         queue: PlaybackQueue,
         positionSeconds: Double? = playbackProgress().positionSeconds,
@@ -183,11 +180,7 @@ class DesktopPlaybackController(
     fun canUsePreviousButton(): Boolean =
         queueCoordinator.canUsePreviousButton(playbackSettings().previousButtonBehavior)
 
-    fun canUseNextButton(): Boolean =
-        queueManager.canUseNextButton(
-            queue = playbackQueue(),
-            repeatMode = repeatMode(),
-        )
+    fun canUseNextButton(): Boolean = queueCoordinator.canUseNextButton()
 
     fun handlePreviousButton() {
         setOpenPlayerOnTrackStart(false)
@@ -230,22 +223,13 @@ class DesktopPlaybackController(
         moveSelectedToCurrent: Boolean,
     ) {
         setOpenPlayerOnTrackStart(false)
-        when (val command = queueManager.jumpCommand(playbackQueue(), index, moveSelectedToCurrent)) {
-            is PlaybackQueueNavigationCommand.JumpTo -> {
-                if (!queueCoordinator.selectIndex(index, moveSelectedToCurrent).changed) return
-                reportCurrentTrackStopped()
-                playlistEngine.jumpTo(
-                    scope = scope,
-                    index = command.index,
-                    moveSelectedToCurrent = command.moveSelectedToCurrent,
-                )
-            }
-            PlaybackQueueNavigationCommand.None,
-            PlaybackQueueNavigationCommand.Previous,
-            PlaybackQueueNavigationCommand.Next,
-            PlaybackQueueNavigationCommand.RestartCurrent,
-            -> Unit
-        }
+        if (!queueCoordinator.selectIndex(index, moveSelectedToCurrent).changed) return
+        reportCurrentTrackStopped()
+        playlistEngine.jumpTo(
+            scope = scope,
+            index = index,
+            moveSelectedToCurrent = moveSelectedToCurrent,
+        )
     }
 
     fun reportNowPlaying(track: Track) {

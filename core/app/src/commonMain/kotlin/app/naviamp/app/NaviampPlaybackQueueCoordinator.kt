@@ -197,6 +197,12 @@ class NaviampPlaybackQueueCoordinator(
             restartThresholdSeconds = DefaultPreviousRestartThresholdSeconds,
         )
 
+    fun canUseNextButton(): Boolean =
+        queueManager.canUseNextButton(
+            queue = currentQueue,
+            repeatMode = playback.state.value.repeatMode,
+        )
+
     fun nextCommand(): PlaybackQueueNavigationCommand =
         queueManager.nextCommand(currentQueue, playback.state.value.repeatMode)
 

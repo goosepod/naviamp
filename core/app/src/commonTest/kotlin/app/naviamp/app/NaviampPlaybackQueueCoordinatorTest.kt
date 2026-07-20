@@ -191,10 +191,16 @@ class NaviampPlaybackQueueCoordinatorTest {
         val coordinator = NaviampPlaybackQueueCoordinator(playback)
 
         assertEquals(PlaybackQueueNavigationCommand.Next, coordinator.nextCommand())
+        assertTrue(coordinator.canUseNextButton())
         assertTrue(coordinator.selectNext().changed)
+        assertEquals(second, playback.state.value.queue.current)
+        assertFalse(coordinator.canUseNextButton())
+
+        assertFalse(coordinator.selectIndex(9).changed)
         assertEquals(second, playback.state.value.queue.current)
 
         assertEquals(RepeatMode.Queue, coordinator.cycleRepeatMode())
+        assertTrue(coordinator.canUseNextButton())
         assertTrue(coordinator.selectNext().changed)
         assertEquals(first, playback.state.value.queue.current)
 

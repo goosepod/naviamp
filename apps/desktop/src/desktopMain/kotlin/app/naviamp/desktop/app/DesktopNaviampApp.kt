@@ -368,7 +368,6 @@ fun NaviampApp(
             playbackProgress = { playbackProgress },
             setPlaybackProgress = { progress -> playbackProgress = progress },
             nowPlayingTrack = { nowPlayingTrack },
-            repeatMode = { repeatMode },
             setRepeatMode = { mode -> repeatMode = mode },
             playReportSessionId = { playReportSessionId },
             setOpenPlayerOnTrackStart = { shouldOpen -> openPlayerOnTrackStart = shouldOpen },
