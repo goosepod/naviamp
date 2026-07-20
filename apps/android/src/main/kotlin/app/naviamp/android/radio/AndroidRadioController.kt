@@ -6,6 +6,8 @@ import app.naviamp.domain.ArtistId
 import app.naviamp.domain.Genre
 import app.naviamp.domain.InternetRadioStation
 import app.naviamp.domain.Track
+import app.naviamp.app.NaviampSeededRadioExecutionController
+import app.naviamp.app.NaviampSeededRadioExecutionEffects
 import app.naviamp.domain.radio.RecentRadioAction
 import app.naviamp.domain.radio.homeStationRadioAction
 import app.naviamp.domain.cache.LocalLibraryIndexRepository
@@ -23,9 +25,6 @@ import app.naviamp.domain.radio.applyInternetRadioStationOperationResult
 import app.naviamp.domain.radio.internetRadioStationOperationResult
 import app.naviamp.domain.radio.RadioService
 import app.naviamp.domain.radio.RadioRequestStartEffectApplier
-import app.naviamp.domain.radio.SeededRadioBuildResult
-import app.naviamp.domain.radio.SeededRadioBuildEffectApplier
-import app.naviamp.domain.radio.applySeededRadioBuildResult
 import app.naviamp.domain.radio.applySeededRadioExpansionResult
 import app.naviamp.domain.radio.applyRadioSeedResult
 import app.naviamp.domain.radio.applyRadioRequestStartResult
@@ -154,12 +153,17 @@ fun startAndroidSeededRadio(
     val activeProvider = state.provider ?: return
     val providerResponseService = providerResponseCacheRepository?.let { ProviderResponseService(it) }
     val seedQueue = listOf(seedTrack)
-    val activeRadioSessionId = state.radioContinuation.start(seedTrack.id, refilling = true)
+    val execution = NaviampSeededRadioExecutionController(state.radioContinuation)
+    val activeRadioSessionId = execution.begin(seedTrack.id)
     recentRadioStream?.withRadioCoverArtIds(seedQueue)?.let(rememberRecentRadioStream)
     playTrack(seedTrack, seedQueue)
     scope.launch {
         with(state) {
-            val result = seededRadioBuildResult(
+            execution.execute(
+                sessionId = activeRadioSessionId,
+                label = statusLabel,
+                loadInitial = {
+                    seededRadioBuildResult(
                     seedTrack = seedTrack,
                     recentRadioStream = recentRadioStream,
                     radioService = RadioService(
@@ -170,12 +174,22 @@ fun startAndroidSeededRadio(
                     ),
                     loadRest = loadRest,
                 )
-            applySeededRadioBuildResult(
-                result = result,
-                requestIsCurrent = radioContinuation.isCurrent(activeRadioSessionId) && nowPlaying?.id == seedTrack.id,
-                buildingStatus = "Building $statusLabel queue...",
-                failureStatus = "Could not build $statusLabel.",
-                applier = SeededRadioBuildEffectApplier(
+                },
+                loadExpansions = AndroidSimilarRadioExpansionCounts.map { count ->
+                    suspend {
+                        seededRadioExpansionResult(
+                            radioService = RadioService(
+                                provider = activeProvider,
+                                count = count,
+                                tuning = state.playbackSettings.radioTuning,
+                                providerResponseService = providerResponseService,
+                            ),
+                            loadRest = loadRest,
+                        )
+                    }
+                },
+                effects = NaviampSeededRadioExecutionEffects(
+                    requestIsCurrent = { nowPlaying?.id == seedTrack.id },
                     rememberRecentRadioStream = rememberRecentRadioStream,
                     appendFetchedTracks = { fetchedTracks ->
                         appendAndroidGeneratedRadioTracks(
@@ -185,32 +199,13 @@ fun startAndroidSeededRadio(
                             fetchedTracks = fetchedTracks,
                         )
                     },
-                    setStatus = { status = it },
+                    queueSize = { playbackQueue.tracks.size },
+                    setStatus = { updatedStatus ->
+                        if (updatedStatus != null) status = updatedStatus
+                    },
                 ),
+                completedStatus = "Playing $statusLabel.",
             )
-
-            radioContinuation.finishRefill(activeRadioSessionId)
-            AndroidSimilarRadioExpansionCounts.forEach { count ->
-                if (!radioContinuation.isCurrent(activeRadioSessionId) || nowPlaying?.id != seedTrack.id) return@launch
-                val result = seededRadioExpansionResult(
-                    radioService = RadioService(
-                        provider = activeProvider,
-                        count = count,
-                        tuning = state.playbackSettings.radioTuning,
-                        providerResponseService = providerResponseService,
-                    ),
-                    loadRest = loadRest,
-                )
-                val applied = applySeededRadioExpansionResult(
-                    result = result,
-                    requestIsCurrent = radioContinuation.isCurrent(activeRadioSessionId) && nowPlaying?.id == seedTrack.id,
-                    appendFetchedTracks = { appendAndroidGeneratedRadioTracks(state, queueController, seedTrack, it) },
-                )
-                if (applied) status = "Building $statusLabel queue (${playbackQueue.tracks.size} tracks)..."
-            }
-            if (radioContinuation.isCurrent(activeRadioSessionId) && nowPlaying?.id == seedTrack.id) {
-                status = "Playing $statusLabel."
-            }
         }
     }
 }
@@ -692,25 +687,39 @@ fun startAndroidTrackRadioQueue(
 ) {
     val activeProvider = state.provider ?: return
     if (state.provider?.capabilities?.supportsTrackRadio != true) return
-    val activeRadioSessionId = state.radioContinuation.start(track.id, refilling = true)
+    val execution = NaviampSeededRadioExecutionController(state.radioContinuation)
+    val activeRadioSessionId = execution.begin(track.id)
     scope.launch {
         with(state) {
             status = "Starting ${track.title} radio..."
             val request = trackRadioRequest(track, playbackSettings.sonicSimilarityEnabled)
-            val result = seededRadioBuildResult(
-                request = request,
-                radioService = RadioService(
-                    provider = activeProvider,
-                    count = AndroidInitialSimilarRadioCount,
-                    tuning = playbackSettings.radioTuning,
-                ),
-            )
-            val buildApplied = applySeededRadioBuildResult(
-                result = result,
-                requestIsCurrent = radioContinuation.isCurrent(activeRadioSessionId),
-                buildingStatus = "Building ${track.title} radio queue...",
-                failureStatus = "Could not start track radio.",
-                applier = SeededRadioBuildEffectApplier(
+            execution.execute(
+                sessionId = activeRadioSessionId,
+                label = "${track.title} radio",
+                loadInitial = {
+                    seededRadioBuildResult(
+                        request = request,
+                        radioService = RadioService(
+                            provider = activeProvider,
+                            count = AndroidInitialSimilarRadioCount,
+                            tuning = playbackSettings.radioTuning,
+                        ),
+                    )
+                },
+                loadExpansions = AndroidSimilarRadioExpansionCounts.map { count ->
+                    suspend {
+                        seededRadioExpansionResult(
+                            request = request,
+                            radioService = RadioService(
+                                provider = activeProvider,
+                                count = count,
+                                tuning = playbackSettings.radioTuning,
+                            ),
+                        )
+                    }
+                },
+                effects = NaviampSeededRadioExecutionEffects(
+                    expansionIsCurrent = { nowPlaying?.id == track.id },
                     rememberRecentRadioStream = rememberRecentRadioStream,
                     appendFetchedTracks = { fetchedTracks ->
                         val queue = listOf(track) + fetchedTracks
@@ -727,32 +736,18 @@ fun startAndroidTrackRadioQueue(
                             shuffledUpNextSnapshot = null
                         }
                     },
-                    setStatus = { status = it },
+                    appendExpansionTracks = { fetchedTracks ->
+                        appendAndroidGeneratedRadioTracks(state, queueController, track, fetchedTracks)
+                    },
+                    queueSize = { playbackQueue.tracks.size },
+                    setStatus = { updatedStatus ->
+                        if (updatedStatus != null) status = updatedStatus
+                    },
                 ),
+                completedStatus = "Track radio loaded.",
+                failureStatus = "Could not start track radio.",
+                expandAfterFailedInitial = false,
             )
-            radioContinuation.finishRefill(activeRadioSessionId)
-            if (buildApplied) {
-                AndroidSimilarRadioExpansionCounts.forEach { count ->
-                    if (!radioContinuation.isCurrent(activeRadioSessionId) || nowPlaying?.id != track.id) return@launch
-                    val expansionResult = seededRadioExpansionResult(
-                        request = request,
-                        radioService = RadioService(
-                            provider = activeProvider,
-                            count = count,
-                            tuning = playbackSettings.radioTuning,
-                        ),
-                    )
-                    val applied = applySeededRadioExpansionResult(
-                        result = expansionResult,
-                        requestIsCurrent = radioContinuation.isCurrent(activeRadioSessionId) && nowPlaying?.id == track.id,
-                        appendFetchedTracks = { appendAndroidGeneratedRadioTracks(state, queueController, track, it) },
-                    )
-                    if (applied) status = "Building ${track.title} radio queue (${playbackQueue.tracks.size} tracks)..."
-                }
-                if (radioContinuation.isCurrent(activeRadioSessionId) && nowPlaying?.id == track.id) {
-                    status = "Track radio loaded."
-                }
-            }
         }
     }
 }

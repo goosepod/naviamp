@@ -2,6 +2,8 @@ package app.naviamp.desktop
 
 import app.naviamp.app.NaviampPlaybackQueueCoordinator
 import app.naviamp.app.NaviampRadioContinuationController
+import app.naviamp.app.NaviampSeededRadioExecutionController
+import app.naviamp.app.NaviampSeededRadioExecutionEffects
 import app.naviamp.desktop.playback.PlaylistCallbacks
 import app.naviamp.desktop.playback.DesktopPlaylistEngine
 import app.naviamp.desktop.settings.RecentRadioStream
@@ -20,11 +22,9 @@ import app.naviamp.domain.radio.RadioRequest
 import app.naviamp.domain.radio.RadioService
 import app.naviamp.domain.radio.RadioTuningSettings
 import app.naviamp.domain.radio.SeededRadioRequest
-import app.naviamp.domain.radio.SeededRadioBuildEffectApplier
 import app.naviamp.domain.radio.RadioRequestStartEffectApplier
 import app.naviamp.domain.radio.applyRadioRequestStartResult
 import app.naviamp.domain.radio.applyTrackRadioLoadResult
-import app.naviamp.domain.radio.applySeededRadioBuildResult
 import app.naviamp.domain.radio.applySeededRadioExpansionResult
 import app.naviamp.domain.radio.albumMixSeededRadioRequest
 import app.naviamp.domain.radio.albumSeededRadioRequest
@@ -74,6 +74,8 @@ class DesktopRadioController(
     private val continuation: NaviampRadioContinuationController,
     private val setOpenPlayerOnTrackStart: (Boolean) -> Unit,
 ) {
+    private val seededExecution = NaviampSeededRadioExecutionController(continuation)
+
     fun stopContinuation() {
         continuation.stop()
     }
@@ -376,7 +378,7 @@ class DesktopRadioController(
     ) {
         rememberRadioStream(request.recentRadioStream.withRadioCoverArtIds(listOf(request.seedTrack)))
         setConnectionStatus(null)
-        val activeRadioSessionId = continuation.start(request.seedTrack.id, refilling = true)
+        val activeRadioSessionId = seededExecution.begin(request.seedTrack.id)
         clearShuffleSnapshot()
         setOpenPlayerOnTrackStart(true)
         resetNowPlayingSidecars()
@@ -392,39 +394,22 @@ class DesktopRadioController(
         )
 
         scope.launch {
-            val result = withContext(Dispatchers.IO) {
+            seededExecution.execute(
+                sessionId = activeRadioSessionId,
+                label = request.label,
+                loadInitial = {
+                    withContext(Dispatchers.IO) {
                     seededRadioBuildResult(request, radioService(provider, count = InitialSimilarRadioCount))
-                }
-            applySeededRadioBuildResult(
-                result = result,
-                requestIsCurrent = continuation.isCurrent(activeRadioSessionId),
-                buildingStatus = "Building ${request.label} queue...",
-                failureStatus = "Could not build ${request.label}.",
-                applier = SeededRadioBuildEffectApplier(
-                    rememberRecentRadioStream = rememberRadioStream,
-                    appendFetchedTracks = { fetchedTracks ->
-                    playlistEngine.applyQueueUpdate(
-                        queueCoordinator.appendGeneratedRadioTracks(
-                            seedTrack = request.seedTrack,
-                            fetchedTracks = fetchedTracks,
-                            requestIsCurrent = true,
-                            maxHistory = RadioQueueHistoryLimit,
-                        ),
-                    )
-                    },
-                    setStatus = setConnectionStatus,
-                ),
-            )
-            continuation.finishRefill(activeRadioSessionId)
-
-            SimilarRadioExpansionCounts.forEach { count ->
-                if (!continuation.isCurrent(activeRadioSessionId)) return@launch
-                val result = withContext(Dispatchers.IO) {
-                    seededRadioExpansionResult(request, radioService(provider, count = count))
-                }
-                val applied = applySeededRadioExpansionResult(
-                    result = result,
-                    requestIsCurrent = continuation.isCurrent(activeRadioSessionId),
+                    }
+                },
+                loadExpansions = SimilarRadioExpansionCounts.map { count ->
+                    suspend {
+                        withContext(Dispatchers.IO) {
+                            seededRadioExpansionResult(request, radioService(provider, count = count))
+                        }
+                    }
+                },
+                effects = NaviampSeededRadioExecutionEffects(
                     appendFetchedTracks = { fetchedTracks ->
                         playlistEngine.applyQueueUpdate(
                             queueCoordinator.appendGeneratedRadioTracks(
@@ -435,15 +420,11 @@ class DesktopRadioController(
                             ),
                         )
                     },
-                )
-                if (applied) {
-                    setConnectionStatus("Building ${request.label} queue (${playlistEngine.queue.tracks.size} tracks)...")
-                }
-            }
-
-            if (continuation.isCurrent(activeRadioSessionId)) {
-                setConnectionStatus(null)
-            }
+                    rememberRecentRadioStream = rememberRadioStream,
+                    queueSize = { playlistEngine.queue.tracks.size },
+                    setStatus = setConnectionStatus,
+                ),
+            )
         }
     }
 
@@ -461,17 +442,24 @@ class DesktopRadioController(
         val request = trackRadioRequest(track, preferSonicSimilarity())
         setConnectionStatus("Building ${track.title} radio...")
         rememberRadioStream(request.recentRadioStream)
-        val activeRadioSessionId = continuation.start(track.id, refilling = true)
+        val activeRadioSessionId = seededExecution.begin(track.id)
         scope.launch {
-            val result = withContext(Dispatchers.IO) {
-                seededRadioBuildResult(request, radioService(provider, count = InitialSimilarRadioCount))
-            }
-            applySeededRadioBuildResult(
-                result = result,
-                requestIsCurrent = continuation.isCurrent(activeRadioSessionId),
-                buildingStatus = "Building ${track.title} radio queue...",
-                failureStatus = "Could not build ${track.title} radio.",
-                applier = SeededRadioBuildEffectApplier(
+            seededExecution.execute(
+                sessionId = activeRadioSessionId,
+                label = "${track.title} radio",
+                loadInitial = {
+                    withContext(Dispatchers.IO) {
+                        seededRadioBuildResult(request, radioService(provider, count = InitialSimilarRadioCount))
+                    }
+                },
+                loadExpansions = SimilarRadioExpansionCounts.map { count ->
+                    suspend {
+                        withContext(Dispatchers.IO) {
+                            seededRadioExpansionResult(request, radioService(provider, count = count))
+                        }
+                    }
+                },
+                effects = NaviampSeededRadioExecutionEffects(
                     rememberRecentRadioStream = rememberRadioStream,
                     appendFetchedTracks = { fetchedTracks ->
                         playlistEngine.applyQueueMutation(
@@ -483,19 +471,7 @@ class DesktopRadioController(
                             ),
                         )
                     },
-                    setStatus = setConnectionStatus,
-                ),
-            )
-            continuation.finishRefill(activeRadioSessionId)
-            SimilarRadioExpansionCounts.forEach { count ->
-                if (!continuation.isCurrent(activeRadioSessionId)) return@launch
-                val result = withContext(Dispatchers.IO) {
-                    seededRadioExpansionResult(request, radioService(provider, count = count))
-                }
-                val applied = applySeededRadioExpansionResult(
-                    result = result,
-                    requestIsCurrent = continuation.isCurrent(activeRadioSessionId),
-                    appendFetchedTracks = { fetchedTracks ->
+                    appendExpansionTracks = { fetchedTracks ->
                         playlistEngine.applyQueueUpdate(
                             queueCoordinator.appendGeneratedRadioUpcomingTracks(
                                 currentTrack = track,
@@ -505,14 +481,10 @@ class DesktopRadioController(
                             ),
                         )
                     },
-                )
-                if (applied) {
-                    setConnectionStatus("Building ${track.title} radio queue (${playlistEngine.queue.tracks.size} tracks)...")
-                }
-            }
-            if (continuation.isCurrent(activeRadioSessionId)) {
-                setConnectionStatus(null)
-            }
+                    queueSize = { playlistEngine.queue.tracks.size },
+                    setStatus = setConnectionStatus,
+                ),
+            )
         }
     }
 
