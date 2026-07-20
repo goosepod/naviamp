@@ -5,8 +5,6 @@ import app.naviamp.app.NaviampApplicationControllers
 import app.naviamp.app.NaviampApplicationSession
 import app.naviamp.app.NaviampCapabilityPresentation
 import app.naviamp.app.NaviampClock
-import app.naviamp.app.NaviampConnectivityMonitor
-import app.naviamp.app.NaviampConnectivitySnapshot
 import app.naviamp.app.NaviampPlaybackSessionController
 import app.naviamp.app.NaviampPlaybackExecution
 import app.naviamp.app.NaviampPlatformServices
@@ -53,11 +51,7 @@ internal fun desktopApplicationRuntime(
         playbackSessions = playbackSessions,
         playbackExecution = playbackExecution,
         clock = DesktopSystemClock,
-        // Desktop currently has no live OS connectivity monitor. Preserve its online-first behavior
-        // behind the contract until the dedicated Desktop platform service is extracted.
-        connectivity = NaviampConnectivityMonitor {
-            NaviampConnectivitySnapshot(available = true)
-        },
+        connectivity = DesktopConnectivityMonitor(),
         errorReporter = NaviampRuntimeErrorReporter { error, cause ->
             System.err.println("Naviamp runtime ${error.operation}: ${error.message}")
             cause?.printStackTrace(System.err)
