@@ -46,12 +46,43 @@ import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.stringResource
 
 @Composable
-internal fun PlaylistsContent(
+fun NaviampPlaylistsContent(
+    colors: NaviampColors,
+    screen: NaviampPlaylistsScreenUi,
+    actions: NaviampPlaylistsActions,
+    mediaActions: NaviampMediaActions,
+    playlistChoices: List<NaviampPlaylistChoiceUi>,
+) {
+    PlaylistsContent(
+        colors = colors,
+        playlists = screen.playlists,
+        recentPlaylistIds = screen.recentPlaylistIds,
+        sortMode = screen.sortMode,
+        status = screen.status,
+        refreshing = screen.refreshing,
+        onRefresh = actions.onRefresh,
+        onSortModeChanged = actions.onSortModeChanged,
+        onPlaylistAction = mediaActions.onMediaItemAction ?: {},
+        onSmartPlaylistSave = actions.onSmartPlaylistSave,
+        onSmartPlaylistUpdate = actions.onSmartPlaylistUpdate,
+        onSmartPlaylistSaveWithPassword = actions.onSmartPlaylistSaveWithPassword,
+        onSmartPlaylistUpdateWithPassword = actions.onSmartPlaylistUpdateWithPassword,
+        onSmartPlaylistLoad = actions.onSmartPlaylistLoad,
+        playlistChoices = playlistChoices,
+        availableLibraries = screen.availableLibraries,
+        selectedConnectionLibraryIds = screen.selectedConnectionLibraryIds,
+    )
+}
+
+@Composable
+private fun PlaylistsContent(
     colors: NaviampColors,
     playlists: List<SharedMediaItemUi>,
     recentPlaylistIds: List<String>,
     sortMode: SharedPlaylistSortMode,
     status: String?,
+    refreshing: Boolean,
+    onRefresh: () -> Unit,
     onSortModeChanged: (SharedPlaylistSortMode) -> Unit,
     onPlaylistAction: (SharedMediaItemActionRequest) -> Unit,
     onSmartPlaylistSave: suspend (SmartPlaylistDefinition) -> Unit,
@@ -124,6 +155,18 @@ internal fun PlaylistsContent(
         ) {
             NaviampPageTitle(stringResource(Res.string.playlists_title), colors)
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                IconButton(
+                    onClick = onRefresh,
+                    enabled = !refreshing,
+                    modifier = Modifier.size(44.dp),
+                ) {
+                    Icon(
+                        NaviampIcons.Refresh,
+                        contentDescription = "Refresh playlists",
+                        tint = colors.primaryText,
+                        modifier = Modifier.size(24.dp),
+                    )
+                }
                 IconButton(
                     onClick = { smartPlaylistBuilderOpen = true },
                     modifier = Modifier.size(44.dp),

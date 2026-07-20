@@ -938,22 +938,12 @@ private fun ConnectedContent(
                 onRefresh = playlistsActions.onRefresh,
                 useScrollContainer = true,
             ) {
-                PlaylistsContent(
+                NaviampPlaylistsContent(
                     colors = colors,
-                    playlists = playlists.playlists,
-                    recentPlaylistIds = playlists.recentPlaylistIds,
-                    sortMode = playlists.sortMode,
-                    status = playlists.status,
-                    onSortModeChanged = playlistsActions.onSortModeChanged,
-                    onPlaylistAction = onMediaItemAction,
-                    onSmartPlaylistSave = playlistsActions.onSmartPlaylistSave,
-                    onSmartPlaylistUpdate = playlistsActions.onSmartPlaylistUpdate,
-                    onSmartPlaylistSaveWithPassword = playlistsActions.onSmartPlaylistSaveWithPassword,
-                    onSmartPlaylistUpdateWithPassword = playlistsActions.onSmartPlaylistUpdateWithPassword,
-                    onSmartPlaylistLoad = playlistsActions.onSmartPlaylistLoad,
+                    screen = playlists,
+                    actions = playlistsActions,
+                    mediaActions = mediaActions,
                     playlistChoices = playlistChoices,
-                    availableLibraries = playlists.availableLibraries,
-                    selectedConnectionLibraryIds = playlists.selectedConnectionLibraryIds,
                 )
             }
             SharedRoute.Library -> PullToRefreshRoute(
