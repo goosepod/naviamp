@@ -18,6 +18,11 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
+enum class DesktopLibraryTab(val label: String) {
+    Artists("Artists"),
+    Albums("Albums"),
+}
+
 class DesktopLibraryController(
     private val scope: CoroutineScope,
     private val libraryIndexRepository: LocalLibraryIndexRepository,

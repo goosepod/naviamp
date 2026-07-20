@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
@@ -494,20 +495,19 @@ internal fun MediaListContent(
 }
 
 @Composable
-internal fun LibraryContent(
+fun NaviampLibraryContent(
     colors: NaviampColors,
-    items: List<SharedMediaItemUi>,
-    query: String,
-    syncStatus: NaviampLibrarySyncStatusUi,
-    onQueryChanged: (String) -> Unit,
-    onRefreshLibrary: () -> Unit,
-    onLoadMore: () -> Unit,
-    onArtistSelected: (SharedMediaItemUi) -> Unit,
-    onArtistFavoriteToggled: (SharedMediaItemUi) -> Unit = {},
+    screen: NaviampLibraryScreenUi,
+    actions: NaviampLibraryActions,
+    mediaActions: NaviampMediaActions,
+    listState: LazyListState,
 ) {
+    val items = screen.artists
+    val query = screen.query
+    val syncStatus = screen.syncStatus
     val searchFocusRequester = remember { FocusRequester() }
-    val listState = rememberLazyListState()
     val scope = rememberCoroutineScope()
+    val onMediaItemAction = mediaActions.onMediaItemAction ?: {}
     val filteredItems = remember(items, query) {
         val normalizedQuery = query.trim().lowercase()
         if (normalizedQuery.isBlank()) {
@@ -530,16 +530,33 @@ internal fun LibraryContent(
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             item {
-            NaviampPageTitle(stringResource(Res.string.library_title), colors)
+                Row(
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    NaviampPageTitle(stringResource(Res.string.library_title), colors)
+                    NaviampRowOverflowMenu(
+                        colors = colors,
+                        items = listOf(
+                            NaviampRowMenuItem(
+                                label = stringResource(Res.string.library_refresh),
+                                icon = NaviampIcons.Refresh,
+                                onClick = actions.onRefresh,
+                                enabled = !syncStatus.isSyncing,
+                            ),
+                        ),
+                    )
+                }
             }
             item {
             NaviampCompactSearchField(
                 value = query,
-                onValueChange = onQueryChanged,
+                onValueChange = actions.onQueryChanged,
                 placeholder = stringResource(Res.string.library_search_artists),
                 colors = colors,
                 onClear = {
-                    onQueryChanged("")
+                    actions.onQueryChanged("")
                     searchFocusRequester.requestFocus()
                 },
                 modifier = Modifier.padding(horizontal = 8.dp).focusRequester(searchFocusRequester),
@@ -561,7 +578,7 @@ internal fun LibraryContent(
                     if (syncStatus.showRefresh) {
                         TextButton(
                             enabled = !syncStatus.isSyncing,
-                            onClick = onRefreshLibrary,
+                            onClick = actions.onRefresh,
                         ) {
                             Text(
                                 if (syncStatus.isSyncing) stringResource(Res.string.library_refreshing) else stringResource(Res.string.library_refresh),
@@ -585,12 +602,31 @@ internal fun LibraryContent(
                 items = filteredItems,
                 key = { item -> item.id },
             ) { item ->
+                val menuItems = artistRowActions(
+                    canStartRadio = true,
+                    canAddToQueue = true,
+                    canAddToPlaylist = true,
+                ).mapNotNull { spec ->
+                    spec.action.sharedMediaItemActionOrNull()?.let { action ->
+                        NaviampRowMenuItem(
+                            label = spec.label,
+                            icon = spec.icon,
+                            onClick = {
+                                onMediaItemAction(
+                                    item.actionRequest(action, kind = SharedMediaItemKind.Artist),
+                                )
+                            },
+                            enabled = spec.enabled,
+                        )
+                    }
+                }
                 SharedMediaRow(
                     item = item,
                     colors = colors,
-                    onClick = { onArtistSelected(item) },
-                    onFavoriteToggled = onArtistFavoriteToggled,
                     itemKind = SharedMediaItemKind.Artist,
+                    menuItems = menuItems,
+                    canSelect = true,
+                    onItemAction = onMediaItemAction,
                 )
             }
         }
@@ -605,6 +641,7 @@ internal fun LibraryContent(
                         color = colors.secondaryText,
                         fontSize = 10.sp,
                         modifier = Modifier.clickable {
+                            actions.onJumpToLetter(letter)
                             val boundary = if (letter == '#') "" else letter.lowercaseChar().toString()
                             val index = filteredItems.indexOfFirst { item -> item.title.lowercase() >= boundary }
                             val headerCount = 2 + if (syncStatus.message != null) 1 else 0

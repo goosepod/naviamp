@@ -30,6 +30,7 @@ import app.naviamp.ui.NaviampSettingsSyncActions
 import app.naviamp.ui.NaviampSettingsSyncUi
 import app.naviamp.ui.NaviampDownloadsContent
 import app.naviamp.ui.NaviampSearchContent
+import app.naviamp.ui.NaviampLibraryContent
 import app.naviamp.ui.SharedHomeRoute
 import app.naviamp.ui.SaveQueueAsPlaylistDialog
 import app.naviamp.ui.SonicMixBuilderContent
@@ -107,15 +108,13 @@ fun ColumnScope.DesktopRouteContent(
                     actions = shellActions.playlistDetailActions,
                     playlistsActions = shellActions.playlistsActions,
                 )
-                NaviampRoute.Library -> {
-                    DesktopLibraryPanel(
-                        appColors = appColors,
-                        library = shellState.library,
-                        listState = libraryListState,
-                        actions = shellActions.libraryActions,
-                        mediaActions = shellActions.mediaActions,
-                    )
-                }
+                NaviampRoute.Library -> NaviampLibraryContent(
+                    colors = appColors,
+                    screen = shellState.library,
+                    actions = shellActions.libraryActions,
+                    mediaActions = shellActions.mediaActions,
+                    listState = libraryListState,
+                )
                 NaviampRoute.Search -> NaviampSearchContent(
                     colors = appColors,
                     screen = shellState.search,

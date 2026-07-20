@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -1033,16 +1034,12 @@ private fun ConnectedContent(
                 isRefreshing = library.syncStatus.isSyncing,
                 onRefresh = libraryActions.onRefresh,
             ) {
-                LibraryContent(
+                NaviampLibraryContent(
                     colors = colors,
-                    items = library.artists,
-                    query = library.query,
-                    syncStatus = library.syncStatus,
-                    onQueryChanged = libraryActions.onQueryChanged,
-                    onRefreshLibrary = libraryActions.onRefresh,
-                    onLoadMore = libraryActions.onLoadMore,
-                    onArtistSelected = onArtistSelected,
-                    onArtistFavoriteToggled = onArtistFavoriteToggled,
+                    screen = library,
+                    actions = libraryActions,
+                    mediaActions = mediaActions,
+                    listState = rememberLazyListState(),
                 )
             }
             SharedRoute.Search -> NaviampSearchContent(
