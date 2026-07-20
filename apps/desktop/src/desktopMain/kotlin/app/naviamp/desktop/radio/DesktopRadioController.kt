@@ -25,7 +25,7 @@ import app.naviamp.domain.radio.SeededRadioRequest
 import app.naviamp.domain.radio.SeededRadioBuildResult
 import app.naviamp.domain.radio.SeededRadioBuildEffectApplier
 import app.naviamp.domain.radio.applySeededRadioBuildResult
-import app.naviamp.domain.radio.SeededRadioExpansionResult
+import app.naviamp.domain.radio.applySeededRadioExpansionResult
 import app.naviamp.domain.radio.albumMixSeededRadioRequest
 import app.naviamp.domain.radio.albumSeededRadioRequest
 import app.naviamp.domain.radio.artistMixSeededRadioRequest
@@ -92,29 +92,29 @@ class DesktopRadioController(
 
         val activeRadioSessionId = continuation.beginRefill(seedTrack.id)
         scope.launch {
-            when (
-                val result = withContext(Dispatchers.IO) {
-                    seededRadioExpansionResult(
-                        radioService = radioService(provider),
-                    ) { radioService ->
-                        radioService.trackRadio(seedTrack, preferSonicSimilarity())
-                    }
-                }
-            ) {
-                is SeededRadioExpansionResult.Ready -> {
-                    playlistEngine.applyQueueUpdate(
-                        queueCoordinator.appendGeneratedRadioTracks(
-                        seedTrack = seedTrack,
-                        fetchedTracks = result.fetchedTracks,
-                        requestIsCurrent = continuation.isCurrent(activeRadioSessionId),
-                        maxHistory = RadioQueueHistoryLimit,
-                        ),
-                    )
-                }
-                is SeededRadioExpansionResult.Failed -> {
-                    setConnectionStatus(result.error.message ?: "Could not extend radio.")
+            val result = withContext(Dispatchers.IO) {
+                seededRadioExpansionResult(
+                    radioService = radioService(provider),
+                ) { radioService ->
+                    radioService.trackRadio(seedTrack, preferSonicSimilarity())
                 }
             }
+            applySeededRadioExpansionResult(
+                result = result,
+                requestIsCurrent = continuation.isCurrent(activeRadioSessionId),
+                failureStatus = "Could not extend radio.",
+                appendFetchedTracks = { fetchedTracks ->
+                    playlistEngine.applyQueueUpdate(
+                        queueCoordinator.appendGeneratedRadioTracks(
+                            seedTrack = seedTrack,
+                            fetchedTracks = fetchedTracks,
+                            requestIsCurrent = true,
+                            maxHistory = RadioQueueHistoryLimit,
+                        ),
+                    )
+                },
+                setStatus = setConnectionStatus,
+            )
             continuation.finishRefill(activeRadioSessionId)
         }
     }
@@ -452,16 +452,21 @@ class DesktopRadioController(
                 val result = withContext(Dispatchers.IO) {
                     seededRadioExpansionResult(request, radioService(provider, count = count))
                 }
-                if (result !is SeededRadioExpansionResult.Ready) return@forEach
-                playlistEngine.applyQueueUpdate(
-                    queueCoordinator.appendGeneratedRadioTracks(
-                    seedTrack = request.seedTrack,
-                    fetchedTracks = result.fetchedTracks,
+                val applied = applySeededRadioExpansionResult(
+                    result = result,
                     requestIsCurrent = continuation.isCurrent(activeRadioSessionId),
-                    maxHistory = RadioQueueHistoryLimit,
-                    ),
+                    appendFetchedTracks = { fetchedTracks ->
+                        playlistEngine.applyQueueUpdate(
+                            queueCoordinator.appendGeneratedRadioTracks(
+                                seedTrack = request.seedTrack,
+                                fetchedTracks = fetchedTracks,
+                                requestIsCurrent = true,
+                                maxHistory = RadioQueueHistoryLimit,
+                            ),
+                        )
+                    },
                 )
-                if (continuation.isCurrent(activeRadioSessionId)) {
+                if (applied) {
                     setConnectionStatus("Building ${request.label} queue (${playlistEngine.queue.tracks.size} tracks)...")
                 }
             }
@@ -519,16 +524,21 @@ class DesktopRadioController(
                 val result = withContext(Dispatchers.IO) {
                     seededRadioExpansionResult(request, radioService(provider, count = count))
                 }
-                if (result !is SeededRadioExpansionResult.Ready) return@forEach
-                playlistEngine.applyQueueUpdate(
-                    queueCoordinator.appendGeneratedRadioUpcomingTracks(
-                    currentTrack = track,
-                    fetchedTracks = result.fetchedTracks,
+                val applied = applySeededRadioExpansionResult(
+                    result = result,
                     requestIsCurrent = continuation.isCurrent(activeRadioSessionId),
-                    maxHistory = RadioQueueHistoryLimit,
-                    ),
+                    appendFetchedTracks = { fetchedTracks ->
+                        playlistEngine.applyQueueUpdate(
+                            queueCoordinator.appendGeneratedRadioUpcomingTracks(
+                                currentTrack = track,
+                                fetchedTracks = fetchedTracks,
+                                requestIsCurrent = true,
+                                maxHistory = RadioQueueHistoryLimit,
+                            ),
+                        )
+                    },
                 )
-                if (continuation.isCurrent(activeRadioSessionId)) {
+                if (applied) {
                     setConnectionStatus("Building ${track.title} radio queue (${playlistEngine.queue.tracks.size} tracks)...")
                 }
             }

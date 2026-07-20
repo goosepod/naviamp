@@ -30,3 +30,25 @@ fun applySeededRadioBuildResult(
         }
     }
 }
+
+fun applySeededRadioExpansionResult(
+    result: SeededRadioExpansionResult,
+    requestIsCurrent: Boolean,
+    failureStatus: String? = null,
+    appendFetchedTracks: (List<Track>) -> Unit,
+    setStatus: (String) -> Unit = {},
+): Boolean {
+    when (result) {
+        is SeededRadioExpansionResult.Ready -> {
+            if (!requestIsCurrent) return false
+            appendFetchedTracks(result.fetchedTracks)
+            return true
+        }
+        is SeededRadioExpansionResult.Failed -> {
+            if (requestIsCurrent && failureStatus != null) {
+                setStatus(result.error.message ?: failureStatus)
+            }
+            return false
+        }
+    }
+}

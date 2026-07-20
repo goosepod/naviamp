@@ -446,6 +446,7 @@ Record architecture decisions here or link a dedicated decision record.
 | 2026-07-19 | Share Desktop navigation-command dispatch. | Previous, next, restart-current, and valid jump intent resolve through `NaviampPlaybackNavigationCommandController`; Desktop executes BASS/playlist operations and reporting, while Android keeps its distinct adjacent-selection and finished-track path to preserve repeat wrapping, Sonic Autoplay fallback, and service lifetime. |
 | 2026-07-19 | Move Desktop queue-to-session mapping into the shared session owner. | Queue occurrence, Play Next boundary, and position mapping are application persistence policy; Desktop retains callback timing and its settings-backed repository while calling `NaviampPlaybackSessionController.saveQueue`. |
 | 2026-07-19 | Share initial Now Playing report eligibility. | Capability and Internet Radio eligibility are common reporting policy owned by `NaviampPlaybackReportingController`; Desktop, Android UI, and Android service reporters retain their separate provider-action, offline enqueue, coroutine, and error-handling lifetimes. |
+| 2026-07-20 | Share seeded-radio expansion result application. | Current-request validation, ready/failed classification, fetched-track dispatch, and optional failure reporting now use one tested domain policy across Desktop and Android refill and staged-expansion paths. Hosts retain native queue application and lifecycle checks. This parity extraction adds a net 10 Desktop production lines, so it establishes shared ownership but claims no delete-first thinning credit. |
 
 ### Desktop Route Boundary Audit
 
@@ -527,8 +528,8 @@ The 2026-07-17 audit covers every current application entry point:
 
 ## Current Handoff
 
-- **Last completed item:** Android's specialized track-radio path now uses the same seeded-build result policy as the general Android and Desktop paths. The shared result reports whether current ready work was applied; Android retains only its full seed-queue installation, related-track presentation, and native queue-controller effects. This Android parity correction does not change Desktop production size.
-- **Next recommended item:** Share seeded-radio expansion result application across Android and Desktop, then continue the Desktop radio seed-selection audit.
+- **Last completed item:** Seeded-radio refill and staged expansion results now flow through one tested domain effect policy on Android and Desktop. Current-request rejection and failure handling are shared; each host retains native queue application, status wording, and lifecycle checks. This parity extraction adds a net 10 Desktop production lines and therefore claims no delete-first thinning credit.
+- **Next recommended item:** Continue the Desktop radio seed-selection audit, then extract the next repeated radio-start decision with a net Desktop reduction.
 - **Verification:** On 2026-07-20, `:core:ui:jvmTest`, `:apps:desktop:desktopTest`, `:apps:android:compileDebugKotlin`, and `:core:ui:compileKotlinIosSimulatorArm64` passed after moving route-product composition into common UI. Desktop smoke testing then exposed infinite-height constraints where Downloads and playlist details were nested inside the route wrapper's vertical scroll even though both screens own scrolling, plus an unscrollable connection form because Settings does not own scrolling. The wrapper now adds scrolling only for Search, Playlists, Internet Radio, and Settings, with JVM regression coverage for the route policy.
 - **Known blockers:** None.
 
