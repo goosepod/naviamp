@@ -574,101 +574,29 @@ fun NaviampApp(
     val settingsSyncController = applicationServices.settingsSync
     val cacheSettingsController = applicationServices.cacheSettings
 
-    fun publishSettingsSyncStatus(
-        message: String,
-        level: NaviampApplicationStatusLevel = NaviampApplicationStatusLevel.Information,
-    ) {
-        settingsSyncStatus = message
-        applicationControllers.status.publish(
-            area = NaviampApplicationStatusArea.SettingsSync,
-            level = level,
-            message = message,
+    val settingsSyncHost = remember(settingsSyncController, applicationControllers) {
+        DesktopSettingsSyncHost(
+            settingsStore = settingsStore,
+            controller = settingsSyncController,
+            settings = { settingsSyncSettings },
+            setSettings = { settings -> settingsSyncSettings = settings },
+            setStatus = { status ->
+                settingsSyncStatus = status
+                applicationControllers.status.publish(
+                    area = NaviampApplicationStatusArea.SettingsSync,
+                    level = NaviampApplicationStatusLevel.Information,
+                    message = status,
+                )
+            },
+            publishError = { status ->
+                settingsSyncStatus = status
+                applicationControllers.status.publish(
+                    area = NaviampApplicationStatusArea.SettingsSync,
+                    level = NaviampApplicationStatusLevel.Error,
+                    message = status,
+                )
+            },
         )
-    }
-
-    fun updateSettingsSyncDirectory(path: String?) {
-        saveSettingsSyncSettings(DesktopSettingsSyncSettings(
-            directoryPath = path,
-            autoExportEnabled = settingsSyncSettings.autoExportEnabled && path != null,
-            lastLocalUpdateEpochMillis = settingsSyncSettings.lastLocalUpdateEpochMillis,
-            lastAppliedSyncUpdateEpochMillis = settingsSyncSettings.lastAppliedSyncUpdateEpochMillis,
-        ))
-        settingsSyncStatus = settingsSyncLocationStatus(settingsSyncSettings.directoryPath != null)
-    }
-
-    fun writeSettingsSync(
-        document: SettingsSyncDocument,
-        statusMessage: (String) -> String,
-    ) {
-        val directory = settingsSyncDirectory()
-        if (directory == null) {
-            settingsSyncStatus = "Choose a settings sync folder first."
-            return
-        }
-        val documentStore = DesktopSettingsSyncDocumentStore(directory)
-        runCatching {
-            documentStore.write(document)
-            documentStore.displayName
-        }.onSuccess { fileName ->
-            settingsSyncController.documentWritten(document)
-            publishSettingsSyncStatus(statusMessage(fileName))
-        }.onFailure { error ->
-            publishSettingsSyncStatus(
-                error.message ?: "Could not export settings sync file.",
-                NaviampApplicationStatusLevel.Error,
-            )
-        }
-    }
-
-    fun exportSettingsSync() {
-        settingsSyncController.exportCurrent(markChanged = true).documentToWrite?.let { document ->
-            writeSettingsSync(document) { fileName -> "Settings exported to $fileName." }
-        }
-    }
-
-    fun autoExportSettingsSync() {
-        settingsSyncController.autoExport()?.documentToWrite?.let { document ->
-            writeSettingsSync(document) { fileName -> "Settings auto-exported to $fileName." }
-        }
-    }
-
-    fun updateSettingsSyncAutoExport(enabled: Boolean) {
-        saveSettingsSyncSettings(settingsSyncSettings.copy(
-            autoExportEnabled = enabled && settingsSyncSettings.directoryPath != null,
-        ))
-        settingsSyncStatus = settingsSyncAutoExportStatus(settingsSyncSettings.autoExportEnabled)
-        if (settingsSyncSettings.autoExportEnabled) {
-            autoExportSettingsSync()
-        }
-    }
-
-    fun savePlaybackSettingsForSync(settings: PlaybackSettings) {
-        settingsStore.savePlaybackSettings(settings)
-        settingsSyncController.markLocalChanged()
-        autoExportSettingsSync()
-    }
-
-    fun saveVisualizerSettingsForSync(settings: VisualizerSettings) {
-        settingsStore.saveVisualizerSettings(settings)
-        settingsSyncController.markLocalChanged()
-        autoExportSettingsSync()
-    }
-
-    fun saveRecentRadioStreamsForSync(streams: List<RecentRadioStream>) {
-        settingsStore.saveRecentRadioStreams(streams)
-        settingsSyncController.markLocalChanged()
-        autoExportSettingsSync()
-    }
-
-    fun saveRecentInternetRadioStationsForSync(stations: List<SavedInternetRadioStation>) {
-        settingsStore.saveRecentInternetRadioStations(stations)
-        settingsSyncController.markLocalChanged()
-        autoExportSettingsSync()
-    }
-
-    fun markAndAutoExportSettingsSync() {
-        settingsSyncController.markLocalChanged()
-        autoExportSettingsSync()
     }
 
     fun rememberRadioStream(stream: RecentRadioStream) {
@@ -676,72 +604,14 @@ fun NaviampApp(
             stream = stream,
             recentRadioStreams = recentRadioStreams,
             setRecentRadioStreams = { streams -> recentRadioStreams = streams },
-            saveRecentRadioStreams = ::saveRecentRadioStreamsForSync,
+            saveRecentRadioStreams = settingsSyncHost::saveRecentRadioStreams,
             homeContent = homeContent,
             setHomeContent = { content -> homeContent = content },
         )
     }
 
-    fun importSettingsSyncFromDirectory(directory: Path) {
-        runCatching {
-            val document = DesktopSettingsSyncDocumentStore(directory).read()
-                ?: error("No settings sync file found in that folder.")
-            settingsSyncController.applySyncedDocument(document)
-        }.onSuccess { result ->
-            publishSettingsSyncStatus(settingsSyncImportStatus(result.hasServerProfiles))
-        }.onFailure { error ->
-            publishSettingsSyncStatus(
-                error.message ?: "Could not import settings sync file.",
-                NaviampApplicationStatusLevel.Error,
-            )
-        }
-    }
-
-    fun importSettingsSync() {
-        val directory = settingsSyncDirectory()
-        if (directory == null) {
-            settingsSyncStatus = "Choose a settings sync folder first."
-            return
-        }
-        importSettingsSyncFromDirectory(directory)
-    }
-
-    fun selectSettingsSyncDirectoryAndImport(path: String) {
-        saveSettingsSyncSettings(
-            DesktopSettingsSyncSettings(
-                directoryPath = path,
-                autoExportEnabled = settingsSyncSettings.autoExportEnabled,
-                lastLocalUpdateEpochMillis = settingsSyncSettings.lastLocalUpdateEpochMillis,
-                lastAppliedSyncUpdateEpochMillis = settingsSyncSettings.lastAppliedSyncUpdateEpochMillis,
-            ),
-        )
-        importSettingsSyncFromDirectory(Path.of(path))
-    }
-
-    LaunchedEffect(Unit) {
-        val directory = settingsSyncDirectory() ?: return@LaunchedEffect
-        runCatching {
-            val providerDocument = DesktopSettingsSyncDocumentStore(directory).read()
-            settingsSyncController.reconcileDocuments(
-                localMirrorDocument = null,
-                providerDocument = providerDocument,
-                syncLocationConfigured = true,
-            )
-        }.onSuccess { reconciliation ->
-            val result = reconciliation.result
-            if (result.kind == SettingsSyncOperationKind.Exported) {
-                result.documentToWrite?.let { document ->
-                    writeSettingsSync(document) { fileName -> "Settings sync exported local settings to $fileName." }
-                }
-            } else {
-                publishSettingsSyncStatus(settingsSyncReconciliationStatus(result))
-            }
-        }.onFailure { error ->
-            publishSettingsSyncStatus(
-                error.message ?: "Could not check settings sync folder.",
-                NaviampApplicationStatusLevel.Error,
-            )
-        }
+    LaunchedEffect(settingsSyncHost) {
+        settingsSyncHost.reconcileAtStartup()
     }
 
     val playlistCallbacksRef = remember { mutableStateOf<PlaylistCallbacks?>(null) }
@@ -792,7 +662,7 @@ fun NaviampApp(
         homeContent = { homeContent },
         setHomeContent = { content -> homeContent = content },
         initialRecentStations = savedRecentInternetRadioStations.map { it.toStation() },
-        saveRecentInternetRadioStations = ::saveRecentInternetRadioStationsForSync,
+        saveRecentInternetRadioStations = settingsSyncHost::saveRecentInternetRadioStations,
         stopRadioContinuation = radioController::stopContinuation,
         clearShuffleSnapshot = playbackController::clearShuffleSnapshot,
         setNowPlayingTrack = { track -> nowPlayingTrack = track },
@@ -917,7 +787,7 @@ fun NaviampApp(
         setConnectionStatus = { status -> connectionStatus = status },
         setAppRoute = { route -> appRoute = route },
         appRoute = { appRoute },
-        onSyncedSettingsChanged = ::markAndAutoExportSettingsSync,
+        onSyncedSettingsChanged = settingsSyncHost::markChangedAndAutoExport,
     )
     }
 
@@ -1083,7 +953,7 @@ fun NaviampApp(
         playbackEngine = playbackEngine,
         playbackSettings = { playbackSettings },
         setPlaybackSettings = { settings -> playbackSettings = settings },
-        savePlaybackSettings = ::savePlaybackSettingsForSync,
+        savePlaybackSettings = settingsSyncHost::savePlaybackSettings,
         reloadLyricsSidecars = nowPlayingController::clearLyricsAndReloadAnalysis,
         radioDjPresetRepository = storage,
         downloadedTracks = {
@@ -1510,7 +1380,7 @@ fun NaviampApp(
                     playbackEngine = playbackEngine,
                     previous = playbackSettings,
                 ).settings
-                savePlaybackSettingsForSync(playbackSettings.copy(radioDjs = emptyList()))
+                settingsSyncHost.savePlaybackSettings(playbackSettings.copy(radioDjs = emptyList()))
             }
         }
     }
@@ -1522,7 +1392,7 @@ fun NaviampApp(
             NowPlayingDisplayAction.ToggleVisualizer -> nowPlayingPresentation.toggleVisualizer()
             NowPlayingDisplayAction.SelectVisualizer -> request.visualizer?.let { visualizer ->
                 nowPlayingPresentation.selectVisualizer(visualizer)
-                saveVisualizerSettingsForSync(
+                settingsSyncHost.saveVisualizerSettings(
                     VisualizerSettings(selectedVisualizer = visualizer.name),
                 )
             }
@@ -1533,7 +1403,7 @@ fun NaviampApp(
                     radioTuning = selectedDj?.tuning ?: RadioTuningSettings(),
                     activeRadioDjId = selectedDj?.id,
                 )
-                savePlaybackSettingsForSync(playbackSettings)
+                settingsSyncHost.savePlaybackSettings(playbackSettings)
                 nowPlayingTrack?.let { track ->
                     radioController.convertCurrentTrackToRadio(track, radioController::playTrack)
                 }
@@ -1652,13 +1522,7 @@ fun NaviampApp(
                             status = settingsSyncStatus,
                             capabilities = shellCapabilities,
                         )
-                        val desktopSettingsSyncActions = NaviampSettingsSyncActions(
-                            onDirectoryChanged = ::updateSettingsSyncDirectory,
-                            onDirectorySelectedForImport = ::selectSettingsSyncDirectoryAndImport,
-                            onAutoExportChanged = ::updateSettingsSyncAutoExport,
-                            onExport = ::exportSettingsSync,
-                            onImport = ::importSettingsSync,
-                        )
+                        val desktopSettingsSyncActions = settingsSyncHost.actions()
                         val desktopShellState = desktopAppShellUiState(
                             DesktopAppShellStateContext(
                                 capabilities = shellCapabilities,
@@ -1722,7 +1586,7 @@ fun NaviampApp(
                             onInterfaceSettingsChanged = { settings: InterfaceSettings ->
                                 interfaceSettings = settings.normalized()
                                 settingsStore.saveInterfaceSettings(interfaceSettings)
-                                markAndAutoExportSettingsSync()
+                                settingsSyncHost.markChangedAndAutoExport()
                             },
                             onPlaybackSettingsChanged = settingsMaintenanceController::applyPlaybackSettings,
                             onPlaybackSettingsChangedAndRedownload =

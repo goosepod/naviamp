@@ -12,6 +12,14 @@ This document tracks useful ideas that come up during the v2 migration but are n
 
 ## Ideas
 
+### Cross-Platform Typography and Spacing Polish
+
+- **Status:** Idea
+- **Concept:** Perform a dedicated visual-polish pass after the shared UI migration stabilizes, covering typography, spacing, density, alignment, and responsive sizing across Desktop, Android, and iOS.
+- **Why it may fit:** Moving product surfaces into shared composition has exposed small differences in perceived font weight, line height, padding, and control density. Correcting these piecemeal during architecture work would make regressions harder to isolate; a focused pass can establish intentional shared tokens and explicit platform adaptations.
+- **Areas to review:** Page and section titles, row heights, metadata hierarchy, icon-to-label spacing, forms and buttons, compact versus full Now Playing, bottom navigation, narrow Desktop windows, mobile safe areas, text truncation, and dynamic type or system font scaling.
+- **Implementation notes to investigate later:** Capture representative screenshots at agreed viewport sizes on all platforms, define shared typography and spacing tokens before changing individual screens, preserve accessibility minimums, and use platform-specific adjustments only where native font metrics or input conventions require them.
+
 ### Configurable Keyboard Playback Controls
 
 - **Status:** Idea
