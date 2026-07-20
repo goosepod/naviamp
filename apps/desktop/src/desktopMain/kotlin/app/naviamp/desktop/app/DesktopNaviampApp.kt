@@ -1540,27 +1540,11 @@ fun NaviampApp(
             NowPlayingQueueAction.SaveQueueAsPlaylist ->
                 request.playlistName?.let(playlistsController::saveQueueAsPlaylist)
             NowPlayingQueueAction.MoveToNext ->
-                request.queueIndex?.let { index ->
-                    queueCoordinator.moveToNext(index).takeIf { it.changed }?.let { update ->
-                        playlistEngine.replaceQueue(
-                            update.queue,
-                            clearPreparedNext = update.clearPreparedNext,
-                        )
-                    }
-                }
+                request.queueIndex?.let(playbackController::moveQueueTrackNext)
             NowPlayingQueueAction.RemoveFromQueue ->
-                request.queueIndex?.let { index ->
-                    queueCoordinator.removeAt(index).takeIf { it.changed }?.let { update ->
-                        playlistEngine.replaceQueue(update.queue)
-                    }
-                }
+                request.queueIndex?.let(playbackController::removeFromQueue)
             NowPlayingQueueAction.EmptyQueue ->
-                queueCoordinator.clearUpcoming().takeIf { it.changed }?.let { update ->
-                    playlistEngine.replaceQueue(
-                        update.queue,
-                        clearPreparedNext = update.clearPreparedNext,
-                    )
-                }
+                playbackController.emptyQueue()
         }
     }
     val handleNowPlayingSleepTimerAction: (NowPlayingSleepTimerActionRequest) -> Unit = { request ->

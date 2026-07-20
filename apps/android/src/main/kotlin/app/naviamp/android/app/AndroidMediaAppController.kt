@@ -1,6 +1,8 @@
 package app.naviamp.android
 
 import app.naviamp.android.playback.AndroidPlaybackEngine
+import app.naviamp.app.NaviampPlaybackQueueCommandController
+import app.naviamp.app.NaviampPlaybackQueueMutationExecution
 import app.naviamp.domain.ArtistId
 import app.naviamp.domain.Track
 import app.naviamp.domain.provider.allKnownTracks
@@ -19,6 +21,16 @@ internal class AndroidMediaAppController(
     private val queueController: PlaybackQueueController,
     private val popularTracksService: ArtistPopularTracksService,
 ) {
+    private val queueCommands = NaviampPlaybackQueueCommandController(
+        queue = state.sharedQueueCoordinator,
+        execution = NaviampPlaybackQueueMutationExecution { update ->
+            queueController.replaceQueue(
+                update.queue,
+                clearPreparedNext = update.clearPreparedNext,
+            )
+        },
+    )
+
     fun activeQueue(): List<Track> =
         state.playbackQueue.tracks.ifEmpty { allKnownTracks(state.searchResults, state.albumDetail) }
 
@@ -60,24 +72,15 @@ internal class AndroidMediaAppController(
     }
 
     fun removeFromQueue(index: Int) {
-        val update = state.sharedQueueCoordinator.removeAt(index)
-        if (update.changed) {
-            queueController.replaceQueue(update.queue, clearPreparedNext = update.clearPreparedNext)
-        }
+        queueCommands.removeAt(index)
     }
 
     fun moveQueueTrackNext(index: Int) {
-        val update = state.sharedQueueCoordinator.moveToNext(index)
-        if (update.changed) {
-            queueController.replaceQueue(update.queue, clearPreparedNext = update.clearPreparedNext)
-        }
+        queueCommands.moveToNext(index)
     }
 
     fun emptyQueue() {
-        val update = state.sharedQueueCoordinator.clearUpcoming()
-        if (update.changed) {
-            queueController.replaceQueue(update.queue, clearPreparedNext = update.clearPreparedNext)
-        }
+        queueCommands.clearUpcoming()
     }
 
     fun loadRelatedTracks(track: Track) {

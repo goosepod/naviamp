@@ -8,7 +8,7 @@ Ideas discovered during the migration that should not interrupt the active check
 
 - **Target release:** `2.0.0`
 - **Working branch:** `feature/v2-cross-platform-app`
-- **Status:** Milestone 2 complete; the shared application runtime, controller/service composition, lifecycle, navigation, playback/queue coordination, provider actions, settings sync, cache, downloads, capabilities, errors, and platform-independent tests are active on Android and Desktop
+- **Status:** Milestone 3 in progress after completing the shared application runtime foundation in Milestone 2
 - **Release policy:** Feature development for the v1 line is frozen. Only bug fixes should be released from v1 while this work is underway.
 - **Versioning rule:** Do not change `VERSION` to `2.0.0` until the release-preparation milestone. Development builds and intermediate branches must remain clearly distinguishable from a finished v2 release.
 - **Primary objective:** One shared Naviamp application, UI, and behavior hosted by thin Android, Desktop, and iOS applications.
@@ -123,7 +123,7 @@ Use explicit dependency construction unless a dependency-injection framework pro
 
 ### Milestone 3: Convert Desktop to a Thin Host
 
-- [ ] Move remaining shared product behavior out of the Desktop entry point and Desktop-only controller.
+- [ ] Move remaining shared product behavior out of the Desktop entry point and Desktop-only controller. `NaviampPlaybackQueueCommandController` now owns the common mutate-then-mirror sequence for move-next, remove, and empty-queue user commands. Desktop delegates those entry-point actions through its playback adapter, while Android consumes the same shared command owner; each host retains only playback-engine queue application and prepared-next/native callback handling.
 - [ ] Keep window creation, menus, updater integration, file dialogs, desktop notifications, and packaging in the Desktop host.
 - [ ] Adapt the existing Desktop BASS implementation to the shared playback contract.
 - [ ] Adapt Desktop database, secret, filesystem, connectivity, and HTTP services to the shared platform contracts. Media-source SQL, mapping, and credential policy now use `StorageMediaSourceStore`; Desktop deliberately supplies its pass-through credential adapter until OS-backed secure storage is implemented. Settings-sync reads and writes use the shared document-store boundary while paths and native dialogs remain in the host.
@@ -505,7 +505,7 @@ The 2026-07-17 audit covers every current application entry point:
 
 ## Current Handoff
 
-- **Last completed item:** Milestone 2 is complete. The shared runtime has explicit service boundaries for every host dependency it consumes, no direct Android or Desktop API access, shared coordination owners, and platform-independent composition tests.
-- **Next recommended item:** Begin Milestone 3 by moving the next remaining shared product-behavior slice out of `DesktopNaviampApp` or a Desktop-only controller while preserving windowing, menus, updater integration, file dialogs, notifications, BASS execution, and packaging as host responsibilities.
+- **Last completed item:** Milestone 3 has started by moving bounded user queue command coordination out of `DesktopNaviampApp` and the Android media controller into `NaviampPlaybackQueueCommandController`. Hosts now provide only the queue-mutation execution adapter for their playback engines.
+- **Next recommended item:** Audit the remaining Desktop playback/session policies, beginning with progress-position persistence gating, and move the next cross-platform decision into the existing shared playback-session owner without disturbing BASS execution or Desktop callbacks.
 - **Verification:** On 2026-07-19, `:core:domain:jvmTest`, `:core:app:jvmTest`, `:core:storage:jvmTest`, `:core:ui:jvmTest`, `:apps:android:testDebugUnitTest`, `:apps:desktop:desktopTest`, `:core:app:iosSimulatorArm64Test`, `:core:storage:compileKotlinIosSimulatorArm64`, and `:core:ui:compileKotlinIosSimulatorArm64` completed together with two Gradle workers. Windows compiled the iOS simulator sources and tests; simulator execution remains a macOS CI responsibility.
 - **Known blockers:** None.

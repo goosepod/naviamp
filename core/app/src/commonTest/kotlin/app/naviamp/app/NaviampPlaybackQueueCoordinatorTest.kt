@@ -6,6 +6,7 @@ import app.naviamp.domain.queue.PlaybackQueue
 import app.naviamp.domain.queue.RepeatMode
 import app.naviamp.domain.playback.PlaybackQueueFinishedCommand
 import app.naviamp.domain.playback.PlaybackQueueNavigationCommand
+import app.naviamp.domain.playback.PlaybackQueueMutationUpdate
 import app.naviamp.domain.settings.PreviousButtonBehavior
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -102,6 +103,37 @@ class NaviampPlaybackQueueCoordinatorTest {
 
         assertTrue(coordinator.clearUpcoming().changed)
         assertEquals(listOf(first), playback.state.value.queue.tracks)
+    }
+
+    @Test
+    fun commandControllerMirrorsOnlyChangedUserMutationsToThePlatform() {
+        val first = track("first")
+        val second = track("second")
+        val third = track("third")
+        val playback = NaviampLivePlaybackController(
+            NaviampLivePlaybackState(
+                queue = PlaybackQueue(listOf(first, second, third), currentIndex = 0),
+            ),
+        )
+        val applied = mutableListOf<PlaybackQueueMutationUpdate>()
+        val commands = NaviampPlaybackQueueCommandController(
+            queue = NaviampPlaybackQueueCoordinator(playback),
+            execution = NaviampPlaybackQueueMutationExecution(applied::add),
+        )
+
+        assertFalse(commands.removeAt(99).changed)
+        assertTrue(applied.isEmpty())
+
+        assertTrue(commands.moveToNext(2).changed)
+        assertEquals(listOf(first, third, second), applied.single().queue.tracks)
+        assertTrue(applied.single().clearPreparedNext)
+
+        assertTrue(commands.removeAt(1).changed)
+        assertEquals(listOf(first, second), applied.last().queue.tracks)
+
+        assertTrue(commands.clearUpcoming().changed)
+        assertEquals(listOf(first), applied.last().queue.tracks)
+        assertEquals(playback.state.value.queue, applied.last().queue)
     }
 
     @Test

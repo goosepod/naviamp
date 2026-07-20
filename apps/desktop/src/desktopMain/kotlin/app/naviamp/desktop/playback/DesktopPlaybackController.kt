@@ -6,6 +6,8 @@ import app.naviamp.domain.Track
 import app.naviamp.domain.TrackId
 import app.naviamp.app.NaviampPlaybackSessionController
 import app.naviamp.app.NaviampPlaybackQueueCoordinator
+import app.naviamp.app.NaviampPlaybackQueueCommandController
+import app.naviamp.app.NaviampPlaybackQueueMutationExecution
 import app.naviamp.app.NaviampPlaybackCommandController
 import app.naviamp.app.NaviampPlaybackExecution
 import app.naviamp.app.NaviampPlaybackSeekRequest
@@ -69,6 +71,10 @@ class DesktopPlaybackController(
     private val reporting: NaviampPlaybackReportingController,
 ) : NaviampPlaybackExecution {
     private val playbackCommands = NaviampPlaybackCommandController(this, livePlayback)
+    private val queueCommands = NaviampPlaybackQueueCommandController(
+        queue = queueCoordinator,
+        execution = NaviampPlaybackQueueMutationExecution(playlistEngine::applyQueueMutation),
+    )
     private val queueManager = PlaybackQueueManager()
     fun savePlaybackSession(
         queue: PlaybackQueue,
@@ -89,6 +95,18 @@ class DesktopPlaybackController(
         val mode = queueCoordinator.cycleRepeatMode()
         setRepeatMode(mode)
         playlistEngine.setRepeatMode(mode)
+    }
+
+    fun moveQueueTrackNext(index: Int) {
+        queueCommands.moveToNext(index)
+    }
+
+    fun removeFromQueue(index: Int) {
+        queueCommands.removeAt(index)
+    }
+
+    fun emptyQueue() {
+        queueCommands.clearUpcoming()
     }
 
     fun maybeSavePlaybackPosition(progress: PlaybackProgress) {
