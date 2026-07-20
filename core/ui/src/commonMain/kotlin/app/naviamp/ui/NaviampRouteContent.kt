@@ -359,28 +359,51 @@ private fun mixBuilderArtwork(id: String): MixBuilderArtwork =
     }
 
 @Composable
-internal fun SearchContent(
+fun NaviampSearchContent(
     colors: NaviampColors,
-    query: String,
-    results: SharedSearchResultsUi,
-    onQueryChanged: (String) -> Unit,
-    onSearch: () -> Unit,
-    onClearSearch: () -> Unit,
-    onTrackSelected: (SharedTrackRowUi) -> Unit,
-    onTrackAddToQueue: (SharedTrackRowUi) -> Unit,
-    onAlbumSelected: (SharedMediaItemUi) -> Unit,
-    onArtistSelected: (SharedMediaItemUi) -> Unit,
-    onArtistFavoriteToggled: (SharedMediaItemUi) -> Unit = {},
-    onAlbumFavoriteToggled: (SharedMediaItemUi) -> Unit = {},
+    screen: NaviampSearchScreenUi,
+    actions: NaviampSearchActions,
+    mediaActions: NaviampMediaActions,
 ) {
+    val query = screen.query
+    val results = screen.results
     val searchFocusRequester = remember { FocusRequester() }
-    val handleTrackAction: (SharedTrackRowActionRequest) -> Unit = { request ->
-        handleSharedTrackRowAction(
-            request,
-            SharedTrackRowActionHandlers(
-                onSelect = onTrackSelected,
-                onAddToQueue = onTrackAddToQueue,
-            ),
+    val onMediaItemAction = mediaActions.onMediaItemAction ?: {}
+    val mediaMenuItems: (SharedMediaItemUi, SharedMediaItemKind, List<NaviampActionSpec>) -> List<NaviampRowMenuItem> =
+        { item, kind, specs ->
+            specs.mapNotNull { spec ->
+                spec.action.sharedMediaItemActionOrNull()?.let { action ->
+                    NaviampRowMenuItem(
+                        label = spec.label,
+                        icon = spec.icon,
+                        onClick = { onMediaItemAction(item.actionRequest(action, kind = kind)) },
+                        enabled = spec.enabled,
+                    )
+                }
+            }
+        }
+    val sharedMediaRow: @Composable (SharedMediaItemUi, SharedMediaItemKind) -> Unit = { item, kind ->
+        val specs = when (kind) {
+            SharedMediaItemKind.Artist -> artistRowActions(
+                canStartRadio = true,
+                canAddToQueue = true,
+                canAddToPlaylist = true,
+            )
+            SharedMediaItemKind.Album -> albumRowActions(
+                canStartRadio = true,
+                canDownload = true,
+                canAddToQueue = true,
+                canAddToPlaylist = true,
+            )
+            else -> emptyList()
+        }
+        SharedMediaRow(
+            item = item,
+            colors = colors,
+            itemKind = kind,
+            menuItems = mediaMenuItems(item, kind, specs),
+            canSelect = true,
+            onItemAction = onMediaItemAction,
         )
     }
     Column(
@@ -390,30 +413,45 @@ internal fun SearchContent(
         NaviampPageTitle(stringResource(Res.string.search_title), colors)
         NaviampCompactSearchField(
             value = query,
-            onValueChange = onQueryChanged,
+            onValueChange = actions.onQueryChanged,
             placeholder = stringResource(Res.string.search_tracks_label),
             colors = colors,
             onClear = {
-                onClearSearch()
+                actions.onClear()
                 searchFocusRequester.requestFocus()
             },
-            showClear = query.isNotBlank() || !results.isEmpty,
+            showClear = query.isNotBlank() || !results.isEmpty || screen.status != null || screen.searching,
             modifier = Modifier.padding(horizontal = 8.dp).focusRequester(searchFocusRequester),
         )
-        if (query.isNotBlank() && results.isEmpty) {
+        screen.status?.let { status ->
+            Text(status, color = colors.secondaryText, fontSize = 12.sp)
+        }
+        if (screen.searching) {
+            Text("Searching...", color = colors.secondaryText, fontSize = 12.sp)
+        } else if (query.isNotBlank() && results.isEmpty && screen.status == null) {
             Text(stringResource(Res.string.search_no_matches), color = colors.secondaryText, fontSize = 12.sp)
         }
-        MediaSection(stringResource(Res.string.search_artists), results.artists, colors, onArtistSelected, onArtistFavoriteToggled, SharedMediaItemKind.Artist)
-        MediaSection(stringResource(Res.string.search_albums), results.albums, colors, onAlbumSelected, onAlbumFavoriteToggled, SharedMediaItemKind.Album)
+        if (results.artists.isNotEmpty()) {
+            SectionHeader(stringResource(Res.string.search_artists), colors)
+            results.artists.forEach { artist -> sharedMediaRow(artist, SharedMediaItemKind.Artist) }
+        }
+        if (results.albums.isNotEmpty()) {
+            SectionHeader(stringResource(Res.string.search_albums), colors)
+            results.albums.forEach { album -> sharedMediaRow(album, SharedMediaItemKind.Album) }
+        }
         if (results.tracks.isNotEmpty()) {
             SectionHeader(stringResource(Res.string.search_tracks_section), colors)
             results.tracks.forEach { track ->
                 TrackRow(
-                    track,
-                    colors,
-                    onTrackSelected,
-                    onAddToQueue = onTrackAddToQueue,
-                    onTrackAction = handleTrackAction,
+                    track = track,
+                    colors = colors,
+                    onTrackSelected = null,
+                    canSelect = true,
+                    canStartRadio = true,
+                    canAddToQueue = true,
+                    canDownload = true,
+                    canAddToPlaylist = true,
+                    onTrackAction = mediaActions.onTrackAction,
                 )
             }
         }

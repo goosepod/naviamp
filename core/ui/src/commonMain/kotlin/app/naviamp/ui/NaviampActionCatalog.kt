@@ -130,6 +130,18 @@ fun artistRowActions(
         ),
     )
 
+fun NaviampAction.sharedMediaItemActionOrNull(): SharedMediaItemAction? =
+    when (this) {
+        NaviampAction.StartArtistRadio,
+        NaviampAction.StartAlbumRadio,
+        -> SharedMediaItemAction.StartRadio
+        NaviampAction.DownloadAlbum -> SharedMediaItemAction.Download
+        NaviampAction.AddToQueue -> SharedMediaItemAction.AddToQueue
+        NaviampAction.AddToPlaylist -> SharedMediaItemAction.AddToPlaylist
+        NaviampAction.ToggleFavorite -> SharedMediaItemAction.ToggleFavorite
+        else -> null
+    }
+
 fun playlistRowActions(
     canDownload: Boolean = false,
     canKeepDownloaded: Boolean = false,

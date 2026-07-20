@@ -1045,21 +1045,11 @@ private fun ConnectedContent(
                     onArtistFavoriteToggled = onArtistFavoriteToggled,
                 )
             }
-            SharedRoute.Search -> SearchContent(
+            SharedRoute.Search -> NaviampSearchContent(
                 colors = colors,
-                query = search.query,
-                results = search.results,
-                onQueryChanged = searchActions.onQueryChanged,
-                onSearch = searchActions.onSearch,
-                onClearSearch = searchActions.onClear,
-                onTrackSelected = onTrackSelected,
-                onTrackAddToQueue = { track ->
-                    onTrackAction(SharedTrackRowActionRequest(track, SharedTrackRowAction.AddToQueue))
-                },
-                onAlbumSelected = onAlbumSelected,
-                onArtistSelected = onArtistSelected,
-                onArtistFavoriteToggled = onArtistFavoriteToggled,
-                onAlbumFavoriteToggled = onAlbumFavoriteToggled,
+                screen = search,
+                actions = searchActions,
+                mediaActions = mediaActions,
             )
             SharedRoute.ArtistMix -> Column(
                 modifier = Modifier.fillMaxSize(),

@@ -29,6 +29,7 @@ import app.naviamp.ui.NaviampAppShellUiState
 import app.naviamp.ui.NaviampSettingsSyncActions
 import app.naviamp.ui.NaviampSettingsSyncUi
 import app.naviamp.ui.NaviampDownloadsContent
+import app.naviamp.ui.NaviampSearchContent
 import app.naviamp.ui.SharedHomeRoute
 import app.naviamp.ui.SaveQueueAsPlaylistDialog
 import app.naviamp.ui.SonicMixBuilderContent
@@ -115,9 +116,9 @@ fun ColumnScope.DesktopRouteContent(
                         mediaActions = shellActions.mediaActions,
                     )
                 }
-                NaviampRoute.Search -> DesktopSearchPanel(
-                    appColors = appColors,
-                    search = shellState.search,
+                NaviampRoute.Search -> NaviampSearchContent(
+                    colors = appColors,
+                    screen = shellState.search,
                     actions = shellActions.searchActions,
                     mediaActions = shellActions.mediaActions,
                 )

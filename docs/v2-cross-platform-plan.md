@@ -513,9 +513,9 @@ The 2026-07-17 audit covers every current application entry point:
 
 ## Current Handoff
 
-- **Last completed item:** Desktop Downloads now renders public shared `NaviampDownloadsContent`, including playlist selection, jobs, offline diagnostics, swipe actions, refresh, keep-downloaded, and deletion confirmation. The duplicate 346-line Desktop panel was deleted, reducing `desktopMain` by 343 net production lines; the five delete-first corrections total 2,418 net lines removed.
-- **Next recommended item:** Promote Search rendering to the complete shared search/media action contracts, then delete `DesktopSearchPanel` without losing status, loading, favorite, radio, queue, download, playlist, or navigation actions.
-- **Verification:** On 2026-07-19, `:core:ui:jvmTest`, `:core:ui:compileKotlinIosSimulatorArm64`, and `:apps:desktop:desktopTest` passed after the shared Downloads route migration. Windows compiled the iOS simulator sources; simulator linking and execution remain a macOS CI responsibility.
+- **Last completed item:** Desktop and the shared shell now render public `NaviampSearchContent` from complete screen, search-action, and media-action contracts. Shared Search preserves status/loading state and full artist, album, and track menus. Deleting `DesktopSearchPanel` reduced `desktopMain` by 123 net production lines; the six delete-first corrections total 2,541 net lines removed.
+- **Next recommended item:** Render Desktop Library through a public shared library route using the complete library and media contracts, preserving refresh status, filtering, favorites, selection, paging, and alphabet navigation before deleting `DesktopLibraryPanel`.
+- **Verification:** On 2026-07-19, the combined `:core:ui:jvmTest`, `:core:ui:compileKotlinIosSimulatorArm64`, `:apps:desktop:desktopTest`, and `:apps:android:testDebugUnitTest` gate passed after the shared Search route migration. Windows compiled the iOS simulator sources; simulator linking and execution remain a macOS CI responsibility.
 - **Known blockers:** None.
 
 Milestone 3 now uses delete-first accounting: every product-behavior extraction must report its net `apps/desktop/src/desktopMain` line change, moving code between Desktop files does not count as thinning, and a new host adapter must delete at least as much Desktop production code as it adds unless it implements a genuinely OS-specific service.
