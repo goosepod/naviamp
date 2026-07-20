@@ -33,6 +33,11 @@ interface PlaybackEngine {
     fun stop()
 }
 
+/** Optional one-way host shutdown contract for engines that own native resources. */
+interface ReleasablePlaybackEngine : PlaybackEngine {
+    fun release()
+}
+
 interface QueueAwarePlaybackEngine : PlaybackEngine {
     fun setCrossfadeDuration(seconds: Int)
 

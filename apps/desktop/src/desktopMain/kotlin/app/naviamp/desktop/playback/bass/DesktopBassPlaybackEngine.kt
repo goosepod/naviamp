@@ -14,6 +14,7 @@ import app.naviamp.domain.playback.PlaybackReplayGainAdjustment
 import app.naviamp.domain.playback.PlaybackVisualizerFrame
 import app.naviamp.domain.playback.ReplayGainMode
 import app.naviamp.domain.playback.ReplayGainPlaybackEngine
+import app.naviamp.domain.playback.ReleasablePlaybackEngine
 import app.naviamp.domain.playback.SampleRateConverterPlaybackEngine
 import app.naviamp.domain.playback.SampleRateMatchingPlaybackEngine
 import app.naviamp.domain.settings.SampleRateConverter
@@ -84,6 +85,7 @@ class DesktopBassPlaybackEngine(
     SampleRateConverterPlaybackEngine,
     SampleRateMatchingPlaybackEngine,
     AudioOutputDevicePlaybackEngine,
+    ReleasablePlaybackEngine,
     DesktopPlaybackEngineDiagnostics {
     private val backend: BassAudioBackend? = backendResult.getOrNull()
     private val loadError: Throwable? = backendResult.exceptionOrNull()
@@ -120,6 +122,7 @@ class DesktopBassPlaybackEngine(
     private var playbackId: Int = 0
     private var volumePercent: Int = 100
     private var initialized = false
+    private var released = false
     private var internetStreamsConfigured = false
     private var activeOutputSampleRateHz: Int? = null
     private var onStateChanged: ((PlaybackState) -> Unit)? = null
@@ -360,6 +363,17 @@ class DesktopBassPlaybackEngine(
         currentOnProgressChanged = null
         currentOnMetadataChanged = null
         lastProgress = PlaybackProgress.Unknown
+    }
+
+    override fun release() {
+        if (released) return
+        stop()
+        backend?.free()
+            ?.onFailure { lastError = it.message }
+        initialized = false
+        internetStreamsConfigured = false
+        activeOutputSampleRateHz = null
+        released = true
     }
 
     override fun setCrossfadeDuration(seconds: Int) {

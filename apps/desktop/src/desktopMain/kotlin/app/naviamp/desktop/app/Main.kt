@@ -11,6 +11,7 @@ import androidx.compose.ui.window.application
 import androidx.compose.ui.window.rememberWindowState
 import app.naviamp.desktop.generated.resources.Res
 import app.naviamp.desktop.generated.resources.naviamp
+import app.naviamp.domain.playback.ReleasablePlaybackEngine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import org.jetbrains.compose.resources.painterResource
 import java.awt.Dimension
@@ -44,7 +45,8 @@ fun main() {
             onCloseRequest = {
                 settingsStore.saveWindowSettings(windowState.toWindowSettings())
                 runCatching {
-                    playbackEngine.stop()
+                    (playbackEngine as? ReleasablePlaybackEngine)?.release()
+                        ?: playbackEngine.stop()
                 }
                 exitApplication()
             },
