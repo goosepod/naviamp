@@ -28,15 +28,10 @@ import androidx.compose.ui.unit.dp
 import app.naviamp.domain.Track
 import app.naviamp.domain.TrackId
 import app.naviamp.app.NaviampApplicationControllers
-import app.naviamp.app.NaviampApplicationServices
-import app.naviamp.app.NaviampCacheMaintenanceController
 import app.naviamp.app.NaviampApplicationStatusArea
 import app.naviamp.app.NaviampApplicationStatusLevel
-import app.naviamp.app.NaviampDownloadCoordinator
-import app.naviamp.app.NaviampDownloadJobController
 import app.naviamp.app.NaviampLivePlaybackState
 import app.naviamp.app.NaviampPlaybackSessionController
-import app.naviamp.app.NaviampCacheSettingsController
 import app.naviamp.domain.app.NaviampNavigationState
 import app.naviamp.domain.cache.ImageCacheRepository
 import app.naviamp.domain.cache.DownloadJob
@@ -61,7 +56,6 @@ import app.naviamp.desktop.settings.RecentRadioStream
 import app.naviamp.desktop.settings.DesktopSettingsSyncDocumentStore
 import app.naviamp.desktop.settings.DesktopSettingsSyncSettings
 import app.naviamp.desktop.settings.VisualizerSettings
-import app.naviamp.app.NaviampSettingsSyncController
 import app.naviamp.app.settingsSyncAutoExportStatus
 import app.naviamp.app.settingsSyncImportStatus
 import app.naviamp.app.settingsSyncLocationStatus
@@ -511,64 +505,35 @@ fun NaviampApp(
         }
     }
 
-    val downloadJobsController = remember {
-        NaviampDownloadJobController(
-            jobs = { downloadJobs },
-            setJobs = { jobs -> downloadJobs = jobs },
-        )
-    }
-    val downloadCoordinator = remember(storage, downloadJobsController) {
-        NaviampDownloadCoordinator(
-            downloadRepository = storage,
-            downloadReplacementRepository = storage,
-            keepDownloadedRepository = storage,
-            jobs = downloadJobsController,
-            downloadedTrackId = { download: DownloadedTrack -> download.track.id.value },
-            loadStats = { withContext(Dispatchers.IO) { storage.stats() } },
-        )
-    }
-    val applicationServices = remember(
-        storage,
-        settingsStore,
-        downloadJobsController,
-        downloadCoordinator,
-    ) {
-        NaviampApplicationServices(
-            settingsSync = NaviampSettingsSyncController(
-                deviceId = DesktopSettingsSyncDeviceId,
-                state = ::settingsSyncRuntimeState,
-                saveState = ::saveSettingsSyncRuntimeState,
-                nowEpochMillis = DesktopSystemClock::nowEpochMillis,
-                snapshot = {
-                    SettingsSyncLocalSnapshot(
-                        serverProfiles = storage.mediaSources(),
-                        interfaceSettings = interfaceSettings,
-                        playback = playbackSettings,
-                        visualizer = VisualizerSettings(
-                            selectedVisualizer = nowPlayingPresentation.selectedVisualizer.name,
-                        ),
-                        recentRadioStreams = recentRadioStreams,
-                        recentInternetRadioStations = settingsStore.loadRecentInternetRadioStations(),
-                    )
-                },
-                applyDocument = ::applySettingsSyncDocument,
-            ),
-            cacheSettings = NaviampCacheSettingsController(
-                setSettings = { settings -> cacheSettings = settings },
-                saveSettings = settingsStore::saveCacheSettings,
-            ),
-            cacheMaintenance = NaviampCacheMaintenanceController(
-                repository = storage,
-                setStatus = { status ->
-                    applicationControllers.status.publish(
-                        area = NaviampApplicationStatusArea.CacheMaintenance,
-                        level = NaviampApplicationStatusLevel.Information,
-                        message = status,
-                    )
-                },
-            ),
-            downloadJobs = downloadJobsController,
-            downloads = downloadCoordinator,
+    val applicationServices = remember(storage, settingsStore) {
+        desktopApplicationServices(
+            storage = storage,
+            downloadJobs = { downloadJobs },
+            setDownloadJobs = { jobs -> downloadJobs = jobs },
+            settingsSyncState = ::settingsSyncRuntimeState,
+            saveSettingsSyncState = ::saveSettingsSyncRuntimeState,
+            settingsSyncSnapshot = {
+                SettingsSyncLocalSnapshot(
+                    serverProfiles = storage.mediaSources(),
+                    interfaceSettings = interfaceSettings,
+                    playback = playbackSettings,
+                    visualizer = VisualizerSettings(
+                        selectedVisualizer = nowPlayingPresentation.selectedVisualizer.name,
+                    ),
+                    recentRadioStreams = recentRadioStreams,
+                    recentInternetRadioStations = settingsStore.loadRecentInternetRadioStations(),
+                )
+            },
+            applySettingsSyncDocument = ::applySettingsSyncDocument,
+            setCacheSettings = { settings -> cacheSettings = settings },
+            saveCacheSettings = settingsStore::saveCacheSettings,
+            publishCacheStatus = { status, level ->
+                applicationControllers.status.publish(
+                    area = NaviampApplicationStatusArea.CacheMaintenance,
+                    level = level,
+                    message = status,
+                )
+            },
         )
     }
     val settingsSyncController = applicationServices.settingsSync
@@ -1678,5 +1643,3 @@ private fun NavidromeConnection.withNativeTokenFrom(fallback: NavidromeConnectio
     val matchesSavedConnection = fallback.baseUrl == baseUrl && fallback.username == username
     return if (matchesSavedConnection) copy(nativeToken = fallbackToken) else this
 }
-
-private const val DesktopSettingsSyncDeviceId = "desktop"
