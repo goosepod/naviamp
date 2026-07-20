@@ -9,6 +9,51 @@ data class SeededRadioBuildEffectApplier(
     val setStatus: (String) -> Unit = {},
 )
 
+data class RadioRequestStartEffectApplier(
+    val rememberRecentRadioStream: (RecentRadioStream) -> Unit = {},
+    val startQueue: (Track, List<Track>) -> Unit,
+    val setStatus: (String?) -> Unit = {},
+)
+
+fun applyRadioRequestStartResult(
+    result: RadioRequestStartResult,
+    emptyStatus: String,
+    failureStatus: String,
+    applier: RadioRequestStartEffectApplier,
+): Boolean =
+    when (result) {
+        is RadioRequestStartResult.Ready -> {
+            result.recentRadioStream?.let(applier.rememberRecentRadioStream)
+            applier.setStatus(null)
+            applier.startQueue(result.firstTrack, result.queue)
+            true
+        }
+        RadioRequestStartResult.Empty -> {
+            applier.setStatus(emptyStatus)
+            false
+        }
+        is RadioRequestStartResult.Failed -> {
+            applier.setStatus(result.error.message ?: failureStatus)
+            false
+        }
+    }
+
+fun applyTrackRadioLoadResult(
+    result: TrackRadioLoadResult,
+    applyTracks: (List<Track>) -> Unit,
+    setStatus: (String) -> Unit,
+): Boolean =
+    when (result) {
+        is TrackRadioLoadResult.Ready -> {
+            applyTracks(result.tracks)
+            true
+        }
+        else -> {
+            setStatus(trackRadioLoadStatus(result) ?: "Could not load track radio.")
+            false
+        }
+    }
+
 fun applySeededRadioBuildResult(
     result: SeededRadioBuildResult,
     requestIsCurrent: Boolean,

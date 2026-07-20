@@ -22,12 +22,13 @@ import app.naviamp.domain.radio.InternetRadioStationOperationApplier
 import app.naviamp.domain.radio.applyInternetRadioStationOperationResult
 import app.naviamp.domain.radio.internetRadioStationOperationResult
 import app.naviamp.domain.radio.RadioService
-import app.naviamp.domain.radio.RadioRequestStartResult
+import app.naviamp.domain.radio.RadioRequestStartEffectApplier
 import app.naviamp.domain.radio.SeededRadioBuildResult
 import app.naviamp.domain.radio.SeededRadioBuildEffectApplier
 import app.naviamp.domain.radio.applySeededRadioBuildResult
 import app.naviamp.domain.radio.applySeededRadioExpansionResult
 import app.naviamp.domain.radio.applyRadioSeedResult
+import app.naviamp.domain.radio.applyRadioRequestStartResult
 import app.naviamp.domain.radio.albumMixSeededRadioRequest
 import app.naviamp.domain.radio.artistMixSeededRadioRequest
 import app.naviamp.domain.radio.albumRecentRadioStream
@@ -374,25 +375,22 @@ fun startAndroidRadioTracks(
     )
     scope.launch {
         state.status = "Starting $statusLabel..."
-        when (
-            val result = radioRequestStartResult(
+        val result = radioRequestStartResult(
                 radioService = service,
                 recentRadioStream = recentRadioStream,
                 deduplicateTracks = true,
                 loadTracks = loadTracks,
             )
-        ) {
-            RadioRequestStartResult.Empty -> {
-                state.status = "No tracks found for $statusLabel."
-            }
-            is RadioRequestStartResult.Failed -> {
-                state.status = result.error.message ?: "Could not start $statusLabel."
-            }
-            is RadioRequestStartResult.Ready -> {
-                result.recentRadioStream?.let(rememberRecentRadioStream)
-                playTrack(result.firstTrack, result.queue)
-            }
-        }
+        applyRadioRequestStartResult(
+            result = result,
+            emptyStatus = "No tracks found for $statusLabel.",
+            failureStatus = "Could not start $statusLabel.",
+            applier = RadioRequestStartEffectApplier(
+                rememberRecentRadioStream = rememberRecentRadioStream,
+                startQueue = playTrack,
+                setStatus = { state.status = it.orEmpty() },
+            ),
+        )
     }
 }
 

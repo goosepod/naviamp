@@ -24,10 +24,9 @@ import app.naviamp.domain.provider.addToPlaylistLoadingStatus
 import app.naviamp.domain.provider.addTracksToPlaylistApplication
 import app.naviamp.domain.provider.PlaylistHomeProjection
 import app.naviamp.domain.radio.RadioService
-import app.naviamp.domain.radio.TrackRadioLoadResult
+import app.naviamp.domain.radio.applyTrackRadioLoadResult
 import app.naviamp.domain.radio.trackRadioLoadResult
 import app.naviamp.domain.radio.trackRadioLoadingStatus
-import app.naviamp.domain.radio.trackRadioLoadStatus
 import app.naviamp.ui.SharedTrackRowUi
 import app.naviamp.ui.SharedTrackRowAction
 import app.naviamp.ui.SharedTrackRowActionRequest
@@ -513,7 +512,7 @@ internal class AndroidTrackActionController(
         val provider = state.provider ?: return
         state.status = trackRadioLoadingStatus()
         scope.launch {
-            when (val result = withContext(Dispatchers.IO) {
+            val result = withContext(Dispatchers.IO) {
                 trackRadioLoadResult(
                     seedTrack = track,
                     radioService = RadioService(
@@ -523,16 +522,18 @@ internal class AndroidTrackActionController(
                     ),
                     preferSonicSimilarity = state.playbackSettings.sonicSimilarityEnabled,
                 )
-            }) {
-                is TrackRadioLoadResult.Ready -> {
-                if (insertNext) {
-                    playNextTracks(result.tracks, "track radio")
-                } else {
-                    appendTracksToQueue(result.tracks, "track radio")
-                }
-                }
-                else -> state.status = trackRadioLoadStatus(result) ?: "Could not load track radio."
             }
+            applyTrackRadioLoadResult(
+                result = result,
+                applyTracks = { tracks ->
+                    if (insertNext) {
+                        playNextTracks(tracks, "track radio")
+                    } else {
+                        appendTracksToQueue(tracks, "track radio")
+                    }
+                },
+                setStatus = { state.status = it },
+            )
         }
     }
 

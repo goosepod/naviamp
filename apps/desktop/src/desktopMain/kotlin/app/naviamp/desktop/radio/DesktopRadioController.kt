@@ -17,12 +17,13 @@ import app.naviamp.domain.provider.AlbumListType
 import app.naviamp.domain.queue.PlaybackQueue
 import app.naviamp.domain.queue.RepeatMode
 import app.naviamp.domain.radio.RadioRequest
-import app.naviamp.domain.radio.RadioRequestStartResult
 import app.naviamp.domain.radio.RadioService
 import app.naviamp.domain.radio.RadioTuningSettings
 import app.naviamp.domain.radio.SeededRadioRequest
-import app.naviamp.domain.radio.SeededRadioBuildResult
 import app.naviamp.domain.radio.SeededRadioBuildEffectApplier
+import app.naviamp.domain.radio.RadioRequestStartEffectApplier
+import app.naviamp.domain.radio.applyRadioRequestStartResult
+import app.naviamp.domain.radio.applyTrackRadioLoadResult
 import app.naviamp.domain.radio.applySeededRadioBuildResult
 import app.naviamp.domain.radio.applySeededRadioExpansionResult
 import app.naviamp.domain.radio.albumMixSeededRadioRequest
@@ -42,10 +43,8 @@ import app.naviamp.domain.radio.randomAlbumSeededRadioRequest
 import app.naviamp.domain.radio.seededRadioBuildResult
 import app.naviamp.domain.radio.seededRadioExpansionResult
 import app.naviamp.domain.radio.trackRadioRequest
-import app.naviamp.domain.radio.TrackRadioLoadResult
 import app.naviamp.domain.radio.trackRadioLoadResult
 import app.naviamp.domain.radio.trackRadioLoadingStatus
-import app.naviamp.domain.radio.trackRadioLoadStatus
 import app.naviamp.domain.radio.withRadioCoverArtIds
 import app.naviamp.provider.navidrome.NavidromeProvider
 import kotlinx.coroutines.CoroutineScope
@@ -124,38 +123,33 @@ class DesktopRadioController(
         val radioService = radioService(provider)
         setConnectionStatus("Loading ${request.label}...")
         scope.launch {
-            when (
-                val result = withContext(Dispatchers.IO) {
-                    radioRequestStartResult(request, radioService)
-                }
-            ) {
-                RadioRequestStartResult.Empty -> {
-                    setConnectionStatus("${request.label} did not return any tracks.")
-                    return@launch
-                }
-                is RadioRequestStartResult.Failed -> {
-                    setConnectionStatus(result.error.message ?: "Could not start ${request.label}.")
-                    return@launch
-                }
-                is RadioRequestStartResult.Ready -> {
-                    result.recentRadioStream?.let(rememberRadioStream)
-                    val tracks = result.queue
-                    setConnectionStatus(null)
-                    continuation.start(refilling = false)
-                    clearShuffleSnapshot()
-                    setOpenPlayerOnTrackStart(true)
-                    playlistEngine.playFrom(
-                        scope = scope,
-                        provider = provider,
-                        tracks = tracks,
-                        index = 0,
-                        quality = streamQuality(),
-                        replayGainMode = replayGainMode(),
-                        replayGainPreampDb = replayGainPreampDb(),
-                        callbacks = playlistCallbacks(),
-                    )
-                }
+            val result = withContext(Dispatchers.IO) {
+                radioRequestStartResult(request, radioService)
             }
+            applyRadioRequestStartResult(
+                result = result,
+                emptyStatus = "${request.label} did not return any tracks.",
+                failureStatus = "Could not start ${request.label}.",
+                applier = RadioRequestStartEffectApplier(
+                    rememberRecentRadioStream = rememberRadioStream,
+                    setStatus = setConnectionStatus,
+                    startQueue = { _, tracks ->
+                        continuation.start(refilling = false)
+                        clearShuffleSnapshot()
+                        setOpenPlayerOnTrackStart(true)
+                        playlistEngine.playFrom(
+                            scope = scope,
+                            provider = provider,
+                            tracks = tracks,
+                            index = 0,
+                            quality = streamQuality(),
+                            replayGainMode = replayGainMode(),
+                            replayGainPreampDb = replayGainPreampDb(),
+                            callbacks = playlistCallbacks(),
+                        )
+                    },
+                ),
+            )
         }
     }
 
@@ -203,36 +197,38 @@ class DesktopRadioController(
         val label = "track radio"
         setConnectionStatus(trackRadioLoadingStatus())
         scope.launch {
-            when (val result = withContext(Dispatchers.IO) {
+            val result = withContext(Dispatchers.IO) {
                 trackRadioLoadResult(
                     seedTrack = track,
                     radioService = radioService(activeProvider, count = InitialSimilarRadioCount),
                     preferSonicSimilarity = preferSonicSimilarity(),
                 )
-            }) {
-                is TrackRadioLoadResult.Ready -> {
-                    val update = if (insertNext) {
-                    queueCoordinator.playNextTracks(
-                        tracksToAdd = result.tracks,
-                        label = label,
-                        existingTracks = playlistEngine.queue.tracks,
-                        deduplicateExisting = true,
-                        maxHistory = RadioQueueHistoryLimit,
-                    )
-                } else {
-                    queueCoordinator.appendTracks(
-                        tracksToAdd = result.tracks,
-                        label = label,
-                        existingTracks = playlistEngine.queue.tracks,
-                        deduplicateExisting = true,
-                        maxHistory = RadioQueueHistoryLimit,
-                    )
-                }
-                setConnectionStatus(update.status)
-                playlistEngine.applyQueueUpdate(update)
-                }
-                else -> setConnectionStatus(trackRadioLoadStatus(result))
             }
+            applyTrackRadioLoadResult(
+                result = result,
+                applyTracks = { tracks ->
+                    val update = if (insertNext) {
+                        queueCoordinator.playNextTracks(
+                            tracksToAdd = tracks,
+                            label = label,
+                            existingTracks = playlistEngine.queue.tracks,
+                            deduplicateExisting = true,
+                            maxHistory = RadioQueueHistoryLimit,
+                        )
+                    } else {
+                        queueCoordinator.appendTracks(
+                            tracksToAdd = tracks,
+                            label = label,
+                            existingTracks = playlistEngine.queue.tracks,
+                            deduplicateExisting = true,
+                            maxHistory = RadioQueueHistoryLimit,
+                        )
+                    }
+                    setConnectionStatus(update.status)
+                    playlistEngine.applyQueueUpdate(update)
+                },
+                setStatus = setConnectionStatus,
+            )
         }
     }
 
@@ -467,31 +463,29 @@ class DesktopRadioController(
         rememberRadioStream(request.recentRadioStream)
         val activeRadioSessionId = continuation.start(track.id, refilling = true)
         scope.launch {
-            when (
-                val result = withContext(Dispatchers.IO) {
-                    seededRadioBuildResult(request, radioService(provider, count = InitialSimilarRadioCount))
-                }
-            ) {
-                is SeededRadioBuildResult.Ready -> {
-                    result.recentRadioStream?.let(rememberRadioStream)
-                    playlistEngine.applyQueueMutation(
-                        queueCoordinator.replaceGeneratedRadioUpcomingTracks(
-                        currentTrack = track,
-                        fetchedTracks = result.queue.drop(1),
-                        requestIsCurrent = continuation.isCurrent(activeRadioSessionId),
-                        maxHistory = RadioQueueHistoryLimit,
-                        ),
-                    )
-                    if (continuation.isCurrent(activeRadioSessionId)) {
-                        setConnectionStatus("Building ${track.title} radio queue...")
-                    }
-                }
-                is SeededRadioBuildResult.Failed -> {
-                    if (continuation.isCurrent(activeRadioSessionId)) {
-                        setConnectionStatus(result.error.message ?: "Could not build ${track.title} radio.")
-                    }
-                }
+            val result = withContext(Dispatchers.IO) {
+                seededRadioBuildResult(request, radioService(provider, count = InitialSimilarRadioCount))
             }
+            applySeededRadioBuildResult(
+                result = result,
+                requestIsCurrent = continuation.isCurrent(activeRadioSessionId),
+                buildingStatus = "Building ${track.title} radio queue...",
+                failureStatus = "Could not build ${track.title} radio.",
+                applier = SeededRadioBuildEffectApplier(
+                    rememberRecentRadioStream = rememberRadioStream,
+                    appendFetchedTracks = { fetchedTracks ->
+                        playlistEngine.applyQueueMutation(
+                            queueCoordinator.replaceGeneratedRadioUpcomingTracks(
+                                currentTrack = track,
+                                fetchedTracks = fetchedTracks,
+                                requestIsCurrent = true,
+                                maxHistory = RadioQueueHistoryLimit,
+                            ),
+                        )
+                    },
+                    setStatus = setConnectionStatus,
+                ),
+            )
             continuation.finishRefill(activeRadioSessionId)
             SimilarRadioExpansionCounts.forEach { count ->
                 if (!continuation.isCurrent(activeRadioSessionId)) return@launch

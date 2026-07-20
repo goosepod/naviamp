@@ -131,7 +131,7 @@ Use explicit dependency construction unless a dependency-injection framework pro
   - [x] Move full and compact Now Playing presentation into shared UI, leaving Desktop artwork/native playback adaptation in the host shell.
   - [x] Move the settings product surface into shared UI while retaining native directory selection and Desktop storage-location adaptation.
   - [x] Remove superseded Desktop-only product surfaces and row/action policy, including the legacy connection panel, domain row wrappers, and duplicate action-source resolution.
-  - [ ] Finish the `DesktopRadioController` audit, beginning with convert-current-track seeded-build application and generic radio-start result handling.
+  - [x] Finish the `DesktopRadioController` audit. Ordinary radio starts, track-radio queue loads, convert-current seeded builds, continuation, expansion, and seed selection now apply tested shared result policy; Desktop retains provider I/O, coroutine lifetime, BASS queue execution, and presentation adaptation.
   - [ ] Audit `DesktopPlaylistsController`, `DesktopMixBuilderController`, `DesktopAppActions`, and the remaining media controllers for product decisions that belong in shared owners.
   - [ ] Separate shared cache/download policy from native filesystem, BASS, and background-execution adapters in the remaining large Desktop controllers.
   - [ ] Reduce `DesktopNaviampApp` to composition and host effects, then document why every remaining dependency and state bridge is platform-specific.
@@ -473,6 +473,7 @@ Record architecture decisions here or link a dedicated decision record.
 | 2026-07-20 | Share Desktop radio seed-result application. | Random-album, artist, artist-mix, album, and album-mix starts now use one tested domain policy for ready, missing, and failed seed results. Desktop retains provider seed lookup and seeded-playback request construction while removing a net 26 production lines. |
 | 2026-07-20 | Complete cross-platform radio seed-result adoption. | Android artist, artist-mix, album-mix, and album radio now use the same tested ready/missing/failure policy as Desktop. Android retains Activity-scoped provider lookup, request construction, queue execution, and status observation. This parity correction does not change Desktop production size. |
 | 2026-07-20 | Restructure Milestone 3 around verifiable completion. | The oversized Desktop product-behavior item is now a parent outcome with seven completed extractions and five explicit remaining audits. Desktop shell and platform-service boundaries likewise distinguish verified work from updater, credential-storage, filesystem/HTTP, packaging, and functional-verification work that remains open. Detailed implementation history stays in this log rather than accumulating inside one checkbox. |
+| 2026-07-20 | Close the Desktop radio ownership audit. | Shared effect policy now applies ordinary radio-start results, track-radio queue-load results, and convert-current seeded builds on Desktop, with equivalent Android paths adopting the same policies. The remaining Desktop controller owns provider I/O, request wiring, coroutine lifetime, BASS queue execution, and status adaptation, reducing `desktopMain` by a net 6 production lines. |
 
 ### Desktop Route Boundary Audit
 
@@ -554,8 +555,8 @@ The 2026-07-17 audit covers every current application entry point:
 
 ## Current Handoff
 
-- **Last completed item:** Android artist, artist-mix, album-mix, and album radio now apply seed results through the same tested domain policy as Desktop. Provider lookup, request construction, native queue execution, and lifecycle remain host-owned. This Android parity correction does not change Desktop production size.
-- **Next recommended item:** Apply the shared seeded-build policy to Desktop's convert-current-track path, then audit generic radio-start result application across both hosts.
+- **Last completed item:** The Desktop radio ownership audit is closed. Ordinary starts, track-radio queue loads, convert-current builds, continuation, expansions, and seed results use tested shared policies across equivalent host paths; Desktop retains provider I/O, coroutine lifetime, BASS queue execution, and presentation adaptation. This checkpoint removes a net 6 Desktop production lines.
+- **Next recommended item:** Audit Desktop playlist, mix-builder, app-action, and remaining media controllers for shared product decisions, then document or extract each boundary.
 - **Verification:** On 2026-07-20, `:core:ui:jvmTest`, `:apps:desktop:desktopTest`, `:apps:android:compileDebugKotlin`, and `:core:ui:compileKotlinIosSimulatorArm64` passed after moving route-product composition into common UI. Desktop smoke testing then exposed infinite-height constraints where Downloads and playlist details were nested inside the route wrapper's vertical scroll even though both screens own scrolling, plus an unscrollable connection form because Settings does not own scrolling. The wrapper now adds scrolling only for Search, Playlists, Internet Radio, and Settings, with JVM regression coverage for the route policy.
 - **Known blockers:** None.
 

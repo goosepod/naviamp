@@ -108,6 +108,56 @@ class SeededRadioBuildEffectsTest {
         assertEquals(listOf("Failed"), fallbackCalls)
     }
 
+    @Test
+    fun radioStartResultAppliesReadyQueueOrReportsTerminalStatus() {
+        val seed = track("seed")
+        val next = track("next")
+        val recent = RecentRadioStream("radio", "Radio", RecentRadioKind.Track)
+        val calls = mutableListOf<String>()
+
+        val applied = applyRadioRequestStartResult(
+            result = RadioRequestStartResult.Ready(seed, listOf(seed, next), recent),
+            emptyStatus = "Empty",
+            failureStatus = "Failed",
+            applier = RadioRequestStartEffectApplier(
+                rememberRecentRadioStream = { calls += "recent:${it.id}" },
+                startQueue = { first, queue -> calls += "queue:${first.id.value}:${queue.size}" },
+                setStatus = { calls += "status:$it" },
+            ),
+        )
+        applyRadioRequestStartResult(
+            result = RadioRequestStartResult.Empty,
+            emptyStatus = "Empty",
+            failureStatus = "Failed",
+            applier = RadioRequestStartEffectApplier(
+                startQueue = { _, _ -> calls += "unexpected" },
+                setStatus = { calls += "status:$it" },
+            ),
+        )
+
+        assertEquals(true, applied)
+        assertEquals(listOf("recent:radio", "status:null", "queue:seed:2", "status:Empty"), calls)
+    }
+
+    @Test
+    fun trackRadioLoadResultAppliesReadyTracksOrReportsFailure() {
+        val calls = mutableListOf<String>()
+
+        val applied = applyTrackRadioLoadResult(
+            result = TrackRadioLoadResult.Ready(listOf(track("next"))),
+            applyTracks = { calls += "tracks:${it.size}" },
+            setStatus = { calls += "status:$it" },
+        )
+        applyTrackRadioLoadResult(
+            result = TrackRadioLoadResult.Empty,
+            applyTracks = { calls += "unexpected" },
+            setStatus = { calls += "status:$it" },
+        )
+
+        assertEquals(true, applied)
+        assertEquals(listOf("tracks:1", "status:Track radio did not return any tracks."), calls)
+    }
+
     private fun track(id: String) = Track(
         id = TrackId(id),
         title = id,
