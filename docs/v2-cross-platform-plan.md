@@ -123,7 +123,7 @@ Use explicit dependency construction unless a dependency-injection framework pro
 
 ### Milestone 3: Convert Desktop to a Thin Host
 
-- [ ] Move all remaining shared product behavior out of the Desktop entry point and Desktop-only controllers. Complete this parent only when the remaining Desktop production code has been audited and consists of composition, native execution, or operating-system integration rather than parallel product policy.
+- [x] Move all remaining shared product behavior out of the Desktop entry point and Desktop-only controllers. The final ownership audit found no remaining parallel Android/Desktop product policy: shared owners define queue, playback, radio, provider-action, settings, cache, download, playlist, and route behavior, while Desktop production code is limited to composition, observable host-state adaptation, provider/native execution, persistence, or operating-system integration.
   - [x] Move queue mutation, repeat, shuffle, navigation-command, generated-queue, and session-persistence decisions into shared playback owners.
   - [x] Move playback progress, callback application, track-start planning, reporting eligibility, and reporting throttling into shared policy while retaining BASS execution in Desktop.
   - [x] Move radio continuation state, recent-stream updates, loading decisions, station operations, seeded-build effects, seeded-expansion effects, and seed-result effects into tested shared owners.
@@ -135,7 +135,7 @@ Use explicit dependency construction unless a dependency-injection framework pro
   - [x] Audit `DesktopPlaylistsController`, `DesktopMixBuilderController`, `DesktopAppActions`, and the remaining media controllers. Standard-playlist track validation, replacement, invalidation, and status policy now use a shared provider operation on Android and Desktop. Playlist lifecycle and mix-builder selection/loading/queue policy already use shared applications and coordinators; the remaining Desktop code is Compose-state adaptation, stable-ID resolution, provider I/O, routing, and native playback dispatch.
   - [x] Separate shared cache/download policy from native filesystem, BASS, and background-execution adapters. Shared cache settings, maintenance, download jobs, execution, keep-downloaded toggles/reconciliation, eviction plans, and status policy are authoritative. The audited Desktop cache/audio/library stores retain SQLDelight mapping, filesystem byte storage, waveform/lyrics persistence, repository adaptation, and BASS playback; `DesktopDownloadsController` retains coroutine/provider loading, filesystem refresh, and native playback dispatch.
   - [x] Reduce `DesktopNaviampApp` to composition and host effects, then document why every remaining dependency and state bridge is platform-specific. Shell connection/capability mapping and grouped settings actions now live in focused factories, reducing the composition root from 1,420 to 1,342 lines. The remaining root constructs the shared runtime and focused host controllers, observes their Compose-facing state, and runs host effects for provider/network calls, filesystem and settings persistence, BASS playback, native dialogs, window state, and coroutine lifetime. This boundary move adds a net 59 `desktopMain` production lines because it composes the same host code across logical files, so it claims no delete-first thinning credit.
-  - [ ] Run a final Desktop ownership audit and close this parent only when no parallel Android/Desktop product policy remains.
+  - [x] Run a final Desktop ownership audit and close this parent only when no parallel Android/Desktop product policy remains. The audit removed the unreferenced 272-line legacy `DesktopMediaRows` surface and classified every remaining large Desktop file by composition, BASS/native queue execution, provider/coroutine execution, SQLDelight/filesystem persistence, or Desktop-only presentation. Relative to `main`, `desktopMain` is now smaller by a net 4,408 production lines.
 - [ ] Keep operating-system shell integrations in the Desktop host.
   - [x] Keep application/window creation, native title-bar configuration, minimum sizing, and shutdown handling in Desktop.
   - [x] Keep settings document and directory dialogs in Desktop AWT/Swing adapters.
@@ -477,6 +477,7 @@ Record architecture decisions here or link a dedicated decision record.
 | 2026-07-20 | Close the Desktop playlist, mix-builder, action, and media ownership audit. | Android and Desktop standard-playlist edits now share validation, provider replacement, cache invalidation, and status policy. Existing playlist applications, mix-builder coordinators, metadata mutation owners, and shared stable-ID action dispatch cover the other product decisions. Desktop retains Compose observation, provider/coroutine execution, route adaptation, and BASS dispatch, with a net 2-production-line Desktop reduction. |
 | 2026-07-20 | Close the Desktop cache/download ownership audit. | Post-reconciliation status, download-launch labeling, and refresh intent now resolve through a tested shared application used by Android and Desktop. The large Desktop storage files were verified as SQLDelight, filesystem byte-store, waveform/lyrics, repository, and BASS adapters; shared owners already control cache settings, maintenance, download jobs/execution, keep-downloaded policy, eviction, and statuses. This removes a net 3 Desktop production lines. |
 | 2026-07-20 | Reduce the Desktop composition root to composition and host effects. | Connection/capability presentation mapping and grouped settings actions moved into focused shell factories, reducing `DesktopNaviampApp` from 1,420 to 1,342 lines. Its remaining state bridges expose shared runtime/controller state to Compose; its effects execute provider, filesystem, persistence, BASS, dialog, window, and coroutine work owned by the host. The extraction adds a net 59 `desktopMain` production lines because it is a logical-boundary split rather than product-code removal, so it claims no thinning credit. |
+| 2026-07-20 | Close the final Desktop product-ownership audit. | No parallel Android/Desktop product policy remains in the audited Desktop entry point, controllers, or large adapters. The audit removed the now-unreferenced 272-line legacy Desktop media-row surface; remaining large files are composition/state adapters, BASS and native queue execution, provider/coroutine executors, SQLDelight/filesystem stores, or Desktop-only presentation. `desktopMain` is a net 4,408 production lines smaller than `main`. |
 
 ### Desktop Route Boundary Audit
 
@@ -545,6 +546,18 @@ The 2026-07-19 Desktop audit confirmed that queue, Now Playing, provider actions
 
 The remaining Desktop entry-point reduction, BASS contract adaptation, OS-service adapters, and packaging verification belong to Milestone 3 rather than this coordination item.
 
+## Final Desktop Product Ownership Audit
+
+The 2026-07-20 closure audit found no remaining product decision implemented independently by Android and Desktop:
+
+- `DesktopNaviampApp` constructs shared runtime and service graphs, observes focused controller state for Compose, and runs provider, persistence, BASS, dialog, window, and coroutine host effects. Shell state and grouped action mapping are composed in focused factories.
+- `DesktopPlaylistEngine`, `DesktopBassPlaybackEngine`, and their backends execute shared playback decisions against the native BASS queue and publish native callback state.
+- Desktop playlist, radio, mix, media, Home, Search, Library, and download controllers retain provider I/O, coroutine lifetime, stable-object resolution, native playback dispatch, and Compose-observable adaptation. Shared applications and coordinators own their validation, result application, queue, status, retry, reconciliation, and mutation policy.
+- `DesktopCache`, audio/library stores, settings stores, and connection adapters retain SQLDelight/JDBC mapping, filesystem bytes and paths, credential adaptation, and platform HTTP/TLS construction. Their remaining contract work is tracked separately under the platform-service item.
+- Desktop-only settings, Stats for Nerds, window chrome, native dialogs, and packaging remain host presentation or operating-system integration.
+
+The audit also found that `DesktopMediaRows` had no callers after shared media rows took ownership, so the obsolete 272-line surface was deleted. Future product behavior must enter through a shared owner or shared UI/action contract; a Desktop controller may add only the native execution or lifecycle adapter required to consume it.
+
 ## File Selection and Sharing Audit
 
 The 2026-07-17 audit covers every current application entry point:
@@ -558,8 +571,8 @@ The 2026-07-17 audit covers every current application entry point:
 
 ## Current Handoff
 
-- **Last completed item:** `DesktopNaviampApp` is now limited to shared-runtime and focused-host composition, Compose observation bridges, and host effects. Connection/capability mapping and grouped settings actions moved into focused factories, reducing the root from 1,420 to 1,342 lines; the logical split adds a net 59 Desktop production lines and claims no thinning credit.
-- **Next recommended item:** Run the final Desktop ownership audit and close the product-behavior parent only if no parallel Android/Desktop policy remains.
+- **Last completed item:** The final Desktop product-ownership audit is closed. No parallel Android/Desktop product policy remains; the obsolete 272-line `DesktopMediaRows` surface was removed, and the remaining large Desktop files are classified as composition/state adapters, native execution, persistence, provider execution, or Desktop-only integration. `desktopMain` is now a net 4,408 production lines smaller than `main`.
+- **Next recommended item:** Resolve updater execution through a host capability/service boundary while keeping shared version comparison and presentation.
 - **Verification:** On 2026-07-20, `:core:ui:jvmTest`, `:apps:desktop:desktopTest`, `:apps:android:compileDebugKotlin`, and `:core:ui:compileKotlinIosSimulatorArm64` passed after moving route-product composition into common UI. Desktop smoke testing then exposed infinite-height constraints where Downloads and playlist details were nested inside the route wrapper's vertical scroll even though both screens own scrolling, plus an unscrollable connection form because Settings does not own scrolling. The wrapper now adds scrolling only for Search, Playlists, Internet Radio, and Settings, with JVM regression coverage for the route policy.
 - **Known blockers:** None.
 
