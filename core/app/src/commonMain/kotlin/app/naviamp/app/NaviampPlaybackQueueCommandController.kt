@@ -1,7 +1,9 @@
 package app.naviamp.app
 
 import app.naviamp.domain.playback.PlaybackQueueMutationUpdate
+import app.naviamp.domain.playback.PlaybackQueueNavigationCommand
 import app.naviamp.domain.queue.RepeatMode
+import app.naviamp.domain.settings.PreviousButtonBehavior
 
 /** Applies shared user queue mutations to the playback engine owned by a platform host. */
 fun interface NaviampPlaybackQueueMutationExecution {
@@ -41,4 +43,36 @@ class NaviampPlaybackRepeatCommandController(
     private val execution: NaviampPlaybackRepeatModeExecution,
 ) {
     fun cycle(): RepeatMode = queue.cycleRepeatMode().also(execution::apply)
+}
+
+fun interface NaviampPlaybackNavigationExecution {
+    fun apply(command: PlaybackQueueNavigationCommand)
+}
+
+/** Resolves shared queue navigation intent before dispatching native playback execution. */
+class NaviampPlaybackNavigationCommandController(
+    private val queue: NaviampPlaybackQueueCoordinator,
+    private val execution: NaviampPlaybackNavigationExecution,
+) {
+    fun previous(previousButtonBehavior: PreviousButtonBehavior): PlaybackQueueNavigationCommand =
+        dispatch(queue.previousCommand(previousButtonBehavior))
+
+    fun next(): PlaybackQueueNavigationCommand = dispatch(queue.nextCommand())
+
+    fun jumpTo(
+        index: Int,
+        moveSelectedToCurrent: Boolean = true,
+    ): PlaybackQueueNavigationCommand {
+        val update = queue.selectIndex(index, moveSelectedToCurrent)
+        return dispatch(
+            if (update.changed) {
+                PlaybackQueueNavigationCommand.JumpTo(index, moveSelectedToCurrent)
+            } else {
+                PlaybackQueueNavigationCommand.None
+            },
+        )
+    }
+
+    private fun dispatch(command: PlaybackQueueNavigationCommand): PlaybackQueueNavigationCommand =
+        command.also { if (it != PlaybackQueueNavigationCommand.None) execution.apply(it) }
 }

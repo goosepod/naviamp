@@ -155,6 +155,35 @@ class NaviampPlaybackQueueCoordinatorTest {
     }
 
     @Test
+    fun navigationCommandsDispatchOnlyValidSharedDecisions() {
+        val first = track("first")
+        val second = track("second")
+        val playback = NaviampLivePlaybackController(
+            NaviampLivePlaybackState(
+                queue = PlaybackQueue(listOf(first, second), currentIndex = 0),
+            ),
+        )
+        val applied = mutableListOf<PlaybackQueueNavigationCommand>()
+        val commands = NaviampPlaybackNavigationCommandController(
+            queue = NaviampPlaybackQueueCoordinator(playback),
+            execution = NaviampPlaybackNavigationExecution(applied::add),
+        )
+
+        assertEquals(PlaybackQueueNavigationCommand.Next, commands.next())
+        assertEquals(listOf<PlaybackQueueNavigationCommand>(PlaybackQueueNavigationCommand.Next), applied)
+
+        assertEquals(PlaybackQueueNavigationCommand.None, commands.jumpTo(9))
+        assertEquals(1, applied.size)
+
+        assertEquals(
+            PlaybackQueueNavigationCommand.JumpTo(1, moveSelectedToCurrent = false),
+            commands.jumpTo(1, moveSelectedToCurrent = false),
+        )
+        assertEquals(second, playback.state.value.queue.current)
+        assertEquals(2, applied.size)
+    }
+
+    @Test
     fun shuffleAndRestoreUseOneSharedSnapshot() {
         val first = track("first")
         val upcoming = listOf(track("second"), track("third"), track("fourth"))
