@@ -335,9 +335,6 @@ fun NaviampApp(
     var restoredPlaybackPositionSeconds by remember {
         mutableStateOf(savedPlaybackSession?.positionSeconds?.takeIf { it > 0.0 })
     }
-    var lastSavedPlaybackPositionSeconds by remember {
-        mutableStateOf(savedPlaybackSession?.positionSeconds?.takeIf { it > 0.0 })
-    }
     var lastPlaybackProgressUiUpdateMillis by remember { mutableLongStateOf(0L) }
     var playReportSessionId by remember { mutableStateOf(0) }
     val nowPlayingPresentation = rememberDesktopNowPlayingPresentationState(
@@ -372,8 +369,6 @@ fun NaviampApp(
             setRepeatMode = { mode -> repeatMode = mode },
             shuffledUpNextSnapshot = { shuffledUpNextSnapshot },
             setShuffledUpNextSnapshot = { snapshot -> shuffledUpNextSnapshot = snapshot },
-            lastSavedPlaybackPositionSeconds = { lastSavedPlaybackPositionSeconds },
-            setLastSavedPlaybackPositionSeconds = { position -> lastSavedPlaybackPositionSeconds = position },
             playReportSessionId = { playReportSessionId },
             setOpenPlayerOnTrackStart = { shouldOpen -> openPlayerOnTrackStart = shouldOpen },
             reporting = applicationControllers.playbackReporting,

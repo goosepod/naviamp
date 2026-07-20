@@ -6,25 +6,12 @@ import app.naviamp.app.NaviampPlaybackSessionSaveRequest
 import app.naviamp.domain.Track
 import app.naviamp.domain.queue.PlaybackQueue
 import app.naviamp.domain.settings.PlaybackSessionRestorePlan
-import app.naviamp.domain.settings.shouldThrottlePlaybackSessionSave
 
 fun saveAndroidPlaybackSession(
     state: AndroidAppState,
     playbackSessions: NaviampPlaybackSessionController,
 ) {
-    with(state) {
-        val sourceId = activeSourceId ?: return
-        playbackSessions.planAndSave(
-            NaviampPlaybackSessionSaveRequest(
-                sourceId = sourceId,
-                station = nowPlayingStation,
-                currentTrack = nowPlaying,
-                playbackQueue = playbackQueue,
-                progressPositionSeconds = playbackProgress.positionSeconds,
-                platformPositionSeconds = AndroidPlaybackNotificationControls.positionMillis?.let { it / 1_000.0 },
-            ),
-        )
-    }
+    playbackSessions.planAndSave(state.playbackSessionSaveRequest())
 }
 
 fun saveAndroidPlaybackSessionThrottled(
@@ -32,24 +19,23 @@ fun saveAndroidPlaybackSessionThrottled(
     playbackSessions: NaviampPlaybackSessionController,
     force: Boolean = false,
 ) {
-    with(state) {
-        val now = AndroidSystemClock.nowEpochMillis()
-        if (
-            shouldThrottlePlaybackSessionSave(
-                activeSourceId = activeSourceId,
-                hasPlaybackTarget = nowPlaying != null || nowPlayingStation != null,
-                force = force,
-                nowMillis = now,
-                lastSavedAtMillis = lastPlaybackSessionSaveAtMillis,
-                saveIntervalMillis = AndroidPlaybackSessionSaveIntervalMillis,
-            )
-        ) {
-            return
-        }
-        lastPlaybackSessionSaveAtMillis = now
-        saveAndroidPlaybackSession(state, playbackSessions)
-    }
+    playbackSessions.planAndSaveThrottled(
+        request = state.playbackSessionSaveRequest(),
+        force = force,
+        nowMillis = AndroidSystemClock.nowEpochMillis(),
+        saveIntervalMillis = AndroidPlaybackSessionSaveIntervalMillis,
+    )
 }
+
+private fun AndroidAppState.playbackSessionSaveRequest(): NaviampPlaybackSessionSaveRequest =
+    NaviampPlaybackSessionSaveRequest(
+        sourceId = activeSourceId,
+        station = nowPlayingStation,
+        currentTrack = nowPlaying,
+        playbackQueue = playbackQueue,
+        progressPositionSeconds = playbackProgress.positionSeconds,
+        platformPositionSeconds = AndroidPlaybackNotificationControls.positionMillis?.let { it / 1_000.0 },
+    )
 
 fun restoreAndroidPlaybackSession(
     state: AndroidAppState,

@@ -75,6 +75,124 @@ class NaviampPlaybackSessionControllerTest {
         assertEquals("source", repository.lastSavedSourceId)
     }
 
+    @Test
+    fun positionSaveUsesPersistedPositionAndRemembersSuccessfulUpdates() {
+        val current = track("one")
+        val queue = PlaybackQueue(listOf(current), currentIndex = 0)
+        val repository = RecordingPlaybackSessionRepository(
+            mutableMapOf(
+                "source" to PlaybackSessionSettings.fromTracks(
+                    tracks = listOf(current),
+                    currentIndex = 0,
+                    positionSeconds = 40.0,
+                ),
+            ),
+        )
+        val controller = NaviampPlaybackSessionController(repository)
+
+        assertEquals(
+            PlaybackSessionSavePlan.None,
+            controller.planAndSavePositionIfNeeded(
+                request = saveRequest(current, queue, positionSeconds = 43.0),
+                saveThresholdSeconds = 5.0,
+            ),
+        )
+        assertEquals(0, repository.saveCount)
+
+        assertIs<PlaybackSessionSavePlan.Save>(
+            controller.planAndSavePositionIfNeeded(
+                request = saveRequest(current, queue, positionSeconds = 46.0),
+                saveThresholdSeconds = 5.0,
+            ),
+        )
+        assertEquals(1, repository.saveCount)
+        assertEquals(46.0, repository.sessions["source"]?.positionSeconds)
+
+        assertEquals(
+            PlaybackSessionSavePlan.None,
+            controller.planAndSavePositionIfNeeded(
+                request = saveRequest(current, queue, positionSeconds = 49.0),
+                saveThresholdSeconds = 5.0,
+            ),
+        )
+        assertEquals(1, repository.saveCount)
+    }
+
+    @Test
+    fun positionSaveDoesNotReuseAnotherTracksGate() {
+        val previous = track("previous")
+        val current = track("current")
+        val queue = PlaybackQueue(listOf(current), currentIndex = 0)
+        val repository = RecordingPlaybackSessionRepository(
+            mutableMapOf(
+                "source" to PlaybackSessionSettings.fromTracks(
+                    tracks = listOf(previous),
+                    currentIndex = 0,
+                    positionSeconds = 40.0,
+                ),
+            ),
+        )
+        val controller = NaviampPlaybackSessionController(repository)
+
+        assertIs<PlaybackSessionSavePlan.Save>(
+            controller.planAndSavePositionIfNeeded(
+                request = saveRequest(current, queue, positionSeconds = 41.0),
+                saveThresholdSeconds = 5.0,
+            ),
+        )
+
+        assertEquals(1, repository.saveCount)
+        assertEquals(current.id, repository.sessions["source"]?.currentTrack()?.id)
+    }
+
+    @Test
+    fun timedSaveGateIsSharedAndForceBypassesItsInterval() {
+        val current = track("one")
+        val queue = PlaybackQueue(listOf(current), currentIndex = 0)
+        val repository = RecordingPlaybackSessionRepository()
+        val controller = NaviampPlaybackSessionController(repository)
+        val request = saveRequest(current, queue, positionSeconds = 12.0)
+
+        assertIs<PlaybackSessionSavePlan.Save>(
+            controller.planAndSaveThrottled(
+                request = request,
+                force = false,
+                nowMillis = 10_000L,
+                saveIntervalMillis = 1_000L,
+            ),
+        )
+        assertEquals(
+            PlaybackSessionSavePlan.None,
+            controller.planAndSaveThrottled(
+                request = request,
+                force = false,
+                nowMillis = 10_500L,
+                saveIntervalMillis = 1_000L,
+            ),
+        )
+        assertIs<PlaybackSessionSavePlan.Save>(
+            controller.planAndSaveThrottled(
+                request = request,
+                force = true,
+                nowMillis = 10_500L,
+                saveIntervalMillis = 1_000L,
+            ),
+        )
+        assertEquals(2, repository.saveCount)
+    }
+
+    private fun saveRequest(
+        currentTrack: Track,
+        queue: PlaybackQueue,
+        positionSeconds: Double,
+    ) = NaviampPlaybackSessionSaveRequest(
+        sourceId = "source",
+        station = null,
+        currentTrack = currentTrack,
+        playbackQueue = queue,
+        progressPositionSeconds = positionSeconds,
+    )
+
     private fun track(id: String) = Track(
         id = TrackId(id),
         title = "Track $id",
@@ -91,10 +209,12 @@ private class RecordingPlaybackSessionRepository(
     val sessions: MutableMap<String?, PlaybackSessionSettings?> = mutableMapOf(),
 ) : PlaybackSessionRepository {
     var lastSavedSourceId: String? = null
+    var saveCount: Int = 0
 
     override fun loadPlaybackSession(sourceId: String?): PlaybackSessionSettings? = sessions[sourceId]
 
     override fun savePlaybackSession(session: PlaybackSessionSettings?, sourceId: String?) {
+        saveCount += 1
         lastSavedSourceId = sourceId
         sessions[sourceId] = session
     }

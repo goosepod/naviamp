@@ -225,7 +225,6 @@ class AndroidAppState(
     var pendingPlaybackAction by mutableStateOf<PendingPlaybackAction?>(null)
     var audioPrefetchJob by mutableStateOf<Job?>(null)
     var sidecarPrepJob by mutableStateOf<Job?>(null)
-    var lastPlaybackSessionSaveAtMillis by mutableStateOf(0L)
     var lastAndroidAutoProgressPublishAtMillis by mutableStateOf(0L)
 }
 

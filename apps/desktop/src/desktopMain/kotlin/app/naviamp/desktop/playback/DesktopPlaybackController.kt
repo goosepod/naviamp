@@ -5,6 +5,7 @@ import app.naviamp.desktop.settings.PlaybackSettings
 import app.naviamp.domain.Track
 import app.naviamp.domain.TrackId
 import app.naviamp.app.NaviampPlaybackSessionController
+import app.naviamp.app.NaviampPlaybackSessionSaveRequest
 import app.naviamp.app.NaviampPlaybackQueueCoordinator
 import app.naviamp.app.NaviampPlaybackQueueCommandController
 import app.naviamp.app.NaviampPlaybackQueueMutationExecution
@@ -23,7 +24,6 @@ import app.naviamp.domain.playback.PlaybackVolumeCommand
 import app.naviamp.domain.playback.canReportPlaybackTrack
 import app.naviamp.domain.playback.PlaybackQueueManager
 import app.naviamp.domain.playback.PlaybackQueueNavigationCommand
-import app.naviamp.domain.playback.shouldSavePlaybackPosition
 import app.naviamp.domain.provider.MediaProvider
 import app.naviamp.domain.queue.PlaybackQueue
 import app.naviamp.domain.queue.RepeatMode
@@ -64,8 +64,6 @@ class DesktopPlaybackController(
     private val setRepeatMode: (RepeatMode) -> Unit,
     private val shuffledUpNextSnapshot: () -> List<Track>?,
     private val setShuffledUpNextSnapshot: (List<Track>?) -> Unit,
-    private val lastSavedPlaybackPositionSeconds: () -> Double?,
-    private val setLastSavedPlaybackPositionSeconds: (Double?) -> Unit,
     private val playReportSessionId: () -> Int,
     private val setOpenPlayerOnTrackStart: (Boolean) -> Unit,
     private val reporting: NaviampPlaybackReportingController,
@@ -111,18 +109,17 @@ class DesktopPlaybackController(
 
     fun maybeSavePlaybackPosition(progress: PlaybackProgress) {
         val positionSeconds = progress.positionSeconds ?: return
-        if (
-            !shouldSavePlaybackPosition(
-                queue = playbackQueue(),
-                positionSeconds = positionSeconds,
-                lastSavedPositionSeconds = lastSavedPlaybackPositionSeconds(),
-                saveThresholdSeconds = PlaybackPositionSaveThresholdSeconds,
-            )
-        ) {
-            return
-        }
-        setLastSavedPlaybackPositionSeconds(positionSeconds)
-        savePlaybackSession(playbackQueue(), positionSeconds)
+        val queue = playbackQueue()
+        playbackSessions.planAndSavePositionIfNeeded(
+            request = NaviampPlaybackSessionSaveRequest(
+                sourceId = sourceId(),
+                station = livePlayback.state.value.currentStation,
+                currentTrack = nowPlayingTrack(),
+                playbackQueue = queue,
+                progressPositionSeconds = positionSeconds,
+            ),
+            saveThresholdSeconds = PlaybackPositionSaveThresholdSeconds,
+        )
     }
 
     fun handlePlayPauseCommand(startOrRestorePlayback: () -> Boolean): Boolean =
