@@ -62,10 +62,9 @@ internal class AndroidShellPlaybackController(
             normalizedQueue.queue,
             clearPreparedNext = normalizedQueue.clearPreparedNext,
         )
-        val update = state.sharedQueueCoordinator.toggleUpcomingShuffle(state.shuffledUpNextSnapshot)
+        val update = state.sharedQueueCoordinator.toggleUpcomingShuffle()
         if (!update.changed) return
         playbackQueueController.replaceQueue(update.queue)
-        state.shuffledUpNextSnapshot = update.shuffledSnapshot
     }
 
     fun startTrackRadioQueue(track: Track, playSeed: Boolean) {

@@ -18,6 +18,7 @@ import app.naviamp.domain.playback.PlaybackQueueController
 import app.naviamp.domain.playback.PlaybackQueueMutationUpdate
 import app.naviamp.domain.playback.PlaybackQueueSelection
 import app.naviamp.domain.playback.PlaybackQueueUpdate
+import app.naviamp.domain.playback.PlaybackShuffleUpdate
 import app.naviamp.domain.playback.PlaybackReplayGain
 import app.naviamp.domain.playback.AudioPrefetchStats
 import app.naviamp.domain.playback.CacheRuntimeStats
@@ -293,12 +294,10 @@ class DesktopPlaylistEngine(
         }
     }
 
-    fun toggleUpcomingShuffle(shuffledSnapshot: List<Track>?): List<Track>? {
-        val update = queueCoordinator.toggleUpcomingShuffle(shuffledSnapshot)
-        if (!update.changed) return shuffledSnapshot
+    fun applyShuffleUpdate(update: PlaybackShuffleUpdate) {
+        if (!update.changed) return
         queueController.replaceQueue(update.queue)
         callbacks?.onQueueChanged(update.queue)
-        return update.shuffledSnapshot
     }
 
     private fun playQueueSelection(

@@ -166,8 +166,15 @@ class NaviampPlaybackQueueCoordinator(
             deduplicateExisting = true,
         )
 
-    fun toggleUpcomingShuffle(shuffledSnapshot: List<Track>?): PlaybackShuffleUpdate =
-        queueManager.toggleUpcomingShuffle(currentQueue, shuffledSnapshot).also(::commit)
+    fun toggleUpcomingShuffle(): PlaybackShuffleUpdate =
+        queueManager.toggleUpcomingShuffle(
+            currentQueue,
+            playback.state.value.shuffledUpNextSnapshot,
+        ).also(::commit)
+
+    fun clearShuffleSnapshot() {
+        playback.updateShuffledUpNextSnapshot(null)
+    }
 
     fun cycleRepeatMode(): RepeatMode =
         queueManager.cycleRepeatMode(playback.state.value.repeatMode).also(playback::updateRepeatMode)
@@ -243,7 +250,14 @@ class NaviampPlaybackQueueCoordinator(
     }
 
     private fun commit(update: PlaybackShuffleUpdate) {
-        if (update.changed) playback.updateQueue(update.queue)
+        if (update.changed) {
+            playback.replace(
+                playback.state.value.copy(
+                    queue = update.queue,
+                    shuffledUpNextSnapshot = update.shuffledSnapshot,
+                ),
+            )
+        }
     }
 
     private fun commit(update: PlaybackQueueFinishedUpdate) {

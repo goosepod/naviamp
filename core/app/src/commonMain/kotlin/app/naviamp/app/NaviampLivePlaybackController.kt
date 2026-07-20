@@ -20,6 +20,7 @@ data class NaviampLivePlaybackState(
     val pendingSeekIssuedAtMillis: Long? = null,
     val playbackState: PlaybackState = PlaybackState.Idle,
     val repeatMode: RepeatMode = RepeatMode.Off,
+    val shuffledUpNextSnapshot: List<Track>? = null,
 )
 
 /** Shared owner of live, user-visible playback state; it does not execute audio commands. */
@@ -70,6 +71,9 @@ class NaviampLivePlaybackController(
 
     fun updateRepeatMode(repeatMode: RepeatMode) =
         update { current -> current.copy(repeatMode = repeatMode) }
+
+    fun updateShuffledUpNextSnapshot(snapshot: List<Track>?) =
+        update { current -> current.copy(shuffledUpNextSnapshot = snapshot) }
 
     private inline fun update(transform: (NaviampLivePlaybackState) -> NaviampLivePlaybackState) {
         mutableState.update(transform)

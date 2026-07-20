@@ -325,7 +325,10 @@ fun NaviampApp(
     var showStatsForNerds by remember { mutableStateOf(false) }
     var statsForNerdsRefreshTick by remember { mutableIntStateOf(0) }
     var openPlayerOnTrackStart by remember { mutableStateOf(false) }
-    var shuffledUpNextSnapshot by remember { mutableStateOf<List<Track>?>(null) }
+    val shuffledUpNextSnapshotProperty = remember {
+        desktopShuffledUpNextSnapshotProperty(livePlaybackController)
+    }
+    var shuffledUpNextSnapshot by shuffledUpNextSnapshotProperty
     val repeatModeProperty = remember { desktopRepeatModeProperty(livePlaybackController) }
     var repeatMode by repeatModeProperty
     var radioQueueActive by remember { mutableStateOf(false) }
@@ -367,8 +370,6 @@ fun NaviampApp(
             nowPlayingTrack = { nowPlayingTrack },
             repeatMode = { repeatMode },
             setRepeatMode = { mode -> repeatMode = mode },
-            shuffledUpNextSnapshot = { shuffledUpNextSnapshot },
-            setShuffledUpNextSnapshot = { snapshot -> shuffledUpNextSnapshot = snapshot },
             playReportSessionId = { playReportSessionId },
             setOpenPlayerOnTrackStart = { shouldOpen -> openPlayerOnTrackStart = shouldOpen },
             reporting = applicationControllers.playbackReporting,

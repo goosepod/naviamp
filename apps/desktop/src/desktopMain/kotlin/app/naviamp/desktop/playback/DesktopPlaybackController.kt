@@ -62,8 +62,6 @@ class DesktopPlaybackController(
     private val nowPlayingTrack: () -> Track?,
     private val repeatMode: () -> RepeatMode,
     private val setRepeatMode: (RepeatMode) -> Unit,
-    private val shuffledUpNextSnapshot: () -> List<Track>?,
-    private val setShuffledUpNextSnapshot: (List<Track>?) -> Unit,
     private val playReportSessionId: () -> Int,
     private val setOpenPlayerOnTrackStart: (Boolean) -> Unit,
     private val reporting: NaviampPlaybackReportingController,
@@ -82,11 +80,11 @@ class DesktopPlaybackController(
     }
 
     fun clearShuffleSnapshot() {
-        setShuffledUpNextSnapshot(null)
+        queueCoordinator.clearShuffleSnapshot()
     }
 
     fun toggleShuffle() {
-        setShuffledUpNextSnapshot(playlistEngine.toggleUpcomingShuffle(shuffledUpNextSnapshot()))
+        playlistEngine.applyShuffleUpdate(queueCoordinator.toggleUpcomingShuffle())
     }
 
     fun cycleRepeatMode() {

@@ -78,3 +78,11 @@ internal fun desktopRepeatModeProperty(controller: NaviampLivePlaybackController
     DesktopLivePlaybackProperty(controller, NaviampLivePlaybackState::repeatMode) { owner, value: RepeatMode ->
         owner.updateRepeatMode(value)
     }
+
+internal fun desktopShuffledUpNextSnapshotProperty(controller: NaviampLivePlaybackController) =
+    DesktopLivePlaybackProperty(
+        controller,
+        NaviampLivePlaybackState::shuffledUpNextSnapshot,
+    ) { owner, value: List<Track>? ->
+        owner.updateShuffledUpNextSnapshot(value)
+    }
