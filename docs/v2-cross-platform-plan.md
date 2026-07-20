@@ -448,6 +448,7 @@ Record architecture decisions here or link a dedicated decision record.
 | 2026-07-19 | Share initial Now Playing report eligibility. | Capability and Internet Radio eligibility are common reporting policy owned by `NaviampPlaybackReportingController`; Desktop, Android UI, and Android service reporters retain their separate provider-action, offline enqueue, coroutine, and error-handling lifetimes. |
 | 2026-07-20 | Share seeded-radio expansion result application. | Current-request validation, ready/failed classification, fetched-track dispatch, and optional failure reporting now use one tested domain policy across Desktop and Android refill and staged-expansion paths. Hosts retain native queue application and lifecycle checks. This parity extraction adds a net 10 Desktop production lines, so it establishes shared ownership but claims no delete-first thinning credit. |
 | 2026-07-20 | Share Desktop radio seed-result application. | Random-album, artist, artist-mix, album, and album-mix starts now use one tested domain policy for ready, missing, and failed seed results. Desktop retains provider seed lookup and seeded-playback request construction while removing a net 26 production lines. |
+| 2026-07-20 | Complete cross-platform radio seed-result adoption. | Android artist, artist-mix, album-mix, and album radio now use the same tested ready/missing/failure policy as Desktop. Android retains Activity-scoped provider lookup, request construction, queue execution, and status observation. This parity correction does not change Desktop production size. |
 
 ### Desktop Route Boundary Audit
 
@@ -529,8 +530,8 @@ The 2026-07-17 audit covers every current application entry point:
 
 ## Current Handoff
 
-- **Last completed item:** Desktop random-album, artist, artist-mix, album, and album-mix starts now use one tested domain policy to apply ready, missing, and failed seed results. Provider seed lookup and playback request construction remain native adapters, and `desktopMain` is 26 production lines smaller.
-- **Next recommended item:** Adopt the shared seed-result policy in Android's equivalent entry paths, then continue the Desktop radio-start audit at the next repeated decision boundary.
+- **Last completed item:** Android artist, artist-mix, album-mix, and album radio now apply seed results through the same tested domain policy as Desktop. Provider lookup, request construction, native queue execution, and lifecycle remain host-owned. This Android parity correction does not change Desktop production size.
+- **Next recommended item:** Apply the shared seeded-build policy to Desktop's convert-current-track path, then audit generic radio-start result application across both hosts.
 - **Verification:** On 2026-07-20, `:core:ui:jvmTest`, `:apps:desktop:desktopTest`, `:apps:android:compileDebugKotlin`, and `:core:ui:compileKotlinIosSimulatorArm64` passed after moving route-product composition into common UI. Desktop smoke testing then exposed infinite-height constraints where Downloads and playlist details were nested inside the route wrapper's vertical scroll even though both screens own scrolling, plus an unscrollable connection form because Settings does not own scrolling. The wrapper now adds scrolling only for Search, Playlists, Internet Radio, and Settings, with JVM regression coverage for the route policy.
 - **Known blockers:** None.
 
