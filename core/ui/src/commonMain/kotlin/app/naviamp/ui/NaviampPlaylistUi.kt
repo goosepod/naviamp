@@ -481,9 +481,68 @@ private fun PlaylistListRow(
 const val KeepDownloadedActionValue = "keep-downloaded"
 
 @Composable
-internal fun PlaylistDetailContent(
+fun NaviampPlaylistDetailContent(
+    colors: NaviampColors,
+    screen: NaviampPlaylistDetailScreenUi,
+    actions: NaviampPlaylistDetailActions,
+    playlistsActions: NaviampPlaylistsActions,
+    playlistChoices: List<NaviampPlaylistChoiceUi>,
+) {
+    val detail = screen.detail
+    if (detail == null) {
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxSize()) {
+            IconButton(onClick = actions.onBack, modifier = Modifier.size(36.dp)) {
+                Icon(NaviampIcons.Back, contentDescription = "Back", tint = colors.primaryText)
+            }
+            Text(
+                screen.selectedPlaylist?.title ?: "Playlist",
+                color = colors.primaryText,
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Bold,
+            )
+            screen.status?.let { Text(it, color = colors.secondaryText) }
+        }
+        return
+    }
+    PlaylistDetailContent(
+        colors = colors,
+        detail = detail,
+        status = screen.status,
+        onBack = actions.onBack,
+        onPlayPlaylist = { actions.onPlay(detail.playlist, false) },
+        onShufflePlaylist = { actions.onPlay(detail.playlist, true) },
+        onAddPlaylistToQueue = { actions.onAddToQueue(detail) },
+        onDownloadPlaylist = {
+            actions.onMediaItemAction(
+                detail.playlist.actionRequest(
+                    SharedMediaItemAction.Download,
+                    kind = SharedMediaItemKind.Playlist,
+                ),
+            )
+        },
+        onAddPlaylistToPlaylist = { choice -> actions.onAddToPlaylist(detail, choice) },
+        onCreatePlaylistAndAddPlaylist = { name -> actions.onCreatePlaylistAndAdd(detail, name) },
+        onCopyPlaylist = { name, deduplicate -> actions.onCopy(detail, name, deduplicate) },
+        onRenamePlaylist = actions.onRename,
+        onDeletePlaylist = actions.onDelete,
+        onUpdateStandardPlaylist = actions.onUpdateStandardPlaylist,
+        onSmartPlaylistUpdate = playlistsActions.onSmartPlaylistUpdate,
+        onSmartPlaylistUpdateWithPassword = playlistsActions.onSmartPlaylistUpdateWithPassword,
+        onSmartPlaylistLoad = playlistsActions.onSmartPlaylistLoad,
+        onTrackSelected = { track ->
+            actions.onTrackAction(SharedTrackRowActionRequest(track, SharedTrackRowAction.Select))
+        },
+        playlistChoices = playlistChoices,
+        availableLibraries = screen.availableLibraries,
+        selectedConnectionLibraryIds = screen.selectedConnectionLibraryIds,
+    )
+}
+
+@Composable
+private fun PlaylistDetailContent(
     colors: NaviampColors,
     detail: SharedPlaylistDetailUi,
+    status: String?,
     onBack: () -> Unit,
     onPlayPlaylist: () -> Unit,
     onShufflePlaylist: () -> Unit,
@@ -499,7 +558,6 @@ internal fun PlaylistDetailContent(
     onSmartPlaylistUpdateWithPassword: suspend (SharedMediaItemUi, SmartPlaylistDefinition, String) -> Unit,
     onSmartPlaylistLoad: suspend (SharedMediaItemUi) -> SmartPlaylistDefinition,
     onTrackSelected: (SharedTrackRowUi) -> Unit,
-    onTrackAddToQueue: (SharedTrackRowUi) -> Unit,
     playlistChoices: List<NaviampPlaylistChoiceUi>,
     availableLibraries: List<ConnectionFormMusicFolder> = emptyList(),
     selectedConnectionLibraryIds: List<String> = emptyList(),
@@ -558,6 +616,7 @@ internal fun PlaylistDetailContent(
             )
             Column(verticalArrangement = Arrangement.spacedBy(4.dp), modifier = Modifier.weight(1f)) {
                 Text(detail.playlist.subtitle, color = colors.secondaryText, fontSize = 12.sp)
+                status?.let { Text(it, color = colors.secondaryText, fontSize = 11.sp) }
                 NaviampResponsiveActionRow(
                     colors = colors,
                     actions = buildList {
@@ -644,7 +703,7 @@ internal fun PlaylistDetailContent(
             title = detail.playlist.title,
             colors = colors,
             playlists = playlistChoices,
-            status = null,
+            status = status,
             onDismissRequest = { addToPlaylistOpen = false },
             onAddToExisting = { choice ->
                 addToPlaylistOpen = false

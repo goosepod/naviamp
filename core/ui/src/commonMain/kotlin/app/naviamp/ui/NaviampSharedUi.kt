@@ -894,37 +894,12 @@ private fun ConnectedContent(
             playlistChoices = playlistChoices,
             playlistActionStatus = playlists.status,
         )
-        selectedPlaylistDetail != null -> PlaylistDetailContent(
+        selectedPlaylistDetail != null -> NaviampPlaylistDetailContent(
             colors = colors,
-            detail = selectedPlaylistDetail,
-            onBack = playlistDetailActions.onBack,
-            onPlayPlaylist = { playlistDetailActions.onPlay(selectedPlaylistDetail.playlist, false) },
-            onShufflePlaylist = { playlistDetailActions.onPlay(selectedPlaylistDetail.playlist, true) },
-            onAddPlaylistToQueue = { playlistDetailActions.onAddToQueue(selectedPlaylistDetail) },
-            onDownloadPlaylist = {
-                playlistDetailActions.onMediaItemAction(
-                    selectedPlaylistDetail.playlist.actionRequest(
-                        SharedMediaItemAction.Download,
-                        kind = SharedMediaItemKind.Playlist,
-                    ),
-                )
-            },
-            onAddPlaylistToPlaylist = { playlist -> playlistDetailActions.onAddToPlaylist(selectedPlaylistDetail, playlist) },
-            onCreatePlaylistAndAddPlaylist = { name -> playlistDetailActions.onCreatePlaylistAndAdd(selectedPlaylistDetail, name) },
-            onCopyPlaylist = { name, deduplicate -> playlistDetailActions.onCopy(selectedPlaylistDetail, name, deduplicate) },
-            onRenamePlaylist = playlistDetailActions.onRename,
-            onDeletePlaylist = playlistDetailActions.onDelete,
-            onUpdateStandardPlaylist = playlistDetailActions.onUpdateStandardPlaylist,
-            onSmartPlaylistUpdate = playlistsActions.onSmartPlaylistUpdate,
-            onSmartPlaylistUpdateWithPassword = playlistsActions.onSmartPlaylistUpdateWithPassword,
-            onSmartPlaylistLoad = playlistsActions.onSmartPlaylistLoad,
-            onTrackSelected = playlistDetailActions.onTrackSelected,
-            onTrackAddToQueue = { track ->
-                playlistDetailActions.onTrackAction(SharedTrackRowActionRequest(track, SharedTrackRowAction.AddToQueue))
-            },
+            screen = playlistDetail.copy(detail = selectedPlaylistDetail),
+            actions = playlistDetailActions,
+            playlistsActions = playlistsActions,
             playlistChoices = playlistChoices,
-            availableLibraries = playlistDetail.availableLibraries,
-            selectedConnectionLibraryIds = playlistDetail.selectedConnectionLibraryIds,
         )
         else -> when (selectedRoute) {
             SharedRoute.Home -> SharedHomeRoute(
