@@ -21,5 +21,6 @@ class NaviampProductRouteContentTest {
         assertTrue(naviampProductRouteUsesOuterVerticalScroll(NaviampRoute.Search))
         assertTrue(naviampProductRouteUsesOuterVerticalScroll(NaviampRoute.Playlists))
         assertTrue(naviampProductRouteUsesOuterVerticalScroll(NaviampRoute.Radio))
+        assertTrue(naviampProductRouteUsesOuterVerticalScroll(NaviampRoute.Settings))
     }
 }

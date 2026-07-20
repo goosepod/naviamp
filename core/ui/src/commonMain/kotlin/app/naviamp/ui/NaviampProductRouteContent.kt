@@ -330,6 +330,7 @@ internal fun naviampProductRouteUsesOuterVerticalScroll(route: NaviampRoute): Bo
         NaviampRoute.Search,
         NaviampRoute.Playlists,
         NaviampRoute.Radio,
+        NaviampRoute.Settings,
         -> true
         NaviampRoute.Player,
         NaviampRoute.Home,
@@ -340,7 +341,6 @@ internal fun naviampProductRouteUsesOuterVerticalScroll(route: NaviampRoute): Bo
         NaviampRoute.SonicPath,
         NaviampRoute.SonicMix,
         NaviampRoute.Downloads,
-        NaviampRoute.Settings,
         NaviampRoute.AlbumDetail,
         NaviampRoute.ArtistDetail,
         NaviampRoute.PlaylistDetail,
