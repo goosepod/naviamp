@@ -149,10 +149,13 @@ enum class NaviampSettingsCategory(
 @Composable
 fun NaviampSharedSettingsContent(
     colors: NaviampColors,
+    modifier: Modifier = Modifier,
     interfaceSettings: InterfaceSettings = InterfaceSettings(),
     playbackSettings: PlaybackSettings,
     cacheSettings: CacheSettings = CacheSettings(),
     diagnostics: NaviampDiagnosticsUi = NaviampDiagnosticsUi(),
+    downloadsDiagnostics: NaviampDiagnosticsUi = diagnostics,
+    audioCacheDiagnostics: NaviampDiagnosticsUi = diagnostics,
     about: NaviampAboutUi = NaviampAboutUi(),
     savedConnections: List<NaviampSavedConnectionUi> = emptyList(),
     isConnectionFormOpen: Boolean = false,
@@ -183,7 +186,9 @@ fun NaviampSharedSettingsContent(
     onCacheSettingsChanged: (CacheSettings) -> Unit = {},
     onClearCache: (() -> Unit)? = null,
     onClearLibrary: (() -> Unit)? = null,
+    onRefreshLibrary: (() -> Unit)? = null,
     onResetDatabase: (() -> Unit)? = null,
+    onOpenStatsForNerds: (() -> Unit)? = null,
     supportsReplayGain: Boolean = false,
     supportsGapless: Boolean = true,
     supportsCrossfade: Boolean = false,
@@ -195,6 +200,7 @@ fun NaviampSharedSettingsContent(
     downloadBytes: Long = 0L,
     showQueueBehavior: Boolean = true,
     showDebugLogging: Boolean = true,
+    showTooltipPreference: Boolean = false,
     showMobileNetworkQuality: Boolean = false,
     downloadLocations: List<NaviampStorageLocationUi> = emptyList(),
     audioCacheLocations: List<NaviampStorageLocationUi> = emptyList(),
@@ -212,6 +218,7 @@ fun NaviampSharedSettingsContent(
         verticalArrangement = Arrangement.spacedBy(
             if (selectedCategory == null) 8.dp else SettingsDetailItemSpacing,
         ),
+        modifier = modifier,
     ) {
         selectedCategory?.let { category ->
             SettingsDetailHeader(
@@ -262,6 +269,7 @@ fun NaviampSharedSettingsContent(
                     cacheSettings = cacheSettings,
                     showQueueBehavior = showQueueBehavior,
                     showLrclibLyrics = true,
+                    showTooltipPreference = showTooltipPreference,
                     supportsSonicSimilarity = supportsSonicSimilarity,
                     onInterfaceSettingsChanged = onInterfaceSettingsChanged,
                     onPlaybackSettingsChanged = onPlaybackSettingsChanged,
@@ -289,7 +297,7 @@ fun NaviampSharedSettingsContent(
                     colors = colors,
                     playbackSettings = playbackSettings,
                     cacheSettings = cacheSettings,
-                    diagnostics = diagnostics,
+                    diagnostics = downloadsDiagnostics,
                     showMobileNetworkQuality = showMobileNetworkQuality,
                     downloadBytes = downloadBytes,
                     onPlaybackSettingsChanged = onPlaybackSettingsChanged,
@@ -302,7 +310,7 @@ fun NaviampSharedSettingsContent(
                 NaviampSettingsCategory.AudioCache -> NaviampAudioCacheSettingsSection(
                     colors = colors,
                     cacheSettings = cacheSettings,
-                    diagnostics = diagnostics,
+                    diagnostics = audioCacheDiagnostics,
                     onCacheSettingsChanged = onCacheSettingsChanged,
                     locations = audioCacheLocations,
                     selectedLocationId = selectedAudioCacheLocationId,
@@ -322,10 +330,14 @@ fun NaviampSharedSettingsContent(
                         diagnostics = diagnostics,
                         emptyText = stringResource(Res.string.settings_debugging_empty),
                     )
+                    onOpenStatsForNerds?.let { openStats ->
+                        PrimarySettingsButton("Stats for Nerds", colors, enabled = true, onClick = openStats)
+                    }
                     SharedLocalDataActions(
                         colors = colors,
                         onClearCache = onClearCache,
                         onClearLibrary = onClearLibrary,
+                        onRefreshLibrary = onRefreshLibrary,
                         onResetDatabase = onResetDatabase,
                     )
                 }
@@ -1674,6 +1686,7 @@ private fun SharedLocalDataActions(
     colors: NaviampColors,
     onClearCache: (() -> Unit)?,
     onClearLibrary: (() -> Unit)?,
+    onRefreshLibrary: (() -> Unit)?,
     onResetDatabase: (() -> Unit)?,
 ) {
     var confirmAction by remember { mutableStateOf<SharedLocalDataAction?>(null) }
@@ -1688,6 +1701,9 @@ private fun SharedLocalDataActions(
             color = colors.secondaryText,
             fontSize = SettingsDetailRowSubtitleSize,
         )
+        onRefreshLibrary?.let { refresh ->
+            PrimarySettingsButton("Refresh library index", colors, enabled = true, onClick = refresh)
+        }
         PrimarySettingsButton(stringResource(Res.string.settings_local_clear_cache), colors, enabled = onClearCache != null) {
             confirmAction = SharedLocalDataAction.ClearCache
         }
