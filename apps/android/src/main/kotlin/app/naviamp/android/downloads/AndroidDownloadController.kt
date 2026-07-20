@@ -14,8 +14,7 @@ import app.naviamp.app.downloadsRefreshStatus
 import app.naviamp.app.keepDownloadedDisabledStatus
 import app.naviamp.app.keepDownloadedErrorStatus
 import app.naviamp.app.keepDownloadedRefreshErrorStatus
-import app.naviamp.app.keepDownloadedUpToDateStatus
-import app.naviamp.app.keepingDownloadedLabel
+import app.naviamp.app.keepDownloadedReconciliationApplication
 import app.naviamp.app.noTracksToDownloadStatus
 
 import android.content.Context
@@ -233,13 +232,11 @@ internal class AndroidDownloadActionController(
 
     private fun reconcileKeepDownloadedPolicy(policy: KeepDownloadedCollectionPolicy, tracks: List<Track>) {
         val plan = downloads.reconcile(policy, tracks)
+        val application = keepDownloadedReconciliationApplication(policy, plan)
         reloadKeepDownloadedPolicies()
-        if (plan.tracksToDownload.isEmpty()) {
-            state.publishDownloadStatus(keepDownloadedUpToDateStatus(policy.name))
-        } else {
-            downloadTracks(plan.tracksToDownload, keepingDownloadedLabel(policy.name))
-        }
-        if (plan.trackIdsToRemove.isNotEmpty()) state.downloadRefreshToken += 1
+        application.status?.let(state::publishDownloadStatus)
+        application.downloadLabel?.let { label -> downloadTracks(application.tracksToDownload, label) }
+        if (application.refreshDownloads) state.downloadRefreshToken += 1
     }
 
     fun removeDownload(download: NaviampDownloadedTrackUi) {

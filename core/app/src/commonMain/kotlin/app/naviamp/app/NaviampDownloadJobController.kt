@@ -124,6 +124,26 @@ data class NaviampDownloadExecutionRequest(
     val refreshDownloadsAfter: (DownloadTracksResult) -> Boolean = ::shouldRefreshDownloadsAfter,
 )
 
+data class NaviampKeepDownloadedReconciliationApplication(
+    val tracksToDownload: List<Track>,
+    val downloadLabel: String?,
+    val status: String?,
+    val refreshDownloads: Boolean,
+)
+
+fun keepDownloadedReconciliationApplication(
+    policy: KeepDownloadedCollectionPolicy,
+    plan: KeepDownloadedReconciliationPlan,
+): NaviampKeepDownloadedReconciliationApplication =
+    NaviampKeepDownloadedReconciliationApplication(
+        tracksToDownload = plan.tracksToDownload,
+        downloadLabel = plan.tracksToDownload.takeIf { it.isNotEmpty() }
+            ?.let { keepingDownloadedLabel(policy.name) },
+        status = plan.tracksToDownload.takeIf { it.isEmpty() }
+            ?.let { keepDownloadedUpToDateStatus(policy.name) },
+        refreshDownloads = plan.trackIdsToRemove.isNotEmpty(),
+    )
+
 /** Shared execution and keep-downloaded reconciliation around platform repositories. */
 class NaviampDownloadCoordinator<DownloadedFile, DownloadedTrack, Stats>(
     downloadRepository: DownloadRepository<DownloadedFile, DownloadedTrack>,

@@ -4,6 +4,9 @@ import app.naviamp.domain.Track
 import app.naviamp.domain.TrackId
 import app.naviamp.domain.cache.DownloadJob
 import app.naviamp.domain.cache.DownloadJobUpdate
+import app.naviamp.domain.cache.KeepDownloadedCollectionKind
+import app.naviamp.domain.cache.KeepDownloadedCollectionPolicy
+import app.naviamp.domain.cache.KeepDownloadedReconciliationPlan
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
@@ -29,6 +32,44 @@ class NaviampDownloadJobControllerTest {
         assertEquals("Album", retry.label)
         assertTrue(retry.replaceExisting)
         assertNull(controller.create("Empty", emptyList(), replaceExisting = false))
+    }
+
+    @Test
+    fun mapsKeepDownloadedReconciliationToStatusDownloadAndRefreshEffects() {
+        val policy = KeepDownloadedCollectionPolicy(
+            sourceId = "source",
+            kind = KeepDownloadedCollectionKind.Playlist,
+            collectionId = "playlist",
+            name = "Road trip",
+        )
+
+        assertEquals(
+            NaviampKeepDownloadedReconciliationApplication(
+                tracksToDownload = emptyList(),
+                downloadLabel = null,
+                status = "Road trip is up to date.",
+                refreshDownloads = true,
+            ),
+            keepDownloadedReconciliationApplication(
+                policy,
+                KeepDownloadedReconciliationPlan(
+                    nextTrackIds = emptySet(),
+                    tracksToDownload = emptyList(),
+                    trackIdsToRemove = setOf("removed"),
+                ),
+            ),
+        )
+        assertEquals(
+            "Keeping Road trip downloaded",
+            keepDownloadedReconciliationApplication(
+                policy,
+                KeepDownloadedReconciliationPlan(
+                    nextTrackIds = setOf("one"),
+                    tracksToDownload = listOf(track("one")),
+                    trackIdsToRemove = emptySet(),
+                ),
+            ).downloadLabel,
+        )
     }
 
     private fun track(id: String) = Track(

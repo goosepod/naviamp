@@ -21,8 +21,7 @@ import app.naviamp.app.downloadsRefreshStatus
 import app.naviamp.app.keepDownloadedDisabledStatus
 import app.naviamp.app.keepDownloadedErrorStatus
 import app.naviamp.app.keepDownloadedRefreshErrorStatus
-import app.naviamp.app.keepDownloadedUpToDateStatus
-import app.naviamp.app.keepingDownloadedLabel
+import app.naviamp.app.keepDownloadedReconciliationApplication
 import app.naviamp.app.noTracksToDownloadStatus
 import app.naviamp.domain.cache.DownloadRepository
 import app.naviamp.domain.cache.DownloadJob
@@ -265,13 +264,11 @@ class DesktopDownloadsController(
 
     private fun reconcileKeepDownloadedPolicy(policy: KeepDownloadedCollectionPolicy, tracks: List<Track>) {
         val plan = downloads.reconcile(policy, tracks)
+        val application = keepDownloadedReconciliationApplication(policy, plan)
         reloadKeepDownloadedPolicies()
-        if (plan.tracksToDownload.isEmpty()) {
-            updateStatus(keepDownloadedUpToDateStatus(policy.name))
-        } else {
-            downloadTracks(keepingDownloadedLabel(policy.name), plan.tracksToDownload)
-        }
-        if (plan.trackIdsToRemove.isNotEmpty()) incrementRefreshToken()
+        application.status?.let(::updateStatus)
+        application.downloadLabel?.let { label -> downloadTracks(label, application.tracksToDownload) }
+        if (application.refreshDownloads) incrementRefreshToken()
     }
 
     fun removeDownloadedTrack(download: DownloadedTrack) {
