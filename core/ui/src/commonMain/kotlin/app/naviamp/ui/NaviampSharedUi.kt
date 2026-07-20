@@ -1194,7 +1194,7 @@ private fun ConnectedContent(
                 )
             }
             SharedRoute.Settings -> Unit
-            SharedRoute.Downloads -> DownloadsContent(
+            SharedRoute.Downloads -> NaviampDownloadsContent(
                 colors = colors,
                 screen = downloads,
                 actions = downloadsActions,

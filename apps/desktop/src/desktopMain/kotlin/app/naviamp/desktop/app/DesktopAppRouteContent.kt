@@ -28,6 +28,7 @@ import app.naviamp.ui.NaviampAppShellActions
 import app.naviamp.ui.NaviampAppShellUiState
 import app.naviamp.ui.NaviampSettingsSyncActions
 import app.naviamp.ui.NaviampSettingsSyncUi
+import app.naviamp.ui.NaviampDownloadsContent
 import app.naviamp.ui.SharedHomeRoute
 import app.naviamp.ui.SaveQueueAsPlaylistDialog
 import app.naviamp.ui.SonicMixBuilderContent
@@ -306,10 +307,12 @@ fun ColumnScope.DesktopRouteContent(
                         actions = shellActions.radioActions,
                     )
                 }
-                NaviampRoute.Downloads -> DesktopDownloadsPanel(
-                    appColors = appColors,
+                NaviampRoute.Downloads -> NaviampDownloadsContent(
+                    colors = appColors,
                     screen = shellState.downloads,
                     actions = shellActions.downloadsActions,
+                    playlistChoices = shellState.playlistChoices,
+                    playlistActionStatus = shellState.playlists.status,
                 )
                 NaviampRoute.Settings -> DesktopSettingsPanel(
                     appColors = appColors,

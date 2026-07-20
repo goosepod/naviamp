@@ -580,7 +580,7 @@ internal fun LibraryContent(
 }
 
 @Composable
-internal fun DownloadsContent(
+fun NaviampDownloadsContent(
     colors: NaviampColors,
     screen: NaviampDownloadsScreenUi,
     actions: NaviampDownloadsActions,
