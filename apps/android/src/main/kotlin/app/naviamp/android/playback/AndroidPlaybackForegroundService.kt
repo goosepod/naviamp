@@ -13,7 +13,6 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Color
 import android.media.AudioManager
-import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.os.Handler
@@ -25,7 +24,6 @@ import androidx.media.MediaBrowserServiceCompat
 import app.naviamp.android.AndroidStorageDependencies
 import app.naviamp.android.AndroidSettingsStore
 import app.naviamp.android.AndroidPlaybackAudioAssets
-import app.naviamp.android.R
 import app.naviamp.android.MainActivity
 import app.naviamp.android.markAndroidSettingsSyncChangedAndAutoExport
 import app.naviamp.android.resolveInternetRadioStreamUrl
@@ -50,7 +48,6 @@ import app.naviamp.domain.playback.PlaybackQueueController
 import app.naviamp.domain.playback.PlaybackRequest
 import app.naviamp.domain.playback.MediaVoiceQuery
 import app.naviamp.domain.playback.bestVoiceNameMatch
-import app.naviamp.domain.playback.CatalogPlaybackIntent
 import app.naviamp.domain.playback.nextRepeatMode
 import app.naviamp.domain.queue.PlaybackQueue
 import app.naviamp.domain.queue.RepeatMode
@@ -144,6 +141,46 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
             applicationUid = applicationInfo.uid,
             hydrateSession = ::hydrateSavedPlaybackSession,
             browse = autoBrowseController,
+        )
+    }
+    private val autoSelectionController: AndroidAutoCatalogSelectionController by lazy {
+        AndroidAutoCatalogSelectionController(
+            object : AndroidAutoCatalogSelectionHost {
+                override val storage: AndroidStorageDependencies get() = serviceStorage
+                override val settings: AndroidSettingsStore get() = serviceSettingsStore
+                override fun resume() = handleServiceAutoPlayPause()
+                override fun playQueueItem(index: Int) = playServiceAutoQueueItem(index)
+                override fun launch(block: suspend () -> Unit) = launchServiceSelection(block)
+                override fun playQueue(tracks: List<Track>, index: Int) {
+                    storage.latestNavidromeSource()?.id?.let { playServiceTrackQueue(storage, it, tracks, index) }
+                }
+                override fun fallbackQueue(track: Track): List<Track> {
+                    val sourceId = storage.latestNavidromeSource()?.id ?: return listOf(track)
+                    return serviceQueueForLibraryTrack(storage, sourceId, track)
+                }
+                override suspend fun loadPlaylist(provider: NavidromeProvider, id: String): List<Track> =
+                    loadServicePlaylistTracks(storage, provider, id)
+                override suspend fun loadArtist(provider: NavidromeProvider, id: String, name: String?): List<Track> {
+                    val sourceId = storage.latestNavidromeSource()?.id ?: return emptyList()
+                    return loadServiceArtistTracks(storage, storage, sourceId, provider, id, name)
+                }
+                override suspend fun loadAlbum(provider: NavidromeProvider, id: String, title: String?, artist: String?): List<Track> {
+                    val sourceId = storage.latestNavidromeSource()?.id ?: return emptyList()
+                    return loadServiceAlbumTracks(storage, storage, sourceId, provider, id, title, artist)
+                }
+                override fun playStation(station: InternetRadioStation) {
+                    storage.latestNavidromeSource()?.id?.let { playServiceInternetRadioStation(storage, storage, it, station) }
+                }
+                override fun playRecent(stream: RecentRadioStream) {
+                    storage.latestNavidromeSource()?.id?.let { playServiceRecentRadioStream(storage, storage, it, stream) }
+                }
+                override fun rememberRecent(stream: RecentRadioStream) = rememberRecentRadioStream(stream)
+                override fun failed(message: String, error: Throwable?) {
+                    if (error == null) Log.w("NaviampAutoCommand", message) else Log.w("NaviampAutoCommand", message, error)
+                    AndroidPlaybackNotificationControls.isPlaying = false
+                    updateMediaSessionPlaybackState()
+                }
+            },
         )
     }
     private val autoCommandController: AndroidAutoCommandController by lazy {
@@ -653,279 +690,7 @@ class AndroidPlaybackForegroundService : MediaBrowserServiceCompat() {
 
     private fun handleServicePlayMediaId(mediaId: String): Boolean {
         cancelPendingServiceSelection()
-        val storage = serviceStorage
-        val source = storage.latestNavidromeSource() ?: return false
-        val sourceId = source.id
-        return when (val selection = AndroidAutoMediaIdParser.parse(mediaId) ?: return false) {
-            CatalogPlaybackIntent.Resume -> {
-                handleServiceAutoPlayPause()
-                true
-            }
-            is CatalogPlaybackIntent.QueueItem -> {
-                playServiceAutoQueueItem(selection.index)
-                true
-            }
-            CatalogPlaybackIntent.LibraryRadio -> {
-                val provider = NavidromeProvider(source.toNavidromeConnection())
-                val recent = RecentRadioStream(
-                    id = AndroidAutoPlaybackControls.MediaIdRadioLibrary,
-                    label = "Library Radio",
-                    kind = RecentRadioKind.Library,
-                )
-                launchServiceSelection {
-                    val radioService = RadioService(
-                        provider = provider,
-                        tuning = AndroidSettingsStore(applicationContext).loadPlaybackSettings().radioTuning,
-                    )
-                    runCatching { withContext(Dispatchers.IO) { radioService.libraryRadio() } }
-                        .onSuccess { tracks ->
-                            rememberRecentRadioStream(recent.withRadioCoverArtIds(tracks))
-                            playServiceTrackQueue(storage, sourceId, tracks, currentIndex = 0)
-                        }
-                        .onFailure { error ->
-                            Log.w("NaviampAutoCommand", "Could not start Auto Library Radio", error)
-                            AndroidPlaybackNotificationControls.isPlaying = false
-                            updateMediaSessionPlaybackState()
-                        }
-                }
-                true
-            }
-            is CatalogPlaybackIntent.RadioDj -> {
-                val dj = storage.radioDjPresets().firstOrNull { it.id == selection.id } ?: return false
-                val provider = NavidromeProvider(source.toNavidromeConnection())
-                launchServiceSelection {
-                    val radioService = RadioService(
-                        provider = provider,
-                        tuning = dj.tuning,
-                    )
-                    val recent = RecentRadioStream(
-                        id = "dj:${dj.id}",
-                        label = dj.name,
-                        kind = RecentRadioKind.Library,
-                    )
-                    runCatching { withContext(Dispatchers.IO) { radioService.libraryRadio() } }
-                        .onSuccess { tracks ->
-                            rememberRecentRadioStream(recent.withRadioCoverArtIds(tracks))
-                            playServiceTrackQueue(storage, sourceId, tracks, currentIndex = 0)
-                        }
-                        .onFailure { error ->
-                            Log.w("NaviampAutoCommand", "Could not start Auto DJ=${dj.name}", error)
-                            AndroidPlaybackNotificationControls.isPlaying = false
-                            updateMediaSessionPlaybackState()
-                        }
-                }
-                true
-            }
-            is CatalogPlaybackIntent.Playlist -> {
-                val playlistId = selection.id
-                val provider = NavidromeProvider(source.toNavidromeConnection())
-                launchServiceSelection {
-                    runCatching {
-                        withContext(Dispatchers.IO) {
-                            loadServicePlaylistTracks(storage, provider, playlistId)
-                        }
-                    }
-                        .onSuccess { tracks ->
-                            playServiceTrackQueue(storage, sourceId, tracks.let { if (selection.shuffle) it.shuffled() else it }, currentIndex = 0)
-                        }
-                        .onFailure { error ->
-                            Log.w("NaviampAutoCommand", "Could not ${if (selection.shuffle) "shuffle" else "start"} Auto playlist=$playlistId", error)
-                            AndroidPlaybackNotificationControls.isPlaying = false
-                            updateMediaSessionPlaybackState()
-                        }
-                }
-                true
-            }
-            is CatalogPlaybackIntent.PlaylistTrack -> {
-                val playlistId = selection.playlistId
-                val trackId = selection.trackId
-                val provider = NavidromeProvider(source.toNavidromeConnection())
-                launchServiceSelection {
-                    runCatching {
-                        withContext(Dispatchers.IO) {
-                            loadServicePlaylistTracks(storage, provider, playlistId)
-                        }
-                    }
-                        .onSuccess { tracks ->
-                            val index = tracks.indexOfFirst { it.id.value == trackId }
-                            if (index >= 0) {
-                                playServiceTrackQueue(storage, sourceId, tracks, index)
-                            }
-                        }
-                        .onFailure { error ->
-                            Log.w("NaviampAutoCommand", "Could not start Auto playlist track=$trackId", error)
-                            AndroidPlaybackNotificationControls.isPlaying = false
-                            updateMediaSessionPlaybackState()
-                        }
-                }
-                true
-            }
-            is CatalogPlaybackIntent.InternetRadio -> {
-                val station = InternetRadioStation(
-                    id = selection.id,
-                    name = selection.name,
-                    streamUrl = selection.streamUrl,
-                    homePageUrl = selection.homePageUrl,
-                )
-                playServiceInternetRadioStation(storage, storage, sourceId, station)
-                true
-            }
-            is CatalogPlaybackIntent.RecentRadio -> {
-                val recentId = selection.id
-                val settingsStore = AndroidSettingsStore(applicationContext)
-                val recentStream = settingsStore.loadRecentRadioStreams().firstOrNull { it.id == recentId }
-                if (recentStream != null) {
-                    playServiceRecentRadioStream(storage, storage, sourceId, recentStream)
-                    return true
-                }
-                val station = settingsStore.loadRecentInternetRadioStations()
-                    .firstOrNull { it.id == recentId }
-                    ?.toStation()
-                if (station != null) {
-                playServiceInternetRadioStation(storage, storage, sourceId, station)
-                    return true
-                }
-                false
-            }
-            is CatalogPlaybackIntent.Track -> {
-                val trackId = selection.id
-                val selectionTitle = selection.title
-                val track = if (selectionTitle != null) {
-                    Track(
-                        id = TrackId(trackId),
-                        title = selectionTitle,
-                        artistId = selection.artistId?.let(::ArtistId),
-                        artistName = selection.artistName.orEmpty(),
-                        albumId = selection.albumId?.let(::AlbumId),
-                        albumTitle = selection.albumTitle,
-                        durationSeconds = selection.durationSeconds,
-                        coverArtId = selection.coverArtId,
-                        audioInfo = null,
-                        replayGain = null,
-                    )
-                } else {
-                    storage.libraryTrack(sourceId, TrackId(trackId)) ?: return false
-                }
-                playServiceTrackQueue(storage, sourceId, listOf(track), 0)
-                true
-            }
-            is CatalogPlaybackIntent.ArtistTrack -> {
-                val artistId = selection.artistId
-                val artistName = selection.artistName
-                val trackId = selection.trackId
-                val provider = NavidromeProvider(source.toNavidromeConnection())
-                launchServiceSelection {
-                    runCatching {
-                        val tracks = loadServiceArtistTracks(storage, storage, sourceId, provider, artistId, artistName)
-                        val track = tracks.firstOrNull { it.id.value == trackId }
-                            ?: storage.libraryTrack(sourceId, TrackId(trackId))
-                        track?.let { selectedTrack ->
-                            val queue = tracks.takeIf { items -> items.any { it.id == selectedTrack.id } }
-                                ?: serviceQueueForLibraryTrack(storage, sourceId, selectedTrack)
-                            selectedTrack to queue
-                        }
-                    }.onSuccess { selection ->
-                        if (selection != null) {
-                            val (track, queue) = selection
-                            playServiceTrackQueue(storage, sourceId, queue, queue.indexOfFirst { it.id == track.id }.coerceAtLeast(0))
-                        } else {
-                            AndroidPlaybackNotificationControls.isPlaying = false
-                            updateMediaSessionPlaybackState()
-                        }
-                    }.onFailure { error ->
-                        Log.w("NaviampAutoCommand", "Could not start Auto artist track=$trackId", error)
-                        AndroidPlaybackNotificationControls.isPlaying = false
-                        updateMediaSessionPlaybackState()
-                    }
-                }
-                true
-            }
-            is CatalogPlaybackIntent.AlbumTrack -> {
-                val albumId = selection.albumId
-                val trackId = selection.trackId
-                val provider = NavidromeProvider(source.toNavidromeConnection())
-                launchServiceSelection {
-                    runCatching {
-                        val tracks = loadServiceAlbumTracks(
-                            libraryIndexRepository = storage,
-                            providerResponseCacheRepository = storage,
-                            sourceId = sourceId,
-                            provider = provider,
-                            albumId = albumId,
-                            albumTitle = null,
-                            albumArtist = null,
-                        )
-                        val track = tracks.firstOrNull { it.id.value == trackId }
-                            ?: storage.libraryTrack(sourceId, TrackId(trackId))
-                        track?.let { selectedTrack ->
-                            val queue = tracks.takeIf { items -> items.any { it.id == selectedTrack.id } }
-                                ?: serviceQueueForLibraryTrack(storage, sourceId, selectedTrack)
-                            selectedTrack to queue
-                        }
-                    }
-                        .onSuccess { selection ->
-                            if (selection != null) {
-                                val (track, queue) = selection
-                                playServiceTrackQueue(storage, sourceId, queue, queue.indexOfFirst { it.id == track.id }.coerceAtLeast(0))
-                            } else {
-                                AndroidPlaybackNotificationControls.isPlaying = false
-                                updateMediaSessionPlaybackState()
-                            }
-                        }
-                        .onFailure { error ->
-                            Log.w("NaviampAutoCommand", "Could not start Auto album track=$trackId", error)
-                            AndroidPlaybackNotificationControls.isPlaying = false
-                            updateMediaSessionPlaybackState()
-                        }
-                }
-                true
-            }
-            is CatalogPlaybackIntent.Artist -> {
-                val artistId = selection.id
-                val artistName = selection.name
-                val provider = NavidromeProvider(source.toNavidromeConnection())
-                launchServiceSelection {
-                    runCatching {
-                        loadServiceArtistTracks(storage, storage, sourceId, provider, artistId, artistName)
-                    }.onSuccess { tracks ->
-                        playServiceTrackQueue(storage, sourceId, tracks.let { if (selection.shuffle) it.shuffled() else it }, currentIndex = 0)
-                    }.onFailure { error ->
-                        Log.w("NaviampAutoCommand", "Could not ${if (selection.shuffle) "shuffle" else "play"} Auto artist=$artistId", error)
-                        AndroidPlaybackNotificationControls.isPlaying = false
-                        updateMediaSessionPlaybackState()
-                    }
-                }
-                true
-            }
-            is CatalogPlaybackIntent.Album -> {
-                val albumId = selection.id
-                val albumTitle = selection.title
-                val albumArtist = selection.artist
-                val provider = NavidromeProvider(source.toNavidromeConnection())
-                launchServiceSelection {
-                    runCatching {
-                        loadServiceAlbumTracks(storage, storage, sourceId, provider, albumId, albumTitle, albumArtist)
-                    }.onSuccess { tracks ->
-                        playServiceTrackQueue(storage, sourceId, tracks.let { if (selection.shuffle) it.shuffled() else it }, currentIndex = 0)
-                    }.onFailure { error ->
-                        Log.w("NaviampAutoCommand", "Could not ${if (selection.shuffle) "shuffle" else "play"} Auto album=$albumId", error)
-                        AndroidPlaybackNotificationControls.isPlaying = false
-                        updateMediaSessionPlaybackState()
-                    }
-                }
-                true
-            }
-            is CatalogPlaybackIntent.Download -> {
-                val trackId = selection.trackId
-                val downloads = storage.downloadedTracks(sourceId)
-                    .filter { it.file.exists() }
-                    .map { it.track }
-                val index = downloads.indexOfFirst { it.id.value == trackId }
-                if (index < 0) return false
-                playServiceTrackQueue(storage, sourceId, downloads, index)
-                true
-            }
-        }
+        return autoSelectionController.playMediaId(mediaId)
     }
 
     private fun handleServicePlaySearch(query: String): Boolean {
