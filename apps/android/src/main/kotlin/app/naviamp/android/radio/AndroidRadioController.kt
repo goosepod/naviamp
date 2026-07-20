@@ -18,6 +18,9 @@ import app.naviamp.domain.media.relatedTracksResult
 import app.naviamp.domain.provider.AlbumListType
 import app.naviamp.domain.queue.PlaybackQueue
 import app.naviamp.domain.radio.InternetRadioStationManager
+import app.naviamp.domain.radio.InternetRadioStationOperationApplier
+import app.naviamp.domain.radio.applyInternetRadioStationOperationResult
+import app.naviamp.domain.radio.internetRadioStationOperationResult
 import app.naviamp.domain.radio.RadioService
 import app.naviamp.domain.radio.RadioRequestStartResult
 import app.naviamp.domain.radio.SeededRadioBuildResult
@@ -282,15 +285,8 @@ fun saveAndroidInternetRadioStation(
     }
     state.status = internetRadioSaveLoadingStatus(station)
     scope.launch {
-        runCatching {
-            withContext(Dispatchers.IO) {
+        applyAndroidInternetRadioStationOperation(state, internetRadioSaveErrorStatus()) {
                 stationManager.saveStation(activeProvider, station)
-            }
-        }.onSuccess { stations ->
-            state.homeState = state.homeState.copy(radioStations = stations)
-            state.status = ""
-        }.onFailure { error ->
-            state.status = error.message ?: internetRadioSaveErrorStatus()
         }
     }
 }
@@ -310,15 +306,8 @@ fun refreshAndroidInternetRadioStations(
     state.status = internetRadioRefreshLoadingStatus()
     scope.launch {
         try {
-            runCatching {
-                withContext(Dispatchers.IO) {
+            applyAndroidInternetRadioStationOperation(state, internetRadioRefreshErrorStatus()) {
                     stationManager.refreshStations(activeProvider)
-                }
-            }.onSuccess { stations ->
-                state.homeState = state.homeState.copy(radioStations = stations)
-                state.status = ""
-            }.onFailure { error ->
-                state.status = error.message ?: internetRadioRefreshErrorStatus()
             }
         } finally {
             state.isInternetRadioRefreshing = false
@@ -339,17 +328,28 @@ fun deleteAndroidInternetRadioStation(
     }
     state.status = internetRadioDeleteLoadingStatus(station)
     scope.launch {
-        runCatching {
-            withContext(Dispatchers.IO) {
+        applyAndroidInternetRadioStationOperation(state, internetRadioDeleteErrorStatus()) {
                 stationManager.deleteStation(activeProvider, station)
-            }
-        }.onSuccess { stations ->
-            state.homeState = state.homeState.copy(radioStations = stations)
-            state.status = ""
-        }.onFailure { error ->
-            state.status = error.message ?: internetRadioDeleteErrorStatus()
         }
     }
+}
+
+private suspend fun applyAndroidInternetRadioStationOperation(
+    state: AndroidAppState,
+    fallbackError: String,
+    operation: suspend () -> List<InternetRadioStation>,
+) {
+    val result = withContext(Dispatchers.IO) {
+        internetRadioStationOperationResult(fallbackError, operation)
+    }
+    applyInternetRadioStationOperationResult(
+        result,
+        InternetRadioStationOperationApplier(
+            setStations = { stations -> state.homeState = state.homeState.copy(radioStations = stations) },
+            clearStatus = { state.status = "" },
+            setStatus = { message -> state.status = message },
+        ),
+    )
 }
 
 fun startAndroidRadioTracks(
