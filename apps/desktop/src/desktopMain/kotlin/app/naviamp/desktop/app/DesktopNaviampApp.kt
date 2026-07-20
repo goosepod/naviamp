@@ -1688,269 +1688,78 @@ fun NaviampApp(
                                 internetRadioController = internetRadioController,
                             ),
                         )
-                        val playlistActionSources = SharedPlaylistActionSources(
-                            playlists = playlistsController.playlists,
-                            playlistTracksById = playlistsController.playlistTracksById,
-                            selectedPlaylist = playlistsController.selectedPlaylist,
-                            selectedPlaylistTracks = playlistsController.selectedPlaylistTracks,
+                        val connectionActions = NaviampConnectionSettingsActions(
+                            onFormChanged = { form ->
+                                connectionForm.connectionName = form.displayName
+                                connectionForm.updateServerUrl(form.serverUrl)
+                                connectionForm.updateUsername(form.username)
+                                connectionForm.password = form.password
+                                connectionForm.insecureSkipTlsVerification = form.skipTlsVerification
+                                connectionForm.customCertificatePath = form.customCertificatePath
+                                connectionForm.clientCertificateKeyStorePath = form.clientCertificatePath
+                                connectionForm.clientCertificateKeyStorePassword = form.clientCertificatePassword
+                                connectionForm.secondaryUrls = form.secondaryUrls
+                                connectionForm.customHeaders = form.customHeaders
+                                connectionForm.selectedMusicFolderIds = form.selectedMusicFolderIds
+                            },
+                            onConnect = { appActions.connectToServer() },
+                            onNewConnection = connectionLifecycleController::openNewConnectionForm,
+                            onEditConnection = { item ->
+                                savedMediaSources.firstOrNull { it.id == item.id }
+                                    ?.let(connectionLifecycleController::openSavedConnectionForm)
+                            },
+                            onConnectSavedConnection = { item ->
+                                savedMediaSources.firstOrNull { it.id == item.id }
+                                    ?.let(connectionLifecycleController::connectSavedConnection)
+                            },
+                            onDeleteConnection = { item ->
+                                savedMediaSources.firstOrNull { it.id == item.id }
+                                    ?.let(appActions::deleteConnection)
+                            },
+                            onCancelConnectionForm = connectionLifecycleController::closeConnectionForm,
                         )
-                        val internetRadioActionSources = SharedInternetRadioActionSources(
-                            stations = internetRadioController.stations,
+                        val valueActions = NaviampSettingsValueActions(
+                            onInterfaceSettingsChanged = { settings: InterfaceSettings ->
+                                interfaceSettings = settings.normalized()
+                                settingsStore.saveInterfaceSettings(interfaceSettings)
+                                markAndAutoExportSettingsSync()
+                            },
+                            onPlaybackSettingsChanged = settingsMaintenanceController::applyPlaybackSettings,
+                            onPlaybackSettingsChangedAndRedownload =
+                                settingsMaintenanceController::applyPlaybackSettingsAndRedownload,
+                            onCacheSettingsChanged = cacheSettingsController::apply,
                         )
-                        val detailActionSources = SharedDetailActionSources(
-                            selectedAlbum = albumController.selectedAlbum,
-                            albumDetail = albumController.selectedAlbumDetails,
-                            selectedArtist = artistController.selectedArtist,
-                            artistDetail = artistController.selectedArtistDetails,
-                            artistPopularTracks = artistController.selectedArtistPopularTracks,
-                            artistSimilarArtists = artistController.selectedArtistSimilarArtists,
+                        val maintenanceActions = NaviampSettingsMaintenanceActions(
+                            onOpenStatsForNerds = { showStatsForNerds = true },
+                            onClearCache = { appActions.clearCacheData() },
+                            onClearLibrary = { appActions.clearLibraryData() },
+                            onRefreshLibrary = libraryController::refreshLibrarySnapshot,
+                            onResetDatabase = { appActions.resetDatabase() },
                         )
-                        val desktopShellActions = NaviampAppShellActions(
-                            navigationActions = NaviampShellNavigationActions(
-                                onRouteSelected = { route -> appRoute = route.toAppRoute() },
-                            ),
-                            homeActions = NaviampHomeActions(
-                                onRefresh = { connectedProvider?.let(homeController::loadHomeContent) },
-                                onRecentRadioSelected = { item -> appActions.playHomeRecentRadio(item.id) },
-                                onInternetRadioStationSelected = { item ->
-                                    appActions.playHomeInternetRadio(item.id)
-                                },
-                                onMixBuilderSelected = { builder ->
-                                    appRoute = when (builder.id) {
-                                        "artist" -> NaviampRoute.ArtistMix
-                                        "album" -> NaviampRoute.AlbumMix
-                                        "genre" -> NaviampRoute.GenreMix
-                                        "sonic-path" -> NaviampRoute.SonicPath
-                                        "sonic-mix" -> NaviampRoute.SonicMix
-                                        else -> appRoute
-                                    }
-                                },
-                                onStationSelected = { station -> appActions.playHomeStation(station.id) },
-                                onSonicDiscoveryTrackAction = { request ->
-                                    val track = sonicHomeDiscoveryController.trackFor(request)
-                                    when (request.action) {
-                                        app.naviamp.ui.SharedTrackRowAction.ToggleFavorite ->
-                                            track?.let(appActions::toggleTrackFavorite)
-                                        app.naviamp.ui.SharedTrackRowAction.GoToAlbum ->
-                                            track?.let(appActions::openTrackAlbumDetails)
-                                        app.naviamp.ui.SharedTrackRowAction.GoToArtist ->
-                                            track?.let(appActions::openTrackArtistDetails)
-                                        else -> sonicHomeDiscoveryController.handleAction(request)
-                                    }
-                                },
-                                onRecentlyPlayedTrackAction = { request ->
-                                    val tracks = homeContent.recentlyPlayedTracks
-                                    handleResolvedTrackRowAction(
-                                        request,
-                                        tracks,
-                                        ResolvedTrackRowActionHandlers(
-                                            onSelect = { index, _ -> appActions.playPopularTracks(tracks, index) },
-                                            onPlayNext = playlistsController::playNext,
-                                            onStartRadio = { _, track -> appActions.playTrackRadio(track) },
-                                            onPlayTrackRadioNext = appActions::playTrackRadioNext,
-                                            onAddTrackRadioToQueue = appActions::addTrackRadioToQueue,
-                                            onDownload = { _, track -> appActions.downloadTrack(track) },
-                                            onAddToQueue = { _, track -> playlistsController.addTrackToQueue(track) },
-                                            onAddToPlaylist = { _, track, _ ->
-                                                playlistsController.openTrackAddToPlaylist(track)
-                                            },
-                                            onToggleFavorite = appActions::toggleTrackFavorite,
-                                            onGoToAlbum = appActions::openTrackAlbumDetails,
-                                            onGoToArtist = { track, artistId, artistName ->
-                                                appActions.openTrackArtistDetails(track, artistId, artistName)
-                                            },
-                                        ),
-                                    )
-                                },
-                            ),
-                            searchActions = NaviampSearchActions(
-                                onQueryChanged = searchController::updateQuery,
-                                onClear = searchController::clearSearch,
-                            ),
-                            libraryActions = NaviampLibraryActions(
-                                onQueryChanged = libraryController::updateQuery,
-                                onRefresh = libraryController::refreshArtistIndex,
-                                onJumpToLetter = libraryController::jumpLibraryToLetter,
-                            ),
-                            playlistsActions = NaviampPlaylistsActions(
-                                onRefresh = { playlistsController.refreshPlaylists(useCache = false) },
-                                onSortModeChanged = playlistsController::updateSortMode,
-                                onSmartPlaylistSave = smartPlaylistsController::saveSmartPlaylist,
-                                onSmartPlaylistUpdate = { item, definition ->
-                                    playlistActionSources.playlist(item.id)?.let { playlist ->
-                                        smartPlaylistsController.updateSmartPlaylist(playlist, definition)
-                                    }
-                                },
-                                onSmartPlaylistSaveWithPassword =
-                                    smartPlaylistsController::saveSmartPlaylistWithPassword,
-                                onSmartPlaylistUpdateWithPassword = { item, definition, password ->
-                                    playlistActionSources.playlist(item.id)?.let { playlist ->
-                                        smartPlaylistsController.updateSmartPlaylistWithPassword(
-                                            playlist,
-                                            definition,
-                                            password,
-                                        )
-                                    }
-                                },
-                                onSmartPlaylistLoad = { item ->
-                                    playlistActionSources.playlist(item.id)
-                                        ?.let { smartPlaylistsController.loadSmartPlaylistDefinition(it) }
-                                        ?: error("Playlist ${item.title} is no longer available.")
-                                },
-                            ),
-                            radioActions = desktopInternetRadioActions(
-                                actionSources = internetRadioActionSources,
-                                onRefresh = internetRadioController::refreshStations,
-                                onPlayStation = internetRadioController::playStation,
-                                onSaveStation = internetRadioController::saveStation,
-                                onDeleteStation = internetRadioController::deleteStation,
-                            ),
-                            albumDetailActions = desktopAlbumDetailActions(
-                                actionSources = detailActionSources,
+                        val desktopShellActions = desktopAppShellActions(
+                            DesktopAppShellActionContext(
+                                route = appRoute,
+                                setRoute = { route -> appRoute = route },
+                                provider = connectedProvider,
+                                homeContent = homeContent,
+                                downloadedTracks = desktopDownloadedTracks,
                                 appActions = appActions,
+                                homeController = homeController,
+                                sonicHomeDiscoveryController = sonicHomeDiscoveryController,
+                                searchController = searchController,
+                                libraryController = libraryController,
                                 playlistsController = playlistsController,
-                                onBack = { appRoute = albumController.albumDetailBackRoute },
-                            ),
-                            artistDetailActions = desktopArtistDetailActions(
-                                actionSources = detailActionSources,
-                                appActions = appActions,
-                                playlistsController = playlistsController,
-                            ),
-                            playlistDetailActions = desktopPlaylistDetailActions(
-                                actionSources = playlistActionSources,
-                                appActions = appActions,
-                                playlistsController = playlistsController,
-                                onBack = { appRoute = NaviampRoute.Playlists },
-                            ),
-                            mediaActions = desktopMediaActions(
-                                playlistActionSources = playlistActionSources,
-                                artists = if (appRoute == NaviampRoute.Search) {
-                                    searchController.results.artists
-                                } else {
-                                    libraryController.snapshot.artists
-                                },
-                                albums = searchController.results.albums,
-                                tracks = searchController.results.tracks,
-                                appActions = appActions,
-                                playlistsController = playlistsController,
-                            ),
-                            downloadsActions = desktopDownloadsActions(
-                                downloads = desktopDownloadedTracks,
-                                appActions = appActions,
-                                playlistsController = playlistsController,
-                            ),
-                            connectionActions = NaviampConnectionSettingsActions(
-                                onFormChanged = { form ->
-                                    connectionForm.connectionName = form.displayName
-                                    connectionForm.updateServerUrl(form.serverUrl)
-                                    connectionForm.updateUsername(form.username)
-                                    connectionForm.password = form.password
-                                    connectionForm.insecureSkipTlsVerification = form.skipTlsVerification
-                                    connectionForm.customCertificatePath = form.customCertificatePath
-                                    connectionForm.clientCertificateKeyStorePath = form.clientCertificatePath
-                                    connectionForm.clientCertificateKeyStorePassword = form.clientCertificatePassword
-                                    connectionForm.secondaryUrls = form.secondaryUrls
-                                    connectionForm.customHeaders = form.customHeaders
-                                    connectionForm.selectedMusicFolderIds = form.selectedMusicFolderIds
-                                },
-                                onConnect = { appActions.connectToServer() },
-                                onNewConnection = connectionLifecycleController::openNewConnectionForm,
-                                onEditConnection = { item ->
-                                    savedMediaSources.firstOrNull { it.id == item.id }
-                                        ?.let(connectionLifecycleController::openSavedConnectionForm)
-                                },
-                                onConnectSavedConnection = { item ->
-                                    savedMediaSources.firstOrNull { it.id == item.id }
-                                        ?.let(connectionLifecycleController::connectSavedConnection)
-                                },
-                                onDeleteConnection = { item ->
-                                    savedMediaSources.firstOrNull { it.id == item.id }
-                                        ?.let(appActions::deleteConnection)
-                                },
-                                onCancelConnectionForm = connectionLifecycleController::closeConnectionForm,
-                            ),
-                            valueActions = NaviampSettingsValueActions(
-                                onInterfaceSettingsChanged = { settings: InterfaceSettings ->
-                                    interfaceSettings = settings.normalized()
-                                    settingsStore.saveInterfaceSettings(interfaceSettings)
-                                    markAndAutoExportSettingsSync()
-                                },
-                                onPlaybackSettingsChanged = settingsMaintenanceController::applyPlaybackSettings,
-                                onPlaybackSettingsChangedAndRedownload =
-                                    settingsMaintenanceController::applyPlaybackSettingsAndRedownload,
-                                onCacheSettingsChanged = cacheSettingsController::apply,
-                            ),
-                            maintenanceActions = NaviampSettingsMaintenanceActions(
-                                onOpenStatsForNerds = { showStatsForNerds = true },
-                                onClearCache = { appActions.clearCacheData() },
-                                onClearLibrary = { appActions.clearLibraryData() },
-                                onRefreshLibrary = libraryController::refreshLibrarySnapshot,
-                                onResetDatabase = { appActions.resetDatabase() },
-                            ),
-                            artistMixActions = SharedArtistMixBuilderActions(
-                                onQueryChanged = mixBuilderController::setArtistQuery,
-                                onSearch = mixBuilderController::searchArtistSuggestions,
-                                onArtistSelected = { item -> mixBuilderController.selectArtistByItemId(item.id) },
-                                onArtistRemoved = { item -> mixBuilderController.removeArtistByItemId(item.id) },
-                                onReset = mixBuilderController::resetArtistBuilder,
-                                onPlay = { mixBuilderController.playArtistMix(radioController) },
-                            ),
-                            albumMixActions = SharedAlbumMixBuilderActions(
-                                onQueryChanged = mixBuilderController::setAlbumQuery,
-                                onSearch = mixBuilderController::searchAlbumSuggestions,
-                                onAlbumSelected = { item -> mixBuilderController.selectAlbumByItemId(item.id) },
-                                onAlbumRemoved = { item -> mixBuilderController.removeAlbumByItemId(item.id) },
-                                onReset = mixBuilderController::resetAlbumBuilder,
-                                onPlay = { mixBuilderController.playAlbumMix(radioController) },
-                            ),
-                            genreMixActions = SharedGenreMixBuilderActions(
-                                onQueryChanged = mixBuilderController::setGenreQuery,
-                                onSearch = mixBuilderController::refreshGenreSuggestions,
-                                onGenreSelected = { item -> mixBuilderController.selectGenreByItemId(item.id) },
-                                onGenreRemoved = { item -> mixBuilderController.removeGenreByItemId(item.id) },
-                                onReset = mixBuilderController::resetGenreBuilder,
-                                onPlay = { mixBuilderController.playGenreMix(radioController) },
-                            ),
-                            sonicPathActions = SharedSonicPathBuilderActions(
-                                onStartQueryChanged = sonicPathController::updateStartQuery,
-                                onEndQueryChanged = sonicPathController::updateEndQuery,
-                                onStartSearch = sonicPathController::searchStartTracks,
-                                onEndSearch = sonicPathController::searchEndTracks,
-                                onStartTrackSelected = sonicPathController::selectStartTrack,
-                                onEndTrackSelected = sonicPathController::selectEndTrack,
-                                onStartTrackCleared = sonicPathController::clearStartTrack,
-                                onEndTrackCleared = sonicPathController::clearEndTrack,
-                                onCountChanged = sonicPathController::updateCount,
-                                onBuild = sonicPathController::buildPath,
-                                onReset = sonicPathController::reset,
-                                onPlay = sonicPathController::playPath,
-                                onAddToQueue = sonicPathController::addPathToQueue,
-                                onSaveAsPlaylist = { name ->
-                                    playlistsController.saveTracksAsPlaylist(
-                                        name = name,
-                                        tracks = sonicPathController.playlistTracks(),
-                                        label = "sonic path",
-                                    )
-                                },
-                            ),
-                            sonicMixActions = SharedSonicMixBuilderActions(
-                                onQueryChanged = sonicMixController::updateQuery,
-                                onSearch = sonicMixController::searchTracks,
-                                onTrackSelected = sonicMixController::selectTrack,
-                                onTrackRemoved = sonicMixController::removeTrack,
-                                onTargetLengthChanged = sonicMixController::updateTargetLength,
-                                onBiasChanged = sonicMixController::updateBias,
-                                onBuild = sonicMixController::buildMix,
-                                onReset = sonicMixController::reset,
-                                onPlay = sonicMixController::playMix,
-                                onAddToQueue = sonicMixController::addMixToQueue,
-                                onSaveAsPlaylist = { name ->
-                                    playlistsController.saveTracksAsPlaylist(
-                                        name = name,
-                                        tracks = sonicMixController.playlistTracks(),
-                                        label = "sonic mix",
-                                    )
-                                },
+                                smartPlaylistsController = smartPlaylistsController,
+                                internetRadioController = internetRadioController,
+                                albumController = albumController,
+                                artistController = artistController,
+                                mixBuilderController = mixBuilderController,
+                                radioController = radioController,
+                                sonicPathController = sonicPathController,
+                                sonicMixController = sonicMixController,
+                                connectionActions = connectionActions,
+                                valueActions = valueActions,
+                                maintenanceActions = maintenanceActions,
                             ),
                         )
                         DesktopRouteContent(
