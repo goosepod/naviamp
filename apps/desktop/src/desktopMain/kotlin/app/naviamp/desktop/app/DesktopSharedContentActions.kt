@@ -6,11 +6,12 @@ import app.naviamp.domain.Album
 import app.naviamp.domain.Artist
 import app.naviamp.domain.InternetRadioStation
 import app.naviamp.domain.Track
-import app.naviamp.ui.SharedMediaItemKind
 import app.naviamp.ui.SharedDetailActionSources
 import app.naviamp.ui.SharedInternetRadioActionSources
 import app.naviamp.ui.SharedPlaylistActionSources
-import app.naviamp.ui.ResolvedMediaItemActionHandlers
+import app.naviamp.ui.NaviampMediaItemCommand
+import app.naviamp.ui.ResolvedArtistMediaActionHandlers
+import app.naviamp.ui.ResolvedPlaylistMediaActionHandlers
 import app.naviamp.ui.ResolvedAlbumDetailActionHandlers
 import app.naviamp.ui.ResolvedArtistAlbumActionHandlers
 import app.naviamp.ui.ResolvedArtistDetailActionHandlers
@@ -20,7 +21,9 @@ import app.naviamp.ui.dispatchResolvedPlaylistDetailAction
 import app.naviamp.ui.dispatchResolvedAlbumDetailAction
 import app.naviamp.ui.dispatchResolvedArtistAlbumAction
 import app.naviamp.ui.dispatchResolvedArtistDetailAction
-import app.naviamp.ui.handleResolvedMediaItemAction
+import app.naviamp.ui.dispatchResolvedAlbumMediaAction
+import app.naviamp.ui.dispatchResolvedArtistMediaAction
+import app.naviamp.ui.dispatchResolvedPlaylistMediaAction
 import app.naviamp.ui.mediaItemActionDispatchStatus
 import app.naviamp.ui.handleResolvedTrackRowAction
 import app.naviamp.ui.playlistDetailActionDispatchStatus
@@ -318,60 +321,72 @@ internal fun desktopMediaActions(
     onMixAlbumSelected = { item -> appActions.playHomeMixAlbum(item.id) },
     onPlaylistSelected = { item -> appActions.openHomePlaylist(item.id) },
     onMediaItemAction = { request ->
-        val result = when (request.kind) {
-            SharedMediaItemKind.Playlist -> handleResolvedMediaItemAction(
-                request,
-                playlistActionSources.playlist(request.item.id),
-                ResolvedMediaItemActionHandlers(
+        val result = when (val command = request.command) {
+            is NaviampMediaItemCommand.Playlist -> dispatchResolvedPlaylistMediaAction(
+                request = request,
+                command = command,
+                playlist = playlistActionSources.playlist(request.item.id),
+                handlers = ResolvedPlaylistMediaActionHandlers(
                     onSelect = appActions::openPlaylistDetails,
-                    onPlay = appActions::playPlaylist,
-                    onStartRadio = null,
-                    onFindSimilar = null,
-                    onDownload = { playlist, value ->
-                        if (value == app.naviamp.ui.KeepDownloadedActionValue) {
-                            appActions.toggleKeepDownloadedPlaylist(playlist)
-                        } else {
-                            appActions.downloadPlaylist(playlist)
-                        }
-                    },
-                    onAddToQueue = playlistsController::addPlaylistToQueue,
-                    onAddToPlaylist = { source, choice ->
-                        val target = playlistActionSources.playlist(choice.id)
-                        if (target == null) {
-                            onStatus("Playlist not found.")
-                        } else {
+                    detail = ResolvedPlaylistDetailActionHandlers(
+                        onPlay = appActions::playPlaylist,
+                        onAddToQueue = playlistsController::addPlaylistToQueue,
+                        onDownload = { playlist, value ->
+                            if (value == app.naviamp.ui.KeepDownloadedActionValue) {
+                                appActions.toggleKeepDownloadedPlaylist(playlist)
+                            } else {
+                                appActions.downloadPlaylist(playlist)
+                            }
+                        },
+                        onAddToPlaylist = { source, choice ->
+                            val target = playlistActionSources.playlist(choice.id)
+                            if (target == null) {
+                                onStatus("Playlist not found.")
+                            } else {
+                                playlistsController.addTargetToPlaylist(
+                                    AddToPlaylistTarget.PlaylistTarget(source),
+                                    playlist = target,
+                                )
+                            }
+                        },
+                        onCreatePlaylistAndAdd = { source, name ->
                             playlistsController.addTargetToPlaylist(
                                 AddToPlaylistTarget.PlaylistTarget(source),
-                                playlist = target,
+                                playlist = null,
+                                newPlaylistName = name,
                             )
-                        }
-                    },
-                    onCreatePlaylistAndAdd = { source, name ->
-                        playlistsController.addTargetToPlaylist(
-                            AddToPlaylistTarget.PlaylistTarget(source),
-                            playlist = null,
-                            newPlaylistName = name,
-                        )
-                    },
-                    onCopy = null,
-                    onToggleFavorite = null,
-                    onRename = playlistsController::renamePlaylist,
+                        },
+                        onCopy = { source, name, deduplicate ->
+                            if (!deduplicate) {
+                                playlistsController.addTargetToPlaylist(
+                                    AddToPlaylistTarget.PlaylistTarget(source),
+                                    playlist = null,
+                                    newPlaylistName = name,
+                                )
+                            } else if (playlistActionSources.selectedPlaylist?.id == source.id) {
+                                playlistsController.saveTracksAsPlaylist(
+                                    name,
+                                    playlistActionSources.selectedPlaylistTracks.distinctBy { it.id },
+                                    "playlist",
+                                )
+                            } else {
+                                onStatus("Open the playlist before copying a deduplicated version.")
+                            }
+                        },
+                        onRename = playlistsController::renamePlaylist,
+                        onDelete = playlistsController::deletePlaylist,
+                    ),
                     onEditSmartPlaylist = null,
-                    onDelete = playlistsController::requestPlaylistDelete,
-                    onEditStation = null,
-                    onDeleteStation = null,
                 ),
             )
-            SharedMediaItemKind.Artist -> handleResolvedMediaItemAction(
-                request,
-                artists.firstOrNull { it.id.value == request.item.id },
-                ResolvedMediaItemActionHandlers(
+            is NaviampMediaItemCommand.Artist -> dispatchResolvedArtistMediaAction(
+                command = command,
+                artist = artists.firstOrNull { it.id.value == request.item.id },
+                handlers = ResolvedArtistMediaActionHandlers(
                     onSelect = appActions::openArtistDetails,
-                    onPlay = null,
                     onStartRadio = appActions::playArtistRadio,
                     onFindSimilar = appActions::findSimilarArtists,
                     onAddToQueue = playlistsController::addArtistToQueue,
-                    onDownload = null,
                     onAddToPlaylist = { artist, choice ->
                         val target = playlistActionSources.playlist(choice.id)
                         if (target == null) {
@@ -390,24 +405,17 @@ internal fun desktopMediaActions(
                             newPlaylistName = name,
                         )
                     },
-                    onCopy = null,
                     onToggleFavorite = appActions::toggleArtistFavorite,
-                    onRename = null,
-                    onEditSmartPlaylist = null,
-                    onDelete = null,
-                    onEditStation = null,
-                    onDeleteStation = null,
                 ),
             )
-            SharedMediaItemKind.Album -> handleResolvedMediaItemAction(
-                request,
-                albums.firstOrNull { it.id.value == request.item.id },
-                ResolvedMediaItemActionHandlers(
+            is NaviampMediaItemCommand.Album -> dispatchResolvedAlbumMediaAction(
+                request = request,
+                command = command,
+                album = albums.firstOrNull { it.id.value == request.item.id },
+                handlers = ResolvedArtistAlbumActionHandlers(
                     onSelect = appActions::openAlbumDetails,
-                    onPlay = null,
                     onStartRadio = appActions::playAlbumRadio,
-                    onFindSimilar = null,
-                    onDownload = { album, _ -> appActions.downloadAlbum(album) },
+                    onDownload = appActions::downloadAlbum,
                     onAddToQueue = playlistsController::addAlbumToQueue,
                     onAddToPlaylist = { album, choice ->
                         val target = playlistActionSources.playlist(choice.id)
@@ -427,19 +435,9 @@ internal fun desktopMediaActions(
                             newPlaylistName = name,
                         )
                     },
-                    onCopy = null,
                     onToggleFavorite = appActions::toggleAlbumFavorite,
-                    onRename = null,
-                    onEditSmartPlaylist = null,
-                    onDelete = null,
-                    onEditStation = null,
-                    onDeleteStation = null,
                 ),
             )
-            SharedMediaItemKind.Unknown,
-            SharedMediaItemKind.RadioStation,
-            SharedMediaItemKind.MixBuilder,
-            -> app.naviamp.ui.MediaItemActionDispatchResult.UnsupportedAction
         }
         mediaItemActionDispatchStatus(result)?.let(onStatus)
     },

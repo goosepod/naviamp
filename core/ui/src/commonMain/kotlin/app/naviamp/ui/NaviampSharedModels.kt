@@ -817,7 +817,7 @@ data class NaviampMediaActions(
     val onArtistSelected: (SharedMediaItemUi) -> Unit = {},
     val onArtistFavoriteToggled: (SharedMediaItemUi) -> Unit = {},
     val onPlaylistSelected: (SharedMediaItemUi) -> Unit = {},
-    val onMediaItemAction: (SharedMediaItemActionRequest) -> Unit,
+    val onMediaItemAction: (NaviampMediaItemActionRequest) -> Unit,
 )
 
 data class NaviampShellNavigationActions(

@@ -62,7 +62,9 @@ fun NaviampPlaylistsContent(
         refreshing = screen.refreshing,
         onRefresh = actions.onRefresh,
         onSortModeChanged = actions.onSortModeChanged,
-        onPlaylistAction = mediaActions.onMediaItemAction,
+        onPlaylistAction = { request ->
+            dispatchLegacyMediaItemAction(request, mediaActions.onMediaItemAction)
+        },
         onSmartPlaylistSave = actions.smartPlaylist.onSave,
         onSmartPlaylistUpdate = actions.smartPlaylist.onUpdate,
         onSmartPlaylistSaveWithPassword = actions.smartPlaylist.onSaveWithPassword,
