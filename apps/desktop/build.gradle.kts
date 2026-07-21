@@ -16,7 +16,7 @@ val naviampVersionName = rootProject.file("VERSION").readText().trim()
 val naviampVersionCode = rootProject.file("VERSION_CODE").readText().trim()
 val naviampNativePackageVersion = nativeDistributionPackageVersion(naviampVersionName)
 val naviampWindowsPackageVersion = windowsDistributionPackageVersion(naviampVersionName)
-val naviampLinuxPackageVersion = numericDistributionPackageVersion(naviampVersionName)
+val naviampLinuxPackageVersion = linuxDistributionPackageVersion(naviampVersionName)
 val desktopBassPlatform = providers.gradleProperty("naviamp.bass.platform")
     .orElse(desktopNativePlatform())
 val desktopBassVendorDir = desktopBassPlatform.map { platform ->
@@ -556,6 +556,11 @@ fun windowsDistributionPackageVersion(version: String): String {
     parts.forEach { it.toInt() }
     return coreVersion
 }
+
+fun linuxDistributionPackageVersion(version: String): String =
+    numericDistributionPackageVersion(version)
+        .substringBefore('+')
+        .replace('-', '~')
 
 fun numericDistributionPackageVersion(version: String): String =
     version.removePrefix("v")

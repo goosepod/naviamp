@@ -7,10 +7,11 @@ Ideas discovered during the migration that should not interrupt the active check
 ## Project Status
 
 - **Target release:** `2.0.0`
+- **Current development version:** `v2.0.0-alpha` (build 35), shown in About on every host so migration builds are unmistakable during testing.
 - **Working branch:** `feature/v2-cross-platform-app`
 - **Status:** Milestone 3 complete; Milestone 4 implementation and automated gates are complete, with physical-device acceptance remaining
 - **Release policy:** Feature development for the v1 line is frozen. Only bug fixes should be released from v1 while this work is underway.
-- **Versioning rule:** Do not change `VERSION` to `2.0.0` until the release-preparation milestone. Development builds and intermediate branches must remain clearly distinguishable from a finished v2 release.
+- **Versioning rule:** Keep migration builds on an explicit `v2.0.0-alpha` prerelease label. Do not change `VERSION` to the final `v2.0.0` until the release-preparation milestone.
 - **Primary objective:** One shared Naviamp application, UI, and behavior hosted by thin Android, Desktop, and iOS applications.
 - **Playback objective:** All three platforms must use BASS for the final v2 release. An AVPlayer-based iOS engine may be used as an early proof of concept and fallback while the BASS iOS integration is completed.
 
