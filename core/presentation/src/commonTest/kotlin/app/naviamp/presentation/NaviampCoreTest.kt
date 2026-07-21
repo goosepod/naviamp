@@ -2,6 +2,9 @@ package app.naviamp.presentation
 
 import app.naviamp.app.NaviampKeepDownloadedReconciliationApplication
 import app.naviamp.app.NaviampKeepDownloadedToggleResult
+import app.naviamp.app.NaviampConnectionPhase
+import app.naviamp.app.NaviampConnectionRuntimeState
+import app.naviamp.app.NaviampLivePlaybackState
 import app.naviamp.domain.Album
 import app.naviamp.domain.Artist
 import app.naviamp.domain.Genre
@@ -15,7 +18,11 @@ import app.naviamp.domain.playback.PlaybackSource
 import app.naviamp.domain.provider.MediaProvider
 import app.naviamp.domain.queue.PlaybackQueue
 import app.naviamp.domain.queue.RepeatMode
+import app.naviamp.domain.app.NaviampNavigationState
+import app.naviamp.domain.app.NaviampRoute
 import app.naviamp.ui.NaviampSettingsSyncUi
+import app.naviamp.ui.NaviampAppShellUiState
+import app.naviamp.ui.NaviampSearchScreenUi
 import app.naviamp.ui.NaviampAlbumDetailActionRequest
 import app.naviamp.ui.NaviampAlbumDetailCommand
 import app.naviamp.ui.NaviampArtistAlbumActionRequest
@@ -75,6 +82,38 @@ class NaviampCoreTest {
 
         assertEquals("observed", core.state.value.shell.nowPlaying?.id)
         assertEquals("Playing", core.state.value.shell.nowPlaying?.stateLabel)
+    }
+
+    @Test
+    fun restoredHostNeutralStateRehydratesNavigationConnectionPlaybackAndProductState() = runTest {
+        val restoredTrack = coreTrack("restored")
+        val core = NaviampCore.create(
+            scope = this,
+            services = fakeCoreServices(),
+            initialState = NaviampCoreInitialState(
+                product = NaviampCoreState(
+                    shell = NaviampAppShellUiState(
+                        search = NaviampSearchScreenUi(query = "restored query"),
+                    ),
+                ),
+                navigation = NaviampNavigationState(
+                    route = NaviampRoute.Search,
+                    lastContentRoute = NaviampRoute.Search,
+                ),
+                playback = NaviampLivePlaybackState(currentTrack = restoredTrack),
+                connection = NaviampConnectionRuntimeState(
+                    phase = NaviampConnectionPhase.Connected,
+                    sourceId = "restored-source",
+                    status = "Restored.",
+                ),
+            ),
+        )
+
+        assertEquals(SharedRoute.Search, core.state.value.shell.shellChrome.selectedRoute)
+        assertEquals("restored query", core.state.value.shell.search.query)
+        assertEquals("restored-source", core.state.value.shell.connectionSettings.currentSourceId)
+        assertTrue(core.state.value.shell.connectionSettings.connection.connected)
+        assertEquals(restoredTrack.id.value, core.state.value.shell.nowPlaying?.id)
     }
 
     @Test
