@@ -191,7 +191,7 @@ Do not delete working host behavior before its shared replacement is executable 
 7. **Decompose surviving large host files by OS responsibility.** This happens after product code is removed so decomposition does not disguise relocation.
 8. **Run host-neutral and platform acceptance suites.** Only then is the initial iOS wrapper allowed to add product navigation.
 
-Current foundation: `core:presentation` now owns the host-neutral `NaviampCoreStateStore`, an exhaustive typed command catalog for the existing shared shell, the one action-graph factory, the single strict controller composition, and `NaviampCoreApp` as the shared Compose entry. Core controllers now own navigation and detail history, settings and maintenance policy, settings-sync intent publication, connection transactions, Home, Search, Library, album/artist detail loading, playlist browsing and mutations, Internet Radio, all standard and Sonic builders, Downloads/offline, and Now Playing/playback—including playback intent, authoritative queue/current-target state, queue/save policy, smart-playlist and keep-downloaded policy, job lifecycle, capability validation, stale-result protection, network-aware presentation, and nested-artist restoration. Construction no longer accepts host-built product controllers. This is not yet the completed Core gate: the strict root correctly exposes missing Home/media/detail/track action executors, and required UI-contract cleanup plus the fake-host acceptance suite remain before Android or Desktop is adapted to this graph.
+Current foundation: `core:presentation` now owns the host-neutral `NaviampCoreStateStore`, an exhaustive typed command catalog for the existing shared shell, the one action-graph factory, the single strict controller composition, and `NaviampCoreApp` as the shared Compose entry. Core controllers own navigation and detail history, settings and maintenance policy, settings-sync intent publication, connection transactions, Home, Search, Library, album/artist detail loading, playlist browsing and mutations, Internet Radio, all standard and Sonic builders, Downloads/offline, and Now Playing/playback—including playback intent, authoritative queue/current-target state, queue/save policy, smart-playlist and keep-downloaded policy, job lifecycle, capability validation, stale-result protection, network-aware presentation, and nested-artist restoration. Construction no longer accepts host-built product controllers. Required UI callbacks no longer have silent product no-ops or competing media-row paths, and the command router enforces exactly one controller owner. A fake-service JVM host mounts the real shared app and navigates every top-level route plus Now Playing. The remaining Core proof work is deeper loaded-detail interaction coverage, the architecture guard, and the broader contract/behavior gate; Android and Desktop adaptation remains deliberately downstream.
 
 ## Explicit Deletion Targets
 
@@ -208,10 +208,10 @@ Expected survivors include Android service/Activity/Auto/MediaSession/notificati
 Milestone 4 is not complete until all of the following are true:
 
 - [ ] Android and Desktop mount the same complete shared application entry.
-- [ ] A fake host mounts and navigates the complete app with only common state plus fake platform ports.
+- [x] A fake host mounts and navigates the complete app with only common state plus fake platform ports.
 - [ ] Normal Naviamp features, UI, menus, commands, and behavior require no host-specific product wiring.
 - [ ] Every remaining platform difference in this matrix names a concrete OS/API constraint and a narrow common contract.
-- [ ] Required action contracts contain no silent no-op defaults or competing callback paths.
+- [x] Required action contracts contain no silent no-op defaults or competing callback paths.
 - [ ] Common tests prove the complete product graph, major feature behavior, navigation, restoration, and capability presentation.
 - [ ] Superseded Android and Desktop product factories/controllers/state/UI have been deleted, not merely renamed or split.
 - [ ] Surviving host files are thin adapters or focused native integrations and follow the shared-role naming convention.

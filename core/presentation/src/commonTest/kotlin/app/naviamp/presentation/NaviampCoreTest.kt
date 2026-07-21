@@ -118,7 +118,7 @@ class NaviampCoreTest {
     }
 }
 
-private fun fakeCoreServices() = NaviampCoreServices(
+internal fun fakeCoreServices() = NaviampCoreServices(
     content = NaviampCoreContentServices(
         providerSource = NaviampCoreMediaProviderSource { null },
         homeDate = NaviampCoreHomeDateSource { HomeDate(2026, 202) },

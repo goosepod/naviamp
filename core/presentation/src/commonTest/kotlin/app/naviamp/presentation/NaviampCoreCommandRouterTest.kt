@@ -33,6 +33,7 @@ class NaviampCoreCommandRouterTest {
         router.dispatch(NaviampCoreCommand.Search.Submit)
         advanceUntilIdle()
 
+        assertEquals(listOf<NaviampCoreCommand>(NaviampCoreCommand.Search.Submit), controller.dispatched)
         assertEquals(listOf<NaviampCoreCommand>(NaviampCoreCommand.Search.Submit), controller.executed)
     }
 
@@ -42,6 +43,33 @@ class NaviampCoreCommandRouterTest {
 
         assertFailsWith<IllegalStateException> {
             router.dispatch(NaviampCoreCommand.Home.Refresh)
+        }
+    }
+
+    @Test
+    fun rejectsCommandsClaimedByMoreThanOneCommonController() = runTest {
+        val router = NaviampCoreCommandRouter(
+            this,
+            listOf(
+                RecordingCommandController(NaviampCoreImmediateCommandResult.Handled()),
+                RecordingCommandController(NaviampCoreImmediateCommandResult.Deferred),
+            ),
+        )
+
+        assertFailsWith<IllegalStateException> {
+            router.dispatch(NaviampCoreCommand.Home.Refresh)
+        }
+    }
+
+    @Test
+    fun rejectsDeferredOwnerThatCannotExecuteItsClaimedCommand() = runTest {
+        val router = NaviampCoreCommandRouter(
+            this,
+            listOf(RecordingCommandController(NaviampCoreImmediateCommandResult.Deferred)),
+        )
+
+        assertFailsWith<IllegalStateException> {
+            router.execute(NaviampCoreCommand.Home.Refresh)
         }
     }
 }

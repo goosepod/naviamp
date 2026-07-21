@@ -34,31 +34,51 @@ class NaviampCoreCommandRouter(
     },
 ) : NaviampCoreCommandHandler {
     override fun dispatch(command: NaviampCoreCommand) {
-        controllers.forEach { controller ->
-            when (controller.dispatch(command)) {
-                is NaviampCoreImmediateCommandResult.Handled -> return
-                NaviampCoreImmediateCommandResult.Deferred -> {
-                    scope.launch {
-                        runCatching { execute(command) }
-                            .onFailure { cause -> onAsyncFailure(command, cause) }
-                    }
-                    return
+        val owner = requireSingleOwner(command)
+        when (owner.immediateResult) {
+            is NaviampCoreImmediateCommandResult.Handled -> Unit
+            NaviampCoreImmediateCommandResult.Deferred -> {
+                scope.launch {
+                    runCatching { executeDeferred(owner.controller, command) }
+                        .onFailure { cause -> onAsyncFailure(command, cause) }
                 }
-                NaviampCoreImmediateCommandResult.Unhandled -> Unit
             }
+            NaviampCoreImmediateCommandResult.Unhandled -> error("Unreachable command ownership state")
         }
-        error("No Naviamp Core controller handles $command")
     }
 
     override suspend fun execute(command: NaviampCoreCommand): NaviampCoreCommandResult {
-        controllers.forEach { controller ->
-            when (val immediate = controller.dispatch(command)) {
-                is NaviampCoreImmediateCommandResult.Handled -> return immediate.result
-                NaviampCoreImmediateCommandResult.Deferred,
-                NaviampCoreImmediateCommandResult.Unhandled,
-                -> controller.execute(command)?.let { return it }
+        val owner = requireSingleOwner(command)
+        return when (val immediate = owner.immediateResult) {
+            is NaviampCoreImmediateCommandResult.Handled -> immediate.result
+            NaviampCoreImmediateCommandResult.Deferred -> executeDeferred(owner.controller, command)
+            NaviampCoreImmediateCommandResult.Unhandled -> error("Unreachable command ownership state")
+        }
+    }
+
+    private fun requireSingleOwner(command: NaviampCoreCommand): CommandOwner {
+        val owners = controllers.mapNotNull { controller ->
+            val result = controller.dispatch(command)
+            if (result == NaviampCoreImmediateCommandResult.Unhandled) null
+            else CommandOwner(controller, result)
+        }
+        check(owners.size == 1) {
+            when {
+                owners.isEmpty() -> "No Naviamp Core controller handles $command"
+                else -> "Multiple Naviamp Core controllers handle $command: ${owners.size}"
             }
         }
-        error("No Naviamp Core controller executes $command")
+        return owners.single()
     }
+
+    private suspend fun executeDeferred(
+        controller: NaviampCoreCommandController,
+        command: NaviampCoreCommand,
+    ): NaviampCoreCommandResult = controller.execute(command)
+        ?: error("The Naviamp Core controller claiming $command did not execute it")
+
+    private data class CommandOwner(
+        val controller: NaviampCoreCommandController,
+        val immediateResult: NaviampCoreImmediateCommandResult,
+    )
 }
