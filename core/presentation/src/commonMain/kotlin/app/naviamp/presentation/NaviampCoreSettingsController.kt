@@ -93,7 +93,15 @@ class NaviampCoreSettingsController(
     private fun changeCache(requested: app.naviamp.domain.settings.CacheSettings) {
         val settings = cacheController.apply(requested)
         stateStore.updateShell { shell ->
-            shell.copy(cache = shell.cache.copy(settings = settings))
+            shell.copy(
+                cache = shell.cache.copy(settings = settings),
+                downloads = shell.downloads.copy(
+                    maxDownloadBytes = settings.maxDownloadBytes,
+                    offlineDashboard = shell.downloads.offlineDashboard.copy(
+                        maxAudioCacheBytes = settings.maxAudioCacheBytes,
+                    ),
+                ),
+            )
         }
     }
 

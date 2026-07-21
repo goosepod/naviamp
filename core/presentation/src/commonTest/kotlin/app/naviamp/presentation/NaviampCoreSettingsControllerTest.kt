@@ -27,7 +27,11 @@ class NaviampCoreSettingsControllerTest {
         val fixture = fixture()
         val interfaceSettings = InterfaceSettings()
         val playbackSettings = PlaybackSettings(volumePercent = 47)
-        val cacheSettings = CacheSettings(customDownloadDirectory = "  /downloads  ")
+        val cacheSettings = CacheSettings(
+            customDownloadDirectory = "  /downloads  ",
+            maxDownloadBytes = 12_000,
+            maxAudioCacheBytes = 8_000,
+        )
 
         fixture.controller.dispatch(NaviampCoreCommand.Settings.ChangeInterface(interfaceSettings))
         fixture.controller.dispatch(NaviampCoreCommand.Settings.ChangePlayback(playbackSettings, redownload = false))
@@ -36,6 +40,11 @@ class NaviampCoreSettingsControllerTest {
         assertEquals(interfaceSettings.normalized(), fixture.savedInterface.single())
         assertEquals(47, fixture.store.state.value.shell.playback.settings.volumePercent)
         assertEquals("/downloads", fixture.store.state.value.shell.cache.settings.customDownloadDirectory)
+        assertEquals(cacheSettings.normalized().maxDownloadBytes, fixture.store.state.value.shell.downloads.maxDownloadBytes)
+        assertEquals(
+            cacheSettings.normalized().maxAudioCacheBytes,
+            fixture.store.state.value.shell.downloads.offlineDashboard.maxAudioCacheBytes,
+        )
         assertEquals(fixture.store.state.value.shell.playback.settings, fixture.savedPlayback.single())
         assertEquals(fixture.store.state.value.shell.cache.settings, fixture.savedCache.single())
     }

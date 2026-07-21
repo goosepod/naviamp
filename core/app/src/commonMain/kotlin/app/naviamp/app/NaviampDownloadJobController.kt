@@ -117,6 +117,12 @@ class NaviampDownloadJobController(
         )
     }
 
+    fun dismiss(jobId: String) {
+        cancellations.remove(jobId)
+        replacementJobs.remove(jobId)
+        setJobs(jobs().filterNot { it.id == jobId })
+    }
+
     private fun newJobId(): String {
         nextJobId += 1
         return "download-${nextJobId.toString().padStart(12, '0')}"

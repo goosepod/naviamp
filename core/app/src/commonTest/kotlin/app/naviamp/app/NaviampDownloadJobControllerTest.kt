@@ -61,6 +61,8 @@ class NaviampDownloadJobControllerTest {
         val retry = assertNotNull(controller.retry(job.id))
         assertEquals("Album", retry.label)
         assertTrue(retry.replaceExisting)
+        controller.dismiss(job.id)
+        assertTrue(controller.currentJobs.isEmpty())
         assertNull(controller.create("Empty", emptyList(), replaceExisting = false))
     }
 

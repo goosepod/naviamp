@@ -200,6 +200,7 @@ data class NaviampOfflineDashboardUi(
     val audioCacheCount: Long = 0L,
     val audioCacheBytes: Long = 0L,
     val maxAudioCacheBytes: Long = 0L,
+    val pendingProviderActionCount: Long = 0L,
 )
 
 enum class DownloadedTrackAction {

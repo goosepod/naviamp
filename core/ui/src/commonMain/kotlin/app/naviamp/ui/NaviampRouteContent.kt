@@ -989,7 +989,7 @@ private fun OfflineDashboardSummary(
         OfflineDashboardMetric(
             colors = colors,
             label = stringResource(Res.string.offline_pending_actions),
-            value = "0",
+            value = offlineDashboard.pendingProviderActionCount.toString(),
             detail = stringResource(Res.string.offline_pending_detail),
         )
     }
