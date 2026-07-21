@@ -70,6 +70,7 @@ The exact names may change during the first architecture milestone, but ownershi
 core/
 ├── app/       Shared application assembly, controller, lifecycle, and platform contracts
 ├── domain/    Models, use cases, queue rules, and playback planning
+├── presentation/  Common composition that binds the application graph to shared UI
 ├── storage/   Shared persistence behavior and schemas
 └── ui/        Shared Compose presentation
 
@@ -170,7 +171,7 @@ This milestone now covers both existing hosts because Android cannot become trul
 
 - [x] Audit the complete Android, Desktop, and common product surfaces; classify every feature difference as core product, core plus host effect, valid host integration, or migration debt.
 - [ ] Build the complete host-neutral Naviamp Core.
-  - [ ] Add a common presentation-composition module or dependency arrangement that can consume the shared application graph and shared UI without reversing dependency direction.
+  - [x] Add a common presentation-composition module or dependency arrangement that can consume the shared application graph and shared UI without reversing dependency direction. `core:presentation` now targets Android, JVM, iOS device, and iOS simulator, depends on `core:app` and `core:ui`, and is part of the iOS CI gate. Its first shared mapper replaced the duplicated Android/Desktop shell-capability decision without introducing platform branching.
   - [ ] Expose one `NaviampCore` composition and one complete shared Compose application entry constructed from narrow platform-service ports.
   - [ ] Move the authoritative observable product state, UI-state mapping, and action graph into common code.
   - [ ] Remove required no-op action defaults, competing callback paths, and the legacy broad media-request conversion boundary.
@@ -617,6 +618,7 @@ Record architecture decisions here or link a dedicated decision record.
 | 2026-07-21 | Seal the host-facing media command boundary. | Album, artist, and playlist rows now cross into Android and Desktop as separate sealed command families with exhaustive common dispatchers. Invalid kind/action/payload combinations are rejected in shared UI before reaching a host, and the remaining legacy conversion surface is explicitly limited to shared presentation call sites pending direct command emission. |
 | 2026-07-21 | Keep product media capabilities common. | A proposed per-host media capability matrix exposed an Android artist-row loader gap, but that gap was implementation debt rather than an OS limitation. The matrix was replaced by one common product baseline, common domain artist-catalog loading was added, and Android now executes arbitrary artist queue/add-to-playlist commands through stable-ID provider/cache/local resolution. Future host-specific removal requires a genuine narrow platform-service capability. |
 | 2026-07-21 | Reset Milestone 4 around the complete Naviamp Core. | A repository-wide platform audit found that shared helpers and Compose screens coexist with two independently assembled product graphs: Android mounts the shared shell but constructs state/actions/controllers in its host, while Desktop bypasses the complete shell and constructs its own route, chrome, settings, dialog, state, and action graph. The new authoritative audit classifies product and OS differences, records capability-registry defects, defines the complete core and test contract, and changes the remaining migration to build core, prove core, mount both hosts, then delete duplication. |
+| 2026-07-21 | Establish the common presentation-composition module. | `core:presentation` is the dependency-safe home for binding `core:app` to `core:ui`; all four platform targets compile and its JVM/iOS tests run in the shared-module gate. The first migration moved shell capability mapping out of both host state factories, proving hosts can declare service/playback facts while common code alone decides the product presentation. |
 
 ### Desktop Route Boundary Audit
 

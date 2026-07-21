@@ -8,14 +8,13 @@ import androidx.compose.runtime.getValue
 import app.naviamp.android.playback.AndroidBassLoadReport
 import app.naviamp.android.playback.AndroidPlaybackEngine
 import app.naviamp.domain.Track
-import app.naviamp.domain.playback.EqualizerPlaybackEngine
 import app.naviamp.domain.provider.allKnownTracks
 import app.naviamp.domain.settings.selectedMusicFolderSummary
 import app.naviamp.domain.settings.streamQualityForNetwork
 import app.naviamp.ui.NaviampAboutUi
 import app.naviamp.ui.NaviampAppShellUiState
 import app.naviamp.ui.NaviampCacheSettingsUi
-import app.naviamp.ui.NaviampConnectionCapabilitiesUi
+import app.naviamp.presentation.toShellCapabilitiesUi
 import app.naviamp.ui.NaviampSavedConnectionUi
 import app.naviamp.ui.NaviampLibraryScreenUi
 import app.naviamp.ui.NaviampSearchScreenUi
@@ -152,22 +151,10 @@ fun rememberAndroidAppShellUiState(
             playbackSettings = playbackSettings,
         )
 
-        val shellCapabilities = NaviampShellCapabilitiesUi(
-            replayGain = playbackEngine.supportsReplayGain,
-            gapless = playbackEngine.supportsGapless,
-            crossfade = playbackEngine.supportsCrossfade,
-            equalizer = (playbackEngine as? EqualizerPlaybackEngine)?.supportsEqualizer == true,
-            sonicSimilarity = provider?.capabilities?.supportsSonicSimilarity == true,
-            downloads = AndroidCapabilityPresentation.downloads.visible,
-            settingsImportExport = AndroidCapabilityPresentation.settingsImportExport.visible,
-            applicationUpdates = AndroidCapabilityPresentation.applicationUpdates.visible,
-            fileSelection = AndroidCapabilityPresentation.fileSelection.visible,
+        val shellCapabilities = AndroidCapabilityPresentation.toShellCapabilitiesUi(
+            playbackEngine = playbackEngine,
+            sonicSimilarityAvailable = provider?.capabilities?.supportsSonicSimilarity == true,
             showMobileNetworkQuality = true,
-            connection = NaviampConnectionCapabilitiesUi(
-                insecureServerVerification = AndroidCapabilityPresentation.insecureServerVerification.visible,
-                customServerCertificates = AndroidCapabilityPresentation.customServerCertificates.visible,
-                clientCertificates = AndroidCapabilityPresentation.clientCertificates.visible,
-            ),
         )
         val shellConnection = NaviampShellConnectionUi(
             status = status,

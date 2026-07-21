@@ -15,6 +15,7 @@ import app.naviamp.domain.source.SavedMediaSource
 import app.naviamp.app.NaviampConnectionRuntimeState
 import app.naviamp.desktop.settings.PlaybackSettings
 import app.naviamp.provider.navidrome.NavidromeProvider
+import app.naviamp.presentation.toShellCapabilitiesUi
 import app.naviamp.ui.NaviampAboutUi
 import app.naviamp.ui.NaviampAlbumDetailScreenUi
 import app.naviamp.ui.NaviampAppShellUiState
@@ -31,7 +32,6 @@ import app.naviamp.ui.NaviampSearchScreenUi
 import app.naviamp.ui.NaviampShellCapabilitiesUi
 import app.naviamp.ui.NaviampShellChromeUi
 import app.naviamp.ui.NaviampShellConnectionUi
-import app.naviamp.ui.NaviampConnectionCapabilitiesUi
 import app.naviamp.ui.NaviampSavedConnectionUi
 import app.naviamp.ui.toCacheSettingsUi
 import app.naviamp.ui.toConnectionSettingsUi
@@ -98,22 +98,9 @@ internal fun desktopShellConnection(
 internal fun desktopShellCapabilities(
     playbackEngine: PlaybackEngine,
     connectedProvider: NavidromeProvider?,
-): NaviampShellCapabilitiesUi = NaviampShellCapabilitiesUi(
-    replayGain = playbackEngine.supportsReplayGain,
-    gapless = playbackEngine.supportsGapless,
-    crossfade = playbackEngine.supportsCrossfade,
-    equalizer = (playbackEngine as? app.naviamp.domain.playback.EqualizerPlaybackEngine)
-        ?.supportsEqualizer == true,
-    sonicSimilarity = connectedProvider?.capabilities?.supportsSonicSimilarity == true,
-    downloads = DesktopCapabilityPresentation.downloads.visible,
-    settingsImportExport = DesktopCapabilityPresentation.settingsImportExport.visible,
-    applicationUpdates = DesktopCapabilityPresentation.applicationUpdates.visible,
-    fileSelection = DesktopCapabilityPresentation.fileSelection.visible,
-    connection = NaviampConnectionCapabilitiesUi(
-        insecureServerVerification = DesktopCapabilityPresentation.insecureServerVerification.visible,
-        customServerCertificates = DesktopCapabilityPresentation.customServerCertificates.visible,
-        clientCertificates = DesktopCapabilityPresentation.clientCertificates.visible,
-    ),
+): NaviampShellCapabilitiesUi = DesktopCapabilityPresentation.toShellCapabilitiesUi(
+    playbackEngine = playbackEngine,
+    sonicSimilarityAvailable = connectedProvider?.capabilities?.supportsSonicSimilarity == true,
 )
 
 internal data class DesktopAppShellStateContext(

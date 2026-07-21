@@ -18,6 +18,7 @@ rootProject.name = "naviamp"
 
 include(":core:domain")
 include(":core:app")
+include(":core:presentation")
 include(":core:storage")
 include(":core:ui")
 include(":providers:navidrome")

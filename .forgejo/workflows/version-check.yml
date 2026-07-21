@@ -54,6 +54,8 @@ jobs:
           :core:app:iosSimulatorArm64Test
           :core:domain:compileKotlinIosArm64
           :core:domain:iosSimulatorArm64Test
+          :core:presentation:compileKotlinIosArm64
+          :core:presentation:iosSimulatorArm64Test
           :core:storage:compileKotlinIosArm64
           :core:storage:iosSimulatorArm64Test
           :core:ui:compileKotlinIosArm64

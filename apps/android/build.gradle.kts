@@ -97,6 +97,7 @@ kotlin {
 dependencies {
     implementation(project(":core:app"))
     implementation(project(":core:domain"))
+    implementation(project(":core:presentation"))
     implementation(project(":core:storage"))
     implementation(project(":core:ui"))
     implementation(project(":providers:navidrome"))
