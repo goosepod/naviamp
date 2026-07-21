@@ -698,14 +698,7 @@ data class NaviampHomeActions(
 )
 
 data class NaviampMediaActions(
-    val onTrackSelected: (SharedTrackRowUi) -> Unit,
-    val onAlbumSelected: (SharedMediaItemUi) -> Unit,
-    val onAlbumFavoriteToggled: (SharedMediaItemUi) -> Unit,
-    val onMixAlbumSelected: (SharedMediaItemUi) -> Unit,
     val onTrackAction: (SharedTrackRowActionRequest) -> Unit,
-    val onArtistSelected: (SharedMediaItemUi) -> Unit,
-    val onArtistFavoriteToggled: (SharedMediaItemUi) -> Unit,
-    val onPlaylistSelected: (SharedMediaItemUi) -> Unit,
     val onMediaItemAction: (NaviampMediaItemActionRequest) -> Unit,
 )
 

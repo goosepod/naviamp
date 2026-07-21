@@ -2,6 +2,7 @@ package app.naviamp.ui
 
 sealed interface NaviampMediaItemCommand {
     data class Album(val command: NaviampArtistAlbumCommand) : NaviampMediaItemCommand
+    data object PlayAlbum : NaviampMediaItemCommand
     data class Artist(val command: NaviampArtistMediaCommand) : NaviampMediaItemCommand
     data class Playlist(val command: NaviampPlaylistMediaCommand) : NaviampMediaItemCommand
 }
@@ -26,6 +27,18 @@ data class NaviampMediaItemActionRequest(
     val item: SharedMediaItemUi,
     val command: NaviampMediaItemCommand,
 )
+
+fun SharedMediaItemUi.albumActionRequest(command: NaviampArtistAlbumCommand) =
+    NaviampMediaItemActionRequest(this, NaviampMediaItemCommand.Album(command))
+
+fun SharedMediaItemUi.artistActionRequest(command: NaviampArtistMediaCommand) =
+    NaviampMediaItemActionRequest(this, NaviampMediaItemCommand.Artist(command))
+
+fun SharedMediaItemUi.playlistActionRequest(command: NaviampPlaylistMediaCommand) =
+    NaviampMediaItemActionRequest(this, NaviampMediaItemCommand.Playlist(command))
+
+fun SharedMediaItemUi.playAlbumRequest() =
+    NaviampMediaItemActionRequest(this, NaviampMediaItemCommand.PlayAlbum)
 
 data class ResolvedArtistMediaActionHandlers<T>(
     val onSelect: (T) -> Unit,

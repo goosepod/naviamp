@@ -88,10 +88,13 @@ class NaviampCoreTest {
                 SharedHomeDiscoveryTrackActionRequest("row", track, SharedTrackRowAction.Select),
             ),
             NaviampCoreCommand.Home.RecentTrackAction(row),
-            NaviampCoreCommand.Media.SelectTrack(track),
             NaviampCoreCommand.Media.TrackAction(row),
-            NaviampCoreCommand.Media.ToggleAlbumFavorite(item),
-            NaviampCoreCommand.Media.ToggleArtistFavorite(item),
+            NaviampCoreCommand.Media.ItemAction(
+                NaviampMediaItemActionRequest(item, NaviampMediaItemCommand.Album(NaviampArtistAlbumCommand.ToggleFavorite)),
+            ),
+            NaviampCoreCommand.Media.ItemAction(
+                NaviampMediaItemActionRequest(item, NaviampMediaItemCommand.Artist(NaviampArtistMediaCommand.ToggleFavorite)),
+            ),
             NaviampCoreCommand.Media.ItemAction(
                 NaviampMediaItemActionRequest(item, NaviampMediaItemCommand.Artist(NaviampArtistMediaCommand.StartRadio)),
             ),

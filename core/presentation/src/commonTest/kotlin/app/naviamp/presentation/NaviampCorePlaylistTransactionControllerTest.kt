@@ -23,8 +23,10 @@ import app.naviamp.domain.smartplaylist.SmartPlaylistValue
 import app.naviamp.ui.NaviampPlaylistChoiceUi
 import app.naviamp.ui.NaviampPlaylistDetailActionRequest
 import app.naviamp.ui.NaviampPlaylistDetailCommand
+import app.naviamp.ui.NaviampPlaylistMediaCommand
 import app.naviamp.ui.SharedMediaItemUi
 import app.naviamp.ui.SharedTrackRowUi
+import app.naviamp.ui.playlistActionRequest
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -81,7 +83,9 @@ class NaviampCorePlaylistTransactionControllerTest {
         val fixture = fixture()
         fixture.browse.execute(NaviampCoreCommand.Playlists.Refresh)
         val item = playlistItem("playlist-a", "Playlist A")
-        fixture.browse.execute(NaviampCoreCommand.Media.SelectPlaylist(item))
+        fixture.browse.execute(
+            NaviampCoreCommand.Media.ItemAction(item.playlistActionRequest(NaviampPlaylistMediaCommand.Select)),
+        )
 
         fixture.controller.execute(detail(item, NaviampPlaylistDetailCommand.Rename("Renamed")))
         assertEquals("Renamed", fixture.store.state.value.shell.playlistDetail.selectedPlaylist?.title)

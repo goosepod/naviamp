@@ -211,14 +211,7 @@ fun createNaviampCoreActions(
             onRecentlyPlayedTrackAction = { send(NaviampCoreCommand.Home.RecentTrackAction(it)) },
         ),
         mediaActions = NaviampMediaActions(
-            onTrackSelected = { send(NaviampCoreCommand.Media.SelectTrack(it)) },
-            onAlbumSelected = { send(NaviampCoreCommand.Media.SelectAlbum(it)) },
-            onAlbumFavoriteToggled = { send(NaviampCoreCommand.Media.ToggleAlbumFavorite(it)) },
-            onMixAlbumSelected = { send(NaviampCoreCommand.Media.SelectAlbum(it, fromMix = true)) },
             onTrackAction = { send(NaviampCoreCommand.Media.TrackAction(it)) },
-            onArtistSelected = { send(NaviampCoreCommand.Media.SelectArtist(it)) },
-            onArtistFavoriteToggled = { send(NaviampCoreCommand.Media.ToggleArtistFavorite(it)) },
-            onPlaylistSelected = { send(NaviampCoreCommand.Media.SelectPlaylist(it)) },
             onMediaItemAction = { send(NaviampCoreCommand.Media.ItemAction(it)) },
         ),
         nowPlayingActions = NaviampNowPlayingActions(

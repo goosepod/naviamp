@@ -18,6 +18,8 @@ import app.naviamp.domain.provider.MediaSearchResults
 import app.naviamp.domain.provider.ProviderCapabilities
 import app.naviamp.ui.SharedMediaItemUi
 import app.naviamp.ui.SharedPlaylistSortMode
+import app.naviamp.ui.NaviampPlaylistMediaCommand
+import app.naviamp.ui.playlistActionRequest
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.launch
@@ -54,8 +56,9 @@ class NaviampCorePlaylistBrowseControllerTest {
         controller.execute(NaviampCoreCommand.Playlists.Refresh)
 
         controller.execute(
-            NaviampCoreCommand.Media.SelectPlaylist(
-                SharedMediaItemUi("playlist-a", "Playlist A", "2 tracks"),
+            NaviampCoreCommand.Media.ItemAction(
+                SharedMediaItemUi("playlist-a", "Playlist A", "2 tracks")
+                    .playlistActionRequest(NaviampPlaylistMediaCommand.Select),
             ),
         )
 
@@ -74,12 +77,16 @@ class NaviampCorePlaylistBrowseControllerTest {
 
         val first = launch {
             controller.execute(
-                NaviampCoreCommand.Media.SelectPlaylist(SharedMediaItemUi("playlist-a", "Playlist A", "")),
+                NaviampCoreCommand.Media.ItemAction(
+                    SharedMediaItemUi("playlist-a", "Playlist A", "").playlistActionRequest(NaviampPlaylistMediaCommand.Select),
+                ),
             )
         }
         runCurrent()
         controller.execute(
-            NaviampCoreCommand.Media.SelectPlaylist(SharedMediaItemUi("playlist-b", "Playlist B", "")),
+            NaviampCoreCommand.Media.ItemAction(
+                SharedMediaItemUi("playlist-b", "Playlist B", "").playlistActionRequest(NaviampPlaylistMediaCommand.Select),
+            ),
         )
         firstGate.complete(Unit)
         first.join()
@@ -93,7 +100,9 @@ class NaviampCorePlaylistBrowseControllerTest {
 
         controller.execute(NaviampCoreCommand.Playlists.Refresh)
         controller.execute(
-            NaviampCoreCommand.Media.SelectPlaylist(SharedMediaItemUi("playlist-a", "Playlist A", "")),
+            NaviampCoreCommand.Media.ItemAction(
+                SharedMediaItemUi("playlist-a", "Playlist A", "").playlistActionRequest(NaviampPlaylistMediaCommand.Select),
+            ),
         )
 
         assertEquals("Connect to Navidrome to load playlists.", store.state.value.shell.playlists.status)

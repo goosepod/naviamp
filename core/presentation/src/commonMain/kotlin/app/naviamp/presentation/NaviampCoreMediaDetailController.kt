@@ -37,9 +37,6 @@ class NaviampCoreMediaDetailController(
     private var artistGeneration = 0L
 
     override fun dispatch(command: NaviampCoreCommand): NaviampCoreImmediateCommandResult = when (command) {
-        is NaviampCoreCommand.Media.SelectAlbum,
-        is NaviampCoreCommand.Media.SelectArtist,
-        -> NaviampCoreImmediateCommandResult.Deferred
         is NaviampCoreCommand.Media.ItemAction -> when (val itemCommand = command.request.command) {
             is NaviampMediaItemCommand.Album -> if (itemCommand.command == NaviampArtistAlbumCommand.Select) {
                 NaviampCoreImmediateCommandResult.Deferred
@@ -51,6 +48,7 @@ class NaviampCoreMediaDetailController(
             } else {
                 NaviampCoreImmediateCommandResult.Unhandled
             }
+            NaviampMediaItemCommand.PlayAlbum -> NaviampCoreImmediateCommandResult.Unhandled
             is NaviampMediaItemCommand.Playlist -> NaviampCoreImmediateCommandResult.Unhandled
         }
         is NaviampCoreCommand.Detail.ArtistAlbum ->
@@ -64,8 +62,6 @@ class NaviampCoreMediaDetailController(
 
     override suspend fun execute(command: NaviampCoreCommand): NaviampCoreCommandResult? {
         when (command) {
-            is NaviampCoreCommand.Media.SelectAlbum -> loadAlbum(command.album)
-            is NaviampCoreCommand.Media.SelectArtist -> loadArtist(command.artist)
             is NaviampCoreCommand.Media.ItemAction -> when (val itemCommand = command.request.command) {
                 is NaviampMediaItemCommand.Album -> {
                     if (itemCommand.command != NaviampArtistAlbumCommand.Select) return null
@@ -75,6 +71,7 @@ class NaviampCoreMediaDetailController(
                     if (itemCommand.command != NaviampArtistMediaCommand.Select) return null
                     loadArtist(command.request.item)
                 }
+                NaviampMediaItemCommand.PlayAlbum -> return null
                 is NaviampMediaItemCommand.Playlist -> return null
             }
             is NaviampCoreCommand.Detail.ArtistAlbum -> {

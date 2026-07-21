@@ -124,12 +124,26 @@ class NaviampCoreMediaTransactions(
 
     suspend fun openAlbum(track: Track) {
         val id = track.albumId ?: return publish("Album is not available for this track.")
-        mediaDetails.execute(NaviampCoreCommand.Media.SelectAlbum(SharedMediaItemUi(id.value, track.albumTitle ?: "Album", track.artistName)))
+        mediaDetails.execute(
+            NaviampCoreCommand.Media.ItemAction(
+                app.naviamp.ui.NaviampMediaItemActionRequest(
+                    SharedMediaItemUi(id.value, track.albumTitle ?: "Album", track.artistName),
+                    app.naviamp.ui.NaviampMediaItemCommand.Album(app.naviamp.ui.NaviampArtistAlbumCommand.Select),
+                ),
+            ),
+        )
     }
 
     suspend fun openArtist(track: Track, artistId: String?, artistName: String?) {
         val id = artistId ?: track.artistId?.value ?: return publish("Artist is not available for this track.")
-        mediaDetails.execute(NaviampCoreCommand.Media.SelectArtist(SharedMediaItemUi(id, artistName ?: track.artistName, "")))
+        mediaDetails.execute(
+            NaviampCoreCommand.Media.ItemAction(
+                app.naviamp.ui.NaviampMediaItemActionRequest(
+                    SharedMediaItemUi(id, artistName ?: track.artistName, ""),
+                    app.naviamp.ui.NaviampMediaItemCommand.Artist(app.naviamp.ui.NaviampArtistMediaCommand.Select),
+                ),
+            ),
+        )
     }
 
     fun openExternal(uri: String) {

@@ -8,7 +8,6 @@ class NaviampCoreTrackActionController(
     private val media: NaviampCoreMediaTransactions,
 ) : NaviampCoreCommandController {
     override fun dispatch(command: NaviampCoreCommand): NaviampCoreImmediateCommandResult = when (command) {
-        is NaviampCoreCommand.Media.SelectTrack,
         is NaviampCoreCommand.Media.TrackAction,
         is NaviampCoreCommand.Detail.AlbumTrack,
         is NaviampCoreCommand.Detail.ArtistPopularTrack,
@@ -21,8 +20,6 @@ class NaviampCoreTrackActionController(
 
     override suspend fun execute(command: NaviampCoreCommand): NaviampCoreCommandResult? {
         val (request, tracks) = when (command) {
-            is NaviampCoreCommand.Media.SelectTrack ->
-                SharedTrackRowActionRequest(command.track, app.naviamp.ui.SharedTrackRowAction.Select) to registry.search.tracks
             is NaviampCoreCommand.Media.TrackAction -> command.request to registry.search.tracks
             is NaviampCoreCommand.Detail.AlbumTrack -> command.request to registry.albumDetails?.tracks.orEmpty()
             is NaviampCoreCommand.Detail.ArtistPopularTrack -> command.request to registry.artistPopularTracks

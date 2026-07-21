@@ -273,8 +273,11 @@ class NaviampCoreNowPlayingMediaController(
     private suspend fun openAlbum(track: Track) {
         val albumId = track.albumId ?: run { publishStatus("Album is not available for this track."); return }
         mediaDetails.execute(
-            NaviampCoreCommand.Media.SelectAlbum(
-                SharedMediaItemUi(albumId.value, track.albumTitle ?: "Album", track.artistName),
+            NaviampCoreCommand.Media.ItemAction(
+                app.naviamp.ui.NaviampMediaItemActionRequest(
+                    SharedMediaItemUi(albumId.value, track.albumTitle ?: "Album", track.artistName),
+                    app.naviamp.ui.NaviampMediaItemCommand.Album(app.naviamp.ui.NaviampArtistAlbumCommand.Select),
+                ),
             ),
         )
     }
@@ -292,7 +295,12 @@ class NaviampCoreNowPlayingMediaController(
             return
         }
         mediaDetails.execute(
-            NaviampCoreCommand.Media.SelectArtist(SharedMediaItemUi(artistId, artistName, "")),
+            NaviampCoreCommand.Media.ItemAction(
+                app.naviamp.ui.NaviampMediaItemActionRequest(
+                    SharedMediaItemUi(artistId, artistName, ""),
+                    app.naviamp.ui.NaviampMediaItemCommand.Artist(app.naviamp.ui.NaviampArtistMediaCommand.Select),
+                ),
+            ),
         )
     }
 

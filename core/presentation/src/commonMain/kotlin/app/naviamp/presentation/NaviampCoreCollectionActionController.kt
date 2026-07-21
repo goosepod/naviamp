@@ -21,8 +21,6 @@ class NaviampCoreCollectionActionController(
 ) : NaviampCoreCommandController {
     override fun dispatch(command: NaviampCoreCommand): NaviampCoreImmediateCommandResult = when (command) {
         is NaviampCoreCommand.Home.SelectStation,
-        is NaviampCoreCommand.Media.ToggleAlbumFavorite,
-        is NaviampCoreCommand.Media.ToggleArtistFavorite,
         is NaviampCoreCommand.Detail.Album,
         -> NaviampCoreImmediateCommandResult.Deferred
         is NaviampCoreCommand.Detail.Artist -> NaviampCoreImmediateCommandResult.Deferred
@@ -36,6 +34,7 @@ class NaviampCoreCollectionActionController(
             is NaviampMediaItemCommand.Artist ->
                 if (item.command == NaviampArtistMediaCommand.Select) NaviampCoreImmediateCommandResult.Unhandled
                 else NaviampCoreImmediateCommandResult.Deferred
+            NaviampMediaItemCommand.PlayAlbum -> NaviampCoreImmediateCommandResult.Deferred
             is NaviampMediaItemCommand.Playlist -> NaviampCoreImmediateCommandResult.Unhandled
         }
         else -> NaviampCoreImmediateCommandResult.Unhandled
@@ -44,16 +43,13 @@ class NaviampCoreCollectionActionController(
     override suspend fun execute(command: NaviampCoreCommand): NaviampCoreCommandResult? {
         when (command) {
             is NaviampCoreCommand.Home.SelectStation -> executeStation(command.station.id)
-            is NaviampCoreCommand.Media.ToggleAlbumFavorite -> registry.album(command.album.id)?.let { transactions.toggleFavorite(it) }
-                ?: transactions.publish("Album not found.")
-            is NaviampCoreCommand.Media.ToggleArtistFavorite -> registry.artist(command.artist.id)?.let { transactions.toggleFavorite(it) }
-                ?: transactions.publish("Artist not found.")
             is NaviampCoreCommand.Detail.Album -> executeAlbum(command.request.album.id, command.request.command)
             is NaviampCoreCommand.Detail.Artist -> executeArtist(command.request.artist.id, command.request.artist, command.request.command)
             is NaviampCoreCommand.Detail.ArtistAlbum -> executeAlbum(command.request.album.id, command.request.command)
             is NaviampCoreCommand.Media.ItemAction -> when (val item = command.request.command) {
                 is NaviampMediaItemCommand.Album -> executeAlbum(command.request.item.id, item.command)
                 is NaviampMediaItemCommand.Artist -> executeArtistMedia(command.request.item.id, command.request.item, item.command)
+                NaviampMediaItemCommand.PlayAlbum -> playAlbum(command.request.item.id)
                 is NaviampMediaItemCommand.Playlist -> return null
             }
             else -> return null
@@ -90,6 +86,11 @@ class NaviampCoreCollectionActionController(
             is NaviampArtistAlbumCommand.CreatePlaylistAndAdd -> transactions.createPlaylist(albumTracks(album), command.name)
             NaviampArtistAlbumCommand.ToggleFavorite -> transactions.toggleFavorite(album)
         }
+    }
+
+    private suspend fun playAlbum(id: String) {
+        val album = registry.album(id) ?: return transactions.publish("Album not found.")
+        transactions.play(albumTracks(album))
     }
 
     private suspend fun executeAlbum(album: Album, command: NaviampAlbumDetailCommand) {

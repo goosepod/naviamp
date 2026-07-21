@@ -141,13 +141,7 @@ sealed interface NaviampCoreCommand {
     }
 
     sealed interface Media : NaviampCoreCommand {
-        data class SelectTrack(val track: SharedTrackRowUi) : Media
-        data class SelectAlbum(val album: SharedMediaItemUi, val fromMix: Boolean = false) : Media
-        data class ToggleAlbumFavorite(val album: SharedMediaItemUi) : Media
         data class TrackAction(val request: SharedTrackRowActionRequest) : Media
-        data class SelectArtist(val artist: SharedMediaItemUi) : Media
-        data class ToggleArtistFavorite(val artist: SharedMediaItemUi) : Media
-        data class SelectPlaylist(val playlist: SharedMediaItemUi) : Media
         data class ItemAction(val request: NaviampMediaItemActionRequest) : Media
     }
 

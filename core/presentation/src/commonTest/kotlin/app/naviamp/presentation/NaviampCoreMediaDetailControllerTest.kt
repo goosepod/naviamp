@@ -16,6 +16,10 @@ import app.naviamp.domain.provider.MediaSearchResults
 import app.naviamp.domain.provider.ProviderCapabilities
 import app.naviamp.ui.SharedMediaItemUi
 import app.naviamp.ui.SharedRoute
+import app.naviamp.ui.NaviampArtistAlbumCommand
+import app.naviamp.ui.NaviampArtistMediaCommand
+import app.naviamp.ui.albumActionRequest
+import app.naviamp.ui.artistActionRequest
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.launch
@@ -34,7 +38,7 @@ class NaviampCoreMediaDetailControllerTest {
         val provider = MediaDetailTestProvider()
         val (store, controller) = controller(provider)
 
-        controller.execute(NaviampCoreCommand.Media.SelectAlbum(mediaItem("album-1", "Requested album")))
+        controller.execute(NaviampCoreCommand.Media.ItemAction(mediaItem("album-1", "Requested album").albumActionRequest(NaviampArtistAlbumCommand.Select)))
 
         val state = store.state.value
         assertEquals(SharedRoute.Home, state.shell.shellChrome.selectedRoute)
@@ -49,8 +53,8 @@ class NaviampCoreMediaDetailControllerTest {
         val provider = MediaDetailTestProvider()
         val (store, controller) = controller(provider)
 
-        controller.execute(NaviampCoreCommand.Media.SelectArtist(mediaItem("artist-a", "Artist A")))
-        controller.execute(NaviampCoreCommand.Media.SelectArtist(mediaItem("artist-b", "Artist B")))
+        controller.execute(NaviampCoreCommand.Media.ItemAction(mediaItem("artist-a", "Artist A").artistActionRequest(NaviampArtistMediaCommand.Select)))
+        controller.execute(NaviampCoreCommand.Media.ItemAction(mediaItem("artist-b", "Artist B").artistActionRequest(NaviampArtistMediaCommand.Select)))
         assertEquals("Artist B", store.state.value.shell.artistDetail.detail?.artist?.title)
 
         controller.navigation.dispatch(NaviampCoreCommand.Navigation.BackFromArtist)
@@ -70,10 +74,10 @@ class NaviampCoreMediaDetailControllerTest {
         val (store, controller) = controller(provider)
 
         val first = launch {
-            controller.media.execute(NaviampCoreCommand.Media.SelectArtist(mediaItem("artist-a", "Artist A")))
+            controller.media.execute(NaviampCoreCommand.Media.ItemAction(mediaItem("artist-a", "Artist A").artistActionRequest(NaviampArtistMediaCommand.Select)))
         }
         runCurrent()
-        controller.media.execute(NaviampCoreCommand.Media.SelectArtist(mediaItem("artist-b", "Artist B")))
+        controller.media.execute(NaviampCoreCommand.Media.ItemAction(mediaItem("artist-b", "Artist B").artistActionRequest(NaviampArtistMediaCommand.Select)))
         firstArtistGate.complete(Unit)
         first.join()
 
@@ -84,8 +88,8 @@ class NaviampCoreMediaDetailControllerTest {
     fun missingProviderStillNavigatesAndPublishesACompleteFailureState() = runTest {
         val (store, controller) = controller(null)
 
-        controller.media.execute(NaviampCoreCommand.Media.SelectAlbum(mediaItem("album-1", "Album")))
-        controller.media.execute(NaviampCoreCommand.Media.SelectArtist(mediaItem("artist-a", "Artist")))
+        controller.media.execute(NaviampCoreCommand.Media.ItemAction(mediaItem("album-1", "Album").albumActionRequest(NaviampArtistAlbumCommand.Select)))
+        controller.media.execute(NaviampCoreCommand.Media.ItemAction(mediaItem("artist-a", "Artist").artistActionRequest(NaviampArtistMediaCommand.Select)))
 
         assertEquals(SharedRoute.Home, store.state.value.shell.shellChrome.selectedRoute)
         assertNull(store.state.value.shell.albumDetail.detail)

@@ -160,16 +160,33 @@ fun SharedHomeRoute(
             SharedHome(
                 colors = colors,
                 home = home.content,
-                onAlbumSelected = mediaActions.onAlbumSelected,
-                onMixAlbumSelected = mediaActions.onMixAlbumSelected,
-                onPlaylistSelected = mediaActions.onPlaylistSelected,
+                onAlbumSelected = { item ->
+                    mediaActions.onMediaItemAction(
+                        NaviampMediaItemActionRequest(item, NaviampMediaItemCommand.Album(NaviampArtistAlbumCommand.Select)),
+                    )
+                },
+                onMixAlbumSelected = { item ->
+                    mediaActions.onMediaItemAction(NaviampMediaItemActionRequest(item, NaviampMediaItemCommand.PlayAlbum))
+                },
+                onPlaylistSelected = { item ->
+                    mediaActions.onMediaItemAction(
+                        NaviampMediaItemActionRequest(item, NaviampMediaItemCommand.Playlist(NaviampPlaylistMediaCommand.Select)),
+                    )
+                },
                 onRecentRadioSelected = actions.onRecentRadioSelected,
                 onInternetRadioStationSelected = actions.onInternetRadioStationSelected,
                 onMixBuilderSelected = actions.onMixBuilderSelected,
                 onHomeStationSelected = actions.onStationSelected,
                 onSonicDiscoveryTrackAction = actions.onSonicDiscoveryTrackAction,
                 onRecentlyPlayedTrackAction = actions.onRecentlyPlayedTrackAction,
-                onAlbumFavoriteToggled = mediaActions.onAlbumFavoriteToggled,
+                onAlbumFavoriteToggled = { item ->
+                    mediaActions.onMediaItemAction(
+                        NaviampMediaItemActionRequest(
+                            item,
+                            NaviampMediaItemCommand.Album(NaviampArtistAlbumCommand.ToggleFavorite),
+                        ),
+                    )
+                },
                 onRefresh = actions.onRefresh,
             )
         }

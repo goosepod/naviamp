@@ -752,15 +752,29 @@ private fun ConnectedContent(
     val selectedRoute = shellChrome.selectedRoute
     val nowPlayingOpen = shellChrome.nowPlayingOpen
     val selectedVisualizer = shellChrome.selectedVisualizer
-    val onTrackSelected = mediaActions.onTrackSelected
-    val onAlbumSelected = mediaActions.onAlbumSelected
-    val onAlbumFavoriteToggled = mediaActions.onAlbumFavoriteToggled
-    val onMixAlbumSelected = mediaActions.onMixAlbumSelected
     val onTrackAction = mediaActions.onTrackAction
-    val onArtistSelected = mediaActions.onArtistSelected
-    val onArtistFavoriteToggled = mediaActions.onArtistFavoriteToggled
-    val onPlaylistSelected = mediaActions.onPlaylistSelected
     val onMediaItemAction = mediaActions.onMediaItemAction
+    val onTrackSelected: (SharedTrackRowUi) -> Unit = {
+        onTrackAction(SharedTrackRowActionRequest(it, SharedTrackRowAction.Select))
+    }
+    val onAlbumSelected: (SharedMediaItemUi) -> Unit = {
+        onMediaItemAction(NaviampMediaItemActionRequest(it, NaviampMediaItemCommand.Album(NaviampArtistAlbumCommand.Select)))
+    }
+    val onAlbumFavoriteToggled: (SharedMediaItemUi) -> Unit = {
+        onMediaItemAction(NaviampMediaItemActionRequest(it, NaviampMediaItemCommand.Album(NaviampArtistAlbumCommand.ToggleFavorite)))
+    }
+    val onMixAlbumSelected: (SharedMediaItemUi) -> Unit = {
+        onMediaItemAction(NaviampMediaItemActionRequest(it, NaviampMediaItemCommand.PlayAlbum))
+    }
+    val onArtistSelected: (SharedMediaItemUi) -> Unit = {
+        onMediaItemAction(NaviampMediaItemActionRequest(it, NaviampMediaItemCommand.Artist(NaviampArtistMediaCommand.Select)))
+    }
+    val onArtistFavoriteToggled: (SharedMediaItemUi) -> Unit = {
+        onMediaItemAction(NaviampMediaItemActionRequest(it, NaviampMediaItemCommand.Artist(NaviampArtistMediaCommand.ToggleFavorite)))
+    }
+    val onPlaylistSelected: (SharedMediaItemUi) -> Unit = {
+        onMediaItemAction(NaviampMediaItemActionRequest(it, NaviampMediaItemCommand.Playlist(NaviampPlaylistMediaCommand.Select)))
+    }
     val selectedAlbumDetail = albumDetail.detail
     val selectedArtistDetail = artistDetail.detail
     val selectedPlaylistDetail = playlistDetail.detail

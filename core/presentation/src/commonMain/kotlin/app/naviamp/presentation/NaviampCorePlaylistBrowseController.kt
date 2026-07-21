@@ -40,7 +40,6 @@ class NaviampCorePlaylistBrowseController(
             }
             NaviampCoreImmediateCommandResult.Handled()
         }
-        is NaviampCoreCommand.Media.SelectPlaylist -> NaviampCoreImmediateCommandResult.Deferred
         is NaviampCoreCommand.Media.ItemAction -> {
             val playlistCommand = command.request.command as? NaviampMediaItemCommand.Playlist
             if (playlistCommand?.command == NaviampPlaylistMediaCommand.Select) {
@@ -55,7 +54,6 @@ class NaviampCorePlaylistBrowseController(
     override suspend fun execute(command: NaviampCoreCommand): NaviampCoreCommandResult? {
         when (command) {
             NaviampCoreCommand.Playlists.Refresh -> refresh()
-            is NaviampCoreCommand.Media.SelectPlaylist -> open(command.playlist)
             is NaviampCoreCommand.Media.ItemAction -> {
                 val playlistCommand = command.request.command as? NaviampMediaItemCommand.Playlist ?: return null
                 if (playlistCommand.command != NaviampPlaylistMediaCommand.Select) return null
