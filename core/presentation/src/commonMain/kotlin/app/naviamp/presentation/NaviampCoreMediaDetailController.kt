@@ -7,10 +7,12 @@ import app.naviamp.domain.media.loadArtistPopularTracksUpdate
 import app.naviamp.domain.media.loadSimilarArtistsUpdate
 import app.naviamp.domain.popular.ArtistPopularTrackMatch
 import app.naviamp.domain.popular.SimilarArtistMatch
+import app.naviamp.ui.NaviampAlbumDetailScreenUi
 import app.naviamp.ui.NaviampArtistAlbumCommand
 import app.naviamp.ui.NaviampArtistDetailCommand
 import app.naviamp.ui.NaviampArtistMediaCommand
 import app.naviamp.ui.NaviampMediaItemCommand
+import app.naviamp.ui.NaviampPlaylistDetailScreenUi
 import app.naviamp.ui.SharedMediaItemUi
 import app.naviamp.ui.toSharedAlbumDetailUi
 import app.naviamp.ui.toSharedArtistDetailUi
@@ -112,6 +114,7 @@ class NaviampCoreMediaDetailController(
                     detail = null,
                     status = "Loading ${item.title}...",
                 ),
+                playlistDetail = NaviampPlaylistDetailScreenUi(),
             )
         }
         val provider = providerSource.current()
@@ -218,11 +221,13 @@ class NaviampCoreMediaDetailController(
     private fun publishArtistLoading(item: SharedMediaItemUi) {
         stateStore.updateShell { shell ->
             shell.copy(
+                albumDetail = NaviampAlbumDetailScreenUi(),
                 artistDetail = shell.artistDetail.copy(
                     selectedArtist = item,
                     detail = null,
                     status = "Loading ${item.title}...",
                 ),
+                playlistDetail = NaviampPlaylistDetailScreenUi(),
             )
         }
     }

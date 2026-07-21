@@ -19,6 +19,8 @@ import app.naviamp.domain.provider.ProviderCapabilities
 import app.naviamp.ui.SharedMediaItemUi
 import app.naviamp.ui.SharedPlaylistSortMode
 import app.naviamp.ui.NaviampPlaylistMediaCommand
+import app.naviamp.ui.NaviampAlbumDetailScreenUi
+import app.naviamp.ui.NaviampArtistDetailScreenUi
 import app.naviamp.ui.playlistActionRequest
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -111,6 +113,33 @@ class NaviampCorePlaylistBrowseControllerTest {
             "Connect to Navidrome to load a playlist.",
             store.state.value.shell.playlistDetail.status,
         )
+    }
+
+    @Test
+    fun playlistSelectionClearsCompetingAlbumAndArtistPresentation() = runTest {
+        val provider = PlaylistBrowseTestProvider()
+        val (store, controller) = controller(provider)
+        store.updateShell { shell ->
+            shell.copy(
+                albumDetail = NaviampAlbumDetailScreenUi(
+                    selectedAlbum = SharedMediaItemUi("old-album", "Old Album", ""),
+                ),
+                artistDetail = NaviampArtistDetailScreenUi(
+                    selectedArtist = SharedMediaItemUi("old-artist", "Old Artist", ""),
+                ),
+            )
+        }
+
+        controller.execute(
+            NaviampCoreCommand.Media.ItemAction(
+                SharedMediaItemUi("playlist-a", "Playlist A", "")
+                    .playlistActionRequest(NaviampPlaylistMediaCommand.Select),
+            ),
+        )
+
+        assertNull(store.state.value.shell.albumDetail.selectedAlbum)
+        assertNull(store.state.value.shell.artistDetail.selectedArtist)
+        assertEquals("playlist-a", store.state.value.shell.playlistDetail.detail?.playlist?.id)
     }
 
     private fun controller(

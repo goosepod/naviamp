@@ -1,6 +1,8 @@
 package app.naviamp.presentation
 
 import app.naviamp.domain.Playlist
+import app.naviamp.ui.NaviampAlbumDetailScreenUi
+import app.naviamp.ui.NaviampArtistDetailScreenUi
 import app.naviamp.ui.NaviampMediaItemCommand
 import app.naviamp.ui.NaviampPlaylistMediaCommand
 import app.naviamp.ui.SharedMediaItemUi
@@ -122,6 +124,8 @@ class NaviampCorePlaylistBrowseController(
         navigationController.openPlaylistDetail()
         stateStore.updateShell { shell ->
             shell.copy(
+                albumDetail = NaviampAlbumDetailScreenUi(),
+                artistDetail = NaviampArtistDetailScreenUi(),
                 playlistDetail = shell.playlistDetail.copy(
                     selectedPlaylist = item,
                     detail = null,

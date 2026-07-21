@@ -12,6 +12,7 @@ import app.naviamp.domain.cache.KeepDownloadedCollectionPolicy
 import app.naviamp.domain.home.HomeDate
 import app.naviamp.domain.playback.PlaybackQueueNavigationCommand
 import app.naviamp.domain.playback.PlaybackSource
+import app.naviamp.domain.provider.MediaProvider
 import app.naviamp.domain.queue.PlaybackQueue
 import app.naviamp.domain.queue.RepeatMode
 import app.naviamp.ui.NaviampSettingsSyncUi
@@ -118,9 +119,9 @@ class NaviampCoreTest {
     }
 }
 
-internal fun fakeCoreServices() = NaviampCoreServices(
+internal fun fakeCoreServices(provider: MediaProvider? = null) = NaviampCoreServices(
     content = NaviampCoreContentServices(
-        providerSource = NaviampCoreMediaProviderSource { null },
+        providerSource = NaviampCoreMediaProviderSource { provider },
         homeDate = NaviampCoreHomeDateSource { HomeDate(2026, 202) },
         homeSupplement = NaviampCoreHomeSupplementSource { NaviampCoreHomeSupplement() },
         playlistSupplement = NaviampCorePlaylistBrowseSupplementSource { NaviampCorePlaylistBrowseSupplement() },

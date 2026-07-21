@@ -16,6 +16,7 @@ import app.naviamp.domain.provider.MediaSearchResults
 import app.naviamp.domain.provider.ProviderCapabilities
 import app.naviamp.ui.SharedMediaItemUi
 import app.naviamp.ui.SharedRoute
+import app.naviamp.ui.NaviampPlaylistDetailScreenUi
 import app.naviamp.ui.NaviampArtistAlbumCommand
 import app.naviamp.ui.NaviampArtistMediaCommand
 import app.naviamp.ui.albumActionRequest
@@ -89,13 +90,39 @@ class NaviampCoreMediaDetailControllerTest {
         val (store, controller) = controller(null)
 
         controller.media.execute(NaviampCoreCommand.Media.ItemAction(mediaItem("album-1", "Album").albumActionRequest(NaviampArtistAlbumCommand.Select)))
-        controller.media.execute(NaviampCoreCommand.Media.ItemAction(mediaItem("artist-a", "Artist").artistActionRequest(NaviampArtistMediaCommand.Select)))
-
         assertEquals(SharedRoute.Home, store.state.value.shell.shellChrome.selectedRoute)
         assertNull(store.state.value.shell.albumDetail.detail)
         assertEquals("Connect to Navidrome to load an album.", store.state.value.shell.albumDetail.status)
+
+        controller.media.execute(NaviampCoreCommand.Media.ItemAction(mediaItem("artist-a", "Artist").artistActionRequest(NaviampArtistMediaCommand.Select)))
+
+        assertNull(store.state.value.shell.albumDetail.selectedAlbum)
         assertNull(store.state.value.shell.artistDetail.detail)
         assertEquals("Connect to Navidrome to load an artist.", store.state.value.shell.artistDetail.status)
+    }
+
+    @Test
+    fun artistSelectionClearsCompetingAlbumAndPlaylistPresentation() = runTest {
+        val provider = MediaDetailTestProvider()
+        val (store, controller) = controller(provider)
+        store.updateShell { shell ->
+            shell.copy(
+                albumDetail = shell.albumDetail.copy(selectedAlbum = mediaItem("old-album", "Old Album")),
+                playlistDetail = NaviampPlaylistDetailScreenUi(
+                    selectedPlaylist = mediaItem("old-playlist", "Old Playlist"),
+                ),
+            )
+        }
+
+        controller.execute(
+            NaviampCoreCommand.Media.ItemAction(
+                mediaItem("artist-a", "Artist A").artistActionRequest(NaviampArtistMediaCommand.Select),
+            ),
+        )
+
+        assertNull(store.state.value.shell.albumDetail.selectedAlbum)
+        assertNull(store.state.value.shell.playlistDetail.selectedPlaylist)
+        assertNotNull(store.state.value.shell.artistDetail.detail)
     }
 
     private fun kotlinx.coroutines.test.TestScope.controller(
