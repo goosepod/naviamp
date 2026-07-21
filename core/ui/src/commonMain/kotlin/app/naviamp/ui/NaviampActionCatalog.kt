@@ -130,15 +130,20 @@ fun artistRowActions(
         ),
     )
 
-fun NaviampAction.sharedMediaItemActionOrNull(): SharedMediaItemAction? =
+fun NaviampAction.artistMediaCommandOrNull(): NaviampArtistMediaCommand? =
     when (this) {
-        NaviampAction.StartArtistRadio,
-        NaviampAction.StartAlbumRadio,
-        -> SharedMediaItemAction.StartRadio
-        NaviampAction.DownloadAlbum -> SharedMediaItemAction.Download
-        NaviampAction.AddToQueue -> SharedMediaItemAction.AddToQueue
-        NaviampAction.AddToPlaylist -> SharedMediaItemAction.AddToPlaylist
-        NaviampAction.ToggleFavorite -> SharedMediaItemAction.ToggleFavorite
+        NaviampAction.StartArtistRadio -> NaviampArtistMediaCommand.StartRadio
+        NaviampAction.AddToQueue -> NaviampArtistMediaCommand.AddToQueue
+        NaviampAction.ToggleFavorite -> NaviampArtistMediaCommand.ToggleFavorite
+        else -> null
+    }
+
+fun NaviampAction.albumMediaCommandOrNull(): NaviampArtistAlbumCommand? =
+    when (this) {
+        NaviampAction.StartAlbumRadio -> NaviampArtistAlbumCommand.StartRadio
+        NaviampAction.DownloadAlbum -> NaviampArtistAlbumCommand.Download
+        NaviampAction.AddToQueue -> NaviampArtistAlbumCommand.AddToQueue
+        NaviampAction.ToggleFavorite -> NaviampArtistAlbumCommand.ToggleFavorite
         else -> null
     }
 

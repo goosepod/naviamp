@@ -108,14 +108,13 @@ data class NaviampNowPlayingItemUi(
 )
 
 data class NaviampNowPlayingActions(
-    val onPlaybackAction: (NowPlayingPlaybackActionRequest) -> Unit = {},
-    val onDisplayAction: (NowPlayingDisplayActionRequest) -> Unit = {},
-    val onCurrentTrackAction: (NowPlayingCurrentTrackUiActionRequest) -> Unit = {},
-    val onQueueAction: (NowPlayingQueueActionRequest) -> Unit = {},
-    val onSleepTimerAction: (NowPlayingSleepTimerActionRequest) -> Unit = {},
-    val onSelectionAction: (NowPlayingSelectionActionRequest) -> Unit = {},
-    val onQueueItemAction: (NowPlayingItemActionRequest) -> Unit = { request ->
-    },
+    val onPlaybackAction: (NowPlayingPlaybackActionRequest) -> Unit,
+    val onDisplayAction: (NowPlayingDisplayActionRequest) -> Unit,
+    val onCurrentTrackAction: (NowPlayingCurrentTrackUiActionRequest) -> Unit,
+    val onQueueAction: (NowPlayingQueueActionRequest) -> Unit,
+    val onSleepTimerAction: (NowPlayingSleepTimerActionRequest) -> Unit,
+    val onSelectionAction: (NowPlayingSelectionActionRequest) -> Unit,
+    val onQueueItemAction: (NowPlayingItemActionRequest) -> Unit,
 ) {
     fun playback(action: NowPlayingPlaybackAction) {
         onPlaybackAction(NowPlayingPlaybackActionRequest(action))

@@ -120,7 +120,7 @@ class SharedActionSourcesTest {
         handleResolvedTrackRowAction(
             request = SharedTrackRowActionRequest(sharedTrack("second"), SharedTrackRowAction.Select),
             tracks = tracks,
-            handlers = ResolvedTrackRowActionHandlers(onSelect = { index, track -> selected = index to track }),
+            handlers = resolvedTrackHandlers(onSelect = { index, track -> selected = index to track }),
         )
         handleResolvedTrackRowAction(
             request = SharedTrackRowActionRequest(
@@ -130,94 +130,13 @@ class SharedActionSourcesTest {
                 artistName = "Artist Name",
             ),
             tracks = tracks,
-            handlers = ResolvedTrackRowActionHandlers(
+            handlers = resolvedTrackHandlers(
                 onGoToArtist = { track, id, name -> artistTarget = Triple(track, id, name) },
             ),
         )
 
         assertEquals(1 to tracks[1], selected)
         assertEquals(Triple(tracks[0], "artist-id", "Artist Name"), artistTarget)
-    }
-
-    @Test
-    fun resolvedMediaActionsPreserveShuffleDownloadAndDeduplicatedCopyIntent() {
-        val playlist = Playlist("playlist", "Playlist", trackCount = 3)
-        val item = SharedMediaItemUi(id = playlist.id, title = playlist.name, subtitle = "Playlist")
-        var shuffle: Boolean? = null
-        var downloadValue: String? = null
-        var copy: Pair<String, Boolean>? = null
-        val handlers = ResolvedMediaItemActionHandlers<Playlist>(
-            onSelect = null,
-            onPlay = { _, requestedShuffle -> shuffle = requestedShuffle },
-            onStartRadio = null,
-            onFindSimilar = null,
-            onAddToQueue = null,
-            onDownload = { _, value -> downloadValue = value },
-            onAddToPlaylist = null,
-            onCreatePlaylistAndAdd = null,
-            onCopy = { _, name, deduplicate -> copy = name to deduplicate },
-            onToggleFavorite = null,
-            onRename = null,
-            onEditSmartPlaylist = null,
-            onDelete = null,
-            onEditStation = null,
-            onDeleteStation = null,
-        )
-
-        val shuffleResult = handleResolvedMediaItemAction(
-            SharedMediaItemActionRequest(item, SharedMediaItemAction.Shuffle),
-            playlist,
-            handlers,
-        )
-        val downloadResult = handleResolvedMediaItemAction(
-            SharedMediaItemActionRequest(
-                item,
-                SharedMediaItemAction.Download,
-                textValue = KeepDownloadedActionValue,
-            ),
-            playlist,
-            handlers,
-        )
-        val copyResult = handleResolvedMediaItemAction(
-            SharedMediaItemActionRequest(
-                item,
-                SharedMediaItemAction.CopyPlaylistDeduplicated,
-                playlistName = "Copy",
-            ),
-            playlist,
-            handlers,
-        )
-
-        assertEquals(true, shuffle)
-        assertEquals(KeepDownloadedActionValue, downloadValue)
-        assertEquals("Copy" to true, copy)
-        assertEquals(MediaItemActionDispatchResult.Dispatched, shuffleResult)
-        assertEquals(MediaItemActionDispatchResult.Dispatched, downloadResult)
-        assertEquals(MediaItemActionDispatchResult.Dispatched, copyResult)
-        assertEquals(
-            MediaItemActionDispatchResult.UnsupportedAction,
-            handleResolvedMediaItemAction(
-                SharedMediaItemActionRequest(item, SharedMediaItemAction.Delete),
-                playlist,
-                handlers,
-            ),
-        )
-        assertEquals(
-            MediaItemActionDispatchResult.InvalidValue,
-            handleResolvedMediaItemAction(
-                SharedMediaItemActionRequest(item, SharedMediaItemAction.CopyPlaylist, playlistName = " "),
-                playlist,
-                handlers,
-            ),
-        )
-        assertEquals(
-            MediaItemActionDispatchResult.MissingItem,
-            handleResolvedMediaItemAction(
-                SharedMediaItemActionRequest(item, SharedMediaItemAction.Play),
-                null,
-                handlers,
-            ),
-        )
     }
 
     @Test
@@ -451,6 +370,24 @@ class SharedActionSourcesTest {
             dispatchResolvedArtistAlbumAction(albumRequests.first(), null, albumHandlers),
         )
     }
+
+    private fun resolvedTrackHandlers(
+        onSelect: (Int, Track) -> Unit = { _, _ -> },
+        onGoToArtist: (Track, String?, String?) -> Unit = { _, _, _ -> },
+    ) = ResolvedTrackRowActionHandlers(
+        onSelect = onSelect,
+        onPlayNext = {},
+        onStartRadio = { _, _ -> },
+        onPlayTrackRadioNext = {},
+        onAddTrackRadioToQueue = {},
+        onAddToQueue = { _, _ -> },
+        onDownload = { _, _ -> },
+        onAddToPlaylist = { _, _, _ -> },
+        onCreatePlaylistAndAdd = { _, _ -> },
+        onToggleFavorite = {},
+        onGoToAlbum = {},
+        onGoToArtist = onGoToArtist,
+    )
 
     private fun album(id: String): Album = Album(
         id = AlbumId(id),

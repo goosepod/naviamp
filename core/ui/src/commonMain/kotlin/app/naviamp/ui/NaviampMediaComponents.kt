@@ -635,7 +635,6 @@ internal fun HomeSection(
     colors: NaviampColors,
     onItemSelected: ((SharedMediaItemUi) -> Unit)? = null,
     onFavoriteToggled: ((SharedMediaItemUi) -> Unit)? = null,
-    itemKind: SharedMediaItemKind = SharedMediaItemKind.Unknown,
     stationStyle: Boolean = false,
     emptyText: String? = null,
 ) {
@@ -658,7 +657,6 @@ internal fun HomeSection(
                     SharedMediaRow(
                         item = item,
                         colors = colors,
-                        itemKind = itemKind,
                         onClick = onItemSelected?.let { { it(item) } },
                         onFavoriteToggled = onFavoriteToggled,
                     )
@@ -675,7 +673,6 @@ internal fun MediaSection(
     colors: NaviampColors,
     onItemSelected: ((SharedMediaItemUi) -> Unit)? = null,
     onFavoriteToggled: ((SharedMediaItemUi) -> Unit)? = null,
-    itemKind: SharedMediaItemKind = SharedMediaItemKind.Unknown,
 ) {
     if (items.isEmpty()) return
 
@@ -685,7 +682,6 @@ internal fun MediaSection(
             SharedMediaRow(
                 item = item,
                 colors = colors,
-                itemKind = itemKind,
                 onClick = onItemSelected?.let { { it(item) } },
                 onFavoriteToggled = onFavoriteToggled,
             )
@@ -702,16 +698,6 @@ fun SharedMediaRow(
     onFavoriteToggled: ((SharedMediaItemUi) -> Unit)? = null,
     canSelect: Boolean = onClick != null,
     canToggleFavorite: Boolean = item.canFavorite && onFavoriteToggled != null,
-    itemKind: SharedMediaItemKind = SharedMediaItemKind.Unknown,
-    onItemAction: (SharedMediaItemActionRequest) -> Unit = { request ->
-        handleSharedMediaItemAction(
-            request,
-            SharedMediaItemActionHandlers(
-                onSelect = { onClick?.invoke() },
-                onToggleFavorite = { selectedItem -> onFavoriteToggled?.invoke(selectedItem) },
-            ),
-        )
-    },
     coverArtSize: Dp = 44.dp,
     coverArtCornerRadius: Dp = 5.dp,
     verticalPadding: Dp = 7.dp,
@@ -724,11 +710,7 @@ fun SharedMediaRow(
             .background(Color.Black.copy(alpha = 0.12f))
             .let { rowModifier ->
                 if (canSelect) {
-                    rowModifier.clickable {
-                        onItemAction(
-                            item.actionRequest(SharedMediaItemAction.Select, kind = itemKind),
-                        )
-                    }
+                    rowModifier.clickable { onClick?.invoke() }
                 } else {
                     rowModifier
                 }
@@ -758,11 +740,7 @@ fun SharedMediaRow(
             NaviampRowMenuItem(
                 label = if (item.favoriteActive) "Remove favorite" else "Favorite",
                 icon = NaviampTransportIcons.Heart,
-                onClick = {
-                    onItemAction(
-                        item.actionRequest(SharedMediaItemAction.ToggleFavorite, kind = itemKind),
-                    )
-                },
+                onClick = { onFavoriteToggled?.invoke(item) },
             )
         } else {
             null
@@ -1709,24 +1687,8 @@ fun InternetRadioContent(
             SharedMediaRow(
                 item = stationItem,
                 colors = colors,
-                itemKind = SharedMediaItemKind.RadioStation,
                 onClick = {
                     handleStationAction(StationRowActionRequest(stationItem, StationRowAction.Select))
-                },
-                onItemAction = { request ->
-                    when (request.action) {
-                        SharedMediaItemAction.Select ->
-                            handleStationAction(StationRowActionRequest(stationItem, StationRowAction.Select))
-                        else ->
-                            handleSharedMediaItemAction(
-                                request,
-                                SharedMediaItemActionHandlers(
-                                    onSelect = {
-                                        handleStationAction(StationRowActionRequest(stationItem, StationRowAction.Select))
-                                    },
-                                ),
-                            )
-                    }
                 },
                 menuItems = stationRowActions(
                     canEdit = onSaveStation != null,

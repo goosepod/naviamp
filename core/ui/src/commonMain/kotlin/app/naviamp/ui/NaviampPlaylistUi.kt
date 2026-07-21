@@ -62,9 +62,7 @@ fun NaviampPlaylistsContent(
         refreshing = screen.refreshing,
         onRefresh = actions.onRefresh,
         onSortModeChanged = actions.onSortModeChanged,
-        onPlaylistAction = { request ->
-            dispatchLegacyMediaItemAction(request, mediaActions.onMediaItemAction)
-        },
+        onPlaylistAction = mediaActions.onMediaItemAction,
         onSmartPlaylistSave = actions.smartPlaylist.onSave,
         onSmartPlaylistUpdate = actions.smartPlaylist.onUpdate,
         onSmartPlaylistSaveWithPassword = actions.smartPlaylist.onSaveWithPassword,
@@ -88,7 +86,7 @@ private fun PlaylistsContent(
     refreshing: Boolean,
     onRefresh: () -> Unit,
     onSortModeChanged: (SharedPlaylistSortMode) -> Unit,
-    onPlaylistAction: (SharedMediaItemActionRequest) -> Unit,
+    onPlaylistAction: (NaviampMediaItemActionRequest) -> Unit,
     onSmartPlaylistSave: suspend (SmartPlaylistDefinition) -> Unit,
     onSmartPlaylistUpdate: suspend (SharedMediaItemUi, SmartPlaylistDefinition) -> Unit,
     onSmartPlaylistSaveWithPassword: suspend (SmartPlaylistDefinition, String) -> Unit,
@@ -109,21 +107,11 @@ private fun PlaylistsContent(
     var smartPlaylistLoadMessage by remember { mutableStateOf<String?>(null) }
     var smartPlaylistPasswordTarget by remember { mutableStateOf<SharedMediaItemUi?>(null) }
     val coroutineScope = rememberCoroutineScope()
-    val handlePlaylistAction: (SharedMediaItemActionRequest) -> Unit = { request ->
-        handleSharedMediaItemAction(
-            request,
-            SharedMediaItemActionHandlers(
-                onSelect = { onPlaylistAction(request) },
-                onPlay = { _, _ -> onPlaylistAction(request) },
-                onAddToQueue = { onPlaylistAction(request) },
-                onDownload = { onPlaylistAction(request) },
-                onAddToPlaylist = { playlist, choice ->
-                    if (choice == null) playlistToAddToPlaylist = playlist else onPlaylistAction(request)
-                },
-                onCreatePlaylistAndAdd = { _, _ -> onPlaylistAction(request) },
-                onRename = { _, _ -> onPlaylistAction(request) },
-                onDelete = { onPlaylistAction(request) },
-                onEditSmartPlaylist = { playlist ->
+    val handlePlaylistAction: (NaviampMediaItemActionRequest) -> Unit = { request ->
+        when (request.command) {
+            is NaviampMediaItemCommand.Playlist -> when (request.command.command) {
+                NaviampPlaylistMediaCommand.EditSmartPlaylist -> {
+                    val playlist = request.item
                     coroutineScope.launch {
                         runCatching { onSmartPlaylistLoad(playlist) }
                             .onSuccess { definition ->
@@ -139,11 +127,13 @@ private fun PlaylistsContent(
                                 } else {
                                     smartPlaylistLoadMessage = error.message.orEmpty()
                                 }
-                            }
+                        }
                     }
-                },
-            ),
-        )
+                }
+                else -> onPlaylistAction(request)
+            }
+            else -> onPlaylistAction(request)
+        }
     }
     val sortedPlaylists = when (sortMode) {
         SharedPlaylistSortMode.Alphabetical -> playlists.sortedBy { it.title.lowercase() }
@@ -217,6 +207,7 @@ private fun PlaylistsContent(
                 capabilities = capabilities,
                 onRename = { playlistToRename = playlist },
                 onDelete = { playlistToDelete = playlist },
+                onAddToPlaylist = { playlistToAddToPlaylist = playlist },
             )
         }
     }
@@ -229,11 +220,7 @@ private fun PlaylistsContent(
             onConfirm = { name ->
                 playlistToRename = null
                 handlePlaylistAction(
-                    playlist.actionRequest(
-                        SharedMediaItemAction.Rename,
-                        kind = SharedMediaItemKind.Playlist,
-                        textValue = name,
-                    ),
+                    playlist.playlistDetailRequest(NaviampPlaylistDetailCommand.Rename(name)),
                 )
             },
         )
@@ -246,7 +233,7 @@ private fun PlaylistsContent(
             onConfirm = {
                 playlistToDelete = null
                 handlePlaylistAction(
-                    playlist.actionRequest(SharedMediaItemAction.Delete, kind = SharedMediaItemKind.Playlist),
+                    playlist.playlistDetailRequest(NaviampPlaylistDetailCommand.Delete),
                 )
             },
         )
@@ -261,21 +248,13 @@ private fun PlaylistsContent(
             onAddToExisting = { choice ->
                 playlistToAddToPlaylist = null
                 handlePlaylistAction(
-                    playlist.actionRequest(
-                        SharedMediaItemAction.AddToPlaylist,
-                        kind = SharedMediaItemKind.Playlist,
-                        playlistChoice = choice,
-                    ),
+                    playlist.playlistDetailRequest(NaviampPlaylistDetailCommand.AddToPlaylist(choice)),
                 )
             },
             onCreateAndAdd = { name ->
                 playlistToAddToPlaylist = null
                 handlePlaylistAction(
-                    playlist.actionRequest(
-                        SharedMediaItemAction.CreatePlaylistAndAdd,
-                        kind = SharedMediaItemKind.Playlist,
-                        playlistName = name,
-                    ),
+                    playlist.playlistDetailRequest(NaviampPlaylistDetailCommand.CreatePlaylistAndAdd(name)),
                 )
             },
         )
@@ -373,10 +352,11 @@ private fun PlaylistSortIconButton(
 private fun PlaylistListRow(
     playlist: SharedMediaItemUi,
     colors: NaviampColors,
-    onAction: (SharedMediaItemActionRequest) -> Unit,
+    onAction: (NaviampMediaItemActionRequest) -> Unit,
     capabilities: NaviampPlaylistMediaCapabilities,
     onRename: () -> Unit,
     onDelete: () -> Unit,
+    onAddToPlaylist: () -> Unit,
 ) {
     Row(
         modifier = Modifier
@@ -384,9 +364,7 @@ private fun PlaylistListRow(
             .clip(RoundedCornerShape(5.dp))
             .background(Color.Black.copy(alpha = 0.12f))
             .clickable {
-                onAction(
-                    playlist.actionRequest(SharedMediaItemAction.Select, kind = SharedMediaItemKind.Playlist),
-                )
+                onAction(playlist.playlistRequest(NaviampPlaylistMediaCommand.Select))
             }
             .padding(horizontal = 8.dp, vertical = 7.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -424,7 +402,7 @@ private fun PlaylistListRow(
             NaviampTransportIcons.Play,
             stringResource(Res.string.playlists_play),
             onClick = {
-                onAction(playlist.actionRequest(SharedMediaItemAction.Play, kind = SharedMediaItemKind.Playlist))
+                onAction(playlist.playlistDetailRequest(NaviampPlaylistDetailCommand.Play(shuffle = false)))
             },
         )
         MiniPlayerIconButton(
@@ -433,7 +411,7 @@ private fun PlaylistListRow(
             NaviampTransportIcons.Shuffle,
             stringResource(Res.string.playlists_shuffle),
             onClick = {
-                onAction(playlist.actionRequest(SharedMediaItemAction.Shuffle, kind = SharedMediaItemKind.Playlist))
+                onAction(playlist.playlistDetailRequest(NaviampPlaylistDetailCommand.Play(shuffle = true)))
             },
         )
         NaviampRowOverflowMenu(
@@ -452,33 +430,27 @@ private fun PlaylistListRow(
                     NaviampAction.DownloadPlaylist -> NaviampRowMenuItem(
                         action.label,
                         action.icon,
-                        { onAction(playlist.actionRequest(SharedMediaItemAction.Download, kind = SharedMediaItemKind.Playlist)) },
+                        { onAction(playlist.playlistDetailRequest(NaviampPlaylistDetailCommand.Download(null))) },
                         action.enabled,
                     )
                     NaviampAction.KeepPlaylistDownloaded -> NaviampRowMenuItem(
                         action.label,
                         action.icon,
                         {
-                            onAction(
-                                playlist.actionRequest(
-                                    SharedMediaItemAction.Download,
-                                    kind = SharedMediaItemKind.Playlist,
-                                    textValue = KeepDownloadedActionValue,
-                                ),
-                            )
+                            onAction(playlist.playlistDetailRequest(NaviampPlaylistDetailCommand.Download(KeepDownloadedActionValue)))
                         },
                         action.enabled,
                     )
                     NaviampAction.AddToQueue -> NaviampRowMenuItem(
                         action.label,
                         action.icon,
-                        { onAction(playlist.actionRequest(SharedMediaItemAction.AddToQueue, kind = SharedMediaItemKind.Playlist)) },
+                        { onAction(playlist.playlistDetailRequest(NaviampPlaylistDetailCommand.AddToQueue)) },
                         action.enabled,
                     )
                     NaviampAction.AddPlaylistToPlaylist -> NaviampRowMenuItem(
                         action.label,
                         action.icon,
-                        { onAction(playlist.actionRequest(SharedMediaItemAction.AddToPlaylist, kind = SharedMediaItemKind.Playlist)) },
+                        { onAddToPlaylist() },
                         action.enabled,
                     )
                     NaviampAction.RenamePlaylist -> NaviampRowMenuItem(action.label, action.icon, onRename, action.enabled)
@@ -486,12 +458,7 @@ private fun PlaylistListRow(
                         action.label,
                         action.icon,
                         {
-                            onAction(
-                                playlist.actionRequest(
-                                    SharedMediaItemAction.EditSmartPlaylist,
-                                    kind = SharedMediaItemKind.Playlist,
-                                ),
-                            )
+                            onAction(playlist.playlistRequest(NaviampPlaylistMediaCommand.EditSmartPlaylist))
                         },
                         action.enabled,
                     )
@@ -504,6 +471,12 @@ private fun PlaylistListRow(
 }
 
 const val KeepDownloadedActionValue = "keep-downloaded"
+
+private fun SharedMediaItemUi.playlistRequest(command: NaviampPlaylistMediaCommand) =
+    NaviampMediaItemActionRequest(this, NaviampMediaItemCommand.Playlist(command))
+
+private fun SharedMediaItemUi.playlistDetailRequest(command: NaviampPlaylistDetailCommand) =
+    playlistRequest(NaviampPlaylistMediaCommand.Detail(command))
 
 @Composable
 fun NaviampPlaylistDetailContent(

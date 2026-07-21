@@ -33,7 +33,16 @@ class MediaUiMappersTest {
     fun connectionSettingsActionsUpdateTheCurrentFormAsOneValue() {
         val original = ConnectionFormState(serverUrl = "https://old", username = "alice")
         var updated: ConnectionFormState? = null
-        val actions = NaviampConnectionSettingsActions(onFormChanged = { updated = it })
+        val actions = NaviampConnectionSettingsActions(
+            onFormChanged = { updated = it },
+            onConnect = {},
+            onEditCurrentConnection = {},
+            onNewConnection = {},
+            onEditConnection = {},
+            onDeleteConnection = {},
+            onConnectSavedConnection = {},
+            onCancelConnectionForm = {},
+        )
 
         actions.updateForm(original) { it.copy(serverUrl = "https://new") }
 
@@ -492,6 +501,15 @@ class MediaUiMappersTest {
         val track = SharedTrackRowUi(id = "track", title = "Track", subtitle = "Artist")
         val received = mutableListOf<SharedTrackRowAction>()
         val handlers = SharedTrackRowActionHandlers(
+            onSelect = {},
+            onPlayNext = {},
+            onStartRadio = {},
+            onPlayTrackRadioNext = {},
+            onAddTrackRadioToQueue = {},
+            onAddToQueue = {},
+            onDownload = {},
+            onAddToPlaylist = { _, _ -> },
+            onCreatePlaylistAndAdd = { _, _ -> },
             onToggleFavorite = { received += SharedTrackRowAction.ToggleFavorite },
             onGoToAlbum = { received += SharedTrackRowAction.GoToAlbum },
             onGoToArtist = { received += SharedTrackRowAction.GoToArtist },
@@ -516,40 +534,6 @@ class MediaUiMappersTest {
     }
 
     @Test
-    fun sharedMediaItemActionDispatchesPlaylistPayload() {
-        var received: Pair<String, String?>? = null
-        val playlist = SharedMediaItemUi(id = "playlist-1", title = "Playlist", subtitle = "4 tracks")
-        val choice = NaviampPlaylistChoiceUi(id = "target-1", name = "Target")
-
-        handleSharedMediaItemAction(
-            SharedMediaItemActionRequest(
-                item = playlist,
-                action = SharedMediaItemAction.AddToPlaylist,
-                playlistChoice = choice,
-            ),
-            SharedMediaItemActionHandlers(
-                onAddToPlaylist = { item, playlistChoice ->
-                    received = item.id to playlistChoice?.id
-                },
-            ),
-        )
-
-        assertEquals("playlist-1" to "target-1", received)
-    }
-
-    @Test
-    fun sharedMediaItemActionRequestHelperDefaultsShuffleFlag() {
-        val playlist = SharedMediaItemUi(id = "playlist-1", title = "Playlist", subtitle = "4 tracks")
-
-        val play = playlist.actionRequest(SharedMediaItemAction.Play, kind = SharedMediaItemKind.Playlist)
-        val shuffle = playlist.actionRequest(SharedMediaItemAction.Shuffle, kind = SharedMediaItemKind.Playlist)
-
-        assertFalse(play.shuffle)
-        assertTrue(shuffle.shuffle)
-        assertEquals(SharedMediaItemKind.Playlist, shuffle.kind)
-    }
-
-    @Test
     fun downloadedTrackActionDispatchesCreatePlaylistPayload() {
         var received: Pair<String, String>? = null
         val download = NaviampDownloadedTrackUi(
@@ -565,7 +549,10 @@ class MediaUiMappersTest {
                 playlistName = "New Mix",
             ),
             DownloadedTrackActionHandlers(
+                onSelect = {},
+                onAddToPlaylist = { _, _ -> },
                 onCreatePlaylistAndAdd = { item, name -> received = item.id to name },
+                onRemove = {},
             ),
         )
 
@@ -607,7 +594,11 @@ class MediaUiMappersTest {
 
         handleStationRowAction(
             StationRowActionRequest(station, StationRowAction.Delete),
-            StationRowActionHandlers(onDelete = { item -> deletedId = item.id }),
+            StationRowActionHandlers(
+                onSelect = {},
+                onEdit = {},
+                onDelete = { item -> deletedId = item.id },
+            ),
         )
 
         assertEquals("station-1", deletedId)

@@ -103,7 +103,7 @@ fun NaviampSharedAppShell(
     settingsSync: NaviampSettingsSyncUi = NaviampSettingsSyncUi(),
     visualizerBandsProvider: () -> List<Float> = { uiState.nowPlaying?.visualizerFrame?.bands.orEmpty() },
     actions: NaviampAppShellActions,
-    syncActions: NaviampSettingsSyncActions = NaviampSettingsSyncActions(),
+    syncActions: NaviampSettingsSyncActions,
     applicationUpdateChecker: NaviampApplicationUpdateChecker? = null,
 ) {
     val navigationActions = actions.navigationActions
@@ -1441,23 +1441,7 @@ fun NaviampArtistDetailContent(
                 NaviampArtistAlbumActionRequest(album, NaviampArtistAlbumCommand.ToggleFavorite),
             )
         },
-        onAlbumAction = { request ->
-            val command = when (request.action) {
-                SharedMediaItemAction.Select -> NaviampArtistAlbumCommand.Select
-                SharedMediaItemAction.StartRadio -> NaviampArtistAlbumCommand.StartRadio
-                SharedMediaItemAction.Download -> NaviampArtistAlbumCommand.Download
-                SharedMediaItemAction.AddToQueue -> NaviampArtistAlbumCommand.AddToQueue
-                SharedMediaItemAction.AddToPlaylist ->
-                    request.playlistChoice?.let(NaviampArtistAlbumCommand::AddToPlaylist)
-                SharedMediaItemAction.CreatePlaylistAndAdd ->
-                    request.playlistName?.let(NaviampArtistAlbumCommand::CreatePlaylistAndAdd)
-                SharedMediaItemAction.ToggleFavorite -> NaviampArtistAlbumCommand.ToggleFavorite
-                else -> null
-            }
-            command?.let {
-                actions.onAlbumAction(NaviampArtistAlbumActionRequest(request.item, it))
-            }
-        },
+        onAlbumAction = actions.onAlbumAction,
         playlistChoices = playlistChoices,
         playlistActionStatus = playlistActionStatus,
     )
@@ -1488,7 +1472,7 @@ private fun ArtistDetailContent(
     onSimilarArtistExternalSelected: (String) -> Unit,
     onAlbumSelected: (SharedMediaItemUi) -> Unit,
     onAlbumFavoriteToggled: (SharedMediaItemUi) -> Unit,
-    onAlbumAction: (SharedMediaItemActionRequest) -> Unit,
+    onAlbumAction: (NaviampArtistAlbumActionRequest) -> Unit,
     playlistChoices: List<NaviampPlaylistChoiceUi>,
     playlistActionStatus: String?,
 ) {
@@ -1497,22 +1481,6 @@ private fun ArtistDetailContent(
     var albumForPlaylist by remember(detail.artist.id) { mutableStateOf<SharedMediaItemUi?>(null) }
     var biographyExpanded by remember(detail.artist.id) { mutableStateOf(false) }
     var artistImageOpen by remember(detail.artist.id) { mutableStateOf(false) }
-    val handleAlbumAction: (SharedMediaItemActionRequest) -> Unit = { request ->
-        handleSharedMediaItemAction(
-            request,
-            SharedMediaItemActionHandlers(
-                onSelect = { onAlbumAction(request) },
-                onStartRadio = { onAlbumAction(request) },
-                onAddToQueue = { onAlbumAction(request) },
-                onDownload = { onAlbumAction(request) },
-                onAddToPlaylist = { album, playlist ->
-                    if (playlist == null) albumForPlaylist = album else onAlbumAction(request)
-                },
-                onCreatePlaylistAndAdd = { _, _ -> onAlbumAction(request) },
-                onToggleFavorite = { onAlbumAction(request) },
-            ),
-        )
-    }
     val handlePopularTrackAction: (SharedTrackRowActionRequest) -> Unit = { request ->
         if (request.action == SharedTrackRowAction.AddToPlaylist && request.playlistChoice == null) {
             popularTrackForPlaylist = request.track
@@ -1538,20 +1506,23 @@ private fun ArtistDetailContent(
             canFavorite = false,
             favoriteActive = album.favoriteActive,
         ).mapNotNull { action ->
-            val requestAction = when (action.action) {
-                NaviampAction.StartAlbumRadio -> SharedMediaItemAction.StartRadio
-                NaviampAction.DownloadAlbum -> SharedMediaItemAction.Download
-                NaviampAction.AddToQueue -> SharedMediaItemAction.AddToQueue
-                NaviampAction.AddToPlaylist -> SharedMediaItemAction.AddToPlaylist
-                else -> null
-            }
-            requestAction?.let {
+            val command = action.action.albumMediaCommandOrNull()
+            when {
+                action.action == NaviampAction.AddToPlaylist -> NaviampRowMenuItem(
+                    action.label,
+                    action.icon,
+                    { albumForPlaylist = album },
+                    action.enabled,
+                )
+                command != null -> {
                 NaviampRowMenuItem(
                     action.label,
                     action.icon,
-                    { handleAlbumAction(album.actionRequest(it, kind = SharedMediaItemKind.Album)) },
+                    { onAlbumAction(NaviampArtistAlbumActionRequest(album, command)) },
                     action.enabled,
                 )
+                }
+                else -> null
             }
         }
     }
@@ -1723,7 +1694,12 @@ private fun ArtistDetailContent(
                                     onClick = { onAlbumSelected(album) },
                                     menuItems = albumMenuItems(album),
                                     onFavoriteToggled = { selected ->
-                                        handleAlbumAction(selected.actionRequest(SharedMediaItemAction.ToggleFavorite, kind = SharedMediaItemKind.Album))
+                                        onAlbumAction(
+                                            NaviampArtistAlbumActionRequest(
+                                                selected,
+                                                NaviampArtistAlbumCommand.ToggleFavorite,
+                                            ),
+                                        )
                                     },
                                 )
                             }
@@ -1734,9 +1710,7 @@ private fun ArtistDetailContent(
                                 SharedMediaRow(
                                     item = album,
                                     colors = colors,
-                                    itemKind = SharedMediaItemKind.Album,
                                     onClick = { onAlbumSelected(album) },
-                                    onItemAction = handleAlbumAction,
                                     menuItems = albumMenuItems(album),
                                     onFavoriteToggled = onAlbumFavoriteToggled,
                                 )
@@ -1805,21 +1779,19 @@ private fun ArtistDetailContent(
             onDismissRequest = { albumForPlaylist = null },
             onAddToExisting = { playlist ->
                 albumForPlaylist = null
-                handleAlbumAction(
-                    album.actionRequest(
-                        SharedMediaItemAction.AddToPlaylist,
-                        kind = SharedMediaItemKind.Album,
-                        playlistChoice = playlist,
+                onAlbumAction(
+                    NaviampArtistAlbumActionRequest(
+                        album,
+                        NaviampArtistAlbumCommand.AddToPlaylist(playlist),
                     ),
                 )
             },
             onCreateAndAdd = { name ->
                 albumForPlaylist = null
-                handleAlbumAction(
-                    album.actionRequest(
-                        SharedMediaItemAction.CreatePlaylistAndAdd,
-                        kind = SharedMediaItemKind.Album,
-                        playlistName = name,
+                onAlbumAction(
+                    NaviampArtistAlbumActionRequest(
+                        album,
+                        NaviampArtistAlbumCommand.CreatePlaylistAndAdd(name),
                     ),
                 )
             },

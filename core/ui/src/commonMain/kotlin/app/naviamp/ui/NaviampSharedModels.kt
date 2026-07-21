@@ -154,18 +154,18 @@ data class SharedTrackGroupActionRequest(
 )
 
 data class SharedTrackRowActionHandlers(
-    val onSelect: (SharedTrackRowUi) -> Unit = {},
-    val onPlayNext: (SharedTrackRowUi) -> Unit = {},
-    val onStartRadio: (SharedTrackRowUi) -> Unit = {},
-    val onPlayTrackRadioNext: (SharedTrackRowUi) -> Unit = {},
-    val onAddTrackRadioToQueue: (SharedTrackRowUi) -> Unit = {},
-    val onAddToQueue: (SharedTrackRowUi) -> Unit = {},
-    val onDownload: (SharedTrackRowUi) -> Unit = {},
-    val onAddToPlaylist: (SharedTrackRowUi, NaviampPlaylistChoiceUi?) -> Unit = { _, _ -> },
-    val onCreatePlaylistAndAdd: (SharedTrackRowUi, String) -> Unit = { _, _ -> },
-    val onToggleFavorite: (SharedTrackRowUi) -> Unit = {},
-    val onGoToAlbum: (SharedTrackRowUi) -> Unit = {},
-    val onGoToArtist: (SharedTrackRowUi) -> Unit = {},
+    val onSelect: (SharedTrackRowUi) -> Unit,
+    val onPlayNext: (SharedTrackRowUi) -> Unit,
+    val onStartRadio: (SharedTrackRowUi) -> Unit,
+    val onPlayTrackRadioNext: (SharedTrackRowUi) -> Unit,
+    val onAddTrackRadioToQueue: (SharedTrackRowUi) -> Unit,
+    val onAddToQueue: (SharedTrackRowUi) -> Unit,
+    val onDownload: (SharedTrackRowUi) -> Unit,
+    val onAddToPlaylist: (SharedTrackRowUi, NaviampPlaylistChoiceUi?) -> Unit,
+    val onCreatePlaylistAndAdd: (SharedTrackRowUi, String) -> Unit,
+    val onToggleFavorite: (SharedTrackRowUi) -> Unit,
+    val onGoToAlbum: (SharedTrackRowUi) -> Unit,
+    val onGoToArtist: (SharedTrackRowUi) -> Unit,
 )
 
 fun handleSharedTrackRowAction(
@@ -218,10 +218,10 @@ data class DownloadedTrackActionRequest(
 )
 
 data class DownloadedTrackActionHandlers(
-    val onSelect: (NaviampDownloadedTrackUi) -> Unit = {},
-    val onAddToPlaylist: (NaviampDownloadedTrackUi, NaviampPlaylistChoiceUi?) -> Unit = { _, _ -> },
-    val onCreatePlaylistAndAdd: (NaviampDownloadedTrackUi, String) -> Unit = { _, _ -> },
-    val onRemove: (NaviampDownloadedTrackUi) -> Unit = {},
+    val onSelect: (NaviampDownloadedTrackUi) -> Unit,
+    val onAddToPlaylist: (NaviampDownloadedTrackUi, NaviampPlaylistChoiceUi?) -> Unit,
+    val onCreatePlaylistAndAdd: (NaviampDownloadedTrackUi, String) -> Unit,
+    val onRemove: (NaviampDownloadedTrackUi) -> Unit,
 )
 
 fun handleDownloadedTrackAction(
@@ -261,118 +261,6 @@ enum class SharedMediaItemKind {
     MixBuilder,
 }
 
-enum class SharedMediaItemAction {
-    Select,
-    Play,
-    Shuffle,
-    StartRadio,
-    FindSimilar,
-    AddToQueue,
-    Download,
-    AddToPlaylist,
-    CreatePlaylistAndAdd,
-    CopyPlaylist,
-    CopyPlaylistDeduplicated,
-    ToggleFavorite,
-    Rename,
-    EditSmartPlaylist,
-    Delete,
-    EditStation,
-    DeleteStation,
-}
-
-data class SharedMediaItemActionRequest(
-    val item: SharedMediaItemUi,
-    val action: SharedMediaItemAction,
-    val kind: SharedMediaItemKind = SharedMediaItemKind.Unknown,
-    val playlistChoice: NaviampPlaylistChoiceUi? = null,
-    val playlistName: String? = null,
-    val textValue: String? = null,
-    val shuffle: Boolean = false,
-)
-
-fun sharedMediaItemActionRequest(
-    item: SharedMediaItemUi,
-    action: SharedMediaItemAction,
-    kind: SharedMediaItemKind = SharedMediaItemKind.Unknown,
-    playlistChoice: NaviampPlaylistChoiceUi? = null,
-    playlistName: String? = null,
-    textValue: String? = null,
-    shuffle: Boolean = action == SharedMediaItemAction.Shuffle,
-): SharedMediaItemActionRequest =
-    SharedMediaItemActionRequest(
-        item = item,
-        action = action,
-        kind = kind,
-        playlistChoice = playlistChoice,
-        playlistName = playlistName,
-        textValue = textValue,
-        shuffle = shuffle,
-    )
-
-fun SharedMediaItemUi.actionRequest(
-    action: SharedMediaItemAction,
-    kind: SharedMediaItemKind = SharedMediaItemKind.Unknown,
-    playlistChoice: NaviampPlaylistChoiceUi? = null,
-    playlistName: String? = null,
-    textValue: String? = null,
-    shuffle: Boolean = action == SharedMediaItemAction.Shuffle,
-): SharedMediaItemActionRequest =
-    sharedMediaItemActionRequest(
-        item = this,
-        action = action,
-        kind = kind,
-        playlistChoice = playlistChoice,
-        playlistName = playlistName,
-        textValue = textValue,
-        shuffle = shuffle,
-    )
-
-data class SharedMediaItemActionHandlers(
-    val onSelect: (SharedMediaItemUi) -> Unit = {},
-    val onPlay: (SharedMediaItemUi, Boolean) -> Unit = { _, _ -> },
-    val onStartRadio: (SharedMediaItemUi) -> Unit = {},
-    val onFindSimilar: (SharedMediaItemUi) -> Unit = {},
-    val onAddToQueue: (SharedMediaItemUi) -> Unit = {},
-    val onDownload: (SharedMediaItemUi) -> Unit = {},
-    val onAddToPlaylist: (SharedMediaItemUi, NaviampPlaylistChoiceUi?) -> Unit = { _, _ -> },
-    val onCreatePlaylistAndAdd: (SharedMediaItemUi, String) -> Unit = { _, _ -> },
-    val onToggleFavorite: (SharedMediaItemUi) -> Unit = {},
-    val onRename: (SharedMediaItemUi, String) -> Unit = { _, _ -> },
-    val onEditSmartPlaylist: (SharedMediaItemUi) -> Unit = {},
-    val onDelete: (SharedMediaItemUi) -> Unit = {},
-    val onEditStation: (SharedMediaItemUi) -> Unit = {},
-    val onDeleteStation: (SharedMediaItemUi) -> Unit = {},
-)
-
-fun handleSharedMediaItemAction(
-    request: SharedMediaItemActionRequest,
-    handlers: SharedMediaItemActionHandlers,
-) {
-    when (request.action) {
-        SharedMediaItemAction.Select -> handlers.onSelect(request.item)
-        SharedMediaItemAction.Play -> handlers.onPlay(request.item, false)
-        SharedMediaItemAction.Shuffle -> handlers.onPlay(request.item, true)
-        SharedMediaItemAction.StartRadio -> handlers.onStartRadio(request.item)
-        SharedMediaItemAction.FindSimilar -> handlers.onFindSimilar(request.item)
-        SharedMediaItemAction.AddToQueue -> handlers.onAddToQueue(request.item)
-        SharedMediaItemAction.Download -> handlers.onDownload(request.item)
-        SharedMediaItemAction.AddToPlaylist -> handlers.onAddToPlaylist(request.item, request.playlistChoice)
-        SharedMediaItemAction.CreatePlaylistAndAdd ->
-            request.playlistName?.let { name -> handlers.onCreatePlaylistAndAdd(request.item, name) }
-        SharedMediaItemAction.CopyPlaylist,
-        SharedMediaItemAction.CopyPlaylistDeduplicated,
-        -> request.playlistName?.let { name -> handlers.onCreatePlaylistAndAdd(request.item, name) }
-        SharedMediaItemAction.ToggleFavorite -> handlers.onToggleFavorite(request.item)
-        SharedMediaItemAction.Rename ->
-            request.textValue?.let { name -> handlers.onRename(request.item, name) }
-        SharedMediaItemAction.EditSmartPlaylist -> handlers.onEditSmartPlaylist(request.item)
-        SharedMediaItemAction.Delete -> handlers.onDelete(request.item)
-        SharedMediaItemAction.EditStation -> handlers.onEditStation(request.item)
-        SharedMediaItemAction.DeleteStation -> handlers.onDeleteStation(request.item)
-    }
-}
-
 data class SharedAlbumDetailUi(
     val album: SharedMediaItemUi,
     val tracks: List<SharedTrackRowUi>,
@@ -401,12 +289,12 @@ data class NaviampDownloadsScreenUi(
 )
 
 data class NaviampDownloadsActions(
-    val onTrackAction: (DownloadedTrackActionRequest) -> Unit = {},
-    val onCancelJob: (String) -> Unit = {},
-    val onRetryJob: (String) -> Unit = {},
-    val onRefresh: () -> Unit = {},
-    val onToggleKeepFavoritesDownloaded: () -> Unit = {},
-    val onDeleteAll: () -> Unit = {},
+    val onTrackAction: (DownloadedTrackActionRequest) -> Unit,
+    val onCancelJob: (String) -> Unit,
+    val onRetryJob: (String) -> Unit,
+    val onRefresh: () -> Unit,
+    val onToggleKeepFavoritesDownloaded: () -> Unit,
+    val onDeleteAll: () -> Unit,
 )
 
 data class NaviampInternetRadioStationUi(
@@ -429,9 +317,9 @@ data class NaviampInternetRadioScreenUi(
 )
 
 data class NaviampInternetRadioActions(
-    val onRefresh: () -> Unit = {},
-    val onStationAction: (StationRowActionRequest) -> Unit = {},
-    val onSaveStation: (NaviampInternetRadioStationEditUi) -> Unit = {},
+    val onRefresh: () -> Unit,
+    val onStationAction: (StationRowActionRequest) -> Unit,
+    val onSaveStation: (NaviampInternetRadioStationEditUi) -> Unit,
 )
 
 data class NaviampAlbumDetailScreenUi(
@@ -673,9 +561,9 @@ data class StationRowActionRequest(
 )
 
 data class StationRowActionHandlers(
-    val onSelect: (SharedMediaItemUi) -> Unit = {},
-    val onEdit: (SharedMediaItemUi) -> Unit = {},
-    val onDelete: (SharedMediaItemUi) -> Unit = {},
+    val onSelect: (SharedMediaItemUi) -> Unit,
+    val onEdit: (SharedMediaItemUi) -> Unit,
+    val onDelete: (SharedMediaItemUi) -> Unit,
 )
 
 fun handleStationRowAction(
@@ -706,9 +594,9 @@ data class NaviampSearchScreenUi(
 )
 
 data class NaviampSearchActions(
-    val onQueryChanged: (String) -> Unit = {},
-    val onSearch: () -> Unit = {},
-    val onClear: () -> Unit = {},
+    val onQueryChanged: (String) -> Unit,
+    val onSearch: () -> Unit,
+    val onClear: () -> Unit,
 )
 
 data class NaviampLibraryScreenUi(
@@ -718,10 +606,10 @@ data class NaviampLibraryScreenUi(
 )
 
 data class NaviampLibraryActions(
-    val onQueryChanged: (String) -> Unit = {},
-    val onRefresh: () -> Unit = {},
-    val onLoadMore: () -> Unit = {},
-    val onJumpToLetter: (Char) -> Unit = {},
+    val onQueryChanged: (String) -> Unit,
+    val onRefresh: () -> Unit,
+    val onLoadMore: () -> Unit,
+    val onJumpToLetter: (Char) -> Unit,
 )
 
 data class SharedArtistMixBuilderUi(
@@ -733,12 +621,12 @@ data class SharedArtistMixBuilderUi(
 )
 
 data class SharedArtistMixBuilderActions(
-    val onQueryChanged: (String) -> Unit = {},
-    val onSearch: () -> Unit = {},
-    val onArtistSelected: (SharedMediaItemUi) -> Unit = {},
-    val onArtistRemoved: (SharedMediaItemUi) -> Unit = {},
-    val onReset: () -> Unit = {},
-    val onPlay: () -> Unit = {},
+    val onQueryChanged: (String) -> Unit,
+    val onSearch: () -> Unit,
+    val onArtistSelected: (SharedMediaItemUi) -> Unit,
+    val onArtistRemoved: (SharedMediaItemUi) -> Unit,
+    val onReset: () -> Unit,
+    val onPlay: () -> Unit,
 )
 
 data class SharedAlbumMixBuilderUi(
@@ -750,12 +638,12 @@ data class SharedAlbumMixBuilderUi(
 )
 
 data class SharedAlbumMixBuilderActions(
-    val onQueryChanged: (String) -> Unit = {},
-    val onSearch: () -> Unit = {},
-    val onAlbumSelected: (SharedMediaItemUi) -> Unit = {},
-    val onAlbumRemoved: (SharedMediaItemUi) -> Unit = {},
-    val onReset: () -> Unit = {},
-    val onPlay: () -> Unit = {},
+    val onQueryChanged: (String) -> Unit,
+    val onSearch: () -> Unit,
+    val onAlbumSelected: (SharedMediaItemUi) -> Unit,
+    val onAlbumRemoved: (SharedMediaItemUi) -> Unit,
+    val onReset: () -> Unit,
+    val onPlay: () -> Unit,
 )
 
 data class SharedGenreMixBuilderUi(
@@ -767,12 +655,12 @@ data class SharedGenreMixBuilderUi(
 )
 
 data class SharedGenreMixBuilderActions(
-    val onQueryChanged: (String) -> Unit = {},
-    val onSearch: () -> Unit = {},
-    val onGenreSelected: (SharedGenreMixItemUi) -> Unit = {},
-    val onGenreRemoved: (SharedGenreMixItemUi) -> Unit = {},
-    val onReset: () -> Unit = {},
-    val onPlay: () -> Unit = {},
+    val onQueryChanged: (String) -> Unit,
+    val onSearch: () -> Unit,
+    val onGenreSelected: (SharedGenreMixItemUi) -> Unit,
+    val onGenreRemoved: (SharedGenreMixItemUi) -> Unit,
+    val onReset: () -> Unit,
+    val onPlay: () -> Unit,
 )
 
 data class SharedSonicPathBuilderUi(
@@ -800,24 +688,24 @@ data class NaviampHomeScreenUi(
 )
 
 data class NaviampHomeActions(
-    val onRefresh: () -> Unit = {},
-    val onRecentRadioSelected: (SharedMediaItemUi) -> Unit = {},
-    val onInternetRadioStationSelected: (SharedMediaItemUi) -> Unit = {},
-    val onMixBuilderSelected: (SharedMixBuilderUi) -> Unit = {},
-    val onStationSelected: (SharedHomeStationUi) -> Unit = {},
-    val onSonicDiscoveryTrackAction: (SharedHomeDiscoveryTrackActionRequest) -> Unit = {},
-    val onRecentlyPlayedTrackAction: (SharedTrackRowActionRequest) -> Unit = {},
+    val onRefresh: () -> Unit,
+    val onRecentRadioSelected: (SharedMediaItemUi) -> Unit,
+    val onInternetRadioStationSelected: (SharedMediaItemUi) -> Unit,
+    val onMixBuilderSelected: (SharedMixBuilderUi) -> Unit,
+    val onStationSelected: (SharedHomeStationUi) -> Unit,
+    val onSonicDiscoveryTrackAction: (SharedHomeDiscoveryTrackActionRequest) -> Unit,
+    val onRecentlyPlayedTrackAction: (SharedTrackRowActionRequest) -> Unit,
 )
 
 data class NaviampMediaActions(
-    val onTrackSelected: (SharedTrackRowUi) -> Unit = {},
-    val onAlbumSelected: (SharedMediaItemUi) -> Unit = {},
-    val onAlbumFavoriteToggled: (SharedMediaItemUi) -> Unit = {},
-    val onMixAlbumSelected: (SharedMediaItemUi) -> Unit = {},
-    val onTrackAction: (SharedTrackRowActionRequest) -> Unit = {},
-    val onArtistSelected: (SharedMediaItemUi) -> Unit = {},
-    val onArtistFavoriteToggled: (SharedMediaItemUi) -> Unit = {},
-    val onPlaylistSelected: (SharedMediaItemUi) -> Unit = {},
+    val onTrackSelected: (SharedTrackRowUi) -> Unit,
+    val onAlbumSelected: (SharedMediaItemUi) -> Unit,
+    val onAlbumFavoriteToggled: (SharedMediaItemUi) -> Unit,
+    val onMixAlbumSelected: (SharedMediaItemUi) -> Unit,
+    val onTrackAction: (SharedTrackRowActionRequest) -> Unit,
+    val onArtistSelected: (SharedMediaItemUi) -> Unit,
+    val onArtistFavoriteToggled: (SharedMediaItemUi) -> Unit,
+    val onPlaylistSelected: (SharedMediaItemUi) -> Unit,
     val onMediaItemAction: (NaviampMediaItemActionRequest) -> Unit,
 )
 
@@ -880,9 +768,9 @@ val NaviampSharedMediaCapabilities = NaviampMediaCapabilities(
 )
 
 data class NaviampShellNavigationActions(
-    val onRouteSelected: (SharedRoute) -> Unit = {},
-    val onOpenNowPlaying: () -> Unit = {},
-    val onCloseNowPlaying: () -> Unit = {},
+    val onRouteSelected: (SharedRoute) -> Unit,
+    val onOpenNowPlaying: () -> Unit,
+    val onCloseNowPlaying: () -> Unit,
 )
 
 data class NaviampShellChromeUi(
@@ -919,43 +807,43 @@ data class NaviampAppShellUiState(
 )
 
 data class NaviampAppShellActions(
-    val navigationActions: NaviampShellNavigationActions = NaviampShellNavigationActions(),
-    val connectionActions: NaviampConnectionSettingsActions = NaviampConnectionSettingsActions(),
-    val valueActions: NaviampSettingsValueActions = NaviampSettingsValueActions(),
-    val maintenanceActions: NaviampSettingsMaintenanceActions = NaviampSettingsMaintenanceActions(),
-    val searchActions: NaviampSearchActions = NaviampSearchActions(),
-    val artistMixActions: SharedArtistMixBuilderActions = SharedArtistMixBuilderActions(),
-    val albumMixActions: SharedAlbumMixBuilderActions = SharedAlbumMixBuilderActions(),
-    val genreMixActions: SharedGenreMixBuilderActions = SharedGenreMixBuilderActions(),
-    val sonicPathActions: SharedSonicPathBuilderActions = SharedSonicPathBuilderActions(),
-    val sonicMixActions: SharedSonicMixBuilderActions = SharedSonicMixBuilderActions(),
-    val downloadsActions: NaviampDownloadsActions = NaviampDownloadsActions(),
-    val libraryActions: NaviampLibraryActions = NaviampLibraryActions(),
+    val navigationActions: NaviampShellNavigationActions,
+    val connectionActions: NaviampConnectionSettingsActions,
+    val valueActions: NaviampSettingsValueActions,
+    val maintenanceActions: NaviampSettingsMaintenanceActions,
+    val searchActions: NaviampSearchActions,
+    val artistMixActions: SharedArtistMixBuilderActions,
+    val albumMixActions: SharedAlbumMixBuilderActions,
+    val genreMixActions: SharedGenreMixBuilderActions,
+    val sonicPathActions: SharedSonicPathBuilderActions,
+    val sonicMixActions: SharedSonicMixBuilderActions,
+    val downloadsActions: NaviampDownloadsActions,
+    val libraryActions: NaviampLibraryActions,
     val playlistsActions: NaviampPlaylistsActions,
-    val radioActions: NaviampInternetRadioActions = NaviampInternetRadioActions(),
+    val radioActions: NaviampInternetRadioActions,
     val albumDetailActions: NaviampAlbumDetailActions,
     val artistDetailActions: NaviampArtistDetailActions,
     val playlistDetailActions: NaviampPlaylistDetailActions,
-    val homeActions: NaviampHomeActions = NaviampHomeActions(),
+    val homeActions: NaviampHomeActions,
     val mediaActions: NaviampMediaActions,
-    val nowPlayingActions: NaviampNowPlayingActions = NaviampNowPlayingActions(),
+    val nowPlayingActions: NaviampNowPlayingActions,
 )
 
 data class SharedSonicPathBuilderActions(
-    val onStartQueryChanged: (String) -> Unit = {},
-    val onEndQueryChanged: (String) -> Unit = {},
-    val onStartSearch: () -> Unit = {},
-    val onEndSearch: () -> Unit = {},
-    val onStartTrackSelected: (SharedTrackRowUi) -> Unit = {},
-    val onEndTrackSelected: (SharedTrackRowUi) -> Unit = {},
-    val onStartTrackCleared: () -> Unit = {},
-    val onEndTrackCleared: () -> Unit = {},
-    val onCountChanged: (Int) -> Unit = {},
-    val onBuild: () -> Unit = {},
-    val onReset: () -> Unit = {},
-    val onPlay: () -> Unit = {},
-    val onAddToQueue: () -> Unit = {},
-    val onSaveAsPlaylist: (String) -> Unit = {},
+    val onStartQueryChanged: (String) -> Unit,
+    val onEndQueryChanged: (String) -> Unit,
+    val onStartSearch: () -> Unit,
+    val onEndSearch: () -> Unit,
+    val onStartTrackSelected: (SharedTrackRowUi) -> Unit,
+    val onEndTrackSelected: (SharedTrackRowUi) -> Unit,
+    val onStartTrackCleared: () -> Unit,
+    val onEndTrackCleared: () -> Unit,
+    val onCountChanged: (Int) -> Unit,
+    val onBuild: () -> Unit,
+    val onReset: () -> Unit,
+    val onPlay: () -> Unit,
+    val onAddToQueue: () -> Unit,
+    val onSaveAsPlaylist: (String) -> Unit,
 )
 
 data class SharedSonicMixBuilderUi(
@@ -976,17 +864,17 @@ data class SharedSonicMixBuilderUi(
 }
 
 data class SharedSonicMixBuilderActions(
-    val onQueryChanged: (String) -> Unit = {},
-    val onSearch: () -> Unit = {},
-    val onTrackSelected: (SharedTrackRowUi) -> Unit = {},
-    val onTrackRemoved: (SharedTrackRowUi) -> Unit = {},
-    val onTargetLengthChanged: (Int) -> Unit = {},
-    val onBiasChanged: (SharedSonicMixBiasUi) -> Unit = {},
-    val onBuild: () -> Unit = {},
-    val onReset: () -> Unit = {},
-    val onPlay: () -> Unit = {},
-    val onAddToQueue: () -> Unit = {},
-    val onSaveAsPlaylist: (String) -> Unit = {},
+    val onQueryChanged: (String) -> Unit,
+    val onSearch: () -> Unit,
+    val onTrackSelected: (SharedTrackRowUi) -> Unit,
+    val onTrackRemoved: (SharedTrackRowUi) -> Unit,
+    val onTargetLengthChanged: (Int) -> Unit,
+    val onBiasChanged: (SharedSonicMixBiasUi) -> Unit,
+    val onBuild: () -> Unit,
+    val onReset: () -> Unit,
+    val onPlay: () -> Unit,
+    val onAddToQueue: () -> Unit,
+    val onSaveAsPlaylist: (String) -> Unit,
 )
 
 enum class SharedSonicMixBiasUi(val label: String) {
@@ -1093,14 +981,14 @@ data class NaviampConnectionSettingsUi(
 )
 
 data class NaviampConnectionSettingsActions(
-    val onFormChanged: (ConnectionFormState) -> Unit = {},
-    val onConnect: () -> Unit = {},
-    val onEditCurrentConnection: () -> Unit = {},
-    val onNewConnection: () -> Unit = {},
-    val onEditConnection: (NaviampSavedConnectionUi) -> Unit = {},
-    val onDeleteConnection: (NaviampSavedConnectionUi) -> Unit = {},
-    val onConnectSavedConnection: (NaviampSavedConnectionUi) -> Unit = {},
-    val onCancelConnectionForm: () -> Unit = {},
+    val onFormChanged: (ConnectionFormState) -> Unit,
+    val onConnect: () -> Unit,
+    val onEditCurrentConnection: () -> Unit,
+    val onNewConnection: () -> Unit,
+    val onEditConnection: (NaviampSavedConnectionUi) -> Unit,
+    val onDeleteConnection: (NaviampSavedConnectionUi) -> Unit,
+    val onConnectSavedConnection: (NaviampSavedConnectionUi) -> Unit,
+    val onCancelConnectionForm: () -> Unit,
 ) {
     fun updateForm(
         current: ConnectionFormState,
@@ -1118,11 +1006,11 @@ data class NaviampSettingsSyncUi(
 )
 
 data class NaviampSettingsSyncActions(
-    val onDirectoryChanged: (String?) -> Unit = {},
-    val onDirectorySelectedForImport: (String) -> Unit = {},
-    val onAutoExportChanged: (Boolean) -> Unit = {},
-    val onExport: () -> Unit = {},
-    val onImport: () -> Unit = {},
+    val onDirectoryChanged: (String?) -> Unit,
+    val onDirectorySelectedForImport: (String) -> Unit,
+    val onAutoExportChanged: (Boolean) -> Unit,
+    val onExport: () -> Unit,
+    val onImport: () -> Unit,
     val onImportFile: (() -> Unit)? = null,
     val onChooseFolder: (() -> Unit)? = null,
     val onImportFolder: (() -> Unit)? = null,
@@ -1130,20 +1018,20 @@ data class NaviampSettingsSyncActions(
 )
 
 data class NaviampSettingsValueActions(
-    val onInterfaceSettingsChanged: (InterfaceSettings) -> Unit = {},
-    val onPlaybackSettingsChanged: (PlaybackSettings) -> Unit = {},
-    val onPlaybackSettingsChangedAndRedownload: (PlaybackSettings) -> Unit = {},
-    val onCacheSettingsChanged: (CacheSettings) -> Unit = {},
-    val onDownloadLocationChanged: (NaviampStorageLocationUi) -> Unit = {},
-    val onAudioCacheLocationChanged: (NaviampStorageLocationUi) -> Unit = {},
+    val onInterfaceSettingsChanged: (InterfaceSettings) -> Unit,
+    val onPlaybackSettingsChanged: (PlaybackSettings) -> Unit,
+    val onPlaybackSettingsChangedAndRedownload: (PlaybackSettings) -> Unit,
+    val onCacheSettingsChanged: (CacheSettings) -> Unit,
+    val onDownloadLocationChanged: (NaviampStorageLocationUi) -> Unit,
+    val onAudioCacheLocationChanged: (NaviampStorageLocationUi) -> Unit,
 )
 
 data class NaviampSettingsMaintenanceActions(
-    val onOpenStatsForNerds: () -> Unit = {},
-    val onClearCache: () -> Unit = {},
-    val onClearLibrary: () -> Unit = {},
-    val onRefreshLibrary: () -> Unit = {},
-    val onResetDatabase: () -> Unit = {},
+    val onOpenStatsForNerds: () -> Unit,
+    val onClearCache: () -> Unit,
+    val onClearLibrary: () -> Unit,
+    val onRefreshLibrary: () -> Unit,
+    val onResetDatabase: () -> Unit,
 )
 
 data class NaviampGeneralSettingsUi(

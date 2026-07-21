@@ -115,30 +115,27 @@ fun SharedHome(
             colors,
             onAlbumSelected,
             onAlbumFavoriteToggled,
-            SharedMediaItemKind.Album,
         )
         HomeSection(
             stringResource(Res.string.home_recent_playlists),
             home.playlists,
             colors,
             onPlaylistSelected,
-            itemKind = SharedMediaItemKind.Playlist,
         )
         HomeSection(
             stringResource(Res.string.home_recent_internet_radio),
             home.radioStations,
             colors,
             onInternetRadioStationSelected,
-            itemKind = SharedMediaItemKind.RadioStation,
         )
         HomeStationSection(home.stations, colors, onHomeStationSelected)
-        HomeSection(stringResource(Res.string.home_recent_albums), home.recentAlbums, colors, onAlbumSelected, onAlbumFavoriteToggled, SharedMediaItemKind.Album)
-        HomeSection(stringResource(Res.string.home_frequently_played_albums), home.frequentAlbums, colors, onAlbumSelected, onAlbumFavoriteToggled, SharedMediaItemKind.Album)
-        HomeSection(stringResource(Res.string.home_random_albums), home.randomAlbums, colors, onAlbumSelected, onAlbumFavoriteToggled, SharedMediaItemKind.Album)
+        HomeSection(stringResource(Res.string.home_recent_albums), home.recentAlbums, colors, onAlbumSelected, onAlbumFavoriteToggled)
+        HomeSection(stringResource(Res.string.home_frequently_played_albums), home.frequentAlbums, colors, onAlbumSelected, onAlbumFavoriteToggled)
+        HomeSection(stringResource(Res.string.home_random_albums), home.randomAlbums, colors, onAlbumSelected, onAlbumFavoriteToggled)
         home.genreSpotlightTitle?.let { title ->
-            HomeSection(stringResource(Res.string.home_more_in, title), home.genreSpotlightAlbums, colors, onAlbumSelected, onAlbumFavoriteToggled, SharedMediaItemKind.Album)
+            HomeSection(stringResource(Res.string.home_more_in, title), home.genreSpotlightAlbums, colors, onAlbumSelected, onAlbumFavoriteToggled)
         }
-        HomeSection(stringResource(Res.string.home_from_decade, home.decadeLabel), home.decadeAlbums, colors, onAlbumSelected, onAlbumFavoriteToggled, SharedMediaItemKind.Album)
+        HomeSection(stringResource(Res.string.home_from_decade, home.decadeLabel), home.decadeAlbums, colors, onAlbumSelected, onAlbumFavoriteToggled)
     }
 }
 
@@ -369,17 +366,19 @@ fun NaviampSearchContent(
     val query = screen.query
     val results = screen.results
     val searchFocusRequester = remember { FocusRequester() }
-    val onMediaItemAction: (SharedMediaItemActionRequest) -> Unit = { request ->
-        dispatchLegacyMediaItemAction(request, mediaActions.onMediaItemAction)
-    }
     val mediaMenuItems: (SharedMediaItemUi, SharedMediaItemKind, List<NaviampActionSpec>) -> List<NaviampRowMenuItem> =
         { item, kind, specs ->
             specs.mapNotNull { spec ->
-                spec.action.sharedMediaItemActionOrNull()?.let { action ->
+                val command = when (kind) {
+                    SharedMediaItemKind.Artist -> spec.action.artistMediaCommandOrNull()?.let(NaviampMediaItemCommand::Artist)
+                    SharedMediaItemKind.Album -> spec.action.albumMediaCommandOrNull()?.let(NaviampMediaItemCommand::Album)
+                    else -> null
+                }
+                command?.let {
                     NaviampRowMenuItem(
                         label = spec.label,
                         icon = spec.icon,
-                        onClick = { onMediaItemAction(item.actionRequest(action, kind = kind)) },
+                        onClick = { mediaActions.onMediaItemAction(NaviampMediaItemActionRequest(item, it)) },
                         enabled = spec.enabled,
                     )
                 }
@@ -407,10 +406,15 @@ fun NaviampSearchContent(
         SharedMediaRow(
             item = item,
             colors = colors,
-            itemKind = kind,
             menuItems = mediaMenuItems(item, kind, specs),
-            canSelect = true,
-            onItemAction = onMediaItemAction,
+            onClick = {
+                val command = when (kind) {
+                    SharedMediaItemKind.Artist -> NaviampMediaItemCommand.Artist(NaviampArtistMediaCommand.Select)
+                    SharedMediaItemKind.Album -> NaviampMediaItemCommand.Album(NaviampArtistAlbumCommand.Select)
+                    else -> null
+                }
+                command?.let { mediaActions.onMediaItemAction(NaviampMediaItemActionRequest(item, it)) }
+            },
         )
     }
     Column(
@@ -494,7 +498,6 @@ internal fun MediaListContent(
                 item = item,
                 colors = colors,
                 onClick = onItemSelected?.let { { it(item) } },
-                itemKind = itemKind,
             )
         }
     }
@@ -513,9 +516,6 @@ fun NaviampLibraryContent(
     val syncStatus = screen.syncStatus
     val searchFocusRequester = remember { FocusRequester() }
     val scope = rememberCoroutineScope()
-    val onMediaItemAction: (SharedMediaItemActionRequest) -> Unit = { request ->
-        dispatchLegacyMediaItemAction(request, mediaActions.onMediaItemAction)
-    }
     val filteredItems = remember(items, query) {
         val normalizedQuery = query.trim().lowercase()
         if (normalizedQuery.isBlank()) {
@@ -617,13 +617,13 @@ fun NaviampLibraryContent(
                     canFavorite = NaviampSharedMediaCapabilities.artist.canToggleFavorite && item.canFavorite,
                     favoriteActive = item.favoriteActive,
                 ).mapNotNull { spec ->
-                    spec.action.sharedMediaItemActionOrNull()?.let { action ->
+                    spec.action.artistMediaCommandOrNull()?.let { command ->
                         NaviampRowMenuItem(
                             label = spec.label,
                             icon = spec.icon,
                             onClick = {
-                                onMediaItemAction(
-                                    item.actionRequest(action, kind = SharedMediaItemKind.Artist),
+                                mediaActions.onMediaItemAction(
+                                    NaviampMediaItemActionRequest(item, NaviampMediaItemCommand.Artist(command)),
                                 )
                             },
                             enabled = spec.enabled,
@@ -633,10 +633,15 @@ fun NaviampLibraryContent(
                 SharedMediaRow(
                     item = item,
                     colors = colors,
-                    itemKind = SharedMediaItemKind.Artist,
                     menuItems = menuItems,
-                    canSelect = true,
-                    onItemAction = onMediaItemAction,
+                    onClick = {
+                        mediaActions.onMediaItemAction(
+                            NaviampMediaItemActionRequest(
+                                item,
+                                NaviampMediaItemCommand.Artist(NaviampArtistMediaCommand.Select),
+                            ),
+                        )
+                    },
                 )
             }
         }
