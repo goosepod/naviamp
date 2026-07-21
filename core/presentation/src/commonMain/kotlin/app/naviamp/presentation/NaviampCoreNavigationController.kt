@@ -44,6 +44,11 @@ class NaviampCoreNavigationController(
         navigation.recordAlbumDetailOpened(backRouteOverride)
     }
 
+    fun openAlbumDetail(backRouteOverride: NaviampRoute? = null) {
+        recordAlbumOpened(backRouteOverride)
+        navigation.navigate(NaviampRoute.AlbumDetail)
+    }
+
     fun recordArtistOpened(
         artist: Artist,
         backRouteOverride: NaviampRoute? = null,
@@ -54,6 +59,19 @@ class NaviampCoreNavigationController(
             backRouteOverride = backRouteOverride,
             pushCurrentArtist = pushCurrentArtist,
         )
+    }
+
+    fun openArtistDetail(
+        artist: Artist,
+        backRouteOverride: NaviampRoute? = null,
+        pushCurrentArtist: Boolean = true,
+    ) {
+        recordArtistOpened(artist, backRouteOverride, pushCurrentArtist)
+        navigation.navigate(NaviampRoute.ArtistDetail)
+    }
+
+    fun updateActiveArtist(artist: Artist) {
+        navigation.updateActiveArtist(artist)
     }
 
     private fun selectRoute(route: NaviampRoute) {
