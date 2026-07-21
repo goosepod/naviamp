@@ -12,6 +12,7 @@ import app.naviamp.ui.NaviampHomeActions
 import app.naviamp.ui.NaviampLibraryActions
 import app.naviamp.ui.NaviampPlaylistsActions
 import app.naviamp.ui.NaviampSmartPlaylistActions
+import app.naviamp.ui.requireSmartPlaylistActionSource
 import app.naviamp.ui.NaviampSearchActions
 import app.naviamp.ui.NaviampSettingsMaintenanceActions
 import app.naviamp.ui.NaviampSettingsValueActions
@@ -194,25 +195,29 @@ internal fun desktopAppShellActions(context: DesktopAppShellActionContext): Navi
                 smartPlaylist = NaviampSmartPlaylistActions(
                     onSave = smartPlaylistsController::saveSmartPlaylist,
                     onUpdate = { item, definition ->
-                        playlistSources.playlist(item.id)?.let { playlist ->
-                            smartPlaylistsController.updateSmartPlaylist(playlist, definition)
-                        }
+                        smartPlaylistsController.updateSmartPlaylist(
+                            requireSmartPlaylistActionSource(item, playlistSources::playlist),
+                            definition,
+                        )
                     },
                     onSaveWithPassword = smartPlaylistsController::saveSmartPlaylistWithPassword,
                     onUpdateWithPassword = { item, definition, password ->
-                        playlistSources.playlist(item.id)?.let { playlist ->
-                            smartPlaylistsController.updateSmartPlaylistWithPassword(playlist, definition, password)
-                        }
+                        smartPlaylistsController.updateSmartPlaylistWithPassword(
+                            requireSmartPlaylistActionSource(item, playlistSources::playlist),
+                            definition,
+                            password,
+                        )
                     },
                     onLoad = { item ->
-                        playlistSources.playlist(item.id)
-                            ?.let { smartPlaylistsController.loadSmartPlaylistDefinition(it) }
-                            ?: error("Playlist ${item.title} is no longer available.")
+                        smartPlaylistsController.loadSmartPlaylistDefinition(
+                            requireSmartPlaylistActionSource(item, playlistSources::playlist),
+                        )
                     },
                     onLoadWithPassword = { item, password ->
-                        playlistSources.playlist(item.id)
-                            ?.let { smartPlaylistsController.loadSmartPlaylistDefinitionWithPassword(it, password) }
-                            ?: error("Playlist ${item.title} is no longer available.")
+                        smartPlaylistsController.loadSmartPlaylistDefinitionWithPassword(
+                            requireSmartPlaylistActionSource(item, playlistSources::playlist),
+                            password,
+                        )
                     },
                 ),
             ),

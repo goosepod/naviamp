@@ -9,6 +9,7 @@ import app.naviamp.ui.NaviampLibraryActions
 import app.naviamp.ui.NaviampInternetRadioActions
 import app.naviamp.ui.NaviampPlaylistsActions
 import app.naviamp.ui.NaviampSmartPlaylistActions
+import app.naviamp.ui.requireSmartPlaylistActionSource
 import app.naviamp.ui.NaviampConnectionSettingsActions
 import app.naviamp.ui.NaviampSearchActions
 import app.naviamp.ui.NaviampSettingsMaintenanceActions
@@ -208,25 +209,37 @@ internal fun androidMainShellActions(
             smartPlaylist = NaviampSmartPlaylistActions(
                 onSave = playlistActionController::saveSmartPlaylist,
                 onUpdate = { playlist, definition ->
-                    androidPlaylistActionSource(state.selectedPlaylist, state.homeState.playlists, playlist)
-                        ?.let { playlistActionController.updateSmartPlaylist(it, definition) }
-                        ?: run { state.status = "Playlist not found." }
+                    playlistActionController.updateSmartPlaylist(
+                        requireSmartPlaylistActionSource(playlist) {
+                            androidPlaylistActionSource(state.selectedPlaylist, state.homeState.playlists, playlist)
+                        },
+                        definition,
+                    )
                 },
                 onSaveWithPassword = playlistActionController::saveSmartPlaylistWithPassword,
                 onUpdateWithPassword = { playlist, definition, password ->
-                    androidPlaylistActionSource(state.selectedPlaylist, state.homeState.playlists, playlist)
-                        ?.let { playlistActionController.updateSmartPlaylistWithPassword(it, definition, password) }
-                        ?: run { state.status = "Playlist not found." }
+                    playlistActionController.updateSmartPlaylistWithPassword(
+                        requireSmartPlaylistActionSource(playlist) {
+                            androidPlaylistActionSource(state.selectedPlaylist, state.homeState.playlists, playlist)
+                        },
+                        definition,
+                        password,
+                    )
                 },
                 onLoad = { playlist ->
-                    androidPlaylistActionSource(state.selectedPlaylist, state.homeState.playlists, playlist)
-                        ?.let { playlistActionController.loadSmartPlaylistDefinition(it) }
-                        ?: throw IllegalArgumentException("Playlist not found.")
+                    playlistActionController.loadSmartPlaylistDefinition(
+                        requireSmartPlaylistActionSource(playlist) {
+                            androidPlaylistActionSource(state.selectedPlaylist, state.homeState.playlists, playlist)
+                        },
+                    )
                 },
                 onLoadWithPassword = { playlist, password ->
-                    androidPlaylistActionSource(state.selectedPlaylist, state.homeState.playlists, playlist)
-                        ?.let { playlistActionController.loadSmartPlaylistDefinitionWithPassword(it, password) }
-                        ?: throw IllegalArgumentException("Playlist not found.")
+                    playlistActionController.loadSmartPlaylistDefinitionWithPassword(
+                        requireSmartPlaylistActionSource(playlist) {
+                            androidPlaylistActionSource(state.selectedPlaylist, state.homeState.playlists, playlist)
+                        },
+                        password,
+                    )
                 },
             ),
         ),
