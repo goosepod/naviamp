@@ -30,6 +30,14 @@ Each platform host owns only operating-system integration and constructs impleme
 
 The composition boundary will use explicit dependency construction initially. A dependency-injection framework will be introduced only if concrete lifecycle or graph-management needs justify it.
 
+### Cross-platform naming
+
+Files and types that implement the same architectural role must use parallel, role-specific names so their relationship is apparent in search results and directory views. Use a neutral or `Naviamp` name for the shared contract/owner and a platform prefix for a genuine host implementation of that role. For example, a shared `NaviampAppShellActionAdapter` may have `AndroidAppShellActionAdapter`, `DesktopAppShellActionAdapter`, and `IosAppShellActionAdapter` counterparts.
+
+Parallel names are reserved for parallel responsibilities. A platform execution adapter must not be named as though it were another implementation of shared product policy, and unrelated files must not be made superficially symmetrical. Prefer precise role names such as `ActionAdapter`, `PlaybackExecutor`, or `CredentialProtector` over broad names such as `UIFunctions`.
+
+Where the target architecture removes a platform-specific product factory entirely, do not spend migration effort merely renaming it into symmetry. First move product construction to the common composition root; then consistently name only the narrow host adapters that remain. New platform files must follow this convention immediately, and the iOS host must mirror established Android/Desktop adapter names whenever it implements the same shared contract.
+
 Android playback may continue to be owned by a foreground service. The Activity and service must communicate through a shared session/command boundary so the shared product runtime does not require Activity lifetime.
 
 iOS may first implement `PlaybackEngine` with AVPlayer to prove streaming, background audio, interruptions, route changes, Control Center, and Now Playing integration. That implementation is temporary. BASS is the required normal iOS playback engine for Naviamp 2.0.0.

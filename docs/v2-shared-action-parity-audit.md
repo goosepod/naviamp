@@ -15,6 +15,8 @@ Android mounts `NaviampSharedAppShell`, while Desktop mounts `NaviampProductRout
 
 The target is therefore not to move Android lambdas verbatim into `core:ui`. Product intent and result policy belong in common commands/controllers, platform operations belong behind narrow ports, and a common presentation composition layer must bind those owners to the shared UI contract. Host chrome may remain native, but Android, Desktop, and iOS must not rebuild feature behavior independently.
 
+The current shell names illustrate the problem: `NaviampAppShellActions` is a shared data contract, while `AndroidMainShellActions` and `DesktopAppShellActionFactory` are platform factory files with inconsistent names. They are neither obvious counterparts nor cleanly different roles. The migration should replace their product wiring with the common composition root; any narrow platform adapters that survive should then use aligned role names rather than preserving this mismatch.
+
 ## Callback Inventory
 
 | Contract area | Audit result | Required ownership |
@@ -86,6 +88,7 @@ These boundaries should implement narrow ports requested by common owners. They 
 - [ ] Converge Now Playing request interpretation while keeping BASS and host presentation effects behind ports.
 - [ ] Add a common presentation-composition module or dependency arrangement that can consume both `core:app` and `core:ui` without reversing their current dependency direction.
 - [ ] Construct one host-neutral screen-state/action graph from the shared application composition. Android and Desktop provide only platform-service and execution adapters.
+- [ ] Apply the ADR cross-platform naming convention to the remaining genuine counterparts. Shared roles use a neutral or `Naviamp` name and equivalent host implementations use aligned `Android`, `Desktop`, and `Ios` prefixes; remove superseded platform product factories instead of renaming them into false symmetry.
 - [ ] Add contract-completeness and parity tests that fail when a visible action is unimplemented, plus a host-neutral navigation test covering Home, Search, Library, album, artist, playlist, Downloads, radio, and Settings.
 - [ ] Mount the same composition from the initial iOS wrapper without iOS-specific product controllers.
 
