@@ -569,9 +569,28 @@ private fun PlaylistDetailContent(
     var smartPlaylistEditorOpen by remember { mutableStateOf(false) }
     var smartPlaylistInitialDraft by remember { mutableStateOf(SmartPlaylistDraft()) }
     var smartPlaylistLoadMessage by remember { mutableStateOf<String?>(null) }
+    var smartPlaylistLoading by remember { mutableStateOf(false) }
     val detailScrollState = rememberScrollState()
     var detailViewportBounds by remember { mutableStateOf(Rect.Zero) }
     val coroutineScope = rememberCoroutineScope()
+    val editSmartPlaylistLabel = stringResource(Res.string.playlists_edit_smart)
+    val requestSmartPlaylistEdit: () -> Unit = {
+        if (!smartPlaylistLoading) {
+            smartPlaylistLoading = true
+            smartPlaylistLoadMessage = null
+            coroutineScope.launch {
+                runCatching { onSmartPlaylistLoad(detail.playlist) }
+                    .onSuccess { definition ->
+                        smartPlaylistInitialDraft = SmartPlaylistDraft.fromDefinition(definition)
+                        smartPlaylistEditorOpen = true
+                    }
+                    .onFailure { error ->
+                        smartPlaylistLoadMessage = error.message.orEmpty()
+                    }
+                smartPlaylistLoading = false
+            }
+        }
+    }
 
     Column(
         modifier = Modifier
@@ -591,12 +610,27 @@ private fun PlaylistDetailContent(
                     modifier = Modifier.size(18.dp),
                 )
             }
-            Icon(
-                if (detail.playlist.isSmartPlaylist) NaviampIcons.Brain else NaviampIcons.Playlist,
-                contentDescription = if (detail.playlist.isSmartPlaylist) stringResource(Res.string.playlists_smart) else stringResource(Res.string.playlists_title),
-                tint = colors.secondaryText,
-                modifier = Modifier.size(18.dp),
-            )
+            if (detail.playlist.isSmartPlaylist) {
+                IconButton(
+                    onClick = requestSmartPlaylistEdit,
+                    enabled = !smartPlaylistLoading,
+                    modifier = Modifier.size(32.dp),
+                ) {
+                    Icon(
+                        NaviampIcons.Brain,
+                        contentDescription = editSmartPlaylistLabel,
+                        tint = colors.secondaryText,
+                        modifier = Modifier.size(18.dp),
+                    )
+                }
+            } else {
+                Icon(
+                    NaviampIcons.Playlist,
+                    contentDescription = stringResource(Res.string.playlists_title),
+                    tint = colors.secondaryText,
+                    modifier = Modifier.size(18.dp),
+                )
+            }
             Text(
                 detail.playlist.title,
                 color = colors.primaryText,
@@ -623,19 +657,14 @@ private fun PlaylistDetailContent(
                         add(NaviampDetailAction(stringResource(Res.string.playlists_play), NaviampTransportIcons.Play, onPlayPlaylist, detail.tracks.isNotEmpty()))
                         add(NaviampDetailAction(stringResource(Res.string.playlists_shuffle), NaviampTransportIcons.Shuffle, onShufflePlaylist, detail.tracks.size > 1))
                         if (detail.playlist.isSmartPlaylist) {
-                            add(NaviampDetailAction(stringResource(Res.string.playlists_edit_smart), NaviampIcons.Brain, {
-                            coroutineScope.launch {
-                                runCatching { onSmartPlaylistLoad(detail.playlist) }
-                                    .onSuccess { definition ->
-                                        smartPlaylistInitialDraft = SmartPlaylistDraft.fromDefinition(definition)
-                                        smartPlaylistEditorOpen = true
-                                        smartPlaylistLoadMessage = null
-                                    }
-                                    .onFailure { error ->
-                                        smartPlaylistLoadMessage = error.message.orEmpty()
-                                }
-                            }
-                            }))
+                            add(
+                                NaviampDetailAction(
+                                    editSmartPlaylistLabel,
+                                    NaviampIcons.Brain,
+                                    requestSmartPlaylistEdit,
+                                    enabled = !smartPlaylistLoading,
+                                ),
+                            )
                         } else {
                             add(NaviampDetailAction(stringResource(Res.string.playlists_rename_title), NaviampIcons.Edit, { renameOpen = true }))
                         }

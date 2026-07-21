@@ -1,5 +1,6 @@
 package app.naviamp.android
 
+import app.naviamp.domain.Playlist
 import app.naviamp.domain.playback.SleepTimerController
 import app.naviamp.ui.nowPlayingQueueIndex
 import app.naviamp.ui.NaviampAppShellActions
@@ -17,6 +18,7 @@ import app.naviamp.ui.SharedArtistMixBuilderActions
 import app.naviamp.ui.SharedGenreMixBuilderActions
 import app.naviamp.ui.SharedSonicMixBuilderActions
 import app.naviamp.ui.SharedSonicPathBuilderActions
+import app.naviamp.ui.SharedMediaItemUi
 import app.naviamp.ui.StationRowAction
 import app.naviamp.ui.toInternetRadioStation
 import app.naviamp.ui.toNaviampRoute
@@ -24,6 +26,13 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+
+internal fun androidPlaylistActionSource(
+    selectedPlaylist: Playlist?,
+    playlists: List<Playlist>,
+    item: SharedMediaItemUi,
+): Playlist? = selectedPlaylist?.takeIf { it.id == item.id }
+    ?: playlists.firstOrNull { it.id == item.id }
 
 internal fun androidMainShellActions(
     scope: CoroutineScope,
@@ -197,18 +206,18 @@ internal fun androidMainShellActions(
             onSortModeChanged = { state.playlistSortMode = it },
             onSmartPlaylistSave = playlistActionController::saveSmartPlaylist,
             onSmartPlaylistUpdate = { playlist, definition ->
-                state.homeState.playlists.firstOrNull { it.id == playlist.id }
+                androidPlaylistActionSource(state.selectedPlaylist, state.homeState.playlists, playlist)
                     ?.let { playlistActionController.updateSmartPlaylist(it, definition) }
                     ?: run { state.status = "Playlist not found." }
             },
             onSmartPlaylistSaveWithPassword = playlistActionController::saveSmartPlaylistWithPassword,
             onSmartPlaylistUpdateWithPassword = { playlist, definition, password ->
-                state.homeState.playlists.firstOrNull { it.id == playlist.id }
+                androidPlaylistActionSource(state.selectedPlaylist, state.homeState.playlists, playlist)
                     ?.let { playlistActionController.updateSmartPlaylistWithPassword(it, definition, password) }
                     ?: run { state.status = "Playlist not found." }
             },
             onSmartPlaylistLoad = { playlist ->
-                state.homeState.playlists.firstOrNull { it.id == playlist.id }
+                androidPlaylistActionSource(state.selectedPlaylist, state.homeState.playlists, playlist)
                     ?.let { playlistActionController.loadSmartPlaylistDefinition(it) }
                     ?: throw IllegalArgumentException("Playlist not found.")
             },
