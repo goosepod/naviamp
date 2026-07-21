@@ -20,10 +20,12 @@ kotlin {
             api(project(":core:app"))
             api(project(":core:domain"))
             api(project(":core:ui"))
+            implementation(libs.kotlinx.coroutines.core)
         }
         commonTest.dependencies {
             implementation(libs.kotlin.test)
             implementation(libs.kotlinx.coroutines.core)
+            implementation(libs.kotlinx.coroutines.test)
         }
     }
 }

@@ -191,6 +191,8 @@ Do not delete working host behavior before its shared replacement is executable 
 7. **Decompose surviving large host files by OS responsibility.** This happens after product code is removed so decomposition does not disguise relocation.
 8. **Run host-neutral and platform acceptance suites.** Only then is the initial iOS wrapper allowed to add product navigation.
 
+Current foundation: `core:presentation` now owns the host-neutral `NaviampCoreStateStore`, an exhaustive typed command catalog for the existing shared shell, and the one action-graph factory that emits those commands. This is not yet the completed Core gate: feature controllers must populate the store and execute the commands, the contracts must become required, and the fake-host acceptance suite must pass before Android or Desktop is adapted to this graph.
+
 ## Explicit Deletion Targets
 
 These are ownership targets, not a promise that every named file disappears unchanged. A file may survive only if its remaining responsibility is a genuine host adapter and its name reflects that role.
@@ -214,4 +216,3 @@ Milestone 4 is not complete until all of the following are true:
 - [ ] Superseded Android and Desktop product factories/controllers/state/UI have been deleted, not merely renamed or split.
 - [ ] Surviving host files are thin adapters or focused native integrations and follow the shared-role naming convention.
 - [ ] The initial iOS host can browse the complete product without adding album, artist, playlist, radio, download, settings, or Now Playing product controllers.
-
