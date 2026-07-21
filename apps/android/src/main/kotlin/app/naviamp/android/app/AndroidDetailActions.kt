@@ -5,11 +5,17 @@ import app.naviamp.ui.KeepDownloadedActionValue
 import app.naviamp.ui.NaviampAlbumDetailActions
 import app.naviamp.ui.NaviampArtistDetailActions
 import app.naviamp.ui.NaviampPlaylistDetailActions
+import app.naviamp.ui.ResolvedArtistAlbumActionHandlers
+import app.naviamp.ui.ResolvedArtistDetailActionHandlers
 import app.naviamp.ui.ResolvedAlbumDetailActionHandlers
 import app.naviamp.ui.ResolvedPlaylistDetailActionHandlers
-import app.naviamp.ui.SharedMediaItemAction
+import app.naviamp.ui.SharedArtistDetailUi
 import app.naviamp.ui.albumDetailActionDispatchStatus
+import app.naviamp.ui.artistAlbumActionDispatchStatus
+import app.naviamp.ui.artistDetailActionDispatchStatus
 import app.naviamp.ui.dispatchResolvedAlbumDetailAction
+import app.naviamp.ui.dispatchResolvedArtistAlbumAction
+import app.naviamp.ui.dispatchResolvedArtistDetailAction
 import app.naviamp.ui.dispatchResolvedPlaylistDetailAction
 import app.naviamp.ui.playlistDetailActionDispatchStatus
 import kotlinx.coroutines.CoroutineScope
@@ -85,67 +91,116 @@ internal fun androidArtistDetailActions(
     downloadActionController: AndroidDownloadActionController,
 ): NaviampArtistDetailActions = NaviampArtistDetailActions(
     onBack = androidDetailBackAction(navigationController),
-    onRadio = artistActionController::handleShellArtistRadio,
-    onPlay = artistActionController::handleShellArtistPlay,
-    onShuffle = artistActionController::handleShellArtistShuffle,
-    onAddToQueue = {
-        artistActionController.loadArtistTracks { mediaController.appendTracksToQueue(it, "artist tracks") }
-    },
-    onAddToPlaylist = { _, playlist ->
-        artistActionController.loadArtistTracks {
-            playlistActionController.addTracksToPlaylist(it, playlist, null, "artist")
-        }
-    },
-    onCreatePlaylistAndAdd = { _, name ->
-        artistActionController.loadArtistTracks {
-            playlistActionController.addTracksToPlaylist(it, null, name, "artist")
-        }
-    },
-    onFavoriteToggled = { item ->
-        toggleAndroidArtistFavorite(scope, state, item, state.sharedControllers.providerActions)
-    },
-    onPopularPlay = artistActionController::handleArtistPopularPlay,
-    onPopularRadio = artistActionController::handleShellArtistPopularRadio,
-    onPopularAddToQueue = artistActionController::handleArtistPopularAddToQueue,
-    onPopularTrackSelected = artistActionController::handleArtistPopularTrackSelected,
-    onTrackAction = trackActionController::handleTrackAction,
-    onFindSimilar = { detail -> artistActionController.findSimilarArtists(ArtistId(detail.artist.id), detail.artist.title) },
-    onSimilarArtistSelected = artistActionController::handleSimilarArtistSelected,
-    onSimilarArtistExternalSelected = artistActionController::openExternalArtistUrl,
-    onAlbumSelected = shellMediaController::handleShellAlbumSelected,
-    onAlbumAction = { request ->
-        when (request.action) {
-            SharedMediaItemAction.Select -> shellMediaController.handleShellAlbumSelected(request.item)
-            SharedMediaItemAction.StartRadio -> artistActionController.handleArtistAlbumRadio(request.item)
-            SharedMediaItemAction.AddToQueue ->
-                artistActionController.loadArtistAlbumTracks(request.item) {
-                    mediaController.appendTracksToQueue(it, "album tracks")
-                }
-            SharedMediaItemAction.Download ->
-                artistActionController.loadArtistAlbumTracks(request.item) {
-                    downloadActionController.downloadTracks(it, request.item.title)
-                }
-            SharedMediaItemAction.AddToPlaylist ->
-                artistActionController.loadArtistAlbumTracks(request.item) {
-                    playlistActionController.addTracksToPlaylist(
-                        it,
-                        request.playlistChoice,
-                        null,
-                        request.item.title,
+    onArtistAction = { request ->
+        val artist = state.artistDetail?.artist?.takeIf { it.id.value == request.artist.id }
+        val result = dispatchResolvedArtistDetailAction(
+            request = request,
+            artist = artist,
+            handlers = ResolvedArtistDetailActionHandlers(
+                onPlayCatalog = { _, albums, shuffle ->
+                    val detail = SharedArtistDetailUi(request.artist, albums)
+                    if (shuffle) {
+                        artistActionController.handleShellArtistShuffle(detail)
+                    } else {
+                        artistActionController.handleShellArtistPlay(detail)
+                    }
+                },
+                onStartRadio = {
+                    artistActionController.handleShellArtistRadio(SharedArtistDetailUi(request.artist, emptyList()))
+                },
+                onAddToQueue = {
+                    artistActionController.loadArtistTracks {
+                        mediaController.appendTracksToQueue(it, "artist tracks")
+                    }
+                },
+                onAddToPlaylist = { _, choice ->
+                    artistActionController.loadArtistTracks {
+                        playlistActionController.addTracksToPlaylist(it, choice, null, "artist")
+                    }
+                },
+                onCreatePlaylistAndAdd = { _, name ->
+                    artistActionController.loadArtistTracks {
+                        playlistActionController.addTracksToPlaylist(it, null, name, "artist")
+                    }
+                },
+                onToggleFavorite = {
+                    toggleAndroidArtistFavorite(
+                        scope,
+                        state,
+                        request.artist,
+                        state.sharedControllers.providerActions,
                     )
-                }
-            SharedMediaItemAction.CreatePlaylistAndAdd ->
-                artistActionController.loadArtistAlbumTracks(request.item) {
-                    playlistActionController.addTracksToPlaylist(it, null, request.playlistName, request.item.title)
-                }
-            SharedMediaItemAction.ToggleFavorite ->
-                toggleAndroidAlbumFavorite(scope, state, request.item, state.sharedControllers.providerActions)
-            else -> Unit
-        }
+                },
+                onPlayPopular = {
+                    artistActionController.handleArtistPopularPlay(
+                        SharedArtistDetailUi(request.artist, emptyList()),
+                    )
+                },
+                onStartPopularRadio = {
+                    artistActionController.handleShellArtistPopularRadio(
+                        SharedArtistDetailUi(request.artist, emptyList()),
+                    )
+                },
+                onAddPopularToQueue = {
+                    artistActionController.handleArtistPopularAddToQueue(
+                        SharedArtistDetailUi(request.artist, emptyList()),
+                    )
+                },
+                onFindSimilar = {
+                    artistActionController.findSimilarArtists(ArtistId(request.artist.id), request.artist.title)
+                },
+                onSelectSimilar = { _, similar -> artistActionController.handleSimilarArtistSelected(similar) },
+                onOpenSimilarExternal = { _, url -> artistActionController.openExternalArtistUrl(url) },
+            ),
+        )
+        artistDetailActionDispatchStatus(result)?.let { state.status = it }
     },
-    onAlbumFavoriteToggled = { item ->
-        toggleAndroidAlbumFavorite(scope, state, item, state.sharedControllers.providerActions)
+    onAlbumAction = { request ->
+        val album = state.artistDetail?.albums?.firstOrNull { it.id.value == request.album.id }
+        val result = dispatchResolvedArtistAlbumAction(
+            request = request,
+            album = album,
+            handlers = ResolvedArtistAlbumActionHandlers(
+                onSelect = { shellMediaController.handleShellAlbumSelected(request.album) },
+                onStartRadio = { artistActionController.handleArtistAlbumRadio(request.album) },
+                onAddToQueue = {
+                    artistActionController.loadArtistAlbumTracks(request.album) {
+                        mediaController.appendTracksToQueue(it, "album tracks")
+                    }
+                },
+                onDownload = {
+                    artistActionController.loadArtistAlbumTracks(request.album) {
+                        downloadActionController.downloadTracks(it, request.album.title)
+                    }
+                },
+                onAddToPlaylist = { _, choice ->
+                    artistActionController.loadArtistAlbumTracks(request.album) {
+                        playlistActionController.addTracksToPlaylist(
+                            it,
+                            choice,
+                            null,
+                            request.album.title,
+                        )
+                    }
+                },
+                onCreatePlaylistAndAdd = { _, name ->
+                    artistActionController.loadArtistAlbumTracks(request.album) {
+                        playlistActionController.addTracksToPlaylist(it, null, name, request.album.title)
+                    }
+                },
+                onToggleFavorite = {
+                    toggleAndroidAlbumFavorite(
+                        scope,
+                        state,
+                        request.album,
+                        state.sharedControllers.providerActions,
+                    )
+                },
+            ),
+        )
+        artistAlbumActionDispatchStatus(result)?.let { state.status = it }
     },
+    onPopularTrackAction = trackActionController::handleTrackAction,
 )
 
 internal fun androidPlaylistDetailActions(

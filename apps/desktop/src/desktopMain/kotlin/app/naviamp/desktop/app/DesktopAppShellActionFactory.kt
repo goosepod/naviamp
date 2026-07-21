@@ -227,7 +227,12 @@ internal fun desktopAppShellActions(context: DesktopAppShellActionContext): Navi
                 onBack = appActions::closeAlbumDetails,
                 onStatus = albumController::updateSelectedAlbumStatus,
             ),
-            artistDetailActions = desktopArtistDetailActions(detailSources, appActions, playlistsController),
+            artistDetailActions = desktopArtistDetailActions(
+                detailSources,
+                appActions,
+                playlistsController,
+                artistController::updateSelectedArtistStatus,
+            ),
             playlistDetailActions = desktopPlaylistDetailActions(
                 actionSources = playlistSources,
                 appActions = appActions,

@@ -1388,23 +1388,119 @@ fun NaviampArtistDetailContent(
         albumSortOrder = albumSortOrder,
         groupAlbumsByReleaseType = groupAlbumsByReleaseType,
         onBack = actions.onBack,
-        onArtistRadio = { actions.onRadio(detail) },
-        onArtistPlay = { albums -> actions.onPlay(detail.copy(albums = albums)) },
-        onArtistShuffle = { albums -> actions.onShuffle(detail.copy(albums = albums)) },
-        onArtistAddToQueue = { actions.onAddToQueue(detail) },
-        onArtistAddToPlaylist = { playlist -> actions.onAddToPlaylist(detail, playlist) },
-        onArtistCreatePlaylistAndAdd = { name -> actions.onCreatePlaylistAndAdd(detail, name) },
-        onArtistFavoriteToggled = { actions.onFavoriteToggled(detail.artist) },
-        onPopularPlay = { actions.onPopularPlay(detail) },
-        onPopularRadio = { actions.onPopularRadio(detail) },
-        onPopularAddToQueue = { actions.onPopularAddToQueue(detail) },
-        onPopularTrackAction = actions.onTrackAction,
-        onFindSimilarArtists = { actions.onFindSimilar(detail) },
-        onSimilarArtistSelected = actions.onSimilarArtistSelected,
-        onSimilarArtistExternalSelected = actions.onSimilarArtistExternalSelected,
-        onAlbumSelected = actions.onAlbumSelected,
-        onAlbumFavoriteToggled = actions.onAlbumFavoriteToggled,
-        onAlbumAction = actions.onAlbumAction,
+        onArtistRadio = {
+            actions.onArtistAction(
+                NaviampArtistDetailActionRequest(detail.artist, NaviampArtistDetailCommand.StartRadio),
+            )
+        },
+        onArtistPlay = { albums ->
+            actions.onArtistAction(
+                NaviampArtistDetailActionRequest(
+                    detail.artist,
+                    NaviampArtistDetailCommand.PlayCatalog(albums, shuffle = false),
+                ),
+            )
+        },
+        onArtistShuffle = { albums ->
+            actions.onArtistAction(
+                NaviampArtistDetailActionRequest(
+                    detail.artist,
+                    NaviampArtistDetailCommand.PlayCatalog(albums, shuffle = true),
+                ),
+            )
+        },
+        onArtistAddToQueue = {
+            actions.onArtistAction(
+                NaviampArtistDetailActionRequest(detail.artist, NaviampArtistDetailCommand.AddToQueue),
+            )
+        },
+        onArtistAddToPlaylist = { playlist ->
+            playlist?.let {
+                actions.onArtistAction(
+                    NaviampArtistDetailActionRequest(
+                        detail.artist,
+                        NaviampArtistDetailCommand.AddToPlaylist(it),
+                    ),
+                )
+            }
+        },
+        onArtistCreatePlaylistAndAdd = { name ->
+            actions.onArtistAction(
+                NaviampArtistDetailActionRequest(
+                    detail.artist,
+                    NaviampArtistDetailCommand.CreatePlaylistAndAdd(name),
+                ),
+            )
+        },
+        onArtistFavoriteToggled = {
+            actions.onArtistAction(
+                NaviampArtistDetailActionRequest(detail.artist, NaviampArtistDetailCommand.ToggleFavorite),
+            )
+        },
+        onPopularPlay = {
+            actions.onArtistAction(
+                NaviampArtistDetailActionRequest(detail.artist, NaviampArtistDetailCommand.PlayPopular),
+            )
+        },
+        onPopularRadio = {
+            actions.onArtistAction(
+                NaviampArtistDetailActionRequest(detail.artist, NaviampArtistDetailCommand.StartPopularRadio),
+            )
+        },
+        onPopularAddToQueue = {
+            actions.onArtistAction(
+                NaviampArtistDetailActionRequest(detail.artist, NaviampArtistDetailCommand.AddPopularToQueue),
+            )
+        },
+        onPopularTrackAction = actions.onPopularTrackAction,
+        onFindSimilarArtists = {
+            actions.onArtistAction(
+                NaviampArtistDetailActionRequest(detail.artist, NaviampArtistDetailCommand.FindSimilar),
+            )
+        },
+        onSimilarArtistSelected = { similarArtist ->
+            actions.onArtistAction(
+                NaviampArtistDetailActionRequest(
+                    detail.artist,
+                    NaviampArtistDetailCommand.SelectSimilar(similarArtist),
+                ),
+            )
+        },
+        onSimilarArtistExternalSelected = { url ->
+            actions.onArtistAction(
+                NaviampArtistDetailActionRequest(
+                    detail.artist,
+                    NaviampArtistDetailCommand.OpenSimilarExternal(url),
+                ),
+            )
+        },
+        onAlbumSelected = { album ->
+            actions.onAlbumAction(
+                NaviampArtistAlbumActionRequest(album, NaviampArtistAlbumCommand.Select),
+            )
+        },
+        onAlbumFavoriteToggled = { album ->
+            actions.onAlbumAction(
+                NaviampArtistAlbumActionRequest(album, NaviampArtistAlbumCommand.ToggleFavorite),
+            )
+        },
+        onAlbumAction = { request ->
+            val command = when (request.action) {
+                SharedMediaItemAction.Select -> NaviampArtistAlbumCommand.Select
+                SharedMediaItemAction.StartRadio -> NaviampArtistAlbumCommand.StartRadio
+                SharedMediaItemAction.Download -> NaviampArtistAlbumCommand.Download
+                SharedMediaItemAction.AddToQueue -> NaviampArtistAlbumCommand.AddToQueue
+                SharedMediaItemAction.AddToPlaylist ->
+                    request.playlistChoice?.let(NaviampArtistAlbumCommand::AddToPlaylist)
+                SharedMediaItemAction.CreatePlaylistAndAdd ->
+                    request.playlistName?.let(NaviampArtistAlbumCommand::CreatePlaylistAndAdd)
+                SharedMediaItemAction.ToggleFavorite -> NaviampArtistAlbumCommand.ToggleFavorite
+                else -> null
+            }
+            command?.let {
+                actions.onAlbumAction(NaviampArtistAlbumActionRequest(request.item, it))
+            }
+        },
         playlistChoices = playlistChoices,
         playlistActionStatus = playlistActionStatus,
     )

@@ -12,14 +12,20 @@ import app.naviamp.ui.SharedInternetRadioActionSources
 import app.naviamp.ui.SharedPlaylistActionSources
 import app.naviamp.ui.ResolvedMediaItemActionHandlers
 import app.naviamp.ui.ResolvedAlbumDetailActionHandlers
+import app.naviamp.ui.ResolvedArtistAlbumActionHandlers
+import app.naviamp.ui.ResolvedArtistDetailActionHandlers
 import app.naviamp.ui.ResolvedPlaylistDetailActionHandlers
 import app.naviamp.ui.ResolvedTrackRowActionHandlers
 import app.naviamp.ui.dispatchResolvedPlaylistDetailAction
 import app.naviamp.ui.dispatchResolvedAlbumDetailAction
+import app.naviamp.ui.dispatchResolvedArtistAlbumAction
+import app.naviamp.ui.dispatchResolvedArtistDetailAction
 import app.naviamp.ui.handleResolvedMediaItemAction
 import app.naviamp.ui.handleResolvedTrackRowAction
 import app.naviamp.ui.playlistDetailActionDispatchStatus
 import app.naviamp.ui.albumDetailActionDispatchStatus
+import app.naviamp.ui.artistAlbumActionDispatchStatus
+import app.naviamp.ui.artistDetailActionDispatchStatus
 import app.naviamp.ui.NaviampInternetRadioActions
 import app.naviamp.ui.NaviampAlbumDetailActions
 import app.naviamp.ui.NaviampArtistDetailActions
@@ -117,30 +123,56 @@ internal fun desktopArtistDetailActions(
     actionSources: SharedDetailActionSources,
     appActions: DesktopAppActions,
     playlistsController: DesktopPlaylistsController,
+    onStatus: (String?) -> Unit,
 ): NaviampArtistDetailActions = NaviampArtistDetailActions(
     onBack = appActions::closeArtistDetails,
-    onRadio = { details ->
-        actionSources.artist(details.artist.id)?.let(appActions::playArtistRadio)
+    onArtistAction = { request ->
+        val result = dispatchResolvedArtistDetailAction(
+            request = request,
+            artist = actionSources.artist(request.artist.id),
+            handlers = ResolvedArtistDetailActionHandlers(
+                onPlayCatalog = { _, albums, shuffle ->
+                    appActions.playArtistCatalog(actionSources.artistAlbums(albums.map { it.id }), shuffle)
+                },
+                onStartRadio = appActions::playArtistRadio,
+                onAddToQueue = playlistsController::addArtistToQueue,
+                onAddToPlaylist = { artist, choice ->
+                    val target = playlistsController.playlists.firstOrNull { it.id == choice.id }
+                    if (target == null) {
+                        onStatus("Playlist not found.")
+                    } else {
+                        playlistsController.addTargetToPlaylist(
+                            AddToPlaylistTarget.ArtistTarget(artist),
+                            playlist = target,
+                        )
+                    }
+                },
+                onCreatePlaylistAndAdd = { artist, name ->
+                    playlistsController.addTargetToPlaylist(
+                        AddToPlaylistTarget.ArtistTarget(artist),
+                        playlist = null,
+                        newPlaylistName = name,
+                    )
+                },
+                onToggleFavorite = appActions::toggleArtistFavorite,
+                onPlayPopular = { appActions.playPopularTracks(actionSources.artistPopularTracks) },
+                onStartPopularRadio = { appActions.playPopularTracksRadio(actionSources.artistPopularTracks) },
+                onAddPopularToQueue = { appActions.addPopularTracksToQueue(actionSources.artistPopularTracks) },
+                onFindSimilar = appActions::findSimilarArtists,
+                onSelectSimilar = { _, item ->
+                    val (localArtist, externalUrl) = actionSources.similarArtist(item)
+                    when {
+                        localArtist != null -> appActions.openArtistDetails(localArtist)
+                        externalUrl != null -> appActions.openExternalArtistUrl(externalUrl)
+                        else -> onStatus("Artist is not available.")
+                    }
+                },
+                onOpenSimilarExternal = { _, url -> appActions.openExternalArtistUrl(url) },
+            ),
+        )
+        artistDetailActionDispatchStatus(result)?.let(onStatus)
     },
-    onPlay = { details ->
-        appActions.playArtistCatalog(actionSources.artistAlbums(details.albums.map { it.id }), false)
-    },
-    onShuffle = { details ->
-        appActions.playArtistCatalog(actionSources.artistAlbums(details.albums.map { it.id }), true)
-    },
-    onAddToQueue = { details ->
-        actionSources.artist(details.artist.id)?.let(playlistsController::addArtistToQueue)
-    },
-    onAddToPlaylist = { details, _ ->
-        actionSources.artist(details.artist.id)?.let(playlistsController::openArtistAddToPlaylist)
-    },
-    onFavoriteToggled = { item ->
-        actionSources.artist(item.id)?.let(appActions::toggleArtistFavorite)
-    },
-    onPopularPlay = { appActions.playPopularTracks(actionSources.artistPopularTracks) },
-    onPopularRadio = { appActions.playPopularTracksRadio(actionSources.artistPopularTracks) },
-    onPopularAddToQueue = { appActions.addPopularTracksToQueue(actionSources.artistPopularTracks) },
-    onTrackAction = { request ->
+    onPopularTrackAction = { request ->
         handleResolvedTrackRowAction(
             request = request,
             tracks = actionSources.artistPopularTracks,
@@ -157,29 +189,37 @@ internal fun desktopArtistDetailActions(
             ),
         )
     },
-    onFindSimilar = { details ->
-        actionSources.artist(details.artist.id)?.let(appActions::findSimilarArtists)
-    },
-    onSimilarArtistSelected = { item ->
-        val (localArtist, externalUrl) = actionSources.similarArtist(item)
-        when {
-            localArtist != null -> appActions.openArtistDetails(localArtist)
-            externalUrl != null -> appActions.openExternalArtistUrl(externalUrl)
-        }
-    },
     onAlbumAction = { request ->
-        handleResolvedMediaItemAction(
+        val result = dispatchResolvedArtistAlbumAction(
             request = request,
-            item = actionSources.album(request.item.id),
-            handlers = ResolvedMediaItemActionHandlers(
+            album = actionSources.album(request.album.id),
+            handlers = ResolvedArtistAlbumActionHandlers(
                 onSelect = appActions::openAlbumDetails,
                 onStartRadio = appActions::playAlbumRadio,
-                onDownload = { album, _ -> appActions.downloadAlbum(album) },
+                onDownload = appActions::downloadAlbum,
                 onAddToQueue = playlistsController::addAlbumToQueue,
-                onAddToPlaylist = { album, _ -> playlistsController.openAlbumAddToPlaylist(album) },
+                onAddToPlaylist = { album, choice ->
+                    val target = playlistsController.playlists.firstOrNull { it.id == choice.id }
+                    if (target == null) {
+                        onStatus("Playlist not found.")
+                    } else {
+                        playlistsController.addTargetToPlaylist(
+                            AddToPlaylistTarget.AlbumTarget(album),
+                            playlist = target,
+                        )
+                    }
+                },
+                onCreatePlaylistAndAdd = { album, name ->
+                    playlistsController.addTargetToPlaylist(
+                        AddToPlaylistTarget.AlbumTarget(album),
+                        playlist = null,
+                        newPlaylistName = name,
+                    )
+                },
                 onToggleFavorite = appActions::toggleAlbumFavorite,
             ),
         )
+        artistAlbumActionDispatchStatus(result)?.let(onStatus)
     },
 )
 

@@ -479,26 +479,49 @@ data class NaviampArtistDetailScreenUi(
     val status: String? = null,
 )
 
+sealed interface NaviampArtistDetailCommand {
+    data class PlayCatalog(
+        val albums: List<SharedMediaItemUi>,
+        val shuffle: Boolean,
+    ) : NaviampArtistDetailCommand
+    data object StartRadio : NaviampArtistDetailCommand
+    data object AddToQueue : NaviampArtistDetailCommand
+    data class AddToPlaylist(val choice: NaviampPlaylistChoiceUi) : NaviampArtistDetailCommand
+    data class CreatePlaylistAndAdd(val name: String) : NaviampArtistDetailCommand
+    data object ToggleFavorite : NaviampArtistDetailCommand
+    data object PlayPopular : NaviampArtistDetailCommand
+    data object StartPopularRadio : NaviampArtistDetailCommand
+    data object AddPopularToQueue : NaviampArtistDetailCommand
+    data object FindSimilar : NaviampArtistDetailCommand
+    data class SelectSimilar(val artist: SharedSimilarArtistUi) : NaviampArtistDetailCommand
+    data class OpenSimilarExternal(val url: String) : NaviampArtistDetailCommand
+}
+
+data class NaviampArtistDetailActionRequest(
+    val artist: SharedMediaItemUi,
+    val command: NaviampArtistDetailCommand,
+)
+
+sealed interface NaviampArtistAlbumCommand {
+    data object Select : NaviampArtistAlbumCommand
+    data object StartRadio : NaviampArtistAlbumCommand
+    data object Download : NaviampArtistAlbumCommand
+    data object AddToQueue : NaviampArtistAlbumCommand
+    data class AddToPlaylist(val choice: NaviampPlaylistChoiceUi) : NaviampArtistAlbumCommand
+    data class CreatePlaylistAndAdd(val name: String) : NaviampArtistAlbumCommand
+    data object ToggleFavorite : NaviampArtistAlbumCommand
+}
+
+data class NaviampArtistAlbumActionRequest(
+    val album: SharedMediaItemUi,
+    val command: NaviampArtistAlbumCommand,
+)
+
 data class NaviampArtistDetailActions(
-    val onBack: () -> Unit = {},
-    val onRadio: (SharedArtistDetailUi) -> Unit = {},
-    val onPlay: (SharedArtistDetailUi) -> Unit = {},
-    val onShuffle: (SharedArtistDetailUi) -> Unit = {},
-    val onAddToQueue: (SharedArtistDetailUi) -> Unit = {},
-    val onAddToPlaylist: (SharedArtistDetailUi, NaviampPlaylistChoiceUi?) -> Unit = { _, _ -> },
-    val onCreatePlaylistAndAdd: (SharedArtistDetailUi, String) -> Unit = { _, _ -> },
-    val onFavoriteToggled: (SharedMediaItemUi) -> Unit = {},
-    val onPopularPlay: (SharedArtistDetailUi) -> Unit = {},
-    val onPopularRadio: (SharedArtistDetailUi) -> Unit = {},
-    val onPopularAddToQueue: (SharedArtistDetailUi) -> Unit = {},
-    val onPopularTrackSelected: (SharedTrackRowUi) -> Unit = {},
-    val onTrackAction: (SharedTrackRowActionRequest) -> Unit = {},
-    val onFindSimilar: (SharedArtistDetailUi) -> Unit = {},
-    val onSimilarArtistSelected: (SharedSimilarArtistUi) -> Unit = {},
-    val onSimilarArtistExternalSelected: (String) -> Unit = {},
-    val onAlbumSelected: (SharedMediaItemUi) -> Unit = {},
-    val onAlbumAction: (SharedMediaItemActionRequest) -> Unit = {},
-    val onAlbumFavoriteToggled: (SharedMediaItemUi) -> Unit = {},
+    val onBack: () -> Unit,
+    val onArtistAction: (NaviampArtistDetailActionRequest) -> Unit,
+    val onAlbumAction: (NaviampArtistAlbumActionRequest) -> Unit,
+    val onPopularTrackAction: (SharedTrackRowActionRequest) -> Unit,
 )
 
 data class SharedAlbumSectionUi(
@@ -859,7 +882,7 @@ data class NaviampAppShellActions(
     val playlistsActions: NaviampPlaylistsActions = NaviampPlaylistsActions(),
     val radioActions: NaviampInternetRadioActions = NaviampInternetRadioActions(),
     val albumDetailActions: NaviampAlbumDetailActions,
-    val artistDetailActions: NaviampArtistDetailActions = NaviampArtistDetailActions(),
+    val artistDetailActions: NaviampArtistDetailActions,
     val playlistDetailActions: NaviampPlaylistDetailActions,
     val homeActions: NaviampHomeActions = NaviampHomeActions(),
     val mediaActions: NaviampMediaActions = NaviampMediaActions(),

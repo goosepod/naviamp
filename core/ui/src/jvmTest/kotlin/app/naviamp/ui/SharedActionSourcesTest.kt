@@ -328,6 +328,91 @@ class SharedActionSourcesTest {
         )
     }
 
+    @Test
+    fun artistDetailDispatchersRequireEveryArtistAndDiscographyAction() {
+        val artist = Artist(ArtistId("artist"), "Artist")
+        val artistItem = SharedMediaItemUi("artist", "Artist", "")
+        val album = album("album")
+        val albumItem = SharedMediaItemUi("album", "Album", "Artist")
+        val choice = NaviampPlaylistChoiceUi("target", "Target")
+        val similar = SharedSimilarArtistUi("similar", "Similar", "")
+        val artistActions = mutableListOf<String>()
+        val artistHandlers = ResolvedArtistDetailActionHandlers<Artist>(
+            onPlayCatalog = { _, albums, shuffle -> artistActions += "play:${albums.size}:$shuffle" },
+            onStartRadio = { artistActions += "radio" },
+            onAddToQueue = { artistActions += "queue" },
+            onAddToPlaylist = { _, target -> artistActions += "add:${target.id}" },
+            onCreatePlaylistAndAdd = { _, name -> artistActions += "create:$name" },
+            onToggleFavorite = { artistActions += "favorite" },
+            onPlayPopular = { artistActions += "popular-play" },
+            onStartPopularRadio = { artistActions += "popular-radio" },
+            onAddPopularToQueue = { artistActions += "popular-queue" },
+            onFindSimilar = { artistActions += "find-similar" },
+            onSelectSimilar = { _, item -> artistActions += "similar:${item.id}" },
+            onOpenSimilarExternal = { _, url -> artistActions += "external:$url" },
+        )
+        val artistRequests = listOf(
+            NaviampArtistDetailActionRequest(
+                artistItem,
+                NaviampArtistDetailCommand.PlayCatalog(listOf(albumItem), false),
+            ),
+            NaviampArtistDetailActionRequest(artistItem, NaviampArtistDetailCommand.StartRadio),
+            NaviampArtistDetailActionRequest(artistItem, NaviampArtistDetailCommand.AddToQueue),
+            NaviampArtistDetailActionRequest(artistItem, NaviampArtistDetailCommand.AddToPlaylist(choice)),
+            NaviampArtistDetailActionRequest(artistItem, NaviampArtistDetailCommand.CreatePlaylistAndAdd("New")),
+            NaviampArtistDetailActionRequest(artistItem, NaviampArtistDetailCommand.ToggleFavorite),
+            NaviampArtistDetailActionRequest(artistItem, NaviampArtistDetailCommand.PlayPopular),
+            NaviampArtistDetailActionRequest(artistItem, NaviampArtistDetailCommand.StartPopularRadio),
+            NaviampArtistDetailActionRequest(artistItem, NaviampArtistDetailCommand.AddPopularToQueue),
+            NaviampArtistDetailActionRequest(artistItem, NaviampArtistDetailCommand.FindSimilar),
+            NaviampArtistDetailActionRequest(artistItem, NaviampArtistDetailCommand.SelectSimilar(similar)),
+            NaviampArtistDetailActionRequest(
+                artistItem,
+                NaviampArtistDetailCommand.OpenSimilarExternal("https://example.test"),
+            ),
+        )
+
+        assertEquals(
+            List(artistRequests.size) { ArtistDetailActionDispatchResult.Dispatched },
+            artistRequests.map { dispatchResolvedArtistDetailAction(it, artist, artistHandlers) },
+        )
+        assertEquals(12, artistActions.size)
+
+        val albumActions = mutableListOf<String>()
+        val albumHandlers = ResolvedArtistAlbumActionHandlers<Album>(
+            onSelect = { albumActions += "select" },
+            onStartRadio = { albumActions += "radio" },
+            onDownload = { albumActions += "download" },
+            onAddToQueue = { albumActions += "queue" },
+            onAddToPlaylist = { _, target -> albumActions += "add:${target.id}" },
+            onCreatePlaylistAndAdd = { _, name -> albumActions += "create:$name" },
+            onToggleFavorite = { albumActions += "favorite" },
+        )
+        val albumRequests = listOf(
+            NaviampArtistAlbumActionRequest(albumItem, NaviampArtistAlbumCommand.Select),
+            NaviampArtistAlbumActionRequest(albumItem, NaviampArtistAlbumCommand.StartRadio),
+            NaviampArtistAlbumActionRequest(albumItem, NaviampArtistAlbumCommand.Download),
+            NaviampArtistAlbumActionRequest(albumItem, NaviampArtistAlbumCommand.AddToQueue),
+            NaviampArtistAlbumActionRequest(albumItem, NaviampArtistAlbumCommand.AddToPlaylist(choice)),
+            NaviampArtistAlbumActionRequest(albumItem, NaviampArtistAlbumCommand.CreatePlaylistAndAdd("New")),
+            NaviampArtistAlbumActionRequest(albumItem, NaviampArtistAlbumCommand.ToggleFavorite),
+        )
+
+        assertEquals(
+            List(albumRequests.size) { ArtistAlbumActionDispatchResult.Dispatched },
+            albumRequests.map { dispatchResolvedArtistAlbumAction(it, album, albumHandlers) },
+        )
+        assertEquals(7, albumActions.size)
+        assertEquals(
+            ArtistDetailActionDispatchResult.MissingArtist,
+            dispatchResolvedArtistDetailAction(artistRequests.first(), null, artistHandlers),
+        )
+        assertEquals(
+            ArtistAlbumActionDispatchResult.MissingAlbum,
+            dispatchResolvedArtistAlbumAction(albumRequests.first(), null, albumHandlers),
+        )
+    }
+
     private fun album(id: String): Album = Album(
         id = AlbumId(id),
         title = id,

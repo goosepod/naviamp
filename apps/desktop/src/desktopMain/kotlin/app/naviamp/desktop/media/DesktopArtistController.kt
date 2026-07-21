@@ -72,6 +72,10 @@ class DesktopArtistController(
         selectedArtistDetails = details
     }
 
+    fun updateSelectedArtistStatus(status: String?) {
+        selectedArtistStatus = status
+    }
+
     fun openExternalArtistUrl(url: String) {
         runCatching {
             if (Desktop.isDesktopSupported() && Desktop.getDesktop().isSupported(Desktop.Action.BROWSE)) {
