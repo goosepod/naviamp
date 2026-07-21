@@ -1,6 +1,9 @@
 package app.naviamp.desktop
 
 import app.naviamp.domain.app.NaviampRoute
+import app.naviamp.app.NaviampDetailBackCommand
+import app.naviamp.app.NaviampDetailKind
+import app.naviamp.app.NaviampNavigationController
 
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -41,8 +44,7 @@ class DesktopArtistController(
     providerResponseCacheRepository: ProviderResponseCacheRepository,
     private val provider: () -> MediaProvider?,
     private val sourceId: () -> String?,
-    private val currentRoute: () -> NaviampRoute,
-    private val lastContentRoute: () -> NaviampRoute,
+    private val navigationController: NaviampNavigationController,
     private val setRoute: (NaviampRoute) -> Unit,
     private val popularTracksService: ArtistPopularTracksService,
     private val similarArtistsService: SimilarArtistsService,
@@ -63,9 +65,8 @@ class DesktopArtistController(
         private set
     var selectedArtistSimilarArtistsStatus by mutableStateOf<String?>(null)
         private set
-    var artistDetailBackRoute by mutableStateOf(NaviampRoute.Search)
-        private set
-    private var artistDetailBackStack by mutableStateOf<List<Artist>>(emptyList())
+    val artistDetailBackRoute: NaviampRoute
+        get() = navigationController.artistDetailBackRoute
 
     fun updateSelectedArtistDetails(details: ArtistDetails?) {
         selectedArtistDetails = details
@@ -115,18 +116,12 @@ class DesktopArtistController(
         pushCurrentArtist: Boolean = true,
     ) {
         val activeProvider = provider() ?: return
-        val navigation = artistDetailNavigation(
-            artist = artist,
-            currentArtist = selectedArtist,
-            currentRoute = currentRoute(),
-            currentBackStack = artistDetailBackStack,
-            currentBackRoute = artistDetailBackRoute,
-            lastContentRoute = lastContentRoute(),
-            backRouteOverride = backRouteOverride,
-            pushCurrentArtist = pushCurrentArtist,
-        )
-        artistDetailBackStack = navigation.backStack
-        artistDetailBackRoute = navigation.backRoute
+        if (pushCurrentArtist) {
+            navigationController.recordArtistDetailOpened(
+                artist = artist,
+                backRouteOverride = backRouteOverride,
+            )
+        }
         selectedArtist = artist
         selectedArtistDetails = null
         selectedArtistPopularTracks = emptyList()
@@ -137,7 +132,10 @@ class DesktopArtistController(
         scope.launch {
             ArtistDetailFlowCoordinator(
                 setStatus = { status -> selectedArtistStatus = connectedDetailStatusAsNull(status) },
-                applyDetail = { details -> selectedArtistDetails = details },
+                applyDetail = { details ->
+                    selectedArtistDetails = details
+                    navigationController.updateActiveArtist(details.artist)
+                },
             ).load(
                 request = ArtistDetailFlowRequest(
                     libraryIndexRepository = libraryIndexRepository,
@@ -197,16 +195,12 @@ class DesktopArtistController(
     }
 
     fun closeArtistDetails() {
-        val previousArtist = artistDetailBackStack.lastOrNull()
-        if (previousArtist != null) {
-            artistDetailBackStack = artistDetailBackStack.dropLast(1)
-            openArtistDetails(
-                artist = previousArtist,
-                backRouteOverride = artistDetailBackRoute,
+        when (val command = navigationController.closeActiveDetail(NaviampDetailKind.Artist)) {
+            is NaviampDetailBackCommand.OpenArtist -> openArtistDetails(
+                artist = command.artist,
                 pushCurrentArtist = false,
             )
-        } else {
-            setRoute(artistDetailBackRoute)
+            is NaviampDetailBackCommand.Navigate -> setRoute(command.route)
         }
     }
 

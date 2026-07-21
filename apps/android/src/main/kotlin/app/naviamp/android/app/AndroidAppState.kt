@@ -203,7 +203,6 @@ class AndroidAppState(
     var artistPopularTracksStatusByArtistId by mutableStateOf<Map<String, String?>>(emptyMap())
     var artistSimilarArtistsByArtistId by mutableStateOf<Map<String, List<SimilarArtistMatch>>>(emptyMap())
     var artistSimilarArtistsStatusByArtistId by mutableStateOf<Map<String, String?>>(emptyMap())
-    var artistDetailBackStack by mutableStateOf<List<Artist>>(emptyList())
     var artistMixQuery by mutableStateOf("")
     var artistMixSelectedArtists by mutableStateOf<List<Artist>>(emptyList())
     var artistMixSuggestions by mutableStateOf<List<Artist>>(emptyList())

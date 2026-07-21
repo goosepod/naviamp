@@ -54,13 +54,11 @@ fun openAndroidArtistDetails(
     val activeProvider = state.provider ?: return
     val sourceId = state.activeSourceId
     val providerResponseService = ProviderResponseService(providerResponseCacheRepository)
-    with(state) {
-        if (pushCurrentArtist) {
-            contentState.artistDetail
-                ?.artist
-                ?.takeIf { currentArtist -> currentArtist.id != artistId }
-                ?.let { currentArtist -> artistDetailBackStack = artistDetailBackStack + currentArtist }
-        }
+    if (pushCurrentArtist) {
+        state.sharedNavigationController.recordArtistDetailOpened(
+            artist = Artist(artistId, fallbackName.orEmpty()),
+            continuingArtistDetail = state.artistDetail != null,
+        )
     }
     scope.launch {
         with(state) {
@@ -68,6 +66,7 @@ fun openAndroidArtistDetails(
                 setStatus = { nextStatus -> status = nextStatus.orEmpty() },
                 applyDetail = { detail ->
                     contentState = contentState.showArtist(detail)
+                    sharedNavigationController.updateActiveArtist(detail.artist)
                     nowPlayingOpen = false
                     navigationState = navigationState.copy(route = NaviampRoute.Library)
                 },
@@ -165,6 +164,7 @@ fun openAndroidAlbumDetails(
     val activeProvider = state.provider ?: return
     val sourceId = state.activeSourceId
     val providerResponseService = ProviderResponseService(providerResponseCacheRepository)
+    state.sharedNavigationController.recordAlbumDetailOpened()
     scope.launch {
         with(state) {
             AlbumDetailFlowCoordinator(
@@ -201,6 +201,7 @@ fun openAndroidNowPlayingAlbumDetails(
     val fallbackTitle = state.nowPlaying?.albumTitle
     val fallbackArtistName = state.nowPlaying?.artistName
     val providerResponseService = ProviderResponseService(providerResponseCacheRepository)
+    state.sharedNavigationController.recordAlbumDetailOpened()
     scope.launch {
         with(state) {
             AlbumDetailFlowCoordinator(

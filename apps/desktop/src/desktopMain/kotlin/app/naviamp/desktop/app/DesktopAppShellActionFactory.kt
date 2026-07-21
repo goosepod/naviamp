@@ -224,7 +224,7 @@ internal fun desktopAppShellActions(context: DesktopAppShellActionContext): Navi
                 actionSources = detailSources,
                 appActions = appActions,
                 playlistsController = playlistsController,
-                onBack = { setRoute(albumController.albumDetailBackRoute) },
+                onBack = appActions::closeAlbumDetails,
             ),
             artistDetailActions = desktopArtistDetailActions(detailSources, appActions, playlistsController),
             playlistDetailActions = desktopPlaylistDetailActions(

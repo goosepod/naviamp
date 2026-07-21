@@ -13,6 +13,7 @@ import app.naviamp.domain.settings.CacheSettings
 import app.naviamp.domain.settings.ConnectionFormState
 import app.naviamp.domain.settings.InterfaceSettings
 import app.naviamp.domain.settings.PlaybackSettings
+import app.naviamp.domain.app.NaviampRoute
 import app.naviamp.ui.NaviampVisualizer
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -30,6 +31,7 @@ class AndroidDetailBackActionTest {
             )
         }
         val navigation = AndroidNavigationController(state) { _, _, _ -> }
+        state.sharedNavigationController.recordAlbumDetailOpened()
 
         androidDetailBackAction(navigation)()
 
@@ -43,8 +45,13 @@ class AndroidDetailBackActionTest {
             contentState = contentState.showArtist(
                 ArtistDetails(Artist(ArtistId("current"), "Current"), emptyList()),
             )
-            artistDetailBackStack = listOf(previous)
         }
+        state.sharedNavigationController.recordArtistDetailOpened(previous)
+        state.navigationState = state.navigationState.copy(route = NaviampRoute.ArtistDetail)
+        state.sharedNavigationController.recordArtistDetailOpened(
+            state.artistDetail!!.artist,
+            continuingArtistDetail = true,
+        )
         var reopened: Triple<ArtistId, String?, Boolean>? = null
         val navigation = AndroidNavigationController(state) { id, name, pushCurrent ->
             reopened = Triple(id, name, pushCurrent)
@@ -53,7 +60,6 @@ class AndroidDetailBackActionTest {
         androidDetailBackAction(navigation)()
 
         assertEquals(Triple(previous.id, previous.name, false), reopened)
-        assertEquals(emptyList(), state.artistDetailBackStack)
     }
 
     private fun appState() = AndroidAppState(

@@ -1,5 +1,7 @@
 package app.naviamp.android
 
+import app.naviamp.app.NaviampDetailBackCommand
+import app.naviamp.app.NaviampDetailKind
 import app.naviamp.domain.ArtistId
 import app.naviamp.domain.app.NaviampRoute
 import app.naviamp.ui.SharedMixBuilderUi
@@ -9,14 +11,14 @@ internal class AndroidNavigationController(
     private val openArtistDetails: (ArtistId, String?, Boolean) -> Unit,
 ) {
     fun closeActiveDetail() {
-        val previousArtist = state.contentState.artistDetail
-            ?.let { state.artistDetailBackStack.lastOrNull() }
-        if (previousArtist != null) {
-            state.artistDetailBackStack = state.artistDetailBackStack.dropLast(1)
-            openArtistDetails(previousArtist.id, previousArtist.name, false)
-        } else {
-            state.contentState = state.contentState.clearDetails()
-            state.artistDetailBackStack = emptyList()
+        val kind = if (state.albumDetail != null) NaviampDetailKind.Album else NaviampDetailKind.Artist
+        when (val command = state.sharedNavigationController.closeActiveDetail(kind)) {
+            is NaviampDetailBackCommand.OpenArtist ->
+                openArtistDetails(command.artist.id, command.artist.name, false)
+            is NaviampDetailBackCommand.Navigate -> {
+                state.contentState = state.contentState.clearDetails()
+                state.navigationState = state.navigationState.copy(route = command.route)
+            }
         }
     }
 
@@ -36,6 +38,7 @@ internal class AndroidNavigationController(
             state.navigationState.route != NaviampRoute.Home -> {
                 state.navigationState = state.navigationState.copy(route = NaviampRoute.Home)
                 state.contentState = state.contentState.clearDetails()
+                state.sharedNavigationController.clearDetailHistory()
             }
         }
     }

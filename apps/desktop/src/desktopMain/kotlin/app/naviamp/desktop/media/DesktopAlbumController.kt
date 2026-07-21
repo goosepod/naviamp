@@ -1,6 +1,9 @@
 package app.naviamp.desktop
 
 import app.naviamp.domain.app.NaviampRoute
+import app.naviamp.app.NaviampDetailBackCommand
+import app.naviamp.app.NaviampDetailKind
+import app.naviamp.app.NaviampNavigationController
 
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -25,8 +28,7 @@ class DesktopAlbumController(
     providerResponseCacheRepository: ProviderResponseCacheRepository,
     private val provider: () -> MediaProvider?,
     private val sourceId: () -> String?,
-    private val currentRoute: () -> NaviampRoute,
-    private val lastContentRoute: () -> NaviampRoute,
+    private val navigationController: NaviampNavigationController,
     private val setRoute: (NaviampRoute) -> Unit,
 ) {
     private val providerResponseService = ProviderResponseService(providerResponseCacheRepository)
@@ -37,8 +39,8 @@ class DesktopAlbumController(
         private set
     var selectedAlbumStatus by mutableStateOf<String?>(null)
         private set
-    var albumDetailBackRoute by mutableStateOf(NaviampRoute.Home)
-        private set
+    val albumDetailBackRoute: NaviampRoute
+        get() = navigationController.albumDetailBackRoute
 
     fun updateSelectedAlbumDetails(details: AlbumDetails?) {
         selectedAlbumDetails = details
@@ -46,13 +48,7 @@ class DesktopAlbumController(
 
     fun openAlbumDetails(album: Album, backRouteOverride: NaviampRoute? = null) {
         val activeProvider = provider() ?: return
-        albumDetailBackRoute =
-            resolveAlbumDetailBackRoute(
-                currentRoute = currentRoute(),
-                currentBackRoute = albumDetailBackRoute,
-                lastContentRoute = lastContentRoute(),
-                backRouteOverride = backRouteOverride,
-            )
+        navigationController.recordAlbumDetailOpened(backRouteOverride)
         selectedAlbum = album
         selectedAlbumDetails = null
         setRoute(NaviampRoute.AlbumDetail)
@@ -76,5 +72,12 @@ class DesktopAlbumController(
 
     fun openTrackAlbumDetails(track: Track) {
         openAlbumDetails(trackAlbum(track) ?: return, backRouteOverride = NaviampRoute.Player)
+    }
+
+    fun closeAlbumDetails() {
+        when (val command = navigationController.closeActiveDetail(NaviampDetailKind.Album)) {
+            is NaviampDetailBackCommand.Navigate -> setRoute(command.route)
+            is NaviampDetailBackCommand.OpenArtist -> error("Album detail history returned an artist command.")
+        }
     }
 }

@@ -65,7 +65,7 @@ internal fun androidMainShellActions(
             onRouteSelected = { route ->
                 state.navigationState = state.navigationState.copy(route = route.toNaviampRoute())
                 state.contentState = state.contentState.clearDetails()
-                state.artistDetailBackStack = emptyList()
+                state.sharedNavigationController.clearDetailHistory()
                 state.nowPlayingOpen = false
             },
             onOpenNowPlaying = { state.nowPlayingOpen = true },

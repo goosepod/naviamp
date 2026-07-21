@@ -356,6 +356,10 @@ class DesktopAppActions(
         artistController.closeArtistDetails()
     }
 
+    fun closeAlbumDetails() {
+        albumController.closeAlbumDetails()
+    }
+
     fun openTrackAlbumDetails(track: Track) {
         albumController.openTrackAlbumDetails(track)
     }

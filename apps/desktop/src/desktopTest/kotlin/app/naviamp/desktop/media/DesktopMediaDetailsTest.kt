@@ -1,7 +1,5 @@
 package app.naviamp.desktop
 
-import app.naviamp.domain.app.NaviampRoute
-
 import app.naviamp.domain.Album
 import app.naviamp.domain.AlbumId
 import app.naviamp.domain.Artist
@@ -17,80 +15,6 @@ import kotlin.test.assertEquals
 import kotlin.test.assertNull
 
 class DesktopMediaDetailsTest {
-    @Test
-    fun albumBackRouteUsesCurrentDetailRouteRules() {
-        assertEquals(
-            NaviampRoute.Home,
-            resolveAlbumDetailBackRoute(
-                currentRoute = NaviampRoute.Player,
-                currentBackRoute = NaviampRoute.Search,
-                lastContentRoute = NaviampRoute.Home,
-                backRouteOverride = null,
-            ),
-        )
-        assertEquals(
-            NaviampRoute.ArtistDetail,
-            resolveAlbumDetailBackRoute(
-                currentRoute = NaviampRoute.ArtistDetail,
-                currentBackRoute = NaviampRoute.Home,
-                lastContentRoute = NaviampRoute.Search,
-                backRouteOverride = null,
-            ),
-        )
-        assertEquals(
-            NaviampRoute.Search,
-            resolveAlbumDetailBackRoute(
-                currentRoute = NaviampRoute.Home,
-                currentBackRoute = NaviampRoute.Home,
-                lastContentRoute = NaviampRoute.Home,
-                backRouteOverride = NaviampRoute.Search,
-            ),
-        )
-    }
-
-    @Test
-    fun artistNavigationPushesCurrentArtistWhenOpeningNestedArtist() {
-        val currentArtist = artist("current")
-        val nextArtist = artist("next")
-
-        assertEquals(
-            ArtistDetailNavigation(
-                backStack = listOf(currentArtist),
-                backRoute = NaviampRoute.Home,
-            ),
-            artistDetailNavigation(
-                artist = nextArtist,
-                currentArtist = currentArtist,
-                currentRoute = NaviampRoute.ArtistDetail,
-                currentBackStack = emptyList(),
-                currentBackRoute = NaviampRoute.Home,
-                lastContentRoute = NaviampRoute.Search,
-                backRouteOverride = null,
-                pushCurrentArtist = true,
-            ),
-        )
-    }
-
-    @Test
-    fun artistNavigationClearsStackWhenEnteringFromNonArtistRoute() {
-        assertEquals(
-            ArtistDetailNavigation(
-                backStack = emptyList(),
-                backRoute = NaviampRoute.Search,
-            ),
-            artistDetailNavigation(
-                artist = artist("next"),
-                currentArtist = artist("current"),
-                currentRoute = NaviampRoute.Search,
-                currentBackStack = listOf(artist("old")),
-                currentBackRoute = NaviampRoute.Home,
-                lastContentRoute = NaviampRoute.Home,
-                backRouteOverride = null,
-                pushCurrentArtist = true,
-            ),
-        )
-    }
-
     @Test
     fun trackArtistAndAlbumReturnNullWhenIdsAreMissing() {
         val track = track()
@@ -127,12 +51,6 @@ class DesktopMediaDetailsTest {
         assertEquals("Could not load album.", albumDetailLoadErrorStatus(Exception()))
         assertEquals("Could not load artist.", artistDetailLoadErrorStatus(Exception()))
     }
-
-    private fun artist(id: String): Artist =
-        Artist(
-            id = ArtistId(id),
-            name = "Artist $id",
-        )
 
     private fun track(
         artistId: ArtistId? = null,

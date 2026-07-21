@@ -841,8 +841,7 @@ fun NaviampApp(
         providerResponseCacheRepository = storage,
         provider = { connectedProvider },
         sourceId = { connectedSourceId },
-        currentRoute = { appRoute },
-        lastContentRoute = { lastContentRoute },
+        navigationController = navigationController,
         setRoute = { route -> appRoute = route },
         popularTracksService = popularTracksService,
         similarArtistsService = similarArtistsService,
@@ -856,8 +855,7 @@ fun NaviampApp(
         providerResponseCacheRepository = storage,
         provider = { connectedProvider },
         sourceId = { connectedSourceId },
-        currentRoute = { appRoute },
-        lastContentRoute = { lastContentRoute },
+        navigationController = navigationController,
         setRoute = { route -> appRoute = route },
     )
     }
