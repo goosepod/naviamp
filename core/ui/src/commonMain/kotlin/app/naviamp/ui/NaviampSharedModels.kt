@@ -439,17 +439,25 @@ data class NaviampAlbumDetailScreenUi(
     val status: String? = null,
 )
 
+sealed interface NaviampAlbumDetailCommand {
+    data class Play(val shuffle: Boolean) : NaviampAlbumDetailCommand
+    data object StartRadio : NaviampAlbumDetailCommand
+    data object Download : NaviampAlbumDetailCommand
+    data object AddToQueue : NaviampAlbumDetailCommand
+    data class AddToPlaylist(val choice: NaviampPlaylistChoiceUi) : NaviampAlbumDetailCommand
+    data class CreatePlaylistAndAdd(val name: String) : NaviampAlbumDetailCommand
+    data object ToggleFavorite : NaviampAlbumDetailCommand
+}
+
+data class NaviampAlbumDetailActionRequest(
+    val album: SharedMediaItemUi,
+    val command: NaviampAlbumDetailCommand,
+)
+
 data class NaviampAlbumDetailActions(
-    val onBack: () -> Unit = {},
-    val onPlay: (SharedAlbumDetailUi, Boolean) -> Unit = { _, _ -> },
-    val onRadio: (SharedAlbumDetailUi) -> Unit = {},
-    val onDownload: (SharedAlbumDetailUi) -> Unit = {},
-    val onAddToQueue: (SharedAlbumDetailUi) -> Unit = {},
-    val onAddToPlaylist: (SharedAlbumDetailUi, NaviampPlaylistChoiceUi?) -> Unit = { _, _ -> },
-    val onCreatePlaylistAndAdd: (SharedAlbumDetailUi, String) -> Unit = { _, _ -> },
-    val onFavoriteToggled: (SharedMediaItemUi) -> Unit = {},
-    val onTrackSelected: (SharedTrackRowUi) -> Unit = {},
-    val onTrackAction: (SharedTrackRowActionRequest) -> Unit = {},
+    val onBack: () -> Unit,
+    val onAlbumAction: (NaviampAlbumDetailActionRequest) -> Unit,
+    val onTrackAction: (SharedTrackRowActionRequest) -> Unit,
 )
 
 data class SharedArtistDetailUi(
@@ -850,7 +858,7 @@ data class NaviampAppShellActions(
     val libraryActions: NaviampLibraryActions = NaviampLibraryActions(),
     val playlistsActions: NaviampPlaylistsActions = NaviampPlaylistsActions(),
     val radioActions: NaviampInternetRadioActions = NaviampInternetRadioActions(),
-    val albumDetailActions: NaviampAlbumDetailActions = NaviampAlbumDetailActions(),
+    val albumDetailActions: NaviampAlbumDetailActions,
     val artistDetailActions: NaviampArtistDetailActions = NaviampArtistDetailActions(),
     val playlistDetailActions: NaviampPlaylistDetailActions,
     val homeActions: NaviampHomeActions = NaviampHomeActions(),

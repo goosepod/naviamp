@@ -272,6 +272,62 @@ class SharedActionSourcesTest {
         )
     }
 
+    @Test
+    fun albumDetailDispatcherRequiresAndPreservesEveryVisibleAction() {
+        val album = album("album")
+        val item = SharedMediaItemUi(id = album.id.value, title = album.title, subtitle = "Artist")
+        val choice = NaviampPlaylistChoiceUi("target", "Target")
+        val dispatched = mutableListOf<String>()
+        val handlers = ResolvedAlbumDetailActionHandlers<Album>(
+            onPlay = { _, shuffle -> dispatched += "play:$shuffle" },
+            onStartRadio = { dispatched += "radio" },
+            onDownload = { dispatched += "download" },
+            onAddToQueue = { dispatched += "queue" },
+            onAddToPlaylist = { _, target -> dispatched += "add:${target.id}" },
+            onCreatePlaylistAndAdd = { _, name -> dispatched += "create:$name" },
+            onToggleFavorite = { dispatched += "favorite" },
+        )
+        val requests = listOf(
+            NaviampAlbumDetailActionRequest(item, NaviampAlbumDetailCommand.Play(false)),
+            NaviampAlbumDetailActionRequest(item, NaviampAlbumDetailCommand.Play(true)),
+            NaviampAlbumDetailActionRequest(item, NaviampAlbumDetailCommand.StartRadio),
+            NaviampAlbumDetailActionRequest(item, NaviampAlbumDetailCommand.Download),
+            NaviampAlbumDetailActionRequest(item, NaviampAlbumDetailCommand.AddToQueue),
+            NaviampAlbumDetailActionRequest(item, NaviampAlbumDetailCommand.AddToPlaylist(choice)),
+            NaviampAlbumDetailActionRequest(item, NaviampAlbumDetailCommand.CreatePlaylistAndAdd("New")),
+            NaviampAlbumDetailActionRequest(item, NaviampAlbumDetailCommand.ToggleFavorite),
+        )
+
+        val results = requests.map { dispatchResolvedAlbumDetailAction(it, album, handlers) }
+
+        assertEquals(List(requests.size) { AlbumDetailActionDispatchResult.Dispatched }, results)
+        assertEquals(
+            listOf(
+                "play:false",
+                "play:true",
+                "radio",
+                "download",
+                "queue",
+                "add:target",
+                "create:New",
+                "favorite",
+            ),
+            dispatched,
+        )
+        assertEquals(
+            AlbumDetailActionDispatchResult.MissingAlbum,
+            dispatchResolvedAlbumDetailAction(requests.first(), null, handlers),
+        )
+        assertEquals(
+            AlbumDetailActionDispatchResult.InvalidValue,
+            dispatchResolvedAlbumDetailAction(
+                NaviampAlbumDetailActionRequest(item, NaviampAlbumDetailCommand.CreatePlaylistAndAdd("")),
+                album,
+                handlers,
+            ),
+        )
+    }
+
     private fun album(id: String): Album = Album(
         id = AlbumId(id),
         title = id,

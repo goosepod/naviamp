@@ -46,6 +46,10 @@ class DesktopAlbumController(
         selectedAlbumDetails = details
     }
 
+    fun updateSelectedAlbumStatus(status: String?) {
+        selectedAlbumStatus = status
+    }
+
     fun openAlbumDetails(album: Album, backRouteOverride: NaviampRoute? = null) {
         val activeProvider = provider() ?: return
         navigationController.recordAlbumDetailOpened(backRouteOverride)

@@ -1133,14 +1133,51 @@ fun NaviampAlbumDetailContent(
         colors = colors,
         detail = detail,
         onBack = actions.onBack,
-        onPlayAlbum = { actions.onPlay(detail, false) },
-        onShuffleAlbum = { actions.onPlay(detail, true) },
-        onAlbumRadio = { actions.onRadio(detail) },
-        onAlbumDownload = { actions.onDownload(detail) },
-        onAlbumAddToQueue = { actions.onAddToQueue(detail) },
-        onAlbumAddToPlaylist = { playlist -> actions.onAddToPlaylist(detail, playlist) },
-        onAlbumCreatePlaylistAndAdd = { name -> actions.onCreatePlaylistAndAdd(detail, name) },
-        onAlbumFavoriteToggled = { actions.onFavoriteToggled(detail.album) },
+        onPlayAlbum = {
+            actions.onAlbumAction(
+                NaviampAlbumDetailActionRequest(detail.album, NaviampAlbumDetailCommand.Play(false)),
+            )
+        },
+        onShuffleAlbum = {
+            actions.onAlbumAction(
+                NaviampAlbumDetailActionRequest(detail.album, NaviampAlbumDetailCommand.Play(true)),
+            )
+        },
+        onAlbumRadio = {
+            actions.onAlbumAction(
+                NaviampAlbumDetailActionRequest(detail.album, NaviampAlbumDetailCommand.StartRadio),
+            )
+        },
+        onAlbumDownload = {
+            actions.onAlbumAction(
+                NaviampAlbumDetailActionRequest(detail.album, NaviampAlbumDetailCommand.Download),
+            )
+        },
+        onAlbumAddToQueue = {
+            actions.onAlbumAction(
+                NaviampAlbumDetailActionRequest(detail.album, NaviampAlbumDetailCommand.AddToQueue),
+            )
+        },
+        onAlbumAddToPlaylist = { playlist ->
+            playlist?.let {
+                actions.onAlbumAction(
+                    NaviampAlbumDetailActionRequest(detail.album, NaviampAlbumDetailCommand.AddToPlaylist(it)),
+                )
+            }
+        },
+        onAlbumCreatePlaylistAndAdd = { name ->
+            actions.onAlbumAction(
+                NaviampAlbumDetailActionRequest(
+                    detail.album,
+                    NaviampAlbumDetailCommand.CreatePlaylistAndAdd(name),
+                ),
+            )
+        },
+        onAlbumFavoriteToggled = {
+            actions.onAlbumAction(
+                NaviampAlbumDetailActionRequest(detail.album, NaviampAlbumDetailCommand.ToggleFavorite),
+            )
+        },
         onTrackAction = actions.onTrackAction,
         playlistChoices = playlistChoices,
         playlistActionStatus = playlistActionStatus,

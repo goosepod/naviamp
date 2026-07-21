@@ -5,8 +5,11 @@ import app.naviamp.ui.KeepDownloadedActionValue
 import app.naviamp.ui.NaviampAlbumDetailActions
 import app.naviamp.ui.NaviampArtistDetailActions
 import app.naviamp.ui.NaviampPlaylistDetailActions
+import app.naviamp.ui.ResolvedAlbumDetailActionHandlers
 import app.naviamp.ui.ResolvedPlaylistDetailActionHandlers
 import app.naviamp.ui.SharedMediaItemAction
+import app.naviamp.ui.albumDetailActionDispatchStatus
+import app.naviamp.ui.dispatchResolvedAlbumDetailAction
 import app.naviamp.ui.dispatchResolvedPlaylistDetailAction
 import app.naviamp.ui.playlistDetailActionDispatchStatus
 import kotlinx.coroutines.CoroutineScope
@@ -25,20 +28,48 @@ internal fun androidAlbumDetailActions(
     downloadActionController: AndroidDownloadActionController,
 ): NaviampAlbumDetailActions = NaviampAlbumDetailActions(
     onBack = androidDetailBackAction(navigationController),
-    onPlay = { _, shuffle -> shellMediaController.handleShellAlbumPlay(shuffle) },
-    onRadio = { shellMediaController.handleShellAlbumRadio() },
-    onDownload = { downloadActionController.downloadTracks(state.albumDetail?.tracks.orEmpty(), "album") },
-    onAddToQueue = { mediaController.appendTracksToQueue(state.albumDetail?.tracks.orEmpty(), "album tracks") },
-    onAddToPlaylist = { _, playlist ->
-        playlistActionController.addTracksToPlaylist(state.albumDetail?.tracks.orEmpty(), playlist, null, "album")
+    onAlbumAction = { request ->
+        val album = state.albumDetail?.album?.takeIf { it.id.value == request.album.id }
+        val result = dispatchResolvedAlbumDetailAction(
+            request = request,
+            album = album,
+            handlers = ResolvedAlbumDetailActionHandlers(
+                onPlay = { _, shuffle -> shellMediaController.handleShellAlbumPlay(shuffle) },
+                onStartRadio = { shellMediaController.handleShellAlbumRadio() },
+                onDownload = {
+                    downloadActionController.downloadTracks(state.albumDetail?.tracks.orEmpty(), "album")
+                },
+                onAddToQueue = {
+                    mediaController.appendTracksToQueue(state.albumDetail?.tracks.orEmpty(), "album tracks")
+                },
+                onAddToPlaylist = { _, choice ->
+                    playlistActionController.addTracksToPlaylist(
+                        state.albumDetail?.tracks.orEmpty(),
+                        choice,
+                        null,
+                        "album",
+                    )
+                },
+                onCreatePlaylistAndAdd = { _, name ->
+                    playlistActionController.addTracksToPlaylist(
+                        state.albumDetail?.tracks.orEmpty(),
+                        null,
+                        name,
+                        "album",
+                    )
+                },
+                onToggleFavorite = {
+                    toggleAndroidAlbumFavorite(
+                        scope,
+                        state,
+                        request.album,
+                        state.sharedControllers.providerActions,
+                    )
+                },
+            ),
+        )
+        albumDetailActionDispatchStatus(result)?.let { state.status = it }
     },
-    onCreatePlaylistAndAdd = { _, name ->
-        playlistActionController.addTracksToPlaylist(state.albumDetail?.tracks.orEmpty(), null, name, "album")
-    },
-    onFavoriteToggled = { item ->
-        toggleAndroidAlbumFavorite(scope, state, item, state.sharedControllers.providerActions)
-    },
-    onTrackSelected = shellMediaController::handleShellAlbumTrackSelected,
     onTrackAction = trackActionController::handleTrackAction,
 )
 

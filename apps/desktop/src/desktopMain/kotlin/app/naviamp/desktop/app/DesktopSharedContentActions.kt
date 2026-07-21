@@ -11,12 +11,15 @@ import app.naviamp.ui.SharedDetailActionSources
 import app.naviamp.ui.SharedInternetRadioActionSources
 import app.naviamp.ui.SharedPlaylistActionSources
 import app.naviamp.ui.ResolvedMediaItemActionHandlers
+import app.naviamp.ui.ResolvedAlbumDetailActionHandlers
 import app.naviamp.ui.ResolvedPlaylistDetailActionHandlers
 import app.naviamp.ui.ResolvedTrackRowActionHandlers
 import app.naviamp.ui.dispatchResolvedPlaylistDetailAction
+import app.naviamp.ui.dispatchResolvedAlbumDetailAction
 import app.naviamp.ui.handleResolvedMediaItemAction
 import app.naviamp.ui.handleResolvedTrackRowAction
 import app.naviamp.ui.playlistDetailActionDispatchStatus
+import app.naviamp.ui.albumDetailActionDispatchStatus
 import app.naviamp.ui.NaviampInternetRadioActions
 import app.naviamp.ui.NaviampAlbumDetailActions
 import app.naviamp.ui.NaviampArtistDetailActions
@@ -52,15 +55,40 @@ internal fun desktopAlbumDetailActions(
     appActions: DesktopAppActions,
     playlistsController: DesktopPlaylistsController,
     onBack: () -> Unit,
+    onStatus: (String?) -> Unit,
 ): NaviampAlbumDetailActions = NaviampAlbumDetailActions(
     onBack = onBack,
-    onPlay = { _, shuffle -> appActions.playAlbumDetails(shuffle = shuffle) },
-    onRadio = { appActions.playCurrentAlbumRadio() },
-    onDownload = { appActions.downloadCurrentAlbum() },
-    onAddToQueue = { appActions.addCurrentAlbumToQueue() },
-    onAddToPlaylist = { _, _ -> appActions.openCurrentAlbumAddToPlaylist() },
-    onFavoriteToggled = { item ->
-        actionSources.album(item.id)?.let(appActions::toggleAlbumFavorite)
+    onAlbumAction = { request ->
+        val result = dispatchResolvedAlbumDetailAction(
+            request = request,
+            album = actionSources.album(request.album.id),
+            handlers = ResolvedAlbumDetailActionHandlers(
+                onPlay = { _, shuffle -> appActions.playAlbumDetails(shuffle = shuffle) },
+                onStartRadio = appActions::playAlbumRadio,
+                onDownload = appActions::downloadAlbum,
+                onAddToQueue = playlistsController::addAlbumToQueue,
+                onAddToPlaylist = { album, choice ->
+                    val target = playlistsController.playlists.firstOrNull { it.id == choice.id }
+                    if (target == null) {
+                        onStatus("Playlist not found.")
+                    } else {
+                        playlistsController.addTargetToPlaylist(
+                            AddToPlaylistTarget.AlbumTarget(album),
+                            playlist = target,
+                        )
+                    }
+                },
+                onCreatePlaylistAndAdd = { album, name ->
+                    playlistsController.addTargetToPlaylist(
+                        AddToPlaylistTarget.AlbumTarget(album),
+                        playlist = null,
+                        newPlaylistName = name,
+                    )
+                },
+                onToggleFavorite = appActions::toggleAlbumFavorite,
+            ),
+        )
+        albumDetailActionDispatchStatus(result)?.let(onStatus)
     },
     onTrackAction = { request ->
         handleResolvedTrackRowAction(
