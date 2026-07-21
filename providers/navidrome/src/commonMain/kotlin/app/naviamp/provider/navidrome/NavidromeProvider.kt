@@ -723,6 +723,16 @@ class NavidromeProvider(
             .withoutLibraryScopeForEditing()
     }
 
+    /**
+     * Renews Navidrome's sliding native-API session without loading playlist contents.
+     * The native API has no dedicated no-op endpoint, so request only the first playlist row.
+     */
+    suspend fun refreshNativeSession(): Boolean {
+        if (nativeToken.isNullOrBlank()) return false
+        getNativeJson("playlist?range=%5B0%2C0%5D")
+        return true
+    }
+
     override suspend fun addTracksToPlaylist(playlistId: String, trackIds: List<TrackId>) {
         if (trackIds.isEmpty()) return
         get(

@@ -1140,6 +1140,27 @@ class NavidromeProviderTest {
     }
 
     @Test
+    fun refreshNativeSessionUsesBoundedReadAndRetainsRotatedToken() = runTest {
+        val httpClient = RecordingNativeHttpClient(
+            response = """{"data":[]}""",
+            responseHeaders = mapOf("X-ND-Authorization" to "rotated-native-token"),
+        )
+        val provider = NavidromeProvider(
+            connection = connection("https://music.example.test", nativeToken = "native-token"),
+            httpClient = httpClient,
+        )
+
+        assertTrue(provider.refreshNativeSession())
+
+        assertEquals(
+            "https://music.example.test/api/playlist?range=%5B0%2C0%5D",
+            httpClient.getUrls.single(),
+        )
+        assertEquals(mapOf("x-nd-authorization" to "Bearer native-token"), httpClient.getHeaders.single())
+        assertEquals("rotated-native-token", provider.connectionWithCurrentNativeToken().nativeToken)
+    }
+
+    @Test
     fun createSmartPlaylistScopesDefinitionToSelectedMusicFolder() = runTest {
         val httpClient = RecordingNativeHttpClient(
             """

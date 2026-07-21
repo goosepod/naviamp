@@ -631,9 +631,13 @@ suspend fun loadAndroidSmartPlaylistDefinition(
     state: AndroidAppState,
     playlist: Playlist,
     storage: AndroidStorageDependencies? = null,
+    passwordOverride: String? = null,
 ): SmartPlaylistDefinition {
-    val activeProvider = state.provider
-        ?: throw IllegalStateException("Connect to Navidrome before editing smart playlists.")
+    val activeProvider = if (passwordOverride.isNullOrBlank()) {
+        state.provider ?: throw IllegalStateException("Connect to Navidrome before editing smart playlists.")
+    } else {
+        refreshAndroidSmartPlaylistProvider(state, storage, passwordOverride)
+    }
     val definition = withContext(Dispatchers.IO) {
         activeProvider.loadSmartPlaylistDefinition(playlist)
     }
@@ -715,6 +719,16 @@ internal class AndroidPlaylistActionController(
 
     suspend fun loadSmartPlaylistDefinition(playlist: Playlist): SmartPlaylistDefinition =
         loadAndroidSmartPlaylistDefinition(state, playlist, storage)
+
+    suspend fun loadSmartPlaylistDefinitionWithPassword(playlist: Playlist, password: String): SmartPlaylistDefinition =
+        loadAndroidSmartPlaylistDefinition(state, playlist, storage, passwordOverride = password)
+
+    suspend fun refreshNativeSession(): Boolean {
+        val activeProvider = state.provider ?: return false
+        val refreshed = activeProvider.refreshNativeSession()
+        if (refreshed) persistAndroidSmartPlaylistNativeToken(state, storage, activeProvider)
+        return refreshed
+    }
 
     fun addTrackToPlaylist(
         track: Track,

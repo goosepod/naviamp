@@ -536,6 +536,9 @@ data class NaviampPlaylistsActions(
     val onSmartPlaylistLoad: suspend (SharedMediaItemUi) -> SmartPlaylistDefinition = {
         throw UnsupportedOperationException("Smart playlist loading is not available.")
     },
+    val onSmartPlaylistLoadWithPassword: suspend (SharedMediaItemUi, String) -> SmartPlaylistDefinition = { playlist, _ ->
+        onSmartPlaylistLoad(playlist)
+    },
 )
 
 data class NaviampPlaylistDetailScreenUi(

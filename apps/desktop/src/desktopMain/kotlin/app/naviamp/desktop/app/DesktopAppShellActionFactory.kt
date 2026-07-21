@@ -207,6 +207,11 @@ internal fun desktopAppShellActions(context: DesktopAppShellActionContext): Navi
                         ?.let { smartPlaylistsController.loadSmartPlaylistDefinition(it) }
                         ?: error("Playlist ${item.title} is no longer available.")
                 },
+                onSmartPlaylistLoadWithPassword = { item, password ->
+                    playlistSources.playlist(item.id)
+                        ?.let { smartPlaylistsController.loadSmartPlaylistDefinitionWithPassword(it, password) }
+                        ?: error("Playlist ${item.title} is no longer available.")
+                },
             ),
             radioActions = desktopInternetRadioActions(
                 actionSources = SharedInternetRadioActionSources(internetRadioController.stations),

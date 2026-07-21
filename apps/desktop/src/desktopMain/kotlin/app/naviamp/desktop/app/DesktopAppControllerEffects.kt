@@ -57,6 +57,7 @@ internal fun DesktopAppControllerEffects(
     showStatsForNerds: Boolean,
     statsForNerdsRefreshTick: Int,
     incrementStatsForNerdsRefreshTick: () -> Unit,
+    refreshNativeSession: suspend () -> Boolean,
     downloadRefreshToken: Int,
     mediaSourcesRevision: Int,
     loadStorageStats: suspend () -> StorageCacheStats,
@@ -128,6 +129,14 @@ internal fun DesktopAppControllerEffects(
         applicationRuntime.handle(NaviampHostLifecycleEvent.EnterForeground)
     }
 
+    LaunchedEffect(connectedProvider) {
+        if (connectedProvider == null) return@LaunchedEffect
+        while (true) {
+            runCatching { refreshNativeSession() }
+            delay(NativeSessionHeartbeatIntervalMillis)
+        }
+    }
+
     LaunchedEffect(searchController.query, connectedProvider) {
         searchController.loadSearchResults(searchController.query)
     }
@@ -168,3 +177,5 @@ internal fun DesktopAppControllerEffects(
         }
     }
 }
+
+private const val NativeSessionHeartbeatIntervalMillis = 12L * 60L * 60L * 1_000L

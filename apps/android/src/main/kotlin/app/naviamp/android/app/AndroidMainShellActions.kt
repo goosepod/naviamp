@@ -221,6 +221,11 @@ internal fun androidMainShellActions(
                     ?.let { playlistActionController.loadSmartPlaylistDefinition(it) }
                     ?: throw IllegalArgumentException("Playlist not found.")
             },
+            onSmartPlaylistLoadWithPassword = { playlist, password ->
+                androidPlaylistActionSource(state.selectedPlaylist, state.homeState.playlists, playlist)
+                    ?.let { playlistActionController.loadSmartPlaylistDefinitionWithPassword(it, password) }
+                    ?: throw IllegalArgumentException("Playlist not found.")
+            },
         ),
         radioActions = NaviampInternetRadioActions(
             onRefresh = shellMediaController::refreshInternetRadioStations,

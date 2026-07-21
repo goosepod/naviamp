@@ -995,6 +995,7 @@ fun NaviampApp(
         showStatsForNerds = showStatsForNerds,
         statsForNerdsRefreshTick = statsForNerdsRefreshTick,
         incrementStatsForNerdsRefreshTick = { statsForNerdsRefreshTick++ },
+        refreshNativeSession = smartPlaylistsController::refreshNativeSession,
         downloadRefreshToken = downloadsController.refreshToken,
         mediaSourcesRevision = mediaSourcesRevision,
         loadStorageStats = { storage.stats() },

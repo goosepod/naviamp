@@ -122,9 +122,28 @@ class DesktopSmartPlaylistsController(
         }
     }
 
-    suspend fun loadSmartPlaylistDefinition(playlist: Playlist): SmartPlaylistDefinition {
-        val activeProvider = provider()
-            ?: throw IllegalStateException("Connect to Navidrome before editing smart playlists.")
+    suspend fun loadSmartPlaylistDefinition(playlist: Playlist): SmartPlaylistDefinition =
+        loadSmartPlaylistDefinition(playlist, passwordOverride = null)
+
+    suspend fun loadSmartPlaylistDefinitionWithPassword(playlist: Playlist, password: String): SmartPlaylistDefinition =
+        loadSmartPlaylistDefinition(playlist, passwordOverride = password)
+
+    suspend fun refreshNativeSession(): Boolean {
+        val activeProvider = provider() ?: return false
+        val refreshed = activeProvider.refreshNativeSession()
+        if (refreshed) persistNativeTokenIfChanged(activeProvider)
+        return refreshed
+    }
+
+    private suspend fun loadSmartPlaylistDefinition(
+        playlist: Playlist,
+        passwordOverride: String?,
+    ): SmartPlaylistDefinition {
+        val activeProvider = if (passwordOverride.isNullOrBlank()) {
+            provider() ?: throw IllegalStateException("Connect to Navidrome before editing smart playlists.")
+        } else {
+            smartPlaylistProvider(passwordOverride)
+        }
         playlistsController.updateStatus(smartPlaylistLoadingRulesStatus(playlist))
         return try {
             val definition = withContext(Dispatchers.IO) { activeProvider.loadSmartPlaylistDefinition(playlist) }

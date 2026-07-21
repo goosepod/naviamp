@@ -782,6 +782,7 @@ fun NaviampAndroidApp(
         applicationServices = applicationServices,
         sleepTimerController = sleepTimerController,
         providerResponseCacheRepository = storage,
+        refreshNativeSession = playlistActionController::refreshNativeSession,
         onAutoPlayMediaIdConsumed = onAutoPlayMediaIdConsumed,
         onAutoCommandConsumed = onAutoCommandConsumed,
     )

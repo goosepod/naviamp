@@ -44,6 +44,7 @@ internal fun AndroidMainEffects(
     applicationServices: NaviampApplicationServices<*, *, *>,
     sleepTimerController: SleepTimerController,
     providerResponseCacheRepository: ProviderResponseCacheRepository,
+    refreshNativeSession: suspend () -> Boolean,
     onAutoPlayMediaIdConsumed: () -> Unit,
     onAutoCommandConsumed: () -> Unit,
 ) {
@@ -147,6 +148,14 @@ internal fun AndroidMainEffects(
             applicationRuntime.handle(NaviampHostLifecycleEvent.EnterForeground)
         }
 
+        LaunchedEffect(provider) {
+            if (provider == null) return@LaunchedEffect
+            while (true) {
+                runCatching { refreshNativeSession() }
+                delay(NativeSessionHeartbeatIntervalMillis)
+            }
+        }
+
         LaunchedEffect(
             editingConnection,
             serverUrl,
@@ -248,3 +257,5 @@ internal fun AndroidMainEffects(
         )
     }
 }
+
+private const val NativeSessionHeartbeatIntervalMillis = 12L * 60L * 60L * 1_000L
