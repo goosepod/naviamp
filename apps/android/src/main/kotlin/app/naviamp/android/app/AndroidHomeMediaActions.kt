@@ -79,21 +79,6 @@ internal fun androidMediaActions(
             ?.let(playlistActionController::openPlaylistDetails)
             ?: run { state.status = "Playlist not found." }
     },
-    onPlaylistPlay = { selectedPlaylist, shuffle ->
-        state.homeState.playlists.firstOrNull { it.id == selectedPlaylist.id }
-            ?.let { playlistActionController.playPlaylist(it, shuffle) }
-            ?: run { state.status = "Playlist not found." }
-    },
-    onPlaylistRename = { selectedPlaylist, name ->
-        state.homeState.playlists.firstOrNull { it.id == selectedPlaylist.id }
-            ?.let { playlistActionController.renamePlaylist(it, name) }
-            ?: run { state.status = "Playlist not found." }
-    },
-    onPlaylistDelete = { selectedPlaylist ->
-        state.homeState.playlists.firstOrNull { it.id == selectedPlaylist.id }
-            ?.let(playlistActionController::deletePlaylist)
-            ?: run { state.status = "Playlist not found." }
-    },
     onMediaItemAction = { request ->
         when (request.kind) {
             SharedMediaItemKind.Album -> when (request.action) {

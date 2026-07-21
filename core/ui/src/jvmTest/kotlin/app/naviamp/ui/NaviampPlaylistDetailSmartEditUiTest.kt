@@ -36,10 +36,14 @@ class NaviampPlaylistDetailSmartEditUiTest {
                 ),
                 actions = testPlaylistDetailActions(),
                 playlistsActions = NaviampPlaylistsActions(
-                    onSmartPlaylistLoad = {
-                        definitionLoaded = true
-                        testSmartPlaylistDefinition()
-                    },
+                    onRefresh = {},
+                    onSortModeChanged = {},
+                    smartPlaylist = testSmartPlaylistActions(
+                        onLoad = {
+                            definitionLoaded = true
+                            testSmartPlaylistDefinition()
+                        },
+                    ),
                 ),
                 playlistChoices = emptyList(),
             )
@@ -70,11 +74,15 @@ class NaviampPlaylistDetailSmartEditUiTest {
                 ),
                 actions = testPlaylistDetailActions(),
                 playlistsActions = NaviampPlaylistsActions(
-                    onSmartPlaylistLoad = { error("Navidrome returned HTTP 401.") },
-                    onSmartPlaylistLoadWithPassword = { _, password ->
-                        retriedPassword = password
-                        testSmartPlaylistDefinition()
-                    },
+                    onRefresh = {},
+                    onSortModeChanged = {},
+                    smartPlaylist = testSmartPlaylistActions(
+                        onLoad = { error("Navidrome returned HTTP 401.") },
+                        onLoadWithPassword = { _, password ->
+                            retriedPassword = password
+                            testSmartPlaylistDefinition()
+                        },
+                    ),
                 ),
                 playlistChoices = emptyList(),
             )
@@ -94,6 +102,18 @@ private fun testPlaylistDetailActions() = NaviampPlaylistDetailActions(
     onPlaylistAction = {},
     onUpdateStandardPlaylist = { _, _ -> },
     onTrackAction = {},
+)
+
+private fun testSmartPlaylistActions(
+    onLoad: suspend (SharedMediaItemUi) -> SmartPlaylistDefinition = { testSmartPlaylistDefinition() },
+    onLoadWithPassword: suspend (SharedMediaItemUi, String) -> SmartPlaylistDefinition = { playlist, _ -> onLoad(playlist) },
+) = NaviampSmartPlaylistActions(
+    onSave = {},
+    onUpdate = { _, _ -> },
+    onSaveWithPassword = { _, _ -> },
+    onUpdateWithPassword = { _, _, _ -> },
+    onLoad = onLoad,
+    onLoadWithPassword = onLoadWithPassword,
 )
 
 private fun testSmartPlaylistDefinition() = SmartPlaylistDefinition(

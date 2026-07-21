@@ -553,23 +553,19 @@ data class NaviampPlaylistsScreenUi(
     val selectedConnectionLibraryIds: List<String> = emptyList(),
 )
 
+data class NaviampSmartPlaylistActions(
+    val onSave: suspend (SmartPlaylistDefinition) -> Unit,
+    val onUpdate: suspend (SharedMediaItemUi, SmartPlaylistDefinition) -> Unit,
+    val onSaveWithPassword: suspend (SmartPlaylistDefinition, String) -> Unit,
+    val onUpdateWithPassword: suspend (SharedMediaItemUi, SmartPlaylistDefinition, String) -> Unit,
+    val onLoad: suspend (SharedMediaItemUi) -> SmartPlaylistDefinition,
+    val onLoadWithPassword: suspend (SharedMediaItemUi, String) -> SmartPlaylistDefinition,
+)
+
 data class NaviampPlaylistsActions(
-    val onRefresh: () -> Unit = {},
-    val onSortModeChanged: (SharedPlaylistSortMode) -> Unit = {},
-    val onSmartPlaylistSave: suspend (SmartPlaylistDefinition) -> Unit = {},
-    val onSmartPlaylistUpdate: suspend (SharedMediaItemUi, SmartPlaylistDefinition) -> Unit = { _, _ -> },
-    val onSmartPlaylistSaveWithPassword: suspend (SmartPlaylistDefinition, String) -> Unit = { definition, _ ->
-        onSmartPlaylistSave(definition)
-    },
-    val onSmartPlaylistUpdateWithPassword: suspend (SharedMediaItemUi, SmartPlaylistDefinition, String) -> Unit = { playlist, definition, _ ->
-        onSmartPlaylistUpdate(playlist, definition)
-    },
-    val onSmartPlaylistLoad: suspend (SharedMediaItemUi) -> SmartPlaylistDefinition = {
-        throw UnsupportedOperationException("Smart playlist loading is not available.")
-    },
-    val onSmartPlaylistLoadWithPassword: suspend (SharedMediaItemUi, String) -> SmartPlaylistDefinition = { playlist, _ ->
-        onSmartPlaylistLoad(playlist)
-    },
+    val onRefresh: () -> Unit,
+    val onSortModeChanged: (SharedPlaylistSortMode) -> Unit,
+    val smartPlaylist: NaviampSmartPlaylistActions,
 )
 
 data class NaviampPlaylistDetailScreenUi(
@@ -821,10 +817,7 @@ data class NaviampMediaActions(
     val onArtistSelected: (SharedMediaItemUi) -> Unit = {},
     val onArtistFavoriteToggled: (SharedMediaItemUi) -> Unit = {},
     val onPlaylistSelected: (SharedMediaItemUi) -> Unit = {},
-    val onPlaylistPlay: (SharedMediaItemUi, Boolean) -> Unit = { _, _ -> },
-    val onPlaylistRename: (SharedMediaItemUi, String) -> Unit = { _, _ -> },
-    val onPlaylistDelete: (SharedMediaItemUi) -> Unit = {},
-    val onMediaItemAction: ((SharedMediaItemActionRequest) -> Unit)? = null,
+    val onMediaItemAction: (SharedMediaItemActionRequest) -> Unit,
 )
 
 data class NaviampShellNavigationActions(
@@ -879,13 +872,13 @@ data class NaviampAppShellActions(
     val sonicMixActions: SharedSonicMixBuilderActions = SharedSonicMixBuilderActions(),
     val downloadsActions: NaviampDownloadsActions = NaviampDownloadsActions(),
     val libraryActions: NaviampLibraryActions = NaviampLibraryActions(),
-    val playlistsActions: NaviampPlaylistsActions = NaviampPlaylistsActions(),
+    val playlistsActions: NaviampPlaylistsActions,
     val radioActions: NaviampInternetRadioActions = NaviampInternetRadioActions(),
     val albumDetailActions: NaviampAlbumDetailActions,
     val artistDetailActions: NaviampArtistDetailActions,
     val playlistDetailActions: NaviampPlaylistDetailActions,
     val homeActions: NaviampHomeActions = NaviampHomeActions(),
-    val mediaActions: NaviampMediaActions = NaviampMediaActions(),
+    val mediaActions: NaviampMediaActions,
     val nowPlayingActions: NaviampNowPlayingActions = NaviampNowPlayingActions(),
 )
 

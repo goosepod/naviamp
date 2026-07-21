@@ -151,46 +151,6 @@ fun NaviampSharedAppShell(
     val supportsApplicationUpdates = shellChrome.supportsApplicationUpdates
     val selectedRoute = shellChrome.selectedRoute
     val nowPlayingOpen = shellChrome.nowPlayingOpen
-    val resolvedMediaItemAction = mediaActions.onMediaItemAction ?: { request ->
-        handleSharedMediaItemAction(
-            request,
-            SharedMediaItemActionHandlers(
-                onSelect = { item ->
-                    when (request.kind) {
-                        SharedMediaItemKind.Album -> mediaActions.onAlbumSelected(item)
-                        SharedMediaItemKind.Artist -> mediaActions.onArtistSelected(item)
-                        SharedMediaItemKind.Playlist -> mediaActions.onPlaylistSelected(item)
-                        SharedMediaItemKind.Unknown,
-                        SharedMediaItemKind.RadioStation,
-                        SharedMediaItemKind.MixBuilder,
-                        -> Unit
-                    }
-                },
-                onPlay = { item, shuffle ->
-                    if (request.kind == SharedMediaItemKind.Playlist) {
-                        mediaActions.onPlaylistPlay(item, shuffle)
-                    }
-                },
-                onToggleFavorite = { item ->
-                    when (request.kind) {
-                        SharedMediaItemKind.Album -> mediaActions.onAlbumFavoriteToggled(item)
-                        SharedMediaItemKind.Artist -> mediaActions.onArtistFavoriteToggled(item)
-                        SharedMediaItemKind.Unknown,
-                        SharedMediaItemKind.Playlist,
-                        SharedMediaItemKind.RadioStation,
-                        SharedMediaItemKind.MixBuilder,
-                        -> Unit
-                    }
-                },
-                onRename = mediaActions.onPlaylistRename,
-                onEditSmartPlaylist = {},
-                onDelete = mediaActions.onPlaylistDelete,
-            ),
-        )
-    }
-    val resolvedActions = actions.copy(
-        mediaActions = mediaActions.copy(onMediaItemAction = resolvedMediaItemAction),
-    )
     val connection = connectionSettings.connection
     val status = connection.status.orEmpty()
     val serverVersion = connection.serverVersion
@@ -345,7 +305,7 @@ fun NaviampSharedAppShell(
                             uiState = uiState,
                             visualizerBandsProvider = visualizerBandsProvider,
                             settingsSync = settingsSync,
-                            actions = resolvedActions,
+                            actions = actions,
                             syncActions = syncActions,
                         )
                     }
@@ -800,10 +760,7 @@ private fun ConnectedContent(
     val onArtistSelected = mediaActions.onArtistSelected
     val onArtistFavoriteToggled = mediaActions.onArtistFavoriteToggled
     val onPlaylistSelected = mediaActions.onPlaylistSelected
-    val onPlaylistPlay = mediaActions.onPlaylistPlay
-    val onPlaylistRename = mediaActions.onPlaylistRename
-    val onPlaylistDelete = mediaActions.onPlaylistDelete
-    val onMediaItemAction = requireNotNull(mediaActions.onMediaItemAction)
+    val onMediaItemAction = mediaActions.onMediaItemAction
     val selectedAlbumDetail = albumDetail.detail
     val selectedArtistDetail = artistDetail.detail
     val selectedPlaylistDetail = playlistDetail.detail

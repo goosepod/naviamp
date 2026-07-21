@@ -8,6 +8,7 @@ import app.naviamp.ui.NaviampDownloadsActions
 import app.naviamp.ui.NaviampLibraryActions
 import app.naviamp.ui.NaviampInternetRadioActions
 import app.naviamp.ui.NaviampPlaylistsActions
+import app.naviamp.ui.NaviampSmartPlaylistActions
 import app.naviamp.ui.NaviampConnectionSettingsActions
 import app.naviamp.ui.NaviampSearchActions
 import app.naviamp.ui.NaviampSettingsMaintenanceActions
@@ -204,28 +205,30 @@ internal fun androidMainShellActions(
         playlistsActions = NaviampPlaylistsActions(
             onRefresh = playlistActionController::refreshPlaylists,
             onSortModeChanged = { state.playlistSortMode = it },
-            onSmartPlaylistSave = playlistActionController::saveSmartPlaylist,
-            onSmartPlaylistUpdate = { playlist, definition ->
-                androidPlaylistActionSource(state.selectedPlaylist, state.homeState.playlists, playlist)
-                    ?.let { playlistActionController.updateSmartPlaylist(it, definition) }
-                    ?: run { state.status = "Playlist not found." }
-            },
-            onSmartPlaylistSaveWithPassword = playlistActionController::saveSmartPlaylistWithPassword,
-            onSmartPlaylistUpdateWithPassword = { playlist, definition, password ->
-                androidPlaylistActionSource(state.selectedPlaylist, state.homeState.playlists, playlist)
-                    ?.let { playlistActionController.updateSmartPlaylistWithPassword(it, definition, password) }
-                    ?: run { state.status = "Playlist not found." }
-            },
-            onSmartPlaylistLoad = { playlist ->
-                androidPlaylistActionSource(state.selectedPlaylist, state.homeState.playlists, playlist)
-                    ?.let { playlistActionController.loadSmartPlaylistDefinition(it) }
-                    ?: throw IllegalArgumentException("Playlist not found.")
-            },
-            onSmartPlaylistLoadWithPassword = { playlist, password ->
-                androidPlaylistActionSource(state.selectedPlaylist, state.homeState.playlists, playlist)
-                    ?.let { playlistActionController.loadSmartPlaylistDefinitionWithPassword(it, password) }
-                    ?: throw IllegalArgumentException("Playlist not found.")
-            },
+            smartPlaylist = NaviampSmartPlaylistActions(
+                onSave = playlistActionController::saveSmartPlaylist,
+                onUpdate = { playlist, definition ->
+                    androidPlaylistActionSource(state.selectedPlaylist, state.homeState.playlists, playlist)
+                        ?.let { playlistActionController.updateSmartPlaylist(it, definition) }
+                        ?: run { state.status = "Playlist not found." }
+                },
+                onSaveWithPassword = playlistActionController::saveSmartPlaylistWithPassword,
+                onUpdateWithPassword = { playlist, definition, password ->
+                    androidPlaylistActionSource(state.selectedPlaylist, state.homeState.playlists, playlist)
+                        ?.let { playlistActionController.updateSmartPlaylistWithPassword(it, definition, password) }
+                        ?: run { state.status = "Playlist not found." }
+                },
+                onLoad = { playlist ->
+                    androidPlaylistActionSource(state.selectedPlaylist, state.homeState.playlists, playlist)
+                        ?.let { playlistActionController.loadSmartPlaylistDefinition(it) }
+                        ?: throw IllegalArgumentException("Playlist not found.")
+                },
+                onLoadWithPassword = { playlist, password ->
+                    androidPlaylistActionSource(state.selectedPlaylist, state.homeState.playlists, playlist)
+                        ?.let { playlistActionController.loadSmartPlaylistDefinitionWithPassword(it, password) }
+                        ?: throw IllegalArgumentException("Playlist not found.")
+                },
+            ),
         ),
         radioActions = NaviampInternetRadioActions(
             onRefresh = shellMediaController::refreshInternetRadioStations,

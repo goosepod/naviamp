@@ -369,7 +369,7 @@ fun NaviampSearchContent(
     val query = screen.query
     val results = screen.results
     val searchFocusRequester = remember { FocusRequester() }
-    val onMediaItemAction = mediaActions.onMediaItemAction ?: {}
+    val onMediaItemAction = mediaActions.onMediaItemAction
     val mediaMenuItems: (SharedMediaItemUi, SharedMediaItemKind, List<NaviampActionSpec>) -> List<NaviampRowMenuItem> =
         { item, kind, specs ->
             specs.mapNotNull { spec ->
@@ -507,7 +507,7 @@ fun NaviampLibraryContent(
     val syncStatus = screen.syncStatus
     val searchFocusRequester = remember { FocusRequester() }
     val scope = rememberCoroutineScope()
-    val onMediaItemAction = mediaActions.onMediaItemAction ?: {}
+    val onMediaItemAction = mediaActions.onMediaItemAction
     val filteredItems = remember(items, query) {
         val normalizedQuery = query.trim().lowercase()
         if (normalizedQuery.isBlank()) {

@@ -11,6 +11,7 @@ import app.naviamp.ui.NaviampConnectionSettingsActions
 import app.naviamp.ui.NaviampHomeActions
 import app.naviamp.ui.NaviampLibraryActions
 import app.naviamp.ui.NaviampPlaylistsActions
+import app.naviamp.ui.NaviampSmartPlaylistActions
 import app.naviamp.ui.NaviampSearchActions
 import app.naviamp.ui.NaviampSettingsMaintenanceActions
 import app.naviamp.ui.NaviampSettingsValueActions
@@ -190,28 +191,30 @@ internal fun desktopAppShellActions(context: DesktopAppShellActionContext): Navi
             playlistsActions = NaviampPlaylistsActions(
                 onRefresh = { playlistsController.refreshPlaylists(useCache = false) },
                 onSortModeChanged = playlistsController::updateSortMode,
-                onSmartPlaylistSave = smartPlaylistsController::saveSmartPlaylist,
-                onSmartPlaylistUpdate = { item, definition ->
-                    playlistSources.playlist(item.id)?.let { playlist ->
-                        smartPlaylistsController.updateSmartPlaylist(playlist, definition)
-                    }
-                },
-                onSmartPlaylistSaveWithPassword = smartPlaylistsController::saveSmartPlaylistWithPassword,
-                onSmartPlaylistUpdateWithPassword = { item, definition, password ->
-                    playlistSources.playlist(item.id)?.let { playlist ->
-                        smartPlaylistsController.updateSmartPlaylistWithPassword(playlist, definition, password)
-                    }
-                },
-                onSmartPlaylistLoad = { item ->
-                    playlistSources.playlist(item.id)
-                        ?.let { smartPlaylistsController.loadSmartPlaylistDefinition(it) }
-                        ?: error("Playlist ${item.title} is no longer available.")
-                },
-                onSmartPlaylistLoadWithPassword = { item, password ->
-                    playlistSources.playlist(item.id)
-                        ?.let { smartPlaylistsController.loadSmartPlaylistDefinitionWithPassword(it, password) }
-                        ?: error("Playlist ${item.title} is no longer available.")
-                },
+                smartPlaylist = NaviampSmartPlaylistActions(
+                    onSave = smartPlaylistsController::saveSmartPlaylist,
+                    onUpdate = { item, definition ->
+                        playlistSources.playlist(item.id)?.let { playlist ->
+                            smartPlaylistsController.updateSmartPlaylist(playlist, definition)
+                        }
+                    },
+                    onSaveWithPassword = smartPlaylistsController::saveSmartPlaylistWithPassword,
+                    onUpdateWithPassword = { item, definition, password ->
+                        playlistSources.playlist(item.id)?.let { playlist ->
+                            smartPlaylistsController.updateSmartPlaylistWithPassword(playlist, definition, password)
+                        }
+                    },
+                    onLoad = { item ->
+                        playlistSources.playlist(item.id)
+                            ?.let { smartPlaylistsController.loadSmartPlaylistDefinition(it) }
+                            ?: error("Playlist ${item.title} is no longer available.")
+                    },
+                    onLoadWithPassword = { item, password ->
+                        playlistSources.playlist(item.id)
+                            ?.let { smartPlaylistsController.loadSmartPlaylistDefinitionWithPassword(it, password) }
+                            ?: error("Playlist ${item.title} is no longer available.")
+                    },
+                ),
             ),
             radioActions = desktopInternetRadioActions(
                 actionSources = SharedInternetRadioActionSources(internetRadioController.stations),

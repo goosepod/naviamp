@@ -62,13 +62,13 @@ fun NaviampPlaylistsContent(
         refreshing = screen.refreshing,
         onRefresh = actions.onRefresh,
         onSortModeChanged = actions.onSortModeChanged,
-        onPlaylistAction = mediaActions.onMediaItemAction ?: {},
-        onSmartPlaylistSave = actions.onSmartPlaylistSave,
-        onSmartPlaylistUpdate = actions.onSmartPlaylistUpdate,
-        onSmartPlaylistSaveWithPassword = actions.onSmartPlaylistSaveWithPassword,
-        onSmartPlaylistUpdateWithPassword = actions.onSmartPlaylistUpdateWithPassword,
-        onSmartPlaylistLoad = actions.onSmartPlaylistLoad,
-        onSmartPlaylistLoadWithPassword = actions.onSmartPlaylistLoadWithPassword,
+        onPlaylistAction = mediaActions.onMediaItemAction,
+        onSmartPlaylistSave = actions.smartPlaylist.onSave,
+        onSmartPlaylistUpdate = actions.smartPlaylist.onUpdate,
+        onSmartPlaylistSaveWithPassword = actions.smartPlaylist.onSaveWithPassword,
+        onSmartPlaylistUpdateWithPassword = actions.smartPlaylist.onUpdateWithPassword,
+        onSmartPlaylistLoad = actions.smartPlaylist.onLoad,
+        onSmartPlaylistLoadWithPassword = actions.smartPlaylist.onLoadWithPassword,
         playlistChoices = playlistChoices,
         availableLibraries = screen.availableLibraries,
         selectedConnectionLibraryIds = screen.selectedConnectionLibraryIds,
@@ -88,12 +88,8 @@ private fun PlaylistsContent(
     onPlaylistAction: (SharedMediaItemActionRequest) -> Unit,
     onSmartPlaylistSave: suspend (SmartPlaylistDefinition) -> Unit,
     onSmartPlaylistUpdate: suspend (SharedMediaItemUi, SmartPlaylistDefinition) -> Unit,
-    onSmartPlaylistSaveWithPassword: suspend (SmartPlaylistDefinition, String) -> Unit = { definition, _ ->
-        onSmartPlaylistSave(definition)
-    },
-    onSmartPlaylistUpdateWithPassword: suspend (SharedMediaItemUi, SmartPlaylistDefinition, String) -> Unit = { playlist, definition, _ ->
-        onSmartPlaylistUpdate(playlist, definition)
-    },
+    onSmartPlaylistSaveWithPassword: suspend (SmartPlaylistDefinition, String) -> Unit,
+    onSmartPlaylistUpdateWithPassword: suspend (SharedMediaItemUi, SmartPlaylistDefinition, String) -> Unit,
     onSmartPlaylistLoad: suspend (SharedMediaItemUi) -> SmartPlaylistDefinition,
     onSmartPlaylistLoadWithPassword: suspend (SharedMediaItemUi, String) -> SmartPlaylistDefinition,
     playlistChoices: List<NaviampPlaylistChoiceUi>,
@@ -604,10 +600,10 @@ fun NaviampPlaylistDetailContent(
             )
         },
         onUpdateStandardPlaylist = actions.onUpdateStandardPlaylist,
-        onSmartPlaylistUpdate = playlistsActions.onSmartPlaylistUpdate,
-        onSmartPlaylistUpdateWithPassword = playlistsActions.onSmartPlaylistUpdateWithPassword,
-        onSmartPlaylistLoad = playlistsActions.onSmartPlaylistLoad,
-        onSmartPlaylistLoadWithPassword = playlistsActions.onSmartPlaylistLoadWithPassword,
+        onSmartPlaylistUpdate = playlistsActions.smartPlaylist.onUpdate,
+        onSmartPlaylistUpdateWithPassword = playlistsActions.smartPlaylist.onUpdateWithPassword,
+        onSmartPlaylistLoad = playlistsActions.smartPlaylist.onLoad,
+        onSmartPlaylistLoadWithPassword = playlistsActions.smartPlaylist.onLoadWithPassword,
         onTrackSelected = { track ->
             actions.onTrackAction(SharedTrackRowActionRequest(track, SharedTrackRowAction.Select))
         },
