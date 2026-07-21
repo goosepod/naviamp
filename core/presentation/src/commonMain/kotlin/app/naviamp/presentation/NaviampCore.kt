@@ -76,6 +76,7 @@ class NaviampCore private constructor(
             val livePlayback = NaviampLivePlaybackController(initialState.playback)
             val queue = NaviampPlaybackQueueCoordinator(livePlayback)
             val deferredArtistNavigator = DeferredArtistNavigator()
+            val mediaRegistry = NaviampCoreMediaRegistry()
             val navigation = NaviampCoreNavigationController(
                 navigationState,
                 stateStore,
@@ -87,6 +88,7 @@ class NaviampCore private constructor(
                 navigation,
                 scope,
                 services.content.artistDiscovery,
+                mediaRegistry,
             )
             deferredArtistNavigator.target = mediaDetails
 
@@ -104,7 +106,11 @@ class NaviampCore private constructor(
                 services.settings.maintenance,
             )
             val settingsSync = NaviampCoreSettingsSyncController(stateStore, services.settings.sync)
-            val catalog = NaviampCoreCatalogController(stateStore, services.content.providerSource)
+            val catalog = NaviampCoreCatalogController(
+                stateStore,
+                services.content.providerSource,
+                mediaRegistry = mediaRegistry,
+            )
             val home = NaviampCoreHomeController(
                 stateStore,
                 services.content.providerSource,
@@ -113,12 +119,14 @@ class NaviampCore private constructor(
                 services.content.homeSupplement,
                 services.content.providerResponses,
                 services.content.homeLibrary,
+                mediaRegistry = mediaRegistry,
             )
             val playlistBrowse = NaviampCorePlaylistBrowseController(
                 stateStore,
                 services.content.providerSource,
                 navigation,
                 services.content.playlistSupplement,
+                mediaRegistry = mediaRegistry,
             )
             val downloads = NaviampCoreDownloadsController(
                 scope,
@@ -196,6 +204,27 @@ class NaviampCore private constructor(
                 navigation,
                 radio,
                 services.favoritedAtIso8601,
+                mediaRegistry,
+            )
+            val mediaTransactions = NaviampCoreMediaTransactions(
+                stateStore,
+                services.content.providerSource,
+                mediaRegistry,
+                livePlayback,
+                queue,
+                services.playback.effects,
+                downloads,
+                mediaDetails,
+                services.content.externalUri,
+                services.favoritedAtIso8601,
+                { nowPlayingPresenter.publish(playback.currentDisplay()) },
+            )
+            val trackActions = NaviampCoreTrackActionController(mediaRegistry, mediaTransactions)
+            val collectionActions = NaviampCoreCollectionActionController(
+                services.content.providerSource,
+                mediaRegistry,
+                mediaTransactions,
+                mediaDetails,
             )
             val router = NaviampCoreCommandRouter(
                 scope = scope,
@@ -215,6 +244,8 @@ class NaviampCore private constructor(
                     downloads,
                     playback,
                     nowPlaying,
+                    trackActions,
+                    collectionActions,
                 ),
                 onAsyncFailure = onAsyncFailure,
             )

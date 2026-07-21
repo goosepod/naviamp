@@ -15,6 +15,7 @@ data class NaviampCoreContentServices(
     val artistDiscovery: NaviampCoreArtistDiscoveryServices,
     val providerResponses: ProviderResponseService? = null,
     val homeLibrary: HomeLibraryRepository? = null,
+    val externalUri: NaviampCoreExternalUriPort,
 )
 
 /** Common services used to construct the three standard mix feature controllers. */

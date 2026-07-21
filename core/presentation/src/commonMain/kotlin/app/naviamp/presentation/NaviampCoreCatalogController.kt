@@ -21,6 +21,7 @@ class NaviampCoreCatalogController(
     private val stateStore: NaviampCoreStateStore,
     private val providerSource: NaviampCoreMediaProviderSource,
     private val libraryPageSize: Int = 50,
+    private val mediaRegistry: NaviampCoreMediaRegistry = NaviampCoreMediaRegistry(),
 ) : NaviampCoreCommandController {
     private var searchGeneration = 0L
     private var libraryGeneration = 0L
@@ -102,6 +103,7 @@ class NaviampCoreCatalogController(
             if (query.isBlank()) provider.artistsPage(request) else provider.searchArtistsPage(query.trim(), request)
         }.onSuccess { page ->
             if (generation != libraryGeneration) return@onSuccess
+            mediaRegistry.updateLibraryArtists(page.items, replace)
             val mapped = page.items.map { artist ->
                 artist.toSharedMediaItemUi(
                     coverArtUrl = { id -> id?.let { provider.coverArtUrl(it) } },
@@ -144,6 +146,7 @@ class NaviampCoreCatalogController(
         searching: Boolean,
         provider: MediaProvider?,
     ) {
+        mediaRegistry.updateSearch(results)
         val mapped = provider?.let { active ->
             results.toSharedSearchResultsUi(
                 coverArtUrl = { id -> id?.let(active::coverArtUrl) },

@@ -41,6 +41,7 @@ class NaviampCoreHomeController(
     private val providerResponseService: ProviderResponseService? = null,
     private val libraryRepository: HomeLibraryRepository? = null,
     private val artistLimit: Int = 50,
+    private val mediaRegistry: NaviampCoreMediaRegistry = NaviampCoreMediaRegistry(),
 ) : NaviampCoreCommandController {
     private var refreshGeneration = 0L
 
@@ -92,6 +93,7 @@ class NaviampCoreHomeController(
             )
         }.onSuccess { content ->
             if (generation != refreshGeneration) return@onSuccess
+            mediaRegistry.updateHome(content, supplement.sonicDiscoveryRows)
             val sonicEnabled = stateStore.state.value.shell.playback.settings.sonicSimilarityEnabled &&
                 provider.capabilities.supportsSonicSimilarity
             stateStore.update { state ->

@@ -31,6 +31,7 @@ class NaviampCoreMediaDetailController(
     private val navigationController: NaviampCoreNavigationController,
     private val scope: CoroutineScope,
     private val discovery: NaviampCoreArtistDiscoveryServices = NaviampCoreArtistDiscoveryServices(),
+    private val mediaRegistry: NaviampCoreMediaRegistry = NaviampCoreMediaRegistry(),
 ) : NaviampCoreCommandController, NaviampCoreArtistNavigator {
     private var albumGeneration = 0L
     private var artistGeneration = 0L
@@ -58,12 +59,6 @@ class NaviampCoreMediaDetailController(
             } else {
                 NaviampCoreImmediateCommandResult.Unhandled
             }
-        is NaviampCoreCommand.Detail.Artist ->
-            if (command.request.command is NaviampArtistDetailCommand.SelectSimilar) {
-                NaviampCoreImmediateCommandResult.Deferred
-            } else {
-                NaviampCoreImmediateCommandResult.Unhandled
-            }
         else -> NaviampCoreImmediateCommandResult.Unhandled
     }
 
@@ -86,16 +81,6 @@ class NaviampCoreMediaDetailController(
                 if (command.request.command != NaviampArtistAlbumCommand.Select) return null
                 loadAlbum(command.request.album)
             }
-            is NaviampCoreCommand.Detail.Artist -> {
-                val selection = command.request.command as? NaviampArtistDetailCommand.SelectSimilar ?: return null
-                loadArtist(
-                    SharedMediaItemUi(
-                        id = selection.artist.localArtistId ?: selection.artist.id,
-                        title = selection.artist.title,
-                        subtitle = selection.artist.subtitle,
-                    ),
-                )
-            }
             else -> return null
         }
         return NaviampCoreCommandResult.Completed
@@ -111,8 +96,17 @@ class NaviampCoreMediaDetailController(
         }
     }
 
+    internal suspend fun refreshArtist(item: SharedMediaItemUi) {
+        loadArtist(item, pushCurrentArtist = false)
+    }
+
+    internal suspend fun selectArtist(item: SharedMediaItemUi) {
+        loadArtist(item, pushCurrentArtist = true)
+    }
+
     private suspend fun loadAlbum(item: SharedMediaItemUi) {
         val generation = ++albumGeneration
+        mediaRegistry.updateAlbum(null)
         navigationController.openAlbumDetail()
         stateStore.updateShell { shell ->
             shell.copy(
@@ -132,6 +126,7 @@ class NaviampCoreMediaDetailController(
         runCatching { provider.album(AlbumId(item.id)) }
             .onSuccess { detail ->
                 if (generation != albumGeneration) return@onSuccess
+                mediaRegistry.updateAlbum(detail)
                 stateStore.updateShell { shell ->
                     shell.copy(
                         albumDetail = shell.albumDetail.copy(
@@ -160,6 +155,7 @@ class NaviampCoreMediaDetailController(
         pushCurrentArtist: Boolean = true,
     ) {
         val generation = ++artistGeneration
+        mediaRegistry.updateArtist(null)
         val artist = Artist(ArtistId(item.id), item.title)
         navigationController.openArtistDetail(artist, pushCurrentArtist = pushCurrentArtist)
         publishArtistLoading(item)
@@ -183,6 +179,7 @@ class NaviampCoreMediaDetailController(
                     loadSimilarArtists = discovery.similarArtists,
                 )
                 if (generation != artistGeneration) return@onSuccess
+                mediaRegistry.updateArtist(detail, popular.tracks, similar.artists)
                 stateStore.updateShell { shell ->
                     shell.copy(
                         artistDetail = shell.artistDetail.copy(

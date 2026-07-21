@@ -40,6 +40,7 @@ class NaviampCoreNowPlayingMediaController(
     private val navigation: NaviampCoreNavigationController,
     private val radio: NaviampCoreInternetRadioController,
     private val favoritedAtIso8601: () -> String,
+    private val mediaRegistry: NaviampCoreMediaRegistry = NaviampCoreMediaRegistry(),
 ) : NaviampCoreCommandController {
     override fun dispatch(command: NaviampCoreCommand): NaviampCoreImmediateCommandResult = when (command) {
         is NaviampCoreCommand.NowPlaying.Display,
@@ -251,7 +252,10 @@ class NaviampCoreNowPlayingMediaController(
         val provider = providerOrPublish() ?: return
         runCatching { favoriteTrackUpdate(provider, track, favoritedAtIso8601()) }
             .onSuccess { updated ->
-                if (updated == null) publishStatus("Track favorites are not supported.") else replaceTrack(updated)
+                if (updated == null) publishStatus("Track favorites are not supported.") else {
+                    mediaRegistry.updateTrack(updated)
+                    replaceTrack(updated)
+                }
             }
             .onFailure { publishStatus(it.message ?: "Could not update favorite.") }
     }

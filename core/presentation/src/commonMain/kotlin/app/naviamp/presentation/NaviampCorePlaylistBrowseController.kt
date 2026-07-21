@@ -26,6 +26,7 @@ class NaviampCorePlaylistBrowseController(
     private val supplementSource: NaviampCorePlaylistBrowseSupplementSource =
         NaviampCorePlaylistBrowseSupplementSource { NaviampCorePlaylistBrowseSupplement() },
     private val playlistLimit: Int = 500,
+    private val mediaRegistry: NaviampCoreMediaRegistry = NaviampCoreMediaRegistry(),
 ) : NaviampCoreCommandController {
     private var listGeneration = 0L
     private var detailGeneration = 0L
@@ -80,6 +81,7 @@ class NaviampCorePlaylistBrowseController(
             .onSuccess { playlists ->
                 if (generation != listGeneration) return@onSuccess
                 playlistsById = playlists.associateBy(Playlist::id)
+                mediaRegistry.updatePlaylists(playlists)
                 val supplement = supplementSource.current()
                 stateStore.updateShell { shell ->
                     shell.copy(
@@ -118,6 +120,7 @@ class NaviampCorePlaylistBrowseController(
 
     private suspend fun open(item: SharedMediaItemUi) {
         val generation = ++detailGeneration
+        mediaRegistry.updateSelectedPlaylist(null, emptyList())
         navigationController.openPlaylistDetail()
         stateStore.updateShell { shell ->
             shell.copy(
@@ -139,6 +142,7 @@ class NaviampCorePlaylistBrowseController(
             .onSuccess { tracks ->
                 if (generation != detailGeneration) return@onSuccess
                 val resolvedPlaylist = playlist.copy(trackCount = tracks.size)
+                mediaRegistry.updateSelectedPlaylist(resolvedPlaylist, tracks)
                 val mappedPlaylist = resolvedPlaylist.toSharedMediaItemUi(
                     coverArtUrl = coverArtUrl,
                     tracks = tracks,

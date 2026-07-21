@@ -15,8 +15,23 @@ import app.naviamp.domain.playback.PlaybackSource
 import app.naviamp.domain.queue.PlaybackQueue
 import app.naviamp.domain.queue.RepeatMode
 import app.naviamp.ui.NaviampSettingsSyncUi
+import app.naviamp.ui.NaviampAlbumDetailActionRequest
+import app.naviamp.ui.NaviampAlbumDetailCommand
+import app.naviamp.ui.NaviampArtistAlbumActionRequest
+import app.naviamp.ui.NaviampArtistAlbumCommand
+import app.naviamp.ui.NaviampArtistDetailActionRequest
+import app.naviamp.ui.NaviampArtistDetailCommand
+import app.naviamp.ui.NaviampMediaItemActionRequest
+import app.naviamp.ui.NaviampMediaItemCommand
+import app.naviamp.ui.NaviampArtistMediaCommand
 import app.naviamp.ui.NaviampVisualizer
+import app.naviamp.ui.SharedHomeDiscoveryTrackActionRequest
+import app.naviamp.ui.SharedHomeStationUi
+import app.naviamp.ui.SharedMediaItemUi
 import app.naviamp.ui.SharedRoute
+import app.naviamp.ui.SharedTrackRowAction
+import app.naviamp.ui.SharedTrackRowActionRequest
+import app.naviamp.ui.SharedTrackRowUi
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
@@ -60,6 +75,44 @@ class NaviampCoreTest {
         assertEquals("observed", core.state.value.shell.nowPlaying?.id)
         assertEquals("Playing", core.state.value.shell.nowPlaying?.stateLabel)
     }
+
+    @Test
+    fun composedCoreOwnsEveryPreviouslyMissingMediaActionFamily() = runTest {
+        val core = NaviampCore.create(this, fakeCoreServices())
+        val item = SharedMediaItemUi("missing", "Missing", "")
+        val track = SharedTrackRowUi("missing", "Missing", "Artist")
+        val row = SharedTrackRowActionRequest(track, SharedTrackRowAction.Select)
+        val commands = listOf(
+            NaviampCoreCommand.Home.SelectStation(SharedHomeStationUi("library", "Library", "")),
+            NaviampCoreCommand.Home.SonicTrackAction(
+                SharedHomeDiscoveryTrackActionRequest("row", track, SharedTrackRowAction.Select),
+            ),
+            NaviampCoreCommand.Home.RecentTrackAction(row),
+            NaviampCoreCommand.Media.SelectTrack(track),
+            NaviampCoreCommand.Media.TrackAction(row),
+            NaviampCoreCommand.Media.ToggleAlbumFavorite(item),
+            NaviampCoreCommand.Media.ToggleArtistFavorite(item),
+            NaviampCoreCommand.Media.ItemAction(
+                NaviampMediaItemActionRequest(item, NaviampMediaItemCommand.Artist(NaviampArtistMediaCommand.StartRadio)),
+            ),
+            NaviampCoreCommand.Detail.Album(
+                NaviampAlbumDetailActionRequest(item, NaviampAlbumDetailCommand.Play(shuffle = false)),
+            ),
+            NaviampCoreCommand.Detail.Artist(
+                NaviampArtistDetailActionRequest(item, NaviampArtistDetailCommand.StartRadio),
+            ),
+            NaviampCoreCommand.Detail.ArtistAlbum(
+                NaviampArtistAlbumActionRequest(item, NaviampArtistAlbumCommand.AddToQueue),
+            ),
+            NaviampCoreCommand.Detail.AlbumTrack(row),
+            NaviampCoreCommand.Detail.ArtistPopularTrack(row),
+            NaviampCoreCommand.Detail.PlaylistTrack(row),
+        )
+
+        commands.forEach { command ->
+            assertEquals(NaviampCoreCommandResult.Completed, core.execute(command), command.toString())
+        }
+    }
 }
 
 private fun fakeCoreServices() = NaviampCoreServices(
@@ -69,6 +122,7 @@ private fun fakeCoreServices() = NaviampCoreServices(
         homeSupplement = NaviampCoreHomeSupplementSource { NaviampCoreHomeSupplement() },
         playlistSupplement = NaviampCorePlaylistBrowseSupplementSource { NaviampCorePlaylistBrowseSupplement() },
         artistDiscovery = NaviampCoreArtistDiscoveryServices(),
+        externalUri = NaviampCoreExternalUriPort {},
     ),
     connection = object : NaviampCoreProviderSessionPort {
         override suspend fun connect(
