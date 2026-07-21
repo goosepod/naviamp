@@ -105,7 +105,7 @@ class NaviampCorePlaybackController(
                 } else {
                     val command = commands.changeVolume(requested, effects.capabilities.supportsSoftwareVolume)
                     val updated = playbackSettings.copy(volumePercent = command.volumePercent)
-                    settings.apply(updated)
+                    settings.apply(updated, redownload = false)
                     stateStore.updateShell { shell -> shell.copy(playback = shell.playback.copy(settings = updated)) }
                 }
             }

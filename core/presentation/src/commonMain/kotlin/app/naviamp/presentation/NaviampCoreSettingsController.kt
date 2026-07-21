@@ -1,11 +1,14 @@
 package app.naviamp.presentation
 
-import app.naviamp.app.NaviampCacheSettingsController
+import app.naviamp.domain.settings.CacheSettings
 import app.naviamp.domain.settings.InterfaceSettings
-import app.naviamp.domain.settings.PlaybackSettingsMaintenanceController
 
 fun interface NaviampCoreInterfaceSettingsStore {
     fun save(settings: InterfaceSettings)
+}
+
+fun interface NaviampCoreCacheSettingsPort {
+    fun apply(settings: CacheSettings): CacheSettings
 }
 
 enum class NaviampCoreMaintenanceOperation {
@@ -26,8 +29,8 @@ fun interface NaviampCoreMaintenancePort {
 class NaviampCoreSettingsController(
     private val stateStore: NaviampCoreStateStore,
     private val interfaceStore: NaviampCoreInterfaceSettingsStore,
-    private val playbackController: PlaybackSettingsMaintenanceController,
-    private val cacheController: NaviampCacheSettingsController,
+    private val playbackSettings: NaviampCorePlaybackSettingsPort,
+    private val cacheSettings: NaviampCoreCacheSettingsPort,
     private val maintenancePort: NaviampCoreMaintenancePort,
 ) : NaviampCoreCommandController {
     override fun dispatch(command: NaviampCoreCommand): NaviampCoreImmediateCommandResult {
@@ -80,18 +83,14 @@ class NaviampCoreSettingsController(
     }
 
     private fun changePlayback(command: NaviampCoreCommand.Settings.ChangePlayback) {
-        val settings = if (command.redownload) {
-            playbackController.applyPlaybackSettingsAndRedownload(command.settings)
-        } else {
-            playbackController.applyPlaybackSettings(command.settings)
-        }
+        val settings = playbackSettings.apply(command.settings, command.redownload)
         stateStore.updateShell { shell ->
             shell.copy(playback = shell.playback.copy(settings = settings))
         }
     }
 
     private fun changeCache(requested: app.naviamp.domain.settings.CacheSettings) {
-        val settings = cacheController.apply(requested)
+        val settings = cacheSettings.apply(requested)
         stateStore.updateShell { shell ->
             shell.copy(
                 cache = shell.cache.copy(settings = settings),

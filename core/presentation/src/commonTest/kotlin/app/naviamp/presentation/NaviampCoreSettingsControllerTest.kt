@@ -1,17 +1,10 @@
 package app.naviamp.presentation
 
-import app.naviamp.app.NaviampCacheSettingsController
-import app.naviamp.domain.playback.PlaybackEngine
-import app.naviamp.domain.playback.PlaybackProgress
-import app.naviamp.domain.playback.PlaybackRequest
-import app.naviamp.domain.playback.PlaybackState
-import app.naviamp.domain.playback.PlaybackStreamMetadata
 import app.naviamp.domain.settings.CacheSettings
 import app.naviamp.domain.settings.InterfaceSettings
 import app.naviamp.domain.settings.PlaybackSettings
-import app.naviamp.domain.settings.PlaybackSettingsMaintenanceController
+import app.naviamp.domain.settings.normalized
 import app.naviamp.ui.NaviampStorageLocationUi
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
@@ -102,18 +95,6 @@ class NaviampCoreSettingsControllerTest {
         val savedInterface = mutableListOf<InterfaceSettings>()
         val savedPlayback = mutableListOf<PlaybackSettings>()
         val savedCache = mutableListOf<CacheSettings>()
-        var currentPlayback = PlaybackSettings()
-        val playback = PlaybackSettingsMaintenanceController(
-            playbackEngine = SettingsTestPlaybackEngine,
-            playbackSettings = { currentPlayback },
-            setPlaybackSettings = { currentPlayback = it },
-            savePlaybackSettings = savedPlayback::add,
-            reloadLyricsSidecars = {},
-        )
-        val cache = NaviampCacheSettingsController(
-            setSettings = {},
-            saveSettings = savedCache::add,
-        )
         return SettingsFixture(
             store = store,
             savedInterface = savedInterface,
@@ -122,8 +103,12 @@ class NaviampCoreSettingsControllerTest {
             controller = NaviampCoreSettingsController(
                 stateStore = store,
                 interfaceStore = NaviampCoreInterfaceSettingsStore(savedInterface::add),
-                playbackController = playback,
-                cacheController = cache,
+                playbackSettings = NaviampCorePlaybackSettingsPort { settings, _ ->
+                    settings.normalized().also(savedPlayback::add)
+                },
+                cacheSettings = NaviampCoreCacheSettingsPort { settings ->
+                    settings.normalized().also(savedCache::add)
+                },
                 maintenancePort = NaviampCoreMaintenancePort(maintenance),
             ),
         )
@@ -137,28 +122,3 @@ private data class SettingsFixture(
     val savedCache: List<CacheSettings>,
     val controller: NaviampCoreSettingsController,
 )
-
-private object SettingsTestPlaybackEngine : PlaybackEngine {
-    override val name = "Settings test"
-    override val supportsPause = true
-    override val supportsSeek = true
-    override val supportsReplayGain = false
-    override val supportsGapless = true
-    override val supportsCrossfade = false
-    override val supportsSoftwareVolume = true
-    override val prefersOriginalStream = false
-
-    override fun play(
-        scope: CoroutineScope,
-        request: PlaybackRequest,
-        onStateChanged: (PlaybackState) -> Unit,
-        onProgressChanged: (PlaybackProgress) -> Unit,
-        onMetadataChanged: (PlaybackStreamMetadata) -> Unit,
-    ) = Unit
-
-    override fun pause() = Unit
-    override fun resume() = Unit
-    override fun stop() = Unit
-    override fun seek(positionSeconds: Double) = Unit
-    override fun setVolume(percent: Int) = Unit
-}

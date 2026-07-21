@@ -192,8 +192,9 @@ private fun mediaFixture(scope: kotlinx.coroutines.CoroutineScope): MediaFixture
     val effects = NowPlayingTestEffects()
     val sidecars = NowPlayingTestSidecars()
     val presenter = NaviampCoreNowPlayingPresenter(store, { provider }, live, queue, effects, sidecars)
-    val settings = NaviampCorePlaybackSettingsPort { updated ->
+    val settings = NaviampCorePlaybackSettingsPort { updated, _ ->
         store.updateShell { shell -> shell.copy(playback = shell.playback.copy(settings = updated)) }
+        updated
     }
     val transport = NaviampCorePlaybackController(
         store,

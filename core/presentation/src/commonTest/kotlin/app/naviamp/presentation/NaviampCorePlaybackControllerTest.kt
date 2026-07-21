@@ -168,7 +168,10 @@ private fun playbackFixture(): PlaybackFixture {
         playback = live,
         queue = queue,
         effects = effects,
-        settings = NaviampCorePlaybackSettingsPort(saved::add),
+        settings = NaviampCorePlaybackSettingsPort { settings, _ ->
+            saved += settings
+            settings
+        },
         presenter = presenter,
         nowEpochMillis = { 1_000L },
     )

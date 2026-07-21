@@ -60,7 +60,7 @@ interface NaviampCoreNowPlayingSidecarPort {
 }
 
 fun interface NaviampCorePlaybackSettingsPort {
-    fun apply(settings: PlaybackSettings)
+    fun apply(settings: PlaybackSettings, redownload: Boolean): PlaybackSettings
 }
 
 interface NaviampCoreVisualizerSettingsPort {
