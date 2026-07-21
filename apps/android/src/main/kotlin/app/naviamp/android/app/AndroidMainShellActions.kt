@@ -231,6 +231,7 @@ internal fun androidMainShellActions(
         albumDetailActions = androidAlbumDetailActions(
             scope = scope,
             state = state,
+            navigationController = navigationController,
             mediaController = mediaAppController,
             shellMediaController = shellMediaController,
             trackActionController = trackActionController,
@@ -240,6 +241,7 @@ internal fun androidMainShellActions(
         artistDetailActions = androidArtistDetailActions(
             scope = scope,
             state = state,
+            navigationController = navigationController,
             mediaController = mediaAppController,
             shellMediaController = shellMediaController,
             artistActionController = artistActionController,

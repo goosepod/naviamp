@@ -8,16 +8,20 @@ import app.naviamp.ui.NaviampPlaylistDetailActions
 import app.naviamp.ui.SharedMediaItemAction
 import kotlinx.coroutines.CoroutineScope
 
+internal fun androidDetailBackAction(navigationController: AndroidNavigationController): () -> Unit =
+    navigationController::closeActiveDetail
+
 internal fun androidAlbumDetailActions(
     scope: CoroutineScope,
     state: AndroidAppState,
+    navigationController: AndroidNavigationController,
     mediaController: AndroidMediaAppController,
     shellMediaController: AndroidShellMediaController,
     trackActionController: AndroidTrackActionController,
     playlistActionController: AndroidPlaylistActionController,
     downloadActionController: AndroidDownloadActionController,
 ): NaviampAlbumDetailActions = NaviampAlbumDetailActions(
-    onBack = { state.nowPlayingOpen = false },
+    onBack = androidDetailBackAction(navigationController),
     onPlay = { _, shuffle -> shellMediaController.handleShellAlbumPlay(shuffle) },
     onRadio = { shellMediaController.handleShellAlbumRadio() },
     onDownload = { downloadActionController.downloadTracks(state.albumDetail?.tracks.orEmpty(), "album") },
@@ -38,6 +42,7 @@ internal fun androidAlbumDetailActions(
 internal fun androidArtistDetailActions(
     scope: CoroutineScope,
     state: AndroidAppState,
+    navigationController: AndroidNavigationController,
     mediaController: AndroidMediaAppController,
     shellMediaController: AndroidShellMediaController,
     artistActionController: AndroidArtistActionController,
@@ -45,7 +50,7 @@ internal fun androidArtistDetailActions(
     playlistActionController: AndroidPlaylistActionController,
     downloadActionController: AndroidDownloadActionController,
 ): NaviampArtistDetailActions = NaviampArtistDetailActions(
-    onBack = { state.nowPlayingOpen = false },
+    onBack = androidDetailBackAction(navigationController),
     onRadio = artistActionController::handleShellArtistRadio,
     onPlay = artistActionController::handleShellArtistPlay,
     onShuffle = artistActionController::handleShellArtistShuffle,
