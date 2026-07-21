@@ -74,6 +74,10 @@ class NaviampCoreNavigationController(
         navigation.updateActiveArtist(artist)
     }
 
+    fun openPlaylistDetail() {
+        navigation.navigate(NaviampRoute.PlaylistDetail)
+    }
+
     private fun selectRoute(route: NaviampRoute) {
         navigation.navigate(route)
         navigation.updateLastContentRoute(route)
