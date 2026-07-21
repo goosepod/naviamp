@@ -16,6 +16,16 @@ Naviamp needs one product implementation while preserving genuine operating-syst
 
 Naviamp 2.0 will use one shared application runtime and shared Compose application entry point, hosted by thin Android, Desktop, and iOS applications.
 
+### Core-first invariant
+
+Naviamp Core is the product. Platform hosts are providers of operating-system services to that product; they are not separate implementations of Naviamp.
+
+Every normal product feature starts in common code. Its state, commands, policy, validation, navigation, menus, and Compose presentation are defined once and are inherited by Android, Desktop, and iOS. Adding a normal UI element, menu item, action, or ability must not require parallel product edits in each host.
+
+A host may add, remove, or alter behavior only when a concrete operating-system or platform API requires it. That exception must use a narrow shared platform-service contract or capability and must be documented with the specific constraint. A missing host adapter, inconvenient source lookup, unfinished controller, or different existing code layout is implementation debt—not a platform capability and not permission to diverge.
+
+Code review must reject new platform-specific product state, menus, navigation policy, validation, or action interpretation unless the change identifies the genuine platform constraint. When equivalent Android, Desktop, and iOS plumbing begins to grow, the work must stop and move the ownership or composition into common core.
+
 The shared runtime owns:
 
 - application and session state;
@@ -47,6 +57,7 @@ iOS may first implement `PlaybackEngine` with AVPlayer to prove streaming, backg
 ### Positive
 
 - Product behavior is implemented once and is shared by default.
+- A common feature appears on every host without per-host product wiring.
 - iOS becomes a platform-adapter project rather than a separate application rewrite.
 - Android and Desktop divergence becomes visible through explicit contracts.
 - Shared runtime tests can verify behavior without launching an operating system UI.
@@ -94,4 +105,6 @@ This decision is successfully implemented when:
 - shared runtime behavior is covered by platform-independent tests;
 - Android service-owned playback survives Activity recreation;
 - BASS is the normal playback engine on Android, Desktop, and iOS;
-- all platform differences are explicit capabilities or documented unsupported behavior.
+- all platform differences are explicit capabilities or documented unsupported behavior;
+- adding a normal shared UI element, menu item, or action requires no Android-, Desktop-, or iOS-specific product implementation;
+- every remaining platform difference names the concrete OS/API constraint and is expressed through a narrow common contract.

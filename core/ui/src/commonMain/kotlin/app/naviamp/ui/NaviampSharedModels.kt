@@ -820,6 +820,64 @@ data class NaviampMediaActions(
     val onMediaItemAction: (NaviampMediaItemActionRequest) -> Unit,
 )
 
+data class NaviampMediaCapabilities(
+    val album: NaviampAlbumMediaCapabilities,
+    val artist: NaviampArtistMediaCapabilities,
+    val playlist: NaviampPlaylistMediaCapabilities,
+)
+
+data class NaviampAlbumMediaCapabilities(
+    val canStartRadio: Boolean,
+    val canDownload: Boolean,
+    val canAddToQueue: Boolean,
+    val canAddToPlaylist: Boolean,
+    val canToggleFavorite: Boolean,
+)
+
+data class NaviampArtistMediaCapabilities(
+    val canStartRadio: Boolean,
+    val canFindSimilar: Boolean,
+    val canAddToQueue: Boolean,
+    val canAddToPlaylist: Boolean,
+    val canToggleFavorite: Boolean,
+)
+
+data class NaviampPlaylistMediaCapabilities(
+    val canDownload: Boolean,
+    val canKeepDownloaded: Boolean,
+    val canAddToQueue: Boolean,
+    val canAddToPlaylist: Boolean,
+    val canRename: Boolean,
+    val canEditSmartPlaylist: Boolean,
+    val canDelete: Boolean,
+)
+
+val NaviampSharedMediaCapabilities = NaviampMediaCapabilities(
+    album = NaviampAlbumMediaCapabilities(
+        canStartRadio = true,
+        canDownload = true,
+        canAddToQueue = true,
+        canAddToPlaylist = true,
+        canToggleFavorite = true,
+    ),
+    artist = NaviampArtistMediaCapabilities(
+        canStartRadio = true,
+        canFindSimilar = true,
+        canAddToQueue = true,
+        canAddToPlaylist = true,
+        canToggleFavorite = true,
+    ),
+    playlist = NaviampPlaylistMediaCapabilities(
+        canDownload = true,
+        canKeepDownloaded = true,
+        canAddToQueue = true,
+        canAddToPlaylist = true,
+        canRename = true,
+        canEditSmartPlaylist = true,
+        canDelete = true,
+    ),
+)
+
 data class NaviampShellNavigationActions(
     val onRouteSelected: (SharedRoute) -> Unit = {},
     val onOpenNowPlaying: () -> Unit = {},

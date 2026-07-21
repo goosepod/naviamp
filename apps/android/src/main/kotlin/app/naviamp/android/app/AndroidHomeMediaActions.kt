@@ -134,9 +134,21 @@ internal fun androidMediaActions(
                     onFindSimilar = { artist ->
                         artistActionController.findSimilarArtists(ArtistId(artist.id), artist.title)
                     },
-                    onAddToQueue = null,
-                    onAddToPlaylist = null,
-                    onCreatePlaylistAndAdd = null,
+                    onAddToQueue = { artist ->
+                        artistActionController.loadArtistTracks(artist) {
+                            mediaController.appendTracksToQueue(it, "artist tracks")
+                        }
+                    },
+                    onAddToPlaylist = { artist, choice ->
+                        artistActionController.loadArtistTracks(artist) {
+                            playlistActionController.addTracksToPlaylist(it, choice, null, artist.title)
+                        }
+                    },
+                    onCreatePlaylistAndAdd = { artist, name ->
+                        artistActionController.loadArtistTracks(artist) {
+                            playlistActionController.addTracksToPlaylist(it, null, name, artist.title)
+                        }
+                    },
                     onToggleFavorite = { artist ->
                         toggleAndroidArtistFavorite(scope, state, artist, state.sharedControllers.providerActions)
                     },

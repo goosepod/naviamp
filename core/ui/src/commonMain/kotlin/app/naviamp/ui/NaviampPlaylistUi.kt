@@ -71,6 +71,7 @@ fun NaviampPlaylistsContent(
         onSmartPlaylistUpdateWithPassword = actions.smartPlaylist.onUpdateWithPassword,
         onSmartPlaylistLoad = actions.smartPlaylist.onLoad,
         onSmartPlaylistLoadWithPassword = actions.smartPlaylist.onLoadWithPassword,
+        capabilities = NaviampSharedMediaCapabilities.playlist,
         playlistChoices = playlistChoices,
         availableLibraries = screen.availableLibraries,
         selectedConnectionLibraryIds = screen.selectedConnectionLibraryIds,
@@ -94,6 +95,7 @@ private fun PlaylistsContent(
     onSmartPlaylistUpdateWithPassword: suspend (SharedMediaItemUi, SmartPlaylistDefinition, String) -> Unit,
     onSmartPlaylistLoad: suspend (SharedMediaItemUi) -> SmartPlaylistDefinition,
     onSmartPlaylistLoadWithPassword: suspend (SharedMediaItemUi, String) -> SmartPlaylistDefinition,
+    capabilities: NaviampPlaylistMediaCapabilities,
     playlistChoices: List<NaviampPlaylistChoiceUi>,
     availableLibraries: List<ConnectionFormMusicFolder> = emptyList(),
     selectedConnectionLibraryIds: List<String> = emptyList(),
@@ -212,6 +214,7 @@ private fun PlaylistsContent(
                 playlist = playlist,
                 colors = colors,
                 onAction = handlePlaylistAction,
+                capabilities = capabilities,
                 onRename = { playlistToRename = playlist },
                 onDelete = { playlistToDelete = playlist },
             )
@@ -371,6 +374,7 @@ private fun PlaylistListRow(
     playlist: SharedMediaItemUi,
     colors: NaviampColors,
     onAction: (SharedMediaItemActionRequest) -> Unit,
+    capabilities: NaviampPlaylistMediaCapabilities,
     onRename: () -> Unit,
     onDelete: () -> Unit,
 ) {
@@ -435,14 +439,14 @@ private fun PlaylistListRow(
         NaviampRowOverflowMenu(
             colors = colors,
             items = playlistRowActions(
-                canDownload = true,
-                canKeepDownloaded = true,
+                canDownload = capabilities.canDownload,
+                canKeepDownloaded = capabilities.canKeepDownloaded,
                 keepDownloadedActive = playlist.keepDownloadedActive,
-                canAddToQueue = true,
-                canAddToPlaylist = true,
-                canRename = true,
-                canEditSmartPlaylist = playlist.isSmartPlaylist,
-                canDelete = true,
+                canAddToQueue = capabilities.canAddToQueue,
+                canAddToPlaylist = capabilities.canAddToPlaylist,
+                canRename = capabilities.canRename,
+                canEditSmartPlaylist = capabilities.canEditSmartPlaylist && playlist.isSmartPlaylist,
+                canDelete = capabilities.canDelete,
             ).mapNotNull { action ->
                 when (action.action) {
                     NaviampAction.DownloadPlaylist -> NaviampRowMenuItem(

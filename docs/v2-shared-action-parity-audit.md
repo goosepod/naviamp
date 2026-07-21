@@ -90,6 +90,7 @@ These boundaries should implement narrow ports requested by common owners. They 
   - [x] Smart-playlist load/update source resolution and stale-source failure are common; the prior silent Desktop update omission is closed.
   - [x] Resolved media handlers declare support explicitly, Android and Desktop consume one common result-producing dispatcher, and missing, invalid, or unsupported requests can no longer disappear silently.
   - [x] Host-facing album, artist, and playlist media commands are separate sealed families consumed through exhaustive common dispatchers; the remaining legacy request exists only inside shared presentation during direct-emission migration.
+  - [x] Media product capabilities are one common baseline, not host-specific declarations. The Android arbitrary-artist gap was closed with shared domain catalog loading rather than preserved as platform divergence.
   - [ ] Apply the rule to the remaining action groups.
 - [ ] Converge shell navigation, Home, Search, Library, connection, and settings intent policy.
 - [ ] Converge media-row and smart-playlist action routing; correct every confirmed Desktop omission as part of adopting the common dispatcher. Playlist, album, and artist detail routing are complete.

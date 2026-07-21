@@ -388,15 +388,19 @@ fun NaviampSearchContent(
     val sharedMediaRow: @Composable (SharedMediaItemUi, SharedMediaItemKind) -> Unit = { item, kind ->
         val specs = when (kind) {
             SharedMediaItemKind.Artist -> artistRowActions(
-                canStartRadio = true,
-                canAddToQueue = true,
-                canAddToPlaylist = true,
+                canStartRadio = NaviampSharedMediaCapabilities.artist.canStartRadio,
+                canAddToQueue = NaviampSharedMediaCapabilities.artist.canAddToQueue,
+                canAddToPlaylist = NaviampSharedMediaCapabilities.artist.canAddToPlaylist,
+                canFavorite = NaviampSharedMediaCapabilities.artist.canToggleFavorite && item.canFavorite,
+                favoriteActive = item.favoriteActive,
             )
             SharedMediaItemKind.Album -> albumRowActions(
-                canStartRadio = true,
-                canDownload = true,
-                canAddToQueue = true,
-                canAddToPlaylist = true,
+                canStartRadio = NaviampSharedMediaCapabilities.album.canStartRadio,
+                canDownload = NaviampSharedMediaCapabilities.album.canDownload,
+                canAddToQueue = NaviampSharedMediaCapabilities.album.canAddToQueue,
+                canAddToPlaylist = NaviampSharedMediaCapabilities.album.canAddToPlaylist,
+                canFavorite = NaviampSharedMediaCapabilities.album.canToggleFavorite && item.canFavorite,
+                favoriteActive = item.favoriteActive,
             )
             else -> emptyList()
         }
@@ -607,9 +611,11 @@ fun NaviampLibraryContent(
                 key = { item -> item.id },
             ) { item ->
                 val menuItems = artistRowActions(
-                    canStartRadio = true,
-                    canAddToQueue = true,
-                    canAddToPlaylist = true,
+                    canStartRadio = NaviampSharedMediaCapabilities.artist.canStartRadio,
+                    canAddToQueue = NaviampSharedMediaCapabilities.artist.canAddToQueue,
+                    canAddToPlaylist = NaviampSharedMediaCapabilities.artist.canAddToPlaylist,
+                    canFavorite = NaviampSharedMediaCapabilities.artist.canToggleFavorite && item.canFavorite,
+                    favoriteActive = item.favoriteActive,
                 ).mapNotNull { spec ->
                     spec.action.sharedMediaItemActionOrNull()?.let { action ->
                         NaviampRowMenuItem(

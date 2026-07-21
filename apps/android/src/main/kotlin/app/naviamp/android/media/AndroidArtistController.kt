@@ -26,6 +26,8 @@ import app.naviamp.domain.media.loadingPopularTracksStatus
 import app.naviamp.domain.media.loadingSimilarArtistsStatus
 import app.naviamp.domain.media.loadAlbumDetails
 import app.naviamp.domain.media.loadArtistPopularTracksUpdate
+import app.naviamp.domain.media.loadArtistDetails
+import app.naviamp.domain.media.loadArtistCatalogTracks
 import app.naviamp.domain.media.loadSimilarArtistsUpdate
 import app.naviamp.domain.popular.ArtistPopularTracksService
 import app.naviamp.domain.popular.SimilarArtistsService
@@ -341,6 +343,26 @@ internal class AndroidArtistActionController(
 
     fun loadArtistTracks(action: (List<Track>) -> Unit) {
         loadArtistTracks(detail = null, action = action)
+    }
+
+    fun loadArtistTracks(artist: SharedMediaItemUi, action: (List<Track>) -> Unit) {
+        val activeProvider = state.provider ?: return
+        val providerResponseService = ProviderResponseService(providerResponseCacheRepository)
+        scope.launch {
+            state.status = "Loading artist tracks..."
+            runCatching {
+                val detail = loadArtistDetails(
+                    libraryIndexRepository = libraryIndexRepository,
+                    providerResponseService = providerResponseService,
+                    provider = activeProvider,
+                    artistId = ArtistId(artist.id),
+                    fallbackName = artist.title,
+                    sourceId = state.activeSourceId,
+                )
+                loadArtistCatalogTracks(detail, providerResponseService, activeProvider)
+            }.onSuccess(action)
+                .onFailure { error -> state.status = error.message ?: "Could not load artist tracks." }
+        }
     }
 
     private fun loadArtistTracks(

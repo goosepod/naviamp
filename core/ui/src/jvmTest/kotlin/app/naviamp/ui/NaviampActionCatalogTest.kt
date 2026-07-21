@@ -5,6 +5,14 @@ import kotlin.test.assertEquals
 
 class NaviampActionCatalogTest {
     @Test
+    fun sharedMediaBaselineIncludesEveryCrossPlatformProductAction() {
+        assertEquals(true, NaviampSharedMediaCapabilities.album.canAddToPlaylist)
+        assertEquals(true, NaviampSharedMediaCapabilities.artist.canAddToQueue)
+        assertEquals(true, NaviampSharedMediaCapabilities.artist.canAddToPlaylist)
+        assertEquals(true, NaviampSharedMediaCapabilities.playlist.canEditSmartPlaylist)
+    }
+
+    @Test
     fun trackRowActionsIncludeRadioQueueActionsWhenRadioIsAvailable() {
         val actions = trackRowActions(
             canStartRadio = true,
