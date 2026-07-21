@@ -83,8 +83,10 @@ These boundaries should implement narrow ports requested by common owners. They 
 ## Migration Order
 
 - [ ] Define required common action commands and narrow execution ports; remove silent no-op defaults from required actions and add explicit capability states for optional ones.
+  - [x] Playlist detail uses one required sealed command, exhaustive common dispatch, required host handlers, and common stale/invalid results. Unsupported commands are unrepresentable, and its competing direct and generic callbacks were removed.
+  - [ ] Apply the rule to the remaining action groups.
 - [ ] Converge shell navigation, Home, Search, Library, connection, and settings intent policy.
-- [ ] Converge album, artist, playlist, media-row, and smart-playlist action routing; correct every confirmed Desktop omission as part of adopting the common dispatcher.
+- [ ] Converge album, artist, media-row, and smart-playlist action routing; correct every confirmed Desktop omission as part of adopting the common dispatcher. Playlist-detail routing is complete.
 - [ ] Converge Now Playing request interpretation while keeping BASS and host presentation effects behind ports.
 - [ ] Add a common presentation-composition module or dependency arrangement that can consume both `core:app` and `core:ui` without reversing their current dependency direction.
 - [ ] Construct one host-neutral screen-state/action graph from the shared application composition. Android and Desktop provide only platform-service and execution adapters.

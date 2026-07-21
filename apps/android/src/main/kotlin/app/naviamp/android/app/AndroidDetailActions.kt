@@ -5,7 +5,10 @@ import app.naviamp.ui.KeepDownloadedActionValue
 import app.naviamp.ui.NaviampAlbumDetailActions
 import app.naviamp.ui.NaviampArtistDetailActions
 import app.naviamp.ui.NaviampPlaylistDetailActions
+import app.naviamp.ui.ResolvedPlaylistDetailActionHandlers
 import app.naviamp.ui.SharedMediaItemAction
+import app.naviamp.ui.dispatchResolvedPlaylistDetailAction
+import app.naviamp.ui.playlistDetailActionDispatchStatus
 import kotlinx.coroutines.CoroutineScope
 
 internal fun androidDetailBackAction(navigationController: AndroidNavigationController): () -> Unit =
@@ -123,34 +126,6 @@ internal fun androidPlaylistDetailActions(
     downloadActionController: AndroidDownloadActionController,
 ): NaviampPlaylistDetailActions = NaviampPlaylistDetailActions(
     onBack = navigationController::closeActivePlaylist,
-    onPlay = { selectedPlaylist, shuffle ->
-        state.homeState.playlists.firstOrNull { it.id == selectedPlaylist.id }
-            ?.let { playlistActionController.playPlaylist(it, shuffle) }
-            ?: run { state.status = "Playlist not found." }
-    },
-    onAddToQueue = { mediaController.appendTracksToQueue(state.selectedPlaylistTracks, "playlist tracks") },
-    onAddToPlaylist = { _, playlist ->
-        state.selectedPlaylist?.let { playlistActionController.addPlaylistToPlaylist(it, playlist, null) }
-            ?: run { state.status = "Playlist not found." }
-    },
-    onCreatePlaylistAndAdd = { _, name ->
-        state.selectedPlaylist?.let { playlistActionController.addPlaylistToPlaylist(it, null, name) }
-            ?: run { state.status = "Playlist not found." }
-    },
-    onCopy = { _, name, deduplicate ->
-        val tracks = if (deduplicate) state.selectedPlaylistTracks.distinctBy { it.id } else state.selectedPlaylistTracks
-        playlistActionController.addTracksToPlaylist(tracks, null, name, "playlist")
-    },
-    onRename = { selectedPlaylist, name ->
-        state.homeState.playlists.firstOrNull { it.id == selectedPlaylist.id }
-            ?.let { playlistActionController.renamePlaylist(it, name) }
-            ?: run { state.status = "Playlist not found." }
-    },
-    onDelete = { selectedPlaylist ->
-        state.homeState.playlists.firstOrNull { it.id == selectedPlaylist.id }
-            ?.let(playlistActionController::deletePlaylist)
-            ?: run { state.status = "Playlist not found." }
-    },
     onUpdateStandardPlaylist = { playlistItem, trackRows ->
         val playlist = state.homeState.playlists.firstOrNull { it.id == playlistItem.id }
             ?: throw IllegalArgumentException("Playlist not found.")
@@ -161,18 +136,45 @@ internal fun androidPlaylistDetailActions(
         }
         playlistActionController.updateStandardPlaylistTracks(playlist, editedTracks)
     },
-    onMediaItemAction = { request ->
-        val playlist = state.homeState.playlists.firstOrNull { it.id == request.item.id }
-        if (playlist == null) {
-            state.status = "Playlist not found."
-        } else if (request.action == SharedMediaItemAction.Download) {
-            if (request.textValue == KeepDownloadedActionValue) {
-                downloadActionController.toggleKeepDownloadedPlaylist(playlist)
-            } else {
-                downloadActionController.downloadPlaylist(playlist)
-            }
+    onPlaylistAction = { request ->
+        val playlist = state.homeState.playlists.firstOrNull { it.id == request.playlist.id }
+            ?: state.selectedPlaylist?.takeIf { it.id == request.playlist.id }
+        val result = dispatchResolvedPlaylistDetailAction(
+            request = request,
+            playlist = playlist,
+            handlers = ResolvedPlaylistDetailActionHandlers(
+                onPlay = playlistActionController::playPlaylist,
+                onAddToQueue = {
+                    mediaController.appendTracksToQueue(state.selectedPlaylistTracks, "playlist tracks")
+                },
+                onDownload = { source, value ->
+                    if (value == KeepDownloadedActionValue) {
+                        downloadActionController.toggleKeepDownloadedPlaylist(source)
+                    } else {
+                        downloadActionController.downloadPlaylist(source)
+                    }
+                },
+                onAddToPlaylist = { source, choice ->
+                    playlistActionController.addPlaylistToPlaylist(source, choice, null)
+                },
+                onCreatePlaylistAndAdd = { source, name ->
+                    playlistActionController.addPlaylistToPlaylist(source, null, name)
+                },
+                onCopy = { _, name, deduplicate ->
+                    val tracks = if (deduplicate) {
+                        state.selectedPlaylistTracks.distinctBy { it.id }
+                    } else {
+                        state.selectedPlaylistTracks
+                    }
+                    playlistActionController.addTracksToPlaylist(tracks, null, name, "playlist")
+                },
+                onRename = playlistActionController::renamePlaylist,
+                onDelete = playlistActionController::deletePlaylist,
+            ),
+        )
+        playlistDetailActionDispatchStatus(result)?.let { status ->
+            state.status = status
         }
     },
-    onTrackSelected = trackActionController::handlePlaylistTrackSelected,
     onTrackAction = trackActionController::handleTrackAction,
 )

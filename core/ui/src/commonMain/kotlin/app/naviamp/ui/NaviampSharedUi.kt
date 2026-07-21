@@ -102,7 +102,7 @@ fun NaviampSharedAppShell(
     uiState: NaviampAppShellUiState,
     settingsSync: NaviampSettingsSyncUi = NaviampSettingsSyncUi(),
     visualizerBandsProvider: () -> List<Float> = { uiState.nowPlaying?.visualizerFrame?.bands.orEmpty() },
-    actions: NaviampAppShellActions = NaviampAppShellActions(),
+    actions: NaviampAppShellActions,
     syncActions: NaviampSettingsSyncActions = NaviampSettingsSyncActions(),
     applicationUpdateChecker: NaviampApplicationUpdateChecker? = null,
 ) {

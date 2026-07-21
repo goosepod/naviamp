@@ -34,7 +34,7 @@ class NaviampPlaylistDetailSmartEditUiTest {
                     selectedPlaylist = playlist,
                     detail = SharedPlaylistDetailUi(playlist = playlist, tracks = emptyList()),
                 ),
-                actions = NaviampPlaylistDetailActions(),
+                actions = testPlaylistDetailActions(),
                 playlistsActions = NaviampPlaylistsActions(
                     onSmartPlaylistLoad = {
                         definitionLoaded = true
@@ -68,7 +68,7 @@ class NaviampPlaylistDetailSmartEditUiTest {
                     selectedPlaylist = playlist,
                     detail = SharedPlaylistDetailUi(playlist = playlist, tracks = emptyList()),
                 ),
-                actions = NaviampPlaylistDetailActions(),
+                actions = testPlaylistDetailActions(),
                 playlistsActions = NaviampPlaylistsActions(
                     onSmartPlaylistLoad = { error("Navidrome returned HTTP 401.") },
                     onSmartPlaylistLoadWithPassword = { _, password ->
@@ -88,6 +88,13 @@ class NaviampPlaylistDetailSmartEditUiTest {
         onNodeWithText("Details").assertExists()
     }
 }
+
+private fun testPlaylistDetailActions() = NaviampPlaylistDetailActions(
+    onBack = {},
+    onPlaylistAction = {},
+    onUpdateStandardPlaylist = { _, _ -> },
+    onTrackAction = {},
+)
 
 private fun testSmartPlaylistDefinition() = SmartPlaylistDefinition(
     name = "Work Ambient",

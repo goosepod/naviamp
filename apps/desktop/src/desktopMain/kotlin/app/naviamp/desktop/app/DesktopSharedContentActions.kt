@@ -11,9 +11,12 @@ import app.naviamp.ui.SharedDetailActionSources
 import app.naviamp.ui.SharedInternetRadioActionSources
 import app.naviamp.ui.SharedPlaylistActionSources
 import app.naviamp.ui.ResolvedMediaItemActionHandlers
+import app.naviamp.ui.ResolvedPlaylistDetailActionHandlers
 import app.naviamp.ui.ResolvedTrackRowActionHandlers
+import app.naviamp.ui.dispatchResolvedPlaylistDetailAction
 import app.naviamp.ui.handleResolvedMediaItemAction
 import app.naviamp.ui.handleResolvedTrackRowAction
+import app.naviamp.ui.playlistDetailActionDispatchStatus
 import app.naviamp.ui.NaviampInternetRadioActions
 import app.naviamp.ui.NaviampAlbumDetailActions
 import app.naviamp.ui.NaviampArtistDetailActions
@@ -159,12 +162,13 @@ internal fun desktopPlaylistDetailActions(
     onBack: () -> Unit,
 ): NaviampPlaylistDetailActions = NaviampPlaylistDetailActions(
     onBack = onBack,
-    onMediaItemAction = { request ->
-        handleResolvedMediaItemAction(
+    onPlaylistAction = { request ->
+        val result = dispatchResolvedPlaylistDetailAction(
             request = request,
-            item = actionSources.selectedPlaylist,
-            handlers = ResolvedMediaItemActionHandlers(
+            playlist = actionSources.playlist(request.playlist.id),
+            handlers = ResolvedPlaylistDetailActionHandlers(
                 onPlay = { _, shuffle -> appActions.playPlaylistDetails(shuffle = shuffle) },
+                onAddToQueue = { playlistsController.addSelectedPlaylistToQueue() },
                 onDownload = { playlist, value ->
                     if (value == app.naviamp.ui.KeepDownloadedActionValue) {
                         appActions.toggleKeepDownloadedPlaylist(playlist)
@@ -172,20 +176,34 @@ internal fun desktopPlaylistDetailActions(
                         appActions.downloadSelectedPlaylist()
                     }
                 },
-                onAddToQueue = { playlistsController.addSelectedPlaylistToQueue() },
-                onAddToPlaylist = { _, _ -> playlistsController.openSelectedPlaylistAddToPlaylist() },
-                onCreatePlaylistAndAdd = { _, name ->
-                    playlistsController.saveTracksAsPlaylist(name, actionSources.selectedPlaylistTracks, "playlist")
+                onAddToPlaylist = { source, choice ->
+                    val target = actionSources.playlist(choice.id)
+                    if (target == null) {
+                        playlistsController.updateSelectedPlaylistStatus("Playlist not found.")
+                    } else {
+                        playlistsController.addTargetToPlaylist(
+                            AddToPlaylistTarget.PlaylistTarget(source),
+                            playlist = target,
+                        )
+                    }
+                },
+                onCreatePlaylistAndAdd = { source, name ->
+                    playlistsController.addTargetToPlaylist(
+                        AddToPlaylistTarget.PlaylistTarget(source),
+                        playlist = null,
+                        newPlaylistName = name,
+                    )
                 },
                 onCopy = { _, name, deduplicate ->
                     val tracks = actionSources.selectedPlaylistTracks
                         .let { if (deduplicate) it.distinctBy { track -> track.id } else it }
                     playlistsController.saveTracksAsPlaylist(name, tracks, "playlist")
                 },
-                onRename = { _, _ -> playlistsController.requestSelectedPlaylistRename() },
-                onDelete = { playlistsController.requestSelectedPlaylistDelete() },
+                onRename = playlistsController::renamePlaylist,
+                onDelete = playlistsController::deletePlaylist,
             ),
         )
+        playlistDetailActionDispatchStatus(result)?.let(playlistsController::updateSelectedPlaylistStatus)
     },
     onTrackAction = { request ->
         handleResolvedTrackRowAction(

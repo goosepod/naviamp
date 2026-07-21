@@ -181,6 +181,97 @@ class SharedActionSourcesTest {
         assertEquals("Copy" to true, copy)
     }
 
+    @Test
+    fun playlistDetailDispatcherRequiresAndPreservesEveryVisibleAction() {
+        val playlist = Playlist("playlist", "Playlist", trackCount = 3)
+        val item = SharedMediaItemUi(id = playlist.id, title = playlist.name, subtitle = "Playlist")
+        val choice = NaviampPlaylistChoiceUi("target", "Target")
+        val dispatched = mutableListOf<String>()
+        val handlers = ResolvedPlaylistDetailActionHandlers<Playlist>(
+            onPlay = { _, shuffle -> dispatched += "play:$shuffle" },
+            onAddToQueue = { dispatched += "queue" },
+            onDownload = { _, value -> dispatched += "download:$value" },
+            onAddToPlaylist = { _, target -> dispatched += "add:${target.id}" },
+            onCreatePlaylistAndAdd = { _, name -> dispatched += "create:$name" },
+            onCopy = { _, name, deduplicate -> dispatched += "copy:$name:$deduplicate" },
+            onRename = { _, name -> dispatched += "rename:$name" },
+            onDelete = { dispatched += "delete" },
+        )
+        val requests = listOf(
+            NaviampPlaylistDetailActionRequest(item, NaviampPlaylistDetailCommand.Play(shuffle = false)),
+            NaviampPlaylistDetailActionRequest(item, NaviampPlaylistDetailCommand.Play(shuffle = true)),
+            NaviampPlaylistDetailActionRequest(item, NaviampPlaylistDetailCommand.AddToQueue),
+            NaviampPlaylistDetailActionRequest(
+                item,
+                NaviampPlaylistDetailCommand.Download(KeepDownloadedActionValue),
+            ),
+            NaviampPlaylistDetailActionRequest(item, NaviampPlaylistDetailCommand.AddToPlaylist(choice)),
+            NaviampPlaylistDetailActionRequest(item, NaviampPlaylistDetailCommand.CreatePlaylistAndAdd("New")),
+            NaviampPlaylistDetailActionRequest(item, NaviampPlaylistDetailCommand.Copy("Copy", false)),
+            NaviampPlaylistDetailActionRequest(item, NaviampPlaylistDetailCommand.Copy("Unique", true)),
+            NaviampPlaylistDetailActionRequest(item, NaviampPlaylistDetailCommand.Rename("Renamed")),
+            NaviampPlaylistDetailActionRequest(item, NaviampPlaylistDetailCommand.Delete),
+        )
+
+        val results = requests.map { request ->
+            dispatchResolvedPlaylistDetailAction(request, playlist, handlers)
+        }
+
+        assertEquals(List(requests.size) { PlaylistDetailActionDispatchResult.Dispatched }, results)
+        assertEquals(
+            listOf(
+                "play:false",
+                "play:true",
+                "queue",
+                "download:$KeepDownloadedActionValue",
+                "add:target",
+                "create:New",
+                "copy:Copy:false",
+                "copy:Unique:true",
+                "rename:Renamed",
+                "delete",
+            ),
+            dispatched,
+        )
+    }
+
+    @Test
+    fun playlistDetailDispatcherReportsMissingPlaylistsAndInvalidValues() {
+        val playlist = Playlist("playlist", "Playlist", trackCount = 3)
+        val item = SharedMediaItemUi(id = playlist.id, title = playlist.name, subtitle = "Playlist")
+        val handlers = ResolvedPlaylistDetailActionHandlers<Playlist>(
+            onPlay = { _, _ -> },
+            onAddToQueue = {},
+            onDownload = { _, _ -> },
+            onAddToPlaylist = { _, _ -> },
+            onCreatePlaylistAndAdd = { _, _ -> },
+            onCopy = { _, _, _ -> },
+            onRename = { _, _ -> },
+            onDelete = {},
+        )
+
+        assertEquals(
+            PlaylistDetailActionDispatchResult.MissingPlaylist,
+            dispatchResolvedPlaylistDetailAction(
+                NaviampPlaylistDetailActionRequest(item, NaviampPlaylistDetailCommand.Play(false)),
+                null,
+                handlers,
+            ),
+        )
+        assertEquals(
+            PlaylistDetailActionDispatchResult.InvalidValue,
+            dispatchResolvedPlaylistDetailAction(
+                NaviampPlaylistDetailActionRequest(item, NaviampPlaylistDetailCommand.CreatePlaylistAndAdd("")),
+                playlist,
+                handlers,
+            ),
+        )
+        assertEquals(
+            "Playlist not found.",
+            playlistDetailActionDispatchStatus(PlaylistDetailActionDispatchResult.MissingPlaylist),
+        )
+    }
+
     private fun album(id: String): Album = Album(
         id = AlbumId(id),
         title = id,

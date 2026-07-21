@@ -532,22 +532,77 @@ fun NaviampPlaylistDetailContent(
         detail = detail,
         status = screen.status,
         onBack = actions.onBack,
-        onPlayPlaylist = { actions.onPlay(detail.playlist, false) },
-        onShufflePlaylist = { actions.onPlay(detail.playlist, true) },
-        onAddPlaylistToQueue = { actions.onAddToQueue(detail) },
-        onDownloadPlaylist = {
-            actions.onMediaItemAction(
-                detail.playlist.actionRequest(
-                    SharedMediaItemAction.Download,
-                    kind = SharedMediaItemKind.Playlist,
+        onPlayPlaylist = {
+            actions.onPlaylistAction(
+                NaviampPlaylistDetailActionRequest(
+                    detail.playlist,
+                    NaviampPlaylistDetailCommand.Play(shuffle = false),
                 ),
             )
         },
-        onAddPlaylistToPlaylist = { choice -> actions.onAddToPlaylist(detail, choice) },
-        onCreatePlaylistAndAddPlaylist = { name -> actions.onCreatePlaylistAndAdd(detail, name) },
-        onCopyPlaylist = { name, deduplicate -> actions.onCopy(detail, name, deduplicate) },
-        onRenamePlaylist = actions.onRename,
-        onDeletePlaylist = actions.onDelete,
+        onShufflePlaylist = {
+            actions.onPlaylistAction(
+                NaviampPlaylistDetailActionRequest(
+                    detail.playlist,
+                    NaviampPlaylistDetailCommand.Play(shuffle = true),
+                ),
+            )
+        },
+        onAddPlaylistToQueue = {
+            actions.onPlaylistAction(
+                NaviampPlaylistDetailActionRequest(
+                    detail.playlist,
+                    NaviampPlaylistDetailCommand.AddToQueue,
+                ),
+            )
+        },
+        onDownloadPlaylist = {
+            actions.onPlaylistAction(
+                NaviampPlaylistDetailActionRequest(
+                    detail.playlist,
+                    NaviampPlaylistDetailCommand.Download(),
+                ),
+            )
+        },
+        onAddPlaylistToPlaylist = { choice ->
+            choice?.let {
+                actions.onPlaylistAction(
+                    NaviampPlaylistDetailActionRequest(
+                        detail.playlist,
+                        NaviampPlaylistDetailCommand.AddToPlaylist(it),
+                    ),
+                )
+            }
+        },
+        onCreatePlaylistAndAddPlaylist = { name ->
+            actions.onPlaylistAction(
+                NaviampPlaylistDetailActionRequest(
+                    detail.playlist,
+                    NaviampPlaylistDetailCommand.CreatePlaylistAndAdd(name),
+                ),
+            )
+        },
+        onCopyPlaylist = { name, deduplicate ->
+            actions.onPlaylistAction(
+                NaviampPlaylistDetailActionRequest(
+                    detail.playlist,
+                    NaviampPlaylistDetailCommand.Copy(name, deduplicate),
+                ),
+            )
+        },
+        onRenamePlaylist = { playlist, name ->
+            actions.onPlaylistAction(
+                NaviampPlaylistDetailActionRequest(
+                    playlist,
+                    NaviampPlaylistDetailCommand.Rename(name),
+                ),
+            )
+        },
+        onDeletePlaylist = { playlist ->
+            actions.onPlaylistAction(
+                NaviampPlaylistDetailActionRequest(playlist, NaviampPlaylistDetailCommand.Delete),
+            )
+        },
         onUpdateStandardPlaylist = actions.onUpdateStandardPlaylist,
         onSmartPlaylistUpdate = playlistsActions.onSmartPlaylistUpdate,
         onSmartPlaylistUpdateWithPassword = playlistsActions.onSmartPlaylistUpdateWithPassword,

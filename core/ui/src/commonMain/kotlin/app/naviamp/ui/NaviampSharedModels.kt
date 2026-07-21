@@ -549,19 +549,27 @@ data class NaviampPlaylistDetailScreenUi(
     val selectedConnectionLibraryIds: List<String> = emptyList(),
 )
 
+sealed interface NaviampPlaylistDetailCommand {
+    data class Play(val shuffle: Boolean) : NaviampPlaylistDetailCommand
+    data object AddToQueue : NaviampPlaylistDetailCommand
+    data class Download(val value: String? = null) : NaviampPlaylistDetailCommand
+    data class AddToPlaylist(val choice: NaviampPlaylistChoiceUi) : NaviampPlaylistDetailCommand
+    data class CreatePlaylistAndAdd(val name: String) : NaviampPlaylistDetailCommand
+    data class Copy(val name: String, val deduplicate: Boolean) : NaviampPlaylistDetailCommand
+    data class Rename(val name: String) : NaviampPlaylistDetailCommand
+    data object Delete : NaviampPlaylistDetailCommand
+}
+
+data class NaviampPlaylistDetailActionRequest(
+    val playlist: SharedMediaItemUi,
+    val command: NaviampPlaylistDetailCommand,
+)
+
 data class NaviampPlaylistDetailActions(
-    val onBack: () -> Unit = {},
-    val onPlay: (SharedMediaItemUi, Boolean) -> Unit = { _, _ -> },
-    val onAddToQueue: (SharedPlaylistDetailUi) -> Unit = {},
-    val onAddToPlaylist: (SharedPlaylistDetailUi, NaviampPlaylistChoiceUi?) -> Unit = { _, _ -> },
-    val onCreatePlaylistAndAdd: (SharedPlaylistDetailUi, String) -> Unit = { _, _ -> },
-    val onCopy: (SharedPlaylistDetailUi, String, Boolean) -> Unit = { _, _, _ -> },
-    val onRename: (SharedMediaItemUi, String) -> Unit = { _, _ -> },
-    val onDelete: (SharedMediaItemUi) -> Unit = {},
-    val onUpdateStandardPlaylist: suspend (SharedMediaItemUi, List<SharedTrackRowUi>) -> Unit = { _, _ -> },
-    val onMediaItemAction: (SharedMediaItemActionRequest) -> Unit = {},
-    val onTrackSelected: (SharedTrackRowUi) -> Unit = {},
-    val onTrackAction: (SharedTrackRowActionRequest) -> Unit = {},
+    val onBack: () -> Unit,
+    val onPlaylistAction: (NaviampPlaylistDetailActionRequest) -> Unit,
+    val onUpdateStandardPlaylist: suspend (SharedMediaItemUi, List<SharedTrackRowUi>) -> Unit,
+    val onTrackAction: (SharedTrackRowActionRequest) -> Unit,
 )
 
 data class SharedHomeUi(
@@ -844,7 +852,7 @@ data class NaviampAppShellActions(
     val radioActions: NaviampInternetRadioActions = NaviampInternetRadioActions(),
     val albumDetailActions: NaviampAlbumDetailActions = NaviampAlbumDetailActions(),
     val artistDetailActions: NaviampArtistDetailActions = NaviampArtistDetailActions(),
-    val playlistDetailActions: NaviampPlaylistDetailActions = NaviampPlaylistDetailActions(),
+    val playlistDetailActions: NaviampPlaylistDetailActions,
     val homeActions: NaviampHomeActions = NaviampHomeActions(),
     val mediaActions: NaviampMediaActions = NaviampMediaActions(),
     val nowPlayingActions: NaviampNowPlayingActions = NaviampNowPlayingActions(),

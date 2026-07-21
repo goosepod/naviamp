@@ -132,6 +132,10 @@ class DesktopPlaylistsController(
         this.status = status
     }
 
+    fun updateSelectedPlaylistStatus(status: String?) {
+        selectedPlaylistStatus = status
+    }
+
     fun updatePlaylistTracksById(tracksById: Map<String, List<Track>>) {
         playlistTracksById = tracksById
     }
