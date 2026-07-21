@@ -1684,6 +1684,7 @@ private fun NowPlayingSidePanel(
                 onClick = { item ->
                     actions.selectItem(item, NowPlayingSelectionAction.SelectRadioStation)
                 },
+                onAction = actions.onQueueItemAction,
                 modifier = Modifier.weight(1f),
             )
             return@Column
@@ -2283,7 +2284,7 @@ private fun NowPlayingItemList(
     showActions: Boolean = true,
     onClick: (NaviampNowPlayingItemUi) -> Unit,
     rowActions: List<NaviampActionSpec> = queueRowActions(),
-    onAction: (NowPlayingItemActionRequest) -> Unit = {},
+    onAction: (NowPlayingItemActionRequest) -> Unit,
     swipeRightAction: TrackSwipeAction = TrackSwipeAction.None,
     swipeLeftAction: TrackSwipeAction = TrackSwipeAction.None,
     queueContext: Boolean = false,

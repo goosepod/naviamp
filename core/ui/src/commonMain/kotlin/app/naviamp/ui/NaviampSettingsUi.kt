@@ -167,23 +167,23 @@ fun NaviampSharedSettingsContent(
     connectionForm: ConnectionFormState = ConnectionFormState(),
     hasSavedConnection: Boolean = false,
     onEditConnection: () -> Unit,
-    onNewConnection: () -> Unit = onEditConnection,
-    onEditSavedConnection: (NaviampSavedConnectionUi) -> Unit = { onEditConnection() },
-    onConnectSavedConnection: (NaviampSavedConnectionUi) -> Unit = {},
-    onDeleteSavedConnection: (NaviampSavedConnectionUi) -> Unit = {},
+    onNewConnection: () -> Unit,
+    onEditSavedConnection: (NaviampSavedConnectionUi) -> Unit,
+    onConnectSavedConnection: (NaviampSavedConnectionUi) -> Unit,
+    onDeleteSavedConnection: (NaviampSavedConnectionUi) -> Unit,
     onImportSettingsSyncFile: (() -> Unit)? = null,
     onChooseSettingsSyncFolder: (() -> Unit)? = null,
     onImportSettingsSyncFolder: (() -> Unit)? = null,
     onExportSettingsSyncFolder: (() -> Unit)? = null,
     settingsSyncAutoExportEnabled: Boolean = false,
     onSettingsSyncAutoExportChanged: ((Boolean) -> Unit)? = null,
-    onConnectionFormChanged: (ConnectionFormState) -> Unit = {},
-    onConnect: () -> Unit = {},
-    onCancelConnectionForm: () -> Unit = {},
-    onInterfaceSettingsChanged: (InterfaceSettings) -> Unit = {},
+    onConnectionFormChanged: (ConnectionFormState) -> Unit,
+    onConnect: () -> Unit,
+    onCancelConnectionForm: () -> Unit,
+    onInterfaceSettingsChanged: (InterfaceSettings) -> Unit,
     onPlaybackSettingsChanged: (PlaybackSettings) -> Unit,
-    onPlaybackSettingsChangedAndRedownload: (PlaybackSettings) -> Unit = onPlaybackSettingsChanged,
-    onCacheSettingsChanged: (CacheSettings) -> Unit = {},
+    onPlaybackSettingsChangedAndRedownload: (PlaybackSettings) -> Unit,
+    onCacheSettingsChanged: (CacheSettings) -> Unit,
     onClearCache: (() -> Unit)? = null,
     onClearLibrary: (() -> Unit)? = null,
     onRefreshLibrary: (() -> Unit)? = null,
@@ -206,8 +206,8 @@ fun NaviampSharedSettingsContent(
     audioCacheLocations: List<NaviampStorageLocationUi> = emptyList(),
     selectedDownloadLocationId: String? = null,
     selectedAudioCacheLocationId: String? = null,
-    onDownloadLocationChanged: (NaviampStorageLocationUi) -> Unit = {},
-    onAudioCacheLocationChanged: (NaviampStorageLocationUi) -> Unit = {},
+    onDownloadLocationChanged: (NaviampStorageLocationUi) -> Unit,
+    onAudioCacheLocationChanged: (NaviampStorageLocationUi) -> Unit,
 ) {
     var selectedCategory by remember { mutableStateOf<NaviampSettingsCategory?>(null) }
     val languagePack = remember(interfaceSettings.language) {
@@ -2018,11 +2018,11 @@ fun NaviampDownloadsSettingsSection(
     showMobileNetworkQuality: Boolean,
     downloadBytes: Long,
     onPlaybackSettingsChanged: (PlaybackSettings) -> Unit,
-    onPlaybackSettingsChangedAndRedownload: (PlaybackSettings) -> Unit = onPlaybackSettingsChanged,
+    onPlaybackSettingsChangedAndRedownload: (PlaybackSettings) -> Unit,
     onCacheSettingsChanged: (CacheSettings) -> Unit,
     locations: List<NaviampStorageLocationUi> = emptyList(),
     selectedLocationId: String? = null,
-    onLocationChanged: (NaviampStorageLocationUi) -> Unit = {},
+    onLocationChanged: (NaviampStorageLocationUi) -> Unit,
 ) {
     val normalized = cacheSettings.normalized()
     var selectedPage by remember { mutableStateOf<DownloadsSettingsPage?>(null) }
@@ -2183,7 +2183,7 @@ fun NaviampAudioCacheSettingsSection(
     onCacheSettingsChanged: (CacheSettings) -> Unit,
     locations: List<NaviampStorageLocationUi> = emptyList(),
     selectedLocationId: String? = null,
-    onLocationChanged: (NaviampStorageLocationUi) -> Unit = {},
+    onLocationChanged: (NaviampStorageLocationUi) -> Unit,
 ) {
     val normalized = cacheSettings.normalized()
     var selectedPage by remember { mutableStateOf<AudioCacheSettingsPage?>(null) }

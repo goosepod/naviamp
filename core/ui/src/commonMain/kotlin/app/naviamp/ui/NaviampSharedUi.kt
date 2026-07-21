@@ -1256,11 +1256,12 @@ private fun AlbumDetailContent(
                 TrackRow(
                     track.copy(meta = (index + 1).toString()),
                     colors,
-                    onTrackSelected = { handleTrackAction(SharedTrackRowActionRequest(it, SharedTrackRowAction.Select)) },
-                    onAddToQueue = { handleTrackAction(SharedTrackRowActionRequest(it, SharedTrackRowAction.AddToQueue)) },
-                    onDownload = { handleTrackAction(SharedTrackRowActionRequest(it, SharedTrackRowAction.Download)) },
-                    onAddToPlaylist = { selectedTrack -> trackForPlaylist = selectedTrack },
                     onTrackAction = handleTrackAction,
+                    canSelect = true,
+                    canStartRadio = false,
+                    canAddToQueue = true,
+                    canDownload = true,
+                    canAddToPlaylist = true,
                     reservePopularIndicatorSpace = reservePopularIndicatorSpace,
                 )
             }
@@ -1680,11 +1681,12 @@ private fun ArtistDetailContent(
                         TrackRow(
                             track.copy(meta = (index + 1).toString()),
                             colors,
-                            onTrackSelected = { handlePopularTrackAction(SharedTrackRowActionRequest(it, SharedTrackRowAction.Select)) },
-                            onAddToQueue = { handlePopularTrackAction(SharedTrackRowActionRequest(it, SharedTrackRowAction.AddToQueue)) },
-                            onDownload = { handlePopularTrackAction(SharedTrackRowActionRequest(it, SharedTrackRowAction.Download)) },
-                            onAddToPlaylist = { selectedTrack -> popularTrackForPlaylist = selectedTrack },
                             onTrackAction = handlePopularTrackAction,
+                            canSelect = true,
+                            canStartRadio = false,
+                            canAddToQueue = true,
+                            canDownload = true,
+                            canAddToPlaylist = true,
                         )
                     }
                 }

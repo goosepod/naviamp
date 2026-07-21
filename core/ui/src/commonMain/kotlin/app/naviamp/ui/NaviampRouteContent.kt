@@ -56,17 +56,8 @@ import org.jetbrains.compose.resources.stringResource
 fun SharedHome(
     colors: NaviampColors,
     home: SharedHomeUi,
-    onAlbumSelected: (SharedMediaItemUi) -> Unit,
-    onMixAlbumSelected: (SharedMediaItemUi) -> Unit,
-    onPlaylistSelected: (SharedMediaItemUi) -> Unit,
-    onRecentRadioSelected: (SharedMediaItemUi) -> Unit,
-    onInternetRadioStationSelected: (SharedMediaItemUi) -> Unit,
-    onMixBuilderSelected: (SharedMixBuilderUi) -> Unit,
-    onHomeStationSelected: (SharedHomeStationUi) -> Unit,
-    onSonicDiscoveryTrackAction: (SharedHomeDiscoveryTrackActionRequest) -> Unit = {},
-    onRecentlyPlayedTrackAction: (SharedTrackRowActionRequest) -> Unit = {},
-    onAlbumFavoriteToggled: (SharedMediaItemUi) -> Unit = {},
-    onRefresh: () -> Unit = {},
+    actions: NaviampHomeActions,
+    mediaActions: NaviampMediaActions,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Row(
@@ -80,7 +71,7 @@ fun SharedHome(
             )
             NaviampRowOverflowMenu(
                 colors = colors,
-                items = listOf(NaviampRowMenuItem("Refresh", NaviampIcons.Refresh, onRefresh)),
+                items = listOf(NaviampRowMenuItem("Refresh", NaviampIcons.Refresh, actions.onRefresh)),
             )
         }
         if (home.isEmpty) {
@@ -94,7 +85,7 @@ fun SharedHome(
                     modifier = Modifier.horizontalScroll(rememberScrollState()),
                 ) {
                     home.mixAlbums.take(6).forEach { album ->
-                        MixCard(album, colors, onClick = { onMixAlbumSelected(album) })
+                        MixCard(album, colors, onClick = { mediaActions.onMediaItemAction(album.playAlbumRequest()) })
                     }
                 }
             }
@@ -103,39 +94,41 @@ fun SharedHome(
             title = stringResource(Res.string.home_recently_played_radio),
             items = home.recentRadioStreams,
             colors = colors,
-            onItemSelected = onRecentRadioSelected,
+            onItemSelected = actions.onRecentRadioSelected,
             emptyText = stringResource(Res.string.home_recent_radio_empty),
         )
-        RecentPlayedSection(home.recentlyPlayedTracks, colors, onRecentlyPlayedTrackAction)
-        MixBuilderSection(home.mixBuilders, colors, onMixBuilderSelected)
-        SonicDiscoverySection(home.sonicDiscoveryRows, colors, onSonicDiscoveryTrackAction)
+        RecentPlayedSection(home.recentlyPlayedTracks, colors, actions.onRecentlyPlayedTrackAction)
+        MixBuilderSection(home.mixBuilders, colors, actions.onMixBuilderSelected)
+        SonicDiscoverySection(home.sonicDiscoveryRows, colors, actions.onSonicDiscoveryTrackAction)
         HomeSection(
             stringResource(Res.string.home_recently_added_music),
             home.recentlyAddedAlbums,
             colors,
-            onAlbumSelected,
-            onAlbumFavoriteToggled,
+            { mediaActions.onMediaItemAction(it.albumActionRequest(NaviampArtistAlbumCommand.Select)) },
+            { mediaActions.onMediaItemAction(it.albumActionRequest(NaviampArtistAlbumCommand.ToggleFavorite)) },
         )
         HomeSection(
             stringResource(Res.string.home_recent_playlists),
             home.playlists,
             colors,
-            onPlaylistSelected,
+            { mediaActions.onMediaItemAction(it.playlistActionRequest(NaviampPlaylistMediaCommand.Select)) },
         )
         HomeSection(
             stringResource(Res.string.home_recent_internet_radio),
             home.radioStations,
             colors,
-            onInternetRadioStationSelected,
+            actions.onInternetRadioStationSelected,
         )
-        HomeStationSection(home.stations, colors, onHomeStationSelected)
-        HomeSection(stringResource(Res.string.home_recent_albums), home.recentAlbums, colors, onAlbumSelected, onAlbumFavoriteToggled)
-        HomeSection(stringResource(Res.string.home_frequently_played_albums), home.frequentAlbums, colors, onAlbumSelected, onAlbumFavoriteToggled)
-        HomeSection(stringResource(Res.string.home_random_albums), home.randomAlbums, colors, onAlbumSelected, onAlbumFavoriteToggled)
+        HomeStationSection(home.stations, colors, actions.onStationSelected)
+        val selectAlbum: (SharedMediaItemUi) -> Unit = { mediaActions.onMediaItemAction(it.albumActionRequest(NaviampArtistAlbumCommand.Select)) }
+        val toggleAlbumFavorite: (SharedMediaItemUi) -> Unit = { mediaActions.onMediaItemAction(it.albumActionRequest(NaviampArtistAlbumCommand.ToggleFavorite)) }
+        HomeSection(stringResource(Res.string.home_recent_albums), home.recentAlbums, colors, selectAlbum, toggleAlbumFavorite)
+        HomeSection(stringResource(Res.string.home_frequently_played_albums), home.frequentAlbums, colors, selectAlbum, toggleAlbumFavorite)
+        HomeSection(stringResource(Res.string.home_random_albums), home.randomAlbums, colors, selectAlbum, toggleAlbumFavorite)
         home.genreSpotlightTitle?.let { title ->
-            HomeSection(stringResource(Res.string.home_more_in, title), home.genreSpotlightAlbums, colors, onAlbumSelected, onAlbumFavoriteToggled)
+            HomeSection(stringResource(Res.string.home_more_in, title), home.genreSpotlightAlbums, colors, selectAlbum, toggleAlbumFavorite)
         }
-        HomeSection(stringResource(Res.string.home_from_decade, home.decadeLabel), home.decadeAlbums, colors, onAlbumSelected, onAlbumFavoriteToggled)
+        HomeSection(stringResource(Res.string.home_from_decade, home.decadeLabel), home.decadeAlbums, colors, selectAlbum, toggleAlbumFavorite)
     }
 }
 
@@ -160,34 +153,8 @@ fun SharedHomeRoute(
             SharedHome(
                 colors = colors,
                 home = home.content,
-                onAlbumSelected = { item ->
-                    mediaActions.onMediaItemAction(
-                        NaviampMediaItemActionRequest(item, NaviampMediaItemCommand.Album(NaviampArtistAlbumCommand.Select)),
-                    )
-                },
-                onMixAlbumSelected = { item ->
-                    mediaActions.onMediaItemAction(NaviampMediaItemActionRequest(item, NaviampMediaItemCommand.PlayAlbum))
-                },
-                onPlaylistSelected = { item ->
-                    mediaActions.onMediaItemAction(
-                        NaviampMediaItemActionRequest(item, NaviampMediaItemCommand.Playlist(NaviampPlaylistMediaCommand.Select)),
-                    )
-                },
-                onRecentRadioSelected = actions.onRecentRadioSelected,
-                onInternetRadioStationSelected = actions.onInternetRadioStationSelected,
-                onMixBuilderSelected = actions.onMixBuilderSelected,
-                onHomeStationSelected = actions.onStationSelected,
-                onSonicDiscoveryTrackAction = actions.onSonicDiscoveryTrackAction,
-                onRecentlyPlayedTrackAction = actions.onRecentlyPlayedTrackAction,
-                onAlbumFavoriteToggled = { item ->
-                    mediaActions.onMediaItemAction(
-                        NaviampMediaItemActionRequest(
-                            item,
-                            NaviampMediaItemCommand.Album(NaviampArtistAlbumCommand.ToggleFavorite),
-                        ),
-                    )
-                },
-                onRefresh = actions.onRefresh,
+                actions = actions,
+                mediaActions = mediaActions,
             )
         }
     }
@@ -206,13 +173,12 @@ private fun RecentPlayedSection(
             TrackRow(
                 track = track,
                 colors = colors,
-                onTrackSelected = {
-                    onTrackAction(SharedTrackRowActionRequest(track, SharedTrackRowAction.Select))
-                },
-                canStartRadio = true,
-                canDownload = true,
-                canAddToQueue = true,
                 onTrackAction = onTrackAction,
+                canSelect = true,
+                canStartRadio = true,
+                canAddToQueue = true,
+                canDownload = true,
+                canAddToPlaylist = false,
             )
         }
     }
@@ -232,24 +198,6 @@ private fun SonicDiscoverySection(
                     TrackRow(
                         track = track,
                         colors = colors,
-                        onTrackSelected = {
-                            onTrackAction(
-                                SharedHomeDiscoveryTrackActionRequest(
-                                    rowId = row.id,
-                                    track = track,
-                                    action = SharedTrackRowAction.Select,
-                                ),
-                            )
-                        },
-                        onAddToQueue = {
-                            onTrackAction(
-                                SharedHomeDiscoveryTrackActionRequest(
-                                    rowId = row.id,
-                                    track = track,
-                                    action = SharedTrackRowAction.AddToQueue,
-                                ),
-                            )
-                        },
                         onTrackAction = { request ->
                             onTrackAction(
                                 SharedHomeDiscoveryTrackActionRequest(
@@ -261,6 +209,11 @@ private fun SonicDiscoverySection(
                                 ),
                             )
                         },
+                        canSelect = true,
+                        canStartRadio = false,
+                        canAddToQueue = true,
+                        canDownload = false,
+                        canAddToPlaylist = false,
                         swipeContext = TrackSwipeContext.Related,
                     )
                 }
@@ -473,13 +426,12 @@ fun NaviampSearchContent(
                 TrackRow(
                     track = track,
                     colors = colors,
-                    onTrackSelected = null,
+                    onTrackAction = mediaActions.onTrackAction,
                     canSelect = true,
                     canStartRadio = true,
                     canAddToQueue = true,
                     canDownload = true,
                     canAddToPlaylist = true,
-                    onTrackAction = mediaActions.onTrackAction,
                 )
             }
         }

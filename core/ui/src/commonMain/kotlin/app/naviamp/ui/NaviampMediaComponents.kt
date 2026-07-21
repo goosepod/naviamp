@@ -64,38 +64,22 @@ val LocalNaviampTooltipsEnabled = compositionLocalOf { true }
 
 enum class TrackSwipeContext { Library, Related }
 
+private fun trackSelectionAction(onSelected: (SharedTrackRowUi) -> Unit): (SharedTrackRowActionRequest) -> Unit =
+    { request ->
+        check(request.action == SharedTrackRowAction.Select) { "Selection-only track row received ${request.action}." }
+        onSelected(request.track)
+    }
+
 @Composable
 fun TrackRow(
     track: SharedTrackRowUi,
     colors: NaviampColors,
-    onTrackSelected: ((SharedTrackRowUi) -> Unit)?,
-    onStartRadio: ((SharedTrackRowUi) -> Unit)? = null,
-    onAddToQueue: ((SharedTrackRowUi) -> Unit)? = null,
-    onDownload: ((SharedTrackRowUi) -> Unit)? = null,
-    onAddToPlaylist: ((SharedTrackRowUi) -> Unit)? = null,
-    canSelect: Boolean = onTrackSelected != null,
-    canStartRadio: Boolean = onStartRadio != null,
-    canAddToQueue: Boolean = onAddToQueue != null,
-    canDownload: Boolean = onDownload != null,
-    canAddToPlaylist: Boolean = onAddToPlaylist != null,
-    onTrackAction: (SharedTrackRowActionRequest) -> Unit = { request ->
-        when (request.action) {
-            SharedTrackRowAction.Select -> onTrackSelected?.invoke(request.track)
-            SharedTrackRowAction.PlayNext -> Unit
-            SharedTrackRowAction.StartRadio -> onStartRadio?.invoke(request.track)
-            SharedTrackRowAction.PlayTrackRadioNext,
-            SharedTrackRowAction.AddTrackRadioToQueue,
-            -> Unit
-            SharedTrackRowAction.AddToQueue -> onAddToQueue?.invoke(request.track)
-            SharedTrackRowAction.Download -> onDownload?.invoke(request.track)
-            SharedTrackRowAction.AddToPlaylist -> onAddToPlaylist?.invoke(request.track)
-            SharedTrackRowAction.CreatePlaylistAndAdd -> Unit
-            SharedTrackRowAction.ToggleFavorite,
-            SharedTrackRowAction.GoToAlbum,
-            SharedTrackRowAction.GoToArtist,
-            -> Unit
-        }
-    },
+    onTrackAction: ((SharedTrackRowActionRequest) -> Unit)?,
+    canSelect: Boolean,
+    canStartRadio: Boolean,
+    canAddToQueue: Boolean,
+    canDownload: Boolean,
+    canAddToPlaylist: Boolean,
     reservePopularIndicatorSpace: Boolean = false,
     modifier: Modifier = Modifier,
     background: Boolean = false,
@@ -113,6 +97,12 @@ fun TrackRow(
     trailingContent: (@Composable RowScope.() -> Unit)? = null,
     swipeContext: TrackSwipeContext = TrackSwipeContext.Library,
 ) {
+    require(onTrackAction != null || !(canSelect || canStartRadio || canAddToQueue || canDownload || canAddToPlaylist)) {
+        "TrackRow requires an action handler when an action capability is enabled."
+    }
+    val dispatchTrackAction: (SharedTrackRowActionRequest) -> Unit = { request ->
+        requireNotNull(onTrackAction) { "Track action is unavailable." }(request)
+    }
     var detailsOpen by remember(track.id) { mutableStateOf(false) }
     val swipeSettings = LocalTrackSwipeSettings.current
     SwipeActionContainer(
@@ -124,7 +114,7 @@ fun TrackRow(
             canAddToQueue = canAddToQueue,
             canDownload = canDownload,
             canAddToPlaylist = canAddToPlaylist,
-            onTrackAction = onTrackAction,
+            onTrackAction = dispatchTrackAction,
         ),
         swipeLeft = trackSwipeActionVisual(
             action = if (swipeContext == TrackSwipeContext.Related) swipeSettings.relatedLeft else swipeSettings.libraryLeft,
@@ -133,7 +123,7 @@ fun TrackRow(
             canAddToQueue = canAddToQueue,
             canDownload = canDownload,
             canAddToPlaylist = canAddToPlaylist,
-            onTrackAction = onTrackAction,
+            onTrackAction = dispatchTrackAction,
         ),
     ) { swipeModifier ->
     Row(
@@ -151,7 +141,7 @@ fun TrackRow(
             .let { rowModifier ->
                 if (canSelect) {
                     rowModifier.clickable {
-                        onTrackAction(SharedTrackRowActionRequest(track, SharedTrackRowAction.Select))
+                        dispatchTrackAction(SharedTrackRowActionRequest(track, SharedTrackRowAction.Select))
                     }
                 } else {
                     rowModifier
@@ -203,7 +193,7 @@ fun TrackRow(
                             style = subtitleStyle,
                             maxLines = 1,
                             modifier = Modifier.clickable {
-                                onTrackAction(
+                                dispatchTrackAction(
                                     SharedTrackRowActionRequest(
                                         track = track,
                                         action = SharedTrackRowAction.GoToArtist,
@@ -239,7 +229,7 @@ fun TrackRow(
                     NaviampRowMenuItem(
                         action.label,
                         action.icon,
-                        { onTrackAction(SharedTrackRowActionRequest(track, SharedTrackRowAction.PlayNext)) },
+                        { dispatchTrackAction(SharedTrackRowActionRequest(track, SharedTrackRowAction.PlayNext)) },
                         action.enabled,
                     )
                 } else {
@@ -249,7 +239,7 @@ fun TrackRow(
                     NaviampRowMenuItem(
                         action.label,
                         action.icon,
-                        { onTrackAction(SharedTrackRowActionRequest(track, SharedTrackRowAction.StartRadio)) },
+                        { dispatchTrackAction(SharedTrackRowActionRequest(track, SharedTrackRowAction.StartRadio)) },
                         action.enabled,
                     )
                 } else {
@@ -259,7 +249,7 @@ fun TrackRow(
                     NaviampRowMenuItem(
                         action.label,
                         action.icon,
-                        { onTrackAction(SharedTrackRowActionRequest(track, SharedTrackRowAction.PlayTrackRadioNext)) },
+                        { dispatchTrackAction(SharedTrackRowActionRequest(track, SharedTrackRowAction.PlayTrackRadioNext)) },
                         action.enabled,
                     )
                 } else {
@@ -269,7 +259,7 @@ fun TrackRow(
                     NaviampRowMenuItem(
                         action.label,
                         action.icon,
-                        { onTrackAction(SharedTrackRowActionRequest(track, SharedTrackRowAction.AddTrackRadioToQueue)) },
+                        { dispatchTrackAction(SharedTrackRowActionRequest(track, SharedTrackRowAction.AddTrackRadioToQueue)) },
                         action.enabled,
                     )
                 } else {
@@ -279,7 +269,7 @@ fun TrackRow(
                     NaviampRowMenuItem(
                         action.label,
                         action.icon,
-                        { onTrackAction(SharedTrackRowActionRequest(track, SharedTrackRowAction.Download)) },
+                        { dispatchTrackAction(SharedTrackRowActionRequest(track, SharedTrackRowAction.Download)) },
                         action.enabled,
                     )
                 } else {
@@ -289,7 +279,7 @@ fun TrackRow(
                     NaviampRowMenuItem(
                         action.label,
                         action.icon,
-                        { onTrackAction(SharedTrackRowActionRequest(track, SharedTrackRowAction.AddToQueue)) },
+                        { dispatchTrackAction(SharedTrackRowActionRequest(track, SharedTrackRowAction.AddToQueue)) },
                         action.enabled,
                     )
                 } else {
@@ -299,7 +289,7 @@ fun TrackRow(
                     NaviampRowMenuItem(
                         action.label,
                         action.icon,
-                        { onTrackAction(SharedTrackRowActionRequest(track, SharedTrackRowAction.AddToPlaylist)) },
+                        { dispatchTrackAction(SharedTrackRowActionRequest(track, SharedTrackRowAction.AddToPlaylist)) },
                         action.enabled,
                     )
                 } else {
@@ -309,7 +299,7 @@ fun TrackRow(
                     NaviampRowMenuItem(
                         action.label,
                         action.icon,
-                        { onTrackAction(SharedTrackRowActionRequest(track, SharedTrackRowAction.ToggleFavorite)) },
+                        { dispatchTrackAction(SharedTrackRowActionRequest(track, SharedTrackRowAction.ToggleFavorite)) },
                         action.enabled,
                     )
                 } else {
@@ -319,7 +309,7 @@ fun TrackRow(
                     NaviampRowMenuItem(
                         action.label,
                         action.icon,
-                        { onTrackAction(SharedTrackRowActionRequest(track, SharedTrackRowAction.GoToAlbum)) },
+                        { dispatchTrackAction(SharedTrackRowActionRequest(track, SharedTrackRowAction.GoToAlbum)) },
                         action.enabled,
                     )
                 } else {
@@ -329,7 +319,7 @@ fun TrackRow(
                     NaviampRowMenuItem(
                         action.label,
                         action.icon,
-                        { onTrackAction(SharedTrackRowActionRequest(track, SharedTrackRowAction.GoToArtist)) },
+                        { dispatchTrackAction(SharedTrackRowActionRequest(track, SharedTrackRowAction.GoToArtist)) },
                         action.enabled,
                     )
                 } else {
@@ -1186,7 +1176,12 @@ fun SonicPathBuilderContent(
                     TrackRow(
                         track = track,
                         colors = colors,
-                        onTrackSelected = null,
+                        onTrackAction = null,
+                        canSelect = false,
+                        canStartRadio = false,
+                        canAddToQueue = false,
+                        canDownload = false,
+                        canAddToPlaylist = false,
                         trailingContent = {
                             Text((index + 1).toString(), color = colors.mutedText, fontSize = 11.sp)
                         },
@@ -1280,7 +1275,12 @@ fun SonicMixBuilderContent(
                         TrackRow(
                             track = track,
                             colors = colors,
-                            onTrackSelected = null,
+                            onTrackAction = null,
+                            canSelect = false,
+                            canStartRadio = false,
+                            canAddToQueue = false,
+                            canDownload = false,
+                            canAddToPlaylist = false,
                             modifier = Modifier.weight(1f),
                         )
                         TextButton(onClick = { onTrackRemoved(track) }) {
@@ -1296,7 +1296,12 @@ fun SonicMixBuilderContent(
                     TrackRow(
                         track = track,
                         colors = colors,
-                        onTrackSelected = onTrackSelected,
+                        onTrackAction = trackSelectionAction(onTrackSelected),
+                        canSelect = true,
+                        canStartRadio = false,
+                        canAddToQueue = false,
+                        canDownload = false,
+                        canAddToPlaylist = false,
                     )
                 }
             }
@@ -1358,7 +1363,12 @@ fun SonicMixBuilderContent(
                     TrackRow(
                         track = track,
                         colors = colors,
-                        onTrackSelected = null,
+                        onTrackAction = null,
+                        canSelect = false,
+                        canStartRadio = false,
+                        canAddToQueue = false,
+                        canDownload = false,
+                        canAddToPlaylist = false,
                         trailingContent = {
                             Text((index + 1).toString(), color = colors.mutedText, fontSize = 11.sp)
                         },
@@ -1419,7 +1429,12 @@ private fun SonicPathTrackPicker(
                 TrackRow(
                     track = track,
                     colors = colors,
-                    onTrackSelected = null,
+                    onTrackAction = null,
+                    canSelect = false,
+                    canStartRadio = false,
+                    canAddToQueue = false,
+                    canDownload = false,
+                    canAddToPlaylist = false,
                     modifier = Modifier.weight(1f),
                 )
                 TextButton(onClick = onTrackCleared) {
@@ -1432,7 +1447,12 @@ private fun SonicPathTrackPicker(
                 TrackRow(
                     track = track,
                     colors = colors,
-                    onTrackSelected = onTrackSelected,
+                    onTrackAction = trackSelectionAction(onTrackSelected),
+                    canSelect = true,
+                    canStartRadio = false,
+                    canAddToQueue = false,
+                    canDownload = false,
+                    canAddToPlaylist = false,
                 )
             }
         }
