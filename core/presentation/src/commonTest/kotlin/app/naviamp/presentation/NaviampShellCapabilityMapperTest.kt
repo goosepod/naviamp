@@ -13,10 +13,25 @@ import app.naviamp.domain.playback.PlaybackState
 import app.naviamp.domain.playback.PlaybackStreamMetadata
 import kotlinx.coroutines.CoroutineScope
 import kotlin.test.Test
+import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class NaviampShellCapabilityMapperTest {
+    @Test
+    fun settingsPickerActionsRequireBothSharedSettingsAndFileCapabilities() {
+        val complete = capabilityPresentation(
+            PlatformCapability.SettingsImportExport,
+            PlatformCapability.FileSelection,
+        ).toCoreActionAvailability()
+        val settingsOnly = capabilityPresentation(
+            PlatformCapability.SettingsImportExport,
+        ).toCoreActionAvailability()
+
+        assertEquals(NaviampCoreActionAvailability(true, true, true, true), complete)
+        assertEquals(NaviampCoreActionAvailability(), settingsOnly)
+    }
+
     @Test
     fun mapsHostFactsAndPlaybackContractsWithoutPlatformBranching() {
         val platform = PlatformCapabilities()
@@ -45,6 +60,13 @@ class NaviampShellCapabilityMapperTest {
         assertFalse(capabilities.connection.clientCertificates)
     }
 }
+
+private fun capabilityPresentation(vararg available: PlatformCapability): NaviampCapabilityPresentation =
+    NaviampCapabilityPresentation(
+        available.fold(PlatformCapabilities()) { capabilities, capability ->
+            capabilities.withStatus(capability, PlatformCapabilityStatus.Available)
+        },
+    )
 
 private object TestPlaybackEngine : PlaybackEngine, EqualizerPlaybackEngine {
     override val name: String = "Test"

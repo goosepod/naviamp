@@ -186,7 +186,7 @@ Do not delete working host behavior before its shared replacement is executable 
 2. **Make the contract strict.** Remove required no-op defaults, finish sealed media-command emission, and introduce narrow typed effect ports.
 3. **Move authoritative state into core.** Replace `AndroidAppState` and Desktop's remembered product-state graph with one observable common state owner.
 4. **Move feature transactions into core in vertical slices.** Navigation/shell first, then connection/settings, Home/Search/Library, media/details/playlists, radio/mixes, Downloads/offline, and Now Playing/playback.
-5. **Mount both hosts on the common entry.** Android and Desktop construct only service adapters and forward lifecycle/OS events.
+5. **Mount both hosts on the common entry.** Android constructs only service adapters and forwards lifecycle/OS events. Desktop is rebuilt beside its legacy product graph in `apps:desktop-v2`, consuming native adapters from `platforms:desktop`; the replacement is promoted only after its service and parity gates pass.
 6. **Delete duplication immediately after each slice.** Remove superseded host action factories, state factories, product controllers, models, menus, dialogs, and UI wrappers. Do not leave compatibility paths indefinitely.
 7. **Decompose surviving large host files by OS responsibility.** This happens after product code is removed so decomposition does not disguise relocation.
 8. **Run host-neutral and platform acceptance suites.** Only then is the initial iOS wrapper allowed to add product navigation.

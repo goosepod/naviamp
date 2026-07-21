@@ -6,6 +6,17 @@ import app.naviamp.domain.playback.PlaybackEngine
 import app.naviamp.ui.NaviampConnectionCapabilitiesUi
 import app.naviamp.ui.NaviampShellCapabilitiesUi
 
+/** Native pickers are optional effects; their visibility is derived once from shared capability policy. */
+fun NaviampCapabilityPresentation.toCoreActionAvailability(): NaviampCoreActionAvailability {
+    val settingsDocuments = settingsImportExport.enabled && fileSelection.enabled
+    return NaviampCoreActionAvailability(
+        importFile = settingsDocuments,
+        chooseSyncFolder = settingsDocuments,
+        importFolder = settingsDocuments,
+        exportFolder = settingsDocuments,
+    )
+}
+
 /**
  * Maps platform-service facts and shared playback contracts to one product capability model.
  *

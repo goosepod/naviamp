@@ -17,6 +17,8 @@ val commonProductionSources = fileTree(layout.projectDirectory) {
 val hostProductionSources = fileTree(layout.projectDirectory) {
     include("apps/android/src/main/kotlin/**/*.kt")
     include("apps/desktop/src/desktopMain/kotlin/**/*.kt")
+    include("apps/desktop-v2/src/desktopMain/kotlin/**/*.kt")
+    include("platforms/desktop/src/desktopMain/kotlin/**/*.kt")
 }
 
 val existingHostProductDebt = setOf(

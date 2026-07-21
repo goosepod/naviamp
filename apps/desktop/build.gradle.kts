@@ -228,6 +228,7 @@ kotlin {
                 implementation(project(":core:storage"))
                 implementation(project(":core:ui"))
                 implementation(project(":providers:navidrome"))
+                implementation(project(":platforms:desktop"))
                 implementation(compose.desktop.currentOs)
                 implementation(libs.compose.material3)
                 implementation("org.jetbrains.compose.components:components-resources:$composeVersion")
