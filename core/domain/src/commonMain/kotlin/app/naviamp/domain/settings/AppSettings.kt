@@ -428,7 +428,7 @@ class PlaybackSettingsMaintenanceController(
     private val downloadedTracks: () -> List<Track> = { emptyList() },
     private val redownloadTracks: (List<Track>, String) -> Unit = { _, _ -> },
 ) {
-    fun applyPlaybackSettings(settings: PlaybackSettings) {
+    fun applyPlaybackSettings(settings: PlaybackSettings): PlaybackSettings {
         val change = playbackSettingsChange(settings, playbackEngine, previous = playbackSettings())
         radioDjPresetRepository?.replaceRadioDjPresets(change.settings.radioDjs)
         val effectiveSettings = radioDjPresetRepository
@@ -453,14 +453,16 @@ class PlaybackSettingsMaintenanceController(
             ?.setSampleRateConverter(effectiveSettings.sampleRateConverter)
         (playbackEngine as? app.naviamp.domain.playback.SampleRateMatchingPlaybackEngine)
             ?.setSampleRateMatching(effectiveSettings.sampleRateMatching)
+        return effectiveSettings
     }
 
-    fun applyPlaybackSettingsAndRedownload(settings: PlaybackSettings) {
+    fun applyPlaybackSettingsAndRedownload(settings: PlaybackSettings): PlaybackSettings {
         val tracksToRedownload = downloadedTracks()
-        applyPlaybackSettings(settings)
+        val effectiveSettings = applyPlaybackSettings(settings)
         if (tracksToRedownload.isNotEmpty()) {
             redownloadTracks(tracksToRedownload, "downloads")
         }
+        return effectiveSettings
     }
 }
 

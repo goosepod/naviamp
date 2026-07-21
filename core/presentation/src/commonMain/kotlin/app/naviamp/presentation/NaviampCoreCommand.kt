@@ -67,6 +67,7 @@ sealed interface NaviampCoreCommand {
         data class ChangeDownloadLocation(val location: NaviampStorageLocationUi) : Settings
         data class ChangeAudioCacheLocation(val location: NaviampStorageLocationUi) : Settings
         data object OpenStats : Settings
+        data object CloseStats : Settings
         data object ClearCache : Settings
         data object ClearLibrary : Settings
         data object RefreshLibrary : Settings

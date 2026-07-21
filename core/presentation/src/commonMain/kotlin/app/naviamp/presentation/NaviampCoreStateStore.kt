@@ -11,6 +11,12 @@ import kotlinx.coroutines.flow.update
 data class NaviampCoreState(
     val shell: NaviampAppShellUiState = NaviampAppShellUiState(),
     val settingsSync: NaviampSettingsSyncUi = NaviampSettingsSyncUi(),
+    val overlays: NaviampCoreOverlayState = NaviampCoreOverlayState(),
+)
+
+data class NaviampCoreOverlayState(
+    val statsForNerdsVisible: Boolean = false,
+    val status: String? = null,
 )
 
 /**
