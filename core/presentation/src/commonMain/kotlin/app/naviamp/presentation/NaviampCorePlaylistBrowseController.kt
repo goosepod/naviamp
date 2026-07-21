@@ -65,7 +65,7 @@ class NaviampCorePlaylistBrowseController(
         return NaviampCoreCommandResult.Completed
     }
 
-    private suspend fun refresh() {
+    private suspend fun refresh(finalStatus: String? = null) {
         val generation = ++listGeneration
         stateStore.updateShell { shell ->
             shell.copy(playlists = shell.playlists.copy(refreshing = true, status = "Loading playlists..."))
@@ -91,7 +91,7 @@ class NaviampCorePlaylistBrowseController(
                                 )
                             },
                             recentPlaylistIds = supplement.recentPlaylistIds,
-                            status = null,
+                            status = finalStatus,
                             refreshing = false,
                         ),
                     )
@@ -103,6 +103,18 @@ class NaviampCorePlaylistBrowseController(
                 }
             }
     }
+
+    internal suspend fun refreshAfterMutation(status: String) {
+        refresh(finalStatus = status)
+    }
+
+    internal fun resolvePlaylist(item: SharedMediaItemUi): Playlist =
+        playlistsById[item.id] ?: Playlist(
+            id = item.id,
+            name = item.title,
+            trackCount = item.trackCount ?: 0,
+            isSmart = item.isSmartPlaylist,
+        )
 
     private suspend fun open(item: SharedMediaItemUi) {
         val generation = ++detailGeneration
@@ -121,12 +133,7 @@ class NaviampCorePlaylistBrowseController(
             publishDetailFailure(item, "Connect to Navidrome to load a playlist.")
             return
         }
-        val playlist = playlistsById[item.id] ?: Playlist(
-            id = item.id,
-            name = item.title,
-            trackCount = item.trackCount ?: 0,
-            isSmart = item.isSmartPlaylist,
-        )
+        val playlist = resolvePlaylist(item)
         val coverArtUrl = { id: String? -> id?.let(provider::coverArtUrl) }
         runCatching { provider.playlistTracks(playlist.id) }
             .onSuccess { tracks ->
