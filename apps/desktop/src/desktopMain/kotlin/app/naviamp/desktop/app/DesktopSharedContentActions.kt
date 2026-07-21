@@ -21,6 +21,7 @@ import app.naviamp.ui.dispatchResolvedAlbumDetailAction
 import app.naviamp.ui.dispatchResolvedArtistAlbumAction
 import app.naviamp.ui.dispatchResolvedArtistDetailAction
 import app.naviamp.ui.handleResolvedMediaItemAction
+import app.naviamp.ui.mediaItemActionDispatchStatus
 import app.naviamp.ui.handleResolvedTrackRowAction
 import app.naviamp.ui.playlistDetailActionDispatchStatus
 import app.naviamp.ui.albumDetailActionDispatchStatus
@@ -310,19 +311,22 @@ internal fun desktopMediaActions(
     tracks: List<Track>,
     appActions: DesktopAppActions,
     playlistsController: DesktopPlaylistsController,
+    onStatus: (String?) -> Unit,
 ): NaviampMediaActions = NaviampMediaActions(
     onAlbumSelected = { item -> appActions.openHomeAlbum(item.id) },
     onAlbumFavoriteToggled = { item -> appActions.toggleHomeAlbumFavorite(item.id) },
     onMixAlbumSelected = { item -> appActions.playHomeMixAlbum(item.id) },
     onPlaylistSelected = { item -> appActions.openHomePlaylist(item.id) },
     onMediaItemAction = { request ->
-        if (request.kind == SharedMediaItemKind.Playlist) {
-            handleResolvedMediaItemAction(
+        val result = when (request.kind) {
+            SharedMediaItemKind.Playlist -> handleResolvedMediaItemAction(
                 request,
                 playlistActionSources.playlist(request.item.id),
                 ResolvedMediaItemActionHandlers(
                     onSelect = appActions::openPlaylistDetails,
                     onPlay = appActions::playPlaylist,
+                    onStartRadio = null,
+                    onFindSimilar = null,
                     onDownload = { playlist, value ->
                         if (value == app.naviamp.ui.KeepDownloadedActionValue) {
                             appActions.toggleKeepDownloadedPlaylist(playlist)
@@ -331,40 +335,113 @@ internal fun desktopMediaActions(
                         }
                     },
                     onAddToQueue = playlistsController::addPlaylistToQueue,
-                    onAddToPlaylist = { playlist, _ -> playlistsController.openPlaylistAddToPlaylist(playlist) },
-                    onRename = { playlist, _ -> playlistsController.requestPlaylistRename(playlist) },
+                    onAddToPlaylist = { source, choice ->
+                        val target = playlistActionSources.playlist(choice.id)
+                        if (target == null) {
+                            onStatus("Playlist not found.")
+                        } else {
+                            playlistsController.addTargetToPlaylist(
+                                AddToPlaylistTarget.PlaylistTarget(source),
+                                playlist = target,
+                            )
+                        }
+                    },
+                    onCreatePlaylistAndAdd = { source, name ->
+                        playlistsController.addTargetToPlaylist(
+                            AddToPlaylistTarget.PlaylistTarget(source),
+                            playlist = null,
+                            newPlaylistName = name,
+                        )
+                    },
+                    onCopy = null,
+                    onToggleFavorite = null,
+                    onRename = playlistsController::renamePlaylist,
+                    onEditSmartPlaylist = null,
                     onDelete = playlistsController::requestPlaylistDelete,
+                    onEditStation = null,
+                    onDeleteStation = null,
                 ),
             )
-        }
-        if (request.kind == SharedMediaItemKind.Artist) {
-            handleResolvedMediaItemAction(
+            SharedMediaItemKind.Artist -> handleResolvedMediaItemAction(
                 request,
                 artists.firstOrNull { it.id.value == request.item.id },
                 ResolvedMediaItemActionHandlers(
                     onSelect = appActions::openArtistDetails,
+                    onPlay = null,
                     onStartRadio = appActions::playArtistRadio,
                     onFindSimilar = appActions::findSimilarArtists,
                     onAddToQueue = playlistsController::addArtistToQueue,
-                    onAddToPlaylist = { artist, _ -> playlistsController.openArtistAddToPlaylist(artist) },
+                    onDownload = null,
+                    onAddToPlaylist = { artist, choice ->
+                        val target = playlistActionSources.playlist(choice.id)
+                        if (target == null) {
+                            onStatus("Playlist not found.")
+                        } else {
+                            playlistsController.addTargetToPlaylist(
+                                AddToPlaylistTarget.ArtistTarget(artist),
+                                playlist = target,
+                            )
+                        }
+                    },
+                    onCreatePlaylistAndAdd = { artist, name ->
+                        playlistsController.addTargetToPlaylist(
+                            AddToPlaylistTarget.ArtistTarget(artist),
+                            playlist = null,
+                            newPlaylistName = name,
+                        )
+                    },
+                    onCopy = null,
                     onToggleFavorite = appActions::toggleArtistFavorite,
+                    onRename = null,
+                    onEditSmartPlaylist = null,
+                    onDelete = null,
+                    onEditStation = null,
+                    onDeleteStation = null,
                 ),
             )
-        }
-        if (request.kind == SharedMediaItemKind.Album) {
-            handleResolvedMediaItemAction(
+            SharedMediaItemKind.Album -> handleResolvedMediaItemAction(
                 request,
                 albums.firstOrNull { it.id.value == request.item.id },
                 ResolvedMediaItemActionHandlers(
                     onSelect = appActions::openAlbumDetails,
+                    onPlay = null,
                     onStartRadio = appActions::playAlbumRadio,
+                    onFindSimilar = null,
                     onDownload = { album, _ -> appActions.downloadAlbum(album) },
                     onAddToQueue = playlistsController::addAlbumToQueue,
-                    onAddToPlaylist = { album, _ -> playlistsController.openAlbumAddToPlaylist(album) },
+                    onAddToPlaylist = { album, choice ->
+                        val target = playlistActionSources.playlist(choice.id)
+                        if (target == null) {
+                            onStatus("Playlist not found.")
+                        } else {
+                            playlistsController.addTargetToPlaylist(
+                                AddToPlaylistTarget.AlbumTarget(album),
+                                playlist = target,
+                            )
+                        }
+                    },
+                    onCreatePlaylistAndAdd = { album, name ->
+                        playlistsController.addTargetToPlaylist(
+                            AddToPlaylistTarget.AlbumTarget(album),
+                            playlist = null,
+                            newPlaylistName = name,
+                        )
+                    },
+                    onCopy = null,
                     onToggleFavorite = appActions::toggleAlbumFavorite,
+                    onRename = null,
+                    onEditSmartPlaylist = null,
+                    onDelete = null,
+                    onEditStation = null,
+                    onDeleteStation = null,
                 ),
             )
+            SharedMediaItemKind.Unknown,
+            SharedMediaItemKind.RadioStation,
+            SharedMediaItemKind.MixBuilder,
+            -> app.naviamp.ui.MediaItemActionDispatchResult.UnsupportedAction
         }
+        mediaItemActionDispatchStatus(result)?.let(onStatus)
     },
     onTrackAction = { request ->
         handleResolvedTrackRowAction(

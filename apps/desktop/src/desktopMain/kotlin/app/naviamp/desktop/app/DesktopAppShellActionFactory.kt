@@ -258,6 +258,7 @@ internal fun desktopAppShellActions(context: DesktopAppShellActionContext): Navi
                 tracks = searchController.results.tracks,
                 appActions = appActions,
                 playlistsController = playlistsController,
+                onStatus = playlistsController::updateStatus,
             ),
             downloadsActions = desktopDownloadsActions(downloadedTracks, appActions, playlistsController),
             connectionActions = connectionActions,

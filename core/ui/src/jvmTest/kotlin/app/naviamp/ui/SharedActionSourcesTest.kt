@@ -147,17 +147,29 @@ class SharedActionSourcesTest {
         var downloadValue: String? = null
         var copy: Pair<String, Boolean>? = null
         val handlers = ResolvedMediaItemActionHandlers<Playlist>(
+            onSelect = null,
             onPlay = { _, requestedShuffle -> shuffle = requestedShuffle },
+            onStartRadio = null,
+            onFindSimilar = null,
+            onAddToQueue = null,
             onDownload = { _, value -> downloadValue = value },
+            onAddToPlaylist = null,
+            onCreatePlaylistAndAdd = null,
             onCopy = { _, name, deduplicate -> copy = name to deduplicate },
+            onToggleFavorite = null,
+            onRename = null,
+            onEditSmartPlaylist = null,
+            onDelete = null,
+            onEditStation = null,
+            onDeleteStation = null,
         )
 
-        handleResolvedMediaItemAction(
+        val shuffleResult = handleResolvedMediaItemAction(
             SharedMediaItemActionRequest(item, SharedMediaItemAction.Shuffle),
             playlist,
             handlers,
         )
-        handleResolvedMediaItemAction(
+        val downloadResult = handleResolvedMediaItemAction(
             SharedMediaItemActionRequest(
                 item,
                 SharedMediaItemAction.Download,
@@ -166,7 +178,7 @@ class SharedActionSourcesTest {
             playlist,
             handlers,
         )
-        handleResolvedMediaItemAction(
+        val copyResult = handleResolvedMediaItemAction(
             SharedMediaItemActionRequest(
                 item,
                 SharedMediaItemAction.CopyPlaylistDeduplicated,
@@ -179,6 +191,33 @@ class SharedActionSourcesTest {
         assertEquals(true, shuffle)
         assertEquals(KeepDownloadedActionValue, downloadValue)
         assertEquals("Copy" to true, copy)
+        assertEquals(MediaItemActionDispatchResult.Dispatched, shuffleResult)
+        assertEquals(MediaItemActionDispatchResult.Dispatched, downloadResult)
+        assertEquals(MediaItemActionDispatchResult.Dispatched, copyResult)
+        assertEquals(
+            MediaItemActionDispatchResult.UnsupportedAction,
+            handleResolvedMediaItemAction(
+                SharedMediaItemActionRequest(item, SharedMediaItemAction.Delete),
+                playlist,
+                handlers,
+            ),
+        )
+        assertEquals(
+            MediaItemActionDispatchResult.InvalidValue,
+            handleResolvedMediaItemAction(
+                SharedMediaItemActionRequest(item, SharedMediaItemAction.CopyPlaylist, playlistName = " "),
+                playlist,
+                handlers,
+            ),
+        )
+        assertEquals(
+            MediaItemActionDispatchResult.MissingItem,
+            handleResolvedMediaItemAction(
+                SharedMediaItemActionRequest(item, SharedMediaItemAction.Play),
+                null,
+                handlers,
+            ),
+        )
     }
 
     @Test

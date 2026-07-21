@@ -123,50 +123,87 @@ fun handleResolvedTrackRowAction(
 
 /** Executes shared media-item policy against a domain object already resolved by the host snapshot. */
 data class ResolvedMediaItemActionHandlers<T>(
-    val onSelect: (T) -> Unit = {},
-    val onPlay: (T, Boolean) -> Unit = { _, _ -> },
-    val onStartRadio: (T) -> Unit = {},
-    val onFindSimilar: (T) -> Unit = {},
-    val onAddToQueue: (T) -> Unit = {},
-    val onDownload: (T, String?) -> Unit = { _, _ -> },
-    val onAddToPlaylist: (T, NaviampPlaylistChoiceUi?) -> Unit = { _, _ -> },
-    val onCreatePlaylistAndAdd: (T, String) -> Unit = { _, _ -> },
-    val onCopy: (T, String, Boolean) -> Unit = { _, _, _ -> },
-    val onToggleFavorite: (T) -> Unit = {},
-    val onRename: (T, String?) -> Unit = { _, _ -> },
-    val onEditSmartPlaylist: (T) -> Unit = {},
-    val onDelete: (T) -> Unit = {},
-    val onEditStation: (T) -> Unit = {},
-    val onDeleteStation: (T) -> Unit = {},
+    val onSelect: ((T) -> Unit)?,
+    val onPlay: ((T, Boolean) -> Unit)?,
+    val onStartRadio: ((T) -> Unit)?,
+    val onFindSimilar: ((T) -> Unit)?,
+    val onAddToQueue: ((T) -> Unit)?,
+    val onDownload: ((T, String?) -> Unit)?,
+    val onAddToPlaylist: ((T, NaviampPlaylistChoiceUi) -> Unit)?,
+    val onCreatePlaylistAndAdd: ((T, String) -> Unit)?,
+    val onCopy: ((T, String, Boolean) -> Unit)?,
+    val onToggleFavorite: ((T) -> Unit)?,
+    val onRename: ((T, String) -> Unit)?,
+    val onEditSmartPlaylist: ((T) -> Unit)?,
+    val onDelete: ((T) -> Unit)?,
+    val onEditStation: ((T) -> Unit)?,
+    val onDeleteStation: ((T) -> Unit)?,
 )
+
+enum class MediaItemActionDispatchResult {
+    Dispatched,
+    MissingItem,
+    UnsupportedAction,
+    InvalidValue,
+}
 
 fun <T> handleResolvedMediaItemAction(
     request: SharedMediaItemActionRequest,
     item: T?,
     handlers: ResolvedMediaItemActionHandlers<T>,
-) {
-    item ?: return
-    when (request.action) {
-        SharedMediaItemAction.Select -> handlers.onSelect(item)
-        SharedMediaItemAction.Play -> handlers.onPlay(item, request.shuffle)
-        SharedMediaItemAction.Shuffle -> handlers.onPlay(item, true)
-        SharedMediaItemAction.StartRadio -> handlers.onStartRadio(item)
-        SharedMediaItemAction.FindSimilar -> handlers.onFindSimilar(item)
-        SharedMediaItemAction.AddToQueue -> handlers.onAddToQueue(item)
-        SharedMediaItemAction.Download -> handlers.onDownload(item, request.textValue)
-        SharedMediaItemAction.AddToPlaylist -> handlers.onAddToPlaylist(item, request.playlistChoice)
-        SharedMediaItemAction.CreatePlaylistAndAdd ->
-            request.playlistName?.let { name -> handlers.onCreatePlaylistAndAdd(item, name) }
+) : MediaItemActionDispatchResult {
+    item ?: return MediaItemActionDispatchResult.MissingItem
+    return when (request.action) {
+        SharedMediaItemAction.Select -> handlers.onSelect.dispatch { it(item) }
+        SharedMediaItemAction.Play -> handlers.onPlay.dispatch { it(item, false) }
+        SharedMediaItemAction.Shuffle -> handlers.onPlay.dispatch { it(item, true) }
+        SharedMediaItemAction.StartRadio -> handlers.onStartRadio.dispatch { it(item) }
+        SharedMediaItemAction.FindSimilar -> handlers.onFindSimilar.dispatch { it(item) }
+        SharedMediaItemAction.AddToQueue -> handlers.onAddToQueue.dispatch { it(item) }
+        SharedMediaItemAction.Download -> handlers.onDownload.dispatch { it(item, request.textValue) }
+        SharedMediaItemAction.AddToPlaylist -> handlers.onAddToPlaylist.dispatchWithValue(request.playlistChoice) {
+            handler, choice -> handler(item, choice)
+        }
+        SharedMediaItemAction.CreatePlaylistAndAdd -> handlers.onCreatePlaylistAndAdd.dispatchWithText(request.playlistName) {
+            handler, name -> handler(item, name)
+        }
         SharedMediaItemAction.CopyPlaylist,
         SharedMediaItemAction.CopyPlaylistDeduplicated,
-        -> request.playlistName?.let { name ->
-            handlers.onCopy(item, name, request.action == SharedMediaItemAction.CopyPlaylistDeduplicated)
+        -> handlers.onCopy.dispatchWithText(request.playlistName) { handler, name ->
+            handler(item, name, request.action == SharedMediaItemAction.CopyPlaylistDeduplicated)
         }
-        SharedMediaItemAction.ToggleFavorite -> handlers.onToggleFavorite(item)
-        SharedMediaItemAction.Rename -> handlers.onRename(item, request.textValue)
-        SharedMediaItemAction.EditSmartPlaylist -> handlers.onEditSmartPlaylist(item)
-        SharedMediaItemAction.Delete -> handlers.onDelete(item)
-        SharedMediaItemAction.EditStation -> handlers.onEditStation(item)
-        SharedMediaItemAction.DeleteStation -> handlers.onDeleteStation(item)
+        SharedMediaItemAction.ToggleFavorite -> handlers.onToggleFavorite.dispatch { it(item) }
+        SharedMediaItemAction.Rename -> handlers.onRename.dispatchWithText(request.textValue) { handler, name ->
+            handler(item, name)
+        }
+        SharedMediaItemAction.EditSmartPlaylist -> handlers.onEditSmartPlaylist.dispatch { it(item) }
+        SharedMediaItemAction.Delete -> handlers.onDelete.dispatch { it(item) }
+        SharedMediaItemAction.EditStation -> handlers.onEditStation.dispatch { it(item) }
+        SharedMediaItemAction.DeleteStation -> handlers.onDeleteStation.dispatch { it(item) }
     }
 }
+
+fun mediaItemActionDispatchStatus(result: MediaItemActionDispatchResult): String? = when (result) {
+    MediaItemActionDispatchResult.Dispatched -> null
+    MediaItemActionDispatchResult.MissingItem -> "Media item not found."
+    MediaItemActionDispatchResult.UnsupportedAction -> "This action is not available for this media item."
+    MediaItemActionDispatchResult.InvalidValue -> "Media item action contains an invalid value."
+}
+
+private inline fun <T> T?.dispatch(action: (T) -> Unit): MediaItemActionDispatchResult =
+    this?.let { action(it); MediaItemActionDispatchResult.Dispatched }
+        ?: MediaItemActionDispatchResult.UnsupportedAction
+
+private inline fun <T, V> T?.dispatchWithValue(
+    value: V?,
+    action: (T, V) -> Unit,
+): MediaItemActionDispatchResult = when {
+    this == null -> MediaItemActionDispatchResult.UnsupportedAction
+    value == null -> MediaItemActionDispatchResult.InvalidValue
+    else -> action(this, value).let { MediaItemActionDispatchResult.Dispatched }
+}
+
+private inline fun <T> T?.dispatchWithText(
+    value: String?,
+    action: (T, String) -> Unit,
+): MediaItemActionDispatchResult = dispatchWithValue(value?.takeIf(String::isNotBlank), action)

@@ -88,6 +88,7 @@ These boundaries should implement narrow ports requested by common owners. They 
   - [x] Artist detail uses required sealed artist and discography-album commands plus a required popular-track command handler. Its overlapping callbacks and confirmed Desktop selection, favorite, playlist, and external-link omissions were removed.
   - [x] The route-shared media dispatcher is required, its partial fallback and duplicate playlist callbacks are removed, and smart-playlist authoring/authentication is one required composed contract without no-op or password-bypass defaults.
   - [x] Smart-playlist load/update source resolution and stale-source failure are common; the prior silent Desktop update omission is closed.
+  - [x] Resolved media handlers declare support explicitly, Android and Desktop consume one common result-producing dispatcher, and missing, invalid, or unsupported requests can no longer disappear silently.
   - [ ] Apply the rule to the remaining action groups.
 - [ ] Converge shell navigation, Home, Search, Library, connection, and settings intent policy.
 - [ ] Converge media-row and smart-playlist action routing; correct every confirmed Desktop omission as part of adopting the common dispatcher. Playlist, album, and artist detail routing are complete.

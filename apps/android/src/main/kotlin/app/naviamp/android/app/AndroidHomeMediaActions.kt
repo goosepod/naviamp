@@ -4,9 +4,13 @@ import app.naviamp.domain.ArtistId
 import app.naviamp.ui.KeepDownloadedActionValue
 import app.naviamp.ui.NaviampHomeActions
 import app.naviamp.ui.NaviampMediaActions
-import app.naviamp.ui.SharedMediaItemAction
+import app.naviamp.ui.MediaItemActionDispatchResult
+import app.naviamp.ui.ResolvedMediaItemActionHandlers
+import app.naviamp.ui.SharedArtistDetailUi
 import app.naviamp.ui.SharedMediaItemKind
 import app.naviamp.ui.SharedTrackRowAction
+import app.naviamp.ui.handleResolvedMediaItemAction
+import app.naviamp.ui.mediaItemActionDispatchStatus
 import kotlinx.coroutines.CoroutineScope
 
 internal fun androidHomeActions(
@@ -80,89 +84,126 @@ internal fun androidMediaActions(
             ?: run { state.status = "Playlist not found." }
     },
     onMediaItemAction = { request ->
-        when (request.kind) {
-            SharedMediaItemKind.Album -> when (request.action) {
-                SharedMediaItemAction.Select -> shellMediaController.handleShellAlbumSelected(request.item)
-                SharedMediaItemAction.StartRadio -> artistActionController.handleArtistAlbumRadio(request.item)
-                SharedMediaItemAction.AddToQueue -> artistActionController.loadArtistAlbumTracks(request.item) {
-                    mediaController.appendTracksToQueue(it, "album tracks")
-                }
-                SharedMediaItemAction.Download -> artistActionController.loadArtistAlbumTracks(request.item) {
-                    downloadActionController.downloadTracks(it, request.item.title)
-                }
-                SharedMediaItemAction.AddToPlaylist -> artistActionController.loadArtistAlbumTracks(request.item) {
-                    playlistActionController.addTracksToPlaylist(
-                        it,
-                        request.playlistChoice,
-                        null,
-                        request.item.title,
-                    )
-                }
-                SharedMediaItemAction.CreatePlaylistAndAdd ->
-                    artistActionController.loadArtistAlbumTracks(request.item) {
-                        playlistActionController.addTracksToPlaylist(it, null, request.playlistName, request.item.title)
-                    }
-                SharedMediaItemAction.ToggleFavorite ->
-                    toggleAndroidAlbumFavorite(scope, state, request.item, state.sharedControllers.providerActions)
-                else -> Unit
-            }
-            SharedMediaItemKind.Artist -> when (request.action) {
-                SharedMediaItemAction.Select ->
-                    mediaController.openArtistDetails(ArtistId(request.item.id), request.item.title)
-                SharedMediaItemAction.ToggleFavorite ->
-                    toggleAndroidArtistFavorite(scope, state, request.item, state.sharedControllers.providerActions)
-                else -> Unit
-            }
-            SharedMediaItemKind.Playlist -> {
-                val playlist = state.homeState.playlists.firstOrNull { it.id == request.item.id }
-                if (playlist == null) {
-                    state.status = "Playlist not found."
-                } else {
-                    when (request.action) {
-                        SharedMediaItemAction.Select -> playlistActionController.openPlaylistDetails(playlist)
-                        SharedMediaItemAction.Play -> playlistActionController.playPlaylist(playlist, false)
-                        SharedMediaItemAction.Shuffle -> playlistActionController.playPlaylist(playlist, true)
-                        SharedMediaItemAction.AddToQueue -> playlistActionController.addPlaylistToQueue(playlist)
-                        SharedMediaItemAction.Download -> {
-                            if (request.textValue == KeepDownloadedActionValue) {
-                                downloadActionController.toggleKeepDownloadedPlaylist(playlist)
-                            } else {
-                                downloadActionController.downloadPlaylist(playlist)
-                            }
+        val result = when (request.kind) {
+            SharedMediaItemKind.Album -> handleResolvedMediaItemAction(
+                request = request,
+                item = request.item,
+                handlers = ResolvedMediaItemActionHandlers(
+                    onSelect = shellMediaController::handleShellAlbumSelected,
+                    onPlay = null,
+                    onStartRadio = artistActionController::handleArtistAlbumRadio,
+                    onFindSimilar = null,
+                    onAddToQueue = { album ->
+                        artistActionController.loadArtistAlbumTracks(album) {
+                            mediaController.appendTracksToQueue(it, "album tracks")
                         }
-                        SharedMediaItemAction.AddToPlaylist ->
-                            playlistActionController.addPlaylistToPlaylist(playlist, request.playlistChoice, null)
-                        SharedMediaItemAction.CreatePlaylistAndAdd,
-                        SharedMediaItemAction.CopyPlaylist,
-                        -> playlistActionController.addPlaylistToPlaylist(playlist, null, request.playlistName)
-                        SharedMediaItemAction.CopyPlaylistDeduplicated -> {
+                    },
+                    onDownload = { album, _ ->
+                        artistActionController.loadArtistAlbumTracks(album) {
+                            downloadActionController.downloadTracks(it, album.title)
+                        }
+                    },
+                    onAddToPlaylist = { album, choice ->
+                        artistActionController.loadArtistAlbumTracks(album) {
+                            playlistActionController.addTracksToPlaylist(it, choice, null, album.title)
+                        }
+                    },
+                    onCreatePlaylistAndAdd = { album, name ->
+                        artistActionController.loadArtistAlbumTracks(album) {
+                            playlistActionController.addTracksToPlaylist(it, null, name, album.title)
+                        }
+                    },
+                    onCopy = null,
+                    onToggleFavorite = { album ->
+                        toggleAndroidAlbumFavorite(scope, state, album, state.sharedControllers.providerActions)
+                    },
+                    onRename = null,
+                    onEditSmartPlaylist = null,
+                    onDelete = null,
+                    onEditStation = null,
+                    onDeleteStation = null,
+                ),
+            )
+            SharedMediaItemKind.Artist -> handleResolvedMediaItemAction(
+                request = request,
+                item = request.item,
+                handlers = ResolvedMediaItemActionHandlers(
+                    onSelect = { artist ->
+                        mediaController.openArtistDetails(ArtistId(artist.id), artist.title)
+                    },
+                    onPlay = null,
+                    onStartRadio = { artist ->
+                        artistActionController.handleShellArtistRadio(SharedArtistDetailUi(artist, emptyList()))
+                    },
+                    onFindSimilar = { artist ->
+                        artistActionController.findSimilarArtists(ArtistId(artist.id), artist.title)
+                    },
+                    onAddToQueue = null,
+                    onDownload = null,
+                    onAddToPlaylist = null,
+                    onCreatePlaylistAndAdd = null,
+                    onCopy = null,
+                    onToggleFavorite = { artist ->
+                        toggleAndroidArtistFavorite(scope, state, artist, state.sharedControllers.providerActions)
+                    },
+                    onRename = null,
+                    onEditSmartPlaylist = null,
+                    onDelete = null,
+                    onEditStation = null,
+                    onDeleteStation = null,
+                ),
+            )
+            SharedMediaItemKind.Playlist -> handleResolvedMediaItemAction(
+                request = request,
+                item = state.homeState.playlists.firstOrNull { it.id == request.item.id },
+                handlers = ResolvedMediaItemActionHandlers(
+                    onSelect = playlistActionController::openPlaylistDetails,
+                    onPlay = playlistActionController::playPlaylist,
+                    onStartRadio = null,
+                    onFindSimilar = null,
+                    onAddToQueue = playlistActionController::addPlaylistToQueue,
+                    onDownload = { playlist, value ->
+                        if (value == KeepDownloadedActionValue) {
+                            downloadActionController.toggleKeepDownloadedPlaylist(playlist)
+                        } else {
+                            downloadActionController.downloadPlaylist(playlist)
+                        }
+                    },
+                    onAddToPlaylist = { playlist, choice ->
+                        playlistActionController.addPlaylistToPlaylist(playlist, choice, null)
+                    },
+                    onCreatePlaylistAndAdd = { playlist, name ->
+                        playlistActionController.addPlaylistToPlaylist(playlist, null, name)
+                    },
+                    onCopy = { playlist, name, deduplicate ->
+                        if (!deduplicate) {
+                            playlistActionController.addPlaylistToPlaylist(playlist, null, name)
+                        } else {
                             val tracks = if (state.selectedPlaylist?.id == playlist.id) {
                                 state.selectedPlaylistTracks.distinctBy { track -> track.id }
                             } else {
                                 emptyList()
                             }
-                            if (tracks.isNotEmpty()) {
-                                playlistActionController.addTracksToPlaylist(
-                                    tracks,
-                                    null,
-                                    request.playlistName,
-                                    playlist.name,
-                                )
-                            } else {
+                            if (tracks.isEmpty()) {
                                 state.status = "Open the playlist before copying a deduplicated version."
+                            } else {
+                                playlistActionController.addTracksToPlaylist(tracks, null, name, playlist.name)
                             }
                         }
-                        SharedMediaItemAction.Rename ->
-                            request.textValue?.let { name -> playlistActionController.renamePlaylist(playlist, name) }
-                        SharedMediaItemAction.Delete -> playlistActionController.deletePlaylist(playlist)
-                        else -> Unit
-                    }
-                }
-            }
+                    },
+                    onToggleFavorite = null,
+                    onRename = playlistActionController::renamePlaylist,
+                    onEditSmartPlaylist = null,
+                    onDelete = playlistActionController::deletePlaylist,
+                    onEditStation = null,
+                    onDeleteStation = null,
+                ),
+            )
             SharedMediaItemKind.Unknown,
             SharedMediaItemKind.RadioStation,
             SharedMediaItemKind.MixBuilder,
-            -> Unit
+            -> MediaItemActionDispatchResult.UnsupportedAction
         }
+        mediaItemActionDispatchStatus(result)?.let { state.status = it }
     },
 )
