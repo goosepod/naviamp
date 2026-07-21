@@ -2,14 +2,14 @@
 
 This document is the durable plan and progress tracker for Naviamp 2.0. Update it in the same commit as each completed milestone so work can move safely between computers and contributors.
 
-Ideas discovered during the migration that should not interrupt the active checklist are tracked in [Naviamp Follow-Up Ideas](v2-follow-up-ideas.md).
+Ideas discovered during the migration that should not interrupt the active checklist are tracked in [Naviamp Follow-Up Ideas](v2-follow-up-ideas.md). The authoritative platform ownership matrix and thin-host exit gate are in the [V2 Core-First Platform Audit](v2-core-first-platform-audit.md).
 
 ## Project Status
 
 - **Target release:** `2.0.0`
 - **Current development version:** `v2.0.0-alpha` (build 35), shown in About on every host so migration builds are unmistakable during testing.
 - **Working branch:** `feature/v2-cross-platform-app`
-- **Status:** Milestone 3 complete; Milestone 4 action-parity audit complete and its required shared-ownership migrations are now explicit
+- **Status:** Milestone 3 complete; Milestone 4 reset around the complete core-first platform audit and build-then-delete migration
 - **Release policy:** Feature development for the v1 line is frozen. Only bug fixes should be released from v1 while this work is underway.
 - **Versioning rule:** Keep migration builds on an explicit `v2.0.0-alpha` prerelease label. Do not change `VERSION` to the final `v2.0.0` until the release-preparation milestone.
 - **Primary objective:** One shared Naviamp application, UI, and behavior hosted by thin Android, Desktop, and iOS applications.
@@ -164,7 +164,42 @@ Use explicit dependency construction unless a dependency-injection framework pro
 
 ### Milestone 4: Convert Android to a Thin Host
 
-The 2026-07-20 entry audit split this milestone into ownership, lifecycle, platform-service, and validation work. `MainActivity` is already a thin 97-line operating-system entry point, and Android already launches `NaviampApplicationRuntime`, uses the shared application/service controller graph, and implements the shared playback interfaces. The remaining production concentration is not in the Activity: it is primarily `AndroidPlaybackForegroundService` (2,379 lines), `NaviampAndroidApp` (1,038), `AndroidStorage` (1,037), `AndroidAutoBrowseController` (897), and the Android playback, radio, playlist, and settings adapters. Those files must first lose any remaining product policy and then be decomposed along stable host responsibilities; moving their code into differently named Android files does not satisfy this milestone.
+This milestone now covers both existing hosts because Android cannot become truly thin while Desktop remains a second product composition. The [V2 Core-First Platform Audit](v2-core-first-platform-audit.md) is authoritative: Naviamp Core must first become a complete, tested application, then Android and Desktop must delete everything that duplicates or contradicts it. Earlier extraction work is useful groundwork, but shared helpers and shared composables alone do not satisfy the milestone.
+
+#### Authoritative remaining work
+
+- [x] Audit the complete Android, Desktop, and common product surfaces; classify every feature difference as core product, core plus host effect, valid host integration, or migration debt.
+- [ ] Build the complete host-neutral Naviamp Core.
+  - [ ] Add a common presentation-composition module or dependency arrangement that can consume the shared application graph and shared UI without reversing dependency direction.
+  - [ ] Expose one `NaviampCore` composition and one complete shared Compose application entry constructed from narrow platform-service ports.
+  - [ ] Move the authoritative observable product state, UI-state mapping, and action graph into common code.
+  - [ ] Remove required no-op action defaults, competing callback paths, and the legacy broad media-request conversion boundary.
+  - [ ] Move feature transactions into core by vertical slice: navigation/shell; connection/settings; Home/Search/Library; media/details/playlists; radio/mixes; Downloads/offline; Now Playing/playback.
+- [ ] Prove Naviamp Core independently of every operating system.
+  - [ ] Build the complete composition with fake services and no Android, Desktop, or iOS dependency.
+  - [ ] Mount and navigate every product route in a host-neutral UI smoke test.
+  - [ ] Add required-action, capability, state-mapping, lifecycle/restoration, feature-result, and reusable adapter contract tests.
+  - [ ] Add an architecture guard against platform APIs in common code and product routes/action catalogs/state machines in hosts outside an explicit allowlist.
+- [ ] Convert Android and Desktop into consumers of the same core.
+  - [ ] Mount the same complete shared application entry from both hosts.
+  - [ ] Replace host product controllers, state/action factories, menus, dialogs, and UI wrappers with narrow operating-system adapters.
+  - [ ] Delete superseded Android and Desktop product code immediately after each tested core slice; do not retain parallel compatibility paths.
+  - [ ] Correct capability-registry drift, including Desktop secure credential storage and application-update status.
+  - [ ] Decompose only the surviving large native files along focused OS responsibilities after their product code is gone.
+- [ ] Validate every legitimate host integration without allowing it to redefine the product.
+  - [ ] Android: foreground service, MediaSession/notification, Android Auto, intents/permissions, storage, background work, and BASS.
+  - [ ] Desktop: window/native menus, file dialogs, updater/packaging, dock/taskbar/media-key integration as implemented, storage/security, and BASS.
+  - [ ] Confirm every difference names a concrete OS/API reason and enters through a narrow shared contract.
+- [ ] Pass the iOS readiness gate: a thin iOS host can browse the complete app using only common product code plus Apple service adapters.
+
+#### Prior migration ledger
+
+The detailed checklist below records completed extractions, native validation, and remaining device tests. It is supporting evidence rather than the definition of core completion; the authoritative checklist and audit above control whether Milestone 4 can close.
+
+<details>
+<summary>Show the detailed extraction and Android validation ledger</summary>
+
+The 2026-07-20 entry audit split the work into ownership, lifecycle, platform-service, and validation slices. `MainActivity` is already a thin operating-system entry point, but the deeper audit found that both hosts still independently construct substantial portions of the product.
 
 - [ ] Move remaining shared product behavior out of the Android UI composition, app controllers, playback service, and Android Auto implementation.
   - [x] Keep `MainActivity` limited to lifecycle setup, permission requests, incoming Android intents, system insets, and mounting the Android composition root.
@@ -244,7 +279,9 @@ The 2026-07-20 entry audit split this milestone into ownership, lifecycle, platf
   - [x] Assemble the debug application and verify the packaged BASS native libraries. `:apps:android:assembleDebug` and `:apps:android:verifyDebugBassNativePackage` passed on 2026-07-20 for all four configured Android ABIs.
   - [x] Install the current build on a connected device, launch it, and record the device/API level used for the Milestone 4 acceptance pass. On 2026-07-20, the locally ignored Android signing environment produced `android-release.apk`, which installed as an in-place update on a Pixel 10a (`stallion`, API 37) without deleting app data. A cold launch completed in 593 ms, `MainActivity` remained resumed and visible with a live process, and the post-launch fatal/error log was empty. The differently signed Pixel 8 emulator installation was left untouched.
 
-**Exit criteria:** Android launches the same shared runtime as Desktop without losing background playback or Android-specific integrations.
+</details>
+
+**Exit criteria:** the complete [Core Completion Exit Gate](v2-core-first-platform-audit.md#core-completion-exit-gate) passes. Android and Desktop mount the same host-neutral Naviamp product, surviving host code is limited to justified operating-system adapters, and iOS needs no feature-specific product controllers to browse the app.
 
 ### Milestone 5: Add the Thin iOS Application
 
@@ -579,6 +616,7 @@ Record architecture decisions here or link a dedicated decision record.
 | 2026-07-21 | Share resolved media-row dispatch outcomes. | Resolved media handlers must now declare every supported or unsupported operation explicitly, and one common dispatcher validates required values and reports missing items or unsupported requests. Android and Desktop both consume it; Desktop no longer reopens host dialogs after shared playlist choices and rename input, and Android no longer drops artist radio or similar-artist actions. |
 | 2026-07-21 | Seal the host-facing media command boundary. | Album, artist, and playlist rows now cross into Android and Desktop as separate sealed command families with exhaustive common dispatchers. Invalid kind/action/payload combinations are rejected in shared UI before reaching a host, and the remaining legacy conversion surface is explicitly limited to shared presentation call sites pending direct command emission. |
 | 2026-07-21 | Keep product media capabilities common. | A proposed per-host media capability matrix exposed an Android artist-row loader gap, but that gap was implementation debt rather than an OS limitation. The matrix was replaced by one common product baseline, common domain artist-catalog loading was added, and Android now executes arbitrary artist queue/add-to-playlist commands through stable-ID provider/cache/local resolution. Future host-specific removal requires a genuine narrow platform-service capability. |
+| 2026-07-21 | Reset Milestone 4 around the complete Naviamp Core. | A repository-wide platform audit found that shared helpers and Compose screens coexist with two independently assembled product graphs: Android mounts the shared shell but constructs state/actions/controllers in its host, while Desktop bypasses the complete shell and constructs its own route, chrome, settings, dialog, state, and action graph. The new authoritative audit classifies product and OS differences, records capability-registry defects, defines the complete core and test contract, and changes the remaining migration to build core, prove core, mount both hosts, then delete duplication. |
 
 ### Desktop Route Boundary Audit
 

@@ -1,5 +1,7 @@
 # V2 Shared Action Parity Audit
 
+> **Historical focused audit.** Several individual omissions listed below have since been fixed. The broader [V2 Core-First Platform Audit](v2-core-first-platform-audit.md) is the authoritative ownership matrix and Milestone 4 exit gate. This document remains as evidence of why shared callback types and shared composables are insufficient without one common product composition.
+
 This audit records whether Naviamp's shared Compose UI also has shared product behavior. A common callback type is not sufficient: Android and Desktop currently construct independent callback graphs, and most callbacks have silent no-op defaults. That allows a host to compile while an action shown by the shared UI does nothing.
 
 The audit covers the complete `NaviampAppShellActions` graph, `NaviampNowPlayingActions`, their Android and Desktop factories, and the shared composables that invoke them. It classifies behavior as shared product policy, legitimate host execution, capability-dependent presentation, or an accidental divergence.
