@@ -16,6 +16,8 @@ import app.naviamp.domain.playback.ReplayGainSource
 import app.naviamp.domain.playback.SampleRateConverterPlaybackEngine
 import app.naviamp.domain.playback.SampleRateMatchingPlaybackEngine
 import app.naviamp.domain.playback.VisualizerPlaybackEngine
+import app.naviamp.domain.playback.lyricsLoadingStatus
+import app.naviamp.domain.playback.lyricsUnavailableStatus
 import app.naviamp.domain.playback.planPrepareNextPlayback
 import app.naviamp.domain.media.RelatedTracksSource
 import app.naviamp.domain.playback.planPlaylistTrackStartWork
@@ -29,6 +31,9 @@ import app.naviamp.domain.settings.AudioOutputDeviceMode
 import app.naviamp.domain.settings.PlaybackSettings
 import app.naviamp.domain.settings.effectiveForEngine
 import app.naviamp.domain.settings.streamQualityForNetwork
+import app.naviamp.domain.audio.AudioMetadataSidecarService
+import app.naviamp.domain.lyrics.LyricsOffsetController
+import app.naviamp.domain.lyrics.LyricsSidecarService
 import app.naviamp.domain.waveform.AudioWaveformService
 import app.naviamp.ui.radioArtworkNeedsTrackLookup
 import app.naviamp.ui.radioTrackArtworkKey
@@ -376,16 +381,25 @@ class NaviampCoreMutableNowPlayingSidecars : NaviampCoreNowPlayingSidecarPort {
 
     fun updateTrackSidecars(
         waveform: app.naviamp.domain.waveform.AudioWaveform?,
+        audioTags: List<app.naviamp.domain.audio.AudioTag>?,
         relatedTracks: List<app.naviamp.domain.Track>,
         relatedTracksSource: RelatedTracksSource,
         relatedSimilarityByTrackId: Map<TrackId, Double>,
     ) {
         state = state.copy(
             waveform = waveform,
+            audioTags = audioTags,
             relatedTracks = relatedTracks,
             relatedTracksSource = relatedTracksSource,
             relatedSimilarityByTrackId = relatedSimilarityByTrackId,
         )
+    }
+
+    fun updateLyrics(
+        lyrics: app.naviamp.domain.Lyrics?,
+        status: String?,
+    ) {
+        state = state.copy(lyrics = lyrics, lyricsStatus = status)
     }
 
     fun updateInternetRadioArtwork(
@@ -407,6 +421,9 @@ class NaviampCoreProviderNowPlayingSidecars(
     private val waveformService: AudioWaveformService,
     private val playbackSettings: () -> PlaybackSettings,
     private val audioCachingEnabled: () -> Boolean,
+    private val audioMetadataSidecarService: AudioMetadataSidecarService? = null,
+    private val lyricsSidecarService: LyricsSidecarService? = null,
+    private val lyricsOffsetController: LyricsOffsetController? = null,
     private val delegate: NaviampCoreMutableNowPlayingSidecars = NaviampCoreMutableNowPlayingSidecars(),
 ) : NaviampCoreNowPlayingSidecarPort by delegate {
     private var loadGeneration = 0L
@@ -425,22 +442,90 @@ class NaviampCoreProviderNowPlayingSidecars(
                         track = track,
                         quality = settings.streamQualityForNetwork(isMobileData = false),
                         audioCachingEnabled = audioCachingEnabled(),
-                    ).waveform
+                    )
                 }.getOrNull()
             }
             val related = async {
                 loadCoreRelatedTracks(provider, track, settings.sonicSimilarityEnabled)
             }
-            LoadedTrackSidecars(waveform.await(), related.await())
+            val waveformResult = waveform.await()
+            val audioTags = runCatching {
+                audioMetadataSidecarService?.let { service ->
+                    waveformResult?.localAudio
+                        ?.let { service.audioTags(it) }
+                        ?: service.audioTagsForTrack(
+                            sourceId = provider.cacheNamespace,
+                            track = track,
+                            quality = settings.streamQualityForNetwork(isMobileData = false),
+                            audioCachingEnabled = audioCachingEnabled(),
+                        )
+                }
+            }.getOrNull()
+            LoadedTrackSidecars(waveformResult?.waveform, audioTags, related.await())
         }
         if (generation == loadGeneration) {
             delegate.updateTrackSidecars(
                 waveform = loaded.waveform,
+                audioTags = loaded.audioTags,
                 relatedTracks = loaded.related.tracks,
                 relatedTracksSource = loaded.related.source,
                 relatedSimilarityByTrackId = loaded.related.similarityByTrackId,
             )
         }
+    }
+
+    override suspend fun loadLyrics(track: app.naviamp.domain.Track) {
+        val generation = loadGeneration
+        val provider = providerSource.current()
+        val service = lyricsSidecarService
+        if (provider == null || service == null) {
+            if (generation == loadGeneration) delegate.updateLyrics(null, "Lyrics unavailable")
+            return
+        }
+        val settings = playbackSettings()
+        delegate.updateLyrics(
+            lyrics = delegate.snapshot().lyrics,
+            status = lyricsLoadingStatus(settings.lrclibLyricsEnabled),
+        )
+        runCatching {
+            service.loadLyrics(
+                sourceId = provider.cacheNamespace,
+                provider = provider,
+                track = track,
+                quality = settings.streamQualityForNetwork(isMobileData = false),
+                audioCachingEnabled = audioCachingEnabled(),
+                onlineLyricsEnabled = settings.lrclibLyricsEnabled,
+                preferSyncedLyrics = settings.preferSyncedLyrics,
+                searchOrder = settings.lyricsSearchOrder,
+            ).lyrics
+        }.onSuccess { loaded ->
+            if (generation == loadGeneration) {
+                val lyrics = lyricsOffsetController?.withSavedOffset(
+                    sourceId = provider.cacheNamespace,
+                    track = track,
+                    lyrics = loaded,
+                ) ?: loaded
+                delegate.updateLyrics(
+                    lyrics = lyrics,
+                    status = if (lyrics == null) "Lyrics unavailable" else null,
+                )
+            }
+        }.onFailure { error ->
+            if (generation == loadGeneration) {
+                delegate.updateLyrics(null, lyricsUnavailableStatus(error))
+            }
+        }
+    }
+
+    override suspend fun changeLyricsOffset(track: app.naviamp.domain.Track, offsetMillis: Int) {
+        val provider = providerSource.current() ?: return
+        val updated = lyricsOffsetController?.saveOffset(
+            sourceId = provider.cacheNamespace,
+            track = track,
+            lyrics = delegate.snapshot().lyrics,
+            offsetMillis = offsetMillis,
+        ) ?: delegate.snapshot().lyrics?.copy(offsetMillis = offsetMillis)
+        delegate.updateLyrics(updated, delegate.snapshot().lyricsStatus)
     }
 
     override suspend fun loadInternetRadioArtwork(
@@ -465,6 +550,7 @@ class NaviampCoreProviderNowPlayingSidecars(
 
 private data class LoadedTrackSidecars(
     val waveform: app.naviamp.domain.waveform.AudioWaveform?,
+    val audioTags: List<app.naviamp.domain.audio.AudioTag>?,
     val related: LoadedRelatedTracks,
 )
 

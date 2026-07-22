@@ -31,6 +31,7 @@ import app.naviamp.ui.NowPlayingQueueAction
 import app.naviamp.ui.NowPlayingQueueActionRequest
 import app.naviamp.ui.NowPlayingSleepTimerAction
 import app.naviamp.ui.NowPlayingSleepTimerActionRequest
+import app.naviamp.ui.NaviampVisualizer
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
@@ -155,7 +156,7 @@ class NaviampCorePlaybackController(
                 effects.restoreQueue(restored.playbackQueue, restored.restoredStartPositionSeconds)
                 persistedQueue = restored.playbackQueue
                 persistedStationId = null
-                sidecars.loadForTrack(restored.currentTrack)
+                loadTrackSidecars(restored.currentTrack)
                 if (stateStore.state.value.shell.general.interfaceSettings.startPlayingOnLaunch) {
                     effects.startOrRestore()
                 }
@@ -215,8 +216,17 @@ class NaviampCorePlaybackController(
         if (track.id == sidecarTrackId) return
         sidecarTrackId = track.id
         scope.launch {
-            sidecars.loadForTrack(track)
+            loadTrackSidecars(track)
             if (playback.state.value.currentTrack?.id == track.id) presenter.publish(display)
+        }
+    }
+
+    private suspend fun loadTrackSidecars(track: app.naviamp.domain.Track) {
+        sidecars.loadForTrack(track)
+        val lyricsNeeded = display.lyricsVisible ||
+            stateStore.state.value.shell.shellChrome.selectedVisualizer == NaviampVisualizer.LyricMirrorTunnel
+        if (lyricsNeeded && playback.state.value.currentTrack?.id == track.id) {
+            sidecars.loadLyrics(track)
         }
     }
 

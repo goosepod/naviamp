@@ -65,7 +65,12 @@ class NaviampCoreNowPlayingMediaController(
 
     suspend fun onTrackChanged(track: Track?) {
         playback.updateCurrentTrack(track)
-        if (track != null) sidecars.loadForTrack(track)
+        if (track != null) {
+            sidecars.loadForTrack(track)
+            val lyricsNeeded = playbackController.currentDisplay().lyricsVisible ||
+                stateStore.state.value.shell.shellChrome.selectedVisualizer == NaviampVisualizer.LyricMirrorTunnel
+            if (lyricsNeeded) sidecars.loadLyrics(track)
+        }
         presenter.publish(playbackController.currentDisplay())
     }
 

@@ -4,6 +4,12 @@ import app.naviamp.desktop.playback.bass.DesktopBassPlaybackEngineRuntime
 import app.naviamp.desktop.playback.bass.loadDesktopBassAudioBackend
 import app.naviamp.domain.home.HomeDate
 import app.naviamp.domain.network.KtorSharedHttpClient
+import app.naviamp.domain.audio.AudioMetadataSidecarService
+import app.naviamp.domain.cache.CachedLyricsSidecarRepository
+import app.naviamp.domain.cache.LyricsSidecarCacheService
+import app.naviamp.domain.lyrics.LrclibLyricsProvider
+import app.naviamp.domain.lyrics.LyricsOffsetController
+import app.naviamp.domain.lyrics.LyricsSidecarService
 import app.naviamp.domain.playback.CoreBassPlaybackEngine
 import app.naviamp.domain.playback.ReleasablePlaybackEngine
 import app.naviamp.domain.playback.AudioOutputDevicePlaybackEngine
@@ -75,13 +81,13 @@ internal class DesktopV2Composition private constructor(
                 cacheMaintenanceRepository = storage.maintenance,
                 nowEpochMillis = nowEpochMillis,
             )
-            val fallbackArtworkHttp = KtorSharedHttpClient()
+            val sharedHttpClient = KtorSharedHttpClient()
             setJvmPlatformCoverArtByteLoader { url ->
                 jvmGeneratedCoverArtBytes(url)
                     ?: (sessions.currentProvider() as? NavidromeProvider)
                         ?.takeIf { provider -> provider.ownsUrl(url) }
                         ?.bytes(url)
-                    ?: fallbackArtworkHttp.getBytes(url)
+                    ?: sharedHttpClient.getBytes(url)
                     ?: ByteArray(0)
             }
             val engine = CoreBassPlaybackEngine(
@@ -116,12 +122,13 @@ internal class DesktopV2Composition private constructor(
                 providerSource = sessions.providerSource,
                 settings = engineSettings::current,
             )
+            val playbackAudioAssets = DesktopPlaybackAudioAssets(
+                downloadRepository = storage.audioStore,
+                audioCacheRepository = storage.audioStore,
+            )
             val waveformService = AudioWaveformService(
                 waveformRepository = storage.audioWaveforms,
-                audioAssets = DesktopPlaybackAudioAssets(
-                    downloadRepository = storage.audioStore,
-                    audioCacheRepository = storage.audioStore,
-                ),
+                audioAssets = playbackAudioAssets,
                 analyzer = DesktopAudioWaveformAnalyzer(),
                 waveformsEnabled = { activeCacheSettings.waveformsEnabled },
                 waveformBucketCount = { activeCacheSettings.waveformBucketCount },
@@ -133,6 +140,18 @@ internal class DesktopV2Composition private constructor(
                         .toPlaybackLocalAudio()
                 },
             )
+            val audioMetadataSidecarService = AudioMetadataSidecarService(
+                playbackAudioAssets = playbackAudioAssets,
+                audioTagReader = DesktopAudioTagReader(),
+            )
+            val lyricsSidecarService = LyricsSidecarService(
+                lyricsRepository = CachedLyricsSidecarRepository(
+                    cache = LyricsSidecarCacheService(storage.lyricsSidecars, nowEpochMillis),
+                    onlineProvider = LrclibLyricsProvider(sharedHttpClient),
+                ),
+                playbackAudioAssets = playbackAudioAssets,
+                audioMetadataSidecarService = audioMetadataSidecarService,
+            )
             val playback = NaviampCorePlaybackServices(
                 effects = playbackEffects,
                 settings = engineSettings,
@@ -141,6 +160,9 @@ internal class DesktopV2Composition private constructor(
                     waveformService = waveformService,
                     playbackSettings = engineSettings::current,
                     audioCachingEnabled = { activeCacheSettings.audioCachingEnabled },
+                    audioMetadataSidecarService = audioMetadataSidecarService,
+                    lyricsSidecarService = lyricsSidecarService,
+                    lyricsOffsetController = LyricsOffsetController(storage.lyricsOffsets),
                 ),
                 visualizerSettings = object : NaviampCoreVisualizerSettingsPort {
                     override fun save(visualizer: app.naviamp.ui.NaviampVisualizer) {

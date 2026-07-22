@@ -9,9 +9,27 @@ import app.naviamp.domain.playback.PlaybackQueueNavigationCommand
 import app.naviamp.domain.playback.QueueAwarePlaybackEngine
 import app.naviamp.domain.TrackId
 import app.naviamp.domain.InternetRadioStation
+import app.naviamp.domain.LyricLine
+import app.naviamp.domain.Lyrics
+import app.naviamp.domain.LyricsSource
+import app.naviamp.domain.StreamQuality
+import app.naviamp.domain.audio.AudioMetadataSidecarService
+import app.naviamp.domain.audio.AudioTag
+import app.naviamp.domain.cache.AudioWaveformStorageRepository
+import app.naviamp.domain.cache.LyricsOffsetRepository
+import app.naviamp.domain.cache.LyricsSidecarRepository
+import app.naviamp.domain.lyrics.LyricsOffsetController
+import app.naviamp.domain.lyrics.LyricsSidecarService
+import app.naviamp.domain.playback.PlaybackAudioAssetRepository
+import app.naviamp.domain.playback.PlaybackLocalAudio
+import app.naviamp.domain.provider.MediaProvider
 import app.naviamp.domain.queue.PlaybackQueue
 import app.naviamp.domain.settings.PlaybackSettings
 import app.naviamp.domain.media.RelatedTracksSource
+import app.naviamp.domain.waveform.AudioWaveform
+import app.naviamp.domain.waveform.AudioWaveformAnalysisSource
+import app.naviamp.domain.waveform.AudioWaveformAnalyzer
+import app.naviamp.domain.waveform.AudioWaveformService
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
@@ -162,6 +180,83 @@ class NaviampCorePlaybackEngineAdapterTest {
         assertEquals(RelatedTracksSource.SonicSimilarity, related.source)
         assertEquals(listOf("sonic-related"), related.tracks.map { it.id.value })
         assertEquals(0.87, related.similarityByTrackId[TrackId("sonic-related")])
+    }
+
+    @Test
+    fun sharedSidecarLoaderPublishesTagsLyricsAndPersistentOffsets() = runTest {
+        val provider = FakeCoreMediaProvider()
+        val localAudio = PlaybackLocalAudio("/music/core.flac", "file:///music/core.flac")
+        val audioAssets = object : PlaybackAudioAssetRepository {
+            override suspend fun downloadedAudio(sourceId: String, trackId: TrackId) = localAudio
+            override suspend fun downloadedAudio(sourceId: String, trackId: TrackId, quality: StreamQuality) = localAudio
+            override suspend fun cachedAudio(sourceId: String, trackId: TrackId, quality: StreamQuality) = null
+        }
+        val metadata = AudioMetadataSidecarService(audioAssets) {
+            listOf(AudioTag("GENRE", "Electronic"), AudioTag("LABEL", "Core Records"))
+        }
+        val expectedLyrics = Lyrics(
+            source = LyricsSource.Provider,
+            synced = false,
+            lines = listOf(LyricLine(null, "Core lyric")),
+        )
+        val lyricsRepository = object : LyricsSidecarRepository {
+            override suspend fun providerLyrics(sourceId: String, provider: MediaProvider, trackId: TrackId) = expectedLyrics
+            override suspend fun cacheEmbeddedLyrics(sourceId: String, trackId: TrackId, lyrics: Lyrics) = lyrics
+            override suspend fun lrclibLyrics(sourceId: String, track: app.naviamp.domain.Track) = null
+        }
+        var savedOffset = 125
+        val offsets = object : LyricsOffsetRepository {
+            override fun lyricsOffsetMillis(sourceId: String, trackId: TrackId) = savedOffset
+            override fun saveLyricsOffsetMillis(sourceId: String, trackId: TrackId, offsetMillis: Int) {
+                savedOffset = offsetMillis
+            }
+        }
+        val waveformRepository = object : AudioWaveformStorageRepository {
+            override suspend fun cachedAudioWaveform(
+                sourceId: String,
+                trackId: TrackId,
+                quality: StreamQuality,
+                bucketCount: Int,
+            ): AudioWaveform? = null
+
+            override suspend fun storeAudioWaveform(
+                sourceId: String,
+                trackId: TrackId,
+                quality: StreamQuality,
+                audioFilePath: String?,
+                waveform: AudioWaveform,
+            ) = waveform
+        }
+        val sidecars = NaviampCoreProviderNowPlayingSidecars(
+            providerSource = NaviampCoreMediaProviderSource { provider },
+            waveformService = AudioWaveformService(
+                waveformRepository = waveformRepository,
+                audioAssets = audioAssets,
+                analyzer = object : AudioWaveformAnalyzer {
+                    override suspend fun analyze(source: AudioWaveformAnalysisSource) = null
+                },
+            ),
+            playbackSettings = { PlaybackSettings() },
+            audioCachingEnabled = { true },
+            audioMetadataSidecarService = metadata,
+            lyricsSidecarService = LyricsSidecarService(lyricsRepository, audioAssets, metadata),
+            lyricsOffsetController = LyricsOffsetController(offsets),
+        )
+
+        sidecars.loadForTrack(provider.track)
+        assertEquals(
+            listOf(AudioTag("GENRE", "Electronic"), AudioTag("LABEL", "Core Records")),
+            sidecars.snapshot().audioTags,
+        )
+
+        sidecars.loadLyrics(provider.track)
+        assertEquals("Core lyric", sidecars.snapshot().lyrics?.lines?.single()?.text)
+        assertEquals(125, sidecars.snapshot().lyrics?.offsetMillis)
+        assertEquals(null, sidecars.snapshot().lyricsStatus)
+
+        sidecars.changeLyricsOffset(provider.track, 375)
+        assertEquals(375, savedOffset)
+        assertEquals(375, sidecars.snapshot().lyrics?.offsetMillis)
     }
 }
 
