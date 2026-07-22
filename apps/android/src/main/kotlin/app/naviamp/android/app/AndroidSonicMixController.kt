@@ -36,6 +36,7 @@ internal class AndroidSonicMixController(
     private var mixTracks by mutableStateOf<List<Track>>(emptyList())
     private var targetLength by mutableStateOf(SonicMixDefaultTargetLength)
     private var bias by mutableStateOf(SonicMixBias.Balanced)
+    private var includeSeeds by mutableStateOf(false)
     private var status by mutableStateOf<String?>(null)
     private var loading by mutableStateOf(false)
 
@@ -47,6 +48,7 @@ internal class AndroidSonicMixController(
             mixTracks = mixTracks.map { track -> track.toSharedTrackRowUi(coverArtUrl) },
             targetLength = targetLength,
             bias = bias.toSharedUi(),
+            includeSeeds = includeSeeds,
             status = status,
             loading = loading,
         )
@@ -61,6 +63,11 @@ internal class AndroidSonicMixController(
 
     fun updateBias(value: SharedSonicMixBiasUi) {
         bias = value.toDomain()
+        mixTracks = emptyList()
+    }
+
+    fun updateIncludeSeeds(value: Boolean) {
+        includeSeeds = value
         mixTracks = emptyList()
     }
 
@@ -84,6 +91,7 @@ internal class AndroidSonicMixController(
         mixTracks = emptyList()
         targetLength = SonicMixDefaultTargetLength
         bias = SonicMixBias.Balanced
+        includeSeeds = false
         status = null
         loading = false
     }
@@ -123,6 +131,7 @@ internal class AndroidSonicMixController(
                             seedTracks = selectedTracks,
                             targetLength = targetLength,
                             bias = bias,
+                            includeSeeds = includeSeeds,
                         ),
                     )
                 }

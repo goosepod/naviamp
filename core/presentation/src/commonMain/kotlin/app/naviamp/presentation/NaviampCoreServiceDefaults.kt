@@ -9,6 +9,7 @@ import app.naviamp.domain.InternetRadioStation
 import app.naviamp.domain.Track
 import app.naviamp.domain.cache.DownloadJobUpdate
 import app.naviamp.domain.cache.KeepDownloadedCollectionPolicy
+import app.naviamp.domain.cache.LocalLibraryIndexRepository
 import app.naviamp.domain.home.HomeDate
 import app.naviamp.domain.queue.PlaybackQueue
 import app.naviamp.domain.settings.SettingsSyncLocalSnapshot
@@ -28,6 +29,8 @@ fun naviampCoreServiceDefaults(
     settingsSync: NaviampCoreSettingsSyncServices,
     externalUri: NaviampCoreExternalUriPort,
     homeDate: NaviampCoreHomeDateSource = NaviampCoreHomeDateSource { HomeDate(2026, 1) },
+    sourceId: () -> String? = { providerSource.current()?.cacheNamespace },
+    libraryIndex: LocalLibraryIndexRepository? = null,
     clockEpochMillis: () -> Long,
     favoritedAtIso8601: () -> String,
 ): NaviampCoreServices = NaviampCoreServices(
@@ -89,31 +92,16 @@ fun naviampCoreServiceDefaults(
             override suspend fun record(station: InternetRadioStation) = listOf(station)
         },
     ),
-    mixes = NaviampCoreMixServices(
-        artist = { error("Artist Mix native repositories are not connected yet.") },
-        album = { error("Album Mix native repositories are not connected yet.") },
-        genre = { error("Genre Mix native repositories are not connected yet.") },
-        standardPlayback = object : NaviampCoreStandardMixPlaybackPort {
-            override suspend fun playArtistMix(artists: List<Artist>, seedTracks: List<Track>) {
-                seedTracks.playThrough(playback)
-            }
-            override suspend fun playAlbumMix(albums: List<Album>, seedTracks: List<Track>) {
-                seedTracks.playThrough(playback)
-            }
-            override suspend fun playGenreMix(genres: List<Genre>) = Unit
-        },
-        sonicPlayback = NaviampCoreSonicPlaybackPort { tracks, _ -> tracks.playThrough(playback) },
-        sonicQueue = NaviampCoreSonicQueuePort { _, _ -> },
+    mixes = naviampCoreStandardMixServices(
+        providerSource = providerSource,
+        sourceId = sourceId,
+        libraryIndex = libraryIndex,
+        nowEpochMillis = clockEpochMillis,
     ),
     playback = playback,
     clockEpochMillis = clockEpochMillis,
     favoritedAtIso8601 = favoritedAtIso8601,
 )
-
-private fun List<Track>.playThrough(playback: NaviampCorePlaybackServices) {
-    if (isEmpty()) return
-    playback.effects.playQueueSelection(PlaybackQueue(this, 0), 0)
-}
 
 /** Core-owned unavailable implementation for hosts that have not connected document picking yet. */
 fun unavailableNaviampCoreSettingsSyncServices(

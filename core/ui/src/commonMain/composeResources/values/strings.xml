@@ -386,6 +386,7 @@
     <string name="mix_bias_favorites">Favorites</string>
     <string name="mix_bias_unplayed">Unplayed</string>
     <string name="mix_bias_recent">Recent</string>
+    <string name="mix_include_seeds">Include Seeds</string>
 
     <string name="sonic_path_title">Sonic Path</string>
     <string name="sonic_path_start_track">Start Track</string>

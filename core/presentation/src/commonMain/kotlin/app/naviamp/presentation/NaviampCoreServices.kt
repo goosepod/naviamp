@@ -24,9 +24,6 @@ data class NaviampCoreMixServices(
     val artist: () -> ArtistMixBuilderService,
     val album: () -> AlbumMixBuilderService,
     val genre: () -> GenreMixBuilderService,
-    val standardPlayback: NaviampCoreStandardMixPlaybackPort,
-    val sonicPlayback: NaviampCoreSonicPlaybackPort,
-    val sonicQueue: NaviampCoreSonicQueuePort,
 )
 
 /** Persistence and native effects required by playlist product transactions. */

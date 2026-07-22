@@ -160,6 +160,8 @@ internal class DesktopV2Composition private constructor(
                 homeDate = NaviampCoreHomeDateSource {
                     LocalDate.now().let { HomeDate(it.year, it.dayOfYear) }
                 },
+                sourceId = { storage.mediaSources.latestMediaSource()?.id },
+                libraryIndex = storage.libraryIndex,
                 clockEpochMillis = nowEpochMillis,
                 favoritedAtIso8601 = { Instant.now().toString() },
             )

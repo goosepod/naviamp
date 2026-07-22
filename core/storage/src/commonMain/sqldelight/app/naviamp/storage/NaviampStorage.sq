@@ -74,6 +74,7 @@ CREATE TABLE library_track (
   title TEXT NOT NULL,
   artist_name TEXT NOT NULL,
   album_title TEXT,
+  genre_names TEXT,
   search_title TEXT NOT NULL,
   search_artist_name TEXT NOT NULL,
   search_album_title TEXT,
@@ -584,6 +585,7 @@ INSERT OR REPLACE INTO library_track(
   title,
   artist_name,
   album_title,
+  genre_names,
   search_title,
   search_artist_name,
   search_album_title,
@@ -599,7 +601,7 @@ INSERT OR REPLACE INTO library_track(
   play_count,
   last_played_at_iso8601,
   updated_at_epoch_millis
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
 
 selectLibraryArtists:
 SELECT *
@@ -741,6 +743,7 @@ SELECT
   library_track.title,
   library_track.artist_name,
   library_track.album_title,
+  library_track.genre_names,
   library_track.search_title,
   library_track.search_artist_name,
   library_track.search_album_title,

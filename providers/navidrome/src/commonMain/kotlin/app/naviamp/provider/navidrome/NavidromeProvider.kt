@@ -1570,6 +1570,7 @@ class NavidromeProvider(
             userRating = intValue("userRating")?.takeIf { it in 1..5 },
             bpm = intValue("bpm"),
             moods = moodValues(),
+            genres = genreValues(),
             playCount = intValue("playCount"),
             lastPlayedAtIso8601 = stringValue("played")
                 ?: stringValue("lastPlayed")
@@ -1614,6 +1615,16 @@ class NavidromeProvider(
             .filter { it.isNotBlank() }
             .distinct()
     }
+
+    private fun JsonObject.genreValues(): List<String> =
+        buildList {
+            stringValue("genre")?.trim()?.takeIf(String::isNotEmpty)?.let(::add)
+            arrayValue("genres").forEach { value ->
+                val name = (value as? JsonObject)?.stringValue("name")
+                    ?: runCatching { value.jsonPrimitive.contentOrNull }.getOrNull()
+                name?.trim()?.takeIf(String::isNotEmpty)?.let(::add)
+            }
+        }.distinctBy(String::lowercase)
 
     private fun JsonObject.replayGainValue(): ReplayGain? {
         val replayGain = this["replayGain"]?.jsonObject

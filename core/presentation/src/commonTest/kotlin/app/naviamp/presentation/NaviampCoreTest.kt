@@ -348,13 +348,6 @@ internal fun fakeCoreServices(provider: MediaProvider? = null) = NaviampCoreServ
         artist = { error("Artist mix service is lazy") },
         album = { error("Album mix service is lazy") },
         genre = { error("Genre mix service is lazy") },
-        standardPlayback = object : NaviampCoreStandardMixPlaybackPort {
-            override suspend fun playArtistMix(artists: List<Artist>, seedTracks: List<Track>) = Unit
-            override suspend fun playAlbumMix(albums: List<Album>, seedTracks: List<Track>) = Unit
-            override suspend fun playGenreMix(genres: List<Genre>) = Unit
-        },
-        sonicPlayback = NaviampCoreSonicPlaybackPort { _, _ -> },
-        sonicQueue = NaviampCoreSonicQueuePort { _, _ -> },
     ),
     playback = NaviampCorePlaybackServices(
         effects = FakeCorePlaybackEffects(),

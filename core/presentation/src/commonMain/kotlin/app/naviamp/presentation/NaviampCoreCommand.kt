@@ -214,6 +214,7 @@ sealed interface NaviampCoreCommand {
         data class Remove(val track: SharedTrackRowUi) : SonicMixAction
         data class ChangeLength(val length: Int) : SonicMixAction
         data class ChangeBias(val bias: SharedSonicMixBiasUi) : SonicMixAction
+        data class ChangeIncludeSeeds(val include: Boolean) : SonicMixAction
         data object Build : SonicMixAction
         data object Reset : SonicMixAction
         data object Play : SonicMixAction

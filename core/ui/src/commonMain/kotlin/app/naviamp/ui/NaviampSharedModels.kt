@@ -847,6 +847,7 @@ data class SharedSonicMixBuilderUi(
     val mixTracks: List<SharedTrackRowUi> = emptyList(),
     val targetLength: Int = 50,
     val bias: SharedSonicMixBiasUi = SharedSonicMixBiasUi.Balanced,
+    val includeSeeds: Boolean = false,
     val status: String? = null,
     val loading: Boolean = false,
 ) {
@@ -864,6 +865,7 @@ data class SharedSonicMixBuilderActions(
     val onTrackRemoved: (SharedTrackRowUi) -> Unit,
     val onTargetLengthChanged: (Int) -> Unit,
     val onBiasChanged: (SharedSonicMixBiasUi) -> Unit,
+    val onIncludeSeedsChanged: (Boolean) -> Unit,
     val onBuild: () -> Unit,
     val onReset: () -> Unit,
     val onPlay: () -> Unit,

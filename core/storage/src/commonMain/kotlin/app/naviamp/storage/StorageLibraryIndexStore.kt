@@ -88,6 +88,7 @@ class StorageLibraryIndexStore(
                     title = track.title,
                     artist_name = track.artistName,
                     album_title = track.albumTitle,
+                    genre_names = track.genres.joinToString(GenreNameSeparator),
                     search_title = track.title.searchText(),
                     search_artist_name = track.artistName.searchText(),
                     search_album_title = track.albumTitle?.searchText(),
@@ -301,6 +302,7 @@ private fun Library_track.toTrack(): Track =
                 it.samplingRateHz != null
         },
         replayGain = null,
+        genres = genre_names.toGenreNames(),
         favoritedAtIso8601 = favorited_at_iso8601,
         userRating = user_rating?.toInt(),
         playCount = play_count?.toInt(),
@@ -332,6 +334,7 @@ private fun SelectRecentlyPlayedLibraryTracks.toTrack(): Track =
                 it.samplingRateHz != null
         },
         replayGain = null,
+        genres = genre_names.toGenreNames(),
         favoritedAtIso8601 = favorited_at_iso8601,
         userRating = user_rating?.toInt(),
         playCount = play_count?.toInt(),
@@ -372,6 +375,7 @@ private fun SelectArtistPopularTracks.toPopularTrackMatch(): ArtistPopularTrackM
                     it.samplingRateHz != null
             },
             replayGain = null,
+            genres = genre_names.toGenreNames(),
             favoritedAtIso8601 = favorited_at_iso8601,
             userRating = user_rating?.toInt(),
             playCount = play_count?.toInt(),
@@ -385,3 +389,8 @@ private fun String.searchText(): String =
 
 private fun Char.librarySearchBoundary(): String =
     if (this == '#') "" else lowercaseChar().toString()
+
+private fun String?.toGenreNames(): List<String> =
+    this?.split(GenreNameSeparator)?.filter(String::isNotBlank).orEmpty()
+
+private const val GenreNameSeparator = "\u001F"

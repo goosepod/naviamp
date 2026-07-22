@@ -203,14 +203,6 @@ class NaviampCore private constructor(
                     navigation.openNowPlaying()
                 },
             )
-            val standardMixes = NaviampCoreStandardMixController(
-                stateStore,
-                services.content.providerSource,
-                services.mixes.artist,
-                services.mixes.album,
-                services.mixes.genre,
-                services.mixes.standardPlayback,
-            )
             val nowPlayingPresenter = NaviampCoreNowPlayingPresenter(
                 stateStore,
                 services.content.providerSource,
@@ -265,6 +257,26 @@ class NaviampCore private constructor(
                 services.favoritedAtIso8601,
                 { nowPlayingPresenter.publish(playback.currentDisplay()) },
                 navigation::openNowPlaying,
+            )
+            val standardMixes = NaviampCoreStandardMixController(
+                stateStore,
+                services.content.providerSource,
+                services.mixes.artist,
+                services.mixes.album,
+                services.mixes.genre,
+                playback = object : NaviampCoreStandardMixPlaybackPort {
+                    override suspend fun playArtistMix(artists: List<app.naviamp.domain.Artist>, seedTracks: List<app.naviamp.domain.Track>) {
+                        mediaTransactions.startArtistMix(artists, seedTracks)
+                    }
+
+                    override suspend fun playAlbumMix(albums: List<app.naviamp.domain.Album>, seedTracks: List<app.naviamp.domain.Track>) {
+                        mediaTransactions.startAlbumMix(albums, seedTracks)
+                    }
+
+                    override suspend fun playGenreMix(genres: List<app.naviamp.domain.Genre>) {
+                        mediaTransactions.startGenreMix(genres)
+                    }
+                },
             )
             val sonicBuilders = NaviampCoreSonicBuilderController(
                 stateStore,

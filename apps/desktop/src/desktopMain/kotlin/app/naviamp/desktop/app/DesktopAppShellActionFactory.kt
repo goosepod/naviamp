@@ -313,6 +313,7 @@ internal fun desktopAppShellActions(context: DesktopAppShellActionContext): Navi
                 onTrackRemoved = sonicMixController::removeTrack,
                 onTargetLengthChanged = sonicMixController::updateTargetLength,
                 onBiasChanged = sonicMixController::updateBias,
+                onIncludeSeedsChanged = sonicMixController::updateIncludeSeeds,
                 onBuild = sonicMixController::buildMix,
                 onReset = sonicMixController::reset,
                 onPlay = sonicMixController::playMix,

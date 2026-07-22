@@ -22,6 +22,7 @@ import app.naviamp.ui.SharedSonicMixBiasUi
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 
 class NaviampCoreSonicBuilderControllerTest {
     @Test
@@ -70,6 +71,8 @@ class NaviampCoreSonicBuilderControllerTest {
         controller.dispatch(mix(NaviampCoreCommand.SonicMixAction.Select(suggestions[1])))
         controller.dispatch(mix(NaviampCoreCommand.SonicMixAction.ChangeLength(5)))
         controller.dispatch(mix(NaviampCoreCommand.SonicMixAction.ChangeBias(SharedSonicMixBiasUi.Favorites)))
+        assertFalse(fixture.store.state.value.shell.sonicMixBuilder.includeSeeds)
+        controller.dispatch(mix(NaviampCoreCommand.SonicMixAction.ChangeIncludeSeeds(true)))
 
         controller.execute(mix(NaviampCoreCommand.SonicMixAction.Build))
         controller.execute(mix(NaviampCoreCommand.SonicMixAction.Play))

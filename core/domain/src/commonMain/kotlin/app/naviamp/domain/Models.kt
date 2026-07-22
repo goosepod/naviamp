@@ -80,6 +80,7 @@ data class Track(
     val userRating: Int? = null,
     val bpm: Int? = null,
     val moods: List<String> = emptyList(),
+    val genres: List<String> = emptyList(),
     val playCount: Int? = null,
     val lastPlayedAtIso8601: String? = null,
     val musicFolderId: String? = null,

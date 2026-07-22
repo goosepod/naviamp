@@ -10,6 +10,7 @@ import app.naviamp.domain.Playlist
 import app.naviamp.domain.ProviderId
 import app.naviamp.domain.StreamRequest
 import app.naviamp.domain.Track
+import app.naviamp.domain.TrackId
 import app.naviamp.domain.provider.AlbumListType
 import app.naviamp.domain.provider.ConnectionValidation
 import app.naviamp.domain.provider.MediaProvider
@@ -130,6 +131,7 @@ class HomeServiceTest {
     fun mixBuilderAlbumCandidatesUseHomeMixSourcesWithStableDeduping() {
         val shared = album("shared")
         val home = HomeContent(
+            recentlyPlayedTracks = listOf(recentTrack("played", "recent-album", "recent-artist")),
             randomAlbums = listOf(album("random"), shared),
             mixAlbums = listOf(shared, album("mix")),
             recentAlbums = listOf(album("recent")),
@@ -140,7 +142,7 @@ class HomeServiceTest {
         )
 
         assertEquals(
-            listOf("random", "shared", "mix", "recent", "frequent"),
+            listOf("recent-album", "random", "shared", "mix", "recent", "frequent"),
             home.mixBuilderAlbumCandidates().map { it.id.value },
         )
     }
@@ -148,6 +150,7 @@ class HomeServiceTest {
     @Test
     fun mixBuilderArtistCandidatesUseHomeArtistsWithStableDeduping() {
         val home = HomeContent(
+            recentlyPlayedTracks = listOf(recentTrack("played", "recent-album", "recent-artist")),
             artists = listOf(
                 Artist(ArtistId("artist-1"), "New Order"),
                 Artist(ArtistId("artist-1"), "New Order duplicate"),
@@ -156,7 +159,7 @@ class HomeServiceTest {
         )
 
         assertEquals(
-            listOf("artist-1", "artist-2"),
+            listOf("recent-artist", "artist-1", "artist-2"),
             home.mixBuilderArtistCandidates().map { it.id.value },
         )
     }
@@ -230,6 +233,20 @@ private fun album(id: String): Album =
         artistName = "Artist",
         coverArtId = null,
         recentlyAddedAtIso8601 = null,
+    )
+
+private fun recentTrack(id: String, albumId: String, artistId: String): Track =
+    Track(
+        id = TrackId(id),
+        title = "Track $id",
+        artistId = ArtistId(artistId),
+        artistName = "Artist $artistId",
+        albumId = AlbumId(albumId),
+        albumTitle = "Album $albumId",
+        durationSeconds = 180,
+        coverArtId = null,
+        audioInfo = null,
+        replayGain = null,
     )
 
 private fun radioStation(id: String): InternetRadioStation =

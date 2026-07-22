@@ -9,6 +9,14 @@ import app.naviamp.domain.media.favoriteAlbumUpdate
 import app.naviamp.domain.media.favoriteArtistUpdate
 import app.naviamp.domain.media.favoriteTrackUpdate
 import app.naviamp.domain.radio.RadioService
+import app.naviamp.domain.radio.RadioRequestStartResult
+import app.naviamp.domain.radio.SeededRadioBuildResult
+import app.naviamp.domain.radio.albumMixSeededRadioRequest
+import app.naviamp.domain.radio.artistMixSeededRadioRequest
+import app.naviamp.domain.radio.genreMixRadioRequest
+import app.naviamp.domain.radio.radioRequestStartResult
+import app.naviamp.domain.radio.seededRadioBuildResult
+import app.naviamp.domain.Genre
 import app.naviamp.ui.NaviampPlaylistChoiceUi
 import app.naviamp.ui.SharedMediaItemUi
 
@@ -89,6 +97,30 @@ class NaviampCoreMediaTransactions(
     suspend fun startGenreRadio(genre: String) = radio("$genre radio") { it.genreRadio(genre) }
     suspend fun startDecadeRadio(fromYear: Int, toYear: Int) =
         radio("$fromYear–$toYear radio") { it.decadeRadio(fromYear, toYear) }
+
+    suspend fun startArtistMix(artists: List<Artist>, seedTracks: List<Track>) {
+        val seed = seedTracks.firstOrNull() ?: return publish("Select artists with matched songs first.")
+        startSeededMix(artistMixSeededRadioRequest(artists, seed, seedTracks))
+    }
+
+    suspend fun startAlbumMix(albums: List<Album>, seedTracks: List<Track>) {
+        val seed = seedTracks.firstOrNull() ?: return publish("Select albums with matched songs first.")
+        startSeededMix(albumMixSeededRadioRequest(albums, seed, seedTracks))
+    }
+
+    suspend fun startGenreMix(genres: List<Genre>) {
+        val provider = providerOrPublish() ?: return
+        val request = genreMixRadioRequest(genres)
+        publish("Building ${request.label}...")
+        when (val result = radioRequestStartResult(request, RadioService(provider, tuning = radioTuning()))) {
+            is RadioRequestStartResult.Ready -> {
+                play(result.queue)
+                publish("Playing ${request.label}.")
+            }
+            RadioRequestStartResult.Empty -> publish("${request.label} did not return any tracks.")
+            is RadioRequestStartResult.Failed -> publish(result.error.message ?: "Could not build ${request.label}.")
+        }
+    }
 
     suspend fun startRandomAlbumRadio() {
         val provider = providerOrPublish() ?: return
@@ -176,10 +208,24 @@ class NaviampCoreMediaTransactions(
     private suspend fun radio(label: String, load: suspend (RadioService) -> List<Track>) {
         val provider = providerOrPublish() ?: return
         publish("Building $label...")
-        runCatching { load(RadioService(provider, tuning = stateStore.state.value.shell.playback.settings.radioTuning)) }
+        runCatching { load(RadioService(provider, tuning = radioTuning())) }
             .onSuccess { if (it.isEmpty()) publish("$label did not return any tracks.") else { play(it); publish("Playing $label.") } }
             .onFailure { publish(it.message ?: "Could not build $label.") }
     }
+
+    private suspend fun startSeededMix(request: app.naviamp.domain.radio.SeededRadioRequest) {
+        val provider = providerOrPublish() ?: return
+        publish("Building ${request.label}...")
+        when (val result = seededRadioBuildResult(request, RadioService(provider, tuning = radioTuning()))) {
+            is SeededRadioBuildResult.Ready -> {
+                play(result.queue)
+                publish("Playing ${request.label}.")
+            }
+            is SeededRadioBuildResult.Failed -> publish(result.error.message ?: "Could not build ${request.label}.")
+        }
+    }
+
+    private fun radioTuning() = stateStore.state.value.shell.playback.settings.radioTuning
 
     private suspend fun <T> mutate(unsupported: String, mutation: suspend () -> T?, apply: (T) -> Unit) {
         runCatching { mutation() }.onSuccess { if (it == null) publish(unsupported) else apply(it) }

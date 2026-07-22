@@ -135,6 +135,10 @@ class NaviampCoreSonicBuilderController(
                 mixTracks = emptyList()
                 updateMixUi { it.copy(bias = action.bias, mixTracks = emptyList()) }
             }
+            is NaviampCoreCommand.SonicMixAction.ChangeIncludeSeeds -> {
+                mixTracks = emptyList()
+                updateMixUi { it.copy(includeSeeds = action.include, mixTracks = emptyList()) }
+            }
             is NaviampCoreCommand.SonicMixAction.Select -> {
                 val track = mixSuggestions.firstOrNull { it.id.value == action.track.id }
                 if (track == null) {
@@ -268,6 +272,7 @@ class NaviampCoreSonicBuilderController(
                     seedTracks = selectedMixTracks,
                     targetLength = currentMixUi().targetLength,
                     bias = currentMixUi().bias.toDomain(),
+                    includeSeeds = currentMixUi().includeSeeds,
                 ),
             )
         }.onSuccess { tracks ->

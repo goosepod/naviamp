@@ -28,6 +28,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Checkbox
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
@@ -1219,6 +1221,7 @@ fun SonicMixBuilderContent(
     val onTrackRemoved = actions.onTrackRemoved
     val onTargetLengthChanged = actions.onTargetLengthChanged
     val onBiasChanged = actions.onBiasChanged
+    val onIncludeSeedsChanged = actions.onIncludeSeedsChanged
     val onBuildMix = actions.onBuild
     val onReset = actions.onReset
     val onPlayMix = actions.onPlay
@@ -1334,13 +1337,30 @@ fun SonicMixBuilderContent(
         Text(stringResource(Res.string.mix_bias), color = colors.secondaryText, fontSize = 13.sp)
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             SharedSonicMixBiasUi.entries.forEach { bias ->
-                Button(
+                FilterChip(
                     onClick = { onBiasChanged(bias) },
-                    enabled = builder.bias != bias,
-                ) {
-                    Text(bias.labelText())
-                }
+                    selected = builder.bias == bias,
+                    label = {
+                        Text(bias.labelText())
+                    },
+                )
             }
+        }
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable { onIncludeSeedsChanged(!builder.includeSeeds) },
+        ) {
+            Checkbox(
+                checked = builder.includeSeeds,
+                onCheckedChange = onIncludeSeedsChanged,
+            )
+            Text(
+                stringResource(Res.string.mix_include_seeds),
+                color = colors.primaryText,
+                fontSize = 13.sp,
+            )
         }
         (builder.status ?: if (builder.loading) stringResource(Res.string.mix_building) else null)?.let {
             Text(it, color = colors.secondaryText, fontSize = 12.sp)

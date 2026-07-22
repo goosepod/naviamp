@@ -440,6 +440,8 @@ class NavidromeProviderTest {
                           "userRating": 4,
                           "bpm": 132,
                           "mood": ["wistful", "bright"],
+                          "genre": "Alternative",
+                          "genres": [{"name": "New Wave"}, {"name": "Alternative"}],
                           "playCount": 12,
                           "played": "2026-05-12T14:00:00Z"
                         },
@@ -482,6 +484,7 @@ class NavidromeProviderTest {
         assertEquals(4, details.tracks.first().userRating)
         assertEquals(132, details.tracks.first().bpm)
         assertEquals(listOf("wistful", "bright"), details.tracks.first().moods)
+        assertEquals(listOf("Alternative", "New Wave"), details.tracks.first().genres)
         assertEquals(12, details.tracks.first().playCount)
         assertEquals("2026-05-12T14:00:00Z", details.tracks.first().lastPlayedAtIso8601)
     }

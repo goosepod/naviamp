@@ -49,10 +49,31 @@ data class HomeContent(
 }
 
 fun HomeContent.mixBuilderAlbumCandidates(): List<Album> =
-    (randomAlbums + mixAlbums + recentAlbums + frequentAlbums).distinctBy { it.id }
+    (recentlyPlayedTracks.mapNotNull(Track::toMixBuilderAlbum) +
+        randomAlbums + mixAlbums + recentAlbums + frequentAlbums).distinctBy { it.id }
 
 fun HomeContent.mixBuilderArtistCandidates(): List<Artist> =
-    artists.distinctBy { it.id }
+    (recentlyPlayedTracks.mapNotNull(Track::toMixBuilderArtist) + artists).distinctBy { it.id }
+
+private fun Track.toMixBuilderArtist(): Artist? {
+    val resolvedId = artistId ?: artistCredits.firstNotNullOfOrNull { credit -> credit.id } ?: return null
+    val resolvedName = artistCredits.firstOrNull { credit -> credit.id == resolvedId }?.name ?: artistName
+    return Artist(resolvedId, resolvedName)
+}
+
+private fun Track.toMixBuilderAlbum(): Album? {
+    val resolvedId = albumId ?: return null
+    val resolvedTitle = albumTitle ?: return null
+    return Album(
+        id = resolvedId,
+        title = resolvedTitle,
+        artistName = artistName,
+        coverArtId = coverArtId,
+        recentlyAddedAtIso8601 = null,
+        releaseYear = albumReleaseYear,
+        artistCredits = artistCredits,
+    )
+}
 
 data class HomeDate(
     val year: Int,

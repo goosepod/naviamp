@@ -152,6 +152,7 @@ fun createNaviampCoreActions(
             onTrackRemoved = { send(NaviampCoreCommand.MixBuilder.SonicMix(NaviampCoreCommand.SonicMixAction.Remove(it))) },
             onTargetLengthChanged = { send(NaviampCoreCommand.MixBuilder.SonicMix(NaviampCoreCommand.SonicMixAction.ChangeLength(it))) },
             onBiasChanged = { send(NaviampCoreCommand.MixBuilder.SonicMix(NaviampCoreCommand.SonicMixAction.ChangeBias(it))) },
+            onIncludeSeedsChanged = { send(NaviampCoreCommand.MixBuilder.SonicMix(NaviampCoreCommand.SonicMixAction.ChangeIncludeSeeds(it))) },
             onBuild = { send(NaviampCoreCommand.MixBuilder.SonicMix(NaviampCoreCommand.SonicMixAction.Build)) },
             onReset = { send(NaviampCoreCommand.MixBuilder.SonicMix(NaviampCoreCommand.SonicMixAction.Reset)) },
             onPlay = { send(NaviampCoreCommand.MixBuilder.SonicMix(NaviampCoreCommand.SonicMixAction.Play)) },

@@ -46,6 +46,7 @@ internal class DesktopSonicMixController(
     private var mixTracks by mutableStateOf<List<Track>>(emptyList())
     private var targetLength by mutableStateOf(SonicMixDefaultTargetLength)
     private var bias by mutableStateOf(SonicMixBias.Balanced)
+    private var includeSeeds by mutableStateOf(false)
     private var status by mutableStateOf<String?>(null)
     private var loading by mutableStateOf(false)
 
@@ -57,6 +58,7 @@ internal class DesktopSonicMixController(
             mixTracks = mixTracks.map { track -> track.toSharedTrackRowUi(coverArtUrl) },
             targetLength = targetLength,
             bias = bias.toSharedUi(),
+            includeSeeds = includeSeeds,
             status = status,
             loading = loading,
         )
@@ -71,6 +73,11 @@ internal class DesktopSonicMixController(
 
     fun updateBias(value: SharedSonicMixBiasUi) {
         bias = value.toDomain()
+        mixTracks = emptyList()
+    }
+
+    fun updateIncludeSeeds(value: Boolean) {
+        includeSeeds = value
         mixTracks = emptyList()
     }
 
@@ -94,6 +101,7 @@ internal class DesktopSonicMixController(
         mixTracks = emptyList()
         targetLength = SonicMixDefaultTargetLength
         bias = SonicMixBias.Balanced
+        includeSeeds = false
         status = null
         loading = false
     }
@@ -133,6 +141,7 @@ internal class DesktopSonicMixController(
                             seedTracks = selectedTracks,
                             targetLength = targetLength,
                             bias = bias,
+                            includeSeeds = includeSeeds,
                         ),
                     )
                 }

@@ -21,6 +21,7 @@ data class SonicMixRequest(
     val seedTracks: List<Track>,
     val targetLength: Int = SonicMixDefaultTargetLength,
     val bias: SonicMixBias = SonicMixBias.Balanced,
+    val includeSeeds: Boolean = false,
 ) {
     val normalizedSeeds: List<Track>
         get() = seedTracks.distinctBy { track -> track.id }.take(SonicMixMaxSeeds)
@@ -42,14 +43,15 @@ class SonicMixService(
         val matchesBySeed = seeds.map { seed ->
             seed to provider.sonicSimilarTrackMatches(seed.id, count = perSeedCount)
         }
-        val requestedMatches = (request.normalizedTargetLength - seeds.size).coerceAtLeast(0)
+        val seedPrefix = if (request.includeSeeds) seeds else emptyList()
+        val requestedMatches = (request.normalizedTargetLength - seedPrefix.size).coerceAtLeast(0)
         val matches = blendSonicMix(
             seeds = seeds,
             matchesBySeed = matchesBySeed,
             targetLength = requestedMatches,
             bias = request.bias,
         )
-        return (seeds + matches)
+        return (seedPrefix + matches)
             .distinctBy { track -> track.id }
             .take(request.normalizedTargetLength)
     }

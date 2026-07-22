@@ -87,6 +87,7 @@ class AndroidLibraryIndexStore(
                     title = track.title,
                     artist_name = track.artistName,
                     album_title = track.albumTitle,
+                    genre_names = track.genres.joinToString(GenreNameSeparator),
                     search_title = track.title.searchText(),
                     search_artist_name = track.artistName.searchText(),
                     search_album_title = track.albumTitle?.searchText(),
@@ -253,6 +254,7 @@ private fun Library_track.toTrack(): Track =
         coverArtId = cover_art_id,
         audioInfo = audioInfo(audio_codec, audio_bitrate_kbps, audio_content_type, audio_bit_depth, audio_sampling_rate_hz),
         replayGain = null,
+        genres = genre_names.toGenreNames(),
         favoritedAtIso8601 = favorited_at_iso8601,
         userRating = user_rating?.toInt(),
         playCount = play_count?.toInt(),
@@ -272,6 +274,7 @@ private fun SelectRecentlyPlayedLibraryTracks.toTrack(): Track =
         coverArtId = cover_art_id,
         audioInfo = audioInfo(audio_codec, audio_bitrate_kbps, audio_content_type, audio_bit_depth, audio_sampling_rate_hz),
         replayGain = null,
+        genres = genre_names.toGenreNames(),
         favoritedAtIso8601 = favorited_at_iso8601,
         userRating = user_rating?.toInt(),
         playCount = play_count?.toInt(),
@@ -300,6 +303,7 @@ private fun SelectArtistPopularTracks.toPopularTrackMatch(): ArtistPopularTrackM
             coverArtId = cover_art_id,
             audioInfo = audioInfo(audio_codec, audio_bitrate_kbps, audio_content_type, audio_bit_depth, audio_sampling_rate_hz),
             replayGain = null,
+            genres = genre_names.toGenreNames(),
             favoritedAtIso8601 = favorited_at_iso8601,
             userRating = user_rating?.toInt(),
             playCount = play_count?.toInt(),
@@ -331,3 +335,8 @@ private fun audioInfo(
 
 private fun String.searchText(): String =
     trim().lowercase()
+
+private fun String?.toGenreNames(): List<String> =
+    this?.split(GenreNameSeparator)?.filter(String::isNotBlank).orEmpty()
+
+private const val GenreNameSeparator = "\u001F"
