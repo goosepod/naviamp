@@ -20,10 +20,16 @@ import app.naviamp.storage.initializeNaviampStorageDatabase
 class DesktopMediaSourceStorage private constructor(
     private val driver: SqlDriver,
     internal val database: NaviampStorageDatabase,
-    private val store: StorageMediaSourceStore,
+    internal val store: StorageMediaSourceStore,
 ) : MediaSourceRepository by store,
     ProviderMediaSourceRepository by store,
     AutoCloseable {
+    internal fun pruneUnusedSourceScopes(
+        activeSourceIds: Set<String>,
+        lastConnectedBeforeEpochMillis: Long,
+        limit: Long,
+    ): Int = store.pruneUnusedSourceScopes(activeSourceIds, lastConnectedBeforeEpochMillis, limit)
+
     override fun close() {
         driver.close()
     }

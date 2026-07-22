@@ -19,6 +19,8 @@ kotlin {
                 api(project(":core:presentation"))
                 api(project(":core:storage"))
                 api(project(":providers:navidrome"))
+                implementation(libs.kotlinx.coroutines.core)
+                implementation(libs.kotlinx.serialization.json)
                 implementation(libs.sqldelight.sqlite.driver)
             }
         }

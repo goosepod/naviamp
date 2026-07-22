@@ -16,9 +16,7 @@ import app.naviamp.domain.ReplayGain
 import app.naviamp.domain.StreamQuality
 import app.naviamp.domain.Track
 import app.naviamp.domain.TrackId
-import app.naviamp.domain.cache.AudioByteStore
 import app.naviamp.domain.cache.AudioByteStoreService
-import app.naviamp.domain.cache.AudioByteWriter
 import app.naviamp.domain.cache.AudioCacheRepository
 import app.naviamp.domain.cache.AudioWaveformRepository
 import app.naviamp.domain.cache.AudioWaveformStorageRepository
@@ -45,7 +43,6 @@ import app.naviamp.domain.cache.ProviderResponseCacheService
 import app.naviamp.domain.cache.ProviderResponseCacheRepository
 import app.naviamp.domain.cache.SidecarStatusRepository
 import app.naviamp.domain.cache.SidecarStatusService
-import app.naviamp.domain.cache.StoredAudioBytes
 import app.naviamp.domain.cache.StorageCacheStats
 import app.naviamp.domain.cache.TrackMetadataRepository
 import app.naviamp.domain.network.KtorSharedHttpClient
@@ -701,7 +698,10 @@ class DesktopCache(
         libraryIndex.libraryAlbumYears(sourceId)
 
     fun libraryOffsetForLetter(sourceId: String, tab: DesktopLibraryTab, letter: Char): Long {
-        return libraryIndex.libraryOffsetForLetter(sourceId, tab, letter)
+        return when (tab) {
+            DesktopLibraryTab.Artists -> libraryIndex.libraryArtistOffsetForLetter(sourceId, letter)
+            DesktopLibraryTab.Albums -> libraryIndex.libraryAlbumOffsetForLetter(sourceId, letter)
+        }
     }
 
     override fun updateTrack(updatedTrack: Track) {
@@ -820,36 +820,6 @@ object DesktopDownloadDirectories {
         return directory.toAbsolutePath().normalize()
     }
 }
-
-data class CachedAudioFile(
-    val path: Path,
-    val sizeBytes: Long,
-    val contentType: String?,
-)
-
-data class CachedAudioMetadata(
-    val path: Path,
-    val exists: Boolean,
-    val sizeBytes: Long,
-    val contentType: String?,
-    val createdAtEpochMillis: Long,
-    val lastAccessedEpochMillis: Long,
-)
-
-data class DownloadedAudioFile(
-    val path: Path,
-    val sizeBytes: Long,
-    val contentType: String?,
-)
-
-data class DownloadedTrack(
-    val track: Track,
-    val path: Path,
-    val sizeBytes: Long,
-    val contentType: String?,
-    val qualityKey: String,
-    val downloadedAtEpochMillis: Long,
-)
 
 private fun createDatabase(path: Path): NaviampStorageDatabase {
     val absolutePath = path.toAbsolutePath()
@@ -1204,68 +1174,6 @@ private fun StreamQuality.cacheKey(): String =
         StreamQuality.Original -> "original"
         is StreamQuality.Transcoded -> "transcoded:${codec.name.lowercase()}:$bitrateKbps"
     }
-
-private fun moveDownloadedAudio(temp: Path, target: Path) {
-    runCatching {
-        Files.move(temp, target, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE)
-    }.getOrElse {
-        Files.move(temp, target, StandardCopyOption.REPLACE_EXISTING)
-    }
-}
-
-private class DesktopAudioByteStore(
-    private val directory: Path,
-) : AudioByteStore {
-    override suspend fun writeAudioBytes(
-        fileName: String,
-        errorMessage: String,
-        writeBytes: suspend (AudioByteWriter) -> Boolean,
-    ): StoredAudioBytes {
-        Files.createDirectories(directory)
-        val target = directory.resolve(fileName)
-        val temp = directory.resolve("${target.fileName}.tmp")
-        return try {
-            Files.newOutputStream(temp).use { output ->
-                val writer = AudioByteWriter { bytes, count -> output.write(bytes, 0, count) }
-                if (!writeBytes(writer)) throw IllegalStateException(errorMessage)
-            }
-            moveDownloadedAudio(temp, target)
-            StoredAudioBytes(
-                filePath = target.toAbsolutePath().toString(),
-                sizeBytes = Files.size(target),
-            )
-        } catch (exception: Exception) {
-            Files.deleteIfExists(temp)
-            throw exception
-        }
-    }
-
-    override fun deleteAudioBytes(filePath: String) {
-        Files.deleteIfExists(Path.of(filePath))
-    }
-}
-
-private class DesktopMutableAudioByteStore(
-    initialDirectory: Path,
-) : AudioByteStore {
-    @Volatile
-    private var store = DesktopAudioByteStore(initialDirectory)
-
-    fun updateDirectory(directory: Path) {
-        store = DesktopAudioByteStore(directory)
-    }
-
-    override suspend fun writeAudioBytes(
-        fileName: String,
-        errorMessage: String,
-        writeBytes: suspend (AudioByteWriter) -> Boolean,
-    ): StoredAudioBytes =
-        store.writeAudioBytes(fileName, errorMessage, writeBytes)
-
-    override fun deleteAudioBytes(filePath: String) {
-        store.deleteAudioBytes(filePath)
-    }
-}
 
 private fun Path.sizeOrZero(): Long =
     runCatching {

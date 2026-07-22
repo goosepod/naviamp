@@ -23,7 +23,7 @@ class DesktopAudioWaveformStore(
         quality: StreamQuality,
         bucketCount: Int,
     ): AudioWaveform? =
-        withContext(DesktopWaveformWorkDispatcher) {
+        withContext(DesktopStorageWorkDispatcher) {
             val qualityKey = quality.waveformCacheKey()
             val row = queries.selectCachedAudioWaveform(
                 source_id = sourceId,
@@ -45,7 +45,7 @@ class DesktopAudioWaveformStore(
         audioFilePath: String?,
         waveform: AudioWaveform,
     ): AudioWaveform =
-        withContext(DesktopWaveformWorkDispatcher) {
+        withContext(DesktopStorageWorkDispatcher) {
             val qualityKey = quality.waveformCacheKey()
             val amplitudesJson = json.encodeToString(waveform.amplitudes)
             val now = nowMillis()
