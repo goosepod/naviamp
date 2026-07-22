@@ -6,7 +6,12 @@ import app.naviamp.domain.ArtistId
 import app.naviamp.domain.media.loadArtistPopularTracksUpdate
 import app.naviamp.domain.media.loadSimilarArtistsUpdate
 import app.naviamp.domain.popular.ArtistPopularTrackMatch
+import app.naviamp.domain.popular.ArtistPopularTracksService
+import app.naviamp.domain.popular.ProviderArtistPopularTracksClient
+import app.naviamp.domain.popular.ProviderSimilarArtistsClient
+import app.naviamp.domain.popular.SimilarArtistsService
 import app.naviamp.domain.popular.SimilarArtistMatch
+import app.naviamp.domain.cache.LocalLibraryIndexRepository
 import app.naviamp.ui.NaviampAlbumDetailScreenUi
 import app.naviamp.ui.NaviampArtistAlbumCommand
 import app.naviamp.ui.NaviampArtistDetailCommand
@@ -25,6 +30,44 @@ data class NaviampCoreArtistDiscoveryServices(
     val popularTracks: suspend (String, Artist, Int) -> List<ArtistPopularTrackMatch> = { _, _, _ -> emptyList() },
     val similarArtists: suspend (Artist, Int) -> List<SimilarArtistMatch> = { _, _ -> emptyList() },
 )
+
+/** Builds provider-backed discovery once for every host; platforms supply only durable storage. */
+fun providerArtistDiscoveryServices(
+    providerSource: NaviampCoreMediaProviderSource,
+    sourceId: () -> String?,
+    libraryIndex: LocalLibraryIndexRepository,
+    nowEpochMillis: () -> Long,
+): NaviampCoreArtistDiscoveryServices {
+    val popular = ArtistPopularTracksService(
+        repository = libraryIndex,
+        libraryTracksForArtist = { artist, limit ->
+            sourceId()?.let { activeSourceId ->
+                libraryIndex.libraryTracksForArtist(activeSourceId, artist.id, limit)
+            }.orEmpty()
+        },
+        client = ProviderArtistPopularTracksClient(
+            clientProvider = {
+                providerSource.current() as? app.naviamp.domain.popular.ArtistPopularTracksClient
+            },
+        ),
+        nowMillis = nowEpochMillis,
+    )
+    val similar = SimilarArtistsService(
+        libraryArtistsSearch = { query, limit ->
+            sourceId()?.let { activeSourceId ->
+                libraryIndex.searchLibrary(activeSourceId, query, limit, 0).artists
+            }.orEmpty()
+        },
+        client = ProviderSimilarArtistsClient {
+            providerSource.current() as? app.naviamp.domain.popular.SimilarArtistsClient
+        },
+    )
+    return NaviampCoreArtistDiscoveryServices(
+        sourceId = sourceId,
+        popularTracks = popular::popularTracks,
+        similarArtists = similar::similarArtists,
+    )
+}
 
 /** Owns album/artist selection, loading, enrichment, navigation, mapping, and stale-result policy. */
 class NaviampCoreMediaDetailController(

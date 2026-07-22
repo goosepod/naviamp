@@ -28,6 +28,9 @@ import app.naviamp.domain.settings.PlaybackSettings
 import app.naviamp.domain.settings.effectiveForEngine
 import app.naviamp.domain.settings.streamQualityForNetwork
 import app.naviamp.domain.waveform.AudioWaveformService
+import app.naviamp.ui.radioArtworkNeedsTrackLookup
+import app.naviamp.ui.radioTrackArtworkKey
+import app.naviamp.ui.radioTrackArtworkQuery
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
@@ -335,6 +338,18 @@ class NaviampCoreMutableNowPlayingSidecars : NaviampCoreNowPlayingSidecarPort {
     fun updateWaveform(waveform: app.naviamp.domain.waveform.AudioWaveform?) {
         state = state.copy(waveform = waveform)
     }
+
+    fun updateInternetRadioArtwork(
+        station: InternetRadioStation,
+        key: String,
+        artworkUrl: String?,
+    ) {
+        state = state.copy(
+            internetRadioStations = (state.internetRadioStations + station).distinctBy { it.id },
+            currentInternetRadioStationId = station.id,
+            radioTrackArtworkByKey = state.radioTrackArtworkByKey + (key to artworkUrl),
+        )
+    }
 }
 
 /** Core-owned provider sidecar loading; hosts supply repositories and native analyzers only. */
@@ -362,5 +377,24 @@ class NaviampCoreProviderNowPlayingSidecars(
             ).waveform
         }.getOrNull()
         if (generation == loadGeneration) delegate.updateWaveform(waveform)
+    }
+
+    override suspend fun loadInternetRadioArtwork(
+        station: InternetRadioStation,
+        metadata: PlaybackStreamMetadata,
+    ) {
+        if (!radioArtworkNeedsTrackLookup(station, metadata.title, metadata.properties)) return
+        val key = radioTrackArtworkKey(station, metadata.title) ?: return
+        if (delegate.snapshot().radioTrackArtworkByKey.containsKey(key)) return
+        val provider = providerSource.current() ?: return
+        val query = radioTrackArtworkQuery(metadata.title) ?: return
+        val artworkUrl = runCatching {
+            provider.search(query, limit = 5)
+                .tracks
+                .firstOrNull { it.coverArtId != null }
+                ?.coverArtId
+                ?.let(provider::coverArtUrl)
+        }.getOrNull()
+        delegate.updateInternetRadioArtwork(station, key, artworkUrl)
     }
 }

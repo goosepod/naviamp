@@ -1,6 +1,8 @@
 package app.naviamp.desktop
 
 import app.naviamp.domain.cache.MaximumPersistentArtworkCacheBytes
+import app.naviamp.domain.cache.AudioByteStoreService
+import app.naviamp.domain.network.KtorSharedHttpClient
 import app.naviamp.storage.StorageCredentialProtector
 import app.naviamp.storage.StorageAudioWaveformStore
 import app.naviamp.storage.StorageDatabaseDriverFactory
@@ -29,6 +31,7 @@ class DesktopStorageRepositories private constructor(
     val objectBytes: StorageObjectByteStore,
     val audioCacheBytes: DesktopMutableAudioByteStore,
     val downloadBytes: DesktopMutableAudioByteStore,
+    val audioStore: DesktopAudioStore,
     val audioWaveforms: StorageAudioWaveformStore,
     val lyricsSidecars: StorageLyricsSidecarStore,
     val lyricsOffsets: StorageLyricsOffsetStore,
@@ -67,6 +70,9 @@ class DesktopStorageRepositories private constructor(
             return try {
                 val queries = mediaSources.database.naviampStorageQueries
                 val hotImages = DesktopHotImageCache(maxHotImageBytes)
+                val audioCacheBytes = DesktopMutableAudioByteStore(audioCacheDirectory)
+                val downloadBytes = DesktopMutableAudioByteStore(downloadDirectory)
+                val httpClient = KtorSharedHttpClient()
                 DesktopStorageRepositories(
                     mediaSources = mediaSources,
                     providerResponses = StorageProviderResponseStore(queries),
@@ -76,8 +82,15 @@ class DesktopStorageRepositories private constructor(
                         maxImageBytes,
                         DesktopStorageWorkDispatcher,
                     ),
-                    audioCacheBytes = DesktopMutableAudioByteStore(audioCacheDirectory),
-                    downloadBytes = DesktopMutableAudioByteStore(downloadDirectory),
+                    audioCacheBytes = audioCacheBytes,
+                    downloadBytes = downloadBytes,
+                    audioStore = DesktopAudioStore(
+                        queries = queries,
+                        audioCacheByteStoreService = AudioByteStoreService(audioCacheBytes, httpClient),
+                        downloadAudioByteStoreService = AudioByteStoreService(downloadBytes, httpClient),
+                        nowMillis = nowEpochMillis,
+                        maxAudioCacheBytes = maxAudioBytes,
+                    ),
                     audioWaveforms = StorageAudioWaveformStore(
                         queries,
                         json,

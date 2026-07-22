@@ -286,6 +286,19 @@ class NaviampCore private constructor(
                 services.connection,
                 initialState.connectionInventory,
                 onConnected = { sourceId ->
+                    services.content.providerSource.current()?.capabilities?.let { providerCapabilities ->
+                        stateStore.updateShell { shell ->
+                            val capabilities = shell.capabilities.copy(
+                                sonicSimilarity = providerCapabilities.supportsSonicSimilarity,
+                            )
+                            shell.copy(
+                                capabilities = capabilities,
+                                playback = shell.playback.copy(
+                                    sonicSimilarityAvailable = capabilities.sonicSimilarity,
+                                ),
+                            )
+                        }
+                    }
                     scope.launch { playback.restoreSession(sourceId) }
                     scope.launch { home.refreshAfterConnection() }
                     scope.launch { catalog.refreshAfterConnection() }

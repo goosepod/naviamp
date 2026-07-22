@@ -123,6 +123,12 @@ class NaviampCorePlaybackController(
             override fun onMetadataChanged(metadata: PlaybackStreamMetadata) {
                 presenter.updateStreamMetadata(metadata)
                 presenter.publish(display)
+                playback.state.value.currentStation?.let { station ->
+                    scope.launch {
+                        sidecars.loadInternetRadioArtwork(station, metadata)
+                        presenter.publish(display)
+                    }
+                }
             }
 
             override fun onVisualizerFrameChanged(frame: PlaybackVisualizerFrame?) {

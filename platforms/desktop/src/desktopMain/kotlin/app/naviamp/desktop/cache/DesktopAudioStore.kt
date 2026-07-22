@@ -8,6 +8,8 @@ import app.naviamp.domain.StreamRequest
 import app.naviamp.domain.Track
 import app.naviamp.domain.TrackId
 import app.naviamp.domain.cache.AudioByteStoreService
+import app.naviamp.domain.cache.AudioCacheRepository
+import app.naviamp.domain.cache.DownloadRepository
 import app.naviamp.domain.cache.downloadContentType
 import app.naviamp.domain.cache.CachedAudioEvictionCandidate
 import app.naviamp.domain.cache.planAudioCacheEviction
@@ -25,13 +27,14 @@ class DesktopAudioStore(
     private val downloadAudioByteStoreService: AudioByteStoreService,
     private val nowMillis: () -> Long,
     private var maxAudioCacheBytes: Long,
-) {
-    fun updateAudioCacheLimit(maxBytes: Long) {
+) : AudioCacheRepository<CachedAudioFile, CachedAudioMetadata>,
+    DownloadRepository<DownloadedAudioFile, DownloadedTrack> {
+    override fun updateAudioCacheLimit(maxBytes: Long) {
         maxAudioCacheBytes = maxBytes.coerceAtLeast(0)
         trimAudioStore()
     }
 
-    fun cachedAudioMetadata(
+    override fun cachedAudioMetadata(
         sourceId: String,
         trackId: TrackId,
         quality: StreamQuality,
@@ -54,7 +57,7 @@ class DesktopAudioStore(
         )
     }
 
-    suspend fun cachedAudioFile(
+    override suspend fun cachedAudioFile(
         sourceId: String,
         trackId: TrackId,
         quality: StreamQuality,
@@ -81,7 +84,7 @@ class DesktopAudioStore(
             )
         }
 
-    suspend fun cachedAudioFile(
+    override suspend fun cachedAudioFile(
         sourceId: String,
         trackId: TrackId,
     ): CachedAudioFile? =
@@ -105,7 +108,7 @@ class DesktopAudioStore(
             )
         }
 
-    suspend fun cacheAudioTrack(
+    override suspend fun cacheAudioTrack(
         sourceId: String,
         provider: MediaProvider,
         track: Track,
@@ -145,7 +148,7 @@ class DesktopAudioStore(
             )
         }
 
-    suspend fun downloadedAudioFile(
+    override suspend fun downloadedAudioFile(
         sourceId: String,
         trackId: TrackId,
         quality: StreamQuality,
@@ -171,7 +174,7 @@ class DesktopAudioStore(
             )
         }
 
-    suspend fun downloadedAudioFile(
+    override suspend fun downloadedAudioFile(
         sourceId: String,
         trackId: TrackId,
     ): DownloadedAudioFile? =
@@ -193,7 +196,7 @@ class DesktopAudioStore(
             )
         }
 
-    suspend fun downloadAudioTrack(
+    override suspend fun downloadAudioTrack(
         sourceId: String,
         provider: MediaProvider,
         track: Track,
@@ -273,7 +276,7 @@ class DesktopAudioStore(
             )
         }
 
-    fun downloadedTracks(sourceId: String): List<DownloadedTrack> =
+    override fun downloadedTracks(sourceId: String): List<DownloadedTrack> =
         queries.selectDownloadedAudio(sourceId).executeAsList().map { row ->
             DownloadedTrack(
                 track = row.toTrack(),
@@ -285,7 +288,7 @@ class DesktopAudioStore(
             )
         }
 
-    fun removeDownloadedAudio(sourceId: String, trackId: TrackId, quality: StreamQuality) {
+    override fun removeDownloadedAudio(sourceId: String, trackId: TrackId, quality: StreamQuality) {
         val qualityKey = quality.cacheKey()
         queries.selectDownloadedAudioFile(
             source_id = sourceId,
@@ -297,7 +300,7 @@ class DesktopAudioStore(
         queries.deleteDownloadedAudio(sourceId, trackId.value, qualityKey)
     }
 
-    fun removeDownloadedAudio(sourceId: String, trackId: TrackId) {
+    override fun removeDownloadedAudio(sourceId: String, trackId: TrackId) {
         queries.selectDownloadedAudio(sourceId)
             .executeAsList()
             .filter { row -> row.remote_track_id == trackId.value }

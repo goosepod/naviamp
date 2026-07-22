@@ -75,6 +75,10 @@ interface NaviampCoreNowPlayingSidecarPort {
     suspend fun loadLyrics(track: Track)
     suspend fun changeLyricsOffset(track: Track, offsetMillis: Int)
     fun updateStreamMetadata(metadata: PlaybackStreamMetadata) = Unit
+    suspend fun loadInternetRadioArtwork(
+        station: InternetRadioStation,
+        metadata: PlaybackStreamMetadata,
+    ) = Unit
     fun updateVisualizerFrame(frame: PlaybackVisualizerFrame?) = Unit
 }
 

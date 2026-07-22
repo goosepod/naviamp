@@ -16,7 +16,9 @@ import app.naviamp.domain.provider.MediaProvider
 import app.naviamp.domain.provider.MediaSearchResults
 import app.naviamp.domain.provider.ProviderCapabilities
 
-internal class FakeCoreMediaProvider : MediaProvider {
+internal class FakeCoreMediaProvider(
+    supportsSonicSimilarity: Boolean = false,
+) : MediaProvider {
     val artist = Artist(ArtistId("core-artist"), "Core Artist")
     val album = Album(
         id = AlbumId("core-album"),
@@ -53,6 +55,7 @@ internal class FakeCoreMediaProvider : MediaProvider {
         supportsArtistRadio = false,
         supportsAlbumRadio = false,
         supportsTrackRadio = false,
+        supportsSonicSimilarity = supportsSonicSimilarity,
     )
 
     override suspend fun validateConnection() = ConnectionValidation(null, null)

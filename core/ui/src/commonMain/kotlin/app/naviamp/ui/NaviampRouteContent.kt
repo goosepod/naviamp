@@ -613,6 +613,13 @@ fun NaviampLibraryContent(
                     },
                 )
             }
+            if (query.isBlank() && items.isNotEmpty()) {
+                item(key = "library-load-more") {
+                    androidx.compose.runtime.LaunchedEffect(items.size) {
+                        if (!syncStatus.isSyncing) actions.onLoadMore()
+                    }
+                }
+            }
         }
         if (query.isBlank()) {
             Column(

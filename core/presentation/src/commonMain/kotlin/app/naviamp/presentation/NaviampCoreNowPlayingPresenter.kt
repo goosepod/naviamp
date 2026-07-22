@@ -78,8 +78,9 @@ class NaviampCoreNowPlayingPresenter(
             visualizerVisible = display.visualizerVisible && effects.capabilities.supportsVisualizer,
             coverArtUrl = track?.let(coverArtForTrack),
             playbackQueue = live.queue,
-            internetRadioStations = sidecar.internetRadioStations,
-            currentInternetRadioStationId = sidecar.currentInternetRadioStationId,
+            internetRadioStations = (sidecar.internetRadioStations + listOfNotNull(live.currentStation))
+                .distinctBy { it.id },
+            currentInternetRadioStationId = live.currentStation?.id ?: sidecar.currentInternetRadioStationId,
             radioTrackArtworkByKey = sidecar.radioTrackArtworkByKey,
             relatedTracks = sidecar.relatedTracks,
             relatedTracksSource = sidecar.relatedTracksSource,

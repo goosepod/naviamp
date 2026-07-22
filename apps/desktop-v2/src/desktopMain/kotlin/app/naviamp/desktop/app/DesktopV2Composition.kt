@@ -20,6 +20,7 @@ import app.naviamp.presentation.NaviampCoreVisualizerSettingsPort
 import app.naviamp.presentation.naviampCoreServiceDefaults
 import app.naviamp.presentation.unavailableNaviampCoreSettingsSyncServices
 import app.naviamp.presentation.toShellCapabilitiesUi
+import app.naviamp.presentation.providerArtistDiscoveryServices
 import app.naviamp.storage.StorageDatabaseLocation
 import app.naviamp.provider.navidrome.NavidromeProvider
 import app.naviamp.ui.jvmGeneratedCoverArtBytes
@@ -27,10 +28,11 @@ import app.naviamp.ui.resetJvmPlatformCoverArtByteLoader
 import app.naviamp.ui.setJvmPlatformCoverArtByteLoader
 import app.naviamp.ui.naviampVisualizerFromName
 import app.naviamp.domain.settings.VisualizerSettings
-import app.naviamp.domain.playback.emptyPlaybackAudioAssetRepository
 import app.naviamp.domain.waveform.AudioWaveformService
 import app.naviamp.app.NaviampPlaybackSessionController
 import app.naviamp.desktop.DesktopAudioWaveformAnalyzer
+import app.naviamp.desktop.DesktopPlaybackAudioAssets
+import app.naviamp.desktop.toPlaybackLocalAudio
 import app.naviamp.desktop.settings.DesktopCoreSettingsStore
 import app.naviamp.desktop.settings.defaultDesktopCoreSettingsPath
 import kotlinx.coroutines.CoroutineScope
@@ -111,12 +113,20 @@ internal class DesktopV2Composition private constructor(
             )
             val waveformService = AudioWaveformService(
                 waveformRepository = storage.audioWaveforms,
-                audioAssets = emptyPlaybackAudioAssetRepository(),
+                audioAssets = DesktopPlaybackAudioAssets(
+                    downloadRepository = storage.audioStore,
+                    audioCacheRepository = storage.audioStore,
+                ),
                 analyzer = DesktopAudioWaveformAnalyzer(),
                 waveformsEnabled = { activeCacheSettings.waveformsEnabled },
                 waveformBucketCount = { activeCacheSettings.waveformBucketCount },
-                cacheAudioBeforeAnalysis = { false },
+                cacheAudioBeforeAnalysis = { true },
                 workContext = Dispatchers.IO,
+                cacheAudioForWaveform = { sourceId, provider, track, quality ->
+                    storage.audioStore.cacheAudioTrack(sourceId, provider, track, quality)
+                        .path
+                        .toPlaybackLocalAudio()
+                },
             )
             val playback = NaviampCorePlaybackServices(
                 effects = playbackEffects,
@@ -154,6 +164,14 @@ internal class DesktopV2Composition private constructor(
                 favoritedAtIso8601 = { Instant.now().toString() },
             )
             val services = serviceDefaults.copy(
+                content = serviceDefaults.content.copy(
+                    artistDiscovery = providerArtistDiscoveryServices(
+                        providerSource = sessions.providerSource,
+                        sourceId = { storage.mediaSources.latestMediaSource()?.id },
+                        libraryIndex = storage.libraryIndex,
+                        nowEpochMillis = nowEpochMillis,
+                    ),
+                ),
                 settings = serviceDefaults.settings.copy(
                     interfaceSettings = NaviampCoreInterfaceSettingsStore(settingsStore::saveInterfaceSettings),
                     cacheSettings = NaviampCoreCacheSettingsPort { requested ->

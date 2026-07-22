@@ -160,7 +160,20 @@ private fun NaviampNowPlayingContentInput.toNowPlayingUi(
     radioStations: List<NaviampNowPlayingItemUi>,
 ): NowPlayingUi {
     val isLiveStream = currentInternetRadioStationId != null
-    return nowPlayingTrack?.toTrackNowPlayingUi(
+    return internetRadioStations.firstOrNull { it.id == currentInternetRadioStationId }?.let { station ->
+        station.toRadioNowPlayingUi(
+            streamMetadata = nowPlayingStreamMetadata,
+            playbackState = playbackState,
+            volumePercent = volumePercent,
+            radioStations = internetRadioStations,
+            radioTrackArtworkByKey = radioTrackArtworkByKey,
+            canPlayPause = capabilities.canPlayPause,
+            canChangeVolume = capabilities.canChangeVolume,
+        ).copy(
+            radioDjs = radioDjs,
+            activeRadioDjId = activeRadioDjId,
+        )
+    } ?: nowPlayingTrack?.toTrackNowPlayingUi(
         stateLabel = stateLabel,
         coverArtUrl = coverArtUrl,
         playbackProgress = playbackProgress,
@@ -197,20 +210,7 @@ private fun NaviampNowPlayingContentInput.toNowPlayingUi(
         radioStations = radioStations,
         radioDjs = radioDjs,
         activeRadioDjId = activeRadioDjId,
-    ) ?: internetRadioStations.firstOrNull { it.id == currentInternetRadioStationId }?.let { station ->
-        station.toRadioNowPlayingUi(
-            streamMetadata = nowPlayingStreamMetadata,
-            playbackState = playbackState,
-            volumePercent = volumePercent,
-            radioStations = internetRadioStations,
-            radioTrackArtworkByKey = radioTrackArtworkByKey,
-            canPlayPause = capabilities.canPlayPause,
-            canChangeVolume = capabilities.canChangeVolume,
-        ).copy(
-            radioDjs = radioDjs,
-            activeRadioDjId = activeRadioDjId,
-        )
-    } ?: NowPlayingUi(
+    ) ?: NowPlayingUi(
         title = "Queue will appear here after connection",
         subtitle = if (isLiveStream) "Internet radio" else "Nothing Playing",
         stateLabel = stateLabel,

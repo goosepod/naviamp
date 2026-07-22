@@ -46,7 +46,7 @@ class NaviampNowPlayingPresentationTest {
         val station = InternetRadioStation("radio", "Station", "https://example.test/radio")
 
         val presentation = input(
-            track = null,
+            track = app.naviamp.domain.radio.internetRadioTrack(station),
             stations = listOf(station),
             currentStationId = station.id,
             streamMetadata = PlaybackStreamMetadata(title = "Live Track"),
