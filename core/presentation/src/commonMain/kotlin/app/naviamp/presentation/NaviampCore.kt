@@ -316,6 +316,7 @@ class NaviampCore private constructor(
                 onAsyncFailure = onAsyncFailure,
             )
             nowPlayingPresenter.publish()
+            scope.launch { connection.restoreInitialConnection() }
             return NaviampCore(
                 stateStore = stateStore,
                 actions = createNaviampCoreActions(router, actionAvailability),

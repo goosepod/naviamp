@@ -60,6 +60,28 @@ class NaviampCoreConnectionControllerTest {
     }
 
     @Test
+    fun startupRestoresThePreferredSavedConnectionInCore() = kotlinx.coroutines.test.runTest {
+        val fixture = fixture(currentSourceId = null)
+
+        fixture.controller.restoreInitialConnection()
+
+        val (request, plan) = fixture.port.connectRequests.single()
+        assertEquals(NaviampCoreConnectionRequest.Saved("source-1"), request)
+        assertTrue(plan.restoreSavedSession)
+        assertTrue(fixture.store.state.value.shell.connectionSettings.connection.connected)
+    }
+
+    @Test
+    fun startupDoesNothingWithoutASavedConnection() = kotlinx.coroutines.test.runTest {
+        val fixture = fixture(hasSavedConnection = false)
+
+        fixture.controller.restoreInitialConnection()
+
+        assertTrue(fixture.port.connectRequests.isEmpty())
+        assertFalse(fixture.store.state.value.shell.connectionSettings.connection.connected)
+    }
+
+    @Test
     fun failuresBecomeCommonConnectionStateInsteadOfHostMessages() = kotlinx.coroutines.test.runTest {
         val fixture = fixture(connectFailure = IllegalStateException("Server unavailable"))
         fixture.controller.dispatch(
@@ -136,9 +158,14 @@ class NaviampCoreConnectionControllerTest {
         connectFailure: Throwable? = null,
         musicFoldersLoadFailed: Boolean = false,
         onConnected: () -> Unit = {},
+        currentSourceId: String? = "source-1",
+        hasSavedConnection: Boolean = true,
     ): ConnectionFixture {
         val record = savedRecord()
-        val inventory = NaviampCoreConnectionInventory(listOf(record), currentSourceId = record.id)
+        val inventory = NaviampCoreConnectionInventory(
+            connections = listOfNotNull(record.takeIf { hasSavedConnection }),
+            currentSourceId = currentSourceId?.takeIf { hasSavedConnection },
+        )
         val port = FakeProviderSessionPort(inventory, connectFailure, musicFoldersLoadFailed)
         val store = NaviampCoreStateStore()
         return ConnectionFixture(

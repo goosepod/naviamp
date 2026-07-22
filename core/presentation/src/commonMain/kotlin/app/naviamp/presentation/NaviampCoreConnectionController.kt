@@ -66,6 +66,16 @@ class NaviampCoreConnectionController(
         publishConnection()
     }
 
+    /** Restores the most recently used saved source without requiring host startup policy. */
+    suspend fun restoreInitialConnection() {
+        if (connection.state.value.connected || connection.state.value.isConnecting) return
+        val saved = inventory.currentSourceId
+            ?.let { currentId -> inventory.connections.firstOrNull { it.id == currentId } }
+            ?: inventory.connections.firstOrNull()
+            ?: return
+        connect(NaviampCoreConnectionRequest.Saved(saved.id))
+    }
+
     override fun dispatch(command: NaviampCoreCommand): NaviampCoreImmediateCommandResult {
         val connectionCommand = command as? NaviampCoreCommand.Connection
             ?: return NaviampCoreImmediateCommandResult.Unhandled
