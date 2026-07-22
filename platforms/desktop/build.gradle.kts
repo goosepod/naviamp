@@ -18,11 +18,13 @@ kotlin {
                 api(project(":core:domain"))
                 api(project(":core:presentation"))
                 api(project(":core:storage"))
+                api(project(":providers:navidrome"))
             }
         }
         val desktopTest by getting {
             dependencies {
                 implementation(libs.kotlin.test)
+                implementation(libs.kotlinx.coroutines.test)
             }
         }
     }

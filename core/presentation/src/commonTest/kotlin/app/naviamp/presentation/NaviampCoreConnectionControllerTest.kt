@@ -13,7 +13,7 @@ class NaviampCoreConnectionControllerTest {
     @Test
     fun formAndEditingStateAreOwnedImmediatelyByCore() {
         val fixture = fixture()
-        val form = ConnectionFormState(serverUrl = "https://music.example", username = "demo")
+        val form = ConnectionFormState(serverUrl = "https://music.example", username = "demo", password = "secret")
 
         fixture.controller.dispatch(NaviampCoreCommand.Connection.ChangeForm(form))
         fixture.controller.dispatch(NaviampCoreCommand.Connection.New)
@@ -26,7 +26,7 @@ class NaviampCoreConnectionControllerTest {
     @Test
     fun successfulConnectionUsesSharedAttemptPolicyAndPublishesOneSnapshot() = kotlinx.coroutines.test.runTest {
         val fixture = fixture()
-        val form = ConnectionFormState(serverUrl = "https://music.example", username = "demo")
+        val form = ConnectionFormState(serverUrl = "https://music.example", username = "demo", password = "secret")
         fixture.controller.dispatch(NaviampCoreCommand.Connection.ChangeForm(form))
 
         fixture.controller.execute(NaviampCoreCommand.Connection.Connect)
@@ -60,6 +60,11 @@ class NaviampCoreConnectionControllerTest {
     @Test
     fun failuresBecomeCommonConnectionStateInsteadOfHostMessages() = kotlinx.coroutines.test.runTest {
         val fixture = fixture(connectFailure = IllegalStateException("Server unavailable"))
+        fixture.controller.dispatch(
+            NaviampCoreCommand.Connection.ChangeForm(
+                ConnectionFormState(serverUrl = "https://music.example", username = "demo", password = "secret"),
+            ),
+        )
 
         fixture.controller.execute(NaviampCoreCommand.Connection.Connect)
 
@@ -68,6 +73,32 @@ class NaviampCoreConnectionControllerTest {
         assertFalse(state.isConnecting)
         assertEquals("Server unavailable", state.status)
     }
+
+    @Test
+    fun validatesNewConnectionsBeforeInvokingAHostAndRetainsEditIdentityForCredentialReuse() =
+        kotlinx.coroutines.test.runTest {
+            val fixture = fixture()
+
+            fixture.controller.execute(NaviampCoreCommand.Connection.Connect)
+
+            assertTrue(fixture.port.connectRequests.isEmpty())
+            assertEquals(
+                "Enter a server URL and username.",
+                fixture.store.state.value.shell.connectionSettings.connection.status,
+            )
+
+            val saved = savedConnectionUi()
+            fixture.controller.execute(NaviampCoreCommand.Connection.Edit(saved))
+            fixture.controller.execute(NaviampCoreCommand.Connection.Connect)
+
+            assertEquals(
+                NaviampCoreConnectionRequest.Form(
+                    ConnectionFormState(serverUrl = "https://edited.example", username = "demo"),
+                    savedConnectionId = "source-1",
+                ),
+                fixture.port.connectRequests.single().first,
+            )
+        }
 
     @Test
     fun editAndDeleteFlowsAreCoreTransactions() = kotlinx.coroutines.test.runTest {

@@ -6,6 +6,7 @@ import app.naviamp.presentation.NaviampCore
 import app.naviamp.presentation.NaviampCoreActionAvailability
 import app.naviamp.presentation.NaviampCoreApp
 import app.naviamp.presentation.NaviampCoreCommand
+import app.naviamp.presentation.NaviampCoreExternalUriPort
 import app.naviamp.presentation.NaviampCoreInitialState
 import app.naviamp.presentation.NaviampCoreServices
 import app.naviamp.presentation.rememberNaviampCore
@@ -28,6 +29,29 @@ internal data class DesktopNaviampCoreEnvironment(
     val onAsyncFailure: (NaviampCoreCommand, Throwable) -> Unit = { command, cause ->
         throw IllegalStateException("Desktop Core command failed: $command", cause)
     },
+)
+
+/**
+ * Installs the real Desktop connection boundary while later native service families are migrated.
+ * The supplied catalog remains complete, but its provider source and connection effect are always
+ * replaced together so Core cannot observe a session that differs from its browsing provider.
+ */
+internal fun desktopNaviampCoreEnvironment(
+    services: NaviampCoreServices,
+    providerSessions: DesktopCoreProviderSessionPort,
+    externalUri: NaviampCoreExternalUriPort = DesktopExternalUriPort(),
+    initialState: NaviampCoreInitialState = NaviampCoreInitialState(),
+    applicationUpdateChecker: NaviampApplicationUpdateChecker? = null,
+): DesktopNaviampCoreEnvironment = DesktopNaviampCoreEnvironment(
+    services = services.copy(
+        content = services.content.copy(
+            providerSource = providerSessions.providerSource,
+            externalUri = externalUri,
+        ),
+        connection = providerSessions,
+    ),
+    initialState = initialState.copy(connectionInventory = providerSessions.initialInventory()),
+    applicationUpdateChecker = applicationUpdateChecker,
 )
 
 internal fun createDesktopNaviampCore(

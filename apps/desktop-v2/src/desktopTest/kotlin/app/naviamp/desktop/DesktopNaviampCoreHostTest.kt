@@ -2,6 +2,9 @@ package app.naviamp.desktop
 
 import app.naviamp.domain.app.NaviampNavigationState
 import app.naviamp.domain.app.NaviampRoute
+import app.naviamp.domain.cache.MediaSourceRepository
+import app.naviamp.domain.source.SavedMediaSource
+import app.naviamp.presentation.NaviampCoreCommand
 import app.naviamp.presentation.NaviampCoreInitialState
 import app.naviamp.testkit.naviampCoreTestServices
 import app.naviamp.ui.SharedRoute
@@ -30,5 +33,58 @@ class DesktopNaviampCoreHostTest {
         assertNotNull(core.actions.settingsSync.onChooseFolder)
         assertNotNull(core.actions.settingsSync.onImportFolder)
         assertNotNull(core.actions.settingsSync.onExportFolder)
+    }
+
+    @Test
+    fun replacementEnvironmentInstallsOneRealConnectionAndContentBoundary() = runTest {
+        val providerSessions = DesktopCoreProviderSessionPort(
+            mediaSources = HostTestMediaSourceRepository(hostSavedSource()),
+            sessionOpener = DesktopNavidromeSessionOpener { _, _ -> error("Network is not used by this test") },
+            musicFolders = { emptyList() },
+        )
+        val environment = desktopNaviampCoreEnvironment(
+            services = naviampCoreTestServices(),
+            providerSessions = providerSessions,
+            externalUri = app.naviamp.presentation.NaviampCoreExternalUriPort {},
+        )
+        val core = createDesktopNaviampCore(this, environment)
+
+        core.execute(
+            NaviampCoreCommand.Connection.Edit(
+                core.state.value.shell.connectionSettings.connection.savedConnections.single(),
+            ),
+        )
+
+        assertEquals(
+            "https://music.example",
+            core.state.value.shell.connectionSettings.connection.form.serverUrl,
+        )
+        assertEquals("source-1", environment.initialState.connectionInventory.connections.single().id)
+    }
+}
+
+private fun hostSavedSource() = SavedMediaSource(
+    id = "source-1",
+    providerId = "navidrome",
+    cacheNamespace = "navidrome:demo",
+    displayName = "Home Music",
+    baseUrl = "https://music.example",
+    username = "demo",
+    token = "token",
+    salt = "salt",
+    createdAtEpochMillis = 1L,
+    lastConnectedAtEpochMillis = 2L,
+    lastSyncStartedAtEpochMillis = null,
+    lastSyncCompletedAtEpochMillis = null,
+)
+
+private class HostTestMediaSourceRepository(source: SavedMediaSource) : MediaSourceRepository {
+    private val sources = mutableMapOf(source.id to source)
+
+    override fun latestMediaSource() = sources.values.firstOrNull()
+    override fun mediaSources() = sources.values.toList()
+    override fun mediaSource(sourceId: String) = sources[sourceId]
+    override fun deleteMediaSource(sourceId: String) {
+        sources.remove(sourceId)
     }
 }

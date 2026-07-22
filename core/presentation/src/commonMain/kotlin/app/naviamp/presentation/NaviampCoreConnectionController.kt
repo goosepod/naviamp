@@ -4,6 +4,7 @@ import app.naviamp.app.NaviampConnectionController
 import app.naviamp.app.NaviampConnectionAttemptPlan
 import app.naviamp.domain.settings.ConnectionFormMusicFolder
 import app.naviamp.domain.settings.ConnectionFormState
+import app.naviamp.domain.settings.connectionFormError
 import app.naviamp.domain.settings.selectedMusicFolderSummary
 import app.naviamp.ui.NaviampSavedConnectionUi
 
@@ -26,7 +27,10 @@ data class NaviampCoreEditableConnection(
 )
 
 sealed interface NaviampCoreConnectionRequest {
-    data class Form(val form: ConnectionFormState) : NaviampCoreConnectionRequest
+    data class Form(
+        val form: ConnectionFormState,
+        val savedConnectionId: String? = null,
+    ) : NaviampCoreConnectionRequest
     data class Saved(val id: String) : NaviampCoreConnectionRequest
 }
 
@@ -54,6 +58,7 @@ class NaviampCoreConnectionController(
     initialInventory: NaviampCoreConnectionInventory = NaviampCoreConnectionInventory(),
 ) : NaviampCoreCommandController {
     private var inventory = initialInventory
+    private var editingConnectionId: String? = null
 
     init {
         publishConnection()
@@ -81,6 +86,7 @@ class NaviampCoreConnectionController(
             NaviampCoreCommand.Connection.Connect -> connect(
                 NaviampCoreConnectionRequest.Form(
                     stateStore.state.value.shell.connectionSettings.connection.form,
+                    editingConnectionId,
                 ),
             )
             is NaviampCoreCommand.Connection.ConnectSaved ->
@@ -97,12 +103,23 @@ class NaviampCoreConnectionController(
     }
 
     private suspend fun connect(request: NaviampCoreConnectionRequest) {
+        if (request is NaviampCoreConnectionRequest.Form) {
+            connectionFormError(
+                form = request.form,
+                hasSavedConnectionForLogin = request.savedConnectionId != null,
+            )?.let { error ->
+                connection.failed(error)
+                publishConnection()
+                return
+            }
+        }
         val plan = connection.begin(restoreSavedSession = request is NaviampCoreConnectionRequest.Saved)
             ?: return
         publishConnection()
         runCatching { sessionPort.connect(request, plan) }
             .onSuccess { session ->
                 inventory = session.inventory
+                editingConnectionId = null
                 connection.connected(
                     sourceId = session.sourceId,
                     serverVersion = session.serverVersion,
@@ -126,6 +143,7 @@ class NaviampCoreConnectionController(
     private suspend fun edit(id: String) {
         runCatching { sessionPort.editableConnection(id) }
             .onSuccess { editable ->
+                editingConnectionId = id
                 stateStore.updateShell { shell ->
                     shell.copy(
                         connectionSettings = shell.connectionSettings.copy(
@@ -167,6 +185,7 @@ class NaviampCoreConnectionController(
     }
 
     private fun openNewForm() {
+        editingConnectionId = null
         stateStore.updateShell { shell ->
             shell.copy(
                 connectionSettings = shell.connectionSettings.copy(
@@ -182,6 +201,7 @@ class NaviampCoreConnectionController(
     }
 
     private fun setEditing(editing: Boolean) {
+        if (!editing) editingConnectionId = null
         stateStore.updateShell { shell ->
             shell.copy(
                 connectionSettings = shell.connectionSettings.copy(
