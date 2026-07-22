@@ -47,6 +47,7 @@ import app.naviamp.domain.bass.releaseBassStream
 import app.naviamp.domain.bass.releaseBassStreams
 import app.naviamp.domain.bass.seekBassPlaybackSource
 import app.naviamp.domain.bass.setEndSync
+import app.naviamp.domain.bass.setBassPlaybackMuted
 import app.naviamp.domain.bass.stopAndReleaseBassPlayback
 import app.naviamp.domain.playback.bassPlaybackFeatureSupport
 import app.naviamp.domain.playback.BassPlaybackPollingState
@@ -79,14 +80,14 @@ import kotlinx.coroutines.launch
 open class CoreBassPlaybackEngine(
     private val backendResult: Result<BassAudioBackend>,
     private val runtime: BassPlaybackEngineRuntime,
-    private val startPolicy: BassPlaybackStartPolicy = BassPlaybackStartPolicy.DesktopEngine,
-    private val pollingPolicy: BassPlaybackPollingPolicy = BassPlaybackPollingPolicy.DesktopEngine,
 ) : QueueAwarePlaybackEngine,
     BassPlaybackEngine,
     AudioOutputDevicePlaybackEngine,
     PlaybackEngineDiagnostics {
     private val backend: BassAudioBackend? = backendResult.getOrNull()
     private val loadError: Throwable? = backendResult.exceptionOrNull()
+    private val startPolicy: BassPlaybackStartPolicy = BassPlaybackStartPolicy.CoreEngine
+    private val pollingPolicy: BassPlaybackPollingPolicy = BassPlaybackPollingPolicy.CoreEngine
     private var sampleRateConverter = SampleRateConverter.Sinc16
     private var sampleRateMatching = SampleRateMatching.Disabled
 
@@ -109,7 +110,7 @@ open class CoreBassPlaybackEngine(
         sampleRateMatching = mode
     }
 
-    override val supportsAudioOutputDeviceSelection: Boolean = backend != null
+    override val supportsAudioOutputDeviceSelection: Boolean = backend?.supportsOutputDeviceSelection == true
     override val supportsVisualizer: Boolean = true
     override val supportsSoftwareVolume: Boolean = true
     override val prefersOriginalStream: Boolean = true
@@ -138,9 +139,11 @@ open class CoreBassPlaybackEngine(
     private var currentReplayGainAdjustment: PlaybackReplayGainAdjustment = PlaybackReplayGainAdjustment.off()
     private var equalizerSettings: EqualizerSettings = EqualizerSettings()
     private var selectedOutputDeviceId: String? = null
+    private var transientOutputVolumeFactor: Float = 1f
+    private var verifyNetworkCertificates: Boolean = true
     private var currentVisualizerFrame: PlaybackVisualizerFrame? = null
 
-    override fun play(
+    override open fun play(
         scope: CoroutineScope,
         request: PlaybackRequest,
         onStateChanged: (PlaybackState) -> Unit,
@@ -214,11 +217,23 @@ open class CoreBassPlaybackEngine(
                             request = activeRequest,
                             policy = startPolicy,
                         )
-                        if (startPlan.shouldSeekBeforePlay) {
-                            startPlan.startSeekSeconds?.let { seekCurrentSource(bass, it) }
+                        val seekedBeforePlay = if (startPlan.shouldSeekBeforePlay) {
+                            startPlan.startSeekSeconds
+                                ?.let { seekCurrentSource(bass, it).isSuccess }
+                                ?: false
+                        } else {
+                            false
                         }
+                        val prePlayPlan = planBassPlaybackPrePlay(startPlan, seekedBeforePlay)
+                        if (prePlayPlan.shouldMuteBeforePlay) setPlaybackMuted(bass, true)
                         bass.play(playbackHandle)
                             .getOrThrow()
+                        if (prePlayPlan.shouldRetrySeekAfterPlay) {
+                            val position = requireNotNull(startPlan.startSeekSeconds)
+                            val seekedAfterPlay = retryStartSeek(bass, playbackHandle, currentPlaybackId, position)
+                            setPlaybackMuted(bass, false)
+                            check(seekedAfterPlay) { "BASS start seek did not apply seconds=$position" }
+                        }
                         onStateChanged(PlaybackState.Playing)
 
                         var pollingState = BassPlaybackPollingState()
@@ -291,7 +306,7 @@ open class CoreBassPlaybackEngine(
         }
     }
 
-    override fun pause() {
+    override open fun pause() {
         val handle = stream
         val bass = backend ?: return
         if (handle != 0) {
@@ -301,7 +316,7 @@ open class CoreBassPlaybackEngine(
         }
     }
 
-    override fun resume() {
+    override open fun resume() {
         val handle = stream
         val bass = backend ?: return
         if (handle != 0) {
@@ -341,7 +356,7 @@ open class CoreBassPlaybackEngine(
         }
     }
 
-    override fun stop() {
+    override open fun stop() {
         freePreparedStream()
         stopActiveStream()
         execution.publishProgress(PlaybackProgress.Unknown)
@@ -351,7 +366,7 @@ open class CoreBassPlaybackEngine(
         lastProgress = PlaybackProgress.Unknown
     }
 
-    override fun release() {
+    override open fun release() {
         if (released) return
         stop()
         backend?.free()
@@ -569,9 +584,10 @@ open class CoreBassPlaybackEngine(
                 activeOutputSampleRateHz = targetSampleRateHz
             }
             initialized = true
-        } else {
+        } else if (bass.supportsOutputDeviceSelection || selectedOutputDeviceId != null) {
             bass.setOutputDevice(selectedOutputDeviceId).getOrThrow()
         }
+        bass.setVerifyNet(verifyNetworkCertificates).getOrThrow()
         bass.setSampleRateConverterQuality(sampleRateConverter.bassQuality).getOrThrow()
         if (!internetStreamsConfigured) {
             bass.configureInternetStreams().getOrThrow()
@@ -730,7 +746,18 @@ open class CoreBassPlaybackEngine(
     }
 
     private fun outputVolumeFactor(): Float =
-        playbackUserVolumeFactor(volumePercent)
+        playbackUserVolumeFactor(volumePercent, transientOutputVolumeFactor)
+
+    protected fun setTransientOutputVolumeFactor(factor: Float) {
+        transientOutputVolumeFactor = factor.coerceIn(0f, 1f)
+        backend?.let(::applyOutputVolume)
+    }
+
+    protected fun setNetworkCertificateVerification(enabled: Boolean) {
+        verifyNetworkCertificates = enabled
+        backend?.setVerifyNet(enabled)
+            ?.onFailure { lastError = it.message }
+    }
 
     private fun visualizerFrameFor(
         bass: BassAudioBackend,
@@ -744,9 +771,32 @@ open class CoreBassPlaybackEngine(
             .onFailure { lastError = it.message }
             .getOrNull()
 
-    private fun seekCurrentSource(bass: BassAudioBackend, seconds: Double) {
+    private fun seekCurrentSource(bass: BassAudioBackend, seconds: Double): Result<Unit> =
         bass.seekBassPlaybackSource(stream, currentSourceStream, seconds)
             .onFailure { lastError = it.message }
+
+    private fun setPlaybackMuted(bass: BassAudioBackend, muted: Boolean) {
+        bass.setBassPlaybackMuted(
+            outputStream = stream,
+            sourceStream = currentSourceStream,
+            muted = muted,
+            userVolumeFactor = outputVolumeFactor(),
+            replayGainFactor = currentReplayGainAdjustment.volumeFactor,
+        ).forEach { result -> result.onFailure { lastError = it.message } }
+    }
+
+    private suspend fun retryStartSeek(
+        bass: BassAudioBackend,
+        playbackHandle: Int,
+        currentPlaybackId: Int,
+        positionSeconds: Double,
+    ): Boolean {
+        repeat(DefaultStartSeekRetryCount) {
+            if (stream != playbackHandle || !execution.isCurrent(currentPlaybackId)) return false
+            delay(DefaultStartSeekRetryDelayMillis)
+            if (seekCurrentSource(bass, positionSeconds).isSuccess) return true
+        }
+        return false
     }
 
     private fun restartCurrentPlaybackAfterResumeFailure(bass: BassAudioBackend) {
@@ -855,3 +905,6 @@ private fun Double.formatPeak(): String =
 
 private fun EqualizerSettings.bandsForBackend(): List<Float> =
     if (enabled) bandsDb else emptyList()
+
+private const val DefaultStartSeekRetryCount = 80
+private const val DefaultStartSeekRetryDelayMillis = 100L

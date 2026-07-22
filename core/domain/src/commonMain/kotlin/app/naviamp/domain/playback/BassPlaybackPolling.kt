@@ -15,6 +15,14 @@ data class BassPlaybackPollingPolicy(
     val finishWhenPollingStops: Boolean,
 ) {
     companion object {
+        val CoreEngine: BassPlaybackPollingPolicy =
+            BassPlaybackPollingPolicy(
+                pollIntervalMillis = DefaultBassPollingIntervalMillis,
+                emitDuplicateProgress = false,
+                finishOnSourceEnd = true,
+                finishWhenPollingStops = true,
+            )
+
         val AndroidService: BassPlaybackPollingPolicy =
             BassPlaybackPollingPolicy(
                 pollIntervalMillis = DefaultAndroidBassPollingIntervalMillis,

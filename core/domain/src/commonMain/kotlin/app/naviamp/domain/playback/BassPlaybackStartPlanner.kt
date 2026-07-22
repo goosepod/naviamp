@@ -6,6 +6,13 @@ data class BassPlaybackStartPolicy(
     val muteBeforePlayWhenRetryingSeek: Boolean,
 ) {
     companion object {
+        val CoreEngine: BassPlaybackStartPolicy =
+            BassPlaybackStartPolicy(
+                seekBeforePlay = true,
+                retrySeekAfterPlayWhenInitialSeekFails = true,
+                muteBeforePlayWhenRetryingSeek = true,
+            )
+
         val AndroidService: BassPlaybackStartPolicy =
             BassPlaybackStartPolicy(
                 seekBeforePlay = true,

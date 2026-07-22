@@ -126,6 +126,9 @@ data class BassPreparedSource(
 )
 
 interface BassAudioBackend {
+    val supportsOutputDeviceSelection: Boolean
+        get() = false
+
     val version: Int?
         get() = null
 

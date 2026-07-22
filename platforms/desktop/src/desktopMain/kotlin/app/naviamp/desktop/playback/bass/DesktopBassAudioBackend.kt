@@ -10,6 +10,8 @@ import app.naviamp.domain.playback.AudioOutputDevice
 class DesktopBassAudioBackend(
     private val bass: DesktopBassJniBinding,
 ) : BassAudioBackend {
+    override val supportsOutputDeviceSelection: Boolean = true
+
     override val version: Int
         get() = bass.version
 
