@@ -1,6 +1,7 @@
 package app.naviamp.desktop.playback.bass
 
 import app.naviamp.domain.playback.BassPlaybackEngine
+import app.naviamp.domain.playback.BassPlaybackEngineRuntime
 import app.naviamp.domain.playback.PlaybackEngineDiagnostics
 import app.naviamp.domain.playback.PlaybackProgress
 import app.naviamp.domain.playback.PlaybackRequest
@@ -71,15 +72,15 @@ import app.naviamp.domain.playback.shouldRestoreCurrentSourceForSeek
 import app.naviamp.domain.playback.targetOutputSampleRate
 import app.naviamp.domain.playback.downloadFallbackRequest
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import java.io.File
-import java.net.URI
 
 class DesktopBassPlaybackEngine(
     private val backendResult: Result<BassAudioBackend> = loadDesktopBassAudioBackend(),
+    private val runtime: BassPlaybackEngineRuntime = DesktopBassPlaybackEngineRuntime(),
+    private val startPolicy: BassPlaybackStartPolicy = BassPlaybackStartPolicy.DesktopEngine,
+    private val pollingPolicy: BassPlaybackPollingPolicy = BassPlaybackPollingPolicy.DesktopEngine,
 ) : QueueAwarePlaybackEngine,
     BassPlaybackEngine,
     AudioOutputDevicePlaybackEngine,
@@ -130,7 +131,6 @@ class DesktopBassPlaybackEngine(
     private var preparedRequest: PlaybackRequest? = null
     private var preparedReplayGainAdjustment: PlaybackReplayGainAdjustment? = null
     private var preparedError: String? = null
-    private val preparedNextLock = Any()
     private var preparedNextGeneration: Long = 0L
     private var endSyncCallbacks: MutableMap<Int, Int> = mutableMapOf()
     private var crossfadeDurationSeconds: Int = 0
@@ -179,7 +179,7 @@ class DesktopBassPlaybackEngine(
             return
         }
 
-        job = scope.launch(Dispatchers.IO) {
+        job = scope.launch(runtime.workContext) {
             var createdPlayback: BassPlaybackActivationUpdate? = null
             var retriedAfterBassReset = false
             var activeRequest = request
@@ -213,7 +213,7 @@ class DesktopBassPlaybackEngine(
                         applyEqualizer(bass)
                         val startPlan = planBassPlaybackStart(
                             request = activeRequest,
-                            policy = BassPlaybackStartPolicy.DesktopEngine,
+                            policy = startPolicy,
                         )
                         if (startPlan.shouldSeekBeforePlay) {
                             startPlan.startSeekSeconds?.let { seekCurrentSource(bass, it) }
@@ -228,7 +228,7 @@ class DesktopBassPlaybackEngine(
                             val update = planBassPlaybackPollingUpdate(
                                 snapshot = snapshot,
                                 previous = pollingState,
-                                policy = BassPlaybackPollingPolicy.DesktopEngine,
+                                policy = pollingPolicy,
                             )
                             pollingState = update.state
                             update.playbackState?.let(onStateChanged)
@@ -240,10 +240,10 @@ class DesktopBassPlaybackEngine(
                             if (!update.shouldContinue) {
                                 break
                             }
-                            delay(BassPlaybackPollingPolicy.DesktopEngine.pollIntervalMillis)
+                            delay(pollingPolicy.pollIntervalMillis)
                         }
 
-                        if (BassPlaybackPollingPolicy.DesktopEngine.finishWhenPollingStops && execution.isCurrent(currentPlaybackId)) {
+                        if (pollingPolicy.finishWhenPollingStops && execution.isCurrent(currentPlaybackId)) {
                             onStateChanged(PlaybackState.Finished)
                         }
                         break
@@ -400,7 +400,7 @@ class DesktopBassPlaybackEngine(
 
     override fun prepareNext(request: PlaybackRequest) {
         val bass = backend ?: return
-        val (plan, generation) = synchronized(preparedNextLock) {
+        val (plan, generation) = runtime.withPreparedPlaybackLock {
             val planned = planPreparedBassPlayback(
                 playbackHandle = stream,
                 currentSourceHandle = currentSourceStream,
@@ -419,9 +419,9 @@ class DesktopBassPlaybackEngine(
             ensureInitialized(bass)
             when (plan) {
                 is PreparedBassPlaybackPlan.PrepareMixer -> {
-                    val localFile = if (plan.isLocalFileUrl) localFileFromUrl(request.url) else null
+                    val localPath = if (plan.isLocalFileUrl) runtime.localFilePath(request.url) else null
                     val prepared = bass.prepareNextBassMixerSource(
-                        localPath = localFile?.absolutePath,
+                        localPath = localPath,
                         url = request.url,
                         mixer = stream,
                         currentSource = currentSourceStream,
@@ -459,7 +459,7 @@ class DesktopBassPlaybackEngine(
                 -> error("Unsupported prepared playback plan: $plan")
             }
         }.onSuccess { update ->
-            synchronized(preparedNextLock) {
+            runtime.withPreparedPlaybackLock {
                 if (generation != preparedNextGeneration) {
                     bass.releaseBassStream(update.preparedHandle)
                         .onFailure { lastError = it.message }
@@ -476,7 +476,7 @@ class DesktopBassPlaybackEngine(
     }
 
     override fun clearPreparedNext() {
-        synchronized(preparedNextLock) {
+        runtime.withPreparedPlaybackLock {
             preparedNextGeneration += 1L
             freePreparedStream()
         }
@@ -618,7 +618,7 @@ class DesktopBassPlaybackEngine(
         applyPreparedReset(update.preparedReset)
         onProgressChanged(PlaybackProgress.Unknown)
         onStateChanged(PlaybackState.Playing)
-        job = scope.launch(Dispatchers.IO) {
+        job = scope.launch(runtime.workContext) {
             var pollingState = BassPlaybackPollingState()
             try {
                 while (execution.isCurrent(currentPlaybackId)) {
@@ -626,7 +626,7 @@ class DesktopBassPlaybackEngine(
                     val update = planBassPlaybackPollingUpdate(
                         snapshot = snapshot,
                         previous = pollingState,
-                        policy = BassPlaybackPollingPolicy.DesktopEngine,
+                        policy = pollingPolicy,
                     )
                     pollingState = update.state
                     update.playbackState?.let(onStateChanged)
@@ -638,10 +638,10 @@ class DesktopBassPlaybackEngine(
                     if (!update.shouldContinue) {
                         break
                     }
-                    delay(BassPlaybackPollingPolicy.DesktopEngine.pollIntervalMillis)
+                    delay(pollingPolicy.pollIntervalMillis)
                 }
 
-                if (BassPlaybackPollingPolicy.DesktopEngine.finishWhenPollingStops && execution.isCurrent(currentPlaybackId)) {
+                if (pollingPolicy.finishWhenPollingStops && execution.isCurrent(currentPlaybackId)) {
                     onStateChanged(PlaybackState.Finished)
                 }
             } catch (exception: Throwable) {
@@ -676,9 +676,9 @@ class DesktopBassPlaybackEngine(
         request: PlaybackRequest,
         plan: BassPlaybackCreationPlan,
     ): Result<BassPlaybackActivationUpdate> {
-        val localFile = if (plan.isLocalFileUrl) localFileFromUrl(request.url) else null
+        val localPath = if (plan.isLocalFileUrl) runtime.localFilePath(request.url) else null
         return bass.createBassPlayback(
-            localPath = localFile?.absolutePath,
+            localPath = localPath,
             url = request.url,
             useMixer = plan.useMixer,
             crossfadeDurationSeconds = crossfadeDurationSeconds,
@@ -740,7 +740,7 @@ class DesktopBassPlaybackEngine(
         bass.bassPlaybackVisualizerFrame(
             stream = sourceHandle,
             bins = VisualizerBandCount,
-            timestampMillis = System.currentTimeMillis(),
+            timestampMillis = runtime.nowEpochMillis(),
         )
             .onFailure { lastError = it.message }
             .getOrNull()
@@ -829,12 +829,6 @@ class DesktopBassPlaybackEngine(
         bass.releaseBassStreams(created.playbackHandle, created.sourceHandle)
             .forEach { result -> result.onFailure { lastError = it.message } }
     }
-
-    private fun localFileFromUrl(url: String): File? =
-        runCatching {
-            val uri = URI(url)
-            if (uri.scheme == "file") File(uri) else null
-        }.getOrNull()
 
 }
 
