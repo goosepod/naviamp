@@ -14,6 +14,7 @@ import app.naviamp.presentation.NaviampCoreSettingsSyncConfiguration
 import app.naviamp.presentation.NaviampCoreVisualizerSettingsPort
 import app.naviamp.presentation.naviampCoreServiceDefaults
 import app.naviamp.presentation.unavailableNaviampCoreSettingsSyncServices
+import app.naviamp.presentation.toShellCapabilitiesUi
 import app.naviamp.storage.StorageDatabaseLocation
 import kotlinx.coroutines.CoroutineScope
 import java.nio.file.Files
@@ -91,6 +92,10 @@ internal class DesktopV2Composition private constructor(
                     services = services,
                     providerSessions = sessions,
                     settingsSync = sync,
+                    shellCapabilities = DesktopCapabilityPresentation.toShellCapabilitiesUi(
+                        playbackEngine = engine,
+                        sonicSimilarityAvailable = false,
+                    ),
                     onAsyncFailure = { command, failure ->
                         System.err.println("Naviamp Core command failed: $command: ${failure.message}")
                         failure.printStackTrace()

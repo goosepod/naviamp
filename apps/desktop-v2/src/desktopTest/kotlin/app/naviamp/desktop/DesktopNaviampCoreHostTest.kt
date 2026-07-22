@@ -8,6 +8,8 @@ import app.naviamp.presentation.NaviampCoreCommand
 import app.naviamp.presentation.NaviampCoreInitialState
 import app.naviamp.testkit.naviampCoreTestServices
 import app.naviamp.ui.SharedRoute
+import app.naviamp.ui.NaviampConnectionCapabilitiesUi
+import app.naviamp.ui.NaviampShellCapabilitiesUi
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -46,6 +48,13 @@ class DesktopNaviampCoreHostTest {
             services = naviampCoreTestServices(),
             providerSessions = providerSessions,
             externalUri = app.naviamp.presentation.NaviampCoreExternalUriPort {},
+            shellCapabilities = NaviampShellCapabilitiesUi(
+                connection = NaviampConnectionCapabilitiesUi(
+                    insecureServerVerification = true,
+                    customServerCertificates = true,
+                    clientCertificates = true,
+                ),
+            ),
         )
         val core = createDesktopNaviampCore(this, environment)
 
@@ -60,6 +69,10 @@ class DesktopNaviampCoreHostTest {
             core.state.value.shell.connectionSettings.connection.form.serverUrl,
         )
         assertEquals("source-1", environment.initialState.connectionInventory.connections.single().id)
+        assertEquals(
+            NaviampConnectionCapabilitiesUi(true, true, true),
+            core.state.value.shell.connectionSettings.capabilities,
+        )
         assertNotNull(environment.applicationUpdateChecker)
     }
 }

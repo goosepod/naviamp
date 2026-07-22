@@ -13,6 +13,7 @@ import app.naviamp.presentation.NaviampCoreSettingsSyncServices
 import app.naviamp.presentation.rememberNaviampCore
 import app.naviamp.presentation.toCoreActionAvailability
 import app.naviamp.ui.NaviampApplicationUpdateChecker
+import app.naviamp.ui.NaviampShellCapabilitiesUi
 import kotlinx.coroutines.CoroutineScope
 
 /**
@@ -44,6 +45,7 @@ internal fun desktopNaviampCoreEnvironment(
     externalUri: NaviampCoreExternalUriPort = DesktopExternalUriPort(),
     initialState: NaviampCoreInitialState = NaviampCoreInitialState(),
     applicationUpdateChecker: NaviampApplicationUpdateChecker? = desktopApplicationUpdateChecker(),
+    shellCapabilities: NaviampShellCapabilitiesUi? = null,
     onAsyncFailure: (NaviampCoreCommand, Throwable) -> Unit = { command, cause ->
         throw IllegalStateException("Desktop Core command failed: $command", cause)
     },
@@ -56,7 +58,19 @@ internal fun desktopNaviampCoreEnvironment(
         connection = providerSessions,
         settings = services.settings.copy(sync = settingsSync),
     ),
-    initialState = initialState.copy(connectionInventory = providerSessions.initialInventory()),
+    initialState = initialState.copy(
+        product = shellCapabilities?.let { capabilities ->
+            initialState.product.copy(
+                shell = initialState.product.shell.copy(
+                    capabilities = capabilities,
+                    connectionSettings = initialState.product.shell.connectionSettings.copy(
+                        capabilities = capabilities.connection,
+                    ),
+                ),
+            )
+        } ?: initialState.product,
+        connectionInventory = providerSessions.initialInventory(),
+    ),
     applicationUpdateChecker = applicationUpdateChecker,
     onAsyncFailure = onAsyncFailure,
 )
