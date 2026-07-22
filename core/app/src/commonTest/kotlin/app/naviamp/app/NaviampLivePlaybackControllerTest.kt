@@ -9,8 +9,21 @@ import app.naviamp.domain.queue.PlaybackQueue
 import app.naviamp.domain.queue.RepeatMode
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNull
 
 class NaviampLivePlaybackControllerTest {
+    @Test
+    fun ordinaryTrackSelectionClearsAStaleInternetRadioStation() {
+        val station = InternetRadioStation("station", "Station", "https://radio.example.test")
+        val controller = NaviampLivePlaybackController(
+            NaviampLivePlaybackState(currentStation = station),
+        )
+
+        controller.updateCurrentTrack(track("ordinary"))
+
+        assertNull(controller.state.value.currentStation)
+    }
+
     @Test
     fun fieldUpdatesPreserveTheRestOfThePlaybackSnapshot() {
         val track = track("one")

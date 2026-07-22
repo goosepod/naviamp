@@ -101,11 +101,29 @@ class NaviampCoreCatalogControllerTest {
 
         controller.dispatch(NaviampCoreCommand.Library.ChangeQuery("three"))
         controller.execute(NaviampCoreCommand.Library.Refresh)
-        controller.dispatch(NaviampCoreCommand.Library.JumpToLetter('t'))
+        controller.execute(NaviampCoreCommand.Library.JumpToLetter('t'))
 
         assertEquals(listOf("artist-3"), store.state.value.shell.library.artists.map { it.id })
         assertEquals('T', store.state.value.viewport.libraryJump?.letter)
         assertEquals(1L, store.state.value.viewport.libraryJump?.generation)
+    }
+
+    @Test
+    fun alphabetJumpLoadsPagesUntilTheRequestedRangeIsAvailable() = runTest {
+        val provider = CatalogTestProvider()
+        val store = NaviampCoreStateStore()
+        val controller = NaviampCoreCatalogController(
+            stateStore = store,
+            providerSource = NaviampCoreMediaProviderSource { provider },
+            libraryPageSize = 1,
+        )
+        controller.execute(NaviampCoreCommand.Library.Refresh)
+
+        controller.execute(NaviampCoreCommand.Library.JumpToLetter('Z'))
+
+        assertEquals(listOf("artist-1", "artist-2", "artist-3"), store.state.value.shell.library.artists.map { it.id })
+        assertEquals(listOf(0, 1, 2), provider.artistPageOffsets)
+        assertEquals('Z', store.state.value.viewport.libraryJump?.letter)
     }
 
     @Test

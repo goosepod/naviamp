@@ -1279,6 +1279,7 @@ fun ArtistDetails.toSharedArtistDetailUi(
     popularTracksStatus: String? = null,
     similarArtists: List<SimilarArtistMatch> = emptyList(),
     similarArtistsStatus: String? = null,
+    similarArtistsExpanded: Boolean = false,
     canFavoriteArtist: Boolean = false,
     canFavoriteAlbums: Boolean = false,
 ): SharedArtistDetailUi =
@@ -1306,6 +1307,7 @@ fun ArtistDetails.toSharedArtistDetailUi(
         popularTracksStatus = popularTracksStatus,
         similarArtists = similarArtists.map { it.toSharedSimilarArtistUi() },
         similarArtistsStatus = similarArtistsStatus,
+        similarArtistsExpanded = similarArtistsExpanded,
     )
 
 private fun artistSourceContextLabel(

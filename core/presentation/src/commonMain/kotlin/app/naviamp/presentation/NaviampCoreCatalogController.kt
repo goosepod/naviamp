@@ -37,7 +37,7 @@ class NaviampCoreCatalogController(
         NaviampCoreCommand.Search.Clear -> handled(::clearSearch)
         NaviampCoreCommand.Search.Submit -> NaviampCoreImmediateCommandResult.Deferred
         is NaviampCoreCommand.Library.ChangeQuery -> handled { updateLibraryQuery(command.query) }
-        is NaviampCoreCommand.Library.JumpToLetter -> handled { publishLibraryJump(command.letter) }
+        is NaviampCoreCommand.Library.JumpToLetter -> NaviampCoreImmediateCommandResult.Deferred
         NaviampCoreCommand.Library.Refresh,
         NaviampCoreCommand.Library.LoadMore,
         -> NaviampCoreImmediateCommandResult.Deferred
@@ -51,6 +51,7 @@ class NaviampCoreCatalogController(
             -> search()
             NaviampCoreCommand.Library.Refresh -> refreshLibrary()
             NaviampCoreCommand.Library.LoadMore -> loadMoreLibrary()
+            is NaviampCoreCommand.Library.JumpToLetter -> jumpToLetter(command.letter)
             else -> return null
         }
         return NaviampCoreCommandResult.Completed
@@ -192,6 +193,19 @@ class NaviampCoreCatalogController(
                 ),
             )
         }
+    }
+
+    private suspend fun jumpToLetter(letter: Char) {
+        val normalized = letter.uppercaseChar()
+        if (normalized != '#' && stateStore.state.value.shell.library.query.isBlank()) {
+            var remainingPages = 1_000
+            while (libraryNextRequest != null && remainingPages-- > 0) {
+                val lastTitle = stateStore.state.value.shell.library.artists.lastOrNull()?.title.orEmpty()
+                if (lastTitle.isNotBlank() && lastTitle.first().uppercaseChar() >= normalized) break
+                loadMoreLibrary()
+            }
+        }
+        publishLibraryJump(normalized)
     }
 
     private inline fun handled(action: () -> Unit): NaviampCoreImmediateCommandResult {

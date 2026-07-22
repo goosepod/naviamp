@@ -33,7 +33,6 @@ import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -49,7 +48,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.naviamp.ui.generated.resources.Res
 import app.naviamp.ui.generated.resources.*
-import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.stringResource
 
 @Composable
@@ -484,7 +482,7 @@ fun NaviampLibraryContent(
     val query = screen.query
     val syncStatus = screen.syncStatus
     val searchFocusRequester = remember { FocusRequester() }
-    val scope = rememberCoroutineScope()
+    var pendingJump by remember { mutableStateOf<Char?>(null) }
     val filteredItems = remember(items, query) {
         val normalizedQuery = query.trim().lowercase()
         if (normalizedQuery.isBlank()) {
@@ -495,6 +493,16 @@ fun NaviampLibraryContent(
                     item.subtitle.lowercase().contains(normalizedQuery) ||
                     item.meta.lowercase().contains(normalizedQuery)
             }
+        }
+    }
+    androidx.compose.runtime.LaunchedEffect(items, pendingJump) {
+        val letter = pendingJump ?: return@LaunchedEffect
+        val boundary = if (letter == '#') "" else letter.lowercaseChar().toString()
+        val index = filteredItems.indexOfFirst { item -> item.title.lowercase() >= boundary }
+        if (index >= 0) {
+            val headerCount = 2 + if (syncStatus.message != null) 1 else 0
+            listState.scrollToItem(index + headerCount)
+            pendingJump = null
         }
     }
     Row(
@@ -632,11 +640,8 @@ fun NaviampLibraryContent(
                         color = colors.secondaryText,
                         fontSize = 10.sp,
                         modifier = Modifier.clickable {
+                            pendingJump = letter
                             actions.onJumpToLetter(letter)
-                            val boundary = if (letter == '#') "" else letter.lowercaseChar().toString()
-                            val index = filteredItems.indexOfFirst { item -> item.title.lowercase() >= boundary }
-                            val headerCount = 2 + if (syncStatus.message != null) 1 else 0
-                            if (index >= 0) scope.launch { listState.scrollToItem(index + headerCount) }
                         },
                     )
                 }

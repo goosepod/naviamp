@@ -64,7 +64,18 @@ class NaviampCoreMediaDetailControllerTest {
         val detail = assertNotNull(store.state.value.shell.artistDetail.detail)
         assertEquals("Artist A", detail.artist.title)
         assertEquals("Popular Artist A", detail.popularTracks.single().title)
-        assertEquals("Similar Artist A", detail.similarArtists.single().title)
+        assertTrue(detail.similarArtists.isEmpty())
+        assertTrue(!detail.similarArtistsExpanded)
+
+        controller.media.toggleSimilarArtists(mediaItem("artist-a", "Artist A"))
+        val expanded = assertNotNull(store.state.value.shell.artistDetail.detail)
+        assertEquals("Similar Artist A", expanded.similarArtists.single().title)
+        assertTrue(expanded.similarArtistsExpanded)
+
+        controller.media.toggleSimilarArtists(mediaItem("artist-a", "Artist A"))
+        val collapsed = assertNotNull(store.state.value.shell.artistDetail.detail)
+        assertTrue(collapsed.similarArtists.isEmpty())
+        assertTrue(!collapsed.similarArtistsExpanded)
         assertEquals(SharedRoute.Home, store.state.value.shell.shellChrome.selectedRoute)
     }
 

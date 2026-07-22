@@ -360,6 +360,7 @@ data class SharedArtistDetailUi(
     val popularTracksStatus: String? = null,
     val similarArtists: List<SharedSimilarArtistUi> = emptyList(),
     val similarArtistsStatus: String? = null,
+    val similarArtistsExpanded: Boolean = false,
 )
 
 data class NaviampArtistDetailScreenUi(

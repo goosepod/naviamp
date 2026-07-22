@@ -22,6 +22,7 @@ import app.naviamp.ui.SharedMediaItemUi
 import app.naviamp.ui.toSharedAlbumDetailUi
 import app.naviamp.ui.toSharedArtistDetailUi
 import app.naviamp.ui.toSharedMediaItemUi
+import app.naviamp.ui.toSharedSimilarArtistUi
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
@@ -138,12 +139,64 @@ class NaviampCoreMediaDetailController(
         }
     }
 
-    internal suspend fun refreshArtist(item: SharedMediaItemUi) {
-        loadArtist(item, pushCurrentArtist = false)
-    }
-
     internal suspend fun selectArtist(item: SharedMediaItemUi) {
         loadArtist(item, pushCurrentArtist = true)
+    }
+
+    internal suspend fun toggleSimilarArtists(item: SharedMediaItemUi) {
+        val current = stateStore.state.value.shell.artistDetail
+        if (current.selectedArtist?.id != item.id || current.detail == null) {
+            loadArtist(item, pushCurrentArtist = true, loadSimilar = true)
+            return
+        }
+        val currentDetail = current.detail ?: return
+        if (currentDetail.similarArtistsExpanded) {
+            mediaRegistry.updateArtist(
+                mediaRegistry.artistDetails,
+                mediaRegistry.artistPopularTracks,
+                emptyList(),
+            )
+            stateStore.updateShell { shell ->
+                shell.copy(
+                    artistDetail = shell.artistDetail.copy(
+                        detail = shell.artistDetail.detail?.copy(
+                            similarArtists = emptyList(),
+                            similarArtistsStatus = null,
+                            similarArtistsExpanded = false,
+                        ),
+                    ),
+                )
+            }
+            return
+        }
+        val artist = mediaRegistry.artistDetails?.artist ?: Artist(ArtistId(item.id), item.title)
+        stateStore.updateShell { shell ->
+            shell.copy(
+                artistDetail = shell.artistDetail.copy(
+                    detail = shell.artistDetail.detail?.copy(
+                        similarArtistsStatus = "Finding similar artists...",
+                        similarArtistsExpanded = true,
+                    ),
+                ),
+            )
+        }
+        val similar = loadSimilarArtistsUpdate(artist, loadSimilarArtists = discovery.similarArtists)
+        mediaRegistry.updateArtist(
+            mediaRegistry.artistDetails,
+            mediaRegistry.artistPopularTracks,
+            similar.artists,
+        )
+        stateStore.updateShell { shell ->
+            shell.copy(
+                artistDetail = shell.artistDetail.copy(
+                    detail = shell.artistDetail.detail?.copy(
+                        similarArtists = similar.artists.map { it.toSharedSimilarArtistUi() },
+                        similarArtistsStatus = similar.status,
+                        similarArtistsExpanded = true,
+                    ),
+                ),
+            )
+        }
     }
 
     private suspend fun loadAlbum(item: SharedMediaItemUi) {
@@ -196,6 +249,7 @@ class NaviampCoreMediaDetailController(
     private suspend fun loadArtist(
         item: SharedMediaItemUi,
         pushCurrentArtist: Boolean = true,
+        loadSimilar: Boolean = false,
     ) {
         val generation = ++artistGeneration
         mediaRegistry.updateArtist(null)
@@ -217,10 +271,11 @@ class NaviampCoreMediaDetailController(
                     artist = detail.artist,
                     loadPopularTracks = discovery.popularTracks,
                 )
-                val similar = loadSimilarArtistsUpdate(
-                    artist = detail.artist,
-                    loadSimilarArtists = discovery.similarArtists,
-                )
+                val similar = if (loadSimilar) {
+                    loadSimilarArtistsUpdate(detail.artist, loadSimilarArtists = discovery.similarArtists)
+                } else {
+                    app.naviamp.domain.media.SimilarArtistsUpdate(emptyList(), null)
+                }
                 if (generation != artistGeneration) return@onSuccess
                 mediaRegistry.updateArtist(detail, popular.tracks, similar.artists)
                 stateStore.updateShell { shell ->
@@ -236,6 +291,7 @@ class NaviampCoreMediaDetailController(
                                 popularTracksStatus = popular.status,
                                 similarArtists = similar.artists,
                                 similarArtistsStatus = similar.status,
+                                similarArtistsExpanded = loadSimilar,
                                 canFavoriteArtist = provider.capabilities.supportsArtistFavorites,
                                 canFavoriteAlbums = provider.capabilities.supportsAlbumFavorites,
                             ),

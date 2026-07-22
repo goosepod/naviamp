@@ -118,7 +118,7 @@ class NaviampCoreCollectionActionController(
             NaviampArtistDetailCommand.StartPopularRadio -> registry.artistPopularTracks.firstOrNull()?.let { transactions.startTrackRadio(it) }
                 ?: transactions.publish("No popular tracks are available.")
             NaviampArtistDetailCommand.AddPopularToQueue -> transactions.addToQueue(registry.artistPopularTracks)
-            NaviampArtistDetailCommand.FindSimilar -> mediaDetails.refreshArtist(item)
+            NaviampArtistDetailCommand.FindSimilar -> mediaDetails.toggleSimilarArtists(item)
             is NaviampArtistDetailCommand.SelectSimilar -> {
                 val similar = registry.artistSimilarArtists.firstOrNull { match ->
                     match.candidate.sourceArtistId == command.artist.id ||
@@ -141,7 +141,7 @@ class NaviampCoreCollectionActionController(
         when (command) {
             NaviampArtistMediaCommand.Select -> Unit
             NaviampArtistMediaCommand.StartRadio -> transactions.startArtistRadio(artist)
-            NaviampArtistMediaCommand.FindSimilar -> mediaDetails.refreshArtist(item)
+            NaviampArtistMediaCommand.FindSimilar -> mediaDetails.toggleSimilarArtists(item)
             NaviampArtistMediaCommand.AddToQueue -> transactions.addToQueue(artistTracks(artist))
             is NaviampArtistMediaCommand.AddToPlaylist -> transactions.addToPlaylist(artistTracks(artist), command.choice)
             is NaviampArtistMediaCommand.CreatePlaylistAndAdd -> transactions.createPlaylist(artistTracks(artist), command.name)

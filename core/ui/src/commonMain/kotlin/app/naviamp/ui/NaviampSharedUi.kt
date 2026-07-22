@@ -1503,7 +1503,7 @@ private fun ArtistDetailContent(
             onPopularTrackAction(request)
         }
     }
-    val similarArtistsVisible = detail.similarArtists.isNotEmpty() || detail.similarArtistsStatus != null
+    val similarArtistsVisible = detail.similarArtistsExpanded
     val visibleAlbumSections = if (groupAlbumsByReleaseType) {
         detail.albumSections
     } else {

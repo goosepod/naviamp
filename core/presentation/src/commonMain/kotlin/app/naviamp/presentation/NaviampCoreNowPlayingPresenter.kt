@@ -80,7 +80,7 @@ class NaviampCoreNowPlayingPresenter(
             playbackQueue = live.queue,
             internetRadioStations = (sidecar.internetRadioStations + listOfNotNull(live.currentStation))
                 .distinctBy { it.id },
-            currentInternetRadioStationId = live.currentStation?.id ?: sidecar.currentInternetRadioStationId,
+            currentInternetRadioStationId = live.currentStation?.id,
             radioTrackArtworkByKey = sidecar.radioTrackArtworkByKey,
             relatedTracks = sidecar.relatedTracks,
             relatedTracksSource = sidecar.relatedTracksSource,

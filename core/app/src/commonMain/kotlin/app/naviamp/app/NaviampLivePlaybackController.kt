@@ -2,6 +2,7 @@ package app.naviamp.app
 
 import app.naviamp.domain.InternetRadioStation
 import app.naviamp.domain.Track
+import app.naviamp.domain.internetRadioTrackId
 import app.naviamp.domain.playback.PlaybackProgress
 import app.naviamp.domain.playback.PlaybackState
 import app.naviamp.domain.queue.PlaybackQueue
@@ -40,7 +41,14 @@ class NaviampLivePlaybackController(
         observers += observer
     }
 
-    fun updateCurrentTrack(track: Track?) = update { current -> current.copy(currentTrack = track) }
+    fun updateCurrentTrack(track: Track?) = update { current ->
+        current.copy(
+            currentTrack = track,
+            currentStation = current.currentStation?.takeIf { station ->
+                track?.id == internetRadioTrackId(station.id)
+            },
+        )
+    }
 
     fun updateCurrentStation(station: InternetRadioStation?) =
         update { current -> current.copy(currentStation = station) }
