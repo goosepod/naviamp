@@ -65,6 +65,23 @@ class NaviampNavigationControllerTest {
     }
 
     @Test
+    fun detailBackPreservesNowPlayingAsTheVisibleOrigin() {
+        val controller = NaviampNavigationController(
+            NaviampNavigationState(route = NaviampRoute.Home, lastContentRoute = NaviampRoute.Home),
+        )
+
+        controller.recordArtistDetailOpened(
+            artist = artist("linked"),
+            openedFromNowPlaying = true,
+        )
+
+        assertEquals(
+            NaviampDetailBackCommand.Navigate(NaviampRoute.Home, reopenNowPlaying = true),
+            controller.closeActiveDetail(NaviampDetailKind.Artist),
+        )
+    }
+
+    @Test
     fun nestedArtistHistoryIsOwnedAndPoppedByTheSharedController() {
         val current = artist("current")
         val next = artist("next")

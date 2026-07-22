@@ -49,6 +49,7 @@ import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -209,6 +210,30 @@ class NaviampCoreNowPlayingMediaControllerTest {
 
         assertEquals("david-guetta", fixture.store.state.value.shell.artistDetail.selectedArtist?.id)
         assertEquals("David Guetta", fixture.store.state.value.shell.artistDetail.selectedArtist?.title)
+    }
+
+    @Test
+    fun nameOnlyCreditOpensVirtualArtistCatalogInsteadOfDoingNothing() = runTest {
+        val fixture = mediaFixture(this)
+        fixture.live.updateCurrentTrack(
+            nowPlayingTrack("current").copy(
+                artistId = ArtistId("combined"),
+                artistName = "HUGEL, David Guetta, Kehlani, Daecolm",
+            ),
+        )
+        fixture.presenter.publish()
+
+        fixture.controller.execute(
+            currentCommand(
+                action = NowPlayingCurrentTrackAction.GoToArtist,
+                artistName = "HUGEL",
+            ),
+        )
+
+        val detail = assertNotNull(fixture.store.state.value.shell.artistDetail.detail)
+        assertEquals("HUGEL", detail.artist.title)
+        assertTrue(detail.albums.isNotEmpty())
+        assertFalse(detail.artist.canFavorite)
     }
 
     @Test
@@ -405,13 +430,20 @@ private class NowPlayingTestProvider : MediaProvider {
     )
     override suspend fun artists(limit: Int) = emptyList<Artist>()
     override suspend fun tracks(limit: Int) = emptyList<Track>()
-    override suspend fun search(query: String, limit: Int) = MediaSearchResults(
-        artists = if (query.equals("David Guetta", ignoreCase = true)) {
-            listOf(Artist(ArtistId("david-guetta"), "David Guetta"))
-        } else {
-            emptyList()
-        },
-    )
+    override suspend fun search(query: String, limit: Int) = when {
+        query.equals("David Guetta", ignoreCase = true) -> MediaSearchResults(
+            artists = listOf(Artist(ArtistId("david-guetta"), "David Guetta")),
+        )
+        query.equals("HUGEL", ignoreCase = true) -> MediaSearchResults(
+            tracks = listOf(
+                nowPlayingTrack("hugel-credit").copy(
+                    artistId = ArtistId("combined"),
+                    artistName = "HUGEL, David Guetta, Kehlani, Daecolm",
+                ),
+            ),
+        )
+        else -> MediaSearchResults()
+    }
     override suspend fun trackRadio(trackId: TrackId, count: Int) = listOf(nowPlayingTrack("radio"))
     override suspend fun internetRadioStations() = listOf(InternetRadioStation("station", "Station", "https://radio"))
     override suspend fun addTracksToPlaylist(playlistId: String, trackIds: List<TrackId>) {

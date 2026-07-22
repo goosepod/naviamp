@@ -42,7 +42,10 @@ class NaviampCoreNavigationController(
     }
 
     fun recordAlbumOpened(backRouteOverride: NaviampRoute? = null) {
-        navigation.recordAlbumDetailOpened(backRouteOverride)
+        navigation.recordAlbumDetailOpened(
+            backRouteOverride = backRouteOverride,
+            openedFromNowPlaying = stateStore.state.value.shell.shellChrome.nowPlayingOpen,
+        )
     }
 
     fun openAlbumDetail(backRouteOverride: NaviampRoute? = null) {
@@ -60,6 +63,7 @@ class NaviampCoreNavigationController(
             artist = artist,
             backRouteOverride = backRouteOverride,
             pushCurrentArtist = pushCurrentArtist,
+            openedFromNowPlaying = stateStore.state.value.shell.shellChrome.nowPlayingOpen,
         )
     }
 
@@ -136,6 +140,7 @@ class NaviampCoreNavigationController(
                         albumDetail = NaviampAlbumDetailScreenUi(),
                     )
                 }
+                if (result.reopenNowPlaying) setNowPlayingOpen(true)
             }
             is NaviampDetailBackCommand.OpenArtist ->
                 error("Album detail history returned an artist destination.")
@@ -152,6 +157,7 @@ class NaviampCoreNavigationController(
                         artistDetail = NaviampArtistDetailScreenUi(),
                     )
                 }
+                if (result.reopenNowPlaying) setNowPlayingOpen(true)
             }
             is NaviampDetailBackCommand.OpenArtist -> artistNavigator.openArtist(result.artist)
         }

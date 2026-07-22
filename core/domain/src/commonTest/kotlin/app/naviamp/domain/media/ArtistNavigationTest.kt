@@ -8,7 +8,6 @@ import app.naviamp.domain.TrackId
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertNull
 
 class ArtistNavigationTest {
     @Test
@@ -27,10 +26,11 @@ class ArtistNavigationTest {
     }
 
     @Test
-    fun unresolvedClickedNameDoesNotFallBackToCombinedArtist() = runTest {
+    fun unresolvedClickedNameCreatesNameOnlyIdentityInsteadOfUsingCombinedArtist() = runTest {
         val resolved = resolveTrackArtistNavigation(combinedTrack(), null, "David Guetta") { _, _ -> emptyList() }
 
-        assertNull(resolved)
+        assertEquals("David Guetta", resolved?.name)
+        assertEquals(true, resolved?.isNameOnlyArtistCredit())
     }
 
     @Test

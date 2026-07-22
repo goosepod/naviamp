@@ -5,6 +5,8 @@ import app.naviamp.domain.Artist
 import app.naviamp.domain.ArtistId
 import app.naviamp.domain.media.loadArtistPopularTracksUpdate
 import app.naviamp.domain.media.loadSimilarArtistsUpdate
+import app.naviamp.domain.media.isNameOnlyArtistCredit
+import app.naviamp.domain.media.loadNameOnlyArtistCreditDetails
 import app.naviamp.domain.popular.ArtistPopularTrackMatch
 import app.naviamp.domain.popular.ArtistPopularTracksService
 import app.naviamp.domain.popular.ProviderArtistPopularTracksClient
@@ -261,8 +263,13 @@ class NaviampCoreMediaDetailController(
             publishArtistFailure(item, "Connect to Navidrome to load an artist.")
             return
         }
-        val coverArtUrl = { id: String? -> id?.let(provider::coverArtUrl) }
-        runCatching { provider.artist(artist.id) }
+        val nameOnlyCredit = artist.isNameOnlyArtistCredit()
+        val coverArtUrl = { id: String? ->
+            id?.takeUnless { nameOnlyCredit && it == artist.id.value }?.let(provider::coverArtUrl)
+        }
+        runCatching {
+            if (nameOnlyCredit) loadNameOnlyArtistCreditDetails(provider, artist) else provider.artist(artist.id)
+        }
             .onSuccess { detail ->
                 if (generation != artistGeneration) return@onSuccess
                 navigationController.updateActiveArtist(detail.artist)
@@ -283,7 +290,7 @@ class NaviampCoreMediaDetailController(
                         artistDetail = shell.artistDetail.copy(
                             selectedArtist = detail.artist.toSharedMediaItemUi(
                                 coverArtUrl = coverArtUrl,
-                                canFavorite = provider.capabilities.supportsArtistFavorites,
+                                canFavorite = provider.capabilities.supportsArtistFavorites && !nameOnlyCredit,
                             ),
                             detail = detail.toSharedArtistDetailUi(
                                 coverArtUrl = coverArtUrl,
@@ -292,7 +299,7 @@ class NaviampCoreMediaDetailController(
                                 similarArtists = similar.artists,
                                 similarArtistsStatus = similar.status,
                                 similarArtistsExpanded = loadSimilar,
-                                canFavoriteArtist = provider.capabilities.supportsArtistFavorites,
+                                canFavoriteArtist = provider.capabilities.supportsArtistFavorites && !nameOnlyCredit,
                                 canFavoriteAlbums = provider.capabilities.supportsAlbumFavorites,
                             ),
                             status = if (detail.albums.isEmpty()) {

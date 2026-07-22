@@ -126,6 +126,20 @@ class NaviampCoreNavigationControllerTest {
     }
 
     @Test
+    fun artistOpenedFromNowPlayingReturnsToNowPlaying() {
+        val navigation = NaviampNavigationController(NaviampNavigationState(route = NaviampRoute.Home))
+        val store = NaviampCoreStateStore()
+        val controller = controller(navigation, store)
+        controller.openNowPlaying()
+        controller.openArtistDetail(artist("linked"))
+
+        controller.dispatch(NaviampCoreCommand.Navigation.BackFromArtist)
+
+        assertEquals(SharedRoute.Home, store.state.value.shell.shellChrome.selectedRoute)
+        assertTrue(store.state.value.shell.shellChrome.nowPlayingOpen)
+    }
+
+    @Test
     fun playlistBackClearsDetailAndReturnsToPlaylistList() {
         val navigation = NaviampNavigationController(
             NaviampNavigationState(route = NaviampRoute.PlaylistDetail),

@@ -40,7 +40,10 @@ class NaviampNavigationController(
     val artistDetailBackRoute: NaviampRoute
         get() = detailState.artistBackRoute
 
-    fun recordAlbumDetailOpened(backRouteOverride: NaviampRoute? = null) {
+    fun recordAlbumDetailOpened(
+        backRouteOverride: NaviampRoute? = null,
+        openedFromNowPlaying: Boolean = false,
+    ) {
         val navigation = state.value
         detailState = detailState.copy(
             albumBackRoute = backRouteOverride ?: when (navigation.route) {
@@ -49,6 +52,7 @@ class NaviampNavigationController(
                 NaviampRoute.Player -> navigation.lastContentRoute
                 else -> navigation.route
             },
+            albumBackOpensNowPlaying = openedFromNowPlaying,
         )
     }
 
@@ -57,6 +61,7 @@ class NaviampNavigationController(
         backRouteOverride: NaviampRoute? = null,
         pushCurrentArtist: Boolean = true,
         continuingArtistDetail: Boolean = state.value.route == NaviampRoute.ArtistDetail,
+        openedFromNowPlaying: Boolean = false,
     ) {
         val navigation = state.value
         val backStack = if (pushCurrentArtist && continuingArtistDetail) {
@@ -78,6 +83,11 @@ class NaviampNavigationController(
             activeArtist = artist,
             artistBackStack = backStack,
             artistBackRoute = backRoute,
+            artistBackOpensNowPlaying = if (continuingArtistDetail) {
+                detailState.artistBackOpensNowPlaying
+            } else {
+                openedFromNowPlaying
+            },
         )
     }
 
@@ -88,7 +98,10 @@ class NaviampNavigationController(
 
     fun closeActiveDetail(kind: NaviampDetailKind): NaviampDetailBackCommand =
         when (kind) {
-            NaviampDetailKind.Album -> NaviampDetailBackCommand.Navigate(detailState.albumBackRoute)
+            NaviampDetailKind.Album -> NaviampDetailBackCommand.Navigate(
+                detailState.albumBackRoute,
+                reopenNowPlaying = detailState.albumBackOpensNowPlaying,
+            )
             NaviampDetailKind.Artist -> {
                 val previousArtist = detailState.artistBackStack.lastOrNull()
                 if (previousArtist != null) {
@@ -99,7 +112,10 @@ class NaviampNavigationController(
                     NaviampDetailBackCommand.OpenArtist(previousArtist)
                 } else {
                     detailState = detailState.copy(activeArtist = null, artistBackStack = emptyList())
-                    NaviampDetailBackCommand.Navigate(detailState.artistBackRoute)
+                    NaviampDetailBackCommand.Navigate(
+                        detailState.artistBackRoute,
+                        reopenNowPlaying = detailState.artistBackOpensNowPlaying,
+                    )
                 }
             }
         }
@@ -115,7 +131,10 @@ enum class NaviampDetailKind {
 }
 
 sealed interface NaviampDetailBackCommand {
-    data class Navigate(val route: NaviampRoute) : NaviampDetailBackCommand
+    data class Navigate(
+        val route: NaviampRoute,
+        val reopenNowPlaying: Boolean = false,
+    ) : NaviampDetailBackCommand
     data class OpenArtist(val artist: Artist) : NaviampDetailBackCommand
 }
 
@@ -124,4 +143,6 @@ private data class NaviampDetailNavigationState(
     val artistBackStack: List<Artist> = emptyList(),
     val albumBackRoute: NaviampRoute = NaviampRoute.Home,
     val artistBackRoute: NaviampRoute = NaviampRoute.Search,
+    val albumBackOpensNowPlaying: Boolean = false,
+    val artistBackOpensNowPlaying: Boolean = false,
 )
