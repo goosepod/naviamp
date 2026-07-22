@@ -460,6 +460,8 @@ Before starting work on any computer:
 
 While working:
 
+- Before creating or moving any Android, Desktop, or iOS source file, record the concrete OS API, lifecycle, native library, or host integration that prevents it from living in Core. If no such constraint exists, create the file in the appropriate Core module. A single platform caller is not sufficient justification.
+- When a proposed implementation mixes portable and native work, put the portable owner, policy, model, or repository in Core and inject only the smallest platform effect through a shared contract.
 - Keep commits scoped to one checklist item or a small coherent group.
 - Update this document in the same commit when an item is completed or its design changes.
 - Add notes beneath an item when a decision would otherwise live only in chat history.
