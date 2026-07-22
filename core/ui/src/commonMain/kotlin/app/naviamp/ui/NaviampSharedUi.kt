@@ -199,9 +199,9 @@ fun NaviampSharedAppShell(
         !restoringConnection &&
         !showFullNowPlaying &&
         (
-            albumDetail.detail != null ||
-                artistDetail.detail != null ||
-                playlistDetail.detail != null ||
+            albumDetail.selectedAlbum != null ||
+                artistDetail.selectedArtist != null ||
+                playlistDetail.selectedPlaylist != null ||
                 selectedRoute == SharedRoute.Home ||
                 selectedRoute == SharedRoute.Playlists ||
                 selectedRoute == SharedRoute.Library ||
@@ -775,9 +775,6 @@ private fun ConnectedContent(
     val onPlaylistSelected: (SharedMediaItemUi) -> Unit = {
         onMediaItemAction(NaviampMediaItemActionRequest(it, NaviampMediaItemCommand.Playlist(NaviampPlaylistMediaCommand.Select)))
     }
-    val selectedAlbumDetail = albumDetail.detail
-    val selectedArtistDetail = artistDetail.detail
-    val selectedPlaylistDetail = playlistDetail.detail
     val connection = connectionSettings.connection
     val availableMusicFolders = connection.availableMusicFolders
     val connectionForm = connection.form
@@ -806,16 +803,16 @@ private fun ConnectedContent(
             actions = nowPlayingActions,
             displaySettings = interfaceSettings.nowPlaying,
         )
-        selectedAlbumDetail != null -> NaviampAlbumDetailContent(
+        albumDetail.selectedAlbum != null -> NaviampAlbumDetailContent(
             colors = colors,
-            screen = NaviampAlbumDetailScreenUi(detail = selectedAlbumDetail),
+            screen = albumDetail,
             actions = albumDetailActions,
             playlistChoices = playlistChoices,
             playlistActionStatus = playlists.status,
         )
-        selectedArtistDetail != null -> NaviampArtistDetailContent(
+        artistDetail.selectedArtist != null -> NaviampArtistDetailContent(
             colors = colors,
-            screen = NaviampArtistDetailScreenUi(detail = selectedArtistDetail),
+            screen = artistDetail,
             albumCollectionLayout = interfaceSettings.albumCollectionLayout,
             albumSortOrder = interfaceSettings.albumSortOrder,
             groupAlbumsByReleaseType = interfaceSettings.groupAlbumsByReleaseType,
@@ -823,9 +820,9 @@ private fun ConnectedContent(
             playlistChoices = playlistChoices,
             playlistActionStatus = playlists.status,
         )
-        selectedPlaylistDetail != null -> NaviampPlaylistDetailContent(
+        playlistDetail.selectedPlaylist != null -> NaviampPlaylistDetailContent(
             colors = colors,
-            screen = playlistDetail.copy(detail = selectedPlaylistDetail),
+            screen = playlistDetail,
             actions = playlistDetailActions,
             playlistsActions = playlistsActions,
             playlistChoices = playlistChoices,
