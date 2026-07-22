@@ -32,7 +32,6 @@ data class NaviampCorePlaylistServices(
     val queue: NaviampCorePlaylistQueuePort,
     val downloads: NaviampCorePlaylistDownloadPort,
     val history: NaviampCorePlaylistHistoryPort,
-    val smartProviderSource: NaviampCoreSmartPlaylistProviderSource,
 )
 
 /** Filesystem/network effects required by the Core-owned Downloads feature. */

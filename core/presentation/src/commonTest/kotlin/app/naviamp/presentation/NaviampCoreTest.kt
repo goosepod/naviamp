@@ -189,6 +189,9 @@ class NaviampCoreTest {
 
                 override suspend fun editableConnection(id: String) = error("Not used")
                 override suspend fun deleteConnection(id: String) = NaviampCoreConnectionInventory()
+                override suspend fun smartPlaylistProvider(password: String?) = provider
+                override suspend fun refreshActiveSession() = true
+                override suspend fun persistActiveSession() = Unit
             },
         )
         val core = NaviampCore.create(this, services)
@@ -303,6 +306,9 @@ internal fun fakeCoreServices(provider: MediaProvider? = null) = NaviampCoreServ
 
         override suspend fun editableConnection(id: String): NaviampCoreEditableConnection = error("Not used")
         override suspend fun deleteConnection(id: String) = NaviampCoreConnectionInventory()
+        override suspend fun smartPlaylistProvider(password: String?) = provider
+        override suspend fun refreshActiveSession() = false
+        override suspend fun persistActiveSession() = Unit
     },
     settings = NaviampCoreSettingsServices(
         interfaceSettings = NaviampCoreInterfaceSettingsStore {},
@@ -335,7 +341,6 @@ internal fun fakeCoreServices(provider: MediaProvider? = null) = NaviampCoreServ
         queue = NaviampCorePlaylistQueuePort { _, _ -> },
         downloads = NaviampCorePlaylistDownloadPort { _, _, _ -> },
         history = NaviampCorePlaylistHistoryPort { current, _ -> current },
-        smartProviderSource = NaviampCoreSmartPlaylistProviderSource { null },
     ),
     radio = NaviampCoreRadioServices(
         playback = NaviampCoreInternetRadioPlaybackPort {},

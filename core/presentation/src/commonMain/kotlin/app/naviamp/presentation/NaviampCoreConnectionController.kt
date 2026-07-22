@@ -6,7 +6,11 @@ import app.naviamp.domain.settings.ConnectionFormMusicFolder
 import app.naviamp.domain.settings.ConnectionFormState
 import app.naviamp.domain.settings.connectionFormError
 import app.naviamp.domain.settings.selectedMusicFolderSummary
+import app.naviamp.domain.provider.MediaProvider
 import app.naviamp.ui.NaviampSavedConnectionUi
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.isActive
 
 data class NaviampCoreSavedConnectionRecord(
     val id: String,
@@ -50,7 +54,36 @@ interface NaviampCoreProviderSessionPort {
     ): NaviampCoreConnectedSession
     suspend fun editableConnection(id: String): NaviampCoreEditableConnection
     suspend fun deleteConnection(id: String): NaviampCoreConnectionInventory
+
+    /** Returns the active provider, refreshing native credentials from [password] when supplied. */
+    suspend fun smartPlaylistProvider(password: String?): MediaProvider?
+
+    /** Renews sliding provider credentials and durably stores any rotated values. */
+    suspend fun refreshActiveSession(): Boolean
+
+    /** Persists credentials rotated by a provider request that Core just completed. */
+    suspend fun persistActiveSession()
 }
+
+/** Core owns provider-session renewal timing; hosts only execute and persist one renewal attempt. */
+class NaviampCoreProviderSessionLifecycle(
+    private val sessionPort: NaviampCoreProviderSessionPort,
+    private val refreshIntervalMillis: Long = ProviderSessionRefreshIntervalMillis,
+    private val waitForNextRefresh: suspend (Long) -> Unit = { delay(it) },
+) {
+    suspend fun refreshNow() {
+        runCatching { sessionPort.refreshActiveSession() }
+    }
+
+    suspend fun maintainWhileMounted() {
+        while (currentCoroutineContext().isActive) {
+            waitForNextRefresh(refreshIntervalMillis)
+            refreshNow()
+        }
+    }
+}
+
+const val ProviderSessionRefreshIntervalMillis: Long = 30L * 60L * 1_000L
 
 class NaviampCoreConnectionController(
     private val connection: NaviampConnectionController,

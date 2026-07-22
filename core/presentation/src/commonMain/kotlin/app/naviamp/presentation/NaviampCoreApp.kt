@@ -1,6 +1,7 @@
 package app.naviamp.presentation
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.remember
@@ -45,6 +46,11 @@ fun NaviampCoreApp(
     applicationUpdateChecker: NaviampApplicationUpdateChecker? = null,
 ) {
     val state by core.state.collectAsState()
+    LaunchedEffect(core, state.shell.connectionSettings.currentSourceId) {
+        if (state.shell.connectionSettings.currentSourceId != null) {
+            core.maintainProviderSession()
+        }
+    }
     NaviampSharedAppShell(
         modifier = modifier,
         uiState = state.shell,

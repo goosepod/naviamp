@@ -111,6 +111,7 @@ class NaviampCorePlaylistTransactionControllerTest {
         val result = fixture.controller.execute(NaviampCoreCommand.SmartPlaylist.Load(item, "secret-3"))
 
         assertEquals(listOf("secret", "secret-2", "secret-3"), fixture.smartPasswords)
+        assertEquals(3, fixture.persistedSessions())
         assertEquals(listOf("Smart Mix"), fixture.provider.smartCreates)
         assertEquals(listOf("smart:Smart Mix"), fixture.provider.smartUpdates)
         assertEquals(NaviampCoreCommandResult.SmartPlaylistLoaded(definition), result)
@@ -143,6 +144,25 @@ class NaviampCorePlaylistTransactionControllerTest {
         val browse = NaviampCorePlaylistBrowseController(store, source, navigation)
         val effects = TransactionTestEffects()
         val passwords = mutableListOf<String?>()
+        var persistedSessions = 0
+        val sessionPort = object : NaviampCoreProviderSessionPort {
+            override suspend fun connect(
+                request: NaviampCoreConnectionRequest,
+                plan: app.naviamp.app.NaviampConnectionAttemptPlan,
+            ): NaviampCoreConnectedSession = error("Not expected")
+
+            override suspend fun editableConnection(id: String) = error("Not expected")
+            override suspend fun deleteConnection(id: String) = NaviampCoreConnectionInventory()
+            override suspend fun smartPlaylistProvider(password: String?): MediaProvider? {
+                passwords += password
+                return provider
+            }
+            override suspend fun refreshActiveSession() = false
+
+            override suspend fun persistActiveSession() {
+                persistedSessions += 1
+            }
+        }
         val controller = NaviampCorePlaylistTransactionController(
             stateStore = store,
             providerSource = source,
@@ -150,13 +170,18 @@ class NaviampCorePlaylistTransactionControllerTest {
             playback = effects,
             queue = effects,
             downloads = effects,
-            smartProviderSource = NaviampCoreSmartPlaylistProviderSource { password ->
-                passwords += password
-                provider
-            },
+            sessionPort = sessionPort,
             openNowPlaying = navigation::openNowPlaying,
         )
-        return TransactionFixture(store, provider ?: TransactionTestProvider(), browse, controller, effects, passwords)
+        return TransactionFixture(
+            store,
+            provider ?: TransactionTestProvider(),
+            browse,
+            controller,
+            effects,
+            passwords,
+            persistedSessions = { persistedSessions },
+        )
     }
 
     private fun detail(item: SharedMediaItemUi, command: NaviampPlaylistDetailCommand) =
@@ -186,6 +211,7 @@ private data class TransactionFixture(
     val controller: NaviampCorePlaylistTransactionController,
     val effects: TransactionTestEffects,
     val smartPasswords: List<String?>,
+    val persistedSessions: () -> Int,
 )
 
 private class TransactionTestEffects :

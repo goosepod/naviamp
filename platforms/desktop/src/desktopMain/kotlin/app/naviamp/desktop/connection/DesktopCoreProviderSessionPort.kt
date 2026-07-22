@@ -3,7 +3,6 @@ package app.naviamp.desktop
 import app.naviamp.app.NaviampConnectionAttemptPlan
 import app.naviamp.domain.cache.CacheMaintenanceRepository
 import app.naviamp.domain.cache.MediaSourceRepository
-import app.naviamp.domain.cache.ProviderMediaSourceConnection
 import app.naviamp.domain.cache.ProviderMediaSourceRepository
 import app.naviamp.domain.provider.MediaProvider
 import app.naviamp.domain.settings.ConnectionFormHeader
@@ -31,12 +30,14 @@ import app.naviamp.presentation.NaviampCoreSavedConnectionRecord
 import app.naviamp.provider.navidrome.NavidromeConnection
 import app.naviamp.provider.navidrome.NavidromeConnectionLoginRequest
 import app.naviamp.provider.navidrome.NavidromeMusicFolder
+import app.naviamp.provider.navidrome.NavidromeNativeSessionController
 import app.naviamp.provider.navidrome.NavidromeProvider
 import app.naviamp.provider.navidrome.NavidromeTls
 import app.naviamp.provider.navidrome.navidromeTlsSettingsFromForm
 import app.naviamp.provider.navidrome.prepareNavidromeConnection
 import app.naviamp.provider.navidrome.resolvedDisplayName
 import app.naviamp.provider.navidrome.toNavidromeConnection
+import app.naviamp.provider.navidrome.toProviderMediaSourceConnection
 
 typealias DesktopNavidromeSession = ProviderConnectionSession<NavidromeConnection, NavidromeProvider>
 
@@ -64,6 +65,15 @@ class DesktopCoreProviderSessionPort(
 ) : NaviampCoreProviderSessionPort {
     private var provider: NavidromeProvider? = null
     private var currentSourceId: String? = null
+    private val nativeSession = NavidromeNativeSessionController(
+        currentProvider = { provider },
+        savedConnection = {
+            currentSourceId?.let(mediaSources::mediaSource)?.toNavidromeConnection()
+        },
+        replaceProvider = { provider = it },
+        repository = mediaSources as? ProviderMediaSourceRepository,
+        prepareConnection = { connection -> NavidromeTls.applyJvmDefaults(connection.tlsSettings) },
+    )
 
     val providerSource = NaviampCoreMediaProviderSource { provider }
 
@@ -109,6 +119,13 @@ class DesktopCoreProviderSessionPort(
         }
         return inventory()
     }
+
+    override suspend fun smartPlaylistProvider(password: String?): MediaProvider? =
+        nativeSession.provider(password)
+
+    override suspend fun refreshActiveSession(): Boolean = nativeSession.refresh()
+
+    override suspend fun persistActiveSession() = nativeSession.persist()
 
     private fun NaviampCoreConnectionRequest.toLoginRequest(): NavidromeConnectionLoginRequest {
         val form = when (this) {
@@ -202,18 +219,5 @@ private fun SavedMediaSource.toConnectionForm(): ConnectionFormState = Connectio
     clientCertificatePassword = tlsSettings.clientCertificateKeyStorePassword.orEmpty(),
     secondaryUrls = secondaryUrls.map { ConnectionFormSecondaryUrl(it.url, it.label.orEmpty()) },
     customHeaders = customHeaders.map { ConnectionFormHeader(it.name, it.value.orEmpty(), it.valueIsSecret) },
-    selectedMusicFolderIds = selectedMusicFolderIds,
-)
-
-private fun NavidromeConnection.toProviderMediaSourceConnection() = ProviderMediaSourceConnection(
-    displayName = resolvedDisplayName(),
-    baseUrl = baseUrl,
-    username = username,
-    token = token,
-    salt = salt,
-    nativeToken = nativeToken,
-    tlsSettings = tlsSettings,
-    secondaryUrls = secondaryUrls,
-    customHeaders = customHeaders,
     selectedMusicFolderIds = selectedMusicFolderIds,
 )

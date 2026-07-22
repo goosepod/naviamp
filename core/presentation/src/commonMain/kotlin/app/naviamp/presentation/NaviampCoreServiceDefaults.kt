@@ -80,7 +80,6 @@ fun naviampCoreServiceDefaults(
         queue = NaviampCorePlaylistQueuePort { _, _ -> },
         downloads = NaviampCorePlaylistDownloadPort { _, _, _ -> },
         history = NaviampCorePlaylistHistoryPort { current, _ -> current },
-        smartProviderSource = NaviampCoreSmartPlaylistProviderSource { null },
     ),
     radio = NaviampCoreRadioServices(
         playback = playback.effects as? NaviampCoreInternetRadioPlaybackPort

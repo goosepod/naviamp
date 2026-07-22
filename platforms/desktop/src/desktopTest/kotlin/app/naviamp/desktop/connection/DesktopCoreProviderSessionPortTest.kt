@@ -2,9 +2,12 @@ package app.naviamp.desktop
 
 import app.naviamp.app.NaviampConnectionAttemptPlan
 import app.naviamp.domain.cache.MediaSourceRepository
+import app.naviamp.domain.cache.ProviderMediaSourceConnection
+import app.naviamp.domain.cache.ProviderMediaSourceRepository
 import app.naviamp.domain.provider.ConnectionValidation
 import app.naviamp.domain.settings.ConnectionFormState
 import app.naviamp.domain.source.SavedMediaSource
+import app.naviamp.domain.source.MediaSourceIdentity
 import app.naviamp.presentation.NaviampCoreConnectionRequest
 import app.naviamp.provider.navidrome.NavidromeConnection
 import app.naviamp.provider.navidrome.NavidromeMusicFolder
@@ -14,9 +17,30 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
+import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
 class DesktopCoreProviderSessionPortTest {
+    @Test
+    fun activeSessionSuppliesSmartPlaylistProviderAndPersistsItsNativeToken() = runTest {
+        val repository = TestMediaSourceRepository(savedSource())
+        val port = DesktopCoreProviderSessionPort(
+            mediaSources = repository,
+            sessionOpener = DesktopNavidromeSessionOpener { request, _ ->
+                session(request.savedConnectionForLogin ?: error("saved credentials missing"))
+            },
+        )
+        port.connect(
+            NaviampCoreConnectionRequest.Saved("source-1"),
+            NaviampConnectionAttemptPlan(true, false, false, false),
+        )
+
+        assertSame(port.currentProvider(), port.smartPlaylistProvider(null))
+        port.persistActiveSession()
+
+        assertEquals("native-token", repository.lastPersisted?.nativeToken)
+    }
+
     @Test
     fun editedConnectionReusesProtectedCredentialsFromTheExplicitCoreIdentity() = runTest {
         val repository = TestMediaSourceRepository(savedSource())
@@ -119,6 +143,7 @@ private fun savedSource() = SavedMediaSource(
     username = "demo",
     token = "token",
     salt = "salt",
+    nativeToken = "native-token",
     selectedMusicFolderIds = listOf("1"),
     createdAtEpochMillis = 1L,
     lastConnectedAtEpochMillis = 2L,
@@ -133,13 +158,25 @@ private fun session(connection: NavidromeConnection): DesktopNavidromeSession = 
     validation = ConnectionValidation(serverVersion = "0.58.0", apiVersion = "1.16.1"),
 )
 
-private class TestMediaSourceRepository(source: SavedMediaSource) : MediaSourceRepository {
+private class TestMediaSourceRepository(source: SavedMediaSource) :
+    MediaSourceRepository,
+    ProviderMediaSourceRepository {
     private val sources = linkedMapOf(source.id to source)
+    var lastPersisted: ProviderMediaSourceConnection? = null
 
     override fun latestMediaSource(): SavedMediaSource? = sources.values.lastOrNull()
     override fun mediaSources(): List<SavedMediaSource> = sources.values.toList()
     override fun mediaSource(sourceId: String): SavedMediaSource? = sources[sourceId]
     override fun deleteMediaSource(sourceId: String) {
         sources.remove(sourceId)
+    }
+
+    override fun upsertProviderMediaSource(
+        connection: ProviderMediaSourceConnection,
+        cacheNamespace: String,
+        providerId: String,
+    ): MediaSourceIdentity {
+        lastPersisted = connection
+        return MediaSourceIdentity("source-1", cacheNamespace, connection.displayName)
     }
 }

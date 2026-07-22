@@ -8,6 +8,8 @@ import app.naviamp.domain.AudioCodec
 import app.naviamp.domain.StreamQuality
 import app.naviamp.domain.StreamRequest
 import app.naviamp.domain.TrackId
+import app.naviamp.domain.cache.ProviderMediaSourceConnection
+import app.naviamp.domain.cache.ProviderMediaSourceRepository
 import app.naviamp.domain.provider.AlbumListType
 import app.naviamp.domain.provider.CoverArtSize
 import app.naviamp.domain.provider.MediaPageRequest
@@ -21,6 +23,7 @@ import app.naviamp.domain.smartplaylist.SmartPlaylistMatch
 import app.naviamp.domain.smartplaylist.SmartPlaylistOperator
 import app.naviamp.domain.smartplaylist.SmartPlaylistSort
 import app.naviamp.domain.smartplaylist.SmartPlaylistValue
+import app.naviamp.domain.source.MediaSourceIdentity
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -1166,6 +1169,45 @@ class NavidromeProviderTest {
         )
         assertEquals(mapOf("x-nd-authorization" to "Bearer native-token"), httpClient.getHeaders.single())
         assertEquals("rotated-native-token", provider.connectionWithCurrentNativeToken().nativeToken)
+    }
+
+    @Test
+    fun commonNativeSessionControllerRefreshesReauthenticatesAndPersistsRotatedTokens() = runTest {
+        val httpClient = RecordingNativeHttpClient(
+            response = """{"data":[]}""",
+            responseHeaders = mapOf("X-ND-Authorization" to "rotated-native-token"),
+        )
+        var active = NavidromeProvider(
+            connection = connection("https://music.example.test", nativeToken = "native-token"),
+            httpClient = httpClient,
+        )
+        var persisted: ProviderMediaSourceConnection? = null
+        val repository = object : ProviderMediaSourceRepository {
+            override fun upsertProviderMediaSource(
+                connection: ProviderMediaSourceConnection,
+                cacheNamespace: String,
+                providerId: String,
+            ): MediaSourceIdentity {
+                persisted = connection
+                return MediaSourceIdentity("source", cacheNamespace, connection.displayName)
+            }
+        }
+        val controller = NavidromeNativeSessionController(
+            currentProvider = { active },
+            savedConnection = { active.connectionWithCurrentNativeToken() },
+            replaceProvider = { active = it },
+            repository = repository,
+            authenticate = { saved, password ->
+                assertEquals("secret", password)
+                saved.copy(nativeToken = "password-token")
+            },
+        )
+
+        assertTrue(controller.refresh())
+        assertEquals("rotated-native-token", persisted?.nativeToken)
+        controller.provider("secret")
+        assertEquals("password-token", active.connectionWithCurrentNativeToken().nativeToken)
+        assertEquals("password-token", persisted?.nativeToken)
     }
 
     @Test

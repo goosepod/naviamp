@@ -8,8 +8,32 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
+import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.advanceTimeBy
+import kotlinx.coroutines.test.runCurrent
 
 class NaviampCoreConnectionControllerTest {
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    @Test
+    fun providerSessionLifecycleRefreshesNowAndOnTheSharedSchedule() = kotlinx.coroutines.test.runTest {
+        val fixture = fixture()
+        val lifecycle = NaviampCoreProviderSessionLifecycle(
+            sessionPort = fixture.port,
+            refreshIntervalMillis = 100L,
+        )
+
+        lifecycle.refreshNow()
+        val scheduled = launch { lifecycle.maintainWhileMounted() }
+        runCurrent()
+        assertEquals(1, fixture.port.refreshCalls)
+
+        advanceTimeBy(100L)
+        runCurrent()
+        assertEquals(2, fixture.port.refreshCalls)
+        scheduled.cancelAndJoin()
+    }
+
     @Test
     fun formAndEditingStateAreOwnedImmediatelyByCore() {
         val fixture = fixture()
@@ -208,6 +232,7 @@ private class FakeProviderSessionPort(
     private val musicFoldersLoadFailed: Boolean,
 ) : NaviampCoreProviderSessionPort {
     var inventory = initialInventory
+    var refreshCalls = 0
     val connectRequests = mutableListOf<Pair<NaviampCoreConnectionRequest, NaviampConnectionAttemptPlan>>()
 
     override suspend fun connect(
@@ -233,4 +258,11 @@ private class FakeProviderSessionPort(
         inventory = NaviampCoreConnectionInventory()
         return inventory
     }
+
+    override suspend fun refreshActiveSession(): Boolean {
+        refreshCalls += 1
+        return true
+    }
+    override suspend fun smartPlaylistProvider(password: String?) = null
+    override suspend fun persistActiveSession() = Unit
 }

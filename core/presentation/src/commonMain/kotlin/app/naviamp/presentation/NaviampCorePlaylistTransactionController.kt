@@ -31,16 +31,6 @@ fun interface NaviampCorePlaylistHistoryPort {
     suspend fun recordPlayed(currentIds: List<String>, playlistId: String): List<String>
 }
 
-/**
- * Resolves a provider session capable of native smart-playlist calls.
- *
- * Password-to-token exchange and protected token persistence are provider/session mechanisms. The
- * decision to request them and every smart-playlist transaction remain owned by Core.
- */
-fun interface NaviampCoreSmartPlaylistProviderSource {
-    suspend fun current(password: String?): MediaProvider?
-}
-
 /** Owns playlist playback intent, mutations, smart-playlist policy, and result publication. */
 class NaviampCorePlaylistTransactionController(
     private val stateStore: NaviampCoreStateStore,
@@ -52,8 +42,7 @@ class NaviampCorePlaylistTransactionController(
     private val history: NaviampCorePlaylistHistoryPort = NaviampCorePlaylistHistoryPort { current, id ->
         recentPlaylistIdsAfterPlayed(current, id, limit = 50)
     },
-    private val smartProviderSource: NaviampCoreSmartPlaylistProviderSource =
-        NaviampCoreSmartPlaylistProviderSource { providerSource.current() },
+    private val sessionPort: NaviampCoreProviderSessionPort,
     private val openNowPlaying: () -> Unit = {},
 ) : NaviampCoreCommandController {
     override fun dispatch(command: NaviampCoreCommand): NaviampCoreImmediateCommandResult = when (command) {
@@ -174,6 +163,7 @@ class NaviampCorePlaylistTransactionController(
         publishListStatus("Saving ${definition.name}...")
         try {
             provider.createSmartPlaylist(definition)
+            sessionPort.persistActiveSession()
             browseController.refreshAfterMutation("Saved smart playlist ${definition.name}.")
         } catch (cause: Throwable) {
             publishListStatus(cause.message ?: "Could not save smart playlist.")
@@ -191,6 +181,7 @@ class NaviampCorePlaylistTransactionController(
         publishListStatus("Updating ${definition.name}...")
         try {
             provider.updateSmartPlaylist(playlist.id, definition)
+            sessionPort.persistActiveSession()
             browseController.refreshAfterMutation("Updated smart playlist ${definition.name}.")
         } catch (cause: Throwable) {
             publishListStatus(cause.message ?: "Could not update smart playlist.")
@@ -206,7 +197,10 @@ class NaviampCorePlaylistTransactionController(
         val playlist = browseController.resolvePlaylist(item)
         publishListStatus("Loading ${playlist.name} rules...")
         return try {
-            provider.smartPlaylistDefinition(playlist.id).also { publishListStatus(null) }
+            provider.smartPlaylistDefinition(playlist.id).also {
+                sessionPort.persistActiveSession()
+                publishListStatus(null)
+            }
         } catch (cause: Throwable) {
             publishListStatus(cause.message ?: "Could not load smart playlist rules.")
             throw cause
@@ -218,7 +212,7 @@ class NaviampCorePlaylistTransactionController(
     }
 
     private suspend fun smartProvider(password: String?, action: String): MediaProvider {
-        val provider = smartProviderSource.current(password)
+        val provider = sessionPort.smartPlaylistProvider(password)
         if (provider == null) {
             val message = "Connect to Navidrome before attempting to $action a smart playlist."
             publishListStatus(message)

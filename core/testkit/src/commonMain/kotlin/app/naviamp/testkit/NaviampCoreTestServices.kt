@@ -42,6 +42,9 @@ fun naviampCoreTestServices(provider: MediaProvider? = null): NaviampCoreService
             error("Connection editing was not configured by this test host.")
 
         override suspend fun deleteConnection(id: String) = NaviampCoreConnectionInventory()
+        override suspend fun smartPlaylistProvider(password: String?) = provider
+        override suspend fun refreshActiveSession() = false
+        override suspend fun persistActiveSession() = Unit
     },
     settings = NaviampCoreSettingsServices(
         interfaceSettings = NaviampCoreInterfaceSettingsStore {},
@@ -74,7 +77,6 @@ fun naviampCoreTestServices(provider: MediaProvider? = null): NaviampCoreService
         queue = NaviampCorePlaylistQueuePort { _, _ -> },
         downloads = NaviampCorePlaylistDownloadPort { _, _, _ -> },
         history = NaviampCorePlaylistHistoryPort { current, _ -> current },
-        smartProviderSource = NaviampCoreSmartPlaylistProviderSource { null },
     ),
     radio = NaviampCoreRadioServices(
         playback = NaviampCoreInternetRadioPlaybackPort {},

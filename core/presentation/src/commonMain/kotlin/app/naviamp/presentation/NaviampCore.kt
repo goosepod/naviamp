@@ -73,6 +73,7 @@ class NaviampCore private constructor(
     private val playbackController: NaviampCorePlaybackController,
     private val nowPlayingController: NaviampCoreNowPlayingMediaController,
     private val nowPlayingPresenter: NaviampCoreNowPlayingPresenter,
+    private val providerSessionLifecycle: NaviampCoreProviderSessionLifecycle,
 ) {
     val state: StateFlow<NaviampCoreState> = stateStore.state
 
@@ -101,6 +102,11 @@ class NaviampCore private constructor(
 
     fun expireSleepTimer() {
         playbackController.expireSleepTimer()
+    }
+
+    /** Runs the shared sliding-session heartbeat until the mounted Core application is disposed. */
+    suspend fun maintainProviderSession() {
+        providerSessionLifecycle.maintainWhileMounted()
     }
 
     companion object {
@@ -187,7 +193,7 @@ class NaviampCore private constructor(
                 services.playlists.queue,
                 services.playlists.downloads,
                 services.playlists.history,
-                services.playlists.smartProviderSource,
+                services.connection,
                 navigation::openNowPlaying,
             )
             val radio = NaviampCoreInternetRadioController(
@@ -293,12 +299,16 @@ class NaviampCore private constructor(
                 mediaTransactions,
                 mediaDetails,
             )
+            val providerSessionLifecycle = NaviampCoreProviderSessionLifecycle(
+                sessionPort = services.connection,
+            )
             val connection = NaviampCoreConnectionController(
                 NaviampConnectionController(initialState.connection),
                 stateStore,
                 services.connection,
                 initialState.connectionInventory,
                 onConnected = { sourceId ->
+                    scope.launch { providerSessionLifecycle.refreshNow() }
                     services.content.providerSource.current()?.capabilities?.let { providerCapabilities ->
                         stateStore.updateShell { shell ->
                             val capabilities = shell.capabilities.copy(
@@ -352,6 +362,7 @@ class NaviampCore private constructor(
                 playbackController = playback,
                 nowPlayingController = nowPlaying,
                 nowPlayingPresenter = nowPlayingPresenter,
+                providerSessionLifecycle = providerSessionLifecycle,
             )
         }
     }
