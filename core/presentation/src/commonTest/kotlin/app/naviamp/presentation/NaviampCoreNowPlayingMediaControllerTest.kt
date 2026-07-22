@@ -70,6 +70,31 @@ class NaviampCoreNowPlayingMediaControllerTest {
     }
 
     @Test
+    fun presenterPublishesCompleteRadioCatalogWithActiveStation() = runTest {
+        val fixture = mediaFixture(this)
+        val stations = listOf(
+            InternetRadioStation("one", "One", "https://one.example"),
+            InternetRadioStation("two", "Two", "https://two.example"),
+        )
+        fixture.live.updateCurrentStation(stations[1])
+        val presenter = NaviampCoreNowPlayingPresenter(
+            fixture.store,
+            { fixture.provider },
+            fixture.live,
+            NaviampPlaybackQueueCoordinator(fixture.live),
+            fixture.effects,
+            fixture.sidecars,
+            internetRadioStations = { stations },
+        )
+
+        presenter.publish()
+
+        val ui = fixture.store.state.value.shell.nowPlaying
+        assertEquals(listOf("one", "station", "two"), ui?.radioStations?.map { it.id })
+        assertTrue(ui?.isLive == true)
+    }
+
+    @Test
     fun displayPlaylistMetadataAndDownloadActionsAreOwnedByCore() = runTest {
         val fixture = mediaFixture(this)
 

@@ -15,6 +15,7 @@ import app.naviamp.domain.provider.ConnectionValidation
 import app.naviamp.domain.provider.MediaProvider
 import app.naviamp.domain.provider.MediaSearchResults
 import app.naviamp.domain.provider.ProviderCapabilities
+import app.naviamp.domain.provider.SonicPathMatch
 
 internal class FakeCoreMediaProvider(
     supportsSonicSimilarity: Boolean = false,
@@ -67,10 +68,21 @@ internal class FakeCoreMediaProvider(
     override suspend fun search(query: String, limit: Int) = MediaSearchResults(
         artists = listOf(artist),
         albums = listOf(album),
-        tracks = listOf(track),
+        tracks = listOf(
+            if (capabilities.supportsSonicSimilarity && query in setOf("start", "end")) {
+                track.copy(id = TrackId(query), title = query)
+            } else {
+                track
+            },
+        ),
     )
     override suspend fun playlists(limit: Int) = listOf(playlist)
     override suspend fun playlistTracks(playlistId: String) = listOf(track)
+    override suspend fun findSonicPath(
+        startTrackId: TrackId,
+        endTrackId: TrackId,
+        count: Int,
+    ) = if (capabilities.supportsSonicSimilarity) listOf(SonicPathMatch(track)) else emptyList()
     override suspend fun streamUrl(request: StreamRequest) = "https://example.test/${request.trackId.value}"
     override fun coverArtUrl(coverArtId: String) = "https://example.test/art/$coverArtId"
 }

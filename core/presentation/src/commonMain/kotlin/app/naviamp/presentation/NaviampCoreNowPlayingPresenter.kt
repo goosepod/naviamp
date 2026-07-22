@@ -2,6 +2,7 @@ package app.naviamp.presentation
 
 import app.naviamp.app.NaviampLivePlaybackController
 import app.naviamp.app.NaviampPlaybackQueueCoordinator
+import app.naviamp.domain.InternetRadioStation
 import app.naviamp.domain.isInternetRadioTrack
 import app.naviamp.domain.playback.SleepTimerState
 import app.naviamp.domain.playback.PlaybackStreamMetadata
@@ -30,6 +31,7 @@ class NaviampCoreNowPlayingPresenter(
     private val effects: NaviampCorePlaybackEffectPort,
     private val sidecars: NaviampCoreNowPlayingSidecarPort,
     private val network: NaviampCoreMobileNetworkPort = NaviampCoreMobileNetworkPort { false },
+    private val internetRadioStations: () -> List<InternetRadioStation> = { emptyList() },
 ) {
     fun updateStreamMetadata(metadata: PlaybackStreamMetadata) {
         sidecars.updateStreamMetadata(metadata)
@@ -78,7 +80,11 @@ class NaviampCoreNowPlayingPresenter(
             visualizerVisible = display.visualizerVisible && effects.capabilities.supportsVisualizer,
             coverArtUrl = track?.let(coverArtForTrack),
             playbackQueue = live.queue,
-            internetRadioStations = (sidecar.internetRadioStations + listOfNotNull(live.currentStation))
+            internetRadioStations = (
+                internetRadioStations() +
+                    sidecar.internetRadioStations +
+                    listOfNotNull(live.currentStation)
+                )
                 .distinctBy { it.id },
             currentInternetRadioStationId = live.currentStation?.id,
             radioTrackArtworkByKey = sidecar.radioTrackArtworkByKey,

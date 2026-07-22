@@ -211,13 +211,6 @@ class NaviampCore private constructor(
                 services.mixes.genre,
                 services.mixes.standardPlayback,
             )
-            val sonicBuilders = NaviampCoreSonicBuilderController(
-                stateStore,
-                services.content.providerSource,
-                playlistBrowse,
-                services.mixes.sonicPlayback,
-                services.mixes.sonicQueue,
-            )
             val nowPlayingPresenter = NaviampCoreNowPlayingPresenter(
                 stateStore,
                 services.content.providerSource,
@@ -226,6 +219,7 @@ class NaviampCore private constructor(
                 services.playback.effects,
                 services.playback.sidecars,
                 services.downloads.network,
+                radio::stations,
             )
             val playback = NaviampCorePlaybackController(
                 scope,
@@ -271,6 +265,13 @@ class NaviampCore private constructor(
                 services.favoritedAtIso8601,
                 { nowPlayingPresenter.publish(playback.currentDisplay()) },
                 navigation::openNowPlaying,
+            )
+            val sonicBuilders = NaviampCoreSonicBuilderController(
+                stateStore,
+                services.content.providerSource,
+                playlistBrowse,
+                playback = NaviampCoreSonicPlaybackPort { tracks, _ -> mediaTransactions.play(tracks) },
+                queue = NaviampCoreSonicQueuePort { tracks, _ -> mediaTransactions.addToQueue(tracks) },
             )
             playback.attachNativePlayback()
             val trackActions = NaviampCoreTrackActionController(mediaRegistry, mediaTransactions)

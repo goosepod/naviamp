@@ -20,6 +20,7 @@ import app.naviamp.domain.playback.PlaybackSource
 import app.naviamp.domain.provider.MediaProvider
 import app.naviamp.domain.queue.PlaybackQueue
 import app.naviamp.domain.queue.RepeatMode
+import app.naviamp.domain.radio.internetRadioTrack
 import app.naviamp.domain.app.NaviampNavigationState
 import app.naviamp.domain.app.NaviampRoute
 import app.naviamp.domain.settings.ConnectionFormState
@@ -104,6 +105,66 @@ class NaviampCoreTest {
 
         assertTrue(core.state.value.shell.shellChrome.nowPlayingOpen)
         assertEquals(provider.track.id.value, core.state.value.shell.nowPlaying?.id)
+    }
+
+    @Test
+    fun sonicPlaybackUsesCoreTrackTransitionAfterInternetRadio() = runTest {
+        val provider = FakeCoreMediaProvider(supportsSonicSimilarity = true)
+        val effects = FakeCorePlaybackEffects()
+        val services = fakeCoreServices(provider).let { defaults ->
+            defaults.copy(playback = defaults.playback.copy(effects = effects))
+        }
+        val station = InternetRadioStation("radio", "Radio", "https://radio.example")
+        val radioTrack = internetRadioTrack(station)
+        val core = NaviampCore.create(
+            scope = this,
+            services = services,
+            initialState = NaviampCoreInitialState(
+                playback = NaviampLivePlaybackState(
+                    currentTrack = radioTrack,
+                    currentStation = station,
+                    queue = PlaybackQueue(listOf(radioTrack), 0),
+                ),
+            ),
+        )
+
+        core.dispatch(
+            NaviampCoreCommand.MixBuilder.SonicPath(
+                NaviampCoreCommand.SonicPathAction.ChangeStartQuery("start"),
+            ),
+        )
+        core.execute(
+            NaviampCoreCommand.MixBuilder.SonicPath(NaviampCoreCommand.SonicPathAction.SearchStart),
+        )
+        core.dispatch(
+            NaviampCoreCommand.MixBuilder.SonicPath(
+                NaviampCoreCommand.SonicPathAction.SelectStart(
+                    core.state.value.shell.sonicPathBuilder.startSuggestions.single(),
+                ),
+            ),
+        )
+        core.dispatch(
+            NaviampCoreCommand.MixBuilder.SonicPath(
+                NaviampCoreCommand.SonicPathAction.ChangeEndQuery("end"),
+            ),
+        )
+        core.execute(
+            NaviampCoreCommand.MixBuilder.SonicPath(NaviampCoreCommand.SonicPathAction.SearchEnd),
+        )
+        core.dispatch(
+            NaviampCoreCommand.MixBuilder.SonicPath(
+                NaviampCoreCommand.SonicPathAction.SelectEnd(
+                    core.state.value.shell.sonicPathBuilder.endSuggestions.single(),
+                ),
+            ),
+        )
+        core.execute(NaviampCoreCommand.MixBuilder.SonicPath(NaviampCoreCommand.SonicPathAction.Build))
+        core.execute(NaviampCoreCommand.MixBuilder.SonicPath(NaviampCoreCommand.SonicPathAction.Play))
+
+        assertTrue(core.state.value.shell.shellChrome.nowPlayingOpen)
+        assertEquals("start", core.state.value.shell.nowPlaying?.id)
+        assertTrue(core.state.value.shell.nowPlaying?.isLive == false)
+        assertEquals(listOf("start"), effects.selections.map { it.current?.id?.value })
     }
 
     @Test
@@ -348,6 +409,7 @@ private fun fakeCoreSettingsSyncServices(): NaviampCoreSettingsSyncServices {
 private class FakeCorePlaybackEffects : NaviampCorePlaybackEffectPort {
     override val capabilities = NaviampCorePlaybackCapabilities()
     override val playbackSource = PlaybackSource.ProviderStream
+    val selections = mutableListOf<PlaybackQueue>()
     override fun pause() = Unit
     override fun resume() = Unit
     override fun startOrRestore() = false
@@ -358,7 +420,9 @@ private class FakeCorePlaybackEffects : NaviampCorePlaybackEffectPort {
     override fun applyQueue(queue: PlaybackQueue, clearPreparedNext: Boolean) = Unit
     override fun applyNavigation(command: PlaybackQueueNavigationCommand) = Unit
     override fun applyRepeatMode(mode: RepeatMode) = Unit
-    override fun playQueueSelection(queue: PlaybackQueue, index: Int) = Unit
+    override fun playQueueSelection(queue: PlaybackQueue, index: Int) {
+        selections += queue.jumpTo(index)
+    }
 }
 
 private fun coreTrack(id: String) = Track(

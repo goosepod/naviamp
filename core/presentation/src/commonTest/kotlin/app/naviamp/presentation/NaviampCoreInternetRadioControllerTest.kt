@@ -47,6 +47,19 @@ class NaviampCoreInternetRadioControllerTest {
         val radio = fixture.store.state.value.shell.radio
         assertFalse(radio.refreshing)
         assertEquals(listOf("new"), radio.stations.map { it.item.id })
+        assertEquals(listOf("new"), fixture.controller.stations().map { it.id })
+    }
+
+    @Test
+    fun stationCatalogPreservesProviderOrderForSharedNowPlaying() = runTest {
+        val provider = RadioTestProvider().apply {
+            stations = listOf(station("three", "Three"), station("one", "One"), station("two", "Two"))
+        }
+        val fixture = fixture(provider)
+
+        fixture.controller.execute(NaviampCoreCommand.Radio.Refresh)
+
+        assertEquals(listOf("three", "one", "two"), fixture.controller.stations().map { it.id })
     }
 
     @Test

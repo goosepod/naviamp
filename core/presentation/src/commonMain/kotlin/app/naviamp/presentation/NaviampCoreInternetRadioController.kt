@@ -25,7 +25,11 @@ class NaviampCoreInternetRadioController(
     private val onPlaybackStarted: (InternetRadioStation) -> Unit = {},
 ) : NaviampCoreCommandController {
     private var generation = 0L
+    private var stations = emptyList<InternetRadioStation>()
     private var stationsById = emptyMap<String, InternetRadioStation>()
+
+    /** The provider-ordered station catalog shared by Radio and Now Playing. */
+    fun stations(): List<InternetRadioStation> = stations
 
     override fun dispatch(command: NaviampCoreCommand): NaviampCoreImmediateCommandResult = when (command) {
         NaviampCoreCommand.Radio.Refresh,
@@ -72,6 +76,7 @@ class NaviampCoreInternetRadioController(
         runCatching { provider.internetRadioStations() }
             .onSuccess { stations ->
                 if (requestGeneration != generation) return@onSuccess
+                this.stations = stations
                 stationsById = stations.associateBy(InternetRadioStation::id)
                 stateStore.updateShell { shell ->
                     shell.copy(
