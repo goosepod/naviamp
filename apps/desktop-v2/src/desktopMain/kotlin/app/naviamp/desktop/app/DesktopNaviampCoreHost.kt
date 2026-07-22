@@ -12,6 +12,8 @@ import app.naviamp.presentation.NaviampCoreServices
 import app.naviamp.presentation.NaviampCoreSettingsSyncServices
 import app.naviamp.presentation.rememberNaviampCore
 import app.naviamp.presentation.toCoreActionAvailability
+import app.naviamp.presentation.withShellCapabilities
+import app.naviamp.domain.playback.AudioOutputDevice
 import app.naviamp.ui.NaviampApplicationUpdateChecker
 import app.naviamp.ui.NaviampShellCapabilitiesUi
 import kotlinx.coroutines.CoroutineScope
@@ -46,6 +48,8 @@ internal fun desktopNaviampCoreEnvironment(
     initialState: NaviampCoreInitialState = NaviampCoreInitialState(),
     applicationUpdateChecker: NaviampApplicationUpdateChecker? = desktopApplicationUpdateChecker(),
     shellCapabilities: NaviampShellCapabilitiesUi? = null,
+    audioOutputDeviceSelectionAvailable: Boolean = false,
+    audioOutputDevices: List<AudioOutputDevice> = emptyList(),
     onAsyncFailure: (NaviampCoreCommand, Throwable) -> Unit = { command, cause ->
         throw IllegalStateException("Desktop Core command failed: $command", cause)
     },
@@ -58,17 +62,13 @@ internal fun desktopNaviampCoreEnvironment(
         connection = providerSessions,
         settings = services.settings.copy(sync = settingsSync),
     ),
-    initialState = initialState.copy(
-        product = shellCapabilities?.let { capabilities ->
-            initialState.product.copy(
-                shell = initialState.product.shell.copy(
-                    capabilities = capabilities,
-                    connectionSettings = initialState.product.shell.connectionSettings.copy(
-                        capabilities = capabilities.connection,
-                    ),
-                ),
-            )
-        } ?: initialState.product,
+    initialState = (shellCapabilities?.let { capabilities ->
+        initialState.withShellCapabilities(
+            capabilities = capabilities,
+            audioOutputDeviceSelectionAvailable = audioOutputDeviceSelectionAvailable,
+            audioOutputDevices = audioOutputDevices,
+        )
+    } ?: initialState).copy(
         connectionInventory = providerSessions.initialInventory(),
     ),
     applicationUpdateChecker = applicationUpdateChecker,

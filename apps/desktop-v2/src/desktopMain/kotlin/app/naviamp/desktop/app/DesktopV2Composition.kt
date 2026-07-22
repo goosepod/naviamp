@@ -5,6 +5,7 @@ import app.naviamp.desktop.playback.bass.loadDesktopBassAudioBackend
 import app.naviamp.domain.home.HomeDate
 import app.naviamp.domain.playback.CoreBassPlaybackEngine
 import app.naviamp.domain.playback.ReleasablePlaybackEngine
+import app.naviamp.domain.playback.AudioOutputDevicePlaybackEngine
 import app.naviamp.presentation.NaviampCoreHomeDateSource
 import app.naviamp.presentation.NaviampCoreMutableNowPlayingSidecars
 import app.naviamp.presentation.NaviampCorePlaybackEngineAdapter
@@ -96,6 +97,11 @@ internal class DesktopV2Composition private constructor(
                         playbackEngine = engine,
                         sonicSimilarityAvailable = false,
                     ),
+                    audioOutputDeviceSelectionAvailable =
+                        (engine as? AudioOutputDevicePlaybackEngine)
+                            ?.supportsAudioOutputDeviceSelection == true,
+                    audioOutputDevices =
+                        (engine as? AudioOutputDevicePlaybackEngine)?.outputDevices().orEmpty(),
                     onAsyncFailure = { command, failure ->
                         System.err.println("Naviamp Core command failed: $command: ${failure.message}")
                         failure.printStackTrace()

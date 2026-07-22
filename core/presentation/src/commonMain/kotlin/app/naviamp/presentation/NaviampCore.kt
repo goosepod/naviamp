@@ -9,6 +9,8 @@ import app.naviamp.app.NaviampPlaybackQueueCoordinator
 import app.naviamp.domain.Artist
 import app.naviamp.domain.Track
 import app.naviamp.domain.app.NaviampNavigationState
+import app.naviamp.domain.playback.AudioOutputDevice
+import app.naviamp.ui.NaviampShellCapabilitiesUi
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.StateFlow
 
@@ -18,6 +20,43 @@ data class NaviampCoreInitialState(
     val playback: NaviampLivePlaybackState = NaviampLivePlaybackState(),
     val connection: NaviampConnectionRuntimeState = NaviampConnectionRuntimeState(),
     val connectionInventory: NaviampCoreConnectionInventory = NaviampCoreConnectionInventory(),
+)
+
+/**
+ * Applies host capability facts to every derived shared UI slice in one Core-owned operation.
+ * Hosts must never set individual feature rows or menus themselves.
+ */
+fun NaviampCoreInitialState.withShellCapabilities(
+    capabilities: NaviampShellCapabilitiesUi,
+    audioOutputDeviceSelectionAvailable: Boolean = false,
+    audioOutputDevices: List<AudioOutputDevice> = emptyList(),
+): NaviampCoreInitialState = copy(
+    product = product.copy(
+        shell = product.shell.copy(
+            capabilities = capabilities,
+            connectionSettings = product.shell.connectionSettings.copy(
+                capabilities = capabilities.connection,
+            ),
+            playback = product.shell.playback.copy(
+                replayGainAvailable = capabilities.replayGain,
+                gaplessAvailable = capabilities.gapless,
+                crossfadeAvailable = capabilities.crossfade,
+                equalizerAvailable = capabilities.equalizer,
+                audioOutputDeviceSelectionAvailable = audioOutputDeviceSelectionAvailable,
+                audioOutputDevices = audioOutputDevices,
+                sonicSimilarityAvailable = capabilities.sonicSimilarity,
+                showMobileNetworkQuality = capabilities.showMobileNetworkQuality,
+            ),
+            cache = product.shell.cache.copy(fileSelectionAvailable = capabilities.fileSelection),
+            shellChrome = product.shell.shellChrome.copy(
+                supportsDownloads = capabilities.downloads,
+                supportsApplicationUpdates = capabilities.applicationUpdates,
+            ),
+        ),
+        settingsSync = product.settingsSync.copy(
+            available = capabilities.settingsImportExport && capabilities.fileSelection,
+        ),
+    ),
 )
 
 /**

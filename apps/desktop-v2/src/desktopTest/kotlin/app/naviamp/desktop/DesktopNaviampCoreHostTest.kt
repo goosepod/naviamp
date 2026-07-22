@@ -49,6 +49,10 @@ class DesktopNaviampCoreHostTest {
             providerSessions = providerSessions,
             externalUri = app.naviamp.presentation.NaviampCoreExternalUriPort {},
             shellCapabilities = NaviampShellCapabilitiesUi(
+                replayGain = true,
+                gapless = true,
+                crossfade = true,
+                equalizer = true,
                 connection = NaviampConnectionCapabilitiesUi(
                     insecureServerVerification = true,
                     customServerCertificates = true,
@@ -73,6 +77,9 @@ class DesktopNaviampCoreHostTest {
             NaviampConnectionCapabilitiesUi(true, true, true),
             core.state.value.shell.connectionSettings.capabilities,
         )
+        assertEquals(true, core.state.value.shell.playback.replayGainAvailable)
+        assertEquals(true, core.state.value.shell.playback.crossfadeAvailable)
+        assertEquals(true, core.state.value.shell.playback.equalizerAvailable)
         assertNotNull(environment.applicationUpdateChecker)
     }
 }
