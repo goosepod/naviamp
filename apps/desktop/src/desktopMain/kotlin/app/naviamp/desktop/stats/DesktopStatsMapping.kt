@@ -15,7 +15,7 @@ import app.naviamp.domain.queue.PlaybackQueue
 import app.naviamp.domain.settings.ConnectionFormMusicFolder
 import app.naviamp.domain.settings.PlaybackSettings
 import app.naviamp.domain.source.SavedMediaSource
-import app.naviamp.desktop.playback.DesktopPlaybackEngineDiagnostics
+import app.naviamp.domain.playback.PlaybackEngineDiagnostics
 import app.naviamp.desktop.playback.DesktopPlaylistEngine
 import app.naviamp.provider.navidrome.NavidromeApiCallHistory
 import app.naviamp.provider.navidrome.NavidromeProvider
@@ -75,7 +75,7 @@ fun buildDesktopStatsForNerdsInfo(
         ),
         playbackEngineName = playbackEngine.name,
         playbackCapabilities = playbackEngine.capabilitiesLabel(),
-        playbackEngineStats = (playbackEngine as? DesktopPlaybackEngineDiagnostics)?.statsRows().orEmpty(),
+        playbackEngineStats = (playbackEngine as? PlaybackEngineDiagnostics)?.statsRows().orEmpty(),
         queueSize = playbackQueue.tracks.size,
         currentQueueIndex = playbackQueue.currentIndex,
         cacheRuntime = playlistEngine.cacheRuntimeStats(),

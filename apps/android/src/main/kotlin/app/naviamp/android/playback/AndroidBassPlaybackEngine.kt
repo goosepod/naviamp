@@ -44,6 +44,7 @@ import app.naviamp.domain.settings.SampleRateConverter
 import app.naviamp.domain.settings.SampleRateMatching
 import app.naviamp.domain.playback.VisualizerBandCount
 import app.naviamp.domain.playback.VisualizerPlaybackEngine
+import app.naviamp.domain.playback.BassPlaybackEngine
 import app.naviamp.domain.playback.BassPlaybackPollingState
 import app.naviamp.domain.playback.BassPlaybackPollingPolicy
 import app.naviamp.domain.playback.BassPlaybackExecutionCoordinator
@@ -85,12 +86,7 @@ class AndroidBassPlaybackEngine(
     context: Context,
     private val bass: BassAudioBackend,
 ) : AndroidPlaybackEngine,
-    QueueAwarePlaybackEngine,
-    VisualizerPlaybackEngine,
-    EqualizerPlaybackEngine,
-    ReplayGainPlaybackEngine,
-    SampleRateConverterPlaybackEngine,
-    SampleRateMatchingPlaybackEngine {
+    BassPlaybackEngine {
     private val appContext = context.applicationContext
     private var sampleRateConverter = SampleRateConverter.Sinc16
     private var sampleRateMatching = SampleRateMatching.Disabled

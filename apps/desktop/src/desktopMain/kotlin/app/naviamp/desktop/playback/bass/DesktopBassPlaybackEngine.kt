@@ -1,6 +1,7 @@
 package app.naviamp.desktop.playback.bass
 
-import app.naviamp.desktop.playback.DesktopPlaybackEngineDiagnostics
+import app.naviamp.domain.playback.BassPlaybackEngine
+import app.naviamp.domain.playback.PlaybackEngineDiagnostics
 import app.naviamp.domain.playback.PlaybackProgress
 import app.naviamp.domain.playback.PlaybackRequest
 import app.naviamp.domain.playback.PlaybackState
@@ -80,14 +81,9 @@ import java.net.URI
 class DesktopBassPlaybackEngine(
     private val backendResult: Result<BassAudioBackend> = loadDesktopBassAudioBackend(),
 ) : QueueAwarePlaybackEngine,
-    VisualizerPlaybackEngine,
-    EqualizerPlaybackEngine,
-    ReplayGainPlaybackEngine,
-    SampleRateConverterPlaybackEngine,
-    SampleRateMatchingPlaybackEngine,
+    BassPlaybackEngine,
     AudioOutputDevicePlaybackEngine,
-    ReleasablePlaybackEngine,
-    DesktopPlaybackEngineDiagnostics {
+    PlaybackEngineDiagnostics {
     private val backend: BassAudioBackend? = backendResult.getOrNull()
     private val loadError: Throwable? = backendResult.exceptionOrNull()
     private var sampleRateConverter = SampleRateConverter.Sinc16

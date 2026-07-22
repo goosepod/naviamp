@@ -70,6 +70,28 @@ interface SampleRateMatchingPlaybackEngine : PlaybackEngine {
     fun setSampleRateMatching(mode: app.naviamp.domain.settings.SampleRateMatching)
 }
 
+/**
+ * Complete platform-neutral feature contract for every Naviamp BASS engine.
+ *
+ * Native hosts supply library loading, audio-session/lifecycle integration, and the
+ * [app.naviamp.domain.bass.BassAudioBackend]. BASS transport, queue preparation, visualizer,
+ * equalizer, ReplayGain, and sample-rate behavior must remain feature-identical through this
+ * contract and are being consolidated into one shared implementation.
+ */
+interface BassPlaybackEngine :
+    QueueAwarePlaybackEngine,
+    VisualizerPlaybackEngine,
+    EqualizerPlaybackEngine,
+    ReplayGainPlaybackEngine,
+    SampleRateConverterPlaybackEngine,
+    SampleRateMatchingPlaybackEngine,
+    ReleasablePlaybackEngine
+
+/** Optional engine diagnostics consumed by shared or host-native diagnostic presentation. */
+interface PlaybackEngineDiagnostics {
+    fun statsRows(): List<Pair<String, String>>
+}
+
 fun targetOutputSampleRate(
     mode: SampleRateMatching,
     requestedSampleRateHz: Int?,
