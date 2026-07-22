@@ -1,4 +1,5 @@
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import org.jetbrains.compose.desktop.application.dsl.TargetFormat
 
 plugins {
     alias(libs.plugins.kotlin.multiplatform)
@@ -21,6 +22,7 @@ kotlin {
                 implementation(project(":platforms:desktop"))
                 implementation(compose.runtime)
                 implementation(compose.ui)
+                implementation(compose.desktop.currentOs)
                 implementation(libs.kotlinx.coroutines.core)
             }
         }
@@ -32,4 +34,28 @@ kotlin {
             }
         }
     }
+}
+
+compose.desktop {
+    application {
+        mainClass = "app.naviamp.desktop.DesktopV2MainKt"
+
+        nativeDistributions {
+            packageName = "Naviamp"
+            packageVersion = "2.0.0"
+            description = "Naviamp 2.0.0-alpha shared-Core test host"
+            vendor = "Naviamp"
+            appResourcesRootDir.set(
+                rootProject.layout.projectDirectory.dir("apps/desktop/build/generated/desktopBassApp"),
+            )
+            modules("java.net.http", "java.sql")
+            targetFormats(TargetFormat.Dmg)
+        }
+    }
+}
+
+tasks.matching {
+    it.name in setOf("run", "prepareAppResources", "createDistributable", "packageDmg")
+}.configureEach {
+    dependsOn(":apps:desktop:copyDesktopBassAppResources", ":apps:desktop:copyDesktopBassJniAppResources")
 }

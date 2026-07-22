@@ -44,6 +44,9 @@ internal fun desktopNaviampCoreEnvironment(
     externalUri: NaviampCoreExternalUriPort = DesktopExternalUriPort(),
     initialState: NaviampCoreInitialState = NaviampCoreInitialState(),
     applicationUpdateChecker: NaviampApplicationUpdateChecker? = desktopApplicationUpdateChecker(),
+    onAsyncFailure: (NaviampCoreCommand, Throwable) -> Unit = { command, cause ->
+        throw IllegalStateException("Desktop Core command failed: $command", cause)
+    },
 ): DesktopNaviampCoreEnvironment = DesktopNaviampCoreEnvironment(
     services = services.copy(
         content = services.content.copy(
@@ -55,6 +58,7 @@ internal fun desktopNaviampCoreEnvironment(
     ),
     initialState = initialState.copy(connectionInventory = providerSessions.initialInventory()),
     applicationUpdateChecker = applicationUpdateChecker,
+    onAsyncFailure = onAsyncFailure,
 )
 
 internal fun createDesktopNaviampCore(
