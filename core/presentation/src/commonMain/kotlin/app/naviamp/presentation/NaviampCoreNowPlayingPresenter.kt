@@ -4,6 +4,8 @@ import app.naviamp.app.NaviampLivePlaybackController
 import app.naviamp.app.NaviampPlaybackQueueCoordinator
 import app.naviamp.domain.isInternetRadioTrack
 import app.naviamp.domain.playback.SleepTimerState
+import app.naviamp.domain.playback.PlaybackStreamMetadata
+import app.naviamp.domain.playback.PlaybackVisualizerFrame
 import app.naviamp.domain.playback.label
 import app.naviamp.domain.settings.streamQualityForNetwork
 import app.naviamp.ui.NaviampNowPlayingContentInput
@@ -29,6 +31,14 @@ class NaviampCoreNowPlayingPresenter(
     private val sidecars: NaviampCoreNowPlayingSidecarPort,
     private val network: NaviampCoreMobileNetworkPort = NaviampCoreMobileNetworkPort { false },
 ) {
+    fun updateStreamMetadata(metadata: PlaybackStreamMetadata) {
+        sidecars.updateStreamMetadata(metadata)
+    }
+
+    fun updateVisualizerFrame(frame: PlaybackVisualizerFrame?) {
+        sidecars.updateVisualizerFrame(frame)
+    }
+
     fun publish(display: NaviampCoreNowPlayingDisplayState = NaviampCoreNowPlayingDisplayState()) {
         val live = playback.state.value
         val shell = stateStore.state.value.shell

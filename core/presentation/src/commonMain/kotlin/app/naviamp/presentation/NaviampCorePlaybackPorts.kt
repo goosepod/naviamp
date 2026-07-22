@@ -8,7 +8,9 @@ import app.naviamp.domain.TrackId
 import app.naviamp.domain.audio.AudioTag
 import app.naviamp.domain.media.RelatedTracksSource
 import app.naviamp.domain.playback.PlaybackQueueNavigationCommand
+import app.naviamp.domain.playback.PlaybackProgress
 import app.naviamp.domain.playback.PlaybackSource
+import app.naviamp.domain.playback.PlaybackState
 import app.naviamp.domain.playback.PlaybackStreamMetadata
 import app.naviamp.domain.playback.PlaybackVisualizerFrame
 import app.naviamp.domain.queue.PlaybackQueue
@@ -30,10 +32,20 @@ interface NaviampCorePlaybackEffectPort : NaviampPlaybackExecution {
     val capabilities: NaviampCorePlaybackCapabilities
     val playbackSource: PlaybackSource
 
+    /** Connects native engine observations to Core without giving the host product-state access. */
+    fun attach(observer: NaviampCorePlaybackObserver) = Unit
+
     fun applyQueue(queue: PlaybackQueue, clearPreparedNext: Boolean)
     fun applyNavigation(command: PlaybackQueueNavigationCommand)
     fun applyRepeatMode(mode: RepeatMode)
     fun playQueueSelection(queue: PlaybackQueue, index: Int)
+}
+
+interface NaviampCorePlaybackObserver {
+    fun onStateChanged(state: PlaybackState)
+    fun onProgressChanged(progress: PlaybackProgress)
+    fun onMetadataChanged(metadata: PlaybackStreamMetadata)
+    fun onVisualizerFrameChanged(frame: PlaybackVisualizerFrame?) = Unit
 }
 
 data class NaviampCoreNowPlayingSidecars(
@@ -57,6 +69,8 @@ interface NaviampCoreNowPlayingSidecarPort {
     suspend fun loadForTrack(track: Track)
     suspend fun loadLyrics(track: Track)
     suspend fun changeLyricsOffset(track: Track, offsetMillis: Int)
+    fun updateStreamMetadata(metadata: PlaybackStreamMetadata) = Unit
+    fun updateVisualizerFrame(frame: PlaybackVisualizerFrame?) = Unit
 }
 
 fun interface NaviampCorePlaybackSettingsPort {

@@ -11,6 +11,9 @@ import app.naviamp.domain.playback.SleepTimerRequest
 import app.naviamp.domain.playback.sleepTimerSelection
 import app.naviamp.domain.playback.PlaybackQueueSelectionUpdate
 import app.naviamp.domain.playback.PlaybackState
+import app.naviamp.domain.playback.PlaybackProgress
+import app.naviamp.domain.playback.PlaybackStreamMetadata
+import app.naviamp.domain.playback.PlaybackVisualizerFrame
 import app.naviamp.domain.settings.streamQualityForNetwork
 import app.naviamp.ui.NowPlayingPlaybackAction
 import app.naviamp.ui.NowPlayingPlaybackActionRequest
@@ -69,6 +72,33 @@ class NaviampCorePlaybackController(
     }
 
     fun currentDisplay(): NaviampCoreNowPlayingDisplayState = display
+
+    fun attachNativePlayback() {
+        effects.attach(object : NaviampCorePlaybackObserver {
+            override fun onStateChanged(state: PlaybackState) {
+                playback.updatePlaybackState(state)
+                if (state == PlaybackState.Finished) {
+                    navigate(queue.nextCommand())
+                }
+                presenter.publish(display)
+            }
+
+            override fun onProgressChanged(progress: PlaybackProgress) {
+                playback.updateProgress(progress)
+                presenter.publish(display)
+            }
+
+            override fun onMetadataChanged(metadata: PlaybackStreamMetadata) {
+                presenter.updateStreamMetadata(metadata)
+                presenter.publish(display)
+            }
+
+            override fun onVisualizerFrameChanged(frame: PlaybackVisualizerFrame?) {
+                presenter.updateVisualizerFrame(frame)
+                presenter.publish(display)
+            }
+        })
+    }
 
     private fun playback(request: NowPlayingPlaybackActionRequest) {
         val playbackSettings = stateStore.state.value.shell.playback.settings

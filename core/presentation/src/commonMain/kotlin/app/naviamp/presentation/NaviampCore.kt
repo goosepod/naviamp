@@ -219,6 +219,7 @@ class NaviampCore private constructor(
                 services.favoritedAtIso8601,
                 { nowPlayingPresenter.publish(playback.currentDisplay()) },
             )
+            playback.attachNativePlayback()
             val trackActions = NaviampCoreTrackActionController(mediaRegistry, mediaTransactions)
             val collectionActions = NaviampCoreCollectionActionController(
                 services.content.providerSource,
