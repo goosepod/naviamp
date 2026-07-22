@@ -152,6 +152,20 @@ class DesktopCoreProviderSessionPort(
     }
 }
 
+/** Builds the replacement host's connection effect from one durable shared repository owner. */
+fun desktopCoreProviderSessionPort(
+    storage: DesktopMediaSourceStorage,
+    cacheMaintenanceRepository: CacheMaintenanceRepository<*>,
+    nowEpochMillis: () -> Long = DesktopSystemClock::nowEpochMillis,
+): DesktopCoreProviderSessionPort = DesktopCoreProviderSessionPort(
+    mediaSources = storage,
+    sessionOpener = desktopNavidromeSessionOpener(
+        cacheMaintenanceRepository = cacheMaintenanceRepository,
+        providerMediaSourceRepository = storage,
+        nowEpochMillis = nowEpochMillis,
+    ),
+)
+
 fun desktopNavidromeSessionOpener(
     cacheMaintenanceRepository: CacheMaintenanceRepository<*>,
     providerMediaSourceRepository: ProviderMediaSourceRepository,

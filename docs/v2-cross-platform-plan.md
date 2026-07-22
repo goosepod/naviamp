@@ -289,7 +289,8 @@ The 2026-07-20 entry audit split the work into ownership, lifecycle, platform-se
   - [ ] Move BASS playback execution, queue application, sidecars, visualizer settings, and playback-setting adapters into `platforms:desktop`; apply the reusable playback contract to the real adapter.
   - [ ] Move database/filesystem, Downloads/offline, playlist/radio/mix execution, maintenance, and storage-location adapters behind their Core ports without copying legacy product controllers.
     - [x] Move the JDBC SQLDelight driver factory into `platforms:desktop` and prove that it creates a usable shared schema in a host-selected directory. Database location and connection pragmas are Desktop facts; schema and queries remain shared.
-    - [ ] Construct protected `StorageMediaSourceStore` persistence for the replacement connection adapter, then migrate the remaining repository and byte-store effects by focused Core port.
+    - [x] Construct protected `StorageMediaSourceStore` persistence for the replacement connection adapter. `DesktopMediaSourceStorage` owns the JDBC driver lifecycle while the shared schema, repository, and credential-migration policy remain in Core; one factory supplies that same durable repository to both connection inventory and provider-session persistence. Fresh, restarted, and encrypted-at-rest behavior is covered by the Desktop adapter suite.
+    - [ ] Migrate the remaining repository and byte-store effects by focused Core port.
   - [ ] Add the minimal Desktop window/process entry, lifecycle forwarding, updater, native dialogs, visualizer-frame forwarding, and release/close behavior around `DesktopNaviampCoreHost`.
   - [ ] Run the complete fake-host, Desktop adapter, functional, packaging, and hands-on parity gates; then replace the legacy module and delete its product controllers, state/action factories, route/UI wrappers, and obsolete tests in the same cutover.
 - [x] Keep Android operating-system integration in the Android host. The source audit confirmed that Activity lifecycle and intents, foreground-service lifetime, MediaSession and notifications, permissions, audio focus and wake locks, Android Auto APIs, storage selection, URI permissions, and native BASS/JNI calls remain under `apps/android`; common production code does not import those Android APIs.
@@ -782,8 +783,8 @@ The 2026-07-17 audit covers every current application entry point:
 
 ## Current Handoff
 
-- **Last completed item:** Desktop JDBC/SQLDelight construction now lives in `platforms:desktop` and is tested against the shared schema. The replacement connection/content boundary and its Core-owned edit/validation policy remain green.
-- **Next recommended item:** Construct protected `StorageMediaSourceStore` persistence for the replacement connection adapter, then build the real settings-sync port and application-update checker without importing legacy product controllers.
+- **Last completed item:** The replacement connection adapter now uses a durable, protected `StorageMediaSourceStore` owner in `platforms:desktop`. Desktop owns JDBC lifecycle and OS credential encryption; Core continues to own schema, queries, repository behavior, and credential migration.
+- **Next recommended item:** Build the real settings-sync port and application-update checker without importing legacy product controllers, then continue the remaining repository and byte-store effects by focused Core port.
 - **Verification:** `:core:presentation:jvmTest`, `:platforms:desktop:desktopTest`, `:apps:desktop-v2:desktopTest`, and `verifyCoreFirstArchitecture` pass. The legacy Desktop product graph is intentionally not the replacement build target and already fails against strict required action contracts.
 - **Known blockers:** None. The audit is complete; its ownership migrations and hands-on service/download/Android Auto verification remain open in Milestone 4.
 
