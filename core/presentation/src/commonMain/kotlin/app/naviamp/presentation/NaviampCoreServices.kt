@@ -28,9 +28,7 @@ data class NaviampCoreMixServices(
 
 /** Persistence and native effects required by playlist product transactions. */
 data class NaviampCorePlaylistServices(
-    val playback: NaviampCorePlaylistPlaybackPort,
     val queue: NaviampCorePlaylistQueuePort,
-    val downloads: NaviampCorePlaylistDownloadPort,
     val history: NaviampCorePlaylistHistoryPort,
 )
 

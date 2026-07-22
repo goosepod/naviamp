@@ -49,7 +49,7 @@ class NaviampCorePlaylistTransactionControllerTest {
         assertEquals(listOf("playlist-a:lossless"), fixture.effects.downloads)
         assertEquals(listOf("playlist-a"), fixture.store.state.value.shell.playlists.recentPlaylistIds)
         assertTrue(fixture.store.state.value.shell.shellChrome.nowPlayingOpen)
-        assertEquals("Connected.", fixture.store.state.value.shell.playlistDetail.status)
+        assertEquals("Download started.", fixture.store.state.value.shell.playlistDetail.status)
     }
 
     @Test

@@ -9,6 +9,7 @@ import app.naviamp.storage.StorageDatabaseDriverFactory
 import app.naviamp.storage.StorageDatabaseLocation
 import app.naviamp.storage.StorageLibraryIndexStore
 import app.naviamp.storage.StorageLyricsOffsetStore
+import app.naviamp.storage.StorageKeepDownloadedStore
 import app.naviamp.storage.StorageLyricsSidecarStore
 import app.naviamp.storage.StorageObjectByteStore
 import app.naviamp.storage.StoragePendingProviderActionStore
@@ -37,6 +38,7 @@ class DesktopStorageRepositories private constructor(
     val lyricsOffsets: StorageLyricsOffsetStore,
     val sidecarStatuses: StorageSidecarStatusStore,
     val libraryIndex: StorageLibraryIndexStore,
+    val keepDownloaded: StorageKeepDownloadedStore,
     val pendingProviderActions: StoragePendingProviderActionStore,
     val playbackSessions: StoragePlaybackSessionStore,
     val radioDjPresets: StorageRadioDjPresetStore,
@@ -102,6 +104,7 @@ class DesktopStorageRepositories private constructor(
                     lyricsOffsets = StorageLyricsOffsetStore(queries, nowEpochMillis),
                     sidecarStatuses = StorageSidecarStatusStore(queries),
                     libraryIndex = StorageLibraryIndexStore(queries, mediaSources.store, nowEpochMillis),
+                    keepDownloaded = StorageKeepDownloadedStore(queries, nowEpochMillis),
                     pendingProviderActions = StoragePendingProviderActionStore(queries, nowEpochMillis),
                     playbackSessions = StoragePlaybackSessionStore(queries, nowEpochMillis, json),
                     radioDjPresets = StorageRadioDjPresetStore(queries, nowEpochMillis),

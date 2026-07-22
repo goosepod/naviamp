@@ -1,6 +1,8 @@
 package app.naviamp.presentation
 
 import app.naviamp.domain.Playlist
+import app.naviamp.domain.cache.KeepDownloadedCollectionKind
+import app.naviamp.domain.cache.KeepDownloadedRepository
 import app.naviamp.ui.NaviampAlbumDetailScreenUi
 import app.naviamp.ui.NaviampArtistDetailScreenUi
 import app.naviamp.ui.NaviampMediaItemCommand
@@ -18,6 +20,24 @@ data class NaviampCorePlaylistBrowseSupplement(
 
 fun interface NaviampCorePlaylistBrowseSupplementSource {
     fun current(): NaviampCorePlaylistBrowseSupplement
+}
+
+fun naviampCorePlaylistBrowseSupplementSource(
+    recentPlaylistIds: () -> List<String>,
+    sourceId: () -> String?,
+    keepDownloadedRepository: KeepDownloadedRepository,
+): NaviampCorePlaylistBrowseSupplementSource = NaviampCorePlaylistBrowseSupplementSource {
+    NaviampCorePlaylistBrowseSupplement(
+        recentPlaylistIds = recentPlaylistIds(),
+        keepDownloadedPlaylistIds = sourceId()
+            ?.let(keepDownloadedRepository::keepDownloadedPolicies)
+            .orEmpty()
+            .filter { policy ->
+                policy.kind == KeepDownloadedCollectionKind.Playlist ||
+                    policy.kind == KeepDownloadedCollectionKind.SmartPlaylist
+            }
+            .mapTo(mutableSetOf()) { it.collectionId },
+    )
 }
 
 /** Owns playlist list/detail browsing; mutations and playback are separate Core transactions. */

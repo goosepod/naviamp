@@ -9,6 +9,8 @@ import app.naviamp.domain.settings.normalized
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.builtins.ListSerializer
+import kotlinx.serialization.builtins.serializer
 import kotlinx.serialization.json.jsonObject
 import java.nio.file.Files
 import java.nio.file.Path
@@ -55,6 +57,12 @@ class DesktopCoreSettingsStore(private val path: Path) {
 
     fun saveVisualizerSettings(value: VisualizerSettings) =
         write("visualizer", VisualizerSettings.serializer(), value)
+
+    fun loadRecentPlaylistIds(): List<String> =
+        read("recentPlaylistIds", ListSerializer(String.serializer()), emptyList())
+
+    fun saveRecentPlaylistIds(ids: List<String>) =
+        write("recentPlaylistIds", ListSerializer(String.serializer()), ids.distinct().take(50))
 
     private fun document(): JsonObject = runCatching {
         if (path.exists()) json.parseToJsonElement(path.readText()).jsonObject else JsonObject(emptyMap())

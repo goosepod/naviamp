@@ -195,7 +195,7 @@ class NaviampCore private constructor(
                     services.playback.effects.playQueueSelection(update.queue, update.queue.currentIndex)
                 },
                 services.playlists.queue,
-                services.playlists.downloads,
+                NaviampCorePlaylistDownloadPort(downloads::downloadPlaylist),
                 services.playlists.history,
                 services.connection,
                 navigation::openNowPlaying,

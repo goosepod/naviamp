@@ -73,9 +73,7 @@ fun naviampCoreTestServices(provider: MediaProvider? = null): NaviampCoreService
         network = NaviampCoreMobileNetworkPort { false },
     ),
     playlists = NaviampCorePlaylistServices(
-        playback = NaviampCorePlaylistPlaybackPort { _, _, _ -> },
         queue = NaviampCorePlaylistQueuePort { _, _ -> },
-        downloads = NaviampCorePlaylistDownloadPort { _, _, _ -> },
         history = NaviampCorePlaylistHistoryPort { current, _ -> current },
     ),
     radio = NaviampCoreRadioServices(

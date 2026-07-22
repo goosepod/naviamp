@@ -36,6 +36,8 @@ import app.naviamp.ui.NaviampArtistDetailActionRequest
 import app.naviamp.ui.NaviampArtistDetailCommand
 import app.naviamp.ui.NaviampMediaItemActionRequest
 import app.naviamp.ui.NaviampMediaItemCommand
+import app.naviamp.ui.NaviampPlaylistDetailActionRequest
+import app.naviamp.ui.NaviampPlaylistDetailCommand
 import app.naviamp.ui.NaviampArtistMediaCommand
 import app.naviamp.ui.NaviampVisualizer
 import app.naviamp.ui.SharedHomeDiscoveryTrackActionRequest
@@ -45,6 +47,7 @@ import app.naviamp.ui.SharedRoute
 import app.naviamp.ui.SharedTrackRowAction
 import app.naviamp.ui.SharedTrackRowActionRequest
 import app.naviamp.ui.SharedTrackRowUi
+import app.naviamp.ui.toSharedMediaItemUi
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
@@ -105,6 +108,53 @@ class NaviampCoreTest {
 
         assertTrue(core.state.value.shell.shellChrome.nowPlayingOpen)
         assertEquals(provider.track.id.value, core.state.value.shell.nowPlaying?.id)
+    }
+
+    @Test
+    fun playlistDownloadUsesTheSharedDownloadsControllerRatherThanTheLegacyPlaylistPlaceholder() = runTest {
+        val provider = FakeCoreMediaProvider()
+        var transferredTrackIds = emptyList<String>()
+        val defaults = fakeCoreServices(provider)
+        val services = defaults.copy(
+            downloads = defaults.downloads.copy(
+                transfer = NaviampCoreDownloadTransferPort { request, _, update ->
+                    transferredTrackIds = request.tracks.map { it.id.value }
+                    update(DownloadJobUpdate.Completed)
+                    NaviampCoreDownloadTransferResult(refreshDownloads = false)
+                },
+            ),
+        )
+        val initial = NaviampCoreInitialState().let { state ->
+            state.copy(
+                connection = NaviampConnectionRuntimeState(
+                    phase = NaviampConnectionPhase.Connected,
+                    sourceId = "source",
+                ),
+                product = state.product.copy(
+                    shell = state.product.shell.copy(
+                        connectionSettings = state.product.shell.connectionSettings.copy(
+                            currentSourceId = "source",
+                        ),
+                    ),
+                ),
+            )
+        }
+        val core = NaviampCore.create(this, services, initialState = initial)
+
+        core.execute(
+            NaviampCoreCommand.Playlists.Detail(
+                NaviampPlaylistDetailActionRequest(
+                    playlist = provider.playlist.toSharedMediaItemUi(
+                        coverArtUrl = { id: String? -> id?.let(provider::coverArtUrl) },
+                    ),
+                    command = NaviampPlaylistDetailCommand.Download(null),
+                ),
+            ),
+        )
+        advanceUntilIdle()
+
+        assertEquals(listOf(provider.track.id.value), transferredTrackIds)
+        assertEquals("Starting download for Core Playlist...", core.state.value.shell.playlists.status)
     }
 
     @Test
@@ -337,9 +387,7 @@ internal fun fakeCoreServices(provider: MediaProvider? = null) = NaviampCoreServ
         network = NaviampCoreMobileNetworkPort { false },
     ),
     playlists = NaviampCorePlaylistServices(
-        playback = NaviampCorePlaylistPlaybackPort { _, _, _ -> },
         queue = NaviampCorePlaylistQueuePort { _, _ -> },
-        downloads = NaviampCorePlaylistDownloadPort { _, _, _ -> },
         history = NaviampCorePlaylistHistoryPort { current, _ -> current },
     ),
     radio = NaviampCoreRadioServices(

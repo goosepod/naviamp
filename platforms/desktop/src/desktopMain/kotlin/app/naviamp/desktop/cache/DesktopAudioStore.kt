@@ -10,6 +10,7 @@ import app.naviamp.domain.TrackId
 import app.naviamp.domain.cache.AudioByteStoreService
 import app.naviamp.domain.cache.AudioCacheRepository
 import app.naviamp.domain.cache.DownloadRepository
+import app.naviamp.domain.cache.DownloadReplacementRepository
 import app.naviamp.domain.cache.downloadContentType
 import app.naviamp.domain.cache.CachedAudioEvictionCandidate
 import app.naviamp.domain.cache.planAudioCacheEviction
@@ -28,7 +29,8 @@ class DesktopAudioStore(
     private val nowMillis: () -> Long,
     private var maxAudioCacheBytes: Long,
 ) : AudioCacheRepository<CachedAudioFile, CachedAudioMetadata>,
-    DownloadRepository<DownloadedAudioFile, DownloadedTrack> {
+    DownloadRepository<DownloadedAudioFile, DownloadedTrack>,
+    DownloadReplacementRepository<DownloadedAudioFile> {
     override fun updateAudioCacheLimit(maxBytes: Long) {
         maxAudioCacheBytes = maxBytes.coerceAtLeast(0)
         trimAudioStore()
@@ -232,7 +234,7 @@ class DesktopAudioStore(
             )
         }
 
-    suspend fun replaceDownloadedAudioTrack(
+    override suspend fun replaceDownloadedAudioTrack(
         sourceId: String,
         provider: MediaProvider,
         track: Track,

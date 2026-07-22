@@ -31,6 +31,13 @@ fun interface NaviampCorePlaylistHistoryPort {
     suspend fun recordPlayed(currentIds: List<String>, playlistId: String): List<String>
 }
 
+/** Core-owned recency policy with an injected persistence effect. */
+fun naviampCorePlaylistHistoryPort(
+    persist: (List<String>) -> Unit = {},
+): NaviampCorePlaylistHistoryPort = NaviampCorePlaylistHistoryPort { current, playlistId ->
+    recentPlaylistIdsAfterPlayed(current, playlistId, limit = 50).also(persist)
+}
+
 /** Owns playlist playback intent, mutations, smart-playlist policy, and result publication. */
 class NaviampCorePlaylistTransactionController(
     private val stateStore: NaviampCoreStateStore,
@@ -39,9 +46,7 @@ class NaviampCorePlaylistTransactionController(
     private val playback: NaviampCorePlaylistPlaybackPort,
     private val queue: NaviampCorePlaylistQueuePort,
     private val downloads: NaviampCorePlaylistDownloadPort,
-    private val history: NaviampCorePlaylistHistoryPort = NaviampCorePlaylistHistoryPort { current, id ->
-        recentPlaylistIdsAfterPlayed(current, id, limit = 50)
-    },
+    private val history: NaviampCorePlaylistHistoryPort = naviampCorePlaylistHistoryPort(),
     private val sessionPort: NaviampCoreProviderSessionPort,
     private val openNowPlaying: () -> Unit = {},
 ) : NaviampCoreCommandController {
@@ -103,8 +108,12 @@ class NaviampCorePlaylistTransactionController(
                 }
                 NaviampPlaylistDetailCommand.AddToQueue ->
                     queue.addToQueue(playlist, provider.playlistTracks(playlist.id))
-                is NaviampPlaylistDetailCommand.Download ->
+                is NaviampPlaylistDetailCommand.Download -> {
+                    publishListStatus("Starting download for ${playlist.name}...")
+                    publishStatus("Download started.")
                     downloads.download(playlist, provider.playlistTracks(playlist.id), command.value)
+                    return
+                }
                 is NaviampPlaylistDetailCommand.AddToPlaylist -> {
                     val tracks = provider.playlistTracks(playlist.id)
                     provider.addTracksToPlaylist(command.choice.id, tracks.map(Track::id))

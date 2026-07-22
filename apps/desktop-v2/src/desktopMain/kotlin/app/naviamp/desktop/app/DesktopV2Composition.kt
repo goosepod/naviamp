@@ -8,6 +8,8 @@ import app.naviamp.domain.playback.CoreBassPlaybackEngine
 import app.naviamp.domain.playback.ReleasablePlaybackEngine
 import app.naviamp.domain.playback.AudioOutputDevicePlaybackEngine
 import app.naviamp.presentation.NaviampCoreHomeDateSource
+import app.naviamp.presentation.NaviampCoreDownloadStorageSnapshot
+import app.naviamp.presentation.NaviampCoreDownloadedTrack
 import app.naviamp.presentation.NaviampCoreInitialState
 import app.naviamp.presentation.NaviampCoreInterfaceSettingsStore
 import app.naviamp.presentation.NaviampCoreCacheSettingsPort
@@ -18,6 +20,9 @@ import app.naviamp.presentation.NaviampCorePlaybackServices
 import app.naviamp.presentation.NaviampCoreSettingsSyncConfiguration
 import app.naviamp.presentation.NaviampCoreVisualizerSettingsPort
 import app.naviamp.presentation.naviampCoreServiceDefaults
+import app.naviamp.presentation.naviampCorePlaylistHistoryPort
+import app.naviamp.presentation.naviampCorePlaylistBrowseSupplementSource
+import app.naviamp.presentation.repositoryNaviampCoreDownloadServices
 import app.naviamp.presentation.unavailableNaviampCoreSettingsSyncServices
 import app.naviamp.presentation.toShellCapabilitiesUi
 import app.naviamp.presentation.providerArtistDiscoveryServices
@@ -173,6 +178,11 @@ internal class DesktopV2Composition private constructor(
                         libraryIndex = storage.libraryIndex,
                         nowEpochMillis = nowEpochMillis,
                     ),
+                    playlistSupplement = naviampCorePlaylistBrowseSupplementSource(
+                        recentPlaylistIds = settingsStore::loadRecentPlaylistIds,
+                        sourceId = { storage.mediaSources.latestMediaSource()?.id },
+                        keepDownloadedRepository = storage.keepDownloaded,
+                    ),
                 ),
                 settings = serviceDefaults.settings.copy(
                     interfaceSettings = NaviampCoreInterfaceSettingsStore(settingsStore::saveInterfaceSettings),
@@ -182,6 +192,32 @@ internal class DesktopV2Composition private constructor(
                             settingsStore.saveCacheSettings(effective)
                         }
                     },
+                ),
+                downloads = repositoryNaviampCoreDownloadServices(
+                    downloadRepository = storage.audioStore,
+                    replacementRepository = storage.audioStore,
+                    keepDownloadedRepository = storage.keepDownloaded,
+                    toCoreDownload = { stored ->
+                        NaviampCoreDownloadedTrack(
+                            storageId = stored.path.toString(),
+                            track = stored.track,
+                            sizeBytes = stored.sizeBytes,
+                            qualityLabel = stored.qualityKey,
+                        )
+                    },
+                    isStoredDownloadAvailable = { stored -> Files.exists(stored.path) },
+                    storageStats = {
+                        storage.maintenance.stats().let { stats ->
+                            NaviampCoreDownloadStorageSnapshot(
+                                audioCacheCount = stats.audioCount,
+                                audioCacheBytes = stats.audioBytes,
+                                pendingProviderActionCount = stats.pendingProviderActionCount,
+                            )
+                        }
+                    },
+                ),
+                playlists = serviceDefaults.playlists.copy(
+                    history = naviampCorePlaylistHistoryPort(settingsStore::saveRecentPlaylistIds),
                 ),
             )
             val initialState = NaviampCoreInitialState().let { initial ->

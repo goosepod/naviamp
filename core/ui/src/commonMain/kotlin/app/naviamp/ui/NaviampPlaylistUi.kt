@@ -135,15 +135,7 @@ private fun PlaylistsContent(
             else -> onPlaylistAction(request)
         }
     }
-    val sortedPlaylists = when (sortMode) {
-        SharedPlaylistSortMode.Alphabetical -> playlists.sortedBy { it.title.lowercase() }
-        SharedPlaylistSortMode.RecentlyPlayed -> playlists.sortedWith(
-            compareBy<SharedMediaItemUi> {
-                val index = recentPlaylistIds.indexOf(it.id)
-                if (index == -1) Int.MAX_VALUE else index
-            }.thenBy { it.title.lowercase() },
-        )
-    }
+    val sortedPlaylists = playlists.sortedForPlaylistScreen(sortMode, recentPlaylistIds)
 
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Row(
@@ -318,6 +310,19 @@ private fun PlaylistsContent(
             },
         )
     }
+}
+
+internal fun List<SharedMediaItemUi>.sortedForPlaylistScreen(
+    sortMode: SharedPlaylistSortMode,
+    recentPlaylistIds: List<String>,
+): List<SharedMediaItemUi> = when (sortMode) {
+    SharedPlaylistSortMode.Alphabetical -> sortedBy { it.title.lowercase() }
+    SharedPlaylistSortMode.RecentlyPlayed -> sortedWith(
+        compareBy<SharedMediaItemUi> {
+            val index = recentPlaylistIds.indexOf(it.id)
+            if (index == -1) Int.MAX_VALUE else index
+        }.thenBy { it.title.lowercase() },
+    )
 }
 
 @Composable

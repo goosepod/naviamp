@@ -11,7 +11,6 @@ import app.naviamp.domain.cache.DownloadJobUpdate
 import app.naviamp.domain.cache.KeepDownloadedCollectionPolicy
 import app.naviamp.domain.cache.LocalLibraryIndexRepository
 import app.naviamp.domain.home.HomeDate
-import app.naviamp.domain.queue.PlaybackQueue
 import app.naviamp.domain.settings.SettingsSyncLocalSnapshot
 import app.naviamp.domain.settings.SettingsSyncRuntimeState
 
@@ -73,12 +72,7 @@ fun naviampCoreServiceDefaults(
         network = NaviampCoreMobileNetworkPort { false },
     ),
     playlists = NaviampCorePlaylistServices(
-        playback = NaviampCorePlaylistPlaybackPort { _, tracks, shuffle ->
-            val ordered = if (shuffle) tracks.shuffled() else tracks
-            playback.effects.playQueueSelection(PlaybackQueue(ordered, 0), 0)
-        },
         queue = NaviampCorePlaylistQueuePort { _, _ -> },
-        downloads = NaviampCorePlaylistDownloadPort { _, _, _ -> },
         history = NaviampCorePlaylistHistoryPort { current, _ -> current },
     ),
     radio = NaviampCoreRadioServices(
