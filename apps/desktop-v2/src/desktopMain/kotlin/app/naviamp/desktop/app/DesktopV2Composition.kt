@@ -3,6 +3,7 @@ package app.naviamp.desktop
 import app.naviamp.desktop.playback.bass.DesktopBassPlaybackEngineRuntime
 import app.naviamp.desktop.playback.bass.loadDesktopBassAudioBackend
 import app.naviamp.domain.home.HomeDate
+import app.naviamp.domain.network.KtorSharedHttpClient
 import app.naviamp.domain.playback.CoreBassPlaybackEngine
 import app.naviamp.domain.playback.ReleasablePlaybackEngine
 import app.naviamp.domain.playback.AudioOutputDevicePlaybackEngine
@@ -17,6 +18,10 @@ import app.naviamp.presentation.naviampCoreServiceDefaults
 import app.naviamp.presentation.unavailableNaviampCoreSettingsSyncServices
 import app.naviamp.presentation.toShellCapabilitiesUi
 import app.naviamp.storage.StorageDatabaseLocation
+import app.naviamp.provider.navidrome.NavidromeProvider
+import app.naviamp.ui.jvmGeneratedCoverArtBytes
+import app.naviamp.ui.resetJvmPlatformCoverArtByteLoader
+import app.naviamp.ui.setJvmPlatformCoverArtByteLoader
 import kotlinx.coroutines.CoroutineScope
 import java.nio.file.Files
 import java.nio.file.Path
@@ -30,6 +35,7 @@ internal class DesktopV2Composition private constructor(
     private val storage: DesktopStorageRepositories,
 ) : AutoCloseable {
     override fun close() {
+        resetJvmPlatformCoverArtByteLoader()
         engine.release()
         storage.close()
     }
@@ -50,6 +56,15 @@ internal class DesktopV2Composition private constructor(
                 cacheMaintenanceRepository = storage.maintenance,
                 nowEpochMillis = nowEpochMillis,
             )
+            val fallbackArtworkHttp = KtorSharedHttpClient()
+            setJvmPlatformCoverArtByteLoader { url ->
+                jvmGeneratedCoverArtBytes(url)
+                    ?: (sessions.currentProvider() as? NavidromeProvider)
+                        ?.takeIf { provider -> provider.ownsUrl(url) }
+                        ?.bytes(url)
+                    ?: fallbackArtworkHttp.getBytes(url)
+                    ?: ByteArray(0)
+            }
             val engine = CoreBassPlaybackEngine(
                 backendResult = loadDesktopBassAudioBackend(),
                 runtime = DesktopBassPlaybackEngineRuntime(),

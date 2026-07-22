@@ -57,6 +57,7 @@ class NaviampCoreConnectionController(
     private val stateStore: NaviampCoreStateStore,
     private val sessionPort: NaviampCoreProviderSessionPort,
     initialInventory: NaviampCoreConnectionInventory = NaviampCoreConnectionInventory(),
+    private val onConnected: () -> Unit = {},
 ) : NaviampCoreCommandController {
     private var inventory = initialInventory
     private var editingConnectionId: String? = null
@@ -134,6 +135,7 @@ class NaviampCoreConnectionController(
                     )
                 }
                 publishConnection()
+                onConnected()
             }
             .onFailure { cause ->
                 connection.failed(cause.message ?: "Could not connect to the music server.")

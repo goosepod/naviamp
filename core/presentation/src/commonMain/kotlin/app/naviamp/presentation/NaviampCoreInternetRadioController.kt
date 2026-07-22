@@ -89,6 +89,8 @@ class NaviampCoreInternetRadioController(
             }
     }
 
+    suspend fun refreshAfterConnection() = refresh()
+
     private suspend fun save(edit: NaviampInternetRadioStationEditUi) {
         val provider = providerOrPublish() ?: return
         val station = runCatching { validated(edit.toInternetRadioStation()) }.getOrElse { cause ->

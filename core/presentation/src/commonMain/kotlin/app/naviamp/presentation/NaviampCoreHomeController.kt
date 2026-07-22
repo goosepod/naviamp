@@ -122,6 +122,8 @@ class NaviampCoreHomeController(
         }
     }
 
+    suspend fun refreshAfterConnection() = refresh()
+
     private fun selectMixBuilder(id: String) {
         val route = when (id) {
             "artist" -> SharedRoute.ArtistMix

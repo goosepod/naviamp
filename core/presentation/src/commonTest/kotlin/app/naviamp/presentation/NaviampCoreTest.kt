@@ -20,6 +20,7 @@ import app.naviamp.domain.queue.PlaybackQueue
 import app.naviamp.domain.queue.RepeatMode
 import app.naviamp.domain.app.NaviampNavigationState
 import app.naviamp.domain.app.NaviampRoute
+import app.naviamp.domain.settings.ConnectionFormState
 import app.naviamp.ui.NaviampSettingsSyncUi
 import app.naviamp.ui.NaviampAppShellUiState
 import app.naviamp.ui.NaviampSearchScreenUi
@@ -82,6 +83,49 @@ class NaviampCoreTest {
 
         assertEquals("observed", core.state.value.shell.nowPlaying?.id)
         assertEquals("Playing", core.state.value.shell.nowPlaying?.stateLabel)
+    }
+
+    @Test
+    fun successfulConnectionPopulatesProviderBackedScreensWithoutHostRefreshCommands() = runTest {
+        val provider = FakeCoreMediaProvider()
+        val record = NaviampCoreSavedConnectionRecord(
+            id = "source-1",
+            displayName = "Home Music",
+            serverUrl = "https://music.example",
+            username = "demo",
+        )
+        val services = fakeCoreServices(provider).copy(
+            connection = object : NaviampCoreProviderSessionPort {
+                override suspend fun connect(
+                    request: NaviampCoreConnectionRequest,
+                    plan: app.naviamp.app.NaviampConnectionAttemptPlan,
+                ) = NaviampCoreConnectedSession(
+                    sourceId = record.id,
+                    displayName = record.displayName,
+                    inventory = NaviampCoreConnectionInventory(listOf(record), record.id),
+                )
+
+                override suspend fun editableConnection(id: String) = error("Not used")
+                override suspend fun deleteConnection(id: String) = NaviampCoreConnectionInventory()
+            },
+        )
+        val core = NaviampCore.create(this, services)
+        core.dispatch(
+            NaviampCoreCommand.Connection.ChangeForm(
+                ConnectionFormState(
+                    serverUrl = record.serverUrl,
+                    username = record.username,
+                    password = "secret",
+                ),
+            ),
+        )
+
+        core.execute(NaviampCoreCommand.Connection.Connect)
+        advanceUntilIdle()
+
+        assertEquals(listOf(provider.playlist.name), core.state.value.shell.home.content.playlists.map { it.title })
+        assertEquals(listOf(provider.artist.name), core.state.value.shell.library.artists.map { it.title })
+        assertEquals(listOf(provider.playlist.name), core.state.value.shell.playlists.playlists.map { it.title })
     }
 
     @Test

@@ -13,6 +13,7 @@ import app.naviamp.domain.playback.AudioOutputDevice
 import app.naviamp.ui.NaviampShellCapabilitiesUi
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.launch
 
 data class NaviampCoreInitialState(
     val product: NaviampCoreState = NaviampCoreState(),
@@ -131,12 +132,6 @@ class NaviampCore private constructor(
             )
             deferredArtistNavigator.target = mediaDetails
 
-            val connection = NaviampCoreConnectionController(
-                NaviampConnectionController(initialState.connection),
-                stateStore,
-                services.connection,
-                initialState.connectionInventory,
-            )
             val settings = NaviampCoreSettingsController(
                 stateStore,
                 services.settings.interfaceSettings,
@@ -265,6 +260,19 @@ class NaviampCore private constructor(
                 mediaRegistry,
                 mediaTransactions,
                 mediaDetails,
+            )
+            val connection = NaviampCoreConnectionController(
+                NaviampConnectionController(initialState.connection),
+                stateStore,
+                services.connection,
+                initialState.connectionInventory,
+                onConnected = {
+                    scope.launch { home.refreshAfterConnection() }
+                    scope.launch { catalog.refreshAfterConnection() }
+                    scope.launch { playlistBrowse.refreshAfterConnection() }
+                    scope.launch { radio.refreshAfterConnection() }
+                    scope.launch { downloads.refresh(reconcile = false) }
+                },
             )
             val router = NaviampCoreCommandRouter(
                 scope = scope,

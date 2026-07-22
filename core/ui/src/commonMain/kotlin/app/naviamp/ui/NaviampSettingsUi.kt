@@ -1,5 +1,6 @@
 package app.naviamp.ui
 
+import app.naviamp.domain.network.NaviampAppVersion
 import androidx.compose.foundation.background
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
@@ -111,7 +112,7 @@ data class NaviampDiagnosticsSectionUi(
 data class NaviampStorageLocationUi(val id: String, val label: String, val path: String)
 
 data class NaviampAboutUi(
-    val version: String = "Unknown",
+    val version: String = NaviampAppVersion,
     val buildNumber: String = "Unknown",
     val libraries: List<String> = DefaultNaviampLibraries,
     val changelog: List<NaviampChangelogSectionUi> = DefaultNaviampChangelog,

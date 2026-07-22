@@ -79,6 +79,8 @@ class NaviampCoreCatalogController(
         loadLibraryPage(request, replace = true, generation = generation)
     }
 
+    suspend fun refreshAfterConnection() = refreshLibrary()
+
     private suspend fun loadMoreLibrary() {
         val request = libraryNextRequest ?: return
         val generation = libraryGeneration

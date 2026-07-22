@@ -106,6 +106,8 @@ class NaviampCorePlaylistBrowseController(
             }
     }
 
+    suspend fun refreshAfterConnection() = refresh()
+
     internal suspend fun refreshAfterMutation(status: String) {
         refresh(finalStatus = status)
     }

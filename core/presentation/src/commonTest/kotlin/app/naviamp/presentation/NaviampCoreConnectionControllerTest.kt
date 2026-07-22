@@ -25,7 +25,8 @@ class NaviampCoreConnectionControllerTest {
 
     @Test
     fun successfulConnectionUsesSharedAttemptPolicyAndPublishesOneSnapshot() = kotlinx.coroutines.test.runTest {
-        val fixture = fixture()
+        var connectedNotifications = 0
+        val fixture = fixture(onConnected = { connectedNotifications += 1 })
         val form = ConnectionFormState(serverUrl = "https://music.example", username = "demo", password = "secret")
         fixture.controller.dispatch(NaviampCoreCommand.Connection.ChangeForm(form))
 
@@ -41,6 +42,7 @@ class NaviampCoreConnectionControllerTest {
         assertEquals("Connected to Home Music.", state.connection.status)
         assertEquals("source-1", state.currentSourceId)
         assertTrue(state.connection.savedConnections.single().current)
+        assertEquals(1, connectedNotifications)
     }
 
     @Test
@@ -133,6 +135,7 @@ class NaviampCoreConnectionControllerTest {
     private fun fixture(
         connectFailure: Throwable? = null,
         musicFoldersLoadFailed: Boolean = false,
+        onConnected: () -> Unit = {},
     ): ConnectionFixture {
         val record = savedRecord()
         val inventory = NaviampCoreConnectionInventory(listOf(record), currentSourceId = record.id)
@@ -146,6 +149,7 @@ class NaviampCoreConnectionControllerTest {
                 stateStore = store,
                 sessionPort = port,
                 initialInventory = inventory,
+                onConnected = onConnected,
             ),
         )
     }
