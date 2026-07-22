@@ -45,13 +45,37 @@ class NaviampCoreNavigationControllerTest {
     @Test
     fun nowPlayingIsACoreOwnedOverlay() {
         val store = NaviampCoreStateStore()
-        val controller = controller(NaviampNavigationController(), store)
+        val persisted = mutableListOf<Boolean>()
+        val controller = NaviampCoreNavigationController(
+            navigation = NaviampNavigationController(),
+            stateStore = store,
+            artistNavigator = NaviampCoreArtistNavigator { error("Unexpected artist navigation") },
+            persistNowPlayingOpen = persisted::add,
+        )
 
         controller.dispatch(NaviampCoreCommand.Navigation.OpenNowPlaying)
         assertTrue(store.state.value.shell.shellChrome.nowPlayingOpen)
 
         controller.dispatch(NaviampCoreCommand.Navigation.CloseNowPlaying)
         assertFalse(store.state.value.shell.shellChrome.nowPlayingOpen)
+        assertEquals(listOf(true, false), persisted)
+    }
+
+    @Test
+    fun restoredNowPlayingVisibilityDoesNotWriteTheSessionAgain() {
+        val store = NaviampCoreStateStore()
+        val persisted = mutableListOf<Boolean>()
+        val controller = NaviampCoreNavigationController(
+            navigation = NaviampNavigationController(),
+            stateStore = store,
+            artistNavigator = NaviampCoreArtistNavigator { error("Unexpected artist navigation") },
+            persistNowPlayingOpen = persisted::add,
+        )
+
+        controller.restoreNowPlayingOpen()
+
+        assertTrue(store.state.value.shell.shellChrome.nowPlayingOpen)
+        assertTrue(persisted.isEmpty())
     }
 
     @Test

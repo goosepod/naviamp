@@ -137,6 +137,34 @@ class NaviampPlaybackSessionControllerTest {
     }
 
     @Test
+    fun nowPlayingVisibilitySurvivesLaterPlaybackSessionSaves() {
+        val current = track("current")
+        val queue = PlaybackQueue(listOf(current), currentIndex = 0)
+        val repository = RecordingPlaybackSessionRepository(
+            mutableMapOf(
+                "source" to PlaybackSessionSettings.fromTracks(listOf(current), 0),
+            ),
+        )
+        val controller = NaviampPlaybackSessionController(repository)
+
+        assertTrue(controller.updateNowPlayingOpen(open = true, sourceId = "source"))
+        controller.planAndSave(saveRequest(current, queue, positionSeconds = 12.0))
+        controller.saveQueue(queue, positionSeconds = 18.0, sourceId = "source")
+
+        assertTrue(repository.sessions["source"]?.nowPlayingOpen == true)
+        assertEquals(18.0, repository.sessions["source"]?.positionSeconds)
+    }
+
+    @Test
+    fun visibilityUpdateRequiresAnExistingPlaybackSession() {
+        val repository = RecordingPlaybackSessionRepository()
+        val controller = NaviampPlaybackSessionController(repository)
+
+        assertFalse(controller.updateNowPlayingOpen(open = true, sourceId = "source"))
+        assertEquals(0, repository.saveCount)
+    }
+
+    @Test
     fun positionSaveUsesPersistedPositionAndRemembersSuccessfulUpdates() {
         val current = track("one")
         val queue = PlaybackQueue(listOf(current), currentIndex = 0)

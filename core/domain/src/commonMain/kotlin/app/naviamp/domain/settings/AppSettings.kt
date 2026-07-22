@@ -685,6 +685,7 @@ data class PlaybackSessionSettings(
     val playNextCount: Int = 0,
     val positionSeconds: Double? = null,
     val internetRadioStation: SavedInternetRadioStation? = null,
+    val nowPlayingOpen: Boolean = false,
 ) {
     fun currentTrack(): Track? =
         tracks.getOrNull(currentIndex)?.toTrack() ?: internetRadioStation?.toTrack()

@@ -21,6 +21,7 @@ class NaviampCoreNavigationController(
     private val navigation: NaviampNavigationController,
     private val stateStore: NaviampCoreStateStore,
     private val artistNavigator: NaviampCoreArtistNavigator,
+    private val persistNowPlayingOpen: (Boolean) -> Unit = {},
 ) : NaviampCoreCommandController {
     init {
         publishNavigation()
@@ -85,6 +86,10 @@ class NaviampCoreNavigationController(
         setNowPlayingOpen(true)
     }
 
+    fun restoreNowPlayingOpen() {
+        setNowPlayingOpen(open = true, persist = false)
+    }
+
     private fun publishDetailRoute() {
         stateStore.updateShell { shell ->
             shell.copy(
@@ -93,6 +98,7 @@ class NaviampCoreNavigationController(
                 ),
             )
         }
+        persistNowPlayingOpen(false)
     }
 
     private fun selectRoute(route: NaviampRoute) {
@@ -110,12 +116,14 @@ class NaviampCoreNavigationController(
                 playlistDetail = NaviampPlaylistDetailScreenUi(),
             )
         }
+        persistNowPlayingOpen(false)
     }
 
-    private fun setNowPlayingOpen(open: Boolean) {
+    private fun setNowPlayingOpen(open: Boolean, persist: Boolean = true) {
         stateStore.updateShell { shell ->
             shell.copy(shellChrome = shell.shellChrome.copy(nowPlayingOpen = open))
         }
+        if (persist) persistNowPlayingOpen(open)
     }
 
     private fun closeAlbum() {

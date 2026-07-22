@@ -129,6 +129,10 @@ class NaviampCore private constructor(
                 navigationState,
                 stateStore,
                 deferredArtistNavigator,
+                persistNowPlayingOpen = { open ->
+                    val sourceId = stateStore.state.value.shell.connectionSettings.currentSourceId
+                    services.playback.sessions.updateNowPlayingOpen(open, sourceId)
+                },
             )
             val mediaDetails = NaviampCoreMediaDetailController(
                 stateStore,
@@ -322,7 +326,12 @@ class NaviampCore private constructor(
                             )
                         }
                     }
-                    scope.launch { playback.restoreSession(sourceId) }
+                    scope.launch {
+                        val reopenNowPlaying = services.playback.sessions.load(sourceId)?.nowPlayingOpen == true
+                        if (playback.restoreSession(sourceId) && reopenNowPlaying) {
+                            navigation.restoreNowPlayingOpen()
+                        }
+                    }
                     scope.launch { home.refreshAfterConnection() }
                     scope.launch { catalog.refreshAfterConnection() }
                     scope.launch { playlistBrowse.refreshAfterConnection() }

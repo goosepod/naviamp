@@ -90,7 +90,9 @@ fun planPlaybackSessionSave(
     if (activeSourceId == null) return PlaybackSessionSavePlan.None
     if (station != null) {
         return PlaybackSessionSavePlan.Save(
-            session = PlaybackSessionSettings.fromInternetRadioStation(station),
+            session = PlaybackSessionSettings.fromInternetRadioStation(station).copy(
+                nowPlayingOpen = existingSession?.nowPlayingOpen == true,
+            ),
             kind = PlaybackSessionSavePlan.Kind.InternetRadio,
         )
     }
@@ -107,7 +109,7 @@ fun planPlaybackSessionSave(
         positionSeconds = positionSeconds,
     ) ?: return PlaybackSessionSavePlan.None
     return PlaybackSessionSavePlan.Save(
-        session = session,
+        session = session.copy(nowPlayingOpen = existingSession?.nowPlayingOpen == true),
         kind = PlaybackSessionSavePlan.Kind.Track,
     )
 }

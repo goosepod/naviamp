@@ -3,7 +3,7 @@ package app.naviamp.presentation
 import app.naviamp.app.NaviampLivePlaybackController
 import app.naviamp.app.NaviampPlaybackQueueCoordinator
 import app.naviamp.domain.Track
-import app.naviamp.domain.resolvedArtistCredits
+import app.naviamp.domain.media.resolveTrackArtistNavigation
 import app.naviamp.domain.media.favoriteTrackUpdate
 import app.naviamp.domain.media.ratedTrackUpdate
 import app.naviamp.domain.radio.RadioService
@@ -288,21 +288,17 @@ class NaviampCoreNowPlayingMediaController(
     }
 
     private suspend fun openArtist(track: Track, requestedId: String?, requestedName: String?) {
-        val credit = track.resolvedArtistCredits().firstOrNull { candidate ->
-            requestedId?.let { candidate.id?.value == it }
-                ?: requestedName?.let { candidate.name.equals(it, ignoreCase = true) }
-                ?: true
+        val artist = resolveTrackArtistNavigation(track, requestedId, requestedName) { query, limit ->
+            providerSource.current()?.search(query, limit)?.artists.orEmpty()
         }
-        val artistId = requestedId ?: credit?.id?.value ?: track.artistId?.value
-        val artistName = requestedName ?: credit?.name ?: track.artistName
-        if (artistId == null) {
+        if (artist == null) {
             publishStatus("Artist is not available for this track.")
             return
         }
         mediaDetails.execute(
             NaviampCoreCommand.Media.ItemAction(
                 app.naviamp.ui.NaviampMediaItemActionRequest(
-                    SharedMediaItemUi(artistId, artistName, ""),
+                    SharedMediaItemUi(artist.id.value, artist.name, ""),
                     app.naviamp.ui.NaviampMediaItemCommand.Artist(app.naviamp.ui.NaviampArtistMediaCommand.Select),
                 ),
             ),

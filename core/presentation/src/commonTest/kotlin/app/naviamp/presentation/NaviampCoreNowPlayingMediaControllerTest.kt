@@ -190,6 +190,28 @@ class NaviampCoreNowPlayingMediaControllerTest {
     }
 
     @Test
+    fun individualArtistNameResolvesBeforeOpeningSharedArtistDetails() = runTest {
+        val fixture = mediaFixture(this)
+        fixture.live.updateCurrentTrack(
+            nowPlayingTrack("current").copy(
+                artistId = ArtistId("combined"),
+                artistName = "HUGEL, David Guetta, Kehlani, Daecolm",
+            ),
+        )
+        fixture.presenter.publish()
+
+        fixture.controller.execute(
+            currentCommand(
+                action = NowPlayingCurrentTrackAction.GoToArtist,
+                artistName = "David Guetta",
+            ),
+        )
+
+        assertEquals("david-guetta", fixture.store.state.value.shell.artistDetail.selectedArtist?.id)
+        assertEquals("David Guetta", fixture.store.state.value.shell.artistDetail.selectedArtist?.title)
+    }
+
+    @Test
     fun staleTargetsAndMissingPayloadsNeverBecomeSilentActions() = runTest {
         val fixture = mediaFixture(this)
         fixture.controller.execute(
@@ -377,10 +399,19 @@ private class NowPlayingTestProvider : MediaProvider {
         ),
         listOf(nowPlayingTrack("album-track")),
     )
-    override suspend fun artist(artistId: ArtistId) = ArtistDetails(Artist(artistId, "Artist"), emptyList())
+    override suspend fun artist(artistId: ArtistId) = ArtistDetails(
+        Artist(artistId, if (artistId.value == "david-guetta") "David Guetta" else "Artist"),
+        emptyList(),
+    )
     override suspend fun artists(limit: Int) = emptyList<Artist>()
     override suspend fun tracks(limit: Int) = emptyList<Track>()
-    override suspend fun search(query: String, limit: Int) = MediaSearchResults()
+    override suspend fun search(query: String, limit: Int) = MediaSearchResults(
+        artists = if (query.equals("David Guetta", ignoreCase = true)) {
+            listOf(Artist(ArtistId("david-guetta"), "David Guetta"))
+        } else {
+            emptyList()
+        },
+    )
     override suspend fun trackRadio(trackId: TrackId, count: Int) = listOf(nowPlayingTrack("radio"))
     override suspend fun internetRadioStations() = listOf(InternetRadioStation("station", "Station", "https://radio"))
     override suspend fun addTracksToPlaylist(playlistId: String, trackIds: List<TrackId>) {
@@ -401,8 +432,10 @@ private fun currentCommand(
     playlistChoice: NaviampPlaylistChoiceUi? = null,
     playlistName: String? = null,
     rating: Int? = null,
+    artistId: String? = null,
+    artistName: String? = null,
 ) = NaviampCoreCommand.NowPlaying.CurrentTrack(
-    NowPlayingCurrentTrackUiActionRequest(action, playlistChoice, playlistName, rating),
+    NowPlayingCurrentTrackUiActionRequest(action, playlistChoice, playlistName, rating, artistId, artistName),
 )
 
 private fun nowPlayingTrack(id: String) = Track(

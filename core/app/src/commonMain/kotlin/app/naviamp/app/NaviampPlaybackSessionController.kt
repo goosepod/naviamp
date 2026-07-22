@@ -135,9 +135,19 @@ class NaviampPlaybackSessionController(
         positionSeconds: Double?,
         sourceId: String? = null,
     ): PlaybackSessionSettings? =
-        playbackSessionFromQueue(playbackQueue, positionSeconds).also { session ->
+        playbackSessionFromQueue(playbackQueue, positionSeconds)
+            ?.copy(nowPlayingOpen = load(sourceId)?.nowPlayingOpen == true)
+            .also { session ->
             save(session, sourceId)
         }
+
+    /** Persists the shared Now Playing overlay state without disturbing the saved playback target. */
+    fun updateNowPlayingOpen(open: Boolean, sourceId: String? = null): Boolean {
+        val session = load(sourceId) ?: return false
+        if (session.nowPlayingOpen == open) return true
+        save(session.copy(nowPlayingOpen = open), sourceId)
+        return true
+    }
 
     fun clear(sourceId: String? = null) {
         save(session = null, sourceId = sourceId)

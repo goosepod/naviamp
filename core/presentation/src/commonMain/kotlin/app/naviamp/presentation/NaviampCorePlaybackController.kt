@@ -138,9 +138,9 @@ class NaviampCorePlaybackController(
         })
     }
 
-    suspend fun restoreSession(sourceId: String) {
+    suspend fun restoreSession(sourceId: String): Boolean {
         when (val restored = sessions.restorePlan(sourceId)) {
-            PlaybackSessionRestorePlan.None -> return
+            PlaybackSessionRestorePlan.None -> return false
             is PlaybackSessionRestorePlan.TrackSession -> {
                 queue.restoreQueue(restored.playbackQueue)
                 playback.replace(
@@ -184,6 +184,7 @@ class NaviampCorePlaybackController(
             }
         }
         presenter.publish(display)
+        return true
     }
 
     private fun persistSession(force: Boolean) {

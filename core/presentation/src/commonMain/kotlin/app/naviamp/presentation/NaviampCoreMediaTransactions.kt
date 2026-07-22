@@ -8,6 +8,7 @@ import app.naviamp.domain.Track
 import app.naviamp.domain.media.favoriteAlbumUpdate
 import app.naviamp.domain.media.favoriteArtistUpdate
 import app.naviamp.domain.media.favoriteTrackUpdate
+import app.naviamp.domain.media.resolveTrackArtistNavigation
 import app.naviamp.domain.radio.RadioService
 import app.naviamp.domain.radio.RadioRequestStartResult
 import app.naviamp.domain.radio.SeededRadioBuildResult
@@ -190,11 +191,13 @@ class NaviampCoreMediaTransactions(
     }
 
     suspend fun openArtist(track: Track, artistId: String?, artistName: String?) {
-        val id = artistId ?: track.artistId?.value ?: return publish("Artist is not available for this track.")
+        val artist = resolveTrackArtistNavigation(track, artistId, artistName) { query, limit ->
+            providerSource.current()?.search(query, limit)?.artists.orEmpty()
+        } ?: return publish("Artist is not available for this track.")
         mediaDetails.execute(
             NaviampCoreCommand.Media.ItemAction(
                 app.naviamp.ui.NaviampMediaItemActionRequest(
-                    SharedMediaItemUi(id, artistName ?: track.artistName, ""),
+                    SharedMediaItemUi(artist.id.value, artist.name, ""),
                     app.naviamp.ui.NaviampMediaItemCommand.Artist(app.naviamp.ui.NaviampArtistMediaCommand.Select),
                 ),
             ),
