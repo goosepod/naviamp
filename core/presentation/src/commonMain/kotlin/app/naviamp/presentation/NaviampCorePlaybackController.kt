@@ -108,7 +108,7 @@ class NaviampCorePlaybackController(
                 persistSession(force = state == PlaybackState.Paused || state == PlaybackState.Stopped)
                 if (state == PlaybackState.Playing) loadCurrentTrackSidecars()
                 if (state == PlaybackState.Finished && !repeatedFinished) {
-                    navigate(queue.nextCommand())
+                    navigate(queue.nextCommand(), automatic = true)
                 }
                 presenter.publish(display)
             }
@@ -394,7 +394,10 @@ class NaviampCorePlaybackController(
         if (this == PlaybackQueueNavigationCommand.None) publishStatus(message)
     }
 
-    private fun navigate(command: PlaybackQueueNavigationCommand): PlaybackQueueNavigationCommand {
+    private fun navigate(
+        command: PlaybackQueueNavigationCommand,
+        automatic: Boolean = false,
+    ): PlaybackQueueNavigationCommand {
         val selection = when (command) {
             PlaybackQueueNavigationCommand.Previous -> queue.selectPrevious()
             PlaybackQueueNavigationCommand.Next -> queue.selectNext()
@@ -405,7 +408,9 @@ class NaviampCorePlaybackController(
             -> null
         }
         selection?.applyToLivePlayback()
-        if (command != PlaybackQueueNavigationCommand.None) effects.applyNavigation(command)
+        if (command != PlaybackQueueNavigationCommand.None) {
+            if (automatic) effects.applyAutomaticNavigation(command) else effects.applyNavigation(command)
+        }
         return command
     }
 

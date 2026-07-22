@@ -42,12 +42,16 @@ class SonicMixService(
         val matchesBySeed = seeds.map { seed ->
             seed to provider.sonicSimilarTrackMatches(seed.id, count = perSeedCount)
         }
-        return blendSonicMix(
+        val requestedMatches = (request.normalizedTargetLength - seeds.size).coerceAtLeast(0)
+        val matches = blendSonicMix(
             seeds = seeds,
             matchesBySeed = matchesBySeed,
-            targetLength = request.normalizedTargetLength,
+            targetLength = requestedMatches,
             bias = request.bias,
         )
+        return (seeds + matches)
+            .distinctBy { track -> track.id }
+            .take(request.normalizedTargetLength)
     }
 }
 
@@ -70,9 +74,9 @@ fun blendSonicMix(
                     .thenBy { match -> match.track.title })
         }
         .filter { matches -> matches.isNotEmpty() }
+    val selected = mutableListOf<Track>()
     if (rankedBySeed.isEmpty()) return emptyList()
 
-    val selected = mutableListOf<Track>()
     val seen = seedIds.toMutableSet()
     var cursor = 0
     var misses = 0

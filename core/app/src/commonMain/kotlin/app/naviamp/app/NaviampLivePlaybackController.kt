@@ -44,6 +44,7 @@ class NaviampLivePlaybackController(
     fun updateCurrentTrack(track: Track?) = update { current ->
         current.copy(
             currentTrack = track,
+            progress = if (current.currentTrack?.id != track?.id) PlaybackProgress.Unknown else current.progress,
             currentStation = current.currentStation?.takeIf { station ->
                 track?.id == internetRadioTrackId(station.id)
             },

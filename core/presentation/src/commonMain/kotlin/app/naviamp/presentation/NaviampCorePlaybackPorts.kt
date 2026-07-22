@@ -41,6 +41,7 @@ interface NaviampCorePlaybackEffectPort : NaviampPlaybackExecution {
     }
     fun restoreInternetRadio(station: InternetRadioStation) = Unit
     fun applyNavigation(command: PlaybackQueueNavigationCommand)
+    fun applyAutomaticNavigation(command: PlaybackQueueNavigationCommand) = applyNavigation(command)
     fun applyRepeatMode(mode: RepeatMode)
     fun playQueueSelection(queue: PlaybackQueue, index: Int)
     fun diagnostics(): List<Pair<String, String>> = emptyList()

@@ -76,11 +76,14 @@ class NaviampCoreSonicBuilderControllerTest {
         controller.execute(mix(NaviampCoreCommand.SonicMixAction.AddToQueue))
         controller.execute(mix(NaviampCoreCommand.SonicMixAction.SaveAsPlaylist("My Mix")))
 
-        assertEquals(listOf("mix-a", "mix-b"), fixture.store.state.value.shell.sonicMixBuilder.mixTracks.map { it.id })
+        assertEquals(
+            listOf("seed-a", "seed-b", "mix-a", "mix-b"),
+            fixture.store.state.value.shell.sonicMixBuilder.mixTracks.map { it.id },
+        )
         assertEquals("Favorites", fixture.store.state.value.shell.sonicMixBuilder.bias.label)
-        assertEquals(listOf("sonic mix:mix-a,mix-b"), fixture.played)
-        assertEquals(listOf("sonic mix:mix-a,mix-b"), fixture.queued)
-        assertEquals("My Mix:mix-a,mix-b", fixture.provider.created.last())
+        assertEquals(listOf("sonic mix:seed-a,seed-b,mix-a,mix-b"), fixture.played)
+        assertEquals(listOf("sonic mix:seed-a,seed-b,mix-a,mix-b"), fixture.queued)
+        assertEquals("My Mix:seed-a,seed-b,mix-a,mix-b", fixture.provider.created.last())
     }
 
     @Test

@@ -25,6 +25,20 @@ class NaviampLivePlaybackControllerTest {
     }
 
     @Test
+    fun changingTracksClearsProgressUntilTheNewEngineStreamReportsIt() {
+        val controller = NaviampLivePlaybackController(
+            NaviampLivePlaybackState(
+                currentTrack = track("old"),
+                progress = PlaybackProgress(42.0, 180.0),
+            ),
+        )
+
+        controller.updateCurrentTrack(track("new"))
+
+        assertEquals(PlaybackProgress.Unknown, controller.state.value.progress)
+    }
+
+    @Test
     fun fieldUpdatesPreserveTheRestOfThePlaybackSnapshot() {
         val track = track("one")
         val queue = PlaybackQueue(listOf(track), currentIndex = 0)

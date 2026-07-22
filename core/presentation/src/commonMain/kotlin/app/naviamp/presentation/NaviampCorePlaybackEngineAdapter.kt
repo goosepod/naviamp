@@ -16,6 +16,8 @@ import app.naviamp.domain.playback.ReplayGainSource
 import app.naviamp.domain.playback.SampleRateConverterPlaybackEngine
 import app.naviamp.domain.playback.SampleRateMatchingPlaybackEngine
 import app.naviamp.domain.playback.VisualizerPlaybackEngine
+import app.naviamp.domain.playback.planPrepareNextPlayback
+import app.naviamp.domain.media.RelatedTracksSource
 import app.naviamp.domain.playback.planPlaylistTrackStartWork
 import app.naviamp.domain.playback.playbackTargetPlan
 import app.naviamp.domain.queue.PlaybackQueue
@@ -33,6 +35,8 @@ import app.naviamp.ui.radioTrackArtworkKey
 import app.naviamp.ui.radioTrackArtworkQuery
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 
 /**
@@ -104,12 +108,6 @@ class NaviampCorePlaybackEngineAdapter(
         if (clearPreparedNext) {
             (engine as? QueueAwarePlaybackEngine)?.clearPreparedNext()
             preparedForGeneration = -1L
-            val requestGeneration = generation
-            val provider = providerSource.current()
-            if (playbackState == PlaybackState.Playing && provider != null && requestGeneration > 0L) {
-                preparedForGeneration = requestGeneration
-                scope.launch { prepareNext(provider, settings().effectiveForEngine(engine), requestGeneration) }
-            }
         }
     }
 
@@ -128,6 +126,17 @@ class NaviampCorePlaybackEngineAdapter(
     }
 
     override fun applyNavigation(command: PlaybackQueueNavigationCommand) {
+        applyNavigation(command, preservePreparedTransition = false)
+    }
+
+    override fun applyAutomaticNavigation(command: PlaybackQueueNavigationCommand) {
+        applyNavigation(command, preservePreparedTransition = true)
+    }
+
+    private fun applyNavigation(
+        command: PlaybackQueueNavigationCommand,
+        preservePreparedTransition: Boolean,
+    ) {
         restoredStartPositionSeconds = null
         when (command) {
             PlaybackQueueNavigationCommand.Previous -> queue = queue.previous(repeatMode)
@@ -139,6 +148,7 @@ class NaviampCorePlaybackEngineAdapter(
             }
             PlaybackQueueNavigationCommand.None -> return
         }
+        if (!preservePreparedTransition) clearPreparedCrossfade()
         startCurrent(startPositionSeconds = null)
     }
 
@@ -150,7 +160,14 @@ class NaviampCorePlaybackEngineAdapter(
         if (index !in queue.tracks.indices) return
         restoredStartPositionSeconds = null
         this.queue = queue.jumpTo(index)
+        clearPreparedCrossfade()
         startCurrent(startPositionSeconds = null)
+    }
+
+    private fun clearPreparedCrossfade() {
+        if (settings().effectiveForEngine(engine).crossfadeDurationSeconds <= 0) return
+        (engine as? QueueAwarePlaybackEngine)?.clearPreparedNext()
+        preparedForGeneration = -1L
     }
 
     override suspend fun play(station: InternetRadioStation) {
@@ -219,12 +236,6 @@ class NaviampCorePlaybackEngineAdapter(
                     if (requestGeneration == generation) {
                         playbackState = state
                         observer?.onStateChanged(state)
-                        if (state == PlaybackState.Playing && preparedForGeneration != requestGeneration) {
-                            preparedForGeneration = requestGeneration
-                            provider?.let {
-                                scope.launch { prepareNext(it, playbackSettings, requestGeneration) }
-                            }
-                        }
                     }
                 },
                 onProgressChanged = { progress ->
@@ -233,6 +244,14 @@ class NaviampCorePlaybackEngineAdapter(
                         observer?.onVisualizerFrameChanged(
                             (engine as? VisualizerPlaybackEngine)?.visualizerFrame(),
                         )
+                        if (
+                            provider != null &&
+                            preparedForGeneration != requestGeneration &&
+                            shouldPrepareNext(progress, playbackSettings)
+                        ) {
+                            preparedForGeneration = requestGeneration
+                            scope.launch { prepareNext(provider, playbackSettings, requestGeneration) }
+                        }
                     }
                 },
                 onMetadataChanged = { metadata ->
@@ -240,6 +259,20 @@ class NaviampCorePlaybackEngineAdapter(
                 },
             )
         }
+    }
+
+    private fun shouldPrepareNext(progress: app.naviamp.domain.playback.PlaybackProgress, settings: PlaybackSettings): Boolean {
+        val nextIndex = queue.nextIndex(repeatMode, repeatTrack = true)
+        return planPrepareNextPlayback(
+            progress = progress,
+            nextQueueIndex = nextIndex,
+            alreadyPreparedNext = preparedForGeneration == generation,
+            gaplessEnabled = settings.gaplessEnabled,
+            supportsGapless = engine.supportsGapless,
+            crossfadeDurationSeconds = settings.crossfadeDurationSeconds,
+            supportsCrossfade = engine.supportsCrossfade,
+            gaplessPrepareWindowSeconds = CoreGaplessPrepareWindowSeconds,
+        ).shouldPrepare
     }
 
     private suspend fun prepareNext(
@@ -273,6 +306,8 @@ class NaviampCorePlaybackEngineAdapter(
         queueEngine.prepareNext(work.request)
     }
 }
+
+private const val CoreGaplessPrepareWindowSeconds = 8.0
 
 /** Shared playback-settings owner and complete engine application policy. */
 class NaviampCorePlaybackEngineSettings(
@@ -339,6 +374,20 @@ class NaviampCoreMutableNowPlayingSidecars : NaviampCoreNowPlayingSidecarPort {
         state = state.copy(waveform = waveform)
     }
 
+    fun updateTrackSidecars(
+        waveform: app.naviamp.domain.waveform.AudioWaveform?,
+        relatedTracks: List<app.naviamp.domain.Track>,
+        relatedTracksSource: RelatedTracksSource,
+        relatedSimilarityByTrackId: Map<TrackId, Double>,
+    ) {
+        state = state.copy(
+            waveform = waveform,
+            relatedTracks = relatedTracks,
+            relatedTracksSource = relatedTracksSource,
+            relatedSimilarityByTrackId = relatedSimilarityByTrackId,
+        )
+    }
+
     fun updateInternetRadioArtwork(
         station: InternetRadioStation,
         key: String,
@@ -367,16 +416,31 @@ class NaviampCoreProviderNowPlayingSidecars(
         delegate.loadForTrack(track)
         val provider = providerSource.current() ?: return
         val settings = playbackSettings()
-        val waveform = runCatching {
-            waveformService.loadOrCreateWaveform(
-                sourceId = provider.cacheNamespace,
-                provider = provider,
-                track = track,
-                quality = settings.streamQualityForNetwork(isMobileData = false),
-                audioCachingEnabled = audioCachingEnabled(),
-            ).waveform
-        }.getOrNull()
-        if (generation == loadGeneration) delegate.updateWaveform(waveform)
+        val loaded = coroutineScope {
+            val waveform = async {
+                runCatching {
+                    waveformService.loadOrCreateWaveform(
+                        sourceId = provider.cacheNamespace,
+                        provider = provider,
+                        track = track,
+                        quality = settings.streamQualityForNetwork(isMobileData = false),
+                        audioCachingEnabled = audioCachingEnabled(),
+                    ).waveform
+                }.getOrNull()
+            }
+            val related = async {
+                loadCoreRelatedTracks(provider, track, settings.sonicSimilarityEnabled)
+            }
+            LoadedTrackSidecars(waveform.await(), related.await())
+        }
+        if (generation == loadGeneration) {
+            delegate.updateTrackSidecars(
+                waveform = loaded.waveform,
+                relatedTracks = loaded.related.tracks,
+                relatedTracksSource = loaded.related.source,
+                relatedSimilarityByTrackId = loaded.related.similarityByTrackId,
+            )
+        }
     }
 
     override suspend fun loadInternetRadioArtwork(
@@ -398,3 +462,38 @@ class NaviampCoreProviderNowPlayingSidecars(
         delegate.updateInternetRadioArtwork(station, key, artworkUrl)
     }
 }
+
+private data class LoadedTrackSidecars(
+    val waveform: app.naviamp.domain.waveform.AudioWaveform?,
+    val related: LoadedRelatedTracks,
+)
+
+internal data class LoadedRelatedTracks(
+    val tracks: List<app.naviamp.domain.Track> = emptyList(),
+    val source: RelatedTracksSource = RelatedTracksSource.None,
+    val similarityByTrackId: Map<TrackId, Double> = emptyMap(),
+)
+
+internal suspend fun loadCoreRelatedTracks(
+    provider: app.naviamp.domain.provider.MediaProvider,
+    track: app.naviamp.domain.Track,
+    sonicSimilarityEnabled: Boolean,
+): LoadedRelatedTracks {
+    if (!sonicSimilarityEnabled || !provider.capabilities.supportsSonicSimilarity) {
+        return LoadedRelatedTracks()
+    }
+    val matches = runCatching {
+        provider.sonicSimilarTrackMatches(track.id, count = CoreRelatedTrackLimit)
+    }.getOrDefault(emptyList())
+        .filterNot { it.track.id == track.id }
+        .distinctBy { it.track.id }
+    return LoadedRelatedTracks(
+        tracks = matches.map { it.track },
+        source = RelatedTracksSource.SonicSimilarity,
+        similarityByTrackId = matches.mapNotNull { match ->
+            match.similarity?.let { match.track.id to it }
+        }.toMap(),
+    )
+}
+
+private const val CoreRelatedTrackLimit = 50

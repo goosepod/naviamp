@@ -5,11 +5,13 @@ import app.naviamp.domain.playback.PlaybackProgress
 import app.naviamp.domain.playback.PlaybackRequest
 import app.naviamp.domain.playback.PlaybackState
 import app.naviamp.domain.playback.PlaybackStreamMetadata
+import app.naviamp.domain.playback.PlaybackQueueNavigationCommand
 import app.naviamp.domain.playback.QueueAwarePlaybackEngine
 import app.naviamp.domain.TrackId
 import app.naviamp.domain.InternetRadioStation
 import app.naviamp.domain.queue.PlaybackQueue
 import app.naviamp.domain.settings.PlaybackSettings
+import app.naviamp.domain.media.RelatedTracksSource
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
@@ -88,8 +90,56 @@ class NaviampCorePlaybackEngineAdapterTest {
         assertEquals(listOf<PlaybackState>(PlaybackState.Playing), states)
         assertEquals(12.0, progressEvents.single().positionSeconds)
         assertEquals("Core Stream", metadataEvents.single().title)
-        assertEquals("https://example.test/next", engine.preparedRequest?.url)
+        assertEquals(null, engine.preparedRequest)
+        assertEquals(listOf("play:core-track"), engine.events)
+    }
+
+    @Test
+    fun nextTrackIsPreparedOnlyInsideTheSharedTransitionWindow() = runTest {
+        val provider = FakeCoreMediaProvider()
+        val engine = RecordingPlaybackEngine().apply {
+            emittedProgress = PlaybackProgress(173.0, 180.0)
+        }
+        val adapter = NaviampCorePlaybackEngineAdapter(
+            scope = this,
+            engine = engine,
+            providerSource = NaviampCoreMediaProviderSource { provider },
+            settings = { PlaybackSettings(gaplessEnabled = true) },
+        )
+        val next = provider.track.copy(id = TrackId("next"), title = "Next")
+
+        adapter.playQueueSelection(PlaybackQueue(listOf(provider.track, next), 0), 0)
+        advanceUntilIdle()
+
+        assertEquals("next", engine.preparedRequest?.mediaId)
         assertEquals(listOf("play:core-track", "prepare:next"), engine.events)
+    }
+
+    @Test
+    fun manualNextClearsAnActiveCrossfadeAndStartsTheTrackFromItsOwnBeginning() = runTest {
+        val provider = FakeCoreMediaProvider()
+        val engine = RecordingPlaybackEngine().apply {
+            emittedProgress = PlaybackProgress(173.0, 180.0)
+        }
+        val adapter = NaviampCorePlaybackEngineAdapter(
+            scope = this,
+            engine = engine,
+            providerSource = NaviampCoreMediaProviderSource { provider },
+            settings = { PlaybackSettings(gaplessEnabled = false, crossfadeDurationSeconds = 8) },
+        )
+        val next = provider.track.copy(id = TrackId("next"), title = "Next")
+        adapter.playQueueSelection(PlaybackQueue(listOf(provider.track, next), 0), 0)
+        advanceUntilIdle()
+
+        adapter.applyNavigation(PlaybackQueueNavigationCommand.Next)
+        advanceUntilIdle()
+
+        assertEquals("next", engine.request?.mediaId)
+        assertEquals(null, engine.preparedRequest)
+        assertEquals(
+            listOf("clear", "play:core-track", "prepare:next", "clear", "play:next"),
+            engine.events,
+        )
     }
 
     @Test
@@ -101,6 +151,17 @@ class NaviampCorePlaybackEngineAdapterTest {
 
         assertEquals(100, effective.volumePercent)
         assertEquals(100, engine.appliedVolume)
+    }
+
+    @Test
+    fun sharedSidecarLoaderPublishesSonicRelatedTracksAndScores() = runTest {
+        val provider = FakeCoreMediaProvider(supportsSonicSimilarity = true)
+
+        val related = loadCoreRelatedTracks(provider, provider.track, sonicSimilarityEnabled = true)
+
+        assertEquals(RelatedTracksSource.SonicSimilarity, related.source)
+        assertEquals(listOf("sonic-related"), related.tracks.map { it.id.value })
+        assertEquals(0.87, related.similarityByTrackId[TrackId("sonic-related")])
     }
 }
 
@@ -116,6 +177,7 @@ private class RecordingPlaybackEngine : PlaybackEngine, QueueAwarePlaybackEngine
     var request: PlaybackRequest? = null
     var preparedRequest: PlaybackRequest? = null
     var appliedVolume = -1
+    var emittedProgress = PlaybackProgress(12.0, 180.0)
     val events = mutableListOf<String>()
 
     override fun play(
@@ -128,7 +190,7 @@ private class RecordingPlaybackEngine : PlaybackEngine, QueueAwarePlaybackEngine
         this.request = request
         events += "play:${request.mediaId}"
         onStateChanged(PlaybackState.Playing)
-        onProgressChanged(PlaybackProgress(12.0, 180.0))
+        onProgressChanged(emittedProgress)
         onMetadataChanged(PlaybackStreamMetadata(title = "Core Stream"))
     }
 
@@ -144,5 +206,6 @@ private class RecordingPlaybackEngine : PlaybackEngine, QueueAwarePlaybackEngine
     }
     override fun clearPreparedNext() {
         preparedRequest = null
+        events += "clear"
     }
 }
