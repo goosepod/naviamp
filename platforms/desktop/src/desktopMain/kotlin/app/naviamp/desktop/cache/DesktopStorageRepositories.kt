@@ -10,6 +10,7 @@ import app.naviamp.storage.StorageLyricsOffsetStore
 import app.naviamp.storage.StorageLyricsSidecarStore
 import app.naviamp.storage.StorageObjectByteStore
 import app.naviamp.storage.StoragePendingProviderActionStore
+import app.naviamp.storage.StoragePlaybackSessionStore
 import app.naviamp.storage.StorageProviderResponseStore
 import app.naviamp.storage.StorageRadioDjPresetStore
 import app.naviamp.storage.StorageSidecarStatusStore
@@ -34,6 +35,7 @@ class DesktopStorageRepositories private constructor(
     val sidecarStatuses: StorageSidecarStatusStore,
     val libraryIndex: StorageLibraryIndexStore,
     val pendingProviderActions: StoragePendingProviderActionStore,
+    val playbackSessions: StoragePlaybackSessionStore,
     val radioDjPresets: StorageRadioDjPresetStore,
     val maintenance: DesktopCacheMaintenanceRepository,
 ) : AutoCloseable {
@@ -88,6 +90,7 @@ class DesktopStorageRepositories private constructor(
                     sidecarStatuses = StorageSidecarStatusStore(queries),
                     libraryIndex = StorageLibraryIndexStore(queries, mediaSources.store, nowEpochMillis),
                     pendingProviderActions = StoragePendingProviderActionStore(queries, nowEpochMillis),
+                    playbackSessions = StoragePlaybackSessionStore(queries, nowEpochMillis, json),
                     radioDjPresets = StorageRadioDjPresetStore(queries, nowEpochMillis),
                     maintenance = DesktopCacheMaintenanceRepository(
                         storage = mediaSources,

@@ -36,6 +36,10 @@ interface NaviampCorePlaybackEffectPort : NaviampPlaybackExecution {
     fun attach(observer: NaviampCorePlaybackObserver) = Unit
 
     fun applyQueue(queue: PlaybackQueue, clearPreparedNext: Boolean)
+    fun restoreQueue(queue: PlaybackQueue, startPositionSeconds: Double?) {
+        applyQueue(queue, clearPreparedNext = true)
+    }
+    fun restoreInternetRadio(station: InternetRadioStation) = Unit
     fun applyNavigation(command: PlaybackQueueNavigationCommand)
     fun applyRepeatMode(mode: RepeatMode)
     fun playQueueSelection(queue: PlaybackQueue, index: Int)

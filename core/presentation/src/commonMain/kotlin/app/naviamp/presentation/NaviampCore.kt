@@ -236,6 +236,7 @@ class NaviampCore private constructor(
                 services.playback.effects,
                 services.playback.settings,
                 services.playback.sidecars,
+                services.playback.sessions,
                 nowPlayingPresenter,
                 services.clockEpochMillis,
             )
@@ -284,7 +285,8 @@ class NaviampCore private constructor(
                 stateStore,
                 services.connection,
                 initialState.connectionInventory,
-                onConnected = {
+                onConnected = { sourceId ->
+                    scope.launch { playback.restoreSession(sourceId) }
                     scope.launch { home.refreshAfterConnection() }
                     scope.launch { catalog.refreshAfterConnection() }
                     scope.launch { playlistBrowse.refreshAfterConnection() }

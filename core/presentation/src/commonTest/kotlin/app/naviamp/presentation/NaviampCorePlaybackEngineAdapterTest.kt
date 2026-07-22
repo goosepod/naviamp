@@ -19,6 +19,26 @@ import kotlin.test.assertEquals
 @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 class NaviampCorePlaybackEngineAdapterTest {
     @Test
+    fun restoredQueueWaitsForPlayAndResumesAtTheSavedPosition() = runTest {
+        val provider = FakeCoreMediaProvider()
+        val engine = RecordingPlaybackEngine()
+        val adapter = NaviampCorePlaybackEngineAdapter(
+            scope = this,
+            engine = engine,
+            providerSource = NaviampCoreMediaProviderSource { provider },
+            settings = { PlaybackSettings() },
+        )
+
+        adapter.restoreQueue(PlaybackQueue(listOf(provider.track), 0), startPositionSeconds = 37.0)
+        assertEquals(null, engine.request)
+
+        adapter.startOrRestore()
+        advanceUntilIdle()
+
+        assertEquals(37.0, engine.request?.startPositionSeconds)
+    }
+
+    @Test
     fun internetRadioUsesTheStationStreamWithoutProviderResolution() = runTest {
         val engine = RecordingPlaybackEngine()
         val adapter = NaviampCorePlaybackEngineAdapter(

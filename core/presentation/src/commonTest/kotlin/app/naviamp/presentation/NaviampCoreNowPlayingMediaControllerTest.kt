@@ -228,6 +228,7 @@ private fun mediaFixture(scope: kotlinx.coroutines.CoroutineScope): MediaFixture
         effects,
         settings,
         sidecars,
+        emptyPlaybackSessions(),
         presenter,
         nowEpochMillis = { 1_000L },
     )

@@ -3,6 +3,7 @@ package app.naviamp.desktop.settings
 import app.naviamp.domain.settings.CacheSettings
 import app.naviamp.domain.settings.InterfaceSettings
 import app.naviamp.domain.settings.PlaybackSettings
+import app.naviamp.domain.settings.PlaybackSessionSettings
 import app.naviamp.domain.settings.VisualizerSettings
 import app.naviamp.domain.settings.normalized
 import kotlinx.serialization.KSerializer
@@ -37,6 +38,12 @@ class DesktopCoreSettingsStore(private val path: Path) {
     fun savePlaybackSettings(value: PlaybackSettings) =
         write("playback", PlaybackSettings.serializer(), value.normalized())
 
+    /** One-way migration input for the pre-Core Desktop settings document. */
+    fun loadLegacyPlaybackSession(): PlaybackSessionSettings? =
+        readOrNull("session", PlaybackSessionSettings.serializer())
+
+    fun removeLegacyPlaybackSession() = remove("session")
+
     fun loadCacheSettings(): CacheSettings =
         read("cache", CacheSettings.serializer(), CacheSettings()).normalized()
 
@@ -58,8 +65,21 @@ class DesktopCoreSettingsStore(private val path: Path) {
         document()[key]?.let { runCatching { json.decodeFromJsonElement(serializer, it) }.getOrNull() } ?: fallback
 
     @Synchronized
+    private fun <T> readOrNull(key: String, serializer: KSerializer<T>): T? =
+        document()[key]?.let { runCatching { json.decodeFromJsonElement(serializer, it) }.getOrNull() }
+
+    @Synchronized
     private fun <T> write(key: String, serializer: KSerializer<T>, value: T) {
         val updated = JsonObject(document() + (key to json.encodeToJsonElement(serializer, value)))
+        writeDocument(updated)
+    }
+
+    @Synchronized
+    private fun remove(key: String) {
+        writeDocument(JsonObject(document() - key))
+    }
+
+    private fun writeDocument(updated: JsonObject) {
         Files.createDirectories(path.parent)
         val temporary = path.resolveSibling("${path.fileName}.tmp")
         temporary.writeText(json.encodeToString(JsonObject.serializer(), updated))

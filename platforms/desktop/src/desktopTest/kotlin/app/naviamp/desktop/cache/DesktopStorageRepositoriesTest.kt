@@ -2,6 +2,9 @@ package app.naviamp.desktop
 
 import app.naviamp.storage.PassthroughStorageCredentialProtector
 import app.naviamp.storage.StorageDatabaseLocation
+import app.naviamp.domain.Track
+import app.naviamp.domain.TrackId
+import app.naviamp.domain.settings.PlaybackSessionSettings
 import java.nio.file.Files
 import kotlin.io.path.exists
 import kotlin.test.Test
@@ -35,6 +38,28 @@ class DesktopStorageRepositoriesTest {
 
             assertEquals(1L, repositories.maintenance.stats().responseCount)
             assertEquals(audio.toAbsolutePath().toString(), repositories.maintenance.stats().audioCacheDirectory)
+            repositories.playbackSessions.savePlaybackSession(
+                PlaybackSessionSettings.fromTracks(
+                    listOf(
+                        Track(
+                            id = TrackId("track"),
+                            title = "Track",
+                            artistName = "Artist",
+                            albumTitle = null,
+                            durationSeconds = null,
+                            coverArtId = null,
+                            audioInfo = null,
+                            replayGain = null,
+                        ),
+                    ),
+                    currentIndex = 0,
+                ),
+                "source",
+            )
+            assertEquals(
+                "track",
+                repositories.playbackSessions.loadPlaybackSession("source")?.currentTrack()?.id?.value,
+            )
 
             repositories.maintenance.clearCacheData()
 

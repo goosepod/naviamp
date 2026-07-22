@@ -9,7 +9,6 @@ import app.naviamp.domain.queue.RepeatMode
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.update
 
 data class NaviampLivePlaybackState(
     val currentTrack: Track? = null,
@@ -28,11 +27,17 @@ class NaviampLivePlaybackController(
     initialState: NaviampLivePlaybackState = NaviampLivePlaybackState(),
 ) {
     private val mutableState = MutableStateFlow(initialState)
+    private val observers = mutableListOf<(NaviampLivePlaybackState) -> Unit>()
 
     val state: StateFlow<NaviampLivePlaybackState> = mutableState.asStateFlow()
 
     fun replace(state: NaviampLivePlaybackState) {
-        mutableState.value = state
+        publish(state)
+    }
+
+    /** Observes canonical state mutations without requiring a host lifecycle coroutine. */
+    fun observe(observer: (NaviampLivePlaybackState) -> Unit) {
+        observers += observer
     }
 
     fun updateCurrentTrack(track: Track?) = update { current -> current.copy(currentTrack = track) }
@@ -94,6 +99,12 @@ class NaviampLivePlaybackController(
         update { current -> current.copy(shuffledUpNextSnapshot = snapshot) }
 
     private inline fun update(transform: (NaviampLivePlaybackState) -> NaviampLivePlaybackState) {
-        mutableState.update(transform)
+        publish(transform(mutableState.value))
+    }
+
+    private fun publish(updated: NaviampLivePlaybackState) {
+        if (updated == mutableState.value) return
+        mutableState.value = updated
+        observers.toList().forEach { it(updated) }
     }
 }

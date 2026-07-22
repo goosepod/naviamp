@@ -1,5 +1,6 @@
 package app.naviamp.presentation
 
+import app.naviamp.app.NaviampPlaybackSessionController
 import app.naviamp.domain.albummix.AlbumMixBuilderService
 import app.naviamp.domain.artistmix.ArtistMixBuilderService
 import app.naviamp.domain.cache.ProviderResponseService
@@ -52,6 +53,7 @@ data class NaviampCorePlaybackServices(
     val settings: NaviampCorePlaybackSettingsPort,
     val sidecars: NaviampCoreNowPlayingSidecarPort,
     val visualizerSettings: NaviampCoreVisualizerSettingsPort,
+    val sessions: NaviampPlaybackSessionController,
 )
 
 /** Settings stores and maintenance mechanisms; Core owns their ordering and presentation. */

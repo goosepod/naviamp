@@ -3,6 +3,7 @@ package app.naviamp.presentation
 import app.naviamp.app.NaviampLivePlaybackController
 import app.naviamp.app.NaviampLivePlaybackState
 import app.naviamp.app.NaviampPlaybackQueueCoordinator
+import app.naviamp.app.NaviampPlaybackSessionController
 import app.naviamp.domain.Album
 import app.naviamp.domain.AlbumDetails
 import app.naviamp.domain.AlbumId
@@ -14,6 +15,7 @@ import app.naviamp.domain.ProviderId
 import app.naviamp.domain.StreamRequest
 import app.naviamp.domain.Track
 import app.naviamp.domain.TrackId
+import app.naviamp.domain.cache.PlaybackSessionRepository
 import app.naviamp.domain.playback.PlaybackProgress
 import app.naviamp.domain.playback.PlaybackQueueNavigationCommand
 import app.naviamp.domain.playback.PlaybackSource
@@ -26,6 +28,7 @@ import app.naviamp.domain.provider.PlaybackReportState
 import app.naviamp.domain.queue.PlaybackQueue
 import app.naviamp.domain.queue.RepeatMode
 import app.naviamp.domain.settings.PlaybackSettings
+import app.naviamp.domain.settings.PlaybackSessionSettings
 import app.naviamp.ui.NowPlayingPlaybackAction
 import app.naviamp.ui.NowPlayingPlaybackActionRequest
 import app.naviamp.ui.NowPlayingQueueAction
@@ -41,6 +44,39 @@ import kotlin.test.assertTrue
 
 @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 class NaviampCorePlaybackControllerTest {
+    @Test
+    fun nativeProgressPersistsTheCanonicalCoreQueueAndPosition() = runTest {
+        val fixture = playbackFixture(this)
+        fixture.controller.attachNativePlayback()
+
+        fixture.effects.observer?.onProgressChanged(PlaybackProgress(31.0, 180.0))
+
+        val saved = fixture.sessionRepository.sessions.getValue("source")!!
+        assertEquals(listOf("one", "two", "three", "four", "five"), saved.toTracks().map { it.id.value })
+        assertEquals(1, saved.currentIndex)
+        assertEquals(31.0, saved.positionSeconds)
+    }
+
+    @Test
+    fun restoredSessionRehydratesCoreQueueCurrentTrackAndResumePosition() = runTest {
+        val fixture = playbackFixture(this)
+        val restoredTracks = listOf(playbackTrack("remembered-one"), playbackTrack("remembered-two"))
+        fixture.sessionRepository.sessions["source"] = PlaybackSessionSettings.fromTracks(
+            restoredTracks,
+            currentIndex = 1,
+            positionSeconds = 42.0,
+        )
+
+        fixture.controller.restoreSession("source")
+
+        assertEquals("remembered-two", fixture.live.state.value.currentTrack?.id?.value)
+        assertEquals(restoredTracks, fixture.live.state.value.queue.tracks)
+        assertEquals(42.0, fixture.live.state.value.progress.positionSeconds)
+        assertEquals(42.0, fixture.effects.restoredStartPositionSeconds)
+        assertEquals("remembered-two", fixture.sidecars.loadedTracks.single())
+        assertEquals(0, fixture.effects.starts)
+    }
+
     @Test
     fun duplicateNativeFinishedCallbacksAdvanceTheSharedQueueOnlyOnce() = runTest {
         val fixture = playbackFixture(this)
@@ -171,6 +207,7 @@ private data class PlaybackFixture(
     val live: NaviampLivePlaybackController,
     val effects: PlaybackTestEffects,
     val sidecars: PlaybackTestSidecars,
+    val sessionRepository: RecordingPlaybackSessionRepository,
     val controller: NaviampCorePlaybackController,
     val savedSettings: List<PlaybackSettings>,
 )
@@ -184,7 +221,11 @@ private fun playbackFixture(scope: kotlinx.coroutines.CoroutineScope): PlaybackF
         playbackTrack("five"),
     )
     val provider = PlaybackTestProvider()
-    val store = NaviampCoreStateStore()
+    val store = NaviampCoreStateStore().also { stateStore ->
+        stateStore.updateShell { shell ->
+            shell.copy(connectionSettings = shell.connectionSettings.copy(currentSourceId = "source"))
+        }
+    }
     val live = NaviampLivePlaybackController(
         NaviampLivePlaybackState(
             currentTrack = tracks[1],
@@ -198,6 +239,7 @@ private fun playbackFixture(scope: kotlinx.coroutines.CoroutineScope): PlaybackF
     val sidecars = PlaybackTestSidecars()
     val presenter = NaviampCoreNowPlayingPresenter(store, { provider }, live, queue, effects, sidecars)
     val saved = mutableListOf<PlaybackSettings>()
+    val sessionRepository = RecordingPlaybackSessionRepository()
     val controller = NaviampCorePlaybackController(
         scope = scope,
         stateStore = store,
@@ -210,11 +252,12 @@ private fun playbackFixture(scope: kotlinx.coroutines.CoroutineScope): PlaybackF
             settings
         },
         sidecars = sidecars,
+        sessions = NaviampPlaybackSessionController(sessionRepository),
         presenter = presenter,
-        nowEpochMillis = { 1_000L },
+        nowEpochMillis = { 10_000L },
     )
     presenter.publish()
-    return PlaybackFixture(store, provider, live, effects, sidecars, controller, saved)
+    return PlaybackFixture(store, provider, live, effects, sidecars, sessionRepository, controller, saved)
 }
 
 private class PlaybackTestEffects : NaviampCorePlaybackEffectPort {
@@ -228,6 +271,7 @@ private class PlaybackTestEffects : NaviampCorePlaybackEffectPort {
     val volumes = mutableListOf<Int>()
     val navigation = mutableListOf<PlaybackQueueNavigationCommand>()
     val queues = mutableListOf<PlaybackQueue>()
+    var restoredStartPositionSeconds: Double? = null
     var observer: NaviampCorePlaybackObserver? = null
 
     override fun attach(observer: NaviampCorePlaybackObserver) {
@@ -242,9 +286,21 @@ private class PlaybackTestEffects : NaviampCorePlaybackEffectPort {
     override fun setVolume(percent: Int) { volumes += percent }
     override fun stop() { stops += 1 }
     override fun applyQueue(queue: PlaybackQueue, clearPreparedNext: Boolean) { queues += queue }
+    override fun restoreQueue(queue: PlaybackQueue, startPositionSeconds: Double?) {
+        queues += queue
+        restoredStartPositionSeconds = startPositionSeconds
+    }
     override fun applyNavigation(command: PlaybackQueueNavigationCommand) { navigation += command }
     override fun applyRepeatMode(mode: RepeatMode) = Unit
     override fun playQueueSelection(queue: PlaybackQueue, index: Int) = Unit
+}
+
+private class RecordingPlaybackSessionRepository : PlaybackSessionRepository {
+    val sessions = mutableMapOf<String?, PlaybackSessionSettings?>()
+    override fun loadPlaybackSession(sourceId: String?): PlaybackSessionSettings? = sessions[sourceId]
+    override fun savePlaybackSession(session: PlaybackSessionSettings?, sourceId: String?) {
+        sessions[sourceId] = session
+    }
 }
 
 private class PlaybackTestSidecars : NaviampCoreNowPlayingSidecarPort {

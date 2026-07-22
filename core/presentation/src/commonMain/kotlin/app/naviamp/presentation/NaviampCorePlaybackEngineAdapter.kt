@@ -61,6 +61,7 @@ class NaviampCorePlaybackEngineAdapter(
     private var generation = 0L
     private var preparedForGeneration = -1L
     private var playbackState: PlaybackState = PlaybackState.Stopped
+    private var restoredStartPositionSeconds: Double? = null
     private val externalStreamUrls = mutableMapOf<TrackId, String>()
 
     override fun attach(observer: NaviampCorePlaybackObserver) {
@@ -71,8 +72,10 @@ class NaviampCorePlaybackEngineAdapter(
     override fun resume() = engine.resume()
 
     override fun startOrRestore(): Boolean {
-        val index = queue.currentIndex.takeIf { it in queue.tracks.indices } ?: return false
-        playQueueSelection(queue, index)
+        queue.currentIndex.takeIf { it in queue.tracks.indices } ?: return false
+        val position = restoredStartPositionSeconds
+        restoredStartPositionSeconds = null
+        startCurrent(position)
         return true
     }
 
@@ -107,7 +110,22 @@ class NaviampCorePlaybackEngineAdapter(
         }
     }
 
+    override fun restoreQueue(queue: PlaybackQueue, startPositionSeconds: Double?) {
+        this.queue = queue
+        restoredStartPositionSeconds = startPositionSeconds
+        (engine as? QueueAwarePlaybackEngine)?.clearPreparedNext()
+        preparedForGeneration = -1L
+    }
+
+    override fun restoreInternetRadio(station: InternetRadioStation) {
+        val track = internetRadioTrack(station)
+        externalStreamUrls[track.id] = station.streamUrl
+        queue = PlaybackQueue(listOf(track), 0)
+        restoredStartPositionSeconds = null
+    }
+
     override fun applyNavigation(command: PlaybackQueueNavigationCommand) {
+        restoredStartPositionSeconds = null
         when (command) {
             PlaybackQueueNavigationCommand.Previous -> queue = queue.previous(repeatMode)
             PlaybackQueueNavigationCommand.Next -> queue = queue.next(repeatMode)
@@ -127,6 +145,7 @@ class NaviampCorePlaybackEngineAdapter(
 
     override fun playQueueSelection(queue: PlaybackQueue, index: Int) {
         if (index !in queue.tracks.indices) return
+        restoredStartPositionSeconds = null
         this.queue = queue.jumpTo(index)
         startCurrent(startPositionSeconds = null)
     }

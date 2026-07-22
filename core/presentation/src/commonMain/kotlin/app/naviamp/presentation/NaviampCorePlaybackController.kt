@@ -5,6 +5,8 @@ import app.naviamp.app.NaviampPlaybackCommandController
 import app.naviamp.app.NaviampNowPlayingReportRequest
 import app.naviamp.app.NaviampPlaybackReportingController
 import app.naviamp.app.NaviampPlaybackStateReportRequest
+import app.naviamp.app.NaviampPlaybackSessionController
+import app.naviamp.app.NaviampPlaybackSessionSaveRequest
 import app.naviamp.app.NaviampPlaybackQueueCommandController
 import app.naviamp.app.NaviampPlaybackQueueCoordinator
 import app.naviamp.app.NaviampPlaybackRepeatCommandController
@@ -19,6 +21,10 @@ import app.naviamp.domain.playback.PlaybackStreamMetadata
 import app.naviamp.domain.playback.PlaybackVisualizerFrame
 import app.naviamp.domain.isInternetRadioTrack
 import app.naviamp.domain.settings.streamQualityForNetwork
+import app.naviamp.domain.settings.PlaybackSessionRestorePlan
+import app.naviamp.domain.settings.PlaybackSessionSavePlan
+import app.naviamp.domain.radio.internetRadioTrack
+import app.naviamp.domain.queue.PlaybackQueue
 import app.naviamp.ui.NowPlayingPlaybackAction
 import app.naviamp.ui.NowPlayingPlaybackActionRequest
 import app.naviamp.ui.NowPlayingQueueAction
@@ -38,6 +44,7 @@ class NaviampCorePlaybackController(
     private val effects: NaviampCorePlaybackEffectPort,
     private val settings: NaviampCorePlaybackSettingsPort,
     private val sidecars: NaviampCoreNowPlayingSidecarPort,
+    private val sessions: NaviampPlaybackSessionController,
     private val presenter: NaviampCoreNowPlayingPresenter,
     private val nowEpochMillis: () -> Long,
 ) : NaviampCoreCommandController {
@@ -52,6 +59,8 @@ class NaviampCorePlaybackController(
     private var reportingTrackId: app.naviamp.domain.TrackId? = null
     private var reportedNowPlayingSessionId = -1L
     private var sidecarTrackId: app.naviamp.domain.TrackId? = null
+    private var persistedQueue = PlaybackQueue()
+    private var persistedStationId: String? = null
 
     override fun dispatch(command: NaviampCoreCommand): NaviampCoreImmediateCommandResult = when (command) {
         is NaviampCoreCommand.NowPlaying.Playback,
@@ -89,12 +98,14 @@ class NaviampCorePlaybackController(
     fun diagnostics(): List<Pair<String, String>> = effects.diagnostics()
 
     fun attachNativePlayback() {
+        playback.observe { persistSession(force = false) }
         effects.attach(object : NaviampCorePlaybackObserver {
             override fun onStateChanged(state: PlaybackState) {
                 val repeatedFinished = state == PlaybackState.Finished &&
                     playback.state.value.playbackState == PlaybackState.Finished
                 playback.updatePlaybackState(state)
                 reportPlayback(state, playback.state.value.progress)
+                persistSession(force = state == PlaybackState.Paused || state == PlaybackState.Stopped)
                 if (state == PlaybackState.Playing) loadCurrentTrackSidecars()
                 if (state == PlaybackState.Finished && !repeatedFinished) {
                     navigate(queue.nextCommand())
@@ -105,6 +116,7 @@ class NaviampCorePlaybackController(
             override fun onProgressChanged(progress: PlaybackProgress) {
                 playback.updateProgress(progress)
                 reportPlayback(playback.state.value.playbackState, progress)
+                persistSession(force = false)
                 presenter.publish(display)
             }
 
@@ -118,6 +130,77 @@ class NaviampCorePlaybackController(
                 presenter.publish(display)
             }
         })
+    }
+
+    suspend fun restoreSession(sourceId: String) {
+        when (val restored = sessions.restorePlan(sourceId)) {
+            PlaybackSessionRestorePlan.None -> return
+            is PlaybackSessionRestorePlan.TrackSession -> {
+                queue.restoreQueue(restored.playbackQueue)
+                playback.replace(
+                    playback.state.value.copy(
+                        currentTrack = restored.currentTrack,
+                        currentStation = null,
+                        queue = restored.playbackQueue,
+                        progress = restored.playbackProgress,
+                        playbackState = PlaybackState.Idle,
+                    ),
+                )
+                effects.restoreQueue(restored.playbackQueue, restored.restoredStartPositionSeconds)
+                persistedQueue = restored.playbackQueue
+                persistedStationId = null
+                sidecars.loadForTrack(restored.currentTrack)
+                if (stateStore.state.value.shell.general.interfaceSettings.startPlayingOnLaunch) {
+                    effects.startOrRestore()
+                }
+                publishStatus(restored.status)
+            }
+            is PlaybackSessionRestorePlan.InternetRadio -> {
+                val track = restored.currentTrack ?: internetRadioTrack(restored.station)
+                val restoredQueue = PlaybackQueue(listOf(track), 0)
+                queue.restoreQueue(restoredQueue)
+                playback.replace(
+                    playback.state.value.copy(
+                        currentTrack = track,
+                        currentStation = restored.station,
+                        queue = restoredQueue,
+                        progress = restored.playbackProgress,
+                        playbackState = PlaybackState.Idle,
+                    ),
+                )
+                effects.restoreInternetRadio(restored.station)
+                persistedQueue = restoredQueue
+                persistedStationId = restored.station.id
+                if (stateStore.state.value.shell.general.interfaceSettings.startPlayingOnLaunch) {
+                    effects.startOrRestore()
+                }
+                publishStatus(restored.status)
+            }
+        }
+        presenter.publish(display)
+    }
+
+    private fun persistSession(force: Boolean) {
+        val live = playback.state.value
+        val structuralChange = live.queue != persistedQueue || live.currentStation?.id != persistedStationId
+        val plan = runCatching {
+            sessions.planAndSaveThrottled(
+                request = NaviampPlaybackSessionSaveRequest(
+                    sourceId = stateStore.state.value.shell.connectionSettings.currentSourceId,
+                    station = live.currentStation,
+                    currentTrack = live.currentTrack,
+                    playbackQueue = live.queue,
+                    progressPositionSeconds = live.progress.positionSeconds,
+                ),
+                force = force || structuralChange,
+                nowMillis = nowEpochMillis(),
+                saveIntervalMillis = PlaybackSessionSaveIntervalMillis,
+            )
+        }.getOrNull()
+        if (plan is PlaybackSessionSavePlan.Save) {
+            persistedQueue = live.queue
+            persistedStationId = live.currentStation?.id
+        }
     }
 
     private fun loadCurrentTrackSidecars() {
@@ -229,6 +312,9 @@ class NaviampCorePlaybackController(
                             playbackState = PlaybackState.Stopped,
                         ),
                     )
+                    sessions.clear(stateStore.state.value.shell.connectionSettings.currentSourceId)
+                    persistedQueue = PlaybackQueue()
+                    persistedStationId = null
                 }
             }
         }
@@ -331,3 +417,5 @@ class NaviampCorePlaybackController(
         stateStore.update { state -> state.copy(overlays = state.overlays.copy(status = message)) }
     }
 }
+
+private const val PlaybackSessionSaveIntervalMillis = 5_000L

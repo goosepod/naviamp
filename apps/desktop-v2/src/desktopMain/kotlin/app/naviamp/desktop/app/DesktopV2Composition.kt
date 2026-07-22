@@ -29,6 +29,7 @@ import app.naviamp.ui.naviampVisualizerFromName
 import app.naviamp.domain.settings.VisualizerSettings
 import app.naviamp.domain.playback.emptyPlaybackAudioAssetRepository
 import app.naviamp.domain.waveform.AudioWaveformService
+import app.naviamp.app.NaviampPlaybackSessionController
 import app.naviamp.desktop.DesktopAudioWaveformAnalyzer
 import app.naviamp.desktop.settings.DesktopCoreSettingsStore
 import app.naviamp.desktop.settings.defaultDesktopCoreSettingsPath
@@ -81,6 +82,15 @@ internal class DesktopV2Composition private constructor(
                 runtime = DesktopBassPlaybackEngineRuntime(),
             )
             val settingsStore = DesktopCoreSettingsStore(defaultDesktopCoreSettingsPath())
+            val playbackSessions = NaviampPlaybackSessionController(storage.playbackSessions)
+            storage.mediaSources.latestMediaSource()?.id?.let { sourceId ->
+                if (playbackSessions.load(sourceId) == null) {
+                    settingsStore.loadLegacyPlaybackSession()?.let { legacy ->
+                        playbackSessions.save(legacy, sourceId)
+                        settingsStore.removeLegacyPlaybackSession()
+                    }
+                }
+            }
             val initialInterfaceSettings = settingsStore.loadInterfaceSettings()
             val initialPlaybackSettings = settingsStore.loadPlaybackSettings()
             val initialCacheSettings = settingsStore.loadCacheSettings()
@@ -122,6 +132,7 @@ internal class DesktopV2Composition private constructor(
                         settingsStore.saveVisualizerSettings(VisualizerSettings(visualizer.name))
                     }
                 },
+                sessions = playbackSessions,
             )
             var syncConfiguration = NaviampCoreSettingsSyncConfiguration()
             val sync = unavailableNaviampCoreSettingsSyncServices(nowEpochMillis).copy(

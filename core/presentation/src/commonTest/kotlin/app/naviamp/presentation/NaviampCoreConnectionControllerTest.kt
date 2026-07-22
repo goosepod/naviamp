@@ -157,7 +157,7 @@ class NaviampCoreConnectionControllerTest {
     private fun fixture(
         connectFailure: Throwable? = null,
         musicFoldersLoadFailed: Boolean = false,
-        onConnected: () -> Unit = {},
+        onConnected: (String) -> Unit = {},
         currentSourceId: String? = "source-1",
         hasSavedConnection: Boolean = true,
     ): ConnectionFixture {

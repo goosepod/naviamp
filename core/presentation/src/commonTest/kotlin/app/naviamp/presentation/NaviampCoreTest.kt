@@ -5,6 +5,7 @@ import app.naviamp.app.NaviampKeepDownloadedToggleResult
 import app.naviamp.app.NaviampConnectionPhase
 import app.naviamp.app.NaviampConnectionRuntimeState
 import app.naviamp.app.NaviampLivePlaybackState
+import app.naviamp.app.NaviampPlaybackSessionController
 import app.naviamp.domain.Album
 import app.naviamp.domain.Artist
 import app.naviamp.domain.Genre
@@ -12,6 +13,7 @@ import app.naviamp.domain.InternetRadioStation
 import app.naviamp.domain.Track
 import app.naviamp.domain.cache.DownloadJobUpdate
 import app.naviamp.domain.cache.KeepDownloadedCollectionPolicy
+import app.naviamp.domain.cache.PlaybackSessionRepository
 import app.naviamp.domain.home.HomeDate
 import app.naviamp.domain.playback.PlaybackQueueNavigationCommand
 import app.naviamp.domain.playback.PlaybackSource
@@ -21,6 +23,7 @@ import app.naviamp.domain.queue.RepeatMode
 import app.naviamp.domain.app.NaviampNavigationState
 import app.naviamp.domain.app.NaviampRoute
 import app.naviamp.domain.settings.ConnectionFormState
+import app.naviamp.domain.settings.PlaybackSessionSettings
 import app.naviamp.ui.NaviampSettingsSyncUi
 import app.naviamp.ui.NaviampAppShellUiState
 import app.naviamp.ui.NaviampSearchScreenUi
@@ -302,6 +305,10 @@ internal fun fakeCoreServices(provider: MediaProvider? = null) = NaviampCoreServ
         visualizerSettings = object : NaviampCoreVisualizerSettingsPort {
             override fun save(visualizer: NaviampVisualizer) = Unit
         },
+        sessions = NaviampPlaybackSessionController(object : PlaybackSessionRepository {
+            override fun loadPlaybackSession(sourceId: String?): PlaybackSessionSettings? = null
+            override fun savePlaybackSession(session: PlaybackSessionSettings?, sourceId: String?) = Unit
+        }),
     ),
     clockEpochMillis = { 1_000L },
     favoritedAtIso8601 = { "2026-07-21T00:00:00Z" },
