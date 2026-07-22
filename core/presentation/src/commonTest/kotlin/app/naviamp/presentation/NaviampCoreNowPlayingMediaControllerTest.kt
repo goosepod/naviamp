@@ -23,6 +23,7 @@ import app.naviamp.domain.media.RelatedTracksSource
 import app.naviamp.domain.playback.PlaybackQueueNavigationCommand
 import app.naviamp.domain.playback.PlaybackSource
 import app.naviamp.domain.playback.PlaybackState
+import app.naviamp.domain.playback.PlaybackVisualizerFrame
 import app.naviamp.domain.provider.ConnectionValidation
 import app.naviamp.domain.provider.MediaProvider
 import app.naviamp.domain.provider.MediaSearchResults
@@ -41,6 +42,7 @@ import app.naviamp.ui.NowPlayingItemActionRequest
 import app.naviamp.ui.NowPlayingItemTarget
 import app.naviamp.ui.NowPlayingSelectionAction
 import app.naviamp.ui.NowPlayingSelectionActionRequest
+import app.naviamp.ui.SharedRoute
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
@@ -61,6 +63,7 @@ class NaviampCoreNowPlayingMediaControllerTest {
         assertEquals(listOf("queue:0"), ui?.backTo?.map { it.id })
         assertEquals(listOf("queue:2"), ui?.upNext?.map { it.id })
         assertEquals(listOf("related:0"), ui?.related?.map { it.id })
+        assertEquals(listOf(0.25f, 0.75f), ui?.visualizerFrame?.bands)
         assertTrue(ui?.canStartRadio == true)
         assertTrue(ui.canFavorite)
         assertTrue(ui.canRate)
@@ -106,6 +109,7 @@ class NaviampCoreNowPlayingMediaControllerTest {
         fixture.controller.execute(currentCommand(NowPlayingCurrentTrackAction.StartRadio))
         assertEquals("current", fixture.live.state.value.queue.current?.id?.value)
         assertTrue(fixture.live.state.value.queue.tracks.any { it.id.value == "radio" })
+        assertTrue(fixture.effects.selections.isEmpty())
         assertEquals("Playing track radio.", fixture.store.state.value.overlays.status)
 
         fixture.live.replace(
@@ -126,7 +130,7 @@ class NaviampCoreNowPlayingMediaControllerTest {
             ),
         )
         assertEquals("related", fixture.live.state.value.currentTrack?.id?.value)
-        assertEquals(listOf("current:0", "related:0"), fixture.effects.selections)
+        assertEquals(listOf("related:0"), fixture.effects.selections)
 
         fixture.controller.execute(
             NaviampCoreCommand.NowPlaying.QueueItem(
@@ -139,6 +143,25 @@ class NaviampCoreNowPlayingMediaControllerTest {
         )
         assertTrue(fixture.live.state.value.queue.upNext().any { it.id.value == "related" })
 
+    }
+
+    @Test
+    fun currentTrackArtistAndAlbumLinksCloseNowPlayingAndOpenSharedDetails() = runTest {
+        val albumFixture = mediaFixture(this)
+        albumFixture.store.updateShell { shell ->
+            shell.copy(shellChrome = shell.shellChrome.copy(nowPlayingOpen = true))
+        }
+        albumFixture.controller.execute(currentCommand(NowPlayingCurrentTrackAction.GoToAlbum))
+        assertEquals(SharedRoute.Home, albumFixture.store.state.value.shell.shellChrome.selectedRoute)
+        assertFalse(albumFixture.store.state.value.shell.shellChrome.nowPlayingOpen)
+
+        val artistFixture = mediaFixture(this)
+        artistFixture.store.updateShell { shell ->
+            shell.copy(shellChrome = shell.shellChrome.copy(nowPlayingOpen = true))
+        }
+        artistFixture.controller.execute(currentCommand(NowPlayingCurrentTrackAction.GoToArtist))
+        assertEquals(SharedRoute.Home, artistFixture.store.state.value.shell.shellChrome.selectedRoute)
+        assertFalse(artistFixture.store.state.value.shell.shellChrome.nowPlayingOpen)
     }
 
     @Test
@@ -197,12 +220,14 @@ private fun mediaFixture(scope: kotlinx.coroutines.CoroutineScope): MediaFixture
         updated
     }
     val transport = NaviampCorePlaybackController(
+        scope,
         store,
         { provider },
         live,
         queue,
         effects,
         settings,
+        sidecars,
         presenter,
         nowEpochMillis = { 1_000L },
     )
@@ -292,6 +317,7 @@ private class NowPlayingTestEffects : NaviampCorePlaybackEffectPort {
 private class NowPlayingTestSidecars : NaviampCoreNowPlayingSidecarPort {
     val lyricsLoads = mutableListOf<String>()
     override fun snapshot() = NaviampCoreNowPlayingSidecars(
+        visualizerFrame = PlaybackVisualizerFrame(listOf(0.25f, 0.75f), 1L),
         relatedTracks = listOf(nowPlayingTrack("related")),
         relatedTracksSource = RelatedTracksSource.ProviderRadio,
         internetRadioStations = listOf(InternetRadioStation("station", "Station", "https://radio")),

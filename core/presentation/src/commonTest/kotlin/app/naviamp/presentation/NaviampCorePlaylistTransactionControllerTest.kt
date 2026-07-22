@@ -48,6 +48,7 @@ class NaviampCorePlaylistTransactionControllerTest {
         assertEquals(listOf("playlist-a"), fixture.effects.queued)
         assertEquals(listOf("playlist-a:lossless"), fixture.effects.downloads)
         assertEquals(listOf("playlist-a"), fixture.store.state.value.shell.playlists.recentPlaylistIds)
+        assertTrue(fixture.store.state.value.shell.shellChrome.nowPlayingOpen)
         assertEquals("Connected.", fixture.store.state.value.shell.playlistDetail.status)
     }
 
@@ -153,6 +154,7 @@ class NaviampCorePlaylistTransactionControllerTest {
                 passwords += password
                 provider
             },
+            openNowPlaying = navigation::openNowPlaying,
         )
         return TransactionFixture(store, provider ?: TransactionTestProvider(), browse, controller, effects, passwords)
     }

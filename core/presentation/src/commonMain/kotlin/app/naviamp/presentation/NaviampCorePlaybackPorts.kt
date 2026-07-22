@@ -39,6 +39,7 @@ interface NaviampCorePlaybackEffectPort : NaviampPlaybackExecution {
     fun applyNavigation(command: PlaybackQueueNavigationCommand)
     fun applyRepeatMode(mode: RepeatMode)
     fun playQueueSelection(queue: PlaybackQueue, index: Int)
+    fun diagnostics(): List<Pair<String, String>> = emptyList()
 }
 
 interface NaviampCorePlaybackObserver {

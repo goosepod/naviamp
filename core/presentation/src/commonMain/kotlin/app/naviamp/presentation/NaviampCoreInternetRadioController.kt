@@ -22,6 +22,7 @@ class NaviampCoreInternetRadioController(
     private val providerSource: NaviampCoreMediaProviderSource,
     private val playback: NaviampCoreInternetRadioPlaybackPort,
     private val recents: NaviampCoreInternetRadioRecentsPort,
+    private val onPlaybackStarted: (InternetRadioStation) -> Unit = {},
 ) : NaviampCoreCommandController {
     private var generation = 0L
     private var stationsById = emptyMap<String, InternetRadioStation>()
@@ -130,6 +131,7 @@ class NaviampCoreInternetRadioController(
     private suspend fun play(station: InternetRadioStation) {
         publishStatus("Starting ${station.name}...")
         runCatching {
+            onPlaybackStarted(station)
             playback.play(station)
             recents.record(station)
         }.onSuccess { updatedRecents ->

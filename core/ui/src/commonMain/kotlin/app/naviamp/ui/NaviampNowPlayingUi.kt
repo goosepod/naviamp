@@ -769,7 +769,8 @@ private fun NowPlayingDetails(
                         height = metadataLineHeight.value.dp,
                         marqueeEnabled = displaySettings.scrollAlbumName && !nowPlaying.isLive,
                         modifier = Modifier.clickable(
-                            enabled = !nowPlaying.isLive && nowPlaying.albumLine.isNotBlank(),
+                            enabled = !nowPlaying.isLive &&
+                                (nowPlaying.albumTitle.isNotBlank() || nowPlaying.albumLine.isNotBlank()),
                             onClick = { actions.currentTrack(NowPlayingCurrentTrackAction.GoToAlbum) },
                         ),
                     )

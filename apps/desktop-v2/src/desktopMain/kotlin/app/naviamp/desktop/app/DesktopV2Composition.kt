@@ -8,7 +8,10 @@ import app.naviamp.domain.playback.CoreBassPlaybackEngine
 import app.naviamp.domain.playback.ReleasablePlaybackEngine
 import app.naviamp.domain.playback.AudioOutputDevicePlaybackEngine
 import app.naviamp.presentation.NaviampCoreHomeDateSource
-import app.naviamp.presentation.NaviampCoreMutableNowPlayingSidecars
+import app.naviamp.presentation.NaviampCoreInitialState
+import app.naviamp.presentation.NaviampCoreInterfaceSettingsStore
+import app.naviamp.presentation.NaviampCoreCacheSettingsPort
+import app.naviamp.presentation.NaviampCoreProviderNowPlayingSidecars
 import app.naviamp.presentation.NaviampCorePlaybackEngineAdapter
 import app.naviamp.presentation.NaviampCorePlaybackEngineSettings
 import app.naviamp.presentation.NaviampCorePlaybackServices
@@ -22,7 +25,15 @@ import app.naviamp.provider.navidrome.NavidromeProvider
 import app.naviamp.ui.jvmGeneratedCoverArtBytes
 import app.naviamp.ui.resetJvmPlatformCoverArtByteLoader
 import app.naviamp.ui.setJvmPlatformCoverArtByteLoader
+import app.naviamp.ui.naviampVisualizerFromName
+import app.naviamp.domain.settings.VisualizerSettings
+import app.naviamp.domain.playback.emptyPlaybackAudioAssetRepository
+import app.naviamp.domain.waveform.AudioWaveformService
+import app.naviamp.desktop.DesktopAudioWaveformAnalyzer
+import app.naviamp.desktop.settings.DesktopCoreSettingsStore
+import app.naviamp.desktop.settings.defaultDesktopCoreSettingsPath
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import java.nio.file.Files
 import java.nio.file.Path
 import java.time.Instant
@@ -69,19 +80,47 @@ internal class DesktopV2Composition private constructor(
                 backendResult = loadDesktopBassAudioBackend(),
                 runtime = DesktopBassPlaybackEngineRuntime(),
             )
-            val engineSettings = NaviampCorePlaybackEngineSettings(engine)
+            val settingsStore = DesktopCoreSettingsStore(defaultDesktopCoreSettingsPath())
+            val initialInterfaceSettings = settingsStore.loadInterfaceSettings()
+            val initialPlaybackSettings = settingsStore.loadPlaybackSettings()
+            val initialCacheSettings = settingsStore.loadCacheSettings()
+            var activeCacheSettings = initialCacheSettings
+            val initialVisualizer = naviampVisualizerFromName(
+                settingsStore.loadVisualizerSettings().selectedVisualizer,
+            )
+            val engineSettings = NaviampCorePlaybackEngineSettings(
+                engine = engine,
+                initial = initialPlaybackSettings,
+                persist = settingsStore::savePlaybackSettings,
+            )
             val playbackEffects = NaviampCorePlaybackEngineAdapter(
                 scope = scope,
                 engine = engine,
                 providerSource = sessions.providerSource,
                 settings = engineSettings::current,
             )
+            val waveformService = AudioWaveformService(
+                waveformRepository = storage.audioWaveforms,
+                audioAssets = emptyPlaybackAudioAssetRepository(),
+                analyzer = DesktopAudioWaveformAnalyzer(),
+                waveformsEnabled = { activeCacheSettings.waveformsEnabled },
+                waveformBucketCount = { activeCacheSettings.waveformBucketCount },
+                cacheAudioBeforeAnalysis = { false },
+                workContext = Dispatchers.IO,
+            )
             val playback = NaviampCorePlaybackServices(
                 effects = playbackEffects,
                 settings = engineSettings,
-                sidecars = NaviampCoreMutableNowPlayingSidecars(),
+                sidecars = NaviampCoreProviderNowPlayingSidecars(
+                    providerSource = sessions.providerSource,
+                    waveformService = waveformService,
+                    playbackSettings = engineSettings::current,
+                    audioCachingEnabled = { activeCacheSettings.audioCachingEnabled },
+                ),
                 visualizerSettings = object : NaviampCoreVisualizerSettingsPort {
-                    override fun save(visualizer: app.naviamp.ui.NaviampVisualizer) = Unit
+                    override fun save(visualizer: app.naviamp.ui.NaviampVisualizer) {
+                        settingsStore.saveVisualizerSettings(VisualizerSettings(visualizer.name))
+                    }
                 },
             )
             var syncConfiguration = NaviampCoreSettingsSyncConfiguration()
@@ -91,7 +130,7 @@ internal class DesktopV2Composition private constructor(
                     saveConfigurationState = { syncConfiguration = it },
                 ),
             )
-            val services = naviampCoreServiceDefaults(
+            val serviceDefaults = naviampCoreServiceDefaults(
                 providerSource = sessions.providerSource,
                 connection = sessions,
                 playback = playback,
@@ -103,11 +142,37 @@ internal class DesktopV2Composition private constructor(
                 clockEpochMillis = nowEpochMillis,
                 favoritedAtIso8601 = { Instant.now().toString() },
             )
+            val services = serviceDefaults.copy(
+                settings = serviceDefaults.settings.copy(
+                    interfaceSettings = NaviampCoreInterfaceSettingsStore(settingsStore::saveInterfaceSettings),
+                    cacheSettings = NaviampCoreCacheSettingsPort { requested ->
+                        requested.normalized().also { effective ->
+                            activeCacheSettings = effective
+                            settingsStore.saveCacheSettings(effective)
+                        }
+                    },
+                ),
+            )
+            val initialState = NaviampCoreInitialState().let { initial ->
+                initial.copy(
+                    product = initial.product.copy(
+                        shell = initial.product.shell.copy(
+                            general = initial.product.shell.general.copy(interfaceSettings = initialInterfaceSettings),
+                            playback = initial.product.shell.playback.copy(settings = initialPlaybackSettings),
+                            cache = initial.product.shell.cache.copy(settings = initialCacheSettings),
+                            shellChrome = initial.product.shell.shellChrome.copy(
+                                selectedVisualizer = initialVisualizer,
+                            ),
+                        ),
+                    ),
+                )
+            }
             return DesktopV2Composition(
                 environment = desktopNaviampCoreEnvironment(
                     services = services,
                     providerSessions = sessions,
                     settingsSync = sync,
+                    initialState = initialState,
                     shellCapabilities = DesktopCapabilityPresentation.toShellCapabilitiesUi(
                         playbackEngine = engine,
                         sonicSimilarityAvailable = false,

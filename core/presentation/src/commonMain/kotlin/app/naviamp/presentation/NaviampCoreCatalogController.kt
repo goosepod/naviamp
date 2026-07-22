@@ -30,7 +30,10 @@ class NaviampCoreCatalogController(
     private var jumpGeneration = 0L
 
     override fun dispatch(command: NaviampCoreCommand): NaviampCoreImmediateCommandResult = when (command) {
-        is NaviampCoreCommand.Search.ChangeQuery -> handled { updateSearchQuery(command.query) }
+        is NaviampCoreCommand.Search.ChangeQuery -> {
+            updateSearchQuery(command.query)
+            NaviampCoreImmediateCommandResult.Deferred
+        }
         NaviampCoreCommand.Search.Clear -> handled(::clearSearch)
         NaviampCoreCommand.Search.Submit -> NaviampCoreImmediateCommandResult.Deferred
         is NaviampCoreCommand.Library.ChangeQuery -> handled { updateLibraryQuery(command.query) }
@@ -43,7 +46,9 @@ class NaviampCoreCatalogController(
 
     override suspend fun execute(command: NaviampCoreCommand): NaviampCoreCommandResult? {
         when (command) {
-            NaviampCoreCommand.Search.Submit -> search()
+            NaviampCoreCommand.Search.Submit,
+            is NaviampCoreCommand.Search.ChangeQuery,
+            -> search()
             NaviampCoreCommand.Library.Refresh -> refreshLibrary()
             NaviampCoreCommand.Library.LoadMore -> loadMoreLibrary()
             else -> return null

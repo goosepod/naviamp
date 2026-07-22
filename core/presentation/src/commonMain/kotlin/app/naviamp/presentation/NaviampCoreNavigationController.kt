@@ -31,7 +31,7 @@ class NaviampCoreNavigationController(
             ?: return NaviampCoreImmediateCommandResult.Unhandled
         when (navigationCommand) {
             is NaviampCoreCommand.Navigation.SelectRoute -> selectRoute(navigationCommand.route.toNaviampRoute())
-            NaviampCoreCommand.Navigation.OpenNowPlaying -> setNowPlayingOpen(true)
+            NaviampCoreCommand.Navigation.OpenNowPlaying -> openNowPlaying()
             NaviampCoreCommand.Navigation.CloseNowPlaying -> setNowPlayingOpen(false)
             NaviampCoreCommand.Navigation.BackFromAlbum -> closeAlbum()
             NaviampCoreCommand.Navigation.BackFromArtist -> closeArtist()
@@ -47,6 +47,7 @@ class NaviampCoreNavigationController(
     fun openAlbumDetail(backRouteOverride: NaviampRoute? = null) {
         recordAlbumOpened(backRouteOverride)
         navigation.navigate(NaviampRoute.AlbumDetail)
+        publishDetailRoute()
     }
 
     fun recordArtistOpened(
@@ -68,6 +69,7 @@ class NaviampCoreNavigationController(
     ) {
         recordArtistOpened(artist, backRouteOverride, pushCurrentArtist)
         navigation.navigate(NaviampRoute.ArtistDetail)
+        publishDetailRoute()
     }
 
     fun updateActiveArtist(artist: Artist) {
@@ -76,6 +78,21 @@ class NaviampCoreNavigationController(
 
     fun openPlaylistDetail() {
         navigation.navigate(NaviampRoute.PlaylistDetail)
+        publishDetailRoute()
+    }
+
+    fun openNowPlaying() {
+        setNowPlayingOpen(true)
+    }
+
+    private fun publishDetailRoute() {
+        stateStore.updateShell { shell ->
+            shell.copy(
+                shellChrome = shell.shellChrome.copy(
+                    nowPlayingOpen = false,
+                ),
+            )
+        }
     }
 
     private fun selectRoute(route: NaviampRoute) {

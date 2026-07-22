@@ -864,20 +864,25 @@ class NavidromeProviderTest {
     }
 
     @Test
-    fun artistPageUsesEmptySearchWithServerSidePaging() = runTest {
-        val httpClient = RecordingResponseHttpClient(searchArtistResponse("artist-1", "New Order"))
+    fun artistPageUsesTheIndexedCatalogWithStableAlphabeticalPaging() = runTest {
+        val httpClient = RecordingResponseHttpClient(
+            indexedArtistsResponse(
+                "artist-z" to "Zebra",
+                "artist-a" to "A Certain Ratio",
+            ),
+        )
         val provider = NavidromeProvider(
             connection = connection("https://music.example.test"),
             httpClient = httpClient,
         )
 
-        val page = provider.artistsPage(MediaPageRequest(offset = 75, limit = 25))
+        val page = provider.artistsPage(MediaPageRequest(offset = 1, limit = 1))
 
         assertEquals(
-            "https://music.example.test/rest/search3.view?u=demo&t=token&s=salt&v=1.16.1&$ExpectedClientQuery&f=json&query=&artistCount=25&artistOffset=75&albumCount=0&albumOffset=0&songCount=0&songOffset=0",
+            "https://music.example.test/rest/getArtists.view?u=demo&t=token&s=salt&v=1.16.1&$ExpectedClientQuery&f=json",
             httpClient.urls.single(),
         )
-        assertEquals(listOf("New Order"), page.items.map { it.name })
+        assertEquals(listOf("Zebra"), page.items.map { it.name })
         assertFalse(page.hasMore)
     }
 
@@ -885,9 +890,8 @@ class NavidromeProviderTest {
     fun multiLibraryArtistPagesAdvanceWithoutRefetchingEarlierPages() = runTest {
         val httpClient = SequencedHttpClient(
             listOf(
-                searchArtistsResponse("artist-1" to "A", "artist-2" to "B"),
-                searchArtistsResponse(),
-                searchArtistsResponse("artist-3" to "C"),
+                indexedArtistsResponse("artist-1" to "A", "artist-3" to "C"),
+                indexedArtistsResponse("artist-2" to "B"),
             ),
         )
         val provider = NavidromeProvider(
@@ -901,13 +905,14 @@ class NavidromeProviderTest {
         val second = provider.artistsPage(requireNotNull(first.nextRequest))
 
         assertEquals(listOf("A", "B"), first.items.map { it.name })
-        assertEquals("0:2", first.nextContinuationToken)
+        assertEquals(2, first.nextRequest?.offset)
         assertEquals(listOf("C"), second.items.map { it.name })
         assertFalse(second.hasMore)
-        assertTrue(httpClient.urls[1].contains("artistOffset=2"))
-        assertTrue(httpClient.urls[1].contains("musicFolderId=rock"))
-        assertTrue(httpClient.urls[2].contains("artistOffset=0"))
-        assertTrue(httpClient.urls[2].contains("musicFolderId=archive"))
+        assertTrue(httpClient.urls[0].contains("getArtists.view"))
+        assertTrue(httpClient.urls[0].contains("musicFolderId=rock"))
+        assertTrue(httpClient.urls[1].contains("getArtists.view"))
+        assertTrue(httpClient.urls[1].contains("musicFolderId=archive"))
+        assertEquals(2, httpClient.urls.size)
     }
 
     @Test
@@ -2129,6 +2134,25 @@ class NavidromeProviderTest {
             "searchResult3": {
               "artist": [
                 ${artists.joinToString(",") { (id, name) -> """{"id":"$id","name":"$name"}""" }}
+              ]
+            }
+          }
+        }
+        """.trimIndent()
+
+    private fun indexedArtistsResponse(vararg artists: Pair<String, String>): String =
+        """
+        {
+          "subsonic-response": {
+            "status": "ok",
+            "artists": {
+              "index": [
+                {
+                  "name": "A-Z",
+                  "artist": [
+                    ${artists.joinToString(",") { (id, name) -> """{"id":"$id","name":"$name"}""" }}
+                  ]
+                }
               ]
             }
           }

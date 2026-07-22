@@ -7,7 +7,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import app.naviamp.ui.NaviampApplicationUpdateChecker
+import app.naviamp.ui.NaviampDiagnosticsSectionUi
+import app.naviamp.ui.NaviampDiagnosticsUi
 import app.naviamp.ui.NaviampSharedAppShell
+import app.naviamp.ui.NaviampStatsForNerdsDialog
 
 /** Constructs the complete product once for a thin host composition. */
 @Composable
@@ -51,4 +54,36 @@ fun NaviampCoreApp(
         syncActions = core.actions.settingsSync,
         applicationUpdateChecker = applicationUpdateChecker,
     )
+    if (state.overlays.statsForNerdsVisible) {
+        val nowPlaying = state.shell.nowPlaying
+        val coreSections = listOf(
+            NaviampDiagnosticsSectionUi(
+                title = "Application",
+                rows = listOf(
+                    "Route" to state.shell.shellChrome.selectedRoute.label,
+                    "Connection" to (state.shell.connectionSettings.connection.status ?: "Not connected"),
+                ),
+            ),
+            NaviampDiagnosticsSectionUi(
+                title = "Playback",
+                rows = listOf(
+                    "State" to (nowPlaying?.stateLabel ?: "Idle"),
+                    "Track" to (nowPlaying?.title ?: "None"),
+                    "Artist" to (nowPlaying?.subtitle ?: "None"),
+                    "Audio" to (nowPlaying?.audioInfo?.ifBlank { "Unknown" } ?: "None"),
+                    "Position" to (nowPlaying?.positionSeconds?.let { "${it.toInt()}s" } ?: "Unknown"),
+                    "Duration" to (nowPlaying?.durationSeconds?.let { "${it.toInt()}s" } ?: "Unknown"),
+                    "Visualizer" to if (nowPlaying?.visualizerAvailable == true) "Available" else "Unavailable",
+                    "Waveform" to if (nowPlaying?.waveform != null) "Loaded" else "Unavailable",
+                    "Queue" to "${(nowPlaying?.backTo?.size ?: 0) + (nowPlaying?.upNext?.size ?: 0) + if (nowPlaying != null) 1 else 0} tracks",
+                ),
+            ),
+        ) + core.playbackDiagnostics().takeIf { it.isNotEmpty() }?.let { rows ->
+            listOf(NaviampDiagnosticsSectionUi("Playback engine", rows))
+        }.orEmpty()
+        NaviampStatsForNerdsDialog(
+            diagnostics = NaviampDiagnosticsUi(coreSections + state.shell.cache.diagnostics.sections),
+            onDismissRequest = { core.dispatch(NaviampCoreCommand.Settings.CloseStats) },
+        )
+    }
 }

@@ -93,6 +93,8 @@ class NaviampCore private constructor(
         nowPlayingPresenter.publish(playbackController.currentDisplay())
     }
 
+    fun playbackDiagnostics(): List<Pair<String, String>> = playbackController.diagnostics()
+
     fun tickSleepTimer(nowEpochMillis: Long) {
         playbackController.tickSleepTimer(nowEpochMillis)
     }
@@ -176,17 +178,30 @@ class NaviampCore private constructor(
                 stateStore,
                 services.content.providerSource,
                 playlistBrowse,
-                services.playlists.playback,
+                playback = NaviampCorePlaylistPlaybackPort { _, tracks, shuffle ->
+                    val ordered = if (shuffle) tracks.shuffled() else tracks
+                    val update = queue.startQueue(ordered, 0)
+                    livePlayback.updateCurrentTrack(update.queue.current)
+                    services.playback.effects.playQueueSelection(update.queue, update.queue.currentIndex)
+                },
                 services.playlists.queue,
                 services.playlists.downloads,
                 services.playlists.history,
                 services.playlists.smartProviderSource,
+                navigation::openNowPlaying,
             )
             val radio = NaviampCoreInternetRadioController(
                 stateStore,
                 services.content.providerSource,
                 services.radio.playback,
                 services.radio.recents,
+                onPlaybackStarted = { station ->
+                    val track = app.naviamp.domain.radio.internetRadioTrack(station)
+                    queue.startQueue(listOf(track), 0)
+                    livePlayback.updateCurrentTrack(track)
+                    livePlayback.updateCurrentStation(station)
+                    navigation.openNowPlaying()
+                },
             )
             val standardMixes = NaviampCoreStandardMixController(
                 stateStore,
@@ -213,12 +228,14 @@ class NaviampCore private constructor(
                 services.downloads.network,
             )
             val playback = NaviampCorePlaybackController(
+                scope,
                 stateStore,
                 services.content.providerSource,
                 livePlayback,
                 queue,
                 services.playback.effects,
                 services.playback.settings,
+                services.playback.sidecars,
                 nowPlayingPresenter,
                 services.clockEpochMillis,
             )
@@ -252,6 +269,7 @@ class NaviampCore private constructor(
                 services.content.externalUri,
                 services.favoritedAtIso8601,
                 { nowPlayingPresenter.publish(playback.currentDisplay()) },
+                navigation::openNowPlaying,
             )
             playback.attachNativePlayback()
             val trackActions = NaviampCoreTrackActionController(mediaRegistry, mediaTransactions)

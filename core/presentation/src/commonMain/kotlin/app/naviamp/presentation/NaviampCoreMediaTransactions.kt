@@ -29,6 +29,7 @@ class NaviampCoreMediaTransactions(
     private val externalUri: NaviampCoreExternalUriPort,
     private val favoritedAtIso8601: () -> String,
     private val publishNowPlaying: () -> Unit,
+    private val openNowPlaying: () -> Unit,
 ) {
     fun play(tracks: List<Track>, index: Int = 0, shuffle: Boolean = false) {
         val selected = if (shuffle) tracks.shuffled() else tracks
@@ -37,14 +38,36 @@ class NaviampCoreMediaTransactions(
         if (update.changed) effects.applyQueue(update.queue, update.clearPreparedNext)
         playback.updateCurrentTrack(update.queue.current)
         effects.playQueueSelection(update.queue, update.queue.currentIndex)
+        publishNowPlaying()
+        openNowPlaying()
     }
 
     fun playNext(tracks: List<Track>) = apply(queue.playNextTracks(tracks, "tracks"))
     fun addToQueue(tracks: List<Track>) = apply(queue.appendTracks(tracks, "tracks"))
 
-    suspend fun startTrackRadio(seed: Track) = radio("track radio") { service ->
-        val settings = stateStore.state.value.shell.playback.settings
-        service.queue(seed, service.trackRadio(seed, settings.sonicSimilarityEnabled))
+    suspend fun startTrackRadio(seed: Track) {
+        val provider = providerOrPublish() ?: return
+        publish("Building track radio...")
+        runCatching {
+            val settings = stateStore.state.value.shell.playback.settings
+            RadioService(provider, tuning = settings.radioTuning)
+                .trackRadio(seed, settings.sonicSimilarityEnabled)
+        }.onSuccess { fetched ->
+            if (fetched.isEmpty()) {
+                publish("track radio did not return any tracks.")
+            } else if (playback.state.value.currentTrack?.id == seed.id && playback.state.value.queue.current?.id == seed.id) {
+                val update = queue.replaceGeneratedRadioUpcomingTracks(
+                    currentTrack = seed,
+                    fetchedTracks = fetched,
+                    requestIsCurrent = true,
+                )
+                if (update.changed) effects.applyQueue(update.queue, update.clearPreparedNext)
+                publish("Playing track radio.")
+            } else {
+                play(RadioService(provider).queue(seed, fetched))
+                publish("Playing track radio.")
+            }
+        }.onFailure { publish(it.message ?: "Could not build track radio.") }
     }
 
     suspend fun addTrackRadio(seed: Track, playNext: Boolean) {

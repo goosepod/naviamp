@@ -54,6 +54,7 @@ class NaviampCorePlaylistTransactionController(
     },
     private val smartProviderSource: NaviampCoreSmartPlaylistProviderSource =
         NaviampCoreSmartPlaylistProviderSource { providerSource.current() },
+    private val openNowPlaying: () -> Unit = {},
 ) : NaviampCoreCommandController {
     override fun dispatch(command: NaviampCoreCommand): NaviampCoreImmediateCommandResult = when (command) {
         is NaviampCoreCommand.Playlists.Detail,
@@ -108,6 +109,7 @@ class NaviampCorePlaylistTransactionController(
                 is NaviampPlaylistDetailCommand.Play -> {
                     val tracks = provider.playlistTracks(playlist.id).requireNotEmpty(playlist)
                     playback.play(playlist, tracks, command.shuffle)
+                    openNowPlaying()
                     recordPlayed(playlist.id)
                 }
                 NaviampPlaylistDetailCommand.AddToQueue ->

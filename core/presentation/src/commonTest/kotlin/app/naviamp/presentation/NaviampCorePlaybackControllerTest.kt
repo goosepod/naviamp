@@ -22,6 +22,7 @@ import app.naviamp.domain.provider.ConnectionValidation
 import app.naviamp.domain.provider.MediaProvider
 import app.naviamp.domain.provider.MediaSearchResults
 import app.naviamp.domain.provider.ProviderCapabilities
+import app.naviamp.domain.provider.PlaybackReportState
 import app.naviamp.domain.queue.PlaybackQueue
 import app.naviamp.domain.queue.RepeatMode
 import app.naviamp.domain.settings.PlaybackSettings
@@ -32,15 +33,49 @@ import app.naviamp.ui.NowPlayingQueueActionRequest
 import app.naviamp.ui.NowPlayingSleepTimerAction
 import app.naviamp.ui.NowPlayingSleepTimerActionRequest
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.test.advanceUntilIdle
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
+@OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 class NaviampCorePlaybackControllerTest {
     @Test
+    fun duplicateNativeFinishedCallbacksAdvanceTheSharedQueueOnlyOnce() = runTest {
+        val fixture = playbackFixture(this)
+        fixture.controller.attachNativePlayback()
+
+        fixture.effects.observer?.onStateChanged(PlaybackState.Finished)
+        fixture.effects.observer?.onStateChanged(PlaybackState.Finished)
+
+        assertEquals("three", fixture.live.state.value.currentTrack?.id?.value)
+        assertEquals(
+            listOf<PlaybackQueueNavigationCommand>(PlaybackQueueNavigationCommand.Next),
+            fixture.effects.navigation,
+        )
+    }
+
+    @Test
+    fun nativePlaybackObservationsReportNowPlayingAndProgressThroughCore() = runTest {
+        val fixture = playbackFixture(this)
+        fixture.controller.attachNativePlayback()
+
+        fixture.effects.observer?.onStateChanged(PlaybackState.Playing)
+        fixture.effects.observer?.onProgressChanged(PlaybackProgress(30.0, 180.0))
+        advanceUntilIdle()
+
+        assertEquals(listOf("two"), fixture.provider.nowPlayingReports)
+        assertEquals(listOf("two"), fixture.sidecars.loadedTracks)
+        assertEquals(
+            listOf("two:playing:20.0"),
+            fixture.provider.stateReports,
+        )
+    }
+
+    @Test
     fun transportQueueVolumeRepeatAndShuffleAreResolvedByCore() = runTest {
-        val fixture = playbackFixture()
+        val fixture = playbackFixture(this)
 
         fixture.controller.execute(playbackCommand(NowPlayingPlaybackAction.Pause))
         fixture.controller.execute(playbackCommand(NowPlayingPlaybackAction.Previous))
@@ -68,7 +103,7 @@ class NaviampCorePlaybackControllerTest {
 
     @Test
     fun seekQueueMutationsAndSaveAreCoreTransactions() = runTest {
-        val fixture = playbackFixture()
+        val fixture = playbackFixture(this)
 
         fixture.controller.execute(
             NaviampCoreCommand.NowPlaying.Playback(
@@ -104,7 +139,7 @@ class NaviampCorePlaybackControllerTest {
 
     @Test
     fun sleepTimerStateAndPresentationAreOwnedByCore() = runTest {
-        val fixture = playbackFixture()
+        val fixture = playbackFixture(this)
 
         fixture.controller.execute(
             NaviampCoreCommand.NowPlaying.SleepTimer(
@@ -135,11 +170,12 @@ private data class PlaybackFixture(
     val provider: PlaybackTestProvider,
     val live: NaviampLivePlaybackController,
     val effects: PlaybackTestEffects,
+    val sidecars: PlaybackTestSidecars,
     val controller: NaviampCorePlaybackController,
     val savedSettings: List<PlaybackSettings>,
 )
 
-private fun playbackFixture(): PlaybackFixture {
+private fun playbackFixture(scope: kotlinx.coroutines.CoroutineScope): PlaybackFixture {
     val tracks = listOf(
         playbackTrack("one"),
         playbackTrack("two"),
@@ -163,6 +199,7 @@ private fun playbackFixture(): PlaybackFixture {
     val presenter = NaviampCoreNowPlayingPresenter(store, { provider }, live, queue, effects, sidecars)
     val saved = mutableListOf<PlaybackSettings>()
     val controller = NaviampCorePlaybackController(
+        scope = scope,
         stateStore = store,
         providerSource = { provider },
         playback = live,
@@ -172,11 +209,12 @@ private fun playbackFixture(): PlaybackFixture {
             saved += settings
             settings
         },
+        sidecars = sidecars,
         presenter = presenter,
         nowEpochMillis = { 1_000L },
     )
     presenter.publish()
-    return PlaybackFixture(store, provider, live, effects, controller, saved)
+    return PlaybackFixture(store, provider, live, effects, sidecars, controller, saved)
 }
 
 private class PlaybackTestEffects : NaviampCorePlaybackEffectPort {
@@ -190,6 +228,11 @@ private class PlaybackTestEffects : NaviampCorePlaybackEffectPort {
     val volumes = mutableListOf<Int>()
     val navigation = mutableListOf<PlaybackQueueNavigationCommand>()
     val queues = mutableListOf<PlaybackQueue>()
+    var observer: NaviampCorePlaybackObserver? = null
+
+    override fun attach(observer: NaviampCorePlaybackObserver) {
+        this.observer = observer
+    }
 
     override fun pause() { pauses += 1 }
     override fun resume() { resumes += 1 }
@@ -205,8 +248,9 @@ private class PlaybackTestEffects : NaviampCorePlaybackEffectPort {
 }
 
 private class PlaybackTestSidecars : NaviampCoreNowPlayingSidecarPort {
+    val loadedTracks = mutableListOf<String>()
     override fun snapshot() = NaviampCoreNowPlayingSidecars()
-    override suspend fun loadForTrack(track: Track) = Unit
+    override suspend fun loadForTrack(track: Track) { loadedTracks += track.id.value }
     override suspend fun loadLyrics(track: Track) = Unit
     override suspend fun changeLyricsOffset(track: Track, offsetMillis: Int) = Unit
 }
@@ -214,8 +258,17 @@ private class PlaybackTestSidecars : NaviampCoreNowPlayingSidecarPort {
 private class PlaybackTestProvider : MediaProvider {
     override val id = ProviderId("playback")
     override val displayName = "Playback"
-    override val capabilities = ProviderCapabilities(false, false, true, true, true)
+    override val capabilities = ProviderCapabilities(
+        supportsStreamingTranscode = false,
+        supportsDownloadTranscode = false,
+        supportsArtistRadio = true,
+        supportsAlbumRadio = true,
+        supportsTrackRadio = true,
+        supportsPlayReporting = true,
+    )
     val created = mutableListOf<String>()
+    val nowPlayingReports = mutableListOf<String>()
+    val stateReports = mutableListOf<String>()
     override suspend fun validateConnection() = ConnectionValidation(null, null)
     override suspend fun recentlyAddedAlbums(limit: Int) = emptyList<Album>()
     override suspend fun album(albumId: AlbumId): AlbumDetails = error("Not used")
@@ -226,6 +279,16 @@ private class PlaybackTestProvider : MediaProvider {
     override suspend fun createPlaylist(name: String, trackIds: List<TrackId>): Playlist {
         created += "$name:${trackIds.joinToString(",") { it.value }}"
         return Playlist("created", name, trackIds.size)
+    }
+    override suspend fun reportNowPlaying(trackId: TrackId) {
+        nowPlayingReports += trackId.value
+    }
+    override suspend fun reportPlaybackState(
+        trackId: TrackId,
+        state: PlaybackReportState,
+        positionSeconds: Double?,
+    ) {
+        stateReports += "${trackId.value}:${state.providerValue}:$positionSeconds"
     }
     override suspend fun streamUrl(request: StreamRequest) = "https://stream.example"
     override fun coverArtUrl(coverArtId: String) = "https://art.example/$coverArtId"

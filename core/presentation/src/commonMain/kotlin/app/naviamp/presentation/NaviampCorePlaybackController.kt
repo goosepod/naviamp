@@ -2,6 +2,9 @@ package app.naviamp.presentation
 
 import app.naviamp.app.NaviampLivePlaybackController
 import app.naviamp.app.NaviampPlaybackCommandController
+import app.naviamp.app.NaviampNowPlayingReportRequest
+import app.naviamp.app.NaviampPlaybackReportingController
+import app.naviamp.app.NaviampPlaybackStateReportRequest
 import app.naviamp.app.NaviampPlaybackQueueCommandController
 import app.naviamp.app.NaviampPlaybackQueueCoordinator
 import app.naviamp.app.NaviampPlaybackRepeatCommandController
@@ -14,6 +17,7 @@ import app.naviamp.domain.playback.PlaybackState
 import app.naviamp.domain.playback.PlaybackProgress
 import app.naviamp.domain.playback.PlaybackStreamMetadata
 import app.naviamp.domain.playback.PlaybackVisualizerFrame
+import app.naviamp.domain.isInternetRadioTrack
 import app.naviamp.domain.settings.streamQualityForNetwork
 import app.naviamp.ui.NowPlayingPlaybackAction
 import app.naviamp.ui.NowPlayingPlaybackActionRequest
@@ -21,15 +25,19 @@ import app.naviamp.ui.NowPlayingQueueAction
 import app.naviamp.ui.NowPlayingQueueActionRequest
 import app.naviamp.ui.NowPlayingSleepTimerAction
 import app.naviamp.ui.NowPlayingSleepTimerActionRequest
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.launch
 
 /** Owns Now Playing transport, queue commands, volume, repeat/shuffle, and sleep-timer policy. */
 class NaviampCorePlaybackController(
+    private val scope: CoroutineScope,
     private val stateStore: NaviampCoreStateStore,
     private val providerSource: NaviampCoreMediaProviderSource,
     private val playback: NaviampLivePlaybackController,
     private val queue: NaviampPlaybackQueueCoordinator,
     private val effects: NaviampCorePlaybackEffectPort,
     private val settings: NaviampCorePlaybackSettingsPort,
+    private val sidecars: NaviampCoreNowPlayingSidecarPort,
     private val presenter: NaviampCoreNowPlayingPresenter,
     private val nowEpochMillis: () -> Long,
 ) : NaviampCoreCommandController {
@@ -39,6 +47,11 @@ class NaviampCorePlaybackController(
         effects.applyQueue(update.queue, update.clearPreparedNext)
     }
     private val repeat = NaviampPlaybackRepeatCommandController(queue, effects::applyRepeatMode)
+    private val reporting = NaviampPlaybackReportingController()
+    private var reportingSessionId = 0L
+    private var reportingTrackId: app.naviamp.domain.TrackId? = null
+    private var reportedNowPlayingSessionId = -1L
+    private var sidecarTrackId: app.naviamp.domain.TrackId? = null
 
     override fun dispatch(command: NaviampCoreCommand): NaviampCoreImmediateCommandResult = when (command) {
         is NaviampCoreCommand.NowPlaying.Playback,
@@ -73,11 +86,17 @@ class NaviampCorePlaybackController(
 
     fun currentDisplay(): NaviampCoreNowPlayingDisplayState = display
 
+    fun diagnostics(): List<Pair<String, String>> = effects.diagnostics()
+
     fun attachNativePlayback() {
         effects.attach(object : NaviampCorePlaybackObserver {
             override fun onStateChanged(state: PlaybackState) {
+                val repeatedFinished = state == PlaybackState.Finished &&
+                    playback.state.value.playbackState == PlaybackState.Finished
                 playback.updatePlaybackState(state)
-                if (state == PlaybackState.Finished) {
+                reportPlayback(state, playback.state.value.progress)
+                if (state == PlaybackState.Playing) loadCurrentTrackSidecars()
+                if (state == PlaybackState.Finished && !repeatedFinished) {
                     navigate(queue.nextCommand())
                 }
                 presenter.publish(display)
@@ -85,6 +104,7 @@ class NaviampCorePlaybackController(
 
             override fun onProgressChanged(progress: PlaybackProgress) {
                 playback.updateProgress(progress)
+                reportPlayback(playback.state.value.playbackState, progress)
                 presenter.publish(display)
             }
 
@@ -98,6 +118,54 @@ class NaviampCorePlaybackController(
                 presenter.publish(display)
             }
         })
+    }
+
+    private fun loadCurrentTrackSidecars() {
+        val track = playback.state.value.currentTrack ?: return
+        if (track.id == sidecarTrackId) return
+        sidecarTrackId = track.id
+        scope.launch {
+            sidecars.loadForTrack(track)
+            if (playback.state.value.currentTrack?.id == track.id) presenter.publish(display)
+        }
+    }
+
+    private fun reportPlayback(state: PlaybackState, progress: PlaybackProgress) {
+        val track = playback.state.value.currentTrack ?: return
+        val provider = providerSource.current() ?: return
+        if (track.id != reportingTrackId) {
+            reportingTrackId = track.id
+            reportingSessionId += 1
+        }
+        if (reportedNowPlayingSessionId != reportingSessionId) {
+            reporting.nowPlayingReport(
+                NaviampNowPlayingReportRequest(
+                    trackId = track.id,
+                    isInternetRadioTrack = track.isInternetRadioTrack(),
+                    supportsPlayReporting = provider.capabilities.supportsPlayReporting,
+                ),
+            )?.let { report ->
+                reportedNowPlayingSessionId = reportingSessionId
+                scope.launch { runCatching { provider.reportNowPlaying(report.trackId) } }
+            }
+        }
+        reporting.stateReport(
+            NaviampPlaybackStateReportRequest(
+                sessionId = reportingSessionId,
+                trackId = track.id,
+                isInternetRadioTrack = track.isInternetRadioTrack(),
+                supportsPlayReporting = provider.capabilities.supportsPlayReporting,
+                playbackState = state,
+                progress = progress,
+                nowEpochMillis = nowEpochMillis(),
+            ),
+        )?.let { report ->
+            scope.launch {
+                runCatching {
+                    provider.reportPlaybackState(report.trackId, report.state, report.positionSeconds)
+                }
+            }
+        }
     }
 
     private fun playback(request: NowPlayingPlaybackActionRequest) {

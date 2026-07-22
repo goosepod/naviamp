@@ -27,6 +27,20 @@ import kotlin.test.assertNull
 @OptIn(ExperimentalCoroutinesApi::class)
 class NaviampCoreCatalogControllerTest {
     @Test
+    fun changingTheSharedSearchFieldExecutesAProviderSearch() = runTest {
+        val provider = CatalogTestProvider()
+        val store = NaviampCoreStateStore()
+        val controller = NaviampCoreCatalogController(store, NaviampCoreMediaProviderSource { provider })
+        val command = NaviampCoreCommand.Search.ChangeQuery("Canibus")
+
+        assertEquals(NaviampCoreImmediateCommandResult.Deferred, controller.dispatch(command))
+        controller.execute(command)
+
+        assertEquals(listOf("Canibus"), provider.searchQueries)
+        assertEquals("Canibus", store.state.value.shell.search.results.artists.single().title)
+    }
+
+    @Test
     fun searchPublishesMappedProviderResultsAndCommonStatus() = runTest {
         val provider = CatalogTestProvider()
         val store = NaviampCoreStateStore()

@@ -124,6 +124,7 @@ class NavidromeProvider(
         private set
     private var supportsEnhancedSongLyrics: Boolean = false
     private var supportsPlaybackReport: Boolean = false
+    private var libraryArtistsCache: List<Artist>? = null
 
     private val json = Json { ignoreUnknownKeys = true }
 
@@ -279,23 +280,30 @@ class NavidromeProvider(
     }
 
     override suspend fun artists(limit: Int): List<Artist> =
-        forSelectedMusicFolders { musicFolderId ->
+        loadLibraryArtists().take(limit)
+
+    override suspend fun artistsPage(request: MediaPageRequest): MediaPage<Artist> {
+        // OpenSubsonic search3 with a blank query is not an alphabetical library endpoint and may
+        // return an arbitrary-looking slice. getArtists is the authoritative indexed catalog;
+        // page its stable result locally so the shared A-Z library remains truthful.
+        val artists = loadLibraryArtists(forceRefresh = request.offset == 0)
+        val items = artists.drop(request.offset).take(request.limit)
+        return MediaPage(
+            items = items,
+            offset = request.offset,
+            limit = request.limit,
+            hasMore = request.offset + items.size < artists.size,
+        )
+    }
+
+    private suspend fun loadLibraryArtists(forceRefresh: Boolean = false): List<Artist> {
+        if (!forceRefresh) libraryArtistsCache?.let { return it }
+        return forSelectedMusicFolders { musicFolderId ->
             artistsForMusicFolder(musicFolderId)
         }.distinctBy { it.id }
-            .take(limit)
-
-    override suspend fun artistsPage(request: MediaPageRequest): MediaPage<Artist> =
-        pageAcrossSelectedMusicFolders(
-            request = request,
-            itemKey = { artist -> artist.id.value },
-        ) { musicFolderId, limit, offset ->
-            searchForMusicFolder(
-                query = "",
-                artistCount = limit,
-                artistOffset = offset,
-                musicFolderId = musicFolderId,
-            ).artists
-        }
+            .sortedBy { it.name.lowercase() }
+            .also { libraryArtistsCache = it }
+    }
 
     private suspend fun artistsForMusicFolder(musicFolderId: String?): List<Artist> {
         val response = get(

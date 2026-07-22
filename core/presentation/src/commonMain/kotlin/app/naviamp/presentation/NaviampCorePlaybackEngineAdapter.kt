@@ -3,11 +3,13 @@ package app.naviamp.presentation
 import app.naviamp.domain.playback.AudioOutputDevicePlaybackEngine
 import app.naviamp.domain.playback.EqualizerPlaybackEngine
 import app.naviamp.domain.playback.PlaybackEngine
+import app.naviamp.domain.playback.PlaybackRequest
 import app.naviamp.domain.playback.PlaybackQueueNavigationCommand
 import app.naviamp.domain.playback.PlaybackReplayGain
 import app.naviamp.domain.playback.PlaybackSource
 import app.naviamp.domain.playback.PlaybackState
 import app.naviamp.domain.playback.PlaybackStreamMetadata
+import app.naviamp.domain.playback.PlaybackEngineDiagnostics
 import app.naviamp.domain.playback.QueueAwarePlaybackEngine
 import app.naviamp.domain.playback.ReplayGainPlaybackEngine
 import app.naviamp.domain.playback.ReplayGainSource
@@ -18,10 +20,14 @@ import app.naviamp.domain.playback.planPlaylistTrackStartWork
 import app.naviamp.domain.playback.playbackTargetPlan
 import app.naviamp.domain.queue.PlaybackQueue
 import app.naviamp.domain.queue.RepeatMode
+import app.naviamp.domain.radio.internetRadioTrack
+import app.naviamp.domain.InternetRadioStation
+import app.naviamp.domain.TrackId
 import app.naviamp.domain.settings.AudioOutputDeviceMode
 import app.naviamp.domain.settings.PlaybackSettings
 import app.naviamp.domain.settings.effectiveForEngine
 import app.naviamp.domain.settings.streamQualityForNetwork
+import app.naviamp.domain.waveform.AudioWaveformService
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
@@ -38,7 +44,7 @@ class NaviampCorePlaybackEngineAdapter(
     private val providerSource: NaviampCoreMediaProviderSource,
     private val settings: () -> PlaybackSettings,
     private val isMobileData: () -> Boolean = { false },
-) : NaviampCorePlaybackEffectPort {
+) : NaviampCorePlaybackEffectPort, NaviampCoreInternetRadioPlaybackPort {
     override val capabilities = NaviampCorePlaybackCapabilities(
         engineName = engine.name,
         supportsPause = engine.supportsPause,
@@ -53,6 +59,9 @@ class NaviampCorePlaybackEngineAdapter(
     private var repeatMode = RepeatMode.Off
     private var resolutionJob: Job? = null
     private var generation = 0L
+    private var preparedForGeneration = -1L
+    private var playbackState: PlaybackState = PlaybackState.Stopped
+    private val externalStreamUrls = mutableMapOf<TrackId, String>()
 
     override fun attach(observer: NaviampCorePlaybackObserver) {
         this.observer = observer
@@ -81,11 +90,21 @@ class NaviampCorePlaybackEngineAdapter(
         resolutionJob = null
         (engine as? QueueAwarePlaybackEngine)?.clearPreparedNext()
         engine.stop()
+        playbackState = PlaybackState.Stopped
     }
 
     override fun applyQueue(queue: PlaybackQueue, clearPreparedNext: Boolean) {
         this.queue = queue
-        if (clearPreparedNext) (engine as? QueueAwarePlaybackEngine)?.clearPreparedNext()
+        if (clearPreparedNext) {
+            (engine as? QueueAwarePlaybackEngine)?.clearPreparedNext()
+            preparedForGeneration = -1L
+            val requestGeneration = generation
+            val provider = providerSource.current()
+            if (playbackState == PlaybackState.Playing && provider != null && requestGeneration > 0L) {
+                preparedForGeneration = requestGeneration
+                scope.launch { prepareNext(provider, settings().effectiveForEngine(engine), requestGeneration) }
+            }
+        }
     }
 
     override fun applyNavigation(command: PlaybackQueueNavigationCommand) {
@@ -112,35 +131,54 @@ class NaviampCorePlaybackEngineAdapter(
         startCurrent(startPositionSeconds = null)
     }
 
+    override suspend fun play(station: InternetRadioStation) {
+        val track = internetRadioTrack(station)
+        externalStreamUrls[track.id] = station.streamUrl
+        playQueueSelection(PlaybackQueue(listOf(track), 0), 0)
+    }
+
+    override fun diagnostics(): List<Pair<String, String>> =
+        (engine as? PlaybackEngineDiagnostics)?.statsRows().orEmpty()
+
     private fun startCurrent(startPositionSeconds: Double?) {
         val track = queue.current ?: return
         val requestGeneration = ++generation
         resolutionJob?.cancel()
         resolutionJob = scope.launch {
             val provider = providerSource.current()
-            if (provider == null) {
+            val externalStreamUrl = externalStreamUrls[track.id]
+            if (provider == null && externalStreamUrl == null) {
                 observer?.onStateChanged(PlaybackState.Error("Connect to Navidrome to play music."))
                 return@launch
             }
             val playbackSettings = settings().effectiveForEngine(engine)
-            val target = playbackTargetPlan(
+            val target = externalStreamUrl?.let {
+                null
+            } ?: playbackTargetPlan(
                 track = track,
                 quality = playbackSettings.streamQualityForNetwork(isMobileData()),
                 startPositionSeconds = startPositionSeconds,
                 hasLocalAudio = false,
             )
-            val streamUrl = runCatching { provider.streamUrl(target.providerStreamRequest) }
-                .getOrElse { failure ->
-                    if (requestGeneration == generation) {
-                        observer?.onStateChanged(
-                            PlaybackState.Error(failure.message ?: "Could not resolve the audio stream."),
-                        )
-                    }
-                    return@launch
+            val streamUrl = externalStreamUrl ?: runCatching {
+                requireNotNull(provider).streamUrl(requireNotNull(target).providerStreamRequest)
+            }.getOrElse { failure ->
+                if (requestGeneration == generation) {
+                    observer?.onStateChanged(
+                        PlaybackState.Error(failure.message ?: "Could not resolve the audio stream."),
+                    )
                 }
+                return@launch
+            }
             if (requestGeneration != generation) return@launch
 
-            val work = planPlaylistTrackStartWork(
+            val request = if (externalStreamUrl != null) {
+                PlaybackRequest(
+                    url = streamUrl,
+                    mediaId = track.id.value,
+                    replayGainMode = app.naviamp.domain.playback.ReplayGainMode.Off,
+                )
+            } else planPlaylistTrackStartWork(
                 sessionId = requestGeneration,
                 track = track,
                 playbackSource = PlaybackSource.ProviderStream,
@@ -149,14 +187,23 @@ class NaviampCorePlaybackEngineAdapter(
                 replayGainPreampDb = playbackSettings.replayGainPreampDb,
                 replayGain = track.replayGain?.let { PlaybackReplayGain(it, ReplayGainSource.Provider) },
                 supportsReplayGain = engine.supportsReplayGain,
-                engineStartPositionSeconds = target.engineStartPositionSeconds,
-                coverArtUrl = track.coverArtId?.let(provider::coverArtUrl),
-            )
+                engineStartPositionSeconds = requireNotNull(target).engineStartPositionSeconds,
+                coverArtUrl = track.coverArtId?.let { requireNotNull(provider).coverArtUrl(it) },
+            ).request
             engine.play(
                 scope = scope,
-                request = work.request,
+                request = request,
                 onStateChanged = { state ->
-                    if (requestGeneration == generation) observer?.onStateChanged(state)
+                    if (requestGeneration == generation) {
+                        playbackState = state
+                        observer?.onStateChanged(state)
+                        if (state == PlaybackState.Playing && preparedForGeneration != requestGeneration) {
+                            preparedForGeneration = requestGeneration
+                            provider?.let {
+                                scope.launch { prepareNext(it, playbackSettings, requestGeneration) }
+                            }
+                        }
+                    }
                 },
                 onProgressChanged = { progress ->
                     if (requestGeneration == generation) {
@@ -170,7 +217,6 @@ class NaviampCorePlaybackEngineAdapter(
                     if (requestGeneration == generation) observer?.onMetadataChanged(metadata)
                 },
             )
-            prepareNext(provider, playbackSettings, requestGeneration)
         }
     }
 
@@ -265,5 +311,37 @@ class NaviampCoreMutableNowPlayingSidecars : NaviampCoreNowPlayingSidecarPort {
 
     override fun updateVisualizerFrame(frame: app.naviamp.domain.playback.PlaybackVisualizerFrame?) {
         state = state.copy(visualizerFrame = frame)
+    }
+
+    fun updateWaveform(waveform: app.naviamp.domain.waveform.AudioWaveform?) {
+        state = state.copy(waveform = waveform)
+    }
+}
+
+/** Core-owned provider sidecar loading; hosts supply repositories and native analyzers only. */
+class NaviampCoreProviderNowPlayingSidecars(
+    private val providerSource: NaviampCoreMediaProviderSource,
+    private val waveformService: AudioWaveformService,
+    private val playbackSettings: () -> PlaybackSettings,
+    private val audioCachingEnabled: () -> Boolean,
+    private val delegate: NaviampCoreMutableNowPlayingSidecars = NaviampCoreMutableNowPlayingSidecars(),
+) : NaviampCoreNowPlayingSidecarPort by delegate {
+    private var loadGeneration = 0L
+
+    override suspend fun loadForTrack(track: app.naviamp.domain.Track) {
+        val generation = ++loadGeneration
+        delegate.loadForTrack(track)
+        val provider = providerSource.current() ?: return
+        val settings = playbackSettings()
+        val waveform = runCatching {
+            waveformService.loadOrCreateWaveform(
+                sourceId = provider.cacheNamespace,
+                provider = provider,
+                track = track,
+                quality = settings.streamQualityForNetwork(isMobileData = false),
+                audioCachingEnabled = audioCachingEnabled(),
+            ).waveform
+        }.getOrNull()
+        if (generation == loadGeneration) delegate.updateWaveform(waveform)
     }
 }

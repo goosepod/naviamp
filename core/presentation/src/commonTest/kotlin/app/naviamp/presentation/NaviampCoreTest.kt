@@ -86,6 +86,24 @@ class NaviampCoreTest {
     }
 
     @Test
+    fun selectingProviderContentStartsPlaybackAndOpensNowPlayingInCore() = runTest {
+        val provider = FakeCoreMediaProvider()
+        val core = NaviampCore.create(this, fakeCoreServices(provider))
+        core.dispatch(NaviampCoreCommand.Search.ChangeQuery("core"))
+        core.execute(NaviampCoreCommand.Search.Submit)
+        val track = core.state.value.shell.search.results.tracks.single()
+
+        core.execute(
+            NaviampCoreCommand.Media.TrackAction(
+                SharedTrackRowActionRequest(track, SharedTrackRowAction.Select),
+            ),
+        )
+
+        assertTrue(core.state.value.shell.shellChrome.nowPlayingOpen)
+        assertEquals(provider.track.id.value, core.state.value.shell.nowPlaying?.id)
+    }
+
+    @Test
     fun successfulConnectionPopulatesProviderBackedScreensWithoutHostRefreshCommands() = runTest {
         val provider = FakeCoreMediaProvider()
         val record = NaviampCoreSavedConnectionRecord(

@@ -1,0 +1,89 @@
+package app.naviamp.desktop.settings
+
+import app.naviamp.domain.settings.CacheSettings
+import app.naviamp.domain.settings.InterfaceSettings
+import app.naviamp.domain.settings.PlaybackSettings
+import app.naviamp.domain.settings.VisualizerSettings
+import app.naviamp.domain.settings.normalized
+import kotlinx.serialization.KSerializer
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.jsonObject
+import java.nio.file.Files
+import java.nio.file.Path
+import java.nio.file.StandardCopyOption
+import kotlin.io.path.exists
+import kotlin.io.path.readText
+import kotlin.io.path.writeText
+
+/**
+ * Desktop filesystem adapter for the portable preference models used by Core.
+ *
+ * It updates only its owned keys in the existing settings document so legacy/session fields survive
+ * the parallel-host cutover. Product defaults, normalization, and application remain in Core.
+ */
+class DesktopCoreSettingsStore(private val path: Path) {
+    private val json = Json { ignoreUnknownKeys = true; prettyPrint = true }
+
+    fun loadInterfaceSettings(): InterfaceSettings =
+        read("interfaceSettings", InterfaceSettings.serializer(), InterfaceSettings()).normalized()
+
+    fun saveInterfaceSettings(value: InterfaceSettings) =
+        write("interfaceSettings", InterfaceSettings.serializer(), value.normalized())
+
+    fun loadPlaybackSettings(): PlaybackSettings =
+        read("playback", PlaybackSettings.serializer(), PlaybackSettings()).normalized()
+
+    fun savePlaybackSettings(value: PlaybackSettings) =
+        write("playback", PlaybackSettings.serializer(), value.normalized())
+
+    fun loadCacheSettings(): CacheSettings =
+        read("cache", CacheSettings.serializer(), CacheSettings()).normalized()
+
+    fun saveCacheSettings(value: CacheSettings) =
+        write("cache", CacheSettings.serializer(), value.normalized())
+
+    fun loadVisualizerSettings(): VisualizerSettings =
+        read("visualizer", VisualizerSettings.serializer(), VisualizerSettings())
+
+    fun saveVisualizerSettings(value: VisualizerSettings) =
+        write("visualizer", VisualizerSettings.serializer(), value)
+
+    private fun document(): JsonObject = runCatching {
+        if (path.exists()) json.parseToJsonElement(path.readText()).jsonObject else JsonObject(emptyMap())
+    }.getOrDefault(JsonObject(emptyMap()))
+
+    @Synchronized
+    private fun <T> read(key: String, serializer: KSerializer<T>, fallback: T): T =
+        document()[key]?.let { runCatching { json.decodeFromJsonElement(serializer, it) }.getOrNull() } ?: fallback
+
+    @Synchronized
+    private fun <T> write(key: String, serializer: KSerializer<T>, value: T) {
+        val updated = JsonObject(document() + (key to json.encodeToJsonElement(serializer, value)))
+        Files.createDirectories(path.parent)
+        val temporary = path.resolveSibling("${path.fileName}.tmp")
+        temporary.writeText(json.encodeToString(JsonObject.serializer(), updated))
+        runCatching {
+            Files.move(
+                temporary,
+                path,
+                StandardCopyOption.ATOMIC_MOVE,
+                StandardCopyOption.REPLACE_EXISTING,
+            )
+        }.getOrElse {
+            Files.move(temporary, path, StandardCopyOption.REPLACE_EXISTING)
+        }
+    }
+}
+
+fun defaultDesktopCoreSettingsPath(): Path {
+    val home = Path.of(System.getProperty("user.home"))
+    val os = System.getProperty("os.name").lowercase()
+    val directory = when {
+        os.contains("mac") || os.contains("darwin") -> home.resolve("Library/Application Support/Naviamp")
+        os.contains("win") ->
+            Path.of(System.getenv("APPDATA") ?: home.resolve("AppData/Roaming").toString()).resolve("Naviamp")
+        else -> Path.of(System.getenv("XDG_CONFIG_HOME") ?: home.resolve(".config").toString()).resolve("naviamp")
+    }
+    return directory.resolve("settings.json")
+}

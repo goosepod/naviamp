@@ -806,18 +806,6 @@ private fun ConnectedContent(
             actions = nowPlayingActions,
             displaySettings = interfaceSettings.nowPlaying,
         )
-        selectedRoute == SharedRoute.Settings -> NaviampSettingsContent(
-            colors = colors,
-            connectionSettings = connectionSettings,
-            general = general,
-            playback = playback,
-            cache = cache,
-            settingsSync = settingsSync,
-            connectionActions = connectionActions,
-            syncActions = syncActions,
-            valueActions = valueActions,
-            maintenanceActions = maintenanceActions,
-        )
         selectedAlbumDetail != null -> NaviampAlbumDetailContent(
             colors = colors,
             screen = NaviampAlbumDetailScreenUi(detail = selectedAlbumDetail),
@@ -841,6 +829,18 @@ private fun ConnectedContent(
             actions = playlistDetailActions,
             playlistsActions = playlistsActions,
             playlistChoices = playlistChoices,
+        )
+        selectedRoute == SharedRoute.Settings -> NaviampSettingsContent(
+            colors = colors,
+            connectionSettings = connectionSettings,
+            general = general,
+            playback = playback,
+            cache = cache,
+            settingsSync = settingsSync,
+            connectionActions = connectionActions,
+            syncActions = syncActions,
+            valueActions = valueActions,
+            maintenanceActions = maintenanceActions,
         )
         else -> when (selectedRoute) {
             SharedRoute.Home -> SharedHomeRoute(

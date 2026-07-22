@@ -180,12 +180,17 @@ class NaviampCoreNowPlayingMediaController(
         publishStatus("Building track radio...")
         runCatching {
             val settings = stateStore.state.value.shell.playback.settings
-            val service = RadioService(provider, tuning = settings.radioTuning)
-            service.queue(seed, service.trackRadio(seed, settings.sonicSimilarityEnabled))
-        }.onSuccess { tracks ->
-            if (tracks.isEmpty()) publishStatus("Track radio did not return any tracks.")
+            RadioService(provider, tuning = settings.radioTuning)
+                .trackRadio(seed, settings.sonicSimilarityEnabled)
+        }.onSuccess { fetched ->
+            if (fetched.isEmpty()) publishStatus("Track radio did not return any tracks.")
             else {
-                startQueue(tracks, 0)
+                val update = queue.replaceGeneratedRadioUpcomingTracks(
+                    currentTrack = seed,
+                    fetchedTracks = fetched,
+                    requestIsCurrent = playback.state.value.currentTrack?.id == seed.id,
+                )
+                applyQueueMutation(update)
                 publishStatus("Playing track radio.")
             }
         }.onFailure { publishStatus(it.message ?: "Could not build track radio.") }

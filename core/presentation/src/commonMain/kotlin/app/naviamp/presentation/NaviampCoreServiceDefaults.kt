@@ -80,7 +80,10 @@ fun naviampCoreServiceDefaults(
         smartProviderSource = NaviampCoreSmartPlaylistProviderSource { null },
     ),
     radio = NaviampCoreRadioServices(
-        playback = NaviampCoreInternetRadioPlaybackPort {},
+        playback = playback.effects as? NaviampCoreInternetRadioPlaybackPort
+            ?: NaviampCoreInternetRadioPlaybackPort {
+                error("Internet radio playback is not connected to this playback engine.")
+            },
         recents = object : NaviampCoreInternetRadioRecentsPort {
             override fun current() = emptyList<InternetRadioStation>()
             override suspend fun record(station: InternetRadioStation) = listOf(station)
