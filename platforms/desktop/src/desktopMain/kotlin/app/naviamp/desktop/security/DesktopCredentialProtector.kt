@@ -59,7 +59,7 @@ private val DesktopCredentialKey: SecretKey by lazy {
 
 private fun loadOrCreateDesktopCredentialKey(): SecretKey = DesktopCredentialKey
 
-private interface DesktopSecureValueStore {
+internal interface DesktopSecureValueStore {
     fun read(): String?
 
     fun write(value: String)
@@ -128,7 +128,7 @@ private object LinuxSecretServiceValueStore : DesktopSecureValueStore {
     }
 }
 
-private class WindowsDpapiValueStore(
+internal class WindowsDpapiValueStore(
     private val path: Path,
 ) : DesktopSecureValueStore {
     override fun read(): String? {
@@ -139,11 +139,13 @@ private class WindowsDpapiValueStore(
                 "-NoProfile",
                 "-NonInteractive",
                 "-Command",
-                "[Convert]::ToBase64String([Security.Cryptography.ProtectedData]::Unprotect(" +
-                    "[IO.File]::ReadAllBytes(\$args[0]),\$null," +
+                "Add-Type -AssemblyName System.Security;" +
+                    "\$keyPath=[Environment]::GetEnvironmentVariable('$WindowsCredentialPathEnvironment');" +
+                    "[Convert]::ToBase64String([Security.Cryptography.ProtectedData]::Unprotect(" +
+                    "[IO.File]::ReadAllBytes(\$keyPath),\$null," +
                     "[Security.Cryptography.DataProtectionScope]::CurrentUser))",
-                path.toString(),
             ),
+            environment = mapOf(WindowsCredentialPathEnvironment to path.toString()),
         )
     }
 
@@ -155,13 +157,15 @@ private class WindowsDpapiValueStore(
                 "-NoProfile",
                 "-NonInteractive",
                 "-Command",
-                "\$plain=[Convert]::FromBase64String([Console]::In.ReadToEnd());" +
+                "Add-Type -AssemblyName System.Security;" +
+                    "\$keyPath=[Environment]::GetEnvironmentVariable('$WindowsCredentialPathEnvironment');" +
+                    "\$plain=[Convert]::FromBase64String([Console]::In.ReadToEnd());" +
                     "\$protected=[Security.Cryptography.ProtectedData]::Protect(" +
                     "\$plain,\$null,[Security.Cryptography.DataProtectionScope]::CurrentUser);" +
-                    "[IO.File]::WriteAllBytes(\$args[0],\$protected)",
-                path.toString(),
+                    "[IO.File]::WriteAllBytes(\$keyPath,\$protected)",
             ),
             input = value,
+            environment = mapOf(WindowsCredentialPathEnvironment to path.toString()),
         )
     }
 }
@@ -170,8 +174,13 @@ private fun runCredentialCommand(
     command: List<String>,
     input: String? = null,
     allowMissing: Boolean = false,
+    environment: Map<String, String> = emptyMap(),
 ): String? {
-    val process = runCatching { ProcessBuilder(command).start() }.getOrElse { error ->
+    val process = runCatching {
+        ProcessBuilder(command).apply {
+            environment().putAll(environment)
+        }.start()
+    }.getOrElse { error ->
         throw IllegalStateException("Secure credential service is unavailable.", error)
     }
     if (input != null) {
@@ -198,6 +207,7 @@ private fun defaultWindowsCredentialKeyPath(): Path {
 }
 
 private const val CredentialService = "app.naviamp.credentials.v1"
+private const val WindowsCredentialPathEnvironment = "NAVIAMP_CREDENTIAL_KEY_PATH"
 private val CredentialAccount = System.getProperty("user.name").orEmpty().ifBlank { "Naviamp" }
 private const val CredentialPrefix = "naviamp-desktop-secure-v1:"
 private const val CipherTransformation = "AES/GCM/NoPadding"

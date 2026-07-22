@@ -572,7 +572,7 @@ extern "C" JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM* vm, void* reserved) {
 
 #if defined(_WIN32) && !defined(__ANDROID__)
 extern "C" JNIEXPORT jboolean JNICALL
-Java_app_naviamp_desktop_DesktopWindowSupportKt_nativeConfigureWindowsTitleBar(JNIEnv* env, jclass clazz, jobject window, jboolean isDark) {
+Java_app_naviamp_desktop_platform_DesktopWindowAppearanceKt_nativeConfigureWindowsTitleBar(JNIEnv* env, jclass clazz, jobject window, jboolean isDark) {
     (void)clazz;
     return configure_windows_title_bar(env, window, isDark == JNI_TRUE) ? JNI_TRUE : JNI_FALSE;
 }

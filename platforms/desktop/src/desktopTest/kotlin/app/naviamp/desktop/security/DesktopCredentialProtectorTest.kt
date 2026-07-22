@@ -1,6 +1,10 @@
 package app.naviamp.desktop.security
 
+import java.nio.file.Files
+import java.util.Base64
 import javax.crypto.spec.SecretKeySpec
+import kotlin.io.path.deleteIfExists
+import kotlin.io.path.exists
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -39,5 +43,24 @@ class DesktopCredentialProtectorTest {
         }
 
         assertEquals(null, other.reveal(protected))
+    }
+
+    @Test
+    fun windowsDpapiStoreRoundTripsAKeyAtAPathContainingSpaces() {
+        if (!System.getProperty("os.name").lowercase().contains("win")) return
+        val directory = Files.createTempDirectory("naviamp credential store test")
+        val path = directory.resolve("credential key.dpapi")
+        val value = Base64.getEncoder().encodeToString(ByteArray(32) { index -> index.toByte() })
+        try {
+            val store = WindowsDpapiValueStore(path)
+
+            store.write(value)
+
+            assertTrue(path.exists())
+            assertEquals(value, store.read())
+        } finally {
+            path.deleteIfExists()
+            directory.deleteIfExists()
+        }
     }
 }
