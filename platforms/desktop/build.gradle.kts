@@ -19,6 +19,7 @@ kotlin {
                 api(project(":core:presentation"))
                 api(project(":core:storage"))
                 api(project(":providers:navidrome"))
+                implementation(libs.sqldelight.sqlite.driver)
             }
         }
         val desktopTest by getting {

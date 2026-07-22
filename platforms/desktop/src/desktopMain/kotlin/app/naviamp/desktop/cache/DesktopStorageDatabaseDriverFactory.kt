@@ -9,7 +9,7 @@ import java.nio.file.Path
 import java.util.Properties
 
 /** JVM host adapter for Desktop's SQLite driver and connection-level configuration. */
-internal object DesktopStorageDatabaseDriverFactory : StorageDatabaseDriverFactory {
+object DesktopStorageDatabaseDriverFactory : StorageDatabaseDriverFactory {
     override fun create(location: StorageDatabaseLocation): SqlDriver {
         val directory = Path.of(location.directoryPath).toAbsolutePath()
         Files.createDirectories(directory)
