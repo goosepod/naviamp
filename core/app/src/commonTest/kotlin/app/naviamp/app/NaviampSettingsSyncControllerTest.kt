@@ -80,6 +80,10 @@ class NaviampSettingsSyncControllerTest {
         )
         assertEquals("Auto-sync enabled.", settingsSyncAutoExportStatus(enabled = true))
         assertEquals("Settings sync disabled.", settingsSyncLocationStatus(configured = false))
+        assertEquals("Choose a settings sync folder first.", settingsSyncMissingLocationStatus())
+        assertEquals("Settings exported to naviamp-settings.json.", settingsSyncExportStatus("naviamp-settings.json", false))
+        assertEquals("Settings auto-exported to naviamp-settings.json.", settingsSyncExportStatus("naviamp-settings.json", true))
+        assertEquals(false, settingsSyncAutoExportEnabled(requested = true, locationConfigured = false))
     }
 
     private fun controller(

@@ -60,6 +60,7 @@ class DesktopNaviampCoreHostTest {
             core.state.value.shell.connectionSettings.connection.form.serverUrl,
         )
         assertEquals("source-1", environment.initialState.connectionInventory.connections.single().id)
+        assertNotNull(environment.applicationUpdateChecker)
     }
 }
 

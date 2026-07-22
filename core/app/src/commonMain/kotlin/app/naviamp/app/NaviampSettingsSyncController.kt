@@ -92,3 +92,11 @@ fun settingsSyncAutoExportStatus(enabled: Boolean): String =
 
 fun settingsSyncLocationStatus(configured: Boolean): String =
     if (configured) "Settings sync folder selected." else "Settings sync disabled."
+
+fun settingsSyncMissingLocationStatus(): String = "Choose a settings sync folder first."
+
+fun settingsSyncExportStatus(fileName: String, automatic: Boolean): String =
+    if (automatic) "Settings auto-exported to $fileName." else "Settings exported to $fileName."
+
+fun settingsSyncAutoExportEnabled(requested: Boolean, locationConfigured: Boolean): Boolean =
+    requested && locationConfigured
