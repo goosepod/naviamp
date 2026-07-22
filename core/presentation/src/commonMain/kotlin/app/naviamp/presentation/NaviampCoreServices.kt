@@ -81,4 +81,5 @@ data class NaviampCoreServices(
     val playback: NaviampCorePlaybackServices,
     val clockEpochMillis: () -> Long,
     val favoritedAtIso8601: () -> String,
+    val diagnostics: NaviampCoreDiagnosticsPort = emptyNaviampCoreDiagnosticsPort(),
 )

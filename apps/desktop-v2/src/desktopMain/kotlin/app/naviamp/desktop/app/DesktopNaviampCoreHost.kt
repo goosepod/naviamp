@@ -102,5 +102,8 @@ internal fun DesktopNaviampCoreHost(
         core = core,
         modifier = modifier,
         applicationUpdateChecker = environment.applicationUpdateChecker,
+        statsForNerdsPresenter = { diagnostics, close ->
+            DesktopStatsForNerdsWindow(diagnostics, close)
+        },
     )
 }

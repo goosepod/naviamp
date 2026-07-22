@@ -23,6 +23,7 @@ kotlin {
                 implementation(compose.runtime)
                 implementation(compose.ui)
                 implementation(compose.desktop.currentOs)
+                implementation(libs.compose.material3)
                 implementation(libs.kotlinx.coroutines.core)
             }
         }
@@ -39,6 +40,11 @@ kotlin {
 compose.desktop {
     application {
         mainClass = "app.naviamp.desktop.DesktopV2MainKt"
+        jvmArgs += listOf(
+            "-Dcompose.application.name=Naviamp",
+            "-Dapple.awt.application.name=Naviamp",
+            "-Dsun.awt.application.name=Naviamp",
+        )
 
         nativeDistributions {
             packageName = "Naviamp"
@@ -50,6 +56,9 @@ compose.desktop {
             )
             modules("java.net.http", "java.sql")
             targetFormats(TargetFormat.Dmg)
+            macOS {
+                iconFile.set(rootProject.file("platforms/desktop/src/desktopMain/resources/icons/naviamp.icns"))
+            }
         }
     }
 }

@@ -22,24 +22,32 @@ fun NaviampStatsForNerdsDialog(
         onDismissRequest = onDismissRequest,
         title = { Text("Stats for Nerds") },
         text = {
-            Column(
-                modifier = Modifier.verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                if (diagnostics.sections.isEmpty()) {
-                    Text("No diagnostics are available yet.")
-                } else {
-                    diagnostics.sections.forEach { section ->
-                        Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                            Text(section.title, fontWeight = FontWeight.SemiBold)
-                            section.rows.forEach { (label, value) -> Text("$label: $value") }
-                        }
-                    }
-                }
-            }
+            NaviampStatsForNerdsContent(diagnostics)
         },
         confirmButton = {
             TextButton(onClick = onDismissRequest) { Text("Close") }
         },
     )
+}
+
+@Composable
+fun NaviampStatsForNerdsContent(
+    diagnostics: NaviampDiagnosticsUi,
+    modifier: Modifier = Modifier,
+) {
+    Column(
+        modifier = modifier.verticalScroll(rememberScrollState()),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        if (diagnostics.sections.isEmpty()) {
+            Text("No diagnostics are available yet.")
+        } else {
+            diagnostics.sections.forEach { section ->
+                Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                    Text(section.title, fontWeight = FontWeight.SemiBold)
+                    section.rows.forEach { (label, value) -> Text("$label: $value") }
+                }
+            }
+        }
+    }
 }

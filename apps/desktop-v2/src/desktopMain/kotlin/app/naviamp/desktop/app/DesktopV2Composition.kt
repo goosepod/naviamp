@@ -46,6 +46,7 @@ import app.naviamp.desktop.DesktopPlaybackAudioAssets
 import app.naviamp.desktop.toPlaybackLocalAudio
 import app.naviamp.desktop.settings.DesktopCoreSettingsStore
 import app.naviamp.desktop.settings.defaultDesktopCoreSettingsPath
+import app.naviamp.desktop.platform.DesktopCoreDiagnosticsPort
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import java.nio.file.Files
@@ -240,6 +241,10 @@ internal class DesktopV2Composition private constructor(
                 ),
                 playlists = serviceDefaults.playlists.copy(
                     history = naviampCorePlaylistHistoryPort(settingsStore::saveRecentPlaylistIds),
+                ),
+                diagnostics = DesktopCoreDiagnosticsPort(
+                    storageStats = storage.maintenance::stats,
+                    nowEpochMillis = nowEpochMillis,
                 ),
             )
             val initialState = NaviampCoreInitialState().let { initial ->

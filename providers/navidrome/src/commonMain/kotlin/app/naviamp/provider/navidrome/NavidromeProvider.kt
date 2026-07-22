@@ -36,6 +36,7 @@ import app.naviamp.domain.provider.MediaProvider
 import app.naviamp.domain.provider.MediaSearchResults
 import app.naviamp.domain.provider.PlaybackReportState
 import app.naviamp.domain.provider.ProviderCapabilities
+import app.naviamp.domain.provider.ProviderApiCallDiagnostic
 import app.naviamp.domain.provider.SonicSimilarTrack
 import app.naviamp.domain.provider.SonicPathMatch
 import app.naviamp.domain.network.NaviampClientName
@@ -122,6 +123,18 @@ class NavidromeProvider(
         )
     override var capabilities: ProviderCapabilities = baseCapabilities
         private set
+
+    override fun recentApiCalls(limit: Int): List<ProviderApiCallDiagnostic> =
+        NavidromeApiCallHistory.recent(limit).map { call ->
+            ProviderApiCallDiagnostic(
+                source = "Navidrome",
+                endpoint = "${call.method} ${call.endpoint}",
+                sanitizedUrl = call.sanitizedUrl,
+                durationMillis = call.durationMillis,
+                success = call.success,
+                errorMessage = call.errorMessage,
+            )
+        }
     private var supportsEnhancedSongLyrics: Boolean = false
     private var supportsPlaybackReport: Boolean = false
     private var libraryArtistsCache: List<Artist>? = null

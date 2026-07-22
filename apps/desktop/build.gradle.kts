@@ -303,7 +303,7 @@ compose.desktop {
             targetFormats(TargetFormat.Dmg, TargetFormat.Msi, TargetFormat.Exe, TargetFormat.Deb, TargetFormat.Rpm)
 
             windows {
-                iconFile.set(project.file("src/desktopMain/resources/icons/naviamp.ico"))
+                iconFile.set(rootProject.file("platforms/desktop/src/desktopMain/resources/icons/naviamp.ico"))
                 upgradeUuid = "ddece57e-59fc-4ff9-915d-875876779251"
                 msiPackageVersion = naviampWindowsPackageVersion
                 exePackageVersion = naviampWindowsPackageVersion
@@ -311,10 +311,10 @@ compose.desktop {
                 menuGroup = "Naviamp"
             }
             macOS {
-                iconFile.set(project.file("src/desktopMain/resources/icons/naviamp.icns"))
+                iconFile.set(rootProject.file("platforms/desktop/src/desktopMain/resources/icons/naviamp.icns"))
             }
             linux {
-                iconFile.set(project.file("src/desktopMain/resources/icons/naviamp.png"))
+                iconFile.set(rootProject.file("platforms/desktop/src/desktopMain/resources/icons/naviamp.png"))
                 packageName = "naviamp"
                 packageVersion = naviampLinuxPackageVersion
                 debPackageVersion = naviampLinuxPackageVersion

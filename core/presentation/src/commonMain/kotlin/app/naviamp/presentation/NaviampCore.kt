@@ -74,6 +74,9 @@ class NaviampCore private constructor(
     private val nowPlayingController: NaviampCoreNowPlayingMediaController,
     private val nowPlayingPresenter: NaviampCoreNowPlayingPresenter,
     private val providerSessionLifecycle: NaviampCoreProviderSessionLifecycle,
+    private val providerSource: NaviampCoreMediaProviderSource,
+    private val sidecars: NaviampCoreNowPlayingSidecarPort,
+    private val diagnostics: NaviampCoreDiagnosticsPort,
 ) {
     val state: StateFlow<NaviampCoreState> = stateStore.state
 
@@ -95,6 +98,14 @@ class NaviampCore private constructor(
     }
 
     fun playbackDiagnostics(): List<Pair<String, String>> = playbackController.diagnostics()
+
+    fun statsForNerdsDiagnostics() = naviampCoreDiagnostics(
+        shell = state.value.shell,
+        provider = providerSource.current(),
+        sidecars = sidecars.snapshot(),
+        playbackEngineRows = playbackDiagnostics(),
+        external = diagnostics.snapshot(),
+    )
 
     fun tickSleepTimer(nowEpochMillis: Long) {
         playbackController.tickSleepTimer(nowEpochMillis)
@@ -372,6 +383,9 @@ class NaviampCore private constructor(
                 nowPlayingController = nowPlaying,
                 nowPlayingPresenter = nowPlayingPresenter,
                 providerSessionLifecycle = providerSessionLifecycle,
+                providerSource = services.content.providerSource,
+                sidecars = services.playback.sidecars,
+                diagnostics = services.diagnostics,
             )
         }
     }
