@@ -1,45 +1,109 @@
 package app.naviamp.presentation
 
-import app.naviamp.ui.NaviampSettingsSyncUi
+import app.naviamp.app.NaviampSettingsSyncController
+import app.naviamp.domain.settings.SettingsSyncDocument
+import app.naviamp.domain.settings.SettingsSyncLocalSnapshot
+import app.naviamp.domain.settings.SettingsSyncRuntimeState
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertTrue
 
 class NaviampCoreSettingsSyncControllerTest {
     @Test
-    fun routesEverySyncIntentThroughCoreAndPublishesTheResult() = runTest {
+    fun coreOwnsDirectoryExportImportAndStatusPolicy() = runTest {
         val store = NaviampCoreStateStore()
         val port = RecordingSettingsSyncPort()
-        val controller = NaviampCoreSettingsSyncController(store, port)
+        var runtime = SettingsSyncRuntimeState()
+        var applied: SettingsSyncDocument? = null
+        val controller = NaviampCoreSettingsSyncController(
+            store,
+            NaviampCoreSettingsSyncServices(
+                controller = NaviampSettingsSyncController(
+                    deviceId = "test",
+                    state = { runtime },
+                    saveState = { runtime = it },
+                    nowEpochMillis = { 100L },
+                    snapshot = { SettingsSyncLocalSnapshot() },
+                    applyDocument = { applied = it },
+                ),
+                port = port,
+            ),
+        )
 
         controller.execute(NaviampCoreCommand.SettingsSync.ChangeDirectory("/sync"))
         controller.execute(NaviampCoreCommand.SettingsSync.ChangeAutoExport(true))
         controller.execute(NaviampCoreCommand.SettingsSync.Export)
-        controller.execute(NaviampCoreCommand.SettingsSync.ImportFile)
+        port.document = SettingsSyncDocument(updatedAtEpochMillis = 200L)
+        controller.execute(NaviampCoreCommand.SettingsSync.Import)
 
-        assertEquals(listOf("directory:/sync", "auto:true", "export", "import-file"), port.operations)
-        assertEquals("import-file", store.state.value.settingsSync.status)
+        assertEquals(listOf("write:/sync", "read:/sync"), port.operations)
+        assertEquals(port.document, applied)
+        assertEquals("Settings imported.", store.state.value.settingsSync.status)
+        assertEquals("/sync", store.state.value.settingsSync.directoryPath)
+        assertTrue(store.state.value.settingsSync.autoExportEnabled)
+    }
+
+    @Test
+    fun corePreventsAutoExportWithoutLocationAndOwnsNativePickerSequences() = runTest {
+        val store = NaviampCoreStateStore()
+        val port = RecordingSettingsSyncPort().apply { selectedDirectory = "/picked" }
+        var runtime = SettingsSyncRuntimeState()
+        val controller = NaviampCoreSettingsSyncController(
+            store,
+            NaviampCoreSettingsSyncServices(
+                controller = NaviampSettingsSyncController(
+                    deviceId = "test",
+                    state = { runtime },
+                    saveState = { runtime = it },
+                    nowEpochMillis = { 100L },
+                    snapshot = { SettingsSyncLocalSnapshot() },
+                    applyDocument = {},
+                ),
+                port = port,
+            ),
+        )
+
+        controller.execute(NaviampCoreCommand.SettingsSync.ChangeAutoExport(true))
+        assertFalse(store.state.value.settingsSync.autoExportEnabled)
+        assertEquals("Auto-sync disabled.", store.state.value.settingsSync.status)
+
+        controller.execute(NaviampCoreCommand.SettingsSync.ExportFolder)
+        assertEquals("/picked", store.state.value.settingsSync.directoryPath)
+        assertEquals("Settings exported to naviamp-settings.json.", store.state.value.settingsSync.status)
+        assertTrue(port.operations.contains("pick:Export Naviamp settings"))
     }
 }
 
 private class RecordingSettingsSyncPort : NaviampCoreSettingsSyncPort {
+    private var saved = NaviampCoreSettingsSyncConfiguration()
     val operations = mutableListOf<String>()
+    var document: SettingsSyncDocument? = null
+    var selectedDirectory: String? = null
 
-    override fun current() = state("initial")
-    override suspend fun changeDirectory(path: String?) = record("directory:$path")
-    override suspend fun selectImportDirectory(path: String) = record("import-directory:$path")
-    override suspend fun changeAutoExport(enabled: Boolean) = record("auto:$enabled")
-    override suspend fun export() = record("export")
-    override suspend fun import() = record("import")
-    override suspend fun importFile() = record("import-file")
-    override suspend fun chooseFolder() = record("choose-folder")
-    override suspend fun importFolder() = record("import-folder")
-    override suspend fun exportFolder() = record("export-folder")
+    override fun configuration() = saved
 
-    private fun record(operation: String): NaviampSettingsSyncUi {
-        operations += operation
-        return state(operation)
+    override fun saveConfiguration(configuration: NaviampCoreSettingsSyncConfiguration) {
+        saved = configuration
     }
 
-    private fun state(status: String) = NaviampSettingsSyncUi(status = status, available = true)
+    override suspend fun readDocument(directoryPath: String): SettingsSyncDocument? {
+        operations += "read:$directoryPath"
+        return document
+    }
+
+    override suspend fun writeDocument(directoryPath: String, document: SettingsSyncDocument): String {
+        operations += "write:$directoryPath"
+        this.document = document
+        return "naviamp-settings.json"
+    }
+
+    override suspend fun chooseDirectory(currentPath: String?, title: String): String? {
+        operations += "pick:$title"
+        return selectedDirectory
+    }
+
+    override fun defaultDirectory() = "/home"
+    override val available = true
 }

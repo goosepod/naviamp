@@ -44,7 +44,7 @@ fun naviampCoreTestServices(provider: MediaProvider? = null): NaviampCoreService
         interfaceSettings = NaviampCoreInterfaceSettingsStore {},
         cacheSettings = NaviampCoreCacheSettingsPort { it.normalized() },
         maintenance = NaviampCoreMaintenancePort { NaviampCoreMaintenanceResult("complete") },
-        sync = TestSettingsSyncPort(),
+        sync = testSettingsSyncServices(),
     ),
     downloads = NaviampCoreDownloadServices(
         storage = object : NaviampCoreDownloadStoragePort {
@@ -109,19 +109,33 @@ fun naviampCoreTestServices(provider: MediaProvider? = null): NaviampCoreService
     favoritedAtIso8601 = { "2026-07-21T00:00:00Z" },
 )
 
-private class TestSettingsSyncPort : NaviampCoreSettingsSyncPort {
-    override fun current() = state("ready")
-    override suspend fun changeDirectory(path: String?) = state("directory")
-    override suspend fun selectImportDirectory(path: String) = state("import-directory")
-    override suspend fun changeAutoExport(enabled: Boolean) = state("auto-export")
-    override suspend fun export() = state("exported")
-    override suspend fun import() = state("imported")
-    override suspend fun importFile() = state("file-imported")
-    override suspend fun chooseFolder() = state("folder")
-    override suspend fun importFolder() = state("folder-imported")
-    override suspend fun exportFolder() = state("folder-exported")
-
-    private fun state(status: String) = NaviampSettingsSyncUi(status = status, available = true)
+private fun testSettingsSyncServices(): NaviampCoreSettingsSyncServices {
+    var runtime = app.naviamp.domain.settings.SettingsSyncRuntimeState()
+    return NaviampCoreSettingsSyncServices(
+        controller = app.naviamp.app.NaviampSettingsSyncController(
+            deviceId = "test",
+            state = { runtime },
+            saveState = { runtime = it },
+            nowEpochMillis = { 1L },
+            snapshot = { app.naviamp.domain.settings.SettingsSyncLocalSnapshot() },
+            applyDocument = {},
+        ),
+        port = object : NaviampCoreSettingsSyncPort {
+            private var configuration = NaviampCoreSettingsSyncConfiguration()
+            override fun configuration() = configuration
+            override fun saveConfiguration(configuration: NaviampCoreSettingsSyncConfiguration) {
+                this.configuration = configuration
+            }
+            override suspend fun readDocument(directoryPath: String) = null
+            override suspend fun writeDocument(
+                directoryPath: String,
+                document: app.naviamp.domain.settings.SettingsSyncDocument,
+            ) = "settings.json"
+            override suspend fun chooseDirectory(currentPath: String?, title: String) = "/sync"
+            override fun defaultDirectory() = "/home"
+            override val available = true
+        },
+    )
 }
 
 private class TestPlaybackEffects : NaviampCorePlaybackEffectPort {

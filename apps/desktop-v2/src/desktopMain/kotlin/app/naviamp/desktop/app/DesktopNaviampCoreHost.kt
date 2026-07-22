@@ -9,7 +9,7 @@ import app.naviamp.presentation.NaviampCoreCommand
 import app.naviamp.presentation.NaviampCoreExternalUriPort
 import app.naviamp.presentation.NaviampCoreInitialState
 import app.naviamp.presentation.NaviampCoreServices
-import app.naviamp.presentation.NaviampCoreSettingsSyncPort
+import app.naviamp.presentation.NaviampCoreSettingsSyncServices
 import app.naviamp.presentation.rememberNaviampCore
 import app.naviamp.presentation.toCoreActionAvailability
 import app.naviamp.ui.NaviampApplicationUpdateChecker
@@ -40,7 +40,7 @@ internal data class DesktopNaviampCoreEnvironment(
 internal fun desktopNaviampCoreEnvironment(
     services: NaviampCoreServices,
     providerSessions: DesktopCoreProviderSessionPort,
-    settingsSync: NaviampCoreSettingsSyncPort = services.settings.sync,
+    settingsSync: NaviampCoreSettingsSyncServices = services.settings.sync,
     externalUri: NaviampCoreExternalUriPort = DesktopExternalUriPort(),
     initialState: NaviampCoreInitialState = NaviampCoreInitialState(),
     applicationUpdateChecker: NaviampApplicationUpdateChecker? = desktopApplicationUpdateChecker(),

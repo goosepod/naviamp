@@ -59,7 +59,7 @@ data class NaviampCoreSettingsServices(
     val interfaceSettings: NaviampCoreInterfaceSettingsStore,
     val cacheSettings: NaviampCoreCacheSettingsPort,
     val maintenance: NaviampCoreMaintenancePort,
-    val sync: NaviampCoreSettingsSyncPort,
+    val sync: NaviampCoreSettingsSyncServices,
 )
 
 /** Live-radio playback and recent-station persistence effects. */

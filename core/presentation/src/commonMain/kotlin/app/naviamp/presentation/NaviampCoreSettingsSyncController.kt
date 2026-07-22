@@ -1,33 +1,53 @@
 package app.naviamp.presentation
 
+import app.naviamp.app.NaviampSettingsSyncController
+import app.naviamp.app.settingsSyncAutoExportEnabled
+import app.naviamp.app.settingsSyncAutoExportStatus
+import app.naviamp.app.settingsSyncExportStatus
+import app.naviamp.app.settingsSyncLocationStatus
+import app.naviamp.app.settingsSyncMissingLocationStatus
+import app.naviamp.app.settingsSyncReconciliationStatus
+import app.naviamp.domain.settings.SettingsSyncDocument
 import app.naviamp.ui.NaviampSettingsSyncUi
 
-/**
- * Document and picker boundary for settings sync.
- *
- * Core owns command interpretation and the published UI state. Implementations bridge the shared
- * settings-sync application service to platform document stores and native pickers.
- */
-interface NaviampCoreSettingsSyncPort {
-    fun current(): NaviampSettingsSyncUi
-    suspend fun changeDirectory(path: String?): NaviampSettingsSyncUi
-    suspend fun selectImportDirectory(path: String): NaviampSettingsSyncUi
-    suspend fun changeAutoExport(enabled: Boolean): NaviampSettingsSyncUi
-    suspend fun export(): NaviampSettingsSyncUi
-    suspend fun import(): NaviampSettingsSyncUi
-    suspend fun importFile(): NaviampSettingsSyncUi
-    suspend fun chooseFolder(): NaviampSettingsSyncUi
-    suspend fun importFolder(): NaviampSettingsSyncUi
-    suspend fun exportFolder(): NaviampSettingsSyncUi
+data class NaviampCoreSettingsSyncConfiguration(
+    val directoryPath: String? = null,
+    val autoExportEnabled: Boolean = false,
+) {
+    fun normalized(): NaviampCoreSettingsSyncConfiguration {
+        val directory = directoryPath?.trim()?.takeIf(String::isNotEmpty)
+        return copy(
+            directoryPath = directory,
+            autoExportEnabled = settingsSyncAutoExportEnabled(autoExportEnabled, directory != null),
+        )
+    }
 }
 
-/** Owns every settings-sync UI command and publishes its resulting common state. */
+/** Native settings-document effects. Core owns all workflow, status, and presentation decisions. */
+interface NaviampCoreSettingsSyncPort {
+    fun configuration(): NaviampCoreSettingsSyncConfiguration
+    fun saveConfiguration(configuration: NaviampCoreSettingsSyncConfiguration)
+    suspend fun readDocument(directoryPath: String): SettingsSyncDocument?
+    suspend fun writeDocument(directoryPath: String, document: SettingsSyncDocument): String
+    suspend fun chooseDirectory(currentPath: String?, title: String): String?
+    fun defaultDirectory(): String
+    val available: Boolean
+}
+
+data class NaviampCoreSettingsSyncServices(
+    val controller: NaviampSettingsSyncController,
+    val port: NaviampCoreSettingsSyncPort,
+)
+
+/** Owns every settings-sync transaction and publishes its common state. */
 class NaviampCoreSettingsSyncController(
     private val stateStore: NaviampCoreStateStore,
-    private val port: NaviampCoreSettingsSyncPort,
+    private val services: NaviampCoreSettingsSyncServices,
 ) : NaviampCoreCommandController {
+    private var status: String? = null
+
     init {
-        publish(port.current())
+        publish()
     }
 
     override fun dispatch(command: NaviampCoreCommand): NaviampCoreImmediateCommandResult =
@@ -35,23 +55,105 @@ class NaviampCoreSettingsSyncController(
         else NaviampCoreImmediateCommandResult.Unhandled
 
     override suspend fun execute(command: NaviampCoreCommand): NaviampCoreCommandResult? {
-        val state = when (command) {
-            is NaviampCoreCommand.SettingsSync.ChangeDirectory -> port.changeDirectory(command.path)
-            is NaviampCoreCommand.SettingsSync.SelectImportDirectory -> port.selectImportDirectory(command.path)
-            is NaviampCoreCommand.SettingsSync.ChangeAutoExport -> port.changeAutoExport(command.enabled)
-            NaviampCoreCommand.SettingsSync.Export -> port.export()
-            NaviampCoreCommand.SettingsSync.Import -> port.import()
-            NaviampCoreCommand.SettingsSync.ImportFile -> port.importFile()
-            NaviampCoreCommand.SettingsSync.ChooseFolder -> port.chooseFolder()
-            NaviampCoreCommand.SettingsSync.ImportFolder -> port.importFolder()
-            NaviampCoreCommand.SettingsSync.ExportFolder -> port.exportFolder()
+        when (command) {
+            is NaviampCoreCommand.SettingsSync.ChangeDirectory -> changeDirectory(command.path)
+            is NaviampCoreCommand.SettingsSync.SelectImportDirectory -> selectImportDirectory(command.path)
+            is NaviampCoreCommand.SettingsSync.ChangeAutoExport -> changeAutoExport(command.enabled)
+            NaviampCoreCommand.SettingsSync.Export -> export()
+            NaviampCoreCommand.SettingsSync.Import -> import()
+            NaviampCoreCommand.SettingsSync.ImportFile -> selectAndImport()
+            NaviampCoreCommand.SettingsSync.ChooseFolder -> chooseFolder()
+            NaviampCoreCommand.SettingsSync.ImportFolder -> selectAndImport()
+            NaviampCoreCommand.SettingsSync.ExportFolder -> exportFolder()
             else -> return null
         }
-        publish(state)
+        publish()
         return NaviampCoreCommandResult.Completed
     }
 
-    private fun publish(settingsSync: NaviampSettingsSyncUi) {
-        stateStore.update { state -> state.copy(settingsSync = settingsSync) }
+    private fun changeDirectory(path: String?) {
+        save(configuration().copy(directoryPath = path))
+        status = settingsSyncLocationStatus(configuration().directoryPath != null)
+    }
+
+    private suspend fun selectImportDirectory(path: String) {
+        save(configuration().copy(directoryPath = path))
+        import()
+    }
+
+    private suspend fun changeAutoExport(enabled: Boolean) {
+        save(configuration().copy(autoExportEnabled = enabled))
+        status = settingsSyncAutoExportStatus(configuration().autoExportEnabled)
+        if (configuration().autoExportEnabled) write(services.controller.autoExport()?.documentToWrite, automatic = true)
+    }
+
+    private suspend fun export() {
+        write(services.controller.exportCurrent(markChanged = true).documentToWrite, automatic = false)
+    }
+
+    private suspend fun import() {
+        val directory = configuredDirectory() ?: return missingDirectory()
+        val document = services.port.readDocument(directory)
+            ?: error("No settings sync file found in that folder.")
+        status = settingsSyncReconciliationStatus(services.controller.applySyncedDocument(document))
+    }
+
+    private suspend fun chooseFolder() {
+        val selected = pickDirectory("Choose settings sync folder") ?: return
+        changeDirectory(selected)
+    }
+
+    private suspend fun selectAndImport() {
+        val selected = pickDirectory("Import Naviamp settings") ?: return
+        selectImportDirectory(selected)
+    }
+
+    private suspend fun exportFolder() {
+        val selected = pickDirectory("Export Naviamp settings") ?: return
+        save(configuration().copy(directoryPath = selected))
+        export()
+    }
+
+    private suspend fun write(document: SettingsSyncDocument?, automatic: Boolean) {
+        document ?: return
+        val directory = configuredDirectory()
+        if (directory == null) {
+            missingDirectory()
+            return
+        }
+        val displayName = services.port.writeDocument(directory, document)
+        services.controller.documentWritten(document)
+        status = settingsSyncExportStatus(displayName, automatic)
+    }
+
+    private suspend fun pickDirectory(title: String): String? = services.port.chooseDirectory(
+        currentPath = configuredDirectory() ?: services.port.defaultDirectory(),
+        title = title,
+    )
+
+    private fun configuration() = services.port.configuration().normalized()
+
+    private fun configuredDirectory() = configuration().directoryPath
+
+    private fun save(configuration: NaviampCoreSettingsSyncConfiguration) {
+        services.port.saveConfiguration(configuration.normalized())
+    }
+
+    private fun missingDirectory() {
+        status = settingsSyncMissingLocationStatus()
+    }
+
+    private fun publish() {
+        val configuration = configuration()
+        stateStore.update { state ->
+            state.copy(
+                settingsSync = NaviampSettingsSyncUi(
+                    directoryPath = configuration.directoryPath,
+                    autoExportEnabled = configuration.autoExportEnabled,
+                    status = status,
+                    available = services.port.available,
+                ),
+            )
+        }
     }
 }

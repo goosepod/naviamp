@@ -115,10 +115,28 @@ class NaviampCoreConnectionControllerTest {
         assertEquals("Deleted Home Music.", connection.status)
     }
 
-    private fun fixture(connectFailure: Throwable? = null): ConnectionFixture {
+    @Test
+    fun musicFolderFailuresRemainVisibleWhileCoreKeepsTheConnectionEditable() = kotlinx.coroutines.test.runTest {
+        val fixture = fixture(musicFoldersLoadFailed = true)
+
+        fixture.controller.execute(NaviampCoreCommand.Connection.Edit(savedConnectionUi()))
+
+        val connection = fixture.store.state.value.shell.connectionSettings.connection
+        assertTrue(connection.editingConnection)
+        assertEquals(emptyList(), connection.availableMusicFolders)
+        assertEquals(
+            "Could not load music folders. You can still edit the connection.",
+            connection.musicFoldersStatus,
+        )
+    }
+
+    private fun fixture(
+        connectFailure: Throwable? = null,
+        musicFoldersLoadFailed: Boolean = false,
+    ): ConnectionFixture {
         val record = savedRecord()
         val inventory = NaviampCoreConnectionInventory(listOf(record), currentSourceId = record.id)
-        val port = FakeProviderSessionPort(inventory, connectFailure)
+        val port = FakeProviderSessionPort(inventory, connectFailure, musicFoldersLoadFailed)
         val store = NaviampCoreStateStore()
         return ConnectionFixture(
             store = store,
@@ -156,6 +174,7 @@ private data class ConnectionFixture(
 private class FakeProviderSessionPort(
     initialInventory: NaviampCoreConnectionInventory,
     private val connectFailure: Throwable?,
+    private val musicFoldersLoadFailed: Boolean,
 ) : NaviampCoreProviderSessionPort {
     var inventory = initialInventory
     val connectRequests = mutableListOf<Pair<NaviampCoreConnectionRequest, NaviampConnectionAttemptPlan>>()
@@ -176,6 +195,7 @@ private class FakeProviderSessionPort(
 
     override suspend fun editableConnection(id: String) = NaviampCoreEditableConnection(
         form = ConnectionFormState(serverUrl = "https://edited.example", username = "demo"),
+        musicFoldersLoadFailed = musicFoldersLoadFailed,
     )
 
     override suspend fun deleteConnection(id: String): NaviampCoreConnectionInventory {

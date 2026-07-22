@@ -90,10 +90,13 @@ class DesktopCoreProviderSessionPort(
     override suspend fun editableConnection(id: String): NaviampCoreEditableConnection {
         val saved = requireSaved(id)
         val connection = saved.toNavidromeConnection()
-        val folders = runCatching { musicFolders(connection) }.getOrDefault(emptyList())
+        val folders = runCatching { musicFolders(connection) }
         return NaviampCoreEditableConnection(
             form = saved.toConnectionForm(),
-            availableMusicFolders = connectionFormMusicFolders(folders.map { it.id to it.name }),
+            availableMusicFolders = connectionFormMusicFolders(
+                folders.getOrDefault(emptyList()).map { it.id to it.name },
+            ),
+            musicFoldersLoadFailed = folders.isFailure,
         )
     }
 

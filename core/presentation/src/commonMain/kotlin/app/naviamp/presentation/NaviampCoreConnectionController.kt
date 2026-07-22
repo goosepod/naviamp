@@ -24,6 +24,7 @@ data class NaviampCoreConnectionInventory(
 data class NaviampCoreEditableConnection(
     val form: ConnectionFormState,
     val availableMusicFolders: List<ConnectionFormMusicFolder> = emptyList(),
+    val musicFoldersLoadFailed: Boolean = false,
 )
 
 sealed interface NaviampCoreConnectionRequest {
@@ -151,7 +152,11 @@ class NaviampCoreConnectionController(
                                 editingConnection = true,
                                 form = editable.form,
                                 availableMusicFolders = editable.availableMusicFolders,
-                                musicFoldersStatus = null,
+                                musicFoldersStatus = if (editable.musicFoldersLoadFailed) {
+                                    "Could not load music folders. You can still edit the connection."
+                                } else {
+                                    null
+                                },
                             ),
                         ),
                     )

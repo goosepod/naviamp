@@ -66,7 +66,7 @@ class NaviampCoreTest {
 
         assertEquals(SharedRoute.Library, core.state.value.shell.shellChrome.selectedRoute)
         assertEquals("ambient", core.state.value.shell.search.query)
-        assertEquals("exported", core.state.value.settingsSync.status)
+        assertEquals("Settings exported to settings.json.", core.state.value.settingsSync.status)
         assertNotNull(core.state.value.shell.nowPlaying)
         assertTrue(failures.isEmpty())
     }
@@ -180,7 +180,7 @@ internal fun fakeCoreServices(provider: MediaProvider? = null) = NaviampCoreServ
         interfaceSettings = NaviampCoreInterfaceSettingsStore {},
         cacheSettings = NaviampCoreCacheSettingsPort { it.normalized() },
         maintenance = NaviampCoreMaintenancePort { NaviampCoreMaintenanceResult("complete") },
-        sync = FakeCoreSettingsSyncPort(),
+        sync = fakeCoreSettingsSyncServices(),
     ),
     downloads = NaviampCoreDownloadServices(
         storage = object : NaviampCoreDownloadStoragePort {
@@ -245,19 +245,33 @@ internal fun fakeCoreServices(provider: MediaProvider? = null) = NaviampCoreServ
     favoritedAtIso8601 = { "2026-07-21T00:00:00Z" },
 )
 
-private class FakeCoreSettingsSyncPort : NaviampCoreSettingsSyncPort {
-    override fun current() = syncState("ready")
-    override suspend fun changeDirectory(path: String?) = syncState("directory")
-    override suspend fun selectImportDirectory(path: String) = syncState("import-directory")
-    override suspend fun changeAutoExport(enabled: Boolean) = syncState("auto-export")
-    override suspend fun export() = syncState("exported")
-    override suspend fun import() = syncState("imported")
-    override suspend fun importFile() = syncState("file-imported")
-    override suspend fun chooseFolder() = syncState("folder")
-    override suspend fun importFolder() = syncState("folder-imported")
-    override suspend fun exportFolder() = syncState("folder-exported")
-
-    private fun syncState(status: String) = NaviampSettingsSyncUi(status = status, available = true)
+private fun fakeCoreSettingsSyncServices(): NaviampCoreSettingsSyncServices {
+    var runtime = app.naviamp.domain.settings.SettingsSyncRuntimeState()
+    return NaviampCoreSettingsSyncServices(
+        controller = app.naviamp.app.NaviampSettingsSyncController(
+            deviceId = "test",
+            state = { runtime },
+            saveState = { runtime = it },
+            nowEpochMillis = { 1L },
+            snapshot = { app.naviamp.domain.settings.SettingsSyncLocalSnapshot() },
+            applyDocument = {},
+        ),
+        port = object : NaviampCoreSettingsSyncPort {
+            private var configuration = NaviampCoreSettingsSyncConfiguration(directoryPath = "/sync")
+            override fun configuration() = configuration
+            override fun saveConfiguration(configuration: NaviampCoreSettingsSyncConfiguration) {
+                this.configuration = configuration
+            }
+            override suspend fun readDocument(directoryPath: String) = null
+            override suspend fun writeDocument(
+                directoryPath: String,
+                document: app.naviamp.domain.settings.SettingsSyncDocument,
+            ) = "settings.json"
+            override suspend fun chooseDirectory(currentPath: String?, title: String) = "/sync"
+            override fun defaultDirectory() = "/home"
+            override val available = true
+        },
+    )
 }
 
 private class FakeCorePlaybackEffects : NaviampCorePlaybackEffectPort {

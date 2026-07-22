@@ -14,6 +14,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
+import kotlin.test.assertTrue
 
 class DesktopCoreProviderSessionPortTest {
     @Test
@@ -92,6 +93,20 @@ class DesktopCoreProviderSessionPortTest {
 
         assertEquals("https://music.example", editable.form.serverUrl)
         assertEquals(listOf("Main", "Archive"), editable.availableMusicFolders.map { it.name })
+    }
+
+    @Test
+    fun editableConnectionReportsFolderEffectFailureInsteadOfSilentlyMasqueradingAsAnEmptyLibrary() = runTest {
+        val port = DesktopCoreProviderSessionPort(
+            mediaSources = TestMediaSourceRepository(savedSource()),
+            sessionOpener = DesktopNavidromeSessionOpener { _, _ -> error("not used") },
+            musicFolders = { error("offline") },
+        )
+
+        val editable = port.editableConnection("source-1")
+
+        assertEquals(emptyList(), editable.availableMusicFolders)
+        assertTrue(editable.musicFoldersLoadFailed)
     }
 }
 
