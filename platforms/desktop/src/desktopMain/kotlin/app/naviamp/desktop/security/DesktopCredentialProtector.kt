@@ -10,7 +10,7 @@ import javax.crypto.SecretKey
 import javax.crypto.spec.GCMParameterSpec
 import javax.crypto.spec.SecretKeySpec
 
-internal class DesktopCredentialProtector(
+class DesktopCredentialProtector(
     private val key: () -> SecretKey = ::loadOrCreateDesktopCredentialKey,
 ) : StorageCredentialProtector {
     override fun protect(value: String?): String? {

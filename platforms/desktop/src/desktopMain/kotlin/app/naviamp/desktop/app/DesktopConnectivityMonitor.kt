@@ -5,7 +5,7 @@ import app.naviamp.app.NaviampConnectivitySnapshot
 import java.net.NetworkInterface
 
 /** Synchronous JVM connectivity snapshot used by the shared application runtime. */
-internal class DesktopConnectivityMonitor(
+class DesktopConnectivityMonitor(
     private val networkAvailable: () -> Boolean = ::desktopNetworkAvailable,
 ) : NaviampConnectivityMonitor {
     override fun currentSnapshot(): NaviampConnectivitySnapshot =

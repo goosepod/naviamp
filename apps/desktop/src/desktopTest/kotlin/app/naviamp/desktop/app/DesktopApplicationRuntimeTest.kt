@@ -33,7 +33,8 @@ class DesktopApplicationRuntimeTest {
         assertTrue(DesktopPlatformCapabilities.supports(PlatformCapability.CustomServerCertificates))
         assertTrue(DesktopPlatformCapabilities.supports(PlatformCapability.ClientCertificates))
         assertFalse(DesktopPlatformCapabilities.supports(PlatformCapability.SystemMediaControls))
-        assertFalse(DesktopPlatformCapabilities.supports(PlatformCapability.SecureCredentialStorage))
+        assertTrue(DesktopPlatformCapabilities.supports(PlatformCapability.SecureCredentialStorage))
+        assertTrue(DesktopPlatformCapabilities.supports(PlatformCapability.ApplicationUpdates))
         assertFalse(DesktopPlatformCapabilities.supports(PlatformCapability.AutomotiveBrowsing))
     }
 

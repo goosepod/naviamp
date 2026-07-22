@@ -16,6 +16,8 @@ class DesktopPlatformCapabilitiesTest {
         )
         assertTrue(DesktopCapabilityPresentation.settingsImportExport.enabled)
         assertTrue(DesktopCapabilityPresentation.fileSelection.enabled)
+        assertTrue(DesktopCapabilityPresentation.secureCredentialStorage.enabled)
+        assertTrue(DesktopCapabilityPresentation.applicationUpdates.enabled)
         assertFalse(DesktopCapabilityPresentation.automotiveBrowsing.visible)
     }
 }

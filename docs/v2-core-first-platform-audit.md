@@ -95,8 +95,8 @@ Capabilities describe genuine service facts; they must never compensate for inco
 
 Confirmed corrections or follow-ups:
 
-- Desktop implements encrypted credential protection through Keychain, DPAPI, or Secret Service, but `DesktopPlatformCapabilities` does not declare `SecureCredentialStorage`. Correct the declaration and its contract test.
-- Desktop constructs and runs the shared application-update checker, but does not declare `ApplicationUpdates`. Decide whether install execution is complete; declare the truthful status as `Available` or `Experimental` rather than hiding the common UI accidentally.
+- Desktop encrypted credential protection through Keychain, DPAPI, or Secret Service is now declared as available by the shared Desktop capability registry and covered by its contract test.
+- Desktop constructs and runs the shared application-update checker and now declares `ApplicationUpdates` as available instead of hiding the common UI.
 - `Sharing` is unavailable everywhere and has no observed product consumer. Keep it out of product presentation until a common share command and at least one real adapter exist.
 - Android Auto is a valid Android capability, but its product catalog/playback intent must be reusable by future CarPlay. The OS browse/template protocols remain separate.
 - Media-row feature capabilities are one common Naviamp baseline. A missing host executor is a bug, not a reason to subtract a feature.

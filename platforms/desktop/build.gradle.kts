@@ -16,6 +16,8 @@ kotlin {
             dependencies {
                 api(project(":core:app"))
                 api(project(":core:domain"))
+                api(project(":core:presentation"))
+                api(project(":core:storage"))
             }
         }
         val desktopTest by getting {
