@@ -1,4 +1,4 @@
-package app.naviamp.desktop
+package app.naviamp.storage
 
 import app.naviamp.domain.radio.RadioArtistRunMode
 import app.naviamp.domain.radio.RadioArtistSpread
@@ -6,9 +6,8 @@ import app.naviamp.domain.radio.RadioDjPreset
 import app.naviamp.domain.radio.RadioDjPresetRepository
 import app.naviamp.domain.radio.RadioFamiliarity
 import app.naviamp.domain.radio.RadioTuningSettings
-import app.naviamp.storage.NaviampStorageQueries
 
-class DesktopRadioDjPresetStore(
+class StorageRadioDjPresetStore(
     private val queries: NaviampStorageQueries,
     private val nowMillis: () -> Long,
 ) : RadioDjPresetRepository {

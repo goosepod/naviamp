@@ -2,8 +2,17 @@ package app.naviamp.desktop
 
 import app.naviamp.domain.cache.MaximumPersistentArtworkCacheBytes
 import app.naviamp.storage.StorageCredentialProtector
+import app.naviamp.storage.StorageAudioWaveformStore
 import app.naviamp.storage.StorageDatabaseDriverFactory
 import app.naviamp.storage.StorageDatabaseLocation
+import app.naviamp.storage.StorageLibraryIndexStore
+import app.naviamp.storage.StorageLyricsOffsetStore
+import app.naviamp.storage.StorageLyricsSidecarStore
+import app.naviamp.storage.StorageObjectByteStore
+import app.naviamp.storage.StoragePendingProviderActionStore
+import app.naviamp.storage.StorageProviderResponseStore
+import app.naviamp.storage.StorageRadioDjPresetStore
+import app.naviamp.storage.StorageSidecarStatusStore
 import kotlinx.serialization.json.Json
 import java.nio.file.Path
 
@@ -15,17 +24,17 @@ import java.nio.file.Path
  */
 class DesktopStorageRepositories private constructor(
     val mediaSources: DesktopMediaSourceStorage,
-    val providerResponses: DesktopProviderResponseStore,
-    val objectBytes: DesktopObjectByteStore,
+    val providerResponses: StorageProviderResponseStore,
+    val objectBytes: StorageObjectByteStore,
     val audioCacheBytes: DesktopMutableAudioByteStore,
     val downloadBytes: DesktopMutableAudioByteStore,
-    val audioWaveforms: DesktopAudioWaveformStore,
-    val lyricsSidecars: DesktopLyricsSidecarStore,
-    val lyricsOffsets: DesktopLyricsOffsetStore,
-    val sidecarStatuses: DesktopSidecarStatusStore,
-    val libraryIndex: DesktopLibraryIndexStore,
-    val pendingProviderActions: DesktopPendingProviderActionStore,
-    val radioDjPresets: DesktopRadioDjPresetStore,
+    val audioWaveforms: StorageAudioWaveformStore,
+    val lyricsSidecars: StorageLyricsSidecarStore,
+    val lyricsOffsets: StorageLyricsOffsetStore,
+    val sidecarStatuses: StorageSidecarStatusStore,
+    val libraryIndex: StorageLibraryIndexStore,
+    val pendingProviderActions: StoragePendingProviderActionStore,
+    val radioDjPresets: StorageRadioDjPresetStore,
     val maintenance: DesktopCacheMaintenanceRepository,
 ) : AutoCloseable {
     override fun close() {
@@ -58,22 +67,28 @@ class DesktopStorageRepositories private constructor(
                 val hotImages = DesktopHotImageCache(maxHotImageBytes)
                 DesktopStorageRepositories(
                     mediaSources = mediaSources,
-                    providerResponses = DesktopProviderResponseStore(queries),
-                    objectBytes = DesktopObjectByteStore(queries, nowEpochMillis, maxImageBytes),
+                    providerResponses = StorageProviderResponseStore(queries),
+                    objectBytes = StorageObjectByteStore(
+                        queries,
+                        nowEpochMillis,
+                        maxImageBytes,
+                        DesktopStorageWorkDispatcher,
+                    ),
                     audioCacheBytes = DesktopMutableAudioByteStore(audioCacheDirectory),
                     downloadBytes = DesktopMutableAudioByteStore(downloadDirectory),
-                    audioWaveforms = DesktopAudioWaveformStore(
+                    audioWaveforms = StorageAudioWaveformStore(
                         queries,
                         json,
                         nowEpochMillis,
                         maxAudioWaveformBytes,
+                        DesktopStorageWorkDispatcher,
                     ),
-                    lyricsSidecars = DesktopLyricsSidecarStore(queries),
-                    lyricsOffsets = DesktopLyricsOffsetStore(queries, nowEpochMillis),
-                    sidecarStatuses = DesktopSidecarStatusStore(queries),
-                    libraryIndex = DesktopLibraryIndexStore(queries, mediaSources.store, nowEpochMillis),
-                    pendingProviderActions = DesktopPendingProviderActionStore(queries, nowEpochMillis),
-                    radioDjPresets = DesktopRadioDjPresetStore(queries, nowEpochMillis),
+                    lyricsSidecars = StorageLyricsSidecarStore(queries),
+                    lyricsOffsets = StorageLyricsOffsetStore(queries, nowEpochMillis),
+                    sidecarStatuses = StorageSidecarStatusStore(queries),
+                    libraryIndex = StorageLibraryIndexStore(queries, mediaSources.store, nowEpochMillis),
+                    pendingProviderActions = StoragePendingProviderActionStore(queries, nowEpochMillis),
+                    radioDjPresets = StorageRadioDjPresetStore(queries, nowEpochMillis),
                     maintenance = DesktopCacheMaintenanceRepository(
                         storage = mediaSources,
                         databasePath = Path.of(location.directoryPath).resolve(location.fileName),

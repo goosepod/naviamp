@@ -1,9 +1,8 @@
-package app.naviamp.desktop
+package app.naviamp.storage
 
 import app.naviamp.domain.cache.ProviderResponseStore
-import app.naviamp.storage.NaviampStorageQueries
 
-class DesktopProviderResponseStore(
+class StorageProviderResponseStore(
     private val queries: NaviampStorageQueries,
 ) : ProviderResponseStore {
     override fun cachedResponse(cacheKey: String): String? =

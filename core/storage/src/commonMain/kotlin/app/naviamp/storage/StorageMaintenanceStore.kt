@@ -1,9 +1,8 @@
-package app.naviamp.desktop
+package app.naviamp.storage
 
 import app.naviamp.domain.cache.StorageCacheStats
-import app.naviamp.storage.NaviampStorageQueries
 
-class DesktopStorageMaintenanceStore(
+class StorageMaintenanceStore(
     private val queries: NaviampStorageQueries,
 ) {
     fun clearProviderData() {

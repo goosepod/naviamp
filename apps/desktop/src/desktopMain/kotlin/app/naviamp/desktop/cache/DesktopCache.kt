@@ -65,9 +65,19 @@ import app.naviamp.provider.navidrome.NavidromeProvider
 import app.naviamp.provider.navidrome.resolvedDisplayName
 import app.naviamp.desktop.security.DesktopCredentialProtector
 import app.naviamp.storage.NaviampStorageDatabase
+import app.naviamp.storage.StorageAudioWaveformStore
 import app.naviamp.storage.StorageMediaSourceStore
 import app.naviamp.storage.StorageDatabaseLocation
 import app.naviamp.storage.StorageCredentialProtector
+import app.naviamp.storage.StorageLibraryIndexStore
+import app.naviamp.storage.StorageLyricsOffsetStore
+import app.naviamp.storage.StorageLyricsSidecarStore
+import app.naviamp.storage.StorageMaintenanceStore
+import app.naviamp.storage.StorageObjectByteStore
+import app.naviamp.storage.StoragePendingProviderActionStore
+import app.naviamp.storage.StorageProviderResponseStore
+import app.naviamp.storage.StorageRadioDjPresetStore
+import app.naviamp.storage.StorageSidecarStatusStore
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.withContext
@@ -113,11 +123,11 @@ class DesktopCache(
     private val database = createDatabase(databasePath)
     private val queries = database.naviampStorageQueries
     private val providerResponseCache = ProviderResponseCacheService(
-        store = DesktopProviderResponseStore(queries),
+        store = StorageProviderResponseStore(queries),
         nowMillis = ::nowMillis,
     )
     private val sidecarStatus = SidecarStatusService(
-        store = DesktopSidecarStatusStore(queries),
+        store = StorageSidecarStatusStore(queries),
         nowMillis = ::nowMillis,
     )
     private val mediaSources = StorageMediaSourceStore(
@@ -125,37 +135,37 @@ class DesktopCache(
         nowMillis = ::nowMillis,
         credentialProtector = credentialProtector,
     )
-    private val libraryIndex = DesktopLibraryIndexStore(
+    private val libraryIndex = StorageLibraryIndexStore(
         queries = queries,
         mediaSources = mediaSources,
         nowMillis = ::nowMillis,
     )
     private val lyricsSidecar = LyricsSidecarCacheService(
-        store = DesktopLyricsSidecarStore(queries),
+        store = StorageLyricsSidecarStore(queries),
         nowMillis = ::nowMillis,
         json = json,
     )
-    private val lyricsOffsets = DesktopLyricsOffsetStore(queries, ::nowMillis)
-    private val maintenance = DesktopStorageMaintenanceStore(queries)
-    private val audioWaveforms = DesktopAudioWaveformStore(
+    private val lyricsOffsets = StorageLyricsOffsetStore(queries, ::nowMillis)
+    private val maintenance = StorageMaintenanceStore(queries)
+    private val audioWaveforms = StorageAudioWaveformStore(
         queries = queries,
         json = json,
         nowMillis = ::nowMillis,
         maxAudioWaveformCacheBytes = maxAudioWaveformCacheBytes,
     )
     private val trackMetadata = DesktopTrackMetadataStore(queries, json)
-    private val pendingProviderActions = DesktopPendingProviderActionStore(
+    private val pendingProviderActions = StoragePendingProviderActionStore(
         queries = queries,
         nowMillis = ::nowMillis,
     )
-    private val radioDjPresets = DesktopRadioDjPresetStore(
+    private val radioDjPresets = StorageRadioDjPresetStore(
         queries = queries,
         nowMillis = ::nowMillis,
     )
     private val hotImages = DesktopHotImageCache(maxHotImageBytes)
     private val httpClient = KtorSharedHttpClient()
     private val imageByteStoreService = ObjectByteStoreService(
-        store = DesktopObjectByteStore(
+        store = StorageObjectByteStore(
             queries = queries,
             nowMillis = ::nowMillis,
             maxImageCacheBytes = maxImageCacheBytes,

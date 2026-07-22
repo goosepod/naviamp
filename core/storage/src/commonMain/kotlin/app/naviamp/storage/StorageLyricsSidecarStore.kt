@@ -1,10 +1,9 @@
-package app.naviamp.desktop
+package app.naviamp.storage
 
 import app.naviamp.domain.cache.CachedLyricsRow
 import app.naviamp.domain.cache.LyricsSidecarStore
-import app.naviamp.storage.NaviampStorageQueries
 
-class DesktopLyricsSidecarStore(
+class StorageLyricsSidecarStore(
     private val queries: NaviampStorageQueries,
 ) : LyricsSidecarStore {
     override fun cachedLyrics(sourceId: String, trackId: String): CachedLyricsRow? =

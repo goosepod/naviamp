@@ -1,4 +1,4 @@
-package app.naviamp.desktop
+package app.naviamp.storage
 
 import app.naviamp.domain.StreamQuality
 import app.naviamp.domain.TrackId
@@ -6,16 +6,18 @@ import app.naviamp.domain.cache.AudioWaveformStorageRepository
 import app.naviamp.domain.waveform.AudioWaveform
 import app.naviamp.domain.waveform.AudioWaveformCacheMetadata
 import app.naviamp.domain.waveform.waveformCacheKey
-import app.naviamp.storage.NaviampStorageQueries
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import kotlin.coroutines.CoroutineContext
+import kotlin.coroutines.EmptyCoroutineContext
 
-class DesktopAudioWaveformStore(
+class StorageAudioWaveformStore(
     private val queries: NaviampStorageQueries,
     private val json: Json,
     private val nowMillis: () -> Long,
     private val maxAudioWaveformCacheBytes: Long,
+    private val workContext: CoroutineContext = EmptyCoroutineContext,
 ) : AudioWaveformStorageRepository {
     override suspend fun cachedAudioWaveform(
         sourceId: String,
@@ -23,7 +25,7 @@ class DesktopAudioWaveformStore(
         quality: StreamQuality,
         bucketCount: Int,
     ): AudioWaveform? =
-        withContext(DesktopStorageWorkDispatcher) {
+        withContext(workContext) {
             val qualityKey = quality.waveformCacheKey()
             val row = queries.selectCachedAudioWaveform(
                 source_id = sourceId,
@@ -45,7 +47,7 @@ class DesktopAudioWaveformStore(
         audioFilePath: String?,
         waveform: AudioWaveform,
     ): AudioWaveform =
-        withContext(DesktopStorageWorkDispatcher) {
+        withContext(workContext) {
             val qualityKey = quality.waveformCacheKey()
             val amplitudesJson = json.encodeToString(waveform.amplitudes)
             val now = nowMillis()
@@ -54,7 +56,7 @@ class DesktopAudioWaveformStore(
                 remoteTrackId = trackId.value,
                 qualityKey = qualityKey,
                 bucketCount = waveform.amplitudes.size,
-                sizeBytes = amplitudesJson.toByteArray(Charsets.UTF_8).size.toLong(),
+                sizeBytes = amplitudesJson.encodeToByteArray().size.toLong(),
                 createdAtEpochMillis = now,
                 lastAccessedEpochMillis = now,
             )

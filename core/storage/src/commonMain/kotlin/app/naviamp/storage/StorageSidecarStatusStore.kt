@@ -1,9 +1,8 @@
-package app.naviamp.desktop
+package app.naviamp.storage
 
 import app.naviamp.domain.cache.SidecarStatusStore
-import app.naviamp.storage.NaviampStorageQueries
 
-class DesktopSidecarStatusStore(
+class StorageSidecarStatusStore(
     private val queries: NaviampStorageQueries,
 ) : SidecarStatusStore {
     override fun upsertSidecarStatus(

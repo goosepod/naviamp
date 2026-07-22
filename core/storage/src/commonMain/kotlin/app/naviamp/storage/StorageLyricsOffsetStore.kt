@@ -1,10 +1,9 @@
-package app.naviamp.desktop
+package app.naviamp.storage
 
 import app.naviamp.domain.TrackId
 import app.naviamp.domain.cache.LyricsOffsetRepository
-import app.naviamp.storage.NaviampStorageQueries
 
-class DesktopLyricsOffsetStore(
+class StorageLyricsOffsetStore(
     private val queries: NaviampStorageQueries,
     private val nowMillis: () -> Long,
 ) : LyricsOffsetRepository {

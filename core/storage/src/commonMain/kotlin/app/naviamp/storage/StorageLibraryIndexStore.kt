@@ -1,4 +1,4 @@
-package app.naviamp.desktop
+package app.naviamp.storage
 
 import app.naviamp.domain.Album
 import app.naviamp.domain.AlbumId
@@ -13,13 +13,8 @@ import app.naviamp.domain.cache.LibrarySnapshot
 import app.naviamp.domain.cache.LocalLibraryIndexRepository
 import app.naviamp.domain.popular.ArtistPopularTrackCandidate
 import app.naviamp.domain.popular.ArtistPopularTrackMatch
-import app.naviamp.storage.Library_track
-import app.naviamp.storage.NaviampStorageQueries
-import app.naviamp.storage.SelectArtistPopularTracks
-import app.naviamp.storage.SelectRecentlyPlayedLibraryTracks
-import app.naviamp.storage.StorageMediaSourceStore
 
-class DesktopLibraryIndexStore(
+class StorageLibraryIndexStore(
     private val queries: NaviampStorageQueries,
     private val mediaSources: StorageMediaSourceStore,
     private val nowMillis: () -> Long,

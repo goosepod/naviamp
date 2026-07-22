@@ -3,6 +3,7 @@ package app.naviamp.desktop
 import app.naviamp.domain.cache.CacheMaintenanceRepository
 import app.naviamp.domain.cache.MaximumPersistentArtworkCacheBytes
 import app.naviamp.domain.cache.StorageCacheStats
+import app.naviamp.storage.StorageMaintenanceStore
 import java.nio.file.Files
 import java.nio.file.Path
 import kotlin.io.path.exists
@@ -26,7 +27,7 @@ class DesktopCacheMaintenanceRepository(
     private val fileTreeCleaner: DesktopFileTreeCleaner = DesktopFileTreeCleaner(),
 ) : CacheMaintenanceRepository<StorageCacheStats> {
     private val queries = storage.database.naviampStorageQueries
-    private val rows = DesktopStorageMaintenanceStore(queries)
+    private val rows = StorageMaintenanceStore(queries)
 
     override fun clearProviderData() {
         rows.clearProviderData()

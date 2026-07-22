@@ -1,11 +1,9 @@
-package app.naviamp.desktop
+package app.naviamp.storage
 
 import app.naviamp.domain.provider.PendingProviderAction
 import app.naviamp.domain.provider.PendingProviderActionRepository
-import app.naviamp.storage.NaviampStorageQueries
-import app.naviamp.storage.Pending_provider_action
 
-class DesktopPendingProviderActionStore(
+class StoragePendingProviderActionStore(
     private val queries: NaviampStorageQueries,
     private val nowMillis: () -> Long,
 ) : PendingProviderActionRepository {
