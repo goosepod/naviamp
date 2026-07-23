@@ -331,6 +331,7 @@ class NaviampCorePlaybackEngineAdapterTest {
             }
         }
         val waveformSourceIds = mutableListOf<String>()
+        val waveformQualities = mutableListOf<StreamQuality>()
         val waveformRepository = object : AudioWaveformStorageRepository {
             override suspend fun cachedAudioWaveform(
                 sourceId: String,
@@ -339,6 +340,7 @@ class NaviampCorePlaybackEngineAdapterTest {
                 bucketCount: Int,
             ): AudioWaveform? {
                 waveformSourceIds += sourceId
+                waveformQualities += quality
                 return null
             }
 
@@ -362,6 +364,7 @@ class NaviampCorePlaybackEngineAdapterTest {
             ),
             playbackSettings = { PlaybackSettings(lrclibLyricsEnabled = true) },
             audioCachingEnabled = { true },
+            isMobileData = { true },
             audioMetadataSidecarService = metadata,
             lyricsSidecarService = LyricsSidecarService(lyricsRepository, audioAssets, metadata),
             lyricsOffsetController = LyricsOffsetController(offsets),
@@ -373,6 +376,13 @@ class NaviampCorePlaybackEngineAdapterTest {
             sidecars.snapshot().audioTags,
         )
         assertEquals(listOf("saved-source", "saved-source"), waveformSourceIds)
+        assertEquals(
+            listOf<StreamQuality>(
+                StreamQuality.Transcoded(app.naviamp.domain.AudioCodec.Opus, 192),
+                StreamQuality.Transcoded(app.naviamp.domain.AudioCodec.Opus, 192),
+            ),
+            waveformQualities,
+        )
 
         val lyricsLoad = launch { sidecars.loadLyrics(provider.track) }
         runCurrent()

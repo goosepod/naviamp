@@ -1,23 +1,29 @@
 package app.naviamp.android
 
 import android.content.Context
+import app.naviamp.android.playback.AndroidAudioTagReader
 import app.naviamp.app.NaviampClock
 import app.naviamp.domain.home.HomeDate
 import app.naviamp.domain.playback.PlaybackEngine
+import app.naviamp.domain.waveform.AudioWaveformAnalyzer
 import app.naviamp.domain.settings.SettingsSyncRuntimeState
 import app.naviamp.presentation.NaviampCoreEnvironment
 import app.naviamp.presentation.NaviampCoreDownloadedTrack
 import app.naviamp.presentation.NaviampCoreDownloadStorageSnapshot
 import app.naviamp.presentation.NaviampCoreHomeDateSource
-import app.naviamp.presentation.NaviampCorePlaybackServices
+import app.naviamp.presentation.NaviampCoreMobileNetworkPort
 import app.naviamp.presentation.NaviampCoreStoredRepositories
 import app.naviamp.presentation.NaviampCoreStoredSettings
 import app.naviamp.presentation.naviampCoreStoredServiceCatalog
+import app.naviamp.presentation.naviampCorePlaybackServiceCatalog
 import app.naviamp.presentation.repositoryNaviampCoreDownloadServices
 import app.naviamp.ui.NaviampStorageLocationUi
 import java.io.File
 import java.time.Instant
 import java.time.LocalDate
+import kotlinx.coroutines.CoroutineScope
+import kotlin.coroutines.CoroutineContext
+import kotlin.coroutines.EmptyCoroutineContext
 
 /**
  * Android resource owner for the shared Core catalog.
@@ -36,20 +42,50 @@ class AndroidNaviampCoreCatalog private constructor(
     companion object {
         fun create(
             context: Context,
+            scope: CoroutineScope,
             playbackEngine: PlaybackEngine,
-            playback: NaviampCorePlaybackServices,
+            waveformAnalyzer: AudioWaveformAnalyzer,
             directoryPicker: AndroidCoreUriPicker,
             documentPicker: AndroidCoreUriPicker,
+            isMobileData: () -> Boolean = { false },
+            prepareWaveformAnalysis: suspend () -> Unit = {},
+            waveformWorkContext: CoroutineContext = EmptyCoroutineContext,
         ): AndroidNaviampCoreCatalog {
             val appContext = context.applicationContext
             val clock = NaviampClock(System::currentTimeMillis)
             val settingsStore = AndroidSettingsStore(appContext)
-            val cacheSettings = settingsStore.loadCacheSettings()
+            var cacheSettings = settingsStore.loadCacheSettings()
             val storage = AndroidStorageDependencies(appContext)
             cacheSettings.customDownloadDirectory?.let(::File)?.let(storage::updateDownloadDirectory)
             cacheSettings.customAudioCacheDirectory?.let(::File)?.let(storage::updateAudioCacheDirectory)
             storage.updateAudioCacheLimit(cacheSettings.maxAudioCacheBytes)
             val sessions = androidCoreProviderSessionPort(storage, clock)
+            val playback = naviampCorePlaybackServiceCatalog(
+                scope = scope,
+                engine = playbackEngine,
+                providerSource = sessions.providerSource,
+                initialPlaybackSettings = settingsStore.loadPlaybackSettings(),
+                persistPlaybackSettings = settingsStore::savePlaybackSettings,
+                cacheSettings = { cacheSettings },
+                isMobileData = isMobileData,
+                activeSourceId = { storage.latestNavidromeSource()?.id },
+                audioAssets = AndroidPlaybackAudioAssets(storage, storage),
+                cacheAudio = { sourceId, provider, track, quality ->
+                    storage.cacheAudioTrack(sourceId, provider, track, quality)
+                        .file
+                        .toPlaybackLocalAudio()
+                },
+                waveformRepository = storage,
+                waveformAnalyzer = waveformAnalyzer,
+                audioTagReader = AndroidAudioTagReader(),
+                lyricsRepository = storage,
+                lyricsOffsetRepository = storage,
+                sidecarStatusRepository = storage,
+                playbackSessionRepository = storage,
+                saveVisualizerSettings = settingsStore::saveVisualizerSettings,
+                prepareWaveformAnalysis = prepareWaveformAnalysis,
+                waveformWorkContext = waveformWorkContext,
+            )
             val syncPort = AndroidCoreSettingsSyncPort(
                 context = appContext,
                 settingsStore = settingsStore,
@@ -80,6 +116,7 @@ class AndroidNaviampCoreCatalog private constructor(
                         )
                     }
                 },
+                network = NaviampCoreMobileNetworkPort(isMobileData),
             )
             val storedCatalog = naviampCoreStoredServiceCatalog(
                 providerSessions = sessions,
@@ -88,7 +125,9 @@ class AndroidNaviampCoreCatalog private constructor(
                 downloads = downloads,
                 playbackEngine = playbackEngine,
                 settingsSyncPort = syncPort,
-                settings = settingsStore.toCoreStoredSettings(storage),
+                settings = settingsStore.toCoreStoredSettings(storage) { effective ->
+                    cacheSettings = effective
+                },
                 repositories = NaviampCoreStoredRepositories(
                     mediaSources = storage,
                     providerMediaSources = storage,
@@ -131,6 +170,7 @@ class AndroidNaviampCoreCatalog private constructor(
 
 private fun AndroidSettingsStore.toCoreStoredSettings(
     storage: AndroidStorageDependencies,
+    onCacheSettingsSaved: (app.naviamp.domain.settings.CacheSettings) -> Unit,
 ) = NaviampCoreStoredSettings(
     loadInterface = ::loadInterfaceSettings,
     saveInterface = ::saveInterfaceSettings,
@@ -138,7 +178,10 @@ private fun AndroidSettingsStore.toCoreStoredSettings(
         loadPlaybackSettings().copy(radioDjs = storage.radioDjPresets())
     },
     loadCache = ::loadCacheSettings,
-    saveCache = ::saveCacheSettings,
+    saveCache = { settings ->
+        onCacheSettingsSaved(settings)
+        saveCacheSettings(settings)
+    },
     loadVisualizer = ::loadVisualizerSettings,
     saveVisualizer = ::saveVisualizerSettings,
     loadRecentRadioStreams = ::loadRecentRadioStreams,

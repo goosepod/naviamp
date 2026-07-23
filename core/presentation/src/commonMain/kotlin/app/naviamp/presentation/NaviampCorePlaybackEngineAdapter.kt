@@ -524,6 +524,7 @@ class NaviampCoreProviderNowPlayingSidecars(
     private val waveformService: AudioWaveformService,
     private val playbackSettings: () -> PlaybackSettings,
     private val audioCachingEnabled: () -> Boolean,
+    private val isMobileData: () -> Boolean = { false },
     private val audioMetadataSidecarService: AudioMetadataSidecarService? = null,
     private val lyricsSidecarService: LyricsSidecarService? = null,
     private val lyricsOffsetController: LyricsOffsetController? = null,
@@ -544,7 +545,7 @@ class NaviampCoreProviderNowPlayingSidecars(
                         sourceId = activeSourceId,
                         provider = provider,
                         track = track,
-                        quality = settings.streamQualityForNetwork(isMobileData = false),
+                        quality = settings.streamQualityForNetwork(isMobileData()),
                         audioCachingEnabled = audioCachingEnabled(),
                     )
                 }.getOrNull()
@@ -560,7 +561,7 @@ class NaviampCoreProviderNowPlayingSidecars(
                         ?: service.audioTagsForTrack(
                             sourceId = activeSourceId,
                             track = track,
-                            quality = settings.streamQualityForNetwork(isMobileData = false),
+                            quality = settings.streamQualityForNetwork(isMobileData()),
                             audioCachingEnabled = audioCachingEnabled(),
                         )
                 }
@@ -604,7 +605,7 @@ class NaviampCoreProviderNowPlayingSidecars(
                         sourceId = activeSourceId,
                         provider = provider,
                         track = track,
-                        quality = settings.streamQualityForNetwork(isMobileData = false),
+                        quality = settings.streamQualityForNetwork(isMobileData()),
                         audioCachingEnabled = audioCachingEnabled(),
                         onlineLyricsEnabled = settings.lrclibLyricsEnabled,
                         preferSyncedLyrics = settings.preferSyncedLyrics,
