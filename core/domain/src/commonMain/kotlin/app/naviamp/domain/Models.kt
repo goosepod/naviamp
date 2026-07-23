@@ -88,9 +88,17 @@ data class Track(
 )
 
 fun Track.resolvedArtistCredits(): List<ArtistCredit> {
-    val structuredCredits = artistCredits
+    val distinctStructuredCredits = artistCredits
         .filter { it.name.isNotBlank() }
         .distinctBy { credit -> credit.id?.value ?: credit.name.lowercase() }
+    val structuredCredits = distinctStructuredCredits.filterNot { candidate ->
+        val componentCredits = distinctStructuredCredits.filterNot { it === candidate }
+        candidate.name.equals(artistName.trim(), ignoreCase = true) &&
+            componentCredits.size >= 2 &&
+            componentCredits.all { component ->
+                candidate.name.contains(component.name.trim(), ignoreCase = true)
+            }
+    }
     val legacyNames = artistName
         .split(',', ';')
         .map(String::trim)
