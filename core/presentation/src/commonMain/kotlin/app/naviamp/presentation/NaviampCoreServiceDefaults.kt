@@ -41,6 +41,7 @@ fun naviampCoreServiceDefaults(
             NaviampCorePlaylistBrowseSupplement()
         },
         artistDiscovery = NaviampCoreArtistDiscoveryServices(),
+        sonicHomeDiscovery = libraryIndex?.let(::naviampCoreSonicHomeDiscoverySource),
         externalUri = externalUri,
     ),
     connection = connection,

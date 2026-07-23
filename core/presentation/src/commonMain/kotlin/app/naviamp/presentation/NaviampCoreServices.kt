@@ -17,6 +17,7 @@ data class NaviampCoreContentServices(
     val artistDiscovery: NaviampCoreArtistDiscoveryServices,
     val providerResponses: ProviderResponseService? = null,
     val homeLibrary: HomeLibraryRepository? = null,
+    val sonicHomeDiscovery: NaviampCoreSonicHomeDiscoverySource? = null,
     val externalUri: NaviampCoreExternalUriPort,
 )
 

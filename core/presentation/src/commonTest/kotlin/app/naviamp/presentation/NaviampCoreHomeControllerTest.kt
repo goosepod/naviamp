@@ -13,12 +13,16 @@ import app.naviamp.domain.Playlist
 import app.naviamp.domain.ProviderId
 import app.naviamp.domain.StreamRequest
 import app.naviamp.domain.Track
+import app.naviamp.domain.TrackId
 import app.naviamp.domain.home.HomeDate
 import app.naviamp.domain.provider.AlbumListType
 import app.naviamp.domain.provider.ConnectionValidation
 import app.naviamp.domain.provider.MediaProvider
 import app.naviamp.domain.provider.MediaSearchResults
 import app.naviamp.domain.provider.ProviderCapabilities
+import app.naviamp.domain.sonichome.SonicHomeDiscoveryRow
+import app.naviamp.domain.sonichome.SonicHomeDiscoveryRowId
+import app.naviamp.domain.sonichome.SonicHomeDiscoveryRows
 import app.naviamp.ui.SharedMixBuilderUi
 import app.naviamp.ui.SharedRoute
 import kotlinx.coroutines.test.runTest
@@ -89,6 +93,54 @@ class NaviampCoreHomeControllerTest {
     }
 
     @Test
+    fun refreshBuildsDynamicSonicRowsThroughTheCommonDiscoverySource() = runTest {
+        val provider = HomeTestProvider(supportsSonicSimilarity = true)
+        val store = NaviampCoreStateStore()
+        store.updateShell { shell ->
+            shell.copy(
+                playback = shell.playback.copy(
+                    settings = shell.playback.settings.copy(sonicSimilarityEnabled = true),
+                ),
+            )
+        }
+        var loadedSourceId: String? = null
+        val controller = NaviampCoreHomeController(
+            stateStore = store,
+            providerSource = NaviampCoreMediaProviderSource { provider },
+            navigationController = NaviampCoreNavigationController(
+                NaviampNavigationController(),
+                store,
+                NaviampCoreArtistNavigator { error("Not expected") },
+            ),
+            dateSource = NaviampCoreHomeDateSource { HomeDate(2026, 100) },
+            supplementSource = NaviampCoreHomeSupplementSource {
+                NaviampCoreHomeSupplement(sourceId = "source-1")
+            },
+            sonicDiscoverySource = NaviampCoreSonicHomeDiscoverySource { _, sourceId ->
+                loadedSourceId = sourceId
+                SonicHomeDiscoveryRows(
+                    listOf(
+                        SonicHomeDiscoveryRow(
+                            SonicHomeDiscoveryRowId.MoreLikeRecentPlays,
+                            "More Like Recent Plays",
+                            listOf(track("sonic-track")),
+                        ),
+                    ),
+                )
+            },
+        )
+
+        controller.execute(NaviampCoreCommand.Home.Refresh)
+
+        assertEquals("source-1", loadedSourceId)
+        assertEquals("sonic-track", store.state.value.shell.home.content.sonicDiscoveryRows.single().tracks.single().id)
+        assertEquals(
+            listOf("artist", "album", "genre", "sonic-path", "sonic-mix"),
+            store.state.value.shell.home.content.mixBuilders.map { it.id },
+        )
+    }
+
+    @Test
     fun disconnectedHomePublishesACommonResult() = runTest {
         val store = NaviampCoreStateStore()
         val navigation = NaviampCoreNavigationController(
@@ -110,7 +162,9 @@ class NaviampCoreHomeControllerTest {
     }
 }
 
-private class HomeTestProvider : MediaProvider {
+private class HomeTestProvider(
+    supportsSonicSimilarity: Boolean = false,
+) : MediaProvider {
     override val id = ProviderId("home")
     override val displayName = "Home"
     override val capabilities = ProviderCapabilities(
@@ -120,6 +174,7 @@ private class HomeTestProvider : MediaProvider {
         supportsAlbumRadio = false,
         supportsTrackRadio = false,
         supportsAlbumFavorites = true,
+        supportsSonicSimilarity = supportsSonicSimilarity,
     )
 
     override suspend fun validateConnection() = ConnectionValidation(null, null)
@@ -147,3 +202,14 @@ private class HomeTestProvider : MediaProvider {
         recentlyAddedAtIso8601 = null,
     )
 }
+
+private fun track(id: String) = Track(
+    id = TrackId(id),
+    title = id,
+    artistName = "Artist",
+    albumTitle = "Album",
+    durationSeconds = 180,
+    coverArtId = null,
+    audioInfo = null,
+    replayGain = null,
+)

@@ -10,7 +10,9 @@ import app.naviamp.domain.home.HomeDate
 import app.naviamp.domain.home.HomeLibraryRepository
 import app.naviamp.domain.home.homeLoadFailureStatus
 import app.naviamp.domain.home.loadHomeContent
+import app.naviamp.domain.provider.MediaProvider
 import app.naviamp.domain.settings.RecentRadioStream
+import app.naviamp.domain.sonichome.SonicHomeDiscoveryService
 import app.naviamp.domain.sonichome.SonicHomeDiscoveryRows
 import app.naviamp.ui.SharedRoute
 import app.naviamp.ui.toSharedHomeUi
@@ -30,6 +32,28 @@ data class NaviampCoreHomeSupplement(
 
 fun interface NaviampCoreHomeSupplementSource {
     fun current(): NaviampCoreHomeSupplement
+}
+
+fun interface NaviampCoreSonicHomeDiscoverySource {
+    suspend fun load(provider: MediaProvider, sourceId: String): SonicHomeDiscoveryRows
+}
+
+/** Builds Sonic Home discovery from portable provider and library-index contracts. */
+fun naviampCoreSonicHomeDiscoverySource(
+    libraryIndex: LocalLibraryIndexRepository,
+): NaviampCoreSonicHomeDiscoverySource = NaviampCoreSonicHomeDiscoverySource { provider, sourceId ->
+    runCatching {
+        SonicHomeDiscoveryService(provider).loadRows(
+            libraryTracks = libraryIndex.librarySnapshot(
+                sourceId = sourceId,
+                limit = SonicHomeDiscoveryLibrarySampleLimit,
+            ).tracks,
+            recentTracks = libraryIndex.recentlyPlayedLibraryTracks(
+                sourceId = sourceId,
+                limit = SonicHomeDiscoveryRecentTrackLimit,
+            ),
+        )
+    }.getOrDefault(SonicHomeDiscoveryRows())
 }
 
 /** Adapts the portable library index to Home without host-owned repository mapping. */
@@ -55,6 +79,7 @@ class NaviampCoreHomeController(
         NaviampCoreHomeSupplementSource { NaviampCoreHomeSupplement() },
     private val providerResponseService: ProviderResponseService? = null,
     private val libraryRepository: HomeLibraryRepository? = null,
+    private val sonicDiscoverySource: NaviampCoreSonicHomeDiscoverySource? = null,
     private val artistLimit: Int = 50,
     private val mediaRegistry: NaviampCoreMediaRegistry = NaviampCoreMediaRegistry(),
 ) : NaviampCoreCommandController {
@@ -94,7 +119,7 @@ class NaviampCoreHomeController(
         val supplement = supplementSource.current()
         publish(refreshing = true, status = "Loading home...")
         runCatching {
-            loadHomeContent(
+            val content = loadHomeContent(
                 HomeContentLoadRequest(
                     provider = provider,
                     providerResponseService = providerResponseService,
@@ -106,9 +131,17 @@ class NaviampCoreHomeController(
                     artistLimit = artistLimit,
                 ),
             )
-        }.onSuccess { content ->
+            val sonicEnabled = stateStore.state.value.shell.playback.settings.sonicSimilarityEnabled &&
+                provider.capabilities.supportsSonicSimilarity
+            val sonicRows = if (sonicEnabled && supplement.sourceId != null) {
+                sonicDiscoverySource?.load(provider, supplement.sourceId) ?: SonicHomeDiscoveryRows()
+            } else {
+                SonicHomeDiscoveryRows()
+            }
+            content to sonicRows
+        }.onSuccess { (content, sonicRows) ->
             if (generation != refreshGeneration) return@onSuccess
-            mediaRegistry.updateHome(content, supplement.sonicDiscoveryRows)
+            mediaRegistry.updateHome(content, sonicRows)
             val sonicEnabled = stateStore.state.value.shell.playback.settings.sonicSimilarityEnabled &&
                 provider.capabilities.supportsSonicSimilarity
             stateStore.update { state ->
@@ -119,7 +152,7 @@ class NaviampCoreHomeController(
                                 coverArtUrl = { id -> id?.let(provider::coverArtUrl) },
                                 playlistTracksById = supplement.playlistTracksById,
                                 keepDownloadedPlaylistIds = supplement.keepDownloadedPlaylistIds,
-                                sonicDiscoveryRows = supplement.sonicDiscoveryRows,
+                                sonicDiscoveryRows = sonicRows,
                                 canFavoriteAlbums = provider.capabilities.supportsAlbumFavorites,
                                 showSonicPathBuilder = sonicEnabled,
                                 showSonicMixBuilder = sonicEnabled,
@@ -166,3 +199,6 @@ class NaviampCoreHomeController(
         }
     }
 }
+
+private const val SonicHomeDiscoveryLibrarySampleLimit = 5_000L
+private const val SonicHomeDiscoveryRecentTrackLimit = 20L

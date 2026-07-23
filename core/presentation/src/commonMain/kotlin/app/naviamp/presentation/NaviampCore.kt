@@ -177,6 +177,7 @@ class NaviampCore private constructor(
                 services.content.homeSupplement,
                 services.content.providerResponses,
                 services.content.homeLibrary,
+                services.content.sonicHomeDiscovery,
                 mediaRegistry = mediaRegistry,
             )
             val playlistBrowse = NaviampCorePlaylistBrowseController(
