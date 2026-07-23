@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -1788,9 +1789,9 @@ private fun LyricsPanel(
     onOffsetChanged: (Int) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val listState = rememberLazyListState()
+    val listState = remember(nowPlaying.id) { LazyListState() }
     val basePositionMillis = nowPlaying.positionSeconds?.times(1000)?.toLong()
-    var localPositionAnchor by remember { mutableStateOf<LyricPositionAnchor?>(null) }
+    var localPositionAnchor by remember(nowPlaying.id) { mutableStateOf<LyricPositionAnchor?>(null) }
     var localNowMillis by remember { mutableStateOf(currentTimeMillis()) }
 
     LaunchedEffect(basePositionMillis, nowPlaying.isPlaying, nowPlaying.lyricsLines) {
@@ -1855,15 +1856,7 @@ private fun LyricsPanel(
                     .fillMaxWidth()
                     .weight(1f),
             )
-            nowPlaying.lyricsLines.isEmpty() -> Text(
-                "Lyrics unavailable",
-                color = colors.mutedText,
-                fontSize = 13.sp,
-                textAlign = TextAlign.Center,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f),
-            )
+            nowPlaying.lyricsLines.isEmpty() -> Spacer(Modifier.weight(1f))
             else -> LazyColumn(
                 state = listState,
                 verticalArrangement = Arrangement.spacedBy(8.dp),

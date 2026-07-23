@@ -218,6 +218,7 @@ internal class DesktopV2Composition private constructor(
                 settings = engineSettings,
                 sidecars = NaviampCoreProviderNowPlayingSidecars(
                     providerSource = sessions.providerSource,
+                    sourceId = { storage.mediaSources.latestMediaSource()?.id },
                     waveformService = waveformService,
                     playbackSettings = engineSettings::current,
                     audioCachingEnabled = { activeCacheSettings.audioCachingEnabled },

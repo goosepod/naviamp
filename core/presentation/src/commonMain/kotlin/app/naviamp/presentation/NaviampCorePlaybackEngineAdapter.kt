@@ -50,6 +50,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 /**
@@ -519,6 +520,7 @@ class NaviampCoreMutableNowPlayingSidecars : NaviampCoreNowPlayingSidecarPort {
 /** Core-owned provider sidecar loading; hosts supply repositories and native analyzers only. */
 class NaviampCoreProviderNowPlayingSidecars(
     private val providerSource: NaviampCoreMediaProviderSource,
+    private val sourceId: () -> String? = { null },
     private val waveformService: AudioWaveformService,
     private val playbackSettings: () -> PlaybackSettings,
     private val audioCachingEnabled: () -> Boolean,
@@ -533,12 +535,13 @@ class NaviampCoreProviderNowPlayingSidecars(
         val generation = ++loadGeneration
         delegate.loadForTrack(track)
         val provider = providerSource.current() ?: return
+        val activeSourceId = sourceId() ?: provider.cacheNamespace
         val settings = playbackSettings()
         val loaded = coroutineScope {
             val waveform = async {
                 runCatching {
                     waveformService.loadOrCreateWaveform(
-                        sourceId = provider.cacheNamespace,
+                        sourceId = activeSourceId,
                         provider = provider,
                         track = track,
                         quality = settings.streamQualityForNetwork(isMobileData = false),
@@ -555,7 +558,7 @@ class NaviampCoreProviderNowPlayingSidecars(
                     waveformResult?.localAudio
                         ?.let { service.audioTags(it) }
                         ?: service.audioTagsForTrack(
-                            sourceId = provider.cacheNamespace,
+                            sourceId = activeSourceId,
                             track = track,
                             quality = settings.streamQualityForNetwork(isMobileData = false),
                             audioCachingEnabled = audioCachingEnabled(),
@@ -584,25 +587,37 @@ class NaviampCoreProviderNowPlayingSidecars(
             return
         }
         val settings = playbackSettings()
-        delegate.updateLyrics(
-            lyrics = delegate.snapshot().lyrics,
-            status = lyricsLoadingStatus(settings.lrclibLyricsEnabled),
-        )
+        val activeSourceId = sourceId() ?: provider.cacheNamespace
         runCatching {
-            service.loadLyrics(
-                sourceId = provider.cacheNamespace,
-                provider = provider,
-                track = track,
-                quality = settings.streamQualityForNetwork(isMobileData = false),
-                audioCachingEnabled = audioCachingEnabled(),
-                onlineLyricsEnabled = settings.lrclibLyricsEnabled,
-                preferSyncedLyrics = settings.preferSyncedLyrics,
-                searchOrder = settings.lyricsSearchOrder,
-            ).lyrics
+            coroutineScope {
+                val loadingStatus = launch {
+                    delay(CoreLyricsLoadingStatusDelayMillis)
+                    if (generation == loadGeneration) {
+                        delegate.updateLyrics(
+                            lyrics = delegate.snapshot().lyrics,
+                            status = lyricsLoadingStatus(settings.lrclibLyricsEnabled),
+                        )
+                    }
+                }
+                try {
+                    service.loadLyrics(
+                        sourceId = activeSourceId,
+                        provider = provider,
+                        track = track,
+                        quality = settings.streamQualityForNetwork(isMobileData = false),
+                        audioCachingEnabled = audioCachingEnabled(),
+                        onlineLyricsEnabled = settings.lrclibLyricsEnabled,
+                        preferSyncedLyrics = settings.preferSyncedLyrics,
+                        searchOrder = settings.lyricsSearchOrder,
+                    ).lyrics
+                } finally {
+                    loadingStatus.cancel()
+                }
+            }
         }.onSuccess { loaded ->
             if (generation == loadGeneration) {
                 val lyrics = lyricsOffsetController?.withSavedOffset(
-                    sourceId = provider.cacheNamespace,
+                    sourceId = activeSourceId,
                     track = track,
                     lyrics = loaded,
                 ) ?: loaded
@@ -620,8 +635,9 @@ class NaviampCoreProviderNowPlayingSidecars(
 
     override suspend fun changeLyricsOffset(track: app.naviamp.domain.Track, offsetMillis: Int) {
         val provider = providerSource.current() ?: return
+        val activeSourceId = sourceId() ?: provider.cacheNamespace
         val updated = lyricsOffsetController?.saveOffset(
-            sourceId = provider.cacheNamespace,
+            sourceId = activeSourceId,
             track = track,
             lyrics = delegate.snapshot().lyrics,
             offsetMillis = offsetMillis,
@@ -648,6 +664,8 @@ class NaviampCoreProviderNowPlayingSidecars(
         delegate.updateInternetRadioArtwork(station, key, artworkUrl)
     }
 }
+
+private const val CoreLyricsLoadingStatusDelayMillis = 150L
 
 private data class LoadedTrackSidecars(
     val waveform: app.naviamp.domain.waveform.AudioWaveform?,
