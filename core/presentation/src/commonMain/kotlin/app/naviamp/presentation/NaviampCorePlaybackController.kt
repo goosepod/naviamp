@@ -318,20 +318,9 @@ class NaviampCorePlaybackController(
             NowPlayingQueueAction.RemoveFromQueue -> request.queueIndex?.let(mutations::removeAt)
                 ?: publishStatus("Queue position is missing.")
             NowPlayingQueueAction.EmptyQueue -> {
-                val update = queue.clearQueue()
+                val update = queue.retainCurrentOnly()
                 if (update.changed) {
                     effects.applyQueue(update.queue, update.clearPreparedNext)
-                    commands.stop()
-                    playback.replace(
-                        playback.state.value.copy(
-                            currentTrack = null,
-                            currentStation = null,
-                            playbackState = PlaybackState.Stopped,
-                        ),
-                    )
-                    sessions.clear(stateStore.state.value.shell.connectionSettings.currentSourceId)
-                    persistedQueue = PlaybackQueue()
-                    persistedStationId = null
                 }
             }
         }

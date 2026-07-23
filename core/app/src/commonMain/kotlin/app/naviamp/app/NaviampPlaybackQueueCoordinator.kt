@@ -96,6 +96,9 @@ class NaviampPlaybackQueueCoordinator(
     fun clearUpcoming(): PlaybackQueueMutationUpdate =
         mutateQueue(clearPreparedNext = true, transform = PlaybackQueue::clearUpcoming)
 
+    fun retainCurrentOnly(): PlaybackQueueMutationUpdate =
+        mutateQueue(clearPreparedNext = true, transform = PlaybackQueue::retainCurrentOnly)
+
     fun updateTrack(updatedTrack: Track): PlaybackQueueMutationUpdate =
         queueManager.updateTrack(currentQueue, updatedTrack).also(::commit)
 

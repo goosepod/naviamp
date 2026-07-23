@@ -167,10 +167,14 @@ class NaviampCorePlaybackControllerTest {
                 NowPlayingQueueActionRequest(NowPlayingQueueAction.EmptyQueue),
             ),
         )
-        assertTrue(fixture.live.state.value.queue.tracks.isEmpty())
-        assertEquals(null, fixture.live.state.value.currentTrack)
-        assertEquals(PlaybackState.Stopped, fixture.live.state.value.playbackState)
-        assertEquals(1, fixture.effects.stops)
+        assertEquals(
+            listOf(fixture.live.state.value.currentTrack?.id?.value),
+            fixture.live.state.value.queue.tracks.map { it.id.value },
+        )
+        assertEquals("two", fixture.live.state.value.currentTrack?.id?.value)
+        assertEquals(PlaybackState.Playing, fixture.live.state.value.playbackState)
+        assertEquals(0, fixture.effects.stops)
+        assertEquals(listOf("two"), fixture.effects.queues.last().tracks.map { it.id.value })
     }
 
     @Test

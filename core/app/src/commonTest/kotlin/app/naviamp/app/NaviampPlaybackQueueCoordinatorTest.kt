@@ -106,6 +106,26 @@ class NaviampPlaybackQueueCoordinatorTest {
     }
 
     @Test
+    fun retainCurrentOnlyDropsHistoryAndUpcomingWithoutStoppingTheCurrentTrack() {
+        val first = track("first")
+        val current = track("current")
+        val next = track("next")
+        val playback = NaviampLivePlaybackController(
+            NaviampLivePlaybackState(
+                currentTrack = current,
+                queue = PlaybackQueue(listOf(first, current, next), currentIndex = 1, playNextCount = 1),
+            ),
+        )
+        val coordinator = NaviampPlaybackQueueCoordinator(playback)
+
+        val update = coordinator.retainCurrentOnly()
+
+        assertTrue(update.changed)
+        assertEquals(PlaybackQueue(listOf(current), currentIndex = 0), playback.state.value.queue)
+        assertEquals(current, playback.state.value.currentTrack)
+    }
+
+    @Test
     fun commandControllerMirrorsOnlyChangedUserMutationsToThePlatform() {
         val first = track("first")
         val second = track("second")
