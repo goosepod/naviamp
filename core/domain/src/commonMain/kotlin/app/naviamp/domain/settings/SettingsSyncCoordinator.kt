@@ -1,5 +1,8 @@
 package app.naviamp.domain.settings
 
+import kotlinx.serialization.Serializable
+
+@Serializable
 data class SettingsSyncRuntimeState(
     val autoExportEnabled: Boolean = false,
     val lastLocalUpdateEpochMillis: Long = 0L,
@@ -68,6 +71,10 @@ class SettingsSyncCoordinator(
 
     fun markLocalChanged() {
         saveState(state().copy(lastLocalUpdateEpochMillis = nextTimestamp()).normalized())
+    }
+
+    fun setAutoExportEnabled(enabled: Boolean) {
+        saveState(state().copy(autoExportEnabled = enabled).normalized())
     }
 
     fun markDocumentApplied(updatedAtEpochMillis: Long) {

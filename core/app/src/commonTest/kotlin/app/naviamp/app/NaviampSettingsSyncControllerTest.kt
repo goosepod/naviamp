@@ -49,6 +49,20 @@ class NaviampSettingsSyncControllerTest {
     }
 
     @Test
+    fun autoExportConfigurationIsStoredInTheSharedRuntimeState() {
+        var runtime = SettingsSyncRuntimeState()
+        val controller = controller(
+            state = { runtime },
+            saveState = { runtime = it },
+        )
+
+        controller.setAutoExportEnabled(true)
+
+        assertEquals(true, runtime.autoExportEnabled)
+        assertEquals(SettingsSyncLocalSnapshot(), controller.localSnapshot())
+    }
+
+    @Test
     fun reconciliationSelectsTheNewestAvailableDocumentBeforeApplyingIt() {
         var runtime = SettingsSyncRuntimeState(lastLocalUpdateEpochMillis = 10L)
         var applied: SettingsSyncDocument? = null

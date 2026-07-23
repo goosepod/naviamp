@@ -1,8 +1,10 @@
 package app.naviamp.presentation
 
 import app.naviamp.app.NaviampSettingsSyncController
+import app.naviamp.domain.settings.InterfaceSettings
 import app.naviamp.domain.settings.SettingsSyncDocument
 import app.naviamp.domain.settings.SettingsSyncLocalSnapshot
+import app.naviamp.domain.settings.SettingsSyncPreferences
 import app.naviamp.domain.settings.SettingsSyncRuntimeState
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
@@ -17,6 +19,8 @@ class NaviampCoreSettingsSyncControllerTest {
         val port = RecordingSettingsSyncPort()
         var runtime = SettingsSyncRuntimeState()
         var applied: SettingsSyncDocument? = null
+        var snapshot = SettingsSyncLocalSnapshot()
+        var publishedSnapshot: SettingsSyncLocalSnapshot? = null
         val controller = NaviampCoreSettingsSyncController(
             store,
             NaviampCoreSettingsSyncServices(
@@ -25,24 +29,36 @@ class NaviampCoreSettingsSyncControllerTest {
                     state = { runtime },
                     saveState = { runtime = it },
                     nowEpochMillis = { 100L },
-                    snapshot = { SettingsSyncLocalSnapshot() },
-                    applyDocument = { applied = it },
+                    snapshot = { snapshot },
+                    applyDocument = {
+                        applied = it
+                        snapshot = snapshot.copy(interfaceSettings = it.preferences.interfaceSettings)
+                    },
                 ),
                 port = port,
             ),
+            onDocumentApplied = { publishedSnapshot = it },
         )
 
         controller.execute(NaviampCoreCommand.SettingsSync.ChangeDirectory("/sync"))
         controller.execute(NaviampCoreCommand.SettingsSync.ChangeAutoExport(true))
         controller.execute(NaviampCoreCommand.SettingsSync.Export)
-        port.document = SettingsSyncDocument(updatedAtEpochMillis = 200L)
+        port.document = SettingsSyncDocument(
+            updatedAtEpochMillis = 200L,
+            preferences = SettingsSyncPreferences(
+                interfaceSettings = InterfaceSettings(showDesktopTooltips = false),
+            ),
+        )
         controller.execute(NaviampCoreCommand.SettingsSync.Import)
 
-        assertEquals(listOf("write:/sync", "read:/sync"), port.operations)
+        assertEquals(listOf("write:/sync", "write:/sync", "read:/sync"), port.operations)
         assertEquals(port.document, applied)
         assertEquals("Settings imported.", store.state.value.settingsSync.status)
         assertEquals("/sync", store.state.value.settingsSync.directoryPath)
         assertTrue(store.state.value.settingsSync.autoExportEnabled)
+        assertTrue(runtime.autoExportEnabled)
+        assertEquals(false, store.state.value.shell.general.interfaceSettings.showDesktopTooltips)
+        assertEquals(snapshot, publishedSnapshot)
     }
 
     @Test
@@ -73,6 +89,36 @@ class NaviampCoreSettingsSyncControllerTest {
         assertEquals("/picked", store.state.value.settingsSync.directoryPath)
         assertEquals("Settings exported to naviamp-settings.json.", store.state.value.settingsSync.status)
         assertTrue(port.operations.contains("pick:Export Naviamp settings"))
+    }
+
+    @Test
+    fun localPortableSettingChangesAutoExportWhenConfigured() = runTest {
+        val store = NaviampCoreStateStore()
+        val port = RecordingSettingsSyncPort()
+        var runtime = SettingsSyncRuntimeState()
+        val controller = NaviampCoreSettingsSyncController(
+            store,
+            NaviampCoreSettingsSyncServices(
+                controller = NaviampSettingsSyncController(
+                    deviceId = "test",
+                    state = { runtime },
+                    saveState = { runtime = it },
+                    nowEpochMillis = { 100L },
+                    snapshot = { SettingsSyncLocalSnapshot() },
+                    applyDocument = {},
+                ),
+                port = port,
+            ),
+        )
+        controller.execute(NaviampCoreCommand.SettingsSync.ChangeDirectory("/sync"))
+        controller.execute(NaviampCoreCommand.SettingsSync.ChangeAutoExport(true))
+        port.operations.clear()
+
+        controller.localSettingsChanged()
+
+        assertEquals(listOf("write:/sync"), port.operations)
+        assertEquals("Settings auto-exported to naviamp-settings.json.", store.state.value.settingsSync.status)
+        assertEquals(101L, runtime.lastLocalUpdateEpochMillis)
     }
 }
 

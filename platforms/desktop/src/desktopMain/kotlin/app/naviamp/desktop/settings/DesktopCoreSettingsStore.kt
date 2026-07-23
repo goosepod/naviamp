@@ -6,14 +6,20 @@ import app.naviamp.domain.settings.PlaybackSettings
 import app.naviamp.domain.settings.PlaybackSessionSettings
 import app.naviamp.domain.settings.RecentRadioStream
 import app.naviamp.domain.settings.SavedInternetRadioStation
+import app.naviamp.domain.settings.SettingsSyncRuntimeState
 import app.naviamp.domain.settings.VisualizerSettings
 import app.naviamp.domain.settings.normalized
+import app.naviamp.presentation.NaviampCoreSettingsSyncConfiguration
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.booleanOrNull
+import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.builtins.serializer
 import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.StandardCopyOption
@@ -85,6 +91,40 @@ class DesktopCoreSettingsStore(private val path: Path) {
             ListSerializer(SavedInternetRadioStation.serializer()),
             stations,
         )
+
+    fun loadSettingsSyncConfiguration(): NaviampCoreSettingsSyncConfiguration {
+        val value = document()["settingsSyncConfiguration"]?.let {
+            runCatching { it.jsonObject }.getOrNull()
+        } ?: return NaviampCoreSettingsSyncConfiguration()
+        return NaviampCoreSettingsSyncConfiguration(
+            directoryPath = value["directoryPath"]?.jsonPrimitive?.contentOrNull,
+            autoExportEnabled = value["autoExportEnabled"]?.jsonPrimitive?.booleanOrNull ?: false,
+        ).normalized()
+    }
+
+    fun saveSettingsSyncConfiguration(configuration: NaviampCoreSettingsSyncConfiguration) {
+        val normalized = configuration.normalized()
+        write(
+            "settingsSyncConfiguration",
+            JsonObject.serializer(),
+            JsonObject(
+                buildMap {
+                    normalized.directoryPath?.let { put("directoryPath", JsonPrimitive(it)) }
+                    put("autoExportEnabled", JsonPrimitive(normalized.autoExportEnabled))
+                },
+            ),
+        )
+    }
+
+    fun loadSettingsSyncRuntimeState(): SettingsSyncRuntimeState =
+        read(
+            "settingsSyncRuntime",
+            SettingsSyncRuntimeState.serializer(),
+            SettingsSyncRuntimeState(),
+        ).normalized()
+
+    fun saveSettingsSyncRuntimeState(state: SettingsSyncRuntimeState) =
+        write("settingsSyncRuntime", SettingsSyncRuntimeState.serializer(), state.normalized())
 
     private fun document(): JsonObject = runCatching {
         if (path.exists()) json.parseToJsonElement(path.readText()).jsonObject else JsonObject(emptyMap())

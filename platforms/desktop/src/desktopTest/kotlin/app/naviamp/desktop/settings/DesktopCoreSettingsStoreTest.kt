@@ -10,6 +10,8 @@ import app.naviamp.domain.InternetRadioStation
 import app.naviamp.domain.playback.ReplayGainMode
 import app.naviamp.domain.radio.libraryRecentRadioStream
 import app.naviamp.domain.settings.VisualizerSettings
+import app.naviamp.domain.settings.SettingsSyncRuntimeState
+import app.naviamp.presentation.NaviampCoreSettingsSyncConfiguration
 import java.nio.file.Files
 import kotlin.io.path.readText
 import kotlin.io.path.writeText
@@ -81,6 +83,16 @@ class DesktopCoreSettingsStoreTest {
             ),
         )
         store.saveRecentRadioStreams(listOf(libraryRecentRadioStream()))
+        store.saveSettingsSyncConfiguration(
+            NaviampCoreSettingsSyncConfiguration("/sync", autoExportEnabled = true),
+        )
+        store.saveSettingsSyncRuntimeState(
+            SettingsSyncRuntimeState(
+                autoExportEnabled = true,
+                lastLocalUpdateEpochMillis = 12,
+                lastAppliedSyncUpdateEpochMillis = 11,
+            ),
+        )
 
         assertEquals(false, store.loadInterfaceSettings().showDesktopTooltips)
         assertEquals(ReplayGainMode.Track, store.loadPlaybackSettings().replayGainMode)
@@ -89,6 +101,8 @@ class DesktopCoreSettingsStoreTest {
         assertEquals("AudioBars", store.loadVisualizerSettings().selectedVisualizer)
         assertEquals("station", store.loadRecentInternetRadioStations().single().id)
         assertEquals("library", store.loadRecentRadioStreams().single().id)
+        assertEquals("/sync", store.loadSettingsSyncConfiguration().directoryPath)
+        assertEquals(12, store.loadSettingsSyncRuntimeState().lastLocalUpdateEpochMillis)
         assertTrue(path.readText().contains("\"legacy\": \"kept\""))
         assertTrue(path.readText().contains("\"connection\""))
     }

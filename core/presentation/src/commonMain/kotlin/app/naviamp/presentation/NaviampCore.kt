@@ -11,7 +11,10 @@ import app.naviamp.domain.Artist
 import app.naviamp.domain.Track
 import app.naviamp.domain.app.NaviampNavigationState
 import app.naviamp.domain.playback.AudioOutputDevice
+import app.naviamp.domain.settings.toConnectionFormState
+import app.naviamp.domain.settings.toSettingsSyncServerProfile
 import app.naviamp.ui.NaviampShellCapabilitiesUi
+import app.naviamp.ui.SharedRoute
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
@@ -156,18 +159,20 @@ class NaviampCore private constructor(
             )
             deferredArtistNavigator.target = mediaDetails
 
+            val catalog = NaviampCoreCatalogController(
+                stateStore,
+                services.content.providerSource,
+                mediaRegistry = mediaRegistry,
+            )
+            var notifyLocalSettingsChanged: () -> Unit = services.settings.sync.controller::markLocalChanged
             val settings = NaviampCoreSettingsController(
                 stateStore,
                 services.settings.interfaceSettings,
                 services.playback.settings,
                 services.settings.cacheSettings,
                 services.settings.maintenance,
-            )
-            val settingsSync = NaviampCoreSettingsSyncController(stateStore, services.settings.sync)
-            val catalog = NaviampCoreCatalogController(
-                stateStore,
-                services.content.providerSource,
-                mediaRegistry = mediaRegistry,
+                refreshLibrary = catalog::refreshAfterConnection,
+                onLocalSettingsChanged = { notifyLocalSettingsChanged() },
             )
             val home = NaviampCoreHomeController(
                 stateStore,
@@ -230,7 +235,14 @@ class NaviampCore private constructor(
                     livePlayback.updateCurrentStation(station)
                     navigation.openNowPlaying()
                 },
+                onRecentsChanged = { notifyLocalSettingsChanged() },
             )
+            val visualizerSettings = object : NaviampCoreVisualizerSettingsPort {
+                override fun save(visualizer: app.naviamp.ui.NaviampVisualizer) {
+                    services.playback.visualizerSettings.save(visualizer)
+                    notifyLocalSettingsChanged()
+                }
+            }
             val nowPlayingPresenter = NaviampCoreNowPlayingPresenter(
                 stateStore,
                 services.content.providerSource,
@@ -263,7 +275,7 @@ class NaviampCore private constructor(
                 nowPlayingPresenter,
                 playback,
                 services.playback.settings,
-                services.playback.visualizerSettings,
+                visualizerSettings,
                 services.playback.sidecars,
                 downloads,
                 mediaDetails,
@@ -275,6 +287,7 @@ class NaviampCore private constructor(
             val generatedRadioRecents = NaviampRecentRadioStreamController(
                 load = services.radio.generatedRecents.load,
                 save = services.radio.generatedRecents.save,
+                onChanged = { notifyLocalSettingsChanged() },
             )
             val mediaTransactions = NaviampCoreMediaTransactions(
                 stateStore,
@@ -366,6 +379,41 @@ class NaviampCore private constructor(
                     scope.launch { downloads.refresh(reconcile = false) }
                 },
             )
+            val settingsSync = NaviampCoreSettingsSyncController(
+                stateStore = stateStore,
+                services = services.settings.sync,
+                onDocumentApplied = { snapshot ->
+                    connection.replaceSavedConnections(
+                        snapshot.serverProfiles.map { source ->
+                            NaviampCoreSavedConnectionRecord(
+                                id = source.id,
+                                displayName = source.displayName,
+                                serverUrl = source.baseUrl,
+                                username = source.username,
+                                selectedMusicFolderIds = source.selectedMusicFolderIds,
+                            )
+                        },
+                    )
+                    snapshot.serverProfiles.firstOrNull()?.let { source ->
+                        val form = source.toSettingsSyncServerProfile().toConnectionFormState()
+                        stateStore.updateShell { shell ->
+                            shell.copy(
+                                connectionSettings = shell.connectionSettings.copy(
+                                    connection = shell.connectionSettings.connection.copy(
+                                        editingConnection = true,
+                                        form = form,
+                                    ),
+                                ),
+                            )
+                        }
+                        navigation.dispatch(NaviampCoreCommand.Navigation.SelectRoute(SharedRoute.Settings))
+                    }
+                    home.refreshAfterConnection()
+                },
+            )
+            notifyLocalSettingsChanged = {
+                scope.launch { settingsSync.localSettingsChanged() }
+            }
             val router = NaviampCoreCommandRouter(
                 scope = scope,
                 controllers = listOf(

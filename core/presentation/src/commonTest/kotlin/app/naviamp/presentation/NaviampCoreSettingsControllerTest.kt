@@ -86,10 +86,30 @@ class NaviampCoreSettingsControllerTest {
         assertEquals("Completed ClearLibrary", fixture.store.state.value.overlays.status)
     }
 
+    @Test
+    fun refreshLibraryUsesTheCoreCatalogTransactionInsteadOfTheNativeMaintenancePort() = runTest {
+        var refreshed = false
+        var maintenanceCalled = false
+        val fixture = fixture(
+            maintenance = {
+                maintenanceCalled = true
+                NaviampCoreMaintenanceResult("Unexpected")
+            },
+            refreshLibrary = { refreshed = true },
+        )
+
+        fixture.controller.execute(NaviampCoreCommand.Settings.RefreshLibrary)
+
+        assertTrue(refreshed)
+        assertFalse(maintenanceCalled)
+        assertEquals("Library refreshed.", fixture.store.state.value.overlays.status)
+    }
+
     private fun fixture(
         maintenance: suspend (NaviampCoreMaintenanceOperation) -> NaviampCoreMaintenanceResult = {
             NaviampCoreMaintenanceResult("Completed")
         },
+        refreshLibrary: suspend () -> Unit = {},
     ): SettingsFixture {
         val store = NaviampCoreStateStore()
         val savedInterface = mutableListOf<InterfaceSettings>()
@@ -110,6 +130,7 @@ class NaviampCoreSettingsControllerTest {
                     settings.normalized().also(savedCache::add)
                 },
                 maintenancePort = NaviampCoreMaintenancePort(maintenance),
+                refreshLibrary = refreshLibrary,
             ),
         )
     }

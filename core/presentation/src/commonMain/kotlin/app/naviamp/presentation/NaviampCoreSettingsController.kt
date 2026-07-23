@@ -1,5 +1,11 @@
 package app.naviamp.presentation
 
+import app.naviamp.domain.app.cacheDataClearedStatus
+import app.naviamp.domain.app.databaseResetStatus
+import app.naviamp.domain.app.libraryIndexClearedStatus
+import app.naviamp.domain.cache.CacheMaintenanceRepository
+import app.naviamp.domain.cache.LocalLibraryIndexRepository
+import app.naviamp.domain.library.librarySyncCompletedStatus
 import app.naviamp.domain.settings.CacheSettings
 import app.naviamp.domain.settings.InterfaceSettings
 
@@ -25,6 +31,30 @@ fun interface NaviampCoreMaintenancePort {
     suspend fun run(operation: NaviampCoreMaintenanceOperation): NaviampCoreMaintenanceResult
 }
 
+/** Connects portable repositories to Core-owned maintenance sequencing and status policy. */
+fun <Stats> naviampCoreRepositoryMaintenancePort(
+    repository: CacheMaintenanceRepository<Stats>,
+    libraryIndex: LocalLibraryIndexRepository,
+    sourceId: () -> String?,
+): NaviampCoreMaintenancePort = NaviampCoreMaintenancePort { operation ->
+    when (operation) {
+        NaviampCoreMaintenanceOperation.ClearCache -> {
+            repository.clearCacheData()
+            NaviampCoreMaintenanceResult(cacheDataClearedStatus(detailed = true))
+        }
+        NaviampCoreMaintenanceOperation.ClearLibrary -> {
+            libraryIndex.clearLibraryData(sourceId())
+            NaviampCoreMaintenanceResult(libraryIndexClearedStatus(detailed = true))
+        }
+        NaviampCoreMaintenanceOperation.ResetDatabase -> {
+            repository.clearAll()
+            NaviampCoreMaintenanceResult(databaseResetStatus(savedServersRemoved = true))
+        }
+        NaviampCoreMaintenanceOperation.RefreshLibrary ->
+            error("Library refresh is owned by the Core catalog controller.")
+    }
+}
+
 /** Owns settings normalization, persistence intent, consequences, overlays, and maintenance state. */
 class NaviampCoreSettingsController(
     private val stateStore: NaviampCoreStateStore,
@@ -32,6 +62,8 @@ class NaviampCoreSettingsController(
     private val playbackSettings: NaviampCorePlaybackSettingsPort,
     private val cacheSettings: NaviampCoreCacheSettingsPort,
     private val maintenancePort: NaviampCoreMaintenancePort,
+    private val refreshLibrary: suspend () -> Unit = {},
+    private val onLocalSettingsChanged: () -> Unit = {},
 ) : NaviampCoreCommandController {
     override fun dispatch(command: NaviampCoreCommand): NaviampCoreImmediateCommandResult {
         val settings = command as? NaviampCoreCommand.Settings
@@ -60,10 +92,16 @@ class NaviampCoreSettingsController(
     }
 
     override suspend fun execute(command: NaviampCoreCommand): NaviampCoreCommandResult? {
+        if (command == NaviampCoreCommand.Settings.RefreshLibrary) {
+            refreshLibrary()
+            stateStore.update { state ->
+                state.copy(overlays = state.overlays.copy(status = librarySyncCompletedStatus()))
+            }
+            return NaviampCoreCommandResult.Completed
+        }
         val operation = when (command) {
             NaviampCoreCommand.Settings.ClearCache -> NaviampCoreMaintenanceOperation.ClearCache
             NaviampCoreCommand.Settings.ClearLibrary -> NaviampCoreMaintenanceOperation.ClearLibrary
-            NaviampCoreCommand.Settings.RefreshLibrary -> NaviampCoreMaintenanceOperation.RefreshLibrary
             NaviampCoreCommand.Settings.ResetDatabase -> NaviampCoreMaintenanceOperation.ResetDatabase
             else -> return null
         }
@@ -77,6 +115,7 @@ class NaviampCoreSettingsController(
     private fun changeInterface(command: NaviampCoreCommand.Settings.ChangeInterface) {
         val settings = command.settings.normalized()
         interfaceStore.save(settings)
+        onLocalSettingsChanged()
         stateStore.updateShell { shell ->
             shell.copy(general = shell.general.copy(interfaceSettings = settings))
         }
@@ -84,6 +123,7 @@ class NaviampCoreSettingsController(
 
     private fun changePlayback(command: NaviampCoreCommand.Settings.ChangePlayback) {
         val settings = playbackSettings.apply(command.settings, command.redownload)
+        onLocalSettingsChanged()
         stateStore.updateShell { shell ->
             shell.copy(playback = shell.playback.copy(settings = settings))
         }

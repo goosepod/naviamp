@@ -22,16 +22,18 @@ interface NaviampCoreInternetRadioRecentsPort {
 fun naviampCoreInternetRadioRecentsPort(
     load: () -> List<SavedInternetRadioStation>,
     persist: (List<SavedInternetRadioStation>) -> Unit,
+    onChanged: () -> Unit = {},
 ): NaviampCoreInternetRadioRecentsPort = object : NaviampCoreInternetRadioRecentsPort {
     private var recentStations = load().map(SavedInternetRadioStation::toStation)
 
-    override fun current(): List<InternetRadioStation> = recentStations
+    override fun current(): List<InternetRadioStation> =
+        load().map(SavedInternetRadioStation::toStation).also { recentStations = it }
 
     override suspend fun record(station: InternetRadioStation): List<InternetRadioStation> =
         recentSavedInternetRadioStationsWith(
-            recentStations.map(SavedInternetRadioStation::fromStation),
+            current().map(SavedInternetRadioStation::fromStation),
             station,
-        ).also(persist).map(SavedInternetRadioStation::toStation).also { updated ->
+        ).also(persist).also { onChanged() }.map(SavedInternetRadioStation::toStation).also { updated ->
             recentStations = updated
         }
 }
@@ -43,6 +45,7 @@ class NaviampCoreInternetRadioController(
     private val playback: NaviampCoreInternetRadioPlaybackPort,
     private val recents: NaviampCoreInternetRadioRecentsPort,
     private val onPlaybackStarted: (InternetRadioStation) -> Unit = {},
+    private val onRecentsChanged: () -> Unit = {},
 ) : NaviampCoreCommandController {
     private var generation = 0L
     private var stations = emptyList<InternetRadioStation>()
@@ -157,6 +160,7 @@ class NaviampCoreInternetRadioController(
             playback.play(station)
             recents.record(station)
         }.onSuccess { updatedRecents ->
+            onRecentsChanged()
             stateStore.updateShell { shell ->
                 shell.copy(
                     radio = shell.radio.copy(status = null),

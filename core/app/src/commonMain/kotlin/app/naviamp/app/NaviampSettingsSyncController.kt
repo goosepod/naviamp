@@ -21,7 +21,7 @@ class NaviampSettingsSyncController(
     state: () -> SettingsSyncRuntimeState,
     saveState: (SettingsSyncRuntimeState) -> Unit,
     nowEpochMillis: () -> Long,
-    snapshot: () -> SettingsSyncLocalSnapshot,
+    private val snapshot: () -> SettingsSyncLocalSnapshot,
     applyDocument: (SettingsSyncDocument) -> Unit,
 ) {
     private val coordinator = SettingsSyncCoordinator(
@@ -40,6 +40,10 @@ class NaviampSettingsSyncController(
     )
 
     fun markLocalChanged() = coordinator.markLocalChanged()
+
+    fun setAutoExportEnabled(enabled: Boolean) = coordinator.setAutoExportEnabled(enabled)
+
+    fun localSnapshot(): SettingsSyncLocalSnapshot = snapshot()
 
     fun applySyncedDocument(document: SettingsSyncDocument): SettingsSyncOperationResult =
         coordinator.applySyncedDocument(document)

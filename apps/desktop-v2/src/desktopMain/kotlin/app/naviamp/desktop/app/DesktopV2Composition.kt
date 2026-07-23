@@ -23,34 +23,41 @@ import app.naviamp.presentation.NaviampCoreDownloadedTrack
 import app.naviamp.presentation.NaviampCoreInitialState
 import app.naviamp.presentation.NaviampCoreInterfaceSettingsStore
 import app.naviamp.presentation.NaviampCoreCacheSettingsPort
+import app.naviamp.presentation.NaviampCoreGeneratedRadioRecentsPort
 import app.naviamp.presentation.NaviampCoreProviderNowPlayingSidecars
 import app.naviamp.presentation.NaviampCorePlaybackEngineAdapter
 import app.naviamp.presentation.NaviampCorePlaybackEngineSettings
 import app.naviamp.presentation.NaviampCorePlaybackServices
-import app.naviamp.presentation.NaviampCoreSettingsSyncConfiguration
+import app.naviamp.presentation.NaviampCoreSettingsSyncServices
 import app.naviamp.presentation.NaviampCoreVisualizerSettingsPort
 import app.naviamp.presentation.naviampCoreServiceDefaults
 import app.naviamp.presentation.naviampCorePlaylistHistoryPort
 import app.naviamp.presentation.naviampCoreInternetRadioRecentsPort
+import app.naviamp.presentation.naviampCoreRepositoryMaintenancePort
 import app.naviamp.presentation.localLibraryHomeRepository
 import app.naviamp.presentation.naviampCorePlaylistBrowseSupplementSource
 import app.naviamp.presentation.repositoryNaviampCoreDownloadServices
-import app.naviamp.presentation.unavailableNaviampCoreSettingsSyncServices
 import app.naviamp.presentation.toShellCapabilitiesUi
 import app.naviamp.presentation.providerArtistDiscoveryServices
 import app.naviamp.storage.StorageDatabaseLocation
 import app.naviamp.provider.navidrome.NavidromeProvider
 import app.naviamp.ui.jvmGeneratedCoverArtBytes
+import app.naviamp.ui.NaviampStorageLocationUi
 import app.naviamp.ui.resetJvmPlatformCoverArtByteLoader
 import app.naviamp.ui.setJvmPlatformCoverArtByteLoader
 import app.naviamp.ui.naviampVisualizerFromName
+import app.naviamp.ui.toCacheSettingsUi
 import app.naviamp.domain.settings.VisualizerSettings
+import app.naviamp.domain.settings.SettingsSyncLocalSnapshot
+import app.naviamp.domain.settings.applySettingsSyncDocument
 import app.naviamp.domain.waveform.AudioWaveformService
 import app.naviamp.app.NaviampPlaybackSessionController
+import app.naviamp.app.NaviampSettingsSyncController
 import app.naviamp.desktop.DesktopAudioWaveformAnalyzer
 import app.naviamp.desktop.DesktopPlaybackAudioAssets
 import app.naviamp.desktop.toPlaybackLocalAudio
 import app.naviamp.desktop.settings.DesktopCoreSettingsStore
+import app.naviamp.desktop.settings.DesktopCoreSettingsSyncPort
 import app.naviamp.desktop.settings.defaultDesktopCoreSettingsPath
 import app.naviamp.desktop.platform.DesktopCoreDiagnosticsPort
 import kotlinx.coroutines.CoroutineScope
@@ -77,10 +84,21 @@ internal class DesktopV2Composition private constructor(
             val nowEpochMillis = System::currentTimeMillis
             val dataDirectory = desktopV2DataDirectory()
             Files.createDirectories(dataDirectory)
+            val settingsStore = DesktopCoreSettingsStore(defaultDesktopCoreSettingsPath())
+            val initialInterfaceSettings = settingsStore.loadInterfaceSettings()
+            val initialPlaybackSettings = settingsStore.loadPlaybackSettings()
+            val initialCacheSettings = settingsStore.loadCacheSettings()
+            var activeCacheSettings = initialCacheSettings
+            val audioCacheDirectory = initialCacheSettings.customAudioCacheDirectory
+                ?.let { path -> runCatching { Path.of(path) }.getOrNull() }
+                ?: dataDirectory.resolve("audio-cache")
+            val downloadDirectory = initialCacheSettings.customDownloadDirectory
+                ?.let { path -> runCatching { Path.of(path) }.getOrNull() }
+                ?: dataDirectory.resolve("downloads")
             val storage = DesktopStorageRepositories.open(
                 location = StorageDatabaseLocation(dataDirectory.toString()),
-                audioCacheDirectory = dataDirectory.resolve("audio-cache"),
-                downloadDirectory = dataDirectory.resolve("downloads"),
+                audioCacheDirectory = audioCacheDirectory,
+                downloadDirectory = downloadDirectory,
                 nowEpochMillis = nowEpochMillis,
             )
             val sessions = desktopCoreProviderSessionPort(
@@ -101,7 +119,6 @@ internal class DesktopV2Composition private constructor(
                 backendResult = loadDesktopBassAudioBackend(),
                 runtime = DesktopBassPlaybackEngineRuntime(),
             )
-            val settingsStore = DesktopCoreSettingsStore(defaultDesktopCoreSettingsPath())
             val playbackSessions = NaviampPlaybackSessionController(storage.playbackSessions)
             storage.mediaSources.latestMediaSource()?.id?.let { sourceId ->
                 if (playbackSessions.load(sourceId) == null) {
@@ -111,10 +128,6 @@ internal class DesktopV2Composition private constructor(
                     }
                 }
             }
-            val initialInterfaceSettings = settingsStore.loadInterfaceSettings()
-            val initialPlaybackSettings = settingsStore.loadPlaybackSettings()
-            val initialCacheSettings = settingsStore.loadCacheSettings()
-            var activeCacheSettings = initialCacheSettings
             val initialVisualizer = naviampVisualizerFromName(
                 settingsStore.loadVisualizerSettings().selectedVisualizer,
             )
@@ -182,11 +195,39 @@ internal class DesktopV2Composition private constructor(
                 load = settingsStore::loadRecentInternetRadioStations,
                 persist = settingsStore::saveRecentInternetRadioStations,
             )
-            var syncConfiguration = NaviampCoreSettingsSyncConfiguration()
-            val sync = unavailableNaviampCoreSettingsSyncServices(nowEpochMillis).copy(
-                port = app.naviamp.desktop.settings.DesktopCoreSettingsSyncPort(
-                    configurationState = { syncConfiguration },
-                    saveConfigurationState = { syncConfiguration = it },
+            val sync = NaviampCoreSettingsSyncServices(
+                controller = NaviampSettingsSyncController(
+                    deviceId = DesktopSettingsSyncDeviceId,
+                    state = settingsStore::loadSettingsSyncRuntimeState,
+                    saveState = settingsStore::saveSettingsSyncRuntimeState,
+                    nowEpochMillis = nowEpochMillis,
+                    snapshot = {
+                        SettingsSyncLocalSnapshot(
+                            serverProfiles = storage.mediaSources.mediaSources(),
+                            interfaceSettings = settingsStore.loadInterfaceSettings(),
+                            playback = engineSettings.current(),
+                            visualizer = settingsStore.loadVisualizerSettings(),
+                            recentRadioStreams = settingsStore.loadRecentRadioStreams(),
+                            recentInternetRadioStations = settingsStore.loadRecentInternetRadioStations(),
+                        )
+                    },
+                    applyDocument = { document ->
+                        val applied = applySettingsSyncDocument(
+                            document = document,
+                            playbackEngine = engine,
+                            mediaSourceRepository = storage.mediaSources,
+                            radioDjPresetRepository = storage.radioDjPresets,
+                        )
+                        settingsStore.saveInterfaceSettings(applied.interfaceSettings)
+                        engineSettings.apply(applied.playbackSettings, redownload = false)
+                        settingsStore.saveVisualizerSettings(applied.visualizer)
+                        settingsStore.saveRecentRadioStreams(applied.recentRadioStreams)
+                        settingsStore.saveRecentInternetRadioStations(applied.recentInternetRadioStations)
+                    },
+                ),
+                port = DesktopCoreSettingsSyncPort(
+                    configurationState = settingsStore::loadSettingsSyncConfiguration,
+                    saveConfigurationState = settingsStore::saveSettingsSyncConfiguration,
                 ),
             )
             val serviceDefaults = naviampCoreServiceDefaults(
@@ -236,6 +277,11 @@ internal class DesktopV2Composition private constructor(
                             settingsStore.saveCacheSettings(effective)
                         }
                     },
+                    maintenance = naviampCoreRepositoryMaintenancePort(
+                        repository = storage.maintenance,
+                        libraryIndex = storage.libraryIndex,
+                        sourceId = { storage.mediaSources.latestMediaSource()?.id },
+                    ),
                 ),
                 downloads = repositoryNaviampCoreDownloadServices(
                     downloadRepository = storage.audioStore,
@@ -265,7 +311,7 @@ internal class DesktopV2Composition private constructor(
                 ),
                 radio = serviceDefaults.radio.copy(
                     recents = internetRadioRecents,
-                    generatedRecents = app.naviamp.presentation.NaviampCoreGeneratedRadioRecentsPort(
+                    generatedRecents = NaviampCoreGeneratedRadioRecentsPort(
                         load = settingsStore::loadRecentRadioStreams,
                         save = settingsStore::saveRecentRadioStreams,
                     ),
@@ -275,13 +321,36 @@ internal class DesktopV2Composition private constructor(
                     nowEpochMillis = nowEpochMillis,
                 ),
             )
+            val shellCapabilities = DesktopCapabilityPresentation.toShellCapabilitiesUi(
+                playbackEngine = engine,
+                sonicSimilarityAvailable = false,
+            )
+            val storageStats = storage.maintenance.stats()
+            val downloadLocation = NaviampStorageLocationUi(
+                id = "active-download-directory",
+                label = if (initialCacheSettings.customDownloadDirectory == null) "App storage" else "Custom",
+                path = downloadDirectory.toAbsolutePath().toString(),
+            )
+            val audioCacheLocation = NaviampStorageLocationUi(
+                id = "active-audio-cache-directory",
+                label = if (initialCacheSettings.customAudioCacheDirectory == null) "App storage" else "Custom",
+                path = audioCacheDirectory.toAbsolutePath().toString(),
+            )
             val initialState = NaviampCoreInitialState().let { initial ->
                 initial.copy(
                     product = initial.product.copy(
                         shell = initial.product.shell.copy(
                             general = initial.product.shell.general.copy(interfaceSettings = initialInterfaceSettings),
                             playback = initial.product.shell.playback.copy(settings = initialPlaybackSettings),
-                            cache = initial.product.shell.cache.copy(settings = initialCacheSettings),
+                            cache = initialCacheSettings.toCacheSettingsUi(
+                                stats = storageStats,
+                                capabilities = shellCapabilities,
+                            ).copy(
+                                downloadLocations = listOf(downloadLocation),
+                                audioCacheLocations = listOf(audioCacheLocation),
+                                selectedDownloadLocationId = downloadLocation.id,
+                                selectedAudioCacheLocationId = audioCacheLocation.id,
+                            ),
                             shellChrome = initial.product.shell.shellChrome.copy(
                                 selectedVisualizer = initialVisualizer,
                             ),
@@ -295,10 +364,7 @@ internal class DesktopV2Composition private constructor(
                     providerSessions = sessions,
                     settingsSync = sync,
                     initialState = initialState,
-                    shellCapabilities = DesktopCapabilityPresentation.toShellCapabilitiesUi(
-                        playbackEngine = engine,
-                        sonicSimilarityAvailable = false,
-                    ),
+                    shellCapabilities = shellCapabilities,
                     audioOutputDeviceSelectionAvailable =
                         (engine as? AudioOutputDevicePlaybackEngine)
                             ?.supportsAudioOutputDeviceSelection == true,
@@ -327,3 +393,5 @@ private fun desktopV2DataDirectory(): Path {
         else -> home.resolve(".local/share/naviamp")
     }
 }
+
+private const val DesktopSettingsSyncDeviceId = "desktop"

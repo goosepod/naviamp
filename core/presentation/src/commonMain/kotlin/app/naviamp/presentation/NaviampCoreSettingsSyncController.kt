@@ -8,7 +8,9 @@ import app.naviamp.app.settingsSyncLocationStatus
 import app.naviamp.app.settingsSyncMissingLocationStatus
 import app.naviamp.app.settingsSyncReconciliationStatus
 import app.naviamp.domain.settings.SettingsSyncDocument
+import app.naviamp.domain.settings.SettingsSyncLocalSnapshot
 import app.naviamp.ui.NaviampSettingsSyncUi
+import app.naviamp.ui.naviampVisualizerFromName
 
 data class NaviampCoreSettingsSyncConfiguration(
     val directoryPath: String? = null,
@@ -43,10 +45,12 @@ data class NaviampCoreSettingsSyncServices(
 class NaviampCoreSettingsSyncController(
     private val stateStore: NaviampCoreStateStore,
     private val services: NaviampCoreSettingsSyncServices,
+    private val onDocumentApplied: suspend (SettingsSyncLocalSnapshot) -> Unit = {},
 ) : NaviampCoreCommandController {
     private var status: String? = null
 
     init {
+        services.controller.setAutoExportEnabled(configuration().autoExportEnabled)
         publish()
     }
 
@@ -71,6 +75,12 @@ class NaviampCoreSettingsSyncController(
         return NaviampCoreCommandResult.Completed
     }
 
+    suspend fun localSettingsChanged() {
+        services.controller.markLocalChanged()
+        write(services.controller.autoExport()?.documentToWrite, automatic = true)
+        publish()
+    }
+
     private fun changeDirectory(path: String?) {
         save(configuration().copy(directoryPath = path))
         status = settingsSyncLocationStatus(configuration().directoryPath != null)
@@ -83,6 +93,7 @@ class NaviampCoreSettingsSyncController(
 
     private suspend fun changeAutoExport(enabled: Boolean) {
         save(configuration().copy(autoExportEnabled = enabled))
+        services.controller.setAutoExportEnabled(configuration().autoExportEnabled)
         status = settingsSyncAutoExportStatus(configuration().autoExportEnabled)
         if (configuration().autoExportEnabled) write(services.controller.autoExport()?.documentToWrite, automatic = true)
     }
@@ -96,6 +107,7 @@ class NaviampCoreSettingsSyncController(
         val document = services.port.readDocument(directory)
             ?: error("No settings sync file found in that folder.")
         status = settingsSyncReconciliationStatus(services.controller.applySyncedDocument(document))
+        publishAppliedSnapshot(services.controller.localSnapshot())
     }
 
     private suspend fun chooseFolder() {
@@ -141,6 +153,19 @@ class NaviampCoreSettingsSyncController(
 
     private fun missingDirectory() {
         status = settingsSyncMissingLocationStatus()
+    }
+
+    private suspend fun publishAppliedSnapshot(snapshot: SettingsSyncLocalSnapshot) {
+        stateStore.updateShell { shell ->
+            shell.copy(
+                general = shell.general.copy(interfaceSettings = snapshot.interfaceSettings),
+                playback = shell.playback.copy(settings = snapshot.playback),
+                shellChrome = shell.shellChrome.copy(
+                    selectedVisualizer = naviampVisualizerFromName(snapshot.visualizer.selectedVisualizer),
+                ),
+            )
+        }
+        onDocumentApplied(snapshot)
     }
 
     private fun publish() {
