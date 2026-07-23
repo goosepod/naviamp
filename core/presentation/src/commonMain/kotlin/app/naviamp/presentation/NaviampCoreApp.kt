@@ -10,6 +10,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import app.naviamp.ui.NaviampApplicationUpdateChecker
+import app.naviamp.ui.defaultNaviampApplicationUpdateChecker
 import app.naviamp.ui.NaviampDiagnosticsUi
 import app.naviamp.ui.NaviampSharedAppShell
 import app.naviamp.ui.NaviampStatsForNerdsDialog
@@ -26,7 +27,7 @@ data class NaviampCoreEnvironment(
     val services: NaviampCoreServices,
     val initialState: NaviampCoreInitialState = NaviampCoreInitialState(),
     val actionAvailability: NaviampCoreActionAvailability = NaviampCoreActionAvailability(),
-    val applicationUpdateChecker: NaviampApplicationUpdateChecker? = null,
+    val applicationUpdateChecker: NaviampApplicationUpdateChecker? = defaultNaviampApplicationUpdateChecker(),
     val onAsyncFailure: (NaviampCoreCommand, Throwable) -> Unit = { command, cause ->
         throw IllegalStateException("Core command failed: $command", cause)
     },

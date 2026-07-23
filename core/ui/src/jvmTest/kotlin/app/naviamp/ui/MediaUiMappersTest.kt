@@ -130,6 +130,8 @@ class MediaUiMappersTest {
                 crossfade = true,
                 equalizer = true,
                 sonicSimilarity = true,
+                softwareVolumeControl = false,
+                hoverTooltips = true,
                 showMobileNetworkQuality = true,
             ),
             audioOutputDeviceSelectionAvailable = true,
@@ -145,6 +147,8 @@ class MediaUiMappersTest {
         assertTrue(ui.audioOutputDeviceSelectionAvailable)
         assertEquals(devices, ui.audioOutputDevices)
         assertTrue(ui.sonicSimilarityAvailable)
+        assertFalse(ui.softwareVolumeControlAvailable)
+        assertTrue(ui.hoverTooltipsAvailable)
         assertTrue(ui.showMobileNetworkQuality)
         assertEquals(42L, ui.downloadBytes)
     }

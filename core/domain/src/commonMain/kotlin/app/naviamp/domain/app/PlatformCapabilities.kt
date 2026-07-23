@@ -13,6 +13,7 @@ enum class PlatformCapability {
     BackgroundPlayback,
     SystemMediaControls,
     SoftwareVolumeControl,
+    HoverTooltips,
     SecureCredentialStorage,
     InsecureServerVerification,
     CustomServerCertificates,

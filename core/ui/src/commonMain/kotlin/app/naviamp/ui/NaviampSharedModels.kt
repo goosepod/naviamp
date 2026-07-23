@@ -1044,6 +1044,8 @@ data class NaviampPlaybackSettingsUi(
     val audioOutputDeviceSelectionAvailable: Boolean = false,
     val audioOutputDevices: List<AudioOutputDevice> = emptyList(),
     val sonicSimilarityAvailable: Boolean = false,
+    val softwareVolumeControlAvailable: Boolean = true,
+    val hoverTooltipsAvailable: Boolean = false,
     val showMobileNetworkQuality: Boolean = false,
     val downloadBytes: Long = 0L,
 )
@@ -1067,6 +1069,7 @@ data class NaviampShellCapabilitiesUi(
     val equalizer: Boolean = false,
     val sonicSimilarity: Boolean = false,
     val softwareVolumeControl: Boolean = true,
+    val hoverTooltips: Boolean = false,
     val downloads: Boolean = false,
     val settingsImportExport: Boolean = false,
     val applicationUpdates: Boolean = false,
@@ -1121,6 +1124,8 @@ fun PlaybackSettings.toPlaybackSettingsUi(
         audioOutputDeviceSelectionAvailable = audioOutputDeviceSelectionAvailable,
         audioOutputDevices = audioOutputDevices,
         sonicSimilarityAvailable = capabilities.sonicSimilarity,
+        softwareVolumeControlAvailable = capabilities.softwareVolumeControl,
+        hoverTooltipsAvailable = capabilities.hoverTooltips,
         showMobileNetworkQuality = capabilities.showMobileNetworkQuality,
         downloadBytes = downloadBytes,
     )

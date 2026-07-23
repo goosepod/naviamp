@@ -10,6 +10,7 @@ import app.naviamp.domain.app.PlatformCapabilityStatus
 val DesktopPlatformCapabilities: PlatformCapabilities = listOf(
     PlatformCapability.BackgroundPlayback,
     PlatformCapability.SoftwareVolumeControl,
+    PlatformCapability.HoverTooltips,
     PlatformCapability.SecureCredentialStorage,
     PlatformCapability.InsecureServerVerification,
     PlatformCapability.CustomServerCertificates,

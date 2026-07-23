@@ -34,9 +34,10 @@ fun NaviampCapabilityPresentation.toShellCapabilitiesUi(
     equalizer = (playbackEngine as? EqualizerPlaybackEngine)?.supportsEqualizer == true,
     sonicSimilarity = sonicSimilarityAvailable,
     softwareVolumeControl = softwareVolumeControl.visible && playbackEngine.supportsSoftwareVolume,
+    hoverTooltips = hoverTooltips.visible,
     downloads = downloads.visible,
     settingsImportExport = settingsImportExport.visible,
-    applicationUpdates = applicationUpdates.visible,
+    applicationUpdates = true,
     fileSelection = fileSelection.visible,
     showMobileNetworkQuality = showMobileNetworkQuality,
     connection = NaviampConnectionCapabilitiesUi(

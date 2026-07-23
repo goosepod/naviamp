@@ -2014,7 +2014,8 @@ fun NaviampSettingsContent(
         onRefreshLibrary = maintenanceActions.onRefreshLibrary,
         onResetDatabase = maintenanceActions.onResetDatabase,
         onOpenStatsForNerds = maintenanceActions.onOpenStatsForNerds,
-        showTooltipPreference = true,
+        showSoftwareVolumePreference = playback.softwareVolumeControlAvailable,
+        showTooltipPreference = playback.hoverTooltipsAvailable,
     )
 }
 

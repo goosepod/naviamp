@@ -201,6 +201,7 @@ fun NaviampSharedSettingsContent(
     downloadBytes: Long = 0L,
     showQueueBehavior: Boolean = true,
     showDebugLogging: Boolean = true,
+    showSoftwareVolumePreference: Boolean = true,
     showTooltipPreference: Boolean = false,
     showMobileNetworkQuality: Boolean = false,
     downloadLocations: List<NaviampStorageLocationUi> = emptyList(),
@@ -270,6 +271,7 @@ fun NaviampSharedSettingsContent(
                     cacheSettings = cacheSettings,
                     showQueueBehavior = showQueueBehavior,
                     showLrclibLyrics = true,
+                    showSoftwareVolumePreference = showSoftwareVolumePreference,
                     showTooltipPreference = showTooltipPreference,
                     supportsSonicSimilarity = supportsSonicSimilarity,
                     onInterfaceSettingsChanged = onInterfaceSettingsChanged,
@@ -395,6 +397,7 @@ fun NaviampExperienceSettingsSection(
     cacheSettings: CacheSettings,
     showQueueBehavior: Boolean,
     showLrclibLyrics: Boolean,
+    showSoftwareVolumePreference: Boolean,
     showTooltipPreference: Boolean = false,
     supportsSonicSimilarity: Boolean,
     onInterfaceSettingsChanged: (InterfaceSettings) -> Unit,
@@ -411,6 +414,7 @@ fun NaviampExperienceSettingsSection(
                 interfaceSettings = interfaceSettings,
                 playbackSettings = playbackSettings,
                 cacheSettings = cacheSettings,
+                showSoftwareVolumePreference = showSoftwareVolumePreference,
                 onInterfaceSettingsChanged = onInterfaceSettingsChanged,
                 onPlaybackSettingsChanged = onPlaybackSettingsChanged,
                 onCacheSettingsChanged = onCacheSettingsChanged,
@@ -964,6 +968,7 @@ private fun TrackSwipeAction.subtitle(): String = when (this) {
 private fun NowPlayingDisplaySettings(
     colors: NaviampColors,
     interfaceSettings: InterfaceSettings,
+    showSoftwareVolumePreference: Boolean,
     onInterfaceSettingsChanged: (InterfaceSettings) -> Unit,
 ) {
     val settings = interfaceSettings.normalized().nowPlaying
@@ -983,12 +988,14 @@ private fun NowPlayingDisplaySettings(
         label = stringResource(Res.string.settings_now_playing_show_audio_info),
         onCheckedChange = { enabled -> update { it.copy(showAudioInfo = enabled) } },
     )
-    SettingsCheckboxRow(
-        colors = colors,
-        checked = settings.showVolumeBar,
-        label = stringResource(Res.string.settings_now_playing_show_volume_bar),
-        onCheckedChange = { enabled -> update { it.copy(showVolumeBar = enabled) } },
-    )
+    if (showSoftwareVolumePreference) {
+        SettingsCheckboxRow(
+            colors = colors,
+            checked = settings.showVolumeBar,
+            label = stringResource(Res.string.settings_now_playing_show_volume_bar),
+            onCheckedChange = { enabled -> update { it.copy(showVolumeBar = enabled) } },
+        )
+    }
 
     SettingsCheckboxRow(
         colors = colors,
@@ -3205,6 +3212,7 @@ private fun PlayerExperienceSettings(
     interfaceSettings: InterfaceSettings,
     playbackSettings: PlaybackSettings,
     cacheSettings: CacheSettings,
+    showSoftwareVolumePreference: Boolean,
     onInterfaceSettingsChanged: (InterfaceSettings) -> Unit,
     onPlaybackSettingsChanged: (PlaybackSettings) -> Unit,
     onCacheSettingsChanged: (CacheSettings) -> Unit,
@@ -3271,6 +3279,7 @@ private fun PlayerExperienceSettings(
     NowPlayingDisplaySettings(
         colors = colors,
         interfaceSettings = interfaceSettings,
+        showSoftwareVolumePreference = showSoftwareVolumePreference,
         onInterfaceSettingsChanged = onInterfaceSettingsChanged,
     )
     SettingsRow(

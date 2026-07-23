@@ -10,6 +10,7 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.ui.platform.LocalUriHandler
+import app.naviamp.domain.network.KtorSharedHttpClient
 import app.naviamp.domain.network.SharedHttpClient
 import kotlinx.coroutines.delay
 import kotlinx.serialization.json.Json
@@ -31,6 +32,16 @@ class HttpNaviampApplicationUpdateChecker(
 ) : NaviampApplicationUpdateChecker {
     override suspend fun latestUpdate(currentVersion: String): NaviampAvailableUpdate? =
         checkForNaviampUpdate(currentVersion, client)
+}
+
+/** Update discovery is portable product behavior; every host gets the same checker by default. */
+fun defaultNaviampApplicationUpdateChecker(): NaviampApplicationUpdateChecker =
+    NaviampApplicationUpdateChecker { currentVersion ->
+        DefaultNaviampApplicationUpdateChecker.latestUpdate(currentVersion)
+    }
+
+private val DefaultNaviampApplicationUpdateChecker by lazy {
+    HttpNaviampApplicationUpdateChecker(KtorSharedHttpClient())
 }
 
 @Composable

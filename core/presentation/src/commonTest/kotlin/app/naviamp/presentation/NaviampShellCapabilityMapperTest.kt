@@ -40,6 +40,7 @@ class NaviampShellCapabilityMapperTest {
             .withStatus(PlatformCapability.FileSelection, PlatformCapabilityStatus.Available)
             .withStatus(PlatformCapability.CustomServerCertificates, PlatformCapabilityStatus.Available)
             .withStatus(PlatformCapability.SoftwareVolumeControl, PlatformCapabilityStatus.Available)
+            .withStatus(PlatformCapability.HoverTooltips, PlatformCapabilityStatus.Available)
         val capabilities = NaviampCapabilityPresentation(platform).toShellCapabilitiesUi(
             playbackEngine = TestPlaybackEngine,
             sonicSimilarityAvailable = true,
@@ -49,13 +50,14 @@ class NaviampShellCapabilityMapperTest {
         assertTrue(capabilities.downloads)
         assertTrue(capabilities.settingsImportExport)
         assertTrue(capabilities.fileSelection)
-        assertFalse(capabilities.applicationUpdates)
+        assertTrue(capabilities.applicationUpdates)
         assertTrue(capabilities.replayGain)
         assertTrue(capabilities.gapless)
         assertTrue(capabilities.crossfade)
         assertTrue(capabilities.equalizer)
         assertTrue(capabilities.sonicSimilarity)
         assertTrue(capabilities.softwareVolumeControl)
+        assertTrue(capabilities.hoverTooltips)
         assertTrue(capabilities.showMobileNetworkQuality)
         assertFalse(capabilities.connection.insecureServerVerification)
         assertTrue(capabilities.connection.customServerCertificates)
@@ -70,6 +72,8 @@ class NaviampShellCapabilityMapperTest {
         )
 
         assertFalse(capabilities.softwareVolumeControl)
+        assertFalse(capabilities.hoverTooltips)
+        assertTrue(capabilities.applicationUpdates)
     }
 }
 
