@@ -202,6 +202,7 @@ class NaviampCore private constructor(
                 services.downloads.playback,
                 services.downloads.network,
             )
+            var publishPlaylistQueueUpdate: () -> Unit = {}
             val playlistTransactions = NaviampCorePlaylistTransactionController(
                 stateStore,
                 services.content.providerSource,
@@ -216,6 +217,7 @@ class NaviampCore private constructor(
                     val update = queue.appendTracks(tracks, "playlist tracks")
                     if (update.tracksChanged) {
                         services.playback.effects.applyQueue(update.queue, clearPreparedNext = true)
+                        publishPlaylistQueueUpdate()
                     }
                 },
                 NaviampCorePlaylistDownloadPort(downloads::downloadPlaylist),
@@ -253,6 +255,7 @@ class NaviampCore private constructor(
                 services.downloads.network,
                 radio::stations,
             )
+            publishPlaylistQueueUpdate = nowPlayingPresenter::publish
             val playback = NaviampCorePlaybackController(
                 scope,
                 stateStore,

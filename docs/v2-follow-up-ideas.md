@@ -59,6 +59,20 @@ This document tracks useful ideas that come up during the v2 migration but are n
 - **Areas to review:** Page and section titles, row heights, metadata hierarchy, icon-to-label spacing, forms and buttons, compact versus full Now Playing, bottom navigation, narrow Desktop windows, mobile safe areas, text truncation, and dynamic type or system font scaling.
 - **Implementation notes to investigate later:** Capture representative screenshots at agreed viewport sizes on all platforms, define shared typography and spacing tokens before changing individual screens, preserve accessibility minimums, and use platform-specific adjustments only where native font metrics or input conventions require them.
 
+### Configurable Home Sections and Layouts
+
+- **Status:** Idea
+- **Concept:** Add an Experience setting that lets each user choose which sections appear on Home, reorder those sections, and select a list or grid presentation for each section where both layouts make sense.
+- **Why it may fit:** Home contains several useful discovery and library summaries, but their value and preferred density vary by listener. Per-section choices would let users prioritize the content they use without requiring separate platform-specific Home screens.
+- **Presentation reference:** Reuse the shared list/grid choice already available for album lists on artist detail pages, adapting it only where a Home section's content and interaction model support both forms.
+- **Questions to answer:**
+  - Which Home sections are required, optional, or capability-gated, and what default order preserves the current experience?
+  - Should hidden sections retain their layout and position settings, and how should new sections be inserted after an upgrade?
+  - Which sections genuinely support both list and grid layouts without losing important track, playlist, radio, or discovery actions?
+  - How should reorder controls work accessibly with keyboard, touch, screen readers, and narrow screens?
+  - Should these preferences participate in folder-based Settings Sync, and how should older clients preserve unknown section IDs?
+- **Shared-architecture requirement:** Store ordered section IDs, visibility, and per-section layout in shared settings; validate and migrate them in Core; and render the same configured Home composition on Android, Desktop, and iOS.
+
 ### Configurable Keyboard Playback Controls
 
 - **Status:** Idea

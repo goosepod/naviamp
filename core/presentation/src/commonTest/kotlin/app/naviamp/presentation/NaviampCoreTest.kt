@@ -162,11 +162,18 @@ class NaviampCoreTest {
     fun playlistAddToQueueUsesTheCoreQueueCoordinator() = runTest {
         val provider = FakeCoreMediaProvider()
         val effects = FakeCorePlaybackEffects()
+        val current = coreTrack("current")
         val defaults = fakeCoreServices(provider)
         val core = NaviampCore.create(
             scope = this,
             services = defaults.copy(
                 playback = defaults.playback.copy(effects = effects),
+            ),
+            initialState = NaviampCoreInitialState(
+                playback = NaviampLivePlaybackState(
+                    currentTrack = current,
+                    queue = PlaybackQueue(listOf(current), currentIndex = 0),
+                ),
             ),
         )
 
@@ -181,7 +188,14 @@ class NaviampCoreTest {
             ),
         )
 
-        assertEquals(listOf(provider.track.id.value), effects.appliedQueues.single().tracks.map { it.id.value })
+        assertEquals(
+            listOf(current.id.value, provider.track.id.value),
+            effects.appliedQueues.single().tracks.map { it.id.value },
+        )
+        assertEquals(
+            listOf(provider.track.title),
+            assertNotNull(core.state.value.shell.nowPlaying).upNext.map { it.title },
+        )
         assertEquals("Connected.", core.state.value.shell.playlistDetail.status)
     }
 

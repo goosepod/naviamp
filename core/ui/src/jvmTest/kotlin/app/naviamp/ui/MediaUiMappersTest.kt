@@ -16,6 +16,7 @@ import app.naviamp.domain.cache.DownloadJob
 import app.naviamp.domain.cache.DownloadJobItem
 import app.naviamp.domain.cache.DownloadJobItemStatus
 import app.naviamp.domain.cache.DownloadJobStatus
+import app.naviamp.domain.home.HomeContent
 import app.naviamp.domain.media.RelatedTracksSource
 import app.naviamp.domain.queue.PlaybackQueue
 import app.naviamp.domain.queue.RepeatMode
@@ -29,6 +30,20 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class MediaUiMappersTest {
+    @Test
+    fun recentlyPlayedRowsDoNotExposePlayHistoryMetadata() {
+        val recent = track("recent").copy(
+            playCount = 7,
+            lastPlayedAtIso8601 = "2026-07-22T12:00:00Z",
+        )
+
+        val row = HomeContent(recentlyPlayedTracks = listOf(recent))
+            .toSharedHomeUi(coverArtUrl = { null })
+            .recentlyPlayedTracks.single()
+
+        assertEquals("2:05", row.meta)
+    }
+
     @Test
     fun connectionSettingsActionsUpdateTheCurrentFormAsOneValue() {
         val original = ConnectionFormState(serverUrl = "https://old", username = "alice")

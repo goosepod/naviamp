@@ -10,6 +10,8 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.darkColorScheme
+import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Modifier
@@ -38,7 +40,7 @@ internal fun DesktopStatsForNerdsWindow(
         LaunchedEffect(window, darkTitleBar) {
             configureDesktopWindowAppearance(window, darkTitleBar)
         }
-        MaterialTheme {
+        MaterialTheme(colorScheme = if (darkTitleBar) darkColorScheme() else lightColorScheme()) {
             Surface(Modifier.fillMaxSize()) {
                 Column(
                     modifier = Modifier.fillMaxSize().padding(16.dp),
