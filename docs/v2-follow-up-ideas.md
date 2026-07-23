@@ -59,6 +59,21 @@ This document tracks useful ideas that come up during the v2 migration but are n
 - **Areas to review:** Page and section titles, row heights, metadata hierarchy, icon-to-label spacing, forms and buttons, compact versus full Now Playing, bottom navigation, narrow Desktop windows, mobile safe areas, text truncation, and dynamic type or system font scaling.
 - **Implementation notes to investigate later:** Capture representative screenshots at agreed viewport sizes on all platforms, define shared typography and spacing tokens before changing individual screens, preserve accessibility minimums, and use platform-specific adjustments only where native font metrics or input conventions require them.
 
+### Word-by-Word Karaoke Lyrics
+
+- **Status:** Idea
+- **Concept:** Add support for Navidrome's word-by-word, or karaoke, lyrics so the active word can be highlighted within the current lyric line as playback advances.
+- **Why it may fit:** Naviamp already supports synchronized line lyrics, offsets, prefetch, and cached lyric sidecars. Preserving word-level timing would make the lyrics view more expressive while fitting the existing playback-position and cache pipeline.
+- **Behavior and presentation questions:**
+  - Which Navidrome and OpenSubsonic response versions expose word timing, and how should Naviamp distinguish word-synced, line-synced, and unsynced lyrics?
+  - Should the active word use a progressive fill, a discrete highlight, or a configurable presentation, and how should it behave with wrapping, punctuation, instrumental gaps, translations, and multiple lyric voices?
+  - How should manual lyric offsets apply to both line and word timestamps without accumulating rounding or synchronization errors?
+  - What accessibility behavior is needed for reduced motion, contrast, font scaling, screen readers, and users who prefer the existing line-only display?
+  - Should karaoke rendering be automatic when word timing exists, or controlled by a Lyrics setting with a line-synchronized fallback?
+- **Caching and compatibility:** Preserve word timing in the shared lyric model and persistent sidecar cache rather than flattening it into line-only text. Cache identity, prefetch, offline playback, source priority, and invalidation must follow the same rules as existing lyrics. Older cached entries and providers without word timing must continue to render as line-synced or plain lyrics without migration failures.
+- **Shared-architecture requirement:** Parse provider-specific word timing in the Navidrome provider's `commonMain` mapping, represent timing and fallback semantics in shared domain/storage models, and implement playback-position selection and rendering in shared Core/UI. Platform hosts should not interpret or animate lyric timing independently.
+- **Implementation notes to investigate later:** Capture representative Navidrome responses, including malformed and partially timed lyrics; confirm API/version capability detection; define a backward-compatible serialized cache model; and test seeking, pause/resume, crossfade transitions, track replacement, offsets, prefetch cancellation, and offline reuse before enabling karaoke presentation by default.
+
 ### Configurable Home Sections and Layouts
 
 - **Status:** Idea
