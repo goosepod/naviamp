@@ -1244,11 +1244,48 @@ fun SonicMixBuilderContent(
                 }
             }
         }
-        Text(
-            stringResource(Res.string.mix_seed_tracks),
-            color = colors.primaryText,
-            fontSize = 14.sp,
-            fontWeight = FontWeight.SemiBold,
+        if (builder.selectedTracks.isNotEmpty()) {
+            BuilderTrackSectionTitle(
+                label = stringResource(Res.string.mix_selected_seed_tracks),
+                count = builder.selectedTracks.size,
+                colors = colors,
+            )
+            Column(
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(Color.Black.copy(alpha = 0.16f))
+                    .padding(horizontal = 8.dp, vertical = 4.dp),
+            ) {
+                builder.selectedTracks.forEach { track ->
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        TrackRow(
+                            track = track,
+                            colors = colors,
+                            onTrackAction = null,
+                            canSelect = false,
+                            canStartRadio = false,
+                            canAddToQueue = false,
+                            canDownload = false,
+                            canAddToPlaylist = false,
+                            modifier = Modifier.weight(1f),
+                        )
+                        BuilderRemoveTrackButton(
+                            contentDescription = "Remove ${track.title} from selected seed tracks",
+                            onClick = { onTrackRemoved(track) },
+                        )
+                    }
+                }
+            }
+        }
+        BuilderTrackSectionTitle(
+            label = stringResource(Res.string.mix_find_seed_tracks),
+            colors = colors,
         )
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
             NaviampTextField(
@@ -1267,34 +1304,20 @@ fun SonicMixBuilderContent(
                 )
             }
         }
-        if (builder.selectedTracks.isNotEmpty()) {
-            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                builder.selectedTracks.forEach { track ->
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.fillMaxWidth(),
-                    ) {
-                        TrackRow(
-                            track = track,
-                            colors = colors,
-                            onTrackAction = null,
-                            canSelect = false,
-                            canStartRadio = false,
-                            canAddToQueue = false,
-                            canDownload = false,
-                            canAddToPlaylist = false,
-                            modifier = Modifier.weight(1f),
-                        )
-                        TextButton(onClick = { onTrackRemoved(track) }) {
-                            Text(stringResource(Res.string.mix_remove), fontSize = 12.sp)
-                        }
-                    }
-                }
-            }
-        }
         if (builder.suggestedTracks.isNotEmpty()) {
-            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            BuilderTrackSectionTitle(
+                label = stringResource(Res.string.mix_search_results),
+                count = builder.suggestedTracks.size,
+                colors = colors,
+            )
+            Column(
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(Color.Black.copy(alpha = 0.08f))
+                    .padding(horizontal = 8.dp, vertical = 4.dp),
+            ) {
                 builder.suggestedTracks.forEach { track ->
                     TrackRow(
                         track = track,
@@ -1421,8 +1444,50 @@ private fun SonicPathTrackPicker(
     onTrackSelected: (SharedTrackRowUi) -> Unit,
     onTrackCleared: () -> Unit,
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+    Column(
+        verticalArrangement = Arrangement.spacedBy(6.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(8.dp))
+            .background(Color.Black.copy(alpha = 0.12f))
+            .padding(10.dp),
+    ) {
         Text(title, color = colors.primaryText, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+        selectedTrack?.let { track ->
+            BuilderTrackSectionTitle(
+                label = stringResource(Res.string.sonic_path_selected_track),
+                colors = colors,
+            )
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(6.dp))
+                    .background(Color.Black.copy(alpha = 0.14f))
+                    .padding(horizontal = 8.dp, vertical = 4.dp),
+            ) {
+                TrackRow(
+                    track = track,
+                    colors = colors,
+                    onTrackAction = null,
+                    canSelect = false,
+                    canStartRadio = false,
+                    canAddToQueue = false,
+                    canDownload = false,
+                    canAddToPlaylist = false,
+                    modifier = Modifier.weight(1f),
+                )
+                BuilderRemoveTrackButton(
+                    contentDescription = "Remove ${track.title} from $title",
+                    onClick = onTrackCleared,
+                )
+            }
+        }
+        BuilderTrackSectionTitle(
+            label = stringResource(Res.string.sonic_path_find_track),
+            colors = colors,
+        )
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
             NaviampTextField(
                 value = query,
@@ -1440,42 +1505,72 @@ private fun SonicPathTrackPicker(
                 )
             }
         }
-        selectedTrack?.let { track ->
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.fillMaxWidth(),
+        if (suggestions.isNotEmpty()) {
+            BuilderTrackSectionTitle(
+                label = stringResource(Res.string.mix_search_results),
+                count = suggestions.size,
+                colors = colors,
+            )
+            Column(
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(6.dp))
+                    .background(Color.Black.copy(alpha = 0.08f))
+                    .padding(horizontal = 8.dp, vertical = 4.dp),
             ) {
-                TrackRow(
-                    track = track,
-                    colors = colors,
-                    onTrackAction = null,
-                    canSelect = false,
-                    canStartRadio = false,
-                    canAddToQueue = false,
-                    canDownload = false,
-                    canAddToPlaylist = false,
-                    modifier = Modifier.weight(1f),
-                )
-                TextButton(onClick = onTrackCleared) {
-                    Text(stringResource(Res.string.common_clear), fontSize = 12.sp)
+                suggestions.forEach { track ->
+                    TrackRow(
+                        track = track,
+                        colors = colors,
+                        onTrackAction = trackSelectionAction(onTrackSelected),
+                        canSelect = true,
+                        canStartRadio = false,
+                        canAddToQueue = false,
+                        canDownload = false,
+                        canAddToPlaylist = false,
+                    )
                 }
             }
         }
-        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            suggestions.forEach { track ->
-                TrackRow(
-                    track = track,
-                    colors = colors,
-                    onTrackAction = trackSelectionAction(onTrackSelected),
-                    canSelect = true,
-                    canStartRadio = false,
-                    canAddToQueue = false,
-                    canDownload = false,
-                    canAddToPlaylist = false,
-                )
-            }
-        }
+    }
+}
+
+@Composable
+private fun BuilderTrackSectionTitle(
+    label: String,
+    colors: NaviampColors,
+    count: Int? = null,
+) {
+    Text(
+        text = count?.let { "$label ($it)" } ?: label,
+        color = colors.secondaryText,
+        fontSize = 12.sp,
+        fontWeight = FontWeight.SemiBold,
+    )
+}
+
+@Composable
+private fun BuilderRemoveTrackButton(
+    contentDescription: String,
+    onClick: () -> Unit,
+) {
+    Button(
+        onClick = onClick,
+        colors = ButtonDefaults.buttonColors(
+            containerColor = Color(0xFF9B2C2C),
+            contentColor = Color.White,
+        ),
+        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 0.dp),
+        modifier = Modifier.height(36.dp),
+    ) {
+        Icon(
+            imageVector = NaviampIcons.Trash,
+            contentDescription = contentDescription,
+            modifier = Modifier.size(16.dp),
+        )
+        Spacer(Modifier.width(6.dp))
+        Text(stringResource(Res.string.mix_remove), fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
     }
 }
 

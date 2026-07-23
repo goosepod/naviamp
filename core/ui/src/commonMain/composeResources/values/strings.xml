@@ -378,6 +378,9 @@
     <string name="mix_add_to_queue">Add to Queue</string>
     <string name="mix_remove">Remove</string>
     <string name="mix_seed_tracks">Seed Tracks</string>
+    <string name="mix_selected_seed_tracks">Selected Seed Tracks</string>
+    <string name="mix_find_seed_tracks">Find Seed Tracks</string>
+    <string name="mix_search_results">Search Results</string>
     <string name="mix_target_tracks">Target tracks</string>
     <string name="mix_bias">Bias</string>
     <string name="mix_building">Building mix...</string>
@@ -391,6 +394,8 @@
     <string name="sonic_path_title">Sonic Path</string>
     <string name="sonic_path_start_track">Start Track</string>
     <string name="sonic_path_destination_track">Destination Track</string>
+    <string name="sonic_path_selected_track">Selected Track</string>
+    <string name="sonic_path_find_track">Find Track</string>
     <string name="sonic_path_max_tracks">Max tracks</string>
     <string name="sonic_path_finding">Finding path...</string>
     <string name="sonic_path_find">Find Path</string>
