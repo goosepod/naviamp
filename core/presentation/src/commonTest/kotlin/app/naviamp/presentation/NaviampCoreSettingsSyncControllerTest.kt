@@ -153,6 +153,34 @@ class NaviampCoreSettingsSyncControllerTest {
         assertEquals(null, store.state.value.settingsSync.directoryPath)
         assertEquals("Settings imported.", store.state.value.settingsSync.status)
     }
+
+    @Test
+    fun inboundDocumentIntentUsesTheSameCommonImportTransactionWithoutOpeningAPicker() = runTest {
+        val store = NaviampCoreStateStore()
+        val port = RecordingSettingsSyncPort().apply {
+            document = SettingsSyncDocument(updatedAtEpochMillis = 200L)
+        }
+        var runtime = SettingsSyncRuntimeState()
+        val controller = NaviampCoreSettingsSyncController(
+            store,
+            NaviampCoreSettingsSyncServices(
+                controller = NaviampSettingsSyncController(
+                    deviceId = "test",
+                    state = { runtime },
+                    saveState = { runtime = it },
+                    nowEpochMillis = { 100L },
+                    snapshot = { SettingsSyncLocalSnapshot() },
+                    applyDocument = {},
+                ),
+                port = port,
+            ),
+        )
+
+        controller.execute(NaviampCoreCommand.SettingsSync.ImportFilePath("content://shared/settings"))
+
+        assertEquals(listOf("read-file:content://shared/settings"), port.operations)
+        assertEquals("Settings imported.", store.state.value.settingsSync.status)
+    }
 }
 
 private class RecordingSettingsSyncPort : NaviampCoreSettingsSyncPort {

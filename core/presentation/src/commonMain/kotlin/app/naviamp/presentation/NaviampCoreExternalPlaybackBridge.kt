@@ -58,6 +58,70 @@ data class NaviampExternalPlaybackSnapshot(
         get() = current != null && state != NaviampExternalPlaybackState.Idle
 }
 
+data class NaviampExternalPlaybackPublication(
+    val sessionContent: Boolean,
+    val playbackState: Boolean,
+    val browseCatalog: Boolean,
+    val notification: Boolean,
+)
+
+/**
+ * Shared policy for publishing Core playback state to comparatively expensive native surfaces.
+ * A playing MediaSession extrapolates position from its timestamp, so hosts do not need to rebuild
+ * metadata, queues, notifications, and browse trees for every Core progress tick.
+ */
+class NaviampExternalPlaybackPublicationPlanner(
+    private val maximumPositionDriftMillis: Long = 5_000L,
+) {
+    private var previous: NaviampExternalPlaybackSnapshot? = null
+    private var lastPublishedPositionMillis: Long? = null
+
+    fun reset() {
+        previous = null
+        lastPublishedPositionMillis = null
+    }
+
+    fun plan(next: NaviampExternalPlaybackSnapshot): NaviampExternalPlaybackPublication {
+        val prior = previous
+        val sessionContent = prior == null ||
+            prior.current != next.current ||
+            prior.queue != next.queue ||
+            prior.durationMillis != next.durationMillis
+        val semanticPlaybackChange = prior == null ||
+            prior.state != next.state ||
+            prior.currentQueueIndex != next.currentQueueIndex ||
+            prior.canPlayPause != next.canPlayPause ||
+            prior.hasPrevious != next.hasPrevious ||
+            prior.hasNext != next.hasNext ||
+            prior.favorite != next.favorite ||
+            prior.canFavorite != next.canFavorite ||
+            prior.shuffleActive != next.shuffleActive ||
+            prior.repeatMode != next.repeatMode
+        val positionDrift = when {
+            next.positionMillis == null -> lastPublishedPositionMillis != null
+            lastPublishedPositionMillis == null -> true
+            else -> kotlin.math.abs(next.positionMillis - lastPublishedPositionMillis!!) >= maximumPositionDriftMillis
+        }
+        val playbackState = semanticPlaybackChange || positionDrift
+        val browseCatalog = prior == null ||
+            prior.current?.mediaId != next.current?.mediaId ||
+            prior.queue != next.queue
+        val notification = prior == null ||
+            prior.current != next.current ||
+            prior.state != next.state ||
+            prior.favorite != next.favorite
+
+        previous = next
+        if (playbackState) lastPublishedPositionMillis = next.positionMillis
+        return NaviampExternalPlaybackPublication(
+            sessionContent = sessionContent,
+            playbackState = playbackState,
+            browseCatalog = browseCatalog,
+            notification = notification,
+        )
+    }
+}
+
 /**
  * Host-neutral projection used by lock screens, media sessions, cars, and other external controls.
  * Native hosts publish this model and return commands; they never reconstruct playback policy.

@@ -108,6 +108,51 @@ class NaviampCoreExternalPlaybackBridgeTest {
         assertFalse(bridge.playSearch("Missing"))
         assertIs<NaviampCoreCommand.Media.TrackAction>(commands.single())
     }
+
+    @Test
+    fun externalPublicationPlannerSuppressesProgressTickNativeChurn() {
+        val planner = NaviampExternalPlaybackPublicationPlanner(maximumPositionDriftMillis = 5_000L)
+        val current = NaviampExternalMediaItem("track", "Track", "Artist")
+        val initial = NaviampExternalPlaybackSnapshot(
+            state = NaviampExternalPlaybackState.Playing,
+            current = current,
+            queue = listOf(current),
+            positionMillis = 10_000L,
+        )
+
+        val first = planner.plan(initial)
+        val progressTick = planner.plan(initial.copy(positionMillis = 10_250L))
+        val positionRefresh = planner.plan(initial.copy(positionMillis = 15_100L))
+
+        assertTrue(first.sessionContent && first.playbackState && first.browseCatalog && first.notification)
+        assertFalse(progressTick.sessionContent)
+        assertFalse(progressTick.playbackState)
+        assertFalse(progressTick.browseCatalog)
+        assertFalse(progressTick.notification)
+        assertTrue(positionRefresh.playbackState)
+        assertFalse(positionRefresh.sessionContent)
+        assertFalse(positionRefresh.notification)
+    }
+
+    @Test
+    fun externalPublicationPlannerPublishesSemanticChangesImmediately() {
+        val planner = NaviampExternalPlaybackPublicationPlanner()
+        val current = NaviampExternalMediaItem("track", "Track", "Artist")
+        val playing = NaviampExternalPlaybackSnapshot(
+            state = NaviampExternalPlaybackState.Playing,
+            current = current,
+            queue = listOf(current),
+            positionMillis = 10_000L,
+        )
+        planner.plan(playing)
+
+        val paused = planner.plan(playing.copy(state = NaviampExternalPlaybackState.Paused, positionMillis = 10_100L))
+
+        assertTrue(paused.playbackState)
+        assertTrue(paused.notification)
+        assertFalse(paused.sessionContent)
+        assertFalse(paused.browseCatalog)
+    }
 }
 
 private fun bridge(

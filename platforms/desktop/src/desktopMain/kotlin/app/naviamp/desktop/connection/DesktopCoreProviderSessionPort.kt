@@ -20,6 +20,7 @@ fun desktopCoreProviderSessionPort(
     nowEpochMillis: () -> Long = DesktopSystemClock::nowEpochMillis,
 ): DesktopCoreProviderSessionPort = NavidromeCoreProviderSessionPort(
     mediaSources = storage,
+    initialSource = storage.latestMediaSource(),
     sessionOpener = desktopNavidromeSessionOpener(
         cacheMaintenanceRepository = cacheMaintenanceRepository,
         providerMediaSourceRepository = storage,

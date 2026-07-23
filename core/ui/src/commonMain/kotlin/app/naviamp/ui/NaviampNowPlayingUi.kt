@@ -616,7 +616,10 @@ private fun NowPlayingDetails(
     val titleFontSize = if (useLargeSizing) 19 else 15
     val titleTextHeight = if (useLargeSizing) 23.dp else 18.dp
     val metadataFontSize = if (useLargeSizing) 16 else 13
-    val metadataLineHeight = if (useLargeSizing) 18.sp else 14.sp
+    // Leave room for descenders and honor the user's font scale. Converting the
+    // font size's raw numeric value directly to dp clips glyphs such as g, p,
+    // and y on Android because scaled text can be taller than its fixed box.
+    val metadataTextHeight = with(LocalDensity.current) { (metadataFontSize + 3).sp.toDp() }
     val audioInfoFontSize = if (useLargeSizing) 14.sp else 11.sp
     val ratingIconSize = if (useLargeSizing) 21.dp else 17.dp
     val ratingFavoriteSlotWidth = if (useLargeSizing) 30.dp else 24.dp
@@ -746,7 +749,7 @@ private fun NowPlayingDetails(
                             text = nowPlaying.subtitle,
                             color = colors.secondaryText,
                             fontSize = metadataFontSize,
-                            height = metadataLineHeight.value.dp,
+                            height = metadataTextHeight,
                             marqueeEnabled = displaySettings.scrollArtistName && !nowPlaying.isLive,
                             modifier = Modifier.clickable(
                                 enabled = !nowPlaying.isLive,
@@ -767,7 +770,7 @@ private fun NowPlayingDetails(
                         text = albumText,
                         color = colors.secondaryText.copy(alpha = 0.84f),
                         fontSize = metadataFontSize,
-                        height = metadataLineHeight.value.dp,
+                        height = metadataTextHeight,
                         marqueeEnabled = displaySettings.scrollAlbumName && !nowPlaying.isLive,
                         modifier = Modifier.clickable(
                             enabled = !nowPlaying.isLive &&

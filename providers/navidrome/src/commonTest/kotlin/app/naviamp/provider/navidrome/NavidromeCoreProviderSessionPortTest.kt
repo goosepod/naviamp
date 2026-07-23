@@ -19,6 +19,19 @@ import kotlin.test.assertTrue
 
 class NavidromeCoreProviderSessionPortTest {
     @Test
+    fun savedStartupSourceImmediatelySuppliesTheSharedProviderAndSelectedInventory() {
+        val source = savedSource()
+        val port = NavidromeCoreProviderSessionPort(
+            mediaSources = TestMediaSourceRepository(source),
+            sessionOpener = NavidromeProviderSessionOpener { _, _ -> error("not used") },
+            initialSource = source,
+        )
+
+        assertNotNull(port.providerSource.current())
+        assertEquals("source-1", port.initialInventory().currentSourceId)
+    }
+
+    @Test
     fun activeSessionSuppliesSmartPlaylistProviderAndPersistsItsNativeToken() = runTest {
         val repository = TestMediaSourceRepository(savedSource())
         val port = testPort(repository)

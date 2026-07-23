@@ -8,7 +8,7 @@ import app.naviamp.domain.TrackId
 import app.naviamp.domain.settings.PlaybackSessionSettings
 import app.naviamp.storage.NaviampStorageQueries
 import app.naviamp.storage.Playback_history
-import kotlinx.serialization.encodeToString
+import app.naviamp.storage.StoragePlaybackSessionStore
 import kotlinx.serialization.json.Json
 
 class AndroidPlaybackStore(
@@ -16,24 +16,13 @@ class AndroidPlaybackStore(
     private val json: Json,
     private val nowMillis: () -> Long,
 ) {
+    private val playbackSessions = StoragePlaybackSessionStore(queries, nowMillis, json)
+
     fun loadPlaybackSession(sourceId: String?): PlaybackSessionSettings? =
-        queries.selectPlaybackSession(requirePlaybackSessionSourceId(sourceId))
-            .executeAsOneOrNull()
-            ?.let { payload ->
-                runCatching { json.decodeFromString<PlaybackSessionSettings>(payload) }.getOrNull()
-            }
+        playbackSessions.loadPlaybackSession(sourceId?.takeIf(String::isNotBlank))
 
     fun savePlaybackSession(session: PlaybackSessionSettings?, sourceId: String?) {
-        val requiredSourceId = requirePlaybackSessionSourceId(sourceId)
-        if (session == null) {
-            queries.deletePlaybackSession(requiredSourceId)
-            return
-        }
-        queries.upsertPlaybackSession(
-            source_id = requiredSourceId,
-            payload = json.encodeToString(session),
-            updated_at_epoch_millis = nowMillis(),
-        )
+        playbackSessions.savePlaybackSession(session, sourceId?.takeIf(String::isNotBlank))
     }
 
     fun playbackHistory(sourceId: String, limit: Int): List<AndroidPlaybackHistoryItem> =
@@ -69,11 +58,6 @@ class AndroidPlaybackStore(
     fun clearPlaybackHistory() {
         queries.clearPlaybackHistory()
     }
-
-    private fun requirePlaybackSessionSourceId(sourceId: String?): String =
-        requireNotNull(sourceId?.takeIf { it.isNotBlank() }) {
-            "Android playback sessions require a sourceId."
-        }
 }
 
 data class AndroidPlaybackHistoryItem(

@@ -81,6 +81,7 @@ sealed interface NaviampCoreCommand {
         data object Export : SettingsSync
         data object Import : SettingsSync
         data object ImportFile : SettingsSync
+        data class ImportFilePath(val path: String) : SettingsSync
         data object ChooseFolder : SettingsSync
         data object ImportFolder : SettingsSync
         data object ExportFolder : SettingsSync

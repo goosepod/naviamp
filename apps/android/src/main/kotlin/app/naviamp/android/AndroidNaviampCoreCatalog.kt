@@ -1,0 +1,231 @@
+package app.naviamp.android
+
+import android.content.Context
+import app.naviamp.android.playback.AndroidAudioTagReader
+import app.naviamp.app.NaviampClock
+import app.naviamp.domain.home.HomeDate
+import app.naviamp.domain.playback.PlaybackEngine
+import app.naviamp.domain.waveform.AudioWaveformAnalyzer
+import app.naviamp.domain.settings.SettingsSyncRuntimeState
+import app.naviamp.presentation.NaviampCoreEnvironment
+import app.naviamp.presentation.NaviampCoreDownloadedTrack
+import app.naviamp.presentation.NaviampCoreDownloadStorageSnapshot
+import app.naviamp.presentation.NaviampCoreHomeDateSource
+import app.naviamp.presentation.NaviampCoreMobileNetworkPort
+import app.naviamp.presentation.NaviampCoreStoredRepositories
+import app.naviamp.presentation.NaviampCoreStoredSettings
+import app.naviamp.presentation.naviampCoreStoredServiceCatalog
+import app.naviamp.presentation.naviampCorePlaybackServiceCatalog
+import app.naviamp.presentation.repositoryNaviampCoreDownloadServices
+import app.naviamp.provider.navidrome.NavidromeProvider
+import app.naviamp.ui.NaviampStorageLocationUi
+import app.naviamp.ui.resetAndroidPlatformCoverArtByteLoader
+import app.naviamp.ui.setAndroidPlatformCoverArtByteLoader
+import java.io.File
+import java.time.Instant
+import java.time.LocalDate
+import kotlinx.coroutines.CoroutineScope
+import kotlin.coroutines.CoroutineContext
+import kotlin.coroutines.EmptyCoroutineContext
+
+/**
+ * Android resource owner for the shared Core catalog.
+ *
+ * This class selects Context, ContentResolver, SharedPreferences, Keystore, Android SQLite, and
+ * Android TLS effects. All service-family assembly and product state remain in Core.
+ */
+class AndroidNaviampCoreCatalog private constructor(
+    val environment: NaviampCoreEnvironment,
+    private val storage: AndroidStorageDependencies,
+) : AutoCloseable {
+    override fun close() {
+        resetAndroidPlatformCoverArtByteLoader()
+        storage.close()
+    }
+
+    companion object {
+        fun create(
+            context: Context,
+            scope: CoroutineScope,
+            playbackEngine: PlaybackEngine,
+            waveformAnalyzer: AudioWaveformAnalyzer,
+            directoryPicker: AndroidCoreUriPicker,
+            documentPicker: AndroidCoreUriPicker,
+            isMobileData: () -> Boolean = { false },
+            prepareWaveformAnalysis: suspend () -> Unit = {},
+            waveformWorkContext: CoroutineContext = EmptyCoroutineContext,
+        ): AndroidNaviampCoreCatalog {
+            val appContext = context.applicationContext
+            val clock = NaviampClock(System::currentTimeMillis)
+            val settingsStore = AndroidSettingsStore(appContext)
+            var cacheSettings = settingsStore.loadCacheSettings()
+            val storage = AndroidStorageDependencies(appContext)
+            cacheSettings.customDownloadDirectory?.let(::File)?.let(storage::updateDownloadDirectory)
+            cacheSettings.customAudioCacheDirectory?.let(::File)?.let(storage::updateAudioCacheDirectory)
+            storage.updateAudioCacheLimit(cacheSettings.maxAudioCacheBytes)
+            val sessions = androidCoreProviderSessionPort(storage, clock)
+            setAndroidPlatformCoverArtByteLoader { url ->
+                (sessions.currentProvider() as? NavidromeProvider)
+                    ?.takeIf { provider -> provider.ownsUrl(url) }
+                    ?.bytes(url)
+            }
+            val playback = naviampCorePlaybackServiceCatalog(
+                scope = scope,
+                engine = playbackEngine,
+                providerSource = sessions.providerSource,
+                initialPlaybackSettings = settingsStore.loadPlaybackSettings(),
+                persistPlaybackSettings = settingsStore::savePlaybackSettings,
+                cacheSettings = { cacheSettings },
+                isMobileData = isMobileData,
+                activeSourceId = { storage.latestNavidromeSource()?.id },
+                audioAssets = AndroidPlaybackAudioAssets(storage, storage),
+                cacheAudio = { sourceId, provider, track, quality ->
+                    storage.cacheAudioTrack(sourceId, provider, track, quality)
+                        .file
+                        .toPlaybackLocalAudio()
+                },
+                waveformRepository = storage,
+                waveformAnalyzer = waveformAnalyzer,
+                audioTagReader = AndroidAudioTagReader(),
+                lyricsRepository = storage,
+                lyricsOffsetRepository = storage,
+                sidecarStatusRepository = storage,
+                playbackSessionRepository = storage,
+                saveVisualizerSettings = settingsStore::saveVisualizerSettings,
+                prepareWaveformAnalysis = prepareWaveformAnalysis,
+                waveformWorkContext = waveformWorkContext,
+            )
+            val syncPort = AndroidCoreSettingsSyncPort(
+                context = appContext,
+                settingsStore = settingsStore,
+                directoryPicker = directoryPicker,
+                documentPicker = documentPicker,
+            )
+            val downloadLocations = androidDownloadStorageLocations(appContext)
+            val audioCacheLocations = androidAudioCacheStorageLocations(appContext)
+            val downloads = repositoryNaviampCoreDownloadServices(
+                downloadRepository = storage,
+                replacementRepository = storage,
+                keepDownloadedRepository = storage,
+                toCoreDownload = { stored ->
+                    NaviampCoreDownloadedTrack(
+                        storageId = stored.file.absolutePath,
+                        track = stored.track,
+                        sizeBytes = stored.sizeBytes,
+                        qualityLabel = stored.qualityKey,
+                    )
+                },
+                isStoredDownloadAvailable = { stored -> stored.file.isFile },
+                storageStats = {
+                    storage.stats().let { stats ->
+                        NaviampCoreDownloadStorageSnapshot(
+                            audioCacheCount = stats.audioCount,
+                            audioCacheBytes = stats.audioBytes,
+                            pendingProviderActionCount = stats.pendingProviderActionCount,
+                        )
+                    }
+                },
+                network = NaviampCoreMobileNetworkPort(isMobileData),
+            )
+            val storedCatalog = naviampCoreStoredServiceCatalog(
+                providerSessions = sessions,
+                providerSource = sessions.providerSource,
+                playback = playback,
+                downloads = downloads,
+                playbackEngine = playbackEngine,
+                settingsSyncPort = syncPort,
+                settings = settingsStore.toCoreStoredSettings(storage) { effective ->
+                    cacheSettings = effective
+                },
+                repositories = NaviampCoreStoredRepositories(
+                    mediaSources = storage,
+                    providerMediaSources = storage,
+                    libraryIndex = storage,
+                    providerResponses = storage,
+                    keepDownloaded = storage,
+                    radioDjPresets = storage,
+                    maintenance = storage,
+                    updateAudioCacheLimit = storage::updateAudioCacheLimit,
+                ),
+                externalUri = AndroidCoreExternalUriPort(appContext),
+                homeDate = NaviampCoreHomeDateSource {
+                    LocalDate.now().let { date -> HomeDate(date.year, date.dayOfYear) }
+                },
+                shellCapabilities = AndroidCapabilityPresentation.toShellCapabilitiesUi(playbackEngine),
+                settingsSyncDeviceId = AndroidSettingsSyncDeviceId,
+                downloadLocations = downloadLocations.map(AndroidStorageLocation::toCoreUi),
+                audioCacheLocations = audioCacheLocations.map(AndroidStorageLocation::toCoreUi),
+                selectedDownloadLocationId = downloadLocations.idFor(storage.downloadDirectory),
+                selectedAudioCacheLocationId = audioCacheLocations.idFor(storage.audioCacheDirectory),
+                sourceId = { storage.latestNavidromeSource()?.id },
+                clockEpochMillis = clock::nowEpochMillis,
+                favoritedAtIso8601 = { Instant.now().toString() },
+                diagnostics = AndroidCoreDiagnosticsPort(storage::stats),
+            )
+            return AndroidNaviampCoreCatalog(
+                environment = NaviampCoreEnvironment(
+                    services = storedCatalog.services,
+                    initialState = storedCatalog.initialState,
+                    actionAvailability = AndroidCapabilityPresentation.toCoreActionAvailability(),
+                    onAsyncFailure = { command, failure ->
+                        throw IllegalStateException("Android Core command failed: $command", failure)
+                    },
+                ),
+                storage = storage,
+            )
+        }
+    }
+}
+
+private fun AndroidSettingsStore.toCoreStoredSettings(
+    storage: AndroidStorageDependencies,
+    onCacheSettingsSaved: (app.naviamp.domain.settings.CacheSettings) -> Unit,
+) = NaviampCoreStoredSettings(
+    loadInterface = ::loadInterfaceSettings,
+    saveInterface = ::saveInterfaceSettings,
+    loadPlayback = {
+        loadPlaybackSettings().copy(radioDjs = storage.radioDjPresets())
+    },
+    loadCache = ::loadCacheSettings,
+    saveCache = { settings ->
+        onCacheSettingsSaved(settings)
+        saveCacheSettings(settings)
+    },
+    loadVisualizer = ::loadVisualizerSettings,
+    saveVisualizer = ::saveVisualizerSettings,
+    loadRecentRadioStreams = ::loadRecentRadioStreams,
+    saveRecentRadioStreams = ::saveRecentRadioStreams,
+    loadRecentInternetRadioStations = ::loadRecentInternetRadioStations,
+    saveRecentInternetRadioStations = ::saveRecentInternetRadioStations,
+    loadSyncRuntime = {
+        loadSettingsSync().let { persisted ->
+            SettingsSyncRuntimeState(
+                autoExportEnabled = persisted.autoExportEnabled,
+                lastLocalUpdateEpochMillis = persisted.lastLocalUpdateEpochMillis,
+                lastAppliedSyncUpdateEpochMillis = persisted.lastAppliedSyncUpdateEpochMillis,
+            )
+        }
+    },
+    saveSyncRuntime = { runtime ->
+        saveSettingsSync(
+            loadSettingsSync().copy(
+                autoExportEnabled = runtime.autoExportEnabled,
+                lastLocalUpdateEpochMillis = runtime.lastLocalUpdateEpochMillis,
+                lastAppliedSyncUpdateEpochMillis = runtime.lastAppliedSyncUpdateEpochMillis,
+            ),
+        )
+    },
+)
+
+private fun AndroidStorageLocation.toCoreUi() = NaviampStorageLocationUi(
+    id = id,
+    label = label,
+    path = directory.absolutePath,
+)
+
+private fun List<AndroidStorageLocation>.idFor(directory: File): String? {
+    val target = directory.canonicalFile
+    return firstOrNull { location -> location.directory.canonicalFile == target }?.id
+}
+
+private const val AndroidSettingsSyncDeviceId = "android"

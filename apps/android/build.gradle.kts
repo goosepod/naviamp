@@ -1,5 +1,5 @@
-import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import java.util.zip.ZipFile
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 val composeVersion = libs.versions.compose.get()
 val naviampVersionName = rootProject.file("VERSION").readText().trim()
@@ -35,10 +35,9 @@ android {
         targetSdk = 36
         versionCode = naviampVersionCode
         versionName = naviampVersionName
+        resValue("string", "app_name", "Naviamp")
         externalNativeBuild {
-            cmake {
-                arguments += "-DANDROID_STL=c++_shared"
-            }
+            cmake { arguments += "-DANDROID_STL=c++_shared" }
         }
     }
 
@@ -55,14 +54,15 @@ android {
 
     buildTypes {
         debug {
+            applicationIdSuffix = ".v2test"
+            versionNameSuffix = "-v2test"
+            resValue("string", "app_name", "Naviamp v2 Test")
             if (hasAndroidReleaseSigning && signDebugWithReleaseKey.get()) {
                 signingConfig = signingConfigs.getByName("release")
             }
         }
         release {
-            if (hasAndroidReleaseSigning) {
-                signingConfig = signingConfigs.getByName("release")
-            }
+            if (hasAndroidReleaseSigning) signingConfig = signingConfigs.getByName("release")
         }
     }
 
@@ -71,37 +71,24 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
 
-    sourceSets {
-        getByName("main") {
-            jniLibs.srcDir(project.layout.projectDirectory.dir("../../native/bass-jni/vendor/android"))
-        }
-    }
-
+    sourceSets.getByName("main").jniLibs.srcDir(
+        project.layout.projectDirectory.dir("../../native/bass-jni/vendor/android"),
+    )
     externalNativeBuild {
-        cmake {
-            path = project.layout.projectDirectory.file("../../native/bass-jni/CMakeLists.txt").asFile
-        }
+        cmake { path = project.layout.projectDirectory.file("../../native/bass-jni/CMakeLists.txt").asFile }
     }
-
-    testOptions {
-        unitTests.isReturnDefaultValues = true
-    }
+    testOptions { unitTests.isReturnDefaultValues = true }
 }
 
 kotlin {
-    compilerOptions {
-        jvmTarget.set(JvmTarget.JVM_17)
-    }
+    compilerOptions { jvmTarget.set(JvmTarget.JVM_17) }
 }
 
 dependencies {
     implementation(project(":platforms:android"))
-    implementation(project(":core:app"))
     implementation(project(":core:domain"))
     implementation(project(":core:presentation"))
-    implementation(project(":core:storage"))
     implementation(project(":core:ui"))
-    implementation(project(":providers:navidrome"))
     implementation(libs.activity.compose)
     implementation(libs.androidx.media)
     implementation(libs.androidx.profileinstaller)
@@ -110,9 +97,8 @@ dependencies {
     implementation("org.jetbrains.compose.runtime:runtime:$composeVersion")
     implementation("org.jetbrains.compose.ui:ui:$composeVersion")
     implementation(libs.kotlinx.coroutines.core)
-    implementation(libs.kotlinx.serialization.json)
-    implementation(libs.ktor.client.cio)
-    implementation(libs.sqldelight.android.driver)
+
+    testImplementation(project(":core:testkit"))
     testImplementation(kotlin("test"))
     testImplementation(libs.kotlinx.coroutines.test)
 }
@@ -121,32 +107,17 @@ tasks.register("verifyDebugBassNativePackage") {
     group = "verification"
     description = "Verifies that the debug APK contains Naviamp JNI plus BASS native libraries for each packaged ABI."
     dependsOn("assembleDebug")
-
     val apkFile = layout.buildDirectory.file("outputs/apk/debug/android-debug.apk")
     inputs.file(apkFile)
-
     doLast {
         val apk = apkFile.get().asFile
         check(apk.isFile) { "Debug APK was not found at ${apk.absolutePath}" }
-
         val requiredAbis = listOf("arm64-v8a", "armeabi-v7a", "x86", "x86_64")
-        val requiredLibraries = listOf(
-            "libnaviamp_bass.so",
-            "libbass.so",
-            "libbassmix.so",
-            "libc++_shared.so",
-        )
-        val entries = ZipFile(apk).use { zip ->
-            zip.entries().asSequence().map { it.name }.toSet()
-        }
+        val requiredLibraries = listOf("libnaviamp_bass.so", "libbass.so", "libbassmix.so", "libc++_shared.so")
+        val entries = ZipFile(apk).use { zip -> zip.entries().asSequence().map { it.name }.toSet() }
         val missing = requiredAbis.flatMap { abi ->
-            requiredLibraries.mapNotNull { library ->
-                val path = "lib/$abi/$library"
-                path.takeUnless { entries.contains(it) }
-            }
+            requiredLibraries.mapNotNull { library -> "lib/$abi/$library".takeUnless(entries::contains) }
         }
-        check(missing.isEmpty()) {
-            "Debug APK is missing native playback libraries: ${missing.joinToString()}"
-        }
+        check(missing.isEmpty()) { "Debug APK is missing native playback libraries: ${missing.joinToString()}" }
     }
 }

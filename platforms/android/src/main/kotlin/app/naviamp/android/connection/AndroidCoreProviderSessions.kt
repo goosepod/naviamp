@@ -11,6 +11,7 @@ fun androidCoreProviderSessionPort(
     clock: NaviampClock,
 ): NavidromeCoreProviderSessionPort = NavidromeCoreProviderSessionPort(
     mediaSources = storage,
+    initialSource = storage.latestNavidromeSource(),
     sessionOpener = navidromeProviderSessionOpener(
         cacheMaintenanceRepository = storage,
         providerMediaSourceRepository = storage,

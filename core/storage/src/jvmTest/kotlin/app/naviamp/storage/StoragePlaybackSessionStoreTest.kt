@@ -30,6 +30,9 @@ class StoragePlaybackSessionStoreTest {
 
             assertNull(store.loadPlaybackSession("source"))
             assertNull(store.loadPlaybackSession(null))
+            assertNull(store.loadPlaybackSession(""))
+            store.savePlaybackSession(session, "")
+            assertNull(store.loadPlaybackSession(""))
         } finally {
             driver.close()
         }

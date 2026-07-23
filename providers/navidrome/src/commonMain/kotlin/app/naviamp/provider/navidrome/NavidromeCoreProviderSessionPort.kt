@@ -40,14 +40,18 @@ fun interface NavidromeProviderSessionOpener {
 class NavidromeCoreProviderSessionPort(
     private val mediaSources: MediaSourceRepository,
     private val sessionOpener: NavidromeProviderSessionOpener,
+    initialSource: SavedMediaSource? = null,
     private val applyTlsDefaults: (NavidromeConnection) -> Unit = {},
     private val musicFolders: suspend (NavidromeConnection) -> List<NavidromeMusicFolder> = { connection ->
         applyTlsDefaults(connection)
         NavidromeProvider(connection).musicFolders()
     },
 ) : NaviampCoreProviderSessionPort {
-    private var provider: NavidromeProvider? = null
-    private var currentSourceId: String? = null
+    private var provider: NavidromeProvider? = initialSource?.toNavidromeConnection()?.let { connection ->
+        applyTlsDefaults(connection)
+        NavidromeProvider(connection)
+    }
+    private var currentSourceId: String? = initialSource?.id
     private val nativeSession = NavidromeNativeSessionController(
         currentProvider = { provider },
         savedConnection = { currentSourceId?.let(mediaSources::mediaSource)?.toNavidromeConnection() },

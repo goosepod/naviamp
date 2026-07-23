@@ -11,13 +11,13 @@ class StoragePlaybackSessionStore(
     private val json: Json = Json { ignoreUnknownKeys = true; encodeDefaults = true },
 ) : PlaybackSessionRepository {
     override fun loadPlaybackSession(sourceId: String?): PlaybackSessionSettings? {
-        val id = sourceId ?: return null
+        val id = sourceId?.takeIf(String::isNotBlank) ?: return null
         val payload = queries.selectPlaybackSession(id).executeAsOneOrNull() ?: return null
         return runCatching { json.decodeFromString<PlaybackSessionSettings>(payload) }.getOrNull()
     }
 
     override fun savePlaybackSession(session: PlaybackSessionSettings?, sourceId: String?) {
-        val id = sourceId ?: return
+        val id = sourceId?.takeIf(String::isNotBlank) ?: return
         if (session == null) {
             queries.deletePlaybackSession(id)
         } else {

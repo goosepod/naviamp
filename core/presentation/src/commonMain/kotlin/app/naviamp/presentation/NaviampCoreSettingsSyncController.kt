@@ -68,6 +68,7 @@ class NaviampCoreSettingsSyncController(
             NaviampCoreCommand.SettingsSync.Export -> export()
             NaviampCoreCommand.SettingsSync.Import -> import()
             NaviampCoreCommand.SettingsSync.ImportFile -> selectAndImportFile()
+            is NaviampCoreCommand.SettingsSync.ImportFilePath -> importFile(command.path)
             NaviampCoreCommand.SettingsSync.ChooseFolder -> chooseFolder()
             NaviampCoreCommand.SettingsSync.ImportFolder -> selectAndImport()
             NaviampCoreCommand.SettingsSync.ExportFolder -> exportFolder()
@@ -127,7 +128,11 @@ class NaviampCoreSettingsSyncController(
             currentPath = configuredDirectory() ?: services.port.defaultDirectory(),
             title = "Import Naviamp settings",
         ) ?: return
-        val document = services.port.readDocumentFile(selected)
+        importFile(selected)
+    }
+
+    private suspend fun importFile(path: String) {
+        val document = services.port.readDocumentFile(path)
             ?: error("The selected file is not a Naviamp settings document.")
         status = settingsSyncReconciliationStatus(services.controller.applySyncedDocument(document))
         publishAppliedSnapshot(services.controller.localSnapshot())
