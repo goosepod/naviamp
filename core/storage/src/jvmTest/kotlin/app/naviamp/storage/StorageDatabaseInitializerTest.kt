@@ -42,6 +42,30 @@ class StorageDatabaseInitializerTest {
             newer.close()
         }
     }
+
+    @Test
+    fun sharedCompatibilityPolicyConfiguresAndMaintainsAnOpenedDriver() {
+        val driver = JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY)
+        try {
+            NaviampStorageDatabase.Schema.create(driver)
+            var reclaimedVersion: Long? = null
+
+            prepareNaviampStorageDriver(
+                driver = driver,
+                existedBeforeOpen = true,
+                lastReclaimedSchemaVersion = 0L,
+                recordReclaimedSchemaVersion = { reclaimedVersion = it },
+            )
+
+            assertEquals(NaviampStorageDatabase.Schema.version, reclaimedVersion)
+            assertEquals(1L, driver.foreignKeysEnabled())
+            assertTrue(shouldReplaceNaviampStorageDatabase(NaviampStorageDatabase.Schema.version + 1))
+            assertTrue(!shouldReplaceNaviampStorageDatabase(NaviampStorageDatabase.Schema.version))
+            assertTrue(!shouldReplaceNaviampStorageDatabase(null))
+        } finally {
+            driver.close()
+        }
+    }
 }
 
 private fun JdbcSqliteDriver.userVersion(): Long = queryLong("PRAGMA user_version")
