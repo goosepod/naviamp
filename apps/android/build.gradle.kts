@@ -95,6 +95,7 @@ kotlin {
 }
 
 dependencies {
+    implementation(project(":platforms:android"))
     implementation(project(":core:app"))
     implementation(project(":core:domain"))
     implementation(project(":core:presentation"))

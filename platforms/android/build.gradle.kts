@@ -8,7 +8,7 @@ plugins {
 }
 
 android {
-    namespace = "app.naviamp.android.v2"
+    namespace = "app.naviamp.platform.android"
     compileSdk = 36
 
     defaultConfig {
@@ -32,15 +32,17 @@ kotlin {
 }
 
 dependencies {
-    implementation(project(":platforms:android"))
-    implementation(project(":core:domain"))
-    implementation(project(":core:presentation"))
-    implementation(project(":core:ui"))
-    implementation(libs.activity.compose)
+    api(project(":core:app"))
+    api(project(":core:domain"))
+    api(project(":core:presentation"))
+    api(project(":core:storage"))
+    api(project(":core:ui"))
+    api(project(":providers:navidrome"))
     implementation("org.jetbrains.compose.runtime:runtime:${libs.versions.compose.get()}")
-    implementation("org.jetbrains.compose.ui:ui:${libs.versions.compose.get()}")
-
-    testImplementation(project(":core:testkit"))
+    implementation(libs.kotlinx.coroutines.core)
+    implementation(libs.kotlinx.serialization.json)
+    implementation(libs.ktor.client.cio)
+    implementation(libs.sqldelight.android.driver)
     testImplementation(kotlin("test"))
     testImplementation(libs.kotlinx.coroutines.test)
 }
