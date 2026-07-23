@@ -16,6 +16,7 @@ val commonProductionSources = fileTree(layout.projectDirectory) {
 
 val hostProductionSources = fileTree(layout.projectDirectory) {
     include("apps/android/src/main/kotlin/**/*.kt")
+    include("apps/android-v2/src/main/kotlin/**/*.kt")
     include("apps/desktop/src/desktopMain/kotlin/**/*.kt")
     include("platforms/desktop/src/desktopMain/kotlin/**/*.kt")
 }
