@@ -3,8 +3,6 @@ package app.naviamp.android
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 
-@OptIn(ExperimentalCoroutinesApi::class)
-val AndroidWaveformWorkDispatcher = Dispatchers.Default.limitedParallelism(2)
-
+/** Bounded JVM filesystem dispatcher for serialized Android sidecar writes. */
 @OptIn(ExperimentalCoroutinesApi::class)
 internal val AndroidWaveformStorageDispatcher = Dispatchers.IO.limitedParallelism(1)
