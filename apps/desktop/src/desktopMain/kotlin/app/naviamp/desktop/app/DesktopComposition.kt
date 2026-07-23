@@ -70,7 +70,7 @@ import java.time.Instant
 import java.time.LocalDate
 
 /** Owns only Desktop filesystem/native resources required by the shared Core app. */
-internal class DesktopV2Composition private constructor(
+internal class DesktopComposition private constructor(
     val environment: DesktopNaviampCoreEnvironment,
     private val engine: ReleasablePlaybackEngine,
     private val storage: DesktopStorageRepositories,
@@ -82,9 +82,9 @@ internal class DesktopV2Composition private constructor(
     }
 
     companion object {
-        fun create(scope: CoroutineScope): DesktopV2Composition {
+        fun create(scope: CoroutineScope): DesktopComposition {
             val nowEpochMillis = System::currentTimeMillis
-            val dataDirectory = desktopV2DataDirectory()
+            val dataDirectory = desktopDataDirectory()
             Files.createDirectories(dataDirectory)
             val settingsStore = DesktopCoreSettingsStore(defaultDesktopCoreSettingsPath())
             val initialInterfaceSettings = settingsStore.loadInterfaceSettings()
@@ -402,7 +402,7 @@ internal class DesktopV2Composition private constructor(
                     ),
                 )
             }
-            return DesktopV2Composition(
+            return DesktopComposition(
                 environment = desktopNaviampCoreEnvironment(
                     services = services,
                     providerSessions = sessions,
@@ -426,7 +426,7 @@ internal class DesktopV2Composition private constructor(
     }
 }
 
-private fun desktopV2DataDirectory(): Path {
+private fun desktopDataDirectory(): Path {
     val home = Path.of(System.getProperty("user.home"))
     val os = System.getProperty("os.name").lowercase()
     return when {

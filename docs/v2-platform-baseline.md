@@ -2,6 +2,8 @@
 
 This document records the Android and Desktop baseline before application orchestration moves into the shared Naviamp 2.0 runtime. Update it when ownership moves or a verification command changes.
 
+The Desktop implementation recorded below is historical and was replaced by the promoted thin Core host on 2026-07-23. Commands and artifact paths remain current.
+
 - **Snapshot date:** 2026-07-16
 - **Source branch:** `feature/v2-cross-platform-app`
 - **Baseline commit:** `a48bf38f`

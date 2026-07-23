@@ -1,65 +1,35 @@
 package app.naviamp.desktop
 
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.snapshotFlow
-import androidx.compose.ui.unit.DpSize
-import androidx.compose.ui.unit.dp
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.application
-import androidx.compose.ui.window.rememberWindowState
-import app.naviamp.desktop.generated.resources.Res
-import app.naviamp.desktop.generated.resources.naviamp
-import app.naviamp.domain.playback.ReleasablePlaybackEngine
-import kotlinx.coroutines.flow.distinctUntilChanged
-import org.jetbrains.compose.resources.painterResource
-import java.awt.Dimension
+import app.naviamp.desktop.platform.configureDesktopHostAppearance
+import app.naviamp.desktop.platform.configureDesktopApplicationIcon
+import app.naviamp.desktop.platform.configureDesktopWindowAppearance
 
 fun main() {
-    configureDesktopApplicationName()
-    configureDesktopAppearance()
-    configureDesktopIcon()
-
+    configureDesktopHostAppearance()
+    configureDesktopApplicationIcon()
     application {
-        val appDependencies = remember { DesktopAppDependencies() }
-        val settingsStore = appDependencies.settingsStore
-        val windowSettings = remember { settingsStore.loadWindowSettings() }
-        val windowState = rememberWindowState(
-            size = DpSize(windowSettings.widthDp.dp, windowSettings.heightDp.dp),
-        )
-        val playbackEngine = appDependencies.playbackEngine
-        val appIcon = painterResource(Res.drawable.naviamp)
-        LaunchedEffect(windowState) {
-            snapshotFlow { windowState.size }
-                .distinctUntilChanged()
-                .collect { size ->
-                    if (size.width.value >= 320f && size.height.value >= 420f) {
-                        settingsStore.saveWindowSettings(windowState.toWindowSettings())
-                    }
-                }
+        val scope = rememberCoroutineScope()
+        val composition = remember { DesktopComposition.create(scope) }
+        DisposableEffect(composition) {
+            onDispose(composition::close)
         }
         Window(
-            state = windowState,
-            icon = appIcon,
-            onCloseRequest = {
-                settingsStore.saveWindowSettings(windowState.toWindowSettings())
-                runCatching {
-                    (playbackEngine as? ReleasablePlaybackEngine)?.release()
-                        ?: playbackEngine.stop()
-                }
-                exitApplication()
-            },
-            title = "Naviamp",
+            onCloseRequest = ::exitApplication,
+            title = "Naviamp 2.0.0-alpha",
         ) {
             val darkTitleBar = isSystemInDarkTheme()
             LaunchedEffect(window, darkTitleBar) {
-                configureNativeTitleBar(window, darkTitleBar)
+                configureDesktopWindowAppearance(window, darkTitleBar)
             }
-            window.minimumSize = Dimension(320, 500)
-            NaviampApp(
-                dependencies = appDependencies,
-            )
+            window.minimumSize = java.awt.Dimension(360, 640)
+            DesktopNaviampCoreHost(composition.environment)
         }
     }
 }

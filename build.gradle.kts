@@ -17,7 +17,6 @@ val commonProductionSources = fileTree(layout.projectDirectory) {
 val hostProductionSources = fileTree(layout.projectDirectory) {
     include("apps/android/src/main/kotlin/**/*.kt")
     include("apps/desktop/src/desktopMain/kotlin/**/*.kt")
-    include("apps/desktop-v2/src/desktopMain/kotlin/**/*.kt")
     include("platforms/desktop/src/desktopMain/kotlin/**/*.kt")
 }
 
@@ -29,13 +28,6 @@ val existingHostProductDebt = setOf(
     "apps/android/src/main/kotlin/app/naviamp/android/app/AndroidNowPlayingActions.kt",
     "apps/android/src/main/kotlin/app/naviamp/android/app/AndroidPendingProviderActions.kt",
     "apps/android/src/main/kotlin/app/naviamp/android/media/AndroidMediaActionsController.kt",
-    "apps/desktop/src/desktopMain/kotlin/app/naviamp/desktop/app/DesktopAppActions.kt",
-    "apps/desktop/src/desktopMain/kotlin/app/naviamp/desktop/app/DesktopAppRouteContent.kt",
-    "apps/desktop/src/desktopMain/kotlin/app/naviamp/desktop/app/DesktopNavigationRouteProperty.kt",
-    "apps/desktop/src/desktopMain/kotlin/app/naviamp/desktop/app/DesktopPlayerRouteContent.kt",
-    "apps/desktop/src/desktopMain/kotlin/app/naviamp/desktop/app/DesktopRestoredAppState.kt",
-    "apps/desktop/src/desktopMain/kotlin/app/naviamp/desktop/app/DesktopSharedContentActions.kt",
-    "apps/desktop/src/desktopMain/kotlin/app/naviamp/desktop/media/DesktopMediaActionsController.kt",
 )
 
 tasks.register("verifyCoreFirstArchitecture") {

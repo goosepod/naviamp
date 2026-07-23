@@ -64,6 +64,6 @@ jobs:
           :core:ui:compileKotlinIosArm64
           :core:ui:compileKotlinIosSimulatorArm64
           :platforms:desktop:desktopTest
-          :apps:desktop-v2:desktopTest
+          :apps:desktop:desktopTest
           :providers:navidrome:compileKotlinIosArm64
           :providers:navidrome:iosSimulatorArm64Test

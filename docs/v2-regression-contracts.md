@@ -24,7 +24,8 @@ Coverage:
 - `core/domain/.../queue/PlaybackQueueTest.kt`
 - `core/domain/.../playback/PlaybackQueueControllerTest.kt`
 - `apps/android/.../AndroidPlaybackSessionControllerTest.kt`
-- `apps/desktop/.../connection/DesktopConnectionFormTest.kt`
+- `core/app/.../NaviampPlaybackSessionControllerTest.kt`
+- `core/storage/.../StoragePlaybackSessionStoreTest.kt`
 
 ## Playback Transitions and Service Lifetime
 
@@ -44,7 +45,8 @@ Coverage:
 - `core/domain/.../playback/PreparedBassPlaybackPlannerTest.kt`
 - `core/domain/.../playback/PlaybackTrackStartEffectsTest.kt`
 - `apps/android/.../playback/AndroidServicePlaybackRuntimeControllerTest.kt`
-- `apps/desktop/.../playback/DesktopPlaybackProgressTest.kt`
+- `core/domain/.../playback/PlaybackProgressTest.kt`
+- `core/domain/.../playback/PlaybackProgressEffectsTest.kt`
 
 Android service reconnection needs a new contract test in the same slice that introduces the shared runtime/session bridge. The current code does not yet expose that bridge as a unit-testable interface.
 
@@ -87,7 +89,8 @@ Coverage:
 - `core/domain/.../cache/KeepDownloadedCollectionsTest.kt`
 - `core/domain/.../cache/AudioCacheEvictionTest.kt`
 - `core/domain/.../playback/PlaybackAudioSourceResolverTest.kt`
-- `apps/desktop/.../downloads/DesktopDownloadMutationsTest.kt`
+- `core/presentation/.../NaviampCoreDownloadsControllerTest.kt`
+- `platforms/desktop/.../cache/DesktopStorageRepositoriesTest.kt`
 
 Native SQLDelight driver and migration tests are required when the storage factory is extracted and when the iOS driver is added. `core:storage` currently has no direct test source set.
 
@@ -111,7 +114,7 @@ Coverage:
 - `core/domain/.../settings/SettingsSyncCoordinatorTest.kt`
 - `apps/android/.../security/AndroidCredentialProtectorTest.kt`
 - `apps/android/.../security/AndroidBackupRulesTest.kt`
-- `apps/desktop/.../settings/DesktopSettingsStoreTest.kt`
+- `platforms/desktop/.../settings/DesktopCoreSettingsStoreTest.kt`
 
 Each new shared settings or secret-store interface must have contract tests that run against a fake implementation. Each platform adapter must then prove persistence and protection behavior separately.
 

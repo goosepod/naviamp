@@ -1,4 +1,0 @@
--dontoptimize
--dontwarn org.slf4j.**
--keep class org.sqlite.** { *; }
--keep class org.slf4j.** { *; }
