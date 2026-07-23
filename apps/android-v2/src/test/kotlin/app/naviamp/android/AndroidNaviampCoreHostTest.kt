@@ -2,8 +2,10 @@ package app.naviamp.android
 
 import app.naviamp.domain.app.NaviampNavigationState
 import app.naviamp.domain.app.NaviampRoute
+import app.naviamp.presentation.NaviampCoreEnvironment
 import app.naviamp.presentation.NaviampCoreInitialState
 import app.naviamp.presentation.createNaviampCore
+import app.naviamp.presentation.toCoreActionAvailability
 import app.naviamp.testkit.naviampCoreTestServices
 import app.naviamp.ui.SharedRoute
 import kotlinx.coroutines.test.runTest
@@ -14,7 +16,7 @@ import kotlin.test.assertNotNull
 class AndroidNaviampCoreHostTest {
     @Test
     fun replacementHostConstructsSharedProductWithoutAndroidControllers() = runTest {
-        val environment = androidNaviampCoreEnvironment(
+        val environment = NaviampCoreEnvironment(
             services = naviampCoreTestServices(),
             initialState = NaviampCoreInitialState(
                 navigation = NaviampNavigationState(
@@ -22,6 +24,7 @@ class AndroidNaviampCoreHostTest {
                     lastContentRoute = NaviampRoute.Search,
                 ),
             ),
+            actionAvailability = AndroidCapabilityPresentation.toCoreActionAvailability(),
         )
 
         val core = createNaviampCore(this, environment)
