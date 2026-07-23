@@ -5,7 +5,10 @@ import app.naviamp.domain.app.NaviampRoute
 import app.naviamp.domain.cache.MediaSourceRepository
 import app.naviamp.domain.source.SavedMediaSource
 import app.naviamp.presentation.NaviampCoreCommand
+import app.naviamp.presentation.NaviampCoreEnvironment
 import app.naviamp.presentation.NaviampCoreInitialState
+import app.naviamp.presentation.createNaviampCore
+import app.naviamp.presentation.toCoreActionAvailability
 import app.naviamp.testkit.naviampCoreTestServices
 import app.naviamp.ui.SharedRoute
 import app.naviamp.ui.NaviampConnectionCapabilitiesUi
@@ -18,7 +21,7 @@ import kotlin.test.assertNotNull
 class DesktopNaviampCoreHostTest {
     @Test
     fun replacementHostConstructsTheSharedProductWithoutDesktopControllers() = runTest {
-        val environment = DesktopNaviampCoreEnvironment(
+        val environment = NaviampCoreEnvironment(
             services = naviampCoreTestServices(),
             initialState = NaviampCoreInitialState(
                 navigation = NaviampNavigationState(
@@ -26,9 +29,10 @@ class DesktopNaviampCoreHostTest {
                     lastContentRoute = NaviampRoute.Search,
                 ),
             ),
+            actionAvailability = DesktopCapabilityPresentation.toCoreActionAvailability(),
         )
 
-        val core = createDesktopNaviampCore(this, environment)
+        val core = createNaviampCore(this, environment)
 
         assertEquals(SharedRoute.Search, core.state.value.shell.shellChrome.selectedRoute)
         assertNotNull(core.actions.settingsSync.onImportFile)
@@ -60,7 +64,7 @@ class DesktopNaviampCoreHostTest {
                 ),
             ),
         )
-        val core = createDesktopNaviampCore(this, environment)
+        val core = createNaviampCore(this, environment)
 
         core.execute(
             NaviampCoreCommand.Connection.Edit(

@@ -13,7 +13,36 @@ import app.naviamp.ui.NaviampApplicationUpdateChecker
 import app.naviamp.ui.NaviampDiagnosticsUi
 import app.naviamp.ui.NaviampSharedAppShell
 import app.naviamp.ui.NaviampStatsForNerdsDialog
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
+
+/**
+ * Complete, host-neutral input boundary for the Naviamp product.
+ *
+ * Platform clients may provide implementations of service contracts and native capability facts,
+ * but they do not get a separate product composition model.
+ */
+data class NaviampCoreEnvironment(
+    val services: NaviampCoreServices,
+    val initialState: NaviampCoreInitialState = NaviampCoreInitialState(),
+    val actionAvailability: NaviampCoreActionAvailability = NaviampCoreActionAvailability(),
+    val applicationUpdateChecker: NaviampApplicationUpdateChecker? = null,
+    val onAsyncFailure: (NaviampCoreCommand, Throwable) -> Unit = { command, cause ->
+        throw IllegalStateException("Core command failed: $command", cause)
+    },
+)
+
+/** Constructs the complete product for non-Compose hosts and tests. */
+fun createNaviampCore(
+    scope: CoroutineScope,
+    environment: NaviampCoreEnvironment,
+): NaviampCore = NaviampCore.create(
+    scope = scope,
+    services = environment.services,
+    initialState = environment.initialState,
+    actionAvailability = environment.actionAvailability,
+    onAsyncFailure = environment.onAsyncFailure,
+)
 
 /** Constructs the complete product once for a thin host composition. */
 @Composable
@@ -78,4 +107,27 @@ fun NaviampCoreApp(
             { core.dispatch(NaviampCoreCommand.Settings.CloseStats) },
         )
     }
+}
+
+/** The single product surface mounted unchanged by every thin platform client. */
+@Composable
+fun NaviampCoreHost(
+    environment: NaviampCoreEnvironment,
+    modifier: Modifier = Modifier,
+    statsForNerdsPresenter: @Composable (NaviampDiagnosticsUi, () -> Unit) -> Unit = { diagnostics, close ->
+        NaviampStatsForNerdsDialog(diagnostics, close)
+    },
+) {
+    val core = rememberNaviampCore(
+        services = environment.services,
+        initialState = environment.initialState,
+        actionAvailability = environment.actionAvailability,
+        onAsyncFailure = environment.onAsyncFailure,
+    )
+    NaviampCoreApp(
+        core = core,
+        modifier = modifier,
+        applicationUpdateChecker = environment.applicationUpdateChecker,
+        statsForNerdsPresenter = statsForNerdsPresenter,
+    )
 }

@@ -3,6 +3,7 @@ package app.naviamp.android
 import app.naviamp.domain.app.NaviampNavigationState
 import app.naviamp.domain.app.NaviampRoute
 import app.naviamp.presentation.NaviampCoreInitialState
+import app.naviamp.presentation.createNaviampCore
 import app.naviamp.testkit.naviampCoreTestServices
 import app.naviamp.ui.SharedRoute
 import kotlinx.coroutines.test.runTest
@@ -13,7 +14,7 @@ import kotlin.test.assertNotNull
 class AndroidNaviampCoreHostTest {
     @Test
     fun replacementHostConstructsSharedProductWithoutAndroidControllers() = runTest {
-        val environment = AndroidNaviampCoreEnvironment(
+        val environment = androidNaviampCoreEnvironment(
             services = naviampCoreTestServices(),
             initialState = NaviampCoreInitialState(
                 navigation = NaviampNavigationState(
@@ -23,7 +24,7 @@ class AndroidNaviampCoreHostTest {
             ),
         )
 
-        val core = createAndroidNaviampCore(this, environment)
+        val core = createNaviampCore(this, environment)
 
         assertEquals(SharedRoute.Search, core.state.value.shell.shellChrome.selectedRoute)
         assertNotNull(core.actions.settingsSync.onImportFile)

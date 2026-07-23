@@ -2,21 +2,18 @@ package app.naviamp.desktop
 
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import app.naviamp.presentation.NaviampCore
-import app.naviamp.presentation.NaviampCoreActionAvailability
-import app.naviamp.presentation.NaviampCoreApp
 import app.naviamp.presentation.NaviampCoreCommand
 import app.naviamp.presentation.NaviampCoreExternalUriPort
+import app.naviamp.presentation.NaviampCoreEnvironment
+import app.naviamp.presentation.NaviampCoreHost
 import app.naviamp.presentation.NaviampCoreInitialState
 import app.naviamp.presentation.NaviampCoreServices
 import app.naviamp.presentation.NaviampCoreSettingsSyncServices
-import app.naviamp.presentation.rememberNaviampCore
 import app.naviamp.presentation.toCoreActionAvailability
 import app.naviamp.presentation.withShellCapabilities
 import app.naviamp.domain.playback.AudioOutputDevice
 import app.naviamp.ui.NaviampApplicationUpdateChecker
 import app.naviamp.ui.NaviampShellCapabilitiesUi
-import kotlinx.coroutines.CoroutineScope
 
 /**
  * Complete input boundary for the replacement Desktop host.
@@ -24,16 +21,7 @@ import kotlinx.coroutines.CoroutineScope
  * It contains Core services and genuine host integrations only. Product controllers, route state,
  * action factories, and screen models are deliberately unrepresentable here.
  */
-internal data class DesktopNaviampCoreEnvironment(
-    val services: NaviampCoreServices,
-    val initialState: NaviampCoreInitialState = NaviampCoreInitialState(),
-    val actionAvailability: NaviampCoreActionAvailability =
-        DesktopCapabilityPresentation.toCoreActionAvailability(),
-    val applicationUpdateChecker: NaviampApplicationUpdateChecker? = null,
-    val onAsyncFailure: (NaviampCoreCommand, Throwable) -> Unit = { command, cause ->
-        throw IllegalStateException("Desktop Core command failed: $command", cause)
-    },
-)
+internal typealias DesktopNaviampCoreEnvironment = NaviampCoreEnvironment
 
 /**
  * Installs the real Desktop connection boundary while later native service families are migrated.
@@ -53,7 +41,7 @@ internal fun desktopNaviampCoreEnvironment(
     onAsyncFailure: (NaviampCoreCommand, Throwable) -> Unit = { command, cause ->
         throw IllegalStateException("Desktop Core command failed: $command", cause)
     },
-): DesktopNaviampCoreEnvironment = DesktopNaviampCoreEnvironment(
+): DesktopNaviampCoreEnvironment = NaviampCoreEnvironment(
     services = services.copy(
         content = services.content.copy(
             providerSource = providerSessions.providerSource,
@@ -71,19 +59,9 @@ internal fun desktopNaviampCoreEnvironment(
     } ?: initialState).copy(
         connectionInventory = providerSessions.initialInventory(),
     ),
+    actionAvailability = DesktopCapabilityPresentation.toCoreActionAvailability(),
     applicationUpdateChecker = applicationUpdateChecker,
     onAsyncFailure = onAsyncFailure,
-)
-
-internal fun createDesktopNaviampCore(
-    scope: CoroutineScope,
-    environment: DesktopNaviampCoreEnvironment,
-): NaviampCore = NaviampCore.create(
-    scope = scope,
-    services = environment.services,
-    initialState = environment.initialState,
-    actionAvailability = environment.actionAvailability,
-    onAsyncFailure = environment.onAsyncFailure,
 )
 
 /** The replacement Desktop product surface: construct Core once and mount its shared app unchanged. */
@@ -92,16 +70,9 @@ internal fun DesktopNaviampCoreHost(
     environment: DesktopNaviampCoreEnvironment,
     modifier: Modifier = Modifier,
 ) {
-    val core = rememberNaviampCore(
-        services = environment.services,
-        initialState = environment.initialState,
-        actionAvailability = environment.actionAvailability,
-        onAsyncFailure = environment.onAsyncFailure,
-    )
-    NaviampCoreApp(
-        core = core,
+    NaviampCoreHost(
+        environment = environment,
         modifier = modifier,
-        applicationUpdateChecker = environment.applicationUpdateChecker,
         statsForNerdsPresenter = { diagnostics, close ->
             DesktopStatsForNerdsWindow(diagnostics, close)
         },
