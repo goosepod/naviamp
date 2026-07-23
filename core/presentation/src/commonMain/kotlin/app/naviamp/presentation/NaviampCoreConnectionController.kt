@@ -2,71 +2,13 @@ package app.naviamp.presentation
 
 import app.naviamp.app.NaviampConnectionController
 import app.naviamp.app.NaviampConnectionAttemptPlan
-import app.naviamp.domain.settings.ConnectionFormMusicFolder
 import app.naviamp.domain.settings.ConnectionFormState
 import app.naviamp.domain.settings.connectionFormError
 import app.naviamp.domain.settings.selectedMusicFolderSummary
-import app.naviamp.domain.provider.MediaProvider
 import app.naviamp.ui.NaviampSavedConnectionUi
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.isActive
-
-data class NaviampCoreSavedConnectionRecord(
-    val id: String,
-    val displayName: String,
-    val serverUrl: String,
-    val username: String,
-    val selectedMusicFolderIds: List<String> = emptyList(),
-)
-
-data class NaviampCoreConnectionInventory(
-    val connections: List<NaviampCoreSavedConnectionRecord> = emptyList(),
-    val currentSourceId: String? = null,
-)
-
-data class NaviampCoreEditableConnection(
-    val form: ConnectionFormState,
-    val availableMusicFolders: List<ConnectionFormMusicFolder> = emptyList(),
-    val musicFoldersLoadFailed: Boolean = false,
-)
-
-sealed interface NaviampCoreConnectionRequest {
-    data class Form(
-        val form: ConnectionFormState,
-        val savedConnectionId: String? = null,
-    ) : NaviampCoreConnectionRequest
-    data class Saved(val id: String) : NaviampCoreConnectionRequest
-}
-
-data class NaviampCoreConnectedSession(
-    val sourceId: String,
-    val displayName: String,
-    val serverVersion: String? = null,
-    val inventory: NaviampCoreConnectionInventory,
-)
-
-/** Credential access and provider-session construction are effects; all connection policy is Core. */
-interface NaviampCoreProviderSessionPort {
-    suspend fun connect(
-        request: NaviampCoreConnectionRequest,
-        plan: NaviampConnectionAttemptPlan,
-    ): NaviampCoreConnectedSession
-    suspend fun editableConnection(id: String): NaviampCoreEditableConnection
-    suspend fun deleteConnection(id: String): NaviampCoreConnectionInventory
-
-    /** Returns the active provider, refreshing native credentials from [password] when supplied. */
-    suspend fun smartPlaylistProvider(password: String?): MediaProvider?
-
-    /** Renews sliding provider credentials and durably stores any rotated values. */
-    suspend fun refreshActiveSession(): Boolean
-
-    /** Persists credentials rotated by a provider request that Core just completed. */
-    suspend fun persistActiveSession()
-
-    /** Drops only the live native/provider session after Core has erased its durable source. */
-    suspend fun clearActiveSession()
-}
 
 /** Core owns provider-session renewal timing; hosts only execute and persist one renewal attempt. */
 class NaviampCoreProviderSessionLifecycle(

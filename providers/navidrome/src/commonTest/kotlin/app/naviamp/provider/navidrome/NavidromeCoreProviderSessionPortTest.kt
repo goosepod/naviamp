@@ -1,4 +1,4 @@
-package app.naviamp.desktop
+package app.naviamp.provider.navidrome
 
 import app.naviamp.app.NaviampConnectionAttemptPlan
 import app.naviamp.domain.cache.MediaSourceRepository
@@ -6,12 +6,9 @@ import app.naviamp.domain.cache.ProviderMediaSourceConnection
 import app.naviamp.domain.cache.ProviderMediaSourceRepository
 import app.naviamp.domain.provider.ConnectionValidation
 import app.naviamp.domain.settings.ConnectionFormState
-import app.naviamp.domain.source.SavedMediaSource
 import app.naviamp.domain.source.MediaSourceIdentity
+import app.naviamp.domain.source.SavedMediaSource
 import app.naviamp.presentation.NaviampCoreConnectionRequest
-import app.naviamp.provider.navidrome.NavidromeConnection
-import app.naviamp.provider.navidrome.NavidromeMusicFolder
-import app.naviamp.provider.navidrome.NavidromeProvider
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -20,16 +17,11 @@ import kotlin.test.assertNull
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
-class DesktopCoreProviderSessionPortTest {
+class NavidromeCoreProviderSessionPortTest {
     @Test
     fun activeSessionSuppliesSmartPlaylistProviderAndPersistsItsNativeToken() = runTest {
         val repository = TestMediaSourceRepository(savedSource())
-        val port = DesktopCoreProviderSessionPort(
-            mediaSources = repository,
-            sessionOpener = DesktopNavidromeSessionOpener { request, _ ->
-                session(request.savedConnectionForLogin ?: error("saved credentials missing"))
-            },
-        )
+        val port = testPort(repository)
         port.connect(
             NaviampCoreConnectionRequest.Saved("source-1"),
             NaviampConnectionAttemptPlan(true, false, false, false),
@@ -44,10 +36,10 @@ class DesktopCoreProviderSessionPortTest {
     @Test
     fun editedConnectionReusesProtectedCredentialsFromTheExplicitCoreIdentity() = runTest {
         val repository = TestMediaSourceRepository(savedSource())
-        var opened: app.naviamp.provider.navidrome.NavidromeConnectionLoginRequest? = null
-        val port = DesktopCoreProviderSessionPort(
+        var opened: NavidromeConnectionLoginRequest? = null
+        val port = NavidromeCoreProviderSessionPort(
             mediaSources = repository,
-            sessionOpener = DesktopNavidromeSessionOpener { request, _ ->
+            sessionOpener = NavidromeProviderSessionOpener { request, _ ->
                 opened = request
                 session(request.savedConnectionForLogin ?: error("saved credentials missing"))
             },
@@ -62,12 +54,7 @@ class DesktopCoreProviderSessionPortTest {
                 ),
                 savedConnectionId = "source-1",
             ),
-            plan = NaviampConnectionAttemptPlan(
-                restoreSavedSession = false,
-                clearExistingPlayback = true,
-                clearProviderData = false,
-                runFullLibraryRefresh = true,
-            ),
+            plan = NaviampConnectionAttemptPlan(false, true, false, true),
         )
 
         assertEquals("token", opened?.savedConnectionForLogin?.token)
@@ -78,21 +65,11 @@ class DesktopCoreProviderSessionPortTest {
     @Test
     fun savedConnectionPublishesInventoryAndDeleteClearsTheLiveProvider() = runTest {
         val repository = TestMediaSourceRepository(savedSource())
-        val port = DesktopCoreProviderSessionPort(
-            mediaSources = repository,
-            sessionOpener = DesktopNavidromeSessionOpener { request, _ ->
-                session(request.savedConnectionForLogin ?: error("saved credentials missing"))
-            },
-        )
+        val port = testPort(repository)
 
         val connected = port.connect(
             NaviampCoreConnectionRequest.Saved("source-1"),
-            NaviampConnectionAttemptPlan(
-                restoreSavedSession = true,
-                clearExistingPlayback = false,
-                clearProviderData = false,
-                runFullLibraryRefresh = false,
-            ),
+            NaviampConnectionAttemptPlan(true, false, false, false),
         )
 
         assertEquals("source-1", connected.inventory.currentSourceId)
@@ -106,14 +83,9 @@ class DesktopCoreProviderSessionPortTest {
     }
 
     @Test
-    fun databaseResetDropsTheLiveProviderWithoutPerformingAnotherRepositoryMutation() = runTest {
+    fun databaseResetDropsTheLiveProviderWithoutMutatingTheRepository() = runTest {
         val repository = TestMediaSourceRepository(savedSource())
-        val port = DesktopCoreProviderSessionPort(
-            mediaSources = repository,
-            sessionOpener = DesktopNavidromeSessionOpener { request, _ ->
-                session(request.savedConnectionForLogin ?: error("saved credentials missing"))
-            },
-        )
+        val port = testPort(repository)
         port.connect(
             NaviampCoreConnectionRequest.Saved("source-1"),
             NaviampConnectionAttemptPlan(true, false, false, false),
@@ -126,33 +98,31 @@ class DesktopCoreProviderSessionPortTest {
     }
 
     @Test
-    fun editableConnectionMapsProviderFoldersWithoutOwningSelectionPolicy() = runTest {
-        val port = DesktopCoreProviderSessionPort(
+    fun editableConnectionMapsProviderFoldersAndReportsEffectFailures() = runTest {
+        val success = NavidromeCoreProviderSessionPort(
             mediaSources = TestMediaSourceRepository(savedSource()),
-            sessionOpener = DesktopNavidromeSessionOpener { _, _ -> error("not used") },
+            sessionOpener = NavidromeProviderSessionOpener { _, _ -> error("not used") },
             musicFolders = { listOf(NavidromeMusicFolder("1", "Main"), NavidromeMusicFolder("2", "Archive")) },
-        )
-
-        val editable = port.editableConnection("source-1")
-
-        assertEquals("https://music.example", editable.form.serverUrl)
-        assertEquals(listOf("Main", "Archive"), editable.availableMusicFolders.map { it.name })
-    }
-
-    @Test
-    fun editableConnectionReportsFolderEffectFailureInsteadOfSilentlyMasqueradingAsAnEmptyLibrary() = runTest {
-        val port = DesktopCoreProviderSessionPort(
+        ).editableConnection("source-1")
+        val failure = NavidromeCoreProviderSessionPort(
             mediaSources = TestMediaSourceRepository(savedSource()),
-            sessionOpener = DesktopNavidromeSessionOpener { _, _ -> error("not used") },
+            sessionOpener = NavidromeProviderSessionOpener { _, _ -> error("not used") },
             musicFolders = { error("offline") },
-        )
+        ).editableConnection("source-1")
 
-        val editable = port.editableConnection("source-1")
-
-        assertEquals(emptyList(), editable.availableMusicFolders)
-        assertTrue(editable.musicFoldersLoadFailed)
+        assertEquals("https://music.example", success.form.serverUrl)
+        assertEquals(listOf("Main", "Archive"), success.availableMusicFolders.map { it.name })
+        assertEquals(emptyList(), failure.availableMusicFolders)
+        assertTrue(failure.musicFoldersLoadFailed)
     }
 }
+
+private fun testPort(repository: TestMediaSourceRepository) = NavidromeCoreProviderSessionPort(
+    mediaSources = repository,
+    sessionOpener = NavidromeProviderSessionOpener { request, _ ->
+        session(request.savedConnectionForLogin ?: error("saved credentials missing"))
+    },
+)
 
 private fun savedSource() = SavedMediaSource(
     id = "source-1",
@@ -171,12 +141,13 @@ private fun savedSource() = SavedMediaSource(
     lastSyncCompletedAtEpochMillis = null,
 )
 
-private fun session(connection: NavidromeConnection): DesktopNavidromeSession = DesktopNavidromeSession(
-    connection = connection,
-    provider = NavidromeProvider(connection),
-    sourceId = "source-1",
-    validation = ConnectionValidation(serverVersion = "0.58.0", apiVersion = "1.16.1"),
-)
+private fun session(connection: NavidromeConnection): NavidromeProviderConnectionSession =
+    NavidromeProviderConnectionSession(
+        connection = connection,
+        provider = NavidromeProvider(connection),
+        sourceId = "source-1",
+        validation = ConnectionValidation(serverVersion = "0.58.0", apiVersion = "1.16.1"),
+    )
 
 private class TestMediaSourceRepository(source: SavedMediaSource) :
     MediaSourceRepository,

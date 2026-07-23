@@ -12,10 +12,6 @@ import app.naviamp.ui.SharedSearchResultsUi
 import app.naviamp.ui.toSharedMediaItemUi
 import app.naviamp.ui.toSharedSearchResultsUi
 
-fun interface NaviampCoreMediaProviderSource {
-    fun current(): MediaProvider?
-}
-
 /** Owns Search and Library state, provider transactions, paging, and stale-result rejection. */
 class NaviampCoreCatalogController(
     private val stateStore: NaviampCoreStateStore,
