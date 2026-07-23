@@ -4,6 +4,9 @@ import app.naviamp.domain.settings.CacheSettings
 import app.naviamp.domain.settings.InterfaceSettings
 import app.naviamp.domain.settings.PlaybackSettings
 import app.naviamp.domain.settings.normalized
+import app.naviamp.domain.cache.StorageCacheStats
+import app.naviamp.ui.NaviampDownloadedTrackUi
+import app.naviamp.ui.SharedTrackRowUi
 import app.naviamp.ui.NaviampStorageLocationUi
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.advanceUntilIdle
@@ -84,6 +87,44 @@ class NaviampCoreSettingsControllerTest {
         advanceUntilIdle()
 
         assertEquals("Completed ClearLibrary", fixture.store.state.value.overlays.status)
+    }
+
+    @Test
+    fun maintenanceRepublishesStorageDiagnosticsAndClearsResetDownloads() = runTest {
+        val fixture = fixture(
+            maintenance = {
+                NaviampCoreMaintenanceResult(
+                    status = "Database reset.",
+                    storageStats = StorageCacheStats(),
+                )
+            },
+        )
+        fixture.store.updateShell { shell ->
+            shell.copy(
+                downloads = shell.downloads.copy(
+                    downloads = listOf(
+                        NaviampDownloadedTrackUi(
+                            id = "download",
+                            track = SharedTrackRowUi("track", "Track", "Artist"),
+                            sizeBytes = 42,
+                        ),
+                    ),
+                    downloadBytes = 42,
+                    offlineDashboard = shell.downloads.offlineDashboard.copy(
+                        audioCacheCount = 2,
+                        audioCacheBytes = 84,
+                    ),
+                ),
+            )
+        }
+
+        fixture.controller.execute(NaviampCoreCommand.Settings.ResetDatabase)
+
+        val shell = fixture.store.state.value.shell
+        assertTrue(shell.downloads.downloads.isEmpty())
+        assertEquals(0L, shell.downloads.downloadBytes)
+        assertEquals(0L, shell.downloads.offlineDashboard.audioCacheBytes)
+        assertEquals("0 B", shell.cache.downloadsDiagnostics.sections.single().rows[1].second)
     }
 
     @Test

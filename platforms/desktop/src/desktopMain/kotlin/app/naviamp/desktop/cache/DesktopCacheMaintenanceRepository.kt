@@ -24,6 +24,7 @@ class DesktopCacheMaintenanceRepository(
     private val maxAudioBytes: Long = DefaultAudioCacheBytes,
     private val maxAudioWaveformBytes: Long = DefaultAudioWaveformCacheBytes,
     private val maxHotImageBytes: Long = DefaultHotImageCacheBytes,
+    private val clearUntrackedDownloadsOnReset: Boolean = false,
     private val fileTreeCleaner: DesktopFileTreeCleaner = DesktopFileTreeCleaner(),
 ) : CacheMaintenanceRepository<StorageCacheStats> {
     private val queries = storage.database.naviampStorageQueries
@@ -49,6 +50,7 @@ class DesktopCacheMaintenanceRepository(
     override fun clearAll() {
         clearCacheData()
         clearDownloadData()
+        if (clearUntrackedDownloadsOnReset) fileTreeCleaner.clearDirectoryContents(downloadDirectory())
         clearLibraryRows()
         rows.clearAllRows()
     }

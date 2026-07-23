@@ -5,9 +5,11 @@ import app.naviamp.domain.app.databaseResetStatus
 import app.naviamp.domain.app.libraryIndexClearedStatus
 import app.naviamp.domain.cache.CacheMaintenanceRepository
 import app.naviamp.domain.cache.LocalLibraryIndexRepository
+import app.naviamp.domain.cache.StorageCacheStats
 import app.naviamp.domain.library.librarySyncCompletedStatus
 import app.naviamp.domain.settings.CacheSettings
 import app.naviamp.domain.settings.InterfaceSettings
+import app.naviamp.ui.toCacheSettingsUi
 
 fun interface NaviampCoreInterfaceSettingsStore {
     fun save(settings: InterfaceSettings)
@@ -24,7 +26,10 @@ enum class NaviampCoreMaintenanceOperation {
     ResetDatabase,
 }
 
-data class NaviampCoreMaintenanceResult(val status: String)
+data class NaviampCoreMaintenanceResult(
+    val status: String,
+    val storageStats: StorageCacheStats? = null,
+)
 
 /** Narrow I/O boundary. Core chooses the operation, sequencing, and user-facing result. */
 fun interface NaviampCoreMaintenancePort {
@@ -32,23 +37,23 @@ fun interface NaviampCoreMaintenancePort {
 }
 
 /** Connects portable repositories to Core-owned maintenance sequencing and status policy. */
-fun <Stats> naviampCoreRepositoryMaintenancePort(
-    repository: CacheMaintenanceRepository<Stats>,
+fun naviampCoreRepositoryMaintenancePort(
+    repository: CacheMaintenanceRepository<StorageCacheStats>,
     libraryIndex: LocalLibraryIndexRepository,
     sourceId: () -> String?,
 ): NaviampCoreMaintenancePort = NaviampCoreMaintenancePort { operation ->
     when (operation) {
         NaviampCoreMaintenanceOperation.ClearCache -> {
             repository.clearCacheData()
-            NaviampCoreMaintenanceResult(cacheDataClearedStatus(detailed = true))
+            NaviampCoreMaintenanceResult(cacheDataClearedStatus(detailed = true), repository.stats())
         }
         NaviampCoreMaintenanceOperation.ClearLibrary -> {
             libraryIndex.clearLibraryData(sourceId())
-            NaviampCoreMaintenanceResult(libraryIndexClearedStatus(detailed = true))
+            NaviampCoreMaintenanceResult(libraryIndexClearedStatus(detailed = true), repository.stats())
         }
         NaviampCoreMaintenanceOperation.ResetDatabase -> {
             repository.clearAll()
-            NaviampCoreMaintenanceResult(databaseResetStatus(savedServersRemoved = true))
+            NaviampCoreMaintenanceResult(databaseResetStatus(savedServersRemoved = true), repository.stats())
         }
         NaviampCoreMaintenanceOperation.RefreshLibrary ->
             error("Library refresh is owned by the Core catalog controller.")
@@ -107,7 +112,37 @@ class NaviampCoreSettingsController(
         }
         val result = maintenancePort.run(operation)
         stateStore.update { state ->
-            state.copy(overlays = state.overlays.copy(status = result.status))
+            val shell = result.storageStats?.let { stats ->
+                val previousCache = state.shell.cache
+                val refreshedCache = previousCache.settings.toCacheSettingsUi(stats, state.shell.capabilities).copy(
+                    diagnostics = previousCache.diagnostics,
+                    downloadLocations = previousCache.downloadLocations,
+                    audioCacheLocations = previousCache.audioCacheLocations,
+                    selectedDownloadLocationId = previousCache.selectedDownloadLocationId,
+                    selectedAudioCacheLocationId = previousCache.selectedAudioCacheLocationId,
+                )
+                state.shell.copy(
+                    cache = refreshedCache,
+                    playback = state.shell.playback.copy(downloadBytes = stats.downloadBytes),
+                    downloads = state.shell.downloads.copy(
+                        downloads = if (operation == NaviampCoreMaintenanceOperation.ResetDatabase) {
+                            emptyList()
+                        } else {
+                            state.shell.downloads.downloads
+                        },
+                        downloadBytes = stats.downloadBytes,
+                        offlineDashboard = state.shell.downloads.offlineDashboard.copy(
+                            audioCacheCount = stats.audioCount,
+                            audioCacheBytes = stats.audioBytes,
+                            pendingProviderActionCount = stats.pendingProviderActionCount,
+                        ),
+                    ),
+                )
+            } ?: state.shell
+            state.copy(
+                shell = shell,
+                overlays = state.overlays.copy(status = result.status),
+            )
         }
         return NaviampCoreCommandResult.Completed
     }

@@ -18,6 +18,7 @@ class DesktopStorageRepositoriesTest {
         val audio = Files.createDirectories(root.resolve("audio"))
         val downloads = Files.createDirectories(root.resolve("downloads"))
         Files.write(audio.resolve("cached.bin"), byteArrayOf(1, 2, 3))
+        Files.write(downloads.resolve("orphaned-download.bin"), byteArrayOf(4, 5, 6))
 
         DesktopStorageRepositories.open(
             location = StorageDatabaseLocation(root.toString(), "storage.db"),
@@ -25,6 +26,7 @@ class DesktopStorageRepositoriesTest {
             downloadDirectory = downloads,
             nowEpochMillis = { 7L },
             credentialProtector = PassthroughStorageCredentialProtector,
+            clearUntrackedDownloadsOnReset = true,
         ).use { repositories ->
             repositories.providerResponses.upsertResponse(
                 cacheKey = "response",
@@ -65,6 +67,11 @@ class DesktopStorageRepositoriesTest {
 
             assertEquals(0L, repositories.maintenance.stats().responseCount)
             assertFalse(audio.resolve("cached.bin").exists())
+
+            repositories.maintenance.clearAll()
+
+            assertFalse(downloads.resolve("orphaned-download.bin").exists())
+            assertEquals(0L, repositories.maintenance.stats().downloadBytes)
         }
 
         DesktopFileTreeCleaner().clearDirectoryContents(root)
