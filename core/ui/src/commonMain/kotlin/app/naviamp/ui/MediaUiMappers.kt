@@ -486,6 +486,7 @@ data class NowPlayingCurrentTrackUiActionRequest(
 )
 
 enum class NowPlayingPlaybackAction {
+    Stop,
     Pause,
     Resume,
     PlayCurrent,

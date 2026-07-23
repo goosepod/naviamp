@@ -1,0 +1,134 @@
+package app.naviamp.presentation
+
+import app.naviamp.ui.NaviampAppShellUiState
+import app.naviamp.ui.NaviampNowPlayingItemUi
+import app.naviamp.ui.NaviampHomeScreenUi
+import app.naviamp.ui.NowPlayingPlaybackAction
+import app.naviamp.ui.NowPlayingUi
+import app.naviamp.ui.SharedHomeUi
+import app.naviamp.ui.SharedTrackRowUi
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertIs
+import kotlin.test.assertTrue
+
+class NaviampCoreExternalPlaybackBridgeTest {
+    @Test
+    fun projectsCanonicalQueueAndPlaybackStateForNativeSurfaces() {
+        val bridge = bridge()
+
+        val snapshot = bridge.snapshot()
+
+        assertEquals(NaviampExternalPlaybackState.Playing, snapshot.state)
+        assertEquals(listOf("Earlier", "Current", "Later"), snapshot.queue.map { it.title })
+        assertEquals(1, snapshot.currentQueueIndex)
+        assertEquals("Current", snapshot.current?.title)
+        assertEquals(12_500L, snapshot.positionMillis)
+        assertEquals(180_000L, snapshot.durationMillis)
+        assertTrue(snapshot.shouldRetainPlaybackService)
+    }
+
+    @Test
+    fun nativeTransportAndQueueSelectionEmitTypedCoreCommands() {
+        val commands = mutableListOf<NaviampCoreCommand>()
+        val bridge = bridge(commands)
+
+        bridge.pause()
+        bridge.seekTo(9_750L)
+        bridge.selectQueueItem(2)
+
+        assertEquals(
+            NowPlayingPlaybackAction.Pause,
+            assertIs<NaviampCoreCommand.NowPlaying.Playback>(commands[0]).request.action,
+        )
+        assertEquals(
+            9.75,
+            assertIs<NaviampCoreCommand.NowPlaying.Playback>(commands[1]).request.seekSeconds,
+        )
+        assertEquals(
+            "later",
+            assertIs<NaviampCoreCommand.NowPlaying.Selection>(commands[2]).request.item.id,
+        )
+    }
+
+    @Test
+    fun idleProjectionDoesNotRetainNativePlaybackService() {
+        val state = MutableStateFlow(NaviampCoreState())
+        val snapshot = NaviampCoreExternalPlaybackBridge(state) {}.snapshot()
+
+        assertFalse(snapshot.shouldRetainPlaybackService)
+        assertEquals(emptyList(), snapshot.queue)
+    }
+
+    @Test
+    fun automotiveCatalogAndSelectionAreOwnedByCore() {
+        val commands = mutableListOf<NaviampCoreCommand>()
+        val track = SharedTrackRowUi("recent", "Recent Track", "Artist")
+        val state = MutableStateFlow(
+            NaviampCoreState(
+                shell = NaviampAppShellUiState(
+                    home = NaviampHomeScreenUi(
+                        SharedHomeUi(recentlyPlayedTracks = listOf(track)),
+                    ),
+                ),
+            ),
+        )
+        val bridge = NaviampCoreExternalPlaybackBridge(state, commands::add)
+
+        assertTrue(
+            bridge.browseChildren(NaviampExternalMediaRootId)
+                .any { it.mediaId == NaviampExternalRecentTracksId && !it.playable },
+        )
+        val playable = bridge.browseChildren(NaviampExternalRecentTracksId).single()
+        assertTrue(bridge.playMediaId(playable.mediaId))
+
+        val command = assertIs<NaviampCoreCommand.Media.TrackAction>(commands.single())
+        assertEquals("recent", command.request.track.id)
+        assertEquals(app.naviamp.ui.SharedTrackRowAction.Select, command.request.action)
+    }
+
+    @Test
+    fun automotiveVoiceSearchSelectsThroughTheCommonCatalog() {
+        val commands = mutableListOf<NaviampCoreCommand>()
+        val track = SharedTrackRowUi("recent", "Recent Track", "Artist")
+        val state = MutableStateFlow(
+            NaviampCoreState(
+                shell = NaviampAppShellUiState(
+                    home = NaviampHomeScreenUi(
+                        SharedHomeUi(recentlyPlayedTracks = listOf(track)),
+                    ),
+                ),
+            ),
+        )
+        val bridge = NaviampCoreExternalPlaybackBridge(state, commands::add)
+
+        assertTrue(bridge.playSearch("Recent"))
+        assertFalse(bridge.playSearch("Missing"))
+        assertIs<NaviampCoreCommand.Media.TrackAction>(commands.single())
+    }
+}
+
+private fun bridge(
+    commands: MutableList<NaviampCoreCommand> = mutableListOf(),
+): NaviampCoreExternalPlaybackBridge {
+    val nowPlaying = NowPlayingUi(
+        id = "current",
+        title = "Current",
+        subtitle = "Artist",
+        stateLabel = "Playing",
+        isPlaying = true,
+        canPlayPause = true,
+        positionSeconds = 12.5,
+        durationSeconds = 180.0,
+        hasPrevious = true,
+        hasNext = true,
+        backTo = listOf(NaviampNowPlayingItemUi("earlier", "Earlier", "Artist")),
+        upNext = listOf(NaviampNowPlayingItemUi("later", "Later", "Artist")),
+    )
+    val state = MutableStateFlow(
+        NaviampCoreState(shell = NaviampAppShellUiState(nowPlaying = nowPlaying)),
+    )
+    return NaviampCoreExternalPlaybackBridge(state, commands::add)
+}

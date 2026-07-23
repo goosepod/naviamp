@@ -287,6 +287,7 @@ class NaviampCorePlaybackController(
     private fun playback(request: NowPlayingPlaybackActionRequest) {
         val playbackSettings = stateStore.state.value.shell.playback.settings
         when (request.action) {
+            NowPlayingPlaybackAction.Stop -> commands.stop()
             NowPlayingPlaybackAction.Pause,
             NowPlayingPlaybackAction.Resume,
             NowPlayingPlaybackAction.PlayCurrent,

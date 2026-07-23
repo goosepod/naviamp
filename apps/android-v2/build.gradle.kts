@@ -37,6 +37,8 @@ dependencies {
     implementation(project(":core:presentation"))
     implementation(project(":core:ui"))
     implementation(libs.activity.compose)
+    implementation(libs.androidx.media)
+    implementation(libs.kotlinx.coroutines.core)
     implementation("org.jetbrains.compose.runtime:runtime:${libs.versions.compose.get()}")
     implementation("org.jetbrains.compose.ui:ui:${libs.versions.compose.get()}")
 
