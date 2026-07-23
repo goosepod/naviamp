@@ -33,6 +33,7 @@ fun NaviampCapabilityPresentation.toShellCapabilitiesUi(
     crossfade = playbackEngine.supportsCrossfade,
     equalizer = (playbackEngine as? EqualizerPlaybackEngine)?.supportsEqualizer == true,
     sonicSimilarity = sonicSimilarityAvailable,
+    softwareVolumeControl = softwareVolumeControl.visible && playbackEngine.supportsSoftwareVolume,
     downloads = downloads.visible,
     settingsImportExport = settingsImportExport.visible,
     applicationUpdates = applicationUpdates.visible,

@@ -138,6 +138,26 @@ class NaviampCorePlaybackControllerTest {
     }
 
     @Test
+    fun platformCapabilityCanSuppressSoftwareVolumeEvenWhenTheEngineSupportsIt() = runTest {
+        val fixture = playbackFixture(this)
+        fixture.store.updateShell { shell ->
+            shell.copy(
+                capabilities = shell.capabilities.copy(softwareVolumeControl = false),
+            )
+        }
+
+        fixture.controller.execute(
+            NaviampCoreCommand.NowPlaying.Playback(
+                NowPlayingPlaybackActionRequest(NowPlayingPlaybackAction.ChangeVolume, volumePercent = 42),
+            ),
+        )
+
+        assertTrue(fixture.effects.volumes.isEmpty())
+        assertEquals(100, fixture.savedSettings.single().volumePercent)
+        assertEquals(100, fixture.store.state.value.shell.nowPlaying?.volumePercent)
+    }
+
+    @Test
     fun seekQueueMutationsAndSaveAreCoreTransactions() = runTest {
         val fixture = playbackFixture(this)
 

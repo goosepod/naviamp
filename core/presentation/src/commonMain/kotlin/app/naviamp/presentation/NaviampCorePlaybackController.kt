@@ -317,7 +317,9 @@ class NaviampCorePlaybackController(
                 if (requested == null) {
                     publishStatus("Volume value is missing.")
                 } else {
-                    val command = commands.changeVolume(requested, effects.capabilities.supportsSoftwareVolume)
+                    val softwareVolumeEnabled = effects.capabilities.supportsSoftwareVolume &&
+                        stateStore.state.value.shell.capabilities.softwareVolumeControl
+                    val command = commands.changeVolume(requested, softwareVolumeEnabled)
                     val updated = playbackSettings.copy(volumePercent = command.volumePercent)
                     settings.apply(updated, redownload = false)
                     stateStore.updateShell { shell -> shell.copy(playback = shell.playback.copy(settings = updated)) }

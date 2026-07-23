@@ -9,6 +9,7 @@ import app.naviamp.domain.app.PlatformCapabilityStatus
 /** Desktop OS facts shared by the legacy and replacement hosts during cutover. */
 val DesktopPlatformCapabilities: PlatformCapabilities = listOf(
     PlatformCapability.BackgroundPlayback,
+    PlatformCapability.SoftwareVolumeControl,
     PlatformCapability.SecureCredentialStorage,
     PlatformCapability.InsecureServerVerification,
     PlatformCapability.CustomServerCertificates,

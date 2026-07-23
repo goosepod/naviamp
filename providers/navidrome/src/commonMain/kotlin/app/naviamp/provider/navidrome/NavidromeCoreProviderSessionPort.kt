@@ -60,7 +60,7 @@ class NavidromeCoreProviderSessionPort(
 
     fun currentProvider(): MediaProvider? = provider
 
-    fun initialInventory(): NaviampCoreConnectionInventory = inventory()
+    override fun initialInventory(): NaviampCoreConnectionInventory = inventory()
 
     override suspend fun connect(
         request: NaviampCoreConnectionRequest,

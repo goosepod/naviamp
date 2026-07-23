@@ -54,7 +54,8 @@ class NaviampCoreNowPlayingPresenter(
             hasPlaybackTarget = track != null || live.currentStation != null,
             supportsPause = effects.capabilities.supportsPause,
             supportsSeek = effects.capabilities.supportsSeek,
-            supportsSoftwareVolume = effects.capabilities.supportsSoftwareVolume,
+            supportsSoftwareVolume = effects.capabilities.supportsSoftwareVolume &&
+                shell.capabilities.softwareVolumeControl,
             supportsTrackRadio = provider?.capabilities?.supportsTrackRadio == true,
             supportsTrackFavorites = provider?.capabilities?.supportsTrackFavorites == true,
             supportsTrackRatings = provider?.capabilities?.supportsTrackRatings == true,

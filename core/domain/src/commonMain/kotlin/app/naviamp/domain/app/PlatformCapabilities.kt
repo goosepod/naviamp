@@ -12,6 +12,7 @@ import app.naviamp.domain.playback.PlaybackEngine
 enum class PlatformCapability {
     BackgroundPlayback,
     SystemMediaControls,
+    SoftwareVolumeControl,
     SecureCredentialStorage,
     InsecureServerVerification,
     CustomServerCertificates,

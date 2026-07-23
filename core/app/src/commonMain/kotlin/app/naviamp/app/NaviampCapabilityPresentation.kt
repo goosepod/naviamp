@@ -22,6 +22,7 @@ class NaviampCapabilityPresentation(
 ) {
     val backgroundPlayback get() = feature(PlatformCapability.BackgroundPlayback)
     val systemMediaControls get() = feature(PlatformCapability.SystemMediaControls)
+    val softwareVolumeControl get() = feature(PlatformCapability.SoftwareVolumeControl)
     val secureCredentialStorage get() = feature(PlatformCapability.SecureCredentialStorage)
     val insecureServerVerification get() = feature(PlatformCapability.InsecureServerVerification)
     val customServerCertificates get() = feature(PlatformCapability.CustomServerCertificates)

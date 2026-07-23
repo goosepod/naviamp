@@ -46,6 +46,8 @@ data class NaviampCoreConnectedSession(
 
 /** Credential access and provider-session construction are effects; all connection policy is Core. */
 interface NaviampCoreProviderSessionPort {
+    fun initialInventory(): NaviampCoreConnectionInventory = NaviampCoreConnectionInventory()
+
     suspend fun connect(
         request: NaviampCoreConnectionRequest,
         plan: NaviampConnectionAttemptPlan,

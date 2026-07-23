@@ -1066,6 +1066,7 @@ data class NaviampShellCapabilitiesUi(
     val crossfade: Boolean = false,
     val equalizer: Boolean = false,
     val sonicSimilarity: Boolean = false,
+    val softwareVolumeControl: Boolean = true,
     val downloads: Boolean = false,
     val settingsImportExport: Boolean = false,
     val applicationUpdates: Boolean = false,

@@ -69,6 +69,8 @@ class AndroidStorageDependencies(
 
     fun updateDownloadDirectory(directory: java.io.File) = storage.updateDownloadDirectory(directory)
     fun updateAudioCacheDirectory(directory: java.io.File) = storage.updateAudioCacheDirectory(directory)
+    val downloadDirectory: java.io.File get() = storage.downloadDirectory
+    val audioCacheDirectory: java.io.File get() = storage.audioCacheDirectory
 
     fun libraryTrack(sourceId: String, trackId: TrackId): Track? =
         storage.libraryTrack(sourceId, trackId)

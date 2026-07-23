@@ -39,6 +39,7 @@ class NaviampShellCapabilityMapperTest {
             .withStatus(PlatformCapability.SettingsImportExport, PlatformCapabilityStatus.Experimental)
             .withStatus(PlatformCapability.FileSelection, PlatformCapabilityStatus.Available)
             .withStatus(PlatformCapability.CustomServerCertificates, PlatformCapabilityStatus.Available)
+            .withStatus(PlatformCapability.SoftwareVolumeControl, PlatformCapabilityStatus.Available)
         val capabilities = NaviampCapabilityPresentation(platform).toShellCapabilitiesUi(
             playbackEngine = TestPlaybackEngine,
             sonicSimilarityAvailable = true,
@@ -54,10 +55,21 @@ class NaviampShellCapabilityMapperTest {
         assertTrue(capabilities.crossfade)
         assertTrue(capabilities.equalizer)
         assertTrue(capabilities.sonicSimilarity)
+        assertTrue(capabilities.softwareVolumeControl)
         assertTrue(capabilities.showMobileNetworkQuality)
         assertFalse(capabilities.connection.insecureServerVerification)
         assertTrue(capabilities.connection.customServerCertificates)
         assertFalse(capabilities.connection.clientCertificates)
+    }
+
+    @Test
+    fun hidesSoftwareVolumeWhenTheHostDoesNotExposeIt() {
+        val capabilities = NaviampCapabilityPresentation(PlatformCapabilities()).toShellCapabilitiesUi(
+            playbackEngine = TestPlaybackEngine,
+            sonicSimilarityAvailable = false,
+        )
+
+        assertFalse(capabilities.softwareVolumeControl)
     }
 }
 
