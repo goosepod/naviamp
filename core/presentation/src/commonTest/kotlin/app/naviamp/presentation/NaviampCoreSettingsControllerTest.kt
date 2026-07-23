@@ -91,6 +91,7 @@ class NaviampCoreSettingsControllerTest {
 
     @Test
     fun maintenanceRepublishesStorageDiagnosticsAndClearsResetDownloads() = runTest {
+        var resetCompleted = false
         val fixture = fixture(
             maintenance = {
                 NaviampCoreMaintenanceResult(
@@ -98,6 +99,7 @@ class NaviampCoreSettingsControllerTest {
                     storageStats = StorageCacheStats(),
                 )
             },
+            onDatabaseReset = { resetCompleted = true },
         )
         fixture.store.updateShell { shell ->
             shell.copy(
@@ -121,6 +123,7 @@ class NaviampCoreSettingsControllerTest {
         fixture.controller.execute(NaviampCoreCommand.Settings.ResetDatabase)
 
         val shell = fixture.store.state.value.shell
+        assertTrue(resetCompleted)
         assertTrue(shell.downloads.downloads.isEmpty())
         assertEquals(0L, shell.downloads.downloadBytes)
         assertEquals(0L, shell.downloads.offlineDashboard.audioCacheBytes)
@@ -151,6 +154,7 @@ class NaviampCoreSettingsControllerTest {
             NaviampCoreMaintenanceResult("Completed")
         },
         refreshLibrary: suspend () -> Unit = {},
+        onDatabaseReset: suspend () -> Unit = {},
     ): SettingsFixture {
         val store = NaviampCoreStateStore()
         val savedInterface = mutableListOf<InterfaceSettings>()
@@ -172,6 +176,7 @@ class NaviampCoreSettingsControllerTest {
                 },
                 maintenancePort = NaviampCoreMaintenancePort(maintenance),
                 refreshLibrary = refreshLibrary,
+                onDatabaseReset = onDatabaseReset,
             ),
         )
     }

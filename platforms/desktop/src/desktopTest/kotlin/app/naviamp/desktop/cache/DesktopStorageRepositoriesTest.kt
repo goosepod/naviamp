@@ -19,6 +19,8 @@ class DesktopStorageRepositoriesTest {
         val downloads = Files.createDirectories(root.resolve("downloads"))
         Files.write(audio.resolve("cached.bin"), byteArrayOf(1, 2, 3))
         Files.write(downloads.resolve("orphaned-download.bin"), byteArrayOf(4, 5, 6))
+        val legacyCache = Files.write(root.resolve("cache.db"), byteArrayOf(7, 8, 9))
+        val legacyStorage = Files.write(root.resolve("legacy-storage.db"), byteArrayOf(10, 11, 12))
 
         DesktopStorageRepositories.open(
             location = StorageDatabaseLocation(root.toString(), "storage.db"),
@@ -27,6 +29,7 @@ class DesktopStorageRepositoriesTest {
             nowEpochMillis = { 7L },
             credentialProtector = PassthroughStorageCredentialProtector,
             clearUntrackedDownloadsOnReset = true,
+            legacyDatabaseFilesOnReset = listOf(legacyCache, legacyStorage),
         ).use { repositories ->
             repositories.providerResponses.upsertResponse(
                 cacheKey = "response",
@@ -71,6 +74,8 @@ class DesktopStorageRepositoriesTest {
             repositories.maintenance.clearAll()
 
             assertFalse(downloads.resolve("orphaned-download.bin").exists())
+            assertFalse(legacyCache.exists())
+            assertFalse(legacyStorage.exists())
             assertEquals(0L, repositories.maintenance.stats().downloadBytes)
         }
 

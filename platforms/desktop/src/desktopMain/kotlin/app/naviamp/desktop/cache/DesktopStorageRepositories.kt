@@ -62,6 +62,7 @@ class DesktopStorageRepositories private constructor(
             maxAudioWaveformBytes: Long = DefaultDesktopAudioWaveformCacheBytes,
             maxHotImageBytes: Long = DefaultDesktopHotImageCacheBytes,
             clearUntrackedDownloadsOnReset: Boolean = false,
+            legacyDatabaseFilesOnReset: List<Path> = emptyList(),
             json: Json = Json { ignoreUnknownKeys = true; encodeDefaults = true },
         ): DesktopStorageRepositories {
             val mediaSources = DesktopMediaSourceStorage.open(
@@ -120,6 +121,7 @@ class DesktopStorageRepositories private constructor(
                         maxAudioWaveformBytes = maxAudioWaveformBytes,
                         maxHotImageBytes = maxHotImageBytes,
                         clearUntrackedDownloadsOnReset = clearUntrackedDownloadsOnReset,
+                        legacyDatabaseFilesOnReset = legacyDatabaseFilesOnReset,
                     ),
                 )
             } catch (failure: Throwable) {

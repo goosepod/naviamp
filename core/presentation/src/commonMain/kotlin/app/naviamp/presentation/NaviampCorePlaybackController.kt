@@ -139,6 +139,22 @@ class NaviampCorePlaybackController(
         })
     }
 
+    fun resetAfterDatabaseClear() {
+        val sourceId = stateStore.state.value.shell.connectionSettings.currentSourceId
+        effects.stop()
+        queue.clearQueue()
+        playback.replace(
+            app.naviamp.app.NaviampLivePlaybackState(
+                playbackState = PlaybackState.Stopped,
+            ),
+        )
+        sessions.clear(sourceId)
+        persistedQueue = PlaybackQueue()
+        persistedStationId = null
+        display = NaviampCoreNowPlayingDisplayState()
+        presenter.publish(display)
+    }
+
     suspend fun restoreSession(sourceId: String): Boolean {
         when (val restored = sessions.restorePlan(sourceId)) {
             PlaybackSessionRestorePlan.None -> return false

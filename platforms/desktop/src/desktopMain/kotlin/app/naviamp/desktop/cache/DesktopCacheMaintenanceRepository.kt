@@ -25,6 +25,7 @@ class DesktopCacheMaintenanceRepository(
     private val maxAudioWaveformBytes: Long = DefaultAudioWaveformCacheBytes,
     private val maxHotImageBytes: Long = DefaultHotImageCacheBytes,
     private val clearUntrackedDownloadsOnReset: Boolean = false,
+    private val legacyDatabaseFilesOnReset: List<Path> = emptyList(),
     private val fileTreeCleaner: DesktopFileTreeCleaner = DesktopFileTreeCleaner(),
 ) : CacheMaintenanceRepository<StorageCacheStats> {
     private val queries = storage.database.naviampStorageQueries
@@ -53,6 +54,7 @@ class DesktopCacheMaintenanceRepository(
         if (clearUntrackedDownloadsOnReset) fileTreeCleaner.clearDirectoryContents(downloadDirectory())
         clearLibraryRows()
         rows.clearAllRows()
+        legacyDatabaseFilesOnReset.forEach(fileTreeCleaner::deleteFile)
     }
 
     override fun pruneUnusedSourceScopes(

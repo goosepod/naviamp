@@ -127,6 +127,11 @@ class DesktopCoreProviderSessionPort(
 
     override suspend fun persistActiveSession() = nativeSession.persist()
 
+    override suspend fun clearActiveSession() {
+        currentSourceId = null
+        provider = null
+    }
+
     private fun NaviampCoreConnectionRequest.toLoginRequest(): NavidromeConnectionLoginRequest {
         val form = when (this) {
             is NaviampCoreConnectionRequest.Form -> form

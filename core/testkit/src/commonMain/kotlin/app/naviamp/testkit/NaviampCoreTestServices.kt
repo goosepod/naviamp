@@ -45,6 +45,7 @@ fun naviampCoreTestServices(provider: MediaProvider? = null): NaviampCoreService
         override suspend fun smartPlaylistProvider(password: String?) = provider
         override suspend fun refreshActiveSession() = false
         override suspend fun persistActiveSession() = Unit
+        override suspend fun clearActiveSession() = Unit
     },
     settings = NaviampCoreSettingsServices(
         interfaceSettings = NaviampCoreInterfaceSettingsStore {},

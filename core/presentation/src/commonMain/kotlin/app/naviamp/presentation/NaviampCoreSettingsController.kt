@@ -10,6 +10,20 @@ import app.naviamp.domain.library.librarySyncCompletedStatus
 import app.naviamp.domain.settings.CacheSettings
 import app.naviamp.domain.settings.InterfaceSettings
 import app.naviamp.ui.toCacheSettingsUi
+import app.naviamp.ui.NaviampAlbumDetailScreenUi
+import app.naviamp.ui.NaviampArtistDetailScreenUi
+import app.naviamp.ui.NaviampDownloadsScreenUi
+import app.naviamp.ui.NaviampHomeScreenUi
+import app.naviamp.ui.NaviampInternetRadioScreenUi
+import app.naviamp.ui.NaviampLibraryScreenUi
+import app.naviamp.ui.NaviampPlaylistDetailScreenUi
+import app.naviamp.ui.NaviampPlaylistsScreenUi
+import app.naviamp.ui.NaviampSearchScreenUi
+import app.naviamp.ui.SharedAlbumMixBuilderUi
+import app.naviamp.ui.SharedArtistMixBuilderUi
+import app.naviamp.ui.SharedGenreMixBuilderUi
+import app.naviamp.ui.SharedSonicMixBuilderUi
+import app.naviamp.ui.SharedSonicPathBuilderUi
 
 fun interface NaviampCoreInterfaceSettingsStore {
     fun save(settings: InterfaceSettings)
@@ -68,6 +82,7 @@ class NaviampCoreSettingsController(
     private val cacheSettings: NaviampCoreCacheSettingsPort,
     private val maintenancePort: NaviampCoreMaintenancePort,
     private val refreshLibrary: suspend () -> Unit = {},
+    private val onDatabaseReset: suspend () -> Unit = {},
     private val onLocalSettingsChanged: () -> Unit = {},
 ) : NaviampCoreCommandController {
     override fun dispatch(command: NaviampCoreCommand): NaviampCoreImmediateCommandResult {
@@ -110,6 +125,7 @@ class NaviampCoreSettingsController(
             NaviampCoreCommand.Settings.ResetDatabase -> NaviampCoreMaintenanceOperation.ResetDatabase
             else -> return null
         }
+        if (operation == NaviampCoreMaintenanceOperation.ResetDatabase) onDatabaseReset()
         val result = maintenancePort.run(operation)
         stateStore.update { state ->
             val shell = result.storageStats?.let { stats ->
@@ -139,8 +155,35 @@ class NaviampCoreSettingsController(
                     ),
                 )
             } ?: state.shell
+            val reconciledShell = if (operation == NaviampCoreMaintenanceOperation.ResetDatabase) {
+                shell.copy(
+                    search = NaviampSearchScreenUi(),
+                    home = NaviampHomeScreenUi(),
+                    artistMixBuilder = SharedArtistMixBuilderUi(),
+                    albumMixBuilder = SharedAlbumMixBuilderUi(),
+                    genreMixBuilder = SharedGenreMixBuilderUi(),
+                    sonicPathBuilder = SharedSonicPathBuilderUi(),
+                    sonicMixBuilder = SharedSonicMixBuilderUi(),
+                    library = NaviampLibraryScreenUi(),
+                    downloads = NaviampDownloadsScreenUi(
+                        maxDownloadBytes = shell.cache.settings.maxDownloadBytes,
+                        offlineDashboard = shell.downloads.offlineDashboard.copy(
+                            maxAudioCacheBytes = shell.cache.settings.maxAudioCacheBytes,
+                        ),
+                    ),
+                    playlists = NaviampPlaylistsScreenUi(),
+                    playlistChoices = emptyList(),
+                    radio = NaviampInternetRadioScreenUi(),
+                    albumDetail = NaviampAlbumDetailScreenUi(),
+                    artistDetail = NaviampArtistDetailScreenUi(),
+                    playlistDetail = NaviampPlaylistDetailScreenUi(),
+                    nowPlaying = null,
+                )
+            } else {
+                shell
+            }
             state.copy(
-                shell = shell,
+                shell = reconciledShell,
                 overlays = state.overlays.copy(status = result.status),
             )
         }

@@ -94,6 +94,10 @@ class NaviampCoreNavigationController(
         setNowPlayingOpen(open = true, persist = false)
     }
 
+    fun resetAfterDatabaseClear() {
+        selectRoute(NaviampRoute.Settings)
+    }
+
     private fun publishDetailRoute() {
         stateStore.updateShell { shell ->
             shell.copy(

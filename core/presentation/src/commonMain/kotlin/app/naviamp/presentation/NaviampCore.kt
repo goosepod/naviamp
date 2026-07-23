@@ -165,6 +165,7 @@ class NaviampCore private constructor(
                 mediaRegistry = mediaRegistry,
             )
             var notifyLocalSettingsChanged: () -> Unit = services.settings.sync.controller::markLocalChanged
+            var completeDatabaseReset: suspend () -> Unit = {}
             val settings = NaviampCoreSettingsController(
                 stateStore,
                 services.settings.interfaceSettings,
@@ -172,6 +173,7 @@ class NaviampCore private constructor(
                 services.settings.cacheSettings,
                 services.settings.maintenance,
                 refreshLibrary = catalog::refreshAfterConnection,
+                onDatabaseReset = { completeDatabaseReset() },
                 onLocalSettingsChanged = { notifyLocalSettingsChanged() },
             )
             val home = NaviampCoreHomeController(
@@ -382,6 +384,11 @@ class NaviampCore private constructor(
                     scope.launch { downloads.refresh(reconcile = false) }
                 },
             )
+            completeDatabaseReset = {
+                playback.resetAfterDatabaseClear()
+                connection.resetAfterDatabaseClear()
+                navigation.resetAfterDatabaseClear()
+            }
             val settingsSync = NaviampCoreSettingsSyncController(
                 stateStore = stateStore,
                 services = services.settings.sync,

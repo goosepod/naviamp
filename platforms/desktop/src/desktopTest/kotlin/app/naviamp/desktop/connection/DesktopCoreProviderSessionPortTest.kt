@@ -106,6 +106,26 @@ class DesktopCoreProviderSessionPortTest {
     }
 
     @Test
+    fun databaseResetDropsTheLiveProviderWithoutPerformingAnotherRepositoryMutation() = runTest {
+        val repository = TestMediaSourceRepository(savedSource())
+        val port = DesktopCoreProviderSessionPort(
+            mediaSources = repository,
+            sessionOpener = DesktopNavidromeSessionOpener { request, _ ->
+                session(request.savedConnectionForLogin ?: error("saved credentials missing"))
+            },
+        )
+        port.connect(
+            NaviampCoreConnectionRequest.Saved("source-1"),
+            NaviampConnectionAttemptPlan(true, false, false, false),
+        )
+
+        port.clearActiveSession()
+
+        assertNull(port.currentProvider())
+        assertEquals("source-1", repository.mediaSources().single().id)
+    }
+
+    @Test
     fun editableConnectionMapsProviderFoldersWithoutOwningSelectionPolicy() = runTest {
         val port = DesktopCoreProviderSessionPort(
             mediaSources = TestMediaSourceRepository(savedSource()),

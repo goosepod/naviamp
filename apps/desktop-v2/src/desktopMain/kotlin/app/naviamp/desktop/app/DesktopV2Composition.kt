@@ -100,7 +100,17 @@ internal class DesktopV2Composition private constructor(
                 audioCacheDirectory = audioCacheDirectory,
                 downloadDirectory = downloadDirectory,
                 nowEpochMillis = nowEpochMillis,
-                clearUntrackedDownloadsOnReset = initialCacheSettings.customDownloadDirectory == null,
+                clearUntrackedDownloadsOnReset =
+                    downloadDirectory.toAbsolutePath().normalize() ==
+                        dataDirectory.resolve("downloads").toAbsolutePath().normalize(),
+                legacyDatabaseFilesOnReset = listOf(
+                    dataDirectory.resolve("cache.db"),
+                    dataDirectory.resolve("cache.db-wal"),
+                    dataDirectory.resolve("cache.db-shm"),
+                    dataDirectory.resolve("storage.db"),
+                    dataDirectory.resolve("storage.db-wal"),
+                    dataDirectory.resolve("storage.db-shm"),
+                ),
             )
             val sessions = desktopCoreProviderSessionPort(
                 storage = storage.mediaSources,

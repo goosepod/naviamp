@@ -203,6 +203,24 @@ class NaviampCorePlaybackControllerTest {
         assertEquals(PlaybackState.Stopped, fixture.live.state.value.playbackState)
         assertEquals("Sleep timer stopped playback.", fixture.store.state.value.overlays.status)
     }
+
+    @Test
+    fun databaseResetStopsPlaybackAndRemovesTheQueueAndPersistedSession() = runTest {
+        val fixture = playbackFixture(this)
+        fixture.sessionRepository.sessions["source"] = PlaybackSessionSettings.fromTracks(
+            fixture.live.state.value.queue.tracks,
+            currentIndex = 1,
+        )
+
+        fixture.controller.resetAfterDatabaseClear()
+
+        assertEquals(1, fixture.effects.stops)
+        assertEquals(PlaybackState.Stopped, fixture.live.state.value.playbackState)
+        assertEquals(null, fixture.live.state.value.currentTrack)
+        assertTrue(fixture.live.state.value.queue.tracks.isEmpty())
+        assertEquals(null, fixture.sessionRepository.sessions["source"])
+        assertTrue(fixture.store.state.value.shell.nowPlaying?.upNext.orEmpty().isEmpty())
+    }
 }
 
 private data class PlaybackFixture(

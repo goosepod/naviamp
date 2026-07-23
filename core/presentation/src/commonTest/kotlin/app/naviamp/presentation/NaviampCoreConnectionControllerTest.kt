@@ -164,6 +164,21 @@ class NaviampCoreConnectionControllerTest {
     }
 
     @Test
+    fun databaseResetDropsTheLiveSessionAndPublishesAnEmptyDisconnectedInventory() =
+        kotlinx.coroutines.test.runTest {
+            val fixture = fixture()
+
+            fixture.controller.resetAfterDatabaseClear()
+
+            val settings = fixture.store.state.value.shell.connectionSettings
+            assertTrue(fixture.port.activeSessionCleared)
+            assertEquals(null, settings.currentSourceId)
+            assertTrue(settings.connection.savedConnections.isEmpty())
+            assertFalse(settings.connection.connected)
+            assertEquals("Database reset.", settings.connection.status)
+        }
+
+    @Test
     fun musicFolderFailuresRemainVisibleWhileCoreKeepsTheConnectionEditable() = kotlinx.coroutines.test.runTest {
         val fixture = fixture(musicFoldersLoadFailed = true)
 
@@ -233,6 +248,7 @@ private class FakeProviderSessionPort(
 ) : NaviampCoreProviderSessionPort {
     var inventory = initialInventory
     var refreshCalls = 0
+    var activeSessionCleared = false
     val connectRequests = mutableListOf<Pair<NaviampCoreConnectionRequest, NaviampConnectionAttemptPlan>>()
 
     override suspend fun connect(
@@ -265,4 +281,7 @@ private class FakeProviderSessionPort(
     }
     override suspend fun smartPlaylistProvider(password: String?) = null
     override suspend fun persistActiveSession() = Unit
+    override suspend fun clearActiveSession() {
+        activeSessionCleared = true
+    }
 }

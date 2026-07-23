@@ -162,6 +162,8 @@ class NaviampCorePlaylistTransactionControllerTest {
             override suspend fun persistActiveSession() {
                 persistedSessions += 1
             }
+
+            override suspend fun clearActiveSession() = Unit
         }
         val controller = NaviampCorePlaylistTransactionController(
             stateStore = store,

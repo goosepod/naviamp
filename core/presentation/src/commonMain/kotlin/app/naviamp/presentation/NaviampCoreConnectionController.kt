@@ -63,6 +63,9 @@ interface NaviampCoreProviderSessionPort {
 
     /** Persists credentials rotated by a provider request that Core just completed. */
     suspend fun persistActiveSession()
+
+    /** Drops only the live native/provider session after Core has erased its durable source. */
+    suspend fun clearActiveSession()
 }
 
 /** Core owns provider-session renewal timing; hosts only execute and persist one renewal attempt. */
@@ -102,6 +105,26 @@ class NaviampCoreConnectionController(
     /** Publishes repository changes made by a shared settings import without reconnecting. */
     fun replaceSavedConnections(connections: List<NaviampCoreSavedConnectionRecord>) {
         inventory = inventory.copy(connections = connections)
+        publishConnection()
+    }
+
+    suspend fun resetAfterDatabaseClear() {
+        sessionPort.clearActiveSession()
+        inventory = NaviampCoreConnectionInventory()
+        editingConnectionId = null
+        connection.disconnected("Database reset.")
+        stateStore.updateShell { shell ->
+            shell.copy(
+                connectionSettings = shell.connectionSettings.copy(
+                    connection = shell.connectionSettings.connection.copy(
+                        editingConnection = false,
+                        form = ConnectionFormState(),
+                        availableMusicFolders = emptyList(),
+                        musicFoldersStatus = null,
+                    ),
+                ),
+            )
+        }
         publishConnection()
     }
 

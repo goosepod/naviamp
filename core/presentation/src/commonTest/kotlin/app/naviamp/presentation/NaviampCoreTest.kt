@@ -314,6 +314,7 @@ class NaviampCoreTest {
                 override suspend fun smartPlaylistProvider(password: String?) = provider
                 override suspend fun refreshActiveSession() = true
                 override suspend fun persistActiveSession() = Unit
+                override suspend fun clearActiveSession() = Unit
             },
         )
         val core = NaviampCore.create(this, services)
@@ -431,6 +432,7 @@ internal fun fakeCoreServices(provider: MediaProvider? = null) = NaviampCoreServ
         override suspend fun smartPlaylistProvider(password: String?) = provider
         override suspend fun refreshActiveSession() = false
         override suspend fun persistActiveSession() = Unit
+        override suspend fun clearActiveSession() = Unit
     },
     settings = NaviampCoreSettingsServices(
         interfaceSettings = NaviampCoreInterfaceSettingsStore {},
