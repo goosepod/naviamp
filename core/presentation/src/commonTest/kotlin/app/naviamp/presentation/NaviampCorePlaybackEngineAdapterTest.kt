@@ -25,19 +25,125 @@ import app.naviamp.domain.playback.PlaybackLocalAudio
 import app.naviamp.domain.provider.MediaProvider
 import app.naviamp.domain.queue.PlaybackQueue
 import app.naviamp.domain.settings.PlaybackSettings
+import app.naviamp.domain.settings.CacheSettings
 import app.naviamp.domain.media.RelatedTracksSource
 import app.naviamp.domain.waveform.AudioWaveform
 import app.naviamp.domain.waveform.AudioWaveformAnalysisSource
 import app.naviamp.domain.waveform.AudioWaveformAnalyzer
 import app.naviamp.domain.waveform.AudioWaveformService
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
 @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 class NaviampCorePlaybackEngineAdapterTest {
+    @Test
+    fun startingPlaybackPrefetchesTheConfiguredUpcomingQueueDepth() = runTest {
+        val provider = FakeCoreMediaProvider()
+        val engine = RecordingPlaybackEngine()
+        val cachedTrackIds = mutableListOf<String>()
+        val preparedSidecarIds = mutableListOf<String>()
+        val adapter = NaviampCorePlaybackEngineAdapter(
+            scope = this,
+            engine = engine,
+            providerSource = NaviampCoreMediaProviderSource { provider },
+            settings = { PlaybackSettings() },
+            activeSourceId = { "source" },
+            cacheSettings = { CacheSettings(audioCachingEnabled = true, audioPrefetchDepth = 2) },
+            cacheAudio = { _, _, track, _ ->
+                cachedTrackIds += track.id.value
+                PlaybackLocalAudio("/cache/${track.id.value}", "file:///cache/${track.id.value}")
+            },
+            preparePrefetchedSidecars = { _, _, track, _, _ ->
+                preparedSidecarIds += track.id.value
+                app.naviamp.domain.playback.PlaybackSidecarPrepResult()
+            },
+        )
+        val nextOne = provider.track.copy(id = TrackId("next-1"), title = "Next One")
+        val nextTwo = provider.track.copy(id = TrackId("next-2"), title = "Next Two")
+        val later = provider.track.copy(id = TrackId("later"), title = "Later")
+
+        adapter.playQueueSelection(PlaybackQueue(listOf(provider.track, nextOne, nextTwo, later), 0), 0)
+        advanceUntilIdle()
+
+        assertEquals(listOf("next-1", "next-2"), cachedTrackIds)
+        assertEquals(listOf("next-1", "next-2"), preparedSidecarIds)
+    }
+
+    @Test
+    fun replacingThePlaybackQueueCancelsObsoletePrefetchSidecars() = runTest {
+        val provider = FakeCoreMediaProvider()
+        val cachedTrackIds = mutableListOf<String>()
+        val preparedSidecarIds = mutableListOf<String>()
+        val adapter = NaviampCorePlaybackEngineAdapter(
+            scope = this,
+            engine = RecordingPlaybackEngine(),
+            providerSource = NaviampCoreMediaProviderSource { provider },
+            settings = { PlaybackSettings() },
+            activeSourceId = { "source" },
+            cacheSettings = { CacheSettings(audioCachingEnabled = true, audioPrefetchDepth = 1) },
+            cacheAudio = { _, _, track, _ ->
+                cachedTrackIds += track.id.value
+                if (track.id.value == "obsolete-next") awaitCancellation()
+                PlaybackLocalAudio("/cache/${track.id.value}", "file:///cache/${track.id.value}")
+            },
+            preparePrefetchedSidecars = { _, _, track, _, _ ->
+                preparedSidecarIds += track.id.value
+                app.naviamp.domain.playback.PlaybackSidecarPrepResult()
+            },
+        )
+        val obsoleteNext = provider.track.copy(id = TrackId("obsolete-next"), title = "Obsolete")
+        adapter.playQueueSelection(PlaybackQueue(listOf(provider.track, obsoleteNext), 0), 0)
+        runCurrent()
+
+        val replacement = provider.track.copy(id = TrackId("replacement"), title = "Replacement")
+        val replacementNext = provider.track.copy(id = TrackId("replacement-next"), title = "Replacement Next")
+        adapter.playQueueSelection(PlaybackQueue(listOf(replacement, replacementNext), 0), 0)
+        advanceUntilIdle()
+
+        assertEquals(listOf("obsolete-next", "replacement-next"), cachedTrackIds)
+        assertEquals(listOf("replacement-next"), preparedSidecarIds)
+    }
+
+    @Test
+    fun playbackUsesAnAlreadyPrefetchedFileInsteadOfRequestingTheServerAgain() = runTest {
+        val provider = FakeCoreMediaProvider()
+        val engine = RecordingPlaybackEngine()
+        val cached = PlaybackLocalAudio("/cache/core-track.flac", "file:///cache/core-track.flac")
+        val audioAssets = object : PlaybackAudioAssetRepository {
+            override suspend fun downloadedAudio(sourceId: String, trackId: TrackId) = null
+            override suspend fun downloadedAudio(
+                sourceId: String,
+                trackId: TrackId,
+                quality: StreamQuality,
+            ) = null
+
+            override suspend fun cachedAudio(
+                sourceId: String,
+                trackId: TrackId,
+                quality: StreamQuality,
+            ) = cached
+        }
+        val adapter = NaviampCorePlaybackEngineAdapter(
+            scope = this,
+            engine = engine,
+            providerSource = NaviampCoreMediaProviderSource { provider },
+            settings = { PlaybackSettings() },
+            activeSourceId = { "source" },
+            cacheSettings = { CacheSettings(audioCachingEnabled = true) },
+            audioAssets = audioAssets,
+        )
+
+        adapter.playQueueSelection(PlaybackQueue(listOf(provider.track), 0), 0)
+        advanceUntilIdle()
+
+        assertEquals("file:///cache/core-track.flac", engine.request?.url)
+    }
+
     @Test
     fun restoredQueueWaitsForPlayAndResumesAtTheSavedPosition() = runTest {
         val provider = FakeCoreMediaProvider()

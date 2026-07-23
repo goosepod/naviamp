@@ -9,10 +9,12 @@ import app.naviamp.domain.cache.CachedLyricsSidecarRepository
 import app.naviamp.domain.cache.ProviderResponseService
 import app.naviamp.domain.cache.ProviderResponseCacheService
 import app.naviamp.domain.cache.LyricsSidecarCacheService
+import app.naviamp.domain.cache.SidecarStatusService
 import app.naviamp.domain.lyrics.LrclibLyricsProvider
 import app.naviamp.domain.lyrics.LyricsOffsetController
 import app.naviamp.domain.lyrics.LyricsSidecarService
 import app.naviamp.domain.playback.CoreBassPlaybackEngine
+import app.naviamp.domain.playback.PlaybackSidecarService
 import app.naviamp.domain.playback.ReleasablePlaybackEngine
 import app.naviamp.domain.playback.AudioOutputDevicePlaybackEngine
 import app.naviamp.presentation.NaviampCoreHomeDateSource
@@ -100,6 +102,7 @@ internal class DesktopV2Composition private constructor(
                 audioCacheDirectory = audioCacheDirectory,
                 downloadDirectory = downloadDirectory,
                 nowEpochMillis = nowEpochMillis,
+                maxAudioBytes = initialCacheSettings.maxAudioCacheBytes,
                 clearUntrackedDownloadsOnReset =
                     downloadDirectory.toAbsolutePath().normalize() ==
                         dataDirectory.resolve("downloads").toAbsolutePath().normalize(),
@@ -147,12 +150,6 @@ internal class DesktopV2Composition private constructor(
                 initial = initialPlaybackSettings,
                 persist = settingsStore::savePlaybackSettings,
             )
-            val playbackEffects = NaviampCorePlaybackEngineAdapter(
-                scope = scope,
-                engine = engine,
-                providerSource = sessions.providerSource,
-                settings = engineSettings::current,
-            )
             val playbackAudioAssets = DesktopPlaybackAudioAssets(
                 downloadRepository = storage.audioStore,
                 audioCacheRepository = storage.audioStore,
@@ -182,6 +179,39 @@ internal class DesktopV2Composition private constructor(
                 ),
                 playbackAudioAssets = playbackAudioAssets,
                 audioMetadataSidecarService = audioMetadataSidecarService,
+            )
+            val playbackSidecarService = PlaybackSidecarService(
+                waveformService = waveformService,
+                lyricsSidecarService = lyricsSidecarService,
+                sidecarStatusRepository = SidecarStatusService(storage.sidecarStatuses, nowEpochMillis),
+            )
+            val playbackEffects = NaviampCorePlaybackEngineAdapter(
+                scope = scope,
+                engine = engine,
+                providerSource = sessions.providerSource,
+                settings = engineSettings::current,
+                activeSourceId = { storage.mediaSources.latestMediaSource()?.id },
+                cacheSettings = { activeCacheSettings },
+                audioAssets = playbackAudioAssets,
+                cacheAudio = { sourceId, provider, track, quality ->
+                    storage.audioStore.cacheAudioTrack(sourceId, provider, track, quality)
+                        .path
+                        .toPlaybackLocalAudio()
+                },
+                preparePrefetchedSidecars = { sourceId, provider, track, quality, _ ->
+                    val playbackSettings = engineSettings.current()
+                    playbackSidecarService.prepareAll(
+                        sourceId = sourceId,
+                        provider = provider,
+                        track = track,
+                        quality = quality,
+                        audioCachingEnabled = activeCacheSettings.audioCachingEnabled,
+                        onlineLyricsEnabled = playbackSettings.lrclibLyricsEnabled,
+                        preferSyncedLyrics = playbackSettings.preferSyncedLyrics,
+                        lyricsSearchOrder = playbackSettings.lyricsSearchOrder,
+                        includeLyrics = true,
+                    )
+                },
             )
             val playback = NaviampCorePlaybackServices(
                 effects = playbackEffects,
@@ -285,6 +315,8 @@ internal class DesktopV2Composition private constructor(
                     cacheSettings = NaviampCoreCacheSettingsPort { requested ->
                         requested.normalized().also { effective ->
                             activeCacheSettings = effective
+                            storage.audioStore.updateAudioCacheLimit(effective.maxAudioCacheBytes)
+                            storage.maintenance.updateAudioCacheLimit(effective.maxAudioCacheBytes)
                             settingsStore.saveCacheSettings(effective)
                         }
                     },

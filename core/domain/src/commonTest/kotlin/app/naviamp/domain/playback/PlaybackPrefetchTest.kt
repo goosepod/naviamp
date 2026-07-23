@@ -9,6 +9,8 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
+import kotlin.test.assertFailsWith
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.test.runTest
 
 class PlaybackPrefetchTest {
@@ -153,6 +155,23 @@ class PlaybackPrefetchTest {
         assertEquals(1, result.completed)
         assertEquals(0, result.failed)
         assertEquals(null, result.lastError)
+    }
+
+    @Test
+    fun cancellationStopsPrefetchWithoutBeingReportedAsAnAudioFailure() = runTest {
+        var failureReported = false
+
+        assertFailsWith<CancellationException> {
+            runAudioPrefetch(
+                stats = initialAudioPrefetchStats(enabled = true, configuredDepth = 1),
+                tracks = listOf(prefetchTrack("cancelled")),
+                isActive = { true },
+                cacheAudio = { throw CancellationException("queue replaced") },
+                onTrackFailed = { _, _ -> failureReported = true },
+            )
+        }
+
+        assertFalse(failureReported)
     }
 
     private fun prefetchTrack(id: String): Track =

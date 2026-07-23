@@ -9,6 +9,7 @@ import app.naviamp.domain.provider.MediaProvider
 import app.naviamp.domain.settings.LyricsSourcePreference
 import app.naviamp.domain.waveform.AudioWaveform
 import app.naviamp.domain.waveform.AudioWaveformService
+import kotlinx.coroutines.CancellationException
 
 data class PlaybackSidecarPrepResult(
     val waveform: AudioWaveform? = null,
@@ -104,6 +105,7 @@ class PlaybackSidecarService(
         ) {
             runCatching { block() }
                 .onFailure { error ->
+                    if (error is CancellationException) throw error
                     val message = failureLabel(error)
                     recordFailure(
                         sourceId = sourceId,
@@ -164,6 +166,7 @@ class PlaybackSidecarService(
                     )
                 }
                 .onFailure { error ->
+                    if (error is CancellationException) throw error
                     val message = sidecarFailureStatus(error)
                     sidecarStatusRepository.recordSidecarFailure(
                         sourceId = sourceId,

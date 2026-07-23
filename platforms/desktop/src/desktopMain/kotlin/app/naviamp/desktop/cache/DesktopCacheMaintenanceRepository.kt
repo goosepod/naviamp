@@ -21,7 +21,7 @@ class DesktopCacheMaintenanceRepository(
     private val downloadDirectory: () -> Path,
     private val hotImages: DesktopHotImageCache = DesktopHotImageCache(DefaultHotImageCacheBytes),
     private val maxImageBytes: Long = MaximumPersistentArtworkCacheBytes,
-    private val maxAudioBytes: Long = DefaultAudioCacheBytes,
+    private var maxAudioBytes: Long = DefaultAudioCacheBytes,
     private val maxAudioWaveformBytes: Long = DefaultAudioWaveformCacheBytes,
     private val maxHotImageBytes: Long = DefaultHotImageCacheBytes,
     private val clearUntrackedDownloadsOnReset: Boolean = false,
@@ -33,6 +33,10 @@ class DesktopCacheMaintenanceRepository(
 
     override fun clearProviderData() {
         rows.clearProviderData()
+    }
+
+    fun updateAudioCacheLimit(maxBytes: Long) {
+        maxAudioBytes = maxBytes.coerceAtLeast(0)
     }
 
     override fun clearCacheData() {

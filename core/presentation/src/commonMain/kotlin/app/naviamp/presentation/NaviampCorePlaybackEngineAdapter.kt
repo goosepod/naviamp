@@ -4,6 +4,9 @@ import app.naviamp.domain.playback.AudioOutputDevicePlaybackEngine
 import app.naviamp.domain.playback.EqualizerPlaybackEngine
 import app.naviamp.domain.playback.PlaybackEngine
 import app.naviamp.domain.playback.PlaybackRequest
+import app.naviamp.domain.playback.PlaybackAudioAssetRepository
+import app.naviamp.domain.playback.PlaybackLocalAudio
+import app.naviamp.domain.playback.PlaybackSidecarPrepResult
 import app.naviamp.domain.playback.PlaybackQueueNavigationCommand
 import app.naviamp.domain.playback.PlaybackReplayGain
 import app.naviamp.domain.playback.PlaybackSource
@@ -18,16 +21,21 @@ import app.naviamp.domain.playback.SampleRateMatchingPlaybackEngine
 import app.naviamp.domain.playback.VisualizerPlaybackEngine
 import app.naviamp.domain.playback.lyricsLoadingStatus
 import app.naviamp.domain.playback.lyricsUnavailableStatus
+import app.naviamp.domain.playback.emptyPlaybackAudioAssetRepository
+import app.naviamp.domain.playback.planAudioPrefetchWork
 import app.naviamp.domain.playback.planPrepareNextPlayback
 import app.naviamp.domain.media.RelatedTracksSource
 import app.naviamp.domain.playback.planPlaylistTrackStartWork
-import app.naviamp.domain.playback.playbackTargetPlan
+import app.naviamp.domain.playback.playbackStreamUrl
+import app.naviamp.domain.playback.resolvePlaybackAudioSource
+import app.naviamp.domain.playback.runAudioPrefetch
 import app.naviamp.domain.queue.PlaybackQueue
 import app.naviamp.domain.queue.RepeatMode
 import app.naviamp.domain.radio.internetRadioTrack
 import app.naviamp.domain.InternetRadioStation
 import app.naviamp.domain.TrackId
 import app.naviamp.domain.settings.AudioOutputDeviceMode
+import app.naviamp.domain.settings.CacheSettings
 import app.naviamp.domain.settings.PlaybackSettings
 import app.naviamp.domain.settings.effectiveForEngine
 import app.naviamp.domain.settings.streamQualityForNetwork
@@ -56,6 +64,24 @@ class NaviampCorePlaybackEngineAdapter(
     private val providerSource: NaviampCoreMediaProviderSource,
     private val settings: () -> PlaybackSettings,
     private val isMobileData: () -> Boolean = { false },
+    private val activeSourceId: () -> String? = { null },
+    private val cacheSettings: () -> CacheSettings = {
+        CacheSettings(audioCachingEnabled = false, audioPrefetchDepth = 0)
+    },
+    private val audioAssets: PlaybackAudioAssetRepository = emptyPlaybackAudioAssetRepository(),
+    private val cacheAudio: suspend (
+        sourceId: String,
+        provider: app.naviamp.domain.provider.MediaProvider,
+        track: app.naviamp.domain.Track,
+        quality: app.naviamp.domain.StreamQuality,
+    ) -> PlaybackLocalAudio? = { _, _, _, _ -> null },
+    private val preparePrefetchedSidecars: suspend (
+        sourceId: String,
+        provider: app.naviamp.domain.provider.MediaProvider,
+        track: app.naviamp.domain.Track,
+        quality: app.naviamp.domain.StreamQuality,
+        cachedAudio: PlaybackLocalAudio?,
+    ) -> PlaybackSidecarPrepResult = { _, _, _, _, _ -> PlaybackSidecarPrepResult() },
 ) : NaviampCorePlaybackEffectPort, NaviampCoreInternetRadioPlaybackPort {
     override val capabilities = NaviampCorePlaybackCapabilities(
         engineName = engine.name,
@@ -70,6 +96,8 @@ class NaviampCorePlaybackEngineAdapter(
     private var queue = PlaybackQueue()
     private var repeatMode = RepeatMode.Off
     private var resolutionJob: Job? = null
+    private var prefetchJob: Job? = null
+    private var prefetchGeneration = 0L
     private var generation = 0L
     private var preparedForGeneration = -1L
     private var playbackState: PlaybackState = PlaybackState.Stopped
@@ -103,6 +131,7 @@ class NaviampCorePlaybackEngineAdapter(
         generation += 1
         resolutionJob?.cancel()
         resolutionJob = null
+        cancelAudioPrefetch()
         (engine as? QueueAwarePlaybackEngine)?.clearPreparedNext()
         engine.stop()
         playbackState = PlaybackState.Stopped
@@ -110,13 +139,28 @@ class NaviampCorePlaybackEngineAdapter(
 
     override fun applyQueue(queue: PlaybackQueue, clearPreparedNext: Boolean) {
         this.queue = queue
+        cancelAudioPrefetch()
         if (clearPreparedNext) {
             (engine as? QueueAwarePlaybackEngine)?.clearPreparedNext()
             preparedForGeneration = -1L
         }
+        if (
+            playbackState == PlaybackState.Loading ||
+            playbackState == PlaybackState.Playing ||
+            playbackState == PlaybackState.Paused
+        ) {
+            providerSource.current()?.let { provider ->
+                startAudioPrefetch(
+                    provider = provider,
+                    quality = settings().effectiveForEngine(engine).streamQualityForNetwork(isMobileData()),
+                    requestGeneration = generation,
+                )
+            }
+        }
     }
 
     override fun restoreQueue(queue: PlaybackQueue, startPositionSeconds: Double?) {
+        cancelAudioPrefetch()
         this.queue = queue
         restoredStartPositionSeconds = startPositionSeconds
         (engine as? QueueAwarePlaybackEngine)?.clearPreparedNext()
@@ -124,6 +168,7 @@ class NaviampCorePlaybackEngineAdapter(
     }
 
     override fun restoreInternetRadio(station: InternetRadioStation) {
+        cancelAudioPrefetch()
         val track = internetRadioTrack(station)
         externalStreamUrls[track.id] = station.streamUrl
         queue = PlaybackQueue(listOf(track), 0)
@@ -154,6 +199,7 @@ class NaviampCorePlaybackEngineAdapter(
             PlaybackQueueNavigationCommand.None -> return
         }
         if (!preservePreparedTransition) clearPreparedCrossfade()
+        cancelAudioPrefetch()
         startCurrent(startPositionSeconds = null)
     }
 
@@ -163,6 +209,7 @@ class NaviampCorePlaybackEngineAdapter(
 
     override fun playQueueSelection(queue: PlaybackQueue, index: Int) {
         if (index !in queue.tracks.indices) return
+        cancelAudioPrefetch()
         restoredStartPositionSeconds = null
         this.queue = queue.jumpTo(index)
         clearPreparedCrossfade()
@@ -196,16 +243,19 @@ class NaviampCorePlaybackEngineAdapter(
                 return@launch
             }
             val playbackSettings = settings().effectiveForEngine(engine)
-            val target = externalStreamUrl?.let {
-                null
-            } ?: playbackTargetPlan(
+            val quality = playbackSettings.streamQualityForNetwork(isMobileData())
+            val audioSource = externalStreamUrl?.let { null } ?: resolvePlaybackAudioSource(
+                sourceId = activeSourceId(),
                 track = track,
-                quality = playbackSettings.streamQualityForNetwork(isMobileData()),
+                quality = quality,
+                audioCachingEnabled = cacheSettings().audioCachingEnabled,
+                audioAssets = audioAssets,
                 startPositionSeconds = startPositionSeconds,
-                hasLocalAudio = false,
             )
             val streamUrl = externalStreamUrl ?: runCatching {
-                requireNotNull(provider).streamUrl(requireNotNull(target).providerStreamRequest)
+                requireNotNull(audioSource).playbackStreamUrl { target ->
+                    requireNotNull(provider).streamUrl(target.providerStreamRequest)
+                }
             }.getOrElse { failure ->
                 if (requestGeneration == generation) {
                     observer?.onStateChanged(
@@ -231,9 +281,10 @@ class NaviampCorePlaybackEngineAdapter(
                 replayGainPreampDb = playbackSettings.replayGainPreampDb,
                 replayGain = track.replayGain?.let { PlaybackReplayGain(it, ReplayGainSource.Provider) },
                 supportsReplayGain = engine.supportsReplayGain,
-                engineStartPositionSeconds = requireNotNull(target).engineStartPositionSeconds,
+                engineStartPositionSeconds = requireNotNull(audioSource).target.engineStartPositionSeconds,
                 coverArtUrl = track.coverArtId?.let { requireNotNull(provider).coverArtUrl(it) },
             ).request
+            if (provider != null) startAudioPrefetch(provider, quality, requestGeneration)
             engine.play(
                 scope = scope,
                 request = request,
@@ -266,6 +317,52 @@ class NaviampCorePlaybackEngineAdapter(
         }
     }
 
+    private fun startAudioPrefetch(
+        provider: app.naviamp.domain.provider.MediaProvider,
+        quality: app.naviamp.domain.StreamQuality,
+        requestGeneration: Long,
+    ) {
+        val activePrefetchGeneration = ++prefetchGeneration
+        prefetchJob?.cancel()
+        prefetchJob = null
+        val configured = cacheSettings()
+        val work = planAudioPrefetchWork(
+            sourceId = activeSourceId(),
+            provider = provider,
+            quality = quality,
+            queue = queue,
+            enabled = configured.audioCachingEnabled,
+            configuredDepth = configured.audioPrefetchDepth,
+        ) ?: return
+        prefetchJob = scope.launch {
+            runAudioPrefetch(
+                stats = work.stats,
+                tracks = work.tracks,
+                isActive = {
+                    requestGeneration == generation && activePrefetchGeneration == prefetchGeneration
+                },
+                cacheAudio = { track ->
+                    cacheAudio(work.sourceId, work.provider, track, work.quality)
+                },
+                prepareSidecars = { track, cachedAudio ->
+                    preparePrefetchedSidecars(
+                        work.sourceId,
+                        work.provider,
+                        track,
+                        work.quality,
+                        cachedAudio,
+                    )
+                },
+            )
+        }
+    }
+
+    private fun cancelAudioPrefetch() {
+        prefetchGeneration += 1
+        prefetchJob?.cancel()
+        prefetchJob = null
+    }
+
     private fun shouldPrepareNext(progress: app.naviamp.domain.playback.PlaybackProgress, settings: PlaybackSettings): Boolean {
         val nextIndex = queue.nextIndex(repeatMode, repeatTrack = true)
         return planPrepareNextPlayback(
@@ -288,13 +385,17 @@ class NaviampCorePlaybackEngineAdapter(
         val queueEngine = engine as? QueueAwarePlaybackEngine ?: return
         val nextIndex = queue.nextIndex(repeatMode, repeatTrack = true) ?: return
         val next = queue.tracks.getOrNull(nextIndex) ?: return
-        val target = playbackTargetPlan(
+        val audioSource = resolvePlaybackAudioSource(
+            sourceId = activeSourceId(),
             track = next,
             quality = playbackSettings.streamQualityForNetwork(isMobileData()),
             startPositionSeconds = null,
-            hasLocalAudio = false,
+            audioCachingEnabled = cacheSettings().audioCachingEnabled,
+            audioAssets = audioAssets,
         )
-        val streamUrl = runCatching { provider.streamUrl(target.providerStreamRequest) }.getOrNull() ?: return
+        val streamUrl = runCatching {
+            audioSource.playbackStreamUrl { target -> provider.streamUrl(target.providerStreamRequest) }
+        }.getOrNull() ?: return
         if (requestGeneration != generation) return
         val work = planPlaylistTrackStartWork(
             sessionId = requestGeneration,
@@ -305,7 +406,7 @@ class NaviampCorePlaybackEngineAdapter(
             replayGainPreampDb = playbackSettings.replayGainPreampDb,
             replayGain = next.replayGain?.let { PlaybackReplayGain(it, ReplayGainSource.Provider) },
             supportsReplayGain = engine.supportsReplayGain,
-            engineStartPositionSeconds = null,
+            engineStartPositionSeconds = audioSource.target.engineStartPositionSeconds,
             coverArtUrl = next.coverArtId?.let(provider::coverArtUrl),
         )
         queueEngine.prepareNext(work.request)

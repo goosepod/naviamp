@@ -43,6 +43,9 @@ class DesktopStorageRepositoriesTest {
 
             assertEquals(1L, repositories.maintenance.stats().responseCount)
             assertEquals(audio.toAbsolutePath().toString(), repositories.maintenance.stats().audioCacheDirectory)
+            repositories.audioStore.updateAudioCacheLimit(1_024L)
+            repositories.maintenance.updateAudioCacheLimit(1_024L)
+            assertEquals(1_024L, repositories.maintenance.stats().maxAudioBytes)
             repositories.playbackSessions.savePlaybackSession(
                 PlaybackSessionSettings.fromTracks(
                     listOf(

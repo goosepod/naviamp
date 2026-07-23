@@ -3,6 +3,7 @@ package app.naviamp.domain.playback
 import app.naviamp.domain.StreamQuality
 import app.naviamp.domain.Track
 import app.naviamp.domain.queue.PlaybackQueue
+import kotlinx.coroutines.CancellationException
 
 data class CacheRuntimeStats(
     val playbackSource: PlaybackSource = PlaybackSource.Unknown,
@@ -132,6 +133,7 @@ suspend fun <CachedAudio> runAudioPrefetch(
                 currentStats.audioSuccess(sidecarResult)
             },
             onFailure = { error ->
+                if (error is CancellationException) throw error
                 onTrackFailed(track, error)
                 currentStats.audioFailure(error)
             },
