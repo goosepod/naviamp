@@ -33,11 +33,15 @@ class SonicHomeDiscoveryService(
     suspend fun loadRows(
         libraryTracks: List<Track>,
         recentTracks: List<Track> = emptyList(),
+        starredTracks: List<Track> = emptyList(),
     ): SonicHomeDiscoveryRows {
         if (!provider.capabilities.supportsSonicSimilarity) return SonicHomeDiscoveryRows()
         val candidates = libraryTracks.distinctBy { track -> track.id }
         val explicitRecentSeeds = recentTracks.distinctBy { track -> track.id }
-        if (candidates.isEmpty() && explicitRecentSeeds.isEmpty()) return SonicHomeDiscoveryRows()
+        val explicitStarredSeeds = starredTracks.distinctBy { track -> track.id }
+        if (candidates.isEmpty() && explicitRecentSeeds.isEmpty() && explicitStarredSeeds.isEmpty()) {
+            return SonicHomeDiscoveryRows()
+        }
 
         val recentSeeds = explicitRecentSeeds
             .take(SonicHomeDiscoverySeedLimit)
@@ -47,10 +51,15 @@ class SonicHomeDiscoveryService(
                     .sortedByDescending { track -> track.lastPlayedAtIso8601 }
                     .take(SonicHomeDiscoverySeedLimit)
             }
-        val starredSeeds = candidates
-            .filter { track -> track.favoritedAtIso8601 != null }
+        val starredSeeds = explicitStarredSeeds
             .sortedByDescending { track -> track.favoritedAtIso8601 }
             .take(SonicHomeDiscoverySeedLimit)
+            .ifEmpty {
+                candidates
+                    .filter { track -> track.favoritedAtIso8601 != null }
+                    .sortedByDescending { track -> track.favoritedAtIso8601 }
+                    .take(SonicHomeDiscoverySeedLimit)
+            }
         val deepCutSeeds = (recentSeeds + starredSeeds)
             .distinctBy { track -> track.id }
             .ifEmpty {

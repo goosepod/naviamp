@@ -47,6 +47,30 @@ class SonicHomeDiscoveryServiceTest {
     }
 
     @Test
+    fun loadRowsUsesExplicitStarredTracksOutsideTheLibrarySample() = runTest {
+        val libraryTrack = track("library")
+        val starred = track("explicit-starred", favorite = "2026-07-23T12:00:00Z")
+        val provider = FakeSonicHomeProvider(
+            matches = mapOf(
+                starred.id to listOf(
+                    SonicSimilarTrack(track("starred-match"), 0.95),
+                ),
+            ),
+        )
+
+        val rows = SonicHomeDiscoveryService(provider).loadRows(
+            libraryTracks = listOf(libraryTrack),
+            starredTracks = listOf(starred),
+        )
+
+        assertEquals(
+            listOf("starred-match"),
+            rows.row(SonicHomeDiscoveryRowId.SimilarToStarredTracks)?.tracks?.ids(),
+        )
+        assertTrue(starred.id in provider.requestedTrackIds)
+    }
+
+    @Test
     fun loadRowsReturnsEmptyWithoutCapability() = runTest {
         val rows = SonicHomeDiscoveryService(
             FakeSonicHomeProvider(supportsSonicSimilarity = false),

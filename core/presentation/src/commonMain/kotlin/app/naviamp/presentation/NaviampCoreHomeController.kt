@@ -52,6 +52,9 @@ fun naviampCoreSonicHomeDiscoverySource(
                 sourceId = sourceId,
                 limit = SonicHomeDiscoveryRecentTrackLimit,
             ),
+            starredTracks = runCatching {
+                provider.favoriteTracks(limit = SonicHomeDiscoveryFavoriteTrackLimit)
+            }.getOrDefault(emptyList()),
         )
     }.getOrDefault(SonicHomeDiscoveryRows())
 }
@@ -202,3 +205,4 @@ class NaviampCoreHomeController(
 
 private const val SonicHomeDiscoveryLibrarySampleLimit = 5_000L
 private const val SonicHomeDiscoveryRecentTrackLimit = 20L
+private const val SonicHomeDiscoveryFavoriteTrackLimit = 5_000
