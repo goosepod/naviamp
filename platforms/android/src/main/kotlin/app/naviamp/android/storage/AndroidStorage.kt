@@ -39,6 +39,7 @@ import app.naviamp.domain.cache.SidecarStatusRepository
 import app.naviamp.domain.cache.SidecarStatusService
 import app.naviamp.domain.cache.StorageCacheStats
 import app.naviamp.domain.network.KtorSharedHttpClient
+import app.naviamp.domain.lyrics.LrclibLyricsProvider
 import app.naviamp.domain.popular.ArtistPopularTrackCandidate
 import app.naviamp.domain.popular.ArtistPopularTrackMatch
 import app.naviamp.domain.provider.MediaProvider
@@ -64,6 +65,7 @@ import java.io.File
 
 class AndroidStorage(
     context: Context,
+    private val onlineLyricsProvider: LrclibLyricsProvider = LrclibLyricsProvider(KtorSharedHttpClient()),
 ) : ImageCacheRepository,
     ProviderResponseCacheRepository,
     AudioCacheRepository<AndroidCachedAudioFile, AndroidCachedAudioMetadata>,
@@ -478,7 +480,7 @@ class AndroidStorage(
         sourceId: String,
         track: Track,
     ): Lyrics? =
-        lyricsSidecar.lrclibLyrics(sourceId, track, AndroidLrclibLyricsClient())
+        lyricsSidecar.lrclibLyrics(sourceId, track, onlineLyricsProvider)
 
     override fun lyricsOffsetMillis(sourceId: String, trackId: TrackId): Int? =
         lyricsOffsets.lyricsOffsetMillis(sourceId, trackId)
