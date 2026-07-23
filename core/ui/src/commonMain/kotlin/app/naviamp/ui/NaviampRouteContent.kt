@@ -142,6 +142,17 @@ fun SharedHomeRoute(
         isRefreshing = home.refreshing,
         onRefresh = actions.onRefresh,
         modifier = Modifier.fillMaxSize(),
+        indicator = {
+            if (home.refreshing) {
+                LinearProgressIndicator(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .align(Alignment.TopCenter),
+                    color = colors.primaryText,
+                    trackColor = colors.mutedText.copy(alpha = 0.25f),
+                )
+            }
+        },
     ) {
         Box(
             modifier = Modifier
