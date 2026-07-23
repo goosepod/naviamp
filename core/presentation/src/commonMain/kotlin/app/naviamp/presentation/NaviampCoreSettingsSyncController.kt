@@ -30,8 +30,10 @@ interface NaviampCoreSettingsSyncPort {
     fun configuration(): NaviampCoreSettingsSyncConfiguration
     fun saveConfiguration(configuration: NaviampCoreSettingsSyncConfiguration)
     suspend fun readDocument(directoryPath: String): SettingsSyncDocument?
+    suspend fun readDocumentFile(filePath: String): SettingsSyncDocument?
     suspend fun writeDocument(directoryPath: String, document: SettingsSyncDocument): String
     suspend fun chooseDirectory(currentPath: String?, title: String): String?
+    suspend fun chooseDocument(currentPath: String?, title: String): String?
     fun defaultDirectory(): String
     val available: Boolean
 }
@@ -65,7 +67,7 @@ class NaviampCoreSettingsSyncController(
             is NaviampCoreCommand.SettingsSync.ChangeAutoExport -> changeAutoExport(command.enabled)
             NaviampCoreCommand.SettingsSync.Export -> export()
             NaviampCoreCommand.SettingsSync.Import -> import()
-            NaviampCoreCommand.SettingsSync.ImportFile -> selectAndImport()
+            NaviampCoreCommand.SettingsSync.ImportFile -> selectAndImportFile()
             NaviampCoreCommand.SettingsSync.ChooseFolder -> chooseFolder()
             NaviampCoreCommand.SettingsSync.ImportFolder -> selectAndImport()
             NaviampCoreCommand.SettingsSync.ExportFolder -> exportFolder()
@@ -118,6 +120,17 @@ class NaviampCoreSettingsSyncController(
     private suspend fun selectAndImport() {
         val selected = pickDirectory("Import Naviamp settings") ?: return
         selectImportDirectory(selected)
+    }
+
+    private suspend fun selectAndImportFile() {
+        val selected = services.port.chooseDocument(
+            currentPath = configuredDirectory() ?: services.port.defaultDirectory(),
+            title = "Import Naviamp settings",
+        ) ?: return
+        val document = services.port.readDocumentFile(selected)
+            ?: error("The selected file is not a Naviamp settings document.")
+        status = settingsSyncReconciliationStatus(services.controller.applySyncedDocument(document))
+        publishAppliedSnapshot(services.controller.localSnapshot())
     }
 
     private suspend fun exportFolder() {

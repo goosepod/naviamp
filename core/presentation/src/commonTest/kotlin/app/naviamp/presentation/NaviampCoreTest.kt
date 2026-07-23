@@ -516,11 +516,13 @@ private fun fakeCoreSettingsSyncServices(): NaviampCoreSettingsSyncServices {
                 this.configuration = configuration
             }
             override suspend fun readDocument(directoryPath: String) = null
+            override suspend fun readDocumentFile(filePath: String) = null
             override suspend fun writeDocument(
                 directoryPath: String,
                 document: app.naviamp.domain.settings.SettingsSyncDocument,
             ) = "settings.json"
             override suspend fun chooseDirectory(currentPath: String?, title: String) = "/sync"
+            override suspend fun chooseDocument(currentPath: String?, title: String) = "/sync/naviamp-settings.json"
             override fun defaultDirectory() = "/home"
             override val available = true
         },

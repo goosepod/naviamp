@@ -118,11 +118,13 @@ fun unavailableNaviampCoreSettingsSyncServices(
             override fun configuration() = NaviampCoreSettingsSyncConfiguration()
             override fun saveConfiguration(configuration: NaviampCoreSettingsSyncConfiguration) = Unit
             override suspend fun readDocument(directoryPath: String) = null
+            override suspend fun readDocumentFile(filePath: String) = null
             override suspend fun writeDocument(
                 directoryPath: String,
                 document: app.naviamp.domain.settings.SettingsSyncDocument,
             ) = error("Settings sync is not available on this host.")
             override suspend fun chooseDirectory(currentPath: String?, title: String): String? = null
+            override suspend fun chooseDocument(currentPath: String?, title: String): String? = null
             override fun defaultDirectory(): String = ""
             override val available = false
         },

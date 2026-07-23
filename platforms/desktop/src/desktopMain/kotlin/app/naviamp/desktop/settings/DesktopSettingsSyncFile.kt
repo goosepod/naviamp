@@ -8,6 +8,7 @@ import java.nio.file.Files
 import java.nio.file.Path
 import kotlin.io.path.exists
 import kotlin.io.path.isDirectory
+import kotlin.io.path.isRegularFile
 import kotlin.io.path.readText
 import kotlin.io.path.writeText
 
@@ -26,6 +27,11 @@ object DesktopSettingsSyncFile {
     fun read(directory: Path): SettingsSyncDocument? {
         val file = syncFile(directory)
         if (!file.exists()) return null
+        return SettingsSyncJson.decode(file.readText())
+    }
+
+    fun readFile(file: Path): SettingsSyncDocument? {
+        if (!file.exists() || !file.isRegularFile()) return null
         return SettingsSyncJson.decode(file.readText())
     }
 

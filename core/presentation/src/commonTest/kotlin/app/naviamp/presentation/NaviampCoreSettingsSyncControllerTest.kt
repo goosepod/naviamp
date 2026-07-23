@@ -120,6 +120,39 @@ class NaviampCoreSettingsSyncControllerTest {
         assertEquals("Settings auto-exported to naviamp-settings.json.", store.state.value.settingsSync.status)
         assertEquals(101L, runtime.lastLocalUpdateEpochMillis)
     }
+
+    @Test
+    fun importFileUsesDocumentPickerWithoutChangingTheSyncDirectory() = runTest {
+        val store = NaviampCoreStateStore()
+        val port = RecordingSettingsSyncPort().apply {
+            selectedDocument = "/backup/naviamp-settings.json"
+            document = SettingsSyncDocument(updatedAtEpochMillis = 200L)
+        }
+        var runtime = SettingsSyncRuntimeState()
+        val controller = NaviampCoreSettingsSyncController(
+            store,
+            NaviampCoreSettingsSyncServices(
+                controller = NaviampSettingsSyncController(
+                    deviceId = "test",
+                    state = { runtime },
+                    saveState = { runtime = it },
+                    nowEpochMillis = { 100L },
+                    snapshot = { SettingsSyncLocalSnapshot() },
+                    applyDocument = {},
+                ),
+                port = port,
+            ),
+        )
+
+        controller.execute(NaviampCoreCommand.SettingsSync.ImportFile)
+
+        assertEquals(
+            listOf("pick-file:Import Naviamp settings", "read-file:/backup/naviamp-settings.json"),
+            port.operations,
+        )
+        assertEquals(null, store.state.value.settingsSync.directoryPath)
+        assertEquals("Settings imported.", store.state.value.settingsSync.status)
+    }
 }
 
 private class RecordingSettingsSyncPort : NaviampCoreSettingsSyncPort {
@@ -127,6 +160,7 @@ private class RecordingSettingsSyncPort : NaviampCoreSettingsSyncPort {
     val operations = mutableListOf<String>()
     var document: SettingsSyncDocument? = null
     var selectedDirectory: String? = null
+    var selectedDocument: String? = null
 
     override fun configuration() = saved
 
@@ -139,6 +173,11 @@ private class RecordingSettingsSyncPort : NaviampCoreSettingsSyncPort {
         return document
     }
 
+    override suspend fun readDocumentFile(filePath: String): SettingsSyncDocument? {
+        operations += "read-file:$filePath"
+        return document
+    }
+
     override suspend fun writeDocument(directoryPath: String, document: SettingsSyncDocument): String {
         operations += "write:$directoryPath"
         this.document = document
@@ -148,6 +187,11 @@ private class RecordingSettingsSyncPort : NaviampCoreSettingsSyncPort {
     override suspend fun chooseDirectory(currentPath: String?, title: String): String? {
         operations += "pick:$title"
         return selectedDirectory
+    }
+
+    override suspend fun chooseDocument(currentPath: String?, title: String): String? {
+        operations += "pick-file:$title"
+        return selectedDocument
     }
 
     override fun defaultDirectory() = "/home"

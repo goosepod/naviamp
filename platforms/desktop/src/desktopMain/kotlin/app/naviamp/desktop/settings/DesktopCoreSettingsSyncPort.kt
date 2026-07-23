@@ -9,6 +9,7 @@ class DesktopCoreSettingsSyncPort(
     private val configurationState: () -> NaviampCoreSettingsSyncConfiguration,
     private val saveConfigurationState: (NaviampCoreSettingsSyncConfiguration) -> Unit,
     private val directoryPicker: DesktopDirectoryPicker = DesktopNativeDirectoryPicker(),
+    private val documentPicker: DesktopDocumentPicker = DesktopNativeDocumentPicker(),
     private val defaultDirectoryPath: () -> String = { System.getProperty("user.home") },
     override val available: Boolean = true,
 ) : NaviampCoreSettingsSyncPort {
@@ -21,6 +22,9 @@ class DesktopCoreSettingsSyncPort(
     override suspend fun readDocument(directoryPath: String) =
         DesktopSettingsSyncDocumentStore(Path.of(directoryPath)).read()
 
+    override suspend fun readDocumentFile(filePath: String) =
+        DesktopSettingsSyncFile.readFile(Path.of(filePath))
+
     override suspend fun writeDocument(
         directoryPath: String,
         document: app.naviamp.domain.settings.SettingsSyncDocument,
@@ -31,6 +35,9 @@ class DesktopCoreSettingsSyncPort(
 
     override suspend fun chooseDirectory(currentPath: String?, title: String): String? =
         directoryPicker.chooseDirectory(currentPath ?: defaultDirectory(), title)
+
+    override suspend fun chooseDocument(currentPath: String?, title: String): String? =
+        documentPicker.chooseDocument(currentPath ?: defaultDirectory(), title)
 
     override fun defaultDirectory() = defaultDirectoryPath()
 }
