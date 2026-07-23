@@ -79,6 +79,12 @@ internal class FakeCoreMediaProvider(
     )
     override suspend fun playlists(limit: Int) = listOf(playlist)
     override suspend fun playlistTracks(playlistId: String) = listOf(track)
+    override suspend fun randomSongs(
+        limit: Int,
+        genre: String?,
+        fromYear: Int?,
+        toYear: Int?,
+    ) = listOf(track)
     override suspend fun findSonicPath(
         startTrackId: TrackId,
         endTrackId: TrackId,

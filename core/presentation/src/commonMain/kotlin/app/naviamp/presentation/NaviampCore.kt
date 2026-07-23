@@ -6,6 +6,7 @@ import app.naviamp.app.NaviampLivePlaybackController
 import app.naviamp.app.NaviampLivePlaybackState
 import app.naviamp.app.NaviampNavigationController
 import app.naviamp.app.NaviampPlaybackQueueCoordinator
+import app.naviamp.app.NaviampRecentRadioStreamController
 import app.naviamp.domain.Artist
 import app.naviamp.domain.Track
 import app.naviamp.domain.app.NaviampNavigationState
@@ -205,7 +206,12 @@ class NaviampCore private constructor(
                     livePlayback.updateCurrentTrack(update.queue.current)
                     services.playback.effects.playQueueSelection(update.queue, update.queue.currentIndex)
                 },
-                services.playlists.queue,
+                queue = NaviampCorePlaylistQueuePort { _, tracks ->
+                    val update = queue.appendTracks(tracks, "playlist tracks")
+                    if (update.tracksChanged) {
+                        services.playback.effects.applyQueue(update.queue, clearPreparedNext = true)
+                    }
+                },
                 NaviampCorePlaylistDownloadPort(downloads::downloadPlaylist),
                 services.playlists.history,
                 services.connection,
@@ -265,6 +271,10 @@ class NaviampCore private constructor(
                 services.favoritedAtIso8601,
                 mediaRegistry,
             )
+            val generatedRadioRecents = NaviampRecentRadioStreamController(
+                load = services.radio.generatedRecents.load,
+                save = services.radio.generatedRecents.save,
+            )
             val mediaTransactions = NaviampCoreMediaTransactions(
                 stateStore,
                 services.content.providerSource,
@@ -274,10 +284,15 @@ class NaviampCore private constructor(
                 services.playback.effects,
                 downloads,
                 mediaDetails,
+                generatedRadioRecents,
                 services.content.externalUri,
                 services.favoritedAtIso8601,
                 { nowPlayingPresenter.publish(playback.currentDisplay()) },
                 navigation::openNowPlaying,
+            )
+            val recentRadio = NaviampCoreRecentRadioController(
+                recents = generatedRadioRecents,
+                media = mediaTransactions,
             )
             val standardMixes = NaviampCoreStandardMixController(
                 stateStore,
@@ -363,6 +378,7 @@ class NaviampCore private constructor(
                     playlistBrowse,
                     playlistTransactions,
                     radio,
+                    recentRadio,
                     standardMixes,
                     sonicBuilders,
                     downloads,

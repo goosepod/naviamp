@@ -9,6 +9,8 @@ class NaviampRecentRadioStreamController(
     private val save: (List<RecentRadioStream>) -> Unit,
     private val onChanged: () -> Unit = {},
 ) {
+    fun current(): List<RecentRadioStream> = load()
+
     fun remember(stream: RecentRadioStream): List<RecentRadioStream> =
         recentRadioStreamsWith(load(), stream).also { updated ->
             save(updated)

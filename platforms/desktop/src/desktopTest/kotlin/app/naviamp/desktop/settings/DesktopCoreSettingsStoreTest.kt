@@ -6,7 +6,9 @@ import app.naviamp.domain.settings.PlaybackSettings
 import app.naviamp.domain.settings.PlaybackSessionSettings
 import app.naviamp.domain.Track
 import app.naviamp.domain.TrackId
+import app.naviamp.domain.InternetRadioStation
 import app.naviamp.domain.playback.ReplayGainMode
+import app.naviamp.domain.radio.libraryRecentRadioStream
 import app.naviamp.domain.settings.VisualizerSettings
 import java.nio.file.Files
 import kotlin.io.path.readText
@@ -71,12 +73,22 @@ class DesktopCoreSettingsStoreTest {
         )
         store.saveCacheSettings(CacheSettings(audioPrefetchDepth = 4))
         store.saveVisualizerSettings(VisualizerSettings("AudioBars"))
+        store.saveRecentInternetRadioStations(
+            listOf(
+                app.naviamp.domain.settings.SavedInternetRadioStation.fromStation(
+                    InternetRadioStation("station", "Station", "https://radio.example"),
+                ),
+            ),
+        )
+        store.saveRecentRadioStreams(listOf(libraryRecentRadioStream()))
 
         assertEquals(false, store.loadInterfaceSettings().showDesktopTooltips)
         assertEquals(ReplayGainMode.Track, store.loadPlaybackSettings().replayGainMode)
         assertEquals(8, store.loadPlaybackSettings().crossfadeDurationSeconds)
         assertEquals(4, store.loadCacheSettings().audioPrefetchDepth)
         assertEquals("AudioBars", store.loadVisualizerSettings().selectedVisualizer)
+        assertEquals("station", store.loadRecentInternetRadioStations().single().id)
+        assertEquals("library", store.loadRecentRadioStreams().single().id)
         assertTrue(path.readText().contains("\"legacy\": \"kept\""))
         assertTrue(path.readText().contains("\"connection\""))
     }

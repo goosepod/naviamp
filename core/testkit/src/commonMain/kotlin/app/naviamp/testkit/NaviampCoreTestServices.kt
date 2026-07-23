@@ -73,7 +73,6 @@ fun naviampCoreTestServices(provider: MediaProvider? = null): NaviampCoreService
         network = NaviampCoreMobileNetworkPort { false },
     ),
     playlists = NaviampCorePlaylistServices(
-        queue = NaviampCorePlaylistQueuePort { _, _ -> },
         history = NaviampCorePlaylistHistoryPort { current, _ -> current },
     ),
     radio = NaviampCoreRadioServices(
@@ -82,6 +81,10 @@ fun naviampCoreTestServices(provider: MediaProvider? = null): NaviampCoreService
             override fun current() = emptyList<InternetRadioStation>()
             override suspend fun record(station: InternetRadioStation) = listOf(station)
         },
+        generatedRecents = NaviampCoreGeneratedRadioRecentsPort(
+            load = { emptyList() },
+            save = {},
+        ),
     ),
     mixes = NaviampCoreMixServices(
         artist = { error("Artist mix service is lazy") },

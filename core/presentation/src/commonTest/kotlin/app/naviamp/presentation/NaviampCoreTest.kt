@@ -21,6 +21,7 @@ import app.naviamp.domain.provider.MediaProvider
 import app.naviamp.domain.queue.PlaybackQueue
 import app.naviamp.domain.queue.RepeatMode
 import app.naviamp.domain.radio.internetRadioTrack
+import app.naviamp.domain.radio.libraryRecentRadioStream
 import app.naviamp.domain.app.NaviampNavigationState
 import app.naviamp.domain.app.NaviampRoute
 import app.naviamp.domain.settings.ConnectionFormState
@@ -155,6 +156,63 @@ class NaviampCoreTest {
 
         assertEquals(listOf(provider.track.id.value), transferredTrackIds)
         assertEquals("Starting download for Core Playlist...", core.state.value.shell.playlists.status)
+    }
+
+    @Test
+    fun playlistAddToQueueUsesTheCoreQueueCoordinator() = runTest {
+        val provider = FakeCoreMediaProvider()
+        val effects = FakeCorePlaybackEffects()
+        val defaults = fakeCoreServices(provider)
+        val core = NaviampCore.create(
+            scope = this,
+            services = defaults.copy(
+                playback = defaults.playback.copy(effects = effects),
+            ),
+        )
+
+        core.execute(
+            NaviampCoreCommand.Playlists.Detail(
+                NaviampPlaylistDetailActionRequest(
+                    playlist = provider.playlist.toSharedMediaItemUi(
+                        coverArtUrl = { id: String? -> id?.let(provider::coverArtUrl) },
+                    ),
+                    command = NaviampPlaylistDetailCommand.AddToQueue,
+                ),
+            ),
+        )
+
+        assertEquals(listOf(provider.track.id.value), effects.appliedQueues.single().tracks.map { it.id.value })
+        assertEquals("Connected.", core.state.value.shell.playlistDetail.status)
+    }
+
+    @Test
+    fun generatedRadioRecentsReplayAndPersistThroughCore() = runTest {
+        val provider = FakeCoreMediaProvider()
+        val effects = FakeCorePlaybackEffects()
+        var persisted = listOf(libraryRecentRadioStream())
+        val defaults = fakeCoreServices(provider)
+        val core = NaviampCore.create(
+            scope = this,
+            services = defaults.copy(
+                playback = defaults.playback.copy(effects = effects),
+                radio = defaults.radio.copy(
+                    generatedRecents = NaviampCoreGeneratedRadioRecentsPort(
+                        load = { persisted },
+                        save = { persisted = it },
+                    ),
+                ),
+            ),
+        )
+
+        core.execute(
+            NaviampCoreCommand.Home.SelectRecentRadio(
+                SharedMediaItemUi("library", "Library Radio", "Radio"),
+            ),
+        )
+
+        assertEquals(listOf(provider.track.id.value), effects.selections.single().tracks.map { it.id.value })
+        assertEquals("library", persisted.single().id)
+        assertEquals("library", core.state.value.shell.home.content.recentRadioStreams.single().id)
     }
 
     @Test
@@ -387,7 +445,6 @@ internal fun fakeCoreServices(provider: MediaProvider? = null) = NaviampCoreServ
         network = NaviampCoreMobileNetworkPort { false },
     ),
     playlists = NaviampCorePlaylistServices(
-        queue = NaviampCorePlaylistQueuePort { _, _ -> },
         history = NaviampCorePlaylistHistoryPort { current, _ -> current },
     ),
     radio = NaviampCoreRadioServices(
@@ -396,6 +453,10 @@ internal fun fakeCoreServices(provider: MediaProvider? = null) = NaviampCoreServ
             override fun current() = emptyList<InternetRadioStation>()
             override suspend fun record(station: InternetRadioStation) = listOf(station)
         },
+        generatedRecents = NaviampCoreGeneratedRadioRecentsPort(
+            load = { emptyList() },
+            save = {},
+        ),
     ),
     mixes = NaviampCoreMixServices(
         artist = { error("Artist mix service is lazy") },
@@ -456,6 +517,7 @@ private class FakeCorePlaybackEffects : NaviampCorePlaybackEffectPort {
     override val capabilities = NaviampCorePlaybackCapabilities()
     override val playbackSource = PlaybackSource.ProviderStream
     val selections = mutableListOf<PlaybackQueue>()
+    val appliedQueues = mutableListOf<PlaybackQueue>()
     override fun pause() = Unit
     override fun resume() = Unit
     override fun startOrRestore() = false
@@ -463,7 +525,9 @@ private class FakeCorePlaybackEffects : NaviampCorePlaybackEffectPort {
     override fun replayCurrent(positionSeconds: Double) = Unit
     override fun setVolume(percent: Int) = Unit
     override fun stop() = Unit
-    override fun applyQueue(queue: PlaybackQueue, clearPreparedNext: Boolean) = Unit
+    override fun applyQueue(queue: PlaybackQueue, clearPreparedNext: Boolean) {
+        appliedQueues += queue
+    }
     override fun applyNavigation(command: PlaybackQueueNavigationCommand) = Unit
     override fun applyRepeatMode(mode: RepeatMode) = Unit
     override fun playQueueSelection(queue: PlaybackQueue, index: Int) {

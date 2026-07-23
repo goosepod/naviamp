@@ -4,6 +4,8 @@ import app.naviamp.domain.settings.CacheSettings
 import app.naviamp.domain.settings.InterfaceSettings
 import app.naviamp.domain.settings.PlaybackSettings
 import app.naviamp.domain.settings.PlaybackSessionSettings
+import app.naviamp.domain.settings.RecentRadioStream
+import app.naviamp.domain.settings.SavedInternetRadioStation
 import app.naviamp.domain.settings.VisualizerSettings
 import app.naviamp.domain.settings.normalized
 import kotlinx.serialization.KSerializer
@@ -63,6 +65,26 @@ class DesktopCoreSettingsStore(private val path: Path) {
 
     fun saveRecentPlaylistIds(ids: List<String>) =
         write("recentPlaylistIds", ListSerializer(String.serializer()), ids.distinct().take(50))
+
+    fun loadRecentRadioStreams(): List<RecentRadioStream> =
+        read("recentRadioStreams", ListSerializer(RecentRadioStream.serializer()), emptyList())
+
+    fun saveRecentRadioStreams(streams: List<RecentRadioStream>) =
+        write("recentRadioStreams", ListSerializer(RecentRadioStream.serializer()), streams)
+
+    fun loadRecentInternetRadioStations(): List<SavedInternetRadioStation> =
+        read(
+            "recentInternetRadioStations",
+            ListSerializer(SavedInternetRadioStation.serializer()),
+            emptyList(),
+        )
+
+    fun saveRecentInternetRadioStations(stations: List<SavedInternetRadioStation>) =
+        write(
+            "recentInternetRadioStations",
+            ListSerializer(SavedInternetRadioStation.serializer()),
+            stations,
+        )
 
     private fun document(): JsonObject = runCatching {
         if (path.exists()) json.parseToJsonElement(path.readText()).jsonObject else JsonObject(emptyMap())

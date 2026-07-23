@@ -15,6 +15,7 @@ import app.naviamp.domain.provider.MediaProvider
 import app.naviamp.domain.provider.MediaSearchResults
 import app.naviamp.domain.provider.ProviderCapabilities
 import app.naviamp.domain.radio.recentInternetRadioStationsWith
+import app.naviamp.domain.settings.SavedInternetRadioStation
 import app.naviamp.ui.NaviampInternetRadioStationEditUi
 import app.naviamp.ui.StationRowAction
 import app.naviamp.ui.StationRowActionRequest
@@ -77,6 +78,22 @@ class NaviampCoreInternetRadioControllerTest {
         assertEquals(listOf("one"), fixture.played.map(InternetRadioStation::id))
         assertEquals(listOf("one"), fixture.store.state.value.shell.home.content.recentRadioStreams.map { it.id })
         assertEquals(null, fixture.store.state.value.shell.radio.status)
+    }
+
+    @Test
+    fun portableRecentsPortRestoresDeduplicatesAndPersistsCoreOrdering() = runTest {
+        var persisted = listOf(station("old", "Old"), station("one", "Old One"))
+            .map(SavedInternetRadioStation::fromStation)
+        val recents = naviampCoreInternetRadioRecentsPort(
+            load = { persisted },
+            persist = { persisted = it },
+        )
+
+        val updated = recents.record(station("one", "Current One"))
+
+        assertEquals(listOf("one", "old"), updated.map { it.id })
+        assertEquals("Current One", persisted.first().name)
+        assertEquals(updated, recents.current())
     }
 
     @Test

@@ -1,6 +1,8 @@
 package app.naviamp.presentation
 
 import app.naviamp.domain.InternetRadioStation
+import app.naviamp.domain.radio.recentSavedInternetRadioStationsWith
+import app.naviamp.domain.settings.SavedInternetRadioStation
 import app.naviamp.ui.NaviampInternetRadioStationEditUi
 import app.naviamp.ui.StationRowAction
 import app.naviamp.ui.toInternetRadioStation
@@ -14,6 +16,24 @@ fun interface NaviampCoreInternetRadioPlaybackPort {
 interface NaviampCoreInternetRadioRecentsPort {
     fun current(): List<InternetRadioStation>
     suspend fun record(station: InternetRadioStation): List<InternetRadioStation>
+}
+
+/** Core-owned recency policy with injected portable persistence effects. */
+fun naviampCoreInternetRadioRecentsPort(
+    load: () -> List<SavedInternetRadioStation>,
+    persist: (List<SavedInternetRadioStation>) -> Unit,
+): NaviampCoreInternetRadioRecentsPort = object : NaviampCoreInternetRadioRecentsPort {
+    private var recentStations = load().map(SavedInternetRadioStation::toStation)
+
+    override fun current(): List<InternetRadioStation> = recentStations
+
+    override suspend fun record(station: InternetRadioStation): List<InternetRadioStation> =
+        recentSavedInternetRadioStationsWith(
+            recentStations.map(SavedInternetRadioStation::fromStation),
+            station,
+        ).also(persist).map(SavedInternetRadioStation::toStation).also { updated ->
+            recentStations = updated
+        }
 }
 
 /** Owns Internet Radio browsing, mutations, selection, recents, and shared result state. */
@@ -35,7 +55,6 @@ class NaviampCoreInternetRadioController(
         NaviampCoreCommand.Radio.Refresh,
         is NaviampCoreCommand.Radio.StationAction,
         is NaviampCoreCommand.Radio.SaveStation,
-        is NaviampCoreCommand.Home.SelectRecentRadio,
         is NaviampCoreCommand.Home.SelectInternetRadio,
         -> NaviampCoreImmediateCommandResult.Deferred
         else -> NaviampCoreImmediateCommandResult.Unhandled
@@ -54,8 +73,6 @@ class NaviampCoreInternetRadioController(
                 }
                 StationRowAction.Edit -> return null
             }
-            is NaviampCoreCommand.Home.SelectRecentRadio ->
-                playResolved { resolveRecent(command.item.id, command.item.title) }
             is NaviampCoreCommand.Home.SelectInternetRadio ->
                 playResolved { resolve(command.item.id, command.item.title) }
             else -> return null
@@ -163,11 +180,6 @@ class NaviampCoreInternetRadioController(
 
     private fun resolve(id: String, title: String): InternetRadioStation =
         stationsById[id] ?: throw IllegalStateException("Station $title is no longer available.")
-
-    private fun resolveRecent(id: String, title: String): InternetRadioStation =
-        recents.current().firstOrNull { it.id == id }
-            ?: stationsById[id]
-            ?: throw IllegalStateException("Recent station $title is no longer available.")
 
     private fun validated(station: InternetRadioStation): InternetRadioStation {
         require(station.name.isNotBlank()) { "Station name cannot be blank." }

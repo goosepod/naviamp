@@ -72,7 +72,6 @@ fun naviampCoreServiceDefaults(
         network = NaviampCoreMobileNetworkPort { false },
     ),
     playlists = NaviampCorePlaylistServices(
-        queue = NaviampCorePlaylistQueuePort { _, _ -> },
         history = NaviampCorePlaylistHistoryPort { current, _ -> current },
     ),
     radio = NaviampCoreRadioServices(
@@ -84,6 +83,10 @@ fun naviampCoreServiceDefaults(
             override fun current() = emptyList<InternetRadioStation>()
             override suspend fun record(station: InternetRadioStation) = listOf(station)
         },
+        generatedRecents = NaviampCoreGeneratedRadioRecentsPort(
+            load = { emptyList() },
+            save = {},
+        ),
     ),
     mixes = naviampCoreStandardMixServices(
         providerSource = providerSource,

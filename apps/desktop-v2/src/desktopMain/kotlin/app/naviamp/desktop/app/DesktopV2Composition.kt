@@ -6,6 +6,8 @@ import app.naviamp.domain.home.HomeDate
 import app.naviamp.domain.network.KtorSharedHttpClient
 import app.naviamp.domain.audio.AudioMetadataSidecarService
 import app.naviamp.domain.cache.CachedLyricsSidecarRepository
+import app.naviamp.domain.cache.ProviderResponseService
+import app.naviamp.domain.cache.ProviderResponseCacheService
 import app.naviamp.domain.cache.LyricsSidecarCacheService
 import app.naviamp.domain.lyrics.LrclibLyricsProvider
 import app.naviamp.domain.lyrics.LyricsOffsetController
@@ -14,6 +16,8 @@ import app.naviamp.domain.playback.CoreBassPlaybackEngine
 import app.naviamp.domain.playback.ReleasablePlaybackEngine
 import app.naviamp.domain.playback.AudioOutputDevicePlaybackEngine
 import app.naviamp.presentation.NaviampCoreHomeDateSource
+import app.naviamp.presentation.NaviampCoreHomeSupplement
+import app.naviamp.presentation.NaviampCoreHomeSupplementSource
 import app.naviamp.presentation.NaviampCoreDownloadStorageSnapshot
 import app.naviamp.presentation.NaviampCoreDownloadedTrack
 import app.naviamp.presentation.NaviampCoreInitialState
@@ -27,6 +31,8 @@ import app.naviamp.presentation.NaviampCoreSettingsSyncConfiguration
 import app.naviamp.presentation.NaviampCoreVisualizerSettingsPort
 import app.naviamp.presentation.naviampCoreServiceDefaults
 import app.naviamp.presentation.naviampCorePlaylistHistoryPort
+import app.naviamp.presentation.naviampCoreInternetRadioRecentsPort
+import app.naviamp.presentation.localLibraryHomeRepository
 import app.naviamp.presentation.naviampCorePlaylistBrowseSupplementSource
 import app.naviamp.presentation.repositoryNaviampCoreDownloadServices
 import app.naviamp.presentation.unavailableNaviampCoreSettingsSyncServices
@@ -172,6 +178,10 @@ internal class DesktopV2Composition private constructor(
                 },
                 sessions = playbackSessions,
             )
+            val internetRadioRecents = naviampCoreInternetRadioRecentsPort(
+                load = settingsStore::loadRecentInternetRadioStations,
+                persist = settingsStore::saveRecentInternetRadioStations,
+            )
             var syncConfiguration = NaviampCoreSettingsSyncConfiguration()
             val sync = unavailableNaviampCoreSettingsSyncServices(nowEpochMillis).copy(
                 port = app.naviamp.desktop.settings.DesktopCoreSettingsSyncPort(
@@ -195,12 +205,23 @@ internal class DesktopV2Composition private constructor(
             )
             val services = serviceDefaults.copy(
                 content = serviceDefaults.content.copy(
+                    homeSupplement = NaviampCoreHomeSupplementSource {
+                        NaviampCoreHomeSupplement(
+                            sourceId = storage.mediaSources.latestMediaSource()?.id,
+                            recentRadioStreams = settingsStore.loadRecentRadioStreams(),
+                            recentInternetRadioStations = internetRadioRecents.current(),
+                        )
+                    },
                     artistDiscovery = providerArtistDiscoveryServices(
                         providerSource = sessions.providerSource,
                         sourceId = { storage.mediaSources.latestMediaSource()?.id },
                         libraryIndex = storage.libraryIndex,
                         nowEpochMillis = nowEpochMillis,
                     ),
+                    providerResponses = ProviderResponseService(
+                        ProviderResponseCacheService(storage.providerResponses, nowEpochMillis),
+                    ),
+                    homeLibrary = localLibraryHomeRepository(storage.libraryIndex),
                     playlistSupplement = naviampCorePlaylistBrowseSupplementSource(
                         recentPlaylistIds = settingsStore::loadRecentPlaylistIds,
                         sourceId = { storage.mediaSources.latestMediaSource()?.id },
@@ -241,6 +262,13 @@ internal class DesktopV2Composition private constructor(
                 ),
                 playlists = serviceDefaults.playlists.copy(
                     history = naviampCorePlaylistHistoryPort(settingsStore::saveRecentPlaylistIds),
+                ),
+                radio = serviceDefaults.radio.copy(
+                    recents = internetRadioRecents,
+                    generatedRecents = app.naviamp.presentation.NaviampCoreGeneratedRadioRecentsPort(
+                        load = settingsStore::loadRecentRadioStreams,
+                        save = settingsStore::saveRecentRadioStreams,
+                    ),
                 ),
                 diagnostics = DesktopCoreDiagnosticsPort(
                     storageStats = storage.maintenance::stats,

@@ -6,6 +6,7 @@ import app.naviamp.domain.artistmix.ArtistMixBuilderService
 import app.naviamp.domain.cache.ProviderResponseService
 import app.naviamp.domain.genremix.GenreMixBuilderService
 import app.naviamp.domain.home.HomeLibraryRepository
+import app.naviamp.domain.settings.RecentRadioStream
 
 /** Provider-backed product inputs that do not depend on an operating-system API. */
 data class NaviampCoreContentServices(
@@ -26,9 +27,8 @@ data class NaviampCoreMixServices(
     val genre: () -> GenreMixBuilderService,
 )
 
-/** Persistence and native effects required by playlist product transactions. */
+/** Persistence effects required by playlist product transactions. Queue ownership stays in Core. */
 data class NaviampCorePlaylistServices(
-    val queue: NaviampCorePlaylistQueuePort,
     val history: NaviampCorePlaylistHistoryPort,
 )
 
@@ -62,6 +62,13 @@ data class NaviampCoreSettingsServices(
 data class NaviampCoreRadioServices(
     val playback: NaviampCoreInternetRadioPlaybackPort,
     val recents: NaviampCoreInternetRadioRecentsPort,
+    val generatedRecents: NaviampCoreGeneratedRadioRecentsPort,
+)
+
+/** Portable persistence effects for Core-owned generated-radio recency policy. */
+data class NaviampCoreGeneratedRadioRecentsPort(
+    val load: () -> List<RecentRadioStream>,
+    val save: (List<RecentRadioStream>) -> Unit,
 )
 
 /**

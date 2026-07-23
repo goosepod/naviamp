@@ -2,6 +2,7 @@ package app.naviamp.presentation
 
 import app.naviamp.app.NaviampLivePlaybackController
 import app.naviamp.app.NaviampPlaybackQueueCoordinator
+import app.naviamp.app.NaviampRecentRadioStreamController
 import app.naviamp.domain.Album
 import app.naviamp.domain.Artist
 import app.naviamp.domain.Track
@@ -13,11 +14,20 @@ import app.naviamp.domain.radio.RadioService
 import app.naviamp.domain.radio.RadioRequestStartResult
 import app.naviamp.domain.radio.SeededRadioBuildResult
 import app.naviamp.domain.radio.albumMixSeededRadioRequest
+import app.naviamp.domain.radio.albumRecentRadioStream
 import app.naviamp.domain.radio.artistMixSeededRadioRequest
+import app.naviamp.domain.radio.artistRecentRadioStream
+import app.naviamp.domain.radio.decadeRecentRadioStream
 import app.naviamp.domain.radio.genreMixRadioRequest
+import app.naviamp.domain.radio.genreRecentRadioStream
+import app.naviamp.domain.radio.libraryRecentRadioStream
+import app.naviamp.domain.radio.randomAlbumRecentRadioStream
 import app.naviamp.domain.radio.radioRequestStartResult
 import app.naviamp.domain.radio.seededRadioBuildResult
+import app.naviamp.domain.radio.trackRecentRadioStream
+import app.naviamp.domain.radio.withRadioCoverArtIds
 import app.naviamp.domain.Genre
+import app.naviamp.domain.settings.RecentRadioStream
 import app.naviamp.ui.NaviampPlaylistChoiceUi
 import app.naviamp.ui.SharedMediaItemUi
 
@@ -35,6 +45,7 @@ class NaviampCoreMediaTransactions(
     private val effects: NaviampCorePlaybackEffectPort,
     private val downloads: NaviampCoreDownloadsController,
     private val mediaDetails: NaviampCoreMediaDetailController,
+    private val recentRadioStreams: NaviampRecentRadioStreamController,
     private val externalUri: NaviampCoreExternalUriPort,
     private val favoritedAtIso8601: () -> String,
     private val publishNowPlaying: () -> Unit,
@@ -71,9 +82,12 @@ class NaviampCoreMediaTransactions(
                     requestIsCurrent = true,
                 )
                 if (update.changed) effects.applyQueue(update.queue, update.clearPreparedNext)
+                rememberRecentRadio(trackRecentRadioStream(seed), listOf(seed) + fetched)
                 publish("Playing track radio.")
             } else {
-                play(RadioService(provider).queue(seed, fetched))
+                val tracks = RadioService(provider).queue(seed, fetched)
+                play(tracks)
+                rememberRecentRadio(trackRecentRadioStream(seed), tracks)
                 publish("Playing track radio.")
             }
         }.onFailure { publish(it.message ?: "Could not build track radio.") }
@@ -89,15 +103,22 @@ class NaviampCoreMediaTransactions(
             .onFailure { publish(it.message ?: "Could not load track radio.") }
     }
 
-    suspend fun startAlbumRadio(album: Album) = radio("album radio") { service ->
+    suspend fun startAlbumRadio(album: Album) = radio("album radio", albumRecentRadioStream(album)) { service ->
         service.albumRadio(album.id, registry.albumDetails?.takeIf { it.album.id == album.id }?.tracks.orEmpty())
     }
 
-    suspend fun startArtistRadio(artist: Artist) = radio("artist radio") { it.artistRadio(artist.id) }
-    suspend fun startLibraryRadio() = radio("Library Radio") { it.libraryRadio() }
-    suspend fun startGenreRadio(genre: String) = radio("$genre radio") { it.genreRadio(genre) }
+    suspend fun startArtistRadio(artist: Artist) =
+        radio("artist radio", artistRecentRadioStream(artist)) { it.artistRadio(artist.id) }
+
+    suspend fun startLibraryRadio() = radio("Library Radio", libraryRecentRadioStream()) { it.libraryRadio() }
+
+    suspend fun startGenreRadio(genre: String) =
+        radio("$genre radio", genreRecentRadioStream(Genre(genre))) { it.genreRadio(genre) }
+
     suspend fun startDecadeRadio(fromYear: Int, toYear: Int) =
-        radio("$fromYear–$toYear radio") { it.decadeRadio(fromYear, toYear) }
+        radio("$fromYear–$toYear radio", decadeRecentRadioStream(fromYear, toYear)) {
+            it.decadeRadio(fromYear, toYear)
+        }
 
     suspend fun startArtistMix(artists: List<Artist>, seedTracks: List<Track>) {
         val seed = seedTracks.firstOrNull() ?: return publish("Select artists with matched songs first.")
@@ -116,6 +137,7 @@ class NaviampCoreMediaTransactions(
         when (val result = radioRequestStartResult(request, RadioService(provider, tuning = radioTuning()))) {
             is RadioRequestStartResult.Ready -> {
                 play(result.queue)
+                rememberRecentRadio(result.recentRadioStream, result.queue)
                 publish("Playing ${request.label}.")
             }
             RadioRequestStartResult.Empty -> publish("${request.label} did not return any tracks.")
@@ -126,7 +148,18 @@ class NaviampCoreMediaTransactions(
     suspend fun startRandomAlbumRadio() {
         val provider = providerOrPublish() ?: return
         runCatching { provider.albumList(app.naviamp.domain.provider.AlbumListType.Random, 1).firstOrNull() }
-            .onSuccess { album -> if (album == null) publish("No random album is available.") else startAlbumRadio(album) }
+            .onSuccess { album ->
+                if (album == null) {
+                    publish("No random album is available.")
+                } else {
+                    radio("random album radio", randomAlbumRecentRadioStream(album)) { service ->
+                        service.albumRadio(
+                            album.id,
+                            registry.albumDetails?.takeIf { it.album.id == album.id }?.tracks.orEmpty(),
+                        )
+                    }
+                }
+            }
             .onFailure { publish(it.message ?: "Could not start random album radio.") }
     }
 
@@ -208,11 +241,23 @@ class NaviampCoreMediaTransactions(
         if (uri.isBlank()) publish("Artist link is missing.") else externalUri.open(uri)
     }
 
-    private suspend fun radio(label: String, load: suspend (RadioService) -> List<Track>) {
+    private suspend fun radio(
+        label: String,
+        recent: RecentRadioStream,
+        load: suspend (RadioService) -> List<Track>,
+    ) {
         val provider = providerOrPublish() ?: return
         publish("Building $label...")
         runCatching { load(RadioService(provider, tuning = radioTuning())) }
-            .onSuccess { if (it.isEmpty()) publish("$label did not return any tracks.") else { play(it); publish("Playing $label.") } }
+            .onSuccess { tracks ->
+                if (tracks.isEmpty()) {
+                    publish("$label did not return any tracks.")
+                } else {
+                    play(tracks)
+                    rememberRecentRadio(recent, tracks)
+                    publish("Playing $label.")
+                }
+            }
             .onFailure { publish(it.message ?: "Could not build $label.") }
     }
 
@@ -222,6 +267,7 @@ class NaviampCoreMediaTransactions(
         when (val result = seededRadioBuildResult(request, RadioService(provider, tuning = radioTuning()))) {
             is SeededRadioBuildResult.Ready -> {
                 play(result.queue)
+                rememberRecentRadio(result.recentRadioStream, result.queue)
                 publish("Playing ${request.label}.")
             }
             is SeededRadioBuildResult.Failed -> publish(result.error.message ?: "Could not build ${request.label}.")
@@ -229,6 +275,33 @@ class NaviampCoreMediaTransactions(
     }
 
     private fun radioTuning() = stateStore.state.value.shell.playback.settings.radioTuning
+
+    private fun rememberRecentRadio(stream: RecentRadioStream?, tracks: List<Track>) {
+        if (stream == null) return
+        val updated = recentRadioStreams.remember(stream.withRadioCoverArtIds(tracks))
+        val provider = providerSource.current()
+        stateStore.updateShell { shell ->
+            shell.copy(
+                home = shell.home.copy(
+                    content = shell.home.content.copy(
+                        recentRadioStreams = updated.map { recent ->
+                            val coverArtUrls = recent.coverArtIds
+                                .mapNotNull { id -> provider?.coverArtUrl(id) }
+                                .distinct()
+                                .take(4)
+                            SharedMediaItemUi(
+                                id = recent.id,
+                                title = recent.label,
+                                subtitle = "Radio",
+                                coverArtUrl = coverArtUrls.firstOrNull(),
+                                coverArtUrls = coverArtUrls,
+                            )
+                        },
+                    ),
+                ),
+            )
+        }
+    }
 
     private suspend fun <T> mutate(unsupported: String, mutation: suspend () -> T?, apply: (T) -> Unit) {
         runCatching { mutation() }.onSuccess { if (it == null) publish(unsupported) else apply(it) }

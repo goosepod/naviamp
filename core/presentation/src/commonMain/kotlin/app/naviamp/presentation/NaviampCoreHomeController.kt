@@ -3,6 +3,8 @@ package app.naviamp.presentation
 import app.naviamp.domain.InternetRadioStation
 import app.naviamp.domain.Track
 import app.naviamp.domain.cache.ProviderResponseService
+import app.naviamp.domain.cache.LocalLibraryIndexRepository
+import app.naviamp.domain.home.HomeAlbumYear
 import app.naviamp.domain.home.HomeContentLoadRequest
 import app.naviamp.domain.home.HomeDate
 import app.naviamp.domain.home.HomeLibraryRepository
@@ -28,6 +30,19 @@ data class NaviampCoreHomeSupplement(
 
 fun interface NaviampCoreHomeSupplementSource {
     fun current(): NaviampCoreHomeSupplement
+}
+
+/** Adapts the portable library index to Home without host-owned repository mapping. */
+fun localLibraryHomeRepository(
+    libraryIndex: LocalLibraryIndexRepository,
+): HomeLibraryRepository = object : HomeLibraryRepository {
+    override fun albumYears(sourceId: String): List<HomeAlbumYear> =
+        libraryIndex.libraryAlbumYears(sourceId).map { year ->
+            HomeAlbumYear(year = year.year, albumCount = year.albumCount)
+        }
+
+    override fun recentlyPlayedTracks(sourceId: String, limit: Long): List<Track> =
+        libraryIndex.recentlyPlayedLibraryTracks(sourceId, limit)
 }
 
 /** Owns Home loading, stale refresh rejection, mapping, status, and builder navigation. */
