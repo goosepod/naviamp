@@ -70,6 +70,7 @@ fun naviampCoreStoredServiceCatalog(
     providerSessions: NaviampCoreProviderSessionPort,
     providerSource: NaviampCoreMediaProviderSource,
     playback: NaviampCorePlaybackServices,
+    downloads: NaviampCoreDownloadServices,
     playbackEngine: PlaybackEngine,
     settingsSyncPort: NaviampCoreSettingsSyncPort,
     settings: NaviampCoreStoredSettings,
@@ -178,6 +179,7 @@ fun naviampCoreStoredServiceCatalog(
             ),
             sync = sync,
         ),
+        downloads = downloads,
         playlists = defaults.playlists.copy(
             history = naviampCorePlaylistHistoryPort(settings.saveRecentPlaylistIds),
         ),

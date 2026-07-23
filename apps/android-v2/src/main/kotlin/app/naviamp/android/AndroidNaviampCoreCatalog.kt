@@ -6,11 +6,14 @@ import app.naviamp.domain.home.HomeDate
 import app.naviamp.domain.playback.PlaybackEngine
 import app.naviamp.domain.settings.SettingsSyncRuntimeState
 import app.naviamp.presentation.NaviampCoreEnvironment
+import app.naviamp.presentation.NaviampCoreDownloadedTrack
+import app.naviamp.presentation.NaviampCoreDownloadStorageSnapshot
 import app.naviamp.presentation.NaviampCoreHomeDateSource
 import app.naviamp.presentation.NaviampCorePlaybackServices
 import app.naviamp.presentation.NaviampCoreStoredRepositories
 import app.naviamp.presentation.NaviampCoreStoredSettings
 import app.naviamp.presentation.naviampCoreStoredServiceCatalog
+import app.naviamp.presentation.repositoryNaviampCoreDownloadServices
 import app.naviamp.ui.NaviampStorageLocationUi
 import java.io.File
 import java.time.Instant
@@ -55,10 +58,34 @@ class AndroidNaviampCoreCatalog private constructor(
             )
             val downloadLocations = androidDownloadStorageLocations(appContext)
             val audioCacheLocations = androidAudioCacheStorageLocations(appContext)
+            val downloads = repositoryNaviampCoreDownloadServices(
+                downloadRepository = storage,
+                replacementRepository = storage,
+                keepDownloadedRepository = storage,
+                toCoreDownload = { stored ->
+                    NaviampCoreDownloadedTrack(
+                        storageId = stored.file.absolutePath,
+                        track = stored.track,
+                        sizeBytes = stored.sizeBytes,
+                        qualityLabel = stored.qualityKey,
+                    )
+                },
+                isStoredDownloadAvailable = { stored -> stored.file.isFile },
+                storageStats = {
+                    storage.stats().let { stats ->
+                        NaviampCoreDownloadStorageSnapshot(
+                            audioCacheCount = stats.audioCount,
+                            audioCacheBytes = stats.audioBytes,
+                            pendingProviderActionCount = stats.pendingProviderActionCount,
+                        )
+                    }
+                },
+            )
             val storedCatalog = naviampCoreStoredServiceCatalog(
                 providerSessions = sessions,
                 providerSource = sessions.providerSource,
                 playback = playback,
+                downloads = downloads,
                 playbackEngine = playbackEngine,
                 settingsSyncPort = syncPort,
                 settings = settingsStore.toCoreStoredSettings(storage),
