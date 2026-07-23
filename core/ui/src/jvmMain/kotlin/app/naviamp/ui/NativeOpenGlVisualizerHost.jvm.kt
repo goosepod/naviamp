@@ -344,7 +344,7 @@ private fun nativeOpenGlCandidateDirectories(): List<File> = buildList {
             "resources/playback/bass/${nativeOpenGlPlatformId()}",
             "playback/bass/${nativeOpenGlPlatformId()}",
             "../app/playback/bass/${nativeOpenGlPlatformId()}",
-            "apps/desktop/build/generated/desktopBass/playback/bass/${nativeOpenGlPlatformId()}",
+            "platforms/desktop/build/generated/desktopNativeResources/playback/bass/${nativeOpenGlPlatformId()}",
         ).forEach { relativePath ->
             add(File(root, relativePath))
         }

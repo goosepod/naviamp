@@ -99,7 +99,7 @@ class BassLibraryResolverTest {
     @Test
     fun resolveWithLibrariesSkipsDirectoriesMissingRequiredBridge() {
         val root = createTempDirectory().toFile()
-        root.library("apps/desktop/vendor/bass/macos-arm64/libbass.dylib")
+        root.library("platforms/desktop/vendor/bass/macos-arm64/libbass.dylib")
         val bundled = root.library("playback/bass/macos-arm64/libbass.dylib").parentFile
         bundled.library("libnaviamp_bass.dylib")
 

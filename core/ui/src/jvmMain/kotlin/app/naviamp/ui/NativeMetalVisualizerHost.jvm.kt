@@ -277,7 +277,7 @@ private fun nativeMetalCandidateDirectories(): List<File> = buildList {
             "Contents/Resources/playback/bass/${nativeMetalPlatformId()}",
             "../Resources/playback/bass/${nativeMetalPlatformId()}",
             "../app/playback/bass/${nativeMetalPlatformId()}",
-            "apps/desktop/build/generated/desktopBass/playback/bass/${nativeMetalPlatformId()}",
+            "platforms/desktop/build/generated/desktopNativeResources/playback/bass/${nativeMetalPlatformId()}",
         ).forEach { relativePath ->
             add(File(root, relativePath))
         }

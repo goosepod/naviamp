@@ -41,7 +41,7 @@ class DesktopBassLibraryResolver(
             "Contents/Resources/playback/bass/${platform.id}",
             "../Resources/playback/bass/${platform.id}",
             "../app/playback/bass/${platform.id}",
-            "apps/desktop/vendor/bass/${platform.id}",
+            "platforms/desktop/vendor/bass/${platform.id}",
             "vendor/bass/${platform.id}",
         )
 
