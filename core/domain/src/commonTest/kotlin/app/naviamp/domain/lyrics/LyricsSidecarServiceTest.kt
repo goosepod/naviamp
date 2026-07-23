@@ -152,6 +152,45 @@ class LyricsSidecarServiceTest {
     }
 
     @Test
+    fun completedPreferSyncedFallbackSatisfiesForegroundWithoutRepeatingOnlineLookup() = runTest {
+        val providerLyrics = lyrics(LyricsSource.Provider, synced = false, text = "Provider")
+        val repository = RecordingLyricsRepository(providerLyrics = providerLyrics)
+        val service = service(repository = repository)
+
+        val prefetched = service.loadLyrics(
+            sourceId = "source",
+            provider = FakeMediaProvider(),
+            track = track(),
+            quality = StreamQuality.Original,
+            audioCachingEnabled = true,
+            onlineLyricsEnabled = true,
+            preferSyncedLyrics = true,
+            searchOrder = listOf(
+                LyricsSourcePreference.Provider,
+                LyricsSourcePreference.Download,
+            ),
+        )
+        val foreground = service.loadLyrics(
+            sourceId = "source",
+            provider = FakeMediaProvider(),
+            track = track(),
+            quality = StreamQuality.Original,
+            audioCachingEnabled = true,
+            onlineLyricsEnabled = true,
+            preferSyncedLyrics = true,
+            searchOrder = listOf(
+                LyricsSourcePreference.Provider,
+                LyricsSourcePreference.Download,
+            ),
+        )
+
+        assertSame(providerLyrics, prefetched.lyrics)
+        assertSame(prefetched, foreground)
+        assertEquals(listOf("source:track"), repository.providerRequests)
+        assertEquals(listOf("source:track"), repository.onlineRequests)
+    }
+
+    @Test
     fun customSearchOrderControlsFirstSourceWithoutPreferSynced() = runTest {
         val providerLyrics = lyrics(LyricsSource.Provider, synced = false, text = "Provider")
         val onlineLyrics = lyrics(LyricsSource.Lrclib, synced = true, text = "Online")

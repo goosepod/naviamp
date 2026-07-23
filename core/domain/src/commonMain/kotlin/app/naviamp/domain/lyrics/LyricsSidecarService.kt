@@ -11,6 +11,8 @@ import app.naviamp.domain.playback.resolvePlaybackAudioSource
 import app.naviamp.domain.provider.MediaProvider
 import app.naviamp.domain.settings.LyricsSourcePreference
 import app.naviamp.domain.settings.normalizedLyricsSearchOrder
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 data class LyricsSidecarResult(
     val lyrics: Lyrics?,
@@ -25,6 +27,9 @@ class LyricsSidecarService(
     private val playbackAudioAssets: PlaybackAudioAssetRepository,
     private val audioMetadataSidecarService: AudioMetadataSidecarService,
 ) {
+    private val completedLookupMutex = Mutex()
+    private val completedLookups = linkedMapOf<LyricsLookupKey, LyricsSidecarResult>()
+
     suspend fun providerLyrics(
         sourceId: String?,
         provider: MediaProvider,
@@ -66,6 +71,48 @@ class LyricsSidecarService(
         preferSyncedLyrics: Boolean = false,
         searchOrder: List<LyricsSourcePreference> = emptyList(),
     ): LyricsSidecarResult {
+        val activeSearchOrder = searchOrder.normalizedLyricsSearchOrder()
+            .filter { source -> onlineLyricsEnabled || source != LyricsSourcePreference.Download }
+        val lookupKey = LyricsLookupKey(
+            sourceId = sourceId ?: provider.cacheNamespace,
+            trackId = track.id.value,
+            quality = quality,
+            audioCachingEnabled = audioCachingEnabled,
+            onlineLyricsEnabled = onlineLyricsEnabled,
+            preferSyncedLyrics = preferSyncedLyrics,
+            searchOrder = activeSearchOrder,
+        )
+        completedLookupMutex.withLock { completedLookups[lookupKey] }?.let { return it }
+
+        val result = loadLyricsUncached(
+            sourceId = sourceId,
+            provider = provider,
+            track = track,
+            quality = quality,
+            audioCachingEnabled = audioCachingEnabled,
+            onlineLyricsEnabled = onlineLyricsEnabled,
+            preferSyncedLyrics = preferSyncedLyrics,
+            activeSearchOrder = activeSearchOrder,
+        )
+        completedLookupMutex.withLock {
+            completedLookups[lookupKey] = result
+            while (completedLookups.size > MaxCompletedLyricsLookups) {
+                completedLookups.remove(completedLookups.keys.first())
+            }
+        }
+        return result
+    }
+
+    private suspend fun loadLyricsUncached(
+        sourceId: String?,
+        provider: MediaProvider,
+        track: Track,
+        quality: StreamQuality,
+        audioCachingEnabled: Boolean,
+        onlineLyricsEnabled: Boolean,
+        preferSyncedLyrics: Boolean,
+        activeSearchOrder: List<LyricsSourcePreference>,
+    ): LyricsSidecarResult {
         var loadedProviderLyrics: Lyrics? = null
         var loadedEmbeddedLyrics: Lyrics? = null
         var loadedOnlineLyrics: Lyrics? = null
@@ -100,8 +147,6 @@ class LyricsSidecarService(
                 }
             }
 
-        val activeSearchOrder = searchOrder.normalizedLyricsSearchOrder()
-            .filter { source -> onlineLyricsEnabled || source != LyricsSourcePreference.Download }
         for (source in activeSearchOrder) {
             val lyrics = loadSource(source) ?: continue
             if (firstLyrics == null) firstLyrics = lyrics
@@ -141,3 +186,15 @@ class LyricsSidecarService(
             ).localAudio
         }
 }
+
+private data class LyricsLookupKey(
+    val sourceId: String,
+    val trackId: String,
+    val quality: StreamQuality,
+    val audioCachingEnabled: Boolean,
+    val onlineLyricsEnabled: Boolean,
+    val preferSyncedLyrics: Boolean,
+    val searchOrder: List<LyricsSourcePreference>,
+)
+
+private const val MaxCompletedLyricsLookups = 512
