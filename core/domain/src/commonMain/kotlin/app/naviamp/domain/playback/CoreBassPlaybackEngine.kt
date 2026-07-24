@@ -31,6 +31,7 @@ import app.naviamp.domain.playback.PreparedPlaybackMetadataReset
 import app.naviamp.domain.playback.PreparedBassPlaybackStateUpdate
 import app.naviamp.domain.playback.PlaybackStreamStateReset
 import app.naviamp.domain.bass.BassAudioBackend
+import app.naviamp.domain.bass.BassPlaybackBufferPolicy
 import app.naviamp.domain.bass.adoptPreparedBassSource
 import app.naviamp.domain.bass.applyBassPlaybackVolume
 import app.naviamp.domain.bass.applyEqualizer
@@ -80,6 +81,8 @@ import kotlinx.coroutines.launch
 open class CoreBassPlaybackEngine(
     private val backendResult: Result<BassAudioBackend>,
     private val runtime: BassPlaybackEngineRuntime,
+    private val pollingPolicy: BassPlaybackPollingPolicy = BassPlaybackPollingPolicy.CoreEngine,
+    private val bufferPolicy: BassPlaybackBufferPolicy = BassPlaybackBufferPolicy(),
 ) : QueueAwarePlaybackEngine,
     BassPlaybackEngine,
     AudioOutputDevicePlaybackEngine,
@@ -87,7 +90,6 @@ open class CoreBassPlaybackEngine(
     private val backend: BassAudioBackend? = backendResult.getOrNull()
     private val loadError: Throwable? = backendResult.exceptionOrNull()
     private val startPolicy: BassPlaybackStartPolicy = BassPlaybackStartPolicy.CoreEngine
-    private val pollingPolicy: BassPlaybackPollingPolicy = BassPlaybackPollingPolicy.CoreEngine
     private var sampleRateConverter = SampleRateConverter.Sinc16
     private var sampleRateMatching = SampleRateMatching.Disabled
 
@@ -570,6 +572,7 @@ open class CoreBassPlaybackEngine(
             activeOutputSampleRateHz = null
         }
         if (!initialized) {
+            bass.configurePlaybackBuffers(bufferPolicy).getOrThrow()
             val initResult = if (targetSampleRateHz != null) {
                 bass.init(selectedOutputDeviceId, targetSampleRateHz)
                     .onFailure { lastError = it.message }

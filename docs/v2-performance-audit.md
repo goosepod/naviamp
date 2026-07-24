@@ -14,7 +14,7 @@ for at least five minutes and each growth scenario for at least 60 minutes.
 | --- | ---: | ---: |
 | Foreground idle | median <= 3%, p95 <= 8% | Android/iOS <= 250 MB; Desktop <= 650 MB |
 | Background paused | median <= 2%, p95 <= 5% | Android/iOS <= 200 MB; Desktop <= 550 MB |
-| Background active playback | median <= 12%, p95 <= 20% | Android/iOS <= 225 MB; Desktop <= 600 MB |
+| Background active playback | median <= 10%, p95 <= 18% | Android/iOS <= 225 MB; Desktop <= 600 MB |
 | Foreground Now Playing | median <= 20%, p95 <= 35% | Android/iOS <= 300 MB; Desktop <= 750 MB |
 | Prefetch/sidecar work | no unexplained busy loop; returns to the matching steady-state threshold within 30 seconds of completion/cancellation | peak <= 1.5x steady state |
 | Large-library scroll/search | no sustained work after interaction settles | peak <= 1.5x foreground idle |
@@ -67,3 +67,56 @@ debug build. Profile the release-like BASS decode/mixer/sample-rate-conversion p
 versus converted sample rates and visualizer collection, resolve or justify the load, then repeat the
 full Android matrix. Desktop and iOS results remain outstanding; iOS cannot pass until its thin host
 and production playback engine exist.
+
+## Android active-playback optimization sample — 2026-07-24
+
+This release-like sample accepts the Android background active-playback baseline. It does not replace
+the required five-minute and one-hour completion runs in the full matrix.
+
+- Device: Pixel 10a (`stallion`), Android 17 / API 37, physical USB connection.
+- Application: non-debuggable, profileable `benchmark` build of
+  `app.naviamp.android.v2test`; 51-track queue; visualizer closed; 16-point sinc sample-rate
+  conversion; background playback.
+- Tools: `adb shell top`, `top -H`, `dumpsys meminfo`, and `dumpsys media_session`.
+- Before optimization, the release-like build used roughly 35–55% CPU (median about 45%) and could
+  lose its foreground-service start permission during a transient idle state between tracks.
+- Core now owns a one-second engine polling policy for every host, visualizer frame sampling is disabled
+  while the visualizer is closed, Core debounces transient playback-service release decisions, and
+  Core supplies BASS's 100 ms native update policy to the thin native adapters.
+- After optimization, a clean 40-second background run sampled 3–16.5% CPU with a median of about
+  10%. A recent matching memory capture reported 155,598 KB PSS and 278,440 KB RSS. A separate clean
+  run reported 102,584 KB PSS after the background process settled.
+- Automatic playback advanced successfully within the retained 51-track queue while backgrounded;
+  the Android 17 foreground service remained alive across the transition.
+- Paused playback sampled normally at 0–2%, confirming that no unrelated idle loop remained.
+
+For a same-device reference, Plexamp (`tv.plex.labs.plexamp`) was freshly installed, played in the
+background with no visualizer, and measured using the same 40-second `top` cadence. It sampled
+7.5–15% CPU with a median of about 9.5–10%, 292,029 KB PSS, and 424,472 KB RSS. Naviamp therefore
+reached practical CPU parity with another production BASS player while using substantially less
+memory in these short controlled samples.
+
+Result: **Android background active-playback baseline accepted**. Further CPU improvements remain
+desirable, but are not a blocker before completing the remaining v2 work and the final full-duration
+cross-platform audit.
+
+## Preliminary macOS optimization sample — 2026-07-24
+
+This is a short release-like local-app sample, not the final five-minute Desktop matrix pass.
+
+- Application: staged `build/local-test/Naviamp.app` produced by the verified Desktop distributable
+  tasks, with the visualizer closed.
+- Tool: macOS `top`, 15 samples at a two-second cadence.
+- Foreground idle: 0.3–1.2% CPU after the initial sample, median about 0.4%; resident memory remained
+  approximately 330–333 MB.
+- Foreground active playback initially measured approximately 9.3–21.5% CPU with a median around
+  13–14%. Moving Core's default playback poll from 250 ms to one second reduced the matching rebuilt
+  sample to 5.5–12% CPU with a median around 7.7%. Resident memory moved through an approximately
+  373–388 MB collection cycle rather than growing monotonically.
+- Plexamp 4.13.2 was measured on the same Mac with its Electron main process and all three helpers
+  aggregated. Active playback sampled approximately 6.2–7.3% CPU with a median around 6.5%, using
+  approximately 212–216 MB resident. Naviamp is therefore close to the production BASS reference on
+  Desktop CPU, while Plexamp retains a meaningful memory advantage.
+
+Result: **Desktop foreground-idle and active-playback baselines accepted**. Background/minimized
+playback and the long-duration Desktop matrix remain outstanding.

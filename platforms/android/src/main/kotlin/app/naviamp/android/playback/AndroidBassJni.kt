@@ -31,6 +31,16 @@ object AndroidBassJni {
     fun init(): Boolean = nativeInit()
     fun init(sampleRateHz: Int): Boolean = nativeInitAtSampleRate(sampleRateHz)
 
+    fun configurePlaybackBuffers(
+        playbackBufferMillis: Int,
+        updatePeriodMillis: Int,
+        deviceBufferMillis: Int,
+    ): Boolean = nativeConfigurePlaybackBuffers(
+        playbackBufferMillis,
+        updatePeriodMillis,
+        deviceBufferMillis,
+    )
+
     fun free() = nativeFree()
 
     fun setVerifyNet(verify: Boolean): Boolean = nativeSetVerifyNet(verify)
@@ -97,6 +107,11 @@ object AndroidBassJni {
     private external fun nativeLastErrorCode(): Int
     private external fun nativeInit(): Boolean
     private external fun nativeInitAtSampleRate(sampleRateHz: Int): Boolean
+    private external fun nativeConfigurePlaybackBuffers(
+        playbackBufferMillis: Int,
+        updatePeriodMillis: Int,
+        deviceBufferMillis: Int,
+    ): Boolean
     private external fun nativeFree()
     private external fun nativeSetVerifyNet(verify: Boolean): Boolean
     private external fun nativeConfigureInternetStreams(): Boolean

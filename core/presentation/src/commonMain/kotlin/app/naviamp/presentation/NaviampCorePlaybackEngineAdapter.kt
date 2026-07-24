@@ -103,10 +103,17 @@ class NaviampCorePlaybackEngineAdapter(
     private var preparedForGeneration = -1L
     private var playbackState: PlaybackState = PlaybackState.Stopped
     private var restoredStartPositionSeconds: Double? = null
+    private var visualizerFramesEnabled = false
     private val externalStreamUrls = mutableMapOf<TrackId, String>()
 
     override fun attach(observer: NaviampCorePlaybackObserver) {
         this.observer = observer
+    }
+
+    override fun setVisualizerFramesEnabled(enabled: Boolean) {
+        if (visualizerFramesEnabled == enabled) return
+        visualizerFramesEnabled = enabled
+        if (!enabled) observer?.onVisualizerFrameChanged(null)
     }
 
     override fun pause() = engine.pause()
@@ -298,9 +305,11 @@ class NaviampCorePlaybackEngineAdapter(
                 onProgressChanged = { progress ->
                     if (requestGeneration == generation) {
                         observer?.onProgressChanged(progress)
-                        observer?.onVisualizerFrameChanged(
-                            (engine as? VisualizerPlaybackEngine)?.visualizerFrame(),
-                        )
+                        if (visualizerFramesEnabled) {
+                            observer?.onVisualizerFrameChanged(
+                                (engine as? VisualizerPlaybackEngine)?.visualizerFrame(),
+                            )
+                        }
                         if (
                             provider != null &&
                             preparedForGeneration != requestGeneration &&

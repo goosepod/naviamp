@@ -104,6 +104,6 @@ fun planBassPlaybackPollingUpdate(
         ),
     )
 
-const val DefaultBassPollingIntervalMillis = 250L
+const val DefaultBassPollingIntervalMillis = 1_000L
 const val DefaultAndroidBassPollingIntervalMillis = 1_000L
 const val DefaultDesktopBassPollingIntervalMillis = 250L

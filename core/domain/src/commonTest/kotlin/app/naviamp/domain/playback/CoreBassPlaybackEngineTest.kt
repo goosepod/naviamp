@@ -2,6 +2,7 @@ package app.naviamp.domain.playback
 
 import app.naviamp.domain.bass.BassAudioBackend
 import app.naviamp.domain.bass.BassActiveState
+import app.naviamp.domain.bass.BassPlaybackBufferPolicy
 import app.naviamp.domain.bass.BassStreamHandle
 import kotlin.coroutines.CoroutineContext
 import kotlin.coroutines.EmptyCoroutineContext
@@ -71,6 +72,7 @@ class CoreBassPlaybackEngineTest {
         assertTrue(PlaybackState.Playing in states)
         assertTrue(PlaybackState.Finished in states)
         assertEquals("/music/track.flac", backend.openedPath)
+        assertEquals(BassPlaybackBufferPolicy(), backend.bufferPolicy)
         assertEquals(1, backend.playCalls)
         assertTrue(backend.releasedHandles.contains(BassStreamHandle(41)))
     }
@@ -104,6 +106,7 @@ private class RecordingReleaseBackend : BassAudioBackend {
 
 private class RecordingPlaybackBackend : BassAudioBackend {
     var openedPath: String? = null
+    var bufferPolicy: BassPlaybackBufferPolicy? = null
     var playCalls: Int = 0
     val releasedHandles = mutableListOf<BassStreamHandle>()
     private var activeStateCalls: Int = 0
@@ -111,6 +114,11 @@ private class RecordingPlaybackBackend : BassAudioBackend {
     override fun init(): Result<Unit> = Result.success(Unit)
 
     override fun init(deviceId: String?): Result<Unit> = Result.success(Unit)
+
+    override fun configurePlaybackBuffers(policy: BassPlaybackBufferPolicy): Result<Unit> {
+        bufferPolicy = policy
+        return Result.success(Unit)
+    }
 
     override fun configureInternetStreams(): Result<Unit> = Result.success(Unit)
 

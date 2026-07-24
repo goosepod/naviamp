@@ -91,6 +91,7 @@ class NaviampCorePlaybackController(
 
     fun updateDisplay(transform: (NaviampCoreNowPlayingDisplayState) -> NaviampCoreNowPlayingDisplayState) {
         display = transform(display)
+        effects.setVisualizerFramesEnabled(display.visualizerVisible)
         presenter.publish(display)
     }
 
@@ -99,6 +100,7 @@ class NaviampCorePlaybackController(
     fun diagnostics(): List<Pair<String, String>> = effects.diagnostics()
 
     fun attachNativePlayback() {
+        effects.setVisualizerFramesEnabled(display.visualizerVisible)
         playback.observe { persistSession(force = false) }
         effects.attach(object : NaviampCorePlaybackObserver {
             override fun onStateChanged(state: PlaybackState) {

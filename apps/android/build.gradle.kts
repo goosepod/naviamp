@@ -64,6 +64,16 @@ android {
         release {
             if (hasAndroidReleaseSigning) signingConfig = signingConfigs.getByName("release")
         }
+        create("benchmark") {
+            initWith(getByName("release"))
+            applicationIdSuffix = ".v2test"
+            versionNameSuffix = "-benchmark"
+            resValue("string", "app_name", "Naviamp v2 Benchmark")
+            signingConfig = signingConfigs.getByName("debug")
+            isDebuggable = false
+            isProfileable = true
+            matchingFallbacks += listOf("release")
+        }
     }
 
     compileOptions {

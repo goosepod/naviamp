@@ -35,6 +35,9 @@ interface NaviampCorePlaybackEffectPort : NaviampPlaybackExecution {
     /** Connects native engine observations to Core without giving the host product-state access. */
     fun attach(observer: NaviampCorePlaybackObserver) = Unit
 
+    /** Enables expensive native FFT sampling only while shared UI has a visualizer consumer. */
+    fun setVisualizerFramesEnabled(enabled: Boolean) = Unit
+
     fun applyQueue(queue: PlaybackQueue, clearPreparedNext: Boolean)
     fun restoreQueue(queue: PlaybackQueue, startPositionSeconds: Double?) {
         applyQueue(queue, clearPreparedNext = true)

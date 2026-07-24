@@ -8,13 +8,70 @@ import app.naviamp.ui.NowPlayingUi
 import app.naviamp.ui.SharedHomeUi
 import app.naviamp.ui.SharedTrackRowUi
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.toList
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.advanceTimeBy
+import kotlinx.coroutines.test.runCurrent
+import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertIs
 import kotlin.test.assertTrue
 
+@OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 class NaviampCoreExternalPlaybackBridgeTest {
+    @Test
+    fun playbackServiceRetentionIgnoresTransientIdleDuringTrackAdvance() = runTest {
+        val snapshots = MutableSharedFlow<NaviampExternalPlaybackSnapshot>()
+        val decisions = mutableListOf<Boolean>()
+        backgroundScope.launch { snapshots.playbackServiceRetentionDecisions().toList(decisions) }
+        runCurrent()
+        val current = NaviampExternalMediaItem("track", "Track", "Artist")
+
+        snapshots.emit(
+            NaviampExternalPlaybackSnapshot(
+                state = NaviampExternalPlaybackState.Playing,
+                current = current,
+            ),
+        )
+        runCurrent()
+        snapshots.emit(NaviampExternalPlaybackSnapshot())
+        advanceTimeBy(999L)
+        snapshots.emit(
+            NaviampExternalPlaybackSnapshot(
+                state = NaviampExternalPlaybackState.Loading,
+                current = current.copy(mediaId = "next"),
+            ),
+        )
+        runCurrent()
+
+        assertEquals(listOf(true), decisions)
+    }
+
+    @Test
+    fun playbackServiceRetentionReleasesAfterStableIdleGracePeriod() = runTest {
+        val snapshots = MutableSharedFlow<NaviampExternalPlaybackSnapshot>()
+        val decisions = mutableListOf<Boolean>()
+        backgroundScope.launch { snapshots.playbackServiceRetentionDecisions().toList(decisions) }
+        runCurrent()
+        val current = NaviampExternalMediaItem("track", "Track", "Artist")
+
+        snapshots.emit(
+            NaviampExternalPlaybackSnapshot(
+                state = NaviampExternalPlaybackState.Playing,
+                current = current,
+            ),
+        )
+        runCurrent()
+        snapshots.emit(NaviampExternalPlaybackSnapshot())
+        advanceTimeBy(1_000L)
+        runCurrent()
+
+        assertEquals(listOf(true, false), decisions)
+    }
+
     @Test
     fun projectsCanonicalQueueAndPlaybackStateForNativeSurfaces() {
         val bridge = bridge()

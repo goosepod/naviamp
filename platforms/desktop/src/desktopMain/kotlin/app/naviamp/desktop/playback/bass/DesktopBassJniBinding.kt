@@ -24,6 +24,16 @@ class DesktopBassJniBinding private constructor(
 
     fun init(deviceId: String?, sampleRateHz: Int): Boolean = nativeInitDeviceAtSampleRate(deviceId, sampleRateHz)
 
+    fun configurePlaybackBuffers(
+        playbackBufferMillis: Int,
+        updatePeriodMillis: Int,
+        deviceBufferMillis: Int,
+    ): Boolean = nativeConfigurePlaybackBuffers(
+        playbackBufferMillis,
+        updatePeriodMillis,
+        deviceBufferMillis,
+    )
+
     fun free() = nativeFree()
 
     fun outputDevices(): Array<String> = nativeOutputDevices()
@@ -128,6 +138,11 @@ class DesktopBassJniBinding private constructor(
     private external fun nativeInit(): Boolean
     private external fun nativeInitDevice(deviceId: String?): Boolean
     private external fun nativeInitDeviceAtSampleRate(deviceId: String?, sampleRateHz: Int): Boolean
+    private external fun nativeConfigurePlaybackBuffers(
+        playbackBufferMillis: Int,
+        updatePeriodMillis: Int,
+        deviceBufferMillis: Int,
+    ): Boolean
     private external fun nativeFree()
     private external fun nativeOutputDevices(): Array<String>
     private external fun nativeSetOutputDevice(deviceId: String?): Boolean

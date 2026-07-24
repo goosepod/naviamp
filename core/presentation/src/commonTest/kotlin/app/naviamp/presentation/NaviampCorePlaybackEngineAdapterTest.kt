@@ -5,8 +5,10 @@ import app.naviamp.domain.playback.PlaybackProgress
 import app.naviamp.domain.playback.PlaybackRequest
 import app.naviamp.domain.playback.PlaybackState
 import app.naviamp.domain.playback.PlaybackStreamMetadata
+import app.naviamp.domain.playback.PlaybackVisualizerFrame
 import app.naviamp.domain.playback.PlaybackQueueNavigationCommand
 import app.naviamp.domain.playback.QueueAwarePlaybackEngine
+import app.naviamp.domain.playback.VisualizerPlaybackEngine
 import app.naviamp.domain.playback.lyricsLoadingStatus
 import app.naviamp.domain.TrackId
 import app.naviamp.domain.InternetRadioStation
@@ -44,6 +46,38 @@ import kotlin.test.assertEquals
 
 @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 class NaviampCorePlaybackEngineAdapterTest {
+    @Test
+    fun nativeVisualizerSamplingRunsOnlyWhileSharedDisplayRequestsFrames() = runTest {
+        val provider = FakeCoreMediaProvider()
+        val engine = RecordingPlaybackEngine()
+        val adapter = NaviampCorePlaybackEngineAdapter(
+            scope = this,
+            engine = engine,
+            providerSource = NaviampCoreMediaProviderSource { provider },
+            settings = { PlaybackSettings() },
+        )
+        val frames = mutableListOf<PlaybackVisualizerFrame?>()
+        adapter.attach(object : NaviampCorePlaybackObserver {
+            override fun onStateChanged(state: PlaybackState) = Unit
+            override fun onProgressChanged(progress: PlaybackProgress) = Unit
+            override fun onMetadataChanged(metadata: PlaybackStreamMetadata) = Unit
+            override fun onVisualizerFrameChanged(frame: PlaybackVisualizerFrame?) { frames += frame }
+        })
+
+        adapter.playQueueSelection(PlaybackQueue(listOf(provider.track), 0), 0)
+        advanceUntilIdle()
+        assertEquals(0, engine.visualizerReads)
+
+        adapter.setVisualizerFramesEnabled(true)
+        adapter.playQueueSelection(PlaybackQueue(listOf(provider.track), 0), 0)
+        advanceUntilIdle()
+        assertEquals(1, engine.visualizerReads)
+        assertEquals(listOf<PlaybackVisualizerFrame?>(PlaybackVisualizerFrame(listOf(0.5f), 1L)), frames)
+
+        adapter.setVisualizerFramesEnabled(false)
+        assertEquals(listOf(PlaybackVisualizerFrame(listOf(0.5f), 1L), null), frames)
+    }
+
     @Test
     fun startingPlaybackPrefetchesTheConfiguredUpcomingQueueDepth() = runTest {
         val provider = FakeCoreMediaProvider()
@@ -404,7 +438,7 @@ class NaviampCorePlaybackEngineAdapterTest {
     }
 }
 
-private class RecordingPlaybackEngine : PlaybackEngine, QueueAwarePlaybackEngine {
+private class RecordingPlaybackEngine : PlaybackEngine, QueueAwarePlaybackEngine, VisualizerPlaybackEngine {
     override val name = "Recording"
     override val supportsPause = true
     override val supportsSeek = true
@@ -413,10 +447,12 @@ private class RecordingPlaybackEngine : PlaybackEngine, QueueAwarePlaybackEngine
     override val supportsReplayGain = false
     override val supportsSoftwareVolume = true
     override val prefersOriginalStream = true
+    override val supportsVisualizer = true
     var request: PlaybackRequest? = null
     var preparedRequest: PlaybackRequest? = null
     var appliedVolume = -1
     var emittedProgress = PlaybackProgress(12.0, 180.0)
+    var visualizerReads = 0
     val events = mutableListOf<String>()
 
     override fun play(
@@ -438,6 +474,10 @@ private class RecordingPlaybackEngine : PlaybackEngine, QueueAwarePlaybackEngine
     override fun seek(positionSeconds: Double) = Unit
     override fun setVolume(percent: Int) { appliedVolume = percent }
     override fun stop() = Unit
+    override fun visualizerFrame(): PlaybackVisualizerFrame {
+        visualizerReads += 1
+        return PlaybackVisualizerFrame(listOf(0.5f), 1L)
+    }
     override fun setCrossfadeDuration(seconds: Int) = Unit
     override fun prepareNext(request: PlaybackRequest) {
         preparedRequest = request

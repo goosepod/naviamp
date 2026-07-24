@@ -21,6 +21,9 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.transformLatest
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 
 enum class NaviampExternalPlaybackState {
     Idle,
@@ -57,6 +60,27 @@ data class NaviampExternalPlaybackSnapshot(
     val shouldRetainPlaybackService: Boolean
         get() = current != null && state != NaviampExternalPlaybackState.Idle
 }
+
+/**
+ * Shared lifecycle policy for retaining a native playback surface.
+ *
+ * Core playback can briefly project an idle state while advancing between queue items. Releasing a
+ * native playback service during that transition both churns the host lifecycle and can make the
+ * subsequent background restart illegal on modern mobile operating systems. Retain immediately,
+ * but require a stable idle state before asking a host to release its native surface.
+ */
+@OptIn(ExperimentalCoroutinesApi::class)
+fun Flow<NaviampExternalPlaybackSnapshot>.playbackServiceRetentionDecisions(
+    releaseGracePeriodMillis: Long = 1_000L,
+): Flow<Boolean> =
+    transformLatest { snapshot ->
+        if (snapshot.shouldRetainPlaybackService) {
+            emit(true)
+        } else {
+            delay(releaseGracePeriodMillis)
+            emit(false)
+        }
+    }.distinctUntilChanged()
 
 data class NaviampExternalPlaybackPublication(
     val sessionContent: Boolean,

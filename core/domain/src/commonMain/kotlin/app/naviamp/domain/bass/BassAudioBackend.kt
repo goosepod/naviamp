@@ -120,6 +120,13 @@ data class BassPlaybackSnapshot(
     val metadata: PlaybackStreamMetadata,
 )
 
+/** Core-owned native buffering policy translated by each BASS host adapter. */
+data class BassPlaybackBufferPolicy(
+    val playbackBufferMillis: Int = 1_500,
+    val updatePeriodMillis: Int = 100,
+    val deviceBufferMillis: Int = 60,
+)
+
 data class BassPreparedSource(
     val sourceHandle: Int,
     val crossfadeActive: Boolean,
@@ -149,6 +156,8 @@ interface BassAudioBackend {
 
     val supportsMixer: Boolean
         get() = false
+
+    fun configurePlaybackBuffers(policy: BassPlaybackBufferPolicy): Result<Unit> = Result.success(Unit)
 
     fun init(): Result<Unit> = unsupportedBassOperation("BASS init")
 

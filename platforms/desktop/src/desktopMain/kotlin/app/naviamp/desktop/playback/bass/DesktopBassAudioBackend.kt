@@ -1,6 +1,7 @@
 package app.naviamp.desktop.playback.bass
 
 import app.naviamp.domain.bass.BassAudioBackend
+import app.naviamp.domain.bass.BassPlaybackBufferPolicy
 import app.naviamp.domain.bass.BassPluginDiagnostic
 import app.naviamp.domain.bass.BassStreamInfo
 import app.naviamp.domain.bass.BassStreamHandle
@@ -42,6 +43,19 @@ class DesktopBassAudioBackend(
             // the first stream is created, so load native plug-ins before Core snapshots support.
             bass.loadAvailablePlugins()
             return mixerVersion != null
+        }
+
+    override fun configurePlaybackBuffers(policy: BassPlaybackBufferPolicy): Result<Unit> =
+        if (
+            bass.configurePlaybackBuffers(
+                playbackBufferMillis = policy.playbackBufferMillis,
+                updatePeriodMillis = policy.updatePeriodMillis,
+                deviceBufferMillis = policy.deviceBufferMillis,
+            )
+        ) {
+            Result.success(Unit)
+        } else {
+            Result.failure(IllegalStateException(errorMessage("BASS playback buffer config failed")))
         }
 
     override fun init(): Result<Unit> =

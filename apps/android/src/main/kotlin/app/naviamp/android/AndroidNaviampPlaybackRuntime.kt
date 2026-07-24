@@ -8,7 +8,8 @@ import androidx.compose.ui.platform.LocalContext
 import app.naviamp.presentation.NaviampCore
 import app.naviamp.presentation.NaviampCoreExternalPlaybackBridge
 import app.naviamp.presentation.externalPlaybackBridge
-import kotlinx.coroutines.flow.collectLatest
+import app.naviamp.presentation.playbackServiceRetentionDecisions
+import kotlinx.coroutines.flow.collect
 
 /** Process-local handoff between the mounted Core owner and Android's service lifecycle. */
 object AndroidNaviampPlaybackRuntime {
@@ -32,8 +33,8 @@ fun AndroidNaviampPlaybackLifecycle(core: NaviampCore) {
     val context = LocalContext.current.applicationContext
     val bridge = androidx.compose.runtime.remember(core) { core.externalPlaybackBridge() }
     LaunchedEffect(bridge) {
-        bridge.snapshots.collectLatest { snapshot ->
-            if (snapshot.shouldRetainPlaybackService) {
+        bridge.snapshots.playbackServiceRetentionDecisions().collect { shouldRetain ->
+            if (shouldRetain) {
                 context.startForegroundService(AndroidNaviampPlaybackService.refreshIntent(context))
             } else {
                 context.stopService(AndroidNaviampPlaybackService.refreshIntent(context))

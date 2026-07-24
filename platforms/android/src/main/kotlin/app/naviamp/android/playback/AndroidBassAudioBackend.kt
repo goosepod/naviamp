@@ -1,6 +1,7 @@
 package app.naviamp.android.playback
 
 import app.naviamp.domain.bass.BassAudioBackend
+import app.naviamp.domain.bass.BassPlaybackBufferPolicy
 import app.naviamp.domain.bass.BassStreamInfo
 import app.naviamp.domain.bass.BassStreamHandle
 import app.naviamp.domain.bass.bassFailureMessage
@@ -19,6 +20,19 @@ class AndroidBassAudioBackend(
 
     override val supportsMixer: Boolean
         get() = true
+
+    override fun configurePlaybackBuffers(policy: BassPlaybackBufferPolicy): Result<Unit> =
+        if (
+            bass.configurePlaybackBuffers(
+                playbackBufferMillis = policy.playbackBufferMillis,
+                updatePeriodMillis = policy.updatePeriodMillis,
+                deviceBufferMillis = policy.deviceBufferMillis,
+            )
+        ) {
+            Result.success(Unit)
+        } else {
+            Result.failure(IllegalStateException(errorMessage("BASS playback buffer config failed")))
+        }
 
     override fun init(): Result<Unit> =
         if (bass.init()) {
