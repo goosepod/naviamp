@@ -27,6 +27,7 @@ import app.naviamp.presentation.NaviampExternalPlaylistsId
 import app.naviamp.presentation.NaviampExternalRadioId
 import app.naviamp.presentation.NaviampExternalRecentAlbumsId
 import app.naviamp.presentation.NaviampExternalRecentTracksId
+import app.naviamp.presentation.automotiveQueue
 import app.naviamp.ui.NaviampRepeatMode
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -182,8 +183,8 @@ class AndroidNaviampPlaybackService : MediaBrowserServiceCompat() {
                 }
                 .build(),
         )
-        session.setQueue(value.queue.mapIndexed { index, item ->
-            MediaSessionCompat.QueueItem(item.description(), index.toLong())
+        session.setQueue(value.automotiveQueue().mapIndexed { index, item ->
+            MediaSessionCompat.QueueItem(item.description(), item.queueIndex?.toLong() ?: index.toLong())
         })
         session.setQueueTitle("Queue")
     }

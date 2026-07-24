@@ -95,14 +95,12 @@ data class NaviampExternalPlaybackPublication(
  * metadata, queues, notifications, and browse trees for every Core progress tick.
  */
 class NaviampExternalPlaybackPublicationPlanner(
-    private val maximumPositionDriftMillis: Long = 5_000L,
+    private val maximumNaturalPositionStepMillis: Long = 2_500L,
 ) {
     private var previous: NaviampExternalPlaybackSnapshot? = null
-    private var lastPublishedPositionMillis: Long? = null
 
     fun reset() {
         previous = null
-        lastPublishedPositionMillis = null
     }
 
     fun plan(next: NaviampExternalPlaybackSnapshot): NaviampExternalPlaybackPublication {
@@ -121,12 +119,13 @@ class NaviampExternalPlaybackPublicationPlanner(
             prior.canFavorite != next.canFavorite ||
             prior.shuffleActive != next.shuffleActive ||
             prior.repeatMode != next.repeatMode
-        val positionDrift = when {
-            next.positionMillis == null -> lastPublishedPositionMillis != null
-            lastPublishedPositionMillis == null -> true
-            else -> kotlin.math.abs(next.positionMillis - lastPublishedPositionMillis!!) >= maximumPositionDriftMillis
+        val positionDiscontinuity = when {
+            prior == null -> false
+            prior.current?.mediaId != next.current?.mediaId -> false
+            prior.positionMillis == null || next.positionMillis == null -> prior.positionMillis != next.positionMillis
+            else -> kotlin.math.abs(next.positionMillis - prior.positionMillis) > maximumNaturalPositionStepMillis
         }
-        val playbackState = semanticPlaybackChange || positionDrift
+        val playbackState = semanticPlaybackChange || positionDiscontinuity
         val browseCatalog = prior == null ||
             prior.current?.mediaId != next.current?.mediaId ||
             prior.queue != next.queue
@@ -136,7 +135,6 @@ class NaviampExternalPlaybackPublicationPlanner(
             prior.favorite != next.favorite
 
         previous = next
-        if (playbackState) lastPublishedPositionMillis = next.positionMillis
         return NaviampExternalPlaybackPublication(
             sessionContent = sessionContent,
             playbackState = playbackState,
@@ -244,7 +242,7 @@ class NaviampCoreExternalPlaybackBridge internal constructor(
                     add(section(NaviampExternalRadioId, "Radio", "Stations"))
                 }
             }
-            NaviampExternalQueueId -> snapshot().queue
+            NaviampExternalQueueId -> snapshot().automotiveQueue()
             NaviampExternalRecentTracksId -> home.recentlyPlayedTracks.map(::externalTrack)
             NaviampExternalRecentAlbumsId -> home.recentAlbums.map(::externalAlbum)
             NaviampExternalPlaylistsId -> shell.playlists.playlists.ifEmpty { home.playlists }.map(::externalPlaylist)
@@ -352,6 +350,12 @@ class NaviampCoreExternalPlaybackBridge internal constructor(
             ),
         )
     }
+}
+
+/** Keeps the active item visible when a vehicle opens Queue without discarding playback history. */
+fun NaviampExternalPlaybackSnapshot.automotiveQueue(): List<NaviampExternalMediaItem> {
+    if (currentQueueIndex !in queue.indices) return queue
+    return queue.drop(currentQueueIndex) + queue.take(currentQueueIndex)
 }
 
 private fun section(

@@ -161,6 +161,16 @@ class NaviampCoreExternalPlaybackBridgeTest {
     }
 
     @Test
+    fun automotiveQueueStartsAtCurrentAndRetainsPlaybackHistory() {
+        val bridge = bridge()
+
+        val queue = bridge.browseChildren(NaviampExternalQueueId)
+
+        assertEquals(listOf("Current", "Later", "Earlier"), queue.map(NaviampExternalMediaItem::title))
+        assertEquals(listOf(1, 2, 0), queue.map(NaviampExternalMediaItem::queueIndex))
+    }
+
+    @Test
     fun automotiveVoiceSearchSelectsThroughTheCommonCatalog() {
         val commands = mutableListOf<NaviampCoreCommand>()
         val track = SharedTrackRowUi("recent", "Recent Track", "Artist")
@@ -182,7 +192,7 @@ class NaviampCoreExternalPlaybackBridgeTest {
 
     @Test
     fun externalPublicationPlannerSuppressesProgressTickNativeChurn() {
-        val planner = NaviampExternalPlaybackPublicationPlanner(maximumPositionDriftMillis = 5_000L)
+        val planner = NaviampExternalPlaybackPublicationPlanner(maximumNaturalPositionStepMillis = 2_500L)
         val current = NaviampExternalMediaItem("track", "Track", "Artist")
         val initial = NaviampExternalPlaybackSnapshot(
             state = NaviampExternalPlaybackState.Playing,
@@ -193,16 +203,20 @@ class NaviampCoreExternalPlaybackBridgeTest {
 
         val first = planner.plan(initial)
         val progressTick = planner.plan(initial.copy(positionMillis = 10_250L))
-        val positionRefresh = planner.plan(initial.copy(positionMillis = 15_100L))
+        val routineTicks = (11_250L..15_250L step 1_000L).map { position ->
+            planner.plan(initial.copy(positionMillis = position))
+        }
+        val seekRefresh = planner.plan(initial.copy(positionMillis = 45_000L))
 
         assertTrue(first.sessionContent && first.playbackState && first.browseCatalog && first.notification)
         assertFalse(progressTick.sessionContent)
         assertFalse(progressTick.playbackState)
         assertFalse(progressTick.browseCatalog)
         assertFalse(progressTick.notification)
-        assertTrue(positionRefresh.playbackState)
-        assertFalse(positionRefresh.sessionContent)
-        assertFalse(positionRefresh.notification)
+        assertTrue(routineTicks.all { publication -> !publication.playbackState })
+        assertTrue(seekRefresh.playbackState)
+        assertFalse(seekRefresh.sessionContent)
+        assertFalse(seekRefresh.notification)
     }
 
     @Test
