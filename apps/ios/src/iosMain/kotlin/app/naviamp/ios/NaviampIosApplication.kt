@@ -8,15 +8,16 @@ import app.cash.sqldelight.db.SqlDriver
 import app.naviamp.ios.platform.IosCapabilityPresentation
 import app.naviamp.ios.platform.IosCoreExternalUriPort
 import app.naviamp.ios.platform.IosHomeDateSource
+import app.naviamp.ios.playback.createIosBassPlaybackEngine
 import app.naviamp.ios.settings.IosCoreSettingsValueStore
 import app.naviamp.presentation.NaviampCoreEnvironment
 import app.naviamp.presentation.NaviampCoreHost
 import app.naviamp.presentation.naviampCoreSettingsValueCatalog
+import app.naviamp.presentation.naviampCoreStreamingPlaybackServices
 import app.naviamp.presentation.naviampCoreStoredServiceCatalog
 import app.naviamp.presentation.naviampNowEpochMillis
 import app.naviamp.presentation.naviampNowIso8601
 import app.naviamp.presentation.unavailableNaviampCoreDownloadServices
-import app.naviamp.presentation.unavailableNaviampCorePlaybackServices
 import app.naviamp.presentation.unavailableNaviampCoreSettingsSyncServices
 import app.naviamp.provider.navidrome.NavidromeCoreProviderSessionPort
 import app.naviamp.provider.navidrome.navidromeProviderSessionOpener
@@ -25,6 +26,10 @@ import app.naviamp.storage.NaviampStorageDatabase
 import app.naviamp.storage.StorageCoreRepositoryCatalog
 import app.naviamp.storage.StorageCredentialProtector
 import app.naviamp.storage.StorageDatabaseLocation
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import platform.UIKit.UIViewController
 
 /**
@@ -35,6 +40,7 @@ class NaviampIosApplication(
     applicationSupportDirectory: String,
     credentialProtector: StorageCredentialProtector,
 ) {
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
     private val databaseLocation = StorageDatabaseLocation(applicationSupportDirectory)
     private val driver: SqlDriver = IosStorageDriverFactory(
         databaseLocation,
@@ -57,16 +63,22 @@ class NaviampIosApplication(
             nowEpochMillis = ::naviampNowEpochMillis,
         ),
     )
-    private val playback = unavailableNaviampCorePlaybackServices(
-        persistSettings = settings.savePlayback,
-        sessions = repositories.playbackSessions,
+    private val playbackEngine = createIosBassPlaybackEngine()
+    private val playback = naviampCoreStreamingPlaybackServices(
+        scope = scope,
+        engine = playbackEngine,
+        providerSource = sessions.providerSource,
+        initialPlaybackSettings = settings.storedSettings.loadPlayback(),
+        persistPlaybackSettings = settings.savePlayback,
+        playbackSessionRepository = repositories.playbackSessions,
+        saveVisualizerSettings = settings.storedSettings.saveVisualizer,
     )
     private val storedCatalog = naviampCoreStoredServiceCatalog(
         providerSessions = sessions,
         providerSource = sessions.providerSource,
         playback = playback,
         downloads = unavailableNaviampCoreDownloadServices(),
-        playbackEngine = app.naviamp.presentation.UnavailableNaviampPlaybackEngine,
+        playbackEngine = playbackEngine,
         settingsSyncPort = unavailableNaviampCoreSettingsSyncServices(::naviampNowEpochMillis).port,
         settings = settings.storedSettings,
         repositories = app.naviamp.presentation.NaviampCoreStoredRepositories(
@@ -80,7 +92,7 @@ class NaviampIosApplication(
         ),
         externalUri = IosCoreExternalUriPort(),
         homeDate = IosHomeDateSource,
-        shellCapabilities = IosCapabilityPresentation.shell,
+        shellCapabilities = IosCapabilityPresentation.shell(playbackEngine),
         settingsSyncDeviceId = "ios",
         sourceId = { repositories.mediaSources.latestMediaSource()?.id },
         clockEpochMillis = ::naviampNowEpochMillis,
@@ -103,6 +115,8 @@ class NaviampIosApplication(
     }
 
     fun close() {
+        playbackEngine.release()
+        scope.cancel()
         driver.close()
     }
 }

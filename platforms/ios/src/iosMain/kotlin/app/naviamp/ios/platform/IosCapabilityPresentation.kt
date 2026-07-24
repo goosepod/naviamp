@@ -4,7 +4,7 @@ import app.naviamp.app.NaviampCapabilityPresentation
 import app.naviamp.domain.app.PlatformCapabilities
 import app.naviamp.domain.app.PlatformCapability
 import app.naviamp.domain.app.PlatformCapabilityStatus
-import app.naviamp.presentation.UnavailableNaviampPlaybackEngine
+import app.naviamp.domain.playback.PlaybackEngine
 import app.naviamp.presentation.toCoreActionAvailability
 import app.naviamp.presentation.toShellCapabilitiesUi
 
@@ -19,8 +19,8 @@ object IosCapabilityPresentation {
     private val presentation = NaviampCapabilityPresentation(platform)
 
     val actionAvailability = presentation.toCoreActionAvailability()
-    val shell = presentation.toShellCapabilitiesUi(
-        playbackEngine = UnavailableNaviampPlaybackEngine,
+    fun shell(playbackEngine: PlaybackEngine) = presentation.toShellCapabilitiesUi(
+        playbackEngine = playbackEngine,
         sonicSimilarityAvailable = false,
         showMobileNetworkQuality = false,
     )

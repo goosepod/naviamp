@@ -1,0 +1,456 @@
+@file:OptIn(kotlinx.cinterop.ExperimentalForeignApi::class)
+
+package app.naviamp.ios.playback
+
+import app.naviamp.domain.bass.BassAudioBackend
+import app.naviamp.domain.bass.BassPlaybackBufferPolicy
+import app.naviamp.domain.bass.BassPluginDiagnostic
+import app.naviamp.domain.bass.BassStreamHandle
+import app.naviamp.domain.bass.BassStreamInfo
+import app.naviamp.domain.bass.bassFailureMessage
+import app.naviamp.domain.playback.BassPlaybackEngineRuntime
+import app.naviamp.domain.playback.CoreBassPlaybackEngine
+import app.naviamp.ios.bass.native.BASS_ATTRIB_VOL
+import app.naviamp.ios.bass.native.BASS_CHANNELINFO
+import app.naviamp.ios.bass.native.BASS_CONFIG_BUFFER
+import app.naviamp.ios.bass.native.BASS_CONFIG_DEV_BUFFER
+import app.naviamp.ios.bass.native.BASS_CONFIG_NET_BUFFER
+import app.naviamp.ios.bass.native.BASS_CONFIG_NET_META
+import app.naviamp.ios.bass.native.BASS_CONFIG_NET_PLAYLIST
+import app.naviamp.ios.bass.native.BASS_CONFIG_NET_PLAYLIST_DEPTH
+import app.naviamp.ios.bass.native.BASS_CONFIG_NET_PREBUF
+import app.naviamp.ios.bass.native.BASS_CONFIG_NET_PREBUF_WAIT
+import app.naviamp.ios.bass.native.BASS_CONFIG_NET_READTIMEOUT
+import app.naviamp.ios.bass.native.BASS_CONFIG_NET_TIMEOUT
+import app.naviamp.ios.bass.native.BASS_CONFIG_SRC
+import app.naviamp.ios.bass.native.BASS_CONFIG_UPDATEPERIOD
+import app.naviamp.ios.bass.native.BASS_CONFIG_VERIFY_NET
+import app.naviamp.ios.bass.native.BASS_DATA_AVAILABLE
+import app.naviamp.ios.bass.native.BASS_DATA_FFT1024
+import app.naviamp.ios.bass.native.BASS_DATA_FFT_REMOVEDC
+import app.naviamp.ios.bass.native.BASS_DX8_PARAMEQ
+import app.naviamp.ios.bass.native.BASS_ERROR_ALREADY
+import app.naviamp.ios.bass.native.BASS_ErrorGetCode
+import app.naviamp.ios.bass.native.BASS_Free
+import app.naviamp.ios.bass.native.BASS_FXSetParameters
+import app.naviamp.ios.bass.native.BASS_FX_DX8_PARAMEQ
+import app.naviamp.ios.bass.native.BASS_GetVersion
+import app.naviamp.ios.bass.native.BASS_Init
+import app.naviamp.ios.bass.native.BASS_LEVEL_MONO
+import app.naviamp.ios.bass.native.BASS_LEVEL_RMS
+import app.naviamp.ios.bass.native.BASS_MIXER_CHAN_NORAMPIN
+import app.naviamp.ios.bass.native.BASS_MIXER_QUEUE
+import app.naviamp.ios.bass.native.BASS_Mixer_ChannelRemove
+import app.naviamp.ios.bass.native.BASS_Mixer_ChannelSetPosition
+import app.naviamp.ios.bass.native.BASS_Mixer_GetVersion
+import app.naviamp.ios.bass.native.BASS_Mixer_StreamAddChannel
+import app.naviamp.ios.bass.native.BASS_Mixer_StreamCreate
+import app.naviamp.ios.bass.native.BASS_POS_BYTE
+import app.naviamp.ios.bass.native.BASS_POS_MIXER_RESET
+import app.naviamp.ios.bass.native.BASS_SAMPLE_FLOAT
+import app.naviamp.ios.bass.native.BASS_STREAM_DECODE
+import app.naviamp.ios.bass.native.BASS_STREAM_PRESCAN
+import app.naviamp.ios.bass.native.BASS_STREAM_STATUS
+import app.naviamp.ios.bass.native.BASS_ChannelBytes2Seconds
+import app.naviamp.ios.bass.native.BASS_ChannelGetData
+import app.naviamp.ios.bass.native.BASS_ChannelGetInfo
+import app.naviamp.ios.bass.native.BASS_ChannelGetLength
+import app.naviamp.ios.bass.native.BASS_ChannelGetLevelEx
+import app.naviamp.ios.bass.native.BASS_ChannelGetPosition
+import app.naviamp.ios.bass.native.BASS_ChannelIsActive
+import app.naviamp.ios.bass.native.BASS_ChannelPause
+import app.naviamp.ios.bass.native.BASS_ChannelPlay
+import app.naviamp.ios.bass.native.BASS_ChannelRemoveFX
+import app.naviamp.ios.bass.native.BASS_ChannelSeconds2Bytes
+import app.naviamp.ios.bass.native.BASS_ChannelSetAttribute
+import app.naviamp.ios.bass.native.BASS_ChannelSetFX
+import app.naviamp.ios.bass.native.BASS_ChannelSetPosition
+import app.naviamp.ios.bass.native.BASS_ChannelSlideAttribute
+import app.naviamp.ios.bass.native.BASS_ChannelStop
+import app.naviamp.ios.bass.native.BASS_SetConfig
+import app.naviamp.ios.bass.native.BASS_StreamCreateFile
+import app.naviamp.ios.bass.native.BASS_StreamCreateURL
+import app.naviamp.ios.bass.native.BASS_StreamFree
+import kotlinx.cinterop.addressOf
+import kotlinx.cinterop.alloc
+import kotlinx.cinterop.cstr
+import kotlinx.cinterop.memScoped
+import kotlinx.cinterop.ptr
+import kotlinx.cinterop.usePinned
+import kotlinx.coroutines.Dispatchers
+import platform.AVFAudio.AVAudioSession
+import platform.AVFAudio.AVAudioSessionCategoryPlayback
+import platform.AVFAudio.AVAudioSessionModeDefault
+import platform.AVFAudio.AVAudioSessionSetActiveOptionNotifyOthersOnDeactivation
+import platform.AVFAudio.setActive
+import platform.Foundation.NSLock
+import platform.Foundation.NSURL
+import kotlin.math.max
+import kotlin.math.min
+import kotlin.time.Clock
+
+/** Direct BASS C ABI adapter. Core owns every playback and feature decision above these calls. */
+class IosBassAudioBackend : BassAudioBackend {
+    private val equalizerEffects = mutableMapOf<UInt, MutableList<UInt>>()
+    private val audioSession = AVAudioSession.sharedInstance()
+
+    override val version: Int
+        get() = BASS_GetVersion().toInt()
+
+    override val mixerVersion: Int
+        get() = BASS_Mixer_GetVersion().toInt()
+
+    override val lastErrorCode: Int
+        get() = BASS_ErrorGetCode()
+
+    override val supportsMixer: Boolean = true
+
+    override val pluginDiagnostics: List<BassPluginDiagnostic> = IosBassFrameworks.map {
+        BassPluginDiagnostic(stem = it, loaded = true)
+    }
+
+    override fun configurePlaybackBuffers(policy: BassPlaybackBufferPolicy): Result<Unit> =
+        bassResult("BASS playback buffer config failed") {
+            listOf(
+                BASS_SetConfig(BASS_CONFIG_UPDATEPERIOD.toUInt(), policy.updatePeriodMillis.coerceIn(5, 100).toUInt()),
+                BASS_SetConfig(BASS_CONFIG_BUFFER.toUInt(), max(1, policy.playbackBufferMillis).toUInt()),
+                BASS_SetConfig(BASS_CONFIG_DEV_BUFFER.toUInt(), max(1, policy.deviceBufferMillis).toUInt()),
+            ).all { it != 0 }
+        }
+
+    override fun init(): Result<Unit> = init(deviceId = null, sampleRateHz = 44_100)
+
+    override fun init(deviceId: String?, sampleRateHz: Int): Result<Unit> {
+        if (!audioSession.setCategory(
+                category = AVAudioSessionCategoryPlayback,
+                mode = AVAudioSessionModeDefault,
+                options = 0uL,
+                error = null,
+            ) || !audioSession.setActive(true, error = null)
+        ) {
+            return Result.failure(IllegalStateException("iOS playback audio session activation failed"))
+        }
+
+        return bassResult("BASS_Init at $sampleRateHz Hz failed") {
+            BASS_Init(-1, sampleRateHz.coerceIn(8_000, 768_000).toUInt(), 0u, null, null) != 0 ||
+                BASS_ErrorGetCode() == BASS_ERROR_ALREADY
+        }.onFailure { deactivateAudioSession() }
+    }
+
+    override fun free(): Result<Unit> {
+        val bassResult = bassResult("BASS_Free failed") { BASS_Free() != 0 }
+        val sessionResult = if (deactivateAudioSession()) {
+            Result.success(Unit)
+        } else {
+            Result.failure(IllegalStateException("iOS playback audio session deactivation failed"))
+        }
+        return bassResult.fold(onSuccess = { sessionResult }, onFailure = { bassResult })
+    }
+
+    override fun setVerifyNet(verify: Boolean): Result<Unit> =
+        bassResult("BASS_SetConfig VERIFY_NET failed") {
+            BASS_SetConfig(BASS_CONFIG_VERIFY_NET.toUInt(), if (verify) 1u else 0u) != 0
+        }
+
+    override fun configureInternetStreams(): Result<Unit> =
+        bassResult("BASS internet stream config failed") {
+            listOf(
+                BASS_SetConfig(BASS_CONFIG_NET_PLAYLIST.toUInt(), 1u),
+                BASS_SetConfig(BASS_CONFIG_NET_META.toUInt(), 1u),
+                BASS_SetConfig(BASS_CONFIG_NET_PLAYLIST_DEPTH.toUInt(), 5u),
+                BASS_SetConfig(BASS_CONFIG_NET_BUFFER.toUInt(), 5_000u),
+                BASS_SetConfig(BASS_CONFIG_NET_PREBUF.toUInt(), 75u),
+                BASS_SetConfig(BASS_CONFIG_NET_PREBUF_WAIT.toUInt(), 1u),
+                BASS_SetConfig(BASS_CONFIG_NET_TIMEOUT.toUInt(), 15_000u),
+                BASS_SetConfig(BASS_CONFIG_NET_READTIMEOUT.toUInt(), 15_000u),
+            ).all { it != 0 }
+        }
+
+    override fun setSampleRateConverterQuality(quality: Int): Result<Unit> =
+        bassResult("BASS_CONFIG_SRC failed") {
+            BASS_SetConfig(BASS_CONFIG_SRC.toUInt(), quality.coerceIn(0, 4).toUInt()) != 0
+        }
+
+    override fun createFileStream(path: String): Result<BassStreamHandle> =
+        createFile(path, (BASS_STREAM_PRESCAN or BASS_SAMPLE_FLOAT).toUInt(), "BASS_StreamCreateFile failed")
+
+    override fun createUrlStream(url: String): Result<BassStreamHandle> =
+        createUrl(url, (BASS_STREAM_STATUS or BASS_SAMPLE_FLOAT).toUInt(), "BASS_StreamCreateURL failed")
+
+    override fun createFileDecodeStream(path: String): Result<BassStreamHandle> =
+        createFile(
+            path,
+            (BASS_STREAM_PRESCAN or BASS_SAMPLE_FLOAT or BASS_STREAM_DECODE).toUInt(),
+            "BASS_StreamCreateFile decode failed",
+        )
+
+    override fun createUrlDecodeStream(url: String): Result<BassStreamHandle> =
+        createUrl(
+            url,
+            (BASS_STREAM_STATUS or BASS_SAMPLE_FLOAT or BASS_STREAM_DECODE).toUInt(),
+            "BASS_StreamCreateURL decode failed",
+        )
+
+    override fun channelInfo(stream: BassStreamHandle): Result<BassStreamInfo> = memScoped {
+        val info = alloc<BASS_CHANNELINFO>()
+        if (BASS_ChannelGetInfo(stream.uint, info.ptr) != 0) {
+            Result.success(BassStreamInfo(frequency = info.freq.toInt(), channels = info.chans.toInt()))
+        } else {
+            failure("BASS_ChannelGetInfo failed")
+        }
+    }
+
+    override fun createMixer(frequency: Int, channels: Int, queueSources: Boolean): Result<BassStreamHandle> {
+        val flags = (BASS_SAMPLE_FLOAT or if (queueSources) BASS_MIXER_QUEUE else 0).toUInt()
+        return BASS_Mixer_StreamCreate(max(1, frequency).toUInt(), max(1, channels).toUInt(), flags)
+            .handleResult("BASS_Mixer_StreamCreate failed")
+    }
+
+    override fun addMixerChannel(mixer: BassStreamHandle, stream: BassStreamHandle): Result<Unit> =
+        bassResult("BASS_Mixer_StreamAddChannel failed") {
+            BASS_Mixer_StreamAddChannel(mixer.uint, stream.uint, BASS_MIXER_CHAN_NORAMPIN.toUInt()) != 0
+        }
+
+    override fun removeMixerChannel(stream: BassStreamHandle): Result<Unit> =
+        bassResult("BASS_Mixer_ChannelRemove failed") { BASS_Mixer_ChannelRemove(stream.uint) != 0 }
+
+    override fun play(stream: BassStreamHandle): Result<Unit> =
+        bassResult("BASS_ChannelPlay failed") { BASS_ChannelPlay(stream.uint, 0) != 0 }
+
+    override fun pause(stream: BassStreamHandle): Result<Unit> =
+        bassResult("BASS_ChannelPause failed") { BASS_ChannelPause(stream.uint) != 0 }
+
+    override fun stop(stream: BassStreamHandle): Result<Unit> =
+        bassResult("BASS_ChannelStop failed") { BASS_ChannelStop(stream.uint) != 0 }
+
+    override fun activeState(stream: BassStreamHandle): Int = BASS_ChannelIsActive(stream.uint).toInt()
+
+    override fun setVolume(stream: BassStreamHandle, volume: Float): Result<Unit> =
+        bassResult("BASS_ChannelSetAttribute volume failed") {
+            BASS_ChannelSetAttribute(stream.uint, BASS_ATTRIB_VOL.toUInt(), volume.coerceIn(0f, 4f)) != 0
+        }
+
+    override fun slideVolume(stream: BassStreamHandle, volume: Float, durationMillis: Int): Result<Unit> =
+        bassResult("BASS_ChannelSlideAttribute volume failed") {
+            BASS_ChannelSlideAttribute(
+                stream.uint,
+                BASS_ATTRIB_VOL.toUInt(),
+                volume.coerceIn(0f, 4f),
+                max(0, durationMillis).toUInt(),
+            ) != 0
+        }
+
+    override fun applyEqualizer(stream: BassStreamHandle, bandsDb: List<Float>): Result<Unit> {
+        clearEqualizer(stream.uint)
+        val effects = mutableListOf<UInt>()
+        bandsDb.take(EqualizerFrequencies.size).forEachIndexed { index, requestedGain ->
+            val gain = requestedGain.coerceIn(-15f, 15f)
+            if (kotlin.math.abs(gain) < 0.05f) return@forEachIndexed
+            val effect = BASS_ChannelSetFX(stream.uint, BASS_FX_DX8_PARAMEQ.toUInt(), 0)
+            if (effect == 0u) {
+                effects.forEach { BASS_ChannelRemoveFX(stream.uint, it) }
+                return failure("BASS_ChannelSetFX equalizer failed")
+            }
+            val configured = memScoped {
+                val parameters = alloc<BASS_DX8_PARAMEQ>()
+                parameters.fCenter = EqualizerFrequencies[index]
+                parameters.fBandwidth = 18f
+                parameters.fGain = gain
+                BASS_FXSetParameters(effect, parameters.ptr) != 0
+            }
+            if (!configured) {
+                BASS_ChannelRemoveFX(stream.uint, effect)
+                effects.forEach { BASS_ChannelRemoveFX(stream.uint, it) }
+                return failure("BASS_FXSetParameters equalizer failed")
+            }
+            effects += effect
+        }
+        if (effects.isNotEmpty()) equalizerEffects[stream.uint] = effects
+        return Result.success(Unit)
+    }
+
+    override fun seek(stream: BassStreamHandle, seconds: Double): Result<Unit> {
+        val bytes = BASS_ChannelSeconds2Bytes(stream.uint, seconds)
+        if (bytes == ULong.MAX_VALUE) return failure("BASS_ChannelSeconds2Bytes failed")
+        return bassResult("BASS_ChannelSetPosition failed") {
+            BASS_Mixer_ChannelSetPosition(
+                stream.uint,
+                bytes,
+                (BASS_POS_BYTE or BASS_POS_MIXER_RESET).toUInt(),
+            ) != 0 || BASS_ChannelSetPosition(stream.uint, bytes, BASS_POS_BYTE.toUInt()) != 0
+        }
+    }
+
+    override fun positionSeconds(stream: BassStreamHandle): Double? =
+        BASS_ChannelGetPosition(stream.uint, BASS_POS_BYTE.toUInt())
+            .takeUnless { it == ULong.MAX_VALUE }
+            ?.let { BASS_ChannelBytes2Seconds(stream.uint, it) }
+            ?.takeIf { it >= 0.0 }
+
+    override fun audiblePositionSeconds(playbackStream: BassStreamHandle, sourceStream: BassStreamHandle): Double? {
+        val progressStream = sourceStream.takeIf { it.value != 0 } ?: playbackStream
+        val decoded = positionSeconds(progressStream) ?: return null
+        val bufferedBytes = BASS_ChannelGetData(playbackStream.uint, null, BASS_DATA_AVAILABLE.toUInt())
+        if (bufferedBytes == UInt.MAX_VALUE) return decoded
+        val buffered = BASS_ChannelBytes2Seconds(playbackStream.uint, bufferedBytes.toULong())
+        return if (buffered >= 0.0) max(0.0, decoded - buffered) else decoded
+    }
+
+    override fun durationSeconds(stream: BassStreamHandle): Double? =
+        lengthBytes(stream)?.let { BASS_ChannelBytes2Seconds(stream.uint, it.toULong()) }?.takeIf { it >= 0.0 }
+
+    override fun lengthBytes(stream: BassStreamHandle): Long? =
+        BASS_ChannelGetLength(stream.uint, BASS_POS_BYTE.toUInt())
+            .takeUnless { it == ULong.MAX_VALUE }
+            ?.toLong()
+
+    override fun readFloatData(stream: BassStreamHandle, buffer: FloatArray): Result<Int> {
+        if (buffer.isEmpty()) return Result.success(0)
+        val read = buffer.usePinned { pinned ->
+            BASS_ChannelGetData(stream.uint, pinned.addressOf(0), (buffer.size * Float.SIZE_BYTES).toUInt())
+        }
+        return if (read != UInt.MAX_VALUE) Result.success(read.toInt()) else failure("BASS_ChannelGetData failed")
+    }
+
+    override fun fft(stream: BassStreamHandle, bins: Int): Result<FloatArray> {
+        val output = FloatArray(512)
+        val read = output.usePinned { pinned ->
+            BASS_ChannelGetData(
+                stream.uint,
+                pinned.addressOf(0),
+                BASS_DATA_FFT1024 or BASS_DATA_FFT_REMOVEDC.toUInt(),
+            )
+        }
+        return if (read != UInt.MAX_VALUE) {
+            Result.success(output.copyOf(bins.coerceIn(1, 256)))
+        } else {
+            failure("BASS FFT failed")
+        }
+    }
+
+    override fun waveformLevels(stream: BassStreamHandle, bucketCount: Int): Result<FloatArray> {
+        val duration = durationSeconds(stream) ?: return failure("BASS waveform duration failed")
+        val count = bucketCount.coerceIn(1, 4_096)
+        val bucketSeconds = duration / count
+        val output = FloatArray(count)
+        BASS_ChannelSetPosition(stream.uint, 0uL, BASS_POS_BYTE.toUInt())
+        for (bucket in 0 until count) {
+            var remaining = bucketSeconds
+            var squareSum = 0.0
+            var measured = 0.0
+            while (remaining > 0.0001) {
+                val window = min(remaining, 1.0).toFloat()
+                val level = FloatArray(1)
+                val success = level.usePinned { pinned ->
+                    BASS_ChannelGetLevelEx(
+                        stream.uint,
+                        pinned.addressOf(0),
+                        window,
+                        (BASS_LEVEL_MONO or BASS_LEVEL_RMS).toUInt(),
+                    )
+                }
+                if (success == 0) return failure("BASS_ChannelGetLevelEx failed")
+                val sample = level[0].coerceIn(0f, 1f)
+                squareSum += sample * sample * window
+                measured += window
+                remaining -= window
+            }
+            output[bucket] = if (measured > 0.0) kotlin.math.sqrt(squareSum / measured).toFloat() else 0f
+        }
+        return Result.success(output)
+    }
+
+    override fun freeStream(stream: BassStreamHandle): Result<Unit> =
+        bassResult("BASS_StreamFree failed") {
+            clearEqualizer(stream.uint)
+            BASS_StreamFree(stream.uint) != 0
+        }
+
+    private fun clearEqualizer(stream: UInt) {
+        equalizerEffects.remove(stream)?.forEach { effect -> BASS_ChannelRemoveFX(stream, effect) }
+    }
+
+    private fun deactivateAudioSession(): Boolean = audioSession.setActive(
+        active = false,
+        withOptions = AVAudioSessionSetActiveOptionNotifyOthersOnDeactivation,
+        error = null,
+    )
+
+    private fun createFile(path: String, flags: UInt, message: String): Result<BassStreamHandle> = memScoped {
+        BASS_StreamCreateFile(0u, path.cstr.ptr, 0uL, 0uL, flags).handleResult(message)
+    }
+
+    private fun createUrl(url: String, flags: UInt, message: String): Result<BassStreamHandle> = memScoped {
+        BASS_StreamCreateURL(url, 0u, flags, null, null).handleResult(message)
+    }
+
+    private inline fun bassResult(message: String, block: () -> Boolean): Result<Unit> =
+        if (block()) Result.success(Unit) else failure(message)
+
+    private fun UInt.handleResult(message: String): Result<BassStreamHandle> =
+        if (this != 0u) Result.success(BassStreamHandle(toInt())) else failure(message)
+
+    private fun <T> failure(message: String): Result<T> =
+        Result.failure(IllegalStateException(bassFailureMessage(message)))
+
+    private val BassStreamHandle.uint: UInt
+        get() = value.toUInt()
+}
+
+class IosBassPlaybackEngineRuntime : BassPlaybackEngineRuntime {
+    private val preparedLock = NSLock()
+
+    override val workContext = Dispatchers.Default
+
+    override fun localFilePath(url: String): String? = when {
+        url.startsWith("file:") -> NSURL.URLWithString(url)?.path
+        url.startsWith("/") -> url
+        else -> null
+    }
+
+    override fun nowEpochMillis(): Long = Clock.System.now().toEpochMilliseconds()
+
+    override fun <T> withPreparedPlaybackLock(block: () -> T): T {
+        preparedLock.lock()
+        return try {
+            block()
+        } finally {
+            preparedLock.unlock()
+        }
+    }
+}
+
+fun createIosBassPlaybackEngine(): CoreBassPlaybackEngine = CoreBassPlaybackEngine(
+    backendResult = Result.success(IosBassAudioBackend()),
+    runtime = IosBassPlaybackEngineRuntime(),
+)
+
+private val IosBassFrameworks = listOf(
+    "bass",
+    "bassmix",
+    "bassflac",
+    "bassopus",
+    "bassmidi",
+    "basswv",
+    "bassdsd",
+    "basswebm",
+    "basshls",
+    "bassape",
+    "bassloud",
+    "bass_fx",
+    "bass_mpc",
+    "bass_tta",
+)
+
+private val EqualizerFrequencies = floatArrayOf(
+    31f,
+    62f,
+    125f,
+    250f,
+    500f,
+    1_000f,
+    2_000f,
+    4_000f,
+    8_000f,
+    16_000f,
+)
