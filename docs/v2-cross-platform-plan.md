@@ -381,7 +381,7 @@ The 2026-07-20 entry audit split the work into ownership, lifecycle, platform-se
 
 ### Milestone 6: iOS Native Playback Proof of Concept
 
-This milestone is deliberately temporary. It validates the shared playback boundary and Apple operating-system integrations before BASS is introduced.
+This milestone was deliberately temporary. On 2026-07-24, the project chose to proceed directly to BASS after the official arm64 simulator framework initialized successfully. The unchecked AVPlayer work below is intentionally skipped rather than release-blocking; the Apple lifecycle integrations are implemented against the final BASS engine in Milestone 7.
 
 - [ ] Implement the shared playback contract with `AVPlayer` or `AVQueuePlayer`.
 - [ ] Support authenticated streaming URLs and downloaded local files.
@@ -397,8 +397,9 @@ This milestone is deliberately temporary. It validates the shared playback bound
 
 ### Milestone 7: Integrate BASS on iOS
 
-- [ ] Confirm the BASS iOS license and redistribution requirements for Naviamp releases.
-- [ ] Vendor or reproducibly acquire the required BASS iOS binaries and headers.
+- [x] Confirm the BASS iOS license and redistribution requirements for Naviamp releases. Naviamp is non-commercial and uses BASS under Un4seen's free non-commercial terms; the upstream license/readme files are retained with the vendor inventory.
+- [x] Vendor or reproducibly acquire the required BASS iOS binaries and headers. The official XCFrameworks, headers, upstream terms, versions, source archive names, and SHA-256 archive identities are recorded under `platforms/ios/vendor/bass`. The inventory matches Android/Desktop wherever Un4seen publishes an iOS counterpart; AAC, AC3, and ALAC use Apple's codecs, BASS_SSL is not an iOS component, and SPX/WMA have no iOS package.
+- [x] Prove the final native library family on an arm64 simulator before implementing product playback. An iPhone 17 Pro/iOS 26.5 simulator loaded all 14 linked and embedded iOS frameworks and initialized BASS 2.4.18.3 with error code 0 on 2026-07-24.
 - [ ] Define a maintainable Kotlin/Native or Objective-C/Swift bridge rather than duplicating playback policy.
 - [ ] Implement the shared playback contract using BASS on iOS.
 - [ ] Support secure authenticated streaming and local downloaded/cache files.

@@ -1,0 +1,157 @@
+BASSWEBM 2.4
+Copyright (c) 2018-2025 Un4seen Developments Ltd. All rights reserved.
+
+Files that you should have found in the BASSWEBM package
+========================================================
+Win32 version
+-------------
+BASSWEBM.TXT    This file
+BASSWEBM.DLL    32-bit BASSWEBM module
+BASSWEBM.CHM    BASSWEBM documentation
+X64\
+  BASSWEBM.DLL    64-bit BASSWEBM module
+C\
+  BASSWEBM.H      BASSWEBM C/C++ header file
+  BASSWEBM.LIB    32-bit BASSWEBM import library
+  X64\
+    BASSWEBM.LIB    64-bit BASSWEBM import library
+DELPHI\
+  BASSWEBM.PAS    BASSWEBM Delphi/Pascal unit
+VB\
+  BASSWEBM.BAS    BASSWEBM Visual Basic module
+
+macOS version
+-------------
+BASSWEBM.TXT    This file
+LIBBASSWEBM.DYLIB  BASSWEBM module
+BASSWEBM.CHM    BASSWEBM documentation
+C\
+  BASSWEBM.H      BASSWEBM C/C++/Objective-C header file
+DELPHI\
+  BASSWEBM.PAS    BASSWEBM Delphi/Pascal unit
+
+Linux version
+-------------
+BASSWEBM.TXT    This file
+BASSWEBM.CHM    BASSWEBM documentation
+LIBS\           BASSWEBM modules
+  ...
+C\
+  BASSWEBM.H      BASSWEBM C/C++ header file
+DELPHI\
+  BASSWEBM.PAS    BASSWEBM Delphi/Pascal unit
+
+Android version
+---------------
+BASSWEBM.TXT    This file
+BASSWEBM.CHM    BASSWEBM documentation
+LIBS\           BASSWEBM modules
+  ...
+C\
+  BASSWEBM.H      BASSWEBM C/C++ header file
+JAVA\COM\UN4SEEN\BASS\
+  BASSWEBM.JAVA   BASSWEBM Java class
+
+iOS version
+-----------
+BASSWEBM.TXT    This file
+BASSWEBM.XCFRAMEWORK  BASSWEBM framework
+BASSWEBM.CHM    BASSWEBM documentation
+BASSWEBM.H      BASSWEBM C/C++/Objective-C header file
+
+
+What's the point?
+=================
+BASSWEBM is an extension to the BASS audio library, enabling the playing of
+WebM and Matroska files.
+
+
+Requirements
+============
+BASS 2.4 is required (2.4.13 or above is recommended). The BASSOPUS add-on is
+also required for Opus support. Other add-ons may also be required for other
+codecs that Matroska files can use.
+
+
+Using BASSWEBM
+==============
+The plugin system (see BASS_PluginLoad) can be used to add WebM/Matroska
+support to the standard BASS stream creation functions. Dedicated WebM/Matroska
+stream creation functions are also provided by BASSWEBM.
+
+The usage information in the BASS.TXT file (from the BASS package) is also
+applicable to BASSWEBM and other add-ons.
+
+TIP: The BASSWEBM.CHM file should be put in the same directory as the BASS.CHM
+     file, so that the BASSWEBM documentation can be accessed from within the
+     BASS documentation.
+
+
+Latest Version
+==============
+The latest versions of BASSWEBM & BASS can be found at the BASS website:
+
+	www.un4seen.com
+
+
+Licence
+=======
+BASSWEBM is free to use with BASS.
+
+TO THE MAXIMUM EXTENT PERMITTED BY APPLICABLE LAW, BASSWEBM IS PROVIDED
+"AS IS", WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESSED OR IMPLIED,
+INCLUDING BUT NOT LIMITED TO THE IMPLIED WARRANTIES OF MERCHANTABILITY
+AND/OR FITNESS FOR A PARTICULAR PURPOSE. THE AUTHORS SHALL NOT BE HELD
+LIABLE FOR ANY DAMAGE THAT MAY RESULT FROM THE USE OF BASSWEBM. YOU USE
+BASSWEBM ENTIRELY AT YOUR OWN RISK.
+
+Usage of BASSWEBM indicates that you agree to the above conditions.
+
+All trademarks and other registered names contained in the BASSWEBM
+package are the property of their respective owners.
+
+
+Credits
+=======
+nestegg WebM demuxer, Copyright (c) 2010 Mozilla Foundation
+
+
+History
+=======
+These are the major (and not so major) changes in each release, along with the
+functions/options that are introduced/affected by them. There are other little
+tweaks and fixes made along the way too.
+
+2.4.1 - 26/11/2025
+------------------
+* New track position mode with support for switching tracks
+	BASS_POS_TRACK (BASS_ChannelSetPosition/GetPosition/GetLength mode)
+	BASS_ATTRIB_WEBM_TRACK deprecated
+	BASS_ATTRIB_WEBM_TRACKS deprecated
+* BASSWEBM stream identification attribute
+	BASS_ATTRIB_WEBM (BASS_ChannelGetAttribute option)
+* Unknown length of streamed file is available when download finishes
+	BASS_WEBM_StreamCreateURL/FileUser
+	BASS_ChannelGetLength
+* Non-audio tracks are ignored
+	BASS_WEBM_StreamCreateFile/User/URL
+* Playback of audio from videos is now optional
+	BASS_CONFIG_VIDEO (BASS_SetConfig option)
+* Support for FLAC tracks (requires BASSFLAC)
+* Support for PCM tracks
+
+2.4.0.3 - 9/2/2023
+------------------
+* Seeking improvements
+    BASS_ChannelSetPosition
+
+2.4 - 9/8/2019
+--------------
+* First release
+
+
+Bug reports, Suggestions, Comments, Enquiries, etc
+==================================================
+If you have any of the aforementioned please visit the BASS forum at the
+website.
+
