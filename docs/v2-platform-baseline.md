@@ -50,7 +50,7 @@ This proves the shared JVM/Android compilation, checked-in unit tests, Desktop t
 | `providers:navidrome` | Android, JVM, iOS device, iOS simulator | Darwin handles normal iOS HTTPS. Advanced TLS modes are explicit capabilities and fail closed on iOS until insecure verification, custom CAs, and client certificates have secure native implementations. |
 | `apps:android` | Android application | Reduce to lifecycle, service, MediaSession, permission, notification, Android Auto, and Android service adapters. |
 | `apps:desktop` | Desktop JVM application | Reduce to window, menu, updater, packaging, and Desktop service adapters. |
-| `apps:ios` | Not present on this branch | Add a thin Xcode/SwiftUI host only after the shared dependency graph can link for iOS. |
+| `apps:ios` | iOS device and iOS simulator | The initial static Kotlin framework, SwiftUI/UIKit wrapper, and Xcode project launch on an iOS 26.5 simulator. It currently mounts the Core-owned bootstrap surface while the real iOS storage/settings/provider service catalog is assembled. |
 
 ## Existing Shared Foundation
 

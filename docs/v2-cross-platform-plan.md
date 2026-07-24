@@ -367,14 +367,14 @@ The 2026-07-20 entry audit split the work into ownership, lifecycle, platform-se
 ### Milestone 5: Add the Thin iOS Application
 
 - [ ] Confirm the host-neutral composition gate from Milestone 4 passes before adding iOS product code; fix missing shared ownership rather than implementing an iOS-specific feature controller.
-- [ ] Create an Xcode project and SwiftUI application under `apps/ios`.
-- [ ] Export the shared Compose application through a static Kotlin framework.
-- [ ] Use `embedAndSignAppleFrameworkForXcode` from the Xcode build phase.
-- [ ] Add the minimal `UIViewControllerRepresentable` wrapper around the shared Compose entry point.
+- [x] Create an Xcode project and SwiftUI application under `apps/ios`.
+- [x] Export the shared Compose application through a static Kotlin framework.
+- [x] Use `embedAndSignAppleFrameworkForXcode` from the Xcode build phase.
+- [x] Add the minimal `UIViewControllerRepresentable` wrapper around the shared Compose entry point.
 - [ ] Configure bundle identifiers, deployment target, orientations, icons, entitlements, and background audio mode.
 - [ ] Construct the iOS platform-services container during application startup.
 - [ ] Handle foreground/background lifecycle transitions and state restoration.
-- [ ] Compile and launch on an iOS simulator.
+- [x] Compile and launch the initial wrapper on an iOS simulator. The static framework and Swift host launched on an iPhone 17 Pro/iOS 26.5 simulator on 2026-07-24 and rendered the Core-owned bootstrap surface; mounting the complete environment remains part of this milestone.
 - [ ] Compile and launch on a physical iPhone.
 
 **Exit criteria:** The shared Naviamp UI can connect to a server and browse real content on simulator and device through platform-service adapters only, without an iOS action graph or separate iOS product-logic implementation.
