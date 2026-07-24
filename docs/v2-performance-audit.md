@@ -117,6 +117,12 @@ This is a short release-like local-app sample, not the final five-minute Desktop
   aggregated. Active playback sampled approximately 6.2–7.3% CPU with a median around 6.5%, using
   approximately 212–216 MB resident. Naviamp is therefore close to the production BASS reference on
   Desktop CPU, while Plexamp retains a meaningful memory advantage.
+- Installed Naviamp 1.5.0 was measured on the same Mac and with the same two-second sampling cadence.
+  Active playback sampled 6.4–13.9% CPU after startup, with a median around 10.5%, and used
+  approximately 533–549 MB resident. After playback stopped and the process settled, it sampled
+  0.4–0.6% CPU and approximately 532 MB resident. The optimized v2 sample therefore used about 27%
+  less median CPU and 30% less resident memory during active playback; both versions had similarly
+  low settled idle CPU, while v2 retained about 38% less idle memory.
 
 Result: **Desktop foreground-idle and active-playback baselines accepted**. Background/minimized
 playback and the long-duration Desktop matrix remain outstanding.
