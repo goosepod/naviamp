@@ -149,6 +149,8 @@ prefetch/sidecar baselines. It does not replace the required one-hour completion
   committed and 95 MB used.
 - A shared regression test cancels waveform analysis after its first native read and verifies that
   no second read occurs, covering prompt cancellation when a queue or radio is replaced.
+- `verifyCoreFirstArchitecture` passed after the performance changes, confirming that the shared
+  behavior remains Core-owned and the Desktop change is limited to its native BASS stream boundary.
 
 Result: **Desktop background-active and prefetch/sidecar short-duration baselines accepted**. The
 one-hour playback/route-cycle run and the remaining full Desktop matrix scenarios are still required
