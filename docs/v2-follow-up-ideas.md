@@ -12,6 +12,72 @@ This document tracks useful ideas that come up during the v2 migration but are n
 
 ## Ideas
 
+### Cross-Platform BASS Add-On Usage Audit
+
+- **Status:** Idea
+- **Concept:** Audit which vendored BASS add-ons Naviamp actually loads and uses for real playback, analysis, effects, and supported library formats, then remove add-ons that provide no product value.
+- **Scope:** Compare Android, Desktop, and iOS as one playback product. Record each add-on's call sites, dynamic-load result, formats or features it enables, representative test media, package-size cost, and whether the operating system already supplies an equivalent codec.
+- **Important constraint:** Do not remove a library merely because a narrow acceptance library does not contain its format. A removal needs evidence from the supported-format contract and tests showing that Core capability claims, provider transcoding/original-stream behavior, offline playback, waveform analysis, crossfade/mixing, EQ, and visualizers remain correct.
+- **Desired outcome:** Define one intentional cross-platform base inventory plus documented platform substitutions, remove unused binaries/load attempts/build metadata, and add package verification that prevents the inventories from drifting accidentally.
+- **Timing:** Keep the complete supported parity set during initial iOS BASS bring-up so missing codecs cannot be mistaken for backend or simulator defects. Run this audit after iOS playback parity is stable and before final release packaging/performance acceptance.
+
+### F-Droid Distribution
+
+- **Status:** Idea
+- **Concept:** Research and complete the work required to list Naviamp in the official F-Droid repository, giving Android users a trusted non-Play-Store installation and update path.
+- **Questions to answer:**
+  - Do F-Droid's current inclusion rules permit Naviamp's official prebuilt BASS libraries, or would the standard flavor need a fully source-buildable playback alternative?
+  - Can the Android release be built reproducibly from a clean F-Droid build environment without network-fetched binaries, local signing inputs, or untracked configuration?
+  - Which proprietary Google, analytics, update, crash-reporting, billing, or other non-free dependencies and services are present, including transitive dependencies, and which must be removed or flavor-gated?
+  - Should Naviamp submit through F-Droid's Requests For Packaging process, maintain metadata in `fdroiddata`, or first publish a project-owned F-Droid repository while official inclusion is reviewed?
+  - How should version codes, tags, changelogs, signing-key continuity, reproducible-build verification, screenshots, descriptions, licenses, source links, and update checks integrate with the existing release process?
+- **Investigation output:** Produce a current-policy compatibility report, dependency/license inventory, reproducible clean-build procedure, required Gradle/repository changes, store metadata checklist, and an explicit go/no-go recommendation for official inclusion. Treat an alternative playback engine or separate build flavor as a product and maintenance decision, not an automatic workaround.
+- **Shared-architecture requirement:** Distribution-specific Android build metadata may live in the Android/release tooling, but it must consume the same Core product and must not fork application behavior or create an F-Droid-only product graph.
+
+### Google Cast and Apple AirPlay
+
+- **Status:** Idea
+- **Concept:** Add cross-platform playback routing to Google Cast receivers and Apple's equivalent, AirPlay, so Naviamp can hand music to televisions, speakers, and whole-home audio targets.
+- **Product distinction to define:** AirPlay can act as an operating-system audio route while Naviamp continues owning playback locally, whereas Google Cast normally creates a remote playback session whose receiver owns the media timeline. Investigate both route selection and true remote-session handoff explicitly rather than presenting them as identical implementations.
+- **Shared-architecture requirement:** Core must own target/session state, queue handoff policy, playback commands, progress reconciliation, reconnect and recovery behavior, provider reporting, errors, and user-facing capability decisions. Android and Apple adapters may only wrap target discovery, platform session lifecycle, route selection, and Cast/AirPlay transport APIs.
+- **Questions to answer:**
+  - Can authenticated Navidrome streams, transcoded URLs, custom headers, expiring credentials, and artwork be delivered securely to a receiver that fetches media independently from the phone or computer?
+  - Should queue changes remain synchronized bidirectionally, and which side becomes authoritative after a remote session begins?
+  - How do crossfade, ReplayGain, EQ, visualizers, lyrics, waveform generation, scrobbling, favorites, downloads, and offline playback change when audio is rendered remotely?
+  - Which Android, iOS, and Desktop SDKs support discovery and session control, and does macOS use system AirPlay routing, an app-level API, or both?
+  - What simulator coverage is possible, and which acceptance cases require real receivers and physical Apple devices?
+  - Does the Google Cast SDK conflict with official F-Droid inclusion, requiring a capability-gated build flavor or a different discovery/transport approach?
+- **Investigation output:** Produce a protocol and SDK comparison, Core session contract, credential and network-reachability threat model, receiver compatibility matrix, lifecycle/recovery test plan, and a recommendation for the smallest useful first implementation.
+
+### Album Shuffle Radio
+
+- **Status:** Idea
+- **Concept:** Add a radio mode that selects albums in random order while playing every selected album in its canonical disc and track order before moving to another randomly selected album.
+- **Core behavior:** Model each album as an ordered queue group. Core owns album selection, de-duplication, queue replenishment, group boundaries, progression, persistence, and recovery; provider code supplies eligible albums and their canonical tracks, and hosts only render and invoke the shared mode.
+- **Questions to answer:**
+  - Should selection cover the whole library or support filters such as genre, year, artist, favorites, library folder, rating, or downloaded-only content?
+  - How should multi-disc albums, bonus tracks, missing/unavailable tracks, compilations, duplicate releases, and albums with only one playable track be ordered and represented?
+  - Should Next Track advance within the album while a separate Skip Album action jumps to the next group, and what should Previous do at an album boundary?
+  - When playback is restored, should the current album resume at its saved position before another album is chosen?
+  - How large should the upcoming album window be, and how should the mode avoid recently played albums without requiring the entire library to remain in memory?
+  - How should shuffle, repeat, crossfade, ReplayGain, per-album playback profiles, offline availability, scrobbling, and audio/lyrics/waveform prefetch behave across album boundaries?
+- **Acceptance shape:** Verify that album selection is random across a representative library, every chosen album remains internally ordered, no track is silently duplicated or omitted at replenishment boundaries, queue replacement cancels obsolete prefetch work, and session restoration preserves the active album group.
+
+### Additional Providers: Plex, Jellyfin, and Bandcamp
+
+- **Status:** Idea
+- **Concept:** Expand Naviamp beyond its current providers with shared integrations for Plex, Jellyfin, and Bandcamp.
+- **Bandcamp opportunity:** Bandcamp announced an open-beta Subsonic implementation on July 16, 2026. Users generate credentials in Fan Settings and connect to `https://bandcamp.com/api/subsonic`; the announced beta supports streaming and downloading a user's collection plus creating and editing playlists that synchronize with Bandcamp. Start with a compatibility audit against Naviamp's existing Subsonic/Navidrome provider before creating a separate provider implementation.
+- **Provider architecture:** Authentication, session renewal, protocol calls, response interpretation, domain mapping, feature capabilities, playlist semantics, and provider-specific persistence mapping belong in each provider's `commonMain` module. Core consumes the same provider-neutral contracts, and Android, Desktop, and iOS must not acquire separate Plex, Jellyfin, or Bandcamp product implementations.
+- **Questions to answer:**
+  - Which existing Naviamp features can each provider support faithfully: browsing, search, multiple libraries, favorites, playlists, radio, lyrics, downloads, ReplayGain, scrobbling, artwork, related/sonic discovery, and server-side transcoding?
+  - Can Plex and Jellyfin use stable, documented APIs and authentication flows without embedding web sessions, proprietary client secrets, or platform-specific SDK behavior?
+  - Which Bandcamp Subsonic/OpenSubsonic endpoints and extensions are actually implemented in the beta, and how do its IDs, collection model, purchases, playlists, paging, formats, rate limits, and errors differ from Navidrome?
+  - Should Bandcamp be a capability profile inside a reusable Subsonic provider family, a dedicated provider adapter sharing the Subsonic transport, or both?
+  - How should provider-specific concepts be represented without leaking them into provider-neutral Core models or reducing features to the least common denominator?
+- **Investigation output:** Build an endpoint/capability matrix from current official documentation and captured test responses, define authentication and credential-storage requirements, create contract tests and representative fixtures, and recommend an implementation order. Bandcamp beta behavior must be reverified before development because it may change.
+- **Source:** [Bandcamp: Discover Improvements and Subsonic Implementation](https://blog.bandcamp.com/2026/07/16/discover-improvements-and-subsonic-implementation/)
+
 ### Classical Work and Movement Grouping
 
 - **Status:** Idea
