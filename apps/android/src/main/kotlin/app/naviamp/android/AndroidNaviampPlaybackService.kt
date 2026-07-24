@@ -7,7 +7,6 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.graphics.drawable.Icon
-import android.net.Uri
 import android.os.Bundle
 import android.support.v4.media.MediaBrowserCompat
 import android.support.v4.media.MediaDescriptionCompat
@@ -166,6 +165,7 @@ class AndroidNaviampPlaybackService : MediaBrowserServiceCompat() {
 
     private fun publishSessionContent(value: NaviampExternalPlaybackSnapshot) {
         val current = value.current
+        val artworkUri = current?.artworkUrl?.let { AndroidNaviampArtworkProvider.uriFor(this, it).toString() }
         session.setMetadata(
             MediaMetadataCompat.Builder()
                 .putString(MediaMetadataCompat.METADATA_KEY_MEDIA_ID, current?.mediaId)
@@ -174,7 +174,11 @@ class AndroidNaviampPlaybackService : MediaBrowserServiceCompat() {
                 .putString(MediaMetadataCompat.METADATA_KEY_ALBUM, current?.description.orEmpty())
                 .apply {
                     value.durationMillis?.let { putLong(MediaMetadataCompat.METADATA_KEY_DURATION, it) }
-                    current?.artworkUrl?.let { putString(MediaMetadataCompat.METADATA_KEY_ALBUM_ART_URI, it) }
+                    artworkUri?.let {
+                        putString(MediaMetadataCompat.METADATA_KEY_DISPLAY_ICON_URI, it)
+                        putString(MediaMetadataCompat.METADATA_KEY_ART_URI, it)
+                        putString(MediaMetadataCompat.METADATA_KEY_ALBUM_ART_URI, it)
+                    }
                 }
                 .build(),
         )
@@ -207,17 +211,18 @@ class AndroidNaviampPlaybackService : MediaBrowserServiceCompat() {
                     PlaybackStateCompat.ACTION_REWIND or PlaybackStateCompat.ACTION_FAST_FORWARD or
                     PlaybackStateCompat.ACTION_SEEK_TO or PlaybackStateCompat.ACTION_SKIP_TO_PREVIOUS or
                     PlaybackStateCompat.ACTION_SKIP_TO_NEXT or PlaybackStateCompat.ACTION_SKIP_TO_QUEUE_ITEM or
-                    PlaybackStateCompat.ACTION_PLAY_FROM_MEDIA_ID or PlaybackStateCompat.ACTION_PLAY_FROM_SEARCH,
+                    PlaybackStateCompat.ACTION_PLAY_FROM_MEDIA_ID or PlaybackStateCompat.ACTION_PLAY_FROM_SEARCH or
+                    PlaybackStateCompat.ACTION_SET_SHUFFLE_MODE or PlaybackStateCompat.ACTION_SET_REPEAT_MODE,
             )
             .addCustomAction(
                 CustomActionFavorite,
                 if (value.favorite) "Unfavorite" else "Favorite",
-                if (value.favorite) android.R.drawable.btn_star_big_on else android.R.drawable.btn_star_big_off,
+                if (value.favorite) R.drawable.ic_favorite_filled_24 else R.drawable.ic_favorite_24,
             )
             .addCustomAction(
                 CustomActionShuffle,
                 if (value.shuffleActive) "Shuffle on" else "Shuffle off",
-                android.R.drawable.ic_menu_sort_by_size,
+                R.drawable.ic_shuffle_24,
             )
             .addCustomAction(
                 CustomActionRepeat,
@@ -226,7 +231,7 @@ class AndroidNaviampPlaybackService : MediaBrowserServiceCompat() {
                     NaviampRepeatMode.Queue -> "Repeat queue"
                     NaviampRepeatMode.Track -> "Repeat track"
                 },
-                android.R.drawable.ic_menu_revert,
+                R.drawable.ic_repeat_24,
             )
             .setState(
                 when (value.state) {
@@ -310,7 +315,7 @@ class AndroidNaviampPlaybackService : MediaBrowserServiceCompat() {
             .addAction(
                 notificationAction(
                     ActionFavorite,
-                    if (value.favorite) android.R.drawable.btn_star_big_on else android.R.drawable.btn_star_big_off,
+                    if (value.favorite) R.drawable.ic_favorite_filled_24 else R.drawable.ic_favorite_24,
                     if (value.favorite) "Unfavorite" else "Favorite",
                 ),
             )
@@ -379,7 +384,9 @@ class AndroidNaviampPlaybackService : MediaBrowserServiceCompat() {
             .setTitle(title)
             .setSubtitle(subtitle)
             .setDescription(this.description)
-            .apply { artworkUrl?.let { setIconUri(Uri.parse(it)) } }
+            .apply {
+                artworkUrl?.let { setIconUri(AndroidNaviampArtworkProvider.uriFor(this@AndroidNaviampPlaybackService, it)) }
+            }
             .build()
 
     private fun playableItem(item: NaviampExternalMediaItem) = MediaBrowserCompat.MediaItem(

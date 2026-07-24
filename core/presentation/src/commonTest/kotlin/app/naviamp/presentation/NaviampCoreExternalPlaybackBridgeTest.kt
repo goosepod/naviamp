@@ -82,6 +82,7 @@ class NaviampCoreExternalPlaybackBridgeTest {
         assertEquals(listOf("Earlier", "Current", "Later"), snapshot.queue.map { it.title })
         assertEquals(1, snapshot.currentQueueIndex)
         assertEquals("Current", snapshot.current?.title)
+        assertEquals("https://example.test/current-art", snapshot.current?.artworkUrl)
         assertEquals(12_500L, snapshot.positionMillis)
         assertEquals(180_000L, snapshot.durationMillis)
         assertTrue(snapshot.shouldRetainPlaybackService)
@@ -107,6 +108,19 @@ class NaviampCoreExternalPlaybackBridgeTest {
         assertEquals(
             "later",
             assertIs<NaviampCoreCommand.NowPlaying.Selection>(commands[2]).request.item.id,
+        )
+    }
+
+    @Test
+    fun automotiveShuffleDispatchesTheSharedPlaybackCommand() {
+        val commands = mutableListOf<NaviampCoreCommand>()
+        val bridge = bridge(commands)
+
+        bridge.toggleShuffle()
+
+        assertEquals(
+            NowPlayingPlaybackAction.ToggleShuffle,
+            assertIs<NaviampCoreCommand.NowPlaying.Playback>(commands.single()).request.action,
         )
     }
 
@@ -219,6 +233,7 @@ private fun bridge(
         id = "current",
         title = "Current",
         subtitle = "Artist",
+        coverArtUrl = "https://example.test/current-art",
         stateLabel = "Playing",
         isPlaying = true,
         canPlayPause = true,

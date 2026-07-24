@@ -59,6 +59,10 @@ fun resetAndroidPlatformCoverArtByteLoader() {
 internal suspend fun androidPlatformCoverArtBytes(url: String): ByteArray? =
     generatedRadioTileBytes(url) ?: androidPlatformCoverArtByteLoader?.invoke(url) ?: AndroidCoverArtHttpClient.getBytes(url)
 
+/** Resolves authenticated artwork for native Android surfaces that require a local file. */
+suspend fun androidPlatformCoverArtFile(context: Context, url: String): File? =
+    AndroidCoverArtCache.imageFile(context.applicationContext, url)
+
 private val AndroidCoverArtHttpClient = KtorSharedHttpClient()
 
 @Composable
@@ -229,6 +233,18 @@ private object AndroidCoverArtCache {
                 putHot(url, bytes)
             }
         }
+    }
+
+    suspend fun imageFile(context: Context, url: String): File? {
+        val bytes = imageBytes(context, url) ?: return null
+        val cacheFile = File(context.cacheDir, "cover-art/${url.sha256()}.img")
+        if (!cacheFile.exists() || cacheFile.length() <= 0L) {
+            runCatching {
+                cacheFile.parentFile?.mkdirs()
+                cacheFile.writeBytes(bytes)
+            }.getOrElse { return null }
+        }
+        return cacheFile.takeIf(File::isFile)
     }
 
     private fun putHot(url: String, bytes: ByteArray) {
