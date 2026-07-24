@@ -1613,15 +1613,6 @@ private fun ArtistDetailContent(
                     color = colors.secondaryText,
                     fontSize = 13.sp,
                 )
-                detail.sourceContextLabel.takeIf { it.isNotBlank() }?.let { label ->
-                    Text(
-                        label,
-                        color = colors.mutedText,
-                        fontSize = 11.sp,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                }
                 NaviampResponsiveActionRow(
                     colors = colors,
                     actions = listOf(
@@ -1721,9 +1712,9 @@ private fun ArtistDetailContent(
                     detail.popularTracksStatus?.let { status ->
                         Text(status, color = colors.secondaryText, fontSize = 11.sp)
                     }
-                    detail.popularTracks.forEachIndexed { index, track ->
+                    detail.popularTracks.forEach { track ->
                         TrackRow(
-                            track.copy(meta = (index + 1).toString()),
+                            track,
                             colors,
                             onTrackAction = handlePopularTrackAction,
                             canSelect = true,
@@ -1743,8 +1734,8 @@ private fun ArtistDetailContent(
                     Text(section.title.uppercase(), color = colors.primaryText, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                     if (albumCollectionLayout == AlbumCollectionLayout.Grid) {
                         FlowRow(
-                            horizontalArrangement = Arrangement.spacedBy(10.dp),
-                            verticalArrangement = Arrangement.spacedBy(14.dp),
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            verticalArrangement = Arrangement.spacedBy(10.dp),
                             modifier = Modifier.fillMaxWidth(),
                         ) {
                             section.albums.forEach { album ->

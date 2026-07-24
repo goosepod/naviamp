@@ -218,7 +218,7 @@ fun NaviampSharedSettingsContent(
 
     Column(
         verticalArrangement = Arrangement.spacedBy(
-            if (selectedCategory == null) 8.dp else SettingsDetailItemSpacing,
+            if (selectedCategory == null) 2.dp else SettingsDetailItemSpacing,
         ),
         modifier = modifier,
     ) {
@@ -1070,8 +1070,9 @@ private fun SettingsCategoryRow(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(enabled = enabled, onClick = onClick)
-            .padding(vertical = 9.dp),
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
+            .height(54.dp)
+            .padding(horizontal = 8.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Icon(
@@ -1081,8 +1082,15 @@ private fun SettingsCategoryRow(
             modifier = Modifier.size(20.dp),
         )
         Column(Modifier.weight(1f)) {
-            Text(languagePack.categoryLabel(category), color = if (enabled) colors.primaryText else colors.mutedText, fontSize = 15.sp)
-            Text(subtitle, color = colors.mutedText, fontSize = 12.sp)
+            Text(
+                languagePack.categoryLabel(category),
+                color = if (enabled) colors.primaryText else colors.mutedText,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(subtitle, color = colors.secondaryText, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
         Icon(NaviampIcons.ChevronRight, contentDescription = null, tint = colors.secondaryText, modifier = Modifier.size(18.dp))
     }

@@ -41,7 +41,8 @@ class MediaUiMappersTest {
             .toSharedHomeUi(coverArtUrl = { null })
             .recentlyPlayedTracks.single()
 
-        assertEquals("2:05", row.meta)
+        assertEquals("", row.meta)
+        assertEquals("2:05", row.durationLabel)
     }
 
     @Test
@@ -296,7 +297,8 @@ class MediaUiMappersTest {
         assertEquals("track-1", ui.track.id)
         assertEquals("Track One", ui.track.title)
         assertEquals("Artist - Album", ui.track.subtitle)
-        assertEquals("2:05", ui.track.meta)
+        assertEquals("", ui.track.meta)
+        assertEquals("2:05", ui.track.durationLabel)
         assertEquals("cover://cover-1", ui.track.coverArtUrl)
         assertEquals(12_345L, ui.sizeBytes)
         assertEquals("MP3 · 320 kbps", ui.qualityLabel)
@@ -331,7 +333,7 @@ class MediaUiMappersTest {
         assertEquals(listOf("artist-1", "artist-2"), ui.artistCredits.mapNotNull { it.id })
         assertEquals(listOf("Artist", "Featured Artist"), ui.artistCredits.map { it.name })
         assertEquals("Album", ui.albumTitle)
-        assertEquals("2:05", ui.meta)
+        assertEquals("", ui.meta)
         assertEquals("2:05", ui.durationLabel)
     }
 
@@ -403,6 +405,8 @@ class MediaUiMappersTest {
 
         assertEquals(listOf("Albums", "EPs"), ui.albumSections.map { it.title })
         assertEquals("Album 2026 Explicit", ui.albumSections.first().albums.single().meta)
+        assertEquals("2 albums, EPs, and singles", ui.localLibraryLabel)
+        assertEquals("", ui.sourceContextLabel)
     }
 
     @Test

@@ -441,6 +441,8 @@ fun NaviampSearchContent(
                     canAddToQueue = true,
                     canDownload = true,
                     canAddToPlaylist = true,
+                    background = true,
+                    horizontalPadding = 6.dp,
                 )
             }
         }

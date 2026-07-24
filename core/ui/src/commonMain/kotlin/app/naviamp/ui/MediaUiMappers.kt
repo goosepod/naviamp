@@ -232,7 +232,6 @@ fun Track.toSharedTrackRowUi(
         title = title,
         subtitle = listOfNotNull(artistName, albumTitle).joinToString(" - "),
         coverArtUrl = coverArtUrl(coverArtId ?: fallbackCoverArtId),
-        meta = durationSeconds?.durationLabel().orEmpty(),
         durationLabel = durationSeconds?.durationLabel().orEmpty(),
         ratingLabel = compactFavoriteRatingLabel(),
         popular = popular,
@@ -1292,11 +1291,7 @@ fun ArtistDetails.toSharedArtistDetailUi(
                 albums = group.albums.map { it.toSharedMediaItemUi(coverArtUrl, canFavoriteAlbums) },
             )
         },
-        sourceContextLabel = artistSourceContextLabel(
-            hasProviderMetadata = info != null,
-            hasLocalLibraryMatches = albums.isNotEmpty() || popularTracks.isNotEmpty(),
-        ),
-        localLibraryLabel = artistLocalLibraryLabel(albums.size, popularTracks.size),
+        localLibraryLabel = artistLocalLibraryLabel(albums.size),
         biography = info?.biography,
         popularTracks = popularTracks.map { it.toSharedTrackRowUi(coverArtUrl).copy(hasArtist = false) },
         popularTracksStatus = popularTracksStatus,
@@ -1305,24 +1300,8 @@ fun ArtistDetails.toSharedArtistDetailUi(
         similarArtistsExpanded = similarArtistsExpanded,
     )
 
-private fun artistSourceContextLabel(
-    hasProviderMetadata: Boolean,
-    hasLocalLibraryMatches: Boolean,
-): String =
-    when {
-        hasProviderMetadata && hasLocalLibraryMatches -> "Provider info matched with your library"
-        hasLocalLibraryMatches -> "Matched from your library"
-        hasProviderMetadata -> "Provider info only"
-        else -> "No local library match yet"
-    }
-
-private fun artistLocalLibraryLabel(albumCount: Int, popularTrackCount: Int): String =
-    listOfNotNull(
-        "$albumCount ${if (albumCount == 1) "album" else "albums"}",
-        popularTrackCount.takeIf { it > 0 }?.let {
-            "$it matched popular ${if (it == 1) "track" else "tracks"}"
-        },
-    ).joinToString(" - ")
+private fun artistLocalLibraryLabel(albumCount: Int): String =
+    if (albumCount == 1) "1 album, EP, or single" else "$albumCount albums, EPs, and singles"
 
 fun SimilarArtistMatch.toSharedSimilarArtistUi(): SharedSimilarArtistUi =
     SharedSimilarArtistUi(
