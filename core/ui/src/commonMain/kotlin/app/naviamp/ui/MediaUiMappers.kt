@@ -233,6 +233,7 @@ fun Track.toSharedTrackRowUi(
         subtitle = listOfNotNull(artistName, albumTitle).joinToString(" - "),
         coverArtUrl = coverArtUrl(coverArtId ?: fallbackCoverArtId),
         meta = durationSeconds?.durationLabel().orEmpty(),
+        durationLabel = durationSeconds?.durationLabel().orEmpty(),
         ratingLabel = compactFavoriteRatingLabel(),
         popular = popular,
         favoriteActive = favoritedAtIso8601 != null,

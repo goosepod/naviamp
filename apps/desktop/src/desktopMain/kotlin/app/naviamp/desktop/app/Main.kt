@@ -28,7 +28,7 @@ fun main() {
             LaunchedEffect(window, darkTitleBar) {
                 configureDesktopWindowAppearance(window, darkTitleBar)
             }
-            window.minimumSize = java.awt.Dimension(360, 640)
+            window.minimumSize = java.awt.Dimension(320, 500)
             DesktopNaviampCoreHost(composition.environment)
         }
     }

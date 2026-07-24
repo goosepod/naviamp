@@ -7,6 +7,7 @@ import app.naviamp.domain.media.loadArtistPopularTracksUpdate
 import app.naviamp.domain.media.loadSimilarArtistsUpdate
 import app.naviamp.domain.media.isNameOnlyArtistCredit
 import app.naviamp.domain.media.loadNameOnlyArtistCreditDetails
+import app.naviamp.domain.media.nameOnlyArtistCredit
 import app.naviamp.domain.popular.ArtistPopularTrackMatch
 import app.naviamp.domain.popular.ArtistPopularTracksService
 import app.naviamp.domain.popular.ProviderArtistPopularTracksClient
@@ -224,6 +225,18 @@ class NaviampCoreMediaDetailController(
         runCatching { provider.album(AlbumId(item.id)) }
             .onSuccess { detail ->
                 if (generation != albumGeneration) return@onSuccess
+                val albumArtist = detail.tracks.firstOrNull()?.let { track ->
+                    track.artistId?.let { Artist(it, track.artistName) }
+                        ?: track.artistName.takeIf(String::isNotBlank)?.let(::nameOnlyArtistCredit)
+                }
+                val popularTrackIds = albumArtist?.let { artist ->
+                    loadArtistPopularTracksUpdate(
+                        sourceId = discovery.sourceId(),
+                        artist = artist,
+                        loadPopularTracks = discovery.popularTracks,
+                    ).tracks.mapTo(mutableSetOf()) { track -> track.id.value }
+                }.orEmpty()
+                if (generation != albumGeneration) return@onSuccess
                 mediaRegistry.updateAlbum(detail)
                 stateStore.updateShell { shell ->
                     shell.copy(
@@ -234,6 +247,7 @@ class NaviampCoreMediaDetailController(
                             ),
                             detail = detail.toSharedAlbumDetailUi(
                                 coverArtUrl = coverArtUrl,
+                                popularTrackIds = popularTrackIds,
                                 canFavoriteAlbum = provider.capabilities.supportsAlbumFavorites,
                             ),
                             status = "Connected.",

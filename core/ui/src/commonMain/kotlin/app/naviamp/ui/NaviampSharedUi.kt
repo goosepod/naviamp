@@ -269,10 +269,10 @@ fun NaviampSharedAppShell(
                             },
                         )
                         .padding(
-                            horizontal = if (showFullNowPlaying) 0.dp else 18.dp,
-                            vertical = if (showFullNowPlaying) 0.dp else 18.dp,
+                            horizontal = if (showFullNowPlaying) 0.dp else 12.dp,
+                            vertical = if (showFullNowPlaying) 0.dp else 12.dp,
                         ),
-                    verticalArrangement = if (showFullNowPlaying) Arrangement.spacedBy(0.dp) else Arrangement.spacedBy(14.dp),
+                    verticalArrangement = if (showFullNowPlaying) Arrangement.spacedBy(0.dp) else Arrangement.spacedBy(8.dp),
                 ) {
                     val showingRouteConnectionForm = editingConnection && selectedRoute != SharedRoute.Settings
                     if (!showFullNowPlaying && (restoringConnection || !connected || showingRouteConnectionForm)) {
@@ -317,7 +317,7 @@ fun NaviampSharedAppShell(
                             colors = colors,
                             onOpen = navigationActions.onOpenNowPlaying,
                             actions = nowPlayingActions,
-                            modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp),
+                            modifier = Modifier.padding(vertical = 2.dp),
                         )
                     }
                     SharedBottomNavigationBar(
@@ -1181,48 +1181,53 @@ private fun AlbumDetailContent(
     }
 
     Column(
-        verticalArrangement = Arrangement.spacedBy(12.dp),
-        modifier = Modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState()),
+        verticalArrangement = Arrangement.spacedBy(3.dp),
+        modifier = Modifier.fillMaxSize(),
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(2.dp)) {
             NaviampTooltip("Back", colors) {
-                IconButton(onClick = onBack, modifier = Modifier.size(36.dp)) {
-                    Icon(NaviampIcons.Back, contentDescription = "Back", tint = colors.primaryText)
+                IconButton(onClick = onBack, modifier = Modifier.size(32.dp)) {
+                    Icon(
+                        NaviampIcons.Back,
+                        contentDescription = "Back",
+                        tint = colors.primaryText,
+                        modifier = Modifier.size(18.dp),
+                    )
                 }
             }
+            Text(
+                detail.album.title,
+                color = colors.primaryText,
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Bold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
         }
-        Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.fillMaxWidth(),
+        ) {
             Box(
                 modifier = Modifier.clickable(
                     enabled = detail.album.coverArtUrl != null,
                     onClick = { albumImageOpen = true },
                 ),
             ) {
-                PlatformCoverArt(detail.album.coverArtUrl, colors, 96.dp, 8.dp)
+                PlatformCoverArt(detail.album.coverArtUrl, colors, 96.dp, 4.dp)
             }
-            Column(verticalArrangement = Arrangement.spacedBy(4.dp), modifier = Modifier.weight(1f)) {
+            Column(verticalArrangement = Arrangement.spacedBy(2.dp), modifier = Modifier.weight(1f)) {
                 Text(
-                    detail.album.title,
+                    detail.album.subtitle,
                     color = colors.primaryText,
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Bold,
-                    maxLines = 2,
+                    fontSize = 14.sp,
+                    maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
-                Text(detail.album.subtitle, color = colors.secondaryText, fontSize = 14.sp)
-                if (detail.album.meta.isNotBlank()) {
-                    Text(detail.album.meta, color = colors.mutedText, fontSize = 12.sp)
+                detail.album.releaseYear?.let { year ->
+                    Text(year.toString(), color = colors.secondaryText, fontSize = 12.sp)
                 }
-                Text(
-                    listOfNotNull(
-                        "${detail.tracks.size} tracks",
-                        detail.totalDurationLabel.takeIf { it.isNotBlank() },
-                    ).joinToString(" - "),
-                    color = colors.mutedText,
-                    fontSize = 12.sp,
-                )
                 NaviampResponsiveActionRow(
                     colors = colors,
                     actions = listOf(
@@ -1242,6 +1247,15 @@ private fun AlbumDetailContent(
                 )
             }
         }
+        Text(
+            listOfNotNull(
+                "${detail.tracks.size} tracks",
+                detail.album.releaseYear?.toString(),
+                detail.totalDurationLabel.takeIf { it.isNotBlank() }?.let { "Total $it" },
+            ).joinToString(" - "),
+            color = colors.secondaryText,
+            modifier = Modifier.fillMaxWidth(),
+        )
         Column(
             verticalArrangement = Arrangement.spacedBy(5.dp),
             modifier = Modifier
@@ -1259,6 +1273,10 @@ private fun AlbumDetailContent(
                     canAddToQueue = true,
                     canDownload = true,
                     canAddToPlaylist = true,
+                    background = false,
+                    verticalPadding = 0.dp,
+                    showCoverArt = false,
+                    showMenu = true,
                     reservePopularIndicatorSpace = reservePopularIndicatorSpace,
                 )
             }
@@ -1540,27 +1558,56 @@ private fun ArtistDetailContent(
     }
 
     Column(
-        verticalArrangement = Arrangement.spacedBy(12.dp),
+        verticalArrangement = Arrangement.spacedBy(6.dp),
         modifier = Modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState()),
     ) {
-        Row(verticalAlignment = Alignment.Top, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(2.dp)) {
             NaviampTooltip("Back", colors) {
-                IconButton(onClick = onBack, modifier = Modifier.size(36.dp)) {
-                    Icon(NaviampIcons.Back, contentDescription = "Back", tint = colors.primaryText)
+                IconButton(onClick = onBack, modifier = Modifier.size(32.dp)) {
+                    Icon(
+                        NaviampIcons.Back,
+                        contentDescription = "Back",
+                        tint = colors.primaryText,
+                        modifier = Modifier.size(18.dp),
+                    )
                 }
             }
+            Text(
+                detail.artist.title,
+                color = colors.primaryText,
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Bold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+        Row(
+            verticalAlignment = Alignment.Top,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier.fillMaxWidth(),
+        ) {
             Box(
                 modifier = Modifier.clickable(
                     enabled = detail.artist.coverArtUrl != null,
                     onClick = { artistImageOpen = true },
                 ),
             ) {
-                PlatformCoverArt(detail.artist.coverArtUrl, colors, 64.dp, 32.dp)
+                PlatformCoverArt(detail.artist.coverArtUrl, colors, 96.dp, 48.dp)
             }
-            Column(modifier = Modifier.weight(1f)) {
-                Text(detail.artist.title, color = colors.primaryText, fontSize = 20.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Column(
+                verticalArrangement = Arrangement.spacedBy(3.dp),
+                modifier = Modifier.weight(1f),
+            ) {
+                Text(
+                    detail.artist.title,
+                    color = colors.primaryText,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
                 Text(
                     detail.localLibraryLabel.ifBlank { "${detail.albums.size} albums" },
                     color = colors.secondaryText,
@@ -1627,7 +1674,7 @@ private fun ArtistDetailContent(
             }
         }
         Column(
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp),
         ) {
             if (similarArtistsVisible) {
                 Row(
@@ -1645,7 +1692,7 @@ private fun ArtistDetailContent(
                 detail.similarArtistsStatus?.let {
                     Text(it, color = colors.secondaryText, fontSize = 11.sp)
                 }
-                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     detail.similarArtists.forEach { artist ->
                         SimilarArtistRow(
                             artist = artist,
@@ -1688,7 +1735,7 @@ private fun ArtistDetailContent(
                     }
                 }
             }
-            Text("Discography", color = colors.primaryText, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+            Text("DISCOGRAPHY", color = colors.primaryText, fontSize = 12.sp, fontWeight = FontWeight.Bold)
             if (detail.albums.isEmpty()) {
                 Text("No albums found.", color = colors.secondaryText, fontSize = 13.sp)
             } else {

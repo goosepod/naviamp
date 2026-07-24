@@ -331,6 +331,8 @@ class MediaUiMappersTest {
         assertEquals(listOf("artist-1", "artist-2"), ui.artistCredits.mapNotNull { it.id })
         assertEquals(listOf("Artist", "Featured Artist"), ui.artistCredits.map { it.name })
         assertEquals("Album", ui.albumTitle)
+        assertEquals("2:05", ui.meta)
+        assertEquals("2:05", ui.durationLabel)
     }
 
     @Test

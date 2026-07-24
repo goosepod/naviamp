@@ -46,6 +46,7 @@ class NaviampCoreMediaDetailControllerTest {
         assertEquals("Canonical album", state.shell.albumDetail.selectedAlbum?.title)
         assertTrue(state.shell.albumDetail.selectedAlbum?.canFavorite == true)
         assertEquals("Track one", state.shell.albumDetail.detail?.tracks?.single()?.title)
+        assertTrue(state.shell.albumDetail.detail?.tracks?.single()?.popular == true)
         assertEquals("Connected.", state.shell.albumDetail.status)
     }
 
@@ -154,15 +155,16 @@ class NaviampCoreMediaDetailControllerTest {
             discovery = NaviampCoreArtistDiscoveryServices(
                 sourceId = { "source" },
                 popularTracks = { _, artist, _ ->
+                    val popularId = if (artist.name == "Artist") "track-1" else "popular-${artist.id.value}"
                     listOf(
                         app.naviamp.domain.popular.ArtistPopularTrackMatch(
                             candidate = app.naviamp.domain.popular.ArtistPopularTrackCandidate(
                                 source = "test",
-                                sourceTrackId = "popular-${artist.id.value}",
+                                sourceTrackId = popularId,
                                 rank = 1,
                                 title = "Popular ${artist.name}",
                             ),
-                            matchedTrack = track("popular-${artist.id.value}", "Popular ${artist.name}"),
+                            matchedTrack = track(popularId, "Popular ${artist.name}"),
                             fetchedAtEpochMillis = 0,
                         ),
                     )

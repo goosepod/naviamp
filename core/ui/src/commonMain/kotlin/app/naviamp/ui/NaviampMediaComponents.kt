@@ -86,14 +86,14 @@ fun TrackRow(
     modifier: Modifier = Modifier,
     background: Boolean = false,
     horizontalPadding: Dp = 0.dp,
-    verticalPadding: Dp = 6.dp,
+    verticalPadding: Dp = 3.dp,
     showCoverArt: Boolean = true,
     coverArtSize: Dp = 44.dp,
     coverArtCornerRadius: Dp = 5.dp,
-    titleStyle: TextStyle = TextStyle(fontSize = 16.sp),
-    subtitleStyle: TextStyle = TextStyle(fontSize = 12.sp),
-    metaStyle: TextStyle = TextStyle(fontSize = 11.sp, lineHeight = 14.sp),
-    titleSubtitleSpacing: Dp = 3.dp,
+    titleStyle: TextStyle = TextStyle(fontSize = 13.sp, fontWeight = FontWeight.SemiBold),
+    subtitleStyle: TextStyle = TextStyle(fontSize = 11.sp),
+    metaStyle: TextStyle = TextStyle(fontSize = 13.sp, lineHeight = 16.sp),
+    titleSubtitleSpacing: Dp = 0.dp,
     showMenu: Boolean = false,
     leadingContent: (@Composable RowScope.() -> Unit)? = null,
     trailingContent: (@Composable RowScope.() -> Unit)? = null,
@@ -214,7 +214,11 @@ fun TrackRow(
                 Text(track.subtitle, color = colors.secondaryText, style = subtitleStyle, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
         }
-        trailingContent?.invoke(this)
+        if (trailingContent != null) {
+            trailingContent.invoke(this)
+        } else if (track.durationLabel.isNotBlank() && track.durationLabel != track.meta) {
+            Text(track.durationLabel, color = colors.mutedText, fontSize = 11.sp)
+        }
         val rowActions = trackRowActions(
             canStartRadio = canStartRadio,
             canDownload = canDownload,
