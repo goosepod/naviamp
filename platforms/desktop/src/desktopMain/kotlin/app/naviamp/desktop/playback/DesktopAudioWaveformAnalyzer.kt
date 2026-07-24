@@ -18,7 +18,7 @@ class DesktopAudioWaveformAnalyzer(
     override suspend fun analyze(source: AudioWaveformAnalysisSource): AudioWaveform? =
         analyze(source.streamUrl, source.bucketCount)
 
-    fun analyze(audioPath: Path, bucketCount: Int = this.bucketCount): AudioWaveform? {
+    suspend fun analyze(audioPath: Path, bucketCount: Int = this.bucketCount): AudioWaveform? {
         if (!audioPath.exists()) return null
         val bass = backendResult.getOrNull() ?: return null
         val stream = bass.createFileDecodeStream(audioPath.toString()).getOrNull() ?: return null
@@ -33,7 +33,7 @@ class DesktopAudioWaveformAnalyzer(
         }
     }
 
-    private fun analyze(streamUrl: String, bucketCount: Int): AudioWaveform? {
+    private suspend fun analyze(streamUrl: String, bucketCount: Int): AudioWaveform? {
         val localPath = localPathFromUrl(streamUrl)
         if (localPath != null) return analyze(localPath, bucketCount)
         val bass = backendResult.getOrNull() ?: return null

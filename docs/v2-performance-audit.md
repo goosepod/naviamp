@@ -124,5 +124,32 @@ This is a short release-like local-app sample, not the final five-minute Desktop
   less median CPU and 30% less resident memory during active playback; both versions had similarly
   low settled idle CPU, while v2 retained about 38% less idle memory.
 
-Result: **Desktop foreground-idle and active-playback baselines accepted**. Background/minimized
-playback and the long-duration Desktop matrix remain outstanding.
+Result: **Desktop foreground-idle and active-playback baselines accepted**. The long-duration
+Desktop matrix remains outstanding.
+
+## macOS background-active and sidecar stress sample — 2026-07-24
+
+This release-like staged-app sample accepts the short-duration Desktop background-active and
+prefetch/sidecar baselines. It does not replace the required one-hour completion run.
+
+- Application: staged `build/local-test/Naviamp.app`, visualizer closed, playing while minimized.
+- Tools: macOS `top` at a two-second cadence, `vmmap`, and JVM native-memory/heap diagnostics.
+- A five-minute background-active run sampled mostly 4–10% CPU, with a median around 6–7% and p95
+  around 13%. Resident memory cycled between approximately 368 and 524 MB as periodic reclamation
+  occurred instead of growing monotonically.
+- Starting a new radio initially exposed an unpaced waveform decode burst of roughly 100–350% CPU,
+  delayed cancellation responsiveness, and a transient process-memory peak above 1 GB in `top`.
+- Core's waveform analyzer now checks coroutine cancellation between PCM chunks and applies an 8 ms
+  cooperative delay between chunks. The Desktop host JVM uses a 320 MB maximum heap, 192 MB soft
+  target, and 30-second G1 periodic collection policy.
+- With the paced sidecar active, CPU remained normally around 4–11%, with a brief approximately
+  18.6% decoder-completion sample. Thread count returned from 148 to 77 after analysis completed.
+- After settling, `vmmap` reported a 591.6 MB physical footprint and a 729.8 MB peak, both within the
+  matching background-active and foreground-transition gates. The JVM heap reported 150 MB
+  committed and 95 MB used.
+- A shared regression test cancels waveform analysis after its first native read and verifies that
+  no second read occurs, covering prompt cancellation when a queue or radio is replaced.
+
+Result: **Desktop background-active and prefetch/sidecar short-duration baselines accepted**. The
+one-hour playback/route-cycle run and the remaining full Desktop matrix scenarios are still required
+before the cross-platform performance gate can be declared complete.

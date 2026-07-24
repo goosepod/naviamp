@@ -4,9 +4,14 @@ import app.naviamp.domain.AudioCodec
 import app.naviamp.domain.StreamQuality
 import app.naviamp.domain.bass.BassAudioBackend
 import app.naviamp.domain.bass.BassStreamHandle
+import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
+import kotlin.test.assertTrue
 
 class AudioWaveformTest {
     @Test
@@ -21,7 +26,7 @@ class AudioWaveformTest {
     }
 
     @Test
-    fun normalizesChunkedFloatPcmSamples() {
+    fun normalizesChunkedFloatPcmSamples() = runTest {
         val chunks = listOf(floatArrayOf(0.5f), floatArrayOf(1.0f))
         var chunkIndex = 0
 
@@ -39,7 +44,7 @@ class AudioWaveformTest {
     }
 
     @Test
-    fun rejectsIncompleteFloatPcmWaveform() {
+    fun rejectsIncompleteFloatPcmWaveform() = runTest {
         var supplied = false
 
         val waveform = normalizeFloatPcmWaveform(
@@ -56,7 +61,7 @@ class AudioWaveformTest {
     }
 
     @Test
-    fun analyzesFloatPcmThroughBassBackendPort() {
+    fun analyzesFloatPcmThroughBassBackendPort() = runTest {
         val waveform = analyzeBassFloatPcmWaveform(
             bass = FakeBassAudioBackend(listOf(floatArrayOf(0.5f), floatArrayOf(1.0f))),
             stream = BassStreamHandle(7),
@@ -68,7 +73,7 @@ class AudioWaveformTest {
     }
 
     @Test
-    fun usesSequentialPcmInsteadOfSlowLevelWindows() {
+    fun usesSequentialPcmInsteadOfSlowLevelWindows() = runTest {
         val waveform = analyzeBassFloatPcmWaveform(
             bass = FakeBassAudioBackend(
                 chunks = listOf(floatArrayOf(0.25f), floatArrayOf(1.0f)),
@@ -83,7 +88,7 @@ class AudioWaveformTest {
     }
 
     @Test
-    fun analyzesPcmWhenBassWaveformLevelsWouldBeTruncated() {
+    fun analyzesPcmWhenBassWaveformLevelsWouldBeTruncated() = runTest {
         val waveform = analyzeBassFloatPcmWaveform(
             bass = FakeBassAudioBackend(
                 chunks = listOf(FloatArray(20) { 0.5f }),
@@ -99,7 +104,7 @@ class AudioWaveformTest {
     }
 
     @Test
-    fun analyzesPcmWhenBassWaveformLevelsWouldBeSparse() {
+    fun analyzesPcmWhenBassWaveformLevelsWouldBeSparse() = runTest {
         val sparseLevels = FloatArray(100).also { levels ->
             levels[0] = 0.8f
             levels[25] = 1.0f
@@ -119,6 +124,30 @@ class AudioWaveformTest {
         assertNotNull(waveform)
         assertEquals(100, waveform.amplitudes.size)
         assertEquals(List(100) { 1.0f }, waveform.amplitudes)
+    }
+
+    @Test
+    fun cancellableBassAnalysisStopsReadingAfterItsJobIsCancelled() = runTest {
+        lateinit var analysisJob: Job
+        val backend = FakeBassAudioBackend(
+            chunks = List(4) { FloatArray(16_384) { 0.5f } },
+            onRead = { readCount ->
+                if (readCount == 1) analysisJob.cancel()
+            },
+        )
+        analysisJob = launch(start = CoroutineStart.LAZY) {
+            analyzeBassFloatPcmWaveform(
+                bass = backend,
+                stream = BassStreamHandle(7),
+                bucketCount = 100,
+            )
+        }
+
+        analysisJob.start()
+        analysisJob.join()
+
+        assertTrue(analysisJob.isCancelled)
+        assertEquals(1, backend.readCount)
     }
 
     @Test
@@ -152,8 +181,11 @@ class AudioWaveformTest {
 private class FakeBassAudioBackend(
     private val chunks: List<FloatArray>,
     private val waveformLevels: FloatArray? = null,
+    private val onRead: (Int) -> Unit = {},
 ) : BassAudioBackend {
     private var chunkIndex = 0
+    var readCount: Int = 0
+        private set
 
     override fun createFileDecodeStream(path: String): Result<BassStreamHandle> =
         Result.success(BassStreamHandle(1))
@@ -171,6 +203,8 @@ private class FakeBassAudioBackend(
 
     override fun readFloatData(stream: BassStreamHandle, buffer: FloatArray): Result<Int> {
         val chunk = chunks.getOrNull(chunkIndex++) ?: return Result.success(0)
+        readCount += 1
+        onRead(readCount)
         chunk.copyInto(buffer)
         return Result.success(chunk.size)
     }

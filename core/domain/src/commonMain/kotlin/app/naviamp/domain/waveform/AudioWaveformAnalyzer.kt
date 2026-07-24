@@ -14,10 +14,12 @@ interface AudioWaveformAnalyzer {
     suspend fun analyze(source: AudioWaveformAnalysisSource): AudioWaveform?
 }
 
-fun analyzeBassFloatPcmWaveform(
+suspend fun analyzeBassFloatPcmWaveform(
     bass: BassAudioBackend,
     stream: BassStreamHandle,
     bucketCount: Int = DefaultWaveformBucketCount,
+    chunkDelayMillis: Long = DefaultWaveformAnalysisChunkDelayMillis,
+    shouldContinue: () -> Boolean = { true },
 ): AudioWaveform? {
     val totalSamples = bass.lengthBytes(stream)
         ?.let { it / Float.SIZE_BYTES }
@@ -26,6 +28,8 @@ fun analyzeBassFloatPcmWaveform(
     val waveform = normalizeFloatPcmWaveform(
         totalSamples = totalSamples,
         bucketCount = bucketCount,
+        chunkDelayMillis = chunkDelayMillis,
+        shouldContinue = shouldContinue,
     ) { buffer ->
         bass.readFloatData(stream, buffer)
             .getOrElse {
@@ -35,3 +39,5 @@ fun analyzeBassFloatPcmWaveform(
     } ?: return null
     return if (readError) null else waveform
 }
+
+const val DefaultWaveformAnalysisChunkDelayMillis = 8L

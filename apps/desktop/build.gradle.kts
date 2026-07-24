@@ -72,6 +72,10 @@ compose.desktop {
             "-Dcompose.application.name=Naviamp",
             "-Dapple.awt.application.name=Naviamp",
             "-Dsun.awt.application.name=Naviamp",
+            "-Xms64m",
+            "-Xmx320m",
+            "-XX:SoftMaxHeapSize=192m",
+            "-XX:G1PeriodicGCInterval=30000",
         )
         when {
             desktopNativePlatform.get().startsWith("windows-") -> {
