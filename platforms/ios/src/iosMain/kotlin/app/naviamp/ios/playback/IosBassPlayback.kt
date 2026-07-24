@@ -65,17 +65,26 @@ import app.naviamp.ios.bass.native.BASS_ChannelSeconds2Bytes
 import app.naviamp.ios.bass.native.BASS_ChannelSetAttribute
 import app.naviamp.ios.bass.native.BASS_ChannelSetFX
 import app.naviamp.ios.bass.native.BASS_ChannelSetPosition
+import app.naviamp.ios.bass.native.BASS_ChannelSetSync
 import app.naviamp.ios.bass.native.BASS_ChannelSlideAttribute
 import app.naviamp.ios.bass.native.BASS_ChannelStop
+import app.naviamp.ios.bass.native.BASS_PluginFree
+import app.naviamp.ios.bass.native.BASS_PluginLoad
 import app.naviamp.ios.bass.native.BASS_SetConfig
 import app.naviamp.ios.bass.native.BASS_StreamCreateFile
 import app.naviamp.ios.bass.native.BASS_StreamCreateURL
 import app.naviamp.ios.bass.native.BASS_StreamFree
+import app.naviamp.ios.bass.native.BASS_SYNC_END
+import app.naviamp.ios.bass.native.BASS_SYNC_ONETIME
+import kotlinx.cinterop.COpaquePointer
+import kotlinx.cinterop.StableRef
 import kotlinx.cinterop.addressOf
 import kotlinx.cinterop.alloc
+import kotlinx.cinterop.asStableRef
 import kotlinx.cinterop.cstr
 import kotlinx.cinterop.memScoped
 import kotlinx.cinterop.ptr
+import kotlinx.cinterop.staticCFunction
 import kotlinx.cinterop.usePinned
 import kotlinx.coroutines.Dispatchers
 import platform.AVFAudio.AVAudioSession
@@ -84,6 +93,7 @@ import platform.AVFAudio.AVAudioSessionModeDefault
 import platform.AVFAudio.AVAudioSessionSetActiveOptionNotifyOthersOnDeactivation
 import platform.AVFAudio.setActive
 import platform.Foundation.NSLock
+import platform.Foundation.NSBundle
 import platform.Foundation.NSURL
 import kotlin.math.max
 import kotlin.math.min
@@ -92,6 +102,10 @@ import kotlin.time.Clock
 /** Direct BASS C ABI adapter. Core owns every playback and feature decision above these calls. */
 class IosBassAudioBackend : BassAudioBackend {
     private val equalizerEffects = mutableMapOf<UInt, MutableList<UInt>>()
+    private val endSyncs = mutableMapOf<UInt, IosBassEndSync>()
+    private val pluginHandles = mutableMapOf<String, UInt>()
+    private val failedPlugins = mutableMapOf<String, Int>()
+    private var pluginsAttempted = false
     private val audioSession = AVAudioSession.sharedInstance()
 
     override val version: Int
@@ -105,9 +119,20 @@ class IosBassAudioBackend : BassAudioBackend {
 
     override val supportsMixer: Boolean = true
 
-    override val pluginDiagnostics: List<BassPluginDiagnostic> = IosBassFrameworks.map {
-        BassPluginDiagnostic(stem = it, loaded = true)
-    }
+    override val pluginDiagnostics: List<BassPluginDiagnostic>
+        get() {
+            ensureCodecPluginsLoaded()
+            return IosBassFrameworks.map { framework ->
+                when (framework) {
+                    in IosBassCodecPlugins -> BassPluginDiagnostic(
+                        stem = framework,
+                        loaded = pluginHandles[framework] != null,
+                        errorCode = failedPlugins[framework],
+                    )
+                    else -> BassPluginDiagnostic(stem = framework, loaded = true)
+                }
+            }
+        }
 
     override fun configurePlaybackBuffers(policy: BassPlaybackBufferPolicy): Result<Unit> =
         bassResult("BASS playback buffer config failed") {
@@ -134,10 +159,17 @@ class IosBassAudioBackend : BassAudioBackend {
         return bassResult("BASS_Init at $sampleRateHz Hz failed") {
             BASS_Init(-1, sampleRateHz.coerceIn(8_000, 768_000).toUInt(), 0u, null, null) != 0 ||
                 BASS_ErrorGetCode() == BASS_ERROR_ALREADY
-        }.onFailure { deactivateAudioSession() }
+        }.onSuccess { ensureCodecPluginsLoaded() }
+            .onFailure { deactivateAudioSession() }
     }
 
     override fun free(): Result<Unit> {
+        endSyncs.values.forEach(IosBassEndSync::dispose)
+        endSyncs.clear()
+        pluginHandles.values.forEach { handle -> BASS_PluginFree(handle) }
+        pluginHandles.clear()
+        failedPlugins.clear()
+        pluginsAttempted = false
         val bassResult = bassResult("BASS_Free failed") { BASS_Free() != 0 }
         val sessionResult = if (deactivateAudioSession()) {
             Result.success(Unit)
@@ -213,6 +245,27 @@ class IosBassAudioBackend : BassAudioBackend {
 
     override fun removeMixerChannel(stream: BassStreamHandle): Result<Unit> =
         bassResult("BASS_Mixer_ChannelRemove failed") { BASS_Mixer_ChannelRemove(stream.uint) != 0 }
+
+    override fun setEndSync(
+        stream: BassStreamHandle,
+        callback: (BassStreamHandle) -> Unit,
+    ): Result<Int> {
+        endSyncs.remove(stream.uint)?.dispose()
+        val sync = IosBassEndSync(callback)
+        val handle = BASS_ChannelSetSync(
+            stream.uint,
+            BASS_SYNC_END.toUInt() or BASS_SYNC_ONETIME,
+            0uL,
+            IosBassEndSyncProc,
+            sync.pointer,
+        )
+        if (handle == 0u) {
+            sync.dispose()
+            return failure("BASS_ChannelSetSync failed")
+        }
+        endSyncs[stream.uint] = sync
+        return Result.success(handle.toInt())
+    }
 
     override fun play(stream: BassStreamHandle): Result<Unit> =
         bassResult("BASS_ChannelPlay failed") { BASS_ChannelPlay(stream.uint, 0) != 0 }
@@ -362,6 +415,7 @@ class IosBassAudioBackend : BassAudioBackend {
 
     override fun freeStream(stream: BassStreamHandle): Result<Unit> =
         bassResult("BASS_StreamFree failed") {
+            endSyncs.remove(stream.uint)?.dispose()
             clearEqualizer(stream.uint)
             BASS_StreamFree(stream.uint) != 0
         }
@@ -375,6 +429,21 @@ class IosBassAudioBackend : BassAudioBackend {
         withOptions = AVAudioSessionSetActiveOptionNotifyOthersOnDeactivation,
         error = null,
     )
+
+    private fun ensureCodecPluginsLoaded() {
+        if (pluginsAttempted) return
+        pluginsAttempted = true
+        val frameworksDirectory = NSBundle.mainBundle.privateFrameworksPath ?: return
+        IosBassCodecPlugins.forEach { framework ->
+            val path = "$frameworksDirectory/$framework.framework/$framework"
+            val handle = BASS_PluginLoad(path, 0u)
+            if (handle != 0u) {
+                pluginHandles[framework] = handle
+            } else {
+                failedPlugins[framework] = BASS_ErrorGetCode()
+            }
+        }
+    }
 
     private fun createFile(path: String, flags: UInt, message: String): Result<BassStreamHandle> = memScoped {
         BASS_StreamCreateFile(0u, path.cstr.ptr, 0uL, 0uL, flags).handleResult(message)
@@ -441,6 +510,65 @@ private val IosBassFrameworks = listOf(
     "bass_mpc",
     "bass_tta",
 )
+
+private val IosBassCodecPlugins = setOf(
+    "bassflac",
+    "bassopus",
+    "bassmidi",
+    "basswv",
+    "bassdsd",
+    "basswebm",
+    "basshls",
+    "bassape",
+    "bass_mpc",
+    "bass_tta",
+)
+
+private class IosBassEndSync(callback: (BassStreamHandle) -> Unit) {
+    private val lock = NSLock()
+    private var callback: ((BassStreamHandle) -> Unit)? = callback
+    private var reference: StableRef<IosBassEndSync>? = StableRef.create(this)
+
+    val pointer: COpaquePointer?
+        get() = reference?.asCPointer()
+
+    fun fire(channel: UInt) {
+        val action = locked { callback }
+        try {
+            action?.invoke(BassStreamHandle(channel.toInt()))
+        } finally {
+            dispose()
+        }
+    }
+
+    fun dispose() {
+        val ownedReference = locked {
+            callback = null
+            reference.also { reference = null }
+        }
+        ownedReference?.dispose()
+    }
+
+    private fun <T> locked(block: () -> T): T {
+        lock.lock()
+        return try {
+            block()
+        } finally {
+            lock.unlock()
+        }
+    }
+}
+
+private val IosBassEndSyncProc = staticCFunction {
+        _: UInt,
+        channel: UInt,
+        _: UInt,
+        user: COpaquePointer?,
+    ->
+    if (user != null) {
+        user.asStableRef<IosBassEndSync>().get().fire(channel)
+    }
+}
 
 private val EqualizerFrequencies = floatArrayOf(
     31f,
