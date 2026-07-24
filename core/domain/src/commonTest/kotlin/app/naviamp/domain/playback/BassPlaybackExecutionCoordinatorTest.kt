@@ -39,6 +39,20 @@ class BassPlaybackExecutionCoordinatorTest {
     }
 
     @Test
+    fun replacementInvalidatesOutgoingExecutionBeforeItsCancellationCleanupRuns() {
+        val coordinator = BassPlaybackExecutionCoordinator()
+        val outgoing = coordinator.nextPlaybackId()
+        var outgoingWasCurrentDuringCancellation = true
+
+        val replacement = coordinator.replaceCurrentExecution {
+            outgoingWasCurrentDuringCancellation = coordinator.isCurrent(outgoing)
+        }
+
+        assertFalse(outgoingWasCurrentDuringCancellation)
+        assertTrue(coordinator.isCurrent(replacement))
+    }
+
+    @Test
     fun clearInvalidatesExecutionAndReleasesRequestAndCallbacks() {
         val coordinator = BassPlaybackExecutionCoordinator()
         coordinator.attach(request("one"), {}, {}, {})

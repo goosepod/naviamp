@@ -128,6 +128,23 @@ class PreparedBassPlaybackPlannerTest {
     }
 
     @Test
+    fun adoptsTheAlreadyPlayingPreparedTrackWhenCacheResolutionChangesItsUrl() {
+        val preparedRequest = request("one").copy(url = "https://server/stream/one")
+        val cachedRequest = preparedRequest.copy(url = "file:///cache/one.flac")
+
+        val adopt = planPreparedBassPlaybackAdoption(
+            playbackHandle = 1,
+            preparedRequest = preparedRequest,
+            preparedHandle = 3,
+            supportsMixer = true,
+            request = cachedRequest,
+        )
+
+        assertTrue(adopt.shouldAdopt)
+        assertEquals(3, adopt.preparedHandle)
+    }
+
+    @Test
     fun buildsPreparedSuccessAndFailureStateUpdates() {
         val request = request("one")
         val adjustment = PlaybackReplayGainAdjustment.off().copy(volumeFactor = 0.5f)

@@ -35,6 +35,13 @@ class BassPlaybackExecutionCoordinator {
         return playbackId
     }
 
+    /** Invalidates the outgoing execution before cancellation can run its native cleanup. */
+    fun replaceCurrentExecution(cancelPrevious: () -> Unit): Int {
+        val replacementId = nextPlaybackId()
+        cancelPrevious()
+        return replacementId
+    }
+
     fun isCurrent(playbackId: Int): Boolean = this.playbackId == playbackId
 
     fun invalidate() {

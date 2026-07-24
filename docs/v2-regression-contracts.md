@@ -33,6 +33,8 @@ Required invariants:
 
 - Prepared-next playback selects the correct queue occurrence and reason.
 - Gapless and crossfade preparation respect engine capability and user settings.
+- Normal completion retains an already-playing prepared source until automatic queue promotion adopts it; the incoming track must not restart at 0:00.
+- Prepared-source identity survives a provider-stream-to-local-cache URL change for the same media item.
 - A track is not prepared twice for the same queue position.
 - Short tracks and near-end progress do not leave Now Playing behind the audio engine.
 - Android service-owned playback remains authoritative when the Activity is recreated.

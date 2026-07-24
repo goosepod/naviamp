@@ -300,9 +300,11 @@ open class CoreBassPlaybackEngine(
                 }
             } finally {
                 if (execution.isCurrent(currentPlaybackId)) {
-                    val reset = freeAllStreams(bass)
-                    applyStreamReset(reset.stream)
-                    onProgressChanged(PlaybackProgress.Unknown)
+                    if (!shouldRetainPreparedPlaybackAfterCurrentFinishes(preparedStream)) {
+                        val reset = freeAllStreams(bass)
+                        applyStreamReset(reset.stream)
+                        onProgressChanged(PlaybackProgress.Unknown)
+                    }
                 }
             }
         }
@@ -618,9 +620,11 @@ open class CoreBassPlaybackEngine(
             replayGainAdjustment = preparedReplayGainAdjustment ?: PlaybackReplayGainAdjustment.off(),
         ) ?: return false
         val queuedSource = update.currentSourceHandle
-        job?.cancel()
+        val previousJob = job
         job = null
-        val currentPlaybackId = execution.nextPlaybackId()
+        val currentPlaybackId = execution.replaceCurrentExecution {
+            previousJob?.cancel()
+        }
         bass.adoptPreparedBassSource(
             playbackHandle = stream,
             currentSourceHandle = currentSourceStream,
@@ -670,9 +674,11 @@ open class CoreBassPlaybackEngine(
                 }
             } finally {
                 if (execution.isCurrent(currentPlaybackId)) {
-                    val reset = freeAllStreams(bass)
-                    applyStreamReset(reset.stream)
-                    onProgressChanged(PlaybackProgress.Unknown)
+                    if (!shouldRetainPreparedPlaybackAfterCurrentFinishes(preparedStream)) {
+                        val reset = freeAllStreams(bass)
+                        applyStreamReset(reset.stream)
+                        onProgressChanged(PlaybackProgress.Unknown)
+                    }
                 }
             }
         }

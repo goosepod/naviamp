@@ -180,8 +180,20 @@ fun shouldReusePreparedPlayback(
     preparedRequest: PlaybackRequest?,
     hasPreparedStream: Boolean,
     request: PlaybackRequest,
-): Boolean =
-    hasPreparedStream && preparedRequest == request
+): Boolean {
+    if (!hasPreparedStream || preparedRequest == null) return false
+    if (request.startPositionSeconds != null) return false
+    val preparedMediaId = preparedRequest.mediaId?.takeIf { it.isNotBlank() }
+    val requestedMediaId = request.mediaId?.takeIf { it.isNotBlank() }
+    return if (preparedMediaId != null && requestedMediaId != null) {
+        preparedMediaId == requestedMediaId
+    } else {
+        preparedRequest == request
+    }
+}
+
+fun shouldRetainPreparedPlaybackAfterCurrentFinishes(preparedHandle: Int): Boolean =
+    preparedHandle != 0
 
 fun clearPreparedPlaybackMetadata(): PreparedPlaybackMetadataReset =
     PreparedPlaybackMetadataReset()
