@@ -23,6 +23,7 @@ kotlin {
             api(project(":core:domain"))
             api(project(":core:ui"))
             implementation(libs.kotlinx.coroutines.core)
+            implementation(libs.kotlinx.serialization.json)
             implementation(compose.runtime)
             implementation(compose.ui)
         }

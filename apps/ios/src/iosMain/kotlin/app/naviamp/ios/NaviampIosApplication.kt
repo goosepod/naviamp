@@ -6,12 +6,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.window.ComposeUIViewController
 import app.cash.sqldelight.db.SqlDriver
 import app.naviamp.ios.platform.IosCapabilityPresentation
-import app.naviamp.ios.platform.IosClock
 import app.naviamp.ios.platform.IosCoreExternalUriPort
-import app.naviamp.ios.settings.IosCoreSettingsStore
+import app.naviamp.ios.platform.IosHomeDateSource
+import app.naviamp.ios.settings.IosCoreSettingsValueStore
 import app.naviamp.presentation.NaviampCoreEnvironment
 import app.naviamp.presentation.NaviampCoreHost
+import app.naviamp.presentation.naviampCoreSettingsValueCatalog
 import app.naviamp.presentation.naviampCoreStoredServiceCatalog
+import app.naviamp.presentation.naviampNowEpochMillis
+import app.naviamp.presentation.naviampNowIso8601
 import app.naviamp.presentation.unavailableNaviampCoreDownloadServices
 import app.naviamp.presentation.unavailableNaviampCorePlaybackServices
 import app.naviamp.presentation.unavailableNaviampCoreSettingsSyncServices
@@ -36,11 +39,11 @@ class NaviampIosApplication(
     private val driver: SqlDriver = IosStorageDriverFactory(
         databaseLocation,
     ).createDriver()
-    private val settings = IosCoreSettingsStore()
+    private val settings = naviampCoreSettingsValueCatalog(IosCoreSettingsValueStore())
     private val repositories = StorageCoreRepositoryCatalog(
         database = NaviampStorageDatabase(driver),
         credentialProtector = credentialProtector,
-        nowEpochMillis = IosClock::nowEpochMillis,
+        nowEpochMillis = ::naviampNowEpochMillis,
         databaseLabel = "${databaseLocation.directoryPath}/${databaseLocation.fileName}",
         clearAudioCacheFiles = {},
         clearDownloadFiles = {},
@@ -51,11 +54,11 @@ class NaviampIosApplication(
         sessionOpener = navidromeProviderSessionOpener(
             cacheMaintenanceRepository = repositories.maintenance,
             providerMediaSourceRepository = repositories.mediaSources,
-            nowEpochMillis = IosClock::nowEpochMillis,
+            nowEpochMillis = ::naviampNowEpochMillis,
         ),
     )
     private val playback = unavailableNaviampCorePlaybackServices(
-        persistSettings = settings::savePlayback,
+        persistSettings = settings.savePlayback,
         sessions = repositories.playbackSessions,
     )
     private val storedCatalog = naviampCoreStoredServiceCatalog(
@@ -64,8 +67,8 @@ class NaviampIosApplication(
         playback = playback,
         downloads = unavailableNaviampCoreDownloadServices(),
         playbackEngine = app.naviamp.presentation.UnavailableNaviampPlaybackEngine,
-        settingsSyncPort = unavailableNaviampCoreSettingsSyncServices(IosClock::nowEpochMillis).port,
-        settings = settings.storedSettings(),
+        settingsSyncPort = unavailableNaviampCoreSettingsSyncServices(::naviampNowEpochMillis).port,
+        settings = settings.storedSettings,
         repositories = app.naviamp.presentation.NaviampCoreStoredRepositories(
             mediaSources = repositories.mediaSources,
             providerMediaSources = repositories.mediaSources,
@@ -76,12 +79,12 @@ class NaviampIosApplication(
             maintenance = repositories.maintenance,
         ),
         externalUri = IosCoreExternalUriPort(),
-        homeDate = IosClock.homeDate,
+        homeDate = IosHomeDateSource,
         shellCapabilities = IosCapabilityPresentation.shell,
         settingsSyncDeviceId = "ios",
         sourceId = { repositories.mediaSources.latestMediaSource()?.id },
-        clockEpochMillis = IosClock::nowEpochMillis,
-        favoritedAtIso8601 = IosClock::nowIso8601,
+        clockEpochMillis = ::naviampNowEpochMillis,
+        favoritedAtIso8601 = ::naviampNowIso8601,
     )
     private val environment = NaviampCoreEnvironment(
         services = storedCatalog.services,

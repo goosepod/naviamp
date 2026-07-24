@@ -14,7 +14,6 @@ kotlin {
             api(project(":core:storage"))
             api(project(":core:ui"))
             api(project(":providers:navidrome"))
-            implementation(libs.kotlinx.serialization.json)
         }
     }
 }
