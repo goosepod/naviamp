@@ -246,6 +246,9 @@ tasks.register<Sync>("stageLocalTestApp") {
     dependsOn("verifyDesktopDistributable")
     from(desktopPackagedAppDir)
     into(desktopLocalTestAppDir)
+    doLast {
+        refreshMacAppBundleModificationTime(desktopLocalTestAppDir.get().asFile)
+    }
 }
 
 tasks.register<Sync>("stageReleaseApp") {
@@ -254,6 +257,9 @@ tasks.register<Sync>("stageReleaseApp") {
     dependsOn("verifyDesktopDistributable")
     from(desktopPackagedAppDir)
     into(desktopReleaseAppDir)
+    doLast {
+        refreshMacAppBundleModificationTime(desktopReleaseAppDir.get().asFile)
+    }
 }
 
 fun syncDesktopNativeAppResources() {
@@ -301,6 +307,15 @@ fun patchMacAppBundleVersion() {
             .replacePlistStringValue("CFBundleShortVersionString", naviampVersionName)
             .replacePlistStringValue("CFBundleVersion", naviampVersionName),
     )
+    refreshMacAppBundleModificationTime(desktopPackagedAppDir.get().asFile)
+}
+
+fun refreshMacAppBundleModificationTime(appDirectory: File) {
+    if (appDirectory.extension == "app" && appDirectory.isDirectory) {
+        check(appDirectory.setLastModified(System.currentTimeMillis())) {
+            "Could not refresh macOS app bundle modification time: ${appDirectory.absolutePath}"
+        }
+    }
 }
 
 fun String.replacePlistStringValue(key: String, value: String): String = replace(
