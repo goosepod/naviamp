@@ -43,6 +43,7 @@ class StorageMaintenanceStore(
         return StorageCacheStats(
             databaseLabel = databaseLabel,
             databaseBytes = databaseBytes,
+            playbackSessionCount = queries.playbackSessionCount().executeAsOne(),
             imageCount = row.image_count,
             imageBytes = row.image_bytes,
             responseCount = row.response_count,

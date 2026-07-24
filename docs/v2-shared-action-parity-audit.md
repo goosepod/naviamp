@@ -101,7 +101,7 @@ These boundaries should implement narrow ports requested by common owners. They 
 - [ ] Construct one host-neutral screen-state/action graph from the shared application composition. Android and Desktop provide only platform-service and execution adapters.
 - [ ] Apply the ADR cross-platform naming convention to the remaining genuine counterparts. Shared roles use a neutral or `Naviamp` name and equivalent host implementations use aligned `Android`, `Desktop`, and `Ios` prefixes; remove superseded platform product factories instead of renaming them into false symmetry.
 - [ ] Add contract-completeness and parity tests that fail when a visible action is unimplemented, plus a host-neutral navigation test covering Home, Search, Library, album, artist, playlist, Downloads, radio, and Settings.
-- [ ] Mount the same composition from the initial iOS wrapper without iOS-specific product controllers.
+- [x] Mount the same composition from the initial iOS wrapper without iOS-specific product controllers. The simulator host renders `NaviampCoreHost` directly over shared storage/provider catalogs; its Swift and iOS Kotlin sources are limited to UIKit/SwiftUI lifecycle, Application Support, Keychain, NSUserDefaults, UIApplication, native SQLite lifetime, safe-area/IME insets, and capability facts.
 
 ## Exit Gate
 

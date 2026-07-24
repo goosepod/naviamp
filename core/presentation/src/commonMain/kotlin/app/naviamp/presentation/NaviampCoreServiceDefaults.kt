@@ -51,27 +51,7 @@ fun naviampCoreServiceDefaults(
         maintenance = NaviampCoreMaintenancePort { NaviampCoreMaintenanceResult("complete") },
         sync = settingsSync,
     ),
-    downloads = NaviampCoreDownloadServices(
-        storage = object : NaviampCoreDownloadStoragePort {
-            override suspend fun snapshot(sourceId: String) = NaviampCoreDownloadStorageSnapshot()
-            override suspend fun pruneMissing(sourceId: String) = 0
-            override suspend fun remove(sourceId: String, track: Track) = Unit
-            override suspend fun deleteAll(sourceId: String) = 0
-        },
-        transfer = NaviampCoreDownloadTransferPort { _, _, update ->
-            update(DownloadJobUpdate.Failed(null, "Downloads are not connected to this host yet."))
-            NaviampCoreDownloadTransferResult(refreshDownloads = false)
-        },
-        keepDownloaded = object : NaviampCoreKeepDownloadedPort {
-            override fun policies(sourceId: String) = emptyList<KeepDownloadedCollectionPolicy>()
-            override fun toggle(policy: KeepDownloadedCollectionPolicy) =
-                NaviampKeepDownloadedToggleResult.Enable
-            override fun reconcile(policy: KeepDownloadedCollectionPolicy, tracks: List<Track>) =
-                NaviampKeepDownloadedReconciliationApplication(emptyList(), null, null, false)
-        },
-        playback = NaviampCoreDownloadedPlaybackPort { _, _ -> },
-        network = NaviampCoreMobileNetworkPort { false },
-    ),
+    downloads = unavailableNaviampCoreDownloadServices(),
     playlists = NaviampCorePlaylistServices(
         history = NaviampCorePlaylistHistoryPort { current, _ -> current },
     ),
@@ -99,6 +79,30 @@ fun naviampCoreServiceDefaults(
     clockEpochMillis = clockEpochMillis,
     favoritedAtIso8601 = favoritedAtIso8601,
 )
+
+/** Core-owned unavailable implementation until a host supplies native download/file effects. */
+fun unavailableNaviampCoreDownloadServices(): NaviampCoreDownloadServices =
+    NaviampCoreDownloadServices(
+        storage = object : NaviampCoreDownloadStoragePort {
+            override suspend fun snapshot(sourceId: String) = NaviampCoreDownloadStorageSnapshot()
+            override suspend fun pruneMissing(sourceId: String) = 0
+            override suspend fun remove(sourceId: String, track: Track) = Unit
+            override suspend fun deleteAll(sourceId: String) = 0
+        },
+        transfer = NaviampCoreDownloadTransferPort { _, _, update ->
+            update(DownloadJobUpdate.Failed(null, "Downloads are not connected to this host yet."))
+            NaviampCoreDownloadTransferResult(refreshDownloads = false)
+        },
+        keepDownloaded = object : NaviampCoreKeepDownloadedPort {
+            override fun policies(sourceId: String) = emptyList<KeepDownloadedCollectionPolicy>()
+            override fun toggle(policy: KeepDownloadedCollectionPolicy) =
+                NaviampKeepDownloadedToggleResult.Enable
+            override fun reconcile(policy: KeepDownloadedCollectionPolicy, tracks: List<Track>) =
+                NaviampKeepDownloadedReconciliationApplication(emptyList(), null, null, false)
+        },
+        playback = NaviampCoreDownloadedPlaybackPort { _, _ -> },
+        network = NaviampCoreMobileNetworkPort { false },
+    )
 
 /** Core-owned unavailable implementation for hosts that have not connected document picking yet. */
 fun unavailableNaviampCoreSettingsSyncServices(

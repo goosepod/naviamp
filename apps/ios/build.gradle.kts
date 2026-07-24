@@ -12,13 +12,17 @@ kotlin {
         binaries.framework {
             baseName = "NaviampShared"
             isStatic = true
+            export(project(":core:storage"))
         }
     }
 
     sourceSets {
         iosMain.dependencies {
+            api(project(":core:storage"))
             implementation(project(":core:presentation"))
             implementation(project(":core:ui"))
+            implementation(project(":platforms:ios"))
+            implementation(project(":providers:navidrome"))
             implementation(compose.runtime)
             implementation(compose.ui)
             implementation(libs.compose.material3)
