@@ -21,6 +21,7 @@ import app.naviamp.desktop.platform.availableDesktopScreenBounds
 import app.naviamp.desktop.platform.configureDesktopHostAppearance
 import app.naviamp.desktop.platform.configureDesktopApplicationIcon
 import app.naviamp.desktop.platform.configureDesktopWindowAppearance
+import app.naviamp.desktop.platform.configureDesktopWindowIcon
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -60,6 +61,7 @@ fun main() {
         ) {
             val darkTitleBar = isSystemInDarkTheme()
             LaunchedEffect(window, darkTitleBar) {
+                configureDesktopWindowIcon(window)
                 configureDesktopWindowAppearance(window, darkTitleBar)
             }
             window.minimumSize = java.awt.Dimension(
