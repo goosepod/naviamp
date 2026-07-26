@@ -6,17 +6,17 @@ import app.naviamp.app.NaviampClock
 import app.naviamp.domain.home.HomeDate
 import app.naviamp.domain.playback.PlaybackEngine
 import app.naviamp.domain.waveform.AudioWaveformAnalyzer
-import app.naviamp.domain.settings.SettingsSyncRuntimeState
 import app.naviamp.presentation.NaviampCoreEnvironment
 import app.naviamp.presentation.NaviampCoreDownloadedTrack
 import app.naviamp.presentation.NaviampCoreDownloadStorageSnapshot
 import app.naviamp.presentation.NaviampCoreHomeDateSource
 import app.naviamp.presentation.NaviampCoreMobileNetworkPort
 import app.naviamp.presentation.NaviampCoreStoredRepositories
-import app.naviamp.presentation.NaviampCoreStoredSettings
+import app.naviamp.presentation.naviampCoreSettingsValueCatalog
 import app.naviamp.presentation.naviampCoreStoredServiceCatalog
 import app.naviamp.presentation.naviampCorePlaybackServiceCatalog
 import app.naviamp.presentation.repositoryNaviampCoreDownloadServices
+import app.naviamp.presentation.withStorageBackedSettings
 import app.naviamp.provider.navidrome.NavidromeProvider
 import app.naviamp.ui.NaviampStorageLocationUi
 import app.naviamp.ui.resetAndroidPlatformCoverArtByteLoader
@@ -57,8 +57,9 @@ class AndroidNaviampCoreCatalog private constructor(
         ): AndroidNaviampCoreCatalog {
             val appContext = context.applicationContext
             val clock = NaviampClock(System::currentTimeMillis)
-            val settingsStore = AndroidSettingsStore(appContext)
-            var cacheSettings = settingsStore.loadCacheSettings()
+            val platformSettings = AndroidSettingsStore(appContext)
+            val settingsCatalog = naviampCoreSettingsValueCatalog(AndroidCoreSettingsValueStore(appContext))
+            var cacheSettings = settingsCatalog.storedSettings.loadCache()
             val storage = AndroidStorageDependencies(appContext)
             cacheSettings.customDownloadDirectory?.let(::File)?.let(storage::updateDownloadDirectory)
             cacheSettings.customAudioCacheDirectory?.let(::File)?.let(storage::updateAudioCacheDirectory)
@@ -73,8 +74,8 @@ class AndroidNaviampCoreCatalog private constructor(
                 scope = scope,
                 engine = playbackEngine,
                 providerSource = sessions.providerSource,
-                initialPlaybackSettings = settingsStore.loadPlaybackSettings(),
-                persistPlaybackSettings = settingsStore::savePlaybackSettings,
+                initialPlaybackSettings = settingsCatalog.storedSettings.loadPlayback(),
+                persistPlaybackSettings = settingsCatalog.savePlayback,
                 cacheSettings = { cacheSettings },
                 isMobileData = isMobileData,
                 activeSourceId = { storage.latestNavidromeSource()?.id },
@@ -91,13 +92,13 @@ class AndroidNaviampCoreCatalog private constructor(
                 lyricsOffsetRepository = storage,
                 sidecarStatusRepository = storage,
                 playbackSessionRepository = storage,
-                saveVisualizerSettings = settingsStore::saveVisualizerSettings,
+                saveVisualizerSettings = settingsCatalog.storedSettings.saveVisualizer,
                 prepareWaveformAnalysis = prepareWaveformAnalysis,
                 waveformWorkContext = waveformWorkContext,
             )
             val syncPort = AndroidCoreSettingsSyncPort(
                 context = appContext,
-                settingsStore = settingsStore,
+                settingsStore = platformSettings,
                 directoryPicker = directoryPicker,
                 documentPicker = documentPicker,
             )
@@ -134,9 +135,10 @@ class AndroidNaviampCoreCatalog private constructor(
                 downloads = downloads,
                 playbackEngine = playbackEngine,
                 settingsSyncPort = syncPort,
-                settings = settingsStore.toCoreStoredSettings(storage) { effective ->
-                    cacheSettings = effective
-                },
+                settings = settingsCatalog.storedSettings.withStorageBackedSettings(
+                    radioDjPresetRepository = storage,
+                    onCacheSettingsSaved = { effective -> cacheSettings = effective },
+                ),
                 repositories = NaviampCoreStoredRepositories(
                     mediaSources = storage,
                     providerMediaSources = storage,
@@ -176,46 +178,6 @@ class AndroidNaviampCoreCatalog private constructor(
         }
     }
 }
-
-private fun AndroidSettingsStore.toCoreStoredSettings(
-    storage: AndroidStorageDependencies,
-    onCacheSettingsSaved: (app.naviamp.domain.settings.CacheSettings) -> Unit,
-) = NaviampCoreStoredSettings(
-    loadInterface = ::loadInterfaceSettings,
-    saveInterface = ::saveInterfaceSettings,
-    loadPlayback = {
-        loadPlaybackSettings().copy(radioDjs = storage.radioDjPresets())
-    },
-    loadCache = ::loadCacheSettings,
-    saveCache = { settings ->
-        onCacheSettingsSaved(settings)
-        saveCacheSettings(settings)
-    },
-    loadVisualizer = ::loadVisualizerSettings,
-    saveVisualizer = ::saveVisualizerSettings,
-    loadRecentRadioStreams = ::loadRecentRadioStreams,
-    saveRecentRadioStreams = ::saveRecentRadioStreams,
-    loadRecentInternetRadioStations = ::loadRecentInternetRadioStations,
-    saveRecentInternetRadioStations = ::saveRecentInternetRadioStations,
-    loadSyncRuntime = {
-        loadSettingsSync().let { persisted ->
-            SettingsSyncRuntimeState(
-                autoExportEnabled = persisted.autoExportEnabled,
-                lastLocalUpdateEpochMillis = persisted.lastLocalUpdateEpochMillis,
-                lastAppliedSyncUpdateEpochMillis = persisted.lastAppliedSyncUpdateEpochMillis,
-            )
-        }
-    },
-    saveSyncRuntime = { runtime ->
-        saveSettingsSync(
-            loadSettingsSync().copy(
-                autoExportEnabled = runtime.autoExportEnabled,
-                lastLocalUpdateEpochMillis = runtime.lastLocalUpdateEpochMillis,
-                lastAppliedSyncUpdateEpochMillis = runtime.lastAppliedSyncUpdateEpochMillis,
-            ),
-        )
-    },
-)
 
 private fun AndroidStorageLocation.toCoreUi() = NaviampStorageLocationUi(
     id = id,
