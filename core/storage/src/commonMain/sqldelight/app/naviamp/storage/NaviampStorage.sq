@@ -853,6 +853,15 @@ WHERE source_id = ?
 AND remote_track_id = ?
 AND quality_key = ?;
 
+selectAllCachedAudio:
+SELECT *
+FROM cached_audio;
+
+selectCachedAudioForSource:
+SELECT *
+FROM cached_audio
+WHERE source_id = ?;
+
 upsertCachedAudio:
 INSERT OR REPLACE INTO cached_audio(
   source_id,

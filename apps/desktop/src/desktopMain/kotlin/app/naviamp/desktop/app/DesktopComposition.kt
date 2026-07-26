@@ -103,9 +103,6 @@ internal class DesktopComposition private constructor(
                 downloadDirectory = downloadDirectory,
                 nowEpochMillis = nowEpochMillis,
                 maxAudioBytes = initialCacheSettings.maxAudioCacheBytes,
-                clearUntrackedDownloadsOnReset =
-                    downloadDirectory.toAbsolutePath().normalize() ==
-                        dataDirectory.resolve("downloads").toAbsolutePath().normalize(),
                 legacyDatabaseFilesOnReset = listOf(
                     dataDirectory.resolve("cache.db"),
                     dataDirectory.resolve("cache.db-wal"),

@@ -652,13 +652,11 @@ class AndroidStorage(
     }
 
     override fun clearCacheData() {
-        maintenance.clearCacheDataRows()
-        audioFiles.clearAudioCache()
+        maintenance.clearCacheData(audioFiles::deleteKnownAudioCacheFile)
     }
 
     override fun clearDownloadData() {
-        maintenance.clearDownloadDataRows()
-        audioFiles.clearDownloads()
+        maintenance.clearDownloadData(audioFiles::deleteKnownDownloadFile)
     }
 
     override fun clearLibraryData(sourceId: String?) {
@@ -682,6 +680,8 @@ class AndroidStorage(
             activeSourceIds = activeSourceIds,
             lastConnectedBeforeEpochMillis = lastConnectedBeforeEpochMillis,
             limit = limit,
+            deleteKnownAudioCacheFile = audioFiles::deleteKnownAudioCacheFile,
+            deleteKnownDownloadFile = audioFiles::deleteKnownDownloadFile,
         )
 
     override fun stats(): StorageCacheStats =

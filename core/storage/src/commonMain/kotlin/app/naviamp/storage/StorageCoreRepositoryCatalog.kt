@@ -18,8 +18,8 @@ class StorageCoreRepositoryCatalog(
     nowEpochMillis: () -> Long,
     databaseLabel: String,
     databaseBytes: () -> Long = { 0L },
-    clearAudioCacheFiles: () -> Unit,
-    clearDownloadFiles: () -> Unit,
+    deleteKnownAudioCacheFile: (String) -> Boolean,
+    deleteKnownDownloadFile: (String) -> Boolean,
     maxImageBytes: Long = MaximumPersistentArtworkCacheBytes,
     maxAudioBytes: Long = DefaultStorageAudioCacheBytes,
     maxAudioWaveformBytes: Long = DefaultStorageAudioWaveformCacheBytes,
@@ -52,15 +52,9 @@ class StorageCoreRepositoryCatalog(
         object : CacheMaintenanceRepository<StorageCacheStats> {
             override fun clearProviderData() = rows.clearProviderData()
 
-            override fun clearCacheData() {
-                rows.clearCacheDataRows()
-                clearAudioCacheFiles()
-            }
+            override fun clearCacheData() = rows.clearCacheData(deleteKnownAudioCacheFile)
 
-            override fun clearDownloadData() {
-                rows.clearDownloadDataRows()
-                clearDownloadFiles()
-            }
+            override fun clearDownloadData() = rows.clearDownloadData(deleteKnownDownloadFile)
 
             override fun clearAll() {
                 clearCacheData()
@@ -77,6 +71,8 @@ class StorageCoreRepositoryCatalog(
                 activeSourceIds = activeSourceIds,
                 lastConnectedBeforeEpochMillis = lastConnectedBeforeEpochMillis,
                 limit = limit,
+                deleteKnownAudioCacheFile = deleteKnownAudioCacheFile,
+                deleteKnownDownloadFile = deleteKnownDownloadFile,
             )
 
             override fun stats(): StorageCacheStats = rows.stats(

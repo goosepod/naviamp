@@ -2,32 +2,27 @@ package app.naviamp.android
 
 import app.naviamp.domain.cache.StorageCacheStats
 import app.naviamp.storage.NaviampStorageQueries
+import app.naviamp.storage.StorageMaintenanceStore
 
 class AndroidStorageMaintenanceStore(
     private val queries: NaviampStorageQueries,
 ) {
+    private val shared = StorageMaintenanceStore(queries)
+
+    fun clearCacheData(deleteKnownAudioFile: (String) -> Boolean) {
+        shared.clearCacheData(deleteKnownAudioFile)
+    }
+
+    fun clearDownloadData(deleteKnownDownloadFile: (String) -> Boolean) {
+        shared.clearDownloadData(deleteKnownDownloadFile)
+    }
+
     fun clearProviderData() {
-        queries.clearResponses()
-    }
-
-    fun clearCacheDataRows() {
-        queries.transaction {
-            queries.clearResponses()
-            queries.clearImages()
-            queries.clearAudioWaveforms()
-            queries.clearAudio()
-            queries.clearLyrics()
-            queries.clearLrclibLyrics()
-            queries.clearSidecarStatuses()
-        }
-    }
-
-    fun clearDownloadDataRows() {
-        queries.clearDownloads()
+        shared.clearProviderData()
     }
 
     fun clearAllRows() {
-        queries.clearMediaSources()
+        shared.clearAllRows()
     }
 
     fun stats(

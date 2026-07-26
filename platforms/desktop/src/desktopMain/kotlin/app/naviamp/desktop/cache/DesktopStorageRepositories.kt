@@ -61,7 +61,6 @@ class DesktopStorageRepositories private constructor(
             maxAudioBytes: Long = DefaultDesktopAudioCacheBytes,
             maxAudioWaveformBytes: Long = DefaultDesktopAudioWaveformCacheBytes,
             maxHotImageBytes: Long = DefaultDesktopHotImageCacheBytes,
-            clearUntrackedDownloadsOnReset: Boolean = false,
             legacyDatabaseFilesOnReset: List<Path> = emptyList(),
             json: Json = Json { ignoreUnknownKeys = true; encodeDefaults = true },
         ): DesktopStorageRepositories {
@@ -120,7 +119,6 @@ class DesktopStorageRepositories private constructor(
                         maxAudioBytes = maxAudioBytes,
                         maxAudioWaveformBytes = maxAudioWaveformBytes,
                         maxHotImageBytes = maxHotImageBytes,
-                        clearUntrackedDownloadsOnReset = clearUntrackedDownloadsOnReset,
                         legacyDatabaseFilesOnReset = legacyDatabaseFilesOnReset,
                     ),
                 )

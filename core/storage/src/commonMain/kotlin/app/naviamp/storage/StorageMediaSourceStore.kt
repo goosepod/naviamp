@@ -130,13 +130,33 @@ class StorageMediaSourceStore(
         activeSourceIds: Set<String>,
         lastConnectedBeforeEpochMillis: Long,
         limit: Long,
+        deleteKnownAudioCacheFile: (String) -> Boolean,
+        deleteKnownDownloadFile: (String) -> Boolean,
     ): Int {
         val candidateIds = queries.selectPrunableMediaSources(
             lastConnectedBeforeEpochMillis,
             limit,
         ).executeAsList().filterNot { it in activeSourceIds }
-        candidateIds.forEach(queries::deleteMediaSource)
-        return candidateIds.size
+        return candidateIds.count { sourceId ->
+            val cachedAudio = queries.selectCachedAudioForSource(sourceId).executeAsList()
+            val downloadedAudio = queries.selectDownloadedAudio(sourceId).executeAsList()
+            val cacheFilesDeleted = cachedAudio.all { row -> deleteKnownAudioCacheFile(row.file_path) }
+            val downloadFilesDeleted = downloadedAudio.all { row -> deleteKnownDownloadFile(row.file_path) }
+            if (cacheFilesDeleted && downloadFilesDeleted) {
+                queries.transaction {
+                    cachedAudio.forEach { row ->
+                        queries.deleteCachedAudio(row.source_id, row.remote_track_id, row.quality_key)
+                    }
+                    downloadedAudio.forEach { row ->
+                        queries.deleteDownloadedAudio(row.source_id, row.remote_track_id, row.quality_key)
+                    }
+                    queries.deleteMediaSource(sourceId)
+                }
+                true
+            } else {
+                false
+            }
+        }
     }
 
     fun markLibrarySyncStarted(sourceId: String) {
