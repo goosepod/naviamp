@@ -64,7 +64,7 @@ fun migrateLegacyNaviampSettings(
     json: Json = Json { ignoreUnknownKeys = true; encodeDefaults = true },
 ): Set<NaviampCoreSettingsMigrationSection> {
     val migrated = mutableSetOf<NaviampCoreSettingsMigrationSection>()
-    val catalog = naviampCoreSettingsValueCatalog(destination, json)
+    val catalog = naviampCoreSettingsValueCatalogWithoutMigration(destination, json)
     val settings = catalog.storedSettings
 
     migrateSection(legacy, destination, KeyInterface, LegacyInterfaceKeys) {

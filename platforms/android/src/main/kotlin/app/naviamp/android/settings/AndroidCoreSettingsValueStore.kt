@@ -5,7 +5,6 @@ import android.content.SharedPreferences
 import app.naviamp.domain.settings.ConnectionFormHeader
 import app.naviamp.presentation.NaviampCoreLegacySettingsValueStore
 import app.naviamp.presentation.NaviampCoreSettingsValueStore
-import app.naviamp.presentation.migrateLegacyNaviampSettings
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.json.Json
 
@@ -20,7 +19,6 @@ class AndroidCoreSettingsValueStore(
 
     init {
         migrateLegacyCredentials(context.applicationContext, preferences)
-        migrateLegacyNaviampSettings(legacy = this, destination = this)
     }
 
     override fun contains(key: String): Boolean = preferences.contains(key)

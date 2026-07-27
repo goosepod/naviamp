@@ -57,6 +57,7 @@ import app.naviamp.provider.navidrome.resolvedDisplayName
 import app.naviamp.provider.navidrome.toNavidromeConnection
 import app.naviamp.storage.NaviampStorageDatabase
 import app.naviamp.storage.StorageMediaSourceStore
+import app.naviamp.storage.StorageMaintenanceStore
 import app.naviamp.storage.StorageDatabaseLocation
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -136,7 +137,7 @@ class AndroidStorage(
         queries = queries,
         nowMillis = ::nowMillis,
     )
-    private val maintenance = AndroidStorageMaintenanceStore(queries)
+    private val maintenance = StorageMaintenanceStore(queries)
     private val audioWaveforms = AndroidAudioWaveformStore(
         queries = queries,
         json = json,

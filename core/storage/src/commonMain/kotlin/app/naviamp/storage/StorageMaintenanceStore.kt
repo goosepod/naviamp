@@ -44,13 +44,15 @@ class StorageMaintenanceStore(
 
     fun stats(
         databaseLabel: String,
-        databaseBytes: Long,
-        hotImageCount: Int,
-        hotImageBytes: Long,
-        maxImageBytes: Long,
-        maxAudioBytes: Long,
-        maxAudioWaveformBytes: Long,
-        maxHotImageBytes: Long,
+        databaseBytes: Long = 0L,
+        hotImageCount: Int = 0,
+        hotImageBytes: Long = 0L,
+        maxImageBytes: Long = 0L,
+        maxAudioBytes: Long = 0L,
+        maxAudioWaveformBytes: Long = 0L,
+        maxHotImageBytes: Long = 0L,
+        audioCacheDirectory: String = "",
+        downloadDirectory: String = "",
     ): StorageCacheStats {
         val row = queries.storageStats().executeAsOne()
         return StorageCacheStats(
@@ -80,6 +82,8 @@ class StorageMaintenanceStore(
             maxAudioBytes = maxAudioBytes,
             maxAudioWaveformBytes = maxAudioWaveformBytes,
             maxHotImageBytes = maxHotImageBytes,
+            audioCacheDirectory = audioCacheDirectory,
+            downloadDirectory = downloadDirectory,
         )
     }
 }

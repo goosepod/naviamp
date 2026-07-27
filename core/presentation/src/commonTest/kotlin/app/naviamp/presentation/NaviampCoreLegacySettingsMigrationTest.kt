@@ -15,6 +15,18 @@ import kotlin.test.assertTrue
 
 class NaviampCoreLegacySettingsMigrationTest {
     @Test
+    fun sharedCatalogOwnsAutomaticLegacyMigration() {
+        val values = MemoryLegacySettingsValues(
+            mutableMapOf("interface_language" to "Spanish"),
+        )
+
+        val catalog = naviampCoreSettingsValueCatalog(values)
+
+        assertEquals(InterfaceLanguage.Spanish, catalog.storedSettings.loadInterface().language)
+        assertTrue("naviamp.interface" in values.entries)
+    }
+
+    @Test
     fun migratesLegacyFieldsIntoCoreOwnedDocuments() {
         val values = MemoryLegacySettingsValues(
             mutableMapOf(

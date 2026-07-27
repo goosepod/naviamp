@@ -27,6 +27,17 @@ fun naviampCoreSettingsValueCatalog(
     values: NaviampCoreSettingsValueStore,
     json: Json = Json { ignoreUnknownKeys = true; encodeDefaults = true },
 ): NaviampCoreSettingsValueCatalog {
+    (values as? NaviampCoreLegacySettingsValueStore)?.let { legacy ->
+        migrateLegacyNaviampSettings(legacy = legacy, destination = values, json = json)
+    }
+    return naviampCoreSettingsValueCatalogWithoutMigration(values, json)
+}
+
+/** Internal construction seam used by migration to avoid recursively re-entering migration. */
+internal fun naviampCoreSettingsValueCatalogWithoutMigration(
+    values: NaviampCoreSettingsValueStore,
+    json: Json,
+): NaviampCoreSettingsValueCatalog {
     return NaviampCoreSettingsValueCatalog(
         savePlayback = { write(values, json, KeyPlayback, it.normalized()) },
         storedSettings = NaviampCoreStoredSettings(
