@@ -395,7 +395,11 @@ class IosBassAudioBackend : BassAudioBackend {
         val read = buffer.usePinned { pinned ->
             BASS_ChannelGetData(stream.uint, pinned.addressOf(0), (buffer.size * Float.SIZE_BYTES).toUInt())
         }
-        return if (read != UInt.MAX_VALUE) Result.success(read.toInt()) else failure("BASS_ChannelGetData failed")
+        return if (read != UInt.MAX_VALUE) {
+            Result.success(read.toInt() / Float.SIZE_BYTES)
+        } else {
+            failure("BASS_ChannelGetData failed")
+        }
     }
 
     override fun fft(stream: BassStreamHandle, bins: Int): Result<FloatArray> {

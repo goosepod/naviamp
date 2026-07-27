@@ -196,6 +196,7 @@ class AudioWaveformService(
                 cacheKey = track.id.value,
                 streamUrl = streamUrl,
                 bucketCount = bucketCount,
+                expectedDurationSeconds = track.durationSeconds?.toDouble(),
             ),
         )
         val storedWaveform = if (waveform != null && sourceId != null) {

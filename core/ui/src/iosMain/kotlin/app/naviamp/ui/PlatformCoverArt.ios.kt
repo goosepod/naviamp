@@ -24,6 +24,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import org.jetbrains.skia.Bitmap as SkiaBitmap
 import org.jetbrains.skia.Image as SkiaImage
 import kotlin.math.min
 
@@ -102,35 +103,91 @@ actual fun PlatformExpandedMediaImage(
 actual fun rememberPlatformCoverArtGradientColors(
     url: String?,
     colors: NaviampColors,
-): List<Color> = remember(colors) {
-    NaviampPlayerColors.fallback(colors).gradientColors
-}
+): List<Color> = rememberPlatformCoverArtPlayerColors(url, colors).gradientColors
 
 @Composable
 actual fun rememberPlatformCoverArtPlayerColors(
     url: String?,
     colors: NaviampColors,
-): NaviampPlayerColors = remember(colors) {
-    NaviampPlayerColors.fallback(colors)
+): NaviampPlayerColors {
+    var playerColors by remember(url, colors) {
+        mutableStateOf(
+            url?.let { IosCoverArtCache.cachedPlayerColors(it, colors) }
+                ?: NaviampPlayerColors.fallback(colors),
+        )
+    }
+    LaunchedEffect(url, colors) {
+        if (url == null) return@LaunchedEffect
+        IosCoverArtCache.playerColors(url, colors)?.let { loadedColors ->
+            playerColors = loadedColors
+        }
+    }
+    return playerColors
 }
 
 private object IosCoverArtCache {
     private const val MaxImages = 96
     private val images = mutableMapOf<String, ImageBitmap>()
+    private val palettes = mutableMapOf<String, List<NaviampRgbSample>>()
 
     fun cached(url: String): ImageBitmap? = images[url]
+
+    fun cachedPlayerColors(url: String, colors: NaviampColors): NaviampPlayerColors? =
+        palettes[url]
+            ?.let(::naviampAlbumPalette)
+            ?.let { NaviampPlayerColors.from(it, colors) }
 
     suspend fun image(url: String): ImageBitmap? = cached(url) ?: runCatching {
         withContext(Dispatchers.Default) {
             val bytes = iosPlatformCoverArtByteLoader?.invoke(url)
             bytes?.takeIf { it.isNotEmpty() }
-                ?.let(SkiaImage::makeFromEncoded)
-                ?.toComposeImageBitmap()
+                ?.let { encoded ->
+                    val decoded = SkiaImage.makeFromEncoded(encoded)
+                    palettes[url] = decoded.rgbSamples()
+                    decoded.toComposeImageBitmap()
+                }
         }
     }.getOrNull()?.also { decoded ->
         if (images.size >= MaxImages) images.keys.firstOrNull()?.let(images::remove)
         images[url] = decoded
     }
 
-    fun clear() = images.clear()
+    suspend fun playerColors(url: String, colors: NaviampColors): NaviampPlayerColors? {
+        cachedPlayerColors(url, colors)?.let { return it }
+        image(url) ?: return null
+        return cachedPlayerColors(url, colors)
+    }
+
+    fun clear() {
+        images.clear()
+        palettes.clear()
+    }
+}
+
+private fun SkiaImage.rgbSamples(): List<NaviampRgbSample> {
+    val bitmap = SkiaBitmap.makeFromImage(this)
+    return try {
+        val samples = mutableListOf<NaviampRgbSample>()
+        val stepX = (width / 32).coerceAtLeast(1)
+        val stepY = (height / 32).coerceAtLeast(1)
+        var y = 0
+        while (y < height) {
+            var x = 0
+            while (x < width) {
+                val pixel = bitmap.getColor(x, y)
+                if ((pixel ushr 24) and 0xFF > 200) {
+                    samples += NaviampRgbSample(
+                        red = (pixel shr 16) and 0xFF,
+                        green = (pixel shr 8) and 0xFF,
+                        blue = pixel and 0xFF,
+                    )
+                }
+                x += stepX
+            }
+            y += stepY
+        }
+        samples
+    } finally {
+        bitmap.close()
+    }
 }

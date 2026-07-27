@@ -9,6 +9,7 @@ import app.naviamp.ios.platform.IosCapabilityPresentation
 import app.naviamp.ios.platform.IosCoreExternalUriPort
 import app.naviamp.ios.platform.IosHomeDateSource
 import app.naviamp.ios.playback.IosNativePlaybackIntegration
+import app.naviamp.ios.playback.IosBassAudioBackend
 import app.naviamp.ios.playback.createIosBassPlaybackEngine
 import app.naviamp.ios.settings.IosCoreSettingsValueStore
 import app.naviamp.presentation.NaviampCoreApp
@@ -16,12 +17,21 @@ import app.naviamp.presentation.NaviampCoreEnvironment
 import app.naviamp.presentation.createNaviampCore
 import app.naviamp.presentation.externalPlaybackBridge
 import app.naviamp.presentation.naviampCoreSettingsValueCatalog
-import app.naviamp.presentation.naviampCoreStreamingPlaybackServices
+import app.naviamp.presentation.naviampCorePlaybackServiceCatalog
 import app.naviamp.presentation.naviampCoreStoredServiceCatalog
 import app.naviamp.presentation.naviampNowEpochMillis
 import app.naviamp.presentation.naviampNowIso8601
 import app.naviamp.presentation.unavailableNaviampCoreDownloadServices
 import app.naviamp.presentation.unavailableNaviampCoreSettingsSyncServices
+import app.naviamp.presentation.withStorageBackedSettings
+import app.naviamp.domain.audio.AudioTagReader
+import app.naviamp.domain.cache.CachedLyricsSidecarRepository
+import app.naviamp.domain.cache.LyricsSidecarCacheService
+import app.naviamp.domain.cache.SidecarStatusService
+import app.naviamp.domain.lyrics.LrclibLyricsProvider
+import app.naviamp.domain.network.KtorSharedHttpClient
+import app.naviamp.domain.playback.emptyPlaybackAudioAssetRepository
+import app.naviamp.domain.waveform.BassAudioWaveformAnalyzer
 import app.naviamp.provider.navidrome.NavidromeCoreProviderSessionPort
 import app.naviamp.provider.navidrome.navidromeProviderSessionOpener
 import app.naviamp.storage.IosStorageDriverFactory
@@ -73,17 +83,38 @@ class NaviampIosApplication(
         setIosPlatformCoverArtByteLoader(::loadProviderArtwork)
     }
     private val playbackEngine = createIosBassPlaybackEngine()
-    private val playback = naviampCoreStreamingPlaybackServices(
+    private var cacheSettings = settings.storedSettings.loadCache()
+    private val verifyProviderNetworkCertificates = {
+        repositories.mediaSources.latestMediaSource()?.tlsSettings?.insecureSkipTlsVerification != true
+    }
+    private val waveformBass = IosBassAudioBackend()
+    private val playback = naviampCorePlaybackServiceCatalog(
         scope = scope,
         engine = playbackEngine,
         providerSource = sessions.providerSource,
         initialPlaybackSettings = settings.storedSettings.loadPlayback(),
         persistPlaybackSettings = settings.savePlayback,
+        cacheSettings = { cacheSettings },
+        activeSourceId = { repositories.mediaSources.latestMediaSource()?.id },
+        audioAssets = emptyPlaybackAudioAssetRepository(),
+        cacheAudio = { _, _, _, _ -> null },
+        waveformRepository = repositories.audioWaveforms,
+        waveformAnalyzer = BassAudioWaveformAnalyzer(
+            bass = waveformBass,
+            verifyNetworkCertificates = verifyProviderNetworkCertificates,
+        ),
+        audioTagReader = AudioTagReader { emptyList() },
+        lyricsRepository = CachedLyricsSidecarRepository(
+            cache = LyricsSidecarCacheService(repositories.lyricsSidecars, ::naviampNowEpochMillis),
+            onlineProvider = LrclibLyricsProvider(KtorSharedHttpClient()),
+        ),
+        lyricsOffsetRepository = repositories.lyricsOffsets,
+        sidecarStatusRepository = SidecarStatusService(repositories.sidecarStatuses, ::naviampNowEpochMillis),
         playbackSessionRepository = repositories.playbackSessions,
         saveVisualizerSettings = settings.storedSettings.saveVisualizer,
-        verifyProviderNetworkCertificates = {
-            repositories.mediaSources.latestMediaSource()?.tlsSettings?.insecureSkipTlsVerification != true
-        },
+        verifyProviderNetworkCertificates = verifyProviderNetworkCertificates,
+        prepareWaveformAnalysis = { waveformBass.init().getOrThrow() },
+        waveformWorkContext = Dispatchers.Default,
     )
     private val storedCatalog = naviampCoreStoredServiceCatalog(
         providerSessions = sessions,
@@ -92,7 +123,10 @@ class NaviampIosApplication(
         downloads = unavailableNaviampCoreDownloadServices(),
         playbackEngine = playbackEngine,
         settingsSyncPort = unavailableNaviampCoreSettingsSyncServices(::naviampNowEpochMillis).port,
-        settings = settings.storedSettings,
+        settings = settings.storedSettings.withStorageBackedSettings(
+            radioDjPresetRepository = repositories.radioDjPresets,
+            onCacheSettingsSaved = { effective -> cacheSettings = effective },
+        ),
         repositories = app.naviamp.presentation.NaviampCoreStoredRepositories(
             mediaSources = repositories.mediaSources,
             providerMediaSources = repositories.mediaSources,

@@ -33,7 +33,7 @@ class AndroidNaviampApplicationRuntime private constructor(context: Context) {
         context = appContext,
         scope = scope,
         playbackEngine = engine,
-        waveformAnalyzer = AndroidAudioWaveformAnalyzer(appContext, bass),
+        waveformAnalyzer = AndroidAudioWaveformAnalyzer(bass),
         directoryPicker = AndroidCoreUriPickerRegistry.pickers.directory,
         documentPicker = AndroidCoreUriPickerRegistry.pickers.document,
         isMobileData = ::isMobileData,

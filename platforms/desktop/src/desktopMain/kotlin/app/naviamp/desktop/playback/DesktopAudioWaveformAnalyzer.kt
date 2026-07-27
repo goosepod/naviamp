@@ -4,55 +4,27 @@ import app.naviamp.desktop.playback.bass.loadDesktopBassAudioBackend
 import app.naviamp.domain.bass.BassAudioBackend
 import app.naviamp.domain.waveform.AudioWaveformAnalysisSource
 import app.naviamp.domain.waveform.AudioWaveform
+import app.naviamp.domain.waveform.BassAudioWaveformAnalyzer
 import app.naviamp.domain.waveform.AudioWaveformAnalyzer as DomainAudioWaveformAnalyzer
-import app.naviamp.domain.waveform.analyzeBassFloatPcmWaveform
-import app.naviamp.domain.settings.DefaultWaveformBucketCount
 import java.net.URI
-import java.nio.file.Path
-import kotlin.io.path.exists
 
+/** Desktop native-library loading and file-URI translation for Core's shared BASS analyzer. */
 class DesktopAudioWaveformAnalyzer(
     private val backendResult: Result<BassAudioBackend> = loadDesktopBassAudioBackend(),
-    private val bucketCount: Int = DefaultWaveformBucketCount,
 ) : DomainAudioWaveformAnalyzer {
+    private val delegate = backendResult.getOrNull()?.let { bass ->
+        BassAudioWaveformAnalyzer(
+            bass = bass,
+            localFilePath = ::localPathFromUrl,
+        )
+    }
+
     override suspend fun analyze(source: AudioWaveformAnalysisSource): AudioWaveform? =
-        analyze(source.streamUrl, source.bucketCount)
-
-    suspend fun analyze(audioPath: Path, bucketCount: Int = this.bucketCount): AudioWaveform? {
-        if (!audioPath.exists()) return null
-        val bass = backendResult.getOrNull() ?: return null
-        val stream = bass.createFileDecodeStream(audioPath.toString()).getOrNull() ?: return null
-        return try {
-            analyzeBassFloatPcmWaveform(
-                bass = bass,
-                stream = stream,
-                bucketCount = bucketCount,
-            )
-        } finally {
-            bass.freeStream(stream)
-        }
-    }
-
-    private suspend fun analyze(streamUrl: String, bucketCount: Int): AudioWaveform? {
-        val localPath = localPathFromUrl(streamUrl)
-        if (localPath != null) return analyze(localPath, bucketCount)
-        val bass = backendResult.getOrNull() ?: return null
-        bass.configureInternetStreams().getOrElse { return null }
-        val stream = bass.createUrlDecodeStream(streamUrl).getOrNull() ?: return null
-        return try {
-            analyzeBassFloatPcmWaveform(
-                bass = bass,
-                stream = stream,
-                bucketCount = bucketCount,
-            )
-        } finally {
-            bass.freeStream(stream)
-        }
-    }
+        delegate?.analyze(source)
 }
 
-private fun localPathFromUrl(url: String): Path? =
+private fun localPathFromUrl(url: String): String? =
     runCatching {
         val uri = URI(url)
-        if (uri.scheme == "file") Path.of(uri) else null
+        if (uri.scheme == "file") java.nio.file.Path.of(uri).toString() else null
     }.getOrNull()
