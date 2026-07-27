@@ -176,7 +176,7 @@ fun TrackRow(
             }
         }
         if (showCoverArt) {
-            PlatformCoverArt(track.coverArtUrl, colors, coverArtSize, coverArtCornerRadius)
+            NaviampCoverArt(track.coverArtUrl, colors, coverArtSize, coverArtCornerRadius)
         }
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(titleSubtitleSpacing)) {
             Text(track.title, color = colors.primaryText, style = titleStyle, maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -537,7 +537,7 @@ internal fun MixCard(
             .clip(RoundedCornerShape(6.dp))
             .clickable(onClick = onClick),
     ) {
-        PlatformCoverArt(album.coverArtUrl, colors, 154.dp, 6.dp)
+        NaviampCoverArt(album.coverArtUrl, colors, 154.dp, 6.dp)
         Column(
             verticalArrangement = Arrangement.Bottom,
             modifier = Modifier
@@ -775,7 +775,7 @@ fun SharedAlbumGridTile(
                 .clip(RoundedCornerShape(8.dp))
                 .clickable(onClick = onClick),
         ) {
-            PlatformCoverArt(item.coverArtUrl, colors, 144.dp, 8.dp)
+            NaviampCoverArt(item.coverArtUrl, colors, 144.dp, 8.dp)
             if (item.favoriteActive) {
                 Icon(
                     imageVector = NaviampTransportIcons.Heart,
@@ -1602,7 +1602,7 @@ private fun ArtistMixSelectedArtist(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(6.dp),
     ) {
-        PlatformCoverArt(artist.coverArtUrl, colors, 30.dp, 15.dp)
+        NaviampCoverArt(artist.coverArtUrl, colors, 30.dp, 15.dp)
         Text(artist.title, color = colors.primaryText, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
 }
@@ -1674,7 +1674,7 @@ private fun AlbumMixSelectedAlbum(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(6.dp),
     ) {
-        PlatformCoverArt(album.coverArtUrl, colors, 30.dp, 4.dp)
+        NaviampCoverArt(album.coverArtUrl, colors, 30.dp, 4.dp)
         Text(album.title, color = colors.primaryText, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
 }
@@ -1696,7 +1696,7 @@ private fun AlbumMixAlbumTile(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(3.dp),
     ) {
-        PlatformCoverArt(album.coverArtUrl, colors, 72.dp, 6.dp)
+        NaviampCoverArt(album.coverArtUrl, colors, 72.dp, 6.dp)
         Text(
             album.title,
             color = colors.primaryText,
@@ -1734,7 +1734,7 @@ private fun ArtistMixArtistTile(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(7.dp),
     ) {
-        PlatformCoverArt(artist.coverArtUrl, colors, 64.dp, 32.dp)
+        NaviampCoverArt(artist.coverArtUrl, colors, 64.dp, 32.dp)
         Text(
             artist.title,
             color = colors.primaryText,

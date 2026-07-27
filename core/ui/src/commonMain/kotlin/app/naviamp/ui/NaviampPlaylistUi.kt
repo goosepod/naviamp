@@ -944,18 +944,18 @@ fun MultiCoverArt(colors: NaviampColors, covers: List<String>, size: Dp, cornerR
             .clip(RoundedCornerShape(cornerRadius)),
     ) {
         when (visibleCovers.size) {
-            0 -> PlatformCoverArt(null, colors, size, cornerRadius)
-            1 -> PlatformCoverArt(visibleCovers[0], colors, size, cornerRadius)
+            0 -> NaviampCoverArt(null, colors, size, cornerRadius)
+            1 -> NaviampCoverArt(visibleCovers[0], colors, size, cornerRadius)
             else -> {
                 val cell = size / 2
                 Column {
                     Row {
-                        PlatformCoverArt(visibleCovers[0], colors, cell, 0.dp)
-                        PlatformCoverArt(visibleCovers[1], colors, cell, 0.dp)
+                        NaviampCoverArt(visibleCovers[0], colors, cell, 0.dp)
+                        NaviampCoverArt(visibleCovers[1], colors, cell, 0.dp)
                     }
                     Row {
-                        PlatformCoverArt(visibleCovers.getOrElse(2) { visibleCovers[0] }, colors, cell, 0.dp)
-                        PlatformCoverArt(
+                        NaviampCoverArt(visibleCovers.getOrElse(2) { visibleCovers[0] }, colors, cell, 0.dp)
+                        NaviampCoverArt(
                             visibleCovers.getOrElse(3) { visibleCovers.getOrElse(2) { visibleCovers[1] } },
                             colors,
                             cell,

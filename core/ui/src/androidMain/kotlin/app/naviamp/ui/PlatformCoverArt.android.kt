@@ -10,30 +10,7 @@ import android.graphics.Paint
 import android.graphics.Rect
 import android.graphics.RectF
 import android.graphics.Shader
-import androidx.compose.animation.Crossfade
-import androidx.compose.animation.core.tween
-import androidx.compose.foundation.Image
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
-import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.unit.Dp
-import androidx.compose.ui.unit.dp
 import app.naviamp.domain.network.KtorSharedHttpClient
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
@@ -42,8 +19,6 @@ import java.io.File
 import java.io.ByteArrayOutputStream
 import java.security.MessageDigest
 import java.util.LinkedHashMap
-import kotlin.math.ceil
-import kotlin.math.min
 
 @Volatile
 private var androidPlatformCoverArtByteLoader: (suspend (String) -> ByteArray?)? = null
@@ -54,6 +29,7 @@ fun setAndroidPlatformCoverArtByteLoader(loader: suspend (String) -> ByteArray?)
 
 fun resetAndroidPlatformCoverArtByteLoader() {
     androidPlatformCoverArtByteLoader = null
+    resetNaviampCoverArtCache()
 }
 
 internal suspend fun androidPlatformCoverArtBytes(url: String): ByteArray? =
@@ -65,137 +41,17 @@ suspend fun androidPlatformCoverArtFile(context: Context, url: String): File? =
 
 private val AndroidCoverArtHttpClient = KtorSharedHttpClient()
 
-@Composable
-actual fun PlatformCoverArt(
-    url: String?,
-    colors: NaviampColors,
-    size: Dp,
-    cornerRadius: Dp,
-) {
-    val context = LocalContext.current
-    val targetImageSizePx = with(LocalDensity.current) {
-        ceil(size.toPx()).toInt().coerceIn(MinCoverArtBitmapSidePx, MaxCoverArtBitmapSidePx)
-    }
-    var image by remember { mutableStateOf<ImageBitmap?>(null) }
-    val shape = RoundedCornerShape(cornerRadius)
+internal actual suspend fun platformCoverArtBytes(url: String): ByteArray? =
+    androidPlatformCoverArtBytes(url)
 
-    LaunchedEffect(url, targetImageSizePx) {
-        if (url == null) {
-            image = null
-            return@LaunchedEffect
-        }
-        image = runCatching {
-            withContext(Dispatchers.IO) {
-                AndroidCoverArtCache.imageBytes(context, url)
-                    ?.let { decodeSampledBitmap(it, targetImageSizePx)?.asImageBitmap() }
-            }
-        }.getOrNull()
-    }
-
-    Box(
-        contentAlignment = androidx.compose.ui.Alignment.Center,
-        modifier = Modifier.size(size),
-    ) {
-        Box(
-            modifier = Modifier
-                .size(size)
-                .clip(shape)
-                .background(colors.albumArtPlaceholder),
-        ) {
-            Crossfade(
-                targetState = image,
-                animationSpec = tween(durationMillis = 180),
-                label = "Cover art fade",
-            ) { targetImage ->
-                targetImage?.let {
-                    Image(
-                        bitmap = it,
-                        contentDescription = "Album art",
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier.fillMaxSize(),
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
-actual fun PlatformExpandedMediaImage(
-    url: String?,
-    colors: NaviampColors,
-    maxWidth: Dp,
-    maxHeight: Dp,
-) {
-    val context = LocalContext.current
-    val targetImageSizePx = with(LocalDensity.current) {
-        ceil(maxOf(maxWidth.toPx(), maxHeight.toPx())).toInt()
-            .coerceIn(MinCoverArtBitmapSidePx, MaxCoverArtBitmapSidePx)
-    }
-    var image by remember(url) { mutableStateOf<ImageBitmap?>(null) }
-
-    LaunchedEffect(url, targetImageSizePx) {
-        image = url?.let {
-            runCatching {
-                withContext(Dispatchers.IO) {
-                    AndroidCoverArtCache.imageBytes(context, it)
-                        ?.let { bytes -> decodeSampledBitmap(bytes, targetImageSizePx)?.asImageBitmap() }
-                }
-            }.getOrNull()
-        }
-    }
-
-    val imageWidth = image?.width?.takeIf { it > 0 } ?: 1
-    val imageHeight = image?.height?.takeIf { it > 0 } ?: 1
-    val scale = min(maxWidth.value / imageWidth, maxHeight.value / imageHeight)
-    val width = (imageWidth * scale).dp
-    val height = (imageHeight * scale).dp
-    Box(
-        modifier = Modifier
-            .size(width, height)
-            .background(colors.albumArtPlaceholder),
-    ) {
-        image?.let {
-            Image(
-                bitmap = it,
-                contentDescription = "Enlarged image",
-                contentScale = ContentScale.Fit,
-                modifier = Modifier.fillMaxSize(),
-            )
-        }
-    }
-}
-
-@Composable
-actual fun rememberPlatformCoverArtGradientColors(
-    url: String?,
-    colors: NaviampColors,
-): List<Color> =
-    rememberPlatformCoverArtPlayerColors(url, colors).gradientColors
-
-@Composable
-actual fun rememberPlatformCoverArtPlayerColors(
-    url: String?,
-    colors: NaviampColors,
-): NaviampPlayerColors {
-    val context = LocalContext.current
-    var playerColors by remember(colors) {
-        mutableStateOf(NaviampPlayerColors.fallback(colors))
-    }
-
-    LaunchedEffect(url, colors) {
-        if (url == null) return@LaunchedEffect
-        runCatching {
-            withContext(Dispatchers.IO) {
-                AndroidCoverArtCache.imageBytes(context, url)
-                    ?.let { decodeSampledBitmap(it, PaletteBitmapSidePx) }
-                    ?.albumPalette()
-                    ?.let { NaviampPlayerColors.from(it, colors) }
-            }
-        }.getOrNull()?.let { loadedColors -> playerColors = loadedColors }
-    }
-
-    return playerColors
+internal actual fun decodePlatformCoverArt(
+    bytes: ByteArray,
+    targetSidePx: Int,
+): NaviampDecodedCoverArt? = decodeSampledBitmap(bytes, targetSidePx)?.let { bitmap ->
+    NaviampDecodedCoverArt(
+        image = bitmap.asImageBitmap(),
+        rgbSamples = bitmap.rgbSamples(),
+    )
 }
 
 private object AndroidCoverArtCache {
@@ -261,9 +117,6 @@ private object AndroidCoverArtCache {
     }
 }
 
-private const val MinCoverArtBitmapSidePx = 128
-private const val MaxCoverArtBitmapSidePx = 1024
-private const val PaletteBitmapSidePx = 128
 private const val RadioTileSidePx = 512
 private const val RadioTileScheme = "naviamp-radio-tile://"
 
@@ -358,7 +211,7 @@ private fun String.sha256(): String =
         .digest(toByteArray(Charsets.UTF_8))
         .joinToString("") { "%02x".format(it) }
 
-private fun android.graphics.Bitmap.albumPalette(): NaviampAlbumPalette? {
+private fun android.graphics.Bitmap.rgbSamples(): List<NaviampRgbSample> {
     val samples = mutableListOf<NaviampRgbSample>()
     val stepX = (width / 32).coerceAtLeast(1)
     val stepY = (height / 32).coerceAtLeast(1)
@@ -379,5 +232,5 @@ private fun android.graphics.Bitmap.albumPalette(): NaviampAlbumPalette? {
         }
         y += stepY
     }
-    return naviampAlbumPalette(samples)
+    return samples
 }

@@ -61,34 +61,6 @@ import app.naviamp.domain.settings.DefaultSingleColorHex
 import app.naviamp.domain.settings.toggleSelectedMusicFolderId
 
 @Composable
-expect fun PlatformCoverArt(
-    url: String?,
-    colors: NaviampColors,
-    size: Dp,
-    cornerRadius: Dp,
-)
-
-@Composable
-expect fun PlatformExpandedMediaImage(
-    url: String?,
-    colors: NaviampColors,
-    maxWidth: Dp,
-    maxHeight: Dp,
-)
-
-@Composable
-expect fun rememberPlatformCoverArtGradientColors(
-    url: String?,
-    colors: NaviampColors,
-): List<Color>
-
-@Composable
-expect fun rememberPlatformCoverArtPlayerColors(
-    url: String?,
-    colors: NaviampColors,
-): NaviampPlayerColors
-
-@Composable
 expect fun NaviampTooltip(
     text: String,
     colors: NaviampColors,
@@ -213,7 +185,7 @@ fun NaviampSharedAppShell(
                 selectedRoute == SharedRoute.Radio ||
                 selectedRoute == SharedRoute.Downloads
             )
-    val albumPlayerColors = rememberPlatformCoverArtPlayerColors(nowPlaying?.coverArtUrl, colors)
+    val albumPlayerColors = rememberNaviampCoverArtPlayerColors(nowPlaying?.coverArtUrl, colors)
     val singleBackgroundColor = naviampColorFromHex(interfaceSettings.singleColorHex)
         ?: naviampColorFromHex(DefaultSingleColorHex)!!
     val targetNowPlayingPlayerColors = when (interfaceSettings.appBackgroundStyle) {
@@ -783,7 +755,7 @@ private fun ConnectedContent(
     val cacheSettings = cache.settings
     var saveSonicPathDialogOpen by remember { mutableStateOf(false) }
     var saveSonicMixDialogOpen by remember { mutableStateOf(false) }
-    val albumPlayerColors = rememberPlatformCoverArtPlayerColors(nowPlaying?.coverArtUrl, colors)
+    val albumPlayerColors = rememberNaviampCoverArtPlayerColors(nowPlaying?.coverArtUrl, colors)
     val singleBackgroundColor = naviampColorFromHex(interfaceSettings.singleColorHex)
         ?: naviampColorFromHex(DefaultSingleColorHex)!!
     val targetNowPlayingPlayerColors = when (interfaceSettings.appBackgroundStyle) {
@@ -1215,7 +1187,7 @@ private fun AlbumDetailContent(
                     onClick = { albumImageOpen = true },
                 ),
             ) {
-                PlatformCoverArt(detail.album.coverArtUrl, colors, 96.dp, 4.dp)
+                NaviampCoverArt(detail.album.coverArtUrl, colors, 96.dp, 4.dp)
             }
             Column(verticalArrangement = Arrangement.spacedBy(2.dp), modifier = Modifier.weight(1f)) {
                 Text(
@@ -1594,7 +1566,7 @@ private fun ArtistDetailContent(
                     onClick = { artistImageOpen = true },
                 ),
             ) {
-                PlatformCoverArt(detail.artist.coverArtUrl, colors, 96.dp, 48.dp)
+                NaviampCoverArt(detail.artist.coverArtUrl, colors, 96.dp, 48.dp)
             }
             Column(
                 verticalArrangement = Arrangement.spacedBy(3.dp),
@@ -1872,7 +1844,7 @@ fun ExpandedMediaImageDialog(
                 .clickable(onClick = onDismissRequest)
                 .padding(4.dp),
         ) {
-            PlatformExpandedMediaImage(
+            NaviampExpandedMediaImage(
                 url = imageUrl,
                 colors = colors,
                 maxWidth = 320.dp,
@@ -1907,7 +1879,7 @@ private fun SimilarArtistRow(
             }
             .padding(horizontal = 8.dp, vertical = 6.dp),
     ) {
-        PlatformCoverArt(artist.imageUrl, colors, 42.dp, 21.dp)
+        NaviampCoverArt(artist.imageUrl, colors, 42.dp, 21.dp)
         Column(
             verticalArrangement = Arrangement.spacedBy(1.dp),
             modifier = Modifier.weight(1f),
@@ -2088,7 +2060,7 @@ fun NaviampMiniNowPlaying(
                 .weight(1f)
                 .clickable(onClick = onOpen),
         ) {
-            PlatformCoverArt(nowPlaying.coverArtUrl, colors, 40.dp, 5.dp)
+            NaviampCoverArt(nowPlaying.coverArtUrl, colors, 40.dp, 5.dp)
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(1.dp)) {
                 Text(
                     nowPlaying.subtitle.ifBlank { "Nothing Playing" },

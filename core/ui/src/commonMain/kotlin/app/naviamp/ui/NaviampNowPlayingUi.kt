@@ -554,7 +554,7 @@ private fun NowPlayingArtSurface(
                     .shadow(7.dp, shape, clip = false),
             ) {
                 Box(modifier = toggleModifier) {
-                    PlatformCoverArt(coverArtUrl, colors, size, cornerRadius)
+                    NaviampCoverArt(coverArtUrl, colors, size, cornerRadius)
                 }
             }
         }
@@ -2361,7 +2361,7 @@ private fun NowPlayingItemList(
                         .clickable { onClick(item) }
                         .padding(horizontal = 6.dp, vertical = rowVerticalPadding),
                 ) {
-                    PlatformCoverArt(item.coverArtUrl, colors, artworkSize, 4.dp)
+                    NaviampCoverArt(item.coverArtUrl, colors, artworkSize, 4.dp)
                     Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                         Text(item.title, color = colors.primaryText, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
                         Text(item.subtitle, color = colors.secondaryText, fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
