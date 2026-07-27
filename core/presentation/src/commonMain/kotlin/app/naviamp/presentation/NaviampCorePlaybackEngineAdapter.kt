@@ -107,6 +107,7 @@ class NaviampCorePlaybackEngineAdapter(
     private var prefetchGeneration = 0L
     private var generation = 0L
     private var preparedForGeneration = -1L
+    private var observedTransitionSettings: PlaybackTransitionSettings? = null
     private var playbackState: PlaybackState = PlaybackState.Stopped
     private var restoredStartPositionSeconds: Double? = null
     private var visualizerFramesEnabled = false
@@ -317,6 +318,7 @@ class NaviampCorePlaybackEngineAdapter(
                 ?.setNetworkCertificateVerification(
                     enabled = externalStreamUrl != null || verifyProviderNetworkCertificates(),
                 )
+            observedTransitionSettings = playbackSettings.transitionSettings()
             engine.play(
                 scope = scope,
                 request = request,
@@ -328,6 +330,8 @@ class NaviampCorePlaybackEngineAdapter(
                 },
                 onProgressChanged = { progress ->
                     if (requestGeneration == generation) {
+                        val currentPlaybackSettings = settings().effectiveForEngine(engine)
+                        invalidatePreparedNextWhenTransitionSettingsChange(currentPlaybackSettings)
                         observer?.onProgressChanged(progress)
                         if (visualizerFramesEnabled) {
                             observer?.onVisualizerFrameChanged(
@@ -337,10 +341,10 @@ class NaviampCorePlaybackEngineAdapter(
                         if (
                             provider != null &&
                             preparedForGeneration != requestGeneration &&
-                            shouldPrepareNext(progress, playbackSettings)
+                            shouldPrepareNext(progress, currentPlaybackSettings)
                         ) {
                             preparedForGeneration = requestGeneration
-                            scope.launch { prepareNext(provider, playbackSettings, requestGeneration) }
+                            scope.launch { prepareNext(provider, currentPlaybackSettings, requestGeneration) }
                         }
                     }
                 },
@@ -411,6 +415,15 @@ class NaviampCorePlaybackEngineAdapter(
         ).shouldPrepare
     }
 
+    private fun invalidatePreparedNextWhenTransitionSettingsChange(settings: PlaybackSettings) {
+        val current = settings.transitionSettings()
+        val previous = observedTransitionSettings
+        observedTransitionSettings = current
+        if (previous == null || previous == current) return
+        (engine as? QueueAwarePlaybackEngine)?.clearPreparedNext()
+        preparedForGeneration = -1L
+    }
+
     private suspend fun prepareNext(
         provider: app.naviamp.domain.provider.MediaProvider,
         playbackSettings: PlaybackSettings,
@@ -451,6 +464,16 @@ class NaviampCorePlaybackEngineAdapter(
 }
 
 private const val CoreGaplessPrepareWindowSeconds = 8.0
+
+private data class PlaybackTransitionSettings(
+    val gaplessEnabled: Boolean,
+    val crossfadeDurationSeconds: Int,
+)
+
+private fun PlaybackSettings.transitionSettings() = PlaybackTransitionSettings(
+    gaplessEnabled = gaplessEnabled,
+    crossfadeDurationSeconds = crossfadeDurationSeconds,
+)
 
 /** Shared playback-settings owner and complete engine application policy. */
 class NaviampCorePlaybackEngineSettings(

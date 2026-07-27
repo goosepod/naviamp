@@ -343,6 +343,41 @@ class NaviampCorePlaybackEngineAdapterTest {
     }
 
     @Test
+    fun changingTransitionSettingsReplacesPreparedNextWithoutStartingANewQueue() = runTest {
+        val provider = FakeCoreMediaProvider()
+        val engine = RecordingPlaybackEngine().apply {
+            emittedProgress = PlaybackProgress(173.0, 180.0)
+        }
+        var playbackSettings = PlaybackSettings(gaplessEnabled = true)
+        val adapter = NaviampCorePlaybackEngineAdapter(
+            scope = this,
+            engine = engine,
+            providerSource = NaviampCoreMediaProviderSource { provider },
+            settings = { playbackSettings },
+        )
+        val next = provider.track.copy(id = TrackId("next"), title = "Next")
+
+        adapter.playQueueSelection(PlaybackQueue(listOf(provider.track, next), 0), 0)
+        advanceUntilIdle()
+        assertEquals("next", engine.preparedRequest?.mediaId)
+
+        playbackSettings = PlaybackSettings(gaplessEnabled = false, crossfadeDurationSeconds = 0)
+        engine.emitProgress(PlaybackProgress(173.0, 180.0))
+        advanceUntilIdle()
+        assertEquals(null, engine.preparedRequest)
+
+        playbackSettings = PlaybackSettings(gaplessEnabled = false, crossfadeDurationSeconds = 8)
+        engine.emitProgress(PlaybackProgress(173.0, 180.0))
+        advanceUntilIdle()
+
+        assertEquals("next", engine.preparedRequest?.mediaId)
+        assertEquals(
+            listOf("play:core-track", "prepare:next", "clear", "clear", "prepare:next"),
+            engine.events,
+        )
+    }
+
+    @Test
     fun manualNextClearsAnActiveCrossfadeAndStartsTheTrackFromItsOwnBeginning() = runTest {
         val provider = FakeCoreMediaProvider()
         val engine = RecordingPlaybackEngine().apply {
@@ -522,6 +557,7 @@ private class RecordingPlaybackEngine :
     var preparedRequest: PlaybackRequest? = null
     var appliedVolume = -1
     var emittedProgress = PlaybackProgress(12.0, 180.0)
+    private var progressCallback: ((PlaybackProgress) -> Unit)? = null
     var visualizerReads = 0
     var recordCertificatePolicy = false
     val events = mutableListOf<String>()
@@ -536,6 +572,7 @@ private class RecordingPlaybackEngine :
         this.request = request
         events += "play:${request.mediaId}"
         onStateChanged(PlaybackState.Playing)
+        progressCallback = onProgressChanged
         onProgressChanged(emittedProgress)
         onMetadataChanged(PlaybackStreamMetadata(title = "Core Stream"))
     }
@@ -560,5 +597,9 @@ private class RecordingPlaybackEngine :
     override fun clearPreparedNext() {
         preparedRequest = null
         events += "clear"
+    }
+
+    fun emitProgress(progress: PlaybackProgress) {
+        progressCallback?.invoke(progress)
     }
 }
