@@ -96,9 +96,21 @@ object IosAudioFileSystem {
             ?.get(NSFileSize) as? NSNumber)?.longLongValue
 
     fun deleteKnownRegularFile(directoryPath: String, filePath: String): Boolean {
-        if (!isDirectChild(directoryPath, filePath) || !isRegularFile(filePath)) return false
-        return NSFileManager.defaultManager.removeItemAtPath(filePath, null)
+        val resolvedPath = resolveStoredFilePath(directoryPath, filePath)
+        if (!isDirectChild(directoryPath, resolvedPath) || !isRegularFile(resolvedPath)) return false
+        return NSFileManager.defaultManager.removeItemAtPath(resolvedPath, null)
     }
+
+    /** iOS may relocate an app's data container during an update, invalidating persisted absolute paths. */
+    fun resolveStoredFilePath(directoryPath: String, filePath: String): String {
+        val normalizedDirectory = directoryPath.trimEnd('/')
+        if (isDirectChild(normalizedDirectory, filePath)) return filePath
+        val fileName = filePath.substringAfterLast('/').takeIf { it.isNotBlank() } ?: return filePath
+        return "$normalizedDirectory/$fileName"
+    }
+
+    fun isStoredRegularFile(directoryPath: String, filePath: String): Boolean =
+        isRegularFile(resolveStoredFilePath(directoryPath, filePath))
 
     private fun isDirectChild(directoryPath: String, filePath: String): Boolean =
         filePath.substringBeforeLast('/', missingDelimiterValue = "") == directoryPath.trimEnd('/')
@@ -107,31 +119,33 @@ object IosAudioFileSystem {
 class IosPlaybackAudioAssets(
     private val downloads: DownloadRepository<StorageDownloadedAudioFile, StorageDownloadedTrack>,
     private val cache: AudioCacheRepository<StorageCachedAudioFile, StorageCachedAudioMetadata>,
+    private val downloadDirectoryPath: String,
+    private val cacheDirectoryPath: String,
 ) : PlaybackAudioAssetRepository {
     override suspend fun downloadedAudio(sourceId: String, trackId: TrackId): PlaybackLocalAudio? =
-        downloads.downloadedAudioFile(sourceId, trackId)?.toPlaybackLocalAudio()
+        downloads.downloadedAudioFile(sourceId, trackId)?.toPlaybackLocalAudio(downloadDirectoryPath)
 
     override suspend fun downloadedAudio(
         sourceId: String,
         trackId: TrackId,
         quality: StreamQuality,
-    ): PlaybackLocalAudio? = downloads.downloadedAudioFile(sourceId, trackId, quality)?.toPlaybackLocalAudio()
+    ): PlaybackLocalAudio? = downloads.downloadedAudioFile(sourceId, trackId, quality)?.toPlaybackLocalAudio(downloadDirectoryPath)
 
     override suspend fun cachedAudio(
         sourceId: String,
         trackId: TrackId,
         quality: StreamQuality,
-    ): PlaybackLocalAudio? = cache.cachedAudioFile(sourceId, trackId, quality)?.toPlaybackLocalAudio()
+    ): PlaybackLocalAudio? = cache.cachedAudioFile(sourceId, trackId, quality)?.toPlaybackLocalAudio(cacheDirectoryPath)
 
     override suspend fun cachedAudio(sourceId: String, trackId: TrackId): PlaybackLocalAudio? =
-        cache.cachedAudioFile(sourceId, trackId)?.toPlaybackLocalAudio()
+        cache.cachedAudioFile(sourceId, trackId)?.toPlaybackLocalAudio(cacheDirectoryPath)
 }
 
-fun StorageCachedAudioFile.toPlaybackLocalAudio(): PlaybackLocalAudio =
-    filePath.toPlaybackLocalAudio(sizeBytes)
+fun StorageCachedAudioFile.toPlaybackLocalAudio(directoryPath: String): PlaybackLocalAudio =
+    IosAudioFileSystem.resolveStoredFilePath(directoryPath, filePath).toPlaybackLocalAudio(sizeBytes)
 
-fun StorageDownloadedAudioFile.toPlaybackLocalAudio(): PlaybackLocalAudio =
-    filePath.toPlaybackLocalAudio(sizeBytes)
+fun StorageDownloadedAudioFile.toPlaybackLocalAudio(directoryPath: String): PlaybackLocalAudio =
+    IosAudioFileSystem.resolveStoredFilePath(directoryPath, filePath).toPlaybackLocalAudio(sizeBytes)
 
 private fun String.toPlaybackLocalAudio(sizeBytes: Long?): PlaybackLocalAudio = PlaybackLocalAudio(
     path = this,

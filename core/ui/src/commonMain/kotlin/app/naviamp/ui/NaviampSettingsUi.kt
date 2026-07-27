@@ -68,6 +68,8 @@ import app.naviamp.domain.settings.MinAlbumBlurRadiusDp
 import app.naviamp.domain.settings.ConnectionFormMusicFolder
 import app.naviamp.domain.settings.ConnectionFormState
 import app.naviamp.domain.settings.DefaultWaveformBucketCount
+import app.naviamp.domain.settings.DefaultAudioCacheBytes
+import app.naviamp.domain.settings.DefaultDownloadStorageBytes
 import app.naviamp.domain.settings.DownloadedTrackPlayback
 import app.naviamp.domain.settings.InterfaceLanguage
 import app.naviamp.domain.settings.InterfaceSettings
@@ -4427,7 +4429,7 @@ private val WaveformBucketCountOptions = listOf(
     MaxWaveformBucketCount,
 )
 private val AudioCacheBudgetOptions = listOf(
-    256L * 1024L * 1024L,
+    DefaultAudioCacheBytes,
     512L * 1024L * 1024L,
     1L * 1024L * 1024L * 1024L,
     2L * 1024L * 1024L * 1024L,
@@ -4436,7 +4438,7 @@ private val AudioCacheBudgetOptions = listOf(
     20L * 1024L * 1024L * 1024L,
 )
 private val DownloadBudgetOptions = listOf(
-    512L * 1024L * 1024L,
+    DefaultDownloadStorageBytes,
     1L * 1024L * 1024L * 1024L,
     2L * 1024L * 1024L * 1024L,
     5L * 1024L * 1024L * 1024L,

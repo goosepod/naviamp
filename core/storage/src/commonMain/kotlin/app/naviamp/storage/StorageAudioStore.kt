@@ -60,7 +60,8 @@ class StorageAudioStore(
     private val audioCacheByteStoreService: AudioByteStoreService,
     private val downloadAudioByteStoreService: AudioByteStoreService,
     private val nowEpochMillis: () -> Long,
-    private val fileExists: (String) -> Boolean,
+    private val cachedAudioFileExists: (String) -> Boolean,
+    private val downloadedAudioFileExists: (String) -> Boolean,
     private val deleteKnownAudioCacheFile: (String) -> Boolean,
     private val deleteKnownDownloadFile: (String) -> Boolean,
     private val workContext: CoroutineContext = EmptyCoroutineContext,
@@ -86,7 +87,7 @@ class StorageAudioStore(
         ).executeAsOneOrNull() ?: return null
         return StorageCachedAudioMetadata(
             filePath = row.file_path,
-            exists = fileExists(row.file_path),
+            exists = cachedAudioFileExists(row.file_path),
             sizeBytes = row.size_bytes,
             contentType = row.content_type,
             createdAtEpochMillis = row.created_at_epoch_millis,
@@ -105,7 +106,7 @@ class StorageAudioStore(
             remote_track_id = trackId.value,
             quality_key = qualityKey,
         ).executeAsOneOrNull() ?: return@withContext null
-        if (!fileExists(row.file_path)) {
+        if (!cachedAudioFileExists(row.file_path)) {
             queries.deleteCachedAudio(sourceId, trackId.value, qualityKey)
             return@withContext null
         }
@@ -121,7 +122,7 @@ class StorageAudioStore(
             source_id = sourceId,
             remote_track_id = trackId.value,
         ).executeAsOneOrNull() ?: return@withContext null
-        if (!fileExists(row.file_path)) {
+        if (!cachedAudioFileExists(row.file_path)) {
             queries.deleteCachedAudio(sourceId, trackId.value, row.quality_key)
             return@withContext null
         }
@@ -172,7 +173,7 @@ class StorageAudioStore(
             remote_track_id = trackId.value,
             quality_key = qualityKey,
         ).executeAsOneOrNull() ?: return@withContext null
-        if (!fileExists(row.file_path)) {
+        if (!downloadedAudioFileExists(row.file_path)) {
             queries.deleteDownloadedAudio(sourceId, trackId.value, qualityKey)
             return@withContext null
         }
@@ -187,7 +188,7 @@ class StorageAudioStore(
             source_id = sourceId,
             remote_track_id = trackId.value,
         ).executeAsOneOrNull() ?: return@withContext null
-        if (!fileExists(row.file_path)) {
+        if (!downloadedAudioFileExists(row.file_path)) {
             queries.deleteDownloadedAudio(sourceId, trackId.value, row.quality_key)
             return@withContext null
         }
@@ -248,7 +249,7 @@ class StorageAudioStore(
             throw IllegalStateException("Download storage limit exceeded.")
         }
         val obsoleteRows = existingRows.filterNot { it.file_path == stored.filePath }
-        if (obsoleteRows.any { row -> fileExists(row.file_path) && !deleteKnownDownloadFile(row.file_path) }) {
+        if (obsoleteRows.any { row -> downloadedAudioFileExists(row.file_path) && !deleteKnownDownloadFile(row.file_path) }) {
             downloadAudioByteStoreService.deleteAudio(stored.filePath)
             throw IllegalStateException("Could not replace downloaded audio safely.")
         }
@@ -275,7 +276,7 @@ class StorageAudioStore(
     override fun removeDownloadedAudio(sourceId: String, trackId: TrackId, quality: StreamQuality) {
         val qualityKey = quality.cacheKey()
         queries.selectDownloadedAudioFile(sourceId, trackId.value, qualityKey).executeAsOneOrNull()?.let { row ->
-            if (!fileExists(row.file_path) || deleteKnownDownloadFile(row.file_path)) {
+            if (!downloadedAudioFileExists(row.file_path) || deleteKnownDownloadFile(row.file_path)) {
                 queries.deleteDownloadedAudio(sourceId, trackId.value, qualityKey)
             }
         }
@@ -285,7 +286,7 @@ class StorageAudioStore(
         queries.selectDownloadedAudio(sourceId).executeAsList()
             .filter { it.remote_track_id == trackId.value }
             .forEach { row ->
-                if (!fileExists(row.file_path) || deleteKnownDownloadFile(row.file_path)) {
+                if (!downloadedAudioFileExists(row.file_path) || deleteKnownDownloadFile(row.file_path)) {
                     queries.deleteDownloadedAudio(row.source_id, row.remote_track_id, row.quality_key)
                 }
             }
@@ -305,7 +306,7 @@ class StorageAudioStore(
         )
         plan.candidatesToEvict.forEach { candidate ->
             val path = paths[Triple(candidate.sourceId, candidate.trackId, candidate.qualityKey)] ?: return@forEach
-            if (!fileExists(path) || deleteKnownAudioCacheFile(path)) {
+            if (!cachedAudioFileExists(path) || deleteKnownAudioCacheFile(path)) {
                 queries.deleteCachedAudio(candidate.sourceId, candidate.trackId, candidate.qualityKey)
                 cacheSize -= candidate.sizeBytes
             }

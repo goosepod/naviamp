@@ -14,6 +14,17 @@ import kotlin.test.assertTrue
 
 class IosAudioStorageTest {
     @Test
+    fun storedPathIsRebasedWhenIosRelocatesTheApplicationContainer() {
+        val currentDirectory = "/current/container/Library/Application Support/Naviamp/downloads"
+        val oldPath = "/old/container/Library/Application Support/Naviamp/downloads/track.flac"
+
+        assertEquals(
+            "$currentDirectory/track.flac",
+            IosAudioFileSystem.resolveStoredFilePath(currentDirectory, oldPath),
+        )
+    }
+
+    @Test
     fun successfulWriteAtomicallyPublishesTheFinalFile() = withTestDirectory { directory ->
         val store = IosAudioByteStore(directory)
         val stored = runBlocking {

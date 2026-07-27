@@ -21,6 +21,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.Text
@@ -921,8 +922,16 @@ private fun DownloadJobCard(
                 Text(job.label, color = colors.primaryText, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 Text(job.statusLabel, color = colors.secondaryText, fontSize = 11.sp)
             }
-            if (job.canCancel) TextButton(onClick = onCancel) { Text("Cancel") }
-            if (job.canRetry) TextButton(onClick = onRetry) { Text("Retry") }
+            val jobActionColors = ButtonDefaults.textButtonColors(
+                containerColor = colors.primaryText.copy(alpha = 0.14f),
+                contentColor = colors.primaryText,
+            )
+            if (job.canCancel) {
+                TextButton(onClick = onCancel, colors = jobActionColors) { Text("Cancel") }
+            }
+            if (job.canRetry) {
+                TextButton(onClick = onRetry, colors = jobActionColors) { Text("Retry") }
+            }
         }
         LinearProgressIndicator(
             progress = { job.progress },

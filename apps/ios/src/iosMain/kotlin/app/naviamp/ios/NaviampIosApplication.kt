@@ -90,7 +90,8 @@ class NaviampIosApplication(
         audioCacheByteStoreService = AudioByteStoreService(IosAudioByteStore(audioCacheDirectory), httpClient),
         downloadAudioByteStoreService = AudioByteStoreService(IosAudioByteStore(downloadDirectory), httpClient),
         nowEpochMillis = ::naviampNowEpochMillis,
-        fileExists = IosAudioFileSystem::isRegularFile,
+        cachedAudioFileExists = { IosAudioFileSystem.isStoredRegularFile(audioCacheDirectory, it) },
+        downloadedAudioFileExists = { IosAudioFileSystem.isStoredRegularFile(downloadDirectory, it) },
         deleteKnownAudioCacheFile = { IosAudioFileSystem.deleteKnownRegularFile(audioCacheDirectory, it) },
         deleteKnownDownloadFile = { IosAudioFileSystem.deleteKnownRegularFile(downloadDirectory, it) },
         workContext = Dispatchers.Default,
@@ -121,9 +122,14 @@ class NaviampIosApplication(
         persistPlaybackSettings = settings.savePlayback,
         cacheSettings = { cacheSettings },
         activeSourceId = { repositories.mediaSources.latestMediaSource()?.id },
-        audioAssets = IosPlaybackAudioAssets(audioStore, audioStore),
+        audioAssets = IosPlaybackAudioAssets(
+            downloads = audioStore,
+            cache = audioStore,
+            downloadDirectoryPath = downloadDirectory,
+            cacheDirectoryPath = audioCacheDirectory,
+        ),
         cacheAudio = { sourceId, provider, track, quality ->
-            audioStore.cacheAudioTrack(sourceId, provider, track, quality).toPlaybackLocalAudio()
+            audioStore.cacheAudioTrack(sourceId, provider, track, quality).toPlaybackLocalAudio(audioCacheDirectory)
         },
         waveformRepository = repositories.audioWaveforms,
         waveformAnalyzer = BassAudioWaveformAnalyzer(
@@ -156,7 +162,9 @@ class NaviampIosApplication(
                 qualityLabel = stored.qualityKey,
             )
         },
-        isStoredDownloadAvailable = { stored -> IosAudioFileSystem.isRegularFile(stored.filePath) },
+        isStoredDownloadAvailable = { stored ->
+            IosAudioFileSystem.isStoredRegularFile(downloadDirectory, stored.filePath)
+        },
         storageStats = {
             repositories.maintenance.stats().let { stats ->
                 NaviampCoreDownloadStorageSnapshot(
