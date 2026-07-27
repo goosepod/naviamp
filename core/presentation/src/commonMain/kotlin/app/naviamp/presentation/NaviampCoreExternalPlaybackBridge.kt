@@ -145,6 +145,38 @@ class NaviampExternalPlaybackPublicationPlanner(
 }
 
 /**
+ * Host-neutral policy for native audio-session lifecycle events.
+ *
+ * Hosts translate their operating-system callbacks into these methods; Core alone decides whether
+ * playback pauses or resumes. An interruption only resumes playback when it interrupted an active
+ * track and the operating system explicitly permits resumption. Disconnecting an output pauses
+ * active playback and cancels any pending automatic interruption resume.
+ */
+class NaviampExternalPlaybackLifecycleCoordinator(
+    private val snapshot: () -> NaviampExternalPlaybackSnapshot,
+    private val play: () -> Unit,
+    private val pause: () -> Unit,
+) {
+    private var resumeAfterInterruption = false
+
+    fun interruptionBegan() {
+        resumeAfterInterruption = snapshot().state == NaviampExternalPlaybackState.Playing
+        if (resumeAfterInterruption) pause()
+    }
+
+    fun interruptionEnded(shouldResume: Boolean) {
+        val resume = resumeAfterInterruption && shouldResume
+        resumeAfterInterruption = false
+        if (resume) play()
+    }
+
+    fun outputDisconnected() {
+        resumeAfterInterruption = false
+        if (snapshot().state == NaviampExternalPlaybackState.Playing) pause()
+    }
+}
+
+/**
  * Host-neutral projection used by lock screens, media sessions, cars, and other external controls.
  * Native hosts publish this model and return commands; they never reconstruct playback policy.
  */
@@ -172,6 +204,17 @@ class NaviampCoreExternalPlaybackBridge internal constructor(
     fun next() = playback(NowPlayingPlaybackAction.Next)
     fun toggleShuffle() = playback(NowPlayingPlaybackAction.ToggleShuffle)
     fun cycleRepeatMode() = playback(NowPlayingPlaybackAction.CycleRepeatMode)
+
+    fun setShuffleActive(active: Boolean) {
+        if (snapshot().shuffleActive != active) toggleShuffle()
+    }
+
+    fun setRepeatMode(mode: NaviampRepeatMode) {
+        val modes = NaviampRepeatMode.entries
+        val currentIndex = modes.indexOf(snapshot().repeatMode)
+        val targetIndex = modes.indexOf(mode)
+        repeat((targetIndex - currentIndex + modes.size) % modes.size) { cycleRepeatMode() }
+    }
 
     fun seekTo(positionMillis: Long) {
         dispatch(
@@ -411,6 +454,9 @@ private fun <T> List<T>.findByMediaId(
 
 fun NaviampCore.externalPlaybackBridge(): NaviampCoreExternalPlaybackBridge =
     NaviampCoreExternalPlaybackBridge(state, ::dispatch)
+
+fun NaviampCoreExternalPlaybackBridge.lifecycleCoordinator(): NaviampExternalPlaybackLifecycleCoordinator =
+    NaviampExternalPlaybackLifecycleCoordinator(::snapshot, ::play, ::pause)
 
 internal fun NaviampCoreState.toExternalPlaybackSnapshot(): NaviampExternalPlaybackSnapshot {
     val nowPlaying = shell.nowPlaying ?: return NaviampExternalPlaybackSnapshot()

@@ -104,6 +104,7 @@ import kotlin.time.Clock
 class IosBassAudioBackend : BassAudioBackend {
     private val equalizerEffects = mutableMapOf<UInt, MutableList<UInt>>()
     private val endSyncs = mutableMapOf<UInt, IosBassEndSync>()
+    private val retiredEndSyncs = mutableListOf<IosBassEndSync>()
     private val pluginHandles = mutableMapOf<String, UInt>()
     private val failedPlugins = mutableMapOf<String, Int>()
     private var pluginsAttempted = false
@@ -181,16 +182,25 @@ class IosBassAudioBackend : BassAudioBackend {
     }
 
     override fun free(): Result<Unit> {
-        endSyncs.values.forEach(IosBassEndSync::dispose)
-        endSyncs.clear()
         pluginHandles.values.forEach { handle -> BASS_PluginFree(handle) }
         pluginHandles.clear()
         failedPlugins.clear()
         pluginsAttempted = false
-        val bassResult = if (BASS_Free() != 0 || BASS_ErrorGetCode() == BASS_ERROR_INIT) {
+        val bassStopped = BASS_Free() != 0 || BASS_ErrorGetCode() == BASS_ERROR_INIT
+        val bassResult = if (bassStopped) {
             Result.success(Unit)
         } else {
             failure("BASS_Free failed")
+        }
+        // BASS may deliver a sync callback from its update thread while a stream is being
+        // released. Keep every StableRef alive until BASS_Free has stopped those native
+        // threads; disposing it earlier leaves an authenticated pointer that the callback can
+        // still observe and causes an EXC_BAD_ACCESS.
+        if (bassStopped) {
+            endSyncs.values.forEach(IosBassEndSync::dispose)
+            endSyncs.clear()
+            retiredEndSyncs.forEach(IosBassEndSync::dispose)
+            retiredEndSyncs.clear()
         }
         val sessionResult = if (deactivateAudioSession()) {
             Result.success(Unit)
@@ -273,7 +283,7 @@ class IosBassAudioBackend : BassAudioBackend {
         stream: BassStreamHandle,
         callback: (BassStreamHandle) -> Unit,
     ): Result<Int> {
-        endSyncs.remove(stream.uint)?.dispose()
+        endSyncs.remove(stream.uint)?.let(retiredEndSyncs::add)
         val sync = IosBassEndSync(callback)
         val handle = BASS_ChannelSetSync(
             stream.uint,
@@ -438,7 +448,7 @@ class IosBassAudioBackend : BassAudioBackend {
 
     override fun freeStream(stream: BassStreamHandle): Result<Unit> =
         bassResult("BASS_StreamFree failed") {
-            endSyncs.remove(stream.uint)?.dispose()
+            endSyncs.remove(stream.uint)?.let(retiredEndSyncs::add)
             clearEqualizer(stream.uint)
             BASS_StreamFree(stream.uint) != 0
         }
@@ -559,12 +569,8 @@ private class IosBassEndSync(callback: (BassStreamHandle) -> Unit) {
         get() = reference?.asCPointer()
 
     fun fire(channel: UInt) {
-        val action = locked { callback }
-        try {
-            action?.invoke(BassStreamHandle(channel.toInt()))
-        } finally {
-            dispose()
-        }
+        val action = locked { callback.also { callback = null } }
+        action?.invoke(BassStreamHandle(channel.toInt()))
     }
 
     fun dispose() {

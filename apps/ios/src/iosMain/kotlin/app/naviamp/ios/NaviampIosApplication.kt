@@ -8,10 +8,13 @@ import app.cash.sqldelight.db.SqlDriver
 import app.naviamp.ios.platform.IosCapabilityPresentation
 import app.naviamp.ios.platform.IosCoreExternalUriPort
 import app.naviamp.ios.platform.IosHomeDateSource
+import app.naviamp.ios.playback.IosNativePlaybackIntegration
 import app.naviamp.ios.playback.createIosBassPlaybackEngine
 import app.naviamp.ios.settings.IosCoreSettingsValueStore
+import app.naviamp.presentation.NaviampCoreApp
 import app.naviamp.presentation.NaviampCoreEnvironment
-import app.naviamp.presentation.NaviampCoreHost
+import app.naviamp.presentation.createNaviampCore
+import app.naviamp.presentation.externalPlaybackBridge
 import app.naviamp.presentation.naviampCoreSettingsValueCatalog
 import app.naviamp.presentation.naviampCoreStreamingPlaybackServices
 import app.naviamp.presentation.naviampCoreStoredServiceCatalog
@@ -67,11 +70,7 @@ class NaviampIosApplication(
         ),
     )
     init {
-        setIosPlatformCoverArtByteLoader { url ->
-            (sessions.currentProvider() as? NavidromeProvider)
-                ?.takeIf { provider -> provider.ownsUrl(url) }
-                ?.bytes(url)
-        }
+        setIosPlatformCoverArtByteLoader(::loadProviderArtwork)
     }
     private val playbackEngine = createIosBassPlaybackEngine()
     private val playback = naviampCoreStreamingPlaybackServices(
@@ -119,18 +118,31 @@ class NaviampIosApplication(
             throw IllegalStateException("iOS Core command failed: $command", cause)
         },
     )
+    private val core = createNaviampCore(scope, environment)
+    private val nativePlayback = IosNativePlaybackIntegration(
+        scope = scope,
+        bridge = core.externalPlaybackBridge(),
+        artworkBytes = ::loadProviderArtwork,
+    )
 
     fun viewController(): UIViewController = ComposeUIViewController {
-        NaviampCoreHost(
-            environment = environment,
+        NaviampCoreApp(
+            core = core,
             modifier = Modifier.safeDrawingPadding().imePadding(),
+            applicationUpdateChecker = environment.applicationUpdateChecker,
         )
     }
 
     fun close() {
         resetIosPlatformCoverArtByteLoader()
+        nativePlayback.close()
         playbackEngine.release()
         scope.cancel()
         driver.close()
     }
+
+    private suspend fun loadProviderArtwork(url: String): ByteArray? =
+        (sessions.currentProvider() as? NavidromeProvider)
+            ?.takeIf { provider -> provider.ownsUrl(url) }
+            ?.bytes(url)
 }

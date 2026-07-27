@@ -2,6 +2,7 @@ package app.naviamp.presentation
 
 import app.naviamp.ui.NaviampAppShellUiState
 import app.naviamp.ui.NaviampNowPlayingItemUi
+import app.naviamp.ui.NaviampRepeatMode
 import app.naviamp.ui.NaviampHomeScreenUi
 import app.naviamp.ui.NowPlayingPlaybackAction
 import app.naviamp.ui.NowPlayingUi
@@ -121,6 +122,24 @@ class NaviampCoreExternalPlaybackBridgeTest {
         assertEquals(
             NowPlayingPlaybackAction.ToggleShuffle,
             assertIs<NaviampCoreCommand.NowPlaying.Playback>(commands.single()).request.action,
+        )
+    }
+
+    @Test
+    fun nativeShuffleAndRepeatSelectionsMapToSharedPlaybackCommands() {
+        val commands = mutableListOf<NaviampCoreCommand>()
+        val bridge = bridge(commands)
+
+        bridge.setShuffleActive(true)
+        bridge.setRepeatMode(NaviampRepeatMode.Track)
+
+        assertEquals(
+            listOf(
+                NowPlayingPlaybackAction.ToggleShuffle,
+                NowPlayingPlaybackAction.CycleRepeatMode,
+                NowPlayingPlaybackAction.CycleRepeatMode,
+            ),
+            commands.map { assertIs<NaviampCoreCommand.NowPlaying.Playback>(it).request.action },
         )
     }
 
