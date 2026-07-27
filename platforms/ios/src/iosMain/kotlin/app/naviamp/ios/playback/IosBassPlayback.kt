@@ -13,13 +13,11 @@ import app.naviamp.domain.playback.CoreBassPlaybackEngine
 import app.naviamp.ios.bass.native.BASS_ATTRIB_VOL
 import app.naviamp.ios.bass.native.BASS_CHANNELINFO
 import app.naviamp.ios.bass.native.BASS_CONFIG_BUFFER
-import app.naviamp.ios.bass.native.BASS_CONFIG_DEV_BUFFER
 import app.naviamp.ios.bass.native.BASS_CONFIG_NET_BUFFER
 import app.naviamp.ios.bass.native.BASS_CONFIG_NET_META
 import app.naviamp.ios.bass.native.BASS_CONFIG_NET_PLAYLIST
 import app.naviamp.ios.bass.native.BASS_CONFIG_NET_PLAYLIST_DEPTH
 import app.naviamp.ios.bass.native.BASS_CONFIG_NET_PREBUF
-import app.naviamp.ios.bass.native.BASS_CONFIG_NET_PREBUF_WAIT
 import app.naviamp.ios.bass.native.BASS_CONFIG_NET_READTIMEOUT
 import app.naviamp.ios.bass.native.BASS_CONFIG_NET_TIMEOUT
 import app.naviamp.ios.bass.native.BASS_CONFIG_SRC
@@ -30,6 +28,7 @@ import app.naviamp.ios.bass.native.BASS_DATA_FFT1024
 import app.naviamp.ios.bass.native.BASS_DATA_FFT_REMOVEDC
 import app.naviamp.ios.bass.native.BASS_DX8_PARAMEQ
 import app.naviamp.ios.bass.native.BASS_ERROR_ALREADY
+import app.naviamp.ios.bass.native.BASS_ERROR_INIT
 import app.naviamp.ios.bass.native.BASS_ErrorGetCode
 import app.naviamp.ios.bass.native.BASS_Free
 import app.naviamp.ios.bass.native.BASS_FXSetParameters
@@ -92,8 +91,10 @@ import platform.AVFAudio.AVAudioSessionCategoryPlayback
 import platform.AVFAudio.AVAudioSessionModeDefault
 import platform.AVFAudio.AVAudioSessionSetActiveOptionNotifyOthersOnDeactivation
 import platform.AVFAudio.setActive
+import platform.AVFAudio.setPreferredIOBufferDuration
 import platform.Foundation.NSLock
 import platform.Foundation.NSBundle
+import platform.Foundation.NSLog
 import platform.Foundation.NSURL
 import kotlin.math.max
 import kotlin.math.min
@@ -134,14 +135,30 @@ class IosBassAudioBackend : BassAudioBackend {
             }
         }
 
-    override fun configurePlaybackBuffers(policy: BassPlaybackBufferPolicy): Result<Unit> =
-        bassResult("BASS playback buffer config failed") {
-            listOf(
-                BASS_SetConfig(BASS_CONFIG_UPDATEPERIOD.toUInt(), policy.updatePeriodMillis.coerceIn(5, 100).toUInt()),
-                BASS_SetConfig(BASS_CONFIG_BUFFER.toUInt(), max(1, policy.playbackBufferMillis).toUInt()),
-                BASS_SetConfig(BASS_CONFIG_DEV_BUFFER.toUInt(), max(1, policy.deviceBufferMillis).toUInt()),
-            ).all { it != 0 }
+    override fun configurePlaybackBuffers(policy: BassPlaybackBufferPolicy): Result<Unit> {
+        val settings = listOf(
+            "BASS_CONFIG_UPDATEPERIOD" to {
+                BASS_SetConfig(
+                    BASS_CONFIG_UPDATEPERIOD.toUInt(),
+                    policy.updatePeriodMillis.coerceIn(5, 100).toUInt(),
+                )
+            },
+            "BASS_CONFIG_BUFFER" to {
+                BASS_SetConfig(BASS_CONFIG_BUFFER.toUInt(), max(1, policy.playbackBufferMillis).toUInt())
+            },
+        )
+        settings.forEach { (name, apply) ->
+            if (apply() == 0) return failure("$name failed")
         }
+        if (!audioSession.setPreferredIOBufferDuration(
+                duration = max(1, policy.deviceBufferMillis) / 1_000.0,
+                error = null,
+            )
+        ) {
+            return Result.failure(IllegalStateException("AVAudioSession preferred I/O buffer configuration failed"))
+        }
+        return Result.success(Unit)
+    }
 
     override fun init(): Result<Unit> = init(deviceId = null, sampleRateHz = 44_100)
 
@@ -170,7 +187,11 @@ class IosBassAudioBackend : BassAudioBackend {
         pluginHandles.clear()
         failedPlugins.clear()
         pluginsAttempted = false
-        val bassResult = bassResult("BASS_Free failed") { BASS_Free() != 0 }
+        val bassResult = if (BASS_Free() != 0 || BASS_ErrorGetCode() == BASS_ERROR_INIT) {
+            Result.success(Unit)
+        } else {
+            failure("BASS_Free failed")
+        }
         val sessionResult = if (deactivateAudioSession()) {
             Result.success(Unit)
         } else {
@@ -184,19 +205,21 @@ class IosBassAudioBackend : BassAudioBackend {
             BASS_SetConfig(BASS_CONFIG_VERIFY_NET.toUInt(), if (verify) 1u else 0u) != 0
         }
 
-    override fun configureInternetStreams(): Result<Unit> =
-        bassResult("BASS internet stream config failed") {
-            listOf(
-                BASS_SetConfig(BASS_CONFIG_NET_PLAYLIST.toUInt(), 1u),
-                BASS_SetConfig(BASS_CONFIG_NET_META.toUInt(), 1u),
-                BASS_SetConfig(BASS_CONFIG_NET_PLAYLIST_DEPTH.toUInt(), 5u),
-                BASS_SetConfig(BASS_CONFIG_NET_BUFFER.toUInt(), 5_000u),
-                BASS_SetConfig(BASS_CONFIG_NET_PREBUF.toUInt(), 75u),
-                BASS_SetConfig(BASS_CONFIG_NET_PREBUF_WAIT.toUInt(), 1u),
-                BASS_SetConfig(BASS_CONFIG_NET_TIMEOUT.toUInt(), 15_000u),
-                BASS_SetConfig(BASS_CONFIG_NET_READTIMEOUT.toUInt(), 15_000u),
-            ).all { it != 0 }
+    override fun configureInternetStreams(): Result<Unit> {
+        val settings = listOf(
+            Triple("BASS_CONFIG_NET_PLAYLIST", BASS_CONFIG_NET_PLAYLIST, 1u),
+            Triple("BASS_CONFIG_NET_META", BASS_CONFIG_NET_META, 1u),
+            Triple("BASS_CONFIG_NET_PLAYLIST_DEPTH", BASS_CONFIG_NET_PLAYLIST_DEPTH, 5u),
+            Triple("BASS_CONFIG_NET_BUFFER", BASS_CONFIG_NET_BUFFER, 5_000u),
+            Triple("BASS_CONFIG_NET_PREBUF", BASS_CONFIG_NET_PREBUF, 75u),
+            Triple("BASS_CONFIG_NET_TIMEOUT", BASS_CONFIG_NET_TIMEOUT, 15_000u),
+            Triple("BASS_CONFIG_NET_READTIMEOUT", BASS_CONFIG_NET_READTIMEOUT, 15_000u),
+        )
+        settings.forEach { (name, option, value) ->
+            if (BASS_SetConfig(option.toUInt(), value) == 0) return failure("$name failed")
         }
+        return Result.success(Unit)
+    }
 
     override fun setSampleRateConverterQuality(quality: Int): Result<Unit> =
         bassResult("BASS_CONFIG_SRC failed") {
@@ -459,8 +482,11 @@ class IosBassAudioBackend : BassAudioBackend {
     private fun UInt.handleResult(message: String): Result<BassStreamHandle> =
         if (this != 0u) Result.success(BassStreamHandle(toInt())) else failure(message)
 
-    private fun <T> failure(message: String): Result<T> =
-        Result.failure(IllegalStateException(bassFailureMessage(message)))
+    private fun <T> failure(message: String): Result<T> {
+        val detail = bassFailureMessage(message)
+        NSLog("Naviamp BASS: $detail")
+        return Result.failure(IllegalStateException(detail))
+    }
 
     private val BassStreamHandle.uint: UInt
         get() = value.toUInt()
