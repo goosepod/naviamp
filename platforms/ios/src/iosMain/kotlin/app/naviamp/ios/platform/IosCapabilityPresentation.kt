@@ -14,6 +14,8 @@ object IosCapabilityPresentation {
         PlatformCapability.SecureCredentialStorage,
         PlatformCapability.InsecureServerVerification,
         PlatformCapability.ApplicationUpdates,
+        PlatformCapability.Downloads,
+        PlatformCapability.OfflinePlayback,
     ).fold(PlatformCapabilities()) { current, capability ->
         current.withStatus(capability, PlatformCapabilityStatus.Available)
     }
