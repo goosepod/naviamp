@@ -14,6 +14,7 @@ import app.naviamp.domain.cache.DownloadRepository
 import app.naviamp.domain.cache.DownloadReplacementRepository
 import app.naviamp.domain.cache.downloadContentType
 import app.naviamp.domain.cache.planAudioCacheEviction
+import app.naviamp.domain.cache.toStoredAudioQuality
 import app.naviamp.domain.provider.MediaProvider
 import kotlinx.coroutines.withContext
 import kotlin.coroutines.CoroutineContext
@@ -23,7 +24,11 @@ data class StorageCachedAudioFile(
     val filePath: String,
     val sizeBytes: Long,
     val contentType: String?,
-)
+    val qualityKey: String,
+) {
+    val streamQuality: StreamQuality?
+        get() = qualityKey.toStoredAudioQuality()
+}
 
 data class StorageCachedAudioMetadata(
     val filePath: String,
@@ -38,7 +43,11 @@ data class StorageDownloadedAudioFile(
     val filePath: String,
     val sizeBytes: Long,
     val contentType: String?,
-)
+    val qualityKey: String,
+) {
+    val streamQuality: StreamQuality?
+        get() = qualityKey.toStoredAudioQuality()
+}
 
 data class StorageDownloadedTrack(
     val track: Track,
@@ -159,7 +168,7 @@ class StorageAudioStore(
             last_accessed_epoch_millis = now,
         )
         trimAudioStore()
-        StorageCachedAudioFile(stored.filePath, stored.sizeBytes, track.audioInfo?.contentType)
+        StorageCachedAudioFile(stored.filePath, stored.sizeBytes, track.audioInfo?.contentType, qualityKey)
     }
 
     override suspend fun downloadedAudioFile(
@@ -220,7 +229,7 @@ class StorageAudioStore(
             throw IllegalStateException("Download storage limit exceeded.")
         }
         upsertDownloadedAudio(sourceId, track, qualityKey, stored.filePath, stored.sizeBytes, contentType, nowEpochMillis())
-        StorageDownloadedAudioFile(stored.filePath, stored.sizeBytes, contentType)
+        StorageDownloadedAudioFile(stored.filePath, stored.sizeBytes, contentType, qualityKey)
     }
 
     override suspend fun replaceDownloadedAudioTrack(
@@ -258,7 +267,7 @@ class StorageAudioStore(
         }
         queries.deleteDownloadedAudioForTrack(sourceId, track.id.value)
         upsertDownloadedAudio(sourceId, track, qualityKey, stored.filePath, stored.sizeBytes, contentType, nowEpochMillis())
-        StorageDownloadedAudioFile(stored.filePath, stored.sizeBytes, contentType)
+        StorageDownloadedAudioFile(stored.filePath, stored.sizeBytes, contentType, qualityKey)
     }
 
     override fun downloadedTracks(sourceId: String): List<StorageDownloadedTrack> =
@@ -350,10 +359,10 @@ class StorageAudioStore(
 }
 
 private fun Cached_audio.toCachedAudioFile() =
-    StorageCachedAudioFile(file_path, size_bytes, content_type)
+    StorageCachedAudioFile(file_path, size_bytes, content_type, quality_key)
 
 private fun Downloaded_audio.toDownloadedAudioFile() =
-    StorageDownloadedAudioFile(file_path, size_bytes, content_type)
+    StorageDownloadedAudioFile(file_path, size_bytes, content_type, quality_key)
 
 private fun Downloaded_audio.toTrack(): Track = Track(
     id = TrackId(remote_track_id),

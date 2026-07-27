@@ -142,13 +142,16 @@ class IosPlaybackAudioAssets(
 }
 
 fun StorageCachedAudioFile.toPlaybackLocalAudio(directoryPath: String): PlaybackLocalAudio =
-    IosAudioFileSystem.resolveStoredFilePath(directoryPath, filePath).toPlaybackLocalAudio(sizeBytes)
+    IosAudioFileSystem.resolveStoredFilePath(directoryPath, filePath)
+        .toPlaybackLocalAudio(sizeBytes, streamQuality)
 
 fun StorageDownloadedAudioFile.toPlaybackLocalAudio(directoryPath: String): PlaybackLocalAudio =
-    IosAudioFileSystem.resolveStoredFilePath(directoryPath, filePath).toPlaybackLocalAudio(sizeBytes)
+    IosAudioFileSystem.resolveStoredFilePath(directoryPath, filePath)
+        .toPlaybackLocalAudio(sizeBytes, streamQuality)
 
-private fun String.toPlaybackLocalAudio(sizeBytes: Long?): PlaybackLocalAudio = PlaybackLocalAudio(
+private fun String.toPlaybackLocalAudio(sizeBytes: Long?, quality: StreamQuality?): PlaybackLocalAudio = PlaybackLocalAudio(
     path = this,
     uri = NSURL.fileURLWithPath(this).absoluteString ?: "file://$this",
     sizeBytes = sizeBytes,
+    quality = quality,
 )

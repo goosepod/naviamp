@@ -5,6 +5,7 @@ import app.naviamp.domain.InternetRadioStation
 import app.naviamp.domain.Lyrics
 import app.naviamp.domain.Track
 import app.naviamp.domain.TrackId
+import app.naviamp.domain.StreamQuality
 import app.naviamp.domain.audio.AudioTag
 import app.naviamp.domain.media.RelatedTracksSource
 import app.naviamp.domain.playback.PlaybackQueueNavigationCommand
@@ -31,6 +32,8 @@ data class NaviampCorePlaybackCapabilities(
 interface NaviampCorePlaybackEffectPort : NaviampPlaybackExecution {
     val capabilities: NaviampCorePlaybackCapabilities
     val playbackSource: PlaybackSource
+    val playbackQuality: StreamQuality?
+        get() = null
 
     /** Connects native engine observations to Core without giving the host product-state access. */
     fun attach(observer: NaviampCorePlaybackObserver) = Unit

@@ -71,7 +71,7 @@ class AndroidAudioStore(
                 return@withContext null
             }
             queries.touchCachedAudio(nowMillis(), sourceId, trackId.value, qualityKey)
-            AndroidCachedAudioFile(file, row.size_bytes, row.content_type)
+            AndroidCachedAudioFile(file, row.size_bytes, row.content_type, row.quality_key)
         }
 
     suspend fun cachedAudioFile(
@@ -89,7 +89,7 @@ class AndroidAudioStore(
                 return@withContext null
             }
             queries.touchCachedAudio(nowMillis(), sourceId, trackId.value, row.quality_key)
-            AndroidCachedAudioFile(file, row.size_bytes, row.content_type)
+            AndroidCachedAudioFile(file, row.size_bytes, row.content_type, row.quality_key)
         }
 
     suspend fun cacheAudioTrack(
@@ -125,7 +125,7 @@ class AndroidAudioStore(
                 last_accessed_epoch_millis = now,
             )
             trimAudioStore()
-            AndroidCachedAudioFile(target, stored.sizeBytes, track.audioInfo?.contentType)
+            AndroidCachedAudioFile(target, stored.sizeBytes, track.audioInfo?.contentType, qualityKey)
         }
 
     suspend fun downloadedAudioFile(
@@ -145,7 +145,7 @@ class AndroidAudioStore(
                 queries.deleteDownloadedAudio(sourceId, trackId.value, qualityKey)
                 return@withContext null
             }
-            AndroidDownloadedAudioFile(file, row.size_bytes, row.content_type)
+            AndroidDownloadedAudioFile(file, row.size_bytes, row.content_type, row.quality_key)
         }
 
     suspend fun downloadedAudioFile(
@@ -162,7 +162,7 @@ class AndroidAudioStore(
                 queries.deleteDownloadedAudio(sourceId, trackId.value, row.quality_key)
                 return@withContext null
             }
-            AndroidDownloadedAudioFile(file, row.size_bytes, row.content_type)
+            AndroidDownloadedAudioFile(file, row.size_bytes, row.content_type, row.quality_key)
         }
 
     suspend fun downloadAudioTrack(
@@ -194,7 +194,7 @@ class AndroidAudioStore(
             }
             val target = File(stored.filePath)
             upsertDownloadedAudio(sourceId, track, qualityKey, target, stored.sizeBytes, downloadContentType, nowMillis())
-            AndroidDownloadedAudioFile(target, stored.sizeBytes, downloadContentType)
+            AndroidDownloadedAudioFile(target, stored.sizeBytes, downloadContentType, qualityKey)
         }
 
     suspend fun replaceDownloadedAudioTrack(
@@ -234,7 +234,7 @@ class AndroidAudioStore(
             queries.deleteDownloadedAudioForTrack(sourceId, track.id.value)
             val target = File(stored.filePath)
             upsertDownloadedAudio(sourceId, track, qualityKey, target, stored.sizeBytes, downloadContentType, nowMillis())
-            AndroidDownloadedAudioFile(target, stored.sizeBytes, downloadContentType)
+            AndroidDownloadedAudioFile(target, stored.sizeBytes, downloadContentType, qualityKey)
         }
 
     fun downloadedTracks(sourceId: String): List<AndroidDownloadedTrack> =

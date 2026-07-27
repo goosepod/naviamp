@@ -20,12 +20,15 @@ data class PlaybackAudioSourcePlan(
     val target: PlaybackTargetPlan,
 ) {
     val hasLocalAudio: Boolean = localAudio != null || fallbackLocalAudio != null
+    val effectiveQuality: StreamQuality
+        get() = localAudio?.quality ?: target.providerStreamRequest.quality
 }
 
 data class PlaybackLocalAudio(
     val path: String,
     val uri: String,
     val sizeBytes: Long? = null,
+    val quality: StreamQuality? = null,
 )
 
 interface PlaybackAudioAssetRepository {

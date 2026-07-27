@@ -2,6 +2,8 @@ package app.naviamp.ui
 
 import androidx.compose.ui.graphics.Color
 import app.naviamp.domain.InternetRadioStation
+import app.naviamp.domain.AudioCodec
+import app.naviamp.domain.AudioInfo
 import app.naviamp.domain.StreamQuality
 import app.naviamp.domain.Track
 import app.naviamp.domain.TrackId
@@ -20,6 +22,26 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
 class NaviampNowPlayingPresentationTest {
+    @Test
+    fun downloadedTranscodeQualityOverridesTheLibraryFilesOriginalQuality() {
+        val track = track("hi-res").copy(
+            audioInfo = AudioInfo(
+                codec = "FLAC",
+                bitrateKbps = 2_800,
+                contentType = "audio/flac",
+                bitDepth = 24,
+                samplingRateHz = 96_000,
+            ),
+        )
+
+        assertEquals(
+            "OPUS  128 kbps",
+            track.nowPlayingAudioInfoLabel(
+                streamQuality = StreamQuality.Transcoded(AudioCodec.Opus, 128),
+            ),
+        )
+    }
+
     @Test
     fun trackPresentationCarriesQueueAndPlaybackStateThroughTheSharedContract() {
         val current = track("current")

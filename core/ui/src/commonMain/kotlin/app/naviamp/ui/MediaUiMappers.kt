@@ -798,8 +798,16 @@ fun Track.nowPlayingAlbumLine(): String =
         albumReleaseYear?.let { "$title ($it)" } ?: title
     }.orEmpty()
 
-fun Track.nowPlayingAudioInfoLabel(playbackEngineName: String? = null): String =
-    audioInfo?.nowPlayingLabel().orEmpty()
+fun Track.nowPlayingAudioInfoLabel(
+    playbackEngineName: String? = null,
+    streamQuality: StreamQuality? = null,
+): String = when (streamQuality) {
+    is StreamQuality.Transcoded -> listOf(
+        streamQuality.codec.name.uppercase(),
+        "${streamQuality.bitrateKbps} kbps",
+    ).joinToString("  ")
+    else -> audioInfo?.nowPlayingLabel().orEmpty()
+}
 
 fun Track.toNowPlayingDetailSections(
     embeddedTags: List<Pair<String, String>>? = null,
@@ -1006,7 +1014,7 @@ fun Track.toNowPlayingUi(config: NowPlayingTrackUiConfig): NowPlayingUi =
         albumLine = nowPlayingAlbumLine(),
         albumTitle = albumTitle.orEmpty(),
         albumYear = albumReleaseYear,
-        audioInfo = nowPlayingAudioInfoLabel(config.playbackEngineName),
+        audioInfo = nowPlayingAudioInfoLabel(config.playbackEngineName, config.streamQuality),
         waveform = config.waveform,
         visualizerFrame = config.visualizerFrame,
         bpm = bpm,

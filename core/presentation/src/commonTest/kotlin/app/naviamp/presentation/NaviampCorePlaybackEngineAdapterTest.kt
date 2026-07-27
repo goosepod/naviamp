@@ -13,6 +13,7 @@ import app.naviamp.domain.playback.VisualizerPlaybackEngine
 import app.naviamp.domain.playback.lyricsLoadingStatus
 import app.naviamp.domain.TrackId
 import app.naviamp.domain.InternetRadioStation
+import app.naviamp.domain.AudioCodec
 import app.naviamp.domain.LyricLine
 import app.naviamp.domain.Lyrics
 import app.naviamp.domain.LyricsSource
@@ -26,10 +27,12 @@ import app.naviamp.domain.lyrics.LyricsOffsetController
 import app.naviamp.domain.lyrics.LyricsSidecarService
 import app.naviamp.domain.playback.PlaybackAudioAssetRepository
 import app.naviamp.domain.playback.PlaybackLocalAudio
+import app.naviamp.domain.playback.PlaybackSource
 import app.naviamp.domain.provider.MediaProvider
 import app.naviamp.domain.queue.PlaybackQueue
 import app.naviamp.domain.settings.PlaybackSettings
 import app.naviamp.domain.settings.CacheSettings
+import app.naviamp.domain.settings.DownloadedTrackPlayback
 import app.naviamp.domain.media.RelatedTracksSource
 import app.naviamp.domain.waveform.AudioWaveform
 import app.naviamp.domain.waveform.AudioWaveformAnalysisSource
@@ -47,6 +50,50 @@ import kotlin.test.assertEquals
 
 @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 class NaviampCorePlaybackEngineAdapterTest {
+    @Test
+    fun downloadedPlaybackPublishesItsEffectiveQualityAndPreparesDownloadedNext() = runTest {
+        val provider = FakeCoreMediaProvider()
+        val engine = RecordingPlaybackEngine().apply {
+            emittedProgress = PlaybackProgress(173.0, 180.0)
+        }
+        val downloadedQuality = StreamQuality.Transcoded(AudioCodec.Opus, 128)
+        val audioAssets = object : PlaybackAudioAssetRepository {
+            override suspend fun downloadedAudio(sourceId: String, trackId: TrackId) =
+                PlaybackLocalAudio(
+                    path = "/downloads/${trackId.value}.ogg",
+                    uri = "file:///downloads/${trackId.value}.ogg",
+                    quality = downloadedQuality,
+                )
+
+            override suspend fun downloadedAudio(sourceId: String, trackId: TrackId, quality: StreamQuality) =
+                downloadedAudio(sourceId, trackId)
+
+            override suspend fun cachedAudio(sourceId: String, trackId: TrackId, quality: StreamQuality) = null
+        }
+        val adapter = NaviampCorePlaybackEngineAdapter(
+            scope = this,
+            engine = engine,
+            providerSource = NaviampCoreMediaProviderSource { provider },
+            settings = {
+                PlaybackSettings(
+                    gaplessEnabled = true,
+                    downloadedTrackPlayback = DownloadedTrackPlayback.PreferDownloaded,
+                )
+            },
+            activeSourceId = { "source" },
+            audioAssets = audioAssets,
+        )
+        val next = provider.track.copy(id = TrackId("next"), title = "Next")
+
+        adapter.playQueueSelection(PlaybackQueue(listOf(provider.track, next), 0), 0)
+        advanceUntilIdle()
+
+        assertEquals("file:///downloads/core-track.ogg", engine.request?.url)
+        assertEquals("file:///downloads/next.ogg", engine.preparedRequest?.url)
+        assertEquals(PlaybackSource.DownloadedFile, adapter.playbackSource)
+        assertEquals(downloadedQuality, adapter.playbackQuality)
+    }
+
     @Test
     fun providerCertificatePolicyIsAppliedBeforeNativeStreamPlayback() = runTest {
         val provider = FakeCoreMediaProvider()

@@ -8,9 +8,20 @@ import app.naviamp.domain.StreamQuality
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class DownloadJobsTest {
+    @Test
+    fun storedAudioQualityIsRecoveredForPlayback() {
+        assertEquals(
+            StreamQuality.Transcoded(AudioCodec.Opus, 128),
+            "transcoded:opus:128".toStoredAudioQuality(),
+        )
+        assertEquals(StreamQuality.Original, "original".toStoredAudioQuality())
+        assertNull("transcoded:unknown:128".toStoredAudioQuality())
+    }
+
     @Test
     fun transcodedDownloadsUseTheActualOutputFormatAndQualityLabel() {
         val quality = StreamQuality.Transcoded(AudioCodec.Opus, 128)

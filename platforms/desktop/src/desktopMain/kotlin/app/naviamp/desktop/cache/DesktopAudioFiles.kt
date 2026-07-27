@@ -7,6 +7,7 @@ data class CachedAudioFile(
     val path: Path,
     val sizeBytes: Long,
     val contentType: String?,
+    val qualityKey: String,
 )
 
 data class CachedAudioMetadata(
@@ -22,6 +23,7 @@ data class DownloadedAudioFile(
     val path: Path,
     val sizeBytes: Long,
     val contentType: String?,
+    val qualityKey: String,
 )
 
 data class DownloadedTrack(

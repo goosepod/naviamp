@@ -698,6 +698,7 @@ data class AndroidCachedAudioFile(
     val file: File,
     val sizeBytes: Long,
     val contentType: String?,
+    val qualityKey: String,
 )
 
 data class AndroidCachedAudioMetadata(
@@ -713,6 +714,7 @@ data class AndroidDownloadedAudioFile(
     val file: File,
     val sizeBytes: Long,
     val contentType: String?,
+    val qualityKey: String,
 )
 
 data class AndroidDownloadedTrack(

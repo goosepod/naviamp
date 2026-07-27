@@ -83,6 +83,7 @@ class DesktopAudioStore(
                 path = path,
                 sizeBytes = row.size_bytes,
                 contentType = row.content_type,
+                qualityKey = row.quality_key,
             )
         }
 
@@ -107,6 +108,7 @@ class DesktopAudioStore(
                 path = path,
                 sizeBytes = row.size_bytes,
                 contentType = row.content_type,
+                qualityKey = row.quality_key,
             )
         }
 
@@ -147,6 +149,7 @@ class DesktopAudioStore(
                 path = Path.of(stored.filePath),
                 sizeBytes = stored.sizeBytes,
                 contentType = track.audioInfo?.contentType,
+                qualityKey = qualityKey,
             )
         }
 
@@ -173,6 +176,7 @@ class DesktopAudioStore(
                 path = path,
                 sizeBytes = row.size_bytes,
                 contentType = row.content_type,
+                qualityKey = row.quality_key,
             )
         }
 
@@ -195,6 +199,7 @@ class DesktopAudioStore(
                 path = path,
                 sizeBytes = row.size_bytes,
                 contentType = row.content_type,
+                qualityKey = row.quality_key,
             )
         }
 
@@ -231,6 +236,7 @@ class DesktopAudioStore(
                 path = target,
                 sizeBytes = stored.sizeBytes,
                 contentType = downloadContentType,
+                qualityKey = qualityKey,
             )
         }
 
@@ -275,6 +281,7 @@ class DesktopAudioStore(
                 path = target,
                 sizeBytes = stored.sizeBytes,
                 contentType = downloadContentType,
+                qualityKey = qualityKey,
             )
         }
 

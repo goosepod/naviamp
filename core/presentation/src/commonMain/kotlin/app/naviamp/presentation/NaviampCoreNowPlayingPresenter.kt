@@ -102,7 +102,8 @@ class NaviampCoreNowPlayingPresenter(
             durationSeconds = track?.durationSeconds?.toDouble() ?: live.progress.durationSeconds,
             volumePercent = playbackSettings.volumePercent,
             sleepTimer = display.sleepTimer.toNaviampSleepTimerUi(display.sleepTimerNowEpochMillis),
-            streamQuality = playbackSettings.streamQualityForNetwork(network.isActiveNetworkMobileData()),
+            streamQuality = effects.playbackQuality
+                ?: playbackSettings.streamQualityForNetwork(network.isActiveNetworkMobileData()),
             replayGainInspectorEnabled = playbackSettings.replayGainInspectorEnabled,
             replayGainMode = playbackSettings.replayGainMode,
             sonicSimilarityEnabled = playbackSettings.sonicSimilarityEnabled,
