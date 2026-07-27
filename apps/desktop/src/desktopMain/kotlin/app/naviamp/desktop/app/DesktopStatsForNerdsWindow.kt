@@ -22,6 +22,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.rememberWindowState
 import app.naviamp.desktop.platform.configureDesktopWindowAppearance
+import app.naviamp.desktop.platform.configureDesktopWindowIcon
 import app.naviamp.ui.NaviampDiagnosticsUi
 import app.naviamp.ui.NaviampStatsForNerdsContent
 
@@ -38,6 +39,7 @@ internal fun DesktopStatsForNerdsWindow(
     ) {
         val darkTitleBar = androidx.compose.foundation.isSystemInDarkTheme()
         LaunchedEffect(window, darkTitleBar) {
+            configureDesktopWindowIcon(window)
             configureDesktopWindowAppearance(window, darkTitleBar)
         }
         MaterialTheme(colorScheme = if (darkTitleBar) darkColorScheme() else lightColorScheme()) {

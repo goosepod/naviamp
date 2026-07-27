@@ -21,21 +21,10 @@ class AndroidCoreSettingsSyncPort(
     private val appContext = context.applicationContext
 
     override fun configuration(): NaviampCoreSettingsSyncConfiguration =
-        settingsStore.loadSettingsSync().let { persisted ->
-            NaviampCoreSettingsSyncConfiguration(
-                directoryPath = persisted.treeUri,
-                autoExportEnabled = persisted.autoExportEnabled,
-            )
-        }
+        settingsStore.loadSettingsSync()
 
     override fun saveConfiguration(configuration: NaviampCoreSettingsSyncConfiguration) {
-        val current = settingsStore.loadSettingsSync()
-        settingsStore.saveSettingsSync(
-            current.copy(
-                treeUri = configuration.directoryPath,
-                autoExportEnabled = configuration.autoExportEnabled,
-            ),
-        )
+        settingsStore.saveSettingsSync(configuration)
     }
 
     override suspend fun readDocument(directoryPath: String): SettingsSyncDocument? =

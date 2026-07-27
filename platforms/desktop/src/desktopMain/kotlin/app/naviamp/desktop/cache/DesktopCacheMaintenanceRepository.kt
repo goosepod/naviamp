@@ -24,9 +24,8 @@ class DesktopCacheMaintenanceRepository(
     private var maxAudioBytes: Long = DefaultAudioCacheBytes,
     private val maxAudioWaveformBytes: Long = DefaultAudioWaveformCacheBytes,
     private val maxHotImageBytes: Long = DefaultHotImageCacheBytes,
-    private val clearUntrackedDownloadsOnReset: Boolean = false,
     private val legacyDatabaseFilesOnReset: List<Path> = emptyList(),
-    private val fileTreeCleaner: DesktopFileTreeCleaner = DesktopFileTreeCleaner(),
+    private val knownFileDeleter: DesktopKnownFileDeleter = DesktopKnownFileDeleter(),
 ) : CacheMaintenanceRepository<StorageCacheStats> {
     private val queries = storage.database.naviampStorageQueries
     private val rows = StorageMaintenanceStore(queries)
@@ -41,31 +40,32 @@ class DesktopCacheMaintenanceRepository(
 
     override fun clearCacheData() {
         hotImages.clear()
-        rows.clearCacheDataRows()
-        fileTreeCleaner.clearDirectoryContents(audioCacheDirectory())
+        rows.clearCacheData { filePath -> knownFileDeleter.deleteFile(Path.of(filePath)) }
     }
 
     override fun clearDownloadData() {
-        queries.selectAllDownloadedAudio().executeAsList().forEach { row ->
-            fileTreeCleaner.deleteFile(Path.of(row.file_path))
-        }
-        rows.clearDownloadDataRows()
+        rows.clearDownloadData { filePath -> knownFileDeleter.deleteFile(Path.of(filePath)) }
     }
 
     override fun clearAll() {
         clearCacheData()
         clearDownloadData()
-        if (clearUntrackedDownloadsOnReset) fileTreeCleaner.clearDirectoryContents(downloadDirectory())
         clearLibraryRows()
         rows.clearAllRows()
-        legacyDatabaseFilesOnReset.forEach(fileTreeCleaner::deleteFile)
+        legacyDatabaseFilesOnReset.forEach(knownFileDeleter::deleteFile)
     }
 
     override fun pruneUnusedSourceScopes(
         activeSourceIds: Set<String>,
         lastConnectedBeforeEpochMillis: Long,
         limit: Long,
-    ): Int = storage.pruneUnusedSourceScopes(activeSourceIds, lastConnectedBeforeEpochMillis, limit)
+    ): Int = storage.pruneUnusedSourceScopes(
+        activeSourceIds = activeSourceIds,
+        lastConnectedBeforeEpochMillis = lastConnectedBeforeEpochMillis,
+        limit = limit,
+        deleteKnownAudioCacheFile = { filePath -> knownFileDeleter.deleteFile(Path.of(filePath)) },
+        deleteKnownDownloadFile = { filePath -> knownFileDeleter.deleteFile(Path.of(filePath)) },
+    )
 
     override fun stats(): StorageCacheStats = rows.stats(
         databaseLabel = databasePath.toAbsolutePath().toString(),

@@ -59,6 +59,68 @@ class StorageMediaSourceStoreTest {
             assertFalse(migrated.custom_headers_json.orEmpty().contains("secret-value"))
         }
     }
+
+    @Test
+    fun pruningDeletesOnlyKnownCacheFilesAndRetainsSourceWhenDeletionCannotBeVerified() {
+        withDatabase { database ->
+            var now = 1L
+            val queries = database.naviampStorageQueries
+            val store = StorageMediaSourceStore(queries, nowMillis = { now })
+            val removable = store.upsertProviderMediaSource(
+                providerConnection().copy(baseUrl = "https://old.example.test"),
+                "old-cache",
+                "navidrome",
+            )
+            val retained = store.upsertProviderMediaSource(
+                providerConnection().copy(baseUrl = "https://blocked.example.test"),
+                "blocked-cache",
+                "navidrome",
+            )
+            now = 100L
+            val active = store.upsertProviderMediaSource(
+                providerConnection().copy(baseUrl = "https://active.example.test"),
+                "active-cache",
+                "navidrome",
+            )
+            queries.insertTestCachedAudio(removable.id, "cached", "/known/old-cache.opus")
+            queries.insertTestCachedAudio(retained.id, "blocked", "/not-a-regular-file")
+            val attemptedPaths = mutableListOf<String>()
+
+            val pruned = store.pruneUnusedSourceScopes(
+                activeSourceIds = setOf(active.id),
+                lastConnectedBeforeEpochMillis = 50L,
+                limit = 20L,
+                deleteKnownAudioCacheFile = { path ->
+                    attemptedPaths += path
+                    path != "/not-a-regular-file"
+                },
+                deleteKnownDownloadFile = { error("Downloaded sources must not be pruning candidates.") },
+            )
+
+            assertEquals(1, pruned)
+            assertEquals(setOf("/known/old-cache.opus", "/not-a-regular-file"), attemptedPaths.toSet())
+            assertEquals(null, queries.selectMediaSourceById(removable.id).executeAsOneOrNull())
+            assertTrue(queries.selectCachedAudioForSource(removable.id).executeAsList().isEmpty())
+            assertTrue(queries.selectMediaSourceById(retained.id).executeAsOneOrNull() != null)
+            assertEquals(
+                "/not-a-regular-file",
+                queries.selectCachedAudioForSource(retained.id).executeAsOne().file_path,
+            )
+        }
+    }
+}
+
+private fun NaviampStorageQueries.insertTestCachedAudio(sourceId: String, trackId: String, filePath: String) {
+    upsertCachedAudio(
+        source_id = sourceId,
+        remote_track_id = trackId,
+        quality_key = "transcoded:opus:128",
+        file_path = filePath,
+        size_bytes = 3L,
+        content_type = "audio/ogg",
+        created_at_epoch_millis = 1L,
+        last_accessed_epoch_millis = 1L,
+    )
 }
 
 private inline fun withDatabase(block: (NaviampStorageDatabase) -> Unit) {

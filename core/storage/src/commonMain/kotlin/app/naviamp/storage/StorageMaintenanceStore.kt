@@ -5,24 +5,37 @@ import app.naviamp.domain.cache.StorageCacheStats
 class StorageMaintenanceStore(
     private val queries: NaviampStorageQueries,
 ) {
+    /** Exact native paths owned by cache rows; maintenance must never infer files from a directory scan. */
+    fun clearCacheData(deleteKnownAudioFile: (String) -> Boolean) {
+        queries.selectAllCachedAudio().executeAsList().forEach { row ->
+            if (deleteKnownAudioFile(row.file_path)) {
+                queries.deleteCachedAudio(row.source_id, row.remote_track_id, row.quality_key)
+            }
+        }
+        clearNonFileCacheDataRows()
+    }
+
+    fun clearDownloadData(deleteKnownDownloadFile: (String) -> Boolean) {
+        queries.selectAllDownloadedAudio().executeAsList().forEach { row ->
+            if (deleteKnownDownloadFile(row.file_path)) {
+                queries.deleteDownloadedAudio(row.source_id, row.remote_track_id, row.quality_key)
+            }
+        }
+    }
+
     fun clearProviderData() {
         queries.clearResponses()
     }
 
-    fun clearCacheDataRows() {
+    private fun clearNonFileCacheDataRows() {
         queries.transaction {
             queries.clearResponses()
             queries.clearImages()
             queries.clearAudioWaveforms()
-            queries.clearAudio()
             queries.clearLyrics()
             queries.clearLrclibLyrics()
             queries.clearSidecarStatuses()
         }
-    }
-
-    fun clearDownloadDataRows() {
-        queries.clearDownloads()
     }
 
     fun clearAllRows() {

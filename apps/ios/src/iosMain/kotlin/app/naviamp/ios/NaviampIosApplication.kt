@@ -54,8 +54,8 @@ class NaviampIosApplication(
         credentialProtector = credentialProtector,
         nowEpochMillis = ::naviampNowEpochMillis,
         databaseLabel = "${databaseLocation.directoryPath}/${databaseLocation.fileName}",
-        clearAudioCacheFiles = {},
-        clearDownloadFiles = {},
+        deleteKnownAudioCacheFile = { false },
+        deleteKnownDownloadFile = { false },
     )
     private val sessions = NavidromeCoreProviderSessionPort(
         mediaSources = repositories.mediaSources,

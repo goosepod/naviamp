@@ -28,7 +28,15 @@ class DesktopMediaSourceStorage private constructor(
         activeSourceIds: Set<String>,
         lastConnectedBeforeEpochMillis: Long,
         limit: Long,
-    ): Int = store.pruneUnusedSourceScopes(activeSourceIds, lastConnectedBeforeEpochMillis, limit)
+        deleteKnownAudioCacheFile: (String) -> Boolean,
+        deleteKnownDownloadFile: (String) -> Boolean,
+    ): Int = store.pruneUnusedSourceScopes(
+        activeSourceIds = activeSourceIds,
+        lastConnectedBeforeEpochMillis = lastConnectedBeforeEpochMillis,
+        limit = limit,
+        deleteKnownAudioCacheFile = deleteKnownAudioCacheFile,
+        deleteKnownDownloadFile = deleteKnownDownloadFile,
+    )
 
     override fun close() {
         driver.close()

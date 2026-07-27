@@ -11,7 +11,6 @@ internal class AndroidAudioFileServices(
     initialAudioCacheDirectory: File,
     initialDownloadDirectory: File,
     httpClient: SharedHttpClient,
-    private val fileTreeCleaner: AndroidFileTreeCleaner = AndroidFileTreeCleaner(),
 ) {
     var audioCacheDirectory: File = initialAudioCacheDirectory
         private set
@@ -42,12 +41,14 @@ internal class AndroidAudioFileServices(
         audioCacheByteStore.updateDirectory(directory)
     }
 
-    fun clearAudioCache() {
-        fileTreeCleaner.clearDirectoryContents(audioCacheDirectory)
-    }
+    fun deleteKnownAudioCacheFile(filePath: String): Boolean = deleteKnownRegularFile(filePath)
 
-    fun clearDownloads() {
-        fileTreeCleaner.clearDirectoryContents(downloadDirectory)
+    fun deleteKnownDownloadFile(filePath: String): Boolean = deleteKnownRegularFile(filePath)
+
+    private fun deleteKnownRegularFile(filePath: String): Boolean {
+        val file = File(filePath)
+        if (!file.exists()) return true
+        return file.isFile && file.delete()
     }
 }
 
@@ -79,7 +80,7 @@ internal class AndroidAudioByteStore(
     }
 
     override fun deleteAudioBytes(filePath: String) {
-        File(filePath).delete()
+        File(filePath).takeIf(File::isFile)?.delete()
     }
 }
 

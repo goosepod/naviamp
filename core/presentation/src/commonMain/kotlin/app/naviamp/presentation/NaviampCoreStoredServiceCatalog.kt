@@ -45,6 +45,23 @@ data class NaviampCoreStoredSettings(
     val saveRecentPlaylistIds: (List<String>) -> Unit = {},
 )
 
+/** Adds shared repository-backed settings without making a host reconstruct product state. */
+fun NaviampCoreStoredSettings.withStorageBackedSettings(
+    radioDjPresetRepository: RadioDjPresetRepository,
+    onCacheSettingsSaved: (CacheSettings) -> Unit = {},
+): NaviampCoreStoredSettings {
+    val delegate = this
+    return copy(
+        loadPlayback = {
+            delegate.loadPlayback().copy(radioDjs = radioDjPresetRepository.radioDjPresets())
+        },
+        saveCache = { settings ->
+            onCacheSettingsSaved(settings)
+            delegate.saveCache(settings)
+        },
+    )
+}
+
 /** Shared repositories needed by storage-backed Core service families. */
 data class NaviampCoreStoredRepositories(
     val mediaSources: MediaSourceRepository,

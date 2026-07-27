@@ -36,7 +36,7 @@ class DesktopAudioByteStore(
     }
 
     override fun deleteAudioBytes(filePath: String) {
-        Files.deleteIfExists(Path.of(filePath))
+        Path.of(filePath).takeIf { path -> Files.isRegularFile(path) }?.let(Files::deleteIfExists)
     }
 }
 

@@ -73,11 +73,11 @@ private inline fun <reified T> write(
     values.write(key, json.encodeToString(value))
 }
 
-private const val KeyInterface = "naviamp.interface"
-private const val KeyPlayback = "naviamp.playback"
-private const val KeyCache = "naviamp.cache"
-private const val KeyVisualizer = "naviamp.visualizer"
-private const val KeyRecentRadio = "naviamp.recentRadio"
-private const val KeyRecentInternetRadio = "naviamp.recentInternetRadio"
-private const val KeySyncRuntime = "naviamp.syncRuntime"
-private const val KeyRecentPlaylists = "naviamp.recentPlaylists"
+internal const val KeyInterface = "naviamp.interface"
+internal const val KeyPlayback = "naviamp.playback"
+internal const val KeyCache = "naviamp.cache"
+internal const val KeyVisualizer = "naviamp.visualizer"
+internal const val KeyRecentRadio = "naviamp.recentRadio"
+internal const val KeyRecentInternetRadio = "naviamp.recentInternetRadio"
+internal const val KeySyncRuntime = "naviamp.syncRuntime"
+internal const val KeyRecentPlaylists = "naviamp.recentPlaylists"
