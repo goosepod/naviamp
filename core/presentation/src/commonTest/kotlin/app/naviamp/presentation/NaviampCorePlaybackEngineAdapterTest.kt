@@ -416,6 +416,22 @@ class NaviampCorePlaybackEngineAdapterTest {
     }
 
     @Test
+    fun changingTransitionSettingsImmediatelyInvalidatesPreparedNext() {
+        val engine = RecordingPlaybackEngine()
+        val settings = NaviampCorePlaybackEngineSettings(
+            engine = engine,
+            initial = PlaybackSettings(gaplessEnabled = true),
+        )
+
+        settings.apply(
+            PlaybackSettings(gaplessEnabled = false, crossfadeDurationSeconds = 8),
+            redownload = false,
+        )
+
+        assertEquals(listOf("clear"), engine.events)
+    }
+
+    @Test
     fun sharedSidecarLoaderPublishesSonicRelatedTracksAndScores() = runTest {
         val provider = FakeCoreMediaProvider(supportsSonicSimilarity = true)
 

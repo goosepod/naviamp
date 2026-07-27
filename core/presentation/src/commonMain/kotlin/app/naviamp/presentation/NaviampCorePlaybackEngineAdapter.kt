@@ -490,7 +490,12 @@ class NaviampCorePlaybackEngineSettings(
     fun current(): PlaybackSettings = current
 
     override fun apply(settings: PlaybackSettings, redownload: Boolean): PlaybackSettings {
-        current = settings.effectiveForEngine(engine)
+        val effective = settings.effectiveForEngine(engine)
+        val transitionChanged = current.transitionSettings() != effective.transitionSettings()
+        current = effective
+        if (transitionChanged) {
+            (engine as? QueueAwarePlaybackEngine)?.clearPreparedNext()
+        }
         applyToEngine(current)
         persist(current)
         return current
