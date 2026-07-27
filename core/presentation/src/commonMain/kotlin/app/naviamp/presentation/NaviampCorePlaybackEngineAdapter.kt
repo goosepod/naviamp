@@ -14,6 +14,7 @@ import app.naviamp.domain.playback.PlaybackState
 import app.naviamp.domain.playback.PlaybackStreamMetadata
 import app.naviamp.domain.playback.PlaybackEngineDiagnostics
 import app.naviamp.domain.playback.QueueAwarePlaybackEngine
+import app.naviamp.domain.playback.NetworkCertificateVerificationPlaybackEngine
 import app.naviamp.domain.playback.ReplayGainPlaybackEngine
 import app.naviamp.domain.playback.ReplayGainSource
 import app.naviamp.domain.playback.SampleRateConverterPlaybackEngine
@@ -66,6 +67,7 @@ class NaviampCorePlaybackEngineAdapter(
     private val settings: () -> PlaybackSettings,
     private val isMobileData: () -> Boolean = { false },
     private val activeSourceId: () -> String? = { null },
+    private val verifyProviderNetworkCertificates: () -> Boolean = { true },
     private val cacheSettings: () -> CacheSettings = {
         CacheSettings(audioCachingEnabled = false, audioPrefetchDepth = 0)
     },
@@ -293,6 +295,10 @@ class NaviampCorePlaybackEngineAdapter(
                 coverArtUrl = track.coverArtId?.let { requireNotNull(provider).coverArtUrl(it) },
             ).request
             if (provider != null) startAudioPrefetch(provider, quality, requestGeneration)
+            (engine as? NetworkCertificateVerificationPlaybackEngine)
+                ?.setNetworkCertificateVerification(
+                    enabled = externalStreamUrl != null || verifyProviderNetworkCertificates(),
+                )
             engine.play(
                 scope = scope,
                 request = request,
@@ -407,6 +413,8 @@ class NaviampCorePlaybackEngineAdapter(
             audioSource.playbackStreamUrl { target -> provider.streamUrl(target.providerStreamRequest) }
         }.getOrNull() ?: return
         if (requestGeneration != generation) return
+        (engine as? NetworkCertificateVerificationPlaybackEngine)
+            ?.setNetworkCertificateVerification(verifyProviderNetworkCertificates())
         val work = planPlaylistTrackStartWork(
             sessionId = requestGeneration,
             track = next,

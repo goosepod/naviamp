@@ -59,8 +59,46 @@ suspend fun <InputConnection, Connection, PreparedConnection, Provider : MediaPr
     )
 }
 
-fun connectionFailureStatus(error: Throwable, fallback: String = "Connection failed."): String =
-    error.message ?: fallback
+fun connectionFailureStatus(error: Throwable, fallback: String = "Connection failed."): String {
+    val message = error.message?.trim().orEmpty()
+    if (message.isEmpty()) return fallback
+
+    val normalized = message.lowercase()
+    if (
+        "tls" in normalized ||
+        "ssl" in normalized ||
+        "certificate" in normalized ||
+        "nsurlerrordomain code=-1200" in normalized
+    ) {
+        return "TLS certificate verification failed. Enable \"Skip TLS certificate verification\" " +
+            "under Show Advanced only if you trust this server."
+    }
+    if ("timed out" in normalized || "timeout" in normalized) {
+        return "The server did not respond in time."
+    }
+    if (
+        "unknown host" in normalized ||
+        "unknownhost" in normalized ||
+        "unable to resolve" in normalized ||
+        "could not resolve" in normalized
+    ) {
+        return "The server address could not be resolved."
+    }
+
+    // Native networking failures can include full URLs, credentials, certificates, and internal
+    // object descriptions. Only pass through a short, plain provider-authored message.
+    val containsSensitiveStructure = listOf(
+        "://",
+        "userinfo=",
+        "nsunderlyingerror",
+        "nsurlerror",
+        "peertrust",
+        "<sectrustref",
+        "\n",
+        "\r",
+    ).any { marker -> message.contains(marker, ignoreCase = true) }
+    return if (message.length <= 240 && !containsSensitiveStructure) message else fallback
+}
 
 const val UnusedSourceScopeRetentionMillis: Long = 30L * 24L * 60L * 60L * 1_000L
 

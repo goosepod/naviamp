@@ -12,6 +12,7 @@ import app.naviamp.presentation.toShellCapabilitiesUi
 object IosCapabilityPresentation {
     private val platform = listOf(
         PlatformCapability.SecureCredentialStorage,
+        PlatformCapability.InsecureServerVerification,
         PlatformCapability.ApplicationUpdates,
     ).fold(PlatformCapabilities()) { current, capability ->
         current.withStatus(capability, PlatformCapabilityStatus.Available)

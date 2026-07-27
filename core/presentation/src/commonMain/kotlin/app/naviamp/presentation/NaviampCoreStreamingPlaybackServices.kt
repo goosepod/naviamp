@@ -23,6 +23,7 @@ fun naviampCoreStreamingPlaybackServices(
     persistPlaybackSettings: (PlaybackSettings) -> Unit,
     playbackSessionRepository: PlaybackSessionRepository,
     saveVisualizerSettings: (VisualizerSettings) -> Unit,
+    verifyProviderNetworkCertificates: () -> Boolean = { true },
 ): NaviampCorePlaybackServices {
     val settings = NaviampCorePlaybackEngineSettings(
         engine = engine,
@@ -35,6 +36,7 @@ fun naviampCoreStreamingPlaybackServices(
             engine = engine,
             providerSource = providerSource,
             settings = settings::current,
+            verifyProviderNetworkCertificates = verifyProviderNetworkCertificates,
         ),
         settings = settings,
         sidecars = NaviampCoreMutableNowPlayingSidecars(),

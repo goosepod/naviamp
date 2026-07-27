@@ -8,6 +8,7 @@ import app.naviamp.domain.playback.PlaybackStreamMetadata
 import app.naviamp.domain.playback.PlaybackVisualizerFrame
 import app.naviamp.domain.playback.PlaybackQueueNavigationCommand
 import app.naviamp.domain.playback.QueueAwarePlaybackEngine
+import app.naviamp.domain.playback.NetworkCertificateVerificationPlaybackEngine
 import app.naviamp.domain.playback.VisualizerPlaybackEngine
 import app.naviamp.domain.playback.lyricsLoadingStatus
 import app.naviamp.domain.TrackId
@@ -46,6 +47,24 @@ import kotlin.test.assertEquals
 
 @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 class NaviampCorePlaybackEngineAdapterTest {
+    @Test
+    fun providerCertificatePolicyIsAppliedBeforeNativeStreamPlayback() = runTest {
+        val provider = FakeCoreMediaProvider()
+        val engine = RecordingPlaybackEngine().apply { recordCertificatePolicy = true }
+        val adapter = NaviampCorePlaybackEngineAdapter(
+            scope = this,
+            engine = engine,
+            providerSource = NaviampCoreMediaProviderSource { provider },
+            settings = { PlaybackSettings() },
+            verifyProviderNetworkCertificates = { false },
+        )
+
+        adapter.playQueueSelection(PlaybackQueue(listOf(provider.track), 0), 0)
+        advanceUntilIdle()
+
+        assertEquals(listOf("verify:false", "play:core-track"), engine.events.takeLast(2))
+    }
+
     @Test
     fun nativeVisualizerSamplingRunsOnlyWhileSharedDisplayRequestsFrames() = runTest {
         val provider = FakeCoreMediaProvider()
@@ -438,7 +457,11 @@ class NaviampCorePlaybackEngineAdapterTest {
     }
 }
 
-private class RecordingPlaybackEngine : PlaybackEngine, QueueAwarePlaybackEngine, VisualizerPlaybackEngine {
+private class RecordingPlaybackEngine :
+    PlaybackEngine,
+    QueueAwarePlaybackEngine,
+    VisualizerPlaybackEngine,
+    NetworkCertificateVerificationPlaybackEngine {
     override val name = "Recording"
     override val supportsPause = true
     override val supportsSeek = true
@@ -453,6 +476,7 @@ private class RecordingPlaybackEngine : PlaybackEngine, QueueAwarePlaybackEngine
     var appliedVolume = -1
     var emittedProgress = PlaybackProgress(12.0, 180.0)
     var visualizerReads = 0
+    var recordCertificatePolicy = false
     val events = mutableListOf<String>()
 
     override fun play(
@@ -474,6 +498,9 @@ private class RecordingPlaybackEngine : PlaybackEngine, QueueAwarePlaybackEngine
     override fun seek(positionSeconds: Double) = Unit
     override fun setVolume(percent: Int) { appliedVolume = percent }
     override fun stop() = Unit
+    override fun setNetworkCertificateVerification(enabled: Boolean) {
+        if (recordCertificatePolicy) events += "verify:$enabled"
+    }
     override fun visualizerFrame(): PlaybackVisualizerFrame {
         visualizerReads += 1
         return PlaybackVisualizerFrame(listOf(0.5f), 1L)

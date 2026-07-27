@@ -1813,9 +1813,34 @@ fun recordNavidromeApiCall(
             startedAtEpochMillis = startedAt,
             durationMillis = durationMillis.coerceAtLeast(0),
             success = success,
-            errorMessage = errorMessage,
+            errorMessage = errorMessage.sanitizedNavidromeErrorMessage(),
         ),
     )
+}
+
+internal fun String?.sanitizedNavidromeErrorMessage(): String? {
+    val message = this?.trim().orEmpty()
+    if (message.isEmpty()) return null
+    val normalized = message.lowercase()
+    if (
+        "tls" in normalized ||
+        "ssl" in normalized ||
+        "certificate" in normalized ||
+        "nsurlerrordomain code=-1200" in normalized
+    ) {
+        return "TLS request failed."
+    }
+    val containsSensitiveStructure = listOf(
+        "://",
+        "userinfo=",
+        "nsunderlyingerror",
+        "nsurlerror",
+        "peertrust",
+        "<sectrustref",
+        "\n",
+        "\r",
+    ).any { marker -> message.contains(marker, ignoreCase = true) }
+    return if (message.length <= 240 && !containsSensitiveStructure) message else "Request failed."
 }
 
 open class NavidromeException(message: String) : RuntimeException(message)

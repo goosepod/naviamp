@@ -762,7 +762,7 @@ open class CoreBassPlaybackEngine(
         backend?.let(::applyOutputVolume)
     }
 
-    protected fun setNetworkCertificateVerification(enabled: Boolean) {
+    override fun setNetworkCertificateVerification(enabled: Boolean) {
         verifyNetworkCertificates = enabled
         backend?.setVerifyNet(enabled)
             ?.onFailure { lastError = it.message }

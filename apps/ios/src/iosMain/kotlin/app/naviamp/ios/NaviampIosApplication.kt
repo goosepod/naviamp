@@ -26,6 +26,9 @@ import app.naviamp.storage.NaviampStorageDatabase
 import app.naviamp.storage.StorageCoreRepositoryCatalog
 import app.naviamp.storage.StorageCredentialProtector
 import app.naviamp.storage.StorageDatabaseLocation
+import app.naviamp.provider.navidrome.NavidromeProvider
+import app.naviamp.ui.resetIosPlatformCoverArtByteLoader
+import app.naviamp.ui.setIosPlatformCoverArtByteLoader
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -63,6 +66,13 @@ class NaviampIosApplication(
             nowEpochMillis = ::naviampNowEpochMillis,
         ),
     )
+    init {
+        setIosPlatformCoverArtByteLoader { url ->
+            (sessions.currentProvider() as? NavidromeProvider)
+                ?.takeIf { provider -> provider.ownsUrl(url) }
+                ?.bytes(url)
+        }
+    }
     private val playbackEngine = createIosBassPlaybackEngine()
     private val playback = naviampCoreStreamingPlaybackServices(
         scope = scope,
@@ -72,6 +82,9 @@ class NaviampIosApplication(
         persistPlaybackSettings = settings.savePlayback,
         playbackSessionRepository = repositories.playbackSessions,
         saveVisualizerSettings = settings.storedSettings.saveVisualizer,
+        verifyProviderNetworkCertificates = {
+            repositories.mediaSources.latestMediaSource()?.tlsSettings?.insecureSkipTlsVerification != true
+        },
     )
     private val storedCatalog = naviampCoreStoredServiceCatalog(
         providerSessions = sessions,
@@ -115,6 +128,7 @@ class NaviampIosApplication(
     }
 
     fun close() {
+        resetIosPlatformCoverArtByteLoader()
         playbackEngine.release()
         scope.cancel()
         driver.close()

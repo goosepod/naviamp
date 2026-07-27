@@ -5,6 +5,7 @@ import app.naviamp.app.NaviampConnectionAttemptPlan
 import app.naviamp.domain.settings.ConnectionFormState
 import app.naviamp.domain.settings.connectionFormError
 import app.naviamp.domain.settings.selectedMusicFolderSummary
+import app.naviamp.domain.source.connectionFailureStatus
 import app.naviamp.ui.NaviampSavedConnectionUi
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.currentCoroutineContext
@@ -152,7 +153,7 @@ class NaviampCoreConnectionController(
                 onConnected(session.sourceId)
             }
             .onFailure { cause ->
-                connection.failed(cause.message ?: "Could not connect to the music server.")
+                connection.failed(connectionFailureStatus(cause, "Could not connect to the music server."))
                 publishConnection()
             }
     }

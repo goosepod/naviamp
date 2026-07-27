@@ -70,6 +70,11 @@ interface SampleRateMatchingPlaybackEngine : PlaybackEngine {
     fun setSampleRateMatching(mode: app.naviamp.domain.settings.SampleRateMatching)
 }
 
+/** Optional native-network effect controlled by Core for the stream about to be opened. */
+interface NetworkCertificateVerificationPlaybackEngine : PlaybackEngine {
+    fun setNetworkCertificateVerification(enabled: Boolean)
+}
+
 /**
  * Complete platform-neutral feature contract for every Naviamp BASS engine.
  *
@@ -85,6 +90,7 @@ interface BassPlaybackEngine :
     ReplayGainPlaybackEngine,
     SampleRateConverterPlaybackEngine,
     SampleRateMatchingPlaybackEngine,
+    NetworkCertificateVerificationPlaybackEngine,
     ReleasablePlaybackEngine
 
 /** Optional engine diagnostics consumed by shared or host-native diagnostic presentation. */
