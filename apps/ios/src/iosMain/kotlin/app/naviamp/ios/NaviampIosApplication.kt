@@ -11,7 +11,12 @@ import app.naviamp.ios.platform.IosHomeDateSource
 import app.naviamp.ios.playback.IosNativePlaybackIntegration
 import app.naviamp.ios.playback.IosBassAudioBackend
 import app.naviamp.ios.playback.createIosBassPlaybackEngine
+import app.naviamp.ios.playback.iosPlaybackLocalFilePath
 import app.naviamp.ios.settings.IosCoreSettingsValueStore
+import app.naviamp.ios.storage.IosAudioByteStore
+import app.naviamp.ios.storage.IosAudioFileSystem
+import app.naviamp.ios.storage.IosPlaybackAudioAssets
+import app.naviamp.ios.storage.toPlaybackLocalAudio
 import app.naviamp.presentation.NaviampCoreApp
 import app.naviamp.presentation.NaviampCoreEnvironment
 import app.naviamp.presentation.createNaviampCore
@@ -21,27 +26,31 @@ import app.naviamp.presentation.naviampCorePlaybackServiceCatalog
 import app.naviamp.presentation.naviampCoreStoredServiceCatalog
 import app.naviamp.presentation.naviampNowEpochMillis
 import app.naviamp.presentation.naviampNowIso8601
-import app.naviamp.presentation.unavailableNaviampCoreDownloadServices
+import app.naviamp.presentation.NaviampCoreDownloadedTrack
+import app.naviamp.presentation.NaviampCoreDownloadStorageSnapshot
+import app.naviamp.presentation.repositoryNaviampCoreDownloadServices
 import app.naviamp.presentation.unavailableNaviampCoreSettingsSyncServices
 import app.naviamp.presentation.withStorageBackedSettings
 import app.naviamp.domain.audio.AudioTagReader
+import app.naviamp.domain.cache.AudioByteStoreService
 import app.naviamp.domain.cache.CachedLyricsSidecarRepository
 import app.naviamp.domain.cache.LyricsSidecarCacheService
 import app.naviamp.domain.cache.SidecarStatusService
 import app.naviamp.domain.lyrics.LrclibLyricsProvider
 import app.naviamp.domain.network.KtorSharedHttpClient
-import app.naviamp.domain.playback.emptyPlaybackAudioAssetRepository
 import app.naviamp.domain.waveform.BassAudioWaveformAnalyzer
 import app.naviamp.provider.navidrome.NavidromeCoreProviderSessionPort
 import app.naviamp.provider.navidrome.navidromeProviderSessionOpener
 import app.naviamp.storage.IosStorageDriverFactory
 import app.naviamp.storage.NaviampStorageDatabase
 import app.naviamp.storage.StorageCoreRepositoryCatalog
+import app.naviamp.storage.StorageAudioStore
 import app.naviamp.storage.StorageCredentialProtector
 import app.naviamp.storage.StorageDatabaseLocation
 import app.naviamp.provider.navidrome.NavidromeProvider
 import app.naviamp.ui.resetIosPlatformCoverArtByteLoader
 import app.naviamp.ui.setIosPlatformCoverArtByteLoader
+import app.naviamp.ui.NaviampStorageLocationUi
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -61,14 +70,31 @@ class NaviampIosApplication(
     private val driver: SqlDriver = IosStorageDriverFactory(
         databaseLocation,
     ).createDriver()
+    private val database = NaviampStorageDatabase(driver)
     private val settings = naviampCoreSettingsValueCatalog(IosCoreSettingsValueStore())
+    private var cacheSettings = settings.storedSettings.loadCache()
+    private val audioCacheDirectory = "${databaseLocation.directoryPath}/audio-cache"
+    private val downloadDirectory = "${databaseLocation.directoryPath}/downloads"
     private val repositories = StorageCoreRepositoryCatalog(
-        database = NaviampStorageDatabase(driver),
+        database = database,
         credentialProtector = credentialProtector,
         nowEpochMillis = ::naviampNowEpochMillis,
         databaseLabel = "${databaseLocation.directoryPath}/${databaseLocation.fileName}",
-        deleteKnownAudioCacheFile = { false },
-        deleteKnownDownloadFile = { false },
+        deleteKnownAudioCacheFile = { IosAudioFileSystem.deleteKnownRegularFile(audioCacheDirectory, it) },
+        deleteKnownDownloadFile = { IosAudioFileSystem.deleteKnownRegularFile(downloadDirectory, it) },
+        maxAudioBytes = cacheSettings.maxAudioCacheBytes,
+    )
+    private val httpClient = KtorSharedHttpClient()
+    private val audioStore = StorageAudioStore(
+        queries = database.naviampStorageQueries,
+        audioCacheByteStoreService = AudioByteStoreService(IosAudioByteStore(audioCacheDirectory), httpClient),
+        downloadAudioByteStoreService = AudioByteStoreService(IosAudioByteStore(downloadDirectory), httpClient),
+        nowEpochMillis = ::naviampNowEpochMillis,
+        fileExists = IosAudioFileSystem::isRegularFile,
+        deleteKnownAudioCacheFile = { IosAudioFileSystem.deleteKnownRegularFile(audioCacheDirectory, it) },
+        deleteKnownDownloadFile = { IosAudioFileSystem.deleteKnownRegularFile(downloadDirectory, it) },
+        workContext = Dispatchers.Default,
+        maxAudioCacheBytes = cacheSettings.maxAudioCacheBytes,
     )
     private val sessions = NavidromeCoreProviderSessionPort(
         mediaSources = repositories.mediaSources,
@@ -83,7 +109,6 @@ class NaviampIosApplication(
         setIosPlatformCoverArtByteLoader(::loadProviderArtwork)
     }
     private val playbackEngine = createIosBassPlaybackEngine()
-    private var cacheSettings = settings.storedSettings.loadCache()
     private val verifyProviderNetworkCertificates = {
         repositories.mediaSources.latestMediaSource()?.tlsSettings?.insecureSkipTlsVerification != true
     }
@@ -96,12 +121,15 @@ class NaviampIosApplication(
         persistPlaybackSettings = settings.savePlayback,
         cacheSettings = { cacheSettings },
         activeSourceId = { repositories.mediaSources.latestMediaSource()?.id },
-        audioAssets = emptyPlaybackAudioAssetRepository(),
-        cacheAudio = { _, _, _, _ -> null },
+        audioAssets = IosPlaybackAudioAssets(audioStore, audioStore),
+        cacheAudio = { sourceId, provider, track, quality ->
+            audioStore.cacheAudioTrack(sourceId, provider, track, quality).toPlaybackLocalAudio()
+        },
         waveformRepository = repositories.audioWaveforms,
         waveformAnalyzer = BassAudioWaveformAnalyzer(
             bass = waveformBass,
             verifyNetworkCertificates = verifyProviderNetworkCertificates,
+            localFilePath = ::iosPlaybackLocalFilePath,
         ),
         audioTagReader = AudioTagReader { emptyList() },
         lyricsRepository = CachedLyricsSidecarRepository(
@@ -116,11 +144,34 @@ class NaviampIosApplication(
         prepareWaveformAnalysis = { waveformBass.init().getOrThrow() },
         waveformWorkContext = Dispatchers.Default,
     )
+    private val downloads = repositoryNaviampCoreDownloadServices(
+        downloadRepository = audioStore,
+        replacementRepository = audioStore,
+        keepDownloadedRepository = repositories.keepDownloaded,
+        toCoreDownload = { stored ->
+            NaviampCoreDownloadedTrack(
+                storageId = stored.filePath,
+                track = stored.track,
+                sizeBytes = stored.sizeBytes,
+                qualityLabel = stored.qualityKey,
+            )
+        },
+        isStoredDownloadAvailable = { stored -> IosAudioFileSystem.isRegularFile(stored.filePath) },
+        storageStats = {
+            repositories.maintenance.stats().let { stats ->
+                NaviampCoreDownloadStorageSnapshot(
+                    audioCacheCount = stats.audioCount,
+                    audioCacheBytes = stats.audioBytes,
+                    pendingProviderActionCount = stats.pendingProviderActionCount,
+                )
+            }
+        },
+    )
     private val storedCatalog = naviampCoreStoredServiceCatalog(
         providerSessions = sessions,
         providerSource = sessions.providerSource,
         playback = playback,
-        downloads = unavailableNaviampCoreDownloadServices(),
+        downloads = downloads,
         playbackEngine = playbackEngine,
         settingsSyncPort = unavailableNaviampCoreSettingsSyncServices(::naviampNowEpochMillis).port,
         settings = settings.storedSettings.withStorageBackedSettings(
@@ -135,11 +186,20 @@ class NaviampIosApplication(
             keepDownloaded = repositories.keepDownloaded,
             radioDjPresets = repositories.radioDjPresets,
             maintenance = repositories.maintenance,
+            updateAudioCacheLimit = audioStore::updateAudioCacheLimit,
         ),
         externalUri = IosCoreExternalUriPort(),
         homeDate = IosHomeDateSource,
         shellCapabilities = IosCapabilityPresentation.shell(playbackEngine),
         settingsSyncDeviceId = "ios",
+        downloadLocations = listOf(
+            NaviampStorageLocationUi("app-storage", "App storage", downloadDirectory),
+        ),
+        audioCacheLocations = listOf(
+            NaviampStorageLocationUi("app-storage", "App storage", audioCacheDirectory),
+        ),
+        selectedDownloadLocationId = "app-storage",
+        selectedAudioCacheLocationId = "app-storage",
         sourceId = { repositories.mediaSources.latestMediaSource()?.id },
         clockEpochMillis = ::naviampNowEpochMillis,
         favoritedAtIso8601 = ::naviampNowIso8601,

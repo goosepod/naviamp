@@ -2,27 +2,28 @@ plugins {
     alias(libs.plugins.kotlin.multiplatform)
 }
 
+val iosBassFrameworks = listOf(
+    "bass",
+    "bassmix",
+    "bassflac",
+    "bassopus",
+    "bassmidi",
+    "basswv",
+    "bassdsd",
+    "basswebm",
+    "basshls",
+    "bassape",
+    "bassloud",
+    "bass_fx",
+    "bass_mpc",
+    "bass_tta",
+)
+
 kotlin {
     iosArm64()
     iosSimulatorArm64()
 
     targets.withType<org.jetbrains.kotlin.gradle.plugin.mpp.KotlinNativeTarget>().configureEach {
-        val bassFrameworks = listOf(
-            "bass",
-            "bassmix",
-            "bassflac",
-            "bassopus",
-            "bassmidi",
-            "basswv",
-            "bassdsd",
-            "basswebm",
-            "basshls",
-            "bassape",
-            "bassloud",
-            "bass_fx",
-            "bass_mpc",
-            "bass_tta",
-        )
         val bassSlice = if (name == "iosSimulatorArm64") {
             "ios-arm64_i386_x86_64-simulator"
         } else {
@@ -34,7 +35,7 @@ kotlin {
             includeDirs(project.file("vendor/bass/include"))
         }
         binaries.configureEach {
-            bassFrameworks.forEach { framework ->
+            iosBassFrameworks.forEach { framework ->
                 linkerOpts(
                     "-F${project.file("vendor/bass/$framework.xcframework/$bassSlice").absolutePath}",
                     "-framework",
@@ -53,5 +54,22 @@ kotlin {
             api(project(":core:ui"))
             api(project(":providers:navidrome"))
         }
+        iosTest.dependencies {
+            implementation(libs.kotlin.test)
+        }
     }
+}
+
+val stageIosSimulatorTestBassFrameworks by tasks.registering(Copy::class) {
+    val slice = "ios-arm64_i386_x86_64-simulator"
+    iosBassFrameworks.forEach { framework ->
+        from(project.file("vendor/bass/$framework.xcframework/$slice/$framework.framework")) {
+            into("$framework.framework")
+        }
+    }
+    into(layout.buildDirectory.dir("bin/iosSimulatorArm64/debugTest/Frameworks"))
+}
+
+tasks.named("iosSimulatorArm64Test") {
+    dependsOn(stageIosSimulatorTestBassFrameworks)
 }

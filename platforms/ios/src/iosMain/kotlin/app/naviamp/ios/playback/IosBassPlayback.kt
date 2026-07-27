@@ -511,11 +511,7 @@ class IosBassPlaybackEngineRuntime : BassPlaybackEngineRuntime {
 
     override val workContext = Dispatchers.Default
 
-    override fun localFilePath(url: String): String? = when {
-        url.startsWith("file:") -> NSURL.URLWithString(url)?.path
-        url.startsWith("/") -> url
-        else -> null
-    }
+    override fun localFilePath(url: String): String? = iosPlaybackLocalFilePath(url)
 
     override fun nowEpochMillis(): Long = Clock.System.now().toEpochMilliseconds()
 
@@ -527,6 +523,13 @@ class IosBassPlaybackEngineRuntime : BassPlaybackEngineRuntime {
             preparedLock.unlock()
         }
     }
+}
+
+/** Native file-URL translation shared by the iOS playback and waveform adapters. */
+fun iosPlaybackLocalFilePath(url: String): String? = when {
+    url.startsWith("file:") -> NSURL.URLWithString(url)?.path
+    url.startsWith("/") -> url
+    else -> null
 }
 
 fun createIosBassPlaybackEngine(): CoreBassPlaybackEngine = CoreBassPlaybackEngine(

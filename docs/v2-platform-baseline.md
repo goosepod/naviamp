@@ -4,6 +4,8 @@ This document records the Android and Desktop baseline before application orches
 
 The Desktop implementation recorded below is historical and was replaced by the promoted thin Core host on 2026-07-23. Commands and artifact paths remain current.
 
+Current target/composition status was reviewed on 2026-07-27; the dated baseline commit below remains the intentional pre-migration comparison point.
+
 - **Snapshot date:** 2026-07-16
 - **Source branch:** `feature/v2-cross-platform-app`
 - **Baseline commit:** `a48bf38f`
@@ -42,16 +44,16 @@ This proves the shared JVM/Android compilation, checked-in unit tests, Desktop t
 
 | Module | Current targets | v2 implication |
 | --- | --- | --- |
-| `core:app` | Android, JVM, iOS device, iOS simulator | The first shared runtime boundary owns serialized lifecycle/session bootstrap, connectivity snapshots, platform capabilities, and error reporting. Android and Desktop adoption is intentionally pending. |
+| `core:app` | Android, JVM, iOS device, iOS simulator | Shared runtime/controllers own lifecycle/session bootstrap, connectivity, navigation, queue and playback coordination, provider actions, settings, downloads, cache work, capabilities, and user-facing status. All three thin hosts consume this ownership. |
 | `core:domain` | Android, JVM, iOS device, iOS simulator | Apple targets, Darwin shared HTTP, native time/encoding/hash actuals, and simulator tests were added in Milestone 1. |
 | `core:presentation` | Android, JVM, iOS device, iOS simulator | The common composition boundary depends on both `core:app` and `core:ui`; it is the home for the complete product state/action binding rather than rebuilding that graph in each host. |
-| `core:storage` | Android, JVM, iOS device, iOS simulator | Apple targets and the native SQLDelight driver boundary are present. The iOS host must create and supply its OS-approved Application Support directory. |
-| `core:ui` | Android, JVM, iOS device, iOS simulator | Apple targets compile with explicit initial hooks: touch-first tooltip passthrough, native time, shared Canvas visualizers, and placeholder artwork/fallback colors until the iOS host provides authenticated image bytes and native decoding. |
+| `core:storage` | Android, JVM, iOS device, iOS simulator | Shared SQLDelight repositories own media, library, maintenance, downloads, audio-cache metadata/limits/eviction, sidecars, waveforms, lyrics offsets, sessions, and provider-action rows. Hosts select drivers and provide only native bytes/filesystem effects. |
+| `core:ui` | Android, JVM, iOS device, iOS simulator | Apple targets use the same shared cover-art UI, loading/cache policy, palette/Aurora behavior, lyrics, waveform presentation, settings, navigation, and Canvas visualizers. Targets provide only encoded-image loading plus native decoding/pixel extraction; authenticated iOS artwork and Aurora rendering pass on the simulator. |
 | `providers:navidrome` | Android, JVM, iOS device, iOS simulator | Darwin handles normal iOS HTTPS and opt-in insecure server verification through a scoped server-trust challenge handler. The iOS host permits arbitrary loads for user-configured HTTP/private-PKI servers, while certificate bypass remains an explicit provider setting. Custom CAs and client certificates remain explicit unavailable capabilities and fail closed until secure native implementations exist. |
-| `apps:android` | Android application | Reduce to lifecycle, service, MediaSession, permission, notification, Android Auto, and Android service adapters. |
-| `apps:desktop` | Desktop JVM application | Reduce to window, menu, updater, packaging, and Desktop service adapters. |
-| `platforms:ios` | iOS device and iOS simulator | Thin Apple effects provide NSUserDefaults settings bytes, UIApplication external-URL opening, native calendar/time values, capability facts, direct Kotlin/Native BASS ABI calls, `AVAudioSession` lifecycle notifications, and MediaPlayer publication/command translation. Interruption, route-disconnect, external-command, and playback-publication policy remain in Core. |
-| `apps:ios` | iOS device and iOS simulator | The static Kotlin framework, SwiftUI/UIKit wrapper, and Xcode project launch on an iOS 26.5 simulator. The host selects Application Support and Keychain effects, owns native database/playback/native-media lifetime, assembles shared repository/provider/playback catalogs, and mounts one process-level `NaviampCore` without iOS feature controllers. The packaged host links and embeds the supported BASS family and uses `CoreBassPlaybackEngine`; live authenticated simulator acceptance covers MP3 and FLAC playback, previous/next, automatic track advancement, and native Now Playing metadata/artwork/timing. MediaPlayer remote commands are accepted and execute against Core; iOS 26.5 Simulator build 23F77 creates their enabled system controls and working hit targets but fails to draw the Apple-owned CA-package transport glyphs. |
+| `apps:android` | Android application | Thin host for Activity/service lifetime, MediaSession, notification, permissions, URI pickers, Android Auto, native playback loading, and Android storage/network effects. Product behavior and UI come from Core. |
+| `apps:desktop` | Desktop JVM application | Thin host for window/Dock/taskbar state, native dialogs, updater, packaging, filesystem/credential effects, and native playback loading. Product behavior and UI come from Core. |
+| `platforms:ios` | iOS device and iOS simulator | Thin Apple effects provide NSUserDefaults settings bytes, UIApplication external-URL opening, calendar/time values, atomic Application Support audio-byte writes and exact-path file operations, file-URL translation, direct Kotlin/Native BASS ABI calls, `AVAudioSession` lifecycle notifications, and MediaPlayer publication/command translation. Product policy remains in Core. |
+| `apps:ios` | iOS device and iOS simulator | The static Kotlin framework, SwiftUI/UIKit wrapper, and Xcode project launch on an iOS 26.5 simulator. The host owns native lifetimes and mounts shared repository/provider/playback/download/cache/lyrics/waveform catalogs into one process-level `NaviampCore`. Packaged simulator acceptance covers authenticated MP3/FLAC playback, queue transitions, artwork/Aurora, lyrics, waveforms, Now Playing publication, and real MP3/FLAC queue prefetch into SQL-owned Application Support files. Core download services and local playback lookup are mounted; explicit persistent-download/offline UI acceptance remains. Settings document selection, restoration acceptance, release signing/assets, and physical-device acceptance remain. |
 
 ## Existing Shared Foundation
 
@@ -160,7 +162,7 @@ Capability checks belong in immutable platform capability data or narrow service
 | --- | --- | --- | --- |
 | Shared UI/navigation/product behavior | Required | Required | Required |
 | BASS playback | Required | Required | Required |
-| AVPlayer playback | Unsupported | Unsupported | Temporary proof of concept only |
+| AVPlayer playback | Unsupported | Unsupported | Unsupported; temporary proof path removed |
 | Streaming and downloaded playback | Required | Required | Required |
 | Background playback | Required | Required while app runs | Required |
 | OS media controls/metadata | Required | Required where OS supports it | Required |
