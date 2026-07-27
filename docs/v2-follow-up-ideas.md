@@ -12,6 +12,20 @@ This document tracks useful ideas that come up during the v2 migration but are n
 
 ## Ideas
 
+### Weblate Translation Management
+
+- **Status:** Idea
+- **Concept:** Use Weblate as Naviamp's source of truth for community translations, with repository synchronization keeping the shared localization resources and translator-facing strings aligned.
+- **Hosting opportunity:** Apply for Weblate's gratis Libre plan for Naviamp as a public libre project. The advertised Libre plan has the same limits as Weblate's 160k plan and is intended specifically for public projects that benefit from Weblate support.
+- **Shared-architecture requirement:** Keep translatable product strings and locale behavior in shared resources wherever possible. Android, Desktop, and iOS hosts should contribute only genuinely platform-owned text such as operating-system permission descriptions or packaging metadata, and should not develop independent translation catalogs for shared UI.
+- **Questions to answer:**
+  - Which Compose Multiplatform resource format and repository layout gives Weblate reliable round-trip updates without generated-file churn or platform catalog drift?
+  - Should Weblate push directly to a dedicated translation branch, open reviewed pull requests, or be mirrored through a project-owned automation account?
+  - Which locales, plural rules, placeholders, markup, screenshots, glossary terms, contributor credit, review thresholds, and stale-string policies should be configured before inviting translators?
+  - How will CI validate placeholder compatibility, locale completeness, encoding, fallback behavior, and compilation across Android, Desktop, and iOS?
+- **Implementation output:** Confirm Libre-plan eligibility, create the Weblate project and component configuration, document translator and maintainer workflows, import the existing catalogs, add automated validation, and verify a complete translation round trip from Weblate through review to all three clients.
+- **Source:** [Weblate hosting and Libre plan](https://weblate.org/en/hosting/)
+
 ### Cross-Platform BASS Add-On Usage Audit
 
 - **Status:** Idea
