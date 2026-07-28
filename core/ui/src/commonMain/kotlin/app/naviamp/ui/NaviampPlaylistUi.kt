@@ -5,6 +5,7 @@ import app.naviamp.ui.generated.resources.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -490,6 +491,7 @@ fun NaviampPlaylistDetailContent(
     actions: NaviampPlaylistDetailActions,
     playlistsActions: NaviampPlaylistsActions,
     playlistChoices: List<NaviampPlaylistChoiceUi>,
+    scrollState: ScrollState = rememberScrollState(),
 ) {
     val detail = screen.detail
     if (detail == null) {
@@ -594,6 +596,7 @@ fun NaviampPlaylistDetailContent(
         playlistChoices = playlistChoices,
         availableLibraries = screen.availableLibraries,
         selectedConnectionLibraryIds = screen.selectedConnectionLibraryIds,
+        detailScrollState = scrollState,
     )
 }
 
@@ -621,6 +624,7 @@ private fun PlaylistDetailContent(
     playlistChoices: List<NaviampPlaylistChoiceUi>,
     availableLibraries: List<ConnectionFormMusicFolder> = emptyList(),
     selectedConnectionLibraryIds: List<String> = emptyList(),
+    detailScrollState: ScrollState,
 ) {
     var renameOpen by remember { mutableStateOf(false) }
     var deleteOpen by remember { mutableStateOf(false) }
@@ -631,7 +635,6 @@ private fun PlaylistDetailContent(
     var smartPlaylistLoadMessage by remember { mutableStateOf<String?>(null) }
     var smartPlaylistLoading by remember { mutableStateOf(false) }
     var smartPlaylistPasswordPromptOpen by remember { mutableStateOf(false) }
-    val detailScrollState = rememberScrollState()
     var detailViewportBounds by remember { mutableStateOf(Rect.Zero) }
     val coroutineScope = rememberCoroutineScope()
     val editSmartPlaylistLabel = stringResource(Res.string.playlists_edit_smart)
@@ -663,9 +666,7 @@ private fun PlaylistDetailContent(
             .fillMaxSize()
             .onGloballyPositioned { coordinates ->
                 detailViewportBounds = coordinates.boundsInWindow()
-            }
-            .verticalScroll(detailScrollState),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
+            },
     ) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(2.dp)) {
             IconButton(onClick = onBack, modifier = Modifier.size(32.dp)) {
@@ -752,6 +753,12 @@ private fun PlaylistDetailContent(
                 }
             }
         }
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .verticalScroll(detailScrollState),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
         if (detail.playlist.isSmartPlaylist) {
             SmartPlaylistTrackList(
                 colors = colors,
@@ -768,6 +775,7 @@ private fun PlaylistDetailContent(
                 dragViewportTop = detailViewportBounds.top,
                 dragViewportBottom = detailViewportBounds.bottom,
             )
+        }
         }
     }
 

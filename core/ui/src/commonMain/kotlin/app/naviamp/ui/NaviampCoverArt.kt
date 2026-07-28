@@ -24,7 +24,9 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
 import kotlin.math.ceil
 import kotlin.math.min
@@ -148,9 +150,11 @@ internal fun resetNaviampCoverArtCache() = NaviampCoverArtCache.clear()
 private object NaviampCoverArtCache {
     private const val MaxImages = 240
     private const val MaxPalettes = 240
+    private const val MaxConcurrentLoads = 4
     private val images = linkedMapOf<String, ImageBitmap>()
     private val palettes = linkedMapOf<String, List<NaviampRgbSample>>()
     private val mutex = Mutex()
+    private val loadPermits = Semaphore(MaxConcurrentLoads)
 
     private suspend fun cachedPlayerColors(url: String, colors: NaviampColors): NaviampPlayerColors =
         mutex.withLock { palettes[url] }
@@ -161,16 +165,21 @@ private object NaviampCoverArtCache {
     suspend fun image(url: String, targetSidePx: Int): ImageBitmap? {
         val cacheKey = "$url#$targetSidePx"
         mutex.withLock { images[cacheKey] }?.let { return it }
-        val decoded = withContext(Dispatchers.Default) {
-            platformCoverArtBytes(url)
-                ?.takeIf { it.isNotEmpty() }
-                ?.let { decodePlatformCoverArt(it, targetSidePx) }
-        } ?: return null
-        mutex.withLock {
-            putBounded(images, cacheKey, decoded.image, MaxImages)
-            putBounded(palettes, url, decoded.rgbSamples, MaxPalettes)
+        return loadPermits.withPermit {
+            mutex.withLock { images[cacheKey] }?.let { return@withPermit it }
+            val decoded = withContext(Dispatchers.Default) {
+                runCatching {
+                    platformCoverArtBytes(url)
+                        ?.takeIf { it.isNotEmpty() }
+                        ?.let { decodePlatformCoverArt(it, targetSidePx) }
+                }.getOrNull()
+            } ?: return@withPermit null
+            mutex.withLock {
+                putBounded(images, cacheKey, decoded.image, MaxImages)
+                putBounded(palettes, url, decoded.rgbSamples, MaxPalettes)
+            }
+            decoded.image
         }
-        return decoded.image
     }
 
     suspend fun playerColors(url: String, colors: NaviampColors): NaviampPlayerColors {

@@ -42,14 +42,33 @@ internal actual fun decodePlatformCoverArt(
     bytes: ByteArray,
     targetSidePx: Int,
 ): NaviampDecodedCoverArt? = runCatching {
+    val source = ImageIO.read(bytes.inputStream()) ?: return@runCatching null
+    val longestSide = maxOf(source.width, source.height)
+    val scale = (targetSidePx.toDouble() / longestSide).coerceAtMost(1.0)
+    val targetWidth = (source.width * scale).toInt().coerceAtLeast(1)
+    val targetHeight = (source.height * scale).toInt().coerceAtLeast(1)
+    val decoded = if (targetWidth == source.width && targetHeight == source.height) {
+        source
+    } else {
+        BufferedImage(targetWidth, targetHeight, BufferedImage.TYPE_INT_ARGB).also { target ->
+            target.createGraphics().use { graphics ->
+                graphics.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR)
+                graphics.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY)
+                graphics.drawImage(source, 0, 0, targetWidth, targetHeight, null)
+            }
+        }
+    }
+    val encoded = ByteArrayOutputStream().use { output ->
+        check(ImageIO.write(decoded, "png", output))
+        output.toByteArray()
+    }
     NaviampDecodedCoverArt(
-        image = SkiaImage.makeFromEncoded(bytes).toComposeImageBitmap(),
-        rgbSamples = jvmRgbSamples(bytes),
+        image = SkiaImage.makeFromEncoded(encoded).toComposeImageBitmap(),
+        rgbSamples = jvmRgbSamples(decoded),
     )
 }.getOrNull()
 
-private fun jvmRgbSamples(bytes: ByteArray): List<NaviampRgbSample> {
-    val image = javax.imageio.ImageIO.read(bytes.inputStream()) ?: return emptyList()
+private fun jvmRgbSamples(image: BufferedImage): List<NaviampRgbSample> {
     val samples = mutableListOf<NaviampRgbSample>()
     val stepX = (image.width / 32).coerceAtLeast(1)
     val stepY = (image.height / 32).coerceAtLeast(1)
@@ -71,6 +90,14 @@ private fun jvmRgbSamples(bytes: ByteArray): List<NaviampRgbSample> {
         y += stepY
     }
     return samples
+}
+
+private inline fun <T : java.awt.Graphics> T.use(block: (T) -> Unit) {
+    try {
+        block(this)
+    } finally {
+        dispose()
+    }
 }
 
 private suspend fun defaultPlatformCoverArtBytes(url: String): ByteArray =

@@ -16,6 +16,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -138,6 +139,7 @@ fun SharedHomeRoute(
     home: NaviampHomeScreenUi,
     actions: NaviampHomeActions,
     mediaActions: NaviampMediaActions,
+    scrollState: ScrollState = rememberScrollState(),
 ) {
     PullToRefreshBox(
         isRefreshing = home.refreshing,
@@ -158,7 +160,7 @@ fun SharedHomeRoute(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .verticalScroll(rememberScrollState()),
+                .verticalScroll(scrollState),
         ) {
             SharedHome(
                 colors = colors,
