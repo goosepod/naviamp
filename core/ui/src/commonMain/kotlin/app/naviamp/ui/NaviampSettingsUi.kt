@@ -176,7 +176,7 @@ fun NaviampSharedSettingsContent(
     onDeleteSavedConnection: (NaviampSavedConnectionUi) -> Unit,
     onImportSettingsSyncFile: (() -> Unit)? = null,
     onChooseSettingsSyncFolder: (() -> Unit)? = null,
-    onImportSettingsSyncFolder: (() -> Unit)? = null,
+    onSyncSettingsNow: (() -> Unit)? = null,
     onExportSettingsSyncFolder: (() -> Unit)? = null,
     settingsSyncAutoExportEnabled: Boolean = false,
     onSettingsSyncAutoExportChanged: ((Boolean) -> Unit)? = null,
@@ -251,7 +251,7 @@ fun NaviampSharedSettingsContent(
                         onDeleteConnection = onDeleteSavedConnection,
                         onImportSettingsSyncFile = onImportSettingsSyncFile,
                         onChooseSettingsSyncFolder = onChooseSettingsSyncFolder,
-                        onImportSettingsSyncFolder = onImportSettingsSyncFolder,
+                        onSyncSettingsNow = onSyncSettingsNow,
                         onExportSettingsSyncFolder = onExportSettingsSyncFolder,
                         settingsSyncAutoExportEnabled = settingsSyncAutoExportEnabled,
                         onSettingsSyncAutoExportChanged = onSettingsSyncAutoExportChanged,
@@ -1279,7 +1279,7 @@ private fun NaviampConnectionsSettingsSection(
     onDeleteConnection: (NaviampSavedConnectionUi) -> Unit,
     onImportSettingsSyncFile: (() -> Unit)?,
     onChooseSettingsSyncFolder: (() -> Unit)?,
-    onImportSettingsSyncFolder: (() -> Unit)?,
+    onSyncSettingsNow: (() -> Unit)?,
     onExportSettingsSyncFolder: (() -> Unit)?,
     settingsSyncAutoExportEnabled: Boolean,
     onSettingsSyncAutoExportChanged: ((Boolean) -> Unit)?,
@@ -1292,7 +1292,7 @@ private fun NaviampConnectionsSettingsSection(
     val hasSettingsSync =
         onImportSettingsSyncFile != null ||
             onChooseSettingsSyncFolder != null ||
-            onImportSettingsSyncFolder != null ||
+            onSyncSettingsNow != null ||
             onExportSettingsSyncFolder != null
 
     if (isConnectionFormOpen) {
@@ -1391,8 +1391,8 @@ private fun NaviampConnectionsSettingsSection(
                 onChooseSettingsSyncFolder?.let { chooseFolder ->
                     PrimarySettingsButton(stringResource(Res.string.settings_sync_choose_folder), colors, enabled = !isConnecting, onClick = chooseFolder)
                 }
-                onImportSettingsSyncFolder?.let { importFolder ->
-                    PrimarySettingsButton(stringResource(Res.string.settings_sync_now), colors, enabled = !isConnecting, onClick = importFolder)
+                onSyncSettingsNow?.let { syncNow ->
+                    PrimarySettingsButton(stringResource(Res.string.settings_sync_now), colors, enabled = !isConnecting, onClick = syncNow)
                 }
                 onExportSettingsSyncFolder?.let { exportFolder ->
                     PrimarySettingsButton(stringResource(Res.string.settings_sync_export_local), colors, enabled = !isConnecting, onClick = exportFolder)

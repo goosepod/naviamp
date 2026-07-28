@@ -14,6 +14,12 @@ class IosCapabilityPresentationTest {
     fun exposesDownloadsAfterTheNativeStorageEffectIsMounted() {
         assertTrue(IosCapabilityPresentation.shell(TestPlaybackEngine).downloads)
     }
+
+    @Test
+    fun exposesSettingsImportExportAfterTheDocumentPickerEffectIsMounted() {
+        val shell = IosCapabilityPresentation.shell(TestPlaybackEngine)
+        assertTrue(shell.settingsImportExport)
+    }
 }
 
 private object TestPlaybackEngine : PlaybackEngine {

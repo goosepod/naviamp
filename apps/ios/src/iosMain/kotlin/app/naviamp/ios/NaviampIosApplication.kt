@@ -13,6 +13,7 @@ import app.naviamp.ios.playback.IosBassAudioBackend
 import app.naviamp.ios.playback.createIosBassPlaybackEngine
 import app.naviamp.ios.playback.iosPlaybackLocalFilePath
 import app.naviamp.ios.settings.IosCoreSettingsValueStore
+import app.naviamp.ios.settings.IosCoreSettingsSyncPort
 import app.naviamp.ios.storage.IosAudioByteStore
 import app.naviamp.ios.storage.IosAudioFileSystem
 import app.naviamp.ios.storage.IosPlaybackAudioAssets
@@ -29,7 +30,6 @@ import app.naviamp.presentation.naviampNowIso8601
 import app.naviamp.presentation.NaviampCoreDownloadedTrack
 import app.naviamp.presentation.NaviampCoreDownloadStorageSnapshot
 import app.naviamp.presentation.repositoryNaviampCoreDownloadServices
-import app.naviamp.presentation.unavailableNaviampCoreSettingsSyncServices
 import app.naviamp.presentation.withStorageBackedSettings
 import app.naviamp.domain.audio.AudioTagReader
 import app.naviamp.domain.cache.AudioByteStoreService
@@ -71,7 +71,13 @@ class NaviampIosApplication(
         databaseLocation,
     ).createDriver()
     private val database = NaviampStorageDatabase(driver)
-    private val settings = naviampCoreSettingsValueCatalog(IosCoreSettingsValueStore())
+    private val settingsValueStore = IosCoreSettingsValueStore()
+    private val settings = naviampCoreSettingsValueCatalog(settingsValueStore)
+    private var contentViewController: UIViewController? = null
+    private val settingsSyncPort = IosCoreSettingsSyncPort(
+        settingsStore = settingsValueStore,
+        presenter = { contentViewController },
+    )
     private var cacheSettings = settings.storedSettings.loadCache()
     private val audioCacheDirectory = "${databaseLocation.directoryPath}/audio-cache"
     private val downloadDirectory = "${databaseLocation.directoryPath}/downloads"
@@ -181,7 +187,7 @@ class NaviampIosApplication(
         playback = playback,
         downloads = downloads,
         playbackEngine = playbackEngine,
-        settingsSyncPort = unavailableNaviampCoreSettingsSyncServices(::naviampNowEpochMillis).port,
+        settingsSyncPort = settingsSyncPort,
         settings = settings.storedSettings.withStorageBackedSettings(
             radioDjPresetRepository = repositories.radioDjPresets,
             onCacheSettingsSaved = { effective -> cacheSettings = effective },
@@ -227,13 +233,13 @@ class NaviampIosApplication(
         artworkBytes = ::loadProviderArtwork,
     )
 
-    fun viewController(): UIViewController = ComposeUIViewController {
+    fun viewController(): UIViewController = contentViewController ?: ComposeUIViewController {
         NaviampCoreApp(
             core = core,
             modifier = Modifier.safeDrawingPadding().imePadding(),
             applicationUpdateChecker = environment.applicationUpdateChecker,
         )
-    }
+    }.also { contentViewController = it }
 
     fun close() {
         resetIosPlatformCoverArtByteLoader()

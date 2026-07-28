@@ -3,6 +3,8 @@ package app.naviamp.desktop.settings
 import app.naviamp.presentation.NaviampCoreSettingsSyncConfiguration
 import app.naviamp.presentation.NaviampCoreSettingsSyncPort
 import java.nio.file.Path
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 /** Desktop native effects for Core-owned settings-sync transactions. */
 class DesktopCoreSettingsSyncPort(
@@ -33,11 +35,13 @@ class DesktopCoreSettingsSyncPort(
         store.displayName
     }
 
-    override suspend fun chooseDirectory(currentPath: String?, title: String): String? =
+    override suspend fun chooseDirectory(currentPath: String?, title: String): String? = withContext(Dispatchers.IO) {
         directoryPicker.chooseDirectory(currentPath ?: defaultDirectory(), title)
+    }
 
-    override suspend fun chooseDocument(currentPath: String?, title: String): String? =
+    override suspend fun chooseDocument(currentPath: String?, title: String): String? = withContext(Dispatchers.IO) {
         documentPicker.chooseDocument(currentPath ?: defaultDirectory(), title)
+    }
 
     override fun defaultDirectory() = defaultDirectoryPath()
 }

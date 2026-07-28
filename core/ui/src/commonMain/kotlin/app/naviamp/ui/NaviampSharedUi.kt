@@ -779,7 +779,7 @@ fun NaviampSettingsContent(
         onDeleteSavedConnection = connectionActions.onDeleteConnection,
         onImportSettingsSyncFile = syncActions.onImportFile.takeIf { settingsSync.available },
         onChooseSettingsSyncFolder = syncActions.onChooseFolder.takeIf { settingsSync.available },
-        onImportSettingsSyncFolder = syncActions.onImportFolder.takeIf { settingsSync.available },
+        onSyncSettingsNow = syncActions.onExport.takeIf { settingsSync.available },
         onExportSettingsSyncFolder = syncActions.onExportFolder.takeIf { settingsSync.available },
         settingsSyncAutoExportEnabled = settingsSync.autoExportEnabled,
         onSettingsSyncAutoExportChanged = syncActions.onAutoExportChanged.takeIf { settingsSync.available },

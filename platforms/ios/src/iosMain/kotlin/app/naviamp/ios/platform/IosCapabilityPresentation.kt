@@ -16,6 +16,8 @@ object IosCapabilityPresentation {
         PlatformCapability.ApplicationUpdates,
         PlatformCapability.Downloads,
         PlatformCapability.OfflinePlayback,
+        PlatformCapability.SettingsImportExport,
+        PlatformCapability.FileSelection,
     ).fold(PlatformCapabilities()) { current, capability ->
         current.withStatus(capability, PlatformCapabilityStatus.Available)
     }
