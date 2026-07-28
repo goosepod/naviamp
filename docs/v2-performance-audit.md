@@ -155,3 +155,49 @@ prefetch/sidecar baselines. It does not replace the required one-hour completion
 Result: **Desktop background-active and prefetch/sidecar short-duration baselines accepted**. The
 one-hour playback/route-cycle run and the remaining full Desktop matrix scenarios are still required
 before the cross-platform performance gate can be declared complete.
+
+## iOS Simulator and macOS release matrix — 2026-07-28
+
+This pass used fresh optimized builds and satisfies the five-minute steady-state CPU/RAM scenarios
+listed below. It does not replace the one-hour retained-growth run, interaction stress scenarios, or
+physical iPhone acceptance, which is unavailable to the project owner.
+
+- Host: Apple Silicon Mac with 8 logical CPUs and 16 GB RAM, macOS 26.5 (`25F71`).
+- iOS: iPhone 17 Pro (`iPhone18,1`) Simulator, iOS 26.5; optimized Xcode `Release` build of
+  `app.naviamp.ios`. The first Kotlin/Native release link exhausted the default 2 GB compiler heap;
+  a build-only 6 GB Gradle heap completed successfully. This did not alter application runtime
+  configuration.
+- Desktop: freshly staged `build/release/Naviamp.app` release-like distributable. All Gradle daemons
+  were stopped before either application was launched or measured.
+- Tool: macOS `top`, normalized to one logical core, sampled each exact PID every two seconds. Every
+  formal run discarded a two-minute warm-up and retained 151 samples (302 seconds). Raw CSV captures
+  are under `build/diagnostics/performance/*-2026-07-28.csv`.
+- The visualizer was closed on both platforms. iOS used a restored 51-track queue at index 6, original
+  MP3 playback (the observed track was 320 kbps), Sinc16 conversion, track replay gain, gapless,
+  10-track audio prefetch, 500-point waveforms, and enabled audio/waveform caching. Desktop used a
+  restored 52-track queue at index 7, Sinc8 conversion, track replay gain, an 8-second crossfade,
+  15-track prefetch, 500-point waveforms, and a 1 GB audio-cache budget.
+
+| Scenario | CPU median | CPU p95 | RSS initial / peak / final | Result |
+| --- | ---: | ---: | ---: | --- |
+| iOS foreground, paused Now Playing | 0.40% | 1.00% | 100 / 100 / 99 MB | Pass |
+| iOS background paused | 0.20% | 0.90% | 101 / 101 / 101 MB | Pass |
+| iOS foreground Now Playing | 3.50% | 9.80% | 121 / 155 / 130 MB | Pass |
+| iOS background active playback | 2.00% | 3.80% | 135 / 157 / 136 MB | Pass |
+| macOS background-visible paused | 0.30% | 1.90% | 286 / 288 / 288 MB | Pass |
+| macOS minimized paused | 0.30% | 4.40% | 291 / 291 / 285 MB | Pass |
+| macOS minimized active playback | 3.50% | 7.20% | 375 / 389 / 383 MB | Pass |
+
+One mixed macOS background-visible active run was steady at roughly 3–10% CPU for its first 4.5
+minutes, then a track transition started prefetch/sidecar work during the final 30 seconds. The
+complete mixed run reported 4.40% median CPU, 31.80% p95, and 395 / 397 / 371 MB RSS, so it is not
+used as the steady-state acceptance sample. A 122-second extension captured the bounded work: CPU
+remained elevated for roughly another minute, peaked at 61.2%, then returned to 2–11%; threads fell
+from 77 to 73 and RSS settled at 371 MB after a 377 MB extension peak. The subsequent clean minimized
+active run above stayed within the steady-state gate for all five minutes.
+
+Result: **iOS foreground/background paused and active-playback five-minute baselines accepted;
+macOS paused and background-active five-minute baselines accepted**. Memory stayed far below every
+applicable ceiling and did not grow monotonically. Desktop foreground Now Playing, large-library
+scroll/search, explicit sidecar cancellation, and the one-hour cross-platform retained-growth cycle
+remain open completion-gate scenarios.
