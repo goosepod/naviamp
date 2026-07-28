@@ -242,7 +242,10 @@ class NaviampCoreNowPlayingMediaController(
             return
         }
         runCatching { provider.addTracksToPlaylist(playlistId, listOf(track.id)) }
-            .onSuccess { publishPlaylistStatus("Added ${track.title} to playlist.") }
+            .onSuccess {
+                downloads.playlistTracksChanged(playlistId)
+                publishPlaylistStatus("Added ${track.title} to playlist.")
+            }
             .onFailure { publishPlaylistStatus(it.message ?: "Could not add track to playlist.") }
     }
 

@@ -49,6 +49,11 @@ class NaviampCorePlaylistBrowseControllerTest {
         assertEquals(listOf("playlist-b"), state.recentPlaylistIds)
         assertTrue(state.playlists.first().keepDownloadedActive)
         assertEquals(SharedPlaylistSortMode.RecentlyPlayed, state.sortMode)
+        assertEquals(
+            listOf("playlist-a"),
+            store.state.value.shell.playlistChoices.map { it.id },
+            "Only mutable server playlists should be offered as add-to-playlist targets.",
+        )
     }
 
     @Test

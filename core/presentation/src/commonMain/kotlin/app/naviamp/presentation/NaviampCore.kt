@@ -226,6 +226,7 @@ class NaviampCore private constructor(
                 services.playlists.history,
                 services.connection,
                 navigation::openNowPlaying,
+                downloads::playlistTracksChanged,
             )
             val radio = NaviampCoreInternetRadioController(
                 stateStore,

@@ -163,6 +163,22 @@ class NaviampCoreDownloadsController(
         }
     }
 
+    /** Reconciles a changed server playlist immediately when Core is watching it. */
+    suspend fun playlistTracksChanged(playlistId: String) {
+        val sourceId = currentSourceId() ?: return
+        val policy = keepDownloaded.policies(sourceId).firstOrNull { candidate ->
+            candidate.collectionId == playlistId &&
+                candidate.kind in setOf(
+                    KeepDownloadedCollectionKind.Playlist,
+                    KeepDownloadedCollectionKind.SmartPlaylist,
+                )
+        } ?: return
+        val provider = providerSource.current() ?: return
+        runCatching { provider.playlistTracks(playlistId) }
+            .onSuccess { tracks -> reconcilePolicy(policy, tracks) }
+            .onFailure { publishStatus(keepDownloadedRefreshErrorStatus(policy.name, it)) }
+    }
+
     private suspend fun executeTrackAction(request: DownloadedTrackActionRequest) {
         val download = downloadedTracks.firstOrNull { it.storageId == request.download.id }
         if (download == null) {
@@ -184,7 +200,10 @@ class NaviampCoreDownloadsController(
             return
         }
         runCatching { provider.addTracksToPlaylist(playlistId, listOf(track.id)) }
-            .onSuccess { publishStatus("Added ${track.title} to playlist.") }
+            .onSuccess {
+                playlistTracksChanged(playlistId)
+                publishStatus("Added ${track.title} to playlist.")
+            }
             .onFailure { publishStatus(it.message ?: "Could not add track to playlist.") }
     }
 

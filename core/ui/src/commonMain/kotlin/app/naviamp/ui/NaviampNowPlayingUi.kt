@@ -2048,7 +2048,7 @@ fun AddToPlaylistDialog(
                 Text("Add $title to a server playlist.", color = colors.secondaryText, fontSize = 12.sp)
                 status?.let { Text(it, color = colors.secondaryText, fontSize = 12.sp) }
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    NowPlayingTabButton("EXISTING", !createNew, colors) { if (playlists.isNotEmpty()) createNew = false }
+                    NowPlayingTabButton("EXISTING", !createNew, colors) { createNew = false }
                     NowPlayingTabButton("NEW", createNew, colors) { createNew = true }
                 }
                 if (createNew) {
@@ -2060,10 +2060,15 @@ fun AddToPlaylistDialog(
                         modifier = Modifier.fillMaxWidth(),
                     )
                 } else {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(220.dp),
+                    if (playlists.isEmpty()) {
+                        Text(
+                            "No existing playlists are available.",
+                            color = colors.secondaryText,
+                            fontSize = 12.sp,
+                            modifier = Modifier.padding(vertical = 12.dp),
+                        )
+                    } else Box(
+                        modifier = Modifier.fillMaxWidth().height(220.dp),
                     ) {
                         LazyColumn(
                             state = playlistListState,

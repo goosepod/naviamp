@@ -146,6 +146,23 @@ class NaviampCoreDownloadsControllerTest {
     }
 
     @Test
+    fun changedWatchedPlaylistReconcilesAndDownloadsWithoutScreenRefresh() = runTest {
+        val fixture = fixture(
+            scope = this,
+            initialFavoritesPolicy = false,
+            initialPlaylistPolicy = true,
+        )
+        fixture.provider.playlistTracks = listOf(downloadTrack("existing"), downloadTrack("added"))
+
+        fixture.controller.playlistTracksChanged("playlist")
+        advanceUntilIdle()
+
+        assertEquals(listOf("existing", "added"), fixture.keep.reconciledTracks.map { it.id.value })
+        assertEquals(listOf("existing", "added"), fixture.transfer.requests.single().tracks.map { it.id.value })
+        assertEquals("Keeping Playlist downloaded", fixture.transfer.requests.single().label)
+    }
+
+    @Test
     fun disconnectedAndStaleActionsProduceVisibleCoreFailures() = runTest {
         val fixture = fixture(this, connected = false)
 
@@ -174,6 +191,7 @@ private fun fixture(
     scope: kotlinx.coroutines.CoroutineScope,
     connected: Boolean = true,
     initialFavoritesPolicy: Boolean = true,
+    initialPlaylistPolicy: Boolean = false,
 ): DownloadsFixture {
     val provider = DownloadsTestProvider()
     val store = NaviampCoreStateStore()
@@ -184,7 +202,7 @@ private fun fixture(
     }
     val storage = DownloadsTestStorage()
     val transfer = DownloadsTestTransfer(storage)
-    val keep = DownloadsTestKeep(initialFavoritesPolicy)
+    val keep = DownloadsTestKeep(initialFavoritesPolicy, initialPlaylistPolicy)
     val played = mutableListOf<String>()
     return DownloadsFixture(
         store = store,
@@ -259,11 +277,15 @@ private class DownloadsTestTransfer(
     }
 }
 
-private class DownloadsTestKeep(initialFavoritesPolicy: Boolean) : NaviampCoreKeepDownloadedPort {
+private class DownloadsTestKeep(
+    initialFavoritesPolicy: Boolean,
+    initialPlaylistPolicy: Boolean,
+) : NaviampCoreKeepDownloadedPort {
     private val policies = mutableListOf<KeepDownloadedCollectionPolicy>()
     var reconciledTracks = emptyList<Track>()
     init {
         if (initialFavoritesPolicy) policies += favoritePolicy()
+        if (initialPlaylistPolicy) policies += playlistPolicy()
     }
 
     override fun policies(sourceId: String) = policies.toList()
@@ -292,6 +314,7 @@ private class DownloadsTestProvider : MediaProvider {
     override val capabilities = ProviderCapabilities(false, false, false, false, false)
     val added = mutableListOf<String>()
     val created = mutableListOf<String>()
+    var playlistTracks = emptyList<Track>()
 
     override suspend fun validateConnection() = ConnectionValidation(null, null)
     override suspend fun recentlyAddedAlbums(limit: Int) = emptyList<Album>()
@@ -301,6 +324,7 @@ private class DownloadsTestProvider : MediaProvider {
     override suspend fun tracks(limit: Int) = emptyList<Track>()
     override suspend fun search(query: String, limit: Int) = MediaSearchResults()
     override suspend fun favoriteTracks(limit: Int) = listOf(downloadTrack("favorite"))
+    override suspend fun playlistTracks(playlistId: String) = playlistTracks
     override suspend fun addTracksToPlaylist(playlistId: String, trackIds: List<TrackId>) {
         added += "$playlistId:${trackIds.joinToString(",") { it.value }}"
     }
@@ -317,6 +341,13 @@ private fun favoritePolicy() = KeepDownloadedCollectionPolicy(
     kind = KeepDownloadedCollectionKind.Favorites,
     collectionId = "favorite-tracks",
     name = "Favorite tracks",
+)
+
+private fun playlistPolicy() = KeepDownloadedCollectionPolicy(
+    sourceId = "source",
+    kind = KeepDownloadedCollectionKind.Playlist,
+    collectionId = "playlist",
+    name = "Playlist",
 )
 
 private fun downloadTrack(id: String) = Track(

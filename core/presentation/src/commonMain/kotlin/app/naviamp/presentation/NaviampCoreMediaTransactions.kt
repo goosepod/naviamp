@@ -170,7 +170,10 @@ class NaviampCoreMediaTransactions(
     suspend fun addToPlaylist(tracks: List<Track>, choice: NaviampPlaylistChoiceUi) {
         val provider = providerOrPublish() ?: return
         runCatching { provider.addTracksToPlaylist(choice.id, tracks.map(Track::id)) }
-            .onSuccess { publish("Added ${tracks.size} tracks to ${choice.name}.") }
+            .onSuccess {
+                downloads.playlistTracksChanged(choice.id)
+                publish("Added ${tracks.size} tracks to ${choice.name}.")
+            }
             .onFailure { publish(it.message ?: "Could not add tracks to playlist.") }
     }
 

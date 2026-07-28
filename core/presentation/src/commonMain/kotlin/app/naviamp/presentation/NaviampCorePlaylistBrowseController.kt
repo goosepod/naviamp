@@ -12,6 +12,7 @@ import app.naviamp.ui.SharedPlaylistDetailUi
 import app.naviamp.ui.SharedPlaylistSortMode
 import app.naviamp.ui.toSharedMediaItemUi
 import app.naviamp.ui.toSharedTrackRowUi
+import app.naviamp.ui.toPlaylistChoiceUi
 
 data class NaviampCorePlaylistBrowseSupplement(
     val recentPlaylistIds: List<String> = emptyList(),
@@ -116,6 +117,9 @@ class NaviampCorePlaylistBrowseController(
                             status = finalStatus,
                             refreshing = false,
                         ),
+                        playlistChoices = playlists
+                            .filterNot(Playlist::isSmart)
+                            .map(Playlist::toPlaylistChoiceUi),
                     )
                 }
             }

@@ -49,6 +49,7 @@ class NaviampCorePlaylistTransactionController(
     private val history: NaviampCorePlaylistHistoryPort = naviampCorePlaylistHistoryPort(),
     private val sessionPort: NaviampCoreProviderSessionPort,
     private val openNowPlaying: () -> Unit = {},
+    private val onPlaylistTracksChanged: suspend (String) -> Unit = {},
 ) : NaviampCoreCommandController {
     override fun dispatch(command: NaviampCoreCommand): NaviampCoreImmediateCommandResult = when (command) {
         is NaviampCoreCommand.Playlists.Detail,
@@ -117,6 +118,7 @@ class NaviampCorePlaylistTransactionController(
                 is NaviampPlaylistDetailCommand.AddToPlaylist -> {
                     val tracks = provider.playlistTracks(playlist.id)
                     provider.addTracksToPlaylist(command.choice.id, tracks.map(Track::id))
+                    onPlaylistTracksChanged(command.choice.id)
                     browseController.refreshAfterMutation("Added ${tracks.size} tracks to ${command.choice.name}.")
                     return
                 }
@@ -163,6 +165,7 @@ class NaviampCorePlaylistTransactionController(
                 currentTrackCount = provider.playlistTracks(playlist.id).size,
                 trackIds = requestedTrackIds,
             )
+            onPlaylistTracksChanged(playlist.id)
             browseController.refreshAfterMutation("Updated playlist.")
         }.onFailure { cause -> publishStatus(cause.message ?: "Could not update playlist.") }
     }
