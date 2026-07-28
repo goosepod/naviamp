@@ -65,6 +65,9 @@ fun providerArtistDiscoveryServices(
         client = ProviderSimilarArtistsClient {
             providerSource.current() as? app.naviamp.domain.popular.SimilarArtistsClient
         },
+        fallbackArtistsSearch = { query, limit ->
+            providerSource.current()?.search(query, limit.coerceAtMost(500).toInt())?.artists.orEmpty()
+        },
     )
     return NaviampCoreArtistDiscoveryServices(
         sourceId = sourceId,

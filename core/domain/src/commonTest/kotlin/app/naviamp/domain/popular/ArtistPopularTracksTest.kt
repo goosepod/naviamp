@@ -1,11 +1,60 @@
 package app.naviamp.domain.popular
 
+import app.naviamp.domain.Artist
+import app.naviamp.domain.ArtistId
 import app.naviamp.domain.Track
 import app.naviamp.domain.TrackId
+import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
 class ArtistPopularTracksTest {
+    @Test
+    fun similarArtistFallsBackToProviderSearchWhenLocalIndexHasNoExactMatch() = runTest {
+        val gorgonCity = Artist(ArtistId("gorgon-city"), "Gorgon City")
+        var fallbackQueries = 0
+        val service = SimilarArtistsService(
+            libraryArtistsSearch = { _, _ -> listOf(Artist(ArtistId("gorgon-heights"), "Gorgon Heights")) },
+            client = object : SimilarArtistsClient {
+                override suspend fun similarArtists(artist: Artist, limit: Int) = listOf(
+                    SimilarArtistCandidate("lastfm", "gorgon-city", "Gorgon City"),
+                )
+            },
+            fallbackArtistsSearch = { query, _ ->
+                fallbackQueries += 1
+                listOf(gorgonCity).filter { it.name.equals(query, ignoreCase = true) }
+            },
+        )
+
+        val match = service.similarArtists(Artist(ArtistId("camelphat"), "CamelPhat")).single()
+
+        assertEquals(gorgonCity, match.matchedArtist)
+        assertEquals(1, fallbackQueries)
+    }
+
+    @Test
+    fun similarArtistUsesExactLocalMatchWithoutProviderFallback() = runTest {
+        val gorgonCity = Artist(ArtistId("gorgon-city"), "Gorgon City")
+        var fallbackQueries = 0
+        val service = SimilarArtistsService(
+            libraryArtistsSearch = { _, _ -> listOf(gorgonCity) },
+            client = object : SimilarArtistsClient {
+                override suspend fun similarArtists(artist: Artist, limit: Int) = listOf(
+                    SimilarArtistCandidate("lastfm", "gorgon-city", "GORGON CITY"),
+                )
+            },
+            fallbackArtistsSearch = { _, _ ->
+                fallbackQueries += 1
+                emptyList()
+            },
+        )
+
+        val match = service.similarArtists(Artist(ArtistId("camelphat"), "CamelPhat")).single()
+
+        assertEquals(gorgonCity, match.matchedArtist)
+        assertEquals(0, fallbackQueries)
+    }
+
     @Test
     fun matchesRemasteredPopularTrackToLibraryTitle() {
         val matches = matchPopularTracks(

@@ -50,12 +50,12 @@ fun naviampCoreStandardMixServices(
             sourceId()
                 ?.let { activeSourceId -> libraryIndex?.searchLibrary(activeSourceId, query, limit, 0)?.artists }
                 .orEmpty()
-                .ifEmpty {
-                    providerSource.current()?.search(query, limit.coerceAtMost(500).toInt())?.artists.orEmpty()
-                }
         },
         client = ProviderSimilarArtistsClient {
             providerSource.current() as? SimilarArtistsClient
+        },
+        fallbackArtistsSearch = { query, limit ->
+            providerSource.current()?.search(query, limit.coerceAtMost(500).toInt())?.artists.orEmpty()
         },
     )
     fun recentTracks(): List<Track> = sourceId()
