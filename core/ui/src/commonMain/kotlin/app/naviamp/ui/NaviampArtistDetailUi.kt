@@ -352,33 +352,6 @@ private fun ArtistDetailContent(
                         NaviampDetailAction("Shuffle artist catalog", NaviampTransportIcons.Shuffle, { onArtistShuffle(displayedAlbums) }, displayedAlbums.isNotEmpty()),
                     ),
                 )
-                detail.biography
-                    ?.normalizedBiography()
-                    ?.takeIf { it.isNotBlank() }
-                    ?.let { biography ->
-                        val showMoreLink = biography.length > 260
-                        Text(
-                            biography,
-                            color = colors.secondaryText,
-                            maxLines = if (biographyExpanded) Int.MAX_VALUE else 3,
-                            overflow = TextOverflow.Ellipsis,
-                            style = TextStyle(
-                                fontSize = 11.sp,
-                                lineHeight = 13.sp,
-                            ),
-                        )
-                        if (showMoreLink) {
-                            Text(
-                                if (biographyExpanded) "Less" else "More...",
-                                color = colors.primaryText,
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                modifier = Modifier.clickable {
-                                    biographyExpanded = !biographyExpanded
-                                },
-                            )
-                        }
-                    }
             }
         }
         Column(
@@ -387,6 +360,33 @@ private fun ArtistDetailContent(
                 .weight(1f)
                 .verticalScroll(scrollState),
         ) {
+            detail.biography
+                ?.normalizedBiography()
+                ?.takeIf { it.isNotBlank() }
+                ?.let { biography ->
+                    val showMoreLink = biography.length > 260
+                    Text(
+                        biography,
+                        color = colors.secondaryText,
+                        maxLines = if (biographyExpanded) Int.MAX_VALUE else 3,
+                        overflow = TextOverflow.Ellipsis,
+                        style = TextStyle(
+                            fontSize = 11.sp,
+                            lineHeight = 13.sp,
+                        ),
+                    )
+                    if (showMoreLink) {
+                        Text(
+                            if (biographyExpanded) "Less" else "More...",
+                            color = colors.primaryText,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            modifier = Modifier.clickable {
+                                biographyExpanded = !biographyExpanded
+                            },
+                        )
+                    }
+                }
             if (similarArtistsVisible) {
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(6.dp),

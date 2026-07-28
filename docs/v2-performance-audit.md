@@ -199,6 +199,29 @@ active run above stayed within the steady-state gate for all five minutes.
 
 Result: **iOS foreground/background paused and active-playback five-minute baselines accepted;
 macOS paused, background-active, and foreground Now Playing five-minute baselines accepted**. Memory
-stayed far below every applicable ceiling and did not grow monotonically. Large-library
+stayed far below every applicable ceiling and did not grow monotonically. Android/iOS large-library
 scroll/search, explicit sidecar cancellation, and the one-hour cross-platform retained-growth cycle
 remain open completion-gate scenarios.
+
+## macOS large-library interaction sample — 2026-07-28
+
+This release-like staged-app sample accepts the Desktop large-library scroll/search scenario after
+the shared cover-art loader was made failure-safe and bounded to four concurrent loads and the JVM
+decoder began honoring requested image dimensions.
+
+- The user rapidly scrolled and searched the full library and repeatedly opened and closed artist
+  and album details for 90 seconds while playback remained active. `top` sampled the exact Naviamp
+  PID every two seconds.
+- During active interaction, CPU was 33.0% median and 61.3% p95, with a brief 97.0% peak. Resident
+  memory was 427 / 635 / 579 MB initial/peak/final. The 635 MB peak is 1.49x the interaction start,
+  within the 1.5x large-library ceiling.
+- During the following 90 seconds with interaction stopped, resident memory fell from 565 MB to
+  538 MB rather than growing monotonically. The complete settle window was 4.5% median and 13.9%
+  p95 CPU; its final 40 seconds were approximately 3.8% median and 9.7% p95 while playback remained
+  active. Threads fell from 85 to 71 by the final sample.
+- No TLS error dialog, crash, unbounded worker growth, or stuck busy loop occurred. Raw captures are
+  `build/diagnostics/performance/macos-large-library-active-2026-07-28.txt` and
+  `build/diagnostics/performance/macos-large-library-settle-2026-07-28.txt`.
+
+Result: **Desktop large-library scroll/search and return-to-steady-playback accepted**. Android and
+iOS large-library interaction evidence remains part of the final cross-platform matrix.
