@@ -170,8 +170,8 @@ physical iPhone acceptance, which is unavailable to the project owner.
 - Desktop: freshly staged `build/release/Naviamp.app` release-like distributable. All Gradle daemons
   were stopped before either application was launched or measured.
 - Tool: macOS `top`, normalized to one logical core, sampled each exact PID every two seconds. Every
-  formal run discarded a two-minute warm-up and retained 151 samples (302 seconds). Raw CSV captures
-  are under `build/diagnostics/performance/*-2026-07-28.csv`.
+  formal run discarded a two-minute warm-up and retained 150–151 samples (300–302 seconds). Raw CSV
+  captures are under `build/diagnostics/performance/*-2026-07-28.csv`.
 - The visualizer was closed on both platforms. iOS used a restored 51-track queue at index 6, original
   MP3 playback (the observed track was 320 kbps), Sinc16 conversion, track replay gain, gapless,
   10-track audio prefetch, 500-point waveforms, and enabled audio/waveform caching. Desktop used a
@@ -187,6 +187,7 @@ physical iPhone acceptance, which is unavailable to the project owner.
 | macOS background-visible paused | 0.30% | 1.90% | 286 / 288 / 288 MB | Pass |
 | macOS minimized paused | 0.30% | 4.40% | 291 / 291 / 285 MB | Pass |
 | macOS minimized active playback | 3.50% | 7.20% | 375 / 389 / 383 MB | Pass |
+| macOS foreground Now Playing | 2.90% | 9.60% | 408 / 422 / 421 MB | Pass |
 
 One mixed macOS background-visible active run was steady at roughly 3–10% CPU for its first 4.5
 minutes, then a track transition started prefetch/sidecar work during the final 30 seconds. The
@@ -197,7 +198,7 @@ from 77 to 73 and RSS settled at 371 MB after a 377 MB extension peak. The subse
 active run above stayed within the steady-state gate for all five minutes.
 
 Result: **iOS foreground/background paused and active-playback five-minute baselines accepted;
-macOS paused and background-active five-minute baselines accepted**. Memory stayed far below every
-applicable ceiling and did not grow monotonically. Desktop foreground Now Playing, large-library
+macOS paused, background-active, and foreground Now Playing five-minute baselines accepted**. Memory
+stayed far below every applicable ceiling and did not grow monotonically. Large-library
 scroll/search, explicit sidecar cancellation, and the one-hour cross-platform retained-growth cycle
 remain open completion-gate scenarios.
