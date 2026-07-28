@@ -172,14 +172,15 @@ class StorageMediaSourceStore(
     }
 
     private fun ProviderMediaSourceConnection.toStoredValues() = StoredMediaSourceValues(
-        token = credentialProtector.protect(token).orEmpty(),
-        salt = credentialProtector.protect(salt).orEmpty(),
-        nativeToken = credentialProtector.protect(nativeToken),
+        token = protectRequiredCredential(token, "provider token"),
+        salt = protectRequiredCredential(salt, "provider salt"),
+        nativeToken = protectOptionalCredential(nativeToken, "native provider token"),
         insecureSkipTlsVerification = if (tlsSettings.insecureSkipTlsVerification) 1 else 0,
         customCertificatePath = tlsSettings.customCertificatePath?.takeIf { it.isNotBlank() },
         clientCertificateKeyStorePath = tlsSettings.clientCertificateKeyStorePath?.takeIf { it.isNotBlank() },
-        clientCertificateKeyStorePassword = credentialProtector.protect(
+        clientCertificateKeyStorePassword = protectOptionalCredential(
             tlsSettings.clientCertificateKeyStorePassword,
+            "client certificate password",
         ),
         secondaryUrlsJson = encodeSecondaryUrls(secondaryUrls),
         customHeadersJson = encodeCustomHeaders(customHeaders),
@@ -198,7 +199,9 @@ class StorageMediaSourceStore(
             headers.mapNotNull { header ->
                 header.normalized()?.let { normalized ->
                     if (normalized.valueIsSecret) {
-                        normalized.copy(value = credentialProtector.protect(normalized.value))
+                        normalized.copy(
+                            value = protectOptionalCredential(normalized.value, "secret connection header"),
+                        )
                     } else {
                         normalized
                     }
@@ -300,14 +303,15 @@ class StorageMediaSourceStore(
                 display_name = source.display_name,
                 base_url = source.base_url,
                 username = source.username,
-                token = credentialProtector.protect(source.token).orEmpty(),
-                salt = credentialProtector.protect(source.salt).orEmpty(),
-                native_token = credentialProtector.protect(source.native_token),
+                token = protectRequiredCredential(source.token, "provider token"),
+                salt = protectRequiredCredential(source.salt, "provider salt"),
+                native_token = protectOptionalCredential(source.native_token, "native provider token"),
                 insecure_skip_tls_verification = source.insecure_skip_tls_verification,
                 custom_certificate_path = source.custom_certificate_path,
                 client_certificate_keystore_path = source.client_certificate_keystore_path,
-                client_certificate_keystore_password = credentialProtector.protect(
+                client_certificate_keystore_password = protectOptionalCredential(
                     source.client_certificate_keystore_password,
+                    "client certificate password",
                 ),
                 secondary_urls_json = source.secondary_urls_json,
                 custom_headers_json = encodeCustomHeaders(customHeaders),
@@ -320,6 +324,18 @@ class StorageMediaSourceStore(
                 id = source.id,
             )
         }
+    }
+
+    private fun protectRequiredCredential(value: String, description: String): String {
+        if (value.isEmpty()) return value
+        return credentialProtector.protect(value)
+            ?: error("Could not securely store $description.")
+    }
+
+    private fun protectOptionalCredential(value: String?, description: String): String? {
+        if (value.isNullOrEmpty()) return value
+        return credentialProtector.protect(value)
+            ?: error("Could not securely store $description.")
     }
 }
 

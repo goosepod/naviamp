@@ -7,6 +7,7 @@ import app.naviamp.domain.source.ConnectionSecondaryUrl
 import app.naviamp.domain.source.ConnectionTlsSettings
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
@@ -57,6 +58,24 @@ class StorageMediaSourceStoreTest {
             assertTrue(migrated.salt.startsWith("protected:"))
             assertTrue(migrated.native_token?.startsWith("protected:") == true)
             assertFalse(migrated.custom_headers_json.orEmpty().contains("secret-value"))
+        }
+    }
+
+    @Test
+    fun credentialProtectionFailureDoesNotPersistAnUnauthenticatedSource() {
+        withDatabase { database ->
+            val store = StorageMediaSourceStore(
+                queries = database.naviampStorageQueries,
+                nowMillis = { 42L },
+                credentialProtector = FailingCredentialProtector,
+            )
+
+            val failure = assertFailsWith<IllegalStateException> {
+                store.upsertProviderMediaSource(providerConnection(), "cache", "navidrome")
+            }
+
+            assertEquals("Could not securely store provider token.", failure.message)
+            assertTrue(database.naviampStorageQueries.selectMediaSources().executeAsList().isEmpty())
         }
     }
 
@@ -164,4 +183,12 @@ private object ReversingCredentialProtector : StorageCredentialProtector {
     }
 
     override fun isProtected(value: String?): Boolean = value?.startsWith("protected:") == true
+}
+
+private object FailingCredentialProtector : StorageCredentialProtector {
+    override fun protect(value: String?): String? = null
+
+    override fun reveal(value: String?): String? = value
+
+    override fun isProtected(value: String?): Boolean = false
 }
