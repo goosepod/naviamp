@@ -129,6 +129,8 @@ open class CoreBassPlaybackEngine(
     private var currentScope: CoroutineScope? = null
     private var lastProgress: PlaybackProgress = PlaybackProgress.Unknown
     private var lastRequestUrl: String? = null
+    private var lastRequestedSampleRateHz: Int? = null
+    private var lastTargetOutputSampleRateHz: Int? = null
     private var lastError: String? = loadError?.message
     private var preparedStream: Int = 0
     private var preparedRequest: PlaybackRequest? = null
@@ -162,6 +164,8 @@ open class CoreBassPlaybackEngine(
             requestedSampleRateHz = request.samplingRateHz,
             startingFromIdle = startingFromIdle,
         )
+        lastRequestedSampleRateHz = request.samplingRateHz
+        lastTargetOutputSampleRateHz = targetSampleRateHz
         val canAdoptPreparedStream = targetSampleRateHz == null || targetSampleRateHz == activeOutputSampleRateHz
         if (
             canAdoptPreparedStream &&
@@ -540,6 +544,11 @@ open class CoreBassPlaybackEngine(
                 }.ifBlank { "None" },
             "Active state" to (backend?.bassStreamActiveStateLabel(stream, "No stream") ?: "No stream"),
             "Active source state" to (backend?.bassStreamActiveStateLabel(currentSourceStream, "No source") ?: "No source"),
+            "Sample-rate matching" to sampleRateMatching.label,
+            "Sample-rate converter" to "${sampleRateConverter.label} (BASS quality ${sampleRateConverter.bassQuality})",
+            "Track source sample rate" to lastRequestedSampleRateHz.sampleRateDiagnosticLabel("Unknown"),
+            "Requested output sample rate" to lastTargetOutputSampleRateHz.sampleRateDiagnosticLabel("Device default"),
+            "Active output sample rate" to activeOutputSampleRateHz.sampleRateDiagnosticLabel("Device default/fallback"),
             "ReplayGain mode" to currentReplayGainAdjustment.mode.displayName,
             "ReplayGain source" to (currentReplayGainAdjustment.source?.displayName ?: "None"),
             "ReplayGain applied" to currentReplayGainAdjustment.label,
@@ -911,6 +920,18 @@ private fun Float.formatFactor(): String =
 
 private fun Double.formatPeak(): String =
     toString()
+
+private fun Int?.sampleRateDiagnosticLabel(fallback: String): String {
+    val sampleRateHz = this ?: return fallback
+    val wholeKhz = sampleRateHz / 1_000
+    val remainderHz = sampleRateHz % 1_000
+    val khz = if (remainderHz == 0) {
+        wholeKhz.toString()
+    } else {
+        "$wholeKhz.${remainderHz.toString().padStart(3, '0').trimEnd('0')}"
+    }
+    return "$khz kHz ($sampleRateHz Hz)"
+}
 
 private fun EqualizerSettings.bandsForBackend(): List<Float> =
     if (enabled) bandsDb else emptyList()

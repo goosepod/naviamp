@@ -336,7 +336,7 @@ fun NaviampSharedSettingsContent(
                         emptyText = stringResource(Res.string.settings_debugging_empty),
                     )
                     onOpenStatsForNerds?.let { openStats ->
-                        PrimarySettingsButton("Stats for Nerds", colors, enabled = true, onClick = openStats)
+                        PrimaryButton("Open Stats for Nerds", colors, enabled = true, onClick = openStats)
                     }
                     SharedLocalDataActions(
                         colors = colors,

@@ -4,6 +4,8 @@ import app.naviamp.domain.bass.BassAudioBackend
 import app.naviamp.domain.bass.BassActiveState
 import app.naviamp.domain.bass.BassPlaybackBufferPolicy
 import app.naviamp.domain.bass.BassStreamHandle
+import app.naviamp.domain.settings.SampleRateConverter
+import app.naviamp.domain.settings.SampleRateMatching
 import kotlin.coroutines.CoroutineContext
 import kotlin.coroutines.EmptyCoroutineContext
 import kotlinx.coroutines.test.runTest
@@ -76,6 +78,38 @@ class CoreBassPlaybackEngineTest {
         assertEquals(1, backend.playCalls)
         assertTrue(backend.releasedHandles.contains(BassStreamHandle(41)))
     }
+
+    @Test
+    fun diagnosticsReportSampleRatePolicyAndActiveOutput() = runTest {
+        val backend = RecordingPlaybackBackend()
+        val engine = CoreBassPlaybackEngine(
+            backendResult = Result.success(backend),
+            runtime = FakeBassPlaybackEngineRuntime,
+        )
+        engine.setSampleRateConverter(SampleRateConverter.Sinc64)
+        engine.setSampleRateMatching(SampleRateMatching.Strict)
+
+        engine.play(
+            scope = this,
+            request = PlaybackRequest(
+                url = "file:///music/hi-res.flac",
+                mediaId = "track-hi-res",
+                samplingRateHz = 96_000,
+            ),
+            onStateChanged = {},
+            onProgressChanged = {},
+        )
+        advanceUntilIdle()
+
+        val diagnostics = engine.statsRows().toMap()
+        assertEquals("Strict", diagnostics["Sample-rate matching"])
+        assertEquals("64 point sinc (BASS quality 4)", diagnostics["Sample-rate converter"])
+        assertEquals("96 kHz (96000 Hz)", diagnostics["Track source sample rate"])
+        assertEquals("96 kHz (96000 Hz)", diagnostics["Requested output sample rate"])
+        assertEquals("96 kHz (96000 Hz)", diagnostics["Active output sample rate"])
+        assertEquals(96_000, backend.initializedSampleRateHz)
+        assertEquals(4, backend.sampleRateConverterQuality)
+    }
 }
 
 private object FakeBassPlaybackEngineRuntime : BassPlaybackEngineRuntime {
@@ -108,12 +142,19 @@ private class RecordingPlaybackBackend : BassAudioBackend {
     var openedPath: String? = null
     var bufferPolicy: BassPlaybackBufferPolicy? = null
     var playCalls: Int = 0
+    var initializedSampleRateHz: Int? = null
+    var sampleRateConverterQuality: Int? = null
     val releasedHandles = mutableListOf<BassStreamHandle>()
     private var activeStateCalls: Int = 0
 
     override fun init(): Result<Unit> = Result.success(Unit)
 
     override fun init(deviceId: String?): Result<Unit> = Result.success(Unit)
+
+    override fun init(deviceId: String?, sampleRateHz: Int): Result<Unit> {
+        initializedSampleRateHz = sampleRateHz
+        return Result.success(Unit)
+    }
 
     override fun configurePlaybackBuffers(policy: BassPlaybackBufferPolicy): Result<Unit> {
         bufferPolicy = policy
@@ -122,7 +163,10 @@ private class RecordingPlaybackBackend : BassAudioBackend {
 
     override fun configureInternetStreams(): Result<Unit> = Result.success(Unit)
 
-    override fun setSampleRateConverterQuality(quality: Int): Result<Unit> = Result.success(Unit)
+    override fun setSampleRateConverterQuality(quality: Int): Result<Unit> {
+        sampleRateConverterQuality = quality
+        return Result.success(Unit)
+    }
 
     override fun createFileStream(path: String): Result<BassStreamHandle> {
         openedPath = path
