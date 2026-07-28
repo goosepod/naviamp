@@ -231,7 +231,13 @@ bool configure_playback_buffers(DWORD playbackBufferMillis, DWORD updatePeriodMi
     bool configured = true;
     configured = BASS_SetConfig(BASS_CONFIG_UPDATEPERIOD, updatePeriodMillis) && configured;
     configured = BASS_SetConfig(BASS_CONFIG_BUFFER, playbackBufferMillis) && configured;
+#if defined(__APPLE__)
+    // BASS_CONFIG_DEV_BUFFER is unavailable on macOS. BASS uses a device buffer that is twice
+    // BASS_CONFIG_DEV_PERIOD there, so translate Core's requested buffer length to its period.
+    configured = BASS_SetConfig(BASS_CONFIG_DEV_PERIOD, std::max<DWORD>(1, deviceBufferMillis / 2)) && configured;
+#else
     configured = BASS_SetConfig(BASS_CONFIG_DEV_BUFFER, deviceBufferMillis) && configured;
+#endif
     BASS_SetConfig(BASS_CONFIG_NET_BUFFER, NETWORK_BUFFER_MILLIS);
     BASS_SetConfig(BASS_CONFIG_NET_PREBUF, NETWORK_PREBUFFER_PERCENT);
     BASS_SetConfig(BASS_CONFIG_NET_PREBUF_WAIT, 1);
