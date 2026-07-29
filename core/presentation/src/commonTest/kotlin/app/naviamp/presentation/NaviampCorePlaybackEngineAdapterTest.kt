@@ -318,7 +318,7 @@ class NaviampCorePlaybackEngineAdapterTest {
         assertEquals(12.0, progressEvents.single().positionSeconds)
         assertEquals("Core Stream", metadataEvents.single().title)
         assertEquals(null, engine.preparedRequest)
-        assertEquals(listOf("play:core-track"), engine.events)
+        assertEquals(listOf("clear", "play:core-track"), engine.events)
     }
 
     @Test
@@ -339,7 +339,7 @@ class NaviampCorePlaybackEngineAdapterTest {
         advanceUntilIdle()
 
         assertEquals("next", engine.preparedRequest?.mediaId)
-        assertEquals(listOf("play:core-track", "prepare:next"), engine.events)
+        assertEquals(listOf("clear", "play:core-track", "prepare:next"), engine.events)
     }
 
     @Test
@@ -372,13 +372,13 @@ class NaviampCorePlaybackEngineAdapterTest {
 
         assertEquals("next", engine.preparedRequest?.mediaId)
         assertEquals(
-            listOf("play:core-track", "prepare:next", "clear", "clear", "prepare:next"),
+            listOf("clear", "play:core-track", "prepare:next", "clear", "clear", "prepare:next"),
             engine.events,
         )
     }
 
     @Test
-    fun manualNextClearsAnActiveCrossfadeAndStartsTheTrackFromItsOwnBeginning() = runTest {
+    fun manualNextClearsPreparedGaplessPlaybackAndStartsTheTrackFromItsOwnBeginning() = runTest {
         val provider = FakeCoreMediaProvider()
         val engine = RecordingPlaybackEngine().apply {
             emittedProgress = PlaybackProgress(173.0, 180.0)
@@ -387,7 +387,7 @@ class NaviampCorePlaybackEngineAdapterTest {
             scope = this,
             engine = engine,
             providerSource = NaviampCoreMediaProviderSource { provider },
-            settings = { PlaybackSettings(gaplessEnabled = false, crossfadeDurationSeconds = 8) },
+            settings = { PlaybackSettings(gaplessEnabled = true, crossfadeDurationSeconds = 0) },
         )
         val next = provider.track.copy(id = TrackId("next"), title = "Next")
         adapter.playQueueSelection(PlaybackQueue(listOf(provider.track, next), 0), 0)

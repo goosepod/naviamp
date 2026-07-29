@@ -259,3 +259,29 @@ Result: **normalized Core queue persistence accepted; Android transition p95 rem
 optimization benefits every SQLDelight host, while further investigation must distinguish native
 codec overlap from any remaining shared transition orchestration before the Android performance
 gate can pass.
+
+## Android prepared-transition coordination — 2026-07-29
+
+The remaining overlap was traced to shared transition orchestration rather than Android playback
+policy. Preparing the next track can be inside a blocking native decoder open when a manual queue
+command arrives. Core previously cleared that native state and started the requested track without
+waiting for the preparation coroutine to unwind. Manual navigation also invalidated a prepared
+source only when crossfade was enabled, leaving a prepared gapless source eligible for an immediate
+manual start.
+
+- Core now owns a preparation barrier that cancels stale preparation, waits for any non-cancellable
+  native call to return, clears the prepared state, and only then resolves and starts the manually
+  selected track.
+- Manual previous, next, queue jumps, and explicit queue selections invalidate both gapless and
+  crossfade preparation. Automatic transitions still preserve and promote prepared playback.
+- A common deterministic regression holds preparation in a non-cancellable section and proves that
+  native clear cannot run early. Existing shared adapter coverage now verifies the gapless manual
+  navigation sequence (`prepare`, `clear`, then fresh `play`).
+- Shared presentation tests passed on JVM, Android, and the iOS Simulator target. Desktop
+  compilation, the Android profileable benchmark build, and `verifyCoreFirstArchitecture` passed;
+  no platform production file changed.
+
+Result: **shared prepared-transition overlap fixed**. The final Pixel build is installed for audible
+manual-transition acceptance. The broader Android performance gate remains open for the required
+full-duration retained-growth and interaction scenarios; short native transition spikes are not a
+steady-state sample and must be evaluated by their return to the matching threshold.

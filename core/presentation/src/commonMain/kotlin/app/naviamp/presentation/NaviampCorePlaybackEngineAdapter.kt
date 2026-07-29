@@ -104,6 +104,7 @@ class NaviampCorePlaybackEngineAdapter(
     private var repeatMode = RepeatMode.Off
     private var resolutionJob: Job? = null
     private var prefetchJob: Job? = null
+    private val preparedNextBarrier = PreparedNextPlaybackBarrier(scope)
     private var prefetchGeneration = 0L
     private var generation = 0L
     private var preparedForGeneration = -1L
@@ -215,7 +216,7 @@ class NaviampCorePlaybackEngineAdapter(
             }
             PlaybackQueueNavigationCommand.None -> return
         }
-        if (!preservePreparedTransition) clearPreparedCrossfade()
+        if (!preservePreparedTransition) clearPreparedTransition()
         cancelAudioPrefetch()
         startCurrent(startPositionSeconds = null)
     }
@@ -229,14 +230,20 @@ class NaviampCorePlaybackEngineAdapter(
         cancelAudioPrefetch()
         restoredStartPositionSeconds = null
         this.queue = queue.jumpTo(index)
-        clearPreparedCrossfade()
+        clearPreparedTransition()
         startCurrent(startPositionSeconds = null)
     }
 
-    private fun clearPreparedCrossfade() {
-        if (settings().effectiveForEngine(engine).crossfadeDurationSeconds <= 0) return
-        (engine as? QueueAwarePlaybackEngine)?.clearPreparedNext()
+    private fun clearPreparedTransition() {
+        schedulePreparedNextInvalidation()
+    }
+
+    private fun schedulePreparedNextInvalidation() {
+        val queueEngine = engine as? QueueAwarePlaybackEngine ?: return
         preparedForGeneration = -1L
+        preparedNextBarrier.invalidate {
+            queueEngine.clearPreparedNext()
+        }
     }
 
     override suspend fun play(station: InternetRadioStation) {
@@ -251,8 +258,11 @@ class NaviampCorePlaybackEngineAdapter(
     private fun startCurrent(startPositionSeconds: Double?) {
         val track = queue.current ?: return
         val requestGeneration = ++generation
+        val preparedNextInvalidation = preparedNextBarrier.currentInvalidation()
         resolutionJob?.cancel()
         resolutionJob = scope.launch {
+            preparedNextInvalidation?.join()
+            if (requestGeneration != generation) return@launch
             val provider = providerSource.current()
             val externalStreamUrl = externalStreamUrls[track.id]
             if (provider == null && externalStreamUrl == null) {
@@ -344,7 +354,9 @@ class NaviampCorePlaybackEngineAdapter(
                             shouldPrepareNext(progress, currentPlaybackSettings)
                         ) {
                             preparedForGeneration = requestGeneration
-                            scope.launch { prepareNext(provider, currentPlaybackSettings, requestGeneration) }
+                            preparedNextBarrier.launchPreparation {
+                                prepareNext(provider, currentPlaybackSettings, requestGeneration)
+                            }
                         }
                     }
                 },
@@ -420,8 +432,7 @@ class NaviampCorePlaybackEngineAdapter(
         val previous = observedTransitionSettings
         observedTransitionSettings = current
         if (previous == null || previous == current) return
-        (engine as? QueueAwarePlaybackEngine)?.clearPreparedNext()
-        preparedForGeneration = -1L
+        schedulePreparedNextInvalidation()
     }
 
     private suspend fun prepareNext(
