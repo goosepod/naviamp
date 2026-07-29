@@ -37,6 +37,8 @@ import app.naviamp.ui.NowPlayingSleepTimerAction
 import app.naviamp.ui.NowPlayingSleepTimerActionRequest
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.runCurrent
+import kotlinx.coroutines.awaitCancellation
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -107,6 +109,24 @@ class NaviampCorePlaybackControllerTest {
             listOf("two:playing:20.0"),
             fixture.provider.stateReports,
         )
+    }
+
+    @Test
+    fun changingTracksCancelsThePreviousSidecarWork() = runTest {
+        val sidecars = PlaybackTestSidecars(blockingTrackId = "two")
+        val fixture = playbackFixture(this, sidecars)
+        fixture.controller.attachNativePlayback()
+
+        fixture.effects.observer?.onStateChanged(PlaybackState.Playing)
+        runCurrent()
+        assertEquals(listOf("two"), sidecars.loadedTracks)
+
+        fixture.controller.execute(playbackCommand(NowPlayingPlaybackAction.Next))
+        fixture.effects.observer?.onStateChanged(PlaybackState.Playing)
+        runCurrent()
+
+        assertEquals(listOf("two", "three"), sidecars.loadedTracks)
+        assertEquals(listOf("two"), sidecars.cancelledTracks)
     }
 
     @Test
@@ -254,7 +274,10 @@ private data class PlaybackFixture(
     val savedSettings: List<PlaybackSettings>,
 )
 
-private fun playbackFixture(scope: kotlinx.coroutines.CoroutineScope): PlaybackFixture {
+private fun playbackFixture(
+    scope: kotlinx.coroutines.CoroutineScope,
+    sidecars: PlaybackTestSidecars = PlaybackTestSidecars(),
+): PlaybackFixture {
     val tracks = listOf(
         playbackTrack("one"),
         playbackTrack("two"),
@@ -278,7 +301,6 @@ private fun playbackFixture(scope: kotlinx.coroutines.CoroutineScope): PlaybackF
     )
     val queue = NaviampPlaybackQueueCoordinator(live)
     val effects = PlaybackTestEffects()
-    val sidecars = PlaybackTestSidecars()
     val presenter = NaviampCoreNowPlayingPresenter(store, { provider }, live, queue, effects, sidecars)
     val saved = mutableListOf<PlaybackSettings>()
     val sessionRepository = RecordingPlaybackSessionRepository()
@@ -345,10 +367,22 @@ private class RecordingPlaybackSessionRepository : PlaybackSessionRepository {
     }
 }
 
-private class PlaybackTestSidecars : NaviampCoreNowPlayingSidecarPort {
+private class PlaybackTestSidecars(
+    private val blockingTrackId: String? = null,
+) : NaviampCoreNowPlayingSidecarPort {
     val loadedTracks = mutableListOf<String>()
+    val cancelledTracks = mutableListOf<String>()
     override fun snapshot() = NaviampCoreNowPlayingSidecars()
-    override suspend fun loadForTrack(track: Track) { loadedTracks += track.id.value }
+    override suspend fun loadForTrack(track: Track) {
+        loadedTracks += track.id.value
+        if (track.id.value == blockingTrackId) {
+            try {
+                awaitCancellation()
+            } finally {
+                cancelledTracks += track.id.value
+            }
+        }
+    }
     override suspend fun loadLyrics(track: Track) = Unit
     override suspend fun changeLyricsOffset(track: Track, offsetMillis: Int) = Unit
 }

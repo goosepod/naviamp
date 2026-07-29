@@ -33,6 +33,7 @@ import app.naviamp.ui.NowPlayingSleepTimerAction
 import app.naviamp.ui.NowPlayingSleepTimerActionRequest
 import app.naviamp.ui.NaviampVisualizer
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 
 /** Owns Now Playing transport, queue commands, volume, repeat/shuffle, and sleep-timer policy. */
@@ -60,6 +61,7 @@ class NaviampCorePlaybackController(
     private var reportingTrackId: app.naviamp.domain.TrackId? = null
     private var reportedNowPlayingSessionId = -1L
     private var sidecarTrackId: app.naviamp.domain.TrackId? = null
+    private var sidecarLoadJob: Job? = null
     private var persistedQueue = PlaybackQueue()
     private var persistedStationId: String? = null
 
@@ -142,6 +144,9 @@ class NaviampCorePlaybackController(
     }
 
     fun resetAfterDatabaseClear() {
+        sidecarLoadJob?.cancel()
+        sidecarLoadJob = null
+        sidecarTrackId = null
         val sourceId = stateStore.state.value.shell.connectionSettings.currentSourceId
         effects.stop()
         queue.clearQueue()
@@ -233,7 +238,8 @@ class NaviampCorePlaybackController(
         val track = playback.state.value.currentTrack ?: return
         if (track.id == sidecarTrackId) return
         sidecarTrackId = track.id
-        scope.launch {
+        sidecarLoadJob?.cancel()
+        sidecarLoadJob = scope.launch {
             loadTrackSidecars(track)
             if (playback.state.value.currentTrack?.id == track.id) presenter.publish(display)
         }
