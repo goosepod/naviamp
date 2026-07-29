@@ -66,7 +66,7 @@ android {
         }
         create("benchmark") {
             initWith(getByName("release"))
-            applicationIdSuffix = ".v2test"
+            applicationIdSuffix = ".benchmark"
             versionNameSuffix = "-benchmark"
             resValue("string", "app_name", "Naviamp v2 Benchmark")
             signingConfig = signingConfigs.getByName("debug")

@@ -158,10 +158,11 @@ class AndroidNaviampPlaybackService : MediaBrowserServiceCompat() {
                     getSystemService(NotificationManager::class.java).notify(NotificationId, notification)
                 }
             }
-        } else {
-            releaseForeground()
-            stopSelf()
         }
+
+        // AndroidNaviampPlaybackLifecycle applies Core's grace-period retention decision and
+        // stops this service after stable idle. Stopping directly from a transient idle snapshot
+        // tears down the MediaSession between tracks and makes its background restart illegal.
     }
 
     private fun publishSessionContent(value: NaviampExternalPlaybackSnapshot) {
