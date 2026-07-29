@@ -242,6 +242,24 @@ CREATE TABLE playback_session (
   updated_at_epoch_millis INTEGER NOT NULL
 );
 
+CREATE TABLE playback_session_state (
+  source_id TEXT NOT NULL PRIMARY KEY REFERENCES media_source(id) ON DELETE CASCADE,
+  current_index INTEGER NOT NULL,
+  play_next_count INTEGER NOT NULL,
+  position_seconds REAL,
+  internet_radio_payload TEXT,
+  now_playing_open INTEGER NOT NULL,
+  updated_at_epoch_millis INTEGER NOT NULL
+);
+
+CREATE TABLE playback_session_queue (
+  source_id TEXT NOT NULL REFERENCES media_source(id) ON DELETE CASCADE,
+  queue_index INTEGER NOT NULL,
+  remote_track_id TEXT NOT NULL,
+  payload TEXT NOT NULL,
+  PRIMARY KEY(source_id, queue_index)
+);
+
 CREATE TABLE playback_history (
   source_id TEXT NOT NULL REFERENCES media_source(id) ON DELETE CASCADE,
   remote_track_id TEXT NOT NULL,
@@ -460,6 +478,50 @@ INSERT OR REPLACE INTO playback_session(
 
 deletePlaybackSession:
 DELETE FROM playback_session
+WHERE source_id = ?;
+
+selectPlaybackSessionState:
+SELECT current_index, play_next_count, position_seconds, internet_radio_payload, now_playing_open
+FROM playback_session_state
+WHERE source_id = ?;
+
+selectPlaybackSessionQueue:
+SELECT remote_track_id, payload
+FROM playback_session_queue
+WHERE source_id = ?
+ORDER BY queue_index;
+
+selectPlaybackSessionQueueTrackIds:
+SELECT remote_track_id
+FROM playback_session_queue
+WHERE source_id = ?
+ORDER BY queue_index;
+
+upsertPlaybackSessionState:
+INSERT OR REPLACE INTO playback_session_state(
+  source_id,
+  current_index,
+  play_next_count,
+  position_seconds,
+  internet_radio_payload,
+  now_playing_open,
+  updated_at_epoch_millis
+) VALUES (?, ?, ?, ?, ?, ?, ?);
+
+deletePlaybackSessionQueue:
+DELETE FROM playback_session_queue
+WHERE source_id = ?;
+
+insertPlaybackSessionQueueTrack:
+INSERT INTO playback_session_queue(
+  source_id,
+  queue_index,
+  remote_track_id,
+  payload
+) VALUES (?, ?, ?, ?);
+
+deletePlaybackSessionState:
+DELETE FROM playback_session_state
 WHERE source_id = ?;
 
 upsertMediaSource:
@@ -1266,7 +1328,11 @@ FROM cached_lrclib_lyrics;
 
 playbackSessionCount:
 SELECT COUNT(*)
-FROM playback_session;
+FROM (
+  SELECT source_id FROM playback_session
+  UNION
+  SELECT source_id FROM playback_session_state
+);
 
 mediaSourceCount:
 SELECT COUNT(*)

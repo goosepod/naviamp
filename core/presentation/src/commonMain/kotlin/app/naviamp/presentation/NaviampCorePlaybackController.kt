@@ -99,7 +99,8 @@ class NaviampCorePlaybackController(
 
     fun currentDisplay(): NaviampCoreNowPlayingDisplayState = display
 
-    fun diagnostics(): List<Pair<String, String>> = effects.diagnostics()
+    fun diagnostics(): List<Pair<String, String>> =
+        effects.diagnostics() + sessions.performanceDiagnostics()
 
     fun attachNativePlayback() {
         effects.setVisualizerFramesEnabled(display.visualizerVisible)

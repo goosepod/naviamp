@@ -29,6 +29,18 @@ class AudioTagParserTest {
     }
 
     @Test
+    fun skipsUnsupportedBinaryFramesAndContinuesReadingText() {
+        val tags = audioTagsFromAudioBytes(
+            id3Tag(
+                binaryFrame("APIC", ByteArray(256 * 1024) { 1 }) +
+                    textFrame("TIT2", "After the artwork"),
+            ),
+        )
+
+        assertEquals(listOf(AudioTag("Title", "After the artwork")), tags)
+    }
+
+    @Test
     fun readsAndOrdersFlacVorbisComments() {
         val tags = audioTagsFromAudioBytes(
             flacVorbisCommentBlock(
@@ -78,6 +90,9 @@ private fun textFrame(id: String, value: String): ByteArray {
     val data = byteArrayOf(3) + value.encodeToByteArray()
     return id.asciiBytes() + data.size.intBeBytes() + byteArrayOf(0, 0) + data
 }
+
+private fun binaryFrame(id: String, data: ByteArray): ByteArray =
+    id.asciiBytes() + data.size.intBeBytes() + byteArrayOf(0, 0) + data
 
 private fun flacVorbisCommentBlock(comments: List<String>): ByteArray {
     val vendor = "Naviamp test".encodeToByteArray()

@@ -272,7 +272,19 @@ interface PlaybackSessionRepository {
         session: PlaybackSessionSettings?,
         sourceId: String? = null,
     )
+
+    fun performanceSnapshot(): PlaybackSessionRepositoryPerformance =
+        PlaybackSessionRepositoryPerformance()
 }
+
+data class PlaybackSessionRepositoryPerformance(
+    val readMillis: Double? = null,
+    val decodeMillis: Double? = null,
+    val encodeMillis: Double? = null,
+    val writeMillis: Double? = null,
+    val payloadCharacters: Int? = null,
+    val queueRewritten: Boolean? = null,
+)
 
 interface LocalLibraryIndexRepository : ArtistPopularTracksRepository {
     fun mediaSource(sourceId: String): SavedMediaSource?

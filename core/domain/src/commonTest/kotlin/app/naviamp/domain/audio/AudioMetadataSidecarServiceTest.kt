@@ -21,6 +21,24 @@ class AudioMetadataSidecarServiceTest {
             service.audioTags(PlaybackLocalAudio(path = "song.flac", uri = "file://song.flac")),
         )
     }
+
+    @Test
+    fun reusesParsedTagsForTheSameLocalAudioFile() = runTest {
+        var reads = 0
+        val service = AudioMetadataSidecarService(
+            playbackAudioAssets = EmptyAudioAssets,
+            audioTagReader = { localAudio ->
+                reads += 1
+                listOf(AudioTag("Path", localAudio.path))
+            },
+        )
+        val audio = PlaybackLocalAudio(path = "song.flac", uri = "file://song.flac")
+
+        service.audioTags(audio)
+        service.audioTags(audio)
+
+        assertEquals(1, reads)
+    }
 }
 
 private object EmptyAudioAssets : PlaybackAudioAssetRepository {

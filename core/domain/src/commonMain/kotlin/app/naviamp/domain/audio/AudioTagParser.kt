@@ -78,16 +78,21 @@ private fun readId3v2Tags(bytes: ByteArray): List<AudioTag> {
         }
         if (frameSize <= 0 || offset + Id3FrameHeaderBytes + frameSize > tagBytes.size) break
 
-        val frameData = tagBytes.copyOfRange(
-            offset + Id3FrameHeaderBytes,
-            offset + Id3FrameHeaderBytes + frameSize,
-        )
-        parseId3Frame(frameId, frameData)?.let(tags::add)
+        if (frameId.isSupportedId3Frame()) {
+            val frameData = tagBytes.copyOfRange(
+                offset + Id3FrameHeaderBytes,
+                offset + Id3FrameHeaderBytes + frameSize,
+            )
+            parseId3Frame(frameId, frameData)?.let(tags::add)
+        }
         offset += Id3FrameHeaderBytes + frameSize
     }
 
     return tags.normalizedAndOrdered()
 }
+
+private fun String.isSupportedId3Frame(): Boolean =
+    this == "TXXX" || startsWith("T") || this == "COMM" || this == "USLT" || this == "SYLT" || this == "POPM"
 
 private fun parseId3Frame(frameId: String, frameData: ByteArray): AudioTag? {
     if (frameData.isEmpty()) return null

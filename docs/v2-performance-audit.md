@@ -225,3 +225,37 @@ decoder began honoring requested image dimensions.
 
 Result: **Desktop large-library scroll/search and return-to-steady-playback accepted**. Android and
 iOS large-library interaction evidence remains part of the final cross-platform matrix.
+
+## Android Core transition-persistence optimization — 2026-07-29
+
+This is the first targeted Core optimization from the final Android performance investigation. It
+does not close the Android p95 gate because a separate codec/transition burst remains.
+
+- Device: Pixel 10a (`stallion`), Android 17 / API 37, physical USB connection; non-debuggable,
+  profileable `app.naviamp.android.benchmark` build with a restored 180-track queue and the
+  visualizer closed.
+- Instrumentation added to the shared playback-session controller and SQLDelight repository showed
+  that one transition spent 9.13 ms loading/decoding the full saved queue and 7.26 ms encoding and
+  writing it again.
+- Schema 17 separates the durable queue rows from the small mutable session-state row. Core keeps
+  the loaded session in memory, rewrites queue rows only when track identity/order changes, and
+  lazily converts the legacy JSON row on its next save.
+- On the same Pixel, a subsequent unchanged-queue transition reported a 0.03 ms in-memory load,
+  1.02 ms total planning, 0.00 ms JSON encoding, and a 5.18 ms state-only database write. The queue
+  rewrite diagnostic was `false`, reducing measured transition persistence from roughly 16.4 ms to
+  6.6 ms.
+- Core's audio-tag parser now skips unsupported binary ID3 frames without copying their payload,
+  and the metadata sidecar retains one parsed result per active local file so replay gain, lyrics,
+  and Now Playing metadata do not reparse identical bytes.
+- The first three-minute follow-up was intentionally treated as diagnostic-only because routine
+  `dumpsys meminfo` calls forced explicit compacting collections. Its CPU median remained 10.0%, and
+  an automatic transition still exposed a large allocation/codec burst.
+- A corrected 90-second CPU-only run forced one transition and avoided memory-dump observer effects.
+  It reported 10.3% median CPU and 70.0% p95, with the forced transition reaching 200%. Android logs
+  tie that remaining burst to overlapping `c2.android.raw.decoder` teardown/startup and a blocking
+  allocation, not to session JSON or queue persistence. This is the next isolation target.
+
+Result: **normalized Core queue persistence accepted; Android transition p95 remains open**. The
+optimization benefits every SQLDelight host, while further investigation must distinguish native
+codec overlap from any remaining shared transition orchestration before the Android performance
+gate can pass.

@@ -12,6 +12,7 @@ import app.naviamp.domain.settings.planPlaybackSessionRestore
 import app.naviamp.domain.settings.planPlaybackSessionSave
 import app.naviamp.domain.settings.playbackSessionFromQueue
 import app.naviamp.domain.settings.shouldThrottlePlaybackSessionSave
+import kotlin.time.TimeSource
 
 data class NaviampPlaybackSessionSaveRequest(
     val sourceId: String?,
@@ -34,14 +35,32 @@ class NaviampPlaybackSessionController(
     private val lastSavedPositions = mutableMapOf<String?, SavedPlaybackPosition>()
     private val initializedPositionSources = mutableSetOf<String?>()
     private val lastSavedAtMillis = mutableMapOf<String?, Long>()
+    private val loadedSessionSources = mutableSetOf<String?>()
+    private val loadedSessions = mutableMapOf<String?, PlaybackSessionSettings?>()
+    private var lastLoadMillis: Double? = null
+    private var lastLoadWasCached = false
+    private var lastPlanMillis: Double? = null
+    private var lastSaveMillis: Double? = null
 
-    fun load(sourceId: String? = null): PlaybackSessionSettings? =
-        repository.loadPlaybackSession(sourceId)
+    fun load(sourceId: String? = null): PlaybackSessionSettings? {
+        val mark = TimeSource.Monotonic.markNow()
+        val cached = sourceId in loadedSessionSources
+        val session = if (cached) loadedSessions[sourceId] else repository.loadPlaybackSession(sourceId)
+        if (!cached) {
+            loadedSessionSources += sourceId
+            loadedSessions[sourceId] = session
+        }
+        return session.also {
+            lastLoadWasCached = cached
+            lastLoadMillis = mark.elapsedNow().inWholeMicroseconds / 1_000.0
+        }
+    }
 
     fun restorePlan(sourceId: String? = null): PlaybackSessionRestorePlan =
         planPlaybackSessionRestore(load(sourceId))
 
     fun planAndSave(request: NaviampPlaybackSessionSaveRequest): PlaybackSessionSavePlan {
+        val planningMark = TimeSource.Monotonic.markNow()
         val plan = planPlaybackSessionSave(
             activeSourceId = request.sourceId,
             station = request.station,
@@ -51,9 +70,11 @@ class NaviampPlaybackSessionController(
             notificationPositionSeconds = request.platformPositionSeconds,
             existingSession = load(request.sourceId),
         )
+        lastPlanMillis = planningMark.elapsedNow().inWholeMicroseconds / 1_000.0
         if (plan is PlaybackSessionSavePlan.Save) {
-            repository.savePlaybackSession(plan.session, request.sourceId)
-            rememberSavedPosition(request.sourceId, plan.session)
+            val saveMark = TimeSource.Monotonic.markNow()
+            save(plan.session, request.sourceId)
+            lastSaveMillis = saveMark.elapsedNow().inWholeMicroseconds / 1_000.0
         }
         return plan
     }
@@ -103,6 +124,8 @@ class NaviampPlaybackSessionController(
 
     fun save(session: PlaybackSessionSettings?, sourceId: String? = null) {
         repository.savePlaybackSession(session, sourceId)
+        loadedSessionSources += sourceId
+        loadedSessions[sourceId] = session
         rememberSavedPosition(sourceId, session)
     }
 
@@ -154,9 +177,25 @@ class NaviampPlaybackSessionController(
         lastSavedAtMillis.remove(sourceId)
     }
 
+    fun performanceDiagnostics(): List<Pair<String, String>> {
+        val repositoryPerformance = repository.performanceSnapshot()
+        return listOfNotNull(
+            lastLoadMillis?.let { "Session load total" to it.millisLabel() },
+            lastLoadMillis?.let { "Session load source" to if (lastLoadWasCached) "Memory" else "Database" },
+            lastPlanMillis?.let { "Session plan total" to it.millisLabel() },
+            lastSaveMillis?.let { "Session save total" to it.millisLabel() },
+            repositoryPerformance.readMillis?.let { "Session database read" to it.millisLabel() },
+            repositoryPerformance.decodeMillis?.let { "Session JSON decode" to it.millisLabel() },
+            repositoryPerformance.encodeMillis?.let { "Session JSON encode" to it.millisLabel() },
+            repositoryPerformance.writeMillis?.let { "Session database write" to it.millisLabel() },
+            repositoryPerformance.payloadCharacters?.let { "Session payload" to "$it characters" },
+            repositoryPerformance.queueRewritten?.let { "Session queue rewritten" to it.toString() },
+        )
+    }
+
     private fun savedPosition(sourceId: String?): SavedPlaybackPosition? {
         if (initializedPositionSources.add(sourceId)) {
-            repository.loadPlaybackSession(sourceId).toSavedPlaybackPosition()?.let { saved ->
+            load(sourceId).toSavedPlaybackPosition()?.let { saved ->
                 lastSavedPositions[sourceId] = saved
             }
         }
@@ -169,6 +208,8 @@ class NaviampPlaybackSessionController(
             ?: lastSavedPositions.remove(sourceId)
     }
 }
+
+private fun Double.millisLabel(): String = "${(this * 100.0).toLong() / 100.0} ms"
 
 private data class SavedPlaybackPosition(
     val trackId: String,

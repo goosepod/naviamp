@@ -3,6 +3,7 @@ package app.naviamp.app
 import app.naviamp.domain.Track
 import app.naviamp.domain.TrackId
 import app.naviamp.domain.cache.PlaybackSessionRepository
+import app.naviamp.domain.cache.PlaybackSessionRepositoryPerformance
 import app.naviamp.domain.queue.PlaybackQueue
 import app.naviamp.domain.settings.PlaybackSessionRestorePlan
 import app.naviamp.domain.settings.PlaybackSessionSavePlan
@@ -15,6 +16,34 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class NaviampPlaybackSessionControllerTest {
+    @Test
+    fun exposesSharedSessionPersistencePerformanceDiagnostics() {
+        val repository = RecordingPlaybackSessionRepository(
+            performance = PlaybackSessionRepositoryPerformance(
+                readMillis = 1.25,
+                decodeMillis = 2.5,
+                encodeMillis = 3.75,
+                writeMillis = 4.0,
+                payloadCharacters = 12_345,
+            ),
+        )
+        val controller = NaviampPlaybackSessionController(repository)
+        controller.planAndSave(
+            saveRequest(track("current"), PlaybackQueue(listOf(track("current")), 0), positionSeconds = 0.0),
+        )
+
+        val diagnostics = controller.performanceDiagnostics().toMap()
+
+        assertEquals("1.25 ms", diagnostics["Session database read"])
+        assertEquals("2.5 ms", diagnostics["Session JSON decode"])
+        assertEquals("3.75 ms", diagnostics["Session JSON encode"])
+        assertEquals("4.0 ms", diagnostics["Session database write"])
+        assertEquals("12345 characters", diagnostics["Session payload"])
+        assertTrue(diagnostics.containsKey("Session load total"))
+        assertTrue(diagnostics.containsKey("Session plan total"))
+        assertTrue(diagnostics.containsKey("Session save total"))
+    }
+
     @Test
     fun arbitrarySessionSaveUsesSharedTimeThrottle() {
         val repository = RecordingPlaybackSessionRepository()
@@ -73,6 +102,21 @@ class NaviampPlaybackSessionControllerTest {
         val restorePlan = assertIs<PlaybackSessionRestorePlan.TrackSession>(controller.restorePlan("source"))
         assertEquals(track.id, restorePlan.currentTrack.id)
         assertEquals(queue, restorePlan.playbackQueue)
+    }
+
+    @Test
+    fun reusesLoadedSessionInsteadOfParsingTheQueueForEverySave() {
+        val repository = RecordingPlaybackSessionRepository()
+        val controller = NaviampPlaybackSessionController(repository)
+        val queue = PlaybackQueue(listOf(track("one"), track("two")), currentIndex = 0)
+
+        controller.planAndSave(saveRequest(queue.tracks[0], queue, positionSeconds = 1.0))
+        controller.planAndSave(
+            saveRequest(queue.tracks[1], queue.copy(currentIndex = 1), positionSeconds = 2.0),
+        )
+
+        assertEquals(1, repository.loadCount)
+        assertEquals("Memory", controller.performanceDiagnostics().toMap()["Session load source"])
     }
 
     @Test
@@ -296,15 +340,22 @@ class NaviampPlaybackSessionControllerTest {
 
 private class RecordingPlaybackSessionRepository(
     val sessions: MutableMap<String?, PlaybackSessionSettings?> = mutableMapOf(),
+    private val performance: PlaybackSessionRepositoryPerformance = PlaybackSessionRepositoryPerformance(),
 ) : PlaybackSessionRepository {
     var lastSavedSourceId: String? = null
     var saveCount: Int = 0
+    var loadCount: Int = 0
 
-    override fun loadPlaybackSession(sourceId: String?): PlaybackSessionSettings? = sessions[sourceId]
+    override fun loadPlaybackSession(sourceId: String?): PlaybackSessionSettings? {
+        loadCount += 1
+        return sessions[sourceId]
+    }
 
     override fun savePlaybackSession(session: PlaybackSessionSettings?, sourceId: String?) {
         saveCount += 1
         lastSavedSourceId = sourceId
         sessions[sourceId] = session
     }
+
+    override fun performanceSnapshot(): PlaybackSessionRepositoryPerformance = performance
 }

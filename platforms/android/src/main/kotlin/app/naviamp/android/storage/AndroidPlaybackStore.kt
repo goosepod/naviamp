@@ -5,6 +5,7 @@ import app.naviamp.domain.ArtistId
 import app.naviamp.domain.AudioInfo
 import app.naviamp.domain.Track
 import app.naviamp.domain.TrackId
+import app.naviamp.domain.cache.PlaybackSessionRepositoryPerformance
 import app.naviamp.domain.settings.PlaybackSessionSettings
 import app.naviamp.storage.NaviampStorageQueries
 import app.naviamp.storage.Playback_history
@@ -24,6 +25,9 @@ class AndroidPlaybackStore(
     fun savePlaybackSession(session: PlaybackSessionSettings?, sourceId: String?) {
         playbackSessions.savePlaybackSession(session, sourceId?.takeIf(String::isNotBlank))
     }
+
+    fun playbackSessionPerformance(): PlaybackSessionRepositoryPerformance =
+        playbackSessions.performanceSnapshot()
 
     fun playbackHistory(sourceId: String, limit: Int): List<AndroidPlaybackHistoryItem> =
         queries.selectPlaybackHistory(sourceId, limit.toLong())

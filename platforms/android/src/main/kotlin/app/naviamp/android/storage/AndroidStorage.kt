@@ -30,6 +30,7 @@ import app.naviamp.domain.cache.LyricsSidecarRepository
 import app.naviamp.domain.cache.MediaSourceRepository
 import app.naviamp.domain.cache.ObjectByteStoreService
 import app.naviamp.domain.cache.PlaybackSessionRepository
+import app.naviamp.domain.cache.PlaybackSessionRepositoryPerformance
 import app.naviamp.domain.cache.PlaybackHistoryRepository
 import app.naviamp.domain.cache.ProviderMediaSourceConnection
 import app.naviamp.domain.cache.ProviderMediaSourceRepository
@@ -232,6 +233,9 @@ class AndroidStorage(
     override fun savePlaybackSession(session: PlaybackSessionSettings?, sourceId: String?) {
         playbackStore.savePlaybackSession(session, sourceId)
     }
+
+    override fun performanceSnapshot(): PlaybackSessionRepositoryPerformance =
+        playbackStore.playbackSessionPerformance()
 
     fun savePlaybackSession(sourceId: String, session: PlaybackSessionSettings?) {
         savePlaybackSession(session = session, sourceId = sourceId)
