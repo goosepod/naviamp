@@ -119,6 +119,25 @@ class NativeMetalShaderTranslatorTest {
     }
 
     @Test
+    fun everyNonCanvasVisualizerKeepsItsShaderFallbackWithoutANativeBackend() {
+        NaviampVisualizer.entries.forEach { visualizer ->
+            val expected = when (visualizer) {
+                NaviampVisualizer.SpectrumBars,
+                NaviampVisualizer.LyricMirrorTunnel -> VisualizerRendererMode.Canvas
+                else -> VisualizerRendererMode.SkiaRuntimeShader
+            }
+            assertEquals(
+                expected,
+                selectedVisualizerRendererMode(
+                    visualizer = visualizer,
+                    nativeRendererAvailable = false,
+                ),
+                visualizer.name,
+            )
+        }
+    }
+
+    @Test
     fun nativeOpenGlAvailabilityFeedsRendererSelectionOnWindows() {
         assertFalse(
             jvmNativeOpenGlVisualizerAvailable(
