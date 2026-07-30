@@ -207,6 +207,11 @@ private class IosSkiaVisualizerRenderer(
         builder.uniform("iEnergy", frame.energy.bass, frame.energy.mids, frame.energy.highs, frame.energy.energy)
         builder.uniform("iTempo", frame.tempoBpm)
         builder.uniform("iBands", frame.bands)
+        if (visualizer.usesTranslatedNativeSkiaShader) {
+            builder.uniform("iAnalysis", frame.energy.spectralCentroid, frame.energy.beatDetected)
+            builder.uniform("iRenderScale", visualizer.translatedSkiaRenderScale(renderPolicy))
+            builder.uniform("iMaxRaymarchSteps", visualizer.translatedSkiaMaxRaymarchSteps(renderPolicy))
+        }
         builder.uniform(
             "iAlbumArtSize",
             (albumArtImage?.width ?: 1).toFloat(),

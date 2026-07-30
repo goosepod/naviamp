@@ -402,6 +402,11 @@ private class ShaderVisualizerRenderer(
         )
         builder.uniform("iTempo", frameInput.tempoBpm)
         builder.uniform("iBands", frameInput.bands)
+        if (visualizer.usesTranslatedNativeSkiaShader) {
+            builder.uniform("iAnalysis", frameInput.energy.spectralCentroid, frameInput.energy.beatDetected)
+            builder.uniform("iRenderScale", visualizer.translatedSkiaRenderScale(renderPolicy))
+            builder.uniform("iMaxRaymarchSteps", visualizer.translatedSkiaMaxRaymarchSteps(renderPolicy))
+        }
         builder.uniform(
             "iAlbumArtSize",
             (albumArtImage?.width ?: 1).toFloat(),

@@ -105,6 +105,31 @@ internal fun selectedVisualizerRendererMode(
         visualizer.fallbackRendererMode
     }
 
+internal fun NaviampVisualizer.translatedSkiaRenderScale(renderPolicy: VisualizerRenderPolicy): Float =
+    when (renderPolicy.tier) {
+        VisualizerRenderTier.Full -> 1f
+        VisualizerRenderTier.Balanced -> 0.82f
+        VisualizerRenderTier.Constrained -> when (this) {
+            NaviampVisualizer.OceanHorizon -> 0.48f
+            else -> 0.65f
+        }
+    }
+
+internal fun NaviampVisualizer.translatedSkiaMaxRaymarchSteps(renderPolicy: VisualizerRenderPolicy): Int =
+    when (this) {
+        NaviampVisualizer.OceanHorizon -> when (renderPolicy.tier) {
+            VisualizerRenderTier.Full,
+            VisualizerRenderTier.Balanced -> 60
+            VisualizerRenderTier.Constrained -> 42
+        }
+        NaviampVisualizer.RaymarchedSphereLiquid -> when (renderPolicy.tier) {
+            VisualizerRenderTier.Full -> 80
+            VisualizerRenderTier.Balanced -> 64
+            VisualizerRenderTier.Constrained -> 48
+        }
+        else -> 0
+    }
+
 internal fun smoothVisualizerBands(
     sourceBands: List<Float>,
     smoothBands: FloatArray,
