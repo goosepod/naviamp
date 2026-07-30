@@ -404,8 +404,8 @@ private class ShaderVisualizerRenderer(
         builder.uniform("iBands", frameInput.bands)
         if (visualizer.usesTranslatedNativeSkiaShader) {
             builder.uniform("iAnalysis", frameInput.energy.spectralCentroid, frameInput.energy.beatDetected)
-            builder.uniform("iRenderScale", visualizer.translatedSkiaRenderScale(renderPolicy))
-            builder.uniform("iMaxRaymarchSteps", visualizer.translatedSkiaMaxRaymarchSteps(renderPolicy))
+            builder.uniform("iRenderScale", visualizer.nativeVisualizerRenderScale(renderPolicy))
+            builder.uniform("iMaxRaymarchSteps", visualizer.nativeVisualizerMaxRaymarchSteps(renderPolicy))
         }
         builder.uniform(
             "iAlbumArtSize",

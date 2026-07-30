@@ -105,17 +105,26 @@ internal fun selectedVisualizerRendererMode(
         visualizer.fallbackRendererMode
     }
 
-internal fun NaviampVisualizer.translatedSkiaRenderScale(renderPolicy: VisualizerRenderPolicy): Float =
-    when (renderPolicy.tier) {
-        VisualizerRenderTier.Full -> 1f
-        VisualizerRenderTier.Balanced -> 0.82f
-        VisualizerRenderTier.Constrained -> when (this) {
-            NaviampVisualizer.OceanHorizon -> 0.48f
-            else -> 0.65f
+internal fun NaviampVisualizer.nativeVisualizerRenderScale(renderPolicy: VisualizerRenderPolicy): Float =
+    when (this) {
+        NaviampVisualizer.OceanHorizon -> when (renderPolicy.tier) {
+            VisualizerRenderTier.Full -> 0.82f
+            VisualizerRenderTier.Balanced -> 0.62f
+            VisualizerRenderTier.Constrained -> 0.48f
+        }
+        NaviampVisualizer.AudioTunnel -> when (renderPolicy.tier) {
+            VisualizerRenderTier.Full -> 1f
+            VisualizerRenderTier.Balanced -> 0.82f
+            VisualizerRenderTier.Constrained -> 0.62f
+        }
+        else -> when (renderPolicy.tier) {
+            VisualizerRenderTier.Full -> 1f
+            VisualizerRenderTier.Balanced -> 0.82f
+            VisualizerRenderTier.Constrained -> 0.65f
         }
     }
 
-internal fun NaviampVisualizer.translatedSkiaMaxRaymarchSteps(renderPolicy: VisualizerRenderPolicy): Int =
+internal fun NaviampVisualizer.nativeVisualizerMaxRaymarchSteps(renderPolicy: VisualizerRenderPolicy): Int =
     when (this) {
         NaviampVisualizer.OceanHorizon -> when (renderPolicy.tier) {
             VisualizerRenderTier.Full,
@@ -126,6 +135,11 @@ internal fun NaviampVisualizer.translatedSkiaMaxRaymarchSteps(renderPolicy: Visu
             VisualizerRenderTier.Full -> 80
             VisualizerRenderTier.Balanced -> 64
             VisualizerRenderTier.Constrained -> 48
+        }
+        NaviampVisualizer.AudioTunnel -> when (renderPolicy.tier) {
+            VisualizerRenderTier.Full -> 64
+            VisualizerRenderTier.Balanced -> 52
+            VisualizerRenderTier.Constrained -> 38
         }
         else -> 0
     }

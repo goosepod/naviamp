@@ -42,7 +42,10 @@ internal actual fun PlatformLiveVisualizerSurface(
         visualizerRenderPolicy(visualizer, VisualizerRenderTier.Constrained)
     }
     val rendererMode = remember(visualizer) {
-        selectedVisualizerRendererMode(visualizer, nativeRendererAvailable = false)
+        selectedVisualizerRendererMode(
+            visualizer = visualizer,
+            nativeRendererAvailable = IosMetalVisualizerRenderer.isAvailable(),
+        )
     }
     if (rendererMode == VisualizerRendererMode.Canvas) {
         if (visualizer == NaviampVisualizer.LyricMirrorTunnel) {
@@ -108,17 +111,29 @@ internal actual fun PlatformLiveVisualizerSurface(
     val renderer = remember(effect, visualizer, renderPolicy) {
         effect?.let { IosSkiaVisualizerRenderer(it, visualizer, renderPolicy) }
     }
-    DisposableEffect(renderer, effect) {
+    val metalRenderer = remember(rendererMode, visualizer, renderPolicy) {
+        if (rendererMode == VisualizerRendererMode.NativeGpu) {
+            runCatching { IosMetalVisualizerRenderer(visualizer, renderPolicy) }.getOrNull()
+        } else {
+            null
+        }
+    }
+    val metalPaint = remember { Paint() }
+    DisposableEffect(renderer, effect, metalRenderer) {
         onDispose {
+            metalRenderer?.close()
             renderer?.close()
             effect?.close()
         }
+    }
+    DisposableEffect(metalPaint) {
+        onDispose { metalPaint.close() }
     }
     DisposableEffect(Unit) {
         onDispose { albumArtImage?.close() }
     }
 
-    if (renderer == null) {
+    if (renderer == null && metalRenderer == null) {
         SpectrumBarsVisualizerSurface(
             bandsProvider = bandsProvider,
             visualizerColors = visualizerColors,
@@ -135,19 +150,41 @@ internal actual fun PlatformLiveVisualizerSurface(
         val visibleBands = minOf(bands.size, (size.width / 6f).toInt().coerceAtLeast(16))
         if (visibleBands <= 0 || size.width <= 0f || size.height <= 0f) return@Canvas
         drawIntoCanvas { canvas ->
-            renderer.draw(
-                canvas = canvas.nativeCanvas,
-                width = size.width,
-                height = size.height,
+            val metalImage = metalRenderer?.renderImage(
+                width = size.width.toInt().coerceAtLeast(1),
+                height = size.height.toInt().coerceAtLeast(1),
                 bands = bands,
-                visibleBands = visibleBands,
                 active = active,
-                colors = colors,
                 visualizerColors = visualizerColors,
-                albumArtImage = albumArtImage,
+                colors = colors,
                 timeSeconds = frameMillis / 1_000f,
                 tempoBpm = tempoBpm,
             )
+            if (metalImage != null) {
+                canvas.nativeCanvas.drawImageRect(
+                    metalImage,
+                    Rect.makeWH(metalImage.width.toFloat(), metalImage.height.toFloat()),
+                    Rect.makeWH(size.width, size.height),
+                    SamplingMode.LINEAR,
+                    metalPaint,
+                    true,
+                )
+                metalImage.close()
+            } else {
+                renderer?.draw(
+                    canvas = canvas.nativeCanvas,
+                    width = size.width,
+                    height = size.height,
+                    bands = bands,
+                    visibleBands = visibleBands,
+                    active = active,
+                    colors = colors,
+                    visualizerColors = visualizerColors,
+                    albumArtImage = albumArtImage,
+                    timeSeconds = frameMillis / 1_000f,
+                    tempoBpm = tempoBpm,
+                )
+            }
         }
     }
 }
@@ -209,8 +246,8 @@ private class IosSkiaVisualizerRenderer(
         builder.uniform("iBands", frame.bands)
         if (visualizer.usesTranslatedNativeSkiaShader) {
             builder.uniform("iAnalysis", frame.energy.spectralCentroid, frame.energy.beatDetected)
-            builder.uniform("iRenderScale", visualizer.translatedSkiaRenderScale(renderPolicy))
-            builder.uniform("iMaxRaymarchSteps", visualizer.translatedSkiaMaxRaymarchSteps(renderPolicy))
+            builder.uniform("iRenderScale", visualizer.nativeVisualizerRenderScale(renderPolicy))
+            builder.uniform("iMaxRaymarchSteps", visualizer.nativeVisualizerMaxRaymarchSteps(renderPolicy))
         }
         builder.uniform(
             "iAlbumArtSize",
