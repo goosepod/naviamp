@@ -1,6 +1,7 @@
 package app.naviamp.presentation
 
 import app.naviamp.domain.playback.AudioOutputDevicePlaybackEngine
+import app.naviamp.domain.playback.DefaultVisualizerFrameIntervalMillis
 import app.naviamp.domain.playback.EqualizerPlaybackEngine
 import app.naviamp.domain.playback.PlaybackEngine
 import app.naviamp.domain.playback.PlaybackRequest
@@ -49,11 +50,13 @@ import app.naviamp.ui.radioArtworkNeedsTrackLookup
 import app.naviamp.ui.radioTrackArtworkKey
 import app.naviamp.ui.radioTrackArtworkQuery
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlin.coroutines.CoroutineContext
 
 /**
  * The one playback-engine adapter used by every Naviamp host.
@@ -86,6 +89,8 @@ class NaviampCorePlaybackEngineAdapter(
         quality: app.naviamp.domain.StreamQuality,
         cachedAudio: PlaybackLocalAudio?,
     ) -> PlaybackSidecarPrepResult = { _, _, _, _, _ -> PlaybackSidecarPrepResult() },
+    private val visualizerFrameIntervalMillis: Long = DefaultVisualizerFrameIntervalMillis,
+    private val visualizerWorkContext: CoroutineContext = Dispatchers.Default,
 ) : NaviampCorePlaybackEffectPort, NaviampCoreInternetRadioPlaybackPort {
     override val capabilities = NaviampCorePlaybackCapabilities(
         engineName = engine.name,
@@ -112,6 +117,7 @@ class NaviampCorePlaybackEngineAdapter(
     private var playbackState: PlaybackState = PlaybackState.Stopped
     private var restoredStartPositionSeconds: Double? = null
     private var visualizerFramesEnabled = false
+    private var visualizerSamplingJob: Job? = null
     private val externalStreamUrls = mutableMapOf<TrackId, String>()
 
     override fun attach(observer: NaviampCorePlaybackObserver) {
@@ -121,7 +127,27 @@ class NaviampCorePlaybackEngineAdapter(
     override fun setVisualizerFramesEnabled(enabled: Boolean) {
         if (visualizerFramesEnabled == enabled) return
         visualizerFramesEnabled = enabled
-        if (!enabled) observer?.onVisualizerFrameChanged(null)
+        if (enabled) {
+            startVisualizerSampling()
+        } else {
+            visualizerSamplingJob?.cancel()
+            visualizerSamplingJob = null
+            observer?.onVisualizerFrameChanged(null)
+        }
+    }
+
+    private fun startVisualizerSampling() {
+        if (visualizerSamplingJob?.isActive == true) return
+        val visualizerEngine = engine as? VisualizerPlaybackEngine ?: return
+        if (!visualizerEngine.supportsVisualizer) return
+        visualizerSamplingJob = scope.launch(visualizerWorkContext) {
+            while (visualizerFramesEnabled) {
+                if (playbackState == PlaybackState.Playing) {
+                    observer?.onVisualizerFrameChanged(visualizerEngine.visualizerFrame())
+                }
+                delay(visualizerFrameIntervalMillis.coerceAtLeast(1L))
+            }
+        }
     }
 
     override fun pause() = engine.pause()
@@ -343,11 +369,6 @@ class NaviampCorePlaybackEngineAdapter(
                         val currentPlaybackSettings = settings().effectiveForEngine(engine)
                         invalidatePreparedNextWhenTransitionSettingsChange(currentPlaybackSettings)
                         observer?.onProgressChanged(progress)
-                        if (visualizerFramesEnabled) {
-                            observer?.onVisualizerFrameChanged(
-                                (engine as? VisualizerPlaybackEngine)?.visualizerFrame(),
-                            )
-                        }
                         if (
                             provider != null &&
                             preparedForGeneration != requestGeneration &&

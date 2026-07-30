@@ -41,6 +41,7 @@ import app.naviamp.domain.waveform.AudioWaveformService
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.runCurrent
@@ -121,6 +122,8 @@ class NaviampCorePlaybackEngineAdapterTest {
             engine = engine,
             providerSource = NaviampCoreMediaProviderSource { provider },
             settings = { PlaybackSettings() },
+            visualizerFrameIntervalMillis = 33L,
+            visualizerWorkContext = StandardTestDispatcher(testScheduler),
         )
         val frames = mutableListOf<PlaybackVisualizerFrame?>()
         adapter.attach(object : NaviampCorePlaybackObserver {
@@ -135,13 +138,21 @@ class NaviampCorePlaybackEngineAdapterTest {
         assertEquals(0, engine.visualizerReads)
 
         adapter.setVisualizerFramesEnabled(true)
-        adapter.playQueueSelection(PlaybackQueue(listOf(provider.track), 0), 0)
-        advanceUntilIdle()
+        runCurrent()
         assertEquals(1, engine.visualizerReads)
-        assertEquals(listOf<PlaybackVisualizerFrame?>(PlaybackVisualizerFrame(listOf(0.5f), 1L)), frames)
+        advanceTimeBy(99L)
+        runCurrent()
+        assertEquals(4, engine.visualizerReads)
+        assertEquals(
+            List<PlaybackVisualizerFrame?>(4) { PlaybackVisualizerFrame(listOf(0.5f), 1L) },
+            frames,
+        )
 
         adapter.setVisualizerFramesEnabled(false)
-        assertEquals(listOf(PlaybackVisualizerFrame(listOf(0.5f), 1L), null), frames)
+        advanceTimeBy(99L)
+        runCurrent()
+        assertEquals(4, engine.visualizerReads)
+        assertEquals(null, frames.last())
     }
 
     @Test
