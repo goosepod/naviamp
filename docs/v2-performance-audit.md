@@ -135,6 +135,33 @@ recovery accepted on physical Android and iOS Simulator**. macOS pressure inject
 explicit evidence gap because the host rejected the safe synthetic trigger. Large-library and
 one-hour retained-growth work remain open.
 
+## macOS one-hour retained-growth playback — 2026-07-30
+
+The staged `build/release/Naviamp.app` played continuously from 13:50:26 to 14:50:28 with the
+visualizer closed. PID 50599 was sampled once immediately and then every five minutes for twelve
+intervals with `top`; a dense settle window, JVM heap accounting, one diagnostic full collection,
+and a final process sample followed the hour.
+
+- The cold process began at a 310–314 MB footprint, 67–68 threads, and approximately 6.9–8.5% CPU.
+  The same artifact's already accepted warmed steady-state reference is 409–422 MB.
+- Hourly samples were normally 368–516 MB. The final interval caught a 646 MB peak while system
+  load was also elevated; this remained below the 768 MB foreground ceiling. Most interval CPU
+  samples were 3.7–9.9%, with temporary 12.6% and 20.7% activity bursts, and the final interval was
+  6.2%. Threads were normally 65–78 and ended at 71. The process never crashed or restarted.
+- The immediate settle window briefly held 653–661 MB and 82 threads before falling to 566 MB.
+  `GC.heap_info` identified a 232 MB committed G1 heap with 138 MB used. One diagnostic `GC.run`
+  reduced it to a 109 MB committed heap with 30 MB used, proving that the apparent endpoint growth
+  was reclaimable managed data rather than retained native rendering resources.
+- After collection, footprint remained flat at 425 MB, threads returned to 69, and CPU settled at
+  2.6–4.6%. The final `ps` resident set was 180,608 KB at 2.3% CPU. The configured JVM maximum is
+  320 MB with a 192 MB soft maximum, so the observed managed peak is bounded. Relative to the
+  warmed 409–422 MB reference, retained footprint growth is 0.7–3.9%, below the 10% threshold.
+
+Result: **macOS one-hour playback retained-growth gate accepted**. The run shows bounded,
+reclaimable JVM expansion, a stable warmed native/JVM plateau, return-to-steady CPU, and no process
+or playback failure. Physical Android one-hour retained growth, large-library interaction, and the
+explicit macOS pressure-injection evidence gap remain open.
+
 ## Preliminary Android promotion sample — 2026-07-23
 
 This is a diagnostic debug-build sample, not the final release-like pass.
@@ -227,7 +254,7 @@ Desktop matrix remains outstanding.
 ## macOS background-active and sidecar stress sample — 2026-07-24
 
 This release-like staged-app sample accepts the short-duration Desktop background-active and
-prefetch/sidecar baselines. It does not replace the required one-hour completion run.
+prefetch/sidecar baselines. The later one-hour completion run is accepted above.
 
 - Application: staged `build/local-test/Naviamp.app`, visualizer closed, playing while minimized.
 - Tools: macOS `top` at a two-second cadence, `vmmap`, and JVM native-memory/heap diagnostics.
@@ -250,7 +277,7 @@ prefetch/sidecar baselines. It does not replace the required one-hour completion
   behavior remains Core-owned and the Desktop change is limited to its native BASS stream boundary.
 
 Result: **Desktop background-active and prefetch/sidecar short-duration baselines accepted**. The
-one-hour playback/route-cycle run and the remaining full Desktop matrix scenarios are still required
+later one-hour playback run is accepted above; remaining interaction scenarios are still required
 before the cross-platform performance gate can be declared complete.
 
 ## iOS Simulator and macOS release matrix — 2026-07-28
@@ -297,8 +324,8 @@ active run above stayed within the steady-state gate for all five minutes.
 Result: **iOS foreground/background paused and active-playback five-minute baselines accepted;
 macOS paused, background-active, and foreground Now Playing five-minute baselines accepted**. Memory
 stayed far below every applicable ceiling and did not grow monotonically. Android/iOS large-library
-scroll/search, explicit sidecar cancellation, and the one-hour cross-platform retained-growth cycle
-remain open completion-gate scenarios.
+scroll/search, explicit sidecar cancellation, and physical Android one-hour retained growth remain
+open completion-gate scenarios; the macOS one-hour run is accepted above.
 
 ## macOS large-library interaction sample — 2026-07-28
 
