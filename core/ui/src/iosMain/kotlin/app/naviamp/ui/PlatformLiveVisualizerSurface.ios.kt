@@ -72,6 +72,7 @@ internal actual fun PlatformLiveVisualizerSurface(
     }
 
     var frameMillis by remember { mutableLongStateOf(0L) }
+    val albumArtOwner = remember { NaviampOwnedResource<Image>(Image::close) }
     var albumArtImage by remember { mutableStateOf<Image?>(null) }
     LaunchedEffect(active, visualizer, renderPolicy.targetFrameIntervalMillis) {
         if (!active) {
@@ -92,8 +93,7 @@ internal actual fun PlatformLiveVisualizerSurface(
         }
     }
     LaunchedEffect(coverArtUrl, visualizer) {
-        val previous = albumArtImage
-        albumArtImage = if (
+        val next = if (
             coverArtUrl != null &&
             (visualizer.usesAlbumArtShader || visualizer.nativeShaderDefinition != null)
         ) {
@@ -102,7 +102,7 @@ internal actual fun PlatformLiveVisualizerSurface(
         } else {
             null
         }
-        previous?.close()
+        albumArtImage = albumArtOwner.replace(next)
     }
 
     val effect = remember(visualizer) {
@@ -129,8 +129,8 @@ internal actual fun PlatformLiveVisualizerSurface(
     DisposableEffect(metalPaint) {
         onDispose { metalPaint.close() }
     }
-    DisposableEffect(Unit) {
-        onDispose { albumArtImage?.close() }
+    DisposableEffect(albumArtOwner) {
+        onDispose { albumArtOwner.close() }
     }
 
     if (renderer == null && metalRenderer == null) {

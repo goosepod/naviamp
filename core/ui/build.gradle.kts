@@ -29,6 +29,9 @@ kotlin {
             implementation("org.jetbrains.compose.ui:ui:$composeVersion")
             implementation("org.jetbrains.compose.components:components-resources:$composeVersion")
         }
+        commonTest.dependencies {
+            implementation(kotlin("test"))
+        }
         jvmTest.dependencies {
             implementation(compose.desktop.currentOs)
             implementation("org.jetbrains.compose.ui:ui-test:$composeVersion")

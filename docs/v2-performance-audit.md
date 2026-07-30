@@ -38,6 +38,32 @@ For Android, Desktop, and iOS, record:
   whether the process returned to its steady-state baseline;
 - raw capture location or the exact command/tool configuration used.
 
+## Automated rendering-resource lifecycle gate — 2026-07-30
+
+Before repeating live measurements, the visualizer ownership audit found that replaceable decoded
+artwork and lyric-mask resources did not all have an explicit replacement/unmount release path.
+Core now owns the replacement and shutdown semantics through `NaviampOwnedResource`; Android, JVM,
+and iOS provide only their native `Bitmap.recycle`, Skia `Image.close`, queued GL deletion, or Metal
+reference-release effects.
+
+- A common stress test performs 1,000 replacements and proves that every superseded resource is
+  released exactly once, repeated shutdown is idempotent, retaining the same instance does not
+  release it early, and a late result arriving after shutdown is released immediately.
+- Desktop distinguishes process-bounded shared cover-art cache entries from surface-owned lyric
+  masks, so switching visualizers releases private masks without closing images still owned by the
+  shared LRU cache.
+- Android queues bitmap release behind pending GL work for native visualizers and directly recycles
+  surface-owned runtime-shader bitmaps. Unmount also clears the renderer's artwork reference before
+  queuing GPU teardown.
+- iOS releases replaced decoded Skia images and deterministically clears the Metal device, command
+  queue, pipeline, sampler, frequency/album textures, and render target when the renderer closes.
+- `core:ui:allTests` passes on JVM, Android debug/release unit-test targets, and the iOS simulator;
+  Android, Desktop, and iOS app compilation plus `verifyCoreFirstArchitecture` also pass.
+
+Result: **automated replacement and unmount ownership gate accepted**. Live repeated visualizer
+switching, Now Playing open/close, background/foreground, memory-pressure, and retained-memory
+measurements remain required below.
+
 ## Preliminary Android promotion sample — 2026-07-23
 
 This is a diagnostic debug-build sample, not the final release-like pass.

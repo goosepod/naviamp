@@ -57,41 +57,12 @@ internal class IosMetalVisualizerRenderer(
     private val visualizer: NaviampVisualizer,
     private val renderPolicy: VisualizerRenderPolicy,
 ) : AutoCloseable {
-    private val device: MTLDeviceProtocol = requireNotNull(MTLCreateSystemDefaultDevice())
-    private val commandQueue: MTLCommandQueueProtocol = requireNotNull(device.newCommandQueue())
-    private val pipeline: MTLRenderPipelineStateProtocol = createPipeline(device, visualizer)
-    private val sampler: MTLSamplerStateProtocol = createSampler(device)
-    private val frequencyTexture: MTLTextureProtocol = createTexture(
-        device = device,
-        width = VisualizerFrameBandCount,
-        height = 1,
-        pixelFormat = MTLPixelFormatR32Float,
-        usage = MTLTextureUsageShaderRead,
-    )
-    private val albumArtTexture: MTLTextureProtocol = createTexture(
-        device = device,
-        width = 1,
-        height = 1,
-        pixelFormat = MTLPixelFormatRGBA8Unorm,
-        usage = MTLTextureUsageShaderRead,
-    )
+    private var resources: IosMetalResources? = createMetalResources(visualizer)
     private val uniformBands = FloatArray(VisualizerFrameBandCount)
     private val smoothBands = FloatArray(VisualizerFrameBandCount)
     private var renderTexture: MTLTextureProtocol? = null
     private var renderWidth = 0
     private var renderHeight = 0
-    private var closed = false
-
-    init {
-        byteArrayOf(-1, -1, -1, -1).usePinned { white ->
-            albumArtTexture.replaceRegion(
-                region = MTLRegionMake2D(0u, 0u, 1u, 1u),
-                mipmapLevel = 0u,
-                withBytes = white.addressOf(0),
-                bytesPerRow = 4u,
-            )
-        }
-    }
 
     fun renderImage(
         width: Int,
@@ -103,7 +74,8 @@ internal class IosMetalVisualizerRenderer(
         timeSeconds: Float,
         tempoBpm: Int?,
     ): Image? {
-        if (closed || width <= 0 || height <= 0) return null
+        val resources = resources ?: return null
+        if (width <= 0 || height <= 0) return null
         smoothVisualizerBands(bands, smoothBands, uniformBands)
         val frame = buildVisualizerFrameInput(
             width = width.toFloat(),
@@ -115,9 +87,9 @@ internal class IosMetalVisualizerRenderer(
             tempoBpm = tempoBpm,
             uniformBands = uniformBands,
         )
-        val target = ensureRenderTexture(width, height)
+        val target = ensureRenderTexture(resources.device, width, height)
         uniformBands.usePinned { pinnedBands ->
-            frequencyTexture.replaceRegion(
+            resources.frequencyTexture.replaceRegion(
                 region = MTLRegionMake2D(0u, 0u, VisualizerFrameBandCount.toULong(), 1u),
                 mipmapLevel = 0u,
                 withBytes = pinnedBands.addressOf(0),
@@ -156,13 +128,13 @@ internal class IosMetalVisualizerRenderer(
                 storeAction = MTLStoreActionStore
                 clearColor = MTLClearColorMake(0.0, 0.0, 0.0, 0.0)
             }
-            val commandBuffer = commandQueue.commandBuffer() ?: return null
+            val commandBuffer = resources.commandQueue.commandBuffer() ?: return null
             val encoder = commandBuffer.renderCommandEncoderWithDescriptor(pass) ?: return null
-            encoder.setRenderPipelineState(pipeline)
+            encoder.setRenderPipelineState(resources.pipeline)
             encoder.setFragmentBytes(uniformStorage, MetalUniformByteCount.toULong(), 0u)
-            encoder.setFragmentTexture(frequencyTexture, 0u)
-            encoder.setFragmentTexture(albumArtTexture, 1u)
-            encoder.setFragmentSamplerState(sampler, 0u)
+            encoder.setFragmentTexture(resources.frequencyTexture, 0u)
+            encoder.setFragmentTexture(resources.albumArtTexture, 1u)
+            encoder.setFragmentSamplerState(resources.sampler, 0u)
             encoder.drawPrimitives(MTLPrimitiveTypeTriangle, 0u, 3u)
             encoder.endEncoding()
             commandBuffer.commit()
@@ -185,7 +157,7 @@ internal class IosMetalVisualizerRenderer(
         )
     }
 
-    private fun ensureRenderTexture(width: Int, height: Int): MTLTextureProtocol {
+    private fun ensureRenderTexture(device: MTLDeviceProtocol, width: Int, height: Int): MTLTextureProtocol {
         val current = renderTexture
         if (current != null && renderWidth == width && renderHeight == height) return current
         renderWidth = width
@@ -201,8 +173,8 @@ internal class IosMetalVisualizerRenderer(
     }
 
     override fun close() {
-        closed = true
         renderTexture = null
+        resources = null
     }
 
     companion object {
@@ -210,6 +182,48 @@ internal class IosMetalVisualizerRenderer(
 
         fun isAvailable(): Boolean = available
     }
+}
+
+private class IosMetalResources(
+    val device: MTLDeviceProtocol,
+    val commandQueue: MTLCommandQueueProtocol,
+    val pipeline: MTLRenderPipelineStateProtocol,
+    val sampler: MTLSamplerStateProtocol,
+    val frequencyTexture: MTLTextureProtocol,
+    val albumArtTexture: MTLTextureProtocol,
+)
+
+private fun createMetalResources(visualizer: NaviampVisualizer): IosMetalResources {
+    val device = requireNotNull(MTLCreateSystemDefaultDevice())
+    val albumArtTexture = createTexture(
+        device = device,
+        width = 1,
+        height = 1,
+        pixelFormat = MTLPixelFormatRGBA8Unorm,
+        usage = MTLTextureUsageShaderRead,
+    )
+    byteArrayOf(-1, -1, -1, -1).usePinned { white ->
+        albumArtTexture.replaceRegion(
+            region = MTLRegionMake2D(0u, 0u, 1u, 1u),
+            mipmapLevel = 0u,
+            withBytes = white.addressOf(0),
+            bytesPerRow = 4u,
+        )
+    }
+    return IosMetalResources(
+        device = device,
+        commandQueue = requireNotNull(device.newCommandQueue()),
+        pipeline = createPipeline(device, visualizer),
+        sampler = createSampler(device),
+        frequencyTexture = createTexture(
+            device = device,
+            width = VisualizerFrameBandCount,
+            height = 1,
+            pixelFormat = MTLPixelFormatR32Float,
+            usage = MTLTextureUsageShaderRead,
+        ),
+        albumArtTexture = albumArtTexture,
+    )
 }
 
 private fun createPipeline(
