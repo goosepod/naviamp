@@ -103,6 +103,38 @@ and the exact failure sequence then passed on both Apple renderers. Background/f
 memory-pressure, large-library interaction, and the final one-hour retained-growth checks remain
 separate completion-gate work.
 
+## Lifecycle and memory-pressure recovery — 2026-07-30
+
+Each app played continuously with Now Playing visible and the visualizer closed. The interactive
+lifecycle sequence sent each app to the background and restored it ten times, then allowed it to
+return to steady state before measuring it again.
+
+- macOS staged release: ten minimize/restore cycles preserved playback and UI state. Footprint
+  returned from 429 MB to 422 MB, CPU from approximately 0.3% to 0.3–0.4%, and the temporary
+  foreground rendering bursts subsided. Threads remained bounded at 63 after a 58–61 baseline.
+  `memory_pressure -S -l warn` was also attempted, but macOS rejected the manual kernel trigger
+  with `Operation not permitted`; no warning was delivered. Real macOS pressure recovery therefore
+  remains unverified rather than being inferred from an unsafe memory-exhaustion workload.
+- Optimized iOS 26.5 iPhone 17 Pro Simulator release: ten Home/reopen cycles preserved playback and
+  UI state. Footprint settled from 174 MB to 179–180 MB (+3.4%), CPU returned from approximately
+  3–4% to 3.2–4.3%, and threads remained bounded at 27–28. The Simulator's supported **Simulate
+  Memory Warning** action was then delivered three times, five seconds apart. Naviamp stayed alive
+  and responsive, playback continued, footprint settled at 180–181 MB, CPU at 3.8–4.3%, and threads
+  at 29.
+- Physical Pixel 10a on Android 17, benchmark build: ten Home/reopen cycles preserved PID 4548,
+  the Activity, queue metadata, MediaSession, playback, and UI state. PSS fell from 192,489 KB to
+  181,320 KB (-5.8%), RSS from 290,744 KB to 283,440 KB (-2.5%), and CPU returned from 10.6–12.6%
+  to 9.2–10.4%. Android's non-destructive `RUNNING_LOW` and `RUNNING_CRITICAL` trim callbacks were
+  then delivered. A temporary CPU/RSS burst coincided with the normal transition from “Dreams” to
+  “Pull Out”; after settling, PSS was 192,377 KB (effectively the original baseline), RSS was
+  300,508 KB (+3.4%), CPU returned to approximately 9–13%, and the playing MediaSession exposed the
+  new track.
+
+Result: **background/foreground recovery accepted on Android, macOS, and iOS Simulator; pressure
+recovery accepted on physical Android and iOS Simulator**. macOS pressure injection remains an
+explicit evidence gap because the host rejected the safe synthetic trigger. Large-library and
+one-hour retained-growth work remain open.
+
 ## Preliminary Android promotion sample — 2026-07-23
 
 This is a diagnostic debug-build sample, not the final release-like pass.
