@@ -8,6 +8,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameMillis
 import androidx.compose.ui.Modifier
@@ -73,6 +74,7 @@ internal actual fun PlatformLiveVisualizerSurface(
 
     var frameMillis by remember { mutableLongStateOf(0L) }
     val albumArtOwner = remember { NaviampOwnedResource<Image>(Image::close) }
+    val albumArtRetirementScope = rememberCoroutineScope()
     var albumArtImage by remember { mutableStateOf<Image?>(null) }
     LaunchedEffect(active, visualizer, renderPolicy.targetFrameIntervalMillis) {
         if (!active) {
@@ -102,7 +104,7 @@ internal actual fun PlatformLiveVisualizerSurface(
         } else {
             null
         }
-        albumArtImage = albumArtOwner.replace(next)
+        albumArtOwner.replaceForRendering(next, albumArtRetirementScope) { albumArtImage = it }
     }
 
     val effect = remember(visualizer) {

@@ -64,6 +64,45 @@ Result: **automated replacement and unmount ownership gate accepted**. Live repe
 switching, Now Playing open/close, background/foreground, memory-pressure, and retained-memory
 measurements remain required below.
 
+## Live visualizer replacement stress — 2026-07-30
+
+This release-like pass exercises renderer replacement after the automated ownership audit. Each
+platform remains on Now Playing with active playback, cycles every visualizer twice, closes and
+reopens the visualizer ten times, then returns to the closed-visualizer steady state.
+
+- Android: physical Pixel 10a on Android 17, non-debuggable/profileable
+  `app.naviamp.android.benchmark`; sampled with `adb shell top` and `dumpsys meminfo`. CPU returned
+  to approximately 10–12%. PSS settled from 206,497 KB to 224,161 KB (+8.6%) and RSS from 332,296
+  KB to 347,324 KB (+4.5%). Graphics settled from 93,668 KB to 96,920 KB. The retained-growth gate
+  passed and no crash or ANR occurred.
+- macOS: staged `build/release/Naviamp.app`, sampled with `top`. The first run correctly failed the
+  gate when repeated visualizer changes crashed in Skia. The macOS report
+  `Naviamp-2026-07-30-103547.ips` showed `EXC_BAD_ACCESS` on `AWT-EventQueue-0` in
+  `Image_nGetImageInfo`, proving that a superseded Skia image could be closed before Compose and the
+  native host completed their render handoff.
+- Core now publishes the replacement, retires the superseded resource, and releases it only after
+  two completed render frames. Common tests cover deferred release, revival before retirement,
+  1,000 pending retirements at shutdown, exact-once destruction, and late results. Android, JVM,
+  and iOS actuals supply only their native image type and destruction effect.
+- The rebuilt macOS release app survived the complete crash sequence. Closed-visualizer CPU settled
+  at approximately 3–4%. Its post-stress footprint plateaued at 409 MB, matching the prior run's
+  406–408 MB high-water plateau rather than growing again; forcing JVM collection did not change
+  that plateau, which identifies it as bounded native shader/Skia cache memory rather than an
+  accumulating managed-resource leak.
+
+- iOS: optimized Release build on the iOS 26.5 iPhone 17 Pro Simulator, sampled with `ps` and
+  `top`. The pre-stress resident set was 118–123 MB. After the full replacement sequence it settled
+  at 162–163 MB with 3.3–3.8% host CPU and 28 stable threads. A later background/sidecar burst
+  briefly peaked at 324 MB, then returned to the same 162–163 MB plateau rather than continuing to
+  grow. Every standard and Metal-backed complex visualizer rendered, the process remained alive,
+  and playback continued.
+
+Result: **live repeated visualizer replacement gate accepted on Android, macOS, and optimized iOS
+Simulator builds**. The macOS failure was converted into a deterministic Core-owned lifetime fix,
+and the exact failure sequence then passed on both Apple renderers. Background/foreground,
+memory-pressure, large-library interaction, and the final one-hour retained-growth checks remain
+separate completion-gate work.
+
 ## Preliminary Android promotion sample — 2026-07-23
 
 This is a diagnostic debug-build sample, not the final release-like pass.

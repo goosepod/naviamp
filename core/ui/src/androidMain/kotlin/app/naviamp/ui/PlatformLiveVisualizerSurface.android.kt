@@ -25,6 +25,7 @@ import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameMillis
@@ -288,6 +289,7 @@ private fun AndroidShaderVisualizerSurface(
     val albumArtOwner = remember(visualizer, renderPolicy) {
         NaviampOwnedResource<Bitmap>(Bitmap::recycle)
     }
+    val albumArtRetirementScope = rememberCoroutineScope()
     var albumArtBitmap by remember { mutableStateOf<Bitmap?>(null) }
     LaunchedEffect(coverArtUrl, visualizer) {
         val next = if (coverArtUrl != null && visualizer.usesAlbumArtShader) {
@@ -300,7 +302,7 @@ private fun AndroidShaderVisualizerSurface(
         } else {
             null
         }
-        albumArtBitmap = albumArtOwner.replace(next)
+        albumArtOwner.replaceForRendering(next, albumArtRetirementScope) { albumArtBitmap = it }
     }
     val renderer = remember(visualizer, renderPolicy, performanceLoggingEnabled) {
         AndroidShaderVisualizerRenderer(visualizer, renderPolicy, performanceLoggingEnabled)

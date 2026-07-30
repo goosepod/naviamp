@@ -7,6 +7,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameMillis
 import androidx.compose.ui.Modifier
@@ -49,6 +50,7 @@ internal actual fun PlatformLiveVisualizerSurface(
             if (lease.owned) lease.image.close()
         }
     }
+    val albumArtRetirementScope = rememberCoroutineScope()
     var albumArtLease by remember { androidx.compose.runtime.mutableStateOf<JvmVisualizerImageLease?>(null) }
     val albumArtImage = albumArtLease?.image
     val renderPolicy = remember(visualizer) {
@@ -93,7 +95,7 @@ internal actual fun PlatformLiveVisualizerSurface(
                     ?.let { JvmVisualizerImageLease(image = it, owned = false) }
             else -> null
         }
-        albumArtLease = albumArtOwner.replace(next)
+        albumArtOwner.replaceForRendering(next, albumArtRetirementScope) { albumArtLease = it }
     }
     DisposableEffect(albumArtOwner) {
         onDispose { albumArtOwner.close() }
