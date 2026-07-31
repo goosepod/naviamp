@@ -4,7 +4,6 @@ import app.naviamp.domain.cache.ProviderMediaSourceConnection
 import app.naviamp.storage.StorageCredentialProtector
 import app.naviamp.storage.StorageDatabaseLocation
 import java.nio.file.Files
-import kotlin.io.path.deleteIfExists
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -12,15 +11,19 @@ import kotlin.test.assertTrue
 
 class DesktopMediaSourceStorageTest {
     @Test
-    fun ownsSharedSchemaAndProtectedMediaSourcePersistenceAcrossRestarts() {
+    fun sharedCatalogOwnsProtectedMediaSourcePersistenceAcrossDesktopRestarts() {
         val directory = Files.createTempDirectory("naviamp-desktop-media-sources-test")
         val location = StorageDatabaseLocation(directory.toString(), "sources.db")
-        val sourceId = DesktopMediaSourceStorage.open(
+        val audio = Files.createDirectories(directory.resolve("audio"))
+        val downloads = Files.createDirectories(directory.resolve("downloads"))
+        val sourceId = DesktopStorageRepositories.open(
             location = location,
+            audioCacheDirectory = audio,
+            downloadDirectory = downloads,
             nowEpochMillis = { 41L },
             credentialProtector = TestCredentialProtector,
         ).use { storage ->
-            val identity = storage.upsertProviderMediaSource(
+            val identity = storage.mediaSources.upsertProviderMediaSource(
                 connection = ProviderMediaSourceConnection(
                     displayName = "Home",
                     baseUrl = "https://music.example.test",
@@ -31,28 +34,25 @@ class DesktopMediaSourceStorageTest {
                 cacheNamespace = "home-server",
                 providerId = "navidrome",
             )
-            val stored = storage.database.naviampStorageQueries
-                .selectMediaSourceById(identity.id)
-                .executeAsOne()
+            val stored = storage.database.naviampStorageQueries.selectMediaSourceById(identity.id).executeAsOne()
             assertTrue(stored.token.startsWith("protected:"))
             assertFalse(stored.token.contains("secret-token"))
             identity.id
         }
 
-        DesktopMediaSourceStorage.open(
+        DesktopStorageRepositories.open(
             location = location,
+            audioCacheDirectory = audio,
+            downloadDirectory = downloads,
             nowEpochMillis = { 42L },
             credentialProtector = TestCredentialProtector,
         ).use { reopened ->
-            assertEquals("secret-token", reopened.mediaSource(sourceId)?.token)
-            assertEquals("secret-salt", reopened.mediaSource(sourceId)?.salt)
-            assertEquals(41L, reopened.mediaSource(sourceId)?.lastConnectedAtEpochMillis)
+            assertEquals("secret-token", reopened.mediaSources.mediaSource(sourceId)?.token)
+            assertEquals("secret-salt", reopened.mediaSources.mediaSource(sourceId)?.salt)
+            assertEquals(41L, reopened.mediaSources.mediaSource(sourceId)?.lastConnectedAtEpochMillis)
         }
 
-        directory.resolve("sources.db").deleteIfExists()
-        directory.resolve("sources.db-shm").deleteIfExists()
-        directory.resolve("sources.db-wal").deleteIfExists()
-        directory.deleteIfExists()
+        directory.toFile().deleteRecursively()
     }
 }
 

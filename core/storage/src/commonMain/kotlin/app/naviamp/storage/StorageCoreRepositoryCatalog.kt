@@ -24,19 +24,32 @@ class StorageCoreRepositoryCatalog(
     maxAudioBytes: Long = DefaultStorageAudioCacheBytes,
     maxAudioWaveformBytes: Long = DefaultStorageAudioWaveformCacheBytes,
     maxHotImageBytes: Long = DefaultStorageHotImageCacheBytes,
+    audioCacheDirectory: () -> String = { "" },
+    downloadDirectory: () -> String = { "" },
+    hotImageCount: () -> Int = { 0 },
+    hotImageBytes: () -> Long = { 0L },
+    clearHotImages: () -> Unit = {},
+    clearAdditionalData: () -> Unit = {},
 ) {
     private val queries = database.naviampStorageQueries
     private val rows = StorageMaintenanceStore(queries)
+    private var currentMaxAudioBytes = maxAudioBytes.coerceAtLeast(0L)
+
+    fun updateAudioCacheLimit(maxBytes: Long) {
+        currentMaxAudioBytes = maxBytes.coerceAtLeast(0L)
+    }
 
     val mediaSources = StorageMediaSourceStore(queries, nowEpochMillis, credentialProtector)
     val libraryIndex = StorageLibraryIndexStore(queries, mediaSources, nowEpochMillis)
+    val providerResponseRows = StorageProviderResponseStore(queries)
     val providerResponses = ProviderResponseCacheService(
-        StorageProviderResponseStore(queries),
+        providerResponseRows,
         nowEpochMillis,
     )
     val keepDownloaded = StorageKeepDownloadedStore(queries, nowEpochMillis)
     val radioDjPresets = StorageRadioDjPresetStore(queries, nowEpochMillis)
     val playbackSessions = StoragePlaybackSessionStore(queries, nowEpochMillis)
+    val playbackHistory = StoragePlaybackHistoryStore(queries)
     val pendingProviderActions = StoragePendingProviderActionStore(queries, nowEpochMillis)
     val audioWaveforms = StorageAudioWaveformStore(
         queries = queries,
@@ -52,7 +65,10 @@ class StorageCoreRepositoryCatalog(
         object : CacheMaintenanceRepository<StorageCacheStats> {
             override fun clearProviderData() = rows.clearProviderData()
 
-            override fun clearCacheData() = rows.clearCacheData(deleteKnownAudioCacheFile)
+            override fun clearCacheData() {
+                clearHotImages()
+                rows.clearCacheData(deleteKnownAudioCacheFile)
+            }
 
             override fun clearDownloadData() = rows.clearDownloadData(deleteKnownDownloadFile)
 
@@ -60,7 +76,9 @@ class StorageCoreRepositoryCatalog(
                 clearCacheData()
                 clearDownloadData()
                 libraryIndex.clearLibraryData(null)
+                playbackHistory.clear()
                 rows.clearAllRows()
+                clearAdditionalData()
             }
 
             override fun pruneUnusedSourceScopes(
@@ -78,12 +96,14 @@ class StorageCoreRepositoryCatalog(
             override fun stats(): StorageCacheStats = rows.stats(
                 databaseLabel = databaseLabel,
                 databaseBytes = databaseBytes(),
-                hotImageCount = 0,
-                hotImageBytes = 0,
+                hotImageCount = hotImageCount(),
+                hotImageBytes = hotImageBytes(),
                 maxImageBytes = maxImageBytes,
-                maxAudioBytes = maxAudioBytes,
+                maxAudioBytes = currentMaxAudioBytes,
                 maxAudioWaveformBytes = maxAudioWaveformBytes,
                 maxHotImageBytes = maxHotImageBytes,
+                audioCacheDirectory = audioCacheDirectory(),
+                downloadDirectory = downloadDirectory(),
             )
         }
 }

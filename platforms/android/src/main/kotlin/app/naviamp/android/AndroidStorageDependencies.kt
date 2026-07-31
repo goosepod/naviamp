@@ -28,21 +28,26 @@ import app.naviamp.domain.provider.PendingProviderActionRepository
 import app.naviamp.domain.radio.RadioDjPresetRepository
 import app.naviamp.domain.source.SavedMediaSource
 import app.naviamp.domain.waveform.AudioWaveform
+import app.naviamp.storage.StorageCachedAudioFile
+import app.naviamp.storage.StorageCachedAudioMetadata
+import app.naviamp.storage.StorageDownloadedAudioFile
+import app.naviamp.storage.StorageDownloadedTrack
+import app.naviamp.storage.StoragePlaybackHistoryItem
 
 class AndroidStorageDependencies(
     context: Context,
     private val storage: AndroidStorage = AndroidStorage(context),
 ) : ImageCacheRepository by storage,
     ProviderResponseCacheRepository by storage,
-    AudioCacheRepository<AndroidCachedAudioFile, AndroidCachedAudioMetadata> by storage,
+    AudioCacheRepository<StorageCachedAudioFile, StorageCachedAudioMetadata> by storage,
     AudioWaveformCacheRepository by storage,
     AudioWaveformStorageRepository by storage,
     LyricsSidecarRepository by storage,
     LyricsOffsetRepository by storage,
-    DownloadRepository<AndroidDownloadedAudioFile, AndroidDownloadedTrack> by storage,
-    DownloadReplacementRepository<AndroidDownloadedAudioFile> by storage,
+    DownloadRepository<StorageDownloadedAudioFile, StorageDownloadedTrack> by storage,
+    DownloadReplacementRepository<StorageDownloadedAudioFile> by storage,
     KeepDownloadedRepository by storage,
-    PlaybackHistoryRepository<AndroidPlaybackHistoryItem> by storage,
+    PlaybackHistoryRepository<StoragePlaybackHistoryItem> by storage,
     MediaSourceRepository by storage,
     ProviderMediaSourceRepository by storage,
     PlaybackSessionRepository by storage,
@@ -71,9 +76,6 @@ class AndroidStorageDependencies(
     fun updateAudioCacheDirectory(directory: java.io.File) = storage.updateAudioCacheDirectory(directory)
     val downloadDirectory: java.io.File get() = storage.downloadDirectory
     val audioCacheDirectory: java.io.File get() = storage.audioCacheDirectory
-
-    fun libraryTrack(sourceId: String, trackId: TrackId): Track? =
-        storage.libraryTrack(sourceId, trackId)
 
     fun asHomeLibraryRepository(): HomeLibraryRepository =
         object : HomeLibraryRepository {

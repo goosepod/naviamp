@@ -38,6 +38,17 @@ class StorageAudioStoreTest {
     }
 
     @Test
+    fun cacheEvictionPreservesTracksProtectedByTheSharedQueuePolicy() {
+        fixture(fileExists = { true }, protectedTrackIds = { setOf("track") }).use { fixture ->
+            fixture.insertCached("/cache/protected.mp3")
+
+            fixture.store.updateAudioCacheLimit(0L)
+
+            assertEquals(1L, fixture.queries.audioCacheCount().executeAsOne())
+        }
+    }
+
+    @Test
     fun downloadRemovalDeletesOnlyAfterTheKnownFileIsRemoved() {
         var allowDeletion = false
         fixture(fileExists = { true }, deleteDownload = { allowDeletion }).use { fixture ->
@@ -71,6 +82,7 @@ private fun fixture(
     fileExists: (String) -> Boolean,
     deleteCache: (String) -> Boolean = { true },
     deleteDownload: (String) -> Boolean = { true },
+    protectedTrackIds: () -> Set<String> = { emptySet() },
 ): StorageAudioStoreFixture {
     val driver = JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY)
     NaviampStorageDatabase.Schema.create(driver)
@@ -89,6 +101,7 @@ private fun fixture(
             deleteKnownAudioCacheFile = deleteCache,
             deleteKnownDownloadFile = deleteDownload,
             maxAudioCacheBytes = 1024L,
+            protectedTrackIds = protectedTrackIds,
         ),
     )
 }

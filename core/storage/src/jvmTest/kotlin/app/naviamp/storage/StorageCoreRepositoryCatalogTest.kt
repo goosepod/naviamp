@@ -2,6 +2,8 @@ package app.naviamp.storage
 
 import app.cash.sqldelight.driver.jdbc.sqlite.JdbcSqliteDriver
 import app.naviamp.domain.cache.ProviderMediaSourceConnection
+import app.naviamp.domain.Track
+import app.naviamp.domain.TrackId
 import app.naviamp.domain.settings.PlaybackSessionSettings
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -37,6 +39,20 @@ class StorageCoreRepositoryCatalogTest {
                 providerId = "navidrome",
             )
             catalog.playbackSessions.savePlaybackSession(PlaybackSessionSettings(), source.id)
+            catalog.playbackHistory.recordPlaybackHistory(
+                source.id,
+                Track(
+                    id = TrackId("history"),
+                    title = "History",
+                    artistName = "Artist",
+                    albumTitle = null,
+                    durationSeconds = null,
+                    coverArtId = null,
+                    audioInfo = null,
+                    replayGain = null,
+                ),
+                42L,
+            )
             val queries = database.naviampStorageQueries
             queries.upsertCachedAudio(
                 source_id = source.id,
@@ -53,6 +69,7 @@ class StorageCoreRepositoryCatalogTest {
             assertEquals(1L, catalog.maintenance.stats().mediaSourceCount)
             assertEquals(1L, catalog.maintenance.stats().playbackSessionCount)
             assertEquals(123L, catalog.maintenance.stats().databaseBytes)
+            assertEquals("history", catalog.playbackHistory.playbackHistory(source.id, 10).single().track.id.value)
 
             catalog.maintenance.clearAll()
 
@@ -61,6 +78,7 @@ class StorageCoreRepositoryCatalogTest {
             assertEquals(0L, catalog.maintenance.stats().mediaSourceCount)
             assertTrue(queries.selectAllCachedAudio().executeAsList().isEmpty())
             assertTrue(queries.selectAllDownloadedAudio().executeAsList().isEmpty())
+            assertTrue(catalog.playbackHistory.playbackHistory(source.id, 10).isEmpty())
         } finally {
             driver.close()
         }

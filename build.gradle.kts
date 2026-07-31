@@ -69,6 +69,23 @@ tasks.register("verifyCoreFirstArchitecture") {
             }
         }
 
+        val forbiddenPortableHostStorageDeclaration = Regex(
+            """^\s*(?:(?:data|internal)\s+)?class\s+(?:Android|Desktop)(?:AudioStore|AudioWaveformStore|LibraryIndexStore|LyricsOffsetStore|LyricsSidecarStore|ObjectByteStore|PendingProviderActionStore|PlaybackStore|ProviderResponseStore|RadioDjPresetStore|SidecarStatusStore|MediaSourceStorage|CacheMaintenanceRepository)\b""",
+        )
+        val forbiddenGeneratedStorageImport = Regex(
+            """^\s*import\s+app\.naviamp\.storage\.(?:NaviampStorageQueries|Cached_audio|Downloaded_audio|Playback_history)\b""",
+        )
+        hostProductionSources.files.sorted().forEach { source ->
+            source.readLines().forEachIndexed { index, line ->
+                if (forbiddenPortableHostStorageDeclaration.containsMatchIn(line)) {
+                    failures += "${source.relativeTo(projectDir).invariantSeparatorsPath}:${index + 1}: portable storage owner must live in core:storage"
+                }
+                if (forbiddenGeneratedStorageImport.containsMatchIn(line)) {
+                    failures += "${source.relativeTo(projectDir).invariantSeparatorsPath}:${index + 1}: generated SQL rows/queries must be mapped in core:storage"
+                }
+            }
+        }
+
         if (failures.isNotEmpty()) {
             throw GradleException(
                 buildString {

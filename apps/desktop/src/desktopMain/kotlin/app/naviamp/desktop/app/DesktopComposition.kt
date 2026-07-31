@@ -7,7 +7,6 @@ import app.naviamp.domain.network.KtorSharedHttpClient
 import app.naviamp.domain.audio.AudioMetadataSidecarService
 import app.naviamp.domain.cache.CachedLyricsSidecarRepository
 import app.naviamp.domain.cache.ProviderResponseService
-import app.naviamp.domain.cache.ProviderResponseCacheService
 import app.naviamp.domain.cache.LyricsSidecarCacheService
 import app.naviamp.domain.cache.SidecarStatusService
 import app.naviamp.domain.lyrics.LrclibLyricsProvider
@@ -161,7 +160,8 @@ internal class DesktopComposition private constructor(
                 workContext = Dispatchers.IO,
                 cacheAudioForWaveform = { sourceId, provider, track, quality ->
                     storage.audioStore.cacheAudioTrack(sourceId, provider, track, quality)
-                        .path
+                        .filePath
+                        .let(Path::of)
                         .toPlaybackLocalAudio()
                 },
             )
@@ -192,7 +192,8 @@ internal class DesktopComposition private constructor(
                 audioAssets = playbackAudioAssets,
                 cacheAudio = { sourceId, provider, track, quality ->
                     storage.audioStore.cacheAudioTrack(sourceId, provider, track, quality)
-                        .path
+                        .filePath
+                        .let(Path::of)
                         .toPlaybackLocalAudio()
                 },
                 preparePrefetchedSidecars = { sourceId, provider, track, quality, _ ->
@@ -299,9 +300,7 @@ internal class DesktopComposition private constructor(
                         libraryIndex = storage.libraryIndex,
                         nowEpochMillis = nowEpochMillis,
                     ),
-                    providerResponses = ProviderResponseService(
-                        ProviderResponseCacheService(storage.providerResponses, nowEpochMillis),
-                    ),
+                    providerResponses = ProviderResponseService(storage.providerResponses),
                     homeLibrary = localLibraryHomeRepository(storage.libraryIndex),
                     playlistSupplement = naviampCorePlaylistBrowseSupplementSource(
                         recentPlaylistIds = settingsStore::loadRecentPlaylistIds,
@@ -314,8 +313,7 @@ internal class DesktopComposition private constructor(
                     cacheSettings = NaviampCoreCacheSettingsPort { requested ->
                         requested.normalized().also { effective ->
                             activeCacheSettings = effective
-                            storage.audioStore.updateAudioCacheLimit(effective.maxAudioCacheBytes)
-                            storage.maintenance.updateAudioCacheLimit(effective.maxAudioCacheBytes)
+                            storage.updateAudioCacheLimit(effective.maxAudioCacheBytes)
                             settingsStore.saveCacheSettings(effective)
                         }
                     },
@@ -331,13 +329,13 @@ internal class DesktopComposition private constructor(
                     keepDownloadedRepository = storage.keepDownloaded,
                     toCoreDownload = { stored ->
                         NaviampCoreDownloadedTrack(
-                            storageId = stored.path.toString(),
+                            storageId = stored.filePath,
                             track = stored.track,
                             sizeBytes = stored.sizeBytes,
                             qualityLabel = stored.qualityKey,
                         )
                     },
-                    isStoredDownloadAvailable = { stored -> Files.exists(stored.path) },
+                    isStoredDownloadAvailable = { stored -> Files.exists(Path.of(stored.filePath)) },
                     storageStats = {
                         storage.maintenance.stats().let { stats ->
                             NaviampCoreDownloadStorageSnapshot(

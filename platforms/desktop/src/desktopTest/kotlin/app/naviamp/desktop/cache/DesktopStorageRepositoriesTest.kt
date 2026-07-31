@@ -47,7 +47,7 @@ class DesktopStorageRepositoriesTest {
             credentialProtector = PassthroughStorageCredentialProtector,
             legacyDatabaseFilesOnReset = listOf(legacyCache, legacyStorage),
         ).use { repositories ->
-            val queries = repositories.mediaSources.database.naviampStorageQueries
+            val queries = repositories.database.naviampStorageQueries
             queries.upsertCachedAudio(
                 source_id = "source",
                 remote_track_id = "eviction-track",
@@ -146,7 +146,7 @@ class DesktopStorageRepositoriesTest {
                 user_rating = null,
                 downloaded_at_epoch_millis = 8L,
             )
-            repositories.providerResponses.upsertResponse(
+            repositories.providerResponseRows.upsertResponse(
                 cacheKey = "response",
                 providerId = "provider",
                 resourceType = "album",
@@ -158,8 +158,7 @@ class DesktopStorageRepositoriesTest {
 
             assertEquals(1L, repositories.maintenance.stats().responseCount)
             assertEquals(audio.toAbsolutePath().toString(), repositories.maintenance.stats().audioCacheDirectory)
-            repositories.audioStore.updateAudioCacheLimit(6L)
-            repositories.maintenance.updateAudioCacheLimit(6L)
+            repositories.updateAudioCacheLimit(6L)
             assertEquals(6L, repositories.maintenance.stats().maxAudioBytes)
             assertFalse(trackedEviction.exists())
             assertFalse(trackedConvertedEviction.exists())

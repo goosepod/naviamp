@@ -2,6 +2,7 @@ package app.naviamp.desktop
 
 import app.naviamp.domain.cache.CacheMaintenanceRepository
 import app.naviamp.domain.cache.ProviderMediaSourceRepository
+import app.naviamp.storage.StorageMediaSourceStore
 import app.naviamp.provider.navidrome.NavidromeConnection
 import app.naviamp.provider.navidrome.NavidromeCoreProviderSessionPort
 import app.naviamp.provider.navidrome.NavidromeProviderConnectionSession
@@ -15,7 +16,7 @@ typealias DesktopCoreProviderSessionPort = NavidromeCoreProviderSessionPort
 
 /** Selects Desktop's JVM TLS initialization for the provider-common Core session owner. */
 fun desktopCoreProviderSessionPort(
-    storage: DesktopMediaSourceStorage,
+    storage: StorageMediaSourceStore,
     cacheMaintenanceRepository: CacheMaintenanceRepository<*>,
     nowEpochMillis: () -> Long = DesktopSystemClock::nowEpochMillis,
 ): DesktopCoreProviderSessionPort = NavidromeCoreProviderSessionPort(

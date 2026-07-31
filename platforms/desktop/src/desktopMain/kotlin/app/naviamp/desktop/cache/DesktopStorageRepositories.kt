@@ -1,52 +1,53 @@
 package app.naviamp.desktop
 
-import app.naviamp.domain.cache.MaximumPersistentArtworkCacheBytes
+import app.cash.sqldelight.db.SqlDriver
 import app.naviamp.domain.cache.AudioByteStoreService
+import app.naviamp.domain.cache.CacheMaintenanceRepository
+import app.naviamp.domain.cache.MaximumPersistentArtworkCacheBytes
+import app.naviamp.domain.cache.StorageCacheStats
 import app.naviamp.domain.network.KtorSharedHttpClient
+import app.naviamp.storage.NaviampStorageDatabase
+import app.naviamp.storage.StorageAudioStore
+import app.naviamp.storage.StorageCoreRepositoryCatalog
 import app.naviamp.storage.StorageCredentialProtector
-import app.naviamp.storage.StorageAudioWaveformStore
 import app.naviamp.storage.StorageDatabaseDriverFactory
 import app.naviamp.storage.StorageDatabaseLocation
-import app.naviamp.storage.StorageLibraryIndexStore
-import app.naviamp.storage.StorageLyricsOffsetStore
-import app.naviamp.storage.StorageKeepDownloadedStore
-import app.naviamp.storage.StorageLyricsSidecarStore
 import app.naviamp.storage.StorageObjectByteStore
-import app.naviamp.storage.StoragePendingProviderActionStore
-import app.naviamp.storage.StoragePlaybackSessionStore
-import app.naviamp.storage.StorageProviderResponseStore
-import app.naviamp.storage.StorageRadioDjPresetStore
-import app.naviamp.storage.StorageSidecarStatusStore
-import kotlinx.serialization.json.Json
+import app.naviamp.storage.initializeNaviampStorageDatabase
+import java.nio.file.Files
 import java.nio.file.Path
 
-/**
- * One Desktop-owned database/filesystem effect graph for the complete Core host.
- *
- * This class deliberately exposes focused shared repository contracts and native byte stores. It
- * contains no screen state, commands, status wording, or product workflow.
- */
+/** Desktop driver/path effects mounted on the same portable repository graph as Android and iOS. */
 class DesktopStorageRepositories private constructor(
-    val mediaSources: DesktopMediaSourceStorage,
-    val providerResponses: StorageProviderResponseStore,
+    private val driver: SqlDriver,
+    internal val database: NaviampStorageDatabase,
+    private val repositories: StorageCoreRepositoryCatalog,
     val objectBytes: StorageObjectByteStore,
     val audioCacheBytes: DesktopMutableAudioByteStore,
     val downloadBytes: DesktopMutableAudioByteStore,
-    val audioStore: DesktopAudioStore,
-    val audioWaveforms: StorageAudioWaveformStore,
-    val lyricsSidecars: StorageLyricsSidecarStore,
-    val lyricsOffsets: StorageLyricsOffsetStore,
-    val sidecarStatuses: StorageSidecarStatusStore,
-    val libraryIndex: StorageLibraryIndexStore,
-    val keepDownloaded: StorageKeepDownloadedStore,
-    val pendingProviderActions: StoragePendingProviderActionStore,
-    val playbackSessions: StoragePlaybackSessionStore,
-    val radioDjPresets: StorageRadioDjPresetStore,
-    val maintenance: DesktopCacheMaintenanceRepository,
+    val audioStore: StorageAudioStore,
 ) : AutoCloseable {
-    override fun close() {
-        mediaSources.close()
+    val mediaSources get() = repositories.mediaSources
+    val providerResponses get() = repositories.providerResponses
+    internal val providerResponseRows get() = repositories.providerResponseRows
+    val audioWaveforms get() = repositories.audioWaveforms
+    val lyricsSidecars get() = repositories.lyricsSidecars
+    val lyricsOffsets get() = repositories.lyricsOffsets
+    val sidecarStatuses get() = repositories.sidecarStatuses
+    val libraryIndex get() = repositories.libraryIndex
+    val keepDownloaded get() = repositories.keepDownloaded
+    val pendingProviderActions get() = repositories.pendingProviderActions
+    val playbackSessions get() = repositories.playbackSessions
+    val playbackHistory get() = repositories.playbackHistory
+    val radioDjPresets get() = repositories.radioDjPresets
+    val maintenance: CacheMaintenanceRepository<StorageCacheStats> get() = repositories.maintenance
+
+    fun updateAudioCacheLimit(maxBytes: Long) {
+        audioStore.updateAudioCacheLimit(maxBytes)
+        repositories.updateAudioCacheLimit(maxBytes)
     }
+
+    override fun close() = driver.close()
 
     companion object {
         fun open(
@@ -62,68 +63,68 @@ class DesktopStorageRepositories private constructor(
             maxAudioWaveformBytes: Long = DefaultDesktopAudioWaveformCacheBytes,
             maxHotImageBytes: Long = DefaultDesktopHotImageCacheBytes,
             legacyDatabaseFilesOnReset: List<Path> = emptyList(),
-            json: Json = Json { ignoreUnknownKeys = true; encodeDefaults = true },
         ): DesktopStorageRepositories {
-            val mediaSources = DesktopMediaSourceStorage.open(
-                location = location,
-                nowEpochMillis = nowEpochMillis,
-                credentialProtector = credentialProtector,
-                driverFactory = driverFactory,
-            )
+            val driver = driverFactory.create(location)
             return try {
-                val queries = mediaSources.database.naviampStorageQueries
+                val database = initializeNaviampStorageDatabase(driver)
+                val databasePath = Path.of(location.directoryPath).resolve(location.fileName)
                 val hotImages = DesktopHotImageCache(maxHotImageBytes)
                 val audioCacheBytes = DesktopMutableAudioByteStore(audioCacheDirectory)
                 val downloadBytes = DesktopMutableAudioByteStore(downloadDirectory)
+                val knownFiles = DesktopKnownFileDeleter()
+                val deleteCached: (String) -> Boolean = { filePath ->
+                    runCatching { knownFiles.deleteOwnedAudioFile(audioCacheDirectory, Path.of(filePath)) }.getOrDefault(false)
+                }
+                val deleteDownloaded: (String) -> Boolean = { filePath ->
+                    runCatching { knownFiles.deleteOwnedAudioFile(downloadDirectory, Path.of(filePath)) }.getOrDefault(false)
+                }
+                val repositories = StorageCoreRepositoryCatalog(
+                    database = database,
+                    credentialProtector = credentialProtector,
+                    nowEpochMillis = nowEpochMillis,
+                    databaseLabel = databasePath.toAbsolutePath().toString(),
+                    databaseBytes = { runCatching { Files.size(databasePath) }.getOrDefault(0L) },
+                    deleteKnownAudioCacheFile = deleteCached,
+                    deleteKnownDownloadFile = deleteDownloaded,
+                    maxImageBytes = maxImageBytes,
+                    maxAudioBytes = maxAudioBytes,
+                    maxAudioWaveformBytes = maxAudioWaveformBytes,
+                    maxHotImageBytes = maxHotImageBytes,
+                    audioCacheDirectory = { audioCacheDirectory.toAbsolutePath().toString() },
+                    downloadDirectory = { downloadDirectory.toAbsolutePath().toString() },
+                    hotImageCount = hotImages::count,
+                    hotImageBytes = hotImages::sizeBytes,
+                    clearHotImages = hotImages::clear,
+                    clearAdditionalData = { legacyDatabaseFilesOnReset.forEach(knownFiles::deleteFile) },
+                )
                 val httpClient = KtorSharedHttpClient()
                 DesktopStorageRepositories(
-                    mediaSources = mediaSources,
-                    providerResponses = StorageProviderResponseStore(queries),
+                    driver = driver,
+                    database = database,
+                    repositories = repositories,
                     objectBytes = StorageObjectByteStore(
-                        queries,
-                        nowEpochMillis,
-                        maxImageBytes,
-                        DesktopStorageWorkDispatcher,
+                        queries = database.naviampStorageQueries,
+                        nowMillis = nowEpochMillis,
+                        maxImageCacheBytes = maxImageBytes,
+                        workContext = DesktopStorageWorkDispatcher,
                     ),
                     audioCacheBytes = audioCacheBytes,
                     downloadBytes = downloadBytes,
-                    audioStore = DesktopAudioStore(
-                        queries = queries,
+                    audioStore = StorageAudioStore(
+                        queries = database.naviampStorageQueries,
                         audioCacheByteStoreService = AudioByteStoreService(audioCacheBytes, httpClient),
                         downloadAudioByteStoreService = AudioByteStoreService(downloadBytes, httpClient),
-                        nowMillis = nowEpochMillis,
+                        nowEpochMillis = nowEpochMillis,
+                        cachedAudioFileExists = { Files.isRegularFile(Path.of(it)) },
+                        downloadedAudioFileExists = { Files.isRegularFile(Path.of(it)) },
+                        deleteKnownAudioCacheFile = deleteCached,
+                        deleteKnownDownloadFile = deleteDownloaded,
+                        workContext = DesktopStorageWorkDispatcher,
                         maxAudioCacheBytes = maxAudioBytes,
-                    ),
-                    audioWaveforms = StorageAudioWaveformStore(
-                        queries,
-                        json,
-                        nowEpochMillis,
-                        maxAudioWaveformBytes,
-                        DesktopStorageWorkDispatcher,
-                    ),
-                    lyricsSidecars = StorageLyricsSidecarStore(queries),
-                    lyricsOffsets = StorageLyricsOffsetStore(queries, nowEpochMillis),
-                    sidecarStatuses = StorageSidecarStatusStore(queries),
-                    libraryIndex = StorageLibraryIndexStore(queries, mediaSources.store, nowEpochMillis),
-                    keepDownloaded = StorageKeepDownloadedStore(queries, nowEpochMillis),
-                    pendingProviderActions = StoragePendingProviderActionStore(queries, nowEpochMillis),
-                    playbackSessions = StoragePlaybackSessionStore(queries, nowEpochMillis, json),
-                    radioDjPresets = StorageRadioDjPresetStore(queries, nowEpochMillis),
-                    maintenance = DesktopCacheMaintenanceRepository(
-                        storage = mediaSources,
-                        databasePath = Path.of(location.directoryPath).resolve(location.fileName),
-                        audioCacheDirectory = { audioCacheDirectory },
-                        downloadDirectory = { downloadDirectory },
-                        hotImages = hotImages,
-                        maxImageBytes = maxImageBytes,
-                        maxAudioBytes = maxAudioBytes,
-                        maxAudioWaveformBytes = maxAudioWaveformBytes,
-                        maxHotImageBytes = maxHotImageBytes,
-                        legacyDatabaseFilesOnReset = legacyDatabaseFilesOnReset,
                     ),
                 )
             } catch (failure: Throwable) {
-                mediaSources.close()
+                driver.close()
                 throw failure
             }
         }

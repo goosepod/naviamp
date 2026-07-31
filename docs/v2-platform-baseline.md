@@ -102,9 +102,9 @@ The Swift wrapper owns UIApplication/SwiftUI lifetime and constructs `NaviampIos
 | Cover art/waveform/visualizer | Android decode/GPU/audio samples | JVM decode/Metal/OpenGL/audio samples | Apple decode/Metal/audio samples | Shared orchestration, models, renderer selection, and UI |
 | Native shell | Permissions/intents | Window/dialog/updater/packages | Picker/Now Playing/App Store | Shared intent and result policy |
 
-## Remaining Platform-Layer Architecture Debt
+## Platform-Layer Architecture Status
 
-The product graph and UI are common. The remaining shared-looking host code is storage-focused: Android duplicates ten portable SQLDelight repositories, while Android and Desktop audio stores mix portable SQL/eviction/download policy with native file checks. The exact file list and required `StorageCoreRepositoryCatalog`/`StorageAudioStore` migration are recorded in the [current Core-first audit](v2-core-first-platform-audit.md#2026-07-31-current-host-re-audit). Driver construction, native paths, atomic byte writes, exact verified deletion, and OS dispatchers remain platform effects; repository mapping, ownership, eviction, and retry policy do not.
+The product graph, UI, and portable persistence behavior are common. Android, Desktop, and iOS mount `StorageCoreRepositoryCatalog` and `StorageAudioStore`; the Android/Desktop duplicate SQLDelight repositories and audio-policy stores identified by the 2026-07-31 re-audit have been deleted. Driver construction, native paths, file-existence facts, atomic byte writes, exact verified deletion, credential protection, database-size lookup, and OS dispatchers remain platform effects. The architecture guard rejects generated SQL mapping and the deleted portable store roles in host production code. The remaining ownership gate is the fresh file-by-file Android/Desktop/iOS audit recorded in the [Core-first exit gate](v2-core-first-platform-audit.md#core-completion-exit-gate).
 
 ## Platform Capability Model
 

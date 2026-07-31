@@ -75,6 +75,7 @@ class StorageAudioStore(
     private val deleteKnownDownloadFile: (String) -> Boolean,
     private val workContext: CoroutineContext = EmptyCoroutineContext,
     private var maxAudioCacheBytes: Long,
+    private val protectedTrackIds: () -> Set<String> = ::emptySet,
 ) : AudioCacheRepository<StorageCachedAudioFile, StorageCachedAudioMetadata>,
     DownloadRepository<StorageDownloadedAudioFile, StorageDownloadedTrack>,
     DownloadReplacementRepository<StorageDownloadedAudioFile> {
@@ -312,6 +313,7 @@ class StorageAudioStore(
             oldestFirstCandidates = oldest.map {
                 CachedAudioEvictionCandidate(it.source_id, it.remote_track_id, it.quality_key, it.size_bytes)
             },
+            protectedTrackIds = protectedTrackIds(),
         )
         plan.candidatesToEvict.forEach { candidate ->
             val path = paths[Triple(candidate.sourceId, candidate.trackId, candidate.qualityKey)] ?: return@forEach

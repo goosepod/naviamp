@@ -9,11 +9,70 @@ Ideas discovered during the migration that should not interrupt the active check
 - **Target release:** `2.0.0`
 - **Current development version:** `v2.0.0-alpha` (build 35), shown in About on every host so migration builds are unmistakable during testing.
 - **Working branch:** `feature/v2-cross-platform-app`
-- **Status:** Desktop, Android, and the iOS simulator host all mount the same Core product and BASS engine. Broad interactive parity and the measured performance passes are accepted; the remaining v2 gates are the final host/storage ownership cleanup, large-library/accessibility and target-OS packaging checks, release automation, and the original icon redesign recorded below.
+- **Status:** Desktop, Android, and the iOS simulator host all mount the same Core product, BASS engine, and portable storage owners. Broad interactive parity and the measured performance passes are accepted; the remaining v2 gates are the final file-by-file host audit, large-library/accessibility and target-OS packaging checks, release automation, and the original icon redesign recorded below.
 - **Release policy:** Feature development for the v1 line is frozen. Only bug fixes should be released from v1 while this work is underway.
 - **Versioning rule:** Keep migration builds on an explicit `v2.0.0-alpha` prerelease label. Do not change `VERSION` to the final `v2.0.0` until the release-preparation milestone.
 - **Primary objective:** One shared Naviamp application, UI, and behavior hosted by thin Android, Desktop, and iOS applications.
 - **Playback objective:** All three platforms use the shared Core BASS engine. iOS supplies a direct Kotlin/Native ABI adapter; the temporary AVPlayer path was not promoted and has been removed.
+
+## 2.0 Beta Readiness Checklist
+
+This is the authoritative short-form checklist for cutting the first `2.0.0-beta` build. Historical
+milestone ledgers below remain useful evidence, but an unchecked historical parent does not override
+this current list. Check an item only in the same commit that records its verification evidence.
+
+### Core and storage ownership
+
+- [x] Replace Android's portable SQLDelight repository copies with `StorageCoreRepositoryCatalog`.
+- [x] Replace Android audio SQL, cache-limit, eviction, download-replacement, and missing-file policy with `StorageAudioStore`; retain only Android driver, directory, atomic-byte, exact-deletion, and dispatcher effects.
+- [x] Replace Desktop audio SQL, cache-limit, eviction, download-replacement, and missing-file policy with `StorageAudioStore`; retain only Desktop driver, path, atomic-byte, exact-deletion, and dispatcher effects.
+- [x] Delete the superseded Android/Desktop repository and audio-store implementations.
+- [x] Strengthen `verifyCoreFirstArchitecture` so portable host repository implementations cannot return.
+- [x] Run shared storage tests, Android unit/package gates, Desktop tests/package-input gates, iOS simulator tests, and iOS device compilation after the migration. The 2026-07-31 gate passed 352 Gradle tasks: shared storage JVM/Android debug/Android release/iOS tests, both host test suites, Android debug assembly and BASS package verification, Desktop packaging-input verification, iOS device compilation, and Core/presentation/Navidrome simulator tests.
+
+### Final platform-boundary audit
+
+- [ ] Audit every surviving Android production file and record its concrete Android API, native ABI, or service-lifecycle constraint.
+- [ ] Audit every surviving Desktop production file and record its concrete JVM/OS API, native ABI, window, or packaging constraint.
+- [ ] Audit every surviving iOS production file and record its concrete Apple API, native ABI, or application/audio-session lifecycle constraint.
+- [ ] Extract any duplicated scheduling, policy, state, caching, retry, validation, or user-visible behavior found by the audit.
+- [ ] Reconcile the Core-first audit, platform baseline, and historical Milestone 4 checkboxes with the resulting source tree.
+
+### Android physical-device acceptance
+
+- [ ] Pass the one-hour retained-growth playback scenario on a release-like physical-device build.
+- [ ] Pass large-library scrolling/search and return-to-steady-state measurement on a physical device.
+- [ ] Verify Activity recreation, task removal, service restart, process-death restoration, and relaunch attachment.
+- [ ] Verify foreground/background downloads, cancellation, retry, keep-downloaded reconciliation, cache limits, and offline playback.
+- [ ] Verify internal/removable storage selection and persisted settings import/export URI access.
+- [ ] Verify notification, lock-screen, headset, audio-focus, and route-change behavior.
+- [ ] Reconfirm Android Auto browsing, search, paging, queue stability, artwork, shuffle/repeat, and transport controls on a physical vehicle/head unit.
+
+### Cross-platform product acceptance
+
+- [ ] Verify login, endpoint failover, custom headers, secure secrets, and reconnect behavior on supported beta platforms.
+- [ ] Verify very-large-library paging on supported beta platforms.
+- [ ] Verify accessibility, touch targets, keyboard behavior where applicable, safe areas, and compact layouts.
+- [ ] Verify migration of existing Android and Desktop data and settings.
+- [ ] Complete Windows install/launch/login/playback/download/update/uninstall smoke testing.
+- [ ] Complete Linux install/launch/login/playback/download/update/uninstall smoke testing.
+- [ ] Complete the remaining required performance-audit scenarios or explicitly document a justified beta-only deferral.
+
+### iOS beta scope
+
+- [ ] Decide and document whether the first beta includes iOS distribution or treats iOS as an undistributed preview.
+- [ ] If included, configure release signing/entitlements and pass physical-iPhone launch, playback, interruption, route-change, lifecycle, and performance acceptance.
+- [ ] If included, add archive/IPA verification and document the TestFlight signing/distribution process.
+- [ ] Document simulator-only MediaRemote glyph/process-audio-tap limitations without presenting them as Naviamp failures.
+
+### Identity, release automation, and documentation
+
+- [ ] Select the final original Naviamp icon and derive Android, Desktop, iOS, installer, Dock/taskbar, and in-app assets from one SVG source.
+- [ ] Choose the first beta version (for example `2.0.0-beta.1`) and verify version scripts plus package-version normalization.
+- [ ] Add beta release notes and update the user-facing changelog.
+- [ ] Ensure CI builds every supported beta artifact from the same tag and document signing inputs without committing secrets.
+- [ ] Build, install, and inspect every beta artifact on its target operating system.
+- [ ] Reconcile or explicitly defer every remaining checklist item required for the agreed beta scope.
 
 ## Non-Negotiable Core-First Rule
 
@@ -414,7 +473,7 @@ This milestone was deliberately temporary. On 2026-07-24, the project chose to p
 
 ### Milestone 8: Cross-Platform Product Parity
 
-- [ ] Complete the platform capability matrix and resolve all unexplained differences. The 2026-07-31 audit corrected Android's missing declarations for background playback, system media controls, downloads/offline playback, update checks, and Android Auto, and corrected iOS's missing background-playback/system-media-control declarations. Android and iOS deliberately omit software volume. The remaining ownership blocker is the Android/legacy Desktop SQL/audio repository duplication listed in the Core-first audit; it is not an operating-system capability.
+- [ ] Complete the platform capability matrix and resolve all unexplained differences. The 2026-07-31 audit corrected Android's missing declarations for background playback, system media controls, downloads/offline playback, update checks, and Android Auto, and corrected iOS's missing background-playback/system-media-control declarations. Android and iOS deliberately omit software volume. Android and Desktop now consume the same Core-owned SQL/audio repositories as iOS; the remaining work is the final file-by-file host audit rather than a known storage ownership exception.
 - [ ] Verify login, endpoint failover, custom headers, secure secrets, and reconnect behavior.
 - [ ] Verify library paging with very large collections.
 - [x] Verify search, albums, artists, multi-artist navigation, playlists, favorites, radio, and smart playlists. On 2026-07-28, the named iOS simulator matrix passed. The pass exposed one shared similar-artist resolution gap: artist detail consulted only the local SQL index while mix builders had a separate provider-search fallback, so an incomplete index labeled the locally available Gorgon City as browser-only. Core now owns exact normalized-name matching plus provider-search fallback in `SimilarArtistsService`; the rebuilt simulator correctly labels and opens Gorgon City from CamelPhat's similar artists.
@@ -740,6 +799,7 @@ Record architecture decisions here or link a dedicated decision record.
 | 2026-07-23 | Reuse the shared playback-session store on Android. | Android's combined storage adapter delegates session persistence and missing-source behavior to `StoragePlaybackSessionStore` instead of enforcing an Android-only source-ID rule. This prevents settings import with no active playback source from crashing while retaining Android-only playback-history mapping. |
 | 2026-07-24 | Repair Android Auto artwork, queue presentation, and playback actions. | Core remains the owner of vehicle catalog entries, artwork selection, favorite state, shuffle/repeat commands, current-first vehicle queue ordering, and progress-publication policy. The queue retains history after upcoming tracks instead of deleting it, and routine progress does not trigger native list redraws while seeks and semantic changes still publish. Android only converts authenticated artwork into registered local `content://` URIs, applies vehicle-safe resources, advertises standard MediaSession actions, and maps Core queue indices to native queue IDs. |
 | 2026-07-24 | Preserve automatic prepared-source promotion in the unified BASS engine. | Normal completion must publish the queue transition without freeing a mixer that already contains the incoming gapless/crossfade source. Core retains that native playback until adoption, invalidates outgoing execution before cancellation cleanup, and matches prepared playback by stable media identity even if prefetch changes the resolved URL from provider stream to local cache. This restores the former Android invariant once for Android, Desktop, and the future iOS BASS host instead of reviving platform-specific state machines. |
+| 2026-07-31 | Close the portable host-storage ownership gap. | Android and Desktop now mount the same `StorageCoreRepositoryCatalog` and `StorageAudioStore` already proven by iOS. Playback history mapping and Android's protected queue-window eviction input moved into shared storage. Eleven Android repository/audio implementations and four Desktop storage/audio implementations were deleted, for a net reduction of more than 2,300 host production lines. Hosts retain only driver, credential, path/existence, atomic-byte, exact-deletion, database-size, and dispatcher effects. The architecture guard rejects regenerated host stores and generated SQL mapping imports. Shared JVM/Android/iOS storage tests, Android platform/app tests and APK/BASS gates, Desktop platform/app tests and packaging inputs, Core/presentation/Navidrome Apple gates, and complete iOS device/simulator host compilation passed. |
 
 ### Promoted Desktop Boundary Audit
 

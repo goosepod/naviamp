@@ -82,7 +82,8 @@ class AndroidNaviampCoreCatalog private constructor(
                 audioAssets = AndroidPlaybackAudioAssets(storage, storage),
                 cacheAudio = { sourceId, provider, track, quality ->
                     storage.cacheAudioTrack(sourceId, provider, track, quality)
-                        .file
+                        .filePath
+                        .let(::File)
                         .toPlaybackLocalAudio()
                 },
                 waveformRepository = storage,
@@ -110,13 +111,13 @@ class AndroidNaviampCoreCatalog private constructor(
                 keepDownloadedRepository = storage,
                 toCoreDownload = { stored ->
                     NaviampCoreDownloadedTrack(
-                        storageId = stored.file.absolutePath,
+                        storageId = stored.filePath,
                         track = stored.track,
                         sizeBytes = stored.sizeBytes,
                         qualityLabel = stored.qualityKey,
                     )
                 },
-                isStoredDownloadAvailable = { stored -> stored.file.isFile },
+                isStoredDownloadAvailable = { stored -> File(stored.filePath).isFile },
                 storageStats = {
                     storage.stats().let { stats ->
                         NaviampCoreDownloadStorageSnapshot(
