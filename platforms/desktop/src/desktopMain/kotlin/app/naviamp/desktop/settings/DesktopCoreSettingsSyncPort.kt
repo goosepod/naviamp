@@ -1,24 +1,27 @@
 package app.naviamp.desktop.settings
 
 import app.naviamp.presentation.NaviampCoreSettingsSyncConfiguration
+import app.naviamp.presentation.NaviampCoreSettingsSyncConfigurationStore
 import app.naviamp.presentation.NaviampCoreSettingsSyncPort
+import app.naviamp.presentation.NaviampCoreSettingsValueStore
 import java.nio.file.Path
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 /** Desktop native effects for Core-owned settings-sync transactions. */
 class DesktopCoreSettingsSyncPort(
-    private val configurationState: () -> NaviampCoreSettingsSyncConfiguration,
-    private val saveConfigurationState: (NaviampCoreSettingsSyncConfiguration) -> Unit,
+    settingsStore: NaviampCoreSettingsValueStore,
     private val directoryPicker: DesktopDirectoryPicker = DesktopNativeDirectoryPicker(),
     private val documentPicker: DesktopDocumentPicker = DesktopNativeDocumentPicker(),
     private val defaultDirectoryPath: () -> String = { System.getProperty("user.home") },
     override val available: Boolean = true,
 ) : NaviampCoreSettingsSyncPort {
-    override fun configuration() = configurationState()
+    private val configurationStore = NaviampCoreSettingsSyncConfigurationStore(settingsStore)
+
+    override fun configuration() = configurationStore.load()
 
     override fun saveConfiguration(configuration: NaviampCoreSettingsSyncConfiguration) {
-        saveConfigurationState(configuration)
+        configurationStore.save(configuration)
     }
 
     override suspend fun readDocument(directoryPath: String) =

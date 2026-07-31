@@ -17,6 +17,11 @@ interface NaviampCoreSettingsValueStore {
     fun write(key: String, value: String)
 }
 
+/** Optional key-removal effect used only after a durable one-way settings migration. */
+interface NaviampCoreMutableSettingsValueStore : NaviampCoreSettingsValueStore {
+    fun remove(key: String)
+}
+
 /** Owns the portable settings keys, serialization, defaults, normalization, and Core mapping. */
 data class NaviampCoreSettingsValueCatalog(
     val storedSettings: NaviampCoreStoredSettings,

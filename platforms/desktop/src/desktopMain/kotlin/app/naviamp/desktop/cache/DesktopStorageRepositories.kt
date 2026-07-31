@@ -10,7 +10,6 @@ import app.naviamp.storage.NaviampStorageDatabase
 import app.naviamp.storage.StorageAudioStore
 import app.naviamp.storage.DefaultStorageAudioCacheBytes
 import app.naviamp.storage.DefaultStorageAudioWaveformCacheBytes
-import app.naviamp.storage.DefaultStorageHotImageCacheBytes
 import app.naviamp.storage.StorageCoreRepositoryCatalog
 import app.naviamp.storage.StorageCredentialProtector
 import app.naviamp.storage.StorageDatabaseDriverFactory
@@ -64,14 +63,12 @@ class DesktopStorageRepositories private constructor(
             maxImageBytes: Long = MaximumPersistentArtworkCacheBytes,
             maxAudioBytes: Long = DefaultStorageAudioCacheBytes,
             maxAudioWaveformBytes: Long = DefaultStorageAudioWaveformCacheBytes,
-            maxHotImageBytes: Long = DefaultStorageHotImageCacheBytes,
             legacyDatabaseFilesOnReset: List<Path> = emptyList(),
         ): DesktopStorageRepositories {
             val driver = driverFactory.create(location)
             return try {
                 val database = initializeNaviampStorageDatabase(driver)
                 val databasePath = Path.of(location.directoryPath).resolve(location.fileName)
-                val hotImages = DesktopHotImageCache(maxHotImageBytes)
                 val audioCacheBytes = DesktopMutableAudioByteStore(audioCacheDirectory)
                 val downloadBytes = DesktopMutableAudioByteStore(downloadDirectory)
                 val knownFiles = DesktopKnownFileDeleter()
@@ -92,12 +89,9 @@ class DesktopStorageRepositories private constructor(
                     maxImageBytes = maxImageBytes,
                     maxAudioBytes = maxAudioBytes,
                     maxAudioWaveformBytes = maxAudioWaveformBytes,
-                    maxHotImageBytes = maxHotImageBytes,
+                    maxHotImageBytes = 0L,
                     audioCacheDirectory = { audioCacheDirectory.toAbsolutePath().toString() },
                     downloadDirectory = { downloadDirectory.toAbsolutePath().toString() },
-                    hotImageCount = hotImages::count,
-                    hotImageBytes = hotImages::sizeBytes,
-                    clearHotImages = hotImages::clear,
                     clearAdditionalData = { legacyDatabaseFilesOnReset.forEach(knownFiles::deleteFile) },
                 )
                 val httpClient = KtorSharedHttpClient()

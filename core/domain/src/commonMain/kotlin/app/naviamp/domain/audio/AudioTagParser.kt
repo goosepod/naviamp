@@ -3,6 +3,8 @@ package app.naviamp.domain.audio
 import app.naviamp.domain.ReplayGain
 import app.naviamp.domain.lyrics.lyricsFromTaggedText
 
+const val MaximumAudioTagProbeBytes = 2 * 1024 * 1024
+
 data class AudioTag(
     val key: String,
     val value: String,

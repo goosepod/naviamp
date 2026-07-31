@@ -1,5 +1,10 @@
 package app.naviamp.presentation
 
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.booleanOrNull
+import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import app.naviamp.app.NaviampSettingsSyncController
 import app.naviamp.app.settingsSyncAutoExportEnabled
 import app.naviamp.app.settingsSyncAutoExportStatus
@@ -24,6 +29,37 @@ data class NaviampCoreSettingsSyncConfiguration(
         )
     }
 }
+
+/** Core-owned serialization over a host's opaque settings value effect. */
+class NaviampCoreSettingsSyncConfigurationStore(
+    private val values: NaviampCoreSettingsValueStore,
+    private val legacy: NaviampCoreLegacySettingsValueStore? = values as? NaviampCoreLegacySettingsValueStore,
+    private val json: Json = Json { ignoreUnknownKeys = true },
+) {
+    fun load(): NaviampCoreSettingsSyncConfiguration {
+        val directory = values.read(KeySettingsSyncDirectory)
+        val autoExport = values.read(KeySettingsSyncAutoExport)?.toBooleanStrictOrNull()
+        if (directory != null || autoExport != null) {
+            return NaviampCoreSettingsSyncConfiguration(directory, autoExport ?: false).normalized()
+        }
+        val old = legacy?.read(LegacySettingsSyncConfigurationKey)
+            ?.let { encoded -> runCatching { json.parseToJsonElement(encoded).jsonObject }.getOrNull() }
+        return NaviampCoreSettingsSyncConfiguration(
+            directoryPath = old?.get("directoryPath")?.jsonPrimitive?.contentOrNull,
+            autoExportEnabled = old?.get("autoExportEnabled")?.jsonPrimitive?.booleanOrNull ?: false,
+        ).normalized()
+    }
+
+    fun save(configuration: NaviampCoreSettingsSyncConfiguration) {
+        val normalized = configuration.normalized()
+        values.write(KeySettingsSyncDirectory, normalized.directoryPath.orEmpty())
+        values.write(KeySettingsSyncAutoExport, normalized.autoExportEnabled.toString())
+    }
+}
+
+private const val KeySettingsSyncDirectory = "naviamp.sync.directory"
+private const val KeySettingsSyncAutoExport = "naviamp.sync.autoExport"
+private const val LegacySettingsSyncConfigurationKey = "settingsSyncConfiguration"
 
 /** Native settings-document effects. Core owns all workflow, status, and presentation decisions. */
 interface NaviampCoreSettingsSyncPort {

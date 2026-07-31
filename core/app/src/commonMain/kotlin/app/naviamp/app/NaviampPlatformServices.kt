@@ -12,6 +12,16 @@ fun interface NaviampConnectivityMonitor {
     fun currentSnapshot(): NaviampConnectivitySnapshot
 }
 
+/** Shared failure policy around a host's synchronous network-availability effect. */
+fun naviampConnectivityMonitor(
+    networkAvailable: () -> Boolean,
+    availableWhenUnknown: Boolean = true,
+): NaviampConnectivityMonitor = NaviampConnectivityMonitor {
+    NaviampConnectivitySnapshot(
+        available = runCatching(networkAvailable).getOrDefault(availableWhenUnknown),
+    )
+}
+
 /** Wall-clock time supplied by a host without exposing its platform time API. */
 fun interface NaviampClock {
     fun nowEpochMillis(): Long

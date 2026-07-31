@@ -4,7 +4,7 @@ This document records the Android and Desktop baseline before application orches
 
 The Desktop implementation recorded below is historical and was replaced by the promoted thin Core host on 2026-07-23. Commands and artifact paths remain current.
 
-Current target/composition status was reviewed on 2026-07-27; the dated baseline commit below remains the intentional pre-migration comparison point.
+Current target/composition status was reviewed on 2026-07-31; the dated baseline commit below remains the intentional pre-migration comparison point. The final Android and Desktop file-by-file boundary audits are accepted; iOS remains.
 
 - **Snapshot date:** 2026-07-16
 - **Source branch:** `feature/v2-cross-platform-app`
@@ -104,7 +104,7 @@ The Swift wrapper owns UIApplication/SwiftUI lifetime and constructs `NaviampIos
 
 ## Platform-Layer Architecture Status
 
-The product graph, UI, and portable persistence behavior are common. Android, Desktop, and iOS mount `StorageCoreRepositoryCatalog` and `StorageAudioStore`; the Android/Desktop duplicate SQLDelight repositories and audio-policy stores identified by the 2026-07-31 re-audit have been deleted. Driver construction, native paths, file-existence facts, atomic byte writes, exact verified deletion, credential protection, database-size lookup, and OS dispatchers remain platform effects. The architecture guard rejects generated SQL mapping and the deleted portable store roles in host production code. The fresh Android file-by-file audit is accepted with every surviving source tied to a concrete Android/JVM/native boundary; Desktop and iOS remain in the [Core-first exit gate](v2-core-first-platform-audit.md#core-completion-exit-gate).
+The product graph, UI, and portable persistence behavior are common. Android, Desktop, and iOS mount `StorageCoreRepositoryCatalog` and `StorageAudioStore`; the Android/Desktop duplicate SQLDelight repositories and audio-policy stores identified by the 2026-07-31 re-audit have been deleted. Driver construction, native paths, file-existence facts, atomic byte writes, exact verified deletion, credential protection, database-size lookup, and OS dispatchers remain platform effects. The architecture guard rejects generated SQL mapping and the deleted portable store roles in host production code. The fresh Android and Desktop file-by-file audits are accepted with every surviving source tied to a concrete OS/JVM/native boundary; iOS remains in the [Core-first exit gate](v2-core-first-platform-audit.md#core-completion-exit-gate).
 
 ## Platform Capability Model
 

@@ -20,6 +20,7 @@ import app.naviamp.domain.settings.InterfaceSettings
 import app.naviamp.domain.settings.LyricsSourcePreference
 import app.naviamp.domain.settings.NowPlayingDisplaySettings
 import app.naviamp.domain.settings.PlaybackSettings
+import app.naviamp.domain.settings.PlaybackSessionSettings
 import app.naviamp.domain.settings.PreviousButtonBehavior
 import app.naviamp.domain.settings.RecentRadioStream
 import app.naviamp.domain.settings.SampleRateConverter
@@ -36,6 +37,7 @@ import app.naviamp.domain.settings.VisualizerSettings
 import app.naviamp.domain.settings.normalized
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.builtins.ListSerializer
+import kotlinx.serialization.builtins.serializer
 import kotlinx.serialization.json.Json
 
 /** Read-only view of a superseded keyed settings format. Hosts only expose raw values. */
@@ -52,6 +54,7 @@ enum class NaviampCoreSettingsMigrationSection {
     RecentRadio,
     RecentInternetRadio,
     SyncRuntime,
+    RecentPlaylists,
 }
 
 /**
@@ -66,6 +69,49 @@ fun migrateLegacyNaviampSettings(
     val migrated = mutableSetOf<NaviampCoreSettingsMigrationSection>()
     val catalog = naviampCoreSettingsValueCatalogWithoutMigration(destination, json)
     val settings = catalog.storedSettings
+
+    migrateSerializedSection(
+        legacy, destination, KeyInterface, "interfaceSettings", InterfaceSettings.serializer(), json,
+    ) { settings.saveInterface(it.normalized()) }?.let { migrated += NaviampCoreSettingsMigrationSection.Interface }
+    migrateSerializedSection(
+        legacy, destination, KeyPlayback, "playback", PlaybackSettings.serializer(), json,
+    ) { catalog.savePlayback(it.normalized()) }?.let { migrated += NaviampCoreSettingsMigrationSection.Playback }
+    migrateSerializedSection(
+        legacy, destination, KeyCache, "cache", CacheSettings.serializer(), json,
+    ) { settings.saveCache(it.normalized()) }?.let { migrated += NaviampCoreSettingsMigrationSection.Cache }
+    migrateSerializedSection(
+        legacy, destination, KeyVisualizer, "visualizer", VisualizerSettings.serializer(), json,
+    ) { settings.saveVisualizer(it) }?.let { migrated += NaviampCoreSettingsMigrationSection.Visualizer }
+    migrateSerializedSection(
+        legacy,
+        destination,
+        KeyRecentRadio,
+        "recentRadioStreams",
+        ListSerializer(RecentRadioStream.serializer()),
+        json,
+    ) { settings.saveRecentRadioStreams(it) }
+        ?.let { migrated += NaviampCoreSettingsMigrationSection.RecentRadio }
+    migrateSerializedSection(
+        legacy,
+        destination,
+        KeyRecentInternetRadio,
+        "recentInternetRadioStations",
+        ListSerializer(SavedInternetRadioStation.serializer()),
+        json,
+    ) { settings.saveRecentInternetRadioStations(it) }
+        ?.let { migrated += NaviampCoreSettingsMigrationSection.RecentInternetRadio }
+    migrateSerializedSection(
+        legacy, destination, KeySyncRuntime, "settingsSyncRuntime", SettingsSyncRuntimeState.serializer(), json,
+    ) { settings.saveSyncRuntime(it.normalized()) }?.let { migrated += NaviampCoreSettingsMigrationSection.SyncRuntime }
+    migrateSerializedSection(
+        legacy,
+        destination,
+        KeyRecentPlaylists,
+        "recentPlaylistIds",
+        ListSerializer(String.serializer()),
+        json,
+    ) { settings.saveRecentPlaylistIds(it) }
+        ?.let { migrated += NaviampCoreSettingsMigrationSection.RecentPlaylists }
 
     migrateSection(legacy, destination, KeyInterface, LegacyInterfaceKeys) {
         settings.saveInterface(legacyInterfaceSettings(legacy))
@@ -124,6 +170,44 @@ fun migrateLegacyNaviampSettings(
     }
     return migrated
 }
+
+/** Moves the superseded Desktop JSON queue into the shared playback-session repository once. */
+fun migrateLegacyNaviampPlaybackSession(
+    values: NaviampCoreMutableSettingsValueStore,
+    sourceId: String,
+    loadCurrent: (String) -> PlaybackSessionSettings?,
+    save: (PlaybackSessionSettings, String) -> Unit,
+    json: Json = Json { ignoreUnknownKeys = true; encodeDefaults = true },
+): Boolean {
+    if (loadCurrent(sourceId) != null) return false
+    val legacy = values.read(LegacyPlaybackSessionKey)
+        ?.let { encoded ->
+            runCatching { json.decodeFromString(PlaybackSessionSettings.serializer(), encoded) }.getOrNull()
+        }
+        ?: return false
+    save(legacy, sourceId)
+    values.remove(LegacyPlaybackSessionKey)
+    return true
+}
+
+private inline fun <T> migrateSerializedSection(
+    legacy: NaviampCoreLegacySettingsValueStore,
+    destination: NaviampCoreSettingsValueStore,
+    destinationKey: String,
+    legacyKey: String,
+    serializer: KSerializer<T>,
+    json: Json,
+    save: (T) -> Unit,
+): Unit? {
+    if (destination.read(destinationKey) != null) return null
+    val value = legacy.read(legacyKey)
+        ?.let { encoded -> runCatching { json.decodeFromString(serializer, encoded) }.getOrNull() }
+        ?: return null
+    save(value)
+    return Unit
+}
+
+private const val LegacyPlaybackSessionKey = "session"
 
 private inline fun migrateSection(
     legacy: NaviampCoreLegacySettingsValueStore,

@@ -6,6 +6,7 @@ import app.naviamp.domain.settings.CacheSettings
 import app.naviamp.domain.settings.InterfaceLanguage
 import app.naviamp.domain.settings.InterfaceSettings
 import app.naviamp.domain.settings.LyricsSourcePreference
+import app.naviamp.domain.settings.PlaybackSessionSettings
 import app.naviamp.domain.settings.TrackSwipeAction
 import app.naviamp.domain.settings.normalized
 import kotlin.test.Test
@@ -53,7 +54,11 @@ class NaviampCoreLegacySettingsMigrationTest {
         val migrated = migrateLegacyNaviampSettings(values, values)
         val stored = naviampCoreSettingsValueCatalog(values).storedSettings
 
-        assertEquals(NaviampCoreSettingsMigrationSection.entries.toSet(), migrated)
+        assertEquals(
+            NaviampCoreSettingsMigrationSection.entries.toSet() -
+                NaviampCoreSettingsMigrationSection.RecentPlaylists,
+            migrated,
+        )
         assertEquals(InterfaceLanguage.Spanish, stored.loadInterface().language)
         assertEquals(AppBackgroundStyle.AlbumBlur, stored.loadInterface().appBackgroundStyle)
         assertEquals(48, stored.loadInterface().albumBlurRadiusDp)
@@ -96,14 +101,62 @@ class NaviampCoreLegacySettingsMigrationTest {
         assertTrue(migrateLegacyNaviampSettings(fresh, fresh).isEmpty())
         assertTrue(fresh.entries.isEmpty())
     }
+
+    @Test
+    fun migratesTheSupersededDesktopAggregateDocuments() {
+        val values = MemoryLegacySettingsValues(
+            mutableMapOf(
+                "interfaceSettings" to """{"language":"Spanish"}""",
+                "recentPlaylistIds" to "[\"one\",\"two\"]",
+                "settingsSyncRuntime" to """{"autoExportEnabled":true}""",
+            ),
+        )
+
+        val migrated = migrateLegacyNaviampSettings(values, values)
+        val stored = naviampCoreSettingsValueCatalog(values).storedSettings
+
+        assertEquals(InterfaceLanguage.Spanish, stored.loadInterface().language)
+        assertEquals(listOf("one", "two"), stored.loadRecentPlaylistIds())
+        assertTrue(stored.loadSyncRuntime().autoExportEnabled)
+        assertTrue(NaviampCoreSettingsMigrationSection.Interface in migrated)
+        assertTrue(NaviampCoreSettingsMigrationSection.RecentPlaylists in migrated)
+    }
+
+    @Test
+    fun migratesAndRemovesTheLegacyDesktopPlaybackSessionOnlyWhenStorageIsEmpty() {
+        val session = PlaybackSessionSettings(currentIndex = 2, positionSeconds = 18.0)
+        val values = MemoryLegacySettingsValues(
+            mutableMapOf(
+                "session" to kotlinx.serialization.json.Json.encodeToString(
+                    PlaybackSessionSettings.serializer(),
+                    session,
+                ),
+            ),
+        )
+        var stored: PlaybackSessionSettings? = null
+
+        val migrated = migrateLegacyNaviampPlaybackSession(
+            values = values,
+            sourceId = "source",
+            loadCurrent = { stored },
+            save = { value, _ -> stored = value },
+        )
+
+        assertTrue(migrated)
+        assertEquals(session, stored)
+        assertFalse("session" in values.entries)
+    }
 }
 
 private class MemoryLegacySettingsValues(
     val entries: MutableMap<String, String> = mutableMapOf(),
-) : NaviampCoreSettingsValueStore, NaviampCoreLegacySettingsValueStore {
+) : NaviampCoreMutableSettingsValueStore, NaviampCoreLegacySettingsValueStore {
     override fun contains(key: String): Boolean = key in entries
     override fun read(key: String): String? = entries[key]
     override fun write(key: String, value: String) {
         entries[key] = value
+    }
+    override fun remove(key: String) {
+        entries.remove(key)
     }
 }

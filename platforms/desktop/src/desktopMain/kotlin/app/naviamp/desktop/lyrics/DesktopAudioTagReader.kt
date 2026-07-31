@@ -2,6 +2,7 @@ package app.naviamp.desktop
 
 import app.naviamp.domain.audio.AudioTagReader
 import app.naviamp.domain.audio.audioTagsFromAudioBytes
+import app.naviamp.domain.audio.MaximumAudioTagProbeBytes
 import java.nio.file.Files
 import java.nio.file.Path
 import kotlin.io.path.exists
@@ -17,10 +18,8 @@ class DesktopAudioTagReader : AudioTagReader {
         if (!path.exists()) return emptyList()
         return runCatching {
             Files.newInputStream(path).use { input ->
-                audioTagsFromAudioBytes(input.readNBytes(MaxAudioTagProbeBytes))
+                audioTagsFromAudioBytes(input.readNBytes(MaximumAudioTagProbeBytes))
             }
         }.getOrDefault(emptyList())
     }
 }
-
-private const val MaxAudioTagProbeBytes = 2 * 1024 * 1024

@@ -22,6 +22,28 @@ fun interface NaviampCoreDiagnosticsPort {
 
 fun emptyNaviampCoreDiagnosticsPort() = NaviampCoreDiagnosticsPort { NaviampCoreDiagnosticsSnapshot() }
 
+/** Shared refresh and failure policy around narrow host diagnostic facts. */
+class NaviampCoreCachedDiagnosticsPort(
+    private val platformRows: () -> List<Pair<String, String>>,
+    private val storageStats: () -> StorageCacheStats,
+    private val nowEpochMillis: () -> Long,
+    private val refreshIntervalMillis: Long = 2_000L,
+) : NaviampCoreDiagnosticsPort {
+    private var cachedAt = Long.MIN_VALUE
+    private var cachedStorage: StorageCacheStats? = null
+    private var attempted = false
+
+    override fun snapshot(): NaviampCoreDiagnosticsSnapshot {
+        val now = nowEpochMillis()
+        if (!attempted || now - cachedAt >= refreshIntervalMillis) {
+            cachedStorage = runCatching(storageStats).getOrNull()
+            cachedAt = now
+            attempted = true
+        }
+        return NaviampCoreDiagnosticsSnapshot(platformRows = platformRows(), storage = cachedStorage)
+    }
+}
+
 internal fun naviampCoreDiagnostics(
     shell: NaviampAppShellUiState,
     provider: MediaProvider?,

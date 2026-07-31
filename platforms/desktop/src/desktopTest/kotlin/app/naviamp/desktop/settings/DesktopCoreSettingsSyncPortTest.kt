@@ -16,10 +16,9 @@ class DesktopCoreSettingsSyncPortTest {
         val callerThread = Thread.currentThread().name
         var directoryPickerThread: String? = null
         var documentPickerThread: String? = null
-        var configuration = NaviampCoreSettingsSyncConfiguration()
+        val settings = TestSettingsValueStore()
         val port = DesktopCoreSettingsSyncPort(
-            configurationState = { configuration },
-            saveConfigurationState = { configuration = it },
+            settingsStore = settings,
             directoryPicker = DesktopDirectoryPicker { _, _ ->
                 directoryPickerThread = Thread.currentThread().name
                 directory.toString()
@@ -46,5 +45,13 @@ class DesktopCoreSettingsSyncPortTest {
 
         DesktopSettingsSyncFile.syncFile(directory).deleteIfExists()
         directory.deleteIfExists()
+    }
+
+    private class TestSettingsValueStore : app.naviamp.presentation.NaviampCoreSettingsValueStore {
+        private val values = mutableMapOf<String, String>()
+        override fun read(key: String): String? = values[key]
+        override fun write(key: String, value: String) {
+            values[key] = value
+        }
     }
 }

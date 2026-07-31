@@ -115,6 +115,78 @@ The audit extracted the following portable behavior before accepting the survivo
 Focused shared tests and Android/Desktop compilation pass. No unexplained Android product behavior,
 portable repository, scheduler, retry policy, state machine, or feature controller remains.
 
+### 2026-07-31 Desktop file-by-file exit audit
+
+This pass reviewed all 41 surviving Desktop/JVM Kotlin production files plus the packaged icon and
+native-library resources. It found that `DesktopComposition` still rebuilt the portable settings,
+playback-sidecar, sync, home, playlist, radio, diagnostics, and initial-state graph. That graph now
+comes from the same `naviampCorePlaybackServiceCatalog` and `naviampCoreStoredServiceCatalog` used by
+Android and iOS. Each surviving file now has the concrete JVM, OS, window, filesystem, or native-ABI
+constraint recorded below.
+
+| Production file | Concrete JVM/Desktop constraint | Audit result |
+| --- | --- | --- |
+| `apps/desktop/.../DesktopComposition.kt` | Selects JVM paths, native BASS/analyzer/tag adapters, JDBC-backed storage, Desktop pickers/TLS, and process resource lifetime. | Mechanical service composition only; the parallel product graph was removed. |
+| `apps/desktop/.../DesktopNaviampCoreHost.kt` | Mounts Compose Desktop and supplies the native updater, output-device inventory, and separate-window diagnostics presenter. | Thin host boundary. |
+| `apps/desktop/.../DesktopStatsForNerdsWindow.kt` | Compose Desktop `Window` lifetime, title-bar appearance, icon, and close callback. | Shared diagnostics content remains Core-owned. |
+| `apps/desktop/.../Main.kt` | Compose application/window lifecycle, AWT minimum size, native screen coordinates, title-bar setup, and window-geometry persistence. | Thin process/window host. |
+| `core/domain/.../AudioByteStoreService.jvm.kt` | Java `MessageDigest` SHA-256 implementation. | Irreducible actual. |
+| `core/domain/.../SharedHttpPlatform.jvm.kt` | JVM wall-clock implementation. | Irreducible actual. |
+| `core/domain/.../SharedUrlEncoding.jvm.kt` | Java `URLEncoder` implementation. | Irreducible actual. |
+| `core/domain/.../PopularTime.jvm.kt` | JVM wall-clock implementation. | Irreducible actual. |
+| `core/ui/.../NativeMetalVisualizerHost.jvm.kt` | JNI Metal renderer handles, Skia bitmap readback, packaged dylib discovery, and explicit native resource release. | Native renderer only; shader/render policy is common. |
+| `core/ui/.../NativeOpenGlVisualizerHost.jvm.kt` | JNI OpenGL handles, Skia bitmap readback, OS/architecture library discovery, and explicit native resource release. | Native renderer only; shader/render policy is common. |
+| `core/ui/.../NaviampSleepTimerEffects.jvm.kt` | JVM wall-clock implementation. | Irreducible actual. |
+| `core/ui/.../NaviampTooltip.jvm.kt` | Desktop pointer enter/exit events and Compose Desktop popup positioning. | Focused hover-input renderer. |
+| `core/ui/.../PlatformCoverArt.jvm.kt` | JVM image decoding, Skia native images/shaders, authenticated byte loader, and explicit image disposal. | Native image effect; generated-art parsing/geometry remains common. |
+| `core/ui/.../PlatformLiveVisualizerSurface.jvm.kt` | Compose Desktop canvas, AWT/Skia text masks, JNI GPU surfaces, OS renderer availability, and native diagnostic properties. | Native rendering/selection adapter over common visualizer specifications. |
+| `platforms/desktop/.../DesktopConnectivityMonitor.kt` | Java `NetworkInterface` enumeration. | Core now owns inspection-failure fallback policy. |
+| `platforms/desktop/.../DesktopAudioByteStore.kt` | JVM `Path` streams, atomic move fallback, mutable native directory, and exact file deletion. | Byte effect only. |
+| `platforms/desktop/.../DesktopKnownFileDeleter.kt` | JVM normalized-path containment, regular-file checks, and exact deletion. | Native deletion effect; ownership filename policy is common. |
+| `platforms/desktop/.../DesktopStorageDatabaseDriverFactory.kt` | JDBC SQLite loading, database directory creation, and connection pragmas. | Narrow driver factory. |
+| `platforms/desktop/.../DesktopStorageDispatchers.kt` | JVM I/O dispatcher parallelism for blocking file/JDBC work. | Narrow execution context. |
+| `platforms/desktop/.../DesktopStorageRepositories.kt` | Owns JDBC driver lifetime, JVM paths/file sizes, byte stores, and exact deletion around shared storage owners. | Mechanical storage graph; dead unconsumed hot-image cache removed. |
+| `platforms/desktop/.../DesktopCoreProviderSessionPort.kt` | Applies JVM-global TLS defaults required by native BASS/provider connections. | Provider/session behavior remains common. |
+| `platforms/desktop/.../DesktopAudioTagReader.kt` | JVM file stream access. | Tag parsing and the shared two-MiB probe bound remain common. |
+| `platforms/desktop/.../DesktopApplicationIcon.kt` | AWT `Taskbar`/`Window` icon APIs and packaged image decoding. | Thin Dock/taskbar/window effect. |
+| `platforms/desktop/.../DesktopApplicationUpdateChecker.kt` | Constructs the JVM HTTP client used by the shared update checker. | Update/version policy remains common. |
+| `platforms/desktop/.../DesktopCoreDiagnosticsPort.kt` | Reads JVM system properties for OS, Java, architecture, and working-directory facts. | Refresh/failure caching policy moved to Core. |
+| `platforms/desktop/.../DesktopExternalUriPort.kt` | AWT `Desktop.BROWSE` and Java `URI`. | Thin browser-launch effect. |
+| `platforms/desktop/.../DesktopPlatformCapabilities.kt` | Immutable declaration of the Desktop adapters actually mounted, plus JVM clock. | Platform facts only. |
+| `platforms/desktop/.../DesktopWindowAppearance.kt` | AWT/Swing client properties, Windows title-bar JNI, and native library loading. | Native chrome effect. |
+| `platforms/desktop/.../DesktopWindowGeometryStore.kt` | AWT screen rectangles, native window coordinates, Java properties, and atomic filesystem persistence. | Desktop window-state integration only. |
+| `platforms/desktop/.../DesktopBassAudioBackend.kt` | Converts shared calls/results to the Desktop JNI BASS ABI and manages native callbacks. | Native ABI adapter; stream metadata parsing is common. |
+| `platforms/desktop/.../DesktopBassJniBinding.kt` | JNI external declarations, pinned callback references, and native structure translation. | Irreducible ABI surface. |
+| `platforms/desktop/.../DesktopBassLibraryResolver.kt` | OS/architecture library names plus packaged/development JVM path discovery. | Native loader effect. |
+| `platforms/desktop/.../DesktopBassPlaybackEngineRuntime.kt` | JVM file-URI translation, I/O dispatcher, wall clock, and synchronization monitor. | Narrow runtime effects for the shared engine. |
+| `platforms/desktop/.../DesktopAudioWaveformAnalyzer.kt` | Desktop BASS loading and Java file-URI translation. | Thin delegate to the shared analyzer. |
+| `platforms/desktop/.../DesktopPlaybackAudioAssets.kt` | JVM `Path` existence/size and file-URI construction. | Thin file-fact adapter. |
+| `platforms/desktop/.../DesktopCredentialProtector.kt` | macOS Keychain, Windows DPAPI/key-file handling, Linux Secret Service commands, JVM process execution, and AES/GCM. | OS secure-storage adapter. |
+| `platforms/desktop/.../DesktopCoreSettingsSyncPort.kt` | JVM paths, native directory/document pickers, and blocking-I/O dispatch. | Core owns configuration serialization, sync transactions, merge, and status. |
+| `platforms/desktop/.../DesktopCoreSettingsValueStore.kt` | Atomic JVM JSON-file read/write/remove and OS-specific settings/data-directory selection. | Opaque string effect only; keys/models/defaults/migrations moved to Core. |
+| `platforms/desktop/.../DesktopDirectoryPicker.kt` | AWT/Swing dialogs plus PowerShell, Zenity, and KDialog process integration. | Native picker effect. |
+| `platforms/desktop/.../DesktopSettingsSyncFile.kt` | JVM path validation, UTF-8 file I/O, fsync, and atomic replacement. | Native document-byte effect. |
+| `providers/navidrome/.../NavidromeJvmPlatform.kt` | Ktor CIO/JVM engine, global `SSLContext`, hostname verifier, X.509/PKCS12, trust managers, and key managers. | Provider protocol remains common; this is the JVM TLS effect. |
+
+The packaged PNG/ICO/ICNS files and BASS/Metal/OpenGL libraries are native resource inputs. Gradle
+and Compose Desktop distribution metadata are packaging boundaries, not product behavior.
+
+Portable behavior extracted by this audit:
+
+- Desktop now consumes the shared playback and stored-service catalogs instead of reconstructing
+  settings, sidecars, sync, home, playlist, radio, diagnostics, and initial-state policy.
+- Core owns migration from the superseded aggregate Desktop settings document and legacy playback
+  session; Desktop exposes only opaque atomic string storage and removal.
+- settings-sync configuration serialization/normalization and diagnostics refresh/failure caching
+  moved to `core:presentation` with common tests.
+- connectivity inspection failure policy moved to `core:app`, and the duplicated two-MiB audio-tag
+  probe bound moved to `core:domain` for Android, Desktop, and iOS.
+- the unused `DesktopHotImageCache`, which never received image bytes, was deleted rather than kept
+  as misleading host-owned cache policy.
+
+Focused Core presentation/app tests and Desktop adapter/host compilation pass. No parallel Desktop
+product service graph, settings schema, diagnostics policy, or unexplained product controller remains.
+
 The 2026-07-21 source audit measured Kotlin production and test code as follows. Counts are a diagnostic, not a quota; native integrations can legitimately be large, but product implementations cannot remain duplicated in them.
 
 | Area | Production lines | Test lines | Finding |
