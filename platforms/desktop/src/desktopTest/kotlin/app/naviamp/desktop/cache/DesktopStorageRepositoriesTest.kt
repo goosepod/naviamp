@@ -18,18 +18,18 @@ class DesktopStorageRepositoriesTest {
         val root = Files.createTempDirectory("naviamp-desktop-storage-repositories")
         val audio = Files.createDirectories(root.resolve("audio"))
         val downloads = Files.createDirectories(root.resolve("downloads"))
-        val trackedEviction = Files.write(audio.resolve("tracked-eviction.bin"), byteArrayOf(1, 2, 3))
-        val trackedConvertedEviction = Files.write(audio.resolve("tracked-eviction.opus"), byteArrayOf(1, 2, 3))
-        val trackedCache = Files.write(audio.resolve("tracked-cache.bin"), byteArrayOf(1, 2, 3))
-        val trackedConvertedCache = Files.write(audio.resolve("tracked-cache.opus"), byteArrayOf(1, 2, 3))
+        val trackedEviction = Files.write(audio.resolve("00000000000000000000000000000001.audio"), byteArrayOf(1, 2, 3))
+        val trackedConvertedEviction = Files.write(audio.resolve("00000000000000000000000000000002.opus"), byteArrayOf(1, 2, 3))
+        val trackedCache = Files.write(audio.resolve("00000000000000000000000000000003.audio"), byteArrayOf(1, 2, 3))
+        val trackedConvertedCache = Files.write(audio.resolve("00000000000000000000000000000004.opus"), byteArrayOf(1, 2, 3))
         val databasePathThatIsNotAFile = Files.createDirectories(audio.resolve("not-a-file"))
         val unrelatedCache = Files.write(audio.resolve("music-library-track.flac"), byteArrayOf(4, 5, 6))
         val unrelatedCacheNested = Files.write(
             Files.createDirectories(audio.resolve("album")).resolve("track.flac"),
             byteArrayOf(7, 8, 9),
         )
-        val trackedDownload = Files.write(downloads.resolve("tracked-download.bin"), byteArrayOf(10, 11, 12))
-        val trackedConvertedDownload = Files.write(downloads.resolve("tracked-download.opus"), byteArrayOf(10, 11, 12))
+        val trackedDownload = Files.write(downloads.resolve("00000000000000000000000000000005.audio"), byteArrayOf(10, 11, 12))
+        val trackedConvertedDownload = Files.write(downloads.resolve("00000000000000000000000000000006.opus"), byteArrayOf(10, 11, 12))
         Files.write(downloads.resolve("orphaned-download.bin"), byteArrayOf(4, 5, 6))
         val unrelatedConvertedDownload = Files.write(downloads.resolve("personal-conversion.opus"), byteArrayOf(4, 5, 6))
         val unrelatedDownloadNested = Files.write(

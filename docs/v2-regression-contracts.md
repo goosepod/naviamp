@@ -62,6 +62,11 @@ Required invariants:
 - Restoring a connection does not erase the existing playback session unless the user is starting a genuinely new connection.
 - Source-scoped state is never restored into another server source.
 - Provider capability gates remain authoritative for optional OpenSubsonic behavior.
+- A provider-declared remote-ID transition runs at most once per source and target identity version.
+- Remote-ID migration is one Core storage transaction: durable audio/download paths, sidecars, queues, history, keep-downloaded ownership, and pending actions either all move together or none do.
+- Reproducible library/provider-response/artwork caches are invalidated instead of partially rewriting opaque provider payloads.
+- Identifier migration never receives a native file-deletion capability and cannot remove cached or downloaded bytes.
+- Rejected Navidrome native JWTs are cleared and persisted without clearing the independent Subsonic connection; only native smart-playlist work requests password reauthentication.
 
 Coverage:
 
@@ -69,6 +74,9 @@ Coverage:
 - `core/domain/.../source/ProviderConnectionLifecycleTest.kt`
 - `core/domain/.../source/MediaSourceConnectionUpdatesTest.kt`
 - `providers/navidrome/.../NavidromeProviderTest.kt`
+- `providers/navidrome/.../NavidromeCanonicalIdTest.kt`
+- `providers/navidrome/.../NavidromeCoreProviderSessionPortTest.kt`
+- `core/storage/.../StorageProviderIdentityMigrationStoreTest.kt`
 - Android and Desktop session-boundary tests listed above
 
 The first shared connection coordinator must use the existing domain lifecycle functions instead of duplicating platform connection rules.
@@ -83,6 +91,7 @@ Required invariants:
 - Downloaded audio is preferred or used as fallback according to the saved playback policy.
 - Cache eviction respects budgets and does not treat registered downloads as disposable cache entries.
 - Platform storage locations affect paths and permissions, not product-level ownership rules.
+- Native deletion fails closed unless the stored path identifies a regular, hash-named Naviamp audio file that is a direct child of the configured cache/download directory. A rejected path retains its ownership row.
 
 Coverage:
 

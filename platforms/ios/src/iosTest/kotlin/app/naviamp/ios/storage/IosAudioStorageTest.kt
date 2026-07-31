@@ -75,6 +75,28 @@ class IosAudioStorageTest {
             NSFileManager.defaultManager.removeItemAtPath(siblingDirectory, null)
         }
     }
+
+    @Test
+    fun deletionRequiresANaviampOwnedFileNameEvenInsideTheAudioDirectory() = withTestDirectory { directory ->
+        val store = IosAudioByteStore(directory)
+        val unrelated = runBlocking {
+            store.writeAudioBytes("personal-recording.flac", "write failed") { writer ->
+                writer.write(byteArrayOf(1), 1)
+                true
+            }
+        }
+        val owned = runBlocking {
+            store.writeAudioBytes("0123456789abcdef0123456789abcdef.flac", "write failed") { writer ->
+                writer.write(byteArrayOf(2), 1)
+                true
+            }
+        }
+
+        assertFalse(IosAudioFileSystem.deleteKnownRegularFile(directory, unrelated.filePath))
+        assertTrue(IosAudioFileSystem.isRegularFile(unrelated.filePath))
+        assertTrue(IosAudioFileSystem.deleteKnownRegularFile(directory, owned.filePath))
+        assertFalse(IosAudioFileSystem.isRegularFile(owned.filePath))
+    }
 }
 
 private inline fun withTestDirectory(block: (String) -> Unit) {

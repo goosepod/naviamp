@@ -97,6 +97,17 @@ fun stableAudioFileName(sourceId: String, trackId: String, qualityKey: String): 
     }.take(32)
 }
 
+/** Defense-in-depth check used before deleting an audio path recorded in Naviamp storage. */
+fun isNaviampOwnedAudioFileName(fileName: String): Boolean {
+    val extensionIndex = fileName.lastIndexOf('.')
+    if (extensionIndex <= 0) return false
+    val stem = fileName.substring(0, extensionIndex)
+    val extension = fileName.substring(extensionIndex).lowercase()
+    return stem.length in setOf(32, 40, 64) &&
+        stem.all { it.isDigit() || it.lowercaseChar() in 'a'..'f' } &&
+        extension in setOf(".mp3", ".aac", ".flac", ".ogg", ".opus", ".m4a", ".wav", ".audio")
+}
+
 fun String?.audioExtension(): String =
     when (this?.lowercase()?.substringBefore(";")?.trim()) {
         "audio/mpeg", "audio/mp3" -> ".mp3"

@@ -4,6 +4,7 @@ import app.naviamp.app.NaviampConnectionAttemptPlan
 import app.naviamp.domain.cache.CacheMaintenanceRepository
 import app.naviamp.domain.cache.MediaSourceRepository
 import app.naviamp.domain.cache.ProviderMediaSourceRepository
+import app.naviamp.domain.cache.ProviderIdentityMigrationRepository
 import app.naviamp.domain.provider.MediaProvider
 import app.naviamp.domain.settings.ConnectionFormHeader
 import app.naviamp.domain.settings.ConnectionFormSecondaryUrl
@@ -73,6 +74,14 @@ class NavidromeCoreProviderSessionPort(
         val session = sessionOpener.open(request.toLoginRequest(), plan.clearProviderData)
         provider = session.provider
         currentSourceId = session.sourceId
+        if (navidromeUsesCanonicalIds(session.validation.serverVersion)) {
+            (mediaSources as? ProviderIdentityMigrationRepository)?.migrateProviderIdentities(
+                sourceId = session.sourceId,
+                providerId = session.provider.id.value,
+                targetVersion = NavidromeCanonicalIdentityVersion,
+                transform = NavidromeCanonicalId::migrate,
+            )
+        }
         return NaviampCoreConnectedSession(
             sourceId = session.sourceId,
             displayName = session.connection.resolvedDisplayName(),

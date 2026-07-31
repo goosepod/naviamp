@@ -3,6 +3,7 @@ package app.naviamp.desktop
 import app.naviamp.domain.cache.AudioByteStore
 import app.naviamp.domain.cache.AudioByteWriter
 import app.naviamp.domain.cache.StoredAudioBytes
+import app.naviamp.domain.cache.isNaviampOwnedAudioFileName
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.StandardCopyOption
@@ -36,7 +37,13 @@ class DesktopAudioByteStore(
     }
 
     override fun deleteAudioBytes(filePath: String) {
-        Path.of(filePath).takeIf { path -> Files.isRegularFile(path) }?.let(Files::deleteIfExists)
+        runCatching {
+            val root = directory.toAbsolutePath().normalize()
+            val path = Path.of(filePath).toAbsolutePath().normalize()
+            path.takeIf {
+                it.parent == root && isNaviampOwnedAudioFileName(it.fileName.toString()) && Files.isRegularFile(it)
+            }?.let(Files::deleteIfExists)
+        }
     }
 }
 

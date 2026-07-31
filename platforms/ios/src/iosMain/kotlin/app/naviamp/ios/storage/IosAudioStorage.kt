@@ -9,6 +9,7 @@ import app.naviamp.domain.cache.AudioByteWriter
 import app.naviamp.domain.cache.AudioCacheRepository
 import app.naviamp.domain.cache.DownloadRepository
 import app.naviamp.domain.cache.StoredAudioBytes
+import app.naviamp.domain.cache.isNaviampOwnedAudioFileName
 import app.naviamp.domain.playback.PlaybackAudioAssetRepository
 import app.naviamp.domain.playback.PlaybackLocalAudio
 import app.naviamp.storage.StorageCachedAudioFile
@@ -97,7 +98,12 @@ object IosAudioFileSystem {
 
     fun deleteKnownRegularFile(directoryPath: String, filePath: String): Boolean {
         val resolvedPath = resolveStoredFilePath(directoryPath, filePath)
-        if (!isDirectChild(directoryPath, resolvedPath) || !isRegularFile(resolvedPath)) return false
+        if (
+            !isDirectChild(directoryPath, resolvedPath) ||
+            !isNaviampOwnedAudioFileName(resolvedPath.substringAfterLast('/'))
+        ) return false
+        if (!NSFileManager.defaultManager.fileExistsAtPath(resolvedPath)) return true
+        if (!isRegularFile(resolvedPath)) return false
         return NSFileManager.defaultManager.removeItemAtPath(resolvedPath, null)
     }
 

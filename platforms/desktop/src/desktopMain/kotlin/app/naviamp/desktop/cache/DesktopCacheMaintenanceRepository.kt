@@ -40,11 +40,15 @@ class DesktopCacheMaintenanceRepository(
 
     override fun clearCacheData() {
         hotImages.clear()
-        rows.clearCacheData { filePath -> knownFileDeleter.deleteFile(Path.of(filePath)) }
+        rows.clearCacheData { filePath ->
+            runCatching { knownFileDeleter.deleteOwnedAudioFile(audioCacheDirectory(), Path.of(filePath)) }.getOrDefault(false)
+        }
     }
 
     override fun clearDownloadData() {
-        rows.clearDownloadData { filePath -> knownFileDeleter.deleteFile(Path.of(filePath)) }
+        rows.clearDownloadData { filePath ->
+            runCatching { knownFileDeleter.deleteOwnedAudioFile(downloadDirectory(), Path.of(filePath)) }.getOrDefault(false)
+        }
     }
 
     override fun clearAll() {
@@ -63,8 +67,12 @@ class DesktopCacheMaintenanceRepository(
         activeSourceIds = activeSourceIds,
         lastConnectedBeforeEpochMillis = lastConnectedBeforeEpochMillis,
         limit = limit,
-        deleteKnownAudioCacheFile = { filePath -> knownFileDeleter.deleteFile(Path.of(filePath)) },
-        deleteKnownDownloadFile = { filePath -> knownFileDeleter.deleteFile(Path.of(filePath)) },
+        deleteKnownAudioCacheFile = { filePath ->
+            runCatching { knownFileDeleter.deleteOwnedAudioFile(audioCacheDirectory(), Path.of(filePath)) }.getOrDefault(false)
+        },
+        deleteKnownDownloadFile = { filePath ->
+            runCatching { knownFileDeleter.deleteOwnedAudioFile(downloadDirectory(), Path.of(filePath)) }.getOrDefault(false)
+        },
     )
 
     override fun stats(): StorageCacheStats = rows.stats(

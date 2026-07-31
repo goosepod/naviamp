@@ -4,6 +4,8 @@ import app.naviamp.app.NaviampConnectionAttemptPlan
 import app.naviamp.domain.cache.MediaSourceRepository
 import app.naviamp.domain.cache.ProviderMediaSourceConnection
 import app.naviamp.domain.cache.ProviderMediaSourceRepository
+import app.naviamp.domain.cache.ProviderIdentityMigrationRepository
+import app.naviamp.domain.cache.ProviderIdentityMigrationResult
 import app.naviamp.domain.provider.ConnectionValidation
 import app.naviamp.domain.settings.ConnectionFormState
 import app.naviamp.domain.source.MediaSourceIdentity
@@ -128,6 +130,28 @@ class NavidromeCoreProviderSessionPortTest {
         assertEquals(emptyList(), failure.availableMusicFolders)
         assertTrue(failure.musicFoldersLoadFailed)
     }
+
+    @Test
+    fun affectedServerActivatesTheProviderDeclaredIdentityMigration() = runTest {
+        val repository = TestMediaSourceRepository(savedSource())
+        val port = NavidromeCoreProviderSessionPort(
+            mediaSources = repository,
+            sessionOpener = NavidromeProviderSessionOpener { request, _ ->
+                session(request.savedConnectionForLogin ?: error("saved credentials missing"), "0.64.0")
+            },
+        )
+
+        port.connect(
+            NaviampCoreConnectionRequest.Saved("source-1"),
+            NaviampConnectionAttemptPlan(true, false, false, false),
+        )
+
+        assertEquals(1L, repository.migratedIdentityVersion)
+        assertEquals(
+            "3LyqmwQBm5IRqlVjNYASwb",
+            repository.identityTransform?.invoke("zzzzzzzzzzzzzzzzzzzzzz"),
+        )
+    }
 }
 
 private fun testPort(repository: TestMediaSourceRepository) = NavidromeCoreProviderSessionPort(
@@ -154,19 +178,22 @@ private fun savedSource() = SavedMediaSource(
     lastSyncCompletedAtEpochMillis = null,
 )
 
-private fun session(connection: NavidromeConnection): NavidromeProviderConnectionSession =
+private fun session(connection: NavidromeConnection, serverVersion: String = "0.58.0"): NavidromeProviderConnectionSession =
     NavidromeProviderConnectionSession(
         connection = connection,
         provider = NavidromeProvider(connection),
         sourceId = "source-1",
-        validation = ConnectionValidation(serverVersion = "0.58.0", apiVersion = "1.16.1"),
+        validation = ConnectionValidation(serverVersion = serverVersion, apiVersion = "1.16.1"),
     )
 
 private class TestMediaSourceRepository(source: SavedMediaSource) :
     MediaSourceRepository,
-    ProviderMediaSourceRepository {
+    ProviderMediaSourceRepository,
+    ProviderIdentityMigrationRepository {
     private val sources = linkedMapOf(source.id to source)
     var lastPersisted: ProviderMediaSourceConnection? = null
+    var migratedIdentityVersion: Long? = null
+    var identityTransform: ((String) -> String)? = null
 
     override fun latestMediaSource(): SavedMediaSource? = sources.values.lastOrNull()
     override fun mediaSources(): List<SavedMediaSource> = sources.values.toList()
@@ -183,4 +210,16 @@ private class TestMediaSourceRepository(source: SavedMediaSource) :
         lastPersisted = connection
         return MediaSourceIdentity("source-1", cacheNamespace, connection.displayName)
     }
+
+    override fun migrateProviderIdentities(
+        sourceId: String,
+        providerId: String,
+        targetVersion: Long,
+        transform: (String) -> String,
+    ): ProviderIdentityMigrationResult {
+        migratedIdentityVersion = targetVersion
+        identityTransform = transform
+        return ProviderIdentityMigrationResult(migrated = true)
+    }
+
 }

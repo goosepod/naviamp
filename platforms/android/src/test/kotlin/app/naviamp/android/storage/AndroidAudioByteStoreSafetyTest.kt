@@ -9,8 +9,8 @@ class AndroidAudioByteStoreSafetyTest {
     @Test
     fun exactDeletionLeavesUnrelatedAndNestedFilesUntouched() {
         val root = Files.createTempDirectory("naviamp-android-audio-delete").toFile()
-        val tracked = root.resolve("tracked-download.bin").apply { writeBytes(byteArrayOf(1)) }
-        val trackedConverted = root.resolve("tracked-download.opus").apply { writeBytes(byteArrayOf(1)) }
+        val tracked = root.resolve("0123456789abcdef0123456789abcdef.audio").apply { writeBytes(byteArrayOf(1)) }
+        val trackedConverted = root.resolve("fedcba9876543210fedcba9876543210.opus").apply { writeBytes(byteArrayOf(1)) }
         val unrelated = root.resolve("music-library-track.flac").apply { writeBytes(byteArrayOf(2)) }
         val unrelatedConverted = root.resolve("personal-conversion.opus").apply { writeBytes(byteArrayOf(2)) }
         val databasePathThatIsNotAFile = root.resolve("not-a-file").apply { mkdirs() }

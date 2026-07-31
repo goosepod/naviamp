@@ -1301,30 +1301,43 @@ class NavidromeProvider(
     }
 
     private suspend fun postNativeJson(endpoint: String, body: String): JsonObject =
-        nativeJsonResponse(
+        nativeJsonRequest {
             httpClient.postJsonResponse(
                 url = nativeApiUrl(endpoint),
                 body = body,
                 headers = customHeaders + nativeAuthHeaders(),
-            ),
-        )
+            )
+        }
 
     private suspend fun getNativeJson(endpoint: String): JsonObject =
-        nativeJsonResponse(
+        nativeJsonRequest {
             httpClient.getResponse(
                 url = nativeApiUrl(endpoint),
                 headers = customHeaders + nativeAuthHeaders(),
-            ),
-        )
+            )
+        }
 
     private suspend fun putNativeJson(endpoint: String, body: String): JsonObject =
-        nativeJsonResponse(
+        nativeJsonRequest {
             httpClient.putJsonResponse(
                 url = nativeApiUrl(endpoint),
                 body = body,
                 headers = customHeaders + nativeAuthHeaders(),
-            ),
-        )
+            )
+        }
+
+    private suspend fun nativeJsonRequest(request: suspend () -> NavidromeHttpResponse): JsonObject =
+        try {
+            nativeJsonResponse(request())
+        } catch (error: NavidromeHttpException) {
+            if (error.statusCode == 401) {
+                nativeToken = null
+                throw NavidromeException(
+                    "Your Navidrome smart playlist session expired. Enter your password to reconnect smart playlists.",
+                )
+            }
+            throw error
+        }
 
     private fun nativeJsonResponse(response: NavidromeHttpResponse): JsonObject {
         response.header(NavidromeNativeAuthorizationHeader)
@@ -1844,6 +1857,9 @@ internal fun String?.sanitizedNavidromeErrorMessage(): String? {
 }
 
 open class NavidromeException(message: String) : RuntimeException(message)
+
+class NavidromeHttpException(val statusCode: Int) :
+    NavidromeException("Navidrome returned HTTP $statusCode.")
 
 class NavidromeRateLimitException(
     val retryAtEpochMillis: Long,

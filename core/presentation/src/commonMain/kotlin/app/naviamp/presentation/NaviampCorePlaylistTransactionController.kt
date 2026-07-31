@@ -178,6 +178,7 @@ class NaviampCorePlaylistTransactionController(
             sessionPort.persistActiveSession()
             browseController.refreshAfterMutation("Saved smart playlist ${definition.name}.")
         } catch (cause: Throwable) {
+            sessionPort.persistActiveSession()
             publishListStatus(cause.message ?: "Could not save smart playlist.")
             throw cause
         }
@@ -196,6 +197,7 @@ class NaviampCorePlaylistTransactionController(
             sessionPort.persistActiveSession()
             browseController.refreshAfterMutation("Updated smart playlist ${definition.name}.")
         } catch (cause: Throwable) {
+            sessionPort.persistActiveSession()
             publishListStatus(cause.message ?: "Could not update smart playlist.")
             throw cause
         }
@@ -214,6 +216,7 @@ class NaviampCorePlaylistTransactionController(
                 publishListStatus(null)
             }
         } catch (cause: Throwable) {
+            sessionPort.persistActiveSession()
             publishListStatus(cause.message ?: "Could not load smart playlist rules.")
             throw cause
         }

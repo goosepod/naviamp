@@ -265,6 +265,31 @@ interface ProviderMediaSourceRepository {
     ): MediaSourceIdentity
 }
 
+/**
+ * Provider-neutral boundary for one-way changes to remote entity identifiers.
+ *
+ * Core storage owns the transaction. A provider supplies only its deterministic identifier
+ * transform and the target format version after it has established that the connected server
+ * uses that format.
+ */
+interface ProviderIdentityMigrationRepository {
+    fun migrateProviderIdentities(
+        sourceId: String,
+        providerId: String,
+        targetVersion: Long,
+        transform: (String) -> String,
+    ): ProviderIdentityMigrationResult
+
+}
+
+data class ProviderIdentityMigrationResult(
+    val migrated: Boolean,
+    val transformedReferences: Int = 0,
+    val libraryIndexInvalidated: Boolean = false,
+    val providerResponsesInvalidated: Boolean = false,
+    val artworkInvalidated: Boolean = false,
+)
+
 interface PlaybackSessionRepository {
     fun loadPlaybackSession(sourceId: String? = null): PlaybackSessionSettings?
 
