@@ -33,20 +33,36 @@ internal class StorageProviderIdentityMigrationStore(
             queries.clearLibraryArtistsForSource(sourceId)
             queries.resetMediaSourceLibraryScan(sourceId)
 
-            queries.selectCachedAudioTrackIdsForIdentityMigration(sourceId).executeAsList().forEach { row ->
-                queries.updateCachedAudioTrackId(migrate(row.remote_track_id), sourceId, row.remote_track_id, row.quality_key)
+            val cachedAudioRows = queries.selectCachedAudioTrackIdsForIdentityMigration(sourceId).executeAsList()
+            val cachedAudioKeys = cachedAudioRows.map { it.remote_track_id to it.quality_key }.toSet()
+            cachedAudioRows.forEach { row ->
+                val migratedTrackId = migrate(row.remote_track_id)
+                if (migratedTrackId != row.remote_track_id && migratedTrackId to row.quality_key in cachedAudioKeys) {
+                    queries.deleteCachedAudio(sourceId, row.remote_track_id, row.quality_key)
+                } else {
+                    queries.updateCachedAudioTrackId(migratedTrackId, sourceId, row.remote_track_id, row.quality_key)
+                }
             }
 
-            queries.selectDownloadedAudio(sourceId).executeAsList().forEach { row ->
-                queries.updateDownloadedAudioIdentity(
-                    remote_track_id = migrate(row.remote_track_id),
-                    artist_id = migrateNullable(row.artist_id),
-                    album_id = migrateNullable(row.album_id),
-                    cover_art_id = migrateNullable(row.cover_art_id),
-                    source_id = sourceId,
-                    remote_track_id_ = row.remote_track_id,
-                    quality_key = row.quality_key,
-                )
+            val downloadedAudioRows = queries.selectDownloadedAudio(sourceId).executeAsList()
+            val downloadedAudioKeys = downloadedAudioRows.map { it.remote_track_id to it.quality_key }.toSet()
+            downloadedAudioRows.forEach { row ->
+                val migratedTrackId = migrate(row.remote_track_id)
+                if (migratedTrackId != row.remote_track_id && migratedTrackId to row.quality_key in downloadedAudioKeys) {
+                    // The canonical row is already owned. Retire only the stale database ownership;
+                    // physical-file cleanup requires a separately verified native operation.
+                    queries.deleteDownloadedAudio(sourceId, row.remote_track_id, row.quality_key)
+                } else {
+                    queries.updateDownloadedAudioIdentity(
+                        remote_track_id = migratedTrackId,
+                        artist_id = migrateNullable(row.artist_id),
+                        album_id = migrateNullable(row.album_id),
+                        cover_art_id = migrateNullable(row.cover_art_id),
+                        source_id = sourceId,
+                        remote_track_id_ = row.remote_track_id,
+                        quality_key = row.quality_key,
+                    )
+                }
             }
 
             migrateKeepDownloaded(sourceId, ::migrate)

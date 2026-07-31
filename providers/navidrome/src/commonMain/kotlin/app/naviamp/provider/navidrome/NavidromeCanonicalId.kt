@@ -2,7 +2,19 @@ package app.naviamp.provider.navidrome
 
 /** Navidrome's canonical 128-bit, zero-padded base62 identifier codec. */
 object NavidromeCanonicalId {
-    fun migrate(value: String): String = when (value.length) {
+    fun migrate(value: String): String = migrateComposite(value) ?: migrateDirect(value)
+
+    private fun migrateComposite(value: String): String? {
+        val separator = value.indexOf('_')
+        if (separator <= 3) return null
+        val prefix = value.substring(0, 3)
+        if (prefix !in CompositePrefixes) return null
+        val oldEntityId = value.substring(3, separator)
+        val migratedEntityId = migrateDirect(oldEntityId)
+        return if (migratedEntityId == oldEntityId) value else prefix + migratedEntityId + value.substring(separator)
+    }
+
+    private fun migrateDirect(value: String): String = when (value.length) {
         CanonicalLength -> migrateBase62(value)
         LegacyHexLength -> decodeHex(value)?.let(::encode) ?: value
         LegacyUuidLength -> decodeUuid(value)?.let(::encode) ?: value
@@ -83,6 +95,7 @@ object NavidromeCanonicalId {
     private const val LegacyHexLength = 32
     private const val LegacyUuidLength = 36
     private const val Base62Alphabet = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+    private val CompositePrefixes = setOf("mf-", "al-", "ar-")
 }
 
 internal const val NavidromeCanonicalIdentityVersion = 1L
@@ -100,4 +113,21 @@ internal fun navidromeUsesCanonicalIds(serverVersion: String?): Boolean {
     val major = parts.getOrElse(0) { 0 }
     val minor = parts.getOrElse(1) { 0 }
     return major > 0 || minor >= 64
+}
+
+internal fun navidromeCanonicalIdProbeRequired(serverVersion: String?): Boolean =
+    serverVersion?.contains("SNAPSHOT", ignoreCase = true) == true
+
+internal suspend fun navidromeCanonicalIdsConfirmed(
+    ownedIds: List<String>,
+    resolveCanonicalId: suspend (String) -> String?,
+): Boolean {
+    ownedIds.asSequence()
+        .map { oldId -> oldId to NavidromeCanonicalId.migrate(oldId) }
+        .filter { (oldId, canonicalId) -> oldId != canonicalId }
+        .take(5)
+        .forEach { (_, canonicalId) ->
+            if (resolveCanonicalId(canonicalId) == canonicalId) return true
+        }
+    return false
 }

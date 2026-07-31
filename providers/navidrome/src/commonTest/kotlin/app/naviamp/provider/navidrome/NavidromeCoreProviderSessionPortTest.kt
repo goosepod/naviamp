@@ -14,6 +14,7 @@ import app.naviamp.presentation.NaviampCoreConnectionRequest
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertSame
@@ -152,6 +153,22 @@ class NavidromeCoreProviderSessionPortTest {
             repository.identityTransform?.invoke("zzzzzzzzzzzzzzzzzzzzzz"),
         )
     }
+
+    @Test
+    fun restoredSessionAlsoActivatesAnOutstandingIdentityMigration() = runTest {
+        val source = savedSource().copy(nativeToken = null)
+        val repository = TestMediaSourceRepository(source)
+        val port = NavidromeCoreProviderSessionPort(
+            mediaSources = repository,
+            sessionOpener = NavidromeProviderSessionOpener { _, _ -> error("not used") },
+            initialSource = source,
+            validateProvider = { ConnectionValidation(serverVersion = "0.64.0", apiVersion = "1.16.1") },
+        )
+
+        assertFalse(port.refreshActiveSession())
+
+        assertEquals(1L, repository.migratedIdentityVersion)
+    }
 }
 
 private fun testPort(repository: TestMediaSourceRepository) = NavidromeCoreProviderSessionPort(
@@ -201,6 +218,8 @@ private class TestMediaSourceRepository(source: SavedMediaSource) :
     override fun deleteMediaSource(sourceId: String) {
         sources.remove(sourceId)
     }
+
+    override fun providerIdentityVersion(sourceId: String): Long = migratedIdentityVersion ?: 0L
 
     override fun upsertProviderMediaSource(
         connection: ProviderMediaSourceConnection,

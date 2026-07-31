@@ -1208,6 +1208,11 @@ class NavidromeProvider(
         return response.subsonicResponse()["song"]?.jsonObject?.toTrack()
     }
 
+    internal suspend fun confirmsCanonicalIds(ownedIds: List<String>): Boolean =
+        navidromeCanonicalIdsConfirmed(ownedIds) { canonicalId ->
+            runCatching { song(TrackId(canonicalId)) }.getOrNull()?.id?.value
+        }
+
     private suspend fun openSubsonicExtensionVersions(): Map<String, List<Int>> =
         runCatching {
             val response = get("getOpenSubsonicExtensions.view")

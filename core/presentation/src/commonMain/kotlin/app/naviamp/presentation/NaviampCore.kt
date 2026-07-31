@@ -391,6 +391,9 @@ class NaviampCore private constructor(
                     scope.launch { downloads.refresh(reconcile = false) }
                 },
             )
+            if (initialState.connectionInventory.currentSourceId != null) {
+                scope.launch { providerSessionLifecycle.refreshNow() }
+            }
             completeDatabaseReset = {
                 playback.resetAfterDatabaseClear()
                 connection.resetAfterDatabaseClear()

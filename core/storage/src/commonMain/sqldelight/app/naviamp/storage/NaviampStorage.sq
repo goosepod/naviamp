@@ -1440,6 +1440,16 @@ SELECT provider_identity_version
 FROM media_source
 WHERE id = ?;
 
+selectProviderIdentitySamples:
+SELECT remote_track_id AS remote_id FROM downloaded_audio WHERE source_id = :source_id
+UNION
+SELECT remote_track_id AS remote_id FROM cached_audio WHERE source_id = :source_id
+UNION
+SELECT remote_track_id AS remote_id FROM playback_session_queue WHERE source_id = :source_id
+UNION
+SELECT remote_track_id AS remote_id FROM playback_history WHERE source_id = :source_id
+LIMIT :limit;
+
 markProviderIdentityVersion:
 UPDATE media_source
 SET provider_identity_version = ?

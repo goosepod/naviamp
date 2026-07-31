@@ -31,6 +31,28 @@ class NavidromeCanonicalIdTest {
     }
 
     @Test
+    fun migratesEntityIdsEmbeddedInNavidromeCoverArtKeys() {
+        assertEquals(
+            "mf-0aZ8vPOn4jcLgReUJu3nBG_6a25e6f3",
+            NavidromeCanonicalId.migrate("mf-bdlbRXwqlTrUYWaYnATlLf_6a25e6f3"),
+        )
+        assertEquals(
+            "al-0aZ8vPOn4jcLgReUJu3nBG_revision",
+            NavidromeCanonicalId.migrate("al-bdlbRXwqlTrUYWaYnATlLf_revision"),
+        )
+    }
+
+    @Test
+    fun snapshotProbeRequiresAConvertedOwnedIdThatTheServerResolves() = kotlinx.coroutines.test.runTest {
+        val oldId = "bdlbRXwqlTrUYWaYnATlLf"
+        val canonicalId = "0aZ8vPOn4jcLgReUJu3nBG"
+
+        assertTrue(navidromeCanonicalIdsConfirmed(listOf(oldId)) { requested -> requested.takeIf { it == canonicalId } })
+        assertFalse(navidromeCanonicalIdsConfirmed(listOf(oldId)) { null })
+        assertFalse(navidromeCanonicalIdsConfirmed(listOf(canonicalId)) { requested -> requested })
+    }
+
+    @Test
     fun activatesOnlyForTheAffectedReleaseLine() {
         assertFalse(navidromeUsesCanonicalIds(null))
         assertFalse(navidromeUsesCanonicalIds("0.63.2 (abc123)"))

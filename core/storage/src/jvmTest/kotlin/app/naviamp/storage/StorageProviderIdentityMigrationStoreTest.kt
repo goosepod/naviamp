@@ -80,6 +80,8 @@ class StorageProviderIdentityMigrationStoreTest {
             queries.upsertResponse("key", "navidrome", "track", oldTrack, "{}", 1L, 1L)
             queries.upsertImage("https://example.test/art/$oldCover", byteArrayOf(1), 1L, 1L, 1L)
 
+            assertEquals(listOf(oldTrack), catalog.mediaSources.providerIdentitySamples(source.id))
+
             val result = catalog.mediaSources.migrateProviderIdentities(source.id, "navidrome", 1L, transform)
 
             assertTrue(result.migrated)
@@ -103,6 +105,57 @@ class StorageProviderIdentityMigrationStoreTest {
             assertNull(catalog.mediaSources.mediaSource(source.id)?.lastLibraryScanSignature)
 
             assertFalse(catalog.mediaSources.migrateProviderIdentities(source.id, "navidrome", 1L, transform).migrated)
+        } finally {
+            driver.close()
+        }
+    }
+
+    @Test
+    fun migrationCollapsesAnAlreadyRedownloadedCanonicalDuplicateWithoutDeletingEitherFile() {
+        val driver = JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY)
+        NaviampStorageDatabase.Schema.create(driver)
+        val database = NaviampStorageDatabase(driver)
+        var deletionAttempted = false
+        val catalog = StorageCoreRepositoryCatalog(
+            database = database,
+            credentialProtector = PassthroughStorageCredentialProtector,
+            nowEpochMillis = { 50L },
+            databaseLabel = "test.db",
+            deleteKnownAudioCacheFile = { deletionAttempted = true; false },
+            deleteKnownDownloadFile = { deletionAttempted = true; false },
+        )
+        try {
+            val source = catalog.mediaSources.upsertProviderMediaSource(
+                ProviderMediaSourceConnection("Server", "https://example.test", "user", "token", "salt", null),
+                cacheNamespace = "navidrome:test",
+                providerId = "navidrome",
+            )
+            val queries = database.naviampStorageQueries
+            fun download(id: String, path: String, cover: String, downloadedAt: Long) {
+                queries.upsertDownloadedAudio(
+                    source.id, id, "transcoded:opus:128", path, 20L, "audio/ogg", "Track",
+                    null, "Artist", null, "Album", null, 120L, cover, "opus", 128L, "audio/ogg",
+                    null, null, null, null, downloadedAt,
+                )
+            }
+            download("old-track", "/owned/old.ogg", "old-cover", 1L)
+            download("new-track", "/owned/redownloaded.ogg", "new-cover", 2L)
+
+            catalog.mediaSources.migrateProviderIdentities(source.id, "navidrome", 1L) { value ->
+                when (value) {
+                    "old-track" -> "new-track"
+                    "old-cover" -> "new-cover"
+                    else -> value
+                }
+            }
+
+            val downloads = queries.selectDownloadedAudio(source.id).executeAsList()
+            assertEquals(1, downloads.size)
+            assertEquals("new-track", downloads.single().remote_track_id)
+            assertEquals("new-cover", downloads.single().cover_art_id)
+            assertEquals("/owned/redownloaded.ogg", downloads.single().file_path)
+            assertEquals(2L, downloads.single().downloaded_at_epoch_millis)
+            assertFalse(deletionAttempted, "collision repair must retain physical files when migration cannot delete safely")
         } finally {
             driver.close()
         }
