@@ -3,6 +3,7 @@ package app.naviamp.desktop
 import app.cash.sqldelight.db.SqlDriver
 import app.naviamp.desktop.security.DesktopCredentialProtector
 import app.naviamp.domain.cache.MediaSourceRepository
+import app.naviamp.domain.cache.ProviderIdentityMigrationRepository
 import app.naviamp.domain.cache.ProviderMediaSourceRepository
 import app.naviamp.storage.NaviampStorageDatabase
 import app.naviamp.storage.StorageCredentialProtector
@@ -23,6 +24,7 @@ class DesktopMediaSourceStorage private constructor(
     internal val store: StorageMediaSourceStore,
 ) : MediaSourceRepository by store,
     ProviderMediaSourceRepository by store,
+    ProviderIdentityMigrationRepository by store,
     AutoCloseable {
     internal fun pruneUnusedSourceScopes(
         activeSourceIds: Set<String>,
