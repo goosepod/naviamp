@@ -100,34 +100,35 @@ object NavidromeCanonicalId {
 
 internal const val NavidromeCanonicalIdentityVersion = 1L
 
-/** The canonical-ID migration is scheduled for the first 0.64 release line. */
-internal fun navidromeUsesCanonicalIds(serverVersion: String?): Boolean {
-    if (serverVersion?.contains("pr-5824/") == true) return true
-    val parts = serverVersion
-        ?.substringBefore(' ')
-        ?.substringBefore('-')
-        ?.removePrefix("v")
-        ?.split('.')
-        ?.mapNotNull(String::toIntOrNull)
-        ?: return false
-    val major = parts.getOrElse(0) { 0 }
-    val minor = parts.getOrElse(1) { 0 }
-    return major > 0 || minor >= 64
+/** Provider-common result for the bounded canonical-ID capability proof. */
+enum class NavidromeCanonicalIdProbeResult {
+    Confirmed,
+    Unsupported,
+    NoCandidates,
+    Inconclusive,
 }
 
-internal fun navidromeCanonicalIdProbeRequired(serverVersion: String?): Boolean =
-    serverVersion?.contains("SNAPSHOT", ignoreCase = true) == true
+internal data class NavidromeCanonicalIdResolution(
+    val resolvedId: String? = null,
+    val definitelyMissing: Boolean = false,
+)
 
-internal suspend fun navidromeCanonicalIdsConfirmed(
+internal suspend fun probeNavidromeCanonicalIds(
     ownedIds: List<String>,
-    resolveCanonicalId: suspend (String) -> String?,
-): Boolean {
-    ownedIds.asSequence()
+    resolveCanonicalId: suspend (String) -> NavidromeCanonicalIdResolution,
+): NavidromeCanonicalIdProbeResult {
+    val candidates = ownedIds.asSequence()
         .map { oldId -> oldId to NavidromeCanonicalId.migrate(oldId) }
         .filter { (oldId, canonicalId) -> oldId != canonicalId }
         .take(5)
-        .forEach { (_, canonicalId) ->
-            if (resolveCanonicalId(canonicalId) == canonicalId) return true
+        .toList()
+    if (candidates.isEmpty()) return NavidromeCanonicalIdProbeResult.NoCandidates
+    candidates.forEach { (_, canonicalId) ->
+        val resolution = resolveCanonicalId(canonicalId)
+        when {
+            resolution.resolvedId == canonicalId -> return NavidromeCanonicalIdProbeResult.Confirmed
+            !resolution.definitelyMissing -> return NavidromeCanonicalIdProbeResult.Inconclusive
         }
-    return false
+    }
+    return NavidromeCanonicalIdProbeResult.Unsupported
 }

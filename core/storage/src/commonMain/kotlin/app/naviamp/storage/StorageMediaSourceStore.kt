@@ -5,6 +5,7 @@ import app.naviamp.domain.cache.ProviderMediaSourceConnection
 import app.naviamp.domain.cache.ProviderMediaSourceRepository
 import app.naviamp.domain.cache.ProviderIdentityMigrationRepository
 import app.naviamp.domain.cache.ProviderIdentityMigrationResult
+import app.naviamp.domain.cache.ProviderIdentityProbeState
 import app.naviamp.domain.source.ConnectionHeaderDefinition
 import app.naviamp.domain.source.ConnectionSecondaryUrl
 import app.naviamp.domain.source.ConnectionTlsSettings
@@ -76,6 +77,21 @@ class StorageMediaSourceStore(
 
     override fun providerIdentityVersion(sourceId: String): Long? =
         queries.selectProviderIdentityVersion(sourceId).executeAsOneOrNull()
+
+    override fun providerIdentityProbeState(sourceId: String): ProviderIdentityProbeState? =
+        queries.selectProviderIdentityProbeState(sourceId).executeAsOneOrNull()?.let { row ->
+            val targetVersion = row.provider_identity_probe_target_version ?: return@let null
+            val serverVersion = row.provider_identity_probe_server_version ?: return@let null
+            ProviderIdentityProbeState(targetVersion, serverVersion)
+        }
+
+    override fun recordProviderIdentityProbeState(sourceId: String, state: ProviderIdentityProbeState) {
+        queries.recordProviderIdentityProbeState(
+            state.targetIdentityVersion,
+            state.serverVersion,
+            sourceId,
+        )
+    }
 
     override fun upsertProviderMediaSource(
         connection: ProviderMediaSourceConnection,

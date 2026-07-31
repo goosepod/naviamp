@@ -1208,9 +1208,15 @@ class NavidromeProvider(
         return response.subsonicResponse()["song"]?.jsonObject?.toTrack()
     }
 
-    internal suspend fun confirmsCanonicalIds(ownedIds: List<String>): Boolean =
-        navidromeCanonicalIdsConfirmed(ownedIds) { canonicalId ->
-            runCatching { song(TrackId(canonicalId)) }.getOrNull()?.id?.value
+    internal suspend fun probeCanonicalIds(ownedIds: List<String>): NavidromeCanonicalIdProbeResult =
+        probeNavidromeCanonicalIds(ownedIds) { canonicalId ->
+            try {
+                NavidromeCanonicalIdResolution(resolvedId = song(TrackId(canonicalId))?.id?.value)
+            } catch (failure: NavidromeException) {
+                NavidromeCanonicalIdResolution(definitelyMissing = failure.subsonicErrorCode == 70)
+            } catch (_: Throwable) {
+                NavidromeCanonicalIdResolution()
+            }
         }
 
     private suspend fun openSubsonicExtensionVersions(): Map<String, List<Int>> =
@@ -1299,7 +1305,7 @@ class NavidromeProvider(
         if (status == "failed") {
             val error = response["error"]?.jsonObject
             val message = error?.stringValue("message") ?: "Navidrome request failed."
-            throw NavidromeException(message)
+            throw NavidromeException(message, error?.intValue("code"))
         }
 
         return root
@@ -1861,7 +1867,10 @@ internal fun String?.sanitizedNavidromeErrorMessage(): String? {
     return if (message.length <= 240 && !containsSensitiveStructure) message else "Request failed."
 }
 
-open class NavidromeException(message: String) : RuntimeException(message)
+open class NavidromeException(
+    message: String,
+    val subsonicErrorCode: Int? = null,
+) : RuntimeException(message)
 
 class NavidromeHttpException(val statusCode: Int) :
     NavidromeException("Navidrome returned HTTP $statusCode.")

@@ -34,6 +34,7 @@ import app.naviamp.domain.cache.PlaybackSessionRepositoryPerformance
 import app.naviamp.domain.cache.PlaybackHistoryRepository
 import app.naviamp.domain.cache.ProviderIdentityMigrationRepository
 import app.naviamp.domain.cache.ProviderIdentityMigrationResult
+import app.naviamp.domain.cache.ProviderIdentityProbeState
 import app.naviamp.domain.cache.ProviderMediaSourceConnection
 import app.naviamp.domain.cache.ProviderMediaSourceRepository
 import app.naviamp.domain.cache.ProviderResponseCacheService
@@ -217,6 +218,13 @@ class AndroidStorage(
 
     override fun providerIdentitySamples(sourceId: String, limit: Long): List<String> =
         mediaSources.providerIdentitySamples(sourceId, limit)
+
+    override fun providerIdentityProbeState(sourceId: String): ProviderIdentityProbeState? =
+        mediaSources.providerIdentityProbeState(sourceId)
+
+    override fun recordProviderIdentityProbeState(sourceId: String, state: ProviderIdentityProbeState) {
+        mediaSources.recordProviderIdentityProbeState(sourceId, state)
+    }
 
     override fun migrateProviderIdentities(
         sourceId: String,

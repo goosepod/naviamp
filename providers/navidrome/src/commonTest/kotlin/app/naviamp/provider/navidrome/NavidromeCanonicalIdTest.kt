@@ -2,8 +2,6 @@ package app.naviamp.provider.navidrome
 
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertFalse
-import kotlin.test.assertTrue
 
 class NavidromeCanonicalIdTest {
     @Test
@@ -43,23 +41,27 @@ class NavidromeCanonicalIdTest {
     }
 
     @Test
-    fun snapshotProbeRequiresAConvertedOwnedIdThatTheServerResolves() = kotlinx.coroutines.test.runTest {
+    fun behavioralProbeRequiresAConvertedOwnedIdThatTheServerResolves() = kotlinx.coroutines.test.runTest {
         val oldId = "bdlbRXwqlTrUYWaYnATlLf"
         val canonicalId = "0aZ8vPOn4jcLgReUJu3nBG"
 
-        assertTrue(navidromeCanonicalIdsConfirmed(listOf(oldId)) { requested -> requested.takeIf { it == canonicalId } })
-        assertFalse(navidromeCanonicalIdsConfirmed(listOf(oldId)) { null })
-        assertFalse(navidromeCanonicalIdsConfirmed(listOf(canonicalId)) { requested -> requested })
-    }
-
-    @Test
-    fun activatesOnlyForTheAffectedReleaseLine() {
-        assertFalse(navidromeUsesCanonicalIds(null))
-        assertFalse(navidromeUsesCanonicalIds("0.63.2 (abc123)"))
-        assertFalse(navidromeUsesCanonicalIds("0.63.2-SNAPSHOT (develop/d61a6703)"))
-        assertTrue(navidromeUsesCanonicalIds("0.63.2-SNAPSHOT (pr-5824/d61a6703)"))
-        assertTrue(navidromeUsesCanonicalIds("0.64.0"))
-        assertTrue(navidromeUsesCanonicalIds("v0.64.1-SNAPSHOT"))
-        assertTrue(navidromeUsesCanonicalIds("1.0.0"))
+        assertEquals(
+            NavidromeCanonicalIdProbeResult.Confirmed,
+            probeNavidromeCanonicalIds(listOf(oldId)) { requested ->
+                NavidromeCanonicalIdResolution(resolvedId = requested.takeIf { it == canonicalId })
+            },
+        )
+        assertEquals(
+            NavidromeCanonicalIdProbeResult.Unsupported,
+            probeNavidromeCanonicalIds(listOf(oldId)) { NavidromeCanonicalIdResolution(definitelyMissing = true) },
+        )
+        assertEquals(
+            NavidromeCanonicalIdProbeResult.Inconclusive,
+            probeNavidromeCanonicalIds(listOf(oldId)) { NavidromeCanonicalIdResolution() },
+        )
+        assertEquals(
+            NavidromeCanonicalIdProbeResult.NoCandidates,
+            probeNavidromeCanonicalIds(listOf(canonicalId)) { NavidromeCanonicalIdResolution(resolvedId = it) },
+        )
     }
 }

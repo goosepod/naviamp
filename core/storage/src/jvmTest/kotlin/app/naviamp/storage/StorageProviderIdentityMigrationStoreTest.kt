@@ -6,6 +6,7 @@ import app.naviamp.domain.ArtistId
 import app.naviamp.domain.Track
 import app.naviamp.domain.TrackId
 import app.naviamp.domain.cache.ProviderMediaSourceConnection
+import app.naviamp.domain.cache.ProviderIdentityProbeState
 import app.naviamp.domain.settings.PlaybackSessionSettings
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -80,7 +81,10 @@ class StorageProviderIdentityMigrationStoreTest {
             queries.upsertResponse("key", "navidrome", "track", oldTrack, "{}", 1L, 1L)
             queries.upsertImage("https://example.test/art/$oldCover", byteArrayOf(1), 1L, 1L, 1L)
 
-            assertEquals(listOf(oldTrack), catalog.mediaSources.providerIdentitySamples(source.id))
+            assertTrue(catalog.mediaSources.providerIdentitySamples(source.id).contains(oldTrack))
+            val probeState = ProviderIdentityProbeState(1L, "0.63.2 (old-build)")
+            catalog.mediaSources.recordProviderIdentityProbeState(source.id, probeState)
+            assertEquals(probeState, catalog.mediaSources.providerIdentityProbeState(source.id))
 
             val result = catalog.mediaSources.migrateProviderIdentities(source.id, "navidrome", 1L, transform)
 
@@ -103,6 +107,7 @@ class StorageProviderIdentityMigrationStoreTest {
             assertEquals(0L, queries.responseCacheCount().executeAsOne())
             assertEquals(0L, queries.imageCacheCount().executeAsOne())
             assertNull(catalog.mediaSources.mediaSource(source.id)?.lastLibraryScanSignature)
+            assertNull(catalog.mediaSources.providerIdentityProbeState(source.id))
 
             assertFalse(catalog.mediaSources.migrateProviderIdentities(source.id, "navidrome", 1L, transform).migrated)
         } finally {

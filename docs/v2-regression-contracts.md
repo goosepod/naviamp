@@ -67,7 +67,9 @@ Required invariants:
 - Reproducible library/provider-response/artwork caches are invalidated instead of partially rewriting opaque provider payloads.
 - Identifier migration never receives a native file-deletion capability and cannot remove cached or downloaded bytes.
 - Rejected Navidrome native JWTs are cleared and persisted without clearing the independent Subsonic connection; only native smart-playlist work requests password reauthentication.
-- Snapshot builds activate canonical-ID migration only when the server resolves an exact canonical ID derived from a locally owned legacy ID; an unrelated 0.63 snapshot cannot bypass the release gate merely by reporting `SNAPSHOT`.
+- Canonical-ID migration never trusts a release number: it activates only when the server resolves an exact canonical ID derived from a locally owned legacy ID.
+- A definitive negative or no-candidate check is persisted for the target provider identity schema version and exact reported server build; unchanged builds skip repeated probes, changed builds recheck, and authentication/network failures are never cached as negative results.
+- Completing identity schema version 1 permanently disables checks for that transition. A future externally visible provider-ID change must define and complete a separate version 2 migration; unrelated Navidrome database changes do not advance this marker.
 - A restored saved session performs the same outstanding provider-identity check as an explicit connection; relaunching must not strand pre-upgrade ownership rows at the old identity version.
 - Navidrome artwork keys whose entity portion changed are relinked with the same canonical transform, and an already-redownloaded canonical collision collapses to one ownership row without granting migration native file-deletion authority.
 - Switching sources is a Core transaction: old live playback and its persisted session are discarded, stale Home/media registries and radio recents are cleared, and only the newly selected source's saved session may repopulate the mini player.

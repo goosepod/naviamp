@@ -279,6 +279,12 @@ interface ProviderIdentityMigrationRepository {
     /** Returns owned remote IDs that a provider may use to verify a format transition. */
     fun providerIdentitySamples(sourceId: String, limit: Long = 200L): List<String> = emptyList()
 
+    /** Returns the last definitive compatibility check that did not require migration. */
+    fun providerIdentityProbeState(sourceId: String): ProviderIdentityProbeState?
+
+    /** Records a definitive check for an unchanged or old-format server build. */
+    fun recordProviderIdentityProbeState(sourceId: String, state: ProviderIdentityProbeState)
+
     fun migrateProviderIdentities(
         sourceId: String,
         providerId: String,
@@ -287,6 +293,11 @@ interface ProviderIdentityMigrationRepository {
     ): ProviderIdentityMigrationResult
 
 }
+
+data class ProviderIdentityProbeState(
+    val targetIdentityVersion: Long,
+    val serverVersion: String,
+)
 
 data class ProviderIdentityMigrationResult(
     val migrated: Boolean,

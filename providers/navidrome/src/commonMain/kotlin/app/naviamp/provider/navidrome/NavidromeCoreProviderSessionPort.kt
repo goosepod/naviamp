@@ -5,6 +5,7 @@ import app.naviamp.domain.cache.CacheMaintenanceRepository
 import app.naviamp.domain.cache.MediaSourceRepository
 import app.naviamp.domain.cache.ProviderMediaSourceRepository
 import app.naviamp.domain.cache.ProviderIdentityMigrationRepository
+import app.naviamp.domain.cache.ProviderIdentityProbeState
 import app.naviamp.domain.provider.ConnectionValidation
 import app.naviamp.domain.provider.MediaProvider
 import app.naviamp.domain.settings.ConnectionFormHeader
@@ -49,6 +50,8 @@ class NavidromeCoreProviderSessionPort(
         NavidromeProvider(connection).musicFolders()
     },
     private val validateProvider: suspend (NavidromeProvider) -> ConnectionValidation = { it.validateConnection() },
+    private val probeCanonicalIds: suspend (NavidromeProvider, List<String>) -> NavidromeCanonicalIdProbeResult =
+        { provider, ownedIds -> provider.probeCanonicalIds(ownedIds) },
 ) : NaviampCoreProviderSessionPort {
     private var provider: NavidromeProvider? = initialSource?.toNavidromeConnection()?.let { connection ->
         applyTlsDefaults(connection)
@@ -165,18 +168,33 @@ class NavidromeCoreProviderSessionPort(
         val migrations = mediaSources as? ProviderIdentityMigrationRepository ?: return
         if ((migrations.providerIdentityVersion(sourceId) ?: 0L) >= NavidromeCanonicalIdentityVersion) return
         val serverVersion = knownServerVersion ?: validateProvider(activeProvider).serverVersion
-        val usesCanonicalIds = navidromeUsesCanonicalIds(serverVersion) ||
-            (
-                navidromeCanonicalIdProbeRequired(serverVersion) &&
-                    activeProvider.confirmsCanonicalIds(migrations.providerIdentitySamples(sourceId))
+        val normalizedServerVersion = serverVersion?.trim().orEmpty()
+        val previousProbe = migrations.providerIdentityProbeState(sourceId)
+        if (
+            normalizedServerVersion.isNotEmpty() &&
+            previousProbe?.targetIdentityVersion == NavidromeCanonicalIdentityVersion &&
+            previousProbe.serverVersion == normalizedServerVersion
+        ) return
+        when (probeCanonicalIds(activeProvider, migrations.providerIdentitySamples(sourceId))) {
+            NavidromeCanonicalIdProbeResult.Confirmed -> migrations.migrateProviderIdentities(
+                sourceId = sourceId,
+                providerId = activeProvider.id.value,
+                targetVersion = NavidromeCanonicalIdentityVersion,
+                transform = NavidromeCanonicalId::migrate,
+            )
+            NavidromeCanonicalIdProbeResult.Unsupported,
+            NavidromeCanonicalIdProbeResult.NoCandidates,
+            -> if (normalizedServerVersion.isNotEmpty()) {
+                migrations.recordProviderIdentityProbeState(
+                    sourceId,
+                    ProviderIdentityProbeState(
+                        targetIdentityVersion = NavidromeCanonicalIdentityVersion,
+                        serverVersion = normalizedServerVersion,
+                    ),
                 )
-        if (!usesCanonicalIds) return
-        migrations.migrateProviderIdentities(
-            sourceId = sourceId,
-            providerId = activeProvider.id.value,
-            targetVersion = NavidromeCanonicalIdentityVersion,
-            transform = NavidromeCanonicalId::migrate,
-        )
+            }
+            NavidromeCanonicalIdProbeResult.Inconclusive -> Unit
+        }
     }
 
     private fun inventory(): NaviampCoreConnectionInventory {

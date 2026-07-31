@@ -6,6 +6,7 @@ import app.naviamp.domain.cache.ProviderMediaSourceConnection
 import app.naviamp.domain.cache.ProviderMediaSourceRepository
 import app.naviamp.domain.cache.ProviderIdentityMigrationRepository
 import app.naviamp.domain.cache.ProviderIdentityMigrationResult
+import app.naviamp.domain.cache.ProviderIdentityProbeState
 import app.naviamp.domain.provider.ConnectionValidation
 import app.naviamp.domain.settings.ConnectionFormState
 import app.naviamp.domain.source.MediaSourceIdentity
@@ -133,13 +134,14 @@ class NavidromeCoreProviderSessionPortTest {
     }
 
     @Test
-    fun affectedServerActivatesTheProviderDeclaredIdentityMigration() = runTest {
+    fun behavioralProofActivatesMigrationWithoutAReleaseNumberGate() = runTest {
         val repository = TestMediaSourceRepository(savedSource())
         val port = NavidromeCoreProviderSessionPort(
             mediaSources = repository,
             sessionOpener = NavidromeProviderSessionOpener { request, _ ->
-                session(request.savedConnectionForLogin ?: error("saved credentials missing"), "0.64.0")
+                session(request.savedConnectionForLogin ?: error("saved credentials missing"), "custom-build")
             },
+            probeCanonicalIds = { _, _ -> NavidromeCanonicalIdProbeResult.Confirmed },
         )
 
         port.connect(
@@ -162,12 +164,57 @@ class NavidromeCoreProviderSessionPortTest {
             mediaSources = repository,
             sessionOpener = NavidromeProviderSessionOpener { _, _ -> error("not used") },
             initialSource = source,
-            validateProvider = { ConnectionValidation(serverVersion = "0.64.0", apiVersion = "1.16.1") },
+            validateProvider = { ConnectionValidation(serverVersion = "custom-build", apiVersion = "1.16.1") },
+            probeCanonicalIds = { _, _ -> NavidromeCanonicalIdProbeResult.Confirmed },
         )
 
         assertFalse(port.refreshActiveSession())
 
         assertEquals(1L, repository.migratedIdentityVersion)
+    }
+
+    @Test
+    fun definitiveNegativeProbeIsSkippedUntilTheReportedServerBuildChanges() = runTest {
+        val repository = TestMediaSourceRepository(savedSource())
+        var serverVersion = "0.63.2 (old-build)"
+        var probeCalls = 0
+        val port = NavidromeCoreProviderSessionPort(
+            mediaSources = repository,
+            sessionOpener = NavidromeProviderSessionOpener { request, _ ->
+                session(request.savedConnectionForLogin ?: error("saved credentials missing"), serverVersion)
+            },
+            probeCanonicalIds = { _, _ ->
+                probeCalls += 1
+                NavidromeCanonicalIdProbeResult.Unsupported
+            },
+        )
+
+        port.connect(NaviampCoreConnectionRequest.Saved("source-1"), NaviampConnectionAttemptPlan(true, false, false, false))
+        port.connect(NaviampCoreConnectionRequest.Saved("source-1"), NaviampConnectionAttemptPlan(true, false, false, false))
+        assertEquals(1, probeCalls)
+        assertEquals(ProviderIdentityProbeState(1L, serverVersion), repository.probeState)
+
+        serverVersion = "0.63.3 (new-build)"
+        port.connect(NaviampCoreConnectionRequest.Saved("source-1"), NaviampConnectionAttemptPlan(true, false, false, false))
+        assertEquals(2, probeCalls)
+        assertEquals(ProviderIdentityProbeState(1L, serverVersion), repository.probeState)
+    }
+
+    @Test
+    fun inconclusiveProbeIsNotCheckpointedAsACompatibilityResult() = runTest {
+        val repository = TestMediaSourceRepository(savedSource())
+        val port = NavidromeCoreProviderSessionPort(
+            mediaSources = repository,
+            sessionOpener = NavidromeProviderSessionOpener { request, _ ->
+                session(request.savedConnectionForLogin ?: error("saved credentials missing"), "unreachable-build")
+            },
+            probeCanonicalIds = { _, _ -> NavidromeCanonicalIdProbeResult.Inconclusive },
+        )
+
+        port.connect(NaviampCoreConnectionRequest.Saved("source-1"), NaviampConnectionAttemptPlan(true, false, false, false))
+
+        assertNull(repository.probeState)
+        assertNull(repository.migratedIdentityVersion)
     }
 }
 
@@ -211,6 +258,7 @@ private class TestMediaSourceRepository(source: SavedMediaSource) :
     var lastPersisted: ProviderMediaSourceConnection? = null
     var migratedIdentityVersion: Long? = null
     var identityTransform: ((String) -> String)? = null
+    var probeState: ProviderIdentityProbeState? = null
 
     override fun latestMediaSource(): SavedMediaSource? = sources.values.lastOrNull()
     override fun mediaSources(): List<SavedMediaSource> = sources.values.toList()
@@ -220,6 +268,15 @@ private class TestMediaSourceRepository(source: SavedMediaSource) :
     }
 
     override fun providerIdentityVersion(sourceId: String): Long = migratedIdentityVersion ?: 0L
+
+    override fun providerIdentitySamples(sourceId: String, limit: Long): List<String> =
+        listOf("zzzzzzzzzzzzzzzzzzzzzz")
+
+    override fun providerIdentityProbeState(sourceId: String): ProviderIdentityProbeState? = probeState
+
+    override fun recordProviderIdentityProbeState(sourceId: String, state: ProviderIdentityProbeState) {
+        probeState = state
+    }
 
     override fun upsertProviderMediaSource(
         connection: ProviderMediaSourceConnection,
@@ -237,6 +294,7 @@ private class TestMediaSourceRepository(source: SavedMediaSource) :
         transform: (String) -> String,
     ): ProviderIdentityMigrationResult {
         migratedIdentityVersion = targetVersion
+        probeState = null
         identityTransform = transform
         return ProviderIdentityMigrationResult(migrated = true)
     }
