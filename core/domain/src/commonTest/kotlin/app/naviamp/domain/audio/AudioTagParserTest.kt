@@ -67,6 +67,35 @@ class AudioTagParserTest {
     }
 
     @Test
+    fun readsAndOrdersOpusVorbisCommentsAcrossOggPages() {
+        val tags = audioTagsFromAudioBytes(
+            oggOpusTags(
+                listOf(
+                    "MUSICBRAINZ_TRACKID=15c45351-8ca8-42d7-b55f-d625d58cbcb",
+                    "R128_TRACK_GAIN=-870",
+                    "ALBUM=The Best of Big Band: Classic Swing Dance Songs of the 1940s and 1950s",
+                    "ARTIST=The New Orleans Jazz Band",
+                    "ALBUMARTIST=Various Artists",
+                    "TITLE=Alexander's Ragtime Band",
+                ),
+                firstPagePacketBytes = 255,
+            ),
+        )
+
+        assertEquals(
+            listOf(
+                AudioTag("Title", "Alexander's Ragtime Band"),
+                AudioTag("Artist", "The New Orleans Jazz Band"),
+                AudioTag("Album Artist", "Various Artists"),
+                AudioTag("Album", "The Best of Big Band: Classic Swing Dance Songs of the 1940s and 1950s"),
+                AudioTag("MusicBrainz Track ID", "15c45351-8ca8-42d7-b55f-d625d58cbcb"),
+                AudioTag("R128 Track Gain", "-870"),
+            ),
+            tags,
+        )
+    }
+
+    @Test
     fun extractsReplayGainFromTags() {
         val replayGain = replayGainFromAudioTags(
             listOf(
@@ -107,6 +136,45 @@ private fun flacVorbisCommentBlock(comments: List<String>): ByteArray {
         byteArrayOf((0x80 or 4).toByte()) +
         payload.size.int24BeBytes() +
         payload
+}
+
+private fun oggOpusTags(comments: List<String>, firstPagePacketBytes: Int): ByteArray {
+    val vendor = "opusenc from opus-tools".encodeToByteArray()
+    val commentBytes = comments.map { it.encodeToByteArray() }
+    val packet = "OpusTags".asciiBytes() +
+        vendor.size.intLeBytes() +
+        vendor +
+        commentBytes.size.intLeBytes() +
+        commentBytes.fold(byteArrayOf()) { bytes, comment ->
+            bytes + comment.size.intLeBytes() + comment
+        }
+    val split = firstPagePacketBytes.coerceAtMost(packet.size)
+    return oggPage("OpusHead".asciiBytes() + ByteArray(11), continued = false, sequence = 0, packetContinues = false) +
+        oggPage(packet.copyOfRange(0, split), continued = false, sequence = 1, packetContinues = split < packet.size) +
+        if (split < packet.size) {
+            oggPage(packet.copyOfRange(split, packet.size), continued = true, sequence = 2, packetContinues = false)
+        } else {
+            byteArrayOf()
+        }
+}
+
+private fun oggPage(data: ByteArray, continued: Boolean, sequence: Int, packetContinues: Boolean): ByteArray {
+    val lacing = mutableListOf<Int>()
+    var remaining = data.size
+    while (remaining >= 255) {
+        lacing += 255
+        remaining -= 255
+    }
+    if (!packetContinues) lacing += remaining
+    val header = "OggS".asciiBytes() +
+        byteArrayOf(0, if (continued) 1 else 0) +
+        ByteArray(8) +
+        1.intLeBytes() +
+        sequence.intLeBytes() +
+        ByteArray(4) +
+        byteArrayOf(lacing.size.toByte()) +
+        lacing.map { it.toByte() }.toByteArray()
+    return header + data
 }
 
 private fun String.asciiBytes(): ByteArray =

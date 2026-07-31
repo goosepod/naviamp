@@ -12,6 +12,7 @@ fun audioTagsFromAudioBytes(bytes: ByteArray): List<AudioTag> =
     when {
         bytes.startsWith("ID3") -> readId3v2Tags(bytes)
         bytes.startsWith("fLaC") -> readFlacVorbisComments(bytes)
+        bytes.startsWith("OggS") -> readOggVorbisComments(bytes)
         else -> emptyList()
     }
 
@@ -234,21 +235,99 @@ private fun readFlacVorbisComments(bytes: ByteArray): List<AudioTag> {
     return emptyList()
 }
 
+private fun readOggVorbisComments(bytes: ByteArray): List<AudioTag> {
+    if (!bytes.startsWith("OggS")) return emptyList()
+    val pendingPackets = mutableMapOf<Int, OggPacketBuffer>()
+    var pageOffset = 0
+
+    while (pageOffset + OggPageHeaderBytes <= bytes.size) {
+        if (!bytes.startsWith("OggS", pageOffset) || bytes[pageOffset + 4].toInt() != 0) return emptyList()
+
+        val headerType = bytes[pageOffset + 5].toInt() and 0xFF
+        val streamSerial = bytes.intLe(pageOffset + 14)
+        val segmentCount = bytes[pageOffset + 26].toInt() and 0xFF
+        val segmentTableOffset = pageOffset + OggPageHeaderBytes
+        val pageDataOffset = segmentTableOffset + segmentCount
+        if (pageDataOffset > bytes.size) return emptyList()
+
+        var pageDataSize = 0
+        repeat(segmentCount) { index ->
+            pageDataSize += bytes[segmentTableOffset + index].toInt() and 0xFF
+        }
+        if (pageDataSize > MaxTagBytes || pageDataOffset + pageDataSize > bytes.size) return emptyList()
+
+        val packet = pendingPackets.getOrPut(streamSerial) { OggPacketBuffer() }
+        if ((headerType and OggContinuedPacketFlag) == 0) packet.clear()
+
+        var dataOffset = pageDataOffset
+        repeat(segmentCount) { index ->
+            val segmentSize = bytes[segmentTableOffset + index].toInt() and 0xFF
+            if (!packet.append(bytes, dataOffset, segmentSize)) return emptyList()
+            dataOffset += segmentSize
+
+            if (segmentSize < OggMaximumSegmentBytes) {
+                parseOggCommentPacket(packet.toByteArray())?.let { return it.normalizedAndOrdered() }
+                packet.clear()
+            }
+        }
+        pageOffset = pageDataOffset + pageDataSize
+    }
+    return emptyList()
+}
+
+private fun parseOggCommentPacket(packet: ByteArray): List<AudioTag>? =
+    when {
+        packet.startsWith("OpusTags") ->
+            parseVorbisComments(packet.copyOfRange(OpusTagsHeaderBytes, packet.size))
+        packet.size >= VorbisCommentHeaderBytes &&
+            (packet[0].toInt() and 0xFF) == VorbisCommentPacketType &&
+            packet.startsWith("vorbis", 1) ->
+            parseVorbisComments(packet.copyOfRange(VorbisCommentHeaderBytes, packet.size))
+        else -> null
+    }
+
+private class OggPacketBuffer {
+    private var bytes = ByteArray(256)
+    private var size = 0
+
+    fun append(source: ByteArray, offset: Int, length: Int): Boolean {
+        if (length < 0 || offset < 0 || offset + length > source.size || size + length > MaxTagBytes) return false
+        if (size + length > bytes.size) {
+            var newSize = bytes.size
+            while (newSize < size + length) newSize = (newSize * 2).coerceAtMost(MaxTagBytes)
+            if (newSize < size + length) return false
+            bytes = bytes.copyOf(newSize)
+        }
+        source.copyInto(bytes, destinationOffset = size, startIndex = offset, endIndex = offset + length)
+        size += length
+        return true
+    }
+
+    fun clear() {
+        size = 0
+    }
+
+    fun toByteArray(): ByteArray = bytes.copyOf(size)
+}
+
 private fun parseVorbisComments(bytes: ByteArray): List<AudioTag> {
     var offset = 0
     if (bytes.size < 8) return emptyList()
     val vendorLength = bytes.intLe(offset)
-    offset += 4 + vendorLength.coerceAtLeast(0)
+    if (vendorLength < 0 || vendorLength > MaxTagBytes || vendorLength > bytes.size - 8) return emptyList()
+    offset += 4 + vendorLength
     if (offset + 4 > bytes.size) return emptyList()
-    val commentCount = bytes.intLe(offset).coerceAtLeast(0)
+    val commentCount = bytes.intLe(offset)
     offset += 4
+    if (commentCount < 0 || commentCount > (bytes.size - offset) / 4) return emptyList()
 
     val tags = mutableListOf<AudioTag>()
     repeat(commentCount) {
-        if (offset + 4 > bytes.size) return@repeat
+        if (offset + 4 > bytes.size) return emptyList()
         val length = bytes.intLe(offset)
         offset += 4
-        if (length <= 0 || offset + length > bytes.size) return@repeat
+        if (length < 0 || length > bytes.size - offset) return emptyList()
+        if (length == 0) return@repeat
         val comment = bytes.copyOfRange(offset, offset + length).decodeToString()
         offset += length
         val separator = comment.indexOf('=')
@@ -304,7 +383,10 @@ private fun String.replayGainNumber(): Double? =
     ReplayGainNumberRegex.find(this)?.value?.toDoubleOrNull()
 
 private fun ByteArray.startsWith(prefix: String): Boolean =
-    size >= prefix.length && ascii(0, prefix.length) == prefix
+    startsWith(prefix, 0)
+
+private fun ByteArray.startsWith(prefix: String, offset: Int): Boolean =
+    offset >= 0 && size - offset >= prefix.length && ascii(offset, prefix.length) == prefix
 
 private fun ByteArray.ascii(offset: Int, length: Int): String =
     buildString(length) {
@@ -408,7 +490,15 @@ private val CommonTagNames = mapOf(
     "publisher" to "Publisher",
     "copyright" to "Copyright",
     "catalognumber" to "Catalog Number",
+    "acoustidid" to "AcoustID ID",
+    "musicbrainzalbumartistid" to "MusicBrainz Album Artist ID",
+    "musicbrainzalbumid" to "MusicBrainz Album ID",
     "musicbrainzreleasegroupid" to "MusicBrainz Release Group ID",
+    "musicbrainzartistid" to "MusicBrainz Artist ID",
+    "musicbrainzreleasetrackid" to "MusicBrainz Release Track ID",
+    "musicbrainztrackid" to "MusicBrainz Track ID",
+    "r128albumgain" to "R128 Album Gain",
+    "r128trackgain" to "R128 Track Gain",
     "albumsort" to "Album Sort",
     "albumartistsort" to "Album Artist Sort",
     "artistsort" to "Artist Sort",
@@ -441,5 +531,11 @@ private val CommonTagOrder = listOf(
 private const val Id3HeaderBytes = 10
 private const val Id3FrameHeaderBytes = 10
 private const val FlacVorbisCommentBlock = 4
+private const val OggPageHeaderBytes = 27
+private const val OggContinuedPacketFlag = 0x01
+private const val OggMaximumSegmentBytes = 255
+private const val OpusTagsHeaderBytes = 8
+private const val VorbisCommentPacketType = 3
+private const val VorbisCommentHeaderBytes = 7
 private const val MaxTagBytes = 2 * 1024 * 1024
 private val ReplayGainNumberRegex = Regex("""[-+]?\d+(?:\.\d+)?""")

@@ -10,6 +10,7 @@ import app.naviamp.ios.platform.IosCoreExternalUriPort
 import app.naviamp.ios.platform.IosHomeDateSource
 import app.naviamp.ios.playback.IosNativePlaybackIntegration
 import app.naviamp.ios.playback.IosBassAudioBackend
+import app.naviamp.ios.playback.IosAudioTagReader
 import app.naviamp.ios.playback.createIosBassPlaybackEngine
 import app.naviamp.ios.playback.iosPlaybackLocalFilePath
 import app.naviamp.ios.settings.IosCoreSettingsValueStore
@@ -31,7 +32,6 @@ import app.naviamp.presentation.NaviampCoreDownloadedTrack
 import app.naviamp.presentation.NaviampCoreDownloadStorageSnapshot
 import app.naviamp.presentation.repositoryNaviampCoreDownloadServices
 import app.naviamp.presentation.withStorageBackedSettings
-import app.naviamp.domain.audio.AudioTagReader
 import app.naviamp.domain.cache.AudioByteStoreService
 import app.naviamp.domain.cache.CachedLyricsSidecarRepository
 import app.naviamp.domain.cache.LyricsSidecarCacheService
@@ -143,7 +143,7 @@ class NaviampIosApplication(
             verifyNetworkCertificates = verifyProviderNetworkCertificates,
             localFilePath = ::iosPlaybackLocalFilePath,
         ),
-        audioTagReader = AudioTagReader { emptyList() },
+        audioTagReader = IosAudioTagReader(),
         lyricsRepository = CachedLyricsSidecarRepository(
             cache = LyricsSidecarCacheService(repositories.lyricsSidecars, ::naviampNowEpochMillis),
             onlineProvider = LrclibLyricsProvider(KtorSharedHttpClient()),
