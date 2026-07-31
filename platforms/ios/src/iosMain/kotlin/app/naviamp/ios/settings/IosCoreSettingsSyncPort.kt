@@ -6,6 +6,7 @@ import app.naviamp.domain.settings.SettingsSyncDocument
 import app.naviamp.domain.settings.SettingsSyncFileName
 import app.naviamp.domain.settings.SettingsSyncJson
 import app.naviamp.presentation.NaviampCoreSettingsSyncConfiguration
+import app.naviamp.presentation.NaviampCoreSettingsSyncConfigurationStore
 import app.naviamp.presentation.NaviampCoreSettingsSyncPort
 import app.naviamp.presentation.NaviampCoreSettingsValueStore
 import kotlinx.cinterop.addressOf
@@ -41,18 +42,14 @@ class IosCoreSettingsSyncPort(
     private val settingsStore: NaviampCoreSettingsValueStore,
     private val presenter: () -> UIViewController?,
 ) : NaviampCoreSettingsSyncPort {
+    private val configurationStore = NaviampCoreSettingsSyncConfigurationStore(settingsStore)
     private var activePickerDelegate: IosDocumentPickerDelegate? = null
 
     override fun configuration(): NaviampCoreSettingsSyncConfiguration =
-        NaviampCoreSettingsSyncConfiguration(
-            directoryPath = settingsStore.read(KeyDirectoryReference),
-            autoExportEnabled = settingsStore.read(KeyAutoExportEnabled)?.toBooleanStrictOrNull() ?: false,
-        ).normalized()
+        configurationStore.load()
 
     override fun saveConfiguration(configuration: NaviampCoreSettingsSyncConfiguration) {
-        val normalized = configuration.normalized()
-        settingsStore.write(KeyDirectoryReference, normalized.directoryPath.orEmpty())
-        settingsStore.write(KeyAutoExportEnabled, normalized.autoExportEnabled.toString())
+        configurationStore.save(configuration)
     }
 
     override suspend fun readDocument(directoryPath: String): SettingsSyncDocument? =
@@ -224,8 +221,6 @@ private fun writeUtf8Atomically(url: NSURL, text: String) {
     }
 }
 
-private const val KeyDirectoryReference = "settingsSyncDirectoryReference"
-private const val KeyAutoExportEnabled = "settingsSyncAutoExportEnabled"
 private const val BookmarkPrefix = "ios-bookmark:"
 private const val FolderContentType = "public.folder"
 private const val JsonContentType = "public.json"

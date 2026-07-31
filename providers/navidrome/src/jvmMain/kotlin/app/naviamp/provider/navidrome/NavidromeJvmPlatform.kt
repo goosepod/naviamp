@@ -44,8 +44,6 @@ actual fun createDefaultNavidromeKtorClient(tlsSettings: NavidromeTlsSettings): 
     }
 }
 
-internal actual fun navidromeCurrentTimeMillis(): Long = System.currentTimeMillis()
-
 actual fun navidromeTlsCapabilities(): NavidromeTlsCapabilities =
     NavidromeTlsCapabilities(
         insecureSkipVerification = true,

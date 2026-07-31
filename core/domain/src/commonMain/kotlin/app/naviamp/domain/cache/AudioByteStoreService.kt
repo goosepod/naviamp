@@ -120,4 +120,4 @@ fun String?.audioExtension(): String =
         else -> ".audio"
     }
 
-expect fun sha256(bytes: ByteArray): ByteArray
+fun sha256(bytes: ByteArray): ByteArray = NaviampSha256.digest(bytes)

@@ -38,6 +38,21 @@ class NaviampCoreSettingsSyncConfigurationStoreTest {
         assertTrue(migrated.autoExportEnabled)
         assertFalse(missing.autoExportEnabled)
     }
+
+    @Test
+    fun readsTheSupersededIosValues() {
+        val configuration = NaviampCoreSettingsSyncConfigurationStore(
+            SyncConfigurationMemoryValues(
+                mutableMapOf(
+                    "settingsSyncDirectoryReference" to "ios-bookmark:retained",
+                    "settingsSyncAutoExportEnabled" to "true",
+                ),
+            ),
+        ).load()
+
+        assertEquals("ios-bookmark:retained", configuration.directoryPath)
+        assertTrue(configuration.autoExportEnabled)
+    }
 }
 
 private class SyncConfigurationMemoryValues(

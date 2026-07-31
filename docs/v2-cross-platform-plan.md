@@ -9,7 +9,7 @@ Ideas discovered during the migration that should not interrupt the active check
 - **Target release:** `2.0.0`
 - **Current development version:** `v2.0.0-alpha` (build 35), shown in About on every host so migration builds are unmistakable during testing.
 - **Working branch:** `feature/v2-cross-platform-app`
-- **Status:** Desktop, Android, and the iOS simulator host all mount the same Core product, BASS engine, and portable storage owners. The final Android and Desktop file-by-file boundary audits are accepted; the iOS audit, large-library/accessibility and target-OS packaging checks, release automation, and the original icon redesign remain.
+- **Status:** Desktop, Android, and iOS mount the same Core product, BASS engine, and portable storage owners. The final file-by-file boundary audit is accepted on all three hosts; large-library/accessibility and target-OS packaging checks, release automation, and the original icon redesign remain.
 - **Release policy:** Feature development for the v1 line is frozen. Only bug fixes should be released from v1 while this work is underway.
 - **Versioning rule:** Keep migration builds on an explicit `v2.0.0-alpha` prerelease label. Do not change `VERSION` to the final `v2.0.0` until the release-preparation milestone.
 - **Primary objective:** One shared Naviamp application, UI, and behavior hosted by thin Android, Desktop, and iOS applications.
@@ -34,9 +34,9 @@ this current list. Check an item only in the same commit that records its verifi
 
 - [x] Audit every surviving Android production file and record its concrete Android API, native ABI, or service-lifecycle constraint. The 2026-07-31 audit reviewed all 40 Kotlin production files plus manifests/resources, extracted duplicated stream metadata, generated-artwork, cache-protection, media-control, and timeout policy into Core, deleted obsolete adapters, and passed focused shared tests plus Android/Desktop compilation.
 - [x] Audit every surviving Desktop production file and record its concrete JVM/OS API, native ABI, window, or packaging constraint. The 2026-07-31 audit reviewed all 41 Desktop/JVM Kotlin production files plus packaged native/icon resources, replaced Desktop's parallel product-service graph with the shared catalogs, reduced settings to an opaque filesystem effect, extracted diagnostics/connectivity/tag-read policy, deleted the unused hot-image cache, and passed focused shared tests plus Desktop adapter/host compilation.
-- [ ] Audit every surviving iOS production file and record its concrete Apple API, native ABI, or application/audio-session lifecycle constraint.
-- [ ] Extract any duplicated scheduling, policy, state, caching, retry, validation, or user-visible behavior found by the audit.
-- [ ] Reconcile the Core-first audit, platform baseline, and historical Milestone 4 checkboxes with the resulting source tree.
+- [x] Audit every surviving iOS production file and record its concrete Apple API, native ABI, or application/audio-session lifecycle constraint. The 2026-07-31 audit reviewed all 20 Kotlin/Swift production files plus Apple project/resource/native metadata, extracted portable hash/encoding/clock and settings-sync ownership, and compiled both iOS architectures.
+- [x] Extract any duplicated scheduling, policy, state, caching, retry, validation, or user-visible behavior found by the audit. SHA-256, URL encoding, wall clocks, sleep-timer time, provider time, settings-sync configuration normalization/serialization, and legacy iOS settings migration now live in common code with focused tests.
+- [x] Reconcile the Core-first audit, platform baseline, and historical Milestone 4 checkboxes with the resulting source tree.
 
 ### Android physical-device acceptance
 
@@ -473,7 +473,7 @@ This milestone was deliberately temporary. On 2026-07-24, the project chose to p
 
 ### Milestone 8: Cross-Platform Product Parity
 
-- [ ] Complete the platform capability matrix and resolve all unexplained differences. The 2026-07-31 audit corrected Android's missing declarations for background playback, system media controls, downloads/offline playback, update checks, and Android Auto, and corrected iOS's missing background-playback/system-media-control declarations. Android and iOS deliberately omit software volume. Android and Desktop now consume the same Core-owned SQL/audio repositories as iOS; the remaining work is the final file-by-file host audit rather than a known storage ownership exception.
+- [x] Complete the platform capability matrix and resolve all unexplained differences. The 2026-07-31 audit corrected Android's missing declarations for background playback, system media controls, downloads/offline playback, update checks, and Android Auto, and corrected iOS's missing background-playback/system-media-control declarations. Android and iOS deliberately omit software volume. All hosts consume the same Core-owned SQL/audio repositories, and the final file-by-file audit records every remaining native difference.
 - [ ] Verify login, endpoint failover, custom headers, secure secrets, and reconnect behavior.
 - [ ] Verify library paging with very large collections.
 - [x] Verify search, albums, artists, multi-artist navigation, playlists, favorites, radio, and smart playlists. On 2026-07-28, the named iOS simulator matrix passed. The pass exposed one shared similar-artist resolution gap: artist detail consulted only the local SQL index while mix builders had a separate provider-search fallback, so an incomplete index labeled the locally available Gorgon City as browser-only. Core now owns exact normalized-name matching plus provider-search fallback in `SimilarArtistsService`; the rebuilt simulator correctly labels and opens Gorgon City from CamelPhat's similar artists.

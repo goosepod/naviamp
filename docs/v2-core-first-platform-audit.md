@@ -38,7 +38,7 @@ The production-host file review produced these accountability groups:
 - `platforms/desktop` files are limited to JVM/native BASS and GPU loading, AWT/window/Dock/taskbar/dialog/update integration, OS credential stores, JDBC-driver creation, connectivity, and JVM path/byte effects.
 - `apps/ios/NaviampIosApplication` is mechanical process composition over Apple-selected directories and services. `platforms/ios` files directly wrap UIApplication/MediaPlayer/AVAudioSession, BASS cinterop, UIKit document selection, calendar/time, native tag reads, and Foundation/POSIX byte operations.
 
-The storage debt found by this re-audit is resolved. Android and Desktop now mount `StorageCoreRepositoryCatalog` and `StorageAudioStore`, matching iOS ownership of SQL mapping, media-source identity migration, playback sessions/history, library indexing, cache limits and eviction, download replacement, missing-file repair, sidecars, waveforms, lyrics, pending actions, presets, and maintenance. Android retains SQLite-driver selection, Keystore, mutable app directories, `File` existence, atomic byte writes, exact verified deletion, and its I/O dispatcher. Desktop retains JDBC-driver selection, OS credential protection, `Path` existence, atomic byte writes, exact verified deletion, database-size lookup, and its work dispatcher. Eleven Android repository/audio implementations and four Desktop storage/audio implementations were deleted. `verifyCoreFirstArchitecture` now rejects their return and rejects generated SQL query/row mapping imports in host production code. The final file-by-file platform audit remains the blocking ownership gate.
+The storage debt found by this re-audit is resolved. Android and Desktop now mount `StorageCoreRepositoryCatalog` and `StorageAudioStore`, matching iOS ownership of SQL mapping, media-source identity migration, playback sessions/history, library indexing, cache limits and eviction, download replacement, missing-file repair, sidecars, waveforms, lyrics, pending actions, presets, and maintenance. Android retains SQLite-driver selection, Keystore, mutable app directories, `File` existence, atomic byte writes, exact verified deletion, and its I/O dispatcher. Desktop retains JDBC-driver selection, OS credential protection, `Path` existence, atomic byte writes, exact verified deletion, database-size lookup, and its work dispatcher. Eleven Android repository/audio implementations and four Desktop storage/audio implementations were deleted. `verifyCoreFirstArchitecture` now rejects their return and rejects generated SQL query/row mapping imports in host production code. The final file-by-file platform audit is complete.
 
 ### 2026-07-31 Android file-by-file exit audit
 
@@ -57,11 +57,6 @@ mechanical composition files may select implementations but do not own product b
 | `apps/android/.../AndroidNaviampPlaybackRuntime.kt` | Process-local handoff to an Android foreground service plus `startForegroundService`/`stopService` lifecycle effects. | Core owns the retention decision; Android executes it. |
 | `apps/android/.../AndroidNaviampPlaybackService.kt` | `MediaBrowserServiceCompat`, `MediaSessionCompat`, notification channel/actions, trusted-controller checks, Android Auto paging, and foreground-service rules. | Native translation only after relative seek and shuffle/repeat selection moved to the Core bridge. |
 | `apps/android/.../MainActivity.kt` | `ComponentActivity`, system bars/insets, Android intent/deep-link decoding, notification runtime permission, and Compose window mounting. | Thin Activity host. |
-| `core/domain/.../AudioByteStoreService.android.kt` | Java `MessageDigest` implementation of the common SHA-256 primitive. | Irreducible actual. |
-| `core/domain/.../SharedHttpPlatform.android.kt` | Android/JVM wall-clock implementation. | Irreducible actual. |
-| `core/domain/.../SharedUrlEncoding.android.kt` | Java `URLEncoder` implementation. | Irreducible actual. |
-| `core/domain/.../PopularTime.android.kt` | Android/JVM wall-clock implementation. | Irreducible actual. |
-| `core/ui/.../NaviampSleepTimerEffects.android.kt` | Android/JVM wall-clock implementation used by shared sleep-timer presentation. | Irreducible actual. |
 | `core/ui/.../NaviampTooltip.android.kt` | Touch-platform Compose behavior intentionally omits desktop hover tooltips. | Focused input-mode actual. |
 | `core/ui/.../PlatformCoverArt.android.kt` | Android `BitmapFactory`, `Canvas`, app cache files, bitmap recycling, and native-image decoding. | Rendering effect only; generated-radio tile parsing and geometry now live in common UI. |
 | `core/ui/.../PlatformLiveVisualizerSurface.android.kt` | Android `RuntimeShader`, GLES/`GLSurfaceView`, `BitmapShader`, Android native canvas/text masks, API-level selection, and explicit GPU/bitmap release. | Focused renderer integration; renderer selection and shader/render policy remain common. |
@@ -130,13 +125,8 @@ constraint recorded below.
 | `apps/desktop/.../DesktopNaviampCoreHost.kt` | Mounts Compose Desktop and supplies the native updater, output-device inventory, and separate-window diagnostics presenter. | Thin host boundary. |
 | `apps/desktop/.../DesktopStatsForNerdsWindow.kt` | Compose Desktop `Window` lifetime, title-bar appearance, icon, and close callback. | Shared diagnostics content remains Core-owned. |
 | `apps/desktop/.../Main.kt` | Compose application/window lifecycle, AWT minimum size, native screen coordinates, title-bar setup, and window-geometry persistence. | Thin process/window host. |
-| `core/domain/.../AudioByteStoreService.jvm.kt` | Java `MessageDigest` SHA-256 implementation. | Irreducible actual. |
-| `core/domain/.../SharedHttpPlatform.jvm.kt` | JVM wall-clock implementation. | Irreducible actual. |
-| `core/domain/.../SharedUrlEncoding.jvm.kt` | Java `URLEncoder` implementation. | Irreducible actual. |
-| `core/domain/.../PopularTime.jvm.kt` | JVM wall-clock implementation. | Irreducible actual. |
 | `core/ui/.../NativeMetalVisualizerHost.jvm.kt` | JNI Metal renderer handles, Skia bitmap readback, packaged dylib discovery, and explicit native resource release. | Native renderer only; shader/render policy is common. |
 | `core/ui/.../NativeOpenGlVisualizerHost.jvm.kt` | JNI OpenGL handles, Skia bitmap readback, OS/architecture library discovery, and explicit native resource release. | Native renderer only; shader/render policy is common. |
-| `core/ui/.../NaviampSleepTimerEffects.jvm.kt` | JVM wall-clock implementation. | Irreducible actual. |
 | `core/ui/.../NaviampTooltip.jvm.kt` | Desktop pointer enter/exit events and Compose Desktop popup positioning. | Focused hover-input renderer. |
 | `core/ui/.../PlatformCoverArt.jvm.kt` | JVM image decoding, Skia native images/shaders, authenticated byte loader, and explicit image disposal. | Native image effect; generated-art parsing/geometry remains common. |
 | `core/ui/.../PlatformLiveVisualizerSurface.jvm.kt` | Compose Desktop canvas, AWT/Skia text masks, JNI GPU surfaces, OS renderer availability, and native diagnostic properties. | Native rendering/selection adapter over common visualizer specifications. |
@@ -186,6 +176,53 @@ Portable behavior extracted by this audit:
 
 Focused Core presentation/app tests and Desktop adapter/host compilation pass. No parallel Desktop
 product service graph, settings schema, diagnostics policy, or unexplained product controller remains.
+
+### 2026-07-31 iOS file-by-file exit audit
+
+This pass reviewed all 20 surviving iOS Kotlin/Swift production files, `Info.plist`, the Xcode project
+and asset catalog, the BASS cinterop definition, and the packaged XCFramework metadata. Pure hashing,
+URL encoding, wall-clock reads, and settings-sync configuration ownership were extracted before the
+survivors were accepted.
+
+| Production file | Concrete Apple/native constraint | Audit result |
+| --- | --- | --- |
+| `apps/ios/iosApp/IosApplicationDirectories.swift` | Foundation Application Support discovery, directory creation, and iCloud-backup exclusion. | Thin directory effect. |
+| `apps/ios/iosApp/IosKeychainCredentialProtector.swift` | Security.framework Keychain queries and Apple accessibility classes. | Narrow credential-protection adapter. |
+| `apps/ios/iosApp/NaviampApp.swift` | SwiftUI application and scene lifecycle. | Thin app entry. |
+| `apps/ios/iosApp/NaviampRootView.swift` | `UIViewControllerRepresentable` lifetime and release of the process-owned Kotlin application. | Thin SwiftUI/UIKit bridge. |
+| `apps/ios/.../NaviampIosApplication.kt` | Owns native SQL driver, BASS, Apple media integration, UIKit presenter, and process coroutine lifetimes while selecting Apple storage paths. | Mechanical Core composition only. |
+| `core/storage/.../IosStorageDriverFactory.kt` | SQLDelight native SQLite driver, SQLiter base path, WAL, and native connection configuration. | Narrow driver factory. |
+| `core/ui/.../IosMetalVisualizerRenderer.kt` | Metal device, pipeline, texture, command-buffer, cinterop, and native-resource lifetime. | Native renderer over Core shaders/frame policy. |
+| `core/ui/.../NaviampTooltip.ios.kt` | Touch-first iOS input presentation intentionally has no hover surface. | Focused input-mode actual. |
+| `core/ui/.../PlatformCoverArt.ios.kt` | Skia native image decode/pixel extraction and authenticated host byte-loader lifetime. | Native image effect; cache/palette policy remains common. |
+| `core/ui/.../PlatformLiveVisualizerSurface.ios.kt` | Compose iOS Skia canvas, Metal availability, native images/text masks, and GPU-resource disposal. | Native rendering adapter over common visualizer specifications. |
+| `platforms/ios/.../IosCapabilityPresentation.kt` | Immutable facts describing the Apple services and TLS features mounted by this host. | Mechanical capability facts only. |
+| `platforms/ios/.../IosCoreExternalUriPort.kt` | `UIApplication` and `NSURL` external navigation. | Thin effect. |
+| `platforms/ios/.../IosHomeDateSource.kt` | Foundation local calendar/year/day-of-year extraction. | Narrow local-calendar fact. |
+| `platforms/ios/.../IosAudioTagReader.kt` | POSIX local-file reads. | Parsing and probe bounds remain common. |
+| `platforms/ios/.../IosBassPlayback.kt` | Direct BASS/BASSmix/BASS_FX cinterop, `AVAudioSession`, native callbacks, plugin loading, and runtime synchronization. | Native ABI/audio-session adapter to the shared engine. |
+| `platforms/ios/.../IosNativePlaybackIntegration.kt` | `AVAudioSession` notifications, `MPRemoteCommandCenter`, `MPNowPlayingInfoCenter`, and `MPMediaItemArtwork`. | Apple event/state translation through the Core playback bridge. |
+| `platforms/ios/.../IosCoreSettingsSyncPort.kt` | UIKit document picker, security-scoped bookmarks, POSIX file bytes/fsync/atomic rename, and presenter lifetime. | Configuration serialization/normalization and legacy-key migration now live in Core. |
+| `platforms/ios/.../IosCoreSettingsValueStore.kt` | `NSUserDefaults` opaque string reads/writes. | Raw value effect only. |
+| `platforms/ios/.../IosAudioStorage.kt` | Foundation/POSIX atomic byte writes, relocated app-container path repair, file facts, exact deletion, and file-URL conversion. | Native file effects around shared storage ownership. |
+| `providers/navidrome/.../NavidromeIosPlatform.kt` | Ktor Darwin engine and Security/Foundation server-trust challenge handling. | Provider protocol/timeouts/clock remain common; Apple TLS execution only. |
+
+`Info.plist` contains bundle, orientation, network, and background-audio declarations. The Xcode
+project, AppIcon catalog, BASS cinterop definition, and vendored XCFramework metadata are Apple build,
+asset, signing, or native-ABI inputs rather than product-policy owners.
+
+Portable behavior extracted by this audit:
+
+- SHA-256, form URL encoding, shared/provider clocks, and the sleep-timer clock now compile once in
+  common Kotlin; fifteen Android/JVM/iOS actual files and three provider clock declarations were removed.
+- iOS settings sync now consumes `NaviampCoreSettingsSyncConfigurationStore`; Core preserves the
+  released iOS bookmark/auto-export keys while owning normalization and the new portable schema.
+- the iOS audio-tag adapter consumes Core's shared probe bound and parser.
+
+Focused common tests cover standard SHA-256 vectors, URL encoding, settings normalization, and both
+Desktop and iOS legacy settings migration. Both iOS architectures and the cross-platform compilation
+gate pass. No iOS feature controller, portable scheduler, retry policy, state machine, cache policy,
+validation policy, or user-visible status owner remains.
 
 The 2026-07-21 source audit measured Kotlin production and test code as follows. Counts are a diagnostic, not a quota; native integrations can legitimately be large, but product implementations cannot remain duplicated in them.
 
@@ -371,10 +408,10 @@ Milestone 4 is not complete until all of the following are true:
 - [x] Android and Desktop mount the same complete shared application entry.
 - [x] A fake host mounts and navigates the complete app with only common state plus fake platform ports.
 - [x] Normal Naviamp features, UI, menus, commands, and behavior require no host-specific product wiring.
-- [ ] Every remaining platform difference in this matrix names a concrete OS/API constraint and a narrow common contract.
+- [x] Every remaining platform difference in this matrix names a concrete OS/API constraint and a narrow common contract.
 - [x] Required action contracts contain no silent no-op defaults or competing callback paths.
 - [x] Common tests prove the complete product graph, major feature behavior, navigation, restoration, and capability presentation. The [V2 Core Test Audit](v2-core-test-audit.md) records the controller, mapping, lifecycle, restoration, capability, and exhaustive action evidence; reusable real-host adapter application remains a separate host-conversion gate.
 - [x] Superseded Android and Desktop product factories/controllers/state/UI have been deleted, not merely renamed or split.
-- [ ] Surviving host files are thin adapters or focused native integrations and follow the shared-role naming convention.
+- [x] Surviving host files are thin adapters or focused native integrations and follow the shared-role naming convention.
 - [x] The initial iOS host browses the complete product without album, artist, playlist, radio, download, settings, or Now Playing product controllers.
-- [ ] After feature work is otherwise complete, perform a fresh file-by-file audit of every Android, Desktop, and iOS production source. Record the concrete OS API, native ABI, or host lifecycle constraint that justifies every surviving platform file; extract duplicated scheduling, policy, state, caching, retry, validation, and user-visible behavior into Core. This audit is a blocking completion gate even when all functional and performance acceptance tests pass.
+- [x] After feature work is otherwise complete, perform a fresh file-by-file audit of every Android, Desktop, and iOS production source. Record the concrete OS API, native ABI, or host lifecycle constraint that justifies every surviving platform file; extract duplicated scheduling, policy, state, caching, retry, validation, and user-visible behavior into Core. The 2026-07-31 Android, Desktop, and iOS exit audits complete this blocking ownership gate.

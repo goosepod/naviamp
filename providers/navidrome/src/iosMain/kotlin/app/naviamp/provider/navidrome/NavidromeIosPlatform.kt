@@ -15,7 +15,6 @@ import platform.Security.errSecSuccess
 import platform.Security.SecTrustCopyCertificateChain
 import platform.Security.SecTrustEvaluateWithError
 import platform.Security.SecTrustSetAnchorCertificates
-import kotlin.time.Clock
 
 actual fun createDefaultNavidromeHttpClient(tlsSettings: NavidromeTlsSettings): NavidromeHttpClient =
     KtorNavidromeHttpClient(createDefaultNavidromeKtorClient(tlsSettings))
@@ -61,9 +60,6 @@ actual fun createDefaultNavidromeKtorClient(tlsSettings: NavidromeTlsSettings): 
         }
     }
 }
-
-internal actual fun navidromeCurrentTimeMillis(): Long =
-    Clock.System.now().toEpochMilliseconds()
 
 actual fun navidromeTlsCapabilities(): NavidromeTlsCapabilities =
     NavidromeTlsCapabilities(

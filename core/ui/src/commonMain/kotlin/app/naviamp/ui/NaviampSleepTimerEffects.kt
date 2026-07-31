@@ -27,4 +27,6 @@ fun NaviampSleepTimerExpiryEffect(
     }
 }
 
-internal expect fun currentTimeMillis(): Long
+@OptIn(kotlin.time.ExperimentalTime::class)
+internal fun currentTimeMillis(): Long =
+    kotlin.time.Clock.System.now().toEpochMilliseconds()

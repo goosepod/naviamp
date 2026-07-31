@@ -1,8 +1,8 @@
 package app.naviamp.domain.cache
 
-actual fun sha256(bytes: ByteArray): ByteArray = Sha256.digest(bytes)
-
-private object Sha256 {
+/** Portable SHA-256 used for stable audio cache file names on every host. */
+@OptIn(ExperimentalUnsignedTypes::class)
+internal object NaviampSha256 {
     private val roundConstants = uintArrayOf(
         0x428a2f98u, 0x71374491u, 0xb5c0fbcfu, 0xe9b5dba5u, 0x3956c25bu, 0x59f111f1u, 0x923f82a4u, 0xab1c5ed5u,
         0xd807aa98u, 0x12835b01u, 0x243185beu, 0x550c7dc3u, 0x72be5d74u, 0x80deb1feu, 0x9bdc06a7u, 0xc19bf174u,
@@ -24,7 +24,7 @@ private object Sha256 {
         var h5 = 0x9b05688cu
         var h6 = 0x1f83d9abu
         var h7 = 0x5be0cd19u
-        val words = UIntArray(64)
+        val words = UIntArray(Sha256RoundCount)
 
         for (chunkStart in padded.indices step Sha256BlockSize) {
             for (index in 0 until Sha256InitialWordCount) {

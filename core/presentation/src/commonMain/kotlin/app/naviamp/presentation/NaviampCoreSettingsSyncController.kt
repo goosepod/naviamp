@@ -38,7 +38,11 @@ class NaviampCoreSettingsSyncConfigurationStore(
 ) {
     fun load(): NaviampCoreSettingsSyncConfiguration {
         val directory = values.read(KeySettingsSyncDirectory)
-        val autoExport = values.read(KeySettingsSyncAutoExport)?.toBooleanStrictOrNull()
+            ?: values.read(LegacyIosSettingsSyncDirectoryKey)
+        val autoExport = (
+            values.read(KeySettingsSyncAutoExport)
+                ?: values.read(LegacyIosSettingsSyncAutoExportKey)
+            )?.toBooleanStrictOrNull()
         if (directory != null || autoExport != null) {
             return NaviampCoreSettingsSyncConfiguration(directory, autoExport ?: false).normalized()
         }
@@ -60,6 +64,8 @@ class NaviampCoreSettingsSyncConfigurationStore(
 private const val KeySettingsSyncDirectory = "naviamp.sync.directory"
 private const val KeySettingsSyncAutoExport = "naviamp.sync.autoExport"
 private const val LegacySettingsSyncConfigurationKey = "settingsSyncConfiguration"
+private const val LegacyIosSettingsSyncDirectoryKey = "settingsSyncDirectoryReference"
+private const val LegacyIosSettingsSyncAutoExportKey = "settingsSyncAutoExportEnabled"
 
 /** Native settings-document effects. Core owns all workflow, status, and presentation decisions. */
 interface NaviampCoreSettingsSyncPort {

@@ -17,7 +17,9 @@ expect fun createDefaultNavidromeHttpClient(tlsSettings: NavidromeTlsSettings): 
 
 expect fun createDefaultNavidromeKtorClient(tlsSettings: NavidromeTlsSettings): HttpClient
 
-internal expect fun navidromeCurrentTimeMillis(): Long
+@OptIn(kotlin.time.ExperimentalTime::class)
+internal fun navidromeCurrentTimeMillis(): Long =
+    kotlin.time.Clock.System.now().toEpochMilliseconds()
 
 data class NavidromeTlsCapabilities(
     val insecureSkipVerification: Boolean,

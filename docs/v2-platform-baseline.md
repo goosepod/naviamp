@@ -4,7 +4,7 @@ This document records the Android and Desktop baseline before application orches
 
 The Desktop implementation recorded below is historical and was replaced by the promoted thin Core host on 2026-07-23. Commands and artifact paths remain current.
 
-Current target/composition status was reviewed on 2026-07-31; the dated baseline commit below remains the intentional pre-migration comparison point. The final Android and Desktop file-by-file boundary audits are accepted; iOS remains.
+Current target/composition status was reviewed on 2026-07-31; the dated baseline commit below remains the intentional pre-migration comparison point. The final Android, Desktop, and iOS file-by-file boundary audits are accepted.
 
 - **Snapshot date:** 2026-07-16
 - **Source branch:** `feature/v2-cross-platform-app`
@@ -45,7 +45,7 @@ This proves the shared JVM/Android compilation, checked-in unit tests, Desktop t
 | Module | Current targets | v2 implication |
 | --- | --- | --- |
 | `core:app` | Android, JVM, iOS device, iOS simulator | Shared runtime/controllers own lifecycle/session bootstrap, connectivity, navigation, queue and playback coordination, provider actions, settings, downloads, cache work, capabilities, and user-facing status. All three thin hosts consume this ownership. |
-| `core:domain` | Android, JVM, iOS device, iOS simulator | Apple targets, Darwin shared HTTP, native time/encoding/hash actuals, and simulator tests were added in Milestone 1. |
+| `core:domain` | Android, JVM, iOS device, iOS simulator | Domain behavior is shared across all targets. SHA-256, URL encoding, and wall-clock reads are portable common Kotlin; hosts no longer carry redundant actuals for them. |
 | `core:presentation` | Android, JVM, iOS device, iOS simulator | The common composition boundary depends on both `core:app` and `core:ui`; it is the home for the complete product state/action binding rather than rebuilding that graph in each host. |
 | `core:storage` | Android, JVM, iOS device, iOS simulator | Shared SQLDelight repositories own media, library, maintenance, downloads, audio-cache metadata/limits/eviction, sidecars, waveforms, lyrics offsets, sessions, and provider-action rows. Hosts select drivers and provide only native bytes/filesystem effects. |
 | `core:ui` | Android, JVM, iOS device, iOS simulator | Apple targets use the same shared cover-art UI, loading/cache policy, palette/Aurora behavior, lyrics, waveform presentation, settings, navigation, and visualizer definitions. Core owns each Canvas/SkSL visualizer plus the authoritative native GLSL catalog, GLSL-to-MSL translation, renderer selection, uniforms, smoothing, and render-quality policy. macOS and iOS execute the same generated Metal shaders through narrow native command/texture adapters; iOS retains Core's distinct compiled SkSL translations only as a Metal failure fallback. Targets provide only encoded-image loading, native decoding/pixel extraction, and the unavoidable GPU drawing boundary. Authenticated iOS artwork and Aurora rendering pass on the simulator. |
@@ -104,7 +104,7 @@ The Swift wrapper owns UIApplication/SwiftUI lifetime and constructs `NaviampIos
 
 ## Platform-Layer Architecture Status
 
-The product graph, UI, and portable persistence behavior are common. Android, Desktop, and iOS mount `StorageCoreRepositoryCatalog` and `StorageAudioStore`; the Android/Desktop duplicate SQLDelight repositories and audio-policy stores identified by the 2026-07-31 re-audit have been deleted. Driver construction, native paths, file-existence facts, atomic byte writes, exact verified deletion, credential protection, database-size lookup, and OS dispatchers remain platform effects. The architecture guard rejects generated SQL mapping and the deleted portable store roles in host production code. The fresh Android and Desktop file-by-file audits are accepted with every surviving source tied to a concrete OS/JVM/native boundary; iOS remains in the [Core-first exit gate](v2-core-first-platform-audit.md#core-completion-exit-gate).
+The product graph, UI, and portable persistence behavior are common. Android, Desktop, and iOS mount `StorageCoreRepositoryCatalog` and `StorageAudioStore`; the Android/Desktop duplicate SQLDelight repositories and audio-policy stores identified by the 2026-07-31 re-audit have been deleted. Driver construction, native paths, file-existence facts, atomic byte writes, exact verified deletion, credential protection, database-size lookup, and OS dispatchers remain platform effects. The architecture guard rejects generated SQL mapping and the deleted portable store roles in host production code. The fresh Android, Desktop, and iOS file-by-file audits are accepted with every surviving source tied to a concrete OS/JVM/Apple/native boundary in the [Core-first exit gate](v2-core-first-platform-audit.md#core-completion-exit-gate).
 
 ## Platform Capability Model
 
