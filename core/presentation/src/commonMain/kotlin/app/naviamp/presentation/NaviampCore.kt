@@ -357,6 +357,12 @@ class NaviampCore private constructor(
                 stateStore,
                 services.connection,
                 initialState.connectionInventory,
+                onSourceChanging = { previousSourceId, newSourceId ->
+                    playback.resetForSourceChange(previousSourceId, newSourceId)
+                    generatedRadioRecents.clear()
+                    radio.resetForSourceChange()
+                    home.resetForSourceChange()
+                },
                 onConnected = { sourceId ->
                     scope.launch { providerSessionLifecycle.refreshNow() }
                     services.content.providerSource.current()?.capabilities?.let { providerCapabilities ->

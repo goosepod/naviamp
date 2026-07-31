@@ -36,6 +36,7 @@ class NaviampCoreConnectionController(
     private val stateStore: NaviampCoreStateStore,
     private val sessionPort: NaviampCoreProviderSessionPort,
     initialInventory: NaviampCoreConnectionInventory = NaviampCoreConnectionInventory(),
+    private val onSourceChanging: (previousSourceId: String?, newSourceId: String) -> Unit = { _, _ -> },
     private val onConnected: (String) -> Unit = {},
 ) : NaviampCoreCommandController {
     private var inventory = initialInventory
@@ -132,9 +133,13 @@ class NaviampCoreConnectionController(
         }
         val plan = connection.begin(restoreSavedSession = request is NaviampCoreConnectionRequest.Saved)
             ?: return
+        val previousSourceId = stateStore.state.value.shell.connectionSettings.currentSourceId
         publishConnection()
         runCatching { sessionPort.connect(request, plan) }
             .onSuccess { session ->
+                if (previousSourceId != session.sourceId || plan.clearExistingPlayback) {
+                    onSourceChanging(previousSourceId, session.sourceId)
+                }
                 inventory = session.inventory
                 editingConnectionId = null
                 connection.connected(

@@ -34,6 +34,8 @@ class NavidromeCanonicalIdTest {
     fun activatesOnlyForTheAffectedReleaseLine() {
         assertFalse(navidromeUsesCanonicalIds(null))
         assertFalse(navidromeUsesCanonicalIds("0.63.2 (abc123)"))
+        assertFalse(navidromeUsesCanonicalIds("0.63.2-SNAPSHOT (develop/d61a6703)"))
+        assertTrue(navidromeUsesCanonicalIds("0.63.2-SNAPSHOT (pr-5824/d61a6703)"))
         assertTrue(navidromeUsesCanonicalIds("0.64.0"))
         assertTrue(navidromeUsesCanonicalIds("v0.64.1-SNAPSHOT"))
         assertTrue(navidromeUsesCanonicalIds("1.0.0"))

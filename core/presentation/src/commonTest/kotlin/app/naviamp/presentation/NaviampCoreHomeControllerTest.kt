@@ -160,6 +160,30 @@ class NaviampCoreHomeControllerTest {
         assertFalse(store.state.value.shell.home.refreshing)
         assertEquals("Connect to Navidrome to load Home.", store.state.value.overlays.status)
     }
+
+    @Test
+    fun sourceSwitchImmediatelyRemovesThePreviousHomesContent() = runTest {
+        val store = NaviampCoreStateStore()
+        val registry = NaviampCoreMediaRegistry()
+        val controller = NaviampCoreHomeController(
+            stateStore = store,
+            providerSource = NaviampCoreMediaProviderSource { HomeTestProvider() },
+            navigationController = NaviampCoreNavigationController(
+                NaviampNavigationController(),
+                store,
+                NaviampCoreArtistNavigator { error("Not expected") },
+            ),
+            dateSource = NaviampCoreHomeDateSource { HomeDate(2026, 100) },
+            mediaRegistry = registry,
+        )
+        controller.execute(NaviampCoreCommand.Home.Refresh)
+        assertFalse(store.state.value.shell.home.content.isEmpty)
+
+        controller.resetForSourceChange()
+
+        assertTrue(store.state.value.shell.home.content.isEmpty)
+        assertTrue(registry.home.isEmpty)
+    }
 }
 
 private class HomeTestProvider(

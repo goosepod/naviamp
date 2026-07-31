@@ -175,6 +175,17 @@ class NaviampCoreHomeController(
 
     suspend fun refreshAfterConnection() = refresh()
 
+    fun resetForSourceChange() {
+        refreshGeneration += 1
+        mediaRegistry.updateHome(
+            app.naviamp.domain.home.HomeContent(),
+            SonicHomeDiscoveryRows(),
+        )
+        stateStore.updateShell { shell ->
+            shell.copy(home = shell.home.copy(content = app.naviamp.ui.SharedHomeUi(), refreshing = false))
+        }
+    }
+
     private fun selectMixBuilder(id: String) {
         val route = when (id) {
             "artist" -> SharedRoute.ArtistMix

@@ -67,6 +67,8 @@ Required invariants:
 - Reproducible library/provider-response/artwork caches are invalidated instead of partially rewriting opaque provider payloads.
 - Identifier migration never receives a native file-deletion capability and cannot remove cached or downloaded bytes.
 - Rejected Navidrome native JWTs are cleared and persisted without clearing the independent Subsonic connection; only native smart-playlist work requests password reauthentication.
+- The official `pr-5824` snapshot activates canonical-ID migration for acceptance testing; unrelated 0.63 snapshots do not bypass the release gate.
+- Switching sources is a Core transaction: old live playback and its persisted session are discarded, stale Home/media registries and radio recents are cleared, and only the newly selected source's saved session may repopulate the mini player.
 
 Coverage:
 

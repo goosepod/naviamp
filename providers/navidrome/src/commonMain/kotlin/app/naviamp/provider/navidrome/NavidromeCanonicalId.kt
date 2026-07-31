@@ -89,6 +89,7 @@ internal const val NavidromeCanonicalIdentityVersion = 1L
 
 /** The canonical-ID migration is scheduled for the first 0.64 release line. */
 internal fun navidromeUsesCanonicalIds(serverVersion: String?): Boolean {
+    if (serverVersion?.contains("pr-5824/") == true) return true
     val parts = serverVersion
         ?.substringBefore(' ')
         ?.substringBefore('-')

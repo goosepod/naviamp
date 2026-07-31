@@ -84,6 +84,24 @@ class NaviampCoreConnectionControllerTest {
     }
 
     @Test
+    fun successfulServerSwitchPublishesSourceTransitionBeforeTheNewSource() = kotlinx.coroutines.test.runTest {
+        val transitions = mutableListOf<String>()
+        lateinit var fixture: ConnectionFixture
+        fixture = fixture(
+            currentSourceId = "source-old",
+            onSourceChanging = { previous, next ->
+                val published = fixture.store.state.value.shell.connectionSettings.currentSourceId
+                transitions += "$previous->$next:$published"
+            },
+        )
+
+        fixture.controller.execute(NaviampCoreCommand.Connection.ConnectSaved(savedConnectionUi()))
+
+        assertEquals(listOf("source-old->source-1:source-old"), transitions)
+        assertEquals("source-1", fixture.store.state.value.shell.connectionSettings.currentSourceId)
+    }
+
+    @Test
     fun startupRestoresThePreferredSavedConnectionInCore() = kotlinx.coroutines.test.runTest {
         val fixture = fixture(currentSourceId = null)
 
@@ -197,6 +215,7 @@ class NaviampCoreConnectionControllerTest {
         connectFailure: Throwable? = null,
         musicFoldersLoadFailed: Boolean = false,
         onConnected: (String) -> Unit = {},
+        onSourceChanging: (String?, String) -> Unit = { _, _ -> },
         currentSourceId: String? = "source-1",
         hasSavedConnection: Boolean = true,
     ): ConnectionFixture {
@@ -215,6 +234,7 @@ class NaviampCoreConnectionControllerTest {
                 stateStore = store,
                 sessionPort = port,
                 initialInventory = inventory,
+                onSourceChanging = onSourceChanging,
                 onConnected = onConnected,
             ),
         )
@@ -257,6 +277,7 @@ private class FakeProviderSessionPort(
     ): NaviampCoreConnectedSession {
         connectRequests += request to plan
         connectFailure?.let { throw it }
+        inventory = inventory.copy(currentSourceId = "source-1")
         return NaviampCoreConnectedSession(
             sourceId = "source-1",
             displayName = "Home Music",

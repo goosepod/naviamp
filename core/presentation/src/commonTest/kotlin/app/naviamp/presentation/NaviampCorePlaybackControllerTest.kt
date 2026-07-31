@@ -261,6 +261,34 @@ class NaviampCorePlaybackControllerTest {
         assertEquals(null, fixture.sessionRepository.sessions["source"])
         assertTrue(fixture.store.state.value.shell.nowPlaying?.upNext.orEmpty().isEmpty())
     }
+
+    @Test
+    fun sourceSwitchDiscardsOldPlaybackAndRestoresOnlyTheNewSourcesSession() = runTest {
+        val fixture = playbackFixture(this)
+        fixture.controller.attachNativePlayback()
+        fixture.sessionRepository.sessions["source"] = PlaybackSessionSettings.fromTracks(
+            fixture.live.state.value.queue.tracks,
+            currentIndex = 1,
+        )
+
+        fixture.controller.resetForSourceChange("source", "source-two")
+
+        assertEquals(PlaybackState.Stopped, fixture.live.state.value.playbackState)
+        assertEquals(null, fixture.live.state.value.currentTrack)
+        assertTrue(fixture.live.state.value.queue.tracks.isEmpty())
+        assertEquals(null, fixture.sessionRepository.sessions["source"])
+        assertEquals(null, fixture.sessionRepository.sessions["source-two"])
+
+        val restoredTracks = listOf(playbackTrack("new-one"), playbackTrack("new-two"))
+        fixture.sessionRepository.sessions["source-two"] = PlaybackSessionSettings.fromTracks(
+            restoredTracks,
+            currentIndex = 0,
+        )
+        fixture.controller.restoreSession("source-two")
+
+        assertEquals("new-one", fixture.live.state.value.currentTrack?.id?.value)
+        assertEquals(restoredTracks, fixture.live.state.value.queue.tracks)
+    }
 }
 
 private data class PlaybackFixture(
