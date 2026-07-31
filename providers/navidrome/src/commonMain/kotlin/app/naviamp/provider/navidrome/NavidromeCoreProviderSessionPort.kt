@@ -50,8 +50,8 @@ class NavidromeCoreProviderSessionPort(
         NavidromeProvider(connection).musicFolders()
     },
     private val validateProvider: suspend (NavidromeProvider) -> ConnectionValidation = { it.validateConnection() },
-    private val probeCanonicalIds: suspend (NavidromeProvider, List<String>) -> NavidromeCanonicalIdProbeResult =
-        { provider, ownedIds -> provider.probeCanonicalIds(ownedIds) },
+    private val canonicalIdMigrationSupport: (NavidromeProvider) -> NavidromeCanonicalIdMigrationSupport =
+        { provider -> provider.canonicalIdMigrationSupport() },
 ) : NaviampCoreProviderSessionPort {
     private var provider: NavidromeProvider? = initialSource?.toNavidromeConnection()?.let { connection ->
         applyTlsDefaults(connection)
@@ -175,15 +175,14 @@ class NavidromeCoreProviderSessionPort(
             previousProbe?.targetIdentityVersion == NavidromeCanonicalIdentityVersion &&
             previousProbe.serverVersion == normalizedServerVersion
         ) return
-        when (probeCanonicalIds(activeProvider, migrations.providerIdentitySamples(sourceId))) {
-            NavidromeCanonicalIdProbeResult.Confirmed -> migrations.migrateProviderIdentities(
+        when (canonicalIdMigrationSupport(activeProvider)) {
+            NavidromeCanonicalIdMigrationSupport.Confirmed -> migrations.migrateProviderIdentities(
                 sourceId = sourceId,
                 providerId = activeProvider.id.value,
                 targetVersion = NavidromeCanonicalIdentityVersion,
                 transform = NavidromeCanonicalId::migrate,
             )
-            NavidromeCanonicalIdProbeResult.Unsupported,
-            NavidromeCanonicalIdProbeResult.NoCandidates,
+            NavidromeCanonicalIdMigrationSupport.Unsupported,
             -> if (normalizedServerVersion.isNotEmpty()) {
                 migrations.recordProviderIdentityProbeState(
                     sourceId,
@@ -193,7 +192,7 @@ class NavidromeCoreProviderSessionPort(
                     ),
                 )
             }
-            NavidromeCanonicalIdProbeResult.Inconclusive -> Unit
+            NavidromeCanonicalIdMigrationSupport.Inconclusive -> Unit
         }
     }
 

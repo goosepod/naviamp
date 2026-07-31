@@ -276,9 +276,6 @@ interface ProviderIdentityMigrationRepository {
     /** Returns the provider identity format already installed for this source. */
     fun providerIdentityVersion(sourceId: String): Long? = null
 
-    /** Returns owned remote IDs that a provider may use to verify a format transition. */
-    fun providerIdentitySamples(sourceId: String, limit: Long = 200L): List<String> = emptyList()
-
     /** Returns the last definitive compatibility check that did not require migration. */
     fun providerIdentityProbeState(sourceId: String): ProviderIdentityProbeState?
 

@@ -81,7 +81,6 @@ class StorageProviderIdentityMigrationStoreTest {
             queries.upsertResponse("key", "navidrome", "track", oldTrack, "{}", 1L, 1L)
             queries.upsertImage("https://example.test/art/$oldCover", byteArrayOf(1), 1L, 1L, 1L)
 
-            assertTrue(catalog.mediaSources.providerIdentitySamples(source.id).contains(oldTrack))
             val probeState = ProviderIdentityProbeState(1L, "0.63.2 (old-build)")
             catalog.mediaSources.recordProviderIdentityProbeState(source.id, probeState)
             assertEquals(probeState, catalog.mediaSources.providerIdentityProbeState(source.id))

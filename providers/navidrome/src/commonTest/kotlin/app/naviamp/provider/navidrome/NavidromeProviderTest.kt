@@ -242,7 +242,8 @@ class NavidromeProviderTest {
                     "status": "ok",
                     "openSubsonicExtensions": [
                       { "name": "transcodeOffset", "versions": [1] },
-                      { "name": "sonicSimilarity", "versions": [1] }
+                      { "name": "sonicSimilarity", "versions": [1] },
+                      { "name": "topSongsByArtistId", "versions": [1] }
                     ]
                   }
                 }
@@ -258,6 +259,10 @@ class NavidromeProviderTest {
         provider.validateConnection()
 
         assertTrue(provider.capabilities.supportsSonicSimilarity)
+        assertEquals(
+            NavidromeCanonicalIdMigrationSupport.Confirmed,
+            provider.canonicalIdMigrationSupport(),
+        )
         assertEquals(
             listOf(
                 "https://music.example.test/rest/ping.view?u=demo&t=token&s=salt&v=1.16.1&$ExpectedClientQuery&f=json",
@@ -299,6 +304,10 @@ class NavidromeProviderTest {
         provider.validateConnection()
 
         assertFalse(provider.capabilities.supportsSonicSimilarity)
+        assertEquals(
+            NavidromeCanonicalIdMigrationSupport.Unsupported,
+            provider.canonicalIdMigrationSupport(),
+        )
     }
 
     @Test
@@ -326,6 +335,10 @@ class NavidromeProviderTest {
         provider.validateConnection()
 
         assertFalse(provider.capabilities.supportsSonicSimilarity)
+        assertEquals(
+            NavidromeCanonicalIdMigrationSupport.Inconclusive,
+            provider.canonicalIdMigrationSupport(),
+        )
     }
 
     @Test
@@ -702,6 +715,29 @@ class NavidromeProviderTest {
         assertEquals(
             "https://music.example.test/rest/getTopSongs.view?u=demo&t=token&s=salt&v=1.16.1&$ExpectedClientQuery&f=json&artist=New+Order&count=12",
             httpClient.urls.single(),
+        )
+    }
+
+    @Test
+    fun popularTracksIncludesArtistIdWhenTheServerAdvertisesSupport() = runTest {
+        val httpClient = SequencedHttpClient(
+            listOf(
+                """{"subsonic-response":{"status":"ok","version":"1.16.1","serverVersion":"custom-build"}}""",
+                """{"subsonic-response":{"status":"ok","openSubsonicExtensions":[{"name":"topSongsByArtistId","versions":[1]}]}}""",
+                """{"subsonic-response":{"status":"ok","topSongs":{"song":[]}}}""",
+            ),
+        )
+        val provider = NavidromeProvider(
+            connection = connection("https://music.example.test"),
+            httpClient = httpClient,
+        )
+
+        provider.validateConnection()
+        provider.popularTracks(Artist(ArtistId("artist-1"), "New Order"), limit = 12)
+
+        assertEquals(
+            "https://music.example.test/rest/getTopSongs.view?u=demo&t=token&s=salt&v=1.16.1&$ExpectedClientQuery&f=json&artist=New+Order&id=artist-1&count=12",
+            httpClient.urls.last(),
         )
     }
 

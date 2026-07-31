@@ -40,28 +40,4 @@ class NavidromeCanonicalIdTest {
         )
     }
 
-    @Test
-    fun behavioralProbeRequiresAConvertedOwnedIdThatTheServerResolves() = kotlinx.coroutines.test.runTest {
-        val oldId = "bdlbRXwqlTrUYWaYnATlLf"
-        val canonicalId = "0aZ8vPOn4jcLgReUJu3nBG"
-
-        assertEquals(
-            NavidromeCanonicalIdProbeResult.Confirmed,
-            probeNavidromeCanonicalIds(listOf(oldId)) { requested ->
-                NavidromeCanonicalIdResolution(resolvedId = requested.takeIf { it == canonicalId })
-            },
-        )
-        assertEquals(
-            NavidromeCanonicalIdProbeResult.Unsupported,
-            probeNavidromeCanonicalIds(listOf(oldId)) { NavidromeCanonicalIdResolution(definitelyMissing = true) },
-        )
-        assertEquals(
-            NavidromeCanonicalIdProbeResult.Inconclusive,
-            probeNavidromeCanonicalIds(listOf(oldId)) { NavidromeCanonicalIdResolution() },
-        )
-        assertEquals(
-            NavidromeCanonicalIdProbeResult.NoCandidates,
-            probeNavidromeCanonicalIds(listOf(canonicalId)) { NavidromeCanonicalIdResolution(resolvedId = it) },
-        )
-    }
 }

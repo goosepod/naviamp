@@ -1442,67 +1442,6 @@ SELECT provider_identity_version
 FROM media_source
 WHERE id = ?;
 
-selectProviderIdentitySamples:
-SELECT remote_id FROM (
-  SELECT remote_track_id AS remote_id FROM downloaded_audio
-  WHERE source_id = :source_id ORDER BY downloaded_at_epoch_millis ASC LIMIT :limit
-)
-UNION ALL
-SELECT remote_id FROM (
-  SELECT remote_track_id AS remote_id FROM cached_audio
-  WHERE source_id = :source_id ORDER BY created_at_epoch_millis ASC LIMIT :limit
-)
-UNION ALL
-SELECT remote_id FROM (
-  SELECT remote_track_id AS remote_id FROM playback_session_queue
-  WHERE source_id = :source_id ORDER BY queue_index ASC LIMIT :limit
-)
-UNION ALL
-SELECT remote_id FROM (
-  SELECT remote_track_id AS remote_id FROM playback_history
-  WHERE source_id = :source_id ORDER BY played_at_epoch_millis ASC LIMIT :limit
-)
-UNION ALL
-SELECT remote_id FROM (
-  SELECT remote_track_id AS remote_id FROM library_track
-  WHERE source_id = :source_id ORDER BY updated_at_epoch_millis ASC LIMIT :limit
-)
-UNION ALL
-SELECT remote_id FROM (
-  SELECT remote_track_id AS remote_id FROM keep_downloaded_collection_track
-  WHERE source_id = :source_id LIMIT :limit
-)
-UNION ALL
-SELECT remote_id FROM (
-  SELECT remote_track_id AS remote_id FROM keep_downloaded_managed_track
-  WHERE source_id = :source_id LIMIT :limit
-)
-UNION ALL
-SELECT remote_id FROM (
-  SELECT remote_track_id AS remote_id FROM cached_audio_waveform
-  WHERE source_id = :source_id ORDER BY created_at_epoch_millis ASC LIMIT :limit
-)
-UNION ALL
-SELECT remote_id FROM (
-  SELECT remote_track_id AS remote_id FROM cached_lyrics
-  WHERE source_id = :source_id ORDER BY created_at_epoch_millis ASC LIMIT :limit
-)
-UNION ALL
-SELECT remote_id FROM (
-  SELECT remote_track_id AS remote_id FROM cached_lrclib_lyrics
-  WHERE source_id = :source_id ORDER BY created_at_epoch_millis ASC LIMIT :limit
-)
-UNION ALL
-SELECT remote_id FROM (
-  SELECT remote_track_id AS remote_id FROM track_lyrics_offset
-  WHERE source_id = :source_id ORDER BY updated_at_epoch_millis ASC LIMIT :limit
-)
-UNION ALL
-SELECT remote_id FROM (
-  SELECT remote_track_id AS remote_id FROM cached_sidecar_status
-  WHERE source_id = :source_id ORDER BY updated_at_epoch_millis ASC LIMIT :limit
-);
-
 selectProviderIdentityProbeState:
 SELECT provider_identity_probe_target_version, provider_identity_probe_server_version
 FROM media_source

@@ -72,9 +72,6 @@ class StorageMediaSourceStore(
         transform = transform,
     )
 
-    override fun providerIdentitySamples(sourceId: String, limit: Long): List<String> =
-        queries.selectProviderIdentitySamples(sourceId, limit).executeAsList()
-
     override fun providerIdentityVersion(sourceId: String): Long? =
         queries.selectProviderIdentityVersion(sourceId).executeAsOneOrNull()
 

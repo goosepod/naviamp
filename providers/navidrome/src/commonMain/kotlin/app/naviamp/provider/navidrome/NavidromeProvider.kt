@@ -137,6 +137,8 @@ class NavidromeProvider(
         }
     private var supportsEnhancedSongLyrics: Boolean = false
     private var supportsPlaybackReport: Boolean = false
+    private var canonicalIdMigrationSupport: NavidromeCanonicalIdMigrationSupport =
+        NavidromeCanonicalIdMigrationSupport.Inconclusive
     private var libraryArtistsCache: List<Artist>? = null
 
     private val json = Json { ignoreUnknownKeys = true }
@@ -144,7 +146,8 @@ class NavidromeProvider(
     override suspend fun validateConnection(): ConnectionValidation {
         val response = get("ping.view")
         val root = response.subsonicResponse()
-        val extensionVersions = openSubsonicExtensionVersions()
+        val extensions = openSubsonicExtensionVersions()
+        val extensionVersions = extensions.versions
         capabilities = baseCapabilities.copy(
             supportsSonicSimilarity = extensionVersions.supportsOpenSubsonicExtension(
                 name = "sonicSimilarity",
@@ -159,6 +162,14 @@ class NavidromeProvider(
             name = "songLyrics",
             minimumVersion = 2,
         )
+        canonicalIdMigrationSupport = when {
+            !extensions.loaded -> NavidromeCanonicalIdMigrationSupport.Inconclusive
+            extensionVersions.supportsOpenSubsonicExtension(
+                name = "topSongsByArtistId",
+                minimumVersion = 1,
+            ) -> NavidromeCanonicalIdMigrationSupport.Confirmed
+            else -> NavidromeCanonicalIdMigrationSupport.Unsupported
+        }
 
         return ConnectionValidation(
             serverVersion = root.stringValue("serverVersion"),
@@ -569,10 +580,13 @@ class NavidromeProvider(
     override suspend fun popularTracks(artist: Artist, limit: Int): ArtistPopularTracksResult {
         val response = get(
             endpoint = "getTopSongs.view",
-            params = mapOf(
-                "artist" to artist.name,
-                "count" to limit.coerceIn(1, 50).toString(),
-            ),
+            params = buildMap {
+                put("artist", artist.name)
+                if (canonicalIdMigrationSupport == NavidromeCanonicalIdMigrationSupport.Confirmed) {
+                    put("id", artist.id.value)
+                }
+                put("count", limit.coerceIn(1, 50).toString())
+            },
         )
         val tracks = response.subsonicResponse()["topSongs"]
             ?.jsonObject
@@ -1208,29 +1222,31 @@ class NavidromeProvider(
         return response.subsonicResponse()["song"]?.jsonObject?.toTrack()
     }
 
-    internal suspend fun probeCanonicalIds(ownedIds: List<String>): NavidromeCanonicalIdProbeResult =
-        probeNavidromeCanonicalIds(ownedIds) { canonicalId ->
-            try {
-                NavidromeCanonicalIdResolution(resolvedId = song(TrackId(canonicalId))?.id?.value)
-            } catch (failure: NavidromeException) {
-                NavidromeCanonicalIdResolution(definitelyMissing = failure.subsonicErrorCode == 70)
-            } catch (_: Throwable) {
-                NavidromeCanonicalIdResolution()
-            }
+    internal fun canonicalIdMigrationSupport(): NavidromeCanonicalIdMigrationSupport =
+        canonicalIdMigrationSupport
+
+    private suspend fun openSubsonicExtensionVersions(): OpenSubsonicExtensions =
+        try {
+            val response = get("getOpenSubsonicExtensions.view")
+            OpenSubsonicExtensions(
+                versions = response.subsonicResponse()
+                    .arrayValue("openSubsonicExtensions")
+                    .mapNotNull { extension ->
+                        val item = extension as? JsonObject ?: return@mapNotNull null
+                        val name = item.stringValue("name") ?: return@mapNotNull null
+                        name to item.extensionVersions()
+                    }
+                    .toMap(),
+                loaded = true,
+            )
+        } catch (_: Throwable) {
+            OpenSubsonicExtensions(emptyMap(), loaded = false)
         }
 
-    private suspend fun openSubsonicExtensionVersions(): Map<String, List<Int>> =
-        runCatching {
-            val response = get("getOpenSubsonicExtensions.view")
-            response.subsonicResponse()
-                .arrayValue("openSubsonicExtensions")
-                .mapNotNull { extension ->
-                    val item = extension as? JsonObject ?: return@mapNotNull null
-                    val name = item.stringValue("name") ?: return@mapNotNull null
-                    name to item.extensionVersions()
-                }
-                .toMap()
-        }.getOrDefault(emptyMap())
+    private data class OpenSubsonicExtensions(
+        val versions: Map<String, List<Int>>,
+        val loaded: Boolean,
+    )
 
     private fun Map<String, List<Int>>.supportsOpenSubsonicExtension(name: String, minimumVersion: Int): Boolean =
         this[name].orEmpty().any { version -> version >= minimumVersion }

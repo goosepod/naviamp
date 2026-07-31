@@ -100,35 +100,9 @@ object NavidromeCanonicalId {
 
 internal const val NavidromeCanonicalIdentityVersion = 1L
 
-/** Provider-common result for the bounded canonical-ID capability proof. */
-enum class NavidromeCanonicalIdProbeResult {
+/** Provider-common interpretation of Navidrome's canonical-ID rollout signal. */
+enum class NavidromeCanonicalIdMigrationSupport {
     Confirmed,
     Unsupported,
-    NoCandidates,
     Inconclusive,
-}
-
-internal data class NavidromeCanonicalIdResolution(
-    val resolvedId: String? = null,
-    val definitelyMissing: Boolean = false,
-)
-
-internal suspend fun probeNavidromeCanonicalIds(
-    ownedIds: List<String>,
-    resolveCanonicalId: suspend (String) -> NavidromeCanonicalIdResolution,
-): NavidromeCanonicalIdProbeResult {
-    val candidates = ownedIds.asSequence()
-        .map { oldId -> oldId to NavidromeCanonicalId.migrate(oldId) }
-        .filter { (oldId, canonicalId) -> oldId != canonicalId }
-        .take(5)
-        .toList()
-    if (candidates.isEmpty()) return NavidromeCanonicalIdProbeResult.NoCandidates
-    candidates.forEach { (_, canonicalId) ->
-        val resolution = resolveCanonicalId(canonicalId)
-        when {
-            resolution.resolvedId == canonicalId -> return NavidromeCanonicalIdProbeResult.Confirmed
-            !resolution.definitelyMissing -> return NavidromeCanonicalIdProbeResult.Inconclusive
-        }
-    }
-    return NavidromeCanonicalIdProbeResult.Unsupported
 }
