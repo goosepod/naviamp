@@ -84,7 +84,7 @@ These boundaries should implement narrow ports requested by common owners. They 
 
 ## Migration Order
 
-- [ ] Define required common action commands and narrow execution ports; remove silent no-op defaults from required actions and add explicit capability states for optional ones.
+- [x] Define required common action commands and narrow execution ports; remove silent no-op defaults from required actions and add explicit capability states for optional ones.
   - [x] Playlist detail uses one required sealed command, exhaustive common dispatch, required host handlers, and common stale/invalid results. Unsupported commands are unrepresentable, and its competing direct and generic callbacks were removed.
   - [x] Album detail uses one required sealed command and required track-row command handler. Its direct callbacks, redundant track-selection path, and missing Desktop create-and-add behavior were removed.
   - [x] Artist detail uses required sealed artist and discography-album commands plus a required popular-track command handler. Its overlapping callbacks and confirmed Desktop selection, favorite, playlist, and external-link omissions were removed.
@@ -93,16 +93,16 @@ These boundaries should implement narrow ports requested by common owners. They 
   - [x] Resolved media handlers declare support explicitly, Android and Desktop consume one common result-producing dispatcher, and missing, invalid, or unsupported requests can no longer disappear silently.
   - [x] Host-facing album, artist, and playlist media commands are separate sealed families consumed through exhaustive common dispatchers; the remaining legacy request exists only inside shared presentation during direct-emission migration.
   - [x] Media product capabilities are one common baseline, not host-specific declarations. The Android arbitrary-artist gap was closed with shared domain catalog loading rather than preserved as platform divergence.
-  - [ ] Apply the rule to the remaining action groups.
-- [ ] Converge shell navigation, Home, Search, Library, connection, and settings intent policy.
-- [ ] Converge media-row and smart-playlist action routing; correct every confirmed Desktop omission as part of adopting the common dispatcher. Playlist, album, and artist detail routing are complete.
-- [ ] Converge Now Playing request interpretation while keeping BASS and host presentation effects behind ports.
-- [ ] Add a common presentation-composition module or dependency arrangement that can consume both `core:app` and `core:ui` without reversing their current dependency direction.
-- [ ] Construct one host-neutral screen-state/action graph from the shared application composition. Android and Desktop provide only platform-service and execution adapters.
-- [ ] Apply the ADR cross-platform naming convention to the remaining genuine counterparts. Shared roles use a neutral or `Naviamp` name and equivalent host implementations use aligned `Android`, `Desktop`, and `Ios` prefixes; remove superseded platform product factories instead of renaming them into false symmetry.
-- [ ] Add contract-completeness and parity tests that fail when a visible action is unimplemented, plus a host-neutral navigation test covering Home, Search, Library, album, artist, playlist, Downloads, radio, and Settings.
+- [x] Apply the rule to the remaining action groups. The complete Core graph requires every product callback; only capability-backed operating-system effects remain nullable.
+- [x] Converge shell navigation, Home, Search, Library, connection, and settings intent policy in the focused common Core controllers.
+- [x] Converge media-row and smart-playlist action routing through typed Core commands and provider-common session handling; the promoted Desktop host no longer supplies the omitted lambdas identified by this audit.
+- [x] Converge Now Playing request interpretation in `NaviampCorePlaybackController`, `NaviampCoreNowPlayingPresenter`, and `NaviampCoreNowPlayingMediaController` while retaining BASS and native publication behind ports.
+- [x] Add `core:presentation`, which consumes `core:app` and `core:ui` and exposes the host-neutral Core composition without reversing their dependency direction.
+- [x] Construct one host-neutral screen-state/action graph from `NaviampCore`; Android, Desktop, and iOS provide only platform-service and execution adapters.
+- [x] Apply the ADR cross-platform naming convention to the surviving counterparts. Superseded Android/Desktop product factories were deleted during promotion rather than renamed.
+- [x] Add contract-completeness and parity tests. `NaviampCoreRequiredActionContractTest` exercises every immediate and suspending callback, and `NaviampCoreAppSmokeTest` mounts the real shared app and visits every `SharedRoute`.
 - [x] Mount the same composition from the initial iOS wrapper without iOS-specific product controllers. The simulator host renders `NaviampCoreHost` directly over shared storage/provider catalogs; its Swift and iOS Kotlin sources are limited to UIKit/SwiftUI lifecycle, Application Support, Keychain, NSUserDefaults, UIApplication, native SQLite lifetime, safe-area/IME insets, and capability facts.
 
 ## Exit Gate
 
-This audit is complete, but the ownership migration it identified is not. Milestone 4 cannot close merely because Android and Desktop render shared composables. It closes when the common composition graph can navigate the product with fake platform services, required actions cannot silently disappear, Android and Desktop pass the same action contract tests, and iOS needs only platform-service/execution adapters.
+This audit and the ownership migration it identified are complete. The common composition graph navigates the product with fake platform services, required actions cannot silently disappear, Android and Desktop mount the same Core graph, and iOS uses only platform-service/execution adapters. Remaining platform acceptance and the final file-by-file boundary audit are tracked by the authoritative Core-first audit and cross-platform plan.

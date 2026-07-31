@@ -207,13 +207,13 @@ Expected survivors include Android service/Activity/Auto/MediaSession/notificati
 
 Milestone 4 is not complete until all of the following are true:
 
-- [ ] Android and Desktop mount the same complete shared application entry.
+- [x] Android and Desktop mount the same complete shared application entry. Android calls `NaviampCoreApp` from `MainActivity`; Desktop mounts it through the common `NaviampCoreHost` wrapper.
 - [x] A fake host mounts and navigates the complete app with only common state plus fake platform ports.
-- [ ] Normal Naviamp features, UI, menus, commands, and behavior require no host-specific product wiring.
+- [x] Normal Naviamp features, UI, menus, commands, and behavior require no host-specific product wiring. The promoted hosts supply native effects and service catalogs only; Core owns the complete state/action/product graph.
 - [ ] Every remaining platform difference in this matrix names a concrete OS/API constraint and a narrow common contract.
 - [x] Required action contracts contain no silent no-op defaults or competing callback paths.
 - [x] Common tests prove the complete product graph, major feature behavior, navigation, restoration, and capability presentation. The [V2 Core Test Audit](v2-core-test-audit.md) records the controller, mapping, lifecycle, restoration, capability, and exhaustive action evidence; reusable real-host adapter application remains a separate host-conversion gate.
-- [ ] Superseded Android and Desktop product factories/controllers/state/UI have been deleted, not merely renamed or split. Desktop is complete; Android remains.
-- [ ] Surviving host files are thin adapters or focused native integrations and follow the shared-role naming convention.
-- [ ] The initial iOS host can browse the complete product without adding album, artist, playlist, radio, download, settings, or Now Playing product controllers.
+- [x] Superseded Android and Desktop product factories/controllers/state/UI have been deleted, not merely renamed or split. Both parallel replacement modules were promoted and removed together with the legacy graphs.
+- [x] Surviving app-host files are thin adapters or focused native integrations and follow the shared-role naming convention. Android retains Activity/service/MediaSession/notification/URI/native-runtime effects; Desktop retains process/window/dialog/filesystem/native-resource effects; iOS retains SwiftUI/UIKit/Keychain/Application Support/native playback effects.
+- [x] The initial iOS host can browse the complete product without adding album, artist, playlist, radio, download, settings, or Now Playing product controllers. It mounts `NaviampCoreApp` directly over real Apple service adapters.
 - [ ] After feature work is otherwise complete, perform a fresh file-by-file audit of every Android, Desktop, and iOS production source. Record the concrete OS API, native ABI, or host lifecycle constraint that justifies every surviving platform file; extract duplicated scheduling, policy, state, caching, retry, validation, and user-visible behavior into Core. This audit is a blocking completion gate even when all functional and performance acceptance tests pass.
