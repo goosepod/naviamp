@@ -3,6 +3,10 @@ package app.naviamp.provider.navidrome
 import app.naviamp.domain.network.urlEncodedParameter
 import io.ktor.client.HttpClient
 
+internal const val NavidromeConnectTimeoutMillis = 15_000L
+internal const val NavidromeRequestTimeoutMillis = 30_000L
+internal const val NavidromeSocketTimeoutMillis = 30_000L
+
 fun navidromeMd5(value: String): String =
     md5Hex(value.encodeToByteArray())
 

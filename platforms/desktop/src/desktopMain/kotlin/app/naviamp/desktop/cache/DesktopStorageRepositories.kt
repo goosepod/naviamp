@@ -8,6 +8,9 @@ import app.naviamp.domain.cache.StorageCacheStats
 import app.naviamp.domain.network.KtorSharedHttpClient
 import app.naviamp.storage.NaviampStorageDatabase
 import app.naviamp.storage.StorageAudioStore
+import app.naviamp.storage.DefaultStorageAudioCacheBytes
+import app.naviamp.storage.DefaultStorageAudioWaveformCacheBytes
+import app.naviamp.storage.DefaultStorageHotImageCacheBytes
 import app.naviamp.storage.StorageCoreRepositoryCatalog
 import app.naviamp.storage.StorageCredentialProtector
 import app.naviamp.storage.StorageDatabaseDriverFactory
@@ -59,9 +62,9 @@ class DesktopStorageRepositories private constructor(
                 app.naviamp.desktop.security.DesktopCredentialProtector(),
             driverFactory: StorageDatabaseDriverFactory = DesktopStorageDatabaseDriverFactory,
             maxImageBytes: Long = MaximumPersistentArtworkCacheBytes,
-            maxAudioBytes: Long = DefaultDesktopAudioCacheBytes,
-            maxAudioWaveformBytes: Long = DefaultDesktopAudioWaveformCacheBytes,
-            maxHotImageBytes: Long = DefaultDesktopHotImageCacheBytes,
+            maxAudioBytes: Long = DefaultStorageAudioCacheBytes,
+            maxAudioWaveformBytes: Long = DefaultStorageAudioWaveformCacheBytes,
+            maxHotImageBytes: Long = DefaultStorageHotImageCacheBytes,
             legacyDatabaseFilesOnReset: List<Path> = emptyList(),
         ): DesktopStorageRepositories {
             val driver = driverFactory.create(location)
@@ -121,6 +124,7 @@ class DesktopStorageRepositories private constructor(
                         deleteKnownDownloadFile = deleteDownloaded,
                         workContext = DesktopStorageWorkDispatcher,
                         maxAudioCacheBytes = maxAudioBytes,
+                        protectedTrackIds = repositories::protectedCachedAudioTrackIds,
                     ),
                 )
             } catch (failure: Throwable) {
@@ -130,7 +134,3 @@ class DesktopStorageRepositories private constructor(
         }
     }
 }
-
-private const val DefaultDesktopAudioCacheBytes = 2L * 1024L * 1024L * 1024L
-private const val DefaultDesktopAudioWaveformCacheBytes = 32L * 1024L * 1024L
-private const val DefaultDesktopHotImageCacheBytes = 32L * 1024L * 1024L

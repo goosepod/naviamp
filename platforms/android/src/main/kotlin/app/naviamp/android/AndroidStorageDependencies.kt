@@ -2,7 +2,6 @@ package app.naviamp.android
 
 import android.content.Context
 import app.naviamp.domain.StreamQuality
-import app.naviamp.domain.Track
 import app.naviamp.domain.TrackId
 import app.naviamp.domain.cache.AudioCacheRepository
 import app.naviamp.domain.cache.AudioWaveformCacheRepository
@@ -22,8 +21,6 @@ import app.naviamp.domain.cache.ProviderMediaSourceRepository
 import app.naviamp.domain.cache.ProviderResponseCacheRepository
 import app.naviamp.domain.cache.SidecarStatusRepository
 import app.naviamp.domain.cache.StorageCacheStats
-import app.naviamp.domain.home.HomeAlbumYear
-import app.naviamp.domain.home.HomeLibraryRepository
 import app.naviamp.domain.provider.PendingProviderActionRepository
 import app.naviamp.domain.radio.RadioDjPresetRepository
 import app.naviamp.domain.source.SavedMediaSource
@@ -76,20 +73,6 @@ class AndroidStorageDependencies(
     fun updateAudioCacheDirectory(directory: java.io.File) = storage.updateAudioCacheDirectory(directory)
     val downloadDirectory: java.io.File get() = storage.downloadDirectory
     val audioCacheDirectory: java.io.File get() = storage.audioCacheDirectory
-
-    fun asHomeLibraryRepository(): HomeLibraryRepository =
-        object : HomeLibraryRepository {
-            override fun albumYears(sourceId: String) =
-                libraryAlbumYears(sourceId).map { year ->
-                    HomeAlbumYear(
-                        year = year.year,
-                        albumCount = year.albumCount,
-                    )
-                }
-
-            override fun recentlyPlayedTracks(sourceId: String, limit: Long) =
-                recentlyPlayedLibraryTracks(sourceId, limit)
-        }
 
     override fun close() {
         storage.close()

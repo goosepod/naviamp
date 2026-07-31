@@ -37,9 +37,9 @@ actual fun createDefaultNavidromeKtorClient(tlsSettings: NavidromeTlsSettings): 
             }
         }
         install(io.ktor.client.plugins.HttpTimeout) {
-            connectTimeoutMillis = 15_000
-            requestTimeoutMillis = 30_000
-            socketTimeoutMillis = 30_000
+            connectTimeoutMillis = NavidromeConnectTimeoutMillis
+            requestTimeoutMillis = NavidromeRequestTimeoutMillis
+            socketTimeoutMillis = NavidromeSocketTimeoutMillis
         }
     }
 }

@@ -39,6 +39,17 @@ class StorageCoreRepositoryCatalog(
         currentMaxAudioBytes = maxBytes.coerceAtLeast(0L)
     }
 
+    /** Protects the current track and bounded upcoming queue from cache eviction on every host. */
+    fun protectedCachedAudioTrackIds(): Set<String> {
+        val sourceId = mediaSources.latestMediaSource()?.id ?: return emptySet()
+        val session = playbackSessions.loadPlaybackSession(sourceId) ?: return emptySet()
+        if (session.currentIndex !in session.tracks.indices) return emptySet()
+        return session.tracks
+            .drop(session.currentIndex)
+            .take(ProtectedAudioCacheQueueWindow)
+            .mapTo(mutableSetOf()) { track -> track.id }
+    }
+
     val mediaSources = StorageMediaSourceStore(queries, nowEpochMillis, credentialProtector)
     val libraryIndex = StorageLibraryIndexStore(queries, mediaSources, nowEpochMillis)
     val providerResponseRows = StorageProviderResponseStore(queries)
@@ -111,3 +122,4 @@ class StorageCoreRepositoryCatalog(
 const val DefaultStorageAudioCacheBytes = 2L * 1024L * 1024L * 1024L
 const val DefaultStorageAudioWaveformCacheBytes = 32L * 1024L * 1024L
 const val DefaultStorageHotImageCacheBytes = 32L * 1024L * 1024L
+private const val ProtectedAudioCacheQueueWindow = 11

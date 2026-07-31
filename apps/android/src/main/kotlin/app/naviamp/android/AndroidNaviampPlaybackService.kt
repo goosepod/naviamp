@@ -256,14 +256,10 @@ class AndroidNaviampPlaybackService : MediaBrowserServiceCompat() {
         override fun onSkipToNext() = bridge?.next() ?: Unit
         override fun onSkipToQueueItem(id: Long) = bridge?.selectQueueItem(id.toInt()) ?: Unit
         override fun onSeekTo(pos: Long) = bridge?.seekTo(pos) ?: Unit
-        override fun onRewind() = bridge?.seekTo((snapshot.positionMillis ?: 0L) - SeekStepMillis) ?: Unit
-        override fun onFastForward() = bridge?.seekTo(
-            ((snapshot.positionMillis ?: 0L) + SeekStepMillis)
-                .let { requested -> snapshot.durationMillis?.let(requested::coerceAtMost) ?: requested },
-        ) ?: Unit
+        override fun onRewind() = bridge?.rewind() ?: Unit
+        override fun onFastForward() = bridge?.fastForward() ?: Unit
         override fun onSetShuffleMode(shuffleMode: Int) {
-            val requested = shuffleMode != PlaybackStateCompat.SHUFFLE_MODE_NONE
-            if (requested != snapshot.shuffleActive) bridge?.toggleShuffle()
+            bridge?.setShuffleActive(shuffleMode != PlaybackStateCompat.SHUFFLE_MODE_NONE)
         }
         override fun onSetRepeatMode(repeatMode: Int) {
             val requested = when (repeatMode) {
@@ -273,9 +269,7 @@ class AndroidNaviampPlaybackService : MediaBrowserServiceCompat() {
                 -> NaviampRepeatMode.Queue
                 else -> NaviampRepeatMode.Off
             }
-            val modes = listOf(NaviampRepeatMode.Off, NaviampRepeatMode.Queue, NaviampRepeatMode.Track)
-            val steps = (modes.indexOf(requested) - modes.indexOf(snapshot.repeatMode) + modes.size) % modes.size
-            repeat(steps) { bridge?.cycleRepeatMode() }
+            bridge?.setRepeatMode(requested)
         }
         override fun onCustomAction(action: String, extras: Bundle?) {
             when (action) {
@@ -421,7 +415,6 @@ class AndroidNaviampPlaybackService : MediaBrowserServiceCompat() {
         private const val NotificationChannelId = "naviamp-playback-v2"
         private const val NotificationId = 2001
         private const val MediaSessionTag = "NaviampCorePlayback"
-        private const val SeekStepMillis = 10_000L
         private const val CustomActionFavorite = "app.naviamp.action.FAVORITE"
         private const val CustomActionShuffle = "app.naviamp.action.SHUFFLE"
         private const val CustomActionRepeat = "app.naviamp.action.REPEAT"

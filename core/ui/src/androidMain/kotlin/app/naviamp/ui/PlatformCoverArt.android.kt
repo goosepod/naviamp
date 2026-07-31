@@ -117,55 +117,41 @@ private object AndroidCoverArtCache {
     }
 }
 
-private const val RadioTileSidePx = 512
-private const val RadioTileScheme = "naviamp-radio-tile://"
-
 private fun generatedRadioTileBytes(url: String): ByteArray? {
-    if (!url.startsWith(RadioTileScheme)) return null
-    val params = url.substringAfter("?", "")
-        .split("&")
-        .mapNotNull { part ->
-            val key = part.substringBefore("=", "")
-            val value = part.substringAfter("=", "")
-            if (key.isBlank()) null else key to value
-        }
-        .toMap()
-    val label = params["label"]?.urlDecode()?.takeIf { it.isNotBlank() } ?: "RAD"
-    val from = "#${params["from"] ?: "465d7a"}"
-    val to = "#${params["to"] ?: "161f2c"}"
+    val spec = naviampRadioTileSpec(url) ?: return null
 
-    val bitmap = Bitmap.createBitmap(RadioTileSidePx, RadioTileSidePx, Bitmap.Config.ARGB_8888)
+    val bitmap = Bitmap.createBitmap(spec.sidePx, spec.sidePx, Bitmap.Config.ARGB_8888)
     val canvas = Canvas(bitmap)
     val paint = Paint(Paint.ANTI_ALIAS_FLAG)
-    val bounds = RectF(0f, 0f, RadioTileSidePx.toFloat(), RadioTileSidePx.toFloat())
+    val bounds = RectF(0f, 0f, spec.sidePx.toFloat(), spec.sidePx.toFloat())
     paint.shader = LinearGradient(
         0f,
         0f,
-        RadioTileSidePx.toFloat(),
-        RadioTileSidePx.toFloat(),
-        AndroidColor.parseColor(from),
-        AndroidColor.parseColor(to),
+        spec.sidePx.toFloat(),
+        spec.sidePx.toFloat(),
+        AndroidColor.rgb(spec.fromRgb shr 16, spec.fromRgb shr 8 and 0xFF, spec.fromRgb and 0xFF),
+        AndroidColor.rgb(spec.toRgb shr 16, spec.toRgb shr 8 and 0xFF, spec.toRgb and 0xFF),
         Shader.TileMode.CLAMP,
     )
-    canvas.drawRoundRect(bounds, 48f, 48f, paint)
+    canvas.drawRoundRect(bounds, spec.cornerRadiusPx, spec.cornerRadiusPx, paint)
 
     paint.shader = null
     paint.style = Paint.Style.STROKE
-    paint.strokeWidth = 22f
-    paint.color = AndroidColor.argb(54, 255, 255, 255)
-    canvas.drawCircle(256f, 256f, 118f, paint)
+    paint.strokeWidth = spec.ringStrokePx
+    paint.color = AndroidColor.argb(spec.ringAlpha, 255, 255, 255)
+    canvas.drawCircle(spec.centerPx, spec.centerPx, spec.ringRadiusPx, paint)
 
     paint.style = Paint.Style.FILL
-    paint.color = AndroidColor.argb(42, 255, 255, 255)
-    canvas.drawCircle(256f, 256f, 56f, paint)
+    paint.color = AndroidColor.argb(spec.centerAlpha, 255, 255, 255)
+    canvas.drawCircle(spec.centerPx, spec.centerPx, spec.centerRadiusPx, paint)
 
     paint.color = AndroidColor.WHITE
     paint.textAlign = Paint.Align.CENTER
     paint.typeface = android.graphics.Typeface.create(android.graphics.Typeface.DEFAULT, android.graphics.Typeface.BOLD)
-    paint.textSize = if (label.length <= 2) 126f else 104f
+    paint.textSize = spec.textSizePx
     val textBounds = Rect()
-    paint.getTextBounds(label, 0, label.length, textBounds)
-    canvas.drawText(label, 256f, 256f - textBounds.exactCenterY(), paint)
+    paint.getTextBounds(spec.label, 0, spec.label.length, textBounds)
+    canvas.drawText(spec.label, spec.centerPx, spec.centerPx - textBounds.exactCenterY(), paint)
 
     return ByteArrayOutputStream().use { output ->
         bitmap.compress(Bitmap.CompressFormat.PNG, 100, output)
@@ -173,11 +159,6 @@ private fun generatedRadioTileBytes(url: String): ByteArray? {
         output.toByteArray()
     }
 }
-
-private fun String.urlDecode(): String =
-    replace("+", " ").replace(Regex("%([0-9A-Fa-f]{2})")) { match ->
-        match.groupValues[1].toInt(16).toChar().toString()
-    }
 
 private fun isDecodableImage(bytes: ByteArray): Boolean =
     BitmapFactory.Options().let { options ->

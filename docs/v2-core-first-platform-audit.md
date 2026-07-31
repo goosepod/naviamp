@@ -40,6 +40,81 @@ The production-host file review produced these accountability groups:
 
 The storage debt found by this re-audit is resolved. Android and Desktop now mount `StorageCoreRepositoryCatalog` and `StorageAudioStore`, matching iOS ownership of SQL mapping, media-source identity migration, playback sessions/history, library indexing, cache limits and eviction, download replacement, missing-file repair, sidecars, waveforms, lyrics, pending actions, presets, and maintenance. Android retains SQLite-driver selection, Keystore, mutable app directories, `File` existence, atomic byte writes, exact verified deletion, and its I/O dispatcher. Desktop retains JDBC-driver selection, OS credential protection, `Path` existence, atomic byte writes, exact verified deletion, database-size lookup, and its work dispatcher. Eleven Android repository/audio implementations and four Desktop storage/audio implementations were deleted. `verifyCoreFirstArchitecture` now rejects their return and rejects generated SQL query/row mapping imports in host production code. The final file-by-file platform audit remains the blocking ownership gate.
 
+### 2026-07-31 Android file-by-file exit audit
+
+This pass reviewed all 40 surviving Android Kotlin production files after the shared-storage migration,
+plus the application and library manifests and Android packaging resources. Each surviving file has an
+irreducible Android, JVM-on-Android, or native-ABI boundary. The table records the exact constraint;
+mechanical composition files may select implementations but do not own product behavior.
+
+| Production file | Concrete Android/native constraint | Audit result |
+| --- | --- | --- |
+| `apps/android/.../AndroidCapabilityPresentation.kt` | Immutable declaration of Activity, foreground-service, MediaSession, Android Auto, picker, Keystore, TLS, download, and updater adapters actually mounted by this APK. | Mechanical capability facts only. |
+| `apps/android/.../AndroidCoreUriPickerEffects.kt` | Activity Result launchers, `Uri`, `ContentResolver.takePersistableUriPermission`, and Activity disposal/cancellation lifetime. | Thin picker effect. |
+| `apps/android/.../AndroidNaviampApplicationRuntime.kt` | Android process lifetime, `Context`, `ConnectivityManager`, main dispatcher, and process-owned native BASS lifetime shared by Activity and service. | Thin process resource owner. |
+| `apps/android/.../AndroidNaviampArtworkProvider.kt` | Android `ContentProvider`/`ParcelFileDescriptor` bridge required to expose authenticated artwork to MediaSession and automotive clients as local `content://` URIs. | Thin native publication adapter. |
+| `apps/android/.../AndroidNaviampCoreCatalog.kt` | Selects Android `Context`, SharedPreferences, Keystore, SQLite, filesystem locations, TLS, URI pickers, clock/time-zone facts, and native playback/analyzer implementations. | Mechanical Core composition only. |
+| `apps/android/.../AndroidNaviampPlaybackRuntime.kt` | Process-local handoff to an Android foreground service plus `startForegroundService`/`stopService` lifecycle effects. | Core owns the retention decision; Android executes it. |
+| `apps/android/.../AndroidNaviampPlaybackService.kt` | `MediaBrowserServiceCompat`, `MediaSessionCompat`, notification channel/actions, trusted-controller checks, Android Auto paging, and foreground-service rules. | Native translation only after relative seek and shuffle/repeat selection moved to the Core bridge. |
+| `apps/android/.../MainActivity.kt` | `ComponentActivity`, system bars/insets, Android intent/deep-link decoding, notification runtime permission, and Compose window mounting. | Thin Activity host. |
+| `core/domain/.../AudioByteStoreService.android.kt` | Java `MessageDigest` implementation of the common SHA-256 primitive. | Irreducible actual. |
+| `core/domain/.../SharedHttpPlatform.android.kt` | Android/JVM wall-clock implementation. | Irreducible actual. |
+| `core/domain/.../SharedUrlEncoding.android.kt` | Java `URLEncoder` implementation. | Irreducible actual. |
+| `core/domain/.../PopularTime.android.kt` | Android/JVM wall-clock implementation. | Irreducible actual. |
+| `core/ui/.../NaviampSleepTimerEffects.android.kt` | Android/JVM wall-clock implementation used by shared sleep-timer presentation. | Irreducible actual. |
+| `core/ui/.../NaviampTooltip.android.kt` | Touch-platform Compose behavior intentionally omits desktop hover tooltips. | Focused input-mode actual. |
+| `core/ui/.../PlatformCoverArt.android.kt` | Android `BitmapFactory`, `Canvas`, app cache files, bitmap recycling, and native-image decoding. | Rendering effect only; generated-radio tile parsing and geometry now live in common UI. |
+| `core/ui/.../PlatformLiveVisualizerSurface.android.kt` | Android `RuntimeShader`, GLES/`GLSurfaceView`, `BitmapShader`, Android native canvas/text masks, API-level selection, and explicit GPU/bitmap release. | Focused renderer integration; renderer selection and shader/render policy remain common. |
+| `platforms/android/.../AndroidStorageDependencies.kt` | Android `Context` construction and `File` path exposure around shared repository contracts. | Mechanical delegation only; unused home mapping removed. |
+| `platforms/android/.../AndroidCoreProviderSessions.kt` | Selects Android JVM TLS-default mutation needed by BASS/native URL loading. | Provider-common session policy remains shared. |
+| `platforms/android/.../AndroidCoreDiagnosticsPort.kt` | `Build.VERSION`, manufacturer/model, and supported ABI facts. | Native diagnostics facts only. |
+| `platforms/android/.../AndroidCoreExternalUriPort.kt` | Android `ACTION_VIEW`, `Uri`, and new-task launch requirements. | Thin effect. |
+| `platforms/android/.../AndroidAudioTagReader.kt` | Java `File`/stream access to a host-selected local audio path. | Parsing and tag behavior remain common. |
+| `platforms/android/.../AndroidAudioWaveformAnalyzer.kt` | Android `Uri` translation for BASS local-file decode. | Thin delegate; unused host TLS state removed. |
+| `platforms/android/.../AndroidBassAudioBackend.kt` | Converts Kotlin calls/results to the Android JNI BASS ABI. | Native ABI adapter; duplicated tag parsing moved to Core. |
+| `platforms/android/.../AndroidBassJni.kt` | JNI external declarations and Android log callback. | Irreducible ABI surface. |
+| `platforms/android/.../AndroidBassNativeLoader.kt` | `System.loadLibrary`, Android ABI packaging, and native add-on load order/reporting. | Irreducible loader. |
+| `platforms/android/.../AndroidBassPlaybackEngineRuntime.kt` | Android `Uri`, JVM `File`, I/O dispatcher, clock, and synchronization primitive supplied to the shared engine. | Narrow runtime effects. |
+| `platforms/android/.../AndroidFocusedBassPlaybackEngine.kt` | `AudioManager` focus callbacks, platform duck/pause/resume semantics, `PowerManager.WakeLock`, and Android elapsed time/logging. | Focused native lifecycle wrapper around Core BASS. |
+| `platforms/android/.../AndroidPlaybackAudioAssets.kt` | Java `File` existence/size and file-URI conversion for shared opaque stored paths. | Thin file-fact adapter. |
+| `platforms/android/.../AndroidPlaybackTls.kt` | JVM global `SSLContext`/`HttpsURLConnection` defaults required by native BASS, including Android-selected certificate files. | Irreducible native/JVM TLS effect. |
+| `platforms/android/.../AndroidCredentialProtector.kt` | Android Keystore key generation plus JVM AES/GCM cipher access. | Secure-storage adapter only. |
+| `platforms/android/.../AndroidCoreSettingsSyncPort.kt` | `ContentResolver`, opaque Android tree/document URIs, and Activity-result picker effects. | Core retains sync/merge/status policy. |
+| `platforms/android/.../AndroidCoreSettingsValueStore.kt` | Android SharedPreferences bytes/strings and one-time migration from the released Android preference keys. | Shared schema/policy remains Core-owned. |
+| `platforms/android/.../AndroidSettingsCredentialStore.kt` | Separate Android SharedPreferences storage encrypted through Keystore; migration clears legacy plaintext keys. | Focused secure persistence effect. |
+| `platforms/android/.../AndroidSettingsStore.kt` | Persists Android document-tree URI grants and auto-export flag in SharedPreferences. | Narrow configuration store. |
+| `platforms/android/.../AndroidSettingsSyncFile.kt` | Android Storage Access Framework `DocumentsContract`, provider capability flags, and `ContentResolver` streams. | Native document effect; unused legacy document-store wrapper removed. |
+| `platforms/android/.../AndroidAudioFileServices.kt` | Mutable Android app directories, Java atomic temp-file replacement, filesystem existence, and exact verified deletion. | Byte/file effects only; ownership and eviction remain shared. |
+| `platforms/android/.../AndroidStorage.kt` | Android driver/Keystore/file/dispatcher composition over `StorageCoreRepositoryCatalog` and `StorageAudioStore`. | Mechanical storage graph; queue-protection policy moved to common storage. |
+| `platforms/android/.../AndroidStorageDatabaseDriverFactory.kt` | Android SQLDelight driver, `Context.getDatabasePath`, read-only `SQLiteDatabase` version inspection, and `deleteDatabase`. | Narrow database effect. |
+| `platforms/android/.../AndroidStorageLocations.kt` | Android internal/external app directories and `Environment.isExternalStorageRemovable` facts. | Native location enumeration only. |
+| `providers/navidrome/.../NavidromeAndroidPlatform.kt` | Ktor CIO Android/JVM engine plus Java trust/key-manager and PKCS12/X.509 loading. | Provider protocol stays common; shared timeout policy is now consumed here. |
+
+`apps/android/src/main/AndroidManifest.xml` is justified by Android permission, Activity, foreground
+media service, exported MediaBrowser, artwork provider, backup, and automotive declarations.
+`platforms/android/src/main/AndroidManifest.xml` is intentionally empty library packaging metadata.
+The drawable/XML resources are notification/MediaSession icons, Android Auto declaration, backup
+rules, and Android theme metadata; generated launcher assets and packaged BASS libraries are build or
+native-resource inputs rather than product-policy owners.
+
+The audit extracted the following portable behavior before accepting the survivors:
+
+- BASS/ICY stream-tag parsing moved from duplicate Android and Desktop backends to `core:domain`.
+- generated-radio artwork URL parsing, defaults, dimensions, and geometry moved from Android/JVM
+  renderers to `core:ui`; hosts now only draw/encode with their native image APIs.
+- current/upcoming queue protection during audio-cache eviction moved from Android-only code to
+  `StorageCoreRepositoryCatalog` and is now consumed by Android, Desktop, and iOS.
+- relative rewind/fast-forward bounds and shuffle/repeat selection moved from the Android
+  MediaSession callback to `NaviampCoreExternalPlaybackBridge`.
+- Navidrome connect/request/socket timeout values moved from three actual implementations to
+  provider `commonMain`.
+- unused `AndroidStorageDispatcher`, `AndroidSettingsSyncMirrorStore`, the obsolete
+  `AndroidSettingsSyncDocumentStore` wrapper, dead waveform TLS state, and the final stale host-debt
+  allowlist entries were removed.
+
+Focused shared tests and Android/Desktop compilation pass. No unexplained Android product behavior,
+portable repository, scheduler, retry policy, state machine, or feature controller remains.
+
 The 2026-07-21 source audit measured Kotlin production and test code as follows. Counts are a diagnostic, not a quota; native integrations can legitimately be large, but product implementations cannot remain duplicated in them.
 
 | Area | Production lines | Test lines | Finding |

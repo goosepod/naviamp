@@ -102,6 +102,7 @@ class NaviampIosApplication(
         deleteKnownDownloadFile = { IosAudioFileSystem.deleteKnownRegularFile(downloadDirectory, it) },
         workContext = Dispatchers.Default,
         maxAudioCacheBytes = cacheSettings.maxAudioCacheBytes,
+        protectedTrackIds = repositories::protectedCachedAudioTrackIds,
     )
     private val sessions = NavidromeCoreProviderSessionPort(
         mediaSources = repositories.mediaSources,

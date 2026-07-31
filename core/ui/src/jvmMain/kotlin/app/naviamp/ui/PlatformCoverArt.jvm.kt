@@ -109,19 +109,10 @@ private suspend fun defaultPlatformCoverArtBytes(url: String): ByteArray =
 private val DefaultPlatformCoverArtHttpClient = KtorSharedHttpClient()
 
 private fun generatedRadioTileBytes(url: String): ByteArray? {
-    if (!url.startsWith(RadioTileScheme)) return null
-    val params = url.substringAfter("?", "")
-        .split("&")
-        .mapNotNull { part ->
-            val key = part.substringBefore("=", "")
-            val value = part.substringAfter("=", "")
-            if (key.isBlank()) null else key to value
-        }
-        .toMap()
-    val label = params["label"]?.urlDecode()?.takeIf { it.isNotBlank() } ?: "RAD"
-    val from = AwtColor.decode("#${params["from"] ?: "465d7a"}")
-    val to = AwtColor.decode("#${params["to"] ?: "161f2c"}")
-    val image = BufferedImage(RadioTileSidePx, RadioTileSidePx, BufferedImage.TYPE_INT_ARGB)
+    val spec = naviampRadioTileSpec(url) ?: return null
+    val from = AwtColor(spec.fromRgb)
+    val to = AwtColor(spec.toRgb)
+    val image = BufferedImage(spec.sidePx, spec.sidePx, BufferedImage.TYPE_INT_ARGB)
     val graphics = image.createGraphics()
     try {
         graphics.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON)
@@ -129,22 +120,24 @@ private fun generatedRadioTileBytes(url: String): ByteArray? {
             0f,
             0f,
             from,
-            RadioTileSidePx.toFloat(),
-            RadioTileSidePx.toFloat(),
+            spec.sidePx.toFloat(),
+            spec.sidePx.toFloat(),
             to,
         )
-        graphics.fill(RoundRectangle2D.Float(0f, 0f, RadioTileSidePx.toFloat(), RadioTileSidePx.toFloat(), 48f, 48f))
-        graphics.color = AwtColor(255, 255, 255, 54)
-        graphics.stroke = java.awt.BasicStroke(22f)
-        graphics.drawOval(138, 138, 236, 236)
-        graphics.color = AwtColor(255, 255, 255, 42)
-        graphics.fillOval(200, 200, 112, 112)
+        graphics.fill(RoundRectangle2D.Float(0f, 0f, spec.sidePx.toFloat(), spec.sidePx.toFloat(), spec.cornerRadiusPx, spec.cornerRadiusPx))
+        graphics.color = AwtColor(255, 255, 255, spec.ringAlpha)
+        graphics.stroke = java.awt.BasicStroke(spec.ringStrokePx)
+        val ringDiameter = (spec.ringRadiusPx * 2).toInt()
+        graphics.drawOval((spec.centerPx - spec.ringRadiusPx).toInt(), (spec.centerPx - spec.ringRadiusPx).toInt(), ringDiameter, ringDiameter)
+        graphics.color = AwtColor(255, 255, 255, spec.centerAlpha)
+        val centerDiameter = (spec.centerRadiusPx * 2).toInt()
+        graphics.fillOval((spec.centerPx - spec.centerRadiusPx).toInt(), (spec.centerPx - spec.centerRadiusPx).toInt(), centerDiameter, centerDiameter)
         graphics.color = AwtColor.WHITE
-        graphics.font = Font(Font.SANS_SERIF, Font.BOLD, if (label.length <= 2) 126 else 104)
+        graphics.font = Font(Font.SANS_SERIF, Font.BOLD, spec.textSizePx.toInt())
         val metrics = graphics.fontMetrics
-        val x = (RadioTileSidePx - metrics.stringWidth(label)) / 2
-        val y = ((RadioTileSidePx - metrics.height) / 2) + metrics.ascent
-        graphics.drawString(label, x, y)
+        val x = (spec.sidePx - metrics.stringWidth(spec.label)) / 2
+        val y = ((spec.sidePx - metrics.height) / 2) + metrics.ascent
+        graphics.drawString(spec.label, x, y)
     } finally {
         graphics.dispose()
     }
@@ -153,14 +146,6 @@ private fun generatedRadioTileBytes(url: String): ByteArray? {
         output.toByteArray()
     }
 }
-
-private fun String.urlDecode(): String =
-    replace("+", " ").replace(Regex("%([0-9A-Fa-f]{2})")) { match ->
-        match.groupValues[1].toInt(16).toChar().toString()
-    }
-
-private const val RadioTileSidePx = 512
-private const val RadioTileScheme = "naviamp-radio-tile://"
 
 private object JvmCoverArtCache {
     private const val MaxShaderImages = 48

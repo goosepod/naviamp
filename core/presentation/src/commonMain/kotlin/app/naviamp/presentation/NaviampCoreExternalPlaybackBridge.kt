@@ -202,6 +202,8 @@ class NaviampCoreExternalPlaybackBridge internal constructor(
     fun stop() = playback(NowPlayingPlaybackAction.Stop)
     fun previous() = playback(NowPlayingPlaybackAction.Previous)
     fun next() = playback(NowPlayingPlaybackAction.Next)
+    fun rewind() = seekBy(-ExternalPlaybackSeekStepMillis)
+    fun fastForward() = seekBy(ExternalPlaybackSeekStepMillis)
     fun toggleShuffle() = playback(NowPlayingPlaybackAction.ToggleShuffle)
     fun cycleRepeatMode() = playback(NowPlayingPlaybackAction.CycleRepeatMode)
 
@@ -225,6 +227,12 @@ class NaviampCoreExternalPlaybackBridge internal constructor(
                 ),
             ),
         )
+    }
+
+    fun seekBy(deltaMillis: Long) {
+        val snapshot = snapshot()
+        val requested = (snapshot.positionMillis ?: 0L) + deltaMillis
+        seekTo(snapshot.durationMillis?.let(requested::coerceAtMost) ?: requested)
     }
 
     fun selectQueueItem(index: Int) {
@@ -394,6 +402,8 @@ class NaviampCoreExternalPlaybackBridge internal constructor(
         )
     }
 }
+
+private const val ExternalPlaybackSeekStepMillis = 10_000L
 
 /** Keeps the active item visible when a vehicle opens Queue without discarding playback history. */
 fun NaviampExternalPlaybackSnapshot.automotiveQueue(): List<NaviampExternalMediaItem> {

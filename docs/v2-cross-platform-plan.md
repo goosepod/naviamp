@@ -9,7 +9,7 @@ Ideas discovered during the migration that should not interrupt the active check
 - **Target release:** `2.0.0`
 - **Current development version:** `v2.0.0-alpha` (build 35), shown in About on every host so migration builds are unmistakable during testing.
 - **Working branch:** `feature/v2-cross-platform-app`
-- **Status:** Desktop, Android, and the iOS simulator host all mount the same Core product, BASS engine, and portable storage owners. Broad interactive parity and the measured performance passes are accepted; the remaining v2 gates are the final file-by-file host audit, large-library/accessibility and target-OS packaging checks, release automation, and the original icon redesign recorded below.
+- **Status:** Desktop, Android, and the iOS simulator host all mount the same Core product, BASS engine, and portable storage owners. The final Android file-by-file boundary audit is accepted; Desktop and iOS audits, large-library/accessibility and target-OS packaging checks, release automation, and the original icon redesign remain.
 - **Release policy:** Feature development for the v1 line is frozen. Only bug fixes should be released from v1 while this work is underway.
 - **Versioning rule:** Keep migration builds on an explicit `v2.0.0-alpha` prerelease label. Do not change `VERSION` to the final `v2.0.0` until the release-preparation milestone.
 - **Primary objective:** One shared Naviamp application, UI, and behavior hosted by thin Android, Desktop, and iOS applications.
@@ -32,7 +32,7 @@ this current list. Check an item only in the same commit that records its verifi
 
 ### Final platform-boundary audit
 
-- [ ] Audit every surviving Android production file and record its concrete Android API, native ABI, or service-lifecycle constraint.
+- [x] Audit every surviving Android production file and record its concrete Android API, native ABI, or service-lifecycle constraint. The 2026-07-31 audit reviewed all 40 Kotlin production files plus manifests/resources, extracted duplicated stream metadata, generated-artwork, cache-protection, media-control, and timeout policy into Core, deleted obsolete adapters, and passed focused shared tests plus Android/Desktop compilation.
 - [ ] Audit every surviving Desktop production file and record its concrete JVM/OS API, native ABI, window, or packaging constraint.
 - [ ] Audit every surviving iOS production file and record its concrete Apple API, native ABI, or application/audio-session lifecycle constraint.
 - [ ] Extract any duplicated scheduling, policy, state, caching, retry, validation, or user-visible behavior found by the audit.

@@ -21,15 +21,7 @@ val hostProductionSources = fileTree(layout.projectDirectory) {
     include("platforms/desktop/src/desktopMain/kotlin/**/*.kt")
 }
 
-val existingHostProductDebt = setOf(
-    "apps/android/src/main/kotlin/app/naviamp/android/app/AndroidAppState.kt",
-    "apps/android/src/main/kotlin/app/naviamp/android/app/AndroidDetailActions.kt",
-    "apps/android/src/main/kotlin/app/naviamp/android/app/AndroidHomeMediaActions.kt",
-    "apps/android/src/main/kotlin/app/naviamp/android/app/AndroidMainShellActions.kt",
-    "apps/android/src/main/kotlin/app/naviamp/android/app/AndroidNowPlayingActions.kt",
-    "apps/android/src/main/kotlin/app/naviamp/android/app/AndroidPendingProviderActions.kt",
-    "apps/android/src/main/kotlin/app/naviamp/android/media/AndroidMediaActionsController.kt",
-)
+val existingHostProductDebt = emptySet<String>()
 
 tasks.register("verifyCoreFirstArchitecture") {
     group = "verification"

@@ -113,6 +113,21 @@ class NaviampCoreExternalPlaybackBridgeTest {
     }
 
     @Test
+    fun nativeRelativeSeekUsesSharedStepAndTrackBounds() {
+        val commands = mutableListOf<NaviampCoreCommand>()
+        val bridge = bridge(commands)
+
+        bridge.rewind()
+        bridge.fastForward()
+        bridge.seekBy(200_000L)
+
+        assertEquals(
+            listOf(2.5, 22.5, 180.0),
+            commands.map { assertIs<NaviampCoreCommand.NowPlaying.Playback>(it).request.seekSeconds },
+        )
+    }
+
+    @Test
     fun automotiveShuffleDispatchesTheSharedPlaybackCommand() {
         val commands = mutableListOf<NaviampCoreCommand>()
         val bridge = bridge(commands)

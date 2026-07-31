@@ -83,6 +83,53 @@ class StorageCoreRepositoryCatalogTest {
             driver.close()
         }
     }
+
+    @Test
+    fun protectsCurrentAndBoundedUpcomingQueueFromAudioCacheEviction() {
+        val driver = JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY)
+        NaviampStorageDatabase.Schema.create(driver)
+        try {
+            val catalog = StorageCoreRepositoryCatalog(
+                database = NaviampStorageDatabase(driver),
+                credentialProtector = PassthroughStorageCredentialProtector,
+                nowEpochMillis = { 42L },
+                databaseLabel = "test.db",
+                deleteKnownAudioCacheFile = { true },
+                deleteKnownDownloadFile = { true },
+            )
+            val source = catalog.mediaSources.upsertProviderMediaSource(
+                connection = ProviderMediaSourceConnection(
+                    displayName = "Server",
+                    baseUrl = "https://music.example.test",
+                    username = "listener",
+                    token = "token",
+                    salt = "salt",
+                ),
+                cacheNamespace = "cache",
+                providerId = "navidrome",
+            )
+            val tracks = (0..14).map { index ->
+                Track(
+                    id = TrackId("track-$index"),
+                    title = "Track $index",
+                    artistName = "Artist",
+                    albumTitle = null,
+                    durationSeconds = null,
+                    coverArtId = null,
+                    audioInfo = null,
+                    replayGain = null,
+                )
+            }
+            catalog.playbackSessions.savePlaybackSession(
+                PlaybackSessionSettings.fromTracks(tracks, currentIndex = 2),
+                source.id,
+            )
+
+            assertEquals((2..12).mapTo(mutableSetOf()) { "track-$it" }, catalog.protectedCachedAudioTrackIds())
+        } finally {
+            driver.close()
+        }
+    }
 }
 
 private fun NaviampStorageQueries.insertTestDownload(sourceId: String, filePath: String) {

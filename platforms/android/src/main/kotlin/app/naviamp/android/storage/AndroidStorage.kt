@@ -42,6 +42,7 @@ import app.naviamp.provider.navidrome.NavidromeConnection
 import app.naviamp.provider.navidrome.resolvedDisplayName
 import app.naviamp.provider.navidrome.toNavidromeConnection
 import app.naviamp.storage.NaviampStorageDatabase
+import app.naviamp.storage.DefaultStorageAudioCacheBytes
 import app.naviamp.storage.StorageAudioStore
 import app.naviamp.storage.StorageCachedAudioFile
 import app.naviamp.storage.StorageCachedAudioMetadata
@@ -203,8 +204,8 @@ private class AndroidStorageGraph(
         deleteKnownAudioCacheFile = audioFiles::deleteKnownAudioCacheFile,
         deleteKnownDownloadFile = audioFiles::deleteKnownDownloadFile,
         workContext = Dispatchers.IO,
-        maxAudioCacheBytes = DefaultAndroidAudioCacheBytes,
-        protectedTrackIds = ::protectedCachedAudioTrackIds,
+        maxAudioCacheBytes = DefaultStorageAudioCacheBytes,
+        protectedTrackIds = repositories::protectedCachedAudioTrackIds,
     )
     val imageBytes = ObjectByteStoreService(
         StorageObjectByteStore(
@@ -220,17 +221,7 @@ private class AndroidStorageGraph(
     )
     val sidecarStatuses = SidecarStatusService(repositories.sidecarStatuses, ::nowMillis)
 
-    private fun protectedCachedAudioTrackIds(): Set<String> {
-        val sourceId = repositories.mediaSources.latestMediaSource()?.id ?: return emptySet()
-        val session = repositories.playbackSessions.loadPlaybackSession(sourceId) ?: return emptySet()
-        if (session.currentIndex !in session.tracks.indices) return emptySet()
-        return session.tracks.drop(session.currentIndex).take(ProtectedAudioCacheQueueWindow).mapTo(mutableSetOf()) { it.id }
-    }
-
     override fun close() = driver.close()
 }
 
 private fun nowMillis(): Long = System.currentTimeMillis()
-
-private const val DefaultAndroidAudioCacheBytes = 2L * 1024L * 1024L * 1024L
-private const val ProtectedAudioCacheQueueWindow = 11

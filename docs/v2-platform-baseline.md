@@ -104,7 +104,7 @@ The Swift wrapper owns UIApplication/SwiftUI lifetime and constructs `NaviampIos
 
 ## Platform-Layer Architecture Status
 
-The product graph, UI, and portable persistence behavior are common. Android, Desktop, and iOS mount `StorageCoreRepositoryCatalog` and `StorageAudioStore`; the Android/Desktop duplicate SQLDelight repositories and audio-policy stores identified by the 2026-07-31 re-audit have been deleted. Driver construction, native paths, file-existence facts, atomic byte writes, exact verified deletion, credential protection, database-size lookup, and OS dispatchers remain platform effects. The architecture guard rejects generated SQL mapping and the deleted portable store roles in host production code. The remaining ownership gate is the fresh file-by-file Android/Desktop/iOS audit recorded in the [Core-first exit gate](v2-core-first-platform-audit.md#core-completion-exit-gate).
+The product graph, UI, and portable persistence behavior are common. Android, Desktop, and iOS mount `StorageCoreRepositoryCatalog` and `StorageAudioStore`; the Android/Desktop duplicate SQLDelight repositories and audio-policy stores identified by the 2026-07-31 re-audit have been deleted. Driver construction, native paths, file-existence facts, atomic byte writes, exact verified deletion, credential protection, database-size lookup, and OS dispatchers remain platform effects. The architecture guard rejects generated SQL mapping and the deleted portable store roles in host production code. The fresh Android file-by-file audit is accepted with every surviving source tied to a concrete Android/JVM/native boundary; Desktop and iOS remain in the [Core-first exit gate](v2-core-first-platform-audit.md#core-completion-exit-gate).
 
 ## Platform Capability Model
 

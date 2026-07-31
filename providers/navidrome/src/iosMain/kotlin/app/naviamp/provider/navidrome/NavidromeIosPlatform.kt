@@ -55,9 +55,9 @@ actual fun createDefaultNavidromeKtorClient(tlsSettings: NavidromeTlsSettings): 
         }
         expectSuccess = false
         install(HttpTimeout) {
-            connectTimeoutMillis = 15_000
-            requestTimeoutMillis = 30_000
-            socketTimeoutMillis = 30_000
+            connectTimeoutMillis = NavidromeConnectTimeoutMillis
+            requestTimeoutMillis = NavidromeRequestTimeoutMillis
+            socketTimeoutMillis = NavidromeSocketTimeoutMillis
         }
     }
 }
