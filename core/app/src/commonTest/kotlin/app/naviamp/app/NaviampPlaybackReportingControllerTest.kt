@@ -71,6 +71,32 @@ class NaviampPlaybackReportingControllerTest {
     }
 
     @Test
+    fun mapsEveryReportablePlaybackStateAndCarriesTheCurrentPosition() {
+        val controller = NaviampPlaybackReportingController()
+        val states = listOf(
+            PlaybackState.Loading to PlaybackReportState.Starting,
+            PlaybackState.Playing to PlaybackReportState.Playing,
+            PlaybackState.Paused to PlaybackReportState.Paused,
+            PlaybackState.Stopped to PlaybackReportState.Stopped,
+            PlaybackState.Finished to PlaybackReportState.Stopped,
+            PlaybackState.Error("failed") to PlaybackReportState.Stopped,
+        )
+
+        states.forEachIndexed { index, (playbackState, expected) ->
+            val report = controller.stateReport(
+                request(
+                    now = index.toLong() + 1,
+                    sessionId = index.toLong() + 1,
+                    state = playbackState,
+                ),
+            )
+            assertEquals(expected, report?.state)
+            assertEquals(12.0, report?.positionSeconds)
+        }
+        assertNull(controller.stateReport(request(now = 100L, sessionId = 100L, state = PlaybackState.Idle)))
+    }
+
+    @Test
     fun heartbeatRunsSharedEligibilityAndPreservesCancellation() = runTest {
         var reports = 0
         assertFailsWith<CancellationException> {

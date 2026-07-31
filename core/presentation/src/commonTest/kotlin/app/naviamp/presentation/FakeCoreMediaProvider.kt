@@ -20,7 +20,10 @@ import app.naviamp.domain.provider.SonicSimilarTrack
 
 internal class FakeCoreMediaProvider(
     supportsSonicSimilarity: Boolean = false,
+    supportsPlayReporting: Boolean = false,
+    private val failNowPlayingReports: Boolean = false,
 ) : MediaProvider {
+    val nowPlayingReports = mutableListOf<TrackId>()
     val artist = Artist(ArtistId("core-artist"), "Core Artist")
     val album = Album(
         id = AlbumId("core-album"),
@@ -58,6 +61,7 @@ internal class FakeCoreMediaProvider(
         supportsAlbumRadio = false,
         supportsTrackRadio = false,
         supportsSonicSimilarity = supportsSonicSimilarity,
+        supportsPlayReporting = supportsPlayReporting,
     )
 
     override suspend fun validateConnection() = ConnectionValidation(null, null)
@@ -101,4 +105,8 @@ internal class FakeCoreMediaProvider(
         }
     override suspend fun streamUrl(request: StreamRequest) = "https://example.test/${request.trackId.value}"
     override fun coverArtUrl(coverArtId: String) = "https://example.test/art/$coverArtId"
+    override suspend fun reportNowPlaying(trackId: TrackId) {
+        if (failNowPlayingReports) error("offline")
+        nowPlayingReports += trackId
+    }
 }

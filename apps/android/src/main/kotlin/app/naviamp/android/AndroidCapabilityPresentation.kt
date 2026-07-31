@@ -9,15 +9,21 @@ import app.naviamp.presentation.NaviampCoreActionAvailability
 import app.naviamp.presentation.toCoreActionAvailability
 import app.naviamp.presentation.toShellCapabilitiesUi
 
-/** Declares only Activity-host capabilities that have concrete Android implementations. */
+/** Declares only Android-host capabilities that have concrete Activity or service implementations. */
 internal object AndroidCapabilityPresentation {
-    private val capabilities = listOf(
+    internal val capabilities = listOf(
+        PlatformCapability.BackgroundPlayback,
+        PlatformCapability.SystemMediaControls,
         PlatformCapability.FileSelection,
         PlatformCapability.SettingsImportExport,
         PlatformCapability.SecureCredentialStorage,
         PlatformCapability.InsecureServerVerification,
         PlatformCapability.CustomServerCertificates,
         PlatformCapability.ClientCertificates,
+        PlatformCapability.Downloads,
+        PlatformCapability.OfflinePlayback,
+        PlatformCapability.ApplicationUpdates,
+        PlatformCapability.AutomotiveBrowsing,
     ).fold(PlatformCapabilities()) { current, capability ->
         current.withStatus(capability, PlatformCapabilityStatus.Available)
     }

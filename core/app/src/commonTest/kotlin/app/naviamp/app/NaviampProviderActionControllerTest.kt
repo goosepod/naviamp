@@ -81,11 +81,42 @@ class NaviampProviderActionControllerTest {
 
         assertNull(applicationStatus.state.value)
     }
+
+    @Test
+    fun successfulReplayDeliversAndRemovesThePendingAction() = runTest {
+        val repository = RecordingPendingActions().apply {
+            pending += pendingAction(id = 1, entityId = "track")
+        }
+        val provider = RecordingProvider(failReports = false)
+
+        val result = NaviampProviderActionController(repository).replay("source", provider)
+
+        assertEquals(1, result.completed)
+        assertEquals(listOf("track"), provider.nowPlayingReports)
+        assertEquals(emptyList<PendingProviderAction>(), repository.pending)
+    }
+
+    @Test
+    fun replayIsSourceScopedAndLeavesFailuresPendingWithTheirError() = runTest {
+        val repository = RecordingPendingActions().apply {
+            pending += pendingAction(id = 1, entityId = "current")
+            pending += pendingAction(id = 2, entityId = "other", sourceId = "other-source")
+        }
+        val controller = NaviampProviderActionController(repository)
+
+        val result = controller.replay("source", RecordingProvider(failReports = true))
+
+        assertEquals(1, result.attempted)
+        assertEquals(1, result.failed)
+        assertEquals(listOf<Pair<Long, String?>>(1L to "offline"), repository.failures)
+        assertEquals(listOf(1L, 2L), repository.pending.map { it.id })
+    }
 }
 
 internal class RecordingPendingActions : PendingProviderActionRepository {
     val enqueued = mutableListOf<String>()
     val pending = mutableListOf<PendingProviderAction>()
+    val failures = mutableListOf<Pair<Long, String?>>()
 
     override fun enqueuePendingProviderAction(
         sourceId: String,
@@ -104,12 +135,18 @@ internal class RecordingPendingActions : PendingProviderActionRepository {
     override fun deletePendingProviderAction(id: Long) {
         pending.removeAll { it.id == id }
     }
-    override fun markPendingProviderActionFailed(id: Long, errorMessage: String?) = Unit
+    override fun markPendingProviderActionFailed(id: Long, errorMessage: String?) {
+        failures += id to errorMessage
+    }
 }
 
-internal fun pendingAction(id: Long, entityId: String) = PendingProviderAction(
+internal fun pendingAction(
+    id: Long,
+    entityId: String,
+    sourceId: String = "source",
+) = PendingProviderAction(
     id = id,
-    sourceId = "source",
+    sourceId = sourceId,
     actionType = PendingActionReportNowPlaying,
     entityId = entityId,
     createdAtEpochMillis = 0,
@@ -119,6 +156,7 @@ internal class RecordingProvider(private val failReports: Boolean) : MediaProvid
     override val id = ProviderId("fake")
     override val displayName = "Fake"
     override val capabilities = ProviderCapabilities(false, false, false, false, false)
+    val nowPlayingReports = mutableListOf<String>()
 
     override suspend fun validateConnection(): ConnectionValidation = error("Not used")
     override suspend fun recentlyAddedAlbums(limit: Int): List<Album> = error("Not used")
@@ -132,5 +170,6 @@ internal class RecordingProvider(private val failReports: Boolean) : MediaProvid
 
     override suspend fun reportNowPlaying(trackId: TrackId) {
         if (failReports) error("offline")
+        nowPlayingReports += trackId.value
     }
 }

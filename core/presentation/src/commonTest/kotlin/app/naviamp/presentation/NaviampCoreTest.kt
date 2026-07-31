@@ -6,6 +6,7 @@ import app.naviamp.app.NaviampConnectionPhase
 import app.naviamp.app.NaviampConnectionRuntimeState
 import app.naviamp.app.NaviampLivePlaybackState
 import app.naviamp.app.NaviampPlaybackSessionController
+import app.naviamp.app.NaviampProviderActionController
 import app.naviamp.domain.Album
 import app.naviamp.domain.Artist
 import app.naviamp.domain.Genre
@@ -18,6 +19,8 @@ import app.naviamp.domain.home.HomeDate
 import app.naviamp.domain.playback.PlaybackQueueNavigationCommand
 import app.naviamp.domain.playback.PlaybackSource
 import app.naviamp.domain.provider.MediaProvider
+import app.naviamp.domain.provider.PendingProviderAction
+import app.naviamp.domain.provider.PendingProviderActionRepository
 import app.naviamp.domain.queue.PlaybackQueue
 import app.naviamp.domain.queue.RepeatMode
 import app.naviamp.domain.radio.internetRadioTrack
@@ -59,6 +62,50 @@ import kotlin.test.assertTrue
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class NaviampCoreTest {
+    @Test
+    fun failedNowPlayingReportEntersTheSharedPendingActionQueue() = runTest {
+        val provider = FakeCoreMediaProvider(
+            supportsPlayReporting = true,
+            failNowPlayingReports = true,
+        )
+        val pending = RecordingCorePendingProviderActionRepository()
+        val effects = FakeCorePlaybackEffects()
+        val services = fakeCoreServices(
+            provider = provider,
+            playbackEffects = effects,
+            providerActions = NaviampProviderActionController(pending),
+        )
+        val initial = NaviampCoreInitialState().let { state ->
+            state.copy(
+                connectionInventory = NaviampCoreConnectionInventory(currentSourceId = "source"),
+                product = state.product.copy(
+                    shell = state.product.shell.copy(
+                        connectionSettings = state.product.shell.connectionSettings.copy(
+                            currentSourceId = "source",
+                        ),
+                    ),
+                ),
+            )
+        }
+        val core = NaviampCore.create(this, services, initialState = initial)
+        core.updateLivePlayback { live ->
+            live.copy(
+                currentTrack = provider.track,
+                queue = PlaybackQueue(listOf(provider.track), 0),
+            )
+        }
+
+        assertTrue(provider.capabilities.supportsPlayReporting)
+        assertEquals("source", core.state.value.shell.connectionSettings.currentSourceId)
+        assertNotNull(effects.observer).onStateChanged(app.naviamp.domain.playback.PlaybackState.Playing)
+        advanceUntilIdle()
+
+        assertEquals(
+            listOf("source:${app.naviamp.domain.provider.PendingActionReportNowPlaying}:core-track"),
+            pending.enqueued,
+        )
+    }
+
     @Test
     fun constructsOneProductGraphAndRoutesActionsWithoutHostControllers() = runTest {
         val failures = mutableListOf<Throwable>()
@@ -412,7 +459,13 @@ class NaviampCoreTest {
     }
 }
 
-internal fun fakeCoreServices(provider: MediaProvider? = null) = NaviampCoreServices(
+internal fun fakeCoreServices(
+    provider: MediaProvider? = null,
+    playbackEffects: NaviampCorePlaybackEffectPort = FakeCorePlaybackEffects(),
+    providerActions: NaviampProviderActionController = NaviampProviderActionController(
+        EmptyCorePendingProviderActionRepository,
+    ),
+) = NaviampCoreServices(
     content = NaviampCoreContentServices(
         providerSource = NaviampCoreMediaProviderSource { provider },
         homeDate = NaviampCoreHomeDateSource { HomeDate(2026, 202) },
@@ -480,7 +533,7 @@ internal fun fakeCoreServices(provider: MediaProvider? = null) = NaviampCoreServ
         genre = { error("Genre mix service is lazy") },
     ),
     playback = NaviampCorePlaybackServices(
-        effects = FakeCorePlaybackEffects(),
+        effects = playbackEffects,
         settings = NaviampCorePlaybackSettingsPort { settings, _ -> settings },
         sidecars = object : NaviampCoreNowPlayingSidecarPort {
             override fun snapshot() = NaviampCoreNowPlayingSidecars()
@@ -496,9 +549,44 @@ internal fun fakeCoreServices(provider: MediaProvider? = null) = NaviampCoreServ
             override fun savePlaybackSession(session: PlaybackSessionSettings?, sourceId: String?) = Unit
         }),
     ),
+    providerActions = providerActions,
     clockEpochMillis = { 1_000L },
     favoritedAtIso8601 = { "2026-07-21T00:00:00Z" },
 )
+
+private object EmptyCorePendingProviderActionRepository : PendingProviderActionRepository {
+    override fun enqueuePendingProviderAction(
+        sourceId: String,
+        actionType: String,
+        entityId: String,
+        boolValue: Boolean?,
+        longValue: Long?,
+        replaceMatchingEntityAction: Boolean,
+    ) = Unit
+
+    override fun pendingProviderActions(sourceId: String, limit: Int): List<PendingProviderAction> = emptyList()
+    override fun deletePendingProviderAction(id: Long) = Unit
+    override fun markPendingProviderActionFailed(id: Long, errorMessage: String?) = Unit
+}
+
+private class RecordingCorePendingProviderActionRepository : PendingProviderActionRepository {
+    val enqueued = mutableListOf<String>()
+
+    override fun enqueuePendingProviderAction(
+        sourceId: String,
+        actionType: String,
+        entityId: String,
+        boolValue: Boolean?,
+        longValue: Long?,
+        replaceMatchingEntityAction: Boolean,
+    ) {
+        enqueued += "$sourceId:$actionType:$entityId"
+    }
+
+    override fun pendingProviderActions(sourceId: String, limit: Int): List<PendingProviderAction> = emptyList()
+    override fun deletePendingProviderAction(id: Long) = Unit
+    override fun markPendingProviderActionFailed(id: Long, errorMessage: String?) = Unit
+}
 
 private fun fakeCoreSettingsSyncServices(): NaviampCoreSettingsSyncServices {
     var runtime = app.naviamp.domain.settings.SettingsSyncRuntimeState()
@@ -536,6 +624,10 @@ private class FakeCorePlaybackEffects : NaviampCorePlaybackEffectPort {
     override val playbackSource = PlaybackSource.ProviderStream
     val selections = mutableListOf<PlaybackQueue>()
     val appliedQueues = mutableListOf<PlaybackQueue>()
+    var observer: NaviampCorePlaybackObserver? = null
+    override fun attach(observer: NaviampCorePlaybackObserver) {
+        this.observer = observer
+    }
     override fun pause() = Unit
     override fun resume() = Unit
     override fun startOrRestore() = false

@@ -37,7 +37,7 @@ fun NaviampCapabilityPresentation.toShellCapabilitiesUi(
     hoverTooltips = hoverTooltips.visible,
     downloads = downloads.visible,
     settingsImportExport = settingsImportExport.visible,
-    applicationUpdates = true,
+    applicationUpdates = applicationUpdates.visible,
     fileSelection = fileSelection.visible,
     showMobileNetworkQuality = showMobileNetworkQuality,
     connection = NaviampConnectionCapabilitiesUi(

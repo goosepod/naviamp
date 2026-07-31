@@ -2,6 +2,7 @@ package app.naviamp.presentation
 
 import app.naviamp.app.NaviampKeepDownloadedReconciliationApplication
 import app.naviamp.app.NaviampKeepDownloadedToggleResult
+import app.naviamp.app.NaviampProviderActionController
 import app.naviamp.domain.Album
 import app.naviamp.domain.Artist
 import app.naviamp.domain.Genre
@@ -10,6 +11,7 @@ import app.naviamp.domain.Track
 import app.naviamp.domain.cache.DownloadJobUpdate
 import app.naviamp.domain.cache.KeepDownloadedCollectionPolicy
 import app.naviamp.domain.cache.LocalLibraryIndexRepository
+import app.naviamp.domain.provider.PendingProviderActionRepository
 import app.naviamp.domain.home.HomeDate
 import app.naviamp.domain.settings.SettingsSyncLocalSnapshot
 import app.naviamp.domain.settings.SettingsSyncRuntimeState
@@ -30,6 +32,7 @@ fun naviampCoreServiceDefaults(
     homeDate: NaviampCoreHomeDateSource = NaviampCoreHomeDateSource { HomeDate(2026, 1) },
     sourceId: () -> String? = { providerSource.current()?.cacheNamespace },
     libraryIndex: LocalLibraryIndexRepository? = null,
+    pendingProviderActions: PendingProviderActionRepository,
     clockEpochMillis: () -> Long,
     favoritedAtIso8601: () -> String,
 ): NaviampCoreServices = NaviampCoreServices(
@@ -76,6 +79,7 @@ fun naviampCoreServiceDefaults(
         nowEpochMillis = clockEpochMillis,
     ),
     playback = playback,
+    providerActions = NaviampProviderActionController(pendingProviderActions),
     clockEpochMillis = clockEpochMillis,
     favoritedAtIso8601 = favoritedAtIso8601,
 )

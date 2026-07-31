@@ -3,6 +3,7 @@ package app.naviamp.testkit
 import app.naviamp.app.NaviampKeepDownloadedReconciliationApplication
 import app.naviamp.app.NaviampKeepDownloadedToggleResult
 import app.naviamp.app.NaviampPlaybackSessionController
+import app.naviamp.app.NaviampProviderActionController
 import app.naviamp.domain.Album
 import app.naviamp.domain.Artist
 import app.naviamp.domain.Genre
@@ -15,6 +16,8 @@ import app.naviamp.domain.home.HomeDate
 import app.naviamp.domain.playback.PlaybackQueueNavigationCommand
 import app.naviamp.domain.playback.PlaybackSource
 import app.naviamp.domain.provider.MediaProvider
+import app.naviamp.domain.provider.PendingProviderAction
+import app.naviamp.domain.provider.PendingProviderActionRepository
 import app.naviamp.domain.queue.PlaybackQueue
 import app.naviamp.domain.queue.RepeatMode
 import app.naviamp.domain.settings.PlaybackSessionSettings
@@ -106,6 +109,7 @@ fun naviampCoreTestServices(provider: MediaProvider? = null): NaviampCoreService
         },
         sessions = NaviampPlaybackSessionController(EmptyPlaybackSessionRepository),
     ),
+    providerActions = NaviampProviderActionController(EmptyPendingProviderActionRepository),
     clockEpochMillis = { 1_000L },
     favoritedAtIso8601 = { "2026-07-21T00:00:00Z" },
 )
@@ -113,6 +117,21 @@ fun naviampCoreTestServices(provider: MediaProvider? = null): NaviampCoreService
 private object EmptyPlaybackSessionRepository : PlaybackSessionRepository {
     override fun loadPlaybackSession(sourceId: String?): PlaybackSessionSettings? = null
     override fun savePlaybackSession(session: PlaybackSessionSettings?, sourceId: String?) = Unit
+}
+
+private object EmptyPendingProviderActionRepository : PendingProviderActionRepository {
+    override fun enqueuePendingProviderAction(
+        sourceId: String,
+        actionType: String,
+        entityId: String,
+        boolValue: Boolean?,
+        longValue: Long?,
+        replaceMatchingEntityAction: Boolean,
+    ) = Unit
+
+    override fun pendingProviderActions(sourceId: String, limit: Int): List<PendingProviderAction> = emptyList()
+    override fun deletePendingProviderAction(id: Long) = Unit
+    override fun markPendingProviderActionFailed(id: Long, errorMessage: String?) = Unit
 }
 
 private fun testSettingsSyncServices(): NaviampCoreSettingsSyncServices {

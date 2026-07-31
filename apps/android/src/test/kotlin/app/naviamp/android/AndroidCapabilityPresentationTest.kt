@@ -1,4 +1,4 @@
-package app.naviamp.ios.platform
+package app.naviamp.android
 
 import app.naviamp.domain.app.PlatformCapability
 import app.naviamp.domain.app.PlatformCapabilityStatus
@@ -9,33 +9,32 @@ import app.naviamp.domain.playback.PlaybackState
 import app.naviamp.domain.playback.PlaybackStreamMetadata
 import kotlinx.coroutines.CoroutineScope
 import kotlin.test.Test
-import kotlin.test.assertTrue
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertTrue
 
-class IosCapabilityPresentationTest {
+class AndroidCapabilityPresentationTest {
     @Test
-    fun exposesDownloadsAfterTheNativeStorageEffectIsMounted() {
-        assertTrue(IosCapabilityPresentation.shell(TestPlaybackEngine).downloads)
-    }
-
-    @Test
-    fun exposesSettingsImportExportAfterTheDocumentPickerEffectIsMounted() {
-        val shell = IosCapabilityPresentation.shell(TestPlaybackEngine)
-        assertTrue(shell.settingsImportExport)
-    }
-
-    @Test
-    fun declaresAppleMediaLifecycleWithoutExposingSoftwareVolume() {
-        assertEquals(
-            PlatformCapabilityStatus.Available,
-            IosCapabilityPresentation.platform.status(PlatformCapability.BackgroundPlayback),
+    fun declaresMountedAndroidServicesWithoutExposingSoftwareVolume() {
+        val expected = listOf(
+            PlatformCapability.BackgroundPlayback,
+            PlatformCapability.SystemMediaControls,
+            PlatformCapability.Downloads,
+            PlatformCapability.OfflinePlayback,
+            PlatformCapability.ApplicationUpdates,
+            PlatformCapability.AutomotiveBrowsing,
         )
-        assertEquals(
-            PlatformCapabilityStatus.Available,
-            IosCapabilityPresentation.platform.status(PlatformCapability.SystemMediaControls),
-        )
-        assertFalse(IosCapabilityPresentation.shell(TestPlaybackEngine).softwareVolumeControl)
+        expected.forEach { capability ->
+            assertEquals(
+                PlatformCapabilityStatus.Available,
+                AndroidCapabilityPresentation.capabilities.status(capability),
+            )
+        }
+
+        val shell = AndroidCapabilityPresentation.toShellCapabilitiesUi(TestPlaybackEngine)
+        assertTrue(shell.downloads)
+        assertTrue(shell.applicationUpdates)
+        assertFalse(shell.softwareVolumeControl)
     }
 }
 
@@ -46,7 +45,7 @@ private object TestPlaybackEngine : PlaybackEngine {
     override val supportsReplayGain = false
     override val supportsGapless = false
     override val supportsCrossfade = false
-    override val supportsSoftwareVolume = false
+    override val supportsSoftwareVolume = true
     override val prefersOriginalStream = false
     override fun play(
         scope: CoroutineScope,

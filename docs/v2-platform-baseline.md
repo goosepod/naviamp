@@ -78,72 +78,33 @@ The v2 task is primarily to move ownership and coordination of these pieces out 
 
 ### Desktop
 
-`apps/desktop/.../app/Main.kt` owns the JVM entry point. It currently:
-
-- configures native application name, appearance, and icon;
-- creates `DesktopAppDependencies` inside the Compose application;
-- restores and persists window size;
-- owns the Desktop window and minimum size;
-- stops playback during normal window closure;
-- calls the Desktop-only `NaviampApp` composition root.
-
-`DesktopAppDependencies` constructs Desktop settings, BASS playback, JDBC storage, cache/sidecar services, waveform analysis, popular-track services, and playlist playback.
-
-`DesktopNaviampApp.kt` is approximately 1,684 lines and still assembles substantial product behavior in the Desktop application. Desktop controllers separately own connection lifecycle, playlists, media actions, radio, search, downloads, navigation, Sonic features, settings maintenance, and Now Playing presentation.
+`apps/desktop/.../Main.kt` owns only the JVM process/window lifetime, appearance/icon, persisted geometry, and shutdown. `DesktopComposition` selects JDBC, JVM filesystem, operating-system credential, native BASS/visualizer, picker, updater, and external-URI effects and passes them to `NaviampCore`. `DesktopNaviampCoreHost` mounts `NaviampCoreApp`; no Desktop product graph survives. A separate Stats for Nerds window is an intentional native window around shared diagnostics content.
 
 ### Android
 
-`apps/android/.../app/MainActivity.kt` owns the Activity entry point. It currently:
+`MainActivity` owns Activity lifecycle, intents, permission/safe-area integration, and mounts the common Core app. `AndroidNaviampPlaybackService` owns the required service lifetime, audio focus/wake behavior, MediaSession, notification, and Android Auto translation while consuming Core queue/commands/state. The Android catalogs select Android SQLite, Keystore, URI/filesystem, connectivity, artwork, and BASS/JNI effects; they do not build feature controllers.
 
-- handles notification, Android Auto, deep-link, and settings-import intents;
-- configures edge-to-edge system bars and safe-area/IME padding;
-- requests notification permission;
-- calls the Android-only `NaviampAndroidApp` composition root.
+### iOS
 
-`AndroidAppDependencies` constructs Android settings, Android BASS runtime access, Android storage, cache/sidecar services, waveform support, popular-track services, and playlist playback.
-
-`NaviampAndroidApp.kt` is approximately 922 lines and assembles Android product controllers and UI actions. `AndroidPlaybackForegroundService.kt` is approximately 2,367 lines and owns essential service-lifetime playback, MediaSession, notification, restoration, and Android Auto behavior.
-
-The foreground service cannot simply be deleted or made UI-owned. The shared runtime needs a lifecycle-safe playback/session contract that allows Android playback to outlive an Activity while Desktop and iOS supply their own lifecycle adapters.
+The Swift wrapper owns UIApplication/SwiftUI lifetime and constructs `NaviampIosApplication`. The Kotlin iOS composition selects Application Support, Keychain, Darwin HTTP/native SQLite, Foundation/POSIX storage, UIKit picker, BASS cinterop, AVAudioSession, and MediaPlayer effects, then mounts the same `NaviampCoreApp`. It contains no iOS-specific album, artist, playlist, radio, download, settings, or Now Playing controller.
 
 ## Current Platform Ownership
 
-| Concern | Android owner | Desktop owner | Shared migration target |
-| --- | --- | --- | --- |
-| Application composition | `NaviampAndroidApp` | `NaviampApp` | Shared application runtime and shared Compose entry point |
-| Mutable application state | `AndroidAppState` plus service state | Desktop state assembled in `DesktopNaviampApp` | Shared state holder with lifecycle inputs |
-| Navigation | Android navigation controller/actions | Desktop route state/controllers | Shared navigation state and actions |
-| Provider connection | Android connection controller | Desktop connection lifecycle | Shared connection coordinator with platform secret/TLS services |
-| Media browsing/actions | Android media controllers | Desktop media/controllers | Shared application controller using `MediaProvider` |
-| Playlists | Android playlist controllers | Desktop playlist controllers | Shared playlist coordinator |
-| Radio/Sonic features | Android-specific coordinators | Desktop-specific coordinators | Shared application orchestration around existing domain services |
-| Playback policy | Split between app, playlist engine, and service | Split between app and playlist engine | Shared queue/playback coordinator |
-| Playback device | Android BASS runtime/service | Desktop BASS engine | Platform `PlaybackEngine`; BASS required on all final v2 platforms |
-| Background media controls | Foreground service and MediaSession | Desktop integration | Platform media-session/remote-control adapter |
-| Settings | `AndroidSettingsStore` | `DesktopSettingsStore` | Shared settings contracts and models with platform persistence |
-| Credentials | Android Keystore protector | Stored in Desktop settings JSON | Platform `SecretStore`; Desktop hardening and iOS Keychain required |
-| Database | Android SQLDelight driver in Android storage | JDBC SQLDelight driver in Desktop cache | Platform driver factory with shared storage behavior |
-| Files/downloads/cache | Android app/storage locations | Desktop filesystem locations | Platform filesystem/location contract |
-| Connectivity/mobile-data policy | Android system connectivity checks | Desktop/network assumptions | Platform connectivity snapshot/flow |
-| Cover art and visualizers | Android UI actuals/BASS | Desktop UI actuals/native surfaces | Shared UI contracts with platform actuals |
-| Window, menus, updater | Not applicable | Desktop application | Remains Desktop-only |
-| Notifications and permissions | Android platform | Desktop platform | Remain platform adapters |
-| Android Auto | Android platform/service | Not applicable | Remains Android host integration over shared catalog/queue contracts |
+| Concern | Android effect | Desktop effect | iOS effect | Shared owner |
+| --- | --- | --- | --- | --- |
+| Composition/lifecycle | Activity/service | Process/window | UIApplication/audio session | `NaviampCore` graph and lifecycle policy |
+| State/navigation/features | None | None | None | Core state, controllers, commands, and shared Compose UI |
+| Provider transport/TLS | OkHttp/Android TLS | CIO/JVM TLS | Darwin TLS | Provider-common protocol, mapping, failover, and session policy |
+| Playback device | BASS/JNI, audio focus, wake lock | BASS/JNI, devices | BASS cinterop, AVAudioSession | `CoreBassPlaybackEngine`, queue/transitions/reporting |
+| System media/automotive | MediaSession, notification, Android Auto | No mounted adapter | MediaPlayer/remote commands | Shared metadata, transport commands, automotive catalog |
+| Credentials | Keystore | Keychain/DPAPI/Secret Service | Keychain | Shared media-source mapping and credential contract |
+| Database/files | Android SQLite and file/URI effects | JDBC and JVM path effects | Native SQLite and Foundation/POSIX effects | Shared schema, repositories, cache/download ownership and policy |
+| Cover art/waveform/visualizer | Android decode/GPU/audio samples | JVM decode/Metal/OpenGL/audio samples | Apple decode/Metal/audio samples | Shared orchestration, models, renderer selection, and UI |
+| Native shell | Permissions/intents | Window/dialog/updater/packages | Picker/Now Playing/App Store | Shared intent and result policy |
 
-## Shared-Looking Code That Still Contains Platform Product Behavior
+## Remaining Platform-Layer Architecture Debt
 
-These are the first extraction candidates. Move behavior behind shared contracts before changing the launchers:
-
-1. Android and Desktop independently assemble connection, media, playlist, radio, search, download, and Sonic controllers.
-2. Each platform independently maps controller functions into shared shell actions and UI state.
-3. Android and Desktop settings stores combine persistence mechanics with application-level settings ownership.
-4. Storage driver construction and a large amount of storage behavior live inside the application modules rather than behind a narrow platform factory.
-5. Popular-track fallback behavior differs between Android and Desktop dependency containers.
-6. Playback queue orchestration is split between platform playlist engines, application controllers, and Android's foreground service.
-7. Pending provider actions and retry ownership are not yet uniformly platform-independent.
-8. Desktop credentials require a secure-store migration rather than being passed through the general settings JSON.
-
-Extraction should proceed by behavior slice, with characterization tests, rather than by moving whole large files at once.
+The product graph and UI are common. The remaining shared-looking host code is storage-focused: Android duplicates ten portable SQLDelight repositories, while Android and Desktop audio stores mix portable SQL/eviction/download policy with native file checks. The exact file list and required `StorageCoreRepositoryCatalog`/`StorageAudioStore` migration are recorded in the [current Core-first audit](v2-core-first-platform-audit.md#2026-07-31-current-host-re-audit). Driver construction, native paths, atomic byte writes, exact verified deletion, and OS dispatchers remain platform effects; repository mapping, ownership, eviction, and retry policy do not.
 
 ## Platform Capability Model
 
@@ -160,24 +121,24 @@ Capability checks belong in immutable platform capability data or narrow service
 
 | Capability | Android | Desktop | iOS |
 | --- | --- | --- | --- |
-| Shared UI/navigation/product behavior | Required | Required | Required |
-| BASS playback | Required | Required | Required |
+| Shared UI/navigation/product behavior | Available | Available | Available on simulator |
+| BASS playback | Available | Available | Available on simulator/device build |
 | AVPlayer playback | Unsupported | Unsupported | Unsupported; temporary proof path removed |
-| Streaming and downloaded playback | Required | Required | Required |
-| Background playback | Required | Required while app runs | Required |
-| OS media controls/metadata | Required | Required where OS supports it | Required |
-| Queue/session restoration | Required | Required | Required |
-| Gapless, ReplayGain, and crossfade | Required where currently supported | Required where currently supported | Required final target; individually capability-gated until verified |
-| Equalizer | Required where currently supported | Required where currently supported | Required final target |
-| Waveforms and BASS visualizer data | Required | Required | Required final target |
-| Audio output selection | Optional by platform/device | Optional by platform/device | Optional by Apple/BASS capability |
-| Secure credential storage | Required | Required | Required |
-| Endpoint failover and OpenSubsonic capabilities | Required | Required | Required |
-| Custom CA/client certificates | Required | Required | Required or explicitly blocked from release pending a security decision |
-| Downloads/cache/offline mode | Required | Required | Required |
-| Android Auto | Required existing behavior | Unsupported | Unsupported |
-| Desktop updater and native packages | Unsupported | Required | Unsupported |
-| Control Center/lock-screen commands | Unsupported | Unsupported | Required |
+| Streaming and downloaded playback | Available | Available | Accepted on simulator |
+| Background playback | Available via service | Available while process runs | Accepted on simulator |
+| OS media controls/metadata | Available | No mounted adapter | Accepted; simulator glyph rendering defect is external |
+| Queue/session restoration | Available | Available | Accepted on simulator |
+| Gapless, ReplayGain, crossfade, EQ | Available | Available | Accepted on simulator |
+| Waveforms and visualizers | Available | Available | Accepted on simulator |
+| Software volume | Intentionally hidden | Available | Intentionally hidden |
+| Audio output selection | Hidden until a native inventory is supplied | Available where BASS enumerates devices | Hidden |
+| Secure credential storage | Keystore | Keychain/DPAPI/Secret Service | Keychain |
+| Endpoint failover and OpenSubsonic capabilities | Provider-common | Provider-common | Provider-common |
+| Insecure TLS | Available | Available | Available |
+| Custom CA/client certificates | Available | Available | Unavailable; native secure adapters absent |
+| Downloads/cache/offline mode | Available | Available | Accepted on simulator |
+| Automotive | Android Auto available | Unsupported | CarPlay not implemented |
+| Application updates | Shared checks available | Shared checks and native packages | Shared checks; App Store distribution pending |
 
 ## Regression Coverage Snapshot
 

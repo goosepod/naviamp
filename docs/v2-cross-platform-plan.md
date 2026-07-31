@@ -9,7 +9,7 @@ Ideas discovered during the migration that should not interrupt the active check
 - **Target release:** `2.0.0`
 - **Current development version:** `v2.0.0-alpha` (build 35), shown in About on every host so migration builds are unmistakable during testing.
 - **Working branch:** `feature/v2-cross-platform-app`
-- **Status:** Desktop and Android thin-host migrations are complete; iOS BASS integration and parity acceptance are active in Milestones 7–8.
+- **Status:** Desktop, Android, and the iOS simulator host all mount the same Core product and BASS engine. Broad interactive parity and the measured performance passes are accepted; the remaining v2 gates are the final host/storage ownership cleanup, large-library/accessibility and target-OS packaging checks, release automation, and the original icon redesign recorded below.
 - **Release policy:** Feature development for the v1 line is frozen. Only bug fixes should be released from v1 while this work is underway.
 - **Versioning rule:** Keep migration builds on an explicit `v2.0.0-alpha` prerelease label. Do not change `VERSION` to the final `v2.0.0` until the release-preparation milestone.
 - **Primary objective:** One shared Naviamp application, UI, and behavior hosted by thin Android, Desktop, and iOS applications.
@@ -414,19 +414,20 @@ This milestone was deliberately temporary. On 2026-07-24, the project chose to p
 
 ### Milestone 8: Cross-Platform Product Parity
 
-- [ ] Complete the platform capability matrix and resolve all unexplained differences.
+- [ ] Complete the platform capability matrix and resolve all unexplained differences. The 2026-07-31 audit corrected Android's missing declarations for background playback, system media controls, downloads/offline playback, update checks, and Android Auto, and corrected iOS's missing background-playback/system-media-control declarations. Android and iOS deliberately omit software volume. The remaining ownership blocker is the Android/legacy Desktop SQL/audio repository duplication listed in the Core-first audit; it is not an operating-system capability.
 - [ ] Verify login, endpoint failover, custom headers, secure secrets, and reconnect behavior.
 - [ ] Verify library paging with very large collections.
 - [x] Verify search, albums, artists, multi-artist navigation, playlists, favorites, radio, and smart playlists. On 2026-07-28, the named iOS simulator matrix passed. The pass exposed one shared similar-artist resolution gap: artist detail consulted only the local SQL index while mix builders had a separate provider-search fallback, so an incomplete index labeled the locally available Gorgon City as browser-only. Core now owns exact normalized-name matching plus provider-search fallback in `SimilarArtistsService`; the rebuilt simulator correctly labels and opens Gorgon City from CamelPhat's similar artists.
 - [x] Protect Navidrome native smart-playlist sessions across platforms. Shared UI recovers an expired native JWT with one password prompt, Core renews the mounted active session every 30 minutes and immediately after connection, and the provider-common session controller persists each rotated token after renewal or any Smart Playlist operation. OpenSubsonic `ping` validates the standard API session but does not rotate Navidrome's separate native JWT; the bounded native heartbeat is therefore required. Navidrome provides no refresh token for this private API, so an app reopened after more than the server's configured `SessionTimeout` still requires reauthentication; administrators can extend that timeout when longer unattended sessions are appropriate.
 - [x] Prepare for Navidrome's one-way canonical-ID migration announced after 0.63.x. The provider-common codec exactly reproduces upstream's 128-bit base62 transformation and golden vectors, including IDs embedded in `mf-`, `al-`, and `ar-` artwork keys. Activation is behavioral rather than release-number based: on explicit connection and restored-app startup, Naviamp derives canonical IDs from a bounded sample of its owned legacy references and migrates only when the server resolves one of those exact derived IDs. A definitive old-format result is checkpointed against the complete reported server build string, so unchanged servers are not probed repeatedly; a changed build is checked once, while authentication and network failures remain inconclusive and retry later. After the transaction advances the source's provider identity schema version to 1, checks stop permanently for that transition. Shared storage relinks downloaded and cached audio, waveforms, both lyric caches, offsets, sidecar state, playback queues/history, keep-downloaded policies, and pending provider actions; clears and schedules a rebuild of the reproducible library index; and invalidates provider-response and artwork caches whose embedded identifiers cannot be proven safe to rewrite. Existing canonical collisions collapse to the newer ownership record, while download/cache file paths are retained and migration has no native deletion capability. Native API `401` responses clear and persist the rejected JWT while preserving the independent Subsonic session, allowing targeted smart-playlist reauthentication.
 - [x] Verify downloads, keep-downloaded policies, cache budgets, offline mode, and storage cleanup. Persistent eight-track Opus 128 download, conversion, retained ownership across simulator reinstall, Prefer Downloaded local-file selection, effective-quality presentation, individual removal, remove-all, and cache clearing that preserves downloads pass on iOS. Keep Favorites Downloaded reacts to a newly favorited track by downloading it, strict network-disabled playback uses retained local audio, and on 2026-07-30 the user accepted the remaining configured keep-downloaded collection variants.
-- [ ] Verify queue restoration, track transitions, artwork, backgrounds, lyrics, waveforms, and visualizers.
-- [ ] Verify playback reporting and pending provider actions.
+- [x] Verify queue restoration, track transitions, artwork, backgrounds, lyrics, waveforms, and visualizers. Queue/session restoration, immediate queue replacement, gapless and crossfade transitions, authenticated artwork/Aurora, cached lyrics, shared waveform generation, and standard plus native-Metal visualizers passed on Android, macOS, and the iOS simulator. The visualizer stress pass also corrected a macOS crash while switching visualizers.
+- [x] Verify playback reporting and pending provider actions. Core owns Now Playing eligibility, state mapping, session/state deduplication, the 15-second Playing throttle, current-position reporting, failed Now Playing/favorite persistence, source-scoped replay, and failed-action retention. The complete Core provider source is now decorated once with this policy and replays the active source after connection; stale playback-state progress is intentionally live-only rather than queued. Common tests cover every reportable state, unsupported/radio suppression, failure enqueue, source isolation, replay success/failure, and Core-composition routing.
 - [ ] Verify accessibility, touch targets, keyboard behavior where applicable, safe areas, and compact layouts.
 - [ ] Verify migration of existing Android and Desktop data and settings.
 - [x] Verify iOS settings import/export and folder sync through the native document picker, including one-off import without changing the sync folder, export replacement, relaunch persistence, and auto-export to the retained folder. Core transaction tests and Android/Desktop/iOS compilation pass. On 2026-07-28, simulator acceptance confirmed folder creation/export, one-off JSON import without changing the retained folder, retained access after relaunch, direct **Sync now** replacement without reopening the picker, and automatic export after a setting change. The pass exposed and corrected a shared UI mapping error that had reopened the import-folder picker. Desktop acceptance also verified one-off JSON import after its blocking macOS dialog was moved off Compose's click dispatcher, preventing the modal AWT event loop from fatally resuming Compose's press coroutine. The packaged iOS AppIcon also appears correctly.
 - [ ] Add iOS-specific user documentation and troubleshooting.
+- [x] Parse and present Opus/Vorbis embedded comments through the shared tag reader. Track Details now recognizes Opus comments—including common uppercase and MusicBrainz fields—instead of incorrectly reporting that no readable ID3/Vorbis tags exist; shared tests protect the container-independent mapping.
 - [ ] After shared ownership and platform parity are stable, decompose oversized shared source files along logical feature boundaries. Prefer small focused files and composables assembled through composition over monolithic UI files; do not reintroduce platform duplication or split code solely to reduce line counts.
 - [ ] Split `NaviampSettingsUi.kt` into focused settings surfaces such as connection, experience, playback, downloads/cache, synchronization, and maintenance, with a small composition entry point preserving the public settings contract.
 - [ ] Split `NaviampNowPlayingUi.kt` into focused artwork/background, track metadata, progress/waveform, transport/volume, lyrics, visualizer, queue/related, radio, menus, and compact-player components, with a small composition entry point preserving the public Now Playing contract.
@@ -449,6 +450,7 @@ This milestone was deliberately temporary. On 2026-07-24, the project chose to p
 
 ### Milestone 10: Naviamp 2.0 Release Preparation
 
+- [ ] Replace the current Naviamp identity mark before declaring v2 complete. Create an original SVG-based icon that may retain the existing blue palette and feel compatible with Navidrome, but does not reuse or closely imitate Navidrome's distinctive official glyph. Derive and verify every Android, Desktop, iOS, installer, Dock/taskbar, and in-app asset from that source SVG.
 - [ ] Resolve or explicitly defer every checklist item required for the agreed v2 scope.
 - [ ] Run the complete shared, provider, Android, Desktop, and iOS test suites.
 - [ ] Complete physical-device testing on Android and iOS.
@@ -470,24 +472,22 @@ Use this table to track contract and implementation coverage. Add rows when new 
 
 | Service | Shared contract | Android | Desktop | iOS |
 | --- | --- | --- | --- | --- |
-| Application lifecycle | `NaviampApplicationComposition`, `NaviampApplicationRuntime`, and `NaviampApplicationSession` | Uses complete composition | Uses complete composition | Host pending |
-| Capability-aware presentation | `PlatformCapabilities` and `NaviampCapabilityPresentation` | Declared and used | Declared and used | Matrix pending |
-| Application status/errors | `NaviampApplicationStatusController` and `NaviampRuntimeErrorReporter` | Observes shared status | Observes shared status | Host adapter pending |
-| Playback engine | Existing; adapt | BASS | BASS | AVPlayer POC, then BASS |
-| Media/remote controls | [ ] | MediaSession | Desktop integration | MPRemoteCommandCenter |
-| Now Playing metadata | [ ] | MediaSession | Desktop integration | MPNowPlayingInfoCenter |
-| HTTP engine | [ ] | OkHttp | CIO | Darwin |
-| TLS and client certificates | [ ] | [ ] | [ ] | [ ] |
-| Database driver | Shared `StorageMediaSourceStore`; driver construction pending | Android SQLite | JDBC/native | Native SQLite |
-| Secret storage | `StorageCredentialProtector` | Android Keystore adapter | Explicit pass-through; OS secure adapter pending | Keychain adapter pending |
-| Files and storage locations | `NaviampCoreSettingsSyncPort`, `NaviampSettingsSyncDocumentStore`, and `PlatformCapability.FileSelection`; broader file contracts pending | Mirror/document-tree adapters and app-owned locations | Path-backed settings adapter plus native cache/download folders | UIKit document picker, retained scoped URL references, and app-owned cache/download folders |
-| Connectivity | `NaviampConnectivityMonitor` snapshot boundary | [ ] | [ ] | NWPathMonitor or equivalent |
-| Downloads/background work | [ ] | Foreground/background service | Desktop job | iOS-compatible strategy |
-| Notifications | [ ] | [ ] | [ ] | [ ] |
-| Cover art loading | [ ] | [ ] | [ ] | [ ] |
-| Waveforms/visualizers | [ ] | BASS | BASS | BASS target |
-| Sharing and file pickers | Capability registry; sharing service pending | Settings import picker only; sharing unavailable | Folder picker only; sharing unavailable | Host adapters and matrix pending |
-| Updates/distribution | Platform-specific | App release flow | In-app updater/packages | App Store/TestFlight |
+| Application lifecycle | `NaviampCore`, shared session/restoration owners, and lifecycle ports | Activity/service translation | Window/process translation | Swift/Kotlin process and audio-session translation |
+| Capability-aware presentation | `PlatformCapabilities` and `NaviampCapabilityPresentation` | Declared and tested | Declared and tested | Declared and tested |
+| Application status/errors | Core controllers and shared status policy | Native failures translated | Native failures translated | Native failures translated |
+| Playback engine | `CoreBassPlaybackEngine` plus native ABI/runtime effects | BASS/JNI | BASS/JNI | BASS/Kotlin Native cinterop |
+| Media/remote controls | Shared transport/metadata state | MediaSession/notification | No mounted system-media adapter | `MPRemoteCommandCenter`/`MPNowPlayingInfoCenter` |
+| HTTP/TLS | Provider-common construction policy plus host engine/material effects | OkHttp/Android TLS | CIO/JVM TLS | Darwin; insecure opt-in, no custom/client certificate adapter |
+| Database/storage | Shared SQLDelight schema/repositories and opaque byte-store contracts | Android SQLite driver; repository consolidation still open | JDBC driver and JVM files; audio-store consolidation still open | Native SQLite driver and Foundation/POSIX bytes |
+| Secret storage | `StorageCredentialProtector` | Android Keystore | Keychain/DPAPI/Secret Service | Keychain |
+| Files and storage locations | Core settings/download/cache ports and opaque locations | URI grants and Android files | Native paths/dialogs | UIKit picker, security-scoped URLs, Application Support |
+| Connectivity | Shared network facts and policy | Android connectivity/mobile-data effect | JVM reachability effect | Darwin reachability effect |
+| Downloads/background work | Core jobs, ownership, reconciliation, and transfer policy | Service/Android file effects | Process/JVM file effects | Process/Foundation file effects |
+| Notifications | Shared playback metadata/commands | Android foreground notification | Unsupported | Apple Now Playing surface |
+| Cover art | Shared loading/cache/Aurora policy | Android decode effect | JVM decode effect | Apple decode effect |
+| Waveforms/visualizers | Shared analysis orchestration, waveform model, visualizer definitions, and shader selection | BASS samples/native renderer | BASS samples/Metal or OpenGL | BASS samples/Metal |
+| Sharing and file pickers | File-selection capability and Core commands; sharing product contract still absent | Picker mounted; sharing unavailable | Dialog mounted; sharing unavailable | Picker mounted; sharing unavailable |
+| Updates/distribution | Shared update discovery and presentation; native installation/distribution | Update checks/APK flow | Update checks/native packages | Update checks/App Store distribution pending |
 
 ## Multi-Computer Working Agreement
 

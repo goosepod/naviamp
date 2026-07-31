@@ -39,6 +39,7 @@ class NaviampShellCapabilityMapperTest {
             .withStatus(PlatformCapability.SettingsImportExport, PlatformCapabilityStatus.Experimental)
             .withStatus(PlatformCapability.FileSelection, PlatformCapabilityStatus.Available)
             .withStatus(PlatformCapability.CustomServerCertificates, PlatformCapabilityStatus.Available)
+            .withStatus(PlatformCapability.ApplicationUpdates, PlatformCapabilityStatus.Available)
             .withStatus(PlatformCapability.SoftwareVolumeControl, PlatformCapabilityStatus.Available)
             .withStatus(PlatformCapability.HoverTooltips, PlatformCapabilityStatus.Available)
         val capabilities = NaviampCapabilityPresentation(platform).toShellCapabilitiesUi(
@@ -73,7 +74,7 @@ class NaviampShellCapabilityMapperTest {
 
         assertFalse(capabilities.softwareVolumeControl)
         assertFalse(capabilities.hoverTooltips)
-        assertTrue(capabilities.applicationUpdates)
+        assertFalse(capabilities.applicationUpdates)
     }
 }
 

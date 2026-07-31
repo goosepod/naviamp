@@ -280,6 +280,7 @@ internal class DesktopComposition private constructor(
                 },
                 sourceId = { storage.mediaSources.latestMediaSource()?.id },
                 libraryIndex = storage.libraryIndex,
+                pendingProviderActions = storage.pendingProviderActions,
                 clockEpochMillis = nowEpochMillis,
                 favoritedAtIso8601 = { Instant.now().toString() },
             )

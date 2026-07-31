@@ -1,6 +1,7 @@
 package app.naviamp.presentation
 
 import app.naviamp.app.NaviampPlaybackSessionController
+import app.naviamp.app.NaviampProviderActionController
 import app.naviamp.domain.albummix.AlbumMixBuilderService
 import app.naviamp.domain.artistmix.ArtistMixBuilderService
 import app.naviamp.domain.cache.ProviderResponseService
@@ -87,6 +88,7 @@ data class NaviampCoreServices(
     val radio: NaviampCoreRadioServices,
     val mixes: NaviampCoreMixServices,
     val playback: NaviampCorePlaybackServices,
+    val providerActions: NaviampProviderActionController,
     val clockEpochMillis: () -> Long,
     val favoritedAtIso8601: () -> String,
     val diagnostics: NaviampCoreDiagnosticsPort = emptyNaviampCoreDiagnosticsPort(),
