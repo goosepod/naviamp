@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" role="img" aria-labelledby="title desc">
+  <title id="title">Naviamp Blue Field Waveform NA</title>
+  <desc id="desc">A dark NA waveform sweeping across a vivid Naviamp-blue field and ending low.</desc>
+  <defs>
+    <linearGradient id="field" x1="110" y1="80" x2="910" y2="940" gradientUnits="userSpaceOnUse"><stop stop-color="#35D4FF"/><stop offset=".48" stop-color="#087CFF"/><stop offset="1" stop-color="#344EFF"/></linearGradient>
+    <linearGradient id="wave" x1="120" y1="350" x2="900" y2="700" gradientUnits="userSpaceOnUse"><stop stop-color="#071A2B"/><stop offset="1" stop-color="#030812"/></linearGradient>
+  </defs>
+  <rect width="1024" height="1024" rx="224" fill="#030911"/>
+  <rect x="86" y="86" width="852" height="852" rx="174" fill="url(#field)"/>
+  <path d="M126 650C228 650 240 346 354 346S470 672 582 672S696 374 794 374S866 548 898 686" fill="none" stroke="#BDF3FF" stroke-opacity=".2" stroke-width="138" stroke-linecap="round"/>
+  <path d="M126 650C228 650 240 346 354 346S470 672 582 672S696 374 794 374S866 548 898 686" fill="none" stroke="url(#wave)" stroke-width="90" stroke-linecap="round"/>
+</svg>

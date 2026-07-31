@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" role="img" aria-labelledby="title desc">
+  <title id="title">Naviamp Node Waveform NA</title>
+  <desc id="desc">A technical NA-shaped waveform marked by signal nodes and a final descent.</desc>
+  <defs>
+    <linearGradient id="bg" x1="100" y1="100" x2="910" y2="920" gradientUnits="userSpaceOnUse"><stop stop-color="#112F55"/><stop offset="1" stop-color="#040B15"/></linearGradient>
+    <linearGradient id="wave" x1="120" y1="670" x2="900" y2="340" gradientUnits="userSpaceOnUse"><stop stop-color="#55E7FF"/><stop offset=".5" stop-color="#087FFF"/><stop offset="1" stop-color="#4959FF"/></linearGradient>
+  </defs>
+  <rect width="1024" height="1024" rx="224" fill="url(#bg)"/>
+  <path d="M126 654C228 654 240 350 354 350S470 674 582 674S696 378 794 378S866 550 898 686" fill="none" stroke="url(#wave)" stroke-width="86" stroke-linecap="round"/>
+  <g fill="#D1F7FF" stroke="#087FFF" stroke-width="18"><circle cx="126" cy="654" r="20"/><circle cx="354" cy="350" r="20"/><circle cx="582" cy="674" r="20"/><circle cx="794" cy="378" r="20"/><circle cx="898" cy="686" r="20"/></g>
+  <g fill="#6BDFFF" opacity=".38"><rect x="118" y="238" width="16" height="80" rx="8"/><rect x="158" y="210" width="16" height="136" rx="8"/><rect x="198" y="254" width="16" height="48" rx="8"/></g>
+</svg>

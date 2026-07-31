@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" role="img" aria-labelledby="title desc">
+  <title id="title">Naviamp Smooth Waveform NA</title>
+  <desc id="desc">A continuous blue waveform with two arches and a descending finish that subtly suggests NA.</desc>
+  <defs>
+    <linearGradient id="bg" x1="130" y1="90" x2="900" y2="940" gradientUnits="userSpaceOnUse"><stop stop-color="#102C55"/><stop offset="1" stop-color="#040B14"/></linearGradient>
+    <linearGradient id="wave" x1="120" y1="660" x2="900" y2="340" gradientUnits="userSpaceOnUse"><stop stop-color="#49E4FF"/><stop offset=".52" stop-color="#0782FF"/><stop offset="1" stop-color="#4B5FFF"/></linearGradient>
+    <filter id="g" x="-25%" y="-45%" width="150%" height="190%"><feGaussianBlur stdDeviation="19" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+  </defs>
+  <rect width="1024" height="1024" rx="224" fill="url(#bg)"/>
+  <path d="M126 650C222 650 238 346 354 346S470 672 582 672S698 374 796 374S866 552 900 686" fill="none" stroke="url(#wave)" stroke-width="104" stroke-linecap="round" stroke-linejoin="round" filter="url(#g)"/>
+  <path d="M130 778H894" stroke="#8AEAFF" stroke-opacity=".16" stroke-width="16" stroke-linecap="round"/>
+</svg>

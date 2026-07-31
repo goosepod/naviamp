@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" role="img" aria-labelledby="title desc">
+  <title id="title">Naviamp Echo Waveform NA</title>
+  <desc id="desc">An NA-like waveform with two subtle echo traces and a descending endpoint.</desc>
+  <defs>
+    <linearGradient id="bg" x1="512" y1="0" x2="512" y2="1024" gradientUnits="userSpaceOnUse"><stop stop-color="#081D35"/><stop offset="1" stop-color="#02070D"/></linearGradient>
+    <linearGradient id="wave" x1="110" y1="670" x2="910" y2="350" gradientUnits="userSpaceOnUse"><stop stop-color="#4BE8FF"/><stop offset=".5" stop-color="#087DFF"/><stop offset="1" stop-color="#5365FF"/></linearGradient>
+  </defs>
+  <rect width="1024" height="1024" rx="224" fill="url(#bg)"/>
+  <path d="M126 646C230 646 238 354 354 354S468 668 580 668S696 382 794 382S866 548 898 680" fill="none" stroke="#2DAFFF" stroke-opacity=".12" stroke-width="182" stroke-linecap="round"/>
+  <path d="M126 646C230 646 238 354 354 354S468 668 580 668S696 382 794 382S866 548 898 680" fill="none" stroke="#54CBFF" stroke-opacity=".28" stroke-width="136" stroke-linecap="round"/>
+  <path d="M126 646C230 646 238 354 354 354S468 668 580 668S696 382 794 382S866 548 898 680" fill="none" stroke="url(#wave)" stroke-width="82" stroke-linecap="round"/>
+</svg>
