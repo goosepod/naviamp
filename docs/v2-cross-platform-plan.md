@@ -40,6 +40,10 @@ this current list. Check an item only in the same commit that records its verifi
 
 ### Android physical-device acceptance
 
+> **Deferred on 2026-07-31:** The project owner does not have time to run this physical-device
+> matrix now. Resume here with the one-hour retained-growth playback scenario; keep every item below
+> unchecked until its device evidence is recorded.
+
 - [ ] Pass the one-hour retained-growth playback scenario on a release-like physical-device build.
 - [ ] Pass large-library scrolling/search and return-to-steady-state measurement on a physical device.
 - [ ] Verify Activity recreation, task removal, service restart, process-death restoration, and relaunch attachment.
