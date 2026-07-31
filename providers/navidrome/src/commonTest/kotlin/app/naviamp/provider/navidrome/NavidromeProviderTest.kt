@@ -29,6 +29,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class NavidromeProviderTest {
@@ -1172,6 +1173,35 @@ class NavidromeProviderTest {
     }
 
     @Test
+    fun commonNativeSessionControllerPersistsARejectedTokenAsCleared() = runTest {
+        val active = NavidromeProvider(
+            connection = connection("https://music.example.test", nativeToken = "expired-token"),
+            httpClient = FailingNativeHttpClient(),
+        )
+        var persisted: ProviderMediaSourceConnection? = null
+        val repository = object : ProviderMediaSourceRepository {
+            override fun upsertProviderMediaSource(
+                connection: ProviderMediaSourceConnection,
+                cacheNamespace: String,
+                providerId: String,
+            ): MediaSourceIdentity {
+                persisted = connection
+                return MediaSourceIdentity("source", cacheNamespace, connection.displayName)
+            }
+        }
+        val controller = NavidromeNativeSessionController(
+            currentProvider = { active },
+            savedConnection = { null },
+            replaceProvider = {},
+            repository = repository,
+        )
+
+        assertFailsWith<NavidromeException> { controller.refresh() }
+
+        assertNull(persisted?.nativeToken)
+    }
+
+    @Test
     fun commonNativeSessionControllerRefreshesReauthenticatesAndPersistsRotatedTokens() = runTest {
         val httpClient = RecordingNativeHttpClient(
             response = """{"data":[]}""",
@@ -1472,7 +1502,11 @@ class NavidromeProviderTest {
             provider.createSmartPlaylist(smartPlaylistDefinition())
         }
 
-        assertEquals("Navidrome returned HTTP 401.", error.message)
+        assertEquals(
+            "Your Navidrome smart playlist session expired. Enter your password to reconnect smart playlists.",
+            error.message,
+        )
+        assertEquals(null, provider.connectionWithCurrentNativeToken().nativeToken)
     }
 
     @Test
@@ -1486,7 +1520,11 @@ class NavidromeProviderTest {
             provider.updateSmartPlaylist("smart-1", smartPlaylistDefinition())
         }
 
-        assertEquals("Navidrome returned HTTP 401.", error.message)
+        assertEquals(
+            "Your Navidrome smart playlist session expired. Enter your password to reconnect smart playlists.",
+            error.message,
+        )
+        assertEquals(null, provider.connectionWithCurrentNativeToken().nativeToken)
     }
 
     @Test
@@ -2321,19 +2359,19 @@ class NavidromeProviderTest {
     }
 
     private class FailingNativeHttpClient : NavidromeHttpClient {
-        override suspend fun get(url: String): String = throw NavidromeException("Navidrome returned HTTP 401.")
+        override suspend fun get(url: String): String = throw NavidromeHttpException(401)
 
         override suspend fun postJson(
             url: String,
             body: String,
             headers: Map<String, String>,
-        ): String = throw NavidromeException("Navidrome returned HTTP 401.")
+        ): String = throw NavidromeHttpException(401)
 
         override suspend fun putJson(
             url: String,
             body: String,
             headers: Map<String, String>,
-        ): String = throw NavidromeException("Navidrome returned HTTP 401.")
+        ): String = throw NavidromeHttpException(401)
     }
 
 private fun radioResponse(responseKey: String, trackId: String, title: String): String =

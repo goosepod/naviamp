@@ -23,6 +23,8 @@ import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertFalse
+import kotlin.test.assertTrue
 
 class AudioByteStoreServiceTest {
     @Test
@@ -31,6 +33,15 @@ class AudioByteStoreServiceTest {
             "e87fef48031de2bf17c06896156c8212",
             stableAudioFileName("source", "track", "original"),
         )
+    }
+
+    @Test
+    fun ownedAudioFileNameRequiresAHashAndKnownAudioExtension() {
+        assertTrue(isNaviampOwnedAudioFileName("e87fef48031de2bf17c06896156c8212.flac"))
+        assertTrue(isNaviampOwnedAudioFileName("0123456789abcdef0123456789abcdef01234567.ogg"))
+        assertFalse(isNaviampOwnedAudioFileName("track.flac"))
+        assertFalse(isNaviampOwnedAudioFileName("e87fef48031de2bf17c06896156c8212.txt"))
+        assertFalse(isNaviampOwnedAudioFileName("../e87fef48031de2bf17c06896156c8212.flac"))
     }
 
     @Test

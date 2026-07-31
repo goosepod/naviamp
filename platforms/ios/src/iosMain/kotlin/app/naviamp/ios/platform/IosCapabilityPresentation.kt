@@ -10,7 +10,9 @@ import app.naviamp.presentation.toShellCapabilitiesUi
 
 /** Declares only Apple services that the current thin host has actually mounted. */
 object IosCapabilityPresentation {
-    private val platform = listOf(
+    internal val platform = listOf(
+        PlatformCapability.BackgroundPlayback,
+        PlatformCapability.SystemMediaControls,
         PlatformCapability.SecureCredentialStorage,
         PlatformCapability.InsecureServerVerification,
         PlatformCapability.ApplicationUpdates,

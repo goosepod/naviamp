@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" role="img" aria-labelledby="title desc">
+  <title id="title">Naviamp Stroke N</title>
+  <desc id="desc">A clean three-stroke N whose diagonal meets both uprights exactly.</desc>
+  <defs>
+    <radialGradient id="bg"><stop stop-color="#153B69"/><stop offset="1" stop-color="#050D18"/></radialGradient>
+    <linearGradient id="n" x1="270" y1="300" x2="754" y2="724" gradientUnits="userSpaceOnUse"><stop stop-color="#58E5FF"/><stop offset=".5" stop-color="#0786FF"/><stop offset="1" stop-color="#4059FF"/></linearGradient>
+    <filter id="g" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="18" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+  </defs>
+  <rect width="1024" height="1024" rx="224" fill="url(#bg)"/>
+  <g fill="none" stroke="url(#n)" stroke-width="104" stroke-linecap="round" stroke-linejoin="round" filter="url(#g)"><path d="M278 724V300L746 724V300"/></g>
+  <path d="M180 794H844" stroke="#7EE5FF" stroke-opacity=".16" stroke-width="14" stroke-linecap="round"/>
+</svg>

@@ -4,6 +4,7 @@ import app.naviamp.domain.cache.AudioByteStore
 import app.naviamp.domain.cache.AudioByteStoreService
 import app.naviamp.domain.cache.AudioByteWriter
 import app.naviamp.domain.cache.StoredAudioBytes
+import app.naviamp.domain.cache.isNaviampOwnedAudioFileName
 import app.naviamp.domain.network.SharedHttpClient
 import java.io.File
 
@@ -41,14 +42,18 @@ internal class AndroidAudioFileServices(
         audioCacheByteStore.updateDirectory(directory)
     }
 
-    fun deleteKnownAudioCacheFile(filePath: String): Boolean = deleteKnownRegularFile(filePath)
+    fun deleteKnownAudioCacheFile(filePath: String): Boolean = deleteKnownRegularFile(audioCacheDirectory, filePath)
 
-    fun deleteKnownDownloadFile(filePath: String): Boolean = deleteKnownRegularFile(filePath)
+    fun deleteKnownDownloadFile(filePath: String): Boolean = deleteKnownRegularFile(downloadDirectory, filePath)
 
-    private fun deleteKnownRegularFile(filePath: String): Boolean {
-        val file = File(filePath)
-        if (!file.exists()) return true
-        return file.isFile && file.delete()
+    private fun deleteKnownRegularFile(directory: File, filePath: String): Boolean {
+        return runCatching {
+            val root = directory.canonicalFile
+            val file = File(filePath).canonicalFile
+            if (file.parentFile != root || !isNaviampOwnedAudioFileName(file.name)) return@runCatching false
+            if (!file.exists()) return@runCatching true
+            file.isFile && file.delete()
+        }.getOrDefault(false)
     }
 }
 
@@ -80,7 +85,12 @@ internal class AndroidAudioByteStore(
     }
 
     override fun deleteAudioBytes(filePath: String) {
-        File(filePath).takeIf(File::isFile)?.delete()
+        runCatching {
+            val root = directory.canonicalFile
+            File(filePath).canonicalFile.takeIf { file ->
+                file.parentFile == root && isNaviampOwnedAudioFileName(file.name) && file.isFile
+            }?.delete()
+        }
     }
 }
 

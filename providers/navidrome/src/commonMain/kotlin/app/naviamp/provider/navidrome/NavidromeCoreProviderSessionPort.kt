@@ -4,6 +4,9 @@ import app.naviamp.app.NaviampConnectionAttemptPlan
 import app.naviamp.domain.cache.CacheMaintenanceRepository
 import app.naviamp.domain.cache.MediaSourceRepository
 import app.naviamp.domain.cache.ProviderMediaSourceRepository
+import app.naviamp.domain.cache.ProviderIdentityMigrationRepository
+import app.naviamp.domain.cache.ProviderIdentityProbeState
+import app.naviamp.domain.provider.ConnectionValidation
 import app.naviamp.domain.provider.MediaProvider
 import app.naviamp.domain.settings.ConnectionFormHeader
 import app.naviamp.domain.settings.ConnectionFormSecondaryUrl
@@ -46,6 +49,9 @@ class NavidromeCoreProviderSessionPort(
         applyTlsDefaults(connection)
         NavidromeProvider(connection).musicFolders()
     },
+    private val validateProvider: suspend (NavidromeProvider) -> ConnectionValidation = { it.validateConnection() },
+    private val probeCanonicalIds: suspend (NavidromeProvider, List<String>) -> NavidromeCanonicalIdProbeResult =
+        { provider, ownedIds -> provider.probeCanonicalIds(ownedIds) },
 ) : NaviampCoreProviderSessionPort {
     private var provider: NavidromeProvider? = initialSource?.toNavidromeConnection()?.let { connection ->
         applyTlsDefaults(connection)
@@ -73,6 +79,7 @@ class NavidromeCoreProviderSessionPort(
         val session = sessionOpener.open(request.toLoginRequest(), plan.clearProviderData)
         provider = session.provider
         currentSourceId = session.sourceId
+        migrateProviderIdentities(session.provider, session.sourceId, session.validation.serverVersion)
         return NaviampCoreConnectedSession(
             sourceId = session.sourceId,
             displayName = session.connection.resolvedDisplayName(),
@@ -106,7 +113,14 @@ class NavidromeCoreProviderSessionPort(
 
     override suspend fun smartPlaylistProvider(password: String?): MediaProvider? = nativeSession.provider(password)
 
-    override suspend fun refreshActiveSession(): Boolean = nativeSession.refresh()
+    override suspend fun refreshActiveSession(): Boolean {
+        val activeProvider = provider
+        val sourceId = currentSourceId
+        if (activeProvider != null && sourceId != null) {
+            runCatching { migrateProviderIdentities(activeProvider, sourceId) }
+        }
+        return nativeSession.refresh()
+    }
 
     override suspend fun persistActiveSession() = nativeSession.persist()
 
@@ -145,6 +159,43 @@ class NavidromeCoreProviderSessionPort(
 
     private fun requireSaved(id: String): SavedMediaSource =
         requireNotNull(mediaSources.mediaSource(id)) { "Saved connection is no longer available." }
+
+    private suspend fun migrateProviderIdentities(
+        activeProvider: NavidromeProvider,
+        sourceId: String,
+        knownServerVersion: String? = null,
+    ) {
+        val migrations = mediaSources as? ProviderIdentityMigrationRepository ?: return
+        if ((migrations.providerIdentityVersion(sourceId) ?: 0L) >= NavidromeCanonicalIdentityVersion) return
+        val serverVersion = knownServerVersion ?: validateProvider(activeProvider).serverVersion
+        val normalizedServerVersion = serverVersion?.trim().orEmpty()
+        val previousProbe = migrations.providerIdentityProbeState(sourceId)
+        if (
+            normalizedServerVersion.isNotEmpty() &&
+            previousProbe?.targetIdentityVersion == NavidromeCanonicalIdentityVersion &&
+            previousProbe.serverVersion == normalizedServerVersion
+        ) return
+        when (probeCanonicalIds(activeProvider, migrations.providerIdentitySamples(sourceId))) {
+            NavidromeCanonicalIdProbeResult.Confirmed -> migrations.migrateProviderIdentities(
+                sourceId = sourceId,
+                providerId = activeProvider.id.value,
+                targetVersion = NavidromeCanonicalIdentityVersion,
+                transform = NavidromeCanonicalId::migrate,
+            )
+            NavidromeCanonicalIdProbeResult.Unsupported,
+            NavidromeCanonicalIdProbeResult.NoCandidates,
+            -> if (normalizedServerVersion.isNotEmpty()) {
+                migrations.recordProviderIdentityProbeState(
+                    sourceId,
+                    ProviderIdentityProbeState(
+                        targetIdentityVersion = NavidromeCanonicalIdentityVersion,
+                        serverVersion = normalizedServerVersion,
+                    ),
+                )
+            }
+            NavidromeCanonicalIdProbeResult.Inconclusive -> Unit
+        }
+    }
 
     private fun inventory(): NaviampCoreConnectionInventory {
         val connections = mediaSources.mediaSources().visibleServerConnections(currentSourceId).map { saved ->

@@ -147,6 +147,7 @@ class AndroidNaviampCoreCatalog private constructor(
                     keepDownloaded = storage,
                     radioDjPresets = storage,
                     maintenance = storage,
+                    pendingProviderActions = storage,
                     updateAudioCacheLimit = storage::updateAudioCacheLimit,
                 ),
                 externalUri = AndroidCoreExternalUriPort(appContext),

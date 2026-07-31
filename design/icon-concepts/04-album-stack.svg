@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" role="img" aria-labelledby="title desc">
+  <title id="title">Naviamp Album Stack icon concept</title>
+  <desc id="desc">Three offset blue album tiles form an original layered music-library emblem.</desc>
+  <defs>
+    <linearGradient id="bg" x1="120" y1="100" x2="900" y2="940" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0A77FF"/>
+      <stop offset="1" stop-color="#0640B6"/>
+    </linearGradient>
+    <linearGradient id="front" x1="336" y1="260" x2="700" y2="772" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#F4FCFF"/>
+      <stop offset="1" stop-color="#A6E7FF"/>
+    </linearGradient>
+    <filter id="shadow" x="-30%" y="-30%" width="170%" height="180%">
+      <feDropShadow dx="0" dy="28" stdDeviation="28" flood-color="#001A4D" flood-opacity="0.38"/>
+    </filter>
+  </defs>
+  <rect width="1024" height="1024" rx="224" fill="url(#bg)"/>
+  <g filter="url(#shadow)">
+    <rect x="204" y="250" width="476" height="476" rx="112" fill="#062763" transform="rotate(-13 442 488)"/>
+    <rect x="342" y="254" width="476" height="476" rx="112" fill="#27C9FF" transform="rotate(12 580 492)"/>
+    <rect x="274" y="276" width="476" height="476" rx="112" fill="url(#front)"/>
+  </g>
+  <g fill="none" stroke="#0865E8" stroke-linecap="round">
+    <path d="M380 424H644" stroke-width="48"/>
+    <path d="M380 512H574" stroke-width="48"/>
+    <path d="M380 600H626" stroke-width="48"/>
+  </g>
+  <circle cx="670" cy="600" r="64" fill="#071D48"/>
+  <circle cx="670" cy="600" r="20" fill="#58D9FF"/>
+</svg>

@@ -1,5 +1,7 @@
 package app.naviamp.ios.platform
 
+import app.naviamp.domain.app.PlatformCapability
+import app.naviamp.domain.app.PlatformCapabilityStatus
 import app.naviamp.domain.playback.PlaybackEngine
 import app.naviamp.domain.playback.PlaybackProgress
 import app.naviamp.domain.playback.PlaybackRequest
@@ -8,6 +10,8 @@ import app.naviamp.domain.playback.PlaybackStreamMetadata
 import kotlinx.coroutines.CoroutineScope
 import kotlin.test.Test
 import kotlin.test.assertTrue
+import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 
 class IosCapabilityPresentationTest {
     @Test
@@ -19,6 +23,19 @@ class IosCapabilityPresentationTest {
     fun exposesSettingsImportExportAfterTheDocumentPickerEffectIsMounted() {
         val shell = IosCapabilityPresentation.shell(TestPlaybackEngine)
         assertTrue(shell.settingsImportExport)
+    }
+
+    @Test
+    fun declaresAppleMediaLifecycleWithoutExposingSoftwareVolume() {
+        assertEquals(
+            PlatformCapabilityStatus.Available,
+            IosCapabilityPresentation.platform.status(PlatformCapability.BackgroundPlayback),
+        )
+        assertEquals(
+            PlatformCapabilityStatus.Available,
+            IosCapabilityPresentation.platform.status(PlatformCapability.SystemMediaControls),
+        )
+        assertFalse(IosCapabilityPresentation.shell(TestPlaybackEngine).softwareVolumeControl)
     }
 }
 

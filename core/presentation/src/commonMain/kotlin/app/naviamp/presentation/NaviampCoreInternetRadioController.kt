@@ -16,6 +16,7 @@ fun interface NaviampCoreInternetRadioPlaybackPort {
 interface NaviampCoreInternetRadioRecentsPort {
     fun current(): List<InternetRadioStation>
     suspend fun record(station: InternetRadioStation): List<InternetRadioStation>
+    fun clear() = Unit
 }
 
 /** Core-owned recency policy with injected portable persistence effects. */
@@ -36,6 +37,12 @@ fun naviampCoreInternetRadioRecentsPort(
         ).also(persist).also { onChanged() }.map(SavedInternetRadioStation::toStation).also { updated ->
             recentStations = updated
         }
+
+    override fun clear() {
+        recentStations = emptyList()
+        persist(emptyList())
+        onChanged()
+    }
 }
 
 /** Owns Internet Radio browsing, mutations, selection, recents, and shared result state. */
@@ -116,6 +123,24 @@ class NaviampCoreInternetRadioController(
     }
 
     suspend fun refreshAfterConnection() = refresh()
+
+    fun resetForSourceChange() {
+        generation += 1
+        stations = emptyList()
+        stationsById = emptyMap()
+        recents.clear()
+        stateStore.updateShell { shell ->
+            shell.copy(
+                radio = shell.radio.copy(stations = emptyList(), refreshing = false, status = null),
+                home = shell.home.copy(
+                    content = shell.home.content.copy(
+                        recentRadioStreams = emptyList(),
+                        radioStations = emptyList(),
+                    ),
+                ),
+            )
+        }
+    }
 
     private suspend fun save(edit: NaviampInternetRadioStationEditUi) {
         val provider = providerOrPublish() ?: return

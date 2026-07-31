@@ -135,6 +135,14 @@ class NaviampCore private constructor(
             },
         ): NaviampCore {
             val stateStore = NaviampCoreStateStore(initialState.product)
+            val providerSource = NaviampCoreMediaProviderSource {
+                services.content.providerSource.current()?.let { provider ->
+                    services.providerActions.offlineCapable(
+                        provider = provider,
+                        sourceId = stateStore.state.value.shell.connectionSettings.currentSourceId,
+                    )
+                }
+            }
             val navigationState = NaviampNavigationController(initialState.navigation)
             val livePlayback = NaviampLivePlaybackController(initialState.playback)
             val queue = NaviampPlaybackQueueCoordinator(livePlayback)
@@ -151,7 +159,7 @@ class NaviampCore private constructor(
             )
             val mediaDetails = NaviampCoreMediaDetailController(
                 stateStore,
-                services.content.providerSource,
+                providerSource,
                 navigation,
                 scope,
                 services.content.artistDiscovery,
@@ -161,7 +169,7 @@ class NaviampCore private constructor(
 
             val catalog = NaviampCoreCatalogController(
                 stateStore,
-                services.content.providerSource,
+                providerSource,
                 mediaRegistry = mediaRegistry,
             )
             var notifyLocalSettingsChanged: () -> Unit = services.settings.sync.controller::markLocalChanged
@@ -178,7 +186,7 @@ class NaviampCore private constructor(
             )
             val home = NaviampCoreHomeController(
                 stateStore,
-                services.content.providerSource,
+                providerSource,
                 navigation,
                 services.content.homeDate,
                 services.content.homeSupplement,
@@ -189,7 +197,7 @@ class NaviampCore private constructor(
             )
             val playlistBrowse = NaviampCorePlaylistBrowseController(
                 stateStore,
-                services.content.providerSource,
+                providerSource,
                 navigation,
                 services.content.playlistSupplement,
                 mediaRegistry = mediaRegistry,
@@ -197,7 +205,7 @@ class NaviampCore private constructor(
             val downloads = NaviampCoreDownloadsController(
                 scope,
                 stateStore,
-                services.content.providerSource,
+                providerSource,
                 services.downloads.storage,
                 services.downloads.transfer,
                 services.downloads.keepDownloaded,
@@ -207,7 +215,7 @@ class NaviampCore private constructor(
             var publishPlaylistQueueUpdate: () -> Unit = {}
             val playlistTransactions = NaviampCorePlaylistTransactionController(
                 stateStore,
-                services.content.providerSource,
+                providerSource,
                 playlistBrowse,
                 playback = NaviampCorePlaylistPlaybackPort { _, tracks, shuffle ->
                     val ordered = if (shuffle) tracks.shuffled() else tracks
@@ -230,7 +238,7 @@ class NaviampCore private constructor(
             )
             val radio = NaviampCoreInternetRadioController(
                 stateStore,
-                services.content.providerSource,
+                providerSource,
                 services.radio.playback,
                 services.radio.recents,
                 onPlaybackStarted = { station ->
@@ -250,7 +258,7 @@ class NaviampCore private constructor(
             }
             val nowPlayingPresenter = NaviampCoreNowPlayingPresenter(
                 stateStore,
-                services.content.providerSource,
+                providerSource,
                 livePlayback,
                 queue,
                 services.playback.effects,
@@ -262,7 +270,7 @@ class NaviampCore private constructor(
             val playback = NaviampCorePlaybackController(
                 scope,
                 stateStore,
-                services.content.providerSource,
+                providerSource,
                 livePlayback,
                 queue,
                 services.playback.effects,
@@ -274,7 +282,7 @@ class NaviampCore private constructor(
             )
             val nowPlaying = NaviampCoreNowPlayingMediaController(
                 stateStore,
-                services.content.providerSource,
+                providerSource,
                 livePlayback,
                 queue,
                 services.playback.effects,
@@ -297,7 +305,7 @@ class NaviampCore private constructor(
             )
             val mediaTransactions = NaviampCoreMediaTransactions(
                 stateStore,
-                services.content.providerSource,
+                providerSource,
                 mediaRegistry,
                 livePlayback,
                 queue,
@@ -316,7 +324,7 @@ class NaviampCore private constructor(
             )
             val standardMixes = NaviampCoreStandardMixController(
                 stateStore,
-                services.content.providerSource,
+                providerSource,
                 services.mixes.artist,
                 services.mixes.album,
                 services.mixes.genre,
@@ -336,7 +344,7 @@ class NaviampCore private constructor(
             )
             val sonicBuilders = NaviampCoreSonicBuilderController(
                 stateStore,
-                services.content.providerSource,
+                providerSource,
                 playlistBrowse,
                 playback = NaviampCoreSonicPlaybackPort { tracks, _ -> mediaTransactions.play(tracks) },
                 queue = NaviampCoreSonicQueuePort { tracks, _ -> mediaTransactions.addToQueue(tracks) },
@@ -344,7 +352,7 @@ class NaviampCore private constructor(
             playback.attachNativePlayback()
             val trackActions = NaviampCoreTrackActionController(mediaRegistry, mediaTransactions)
             val collectionActions = NaviampCoreCollectionActionController(
-                services.content.providerSource,
+                providerSource,
                 mediaRegistry,
                 mediaTransactions,
                 mediaDetails,
@@ -357,8 +365,19 @@ class NaviampCore private constructor(
                 stateStore,
                 services.connection,
                 initialState.connectionInventory,
+                onSourceChanging = { previousSourceId, newSourceId ->
+                    playback.resetForSourceChange(previousSourceId, newSourceId)
+                    generatedRadioRecents.clear()
+                    radio.resetForSourceChange()
+                    home.resetForSourceChange()
+                },
                 onConnected = { sourceId ->
                     scope.launch { providerSessionLifecycle.refreshNow() }
+                    scope.launch {
+                        services.content.providerSource.current()?.let { provider ->
+                            services.providerActions.replay(sourceId, provider)
+                        }
+                    }
                     services.content.providerSource.current()?.capabilities?.let { providerCapabilities ->
                         stateStore.updateShell { shell ->
                             val capabilities = shell.capabilities.copy(
@@ -385,6 +404,9 @@ class NaviampCore private constructor(
                     scope.launch { downloads.refresh(reconcile = false) }
                 },
             )
+            if (initialState.connectionInventory.currentSourceId != null) {
+                scope.launch { providerSessionLifecycle.refreshNow() }
+            }
             completeDatabaseReset = {
                 playback.resetAfterDatabaseClear()
                 connection.resetAfterDatabaseClear()
@@ -459,7 +481,7 @@ class NaviampCore private constructor(
                 nowPlayingController = nowPlaying,
                 nowPlayingPresenter = nowPlayingPresenter,
                 providerSessionLifecycle = providerSessionLifecycle,
-                providerSource = services.content.providerSource,
+                providerSource = providerSource,
                 sidecars = services.playback.sidecars,
                 diagnostics = services.diagnostics,
             )

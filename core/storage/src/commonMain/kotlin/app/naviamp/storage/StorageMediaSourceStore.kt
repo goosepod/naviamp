@@ -3,6 +3,9 @@ package app.naviamp.storage
 import app.naviamp.domain.cache.MediaSourceRepository
 import app.naviamp.domain.cache.ProviderMediaSourceConnection
 import app.naviamp.domain.cache.ProviderMediaSourceRepository
+import app.naviamp.domain.cache.ProviderIdentityMigrationRepository
+import app.naviamp.domain.cache.ProviderIdentityMigrationResult
+import app.naviamp.domain.cache.ProviderIdentityProbeState
 import app.naviamp.domain.source.ConnectionHeaderDefinition
 import app.naviamp.domain.source.ConnectionSecondaryUrl
 import app.naviamp.domain.source.ConnectionTlsSettings
@@ -37,7 +40,9 @@ class StorageMediaSourceStore(
     private val credentialProtector: StorageCredentialProtector = PassthroughStorageCredentialProtector,
     private val json: Json = Json { ignoreUnknownKeys = true },
 ) : MediaSourceRepository,
-    ProviderMediaSourceRepository {
+    ProviderMediaSourceRepository,
+    ProviderIdentityMigrationRepository {
+    private val identityMigrations = StorageProviderIdentityMigrationStore(queries, json)
     init {
         migrateStoredCredentials()
     }
@@ -53,6 +58,39 @@ class StorageMediaSourceStore(
 
     override fun deleteMediaSource(sourceId: String) {
         queries.deleteMediaSource(sourceId)
+    }
+
+    override fun migrateProviderIdentities(
+        sourceId: String,
+        providerId: String,
+        targetVersion: Long,
+        transform: (String) -> String,
+    ): ProviderIdentityMigrationResult = identityMigrations.migrate(
+        sourceId = sourceId,
+        providerId = providerId,
+        targetVersion = targetVersion,
+        transform = transform,
+    )
+
+    override fun providerIdentitySamples(sourceId: String, limit: Long): List<String> =
+        queries.selectProviderIdentitySamples(sourceId, limit).executeAsList()
+
+    override fun providerIdentityVersion(sourceId: String): Long? =
+        queries.selectProviderIdentityVersion(sourceId).executeAsOneOrNull()
+
+    override fun providerIdentityProbeState(sourceId: String): ProviderIdentityProbeState? =
+        queries.selectProviderIdentityProbeState(sourceId).executeAsOneOrNull()?.let { row ->
+            val targetVersion = row.provider_identity_probe_target_version ?: return@let null
+            val serverVersion = row.provider_identity_probe_server_version ?: return@let null
+            ProviderIdentityProbeState(targetVersion, serverVersion)
+        }
+
+    override fun recordProviderIdentityProbeState(sourceId: String, state: ProviderIdentityProbeState) {
+        queries.recordProviderIdentityProbeState(
+            state.targetIdentityVersion,
+            state.serverVersion,
+            sourceId,
+        )
     }
 
     override fun upsertProviderMediaSource(

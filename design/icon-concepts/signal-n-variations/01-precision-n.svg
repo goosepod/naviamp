@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" role="img" aria-labelledby="title desc">
+  <title id="title">Naviamp Precision N</title>
+  <desc id="desc">A precisely joined blue N signal on a midnight app icon.</desc>
+  <defs>
+    <linearGradient id="bg" x1="120" y1="96" x2="900" y2="930" gradientUnits="userSpaceOnUse"><stop stop-color="#102C55"/><stop offset="1" stop-color="#050D18"/></linearGradient>
+    <linearGradient id="n" x1="260" y1="740" x2="764" y2="284" gradientUnits="userSpaceOnUse"><stop stop-color="#36D8FF"/><stop offset=".52" stop-color="#087CFF"/><stop offset="1" stop-color="#485CFF"/></linearGradient>
+    <filter id="glow" x="-25%" y="-25%" width="150%" height="150%"><feGaussianBlur stdDeviation="15" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+  </defs>
+  <rect width="1024" height="1024" rx="224" fill="url(#bg)"/>
+  <path d="M250 744V280h112l300 316V280h112v464H662L362 428v316Z" fill="url(#n)" filter="url(#glow)"/>
+  <g fill="#A9E9FF"><rect x="148" y="454" width="22" height="116" rx="11"/><rect x="108" y="484" width="22" height="56" rx="11" opacity=".6"/><rect x="854" y="454" width="22" height="116" rx="11"/><rect x="894" y="484" width="22" height="56" rx="11" opacity=".6"/></g>
+</svg>

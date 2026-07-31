@@ -33,9 +33,14 @@ class NavidromeNativeSessionController(
 
     suspend fun refresh(): Boolean {
         val active = currentProvider() ?: return false
-        val refreshed = active.refreshNativeSession()
-        if (refreshed) persist(active)
-        return refreshed
+        return try {
+            active.refreshNativeSession().also { refreshed -> if (refreshed) persist(active) }
+        } catch (error: Throwable) {
+            // A rejected native JWT is cleared by the provider. Persist that state so background
+            // refresh does not retry the same invalid credential after every app restart.
+            persist(active)
+            throw error
+        }
     }
 
     fun persist() {

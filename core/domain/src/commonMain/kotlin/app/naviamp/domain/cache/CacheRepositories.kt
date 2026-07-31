@@ -265,6 +265,48 @@ interface ProviderMediaSourceRepository {
     ): MediaSourceIdentity
 }
 
+/**
+ * Provider-neutral boundary for one-way changes to remote entity identifiers.
+ *
+ * Core storage owns the transaction. A provider supplies only its deterministic identifier
+ * transform and the target format version after it has established that the connected server
+ * uses that format.
+ */
+interface ProviderIdentityMigrationRepository {
+    /** Returns the provider identity format already installed for this source. */
+    fun providerIdentityVersion(sourceId: String): Long? = null
+
+    /** Returns owned remote IDs that a provider may use to verify a format transition. */
+    fun providerIdentitySamples(sourceId: String, limit: Long = 200L): List<String> = emptyList()
+
+    /** Returns the last definitive compatibility check that did not require migration. */
+    fun providerIdentityProbeState(sourceId: String): ProviderIdentityProbeState?
+
+    /** Records a definitive check for an unchanged or old-format server build. */
+    fun recordProviderIdentityProbeState(sourceId: String, state: ProviderIdentityProbeState)
+
+    fun migrateProviderIdentities(
+        sourceId: String,
+        providerId: String,
+        targetVersion: Long,
+        transform: (String) -> String,
+    ): ProviderIdentityMigrationResult
+
+}
+
+data class ProviderIdentityProbeState(
+    val targetIdentityVersion: Long,
+    val serverVersion: String,
+)
+
+data class ProviderIdentityMigrationResult(
+    val migrated: Boolean,
+    val transformedReferences: Int = 0,
+    val libraryIndexInvalidated: Boolean = false,
+    val providerResponsesInvalidated: Boolean = false,
+    val artworkInvalidated: Boolean = false,
+)
+
 interface PlaybackSessionRepository {
     fun loadPlaybackSession(sourceId: String? = null): PlaybackSessionSettings?
 

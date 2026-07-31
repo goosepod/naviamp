@@ -64,6 +64,7 @@ class NaviampCorePlaybackController(
     private var sidecarLoadJob: Job? = null
     private var persistedQueue = PlaybackQueue()
     private var persistedStationId: String? = null
+    private var sourceTransitionTargetId: String? = null
 
     override fun dispatch(command: NaviampCoreCommand): NaviampCoreImmediateCommandResult = when (command) {
         is NaviampCoreCommand.NowPlaying.Playback,
@@ -163,9 +164,33 @@ class NaviampCorePlaybackController(
         presenter.publish(display)
     }
 
+    /** Enforces single-source playback until deliberate multi-server playback is implemented. */
+    fun resetForSourceChange(previousSourceId: String?, newSourceId: String) {
+        sourceTransitionTargetId = newSourceId
+        sidecarLoadJob?.cancel()
+        sidecarLoadJob = null
+        sidecarTrackId = null
+        effects.stop()
+        queue.clearQueue()
+        playback.replace(
+            app.naviamp.app.NaviampLivePlaybackState(
+                playbackState = PlaybackState.Stopped,
+            ),
+        )
+        previousSourceId?.let(sessions::clear)
+        persistedQueue = PlaybackQueue()
+        persistedStationId = null
+        display = NaviampCoreNowPlayingDisplayState()
+        presenter.publish(display)
+    }
+
     suspend fun restoreSession(sourceId: String): Boolean {
         when (val restored = sessions.restorePlan(sourceId)) {
-            PlaybackSessionRestorePlan.None -> return false
+            PlaybackSessionRestorePlan.None -> {
+                if (sourceTransitionTargetId == sourceId) sourceTransitionTargetId = null
+                presenter.publish(display)
+                return false
+            }
             is PlaybackSessionRestorePlan.TrackSession -> {
                 queue.restoreQueue(restored.playbackQueue)
                 playback.replace(
@@ -208,11 +233,13 @@ class NaviampCorePlaybackController(
                 publishStatus(restored.status)
             }
         }
+        if (sourceTransitionTargetId == sourceId) sourceTransitionTargetId = null
         presenter.publish(display)
         return true
     }
 
     private fun persistSession(force: Boolean) {
+        if (sourceTransitionTargetId != null) return
         val live = playback.state.value
         val structuralChange = live.queue != persistedQueue || live.currentStation?.id != persistedStationId
         val plan = runCatching {

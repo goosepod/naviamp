@@ -32,6 +32,9 @@ import app.naviamp.domain.cache.ObjectByteStoreService
 import app.naviamp.domain.cache.PlaybackSessionRepository
 import app.naviamp.domain.cache.PlaybackSessionRepositoryPerformance
 import app.naviamp.domain.cache.PlaybackHistoryRepository
+import app.naviamp.domain.cache.ProviderIdentityMigrationRepository
+import app.naviamp.domain.cache.ProviderIdentityMigrationResult
+import app.naviamp.domain.cache.ProviderIdentityProbeState
 import app.naviamp.domain.cache.ProviderMediaSourceConnection
 import app.naviamp.domain.cache.ProviderMediaSourceRepository
 import app.naviamp.domain.cache.ProviderResponseCacheService
@@ -81,6 +84,7 @@ class AndroidStorage(
     PlaybackHistoryRepository<AndroidPlaybackHistoryItem>,
     MediaSourceRepository,
     ProviderMediaSourceRepository,
+    ProviderIdentityMigrationRepository,
     PlaybackSessionRepository,
     LocalLibraryIndexRepository,
     PendingProviderActionRepository,
@@ -208,6 +212,27 @@ class AndroidStorage(
         providerId: String,
     ): MediaSourceIdentity =
         mediaSources.upsertProviderMediaSource(connection, cacheNamespace, providerId)
+
+    override fun providerIdentityVersion(sourceId: String): Long? =
+        mediaSources.providerIdentityVersion(sourceId)
+
+    override fun providerIdentitySamples(sourceId: String, limit: Long): List<String> =
+        mediaSources.providerIdentitySamples(sourceId, limit)
+
+    override fun providerIdentityProbeState(sourceId: String): ProviderIdentityProbeState? =
+        mediaSources.providerIdentityProbeState(sourceId)
+
+    override fun recordProviderIdentityProbeState(sourceId: String, state: ProviderIdentityProbeState) {
+        mediaSources.recordProviderIdentityProbeState(sourceId, state)
+    }
+
+    override fun migrateProviderIdentities(
+        sourceId: String,
+        providerId: String,
+        targetVersion: Long,
+        transform: (String) -> String,
+    ): ProviderIdentityMigrationResult =
+        mediaSources.migrateProviderIdentities(sourceId, providerId, targetVersion, transform)
 
     fun upsertNavidromeSource(connection: NavidromeConnection, cacheNamespace: String, providerId: String): MediaSourceIdentity =
         upsertProviderMediaSource(

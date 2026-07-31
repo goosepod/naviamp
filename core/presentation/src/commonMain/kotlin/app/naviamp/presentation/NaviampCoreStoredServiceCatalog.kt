@@ -10,6 +10,7 @@ import app.naviamp.domain.cache.ProviderResponseCacheRepository
 import app.naviamp.domain.cache.ProviderResponseService
 import app.naviamp.domain.cache.StorageCacheStats
 import app.naviamp.domain.playback.PlaybackEngine
+import app.naviamp.domain.provider.PendingProviderActionRepository
 import app.naviamp.domain.radio.RadioDjPresetRepository
 import app.naviamp.domain.settings.CacheSettings
 import app.naviamp.domain.settings.InterfaceSettings
@@ -71,6 +72,7 @@ data class NaviampCoreStoredRepositories(
     val keepDownloaded: KeepDownloadedRepository,
     val radioDjPresets: RadioDjPresetRepository,
     val maintenance: CacheMaintenanceRepository<StorageCacheStats>,
+    val pendingProviderActions: PendingProviderActionRepository,
     val updateAudioCacheLimit: (Long) -> Unit = {},
 )
 
@@ -155,6 +157,7 @@ fun naviampCoreStoredServiceCatalog(
         homeDate = homeDate,
         sourceId = sourceId,
         libraryIndex = repositories.libraryIndex,
+        pendingProviderActions = repositories.pendingProviderActions,
         clockEpochMillis = clockEpochMillis,
         favoritedAtIso8601 = favoritedAtIso8601,
     )

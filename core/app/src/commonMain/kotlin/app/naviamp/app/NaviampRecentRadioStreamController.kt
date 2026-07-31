@@ -16,4 +16,9 @@ class NaviampRecentRadioStreamController(
             save(updated)
             onChanged()
         }
+
+    fun clear() {
+        save(emptyList())
+        onChanged()
+    }
 }

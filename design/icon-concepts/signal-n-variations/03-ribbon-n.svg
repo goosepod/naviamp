@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" role="img" aria-labelledby="title desc">
+  <title id="title">Naviamp Ribbon N</title>
+  <desc id="desc">A precisely connected N drawn as a dimensional audio ribbon.</desc>
+  <defs>
+    <linearGradient id="bg" x1="170" y1="130" x2="850" y2="900" gradientUnits="userSpaceOnUse"><stop stop-color="#0A2746"/><stop offset="1" stop-color="#030911"/></linearGradient>
+    <linearGradient id="base" x1="260" y1="270" x2="770" y2="760" gradientUnits="userSpaceOnUse"><stop stop-color="#063E93"/><stop offset="1" stop-color="#101D61"/></linearGradient>
+    <linearGradient id="hi" x1="250" y1="250" x2="760" y2="730" gradientUnits="userSpaceOnUse"><stop stop-color="#63E8FF"/><stop offset=".48" stop-color="#0C8CFF"/><stop offset="1" stop-color="#5367FF"/></linearGradient>
+  </defs>
+  <rect width="1024" height="1024" rx="224" fill="url(#bg)"/>
+  <path d="M274 724V300L750 724V300" fill="none" stroke="url(#base)" stroke-width="144" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M274 724V300L750 724V300" fill="none" stroke="url(#hi)" stroke-width="88" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M274 300L750 724" fill="none" stroke="#B5F1FF" stroke-opacity=".24" stroke-width="16" stroke-linecap="round"/>
+</svg>

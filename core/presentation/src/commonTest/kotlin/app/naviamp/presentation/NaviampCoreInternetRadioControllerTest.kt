@@ -94,6 +94,10 @@ class NaviampCoreInternetRadioControllerTest {
         assertEquals(listOf("one", "old"), updated.map { it.id })
         assertEquals("Current One", persisted.first().name)
         assertEquals(updated, recents.current())
+
+        recents.clear()
+        assertTrue(persisted.isEmpty())
+        assertTrue(recents.current().isEmpty())
     }
 
     @Test

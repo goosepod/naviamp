@@ -40,7 +40,10 @@ CREATE TABLE media_source (
   last_sync_started_at_epoch_millis INTEGER,
   last_sync_completed_at_epoch_millis INTEGER,
   last_library_scan_signature TEXT,
-  last_library_scan_checked_at_epoch_millis INTEGER
+  last_library_scan_checked_at_epoch_millis INTEGER,
+  provider_identity_version INTEGER NOT NULL DEFAULT 0,
+  provider_identity_probe_target_version INTEGER,
+  provider_identity_probe_server_version TEXT
 );
 
 CREATE TABLE library_artist (
@@ -1433,6 +1436,213 @@ WHERE id = ?;
 
 clearRadioDjPresets:
 DELETE FROM radio_dj_preset;
+
+selectProviderIdentityVersion:
+SELECT provider_identity_version
+FROM media_source
+WHERE id = ?;
+
+selectProviderIdentitySamples:
+SELECT remote_id FROM (
+  SELECT remote_track_id AS remote_id FROM downloaded_audio
+  WHERE source_id = :source_id ORDER BY downloaded_at_epoch_millis ASC LIMIT :limit
+)
+UNION ALL
+SELECT remote_id FROM (
+  SELECT remote_track_id AS remote_id FROM cached_audio
+  WHERE source_id = :source_id ORDER BY created_at_epoch_millis ASC LIMIT :limit
+)
+UNION ALL
+SELECT remote_id FROM (
+  SELECT remote_track_id AS remote_id FROM playback_session_queue
+  WHERE source_id = :source_id ORDER BY queue_index ASC LIMIT :limit
+)
+UNION ALL
+SELECT remote_id FROM (
+  SELECT remote_track_id AS remote_id FROM playback_history
+  WHERE source_id = :source_id ORDER BY played_at_epoch_millis ASC LIMIT :limit
+)
+UNION ALL
+SELECT remote_id FROM (
+  SELECT remote_track_id AS remote_id FROM library_track
+  WHERE source_id = :source_id ORDER BY updated_at_epoch_millis ASC LIMIT :limit
+)
+UNION ALL
+SELECT remote_id FROM (
+  SELECT remote_track_id AS remote_id FROM keep_downloaded_collection_track
+  WHERE source_id = :source_id LIMIT :limit
+)
+UNION ALL
+SELECT remote_id FROM (
+  SELECT remote_track_id AS remote_id FROM keep_downloaded_managed_track
+  WHERE source_id = :source_id LIMIT :limit
+)
+UNION ALL
+SELECT remote_id FROM (
+  SELECT remote_track_id AS remote_id FROM cached_audio_waveform
+  WHERE source_id = :source_id ORDER BY created_at_epoch_millis ASC LIMIT :limit
+)
+UNION ALL
+SELECT remote_id FROM (
+  SELECT remote_track_id AS remote_id FROM cached_lyrics
+  WHERE source_id = :source_id ORDER BY created_at_epoch_millis ASC LIMIT :limit
+)
+UNION ALL
+SELECT remote_id FROM (
+  SELECT remote_track_id AS remote_id FROM cached_lrclib_lyrics
+  WHERE source_id = :source_id ORDER BY created_at_epoch_millis ASC LIMIT :limit
+)
+UNION ALL
+SELECT remote_id FROM (
+  SELECT remote_track_id AS remote_id FROM track_lyrics_offset
+  WHERE source_id = :source_id ORDER BY updated_at_epoch_millis ASC LIMIT :limit
+)
+UNION ALL
+SELECT remote_id FROM (
+  SELECT remote_track_id AS remote_id FROM cached_sidecar_status
+  WHERE source_id = :source_id ORDER BY updated_at_epoch_millis ASC LIMIT :limit
+);
+
+selectProviderIdentityProbeState:
+SELECT provider_identity_probe_target_version, provider_identity_probe_server_version
+FROM media_source
+WHERE id = ?;
+
+recordProviderIdentityProbeState:
+UPDATE media_source
+SET provider_identity_probe_target_version = ?,
+    provider_identity_probe_server_version = ?
+WHERE id = ?;
+
+markProviderIdentityVersion:
+UPDATE media_source
+SET provider_identity_version = ?,
+    provider_identity_probe_target_version = NULL,
+    provider_identity_probe_server_version = NULL
+WHERE id = ?;
+
+resetMediaSourceLibraryScan:
+UPDATE media_source
+SET last_sync_started_at_epoch_millis = NULL,
+    last_sync_completed_at_epoch_millis = NULL,
+    last_library_scan_signature = NULL,
+    last_library_scan_checked_at_epoch_millis = NULL
+WHERE id = ?;
+
+selectCachedAudioTrackIdsForIdentityMigration:
+SELECT remote_track_id, quality_key
+FROM cached_audio
+WHERE source_id = ?;
+
+updateCachedAudioTrackId:
+UPDATE OR REPLACE cached_audio
+SET remote_track_id = ?
+WHERE source_id = ? AND remote_track_id = ? AND quality_key = ?;
+
+updateDownloadedAudioIdentity:
+UPDATE OR REPLACE downloaded_audio
+SET remote_track_id = ?, artist_id = ?, album_id = ?, cover_art_id = ?
+WHERE source_id = ? AND remote_track_id = ? AND quality_key = ?;
+
+selectManagedKeepDownloadedTrackIdsForIdentityMigration:
+SELECT remote_track_id
+FROM keep_downloaded_managed_track
+WHERE source_id = ?;
+
+updateManagedKeepDownloadedTrackId:
+UPDATE OR REPLACE keep_downloaded_managed_track
+SET remote_track_id = ?
+WHERE source_id = ? AND remote_track_id = ?;
+
+selectWaveformTrackIdsForIdentityMigration:
+SELECT remote_track_id, quality_key
+FROM cached_audio_waveform
+WHERE source_id = ?;
+
+updateWaveformTrackId:
+UPDATE OR REPLACE cached_audio_waveform
+SET remote_track_id = ?
+WHERE source_id = ? AND remote_track_id = ? AND quality_key = ?;
+
+selectLyricsTrackIdsForIdentityMigration:
+SELECT remote_track_id
+FROM cached_lyrics
+WHERE source_id = ?;
+
+updateLyricsTrackId:
+UPDATE OR REPLACE cached_lyrics
+SET remote_track_id = ?
+WHERE source_id = ? AND remote_track_id = ?;
+
+selectLrclibLyricsTrackIdsForIdentityMigration:
+SELECT remote_track_id
+FROM cached_lrclib_lyrics
+WHERE source_id = ?;
+
+updateLrclibLyricsTrackId:
+UPDATE OR REPLACE cached_lrclib_lyrics
+SET remote_track_id = ?
+WHERE source_id = ? AND remote_track_id = ?;
+
+selectLyricsOffsetTrackIdsForIdentityMigration:
+SELECT remote_track_id
+FROM track_lyrics_offset
+WHERE source_id = ?;
+
+updateLyricsOffsetTrackId:
+UPDATE OR REPLACE track_lyrics_offset
+SET remote_track_id = ?
+WHERE source_id = ? AND remote_track_id = ?;
+
+selectSidecarStatusTrackIdsForIdentityMigration:
+SELECT remote_track_id, quality_key, sidecar_type
+FROM cached_sidecar_status
+WHERE source_id = ?;
+
+updateSidecarStatusTrackId:
+UPDATE OR REPLACE cached_sidecar_status
+SET remote_track_id = ?
+WHERE source_id = ? AND remote_track_id = ? AND quality_key = ? AND sidecar_type = ?;
+
+updatePlaybackSessionQueueIdentity:
+UPDATE playback_session_queue
+SET remote_track_id = ?, payload = ?
+WHERE source_id = ? AND queue_index = ?;
+
+selectPlaybackSessionQueueForIdentityMigration:
+SELECT queue_index, remote_track_id, payload
+FROM playback_session_queue
+WHERE source_id = ?
+ORDER BY queue_index;
+
+updateLegacyPlaybackSessionPayload:
+UPDATE playback_session
+SET payload = ?
+WHERE source_id = ?;
+
+updatePlaybackHistoryIdentity:
+UPDATE OR REPLACE playback_history
+SET remote_track_id = ?, artist_id = ?, album_id = ?, cover_art_id = ?
+WHERE source_id = ? AND remote_track_id = ? AND played_at_epoch_millis = ?;
+
+selectPlaybackHistoryForIdentityMigration:
+SELECT *
+FROM playback_history
+WHERE source_id = ?;
+
+selectPendingProviderActionsForIdentityMigration:
+SELECT id, entity_id
+FROM pending_provider_action
+WHERE source_id = ?;
+
+updatePendingProviderActionEntityId:
+UPDATE pending_provider_action
+SET entity_id = ?
+WHERE id = ?;
+
+deleteResponsesForProviderIdentityMigration:
+DELETE FROM cached_response
+WHERE provider_id = ?;
 
 clearLibraryTracks:
 DELETE FROM library_track;
