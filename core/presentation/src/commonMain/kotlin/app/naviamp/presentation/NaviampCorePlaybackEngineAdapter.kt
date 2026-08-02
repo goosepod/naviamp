@@ -1,6 +1,7 @@
 package app.naviamp.presentation
 
 import app.naviamp.domain.playback.AudioOutputDevicePlaybackEngine
+import app.naviamp.domain.playback.AudioPrefetchCompletionLedger
 import app.naviamp.domain.playback.DefaultVisualizerFrameIntervalMillis
 import app.naviamp.domain.playback.EqualizerPlaybackEngine
 import app.naviamp.domain.playback.PlaybackEngine
@@ -109,6 +110,8 @@ class NaviampCorePlaybackEngineAdapter(
     private var repeatMode = RepeatMode.Off
     private var resolutionJob: Job? = null
     private var prefetchJob: Job? = null
+    private val completedAudioPrefetch = AudioPrefetchCompletionLedger()
+    private val completedSidecarPrefetch = AudioPrefetchCompletionLedger()
     private val preparedNextBarrier = PreparedNextPlaybackBarrier(scope)
     private var prefetchGeneration = 0L
     private var generation = 0L
@@ -174,6 +177,7 @@ class NaviampCorePlaybackEngineAdapter(
         resolutionJob?.cancel()
         resolutionJob = null
         cancelAudioPrefetch()
+        clearAudioPrefetchCompletions()
         (engine as? QueueAwarePlaybackEngine)?.clearPreparedNext()
         engine.stop()
         playbackState = PlaybackState.Stopped
@@ -184,6 +188,7 @@ class NaviampCorePlaybackEngineAdapter(
     override fun applyQueue(queue: PlaybackQueue, clearPreparedNext: Boolean) {
         this.queue = queue
         cancelAudioPrefetch()
+        clearAudioPrefetchCompletions()
         if (clearPreparedNext) {
             (engine as? QueueAwarePlaybackEngine)?.clearPreparedNext()
             preparedForGeneration = -1L
@@ -205,6 +210,7 @@ class NaviampCorePlaybackEngineAdapter(
 
     override fun restoreQueue(queue: PlaybackQueue, startPositionSeconds: Double?) {
         cancelAudioPrefetch()
+        clearAudioPrefetchCompletions()
         this.queue = queue
         restoredStartPositionSeconds = startPositionSeconds
         (engine as? QueueAwarePlaybackEngine)?.clearPreparedNext()
@@ -213,6 +219,7 @@ class NaviampCorePlaybackEngineAdapter(
 
     override fun restoreInternetRadio(station: InternetRadioStation) {
         cancelAudioPrefetch()
+        clearAudioPrefetchCompletions()
         val track = internetRadioTrack(station)
         externalStreamUrls[track.id] = station.streamUrl
         queue = PlaybackQueue(listOf(track), 0)
@@ -254,6 +261,7 @@ class NaviampCorePlaybackEngineAdapter(
     override fun playQueueSelection(queue: PlaybackQueue, index: Int) {
         if (index !in queue.tracks.indices) return
         cancelAudioPrefetch()
+        clearAudioPrefetchCompletions()
         restoredStartPositionSeconds = null
         this.queue = queue.jumpTo(index)
         clearPreparedTransition()
@@ -375,7 +383,9 @@ class NaviampCorePlaybackEngineAdapter(
                             shouldPrepareNext(progress, currentPlaybackSettings)
                         ) {
                             preparedForGeneration = requestGeneration
+                            val cancelledPrefetch = cancelAudioPrefetch()
                             preparedNextBarrier.launchPreparation {
+                                cancelledPrefetch?.join()
                                 prepareNext(provider, currentPlaybackSettings, requestGeneration)
                             }
                         }
@@ -404,11 +414,13 @@ class NaviampCorePlaybackEngineAdapter(
             queue = queue,
             enabled = configured.audioCachingEnabled,
             configuredDepth = configured.audioPrefetchDepth,
+            completedAudio = completedAudioPrefetch,
+            completedSidecars = completedSidecarPrefetch,
         ) ?: return
         prefetchJob = scope.launch {
             runAudioPrefetch(
                 stats = work.stats,
-                tracks = work.tracks,
+                items = work.items,
                 isActive = {
                     requestGeneration == generation && activePrefetchGeneration == prefetchGeneration
                 },
@@ -424,14 +436,31 @@ class NaviampCorePlaybackEngineAdapter(
                         cachedAudio,
                     )
                 },
+                onAudioCached = { key ->
+                    if (requestGeneration == generation && activePrefetchGeneration == prefetchGeneration) {
+                        completedAudioPrefetch.record(key)
+                    }
+                },
+                onSidecarsPrepared = { key ->
+                    if (requestGeneration == generation && activePrefetchGeneration == prefetchGeneration) {
+                        completedSidecarPrefetch.record(key)
+                    }
+                },
             )
         }
     }
 
-    private fun cancelAudioPrefetch() {
+    private fun cancelAudioPrefetch(): Job? {
         prefetchGeneration += 1
-        prefetchJob?.cancel()
+        val cancelled = prefetchJob
+        cancelled?.cancel()
         prefetchJob = null
+        return cancelled
+    }
+
+    private fun clearAudioPrefetchCompletions() {
+        completedAudioPrefetch.clear()
+        completedSidecarPrefetch.clear()
     }
 
     private fun shouldPrepareNext(progress: app.naviamp.domain.playback.PlaybackProgress, settings: PlaybackSettings): Boolean {

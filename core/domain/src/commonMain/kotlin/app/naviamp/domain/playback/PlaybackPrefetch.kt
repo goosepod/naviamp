@@ -2,6 +2,7 @@ package app.naviamp.domain.playback
 
 import app.naviamp.domain.StreamQuality
 import app.naviamp.domain.Track
+import app.naviamp.domain.TrackId
 import app.naviamp.domain.queue.PlaybackQueue
 import kotlinx.coroutines.CancellationException
 
@@ -27,9 +28,47 @@ data class AudioPrefetchWork<Provider>(
     val sourceId: String,
     val provider: Provider,
     val quality: StreamQuality,
-    val tracks: List<Track>,
+    val items: List<AudioPrefetchItem>,
     val stats: AudioPrefetchStats,
+) {
+    val tracks: List<Track>
+        get() = items.map(AudioPrefetchItem::track)
+}
+
+data class AudioPrefetchKey(
+    val sourceId: String,
+    val trackId: TrackId,
+    val quality: StreamQuality,
 )
+
+data class AudioPrefetchItem(
+    val track: Track,
+    val key: AudioPrefetchKey,
+    val cacheAudio: Boolean,
+    val prepareSidecars: Boolean,
+)
+
+class AudioPrefetchCompletionLedger(
+    private val capacity: Int = DefaultAudioPrefetchCompletionCapacity,
+) {
+    private val orderedKeys = ArrayDeque<AudioPrefetchKey>()
+    private val keys = mutableSetOf<AudioPrefetchKey>()
+
+    fun contains(key: AudioPrefetchKey): Boolean = key in keys
+
+    fun record(key: AudioPrefetchKey) {
+        if (capacity <= 0 || !keys.add(key)) return
+        orderedKeys.addLast(key)
+        while (orderedKeys.size > capacity) {
+            keys.remove(orderedKeys.removeFirst())
+        }
+    }
+
+    fun clear() {
+        orderedKeys.clear()
+        keys.clear()
+    }
+}
 
 fun initialAudioPrefetchStats(
     enabled: Boolean,
@@ -63,6 +102,9 @@ fun AudioPrefetchStats.audioSuccess(sidecarResult: PlaybackSidecarPrepResult): A
         lastSidecarError = sidecarResult.lastError ?: lastSidecarError,
     )
 
+fun AudioPrefetchStats.audioSuccessWithoutSidecar(): AudioPrefetchStats =
+    copy(completed = completed + 1)
+
 fun AudioPrefetchStats.audioFailure(error: Throwable?): AudioPrefetchStats =
     copy(
         failed = failed + 1,
@@ -76,6 +118,9 @@ fun <Provider> planAudioPrefetchWork(
     queue: PlaybackQueue,
     enabled: Boolean,
     configuredDepth: Int,
+    completedAudio: AudioPrefetchCompletionLedger? = null,
+    completedSidecars: AudioPrefetchCompletionLedger? = null,
+    sidecarDepth: Int = DefaultAudioSidecarPrefetchDepth,
     includeCurrentTrack: Boolean = false,
 ): AudioPrefetchWork<Provider>? {
     val stats = initialAudioPrefetchStats(
@@ -91,19 +136,35 @@ fun <Provider> planAudioPrefetchWork(
         depth = stats.configuredDepth,
         includeCurrentTrack = includeCurrentTrack,
     )
-    if (tracks.isEmpty()) return null
+    val normalizedSidecarDepth = sidecarDepth.coerceIn(0, stats.configuredDepth)
+    val items = tracks.mapIndexedNotNull { index, track ->
+        val key = AudioPrefetchKey(activeSourceId, track.id, activeQuality)
+        val cacheAudio = completedAudio?.contains(key) != true
+        val prepareSidecars = index < normalizedSidecarDepth && completedSidecars?.contains(key) != true
+        if (!cacheAudio && !prepareSidecars) {
+            null
+        } else {
+            AudioPrefetchItem(
+                track = track,
+                key = key,
+                cacheAudio = cacheAudio,
+                prepareSidecars = prepareSidecars,
+            )
+        }
+    }
+    if (items.isEmpty()) return null
     return AudioPrefetchWork(
         sourceId = activeSourceId,
         provider = activeProvider,
         quality = activeQuality,
-        tracks = tracks,
+        items = items,
         stats = stats,
     )
 }
 
 suspend fun <CachedAudio> runAudioPrefetch(
     stats: AudioPrefetchStats,
-    tracks: List<Track>,
+    items: List<AudioPrefetchItem>,
     isActive: () -> Boolean,
     cacheAudio: suspend (Track) -> CachedAudio?,
     warmCoverArt: suspend (Track) -> Unit = {},
@@ -112,29 +173,39 @@ suspend fun <CachedAudio> runAudioPrefetch(
     },
     onTrackCached: suspend (Track, CachedAudio?) -> Unit = { _, _ -> },
     onTrackFailed: suspend (Track, Throwable) -> Unit = { _, _ -> },
+    onAudioCached: (AudioPrefetchKey) -> Unit = {},
+    onSidecarsPrepared: (AudioPrefetchKey) -> Unit = {},
     onStatsChanged: (AudioPrefetchStats) -> Unit = {},
 ): AudioPrefetchStats {
-    var currentStats = stats.started(tracks.size)
+    var currentStats = stats.started(items.size)
     onStatsChanged(currentStats)
-    for (track in tracks) {
+    for (item in items) {
         if (!isActive()) break
-        var sidecarResult = PlaybackSidecarPrepResult()
+        var sidecarResult: PlaybackSidecarPrepResult? = null
         val result = runCatching {
-            val cachedAudio = cacheAudio(track)
-            runCatching {
-                warmCoverArt(track)
+            val cachedAudio = if (item.cacheAudio) {
+                cacheAudio(item.track).also { onAudioCached(item.key) }
+            } else {
+                null
             }
-            sidecarResult = prepareSidecars(track, cachedAudio)
+            runCatching {
+                warmCoverArt(item.track)
+            }
+            if (item.prepareSidecars) {
+                val prepared = prepareSidecars(item.track, cachedAudio)
+                sidecarResult = prepared
+                if (prepared.successful) onSidecarsPrepared(item.key)
+            }
             cachedAudio
         }
         currentStats = result.fold(
             onSuccess = { cachedAudio ->
-                onTrackCached(track, cachedAudio)
-                currentStats.audioSuccess(sidecarResult)
+                onTrackCached(item.track, cachedAudio)
+                sidecarResult?.let(currentStats::audioSuccess) ?: currentStats.audioSuccessWithoutSidecar()
             },
             onFailure = { error ->
                 if (error is CancellationException) throw error
-                onTrackFailed(track, error)
+                onTrackFailed(item.track, error)
                 currentStats.audioFailure(error)
             },
         )
@@ -149,3 +220,5 @@ suspend fun <CachedAudio> runAudioPrefetch(
 
 const val DefaultAudioPrefetchDepth = 10
 const val MaxAudioPrefetchDepth = 25
+const val DefaultAudioSidecarPrefetchDepth = 1
+const val DefaultAudioPrefetchCompletionCapacity = 64
