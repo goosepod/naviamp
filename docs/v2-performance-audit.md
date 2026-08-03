@@ -133,7 +133,8 @@ return to steady state before measuring it again.
 Result: **background/foreground recovery accepted on Android, macOS, and iOS Simulator; pressure
 recovery accepted on physical Android and iOS Simulator**. macOS pressure injection remains an
 explicit evidence gap because the host rejected the safe synthetic trigger. Large-library and
-one-hour retained-growth work remain open.
+one-hour retained-growth work remained open at this checkpoint; macOS passed later that day and
+physical Android passed on 2026-08-02.
 
 ## macOS one-hour retained-growth playback — 2026-07-30
 
@@ -159,8 +160,9 @@ and a final process sample followed the hour.
 
 Result: **macOS one-hour playback retained-growth gate accepted**. The run shows bounded,
 reclaimable JVM expansion, a stable warmed native/JVM plateau, return-to-steady CPU, and no process
-or playback failure. Physical Android one-hour retained growth, large-library interaction, and the
-explicit macOS pressure-injection evidence gap remain open.
+or playback failure. Physical Android one-hour retained growth remained open at this checkpoint and
+passed on 2026-08-02; large-library interaction and the explicit macOS pressure-injection evidence
+gap remain open.
 
 ## Preliminary Android promotion sample — 2026-07-23
 
@@ -324,8 +326,8 @@ active run above stayed within the steady-state gate for all five minutes.
 Result: **iOS foreground/background paused and active-playback five-minute baselines accepted;
 macOS paused, background-active, and foreground Now Playing five-minute baselines accepted**. Memory
 stayed far below every applicable ceiling and did not grow monotonically. Android/iOS large-library
-scroll/search, explicit sidecar cancellation, and physical Android one-hour retained growth remain
-open completion-gate scenarios; the macOS one-hour run is accepted above.
+scroll/search and explicit sidecar cancellation remain open completion-gate scenarios; physical
+Android one-hour retained growth passed on 2026-08-02 and the macOS one-hour run is accepted above.
 
 ## macOS large-library interaction sample — 2026-07-28
 
