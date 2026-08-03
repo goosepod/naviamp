@@ -35,6 +35,27 @@ fun interface NaviampCoreExternalUriPort {
     fun open(uri: String)
 }
 
+/** One Core-owned transaction for every action that replaces the active track queue. */
+class NaviampCoreQueuePlaybackController(
+    private val playback: NaviampLivePlaybackController,
+    private val queue: NaviampPlaybackQueueCoordinator,
+    private val effects: NaviampCorePlaybackEffectPort,
+    private val publishNowPlaying: () -> Unit,
+    private val openNowPlaying: () -> Unit,
+) {
+    fun play(tracks: List<Track>, index: Int = 0, shuffle: Boolean = false): Boolean {
+        val selected = if (shuffle) tracks.shuffled() else tracks
+        if (selected.isEmpty()) return false
+        val update = queue.startQueue(selected, index.coerceIn(selected.indices))
+        if (update.changed) effects.applyQueue(update.queue, update.clearPreparedNext)
+        playback.updateCurrentTrack(update.queue.current)
+        effects.playQueueSelection(update.queue, update.queue.currentIndex)
+        publishNowPlaying()
+        openNowPlaying()
+        return true
+    }
+}
+
 /** Shared media transactions used by every route; only final audio/URI effects cross the host boundary. */
 class NaviampCoreMediaTransactions(
     private val stateStore: NaviampCoreStateStore,
@@ -43,6 +64,7 @@ class NaviampCoreMediaTransactions(
     private val playback: NaviampLivePlaybackController,
     private val queue: NaviampPlaybackQueueCoordinator,
     private val effects: NaviampCorePlaybackEffectPort,
+    private val queuePlayback: NaviampCoreQueuePlaybackController,
     private val downloads: NaviampCoreDownloadsController,
     private val mediaDetails: NaviampCoreMediaDetailController,
     private val recentRadioStreams: NaviampRecentRadioStreamController,
@@ -52,14 +74,7 @@ class NaviampCoreMediaTransactions(
     private val openNowPlaying: () -> Unit,
 ) {
     fun play(tracks: List<Track>, index: Int = 0, shuffle: Boolean = false) {
-        val selected = if (shuffle) tracks.shuffled() else tracks
-        if (selected.isEmpty()) return publish("No tracks are available.")
-        val update = queue.startQueue(selected, index.coerceIn(selected.indices))
-        if (update.changed) effects.applyQueue(update.queue, update.clearPreparedNext)
-        playback.updateCurrentTrack(update.queue.current)
-        effects.playQueueSelection(update.queue, update.queue.currentIndex)
-        publishNowPlaying()
-        openNowPlaying()
+        if (!queuePlayback.play(tracks, index, shuffle)) publish("No tracks are available.")
     }
 
     fun playNext(tracks: List<Track>) = apply(queue.playNextTracks(tracks, "tracks"))

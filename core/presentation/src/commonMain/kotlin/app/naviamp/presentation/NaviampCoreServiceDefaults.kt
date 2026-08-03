@@ -104,7 +104,6 @@ fun unavailableNaviampCoreDownloadServices(): NaviampCoreDownloadServices =
             override fun reconcile(policy: KeepDownloadedCollectionPolicy, tracks: List<Track>) =
                 NaviampKeepDownloadedReconciliationApplication(emptyList(), null, null, false)
         },
-        playback = NaviampCoreDownloadedPlaybackPort { _, _ -> },
         network = NaviampCoreMobileNetworkPort { false },
     )
 

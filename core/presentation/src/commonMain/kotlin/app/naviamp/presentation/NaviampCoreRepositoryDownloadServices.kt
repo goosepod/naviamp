@@ -14,9 +14,8 @@ import app.naviamp.domain.cache.shouldRefreshDownloadsAfter
 /**
  * Builds Core's complete download feature from portable repository contracts.
  *
- * Hosts provide only native file availability and optional playback effects. Download ordering,
- * job behavior, status, retry, storage accounting, and keep-downloaded reconciliation remain in
- * shared code.
+ * Hosts provide only native file availability. Download ordering, playback, job behavior, status,
+ * retry, storage accounting, and keep-downloaded reconciliation remain in shared code.
  */
 fun <DownloadedFile, StoredDownload> repositoryNaviampCoreDownloadServices(
     downloadRepository: DownloadRepository<DownloadedFile, StoredDownload>,
@@ -25,7 +24,6 @@ fun <DownloadedFile, StoredDownload> repositoryNaviampCoreDownloadServices(
     toCoreDownload: (StoredDownload) -> NaviampCoreDownloadedTrack,
     isStoredDownloadAvailable: (StoredDownload) -> Boolean,
     storageStats: () -> NaviampCoreDownloadStorageSnapshot = { NaviampCoreDownloadStorageSnapshot() },
-    playback: NaviampCoreDownloadedPlaybackPort = NaviampCoreDownloadedPlaybackPort { _, _ -> },
     network: NaviampCoreMobileNetworkPort = NaviampCoreMobileNetworkPort { false },
 ): NaviampCoreDownloadServices {
     val downloadService = DownloadService(downloadRepository, replacementRepository)
@@ -138,5 +136,5 @@ fun <DownloadedFile, StoredDownload> repositoryNaviampCoreDownloadServices(
                 keepDownloadedRepository.unmarkManagedKeepDownloadedTracks(policy.sourceId, plan.trackIdsToRemove)
             }.let { keepDownloadedReconciliationApplication(policy, it) }
     }
-    return NaviampCoreDownloadServices(storage, transfer, keepDownloaded, playback, network)
+    return NaviampCoreDownloadServices(storage, transfer, keepDownloaded, network)
 }

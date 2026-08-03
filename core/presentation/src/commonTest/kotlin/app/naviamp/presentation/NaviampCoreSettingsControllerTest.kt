@@ -63,6 +63,8 @@ class NaviampCoreSettingsControllerTest {
         val settings = fixture.store.state.value.shell.cache.settings
         assertEquals("/media/downloads", settings.customDownloadDirectory)
         assertEquals("/media/cache", settings.customAudioCacheDirectory)
+        assertEquals("downloads", fixture.store.state.value.shell.cache.selectedDownloadLocationId)
+        assertEquals("cache", fixture.store.state.value.shell.cache.selectedAudioCacheLocationId)
     }
 
     @Test

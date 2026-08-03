@@ -94,11 +94,17 @@ class NaviampCoreSettingsController(
             is NaviampCoreCommand.Settings.ChangeCache -> changeCache(settings.settings)
             is NaviampCoreCommand.Settings.ChangeDownloadLocation -> {
                 val current = stateStore.state.value.shell.cache.settings
-                changeCache(current.copy(customDownloadDirectory = settings.location.path))
+                changeCache(
+                    requested = current.copy(customDownloadDirectory = settings.location.path),
+                    selectedDownloadLocationId = settings.location.id,
+                )
             }
             is NaviampCoreCommand.Settings.ChangeAudioCacheLocation -> {
                 val current = stateStore.state.value.shell.cache.settings
-                changeCache(current.copy(customAudioCacheDirectory = settings.location.path))
+                changeCache(
+                    requested = current.copy(customAudioCacheDirectory = settings.location.path),
+                    selectedAudioCacheLocationId = settings.location.id,
+                )
             }
             NaviampCoreCommand.Settings.OpenStats -> updateStatsVisibility(true)
             NaviampCoreCommand.Settings.CloseStats -> updateStatsVisibility(false)
@@ -207,11 +213,21 @@ class NaviampCoreSettingsController(
         }
     }
 
-    private fun changeCache(requested: app.naviamp.domain.settings.CacheSettings) {
+    private fun changeCache(
+        requested: app.naviamp.domain.settings.CacheSettings,
+        selectedDownloadLocationId: String? = null,
+        selectedAudioCacheLocationId: String? = null,
+    ) {
         val settings = cacheSettings.apply(requested)
         stateStore.updateShell { shell ->
             shell.copy(
-                cache = shell.cache.copy(settings = settings),
+                cache = shell.cache.copy(
+                    settings = settings,
+                    selectedDownloadLocationId =
+                        selectedDownloadLocationId ?: shell.cache.selectedDownloadLocationId,
+                    selectedAudioCacheLocationId =
+                        selectedAudioCacheLocationId ?: shell.cache.selectedAudioCacheLocationId,
+                ),
                 downloads = shell.downloads.copy(
                     maxDownloadBytes = settings.maxDownloadBytes,
                     offlineDashboard = shell.downloads.offlineDashboard.copy(

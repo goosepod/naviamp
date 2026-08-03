@@ -44,6 +44,8 @@ import app.naviamp.ui.NaviampPlaylistDetailActionRequest
 import app.naviamp.ui.NaviampPlaylistDetailCommand
 import app.naviamp.ui.NaviampArtistMediaCommand
 import app.naviamp.ui.NaviampVisualizer
+import app.naviamp.ui.DownloadedTrackAction
+import app.naviamp.ui.DownloadedTrackActionRequest
 import app.naviamp.ui.SharedHomeDiscoveryTrackActionRequest
 import app.naviamp.ui.SharedHomeStationUi
 import app.naviamp.ui.SharedMediaItemUi
@@ -156,6 +158,62 @@ class NaviampCoreTest {
 
         assertTrue(core.state.value.shell.shellChrome.nowPlayingOpen)
         assertEquals(provider.track.id.value, core.state.value.shell.nowPlaying?.id)
+    }
+
+    @Test
+    fun selectingDownloadedContentUsesTheCoreQueuePlaybackTransaction() = runTest {
+        val provider = FakeCoreMediaProvider()
+        val effects = FakeCorePlaybackEffects()
+        val downloads = listOf(
+            NaviampCoreDownloadedTrack("file-one", coreTrack("download-one"), 1_000, "FLAC"),
+            NaviampCoreDownloadedTrack("file-two", coreTrack("download-two"), 2_000, "FLAC"),
+        )
+        val defaults = fakeCoreServices(provider, playbackEffects = effects)
+        val services = defaults.copy(
+            downloads = defaults.downloads.copy(
+                storage = object : NaviampCoreDownloadStoragePort {
+                    override suspend fun snapshot(sourceId: String) =
+                        NaviampCoreDownloadStorageSnapshot(downloads = downloads)
+
+                    override suspend fun pruneMissing(sourceId: String) = 0
+                    override suspend fun remove(sourceId: String, track: Track) = Unit
+                    override suspend fun deleteAll(sourceId: String) = 0
+                },
+            ),
+        )
+        val initial = NaviampCoreInitialState().let { state ->
+            state.copy(
+                connection = NaviampConnectionRuntimeState(
+                    phase = NaviampConnectionPhase.Connected,
+                    sourceId = "source",
+                ),
+                connectionInventory = NaviampCoreConnectionInventory(currentSourceId = "source"),
+                product = state.product.copy(
+                    shell = state.product.shell.copy(
+                        connectionSettings = state.product.shell.connectionSettings.copy(
+                            currentSourceId = "source",
+                        ),
+                    ),
+                ),
+            )
+        }
+        val core = NaviampCore.create(this, services, initialState = initial)
+        core.execute(NaviampCoreCommand.Downloads.Refresh)
+
+        core.execute(
+            NaviampCoreCommand.Downloads.TrackAction(
+                DownloadedTrackActionRequest(
+                    download = core.state.value.shell.downloads.downloads[1],
+                    action = DownloadedTrackAction.Select,
+                ),
+            ),
+        )
+
+        val queue = effects.selections.single()
+        assertEquals(listOf("download-one", "download-two"), queue.tracks.map { it.id.value })
+        assertEquals(1, queue.currentIndex)
+        assertEquals("download-two", core.state.value.shell.nowPlaying?.id)
+        assertTrue(core.state.value.shell.shellChrome.nowPlayingOpen)
     }
 
     @Test
@@ -510,7 +568,6 @@ internal fun fakeCoreServices(
             override fun reconcile(policy: KeepDownloadedCollectionPolicy, tracks: List<Track>) =
                 NaviampKeepDownloadedReconciliationApplication(emptyList(), null, null, false)
         },
-        playback = NaviampCoreDownloadedPlaybackPort { _, _ -> },
         network = NaviampCoreMobileNetworkPort { false },
     ),
     playlists = NaviampCorePlaylistServices(

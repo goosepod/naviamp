@@ -32,8 +32,9 @@ import kotlinx.coroutines.launch
 /**
  * Owns Downloads/offline state, jobs, actions, playlist mutations, and keep-downloaded policy.
  *
- * Hosts implement only storage, transfer, network detection, and audio-engine effects. They do not
- * construct a second Downloads action graph or choose product behavior.
+ * Hosts implement only storage, transfer, and network detection. Core composition supplies the
+ * shared playback transaction; hosts do not construct a second Downloads action graph or choose
+ * product behavior.
  */
 class NaviampCoreDownloadsController(
     private val scope: CoroutineScope,

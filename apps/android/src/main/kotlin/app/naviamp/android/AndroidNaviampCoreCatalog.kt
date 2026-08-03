@@ -138,7 +138,17 @@ class AndroidNaviampCoreCatalog private constructor(
                 settingsSyncPort = syncPort,
                 settings = settingsCatalog.storedSettings.withStorageBackedSettings(
                     radioDjPresetRepository = storage,
-                    onCacheSettingsSaved = { effective -> cacheSettings = effective },
+                    onCacheSettingsSaved = { effective ->
+                        cacheSettings = effective
+                        storage.updateDownloadDirectory(
+                            effective.customDownloadDirectory?.let(::File)
+                                ?: downloadLocations.first().directory,
+                        )
+                        storage.updateAudioCacheDirectory(
+                            effective.customAudioCacheDirectory?.let(::File)
+                                ?: audioCacheLocations.first().directory,
+                        )
+                    },
                 ),
                 repositories = NaviampCoreStoredRepositories(
                     mediaSources = storage,

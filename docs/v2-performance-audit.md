@@ -449,3 +449,31 @@ Result: **Android background active-playback CPU accepted**. The earlier low-ove
 run additionally bounded Naviamp's incremental battery cost to approximately 65 mA over the noisy
 device baseline, with no runaway prefetch or retained growth. Background Compose lifecycle work is
 worth optimizing but is not an unexplained threshold violation.
+
+## Android large-library interaction acceptance — 2026-08-03
+
+This physical-device pass closes the Android large-library scroll/search and return-to-steady-state
+scenario. It complements the accepted screen-off trace above; one-minute `top`/`dumpsys meminfo`
+snapshots are interaction and recovery evidence, not a replacement CPU distribution.
+
+- Device: physical Pixel 10a, Android 17 / API 37; non-debuggable/profileable
+  `app.naviamp.android.v2test`; 1,380 loaded artists; active 219-track queue.
+- Rapid A-Z jumps, repeated long scrolling, and the live `Good life` query completed without a
+  crash, queue loss, playback interruption, or UI lockup. Search returned the exact `Good Life` by
+  ZHU plus related results.
+- Pre-interaction PSS was 249,839 KB. The search/scroll burst sampled at 322,133 KB, then recovered
+  to 279,444 KB and 276,719 KB. The final sample after the 15-minute observation was 259,145 KB PSS
+  and 378,428 KB RSS while playback remained active, demonstrating return below the 300 MB Android
+  foreground threshold rather than monotonic retained growth.
+- The 16 observation samples covered multiple automatic track transitions. A multi-core 214% CPU
+  snapshot occurred during concurrent interaction and DHU setup; settled samples returned as low as
+  0.0–7.1%. No Naviamp fatal exception or ANR was present, and a subsequent `RUNNING_LOW` callback
+  preserved PID 19821, the active MediaSession, and the complete queue.
+
+Result: **Android large-library scroll/search and return-to-steady-state accepted**. Wired-headset
+coverage is explicitly deferred because the available Pixel has no headphone jack; an available
+Bluetooth or vehicle route transition can supply the remaining route-change evidence. The downloaded
+playback and storage-location Core blockers found during this pass were fixed on 2026-08-03, and the
+certificate-matched signed `v2.0.0-alpha` build is installed for physical confirmation, as tracked in
+the platform acceptance checklist. Removable-storage testing is likewise a documented hardware
+deferral because the available phone does not support it.

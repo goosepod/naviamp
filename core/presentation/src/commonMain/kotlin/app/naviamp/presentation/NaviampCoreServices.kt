@@ -39,7 +39,6 @@ data class NaviampCoreDownloadServices(
     val storage: NaviampCoreDownloadStoragePort,
     val transfer: NaviampCoreDownloadTransferPort,
     val keepDownloaded: NaviampCoreKeepDownloadedPort,
-    val playback: NaviampCoreDownloadedPlaybackPort,
     val network: NaviampCoreMobileNetworkPort,
 )
 

@@ -202,40 +202,6 @@ class NaviampCore private constructor(
                 services.content.playlistSupplement,
                 mediaRegistry = mediaRegistry,
             )
-            val downloads = NaviampCoreDownloadsController(
-                scope,
-                stateStore,
-                providerSource,
-                services.downloads.storage,
-                services.downloads.transfer,
-                services.downloads.keepDownloaded,
-                services.downloads.playback,
-                services.downloads.network,
-            )
-            var publishPlaylistQueueUpdate: () -> Unit = {}
-            val playlistTransactions = NaviampCorePlaylistTransactionController(
-                stateStore,
-                providerSource,
-                playlistBrowse,
-                playback = NaviampCorePlaylistPlaybackPort { _, tracks, shuffle ->
-                    val ordered = if (shuffle) tracks.shuffled() else tracks
-                    val update = queue.startQueue(ordered, 0)
-                    livePlayback.updateCurrentTrack(update.queue.current)
-                    services.playback.effects.playQueueSelection(update.queue, update.queue.currentIndex)
-                },
-                queue = NaviampCorePlaylistQueuePort { _, tracks ->
-                    val update = queue.appendTracks(tracks, "playlist tracks")
-                    if (update.tracksChanged) {
-                        services.playback.effects.applyQueue(update.queue, clearPreparedNext = true)
-                        publishPlaylistQueueUpdate()
-                    }
-                },
-                NaviampCorePlaylistDownloadPort(downloads::downloadPlaylist),
-                services.playlists.history,
-                services.connection,
-                navigation::openNowPlaying,
-                downloads::playlistTracksChanged,
-            )
             val radio = NaviampCoreInternetRadioController(
                 stateStore,
                 providerSource,
@@ -266,7 +232,44 @@ class NaviampCore private constructor(
                 services.downloads.network,
                 radio::stations,
             )
-            publishPlaylistQueueUpdate = nowPlayingPresenter::publish
+            val queuePlayback = NaviampCoreQueuePlaybackController(
+                playback = livePlayback,
+                queue = queue,
+                effects = services.playback.effects,
+                publishNowPlaying = nowPlayingPresenter::publish,
+                openNowPlaying = navigation::openNowPlaying,
+            )
+            val downloads = NaviampCoreDownloadsController(
+                scope,
+                stateStore,
+                providerSource,
+                services.downloads.storage,
+                services.downloads.transfer,
+                services.downloads.keepDownloaded,
+                NaviampCoreDownloadedPlaybackPort { tracks, index -> queuePlayback.play(tracks, index) },
+                services.downloads.network,
+            )
+            val publishPlaylistQueueUpdate: () -> Unit = nowPlayingPresenter::publish
+            val playlistTransactions = NaviampCorePlaylistTransactionController(
+                stateStore,
+                providerSource,
+                playlistBrowse,
+                playback = NaviampCorePlaylistPlaybackPort { _, tracks, shuffle ->
+                    queuePlayback.play(tracks, shuffle = shuffle)
+                },
+                queue = NaviampCorePlaylistQueuePort { _, tracks ->
+                    val update = queue.appendTracks(tracks, "playlist tracks")
+                    if (update.tracksChanged) {
+                        services.playback.effects.applyQueue(update.queue, clearPreparedNext = true)
+                        publishPlaylistQueueUpdate()
+                    }
+                },
+                NaviampCorePlaylistDownloadPort(downloads::downloadPlaylist),
+                services.playlists.history,
+                services.connection,
+                navigation::openNowPlaying,
+                downloads::playlistTracksChanged,
+            )
             val playback = NaviampCorePlaybackController(
                 scope,
                 stateStore,
@@ -310,6 +313,7 @@ class NaviampCore private constructor(
                 livePlayback,
                 queue,
                 services.playback.effects,
+                queuePlayback,
                 downloads,
                 mediaDetails,
                 generatedRadioRecents,
