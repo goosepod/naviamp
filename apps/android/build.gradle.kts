@@ -74,6 +74,16 @@ android {
             isProfileable = true
             matchingFallbacks += listOf("release")
         }
+        create("profileable") {
+            initWith(getByName("release"))
+            applicationIdSuffix = ".v2test"
+            versionNameSuffix = "-v2test-profileable"
+            resValue("string", "app_name", "Naviamp v2 Profileable")
+            signingConfig = signingConfigs.getByName("debug")
+            isDebuggable = false
+            isProfileable = true
+            matchingFallbacks += listOf("release")
+        }
     }
 
     compileOptions {

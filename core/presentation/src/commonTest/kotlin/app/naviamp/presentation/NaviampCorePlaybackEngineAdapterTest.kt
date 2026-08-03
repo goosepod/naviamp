@@ -39,8 +39,11 @@ import app.naviamp.domain.waveform.AudioWaveformAnalysisSource
 import app.naviamp.domain.waveform.AudioWaveformAnalyzer
 import app.naviamp.domain.waveform.AudioWaveformService
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.advanceTimeBy
@@ -48,6 +51,7 @@ import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 
 @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 class NaviampCorePlaybackEngineAdapterTest {
@@ -185,7 +189,87 @@ class NaviampCorePlaybackEngineAdapterTest {
         advanceUntilIdle()
 
         assertEquals(listOf("next-1", "next-2"), cachedTrackIds)
+        assertEquals(listOf("next-1"), preparedSidecarIds)
+    }
+
+    @Test
+    fun automaticTransitionsReusePrefetchedAudioAndAdvanceTheSidecarHorizon() = runTest {
+        val provider = FakeCoreMediaProvider()
+        val engine = RecordingPlaybackEngine()
+        val cachedTrackIds = mutableListOf<String>()
+        val preparedSidecarIds = mutableListOf<String>()
+        val adapter = NaviampCorePlaybackEngineAdapter(
+            scope = this,
+            engine = engine,
+            providerSource = NaviampCoreMediaProviderSource { provider },
+            settings = { PlaybackSettings() },
+            activeSourceId = { "source" },
+            cacheSettings = { CacheSettings(audioCachingEnabled = true, audioPrefetchDepth = 2) },
+            cacheAudio = { _, _, track, _ ->
+                cachedTrackIds += track.id.value
+                PlaybackLocalAudio("/cache/${track.id.value}", "file:///cache/${track.id.value}")
+            },
+            preparePrefetchedSidecars = { _, _, track, _, _ ->
+                preparedSidecarIds += track.id.value
+                app.naviamp.domain.playback.PlaybackSidecarPrepResult()
+            },
+        )
+        val nextOne = provider.track.copy(id = TrackId("next-1"), title = "Next One")
+        val nextTwo = provider.track.copy(id = TrackId("next-2"), title = "Next Two")
+        val nextThree = provider.track.copy(id = TrackId("next-3"), title = "Next Three")
+        val queue = PlaybackQueue(listOf(provider.track, nextOne, nextTwo, nextThree), 0)
+
+        adapter.playQueueSelection(queue, 0)
+        advanceUntilIdle()
+        adapter.applyAutomaticNavigation(PlaybackQueueNavigationCommand.Next)
+        advanceUntilIdle()
+
+        assertEquals(listOf("next-1", "next-2", "next-3"), cachedTrackIds)
         assertEquals(listOf("next-1", "next-2"), preparedSidecarIds)
+    }
+
+    @Test
+    fun preparedNextPlaybackCancelsLowerPriorityPrefetchWork() = runTest {
+        val provider = FakeCoreMediaProvider()
+        val engine = RecordingPlaybackEngine()
+        var prefetchStarted = false
+        var prefetchCancelled = false
+        val allowPrefetchToReleaseNativeWork = CompletableDeferred<Unit>()
+        val adapter = NaviampCorePlaybackEngineAdapter(
+            scope = this,
+            engine = engine,
+            providerSource = NaviampCoreMediaProviderSource { provider },
+            settings = { PlaybackSettings(gaplessEnabled = true) },
+            activeSourceId = { "source" },
+            cacheSettings = { CacheSettings(audioCachingEnabled = true, audioPrefetchDepth = 1) },
+            cacheAudio = { _, _, _, _ ->
+                prefetchStarted = true
+                try {
+                    awaitCancellation()
+                } finally {
+                    withContext(NonCancellable) {
+                        prefetchCancelled = true
+                        allowPrefetchToReleaseNativeWork.await()
+                    }
+                }
+            },
+        )
+        val next = provider.track.copy(id = TrackId("next"), title = "Next")
+
+        adapter.playQueueSelection(PlaybackQueue(listOf(provider.track, next), 0), 0)
+        runCurrent()
+        assertTrue(prefetchStarted)
+
+        engine.emitProgress(PlaybackProgress(173.0, 180.0))
+        runCurrent()
+
+        assertTrue(prefetchCancelled)
+        assertEquals(null, engine.preparedRequest)
+
+        allowPrefetchToReleaseNativeWork.complete(Unit)
+        advanceUntilIdle()
+
+        assertEquals("next", engine.preparedRequest?.mediaId)
     }
 
     @Test

@@ -76,7 +76,62 @@ class PlaybackPrefetchTest {
         assertEquals("provider", work.provider)
         assertEquals(StreamQuality.Original, work.quality)
         assertEquals(listOf("next-1"), work.tracks.map { it.id.value })
+        assertTrue(work.items.single().cacheAudio)
+        assertTrue(work.items.single().prepareSidecars)
         assertEquals(1, work.stats.configuredDepth)
+    }
+
+    @Test
+    fun incrementalPlanOnlyCachesNewHorizonTracksAndLimitsSidecarsToNext() {
+        val completedAudio = AudioPrefetchCompletionLedger()
+        val completedSidecars = AudioPrefetchCompletionLedger()
+        val nextOneKey = AudioPrefetchKey("server", TrackId("next-1"), StreamQuality.Original)
+        val nextTwoKey = AudioPrefetchKey("server", TrackId("next-2"), StreamQuality.Original)
+        completedAudio.record(nextOneKey)
+        completedAudio.record(nextTwoKey)
+        completedSidecars.record(nextOneKey)
+
+        val work = planAudioPrefetchWork(
+            sourceId = "server",
+            provider = "provider",
+            quality = StreamQuality.Original,
+            queue = PlaybackQueue(
+                tracks = listOf(
+                    prefetchTrack("current"),
+                    prefetchTrack("next-1"),
+                    prefetchTrack("next-2"),
+                    prefetchTrack("next-3"),
+                ),
+                currentIndex = 1,
+            ),
+            enabled = true,
+            configuredDepth = 2,
+            completedAudio = completedAudio,
+            completedSidecars = completedSidecars,
+        )
+
+        requireNotNull(work)
+        assertEquals(listOf("next-2", "next-3"), work.tracks.map { it.id.value })
+        assertEquals(false, work.items[0].cacheAudio)
+        assertEquals(true, work.items[0].prepareSidecars)
+        assertEquals(true, work.items[1].cacheAudio)
+        assertEquals(false, work.items[1].prepareSidecars)
+    }
+
+    @Test
+    fun completionLedgerIsBounded() {
+        val ledger = AudioPrefetchCompletionLedger(capacity = 2)
+        val first = AudioPrefetchKey("server", TrackId("first"), StreamQuality.Original)
+        val second = AudioPrefetchKey("server", TrackId("second"), StreamQuality.Original)
+        val third = AudioPrefetchKey("server", TrackId("third"), StreamQuality.Original)
+
+        ledger.record(first)
+        ledger.record(second)
+        ledger.record(third)
+
+        assertFalse(ledger.contains(first))
+        assertTrue(ledger.contains(second))
+        assertTrue(ledger.contains(third))
     }
 
     @Test
@@ -120,7 +175,7 @@ class PlaybackPrefetchTest {
         val changes = mutableListOf<AudioPrefetchStats>()
         val result = runAudioPrefetch(
             stats = initialAudioPrefetchStats(enabled = true, configuredDepth = 2),
-            tracks = listOf(prefetchTrack("ok"), prefetchTrack("bad")),
+            items = listOf(prefetchItem("ok"), prefetchItem("bad")),
             isActive = { true },
             cacheAudio = { track ->
                 if (track.id.value == "bad") error("cache failed") else track
@@ -142,7 +197,7 @@ class PlaybackPrefetchTest {
 
         val result = runAudioPrefetch(
             stats = initialAudioPrefetchStats(enabled = true, configuredDepth = 1),
-            tracks = listOf(prefetchTrack("ok")),
+            items = listOf(prefetchItem("ok")),
             isActive = { true },
             cacheAudio = { track -> track },
             warmCoverArt = { track ->
@@ -158,13 +213,57 @@ class PlaybackPrefetchTest {
     }
 
     @Test
+    fun runOnlyPerformsAndRecordsTheWorkRequestedByEachItem() = runTest {
+        val audio = mutableListOf<String>()
+        val sidecars = mutableListOf<String>()
+        val completedAudio = mutableListOf<String>()
+        val completedSidecars = mutableListOf<String>()
+        val audioOnly = prefetchItem("audio-only").copy(prepareSidecars = false)
+        val sidecarOnly = prefetchItem("sidecar-only").copy(cacheAudio = false)
+
+        runAudioPrefetch(
+            stats = initialAudioPrefetchStats(enabled = true, configuredDepth = 2),
+            items = listOf(audioOnly, sidecarOnly),
+            isActive = { true },
+            cacheAudio = { track -> track.also { audio += track.id.value } },
+            prepareSidecars = { track, _ ->
+                sidecars += track.id.value
+                PlaybackSidecarPrepResult()
+            },
+            onAudioCached = { completedAudio += it.trackId.value },
+            onSidecarsPrepared = { completedSidecars += it.trackId.value },
+        )
+
+        assertEquals(listOf("audio-only"), audio)
+        assertEquals(listOf("sidecar-only"), sidecars)
+        assertEquals(listOf("audio-only"), completedAudio)
+        assertEquals(listOf("sidecar-only"), completedSidecars)
+    }
+
+    @Test
+    fun failedSidecarsAreNotRecordedAsComplete() = runTest {
+        val completedSidecars = mutableListOf<String>()
+
+        runAudioPrefetch(
+            stats = initialAudioPrefetchStats(enabled = true, configuredDepth = 1),
+            items = listOf(prefetchItem("retry")),
+            isActive = { true },
+            cacheAudio = { it },
+            prepareSidecars = { _, _ -> PlaybackSidecarPrepResult(failed = 1) },
+            onSidecarsPrepared = { completedSidecars += it.trackId.value },
+        )
+
+        assertTrue(completedSidecars.isEmpty())
+    }
+
+    @Test
     fun cancellationStopsPrefetchWithoutBeingReportedAsAnAudioFailure() = runTest {
         var failureReported = false
 
         assertFailsWith<CancellationException> {
             runAudioPrefetch(
                 stats = initialAudioPrefetchStats(enabled = true, configuredDepth = 1),
-                tracks = listOf(prefetchTrack("cancelled")),
+                items = listOf(prefetchItem("cancelled")),
                 isActive = { true },
                 cacheAudio = { throw CancellationException("queue replaced") },
                 onTrackFailed = { _, _ -> failureReported = true },
@@ -185,4 +284,14 @@ class PlaybackPrefetchTest {
             audioInfo = null,
             replayGain = null,
         )
+
+    private fun prefetchItem(id: String): AudioPrefetchItem {
+        val track = prefetchTrack(id)
+        return AudioPrefetchItem(
+            track = track,
+            key = AudioPrefetchKey("server", track.id, StreamQuality.Original),
+            cacheAudio = true,
+            prepareSidecars = true,
+        )
+    }
 }

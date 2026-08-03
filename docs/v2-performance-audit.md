@@ -409,3 +409,41 @@ Result: **shared prepared-transition overlap fixed**. The final Pixel build is i
 manual-transition acceptance. The broader Android performance gate remains open for the required
 full-duration retained-growth and interaction scenarios; short native transition spikes are not a
 steady-state sample and must be evaluated by their return to the matching threshold.
+
+## Android background playback Perfetto acceptance — 2026-08-02
+
+This release-like trace closes the focused Android lossless-playback CPU and battery-attribution
+follow-up. It does not replace the remaining large-library and route-cycle scenarios in the full
+matrix.
+
+- Device: physical Pixel 10a (`stallion`), Android 17 / API 37; non-debuggable/profileable
+  `app.naviamp.android.v2test`; 219-track queue; screen off and app backgrounded; two-minute warm-up;
+  uninterrupted lossless playback with automatic transitions.
+- The acceptance trace used Perfetto `linux.ftrace` compact scheduler events, CPU frequency/idle,
+  Binder events, app `audio`/`dalvik` atrace, and `linux.process_stats`. Its ring buffer retained
+  420.05 seconds and 419 complete one-second CPU buckets, exceeding the five-minute minimum.
+- Across the complete retained window, CPU was 12.41% mean, 8.29% median, 41.34% p95, and 174.50%
+  maximum. One automatic transition produced the only multi-second threshold excursion: seconds
+  188–217 were above 18%, and CPU returned to the matching steady state at the 30-second recovery
+  limit.
+- Excluding that explicitly classified transition window, the remaining 389 steady-state seconds
+  measured 9.29% mean, 8.09% median, 17.55% p95, and 33.87% maximum. This passes the background
+  active-playback limits of 10% median and 18% p95; the transition passes the required return within
+  30 seconds.
+- A separate 60-second, 100 Hz process-scoped `linux.perf` call-stack trace captured another
+  automatic transition without contaminating the acceptance distribution. Leaf samples were led by
+  kernel work (27.35%), ART (19.39%), JIT code (16.35%), boot OAT code (10.13%), and libc (7.24%);
+  BASS plus BASSmix accounted for 1.59%. Cumulative stacks tied the burst to prepared-stream
+  adoption, MediaCodec setup, Core progress/Now Playing publication, UI remapping, JIT, and GC.
+- The scheduler trace also exposed a non-blocking optimization opportunity while the screen was off:
+  `Recomposer:recompose` accumulated 8.35 seconds, `Compose:recompose` 6.98 seconds, Binder slices
+  6.00 seconds, and semantics/layout work continued. Background lifecycle gating should reduce this
+  further, but the measured steady state already passes the recorded release threshold.
+- Playback remained `PLAYING` and advanced through queue items 48–52. The final endpoint was
+  123,974 KB PSS and 242,500 KB RSS, below the 225 MB Android PSS threshold. All Naviamp packages
+  were force-stopped after capture.
+
+Result: **Android background active-playback CPU accepted**. The earlier low-overhead unplugged A/B
+run additionally bounded Naviamp's incremental battery cost to approximately 65 mA over the noisy
+device baseline, with no runaway prefetch or retained growth. Background Compose lifecycle work is
+worth optimizing but is not an unexplained threshold violation.
