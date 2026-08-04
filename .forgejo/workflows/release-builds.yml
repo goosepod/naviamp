@@ -10,7 +10,6 @@ permissions:
   contents: read
 
 env:
-  GRADLE_COMMON: --configure-on-demand
   GRADLE_OPTS: -Dorg.gradle.daemon=false -Dorg.gradle.jvmargs=-Xmx4g
 
 jobs:
@@ -45,7 +44,7 @@ jobs:
         run: sdkmanager "platforms;android-36" "build-tools;36.0.0" "cmake;3.22.1"
 
       - name: Build Android release artifacts
-        run: ./gradlew $GRADLE_COMMON :apps:android:assembleRelease :apps:android:bundleRelease
+        run: ./gradlew :apps:android:assembleRelease :apps:android:bundleRelease
 
       - name: Upload Android artifacts
         uses: actions/upload-artifact@v4
@@ -80,7 +79,7 @@ jobs:
 
       - name: Build Windows standalone zip and installers
         shell: powershell
-        run: .\gradlew.bat $env:GRADLE_COMMON "-Pnaviamp.bass.platform=windows-x64" :apps:desktop:packageReleaseDistributable :apps:desktop:packageReleaseDistributionForCurrentOS
+        run: .\gradlew.bat "-Pnaviamp.bass.platform=windows-x64" :apps:desktop:packageReleaseDistributable :apps:desktop:packageReleaseDistributionForCurrentOS
 
       - name: Upload Windows standalone zip
         uses: actions/upload-artifact@v4
@@ -113,7 +112,7 @@ jobs:
           java-version: "17"
 
       - name: Build macOS standalone zip and DMG
-        run: ./gradlew $GRADLE_COMMON -Pnaviamp.bass.platform=macos-arm64 -Pcompose.desktop.packaging.checkJdkVendor=false :apps:desktop:packageReleaseDistributable :apps:desktop:packageReleaseDistributionForCurrentOS
+        run: ./gradlew -Pnaviamp.bass.platform=macos-arm64 -Pcompose.desktop.packaging.checkJdkVendor=false :apps:desktop:packageReleaseDistributable :apps:desktop:packageReleaseDistributionForCurrentOS
 
       - name: Upload macOS standalone zip
         uses: actions/upload-artifact@v4
@@ -147,7 +146,7 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y fakeroot rpm libsecret-tools
 
       - name: Build Linux standalone zip and installers
-        run: ./gradlew $GRADLE_COMMON -Pnaviamp.bass.platform=linux-x64 :apps:desktop:packageReleaseDistributable :apps:desktop:packageReleaseDistributionForCurrentOS
+        run: ./gradlew -Pnaviamp.bass.platform=linux-x64 :apps:desktop:packageReleaseDistributable :apps:desktop:packageReleaseDistributionForCurrentOS
 
       - name: Upload Linux artifacts
         uses: actions/upload-artifact@v4

@@ -2,7 +2,7 @@
 
 Release changes are grouped into user-facing Features, Bug Fixes, and deployment or infrastructure-related System Settings. Internal task-tracking notes are intentionally not included.
 
-## v2.0.0-alpha
+## v2.0.0-alpha.1
 
 Naviamp 2.0 is a major cross-platform rebuild. Android, macOS, Windows, Linux, and iOS now share the same application core, interface, playback behavior, provider integration, storage model, and settings wherever the operating systems allow it.
 

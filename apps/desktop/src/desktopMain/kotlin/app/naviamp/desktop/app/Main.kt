@@ -23,6 +23,7 @@ import app.naviamp.desktop.platform.configureDesktopHostAppearance
 import app.naviamp.desktop.platform.configureDesktopApplicationIcon
 import app.naviamp.desktop.platform.configureDesktopWindowAppearance
 import app.naviamp.desktop.platform.configureDesktopWindowIcon
+import app.naviamp.domain.network.NaviampAppVersion
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -58,7 +59,7 @@ fun main() {
         Window(
             state = windowState,
             onCloseRequest = ::exitApplication,
-            title = "Naviamp 2.0.0-alpha",
+            title = "Naviamp ${NaviampAppVersion.removePrefix("v")}",
             icon = painterResource("icons/naviamp.png"),
         ) {
             val darkTitleBar = isSystemInDarkTheme()

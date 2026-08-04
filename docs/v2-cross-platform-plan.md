@@ -7,12 +7,12 @@ Ideas discovered during the migration that should not interrupt the active check
 ## Project Status
 
 - **Target release:** `2.0.0`
-- **Current development version:** `v2.0.0-alpha` (build 35), shown in About on every host so migration builds are unmistakable during testing.
+- **Current development version:** `v2.0.0-alpha.1` (build 36), shown in About on every host so migration builds are unmistakable during testing.
 - **Working branch:** `feature/v2-cross-platform-app`
 - **Beta platforms:** Android, macOS, Windows, Linux, and iOS.
 - **Status:** Desktop, Android, and iOS mount the same Core product, BASS engine, and portable storage owners. The final file-by-file boundary audit is accepted on all three hosts; large-library/accessibility and target-OS packaging checks, release automation, and the original icon redesign remain.
 - **Release policy:** Feature development for the v1 line is frozen. Only bug fixes should be released from v1 while this work is underway.
-- **Versioning rule:** Keep migration builds on an explicit `v2.0.0-alpha` prerelease label. Do not change `VERSION` to the final `v2.0.0` until the release-preparation milestone.
+- **Versioning rule:** Keep migration builds on an explicit `v2.0.0-alpha.*` prerelease label. Do not change `VERSION` to the final `v2.0.0` until the release-preparation milestone.
 - **Primary objective:** One shared Naviamp application, UI, and behavior hosted by thin Android, Desktop, and iOS applications.
 - **Playback objective:** All three platforms use the shared Core BASS engine. iOS supplies a direct Kotlin/Native ABI adapter; the temporary AVPlayer path was not promoted and has been removed.
 
