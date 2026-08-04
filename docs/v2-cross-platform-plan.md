@@ -72,7 +72,7 @@ this current list. Check an item only in the same commit that records its verifi
 
 ### Identity, release automation, and documentation
 
-- [ ] Select the final original Naviamp icon and derive Android, Desktop, iOS, installer, Dock/taskbar, and in-app assets from one SVG source.
+- [x] Select the final original Naviamp icon and derive Android, Desktop, iOS, installer, Dock/taskbar, repository, website, notification, and in-app assets from one canonical SVG source. The selected original mark lives at `design/naviamp-icon.svg`; `scripts/generate-icons.sh` reproducibly generates legacy/adaptive/themed Android assets, the opaque iOS AppIcon, Desktop PNG/ICO/ICNS packages, the shared About image, repository artwork, and—when `NAVIAMP_WEBSITE_ROOT` is set—the separate Goosepod Pages assets.
 - [ ] Choose the first beta version (for example `2.0.0-beta.1`) and verify version scripts plus package-version normalization.
 - [ ] Add beta release notes and update the user-facing changelog.
 - [ ] Ensure CI builds every supported beta artifact from the same tag and document signing inputs without committing secrets.
@@ -514,7 +514,7 @@ This milestone was deliberately temporary. On 2026-07-24, the project chose to p
 
 ### Milestone 10: Naviamp 2.0 Release Preparation
 
-- [ ] Replace the current Naviamp identity mark before declaring v2 complete. Create an original SVG-based icon that may retain the existing blue palette and feel compatible with Navidrome, but does not reuse or closely imitate Navidrome's distinctive official glyph. Derive and verify every Android, Desktop, iOS, installer, Dock/taskbar, and in-app asset from that source SVG.
+- [x] Replace the current Naviamp identity mark before declaring v2 complete. The final independently designed blue motion/play mark is stored as one canonical SVG and drives every Android, Desktop, iOS, installer, Dock/taskbar, notification, website, repository, and in-app asset through `scripts/generate-icons.sh`.
 - [ ] Resolve or explicitly defer every checklist item required for the agreed v2 scope.
 - [ ] Run the complete shared, provider, Android, Desktop, and iOS test suites.
 - [ ] Complete physical-device testing on Android and iOS.

@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="readme-assets/naviamp-icon.png" alt="Naviamp icon" width="144">
+</p>
+
 # Naviamp
 
 Naviamp is a music player for people who run their own music library. It connects to Navidrome and OpenSubsonic-compatible servers, then gives that library a polished app experience on desktop, Android, and iOS.
@@ -18,7 +22,7 @@ The goal is simple: keep your music on your server, but make browsing, playback,
 - Customize the player with Aurora gradients, adjustable blurred album art, a selected solid color, album-art-driven accents, waveform display, compact layouts, display toggles, and desktop visualizers.
 - Tune playback with ReplayGain, gapless playback, crossfade, sample-rate converter quality, and sample-rate matching.
 - Follow along with embedded or downloaded lyrics, including synced lyric highlighting where available.
-- Keep the same app model across macOS, Windows, Linux, and Android, with shared UI and playback behavior wherever the platforms allow it.
+- Keep the same app model across macOS, Windows, Linux, Android, and iOS, with shared UI and playback behavior wherever the platforms allow it.
 
 ## Sonic Analysis and Discovery
 

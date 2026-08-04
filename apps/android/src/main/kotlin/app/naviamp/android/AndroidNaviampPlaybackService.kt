@@ -302,7 +302,7 @@ class AndroidNaviampPlaybackService : MediaBrowserServiceCompat() {
             .setContentTitle(current?.title ?: "Naviamp")
             .setContentText(current?.subtitle ?: "Playback")
             .setSubText(current?.description?.takeIf(String::isNotBlank))
-            .setSmallIcon(android.R.drawable.ic_media_play)
+            .setSmallIcon(R.drawable.ic_notification)
             .setContentIntent(contentIntent())
             .setDeleteIntent(servicePendingIntent(ActionStop, 5))
             .addAction(notificationAction(ActionPrevious, android.R.drawable.ic_media_previous, "Previous"))

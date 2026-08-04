@@ -167,6 +167,7 @@ tasks.matching {
         syncDesktopNativeAppResources()
         markDesktopVisualizerMetalExecutable()
         patchMacAppBundleVersion()
+        sealMacAppBundle()
     }
 }
 
@@ -226,6 +227,8 @@ tasks.register("verifyDesktopDistributable") {
             check(visualizer.canExecute()) {
                 "Desktop package Metal visualizer library is not executable: ${visualizer.absolutePath}"
             }
+            sealMacAppBundle()
+            verifyMacAppBundleSeal()
         }
     }
 }
@@ -304,10 +307,41 @@ fun patchMacAppBundleVersion() {
     if (!infoPlist.isFile) return
     infoPlist.writeText(
         infoPlist.readText()
-            .replacePlistStringValue("CFBundleShortVersionString", naviampVersionName)
-            .replacePlistStringValue("CFBundleVersion", naviampVersionName),
+            .replacePlistStringValue("CFBundleShortVersionString", naviampNativePackageVersion)
+            .replacePlistStringValue("CFBundleVersion", naviampNativePackageVersion),
     )
     refreshMacAppBundleModificationTime(desktopPackagedAppDir.get().asFile)
+}
+
+fun sealMacAppBundle() {
+    val platform = desktopNativePlatform.get()
+    if (!platform.startsWith("macos-")) return
+    project.exec {
+        commandLine(
+            "/usr/bin/codesign",
+            "--force",
+            "--sign",
+            "-",
+            "--options",
+            "runtime",
+            "--entitlements",
+            rootProject.file("apps/desktop/packaging/macos-entitlements.plist").absolutePath,
+            desktopPackagedAppDir.get().asFile.absolutePath,
+        )
+    }.assertNormalExitValue()
+}
+
+fun verifyMacAppBundleSeal() {
+    project.exec {
+        commandLine(
+            "/usr/bin/codesign",
+            "--verify",
+            "--deep",
+            "--strict",
+            "--verbose=2",
+            desktopPackagedAppDir.get().asFile.absolutePath,
+        )
+    }.assertNormalExitValue()
 }
 
 fun refreshMacAppBundleModificationTime(appDirectory: File) {
