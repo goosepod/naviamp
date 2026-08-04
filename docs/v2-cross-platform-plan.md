@@ -66,7 +66,7 @@ this current list. Check an item only in the same commit that records its verifi
 
 - [x] Decide and document whether the first beta includes iOS distribution or treats iOS as an undistributed preview. iOS is included in the first beta alongside Android, macOS, Windows, and Linux.
 - [ ] If included, configure release signing/entitlements and pass physical-iPhone launch, playback, interruption, route-change, lifecycle, and performance acceptance.
-- [ ] If included, add archive/IPA verification and document the TestFlight signing/distribution process.
+- [ ] If included, add archive/IPA verification and document the TestFlight signing/distribution process. GitHub tag builds now produce and validate a credential-free unsigned arm64 device IPA for testers who re-sign locally, with its signing limitations documented; signed archive export and TestFlight remain open.
 - [ ] Document simulator-only MediaRemote glyph/process-audio-tap limitations without presenting them as Naviamp failures.
 - [ ] Decide whether CarPlay is included in the first beta or explicitly deferred to a future release.
 
@@ -502,7 +502,7 @@ This milestone was deliberately temporary. On 2026-07-24, the project chose to p
 ### Milestone 9: Build, Distribution, and Release Automation
 
 - [ ] Add simulator compile and test jobs to continuous integration.
-- [ ] Add `xcodebuild archive` verification.
+- [x] Add `xcodebuild archive` verification. The shared release script creates an unsigned generic-iOS device archive, rejects an unexpectedly signed app, validates the packaged IPA, and supplies the same artifact to GitHub tag builds without storing Apple credentials.
 - [ ] Produce an installable iOS IPA artifact using documented signing inputs.
 - [ ] Add TestFlight distribution after signing and App Store Connect configuration are available.
 - [ ] Preserve Android APK/AAB and Desktop package generation.
