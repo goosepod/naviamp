@@ -4,27 +4,14 @@ import io.ktor.client.HttpClient
 import io.ktor.client.engine.cio.CIO
 import io.ktor.network.tls.CertificateAndKey
 import java.io.FileInputStream
-import java.net.URLEncoder
-import java.nio.charset.StandardCharsets
 import java.security.Key
 import java.security.KeyStore
-import java.security.MessageDigest
 import java.security.PrivateKey
 import java.security.cert.CertificateFactory
 import java.security.cert.X509Certificate
 import javax.net.ssl.TrustManager
 import javax.net.ssl.TrustManagerFactory
 import javax.net.ssl.X509TrustManager
-
-actual fun navidromeMd5(value: String): String {
-    val digest = MessageDigest.getInstance("MD5").digest(value.toByteArray())
-    return digest.joinToString(separator = "") { byte ->
-        byte.toUByte().toString(radix = 16).padStart(2, '0')
-    }
-}
-
-actual fun String.urlEncode(): String =
-    URLEncoder.encode(this, StandardCharsets.UTF_8.name())
 
 actual fun createDefaultNavidromeHttpClient(tlsSettings: NavidromeTlsSettings): NavidromeHttpClient =
     KtorNavidromeHttpClient(createDefaultNavidromeKtorClient(tlsSettings))
@@ -41,13 +28,18 @@ actual fun createDefaultNavidromeKtorClient(tlsSettings: NavidromeTlsSettings): 
             }
         }
         install(io.ktor.client.plugins.HttpTimeout) {
-            connectTimeoutMillis = 15_000
-            requestTimeoutMillis = 30_000
-            socketTimeoutMillis = 30_000
+            connectTimeoutMillis = NavidromeConnectTimeoutMillis
+            requestTimeoutMillis = NavidromeRequestTimeoutMillis
+            socketTimeoutMillis = NavidromeSocketTimeoutMillis
         }
     }
 
-internal actual fun navidromeCurrentTimeMillis(): Long = System.currentTimeMillis()
+actual fun navidromeTlsCapabilities(): NavidromeTlsCapabilities =
+    NavidromeTlsCapabilities(
+        insecureSkipVerification = true,
+        customServerCertificates = true,
+        clientCertificates = true,
+    )
 
 private fun NavidromeTlsSettings.trustManager(): TrustManager? =
     trustManagers()?.firstOrNull()
@@ -96,4 +88,3 @@ private object TrustAllCertificates : X509TrustManager {
     override fun checkServerTrusted(chain: Array<java.security.cert.X509Certificate>, authType: String) = Unit
     override fun getAcceptedIssuers(): Array<java.security.cert.X509Certificate> = emptyArray()
 }
-

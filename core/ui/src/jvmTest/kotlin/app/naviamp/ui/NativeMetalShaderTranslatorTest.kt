@@ -119,6 +119,38 @@ class NativeMetalShaderTranslatorTest {
     }
 
     @Test
+    fun nativeRenderQualityPolicyIsSharedByEveryMetalExecutor() {
+        val constrained = visualizerRenderPolicy(
+            NaviampVisualizer.OceanHorizon,
+            VisualizerRenderTier.Constrained,
+        )
+        assertEquals(0.48f, NaviampVisualizer.OceanHorizon.nativeVisualizerRenderScale(constrained))
+        assertEquals(42, NaviampVisualizer.OceanHorizon.nativeVisualizerMaxRaymarchSteps(constrained))
+        assertEquals(38, NaviampVisualizer.AudioTunnel.nativeVisualizerMaxRaymarchSteps(constrained))
+        assertEquals(48, NaviampVisualizer.RaymarchedSphereLiquid.nativeVisualizerMaxRaymarchSteps(constrained))
+        assertEquals(0, NaviampVisualizer.FluidicNebulae.nativeVisualizerMaxRaymarchSteps(constrained))
+    }
+
+    @Test
+    fun everyNonCanvasVisualizerKeepsItsShaderFallbackWithoutANativeBackend() {
+        NaviampVisualizer.entries.forEach { visualizer ->
+            val expected = when (visualizer) {
+                NaviampVisualizer.SpectrumBars,
+                NaviampVisualizer.LyricMirrorTunnel -> VisualizerRendererMode.Canvas
+                else -> VisualizerRendererMode.SkiaRuntimeShader
+            }
+            assertEquals(
+                expected,
+                selectedVisualizerRendererMode(
+                    visualizer = visualizer,
+                    nativeRendererAvailable = false,
+                ),
+                visualizer.name,
+            )
+        }
+    }
+
+    @Test
     fun nativeOpenGlAvailabilityFeedsRendererSelectionOnWindows() {
         assertFalse(
             jvmNativeOpenGlVisualizerAvailable(

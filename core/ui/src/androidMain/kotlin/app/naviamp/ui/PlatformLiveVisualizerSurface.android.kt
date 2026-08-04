@@ -25,6 +25,7 @@ import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameMillis
@@ -159,6 +160,12 @@ private fun AndroidNativeGlslVisualizerSurface(
         AndroidNativeGlslVisualizerRenderer(visualizer, renderPolicy, performanceLoggingEnabled)
     }
     val glViewState: MutableState<GLSurfaceView?> = remember { mutableStateOf(null) }
+    val albumArtOwner = remember(visualizer, renderPolicy) {
+        NaviampOwnedResource<Bitmap> { bitmap ->
+            val glView = glViewState.value
+            if (glView == null) bitmap.recycle() else glView.queueEvent { bitmap.recycle() }
+        }
+    }
     val uniformBands = remember(visualizer) { FloatArray(VisualizerFrameBandCount) }
     val smoothBands = remember(visualizer) { FloatArray(VisualizerFrameBandCount) }
     val latestBandsProvider by rememberUpdatedState(bandsProvider)
@@ -167,12 +174,11 @@ private fun AndroidNativeGlslVisualizerSurface(
     val latestTempoBpm by rememberUpdatedState(tempoBpm)
     val latestActive by rememberUpdatedState(active)
     val latestLyricProgress by rememberUpdatedState(lyricLine?.progressToNext ?: 0f)
-    var albumArtBitmap by remember(coverArtUrl) { mutableStateOf<Bitmap?>(null) }
     var surfaceWidth by remember { mutableStateOf(0) }
     var surfaceHeight by remember { mutableStateOf(0) }
 
     LaunchedEffect(coverArtUrl, renderPolicy.albumArtSidePx, visualizer, lyricLine?.text) {
-        albumArtBitmap = if (visualizer == NaviampVisualizer.LyricMirrorTunnel) {
+        val next = if (visualizer == NaviampVisualizer.LyricMirrorTunnel) {
             androidLyricMaskBitmap(lyricLine?.text.orEmpty())
         } else if (coverArtUrl == null) {
             null
@@ -184,12 +190,14 @@ private fun AndroidNativeGlslVisualizerSurface(
                 }.getOrNull()
             }
         }
-        renderer.updateAlbumArt(albumArtBitmap)
+        renderer.updateAlbumArt(albumArtOwner.replace(next))
         glViewState.value?.requestRender()
     }
 
     DisposableEffect(renderer) {
         onDispose {
+            renderer.updateAlbumArt(null)
+            albumArtOwner.close()
             glViewState.value?.queueEvent { renderer.close() }
             glViewState.value?.onPause()
         }
@@ -278,9 +286,13 @@ private fun AndroidShaderVisualizerSurface(
             }
         }
     }
-    var albumArtBitmap by remember(coverArtUrl) { mutableStateOf<Bitmap?>(null) }
+    val albumArtOwner = remember(visualizer, renderPolicy) {
+        NaviampOwnedResource<Bitmap>(Bitmap::recycle)
+    }
+    val albumArtRetirementScope = rememberCoroutineScope()
+    var albumArtBitmap by remember { mutableStateOf<Bitmap?>(null) }
     LaunchedEffect(coverArtUrl, visualizer) {
-        albumArtBitmap = if (coverArtUrl != null && visualizer.usesAlbumArtShader) {
+        val next = if (coverArtUrl != null && visualizer.usesAlbumArtShader) {
             withContext(Dispatchers.IO) {
                 runCatching {
                     androidPlatformCoverArtBytes(coverArtUrl)
@@ -290,12 +302,16 @@ private fun AndroidShaderVisualizerSurface(
         } else {
             null
         }
+        albumArtOwner.replaceForRendering(next, albumArtRetirementScope) { albumArtBitmap = it }
     }
     val renderer = remember(visualizer, renderPolicy, performanceLoggingEnabled) {
         AndroidShaderVisualizerRenderer(visualizer, renderPolicy, performanceLoggingEnabled)
     }
     DisposableEffect(renderer) {
-        onDispose { renderer.close() }
+        onDispose {
+            renderer.close()
+            albumArtOwner.close()
+        }
     }
 
     Canvas(modifier = modifier) {

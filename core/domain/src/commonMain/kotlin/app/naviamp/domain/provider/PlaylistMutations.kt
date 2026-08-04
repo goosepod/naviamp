@@ -15,6 +15,29 @@ data class PlaylistTrackMutationResult(
     val createdPlaylist: Boolean,
 )
 
+fun standardPlaylistTracksUpdateLoadingStatus(playlist: Playlist): String =
+    "Saving ${playlist.name}..."
+
+fun standardPlaylistTracksUpdateSuccessStatus(): String = "Updated playlist."
+
+fun standardPlaylistTracksUpdateErrorMessage(error: Throwable): String =
+    error.message ?: "Could not update playlist."
+
+suspend fun MediaProvider.replaceStandardPlaylistTracks(
+    playlist: Playlist,
+    currentTracks: List<Track>,
+    updatedTracks: List<Track>,
+    providerResponseService: ProviderResponseService? = null,
+) {
+    require(!playlist.isSmart) { "Smart Playlist tracks are controlled by their rules." }
+    replacePlaylistTracks(
+        playlistId = playlist.id,
+        currentTrackCount = currentTracks.size,
+        trackIds = updatedTracks.map { it.id },
+    )
+    providerResponseService?.invalidatePlaylistResponses(this, playlist.id)
+}
+
 data class QueuePlaylistSaveResult(
     val playlist: Playlist,
     val trackCount: Int,

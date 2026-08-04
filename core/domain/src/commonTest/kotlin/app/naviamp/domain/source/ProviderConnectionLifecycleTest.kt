@@ -97,6 +97,24 @@ class ProviderConnectionLifecycleTest {
         assertEquals("Could not connect.", connectionFailureStatus(IllegalStateException(), "Could not connect."))
     }
 
+    @Test
+    fun connectionFailureStatusSanitizesNativeNetworkFailures() {
+        val tlsFailure = IllegalStateException(
+            "Exception in http request: Error Domain=NSURLErrorDomain Code=-1200 " +
+                "UserInfo={NSErrorFailingURLKey=https://server/rest/ping.view?u=user&t=secret}",
+        )
+        assertEquals(
+            "TLS certificate verification failed. Enable \"Skip TLS certificate verification\" " +
+                "under Show Advanced only if you trust this server.",
+            connectionFailureStatus(tlsFailure),
+        )
+
+        val unexpectedNativeFailure = IllegalStateException(
+            "Error UserInfo={NSErrorFailingURLKey=https://server/path?token=secret}",
+        )
+        assertEquals("Could not connect.", connectionFailureStatus(unexpectedNativeFailure, "Could not connect."))
+    }
+
     private data class FakeConnection(
         val baseUrl: String,
         val username: String,

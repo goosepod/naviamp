@@ -80,7 +80,7 @@ class KtorNavidromeHttpClient(
             val statusCode = response.status.value
             if (!response.status.isSuccess()) {
                 rateLimitBackoff.record(statusCode, response.headers[HttpHeaders.RetryAfter])?.let { throw it }
-                throw NavidromeException("Navidrome returned HTTP $statusCode.")
+                throw NavidromeHttpException(statusCode)
             }
             NavidromeHttpResponse(
                 body = response.body<String>(),

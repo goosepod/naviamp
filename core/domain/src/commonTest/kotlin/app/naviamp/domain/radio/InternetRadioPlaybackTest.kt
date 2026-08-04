@@ -4,6 +4,7 @@ import app.naviamp.domain.InternetRadioStation
 import app.naviamp.domain.internetRadioTrackId
 import app.naviamp.domain.playback.PlaybackProgress
 import app.naviamp.domain.playback.PlaybackStreamMetadata
+import app.naviamp.domain.playback.PlaybackState
 import app.naviamp.domain.playback.ReplayGainMode
 import app.naviamp.domain.network.SharedHttpClient
 import app.naviamp.domain.network.SharedHttpResponse
@@ -307,6 +308,37 @@ class InternetRadioPlaybackTest {
         """.trimIndent()
 
         assertEquals("https://stream.example/live.mp3", parseRadioPlaylist(body))
+    }
+
+    @Test
+    fun internetRadioPlaybackStatePublishesBeforeErrorStatus() {
+        val calls = mutableListOf<String>()
+
+        applyInternetRadioPlaybackState(
+            state = PlaybackState.Error("Stream failed"),
+            setPlaybackState = { calls += "state:$it" },
+            setErrorStatus = { calls += "status:$it" },
+        )
+
+        assertEquals(listOf("state:Error(message=Stream failed)", "status:Stream failed"), calls)
+    }
+
+    @Test
+    fun internetRadioProgressDropsDurationAndAppliesDueUiUpdate() {
+        var applied: PlaybackProgress? = null
+
+        val updated = applyInternetRadioPlaybackProgress(
+            incomingProgress = PlaybackProgress(positionSeconds = 8.0, durationSeconds = 300.0),
+            currentProgress = PlaybackProgress.Unknown,
+            nowMillis = 1_000,
+            lastUiUpdateMillis = 0,
+            positionThresholdSeconds = 0.25,
+            uiUpdateIntervalMillis = 250,
+            setPlaybackProgress = { applied = it },
+        )
+
+        assertEquals(true, updated)
+        assertEquals(PlaybackProgress(positionSeconds = 8.0, durationSeconds = null), applied)
     }
 
     @Test

@@ -344,6 +344,83 @@ fun SmartPlaylistBuilderDialog(
 internal const val SmartPlaylistSaveTestTag = "smart-playlist-save"
 internal const val SmartPlaylistPasswordFieldTestTag = "smart-playlist-password"
 internal const val SmartPlaylistPasswordSaveTestTag = "smart-playlist-password-save"
+internal const val SmartPlaylistLoadPasswordFieldTestTag = "smart-playlist-load-password"
+internal const val SmartPlaylistLoadPasswordConfirmTestTag = "smart-playlist-load-password-confirm"
+
+@Composable
+internal fun SmartPlaylistLoadPasswordDialog(
+    playlist: SharedMediaItemUi,
+    colors: NaviampColors,
+    onDismissRequest: () -> Unit,
+    onLoadWithPassword: suspend (SharedMediaItemUi, String) -> SmartPlaylistDefinition,
+    onLoaded: (SmartPlaylistDefinition) -> Unit,
+) {
+    var password by remember(playlist.id) { mutableStateOf("") }
+    var loading by remember(playlist.id) { mutableStateOf(false) }
+    var errorMessage by remember(playlist.id) { mutableStateOf<String?>(null) }
+    val coroutineScope = rememberCoroutineScope()
+
+    AlertDialog(
+        onDismissRequest = { if (!loading) onDismissRequest() },
+        title = { Text("Navidrome password") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(
+                    "Editing this smart playlist needs a refreshed Navidrome API token. Enter your password once and Naviamp will save the new token.",
+                    color = colors.secondaryText,
+                    fontSize = 12.sp,
+                )
+                OutlinedTextField(
+                    modifier = Modifier.fillMaxWidth().testTag(SmartPlaylistLoadPasswordFieldTestTag),
+                    value = password,
+                    onValueChange = {
+                        password = it
+                        errorMessage = null
+                    },
+                    label = { Text("Password", color = colors.secondaryText) },
+                    singleLine = true,
+                    visualTransformation = PasswordVisualTransformation(),
+                    textStyle = TextStyle(fontSize = 13.sp),
+                )
+                errorMessage?.let { message ->
+                    Text(message, color = colors.secondaryText, fontSize = 12.sp)
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(
+                modifier = Modifier.testTag(SmartPlaylistLoadPasswordConfirmTestTag),
+                enabled = password.isNotBlank() && !loading,
+                onClick = {
+                    val passwordToUse = password
+                    loading = true
+                    errorMessage = null
+                    coroutineScope.launch {
+                        runCatching { onLoadWithPassword(playlist, passwordToUse) }
+                            .onSuccess { definition ->
+                                loading = false
+                                onLoaded(definition)
+                            }
+                            .onFailure { error ->
+                                loading = false
+                                errorMessage = error.message ?: "Could not authenticate with Navidrome."
+                            }
+                    }
+                },
+            ) {
+                Text(if (loading) "Loading..." else "Continue")
+            }
+        },
+        dismissButton = {
+            TextButton(enabled = !loading, onClick = onDismissRequest) {
+                Text("Cancel")
+            }
+        },
+        containerColor = colors.controlSurface,
+        titleContentColor = colors.primaryText,
+        textContentColor = colors.secondaryText,
+    )
+}
 
 @Composable
 private fun SmartPlaylistCustomControls(
@@ -815,7 +892,7 @@ private fun List<SmartPlaylistFieldOption>.smartPlaylistMenuOrder(commonFields: 
         }.thenBy { option -> option.label.lowercase() },
     )
 
-private fun Throwable.requiresSmartPlaylistPassword(): Boolean {
+internal fun Throwable.requiresSmartPlaylistPassword(): Boolean {
     val message = message.orEmpty()
     return message.contains("HTTP 401", ignoreCase = true) ||
         (

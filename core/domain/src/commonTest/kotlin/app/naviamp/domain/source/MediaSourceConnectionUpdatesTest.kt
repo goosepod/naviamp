@@ -36,6 +36,28 @@ class MediaSourceConnectionUpdatesTest {
         )
     }
 
+    @Test
+    fun connectedStatusIdentifiesFallbackEndpoint() {
+        assertEquals(
+            "Connected via https://fallback.example.",
+            connectedMediaSourceStatus(
+                primaryUrl = "https://primary.example/",
+                activeUrl = " https://fallback.example/ ",
+            ),
+        )
+    }
+
+    @Test
+    fun connectedStatusNormalizesEquivalentPrimaryEndpoint() {
+        assertEquals(
+            "Connected.",
+            connectedMediaSourceStatus(
+                primaryUrl = "https://primary.example/",
+                activeUrl = "https://primary.example",
+            ),
+        )
+    }
+
     private fun savedSource(displayName: String): SavedMediaSource =
         SavedMediaSource(
             id = "source",

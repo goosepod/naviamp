@@ -27,6 +27,8 @@ make android-debug
 
 ## Project Expectations
 
+- Build features and reusable infrastructure in Core first. Before adding a file to an Android, Desktop, or iOS module, identify the concrete OS API, lifecycle, native library, or host integration that requires it to be platform-specific; otherwise place it in the appropriate `core` module.
+- A single current caller does not make code platform-specific. Split portable ownership from narrow native effects when only part of a feature requires a host adapter.
 - Keep provider-specific behavior inside provider modules where practical.
 - Keep business logic out of UI code when it can live in shared domain code.
 - Prefer clear, readable code over clever code.

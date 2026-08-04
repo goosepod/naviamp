@@ -7,6 +7,19 @@ import kotlin.test.assertTrue
 
 class BassPlaybackStartPlannerTest {
     @Test
+    fun corePolicyUsesSafeSeekRetryOnEveryPlatform() {
+        val start = planBassPlaybackStart(
+            request = request(startPositionSeconds = 42.0),
+            policy = BassPlaybackStartPolicy.CoreEngine,
+        )
+        val prePlay = planBassPlaybackPrePlay(start, seekedBeforePlay = false)
+
+        assertTrue(start.shouldSeekBeforePlay)
+        assertTrue(prePlay.shouldMuteBeforePlay)
+        assertTrue(prePlay.shouldRetrySeekAfterPlay)
+    }
+
+    @Test
     fun androidPolicyMutesAndRetriesWhenInitialSeekFails() {
         val start = planBassPlaybackStart(
             request = request(startPositionSeconds = 42.0),

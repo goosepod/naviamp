@@ -357,17 +357,10 @@ internal fun PlaceholderTile(text: String, colors: NaviampColors) {
 fun SharedBottomNavigationBar(
     colors: NaviampColors,
     selectedRoute: SharedRoute,
+    supportsDownloads: Boolean = false,
     onRouteSelected: (SharedRoute) -> Unit,
 ) {
-    val bottomRoutes = listOf(
-        SharedRoute.Home,
-        SharedRoute.Playlists,
-        SharedRoute.Library,
-        SharedRoute.Search,
-        SharedRoute.Radio,
-        SharedRoute.Downloads,
-        SharedRoute.Settings,
-    )
+    val bottomRoutes = sharedBottomNavigationRoutes(supportsDownloads)
     Row(
         horizontalArrangement = Arrangement.SpaceEvenly,
         verticalAlignment = Alignment.CenterVertically,
@@ -390,6 +383,17 @@ fun SharedBottomNavigationBar(
         }
     }
 }
+
+internal fun sharedBottomNavigationRoutes(supportsDownloads: Boolean): List<SharedRoute> =
+    listOf(
+        SharedRoute.Home,
+        SharedRoute.Playlists,
+        SharedRoute.Library,
+        SharedRoute.Search,
+        SharedRoute.Radio,
+        SharedRoute.Downloads,
+        SharedRoute.Settings,
+    ).filter { route -> supportsDownloads || route != SharedRoute.Downloads }
 
 @Composable
 fun NaviampDropdownMenu(

@@ -1,0 +1,17 @@
+CREATE TABLE playback_session_state (
+  source_id TEXT NOT NULL PRIMARY KEY REFERENCES media_source(id) ON DELETE CASCADE,
+  current_index INTEGER NOT NULL,
+  play_next_count INTEGER NOT NULL,
+  position_seconds REAL,
+  internet_radio_payload TEXT,
+  now_playing_open INTEGER NOT NULL,
+  updated_at_epoch_millis INTEGER NOT NULL
+);
+
+CREATE TABLE playback_session_queue (
+  source_id TEXT NOT NULL REFERENCES media_source(id) ON DELETE CASCADE,
+  queue_index INTEGER NOT NULL,
+  remote_track_id TEXT NOT NULL,
+  payload TEXT NOT NULL,
+  PRIMARY KEY(source_id, queue_index)
+);

@@ -82,6 +82,30 @@ fun planPlaybackTrackStartEffects(
         finishedAdjacentOffset = 1,
     )
 
+fun planPlaybackTrackStart(
+    previousTrack: Track?,
+    track: Track,
+    openNowPlaying: Boolean,
+    nowPlayingOpen: Boolean,
+    lyricsVisible: Boolean,
+    supportsTrackFavorites: Boolean,
+    startPlan: PlaybackStartPlan? = null,
+    keepRadioQueueActive: Boolean,
+): PlaybackTrackStartEffectsPlan =
+    planPlaybackTrackStartEffects(
+        track = track,
+        presentation = planPlaybackTrackStarted(
+            previousTrack = previousTrack,
+            track = track,
+            openNowPlaying = openNowPlaying,
+            nowPlayingOpen = nowPlayingOpen,
+            lyricsVisible = lyricsVisible,
+            supportsTrackFavorites = supportsTrackFavorites,
+        ),
+        startPlan = startPlan,
+        keepRadioQueueActive = keepRadioQueueActive,
+    )
+
 fun <SessionId> planPlaylistTrackStartWork(
     sessionId: SessionId,
     track: Track,

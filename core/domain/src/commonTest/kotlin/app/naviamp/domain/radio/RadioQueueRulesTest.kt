@@ -9,35 +9,6 @@ import kotlin.test.assertEquals
 
 class RadioQueueRulesTest {
     @Test
-    fun appendPlanRequiresCurrentActiveRadioSession() {
-        val seed = track("seed")
-        val fetchedTracks = listOf(track("one"), track("two"))
-
-        assertEquals(
-            emptyList(),
-            generatedRadioAppendTracksForSession(
-                radioQueueActive = false,
-                radioSession = 2,
-                currentRadioSession = 2,
-                seedTrack = seed,
-                fetchedTracks = fetchedTracks,
-                queuedTracks = emptyList(),
-            ),
-        )
-        assertEquals(
-            emptyList(),
-            generatedRadioAppendTracksForSession(
-                radioQueueActive = true,
-                radioSession = 1,
-                currentRadioSession = 2,
-                seedTrack = seed,
-                fetchedTracks = fetchedTracks,
-                queuedTracks = emptyList(),
-            ),
-        )
-    }
-
-    @Test
     fun appendPlanSkipsAlreadyQueuedTracks() {
         val seed = track("seed")
         val one = track("one")
@@ -45,10 +16,7 @@ class RadioQueueRulesTest {
 
         assertEquals(
             listOf(two),
-            generatedRadioAppendTracksForSession(
-                radioQueueActive = true,
-                radioSession = 2,
-                currentRadioSession = 2,
+            generatedRadioTracksToAppend(
                 seedTrack = seed,
                 fetchedTracks = listOf(one, two),
                 queuedTracks = listOf(seed, one),
@@ -64,22 +32,9 @@ class RadioQueueRulesTest {
 
         assertEquals(
             listOf(one, two),
-            generatedRadioUpcomingReplacementForSession(
-                radioQueueActive = true,
-                radioSession = 3,
-                currentRadioSession = 3,
+            generatedRadioUpcomingTracks(
                 currentTrack = current,
                 fetchedTracks = listOf(one, current, two),
-            ),
-        )
-        assertEquals(
-            null,
-            generatedRadioUpcomingReplacementForSession(
-                radioQueueActive = true,
-                radioSession = 2,
-                currentRadioSession = 3,
-                currentTrack = current,
-                fetchedTracks = listOf(one, two),
             ),
         )
     }
@@ -92,10 +47,7 @@ class RadioQueueRulesTest {
 
         assertEquals(
             listOf(two),
-            generatedRadioUpcomingAppendTracksForSession(
-                radioQueueActive = true,
-                radioSession = 4,
-                currentRadioSession = 4,
+            generatedRadioUpcomingTracksToAppend(
                 currentTrack = current,
                 fetchedTracks = listOf(current, one, two),
                 queuedTracks = listOf(current, one),

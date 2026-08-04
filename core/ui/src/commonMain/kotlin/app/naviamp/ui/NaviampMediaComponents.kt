@@ -28,7 +28,10 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Checkbox
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -54,7 +57,6 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import org.jetbrains.compose.resources.stringResource
-import app.naviamp.domain.InternetRadioStation
 import app.naviamp.domain.settings.TrackSwipeAction
 import app.naviamp.domain.settings.TrackSwipeSettings
 import kotlin.math.roundToInt
@@ -64,55 +66,45 @@ val LocalNaviampTooltipsEnabled = compositionLocalOf { true }
 
 enum class TrackSwipeContext { Library, Related }
 
+private fun trackSelectionAction(onSelected: (SharedTrackRowUi) -> Unit): (SharedTrackRowActionRequest) -> Unit =
+    { request ->
+        check(request.action == SharedTrackRowAction.Select) { "Selection-only track row received ${request.action}." }
+        onSelected(request.track)
+    }
+
 @Composable
 fun TrackRow(
     track: SharedTrackRowUi,
     colors: NaviampColors,
-    onTrackSelected: ((SharedTrackRowUi) -> Unit)?,
-    onStartRadio: ((SharedTrackRowUi) -> Unit)? = null,
-    onAddToQueue: ((SharedTrackRowUi) -> Unit)? = null,
-    onDownload: ((SharedTrackRowUi) -> Unit)? = null,
-    onAddToPlaylist: ((SharedTrackRowUi) -> Unit)? = null,
-    canSelect: Boolean = onTrackSelected != null,
-    canStartRadio: Boolean = onStartRadio != null,
-    canAddToQueue: Boolean = onAddToQueue != null,
-    canDownload: Boolean = onDownload != null,
-    canAddToPlaylist: Boolean = onAddToPlaylist != null,
-    onTrackAction: (SharedTrackRowActionRequest) -> Unit = { request ->
-        when (request.action) {
-            SharedTrackRowAction.Select -> onTrackSelected?.invoke(request.track)
-            SharedTrackRowAction.PlayNext -> Unit
-            SharedTrackRowAction.StartRadio -> onStartRadio?.invoke(request.track)
-            SharedTrackRowAction.PlayTrackRadioNext,
-            SharedTrackRowAction.AddTrackRadioToQueue,
-            -> Unit
-            SharedTrackRowAction.AddToQueue -> onAddToQueue?.invoke(request.track)
-            SharedTrackRowAction.Download -> onDownload?.invoke(request.track)
-            SharedTrackRowAction.AddToPlaylist -> onAddToPlaylist?.invoke(request.track)
-            SharedTrackRowAction.CreatePlaylistAndAdd -> Unit
-            SharedTrackRowAction.ToggleFavorite,
-            SharedTrackRowAction.GoToAlbum,
-            SharedTrackRowAction.GoToArtist,
-            -> Unit
-        }
-    },
+    onTrackAction: ((SharedTrackRowActionRequest) -> Unit)?,
+    canSelect: Boolean,
+    canStartRadio: Boolean,
+    canAddToQueue: Boolean,
+    canDownload: Boolean,
+    canAddToPlaylist: Boolean,
     reservePopularIndicatorSpace: Boolean = false,
     modifier: Modifier = Modifier,
     background: Boolean = false,
     horizontalPadding: Dp = 0.dp,
-    verticalPadding: Dp = 6.dp,
+    verticalPadding: Dp = 3.dp,
     showCoverArt: Boolean = true,
     coverArtSize: Dp = 44.dp,
     coverArtCornerRadius: Dp = 5.dp,
-    titleStyle: TextStyle = TextStyle(fontSize = 16.sp),
-    subtitleStyle: TextStyle = TextStyle(fontSize = 12.sp),
-    metaStyle: TextStyle = TextStyle(fontSize = 11.sp, lineHeight = 14.sp),
-    titleSubtitleSpacing: Dp = 3.dp,
+    titleStyle: TextStyle = TextStyle(fontSize = 13.sp, fontWeight = FontWeight.SemiBold),
+    subtitleStyle: TextStyle = TextStyle(fontSize = 11.sp),
+    metaStyle: TextStyle = TextStyle(fontSize = 13.sp, lineHeight = 16.sp),
+    titleSubtitleSpacing: Dp = 0.dp,
     showMenu: Boolean = false,
     leadingContent: (@Composable RowScope.() -> Unit)? = null,
     trailingContent: (@Composable RowScope.() -> Unit)? = null,
     swipeContext: TrackSwipeContext = TrackSwipeContext.Library,
 ) {
+    require(onTrackAction != null || !(canSelect || canStartRadio || canAddToQueue || canDownload || canAddToPlaylist)) {
+        "TrackRow requires an action handler when an action capability is enabled."
+    }
+    val dispatchTrackAction: (SharedTrackRowActionRequest) -> Unit = { request ->
+        requireNotNull(onTrackAction) { "Track action is unavailable." }(request)
+    }
     var detailsOpen by remember(track.id) { mutableStateOf(false) }
     val swipeSettings = LocalTrackSwipeSettings.current
     SwipeActionContainer(
@@ -124,7 +116,7 @@ fun TrackRow(
             canAddToQueue = canAddToQueue,
             canDownload = canDownload,
             canAddToPlaylist = canAddToPlaylist,
-            onTrackAction = onTrackAction,
+            onTrackAction = dispatchTrackAction,
         ),
         swipeLeft = trackSwipeActionVisual(
             action = if (swipeContext == TrackSwipeContext.Related) swipeSettings.relatedLeft else swipeSettings.libraryLeft,
@@ -133,7 +125,7 @@ fun TrackRow(
             canAddToQueue = canAddToQueue,
             canDownload = canDownload,
             canAddToPlaylist = canAddToPlaylist,
-            onTrackAction = onTrackAction,
+            onTrackAction = dispatchTrackAction,
         ),
     ) { swipeModifier ->
     Row(
@@ -151,7 +143,7 @@ fun TrackRow(
             .let { rowModifier ->
                 if (canSelect) {
                     rowModifier.clickable {
-                        onTrackAction(SharedTrackRowActionRequest(track, SharedTrackRowAction.Select))
+                        dispatchTrackAction(SharedTrackRowActionRequest(track, SharedTrackRowAction.Select))
                     }
                 } else {
                     rowModifier
@@ -184,7 +176,7 @@ fun TrackRow(
             }
         }
         if (showCoverArt) {
-            PlatformCoverArt(track.coverArtUrl, colors, coverArtSize, coverArtCornerRadius)
+            NaviampCoverArt(track.coverArtUrl, colors, coverArtSize, coverArtCornerRadius)
         }
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(titleSubtitleSpacing)) {
             Text(track.title, color = colors.primaryText, style = titleStyle, maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -203,7 +195,7 @@ fun TrackRow(
                             style = subtitleStyle,
                             maxLines = 1,
                             modifier = Modifier.clickable {
-                                onTrackAction(
+                                dispatchTrackAction(
                                     SharedTrackRowActionRequest(
                                         track = track,
                                         action = SharedTrackRowAction.GoToArtist,
@@ -222,7 +214,11 @@ fun TrackRow(
                 Text(track.subtitle, color = colors.secondaryText, style = subtitleStyle, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
         }
-        trailingContent?.invoke(this)
+        if (trailingContent != null) {
+            trailingContent.invoke(this)
+        } else if (track.durationLabel.isNotBlank() && track.durationLabel != track.meta) {
+            Text(track.durationLabel, color = colors.mutedText, fontSize = 11.sp)
+        }
         val rowActions = trackRowActions(
             canStartRadio = canStartRadio,
             canDownload = canDownload,
@@ -239,7 +235,7 @@ fun TrackRow(
                     NaviampRowMenuItem(
                         action.label,
                         action.icon,
-                        { onTrackAction(SharedTrackRowActionRequest(track, SharedTrackRowAction.PlayNext)) },
+                        { dispatchTrackAction(SharedTrackRowActionRequest(track, SharedTrackRowAction.PlayNext)) },
                         action.enabled,
                     )
                 } else {
@@ -249,7 +245,7 @@ fun TrackRow(
                     NaviampRowMenuItem(
                         action.label,
                         action.icon,
-                        { onTrackAction(SharedTrackRowActionRequest(track, SharedTrackRowAction.StartRadio)) },
+                        { dispatchTrackAction(SharedTrackRowActionRequest(track, SharedTrackRowAction.StartRadio)) },
                         action.enabled,
                     )
                 } else {
@@ -259,7 +255,7 @@ fun TrackRow(
                     NaviampRowMenuItem(
                         action.label,
                         action.icon,
-                        { onTrackAction(SharedTrackRowActionRequest(track, SharedTrackRowAction.PlayTrackRadioNext)) },
+                        { dispatchTrackAction(SharedTrackRowActionRequest(track, SharedTrackRowAction.PlayTrackRadioNext)) },
                         action.enabled,
                     )
                 } else {
@@ -269,7 +265,7 @@ fun TrackRow(
                     NaviampRowMenuItem(
                         action.label,
                         action.icon,
-                        { onTrackAction(SharedTrackRowActionRequest(track, SharedTrackRowAction.AddTrackRadioToQueue)) },
+                        { dispatchTrackAction(SharedTrackRowActionRequest(track, SharedTrackRowAction.AddTrackRadioToQueue)) },
                         action.enabled,
                     )
                 } else {
@@ -279,7 +275,7 @@ fun TrackRow(
                     NaviampRowMenuItem(
                         action.label,
                         action.icon,
-                        { onTrackAction(SharedTrackRowActionRequest(track, SharedTrackRowAction.Download)) },
+                        { dispatchTrackAction(SharedTrackRowActionRequest(track, SharedTrackRowAction.Download)) },
                         action.enabled,
                     )
                 } else {
@@ -289,7 +285,7 @@ fun TrackRow(
                     NaviampRowMenuItem(
                         action.label,
                         action.icon,
-                        { onTrackAction(SharedTrackRowActionRequest(track, SharedTrackRowAction.AddToQueue)) },
+                        { dispatchTrackAction(SharedTrackRowActionRequest(track, SharedTrackRowAction.AddToQueue)) },
                         action.enabled,
                     )
                 } else {
@@ -299,7 +295,7 @@ fun TrackRow(
                     NaviampRowMenuItem(
                         action.label,
                         action.icon,
-                        { onTrackAction(SharedTrackRowActionRequest(track, SharedTrackRowAction.AddToPlaylist)) },
+                        { dispatchTrackAction(SharedTrackRowActionRequest(track, SharedTrackRowAction.AddToPlaylist)) },
                         action.enabled,
                     )
                 } else {
@@ -309,7 +305,7 @@ fun TrackRow(
                     NaviampRowMenuItem(
                         action.label,
                         action.icon,
-                        { onTrackAction(SharedTrackRowActionRequest(track, SharedTrackRowAction.ToggleFavorite)) },
+                        { dispatchTrackAction(SharedTrackRowActionRequest(track, SharedTrackRowAction.ToggleFavorite)) },
                         action.enabled,
                     )
                 } else {
@@ -319,7 +315,7 @@ fun TrackRow(
                     NaviampRowMenuItem(
                         action.label,
                         action.icon,
-                        { onTrackAction(SharedTrackRowActionRequest(track, SharedTrackRowAction.GoToAlbum)) },
+                        { dispatchTrackAction(SharedTrackRowActionRequest(track, SharedTrackRowAction.GoToAlbum)) },
                         action.enabled,
                     )
                 } else {
@@ -329,7 +325,7 @@ fun TrackRow(
                     NaviampRowMenuItem(
                         action.label,
                         action.icon,
-                        { onTrackAction(SharedTrackRowActionRequest(track, SharedTrackRowAction.GoToArtist)) },
+                        { dispatchTrackAction(SharedTrackRowActionRequest(track, SharedTrackRowAction.GoToArtist)) },
                         action.enabled,
                     )
                 } else {
@@ -541,7 +537,7 @@ internal fun MixCard(
             .clip(RoundedCornerShape(6.dp))
             .clickable(onClick = onClick),
     ) {
-        PlatformCoverArt(album.coverArtUrl, colors, 154.dp, 6.dp)
+        NaviampCoverArt(album.coverArtUrl, colors, 154.dp, 6.dp)
         Column(
             verticalArrangement = Arrangement.Bottom,
             modifier = Modifier
@@ -635,7 +631,6 @@ internal fun HomeSection(
     colors: NaviampColors,
     onItemSelected: ((SharedMediaItemUi) -> Unit)? = null,
     onFavoriteToggled: ((SharedMediaItemUi) -> Unit)? = null,
-    itemKind: SharedMediaItemKind = SharedMediaItemKind.Unknown,
     stationStyle: Boolean = false,
     emptyText: String? = null,
 ) {
@@ -658,7 +653,6 @@ internal fun HomeSection(
                     SharedMediaRow(
                         item = item,
                         colors = colors,
-                        itemKind = itemKind,
                         onClick = onItemSelected?.let { { it(item) } },
                         onFavoriteToggled = onFavoriteToggled,
                     )
@@ -675,7 +669,6 @@ internal fun MediaSection(
     colors: NaviampColors,
     onItemSelected: ((SharedMediaItemUi) -> Unit)? = null,
     onFavoriteToggled: ((SharedMediaItemUi) -> Unit)? = null,
-    itemKind: SharedMediaItemKind = SharedMediaItemKind.Unknown,
 ) {
     if (items.isEmpty()) return
 
@@ -685,7 +678,6 @@ internal fun MediaSection(
             SharedMediaRow(
                 item = item,
                 colors = colors,
-                itemKind = itemKind,
                 onClick = onItemSelected?.let { { it(item) } },
                 onFavoriteToggled = onFavoriteToggled,
             )
@@ -702,16 +694,6 @@ fun SharedMediaRow(
     onFavoriteToggled: ((SharedMediaItemUi) -> Unit)? = null,
     canSelect: Boolean = onClick != null,
     canToggleFavorite: Boolean = item.canFavorite && onFavoriteToggled != null,
-    itemKind: SharedMediaItemKind = SharedMediaItemKind.Unknown,
-    onItemAction: (SharedMediaItemActionRequest) -> Unit = { request ->
-        handleSharedMediaItemAction(
-            request,
-            SharedMediaItemActionHandlers(
-                onSelect = { onClick?.invoke() },
-                onToggleFavorite = { selectedItem -> onFavoriteToggled?.invoke(selectedItem) },
-            ),
-        )
-    },
     coverArtSize: Dp = 44.dp,
     coverArtCornerRadius: Dp = 5.dp,
     verticalPadding: Dp = 7.dp,
@@ -724,11 +706,7 @@ fun SharedMediaRow(
             .background(Color.Black.copy(alpha = 0.12f))
             .let { rowModifier ->
                 if (canSelect) {
-                    rowModifier.clickable {
-                        onItemAction(
-                            item.actionRequest(SharedMediaItemAction.Select, kind = itemKind),
-                        )
-                    }
+                    rowModifier.clickable { onClick?.invoke() }
                 } else {
                     rowModifier
                 }
@@ -758,11 +736,7 @@ fun SharedMediaRow(
             NaviampRowMenuItem(
                 label = if (item.favoriteActive) "Remove favorite" else "Favorite",
                 icon = NaviampTransportIcons.Heart,
-                onClick = {
-                    onItemAction(
-                        item.actionRequest(SharedMediaItemAction.ToggleFavorite, kind = itemKind),
-                    )
-                },
+                onClick = { onFavoriteToggled?.invoke(item) },
             )
         } else {
             null
@@ -801,7 +775,7 @@ fun SharedAlbumGridTile(
                 .clip(RoundedCornerShape(8.dp))
                 .clickable(onClick = onClick),
         ) {
-            PlatformCoverArt(item.coverArtUrl, colors, 144.dp, 8.dp)
+            NaviampCoverArt(item.coverArtUrl, colors, 144.dp, 8.dp)
             if (item.favoriteActive) {
                 Icon(
                     imageVector = NaviampTransportIcons.Heart,
@@ -859,14 +833,15 @@ fun SharedAlbumGridTile(
 fun ArtistMixBuilderContent(
     colors: NaviampColors,
     builder: SharedArtistMixBuilderUi,
-    onQueryChanged: (String) -> Unit,
-    onSearch: () -> Unit,
-    onArtistSelected: (SharedMediaItemUi) -> Unit,
-    onArtistRemoved: (SharedMediaItemUi) -> Unit,
-    onReset: () -> Unit,
-    onPlayMix: () -> Unit,
+    actions: SharedArtistMixBuilderActions,
     showPlayMixButton: Boolean = true,
 ) {
+    val onQueryChanged = actions.onQueryChanged
+    val onSearch = actions.onSearch
+    val onArtistSelected = actions.onArtistSelected
+    val onArtistRemoved = actions.onArtistRemoved
+    val onReset = actions.onReset
+    val onPlayMix = actions.onPlay
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Row(
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -943,14 +918,15 @@ fun ArtistMixBuilderContent(
 fun AlbumMixBuilderContent(
     colors: NaviampColors,
     builder: SharedAlbumMixBuilderUi,
-    onQueryChanged: (String) -> Unit,
-    onSearch: () -> Unit,
-    onAlbumSelected: (SharedMediaItemUi) -> Unit,
-    onAlbumRemoved: (SharedMediaItemUi) -> Unit,
-    onReset: () -> Unit,
-    onPlayMix: () -> Unit,
+    actions: SharedAlbumMixBuilderActions,
     showPlayMixButton: Boolean = true,
 ) {
+    val onQueryChanged = actions.onQueryChanged
+    val onSearch = actions.onSearch
+    val onAlbumSelected = actions.onAlbumSelected
+    val onAlbumRemoved = actions.onAlbumRemoved
+    val onReset = actions.onReset
+    val onPlayMix = actions.onPlay
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Row(
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -1027,14 +1003,15 @@ fun AlbumMixBuilderContent(
 fun GenreMixBuilderContent(
     colors: NaviampColors,
     builder: SharedGenreMixBuilderUi,
-    onQueryChanged: (String) -> Unit,
-    onSearch: () -> Unit,
-    onGenreSelected: (SharedGenreMixItemUi) -> Unit,
-    onGenreRemoved: (SharedGenreMixItemUi) -> Unit,
-    onReset: () -> Unit,
-    onPlayMix: () -> Unit,
+    actions: SharedGenreMixBuilderActions,
     showPlayMixButton: Boolean = true,
 ) {
+    val onQueryChanged = actions.onQueryChanged
+    val onSearch = actions.onSearch
+    val onGenreSelected = actions.onGenreSelected
+    val onGenreRemoved = actions.onGenreRemoved
+    val onReset = actions.onReset
+    val onPlayMix = actions.onPlay
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Row(
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -1102,21 +1079,22 @@ fun GenreMixBuilderContent(
 fun SonicPathBuilderContent(
     colors: NaviampColors,
     builder: SharedSonicPathBuilderUi,
-    onStartQueryChanged: (String) -> Unit,
-    onEndQueryChanged: (String) -> Unit,
-    onStartSearch: () -> Unit,
-    onEndSearch: () -> Unit,
-    onStartTrackSelected: (SharedTrackRowUi) -> Unit,
-    onEndTrackSelected: (SharedTrackRowUi) -> Unit,
-    onStartTrackCleared: () -> Unit,
-    onEndTrackCleared: () -> Unit,
-    onCountChanged: (Int) -> Unit,
-    onBuildPath: () -> Unit,
-    onReset: () -> Unit,
-    onPlayPath: () -> Unit,
-    onAddPathToQueue: () -> Unit,
+    actions: SharedSonicPathBuilderActions,
     showPathActions: Boolean = true,
 ) {
+    val onStartQueryChanged = actions.onStartQueryChanged
+    val onEndQueryChanged = actions.onEndQueryChanged
+    val onStartSearch = actions.onStartSearch
+    val onEndSearch = actions.onEndSearch
+    val onStartTrackSelected = actions.onStartTrackSelected
+    val onEndTrackSelected = actions.onEndTrackSelected
+    val onStartTrackCleared = actions.onStartTrackCleared
+    val onEndTrackCleared = actions.onEndTrackCleared
+    val onCountChanged = actions.onCountChanged
+    val onBuildPath = actions.onBuild
+    val onReset = actions.onReset
+    val onPlayPath = actions.onPlay
+    val onAddPathToQueue = actions.onAddToQueue
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Row(
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -1204,7 +1182,12 @@ fun SonicPathBuilderContent(
                     TrackRow(
                         track = track,
                         colors = colors,
-                        onTrackSelected = null,
+                        onTrackAction = null,
+                        canSelect = false,
+                        canStartRadio = false,
+                        canAddToQueue = false,
+                        canDownload = false,
+                        canAddToPlaylist = false,
                         trailingContent = {
                             Text((index + 1).toString(), color = colors.mutedText, fontSize = 11.sp)
                         },
@@ -1233,18 +1216,20 @@ fun SonicPathBuilderContent(
 fun SonicMixBuilderContent(
     colors: NaviampColors,
     builder: SharedSonicMixBuilderUi,
-    onQueryChanged: (String) -> Unit,
-    onSearch: () -> Unit,
-    onTrackSelected: (SharedTrackRowUi) -> Unit,
-    onTrackRemoved: (SharedTrackRowUi) -> Unit,
-    onTargetLengthChanged: (Int) -> Unit,
-    onBiasChanged: (SharedSonicMixBiasUi) -> Unit,
-    onBuildMix: () -> Unit,
-    onReset: () -> Unit,
-    onPlayMix: () -> Unit,
-    onAddMixToQueue: () -> Unit,
+    actions: SharedSonicMixBuilderActions,
     showMixActions: Boolean = true,
 ) {
+    val onQueryChanged = actions.onQueryChanged
+    val onSearch = actions.onSearch
+    val onTrackSelected = actions.onTrackSelected
+    val onTrackRemoved = actions.onTrackRemoved
+    val onTargetLengthChanged = actions.onTargetLengthChanged
+    val onBiasChanged = actions.onBiasChanged
+    val onIncludeSeedsChanged = actions.onIncludeSeedsChanged
+    val onBuildMix = actions.onBuild
+    val onReset = actions.onReset
+    val onPlayMix = actions.onPlay
+    val onAddMixToQueue = actions.onAddToQueue
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Row(
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -1263,11 +1248,48 @@ fun SonicMixBuilderContent(
                 }
             }
         }
-        Text(
-            stringResource(Res.string.mix_seed_tracks),
-            color = colors.primaryText,
-            fontSize = 14.sp,
-            fontWeight = FontWeight.SemiBold,
+        if (builder.selectedTracks.isNotEmpty()) {
+            BuilderTrackSectionTitle(
+                label = stringResource(Res.string.mix_selected_seed_tracks),
+                count = builder.selectedTracks.size,
+                colors = colors,
+            )
+            Column(
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(Color.Black.copy(alpha = 0.16f))
+                    .padding(horizontal = 8.dp, vertical = 4.dp),
+            ) {
+                builder.selectedTracks.forEach { track ->
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        TrackRow(
+                            track = track,
+                            colors = colors,
+                            onTrackAction = null,
+                            canSelect = false,
+                            canStartRadio = false,
+                            canAddToQueue = false,
+                            canDownload = false,
+                            canAddToPlaylist = false,
+                            modifier = Modifier.weight(1f),
+                        )
+                        BuilderRemoveTrackButton(
+                            contentDescription = "Remove ${track.title} from selected seed tracks",
+                            onClick = { onTrackRemoved(track) },
+                        )
+                    }
+                }
+            }
+        }
+        BuilderTrackSectionTitle(
+            label = stringResource(Res.string.mix_find_seed_tracks),
+            colors = colors,
         )
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
             NaviampTextField(
@@ -1286,34 +1308,30 @@ fun SonicMixBuilderContent(
                 )
             }
         }
-        if (builder.selectedTracks.isNotEmpty()) {
-            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                builder.selectedTracks.forEach { track ->
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.fillMaxWidth(),
-                    ) {
-                        TrackRow(
-                            track = track,
-                            colors = colors,
-                            onTrackSelected = null,
-                            modifier = Modifier.weight(1f),
-                        )
-                        TextButton(onClick = { onTrackRemoved(track) }) {
-                            Text(stringResource(Res.string.mix_remove), fontSize = 12.sp)
-                        }
-                    }
-                }
-            }
-        }
         if (builder.suggestedTracks.isNotEmpty()) {
-            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            BuilderTrackSectionTitle(
+                label = stringResource(Res.string.mix_search_results),
+                count = builder.suggestedTracks.size,
+                colors = colors,
+            )
+            Column(
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(Color.Black.copy(alpha = 0.08f))
+                    .padding(horizontal = 8.dp, vertical = 4.dp),
+            ) {
                 builder.suggestedTracks.forEach { track ->
                     TrackRow(
                         track = track,
                         colors = colors,
-                        onTrackSelected = onTrackSelected,
+                        onTrackAction = trackSelectionAction(onTrackSelected),
+                        canSelect = true,
+                        canStartRadio = false,
+                        canAddToQueue = false,
+                        canDownload = false,
+                        canAddToPlaylist = false,
                     )
                 }
             }
@@ -1346,13 +1364,30 @@ fun SonicMixBuilderContent(
         Text(stringResource(Res.string.mix_bias), color = colors.secondaryText, fontSize = 13.sp)
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             SharedSonicMixBiasUi.entries.forEach { bias ->
-                Button(
+                FilterChip(
                     onClick = { onBiasChanged(bias) },
-                    enabled = builder.bias != bias,
-                ) {
-                    Text(bias.labelText())
-                }
+                    selected = builder.bias == bias,
+                    label = {
+                        Text(bias.labelText())
+                    },
+                )
             }
+        }
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable { onIncludeSeedsChanged(!builder.includeSeeds) },
+        ) {
+            Checkbox(
+                checked = builder.includeSeeds,
+                onCheckedChange = onIncludeSeedsChanged,
+            )
+            Text(
+                stringResource(Res.string.mix_include_seeds),
+                color = colors.primaryText,
+                fontSize = 13.sp,
+            )
         }
         (builder.status ?: if (builder.loading) stringResource(Res.string.mix_building) else null)?.let {
             Text(it, color = colors.secondaryText, fontSize = 12.sp)
@@ -1375,7 +1410,12 @@ fun SonicMixBuilderContent(
                     TrackRow(
                         track = track,
                         colors = colors,
-                        onTrackSelected = null,
+                        onTrackAction = null,
+                        canSelect = false,
+                        canStartRadio = false,
+                        canAddToQueue = false,
+                        canDownload = false,
+                        canAddToPlaylist = false,
                         trailingContent = {
                             Text((index + 1).toString(), color = colors.mutedText, fontSize = 11.sp)
                         },
@@ -1408,8 +1448,50 @@ private fun SonicPathTrackPicker(
     onTrackSelected: (SharedTrackRowUi) -> Unit,
     onTrackCleared: () -> Unit,
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+    Column(
+        verticalArrangement = Arrangement.spacedBy(6.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(8.dp))
+            .background(Color.Black.copy(alpha = 0.12f))
+            .padding(10.dp),
+    ) {
         Text(title, color = colors.primaryText, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+        selectedTrack?.let { track ->
+            BuilderTrackSectionTitle(
+                label = stringResource(Res.string.sonic_path_selected_track),
+                colors = colors,
+            )
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(6.dp))
+                    .background(Color.Black.copy(alpha = 0.14f))
+                    .padding(horizontal = 8.dp, vertical = 4.dp),
+            ) {
+                TrackRow(
+                    track = track,
+                    colors = colors,
+                    onTrackAction = null,
+                    canSelect = false,
+                    canStartRadio = false,
+                    canAddToQueue = false,
+                    canDownload = false,
+                    canAddToPlaylist = false,
+                    modifier = Modifier.weight(1f),
+                )
+                BuilderRemoveTrackButton(
+                    contentDescription = "Remove ${track.title} from $title",
+                    onClick = onTrackCleared,
+                )
+            }
+        }
+        BuilderTrackSectionTitle(
+            label = stringResource(Res.string.sonic_path_find_track),
+            colors = colors,
+        )
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
             NaviampTextField(
                 value = query,
@@ -1427,32 +1509,72 @@ private fun SonicPathTrackPicker(
                 )
             }
         }
-        selectedTrack?.let { track ->
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.fillMaxWidth(),
+        if (suggestions.isNotEmpty()) {
+            BuilderTrackSectionTitle(
+                label = stringResource(Res.string.mix_search_results),
+                count = suggestions.size,
+                colors = colors,
+            )
+            Column(
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(6.dp))
+                    .background(Color.Black.copy(alpha = 0.08f))
+                    .padding(horizontal = 8.dp, vertical = 4.dp),
             ) {
-                TrackRow(
-                    track = track,
-                    colors = colors,
-                    onTrackSelected = null,
-                    modifier = Modifier.weight(1f),
-                )
-                TextButton(onClick = onTrackCleared) {
-                    Text(stringResource(Res.string.common_clear), fontSize = 12.sp)
+                suggestions.forEach { track ->
+                    TrackRow(
+                        track = track,
+                        colors = colors,
+                        onTrackAction = trackSelectionAction(onTrackSelected),
+                        canSelect = true,
+                        canStartRadio = false,
+                        canAddToQueue = false,
+                        canDownload = false,
+                        canAddToPlaylist = false,
+                    )
                 }
             }
         }
-        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            suggestions.forEach { track ->
-                TrackRow(
-                    track = track,
-                    colors = colors,
-                    onTrackSelected = onTrackSelected,
-                )
-            }
-        }
+    }
+}
+
+@Composable
+private fun BuilderTrackSectionTitle(
+    label: String,
+    colors: NaviampColors,
+    count: Int? = null,
+) {
+    Text(
+        text = count?.let { "$label ($it)" } ?: label,
+        color = colors.secondaryText,
+        fontSize = 12.sp,
+        fontWeight = FontWeight.SemiBold,
+    )
+}
+
+@Composable
+private fun BuilderRemoveTrackButton(
+    contentDescription: String,
+    onClick: () -> Unit,
+) {
+    Button(
+        onClick = onClick,
+        colors = ButtonDefaults.buttonColors(
+            containerColor = Color(0xFF9B2C2C),
+            contentColor = Color.White,
+        ),
+        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 0.dp),
+        modifier = Modifier.height(36.dp),
+    ) {
+        Icon(
+            imageVector = NaviampIcons.Trash,
+            contentDescription = contentDescription,
+            modifier = Modifier.size(16.dp),
+        )
+        Spacer(Modifier.width(6.dp))
+        Text(stringResource(Res.string.mix_remove), fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
     }
 }
 
@@ -1480,7 +1602,7 @@ private fun ArtistMixSelectedArtist(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(6.dp),
     ) {
-        PlatformCoverArt(artist.coverArtUrl, colors, 30.dp, 15.dp)
+        NaviampCoverArt(artist.coverArtUrl, colors, 30.dp, 15.dp)
         Text(artist.title, color = colors.primaryText, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
 }
@@ -1552,7 +1674,7 @@ private fun AlbumMixSelectedAlbum(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(6.dp),
     ) {
-        PlatformCoverArt(album.coverArtUrl, colors, 30.dp, 4.dp)
+        NaviampCoverArt(album.coverArtUrl, colors, 30.dp, 4.dp)
         Text(album.title, color = colors.primaryText, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
 }
@@ -1574,7 +1696,7 @@ private fun AlbumMixAlbumTile(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(3.dp),
     ) {
-        PlatformCoverArt(album.coverArtUrl, colors, 72.dp, 6.dp)
+        NaviampCoverArt(album.coverArtUrl, colors, 72.dp, 6.dp)
         Text(
             album.title,
             color = colors.primaryText,
@@ -1612,7 +1734,7 @@ private fun ArtistMixArtistTile(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(7.dp),
     ) {
-        PlatformCoverArt(artist.coverArtUrl, colors, 64.dp, 32.dp)
+        NaviampCoverArt(artist.coverArtUrl, colors, 64.dp, 32.dp)
         Text(
             artist.title,
             color = colors.primaryText,
@@ -1625,18 +1747,41 @@ private fun ArtistMixArtistTile(
 }
 
 @Composable
+fun NaviampInternetRadioContent(
+    colors: NaviampColors,
+    screen: NaviampInternetRadioScreenUi,
+    actions: NaviampInternetRadioActions,
+) {
+    InternetRadioContent(
+        colors = colors,
+        screen = screen,
+        onStationAction = actions.onStationAction,
+        onSaveStation = actions.onSaveStation,
+        headerActions = {
+            IconButton(onClick = actions.onRefresh, enabled = !screen.refreshing) {
+                Icon(
+                    NaviampIcons.Refresh,
+                    contentDescription = "Refresh internet radio stations",
+                    tint = colors.primaryText,
+                )
+            }
+        },
+    )
+}
+
+@Composable
 fun InternetRadioContent(
     colors: NaviampColors,
-    stations: List<InternetRadioStation>,
-    status: String?,
+    screen: NaviampInternetRadioScreenUi,
     onStationAction: (StationRowActionRequest) -> Unit,
-    onSaveStation: ((InternetRadioStation) -> Unit)? = null,
+    onSaveStation: ((NaviampInternetRadioStationEditUi) -> Unit)? = null,
     headerActions: @Composable RowScope.() -> Unit = {},
 ) {
-    var stationBeingEdited by remember { mutableStateOf<InternetRadioStation?>(null) }
-    var stationBeingDeleted by remember { mutableStateOf<InternetRadioStation?>(null) }
+    val stations = screen.stations
+    var stationBeingEdited by remember { mutableStateOf<NaviampInternetRadioStationUi?>(null) }
+    var stationBeingDeleted by remember { mutableStateOf<NaviampInternetRadioStationUi?>(null) }
     var creatingStation by remember { mutableStateOf(false) }
-    val stationById = remember(stations) { stations.associateBy { station -> station.id } }
+    val stationById = remember(stations) { stations.associateBy { station -> station.item.id } }
     val handleStationAction: (StationRowActionRequest) -> Unit = { request ->
         handleStationRowAction(
             request,
@@ -1672,33 +1817,17 @@ fun InternetRadioContent(
                 headerActions()
             }
         }
-        status?.let { Text(it, color = colors.secondaryText, fontSize = 12.sp) }
+        screen.status?.let { Text(it, color = colors.secondaryText, fontSize = 12.sp) }
         if (stations.isEmpty()) {
             Text("Saved internet radio stations will appear here.", color = colors.secondaryText, fontSize = 12.sp)
         }
-        stations.sortedBy { it.name.lowercase() }.forEach { station ->
-            val stationItem = station.toSharedMediaItemUi()
+        stations.sortedBy { it.item.title.lowercase() }.forEach { station ->
+            val stationItem = station.item
             SharedMediaRow(
                 item = stationItem,
                 colors = colors,
-                itemKind = SharedMediaItemKind.RadioStation,
                 onClick = {
                     handleStationAction(StationRowActionRequest(stationItem, StationRowAction.Select))
-                },
-                onItemAction = { request ->
-                    when (request.action) {
-                        SharedMediaItemAction.Select ->
-                            handleStationAction(StationRowActionRequest(stationItem, StationRowAction.Select))
-                        else ->
-                            handleSharedMediaItemAction(
-                                request,
-                                SharedMediaItemActionHandlers(
-                                    onSelect = {
-                                        handleStationAction(StationRowActionRequest(stationItem, StationRowAction.Select))
-                                    },
-                                ),
-                            )
-                    }
                 },
                 menuItems = stationRowActions(
                     canEdit = onSaveStation != null,
@@ -1754,14 +1883,14 @@ fun InternetRadioContent(
         AlertDialog(
             onDismissRequest = { stationBeingDeleted = null },
             title = { Text("Delete station") },
-            text = { Text("Delete ${station.name}? This removes the server internet radio station.") },
+            text = { Text("Delete ${station.item.title}? This removes the server internet radio station.") },
             confirmButton = {
                 TextButton(
                     onClick = {
                         stationBeingDeleted = null
                         onStationAction(
                             StationRowActionRequest(
-                                station = station.toSharedMediaItemUi(),
+                                station = station.item,
                                 action = StationRowAction.Delete,
                             ),
                         )
@@ -1781,13 +1910,13 @@ fun InternetRadioContent(
 
 @Composable
 private fun InternetRadioStationDialog(
-    initialStation: InternetRadioStation?,
+    initialStation: NaviampInternetRadioStationUi?,
     onDismiss: () -> Unit,
-    onConfirm: (InternetRadioStation) -> Unit,
+    onConfirm: (NaviampInternetRadioStationEditUi) -> Unit,
 ) {
-    var name by remember(initialStation?.id) { mutableStateOf(initialStation?.name.orEmpty()) }
-    var streamUrl by remember(initialStation?.id) { mutableStateOf(initialStation?.streamUrl.orEmpty()) }
-    var homePageUrl by remember(initialStation?.id) { mutableStateOf(initialStation?.homePageUrl.orEmpty()) }
+    var name by remember(initialStation?.item?.id) { mutableStateOf(initialStation?.item?.title.orEmpty()) }
+    var streamUrl by remember(initialStation?.item?.id) { mutableStateOf(initialStation?.streamUrl.orEmpty()) }
+    var homePageUrl by remember(initialStation?.item?.id) { mutableStateOf(initialStation?.homePageUrl.orEmpty()) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -1804,8 +1933,8 @@ private fun InternetRadioStationDialog(
                 enabled = name.isNotBlank() && streamUrl.isNotBlank(),
                 onClick = {
                     onConfirm(
-                        InternetRadioStation(
-                            id = initialStation?.id ?: streamUrl.trim(),
+                        NaviampInternetRadioStationEditUi(
+                            id = initialStation?.item?.id,
                             name = name.trim(),
                             streamUrl = streamUrl.trim(),
                             homePageUrl = homePageUrl.trim().takeIf { it.isNotBlank() },

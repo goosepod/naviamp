@@ -1,16 +1,9 @@
 package app.naviamp.domain.radio
 
-import app.naviamp.domain.network.KtorSharedHttpClient
-import app.naviamp.domain.network.NaviampUserAgent
 import app.naviamp.domain.network.SharedHttpClient
 
 class InternetRadioStreamResolver(
-    private val httpClient: SharedHttpClient = KtorSharedHttpClient(
-        defaultHeaders = mapOf(
-            "User-Agent" to NaviampUserAgent,
-            "Icy-MetaData" to "1",
-        ),
-    ),
+    private val httpClient: SharedHttpClient,
 ) {
     suspend fun resolve(stationUrl: String): String {
         val response = httpClient.getResponse(stationUrl) ?: return stationUrl

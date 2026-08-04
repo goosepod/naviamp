@@ -2,7 +2,9 @@ GRADLE ?= ./gradlew
 GRADLEW_BAT ?= ./gradlew.bat
 
 ANDROID_HOME ?= /Users/jbmcmichael/Library/Android/sdk
-GRADLE_COMMON = --configure-on-demand
+# Configuration-on-demand is unstable with the current Kotlin Multiplatform build
+# and can fail before Desktop packaging dependencies are resolved.
+GRADLE_COMMON ?=
 MACOS_DESKTOP_PROPS = -Pnaviamp.bass.platform=macos-arm64 -Pcompose.desktop.packaging.checkJdkVendor=false
 WINDOWS_DESKTOP_PROPS = -Pnaviamp.bass.platform=windows-x64
 LINUX_DESKTOP_PROPS = -Pnaviamp.bass.platform=linux-x64

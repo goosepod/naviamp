@@ -2,6 +2,8 @@ package app.naviamp.domain.settings
 
 import app.naviamp.domain.cache.ProviderMediaSourceConnection
 import app.naviamp.domain.cache.ProviderMediaSourceRepository
+import app.naviamp.domain.playback.PlaybackEngine
+import app.naviamp.domain.radio.RadioDjPresetRepository
 import app.naviamp.domain.source.ConnectionHeaderDefinition
 import app.naviamp.domain.source.ConnectionTlsSettings
 import app.naviamp.domain.source.ConnectionSecondaryUrl
@@ -20,6 +22,38 @@ data class ImportedSettingsSyncServerProfiles(
     val importedCount: Int = 0,
     val firstConnectionForm: ConnectionFormState? = null,
 )
+
+data class AppliedSettingsSyncDocument(
+    val interfaceSettings: InterfaceSettings,
+    val playbackSettings: PlaybackSettings,
+    val visualizer: VisualizerSettings,
+    val recentRadioStreams: List<RecentRadioStream>,
+    val recentInternetRadioStations: List<SavedInternetRadioStation>,
+    val importedServerProfiles: ImportedSettingsSyncServerProfiles,
+)
+
+/** Applies the platform-neutral repository mutations and normalization for a synced document. */
+fun applySettingsSyncDocument(
+    document: SettingsSyncDocument,
+    playbackEngine: PlaybackEngine,
+    mediaSourceRepository: ProviderMediaSourceRepository,
+    radioDjPresetRepository: RadioDjPresetRepository,
+): AppliedSettingsSyncDocument {
+    val preferences = document.preferences
+    val importedPlayback = preferences.playback.effectiveForEngine(playbackEngine)
+    radioDjPresetRepository.replaceRadioDjPresets(importedPlayback.radioDjs)
+    return AppliedSettingsSyncDocument(
+        interfaceSettings = preferences.interfaceSettings.normalized(),
+        playbackSettings = importedPlayback.copy(radioDjs = radioDjPresetRepository.radioDjPresets()),
+        visualizer = preferences.visualizer,
+        recentRadioStreams = preferences.recentRadioStreams,
+        recentInternetRadioStations = preferences.recentInternetRadioStations,
+        importedServerProfiles = importSettingsSyncServerProfiles(
+            serverProfiles = document.serverProfiles,
+            repository = mediaSourceRepository,
+        ),
+    )
+}
 
 fun buildSettingsSyncDocument(
     snapshot: SettingsSyncLocalSnapshot,

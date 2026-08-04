@@ -7,6 +7,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameMillis
 import androidx.compose.ui.Modifier
@@ -44,7 +45,14 @@ internal actual fun PlatformLiveVisualizerSurface(
     modifier: Modifier,
 ) {
     var frameMillis by remember { mutableLongStateOf(0L) }
-    var albumArtImage by remember(coverArtUrl) { androidx.compose.runtime.mutableStateOf<Image?>(null) }
+    val albumArtOwner = remember {
+        NaviampOwnedResource<JvmVisualizerImageLease> { lease ->
+            if (lease.owned) lease.image.close()
+        }
+    }
+    val albumArtRetirementScope = rememberCoroutineScope()
+    var albumArtLease by remember { androidx.compose.runtime.mutableStateOf<JvmVisualizerImageLease?>(null) }
+    val albumArtImage = albumArtLease?.image
     val renderPolicy = remember(visualizer) {
         visualizerRenderPolicy(visualizer, jvmVisualizerRenderTier())
     }
@@ -75,13 +83,22 @@ internal actual fun PlatformLiveVisualizerSurface(
     }
     val primaryLyricLine = lyricStage.primaryLineForNativeMask()
     LaunchedEffect(coverArtUrl, visualizer, primaryLyricLine?.text) {
-        albumArtImage = when {
+        val next = when {
             visualizer == NaviampVisualizer.LyricMirrorTunnel ->
-                jvmLyricMaskShaderImage(primaryLyricLine?.text.orEmpty())
+                JvmVisualizerImageLease(
+                    image = jvmLyricMaskShaderImage(primaryLyricLine?.text.orEmpty()),
+                    owned = true,
+                )
             coverArtUrl != null && (visualizer.usesAlbumArtShader || visualizer.nativeShaderDefinition != null) ->
-                runCatching { jvmPlatformCoverArtShaderImage(coverArtUrl) }.getOrNull()
+                runCatching { jvmPlatformCoverArtShaderImage(coverArtUrl) }
+                    .getOrNull()
+                    ?.let { JvmVisualizerImageLease(image = it, owned = false) }
             else -> null
         }
+        albumArtOwner.replaceForRendering(next, albumArtRetirementScope) { albumArtLease = it }
+    }
+    DisposableEffect(albumArtOwner) {
+        onDispose { albumArtOwner.close() }
     }
 
     if (rendererMode == VisualizerRendererMode.NativeGpu) {
@@ -166,6 +183,11 @@ internal actual fun PlatformLiveVisualizerSurface(
         renderer.recordDrawNanos(System.nanoTime() - drawStartedNanos, active)
     }
 }
+
+private data class JvmVisualizerImageLease(
+    val image: Image,
+    val owned: Boolean,
+)
 
 @Composable
 private fun NativeDesktopVisualizerSurface(
@@ -402,6 +424,11 @@ private class ShaderVisualizerRenderer(
         )
         builder.uniform("iTempo", frameInput.tempoBpm)
         builder.uniform("iBands", frameInput.bands)
+        if (visualizer.usesTranslatedNativeSkiaShader) {
+            builder.uniform("iAnalysis", frameInput.energy.spectralCentroid, frameInput.energy.beatDetected)
+            builder.uniform("iRenderScale", visualizer.nativeVisualizerRenderScale(renderPolicy))
+            builder.uniform("iMaxRaymarchSteps", visualizer.nativeVisualizerMaxRaymarchSteps(renderPolicy))
+        }
         builder.uniform(
             "iAlbumArtSize",
             (albumArtImage?.width ?: 1).toFloat(),

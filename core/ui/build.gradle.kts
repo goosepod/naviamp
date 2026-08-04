@@ -16,6 +16,8 @@ kotlin {
         }
     }
     jvm()
+    iosArm64()
+    iosSimulatorArm64()
 
     sourceSets {
         commonMain.dependencies {
@@ -26,6 +28,9 @@ kotlin {
             implementation("org.jetbrains.compose.runtime:runtime:$composeVersion")
             implementation("org.jetbrains.compose.ui:ui:$composeVersion")
             implementation("org.jetbrains.compose.components:components-resources:$composeVersion")
+        }
+        commonTest.dependencies {
+            implementation(kotlin("test"))
         }
         jvmTest.dependencies {
             implementation(compose.desktop.currentOs)

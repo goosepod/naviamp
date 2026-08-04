@@ -172,54 +172,10 @@ private data class NativeMetalShaderSpec(
 )
 
 private fun NaviampVisualizer.nativeMetalShaderSpec(renderPolicy: VisualizerRenderPolicy): NativeMetalShaderSpec =
-    when (this) {
-        NaviampVisualizer.OceanHorizon -> NativeMetalShaderSpec(
-            renderScale = when (renderPolicy.tier) {
-                VisualizerRenderTier.Full -> 0.82f
-                VisualizerRenderTier.Balanced -> 0.62f
-                VisualizerRenderTier.Constrained -> 0.48f
-            },
-            maxRaymarchSteps = when (renderPolicy.tier) {
-                VisualizerRenderTier.Full -> 60
-                VisualizerRenderTier.Balanced -> 60
-                VisualizerRenderTier.Constrained -> 42
-            },
-        )
-        NaviampVisualizer.RaymarchedSphereLiquid -> NativeMetalShaderSpec(
-            renderScale = when (renderPolicy.tier) {
-                VisualizerRenderTier.Full -> 1.0f
-                VisualizerRenderTier.Balanced -> 0.82f
-                VisualizerRenderTier.Constrained -> 0.65f
-            },
-            maxRaymarchSteps = when (renderPolicy.tier) {
-                VisualizerRenderTier.Full -> 80
-                VisualizerRenderTier.Balanced -> 64
-                VisualizerRenderTier.Constrained -> 48
-            },
-        )
-        NaviampVisualizer.AudioTunnel -> NativeMetalShaderSpec(
-            renderScale = when (renderPolicy.tier) {
-                VisualizerRenderTier.Full -> 1.0f
-                VisualizerRenderTier.Balanced -> 0.82f
-                VisualizerRenderTier.Constrained -> 0.62f
-            },
-            maxRaymarchSteps = when (renderPolicy.tier) {
-                VisualizerRenderTier.Full -> 64
-                VisualizerRenderTier.Balanced -> 52
-                VisualizerRenderTier.Constrained -> 38
-            },
-        )
-        NaviampVisualizer.AnalogSignalFailure,
-        NaviampVisualizer.FluidicNebulae,
-        NaviampVisualizer.OceanOfInk -> NativeMetalShaderSpec(
-            renderScale = when (renderPolicy.tier) {
-                VisualizerRenderTier.Full -> 1.0f
-                VisualizerRenderTier.Balanced -> 0.82f
-                VisualizerRenderTier.Constrained -> 0.65f
-            },
-        )
-        else -> NativeMetalShaderSpec(renderScale = 1.0f)
-    }
+    NativeMetalShaderSpec(
+        renderScale = nativeVisualizerRenderScale(renderPolicy),
+        maxRaymarchSteps = nativeVisualizerMaxRaymarchSteps(renderPolicy),
+    )
 
 private fun Color.toFloatArray(): FloatArray =
     floatArrayOf(red, green, blue, alpha)
@@ -277,7 +233,7 @@ private fun nativeMetalCandidateDirectories(): List<File> = buildList {
             "Contents/Resources/playback/bass/${nativeMetalPlatformId()}",
             "../Resources/playback/bass/${nativeMetalPlatformId()}",
             "../app/playback/bass/${nativeMetalPlatformId()}",
-            "apps/desktop/build/generated/desktopBass/playback/bass/${nativeMetalPlatformId()}",
+            "platforms/desktop/build/generated/desktopNativeResources/playback/bass/${nativeMetalPlatformId()}",
         ).forEach { relativePath ->
             add(File(root, relativePath))
         }

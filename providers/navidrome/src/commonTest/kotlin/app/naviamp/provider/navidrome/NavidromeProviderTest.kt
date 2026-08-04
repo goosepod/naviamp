@@ -8,6 +8,8 @@ import app.naviamp.domain.AudioCodec
 import app.naviamp.domain.StreamQuality
 import app.naviamp.domain.StreamRequest
 import app.naviamp.domain.TrackId
+import app.naviamp.domain.cache.ProviderMediaSourceConnection
+import app.naviamp.domain.cache.ProviderMediaSourceRepository
 import app.naviamp.domain.provider.AlbumListType
 import app.naviamp.domain.provider.CoverArtSize
 import app.naviamp.domain.provider.MediaPageRequest
@@ -21,11 +23,13 @@ import app.naviamp.domain.smartplaylist.SmartPlaylistMatch
 import app.naviamp.domain.smartplaylist.SmartPlaylistOperator
 import app.naviamp.domain.smartplaylist.SmartPlaylistSort
 import app.naviamp.domain.smartplaylist.SmartPlaylistValue
+import app.naviamp.domain.source.MediaSourceIdentity
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class NavidromeProviderTest {
@@ -238,7 +242,8 @@ class NavidromeProviderTest {
                     "status": "ok",
                     "openSubsonicExtensions": [
                       { "name": "transcodeOffset", "versions": [1] },
-                      { "name": "sonicSimilarity", "versions": [1] }
+                      { "name": "sonicSimilarity", "versions": [1] },
+                      { "name": "topSongsByArtistId", "versions": [1] }
                     ]
                   }
                 }
@@ -254,6 +259,10 @@ class NavidromeProviderTest {
         provider.validateConnection()
 
         assertTrue(provider.capabilities.supportsSonicSimilarity)
+        assertEquals(
+            NavidromeCanonicalIdMigrationSupport.Confirmed,
+            provider.canonicalIdMigrationSupport(),
+        )
         assertEquals(
             listOf(
                 "https://music.example.test/rest/ping.view?u=demo&t=token&s=salt&v=1.16.1&$ExpectedClientQuery&f=json",
@@ -295,6 +304,10 @@ class NavidromeProviderTest {
         provider.validateConnection()
 
         assertFalse(provider.capabilities.supportsSonicSimilarity)
+        assertEquals(
+            NavidromeCanonicalIdMigrationSupport.Unsupported,
+            provider.canonicalIdMigrationSupport(),
+        )
     }
 
     @Test
@@ -322,6 +335,10 @@ class NavidromeProviderTest {
         provider.validateConnection()
 
         assertFalse(provider.capabilities.supportsSonicSimilarity)
+        assertEquals(
+            NavidromeCanonicalIdMigrationSupport.Inconclusive,
+            provider.canonicalIdMigrationSupport(),
+        )
     }
 
     @Test
@@ -440,6 +457,8 @@ class NavidromeProviderTest {
                           "userRating": 4,
                           "bpm": 132,
                           "mood": ["wistful", "bright"],
+                          "genre": "Alternative",
+                          "genres": [{"name": "New Wave"}, {"name": "Alternative"}],
                           "playCount": 12,
                           "played": "2026-05-12T14:00:00Z"
                         },
@@ -482,6 +501,7 @@ class NavidromeProviderTest {
         assertEquals(4, details.tracks.first().userRating)
         assertEquals(132, details.tracks.first().bpm)
         assertEquals(listOf("wistful", "bright"), details.tracks.first().moods)
+        assertEquals(listOf("Alternative", "New Wave"), details.tracks.first().genres)
         assertEquals(12, details.tracks.first().playCount)
         assertEquals("2026-05-12T14:00:00Z", details.tracks.first().lastPlayedAtIso8601)
     }
@@ -699,6 +719,29 @@ class NavidromeProviderTest {
     }
 
     @Test
+    fun popularTracksIncludesArtistIdWhenTheServerAdvertisesSupport() = runTest {
+        val httpClient = SequencedHttpClient(
+            listOf(
+                """{"subsonic-response":{"status":"ok","version":"1.16.1","serverVersion":"custom-build"}}""",
+                """{"subsonic-response":{"status":"ok","openSubsonicExtensions":[{"name":"topSongsByArtistId","versions":[1]}]}}""",
+                """{"subsonic-response":{"status":"ok","topSongs":{"song":[]}}}""",
+            ),
+        )
+        val provider = NavidromeProvider(
+            connection = connection("https://music.example.test"),
+            httpClient = httpClient,
+        )
+
+        provider.validateConnection()
+        provider.popularTracks(Artist(ArtistId("artist-1"), "New Order"), limit = 12)
+
+        assertEquals(
+            "https://music.example.test/rest/getTopSongs.view?u=demo&t=token&s=salt&v=1.16.1&$ExpectedClientQuery&f=json&artist=New+Order&id=artist-1&count=12",
+            httpClient.urls.last(),
+        )
+    }
+
+    @Test
     fun similarArtistsUsesArtistInfoWithIncludeNotPresent() = runTest {
         val httpClient = RecordingResponseHttpClient(
             """
@@ -864,20 +907,25 @@ class NavidromeProviderTest {
     }
 
     @Test
-    fun artistPageUsesEmptySearchWithServerSidePaging() = runTest {
-        val httpClient = RecordingResponseHttpClient(searchArtistResponse("artist-1", "New Order"))
+    fun artistPageUsesTheIndexedCatalogWithStableAlphabeticalPaging() = runTest {
+        val httpClient = RecordingResponseHttpClient(
+            indexedArtistsResponse(
+                "artist-z" to "Zebra",
+                "artist-a" to "A Certain Ratio",
+            ),
+        )
         val provider = NavidromeProvider(
             connection = connection("https://music.example.test"),
             httpClient = httpClient,
         )
 
-        val page = provider.artistsPage(MediaPageRequest(offset = 75, limit = 25))
+        val page = provider.artistsPage(MediaPageRequest(offset = 1, limit = 1))
 
         assertEquals(
-            "https://music.example.test/rest/search3.view?u=demo&t=token&s=salt&v=1.16.1&$ExpectedClientQuery&f=json&query=&artistCount=25&artistOffset=75&albumCount=0&albumOffset=0&songCount=0&songOffset=0",
+            "https://music.example.test/rest/getArtists.view?u=demo&t=token&s=salt&v=1.16.1&$ExpectedClientQuery&f=json",
             httpClient.urls.single(),
         )
-        assertEquals(listOf("New Order"), page.items.map { it.name })
+        assertEquals(listOf("Zebra"), page.items.map { it.name })
         assertFalse(page.hasMore)
     }
 
@@ -885,9 +933,8 @@ class NavidromeProviderTest {
     fun multiLibraryArtistPagesAdvanceWithoutRefetchingEarlierPages() = runTest {
         val httpClient = SequencedHttpClient(
             listOf(
-                searchArtistsResponse("artist-1" to "A", "artist-2" to "B"),
-                searchArtistsResponse(),
-                searchArtistsResponse("artist-3" to "C"),
+                indexedArtistsResponse("artist-1" to "A", "artist-3" to "C"),
+                indexedArtistsResponse("artist-2" to "B"),
             ),
         )
         val provider = NavidromeProvider(
@@ -901,13 +948,14 @@ class NavidromeProviderTest {
         val second = provider.artistsPage(requireNotNull(first.nextRequest))
 
         assertEquals(listOf("A", "B"), first.items.map { it.name })
-        assertEquals("0:2", first.nextContinuationToken)
+        assertEquals(2, first.nextRequest?.offset)
         assertEquals(listOf("C"), second.items.map { it.name })
         assertFalse(second.hasMore)
-        assertTrue(httpClient.urls[1].contains("artistOffset=2"))
-        assertTrue(httpClient.urls[1].contains("musicFolderId=rock"))
-        assertTrue(httpClient.urls[2].contains("artistOffset=0"))
-        assertTrue(httpClient.urls[2].contains("musicFolderId=archive"))
+        assertTrue(httpClient.urls[0].contains("getArtists.view"))
+        assertTrue(httpClient.urls[0].contains("musicFolderId=rock"))
+        assertTrue(httpClient.urls[1].contains("getArtists.view"))
+        assertTrue(httpClient.urls[1].contains("musicFolderId=archive"))
+        assertEquals(2, httpClient.urls.size)
     }
 
     @Test
@@ -1137,6 +1185,95 @@ class NavidromeProviderTest {
         provider.createSmartPlaylist(smartPlaylistDefinition())
 
         assertEquals("refreshed-native-token", provider.connectionWithCurrentNativeToken().nativeToken)
+    }
+
+    @Test
+    fun refreshNativeSessionUsesBoundedReadAndRetainsRotatedToken() = runTest {
+        val httpClient = RecordingNativeHttpClient(
+            response = """{"data":[]}""",
+            responseHeaders = mapOf("X-ND-Authorization" to "rotated-native-token"),
+        )
+        val provider = NavidromeProvider(
+            connection = connection("https://music.example.test", nativeToken = "native-token"),
+            httpClient = httpClient,
+        )
+
+        assertTrue(provider.refreshNativeSession())
+
+        assertEquals(
+            "https://music.example.test/api/playlist?range=%5B0%2C0%5D",
+            httpClient.getUrls.single(),
+        )
+        assertEquals(mapOf("x-nd-authorization" to "Bearer native-token"), httpClient.getHeaders.single())
+        assertEquals("rotated-native-token", provider.connectionWithCurrentNativeToken().nativeToken)
+    }
+
+    @Test
+    fun commonNativeSessionControllerPersistsARejectedTokenAsCleared() = runTest {
+        val active = NavidromeProvider(
+            connection = connection("https://music.example.test", nativeToken = "expired-token"),
+            httpClient = FailingNativeHttpClient(),
+        )
+        var persisted: ProviderMediaSourceConnection? = null
+        val repository = object : ProviderMediaSourceRepository {
+            override fun upsertProviderMediaSource(
+                connection: ProviderMediaSourceConnection,
+                cacheNamespace: String,
+                providerId: String,
+            ): MediaSourceIdentity {
+                persisted = connection
+                return MediaSourceIdentity("source", cacheNamespace, connection.displayName)
+            }
+        }
+        val controller = NavidromeNativeSessionController(
+            currentProvider = { active },
+            savedConnection = { null },
+            replaceProvider = {},
+            repository = repository,
+        )
+
+        assertFailsWith<NavidromeException> { controller.refresh() }
+
+        assertNull(persisted?.nativeToken)
+    }
+
+    @Test
+    fun commonNativeSessionControllerRefreshesReauthenticatesAndPersistsRotatedTokens() = runTest {
+        val httpClient = RecordingNativeHttpClient(
+            response = """{"data":[]}""",
+            responseHeaders = mapOf("X-ND-Authorization" to "rotated-native-token"),
+        )
+        var active = NavidromeProvider(
+            connection = connection("https://music.example.test", nativeToken = "native-token"),
+            httpClient = httpClient,
+        )
+        var persisted: ProviderMediaSourceConnection? = null
+        val repository = object : ProviderMediaSourceRepository {
+            override fun upsertProviderMediaSource(
+                connection: ProviderMediaSourceConnection,
+                cacheNamespace: String,
+                providerId: String,
+            ): MediaSourceIdentity {
+                persisted = connection
+                return MediaSourceIdentity("source", cacheNamespace, connection.displayName)
+            }
+        }
+        val controller = NavidromeNativeSessionController(
+            currentProvider = { active },
+            savedConnection = { active.connectionWithCurrentNativeToken() },
+            replaceProvider = { active = it },
+            repository = repository,
+            authenticate = { saved, password ->
+                assertEquals("secret", password)
+                saved.copy(nativeToken = "password-token")
+            },
+        )
+
+        assertTrue(controller.refresh())
+        assertEquals("rotated-native-token", persisted?.nativeToken)
+        controller.provider("secret")
+        assertEquals("password-token", active.connectionWithCurrentNativeToken().nativeToken)
+        assertEquals("password-token", persisted?.nativeToken)
     }
 
     @Test
@@ -1401,7 +1538,11 @@ class NavidromeProviderTest {
             provider.createSmartPlaylist(smartPlaylistDefinition())
         }
 
-        assertEquals("Navidrome returned HTTP 401.", error.message)
+        assertEquals(
+            "Your Navidrome smart playlist session expired. Enter your password to reconnect smart playlists.",
+            error.message,
+        )
+        assertEquals(null, provider.connectionWithCurrentNativeToken().nativeToken)
     }
 
     @Test
@@ -1415,7 +1556,11 @@ class NavidromeProviderTest {
             provider.updateSmartPlaylist("smart-1", smartPlaylistDefinition())
         }
 
-        assertEquals("Navidrome returned HTTP 401.", error.message)
+        assertEquals(
+            "Your Navidrome smart playlist session expired. Enter your password to reconnect smart playlists.",
+            error.message,
+        )
+        assertEquals(null, provider.connectionWithCurrentNativeToken().nativeToken)
     }
 
     @Test
@@ -2114,6 +2259,25 @@ class NavidromeProviderTest {
         }
         """.trimIndent()
 
+    private fun indexedArtistsResponse(vararg artists: Pair<String, String>): String =
+        """
+        {
+          "subsonic-response": {
+            "status": "ok",
+            "artists": {
+              "index": [
+                {
+                  "name": "A-Z",
+                  "artist": [
+                    ${artists.joinToString(",") { (id, name) -> """{"id":"$id","name":"$name"}""" }}
+                  ]
+                }
+              ]
+            }
+          }
+        }
+        """.trimIndent()
+
     private fun playlistsResponse(playlistId: String, name: String): String =
         """
         {
@@ -2231,19 +2395,19 @@ class NavidromeProviderTest {
     }
 
     private class FailingNativeHttpClient : NavidromeHttpClient {
-        override suspend fun get(url: String): String = throw NavidromeException("Navidrome returned HTTP 401.")
+        override suspend fun get(url: String): String = throw NavidromeHttpException(401)
 
         override suspend fun postJson(
             url: String,
             body: String,
             headers: Map<String, String>,
-        ): String = throw NavidromeException("Navidrome returned HTTP 401.")
+        ): String = throw NavidromeHttpException(401)
 
         override suspend fun putJson(
             url: String,
             body: String,
             headers: Map<String, String>,
-        ): String = throw NavidromeException("Navidrome returned HTTP 401.")
+        ): String = throw NavidromeHttpException(401)
     }
 
 private fun radioResponse(responseKey: String, trackId: String, title: String): String =

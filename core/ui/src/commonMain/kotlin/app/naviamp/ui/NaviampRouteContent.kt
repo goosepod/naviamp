@@ -13,13 +13,16 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.Text
@@ -32,7 +35,6 @@ import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -48,27 +50,14 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.naviamp.ui.generated.resources.Res
 import app.naviamp.ui.generated.resources.*
-import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.stringResource
-import app.naviamp.domain.cache.DownloadJob
-import app.naviamp.domain.cache.DownloadJobItemStatus
-import app.naviamp.domain.cache.DownloadJobStatus
 
 @Composable
 fun SharedHome(
     colors: NaviampColors,
     home: SharedHomeUi,
-    onAlbumSelected: (SharedMediaItemUi) -> Unit,
-    onMixAlbumSelected: (SharedMediaItemUi) -> Unit,
-    onPlaylistSelected: (SharedMediaItemUi) -> Unit,
-    onRecentRadioSelected: (SharedMediaItemUi) -> Unit,
-    onInternetRadioStationSelected: (SharedMediaItemUi) -> Unit,
-    onMixBuilderSelected: (SharedMixBuilderUi) -> Unit,
-    onHomeStationSelected: (SharedHomeStationUi) -> Unit,
-    onSonicDiscoveryTrackAction: (SharedHomeDiscoveryTrackActionRequest) -> Unit = {},
-    onRecentlyPlayedTrackAction: (SharedTrackRowActionRequest) -> Unit = {},
-    onAlbumFavoriteToggled: (SharedMediaItemUi) -> Unit = {},
-    onRefresh: () -> Unit = {},
+    actions: NaviampHomeActions,
+    mediaActions: NaviampMediaActions,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Row(
@@ -82,7 +71,7 @@ fun SharedHome(
             )
             NaviampRowOverflowMenu(
                 colors = colors,
-                items = listOf(NaviampRowMenuItem("Refresh", NaviampIcons.Refresh, onRefresh)),
+                items = listOf(NaviampRowMenuItem("Refresh", NaviampIcons.Refresh, actions.onRefresh)),
             )
         }
         if (home.isEmpty) {
@@ -96,7 +85,7 @@ fun SharedHome(
                     modifier = Modifier.horizontalScroll(rememberScrollState()),
                 ) {
                     home.mixAlbums.take(6).forEach { album ->
-                        MixCard(album, colors, onClick = { onMixAlbumSelected(album) })
+                        MixCard(album, colors, onClick = { mediaActions.onMediaItemAction(album.playAlbumRequest()) })
                     }
                 }
             }
@@ -105,42 +94,41 @@ fun SharedHome(
             title = stringResource(Res.string.home_recently_played_radio),
             items = home.recentRadioStreams,
             colors = colors,
-            onItemSelected = onRecentRadioSelected,
+            onItemSelected = actions.onRecentRadioSelected,
             emptyText = stringResource(Res.string.home_recent_radio_empty),
         )
-        RecentPlayedSection(home.recentlyPlayedTracks, colors, onRecentlyPlayedTrackAction)
-        MixBuilderSection(home.mixBuilders, colors, onMixBuilderSelected)
-        SonicDiscoverySection(home.sonicDiscoveryRows, colors, onSonicDiscoveryTrackAction)
+        RecentPlayedSection(home.recentlyPlayedTracks, colors, actions.onRecentlyPlayedTrackAction)
+        MixBuilderSection(home.mixBuilders, colors, actions.onMixBuilderSelected)
+        SonicDiscoverySection(home.sonicDiscoveryRows, colors, actions.onSonicDiscoveryTrackAction)
         HomeSection(
             stringResource(Res.string.home_recently_added_music),
             home.recentlyAddedAlbums,
             colors,
-            onAlbumSelected,
-            onAlbumFavoriteToggled,
-            SharedMediaItemKind.Album,
+            { mediaActions.onMediaItemAction(it.albumActionRequest(NaviampArtistAlbumCommand.Select)) },
+            { mediaActions.onMediaItemAction(it.albumActionRequest(NaviampArtistAlbumCommand.ToggleFavorite)) },
         )
         HomeSection(
             stringResource(Res.string.home_recent_playlists),
             home.playlists,
             colors,
-            onPlaylistSelected,
-            itemKind = SharedMediaItemKind.Playlist,
+            { mediaActions.onMediaItemAction(it.playlistActionRequest(NaviampPlaylistMediaCommand.Select)) },
         )
         HomeSection(
             stringResource(Res.string.home_recent_internet_radio),
             home.radioStations,
             colors,
-            onInternetRadioStationSelected,
-            itemKind = SharedMediaItemKind.RadioStation,
+            actions.onInternetRadioStationSelected,
         )
-        HomeStationSection(home.stations, colors, onHomeStationSelected)
-        HomeSection(stringResource(Res.string.home_recent_albums), home.recentAlbums, colors, onAlbumSelected, onAlbumFavoriteToggled, SharedMediaItemKind.Album)
-        HomeSection(stringResource(Res.string.home_frequently_played_albums), home.frequentAlbums, colors, onAlbumSelected, onAlbumFavoriteToggled, SharedMediaItemKind.Album)
-        HomeSection(stringResource(Res.string.home_random_albums), home.randomAlbums, colors, onAlbumSelected, onAlbumFavoriteToggled, SharedMediaItemKind.Album)
+        HomeStationSection(home.stations, colors, actions.onStationSelected)
+        val selectAlbum: (SharedMediaItemUi) -> Unit = { mediaActions.onMediaItemAction(it.albumActionRequest(NaviampArtistAlbumCommand.Select)) }
+        val toggleAlbumFavorite: (SharedMediaItemUi) -> Unit = { mediaActions.onMediaItemAction(it.albumActionRequest(NaviampArtistAlbumCommand.ToggleFavorite)) }
+        HomeSection(stringResource(Res.string.home_recent_albums), home.recentAlbums, colors, selectAlbum, toggleAlbumFavorite)
+        HomeSection(stringResource(Res.string.home_frequently_played_albums), home.frequentAlbums, colors, selectAlbum, toggleAlbumFavorite)
+        HomeSection(stringResource(Res.string.home_random_albums), home.randomAlbums, colors, selectAlbum, toggleAlbumFavorite)
         home.genreSpotlightTitle?.let { title ->
-            HomeSection(stringResource(Res.string.home_more_in, title), home.genreSpotlightAlbums, colors, onAlbumSelected, onAlbumFavoriteToggled, SharedMediaItemKind.Album)
+            HomeSection(stringResource(Res.string.home_more_in, title), home.genreSpotlightAlbums, colors, selectAlbum, toggleAlbumFavorite)
         }
-        HomeSection(stringResource(Res.string.home_from_decade, home.decadeLabel), home.decadeAlbums, colors, onAlbumSelected, onAlbumFavoriteToggled, SharedMediaItemKind.Album)
+        HomeSection(stringResource(Res.string.home_from_decade, home.decadeLabel), home.decadeAlbums, colors, selectAlbum, toggleAlbumFavorite)
     }
 }
 
@@ -148,44 +136,37 @@ fun SharedHome(
 @Composable
 fun SharedHomeRoute(
     colors: NaviampColors,
-    home: SharedHomeUi,
-    isRefreshing: Boolean,
-    onRefresh: () -> Unit,
-    onAlbumSelected: (SharedMediaItemUi) -> Unit,
-    onMixAlbumSelected: (SharedMediaItemUi) -> Unit,
-    onPlaylistSelected: (SharedMediaItemUi) -> Unit,
-    onRecentRadioSelected: (SharedMediaItemUi) -> Unit,
-    onInternetRadioStationSelected: (SharedMediaItemUi) -> Unit,
-    onMixBuilderSelected: (SharedMixBuilderUi) -> Unit,
-    onHomeStationSelected: (SharedHomeStationUi) -> Unit,
-    onSonicDiscoveryTrackAction: (SharedHomeDiscoveryTrackActionRequest) -> Unit = {},
-    onRecentlyPlayedTrackAction: (SharedTrackRowActionRequest) -> Unit = {},
-    onAlbumFavoriteToggled: (SharedMediaItemUi) -> Unit = {},
+    home: NaviampHomeScreenUi,
+    actions: NaviampHomeActions,
+    mediaActions: NaviampMediaActions,
+    scrollState: ScrollState = rememberScrollState(),
 ) {
     PullToRefreshBox(
-        isRefreshing = isRefreshing,
-        onRefresh = onRefresh,
+        isRefreshing = home.refreshing,
+        onRefresh = actions.onRefresh,
         modifier = Modifier.fillMaxSize(),
+        indicator = {
+            if (home.refreshing) {
+                LinearProgressIndicator(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .align(Alignment.TopCenter),
+                    color = colors.primaryText,
+                    trackColor = colors.mutedText.copy(alpha = 0.25f),
+                )
+            }
+        },
     ) {
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .verticalScroll(rememberScrollState()),
+                .verticalScroll(scrollState),
         ) {
             SharedHome(
                 colors = colors,
-                home = home,
-                onAlbumSelected = onAlbumSelected,
-                onMixAlbumSelected = onMixAlbumSelected,
-                onPlaylistSelected = onPlaylistSelected,
-                onRecentRadioSelected = onRecentRadioSelected,
-                onInternetRadioStationSelected = onInternetRadioStationSelected,
-                onMixBuilderSelected = onMixBuilderSelected,
-                onHomeStationSelected = onHomeStationSelected,
-                onSonicDiscoveryTrackAction = onSonicDiscoveryTrackAction,
-                onRecentlyPlayedTrackAction = onRecentlyPlayedTrackAction,
-                onAlbumFavoriteToggled = onAlbumFavoriteToggled,
-                onRefresh = onRefresh,
+                home = home.content,
+                actions = actions,
+                mediaActions = mediaActions,
             )
         }
     }
@@ -204,13 +185,12 @@ private fun RecentPlayedSection(
             TrackRow(
                 track = track,
                 colors = colors,
-                onTrackSelected = {
-                    onTrackAction(SharedTrackRowActionRequest(track, SharedTrackRowAction.Select))
-                },
-                canStartRadio = true,
-                canDownload = true,
-                canAddToQueue = true,
                 onTrackAction = onTrackAction,
+                canSelect = true,
+                canStartRadio = true,
+                canAddToQueue = true,
+                canDownload = true,
+                canAddToPlaylist = false,
             )
         }
     }
@@ -230,24 +210,6 @@ private fun SonicDiscoverySection(
                     TrackRow(
                         track = track,
                         colors = colors,
-                        onTrackSelected = {
-                            onTrackAction(
-                                SharedHomeDiscoveryTrackActionRequest(
-                                    rowId = row.id,
-                                    track = track,
-                                    action = SharedTrackRowAction.Select,
-                                ),
-                            )
-                        },
-                        onAddToQueue = {
-                            onTrackAction(
-                                SharedHomeDiscoveryTrackActionRequest(
-                                    rowId = row.id,
-                                    track = track,
-                                    action = SharedTrackRowAction.AddToQueue,
-                                ),
-                            )
-                        },
                         onTrackAction = { request ->
                             onTrackAction(
                                 SharedHomeDiscoveryTrackActionRequest(
@@ -259,6 +221,11 @@ private fun SonicDiscoverySection(
                                 ),
                             )
                         },
+                        canSelect = true,
+                        canStartRadio = false,
+                        canAddToQueue = true,
+                        canDownload = false,
+                        canAddToPlaylist = false,
                         swipeContext = TrackSwipeContext.Related,
                     )
                 }
@@ -372,28 +339,64 @@ private fun mixBuilderArtwork(id: String): MixBuilderArtwork =
     }
 
 @Composable
-internal fun SearchContent(
+fun NaviampSearchContent(
     colors: NaviampColors,
-    query: String,
-    results: SharedSearchResultsUi,
-    onQueryChanged: (String) -> Unit,
-    onSearch: () -> Unit,
-    onClearSearch: () -> Unit,
-    onTrackSelected: (SharedTrackRowUi) -> Unit,
-    onTrackAddToQueue: (SharedTrackRowUi) -> Unit,
-    onAlbumSelected: (SharedMediaItemUi) -> Unit,
-    onArtistSelected: (SharedMediaItemUi) -> Unit,
-    onArtistFavoriteToggled: (SharedMediaItemUi) -> Unit = {},
-    onAlbumFavoriteToggled: (SharedMediaItemUi) -> Unit = {},
+    screen: NaviampSearchScreenUi,
+    actions: NaviampSearchActions,
+    mediaActions: NaviampMediaActions,
 ) {
+    val query = screen.query
+    val results = screen.results
     val searchFocusRequester = remember { FocusRequester() }
-    val handleTrackAction: (SharedTrackRowActionRequest) -> Unit = { request ->
-        handleSharedTrackRowAction(
-            request,
-            SharedTrackRowActionHandlers(
-                onSelect = onTrackSelected,
-                onAddToQueue = onTrackAddToQueue,
-            ),
+    val mediaMenuItems: (SharedMediaItemUi, SharedMediaItemKind, List<NaviampActionSpec>) -> List<NaviampRowMenuItem> =
+        { item, kind, specs ->
+            specs.mapNotNull { spec ->
+                val command = when (kind) {
+                    SharedMediaItemKind.Artist -> spec.action.artistMediaCommandOrNull()?.let(NaviampMediaItemCommand::Artist)
+                    SharedMediaItemKind.Album -> spec.action.albumMediaCommandOrNull()?.let(NaviampMediaItemCommand::Album)
+                    else -> null
+                }
+                command?.let {
+                    NaviampRowMenuItem(
+                        label = spec.label,
+                        icon = spec.icon,
+                        onClick = { mediaActions.onMediaItemAction(NaviampMediaItemActionRequest(item, it)) },
+                        enabled = spec.enabled,
+                    )
+                }
+            }
+        }
+    val sharedMediaRow: @Composable (SharedMediaItemUi, SharedMediaItemKind) -> Unit = { item, kind ->
+        val specs = when (kind) {
+            SharedMediaItemKind.Artist -> artistRowActions(
+                canStartRadio = NaviampSharedMediaCapabilities.artist.canStartRadio,
+                canAddToQueue = NaviampSharedMediaCapabilities.artist.canAddToQueue,
+                canAddToPlaylist = NaviampSharedMediaCapabilities.artist.canAddToPlaylist,
+                canFavorite = NaviampSharedMediaCapabilities.artist.canToggleFavorite && item.canFavorite,
+                favoriteActive = item.favoriteActive,
+            )
+            SharedMediaItemKind.Album -> albumRowActions(
+                canStartRadio = NaviampSharedMediaCapabilities.album.canStartRadio,
+                canDownload = NaviampSharedMediaCapabilities.album.canDownload,
+                canAddToQueue = NaviampSharedMediaCapabilities.album.canAddToQueue,
+                canAddToPlaylist = NaviampSharedMediaCapabilities.album.canAddToPlaylist,
+                canFavorite = NaviampSharedMediaCapabilities.album.canToggleFavorite && item.canFavorite,
+                favoriteActive = item.favoriteActive,
+            )
+            else -> emptyList()
+        }
+        SharedMediaRow(
+            item = item,
+            colors = colors,
+            menuItems = mediaMenuItems(item, kind, specs),
+            onClick = {
+                val command = when (kind) {
+                    SharedMediaItemKind.Artist -> NaviampMediaItemCommand.Artist(NaviampArtistMediaCommand.Select)
+                    SharedMediaItemKind.Album -> NaviampMediaItemCommand.Album(NaviampArtistAlbumCommand.Select)
+                    else -> null
+                }
+                command?.let { mediaActions.onMediaItemAction(NaviampMediaItemActionRequest(item, it)) }
+            },
         )
     }
     Column(
@@ -403,30 +406,46 @@ internal fun SearchContent(
         NaviampPageTitle(stringResource(Res.string.search_title), colors)
         NaviampCompactSearchField(
             value = query,
-            onValueChange = onQueryChanged,
+            onValueChange = actions.onQueryChanged,
             placeholder = stringResource(Res.string.search_tracks_label),
             colors = colors,
             onClear = {
-                onClearSearch()
+                actions.onClear()
                 searchFocusRequester.requestFocus()
             },
-            showClear = query.isNotBlank() || !results.isEmpty,
+            showClear = query.isNotBlank() || !results.isEmpty || screen.status != null || screen.searching,
             modifier = Modifier.padding(horizontal = 8.dp).focusRequester(searchFocusRequester),
         )
-        if (query.isNotBlank() && results.isEmpty) {
+        screen.status?.let { status ->
+            Text(status, color = colors.secondaryText, fontSize = 12.sp)
+        }
+        if (screen.searching) {
+            Text("Searching...", color = colors.secondaryText, fontSize = 12.sp)
+        } else if (query.isNotBlank() && results.isEmpty && screen.status == null) {
             Text(stringResource(Res.string.search_no_matches), color = colors.secondaryText, fontSize = 12.sp)
         }
-        MediaSection(stringResource(Res.string.search_artists), results.artists, colors, onArtistSelected, onArtistFavoriteToggled, SharedMediaItemKind.Artist)
-        MediaSection(stringResource(Res.string.search_albums), results.albums, colors, onAlbumSelected, onAlbumFavoriteToggled, SharedMediaItemKind.Album)
+        if (results.artists.isNotEmpty()) {
+            SectionHeader(stringResource(Res.string.search_artists), colors)
+            results.artists.forEach { artist -> sharedMediaRow(artist, SharedMediaItemKind.Artist) }
+        }
+        if (results.albums.isNotEmpty()) {
+            SectionHeader(stringResource(Res.string.search_albums), colors)
+            results.albums.forEach { album -> sharedMediaRow(album, SharedMediaItemKind.Album) }
+        }
         if (results.tracks.isNotEmpty()) {
             SectionHeader(stringResource(Res.string.search_tracks_section), colors)
             results.tracks.forEach { track ->
                 TrackRow(
-                    track,
-                    colors,
-                    onTrackSelected,
-                    onAddToQueue = onTrackAddToQueue,
-                    onTrackAction = handleTrackAction,
+                    track = track,
+                    colors = colors,
+                    onTrackAction = mediaActions.onTrackAction,
+                    canSelect = true,
+                    canStartRadio = true,
+                    canAddToQueue = true,
+                    canDownload = true,
+                    canAddToPlaylist = true,
+                    background = true,
+                    horizontalPadding = 6.dp,
                 )
             }
         }
@@ -462,27 +481,24 @@ internal fun MediaListContent(
                 item = item,
                 colors = colors,
                 onClick = onItemSelected?.let { { it(item) } },
-                itemKind = itemKind,
             )
         }
     }
 }
 
 @Composable
-internal fun LibraryContent(
+fun NaviampLibraryContent(
     colors: NaviampColors,
-    items: List<SharedMediaItemUi>,
-    query: String,
-    syncStatus: NaviampLibrarySyncStatusUi,
-    onQueryChanged: (String) -> Unit,
-    onRefreshLibrary: () -> Unit,
-    onLoadMore: () -> Unit,
-    onArtistSelected: (SharedMediaItemUi) -> Unit,
-    onArtistFavoriteToggled: (SharedMediaItemUi) -> Unit = {},
+    screen: NaviampLibraryScreenUi,
+    actions: NaviampLibraryActions,
+    mediaActions: NaviampMediaActions,
+    listState: LazyListState,
 ) {
+    val items = screen.artists
+    val query = screen.query
+    val syncStatus = screen.syncStatus
     val searchFocusRequester = remember { FocusRequester() }
-    val listState = rememberLazyListState()
-    val scope = rememberCoroutineScope()
+    var pendingJump by remember { mutableStateOf<Char?>(null) }
     val filteredItems = remember(items, query) {
         val normalizedQuery = query.trim().lowercase()
         if (normalizedQuery.isBlank()) {
@@ -495,6 +511,16 @@ internal fun LibraryContent(
             }
         }
     }
+    androidx.compose.runtime.LaunchedEffect(items, pendingJump) {
+        val letter = pendingJump ?: return@LaunchedEffect
+        val boundary = if (letter == '#') "" else letter.lowercaseChar().toString()
+        val index = filteredItems.indexOfFirst { item -> item.title.lowercase() >= boundary }
+        if (index >= 0) {
+            val headerCount = 2 + if (syncStatus.message != null) 1 else 0
+            listState.scrollToItem(index + headerCount)
+            pendingJump = null
+        }
+    }
     Row(
         modifier = Modifier.fillMaxSize(),
         horizontalArrangement = Arrangement.spacedBy(4.dp),
@@ -505,16 +531,33 @@ internal fun LibraryContent(
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             item {
-            NaviampPageTitle(stringResource(Res.string.library_title), colors)
+                Row(
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    NaviampPageTitle(stringResource(Res.string.library_title), colors)
+                    NaviampRowOverflowMenu(
+                        colors = colors,
+                        items = listOf(
+                            NaviampRowMenuItem(
+                                label = stringResource(Res.string.library_refresh),
+                                icon = NaviampIcons.Refresh,
+                                onClick = actions.onRefresh,
+                                enabled = !syncStatus.isSyncing,
+                            ),
+                        ),
+                    )
+                }
             }
             item {
             NaviampCompactSearchField(
                 value = query,
-                onValueChange = onQueryChanged,
+                onValueChange = actions.onQueryChanged,
                 placeholder = stringResource(Res.string.library_search_artists),
                 colors = colors,
                 onClear = {
-                    onQueryChanged("")
+                    actions.onQueryChanged("")
                     searchFocusRequester.requestFocus()
                 },
                 modifier = Modifier.padding(horizontal = 8.dp).focusRequester(searchFocusRequester),
@@ -536,7 +579,7 @@ internal fun LibraryContent(
                     if (syncStatus.showRefresh) {
                         TextButton(
                             enabled = !syncStatus.isSyncing,
-                            onClick = onRefreshLibrary,
+                            onClick = actions.onRefresh,
                         ) {
                             Text(
                                 if (syncStatus.isSyncing) stringResource(Res.string.library_refreshing) else stringResource(Res.string.library_refresh),
@@ -560,13 +603,46 @@ internal fun LibraryContent(
                 items = filteredItems,
                 key = { item -> item.id },
             ) { item ->
+                val menuItems = artistRowActions(
+                    canStartRadio = NaviampSharedMediaCapabilities.artist.canStartRadio,
+                    canAddToQueue = NaviampSharedMediaCapabilities.artist.canAddToQueue,
+                    canAddToPlaylist = NaviampSharedMediaCapabilities.artist.canAddToPlaylist,
+                    canFavorite = NaviampSharedMediaCapabilities.artist.canToggleFavorite && item.canFavorite,
+                    favoriteActive = item.favoriteActive,
+                ).mapNotNull { spec ->
+                    spec.action.artistMediaCommandOrNull()?.let { command ->
+                        NaviampRowMenuItem(
+                            label = spec.label,
+                            icon = spec.icon,
+                            onClick = {
+                                mediaActions.onMediaItemAction(
+                                    NaviampMediaItemActionRequest(item, NaviampMediaItemCommand.Artist(command)),
+                                )
+                            },
+                            enabled = spec.enabled,
+                        )
+                    }
+                }
                 SharedMediaRow(
                     item = item,
                     colors = colors,
-                    onClick = { onArtistSelected(item) },
-                    onFavoriteToggled = onArtistFavoriteToggled,
-                    itemKind = SharedMediaItemKind.Artist,
+                    menuItems = menuItems,
+                    onClick = {
+                        mediaActions.onMediaItemAction(
+                            NaviampMediaItemActionRequest(
+                                item,
+                                NaviampMediaItemCommand.Artist(NaviampArtistMediaCommand.Select),
+                            ),
+                        )
+                    },
                 )
+            }
+            if (query.isBlank() && items.isNotEmpty()) {
+                item(key = "library-load-more") {
+                    androidx.compose.runtime.LaunchedEffect(items.size) {
+                        if (!syncStatus.isSyncing) actions.onLoadMore()
+                    }
+                }
             }
         }
         if (query.isBlank()) {
@@ -580,10 +656,8 @@ internal fun LibraryContent(
                         color = colors.secondaryText,
                         fontSize = 10.sp,
                         modifier = Modifier.clickable {
-                            val boundary = if (letter == '#') "" else letter.lowercaseChar().toString()
-                            val index = filteredItems.indexOfFirst { item -> item.title.lowercase() >= boundary }
-                            val headerCount = 2 + if (syncStatus.message != null) 1 else 0
-                            if (index >= 0) scope.launch { listState.scrollToItem(index + headerCount) }
+                            pendingJump = letter
+                            actions.onJumpToLetter(letter)
                         },
                     )
                 }
@@ -593,23 +667,14 @@ internal fun LibraryContent(
 }
 
 @Composable
-internal fun DownloadsContent(
+fun NaviampDownloadsContent(
     colors: NaviampColors,
-    downloads: List<NaviampDownloadedTrackUi>,
-    status: String?,
-    downloadJobs: List<DownloadJob>,
-    maxDownloadBytes: Long,
-    offlineDashboard: NaviampOfflineDashboardUi,
+    screen: NaviampDownloadsScreenUi,
+    actions: NaviampDownloadsActions,
     playlistChoices: List<NaviampPlaylistChoiceUi>,
     playlistActionStatus: String?,
-    onDownloadAction: (DownloadedTrackActionRequest) -> Unit,
-    onCancelDownloadJob: (String) -> Unit,
-    onRetryDownloadJob: (String) -> Unit,
-    onRefreshDownloads: () -> Unit,
-    keepFavoritesDownloaded: Boolean,
-    onToggleKeepFavoritesDownloaded: () -> Unit,
-    onDeleteAllDownloads: () -> Unit,
 ) {
+    val downloads = screen.downloads
     var downloadForPlaylist by remember { mutableStateOf<NaviampDownloadedTrackUi?>(null) }
     var offlineDashboardExpanded by remember { mutableStateOf(false) }
     var confirmDeleteAll by remember { mutableStateOf(false) }
@@ -619,18 +684,18 @@ internal fun DownloadsContent(
         handleDownloadedTrackAction(
             request,
             DownloadedTrackActionHandlers(
-                onSelect = { onDownloadAction(request) },
+                onSelect = { actions.onTrackAction(request) },
                 onAddToPlaylist = { download, playlist ->
-                    if (playlist == null) downloadForPlaylist = download else onDownloadAction(request)
+                    if (playlist == null) downloadForPlaylist = download else actions.onTrackAction(request)
                 },
-                onCreatePlaylistAndAdd = { _, _ -> onDownloadAction(request) },
-                onRemove = { onDownloadAction(request) },
+                onCreatePlaylistAndAdd = { _, _ -> actions.onTrackAction(request) },
+                onRemove = { actions.onTrackAction(request) },
             ),
         )
     }
-    val remainingBytes = (maxDownloadBytes - visibleDownloadBytes).coerceAtLeast(0L)
-    val usedPercent = if (maxDownloadBytes > 0L) {
-        ((visibleDownloadBytes.toDouble() / maxDownloadBytes.toDouble()) * 100.0).coerceIn(0.0, 100.0)
+    val remainingBytes = (screen.maxDownloadBytes - visibleDownloadBytes).coerceAtLeast(0L)
+    val usedPercent = if (screen.maxDownloadBytes > 0L) {
+        ((visibleDownloadBytes.toDouble() / screen.maxDownloadBytes.toDouble()) * 100.0).coerceIn(0.0, 100.0)
     } else {
         0.0
     }
@@ -647,7 +712,7 @@ internal fun DownloadsContent(
                             Res.string.downloads_summary,
                             downloads.size,
                             visibleDownloadBytes.storageBytesLabel(),
-                            maxDownloadBytes.storageBytesLabel(),
+                            screen.maxDownloadBytes.storageBytesLabel(),
                         ),
                         color = colors.secondaryText,
                         fontSize = 12.sp,
@@ -665,11 +730,11 @@ internal fun DownloadsContent(
                 NaviampRowOverflowMenu(
                     colors = colors,
                     items = listOf(
-                        NaviampRowMenuItem("Refresh", NaviampIcons.Refresh, onRefreshDownloads),
+                        NaviampRowMenuItem("Refresh", NaviampIcons.Refresh, actions.onRefresh),
                         NaviampRowMenuItem(
-                            if (keepFavoritesDownloaded) "Stop keeping favorites downloaded" else "Keep favorites downloaded",
+                            if (screen.keepFavoritesDownloaded) "Stop keeping favorites downloaded" else "Keep favorites downloaded",
                             NaviampTransportIcons.Heart,
-                            onToggleKeepFavoritesDownloaded,
+                            actions.onToggleKeepFavoritesDownloaded,
                         ),
                         NaviampRowMenuItem("Delete All", NaviampIcons.Trash, { confirmDeleteAll = true }, downloads.isNotEmpty()),
                     ),
@@ -701,25 +766,25 @@ internal fun DownloadsContent(
                     colors = colors,
                     downloads = downloads,
                     downloadBytes = visibleDownloadBytes,
-                    maxDownloadBytes = maxDownloadBytes,
-                    offlineDashboard = offlineDashboard,
+                    maxDownloadBytes = screen.maxDownloadBytes,
+                    offlineDashboard = screen.offlineDashboard,
                 )
             }
         }
-        if (downloadJobs.isNotEmpty()) {
+        if (screen.jobs.isNotEmpty()) {
             item {
                 Text("DOWNLOAD ACTIVITY", color = colors.primaryText, fontSize = 12.sp, fontWeight = FontWeight.Bold)
             }
-            items(downloadJobs, key = { job -> job.id }) { job ->
+            items(screen.jobs, key = { job -> job.id }) { job ->
                 DownloadJobCard(
                     colors = colors,
                     job = job,
-                    onCancel = { onCancelDownloadJob(job.id) },
-                    onRetry = { onRetryDownloadJob(job.id) },
+                    onCancel = { actions.onCancelJob(job.id) },
+                    onRetry = { actions.onRetryJob(job.id) },
                 )
             }
         }
-        status?.takeIf { it.isNotBlank() }?.let { message ->
+        screen.status?.takeIf { it.isNotBlank() }?.let { message ->
             item {
                 Text(message, color = colors.secondaryText, fontSize = 12.sp)
             }
@@ -747,7 +812,7 @@ internal fun DownloadsContent(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    PlatformCoverArt(download.track.coverArtUrl, colors, 42.dp, 4.dp)
+                    NaviampCoverArt(download.track.coverArtUrl, colors, 42.dp, 4.dp)
                     Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                         Text(download.track.title, color = colors.primaryText, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
                         Text(download.track.subtitle, color = colors.secondaryText, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -829,7 +894,7 @@ internal fun DownloadsContent(
             confirmButton = {
                 TextButton(onClick = {
                     confirmDeleteAll = false
-                    onDeleteAllDownloads()
+                actions.onDeleteAll()
                 }) { Text("Delete All") }
             },
             dismissButton = {
@@ -842,19 +907,10 @@ internal fun DownloadsContent(
 @Composable
 private fun DownloadJobCard(
     colors: NaviampColors,
-    job: DownloadJob,
+    job: NaviampDownloadJobUi,
     onCancel: () -> Unit,
     onRetry: () -> Unit,
 ) {
-    val activeItem = job.items.firstOrNull { it.status == DownloadJobItemStatus.Downloading }
-    val failedItem = job.items.firstOrNull { it.status == DownloadJobItemStatus.Failed }
-    val statusLabel = when (job.status) {
-        DownloadJobStatus.Queued -> "Queued"
-        DownloadJobStatus.Running -> "${job.completedCount} of ${job.totalCount}"
-        DownloadJobStatus.Completed -> "Completed · ${job.totalCount} tracks"
-        DownloadJobStatus.Failed -> "Failed · ${job.completedCount} of ${job.totalCount} saved"
-        DownloadJobStatus.Cancelled -> "Cancelled · ${job.completedCount} of ${job.totalCount} saved"
-    }
     Column(
         verticalArrangement = Arrangement.spacedBy(5.dp),
         modifier = Modifier
@@ -866,10 +922,18 @@ private fun DownloadJobCard(
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(1.dp)) {
                 Text(job.label, color = colors.primaryText, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                Text(statusLabel, color = colors.secondaryText, fontSize = 11.sp)
+                Text(job.statusLabel, color = colors.secondaryText, fontSize = 11.sp)
             }
-            if (job.canCancel) TextButton(onClick = onCancel) { Text("Cancel") }
-            if (job.canRetry) TextButton(onClick = onRetry) { Text("Retry") }
+            val jobActionColors = ButtonDefaults.textButtonColors(
+                containerColor = colors.primaryText.copy(alpha = 0.14f),
+                contentColor = colors.primaryText,
+            )
+            if (job.canCancel) {
+                TextButton(onClick = onCancel, colors = jobActionColors) { Text("Cancel") }
+            }
+            if (job.canRetry) {
+                TextButton(onClick = onRetry, colors = jobActionColors) { Text("Retry") }
+            }
         }
         LinearProgressIndicator(
             progress = { job.progress },
@@ -877,12 +941,12 @@ private fun DownloadJobCard(
             color = colors.primaryText,
             trackColor = colors.mutedText.copy(alpha = 0.25f),
         )
-        activeItem?.let { item ->
-            Text("Downloading ${item.track.title}", color = colors.secondaryText, fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        job.activeItemLabel?.let { label ->
+            Text(label, color = colors.secondaryText, fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
-        failedItem?.let { item ->
+        job.failedItemLabel?.let { label ->
             Text(
-                "${item.track.title}: ${item.failureMessage ?: "Download failed"}",
+                label,
                 color = colors.secondaryText,
                 fontSize = 11.sp,
             )
@@ -935,7 +999,7 @@ private fun OfflineDashboardSummary(
         OfflineDashboardMetric(
             colors = colors,
             label = stringResource(Res.string.offline_pending_actions),
-            value = "0",
+            value = offlineDashboard.pendingProviderActionCount.toString(),
             detail = stringResource(Res.string.offline_pending_detail),
         )
     }

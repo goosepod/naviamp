@@ -165,7 +165,7 @@ class LyricsSidecarCacheService(
             displayTitle = lyrics.displayTitle,
             language = lyrics.language,
             offsetMillis = lyrics.offsetMillis.toLong(),
-            sizeBytes = linesJson.toByteArray(Charsets.UTF_8).size.toLong(),
+            sizeBytes = linesJson.encodeToByteArray().size.toLong(),
             createdAtEpochMillis = now,
             lastAccessedEpochMillis = now,
         )
@@ -187,7 +187,7 @@ class LyricsSidecarCacheService(
             displayTitle = lyrics.displayTitle,
             language = lyrics.language,
             offsetMillis = lyrics.offsetMillis.toLong(),
-            sizeBytes = linesJson.toByteArray(Charsets.UTF_8).size.toLong(),
+            sizeBytes = linesJson.encodeToByteArray().size.toLong(),
             createdAtEpochMillis = now,
             lastAccessedEpochMillis = now,
         )

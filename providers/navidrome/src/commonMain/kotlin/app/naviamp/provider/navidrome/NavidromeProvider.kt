@@ -36,6 +36,7 @@ import app.naviamp.domain.provider.MediaProvider
 import app.naviamp.domain.provider.MediaSearchResults
 import app.naviamp.domain.provider.PlaybackReportState
 import app.naviamp.domain.provider.ProviderCapabilities
+import app.naviamp.domain.provider.ProviderApiCallDiagnostic
 import app.naviamp.domain.provider.SonicSimilarTrack
 import app.naviamp.domain.provider.SonicPathMatch
 import app.naviamp.domain.network.NaviampClientName
@@ -67,6 +68,8 @@ import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.longOrNull
 import kotlinx.serialization.json.put
+import kotlin.concurrent.atomics.AtomicReference
+import kotlin.concurrent.atomics.ExperimentalAtomicApi
 
 data class NavidromeMusicFolder(
     val id: String,
@@ -120,15 +123,31 @@ class NavidromeProvider(
         )
     override var capabilities: ProviderCapabilities = baseCapabilities
         private set
+
+    override fun recentApiCalls(limit: Int): List<ProviderApiCallDiagnostic> =
+        NavidromeApiCallHistory.recent(limit).map { call ->
+            ProviderApiCallDiagnostic(
+                source = "Navidrome",
+                endpoint = "${call.method} ${call.endpoint}",
+                sanitizedUrl = call.sanitizedUrl,
+                durationMillis = call.durationMillis,
+                success = call.success,
+                errorMessage = call.errorMessage,
+            )
+        }
     private var supportsEnhancedSongLyrics: Boolean = false
     private var supportsPlaybackReport: Boolean = false
+    private var canonicalIdMigrationSupport: NavidromeCanonicalIdMigrationSupport =
+        NavidromeCanonicalIdMigrationSupport.Inconclusive
+    private var libraryArtistsCache: List<Artist>? = null
 
     private val json = Json { ignoreUnknownKeys = true }
 
     override suspend fun validateConnection(): ConnectionValidation {
         val response = get("ping.view")
         val root = response.subsonicResponse()
-        val extensionVersions = openSubsonicExtensionVersions()
+        val extensions = openSubsonicExtensionVersions()
+        val extensionVersions = extensions.versions
         capabilities = baseCapabilities.copy(
             supportsSonicSimilarity = extensionVersions.supportsOpenSubsonicExtension(
                 name = "sonicSimilarity",
@@ -143,6 +162,14 @@ class NavidromeProvider(
             name = "songLyrics",
             minimumVersion = 2,
         )
+        canonicalIdMigrationSupport = when {
+            !extensions.loaded -> NavidromeCanonicalIdMigrationSupport.Inconclusive
+            extensionVersions.supportsOpenSubsonicExtension(
+                name = "topSongsByArtistId",
+                minimumVersion = 1,
+            ) -> NavidromeCanonicalIdMigrationSupport.Confirmed
+            else -> NavidromeCanonicalIdMigrationSupport.Unsupported
+        }
 
         return ConnectionValidation(
             serverVersion = root.stringValue("serverVersion"),
@@ -277,23 +304,30 @@ class NavidromeProvider(
     }
 
     override suspend fun artists(limit: Int): List<Artist> =
-        forSelectedMusicFolders { musicFolderId ->
+        loadLibraryArtists().take(limit)
+
+    override suspend fun artistsPage(request: MediaPageRequest): MediaPage<Artist> {
+        // OpenSubsonic search3 with a blank query is not an alphabetical library endpoint and may
+        // return an arbitrary-looking slice. getArtists is the authoritative indexed catalog;
+        // page its stable result locally so the shared A-Z library remains truthful.
+        val artists = loadLibraryArtists(forceRefresh = request.offset == 0)
+        val items = artists.drop(request.offset).take(request.limit)
+        return MediaPage(
+            items = items,
+            offset = request.offset,
+            limit = request.limit,
+            hasMore = request.offset + items.size < artists.size,
+        )
+    }
+
+    private suspend fun loadLibraryArtists(forceRefresh: Boolean = false): List<Artist> {
+        if (!forceRefresh) libraryArtistsCache?.let { return it }
+        return forSelectedMusicFolders { musicFolderId ->
             artistsForMusicFolder(musicFolderId)
         }.distinctBy { it.id }
-            .take(limit)
-
-    override suspend fun artistsPage(request: MediaPageRequest): MediaPage<Artist> =
-        pageAcrossSelectedMusicFolders(
-            request = request,
-            itemKey = { artist -> artist.id.value },
-        ) { musicFolderId, limit, offset ->
-            searchForMusicFolder(
-                query = "",
-                artistCount = limit,
-                artistOffset = offset,
-                musicFolderId = musicFolderId,
-            ).artists
-        }
+            .sortedBy { it.name.lowercase() }
+            .also { libraryArtistsCache = it }
+    }
 
     private suspend fun artistsForMusicFolder(musicFolderId: String?): List<Artist> {
         val response = get(
@@ -546,10 +580,13 @@ class NavidromeProvider(
     override suspend fun popularTracks(artist: Artist, limit: Int): ArtistPopularTracksResult {
         val response = get(
             endpoint = "getTopSongs.view",
-            params = mapOf(
-                "artist" to artist.name,
-                "count" to limit.coerceIn(1, 50).toString(),
-            ),
+            params = buildMap {
+                put("artist", artist.name)
+                if (canonicalIdMigrationSupport == NavidromeCanonicalIdMigrationSupport.Confirmed) {
+                    put("id", artist.id.value)
+                }
+                put("count", limit.coerceIn(1, 50).toString())
+            },
         )
         val tracks = response.subsonicResponse()["topSongs"]
             ?.jsonObject
@@ -719,6 +756,16 @@ class NavidromeProvider(
         val response = getNativeJson("playlist/${playlistId.urlEncode()}")
         return SmartPlaylistDefinition.fromJsonObject(response.toNativeDataObject())
             .withoutLibraryScopeForEditing()
+    }
+
+    /**
+     * Renews Navidrome's sliding native-API session without loading playlist contents.
+     * The native API has no dedicated no-op endpoint, so request only the first playlist row.
+     */
+    suspend fun refreshNativeSession(): Boolean {
+        if (nativeToken.isNullOrBlank()) return false
+        getNativeJson("playlist?range=%5B0%2C0%5D")
+        return true
     }
 
     override suspend fun addTracksToPlaylist(playlistId: String, trackIds: List<TrackId>) {
@@ -1175,18 +1222,31 @@ class NavidromeProvider(
         return response.subsonicResponse()["song"]?.jsonObject?.toTrack()
     }
 
-    private suspend fun openSubsonicExtensionVersions(): Map<String, List<Int>> =
-        runCatching {
+    internal fun canonicalIdMigrationSupport(): NavidromeCanonicalIdMigrationSupport =
+        canonicalIdMigrationSupport
+
+    private suspend fun openSubsonicExtensionVersions(): OpenSubsonicExtensions =
+        try {
             val response = get("getOpenSubsonicExtensions.view")
-            response.subsonicResponse()
-                .arrayValue("openSubsonicExtensions")
-                .mapNotNull { extension ->
-                    val item = extension as? JsonObject ?: return@mapNotNull null
-                    val name = item.stringValue("name") ?: return@mapNotNull null
-                    name to item.extensionVersions()
-                }
-                .toMap()
-        }.getOrDefault(emptyMap())
+            OpenSubsonicExtensions(
+                versions = response.subsonicResponse()
+                    .arrayValue("openSubsonicExtensions")
+                    .mapNotNull { extension ->
+                        val item = extension as? JsonObject ?: return@mapNotNull null
+                        val name = item.stringValue("name") ?: return@mapNotNull null
+                        name to item.extensionVersions()
+                    }
+                    .toMap(),
+                loaded = true,
+            )
+        } catch (_: Throwable) {
+            OpenSubsonicExtensions(emptyMap(), loaded = false)
+        }
+
+    private data class OpenSubsonicExtensions(
+        val versions: Map<String, List<Int>>,
+        val loaded: Boolean,
+    )
 
     private fun Map<String, List<Int>>.supportsOpenSubsonicExtension(name: String, minimumVersion: Int): Boolean =
         this[name].orEmpty().any { version -> version >= minimumVersion }
@@ -1261,37 +1321,50 @@ class NavidromeProvider(
         if (status == "failed") {
             val error = response["error"]?.jsonObject
             val message = error?.stringValue("message") ?: "Navidrome request failed."
-            throw NavidromeException(message)
+            throw NavidromeException(message, error?.intValue("code"))
         }
 
         return root
     }
 
     private suspend fun postNativeJson(endpoint: String, body: String): JsonObject =
-        nativeJsonResponse(
+        nativeJsonRequest {
             httpClient.postJsonResponse(
                 url = nativeApiUrl(endpoint),
                 body = body,
                 headers = customHeaders + nativeAuthHeaders(),
-            ),
-        )
+            )
+        }
 
     private suspend fun getNativeJson(endpoint: String): JsonObject =
-        nativeJsonResponse(
+        nativeJsonRequest {
             httpClient.getResponse(
                 url = nativeApiUrl(endpoint),
                 headers = customHeaders + nativeAuthHeaders(),
-            ),
-        )
+            )
+        }
 
     private suspend fun putNativeJson(endpoint: String, body: String): JsonObject =
-        nativeJsonResponse(
+        nativeJsonRequest {
             httpClient.putJsonResponse(
                 url = nativeApiUrl(endpoint),
                 body = body,
                 headers = customHeaders + nativeAuthHeaders(),
-            ),
-        )
+            )
+        }
+
+    private suspend fun nativeJsonRequest(request: suspend () -> NavidromeHttpResponse): JsonObject =
+        try {
+            nativeJsonResponse(request())
+        } catch (error: NavidromeHttpException) {
+            if (error.statusCode == 401) {
+                nativeToken = null
+                throw NavidromeException(
+                    "Your Navidrome smart playlist session expired. Enter your password to reconnect smart playlists.",
+                )
+            }
+            throw error
+        }
 
     private fun nativeJsonResponse(response: NavidromeHttpResponse): JsonObject {
         response.header(NavidromeNativeAuthorizationHeader)
@@ -1550,6 +1623,7 @@ class NavidromeProvider(
             userRating = intValue("userRating")?.takeIf { it in 1..5 },
             bpm = intValue("bpm"),
             moods = moodValues(),
+            genres = genreValues(),
             playCount = intValue("playCount"),
             lastPlayedAtIso8601 = stringValue("played")
                 ?: stringValue("lastPlayed")
@@ -1594,6 +1668,16 @@ class NavidromeProvider(
             .filter { it.isNotBlank() }
             .distinct()
     }
+
+    private fun JsonObject.genreValues(): List<String> =
+        buildList {
+            stringValue("genre")?.trim()?.takeIf(String::isNotEmpty)?.let(::add)
+            arrayValue("genres").forEach { value ->
+                val name = (value as? JsonObject)?.stringValue("name")
+                    ?: runCatching { value.jsonPrimitive.contentOrNull }.getOrNull()
+                name?.trim()?.takeIf(String::isNotEmpty)?.let(::add)
+            }
+        }.distinctBy(String::lowercase)
 
     private fun JsonObject.replayGainValue(): ReplayGain? {
         val replayGain = this["replayGain"]?.jsonObject
@@ -1736,24 +1820,21 @@ data class NavidromeApiCall(
     val errorMessage: String?,
 )
 
+@OptIn(ExperimentalAtomicApi::class)
 object NavidromeApiCallHistory {
     private const val MaxCalls = 150
-    private val lock = Any()
-    private val calls = ArrayDeque<NavidromeApiCall>()
+    private val calls = AtomicReference<List<NavidromeApiCall>>(emptyList())
 
     fun record(call: NavidromeApiCall) {
-        synchronized(lock) {
-            calls.addLast(call)
-            while (calls.size > MaxCalls) {
-                calls.removeFirst()
-            }
+        while (true) {
+            val current = calls.load()
+            val updated = (current + call).takeLast(MaxCalls)
+            if (calls.compareAndSet(current, updated)) return
         }
     }
 
     fun recent(limit: Int = 50): List<NavidromeApiCall> =
-        synchronized(lock) {
-            calls.takeLast(limit.coerceAtLeast(0)).asReversed()
-        }
+        calls.load().takeLast(limit.coerceAtLeast(0)).asReversed()
 }
 
 fun recordNavidromeApiCall(
@@ -1772,12 +1853,43 @@ fun recordNavidromeApiCall(
             startedAtEpochMillis = startedAt,
             durationMillis = durationMillis.coerceAtLeast(0),
             success = success,
-            errorMessage = errorMessage,
+            errorMessage = errorMessage.sanitizedNavidromeErrorMessage(),
         ),
     )
 }
 
-open class NavidromeException(message: String) : RuntimeException(message)
+internal fun String?.sanitizedNavidromeErrorMessage(): String? {
+    val message = this?.trim().orEmpty()
+    if (message.isEmpty()) return null
+    val normalized = message.lowercase()
+    if (
+        "tls" in normalized ||
+        "ssl" in normalized ||
+        "certificate" in normalized ||
+        "nsurlerrordomain code=-1200" in normalized
+    ) {
+        return "TLS request failed."
+    }
+    val containsSensitiveStructure = listOf(
+        "://",
+        "userinfo=",
+        "nsunderlyingerror",
+        "nsurlerror",
+        "peertrust",
+        "<sectrustref",
+        "\n",
+        "\r",
+    ).any { marker -> message.contains(marker, ignoreCase = true) }
+    return if (message.length <= 240 && !containsSensitiveStructure) message else "Request failed."
+}
+
+open class NavidromeException(
+    message: String,
+    val subsonicErrorCode: Int? = null,
+) : RuntimeException(message)
+
+class NavidromeHttpException(val statusCode: Int) :
+    NavidromeException("Navidrome returned HTTP $statusCode.")
 
 class NavidromeRateLimitException(
     val retryAtEpochMillis: Long,

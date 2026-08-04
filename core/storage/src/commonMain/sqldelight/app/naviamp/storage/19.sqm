@@ -1,0 +1,2 @@
+ALTER TABLE media_source ADD COLUMN provider_identity_probe_target_version INTEGER;
+ALTER TABLE media_source ADD COLUMN provider_identity_probe_server_version TEXT;

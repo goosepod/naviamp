@@ -5,15 +5,23 @@ import app.naviamp.domain.ArtistCredit
 import app.naviamp.domain.ArtistDetails
 import app.naviamp.domain.ArtistId
 import app.naviamp.domain.ArtistInfo
+import app.naviamp.domain.InternetRadioStation
 import app.naviamp.domain.Album
 import app.naviamp.domain.AlbumExplicitStatus
 import app.naviamp.domain.AlbumId
+import app.naviamp.domain.Playlist
 import app.naviamp.domain.Track
 import app.naviamp.domain.TrackId
+import app.naviamp.domain.cache.DownloadJob
+import app.naviamp.domain.cache.DownloadJobItem
+import app.naviamp.domain.cache.DownloadJobItemStatus
+import app.naviamp.domain.cache.DownloadJobStatus
+import app.naviamp.domain.home.HomeContent
 import app.naviamp.domain.media.RelatedTracksSource
 import app.naviamp.domain.queue.PlaybackQueue
 import app.naviamp.domain.queue.RepeatMode
 import app.naviamp.domain.settings.TrackSwipeAction
+import app.naviamp.domain.settings.ConnectionFormState
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -22,6 +30,249 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class MediaUiMappersTest {
+    @Test
+    fun recentlyPlayedRowsDoNotExposePlayHistoryMetadata() {
+        val recent = track("recent").copy(
+            playCount = 7,
+            lastPlayedAtIso8601 = "2026-07-22T12:00:00Z",
+        )
+
+        val row = HomeContent(recentlyPlayedTracks = listOf(recent))
+            .toSharedHomeUi(coverArtUrl = { null })
+            .recentlyPlayedTracks.single()
+
+        assertEquals("", row.meta)
+        assertEquals("2:05", row.durationLabel)
+    }
+
+    @Test
+    fun connectionSettingsActionsUpdateTheCurrentFormAsOneValue() {
+        val original = ConnectionFormState(serverUrl = "https://old", username = "alice")
+        var updated: ConnectionFormState? = null
+        val actions = NaviampConnectionSettingsActions(
+            onFormChanged = { updated = it },
+            onConnect = {},
+            onEditCurrentConnection = {},
+            onNewConnection = {},
+            onEditConnection = {},
+            onDeleteConnection = {},
+            onConnectSavedConnection = {},
+            onCancelConnectionForm = {},
+        )
+
+        actions.updateForm(original) { it.copy(serverUrl = "https://new") }
+
+        assertEquals("https://new", updated?.serverUrl)
+        assertEquals("alice", updated?.username)
+    }
+
+    @Test
+    fun connectionSettingsCarryConnectionAndTlsCapabilities() {
+        val connection = NaviampShellConnectionUi(status = "Ready")
+        val ui = connection.toConnectionSettingsUi(
+            capabilities = NaviampShellCapabilitiesUi(
+                connection = NaviampConnectionCapabilitiesUi(clientCertificates = true),
+            ),
+            currentSourceId = "source-1",
+        )
+
+        assertEquals(connection, ui.connection)
+        assertTrue(ui.capabilities.clientCertificates)
+        assertEquals("source-1", ui.currentSourceId)
+    }
+
+    @Test
+    fun settingsSyncRequiresImportExportAndFileSelection() {
+        val withoutPicker = settingsSyncUi(
+            directoryPath = "sync",
+            autoExportEnabled = true,
+            status = "Ready",
+            capabilities = NaviampShellCapabilitiesUi(settingsImportExport = true),
+        )
+        val available = settingsSyncUi(
+            directoryPath = "sync",
+            autoExportEnabled = true,
+            status = "Ready",
+            capabilities = NaviampShellCapabilitiesUi(
+                settingsImportExport = true,
+                fileSelection = true,
+            ),
+        )
+
+        assertFalse(withoutPicker.available)
+        assertTrue(available.available)
+        assertEquals("sync", available.directoryPath)
+        assertTrue(available.autoExportEnabled)
+        assertEquals("Ready", available.status)
+    }
+
+    @Test
+    fun generalSettingsGroupInterfaceAndAboutPresentation() {
+        val interfaceSettings = app.naviamp.domain.settings.InterfaceSettings(
+            language = app.naviamp.domain.settings.InterfaceLanguage.Spanish,
+        )
+        val about = NaviampAboutUi(version = "2.0", buildNumber = "42")
+
+        val ui = interfaceSettings.toGeneralSettingsUi(about)
+
+        assertEquals(interfaceSettings, ui.interfaceSettings)
+        assertEquals(about, ui.about)
+    }
+
+    @Test
+    fun playbackSettingsUseSharedCapabilitiesAndHostAudioDevices() {
+        val settings = app.naviamp.domain.settings.PlaybackSettings(sonicSimilarityEnabled = true)
+        val devices = listOf(app.naviamp.domain.playback.AudioOutputDevice("device-1", "Speakers"))
+
+        val ui = settings.toPlaybackSettingsUi(
+            capabilities = NaviampShellCapabilitiesUi(
+                replayGain = true,
+                gapless = false,
+                crossfade = true,
+                equalizer = true,
+                sonicSimilarity = true,
+                softwareVolumeControl = false,
+                hoverTooltips = true,
+                showMobileNetworkQuality = true,
+            ),
+            audioOutputDeviceSelectionAvailable = true,
+            audioOutputDevices = devices,
+            downloadBytes = 42L,
+        )
+
+        assertEquals(settings, ui.settings)
+        assertTrue(ui.replayGainAvailable)
+        assertFalse(ui.gaplessAvailable)
+        assertTrue(ui.crossfadeAvailable)
+        assertTrue(ui.equalizerAvailable)
+        assertTrue(ui.audioOutputDeviceSelectionAvailable)
+        assertEquals(devices, ui.audioOutputDevices)
+        assertTrue(ui.sonicSimilarityAvailable)
+        assertFalse(ui.softwareVolumeControlAvailable)
+        assertTrue(ui.hoverTooltipsAvailable)
+        assertTrue(ui.showMobileNetworkQuality)
+        assertEquals(42L, ui.downloadBytes)
+    }
+
+    @Test
+    fun cacheSettingsBuildSharedDiagnosticsAndFileSelectionState() {
+        val settings = app.naviamp.domain.settings.CacheSettings(maxDownloadBytes = 5_000_000L)
+        val stats = app.naviamp.domain.cache.StorageCacheStats(
+            audioBytes = 1_000L,
+            downloadBytes = 2_000L,
+            imageBytes = 3_000L,
+        )
+
+        val ui = settings.toCacheSettingsUi(
+            stats = stats,
+            capabilities = NaviampShellCapabilitiesUi(fileSelection = true),
+        )
+
+        assertEquals(settings, ui.settings)
+        assertEquals(
+            listOf(
+                "Audio cache" to stats.audioBytes.storageBytesLabel(),
+                "Downloads" to stats.downloadBytes.storageBytesLabel(),
+                "Images" to stats.imageBytes.storageBytesLabel(),
+            ),
+            ui.downloadsDiagnostics.sections.single().rows,
+        )
+        assertEquals(
+            listOf("Audio cache" to stats.audioBytes.storageBytesLabel()),
+            ui.audioCacheDiagnostics.sections.single().rows,
+        )
+        assertTrue(ui.fileSelectionAvailable)
+    }
+
+    @Test
+    fun internetRadioModelsPreserveEditableFieldsAndNormalizeDrafts() {
+        val station = InternetRadioStation(
+            id = "station-1",
+            name = "Deep Space One",
+            streamUrl = "https://example.test/live",
+            homePageUrl = "https://example.test",
+        )
+
+        val ui = station.toInternetRadioStationUi()
+        val updated = NaviampInternetRadioStationEditUi(
+            id = ui.item.id,
+            name = " Updated Station ",
+            streamUrl = " https://example.test/updated ",
+            homePageUrl = "  ",
+        ).toInternetRadioStation()
+
+        assertEquals("station-1", ui.item.id)
+        assertEquals("Deep Space One", ui.item.title)
+        assertEquals(station.streamUrl, ui.streamUrl)
+        assertEquals(station, ui.toInternetRadioStation())
+        assertEquals("station-1", updated.id)
+        assertEquals("Updated Station", updated.name)
+        assertEquals("https://example.test/updated", updated.streamUrl)
+        assertNull(updated.homePageUrl)
+    }
+
+    @Test
+    fun downloadJobUiCarriesProgressActionsAndItemStatus() {
+        val job = DownloadJob(
+            id = "job-1",
+            label = "Album",
+            items = listOf(
+                DownloadJobItem(track("one"), DownloadJobItemStatus.Completed),
+                DownloadJobItem(track("two"), DownloadJobItemStatus.Downloading),
+            ),
+            status = DownloadJobStatus.Running,
+        )
+
+        val ui = job.toDownloadJobUi()
+
+        assertEquals("job-1", ui.id)
+        assertEquals("1 of 2", ui.statusLabel)
+        assertEquals(0.5f, ui.progress)
+        assertTrue(ui.canCancel)
+        assertFalse(ui.canRetry)
+        assertEquals("Downloading two", ui.activeItemLabel)
+        assertNull(ui.failedItemLabel)
+    }
+
+    @Test
+    fun failedDownloadJobUiCarriesRetryAndFailureDetails() {
+        val job = DownloadJob(
+            id = "job-2",
+            label = "Playlist",
+            items = listOf(
+                DownloadJobItem(track("one"), DownloadJobItemStatus.Completed),
+                DownloadJobItem(
+                    track("two"),
+                    DownloadJobItemStatus.Failed,
+                    failureMessage = "Network unavailable",
+                ),
+            ),
+            status = DownloadJobStatus.Failed,
+        )
+
+        val ui = job.toDownloadJobUi()
+
+        assertEquals("Failed - 1 of 2 saved", ui.statusLabel)
+        assertFalse(ui.canCancel)
+        assertTrue(ui.canRetry)
+        assertEquals("two: Network unavailable", ui.failedItemLabel)
+    }
+
+    @Test
+    fun playlistUiCarriesTrackCountAndKeepDownloadedState() {
+        val playlist = Playlist("playlist", "Playlist", trackCount = 3, durationSeconds = 180)
+
+        val item = playlist.toSharedMediaItemUi(
+            coverArtUrl = { null },
+            tracks = emptyList(),
+            keepDownloadedActive = true,
+        )
+
+        assertEquals(3, item.trackCount)
+        assertTrue(item.keepDownloadedActive)
+        assertEquals("3 tracks", item.subtitle)
+    }
+
     @Test
     fun downloadedTrackUiUsesSharedTrackRowMapping() {
         val track = Track(
@@ -46,7 +297,8 @@ class MediaUiMappersTest {
         assertEquals("track-1", ui.track.id)
         assertEquals("Track One", ui.track.title)
         assertEquals("Artist - Album", ui.track.subtitle)
-        assertEquals("2:05", ui.track.meta)
+        assertEquals("", ui.track.meta)
+        assertEquals("2:05", ui.track.durationLabel)
         assertEquals("cover://cover-1", ui.track.coverArtUrl)
         assertEquals(12_345L, ui.sizeBytes)
         assertEquals("MP3 · 320 kbps", ui.qualityLabel)
@@ -81,6 +333,8 @@ class MediaUiMappersTest {
         assertEquals(listOf("artist-1", "artist-2"), ui.artistCredits.mapNotNull { it.id })
         assertEquals(listOf("Artist", "Featured Artist"), ui.artistCredits.map { it.name })
         assertEquals("Album", ui.albumTitle)
+        assertEquals("", ui.meta)
+        assertEquals("2:05", ui.durationLabel)
     }
 
     @Test
@@ -150,7 +404,9 @@ class MediaUiMappersTest {
         ).toSharedArtistDetailUi(coverArtUrl = { null })
 
         assertEquals(listOf("Albums", "EPs"), ui.albumSections.map { it.title })
-        assertEquals("2026 Explicit", ui.albumSections.first().albums.single().meta)
+        assertEquals("Album 2026 Explicit", ui.albumSections.first().albums.single().meta)
+        assertEquals("2 albums, EPs, and singles", ui.localLibraryLabel)
+        assertEquals("", ui.sourceContextLabel)
     }
 
     @Test
@@ -270,6 +526,15 @@ class MediaUiMappersTest {
         val track = SharedTrackRowUi(id = "track", title = "Track", subtitle = "Artist")
         val received = mutableListOf<SharedTrackRowAction>()
         val handlers = SharedTrackRowActionHandlers(
+            onSelect = {},
+            onPlayNext = {},
+            onStartRadio = {},
+            onPlayTrackRadioNext = {},
+            onAddTrackRadioToQueue = {},
+            onAddToQueue = {},
+            onDownload = {},
+            onAddToPlaylist = { _, _ -> },
+            onCreatePlaylistAndAdd = { _, _ -> },
             onToggleFavorite = { received += SharedTrackRowAction.ToggleFavorite },
             onGoToAlbum = { received += SharedTrackRowAction.GoToAlbum },
             onGoToArtist = { received += SharedTrackRowAction.GoToArtist },
@@ -294,40 +559,6 @@ class MediaUiMappersTest {
     }
 
     @Test
-    fun sharedMediaItemActionDispatchesPlaylistPayload() {
-        var received: Pair<String, String?>? = null
-        val playlist = SharedMediaItemUi(id = "playlist-1", title = "Playlist", subtitle = "4 tracks")
-        val choice = NaviampPlaylistChoiceUi(id = "target-1", name = "Target")
-
-        handleSharedMediaItemAction(
-            SharedMediaItemActionRequest(
-                item = playlist,
-                action = SharedMediaItemAction.AddToPlaylist,
-                playlistChoice = choice,
-            ),
-            SharedMediaItemActionHandlers(
-                onAddToPlaylist = { item, playlistChoice ->
-                    received = item.id to playlistChoice?.id
-                },
-            ),
-        )
-
-        assertEquals("playlist-1" to "target-1", received)
-    }
-
-    @Test
-    fun sharedMediaItemActionRequestHelperDefaultsShuffleFlag() {
-        val playlist = SharedMediaItemUi(id = "playlist-1", title = "Playlist", subtitle = "4 tracks")
-
-        val play = playlist.actionRequest(SharedMediaItemAction.Play, kind = SharedMediaItemKind.Playlist)
-        val shuffle = playlist.actionRequest(SharedMediaItemAction.Shuffle, kind = SharedMediaItemKind.Playlist)
-
-        assertFalse(play.shuffle)
-        assertTrue(shuffle.shuffle)
-        assertEquals(SharedMediaItemKind.Playlist, shuffle.kind)
-    }
-
-    @Test
     fun downloadedTrackActionDispatchesCreatePlaylistPayload() {
         var received: Pair<String, String>? = null
         val download = NaviampDownloadedTrackUi(
@@ -343,7 +574,10 @@ class MediaUiMappersTest {
                 playlistName = "New Mix",
             ),
             DownloadedTrackActionHandlers(
+                onSelect = {},
+                onAddToPlaylist = { _, _ -> },
                 onCreatePlaylistAndAdd = { item, name -> received = item.id to name },
+                onRemove = {},
             ),
         )
 
@@ -385,7 +619,11 @@ class MediaUiMappersTest {
 
         handleStationRowAction(
             StationRowActionRequest(station, StationRowAction.Delete),
-            StationRowActionHandlers(onDelete = { item -> deletedId = item.id }),
+            StationRowActionHandlers(
+                onSelect = {},
+                onEdit = {},
+                onDelete = { item -> deletedId = item.id },
+            ),
         )
 
         assertEquals("station-1", deletedId)

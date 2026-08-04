@@ -1,5 +1,6 @@
 package app.naviamp.ui
 
+import app.naviamp.domain.network.NaviampAppVersion
 import androidx.compose.foundation.background
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
@@ -67,6 +68,8 @@ import app.naviamp.domain.settings.MinAlbumBlurRadiusDp
 import app.naviamp.domain.settings.ConnectionFormMusicFolder
 import app.naviamp.domain.settings.ConnectionFormState
 import app.naviamp.domain.settings.DefaultWaveformBucketCount
+import app.naviamp.domain.settings.DefaultAudioCacheBytes
+import app.naviamp.domain.settings.DefaultDownloadStorageBytes
 import app.naviamp.domain.settings.DownloadedTrackPlayback
 import app.naviamp.domain.settings.InterfaceLanguage
 import app.naviamp.domain.settings.InterfaceSettings
@@ -111,7 +114,7 @@ data class NaviampDiagnosticsSectionUi(
 data class NaviampStorageLocationUi(val id: String, val label: String, val path: String)
 
 data class NaviampAboutUi(
-    val version: String = "Unknown",
+    val version: String = NaviampAppVersion,
     val buildNumber: String = "Unknown",
     val libraries: List<String> = DefaultNaviampLibraries,
     val changelog: List<NaviampChangelogSectionUi> = DefaultNaviampChangelog,
@@ -149,10 +152,13 @@ enum class NaviampSettingsCategory(
 @Composable
 fun NaviampSharedSettingsContent(
     colors: NaviampColors,
+    modifier: Modifier = Modifier,
     interfaceSettings: InterfaceSettings = InterfaceSettings(),
     playbackSettings: PlaybackSettings,
     cacheSettings: CacheSettings = CacheSettings(),
     diagnostics: NaviampDiagnosticsUi = NaviampDiagnosticsUi(),
+    downloadsDiagnostics: NaviampDiagnosticsUi = diagnostics,
+    audioCacheDiagnostics: NaviampDiagnosticsUi = diagnostics,
     about: NaviampAboutUi = NaviampAboutUi(),
     savedConnections: List<NaviampSavedConnectionUi> = emptyList(),
     isConnectionFormOpen: Boolean = false,
@@ -164,26 +170,28 @@ fun NaviampSharedSettingsContent(
     connectionForm: ConnectionFormState = ConnectionFormState(),
     hasSavedConnection: Boolean = false,
     onEditConnection: () -> Unit,
-    onNewConnection: () -> Unit = onEditConnection,
-    onEditSavedConnection: (NaviampSavedConnectionUi) -> Unit = { onEditConnection() },
-    onConnectSavedConnection: (NaviampSavedConnectionUi) -> Unit = {},
-    onDeleteSavedConnection: (NaviampSavedConnectionUi) -> Unit = {},
+    onNewConnection: () -> Unit,
+    onEditSavedConnection: (NaviampSavedConnectionUi) -> Unit,
+    onConnectSavedConnection: (NaviampSavedConnectionUi) -> Unit,
+    onDeleteSavedConnection: (NaviampSavedConnectionUi) -> Unit,
     onImportSettingsSyncFile: (() -> Unit)? = null,
     onChooseSettingsSyncFolder: (() -> Unit)? = null,
-    onImportSettingsSyncFolder: (() -> Unit)? = null,
+    onSyncSettingsNow: (() -> Unit)? = null,
     onExportSettingsSyncFolder: (() -> Unit)? = null,
     settingsSyncAutoExportEnabled: Boolean = false,
     onSettingsSyncAutoExportChanged: ((Boolean) -> Unit)? = null,
-    onConnectionFormChanged: (ConnectionFormState) -> Unit = {},
-    onConnect: () -> Unit = {},
-    onCancelConnectionForm: () -> Unit = {},
-    onInterfaceSettingsChanged: (InterfaceSettings) -> Unit = {},
+    onConnectionFormChanged: (ConnectionFormState) -> Unit,
+    onConnect: () -> Unit,
+    onCancelConnectionForm: () -> Unit,
+    onInterfaceSettingsChanged: (InterfaceSettings) -> Unit,
     onPlaybackSettingsChanged: (PlaybackSettings) -> Unit,
-    onPlaybackSettingsChangedAndRedownload: (PlaybackSettings) -> Unit = onPlaybackSettingsChanged,
-    onCacheSettingsChanged: (CacheSettings) -> Unit = {},
+    onPlaybackSettingsChangedAndRedownload: (PlaybackSettings) -> Unit,
+    onCacheSettingsChanged: (CacheSettings) -> Unit,
     onClearCache: (() -> Unit)? = null,
     onClearLibrary: (() -> Unit)? = null,
+    onRefreshLibrary: (() -> Unit)? = null,
     onResetDatabase: (() -> Unit)? = null,
+    onOpenStatsForNerds: (() -> Unit)? = null,
     supportsReplayGain: Boolean = false,
     supportsGapless: Boolean = true,
     supportsCrossfade: Boolean = false,
@@ -191,16 +199,19 @@ fun NaviampSharedSettingsContent(
     supportsAudioOutputDeviceSelection: Boolean = false,
     audioOutputDevices: List<AudioOutputDevice> = emptyList(),
     supportsSonicSimilarity: Boolean = false,
+    connectionCapabilities: NaviampConnectionCapabilitiesUi = NaviampConnectionCapabilitiesUi(),
     downloadBytes: Long = 0L,
     showQueueBehavior: Boolean = true,
     showDebugLogging: Boolean = true,
+    showSoftwareVolumePreference: Boolean = true,
+    showTooltipPreference: Boolean = false,
     showMobileNetworkQuality: Boolean = false,
     downloadLocations: List<NaviampStorageLocationUi> = emptyList(),
     audioCacheLocations: List<NaviampStorageLocationUi> = emptyList(),
     selectedDownloadLocationId: String? = null,
     selectedAudioCacheLocationId: String? = null,
-    onDownloadLocationChanged: (NaviampStorageLocationUi) -> Unit = {},
-    onAudioCacheLocationChanged: (NaviampStorageLocationUi) -> Unit = {},
+    onDownloadLocationChanged: (NaviampStorageLocationUi) -> Unit,
+    onAudioCacheLocationChanged: (NaviampStorageLocationUi) -> Unit,
 ) {
     var selectedCategory by remember { mutableStateOf<NaviampSettingsCategory?>(null) }
     val languagePack = remember(interfaceSettings.language) {
@@ -209,8 +220,9 @@ fun NaviampSharedSettingsContent(
 
     Column(
         verticalArrangement = Arrangement.spacedBy(
-            if (selectedCategory == null) 8.dp else SettingsDetailItemSpacing,
+            if (selectedCategory == null) 2.dp else SettingsDetailItemSpacing,
         ),
+        modifier = modifier,
     ) {
         selectedCategory?.let { category ->
             SettingsDetailHeader(
@@ -232,13 +244,14 @@ fun NaviampSharedSettingsContent(
                         musicFoldersStatus = musicFoldersStatus,
                         connectionForm = connectionForm,
                         hasSavedConnection = hasSavedConnection,
+                        connectionCapabilities = connectionCapabilities,
                         onNewConnection = onNewConnection,
                         onEditConnection = onEditSavedConnection,
                         onConnectConnection = onConnectSavedConnection,
                         onDeleteConnection = onDeleteSavedConnection,
                         onImportSettingsSyncFile = onImportSettingsSyncFile,
                         onChooseSettingsSyncFolder = onChooseSettingsSyncFolder,
-                        onImportSettingsSyncFolder = onImportSettingsSyncFolder,
+                        onSyncSettingsNow = onSyncSettingsNow,
                         onExportSettingsSyncFolder = onExportSettingsSyncFolder,
                         settingsSyncAutoExportEnabled = settingsSyncAutoExportEnabled,
                         onSettingsSyncAutoExportChanged = onSettingsSyncAutoExportChanged,
@@ -260,6 +273,8 @@ fun NaviampSharedSettingsContent(
                     cacheSettings = cacheSettings,
                     showQueueBehavior = showQueueBehavior,
                     showLrclibLyrics = true,
+                    showSoftwareVolumePreference = showSoftwareVolumePreference,
+                    showTooltipPreference = showTooltipPreference,
                     supportsSonicSimilarity = supportsSonicSimilarity,
                     onInterfaceSettingsChanged = onInterfaceSettingsChanged,
                     onPlaybackSettingsChanged = onPlaybackSettingsChanged,
@@ -287,7 +302,7 @@ fun NaviampSharedSettingsContent(
                     colors = colors,
                     playbackSettings = playbackSettings,
                     cacheSettings = cacheSettings,
-                    diagnostics = diagnostics,
+                    diagnostics = downloadsDiagnostics,
                     showMobileNetworkQuality = showMobileNetworkQuality,
                     downloadBytes = downloadBytes,
                     onPlaybackSettingsChanged = onPlaybackSettingsChanged,
@@ -300,7 +315,7 @@ fun NaviampSharedSettingsContent(
                 NaviampSettingsCategory.AudioCache -> NaviampAudioCacheSettingsSection(
                     colors = colors,
                     cacheSettings = cacheSettings,
-                    diagnostics = diagnostics,
+                    diagnostics = audioCacheDiagnostics,
                     onCacheSettingsChanged = onCacheSettingsChanged,
                     locations = audioCacheLocations,
                     selectedLocationId = selectedAudioCacheLocationId,
@@ -320,10 +335,14 @@ fun NaviampSharedSettingsContent(
                         diagnostics = diagnostics,
                         emptyText = stringResource(Res.string.settings_debugging_empty),
                     )
+                    onOpenStatsForNerds?.let { openStats ->
+                        PrimaryButton("Open Stats for Nerds", colors, enabled = true, onClick = openStats)
+                    }
                     SharedLocalDataActions(
                         colors = colors,
                         onClearCache = onClearCache,
                         onClearLibrary = onClearLibrary,
+                        onRefreshLibrary = onRefreshLibrary,
                         onResetDatabase = onResetDatabase,
                     )
                 }
@@ -380,6 +399,7 @@ fun NaviampExperienceSettingsSection(
     cacheSettings: CacheSettings,
     showQueueBehavior: Boolean,
     showLrclibLyrics: Boolean,
+    showSoftwareVolumePreference: Boolean,
     showTooltipPreference: Boolean = false,
     supportsSonicSimilarity: Boolean,
     onInterfaceSettingsChanged: (InterfaceSettings) -> Unit,
@@ -396,6 +416,7 @@ fun NaviampExperienceSettingsSection(
                 interfaceSettings = interfaceSettings,
                 playbackSettings = playbackSettings,
                 cacheSettings = cacheSettings,
+                showSoftwareVolumePreference = showSoftwareVolumePreference,
                 onInterfaceSettingsChanged = onInterfaceSettingsChanged,
                 onPlaybackSettingsChanged = onPlaybackSettingsChanged,
                 onCacheSettingsChanged = onCacheSettingsChanged,
@@ -949,6 +970,7 @@ private fun TrackSwipeAction.subtitle(): String = when (this) {
 private fun NowPlayingDisplaySettings(
     colors: NaviampColors,
     interfaceSettings: InterfaceSettings,
+    showSoftwareVolumePreference: Boolean,
     onInterfaceSettingsChanged: (InterfaceSettings) -> Unit,
 ) {
     val settings = interfaceSettings.normalized().nowPlaying
@@ -968,12 +990,14 @@ private fun NowPlayingDisplaySettings(
         label = stringResource(Res.string.settings_now_playing_show_audio_info),
         onCheckedChange = { enabled -> update { it.copy(showAudioInfo = enabled) } },
     )
-    SettingsCheckboxRow(
-        colors = colors,
-        checked = settings.showVolumeBar,
-        label = stringResource(Res.string.settings_now_playing_show_volume_bar),
-        onCheckedChange = { enabled -> update { it.copy(showVolumeBar = enabled) } },
-    )
+    if (showSoftwareVolumePreference) {
+        SettingsCheckboxRow(
+            colors = colors,
+            checked = settings.showVolumeBar,
+            label = stringResource(Res.string.settings_now_playing_show_volume_bar),
+            onCheckedChange = { enabled -> update { it.copy(showVolumeBar = enabled) } },
+        )
+    }
 
     SettingsCheckboxRow(
         colors = colors,
@@ -1048,8 +1072,9 @@ private fun SettingsCategoryRow(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(enabled = enabled, onClick = onClick)
-            .padding(vertical = 9.dp),
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
+            .height(54.dp)
+            .padding(horizontal = 8.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Icon(
@@ -1059,8 +1084,15 @@ private fun SettingsCategoryRow(
             modifier = Modifier.size(20.dp),
         )
         Column(Modifier.weight(1f)) {
-            Text(languagePack.categoryLabel(category), color = if (enabled) colors.primaryText else colors.mutedText, fontSize = 15.sp)
-            Text(subtitle, color = colors.mutedText, fontSize = 12.sp)
+            Text(
+                languagePack.categoryLabel(category),
+                color = if (enabled) colors.primaryText else colors.mutedText,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(subtitle, color = colors.secondaryText, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
         Icon(NaviampIcons.ChevronRight, contentDescription = null, tint = colors.secondaryText, modifier = Modifier.size(18.dp))
     }
@@ -1240,13 +1272,14 @@ private fun NaviampConnectionsSettingsSection(
     musicFoldersStatus: String?,
     connectionForm: ConnectionFormState,
     hasSavedConnection: Boolean,
+    connectionCapabilities: NaviampConnectionCapabilitiesUi,
     onNewConnection: () -> Unit,
     onEditConnection: (NaviampSavedConnectionUi) -> Unit,
     onConnectConnection: (NaviampSavedConnectionUi) -> Unit,
     onDeleteConnection: (NaviampSavedConnectionUi) -> Unit,
     onImportSettingsSyncFile: (() -> Unit)?,
     onChooseSettingsSyncFolder: (() -> Unit)?,
-    onImportSettingsSyncFolder: (() -> Unit)?,
+    onSyncSettingsNow: (() -> Unit)?,
     onExportSettingsSyncFolder: (() -> Unit)?,
     settingsSyncAutoExportEnabled: Boolean,
     onSettingsSyncAutoExportChanged: ((Boolean) -> Unit)?,
@@ -1259,7 +1292,7 @@ private fun NaviampConnectionsSettingsSection(
     val hasSettingsSync =
         onImportSettingsSyncFile != null ||
             onChooseSettingsSyncFolder != null ||
-            onImportSettingsSyncFolder != null ||
+            onSyncSettingsNow != null ||
             onExportSettingsSyncFolder != null
 
     if (isConnectionFormOpen) {
@@ -1287,6 +1320,7 @@ private fun NaviampConnectionsSettingsSection(
                 settingsSyncStatus = settingsSyncStatus,
                 availableMusicFolders = availableMusicFolders,
                 musicFoldersStatus = musicFoldersStatus,
+                capabilities = connectionCapabilities,
                 onFormChanged = onConnectionFormChanged,
                 onConnect = onConnect,
                 onImportSettingsSyncFile = onImportSettingsSyncFile,
@@ -1357,8 +1391,8 @@ private fun NaviampConnectionsSettingsSection(
                 onChooseSettingsSyncFolder?.let { chooseFolder ->
                     PrimarySettingsButton(stringResource(Res.string.settings_sync_choose_folder), colors, enabled = !isConnecting, onClick = chooseFolder)
                 }
-                onImportSettingsSyncFolder?.let { importFolder ->
-                    PrimarySettingsButton(stringResource(Res.string.settings_sync_now), colors, enabled = !isConnecting, onClick = importFolder)
+                onSyncSettingsNow?.let { syncNow ->
+                    PrimarySettingsButton(stringResource(Res.string.settings_sync_now), colors, enabled = !isConnecting, onClick = syncNow)
                 }
                 onExportSettingsSyncFolder?.let { exportFolder ->
                     PrimarySettingsButton(stringResource(Res.string.settings_sync_export_local), colors, enabled = !isConnecting, onClick = exportFolder)
@@ -1670,6 +1704,7 @@ private fun SharedLocalDataActions(
     colors: NaviampColors,
     onClearCache: (() -> Unit)?,
     onClearLibrary: (() -> Unit)?,
+    onRefreshLibrary: (() -> Unit)?,
     onResetDatabase: (() -> Unit)?,
 ) {
     var confirmAction by remember { mutableStateOf<SharedLocalDataAction?>(null) }
@@ -1684,6 +1719,9 @@ private fun SharedLocalDataActions(
             color = colors.secondaryText,
             fontSize = SettingsDetailRowSubtitleSize,
         )
+        onRefreshLibrary?.let { refresh ->
+            PrimarySettingsButton("Refresh library index", colors, enabled = true, onClick = refresh)
+        }
         PrimarySettingsButton(stringResource(Res.string.settings_local_clear_cache), colors, enabled = onClearCache != null) {
             confirmAction = SharedLocalDataAction.ClearCache
         }
@@ -1998,11 +2036,11 @@ fun NaviampDownloadsSettingsSection(
     showMobileNetworkQuality: Boolean,
     downloadBytes: Long,
     onPlaybackSettingsChanged: (PlaybackSettings) -> Unit,
-    onPlaybackSettingsChangedAndRedownload: (PlaybackSettings) -> Unit = onPlaybackSettingsChanged,
+    onPlaybackSettingsChangedAndRedownload: (PlaybackSettings) -> Unit,
     onCacheSettingsChanged: (CacheSettings) -> Unit,
     locations: List<NaviampStorageLocationUi> = emptyList(),
     selectedLocationId: String? = null,
-    onLocationChanged: (NaviampStorageLocationUi) -> Unit = {},
+    onLocationChanged: (NaviampStorageLocationUi) -> Unit,
 ) {
     val normalized = cacheSettings.normalized()
     var selectedPage by remember { mutableStateOf<DownloadsSettingsPage?>(null) }
@@ -2163,7 +2201,7 @@ fun NaviampAudioCacheSettingsSection(
     onCacheSettingsChanged: (CacheSettings) -> Unit,
     locations: List<NaviampStorageLocationUi> = emptyList(),
     selectedLocationId: String? = null,
-    onLocationChanged: (NaviampStorageLocationUi) -> Unit = {},
+    onLocationChanged: (NaviampStorageLocationUi) -> Unit,
 ) {
     val normalized = cacheSettings.normalized()
     var selectedPage by remember { mutableStateOf<AudioCacheSettingsPage?>(null) }
@@ -3184,6 +3222,7 @@ private fun PlayerExperienceSettings(
     interfaceSettings: InterfaceSettings,
     playbackSettings: PlaybackSettings,
     cacheSettings: CacheSettings,
+    showSoftwareVolumePreference: Boolean,
     onInterfaceSettingsChanged: (InterfaceSettings) -> Unit,
     onPlaybackSettingsChanged: (PlaybackSettings) -> Unit,
     onCacheSettingsChanged: (CacheSettings) -> Unit,
@@ -3250,6 +3289,7 @@ private fun PlayerExperienceSettings(
     NowPlayingDisplaySettings(
         colors = colors,
         interfaceSettings = interfaceSettings,
+        showSoftwareVolumePreference = showSoftwareVolumePreference,
         onInterfaceSettingsChanged = onInterfaceSettingsChanged,
     )
     SettingsRow(
@@ -4356,13 +4396,13 @@ private fun Int.equalizerFrequencyLabel(): String =
     if (this >= 1_000) "${this / 1_000} kHz" else "$this Hz"
 
 private fun Float.equalizerGainLabel(): String =
-    if (this == 0f) "0 dB" else "%+.1f dB".format(this)
+    if (this == 0f) "0 dB" else "${signedOneDecimalLabel()} dB"
 
 private fun Float.preampLabel(): String =
     when {
         this == 0f -> "0 dB"
-        this % 1f == 0f -> "%+d dB".format(this.toInt())
-        else -> "%+.1f dB".format(this)
+        this % 1f == 0f -> "${toInt().signedLabel()} dB"
+        else -> "${signedOneDecimalLabel()} dB"
     }
 
 private val CrossfadeDurationOptions = listOf(0, 3, 5, 8, 12)
@@ -4389,7 +4429,7 @@ private val WaveformBucketCountOptions = listOf(
     MaxWaveformBucketCount,
 )
 private val AudioCacheBudgetOptions = listOf(
-    256L * 1024L * 1024L,
+    DefaultAudioCacheBytes,
     512L * 1024L * 1024L,
     1L * 1024L * 1024L * 1024L,
     2L * 1024L * 1024L * 1024L,
@@ -4398,7 +4438,7 @@ private val AudioCacheBudgetOptions = listOf(
     20L * 1024L * 1024L * 1024L,
 )
 private val DownloadBudgetOptions = listOf(
-    512L * 1024L * 1024L,
+    DefaultDownloadStorageBytes,
     1L * 1024L * 1024L * 1024L,
     2L * 1024L * 1024L * 1024L,
     5L * 1024L * 1024L * 1024L,

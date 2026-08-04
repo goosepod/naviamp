@@ -8,3 +8,84 @@ plugins {
     alias(libs.plugins.kotlin.serialization) apply false
     alias(libs.plugins.sqldelight) apply false
 }
+
+val commonProductionSources = fileTree(layout.projectDirectory) {
+    include("core/*/src/commonMain/**/*.kt")
+    include("providers/*/src/commonMain/**/*.kt")
+}
+
+val hostProductionSources = fileTree(layout.projectDirectory) {
+    include("apps/android/src/main/kotlin/**/*.kt")
+    include("apps/desktop/src/desktopMain/kotlin/**/*.kt")
+    include("platforms/android/src/main/kotlin/**/*.kt")
+    include("platforms/desktop/src/desktopMain/kotlin/**/*.kt")
+}
+
+val existingHostProductDebt = emptySet<String>()
+
+tasks.register("verifyCoreFirstArchitecture") {
+    group = "verification"
+    description = "Rejects platform APIs in common code and new host-owned product surfaces."
+    inputs.files(commonProductionSources, hostProductionSources)
+    inputs.property("existingHostProductDebt", existingHostProductDebt.sorted())
+
+    doLast {
+        val failures = mutableListOf<String>()
+        val forbiddenCommonImport = Regex(
+            """^\s*import\s+(?:android\.|androidx\.(?!compose\.)|java\.|javax\.|sun\.|com\.sun\.|platform\.|kotlinx\.cinterop\.)""",
+        )
+        commonProductionSources.files.sorted().forEach { source ->
+            source.readLines().forEachIndexed { index, line ->
+                if (forbiddenCommonImport.containsMatchIn(line)) {
+                    failures += "${source.relativeTo(projectDir).invariantSeparatorsPath}:${index + 1}: $line"
+                }
+            }
+        }
+
+        val productFileName = Regex(".*(?:Route|Actions|AppState|StateMachine).*\\.kt")
+        hostProductionSources.files
+            .map { it.relativeTo(projectDir).invariantSeparatorsPath }
+            .filter { productFileName.matches(it.substringAfterLast('/')) }
+            .filterNot(existingHostProductDebt::contains)
+            .sorted()
+            .forEach { path -> failures += "$path: new host-owned product surface is not allowlisted" }
+
+        val forbiddenHostDeclaration = Regex(
+            """^\s*(?:(?:data|sealed)\s+)?(?:class|interface|object|enum\s+class)\s+(?:SharedRoute|NaviampCoreCommand|NaviampAppShellActions|NaviampCoreState|NaviampCoreApp)\b""",
+        )
+        hostProductionSources.files.sorted().forEach { source ->
+            source.readLines().forEachIndexed { index, line ->
+                if (forbiddenHostDeclaration.containsMatchIn(line)) {
+                    failures += "${source.relativeTo(projectDir).invariantSeparatorsPath}:${index + 1}: $line"
+                }
+            }
+        }
+
+        val forbiddenPortableHostStorageDeclaration = Regex(
+            """^\s*(?:(?:data|internal)\s+)?class\s+(?:Android|Desktop)(?:AudioStore|AudioWaveformStore|LibraryIndexStore|LyricsOffsetStore|LyricsSidecarStore|ObjectByteStore|PendingProviderActionStore|PlaybackStore|ProviderResponseStore|RadioDjPresetStore|SidecarStatusStore|MediaSourceStorage|CacheMaintenanceRepository)\b""",
+        )
+        val forbiddenGeneratedStorageImport = Regex(
+            """^\s*import\s+app\.naviamp\.storage\.(?:NaviampStorageQueries|Cached_audio|Downloaded_audio|Playback_history)\b""",
+        )
+        hostProductionSources.files.sorted().forEach { source ->
+            source.readLines().forEachIndexed { index, line ->
+                if (forbiddenPortableHostStorageDeclaration.containsMatchIn(line)) {
+                    failures += "${source.relativeTo(projectDir).invariantSeparatorsPath}:${index + 1}: portable storage owner must live in core:storage"
+                }
+                if (forbiddenGeneratedStorageImport.containsMatchIn(line)) {
+                    failures += "${source.relativeTo(projectDir).invariantSeparatorsPath}:${index + 1}: generated SQL rows/queries must be mapped in core:storage"
+                }
+            }
+        }
+
+        if (failures.isNotEmpty()) {
+            throw GradleException(
+                buildString {
+                    appendLine("Core-first architecture guard failed:")
+                    failures.forEach { appendLine("- $it") }
+                    append("Move product code into common Core or document a genuine OS/API exception in the guard.")
+                },
+            )
+        }
+    }
+}

@@ -38,11 +38,27 @@ class SonicMixServiceTest {
         )
 
         val mix = SonicMixService(provider).buildMix(
-            SonicMixRequest(listOf(seedOne, seedTwo), targetLength = 5),
+            SonicMixRequest(listOf(seedOne, seedTwo), targetLength = 5, includeSeeds = true),
         )
 
-        assertEquals(listOf("one-a", "two-a", "shared"), mix.map { track -> track.id.value })
+        assertEquals(listOf("seed-one", "seed-two", "one-a", "two-a", "shared"), mix.map { track -> track.id.value })
         assertEquals(listOf(seedOne.id, seedTwo.id), provider.requestedTrackIds)
+    }
+
+    @Test
+    fun buildMixExcludesSeedsByDefault() = runTest {
+        val seedOne = track("seed-one")
+        val seedTwo = track("seed-two")
+        val provider = FakeSonicMixProvider(
+            matches = mapOf(
+                seedOne.id to listOf(SonicSimilarTrack(track("one-a"), 0.9)),
+                seedTwo.id to listOf(SonicSimilarTrack(track("two-a"), 0.8)),
+            ),
+        )
+
+        val mix = SonicMixService(provider).buildMix(SonicMixRequest(listOf(seedOne, seedTwo)))
+
+        assertEquals(listOf("one-a", "two-a"), mix.map { track -> track.id.value })
     }
 
     @Test
@@ -78,6 +94,18 @@ class SonicMixServiceTest {
         )
 
         assertEquals(listOf("favorite", "closer"), mix.map { track -> track.id.value })
+    }
+
+    @Test
+    fun buildMixKeepsSelectedSeedsWhenProviderReturnsNoMatches() = runTest {
+        val seedOne = track("seed-one")
+        val seedTwo = track("seed-two")
+
+        val mix = SonicMixService(FakeSonicMixProvider()).buildMix(
+            SonicMixRequest(listOf(seedOne, seedTwo), targetLength = 5, includeSeeds = true),
+        )
+
+        assertEquals(listOf("seed-one", "seed-two"), mix.map { it.id.value })
     }
 
     private class FakeSonicMixProvider(

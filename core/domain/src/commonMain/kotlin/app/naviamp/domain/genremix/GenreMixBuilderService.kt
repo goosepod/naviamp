@@ -29,7 +29,18 @@ fun genreMixBuilderService(
 ): GenreMixBuilderService =
     GenreMixBuilderService(
         genres = { limit ->
-            provider()?.genres(limit.toInt()).orEmpty().ifEmpty { homeContent().genres }
+            val home = homeContent()
+            val recentGenreOrder = home.recentlyPlayedTracks
+                .flatMap { track -> track.genres }
+                .distinctBy(String::lowercase)
+                .mapIndexed { index, name -> name.lowercase() to index }
+                .toMap()
+            provider()?.genres(limit.toInt()).orEmpty()
+                .ifEmpty { home.genres }
+                .sortedWith(
+                    compareBy<Genre> { genre -> recentGenreOrder[genre.name.lowercase()] ?: Int.MAX_VALUE }
+                        .thenBy { genre -> genre.name.lowercase() },
+                )
         },
     )
 
@@ -40,7 +51,6 @@ fun List<Genre>.genreMixSuggestions(
     val selectedNames = selectedGenres.map { it.name.lowercase() }.toSet()
     return distinctBy { it.name.lowercase() }
         .filterNot { it.name.lowercase() in selectedNames }
-        .sortedBy { it.name.lowercase() }
         .take(limit)
 }
 

@@ -5,6 +5,7 @@ import app.naviamp.domain.StreamQuality
 import app.naviamp.domain.Track
 import app.naviamp.domain.playback.PlaybackProgress
 import app.naviamp.domain.waveform.playbackFraction
+import kotlin.math.abs
 import kotlin.math.round
 
 fun Track.durationLabel(): String =
@@ -41,9 +42,9 @@ fun Long.bytesLabel(): String {
     val mib = kib * 1024.0
     val gib = mib * 1024.0
     return when {
-        this >= gib -> "%.1f GB".format(this / gib)
-        this >= mib -> "%.1f MB".format(this / mib)
-        this >= kib -> "%.1f KB".format(this / kib)
+        this >= gib -> "${(this / gib).oneDecimalLabel()} GB"
+        this >= mib -> "${(this / mib).oneDecimalLabel()} MB"
+        this >= kib -> "${(this / kib).oneDecimalLabel()} KB"
         else -> "$this B"
     }
 }
@@ -52,8 +53,8 @@ fun Long.storageBytesLabel(): String {
     val mib = 1024.0 * 1024.0
     val gib = mib * 1024.0
     return when {
-        this >= gib -> "%.1f GB".format(this / gib)
-        this >= mib -> "%.0f MB".format(this / mib)
+        this >= gib -> "${(this / gib).oneDecimalLabel()} GB"
+        this >= mib -> "${round(this / mib).toLong()} MB"
         else -> "$this B"
     }
 }
@@ -82,7 +83,17 @@ fun Double.twoDecimalLabel(): String =
     round(this * 100.0).div(100.0).toString()
 
 fun Double.oneDecimalLabel(): String =
-    "%.1f".format(this)
+    fixedOneDecimalLabel()
+
+internal fun Float.signedOneDecimalLabel(): String {
+    val roundedTenths = round(this * 10f).toInt()
+    val magnitude = abs(roundedTenths)
+    val sign = if (roundedTenths >= 0) "+" else "-"
+    return "$sign${magnitude / 10}.${magnitude % 10}"
+}
+
+internal fun Int.signedLabel(): String =
+    if (this >= 0) "+$this" else toString()
 
 fun Iterable<NaviampDownloadedTrackUi>.totalDownloadBytes(): Long =
     sumOf { download -> download.sizeBytes.coerceAtLeast(0L) }
@@ -104,4 +115,12 @@ private fun Double.toTimeLabel(): String {
     val minutes = totalSeconds / 60
     val seconds = totalSeconds % 60
     return "$minutes:${seconds.toString().padStart(2, '0')}"
+}
+
+private fun Double.fixedOneDecimalLabel(): String {
+    if (!isFinite()) return toString()
+    val roundedTenths = round(this * 10.0).toLong()
+    val magnitude = abs(roundedTenths)
+    val sign = if (roundedTenths < 0) "-" else ""
+    return "$sign${magnitude / 10}.${magnitude % 10}"
 }

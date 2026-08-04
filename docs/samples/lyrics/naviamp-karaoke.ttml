@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<tt xmlns="http://www.w3.org/ns/ttml" xmlns:ttm="http://www.w3.org/ns/ttml#metadata" xml:lang="en">
+  <head>
+    <metadata>
+      <ttm:title>Neon Timing Fixture</ttm:title>
+      <ttm:agent xml:id="v1" type="person">
+        <ttm:name>Naviamp Test Ensemble</ttm:name>
+      </ttm:agent>
+    </metadata>
+  </head>
+  <body>
+    <div>
+      <p begin="00:00:01.000" end="00:00:03.400" ttm:agent="v1">
+        <span begin="00:00:01.000" end="00:00:01.480">Under</span>
+        <span begin="00:00:01.580" end="00:00:01.960">the</span>
+        <span begin="00:00:02.050" end="00:00:02.680">neon</span>
+        <span begin="00:00:02.800" end="00:00:03.400">sky</span>
+      </p>
+      <p begin="00:00:04.100" end="00:00:07.350" ttm:agent="v1">
+        <span begin="00:00:04.100" end="00:00:04.380">We</span>
+        <span begin="00:00:04.480" end="00:00:05.140">follow</span>
+        <span begin="00:00:05.260" end="00:00:05.580">the</span>
+        <span begin="00:00:05.680" end="00:00:06.380">rhythm</span>
+        <span begin="00:00:06.500" end="00:00:07.350">home</span>
+      </p>
+      <p begin="00:00:08.200" end="00:00:12.400" ttm:agent="v1">
+        <span begin="00:00:08.200" end="00:00:12.400">Oh</span>
+      </p>
+      <p begin="00:00:13.100" end="00:00:16.800" ttm:agent="v1">
+        <span begin="00:00:13.100" end="00:00:13.520">Hold</span>
+        <span begin="00:00:13.620" end="00:00:14.000">on,</span>
+        <span begin="00:00:14.120" end="00:00:14.420">let</span>
+        <span begin="00:00:14.520" end="00:00:14.820">the</span>
+        <span begin="00:00:14.920" end="00:00:15.650">moment</span>
+        <span begin="00:00:15.780" end="00:00:16.800">glow</span>
+      </p>
+    </div>
+  </body>
+</tt>

@@ -203,6 +203,33 @@ class RadioRequestsTest {
         assertEquals(error, failed.error)
     }
 
+    @Test
+    fun trackRadioLoadResultRemovesSeedAndDuplicateTracks() = runTest {
+        val seed = track("seed")
+        val similar = track("similar")
+
+        val result = assertIs<TrackRadioLoadResult.Ready>(
+            trackRadioLoadResult(seed) { listOf(seed, similar, similar) },
+        )
+
+        assertEquals(listOf(similar), result.tracks)
+        assertNull(trackRadioLoadStatus(result))
+    }
+
+    @Test
+    fun trackRadioLoadResultOwnsEmptyAndFailureStatus() = runTest {
+        val seed = track("seed")
+        val empty = trackRadioLoadResult(seed) { listOf(seed) }
+        val error = IllegalStateException("radio unavailable")
+        val failed = trackRadioLoadResult(seed) { throw error }
+
+        assertEquals(TrackRadioLoadResult.Empty, empty)
+        assertEquals("Track radio did not return any tracks.", trackRadioLoadStatus(empty))
+        assertEquals(error, assertIs<TrackRadioLoadResult.Failed>(failed).error)
+        assertEquals("radio unavailable", trackRadioLoadStatus(failed))
+        assertEquals("Loading track radio...", trackRadioLoadingStatus())
+    }
+
     private fun track(
         id: String,
         title: String = "Track $id",

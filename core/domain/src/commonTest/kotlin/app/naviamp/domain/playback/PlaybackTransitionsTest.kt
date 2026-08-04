@@ -268,12 +268,12 @@ class PlaybackTransitionsTest {
     }
 
     @Test
-    fun reusesPreparedPlaybackOnlyWhenRequestAndStreamMatch() {
+    fun reusesPreparedPlaybackForTheSameMediaWhenItsResolvedUrlChanges() {
         val request = PlaybackRequest(url = "file:///track.flac", mediaId = "track-1")
 
         assertTrue(
             shouldReusePreparedPlayback(
-                preparedRequest = request,
+                preparedRequest = request.copy(url = "https://server/stream/track-1"),
                 hasPreparedStream = true,
                 request = request,
             ),
@@ -292,6 +292,39 @@ class PlaybackTransitionsTest {
                 request = request,
             ),
         )
+        assertFalse(
+            shouldReusePreparedPlayback(
+                preparedRequest = request,
+                hasPreparedStream = true,
+                request = request.copy(startPositionSeconds = 30.0),
+            ),
+        )
+    }
+
+    @Test
+    fun requiresExactPreparedRequestWhenNoMediaIdentityExists() {
+        val request = PlaybackRequest(url = "https://radio.example/live")
+
+        assertTrue(
+            shouldReusePreparedPlayback(
+                preparedRequest = request,
+                hasPreparedStream = true,
+                request = request,
+            ),
+        )
+        assertFalse(
+            shouldReusePreparedPlayback(
+                preparedRequest = request.copy(url = "https://other.example/live"),
+                hasPreparedStream = true,
+                request = request,
+            ),
+        )
+    }
+
+    @Test
+    fun retainsNativePlaybackAtTrackEndOnlyWhenAPreparedSourceAwaitsPromotion() {
+        assertTrue(shouldRetainPreparedPlaybackAfterCurrentFinishes(preparedHandle = 42))
+        assertFalse(shouldRetainPreparedPlaybackAfterCurrentFinishes(preparedHandle = 0))
     }
 
     @Test

@@ -1,0 +1,1 @@
+ALTER TABLE library_track ADD COLUMN genre_names TEXT;

@@ -154,12 +154,16 @@ class MixBuilderServiceFactoriesTest {
 
     @Test
     fun genreFactoryUsesProviderBeforeHomeFallback() = runTest {
-        val home = HomeContent(genres = listOf(Genre("Home")))
+        val recentAlbum = album("recent")
+        val home = HomeContent(
+            genres = listOf(Genre("Home")),
+            recentlyPlayedTracks = listOf(track("recent", recentAlbum).copy(genres = listOf("Ambient"))),
+        )
         val providerService = genreMixBuilderService(
-            provider = { FakeMixProvider(genres = listOf(Genre("Provider"))) },
+            provider = { FakeMixProvider(genres = listOf(Genre("Provider"), Genre("Ambient"))) },
             homeContent = { home },
         )
-        assertEquals(listOf("Provider"), providerService.allGenres().map { it.name })
+        assertEquals(listOf("Ambient", "Provider"), providerService.allGenres().map { it.name })
 
         val fallbackService = genreMixBuilderService(
             provider = { FakeMixProvider() },

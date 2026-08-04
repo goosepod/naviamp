@@ -2,6 +2,9 @@ package app.naviamp.domain.waveform
 
 import app.naviamp.domain.StreamQuality
 import app.naviamp.domain.settings.DefaultWaveformBucketCount
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.ensureActive
 import kotlin.math.ceil
 import kotlin.math.sqrt
 
@@ -84,9 +87,11 @@ fun normalizePcm16Waveform(
     return normalizeBuckets(buckets)
 }
 
-fun normalizeFloatPcmWaveform(
+suspend fun normalizeFloatPcmWaveform(
     totalSamples: Long,
     bucketCount: Int = DefaultWaveformBucketCount,
+    chunkDelayMillis: Long = 0L,
+    shouldContinue: () -> Boolean = { true },
     readSamples: (FloatArray) -> Int,
 ): AudioWaveform? {
     if (totalSamples <= 0 || bucketCount <= 0) return null
@@ -98,6 +103,8 @@ fun normalizeFloatPcmWaveform(
     var sampleIndex = 0L
 
     while (true) {
+        currentCoroutineContext().ensureActive()
+        if (!shouldContinue()) return null
         val read = readSamples(buffer)
         if (read <= 0) break
         var bufferIndex = 0
@@ -114,6 +121,7 @@ fun normalizeFloatPcmWaveform(
             bufferIndex += 1
         }
         if (sampleIndex >= totalSamples) break
+        if (chunkDelayMillis > 0) delay(chunkDelayMillis)
     }
 
     if (sampleIndex <= 0) return null

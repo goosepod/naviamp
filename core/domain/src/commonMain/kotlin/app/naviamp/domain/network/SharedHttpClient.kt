@@ -194,9 +194,36 @@ class KtorSharedHttpClient(
         )
 }
 
-expect fun String.urlEncodedParameter(): String
+fun String.urlEncodedParameter(): String {
+    val hex = "0123456789ABCDEF"
+    return buildString {
+        for (byte in encodeToByteArray()) {
+            val value = byte.toInt() and 0xff
+            when {
+                value.isFormUrlSafe() -> append(value.toChar())
+                value == ' '.code -> append('+')
+                else -> {
+                    append('%')
+                    append(hex[value shr 4])
+                    append(hex[value and 0x0f])
+                }
+            }
+        }
+    }
+}
 
-internal expect fun currentTimeMillis(): Long
+private fun Int.isFormUrlSafe(): Boolean =
+    this in 'A'.code..'Z'.code ||
+        this in 'a'.code..'z'.code ||
+        this in '0'.code..'9'.code ||
+        this == '-'.code ||
+        this == '_'.code ||
+        this == '.'.code ||
+        this == '*'.code
+
+@OptIn(kotlin.time.ExperimentalTime::class)
+internal fun currentTimeMillis(): Long =
+    kotlin.time.Clock.System.now().toEpochMilliseconds()
 
 private val DefaultSharedHttpHeaders = mapOf(
     HttpHeaders.Accept to "application/json",

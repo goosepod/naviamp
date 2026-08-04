@@ -130,6 +130,23 @@ fun artistRowActions(
         ),
     )
 
+fun NaviampAction.artistMediaCommandOrNull(): NaviampArtistMediaCommand? =
+    when (this) {
+        NaviampAction.StartArtistRadio -> NaviampArtistMediaCommand.StartRadio
+        NaviampAction.AddToQueue -> NaviampArtistMediaCommand.AddToQueue
+        NaviampAction.ToggleFavorite -> NaviampArtistMediaCommand.ToggleFavorite
+        else -> null
+    }
+
+fun NaviampAction.albumMediaCommandOrNull(): NaviampArtistAlbumCommand? =
+    when (this) {
+        NaviampAction.StartAlbumRadio -> NaviampArtistAlbumCommand.StartRadio
+        NaviampAction.DownloadAlbum -> NaviampArtistAlbumCommand.Download
+        NaviampAction.AddToQueue -> NaviampArtistAlbumCommand.AddToQueue
+        NaviampAction.ToggleFavorite -> NaviampArtistAlbumCommand.ToggleFavorite
+        else -> null
+    }
+
 fun playlistRowActions(
     canDownload: Boolean = false,
     canKeepDownloaded: Boolean = false,

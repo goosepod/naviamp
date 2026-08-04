@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -108,14 +109,13 @@ data class NaviampNowPlayingItemUi(
 )
 
 data class NaviampNowPlayingActions(
-    val onPlaybackAction: (NowPlayingPlaybackActionRequest) -> Unit = {},
-    val onDisplayAction: (NowPlayingDisplayActionRequest) -> Unit = {},
-    val onCurrentTrackAction: (NowPlayingCurrentTrackUiActionRequest) -> Unit = {},
-    val onQueueAction: (NowPlayingQueueActionRequest) -> Unit = {},
-    val onSleepTimerAction: (NowPlayingSleepTimerActionRequest) -> Unit = {},
-    val onSelectionAction: (NowPlayingSelectionActionRequest) -> Unit = {},
-    val onQueueItemAction: (NowPlayingItemActionRequest) -> Unit = { request ->
-    },
+    val onPlaybackAction: (NowPlayingPlaybackActionRequest) -> Unit,
+    val onDisplayAction: (NowPlayingDisplayActionRequest) -> Unit,
+    val onCurrentTrackAction: (NowPlayingCurrentTrackUiActionRequest) -> Unit,
+    val onQueueAction: (NowPlayingQueueActionRequest) -> Unit,
+    val onSleepTimerAction: (NowPlayingSleepTimerActionRequest) -> Unit,
+    val onSelectionAction: (NowPlayingSelectionActionRequest) -> Unit,
+    val onQueueItemAction: (NowPlayingItemActionRequest) -> Unit,
 ) {
     fun playback(action: NowPlayingPlaybackAction) {
         onPlaybackAction(NowPlayingPlaybackActionRequest(action))
@@ -554,7 +554,7 @@ private fun NowPlayingArtSurface(
                     .shadow(7.dp, shape, clip = false),
             ) {
                 Box(modifier = toggleModifier) {
-                    PlatformCoverArt(coverArtUrl, colors, size, cornerRadius)
+                    NaviampCoverArt(coverArtUrl, colors, size, cornerRadius)
                 }
             }
         }
@@ -616,7 +616,10 @@ private fun NowPlayingDetails(
     val titleFontSize = if (useLargeSizing) 19 else 15
     val titleTextHeight = if (useLargeSizing) 23.dp else 18.dp
     val metadataFontSize = if (useLargeSizing) 16 else 13
-    val metadataLineHeight = if (useLargeSizing) 18.sp else 14.sp
+    // Leave room for descenders and honor the user's font scale. Converting the
+    // font size's raw numeric value directly to dp clips glyphs such as g, p,
+    // and y on Android because scaled text can be taller than its fixed box.
+    val metadataTextHeight = with(LocalDensity.current) { (metadataFontSize + 3).sp.toDp() }
     val audioInfoFontSize = if (useLargeSizing) 14.sp else 11.sp
     val ratingIconSize = if (useLargeSizing) 21.dp else 17.dp
     val ratingFavoriteSlotWidth = if (useLargeSizing) 30.dp else 24.dp
@@ -746,7 +749,7 @@ private fun NowPlayingDetails(
                             text = nowPlaying.subtitle,
                             color = colors.secondaryText,
                             fontSize = metadataFontSize,
-                            height = metadataLineHeight.value.dp,
+                            height = metadataTextHeight,
                             marqueeEnabled = displaySettings.scrollArtistName && !nowPlaying.isLive,
                             modifier = Modifier.clickable(
                                 enabled = !nowPlaying.isLive,
@@ -767,10 +770,11 @@ private fun NowPlayingDetails(
                         text = albumText,
                         color = colors.secondaryText.copy(alpha = 0.84f),
                         fontSize = metadataFontSize,
-                        height = metadataLineHeight.value.dp,
+                        height = metadataTextHeight,
                         marqueeEnabled = displaySettings.scrollAlbumName && !nowPlaying.isLive,
                         modifier = Modifier.clickable(
-                            enabled = !nowPlaying.isLive && nowPlaying.albumLine.isNotBlank(),
+                            enabled = !nowPlaying.isLive &&
+                                (nowPlaying.albumTitle.isNotBlank() || nowPlaying.albumLine.isNotBlank()),
                             onClick = { actions.currentTrack(NowPlayingCurrentTrackAction.GoToAlbum) },
                         ),
                     )
@@ -1685,6 +1689,7 @@ private fun NowPlayingSidePanel(
                 onClick = { item ->
                     actions.selectItem(item, NowPlayingSelectionAction.SelectRadioStation)
                 },
+                onAction = actions.onQueueItemAction,
                 modifier = Modifier.weight(1f),
             )
             return@Column
@@ -1787,9 +1792,9 @@ private fun LyricsPanel(
     onOffsetChanged: (Int) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val listState = rememberLazyListState()
+    val listState = remember(nowPlaying.id) { LazyListState() }
     val basePositionMillis = nowPlaying.positionSeconds?.times(1000)?.toLong()
-    var localPositionAnchor by remember { mutableStateOf<LyricPositionAnchor?>(null) }
+    var localPositionAnchor by remember(nowPlaying.id) { mutableStateOf<LyricPositionAnchor?>(null) }
     var localNowMillis by remember { mutableStateOf(currentTimeMillis()) }
 
     LaunchedEffect(basePositionMillis, nowPlaying.isPlaying, nowPlaying.lyricsLines) {
@@ -1854,15 +1859,7 @@ private fun LyricsPanel(
                     .fillMaxWidth()
                     .weight(1f),
             )
-            nowPlaying.lyricsLines.isEmpty() -> Text(
-                "Lyrics unavailable",
-                color = colors.mutedText,
-                fontSize = 13.sp,
-                textAlign = TextAlign.Center,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f),
-            )
+            nowPlaying.lyricsLines.isEmpty() -> Spacer(Modifier.weight(1f))
             else -> LazyColumn(
                 state = listState,
                 verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -2051,7 +2048,7 @@ fun AddToPlaylistDialog(
                 Text("Add $title to a server playlist.", color = colors.secondaryText, fontSize = 12.sp)
                 status?.let { Text(it, color = colors.secondaryText, fontSize = 12.sp) }
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    NowPlayingTabButton("EXISTING", !createNew, colors) { if (playlists.isNotEmpty()) createNew = false }
+                    NowPlayingTabButton("EXISTING", !createNew, colors) { createNew = false }
                     NowPlayingTabButton("NEW", createNew, colors) { createNew = true }
                 }
                 if (createNew) {
@@ -2063,10 +2060,15 @@ fun AddToPlaylistDialog(
                         modifier = Modifier.fillMaxWidth(),
                     )
                 } else {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(220.dp),
+                    if (playlists.isEmpty()) {
+                        Text(
+                            "No existing playlists are available.",
+                            color = colors.secondaryText,
+                            fontSize = 12.sp,
+                            modifier = Modifier.padding(vertical = 12.dp),
+                        )
+                    } else Box(
+                        modifier = Modifier.fillMaxWidth().height(220.dp),
                     ) {
                         LazyColumn(
                             state = playlistListState,
@@ -2284,7 +2286,7 @@ private fun NowPlayingItemList(
     showActions: Boolean = true,
     onClick: (NaviampNowPlayingItemUi) -> Unit,
     rowActions: List<NaviampActionSpec> = queueRowActions(),
-    onAction: (NowPlayingItemActionRequest) -> Unit = {},
+    onAction: (NowPlayingItemActionRequest) -> Unit,
     swipeRightAction: TrackSwipeAction = TrackSwipeAction.None,
     swipeLeftAction: TrackSwipeAction = TrackSwipeAction.None,
     queueContext: Boolean = false,
@@ -2364,7 +2366,7 @@ private fun NowPlayingItemList(
                         .clickable { onClick(item) }
                         .padding(horizontal = 6.dp, vertical = rowVerticalPadding),
                 ) {
-                    PlatformCoverArt(item.coverArtUrl, colors, artworkSize, 4.dp)
+                    NaviampCoverArt(item.coverArtUrl, colors, artworkSize, 4.dp)
                     Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                         Text(item.title, color = colors.primaryText, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
                         Text(item.subtitle, color = colors.secondaryText, fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)

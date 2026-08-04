@@ -1,6 +1,10 @@
+<p align="center">
+  <img src="readme-assets/naviamp-icon.png" alt="Naviamp icon" width="144">
+</p>
+
 # Naviamp
 
-Naviamp is a music player for people who run their own music library. It connects to Navidrome and OpenSubsonic-compatible servers, then gives that library a polished app experience on desktop and Android.
+Naviamp is a music player for people who run their own music library. It connects to Navidrome and OpenSubsonic-compatible servers, then gives that library a polished app experience on desktop, Android, and iOS.
 
 The goal is simple: keep your music on your server, but make browsing, playback, discovery, lyrics, radio, playlists, and visualizers feel like they belong in a modern native player.
 
@@ -18,7 +22,7 @@ The goal is simple: keep your music on your server, but make browsing, playback,
 - Customize the player with Aurora gradients, adjustable blurred album art, a selected solid color, album-art-driven accents, waveform display, compact layouts, display toggles, and desktop visualizers.
 - Tune playback with ReplayGain, gapless playback, crossfade, sample-rate converter quality, and sample-rate matching.
 - Follow along with embedded or downloaded lyrics, including synced lyric highlighting where available.
-- Keep the same app model across macOS, Windows, Linux, and Android, with shared UI and playback behavior wherever the platforms allow it.
+- Keep the same app model across macOS, Windows, Linux, Android, and iOS, with shared UI and playback behavior wherever the platforms allow it.
 
 ## Sonic Analysis and Discovery
 
@@ -103,8 +107,15 @@ Naviamp currently targets:
 - Windows
 - Linux
 - Android
+- iOS
 
 The desktop app is built with Compose Multiplatform. The Android app shares the same core domain and UI model where practical, so features can move across platforms without being rebuilt from scratch.
+
+## Naviamp 2.0 Development
+
+Naviamp 2.0 is planned as one shared application hosted by thin Android, Desktop, and iOS platform applications. Feature releases on the v1 line are frozen during this work; v1 maintenance releases are limited to bug fixes.
+
+The architecture, milestones, progress checklist, BASS playback target, and multi-computer working agreement are maintained in the [Naviamp 2.0 cross-platform plan](docs/v2-cross-platform-plan.md). Active v2 development takes place on `feature/v2-cross-platform-app`; the version files remain on the current released version until the v2 release-preparation milestone.
 
 ## Requirements
 
@@ -150,6 +161,8 @@ Useful build targets:
 - `make android-debug` builds the Android debug APK.
 - `make desktop-test` runs the desktop test task.
 - `make linux-test` builds and stages a Linux desktop app when run on Linux with the required native playback resources.
+- `scripts/build-ios-unsigned-ipa.sh` creates an unsigned physical-device IPA on macOS with Xcode;
+  see [Sideloading Naviamp on iPhone or iPad](docs/ios-sideloading.md) before distributing or installing it.
 
 Windows and Linux installer targets must run on their target operating system because `jpackage` packages for the current OS:
 
@@ -159,6 +172,8 @@ make windows-installer
 make linux-standalone
 make linux-installer
 ```
+
+Desktop credentials use the operating system's secure store: macOS Keychain on macOS, DPAPI on Windows, and Secret Service on Linux. Linux installations therefore need `secret-tool` (normally supplied by the `libsecret-tools` package) and an available Secret Service implementation such as GNOME Keyring or KDE Wallet.
 
 Android release builds require a local signing configuration. Use `.env.android-signing.example` as the template for the required signing values.
 

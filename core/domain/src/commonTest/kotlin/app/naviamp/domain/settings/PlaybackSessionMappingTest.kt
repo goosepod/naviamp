@@ -9,6 +9,7 @@ import app.naviamp.domain.playback.PlaybackProgress
 import app.naviamp.domain.queue.PlaybackQueue
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 
 class PlaybackSessionMappingTest {
     @Test
@@ -150,6 +151,29 @@ class PlaybackSessionMappingTest {
         val save = plan as PlaybackSessionSavePlan.Save
         assertEquals(PlaybackSessionSavePlan.Kind.Track, save.kind)
         assertEquals(42.0, save.session.positionSeconds)
+    }
+
+    @Test
+    fun playbackSessionSavePlanPreservesNowPlayingVisibility() {
+        val currentTrack = track("current")
+        val existing = requireNotNull(
+            playbackSessionFromCurrentTrack(
+                currentTrack = currentTrack,
+                queue = PlaybackQueue(tracks = listOf(currentTrack), currentIndex = 0),
+            ),
+        ).copy(nowPlayingOpen = true)
+
+        val plan = planPlaybackSessionSave(
+            activeSourceId = "source",
+            station = null,
+            currentTrack = currentTrack,
+            playbackQueue = PlaybackQueue(tracks = listOf(currentTrack), currentIndex = 0),
+            progressPositionSeconds = 10.0,
+            notificationPositionSeconds = null,
+            existingSession = existing,
+        ) as PlaybackSessionSavePlan.Save
+
+        assertTrue(plan.session.nowPlayingOpen)
     }
 
     @Test

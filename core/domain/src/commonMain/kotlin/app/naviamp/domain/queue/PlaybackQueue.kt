@@ -260,6 +260,12 @@ data class PlaybackQueue(
         return copy(tracks = tracks.take(currentIndex + 1), playNextCount = 0)
     }
 
+    /** Removes every queued occurrence except the track that is currently playing. */
+    fun retainCurrentOnly(): PlaybackQueue {
+        val currentTrack = current ?: return PlaybackQueue()
+        return PlaybackQueue(tracks = listOf(currentTrack), currentIndex = 0)
+    }
+
     fun removePlayedHistory(): PlaybackQueue {
         if (currentIndex !in tracks.indices || currentIndex <= 0) return this
         return PlaybackQueue(

@@ -1,0 +1,342 @@
+package app.naviamp.ui
+
+import androidx.compose.foundation.Canvas
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameMillis
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
+import androidx.compose.ui.graphics.nativeCanvas
+import org.jetbrains.skia.ColorAlphaType
+import org.jetbrains.skia.ColorType
+import org.jetbrains.skia.FilterTileMode
+import org.jetbrains.skia.Image
+import org.jetbrains.skia.ImageInfo
+import org.jetbrains.skia.Paint
+import org.jetbrains.skia.Rect
+import org.jetbrains.skia.RuntimeEffect
+import org.jetbrains.skia.RuntimeShaderBuilder
+import org.jetbrains.skia.SamplingMode
+import org.jetbrains.skia.Shader
+
+/** Uses Compose's native Skia canvas while Core owns visualizer selection and shader behavior. */
+@Composable
+internal actual fun PlatformLiveVisualizerSurface(
+    coverArtUrl: String?,
+    bandsProvider: () -> List<Float>,
+    visualizer: NaviampVisualizer,
+    visualizerColors: NaviampPlayerColors,
+    active: Boolean,
+    tempoBpm: Int?,
+    colors: NaviampColors,
+    lyricStage: LyricMirrorTunnelStage,
+    modifier: Modifier,
+) {
+    val renderPolicy = remember(visualizer) {
+        visualizerRenderPolicy(visualizer, VisualizerRenderTier.Constrained)
+    }
+    val rendererMode = remember(visualizer) {
+        selectedVisualizerRendererMode(
+            visualizer = visualizer,
+            nativeRendererAvailable = IosMetalVisualizerRenderer.isAvailable(),
+        )
+    }
+    if (rendererMode == VisualizerRendererMode.Canvas) {
+        if (visualizer == NaviampVisualizer.LyricMirrorTunnel) {
+            LyricMirrorTunnelVisualizerSurface(
+                bandsProvider = bandsProvider,
+                visualizerColors = visualizerColors,
+                active = active,
+                colors = colors,
+                lyricStage = lyricStage,
+                renderPolicy = renderPolicy,
+                modifier = modifier,
+            )
+        } else {
+            SpectrumBarsVisualizerSurface(
+                bandsProvider = bandsProvider,
+                visualizerColors = visualizerColors,
+                active = active,
+                colors = colors,
+                renderPolicy = renderPolicy,
+                modifier = modifier,
+            )
+        }
+        return
+    }
+
+    var frameMillis by remember { mutableLongStateOf(0L) }
+    val albumArtOwner = remember { NaviampOwnedResource<Image>(Image::close) }
+    val albumArtRetirementScope = rememberCoroutineScope()
+    var albumArtImage by remember { mutableStateOf<Image?>(null) }
+    LaunchedEffect(active, visualizer, renderPolicy.targetFrameIntervalMillis) {
+        if (!active) {
+            frameMillis = 0L
+            return@LaunchedEffect
+        }
+        var lastRenderedFrameMillis = 0L
+        while (true) {
+            withFrameMillis { nextFrameMillis ->
+                if (
+                    lastRenderedFrameMillis == 0L ||
+                    nextFrameMillis - lastRenderedFrameMillis >= renderPolicy.targetFrameIntervalMillis
+                ) {
+                    lastRenderedFrameMillis = nextFrameMillis
+                    frameMillis = nextFrameMillis
+                }
+            }
+        }
+    }
+    LaunchedEffect(coverArtUrl, visualizer) {
+        val next = if (
+            coverArtUrl != null &&
+            (visualizer.usesAlbumArtShader || visualizer.nativeShaderDefinition != null)
+        ) {
+            platformCoverArtBytes(coverArtUrl)
+                ?.let { encoded -> runCatching { Image.makeFromEncoded(encoded) }.getOrNull() }
+        } else {
+            null
+        }
+        albumArtOwner.replaceForRendering(next, albumArtRetirementScope) { albumArtImage = it }
+    }
+
+    val effect = remember(visualizer) {
+        runCatching { RuntimeEffect.makeForShader(visualizer.shaderSource) }.getOrNull()
+    }
+    val renderer = remember(effect, visualizer, renderPolicy) {
+        effect?.let { IosSkiaVisualizerRenderer(it, visualizer, renderPolicy) }
+    }
+    val metalRenderer = remember(rendererMode, visualizer, renderPolicy) {
+        if (rendererMode == VisualizerRendererMode.NativeGpu) {
+            runCatching { IosMetalVisualizerRenderer(visualizer, renderPolicy) }.getOrNull()
+        } else {
+            null
+        }
+    }
+    val metalPaint = remember { Paint() }
+    DisposableEffect(renderer, effect, metalRenderer) {
+        onDispose {
+            metalRenderer?.close()
+            renderer?.close()
+            effect?.close()
+        }
+    }
+    DisposableEffect(metalPaint) {
+        onDispose { metalPaint.close() }
+    }
+    DisposableEffect(albumArtOwner) {
+        onDispose { albumArtOwner.close() }
+    }
+
+    if (renderer == null && metalRenderer == null) {
+        SpectrumBarsVisualizerSurface(
+            bandsProvider = bandsProvider,
+            visualizerColors = visualizerColors,
+            active = active,
+            colors = colors,
+            renderPolicy = renderPolicy,
+            modifier = modifier,
+        )
+        return
+    }
+
+    Canvas(modifier = modifier) {
+        val bands = bandsProvider()
+        val visibleBands = minOf(bands.size, (size.width / 6f).toInt().coerceAtLeast(16))
+        if (visibleBands <= 0 || size.width <= 0f || size.height <= 0f) return@Canvas
+        drawIntoCanvas { canvas ->
+            val metalImage = metalRenderer?.renderImage(
+                width = size.width.toInt().coerceAtLeast(1),
+                height = size.height.toInt().coerceAtLeast(1),
+                bands = bands,
+                active = active,
+                visualizerColors = visualizerColors,
+                colors = colors,
+                timeSeconds = frameMillis / 1_000f,
+                tempoBpm = tempoBpm,
+            )
+            if (metalImage != null) {
+                canvas.nativeCanvas.drawImageRect(
+                    metalImage,
+                    Rect.makeWH(metalImage.width.toFloat(), metalImage.height.toFloat()),
+                    Rect.makeWH(size.width, size.height),
+                    SamplingMode.LINEAR,
+                    metalPaint,
+                    true,
+                )
+                metalImage.close()
+            } else {
+                renderer?.draw(
+                    canvas = canvas.nativeCanvas,
+                    width = size.width,
+                    height = size.height,
+                    bands = bands,
+                    visibleBands = visibleBands,
+                    active = active,
+                    colors = colors,
+                    visualizerColors = visualizerColors,
+                    albumArtImage = albumArtImage,
+                    timeSeconds = frameMillis / 1_000f,
+                    tempoBpm = tempoBpm,
+                )
+            }
+        }
+    }
+}
+
+private class IosSkiaVisualizerRenderer(
+    effect: RuntimeEffect,
+    private val visualizer: NaviampVisualizer,
+    private val renderPolicy: VisualizerRenderPolicy,
+) : AutoCloseable {
+    private val builder = RuntimeShaderBuilder(effect)
+    private val paint = Paint()
+    private val uniformBands = FloatArray(VisualizerFrameBandCount)
+    private val smoothBands = FloatArray(VisualizerFrameBandCount)
+    private val historyPixels = ByteArray(VisualizerHistoryColumns * VisualizerHistoryRows * 4)
+    private val previousHistoryBands = FloatArray(VisualizerFrameBandCount)
+    private var shader: Shader? = null
+    private var historyShader: Shader? = null
+    private var historyImage: Image? = null
+    private var lastHistoryPushSeconds = -1f
+
+    fun draw(
+        canvas: org.jetbrains.skia.Canvas,
+        width: Float,
+        height: Float,
+        bands: List<Float>,
+        visibleBands: Int,
+        active: Boolean,
+        colors: NaviampColors,
+        visualizerColors: NaviampPlayerColors,
+        albumArtImage: Image?,
+        timeSeconds: Float,
+        tempoBpm: Int?,
+    ) {
+        smoothVisualizerBands(bands, smoothBands, uniformBands)
+        updateHistoryTexture(timeSeconds, active)
+        val frame = buildVisualizerFrameInput(
+            width = width,
+            height = height,
+            bands = bands,
+            visibleBands = visibleBands,
+            active = active,
+            timeSeconds = timeSeconds,
+            tempoBpm = tempoBpm,
+            uniformBands = uniformBands,
+        )
+        builder.uniform("iResolution", frame.width, frame.height)
+        builder.uniform("iTime", frame.timeSeconds)
+        builder.uniform("iAccent", visualizerColors.accent.red, visualizerColors.accent.green, visualizerColors.accent.blue, visualizerColors.accent.alpha)
+        builder.uniform("iColorA", visualizerColors.backgroundStart.red, visualizerColors.backgroundStart.green, visualizerColors.backgroundStart.blue, 1f)
+        builder.uniform("iColorB", visualizerColors.backgroundMid.red, visualizerColors.backgroundMid.green, visualizerColors.backgroundMid.blue, 1f)
+        builder.uniform("iColorC", visualizerColors.backgroundEnd.red, visualizerColors.backgroundEnd.green, visualizerColors.backgroundEnd.blue, 1f)
+        builder.uniform("iReadable", colors.primaryText.red, colors.primaryText.green, colors.primaryText.blue, colors.primaryText.alpha)
+        builder.uniform("iIdle", colors.primaryText.red, colors.primaryText.green, colors.primaryText.blue, colors.primaryText.alpha * 0.16f)
+        builder.uniform("iActive", if (frame.active) 1f else 0f)
+        builder.uniform("iVisibleBands", frame.visibleBands)
+        builder.uniform("iSourceBands", frame.sourceBands)
+        builder.uniform("iEnergy", frame.energy.bass, frame.energy.mids, frame.energy.highs, frame.energy.energy)
+        builder.uniform("iTempo", frame.tempoBpm)
+        builder.uniform("iBands", frame.bands)
+        if (visualizer.usesTranslatedNativeSkiaShader) {
+            builder.uniform("iAnalysis", frame.energy.spectralCentroid, frame.energy.beatDetected)
+            builder.uniform("iRenderScale", visualizer.nativeVisualizerRenderScale(renderPolicy))
+            builder.uniform("iMaxRaymarchSteps", visualizer.nativeVisualizerMaxRaymarchSteps(renderPolicy))
+        }
+        builder.uniform(
+            "iAlbumArtSize",
+            (albumArtImage?.width ?: 1).toFloat(),
+            (albumArtImage?.height ?: 1).toFloat(),
+        )
+        if (visualizer.usesHistoryShader) historyShader?.let { builder.child("iHistory", it) }
+        var temporaryAlbumShader: Shader? = null
+        if (visualizer.usesAlbumArtShader) {
+            temporaryAlbumShader = (albumArtImage ?: fallbackAlbumArtImage).makeShader(
+                FilterTileMode.CLAMP,
+                FilterTileMode.CLAMP,
+                SamplingMode.LINEAR,
+                null,
+            )
+            builder.child("iAlbumArt", temporaryAlbumShader)
+        }
+        shader?.close()
+        shader = builder.makeShader()
+        temporaryAlbumShader?.close()
+        paint.shader = shader
+        canvas.drawRect(Rect.makeWH(width, height), paint)
+    }
+
+    private fun updateHistoryTexture(timeSeconds: Float, active: Boolean) {
+        if (!active || !visualizer.usesHistoryShader) return
+        if (lastHistoryPushSeconds >= 0f && timeSeconds - lastHistoryPushSeconds < renderPolicy.historyIntervalSeconds) return
+        val changed = uniformBands.indices.any { index ->
+            kotlin.math.abs(uniformBands[index] - previousHistoryBands[index]) > 0.006f
+        }
+        if (!changed && lastHistoryPushSeconds >= 0f) return
+        lastHistoryPushSeconds = timeSeconds
+        uniformBands.copyInto(previousHistoryBands)
+        val rowBytes = VisualizerHistoryColumns * 4
+        historyPixels.copyInto(
+            destination = historyPixels,
+            destinationOffset = rowBytes,
+            startIndex = 0,
+            endIndex = rowBytes * (VisualizerHistoryRows - 1),
+        )
+        repeat(VisualizerHistoryColumns) { column ->
+            val sourceIndex = ((column / (VisualizerHistoryColumns - 1f)) * (VisualizerFrameBandCount - 1)).toInt()
+            val value = (uniformBands[sourceIndex].coerceIn(0f, 1f) * 255f).toInt().toByte()
+            val pixel = column * 4
+            historyPixels[pixel] = value
+            historyPixels[pixel + 1] = value
+            historyPixels[pixel + 2] = value
+            historyPixels[pixel + 3] = 255.toByte()
+        }
+        val nextImage = Image.makeRaster(
+            ImageInfo(VisualizerHistoryColumns, VisualizerHistoryRows, ColorType.RGBA_8888, ColorAlphaType.OPAQUE),
+            historyPixels,
+            rowBytes,
+        )
+        val nextShader = nextImage.makeShader(
+            FilterTileMode.CLAMP,
+            FilterTileMode.CLAMP,
+            SamplingMode.LINEAR,
+            null,
+        )
+        historyShader?.close()
+        historyImage?.close()
+        historyImage = nextImage
+        historyShader = nextShader
+    }
+
+    override fun close() {
+        shader?.close()
+        historyShader?.close()
+        historyImage?.close()
+        paint.close()
+        builder.close()
+    }
+
+    private companion object {
+        private val fallbackAlbumArtImage: Image by lazy {
+            Image.makeRaster(
+                ImageInfo(1, 1, ColorType.RGBA_8888, ColorAlphaType.OPAQUE),
+                byteArrayOf(255.toByte(), 255.toByte(), 255.toByte(), 255.toByte()),
+                4,
+            )
+        }
+    }
+}
+
+private val NaviampVisualizer.usesHistoryShader: Boolean
+    get() = this == NaviampVisualizer.SpectralRidge ||
+        this == NaviampVisualizer.FftMountain ||
+        this == NaviampVisualizer.PixelRidge ||
+        this == NaviampVisualizer.PixelMountain

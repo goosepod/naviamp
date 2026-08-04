@@ -8,6 +8,8 @@ import app.naviamp.domain.playback.PlaybackReplayGain
 import app.naviamp.domain.playback.ReplayGainMode
 import app.naviamp.domain.playback.ReplayGainSource
 import app.naviamp.domain.playback.resolvePlaybackAudioSource
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 fun interface AudioTagReader {
     suspend fun read(localAudio: PlaybackLocalAudio): List<AudioTag>
@@ -17,8 +19,20 @@ class AudioMetadataSidecarService(
     private val playbackAudioAssets: PlaybackAudioAssetRepository,
     private val audioTagReader: AudioTagReader,
 ) {
+    private val tagCacheMutex = Mutex()
+    private var cachedAudioPath: String? = null
+    private var cachedTags: List<AudioTag> = emptyList()
+
     suspend fun audioTags(localAudio: PlaybackLocalAudio?): List<AudioTag> =
-        localAudio?.let { audioTagReader.read(it) }.orEmpty()
+        localAudio?.let { audio ->
+            tagCacheMutex.withLock {
+                if (cachedAudioPath == audio.path) return@withLock cachedTags
+                audioTagReader.read(audio).also { tags ->
+                    cachedAudioPath = audio.path
+                    cachedTags = tags
+                }
+            }
+        }.orEmpty()
 
     suspend fun audioTagsForTrack(
         sourceId: String?,

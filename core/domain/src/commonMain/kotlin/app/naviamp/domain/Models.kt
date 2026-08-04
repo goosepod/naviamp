@@ -1,6 +1,7 @@
 package app.naviamp.domain
 
 import kotlinx.serialization.Serializable
+import kotlin.jvm.JvmInline
 
 @JvmInline
 value class ProviderId(val value: String)
@@ -79,6 +80,7 @@ data class Track(
     val userRating: Int? = null,
     val bpm: Int? = null,
     val moods: List<String> = emptyList(),
+    val genres: List<String> = emptyList(),
     val playCount: Int? = null,
     val lastPlayedAtIso8601: String? = null,
     val musicFolderId: String? = null,
@@ -86,9 +88,17 @@ data class Track(
 )
 
 fun Track.resolvedArtistCredits(): List<ArtistCredit> {
-    val structuredCredits = artistCredits
+    val distinctStructuredCredits = artistCredits
         .filter { it.name.isNotBlank() }
         .distinctBy { credit -> credit.id?.value ?: credit.name.lowercase() }
+    val structuredCredits = distinctStructuredCredits.filterNot { candidate ->
+        val componentCredits = distinctStructuredCredits.filterNot { it === candidate }
+        candidate.name.equals(artistName.trim(), ignoreCase = true) &&
+            componentCredits.size >= 2 &&
+            componentCredits.all { component ->
+                candidate.name.contains(component.name.trim(), ignoreCase = true)
+            }
+    }
     val legacyNames = artistName
         .split(',', ';')
         .map(String::trim)

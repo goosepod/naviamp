@@ -1273,6 +1273,29 @@ class PlaylistMutationsTest {
         )
     }
 
+    @Test
+    fun replaceStandardPlaylistTracksValidatesAndPreservesRequestedOrder() = kotlinx.coroutines.test.runTest {
+        val provider = FakePlaylistProvider(emptyList(), emptyList())
+        val playlist = playlist("playlist", "Road Trip")
+        val current = listOf(track("old"))
+        val updated = listOf(track("two"), track("one"), track("two"))
+
+        provider.replaceStandardPlaylistTracks(playlist, current, updated)
+
+        assertEquals("playlist", provider.replacedPlaylistId)
+        assertEquals(1, provider.replacedCurrentTrackCount)
+        assertEquals(listOf(TrackId("two"), TrackId("one"), TrackId("two")), provider.replacedTrackIds)
+        assertFailsWith<IllegalArgumentException> {
+            provider.replaceStandardPlaylistTracks(playlist.copy(isSmart = true), current, updated)
+        }
+        assertEquals("Saving Road Trip...", standardPlaylistTracksUpdateLoadingStatus(playlist))
+        assertEquals("Updated playlist.", standardPlaylistTracksUpdateSuccessStatus())
+        assertEquals(
+            "Could not update playlist.",
+            standardPlaylistTracksUpdateErrorMessage(IllegalStateException()),
+        )
+    }
+
     private fun playlist(id: String, name: String): Playlist =
         Playlist(
             id = id,
@@ -1372,6 +1395,12 @@ class PlaylistMutationsTest {
             private set
         var loadedSmartPlaylistId: String? = null
             private set
+        var replacedPlaylistId: String? = null
+            private set
+        var replacedCurrentTrackCount: Int? = null
+            private set
+        var replacedTrackIds: List<TrackId> = emptyList()
+            private set
 
         override suspend fun createPlaylist(name: String, trackIds: List<TrackId>): Playlist {
             createdPlaylistName = name
@@ -1391,6 +1420,16 @@ class PlaylistMutationsTest {
 
         override suspend fun deletePlaylist(playlistId: String) {
             deletedPlaylistId = playlistId
+        }
+
+        override suspend fun replacePlaylistTracks(
+            playlistId: String,
+            currentTrackCount: Int,
+            trackIds: List<TrackId>,
+        ) {
+            replacedPlaylistId = playlistId
+            replacedCurrentTrackCount = currentTrackCount
+            replacedTrackIds = trackIds
         }
 
         override suspend fun createSmartPlaylist(definition: SmartPlaylistDefinition): Playlist =

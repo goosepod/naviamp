@@ -10,6 +10,25 @@ import kotlin.test.assertTrue
 
 class BassPlaybackPollingTest {
     @Test
+    fun corePolicyFinishesForEitherSourceEndOrStoppedPolling() {
+        val policy = BassPlaybackPollingPolicy.CoreEngine
+        val update = planBassPlaybackPollingUpdate(
+            snapshot = snapshot(
+                activeState = BassActiveState.Playing,
+                sourceActiveState = BassActiveState.Stopped,
+                progress = PlaybackProgress(positionSeconds = 10.0, durationSeconds = 10.0),
+            ),
+            previous = BassPlaybackPollingState(),
+            policy = policy,
+        )
+
+        assertEquals(DefaultBassPollingIntervalMillis, policy.pollIntervalMillis)
+        assertTrue(update.finished)
+        assertFalse(update.shouldContinue)
+        assertTrue(policy.finishWhenPollingStops)
+    }
+
+    @Test
     fun androidServicePolicySkipsDuplicateProgressAndFinishesOnSourceEnd() {
         val progress = PlaybackProgress(positionSeconds = 9.5, durationSeconds = 10.0)
         val update = planBassPlaybackPollingUpdate(

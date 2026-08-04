@@ -27,13 +27,14 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.key
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.LayoutCoordinates
+import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
@@ -72,6 +73,33 @@ private fun <T> List<T>.moveItem(fromIndex: Int, toIndex: Int): List<T> {
         add(toIndex, item)
     }
 }
+
+fun playlistDragTargetIndex(
+    fromIndex: Int,
+    dragOffsetY: Float,
+    rowStepPx: Float,
+    lastIndex: Int,
+): Int = if (rowStepPx <= 0f || lastIndex < 0) {
+    fromIndex
+} else {
+    (fromIndex + (dragOffsetY / rowStepPx).roundToInt()).coerceIn(0, lastIndex)
+}
+
+fun playlistDragGapOffset(
+    rowIndex: Int,
+    fromIndex: Int,
+    targetIndex: Int,
+    rowStepPx: Float,
+): Float = when {
+    targetIndex > fromIndex && rowIndex in (fromIndex + 1)..targetIndex -> -rowStepPx
+    targetIndex < fromIndex && rowIndex in targetIndex until fromIndex -> rowStepPx
+    else -> 0f
+}
+
+private data class PlaylistManagementEntry(
+    val key: String,
+    val track: SharedTrackRowUi,
+)
 
 @Composable
 fun StandardPlaylistEditorDialog(
@@ -238,8 +266,12 @@ fun StandardPlaylistManagementList(
     dragViewportTop: Float = 0f,
     dragViewportBottom: Float = Float.POSITIVE_INFINITY,
 ) {
-    var tracks by remember(initialTracks) { mutableStateOf(initialTracks) }
-    var undoTracks by remember(initialTracks) { mutableStateOf<List<SharedTrackRowUi>?>(null) }
+    var entries by remember(initialTracks) {
+        mutableStateOf(initialTracks.mapIndexed { index, track ->
+            PlaylistManagementEntry(key = "$index:${track.id}", track = track)
+        })
+    }
+    var undoEntries by remember(initialTracks) { mutableStateOf<List<PlaylistManagementEntry>?>(null) }
     var saving by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var draggingIndex by remember { mutableStateOf<Int?>(null) }
@@ -250,6 +282,10 @@ fun StandardPlaylistManagementList(
     val autoScrollEdgePx = with(density) { PlaylistDragAutoScrollEdge.toPx() }
     val minimumAutoScrollPx = with(density) { PlaylistDragMinimumAutoScroll.toPx() }
     val maximumAutoScrollPx = with(density) { PlaylistDragMaximumAutoScroll.toPx() }
+    val rowStepPx = with(density) { PlaylistManagementRowStep.toPx() }
+    val dragTargetIndex = draggingIndex?.let { fromIndex ->
+        playlistDragTargetIndex(fromIndex, dragOffsetY, rowStepPx, entries.lastIndex)
+    }
     val autoScrollDelta = when {
         draggingIndex == null ||
             dragPointerY.isNaN() ||
@@ -268,22 +304,28 @@ fun StandardPlaylistManagementList(
         else -> 0f
     }
 
+    fun updateDrag(deltaY: Float, pointerY: Float = dragPointerY) {
+        if (draggingIndex == null) return
+        dragOffsetY += deltaY
+        dragPointerY = pointerY
+    }
+
     LaunchedEffect(draggingIndex, autoScrollDelta, scrollState) {
         val activeScrollState = scrollState ?: return@LaunchedEffect
         if (draggingIndex == null || autoScrollDelta == 0f) return@LaunchedEffect
         while (true) {
             val consumed = activeScrollState.scrollBy(autoScrollDelta)
             if (consumed == 0f) break
-            dragOffsetY += consumed
+            updateDrag(consumed)
             withFrameNanos { }
         }
     }
 
     fun apply(index: Int, action: TrackSwipeAction) {
-        val updated = applyPlaylistEditTrackAction(tracks, index, action)
-        if (updated != tracks) {
-            undoTracks = tracks
-            tracks = updated
+        val updated = applyPlaylistEditTrackAction(entries, index, action)
+        if (updated != entries) {
+            undoEntries = entries
+            entries = updated
             errorMessage = null
         }
     }
@@ -291,11 +333,10 @@ fun StandardPlaylistManagementList(
     fun finishDrag(rowStepPx: Float) {
         val fromIndex = draggingIndex
         if (fromIndex != null && rowStepPx > 0f) {
-            val toIndex = (fromIndex + (dragOffsetY / rowStepPx).roundToInt())
-                .coerceIn(tracks.indices)
+            val toIndex = playlistDragTargetIndex(fromIndex, dragOffsetY, rowStepPx, entries.lastIndex)
             if (toIndex != fromIndex) {
-                undoTracks = tracks
-                tracks = tracks.moveItem(fromIndex, toIndex)
+                undoEntries = entries
+                entries = entries.moveItem(fromIndex, toIndex)
                 errorMessage = null
             }
         }
@@ -315,27 +356,27 @@ fun StandardPlaylistManagementList(
                 PlaylistManagementActionButton(
                     colors = colors,
                     label = "Undo",
-                    enabled = undoTracks != null && !saving,
+                    enabled = undoEntries != null && !saving,
                     onClick = {
-                        undoTracks?.let { previous ->
-                            val current = tracks
-                            tracks = previous
-                            undoTracks = current
+                        undoEntries?.let { previous ->
+                            val current = entries
+                            entries = previous
+                            undoEntries = current
                         }
                     },
                 )
                 PlaylistManagementActionButton(
                     colors = colors,
                     label = if (saving) "Saving..." else "Save changes",
-                    enabled = tracks != initialTracks && !saving,
+                    enabled = entries.map { it.track } != initialTracks && !saving,
                     onClick = {
                         saving = true
                         errorMessage = null
                         scope.launch {
-                            runCatching { onSave(tracks) }
+                            runCatching { onSave(entries.map { it.track }) }
                                 .onSuccess {
                                     saving = false
-                                    undoTracks = null
+                                    undoEntries = null
                                 }
                                 .onFailure { error ->
                                     saving = false
@@ -349,39 +390,62 @@ fun StandardPlaylistManagementList(
         errorMessage?.let { message ->
             Text(message, color = colors.secondaryText, fontSize = 12.sp)
         }
-        tracks.forEachIndexed { index, track ->
-            val swipeSettings = LocalTrackSwipeSettings.current
-            val isDragging = draggingIndex == index
-            SwipeActionContainer(
-                modifier = Modifier.zIndex(if (isDragging) 2f else 0f),
-                swipeRight = playlistEditSwipeVisual(swipeSettings.playlistEditRight) { action -> apply(index, action) },
-                swipeLeft = playlistEditSwipeVisual(swipeSettings.playlistEditLeft) { action -> apply(index, action) },
-                clipContent = !isDragging,
-            ) { swipeModifier ->
-                PlaylistManagementTrackRow(
-                    colors = colors,
-                    track = track,
-                    index = index,
-                    modifier = swipeModifier,
-                    isDragging = isDragging,
-                    dragOffsetY = if (isDragging) dragOffsetY else 0f,
-                    dragEnabled = !saving,
-                    onTrackSelected = { onTrackSelected(track) },
-                    onDragStart = {
-                        draggingIndex = index
-                        dragOffsetY = 0f
-                    },
-                    onDrag = { deltaY, pointerY ->
-                        dragOffsetY += deltaY
-                        dragPointerY = pointerY
-                    },
-                    onDragEnd = ::finishDrag,
-                    onDragCancel = {
-                        draggingIndex = null
-                        dragOffsetY = 0f
-                        dragPointerY = Float.NaN
-                    },
-                )
+        Layout(
+            modifier = Modifier.fillMaxWidth(),
+            content = {
+                entries.forEachIndexed { index, entry ->
+                    key(entry.key) {
+                    val swipeSettings = LocalTrackSwipeSettings.current
+                    val isDragging = draggingIndex == index
+                    SwipeActionContainer(
+                        modifier = Modifier.zIndex(if (isDragging) 2f else 0f),
+                        swipeRight = playlistEditSwipeVisual(swipeSettings.playlistEditRight) { action -> apply(index, action) },
+                        swipeLeft = playlistEditSwipeVisual(swipeSettings.playlistEditLeft) { action -> apply(index, action) },
+                    ) { swipeModifier ->
+                        PlaylistManagementTrackRow(
+                            colors = colors,
+                            track = entry.track,
+                            index = index,
+                            modifier = swipeModifier,
+                            isDragging = isDragging,
+                            dragEnabled = !saving,
+                            onTrackSelected = { onTrackSelected(entry.track) },
+                            onDragStart = {
+                                draggingIndex = index
+                                dragOffsetY = 0f
+                            },
+                            onDrag = { deltaY, pointerY ->
+                                updateDrag(deltaY, pointerY)
+                            },
+                            onDragEnd = ::finishDrag,
+                            onDragCancel = {
+                                draggingIndex = null
+                                dragOffsetY = 0f
+                                dragPointerY = Float.NaN
+                            },
+                        )
+                    }
+                    }
+                }
+            },
+        ) { measurables, constraints ->
+            val rowHeight = rowStepPx.roundToInt().coerceAtLeast(1)
+            val rowConstraints = constraints.copy(minHeight = 0, maxHeight = rowHeight)
+            val placeables = measurables.map { measurable -> measurable.measure(rowConstraints) }
+            layout(constraints.maxWidth, rowHeight * placeables.size) {
+                placeables.forEachIndexed { index, placeable ->
+                    val y = if (index == draggingIndex) {
+                        index * rowHeight + dragOffsetY.roundToInt()
+                    } else {
+                        index * rowHeight + playlistDragGapOffset(
+                            rowIndex = index,
+                            fromIndex = draggingIndex ?: index,
+                            targetIndex = dragTargetIndex ?: index,
+                            rowStepPx = rowHeight.toFloat(),
+                        ).roundToInt()
+                    }
+                    placeable.placeRelative(0, y)
+                }
             }
         }
     }
@@ -439,7 +503,6 @@ private fun PlaylistManagementTrackRow(
     index: Int,
     modifier: Modifier,
     isDragging: Boolean,
-    dragOffsetY: Float,
     dragEnabled: Boolean,
     onTrackSelected: () -> Unit,
     onDragStart: () -> Unit,
@@ -452,7 +515,6 @@ private fun PlaylistManagementTrackRow(
         modifier = modifier
             .fillMaxWidth()
             .zIndex(if (isDragging) 1f else 0f)
-            .graphicsLayer { translationY = dragOffsetY }
             .background(if (isDragging) colors.accent.copy(alpha = 0.18f) else Color.Transparent)
             .clickable(onClick = onTrackSelected)
             .padding(horizontal = 6.dp, vertical = 4.dp),
@@ -511,7 +573,7 @@ private fun PlaylistManagementTrackRow(
     }
 }
 
-private val PlaylistManagementRowStep = 44.dp
+private val PlaylistManagementRowStep = 52.dp
 private val PlaylistDragAutoScrollEdge = 72.dp
 private val PlaylistDragMinimumAutoScroll = 3.dp
 private val PlaylistDragMaximumAutoScroll = 16.dp

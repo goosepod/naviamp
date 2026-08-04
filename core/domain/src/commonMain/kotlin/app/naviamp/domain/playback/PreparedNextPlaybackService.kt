@@ -4,6 +4,7 @@ import app.naviamp.domain.StreamQuality
 import app.naviamp.domain.Track
 import app.naviamp.domain.provider.MediaProvider
 import app.naviamp.domain.queue.PlaybackQueue
+import app.naviamp.domain.queue.RepeatMode
 import app.naviamp.domain.settings.DownloadedTrackPlayback
 
 data class PreparedNextPlaybackRequest(
@@ -108,6 +109,21 @@ fun preparedNextPlaybackWork(
         plan = plan,
     )
 }
+
+fun preparedNextPlaybackWork(
+    queue: PlaybackQueue,
+    repeatMode: RepeatMode,
+    progress: PlaybackProgress,
+    preparedNextIndex: Int?,
+    settings: PreparedNextPlaybackSettings,
+): PreparedNextPlaybackWork? =
+    preparedNextPlaybackWork(
+        queue = queue,
+        progress = progress,
+        nextQueueIndex = PlaybackQueueManager().nextPreparedQueueIndex(queue, repeatMode),
+        preparedNextIndex = preparedNextIndex,
+        settings = settings,
+    )
 
 fun planPreparedNextQueuePlayback(
     queue: PlaybackQueue,

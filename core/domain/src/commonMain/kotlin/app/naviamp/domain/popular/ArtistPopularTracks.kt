@@ -135,6 +135,7 @@ class ArtistPopularTracksService(
 class SimilarArtistsService(
     private val libraryArtistsSearch: suspend (String, Long) -> List<Artist>,
     private val client: SimilarArtistsClient,
+    private val fallbackArtistsSearch: suspend (String, Long) -> List<Artist> = { _, _ -> emptyList() },
 ) {
     suspend fun similarArtists(
         artist: Artist,
@@ -143,15 +144,15 @@ class SimilarArtistsService(
         val candidates = client.similarArtists(artist, limit)
         if (candidates.isEmpty()) return emptyList()
 
-        val localArtistsByName = candidates
-            .flatMap { candidate -> libraryArtistsSearch(candidate.name, 8) }
-            .distinctBy { it.id }
-            .associateBy { it.name.artistSearchText() }
-
         return candidates.map { candidate ->
+            val searchName = candidate.name.artistSearchText()
+            val matchedArtist = libraryArtistsSearch(candidate.name, SimilarArtistMatchSearchLimit)
+                .firstOrNull { it.name.artistSearchText() == searchName }
+                ?: fallbackArtistsSearch(candidate.name, SimilarArtistMatchSearchLimit)
+                    .firstOrNull { it.name.artistSearchText() == searchName }
             SimilarArtistMatch(
                 candidate = candidate,
-                matchedArtist = localArtistsByName[candidate.name.artistSearchText()],
+                matchedArtist = matchedArtist,
             )
         }
     }
@@ -166,6 +167,8 @@ class SimilarArtistsService(
         return similarArtists(resolvedArtist, limit)
     }
 }
+
+private const val SimilarArtistMatchSearchLimit = 8L
 
 fun matchPopularTracks(
     candidates: List<ArtistPopularTrackCandidate>,
@@ -245,4 +248,6 @@ private fun String.artistSearchText(): String =
 
 const val NavidromeAgentMetadataSource = "navidrome"
 
-internal expect fun currentTimeMillis(): Long
+@OptIn(kotlin.time.ExperimentalTime::class)
+internal fun currentTimeMillis(): Long =
+    kotlin.time.Clock.System.now().toEpochMilliseconds()

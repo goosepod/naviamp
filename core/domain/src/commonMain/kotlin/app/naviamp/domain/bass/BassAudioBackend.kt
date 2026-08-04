@@ -10,6 +10,7 @@ import app.naviamp.domain.playback.planPreparedMixerTransition
 import app.naviamp.domain.playback.playbackSourceHandle
 import app.naviamp.domain.playback.playbackVisualizerFrameFromFft
 import app.naviamp.domain.playback.playbackVolumeApplicationPlan
+import kotlin.jvm.JvmInline
 
 @JvmInline
 value class BassStreamHandle(val value: Int)
@@ -119,12 +120,22 @@ data class BassPlaybackSnapshot(
     val metadata: PlaybackStreamMetadata,
 )
 
+/** Core-owned native buffering policy translated by each BASS host adapter. */
+data class BassPlaybackBufferPolicy(
+    val playbackBufferMillis: Int = 1_500,
+    val updatePeriodMillis: Int = 100,
+    val deviceBufferMillis: Int = 60,
+)
+
 data class BassPreparedSource(
     val sourceHandle: Int,
     val crossfadeActive: Boolean,
 )
 
 interface BassAudioBackend {
+    val supportsOutputDeviceSelection: Boolean
+        get() = false
+
     val version: Int?
         get() = null
 
@@ -145,6 +156,8 @@ interface BassAudioBackend {
 
     val supportsMixer: Boolean
         get() = false
+
+    fun configurePlaybackBuffers(policy: BassPlaybackBufferPolicy): Result<Unit> = Result.success(Unit)
 
     fun init(): Result<Unit> = unsupportedBassOperation("BASS init")
 

@@ -36,7 +36,7 @@ fun NaviampAlbumBlurBackground(
                 .graphicsLayer(scaleX = coverScale, scaleY = coverScale)
                 .blur(blurRadiusDp.coerceIn(MinAlbumBlurRadiusDp, MaxAlbumBlurRadiusDp).dp),
         ) {
-            PlatformCoverArt(
+            NaviampCoverArt(
                 url = url,
                 colors = colors,
                 size = imageSize,

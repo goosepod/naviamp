@@ -87,7 +87,25 @@ class AudioByteStoreService(
 
 fun stableAudioFileName(sourceId: String, trackId: String, qualityKey: String): String {
     val digest = sha256("$sourceId:$trackId:$qualityKey".encodeToByteArray())
-    return digest.joinToString("") { byte -> "%02x".format(byte.toInt() and 0xff) }.take(32)
+    val hex = "0123456789abcdef"
+    return buildString(digest.size * 2) {
+        for (byte in digest) {
+            val value = byte.toInt() and 0xff
+            append(hex[value shr 4])
+            append(hex[value and 0x0f])
+        }
+    }.take(32)
+}
+
+/** Defense-in-depth check used before deleting an audio path recorded in Naviamp storage. */
+fun isNaviampOwnedAudioFileName(fileName: String): Boolean {
+    val extensionIndex = fileName.lastIndexOf('.')
+    if (extensionIndex <= 0) return false
+    val stem = fileName.substring(0, extensionIndex)
+    val extension = fileName.substring(extensionIndex).lowercase()
+    return stem.length in setOf(32, 40, 64) &&
+        stem.all { it.isDigit() || it.lowercaseChar() in 'a'..'f' } &&
+        extension in setOf(".mp3", ".aac", ".flac", ".ogg", ".opus", ".m4a", ".wav", ".audio")
 }
 
 fun String?.audioExtension(): String =
@@ -102,4 +120,4 @@ fun String?.audioExtension(): String =
         else -> ".audio"
     }
 
-expect fun sha256(bytes: ByteArray): ByteArray
+fun sha256(bytes: ByteArray): ByteArray = NaviampSha256.digest(bytes)

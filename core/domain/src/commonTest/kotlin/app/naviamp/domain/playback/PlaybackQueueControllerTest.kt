@@ -155,6 +155,27 @@ class PlaybackQueueControllerTest {
     }
 
     @Test
+    fun appliesSharedSelectionAndFinishedUpdatesWithoutReplanningThem() {
+        val tracks = listOf(track("one"), track("two"))
+        val manager = PlaybackQueueManager()
+        val controller = PlaybackQueueController(PlaybackQueue(tracks, currentIndex = 0))
+
+        val nextUpdate = manager.selectNext(controller.queue, RepeatMode.Off)
+        val next = assertNotNull(controller.applySelection(nextUpdate))
+        assertEquals(1, next.sessionId)
+        assertEquals(tracks[1], next.track)
+
+        val finishedUpdate = manager.finishCurrentTrack(
+            queue = controller.queue,
+            repeatMode = RepeatMode.Off,
+            removePlayedTracksFromQueue = true,
+        )
+        assertNull(controller.applyFinishedUpdate(finishedUpdate))
+        assertEquals(PlaybackQueue(), controller.queue)
+        assertEquals(1, controller.playbackSessionId)
+    }
+
+    @Test
     fun preparedNextAndShuffleAreTrackedWithQueueChanges() {
         val tracks = listOf(track("one"), track("two"), track("three"))
         val controller = PlaybackQueueController()

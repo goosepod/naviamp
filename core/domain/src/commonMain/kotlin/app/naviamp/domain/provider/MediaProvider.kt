@@ -25,6 +25,7 @@ interface MediaProvider {
         get() = id.value
     val selectedMusicFolderIds: List<String>
         get() = emptyList()
+    fun recentApiCalls(limit: Int = 50): List<ProviderApiCallDiagnostic> = emptyList()
 
     suspend fun validateConnection(): ConnectionValidation
     suspend fun libraryScanStatus(): LibraryScanStatus? = null
@@ -212,6 +213,15 @@ data class ProviderCapabilities(
     val supportsPlayReporting: Boolean = false,
     val supportsSmartPlaylists: Boolean = false,
     val supportsSonicSimilarity: Boolean = false,
+)
+
+data class ProviderApiCallDiagnostic(
+    val source: String,
+    val endpoint: String,
+    val sanitizedUrl: String,
+    val durationMillis: Long,
+    val success: Boolean,
+    val errorMessage: String? = null,
 )
 
 data class ConnectionValidation(

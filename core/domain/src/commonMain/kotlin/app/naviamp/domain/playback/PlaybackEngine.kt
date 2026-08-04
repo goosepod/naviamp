@@ -33,6 +33,11 @@ interface PlaybackEngine {
     fun stop()
 }
 
+/** Optional one-way host shutdown contract for engines that own native resources. */
+interface ReleasablePlaybackEngine : PlaybackEngine {
+    fun release()
+}
+
 interface QueueAwarePlaybackEngine : PlaybackEngine {
     fun setCrossfadeDuration(seconds: Int)
 
@@ -63,6 +68,34 @@ interface SampleRateConverterPlaybackEngine : PlaybackEngine {
 
 interface SampleRateMatchingPlaybackEngine : PlaybackEngine {
     fun setSampleRateMatching(mode: app.naviamp.domain.settings.SampleRateMatching)
+}
+
+/** Optional native-network effect controlled by Core for the stream about to be opened. */
+interface NetworkCertificateVerificationPlaybackEngine : PlaybackEngine {
+    fun setNetworkCertificateVerification(enabled: Boolean)
+}
+
+/**
+ * Complete platform-neutral feature contract for every Naviamp BASS engine.
+ *
+ * Native hosts supply library loading, audio-session/lifecycle integration, and the
+ * [app.naviamp.domain.bass.BassAudioBackend]. BASS transport, queue preparation, visualizer,
+ * equalizer, ReplayGain, and sample-rate behavior must remain feature-identical through this
+ * contract and are being consolidated into one shared implementation.
+ */
+interface BassPlaybackEngine :
+    QueueAwarePlaybackEngine,
+    VisualizerPlaybackEngine,
+    EqualizerPlaybackEngine,
+    ReplayGainPlaybackEngine,
+    SampleRateConverterPlaybackEngine,
+    SampleRateMatchingPlaybackEngine,
+    NetworkCertificateVerificationPlaybackEngine,
+    ReleasablePlaybackEngine
+
+/** Optional engine diagnostics consumed by shared or host-native diagnostic presentation. */
+interface PlaybackEngineDiagnostics {
+    fun statsRows(): List<Pair<String, String>>
 }
 
 fun targetOutputSampleRate(

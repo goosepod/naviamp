@@ -23,6 +23,18 @@ fun StreamQuality.downloadContentType(originalContentType: String?): String? =
         }
     }
 
+fun String.toStoredAudioQuality(): StreamQuality? = when {
+    this == "original" -> StreamQuality.Original
+    startsWith("transcoded:") -> split(':').let { parts ->
+        val codec = parts.getOrNull(1)?.let { storedCodec ->
+            AudioCodec.entries.firstOrNull { it.name.equals(storedCodec, ignoreCase = true) }
+        }
+        val bitrate = parts.getOrNull(2)?.toIntOrNull()
+        if (codec != null && bitrate != null) StreamQuality.Transcoded(codec, bitrate) else null
+    }
+    else -> null
+}
+
 fun downloadedAudioQualityLabel(
     qualityKey: String,
     audioInfo: AudioInfo?,

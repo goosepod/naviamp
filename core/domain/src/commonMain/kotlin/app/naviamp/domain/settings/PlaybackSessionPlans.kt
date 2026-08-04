@@ -29,6 +29,7 @@ sealed interface PlaybackSessionRestorePlan {
 
     data class InternetRadio(
         val station: InternetRadioStation,
+        val currentTrack: Track? = null,
         val playbackQueue: PlaybackQueue = PlaybackQueue(),
         val playbackProgress: PlaybackProgress = PlaybackProgress.Unknown,
         val streamMetadata: PlaybackStreamMetadata = PlaybackStreamMetadata(),
@@ -89,7 +90,9 @@ fun planPlaybackSessionSave(
     if (activeSourceId == null) return PlaybackSessionSavePlan.None
     if (station != null) {
         return PlaybackSessionSavePlan.Save(
-            session = PlaybackSessionSettings.fromInternetRadioStation(station),
+            session = PlaybackSessionSettings.fromInternetRadioStation(station).copy(
+                nowPlayingOpen = existingSession?.nowPlayingOpen == true,
+            ),
             kind = PlaybackSessionSavePlan.Kind.InternetRadio,
         )
     }
@@ -106,7 +109,7 @@ fun planPlaybackSessionSave(
         positionSeconds = positionSeconds,
     ) ?: return PlaybackSessionSavePlan.None
     return PlaybackSessionSavePlan.Save(
-        session = session,
+        session = session.copy(nowPlayingOpen = existingSession?.nowPlayingOpen == true),
         kind = PlaybackSessionSavePlan.Kind.Track,
     )
 }
@@ -114,7 +117,10 @@ fun planPlaybackSessionSave(
 fun planPlaybackSessionRestore(session: PlaybackSessionSettings?): PlaybackSessionRestorePlan {
     val savedSession = session ?: return PlaybackSessionRestorePlan.None
     savedSession.internetRadioStation?.toStation()?.let { station ->
-        return PlaybackSessionRestorePlan.InternetRadio(station)
+        return PlaybackSessionRestorePlan.InternetRadio(
+            station = station,
+            currentTrack = savedSession.currentTrack(),
+        )
     }
     val restoredSession = savedSession.restoredTrackSession() ?: return PlaybackSessionRestorePlan.None
     return PlaybackSessionRestorePlan.TrackSession(

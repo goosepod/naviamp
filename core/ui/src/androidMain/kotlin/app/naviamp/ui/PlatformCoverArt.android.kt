@@ -10,30 +10,7 @@ import android.graphics.Paint
 import android.graphics.Rect
 import android.graphics.RectF
 import android.graphics.Shader
-import androidx.compose.animation.Crossfade
-import androidx.compose.animation.core.tween
-import androidx.compose.foundation.Image
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
-import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.unit.Dp
-import androidx.compose.ui.unit.dp
 import app.naviamp.domain.network.KtorSharedHttpClient
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
@@ -42,8 +19,6 @@ import java.io.File
 import java.io.ByteArrayOutputStream
 import java.security.MessageDigest
 import java.util.LinkedHashMap
-import kotlin.math.ceil
-import kotlin.math.min
 
 @Volatile
 private var androidPlatformCoverArtByteLoader: (suspend (String) -> ByteArray?)? = null
@@ -54,144 +29,29 @@ fun setAndroidPlatformCoverArtByteLoader(loader: suspend (String) -> ByteArray?)
 
 fun resetAndroidPlatformCoverArtByteLoader() {
     androidPlatformCoverArtByteLoader = null
+    resetNaviampCoverArtCache()
 }
 
 internal suspend fun androidPlatformCoverArtBytes(url: String): ByteArray? =
     generatedRadioTileBytes(url) ?: androidPlatformCoverArtByteLoader?.invoke(url) ?: AndroidCoverArtHttpClient.getBytes(url)
 
+/** Resolves authenticated artwork for native Android surfaces that require a local file. */
+suspend fun androidPlatformCoverArtFile(context: Context, url: String): File? =
+    AndroidCoverArtCache.imageFile(context.applicationContext, url)
+
 private val AndroidCoverArtHttpClient = KtorSharedHttpClient()
 
-@Composable
-actual fun PlatformCoverArt(
-    url: String?,
-    colors: NaviampColors,
-    size: Dp,
-    cornerRadius: Dp,
-) {
-    val context = LocalContext.current
-    val targetImageSizePx = with(LocalDensity.current) {
-        ceil(size.toPx()).toInt().coerceIn(MinCoverArtBitmapSidePx, MaxCoverArtBitmapSidePx)
-    }
-    var image by remember { mutableStateOf<ImageBitmap?>(null) }
-    val shape = RoundedCornerShape(cornerRadius)
+internal actual suspend fun platformCoverArtBytes(url: String): ByteArray? =
+    androidPlatformCoverArtBytes(url)
 
-    LaunchedEffect(url, targetImageSizePx) {
-        if (url == null) {
-            image = null
-            return@LaunchedEffect
-        }
-        image = runCatching {
-            withContext(Dispatchers.IO) {
-                AndroidCoverArtCache.imageBytes(context, url)
-                    ?.let { decodeSampledBitmap(it, targetImageSizePx)?.asImageBitmap() }
-            }
-        }.getOrNull()
-    }
-
-    Box(
-        contentAlignment = androidx.compose.ui.Alignment.Center,
-        modifier = Modifier.size(size),
-    ) {
-        Box(
-            modifier = Modifier
-                .size(size)
-                .clip(shape)
-                .background(colors.albumArtPlaceholder),
-        ) {
-            Crossfade(
-                targetState = image,
-                animationSpec = tween(durationMillis = 180),
-                label = "Cover art fade",
-            ) { targetImage ->
-                targetImage?.let {
-                    Image(
-                        bitmap = it,
-                        contentDescription = "Album art",
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier.fillMaxSize(),
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
-actual fun PlatformExpandedMediaImage(
-    url: String?,
-    colors: NaviampColors,
-    maxWidth: Dp,
-    maxHeight: Dp,
-) {
-    val context = LocalContext.current
-    val targetImageSizePx = with(LocalDensity.current) {
-        ceil(maxOf(maxWidth.toPx(), maxHeight.toPx())).toInt()
-            .coerceIn(MinCoverArtBitmapSidePx, MaxCoverArtBitmapSidePx)
-    }
-    var image by remember(url) { mutableStateOf<ImageBitmap?>(null) }
-
-    LaunchedEffect(url, targetImageSizePx) {
-        image = url?.let {
-            runCatching {
-                withContext(Dispatchers.IO) {
-                    AndroidCoverArtCache.imageBytes(context, it)
-                        ?.let { bytes -> decodeSampledBitmap(bytes, targetImageSizePx)?.asImageBitmap() }
-                }
-            }.getOrNull()
-        }
-    }
-
-    val imageWidth = image?.width?.takeIf { it > 0 } ?: 1
-    val imageHeight = image?.height?.takeIf { it > 0 } ?: 1
-    val scale = min(maxWidth.value / imageWidth, maxHeight.value / imageHeight)
-    val width = (imageWidth * scale).dp
-    val height = (imageHeight * scale).dp
-    Box(
-        modifier = Modifier
-            .size(width, height)
-            .background(colors.albumArtPlaceholder),
-    ) {
-        image?.let {
-            Image(
-                bitmap = it,
-                contentDescription = "Enlarged image",
-                contentScale = ContentScale.Fit,
-                modifier = Modifier.fillMaxSize(),
-            )
-        }
-    }
-}
-
-@Composable
-actual fun rememberPlatformCoverArtGradientColors(
-    url: String?,
-    colors: NaviampColors,
-): List<Color> =
-    rememberPlatformCoverArtPlayerColors(url, colors).gradientColors
-
-@Composable
-actual fun rememberPlatformCoverArtPlayerColors(
-    url: String?,
-    colors: NaviampColors,
-): NaviampPlayerColors {
-    val context = LocalContext.current
-    var playerColors by remember(colors) {
-        mutableStateOf(NaviampPlayerColors.fallback(colors))
-    }
-
-    LaunchedEffect(url, colors) {
-        if (url == null) return@LaunchedEffect
-        runCatching {
-            withContext(Dispatchers.IO) {
-                AndroidCoverArtCache.imageBytes(context, url)
-                    ?.let { decodeSampledBitmap(it, PaletteBitmapSidePx) }
-                    ?.albumPalette()
-                    ?.let { NaviampPlayerColors.from(it, colors) }
-            }
-        }.getOrNull()?.let { loadedColors -> playerColors = loadedColors }
-    }
-
-    return playerColors
+internal actual fun decodePlatformCoverArt(
+    bytes: ByteArray,
+    targetSidePx: Int,
+): NaviampDecodedCoverArt? = decodeSampledBitmap(bytes, targetSidePx)?.let { bitmap ->
+    NaviampDecodedCoverArt(
+        image = bitmap.asImageBitmap(),
+        rgbSamples = bitmap.rgbSamples(),
+    )
 }
 
 private object AndroidCoverArtCache {
@@ -231,6 +91,18 @@ private object AndroidCoverArtCache {
         }
     }
 
+    suspend fun imageFile(context: Context, url: String): File? {
+        val bytes = imageBytes(context, url) ?: return null
+        val cacheFile = File(context.cacheDir, "cover-art/${url.sha256()}.img")
+        if (!cacheFile.exists() || cacheFile.length() <= 0L) {
+            runCatching {
+                cacheFile.parentFile?.mkdirs()
+                cacheFile.writeBytes(bytes)
+            }.getOrElse { return null }
+        }
+        return cacheFile.takeIf(File::isFile)
+    }
+
     private fun putHot(url: String, bytes: ByteArray) {
         synchronized(this) {
             hotImages.remove(url)?.let { hotBytes -= it.size }
@@ -245,58 +117,41 @@ private object AndroidCoverArtCache {
     }
 }
 
-private const val MinCoverArtBitmapSidePx = 128
-private const val MaxCoverArtBitmapSidePx = 1024
-private const val PaletteBitmapSidePx = 128
-private const val RadioTileSidePx = 512
-private const val RadioTileScheme = "naviamp-radio-tile://"
-
 private fun generatedRadioTileBytes(url: String): ByteArray? {
-    if (!url.startsWith(RadioTileScheme)) return null
-    val params = url.substringAfter("?", "")
-        .split("&")
-        .mapNotNull { part ->
-            val key = part.substringBefore("=", "")
-            val value = part.substringAfter("=", "")
-            if (key.isBlank()) null else key to value
-        }
-        .toMap()
-    val label = params["label"]?.urlDecode()?.takeIf { it.isNotBlank() } ?: "RAD"
-    val from = "#${params["from"] ?: "465d7a"}"
-    val to = "#${params["to"] ?: "161f2c"}"
+    val spec = naviampRadioTileSpec(url) ?: return null
 
-    val bitmap = Bitmap.createBitmap(RadioTileSidePx, RadioTileSidePx, Bitmap.Config.ARGB_8888)
+    val bitmap = Bitmap.createBitmap(spec.sidePx, spec.sidePx, Bitmap.Config.ARGB_8888)
     val canvas = Canvas(bitmap)
     val paint = Paint(Paint.ANTI_ALIAS_FLAG)
-    val bounds = RectF(0f, 0f, RadioTileSidePx.toFloat(), RadioTileSidePx.toFloat())
+    val bounds = RectF(0f, 0f, spec.sidePx.toFloat(), spec.sidePx.toFloat())
     paint.shader = LinearGradient(
         0f,
         0f,
-        RadioTileSidePx.toFloat(),
-        RadioTileSidePx.toFloat(),
-        AndroidColor.parseColor(from),
-        AndroidColor.parseColor(to),
+        spec.sidePx.toFloat(),
+        spec.sidePx.toFloat(),
+        AndroidColor.rgb(spec.fromRgb shr 16, spec.fromRgb shr 8 and 0xFF, spec.fromRgb and 0xFF),
+        AndroidColor.rgb(spec.toRgb shr 16, spec.toRgb shr 8 and 0xFF, spec.toRgb and 0xFF),
         Shader.TileMode.CLAMP,
     )
-    canvas.drawRoundRect(bounds, 48f, 48f, paint)
+    canvas.drawRoundRect(bounds, spec.cornerRadiusPx, spec.cornerRadiusPx, paint)
 
     paint.shader = null
     paint.style = Paint.Style.STROKE
-    paint.strokeWidth = 22f
-    paint.color = AndroidColor.argb(54, 255, 255, 255)
-    canvas.drawCircle(256f, 256f, 118f, paint)
+    paint.strokeWidth = spec.ringStrokePx
+    paint.color = AndroidColor.argb(spec.ringAlpha, 255, 255, 255)
+    canvas.drawCircle(spec.centerPx, spec.centerPx, spec.ringRadiusPx, paint)
 
     paint.style = Paint.Style.FILL
-    paint.color = AndroidColor.argb(42, 255, 255, 255)
-    canvas.drawCircle(256f, 256f, 56f, paint)
+    paint.color = AndroidColor.argb(spec.centerAlpha, 255, 255, 255)
+    canvas.drawCircle(spec.centerPx, spec.centerPx, spec.centerRadiusPx, paint)
 
     paint.color = AndroidColor.WHITE
     paint.textAlign = Paint.Align.CENTER
     paint.typeface = android.graphics.Typeface.create(android.graphics.Typeface.DEFAULT, android.graphics.Typeface.BOLD)
-    paint.textSize = if (label.length <= 2) 126f else 104f
+    paint.textSize = spec.textSizePx
     val textBounds = Rect()
-    paint.getTextBounds(label, 0, label.length, textBounds)
-    canvas.drawText(label, 256f, 256f - textBounds.exactCenterY(), paint)
+    paint.getTextBounds(spec.label, 0, spec.label.length, textBounds)
+    canvas.drawText(spec.label, spec.centerPx, spec.centerPx - textBounds.exactCenterY(), paint)
 
     return ByteArrayOutputStream().use { output ->
         bitmap.compress(Bitmap.CompressFormat.PNG, 100, output)
@@ -304,11 +159,6 @@ private fun generatedRadioTileBytes(url: String): ByteArray? {
         output.toByteArray()
     }
 }
-
-private fun String.urlDecode(): String =
-    replace("+", " ").replace(Regex("%([0-9A-Fa-f]{2})")) { match ->
-        match.groupValues[1].toInt(16).toChar().toString()
-    }
 
 private fun isDecodableImage(bytes: ByteArray): Boolean =
     BitmapFactory.Options().let { options ->
@@ -342,7 +192,7 @@ private fun String.sha256(): String =
         .digest(toByteArray(Charsets.UTF_8))
         .joinToString("") { "%02x".format(it) }
 
-private fun android.graphics.Bitmap.albumPalette(): NaviampAlbumPalette? {
+private fun android.graphics.Bitmap.rgbSamples(): List<NaviampRgbSample> {
     val samples = mutableListOf<NaviampRgbSample>()
     val stepX = (width / 32).coerceAtLeast(1)
     val stepY = (height / 32).coerceAtLeast(1)
@@ -363,5 +213,5 @@ private fun android.graphics.Bitmap.albumPalette(): NaviampAlbumPalette? {
         }
         y += stepY
     }
-    return naviampAlbumPalette(samples)
+    return samples
 }

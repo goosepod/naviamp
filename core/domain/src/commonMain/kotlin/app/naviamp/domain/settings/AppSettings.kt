@@ -428,7 +428,7 @@ class PlaybackSettingsMaintenanceController(
     private val downloadedTracks: () -> List<Track> = { emptyList() },
     private val redownloadTracks: (List<Track>, String) -> Unit = { _, _ -> },
 ) {
-    fun applyPlaybackSettings(settings: PlaybackSettings) {
+    fun applyPlaybackSettings(settings: PlaybackSettings): PlaybackSettings {
         val change = playbackSettingsChange(settings, playbackEngine, previous = playbackSettings())
         radioDjPresetRepository?.replaceRadioDjPresets(change.settings.radioDjs)
         val effectiveSettings = radioDjPresetRepository
@@ -453,14 +453,16 @@ class PlaybackSettingsMaintenanceController(
             ?.setSampleRateConverter(effectiveSettings.sampleRateConverter)
         (playbackEngine as? app.naviamp.domain.playback.SampleRateMatchingPlaybackEngine)
             ?.setSampleRateMatching(effectiveSettings.sampleRateMatching)
+        return effectiveSettings
     }
 
-    fun applyPlaybackSettingsAndRedownload(settings: PlaybackSettings) {
+    fun applyPlaybackSettingsAndRedownload(settings: PlaybackSettings): PlaybackSettings {
         val tracksToRedownload = downloadedTracks()
-        applyPlaybackSettings(settings)
+        val effectiveSettings = applyPlaybackSettings(settings)
         if (tracksToRedownload.isNotEmpty()) {
             redownloadTracks(tracksToRedownload, "downloads")
         }
+        return effectiveSettings
     }
 }
 
@@ -531,11 +533,11 @@ enum class UpNextSelectionBehavior {
 data class CacheSettings(
     val audioCachingEnabled: Boolean = true,
     val offlineModeEnabled: Boolean = false,
-    val audioPrefetchDepth: Int = 10,
+    val audioPrefetchDepth: Int = DefaultAudioPrefetchDepth,
     val waveformsEnabled: Boolean = true,
     val waveformBucketCount: Int = DefaultWaveformBucketCount,
-    val maxAudioCacheBytes: Long = 2L * 1024L * 1024L * 1024L,
-    val maxDownloadBytes: Long = 10L * 1024L * 1024L * 1024L,
+    val maxAudioCacheBytes: Long = DefaultAudioCacheBytes,
+    val maxDownloadBytes: Long = DefaultDownloadStorageBytes,
     val customAudioCacheDirectory: String? = null,
     val customDownloadDirectory: String? = null,
 ) {
@@ -543,13 +545,16 @@ data class CacheSettings(
         copy(
             audioPrefetchDepth = audioPrefetchDepth.coerceIn(0, 25),
             waveformBucketCount = waveformBucketCount.coerceIn(MinWaveformBucketCount, MaxWaveformBucketCount),
-            maxAudioCacheBytes = maxAudioCacheBytes.coerceIn(256L * 1024L * 1024L, 20L * 1024L * 1024L * 1024L),
-            maxDownloadBytes = maxDownloadBytes.coerceIn(512L * 1024L * 1024L, 100L * 1024L * 1024L * 1024L),
+            maxAudioCacheBytes = maxAudioCacheBytes.coerceIn(DefaultAudioCacheBytes, 20L * 1024L * 1024L * 1024L),
+            maxDownloadBytes = maxDownloadBytes.coerceIn(DefaultDownloadStorageBytes, 100L * 1024L * 1024L * 1024L),
             customAudioCacheDirectory = customAudioCacheDirectory?.trim()?.takeIf { it.isNotEmpty() },
             customDownloadDirectory = customDownloadDirectory?.trim()?.takeIf { it.isNotEmpty() },
         )
 }
 
+const val DefaultAudioPrefetchDepth = 3
+const val DefaultAudioCacheBytes = 256L * 1024L * 1024L
+const val DefaultDownloadStorageBytes = 512L * 1024L * 1024L
 const val DefaultWaveformBucketCount = 180
 const val MinWaveformBucketCount = 150
 const val MaxWaveformBucketCount = 500
@@ -683,6 +688,7 @@ data class PlaybackSessionSettings(
     val playNextCount: Int = 0,
     val positionSeconds: Double? = null,
     val internetRadioStation: SavedInternetRadioStation? = null,
+    val nowPlayingOpen: Boolean = false,
 ) {
     fun currentTrack(): Track? =
         tracks.getOrNull(currentIndex)?.toTrack() ?: internetRadioStation?.toTrack()
@@ -732,6 +738,7 @@ data class SavedTrack(
     val userRating: Int? = null,
     val bpm: Int? = null,
     val moods: List<String> = emptyList(),
+    val genres: List<String> = emptyList(),
     val playCount: Int? = null,
     val lastPlayedAtIso8601: String? = null,
     val musicFolderId: String? = null,
@@ -754,6 +761,7 @@ data class SavedTrack(
             userRating = userRating,
             bpm = bpm,
             moods = moods,
+            genres = genres,
             playCount = playCount,
             lastPlayedAtIso8601 = lastPlayedAtIso8601,
             musicFolderId = musicFolderId,
@@ -777,6 +785,7 @@ data class SavedTrack(
                 userRating = track.userRating,
                 bpm = track.bpm,
                 moods = track.moods,
+                genres = track.genres,
                 playCount = track.playCount,
                 lastPlayedAtIso8601 = track.lastPlayedAtIso8601,
                 musicFolderId = track.musicFolderId,

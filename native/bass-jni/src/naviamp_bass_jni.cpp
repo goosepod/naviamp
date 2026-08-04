@@ -22,9 +22,6 @@
 #include <vector>
 
 namespace {
-constexpr DWORD PLAYBACK_BUFFER_MILLIS = 1500;
-constexpr DWORD UPDATE_PERIOD_MILLIS = 10;
-constexpr DWORD DEVICE_BUFFER_MILLIS = 60;
 constexpr DWORD NETWORK_BUFFER_MILLIS = 5000;
 constexpr DWORD NETWORK_TIMEOUT_MILLIS = 15000;
 constexpr DWORD NETWORK_PREBUFFER_PERCENT = 75;
@@ -230,15 +227,23 @@ struct DesktopEndSyncRegistration {
     jmethodID callbackMethod;
 };
 
-void configure_playback_buffers() {
-    BASS_SetConfig(BASS_CONFIG_UPDATEPERIOD, UPDATE_PERIOD_MILLIS);
-    BASS_SetConfig(BASS_CONFIG_BUFFER, PLAYBACK_BUFFER_MILLIS);
-    BASS_SetConfig(BASS_CONFIG_DEV_BUFFER, DEVICE_BUFFER_MILLIS);
+bool configure_playback_buffers(DWORD playbackBufferMillis, DWORD updatePeriodMillis, DWORD deviceBufferMillis) {
+    bool configured = true;
+    configured = BASS_SetConfig(BASS_CONFIG_UPDATEPERIOD, updatePeriodMillis) && configured;
+    configured = BASS_SetConfig(BASS_CONFIG_BUFFER, playbackBufferMillis) && configured;
+#if defined(__APPLE__)
+    // BASS_CONFIG_DEV_BUFFER is unavailable on macOS. BASS uses a device buffer that is twice
+    // BASS_CONFIG_DEV_PERIOD there, so translate Core's requested buffer length to its period.
+    configured = BASS_SetConfig(BASS_CONFIG_DEV_PERIOD, std::max<DWORD>(1, deviceBufferMillis / 2)) && configured;
+#else
+    configured = BASS_SetConfig(BASS_CONFIG_DEV_BUFFER, deviceBufferMillis) && configured;
+#endif
     BASS_SetConfig(BASS_CONFIG_NET_BUFFER, NETWORK_BUFFER_MILLIS);
     BASS_SetConfig(BASS_CONFIG_NET_PREBUF, NETWORK_PREBUFFER_PERCENT);
     BASS_SetConfig(BASS_CONFIG_NET_PREBUF_WAIT, 1);
     BASS_SetConfig(BASS_CONFIG_NET_TIMEOUT, NETWORK_TIMEOUT_MILLIS);
     BASS_SetConfig(BASS_CONFIG_NET_READTIMEOUT, NETWORK_TIMEOUT_MILLIS);
+    return configured;
 }
 
 jboolean set_sample_rate_converter_quality(jint quality) {
@@ -270,7 +275,6 @@ int concrete_output_device(int requestedDevice) {
 }
 
 bool init_output_device(int device, DWORD frequency = 44100, DWORD flags = 0) {
-    configure_playback_buffers();
     if (BASS_Init(device, frequency, flags, nullptr, nullptr)) {
         return true;
     }
@@ -572,7 +576,7 @@ extern "C" JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM* vm, void* reserved) {
 
 #if defined(_WIN32) && !defined(__ANDROID__)
 extern "C" JNIEXPORT jboolean JNICALL
-Java_app_naviamp_desktop_DesktopWindowSupportKt_nativeConfigureWindowsTitleBar(JNIEnv* env, jclass clazz, jobject window, jboolean isDark) {
+Java_app_naviamp_desktop_platform_DesktopWindowAppearanceKt_nativeConfigureWindowsTitleBar(JNIEnv* env, jclass clazz, jobject window, jboolean isDark) {
     (void)clazz;
     return configure_windows_title_bar(env, window, isDark == JNI_TRUE) ? JNI_TRUE : JNI_FALSE;
 }
@@ -603,7 +607,6 @@ extern "C" JNIEXPORT jboolean JNICALL
 Java_app_naviamp_android_playback_AndroidBassJni_nativeInit(JNIEnv* env, jobject thiz) {
     (void)env;
     (void)thiz;
-    configure_playback_buffers();
     if (BASS_Init(-1, 44100, 0, nullptr, nullptr)) {
         return JNI_TRUE;
     }
@@ -618,6 +621,23 @@ Java_app_naviamp_android_playback_AndroidBassJni_nativeInitAtSampleRate(JNIEnv* 
     (void)env;
     (void)thiz;
     return reinit_output_device(-1, sampleRateHz) ? JNI_TRUE : JNI_FALSE;
+}
+
+extern "C" JNIEXPORT jboolean JNICALL
+Java_app_naviamp_android_playback_AndroidBassJni_nativeConfigurePlaybackBuffers(
+    JNIEnv* env,
+    jobject thiz,
+    jint playbackBufferMillis,
+    jint updatePeriodMillis,
+    jint deviceBufferMillis
+) {
+    (void)env;
+    (void)thiz;
+    return configure_playback_buffers(
+        static_cast<DWORD>(std::max(1, playbackBufferMillis)),
+        static_cast<DWORD>(std::max(5, std::min(100, updatePeriodMillis))),
+        static_cast<DWORD>(std::max(1, deviceBufferMillis))
+    ) ? JNI_TRUE : JNI_FALSE;
 }
 
 extern "C" JNIEXPORT void JNICALL
@@ -984,6 +1004,23 @@ extern "C" JNIEXPORT jboolean JNICALL
 Java_app_naviamp_desktop_playback_bass_DesktopBassJniBinding_nativeInitDeviceAtSampleRate(JNIEnv* env, jobject thiz, jstring deviceId, jint sampleRateHz) {
     (void)thiz;
     return reinit_output_device(device_id_or_default(env, deviceId), sampleRateHz) ? JNI_TRUE : JNI_FALSE;
+}
+
+extern "C" JNIEXPORT jboolean JNICALL
+Java_app_naviamp_desktop_playback_bass_DesktopBassJniBinding_nativeConfigurePlaybackBuffers(
+    JNIEnv* env,
+    jobject thiz,
+    jint playbackBufferMillis,
+    jint updatePeriodMillis,
+    jint deviceBufferMillis
+) {
+    (void)env;
+    (void)thiz;
+    return configure_playback_buffers(
+        static_cast<DWORD>(std::max(1, playbackBufferMillis)),
+        static_cast<DWORD>(std::max(5, std::min(100, updatePeriodMillis))),
+        static_cast<DWORD>(std::max(1, deviceBufferMillis))
+    ) ? JNI_TRUE : JNI_FALSE;
 }
 
 extern "C" JNIEXPORT void JNICALL

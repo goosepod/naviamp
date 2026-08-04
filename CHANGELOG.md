@@ -2,6 +2,60 @@
 
 Release changes are grouped into user-facing Features, Bug Fixes, and deployment or infrastructure-related System Settings. Internal task-tracking notes are intentionally not included.
 
+## v2.0.0-alpha
+
+Naviamp 2.0 is a major cross-platform rebuild. Android, macOS, Windows, Linux, and iOS now share the same application core, interface, playback behavior, provider integration, storage model, and settings wherever the operating systems allow it.
+
+This is the first public alpha. It is intended for testing and may still contain platform-specific bugs or incomplete packaging.
+
+### Features
+
+- Added the first Naviamp application for iPhone and iPad, including streaming, downloaded and offline playback, background audio, Control Center integration, secure credential storage, settings synchronization, lyrics, waveforms, and visualizers.
+- Unified Android, Desktop, and iOS around one shared application core and interface, keeping browsing, search, playlists, downloads, settings, provider behavior, and playback policy consistent across platforms.
+- Added native BASS playback across Android, Desktop, and iOS with shared gapless, crossfade, ReplayGain, sample-rate conversion, and sample-rate matching behavior.
+- Added the final Naviamp 2.0 icon across the applications, installers, notifications, About screen, repository, and website.
+- Added downloadable unsigned iOS builds for advanced users who can sign and sideload applications with their own Apple identity.
+- Added automatic detection and safe migration support for Navidrome's upcoming canonical identifier transition using the announced `topSongsByArtistId` OpenSubsonic extension.
+- Added shared Metal visualizers on iOS and macOS with safe fallbacks when native rendering is unavailable.
+- Added playback sample-rate and effective downloaded-quality information to diagnostics.
+- Added support for embedded Opus metadata.
+- Retained Android Auto browsing, search, queue, and playback integration through the new shared application architecture.
+
+### Bug Fixes
+
+- Significantly reduced Android background playback CPU, network, and battery usage by bounding rolling playback prefetch and sidecar work.
+- Improved queue restoration and playback-session persistence across application restarts and host lifecycle changes.
+- Applied transition, fade, and sample-rate setting changes to active queues more reliably.
+- Prevented stale prepared tracks from surviving queue, transition, or playback-source changes.
+- Isolated playback and persisted state when switching between configured servers.
+- Fixed downloaded playback, storage-location selection, converted-download tracking, and server-versus-downloaded fallback behavior.
+- Improved playlist, favorite, and Smart Playlist keep-downloaded reconciliation, watched download jobs, and playlist download selection.
+- Preserved Android MediaSession and notification state across track transitions.
+- Hardened cache and download cleanup so Naviamp deletes only files it owns and preserves unrelated files when clearing storage or changing locations.
+- Fixed Navidrome snapshot identifier collisions while preserving existing downloaded audio and durable media ownership.
+- Improved rotated native-token recovery and targeted Smart Playlist reauthentication.
+- Improved visualizer resource disposal, shared waveform analysis, cover-art fallback behavior, artist biography scrolling, and similar-artist resolution.
+
+### System Settings
+
+- Release automation can produce an Android APK and Google Play AAB, a macOS application and DMG, Windows standalone packages and installers, Linux standalone packages plus DEB and RPM installers, and an unsigned iOS IPA.
+- Android credentials remain protected by Android Keystore, iOS credentials use Apple Keychain, and Desktop credentials use macOS Keychain, Windows DPAPI, or Linux Secret Service.
+- Navidrome identifier migration is versioned and atomic across saved queues, downloads, playback history, artwork ownership, and other stored media references. Existing downloaded files remain in place.
+- Native cache and download deletion now requires a matching database ownership record, an approved Naviamp storage location, and a verified regular file before ownership is removed.
+
+### Alpha Notes and Known Limitations
+
+- Back up important playlists and settings before testing this alpha release.
+- Windows and macOS builds are not yet distributed with trusted publisher signing, so their operating systems may display security warnings.
+- The iOS IPA is unsigned and cannot be installed directly. Testers must sign it using their own Apple identity and sideloading workflow.
+- TestFlight distribution is not available yet.
+- iOS has primarily been tested in Apple's Simulator; physical-device behavior still needs broader testing.
+- Android Auto is included for testing, but its final physical-vehicle acceptance pass is still pending.
+- CarPlay is not included in this release.
+- Windows and Linux still need final real-device packaging and playback smoke tests.
+- Linux secure credential storage requires `secret-tool` and an available Secret Service implementation such as GNOME Keyring or KDE Wallet.
+- Additional performance and long-running playback testing is still underway across all platforms.
+
 ## v1.5.0
 
 ### Features

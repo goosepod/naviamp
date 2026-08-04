@@ -25,7 +25,7 @@ fun NaviampRadioArtworkLookupEffect(
         if (artworkByKey.containsKey(key)) return@LaunchedEffect
         val activeProvider = provider ?: return@LaunchedEffect
         val query = radioTrackArtworkQuery(streamMetadata.title) ?: return@LaunchedEffect
-        val artworkUrl = withContext(Dispatchers.IO) {
+        val artworkUrl = withContext(Dispatchers.Default) {
             runCatching {
                 activeProvider
                     .search(query, limit = 5)

@@ -40,6 +40,18 @@ class NaviampPlaylistEditorTest {
     }
 
     @Test
+    fun dragPreviewMovesRowsAsideForTheDropGap() {
+        assertEquals(3, playlistDragTargetIndex(fromIndex = 1, dragOffsetY = 90f, rowStepPx = 44f, lastIndex = 5))
+        assertEquals(-44f, playlistDragGapOffset(rowIndex = 2, fromIndex = 1, targetIndex = 3, rowStepPx = 44f))
+        assertEquals(-44f, playlistDragGapOffset(rowIndex = 3, fromIndex = 1, targetIndex = 3, rowStepPx = 44f))
+        assertEquals(0f, playlistDragGapOffset(rowIndex = 4, fromIndex = 1, targetIndex = 3, rowStepPx = 44f))
+
+        assertEquals(1, playlistDragTargetIndex(fromIndex = 3, dragOffsetY = -90f, rowStepPx = 44f, lastIndex = 5))
+        assertEquals(44f, playlistDragGapOffset(rowIndex = 1, fromIndex = 3, targetIndex = 1, rowStepPx = 44f))
+        assertEquals(44f, playlistDragGapOffset(rowIndex = 2, fromIndex = 3, targetIndex = 1, rowStepPx = 44f))
+    }
+
+    @Test
     fun editorUndoRestoresMostRecentDraftEdit() = runComposeUiTest {
         setContent {
             StandardPlaylistEditorDialog(

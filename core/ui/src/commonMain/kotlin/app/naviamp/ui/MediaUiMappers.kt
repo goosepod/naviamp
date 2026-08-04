@@ -15,11 +15,15 @@ import app.naviamp.domain.TrackId
 import app.naviamp.domain.resolvedArtistCredits
 import app.naviamp.domain.isInternetRadioTrack
 import app.naviamp.domain.audio.AudioTag
+import app.naviamp.domain.cache.DownloadJob
+import app.naviamp.domain.cache.DownloadJobItemStatus
+import app.naviamp.domain.cache.DownloadJobStatus
 import app.naviamp.domain.audio.replayGainFromAudioTags
 import app.naviamp.domain.home.HomeContent
 import app.naviamp.domain.home.homeStations
 import app.naviamp.domain.media.RelatedTracksSource
 import app.naviamp.domain.media.groupedByReleaseSection
+import app.naviamp.domain.media.releaseSection
 import app.naviamp.domain.settings.AlbumSortOrder
 import app.naviamp.domain.playback.PlaybackProgress
 import app.naviamp.domain.playback.PlaybackReplayGain
@@ -64,6 +68,7 @@ fun Album.toSharedMediaItemUi(
         title = title,
         subtitle = artistName,
         meta = listOfNotNull(
+            releaseSection().label.removeSuffix("s"),
             releaseYear?.toString(),
             "Explicit".takeIf { explicitStatus == AlbumExplicitStatus.Explicit },
         ).joinToString(" "),
@@ -99,6 +104,7 @@ fun Playlist.toSharedMediaItemUi(
         title = name,
         subtitle = "$trackCount tracks",
         meta = durationSeconds?.durationLabel().orEmpty(),
+        trackCount = trackCount,
         coverArtUrl = coverArtUrl(coverArtId),
         coverArtUrls = tracks.mapNotNull { coverArtUrl(it.coverArtId) }.distinct().take(4),
         isSmartPlaylist = isSmart,
@@ -111,6 +117,29 @@ fun InternetRadioStation.toSharedMediaItemUi(): SharedMediaItemUi =
         title = name,
         subtitle = homePageUrl ?: "Internet radio",
         coverArtUrl = radioStationArtworkUrl(this),
+    )
+
+fun InternetRadioStation.toInternetRadioStationUi(): NaviampInternetRadioStationUi =
+    NaviampInternetRadioStationUi(
+        item = toSharedMediaItemUi(),
+        streamUrl = streamUrl,
+        homePageUrl = homePageUrl,
+    )
+
+fun NaviampInternetRadioStationUi.toInternetRadioStation(): InternetRadioStation =
+    InternetRadioStation(
+        id = item.id,
+        name = item.title,
+        streamUrl = streamUrl,
+        homePageUrl = homePageUrl,
+    )
+
+fun NaviampInternetRadioStationEditUi.toInternetRadioStation(): InternetRadioStation =
+    InternetRadioStation(
+        id = id ?: streamUrl.trim(),
+        name = name.trim(),
+        streamUrl = streamUrl.trim(),
+        homePageUrl = homePageUrl?.trim()?.takeIf { it.isNotBlank() },
     )
 
 fun Genre.toSharedGenreMixItemUi(): SharedGenreMixItemUi =
@@ -166,14 +195,7 @@ fun HomeContent.toSharedHomeUi(
                 coverArtUrls = coverArtUrls,
             )
         },
-        recentlyPlayedTracks = recentlyPlayedTracks.map { track ->
-            track.toSharedTrackRowUi(coverArtUrl).copy(
-                meta = listOfNotNull(
-                    track.lastPlayedAtIso8601?.take(10)?.let { "Played $it" },
-                    track.playCount?.let { count -> "$count plays" },
-                ).joinToString(" - ").ifBlank { track.durationSeconds?.durationLabel().orEmpty() },
-            )
-        },
+        recentlyPlayedTracks = recentlyPlayedTracks.map { track -> track.toSharedTrackRowUi(coverArtUrl) },
         radioStations = recentInternetRadioStations.map { it.toSharedMediaItemUi() },
         stations = homeStations(this).map {
             SharedHomeStationUi(id = it.id, title = it.title, subtitle = it.subtitle)
@@ -210,7 +232,8 @@ fun Track.toSharedTrackRowUi(
         title = title,
         subtitle = listOfNotNull(artistName, albumTitle).joinToString(" - "),
         coverArtUrl = coverArtUrl(coverArtId ?: fallbackCoverArtId),
-        meta = durationSeconds?.durationLabel().orEmpty(),
+        durationLabel = durationSeconds?.durationLabel().orEmpty(),
+        ratingLabel = compactFavoriteRatingLabel(),
         popular = popular,
         favoriteActive = favoritedAtIso8601 != null,
         hasAlbum = albumId != null,
@@ -463,6 +486,7 @@ data class NowPlayingCurrentTrackUiActionRequest(
 )
 
 enum class NowPlayingPlaybackAction {
+    Stop,
     Pause,
     Resume,
     PlayCurrent,
@@ -774,8 +798,16 @@ fun Track.nowPlayingAlbumLine(): String =
         albumReleaseYear?.let { "$title ($it)" } ?: title
     }.orEmpty()
 
-fun Track.nowPlayingAudioInfoLabel(playbackEngineName: String? = null): String =
-    audioInfo?.nowPlayingLabel().orEmpty()
+fun Track.nowPlayingAudioInfoLabel(
+    playbackEngineName: String? = null,
+    streamQuality: StreamQuality? = null,
+): String = when (streamQuality) {
+    is StreamQuality.Transcoded -> listOf(
+        streamQuality.codec.name.uppercase(),
+        "${streamQuality.bitrateKbps} kbps",
+    ).joinToString("  ")
+    else -> audioInfo?.nowPlayingLabel().orEmpty()
+}
 
 fun Track.toNowPlayingDetailSections(
     embeddedTags: List<Pair<String, String>>? = null,
@@ -982,7 +1014,7 @@ fun Track.toNowPlayingUi(config: NowPlayingTrackUiConfig): NowPlayingUi =
         albumLine = nowPlayingAlbumLine(),
         albumTitle = albumTitle.orEmpty(),
         albumYear = albumReleaseYear,
-        audioInfo = nowPlayingAudioInfoLabel(config.playbackEngineName),
+        audioInfo = nowPlayingAudioInfoLabel(config.playbackEngineName, config.streamQuality),
         waveform = config.waveform,
         visualizerFrame = config.visualizerFrame,
         bpm = bpm,
@@ -1197,11 +1229,34 @@ fun Playlist.toPlaylistChoiceUi(): NaviampPlaylistChoiceUi =
 fun Playlist.toSharedPlaylistDetailUi(
     tracks: List<Track>,
     coverArtUrl: (String?) -> String?,
+    keepDownloadedActive: Boolean = false,
 ): SharedPlaylistDetailUi =
     SharedPlaylistDetailUi(
-        playlist = toSharedMediaItemUi(coverArtUrl, tracks),
+        playlist = toSharedMediaItemUi(coverArtUrl, tracks, keepDownloadedActive),
         tracks = tracks.map { it.toSharedTrackRowUi(coverArtUrl) },
     )
+
+fun DownloadJob.toDownloadJobUi(): NaviampDownloadJobUi {
+    val activeItem = items.firstOrNull { it.status == DownloadJobItemStatus.Downloading }
+    val failedItem = items.firstOrNull { it.status == DownloadJobItemStatus.Failed }
+    val statusLabel = when (status) {
+        DownloadJobStatus.Queued -> "Queued"
+        DownloadJobStatus.Running -> "$completedCount of $totalCount"
+        DownloadJobStatus.Completed -> "Completed - $totalCount tracks"
+        DownloadJobStatus.Failed -> "Failed - $completedCount of $totalCount saved"
+        DownloadJobStatus.Cancelled -> "Cancelled - $completedCount of $totalCount saved"
+    }
+    return NaviampDownloadJobUi(
+        id = id,
+        label = label,
+        statusLabel = statusLabel,
+        progress = progress,
+        canCancel = canCancel,
+        canRetry = canRetry,
+        activeItemLabel = activeItem?.let { "Downloading ${it.track.title}" },
+        failedItemLabel = failedItem?.let { "${it.track.title}: ${it.failureMessage ?: "Download failed"}" },
+    )
+}
 
 fun AlbumDetails.toSharedAlbumDetailUi(
     coverArtUrl: (String?) -> String?,
@@ -1226,6 +1281,7 @@ fun ArtistDetails.toSharedArtistDetailUi(
     popularTracksStatus: String? = null,
     similarArtists: List<SimilarArtistMatch> = emptyList(),
     similarArtistsStatus: String? = null,
+    similarArtistsExpanded: Boolean = false,
     canFavoriteArtist: Boolean = false,
     canFavoriteAlbums: Boolean = false,
 ): SharedArtistDetailUi =
@@ -1243,36 +1299,17 @@ fun ArtistDetails.toSharedArtistDetailUi(
                 albums = group.albums.map { it.toSharedMediaItemUi(coverArtUrl, canFavoriteAlbums) },
             )
         },
-        sourceContextLabel = artistSourceContextLabel(
-            hasProviderMetadata = info != null,
-            hasLocalLibraryMatches = albums.isNotEmpty() || popularTracks.isNotEmpty(),
-        ),
-        localLibraryLabel = artistLocalLibraryLabel(albums.size, popularTracks.size),
+        localLibraryLabel = artistLocalLibraryLabel(albums.size),
         biography = info?.biography,
         popularTracks = popularTracks.map { it.toSharedTrackRowUi(coverArtUrl).copy(hasArtist = false) },
         popularTracksStatus = popularTracksStatus,
         similarArtists = similarArtists.map { it.toSharedSimilarArtistUi() },
         similarArtistsStatus = similarArtistsStatus,
+        similarArtistsExpanded = similarArtistsExpanded,
     )
 
-private fun artistSourceContextLabel(
-    hasProviderMetadata: Boolean,
-    hasLocalLibraryMatches: Boolean,
-): String =
-    when {
-        hasProviderMetadata && hasLocalLibraryMatches -> "Provider info matched with your library"
-        hasLocalLibraryMatches -> "Matched from your library"
-        hasProviderMetadata -> "Provider info only"
-        else -> "No local library match yet"
-    }
-
-private fun artistLocalLibraryLabel(albumCount: Int, popularTrackCount: Int): String =
-    listOfNotNull(
-        "$albumCount ${if (albumCount == 1) "album" else "albums"}",
-        popularTrackCount.takeIf { it > 0 }?.let {
-            "$it matched popular ${if (it == 1) "track" else "tracks"}"
-        },
-    ).joinToString(" - ")
+private fun artistLocalLibraryLabel(albumCount: Int): String =
+    if (albumCount == 1) "1 album, EP, or single" else "$albumCount albums, EPs, and singles"
 
 fun SimilarArtistMatch.toSharedSimilarArtistUi(): SharedSimilarArtistUi =
     SharedSimilarArtistUi(

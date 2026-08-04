@@ -3,6 +3,13 @@ package app.naviamp.domain.settings
 import app.naviamp.domain.cache.ProviderMediaSourceConnection
 import app.naviamp.domain.cache.ProviderMediaSourceRepository
 import app.naviamp.domain.playback.ReplayGainMode
+import app.naviamp.domain.playback.PlaybackEngine
+import app.naviamp.domain.playback.PlaybackProgress
+import app.naviamp.domain.playback.PlaybackRequest
+import app.naviamp.domain.playback.PlaybackState
+import app.naviamp.domain.playback.PlaybackStreamMetadata
+import app.naviamp.domain.radio.RadioDjPreset
+import app.naviamp.domain.radio.RadioDjPresetRepository
 import app.naviamp.domain.source.MediaSourceIdentity
 import app.naviamp.domain.source.ConnectionHeaderDefinition
 import app.naviamp.domain.source.ConnectionSecondaryUrl
@@ -12,6 +19,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
+import kotlinx.coroutines.CoroutineScope
 
 class SettingsSyncMappingTest {
     @Test
@@ -116,6 +124,36 @@ class SettingsSyncMappingTest {
         assertTrue(repository.connections.all { it.tlsSettings.clientCertificateKeyStorePassword == null })
     }
 
+    @Test
+    fun appliesPortablePreferencesAndRepositoryMutationsAsOnePlan() {
+        val mediaSources = RecordingProviderMediaSourceRepository()
+        val radioDjs = RecordingRadioDjPresetRepository()
+        val document = SettingsSyncDocument(
+            serverProfiles = listOf(savedSource().toSettingsSyncServerProfile()),
+            preferences = SettingsSyncPreferences(
+                playback = PlaybackSettings(
+                    crossfadeDurationSeconds = 7,
+                    radioDjs = listOf(RadioDjPreset(id = "wide", name = "Wide")),
+                ),
+                visualizer = VisualizerSettings(selectedVisualizer = "AudioBars"),
+            ),
+        )
+
+        val applied = applySettingsSyncDocument(
+            document = document,
+            playbackEngine = FakePlaybackEngine(supportsCrossfade = false),
+            mediaSourceRepository = mediaSources,
+            radioDjPresetRepository = radioDjs,
+        )
+
+        assertEquals(0, applied.playbackSettings.crossfadeDurationSeconds)
+        assertEquals("wide", applied.playbackSettings.radioDjs.single().id)
+        assertEquals("AudioBars", applied.visualizer.selectedVisualizer)
+        assertEquals(1, applied.importedServerProfiles.importedCount)
+        assertEquals("wide", radioDjs.radioDjPresets().single().id)
+        assertEquals(1, mediaSources.connections.size)
+    }
+
     private fun savedSource(): SavedMediaSource =
         savedSource(
             id = "source_1",
@@ -186,5 +224,51 @@ class SettingsSyncMappingTest {
                 displayName = connection.displayName,
             )
         }
+    }
+
+    private class RecordingRadioDjPresetRepository : RadioDjPresetRepository {
+        private val presets = mutableListOf<RadioDjPreset>()
+
+        override fun radioDjPresets(): List<RadioDjPreset> = presets.toList()
+
+        override fun replaceRadioDjPresets(presets: List<RadioDjPreset>) {
+            this.presets.clear()
+            this.presets += presets
+        }
+
+        override fun upsertRadioDjPreset(preset: RadioDjPreset) {
+            deleteRadioDjPreset(preset.id)
+            presets += preset
+        }
+
+        override fun deleteRadioDjPreset(id: String) {
+            presets.removeAll { it.id == id }
+        }
+    }
+
+    private class FakePlaybackEngine(
+        override val supportsCrossfade: Boolean,
+    ) : PlaybackEngine {
+        override val name = "Fake"
+        override val supportsPause = true
+        override val supportsSeek = true
+        override val supportsGapless = true
+        override val supportsReplayGain = true
+        override val supportsSoftwareVolume = true
+        override val prefersOriginalStream = false
+
+        override fun play(
+            scope: CoroutineScope,
+            request: PlaybackRequest,
+            onStateChanged: (PlaybackState) -> Unit,
+            onProgressChanged: (PlaybackProgress) -> Unit,
+            onMetadataChanged: (PlaybackStreamMetadata) -> Unit,
+        ) = Unit
+
+        override fun pause() = Unit
+        override fun resume() = Unit
+        override fun seek(positionSeconds: Double) = Unit
+        override fun setVolume(percent: Int) = Unit
+        override fun stop() = Unit
     }
 }

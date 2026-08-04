@@ -3,10 +3,16 @@ package app.naviamp.domain.waveform
 import app.naviamp.domain.AudioCodec
 import app.naviamp.domain.StreamQuality
 import app.naviamp.domain.bass.BassAudioBackend
+import app.naviamp.domain.bass.BassStreamInfo
 import app.naviamp.domain.bass.BassStreamHandle
+import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
+import kotlin.test.assertTrue
 
 class AudioWaveformTest {
     @Test
@@ -21,7 +27,7 @@ class AudioWaveformTest {
     }
 
     @Test
-    fun normalizesChunkedFloatPcmSamples() {
+    fun normalizesChunkedFloatPcmSamples() = runTest {
         val chunks = listOf(floatArrayOf(0.5f), floatArrayOf(1.0f))
         var chunkIndex = 0
 
@@ -39,7 +45,7 @@ class AudioWaveformTest {
     }
 
     @Test
-    fun rejectsIncompleteFloatPcmWaveform() {
+    fun rejectsIncompleteFloatPcmWaveform() = runTest {
         var supplied = false
 
         val waveform = normalizeFloatPcmWaveform(
@@ -56,7 +62,7 @@ class AudioWaveformTest {
     }
 
     @Test
-    fun analyzesFloatPcmThroughBassBackendPort() {
+    fun analyzesFloatPcmThroughBassBackendPort() = runTest {
         val waveform = analyzeBassFloatPcmWaveform(
             bass = FakeBassAudioBackend(listOf(floatArrayOf(0.5f), floatArrayOf(1.0f))),
             stream = BassStreamHandle(7),
@@ -68,7 +74,73 @@ class AudioWaveformTest {
     }
 
     @Test
-    fun usesSequentialPcmInsteadOfSlowLevelWindows() {
+    fun sharedBassAnalyzerOwnsNetworkSetupUrlSelectionAndCleanup() = runTest {
+        val backend = FakeBassAudioBackend(listOf(floatArrayOf(0.5f), floatArrayOf(1.0f)))
+        val analyzer = BassAudioWaveformAnalyzer(
+            bass = backend,
+            verifyNetworkCertificates = { false },
+        )
+
+        val waveform = analyzer.analyze(
+            AudioWaveformAnalysisSource(
+                cacheKey = "track-1",
+                streamUrl = "https://music.example/stream",
+                bucketCount = 2,
+            ),
+        )
+
+        assertNotNull(waveform)
+        assertEquals(false, backend.verifyNetworkCertificates)
+        assertEquals(1, backend.internetConfigurationCount)
+        assertEquals("https://music.example/stream", backend.createdUrl)
+        assertEquals(BassStreamHandle(1), backend.freedStream)
+    }
+
+    @Test
+    fun sharedBassAnalyzerUsesHostTranslatedLocalPath() = runTest {
+        val backend = FakeBassAudioBackend(listOf(floatArrayOf(1.0f)))
+        val analyzer = BassAudioWaveformAnalyzer(
+            bass = backend,
+            localFilePath = { url -> if (url == "file:///music/song.flac") "/music/song.flac" else null },
+        )
+
+        assertNotNull(
+            analyzer.analyze(
+                AudioWaveformAnalysisSource(
+                    cacheKey = "track-2",
+                    streamUrl = "file:///music/song.flac",
+                    bucketCount = 1,
+                ),
+            ),
+        )
+        assertEquals("/music/song.flac", backend.createdFile)
+        assertEquals(null, backend.createdUrl)
+    }
+
+    @Test
+    fun sharedBassAnalyzerUsesTrackDurationWhenStreamLengthIsUnknown() = runTest {
+        val backend = FakeBassAudioBackend(
+            chunks = listOf(floatArrayOf(0.25f, 0.5f, 0.75f, 1.0f)),
+            knownLength = false,
+            streamInfo = BassStreamInfo(frequency = 2, channels = 1),
+        )
+        val analyzer = BassAudioWaveformAnalyzer(backend)
+
+        val waveform = analyzer.analyze(
+            AudioWaveformAnalysisSource(
+                cacheKey = "track-3",
+                streamUrl = "https://music.example/unknown-length",
+                bucketCount = 2,
+                expectedDurationSeconds = 2.0,
+            ),
+        )
+
+        assertNotNull(waveform)
+        assertEquals(2, waveform.amplitudes.size)
+    }
+
+    @Test
+    fun usesSequentialPcmInsteadOfSlowLevelWindows() = runTest {
         val waveform = analyzeBassFloatPcmWaveform(
             bass = FakeBassAudioBackend(
                 chunks = listOf(floatArrayOf(0.25f), floatArrayOf(1.0f)),
@@ -83,7 +155,7 @@ class AudioWaveformTest {
     }
 
     @Test
-    fun analyzesPcmWhenBassWaveformLevelsWouldBeTruncated() {
+    fun analyzesPcmWhenBassWaveformLevelsWouldBeTruncated() = runTest {
         val waveform = analyzeBassFloatPcmWaveform(
             bass = FakeBassAudioBackend(
                 chunks = listOf(FloatArray(20) { 0.5f }),
@@ -99,7 +171,7 @@ class AudioWaveformTest {
     }
 
     @Test
-    fun analyzesPcmWhenBassWaveformLevelsWouldBeSparse() {
+    fun analyzesPcmWhenBassWaveformLevelsWouldBeSparse() = runTest {
         val sparseLevels = FloatArray(100).also { levels ->
             levels[0] = 0.8f
             levels[25] = 1.0f
@@ -119,6 +191,30 @@ class AudioWaveformTest {
         assertNotNull(waveform)
         assertEquals(100, waveform.amplitudes.size)
         assertEquals(List(100) { 1.0f }, waveform.amplitudes)
+    }
+
+    @Test
+    fun cancellableBassAnalysisStopsReadingAfterItsJobIsCancelled() = runTest {
+        lateinit var analysisJob: Job
+        val backend = FakeBassAudioBackend(
+            chunks = List(4) { FloatArray(16_384) { 0.5f } },
+            onRead = { readCount ->
+                if (readCount == 1) analysisJob.cancel()
+            },
+        )
+        analysisJob = launch(start = CoroutineStart.LAZY) {
+            analyzeBassFloatPcmWaveform(
+                bass = backend,
+                stream = BassStreamHandle(7),
+                bucketCount = 100,
+            )
+        }
+
+        analysisJob.start()
+        analysisJob.join()
+
+        assertTrue(analysisJob.isCancelled)
+        assertEquals(1, backend.readCount)
     }
 
     @Test
@@ -152,17 +248,50 @@ class AudioWaveformTest {
 private class FakeBassAudioBackend(
     private val chunks: List<FloatArray>,
     private val waveformLevels: FloatArray? = null,
+    private val onRead: (Int) -> Unit = {},
+    private val knownLength: Boolean = true,
+    private val streamInfo: BassStreamInfo? = null,
 ) : BassAudioBackend {
     private var chunkIndex = 0
+    var readCount: Int = 0
+        private set
+    var verifyNetworkCertificates: Boolean? = null
+        private set
+    var internetConfigurationCount: Int = 0
+        private set
+    var createdFile: String? = null
+        private set
+    var createdUrl: String? = null
+        private set
+    var freedStream: BassStreamHandle? = null
+        private set
 
-    override fun createFileDecodeStream(path: String): Result<BassStreamHandle> =
-        Result.success(BassStreamHandle(1))
+    override fun setVerifyNet(verify: Boolean): Result<Unit> {
+        verifyNetworkCertificates = verify
+        return Result.success(Unit)
+    }
 
-    override fun createUrlDecodeStream(url: String): Result<BassStreamHandle> =
-        Result.success(BassStreamHandle(1))
+    override fun configureInternetStreams(): Result<Unit> {
+        internetConfigurationCount += 1
+        return Result.success(Unit)
+    }
 
-    override fun lengthBytes(stream: BassStreamHandle): Long =
-        chunks.sumOf { it.size }.toLong() * Float.SIZE_BYTES
+    override fun createFileDecodeStream(path: String): Result<BassStreamHandle> {
+        createdFile = path
+        return Result.success(BassStreamHandle(1))
+    }
+
+    override fun createUrlDecodeStream(url: String): Result<BassStreamHandle> {
+        createdUrl = url
+        return Result.success(BassStreamHandle(1))
+    }
+
+    override fun lengthBytes(stream: BassStreamHandle): Long? =
+        chunks.sumOf { it.size }.toLong().times(Float.SIZE_BYTES).takeIf { knownLength }
+
+    override fun channelInfo(stream: BassStreamHandle): Result<BassStreamInfo> =
+        streamInfo?.let(Result.Companion::success)
+            ?: Result.failure(IllegalStateException("No stream info"))
 
     override fun waveformLevels(stream: BassStreamHandle, bucketCount: Int): Result<FloatArray> =
         waveformLevels
@@ -171,10 +300,14 @@ private class FakeBassAudioBackend(
 
     override fun readFloatData(stream: BassStreamHandle, buffer: FloatArray): Result<Int> {
         val chunk = chunks.getOrNull(chunkIndex++) ?: return Result.success(0)
+        readCount += 1
+        onRead(readCount)
         chunk.copyInto(buffer)
         return Result.success(chunk.size)
     }
 
-    override fun freeStream(stream: BassStreamHandle): Result<Unit> =
-        Result.success(Unit)
+    override fun freeStream(stream: BassStreamHandle): Result<Unit> {
+        freedStream = stream
+        return Result.success(Unit)
+    }
 }
