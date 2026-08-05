@@ -107,6 +107,33 @@ data class BassPluginDiagnostic(
     val errorCode: Int? = null,
 )
 
+/**
+ * BASS add-ons that extend the standard stream creation APIs through BASS_PluginLoad.
+ *
+ * Hosts translate these stable stems into native filenames and only attempt the entries that are
+ * bundled for that operating system. Feature libraries such as BASSmix, BASS FX, BASSloud, and
+ * BASS_SSL deliberately do not belong in this inventory.
+ */
+object BassCodecPluginInventory {
+    val stems: List<String> = listOf(
+        "bass_aac",
+        "bass_ac3",
+        "bassflac",
+        "bassopus",
+        "bassalac",
+        "bassape",
+        "bassdsd",
+        "bass_mpc",
+        "basshls",
+        "basswebm",
+        "bassmidi",
+        "basswv",
+        "bass_spx",
+        "bass_tta",
+        "basswma",
+    )
+}
+
 data class BassCreatedPlayback(
     val playbackHandle: Int,
     val sourceHandle: Int,

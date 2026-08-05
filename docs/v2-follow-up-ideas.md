@@ -28,12 +28,13 @@ This document tracks useful ideas that come up during the v2 migration but are n
 
 ### Cross-Platform BASS Add-On Usage Audit
 
-- **Status:** Idea
+- **Status:** Investigating
 - **Concept:** Audit which vendored BASS add-ons Naviamp actually loads and uses for real playback, analysis, effects, and supported library formats, then remove add-ons that provide no product value.
 - **Scope:** Compare Android, Desktop, and iOS as one playback product. Record each add-on's call sites, dynamic-load result, formats or features it enables, representative test media, package-size cost, and whether the operating system already supplies an equivalent codec.
 - **Important constraint:** Do not remove a library merely because a narrow acceptance library does not contain its format. A removal needs evidence from the supported-format contract and tests showing that Core capability claims, provider transcoding/original-stream behavior, offline playback, waveform analysis, crossfade/mixing, EQ, and visualizers remain correct.
 - **Desired outcome:** Define one intentional cross-platform base inventory plus documented platform substitutions, remove unused binaries/load attempts/build metadata, and add package verification that prevents the inventories from drifting accidentally.
 - **Timing:** Keep the complete supported parity set during initial iOS BASS bring-up so missing codecs cannot be mistaken for backend or simulator defects. Run this audit after iOS playback parity is stable and before final release packaging/performance acceptance.
+- **Active audit:** See [`bass-addon-usage-audit.md`](bass-addon-usage-audit.md) for the evidence, current platform matrix, findings, decisions, and implementation checklist.
 
 ### F-Droid Distribution
 

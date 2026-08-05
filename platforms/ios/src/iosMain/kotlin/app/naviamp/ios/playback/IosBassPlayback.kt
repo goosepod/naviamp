@@ -3,6 +3,7 @@
 package app.naviamp.ios.playback
 
 import app.naviamp.domain.bass.BassAudioBackend
+import app.naviamp.domain.bass.BassCodecPluginInventory
 import app.naviamp.domain.bass.BassPlaybackBufferPolicy
 import app.naviamp.domain.bass.BassPluginDiagnostic
 import app.naviamp.domain.bass.BassStreamHandle
@@ -482,12 +483,18 @@ class IosBassAudioBackend : BassAudioBackend {
         }
     }
 
-    private fun createFile(path: String, flags: UInt, message: String): Result<BassStreamHandle> = memScoped {
-        BASS_StreamCreateFile(0u, path.cstr.ptr, 0uL, 0uL, flags).handleResult(message)
+    private fun createFile(path: String, flags: UInt, message: String): Result<BassStreamHandle> {
+        ensureCodecPluginsLoaded()
+        return memScoped {
+            BASS_StreamCreateFile(0u, path.cstr.ptr, 0uL, 0uL, flags).handleResult(message)
+        }
     }
 
-    private fun createUrl(url: String, flags: UInt, message: String): Result<BassStreamHandle> = memScoped {
-        BASS_StreamCreateURL(url, 0u, flags, null, null).handleResult(message)
+    private fun createUrl(url: String, flags: UInt, message: String): Result<BassStreamHandle> {
+        ensureCodecPluginsLoaded()
+        return memScoped {
+            BASS_StreamCreateURL(url, 0u, flags, null, null).handleResult(message)
+        }
     }
 
     private inline fun bassResult(message: String, block: () -> Boolean): Result<Unit> =
@@ -537,9 +544,7 @@ fun createIosBassPlaybackEngine(): CoreBassPlaybackEngine = CoreBassPlaybackEngi
     runtime = IosBassPlaybackEngineRuntime(),
 )
 
-private val IosBassFrameworks = listOf(
-    "bass",
-    "bassmix",
+private val IosAvailableBassCodecPlugins = setOf(
     "bassflac",
     "bassopus",
     "bassmidi",
@@ -548,24 +553,15 @@ private val IosBassFrameworks = listOf(
     "basswebm",
     "basshls",
     "bassape",
-    "bassloud",
-    "bass_fx",
     "bass_mpc",
     "bass_tta",
 )
 
-private val IosBassCodecPlugins = setOf(
-    "bassflac",
-    "bassopus",
-    "bassmidi",
-    "basswv",
-    "bassdsd",
-    "basswebm",
-    "basshls",
-    "bassape",
-    "bass_mpc",
-    "bass_tta",
-)
+private val IosBassCodecPlugins = BassCodecPluginInventory.stems
+    .filter(IosAvailableBassCodecPlugins::contains)
+    .toSet()
+
+private val IosBassFrameworks = listOf("bass", "bassmix") + IosBassCodecPlugins
 
 private class IosBassEndSync(callback: (BassStreamHandle) -> Unit) {
     private val lock = NSLock()

@@ -30,6 +30,35 @@ class BassAudioBackendTest {
     }
 
     @Test
+    fun codecPluginInventoryExcludesFeatureLibraries() {
+        assertEquals(
+            setOf(
+                "bass_aac",
+                "bass_ac3",
+                "bassflac",
+                "bassopus",
+                "bassalac",
+                "bassape",
+                "bassdsd",
+                "bass_mpc",
+                "basshls",
+                "basswebm",
+                "bassmidi",
+                "basswv",
+                "bass_spx",
+                "bass_tta",
+                "basswma",
+            ),
+            BassCodecPluginInventory.stems.toSet(),
+        )
+        assertEquals(BassCodecPluginInventory.stems.size, BassCodecPluginInventory.stems.toSet().size)
+        assertTrue("bassmix" !in BassCodecPluginInventory.stems)
+        assertTrue("bass_fx" !in BassCodecPluginInventory.stems)
+        assertTrue("bassloud" !in BassCodecPluginInventory.stems)
+        assertTrue("bass_ssl" !in BassCodecPluginInventory.stems)
+    }
+
+    @Test
     fun formatsBassErrorCodes() {
         assertEquals("no error", bassErrorMessage(0))
         assertEquals("connection timed out", bassErrorMessage(40))

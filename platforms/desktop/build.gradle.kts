@@ -149,13 +149,38 @@ tasks.register("verifyDesktopNativeInputs") {
     description = "Verifies vendored BASS libraries and native source inputs for every supported Desktop target."
 
     doLast {
-        listOf("macos-arm64", "windows-x64", "linux-x64").forEach { platform ->
+        val expectedStemsByPlatform = mapOf(
+            "macos-arm64" to setOf(
+                "bass", "bass_mpc", "bassape", "bassdsd", "bassflac", "basshls",
+                "bassmidi", "bassmix", "bassopus", "basswebm", "basswv",
+            ),
+            "windows-x64" to setOf(
+                "bass", "bass_aac", "bass_mpc", "bass_ssl", "bassalac", "bassape",
+                "bassdsd", "bassflac", "basshls", "bassmidi", "bassmix", "bassopus",
+                "basswebm", "basswma",
+            ),
+            "linux-x64" to setOf(
+                "bass", "bass_aac", "bass_ac3", "bass_mpc", "bass_spx", "bass_tta",
+                "bassalac", "bassape", "bassdsd", "bassflac", "basshls", "bassmidi",
+                "bassmix", "bassopus", "basswebm", "basswv",
+            ),
+        )
+        expectedStemsByPlatform.forEach { (platform, expectedStems) ->
             val vendorDirectory = layout.projectDirectory.dir("vendor/bass/$platform").asFile
-            val requiredLibraries = listOf("bass", "bassmix", "bassflac", "bassopus")
+            val requiredLibraries = expectedStems
                 .map { desktopLibraryName(it, platform) }
             val missing = requiredLibraries.filterNot { vendorDirectory.resolve(it).isFile }
             check(missing.isEmpty()) {
                 "$platform is missing required vendored BASS libraries: ${missing.joinToString()}"
+            }
+            val actualLibraries = vendorDirectory.listFiles()
+                .orEmpty()
+                .filter(File::isFile)
+                .map(File::getName)
+                .toSet()
+            val unexpected = actualLibraries - requiredLibraries.toSet()
+            check(unexpected.isEmpty()) {
+                "$platform contains unexpected vendored BASS libraries: ${unexpected.joinToString()}"
             }
         }
 

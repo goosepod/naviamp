@@ -1,16 +1,19 @@
 package app.naviamp.android.playback
 
 import android.util.Log
+import app.naviamp.domain.bass.BassPluginDiagnostic
 
 object AndroidBassJni {
     private const val Tag = "NaviampBass"
+    private var cachedPluginDiagnostics: List<BassPluginDiagnostic>? = null
 
     fun load(): Result<AndroidBassJni> =
         runCatching {
-            AndroidBassNativeLoader.loadBundledLibraries().also { report ->
+            val report = AndroidBassNativeLoader.loadBundledLibraries().also { report ->
                 check(report.available) { "BASS core library is not loaded." }
             }
             System.loadLibrary("naviamp_bass")
+            loadAvailablePlugins(report)
             Log.i(
                 Tag,
                 "Loaded naviamp_bass JNI: bass=${nativeBassVersion()}, " +
@@ -18,6 +21,9 @@ object AndroidBassJni {
             )
             this
         }
+
+    val pluginDiagnostics: List<BassPluginDiagnostic>
+        get() = cachedPluginDiagnostics.orEmpty()
 
     val version: Int
         get() = nativeBassVersion()
@@ -102,6 +108,28 @@ object AndroidBassJni {
 
     fun readFloatData(stream: Int, buffer: FloatArray): Int = nativeReadFloatData(stream, buffer)
 
+    private fun loadAvailablePlugins(report: AndroidBassLoadReport) {
+        if (cachedPluginDiagnostics != null) return
+        cachedPluginDiagnostics = AndroidBassNativeLoader.codecLibraries.map { stem ->
+            if (stem !in report.loadedLibraries) {
+                BassPluginDiagnostic(stem = stem, loaded = false)
+            } else {
+                val handle = nativeLoadPlugin(androidBassPluginFileName(stem))
+                BassPluginDiagnostic(
+                    stem = stem,
+                    loaded = handle != 0,
+                    errorCode = if (handle == 0) nativeLastErrorCode() else null,
+                )
+            }
+        }.also { diagnostics ->
+            val loaded = diagnostics.count(BassPluginDiagnostic::loaded)
+            Log.i(Tag, "BASS codec plugins loaded=$loaded, failed=${diagnostics.size - loaded}")
+            diagnostics.filterNot(BassPluginDiagnostic::loaded).forEach { diagnostic ->
+                Log.w(Tag, "Failed to register ${diagnostic.stem}: BASS error ${diagnostic.errorCode}")
+            }
+        }
+    }
+
     private external fun nativeBassVersion(): Int
     private external fun nativeMixerVersion(): Int
     private external fun nativeLastErrorCode(): Int
@@ -142,4 +170,7 @@ object AndroidBassJni {
     private external fun nativeFft(stream: Int, bins: Int): FloatArray
     private external fun nativeWaveformLevels(stream: Int, bucketCount: Int): FloatArray
     private external fun nativeReadFloatData(stream: Int, buffer: FloatArray): Int
+    private external fun nativeLoadPlugin(path: String): Int
 }
+
+internal fun androidBassPluginFileName(stem: String): String = "lib$stem.so"

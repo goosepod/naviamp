@@ -2,6 +2,7 @@ package app.naviamp.android.playback
 
 import app.naviamp.domain.bass.BassAudioBackend
 import app.naviamp.domain.bass.BassPlaybackBufferPolicy
+import app.naviamp.domain.bass.BassPluginDiagnostic
 import app.naviamp.domain.bass.BassStreamInfo
 import app.naviamp.domain.bass.BassStreamHandle
 import app.naviamp.domain.bass.bassStreamProperties
@@ -18,6 +19,9 @@ class AndroidBassAudioBackend(
 
     override val lastErrorCode: Int
         get() = bass.lastErrorCode
+
+    override val pluginDiagnostics: List<BassPluginDiagnostic>
+        get() = bass.pluginDiagnostics
 
     override val supportsMixer: Boolean
         get() = true

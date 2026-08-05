@@ -1,30 +1,20 @@
 package app.naviamp.android.playback
 
 import android.util.Log
+import app.naviamp.domain.bass.BassCodecPluginInventory
 
 object AndroidBassNativeLoader {
     private const val Tag = "NaviampBass"
 
+    internal val codecLibraries = BassCodecPluginInventory.stems.filterNot {
+        it == "bass_spx" || it == "basswma"
+    }
+
     private val libraries = listOf(
         "bass",
         "bass_ssl",
-        "bass_aac",
-        "bass_ac3",
-        "bass_fx",
-        "bass_mpc",
-        "bass_tta",
-        "bassalac",
-        "bassape",
-        "bassdsd",
-        "bassflac",
-        "basshls",
-        "bassloud",
-        "bassmidi",
         "bassmix",
-        "bassopus",
-        "basswebm",
-        "basswv",
-    )
+    ) + codecLibraries
 
     @Volatile
     private var cachedReport: AndroidBassLoadReport? = null

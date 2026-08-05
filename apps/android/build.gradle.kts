@@ -133,11 +133,42 @@ tasks.register("verifyDebugBassNativePackage") {
         val apk = apkFile.get().asFile
         check(apk.isFile) { "Debug APK was not found at ${apk.absolutePath}" }
         val requiredAbis = listOf("arm64-v8a", "armeabi-v7a", "x86", "x86_64")
-        val requiredLibraries = listOf("libnaviamp_bass.so", "libbass.so", "libbassmix.so", "libc++_shared.so")
+        val requiredLibraries = listOf(
+            "libnaviamp_bass.so",
+            "libbass.so",
+            "libbass_ssl.so",
+            "libbassmix.so",
+            "libbass_aac.so",
+            "libbass_ac3.so",
+            "libbass_mpc.so",
+            "libbass_tta.so",
+            "libbassalac.so",
+            "libbassape.so",
+            "libbassdsd.so",
+            "libbassflac.so",
+            "libbasshls.so",
+            "libbassmidi.so",
+            "libbassopus.so",
+            "libbasswebm.so",
+            "libbasswv.so",
+            "libc++_shared.so",
+        )
         val entries = ZipFile(apk).use { zip -> zip.entries().asSequence().map { it.name }.toSet() }
         val missing = requiredAbis.flatMap { abi ->
             requiredLibraries.mapNotNull { library -> "lib/$abi/$library".takeUnless(entries::contains) }
         }
         check(missing.isEmpty()) { "Debug APK is missing native playback libraries: ${missing.joinToString()}" }
+        val expectedBassLibraries = requiredLibraries.filter { it.startsWith("libbass") }.toSet()
+        val unexpected = requiredAbis.flatMap { abi ->
+            entries.asSequence()
+                .filter { it.startsWith("lib/$abi/libbass") && it.endsWith(".so") }
+                .map { it.substringAfterLast('/') }
+                .filterNot(expectedBassLibraries::contains)
+                .map { "lib/$abi/$it" }
+                .toList()
+        }
+        check(unexpected.isEmpty()) {
+            "Debug APK contains unexpected BASS libraries: ${unexpected.joinToString()}"
+        }
     }
 }

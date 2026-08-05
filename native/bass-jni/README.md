@@ -35,7 +35,6 @@ Each ABI currently has:
 - `libbass.so`
 - `libbass_aac.so`
 - `libbass_ac3.so`
-- `libbass_fx.so`
 - `libbass_mpc.so`
 - `libbass_tta.so`
 - `libbassalac.so`
@@ -53,4 +52,4 @@ BASS headers are stored under `vendor/include`.
 
 ## Build Status
 
-The CMake target exposes the active desktop/Android BASS JNI surface for stream creation, playback control, seek/progress, volume, decode reads, FFT, tags, mixer primitives, plugin loading, and desktop end-sync callbacks.
+The CMake target exposes the active desktop/Android BASS JNI surface for stream creation, playback control, seek/progress, volume, decode reads, FFT, tags, mixer primitives, plugin loading, and desktop end-sync callbacks. Android registers each bundled codec add-on through `BASS_PluginLoad`; process-loading an add-on alone is not treated as decoder availability.

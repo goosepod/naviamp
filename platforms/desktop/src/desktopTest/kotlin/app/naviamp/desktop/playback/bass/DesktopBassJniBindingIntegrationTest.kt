@@ -33,6 +33,10 @@ class DesktopBassJniBindingIntegrationTest {
             assertTrue(binding.channelInfoFrequency(stream) > 0)
             assertTrue(binding.channelInfoChannels(stream) > 0)
             assertTrue(binding.setVolume(stream, 0.25f))
+            assertTrue(
+                binding.applyEqualizer(stream, FloatArray(10) { index -> index - 5.0f }),
+                "BASS core equalizer should work without the BASS FX add-on: ${binding.lastErrorCode}",
+            )
             assertTrue(binding.seek(stream, 0.1))
             assertTrue((binding.positionSeconds(stream) ?: -1.0) >= 0.0)
             assertTrue(binding.play(stream))
@@ -105,6 +109,10 @@ class DesktopBassJniBindingIntegrationTest {
         val backend = loadDesktopBassAudioBackend().getOrNull() ?: return
 
         assertTrue((backend.version ?: 0) > 0)
+        assertTrue(
+            backend.pluginDiagnostics.all { it.loaded },
+            "Bundled Desktop codec plugins should register: ${backend.pluginDiagnostics.filterNot { it.loaded }}",
+        )
     }
 
     private fun loadBindingOrSkip(): DesktopBassJniBinding? {

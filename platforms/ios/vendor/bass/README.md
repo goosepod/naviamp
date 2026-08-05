@@ -21,8 +21,6 @@ upstream license/readme supplied with each distribution is retained in `licenses
 | BASSWEBM | 2.4.1 | `basswebm24-ios.zip` | `61f7fa21725ce0392c93a39cb10d7600a7759be72f0ab6652483f766f8d233dc` |
 | BASSHLS | 2.4.5 | `basshls24-ios.zip` | `0cf476d50c8269f94be20597c3984f4848710748ce11f725e3a1b033d3eb30de` |
 | BASSAPE | 2.4.1 | `bassape24-ios.zip` | `21bedf9e4b70bf3a2ac25f1ce93d46ef1a5a4691cc262742dc9dbcaa55527cc7` |
-| BASSloud | 2.4 | `bassloud24-ios.zip` | `60ded9d9a37f0f17ea66b53891022406a69d653e1a777aa5883dad206561936d` |
-| BASS FX | 2.4.12.6 | `bass_fx24-ios.zip` | `a27530682afcc87a288252e38b2345a865ea93bdbd18f38fecc756181a72ced0` |
 | BASS_MPC | 2.4.1.2 | `bass_mpc24-ios.zip` | `153961beaa506850b527e774c95c187a9194a25bc1764b8a98abaf4d81536172` |
 | BASS_TTA | 2.4.0.2 | `bass_tta24-ios.zip` | `5174195fbe3e14735db521744bd85e153b8e723c297c6a6b5f41eddf96bfc6ae` |
 

@@ -1,5 +1,6 @@
 package app.naviamp.desktop.playback.bass
 
+import app.naviamp.domain.bass.BassCodecPluginInventory
 import java.io.File
 
 class DesktopBassJniBinding private constructor(
@@ -115,7 +116,7 @@ class DesktopBassJniBinding private constructor(
     fun readFloatData(stream: Int, buffer: FloatArray): Int = nativeReadFloatData(stream, buffer)
 
     fun loadAvailablePlugins(): List<DesktopBassJniPlugin> =
-        DesktopBassJniPlugins.names.mapNotNull { stem ->
+        BassCodecPluginInventory.stems.mapNotNull { stem ->
             val cached = loadedPlugins[stem]
             if (cached != null) return@mapNotNull cached
 
@@ -209,26 +210,3 @@ data class DesktopBassJniPlugin(
     val loaded: Boolean,
     val errorCode: Int?,
 )
-
-private object DesktopBassJniPlugins {
-    val names: List<String> = listOf(
-        "bass_aac",
-        "bass_ac3",
-        "bassflac",
-        "bassopus",
-        "bassalac",
-        "bassape",
-        "bassdsd",
-        "bass_mpc",
-        "basshls",
-        "basswebm",
-        "bassmidi",
-        "bassmix",
-        "bass_fx",
-        "basswv",
-        "bass_spx",
-        "bass_tta",
-        "bassloud",
-        "basswma",
-    )
-}

@@ -251,6 +251,14 @@ jboolean set_sample_rate_converter_quality(jint quality) {
     return BASS_SetConfig(BASS_CONFIG_SRC, safeQuality) ? JNI_TRUE : JNI_FALSE;
 }
 
+jint load_bass_plugin(JNIEnv* env, jstring path) {
+    const char* chars = env->GetStringUTFChars(path, nullptr);
+    if (chars == nullptr) return 0;
+    HPLUGIN plugin = BASS_PluginLoad(chars, 0);
+    env->ReleaseStringUTFChars(path, chars);
+    return static_cast<jint>(plugin);
+}
+
 int device_id_or_default(JNIEnv* env, jstring deviceId) {
     if (deviceId == nullptr) return -1;
     const char* chars = env->GetStringUTFChars(deviceId, nullptr);
@@ -967,6 +975,12 @@ Java_app_naviamp_android_playback_AndroidBassJni_nativeReadFloatData(JNIEnv* env
 }
 
 extern "C" JNIEXPORT jint JNICALL
+Java_app_naviamp_android_playback_AndroidBassJni_nativeLoadPlugin(JNIEnv* env, jobject thiz, jstring path) {
+    (void)thiz;
+    return load_bass_plugin(env, path);
+}
+
+extern "C" JNIEXPORT jint JNICALL
 Java_app_naviamp_desktop_playback_bass_DesktopBassJniBinding_nativeBassVersion(JNIEnv* env, jobject thiz) {
     (void)env;
     (void)thiz;
@@ -1333,9 +1347,5 @@ Java_app_naviamp_desktop_playback_bass_DesktopBassJniBinding_nativeReadFloatData
 extern "C" JNIEXPORT jint JNICALL
 Java_app_naviamp_desktop_playback_bass_DesktopBassJniBinding_nativeLoadPlugin(JNIEnv* env, jobject thiz, jstring path) {
     (void)thiz;
-    const char* chars = env->GetStringUTFChars(path, nullptr);
-    if (chars == nullptr) return 0;
-    HPLUGIN plugin = BASS_PluginLoad(chars, 0);
-    env->ReleaseStringUTFChars(path, chars);
-    return static_cast<jint>(plugin);
+    return load_bass_plugin(env, path);
 }

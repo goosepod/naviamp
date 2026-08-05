@@ -13,8 +13,6 @@ val iosBassFrameworks = listOf(
     "basswebm",
     "basshls",
     "bassape",
-    "bassloud",
-    "bass_fx",
     "bass_mpc",
     "bass_tta",
 )
@@ -72,4 +70,25 @@ val stageIosSimulatorTestBassFrameworks by tasks.registering(Copy::class) {
 
 tasks.named("iosSimulatorArm64Test") {
     dependsOn(stageIosSimulatorTestBassFrameworks)
+}
+
+val verifyIosBassInventory by tasks.registering {
+    group = "verification"
+    description = "Verifies that the vendored iOS BASS XCFrameworks exactly match the linked inventory."
+    doLast {
+        val vendorDirectory = project.file("vendor/bass")
+        val actual = vendorDirectory.listFiles()
+            .orEmpty()
+            .filter { it.isDirectory && it.name.endsWith(".xcframework") }
+            .map { it.name.removeSuffix(".xcframework") }
+            .toSet()
+        val expected = iosBassFrameworks.toSet()
+        check(actual == expected) {
+            "iOS BASS inventory mismatch; missing=${expected - actual}, unexpected=${actual - expected}"
+        }
+    }
+}
+
+tasks.named("check") {
+    dependsOn(verifyIosBassInventory)
 }

@@ -39,12 +39,7 @@ class DesktopBassAudioBackend(
         }
 
     override val supportsMixer: Boolean
-        get() {
-            // BASSmix is a dynamic plug-in on macOS/Linux. Capability discovery happens before
-            // the first stream is created, so load native plug-ins before Core snapshots support.
-            bass.loadAvailablePlugins()
-            return mixerVersion != null
-        }
+        get() = mixerVersion != null
 
     override fun configurePlaybackBuffers(policy: BassPlaybackBufferPolicy): Result<Unit> =
         if (
