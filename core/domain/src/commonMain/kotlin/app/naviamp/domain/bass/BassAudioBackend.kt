@@ -129,7 +129,6 @@ object BassCodecPluginInventory {
         "bassmidi",
         "basswv",
         "bass_spx",
-        "bass_tta",
         "basswma",
     )
 }

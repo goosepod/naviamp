@@ -1,8 +1,34 @@
 BASSWEBM 2.4
-Copyright (c) 2018-2025 Un4seen Developments Ltd. All rights reserved.
+Copyright (c) 2018-2026 Un4seen Developments Ltd. All rights reserved.
 
-Files that you should have found in the BASSWEBM package
-========================================================
+
+BASSWEBM is an extension to the BASS audio library, enabling the playing of
+WebM and Matroska files.
+
+
+Requirements
+============
+BASS 2.4 is required (2.4.13 or above is recommended). The BASSOPUS add-on is
+also required for Opus support. Other add-ons may also be required for other
+codecs that Matroska files can use.
+
+
+Using BASSWEBM
+==============
+The plugin system (see BASS_PluginLoad) can be used to add WebM/Matroska
+support to the standard BASS stream creation functions. Dedicated WebM/Matroska
+stream creation functions are also provided by BASSWEBM.
+
+The usage information in the BASS.TXT file (from the BASS package) is also
+applicable to BASSWEBM and other add-ons.
+
+TIP: The BASSWEBM.CHM file should be put in the same directory as the BASS.CHM
+     file, so that the BASSWEBM documentation can be accessed from within the
+     BASS documentation.
+
+
+Included files
+==============
 Win32 version
 -------------
 BASSWEBM.TXT    This file
@@ -60,33 +86,6 @@ BASSWEBM.CHM    BASSWEBM documentation
 BASSWEBM.H      BASSWEBM C/C++/Objective-C header file
 
 
-What's the point?
-=================
-BASSWEBM is an extension to the BASS audio library, enabling the playing of
-WebM and Matroska files.
-
-
-Requirements
-============
-BASS 2.4 is required (2.4.13 or above is recommended). The BASSOPUS add-on is
-also required for Opus support. Other add-ons may also be required for other
-codecs that Matroska files can use.
-
-
-Using BASSWEBM
-==============
-The plugin system (see BASS_PluginLoad) can be used to add WebM/Matroska
-support to the standard BASS stream creation functions. Dedicated WebM/Matroska
-stream creation functions are also provided by BASSWEBM.
-
-The usage information in the BASS.TXT file (from the BASS package) is also
-applicable to BASSWEBM and other add-ons.
-
-TIP: The BASSWEBM.CHM file should be put in the same directory as the BASS.CHM
-     file, so that the BASSWEBM documentation can be accessed from within the
-     BASS documentation.
-
-
 Latest Version
 ==============
 The latest versions of BASSWEBM & BASS can be found at the BASS website:
@@ -122,6 +121,14 @@ These are the major (and not so major) changes in each release, along with the
 functions/options that are introduced/affected by them. There are other little
 tweaks and fixes made along the way too.
 
+2.4.2 - 4/8/2026
+----------------
+* Support for embedded files (eg. cover art)
+	BASS_TAG_WEBM_ATTACHMENT (BASS_ChannelGetTags type)
+	TAG_WEBM_ATTACHMENT structure
+* Support for seeking beyond the downloaded part of internet/buffered files
+	BASS_ChannelSetPosition
+
 2.4.1 - 26/11/2025
 ------------------
 * New track position mode with support for switching tracks
@@ -152,6 +159,6 @@ tweaks and fixes made along the way too.
 
 Bug reports, Suggestions, Comments, Enquiries, etc
 ==================================================
-If you have any of the aforementioned please visit the BASS forum at the
+If you have any of the aforementioned, please visit the BASS forum at the
 website.
 

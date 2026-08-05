@@ -160,7 +160,7 @@ tasks.register("verifyDesktopNativeInputs") {
                 "basswebm", "basswma",
             ),
             "linux-x64" to setOf(
-                "bass", "bass_aac", "bass_ac3", "bass_mpc", "bass_spx", "bass_tta",
+                "bass", "bass_aac", "bass_ac3", "bass_mpc", "bass_spx",
                 "bassalac", "bassape", "bassdsd", "bassflac", "basshls", "bassmidi",
                 "bassmix", "bassopus", "basswebm", "basswv",
             ),

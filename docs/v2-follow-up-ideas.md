@@ -14,13 +14,19 @@ This document tracks useful ideas that come up during the v2 migration but are n
 
 ### Weblate Translation Management
 
-- **Status:** Idea
+- **Status:** Investigating
 - **Concept:** Use Weblate as Naviamp's source of truth for community translations, with repository synchronization keeping the shared localization resources and translator-facing strings aligned.
 - **Hosting opportunity:** Apply for Weblate's gratis Libre plan for Naviamp as a public libre project. The advertised Libre plan has the same limits as Weblate's 160k plan and is intended specifically for public projects that benefit from Weblate support.
+- **Eligibility assessment (2026-08-05):** Do not start the 14-day trial yet.
+  - Naviamp's GPLv3 source and English/Spanish Compose Multiplatform XML catalogs are public in the same GitHub repository, and Weblate supports this resource format.
+  - Development began on 2026-05-08, so the project reaches Weblate's minimum three-month activity threshold on 2026-08-08. Commit activity is substantial, but the current single-contributor history may still receive discretionary review under the "reasonable number of contributions" requirement.
+  - The README does not yet mention Weblate. Add a translation section and Weblate link during trial setup, before requesting approval.
+  - Naviamp bundles proprietary, non-commercial BASS binaries. Ask Weblate whether this separately licensed playback dependency is compatible with its Libre-project requirement; do not imply that the complete dependency chain is FLOSS.
+  - Forgejo is the canonical repository and GitHub is a one-way public mirror. Define a reviewed path for Weblate translation commits to return to Forgejo without making GitHub an independent source of truth.
+- **Next decision:** Reassess after 2026-08-08. The README and in-app BASS disclosures are now present; start the trial only when the repository write-back workflow and catalog validation are ready to complete within the 14-day approval window.
 - **Shared-architecture requirement:** Keep translatable product strings and locale behavior in shared resources wherever possible. Android, Desktop, and iOS hosts should contribute only genuinely platform-owned text such as operating-system permission descriptions or packaging metadata, and should not develop independent translation catalogs for shared UI.
 - **Questions to answer:**
-  - Which Compose Multiplatform resource format and repository layout gives Weblate reliable round-trip updates without generated-file churn or platform catalog drift?
-  - Should Weblate push directly to a dedicated translation branch, open reviewed pull requests, or be mirrored through a project-owned automation account?
+  - Should Weblate write to a dedicated GitHub translation branch for manual import into Forgejo, or can a project-owned bridge safely submit changes to the canonical repository?
   - Which locales, plural rules, placeholders, markup, screenshots, glossary terms, contributor credit, review thresholds, and stale-string policies should be configured before inviting translators?
   - How will CI validate placeholder compatibility, locale completeness, encoding, fallback behavior, and compilation across Android, Desktop, and iOS?
 - **Implementation output:** Confirm Libre-plan eligibility, create the Weblate project and component configuration, document translator and maintainer workflows, import the existing catalogs, add automated validation, and verify a complete translation round trip from Weblate through review to all three clients.
@@ -28,26 +34,24 @@ This document tracks useful ideas that come up during the v2 migration but are n
 
 ### Cross-Platform BASS Add-On Usage Audit
 
-- **Status:** Investigating
+- **Status:** Planned
 - **Concept:** Audit which vendored BASS add-ons Naviamp actually loads and uses for real playback, analysis, effects, and supported library formats, then remove add-ons that provide no product value.
 - **Scope:** Compare Android, Desktop, and iOS as one playback product. Record each add-on's call sites, dynamic-load result, formats or features it enables, representative test media, package-size cost, and whether the operating system already supplies an equivalent codec.
 - **Important constraint:** Do not remove a library merely because a narrow acceptance library does not contain its format. A removal needs evidence from the supported-format contract and tests showing that Core capability claims, provider transcoding/original-stream behavior, offline playback, waveform analysis, crossfade/mixing, EQ, and visualizers remain correct.
 - **Desired outcome:** Define one intentional cross-platform base inventory plus documented platform substitutions, remove unused binaries/load attempts/build metadata, and add package verification that prevents the inventories from drifting accidentally.
-- **Timing:** Keep the complete supported parity set during initial iOS BASS bring-up so missing codecs cannot be mistaken for backend or simulator defects. Run this audit after iOS playback parity is stable and before final release packaging/performance acceptance.
+- **Completed so far:** Defined the shared decoder inventory; separated codec plugins from directly linked feature libraries; added Android plugin registration and diagnostics; enforced Android, Desktop, and iOS package inventories; removed unused effects/loudness components and a license-problematic niche decoder; added BASS/OpenSSL disclosures and the GPL linking exception; and refreshed BASSWEBM, BASS_SSL, and BASSOPUS from verified upstream archives.
+- **Verified so far:** Clean Core tests, Android package/runtime loading, Desktop native inventory/plugin tests, and iOS simulator inventory/plugin tests all pass with the reduced dependency set.
+- **Remaining:** Approve the user-visible supported-format contract, add redistributable format fixtures, run playback/offline/waveform/seek/transition acceptance across the release platform matrix, and compare final artifact sizes.
+- **Timing:** Complete the remaining format and release-artifact acceptance before final v2 packaging. Further optional codec removals remain separate decisions and must follow the supported-format evidence rule above.
 - **Active audit:** See [`bass-addon-usage-audit.md`](bass-addon-usage-audit.md) for the evidence, current platform matrix, findings, decisions, and implementation checklist.
 
 ### F-Droid Distribution
 
-- **Status:** Idea
-- **Concept:** Research and complete the work required to list Naviamp in the official F-Droid repository, giving Android users a trusted non-Play-Store installation and update path.
-- **Questions to answer:**
-  - Do F-Droid's current inclusion rules permit Naviamp's official prebuilt BASS libraries, or would the standard flavor need a fully source-buildable playback alternative?
-  - Can the Android release be built reproducibly from a clean F-Droid build environment without network-fetched binaries, local signing inputs, or untracked configuration?
-  - Which proprietary Google, analytics, update, crash-reporting, billing, or other non-free dependencies and services are present, including transitive dependencies, and which must be removed or flavor-gated?
-  - Should Naviamp submit through F-Droid's Requests For Packaging process, maintain metadata in `fdroiddata`, or first publish a project-owned F-Droid repository while official inclusion is reviewed?
-  - How should version codes, tags, changelogs, signing-key continuity, reproducible-build verification, screenshots, descriptions, licenses, source links, and update checks integrate with the existing release process?
-- **Investigation output:** Produce a current-policy compatibility report, dependency/license inventory, reproducible clean-build procedure, required Gradle/repository changes, store metadata checklist, and an explicit go/no-go recommendation for official inclusion. Treat an alternative playback engine or separate build flavor as a product and maintenance decision, not an automatic workaround.
-- **Shared-architecture requirement:** Distribution-specific Android build metadata may live in the Android/release tooling, but it must consume the same Core product and must not fork application behavior or create an F-Droid-only product graph.
+- **Status:** Rejected
+- **Decision:** Do not pursue inclusion in the official F-Droid repository.
+- **Rationale:** Naviamp's supported Android playback product depends on proprietary, prebuilt BASS and BASS add-on libraries. F-Droid requires a fully FLOSS dependency chain that its infrastructure can build from source; its upstream-binary and reproducible-build paths do not waive that requirement.
+- **Reconsider only if:** Naviamp adopts and commits to maintaining a fully FLOSS playback backend that can provide an acceptable Android product without any BASS binaries. That would be a substantial playback-engine and product-parity project, not distribution packaging work.
+- **Alternative:** Publish signed Android APKs through Naviamp's GitHub releases for installation and updates with Obtainium.
 
 ### Google Cast and Apple AirPlay
 
@@ -61,15 +65,15 @@ This document tracks useful ideas that come up during the v2 migration but are n
   - How do crossfade, ReplayGain, EQ, visualizers, lyrics, waveform generation, scrobbling, favorites, downloads, and offline playback change when audio is rendered remotely?
   - Which Android, iOS, and Desktop SDKs support discovery and session control, and does macOS use system AirPlay routing, an app-level API, or both?
   - What simulator coverage is possible, and which acceptance cases require real receivers and physical Apple devices?
-  - Does the Google Cast SDK conflict with official F-Droid inclusion, requiring a capability-gated build flavor or a different discovery/transport approach?
 - **Investigation output:** Produce a protocol and SDK comparison, Core session contract, credential and network-reachability threat model, receiver compatibility matrix, lifecycle/recovery test plan, and a recommendation for the smallest useful first implementation.
 
 ### Album Shuffle Radio
 
 - **Status:** Idea
+- **Priority:** Backburner
 - **Concept:** Add a radio mode that selects albums in random order while playing every selected album in its canonical disc and track order before moving to another randomly selected album.
-- **Scope boundary:** Do not build a proprietary saved "playlist of albums" format. OpenSubsonic pull request [#237, Add collections](https://github.com/opensubsonic/open-subsonic-api/pull/237), proposes an interoperable ordered collection whose items may include albums, songs, artists, playlists, genres, radio stations, and podcasts, with CRUD and item-reordering endpoints. If that proposal is accepted and adopted by supported servers, use the standard collection capability for user-curated album sequences. Until then, keep this idea limited to an ephemeral/generated random-album radio queue rather than a competing persisted collection model.
-- **Standards caveat:** The current collection proposal defines storage and ordering of typed items, but not client playback-expansion rules. Naviamp would still need a Core-owned policy that expands each album into canonical disc/track order while preserving collection order. Recheck the final specification, advertised extension version, and real server implementations before planning support; the pull request remains open as of July 29, 2026.
+- **Decision:** Do not implement this yet. Revisit it after an official OpenSubsonic/Subsonic capability for album collections is finalized and supported by Navidrome; Naviamp should not create a proprietary persisted model or an interim radio implementation while the standard is unsettled.
+- **Standards caveat:** A collection capability may define storage and ordering of typed items without defining client playback-expansion rules. When official support exists, Naviamp will still need a Core-owned policy that expands each album into canonical disc/track order while preserving collection order. Recheck the final specification, advertised extension version, and real server implementations before promoting this idea.
 - **Core behavior:** Model each album as an ordered queue group. Core owns album selection, de-duplication, queue replenishment, group boundaries, progression, persistence, and recovery; provider code supplies eligible albums and their canonical tracks, and hosts only render and invoke the shared mode.
 - **Questions to answer:**
   - Should selection cover the whole library or support filters such as genre, year, artist, favorites, library folder, rating, or downloaded-only content?
@@ -136,11 +140,11 @@ This document tracks useful ideas that come up during the v2 migration but are n
 
 ### Cross-Platform Typography and Spacing Polish
 
-- **Status:** Idea
-- **Concept:** Perform a dedicated visual-polish pass after the shared UI migration stabilizes, covering typography, spacing, density, alignment, and responsive sizing across Desktop, Android, and iOS.
-- **Why it may fit:** Moving product surfaces into shared composition has exposed small differences in perceived font weight, line height, padding, and control density. Correcting these piecemeal during architecture work would make regressions harder to isolate; a focused pass can establish intentional shared tokens and explicit platform adaptations.
-- **Areas to review:** Page and section titles, row heights, metadata hierarchy, icon-to-label spacing, forms and buttons, compact versus full Now Playing, bottom navigation, narrow Desktop windows, mobile safe areas, text truncation, and dynamic type or system font scaling.
-- **Implementation notes to investigate later:** Capture representative screenshots at agreed viewport sizes on all platforms, define shared typography and spacing tokens before changing individual screens, preserve accessibility minimums, and use platform-specific adjustments only where native font metrics or input conventions require them.
+- **Status:** Investigating
+- **Typography result:** The product typography architecture is implemented in Core. `NaviampTypography.kt` loads the shared Nunito Sans resource and applies it to every Material 3 typography role, while `NaviampSharedUi.kt` installs that typography for the common application rendered by Android, Desktop, and iOS. Platform hosts do not maintain separate product typography systems.
+- **Remaining discrepancy:** Desktop's separate native Stats for Nerds window creates its own `MaterialTheme` without the shared typography. Its window shell is legitimately Desktop-owned, but it should consume the Core typography rather than falling back to the Compose default.
+- **Remaining scope:** Keep only the visual acceptance and spacing work open: representative cross-platform screenshots, spacing and responsive-size review, accessibility minimums, text truncation, mobile safe areas, narrow Desktop layouts, and dynamic type or system font scaling. Shared composition prevents policy duplication, but it does not by itself prove that different font renderers, viewport sizes, and accessibility settings produce acceptable layouts.
+- **Next step:** Route the Desktop diagnostics window through the shared typography, then either complete the visual-acceptance checklist in `v2-cross-platform-plan.md` or split that acceptance work into its own focused follow-up item.
 
 ### Word-by-Word Karaoke Lyrics
 
@@ -247,19 +251,9 @@ This document tracks useful ideas that come up during the v2 migration but are n
 
 ### BlurHash versus ThumbHash Artwork Placeholders and Backgrounds
 
-- **Status:** Idea
-- **Sources:** [woltapp/blurhash](https://github.com/woltapp/blurhash), [evanw/thumbhash](https://github.com/evanw/thumbhash)
-- **Concept:** Compare BlurHash and ThumbHash for artwork placeholders and as alternate album-art-derived app background sources, then select one algorithm or deliberately reject both.
-- **Why it may fit:** Either hash can provide a compact, stable visual approximation of album art before the full image loads and may be cheaper than decoding and blurring full album art for every background. ThumbHash specifically claims better detail and color accuracy at a similar size, plus encoded aspect ratio and alpha support, while BlurHash offers configurable components and a broader established implementation ecosystem. Naviamp needs its own measurements and visual comparison instead of choosing from those claims alone.
-- **Questions to answer:**
-  - Does Navidrome expose either artwork hash through the Subsonic/OpenSubsonic API, or are its placeholders only internal?
-  - If the server does not expose a usable hash, should Naviamp generate and cache one locally after fetching cover art?
-  - Which algorithm produces better artwork placeholders and full-app backgrounds across dark, light, colorful, monochrome, square, non-square, and transparent artwork?
-  - How do encoded size, encode/decode time, allocation, memory use, cache cost, aspect-ratio handling, and transition smoothness compare on Android, Desktop, and iOS?
-  - Is either hash-derived background visually better than the current album blur option, or should hashes be used only as loading and transition placeholders?
-  - Can the same decoded colors feed the existing highlight-color and visualizer-color pipeline?
-  - Can one shared Kotlin Multiplatform implementation be used for encoding and decoding on all three platforms, or would either option require native wrappers or separate host code?
-- **Implementation notes to investigate later:** Verify API availability and both licenses; evaluate maintained Kotlin Multiplatform implementations and the feasibility of a small shared implementation; build an identical artwork corpus and benchmark harness for both algorithms; prototype with existing artwork-cache inputs; and compare startup, track-change, same-album transitions, placeholder-to-art transitions, and background rendering against the current Aurora and Album Blur options. Record the results before selecting an algorithm.
+- **Status:** Rejected
+- **Decision:** Do not add BlurHash or ThumbHash.
+- **Rationale:** Naviamp does not need another generated artwork representation or cache layer. The existing artwork loading, caching, transition, Aurora, and Album Blur behavior already covers the intended product experience, while either hash would add implementation and maintenance complexity without a demonstrated user problem.
 
 ## Promotion Checklist
 

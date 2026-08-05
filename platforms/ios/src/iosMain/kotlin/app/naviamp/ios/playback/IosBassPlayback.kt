@@ -554,7 +554,6 @@ private val IosAvailableBassCodecPlugins = setOf(
     "basshls",
     "bassape",
     "bass_mpc",
-    "bass_tta",
 )
 
 private val IosBassCodecPlugins = BassCodecPluginInventory.stems

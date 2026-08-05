@@ -1,6 +1,6 @@
 /*
 	BASSWEBM 2.4 C/C++ header file
-	Copyright (c) 2018-2025 Un4seen Developments Ltd.
+	Copyright (c) 2018-2026 Un4seen Developments Ltd.
 
 	See the BASSWEBM.CHM file for more detailed documentation
 */
@@ -24,20 +24,24 @@ extern "C" {
 #define NOBASSWEBMOVERLOADS
 #endif
 
-// Additional error codes returned by BASS_ErrorGetCode
-#define BASS_ERROR_TRACK	13	// invalid track number
-
 // Additional tag types
 #define BASS_TAG_WEBM			0x15000 // file tags : series of null-terminated UTF-8 strings
 #define BASS_TAG_WEBM_TRACK		0x15001 // track tags : series of null-terminated UTF-8 strings
+#define BASS_TAG_WEBM_ATTACHMENT 0x15100 // + index #, file attachment : TAG_WEBM_ATTACHMENT
+
+// File attachment structure
+typedef struct {
+	const char *description;
+	const char *filename;
+	const char *mediatype;
+	const void *data;
+	DWORD length;
+} TAG_WEBM_ATTACHMENT;
 
 // Additional attributes
 #define BASS_ATTRIB_WEBM_TRACK	0x16000
 #define BASS_ATTRIB_WEBM_TRACKS	0x16001
 #define BASS_ATTRIB_WEBM		0x16002
-
-// Additional BASS_ChannelGetLength/GetPosition/SetPosition mode
-#define BASS_POS_TRACK			4 // track number
 
 HSTREAM BASSWEBMDEF(BASS_WEBM_StreamCreateFile)(DWORD filetype, const void *file, QWORD offset, QWORD length, DWORD flags, DWORD track);
 HSTREAM BASSWEBMDEF(BASS_WEBM_StreamCreateURL)(const char *url, DWORD offset, DWORD flags, DOWNLOADPROC *proc, void *user, DWORD track);

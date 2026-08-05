@@ -23,7 +23,6 @@
 		A20000000000000000000005 /* basshls.xcframework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcframework; name = basshls.xcframework; path = ../../platforms/ios/vendor/bass/basshls.xcframework; sourceTree = SOURCE_ROOT; };
 		A20000000000000000000006 /* bassape.xcframework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcframework; name = bassape.xcframework; path = ../../platforms/ios/vendor/bass/bassape.xcframework; sourceTree = SOURCE_ROOT; };
 		A20000000000000000000009 /* bass_mpc.xcframework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcframework; name = bass_mpc.xcframework; path = ../../platforms/ios/vendor/bass/bass_mpc.xcframework; sourceTree = SOURCE_ROOT; };
-		A2000000000000000000000A /* bass_tta.xcframework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcframework; name = bass_tta.xcframework; path = ../../platforms/ios/vendor/bass/bass_tta.xcframework; sourceTree = SOURCE_ROOT; };
 		A10000000000000000000011 /* NaviampApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000001 /* NaviampApp.swift */; };
 		A10000000000000000000012 /* NaviampRootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000002 /* NaviampRootView.swift */; };
 		A10000000000000000000013 /* IosKeychainCredentialProtector.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000005 /* IosKeychainCredentialProtector.swift */; };
@@ -44,7 +43,6 @@
 		A20000000000000000000015 /* basshls.xcframework in Frameworks */ = {isa = PBXBuildFile; fileRef = A20000000000000000000005 /* basshls.xcframework */; };
 		A20000000000000000000016 /* bassape.xcframework in Frameworks */ = {isa = PBXBuildFile; fileRef = A20000000000000000000006 /* bassape.xcframework */; };
 		A20000000000000000000019 /* bass_mpc.xcframework in Frameworks */ = {isa = PBXBuildFile; fileRef = A20000000000000000000009 /* bass_mpc.xcframework */; };
-		A2000000000000000000001A /* bass_tta.xcframework in Frameworks */ = {isa = PBXBuildFile; fileRef = A2000000000000000000000A /* bass_tta.xcframework */; };
 		A20000000000000000000021 /* bassmidi.xcframework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = A20000000000000000000001 /* bassmidi.xcframework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy); }; };
 		A20000000000000000000022 /* basswv.xcframework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = A20000000000000000000002 /* basswv.xcframework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy); }; };
 		A20000000000000000000023 /* bassdsd.xcframework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = A20000000000000000000003 /* bassdsd.xcframework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy); }; };
@@ -52,7 +50,6 @@
 		A20000000000000000000025 /* basshls.xcframework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = A20000000000000000000005 /* basshls.xcframework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy); }; };
 		A20000000000000000000026 /* bassape.xcframework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = A20000000000000000000006 /* bassape.xcframework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy); }; };
 		A20000000000000000000029 /* bass_mpc.xcframework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = A20000000000000000000009 /* bass_mpc.xcframework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy); }; };
-		A2000000000000000000002A /* bass_tta.xcframework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = A2000000000000000000000A /* bass_tta.xcframework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy); }; };
 
 		A10000000000000000000020 = {
 			isa = PBXGroup;
@@ -96,7 +93,6 @@
 				A20000000000000000000005 /* basshls.xcframework */,
 				A20000000000000000000006 /* bassape.xcframework */,
 				A20000000000000000000009 /* bass_mpc.xcframework */,
-				A2000000000000000000000A /* bass_tta.xcframework */,
 			);
 			name = Frameworks;
 			sourceTree = "<group>";
@@ -113,9 +109,9 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		A10000000000000000000031 /* Frameworks */ = {isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (A10000000000000000000016 /* bass.xcframework in Frameworks */, A10000000000000000000017 /* bassmix.xcframework in Frameworks */, A10000000000000000000018 /* bassflac.xcframework in Frameworks */, A10000000000000000000019 /* bassopus.xcframework in Frameworks */, A20000000000000000000011 /* bassmidi.xcframework in Frameworks */, A20000000000000000000012 /* basswv.xcframework in Frameworks */, A20000000000000000000013 /* bassdsd.xcframework in Frameworks */, A20000000000000000000014 /* basswebm.xcframework in Frameworks */, A20000000000000000000015 /* basshls.xcframework in Frameworks */, A20000000000000000000016 /* bassape.xcframework in Frameworks */, A20000000000000000000019 /* bass_mpc.xcframework in Frameworks */, A2000000000000000000001A /* bass_tta.xcframework in Frameworks */); runOnlyForDeploymentPostprocessing = 0; };
+		A10000000000000000000031 /* Frameworks */ = {isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (A10000000000000000000016 /* bass.xcframework in Frameworks */, A10000000000000000000017 /* bassmix.xcframework in Frameworks */, A10000000000000000000018 /* bassflac.xcframework in Frameworks */, A10000000000000000000019 /* bassopus.xcframework in Frameworks */, A20000000000000000000011 /* bassmidi.xcframework in Frameworks */, A20000000000000000000012 /* basswv.xcframework in Frameworks */, A20000000000000000000013 /* bassdsd.xcframework in Frameworks */, A20000000000000000000014 /* basswebm.xcframework in Frameworks */, A20000000000000000000015 /* basshls.xcframework in Frameworks */, A20000000000000000000016 /* bassape.xcframework in Frameworks */, A20000000000000000000019 /* bass_mpc.xcframework in Frameworks */); runOnlyForDeploymentPostprocessing = 0; };
 		A10000000000000000000032 /* Resources */ = {isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (A30000000000000000000002 /* Assets.xcassets in Resources */); runOnlyForDeploymentPostprocessing = 0; };
-		A10000000000000000000034 /* Embed Frameworks */ = {isa = PBXCopyFilesBuildPhase; buildActionMask = 2147483647; dstPath = ""; dstSubfolderSpec = 10; files = (A1000000000000000000001A /* bass.xcframework in Embed Frameworks */, A1000000000000000000001B /* bassmix.xcframework in Embed Frameworks */, A1000000000000000000001C /* bassflac.xcframework in Embed Frameworks */, A1000000000000000000001D /* bassopus.xcframework in Embed Frameworks */, A20000000000000000000021 /* bassmidi.xcframework in Embed Frameworks */, A20000000000000000000022 /* basswv.xcframework in Embed Frameworks */, A20000000000000000000023 /* bassdsd.xcframework in Embed Frameworks */, A20000000000000000000024 /* basswebm.xcframework in Embed Frameworks */, A20000000000000000000025 /* basshls.xcframework in Embed Frameworks */, A20000000000000000000026 /* bassape.xcframework in Embed Frameworks */, A20000000000000000000029 /* bass_mpc.xcframework in Embed Frameworks */, A2000000000000000000002A /* bass_tta.xcframework in Embed Frameworks */); name = "Embed Frameworks"; runOnlyForDeploymentPostprocessing = 0; };
+		A10000000000000000000034 /* Embed Frameworks */ = {isa = PBXCopyFilesBuildPhase; buildActionMask = 2147483647; dstPath = ""; dstSubfolderSpec = 10; files = (A1000000000000000000001A /* bass.xcframework in Embed Frameworks */, A1000000000000000000001B /* bassmix.xcframework in Embed Frameworks */, A1000000000000000000001C /* bassflac.xcframework in Embed Frameworks */, A1000000000000000000001D /* bassopus.xcframework in Embed Frameworks */, A20000000000000000000021 /* bassmidi.xcframework in Embed Frameworks */, A20000000000000000000022 /* basswv.xcframework in Embed Frameworks */, A20000000000000000000023 /* bassdsd.xcframework in Embed Frameworks */, A20000000000000000000024 /* basswebm.xcframework in Embed Frameworks */, A20000000000000000000025 /* basshls.xcframework in Embed Frameworks */, A20000000000000000000026 /* bassape.xcframework in Embed Frameworks */, A20000000000000000000029 /* bass_mpc.xcframework in Embed Frameworks */); name = "Embed Frameworks"; runOnlyForDeploymentPostprocessing = 0; };
 		A10000000000000000000033 /* Build NaviampShared */ = {
 			isa = PBXShellScriptBuildPhase;
 			alwaysOutOfDate = 1;

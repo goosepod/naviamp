@@ -141,7 +141,6 @@ tasks.register("verifyDebugBassNativePackage") {
             "libbass_aac.so",
             "libbass_ac3.so",
             "libbass_mpc.so",
-            "libbass_tta.so",
             "libbassalac.so",
             "libbassape.so",
             "libbassdsd.so",

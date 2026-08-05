@@ -46,7 +46,6 @@ class BassAudioBackendTest {
                 "bassmidi",
                 "basswv",
                 "bass_spx",
-                "bass_tta",
                 "basswma",
             ),
             BassCodecPluginInventory.stems.toSet(),

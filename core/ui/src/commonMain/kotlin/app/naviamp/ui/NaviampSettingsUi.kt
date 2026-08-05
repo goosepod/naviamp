@@ -1149,13 +1149,14 @@ fun NaviampAboutSettingsSection(
                     Text("BASS audio library", color = colors.secondaryText, fontSize = SettingsDetailRowSubtitleSize)
                 }
                 AboutSettingsPage.Licenses -> {
-                    SettingsSectionTitle("Naviamp", colors)
-                    Text(stringResource(Res.string.settings_about_license_title), color = colors.primaryText, fontSize = SettingsDetailRowTitleSize, fontWeight = FontWeight.SemiBold)
-                    Text(
-                        GplLicenseText,
-                        color = colors.secondaryText,
-                        fontSize = SettingsDetailRowSubtitleSize,
-                    )
+                    NaviampLegalNotices.forEach { notice ->
+                        SettingsSectionTitle(notice.title, colors)
+                        Text(
+                            notice.body,
+                            color = colors.secondaryText,
+                            fontSize = SettingsDetailRowSubtitleSize,
+                        )
+                    }
                 }
                 AboutSettingsPage.Changelog -> {
                     SettingsSectionTitle(stringResource(Res.string.settings_about_latest_changes_title), colors)
@@ -1249,16 +1250,6 @@ private fun AboutSettingsPage.description(): String =
         AboutSettingsPage.Licenses -> stringResource(Res.string.settings_about_licenses_description)
         AboutSettingsPage.Changelog -> stringResource(Res.string.settings_about_changelog_description)
     }
-
-private val GplLicenseText = """
-Naviamp is free software licensed under the GNU General Public License, version 3.
-
-You may redistribute and/or modify Naviamp under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or any later version.
-
-Naviamp is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-
-See the LICENSE file included with the source distribution for the full license text, or visit https://www.gnu.org/licenses/gpl-3.0.html.
-""".trimIndent()
 
 @Composable
 private fun NaviampConnectionsSettingsSection(

@@ -2,6 +2,35 @@
 
 Release changes are grouped into user-facing Features, Bug Fixes, and deployment or infrastructure-related System Settings. Internal task-tracking notes are intentionally not included.
 
+## v2.0.0-alpha.2
+
+This alpha focuses on tightening Naviamp's native audio packaging and correcting mobile settings capability presentation.
+
+### Features
+
+- Added BASS, decoder, OpenSSL, and Naviamp licensing notices to the shared About screen and source distribution.
+
+### Bug Fixes
+
+- Hidden the software volume-bar setting on Android and iOS, where Naviamp intentionally uses system volume controls instead of an in-app volume bar.
+- Removed unused BASS FX and BASSloud components while retaining Core BASS equalization and ReplayGain behavior.
+- Removed the BASS_TTA decoder because its LGPL terms are incompatible with Naviamp's current static iOS packaging.
+- Aligned Android, Desktop, and iOS BASS decoder inventories and diagnostics so packaged components match the plugins each host actually registers.
+
+### System Settings
+
+- Added a GPLv3 section 7 linking exception for BASS and expanded the repository's third-party licensing disclosures.
+- Updated the vendored BASSWEBM, BASS_SSL, and BASSOPUS libraries from verified upstream packages.
+- Added build-time package checks that reject missing or unexpected native BASS components across supported platforms.
+
+### Alpha Notes and Known Limitations
+
+- Back up important playlists and settings before testing this alpha release.
+- Windows and macOS builds are not yet distributed with trusted publisher signing, so their operating systems may display security warnings.
+- The iOS IPA is unsigned and requires testers to sign it with their own Apple identity before sideloading.
+- Android Auto remains available for testing; report any first-track advancement or reconnection problems with the surrounding playback details.
+- Windows, Linux, and physical-iPhone release testing remains limited.
+
 ## v2.0.0-alpha.1
 
 Naviamp 2.0 is a major cross-platform rebuild. Android, macOS, Windows, Linux, and iOS now share the same application core, interface, playback behavior, provider integration, storage model, and settings wherever the operating systems allow it.

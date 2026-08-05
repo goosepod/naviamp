@@ -9,7 +9,7 @@ class IosBassPluginIntegrationTest {
     fun bundledCodecPluginsRegisterWithBass() {
         val diagnostics = IosBassAudioBackend().pluginDiagnostics
 
-        assertEquals(12, diagnostics.size)
+        assertEquals(11, diagnostics.size)
         assertTrue(
             diagnostics.all { it.loaded },
             "Bundled iOS BASS components should load: ${diagnostics.filterNot { it.loaded }}",

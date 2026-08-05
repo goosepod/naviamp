@@ -14,7 +14,6 @@ val iosBassFrameworks = listOf(
     "basshls",
     "bassape",
     "bass_mpc",
-    "bass_tta",
 )
 
 kotlin {

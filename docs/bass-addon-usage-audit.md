@@ -65,19 +65,19 @@ mean the component is usable.
 | BASS_MPC | Musepack | Yes | Yes | Yes | Yes | Yes |
 | BASSWEBM | WebM/Matroska | Yes | Yes | Yes | Yes | Yes |
 | BASSWV | WavPack | Yes | Yes | No | Yes | Yes |
-| BASS_TTA | True Audio | Yes | No | No | Yes | Yes |
 | BASS_SPX | Speex | No | No | No | Yes | No |
 | BASSWMA | Windows Media Audio | No | No | Yes | No | No |
 | BASS FX | Reverse, tempo/pitch, and additional effects | Removed | Removed | Removed | Removed | Removed |
 | BASSloud | Loudness measurement | Removed | Removed | Removed | Removed | Removed |
 | BASS_SSL | TLS support | Yes | No | Yes | No | No |
 
-Before cleanup, the raw vendor trees occupied approximately 12,516 KiB for Android, 7,056 KiB for
-Desktop, and 9,936 KiB for iOS. Removing BASS FX and BASSloud reduced those trees to 11,988 KiB,
-6,564 KiB, and 8,784 KiB respectively: a combined source-tree reduction of 2,172 KiB. These are
-costs across architectures, not expected one-for-one release-size savings.
+At the time of cleanup, the raw vendor trees occupied approximately 12,516 KiB for Android,
+7,056 KiB for Desktop, and 9,936 KiB for iOS. Removing BASS FX and BASSloud reduced those trees to
+11,988 KiB, 6,564 KiB, and 8,784 KiB respectively: a combined source-tree reduction of 2,172 KiB.
+These are historical measurements from before the August 5 BASS_SSL/BASSOPUS/BASSWEBM refresh and
+are costs across architectures, not expected one-for-one release-size savings.
 
-Approximate per-component source-tree costs are below. Android combines four ABI binaries, Desktop
+Approximate pre-refresh per-component source-tree costs are below. Android combines four ABI binaries, Desktop
 combines every target on which the component exists, and iOS includes both XCFramework slices and
 their metadata. A dash means the component is not currently vendored for that host family.
 
@@ -98,7 +98,6 @@ their metadata. A dash means the component is not currently vendored for that ho
 | Musepack | 204 | 296 | 508 |
 | WebM | 172 | 244 | 476 |
 | WavPack | 260 | 328 | 684 |
-| True Audio | 68 | 12 | 360 |
 | Speex | — | 48 | — |
 | WMA | — | 32 | — |
 | BASS FX | 440 removed | 468 removed | 692 removed |
@@ -108,14 +107,14 @@ their metadata. A dash means the component is not currently vendored for that ho
 
 ### Android
 
-`AndroidBassNativeLoader` process-loads BASS core, BASS_SSL, BASSmix, and the 13 bundled codec
+`AndroidBassNativeLoader` process-loads BASS core, BASS_SSL, BASSmix, and the 12 bundled codec
 libraries. The native bridge directly links BASS core and BASSmix, registers the codecs through its
 JNI surface, and publishes the results through the shared plugin diagnostic model.
 
 **Finding A1 — corrected:** Android previously proved only that codec libraries could be
 process-loaded. The shared codec inventory is now translated to Android filenames and registered
 through `BASS_PluginLoad` at the narrow JNI boundary. On August 5, 2026, a clean emulator launch
-reported all 16 packaged native prerequisites loaded and all 13 codec plugins registered, with zero
+reported all 15 packaged native prerequisites loaded and all 12 codec plugins registered, with zero
 failures. Representative media playback remains part of the format acceptance matrix.
 
 BASSmix remains functional because Naviamp calls its API directly. BASS_SSL is a special Android
@@ -137,9 +136,9 @@ exact intentional inventory for macOS, Windows, and Linux and rejects missing or
 
 ### iOS
 
-iOS now links and embeds 12 XCFrameworks. It calls `BASS_PluginLoad` only for its codec set and
+iOS now links and embeds 11 XCFrameworks. It calls `BASS_PluginLoad` only for its codec set and
 ensures registration occurs before every file or URL stream creation path. A simulator integration
-test confirms all 12 retained components load, including all 10 codec plugins.
+test confirms all 11 retained components load, including all 9 codec plugins.
 
 **Finding I1 — partially corrected:** BASS FX and BASSloud have been removed from linking, embedding,
 headers, licenses, and runtime diagnostics. BASSMIDI remains registered as a codec, but no soundfont
@@ -155,7 +154,7 @@ deliberate soundfont product decision.
 | BASS_SSL on Android | Keep | Required for direct HTTPS URL streams |
 | FLAC and Opus | Keep and verify | Explicit Naviamp stream/download formats; test local and remote playback |
 | AAC and ALAC | Keep substitution, verify | CoreAudio supplies them on Apple; modern Android and Windows have system codec paths, but fallbacks and minimum OS behavior need tests |
-| APE, DSD, HLS, MPC, WebM, WavPack, TTA, AC-3 | Decision pending | Potentially useful for original server streams; retain until a supported-format contract and fixtures prove the intended cross-platform set |
+| APE, DSD, HLS, MPC, WebM, WavPack, AC-3 | Decision pending | Potentially useful for original server streams; retain until a supported-format contract and fixtures prove the intended cross-platform set |
 | BASS FX | Removed | No add-on API calls; Naviamp EQ uses the similarly named effect API built into BASS core |
 | BASSloud | Removed | No API calls; ReplayGain is not loudness measurement |
 | BASSMIDI | Removal candidate unless MIDI is planned | No bundled soundfont and no BASSMIDI calls |
@@ -173,7 +172,7 @@ The contract should describe user-visible formats, not library filenames:
 1. **Required Naviamp formats:** MP3, MP2/MP1, Ogg Vorbis, WAV, AIFF, FLAC/Ogg FLAC, Opus, AAC/M4A,
    and ALAC. These cover BASS built-ins plus the formats explicitly represented by Naviamp's
    streaming and offline-file code.
-2. **Original-library compatibility candidates:** APE, WavPack, DSD, Musepack, True Audio, AC-3,
+2. **Original-library compatibility candidates:** APE, WavPack, DSD, Musepack, AC-3,
    WebM/Matroska audio, and HLS. Confirm what Navidrome can return unchanged and decide which of these
    Naviamp promises on all release platforms.
 3. **Not currently promised:** MIDI, Speex, and legacy WMA add-on behavior. Promote one only with a
@@ -216,6 +215,8 @@ purposes and published platform packages are listed on the
 - [x] Remove BASS FX and BASSloud load attempts, binaries, headers/licenses, build links, and package metadata.
 - [x] Make decoder classification derive from one reviewed Core inventory.
 - [x] Add package checks that reject missing required components and unexpected bundled components.
+- [x] Add repository and in-app BASS terms, third-party notices, and the GPLv3 section 7 linking exception.
+- [x] Refresh BASSWEBM, BASS_SSL, and BASSOPUS from the August 5 dependency inventory.
 - [ ] Compare release artifact sizes before and after cleanup.
 - [ ] Re-run the full playback, offline, waveform, crossfade, EQ, visualizer, and packaging acceptance suite.
 

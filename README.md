@@ -195,4 +195,11 @@ readme-assets/    Images used by this README
 
 ## License
 
-Naviamp is licensed under the GNU General Public License v3.0. See [LICENSE](LICENSE) for the full license text.
+Naviamp is licensed under the GNU General Public License v3.0, with an additional
+permission to link and distribute the application with BASS. See [LICENSE](LICENSE) and the
+[BASS linking exception](BASS-LINKING-EXCEPTION.md).
+
+BASS and its add-ons are separately licensed. Naviamp currently uses BASS under its free
+non-commercial terms; commercial use requires the appropriate BASS license for every supported
+platform. See [third-party notices](THIRD_PARTY_NOTICES.md) for the BASS terms and bundled decoder
+acknowledgements.

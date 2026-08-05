@@ -1,3 +1,4 @@
 # Preserve vendored Un4seen inputs byte-for-byte. Upstream headers/readmes use CRLF and heading
 # separators that Git's whitespace/conflict-marker checks would otherwise rewrite or misclassify.
 platforms/ios/vendor/bass/** -text -diff
+native/bass-jni/vendor/** -text -diff
