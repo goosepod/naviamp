@@ -11,6 +11,7 @@ import app.naviamp.domain.playback.PlaybackProgress
 import app.naviamp.domain.playback.PlaybackRequest
 import app.naviamp.domain.playback.PlaybackState
 import app.naviamp.domain.playback.PlaybackStreamMetadata
+import app.naviamp.ui.NaviampShellCapabilitiesUi
 import kotlinx.coroutines.CoroutineScope
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -75,6 +76,21 @@ class NaviampShellCapabilityMapperTest {
         assertFalse(capabilities.softwareVolumeControl)
         assertFalse(capabilities.hoverTooltips)
         assertFalse(capabilities.applicationUpdates)
+    }
+
+    @Test
+    fun appliesShellPreferencesToTheSharedPlaybackSettingsModel() {
+        val capabilities = NaviampShellCapabilitiesUi(
+            softwareVolumeControl = false,
+        )
+
+        val playback = NaviampCoreInitialState()
+            .withShellCapabilities(capabilities)
+            .product
+            .shell
+            .playback
+
+        assertFalse(playback.softwareVolumeControlAvailable)
     }
 }
 

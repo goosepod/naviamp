@@ -50,6 +50,7 @@ fun NaviampCoreInitialState.withShellCapabilities(
                 audioOutputDeviceSelectionAvailable = audioOutputDeviceSelectionAvailable,
                 audioOutputDevices = audioOutputDevices,
                 sonicSimilarityAvailable = capabilities.sonicSimilarity,
+                softwareVolumeControlAvailable = capabilities.softwareVolumeControl,
                 showMobileNetworkQuality = capabilities.showMobileNetworkQuality,
             ),
             cache = product.shell.cache.copy(fileSelectionAvailable = capabilities.fileSelection),
