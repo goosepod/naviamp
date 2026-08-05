@@ -9,6 +9,8 @@ import app.naviamp.domain.LyricsSource
 import app.naviamp.domain.Track
 import app.naviamp.domain.TrackId
 import app.naviamp.domain.lyrics.LyricsProvider
+import app.naviamp.domain.lyrics.LyricsTiming
+import app.naviamp.domain.lyrics.timing
 import app.naviamp.domain.provider.MediaProvider
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -44,20 +46,24 @@ interface LyricsSidecarStore {
         lastAccessedEpochMillis: Long,
     )
 
-    fun cachedLrclibLyrics(
+    fun cachedOnlineLyrics(
         sourceId: String,
         trackId: String,
+        onlineProviderId: String,
     ): CachedLyricsRow?
 
-    fun touchCachedLrclibLyrics(
+    fun touchCachedOnlineLyrics(
         sourceId: String,
         trackId: String,
+        onlineProviderId: String,
         lastAccessedEpochMillis: Long,
     )
 
-    fun upsertCachedLrclibLyrics(
+    fun upsertCachedOnlineLyrics(
         sourceId: String,
         trackId: String,
+        onlineProviderId: String,
+        lyricSource: String,
         synced: Boolean,
         linesJson: String,
         displayArtist: String?,
@@ -92,12 +98,28 @@ class LyricsSidecarCacheService(
         sourceId: String,
         provider: MediaProvider,
         trackId: TrackId,
+        acceptedTimings: Set<LyricsTiming> = LyricsTiming.entries.toSet(),
     ): Lyrics? =
         withContext(Dispatchers.Default) {
-            cachedLyrics(sourceId, trackId)?.let { return@withContext it }
-            val lyrics = provider.lyrics(trackId) ?: return@withContext null
-            storeLyrics(sourceId, trackId, lyrics)
-            lyrics
+            val cached = cachedLyricsEntry(sourceId, trackId)
+            if (
+                cached != null &&
+                cached.lyrics.source == LyricsSource.Provider &&
+                cached.lyrics.timing in acceptedTimings &&
+                cached.payloadVersion >= CurrentLyricsPayloadVersion
+            ) {
+                return@withContext cached.lyrics
+            }
+            val refreshed = provider.lyrics(trackId)
+            if (refreshed != null) {
+                storeLyrics(sourceId, trackId, refreshed)
+                return@withContext refreshed
+            }
+            cached?.lyrics?.also { lyrics ->
+                // Mark a legacy line-only payload as checked without discarding lyrics when the
+                // provider has no replacement. This prevents a network retry on every view.
+                storeLyrics(sourceId, trackId, lyrics)
+            }
         }
 
     suspend fun cacheEmbeddedLyrics(
@@ -110,15 +132,18 @@ class LyricsSidecarCacheService(
             lyrics
         }
 
-    suspend fun lrclibLyrics(
+    suspend fun onlineLyrics(
         sourceId: String,
         track: Track,
         provider: LyricsProvider,
+        acceptedTimings: Set<LyricsTiming> = LyricsTiming.entries.toSet(),
     ): Lyrics? =
         withContext(Dispatchers.Default) {
-            cachedLrclibLyrics(sourceId, track.id)?.let { return@withContext it }
+            readCachedOnlineLyrics(sourceId, track.id, provider.id)
+                ?.takeIf { lyrics -> lyrics.timing in acceptedTimings }
+                ?.let { return@withContext it }
             val lyrics = provider.lyrics(track) ?: return@withContext null
-            storeLrclibLyrics(sourceId, track.id, lyrics)
+            storeOnlineLyrics(sourceId, track.id, provider.id, lyrics)
             lyrics
         }
 
@@ -127,25 +152,46 @@ class LyricsSidecarCacheService(
         trackId: TrackId,
     ): Lyrics? =
         withContext(Dispatchers.Default) {
-            cachedLyricsRow(sourceId, trackId)
+            cachedLyricsEntry(sourceId, trackId)?.lyrics
         }
 
-    private fun cachedLyricsRow(
+    suspend fun cachedOnlineLyrics(
         sourceId: String,
         trackId: TrackId,
-    ): Lyrics? {
+        providerId: String,
+    ): Lyrics? =
+        withContext(Dispatchers.Default) {
+            readCachedOnlineLyrics(sourceId, trackId, providerId)
+        }
+
+    private fun cachedLyricsEntry(
+        sourceId: String,
+        trackId: TrackId,
+    ): DecodedLyricsCache? {
         val row = store.cachedLyrics(sourceId, trackId.value) ?: return null
         store.touchCachedLyrics(sourceId, trackId.value, nowMillis())
-        return row.toLyrics()
+        val payload = row.lyricsPayload()
+        return DecodedLyricsCache(
+            lyrics = payload.toLyrics(
+                source = row.lyricSource.toLyricsSource(),
+                synced = row.synced,
+                displayArtist = row.displayArtist,
+                displayTitle = row.displayTitle,
+                language = row.language,
+                offsetMillis = row.offsetMillis.toInt(),
+            ),
+            payloadVersion = payload.payloadVersion,
+        )
     }
 
-    private fun cachedLrclibLyrics(
+    private fun readCachedOnlineLyrics(
         sourceId: String,
         trackId: TrackId,
+        onlineProviderId: String,
     ): Lyrics? {
-        val row = store.cachedLrclibLyrics(sourceId, trackId.value) ?: return null
-        store.touchCachedLrclibLyrics(sourceId, trackId.value, nowMillis())
-        return row.toLyrics(source = LyricsSource.Lrclib)
+        val row = store.cachedOnlineLyrics(sourceId, trackId.value, onlineProviderId) ?: return null
+        store.touchCachedOnlineLyrics(sourceId, trackId.value, onlineProviderId, nowMillis())
+        return row.toLyrics()
     }
 
     private fun storeLyrics(
@@ -171,16 +217,19 @@ class LyricsSidecarCacheService(
         )
     }
 
-    private fun storeLrclibLyrics(
+    private fun storeOnlineLyrics(
         sourceId: String,
         trackId: TrackId,
+        onlineProviderId: String,
         lyrics: Lyrics,
     ) {
         val linesJson = lyrics.linesJson()
         val now = nowMillis()
-        store.upsertCachedLrclibLyrics(
+        store.upsertCachedOnlineLyrics(
             sourceId = sourceId,
             trackId = trackId.value,
+            onlineProviderId = onlineProviderId,
+            lyricSource = lyrics.source.name,
             synced = lyrics.synced,
             linesJson = linesJson,
             displayArtist = lyrics.displayArtist,
@@ -241,6 +290,7 @@ private data class LyricLineDto(
 
 @Serializable
 private data class LyricsDto(
+    val payloadVersion: Int = 1,
     val lines: List<LyricLineDto>,
     val kind: String? = null,
     val agents: List<LyricAgentDto> = emptyList(),
@@ -270,6 +320,7 @@ private data class LyricsDto(
     companion object {
         fun fromLyrics(lyrics: Lyrics): LyricsDto =
             LyricsDto(
+                payloadVersion = CurrentLyricsPayloadVersion,
                 lines = lyrics.lines.map { LyricLineDto.fromLyricLine(it) },
                 kind = lyrics.kind,
                 agents = lyrics.agents.map { LyricAgentDto.fromLyricAgent(it) },
@@ -277,6 +328,13 @@ private data class LyricsDto(
             )
     }
 }
+
+private data class DecodedLyricsCache(
+    val lyrics: Lyrics,
+    val payloadVersion: Int,
+)
+
+private const val CurrentLyricsPayloadVersion = 2
 
 @Serializable
 private data class LyricAgentDto(

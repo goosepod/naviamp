@@ -263,7 +263,10 @@ data class PlaybackSettings(
     val volumePercent: Int = 100,
     val debugLoggingEnabled: Boolean = false,
     val lrclibLyricsEnabled: Boolean = false,
+    val lyricsTimingPreference: LyricsTimingPreference = LyricsTimingPreference.FirstAvailable,
+    // Retained so existing v2 settings migrate without silently losing the user's preference.
     val preferSyncedLyrics: Boolean = false,
+    val preferWordSyncedLyrics: Boolean = false,
     val lyricsSearchOrder: List<LyricsSourcePreference> = DefaultLyricsSearchOrder,
     val sonicSimilarityEnabled: Boolean = false,
     val sonicAutoplayEnabled: Boolean = false,
@@ -286,6 +289,9 @@ data class PlaybackSettings(
 
 fun PlaybackSettings.normalized(): PlaybackSettings =
     copy(
+        lyricsTimingPreference = effectiveLyricsTimingPreference(),
+        preferSyncedLyrics = false,
+        preferWordSyncedLyrics = false,
         lyricsSearchOrder = lyricsSearchOrder.normalizedLyricsSearchOrder(),
         radioDjs = radioDjs.map { it.normalized() },
         outputDevice = outputDevice.normalized(),
@@ -330,17 +336,43 @@ enum class SampleRateMatching(val label: String, val subtitle: String) {
 enum class LyricsSourcePreference {
     Provider,
     Embedded,
+    Online,
+    // Legacy serialized values mapped to Online by normalizedLyricsSearchOrder().
     Download,
+    WordSynced,
 }
 
 val DefaultLyricsSearchOrder: List<LyricsSourcePreference> = listOf(
     LyricsSourcePreference.Provider,
     LyricsSourcePreference.Embedded,
-    LyricsSourcePreference.Download,
+    LyricsSourcePreference.Online,
 )
 
 fun List<LyricsSourcePreference>.normalizedLyricsSearchOrder(): List<LyricsSourcePreference> =
-    (this + DefaultLyricsSearchOrder).distinct()
+    (map { source ->
+        when (source) {
+            LyricsSourcePreference.Download,
+            LyricsSourcePreference.WordSynced,
+            -> LyricsSourcePreference.Online
+            else -> source
+        }
+    } + DefaultLyricsSearchOrder).distinct()
+
+@Serializable
+enum class LyricsTimingPreference {
+    FirstAvailable,
+    Plain,
+    LineSynced,
+    WordSynced,
+}
+
+fun PlaybackSettings.effectiveLyricsTimingPreference(): LyricsTimingPreference =
+    when {
+        lyricsTimingPreference != LyricsTimingPreference.FirstAvailable -> lyricsTimingPreference
+        preferWordSyncedLyrics -> LyricsTimingPreference.WordSynced
+        preferSyncedLyrics -> LyricsTimingPreference.LineSynced
+        else -> LyricsTimingPreference.FirstAvailable
+    }
 
 @Serializable
 data class AudioOutputDevicePreference(
@@ -414,7 +446,10 @@ fun playbackSettingsChange(
     val effective = requested.effectiveForEngine(playbackEngine)
     return PlaybackSettingsChange(
         settings = effective,
-        shouldReloadLyricsSidecars = previous?.lrclibLyricsEnabled != effective.lrclibLyricsEnabled,
+        shouldReloadLyricsSidecars = previous == null ||
+            previous.lrclibLyricsEnabled != effective.lrclibLyricsEnabled ||
+            previous.effectiveLyricsTimingPreference() != effective.effectiveLyricsTimingPreference() ||
+            previous.lyricsSearchOrder.normalizedLyricsSearchOrder() != effective.lyricsSearchOrder.normalizedLyricsSearchOrder(),
     )
 }
 

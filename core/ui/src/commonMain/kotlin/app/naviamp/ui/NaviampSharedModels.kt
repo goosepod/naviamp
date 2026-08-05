@@ -1163,6 +1163,17 @@ fun CacheSettings.toCacheSettingsUi(
 data class NaviampLyricLineUi(
     val startMillis: Long?,
     val text: String,
+    val endMillis: Long? = null,
+    val agentId: String? = null,
+    val cues: List<NaviampLyricCueUi> = emptyList(),
+)
+
+data class NaviampLyricCueUi(
+    val startMillis: Long?,
+    val endMillis: Long?,
+    val text: String,
+    val byteStart: Int? = null,
+    val byteEnd: Int? = null,
 )
 
 data class NaviampDetailSectionUi(

@@ -148,7 +148,7 @@ This document tracks useful ideas that come up during the v2 migration but are n
 
 ### Word-by-Word Karaoke Lyrics
 
-- **Status:** Idea
+- **Status:** In progress on `feature/karaoke-musixmatch-lyrics`
 - **Concept:** Add support for Navidrome's word-by-word, or karaoke, lyrics so the active word can be highlighted within the current lyric line as playback advances.
 - **Why it may fit:** Naviamp already supports synchronized line lyrics, offsets, prefetch, and cached lyric sidecars. Preserving word-level timing would make the lyrics view more expressive while fitting the existing playback-position and cache pipeline.
 - **Behavior and presentation questions:**
@@ -159,23 +159,36 @@ This document tracks useful ideas that come up during the v2 migration but are n
   - Should karaoke rendering be automatic when word timing exists, or controlled by a Lyrics setting with a line-synchronized fallback?
 - **Caching and compatibility:** Preserve word timing in the shared lyric model and persistent sidecar cache rather than flattening it into line-only text. Cache identity, prefetch, offline playback, source priority, and invalidation must follow the same rules as existing lyrics. Older cached entries and providers without word timing must continue to render as line-synced or plain lyrics without migration failures.
 - **Shared-architecture requirement:** Parse provider-specific word timing in the Navidrome provider's `commonMain` mapping, represent timing and fallback semantics in shared domain/storage models, and implement playback-position selection and rendering in shared Core/UI. Platform hosts should not interpret or animate lyric timing independently.
-- **Implementation notes to investigate later:** Capture representative Navidrome responses, including malformed and partially timed lyrics; confirm API/version capability detection; define a backward-compatible serialized cache model; and test seeking, pause/resume, crossfade transitions, track replacement, offsets, prefetch cancellation, and offline reuse before enabling karaoke presentation by default.
+- **Implementation progress:**
+  - [x] Negotiate OpenSubsonic `songLyrics` version 2 and request enhanced lyrics from Navidrome.
+  - [x] Preserve lyric kind, agents, cue-line intervals, word cues, UTF-8 byte ranges, and explicit cue end-times in the shared domain and backward-compatible sidecar cache.
+  - [x] Prefer karaoke-capable provider responses over line-synced and plain alternatives.
+  - [x] Carry cue timing through the shared UI model and progressively highlight the active word without replacing the provider's full line text.
+  - [x] Apply the existing manual lyric offset to line and cue timing without modifying stored timestamps.
+  - [x] Refresh legacy line-only cache payloads once so an upgraded client can discover enhanced cues while preserving old lyrics if the provider has no replacement.
+  - [x] Add a shared timing preference for first available, plain, line-synced, or word-synced display. Richer cached lyrics are projected down for display without discarding their stored timing.
+  - [x] Check persistent lyrics caches before any server request, audio-tag read, or online request; immediately reuse a cached result when it can satisfy the selected timing.
+  - [ ] Verify seeking, pause/resume, track changes, crossfade transitions, prefetch cancellation, and offline reuse with deterministic shared tests.
+  - [ ] Run authenticated acceptance against representative Navidrome tracks with complete, partial, malformed, multi-agent, wrapping, punctuation, and Unicode cue data.
+  - [ ] Confirm accessible contrast, font scaling, and screen-reader behavior for the automatic karaoke presentation, then decide whether a user-selectable line-only fallback is necessary.
 
 ### Musixmatch Lyrics Source
 
-- **Status:** Idea
+- **Status:** In progress on `feature/karaoke-musixmatch-lyrics`
 - **Source:** [Myzel394/navidrome-musixmatch-plugin](https://github.com/Myzel394/navidrome-musixmatch-plugin)
 - **Concept:** Investigate Musixmatch as an additional source of plain and synchronized lyrics, using the Navidrome plugin as a working reference and, where possible, consuming its results through Naviamp's existing Navidrome/OpenSubsonic lyrics path rather than duplicating the integration in every client.
 - **Observed integration:** The plugin implements Navidrome's lyrics provider contract. It first uses Musixmatch's unofficial desktop endpoint at `apic-desktop.musixmatch.com/ws/1.1`: it obtains a short-lived anonymous token, calls `macro.subtitles.get`, prefers rich-synchronized timing converted to LRC, then LRC subtitles, then plain lyrics. Artist, title, and optional rounded duration help select a match. A `401` invalidates the cached token. An optional website-scraping fallback searches candidates and validates identity, but requires a `musixmatchUserToken` cookie and may also require a captcha cookie.
 - **Preferred first investigation:** Install the plugin on a test Navidrome server and verify that its plain and synchronized output reaches Naviamp unchanged through the server API Naviamp already consumes. Record response versions, source attribution, timing precision, multi-lyric behavior, cache identity, offsets, offline reuse, failure behavior, and whether Navidrome exposes enough provenance to distinguish server-local, plugin, and embedded lyrics. If that path works, document the plugin as an optional server capability before considering direct client integration.
-- **Direct-client alternative:** If a Naviamp-owned fallback is justified, implement Musixmatch protocol, response interpretation, match scoring, token refresh, and mapping once in shared provider code behind the existing lyrics contracts. Use Naviamp's shared HTTP abstraction with fixtures and explicit timeouts; Android, Desktop, and iOS must not acquire separate scrapers or token stores.
+- **Current implementation:** Core now owns a generic `LyricsProvider` catalog. Providers declare whether they can return plain, line-synced, and word-synced lyrics; LRCLIB and Musixmatch are named only in internal provider classes, diagnostics, and cache identities. The UI exposes Server, Embedded, and Online sources plus timing choices, without exposing service names. Source order remains the first selection layer. When Core reaches Online, it prioritizes providers capable of the requested timing, tries each provider at most once, and retains weaker results as fallbacks.
+- **Cache behavior:** The shared database stores online results by media source, track, and provider ID. Core checks all relevant cached lyrics before doing any lookup. A richer cached result can satisfy a less detailed display preference by removing word cues or all timestamps in the returned view model; the original cached payload remains unchanged.
+- **Direct-client implementation:** The shared Musixmatch provider obtains and refreshes an anonymous desktop token, calls the duration-constrained macro endpoint, validates the matched artist/title/duration, preserves rich-sync word offsets directly, and falls back to line-synced subtitles or plain lyrics. Android, Desktop, and iOS inject only their existing shared HTTP engine.
 - **Risks and questions:**
   - The desktop API is unofficial and may change or block clients without warning; the plugin itself recommends low provider priority and frequent updates. What failure isolation, rate limiting, retry/backoff, kill switch, and source-priority behavior would keep existing Navidrome, embedded, sidecar, and LRCLIB lyrics reliable?
   - Do Musixmatch's terms and licensing permit Naviamp to fetch, cache, display offline, redistribute, or transform these lyrics, and what attribution or geographic restrictions apply? The reference implementation's MIT code license does not grant rights to Musixmatch's data or private endpoints.
   - Is shipping or asking users for a website session/captcha cookie acceptable? Treat those values as sensitive credentials, never analytics payloads, and prefer omitting website scraping unless its security, privacy, maintenance, and terms implications are acceptable.
   - How accurate are artist/title/duration matches for remasters, live recordings, translations, featured artists, classical works, compilations, and tracks with identical names? Preserve provenance and never silently replace a higher-confidence server or embedded result.
   - The reference plugin includes opt-out lookup analytics. A Naviamp implementation must make its own explicit telemetry decision and must not inherit third-party reporting as part of lyrics lookup.
-- **Investigation output:** Produce a server-plugin acceptance matrix, captured OpenSubsonic responses, legal/terms review, source-priority and cache-invalidation design, representative match-quality corpus, outage/rate-limit tests, and a go/no-go decision between optional Navidrome-plugin documentation and a maintained shared Naviamp provider.
+- **Remaining work:** Add outage, invalid-token, malformed-response, and match-quality fixtures; exercise the provider against representative tracks; confirm cache/offline behavior on each platform; and complete the legal/terms review before any public release. The endpoint remains unofficial and must fail without disrupting server, embedded, or LRCLIB lyrics.
 
 ### Configurable Home Sections and Layouts
 

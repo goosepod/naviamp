@@ -42,6 +42,7 @@ import app.naviamp.domain.settings.AudioOutputDeviceMode
 import app.naviamp.domain.settings.CacheSettings
 import app.naviamp.domain.settings.PlaybackSettings
 import app.naviamp.domain.settings.effectiveForEngine
+import app.naviamp.domain.settings.effectiveLyricsTimingPreference
 import app.naviamp.domain.settings.streamQualityForNetwork
 import app.naviamp.domain.audio.AudioMetadataSidecarService
 import app.naviamp.domain.lyrics.LyricsOffsetController
@@ -733,7 +734,7 @@ class NaviampCoreProviderNowPlayingSidecars(
                         quality = settings.streamQualityForNetwork(isMobileData()),
                         audioCachingEnabled = audioCachingEnabled(),
                         onlineLyricsEnabled = settings.lrclibLyricsEnabled,
-                        preferSyncedLyrics = settings.preferSyncedLyrics,
+                        timingPreference = settings.effectiveLyricsTimingPreference(),
                         searchOrder = settings.lyricsSearchOrder,
                     ).lyrics
                 } finally {

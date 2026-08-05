@@ -204,9 +204,11 @@ CREATE TABLE cached_lyrics (
   PRIMARY KEY(source_id, remote_track_id)
 );
 
-CREATE TABLE cached_lrclib_lyrics (
+CREATE TABLE cached_online_lyrics (
   source_id TEXT NOT NULL REFERENCES media_source(id) ON DELETE CASCADE,
   remote_track_id TEXT NOT NULL,
+  online_provider_id TEXT NOT NULL,
+  lyric_source TEXT NOT NULL,
   synced INTEGER NOT NULL,
   lines_json TEXT NOT NULL,
   display_artist TEXT,
@@ -216,7 +218,7 @@ CREATE TABLE cached_lrclib_lyrics (
   size_bytes INTEGER NOT NULL,
   created_at_epoch_millis INTEGER NOT NULL,
   last_accessed_epoch_millis INTEGER NOT NULL,
-  PRIMARY KEY(source_id, remote_track_id)
+  PRIMARY KEY(source_id, remote_track_id, online_provider_id)
 );
 
 CREATE TABLE track_lyrics_offset (
@@ -351,8 +353,8 @@ ON cached_audio_waveform(last_accessed_epoch_millis);
 CREATE INDEX cached_lyrics_access
 ON cached_lyrics(last_accessed_epoch_millis);
 
-CREATE INDEX cached_lrclib_lyrics_access
-ON cached_lrclib_lyrics(last_accessed_epoch_millis);
+CREATE INDEX cached_online_lyrics_access
+ON cached_online_lyrics(last_accessed_epoch_millis);
 
 CREATE INDEX cached_sidecar_status_track
 ON cached_sidecar_status(source_id, remote_track_id, quality_key);
@@ -1232,11 +1234,12 @@ FROM cached_lyrics
 WHERE source_id = ?
 AND remote_track_id = ?;
 
-selectCachedLrclibLyrics:
+selectCachedOnlineLyrics:
 SELECT *
-FROM cached_lrclib_lyrics
+FROM cached_online_lyrics
 WHERE source_id = ?
-AND remote_track_id = ?;
+AND remote_track_id = ?
+AND online_provider_id = ?;
 
 touchCachedLyrics:
 UPDATE cached_lyrics
@@ -1244,11 +1247,12 @@ SET last_accessed_epoch_millis = ?
 WHERE source_id = ?
 AND remote_track_id = ?;
 
-touchCachedLrclibLyrics:
-UPDATE cached_lrclib_lyrics
+touchCachedOnlineLyrics:
+UPDATE cached_online_lyrics
 SET last_accessed_epoch_millis = ?
 WHERE source_id = ?
-AND remote_track_id = ?;
+AND remote_track_id = ?
+AND online_provider_id = ?;
 
 selectCachedSidecarStatus:
 SELECT *
@@ -1285,10 +1289,12 @@ INSERT OR REPLACE INTO cached_lyrics(
   last_accessed_epoch_millis
 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
 
-upsertCachedLrclibLyrics:
-INSERT OR REPLACE INTO cached_lrclib_lyrics(
+upsertCachedOnlineLyrics:
+INSERT OR REPLACE INTO cached_online_lyrics(
   source_id,
   remote_track_id,
+  online_provider_id,
+  lyric_source,
   synced,
   lines_json,
   display_artist,
@@ -1298,7 +1304,7 @@ INSERT OR REPLACE INTO cached_lrclib_lyrics(
   size_bytes,
   created_at_epoch_millis,
   last_accessed_epoch_millis
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
 
 selectTrackLyricsOffset:
 SELECT offset_millis
@@ -1321,13 +1327,13 @@ lyricsCacheCount:
 SELECT COUNT(*)
 FROM cached_lyrics;
 
-lrclibLyricsCacheSize:
+onlineLyricsCacheSize:
 SELECT COALESCE(SUM(size_bytes), 0)
-FROM cached_lrclib_lyrics;
+FROM cached_online_lyrics;
 
-lrclibLyricsCacheCount:
+onlineLyricsCacheCount:
 SELECT COUNT(*)
-FROM cached_lrclib_lyrics;
+FROM cached_online_lyrics;
 
 playbackSessionCount:
 SELECT COUNT(*)
@@ -1352,8 +1358,8 @@ SELECT
   (SELECT COALESCE(SUM(size_bytes), 0) FROM downloaded_audio) AS download_bytes,
   (SELECT COUNT(*) FROM cached_audio_waveform) AS audio_waveform_count,
   (SELECT COALESCE(SUM(size_bytes), 0) FROM cached_audio_waveform) AS audio_waveform_bytes,
-  (SELECT COUNT(*) FROM cached_lyrics) + (SELECT COUNT(*) FROM cached_lrclib_lyrics) AS lyrics_count,
-  (SELECT COALESCE(SUM(size_bytes), 0) FROM cached_lyrics) + (SELECT COALESCE(SUM(size_bytes), 0) FROM cached_lrclib_lyrics) AS lyrics_bytes,
+  (SELECT COUNT(*) FROM cached_lyrics) + (SELECT COUNT(*) FROM cached_online_lyrics) AS lyrics_count,
+  (SELECT COALESCE(SUM(size_bytes), 0) FROM cached_lyrics) + (SELECT COALESCE(SUM(size_bytes), 0) FROM cached_online_lyrics) AS lyrics_bytes,
   (SELECT COUNT(*) FROM media_source) AS media_source_count,
   (SELECT COUNT(*) FROM library_artist) AS library_artist_count,
   (SELECT COUNT(*) FROM library_album) AS library_album_count,
@@ -1398,8 +1404,8 @@ DELETE FROM cached_audio_waveform;
 clearLyrics:
 DELETE FROM cached_lyrics;
 
-clearLrclibLyrics:
-DELETE FROM cached_lrclib_lyrics;
+clearOnlineLyrics:
+DELETE FROM cached_online_lyrics;
 
 clearSidecarStatuses:
 DELETE FROM cached_sidecar_status;
@@ -1513,13 +1519,13 @@ UPDATE OR REPLACE cached_lyrics
 SET remote_track_id = ?
 WHERE source_id = ? AND remote_track_id = ?;
 
-selectLrclibLyricsTrackIdsForIdentityMigration:
+selectOnlineLyricsTrackIdsForIdentityMigration:
 SELECT remote_track_id
-FROM cached_lrclib_lyrics
+FROM cached_online_lyrics
 WHERE source_id = ?;
 
-updateLrclibLyricsTrackId:
-UPDATE OR REPLACE cached_lrclib_lyrics
+updateOnlineLyricsTrackId:
+UPDATE OR REPLACE cached_online_lyrics
 SET remote_track_id = ?
 WHERE source_id = ? AND remote_track_id = ?;
 

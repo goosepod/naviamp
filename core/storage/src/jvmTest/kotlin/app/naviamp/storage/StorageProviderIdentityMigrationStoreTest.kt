@@ -63,7 +63,9 @@ class StorageProviderIdentityMigrationStoreTest {
             queries.insertManagedKeepDownloadedTrack(source.id, oldTrack)
             queries.upsertCachedAudioWaveform(source.id, oldTrack, "original", "/owned/cache.flac", 1L, "[0.5]", 3L, 1L, 1L)
             queries.upsertCachedLyrics(source.id, oldTrack, "provider", 0L, "[]", null, null, null, 0L, 2L, 1L, 1L)
-            queries.upsertCachedLrclibLyrics(source.id, oldTrack, 0L, "[]", null, null, null, 0L, 2L, 1L, 1L)
+            queries.upsertCachedOnlineLyrics(
+                source.id, oldTrack, "lrclib", "Lrclib", 0L, "[]", null, null, null, 0L, 2L, 1L, 1L,
+            )
             queries.upsertTrackLyricsOffset(source.id, oldTrack, 50L, 1L)
             queries.upsertCachedSidecarStatus(source.id, oldTrack, "original", "lyrics", "ready", 1L, null, 1L)
             val track = Track(

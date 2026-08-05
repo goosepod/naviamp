@@ -10,7 +10,7 @@ import app.naviamp.domain.cache.CachedLyricsSidecarRepository
 import app.naviamp.domain.cache.LyricsSidecarCacheService
 import app.naviamp.domain.cache.SidecarStatusService
 import app.naviamp.domain.home.HomeDate
-import app.naviamp.domain.lyrics.LrclibLyricsProvider
+import app.naviamp.domain.lyrics.naviampOnlineLyricsProviders
 import app.naviamp.domain.network.KtorSharedHttpClient
 import app.naviamp.domain.playback.AudioOutputDevicePlaybackEngine
 import app.naviamp.domain.playback.CoreBassPlaybackEngine
@@ -130,7 +130,7 @@ internal class DesktopComposition private constructor(
                 audioTagReader = DesktopAudioTagReader(),
                 lyricsRepository = CachedLyricsSidecarRepository(
                     cache = LyricsSidecarCacheService(storage.lyricsSidecars, nowEpochMillis),
-                    onlineProvider = LrclibLyricsProvider(sharedHttpClient),
+                    onlineProviders = naviampOnlineLyricsProviders(sharedHttpClient, nowEpochMillis),
                 ),
                 lyricsOffsetRepository = storage.lyricsOffsets,
                 sidecarStatusRepository = SidecarStatusService(storage.sidecarStatuses, nowEpochMillis),

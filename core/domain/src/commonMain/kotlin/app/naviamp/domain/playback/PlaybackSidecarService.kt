@@ -7,6 +7,7 @@ import app.naviamp.domain.cache.SidecarStatusRepository
 import app.naviamp.domain.lyrics.LyricsSidecarService
 import app.naviamp.domain.provider.MediaProvider
 import app.naviamp.domain.settings.LyricsSourcePreference
+import app.naviamp.domain.settings.LyricsTimingPreference
 import app.naviamp.domain.waveform.AudioWaveform
 import app.naviamp.domain.waveform.AudioWaveformService
 import kotlinx.coroutines.CancellationException
@@ -58,7 +59,7 @@ class PlaybackSidecarService(
         quality: StreamQuality,
         audioCachingEnabled: Boolean,
         onlineLyricsEnabled: Boolean,
-        preferSyncedLyrics: Boolean = false,
+        timingPreference: LyricsTimingPreference = LyricsTimingPreference.FirstAvailable,
         lyricsSearchOrder: List<LyricsSourcePreference> = emptyList(),
     ): Lyrics? {
         val lyrics = lyricsSidecarService.loadLyrics(
@@ -68,7 +69,7 @@ class PlaybackSidecarService(
             quality = quality,
             audioCachingEnabled = audioCachingEnabled,
             onlineLyricsEnabled = onlineLyricsEnabled,
-            preferSyncedLyrics = preferSyncedLyrics,
+            timingPreference = timingPreference,
             searchOrder = lyricsSearchOrder,
         ).lyrics
         if (sourceId != null) {
@@ -89,7 +90,7 @@ class PlaybackSidecarService(
         quality: StreamQuality,
         audioCachingEnabled: Boolean,
         onlineLyricsEnabled: Boolean,
-        preferSyncedLyrics: Boolean = false,
+        timingPreference: LyricsTimingPreference = LyricsTimingPreference.FirstAvailable,
         lyricsSearchOrder: List<LyricsSourcePreference> = emptyList(),
         includeLyrics: Boolean,
     ): PlaybackSidecarPrepResult {
@@ -131,7 +132,7 @@ class PlaybackSidecarService(
                     quality = quality,
                     audioCachingEnabled = audioCachingEnabled,
                     onlineLyricsEnabled = onlineLyricsEnabled,
-                    preferSyncedLyrics = preferSyncedLyrics,
+                    timingPreference = timingPreference,
                     lyricsSearchOrder = lyricsSearchOrder,
                 )
             }
@@ -191,8 +192,10 @@ class PlaybackSidecarService(
                 audioCachingEnabled = audioCachingEnabled,
             )
         }
-        runSidecar(SidecarTypeLrclibLyrics) {
-            lyricsSidecarService.onlineLyrics(sourceId, track)
+        lyricsSidecarService.onlineProviders.forEach { lyricsProvider ->
+            runSidecar("${SidecarTypeOnlineLyrics}_${lyricsProvider.id}") {
+                lyricsSidecarService.onlineLyrics(sourceId, track, lyricsProvider)
+            }
         }
 
         return PlaybackSidecarPrepResult(failed = failed, lastError = lastError)

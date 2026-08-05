@@ -18,6 +18,30 @@ import kotlin.test.assertFalse
 
 class PlaybackSettingsTest {
     @Test
+    fun legacyLyricsPreferencesAndOnlineSourcesNormalizeToTheSharedModels() {
+        val normalized = PlaybackSettings(
+            preferSyncedLyrics = true,
+            lyricsSearchOrder = listOf(
+                LyricsSourcePreference.Download,
+                LyricsSourcePreference.Provider,
+                LyricsSourcePreference.WordSynced,
+            ),
+        ).normalized()
+
+        assertEquals(LyricsTimingPreference.LineSynced, normalized.lyricsTimingPreference)
+        assertFalse(normalized.preferSyncedLyrics)
+        assertFalse(normalized.preferWordSyncedLyrics)
+        assertEquals(
+            listOf(
+                LyricsSourcePreference.Online,
+                LyricsSourcePreference.Provider,
+                LyricsSourcePreference.Embedded,
+            ),
+            normalized.lyricsSearchOrder,
+        )
+    }
+
+    @Test
     fun downloadedTrackSwipesDefaultToPlayAndRemove() {
         val swipes = TrackSwipeSettings()
 

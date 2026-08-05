@@ -1,0 +1,52 @@
+CREATE TABLE cached_online_lyrics (
+  source_id TEXT NOT NULL REFERENCES media_source(id) ON DELETE CASCADE,
+  remote_track_id TEXT NOT NULL,
+  online_provider_id TEXT NOT NULL,
+  lyric_source TEXT NOT NULL,
+  synced INTEGER NOT NULL,
+  lines_json TEXT NOT NULL,
+  display_artist TEXT,
+  display_title TEXT,
+  language TEXT,
+  offset_millis INTEGER NOT NULL,
+  size_bytes INTEGER NOT NULL,
+  created_at_epoch_millis INTEGER NOT NULL,
+  last_accessed_epoch_millis INTEGER NOT NULL,
+  PRIMARY KEY(source_id, remote_track_id, online_provider_id)
+);
+
+INSERT INTO cached_online_lyrics(
+  source_id,
+  remote_track_id,
+  online_provider_id,
+  lyric_source,
+  synced,
+  lines_json,
+  display_artist,
+  display_title,
+  language,
+  offset_millis,
+  size_bytes,
+  created_at_epoch_millis,
+  last_accessed_epoch_millis
+)
+SELECT
+  source_id,
+  remote_track_id,
+  'lrclib',
+  'Lrclib',
+  synced,
+  lines_json,
+  display_artist,
+  display_title,
+  language,
+  offset_millis,
+  size_bytes,
+  created_at_epoch_millis,
+  last_accessed_epoch_millis
+FROM cached_lrclib_lyrics;
+
+DROP TABLE cached_lrclib_lyrics;
+
+CREATE INDEX cached_online_lyrics_access
+ON cached_online_lyrics(last_accessed_epoch_millis);

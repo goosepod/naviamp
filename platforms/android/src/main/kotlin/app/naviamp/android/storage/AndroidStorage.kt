@@ -29,8 +29,9 @@ import app.naviamp.domain.cache.ProviderResponseCacheRepository
 import app.naviamp.domain.cache.SidecarStatusRepository
 import app.naviamp.domain.cache.SidecarStatusService
 import app.naviamp.domain.cache.StorageCacheStats
-import app.naviamp.domain.lyrics.LrclibLyricsProvider
 import app.naviamp.domain.network.KtorSharedHttpClient
+import app.naviamp.domain.network.SharedHttpClient
+import app.naviamp.domain.lyrics.naviampOnlineLyricsProviders
 import app.naviamp.domain.provider.MediaProvider
 import app.naviamp.domain.provider.PendingProviderActionRepository
 import app.naviamp.domain.radio.RadioDjPresetRepository
@@ -83,8 +84,8 @@ class AndroidStorage private constructor(
 
     constructor(
         context: Context,
-        onlineLyricsProvider: LrclibLyricsProvider = LrclibLyricsProvider(KtorSharedHttpClient()),
-    ) : this(AndroidStorageGraph(context.applicationContext, onlineLyricsProvider))
+        lyricsHttpClient: SharedHttpClient = KtorSharedHttpClient(),
+    ) : this(AndroidStorageGraph(context.applicationContext, lyricsHttpClient))
 
     val audioCacheDirectory: File get() = graph.audioFiles.audioCacheDirectory
     val downloadDirectory: File get() = graph.audioFiles.downloadDirectory
@@ -168,7 +169,7 @@ class AndroidStorage private constructor(
 
 private class AndroidStorageGraph(
     private val context: Context,
-    onlineLyricsProvider: LrclibLyricsProvider,
+    lyricsHttpClient: SharedHttpClient,
 ) : AutoCloseable {
     private val driver = AndroidStorageDatabaseDriverFactory(context).create(
         StorageDatabaseLocation(
@@ -217,7 +218,7 @@ private class AndroidStorageGraph(
     )
     val lyricsSidecars = CachedLyricsSidecarRepository(
         cache = LyricsSidecarCacheService(repositories.lyricsSidecars, ::nowMillis),
-        onlineProvider = onlineLyricsProvider,
+        onlineProviders = naviampOnlineLyricsProviders(lyricsHttpClient, ::nowMillis),
     )
     val sidecarStatuses = SidecarStatusService(repositories.sidecarStatuses, ::nowMillis)
 

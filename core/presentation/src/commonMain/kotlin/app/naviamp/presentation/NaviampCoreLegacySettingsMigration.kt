@@ -280,6 +280,10 @@ private fun legacyPlaybackSettings(
         debugLoggingEnabled = values.boolean("debug_logging_enabled", defaults.debugLoggingEnabled),
         lrclibLyricsEnabled = values.boolean("lrclib_lyrics_enabled", defaults.lrclibLyricsEnabled),
         preferSyncedLyrics = values.boolean("prefer_synced_lyrics", defaults.preferSyncedLyrics),
+        preferWordSyncedLyrics = values.boolean(
+            "prefer_word_synced_lyrics",
+            defaults.preferWordSyncedLyrics,
+        ),
         lyricsSearchOrder = values.list(
             "lyrics_search_order",
             LyricsSourcePreference.serializer(),

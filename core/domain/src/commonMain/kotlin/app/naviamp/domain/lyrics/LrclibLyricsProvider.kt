@@ -14,6 +14,10 @@ open class LrclibLyricsProvider(
     private val baseUrl: String = "https://lrclib.net",
 ) : LyricsProvider {
     final override val id: String = "lrclib"
+    final override val capabilities: Set<LyricsTiming> = setOf(
+        LyricsTiming.Plain,
+        LyricsTiming.LineSynced,
+    )
 
     final override suspend fun lyrics(track: Track): Lyrics? {
         val query = LrclibLyricsQuery.fromTrack(track) ?: return null

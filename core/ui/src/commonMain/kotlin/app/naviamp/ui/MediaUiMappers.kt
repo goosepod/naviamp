@@ -1046,9 +1046,7 @@ fun Track.toNowPlayingUi(config: NowPlayingTrackUiConfig): NowPlayingUi =
         lyricsVisible = config.lyricsVisible,
         lyricsStatus = config.lyrics?.takeIf { it.lines.isNotEmpty() }?.let { null } ?: config.lyricsStatus,
         lyricsOffsetMillis = config.lyrics?.offsetMillis ?: 0,
-        lyricsLines = config.lyrics?.lines.orEmpty().map { line ->
-            NaviampLyricLineUi(startMillis = line.startMillis, text = line.text)
-        },
+        lyricsLines = config.lyrics?.toNaviampLyricLinesUi().orEmpty(),
         menuEnabled = config.menuEnabled,
         detailSections = toNowPlayingDetailSections(
             embeddedTags = config.embeddedTags,

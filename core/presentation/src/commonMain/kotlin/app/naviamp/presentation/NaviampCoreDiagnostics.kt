@@ -123,6 +123,7 @@ internal fun naviampCoreDiagnostics(
             "Embedded tags" to (sidecars.audioTags?.size?.toString() ?: "Not loaded"),
             "Lyrics" to (sidecars.lyrics?.let { "${it.source.name}, ${it.lines.size} lines" } ?: sidecars.lyricsStatus ?: "Not loaded"),
             "Lyrics synced" to (sidecars.lyrics?.synced?.toString() ?: "Unknown"),
+            "Lyrics karaoke cues" to (sidecars.lyrics?.cueLines?.sumOf { it.cues.size }?.toString() ?: "Unknown"),
             "Lyrics offset" to (sidecars.lyrics?.offsetMillis?.let { "${it}ms" } ?: "None"),
             "Visualizer" to (sidecars.visualizerFrame?.bands?.let { "${it.size} FFT bands" } ?: "Waiting"),
             "Selected visualizer" to shell.shellChrome.selectedVisualizer.name,

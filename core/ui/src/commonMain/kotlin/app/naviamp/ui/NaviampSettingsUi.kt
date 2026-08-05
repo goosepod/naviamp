@@ -74,6 +74,8 @@ import app.naviamp.domain.settings.DownloadedTrackPlayback
 import app.naviamp.domain.settings.InterfaceLanguage
 import app.naviamp.domain.settings.InterfaceSettings
 import app.naviamp.domain.settings.LyricsSourcePreference
+import app.naviamp.domain.settings.LyricsTimingPreference
+import app.naviamp.domain.settings.effectiveLyricsTimingPreference
 import app.naviamp.domain.settings.MaxReplayGainPreampDb
 import app.naviamp.domain.settings.MaxWaveformBucketCount
 import app.naviamp.domain.settings.MinReplayGainPreampDb
@@ -1021,12 +1023,10 @@ private fun NowPlayingDisplaySettings(
 
 @Composable
 private fun PlaybackSettings.lyricsSummary(): String =
-    when {
-        preferSyncedLyrics && lrclibLyricsEnabled -> stringResource(Res.string.settings_lyrics_summary_synced_download)
-        preferSyncedLyrics -> stringResource(Res.string.settings_lyrics_summary_synced)
-        lrclibLyricsEnabled -> stringResource(Res.string.settings_lyrics_summary_download)
-        else -> stringResource(Res.string.common_off)
-    }
+    listOfNotNull(
+        effectiveLyricsTimingPreference().label(),
+        stringResource(Res.string.settings_lyrics_summary_download).takeIf { lrclibLyricsEnabled },
+    ).takeIf { it.isNotEmpty() }?.joinToString(", ") ?: stringResource(Res.string.common_off)
 
 @Composable
 private fun PlaybackSettings.relatedTracksSummary(): String? =
@@ -3510,6 +3510,30 @@ private fun LyricsSettings(
     onPlaybackSettingsChanged: (PlaybackSettings) -> Unit,
 ) {
     var showSearchOrder by remember { mutableStateOf(false) }
+    var showTimingPreference by remember { mutableStateOf(false) }
+    if (showTimingPreference) {
+        SettingsSubsectionHeader(
+            title = stringResource(Res.string.settings_lyrics_timing),
+            subtitle = stringResource(Res.string.settings_lyrics_timing_subtitle),
+            colors = colors,
+        ) {
+            showTimingPreference = false
+        }
+        LyricsTimingSettings(
+            colors = colors,
+            selected = playbackSettings.effectiveLyricsTimingPreference(),
+            onSelected = { preference ->
+                onPlaybackSettingsChanged(
+                    playbackSettings.copy(
+                        lyricsTimingPreference = preference,
+                        preferSyncedLyrics = false,
+                        preferWordSyncedLyrics = false,
+                    ),
+                )
+            },
+        )
+        return
+    }
     if (showSearchOrder) {
         SettingsSubsectionHeader(
             title = stringResource(Res.string.settings_lyrics_search_order),
@@ -3539,15 +3563,12 @@ private fun LyricsSettings(
             },
         )
     }
-    SettingsCheckboxRow(
+    SettingsRow(
+        title = stringResource(Res.string.settings_lyrics_timing),
+        subtitle = stringResource(Res.string.settings_lyrics_timing_subtitle),
         colors = colors,
-        checked = playbackSettings.preferSyncedLyrics,
-        label = stringResource(Res.string.settings_lyrics_prefer_synced),
-        subtitle = stringResource(Res.string.settings_lyrics_prefer_synced_subtitle),
-        onCheckedChange = { enabled ->
-            onPlaybackSettingsChanged(playbackSettings.copy(preferSyncedLyrics = enabled))
-        },
-    )
+        value = playbackSettings.effectiveLyricsTimingPreference().label(),
+    ) { showTimingPreference = true }
     SettingsRow(
         title = stringResource(Res.string.settings_lyrics_search_order),
         subtitle = stringResource(Res.string.settings_lyrics_search_order_subtitle),
@@ -3558,6 +3579,40 @@ private fun LyricsSettings(
     ) {
         showSearchOrder = true
     }
+}
+
+@Composable
+private fun LyricsTimingSettings(
+    colors: NaviampColors,
+    selected: LyricsTimingPreference,
+    onSelected: (LyricsTimingPreference) -> Unit,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        LyricsTimingPreference.entries.forEach { preference ->
+            SettingsRow(
+                title = preference.label(),
+                subtitle = preference.subtitle(),
+                colors = colors,
+                value = stringResource(Res.string.settings_selected_label).takeIf { preference == selected },
+            ) { onSelected(preference) }
+        }
+    }
+}
+
+@Composable
+private fun LyricsTimingPreference.label(): String = when (this) {
+    LyricsTimingPreference.FirstAvailable -> stringResource(Res.string.settings_lyrics_timing_first)
+    LyricsTimingPreference.Plain -> stringResource(Res.string.settings_lyrics_timing_plain)
+    LyricsTimingPreference.LineSynced -> stringResource(Res.string.settings_lyrics_timing_synced)
+    LyricsTimingPreference.WordSynced -> stringResource(Res.string.settings_lyrics_timing_word)
+}
+
+@Composable
+private fun LyricsTimingPreference.subtitle(): String = when (this) {
+    LyricsTimingPreference.FirstAvailable -> stringResource(Res.string.settings_lyrics_timing_first_subtitle)
+    LyricsTimingPreference.Plain -> stringResource(Res.string.settings_lyrics_timing_plain_subtitle)
+    LyricsTimingPreference.LineSynced -> stringResource(Res.string.settings_lyrics_timing_synced_subtitle)
+    LyricsTimingPreference.WordSynced -> stringResource(Res.string.settings_lyrics_timing_word_subtitle)
 }
 
 @Composable
@@ -3636,7 +3691,10 @@ private fun LyricsSourcePreference.label(): String =
     when (this) {
         LyricsSourcePreference.Provider -> stringResource(Res.string.settings_lyrics_source_provider)
         LyricsSourcePreference.Embedded -> stringResource(Res.string.settings_lyrics_source_embedded)
-        LyricsSourcePreference.Download -> stringResource(Res.string.settings_lyrics_source_download)
+        LyricsSourcePreference.Online,
+        LyricsSourcePreference.Download,
+        LyricsSourcePreference.WordSynced,
+        -> stringResource(Res.string.settings_lyrics_source_online)
     }
 
 @Composable
@@ -3644,7 +3702,10 @@ private fun LyricsSourcePreference.subtitle(): String =
     when (this) {
         LyricsSourcePreference.Provider -> stringResource(Res.string.settings_lyrics_source_provider_subtitle)
         LyricsSourcePreference.Embedded -> stringResource(Res.string.settings_lyrics_source_embedded_subtitle)
-        LyricsSourcePreference.Download -> stringResource(Res.string.settings_lyrics_source_download_subtitle)
+        LyricsSourcePreference.Online,
+        LyricsSourcePreference.Download,
+        LyricsSourcePreference.WordSynced,
+        -> stringResource(Res.string.settings_lyrics_source_online_subtitle)
     }
 
 private fun <T> List<T>.moveItem(fromIndex: Int, toIndex: Int): List<T> {

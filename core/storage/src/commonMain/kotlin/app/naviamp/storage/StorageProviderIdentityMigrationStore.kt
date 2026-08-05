@@ -76,8 +76,8 @@ internal class StorageProviderIdentityMigrationStore(
             queries.selectLyricsTrackIdsForIdentityMigration(sourceId).executeAsList().forEach { oldId ->
                 queries.updateLyricsTrackId(migrate(oldId), sourceId, oldId)
             }
-            queries.selectLrclibLyricsTrackIdsForIdentityMigration(sourceId).executeAsList().forEach { oldId ->
-                queries.updateLrclibLyricsTrackId(migrate(oldId), sourceId, oldId)
+            queries.selectOnlineLyricsTrackIdsForIdentityMigration(sourceId).executeAsList().forEach { oldId ->
+                queries.updateOnlineLyricsTrackId(migrate(oldId), sourceId, oldId)
             }
             queries.selectLyricsOffsetTrackIdsForIdentityMigration(sourceId).executeAsList().forEach { oldId ->
                 queries.updateLyricsOffsetTrackId(migrate(oldId), sourceId, oldId)

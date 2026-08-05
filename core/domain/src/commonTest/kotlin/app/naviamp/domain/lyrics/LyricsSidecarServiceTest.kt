@@ -7,6 +7,8 @@ import app.naviamp.domain.Artist
 import app.naviamp.domain.ArtistDetails
 import app.naviamp.domain.ArtistId
 import app.naviamp.domain.LyricLine
+import app.naviamp.domain.LyricCue
+import app.naviamp.domain.LyricCueLine
 import app.naviamp.domain.Lyrics
 import app.naviamp.domain.LyricsSource
 import app.naviamp.domain.ProviderId
@@ -24,9 +26,11 @@ import app.naviamp.domain.provider.MediaProvider
 import app.naviamp.domain.provider.MediaSearchResults
 import app.naviamp.domain.provider.ProviderCapabilities
 import app.naviamp.domain.settings.LyricsSourcePreference
+import app.naviamp.domain.settings.LyricsTimingPreference
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertSame
+import kotlin.test.assertTrue
 import kotlinx.coroutines.test.runTest
 
 class LyricsSidecarServiceTest {
@@ -123,7 +127,7 @@ class LyricsSidecarServiceTest {
             quality = StreamQuality.Original,
             audioCachingEnabled = true,
             onlineLyricsEnabled = false,
-            preferSyncedLyrics = true,
+            timingPreference = LyricsTimingPreference.LineSynced,
         )
 
         assertSame(providerLyrics, result.lyrics)
@@ -144,7 +148,7 @@ class LyricsSidecarServiceTest {
             quality = StreamQuality.Original,
             audioCachingEnabled = true,
             onlineLyricsEnabled = true,
-            preferSyncedLyrics = true,
+            timingPreference = LyricsTimingPreference.LineSynced,
         )
 
         assertSame(onlineLyrics, result.lyrics)
@@ -164,10 +168,10 @@ class LyricsSidecarServiceTest {
             quality = StreamQuality.Original,
             audioCachingEnabled = true,
             onlineLyricsEnabled = true,
-            preferSyncedLyrics = true,
+            timingPreference = LyricsTimingPreference.LineSynced,
             searchOrder = listOf(
                 LyricsSourcePreference.Provider,
-                LyricsSourcePreference.Download,
+                LyricsSourcePreference.Online,
             ),
         )
         val foreground = service.loadLyrics(
@@ -177,10 +181,10 @@ class LyricsSidecarServiceTest {
             quality = StreamQuality.Original,
             audioCachingEnabled = true,
             onlineLyricsEnabled = true,
-            preferSyncedLyrics = true,
+            timingPreference = LyricsTimingPreference.LineSynced,
             searchOrder = listOf(
                 LyricsSourcePreference.Provider,
-                LyricsSourcePreference.Download,
+                LyricsSourcePreference.Online,
             ),
         )
 
@@ -205,7 +209,7 @@ class LyricsSidecarServiceTest {
             audioCachingEnabled = true,
             onlineLyricsEnabled = true,
             searchOrder = listOf(
-                LyricsSourcePreference.Download,
+                LyricsSourcePreference.Online,
                 LyricsSourcePreference.Provider,
                 LyricsSourcePreference.Embedded,
             ),
@@ -213,6 +217,125 @@ class LyricsSidecarServiceTest {
 
         assertSame(onlineLyrics, result.lyrics)
         assertEquals(emptyList(), repository.providerRequests)
+    }
+
+    @Test
+    fun cachedWordSyncedLyricsSatisfyLinePreferenceBeforeAnyLookupAndAreProjected() = runTest {
+        val cached = Lyrics(
+            source = LyricsSource.Musixmatch,
+            synced = true,
+            lines = listOf(LyricLine(1_000, "Two words")),
+            cueLines = listOf(
+                LyricCueLine(
+                    lineIndex = 0,
+                    startMillis = 1_000,
+                    endMillis = 2_000,
+                    text = "Two words",
+                    cues = listOf(
+                        LyricCue(1_000, 1_500, "Two", 0, 2),
+                        LyricCue(1_500, 2_000, " words", 3, 8),
+                    ),
+                ),
+            ),
+        )
+        val onlineProvider = StubOnlineLyricsProvider(null, null)
+        val repository = RecordingLyricsRepository(
+            providers = listOf(onlineProvider),
+            cachedOnlineLyrics = mapOf(onlineProvider.id to cached),
+        )
+
+        val result = service(repository).loadLyrics(
+            sourceId = "source",
+            provider = FakeMediaProvider(),
+            track = track(),
+            quality = StreamQuality.Original,
+            audioCachingEnabled = true,
+            onlineLyricsEnabled = true,
+            timingPreference = LyricsTimingPreference.LineSynced,
+        )
+
+        assertEquals(LyricsTiming.LineSynced, result.lyrics?.timing)
+        assertEquals(emptyList(), result.lyrics?.cueLines)
+        assertTrue(cached.hasKaraokeCues)
+        assertEquals(emptyList(), repository.providerRequests)
+        assertEquals(emptyList(), repository.onlineRequests)
+    }
+
+    @Test
+    fun plainPreferenceRemovesAllTimingFromRicherCachedLyrics() = runTest {
+        val cached = Lyrics(
+            source = LyricsSource.Musixmatch,
+            synced = true,
+            lines = listOf(LyricLine(1_000, "Two words")),
+            cueLines = listOf(
+                LyricCueLine(
+                    lineIndex = 0,
+                    startMillis = 1_000,
+                    endMillis = 2_000,
+                    text = "Two words",
+                    cues = listOf(LyricCue(1_000, 2_000, "Two words", 0, 8)),
+                ),
+            ),
+        )
+        val onlineProvider = StubOnlineLyricsProvider(null, null)
+        val repository = RecordingLyricsRepository(
+            providers = listOf(onlineProvider),
+            cachedOnlineLyrics = mapOf(onlineProvider.id to cached),
+        )
+
+        val result = service(repository).loadLyrics(
+            sourceId = "source",
+            provider = FakeMediaProvider(),
+            track = track(),
+            quality = StreamQuality.Original,
+            audioCachingEnabled = true,
+            onlineLyricsEnabled = true,
+            timingPreference = LyricsTimingPreference.Plain,
+        )
+
+        assertEquals(LyricsTiming.Plain, result.lyrics?.timing)
+        assertEquals(null, result.lyrics?.lines?.single()?.startMillis)
+        assertEquals(emptyList(), result.lyrics?.cueLines)
+        assertEquals(emptyList(), repository.onlineRequests)
+        assertTrue(cached.hasKaraokeCues)
+    }
+
+    @Test
+    fun onlineCatalogTriesWordCapableProviderFirstForWordPreference() = runTest {
+        val requests = mutableListOf<String>()
+        val lineProvider = RecordingOnlineProvider(
+            id = "line",
+            capabilities = setOf(LyricsTiming.Plain, LyricsTiming.LineSynced),
+            result = lyrics(LyricsSource.Lrclib, synced = true, text = "Line"),
+            requests = requests,
+        )
+        val wordLyrics = Lyrics(
+            source = LyricsSource.Musixmatch,
+            synced = true,
+            lines = listOf(LyricLine(0, "Word")),
+            cueLines = listOf(LyricCueLine(0, 0, 500, "Word", cues = listOf(LyricCue(0, 500, "Word", 0, 3)))),
+        )
+        val wordProvider = RecordingOnlineProvider(
+            id = "word",
+            capabilities = LyricsTiming.entries.toSet(),
+            result = wordLyrics,
+            requests = requests,
+        )
+        val repository = RecordingLyricsRepository(providers = listOf(lineProvider, wordProvider))
+
+        val result = service(repository).loadLyrics(
+            sourceId = "source",
+            provider = FakeMediaProvider(),
+            track = track(),
+            quality = StreamQuality.Original,
+            audioCachingEnabled = true,
+            onlineLyricsEnabled = true,
+            timingPreference = LyricsTimingPreference.WordSynced,
+            searchOrder = listOf(LyricsSourcePreference.Online),
+        )
+
+        assertSame(wordLyrics, result.lyrics)
+        assertEquals(listOf("word"), requests)
     }
 
     private fun service(
@@ -234,7 +357,13 @@ private class RecordingLyricsRepository(
     private val providerLyrics: Lyrics? = null,
     private val onlineLyrics: Lyrics? = null,
     private val onlineError: Throwable? = null,
+    providers: List<LyricsProvider>? = null,
+    private val cachedLyrics: Lyrics? = null,
+    private val cachedOnlineLyrics: Map<String, Lyrics> = emptyMap(),
 ) : LyricsSidecarRepository {
+    override val onlineProviders: List<LyricsProvider> = providers ?: listOf(
+        StubOnlineLyricsProvider(onlineLyrics, onlineError),
+    )
     val providerRequests = mutableListOf<String>()
     val onlineRequests = mutableListOf<String>()
     val embeddedStores = mutableListOf<String>()
@@ -243,6 +372,7 @@ private class RecordingLyricsRepository(
         sourceId: String,
         provider: MediaProvider,
         trackId: TrackId,
+        acceptedTimings: Set<LyricsTiming>,
     ): Lyrics? {
         providerRequests += "$sourceId:${trackId.value}"
         return providerLyrics
@@ -257,10 +387,47 @@ private class RecordingLyricsRepository(
         return lyrics
     }
 
-    override suspend fun lrclibLyrics(sourceId: String, track: Track): Lyrics? {
+    override suspend fun cachedLyrics(sourceId: String, trackId: TrackId): Lyrics? = cachedLyrics
+
+    override suspend fun cachedOnlineLyrics(
+        sourceId: String,
+        trackId: TrackId,
+        providerId: String,
+    ): Lyrics? = cachedOnlineLyrics[providerId]
+
+    override suspend fun onlineLyrics(
+        sourceId: String,
+        track: Track,
+        provider: LyricsProvider,
+        acceptedTimings: Set<LyricsTiming>,
+    ): Lyrics? {
         onlineRequests += "$sourceId:${track.id.value}"
-        onlineError?.let { throw it }
-        return onlineLyrics
+        return provider.lyrics(track)
+    }
+}
+
+private class RecordingOnlineProvider(
+    override val id: String,
+    override val capabilities: Set<LyricsTiming>,
+    private val result: Lyrics?,
+    private val requests: MutableList<String>,
+) : LyricsProvider {
+    override suspend fun lyrics(track: Track): Lyrics? {
+        requests += id
+        return result
+    }
+}
+
+private class StubOnlineLyricsProvider(
+    private val result: Lyrics?,
+    private val error: Throwable?,
+) : LyricsProvider {
+    override val id: String = "online"
+    override val capabilities: Set<LyricsTiming> = LyricsTiming.entries.toSet()
+
+    override suspend fun lyrics(track: Track): Lyrics? {
+        error?.let { throw it }
+        return result
     }
 }
 

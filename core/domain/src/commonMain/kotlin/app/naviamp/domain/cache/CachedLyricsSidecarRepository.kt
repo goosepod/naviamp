@@ -4,6 +4,7 @@ import app.naviamp.domain.Lyrics
 import app.naviamp.domain.Track
 import app.naviamp.domain.TrackId
 import app.naviamp.domain.lyrics.LyricsProvider
+import app.naviamp.domain.lyrics.LyricsTiming
 import app.naviamp.domain.provider.MediaProvider
 
 /**
@@ -13,13 +14,14 @@ import app.naviamp.domain.provider.MediaProvider
  */
 class CachedLyricsSidecarRepository(
     private val cache: LyricsSidecarCacheService,
-    private val onlineProvider: LyricsProvider,
+    override val onlineProviders: List<LyricsProvider>,
 ) : LyricsSidecarRepository {
     override suspend fun providerLyrics(
         sourceId: String,
         provider: MediaProvider,
         trackId: TrackId,
-    ): Lyrics? = cache.providerLyrics(sourceId, provider, trackId)
+        acceptedTimings: Set<LyricsTiming>,
+    ): Lyrics? = cache.providerLyrics(sourceId, provider, trackId, acceptedTimings)
 
     override suspend fun cacheEmbeddedLyrics(
         sourceId: String,
@@ -27,8 +29,19 @@ class CachedLyricsSidecarRepository(
         lyrics: Lyrics,
     ): Lyrics = cache.cacheEmbeddedLyrics(sourceId, trackId, lyrics)
 
-    override suspend fun lrclibLyrics(
+    override suspend fun cachedLyrics(sourceId: String, trackId: TrackId): Lyrics? =
+        cache.cachedLyrics(sourceId, trackId)
+
+    override suspend fun cachedOnlineLyrics(
+        sourceId: String,
+        trackId: TrackId,
+        providerId: String,
+    ): Lyrics? = cache.cachedOnlineLyrics(sourceId, trackId, providerId)
+
+    override suspend fun onlineLyrics(
         sourceId: String,
         track: Track,
-    ): Lyrics? = cache.lrclibLyrics(sourceId, track, onlineProvider)
+        provider: LyricsProvider,
+        acceptedTimings: Set<LyricsTiming>,
+    ): Lyrics? = cache.onlineLyrics(sourceId, track, provider, acceptedTimings)
 }

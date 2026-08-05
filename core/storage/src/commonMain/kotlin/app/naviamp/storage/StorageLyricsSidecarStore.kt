@@ -56,13 +56,14 @@ class StorageLyricsSidecarStore(
         )
     }
 
-    override fun cachedLrclibLyrics(sourceId: String, trackId: String): CachedLyricsRow? =
-        queries.selectCachedLrclibLyrics(
+    override fun cachedOnlineLyrics(sourceId: String, trackId: String, onlineProviderId: String): CachedLyricsRow? =
+        queries.selectCachedOnlineLyrics(
             source_id = sourceId,
             remote_track_id = trackId,
+            online_provider_id = onlineProviderId,
         ).executeAsOneOrNull()?.let { row ->
             CachedLyricsRow(
-                lyricSource = "Lrclib",
+                lyricSource = row.lyric_source,
                 synced = row.synced != 0L,
                 linesJson = row.lines_json,
                 displayArtist = row.display_artist,
@@ -72,13 +73,20 @@ class StorageLyricsSidecarStore(
             )
         }
 
-    override fun touchCachedLrclibLyrics(sourceId: String, trackId: String, lastAccessedEpochMillis: Long) {
-        queries.touchCachedLrclibLyrics(lastAccessedEpochMillis, sourceId, trackId)
-    }
-
-    override fun upsertCachedLrclibLyrics(
+    override fun touchCachedOnlineLyrics(
         sourceId: String,
         trackId: String,
+        onlineProviderId: String,
+        lastAccessedEpochMillis: Long,
+    ) {
+        queries.touchCachedOnlineLyrics(lastAccessedEpochMillis, sourceId, trackId, onlineProviderId)
+    }
+
+    override fun upsertCachedOnlineLyrics(
+        sourceId: String,
+        trackId: String,
+        onlineProviderId: String,
+        lyricSource: String,
         synced: Boolean,
         linesJson: String,
         displayArtist: String?,
@@ -89,9 +97,11 @@ class StorageLyricsSidecarStore(
         createdAtEpochMillis: Long,
         lastAccessedEpochMillis: Long,
     ) {
-        queries.upsertCachedLrclibLyrics(
+        queries.upsertCachedOnlineLyrics(
             source_id = sourceId,
             remote_track_id = trackId,
+            online_provider_id = onlineProviderId,
+            lyric_source = lyricSource,
             synced = if (synced) 1L else 0L,
             lines_json = linesJson,
             display_artist = displayArtist,

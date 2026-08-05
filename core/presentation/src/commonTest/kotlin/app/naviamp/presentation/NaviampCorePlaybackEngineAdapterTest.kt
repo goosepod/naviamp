@@ -556,13 +556,26 @@ class NaviampCorePlaybackEngineAdapterTest {
         )
         val lyricSourceIds = mutableListOf<String>()
         val lyricsRepository = object : LyricsSidecarRepository {
-            override suspend fun providerLyrics(sourceId: String, provider: MediaProvider, trackId: TrackId): Lyrics {
+            override val onlineProviders = emptyList<app.naviamp.domain.lyrics.LyricsProvider>()
+            override suspend fun providerLyrics(
+                sourceId: String,
+                provider: MediaProvider,
+                trackId: TrackId,
+                acceptedTimings: Set<app.naviamp.domain.lyrics.LyricsTiming>,
+            ): Lyrics {
                 lyricSourceIds += sourceId
                 kotlinx.coroutines.delay(200L)
                 return expectedLyrics
             }
             override suspend fun cacheEmbeddedLyrics(sourceId: String, trackId: TrackId, lyrics: Lyrics) = lyrics
-            override suspend fun lrclibLyrics(sourceId: String, track: app.naviamp.domain.Track) = null
+            override suspend fun cachedLyrics(sourceId: String, trackId: TrackId) = null
+            override suspend fun cachedOnlineLyrics(sourceId: String, trackId: TrackId, providerId: String) = null
+            override suspend fun onlineLyrics(
+                sourceId: String,
+                track: app.naviamp.domain.Track,
+                provider: app.naviamp.domain.lyrics.LyricsProvider,
+                acceptedTimings: Set<app.naviamp.domain.lyrics.LyricsTiming>,
+            ) = null
         }
         var savedOffset = 125
         val offsetSourceIds = mutableListOf<String>()

@@ -154,15 +154,30 @@ and a final process sample followed the hour.
   reduced it to a 109 MB committed heap with 30 MB used, proving that the apparent endpoint growth
   was reclaimable managed data rather than retained native rendering resources.
 - After collection, footprint remained flat at 425 MB, threads returned to 69, and CPU settled at
-  2.6–4.6%. The final `ps` resident set was 180,608 KB at 2.3% CPU. The configured JVM maximum is
-  320 MB with a 192 MB soft maximum, so the observed managed peak is bounded. Relative to the
-  warmed 409–422 MB reference, retained footprint growth is 0.7–3.9%, below the 10% threshold.
+  2.6–4.6%. The final `ps` resident set was 180,608 KB at 2.3% CPU. At the time of this run, the JVM
+  maximum was 320 MB with a 192 MB soft maximum. Relative to the warmed 409–422 MB reference,
+  retained footprint growth was 0.7–3.9%, below the 10% threshold.
 
 Result: **macOS one-hour playback retained-growth gate accepted**. The run shows bounded,
 reclaimable JVM expansion, a stable warmed native/JVM plateau, return-to-steady CPU, and no process
 or playback failure. Physical Android one-hour retained growth remained open at this checkpoint and
 passed on 2026-08-02; large-library interaction and the explicit macOS pressure-injection evidence
 gap remain open.
+
+### Track-transition heap correction — 2026-08-05
+
+Word-synced-lyrics testing exposed a desktop UI lock while native playback continued. Two process
+samples showed repeated G1 allocation-failure collections at the former 320 MB hard heap ceiling.
+A pre-collection histogram captured a rapid Next transition at 199 MB and attributed approximately
+72 MB to temporary byte arrays, alongside Ktor/TLS segments and artwork color-sampling work. A
+collecting histogram reduced the same process to about 21 MB of live objects, ruling out retained
+lyrics or API-history growth.
+
+The bounded Desktop budget is now a 320 MB soft maximum and 512 MB hard maximum. A rebuilt macOS
+app survived twelve rapid Next transitions with lyrics open: the heaviest measured burst reached
+approximately 366 MB and recovered to 65 MB within three seconds without UI or playback failure.
+The prior one-hour retained-growth result remains valid, but a new full-duration run should use the
+corrected budget when the final v2 performance gate is repeated.
 
 ## Preliminary Android promotion sample — 2026-07-23
 

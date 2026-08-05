@@ -46,8 +46,13 @@ class NaviampCoreSettingsSyncConfigurationStore(
         if (directory != null || autoExport != null) {
             return NaviampCoreSettingsSyncConfiguration(directory, autoExport ?: false).normalized()
         }
-        val old = legacy?.read(LegacySettingsSyncConfigurationKey)
-            ?.let { encoded -> runCatching { json.parseToJsonElement(encoded).jsonObject }.getOrNull() }
+        val old = legacy?.let { legacyValues ->
+            listOf(LegacyDesktopSettingsSyncKey, LegacySettingsSyncConfigurationKey)
+                .firstNotNullOfOrNull { key ->
+                    legacyValues.read(key)
+                        ?.let { encoded -> runCatching { json.parseToJsonElement(encoded).jsonObject }.getOrNull() }
+                }
+        }
         return NaviampCoreSettingsSyncConfiguration(
             directoryPath = old?.get("directoryPath")?.jsonPrimitive?.contentOrNull,
             autoExportEnabled = old?.get("autoExportEnabled")?.jsonPrimitive?.booleanOrNull ?: false,
@@ -63,6 +68,7 @@ class NaviampCoreSettingsSyncConfigurationStore(
 
 private const val KeySettingsSyncDirectory = "naviamp.sync.directory"
 private const val KeySettingsSyncAutoExport = "naviamp.sync.autoExport"
+private const val LegacyDesktopSettingsSyncKey = "settingsSync"
 private const val LegacySettingsSyncConfigurationKey = "settingsSyncConfiguration"
 private const val LegacyIosSettingsSyncDirectoryKey = "settingsSyncDirectoryReference"
 private const val LegacyIosSettingsSyncAutoExportKey = "settingsSyncAutoExportEnabled"

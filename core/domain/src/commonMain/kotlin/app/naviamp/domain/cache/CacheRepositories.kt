@@ -112,10 +112,13 @@ interface AudioWaveformRepository : AudioWaveformCacheRepository {
 }
 
 interface LyricsSidecarRepository {
+    val onlineProviders: List<app.naviamp.domain.lyrics.LyricsProvider>
+
     suspend fun providerLyrics(
         sourceId: String,
         provider: MediaProvider,
         trackId: TrackId,
+        acceptedTimings: Set<app.naviamp.domain.lyrics.LyricsTiming> = app.naviamp.domain.lyrics.LyricsTiming.entries.toSet(),
     ): Lyrics?
 
     suspend fun cacheEmbeddedLyrics(
@@ -124,9 +127,19 @@ interface LyricsSidecarRepository {
         lyrics: Lyrics,
     ): Lyrics
 
-    suspend fun lrclibLyrics(
+    suspend fun cachedLyrics(sourceId: String, trackId: TrackId): Lyrics?
+
+    suspend fun cachedOnlineLyrics(
+        sourceId: String,
+        trackId: TrackId,
+        providerId: String,
+    ): Lyrics?
+
+    suspend fun onlineLyrics(
         sourceId: String,
         track: Track,
+        provider: app.naviamp.domain.lyrics.LyricsProvider,
+        acceptedTimings: Set<app.naviamp.domain.lyrics.LyricsTiming> = app.naviamp.domain.lyrics.LyricsTiming.entries.toSet(),
     ): Lyrics?
 }
 

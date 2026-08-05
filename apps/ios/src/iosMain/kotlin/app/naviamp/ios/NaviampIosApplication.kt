@@ -36,7 +36,7 @@ import app.naviamp.domain.cache.AudioByteStoreService
 import app.naviamp.domain.cache.CachedLyricsSidecarRepository
 import app.naviamp.domain.cache.LyricsSidecarCacheService
 import app.naviamp.domain.cache.SidecarStatusService
-import app.naviamp.domain.lyrics.LrclibLyricsProvider
+import app.naviamp.domain.lyrics.naviampOnlineLyricsProviders
 import app.naviamp.domain.network.KtorSharedHttpClient
 import app.naviamp.domain.waveform.BassAudioWaveformAnalyzer
 import app.naviamp.provider.navidrome.NavidromeCoreProviderSessionPort
@@ -147,7 +147,7 @@ class NaviampIosApplication(
         audioTagReader = IosAudioTagReader(),
         lyricsRepository = CachedLyricsSidecarRepository(
             cache = LyricsSidecarCacheService(repositories.lyricsSidecars, ::naviampNowEpochMillis),
-            onlineProvider = LrclibLyricsProvider(KtorSharedHttpClient()),
+            onlineProviders = naviampOnlineLyricsProviders(httpClient, ::naviampNowEpochMillis),
         ),
         lyricsOffsetRepository = repositories.lyricsOffsets,
         sidecarStatusRepository = SidecarStatusService(repositories.sidecarStatuses, ::naviampNowEpochMillis),

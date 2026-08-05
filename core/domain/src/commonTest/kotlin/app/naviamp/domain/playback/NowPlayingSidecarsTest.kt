@@ -349,7 +349,7 @@ class NowPlayingSidecarsTest {
             quality = StreamQuality.Original,
             audioCachingEnabled = true,
             onlineLyricsEnabled = loadLyrics,
-            preferSyncedLyrics = false,
+            lyricsTimingPreference = app.naviamp.domain.settings.LyricsTimingPreference.FirstAvailable,
             lyricsSearchOrder = emptyList(),
             loadLyrics = loadLyrics,
         )

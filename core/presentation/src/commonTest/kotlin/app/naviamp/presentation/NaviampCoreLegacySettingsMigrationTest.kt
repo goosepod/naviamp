@@ -69,7 +69,7 @@ class NaviampCoreLegacySettingsMigrationTest {
         assertEquals(1.5f, stored.loadPlayback().equalizer.bandsDb.first())
         assertEquals(
             listOf(
-                LyricsSourcePreference.Download,
+                LyricsSourcePreference.Online,
                 LyricsSourcePreference.Provider,
                 LyricsSourcePreference.Embedded,
             ),

@@ -33,7 +33,7 @@ class StorageMaintenanceStore(
             queries.clearImages()
             queries.clearAudioWaveforms()
             queries.clearLyrics()
-            queries.clearLrclibLyrics()
+            queries.clearOnlineLyrics()
             queries.clearSidecarStatuses()
         }
     }

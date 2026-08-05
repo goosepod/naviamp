@@ -56,6 +56,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.Layout
@@ -66,9 +67,13 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.ui.input.pointer.isSecondaryPressed
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.DpOffset
@@ -1870,9 +1875,30 @@ private fun LyricsPanel(
                 items(nowPlaying.lyricsLines.size) { index ->
                     val line = nowPlaying.lyricsLines[index]
                     val active = index == activeLineIndex
+                    val inactiveColor = colors.secondaryText.copy(alpha = 0.72f)
+                    val karaokeRevision = if (active && line.cues.isNotEmpty()) {
+                        line.karaokeHighlightRevision(
+                            positionMillis = positionMillis,
+                            offsetMillis = nowPlaying.lyricsOffsetMillis,
+                        )
+                    } else {
+                        0
+                    }
+                    val text = if (active && line.cues.isNotEmpty()) {
+                        remember(line, karaokeRevision, nowPlaying.lyricsOffsetMillis, inactiveColor, colors.primaryText) {
+                            line.karaokeAnnotatedString(
+                                positionMillis = positionMillis,
+                                offsetMillis = nowPlaying.lyricsOffsetMillis,
+                                pendingColor = inactiveColor,
+                                completedColor = colors.primaryText,
+                            )
+                        }
+                    } else {
+                        remember(line.text) { AnnotatedString(line.text) }
+                    }
                     Text(
-                        text = line.text,
-                        color = if (active) colors.primaryText else colors.secondaryText.copy(alpha = 0.72f),
+                        text = text,
+                        color = if (active) colors.primaryText else inactiveColor,
                         fontSize = if (active) 15.sp else 13.sp,
                         lineHeight = if (active) 18.sp else 16.sp,
                         fontWeight = if (active) FontWeight.Bold else FontWeight.Normal,
@@ -1887,6 +1913,20 @@ private fun LyricsPanel(
                     )
                 }
             }
+        }
+    }
+}
+
+private fun NaviampLyricLineUi.karaokeAnnotatedString(
+    positionMillis: Long?,
+    offsetMillis: Int,
+    pendingColor: Color,
+    completedColor: Color,
+): AnnotatedString = buildAnnotatedString {
+    karaokeHighlightSegments(positionMillis, offsetMillis).forEach { segment ->
+        val color = if (segment.progress > 0f) completedColor else pendingColor
+        withStyle(SpanStyle(color = color)) {
+            append(segment.text)
         }
     }
 }

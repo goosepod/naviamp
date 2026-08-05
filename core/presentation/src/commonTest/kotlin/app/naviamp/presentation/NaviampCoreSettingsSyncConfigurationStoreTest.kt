@@ -40,6 +40,23 @@ class NaviampCoreSettingsSyncConfigurationStoreTest {
     }
 
     @Test
+    fun prefersTheActualDesktopSyncLocationOverAStaleAggregateConfiguration() {
+        val configuration = NaviampCoreSettingsSyncConfigurationStore(
+            SyncConfigurationMemoryValues(
+                mutableMapOf(
+                    "settingsSync" to
+                        """{"directoryPath":"/Users/test/syncthing","autoExportEnabled":true}""",
+                    "settingsSyncConfiguration" to
+                        """{"directoryPath":"/Users/test/Documents","autoExportEnabled":true}""",
+                ),
+            ),
+        ).load()
+
+        assertEquals("/Users/test/syncthing", configuration.directoryPath)
+        assertTrue(configuration.autoExportEnabled)
+    }
+
+    @Test
     fun readsTheSupersededIosValues() {
         val configuration = NaviampCoreSettingsSyncConfigurationStore(
             SyncConfigurationMemoryValues(

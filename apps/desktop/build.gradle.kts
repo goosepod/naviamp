@@ -73,8 +73,11 @@ compose.desktop {
             "-Dapple.awt.application.name=Naviamp",
             "-Dsun.awt.application.name=Naviamp",
             "-Xms64m",
-            "-Xmx320m",
-            "-XX:SoftMaxHeapSize=192m",
+            // Track transitions briefly overlap streaming/prefetch TLS buffers, artwork decoding,
+            // and sidecar work. The retained heap remains small, but the old 320 MB ceiling could
+            // trap G1 in allocation-failure collections before those temporary buffers unwound.
+            "-Xmx512m",
+            "-XX:SoftMaxHeapSize=320m",
             "-XX:G1PeriodicGCInterval=30000",
         )
         when {
