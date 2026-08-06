@@ -264,6 +264,7 @@ data class PlaybackSettings(
     val debugLoggingEnabled: Boolean = false,
     val lrclibLyricsEnabled: Boolean = false,
     val lyricsTimingPreference: LyricsTimingPreference = LyricsTimingPreference.FirstAvailable,
+    val lyricsDisplayPreference: LyricsDisplayPreference = LyricsDisplayPreference.MatchDownload,
     // Retained so existing v2 settings migrate without silently losing the user's preference.
     val preferSyncedLyrics: Boolean = false,
     val preferWordSyncedLyrics: Boolean = false,
@@ -366,12 +367,28 @@ enum class LyricsTimingPreference {
     WordSynced,
 }
 
+@Serializable
+enum class LyricsDisplayPreference {
+    MatchDownload,
+    Plain,
+    LineSynced,
+    WordSynced,
+}
+
 fun PlaybackSettings.effectiveLyricsTimingPreference(): LyricsTimingPreference =
     when {
         lyricsTimingPreference != LyricsTimingPreference.FirstAvailable -> lyricsTimingPreference
         preferWordSyncedLyrics -> LyricsTimingPreference.WordSynced
         preferSyncedLyrics -> LyricsTimingPreference.LineSynced
         else -> LyricsTimingPreference.FirstAvailable
+    }
+
+fun PlaybackSettings.effectiveLyricsDisplayTimingPreference(): LyricsTimingPreference =
+    when (lyricsDisplayPreference) {
+        LyricsDisplayPreference.MatchDownload -> effectiveLyricsTimingPreference()
+        LyricsDisplayPreference.Plain -> LyricsTimingPreference.Plain
+        LyricsDisplayPreference.LineSynced -> LyricsTimingPreference.LineSynced
+        LyricsDisplayPreference.WordSynced -> LyricsTimingPreference.WordSynced
     }
 
 @Serializable
@@ -449,6 +466,7 @@ fun playbackSettingsChange(
         shouldReloadLyricsSidecars = previous == null ||
             previous.lrclibLyricsEnabled != effective.lrclibLyricsEnabled ||
             previous.effectiveLyricsTimingPreference() != effective.effectiveLyricsTimingPreference() ||
+            previous.effectiveLyricsDisplayTimingPreference() != effective.effectiveLyricsDisplayTimingPreference() ||
             previous.lyricsSearchOrder.normalizedLyricsSearchOrder() != effective.lyricsSearchOrder.normalizedLyricsSearchOrder(),
     )
 }

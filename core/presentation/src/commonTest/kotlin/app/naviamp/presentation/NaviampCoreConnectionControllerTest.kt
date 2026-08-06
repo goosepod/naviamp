@@ -137,6 +137,7 @@ class NaviampCoreConnectionControllerTest {
         val state = fixture.store.state.value.shell.connectionSettings.connection
         assertFalse(state.connected)
         assertFalse(state.isConnecting)
+        assertTrue(state.statusIsError)
         assertEquals("Server unavailable", state.status)
     }
 
@@ -152,6 +153,7 @@ class NaviampCoreConnectionControllerTest {
                 "Enter a server URL and username.",
                 fixture.store.state.value.shell.connectionSettings.connection.status,
             )
+            assertTrue(fixture.store.state.value.shell.connectionSettings.connection.statusIsError)
 
             val saved = savedConnectionUi()
             fixture.controller.execute(NaviampCoreCommand.Connection.Edit(saved))

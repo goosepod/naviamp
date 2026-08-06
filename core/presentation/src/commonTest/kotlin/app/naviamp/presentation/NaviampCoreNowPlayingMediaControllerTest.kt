@@ -30,6 +30,7 @@ import app.naviamp.domain.provider.MediaSearchResults
 import app.naviamp.domain.provider.ProviderCapabilities
 import app.naviamp.domain.queue.PlaybackQueue
 import app.naviamp.domain.queue.RepeatMode
+import app.naviamp.domain.settings.LyricsDisplayPreference
 import app.naviamp.ui.NaviampConnectionSettingsUi
 import app.naviamp.ui.NaviampPlaylistChoiceUi
 import app.naviamp.ui.NaviampVisualizer
@@ -109,6 +110,14 @@ class NaviampCoreNowPlayingMediaControllerTest {
             ),
         )
         fixture.controller.execute(
+            NaviampCoreCommand.NowPlaying.Display(
+                NowPlayingDisplayActionRequest(
+                    NowPlayingDisplayAction.SelectLyricsDisplayTiming,
+                    lyricsDisplayPreference = LyricsDisplayPreference.LineSynced,
+                ),
+            ),
+        )
+        fixture.controller.execute(
             currentCommand(
                 NowPlayingCurrentTrackAction.AddToPlaylist,
                 playlistChoice = NaviampPlaylistChoiceUi("playlist", "Playlist"),
@@ -119,7 +128,11 @@ class NaviampCoreNowPlayingMediaControllerTest {
         fixture.controller.execute(currentCommand(NowPlayingCurrentTrackAction.Download))
         advanceUntilIdle()
 
-        assertEquals(listOf("current", "current"), fixture.sidecars.lyricsLoads)
+        assertEquals(listOf("current", "current", "current"), fixture.sidecars.lyricsLoads)
+        assertEquals(
+            LyricsDisplayPreference.LineSynced,
+            fixture.store.state.value.shell.playback.settings.lyricsDisplayPreference,
+        )
         assertEquals(listOf(NaviampVisualizer.LyricMirrorTunnel), fixture.visualizers)
         assertEquals(listOf("playlist:current"), fixture.provider.added)
         assertEquals(listOf("current:true"), fixture.provider.favorites)

@@ -85,6 +85,7 @@ fun NaviampConnectionForm(
     isReconnect: Boolean,
     isConnecting: Boolean = false,
     connectionStatus: String? = null,
+    connectionStatusIsError: Boolean = false,
     settingsSyncStatus: String? = null,
     availableMusicFolders: List<ConnectionFormMusicFolder> = emptyList(),
     musicFoldersStatus: String? = null,
@@ -98,6 +99,9 @@ fun NaviampConnectionForm(
     var advancedVisible by remember { mutableStateOf(false) }
 
     Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        if (connectionStatusIsError && !connectionStatus.isNullOrBlank()) {
+            ConnectionErrorCard(connectionStatus)
+        }
         SettingsSectionTitle("Connection Details", colors)
         if (isReconnect) {
             Text(
@@ -304,7 +308,7 @@ fun NaviampConnectionForm(
                 },
             )
         }
-        connectionStatus?.let {
+        connectionStatus?.takeUnless { connectionStatusIsError }?.let {
             Text(it, color = colors.secondaryText, fontSize = 11.sp)
         }
         Row(
@@ -323,6 +327,30 @@ fun NaviampConnectionForm(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun ConnectionErrorCard(message: String) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .background(MaterialTheme.colorScheme.errorContainer)
+            .padding(horizontal = 14.dp, vertical = 12.dp),
+        verticalArrangement = Arrangement.spacedBy(3.dp),
+    ) {
+        Text(
+            text = "Connection error",
+            color = MaterialTheme.colorScheme.onErrorContainer,
+            fontSize = 14.sp,
+            fontWeight = FontWeight.Bold,
+        )
+        Text(
+            text = message,
+            color = MaterialTheme.colorScheme.onErrorContainer,
+            fontSize = 13.sp,
+        )
     }
 }
 

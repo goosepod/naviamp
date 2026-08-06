@@ -931,6 +931,8 @@ data class NowPlayingUi(
     val lyricsStatus: String? = null,
     val lyricsOffsetMillis: Int = 0,
     val lyricsLines: List<NaviampLyricLineUi> = emptyList(),
+    val lyricsAvailableTiming: app.naviamp.domain.lyrics.LyricsTiming? = null,
+    val lyricsDisplayTiming: app.naviamp.domain.lyrics.LyricsTiming? = null,
     val menuEnabled: Boolean = false,
     val detailSections: List<NaviampDetailSectionUi> = emptyList(),
     val playlistChoices: List<NaviampPlaylistChoiceUi> = emptyList(),
@@ -959,6 +961,7 @@ data class NaviampConnectionCapabilitiesUi(
 
 data class NaviampShellConnectionUi(
     val status: String? = null,
+    val statusIsError: Boolean = false,
     val serverVersion: String? = null,
     val connected: Boolean = false,
     val editingConnection: Boolean = false,

@@ -42,11 +42,13 @@ import app.naviamp.domain.settings.AudioOutputDeviceMode
 import app.naviamp.domain.settings.CacheSettings
 import app.naviamp.domain.settings.PlaybackSettings
 import app.naviamp.domain.settings.effectiveForEngine
+import app.naviamp.domain.settings.effectiveLyricsDisplayTimingPreference
 import app.naviamp.domain.settings.effectiveLyricsTimingPreference
 import app.naviamp.domain.settings.streamQualityForNetwork
 import app.naviamp.domain.audio.AudioMetadataSidecarService
 import app.naviamp.domain.lyrics.LyricsOffsetController
 import app.naviamp.domain.lyrics.LyricsSidecarService
+import app.naviamp.domain.lyrics.LyricsTiming
 import app.naviamp.domain.waveform.AudioWaveformService
 import app.naviamp.ui.radioArtworkNeedsTrackLookup
 import app.naviamp.ui.radioTrackArtworkKey
@@ -625,9 +627,14 @@ class NaviampCoreMutableNowPlayingSidecars : NaviampCoreNowPlayingSidecarPort {
 
     fun updateLyrics(
         lyrics: app.naviamp.domain.Lyrics?,
+        availableTiming: LyricsTiming?,
         status: String?,
     ) {
-        state = state.copy(lyrics = lyrics, lyricsStatus = status)
+        state = state.copy(
+            lyrics = lyrics,
+            lyricsAvailableTiming = availableTiming,
+            lyricsStatus = status,
+        )
     }
 
     fun updateInternetRadioArtwork(
@@ -710,7 +717,7 @@ class NaviampCoreProviderNowPlayingSidecars(
         val provider = providerSource.current()
         val service = lyricsSidecarService
         if (provider == null || service == null) {
-            if (generation == loadGeneration) delegate.updateLyrics(null, "Lyrics unavailable")
+            if (generation == loadGeneration) delegate.updateLyrics(null, null, "Lyrics unavailable")
             return
         }
         val settings = playbackSettings()
@@ -722,6 +729,7 @@ class NaviampCoreProviderNowPlayingSidecars(
                     if (generation == loadGeneration) {
                         delegate.updateLyrics(
                             lyrics = delegate.snapshot().lyrics,
+                            availableTiming = delegate.snapshot().lyricsAvailableTiming,
                             status = lyricsLoadingStatus(settings.lrclibLyricsEnabled),
                         )
                     }
@@ -735,8 +743,9 @@ class NaviampCoreProviderNowPlayingSidecars(
                         audioCachingEnabled = audioCachingEnabled(),
                         onlineLyricsEnabled = settings.lrclibLyricsEnabled,
                         timingPreference = settings.effectiveLyricsTimingPreference(),
+                        displayTimingPreference = settings.effectiveLyricsDisplayTimingPreference(),
                         searchOrder = settings.lyricsSearchOrder,
-                    ).lyrics
+                    )
                 } finally {
                     loadingStatus.cancel()
                 }
@@ -746,16 +755,17 @@ class NaviampCoreProviderNowPlayingSidecars(
                 val lyrics = lyricsOffsetController?.withSavedOffset(
                     sourceId = activeSourceId,
                     track = track,
-                    lyrics = loaded,
-                ) ?: loaded
+                    lyrics = loaded.lyrics,
+                ) ?: loaded.lyrics
                 delegate.updateLyrics(
                     lyrics = lyrics,
+                    availableTiming = loaded.availableTiming,
                     status = if (lyrics == null) "Lyrics unavailable" else null,
                 )
             }
         }.onFailure { error ->
             if (generation == loadGeneration) {
-                delegate.updateLyrics(null, lyricsUnavailableStatus(error))
+                delegate.updateLyrics(null, null, lyricsUnavailableStatus(error))
             }
         }
     }
@@ -769,7 +779,11 @@ class NaviampCoreProviderNowPlayingSidecars(
             lyrics = delegate.snapshot().lyrics,
             offsetMillis = offsetMillis,
         ) ?: delegate.snapshot().lyrics?.copy(offsetMillis = offsetMillis)
-        delegate.updateLyrics(updated, delegate.snapshot().lyricsStatus)
+        delegate.updateLyrics(
+            updated,
+            delegate.snapshot().lyricsAvailableTiming,
+            delegate.snapshot().lyricsStatus,
+        )
     }
 
     override suspend fun loadInternetRadioArtwork(

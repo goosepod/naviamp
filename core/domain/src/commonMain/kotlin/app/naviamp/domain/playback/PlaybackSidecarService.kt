@@ -60,6 +60,7 @@ class PlaybackSidecarService(
         audioCachingEnabled: Boolean,
         onlineLyricsEnabled: Boolean,
         timingPreference: LyricsTimingPreference = LyricsTimingPreference.FirstAvailable,
+        displayTimingPreference: LyricsTimingPreference = timingPreference,
         lyricsSearchOrder: List<LyricsSourcePreference> = emptyList(),
     ): Lyrics? {
         val lyrics = lyricsSidecarService.loadLyrics(
@@ -70,6 +71,7 @@ class PlaybackSidecarService(
             audioCachingEnabled = audioCachingEnabled,
             onlineLyricsEnabled = onlineLyricsEnabled,
             timingPreference = timingPreference,
+            displayTimingPreference = displayTimingPreference,
             searchOrder = lyricsSearchOrder,
         ).lyrics
         if (sourceId != null) {
@@ -91,6 +93,7 @@ class PlaybackSidecarService(
         audioCachingEnabled: Boolean,
         onlineLyricsEnabled: Boolean,
         timingPreference: LyricsTimingPreference = LyricsTimingPreference.FirstAvailable,
+        displayTimingPreference: LyricsTimingPreference = timingPreference,
         lyricsSearchOrder: List<LyricsSourcePreference> = emptyList(),
         includeLyrics: Boolean,
     ): PlaybackSidecarPrepResult {
@@ -133,6 +136,7 @@ class PlaybackSidecarService(
                     audioCachingEnabled = audioCachingEnabled,
                     onlineLyricsEnabled = onlineLyricsEnabled,
                     timingPreference = timingPreference,
+                    displayTimingPreference = displayTimingPreference,
                     lyricsSearchOrder = lyricsSearchOrder,
                 )
             }

@@ -2,6 +2,7 @@ package app.naviamp.presentation
 
 import app.naviamp.app.NaviampConnectionController
 import app.naviamp.app.NaviampConnectionAttemptPlan
+import app.naviamp.app.NaviampConnectionPhase
 import app.naviamp.domain.settings.ConnectionFormState
 import app.naviamp.domain.settings.connectionFormError
 import app.naviamp.domain.settings.selectedMusicFolderSummary
@@ -271,6 +272,7 @@ class NaviampCoreConnectionController(
                     currentSourceId = currentId,
                     connection = shell.connectionSettings.connection.copy(
                         status = runtime.status ?: shell.connectionSettings.connection.status,
+                        statusIsError = runtime.phase == NaviampConnectionPhase.Failed,
                         serverVersion = runtime.serverVersion,
                         connected = runtime.connected,
                         restoringConnection = runtime.restoringConnection,

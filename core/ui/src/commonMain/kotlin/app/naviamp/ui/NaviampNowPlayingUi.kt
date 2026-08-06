@@ -82,10 +82,17 @@ import androidx.compose.ui.unit.sp
 import app.naviamp.domain.waveform.playbackFraction
 import app.naviamp.domain.waveform.cleanWaveformAmplitudes
 import app.naviamp.domain.waveform.seekSecondsForFraction
+import app.naviamp.domain.lyrics.LyricsTiming
 import app.naviamp.domain.playback.SleepTimerRequest
+import app.naviamp.domain.settings.LyricsDisplayPreference
 import app.naviamp.domain.settings.NowPlayingDisplaySettings
 import app.naviamp.domain.settings.TrackSwipeAction
 import kotlinx.coroutines.launch
+import org.jetbrains.compose.resources.stringResource
+import app.naviamp.ui.generated.resources.Res
+import app.naviamp.ui.generated.resources.lyrics_display_text
+import app.naviamp.ui.generated.resources.lyrics_display_lines
+import app.naviamp.ui.generated.resources.lyrics_display_words
 import kotlin.math.roundToInt
 
 enum class NaviampRepeatMode {
@@ -148,6 +155,15 @@ data class NaviampNowPlayingActions(
             NowPlayingDisplayActionRequest(
                 NowPlayingDisplayAction.ChangeLyricsOffset,
                 lyricsOffsetMillis = offsetMillis,
+            ),
+        )
+    }
+
+    fun selectLyricsDisplayTiming(preference: LyricsDisplayPreference) {
+        onDisplayAction(
+            NowPlayingDisplayActionRequest(
+                NowPlayingDisplayAction.SelectLyricsDisplayTiming,
+                lyricsDisplayPreference = preference,
             ),
         )
     }
@@ -374,6 +390,7 @@ fun NaviampNowPlayingPanel(
                                     colors = colors,
                                     onSeek = actions::seek,
                                     onOffsetChanged = actions::changeLyricsOffset,
+                                    onDisplayTimingSelected = actions::selectLyricsDisplayTiming,
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .height(artSize),
@@ -423,9 +440,10 @@ fun NaviampNowPlayingPanel(
                         if (nowPlaying.lyricsVisible && !showStationList) {
                             LyricsPanel(
                                 nowPlaying = nowPlaying,
-                                colors = colors,
-                                onSeek = actions::seek,
-                                onOffsetChanged = actions::changeLyricsOffset,
+                            colors = colors,
+                            onSeek = actions::seek,
+                            onOffsetChanged = actions::changeLyricsOffset,
+                            onDisplayTimingSelected = actions::selectLyricsDisplayTiming,
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .height(artSize),
@@ -1783,6 +1801,7 @@ private fun NowPlayingSidePanel(
                 colors = colors,
                 onSeek = actions::seek,
                 onOffsetChanged = actions::changeLyricsOffset,
+                onDisplayTimingSelected = actions::selectLyricsDisplayTiming,
                 modifier = Modifier.weight(0.38f),
             )
         }
@@ -1795,6 +1814,7 @@ private fun LyricsPanel(
     colors: NaviampColors,
     onSeek: (Double) -> Unit,
     onOffsetChanged: (Int) -> Unit,
+    onDisplayTimingSelected: (LyricsDisplayPreference) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val listState = remember(nowPlaying.id) { LazyListState() }
@@ -1848,6 +1868,12 @@ private fun LyricsPanel(
             .padding(horizontal = 14.dp, vertical = 12.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
+        LyricsDisplayTimingControls(
+            availableTiming = nowPlaying.lyricsAvailableTiming,
+            selectedTiming = nowPlaying.lyricsDisplayTiming,
+            colors = colors,
+            onSelected = onDisplayTimingSelected,
+        )
         LyricsOffsetControls(
             offsetMillis = nowPlaying.lyricsOffsetMillis,
             enabled = nowPlaying.lyricsLines.any { it.startMillis != null },
@@ -1915,6 +1941,61 @@ private fun LyricsPanel(
             }
         }
     }
+}
+
+@Composable
+private fun LyricsDisplayTimingControls(
+    availableTiming: LyricsTiming?,
+    selectedTiming: LyricsTiming?,
+    colors: NaviampColors,
+    onSelected: (LyricsDisplayPreference) -> Unit,
+) {
+    val options = listOf(
+        LyricsTiming.Plain to LyricsDisplayPreference.Plain,
+        LyricsTiming.LineSynced to LyricsDisplayPreference.LineSynced,
+        LyricsTiming.WordSynced to LyricsDisplayPreference.WordSynced,
+    )
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        options.forEach { (timing, preference) ->
+            val available = lyricsDisplayTimingAvailable(timing, availableTiming)
+            val selected = timing == selectedTiming
+            val label = when (timing) {
+                LyricsTiming.Plain -> stringResource(Res.string.lyrics_display_text)
+                LyricsTiming.LineSynced -> stringResource(Res.string.lyrics_display_lines)
+                LyricsTiming.WordSynced -> stringResource(Res.string.lyrics_display_words)
+            }
+            Text(
+                text = label,
+                color = when {
+                    selected -> colors.primaryText
+                    available -> colors.secondaryText
+                    else -> colors.mutedText.copy(alpha = 0.48f)
+                },
+                fontSize = 11.sp,
+                fontWeight = if (selected) FontWeight.Bold else FontWeight.SemiBold,
+                textAlign = TextAlign.Center,
+                maxLines = 1,
+                modifier = Modifier
+                    .weight(1f)
+                    .clip(RoundedCornerShape(5.dp))
+                    .background(if (selected) colors.accent.copy(alpha = 0.28f) else Color.Transparent)
+                    .clickable(enabled = available && !selected) { onSelected(preference) }
+                    .padding(vertical = 5.dp),
+            )
+        }
+    }
+}
+
+internal fun lyricsDisplayTimingAvailable(
+    timing: LyricsTiming,
+    availableTiming: LyricsTiming?,
+): Boolean = when (timing) {
+    LyricsTiming.Plain -> availableTiming != null
+    LyricsTiming.LineSynced -> availableTiming == LyricsTiming.LineSynced || availableTiming == LyricsTiming.WordSynced
+    LyricsTiming.WordSynced -> availableTiming == LyricsTiming.WordSynced
 }
 
 private fun NaviampLyricLineUi.karaokeAnnotatedString(

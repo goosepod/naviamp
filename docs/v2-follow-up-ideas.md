@@ -67,6 +67,19 @@ This document tracks useful ideas that come up during the v2 migration but are n
   - What simulator coverage is possible, and which acceptance cases require real receivers and physical Apple devices?
 - **Investigation output:** Produce a protocol and SDK comparison, Core session contract, credential and network-reachability threat model, receiver compatibility matrix, lifecycle/recovery test plan, and a recommendation for the smallest useful first implementation.
 
+### Durable Start Radio Session History
+
+- **Status:** Idea
+- **Concept:** Verify that every generated session created through **Start Radio** is stored durably in the shared database so users can browse prior radio sessions and reopen them across app relaunches and on every platform. These are the similar-music sessions generated according to the user's DJ preference, not internet-stream radio stations.
+- **Investigation first:** Trace the current Start Radio action, DJ-preference inputs, generated-session model, SQLDelight schema/repository, launch restoration, de-duplication, retention, and Settings Sync behavior before changing code. The feature may already exist; document the evidence and close any persistence or presentation gaps rather than creating a duplicate history system.
+- **Questions to answer:**
+  - Does history preserve the seed/context, DJ preference, generated track list or reproducible generation inputs, provider/source identity, display metadata, and last-played time needed to reopen a prior session reliably?
+  - Should reopening restore the original generated queue exactly or generate a fresh similar-music queue from the saved seed and DJ preference?
+  - How are repeated Start Radio requests, changed DJ preferences, deleted or unavailable tracks, and removed sources handled?
+  - Is retention bounded and user-controllable, can individual sessions or the complete history be removed, and does private data stay source-scoped?
+  - Do Android, Desktop, and iOS all read and mutate the same shared repository behavior, including after cold launch and offline startup?
+- **Acceptance shape:** Start representative radio sessions with different seeds and DJ preferences on each host, restart the application, confirm ordered history and successful reopening, verify unavailable-track and deletion behavior, and add shared repository/controller tests for persistence and migration.
+
 ### Album Shuffle Radio
 
 - **Status:** Idea
@@ -148,7 +161,7 @@ This document tracks useful ideas that come up during the v2 migration but are n
 
 ### Word-by-Word Karaoke Lyrics
 
-- **Status:** In progress on `feature/karaoke-musixmatch-lyrics`
+- **Status:** Done for `v2.0.0-alpha.3`
 - **Concept:** Add support for Navidrome's word-by-word, or karaoke, lyrics so the active word can be highlighted within the current lyric line as playback advances.
 - **Why it may fit:** Naviamp already supports synchronized line lyrics, offsets, prefetch, and cached lyric sidecars. Preserving word-level timing would make the lyrics view more expressive while fitting the existing playback-position and cache pipeline.
 - **Behavior and presentation questions:**
@@ -168,9 +181,11 @@ This document tracks useful ideas that come up during the v2 migration but are n
   - [x] Refresh legacy line-only cache payloads once so an upgraded client can discover enhanced cues while preserving old lyrics if the provider has no replacement.
   - [x] Add a shared timing preference for first available, plain, line-synced, or word-synced display. Richer cached lyrics are projected down for display without discarding their stored timing.
   - [x] Check persistent lyrics caches before any server request, audio-tag read, or online request; immediately reuse a cached result when it can satisfy the selected timing.
-  - [ ] Verify seeking, pause/resume, track changes, crossfade transitions, prefetch cancellation, and offline reuse with deterministic shared tests.
-  - [ ] Run authenticated acceptance against representative Navidrome tracks with complete, partial, malformed, multi-agent, wrapping, punctuation, and Unicode cue data.
-  - [ ] Confirm accessible contrast, font scaling, and screen-reader behavior for the automatic karaoke presentation, then decide whether a user-selectable line-only fallback is necessary.
+  - [x] Separate download timing from display timing so users can cache word-synced lyrics while normally displaying line-synced or plain lyrics.
+  - [x] Add an inline Text/Lines/Words selector whose selected, available, and unavailable states reflect the current lyric payload and persist to Settings.
+  - [x] Verify plain, line-synced, and word-synced tracks across macOS, Android, and iOS, including timing changes, manual scrolling, line-click seeking, timeline scrubbing, and track changes.
+  - [x] Validate the shared timing, cache-projection, presentation, persistence, and connection-error behavior with common tests and Android, Desktop, and iOS builds.
+- **Completion note:** The shared fallback model keeps malformed, partial, older cached, and less-capable provider responses usable without requiring platform-specific lyric behavior. Broader accessibility and unusual-provider fixtures remain ongoing regression coverage rather than blockers for the completed feature.
 
 ### Musixmatch Lyrics Source
 

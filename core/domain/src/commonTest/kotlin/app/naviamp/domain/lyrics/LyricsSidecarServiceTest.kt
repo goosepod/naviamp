@@ -338,6 +338,56 @@ class LyricsSidecarServiceTest {
         assertEquals(listOf("word"), requests)
     }
 
+    @Test
+    fun wordDownloadPreferenceCanBeDisplayedAsLineSyncedLyrics() = runTest {
+        val requests = mutableListOf<String>()
+        val wordLyrics = Lyrics(
+            source = LyricsSource.Musixmatch,
+            synced = true,
+            lines = listOf(LyricLine(0, "Two words")),
+            cueLines = listOf(
+                LyricCueLine(
+                    lineIndex = 0,
+                    startMillis = 0,
+                    endMillis = 1_000,
+                    text = "Two words",
+                    cues = listOf(
+                        LyricCue(0, 500, "Two", 0, 2),
+                        LyricCue(500, 1_000, " words", 3, 8),
+                    ),
+                ),
+            ),
+        )
+        val repository = RecordingLyricsRepository(
+            providers = listOf(
+                RecordingOnlineProvider(
+                    id = "word",
+                    capabilities = LyricsTiming.entries.toSet(),
+                    result = wordLyrics,
+                    requests = requests,
+                ),
+            ),
+        )
+
+        val result = service(repository).loadLyrics(
+            sourceId = "source",
+            provider = FakeMediaProvider(),
+            track = track(),
+            quality = StreamQuality.Original,
+            audioCachingEnabled = true,
+            onlineLyricsEnabled = true,
+            timingPreference = LyricsTimingPreference.WordSynced,
+            displayTimingPreference = LyricsTimingPreference.LineSynced,
+            searchOrder = listOf(LyricsSourcePreference.Online),
+        )
+
+        assertEquals(listOf("word"), requests)
+        assertEquals(LyricsTiming.LineSynced, result.lyrics?.timing)
+        assertEquals(LyricsTiming.WordSynced, result.availableTiming)
+        assertEquals(emptyList(), result.lyrics?.cueLines)
+        assertTrue(wordLyrics.hasKaraokeCues)
+    }
+
     private fun service(
         repository: RecordingLyricsRepository,
         audioAssets: PlaybackAudioAssetRepository = RecordingAudioAssets(),

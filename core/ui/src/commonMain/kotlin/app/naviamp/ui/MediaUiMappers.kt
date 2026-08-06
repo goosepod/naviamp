@@ -24,6 +24,8 @@ import app.naviamp.domain.home.homeStations
 import app.naviamp.domain.media.RelatedTracksSource
 import app.naviamp.domain.media.groupedByReleaseSection
 import app.naviamp.domain.media.releaseSection
+import app.naviamp.domain.lyrics.LyricsTiming
+import app.naviamp.domain.lyrics.timing
 import app.naviamp.domain.settings.AlbumSortOrder
 import app.naviamp.domain.playback.PlaybackProgress
 import app.naviamp.domain.playback.PlaybackReplayGain
@@ -507,6 +509,7 @@ data class NowPlayingPlaybackActionRequest(
 enum class NowPlayingDisplayAction {
     ToggleLyrics,
     ChangeLyricsOffset,
+    SelectLyricsDisplayTiming,
     ToggleVisualizer,
     SelectVisualizer,
     SelectRadioDj,
@@ -516,6 +519,7 @@ enum class NowPlayingDisplayAction {
 data class NowPlayingDisplayActionRequest(
     val action: NowPlayingDisplayAction,
     val lyricsOffsetMillis: Int? = null,
+    val lyricsDisplayPreference: app.naviamp.domain.settings.LyricsDisplayPreference? = null,
     val visualizer: NaviampVisualizer? = null,
     val radioDjId: String? = null,
 )
@@ -966,6 +970,7 @@ data class NowPlayingTrackUiConfig(
     val lyricsVisible: Boolean = false,
     val lyricsStatus: String? = null,
     val lyrics: Lyrics? = null,
+    val lyricsAvailableTiming: LyricsTiming? = null,
     val menuEnabled: Boolean = false,
     val embeddedTags: List<Pair<String, String>>? = null,
     val streamQuality: StreamQuality? = null,
@@ -1047,6 +1052,8 @@ fun Track.toNowPlayingUi(config: NowPlayingTrackUiConfig): NowPlayingUi =
         lyricsStatus = config.lyrics?.takeIf { it.lines.isNotEmpty() }?.let { null } ?: config.lyricsStatus,
         lyricsOffsetMillis = config.lyrics?.offsetMillis ?: 0,
         lyricsLines = config.lyrics?.toNaviampLyricLinesUi().orEmpty(),
+        lyricsAvailableTiming = config.lyricsAvailableTiming,
+        lyricsDisplayTiming = config.lyrics?.timing,
         menuEnabled = config.menuEnabled,
         detailSections = toNowPlayingDetailSections(
             embeddedTags = config.embeddedTags,
@@ -1085,6 +1092,7 @@ fun Track.toTrackNowPlayingUi(
     lyricsVisible: Boolean = false,
     lyricsStatus: String? = null,
     lyrics: Lyrics? = null,
+    lyricsAvailableTiming: LyricsTiming? = null,
     streamQuality: StreamQuality? = null,
     embeddedTags: List<Pair<String, String>>? = null,
     replayGainInspectorEnabled: Boolean = false,
@@ -1129,6 +1137,7 @@ fun Track.toTrackNowPlayingUi(
             lyricsVisible = lyricsVisible,
             lyricsStatus = lyricsStatus,
             lyrics = lyrics,
+            lyricsAvailableTiming = lyricsAvailableTiming,
             menuEnabled = true,
             streamQuality = streamQuality,
             embeddedTags = nowPlayingEmbeddedTagRows(embeddedTags),

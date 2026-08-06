@@ -73,6 +73,7 @@ import app.naviamp.domain.settings.DefaultDownloadStorageBytes
 import app.naviamp.domain.settings.DownloadedTrackPlayback
 import app.naviamp.domain.settings.InterfaceLanguage
 import app.naviamp.domain.settings.InterfaceSettings
+import app.naviamp.domain.settings.LyricsDisplayPreference
 import app.naviamp.domain.settings.LyricsSourcePreference
 import app.naviamp.domain.settings.LyricsTimingPreference
 import app.naviamp.domain.settings.effectiveLyricsTimingPreference
@@ -166,6 +167,7 @@ fun NaviampSharedSettingsContent(
     isConnectionFormOpen: Boolean = false,
     isConnecting: Boolean = false,
     connectionStatus: String? = null,
+    connectionStatusIsError: Boolean = false,
     settingsSyncStatus: String? = null,
     availableMusicFolders: List<ConnectionFormMusicFolder> = emptyList(),
     musicFoldersStatus: String? = null,
@@ -241,6 +243,7 @@ fun NaviampSharedSettingsContent(
                         isConnectionFormOpen = isConnectionFormOpen,
                         isConnecting = isConnecting,
                         connectionStatus = connectionStatus,
+                        connectionStatusIsError = connectionStatusIsError,
                         settingsSyncStatus = settingsSyncStatus,
                         availableMusicFolders = availableMusicFolders,
                         musicFoldersStatus = musicFoldersStatus,
@@ -1025,6 +1028,10 @@ private fun NowPlayingDisplaySettings(
 private fun PlaybackSettings.lyricsSummary(): String =
     listOfNotNull(
         effectiveLyricsTimingPreference().label(),
+        stringResource(
+            Res.string.settings_lyrics_summary_display,
+            lyricsDisplayPreference.label(),
+        ).takeIf { lyricsDisplayPreference != LyricsDisplayPreference.MatchDownload },
         stringResource(Res.string.settings_lyrics_summary_download).takeIf { lrclibLyricsEnabled },
     ).takeIf { it.isNotEmpty() }?.joinToString(", ") ?: stringResource(Res.string.common_off)
 
@@ -1258,6 +1265,7 @@ private fun NaviampConnectionsSettingsSection(
     isConnectionFormOpen: Boolean,
     isConnecting: Boolean,
     connectionStatus: String?,
+    connectionStatusIsError: Boolean,
     settingsSyncStatus: String?,
     availableMusicFolders: List<ConnectionFormMusicFolder>,
     musicFoldersStatus: String?,
@@ -1308,6 +1316,7 @@ private fun NaviampConnectionsSettingsSection(
                 isReconnect = hasSavedConnection,
                 isConnecting = isConnecting,
                 connectionStatus = connectionStatus,
+                connectionStatusIsError = connectionStatusIsError,
                 settingsSyncStatus = settingsSyncStatus,
                 availableMusicFolders = availableMusicFolders,
                 musicFoldersStatus = musicFoldersStatus,
@@ -3510,14 +3519,15 @@ private fun LyricsSettings(
     onPlaybackSettingsChanged: (PlaybackSettings) -> Unit,
 ) {
     var showSearchOrder by remember { mutableStateOf(false) }
-    var showTimingPreference by remember { mutableStateOf(false) }
-    if (showTimingPreference) {
+    var showDownloadTimingPreference by remember { mutableStateOf(false) }
+    var showDisplayTimingPreference by remember { mutableStateOf(false) }
+    if (showDownloadTimingPreference) {
         SettingsSubsectionHeader(
-            title = stringResource(Res.string.settings_lyrics_timing),
-            subtitle = stringResource(Res.string.settings_lyrics_timing_subtitle),
+            title = stringResource(Res.string.settings_lyrics_download_timing),
+            subtitle = stringResource(Res.string.settings_lyrics_download_timing_subtitle),
             colors = colors,
         ) {
-            showTimingPreference = false
+            showDownloadTimingPreference = false
         }
         LyricsTimingSettings(
             colors = colors,
@@ -3530,6 +3540,23 @@ private fun LyricsSettings(
                         preferWordSyncedLyrics = false,
                     ),
                 )
+            },
+        )
+        return
+    }
+    if (showDisplayTimingPreference) {
+        SettingsSubsectionHeader(
+            title = stringResource(Res.string.settings_lyrics_display_timing),
+            subtitle = stringResource(Res.string.settings_lyrics_display_timing_subtitle),
+            colors = colors,
+        ) {
+            showDisplayTimingPreference = false
+        }
+        LyricsDisplayTimingSettings(
+            colors = colors,
+            selected = playbackSettings.lyricsDisplayPreference,
+            onSelected = { preference ->
+                onPlaybackSettingsChanged(playbackSettings.copy(lyricsDisplayPreference = preference))
             },
         )
         return
@@ -3564,11 +3591,17 @@ private fun LyricsSettings(
         )
     }
     SettingsRow(
-        title = stringResource(Res.string.settings_lyrics_timing),
-        subtitle = stringResource(Res.string.settings_lyrics_timing_subtitle),
+        title = stringResource(Res.string.settings_lyrics_download_timing),
+        subtitle = stringResource(Res.string.settings_lyrics_download_timing_subtitle),
         colors = colors,
         value = playbackSettings.effectiveLyricsTimingPreference().label(),
-    ) { showTimingPreference = true }
+    ) { showDownloadTimingPreference = true }
+    SettingsRow(
+        title = stringResource(Res.string.settings_lyrics_display_timing),
+        subtitle = stringResource(Res.string.settings_lyrics_display_timing_subtitle),
+        colors = colors,
+        value = playbackSettings.lyricsDisplayPreference.label(),
+    ) { showDisplayTimingPreference = true }
     SettingsRow(
         title = stringResource(Res.string.settings_lyrics_search_order),
         subtitle = stringResource(Res.string.settings_lyrics_search_order_subtitle),
@@ -3579,6 +3612,40 @@ private fun LyricsSettings(
     ) {
         showSearchOrder = true
     }
+}
+
+@Composable
+private fun LyricsDisplayTimingSettings(
+    colors: NaviampColors,
+    selected: LyricsDisplayPreference,
+    onSelected: (LyricsDisplayPreference) -> Unit,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        LyricsDisplayPreference.entries.forEach { preference ->
+            SettingsRow(
+                title = preference.label(),
+                subtitle = preference.subtitle(),
+                colors = colors,
+                value = stringResource(Res.string.settings_selected_label).takeIf { preference == selected },
+            ) { onSelected(preference) }
+        }
+    }
+}
+
+@Composable
+private fun LyricsDisplayPreference.label(): String = when (this) {
+    LyricsDisplayPreference.MatchDownload -> stringResource(Res.string.settings_lyrics_display_match_download)
+    LyricsDisplayPreference.Plain -> stringResource(Res.string.settings_lyrics_timing_plain)
+    LyricsDisplayPreference.LineSynced -> stringResource(Res.string.settings_lyrics_timing_synced)
+    LyricsDisplayPreference.WordSynced -> stringResource(Res.string.settings_lyrics_timing_word)
+}
+
+@Composable
+private fun LyricsDisplayPreference.subtitle(): String = when (this) {
+    LyricsDisplayPreference.MatchDownload -> stringResource(Res.string.settings_lyrics_display_match_download_subtitle)
+    LyricsDisplayPreference.Plain -> stringResource(Res.string.settings_lyrics_display_plain_subtitle)
+    LyricsDisplayPreference.LineSynced -> stringResource(Res.string.settings_lyrics_display_synced_subtitle)
+    LyricsDisplayPreference.WordSynced -> stringResource(Res.string.settings_lyrics_display_word_subtitle)
 }
 
 @Composable
@@ -4358,7 +4425,9 @@ fun SettingsRow(
                 fontSize = SettingsDetailRowSubtitleSize,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.padding(start = 10.dp),
+                modifier = Modifier
+                    .weight(0.45f, fill = false)
+                    .padding(start = 10.dp),
             )
         }
         Icon(

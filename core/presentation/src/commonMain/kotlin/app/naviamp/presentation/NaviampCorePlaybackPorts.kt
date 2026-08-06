@@ -8,6 +8,7 @@ import app.naviamp.domain.TrackId
 import app.naviamp.domain.StreamQuality
 import app.naviamp.domain.audio.AudioTag
 import app.naviamp.domain.media.RelatedTracksSource
+import app.naviamp.domain.lyrics.LyricsTiming
 import app.naviamp.domain.playback.PlaybackQueueNavigationCommand
 import app.naviamp.domain.playback.PlaybackProgress
 import app.naviamp.domain.playback.PlaybackSource
@@ -64,6 +65,7 @@ data class NaviampCoreNowPlayingSidecars(
     val waveform: AudioWaveform? = null,
     val audioTags: List<AudioTag>? = null,
     val lyrics: Lyrics? = null,
+    val lyricsAvailableTiming: LyricsTiming? = null,
     val lyricsStatus: String? = null,
     val streamMetadata: PlaybackStreamMetadata = PlaybackStreamMetadata(),
     val visualizerFrame: PlaybackVisualizerFrame? = null,

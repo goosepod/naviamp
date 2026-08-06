@@ -7,6 +7,7 @@ import app.naviamp.domain.media.resolveTrackArtistNavigation
 import app.naviamp.domain.media.favoriteTrackUpdate
 import app.naviamp.domain.media.ratedTrackUpdate
 import app.naviamp.domain.radio.RadioService
+import app.naviamp.domain.settings.LyricsDisplayPreference
 import app.naviamp.ui.NaviampVisualizer
 import app.naviamp.ui.NowPlayingCurrentTrackAction
 import app.naviamp.ui.NowPlayingCurrentTrackUiActionRequest
@@ -86,6 +87,22 @@ class NaviampCoreNowPlayingMediaController(
                 val track = currentTrackOrPublish() ?: return
                 request.lyricsOffsetMillis?.let { sidecars.changeLyricsOffset(track, it) }
                     ?: publishStatus("Lyrics offset is missing.")
+            }
+            NowPlayingDisplayAction.SelectLyricsDisplayTiming -> {
+                val preference = request.lyricsDisplayPreference
+                if (preference == null || preference == LyricsDisplayPreference.MatchDownload) {
+                    publishStatus("Lyrics display timing is missing.")
+                } else {
+                    val current = stateStore.state.value.shell.playback.settings
+                    val updated = settings.apply(
+                        current.copy(lyricsDisplayPreference = preference),
+                        redownload = false,
+                    )
+                    stateStore.updateShell { shell ->
+                        shell.copy(playback = shell.playback.copy(settings = updated))
+                    }
+                    currentTrack()?.let { sidecars.loadLyrics(it) }
+                }
             }
             NowPlayingDisplayAction.ToggleVisualizer ->
                 playbackController.updateDisplay { it.copy(visualizerVisible = !it.visualizerVisible) }

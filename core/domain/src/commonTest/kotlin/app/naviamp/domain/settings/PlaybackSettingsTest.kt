@@ -42,6 +42,24 @@ class PlaybackSettingsTest {
     }
 
     @Test
+    fun lyricsDisplayTimingDefaultsToDownloadPreferenceButCanBeOverridden() {
+        val wordDownload = PlaybackSettings(
+            lyricsTimingPreference = LyricsTimingPreference.WordSynced,
+        )
+
+        assertEquals(
+            LyricsTimingPreference.WordSynced,
+            wordDownload.effectiveLyricsDisplayTimingPreference(),
+        )
+        assertEquals(
+            LyricsTimingPreference.LineSynced,
+            wordDownload.copy(
+                lyricsDisplayPreference = LyricsDisplayPreference.LineSynced,
+            ).effectiveLyricsDisplayTimingPreference(),
+        )
+    }
+
+    @Test
     fun downloadedTrackSwipesDefaultToPlayAndRemove() {
         val swipes = TrackSwipeSettings()
 
@@ -176,10 +194,16 @@ class PlaybackSettingsTest {
             playbackEngine = FakePlaybackEngine(),
             previous = previous,
         )
+        val displayChanged = playbackSettingsChange(
+            requested = previous.copy(lyricsDisplayPreference = LyricsDisplayPreference.LineSynced),
+            playbackEngine = FakePlaybackEngine(),
+            previous = previous,
+        )
 
         assertEquals(40, unchanged.settings.volumePercent)
         assertFalse(unchanged.shouldReloadLyricsSidecars)
         assertEquals(true, changed.shouldReloadLyricsSidecars)
+        assertEquals(true, displayChanged.shouldReloadLyricsSidecars)
     }
 
     @Test

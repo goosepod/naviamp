@@ -8,6 +8,7 @@ import app.naviamp.domain.StreamQuality
 import app.naviamp.domain.Track
 import app.naviamp.domain.TrackId
 import app.naviamp.domain.media.RelatedTracksSource
+import app.naviamp.domain.lyrics.LyricsTiming
 import app.naviamp.domain.playback.PlaybackProgress
 import app.naviamp.domain.playback.PlaybackState
 import app.naviamp.domain.playback.PlaybackStreamMetadata
@@ -22,6 +23,17 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
 class NaviampNowPlayingPresentationTest {
+    @Test
+    fun lyricsTimingSelectorExposesOnlyModesSupportedByLoadedLyrics() {
+        assertTrue(lyricsDisplayTimingAvailable(LyricsTiming.Plain, LyricsTiming.WordSynced))
+        assertTrue(lyricsDisplayTimingAvailable(LyricsTiming.LineSynced, LyricsTiming.WordSynced))
+        assertTrue(lyricsDisplayTimingAvailable(LyricsTiming.WordSynced, LyricsTiming.WordSynced))
+        assertTrue(lyricsDisplayTimingAvailable(LyricsTiming.Plain, LyricsTiming.LineSynced))
+        assertTrue(lyricsDisplayTimingAvailable(LyricsTiming.LineSynced, LyricsTiming.LineSynced))
+        assertFalse(lyricsDisplayTimingAvailable(LyricsTiming.WordSynced, LyricsTiming.LineSynced))
+        assertFalse(lyricsDisplayTimingAvailable(LyricsTiming.Plain, null))
+    }
+
     @Test
     fun downloadedTranscodeQualityOverridesTheLibraryFilesOriginalQuality() {
         val track = track("hi-res").copy(

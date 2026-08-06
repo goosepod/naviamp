@@ -2,6 +2,37 @@
 
 Release changes are grouped into user-facing Features, Bug Fixes, and deployment or infrastructure-related System Settings. Internal task-tracking notes are intentionally not included.
 
+## v2.0.0-alpha.3
+
+This alpha adds word-by-word lyrics and gives users independent control over the lyric timing Naviamp downloads and displays.
+
+### Features
+
+- Added word-by-word karaoke lyrics with progressive active-word highlighting, synchronized line fallback, manual offsets, seeking, and cached offline reuse.
+- Added separate download and display timing preferences for plain, line-synced, and word-synced lyrics.
+- Added a Text, Lines, and Words selector directly on the lyrics screen, including selected, available, and unavailable states for the current track.
+- Added timing-aware online lyric lookup and caching that preserves richer results while allowing a less detailed display mode.
+
+### Bug Fixes
+
+- Made connection failures automatically scroll into view and display in a prominent error card instead of appearing as easy-to-miss status text.
+- Prevented display-timing choices from discarding richer cached lyric timing when switching between plain, line-synced, and word-synced views.
+- Kept the Settings layout readable when long selected values are shown on narrow screens.
+
+### System Settings
+
+- Extended the shared lyric sidecar cache and settings schema with backward-compatible timing metadata and display preferences.
+- Added shared tests for lyric timing selection, cache projection, persistence, seeking behavior, and connection-error state propagation.
+
+### Alpha Notes and Known Limitations
+
+- Back up important playlists and settings before testing this alpha release.
+- Word-by-word availability depends on the selected provider and the timing data available for each track.
+- Online lyric services may rely on unofficial endpoints that can change or become unavailable without notice; server, embedded, cached, and alternate online fallbacks remain available.
+- Windows and macOS builds are not yet distributed with trusted publisher signing, so their operating systems may display security warnings.
+- The iOS IPA is unsigned and requires testers to sign it with their own Apple identity before sideloading.
+- Windows, Linux, and physical-iPhone release testing remains limited.
+
 ## v2.0.0-alpha.2
 
 This alpha focuses on tightening Naviamp's native audio packaging and correcting mobile settings capability presentation.

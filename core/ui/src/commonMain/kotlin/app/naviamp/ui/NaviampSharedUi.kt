@@ -167,6 +167,11 @@ fun NaviampSharedAppShell(
     )
     val showFullNowPlaying = connected && !editingConnection && !restoringConnection && nowPlayingOpen && nowPlaying != null
     val outerContentScrollState = rememberScrollState()
+    LaunchedEffect(connection.statusIsError, connection.status) {
+        if (connection.statusIsError && !connection.status.isNullOrBlank()) {
+            outerContentScrollState.animateScrollTo(0)
+        }
+    }
     val routeUsesOwnScroll = connected &&
         !editingConnection &&
         !restoringConnection &&
@@ -250,7 +255,9 @@ fun NaviampSharedAppShell(
                     val showingRouteConnectionForm = editingConnection && selectedRoute != SharedRoute.Settings
                     if (!showFullNowPlaying && (restoringConnection || !connected || showingRouteConnectionForm)) {
                         Text("Naviamp", color = colors.primaryText, fontSize = 22.sp, fontWeight = FontWeight.Bold)
-                        Text(status, color = colors.secondaryText, fontSize = 13.sp)
+                        if (!connection.statusIsError) {
+                            Text(status, color = colors.secondaryText, fontSize = 13.sp)
+                        }
                         serverVersion?.let {
                             Text("Connected to Navidrome $it.", color = colors.secondaryText, fontSize = 13.sp)
                         }
@@ -263,6 +270,9 @@ fun NaviampSharedAppShell(
                             form = connectionForm,
                             colors = colors,
                             isReconnect = connected,
+                            isConnecting = isConnecting,
+                            connectionStatus = connectionStatus,
+                            connectionStatusIsError = connection.statusIsError,
                             availableMusicFolders = availableMusicFolders,
                             musicFoldersStatus = musicFoldersStatus,
                             capabilities = connectionCapabilities,
@@ -753,6 +763,7 @@ fun NaviampSettingsContent(
         isConnectionFormOpen = connection.editingConnection,
         isConnecting = connection.isConnecting,
         connectionStatus = connection.status,
+        connectionStatusIsError = connection.statusIsError,
         settingsSyncStatus = settingsSync.status,
         availableMusicFolders = connection.availableMusicFolders,
         musicFoldersStatus = connection.musicFoldersStatus,

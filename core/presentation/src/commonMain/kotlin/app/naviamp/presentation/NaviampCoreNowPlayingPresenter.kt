@@ -74,6 +74,7 @@ class NaviampCoreNowPlayingPresenter(
             nowPlayingWaveform = sidecar.waveform.takeIf { shell.cache.settings.waveformsEnabled },
             nowPlayingAudioTags = sidecar.audioTags,
             nowPlayingLyrics = sidecar.lyrics,
+            nowPlayingLyricsAvailableTiming = sidecar.lyricsAvailableTiming,
             nowPlayingLyricsStatus = sidecar.lyricsStatus,
             nowPlayingStreamMetadata = sidecar.streamMetadata,
             lyricsVisible = display.lyricsVisible,

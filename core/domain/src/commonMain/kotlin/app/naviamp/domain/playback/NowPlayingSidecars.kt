@@ -121,6 +121,7 @@ data class CurrentTrackSidecarWork<Provider>(
     val audioCachingEnabled: Boolean,
     val onlineLyricsEnabled: Boolean,
     val lyricsTimingPreference: LyricsTimingPreference,
+    val lyricsDisplayTimingPreference: LyricsTimingPreference = lyricsTimingPreference,
     val lyricsSearchOrder: List<LyricsSourcePreference>,
     val loadLyrics: Boolean,
 )
@@ -144,6 +145,7 @@ fun <Provider> currentTrackSidecarWork(
     audioCachingEnabled: Boolean,
     onlineLyricsEnabled: Boolean,
     lyricsTimingPreference: LyricsTimingPreference = LyricsTimingPreference.FirstAvailable,
+    lyricsDisplayTimingPreference: LyricsTimingPreference = lyricsTimingPreference,
     lyricsSearchOrder: List<LyricsSourcePreference> = emptyList(),
     lyricsVisible: Boolean,
 ): CurrentTrackSidecarWork<Provider>? {
@@ -158,6 +160,7 @@ fun <Provider> currentTrackSidecarWork(
         audioCachingEnabled = audioCachingEnabled,
         onlineLyricsEnabled = onlineLyricsEnabled,
         lyricsTimingPreference = lyricsTimingPreference,
+        lyricsDisplayTimingPreference = lyricsDisplayTimingPreference,
         lyricsSearchOrder = lyricsSearchOrder,
         loadLyrics = onlineLyricsEnabled || lyricsVisible,
     )
@@ -171,6 +174,7 @@ fun <Provider> currentTrackSidecarWork(
     audioCachingEnabled: Boolean,
     onlineLyricsEnabled: Boolean,
     lyricsTimingPreference: LyricsTimingPreference = LyricsTimingPreference.FirstAvailable,
+    lyricsDisplayTimingPreference: LyricsTimingPreference = lyricsTimingPreference,
     lyricsSearchOrder: List<LyricsSourcePreference> = emptyList(),
     lyricsVisible: Boolean,
 ): CurrentTrackSidecarWork<Provider>? =
@@ -182,6 +186,7 @@ fun <Provider> currentTrackSidecarWork(
         audioCachingEnabled = audioCachingEnabled,
         onlineLyricsEnabled = onlineLyricsEnabled,
         lyricsTimingPreference = lyricsTimingPreference,
+        lyricsDisplayTimingPreference = lyricsDisplayTimingPreference,
         lyricsSearchOrder = lyricsSearchOrder,
         lyricsVisible = lyricsVisible,
     )

@@ -19,6 +19,7 @@ import app.naviamp.domain.playback.PlaybackSidecarService
 import app.naviamp.domain.provider.MediaProvider
 import app.naviamp.domain.settings.CacheSettings
 import app.naviamp.domain.settings.PlaybackSettings
+import app.naviamp.domain.settings.effectiveLyricsDisplayTimingPreference
 import app.naviamp.domain.settings.effectiveLyricsTimingPreference
 import app.naviamp.domain.settings.VisualizerSettings
 import app.naviamp.domain.waveform.AudioWaveformAnalyzer
@@ -101,6 +102,7 @@ fun naviampCorePlaybackServiceCatalog(
                 audioCachingEnabled = cacheSettings().audioCachingEnabled,
                 onlineLyricsEnabled = playback.lrclibLyricsEnabled,
                 timingPreference = playback.effectiveLyricsTimingPreference(),
+                displayTimingPreference = playback.effectiveLyricsDisplayTimingPreference(),
                 lyricsSearchOrder = playback.lyricsSearchOrder,
                 includeLyrics = true,
             )

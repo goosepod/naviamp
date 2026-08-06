@@ -10,6 +10,7 @@ import app.naviamp.domain.Track
 import app.naviamp.domain.TrackId
 import app.naviamp.domain.audio.AudioTag
 import app.naviamp.domain.media.RelatedTracksSource
+import app.naviamp.domain.lyrics.LyricsTiming
 import app.naviamp.domain.playback.PlaybackProgress
 import app.naviamp.domain.playback.PlaybackState
 import app.naviamp.domain.playback.PlaybackStreamMetadata
@@ -38,6 +39,7 @@ data class NaviampNowPlayingContentInput(
     val nowPlayingWaveform: AudioWaveform?,
     val nowPlayingAudioTags: List<AudioTag>?,
     val nowPlayingLyrics: Lyrics?,
+    val nowPlayingLyricsAvailableTiming: LyricsTiming? = null,
     val nowPlayingLyricsStatus: String?,
     val nowPlayingStreamMetadata: PlaybackStreamMetadata,
     val lyricsVisible: Boolean,
@@ -194,6 +196,7 @@ private fun NaviampNowPlayingContentInput.toNowPlayingUi(
         lyricsVisible = lyricsVisible,
         lyricsStatus = nowPlayingLyricsStatus,
         lyrics = nowPlayingLyrics,
+        lyricsAvailableTiming = nowPlayingLyricsAvailableTiming,
         streamQuality = streamQuality,
         embeddedTags = nowPlayingAudioTags?.map { it.key to it.value },
         replayGainInspectorEnabled = replayGainInspectorEnabled,

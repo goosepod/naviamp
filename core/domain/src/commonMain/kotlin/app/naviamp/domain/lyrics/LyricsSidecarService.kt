@@ -19,6 +19,7 @@ import kotlinx.coroutines.sync.withLock
 
 data class LyricsSidecarResult(
     val lyrics: Lyrics?,
+    val availableTiming: LyricsTiming?,
     val providerLyrics: Lyrics?,
     val embeddedLyrics: Lyrics?,
     val onlineLyrics: List<Lyrics>,
@@ -79,6 +80,7 @@ class LyricsSidecarService(
         audioCachingEnabled: Boolean,
         onlineLyricsEnabled: Boolean,
         timingPreference: LyricsTimingPreference = LyricsTimingPreference.FirstAvailable,
+        displayTimingPreference: LyricsTimingPreference = timingPreference,
         searchOrder: List<LyricsSourcePreference> = emptyList(),
     ): LyricsSidecarResult {
         val activeSearchOrder = searchOrder.normalizedLyricsSearchOrder()
@@ -90,6 +92,7 @@ class LyricsSidecarService(
             audioCachingEnabled = audioCachingEnabled,
             onlineLyricsEnabled = onlineLyricsEnabled,
             timingPreference = timingPreference,
+            displayTimingPreference = displayTimingPreference,
             searchOrder = activeSearchOrder,
         )
         completedLookupMutex.withLock { completedLookups[lookupKey] }?.let { return it }
@@ -101,6 +104,7 @@ class LyricsSidecarService(
             quality = quality,
             audioCachingEnabled = audioCachingEnabled,
             timingPreference = timingPreference,
+            displayTimingPreference = displayTimingPreference,
             activeSearchOrder = activeSearchOrder,
         )
         completedLookupMutex.withLock {
@@ -119,6 +123,7 @@ class LyricsSidecarService(
         quality: StreamQuality,
         audioCachingEnabled: Boolean,
         timingPreference: LyricsTimingPreference,
+        displayTimingPreference: LyricsTimingPreference,
         activeSearchOrder: List<LyricsSourcePreference>,
     ): LyricsSidecarResult {
         var loadedProviderLyrics: Lyrics? = null
@@ -129,7 +134,8 @@ class LyricsSidecarService(
         val acceptedTimings = timingPreference.acceptedTimings()
 
         fun result(lyrics: Lyrics?): LyricsSidecarResult = LyricsSidecarResult(
-            lyrics = lyrics?.forTimingPreference(timingPreference),
+            lyrics = lyrics?.forTimingPreference(displayTimingPreference),
+            availableTiming = lyrics?.timing,
             providerLyrics = loadedProviderLyrics,
             embeddedLyrics = loadedEmbeddedLyrics,
             onlineLyrics = loadedOnlineLyrics.values.toList(),
@@ -276,6 +282,7 @@ private data class LyricsLookupKey(
     val audioCachingEnabled: Boolean,
     val onlineLyricsEnabled: Boolean,
     val timingPreference: LyricsTimingPreference,
+    val displayTimingPreference: LyricsTimingPreference,
     val searchOrder: List<LyricsSourcePreference>,
 )
 
