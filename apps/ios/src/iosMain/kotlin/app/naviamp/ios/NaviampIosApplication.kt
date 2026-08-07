@@ -36,18 +36,31 @@ import app.naviamp.domain.cache.AudioByteStoreService
 import app.naviamp.domain.cache.CachedLyricsSidecarRepository
 import app.naviamp.domain.cache.LyricsSidecarCacheService
 import app.naviamp.domain.cache.SidecarStatusService
+import app.naviamp.domain.cache.MaximumPersistentArtworkCacheBytes
 import app.naviamp.domain.lyrics.naviampOnlineLyricsProviders
 import app.naviamp.domain.network.KtorSharedHttpClient
 import app.naviamp.domain.waveform.BassAudioWaveformAnalyzer
 import app.naviamp.provider.navidrome.NavidromeCoreProviderSessionPort
 import app.naviamp.provider.navidrome.navidromeProviderSessionOpener
+import app.naviamp.provider.navidrome.subsonicFamilyProviderSessionRouter
+import app.naviamp.provider.navidrome.createDefaultNavidromeKtorClient
+import app.naviamp.provider.jellyfin.JellyfinCoreProviderSessionPort
+import app.naviamp.provider.jellyfin.JellyfinSessionService
+import app.naviamp.provider.jellyfin.JellyfinSessionServiceFactory
+import app.naviamp.provider.jellyfin.KtorJellyfinHttpClient
+import app.naviamp.provider.jellyfin.jellyfinClientIdentity
+import app.naviamp.provider.jellyfin.jellyfinProviderSessionOpener
+import app.naviamp.domain.provider.ProviderIdJellyfin
+import app.naviamp.presentation.NaviampCoreProviderSessionPort
+import app.naviamp.presentation.NaviampCoreProviderSessionRoute
 import app.naviamp.storage.IosStorageDriverFactory
 import app.naviamp.storage.NaviampStorageDatabase
 import app.naviamp.storage.StorageCoreRepositoryCatalog
 import app.naviamp.storage.StorageAudioStore
 import app.naviamp.storage.StorageCredentialProtector
 import app.naviamp.storage.StorageDatabaseLocation
-import app.naviamp.provider.navidrome.NavidromeProvider
+import app.naviamp.storage.StorageImageCacheRepository
+import app.naviamp.storage.StorageObjectByteStore
 import app.naviamp.ui.resetIosPlatformCoverArtByteLoader
 import app.naviamp.ui.setIosPlatformCoverArtByteLoader
 import app.naviamp.ui.NaviampStorageLocationUi
@@ -104,14 +117,55 @@ class NaviampIosApplication(
         maxAudioCacheBytes = cacheSettings.maxAudioCacheBytes,
         protectedTrackIds = repositories::protectedCachedAudioTrackIds,
     )
-    private val sessions = NavidromeCoreProviderSessionPort(
-        mediaSources = repositories.mediaSources,
-        initialSource = repositories.mediaSources.latestMediaSource(),
-        sessionOpener = navidromeProviderSessionOpener(
-            cacheMaintenanceRepository = repositories.maintenance,
-            providerMediaSourceRepository = repositories.mediaSources,
-            nowEpochMillis = ::naviampNowEpochMillis,
+    private val jellyfinServices = JellyfinSessionServiceFactory { tlsSettings ->
+        JellyfinSessionService(
+            httpClient = KtorJellyfinHttpClient(createDefaultNavidromeKtorClient(tlsSettings)),
+            identity = jellyfinClientIdentity(
+                deviceId = "naviamp-ios",
+                deviceName = "iOS",
+            ),
+        )
+    }
+    private val sessions: NaviampCoreProviderSessionPort = subsonicFamilyProviderSessionRouter(
+        NavidromeCoreProviderSessionPort(
+            mediaSources = repositories.mediaSources,
+            initialSource = repositories.mediaSources.latestMediaSource(),
+            sessionOpener = navidromeProviderSessionOpener(
+                cacheMaintenanceRepository = repositories.maintenance,
+                providerMediaSourceRepository = repositories.mediaSources,
+                nowEpochMillis = ::naviampNowEpochMillis,
+            ),
         ),
+        additionalRoutes = listOf(
+            NaviampCoreProviderSessionRoute(
+                providerIds = setOf(ProviderIdJellyfin),
+                sessionPort = JellyfinCoreProviderSessionPort(
+                    mediaSources = repositories.mediaSources,
+                    initialSource = repositories.mediaSources.latestMediaSource(),
+                    sessionOpener = jellyfinProviderSessionOpener(
+                        sessionServices = jellyfinServices,
+                        cacheMaintenanceRepository = repositories.maintenance,
+                        providerMediaSourceRepository = repositories.mediaSources,
+                        nowEpochMillis = ::naviampNowEpochMillis,
+                    ),
+                    sessionServices = jellyfinServices,
+                    deviceId = "naviamp-ios",
+                ),
+            ),
+        ),
+    )
+    private val artworkCache = StorageImageCacheRepository(
+        store = StorageObjectByteStore(
+            queries = database.naviampStorageQueries,
+            nowMillis = ::naviampNowEpochMillis,
+            maxImageCacheBytes = MaximumPersistentArtworkCacheBytes,
+            workContext = Dispatchers.Default,
+        ),
+        fetch = { url ->
+            sessions.currentProvider()?.bytesForOwnedUrl(url)
+                ?: httpClient.getBytes(url)
+                ?: throw IllegalStateException("Could not load artwork.")
+        },
     )
     init {
         setIosPlatformCoverArtByteLoader(::loadProviderArtwork)
@@ -161,6 +215,7 @@ class NaviampIosApplication(
         downloadRepository = audioStore,
         replacementRepository = audioStore,
         keepDownloadedRepository = repositories.keepDownloaded,
+        artworkCacheRepository = artworkCache,
         toCoreDownload = { stored ->
             NaviampCoreDownloadedTrack(
                 storageId = stored.filePath,
@@ -252,7 +307,5 @@ class NaviampIosApplication(
     }
 
     private suspend fun loadProviderArtwork(url: String): ByteArray? =
-        (sessions.currentProvider() as? NavidromeProvider)
-            ?.takeIf { provider -> provider.ownsUrl(url) }
-            ?.bytes(url)
+        runCatching { artworkCache.imageBytes(url) }.getOrNull()
 }

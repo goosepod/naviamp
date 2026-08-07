@@ -23,7 +23,6 @@ import app.naviamp.domain.cache.ObjectByteStoreService
 import app.naviamp.domain.cache.PlaybackHistoryRepository
 import app.naviamp.domain.cache.PlaybackSessionRepository
 import app.naviamp.domain.cache.ProviderIdentityMigrationRepository
-import app.naviamp.domain.cache.ProviderMediaSourceConnection
 import app.naviamp.domain.cache.ProviderMediaSourceRepository
 import app.naviamp.domain.cache.ProviderResponseCacheRepository
 import app.naviamp.domain.cache.SidecarStatusRepository
@@ -36,12 +35,8 @@ import app.naviamp.domain.provider.MediaProvider
 import app.naviamp.domain.provider.PendingProviderActionRepository
 import app.naviamp.domain.radio.RadioDjPresetRepository
 import app.naviamp.domain.settings.PlaybackSessionSettings
-import app.naviamp.domain.source.MediaSourceIdentity
 import app.naviamp.domain.source.SavedMediaSource
 import app.naviamp.domain.waveform.AudioWaveform
-import app.naviamp.provider.navidrome.NavidromeConnection
-import app.naviamp.provider.navidrome.resolvedDisplayName
-import app.naviamp.provider.navidrome.toNavidromeConnection
 import app.naviamp.storage.NaviampStorageDatabase
 import app.naviamp.storage.DefaultStorageAudioCacheBytes
 import app.naviamp.storage.StorageAudioStore
@@ -100,31 +95,6 @@ class AndroidStorage private constructor(
         graph.audioStore.updateAudioCacheLimit(maxBytes)
         graph.repositories.updateAudioCacheLimit(maxBytes)
     }
-
-    fun latestNavidromeSource(): SavedMediaSource? = latestMediaSource()
-
-    fun latestNavidromeConnection(): NavidromeConnection? = latestNavidromeSource()?.toNavidromeConnection()
-
-    fun upsertNavidromeSource(
-        connection: NavidromeConnection,
-        cacheNamespace: String,
-        providerId: String,
-    ): MediaSourceIdentity = upsertProviderMediaSource(
-        connection = ProviderMediaSourceConnection(
-            displayName = connection.resolvedDisplayName(),
-            baseUrl = connection.baseUrl,
-            username = connection.username,
-            token = connection.token,
-            salt = connection.salt,
-            nativeToken = connection.nativeToken,
-            tlsSettings = connection.tlsSettings,
-            secondaryUrls = connection.secondaryUrls,
-            customHeaders = connection.customHeaders,
-            selectedMusicFolderIds = connection.selectedMusicFolderIds,
-        ),
-        cacheNamespace = cacheNamespace,
-        providerId = providerId,
-    )
 
     fun savePlaybackSession(sourceId: String, session: PlaybackSessionSettings?) {
         savePlaybackSession(session = session, sourceId = sourceId)

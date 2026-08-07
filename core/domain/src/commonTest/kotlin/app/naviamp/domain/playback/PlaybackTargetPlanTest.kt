@@ -49,6 +49,25 @@ class PlaybackTargetPlanTest {
     }
 
     @Test
+    fun providerStartedStreamProgressUsesTheFullTrackTimeline() {
+        assertEquals(
+            PlaybackProgress(positionSeconds = 43.5, durationSeconds = 180.0),
+            PlaybackProgress(positionSeconds = 1.5, durationSeconds = 138.0)
+                .withProviderStartOffset(
+                    providerStartPositionSeconds = 42.0,
+                    trackDurationSeconds = 180,
+                ),
+        )
+    }
+
+    @Test
+    fun ordinaryStreamProgressIsNotAdjusted() {
+        val progress = PlaybackProgress(positionSeconds = 12.0, durationSeconds = 180.0)
+
+        assertEquals(progress, progress.withProviderStartOffset(null, 180))
+    }
+
+    @Test
     fun playbackStartUsesRequestedQueueWhenItContainsTrack() {
         val target = track("two")
         val plan = planPlaybackStart(

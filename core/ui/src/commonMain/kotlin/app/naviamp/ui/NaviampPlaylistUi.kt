@@ -771,6 +771,7 @@ private fun PlaylistDetailContent(
                 initialTracks = detail.tracks,
                 onTrackSelected = onTrackSelected,
                 onSave = { tracks -> onUpdateStandardPlaylist(detail.playlist, tracks) },
+                externallyDisplayedStatus = status,
                 scrollState = detailScrollState,
                 dragViewportTop = detailViewportBounds.top,
                 dragViewportBottom = detailViewportBounds.bottom,

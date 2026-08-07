@@ -29,9 +29,12 @@ import app.naviamp.domain.playback.planAudioPrefetchWork
 import app.naviamp.domain.playback.planPrepareNextPlayback
 import app.naviamp.domain.media.RelatedTracksSource
 import app.naviamp.domain.playback.planPlaylistTrackStartWork
+import app.naviamp.domain.playback.fallbackPlaybackUrl
 import app.naviamp.domain.playback.playbackStreamUrl
 import app.naviamp.domain.playback.resolvePlaybackAudioSource
 import app.naviamp.domain.playback.runAudioPrefetch
+import app.naviamp.domain.playback.withProviderStartOffset
+import app.naviamp.domain.provider.effectiveStreamingQuality
 import app.naviamp.domain.queue.PlaybackQueue
 import app.naviamp.domain.queue.RepeatMode
 import app.naviamp.domain.radio.internetRadioTrack
@@ -204,7 +207,9 @@ class NaviampCorePlaybackEngineAdapter(
             providerSource.current()?.let { provider ->
                 startAudioPrefetch(
                     provider = provider,
-                    quality = settings().effectiveForEngine(engine).streamQualityForNetwork(isMobileData()),
+                    quality = provider.capabilities.effectiveStreamingQuality(
+                        settings().effectiveForEngine(engine).streamQualityForNetwork(isMobileData()),
+                    ),
                     requestGeneration = generation,
                 )
             }
@@ -302,12 +307,10 @@ class NaviampCorePlaybackEngineAdapter(
             if (requestGeneration != generation) return@launch
             val provider = providerSource.current()
             val externalStreamUrl = externalStreamUrls[track.id]
-            if (provider == null && externalStreamUrl == null) {
-                observer?.onStateChanged(PlaybackState.Error("Connect to Navidrome to play music."))
-                return@launch
-            }
             val playbackSettings = settings().effectiveForEngine(engine)
-            val quality = playbackSettings.streamQualityForNetwork(isMobileData())
+            val requestedQuality = playbackSettings.streamQualityForNetwork(isMobileData())
+            val quality = provider?.capabilities?.effectiveStreamingQuality(requestedQuality)
+                ?: requestedQuality
             val audioSource = if (externalStreamUrl != null) {
                 null
             } else {
@@ -323,7 +326,8 @@ class NaviampCorePlaybackEngineAdapter(
             }
             val streamUrl = externalStreamUrl ?: runCatching {
                 requireNotNull(audioSource).playbackStreamUrl { target ->
-                    requireNotNull(provider).streamUrl(target.providerStreamRequest)
+                    provider?.streamUrl(target.providerStreamRequest)
+                        ?: throw IllegalStateException("Connect to the music server to stream this track.")
                 }
             }.getOrElse { failure ->
                 if (requestGeneration == generation) {
@@ -353,12 +357,13 @@ class NaviampCorePlaybackEngineAdapter(
                 track = track,
                 playbackSource = requireNotNull(audioSource).source,
                 streamUrl = streamUrl,
+                fallbackStreamUrl = audioSource.fallbackPlaybackUrl(),
                 replayGainMode = playbackSettings.replayGainMode,
                 replayGainPreampDb = playbackSettings.replayGainPreampDb,
                 replayGain = track.replayGain?.let { PlaybackReplayGain(it, ReplayGainSource.Provider) },
                 supportsReplayGain = engine.supportsReplayGain,
                 engineStartPositionSeconds = requireNotNull(audioSource).target.engineStartPositionSeconds,
-                coverArtUrl = track.coverArtId?.let { requireNotNull(provider).coverArtUrl(it) },
+                coverArtUrl = track.coverArtId?.let { provider?.coverArtUrl(it) },
             ).request
             if (provider != null) startAudioPrefetch(provider, quality, requestGeneration)
             (engine as? NetworkCertificateVerificationPlaybackEngine)
@@ -377,13 +382,20 @@ class NaviampCorePlaybackEngineAdapter(
                 },
                 onProgressChanged = { progress ->
                     if (requestGeneration == generation) {
+                        val timelineProgress = progress.withProviderStartOffset(
+                            providerStartPositionSeconds = audioSource
+                                ?.target
+                                ?.providerStreamRequest
+                                ?.startPositionSeconds,
+                            trackDurationSeconds = track.durationSeconds,
+                        )
                         val currentPlaybackSettings = settings().effectiveForEngine(engine)
                         invalidatePreparedNextWhenTransitionSettingsChange(currentPlaybackSettings)
-                        observer?.onProgressChanged(progress)
+                        observer?.onProgressChanged(timelineProgress)
                         if (
                             provider != null &&
                             preparedForGeneration != requestGeneration &&
-                            shouldPrepareNext(progress, currentPlaybackSettings)
+                            shouldPrepareNext(timelineProgress, currentPlaybackSettings)
                         ) {
                             preparedForGeneration = requestGeneration
                             val cancelledPrefetch = cancelAudioPrefetch()
@@ -499,7 +511,9 @@ class NaviampCorePlaybackEngineAdapter(
         val audioSource = resolvePlaybackAudioSource(
             sourceId = activeSourceId(),
             track = next,
-            quality = playbackSettings.streamQualityForNetwork(isMobileData()),
+            quality = provider.capabilities.effectiveStreamingQuality(
+                playbackSettings.streamQualityForNetwork(isMobileData()),
+            ),
             startPositionSeconds = null,
             audioCachingEnabled = cacheSettings().audioCachingEnabled,
             audioAssets = audioAssets,
@@ -671,6 +685,9 @@ class NaviampCoreProviderNowPlayingSidecars(
         val provider = providerSource.current() ?: return
         val activeSourceId = sourceId() ?: provider.cacheNamespace
         val settings = playbackSettings()
+        val quality = provider.capabilities.effectiveStreamingQuality(
+            settings.streamQualityForNetwork(isMobileData()),
+        )
         val loaded = coroutineScope {
             val waveform = async {
                 runCatching {
@@ -678,7 +695,7 @@ class NaviampCoreProviderNowPlayingSidecars(
                         sourceId = activeSourceId,
                         provider = provider,
                         track = track,
-                        quality = settings.streamQualityForNetwork(isMobileData()),
+                        quality = quality,
                         audioCachingEnabled = audioCachingEnabled(),
                     )
                 }.getOrNull()
@@ -694,7 +711,7 @@ class NaviampCoreProviderNowPlayingSidecars(
                         ?: service.audioTagsForTrack(
                             sourceId = activeSourceId,
                             track = track,
-                            quality = settings.streamQualityForNetwork(isMobileData()),
+                            quality = quality,
                             audioCachingEnabled = audioCachingEnabled(),
                         )
                 }
@@ -722,6 +739,9 @@ class NaviampCoreProviderNowPlayingSidecars(
         }
         val settings = playbackSettings()
         val activeSourceId = sourceId() ?: provider.cacheNamespace
+        val quality = provider.capabilities.effectiveStreamingQuality(
+            settings.streamQualityForNetwork(isMobileData()),
+        )
         runCatching {
             coroutineScope {
                 val loadingStatus = launch {
@@ -739,7 +759,7 @@ class NaviampCoreProviderNowPlayingSidecars(
                         sourceId = activeSourceId,
                         provider = provider,
                         track = track,
-                        quality = settings.streamQualityForNetwork(isMobileData()),
+                        quality = quality,
                         audioCachingEnabled = audioCachingEnabled(),
                         onlineLyricsEnabled = settings.lrclibLyricsEnabled,
                         timingPreference = settings.effectiveLyricsTimingPreference(),

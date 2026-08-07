@@ -13,6 +13,40 @@ import kotlin.test.assertTrue
 
 class StorageMediaSourceStoreTest {
     @Test
+    fun providerReclassificationPreservesTheSourceAndItsRelatedHistory() {
+        withDatabase { database ->
+            val store = StorageMediaSourceStore(database.naviampStorageQueries, nowMillis = { 42L })
+            val original = store.upsertProviderMediaSource(
+                providerConnection(),
+                "navidrome:https://demo.example:demo",
+                "navidrome",
+            )
+            database.naviampStorageQueries.insertTestCachedAudio(
+                original.id,
+                "track-1",
+                "/known/track-1.opus",
+            )
+
+            val reclassified = store.upsertProviderMediaSource(
+                connection = providerConnection().copy(nativeToken = null),
+                cacheNamespace = "subsonic:https://demo.example:demo",
+                providerId = "subsonic",
+                preferredSourceId = original.id,
+            )
+
+            assertEquals(original.id, reclassified.id)
+            assertEquals("subsonic", store.mediaSource(original.id)?.providerId)
+            assertEquals(
+                "/known/track-1.opus",
+                database.naviampStorageQueries.selectCachedAudioForSource(original.id)
+                    .executeAsOne()
+                    .file_path,
+            )
+            assertEquals(1, store.mediaSources().size)
+        }
+    }
+
+    @Test
     fun sharedStoreProtectsAndRestoresAllCredentialFields() {
         withDatabase { database ->
             val store = StorageMediaSourceStore(

@@ -12,6 +12,7 @@ import app.naviamp.domain.Lyrics
 import app.naviamp.domain.Playlist
 import app.naviamp.domain.ProviderId
 import app.naviamp.domain.StreamRequest
+import app.naviamp.domain.StreamQuality
 import app.naviamp.domain.Track
 import app.naviamp.domain.TrackId
 import app.naviamp.domain.network.SharedHttpClient
@@ -99,7 +100,11 @@ interface MediaProvider {
     suspend fun addTracksToPlaylist(playlistId: String, trackIds: List<TrackId>) {
         throw UnsupportedOperationException("Playlist edits are not supported by $displayName.")
     }
-    suspend fun replacePlaylistTracks(playlistId: String, currentTrackCount: Int, trackIds: List<TrackId>) {
+    suspend fun replacePlaylistTracks(
+        playlistId: String,
+        currentTrackIds: List<TrackId>,
+        trackIds: List<TrackId>,
+    ) {
         throw UnsupportedOperationException("Playlist track replacement is not supported by $displayName.")
     }
     suspend fun renamePlaylist(playlistId: String, name: String) {
@@ -132,6 +137,8 @@ interface MediaProvider {
     suspend fun artistRadio(artistId: ArtistId, count: Int = 50): List<Track> = emptyList()
     suspend fun albumRadio(albumId: AlbumId, count: Int = 50): List<Track> = emptyList()
     suspend fun trackRadio(trackId: TrackId, count: Int = 50): List<Track> = emptyList()
+    suspend fun genreRadio(genre: String, count: Int = 50): List<Track> =
+        randomSongs(limit = count, genre = genre)
     suspend fun sonicSimilarTracks(trackId: TrackId, count: Int = 50): List<Track> = emptyList()
     suspend fun sonicSimilarTrackMatches(trackId: TrackId, count: Int = 50): List<SonicSimilarTrack> =
         sonicSimilarTracks(trackId, count).map { track -> SonicSimilarTrack(track = track) }
@@ -154,6 +161,9 @@ interface MediaProvider {
         writeChunk: suspend (bytes: ByteArray, count: Int) -> Unit,
     ): Boolean =
         httpClient.download(url, writeChunk = writeChunk)
+
+    /** Returns bytes only when [url] belongs to this provider's authenticated server. */
+    suspend fun bytesForOwnedUrl(url: String): ByteArray? = null
 
     suspend fun setTrackFavorite(trackId: TrackId, favorite: Boolean) {
         throw UnsupportedOperationException("Track favorites are not supported by $displayName.")
@@ -214,6 +224,20 @@ data class ProviderCapabilities(
     val supportsSmartPlaylists: Boolean = false,
     val supportsSonicSimilarity: Boolean = false,
 )
+
+fun ProviderCapabilities.effectiveStreamingQuality(requested: StreamQuality): StreamQuality =
+    if (requested is StreamQuality.Transcoded && !supportsStreamingTranscode) {
+        StreamQuality.Original
+    } else {
+        requested
+    }
+
+fun ProviderCapabilities.effectiveDownloadQuality(requested: StreamQuality): StreamQuality =
+    if (requested is StreamQuality.Transcoded && !supportsDownloadTranscode) {
+        StreamQuality.Original
+    } else {
+        requested
+    }
 
 data class ProviderApiCallDiagnostic(
     val source: String,

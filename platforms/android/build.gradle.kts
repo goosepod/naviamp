@@ -38,6 +38,7 @@ dependencies {
     api(project(":core:storage"))
     api(project(":core:ui"))
     api(project(":providers:navidrome"))
+    api(project(":providers:jellyfin"))
     implementation("org.jetbrains.compose.runtime:runtime:${libs.versions.compose.get()}")
     implementation(libs.kotlinx.coroutines.core)
     implementation(libs.kotlinx.serialization.json)

@@ -67,6 +67,8 @@ import app.naviamp.domain.settings.MaxAlbumBlurRadiusDp
 import app.naviamp.domain.settings.MinAlbumBlurRadiusDp
 import app.naviamp.domain.settings.ConnectionFormMusicFolder
 import app.naviamp.domain.settings.ConnectionFormState
+import app.naviamp.domain.provider.ProviderIdNavidrome
+import app.naviamp.domain.provider.providerDescriptor
 import app.naviamp.domain.settings.DefaultWaveformBucketCount
 import app.naviamp.domain.settings.DefaultAudioCacheBytes
 import app.naviamp.domain.settings.DefaultDownloadStorageBytes
@@ -133,6 +135,7 @@ data class NaviampSavedConnectionUi(
     val displayName: String,
     val serverUrl: String,
     val username: String,
+    val providerId: String = ProviderIdNavidrome,
     val selectedLibrarySummary: String = "",
     val current: Boolean = false,
 )
@@ -165,6 +168,7 @@ fun NaviampSharedSettingsContent(
     about: NaviampAboutUi = NaviampAboutUi(),
     savedConnections: List<NaviampSavedConnectionUi> = emptyList(),
     isConnectionFormOpen: Boolean = false,
+    editingSavedConnection: Boolean = false,
     isConnecting: Boolean = false,
     connectionStatus: String? = null,
     connectionStatusIsError: Boolean = false,
@@ -218,6 +222,7 @@ fun NaviampSharedSettingsContent(
     onAudioCacheLocationChanged: (NaviampStorageLocationUi) -> Unit,
 ) {
     var selectedCategory by remember { mutableStateOf<NaviampSettingsCategory?>(null) }
+    NaviampSystemBackHandler(enabled = selectedCategory != null) { selectedCategory = null }
     val languagePack = remember(interfaceSettings.language) {
         naviampLanguagePack(interfaceSettings.language)
     }
@@ -241,6 +246,7 @@ fun NaviampSharedSettingsContent(
                         colors = colors,
                         savedConnections = savedConnections,
                         isConnectionFormOpen = isConnectionFormOpen,
+                        editingSavedConnection = editingSavedConnection,
                         isConnecting = isConnecting,
                         connectionStatus = connectionStatus,
                         connectionStatusIsError = connectionStatusIsError,
@@ -412,6 +418,7 @@ fun NaviampExperienceSettingsSection(
     onCacheSettingsChanged: (CacheSettings) -> Unit,
 ) {
     var selectedSection by remember { mutableStateOf<ExperienceSettingsPage?>(null) }
+    NaviampSystemBackHandler(enabled = selectedSection != null) { selectedSection = null }
 
     selectedSection?.let { section ->
         SettingsSubsectionHeader(section.title(), section.subtitle(), colors) { selectedSection = null }
@@ -1137,6 +1144,7 @@ fun NaviampAboutSettingsSection(
     about: NaviampAboutUi,
 ) {
     var page by remember { mutableStateOf<AboutSettingsPage?>(null) }
+    NaviampSystemBackHandler(enabled = page != null) { page = null }
 
     page?.let { selected ->
         SettingsSubsectionHeader(selected.title(), selected.subtitle(), colors) { page = null }
@@ -1263,6 +1271,7 @@ private fun NaviampConnectionsSettingsSection(
     colors: NaviampColors,
     savedConnections: List<NaviampSavedConnectionUi>,
     isConnectionFormOpen: Boolean,
+    editingSavedConnection: Boolean,
     isConnecting: Boolean,
     connectionStatus: String?,
     connectionStatusIsError: Boolean,
@@ -1288,6 +1297,9 @@ private fun NaviampConnectionsSettingsSection(
 ) {
     var pendingDelete by remember { mutableStateOf<NaviampSavedConnectionUi?>(null) }
     var selectedPage by remember { mutableStateOf<SourceSettingsPage?>(null) }
+    NaviampSystemBackHandler(enabled = isConnectionFormOpen || selectedPage != null) {
+        if (isConnectionFormOpen) onCancelConnectionForm() else selectedPage = null
+    }
     val hasSettingsSync =
         onImportSettingsSyncFile != null ||
             onChooseSettingsSyncFolder != null ||
@@ -1313,7 +1325,7 @@ private fun NaviampConnectionsSettingsSection(
             NaviampConnectionForm(
                 form = connectionForm,
                 colors = colors,
-                isReconnect = hasSavedConnection,
+                isReconnect = editingSavedConnection,
                 isConnecting = isConnecting,
                 connectionStatus = connectionStatus,
                 connectionStatusIsError = connectionStatusIsError,
@@ -1563,7 +1575,7 @@ private fun NaviampSavedConnectionRow(
             }
         }
         Text(
-            connection.username,
+            "${providerDescriptor(connection.providerId).displayName} · ${connection.username}",
             color = colors.secondaryText,
             fontSize = 12.sp,
             maxLines = 1,
@@ -1682,19 +1694,19 @@ private val DefaultNaviampChangelog = listOf(
     NaviampChangelogSectionUi(
         title = "Features",
         entries = listOf(
-            "Added customizable Aurora, Album Blur, and Single Color app backgrounds.",
-            "Added separate navigation for every credited artist on multi-artist tracks.",
-            "Expanded Library Radio to queue up to 500 random songs with Radio DJ tuning.",
-            "Added full-catalog Play and Shuffle actions to artist pages.",
+            "Added connections for generic Subsonic/OpenSubsonic, Jellyfin, and Bandcamp.",
+            "Added Jellyfin libraries, mixes, favorites, playlists, lyrics, transcoding, downloads, and offline playback.",
+            "Added Bandcamp collection browsing, playback, downloads, and supported playlist operations.",
+            "Added provider-specific connection guidance and editable provider types.",
         ),
     ),
     NaviampChangelogSectionUi(
         title = "Bug Fixes",
         entries = listOf(
-            "Improved compact Now Playing spacing and moved volume below the transport controls.",
-            "Made single- and multi-artist rows use consistent spacing and marquee behavior.",
-            "Prevented backgrounds and album art from flashing between track changes.",
-            "Fixed first-track waveforms sometimes remaining unavailable after playback starts.",
+            "Fixed Jellyfin transcoding, seeking, waveforms, authenticated downloads, and offline fallback.",
+            "Fixed complete queue saves and playlist updates that could remain stuck on Saving.",
+            "Blocked unreliable Bandcamp playlist reordering with one clear explanation.",
+            "Fixed Android Back navigation and multi-provider cold-start restoration.",
         ),
     ),
 )
@@ -2044,6 +2056,7 @@ fun NaviampDownloadsSettingsSection(
 ) {
     val normalized = cacheSettings.normalized()
     var selectedPage by remember { mutableStateOf<DownloadsSettingsPage?>(null) }
+    NaviampSystemBackHandler(enabled = selectedPage != null) { selectedPage = null }
     var pendingDownloadQualitySettings by remember { mutableStateOf<PlaybackSettings?>(null) }
 
     fun applyDownloadQuality(preference: StreamQualityPreference) {
@@ -2205,6 +2218,7 @@ fun NaviampAudioCacheSettingsSection(
 ) {
     val normalized = cacheSettings.normalized()
     var selectedPage by remember { mutableStateOf<AudioCacheSettingsPage?>(null) }
+    NaviampSystemBackHandler(enabled = selectedPage != null) { selectedPage = null }
 
     selectedPage?.let { page ->
         SettingsSubsectionHeader(page.title(), page.subtitle(), colors) { selectedPage = null }
@@ -2476,6 +2490,7 @@ fun NaviampPlaybackSettingsSection(
     downloadBytes: Long = 0L,
 ) {
     var selectedSection by remember { mutableStateOf<NaviampPlaybackSettingsSection?>(null) }
+    NaviampSystemBackHandler(enabled = selectedSection != null) { selectedSection = null }
 
     selectedSection?.let { section ->
         if (section == NaviampPlaybackSettingsSection.AudioOutput) {
@@ -2670,6 +2685,9 @@ private fun AudioOutputSettings(
     onBack: () -> Unit,
 ) {
     var selectedPage by remember { mutableStateOf<AudioOutputSettingsPage?>(null) }
+    NaviampSystemBackHandler(enabled = true) {
+        if (selectedPage == null) onBack() else selectedPage = null
+    }
     var pendingStrictCrossfadeConfirmation by remember { mutableStateOf(false) }
     SettingsSubsectionHeader(
         title = when (selectedPage) {
@@ -3957,6 +3975,7 @@ private fun EqualizerSettings(
     val equalizer = playbackSettings.equalizer.normalized()
     val activeProfile = equalizer.savedProfiles.firstOrNull { it.id == equalizer.profileId }
     var selectedPage by remember { mutableStateOf<EqualizerSettingsPage?>(null) }
+    NaviampSystemBackHandler(enabled = selectedPage != null) { selectedPage = null }
     var profileDialogOpen by remember { mutableStateOf(false) }
     var profileName by remember(equalizer.profileId, activeProfile?.name) {
         mutableStateOf(activeProfile?.name.orEmpty())
@@ -4141,6 +4160,7 @@ private fun StreamingQualitySettings(
     onPlaybackSettingsChanged: (PlaybackSettings) -> Unit,
 ) {
     var selectedPage by remember { mutableStateOf<StreamingQualitySettingsPage?>(null) }
+    NaviampSystemBackHandler(enabled = selectedPage != null) { selectedPage = null }
     selectedPage?.let { page ->
         SettingsSubsectionHeader(page.title(), page.subtitle(), colors) { selectedPage = null }
         when (page) {

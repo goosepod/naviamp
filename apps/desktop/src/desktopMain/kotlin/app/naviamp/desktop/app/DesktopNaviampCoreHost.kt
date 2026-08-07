@@ -8,6 +8,7 @@ import app.naviamp.presentation.NaviampCoreEnvironment
 import app.naviamp.presentation.NaviampCoreHost
 import app.naviamp.presentation.NaviampCoreInitialState
 import app.naviamp.presentation.NaviampCoreServices
+import app.naviamp.presentation.NaviampCoreProviderSessionPort
 import app.naviamp.presentation.NaviampCoreSettingsSyncServices
 import app.naviamp.presentation.toCoreActionAvailability
 import app.naviamp.presentation.withShellCapabilities
@@ -30,7 +31,7 @@ internal typealias DesktopNaviampCoreEnvironment = NaviampCoreEnvironment
  */
 internal fun desktopNaviampCoreEnvironment(
     services: NaviampCoreServices,
-    providerSessions: DesktopCoreProviderSessionPort,
+    providerSessions: NaviampCoreProviderSessionPort,
     settingsSync: NaviampCoreSettingsSyncServices = services.settings.sync,
     externalUri: NaviampCoreExternalUriPort = DesktopExternalUriPort(),
     initialState: NaviampCoreInitialState = NaviampCoreInitialState(),

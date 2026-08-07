@@ -159,15 +159,20 @@ class NaviampCorePlaylistTransactionController(
         val provider = providerOrPublish() ?: return
         val playlist = browseController.resolvePlaylist(item)
         publishStatus("Updating ${playlist.name}...")
-        runCatching {
+        try {
+            val currentTrackIds = provider.playlistTracks(playlist.id).map(Track::id)
             provider.replacePlaylistTracks(
                 playlistId = playlist.id,
-                currentTrackCount = provider.playlistTracks(playlist.id).size,
+                currentTrackIds = currentTrackIds,
                 trackIds = requestedTrackIds,
             )
             onPlaylistTracksChanged(playlist.id)
             browseController.refreshAfterMutation("Updated playlist.")
-        }.onFailure { cause -> publishStatus(cause.message ?: "Could not update playlist.") }
+            publishStatus("Updated playlist.")
+        } catch (cause: Throwable) {
+            publishStatus(cause.message ?: "Could not update playlist.")
+            throw cause
+        }
     }
 
     private suspend fun saveSmartPlaylist(definition: SmartPlaylistDefinition, password: String?) {

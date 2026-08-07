@@ -97,10 +97,11 @@ This document tracks useful ideas that come up during the v2 migration but are n
   - How should shuffle, repeat, crossfade, ReplayGain, per-album playback profiles, offline availability, scrobbling, and audio/lyrics/waveform prefetch behave across album boundaries?
 - **Acceptance shape:** Verify that album selection is random across a representative library, every chosen album remains internally ordered, no track is silently duplicated or omitted at replenishment boundaries, queue replacement cancels obsolete prefetch work, and session restoration preserves the active album group.
 
-### Additional Providers: Plex, Jellyfin, and Bandcamp
+### Additional Providers: Subsonic, Jellyfin, Bandcamp, and Plex
 
-- **Status:** Idea
-- **Concept:** Expand Naviamp beyond its current providers with shared integrations for Plex, Jellyfin, and Bandcamp.
+- **Status:** Implemented for `v2.0.0-alpha.4`; compatibility expansion and the remaining acceptance matrix stay open.
+- **Concept:** Expand Naviamp beyond Navidrome, beginning with generic Subsonic/OpenSubsonic, then Jellyfin, then Bandcamp. Keep Plex as a later investigation rather than part of the active implementation order.
+- **Active discovery:** See [`provider-expansion-discovery.md`](provider-expansion-discovery.md) for the current protocol comparison, connection-selector proposal, architectural prerequisite, capability gaps, and implementation sequence.
 - **Bandcamp opportunity:** Bandcamp announced an open-beta Subsonic implementation on July 16, 2026. Users generate credentials in Fan Settings and connect to `https://bandcamp.com/api/subsonic`; the announced beta supports streaming and downloading a user's collection plus creating and editing playlists that synchronize with Bandcamp. Start with a compatibility audit against Naviamp's existing Subsonic/Navidrome provider before creating a separate provider implementation.
 - **Provider architecture:** Authentication, session renewal, protocol calls, response interpretation, domain mapping, feature capabilities, playlist semantics, and provider-specific persistence mapping belong in each provider's `commonMain` module. Core consumes the same provider-neutral contracts, and Android, Desktop, and iOS must not acquire separate Plex, Jellyfin, or Bandcamp product implementations.
 - **Questions to answer:**
@@ -109,7 +110,7 @@ This document tracks useful ideas that come up during the v2 migration but are n
   - Which Bandcamp Subsonic/OpenSubsonic endpoints and extensions are actually implemented in the beta, and how do its IDs, collection model, purchases, playlists, paging, formats, rate limits, and errors differ from Navidrome?
   - Should Bandcamp be a capability profile inside a reusable Subsonic provider family, a dedicated provider adapter sharing the Subsonic transport, or both?
   - How should provider-specific concepts be represented without leaking them into provider-neutral Core models or reducing features to the least common denominator?
-- **Investigation output:** Build an endpoint/capability matrix from current official documentation and captured test responses, define authentication and credential-storage requirements, create contract tests and representative fixtures, and recommend an implementation order. Bandcamp beta behavior must be reverified before development because it may change.
+- **Investigation output:** Build an endpoint/capability matrix from current official documentation and captured test responses, define authentication and credential-storage requirements, create contract tests and representative fixtures, and implement in the accepted order: generic Subsonic/OpenSubsonic, Jellyfin, then Bandcamp. Bandcamp beta behavior must be reverified before development because it may change.
 - **Source:** [Bandcamp: Discover Improvements and Subsonic Implementation](https://blog.bandcamp.com/2026/07/16/discover-improvements-and-subsonic-implementation/)
 
 ### Classical Work and Movement Grouping

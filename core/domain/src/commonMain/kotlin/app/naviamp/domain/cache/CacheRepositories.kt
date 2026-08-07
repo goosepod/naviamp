@@ -275,6 +275,7 @@ interface ProviderMediaSourceRepository {
         connection: ProviderMediaSourceConnection,
         cacheNamespace: String,
         providerId: String,
+        preferredSourceId: String? = null,
     ): MediaSourceIdentity
 }
 

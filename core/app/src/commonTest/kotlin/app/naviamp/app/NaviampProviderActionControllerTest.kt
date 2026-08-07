@@ -36,6 +36,21 @@ class NaviampProviderActionControllerTest {
     }
 
     @Test
+    fun offlineCapableProviderForwardsPlaylistTrackReplacement() = runTest {
+        val provider = RecordingProvider(failReports = false)
+        val wrapped = NaviampProviderActionController(RecordingPendingActions())
+            .offlineCapable(provider, "source")
+
+        wrapped.replacePlaylistTracks(
+            playlistId = "playlist",
+            currentTrackIds = listOf(TrackId("old")),
+            trackIds = listOf(TrackId("new")),
+        )
+
+        assertEquals(listOf("playlist:old:new"), provider.playlistReplacements)
+    }
+
+    @Test
     fun explicitOfflineActionsUseTheSameGraphOwnedQueuePolicy() {
         val repository = RecordingPendingActions()
         val controller = NaviampProviderActionController(repository)
@@ -157,6 +172,7 @@ internal class RecordingProvider(private val failReports: Boolean) : MediaProvid
     override val displayName = "Fake"
     override val capabilities = ProviderCapabilities(false, false, false, false, false)
     val nowPlayingReports = mutableListOf<String>()
+    val playlistReplacements = mutableListOf<String>()
 
     override suspend fun validateConnection(): ConnectionValidation = error("Not used")
     override suspend fun recentlyAddedAlbums(limit: Int): List<Album> = error("Not used")
@@ -171,5 +187,15 @@ internal class RecordingProvider(private val failReports: Boolean) : MediaProvid
     override suspend fun reportNowPlaying(trackId: TrackId) {
         if (failReports) error("offline")
         nowPlayingReports += trackId.value
+    }
+
+    override suspend fun replacePlaylistTracks(
+        playlistId: String,
+        currentTrackIds: List<TrackId>,
+        trackIds: List<TrackId>,
+    ) {
+        playlistReplacements += "$playlistId:" +
+            currentTrackIds.joinToString(",") { it.value } + ":" +
+            trackIds.joinToString(",") { it.value }
     }
 }

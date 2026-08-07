@@ -214,8 +214,10 @@ kotlin {
                 api(project(":core:presentation"))
                 api(project(":core:storage"))
                 api(project(":providers:navidrome"))
+                api(project(":providers:jellyfin"))
                 implementation(libs.kotlinx.coroutines.core)
                 implementation(libs.kotlinx.serialization.json)
+                implementation(libs.ktor.client.core)
                 implementation(libs.sqldelight.sqlite.driver)
             }
         }

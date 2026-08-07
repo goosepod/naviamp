@@ -2,6 +2,8 @@ package app.naviamp.domain.settings
 
 import app.naviamp.domain.cache.ProviderMediaSourceConnection
 import app.naviamp.domain.cache.ProviderMediaSourceRepository
+import app.naviamp.domain.provider.ProviderIdNavidrome
+import app.naviamp.domain.provider.ProviderIdSubsonic
 import app.naviamp.domain.playback.ReplayGainMode
 import app.naviamp.domain.playback.PlaybackEngine
 import app.naviamp.domain.playback.PlaybackProgress
@@ -22,6 +24,30 @@ import kotlin.test.assertTrue
 import kotlinx.coroutines.CoroutineScope
 
 class SettingsSyncMappingTest {
+    @Test
+    fun legacySyncedProfileWithoutProviderIdDefaultsToNavidrome() {
+        val document = SettingsSyncJson.decode(
+            """
+            {
+              "serverProfiles": [
+                {
+                  "id": "legacy",
+                  "displayName": "Legacy server",
+                  "username": "demo",
+                  "primaryUrl": "https://legacy.example"
+                }
+              ]
+            }
+            """.trimIndent(),
+        )
+
+        assertEquals(ProviderIdNavidrome, document.serverProfiles.single().providerId)
+        assertEquals(
+            ProviderIdNavidrome,
+            document.serverProfiles.single().toConnectionFormState().providerId,
+        )
+    }
+
     @Test
     fun buildsPortableDocumentFromLocalSnapshotWithoutSecretsOrDeviceLocalPlaybackSettings() {
         val document = buildSettingsSyncDocument(
@@ -81,6 +107,7 @@ class SettingsSyncMappingTest {
             .toConnectionFormState(password = "new-password")
 
         assertEquals("Goosepod", form.displayName)
+        assertEquals(ProviderIdNavidrome, form.providerId)
         assertEquals("https://navidrome.lan", form.serverUrl)
         assertEquals("ursasmar", form.username)
         assertEquals("new-password", form.password)
@@ -90,6 +117,16 @@ class SettingsSyncMappingTest {
         assertEquals("", form.clientCertificatePassword)
         assertEquals("https://navidrome.tailnet", form.secondaryUrls.single().url)
         assertEquals("X-Proxy-User", form.customHeaders.first().name)
+    }
+
+    @Test
+    fun importedProfileCarriesItsProviderIdentityIntoTheConnectionForm() {
+        val form = savedSource()
+            .toSettingsSyncServerProfile()
+            .copy(providerId = ProviderIdSubsonic)
+            .toConnectionFormState()
+
+        assertEquals(ProviderIdSubsonic, form.providerId)
     }
 
     @Test
@@ -215,6 +252,7 @@ class SettingsSyncMappingTest {
             connection: ProviderMediaSourceConnection,
             cacheNamespace: String,
             providerId: String,
+            preferredSourceId: String?,
         ): MediaSourceIdentity {
             connections += connection
             cacheNamespaces += cacheNamespace

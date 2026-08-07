@@ -44,6 +44,7 @@ class NaviampCoreConnectionControllerTest {
 
         val state = fixture.store.state.value.shell.connectionSettings.connection
         assertTrue(state.editingConnection)
+        assertFalse(state.editingSavedConnection)
         assertEquals(ConnectionFormState(), state.form)
     }
 
@@ -124,6 +125,40 @@ class NaviampCoreConnectionControllerTest {
     }
 
     @Test
+    fun unreachableSavedConnectionRestoresTheLocalShellAndOfflineContent() = kotlinx.coroutines.test.runTest {
+        var offlineSourceId: String? = null
+        val fixture = fixture(
+            connectFailure = IllegalStateException("Failed to connect to server"),
+            onOfflineRestored = { offlineSourceId = it },
+        )
+
+        fixture.controller.restoreInitialConnection()
+
+        val connection = fixture.store.state.value.shell.connectionSettings.connection
+        assertTrue(connection.connected)
+        assertFalse(connection.statusIsError)
+        assertEquals("Offline. Downloaded music remains available.", connection.status)
+        assertEquals("source-1", fixture.store.state.value.shell.connectionSettings.currentSourceId)
+        assertEquals("source-1", offlineSourceId)
+    }
+
+    @Test
+    fun authenticationFailureDoesNotEnterOfflineMode() = kotlinx.coroutines.test.runTest {
+        var offlineRestorations = 0
+        val fixture = fixture(
+            connectFailure = IllegalStateException("HTTP 401"),
+            onOfflineRestored = { offlineRestorations += 1 },
+        )
+
+        fixture.controller.restoreInitialConnection()
+
+        val connection = fixture.store.state.value.shell.connectionSettings.connection
+        assertFalse(connection.connected)
+        assertTrue(connection.statusIsError)
+        assertEquals(0, offlineRestorations)
+    }
+
+    @Test
     fun failuresBecomeCommonConnectionStateInsteadOfHostMessages() = kotlinx.coroutines.test.runTest {
         val fixture = fixture(connectFailure = IllegalStateException("Server unavailable"))
         fixture.controller.dispatch(
@@ -174,8 +209,10 @@ class NaviampCoreConnectionControllerTest {
         val saved = savedConnectionUi()
 
         fixture.controller.execute(NaviampCoreCommand.Connection.Edit(saved))
-        assertTrue(fixture.store.state.value.shell.connectionSettings.connection.editingConnection)
-        assertEquals("https://edited.example", fixture.store.state.value.shell.connectionSettings.connection.form.serverUrl)
+        val editing = fixture.store.state.value.shell.connectionSettings.connection
+        assertTrue(editing.editingConnection)
+        assertTrue(editing.editingSavedConnection)
+        assertEquals("https://edited.example", editing.form.serverUrl)
 
         fixture.controller.execute(NaviampCoreCommand.Connection.Delete(saved))
         val connection = fixture.store.state.value.shell.connectionSettings.connection
@@ -217,6 +254,7 @@ class NaviampCoreConnectionControllerTest {
         connectFailure: Throwable? = null,
         musicFoldersLoadFailed: Boolean = false,
         onConnected: (String) -> Unit = {},
+        onOfflineRestored: (String) -> Unit = {},
         onSourceChanging: (String?, String) -> Unit = { _, _ -> },
         currentSourceId: String? = "source-1",
         hasSavedConnection: Boolean = true,
@@ -238,6 +276,7 @@ class NaviampCoreConnectionControllerTest {
                 initialInventory = inventory,
                 onSourceChanging = onSourceChanging,
                 onConnected = onConnected,
+                onOfflineRestored = onOfflineRestored,
             ),
         )
     }

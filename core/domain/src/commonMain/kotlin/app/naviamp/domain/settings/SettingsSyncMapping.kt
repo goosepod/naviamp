@@ -107,6 +107,7 @@ fun SettingsSyncServerProfile.toConnectionFormState(
     normalized()
         ?.let { profile ->
             ConnectionFormState(
+                providerId = profile.providerId,
                 displayName = profile.displayName,
                 serverUrl = profile.primaryUrl,
                 username = profile.username,

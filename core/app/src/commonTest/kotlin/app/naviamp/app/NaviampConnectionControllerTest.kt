@@ -47,6 +47,18 @@ class NaviampConnectionControllerTest {
     }
 
     @Test
+    fun offlineConnectionKeepsTheLocalApplicationUsable() {
+        val controller = NaviampConnectionController()
+
+        controller.offline("source", "Offline. Downloaded music remains available.")
+
+        assertEquals(NaviampConnectionPhase.Offline, controller.state.value.phase)
+        assertTrue(controller.state.value.connected)
+        assertTrue(controller.state.value.offline)
+        assertEquals("source", controller.state.value.sourceId)
+    }
+
+    @Test
     fun duplicateConnectAttemptsAreRejectedUntilTheFirstCompletes() {
         val applicationStatus = NaviampApplicationStatusController()
         val controller = NaviampConnectionController(applicationStatus = applicationStatus)

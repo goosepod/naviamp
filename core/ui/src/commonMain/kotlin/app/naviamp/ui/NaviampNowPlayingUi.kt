@@ -242,6 +242,8 @@ fun NaviampNowPlayingPanel(
     visualizerColors: NaviampPlayerColors = NaviampPlayerColors.fallback(colors),
 ) {
     var selectedTab by remember(nowPlaying.id, nowPlaying.isLive) { mutableStateOf(NaviampNowPlayingTab.UpNext) }
+    var playlistDialogOpen by remember { mutableStateOf<NaviampNowPlayingItemUi?>(null) }
+    var saveQueueDialogOpen by remember { mutableStateOf(false) }
     val showStationList = nowPlaying.isLive
     val progressStableNowPlaying = rememberProgressStableNowPlaying(nowPlaying)
     val artSizeDefault = 286.dp
@@ -322,6 +324,8 @@ fun NaviampNowPlayingPanel(
                         actions = actions,
                         selectedVisualizer = selectedVisualizer,
                         displaySettings = displaySettings,
+                        onOpenPlaylistDialog = { playlistDialogOpen = it },
+                        onOpenSaveQueueDialog = { saveQueueDialogOpen = true },
                         compactLayout = viewportMaxHeight < 640.dp,
                         availableHeight = (wideDetailsHeight - WideNowPlayingDetailsTopPadding)
                             .coerceAtLeast(WideNowPlayingDetailsMinHeight - WideNowPlayingDetailsTopPadding),
@@ -421,6 +425,8 @@ fun NaviampNowPlayingPanel(
                             actions = actions,
                             selectedVisualizer = selectedVisualizer,
                             displaySettings = displaySettings,
+                            onOpenPlaylistDialog = { playlistDialogOpen = it },
+                            onOpenSaveQueueDialog = { saveQueueDialogOpen = true },
                             compactLayout = true,
                             availableHeight = compactDetailsHeight,
                             modifier = Modifier
@@ -474,6 +480,8 @@ fun NaviampNowPlayingPanel(
                         actions = actions,
                         selectedVisualizer = selectedVisualizer,
                         displaySettings = displaySettings,
+                        onOpenPlaylistDialog = { playlistDialogOpen = it },
+                        onOpenSaveQueueDialog = { saveQueueDialogOpen = true },
                         mobileLayout = true,
                         compactSizing = compactWidthSizing,
                         modifier = Modifier
@@ -497,6 +505,61 @@ fun NaviampNowPlayingPanel(
                 )
             }
         }
+    }
+
+    if (saveQueueDialogOpen) {
+        SaveQueueAsPlaylistDialog(
+            colors = colors,
+            status = nowPlaying.playlistActionStatus,
+            onDismissRequest = { saveQueueDialogOpen = false },
+            onSave = { name ->
+                saveQueueDialogOpen = false
+                actions.saveQueueAsPlaylist(name)
+            },
+        )
+    }
+    playlistDialogOpen?.let { item ->
+        AddToPlaylistDialog(
+            title = item.title,
+            colors = colors,
+            playlists = nowPlaying.playlistChoices,
+            status = nowPlaying.playlistActionStatus,
+            onDismissRequest = { playlistDialogOpen = null },
+            onAddToExisting = { playlist ->
+                playlistDialogOpen = null
+                if (item.id == nowPlaying.id) {
+                    actions.currentTrack(
+                        NowPlayingCurrentTrackAction.AddToPlaylist,
+                        playlistChoice = playlist,
+                    )
+                } else {
+                    actions.onQueueItemAction(
+                        nowPlayingItemActionRequest(
+                            item,
+                            NowPlayingItemAction.AddToPlaylist,
+                            playlistChoice = playlist,
+                        ),
+                    )
+                }
+            },
+            onCreateAndAdd = { name ->
+                playlistDialogOpen = null
+                if (item.id == nowPlaying.id) {
+                    actions.currentTrack(
+                        NowPlayingCurrentTrackAction.CreatePlaylistAndAdd,
+                        playlistName = name,
+                    )
+                } else {
+                    actions.onQueueItemAction(
+                        nowPlayingItemActionRequest(
+                            item,
+                            NowPlayingItemAction.CreatePlaylistAndAdd,
+                            playlistName = name,
+                        ),
+                    )
+                }
+            },
+        )
     }
 }
 
@@ -606,6 +669,8 @@ private fun NowPlayingDetails(
     actions: NaviampNowPlayingActions,
     selectedVisualizer: NaviampVisualizer,
     displaySettings: NowPlayingDisplaySettings,
+    onOpenPlaylistDialog: (NaviampNowPlayingItemUi) -> Unit,
+    onOpenSaveQueueDialog: () -> Unit,
     mobileLayout: Boolean = false,
     compactLayout: Boolean = false,
     compactSizing: Boolean = compactLayout,
@@ -616,8 +681,6 @@ private fun NowPlayingDetails(
     var visualizerMenuExpanded by remember { mutableStateOf(false) }
     var radioDjMenuExpanded by remember { mutableStateOf(false) }
     var trackDetailsOpen by remember { mutableStateOf(false) }
-    var playlistDialogOpen by remember { mutableStateOf<NaviampNowPlayingItemUi?>(null) }
-    var saveQueueDialogOpen by remember { mutableStateOf(false) }
     var sleepTimerDialogOpen by remember { mutableStateOf(false) }
     var emptyQueueDialogOpen by remember { mutableStateOf(false) }
     var scrubberValue by remember(nowPlaying.id) { mutableFloatStateOf(nowPlaying.progressFraction.toFloat()) }
@@ -1081,18 +1144,19 @@ private fun NowPlayingDetails(
                                             actions.currentTrack(NowPlayingCurrentTrackAction.GoToArtist)
                                         NaviampAction.AddToPlaylist -> {
                                             if (nowPlaying.useInlinePlaylistPicker) {
-                                                playlistDialogOpen = null
-                                                playlistDialogOpen = NaviampNowPlayingItemUi(
-                                                    id = nowPlaying.id,
-                                                    title = nowPlaying.title,
-                                                    subtitle = nowPlaying.subtitle,
-                                                    coverArtUrl = nowPlaying.coverArtUrl,
+                                                onOpenPlaylistDialog(
+                                                    NaviampNowPlayingItemUi(
+                                                        id = nowPlaying.id,
+                                                        title = nowPlaying.title,
+                                                        subtitle = nowPlaying.subtitle,
+                                                        coverArtUrl = nowPlaying.coverArtUrl,
+                                                    ),
                                                 )
                                             } else {
                                                 actions.currentTrack(NowPlayingCurrentTrackAction.AddToPlaylist)
                                             }
                                         }
-                                        NaviampAction.SaveQueueAsPlaylist -> saveQueueDialogOpen = true
+                                        NaviampAction.SaveQueueAsPlaylist -> onOpenSaveQueueDialog()
                                         NaviampAction.EmptyQueue -> emptyQueueDialogOpen = true
                                         NaviampAction.SleepTimer -> sleepTimerDialogOpen = true
                                         else -> Unit
@@ -1126,17 +1190,6 @@ private fun NowPlayingDetails(
             onDismissRequest = { trackDetailsOpen = false },
         )
     }
-    if (saveQueueDialogOpen) {
-        SaveQueueAsPlaylistDialog(
-            colors = colors,
-            status = nowPlaying.playlistActionStatus,
-            onDismissRequest = { saveQueueDialogOpen = false },
-            onSave = { name ->
-                saveQueueDialogOpen = false
-                actions.saveQueueAsPlaylist(name)
-            },
-        )
-    }
     if (sleepTimerDialogOpen) {
         SleepTimerDialog(
             colors = colors,
@@ -1162,49 +1215,6 @@ private fun NowPlayingDetails(
             onConfirm = {
                 emptyQueueDialogOpen = false
                 actions.emptyQueue()
-            },
-        )
-    }
-    playlistDialogOpen?.let { item ->
-        AddToPlaylistDialog(
-            title = item.title,
-            colors = colors,
-            playlists = nowPlaying.playlistChoices,
-            status = nowPlaying.playlistActionStatus,
-            onDismissRequest = { playlistDialogOpen = null },
-            onAddToExisting = { playlist ->
-                playlistDialogOpen = null
-                if (item.id == nowPlaying.id) {
-                    actions.currentTrack(
-                        NowPlayingCurrentTrackAction.AddToPlaylist,
-                        playlistChoice = playlist,
-                    )
-                } else {
-                    actions.onQueueItemAction(
-                        nowPlayingItemActionRequest(
-                            item,
-                            NowPlayingItemAction.AddToPlaylist,
-                            playlistChoice = playlist,
-                        ),
-                    )
-                }
-            },
-            onCreateAndAdd = { name ->
-                playlistDialogOpen = null
-                if (item.id == nowPlaying.id) {
-                    actions.currentTrack(
-                        NowPlayingCurrentTrackAction.CreatePlaylistAndAdd,
-                        playlistName = name,
-                    )
-                } else {
-                    actions.onQueueItemAction(
-                        nowPlayingItemActionRequest(
-                            item,
-                            NowPlayingItemAction.CreatePlaylistAndAdd,
-                            playlistName = name,
-                        ),
-                    )
-                }
             },
         )
     }
@@ -1255,6 +1265,8 @@ private fun CompactMetadataRow(
                 onRatingSelected = onRatingSelected,
                 modifier = Modifier.padding(horizontal = 8.dp),
             )
+        } else if (showAudioText && audioQuality.isNotBlank()) {
+            Spacer(Modifier.width(6.dp))
         }
         if (showAudioText) {
             Text(

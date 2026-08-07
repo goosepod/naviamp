@@ -74,7 +74,7 @@ class RadioService(
             }
 
     suspend fun genreRadio(genre: String): List<Track> =
-        provider.randomSongs(limit = fetchCount, genre = genre)
+        provider.genreRadio(genre, count = fetchCount)
             .let { tracks -> tunedRadioTracks(seedTrack = null, tracks = tracks, tuning = tuning, targetCount = count) }
 
     suspend fun decadeRadio(fromYear: Int, toYear: Int): List<Track> =

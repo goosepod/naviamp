@@ -8,6 +8,9 @@ import app.naviamp.domain.cache.ProviderIdentityMigrationRepository
 import app.naviamp.domain.cache.ProviderIdentityMigrationResult
 import app.naviamp.domain.cache.ProviderIdentityProbeState
 import app.naviamp.domain.provider.ConnectionValidation
+import app.naviamp.domain.provider.ProviderIdNavidrome
+import app.naviamp.domain.provider.ProviderIdSubsonic
+import app.naviamp.domain.provider.ProviderIdBandcamp
 import app.naviamp.domain.settings.ConnectionFormState
 import app.naviamp.domain.source.MediaSourceIdentity
 import app.naviamp.domain.source.SavedMediaSource
@@ -22,6 +25,61 @@ import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
 class NavidromeCoreProviderSessionPortTest {
+    @Test
+    fun genericSubsonicSavedSourceRestoresAndRoutesWithoutNavidromeMigration() = runTest {
+        val source = savedSource(providerId = ProviderIdSubsonic)
+        val repository = TestMediaSourceRepository(source)
+        var migrationChecks = 0
+        val port = NavidromeCoreProviderSessionPort(
+            mediaSources = repository,
+            sessionOpener = NavidromeProviderSessionOpener { request, _ ->
+                assertEquals(ProviderIdSubsonic, request.providerId)
+                session(request.savedConnectionForLogin ?: error("saved credentials missing"))
+            },
+            initialSource = source,
+            canonicalIdMigrationSupport = {
+                migrationChecks += 1
+                NavidromeCanonicalIdMigrationSupport.Confirmed
+            },
+        )
+
+        assertEquals(ProviderIdSubsonic, port.currentProvider()?.id?.value)
+        assertEquals("source-1", port.currentSourceId())
+        port.connect(
+            NaviampCoreConnectionRequest.Saved("source-1"),
+            NaviampConnectionAttemptPlan(true, false, false, false),
+        )
+
+        assertEquals(0, migrationChecks)
+        assertNull(repository.migratedIdentityVersion)
+        assertFalse(port.refreshActiveSession())
+    }
+
+    @Test
+    fun bandcampSavedSourceRoutesThroughTheSharedSubsonicSession() = runTest {
+        val source = savedSource(providerId = ProviderIdBandcamp)
+        val repository = TestMediaSourceRepository(source)
+        val port = NavidromeCoreProviderSessionPort(
+            mediaSources = repository,
+            sessionOpener = NavidromeProviderSessionOpener { request, _ ->
+                assertEquals(ProviderIdBandcamp, request.providerId)
+                assertFalse(request.nativeAuthEnabled)
+                session(request.savedConnectionForLogin ?: error("saved credentials missing"))
+            },
+            initialSource = source,
+        )
+        val router = subsonicFamilyProviderSessionRouter(port)
+
+        val connected = router.connect(
+            NaviampCoreConnectionRequest.Saved("source-1"),
+            NaviampConnectionAttemptPlan(true, false, false, false),
+        )
+
+        assertEquals(ProviderIdBandcamp, router.currentProvider()?.id?.value)
+        assertEquals("source-1", connected.sourceId)
+        assertFalse(router.refreshActiveSession())
+    }
+
     @Test
     fun savedStartupSourceImmediatelySuppliesTheSharedProviderAndSelectedInventory() {
         val source = savedSource()
@@ -225,10 +283,10 @@ private fun testPort(repository: TestMediaSourceRepository) = NavidromeCoreProvi
     },
 )
 
-private fun savedSource() = SavedMediaSource(
+private fun savedSource(providerId: String = ProviderIdNavidrome) = SavedMediaSource(
     id = "source-1",
-    providerId = "navidrome",
-    cacheNamespace = "navidrome:demo",
+    providerId = providerId,
+    cacheNamespace = "$providerId:demo",
     displayName = "Home Music",
     baseUrl = "https://music.example",
     username = "demo",
@@ -279,6 +337,7 @@ private class TestMediaSourceRepository(source: SavedMediaSource) :
         connection: ProviderMediaSourceConnection,
         cacheNamespace: String,
         providerId: String,
+        preferredSourceId: String?,
     ): MediaSourceIdentity {
         lastPersisted = connection
         return MediaSourceIdentity("source-1", cacheNamespace, connection.displayName)

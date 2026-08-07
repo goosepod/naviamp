@@ -17,7 +17,7 @@ val generateNaviampVersion by tasks.registering {
             package app.naviamp.domain.network
 
             const val NaviampAppVersion = "$escapedVersion"
-            const val NaviampClientName = "Naviamp/$escapedVersion"
+            const val NaviampClientName = "Naviamp"
             const val NaviampUserAgent = "Naviamp/$escapedVersion"
             const val NaviampProjectUserAgent = "Naviamp/$escapedVersion (https://github.com/jbmcmichael/Naviamp)"
             """.trimIndent(),

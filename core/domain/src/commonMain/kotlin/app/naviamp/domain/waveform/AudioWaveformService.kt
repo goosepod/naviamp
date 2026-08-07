@@ -163,7 +163,15 @@ class AudioWaveformService(
             audioCachingEnabled &&
             cacheAudioBeforeAnalysis()
         ) {
-            cacheAudioForWaveform(sourceId, provider, track, quality)
+            try {
+                cacheAudioForWaveform(sourceId, provider, track, quality)
+            } catch (error: CancellationException) {
+                throw error
+            } catch (_: Throwable) {
+                // A cache write is an optimization. A transient provider or storage failure must
+                // not prevent waveform analysis from falling back to the provider stream.
+                null
+            }
         } else {
             null
         }

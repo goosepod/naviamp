@@ -2,6 +2,7 @@ package app.naviamp.presentation
 
 import app.naviamp.app.NaviampConnectionAttemptPlan
 import app.naviamp.domain.provider.MediaProvider
+import app.naviamp.domain.provider.ProviderIdNavidrome
 import app.naviamp.domain.settings.ConnectionFormMusicFolder
 import app.naviamp.domain.settings.ConnectionFormState
 
@@ -14,6 +15,7 @@ data class NaviampCoreSavedConnectionRecord(
     val displayName: String,
     val serverUrl: String,
     val username: String,
+    val providerId: String = ProviderIdNavidrome,
     val selectedMusicFolderIds: List<String> = emptyList(),
 )
 
@@ -46,6 +48,13 @@ data class NaviampCoreConnectedSession(
 
 /** Credential access and provider-session construction are effects; all connection policy is Core. */
 interface NaviampCoreProviderSessionPort {
+    val providerSource: NaviampCoreMediaProviderSource
+        get() = NaviampCoreMediaProviderSource(::currentProvider)
+
+    fun currentProvider(): MediaProvider? = null
+
+    fun currentSourceId(): String? = initialInventory().currentSourceId
+
     fun initialInventory(): NaviampCoreConnectionInventory = NaviampCoreConnectionInventory()
 
     suspend fun connect(

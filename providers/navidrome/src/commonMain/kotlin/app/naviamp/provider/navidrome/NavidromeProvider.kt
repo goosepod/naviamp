@@ -36,6 +36,7 @@ import app.naviamp.domain.provider.MediaProvider
 import app.naviamp.domain.provider.MediaSearchResults
 import app.naviamp.domain.provider.PlaybackReportState
 import app.naviamp.domain.provider.ProviderCapabilities
+import app.naviamp.domain.provider.effectiveStreamingQuality
 import app.naviamp.domain.provider.ProviderApiCallDiagnostic
 import app.naviamp.domain.provider.SonicSimilarTrack
 import app.naviamp.domain.provider.SonicPathMatch
@@ -82,8 +83,9 @@ class NavidromeProvider(
 ) : MediaProvider,
     ArtistPopularTracksClient,
     SimilarArtistsClient {
-    override val id: ProviderId = ProviderId("navidrome")
-    override val displayName: String = "Navidrome"
+    private val profile = subsonicProviderProfile(connection.providerId)
+    override val id: ProviderId = ProviderId(profile.providerId)
+    override val displayName: String = profile.displayName
     override val source: String = NavidromeAgentMetadataSource
     override val selectedMusicFolderIds: List<String> =
         normalizedMusicFolderIds(connection.selectedMusicFolderIds)
@@ -109,17 +111,17 @@ class NavidromeProvider(
         connection.copy(nativeToken = nativeToken)
     private val baseCapabilities: ProviderCapabilities =
         ProviderCapabilities(
-            supportsStreamingTranscode = true,
-            supportsDownloadTranscode = true,
-            supportsArtistRadio = true,
-            supportsAlbumRadio = true,
-            supportsTrackRadio = true,
-            supportsTrackFavorites = true,
-            supportsArtistFavorites = true,
-            supportsAlbumFavorites = true,
-            supportsTrackRatings = true,
-            supportsPlayReporting = true,
-            supportsSmartPlaylists = true,
+            supportsStreamingTranscode = profile.streamingTranscode,
+            supportsDownloadTranscode = profile.downloadTranscode,
+            supportsArtistRadio = profile.generatedRadio,
+            supportsAlbumRadio = profile.generatedRadio,
+            supportsTrackRadio = profile.generatedRadio,
+            supportsTrackFavorites = profile.favorites,
+            supportsArtistFavorites = profile.favorites,
+            supportsAlbumFavorites = profile.favorites,
+            supportsTrackRatings = profile.ratings,
+            supportsPlayReporting = profile.playReporting,
+            supportsSmartPlaylists = profile.nativeSmartPlaylists,
         )
     override var capabilities: ProviderCapabilities = baseCapabilities
         private set
@@ -127,7 +129,7 @@ class NavidromeProvider(
     override fun recentApiCalls(limit: Int): List<ProviderApiCallDiagnostic> =
         NavidromeApiCallHistory.recent(limit).map { call ->
             ProviderApiCallDiagnostic(
-                source = "Navidrome",
+                source = displayName,
                 endpoint = "${call.method} ${call.endpoint}",
                 sanitizedUrl = call.sanitizedUrl,
                 durationMillis = call.durationMillis,
@@ -163,6 +165,7 @@ class NavidromeProvider(
             minimumVersion = 2,
         )
         canonicalIdMigrationSupport = when {
+            !profile.canonicalIdMigration -> NavidromeCanonicalIdMigrationSupport.Unsupported
             !extensions.loaded -> NavidromeCanonicalIdMigrationSupport.Inconclusive
             extensionVersions.supportsOpenSubsonicExtension(
                 name = "topSongsByArtistId",
@@ -721,12 +724,24 @@ class NavidromeProvider(
     override suspend fun createPlaylist(name: String, trackIds: List<TrackId>): Playlist {
         val trimmedName = name.trim()
         if (trimmedName.isBlank()) throw NavidromeException("Playlist name is required.")
+        val createTrackIds = if (profile.serialPlaylistTrackMutations) emptyList() else trackIds
         val response = get(
             endpoint = "createPlaylist.view",
-            params = listOf("name" to trimmedName) + trackIds.map { "songId" to it.value },
+            params = listOf("name" to trimmedName) + createTrackIds.map { "songId" to it.value },
         )
         val playlist = response.subsonicResponse()["playlist"]?.jsonObject
-        if (playlist != null) return playlist.toPlaylist()
+        if (playlist != null) {
+            val created = playlist.toPlaylist()
+            if (profile.serialPlaylistTrackMutations && trackIds.isNotEmpty()) {
+                addTracksToPlaylist(created.id, trackIds)
+                return created.copy(trackCount = trackIds.size)
+            }
+            return created
+        }
+
+        if (profile.serialPlaylistTrackMutations && trackIds.isNotEmpty()) {
+            throw NavidromeException("${profile.displayName} did not return the created playlist ID.")
+        }
 
         return Playlist(
             id = trimmedName,
@@ -736,6 +751,7 @@ class NavidromeProvider(
     }
 
     override suspend fun createSmartPlaylist(definition: SmartPlaylistDefinition): Playlist {
+        requireNativeSmartPlaylists()
         val body = definition.withSelectedMusicFolderScope().toNativePlaylistBody()
         val response = postNativeJson(
             endpoint = "playlist",
@@ -745,6 +761,7 @@ class NavidromeProvider(
     }
 
     override suspend fun updateSmartPlaylist(playlistId: String, definition: SmartPlaylistDefinition) {
+        requireNativeSmartPlaylists()
         val body = definition.withSelectedMusicFolderScope().toNativePlaylistBody()
         putNativeJson(
             endpoint = "playlist/${playlistId.urlEncode()}",
@@ -753,6 +770,7 @@ class NavidromeProvider(
     }
 
     override suspend fun smartPlaylistDefinition(playlistId: String): SmartPlaylistDefinition {
+        requireNativeSmartPlaylists()
         val response = getNativeJson("playlist/${playlistId.urlEncode()}")
         return SmartPlaylistDefinition.fromJsonObject(response.toNativeDataObject())
             .withoutLibraryScopeForEditing()
@@ -763,6 +781,7 @@ class NavidromeProvider(
      * The native API has no dedicated no-op endpoint, so request only the first playlist row.
      */
     suspend fun refreshNativeSession(): Boolean {
+        if (!profile.nativeAuthentication) return false
         if (nativeToken.isNullOrBlank()) return false
         getNativeJson("playlist?range=%5B0%2C0%5D")
         return true
@@ -770,6 +789,18 @@ class NavidromeProvider(
 
     override suspend fun addTracksToPlaylist(playlistId: String, trackIds: List<TrackId>) {
         if (trackIds.isEmpty()) return
+        if (profile.serialPlaylistTrackMutations) {
+            trackIds.forEach { trackId ->
+                get(
+                    endpoint = "updatePlaylist.view",
+                    params = listOf(
+                        "playlistId" to playlistId,
+                        "songIdToAdd" to trackId.value,
+                    ),
+                )
+            }
+            return
+        }
         get(
             endpoint = "updatePlaylist.view",
             params = listOf("playlistId" to playlistId) + trackIds.map { "songIdToAdd" to it.value },
@@ -778,18 +809,53 @@ class NavidromeProvider(
 
     override suspend fun replacePlaylistTracks(
         playlistId: String,
-        currentTrackCount: Int,
+        currentTrackIds: List<TrackId>,
         trackIds: List<TrackId>,
     ) {
-        require(currentTrackCount >= 0) { "Current playlist track count cannot be negative." }
+        if (profile.serialPlaylistTrackMutations) {
+            val removalIndices = currentTrackIds.indicesToRemoveForSubsequence(trackIds)
+            if (removalIndices != null) {
+                removalIndices.asReversed().forEach { index ->
+                    get(
+                        endpoint = "updatePlaylist.view",
+                        params = listOf(
+                            "playlistId" to playlistId,
+                            "songIndexToRemove" to index.toString(),
+                        ),
+                    )
+                }
+                return
+            }
+            if (trackIds.take(currentTrackIds.size) == currentTrackIds) {
+                addTracksToPlaylist(playlistId, trackIds.drop(currentTrackIds.size))
+                return
+            }
+            throw UnsupportedOperationException(
+                "Bandcamp's current Subsonic beta does not reliably support rearranging playlist tracks. " +
+                    "No playlist changes were sent.",
+            )
+        }
         get(
             endpoint = "updatePlaylist.view",
             params = buildList {
                 add("playlistId" to playlistId)
-                repeat(currentTrackCount) { index -> add("songIndexToRemove" to index.toString()) }
+                currentTrackIds.indices.forEach { index -> add("songIndexToRemove" to index.toString()) }
                 trackIds.forEach { trackId -> add("songIdToAdd" to trackId.value) }
             },
         )
+    }
+
+    private fun List<TrackId>.indicesToRemoveForSubsequence(requested: List<TrackId>): List<Int>? {
+        var requestedIndex = 0
+        val removals = mutableListOf<Int>()
+        forEachIndexed { index, current ->
+            if (requestedIndex < requested.size && current == requested[requestedIndex]) {
+                requestedIndex += 1
+            } else {
+                removals += index
+            }
+        }
+        return removals.takeIf { requestedIndex == requested.size }
     }
 
     override suspend fun renamePlaylist(playlistId: String, name: String) {
@@ -1075,7 +1141,7 @@ class NavidromeProvider(
     }
 
     override suspend fun streamUrl(request: StreamRequest): String {
-        val params = when (val quality = request.quality) {
+        val params = when (val quality = capabilities.effectiveStreamingQuality(request.quality)) {
             StreamQuality.Original -> mapOf("id" to request.trackId.value)
             is StreamQuality.Transcoded -> {
                 val format = quality.codec.toNavidromeFormat()
@@ -1142,6 +1208,9 @@ class NavidromeProvider(
 
     suspend fun bytes(url: String): ByteArray? =
         httpClient.getBytes(url, headers = customHeaders)
+
+    override suspend fun bytesForOwnedUrl(url: String): ByteArray? =
+        if (ownsUrl(url)) bytes(url) else null
 
     suspend fun download(url: String, writeChunk: suspend (bytes: ByteArray, count: Int) -> Unit): Boolean =
         httpClient.download(url, headers = customHeaders, writeChunk = writeChunk)
@@ -1379,9 +1448,16 @@ class NavidromeProvider(
         this["data"]?.jsonObject ?: this
 
     private fun nativeAuthHeaders(): Map<String, String> {
+        requireNativeSmartPlaylists()
         val token = nativeToken?.takeIf { it.isNotBlank() }
             ?: throw NavidromeException("Reconnect to Navidrome with your password before saving smart playlists.")
         return mapOf(NavidromeNativeAuthorizationHeader to "Bearer $token")
+    }
+
+    private fun requireNativeSmartPlaylists() {
+        if (!profile.nativeSmartPlaylists) {
+            throw UnsupportedOperationException("Smart playlists are not supported by $displayName.")
+        }
     }
 
     private fun JsonObject.subsonicResponse(): JsonObject =
@@ -1495,7 +1571,7 @@ class NavidromeProvider(
             "u" to connection.username,
             "t" to connection.token,
             "s" to connection.salt,
-            "v" to "1.16.1",
+            "v" to profile.apiVersion,
             "c" to NaviampClientName,
             "f" to "json",
         )

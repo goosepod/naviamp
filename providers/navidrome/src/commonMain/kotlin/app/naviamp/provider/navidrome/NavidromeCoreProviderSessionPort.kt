@@ -8,6 +8,11 @@ import app.naviamp.domain.cache.ProviderIdentityMigrationRepository
 import app.naviamp.domain.cache.ProviderIdentityProbeState
 import app.naviamp.domain.provider.ConnectionValidation
 import app.naviamp.domain.provider.MediaProvider
+import app.naviamp.domain.provider.ProviderIdNavidrome
+import app.naviamp.domain.provider.ProviderIdSubsonic
+import app.naviamp.domain.provider.ProviderIdBandcamp
+import app.naviamp.domain.provider.ProviderProtocolFamily
+import app.naviamp.domain.provider.providerDescriptor
 import app.naviamp.domain.settings.ConnectionFormHeader
 import app.naviamp.domain.settings.ConnectionFormSecondaryUrl
 import app.naviamp.domain.settings.ConnectionFormState
@@ -28,6 +33,8 @@ import app.naviamp.presentation.NaviampCoreConnectionRequest
 import app.naviamp.presentation.NaviampCoreEditableConnection
 import app.naviamp.presentation.NaviampCoreMediaProviderSource
 import app.naviamp.presentation.NaviampCoreProviderSessionPort
+import app.naviamp.presentation.NaviampCoreProviderSessionRoute
+import app.naviamp.presentation.NaviampCoreProviderSessionRouter
 import app.naviamp.presentation.NaviampCoreSavedConnectionRecord
 
 typealias NavidromeProviderConnectionSession = ProviderConnectionSession<NavidromeConnection, NavidromeProvider>
@@ -53,11 +60,12 @@ class NavidromeCoreProviderSessionPort(
     private val canonicalIdMigrationSupport: (NavidromeProvider) -> NavidromeCanonicalIdMigrationSupport =
         { provider -> provider.canonicalIdMigrationSupport() },
 ) : NaviampCoreProviderSessionPort {
-    private var provider: NavidromeProvider? = initialSource?.toNavidromeConnection()?.let { connection ->
+    private val initialSessionSource = initialSource?.takeIf(SavedMediaSource::supportsSubsonicSession)
+    private var provider: NavidromeProvider? = initialSessionSource?.toNavidromeConnection()?.let { connection ->
         applyTlsDefaults(connection)
         NavidromeProvider(connection)
     }
-    private var currentSourceId: String? = initialSource?.id
+    private var currentSourceId: String? = initialSessionSource?.id
     private val nativeSession = NavidromeNativeSessionController(
         currentProvider = { provider },
         savedConnection = { currentSourceId?.let(mediaSources::mediaSource)?.toNavidromeConnection() },
@@ -66,9 +74,11 @@ class NavidromeCoreProviderSessionPort(
         prepareConnection = applyTlsDefaults,
     )
 
-    val providerSource = NaviampCoreMediaProviderSource { provider }
+    override val providerSource = NaviampCoreMediaProviderSource { provider }
 
-    fun currentProvider(): MediaProvider? = provider
+    override fun currentProvider(): MediaProvider? = provider
+
+    override fun currentSourceId(): String? = currentSourceId
 
     override fun initialInventory(): NaviampCoreConnectionInventory = inventory()
 
@@ -89,7 +99,7 @@ class NavidromeCoreProviderSessionPort(
     }
 
     override suspend fun editableConnection(id: String): NaviampCoreEditableConnection {
-        val saved = requireSaved(id)
+        val saved = requireSubsonicSaved(id)
         val connection = saved.toNavidromeConnection()
         val folders = runCatching { musicFolders(connection) }
         return NaviampCoreEditableConnection(
@@ -111,7 +121,12 @@ class NavidromeCoreProviderSessionPort(
         return inventory()
     }
 
-    override suspend fun smartPlaylistProvider(password: String?): MediaProvider? = nativeSession.provider(password)
+    override suspend fun smartPlaylistProvider(password: String?): MediaProvider? =
+        if (provider?.id?.value?.let(::subsonicProviderProfile)?.nativeAuthentication == true) {
+            nativeSession.provider(password)
+        } else {
+            provider
+        }
 
     override suspend fun refreshActiveSession(): Boolean {
         val activeProvider = provider
@@ -119,7 +134,11 @@ class NavidromeCoreProviderSessionPort(
         if (activeProvider != null && sourceId != null) {
             runCatching { migrateProviderIdentities(activeProvider, sourceId) }
         }
-        return nativeSession.refresh()
+        return if (activeProvider?.id?.value?.let(::subsonicProviderProfile)?.nativeAuthentication == true) {
+            nativeSession.refresh()
+        } else {
+            false
+        }
     }
 
     override suspend fun persistActiveSession() = nativeSession.persist()
@@ -132,13 +151,23 @@ class NavidromeCoreProviderSessionPort(
     private fun NaviampCoreConnectionRequest.toLoginRequest(): NavidromeConnectionLoginRequest {
         val form = when (this) {
             is NaviampCoreConnectionRequest.Form -> form
-            is NaviampCoreConnectionRequest.Saved -> requireSaved(id).toConnectionForm()
+            is NaviampCoreConnectionRequest.Saved -> requireSubsonicSaved(id).toConnectionForm()
+        }
+        val provider = providerDescriptor(form.providerId)
+        require(provider.selectable && provider.protocolFamily == ProviderProtocolFamily.Subsonic) {
+            "${provider.displayName} support is not available yet."
         }
         val saved = when (this) {
             is NaviampCoreConnectionRequest.Form -> savedConnectionId?.let(::requireSaved)
-            is NaviampCoreConnectionRequest.Saved -> requireSaved(id)
+            is NaviampCoreConnectionRequest.Saved -> requireSubsonicSaved(id)
         }?.toNavidromeConnection()
+        val savedSourceId = when (this) {
+            is NaviampCoreConnectionRequest.Form -> savedConnectionId
+            is NaviampCoreConnectionRequest.Saved -> id
+        }
+        val profile = subsonicProviderProfile(form.providerId)
         return NavidromeConnectionLoginRequest(
+            providerId = form.providerId,
             baseUrl = form.serverUrl,
             secondaryUrls = form.secondaryUrls.toConnectionSecondaryUrls(),
             username = form.username,
@@ -152,19 +181,29 @@ class NavidromeCoreProviderSessionPort(
             ),
             customHeaders = form.customHeaders.toConnectionHeaderDefinitions(),
             selectedMusicFolderIds = form.selectedMusicFolderIds.toSelectedMusicFolderIds(),
+            savedSourceId = savedSourceId,
             savedConnectionForLogin = saved,
-            nativeAuthRequired = true,
+            nativeAuthEnabled = profile.nativeAuthentication,
+            nativeAuthRequired = profile.nativeAuthentication,
         )
     }
 
     private fun requireSaved(id: String): SavedMediaSource =
         requireNotNull(mediaSources.mediaSource(id)) { "Saved connection is no longer available." }
 
+    private fun requireSubsonicSaved(id: String): SavedMediaSource = requireSaved(id).also { saved ->
+        val provider = providerDescriptor(saved.providerId)
+        require(provider.selectable && provider.protocolFamily == ProviderProtocolFamily.Subsonic) {
+            "${provider.displayName} support is not available yet."
+        }
+    }
+
     private suspend fun migrateProviderIdentities(
         activeProvider: NavidromeProvider,
         sourceId: String,
         knownServerVersion: String? = null,
     ) {
+        if (!subsonicProviderProfile(activeProvider.id.value).canonicalIdMigration) return
         val migrations = mediaSources as? ProviderIdentityMigrationRepository ?: return
         if ((migrations.providerIdentityVersion(sourceId) ?: 0L) >= NavidromeCanonicalIdentityVersion) return
         val serverVersion = knownServerVersion ?: validateProvider(activeProvider).serverVersion
@@ -200,6 +239,7 @@ class NavidromeCoreProviderSessionPort(
         val connections = mediaSources.mediaSources().visibleServerConnections(currentSourceId).map { saved ->
             NaviampCoreSavedConnectionRecord(
                 id = saved.id,
+                providerId = saved.providerId,
                 displayName = saved.displayName,
                 serverUrl = saved.baseUrl,
                 username = saved.username,
@@ -208,6 +248,22 @@ class NavidromeCoreProviderSessionPort(
         }
         return NaviampCoreConnectionInventory(connections, currentSourceId)
     }
+}
+
+fun subsonicFamilyProviderSessionRouter(
+    sessionPort: NavidromeCoreProviderSessionPort,
+    additionalRoutes: List<NaviampCoreProviderSessionRoute> = emptyList(),
+): NaviampCoreProviderSessionPort = NaviampCoreProviderSessionRouter(
+    routes = listOf(
+        NaviampCoreProviderSessionRoute(
+            providerIds = setOf(ProviderIdNavidrome, ProviderIdSubsonic, ProviderIdBandcamp),
+            sessionPort = sessionPort,
+        ),
+    ) + additionalRoutes,
+)
+
+private fun SavedMediaSource.supportsSubsonicSession(): Boolean = providerDescriptor(providerId).let { provider ->
+    provider.selectable && provider.protocolFamily == ProviderProtocolFamily.Subsonic
 }
 
 fun navidromeProviderSessionOpener(
@@ -225,6 +281,7 @@ fun navidromeProviderSessionOpener(
             mediaSourceConnection = NavidromeConnection::toProviderMediaSourceConnection,
             applyTlsDefaults = { applyTlsDefaults(it) },
             smartPlaylistAuthWarning = { it.nativeAuthErrorMessage },
+            preferredSourceId = login.savedSourceId,
             clearProviderData = clearProviderData,
             pruneUnusedSourceScopesBeforeEpochMillis = unusedSourceScopeCleanupCutoff(nowEpochMillis()),
         ),
@@ -234,6 +291,7 @@ fun navidromeProviderSessionOpener(
 }
 
 private fun SavedMediaSource.toConnectionForm(): ConnectionFormState = ConnectionFormState(
+    providerId = providerId,
     displayName = displayName.takeUnless { it == baseUrl }.orEmpty(),
     serverUrl = baseUrl,
     username = username,

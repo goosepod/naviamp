@@ -32,7 +32,7 @@ suspend fun MediaProvider.replaceStandardPlaylistTracks(
     require(!playlist.isSmart) { "Smart Playlist tracks are controlled by their rules." }
     replacePlaylistTracks(
         playlistId = playlist.id,
-        currentTrackCount = currentTracks.size,
+        currentTrackIds = currentTracks.map { it.id },
         trackIds = updatedTracks.map { it.id },
     )
     providerResponseService?.invalidatePlaylistResponses(this, playlist.id)

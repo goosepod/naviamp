@@ -22,6 +22,7 @@ internal class FakeCoreMediaProvider(
     supportsSonicSimilarity: Boolean = false,
     supportsPlayReporting: Boolean = false,
     private val failNowPlayingReports: Boolean = false,
+    private val ownedArtworkBytes: ByteArray? = null,
 ) : MediaProvider {
     val nowPlayingReports = mutableListOf<TrackId>()
     val artist = Artist(ArtistId("core-artist"), "Core Artist")
@@ -105,6 +106,7 @@ internal class FakeCoreMediaProvider(
         }
     override suspend fun streamUrl(request: StreamRequest) = "https://example.test/${request.trackId.value}"
     override fun coverArtUrl(coverArtId: String) = "https://example.test/art/$coverArtId"
+    override suspend fun bytesForOwnedUrl(url: String): ByteArray? = ownedArtworkBytes
     override suspend fun reportNowPlaying(trackId: TrackId) {
         if (failNowPlayingReports) error("offline")
         nowPlayingReports += trackId

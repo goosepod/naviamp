@@ -4,7 +4,9 @@
 
 # Naviamp
 
-Naviamp is a music player for people who run their own music library. It connects to Navidrome and OpenSubsonic-compatible servers, then gives that library a polished app experience on desktop, Android, and iOS.
+Naviamp is a music player for people who run their own music library. It connects to Navidrome,
+Subsonic/OpenSubsonic, Jellyfin, and Bandcamp, then gives that library a polished app experience on
+desktop, Android, and iOS.
 
 The goal is simple: keep your music on your server, but make browsing, playback, discovery, lyrics, radio, playlists, and visualizers feel like they belong in a modern native player.
 
@@ -161,6 +163,10 @@ Useful build targets:
 - `make android-debug` builds the Android debug APK.
 - `make desktop-test` runs the desktop test task.
 - `make linux-test` builds and stages a Linux desktop app when run on Linux with the required native playback resources.
+- For iOS Simulator development, build normally through Xcode or `xcodebuild` and keep its default
+  ad-hoc simulator signing enabled. Do not pass `CODE_SIGNING_ALLOWED=NO`: an unsigned simulator app
+  cannot reliably use Keychain-backed provider-token storage and will report that it could not
+  securely store the native provider token.
 - `scripts/build-ios-unsigned-ipa.sh` creates an unsigned physical-device IPA on macOS with Xcode;
   see [Sideloading Naviamp on iPhone or iPad](docs/ios-sideloading.md) before distributing or installing it.
 

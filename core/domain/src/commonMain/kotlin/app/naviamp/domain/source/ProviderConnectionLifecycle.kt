@@ -22,6 +22,7 @@ data class ProviderConnectionLifecycleRequest<InputConnection, Connection, Prepa
     val mediaSourceConnection: (Connection) -> ProviderMediaSourceConnection,
     val applyTlsDefaults: (Connection) -> Unit = {},
     val smartPlaylistAuthWarning: (PreparedConnection) -> String? = { null },
+    val preferredSourceId: String? = null,
     val clearProviderData: Boolean = false,
     val pruneUnusedSourceScopesBeforeEpochMillis: Long? = null,
 )
@@ -43,6 +44,7 @@ suspend fun <InputConnection, Connection, PreparedConnection, Provider : MediaPr
         connection = request.mediaSourceConnection(connection),
         cacheNamespace = provider.cacheNamespace,
         providerId = provider.id.value,
+        preferredSourceId = request.preferredSourceId,
     )
     request.pruneUnusedSourceScopesBeforeEpochMillis?.let { cutoff ->
         cacheMaintenanceRepository?.pruneUnusedSourceScopes(
@@ -98,6 +100,34 @@ fun connectionFailureStatus(error: Throwable, fallback: String = "Connection fai
         "\r",
     ).any { marker -> message.contains(marker, ignoreCase = true) }
     return if (message.length <= 240 && !containsSensitiveStructure) message else fallback
+}
+
+/** Network reachability failures may restore the saved source in local-only mode. */
+fun connectionFailureAllowsOfflineRestoration(error: Throwable): Boolean {
+    val description = generateSequence(error) { it.cause }
+        .joinToString(" ") { cause ->
+            "${cause::class.simpleName.orEmpty()} ${cause.message.orEmpty()}"
+        }
+        .lowercase()
+    val requiresReconnect = listOf(
+        "authentication",
+        "authorization",
+        "certificate",
+        "credentials",
+        "denied",
+        "forbidden",
+        "http 401",
+        "http 403",
+        "invalid session",
+        "password",
+        "permission",
+        "session is no longer valid",
+        "ssl",
+        "tls",
+        "unauthorized",
+        "username",
+    ).any(description::contains)
+    return !requiresReconnect
 }
 
 const val UnusedSourceScopeRetentionMillis: Long = 30L * 24L * 60L * 60L * 1_000L

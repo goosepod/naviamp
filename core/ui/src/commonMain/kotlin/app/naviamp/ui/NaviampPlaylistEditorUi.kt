@@ -111,8 +111,8 @@ fun StandardPlaylistEditorDialog(
 ) {
     var tracks by remember(initialTracks) { mutableStateOf(initialTracks) }
     var undoTracks by remember(initialTracks) { mutableStateOf<List<SharedTrackRowUi>?>(null) }
-    var saving by remember { mutableStateOf(false) }
-    var errorMessage by remember { mutableStateOf<String?>(null) }
+    var saving by remember(initialTracks) { mutableStateOf(false) }
+    var errorMessage by remember(initialTracks) { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
 
     fun apply(index: Int, action: TrackSwipeAction) {
@@ -233,12 +233,14 @@ fun StandardPlaylistEditorDialog(
                     saving = true
                     errorMessage = null
                     scope.launch {
-                        runCatching { onSave(tracks) }
-                            .onSuccess { onDismissRequest() }
-                            .onFailure { error ->
-                                saving = false
-                                errorMessage = error.message ?: "Could not update playlist."
-                            }
+                        try {
+                            onSave(tracks)
+                            onDismissRequest()
+                        } catch (error: Throwable) {
+                            errorMessage = error.message ?: "Could not update playlist."
+                        } finally {
+                            saving = false
+                        }
                     }
                 },
             ) {
@@ -262,6 +264,7 @@ fun StandardPlaylistManagementList(
     initialTracks: List<SharedTrackRowUi>,
     onTrackSelected: (SharedTrackRowUi) -> Unit,
     onSave: suspend (List<SharedTrackRowUi>) -> Unit,
+    externallyDisplayedStatus: String? = null,
     scrollState: ScrollState? = null,
     dragViewportTop: Float = 0f,
     dragViewportBottom: Float = Float.POSITIVE_INFINITY,
@@ -271,9 +274,10 @@ fun StandardPlaylistManagementList(
             PlaylistManagementEntry(key = "$index:${track.id}", track = track)
         })
     }
+    var savedTracks by remember(initialTracks) { mutableStateOf(initialTracks) }
     var undoEntries by remember(initialTracks) { mutableStateOf<List<PlaylistManagementEntry>?>(null) }
-    var saving by remember { mutableStateOf(false) }
-    var errorMessage by remember { mutableStateOf<String?>(null) }
+    var saving by remember(initialTracks) { mutableStateOf(false) }
+    var errorMessage by remember(initialTracks) { mutableStateOf<String?>(null) }
     var draggingIndex by remember { mutableStateOf<Int?>(null) }
     var dragOffsetY by remember { mutableStateOf(0f) }
     var dragPointerY by remember { mutableStateOf(Float.NaN) }
@@ -368,19 +372,20 @@ fun StandardPlaylistManagementList(
                 PlaylistManagementActionButton(
                     colors = colors,
                     label = if (saving) "Saving..." else "Save changes",
-                    enabled = entries.map { it.track } != initialTracks && !saving,
+                    enabled = entries.map { it.track } != savedTracks && !saving,
                     onClick = {
                         saving = true
                         errorMessage = null
                         scope.launch {
-                            runCatching { onSave(entries.map { it.track }) }
-                                .onSuccess {
-                                    saving = false
-                                    undoEntries = null
-                                }
-                                .onFailure { error ->
-                                    saving = false
-                                    errorMessage = error.message ?: "Could not update playlist."
+                            val requestedTracks = entries.map { it.track }
+                            try {
+                                onSave(requestedTracks)
+                                savedTracks = requestedTracks
+                                undoEntries = null
+                            } catch (error: Throwable) {
+                                errorMessage = error.message ?: "Could not update playlist."
+                            } finally {
+                                saving = false
                             }
                         }
                     },
@@ -388,7 +393,9 @@ fun StandardPlaylistManagementList(
             }
         }
         errorMessage?.let { message ->
-            Text(message, color = colors.secondaryText, fontSize = 12.sp)
+            if (message != externallyDisplayedStatus) {
+                Text(message, color = colors.secondaryText, fontSize = 12.sp)
+            }
         }
         Layout(
             modifier = Modifier.fillMaxWidth(),

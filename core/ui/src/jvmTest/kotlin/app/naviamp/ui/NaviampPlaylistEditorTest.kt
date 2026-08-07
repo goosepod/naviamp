@@ -1,14 +1,21 @@
 package app.naviamp.ui
 
+import androidx.compose.foundation.layout.Column
+import androidx.compose.material3.Text
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.onAllNodesWithContentDescription
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.runComposeUiTest
+import androidx.compose.ui.test.swipeRight
 import app.naviamp.domain.settings.TrackSwipeAction
 import app.naviamp.domain.settings.PlaylistEditSwipeActions
+import app.naviamp.domain.settings.TrackSwipeSettings
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
@@ -87,6 +94,62 @@ class NaviampPlaylistEditorTest {
 
         onNodeWithText("Playlist update failed.").assertExists()
         assertEquals(0, onAllNodesWithText("Track A").fetchSemanticsNodes().size)
+    }
+
+    @Test
+    fun successfulInlineSaveClearsSavingAndAdvancesSavedBaseline() = runComposeUiTest {
+        var savedTrackIds = emptyList<String>()
+        setContent {
+            CompositionLocalProvider(
+                LocalTrackSwipeSettings provides TrackSwipeSettings(
+                    playlistEditRight = TrackSwipeAction.Remove,
+                ),
+            ) {
+                StandardPlaylistManagementList(
+                    colors = NaviampColors(),
+                    initialTracks = testTracks(),
+                    onTrackSelected = {},
+                    onSave = { tracks -> savedTrackIds = tracks.map { it.id } },
+                )
+            }
+        }
+
+        onNodeWithText("Track A").performTouchInput { swipeRight() }
+        onNodeWithText("Save changes").performClick()
+        waitForIdle()
+
+        assertEquals(listOf("b"), savedTrackIds)
+        onNodeWithText("Save changes").assertIsNotEnabled()
+        assertEquals(0, onAllNodesWithText("Saving...").fetchSemanticsNodes().size)
+    }
+
+    @Test
+    fun inlineSaveDoesNotRepeatAnExternallyDisplayedFailure() = runComposeUiTest {
+        val failure = "Bandcamp playlist update failed."
+        setContent {
+            CompositionLocalProvider(
+                LocalTrackSwipeSettings provides TrackSwipeSettings(
+                    playlistEditRight = TrackSwipeAction.Remove,
+                ),
+            ) {
+                Column {
+                    Text(failure)
+                    StandardPlaylistManagementList(
+                        colors = NaviampColors(),
+                        initialTracks = testTracks(),
+                        onTrackSelected = {},
+                        onSave = { throw IllegalStateException(failure) },
+                        externallyDisplayedStatus = failure,
+                    )
+                }
+            }
+        }
+
+        onNodeWithText("Track A").performTouchInput { swipeRight() }
+        onNodeWithText("Save changes").performClick()
+        waitForIdle()
+
+        assertEquals(1, onAllNodesWithText(failure).fetchSemanticsNodes().size)
     }
 }
 

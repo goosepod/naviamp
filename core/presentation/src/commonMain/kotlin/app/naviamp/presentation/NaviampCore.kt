@@ -365,6 +365,15 @@ class NaviampCore private constructor(
             val providerSessionLifecycle = NaviampCoreProviderSessionLifecycle(
                 sessionPort = services.connection,
             )
+            val restoreLocalSession: (String) -> Unit = { sourceId ->
+                scope.launch {
+                    val reopenNowPlaying = services.playback.sessions.load(sourceId)?.nowPlayingOpen == true
+                    if (playback.restoreSession(sourceId) && reopenNowPlaying) {
+                        navigation.restoreNowPlayingOpen()
+                    }
+                }
+                scope.launch { downloads.refresh(reconcile = false) }
+            }
             val connection = NaviampCoreConnectionController(
                 NaviampConnectionController(initialState.connection),
                 stateStore,
@@ -396,18 +405,13 @@ class NaviampCore private constructor(
                             )
                         }
                     }
-                    scope.launch {
-                        val reopenNowPlaying = services.playback.sessions.load(sourceId)?.nowPlayingOpen == true
-                        if (playback.restoreSession(sourceId) && reopenNowPlaying) {
-                            navigation.restoreNowPlayingOpen()
-                        }
-                    }
+                    restoreLocalSession(sourceId)
                     scope.launch { home.refreshAfterConnection() }
                     scope.launch { catalog.refreshAfterConnection() }
                     scope.launch { playlistBrowse.refreshAfterConnection() }
                     scope.launch { radio.refreshAfterConnection() }
-                    scope.launch { downloads.refresh(reconcile = false) }
                 },
+                onOfflineRestored = restoreLocalSession,
             )
             if (initialState.connectionInventory.currentSourceId != null) {
                 scope.launch { providerSessionLifecycle.refreshNow() }
@@ -425,6 +429,7 @@ class NaviampCore private constructor(
                         snapshot.serverProfiles.map { source ->
                             NaviampCoreSavedConnectionRecord(
                                 id = source.id,
+                                providerId = source.providerId,
                                 displayName = source.displayName,
                                 serverUrl = source.baseUrl,
                                 username = source.username,
@@ -439,6 +444,7 @@ class NaviampCore private constructor(
                                 connectionSettings = shell.connectionSettings.copy(
                                     connection = shell.connectionSettings.connection.copy(
                                         editingConnection = true,
+                                        editingSavedConnection = false,
                                         form = form,
                                     ),
                                 ),

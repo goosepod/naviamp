@@ -223,3 +223,23 @@ fun playbackTargetPlan(
         ),
     )
 }
+
+/**
+ * A provider-side transcoded seek starts a replacement stream at the requested timestamp. Audio
+ * engines report that replacement stream's position from zero, so translate it back to the
+ * track's timeline before publishing progress to the rest of the app.
+ */
+fun PlaybackProgress.withProviderStartOffset(
+    providerStartPositionSeconds: Double?,
+    trackDurationSeconds: Int?,
+): PlaybackProgress {
+    val offset = providerStartPositionSeconds?.takeIf { it > 0.0 } ?: return this
+    val knownDuration = trackDurationSeconds?.toDouble()
+        ?: durationSeconds?.plus(offset)
+    return PlaybackProgress(
+        positionSeconds = positionSeconds
+            ?.plus(offset)
+            ?.let { position -> knownDuration?.let(position::coerceAtMost) ?: position },
+        durationSeconds = knownDuration,
+    )
+}

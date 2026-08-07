@@ -1,11 +1,11 @@
 package app.naviamp.domain.settings
 
+import app.naviamp.domain.provider.ProviderIdNavidrome
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 
 const val SettingsSyncFileName = "naviamp-settings.json"
 const val CurrentSettingsSyncSchemaVersion = 1
-const val ProviderIdNavidrome = "navidrome"
 
 @Serializable
 data class SettingsSyncDocument(

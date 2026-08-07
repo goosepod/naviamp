@@ -20,6 +20,8 @@ import app.naviamp.domain.provider.ProviderCapabilities
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertTrue
 
 class ProviderConnectionLifecycleTest {
     @Test
@@ -48,6 +50,7 @@ class ProviderConnectionLifecycleTest {
                 },
                 applyTlsDefaults = { calls += "tls" },
                 smartPlaylistAuthWarning = { prepared -> prepared.warning },
+                preferredSourceId = "existing-source",
                 clearProviderData = true,
             ),
             cacheMaintenanceRepository = cache,
@@ -61,6 +64,7 @@ class ProviderConnectionLifecycleTest {
         assertEquals(ConnectionValidation(serverVersion = "1.0", apiVersion = "1.16"), session.validation)
         assertEquals("fake-provider", mediaSources.upsertedProviderId)
         assertEquals("fake-cache", mediaSources.upsertedCacheNamespace)
+        assertEquals("existing-source", mediaSources.preferredSourceId)
     }
 
     @Test
@@ -115,6 +119,17 @@ class ProviderConnectionLifecycleTest {
         assertEquals("Could not connect.", connectionFailureStatus(unexpectedNativeFailure, "Could not connect."))
     }
 
+    @Test
+    fun onlyReachabilityFailuresAllowSavedSessionsToRestoreOffline() {
+        assertTrue(connectionFailureAllowsOfflineRestoration(IllegalStateException("Failed to connect to host")))
+        assertTrue(connectionFailureAllowsOfflineRestoration(IllegalStateException("Request timed out")))
+        assertTrue(connectionFailureAllowsOfflineRestoration(IllegalStateException("UnknownHostException")))
+        assertTrue(connectionFailureAllowsOfflineRestoration(IllegalStateException("Could not connect to the music server.")))
+        assertFalse(connectionFailureAllowsOfflineRestoration(IllegalStateException("HTTP 401")))
+        assertFalse(connectionFailureAllowsOfflineRestoration(IllegalStateException("Check the username and password")))
+        assertFalse(connectionFailureAllowsOfflineRestoration(IllegalStateException("TLS certificate verification failed")))
+    }
+
     private data class FakeConnection(
         val baseUrl: String,
         val username: String,
@@ -163,15 +178,18 @@ class ProviderConnectionLifecycleTest {
     ) : ProviderMediaSourceRepository {
         var upsertedProviderId: String? = null
         var upsertedCacheNamespace: String? = null
+        var preferredSourceId: String? = null
 
         override fun upsertProviderMediaSource(
             connection: ProviderMediaSourceConnection,
             cacheNamespace: String,
             providerId: String,
+            preferredSourceId: String?,
         ): MediaSourceIdentity {
             calls += "upsert"
             upsertedProviderId = providerId
             upsertedCacheNamespace = cacheNamespace
+            this.preferredSourceId = preferredSourceId
             return MediaSourceIdentity(
                 id = "source_fake",
                 cacheNamespace = cacheNamespace,

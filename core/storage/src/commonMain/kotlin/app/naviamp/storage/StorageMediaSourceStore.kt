@@ -94,10 +94,20 @@ class StorageMediaSourceStore(
         connection: ProviderMediaSourceConnection,
         cacheNamespace: String,
         providerId: String,
+        preferredSourceId: String?,
     ): MediaSourceIdentity {
         val now = nowMillis()
-        val existing = queries.selectMediaSourceByCacheNamespace(cacheNamespace).executeAsOneOrNull()
-        val id = existing?.id ?: stableMediaSourceId(cacheNamespace)
+        val existingForNamespace = queries.selectMediaSourceByCacheNamespace(cacheNamespace).executeAsOneOrNull()
+        val preferred = preferredSourceId?.let { sourceId ->
+            requireNotNull(queries.selectMediaSourceById(sourceId).executeAsOneOrNull()) {
+                "Saved connection is no longer available."
+            }
+        }
+        require(existingForNamespace == null || existingForNamespace.id == preferredSourceId) {
+            "A connection with this provider, server, username, and library selection already exists."
+        }
+        val existing = preferred ?: existingForNamespace
+        val id = preferredSourceId ?: existing?.id ?: stableMediaSourceId(cacheNamespace)
         val serverConnectionKey = connection.serverConnectionKey(providerId)
         val libraryScopeKey = connection.libraryScopeKey()
         val values = connection.toStoredValues()

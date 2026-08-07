@@ -30,6 +30,7 @@ import app.naviamp.ui.playlistActionRequest
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
@@ -77,6 +78,26 @@ class NaviampCorePlaylistTransactionControllerTest {
         assertEquals(listOf("track-1", "track-2"), fixture.provider.created.last().second.map(TrackId::value))
         assertEquals(listOf("track-2", "track-1"), fixture.provider.replacementTrackIds.map(TrackId::value))
         assertEquals("Updated playlist.", fixture.store.state.value.shell.playlists.status)
+        assertEquals("Updated playlist.", fixture.store.state.value.shell.playlistDetail.status)
+    }
+
+    @Test
+    fun playlistReplacementFailureIsPublishedAndPropagated() = runTest {
+        val fixture = fixture()
+        fixture.browse.execute(NaviampCoreCommand.Playlists.Refresh)
+        fixture.provider.replacementFailure = IllegalStateException("Bandcamp update failed.")
+
+        val failure = assertFailsWith<IllegalStateException> {
+            fixture.controller.execute(
+                NaviampCoreCommand.Playlists.UpdateTracks(
+                    playlistItem("playlist-a", "Playlist A"),
+                    listOf(trackRow("track-2"), trackRow("track-1")),
+                ),
+            )
+        }
+
+        assertEquals("Bandcamp update failed.", failure.message)
+        assertEquals("Bandcamp update failed.", fixture.store.state.value.shell.playlistDetail.status)
     }
 
     @Test
@@ -270,6 +291,7 @@ private class TransactionTestProvider : MediaProvider {
     val addedTrackIds = mutableListOf<TrackId>()
     val created = mutableListOf<Pair<String, List<TrackId>>>()
     var replacementTrackIds = emptyList<TrackId>()
+    var replacementFailure: Throwable? = null
     val deleted = mutableListOf<String>()
     val smartCreates = mutableListOf<String>()
     val smartUpdates = mutableListOf<String>()
@@ -297,7 +319,12 @@ private class TransactionTestProvider : MediaProvider {
         return Playlist("created-${created.size}", name, trackIds.size).also(playlistItems::add)
     }
 
-    override suspend fun replacePlaylistTracks(playlistId: String, currentTrackCount: Int, trackIds: List<TrackId>) {
+    override suspend fun replacePlaylistTracks(
+        playlistId: String,
+        currentTrackIds: List<TrackId>,
+        trackIds: List<TrackId>,
+    ) {
+        replacementFailure?.let { throw it }
         replacementTrackIds = trackIds
     }
 

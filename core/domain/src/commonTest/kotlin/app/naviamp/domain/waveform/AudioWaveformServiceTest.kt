@@ -143,6 +143,33 @@ class AudioWaveformServiceTest {
     }
 
     @Test
+    fun cacheFailureFallsBackToProviderStreamAnalysis() = runTest {
+        val generated = AudioWaveform(listOf(0.4f, 0.9f))
+        val repository = RecordingWaveformRepository()
+        val analyzer = RecordingWaveformAnalyzer(generated)
+        val service = service(
+            repository = repository,
+            analyzer = analyzer,
+            audioAssets = RecordingAudioAssets(),
+            cacheAudioForWaveform = { _, _, _, _ -> error("Transcode cache unavailable") },
+        )
+
+        val result = service.loadOrCreateWaveform(
+            sourceId = "source",
+            provider = FakeMediaProvider(),
+            track = track(),
+            quality = StreamQuality.Original,
+            audioCachingEnabled = true,
+        )
+
+        assertSame(generated, result.waveform)
+        assertNull(result.localAudio)
+        assertEquals(PlaybackSource.ProviderStream, result.playbackSource)
+        assertEquals("https://example.test/stream/track", analyzer.analyzedUrls.single())
+        assertEquals(listOf("source:track:null"), repository.stored)
+    }
+
+    @Test
     fun canAnalyzeProviderStreamBeforeAudioCaching() = runTest {
         val generated = AudioWaveform(listOf(0.4f, 0.9f))
         val repository = RecordingWaveformRepository()

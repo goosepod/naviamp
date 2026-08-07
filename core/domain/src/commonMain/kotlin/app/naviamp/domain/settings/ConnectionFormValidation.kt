@@ -1,5 +1,7 @@
 package app.naviamp.domain.settings
 
+import app.naviamp.domain.provider.providerDescriptor
+
 fun connectionFormError(
     serverUrl: String,
     username: String,
@@ -15,10 +17,13 @@ fun connectionFormError(
 fun connectionFormError(
     form: ConnectionFormState,
     hasSavedConnectionForLogin: Boolean,
-): String? =
-    connectionFormError(
+): String? {
+    val provider = providerDescriptor(form.providerId)
+    if (!provider.selectable) return "${provider.displayName} support is not available yet."
+    return connectionFormError(
         serverUrl = form.serverUrl,
         username = form.username,
         password = form.password,
         hasSavedConnectionForLogin = hasSavedConnectionForLogin,
     )
+}

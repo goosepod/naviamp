@@ -19,6 +19,8 @@ import app.naviamp.domain.radio.internetRadioTrack
 import app.naviamp.domain.radio.RadioDjPreset
 import app.naviamp.domain.radio.RadioDjPresetRepository
 import app.naviamp.domain.radio.RadioTuningSettings
+import app.naviamp.domain.provider.ProviderIdNavidrome
+import app.naviamp.domain.provider.providerDescriptor
 import app.naviamp.domain.source.ConnectionHeaderDefinition
 import app.naviamp.domain.source.ConnectionSecondaryUrl
 import app.naviamp.domain.source.normalizedMusicFolderIds
@@ -46,6 +48,7 @@ data class ConnectionFormMusicFolder(
 
 @Serializable
 data class ConnectionFormState(
+    val providerId: String = ProviderIdNavidrome,
     val displayName: String = "",
     val serverUrl: String = "",
     val username: String = "",
@@ -58,6 +61,23 @@ data class ConnectionFormState(
     val customHeaders: List<ConnectionFormHeader> = emptyList(),
     val selectedMusicFolderIds: List<String> = emptyList(),
 )
+
+fun ConnectionFormState.selectProvider(providerId: String): ConnectionFormState {
+    val current = providerDescriptor(this.providerId)
+    val selected = providerDescriptor(providerId)
+    if (!selected.selectable || selected.id == current.id) return this
+    val nextServerUrl = when {
+        selected.fixedServerUrl != null -> selected.fixedServerUrl
+        current.fixedServerUrl != null && serverUrl == current.fixedServerUrl -> ""
+        else -> serverUrl
+    }
+    return copy(
+        providerId = selected.id,
+        serverUrl = nextServerUrl,
+        password = "",
+        selectedMusicFolderIds = emptyList(),
+    )
+}
 
 fun List<ConnectionFormSecondaryUrl>.toConnectionSecondaryUrls(): List<ConnectionSecondaryUrl> =
     mapNotNull { entry ->

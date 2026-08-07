@@ -965,6 +965,7 @@ data class NaviampShellConnectionUi(
     val serverVersion: String? = null,
     val connected: Boolean = false,
     val editingConnection: Boolean = false,
+    val editingSavedConnection: Boolean = false,
     val restoringConnection: Boolean = false,
     val isConnecting: Boolean = false,
     val form: ConnectionFormState = ConnectionFormState(),

@@ -148,11 +148,12 @@ class StorageAudioStore(
     ): StorageCachedAudioFile = withContext(workContext) {
         cachedAudioFile(sourceId, track.id, quality)?.let { return@withContext it }
         val qualityKey = quality.cacheKey()
+        val contentType = quality.downloadContentType(track.audioInfo?.contentType)
         val stored = audioCacheByteStoreService.writeProviderAudio(
             sourceId = sourceId,
             trackId = track.id,
             qualityKey = qualityKey,
-            contentType = track.audioInfo?.contentType,
+            contentType = contentType,
             provider = provider,
             streamUrl = provider.streamUrl(StreamRequest(trackId = track.id, quality = quality)),
             errorMessage = "Could not cache audio track.",
@@ -164,12 +165,12 @@ class StorageAudioStore(
             quality_key = qualityKey,
             file_path = stored.filePath,
             size_bytes = stored.sizeBytes,
-            content_type = track.audioInfo?.contentType,
+            content_type = contentType,
             created_at_epoch_millis = now,
             last_accessed_epoch_millis = now,
         )
         trimAudioStore()
-        StorageCachedAudioFile(stored.filePath, stored.sizeBytes, track.audioInfo?.contentType, qualityKey)
+        StorageCachedAudioFile(stored.filePath, stored.sizeBytes, contentType, qualityKey)
     }
 
     override suspend fun downloadedAudioFile(

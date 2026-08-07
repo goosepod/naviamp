@@ -1424,11 +1424,11 @@ class PlaylistMutationsTest {
 
         override suspend fun replacePlaylistTracks(
             playlistId: String,
-            currentTrackCount: Int,
+            currentTrackIds: List<TrackId>,
             trackIds: List<TrackId>,
         ) {
             replacedPlaylistId = playlistId
-            replacedCurrentTrackCount = currentTrackCount
+            replacedCurrentTrackCount = currentTrackIds.size
             replacedTrackIds = trackIds
         }
 

@@ -7,6 +7,7 @@ import app.naviamp.domain.settings.ConnectionFormState
 import app.naviamp.domain.settings.connectionFormError
 import app.naviamp.domain.settings.selectedMusicFolderSummary
 import app.naviamp.domain.source.connectionFailureStatus
+import app.naviamp.domain.source.connectionFailureAllowsOfflineRestoration
 import app.naviamp.ui.NaviampSavedConnectionUi
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.currentCoroutineContext
@@ -39,6 +40,7 @@ class NaviampCoreConnectionController(
     initialInventory: NaviampCoreConnectionInventory = NaviampCoreConnectionInventory(),
     private val onSourceChanging: (previousSourceId: String?, newSourceId: String) -> Unit = { _, _ -> },
     private val onConnected: (String) -> Unit = {},
+    private val onOfflineRestored: (String) -> Unit = {},
 ) : NaviampCoreCommandController {
     private var inventory = initialInventory
     private var editingConnectionId: String? = null
@@ -63,6 +65,7 @@ class NaviampCoreConnectionController(
                 connectionSettings = shell.connectionSettings.copy(
                     connection = shell.connectionSettings.connection.copy(
                         editingConnection = false,
+                        editingSavedConnection = false,
                         form = ConnectionFormState(),
                         availableMusicFolders = emptyList(),
                         musicFoldersStatus = null,
@@ -151,7 +154,10 @@ class NaviampCoreConnectionController(
                 stateStore.updateShell { shell ->
                     shell.copy(
                         connectionSettings = shell.connectionSettings.copy(
-                            connection = shell.connectionSettings.connection.copy(editingConnection = false),
+                            connection = shell.connectionSettings.connection.copy(
+                                editingConnection = false,
+                                editingSavedConnection = false,
+                            ),
                         ),
                     )
                 }
@@ -159,8 +165,18 @@ class NaviampCoreConnectionController(
                 onConnected(session.sourceId)
             }
             .onFailure { cause ->
-                connection.failed(connectionFailureStatus(cause, "Could not connect to the music server."))
-                publishConnection()
+                val savedSourceId = (request as? NaviampCoreConnectionRequest.Saved)?.id
+                if (savedSourceId != null && connectionFailureAllowsOfflineRestoration(cause)) {
+                    connection.offline(
+                        sourceId = savedSourceId,
+                        status = "Offline. Downloaded music remains available.",
+                    )
+                    publishConnection()
+                    onOfflineRestored(savedSourceId)
+                } else {
+                    connection.failed(connectionFailureStatus(cause, "Could not connect to the music server."))
+                    publishConnection()
+                }
             }
     }
 
@@ -173,6 +189,7 @@ class NaviampCoreConnectionController(
                         connectionSettings = shell.connectionSettings.copy(
                             connection = shell.connectionSettings.connection.copy(
                                 editingConnection = true,
+                                editingSavedConnection = true,
                                 form = editable.form,
                                 availableMusicFolders = editable.availableMusicFolders,
                                 musicFoldersStatus = if (editable.musicFoldersLoadFailed) {
@@ -219,6 +236,7 @@ class NaviampCoreConnectionController(
                 connectionSettings = shell.connectionSettings.copy(
                     connection = shell.connectionSettings.connection.copy(
                         editingConnection = true,
+                        editingSavedConnection = false,
                         form = ConnectionFormState(),
                         availableMusicFolders = emptyList(),
                         musicFoldersStatus = null,
@@ -233,7 +251,14 @@ class NaviampCoreConnectionController(
         stateStore.updateShell { shell ->
             shell.copy(
                 connectionSettings = shell.connectionSettings.copy(
-                    connection = shell.connectionSettings.connection.copy(editingConnection = editing),
+                    connection = shell.connectionSettings.connection.copy(
+                        editingConnection = editing,
+                        editingSavedConnection = if (editing) {
+                            shell.connectionSettings.connection.editingSavedConnection
+                        } else {
+                            false
+                        },
+                    ),
                 ),
             )
         }
@@ -256,6 +281,7 @@ class NaviampCoreConnectionController(
         val savedConnections = inventory.connections.map { saved ->
             NaviampSavedConnectionUi(
                 id = saved.id,
+                providerId = saved.providerId,
                 displayName = saved.displayName,
                 serverUrl = saved.serverUrl,
                 username = saved.username,

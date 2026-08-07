@@ -2,6 +2,44 @@
 
 Release changes are grouped into user-facing Features, Bug Fixes, and deployment or infrastructure-related System Settings. Internal task-tracking notes are intentionally not included.
 
+## v2.0.0-alpha.4
+
+This alpha expands Naviamp beyond Navidrome with shared Subsonic, Jellyfin, and Bandcamp connections across desktop, Android, and iOS.
+
+### Features
+
+- Added an explicit provider selector for Navidrome, generic Subsonic/OpenSubsonic, Jellyfin, and Bandcamp, including editable saved-provider types and provider-specific connection guidance.
+- Added native Jellyfin authentication, music-library selection, browsing, search, direct and transcoded playback, instant mixes, favorites, recently played reporting, lyrics, playlists, downloads, and offline playback.
+- Added generic Subsonic/OpenSubsonic capability negotiation while preserving Navidrome-only behavior behind its provider profile.
+- Added Bandcamp collection access through its Subsonic beta, including automatic server-address entry, collection-folder selection, search, playback, downloads, and supported playlist operations.
+- Added shared multi-provider session routing and source-scoped restoration so saved connections, queues, artwork, downloads, and offline playback resolve against the correct provider.
+
+### Bug Fixes
+
+- Fixed Jellyfin transcoded playback, waveform generation, scrubbing, authenticated downloads, media-quality presentation, and downloaded-file fallback.
+- Fixed queue-to-playlist saves so every queued track is included and playlist updates always leave the saving state.
+- Prevented unsupported Bandcamp playlist reordering from sending unreliable mutations, and reduced the explanation to one visible message.
+- Reset connection-page scrolling when opening a new provider and made provider connection failures remain prominent and actionable.
+- Fixed Android system Back handling so playlist, Now Playing, and nested Settings navigation stays inside Naviamp instead of returning to another application.
+- Fixed offline cold restoration when the saved provider is not the first configured source, including downloaded artwork and playback without a reachable server.
+- Preserved playlist-dialog input state across responsive layout changes.
+
+### System Settings
+
+- Added a dedicated shared Jellyfin provider module and kept provider protocol behavior in common code for all three hosts.
+- Changed the Subsonic request client name to `Naviamp` while retaining versioned user-agent diagnostics.
+- Added shared provider, routing, authentication, playlist, download, artwork, playback, restoration, and system-Back regression coverage.
+
+### Alpha Notes and Known Limitations
+
+- Back up important playlists and settings before testing this alpha release.
+- Bandcamp's current beta serves collection audio as MP3 256 kbps and does not reliably apply playlist track reordering; Naviamp blocks reorder mutations for that provider.
+- Provider features are shown only where the current capability profile supports them. Jellyfin does not expose Navidrome smart playlists or sonic-analysis features, and its favorite state is separate from Naviamp's star/rating action.
+- Generic Subsonic compatibility still needs broader testing against additional non-Navidrome server implementations and legacy authentication configurations.
+- Windows, Linux, physical-iPhone, large-library, and long-running multi-provider acceptance remain limited; the detailed remaining matrix is recorded in `docs/provider-expansion-discovery.md`.
+- Windows and macOS builds are not yet distributed with trusted publisher signing, so their operating systems may display security warnings.
+- The iOS IPA is unsigned and requires testers to sign it with their own Apple identity before sideloading.
+
 ## v2.0.0-alpha.3
 
 This alpha adds word-by-word lyrics and gives users independent control over the lyric timing Naviamp downloads and displays.

@@ -332,7 +332,8 @@ class NaviampCorePlaybackController(
                 commands.seek(
                     NaviampPlaybackSeekRequest(
                         positionSeconds = seconds,
-                        streamQuality = playbackSettings.streamQualityForNetwork(false),
+                        streamQuality = effects.playbackQuality
+                            ?: playbackSettings.streamQualityForNetwork(false),
                         playbackSource = effects.playbackSource,
                         issuedAtMillis = nowEpochMillis(),
                     ),

@@ -167,6 +167,11 @@ fun NaviampSharedAppShell(
     )
     val showFullNowPlaying = connected && !editingConnection && !restoringConnection && nowPlayingOpen && nowPlaying != null
     val outerContentScrollState = rememberScrollState()
+    LaunchedEffect(editingConnection) {
+        if (editingConnection) {
+            outerContentScrollState.scrollTo(0)
+        }
+    }
     LaunchedEffect(connection.statusIsError, connection.status) {
         if (connection.statusIsError && !connection.status.isNullOrBlank()) {
             outerContentScrollState.animateScrollTo(0)
@@ -269,7 +274,7 @@ fun NaviampSharedAppShell(
                         NaviampConnectionForm(
                             form = connectionForm,
                             colors = colors,
-                            isReconnect = connected,
+                            isReconnect = connection.editingSavedConnection,
                             isConnecting = isConnecting,
                             connectionStatus = connectionStatus,
                             connectionStatusIsError = connection.statusIsError,
@@ -761,6 +766,7 @@ fun NaviampSettingsContent(
         about = general.about,
         savedConnections = connection.savedConnections,
         isConnectionFormOpen = connection.editingConnection,
+        editingSavedConnection = connection.editingSavedConnection,
         isConnecting = connection.isConnecting,
         connectionStatus = connection.status,
         connectionStatusIsError = connection.statusIsError,

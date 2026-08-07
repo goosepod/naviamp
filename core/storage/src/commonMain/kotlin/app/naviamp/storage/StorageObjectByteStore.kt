@@ -1,6 +1,8 @@
 package app.naviamp.storage
 
 import app.naviamp.domain.cache.ObjectByteStore
+import app.naviamp.domain.cache.ImageCacheRepository
+import app.naviamp.domain.cache.ObjectByteStoreService
 import app.naviamp.domain.cache.StoredObjectBytes
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.withContext
@@ -51,4 +53,19 @@ class StorageObjectByteStore(
             }
         }
     }
+}
+
+/** Shared persistent artwork repository; hosts only supply the network byte effect. */
+class StorageImageCacheRepository(
+    store: ObjectByteStore,
+    private val fetch: suspend (String) -> ByteArray,
+) : ImageCacheRepository {
+    private val service = ObjectByteStoreService(store)
+
+    override suspend fun cachedImageBytes(url: String): ByteArray? = service.cachedBytes(url)
+
+    override suspend fun imageBytes(url: String): ByteArray = service.bytes(url) { fetch(url) }
+
+    override suspend fun imageBytes(url: String, fetch: suspend () -> ByteArray): ByteArray =
+        service.bytes(url, fetch)
 }

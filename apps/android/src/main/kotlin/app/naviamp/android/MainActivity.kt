@@ -8,13 +8,16 @@ import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -24,6 +27,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import app.naviamp.presentation.NaviampCoreApp
 import app.naviamp.presentation.NaviampCoreCommand
+import app.naviamp.presentation.systemBackCommand
+import app.naviamp.ui.LocalNaviampSystemBackDispatcher
+import app.naviamp.ui.NaviampSystemBackDispatcher
 
 /** Thin Android window and intent/permission boundary for the process-owned Core app. */
 class MainActivity : ComponentActivity() {
@@ -40,6 +46,13 @@ class MainActivity : ComponentActivity() {
         setContent {
             rememberAndroidCoreUriPickers()
             val runtime = rememberAndroidNaviampRuntime()
+            val coreState by runtime.core.state.collectAsState()
+            val systemBackDispatcher = remember { NaviampSystemBackDispatcher() }
+            val sharedUiBackHandler = systemBackDispatcher.currentHandler
+            val systemBackCommand = coreState.systemBackCommand()
+            BackHandler(enabled = sharedUiBackHandler != null || systemBackCommand != null) {
+                sharedUiBackHandler?.invoke() ?: systemBackCommand?.let(runtime.core::dispatch)
+            }
             AndroidNotificationPermissionEffect()
             LaunchedEffect(runtime, openNowPlayingRequest) {
                 if (openNowPlayingRequest > 0) {
@@ -53,11 +66,13 @@ class MainActivity : ComponentActivity() {
                 }
             }
             AndroidNaviampPlaybackLifecycle(runtime.core)
-            NaviampCoreApp(
-                core = runtime.core,
-                modifier = Modifier.safeDrawingPadding().imePadding(),
-                applicationUpdateChecker = runtime.applicationUpdateChecker,
-            )
+            CompositionLocalProvider(LocalNaviampSystemBackDispatcher provides systemBackDispatcher) {
+                NaviampCoreApp(
+                    core = runtime.core,
+                    modifier = Modifier.safeDrawingPadding().imePadding(),
+                    applicationUpdateChecker = runtime.applicationUpdateChecker,
+                )
+            }
         }
     }
 

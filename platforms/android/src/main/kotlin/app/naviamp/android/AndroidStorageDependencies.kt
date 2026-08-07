@@ -66,9 +66,6 @@ class AndroidStorageDependencies(
     override fun mediaSource(sourceId: String): SavedMediaSource? =
         storage.mediaSource(sourceId)
 
-    fun latestNavidromeSource(): SavedMediaSource? =
-        storage.latestNavidromeSource()
-
     fun updateDownloadDirectory(directory: java.io.File) = storage.updateDownloadDirectory(directory)
     fun updateAudioCacheDirectory(directory: java.io.File) = storage.updateAudioCacheDirectory(directory)
     val downloadDirectory: java.io.File get() = storage.downloadDirectory

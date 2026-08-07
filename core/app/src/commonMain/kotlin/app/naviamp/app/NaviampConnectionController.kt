@@ -8,6 +8,7 @@ enum class NaviampConnectionPhase {
     Disconnected,
     Connecting,
     Connected,
+    Offline,
     Failed,
 }
 
@@ -25,7 +26,9 @@ data class NaviampConnectionRuntimeState(
     val status: String? = null,
 ) {
     val isConnecting: Boolean get() = phase == NaviampConnectionPhase.Connecting
-    val connected: Boolean get() = phase == NaviampConnectionPhase.Connected
+    val connected: Boolean
+        get() = phase == NaviampConnectionPhase.Connected || phase == NaviampConnectionPhase.Offline
+    val offline: Boolean get() = phase == NaviampConnectionPhase.Offline
     val restoringConnection: Boolean get() = isConnecting && restoringSavedSession
 }
 
@@ -87,6 +90,19 @@ class NaviampConnectionController(
         applicationStatus?.publish(
             area = NaviampApplicationStatusArea.Connection,
             level = NaviampApplicationStatusLevel.Information,
+            message = status,
+        )
+    }
+
+    fun offline(sourceId: String, status: String) {
+        mutableState.value = NaviampConnectionRuntimeState(
+            phase = NaviampConnectionPhase.Offline,
+            sourceId = sourceId,
+            status = status,
+        )
+        applicationStatus?.publish(
+            area = NaviampApplicationStatusArea.Connection,
+            level = NaviampApplicationStatusLevel.Warning,
             message = status,
         )
     }

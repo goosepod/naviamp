@@ -3,8 +3,11 @@ package app.naviamp.provider.navidrome
 import app.naviamp.domain.source.ConnectionHeaderDefinition
 import app.naviamp.domain.source.ConnectionSecondaryUrl
 import app.naviamp.domain.source.normalizedMusicFolderIds
+import app.naviamp.domain.provider.ProviderIdNavidrome
+import app.naviamp.domain.provider.providerDescriptor
 
 data class NavidromeConnectionLoginRequest(
+    val providerId: String = ProviderIdNavidrome,
     val baseUrl: String,
     val secondaryUrls: List<ConnectionSecondaryUrl> = emptyList(),
     val username: String,
@@ -13,7 +16,9 @@ data class NavidromeConnectionLoginRequest(
     val tlsSettings: NavidromeTlsSettings,
     val customHeaders: List<ConnectionHeaderDefinition> = emptyList(),
     val selectedMusicFolderIds: List<String> = emptyList(),
+    val savedSourceId: String? = null,
     val savedConnectionForLogin: NavidromeConnection?,
+    val nativeAuthEnabled: Boolean = true,
     val nativeAuthRequired: Boolean = false,
 )
 
@@ -41,15 +46,22 @@ suspend fun prepareNavidromeConnection(
     val customHeaders = request.customHeaders.mapNotNull { it.normalized() }
     val selectedMusicFolderIds = normalizedMusicFolderIds(request.selectedMusicFolderIds)
     val reusableCredentials = request.savedConnectionForLogin?.takeIf {
-        it.baseUrl == request.baseUrl && it.username == request.username && request.password.isBlank()
+        it.baseUrl == request.baseUrl &&
+            it.username == request.username &&
+            request.password.isBlank()
     }
     val connectionWithoutNativeRefresh = reusableCredentials?.copy(
+        providerId = request.providerId,
+        nativeToken = reusableCredentials.nativeToken.takeIf {
+            subsonicProviderProfile(request.providerId).nativeAuthentication
+        },
         displayName = request.displayName,
         tlsSettings = request.tlsSettings,
         secondaryUrls = normalizedSecondaryUrls,
         customHeaders = customHeaders,
         selectedMusicFolderIds = selectedMusicFolderIds,
     ) ?: NavidromeConnection.fromPassword(
+        providerId = request.providerId,
         baseUrl = request.baseUrl,
         username = request.username,
         password = request.password,
@@ -60,7 +72,7 @@ suspend fun prepareNavidromeConnection(
         selectedMusicFolderIds = selectedMusicFolderIds,
     )
     var nativeAuthErrorMessage: String? = null
-    val connection = if (request.password.isNotBlank()) {
+    val connection = if (request.password.isNotBlank() && request.nativeAuthEnabled) {
         runCatching {
             nativeTokenFromPassword(
                 connectionWithoutNativeRefresh,
@@ -91,12 +103,23 @@ suspend fun NavidromeConnection.withBackfilledDefaultMusicFolder(
     if (normalizedMusicFolderIds(selectedMusicFolderIds).isNotEmpty()) {
         return this
     }
-    return runCatching {
+    val profile = subsonicProviderProfile(providerId)
+    return try {
         val defaultMusicFolderId = musicFolders(this).firstOrNull()?.id
-            ?: return@runCatching this
+        if (defaultMusicFolderId == null) {
+            if (profile.requiresMusicFolderSelection) {
+                throw NavidromeException("${profile.displayName} did not return an accessible music collection.")
+            }
+            return this
+        }
         val selectedIds = normalizedMusicFolderIds(listOf(defaultMusicFolderId))
         if (selectedIds.isEmpty()) this else copy(selectedMusicFolderIds = selectedIds)
-    }.getOrElse {
+    } catch (cause: Throwable) {
+        if (profile.requiresMusicFolderSelection) {
+            throw NavidromeException(
+                "Could not access the ${profile.displayName} music collection. Check the generated credentials and try again.",
+            )
+        }
         this
     }
 }
@@ -119,5 +142,7 @@ private suspend fun NavidromeConnection.withReachableBaseUrl(
             lastFailure = error
         }
     }
-    throw lastFailure ?: NavidromeException("Could not connect to Navidrome.")
+    throw lastFailure ?: NavidromeException(
+        "Could not connect to ${providerDescriptor(providerId).displayName}.",
+    )
 }

@@ -17,7 +17,6 @@ import app.naviamp.presentation.naviampCoreStoredServiceCatalog
 import app.naviamp.presentation.naviampCorePlaybackServiceCatalog
 import app.naviamp.presentation.repositoryNaviampCoreDownloadServices
 import app.naviamp.presentation.withStorageBackedSettings
-import app.naviamp.provider.navidrome.NavidromeProvider
 import app.naviamp.ui.NaviampStorageLocationUi
 import app.naviamp.ui.resetAndroidPlatformCoverArtByteLoader
 import app.naviamp.ui.setAndroidPlatformCoverArtByteLoader
@@ -66,9 +65,12 @@ class AndroidNaviampCoreCatalog private constructor(
             storage.updateAudioCacheLimit(cacheSettings.maxAudioCacheBytes)
             val sessions = androidCoreProviderSessionPort(storage, clock)
             setAndroidPlatformCoverArtByteLoader { url ->
-                (sessions.currentProvider() as? NavidromeProvider)
-                    ?.takeIf { provider -> provider.ownsUrl(url) }
-                    ?.bytes(url)
+                runCatching {
+                    storage.imageBytes(url) {
+                        sessions.currentProvider()?.bytesForOwnedUrl(url)
+                            ?: throw IllegalStateException("Could not load provider artwork.")
+                    }
+                }.getOrNull()
             }
             val playback = naviampCorePlaybackServiceCatalog(
                 scope = scope,
@@ -78,7 +80,7 @@ class AndroidNaviampCoreCatalog private constructor(
                 persistPlaybackSettings = settingsCatalog.savePlayback,
                 cacheSettings = { cacheSettings },
                 isMobileData = isMobileData,
-                activeSourceId = { storage.latestNavidromeSource()?.id },
+                activeSourceId = sessions::currentSourceId,
                 audioAssets = AndroidPlaybackAudioAssets(storage, storage),
                 cacheAudio = { sourceId, provider, track, quality ->
                     storage.cacheAudioTrack(sourceId, provider, track, quality)
@@ -109,6 +111,7 @@ class AndroidNaviampCoreCatalog private constructor(
                 downloadRepository = storage,
                 replacementRepository = storage,
                 keepDownloadedRepository = storage,
+                artworkCacheRepository = storage,
                 toCoreDownload = { stored ->
                     NaviampCoreDownloadedTrack(
                         storageId = stored.filePath,
@@ -171,7 +174,7 @@ class AndroidNaviampCoreCatalog private constructor(
                 audioCacheLocations = audioCacheLocations.map(AndroidStorageLocation::toCoreUi),
                 selectedDownloadLocationId = downloadLocations.idFor(storage.downloadDirectory),
                 selectedAudioCacheLocationId = audioCacheLocations.idFor(storage.audioCacheDirectory),
-                sourceId = { storage.latestNavidromeSource()?.id },
+                sourceId = sessions::currentSourceId,
                 clockEpochMillis = clock::nowEpochMillis,
                 favoritedAtIso8601 = { Instant.now().toString() },
                 diagnostics = AndroidCoreDiagnosticsPort(storage::stats),

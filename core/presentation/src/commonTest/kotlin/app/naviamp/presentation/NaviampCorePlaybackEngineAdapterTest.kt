@@ -100,6 +100,83 @@ class NaviampCorePlaybackEngineAdapterTest {
     }
 
     @Test
+    fun downloadedPlaybackDoesNotRequireAnOnlineProviderSession() = runTest {
+        val engine = RecordingPlaybackEngine()
+        val track = FakeCoreMediaProvider().track
+        val audioAssets = object : PlaybackAudioAssetRepository {
+            override suspend fun downloadedAudio(sourceId: String, trackId: TrackId) =
+                PlaybackLocalAudio(
+                    path = "/downloads/${trackId.value}.mp3",
+                    uri = "file:///downloads/${trackId.value}.mp3",
+                    quality = StreamQuality.Original,
+                )
+
+            override suspend fun downloadedAudio(sourceId: String, trackId: TrackId, quality: StreamQuality) =
+                downloadedAudio(sourceId, trackId)
+
+            override suspend fun cachedAudio(sourceId: String, trackId: TrackId, quality: StreamQuality) = null
+        }
+        val adapter = NaviampCorePlaybackEngineAdapter(
+            scope = this,
+            engine = engine,
+            providerSource = NaviampCoreMediaProviderSource { null },
+            settings = { PlaybackSettings(downloadedTrackPlayback = DownloadedTrackPlayback.PreferDownloaded) },
+            activeSourceId = { "source" },
+            audioAssets = audioAssets,
+        )
+
+        adapter.playQueueSelection(PlaybackQueue(listOf(track), 0), 0)
+        advanceUntilIdle()
+
+        assertEquals("file:///downloads/core-track.mp3", engine.request?.url)
+        assertEquals(PlaybackSource.DownloadedFile, adapter.playbackSource)
+    }
+
+    @Test
+    fun serverPreferredPlaybackKeepsDownloadedAudioAsItsOfflineFallback() = runTest {
+        val provider = FakeCoreMediaProvider()
+        val engine = RecordingPlaybackEngine()
+        val localAudio = PlaybackLocalAudio(
+            path = "/downloads/${provider.track.id.value}.mp3",
+            uri = "file:///downloads/${provider.track.id.value}.mp3",
+            quality = StreamQuality.Original,
+        )
+        val audioAssets = object : PlaybackAudioAssetRepository {
+            override suspend fun downloadedAudio(sourceId: String, trackId: TrackId) = localAudio
+
+            override suspend fun downloadedAudio(
+                sourceId: String,
+                trackId: TrackId,
+                quality: StreamQuality,
+            ) = localAudio
+
+            override suspend fun cachedAudio(
+                sourceId: String,
+                trackId: TrackId,
+                quality: StreamQuality,
+            ): PlaybackLocalAudio? = null
+        }
+        val adapter = NaviampCorePlaybackEngineAdapter(
+            scope = this,
+            engine = engine,
+            providerSource = NaviampCoreMediaProviderSource { provider },
+            settings = { PlaybackSettings(downloadedTrackPlayback = DownloadedTrackPlayback.PreferServer) },
+            activeSourceId = { "source" },
+            audioAssets = audioAssets,
+        )
+
+        adapter.playQueueSelection(PlaybackQueue(listOf(provider.track), 0), 0)
+        advanceUntilIdle()
+
+        assertEquals(
+            provider.streamUrl(app.naviamp.domain.StreamRequest(provider.track.id, StreamQuality.Original)),
+            engine.request?.url,
+        )
+        assertEquals(localAudio.uri, engine.request?.fallbackUrl)
+        assertEquals(PlaybackSource.ProviderStreamCacheDisabled, adapter.playbackSource)
+    }
+
+    @Test
     fun providerCertificatePolicyIsAppliedBeforeNativeStreamPlayback() = runTest {
         val provider = FakeCoreMediaProvider()
         val engine = RecordingPlaybackEngine().apply { recordCertificatePolicy = true }
@@ -637,8 +714,8 @@ class NaviampCorePlaybackEngineAdapterTest {
         assertEquals(listOf("saved-source", "saved-source"), waveformSourceIds)
         assertEquals(
             listOf<StreamQuality>(
-                StreamQuality.Transcoded(app.naviamp.domain.AudioCodec.Opus, 192),
-                StreamQuality.Transcoded(app.naviamp.domain.AudioCodec.Opus, 192),
+                StreamQuality.Original,
+                StreamQuality.Original,
             ),
             waveformQualities,
         )

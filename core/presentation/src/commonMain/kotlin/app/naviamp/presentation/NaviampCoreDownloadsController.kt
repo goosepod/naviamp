@@ -18,6 +18,7 @@ import app.naviamp.domain.cache.KeepDownloadedCollectionPolicy
 import app.naviamp.domain.cache.KeepDownloadedCollectionKind
 import app.naviamp.domain.provider.MediaProvider
 import app.naviamp.domain.settings.downloadStreamQuality
+import app.naviamp.domain.provider.effectiveDownloadQuality
 import app.naviamp.ui.DownloadedTrackAction
 import app.naviamp.ui.DownloadedTrackActionRequest
 import app.naviamp.ui.KeepDownloadedActionValue
@@ -121,7 +122,9 @@ class NaviampCoreDownloadsController(
                         tracks = tracks,
                         sourceId = activeSourceId,
                         provider = activeProvider,
-                        quality = playbackSettings.downloadStreamQuality(),
+                        quality = activeProvider.capabilities.effectiveDownloadQuality(
+                            playbackSettings.downloadStreamQuality(),
+                        ),
                         maxDownloadBytes = stateStore.state.value.shell.cache.settings.maxDownloadBytes,
                         replaceExisting = replaceExisting,
                         allowMobileDownloads = playbackSettings.allowMobileDownloads,

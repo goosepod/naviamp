@@ -23,9 +23,11 @@ kotlin {
             implementation(project(":core:ui"))
             implementation(project(":platforms:ios"))
             implementation(project(":providers:navidrome"))
+            implementation(project(":providers:jellyfin"))
             implementation(compose.runtime)
             implementation(compose.ui)
             implementation(libs.compose.material3)
+            implementation(libs.ktor.client.core)
         }
     }
 }

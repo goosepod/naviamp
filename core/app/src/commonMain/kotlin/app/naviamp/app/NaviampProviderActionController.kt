@@ -37,6 +37,14 @@ class NaviampProviderActionController(
 
     fun offlineCapable(provider: MediaProvider, sourceId: String?): MediaProvider =
         object : MediaProvider by provider {
+            override suspend fun replacePlaylistTracks(
+                playlistId: String,
+                currentTrackIds: List<TrackId>,
+                trackIds: List<TrackId>,
+            ) {
+                provider.replacePlaylistTracks(playlistId, currentTrackIds, trackIds)
+            }
+
             override suspend fun reportNowPlaying(trackId: TrackId) {
                 runOrEnqueue(sourceId, PendingActionReportNowPlaying, trackId.value) {
                     provider.reportNowPlaying(trackId)

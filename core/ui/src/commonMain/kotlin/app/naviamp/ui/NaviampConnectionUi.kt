@@ -1,6 +1,7 @@
 package app.naviamp.ui
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -15,6 +16,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -40,6 +43,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -54,11 +58,17 @@ import app.naviamp.domain.settings.ConnectionFormHeader
 import app.naviamp.domain.settings.ConnectionFormMusicFolder
 import app.naviamp.domain.settings.ConnectionFormSecondaryUrl
 import app.naviamp.domain.settings.InterfaceSettings
+import app.naviamp.domain.settings.selectProvider
 import app.naviamp.domain.settings.AlbumCollectionLayout
 import app.naviamp.domain.settings.AlbumSortOrder
 import app.naviamp.domain.settings.AppBackgroundStyle
 import app.naviamp.domain.settings.DefaultSingleColorHex
 import app.naviamp.domain.settings.toggleSelectedMusicFolderId
+import app.naviamp.domain.provider.NaviampProviderCatalog
+import app.naviamp.domain.provider.ProviderAvailability
+import app.naviamp.domain.provider.ProviderConnectionIcon
+import app.naviamp.domain.provider.ProviderDescriptor
+import app.naviamp.domain.provider.providerDescriptor
 
 @Composable
 internal fun RestoringConnectionCard(
@@ -103,6 +113,17 @@ fun NaviampConnectionForm(
             ConnectionErrorCard(connectionStatus)
         }
         SettingsSectionTitle("Connection Details", colors)
+        ProviderSelector(
+            selectedProviderId = form.providerId,
+            colors = colors,
+            enabled = !isConnecting,
+            onProviderSelected = { providerId -> onFormChanged(form.selectProvider(providerId)) },
+        )
+        Text(
+            providerDescriptor(form.providerId).connectionGuidance,
+            color = colors.mutedText,
+            fontSize = 11.sp,
+        )
         if (isReconnect) {
             Text(
                 "Saved credentials loaded. Leave password blank to reuse them.",
@@ -328,6 +349,94 @@ fun NaviampConnectionForm(
             }
         }
     }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun ProviderSelector(
+    selectedProviderId: String,
+    colors: NaviampColors,
+    enabled: Boolean,
+    onProviderSelected: (String) -> Unit,
+) {
+    FlowRow(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        NaviampProviderCatalog.forEach { provider ->
+            ProviderSelectionTile(
+                provider = provider,
+                selected = provider.id == selectedProviderId,
+                enabled = enabled && provider.selectable,
+                colors = colors,
+                onClick = { onProviderSelected(provider.id) },
+            )
+        }
+    }
+}
+
+@Composable
+private fun ProviderSelectionTile(
+    provider: ProviderDescriptor,
+    selected: Boolean,
+    enabled: Boolean,
+    colors: NaviampColors,
+    onClick: () -> Unit,
+) {
+    val contentColor = when {
+        selected -> colors.primaryText
+        enabled -> colors.secondaryText
+        else -> colors.mutedText
+    }
+    val shape = RoundedCornerShape(10.dp)
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+        modifier = Modifier
+            .widthIn(min = 126.dp, max = 180.dp)
+            .clip(shape)
+            .background(
+                if (selected) colors.accent.copy(alpha = 0.28f)
+                else colors.controlSurface.copy(alpha = 0.45f),
+            )
+            .border(
+                width = if (selected) 2.dp else 1.dp,
+                color = if (selected) colors.accent else colors.border.copy(alpha = 0.7f),
+                shape = shape,
+            )
+            .selectable(
+                selected = selected,
+                enabled = enabled,
+                role = Role.RadioButton,
+                onClick = onClick,
+            )
+            .padding(horizontal = 12.dp, vertical = 10.dp),
+    ) {
+        Icon(
+            imageVector = provider.icon.toImageVector(),
+            contentDescription = null,
+            tint = contentColor,
+            modifier = Modifier.size(24.dp),
+        )
+        Text(
+            provider.displayName,
+            color = contentColor,
+            fontSize = 12.sp,
+            fontWeight = FontWeight.SemiBold,
+            maxLines = 1,
+        )
+        if (provider.availability == ProviderAvailability.ComingSoon) {
+            Text("Coming soon", color = colors.mutedText, fontSize = 10.sp, maxLines = 1)
+        }
+    }
+}
+
+private fun ProviderConnectionIcon.toImageVector() = when (this) {
+    ProviderConnectionIcon.Navidrome -> NaviampIcons.Turntable
+    ProviderConnectionIcon.Subsonic -> NaviampIcons.Globe
+    ProviderConnectionIcon.Jellyfin -> NaviampIcons.Player
+    ProviderConnectionIcon.Bandcamp -> NaviampIcons.Library
 }
 
 @Composable

@@ -2,12 +2,68 @@ package app.naviamp.provider.navidrome
 
 import app.naviamp.domain.source.ConnectionTlsSettings
 import app.naviamp.domain.source.ConnectionSecondaryUrl
+import app.naviamp.domain.provider.ProviderIdBandcamp
+import app.naviamp.domain.provider.ProviderIdSubsonic
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertNull
 
 class NavidromeConnectionPreparationTest {
+    @Test
+    fun reclassifyingSavedNavidromeAsSubsonicReusesPortableCredentialsAndDropsNativeToken() = runTest {
+        val savedConnection = navidromeConnection(token = "saved-token", nativeToken = "navidrome-native")
+        val prepared = prepareNavidromeConnection(
+            NavidromeConnectionLoginRequest(
+                providerId = ProviderIdSubsonic,
+                baseUrl = "https://music.example.test",
+                username = "demo",
+                password = "",
+                displayName = "Demo server",
+                tlsSettings = ConnectionTlsSettings(),
+                savedSourceId = "source-1",
+                savedConnectionForLogin = savedConnection,
+                nativeAuthEnabled = false,
+            ),
+            validateConnection = {},
+            musicFolders = { emptyList() },
+        )
+
+        assertEquals(ProviderIdSubsonic, prepared.connection.providerId)
+        assertEquals("saved-token", prepared.connection.token)
+        assertEquals(savedConnection.salt, prepared.connection.salt)
+        assertNull(prepared.connection.nativeToken)
+    }
+
+    @Test
+    fun genericSubsonicPreservesProviderIdentityAndSkipsNavidromeNativeAuth() = runTest {
+        var nativeAuthCalls = 0
+        val prepared = prepareNavidromeConnection(
+            NavidromeConnectionLoginRequest(
+                providerId = ProviderIdSubsonic,
+                baseUrl = "https://subsonic.example.test",
+                username = "demo",
+                password = "secret",
+                displayName = "Generic server",
+                tlsSettings = ConnectionTlsSettings(),
+                savedConnectionForLogin = null,
+                nativeAuthEnabled = false,
+            ),
+            validateConnection = {},
+            musicFolders = { emptyList() },
+            nativeTokenFromPassword = { connection, _, _ ->
+                nativeAuthCalls += 1
+                connection.copy(nativeToken = "must-not-be-used")
+            },
+        )
+
+        assertEquals(ProviderIdSubsonic, prepared.connection.providerId)
+        assertEquals(0, nativeAuthCalls)
+        assertNull(prepared.connection.nativeToken)
+        assertNull(prepared.nativeAuthErrorMessage)
+    }
+
     @Test
     fun reusesSavedCredentialsWhenPasswordIsBlank() = runTest {
         val savedConnection = navidromeConnection(token = "saved-token", nativeToken = "native")
@@ -165,6 +221,30 @@ class NavidromeConnectionPreparationTest {
         )
 
         assertEquals(emptyList(), prepared.connection.selectedMusicFolderIds)
+    }
+
+    @Test
+    fun bandcampRequiresAnAccessibleMusicCollection() = runTest {
+        val failure = assertFailsWith<NavidromeException> {
+            prepareNavidromeConnection(
+                NavidromeConnectionLoginRequest(
+                    providerId = ProviderIdBandcamp,
+                    baseUrl = "https://bandcamp.com/api/subsonic",
+                    username = "fan",
+                    password = "generated-password",
+                    displayName = "Bandcamp",
+                    tlsSettings = ConnectionTlsSettings(),
+                    savedConnectionForLogin = null,
+                ),
+                validateConnection = {},
+                musicFolders = { throw NavidromeHttpException(500) },
+            )
+        }
+
+        assertEquals(
+            "Could not access the Bandcamp music collection. Check the generated credentials and try again.",
+            failure.message,
+        )
     }
 }
 

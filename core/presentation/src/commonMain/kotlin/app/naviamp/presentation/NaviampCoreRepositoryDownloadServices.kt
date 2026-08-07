@@ -8,6 +8,7 @@ import app.naviamp.domain.cache.DownloadRepository
 import app.naviamp.domain.cache.DownloadService
 import app.naviamp.domain.cache.KeepDownloadedCollectionPolicy
 import app.naviamp.domain.cache.KeepDownloadedRepository
+import app.naviamp.domain.cache.ImageCacheRepository
 import app.naviamp.domain.cache.planKeepDownloadedReconciliation
 import app.naviamp.domain.cache.shouldRefreshDownloadsAfter
 
@@ -21,6 +22,7 @@ fun <DownloadedFile, StoredDownload> repositoryNaviampCoreDownloadServices(
     downloadRepository: DownloadRepository<DownloadedFile, StoredDownload>,
     replacementRepository: DownloadReplacementRepository<DownloadedFile>,
     keepDownloadedRepository: KeepDownloadedRepository,
+    artworkCacheRepository: ImageCacheRepository? = null,
     toCoreDownload: (StoredDownload) -> NaviampCoreDownloadedTrack,
     isStoredDownloadAvailable: (StoredDownload) -> Boolean,
     storageStats: () -> NaviampCoreDownloadStorageSnapshot = { NaviampCoreDownloadStorageSnapshot() },
@@ -81,6 +83,9 @@ fun <DownloadedFile, StoredDownload> repositoryNaviampCoreDownloadServices(
                 onJobUpdate = onJobUpdate,
             )
         }
+        artworkCacheRepository?.let { cache ->
+            cacheDownloadedTrackArtwork(request.provider, request.tracks, cache)
+        }
         NaviampCoreDownloadTransferResult(shouldRefreshDownloadsAfter(result))
     }
     val keepDownloaded = object : NaviampCoreKeepDownloadedPort {
@@ -137,4 +142,20 @@ fun <DownloadedFile, StoredDownload> repositoryNaviampCoreDownloadServices(
             }.let { keepDownloadedReconciliationApplication(policy, it) }
     }
     return NaviampCoreDownloadServices(storage, transfer, keepDownloaded, network)
+}
+
+internal suspend fun cacheDownloadedTrackArtwork(
+    provider: app.naviamp.domain.provider.MediaProvider,
+    tracks: List<Track>,
+    cache: ImageCacheRepository,
+) {
+    tracks.mapNotNull(Track::coverArtId).distinct().forEach { coverArtId ->
+        runCatching {
+            val url = provider.coverArtUrl(coverArtId)
+            cache.imageBytes(url) {
+                provider.bytesForOwnedUrl(url)
+                    ?: throw IllegalStateException("Could not download cover art.")
+            }
+        }
+    }
 }

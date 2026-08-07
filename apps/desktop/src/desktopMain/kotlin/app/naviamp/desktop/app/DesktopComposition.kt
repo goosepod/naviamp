@@ -26,12 +26,12 @@ import app.naviamp.presentation.naviampCoreStoredServiceCatalog
 import app.naviamp.presentation.repositoryNaviampCoreDownloadServices
 import app.naviamp.presentation.toShellCapabilitiesUi
 import app.naviamp.presentation.withStorageBackedSettings
-import app.naviamp.provider.navidrome.NavidromeProvider
 import app.naviamp.storage.StorageDatabaseLocation
 import app.naviamp.ui.NaviampStorageLocationUi
 import app.naviamp.ui.jvmGeneratedCoverArtBytes
 import app.naviamp.ui.resetJvmPlatformCoverArtByteLoader
 import app.naviamp.ui.setJvmPlatformCoverArtByteLoader
+import app.naviamp.storage.StorageImageCacheRepository
 import java.nio.file.Files
 import java.nio.file.Path
 import java.time.Instant
@@ -86,12 +86,14 @@ internal class DesktopComposition private constructor(
                 nowEpochMillis = nowEpochMillis,
             )
             val sharedHttpClient = KtorSharedHttpClient()
+            val artworkCache = StorageImageCacheRepository(storage.objectBytes) { url ->
+                sessions.currentProvider()?.bytesForOwnedUrl(url)
+                    ?: sharedHttpClient.getBytes(url)
+                    ?: throw IllegalStateException("Could not load artwork.")
+            }
             setJvmPlatformCoverArtByteLoader { url ->
                 jvmGeneratedCoverArtBytes(url)
-                    ?: (sessions.currentProvider() as? NavidromeProvider)
-                        ?.takeIf { provider -> provider.ownsUrl(url) }
-                        ?.bytes(url)
-                    ?: sharedHttpClient.getBytes(url)
+                    ?: runCatching { artworkCache.imageBytes(url) }.getOrNull()
                     ?: ByteArray(0)
             }
             val engine = CoreBassPlaybackEngine(
@@ -142,6 +144,7 @@ internal class DesktopComposition private constructor(
                 downloadRepository = storage.audioStore,
                 replacementRepository = storage.audioStore,
                 keepDownloadedRepository = storage.keepDownloaded,
+                artworkCacheRepository = artworkCache,
                 toCoreDownload = { stored ->
                     NaviampCoreDownloadedTrack(
                         storageId = stored.filePath,

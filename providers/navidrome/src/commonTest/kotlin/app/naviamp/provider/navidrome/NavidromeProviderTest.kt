@@ -14,6 +14,8 @@ import app.naviamp.domain.provider.AlbumListType
 import app.naviamp.domain.provider.CoverArtSize
 import app.naviamp.domain.provider.MediaPageRequest
 import app.naviamp.domain.provider.PlaybackReportState
+import app.naviamp.domain.provider.ProviderIdSubsonic
+import app.naviamp.domain.provider.ProviderIdBandcamp
 import app.naviamp.domain.network.NaviampClientName
 import app.naviamp.domain.popular.NavidromeAgentMetadataSource
 import app.naviamp.domain.smartplaylist.SmartPlaylistCondition
@@ -33,6 +35,44 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class NavidromeProviderTest {
+    @Test
+    fun genericSubsonicUsesItsPersistedIdentityAndDisablesNavidromeSmartPlaylists() {
+        val provider = NavidromeProvider(
+            connection("https://subsonic.example.test").copy(providerId = ProviderIdSubsonic),
+        )
+
+        assertEquals(ProviderIdSubsonic, provider.id.value)
+        assertEquals("Subsonic", provider.displayName)
+        assertFalse(provider.capabilities.supportsSmartPlaylists)
+        assertTrue(provider.cacheNamespace.startsWith("subsonic:"))
+    }
+
+    @Test
+    fun bandcampUsesConservativeBetaCapabilitiesAndOriginalStreams() = runTest {
+        val provider = NavidromeProvider(
+            connection("https://bandcamp.com/api/subsonic").copy(providerId = ProviderIdBandcamp),
+        )
+
+        val url = provider.streamUrl(
+            StreamRequest(
+                trackId = TrackId("purchase-1"),
+                quality = StreamQuality.Transcoded(AudioCodec.Opus, 128),
+            ),
+        )
+
+        assertEquals(ProviderIdBandcamp, provider.id.value)
+        assertEquals("Bandcamp", provider.displayName)
+        assertFalse(provider.capabilities.supportsStreamingTranscode)
+        assertFalse(provider.capabilities.supportsDownloadTranscode)
+        assertFalse(provider.capabilities.supportsTrackFavorites)
+        assertFalse(provider.capabilities.supportsTrackRatings)
+        assertFalse(provider.capabilities.supportsTrackRadio)
+        assertEquals(
+            "https://bandcamp.com/api/subsonic/rest/stream.view?u=demo&t=token&s=salt&v=1.16.1&$ExpectedClientQuery&f=json&id=purchase-1",
+            url,
+        )
+    }
+
     @Test
     fun streamUrlUsesNormalizedBaseUrl() = runTest {
         val provider = NavidromeProvider(connection("https://music.example.test/"))
@@ -1141,6 +1181,36 @@ class NavidromeProviderTest {
     }
 
     @Test
+    fun bandcampCreatesPlaylistThenAddsEveryTrackSeparately() = runTest {
+        val httpClient = RecordingResponseHttpClient(
+            """
+            {
+              "subsonic-response": {
+                "status": "ok",
+                "playlist": { "id": "playlist-1", "name": "Road Mix", "songCount": 0 }
+              }
+            }
+            """.trimIndent(),
+        )
+        val provider = NavidromeProvider(
+            connection = connection("https://bandcamp.com/api/subsonic").copy(providerId = ProviderIdBandcamp),
+            httpClient = httpClient,
+        )
+
+        val playlist = provider.createPlaylist(
+            "Road Mix",
+            listOf(TrackId("track-1"), TrackId("track-2"), TrackId("track-3")),
+        )
+
+        assertEquals(3, playlist.trackCount)
+        assertEquals(4, httpClient.urls.size)
+        assertTrue(httpClient.urls[0].endsWith("&name=Road+Mix"))
+        assertTrue(httpClient.urls[1].endsWith("&playlistId=playlist-1&songIdToAdd=track-1"))
+        assertTrue(httpClient.urls[2].endsWith("&playlistId=playlist-1&songIdToAdd=track-2"))
+        assertTrue(httpClient.urls[3].endsWith("&playlistId=playlist-1&songIdToAdd=track-3"))
+    }
+
+    @Test
     fun createSmartPlaylistUsesNavidromeNativePlaylistApi() = runTest {
         val httpClient = RecordingNativeHttpClient(
             """
@@ -1220,6 +1290,7 @@ class NavidromeProviderTest {
                 connection: ProviderMediaSourceConnection,
                 cacheNamespace: String,
                 providerId: String,
+                preferredSourceId: String?,
             ): MediaSourceIdentity {
                 persisted = connection
                 return MediaSourceIdentity("source", cacheNamespace, connection.displayName)
@@ -1253,6 +1324,7 @@ class NavidromeProviderTest {
                 connection: ProviderMediaSourceConnection,
                 cacheNamespace: String,
                 providerId: String,
+                preferredSourceId: String?,
             ): MediaSourceIdentity {
                 persisted = connection
                 return MediaSourceIdentity("source", cacheNamespace, connection.displayName)
@@ -1598,7 +1670,7 @@ class NavidromeProviderTest {
 
         provider.replacePlaylistTracks(
             playlistId = "playlist-1",
-            currentTrackCount = 3,
+            currentTrackIds = listOf(TrackId("track-9"), TrackId("track-8"), TrackId("track-7")),
             trackIds = listOf(TrackId("track-3"), TrackId("track-1")),
         )
 
@@ -1606,6 +1678,63 @@ class NavidromeProviderTest {
             "https://music.example.test/rest/updatePlaylist.view?u=demo&t=token&s=salt&v=1.16.1&$ExpectedClientQuery&f=json&playlistId=playlist-1&songIndexToRemove=0&songIndexToRemove=1&songIndexToRemove=2&songIdToAdd=track-3&songIdToAdd=track-1",
             httpClient.urls.single(),
         )
+    }
+
+    @Test
+    fun bandcampRejectsUnsafePlaylistReorderingBeforeSendingMutations() = runTest {
+        val httpClient = RecordingHttpClient()
+        val provider = NavidromeProvider(
+            connection("https://bandcamp.com/api/subsonic").copy(providerId = ProviderIdBandcamp),
+            httpClient,
+        )
+
+        val failure = assertFailsWith<UnsupportedOperationException> {
+            provider.replacePlaylistTracks(
+                playlistId = "playlist-1",
+                currentTrackIds = listOf(TrackId("track-1"), TrackId("track-2"), TrackId("track-3")),
+                trackIds = listOf(TrackId("track-1"), TrackId("track-3"), TrackId("track-2")),
+            )
+        }
+
+        assertTrue(failure.message.orEmpty().contains("does not reliably support rearranging"))
+        assertTrue(httpClient.urls.isEmpty())
+    }
+
+    @Test
+    fun bandcampRemovesOnlyUnwantedPlaylistTracksFromTheEndBackward() = runTest {
+        val httpClient = RecordingHttpClient()
+        val provider = NavidromeProvider(
+            connection("https://bandcamp.com/api/subsonic").copy(providerId = ProviderIdBandcamp),
+            httpClient,
+        )
+
+        provider.replacePlaylistTracks(
+            playlistId = "playlist-1",
+            currentTrackIds = listOf(TrackId("track-1"), TrackId("track-2"), TrackId("track-3"), TrackId("track-4")),
+            trackIds = listOf(TrackId("track-1"), TrackId("track-3")),
+        )
+
+        assertEquals(2, httpClient.urls.size)
+        assertTrue(httpClient.urls[0].endsWith("&playlistId=playlist-1&songIndexToRemove=3"))
+        assertTrue(httpClient.urls[1].endsWith("&playlistId=playlist-1&songIndexToRemove=1"))
+    }
+
+    @Test
+    fun bandcampAppendingOneTrackUsesOnePlaylistMutation() = runTest {
+        val httpClient = RecordingHttpClient()
+        val provider = NavidromeProvider(
+            connection("https://bandcamp.com/api/subsonic").copy(providerId = ProviderIdBandcamp),
+            httpClient,
+        )
+
+        provider.replacePlaylistTracks(
+            playlistId = "playlist-1",
+            currentTrackIds = listOf(TrackId("track-1"), TrackId("track-2")),
+            trackIds = listOf(TrackId("track-1"), TrackId("track-2"), TrackId("track-3")),
+        )
+
+        assertEquals(1, httpClient.urls.size)
+        assertTrue(httpClient.urls.single().endsWith("&playlistId=playlist-1&songIdToAdd=track-3"))
     }
 
     @Test
