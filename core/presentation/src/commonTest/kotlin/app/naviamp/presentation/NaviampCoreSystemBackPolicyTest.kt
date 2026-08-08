@@ -4,6 +4,8 @@ import app.naviamp.ui.NaviampAlbumDetailScreenUi
 import app.naviamp.ui.NaviampArtistDetailScreenUi
 import app.naviamp.ui.NaviampPlaylistDetailScreenUi
 import app.naviamp.ui.SharedMediaItemUi
+import app.naviamp.ui.SharedHomeCollectionPageUi
+import app.naviamp.ui.SharedHomeCollectionSectionUi
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
@@ -46,6 +48,23 @@ class NaviampCoreSystemBackPolicyTest {
     @Test
     fun rootScreenLetsTheHostHandleBack() {
         assertNull(NaviampCoreState().systemBackCommand())
+    }
+
+    @Test
+    fun homeCollectionPageUsesItsCoreBackCommand() {
+        val state = NaviampCoreState().let { initial ->
+            initial.copy(
+                shell = initial.shell.copy(
+                    home = initial.shell.home.copy(
+                        collectionPage = SharedHomeCollectionPageUi(
+                            SharedHomeCollectionSectionUi("section", "SECTION", emptyList()),
+                        ),
+                    ),
+                ),
+            )
+        }
+
+        assertEquals(NaviampCoreCommand.Home.CloseCollection, state.systemBackCommand())
     }
 
     private fun stateWithPlaylist() = NaviampCoreState(

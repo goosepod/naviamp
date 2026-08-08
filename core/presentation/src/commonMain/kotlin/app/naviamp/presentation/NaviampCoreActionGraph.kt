@@ -222,6 +222,11 @@ fun createNaviampCoreActions(
             onStationSelected = { send(NaviampCoreCommand.Home.SelectStation(it)) },
             onSonicDiscoveryTrackAction = { send(NaviampCoreCommand.Home.SonicTrackAction(it)) },
             onRecentlyPlayedTrackAction = { send(NaviampCoreCommand.Home.RecentTrackAction(it)) },
+            onCollectionSelected = { send(NaviampCoreCommand.Home.OpenCollection(it)) },
+            onCollectionBack = { send(NaviampCoreCommand.Home.CloseCollection) },
+            onCollectionPageLayoutChanged = { sectionId, layout ->
+                send(NaviampCoreCommand.Settings.ChangeHomeSectionPageLayout(sectionId, layout))
+            },
         ),
         mediaActions = NaviampMediaActions(
             onTrackAction = { send(NaviampCoreCommand.Media.TrackAction(it)) },

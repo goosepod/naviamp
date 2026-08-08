@@ -19,10 +19,16 @@ import app.naviamp.domain.cache.DownloadJobItem
 import app.naviamp.domain.cache.DownloadJobItemStatus
 import app.naviamp.domain.cache.DownloadJobStatus
 import app.naviamp.domain.home.HomeContent
+import app.naviamp.domain.home.HomeDate
+import app.naviamp.domain.navibeat.navibeatMixOrNull
 import app.naviamp.domain.media.RelatedTracksSource
 import app.naviamp.domain.queue.PlaybackQueue
 import app.naviamp.domain.queue.RepeatMode
 import app.naviamp.domain.settings.TrackSwipeAction
+import app.naviamp.domain.settings.HomeSectionLayout
+import app.naviamp.domain.settings.HomeSectionPageLayout
+import app.naviamp.domain.settings.HomeSectionIds
+import app.naviamp.domain.settings.InterfaceSettings
 import app.naviamp.domain.settings.ConnectionFormState
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -32,6 +38,77 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class MediaUiMappersTest {
+    @Test
+    fun homeMapsRemainingSectionsAndAppliesSavedSectionOrder() {
+        val navibeatPlaylist = Playlist(
+            id = "mix",
+            name = "Daily Mix",
+            trackCount = 20,
+            comment = "Made by NaviBeat\nnb1:dailymix:1:2026-08-08:fallback:20",
+        )
+        val radio = InternetRadioStation("radio", "Deep Space", "https://example.test/radio")
+        val settings = InterfaceSettings(
+            homeSectionOrder = listOf(HomeSectionIds.RecentInternetRadio, HomeSectionIds.NavibeatMixes),
+        )
+
+        val sections = HomeContent(
+            recentInternetRadioStations = listOf(radio),
+            navibeatMixes = listOf(navibeatPlaylist.navibeatMixOrNull()!!),
+        ).toSharedHomeUi(
+            coverArtUrl = { null },
+            interfaceSettings = settings,
+        ).collectionSections
+
+        assertEquals(
+            listOf(HomeSectionIds.RecentInternetRadio, HomeSectionIds.NavibeatMixes),
+            sections.take(2).map { it.id },
+        )
+        assertEquals(HomeSectionLayout.List, sections.first().homeLayout)
+        assertEquals(SharedHomeCollectionItemAction.SelectInternetRadio, sections.first().items.single().action)
+    }
+
+    @Test
+    fun homeMapsNavibeatMixStatusAndPlaylistNavigationItem() {
+        val playlist = Playlist(
+            id = "mix-evening",
+            name = "🟠 Evening",
+            trackCount = 30,
+            comment = "Evening mix\nMade by NaviBeat  ·  navibeat.app\nnb1:timeofday:evening:2026-08-08:fallback:30",
+        )
+
+        val mix = HomeContent(
+            date = HomeDate(2026, 220, 20),
+            navibeatMixes = listOf(playlist.navibeatMixOrNull()!!),
+        ).toSharedHomeUi(coverArtUrl = { null }).navibeatMixes.single()
+
+        assertEquals("mix-evening", mix.playlist.id)
+        assertEquals("🟠 Evening", mix.playlist.title)
+        assertEquals("timeofday", mix.kind)
+        assertEquals("Evening mix", mix.description)
+        assertEquals("Still learning you", mix.statusLabel)
+        val section = HomeContent(
+            date = HomeDate(2026, 220, 20),
+            navibeatMixes = listOf(playlist.navibeatMixOrNull()!!),
+        ).toSharedHomeUi(coverArtUrl = { null }).collectionSections
+            .single { it.id == SharedHomeCollectionSectionIds.NavibeatMixes }
+        assertEquals(SharedHomeCollectionSectionIds.NavibeatMixes, section.id)
+        assertEquals(SharedHomeCollectionItemAction.OpenPlaylist, section.items.single().action)
+        assertEquals(SharedHomeCollectionArtwork.NavibeatGenerated, section.items.single().artwork)
+        assertEquals(HomeSectionLayout.Carousel, section.homeLayout)
+        assertEquals(
+            setOf(
+                HomeSectionLayout.List,
+                HomeSectionLayout.Grid,
+                HomeSectionLayout.Carousel,
+            ),
+            section.supportedHomeLayouts,
+        )
+        assertEquals(
+            setOf(HomeSectionPageLayout.List, HomeSectionPageLayout.Grid),
+            section.supportedPageLayouts,
+        )
+    }
+
     @Test
     fun recentlyPlayedRowsDoNotExposePlayHistoryMetadata() {
         val recent = track("recent").copy(

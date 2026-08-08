@@ -232,7 +232,8 @@ private const val AlbumResourceType = "album"
 private const val AlbumInfoResourceType = "albumInfo"
 private const val ArtistResourceType = "artist"
 private const val ArtistsResourceType = "artists"
-private const val PlaylistsResourceType = "playlists"
+// v2 includes playlist comments, which carry standards-based generated-playlist metadata.
+private const val PlaylistsResourceType = "playlists-v2"
 private const val PlaylistTracksResourceType = "playlistTracks"
 private const val InternetRadioStationsResourceType = "internetRadioStations"
 private const val AlbumListResourceType = "albumList"
@@ -390,6 +391,7 @@ private data class PlaylistDto(
     val durationSeconds: Int? = null,
     val coverArtId: String? = null,
     val isSmart: Boolean = false,
+    val comment: String? = null,
 ) {
     fun toPlaylist(): Playlist =
         Playlist(
@@ -399,6 +401,7 @@ private data class PlaylistDto(
             durationSeconds = durationSeconds,
             coverArtId = coverArtId,
             isSmart = isSmart,
+            comment = comment,
         )
 
     companion object {
@@ -410,6 +413,7 @@ private data class PlaylistDto(
                 durationSeconds = playlist.durationSeconds,
                 coverArtId = playlist.coverArtId,
                 isSmart = playlist.isSmart,
+                comment = playlist.comment,
             )
     }
 }

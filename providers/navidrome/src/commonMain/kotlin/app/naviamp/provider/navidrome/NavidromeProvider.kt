@@ -1705,6 +1705,7 @@ class NavidromeProvider(
             durationSeconds = intValue("duration"),
             coverArtId = stringValue("coverArt"),
             isSmart = forceSmart || isSmartPlaylistObject(),
+            comment = stringValue("comment"),
         )
 
     private fun JsonObject.toInternetRadioStation(): InternetRadioStation =

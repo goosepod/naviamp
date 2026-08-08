@@ -1,4 +1,5 @@
 <resources>
+    <string name="home_navibeat_mixes">NAVIBEAT MIXES</string>
     <string name="settings_title">Settings</string>
     <string name="settings_selected_label">Selected</string>
 

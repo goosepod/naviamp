@@ -226,7 +226,7 @@ class ProviderResponseServiceTest {
 
         val playlists = service.playlists(provider, limit = 50)
 
-        assertEquals(listOf("provider-one:playlists:50"), cache.keys)
+        assertEquals(listOf("provider-one:playlists-v2:50"), cache.keys)
         assertEquals(1, provider.playlistsCalls)
         assertEquals(listOf(playlist("playlist-50")), playlists)
     }
@@ -509,6 +509,7 @@ private fun playlist(id: String): Playlist =
         trackCount = 3,
         durationSeconds = 540,
         coverArtId = "cover-$id",
+        comment = "Comment for $id",
     )
 
 private fun internetRadioStation(id: String): InternetRadioStation =

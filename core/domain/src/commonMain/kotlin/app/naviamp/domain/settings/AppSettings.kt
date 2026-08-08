@@ -158,6 +158,8 @@ data class InterfaceSettings(
     val albumCollectionLayout: AlbumCollectionLayout = AlbumCollectionLayout.List,
     val albumSortOrder: AlbumSortOrder = AlbumSortOrder.ReleaseYearAscending,
     val groupAlbumsByReleaseType: Boolean = true,
+    val homeSectionPresentations: Map<String, HomeSectionPresentationSettings> = emptyMap(),
+    val homeSectionOrder: List<String> = emptyList(),
     val nowPlaying: NowPlayingDisplaySettings = NowPlayingDisplaySettings(),
     val trackSwipes: TrackSwipeSettings = TrackSwipeSettings(),
 ) {
@@ -165,8 +167,97 @@ data class InterfaceSettings(
         albumBlurRadiusDp = albumBlurRadiusDp.coerceIn(MinAlbumBlurRadiusDp, MaxAlbumBlurRadiusDp),
         singleColorHex = normalizedSingleColorHex(singleColorHex),
         nowPlaying = nowPlaying.normalized(),
+        homeSectionPresentations = homeSectionPresentations
+            .filterKeys { it.isNotBlank() }
+            .mapKeys { (id, _) -> id.trim() },
+        homeSectionOrder = homeSectionOrder.map(String::trim).filter(String::isNotBlank).distinct(),
     )
 }
+
+@Serializable
+enum class HomeSectionLayout(val label: String) {
+    List("List"),
+    Grid("Grid"),
+    Carousel("Carousel"),
+}
+
+@Serializable
+enum class HomeSectionPageLayout(val label: String) {
+    List("List"),
+    Grid("Grid"),
+}
+
+@Serializable
+data class HomeSectionPresentationSettings(
+    val homeLayout: HomeSectionLayout = HomeSectionLayout.Carousel,
+    val pageLayout: HomeSectionPageLayout = HomeSectionPageLayout.Grid,
+)
+
+fun InterfaceSettings.homeSectionPresentation(sectionId: String): HomeSectionPresentationSettings =
+    homeSectionPresentations[sectionId] ?: defaultHomeSectionPresentation(sectionId)
+
+fun defaultHomeSectionPresentation(sectionId: String): HomeSectionPresentationSettings =
+    HomeSectionPresentationSettings(
+        homeLayout = if (sectionId == HomeSectionIds.MixesForYou || sectionId == HomeSectionIds.NavibeatMixes) {
+            HomeSectionLayout.Carousel
+        } else {
+            HomeSectionLayout.List
+        },
+    )
+
+fun InterfaceSettings.withHomeSectionPresentation(
+    sectionId: String,
+    presentation: HomeSectionPresentationSettings,
+): InterfaceSettings = copy(
+    homeSectionPresentations = homeSectionPresentations + (sectionId to presentation),
+).normalized()
+
+fun InterfaceSettings.resolvedHomeSectionOrder(
+    availableSectionIds: List<String> = DefaultHomeSectionOrder,
+): List<String> = (homeSectionOrder + availableSectionIds).distinct()
+
+fun InterfaceSettings.withHomeSectionOrder(order: List<String>): InterfaceSettings =
+    copy(homeSectionOrder = order).normalized()
+
+object HomeSectionIds {
+    const val MixesForYou = "mixes-for-you"
+    const val NavibeatMixes = "navibeat-mixes"
+    const val RecentRadio = "recent-radio"
+    const val RecentlyPlayed = "recently-played"
+    const val MixBuilders = "mix-builders"
+    const val MoreLikeRecentPlays = "more-like-recent-plays"
+    const val SonicDeepCuts = "sonic-deep-cuts"
+    const val SimilarToStarredTracks = "similar-to-starred-tracks"
+    const val RecentlyAdded = "recently-added"
+    const val RecentPlaylists = "recent-playlists"
+    const val RecentInternetRadio = "recent-internet-radio"
+    const val Stations = "stations"
+    const val RecentAlbums = "recent-albums"
+    const val FrequentlyPlayedAlbums = "frequently-played-albums"
+    const val RandomAlbums = "random-albums"
+    const val GenreSpotlight = "genre-spotlight"
+    const val Decade = "decade"
+}
+
+val DefaultHomeSectionOrder = listOf(
+    HomeSectionIds.MixesForYou,
+    HomeSectionIds.NavibeatMixes,
+    HomeSectionIds.RecentRadio,
+    HomeSectionIds.RecentlyPlayed,
+    HomeSectionIds.MixBuilders,
+    HomeSectionIds.MoreLikeRecentPlays,
+    HomeSectionIds.SonicDeepCuts,
+    HomeSectionIds.SimilarToStarredTracks,
+    HomeSectionIds.RecentlyAdded,
+    HomeSectionIds.RecentPlaylists,
+    HomeSectionIds.RecentInternetRadio,
+    HomeSectionIds.Stations,
+    HomeSectionIds.RecentAlbums,
+    HomeSectionIds.FrequentlyPlayedAlbums,
+    HomeSectionIds.RandomAlbums,
+    HomeSectionIds.GenreSpotlight,
+    HomeSectionIds.Decade,
+)
 
 @Serializable
 enum class AppBackgroundStyle(val label: String) {

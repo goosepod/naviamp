@@ -1151,7 +1151,8 @@ class NavidromeProviderTest {
                           "name": "April 2026 Playlist",
                           "songCount": 34,
                           "duration": 25440,
-                          "coverArt": "playlist-cover"
+                          "coverArt": "playlist-cover",
+                          "comment": "Generated playlist metadata"
                         }
                       ]
                     }
@@ -1168,6 +1169,7 @@ class NavidromeProviderTest {
         assertEquals(34, playlists.single().trackCount)
         assertEquals(25440, playlists.single().durationSeconds)
         assertEquals("playlist-cover", playlists.single().coverArtId)
+        assertEquals("Generated playlist metadata", playlists.single().comment)
     }
 
     @Test

@@ -48,6 +48,13 @@ class SettingsSyncDocumentTest {
                     auroraTone = AuroraTone.Light,
                     albumBlurRadiusDp = 40,
                     singleColorHex = "#123456",
+                    homeSectionPresentations = mapOf(
+                        "navibeat-mixes" to HomeSectionPresentationSettings(
+                            homeLayout = HomeSectionLayout.Grid,
+                            pageLayout = HomeSectionPageLayout.List,
+                        ),
+                    ),
+                    homeSectionOrder = listOf("navibeat-mixes", "mixes-for-you", "future-section"),
                     nowPlaying = NowPlayingDisplaySettings(
                         showAlbumYear = false,
                         showAudioInfo = false,
@@ -98,6 +105,14 @@ class SettingsSyncDocumentTest {
         assertEquals("Road DJ", decoded.preferences.playback.radioDjs.single().name)
         assertEquals("Waveform", decoded.preferences.visualizer.selectedVisualizer)
         assertTrue(decoded.preferences.interfaceSettings.startPlayingOnLaunch)
+        assertEquals(
+            HomeSectionPresentationSettings(HomeSectionLayout.Grid, HomeSectionPageLayout.List),
+            decoded.preferences.interfaceSettings.homeSectionPresentation("navibeat-mixes"),
+        )
+        assertEquals(
+            listOf("navibeat-mixes", "mixes-for-you", "future-section"),
+            decoded.preferences.interfaceSettings.homeSectionOrder,
+        )
         assertFalse(decoded.preferences.interfaceSettings.showArtistInformation)
         assertFalse(decoded.preferences.interfaceSettings.showAlbumInformation)
         assertEquals(AppBackgroundStyle.AlbumBlur, decoded.preferences.interfaceSettings.appBackgroundStyle)

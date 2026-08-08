@@ -90,6 +90,7 @@ class NaviampCoreMediaRegistry {
         playlists.firstOrNull { it.id == id }
             ?: selectedPlaylist?.takeIf { it.id == id }
             ?: home.playlists.firstOrNull { it.id == id }
+            ?: home.navibeatMixes.firstOrNull { it.playlist.id == id }?.playlist
 
     fun tracks(): List<Track> = (
         home.recentlyPlayedTracks +

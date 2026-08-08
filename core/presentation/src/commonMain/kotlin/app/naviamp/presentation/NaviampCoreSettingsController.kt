@@ -9,6 +9,8 @@ import app.naviamp.domain.cache.StorageCacheStats
 import app.naviamp.domain.library.librarySyncCompletedStatus
 import app.naviamp.domain.settings.CacheSettings
 import app.naviamp.domain.settings.InterfaceSettings
+import app.naviamp.domain.settings.homeSectionPresentation
+import app.naviamp.domain.settings.withHomeSectionPresentation
 import app.naviamp.ui.toCacheSettingsUi
 import app.naviamp.ui.NaviampAlbumDetailScreenUi
 import app.naviamp.ui.NaviampArtistDetailScreenUi
@@ -91,6 +93,18 @@ class NaviampCoreSettingsController(
             ?: return NaviampCoreImmediateCommandResult.Unhandled
         when (settings) {
             is NaviampCoreCommand.Settings.ChangeInterface -> changeInterface(settings)
+            is NaviampCoreCommand.Settings.ChangeHomeSectionPageLayout -> {
+                val current = stateStore.state.value.shell.general.interfaceSettings
+                val presentation = current.homeSectionPresentation(settings.sectionId)
+                changeInterface(
+                    NaviampCoreCommand.Settings.ChangeInterface(
+                        current.withHomeSectionPresentation(
+                            settings.sectionId,
+                            presentation.copy(pageLayout = settings.layout),
+                        ),
+                    ),
+                )
+            }
             is NaviampCoreCommand.Settings.ChangePlayback -> changePlayback(settings)
             is NaviampCoreCommand.Settings.ChangeCache -> changeCache(settings.settings)
             is NaviampCoreCommand.Settings.ChangeDownloadLocation -> {

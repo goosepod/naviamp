@@ -2,6 +2,8 @@ package app.naviamp.presentation
 
 import app.naviamp.domain.settings.CacheSettings
 import app.naviamp.domain.settings.InterfaceSettings
+import app.naviamp.domain.settings.HomeSectionPageLayout
+import app.naviamp.domain.settings.homeSectionPresentation
 import app.naviamp.domain.settings.PlaybackSettings
 import app.naviamp.domain.settings.normalized
 import app.naviamp.domain.cache.StorageCacheStats
@@ -18,6 +20,22 @@ import kotlin.test.assertTrue
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class NaviampCoreSettingsControllerTest {
+    @Test
+    fun dedicatedHomeSectionPageLayoutIsPersistedInInterfaceSettings() {
+        val fixture = fixture()
+
+        fixture.controller.dispatch(
+            NaviampCoreCommand.Settings.ChangeHomeSectionPageLayout(
+                sectionId = "navibeat-mixes",
+                layout = HomeSectionPageLayout.List,
+            ),
+        )
+
+        val saved = fixture.savedInterface.single()
+        assertEquals(HomeSectionPageLayout.List, saved.homeSectionPresentation("navibeat-mixes").pageLayout)
+        assertEquals(saved, fixture.store.state.value.shell.general.interfaceSettings)
+    }
+
     @Test
     fun appliesAndPublishesSettingsThroughCommonPolicyControllers() {
         val fixture = fixture()

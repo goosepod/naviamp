@@ -7,11 +7,15 @@ import app.naviamp.domain.InternetRadioStation
 import app.naviamp.domain.Playlist
 import app.naviamp.domain.Track
 import app.naviamp.domain.cache.ProviderResponseService
+import app.naviamp.domain.navibeat.NavibeatMix
+import app.naviamp.domain.navibeat.partitionNavibeatMixes
+import app.naviamp.domain.navibeat.prioritizedForHour
 import app.naviamp.domain.provider.AlbumListType
 import app.naviamp.domain.provider.MediaProvider
 import app.naviamp.domain.settings.RecentRadioStream
 
 data class HomeContent(
+    val date: HomeDate = HomeDate(year = 1970, dayOfYear = 1),
     val recentlyAddedAlbums: List<Album> = emptyList(),
     val mixAlbums: List<Album> = emptyList(),
     val recentAlbums: List<Album> = emptyList(),
@@ -19,6 +23,7 @@ data class HomeContent(
     val randomAlbums: List<Album> = emptyList(),
     val artists: List<Artist> = emptyList(),
     val playlists: List<Playlist> = emptyList(),
+    val navibeatMixes: List<NavibeatMix> = emptyList(),
     val recentRadioStreams: List<RecentRadioStream> = emptyList(),
     val recentlyPlayedTracks: List<Track> = emptyList(),
     val radioStations: List<InternetRadioStation> = emptyList(),
@@ -39,6 +44,7 @@ data class HomeContent(
             randomAlbums.isEmpty() &&
             artists.isEmpty() &&
             playlists.isEmpty() &&
+            navibeatMixes.isEmpty() &&
             recentRadioStreams.isEmpty() &&
             recentlyPlayedTracks.isEmpty() &&
             radioStations.isEmpty() &&
@@ -78,6 +84,7 @@ private fun Track.toMixBuilderAlbum(): Album? {
 data class HomeDate(
     val year: Int,
     val dayOfYear: Int,
+    val hourOfDay: Int = 12,
 )
 
 interface HomeLibraryRepository {
@@ -108,15 +115,20 @@ class HomeService(
             .rotatedBy(date.dayOfYear)
         val genreSpotlight = genres.firstOrNull()
         val decadePick = pickHomeDecade()
+        val playlistPartition = runCatching { playlists(limit = 50) }
+            .getOrDefault(emptyList())
+            .partitionNavibeatMixes()
 
         return HomeContent(
+            date = date,
             recentlyAddedAlbums = runCatching { albumList(AlbumListType.Newest, limit = 8) }.getOrDefault(emptyList()),
             mixAlbums = runCatching { albumList(AlbumListType.Random, limit = 8) }.getOrDefault(emptyList()),
             recentAlbums = runCatching { albumList(AlbumListType.Recent, limit = 6) }.getOrDefault(emptyList()),
             frequentAlbums = runCatching { albumList(AlbumListType.Frequent, limit = 6) }.getOrDefault(emptyList()),
             randomAlbums = runCatching { albumList(AlbumListType.Random, limit = 6) }.getOrDefault(emptyList()),
             artists = runCatching { artists(limit = artistLimit) }.getOrDefault(emptyList()),
-            playlists = runCatching { playlists(limit = 50) }.getOrDefault(emptyList()),
+            playlists = playlistPartition.ordinary,
+            navibeatMixes = playlistPartition.mixes.prioritizedForHour(date.hourOfDay),
             recentRadioStreams = recentRadioStreams,
             recentlyPlayedTracks = sourceId
                 ?.let { id -> runCatching { libraryRepository?.recentlyPlayedTracks(id, 12) }.getOrNull() }

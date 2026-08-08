@@ -57,6 +57,17 @@ class NaviampCorePlaylistBrowseControllerTest {
     }
 
     @Test
+    fun refreshHidesRecognizedNavibeatMixesFromPlaylistsAndMutationTargets() = runTest {
+        val provider = PlaylistBrowseTestProvider(includeNavibeatMix = true)
+        val (store, controller) = controller(provider)
+
+        controller.execute(NaviampCoreCommand.Playlists.Refresh)
+
+        assertEquals(listOf("playlist-a", "playlist-b"), store.state.value.shell.playlists.playlists.map { it.id })
+        assertEquals(listOf("playlist-a"), store.state.value.shell.playlistChoices.map { it.id })
+    }
+
+    @Test
     fun selectionLoadsAndMapsPlaylistDetailInsideCore() = runTest {
         val provider = PlaylistBrowseTestProvider()
         val (store, controller) = controller(provider)
@@ -172,6 +183,7 @@ class NaviampCorePlaylistBrowseControllerTest {
 
 private class PlaylistBrowseTestProvider(
     private val firstDetailGate: CompletableDeferred<Unit>? = null,
+    private val includeNavibeatMix: Boolean = false,
 ) : MediaProvider {
     override val id = ProviderId("playlists")
     override val displayName = "Playlists"
@@ -187,6 +199,13 @@ private class PlaylistBrowseTestProvider(
     override suspend fun playlists(limit: Int) = listOf(
         Playlist("playlist-a", "Playlist A", 2),
         Playlist("playlist-b", "Playlist B", 1, isSmart = true),
+    ) + listOfNotNull(
+        Playlist(
+            "navibeat-mix",
+            "Custom Mix Name",
+            30,
+            comment = "Description\nMade by NaviBeat  ·  navibeat.app\nnb1:dailymix:dailymix-1:2026-08-08:fallback:30",
+        ).takeIf { includeNavibeatMix },
     )
 
     override suspend fun playlistTracks(playlistId: String): List<Track> {

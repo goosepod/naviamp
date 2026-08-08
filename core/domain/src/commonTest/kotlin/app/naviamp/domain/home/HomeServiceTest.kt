@@ -61,6 +61,25 @@ class HomeServiceTest {
     }
 
     @Test
+    fun loadSeparatesNavibeatMixesAndPrioritizesTheCurrentTimeOfDay() = runTest {
+        val provider = FakeHomeProvider(
+            playlists = listOf(
+                Playlist("ordinary", "Ordinary", 2),
+                navibeatPlaylist("morning"),
+                navibeatPlaylist("evening"),
+            ),
+        )
+
+        val home = HomeService(
+            provider = provider,
+            date = HomeDate(year = 2026, dayOfYear = 220, hourOfDay = 20),
+        ).load()
+
+        assertEquals(listOf("ordinary"), home.playlists.map(Playlist::id))
+        assertEquals(listOf("evening", "morning"), home.navibeatMixes.map { it.metadata.slot })
+    }
+
+    @Test
     fun loadHomeContentUsesRequestInputs() = runTest {
         val provider = FakeHomeProvider()
 
@@ -164,7 +183,9 @@ class HomeServiceTest {
         )
     }
 
-    private class FakeHomeProvider : MediaProvider {
+    private class FakeHomeProvider(
+        private val playlists: List<Playlist> = listOf(Playlist("playlist", "Playlist", trackCount = 2)),
+    ) : MediaProvider {
         override val id: ProviderId = ProviderId("fake-home")
         override val displayName: String = "Fake Home"
         override val capabilities: ProviderCapabilities = ProviderCapabilities(
@@ -198,7 +219,7 @@ class HomeServiceTest {
         }
 
         override suspend fun playlists(limit: Int): List<Playlist> =
-            listOf(Playlist("playlist", "Playlist", trackCount = 2))
+            playlists
 
         override suspend fun internetRadioStations(): List<InternetRadioStation> =
             listOf(radioStation("station"))
@@ -225,6 +246,13 @@ class HomeServiceTest {
             "https://example.test/cover/$coverArtId"
     }
 }
+
+private fun navibeatPlaylist(slot: String): Playlist = Playlist(
+    id = "mix-$slot",
+    name = slot,
+    trackCount = 30,
+    comment = "Description\nMade by NaviBeat  ·  navibeat.app\nnb1:timeofday:$slot:2026-08-08:fallback:30",
+)
 
 private fun album(id: String): Album =
     Album(

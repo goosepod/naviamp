@@ -176,17 +176,6 @@ class NaviampCore private constructor(
             )
             var notifyLocalSettingsChanged: () -> Unit = services.settings.sync.controller::markLocalChanged
             var completeDatabaseReset: suspend () -> Unit = {}
-            val settings = NaviampCoreSettingsController(
-                stateStore,
-                services.settings.interfaceSettings,
-                services.playback.settings,
-                services.settings.cacheSettings,
-                services.settings.maintenance,
-                refreshLibrary = catalog::refreshAfterConnection,
-                onDatabaseReset = { completeDatabaseReset() },
-                onLocalSettingsChanged = { notifyLocalSettingsChanged() },
-                onInterfaceSettingsChanged = mediaDetails::interfaceSettingsChanged,
-            )
             val home = NaviampCoreHomeController(
                 stateStore,
                 providerSource,
@@ -197,6 +186,20 @@ class NaviampCore private constructor(
                 services.content.homeLibrary,
                 services.content.sonicHomeDiscovery,
                 mediaRegistry = mediaRegistry,
+            )
+            val settings = NaviampCoreSettingsController(
+                stateStore,
+                services.settings.interfaceSettings,
+                services.playback.settings,
+                services.settings.cacheSettings,
+                services.settings.maintenance,
+                refreshLibrary = catalog::refreshAfterConnection,
+                onDatabaseReset = { completeDatabaseReset() },
+                onLocalSettingsChanged = { notifyLocalSettingsChanged() },
+                onInterfaceSettingsChanged = { interfaceSettings ->
+                    mediaDetails.interfaceSettingsChanged(interfaceSettings)
+                    home.interfaceSettingsChanged(interfaceSettings)
+                },
             )
             val playlistBrowse = NaviampCorePlaylistBrowseController(
                 stateStore,

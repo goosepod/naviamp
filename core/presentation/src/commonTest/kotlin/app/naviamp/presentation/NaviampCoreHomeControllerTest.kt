@@ -24,6 +24,11 @@ import app.naviamp.domain.sonichome.SonicHomeDiscoveryRow
 import app.naviamp.domain.sonichome.SonicHomeDiscoveryRowId
 import app.naviamp.domain.sonichome.SonicHomeDiscoveryRows
 import app.naviamp.ui.SharedMixBuilderUi
+import app.naviamp.domain.settings.HomeSectionLayout
+import app.naviamp.domain.settings.HomeSectionPageLayout
+import app.naviamp.domain.settings.HomeSectionPresentationSettings
+import app.naviamp.domain.settings.InterfaceSettings
+import app.naviamp.ui.SharedHomeCollectionSectionIds
 import app.naviamp.ui.SharedRoute
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
@@ -32,6 +37,41 @@ import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class NaviampCoreHomeControllerTest {
+    @Test
+    fun collectionPageNavigationAndLayoutAreOwnedByCore() = runTest {
+        val store = NaviampCoreStateStore()
+        val controller = NaviampCoreHomeController(
+            stateStore = store,
+            providerSource = NaviampCoreMediaProviderSource { HomeTestProvider() },
+            navigationController = NaviampCoreNavigationController(
+                NaviampNavigationController(),
+                store,
+                NaviampCoreArtistNavigator { error("Not expected") },
+            ),
+            dateSource = NaviampCoreHomeDateSource { HomeDate(2026, 100) },
+        )
+        controller.execute(NaviampCoreCommand.Home.Refresh)
+
+        controller.dispatch(NaviampCoreCommand.Home.OpenCollection(SharedHomeCollectionSectionIds.MixesForYou))
+        assertEquals("MIXES FOR YOU", store.state.value.shell.home.collectionPage?.section?.title)
+
+        controller.interfaceSettingsChanged(
+            InterfaceSettings(
+                homeSectionPresentations = mapOf(
+                    SharedHomeCollectionSectionIds.MixesForYou to HomeSectionPresentationSettings(
+                        homeLayout = HomeSectionLayout.List,
+                        pageLayout = HomeSectionPageLayout.List,
+                    ),
+                ),
+            ),
+        )
+        assertEquals(HomeSectionLayout.List, store.state.value.shell.home.collectionPage?.section?.homeLayout)
+        assertEquals(HomeSectionPageLayout.List, store.state.value.shell.home.collectionPage?.layout)
+
+        controller.dispatch(NaviampCoreCommand.Home.CloseCollection)
+        assertEquals(null, store.state.value.shell.home.collectionPage)
+    }
+
     @Test
     fun refreshLoadsAndMapsTheCompleteHomeSnapshotInCore() = runTest {
         val provider = HomeTestProvider()

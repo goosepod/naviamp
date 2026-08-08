@@ -12,6 +12,8 @@ import app.naviamp.domain.settings.ConnectionFormState
 import app.naviamp.domain.settings.PlaybackSettings
 import app.naviamp.domain.settings.CacheSettings
 import app.naviamp.domain.settings.InterfaceSettings
+import app.naviamp.domain.settings.HomeSectionLayout
+import app.naviamp.domain.settings.HomeSectionPageLayout
 import app.naviamp.domain.smartplaylist.SmartPlaylistDefinition
 import app.naviamp.domain.waveform.AudioWaveform
 
@@ -260,6 +262,7 @@ enum class SharedMediaItemKind {
     Playlist,
     RadioStation,
     MixBuilder,
+    Track,
 }
 
 data class SharedAlbumDetailUi(
@@ -495,6 +498,8 @@ data class NaviampPlaylistDetailActions(
 
 data class SharedHomeUi(
     val mixBuilders: List<SharedMixBuilderUi> = emptyList(),
+    val collectionSections: List<SharedHomeCollectionSectionUi> = emptyList(),
+    val navibeatMixes: List<SharedNavibeatMixUi> = emptyList(),
     val sonicDiscoveryRows: List<SharedHomeDiscoveryTrackRowUi> = emptyList(),
     val recentlyAddedAlbums: List<SharedMediaItemUi> = emptyList(),
     val mixAlbums: List<SharedMediaItemUi> = emptyList(),
@@ -513,6 +518,8 @@ data class SharedHomeUi(
 ) {
     val isEmpty: Boolean
         get() = mixBuilders.isEmpty() &&
+            collectionSections.isEmpty() &&
+            navibeatMixes.isEmpty() &&
             sonicDiscoveryRows.isEmpty() &&
             recentlyAddedAlbums.isEmpty() &&
             mixAlbums.isEmpty() &&
@@ -526,6 +533,64 @@ data class SharedHomeUi(
             stations.isEmpty() &&
             genreSpotlightAlbums.isEmpty() &&
             decadeAlbums.isEmpty()
+}
+
+data class SharedNavibeatMixUi(
+    val playlist: SharedMediaItemUi,
+    val kind: String,
+    val description: String,
+    val statusLabel: String,
+)
+
+enum class SharedHomeCollectionArtwork {
+    CoverArt,
+    NavibeatGenerated,
+}
+
+enum class SharedHomeCollectionItemAction {
+    PlayAlbum,
+    OpenAlbum,
+    OpenPlaylist,
+    SelectRecentRadio,
+    SelectInternetRadio,
+    SelectStation,
+    SelectMixBuilder,
+    SelectRecentTrack,
+    SelectSonicTrack,
+}
+
+data class SharedHomeCollectionItemUi(
+    val mediaItem: SharedMediaItemUi,
+    val mediaKind: SharedMediaItemKind,
+    val title: String = mediaItem.title,
+    val subtitle: String = mediaItem.subtitle,
+    val artwork: SharedHomeCollectionArtwork = SharedHomeCollectionArtwork.CoverArt,
+    val artworkKey: String? = null,
+    val action: SharedHomeCollectionItemAction,
+    val track: SharedTrackRowUi? = null,
+    val discoveryRowId: String? = null,
+    val mixBuilder: SharedMixBuilderUi? = null,
+    val station: SharedHomeStationUi? = null,
+)
+
+data class SharedHomeCollectionSectionUi(
+    val id: String,
+    val title: String,
+    val items: List<SharedHomeCollectionItemUi>,
+    val supportedHomeLayouts: Set<HomeSectionLayout> = HomeSectionLayout.entries.toSet(),
+    val homeLayout: HomeSectionLayout = HomeSectionLayout.Carousel,
+    val supportedPageLayouts: Set<HomeSectionPageLayout> = HomeSectionPageLayout.entries.toSet(),
+    val defaultPageLayout: HomeSectionPageLayout = HomeSectionPageLayout.Grid,
+)
+
+data class SharedHomeCollectionPageUi(
+    val section: SharedHomeCollectionSectionUi,
+    val layout: HomeSectionPageLayout = section.defaultPageLayout,
+)
+
+object SharedHomeCollectionSectionIds {
+    const val MixesForYou = app.naviamp.domain.settings.HomeSectionIds.MixesForYou
+    const val NavibeatMixes = app.naviamp.domain.settings.HomeSectionIds.NavibeatMixes
 }
 
 data class SharedHomeDiscoveryTrackRowUi(
@@ -690,6 +755,7 @@ data class SharedSonicPathBuilderUi(
 data class NaviampHomeScreenUi(
     val content: SharedHomeUi = SharedHomeUi(),
     val refreshing: Boolean = false,
+    val collectionPage: SharedHomeCollectionPageUi? = null,
 )
 
 data class NaviampHomeActions(
@@ -700,6 +766,9 @@ data class NaviampHomeActions(
     val onStationSelected: (SharedHomeStationUi) -> Unit,
     val onSonicDiscoveryTrackAction: (SharedHomeDiscoveryTrackActionRequest) -> Unit,
     val onRecentlyPlayedTrackAction: (SharedTrackRowActionRequest) -> Unit,
+    val onCollectionSelected: (String) -> Unit,
+    val onCollectionBack: () -> Unit,
+    val onCollectionPageLayoutChanged: (String, HomeSectionPageLayout) -> Unit,
 )
 
 data class NaviampMediaActions(

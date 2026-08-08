@@ -1,4 +1,5 @@
 <resources>
+    <string name="home_navibeat_mixes">MEZCLAS NAVIBEAT</string>
     <string name="settings_title">Configuracion</string>
     <string name="settings_selected_label">Seleccionado</string>
 

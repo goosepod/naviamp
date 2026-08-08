@@ -22,7 +22,7 @@ import app.naviamp.ui.resetAndroidPlatformCoverArtByteLoader
 import app.naviamp.ui.setAndroidPlatformCoverArtByteLoader
 import java.io.File
 import java.time.Instant
-import java.time.LocalDate
+import java.time.LocalDateTime
 import kotlinx.coroutines.CoroutineScope
 import kotlin.coroutines.CoroutineContext
 import kotlin.coroutines.EmptyCoroutineContext
@@ -166,7 +166,9 @@ class AndroidNaviampCoreCatalog private constructor(
                 ),
                 externalUri = AndroidCoreExternalUriPort(appContext),
                 homeDate = NaviampCoreHomeDateSource {
-                    LocalDate.now().let { date -> HomeDate(date.year, date.dayOfYear) }
+                    LocalDateTime.now().let { dateTime ->
+                        HomeDate(dateTime.year, dateTime.dayOfYear, dateTime.hour)
+                    }
                 },
                 shellCapabilities = AndroidCapabilityPresentation.toShellCapabilitiesUi(playbackEngine),
                 settingsSyncDeviceId = AndroidSettingsSyncDeviceId,

@@ -12,10 +12,14 @@ import app.naviamp.domain.home.homeLoadFailureStatus
 import app.naviamp.domain.home.loadHomeContent
 import app.naviamp.domain.provider.MediaProvider
 import app.naviamp.domain.settings.RecentRadioStream
+import app.naviamp.domain.settings.InterfaceSettings
+import app.naviamp.domain.settings.homeSectionPresentation
+import app.naviamp.domain.settings.resolvedHomeSectionOrder
 import app.naviamp.domain.sonichome.SonicHomeDiscoveryService
 import app.naviamp.domain.sonichome.SonicHomeDiscoveryRows
 import app.naviamp.ui.SharedRoute
 import app.naviamp.ui.toSharedHomeUi
+import app.naviamp.ui.SharedHomeCollectionPageUi
 
 fun interface NaviampCoreHomeDateSource {
     fun current(): HomeDate
@@ -97,6 +101,14 @@ class NaviampCoreHomeController(
                 selectMixBuilder(home.item.id)
                 NaviampCoreImmediateCommandResult.Handled()
             }
+            is NaviampCoreCommand.Home.OpenCollection -> {
+                openCollection(home.sectionId)
+                NaviampCoreImmediateCommandResult.Handled()
+            }
+            NaviampCoreCommand.Home.CloseCollection -> {
+                closeCollection()
+                NaviampCoreImmediateCommandResult.Handled()
+            }
             is NaviampCoreCommand.Home.SelectRecentRadio,
             is NaviampCoreCommand.Home.SelectInternetRadio,
             is NaviampCoreCommand.Home.SelectStation,
@@ -148,19 +160,27 @@ class NaviampCoreHomeController(
             val sonicEnabled = stateStore.state.value.shell.playback.settings.sonicSimilarityEnabled &&
                 provider.capabilities.supportsSonicSimilarity
             stateStore.update { state ->
+                val mappedContent = content.toSharedHomeUi(
+                    coverArtUrl = { id -> id?.let(provider::coverArtUrl) },
+                    playlistTracksById = supplement.playlistTracksById,
+                    keepDownloadedPlaylistIds = supplement.keepDownloadedPlaylistIds,
+                    sonicDiscoveryRows = sonicRows,
+                    canFavoriteAlbums = provider.capabilities.supportsAlbumFavorites,
+                    showSonicPathBuilder = sonicEnabled,
+                    showSonicMixBuilder = sonicEnabled,
+                    interfaceSettings = state.shell.general.interfaceSettings,
+                )
+                val refreshedPage = state.shell.home.collectionPage?.let { currentPage ->
+                    mappedContent.collectionSections
+                        .firstOrNull { it.id == currentPage.section.id }
+                        ?.let { section -> currentPage.copy(section = section) }
+                }
                 state.copy(
                     shell = state.shell.copy(
                         home = state.shell.home.copy(
-                            content = content.toSharedHomeUi(
-                                coverArtUrl = { id -> id?.let(provider::coverArtUrl) },
-                                playlistTracksById = supplement.playlistTracksById,
-                                keepDownloadedPlaylistIds = supplement.keepDownloadedPlaylistIds,
-                                sonicDiscoveryRows = sonicRows,
-                                canFavoriteAlbums = provider.capabilities.supportsAlbumFavorites,
-                                showSonicPathBuilder = sonicEnabled,
-                                showSonicMixBuilder = sonicEnabled,
-                            ),
+                            content = mappedContent,
                             refreshing = false,
+                            collectionPage = refreshedPage,
                         ),
                     ),
                     overlays = state.overlays.copy(status = null),
@@ -175,6 +195,35 @@ class NaviampCoreHomeController(
 
     suspend fun refreshAfterConnection() = refresh()
 
+    internal fun interfaceSettingsChanged(settings: InterfaceSettings) {
+        stateStore.updateShell { shell ->
+            val updatedSections = shell.home.content.collectionSections.map { section ->
+                val presentation = settings.homeSectionPresentation(section.id)
+                section.copy(
+                    homeLayout = presentation.homeLayout,
+                    defaultPageLayout = presentation.pageLayout,
+                )
+            }
+            val orderIndex = settings.resolvedHomeSectionOrder(updatedSections.map { it.id })
+                .withIndex()
+                .associate { it.value to it.index }
+            val sections = updatedSections.sortedBy { orderIndex[it.id] ?: Int.MAX_VALUE }
+            val currentPage = shell.home.collectionPage?.let { page ->
+                val section = sections.firstOrNull { it.id == page.section.id } ?: return@let null
+                page.copy(
+                    section = section,
+                    layout = settings.homeSectionPresentation(section.id).pageLayout,
+                )
+            }
+            shell.copy(
+                home = shell.home.copy(
+                    content = shell.home.content.copy(collectionSections = sections),
+                    collectionPage = currentPage,
+                ),
+            )
+        }
+    }
+
     fun resetForSourceChange() {
         refreshGeneration += 1
         mediaRegistry.updateHome(
@@ -182,7 +231,34 @@ class NaviampCoreHomeController(
             SonicHomeDiscoveryRows(),
         )
         stateStore.updateShell { shell ->
-            shell.copy(home = shell.home.copy(content = app.naviamp.ui.SharedHomeUi(), refreshing = false))
+            shell.copy(
+                home = shell.home.copy(
+                    content = app.naviamp.ui.SharedHomeUi(),
+                    refreshing = false,
+                    collectionPage = null,
+                ),
+            )
+        }
+    }
+
+    private fun openCollection(sectionId: String) {
+        val section = stateStore.state.value.shell.home.content.collectionSections
+            .firstOrNull { it.id == sectionId }
+        if (section == null) {
+            publish(
+                refreshing = stateStore.state.value.shell.home.refreshing,
+                status = "This Home section is no longer available.",
+            )
+            return
+        }
+        stateStore.updateShell { shell ->
+            shell.copy(home = shell.home.copy(collectionPage = SharedHomeCollectionPageUi(section)))
+        }
+    }
+
+    private fun closeCollection() {
+        stateStore.updateShell { shell ->
+            shell.copy(home = shell.home.copy(collectionPage = null))
         }
     }
 

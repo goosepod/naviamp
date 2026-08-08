@@ -1,6 +1,6 @@
 # Cross-Platform BASS Add-On Usage Audit
 
-**Status:** Implementing and verifying  
+**Status:** Complete; broader format and release acceptance remains ongoing
 **Started:** August 5, 2026  
 **Scope:** Android, Desktop, and iOS playback, streaming, offline playback, analysis, effects, and packaging
 

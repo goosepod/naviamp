@@ -23,11 +23,16 @@ import app.naviamp.domain.audio.replayGainFromAudioTags
 import app.naviamp.domain.home.HomeContent
 import app.naviamp.domain.home.homeStations
 import app.naviamp.domain.media.RelatedTracksSource
+import app.naviamp.domain.navibeat.statusLabel
 import app.naviamp.domain.media.groupedByReleaseSection
 import app.naviamp.domain.media.releaseSection
 import app.naviamp.domain.lyrics.LyricsTiming
 import app.naviamp.domain.lyrics.timing
 import app.naviamp.domain.settings.AlbumSortOrder
+import app.naviamp.domain.settings.InterfaceSettings
+import app.naviamp.domain.settings.HomeSectionIds
+import app.naviamp.domain.settings.homeSectionPresentation
+import app.naviamp.domain.settings.resolvedHomeSectionOrder
 import app.naviamp.domain.playback.PlaybackProgress
 import app.naviamp.domain.playback.PlaybackReplayGain
 import app.naviamp.domain.playback.PlaybackRequest
@@ -166,9 +171,152 @@ fun HomeContent.toSharedHomeUi(
     canFavoriteAlbums: Boolean = false,
     showSonicPathBuilder: Boolean = false,
     showSonicMixBuilder: Boolean = false,
-): SharedHomeUi =
-    SharedHomeUi(
-        mixBuilders = sharedMixBuilders(showSonicPathBuilder, showSonicMixBuilder),
+    interfaceSettings: InterfaceSettings = InterfaceSettings(),
+): SharedHomeUi {
+    val builders = sharedMixBuilders(showSonicPathBuilder, showSonicMixBuilder)
+    val recentRadioItems = recentRadioStreams.map {
+        val coverArtUrls = it.coverArtIds.mapNotNull(coverArtUrl).distinct().take(4)
+        SharedMediaItemUi(
+            id = it.id,
+            title = it.label,
+            subtitle = "Radio",
+            coverArtUrl = coverArtUrls.firstOrNull(),
+            coverArtUrls = coverArtUrls,
+        )
+    }
+    val recentTrackRows = recentlyPlayedTracks.map { it.toSharedTrackRowUi(coverArtUrl) }
+    val stationsUi = homeStations(this).map {
+        SharedHomeStationUi(id = it.id, title = it.title, subtitle = it.subtitle)
+    }
+    val sections = buildList {
+        fun addSection(id: String, title: String, items: List<SharedHomeCollectionItemUi>) {
+            if (items.isEmpty()) return
+            val presentation = interfaceSettings.homeSectionPresentation(id)
+            add(
+                SharedHomeCollectionSectionUi(
+                    id = id,
+                    title = title,
+                    items = items,
+                    homeLayout = presentation.homeLayout,
+                    defaultPageLayout = presentation.pageLayout,
+                ),
+            )
+        }
+
+        addSection(HomeSectionIds.MixesForYou, "MIXES FOR YOU", mixAlbums.map { album ->
+            val mediaItem = album.toSharedMediaItemUi(coverArtUrl, canFavoriteAlbums)
+            SharedHomeCollectionItemUi(
+                mediaItem = mediaItem,
+                mediaKind = SharedMediaItemKind.Album,
+                title = "${mediaItem.subtitle} Mix",
+                subtitle = mediaItem.title,
+                action = SharedHomeCollectionItemAction.PlayAlbum,
+            )
+        })
+        addSection(HomeSectionIds.NavibeatMixes, "NAVIBEAT MIXES", navibeatMixes.map { mix ->
+            SharedHomeCollectionItemUi(
+                mediaItem = mix.playlist.toSharedMediaItemUi(
+                    coverArtUrl = coverArtUrl,
+                    tracks = playlistTracksById[mix.playlist.id].orEmpty(),
+                    keepDownloadedActive = mix.playlist.id in keepDownloadedPlaylistIds,
+                ),
+                mediaKind = SharedMediaItemKind.Playlist,
+                title = mix.playlist.name,
+                subtitle = mix.statusLabel(date),
+                artwork = SharedHomeCollectionArtwork.NavibeatGenerated,
+                artworkKey = mix.metadata.kind,
+                action = SharedHomeCollectionItemAction.OpenPlaylist,
+            )
+        })
+        addSection(HomeSectionIds.RecentRadio, "RECENTLY PLAYED RADIO", recentRadioItems.map { item ->
+            SharedHomeCollectionItemUi(item, SharedMediaItemKind.RadioStation, action = SharedHomeCollectionItemAction.SelectRecentRadio)
+        })
+        addSection(HomeSectionIds.RecentlyPlayed, "RECENTLY PLAYED", recentTrackRows.map { track ->
+            SharedHomeCollectionItemUi(
+                mediaItem = track.toHomeCollectionMediaItem(),
+                mediaKind = SharedMediaItemKind.Track,
+                action = SharedHomeCollectionItemAction.SelectRecentTrack,
+                track = track,
+            )
+        })
+        addSection(HomeSectionIds.MixBuilders, "MIX BUILDERS", builders.map { builder ->
+            SharedHomeCollectionItemUi(
+                mediaItem = SharedMediaItemUi(builder.id, builder.title, builder.subtitle),
+                mediaKind = SharedMediaItemKind.MixBuilder,
+                action = SharedHomeCollectionItemAction.SelectMixBuilder,
+                mixBuilder = builder,
+            )
+        })
+        sonicDiscoveryRows.rows.forEach { row ->
+            addSection(row.id.value, row.title.uppercase(), row.tracks.map { track ->
+                val trackUi = track.toSharedTrackRowUi(coverArtUrl)
+                SharedHomeCollectionItemUi(
+                    mediaItem = trackUi.toHomeCollectionMediaItem(),
+                    mediaKind = SharedMediaItemKind.Track,
+                    action = SharedHomeCollectionItemAction.SelectSonicTrack,
+                    track = trackUi,
+                    discoveryRowId = row.id.value,
+                )
+            })
+        }
+        fun addAlbums(id: String, title: String, albums: List<Album>) = addSection(id, title, albums.map { album ->
+            SharedHomeCollectionItemUi(
+                mediaItem = album.toSharedMediaItemUi(coverArtUrl, canFavoriteAlbums),
+                mediaKind = SharedMediaItemKind.Album,
+                action = SharedHomeCollectionItemAction.OpenAlbum,
+            )
+        })
+        addAlbums(HomeSectionIds.RecentlyAdded, "RECENTLY ADDED MUSIC", recentlyAddedAlbums)
+        addSection(HomeSectionIds.RecentPlaylists, "RECENT PLAYLISTS", playlists.map { playlist ->
+            SharedHomeCollectionItemUi(
+                mediaItem = playlist.toSharedMediaItemUi(
+                    coverArtUrl = coverArtUrl,
+                    tracks = playlistTracksById[playlist.id].orEmpty(),
+                    keepDownloadedActive = playlist.id in keepDownloadedPlaylistIds,
+                ),
+                mediaKind = SharedMediaItemKind.Playlist,
+                action = SharedHomeCollectionItemAction.OpenPlaylist,
+            )
+        })
+        addSection(HomeSectionIds.RecentInternetRadio, "RECENT INTERNET RADIO", recentInternetRadioStations.map { station ->
+            SharedHomeCollectionItemUi(
+                mediaItem = station.toSharedMediaItemUi(),
+                mediaKind = SharedMediaItemKind.RadioStation,
+                action = SharedHomeCollectionItemAction.SelectInternetRadio,
+            )
+        })
+        addSection(HomeSectionIds.Stations, "STATIONS", stationsUi.map { station ->
+            SharedHomeCollectionItemUi(
+                mediaItem = SharedMediaItemUi(station.id, station.title, station.subtitle),
+                mediaKind = SharedMediaItemKind.RadioStation,
+                action = SharedHomeCollectionItemAction.SelectStation,
+                station = station,
+            )
+        })
+        addAlbums(HomeSectionIds.RecentAlbums, "RECENT ALBUMS", recentAlbums)
+        addAlbums(HomeSectionIds.FrequentlyPlayedAlbums, "FREQUENTLY PLAYED ALBUMS", frequentAlbums)
+        addAlbums(HomeSectionIds.RandomAlbums, "RANDOM ALBUMS", randomAlbums)
+        addAlbums(HomeSectionIds.GenreSpotlight, "MORE IN ${genreSpotlight?.name.orEmpty()}", genreSpotlightAlbums)
+        addAlbums(HomeSectionIds.Decade, "FROM THE ${decadeLabel.uppercase()}", decadeAlbums)
+    }
+    val order = interfaceSettings.resolvedHomeSectionOrder(sections.map { it.id })
+    val orderIndex = order.withIndex().associate { it.value to it.index }
+    val orderedSections = sections.sortedBy { orderIndex[it.id] ?: Int.MAX_VALUE }
+    return SharedHomeUi(
+        mixBuilders = builders,
+        collectionSections = orderedSections,
+        navibeatMixes = navibeatMixes.map { mix ->
+            SharedNavibeatMixUi(
+                playlist = mix.playlist.toSharedMediaItemUi(
+                    coverArtUrl = coverArtUrl,
+                    tracks = playlistTracksById[mix.playlist.id].orEmpty(),
+                    keepDownloadedActive = mix.playlist.id in keepDownloadedPlaylistIds,
+                ),
+                kind = mix.metadata.kind,
+                description = mix.metadata.description,
+                statusLabel = mix.statusLabel(date),
+            )
+        },
         sonicDiscoveryRows = sonicDiscoveryRows.rows.map { row ->
             SharedHomeDiscoveryTrackRowUi(
                 id = row.id.value,
@@ -188,26 +336,16 @@ fun HomeContent.toSharedHomeUi(
                 keepDownloadedActive = playlist.id in keepDownloadedPlaylistIds,
             )
         },
-        recentRadioStreams = recentRadioStreams.map {
-            val coverArtUrls = it.coverArtIds.mapNotNull(coverArtUrl).distinct().take(4)
-            SharedMediaItemUi(
-                id = it.id,
-                title = it.label,
-                subtitle = "Radio",
-                coverArtUrl = coverArtUrls.firstOrNull(),
-                coverArtUrls = coverArtUrls,
-            )
-        },
-        recentlyPlayedTracks = recentlyPlayedTracks.map { track -> track.toSharedTrackRowUi(coverArtUrl) },
+        recentRadioStreams = recentRadioItems,
+        recentlyPlayedTracks = recentTrackRows,
         radioStations = recentInternetRadioStations.map { it.toSharedMediaItemUi() },
-        stations = homeStations(this).map {
-            SharedHomeStationUi(id = it.id, title = it.title, subtitle = it.subtitle)
-        },
+        stations = stationsUi,
         genreSpotlightTitle = genreSpotlight?.name,
         genreSpotlightAlbums = genreSpotlightAlbums.map { it.toSharedMediaItemUi(coverArtUrl, canFavoriteAlbums) },
         decadeLabel = decadeLabel,
         decadeAlbums = decadeAlbums.map { it.toSharedMediaItemUi(coverArtUrl, canFavoriteAlbums) },
     )
+}
 
 fun sharedMixBuilders(
     showSonicPathBuilder: Boolean = false,
@@ -1302,6 +1440,16 @@ fun AlbumDetails.toSharedAlbumDetailUi(
         artist = primaryArtist,
     )
 }
+
+private fun SharedTrackRowUi.toHomeCollectionMediaItem(): SharedMediaItemUi = SharedMediaItemUi(
+    id = id,
+    title = title,
+    subtitle = subtitle,
+    meta = durationLabel,
+    coverArtUrl = coverArtUrl,
+    favoriteActive = favoriteActive,
+    canFavorite = canToggleFavorite,
+)
 
 fun ArtistDetails.toSharedArtistDetailUi(
     coverArtUrl: (String?) -> String?,

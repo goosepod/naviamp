@@ -35,7 +35,7 @@ import app.naviamp.storage.StorageImageCacheRepository
 import java.nio.file.Files
 import java.nio.file.Path
 import java.time.Instant
-import java.time.LocalDate
+import java.time.LocalDateTime
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 
@@ -203,7 +203,9 @@ internal class DesktopComposition private constructor(
                 ),
                 externalUri = DesktopExternalUriPort(),
                 homeDate = NaviampCoreHomeDateSource {
-                    LocalDate.now().let { date -> HomeDate(date.year, date.dayOfYear) }
+                    LocalDateTime.now().let { dateTime ->
+                        HomeDate(dateTime.year, dateTime.dayOfYear, dateTime.hour)
+                    }
                 },
                 shellCapabilities = shellCapabilities,
                 settingsSyncDeviceId = DesktopSettingsSyncDeviceId,

@@ -214,6 +214,7 @@ data class Playlist(
     val durationSeconds: Int? = null,
     val coverArtId: String? = null,
     val isSmart: Boolean = false,
+    val comment: String? = null,
 )
 
 data class Genre(

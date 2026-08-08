@@ -24,6 +24,7 @@ import app.naviamp.ui.NowPlayingSleepTimerActionRequest
 import app.naviamp.ui.SharedGenreMixItemUi
 import app.naviamp.ui.SharedHomeDiscoveryTrackActionRequest
 import app.naviamp.ui.SharedHomeStationUi
+import app.naviamp.domain.settings.HomeSectionPageLayout
 import app.naviamp.ui.SharedMediaItemUi
 import app.naviamp.ui.SharedMixBuilderUi
 import app.naviamp.ui.SharedPlaylistSortMode
@@ -62,6 +63,10 @@ sealed interface NaviampCoreCommand {
 
     sealed interface Settings : NaviampCoreCommand {
         data class ChangeInterface(val settings: InterfaceSettings) : Settings
+        data class ChangeHomeSectionPageLayout(
+            val sectionId: String,
+            val layout: HomeSectionPageLayout,
+        ) : Settings
         data class ChangePlayback(val settings: PlaybackSettings, val redownload: Boolean) : Settings
         data class ChangeCache(val settings: CacheSettings) : Settings
         data class ChangeDownloadLocation(val location: NaviampStorageLocationUi) : Settings
@@ -154,6 +159,8 @@ sealed interface NaviampCoreCommand {
         data class SelectStation(val station: SharedHomeStationUi) : Home
         data class SonicTrackAction(val request: SharedHomeDiscoveryTrackActionRequest) : Home
         data class RecentTrackAction(val request: SharedTrackRowActionRequest) : Home
+        data class OpenCollection(val sectionId: String) : Home
+        data object CloseCollection : Home
     }
 
     sealed interface MixBuilder : NaviampCoreCommand {

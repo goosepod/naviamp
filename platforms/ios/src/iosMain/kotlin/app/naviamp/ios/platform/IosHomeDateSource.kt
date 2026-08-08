@@ -4,6 +4,7 @@ import app.naviamp.domain.home.HomeDate
 import app.naviamp.presentation.NaviampCoreHomeDateSource
 import platform.Foundation.NSCalendar
 import platform.Foundation.NSCalendarUnitDay
+import platform.Foundation.NSCalendarUnitHour
 import platform.Foundation.NSCalendarUnitYear
 import platform.Foundation.NSDate
 
@@ -18,5 +19,6 @@ val IosHomeDateSource = NaviampCoreHomeDateSource {
             inUnit = NSCalendarUnitYear,
             forDate = now,
         ).toInt(),
+        hourOfDay = calendar.component(NSCalendarUnitHour, fromDate = now).toInt(),
     )
 }

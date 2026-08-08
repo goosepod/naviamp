@@ -3,6 +3,7 @@ package app.naviamp.presentation
 import app.naviamp.domain.Playlist
 import app.naviamp.domain.cache.KeepDownloadedCollectionKind
 import app.naviamp.domain.cache.KeepDownloadedRepository
+import app.naviamp.domain.navibeat.navibeatMixOrNull
 import app.naviamp.ui.NaviampAlbumDetailScreenUi
 import app.naviamp.ui.NaviampArtistDetailScreenUi
 import app.naviamp.ui.NaviampMediaItemCommand
@@ -104,10 +105,11 @@ class NaviampCorePlaylistBrowseController(
                 playlistsById = playlists.associateBy(Playlist::id)
                 mediaRegistry.updatePlaylists(playlists)
                 val supplement = supplementSource.current()
+                val visiblePlaylists = playlists.filter { it.navibeatMixOrNull() == null }
                 stateStore.updateShell { shell ->
                     shell.copy(
                         playlists = shell.playlists.copy(
-                            playlists = playlists.map { playlist ->
+                            playlists = visiblePlaylists.map { playlist ->
                                 playlist.toSharedMediaItemUi(
                                     coverArtUrl = coverArtUrl,
                                     keepDownloadedActive = playlist.id in supplement.keepDownloadedPlaylistIds,
@@ -117,7 +119,7 @@ class NaviampCorePlaylistBrowseController(
                             status = finalStatus,
                             refreshing = false,
                         ),
-                        playlistChoices = playlists
+                        playlistChoices = visiblePlaylists
                             .filterNot(Playlist::isSmart)
                             .map(Playlist::toPlaylistChoiceUi),
                     )

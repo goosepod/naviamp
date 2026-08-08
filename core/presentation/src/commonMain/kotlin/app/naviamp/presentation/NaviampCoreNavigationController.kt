@@ -122,6 +122,11 @@ class NaviampCoreNavigationController(
                 albumDetail = NaviampAlbumDetailScreenUi(),
                 artistDetail = NaviampArtistDetailScreenUi(),
                 playlistDetail = NaviampPlaylistDetailScreenUi(),
+                home = if (route == NaviampRoute.Home) {
+                    shell.home.copy(collectionPage = null)
+                } else {
+                    shell.home
+                },
             )
         }
         persistNowPlayingOpen(false)
@@ -168,10 +173,15 @@ class NaviampCoreNavigationController(
     }
 
     private fun closePlaylist() {
-        navigation.navigate(NaviampRoute.Playlists)
+        val destination = if (stateStore.state.value.shell.home.collectionPage != null) {
+            NaviampRoute.Home
+        } else {
+            NaviampRoute.Playlists
+        }
+        navigation.navigate(destination)
         stateStore.updateShell { shell ->
             shell.copy(
-                shellChrome = shell.shellChrome.copy(selectedRoute = NaviampRoute.Playlists.toSharedRoute()),
+                shellChrome = shell.shellChrome.copy(selectedRoute = destination.toSharedRoute()),
                 playlistDetail = NaviampPlaylistDetailScreenUi(),
             )
         }
