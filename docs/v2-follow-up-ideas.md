@@ -113,6 +113,16 @@ This document tracks useful ideas that come up during the v2 migration but are n
 - **Investigation output:** Build an endpoint/capability matrix from current official documentation and captured test responses, define authentication and credential-storage requirements, create contract tests and representative fixtures, and implement in the accepted order: generic Subsonic/OpenSubsonic, Jellyfin, then Bandcamp. Bandcamp beta behavior must be reverified before development because it may change.
 - **Source:** [Bandcamp: Discover Improvements and Subsonic Implementation](https://blog.bandcamp.com/2026/07/16/discover-improvements-and-subsonic-implementation/)
 
+### Navidrome Album Information on Album Detail
+
+- **Status:** Idea
+- **Concept:** When Navidrome provides album information analogous to its artist information, add that metadata to the shared album detail page.
+- **Independent visibility controls:** Add separate settings for showing artist information and showing album information. Each entity must be independently enabled or disabled; changing one setting must not affect the other.
+- **Investigation first:** Identify the Navidrome/OpenSubsonic endpoint, response fields, capability/version requirements, attribution, and empty or partial response behavior. Confirm which data is server-owned and which may originate from external metadata services before defining the provider-neutral model.
+- **Presentation questions:** Decide which available fields belong in the primary album detail layout, which should be expandable, how links and attribution should appear, where the two visibility controls belong in Settings, and how detail pages should degrade when information is disabled or unavailable.
+- **Shared-architecture requirement:** Map Navidrome-specific responses in the provider's `commonMain` code, expose optional album information through shared provider-neutral contracts, and render it in the Core-owned album detail UI so Android, Desktop, and iOS receive the feature together. Store and validate the two visibility preferences independently in shared settings, including Settings Sync if applicable.
+- **Acceptance shape:** Verify complete, partial, missing, malformed, and unavailable album-information responses; all four combinations of the artist and album information settings; source switching and stale-request cancellation; preference persistence and synchronization; and consistent rendering and accessibility across all three hosts.
+
 ### Classical Work and Movement Grouping
 
 - **Status:** Idea
