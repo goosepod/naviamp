@@ -57,9 +57,40 @@ class RadioRequestsTest {
             track("two", artistName = "Slowdive"),
         )
         val popularRequest = assertNotNull(popularTracksRadioRequest(tracks, seedLimit = 5))
-        assertTrue(popularRequest.seedTrack in tracks)
+        assertEquals(tracks.first(), popularRequest.seedTrack)
         assertEquals("${popularRequest.seedTrack.artistName} popular tracks radio", popularRequest.label)
         assertEquals(RecentRadioKind.Track, popularRequest.recentRadioStream.kind)
+    }
+
+    @Test
+    fun popularTracksRadioPinsTheFirstTrackAndDistributesMissingPopularTracks() = runTest {
+        val popularTracks = (1..12).map { index ->
+            track("popular-$index", artistName = "Slowdive")
+        }
+        val radioTracks = (1..20).map { index -> track("radio-$index", artistName = "Related $index") }
+            .toMutableList()
+            .also { tracks -> tracks.add(7, popularTracks[2]) }
+        val provider = FakeRadioProvider(
+            trackRadioResults = mapOf(popularTracks.first().id to radioTracks),
+        )
+        val request = assertNotNull(popularTracksRadioRequest(popularTracks))
+
+        val result = assertIs<SeededRadioBuildResult.Ready>(
+            seededRadioBuildResult(request, RadioService(provider)),
+        )
+
+        assertEquals(popularTracks.first(), result.queue.first())
+        assertEquals(
+            popularTracks.take(DefaultPopularTracksRadioSeedLimit).map { it.id }.toSet(),
+            result.queue.filter { track -> track.id.value.startsWith("popular-") }.map { it.id }.toSet(),
+        )
+        assertEquals(
+            DefaultPopularTracksRadioSeedLimit,
+            result.queue.count { track -> track.id.value.startsWith("popular-") },
+        )
+        assertTrue(popularTracks.take(10).drop(1).all { track -> result.queue.indexOf(track) > 1 })
+        assertEquals(popularTracks.take(10).map { it.id }.toSet(), provider.trackRadioRequests.toSet())
+        assertEquals(DefaultPopularTracksRadioSeedLimit, provider.trackRadioRequests.size)
     }
 
     @Test
@@ -248,7 +279,9 @@ class RadioRequestsTest {
             replayGain = null,
         )
 
-    private class FakeRadioProvider : MediaProvider {
+    private class FakeRadioProvider(
+        private val trackRadioResults: Map<TrackId, List<Track>> = emptyMap(),
+    ) : MediaProvider {
         override val id: ProviderId = ProviderId("provider-one")
         override val displayName: String = "Provider One"
         override val capabilities: ProviderCapabilities = ProviderCapabilities(
@@ -279,6 +312,13 @@ class RadioRequestsTest {
 
         override suspend fun search(query: String, limit: Int): MediaSearchResults =
             error("unused")
+
+        val trackRadioRequests = mutableListOf<TrackId>()
+
+        override suspend fun trackRadio(trackId: TrackId, count: Int): List<Track> {
+            trackRadioRequests += trackId
+            return trackRadioResults[trackId].orEmpty().take(count)
+        }
 
         override suspend fun streamUrl(request: StreamRequest): String =
             error("unused")

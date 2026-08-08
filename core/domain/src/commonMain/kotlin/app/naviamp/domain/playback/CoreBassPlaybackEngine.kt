@@ -128,7 +128,7 @@ open class CoreBassPlaybackEngine(
     private var activeOutputSampleRateHz: Int? = null
     private var currentScope: CoroutineScope? = null
     private var lastProgress: PlaybackProgress = PlaybackProgress.Unknown
-    private var lastRequestUrl: String? = null
+    private var lastRequestDiagnosticUrl: String? = null
     private var lastRequestedSampleRateHz: Int? = null
     private var lastTargetOutputSampleRateHz: Int? = null
     private var lastError: String? = loadError?.message
@@ -154,7 +154,7 @@ open class CoreBassPlaybackEngine(
         onProgressChanged: (PlaybackProgress) -> Unit,
         onMetadataChanged: (PlaybackStreamMetadata) -> Unit,
     ) {
-        lastRequestUrl = request.url
+        lastRequestDiagnosticUrl = request.url.sanitizedPlaybackDiagnosticUrl()
         currentScope = scope
         execution.attach(request, onStateChanged, onProgressChanged, onMetadataChanged)
         lastProgress = PlaybackProgress.Unknown
@@ -287,7 +287,7 @@ open class CoreBassPlaybackEngine(
                             retriedAfterBassReset = false
                             activeRequest = fallbackRequest
                             execution.updateRequest(activeRequest)
-                            lastRequestUrl = activeRequest.url
+                            lastRequestDiagnosticUrl = activeRequest.url.sanitizedPlaybackDiagnosticUrl()
                             resetBassAfterPlaybackFailure(bass)
                             onStateChanged(PlaybackState.Loading)
                             continue
@@ -567,7 +567,7 @@ open class CoreBassPlaybackEngine(
                 else -> "None"
             },
             "Volume" to "$volumePercent%",
-            "Last request" to (lastRequestUrl ?: "None"),
+            "Last request" to (lastRequestDiagnosticUrl ?: "None"),
             "Last error" to (lastError ?: "None"),
         )
 

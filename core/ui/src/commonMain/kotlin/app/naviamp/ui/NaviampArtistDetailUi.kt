@@ -362,7 +362,8 @@ private fun ArtistDetailContent(
         ) {
             detail.biography
                 ?.normalizedBiography()
-                ?.takeIf { it.isNotBlank() }
+                ?.toProviderRichText()
+                ?.takeIf { it.text.isNotBlank() }
                 ?.let { biography ->
                     val showMoreLink = biography.length > 260
                     Text(
@@ -453,26 +454,30 @@ private fun ArtistDetailContent(
                 visibleAlbumSections.forEach { section ->
                     Text(section.title.uppercase(), color = colors.primaryText, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                     if (albumCollectionLayout == AlbumCollectionLayout.Grid) {
-                        FlowRow(
-                            horizontalArrangement = Arrangement.spacedBy(6.dp),
-                            verticalArrangement = Arrangement.spacedBy(10.dp),
-                            modifier = Modifier.fillMaxWidth(),
-                        ) {
-                            section.albums.forEach { album ->
-                                SharedAlbumGridTile(
-                                    item = album,
-                                    colors = colors,
-                                    onClick = { onAlbumSelected(album) },
-                                    menuItems = albumMenuItems(album),
-                                    onFavoriteToggled = { selected ->
-                                        onAlbumAction(
-                                            NaviampArtistAlbumActionRequest(
-                                                selected,
-                                                NaviampArtistAlbumCommand.ToggleFavorite,
-                                            ),
-                                        )
-                                    },
-                                )
+                        BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
+                            val tileSize = artistAlbumGridTileSize(maxWidth)
+                            FlowRow(
+                                horizontalArrangement = Arrangement.spacedBy(ArtistAlbumGridSpacing),
+                                verticalArrangement = Arrangement.spacedBy(10.dp),
+                                modifier = Modifier.fillMaxWidth(),
+                            ) {
+                                section.albums.forEach { album ->
+                                    SharedAlbumGridTile(
+                                        item = album,
+                                        colors = colors,
+                                        onClick = { onAlbumSelected(album) },
+                                        menuItems = albumMenuItems(album),
+                                        onFavoriteToggled = { selected ->
+                                            onAlbumAction(
+                                                NaviampArtistAlbumActionRequest(
+                                                    selected,
+                                                    NaviampArtistAlbumCommand.ToggleFavorite,
+                                                ),
+                                            )
+                                        },
+                                        tileSize = tileSize,
+                                    )
+                                }
                             }
                         }
                     } else {
@@ -577,6 +582,15 @@ private fun ArtistDetailContent(
         )
     }
 }
+
+private val ArtistAlbumGridSpacing = 6.dp
+private val ArtistAlbumGridPreferredTileSize = 144.dp
+
+internal fun artistAlbumGridTileSize(availableWidth: Dp): Dp =
+    minOf(
+        ArtistAlbumGridPreferredTileSize,
+        ((availableWidth - ArtistAlbumGridSpacing) / 2f).coerceAtLeast(1.dp),
+    )
 
 @Composable
 private fun SimilarArtistRow(

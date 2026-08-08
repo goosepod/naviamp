@@ -5,8 +5,10 @@ import app.naviamp.domain.ArtistCredit
 import app.naviamp.domain.ArtistDetails
 import app.naviamp.domain.ArtistId
 import app.naviamp.domain.ArtistInfo
+import app.naviamp.domain.AlbumInfo
 import app.naviamp.domain.InternetRadioStation
 import app.naviamp.domain.Album
+import app.naviamp.domain.AlbumDetails
 import app.naviamp.domain.AlbumExplicitStatus
 import app.naviamp.domain.AlbumId
 import app.naviamp.domain.Playlist
@@ -375,6 +377,53 @@ class MediaUiMappersTest {
 
         assertEquals("https://images.test/large.jpg", ui.artist.coverArtUrl)
         assertEquals("Artist biography", ui.biography)
+    }
+
+    @Test
+    fun albumAndArtistInformationVisibilityAreIndependent() {
+        val albumDetails = AlbumDetails(
+            album = Album(
+                AlbumId("album-1"),
+                "Album",
+                "Artist",
+                "cover-1",
+                null,
+                artistCredits = listOf(ArtistCredit(ArtistId("artist-1"), "Artist")),
+            ),
+            tracks = emptyList(),
+            info = AlbumInfo(notes = "Album notes", largeImageUrl = "https://images.test/album.jpg"),
+        )
+        val artistDetails = ArtistDetails(
+            artist = Artist(ArtistId("artist-1"), "Artist"),
+            albums = emptyList(),
+            info = ArtistInfo("Artist biography", null, null, "https://images.test/artist.jpg"),
+        )
+
+        listOf(false, true).forEach { showArtist ->
+            listOf(false, true).forEach { showAlbum ->
+                val albumUi = albumDetails.toSharedAlbumDetailUi(
+                    coverArtUrl = { "cover://$it" },
+                    showAlbumInformation = showAlbum,
+                )
+                val artistUi = artistDetails.toSharedArtistDetailUi(
+                    coverArtUrl = { "cover://$it" },
+                    showArtistInformation = showArtist,
+                )
+
+                assertEquals(if (showAlbum) "Album notes" else null, albumUi.information)
+                assertEquals("artist-1", albumUi.artist?.id)
+                assertEquals("Artist", albumUi.artist?.title)
+                assertEquals(
+                    if (showAlbum) "https://images.test/album.jpg" else "cover://cover-1",
+                    albumUi.album.coverArtUrl,
+                )
+                assertEquals(if (showArtist) "Artist biography" else null, artistUi.biography)
+                assertEquals(
+                    if (showArtist) "https://images.test/artist.jpg" else "cover://artist-1",
+                    artistUi.artist.coverArtUrl,
+                )
+            }
+        }
     }
 
     @Test

@@ -4,9 +4,12 @@ import app.naviamp.app.NaviampNavigationController
 import app.naviamp.domain.Album
 import app.naviamp.domain.AlbumDetails
 import app.naviamp.domain.AlbumId
+import app.naviamp.domain.AlbumInfo
 import app.naviamp.domain.Artist
 import app.naviamp.domain.ArtistDetails
 import app.naviamp.domain.ArtistId
+import app.naviamp.domain.ArtistInfo
+import app.naviamp.domain.settings.InterfaceSettings
 import app.naviamp.domain.ProviderId
 import app.naviamp.domain.StreamRequest
 import app.naviamp.domain.Track
@@ -137,8 +140,99 @@ class NaviampCoreMediaDetailControllerTest {
         assertNotNull(store.state.value.shell.artistDetail.detail)
     }
 
+    @Test
+    fun informationVisibilityChangesRemapLoadedDetailsImmediatelyAndIndependently() = runTest {
+        val provider = MediaDetailTestProvider()
+        val (store, controller) = controller(provider)
+
+        controller.execute(
+            NaviampCoreCommand.Media.ItemAction(
+                mediaItem("album-1", "Album").albumActionRequest(NaviampArtistAlbumCommand.Select),
+            ),
+        )
+        runCurrent()
+        assertEquals("Album notes", store.state.value.shell.albumDetail.detail?.information)
+
+        controller.media.interfaceSettingsChanged(
+            InterfaceSettings(showArtistInformation = true, showAlbumInformation = false),
+        )
+        assertNull(store.state.value.shell.albumDetail.detail?.information)
+
+        controller.media.interfaceSettingsChanged(
+            InterfaceSettings(showArtistInformation = false, showAlbumInformation = true),
+        )
+        assertEquals("Album notes", store.state.value.shell.albumDetail.detail?.information)
+
+        controller.execute(
+            NaviampCoreCommand.Media.ItemAction(
+                mediaItem("artist-b", "Artist B").artistActionRequest(NaviampArtistMediaCommand.Select),
+            ),
+        )
+        assertEquals("Artist biography", store.state.value.shell.artistDetail.detail?.biography)
+
+        controller.media.interfaceSettingsChanged(
+            InterfaceSettings(showArtistInformation = false, showAlbumInformation = true),
+        )
+        assertNull(store.state.value.shell.artistDetail.detail?.biography)
+
+        controller.media.interfaceSettingsChanged(
+            InterfaceSettings(showArtistInformation = true, showAlbumInformation = false),
+        )
+        assertEquals("Artist biography", store.state.value.shell.artistDetail.detail?.biography)
+    }
+
+    @Test
+    fun albumInformationEnrichesAnAlreadyVisibleAlbumAfterAProviderDelay() = runTest {
+        val albumInfoGate = CompletableDeferred<Unit>()
+        val provider = MediaDetailTestProvider(albumInfoGate = albumInfoGate)
+        val (store, controller) = controller(provider)
+
+        val load = launch {
+            controller.execute(
+                NaviampCoreCommand.Media.ItemAction(
+                    mediaItem("album-1", "Album").albumActionRequest(NaviampArtistAlbumCommand.Select),
+                ),
+            )
+        }
+        runCurrent()
+
+        assertEquals("Canonical album", store.state.value.shell.albumDetail.detail?.album?.title)
+        assertNull(store.state.value.shell.albumDetail.detail?.information)
+
+        albumInfoGate.complete(Unit)
+        runCurrent()
+        load.join()
+
+        assertEquals("Album notes", store.state.value.shell.albumDetail.detail?.information)
+    }
+
+    @Test
+    fun popularTrackEnrichmentCannotDelayAlbumInformation() = runTest {
+        val popularTracksGate = CompletableDeferred<Unit>()
+        val provider = MediaDetailTestProvider()
+        val (store, controller) = controller(provider, popularTracksGate)
+
+        val load = launch {
+            controller.execute(
+                NaviampCoreCommand.Media.ItemAction(
+                    mediaItem("album-1", "Album").albumActionRequest(NaviampArtistAlbumCommand.Select),
+                ),
+            )
+        }
+        runCurrent()
+
+        assertEquals("Album notes", store.state.value.shell.albumDetail.detail?.information)
+
+        popularTracksGate.complete(Unit)
+        load.join()
+
+        assertEquals("Album notes", store.state.value.shell.albumDetail.detail?.information)
+        assertTrue(store.state.value.shell.albumDetail.detail?.tracks?.single()?.popular == true)
+    }
+
     private fun kotlinx.coroutines.test.TestScope.controller(
         provider: MediaProvider?,
+        popularTracksGate: CompletableDeferred<Unit>? = null,
     ): Pair<NaviampCoreStateStore, MediaDetailControllers> {
         val store = NaviampCoreStateStore()
         lateinit var media: NaviampCoreMediaDetailController
@@ -155,6 +249,7 @@ class NaviampCoreMediaDetailControllerTest {
             discovery = NaviampCoreArtistDiscoveryServices(
                 sourceId = { "source" },
                 popularTracks = { _, artist, _ ->
+                    popularTracksGate?.await()
                     val popularId = if (artist.name == "Artist") "track-1" else "popular-${artist.id.value}"
                     listOf(
                         app.naviamp.domain.popular.ArtistPopularTrackMatch(
@@ -197,6 +292,7 @@ private data class MediaDetailControllers(
 
 private class MediaDetailTestProvider(
     private val firstArtistGate: CompletableDeferred<Unit>? = null,
+    private val albumInfoGate: CompletableDeferred<Unit>? = null,
 ) : MediaProvider {
     override val id = ProviderId("media-detail")
     override val displayName = "Media detail"
@@ -217,6 +313,11 @@ private class MediaDetailTestProvider(
         tracks = listOf(track("track-1", "Track one", albumId)),
     )
 
+    override suspend fun albumInfo(albumId: AlbumId): AlbumInfo {
+        albumInfoGate?.await()
+        return AlbumInfo(notes = "Album notes", largeImageUrl = "https://info.example/album.jpg")
+    }
+
     override suspend fun artist(artistId: ArtistId): ArtistDetails {
         if (artistId.value == "artist-a") firstArtistGate?.await()
         val artist = Artist(
@@ -226,6 +327,7 @@ private class MediaDetailTestProvider(
         return ArtistDetails(
             artist = artist,
             albums = listOf(Album(AlbumId("album-${artistId.value}"), "Album", artist.name, null, null)),
+            info = ArtistInfo("Artist biography", null, null, "https://info.example/artist.jpg"),
         )
     }
 

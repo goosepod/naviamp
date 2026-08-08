@@ -136,6 +136,7 @@ class NaviampCore private constructor(
             },
         ): NaviampCore {
             val stateStore = NaviampCoreStateStore(initialState.product)
+            val busyIndicator = NaviampCoreBusyIndicator(stateStore)
             val providerSource = NaviampCoreMediaProviderSource {
                 services.content.providerSource.current()?.let { provider ->
                     services.providerActions.offlineCapable(
@@ -184,6 +185,7 @@ class NaviampCore private constructor(
                 refreshLibrary = catalog::refreshAfterConnection,
                 onDatabaseReset = { completeDatabaseReset() },
                 onLocalSettingsChanged = { notifyLocalSettingsChanged() },
+                onInterfaceSettingsChanged = mediaDetails::interfaceSettingsChanged,
             )
             val home = NaviampCoreHomeController(
                 stateStore,
@@ -309,6 +311,7 @@ class NaviampCore private constructor(
             )
             val mediaTransactions = NaviampCoreMediaTransactions(
                 stateStore,
+                busyIndicator,
                 providerSource,
                 mediaRegistry,
                 livePlayback,
@@ -452,6 +455,7 @@ class NaviampCore private constructor(
                         }
                         navigation.dispatch(NaviampCoreCommand.Navigation.SelectRoute(SharedRoute.Settings))
                     }
+                    mediaDetails.interfaceSettingsChanged(snapshot.interfaceSettings)
                     home.refreshAfterConnection()
                 },
             )

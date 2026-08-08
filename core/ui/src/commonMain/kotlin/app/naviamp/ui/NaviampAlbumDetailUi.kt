@@ -133,6 +133,7 @@ fun NaviampAlbumDetailContent(
                 NaviampAlbumDetailActionRequest(detail.album, NaviampAlbumDetailCommand.ToggleFavorite),
             )
         },
+        onArtistSelected = actions.onArtistSelected,
         onTrackAction = actions.onTrackAction,
         playlistChoices = playlistChoices,
         playlistActionStatus = playlistActionStatus,
@@ -152,6 +153,7 @@ private fun AlbumDetailContent(
     onAlbumAddToPlaylist: (NaviampPlaylistChoiceUi?) -> Unit,
     onAlbumCreatePlaylistAndAdd: (String) -> Unit,
     onAlbumFavoriteToggled: () -> Unit,
+    onArtistSelected: (SharedMediaItemUi) -> Unit,
     onTrackAction: (SharedTrackRowActionRequest) -> Unit,
     playlistChoices: List<NaviampPlaylistChoiceUi>,
     playlistActionStatus: String?,
@@ -159,6 +161,7 @@ private fun AlbumDetailContent(
     var addAlbumToPlaylistOpen by remember(detail.album.id) { mutableStateOf(false) }
     var trackForPlaylist by remember(detail.album.id) { mutableStateOf<SharedTrackRowUi?>(null) }
     var albumImageOpen by remember(detail.album.id) { mutableStateOf(false) }
+    var informationExpanded by remember(detail.album.id) { mutableStateOf(false) }
     val handleTrackAction: (SharedTrackRowActionRequest) -> Unit = { request ->
         if (request.action == SharedTrackRowAction.AddToPlaylist && request.playlistChoice == null) {
             trackForPlaylist = request.track
@@ -211,6 +214,10 @@ private fun AlbumDetailContent(
                     fontSize = 14.sp,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.clickable(
+                        enabled = detail.artist != null,
+                        onClick = { detail.artist?.let(onArtistSelected) },
+                    ),
                 )
                 detail.album.releaseYear?.let { year ->
                     Text(year.toString(), color = colors.secondaryText, fontSize = 12.sp)
@@ -237,7 +244,6 @@ private fun AlbumDetailContent(
         Text(
             listOfNotNull(
                 "${detail.tracks.size} tracks",
-                detail.album.releaseYear?.toString(),
                 detail.totalDurationLabel.takeIf { it.isNotBlank() }?.let { "Total $it" },
             ).joinToString(" - "),
             color = colors.secondaryText,
@@ -249,6 +255,31 @@ private fun AlbumDetailContent(
                 .weight(1f)
                 .verticalScroll(rememberScrollState()),
         ) {
+            detail.information
+                ?.normalizedAlbumInformation()
+                ?.toProviderRichText()
+                ?.takeIf { it.text.isNotBlank() }
+                ?.let { information ->
+                    val showMoreLink = information.length > 260
+                    Text(
+                        information,
+                        color = colors.secondaryText,
+                        maxLines = if (informationExpanded) Int.MAX_VALUE else 3,
+                        overflow = TextOverflow.Ellipsis,
+                        style = TextStyle(fontSize = 11.sp, lineHeight = 13.sp),
+                    )
+                    if (showMoreLink) {
+                        Text(
+                            if (informationExpanded) "Less" else "More...",
+                            color = colors.primaryText,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            modifier = Modifier.clickable {
+                                informationExpanded = !informationExpanded
+                            },
+                        )
+                    }
+                }
             val reservePopularIndicatorSpace = detail.tracks.any { it.popular }
             detail.tracks.forEachIndexed { index, track ->
                 TrackRow(
@@ -326,3 +357,8 @@ private fun AlbumDetailContent(
         )
     }
 }
+
+private fun String.normalizedAlbumInformation(): String =
+    replace("\r\n", "\n")
+        .replace('\r', '\n')
+        .trim()

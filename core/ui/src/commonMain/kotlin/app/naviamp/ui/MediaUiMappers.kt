@@ -13,6 +13,7 @@ import app.naviamp.domain.StreamQuality
 import app.naviamp.domain.Track
 import app.naviamp.domain.TrackId
 import app.naviamp.domain.resolvedArtistCredits
+import app.naviamp.domain.media.nameOnlyArtistCredit
 import app.naviamp.domain.isInternetRadioTrack
 import app.naviamp.domain.audio.AudioTag
 import app.naviamp.domain.cache.DownloadJob
@@ -1269,9 +1270,26 @@ fun AlbumDetails.toSharedAlbumDetailUi(
     coverArtUrl: (String?) -> String?,
     popularTrackIds: Set<String> = emptySet(),
     canFavoriteAlbum: Boolean = false,
-): SharedAlbumDetailUi =
-    SharedAlbumDetailUi(
-        album = album.toSharedMediaItemUi(coverArtUrl, canFavoriteAlbum),
+    showAlbumInformation: Boolean = true,
+): SharedAlbumDetailUi {
+    val primaryArtist = album.resolvedArtistCredits().firstOrNull()?.let { credit ->
+        credit.id?.let { artistId ->
+            SharedMediaItemUi(
+                id = artistId.value,
+                title = credit.name,
+                subtitle = "Artist",
+            )
+        } ?: nameOnlyArtistCredit(credit.name).toSharedMediaItemUi()
+    }
+    return SharedAlbumDetailUi(
+        album = album.toSharedMediaItemUi(coverArtUrl, canFavoriteAlbum).let { item ->
+            if (!showAlbumInformation) item else item.copy(
+                coverArtUrl = info?.largeImageUrl
+                    ?: info?.mediumImageUrl
+                    ?: info?.smallImageUrl
+                    ?: item.coverArtUrl,
+            )
+        },
         tracks = tracks.map {
             it.toSharedTrackRowUi(
                 coverArtUrl,
@@ -1280,7 +1298,10 @@ fun AlbumDetails.toSharedAlbumDetailUi(
             ).copy(hasAlbum = false)
         },
         totalDurationLabel = tracks.totalDurationLabel(),
+        information = info?.notes.takeIf { showAlbumInformation },
+        artist = primaryArtist,
     )
+}
 
 fun ArtistDetails.toSharedArtistDetailUi(
     coverArtUrl: (String?) -> String?,
@@ -1291,13 +1312,18 @@ fun ArtistDetails.toSharedArtistDetailUi(
     similarArtistsExpanded: Boolean = false,
     canFavoriteArtist: Boolean = false,
     canFavoriteAlbums: Boolean = false,
+    showArtistInformation: Boolean = true,
 ): SharedArtistDetailUi =
     SharedArtistDetailUi(
         artist = artist.toSharedMediaItemUi(coverArtUrl, canFavoriteArtist).copy(
-            coverArtUrl = info?.largeImageUrl
-                ?: info?.mediumImageUrl
-                ?: info?.smallImageUrl
-                ?: coverArtUrl(artist.id.value),
+            coverArtUrl = if (showArtistInformation) {
+                info?.largeImageUrl
+                    ?: info?.mediumImageUrl
+                    ?: info?.smallImageUrl
+                    ?: coverArtUrl(artist.id.value)
+            } else {
+                coverArtUrl(artist.id.value)
+            },
         ),
         albums = albums.map { it.toSharedMediaItemUi(coverArtUrl, canFavoriteAlbums) },
         albumSections = albums.groupedByReleaseSection().map { group ->
@@ -1307,7 +1333,7 @@ fun ArtistDetails.toSharedArtistDetailUi(
             )
         },
         localLibraryLabel = artistLocalLibraryLabel(albums.size),
-        biography = info?.biography,
+        biography = info?.biography.takeIf { showArtistInformation },
         popularTracks = popularTracks.map { it.toSharedTrackRowUi(coverArtUrl).copy(hasArtist = false) },
         popularTracksStatus = popularTracksStatus,
         similarArtists = similarArtists.map { it.toSharedSimilarArtistUi() },

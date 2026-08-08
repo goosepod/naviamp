@@ -187,6 +187,18 @@ fun createNaviampCoreActions(
             onBack = { send(NaviampCoreCommand.Navigation.BackFromAlbum) },
             onAlbumAction = { send(NaviampCoreCommand.Detail.Album(it)) },
             onTrackAction = { send(NaviampCoreCommand.Detail.AlbumTrack(it)) },
+            onArtistSelected = { artist ->
+                send(
+                    NaviampCoreCommand.Media.ItemAction(
+                        app.naviamp.ui.NaviampMediaItemActionRequest(
+                            artist,
+                            app.naviamp.ui.NaviampMediaItemCommand.Artist(
+                                app.naviamp.ui.NaviampArtistMediaCommand.Select,
+                            ),
+                        ),
+                    ),
+                )
+            },
         ),
         artistDetailActions = NaviampArtistDetailActions(
             onBack = { send(NaviampCoreCommand.Navigation.BackFromArtist) },

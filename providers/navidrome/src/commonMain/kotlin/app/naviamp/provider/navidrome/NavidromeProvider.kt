@@ -4,6 +4,7 @@ import app.naviamp.domain.Album
 import app.naviamp.domain.AlbumDetails
 import app.naviamp.domain.AlbumExplicitStatus
 import app.naviamp.domain.AlbumId
+import app.naviamp.domain.AlbumInfo
 import app.naviamp.domain.Artist
 import app.naviamp.domain.ArtistCredit
 import app.naviamp.domain.ArtistDetails
@@ -278,7 +279,6 @@ class NavidromeProvider(
         val album = response.subsonicResponse()["album"]?.jsonObject
             ?: throw NavidromeException("Album was not found.")
         val songs = album["song"] as? JsonArray ?: JsonArray(emptyList())
-
         return AlbumDetails(
             album = album.toAlbum(),
             tracks = songs.mapNotNull { song ->
@@ -1355,6 +1355,36 @@ class NavidromeProvider(
         )
     }
 
+    override suspend fun albumInfo(albumId: AlbumId): AlbumInfo? {
+        var lastFailure: Throwable? = null
+        val info = listOf("getAlbumInfo.view", "getAlbumInfo2.view")
+            .firstNotNullOfOrNull { endpoint ->
+                runCatching {
+                    get(
+                        endpoint = endpoint,
+                        params = mapOf("id" to albumId.value),
+                    ).subsonicResponse()["albumInfo"]?.jsonObject
+                }.onFailure { failure ->
+                    lastFailure = failure
+                }.getOrNull()
+            }
+        if (info == null && lastFailure != null) throw lastFailure
+        info ?: return null
+        return AlbumInfo(
+            notes = info.metadataStringValue("notes"),
+            musicBrainzId = info.metadataStringValue("musicBrainzId"),
+            smallImageUrl = info.metadataStringValue("smallImageUrl"),
+            mediumImageUrl = info.metadataStringValue("mediumImageUrl"),
+            largeImageUrl = info.metadataStringValue("largeImageUrl"),
+        ).takeIf { albumInfo ->
+            albumInfo.notes != null ||
+                albumInfo.musicBrainzId != null ||
+                albumInfo.smallImageUrl != null ||
+                albumInfo.mediumImageUrl != null ||
+                albumInfo.largeImageUrl != null
+        }
+    }
+
     private suspend fun artistInfoObject(
         artistId: ArtistId,
         count: Int,
@@ -1613,7 +1643,16 @@ class NavidromeProvider(
                 "clean" -> AlbumExplicitStatus.Clean
                 else -> AlbumExplicitStatus.Unknown
             },
-            artistCredits = structuredArtistCredits(),
+            artistCredits = structuredArtistCredits().ifEmpty {
+                listOfNotNull(
+                    stringValue("artist")?.trim()?.takeIf { it.isNotEmpty() }?.let { artistName ->
+                        ArtistCredit(
+                            id = stringValue("artistId")?.trim()?.takeIf { it.isNotEmpty() }?.let(::ArtistId),
+                            name = artistName,
+                        )
+                    },
+                )
+            },
         )
 
     private fun JsonObject.toArtist(): Artist =
@@ -2006,6 +2045,11 @@ private val SensitiveNavidromeQueryKeys = setOf("u", "t", "s")
 
 private fun JsonObject.stringValue(key: String): String? =
     runCatching { this[key]?.jsonPrimitive?.contentOrNull }.getOrNull()
+
+private fun JsonObject.metadataStringValue(key: String): String? =
+    runCatching { this[key]?.jsonPrimitive?.takeIf { it.isString }?.contentOrNull }
+        .getOrNull()
+        ?.takeIf(String::isNotBlank)
 
 private fun JsonObject.intValue(key: String): Int? =
     stringValue(key)?.toIntOrNull()

@@ -448,4 +448,8 @@
     <string name="playlists_name">Nombre de la lista</string>
     <string name="playlists_delete_title">Eliminar lista</string>
     <string name="playlists_delete_message">¿Eliminar %1$s? Esto elimina la lista del servidor.</string>
+    <string name="settings_show_artist_information">Mostrar información del artista</string>
+    <string name="settings_show_artist_information_subtitle">Mostrar biografías e imágenes del proveedor en las páginas de detalles del artista.</string>
+    <string name="settings_show_album_information">Mostrar información del álbum</string>
+    <string name="settings_show_album_information_subtitle">Mostrar notas e imágenes del proveedor en las páginas de detalles del álbum.</string>
 </resources>

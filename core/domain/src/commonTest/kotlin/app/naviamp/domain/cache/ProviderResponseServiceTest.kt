@@ -3,6 +3,7 @@ package app.naviamp.domain.cache
 import app.naviamp.domain.Album
 import app.naviamp.domain.AlbumDetails
 import app.naviamp.domain.AlbumId
+import app.naviamp.domain.AlbumInfo
 import app.naviamp.domain.Artist
 import app.naviamp.domain.ArtistDetails
 import app.naviamp.domain.ArtistId
@@ -76,6 +77,36 @@ class ProviderResponseServiceTest {
         assertEquals(1, provider.albumCalls)
         assertEquals(album("album-one"), details.album)
         assertEquals(listOf(track("album-track")), details.tracks)
+    }
+
+    @Test
+    fun albumInformationUsesItsOwnCachedProviderResponse() = runTest {
+        val cache = RecordingProviderResponseCacheRepository()
+        val provider = FakeSearchProvider().apply {
+            albumInformation = AlbumInfo(notes = "Cached album notes", musicBrainzId = "mbid-1")
+        }
+        val service = ProviderResponseService(cache)
+
+        val first = service.albumInfo(provider, AlbumId("album-one"))
+        provider.albumInformation = AlbumInfo(notes = "Changed")
+        val cached = service.albumInfo(provider, AlbumId("album-one"))
+
+        assertEquals(listOf("provider-one:albumInfo:album-one", "provider-one:albumInfo:album-one"), cache.keys)
+        assertEquals(1, provider.albumInfoCalls)
+        assertEquals("Cached album notes", first?.notes)
+        assertEquals("Cached album notes", cached?.notes)
+        assertEquals("mbid-1", cached?.musicBrainzId)
+    }
+
+    @Test
+    fun missingAlbumInformationIsRetriedInsteadOfCachedPermanently() = runTest {
+        val provider = FakeSearchProvider()
+        val service = ProviderResponseService(RecordingProviderResponseCacheRepository())
+
+        assertEquals(null, service.albumInfo(provider, AlbumId("album-one")))
+        assertEquals(null, service.albumInfo(provider, AlbumId("album-one")))
+
+        assertEquals(2, provider.albumInfoCalls)
     }
 
     @Test
@@ -370,6 +401,7 @@ class ProviderResponseServiceTest {
         )
         var searchCalls: Int = 0
         var albumCalls: Int = 0
+        var albumInfoCalls: Int = 0
         var artistCalls: Int = 0
         var albumListCalls: Int = 0
         var artistsCalls: Int = 0
@@ -378,6 +410,7 @@ class ProviderResponseServiceTest {
         var internetRadioStationsCalls: Int = 0
         var results: MediaSearchResults = MediaSearchResults(tracks = listOf(track("new-order")))
         var albumDetails: AlbumDetails = AlbumDetails(album("album-one"), tracks = listOf(track("album-track")))
+        var albumInformation: AlbumInfo? = null
         var artistDetails: ArtistDetails = ArtistDetails(artist("artist-one"), albums = listOf(album("artist-album")))
         var albumListResults: List<Album>? = null
         var artistsResults: List<Artist>? = null
@@ -405,6 +438,11 @@ class ProviderResponseServiceTest {
         override suspend fun album(albumId: AlbumId): AlbumDetails {
             albumCalls += 1
             return albumDetails
+        }
+
+        override suspend fun albumInfo(albumId: AlbumId): AlbumInfo? {
+            albumInfoCalls += 1
+            return albumInformation
         }
 
         override suspend fun artist(artistId: ArtistId): ArtistDetails {

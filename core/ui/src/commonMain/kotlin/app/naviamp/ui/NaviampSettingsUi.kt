@@ -507,6 +507,24 @@ fun NaviampExperienceSettingsSection(
         ) {
             selectedSection = ExperienceSettingsPage.Albums
         }
+        SettingsCheckboxRow(
+            colors = colors,
+            checked = interfaceSettings.showArtistInformation,
+            label = stringResource(Res.string.settings_show_artist_information),
+            subtitle = stringResource(Res.string.settings_show_artist_information_subtitle),
+            onCheckedChange = { enabled ->
+                onInterfaceSettingsChanged(interfaceSettings.copy(showArtistInformation = enabled).normalized())
+            },
+        )
+        SettingsCheckboxRow(
+            colors = colors,
+            checked = interfaceSettings.showAlbumInformation,
+            label = stringResource(Res.string.settings_show_album_information),
+            subtitle = stringResource(Res.string.settings_show_album_information_subtitle),
+            onCheckedChange = { enabled ->
+                onInterfaceSettingsChanged(interfaceSettings.copy(showAlbumInformation = enabled).normalized())
+            },
+        )
         SettingsRow(
             title = ExperienceSettingsPage.SwipeActions.title(),
             subtitle = ExperienceSettingsPage.SwipeActions.subtitle(),

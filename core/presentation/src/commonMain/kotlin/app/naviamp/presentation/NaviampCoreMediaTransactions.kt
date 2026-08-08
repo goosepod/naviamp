@@ -21,6 +21,7 @@ import app.naviamp.domain.radio.decadeRecentRadioStream
 import app.naviamp.domain.radio.genreMixRadioRequest
 import app.naviamp.domain.radio.genreRecentRadioStream
 import app.naviamp.domain.radio.libraryRecentRadioStream
+import app.naviamp.domain.radio.popularTracksRadioRequest
 import app.naviamp.domain.radio.randomAlbumRecentRadioStream
 import app.naviamp.domain.radio.radioRequestStartResult
 import app.naviamp.domain.radio.seededRadioBuildResult
@@ -59,6 +60,7 @@ class NaviampCoreQueuePlaybackController(
 /** Shared media transactions used by every route; only final audio/URI effects cross the host boundary. */
 class NaviampCoreMediaTransactions(
     private val stateStore: NaviampCoreStateStore,
+    private val busyIndicator: NaviampCoreBusyIndicator,
     private val providerSource: NaviampCoreMediaProviderSource,
     private val registry: NaviampCoreMediaRegistry,
     private val playback: NaviampLivePlaybackController,
@@ -82,40 +84,44 @@ class NaviampCoreMediaTransactions(
 
     suspend fun startTrackRadio(seed: Track) {
         val provider = providerOrPublish() ?: return
-        publish("Building track radio...")
-        runCatching {
-            val settings = stateStore.state.value.shell.playback.settings
-            RadioService(provider, tuning = settings.radioTuning)
-                .trackRadio(seed, settings.sonicSimilarityEnabled)
-        }.onSuccess { fetched ->
-            if (fetched.isEmpty()) {
-                publish("track radio did not return any tracks.")
-            } else if (playback.state.value.currentTrack?.id == seed.id && playback.state.value.queue.current?.id == seed.id) {
-                val update = queue.replaceGeneratedRadioUpcomingTracks(
-                    currentTrack = seed,
-                    fetchedTracks = fetched,
-                    requestIsCurrent = true,
-                )
-                if (update.changed) effects.applyQueue(update.queue, update.clearPreparedNext)
-                rememberRecentRadio(trackRecentRadioStream(seed), listOf(seed) + fetched)
-                publish("Playing track radio.")
-            } else {
-                val tracks = RadioService(provider).queue(seed, fetched)
-                play(tracks)
-                rememberRecentRadio(trackRecentRadioStream(seed), tracks)
-                publish("Playing track radio.")
-            }
-        }.onFailure { publish(it.message ?: "Could not build track radio.") }
+        busyIndicator.during("Building track radio...") {
+            publish("Building track radio...")
+            runCatching {
+                val settings = stateStore.state.value.shell.playback.settings
+                RadioService(provider, tuning = settings.radioTuning)
+                    .trackRadio(seed, settings.sonicSimilarityEnabled)
+            }.onSuccess { fetched ->
+                if (fetched.isEmpty()) {
+                    publish("track radio did not return any tracks.")
+                } else if (playback.state.value.currentTrack?.id == seed.id && playback.state.value.queue.current?.id == seed.id) {
+                    val update = queue.replaceGeneratedRadioUpcomingTracks(
+                        currentTrack = seed,
+                        fetchedTracks = fetched,
+                        requestIsCurrent = true,
+                    )
+                    if (update.changed) effects.applyQueue(update.queue, update.clearPreparedNext)
+                    rememberRecentRadio(trackRecentRadioStream(seed), listOf(seed) + fetched)
+                    publish("Playing track radio.")
+                } else {
+                    val tracks = RadioService(provider).queue(seed, fetched)
+                    play(tracks)
+                    rememberRecentRadio(trackRecentRadioStream(seed), tracks)
+                    publish("Playing track radio.")
+                }
+            }.onFailure { publish(it.message ?: "Could not build track radio.") }
+        }
     }
 
     suspend fun addTrackRadio(seed: Track, playNext: Boolean) {
         val provider = providerOrPublish() ?: return
-        runCatching {
-            val settings = stateStore.state.value.shell.playback.settings
-            RadioService(provider, tuning = settings.radioTuning)
-                .trackRadio(seed, settings.sonicSimilarityEnabled)
-        }.onSuccess { if (playNext) playNext(it) else addToQueue(it) }
-            .onFailure { publish(it.message ?: "Could not load track radio.") }
+        busyIndicator.during("Loading track radio...") {
+            runCatching {
+                val settings = stateStore.state.value.shell.playback.settings
+                RadioService(provider, tuning = settings.radioTuning)
+                    .trackRadio(seed, settings.sonicSimilarityEnabled)
+            }.onSuccess { if (playNext) playNext(it) else addToQueue(it) }
+                .onFailure { publish(it.message ?: "Could not load track radio.") }
+        }
     }
 
     suspend fun startAlbumRadio(album: Album) = radio("album radio", albumRecentRadioStream(album)) { service ->
@@ -140,6 +146,12 @@ class NaviampCoreMediaTransactions(
         startSeededMix(artistMixSeededRadioRequest(artists, seed, seedTracks))
     }
 
+    suspend fun startPopularTracksRadio(tracks: List<Track>) {
+        val request = popularTracksRadioRequest(tracks)
+            ?: return publish("No popular tracks are available.")
+        startSeededMix(request)
+    }
+
     suspend fun startAlbumMix(albums: List<Album>, seedTracks: List<Track>) {
         val seed = seedTracks.firstOrNull() ?: return publish("Select albums with matched songs first.")
         startSeededMix(albumMixSeededRadioRequest(albums, seed, seedTracks))
@@ -148,34 +160,38 @@ class NaviampCoreMediaTransactions(
     suspend fun startGenreMix(genres: List<Genre>) {
         val provider = providerOrPublish() ?: return
         val request = genreMixRadioRequest(genres)
-        publish("Building ${request.label}...")
-        when (val result = radioRequestStartResult(request, RadioService(provider, tuning = radioTuning()))) {
-            is RadioRequestStartResult.Ready -> {
-                play(result.queue)
-                rememberRecentRadio(result.recentRadioStream, result.queue)
-                publish("Playing ${request.label}.")
+        busyIndicator.during("Building ${request.label}...") {
+            publish("Building ${request.label}...")
+            when (val result = radioRequestStartResult(request, RadioService(provider, tuning = radioTuning()))) {
+                is RadioRequestStartResult.Ready -> {
+                    play(result.queue)
+                    rememberRecentRadio(result.recentRadioStream, result.queue)
+                    publish("Playing ${request.label}.")
+                }
+                RadioRequestStartResult.Empty -> publish("${request.label} did not return any tracks.")
+                is RadioRequestStartResult.Failed -> publish(result.error.message ?: "Could not build ${request.label}.")
             }
-            RadioRequestStartResult.Empty -> publish("${request.label} did not return any tracks.")
-            is RadioRequestStartResult.Failed -> publish(result.error.message ?: "Could not build ${request.label}.")
         }
     }
 
     suspend fun startRandomAlbumRadio() {
         val provider = providerOrPublish() ?: return
-        runCatching { provider.albumList(app.naviamp.domain.provider.AlbumListType.Random, 1).firstOrNull() }
-            .onSuccess { album ->
-                if (album == null) {
-                    publish("No random album is available.")
-                } else {
-                    radio("random album radio", randomAlbumRecentRadioStream(album)) { service ->
-                        service.albumRadio(
-                            album.id,
-                            registry.albumDetails?.takeIf { it.album.id == album.id }?.tracks.orEmpty(),
-                        )
+        busyIndicator.during("Finding a random album...") {
+            runCatching { provider.albumList(app.naviamp.domain.provider.AlbumListType.Random, 1).firstOrNull() }
+                .onSuccess { album ->
+                    if (album == null) {
+                        publish("No random album is available.")
+                    } else {
+                        radio("random album radio", randomAlbumRecentRadioStream(album)) { service ->
+                            service.albumRadio(
+                                album.id,
+                                registry.albumDetails?.takeIf { it.album.id == album.id }?.tracks.orEmpty(),
+                            )
+                        }
                     }
                 }
-            }
-            .onFailure { publish(it.message ?: "Could not start random album radio.") }
+                .onFailure { publish(it.message ?: "Could not start random album radio.") }
+        }
     }
 
     fun download(label: String, tracks: List<Track>) {
@@ -265,30 +281,34 @@ class NaviampCoreMediaTransactions(
         load: suspend (RadioService) -> List<Track>,
     ) {
         val provider = providerOrPublish() ?: return
-        publish("Building $label...")
-        runCatching { load(RadioService(provider, tuning = radioTuning())) }
-            .onSuccess { tracks ->
-                if (tracks.isEmpty()) {
-                    publish("$label did not return any tracks.")
-                } else {
-                    play(tracks)
-                    rememberRecentRadio(recent, tracks)
-                    publish("Playing $label.")
+        busyIndicator.during("Building $label...") {
+            publish("Building $label...")
+            runCatching { load(RadioService(provider, tuning = radioTuning())) }
+                .onSuccess { tracks ->
+                    if (tracks.isEmpty()) {
+                        publish("$label did not return any tracks.")
+                    } else {
+                        play(tracks)
+                        rememberRecentRadio(recent, tracks)
+                        publish("Playing $label.")
+                    }
                 }
-            }
-            .onFailure { publish(it.message ?: "Could not build $label.") }
+                .onFailure { publish(it.message ?: "Could not build $label.") }
+        }
     }
 
     private suspend fun startSeededMix(request: app.naviamp.domain.radio.SeededRadioRequest) {
         val provider = providerOrPublish() ?: return
-        publish("Building ${request.label}...")
-        when (val result = seededRadioBuildResult(request, RadioService(provider, tuning = radioTuning()))) {
-            is SeededRadioBuildResult.Ready -> {
-                play(result.queue)
-                rememberRecentRadio(result.recentRadioStream, result.queue)
-                publish("Playing ${request.label}.")
+        busyIndicator.during("Building ${request.label}...") {
+            publish("Building ${request.label}...")
+            when (val result = seededRadioBuildResult(request, RadioService(provider, tuning = radioTuning()))) {
+                is SeededRadioBuildResult.Ready -> {
+                    play(result.queue)
+                    rememberRecentRadio(result.recentRadioStream, result.queue)
+                    publish("Playing ${request.label}.")
+                }
+                is SeededRadioBuildResult.Failed -> publish(result.error.message ?: "Could not build ${request.label}.")
             }
-            is SeededRadioBuildResult.Failed -> publish(result.error.message ?: "Could not build ${request.label}.")
         }
     }
 

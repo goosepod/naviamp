@@ -62,6 +62,15 @@ enum class AlbumExplicitStatus {
 data class AlbumDetails(
     val album: Album,
     val tracks: List<Track>,
+    val info: AlbumInfo? = null,
+)
+
+data class AlbumInfo(
+    val notes: String? = null,
+    val musicBrainzId: String? = null,
+    val smallImageUrl: String? = null,
+    val mediumImageUrl: String? = null,
+    val largeImageUrl: String? = null,
 )
 
 data class Track(

@@ -84,6 +84,7 @@ class NaviampCoreSettingsController(
     private val refreshLibrary: suspend () -> Unit = {},
     private val onDatabaseReset: suspend () -> Unit = {},
     private val onLocalSettingsChanged: () -> Unit = {},
+    private val onInterfaceSettingsChanged: (InterfaceSettings) -> Unit = {},
 ) : NaviampCoreCommandController {
     override fun dispatch(command: NaviampCoreCommand): NaviampCoreImmediateCommandResult {
         val settings = command as? NaviampCoreCommand.Settings
@@ -203,6 +204,7 @@ class NaviampCoreSettingsController(
         stateStore.updateShell { shell ->
             shell.copy(general = shell.general.copy(interfaceSettings = settings))
         }
+        onInterfaceSettingsChanged(settings)
     }
 
     private fun changePlayback(command: NaviampCoreCommand.Settings.ChangePlayback) {

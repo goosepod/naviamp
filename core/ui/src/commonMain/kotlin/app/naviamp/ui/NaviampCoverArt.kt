@@ -96,16 +96,23 @@ fun NaviampExpandedMediaImage(
     val imageWidth = image?.width?.takeIf { it > 0 } ?: 1
     val imageHeight = image?.height?.takeIf { it > 0 } ?: 1
     val scale = min(maxWidth.value / imageWidth, maxHeight.value / imageHeight)
+    val placeholder = if (image == null) {
+        Modifier.background(colors.albumArtPlaceholder)
+    } else {
+        Modifier
+    }
     Box(
         modifier = Modifier
             .size((imageWidth * scale).dp, (imageHeight * scale).dp)
-            .background(colors.albumArtPlaceholder),
+            .then(placeholder),
     ) {
         image?.let {
             Image(
                 bitmap = it,
                 contentDescription = "Enlarged image",
-                contentScale = ContentScale.Fit,
+                // The parent already has the bitmap's exact aspect ratio. FillBounds avoids
+                // density/rounding differences exposing the placeholder as letterbox bars.
+                contentScale = ContentScale.FillBounds,
                 modifier = Modifier.fillMaxSize(),
             )
         }

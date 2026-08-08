@@ -324,23 +324,56 @@ fun albumMixSeededRadioRequest(
 
 fun popularTracksRadioRequest(
     tracks: List<Track>,
-    seedLimit: Int,
+    seedLimit: Int = DefaultPopularTracksRadioSeedLimit,
 ): SeededRadioRequest? {
-    val seedTrack = tracks.shuffled().firstOrNull() ?: return null
+    val popularTracks = tracks
+        .distinctBy { track -> track.id }
+        .take(seedLimit.coerceAtLeast(0))
+    val seedTrack = popularTracks.firstOrNull() ?: return null
     return SeededRadioRequest(
         label = "${seedTrack.artistName} popular tracks radio",
         seedTrack = seedTrack,
         recentRadioStream = popularTracksRecentRadioStream(seedTrack),
         loadRest = { radioService ->
             coroutineScope {
-                tracks.take(seedLimit)
+                val radioTracks = popularTracks
                     .map { track -> async { radioService.trackRadio(track.id) } }
                     .awaitAll()
                     .flatten()
+                    .filterNot { track -> track.id == seedTrack.id }
+                    .distinctBy { track -> track.id }
+                intersperseMissingPopularTracks(
+                    radioTracks = radioTracks,
+                    popularTracks = popularTracks.drop(1),
+                )
             }
         },
     )
 }
+
+private fun intersperseMissingPopularTracks(
+    radioTracks: List<Track>,
+    popularTracks: List<Track>,
+): List<Track> {
+    val queuedIds = radioTracks.mapTo(mutableSetOf()) { track -> track.id }
+    val missing = popularTracks.filter { track -> queuedIds.add(track.id) }
+    if (missing.isEmpty()) return radioTracks
+
+    val result = radioTracks.toMutableList()
+    val originalSize = radioTracks.size
+    missing.forEachIndexed { index, track ->
+        val distributedIndex = if (originalSize == 0) {
+            index
+        } else {
+            (((index + 1) * (originalSize + 1)) / (missing.size + 1))
+                .coerceAtLeast(1) + index
+        }
+        result.add(distributedIndex.coerceAtMost(result.size), track)
+    }
+    return result
+}
+
+const val DefaultPopularTracksRadioSeedLimit = 10
 
 fun artistMixRadioLabel(artists: List<Artist>): String =
     when (artists.size) {

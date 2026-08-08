@@ -25,6 +25,7 @@ import app.naviamp.domain.provider.MediaProvider
 import app.naviamp.domain.provider.MediaSearchResults
 import app.naviamp.domain.provider.ProviderCapabilities
 import app.naviamp.domain.provider.PlaybackReportState
+import app.naviamp.domain.provider.SonicSimilarTrack
 import app.naviamp.domain.queue.PlaybackQueue
 import app.naviamp.domain.queue.RepeatMode
 import app.naviamp.domain.settings.PlaybackSettings
@@ -39,6 +40,7 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.CompletableDeferred
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -92,6 +94,90 @@ class NaviampCorePlaybackControllerTest {
             listOf<PlaybackQueueNavigationCommand>(PlaybackQueueNavigationCommand.Next),
             fixture.effects.navigation,
         )
+    }
+
+    @Test
+    fun nativeQueueEndAppendsSonicAutoplayTracksAndStartsTheFirstContinuation() = runTest {
+        val fixture = playbackFixture(this, recreateProviderWrapper = true)
+        fixture.enableSonicAutoplay()
+        fixture.moveToQueueEnd()
+        fixture.provider.sonicMatchesBySeed["five"] = listOf(
+            SonicSimilarTrack(playbackTrack("sonic-one"), similarity = 0.9),
+        )
+        fixture.controller.attachNativePlayback()
+
+        fixture.effects.observer?.onStateChanged(PlaybackState.Finished)
+        fixture.effects.observer?.onStateChanged(PlaybackState.Finished)
+        advanceUntilIdle()
+
+        assertEquals(listOf("five", "four", "three"), fixture.provider.sonicRequests)
+        assertEquals(
+            listOf("one", "two", "three", "four", "five", "sonic-one"),
+            fixture.live.state.value.queue.tracks.map { it.id.value },
+        )
+        assertEquals("sonic-one", fixture.live.state.value.currentTrack?.id?.value)
+        assertEquals(
+            listOf<PlaybackQueueNavigationCommand>(PlaybackQueueNavigationCommand.Next),
+            fixture.effects.navigation,
+        )
+        assertEquals(
+            listOf("one", "two", "three", "four", "five", "sonic-one"),
+            fixture.effects.queues.single().tracks.map { it.id.value },
+        )
+    }
+
+    @Test
+    fun nativeQueueEndDoesNotRequestSonicTracksWhenAutoplayIsDisabled() = runTest {
+        val fixture = playbackFixture(this)
+        fixture.moveToQueueEnd()
+        fixture.provider.sonicMatchesBySeed["five"] = listOf(
+            SonicSimilarTrack(playbackTrack("sonic-one"), similarity = 0.9),
+        )
+        fixture.controller.attachNativePlayback()
+
+        fixture.effects.observer?.onStateChanged(PlaybackState.Finished)
+        advanceUntilIdle()
+
+        assertEquals(emptyList(), fixture.provider.sonicRequests)
+        assertEquals("five", fixture.live.state.value.currentTrack?.id?.value)
+        assertEquals(emptyList(), fixture.effects.navigation)
+        assertEquals(emptyList(), fixture.effects.queues)
+    }
+
+    @Test
+    fun staleSonicAutoplayResultCannotReplaceAChangedQueue() = runTest {
+        val requestStarted = CompletableDeferred<Unit>()
+        val releaseRequest = CompletableDeferred<Unit>()
+        val fixture = playbackFixture(this)
+        fixture.enableSonicAutoplay()
+        fixture.moveToQueueEnd()
+        fixture.provider.beforeSonicRequest = {
+            requestStarted.complete(Unit)
+            releaseRequest.await()
+        }
+        fixture.provider.sonicMatchesBySeed["five"] = listOf(
+            SonicSimilarTrack(playbackTrack("stale-sonic"), similarity = 0.9),
+        )
+        fixture.controller.attachNativePlayback()
+
+        fixture.effects.observer?.onStateChanged(PlaybackState.Finished)
+        requestStarted.await()
+        val replacementTrack = playbackTrack("replacement")
+        val replacementQueue = PlaybackQueue(listOf(replacementTrack), currentIndex = 0)
+        fixture.live.replace(
+            fixture.live.state.value.copy(
+                currentTrack = replacementTrack,
+                queue = replacementQueue,
+                playbackState = PlaybackState.Playing,
+            ),
+        )
+        releaseRequest.complete(Unit)
+        advanceUntilIdle()
+
+        assertEquals(replacementQueue, fixture.live.state.value.queue)
+        assertEquals("replacement", fixture.live.state.value.currentTrack?.id?.value)
+        assertEquals(emptyList(), fixture.effects.navigation)
+        assertEquals(emptyList(), fixture.effects.queues)
     }
 
     @Test
@@ -305,6 +391,8 @@ private data class PlaybackFixture(
 private fun playbackFixture(
     scope: kotlinx.coroutines.CoroutineScope,
     sidecars: PlaybackTestSidecars = PlaybackTestSidecars(),
+    supportsSonicSimilarity: Boolean = true,
+    recreateProviderWrapper: Boolean = false,
 ): PlaybackFixture {
     val tracks = listOf(
         playbackTrack("one"),
@@ -313,7 +401,14 @@ private fun playbackFixture(
         playbackTrack("four"),
         playbackTrack("five"),
     )
-    val provider = PlaybackTestProvider()
+    val provider = PlaybackTestProvider(supportsSonicSimilarity)
+    val providerSource = NaviampCoreMediaProviderSource {
+        if (recreateProviderWrapper) {
+            object : MediaProvider by provider {}
+        } else {
+            provider
+        }
+    }
     val store = NaviampCoreStateStore().also { stateStore ->
         stateStore.updateShell { shell ->
             shell.copy(connectionSettings = shell.connectionSettings.copy(currentSourceId = "source"))
@@ -329,13 +424,13 @@ private fun playbackFixture(
     )
     val queue = NaviampPlaybackQueueCoordinator(live)
     val effects = PlaybackTestEffects()
-    val presenter = NaviampCoreNowPlayingPresenter(store, { provider }, live, queue, effects, sidecars)
+    val presenter = NaviampCoreNowPlayingPresenter(store, providerSource, live, queue, effects, sidecars)
     val saved = mutableListOf<PlaybackSettings>()
     val sessionRepository = RecordingPlaybackSessionRepository()
     val controller = NaviampCorePlaybackController(
         scope = scope,
         stateStore = store,
-        providerSource = { provider },
+        providerSource = providerSource,
         playback = live,
         queue = queue,
         effects = effects,
@@ -350,6 +445,31 @@ private fun playbackFixture(
     )
     presenter.publish()
     return PlaybackFixture(store, provider, live, effects, sidecars, sessionRepository, controller, saved)
+}
+
+private fun PlaybackFixture.enableSonicAutoplay() {
+    store.updateShell { shell ->
+        shell.copy(
+            playback = shell.playback.copy(
+                settings = shell.playback.settings.copy(sonicAutoplayEnabled = true),
+            ),
+        )
+    }
+}
+
+private fun PlaybackFixture.moveToQueueEnd() {
+    val currentQueue = live.state.value.queue
+    val endingQueue = currentQueue.copy(
+        currentIndex = currentQueue.tracks.lastIndex,
+        playNextCount = 0,
+    )
+    live.replace(
+        live.state.value.copy(
+            currentTrack = endingQueue.current,
+            queue = endingQueue,
+            playbackState = PlaybackState.Playing,
+        ),
+    )
 }
 
 private class PlaybackTestEffects : NaviampCorePlaybackEffectPort {
@@ -415,7 +535,9 @@ private class PlaybackTestSidecars(
     override suspend fun changeLyricsOffset(track: Track, offsetMillis: Int) = Unit
 }
 
-private class PlaybackTestProvider : MediaProvider {
+private class PlaybackTestProvider(
+    supportsSonicSimilarity: Boolean = true,
+) : MediaProvider {
     override val id = ProviderId("playback")
     override val displayName = "Playback"
     override val capabilities = ProviderCapabilities(
@@ -425,10 +547,14 @@ private class PlaybackTestProvider : MediaProvider {
         supportsAlbumRadio = true,
         supportsTrackRadio = true,
         supportsPlayReporting = true,
+        supportsSonicSimilarity = supportsSonicSimilarity,
     )
     val created = mutableListOf<String>()
     val nowPlayingReports = mutableListOf<String>()
     val stateReports = mutableListOf<String>()
+    val sonicRequests = mutableListOf<String>()
+    val sonicMatchesBySeed = mutableMapOf<String, List<SonicSimilarTrack>>()
+    var beforeSonicRequest: suspend () -> Unit = {}
     override suspend fun validateConnection() = ConnectionValidation(null, null)
     override suspend fun recentlyAddedAlbums(limit: Int) = emptyList<Album>()
     override suspend fun album(albumId: AlbumId): AlbumDetails = error("Not used")
@@ -436,6 +562,11 @@ private class PlaybackTestProvider : MediaProvider {
     override suspend fun artists(limit: Int) = emptyList<Artist>()
     override suspend fun tracks(limit: Int) = emptyList<Track>()
     override suspend fun search(query: String, limit: Int) = MediaSearchResults()
+    override suspend fun sonicSimilarTrackMatches(trackId: TrackId, count: Int): List<SonicSimilarTrack> {
+        sonicRequests += trackId.value
+        beforeSonicRequest()
+        return sonicMatchesBySeed[trackId.value].orEmpty().take(count)
+    }
     override suspend fun createPlaylist(name: String, trackIds: List<TrackId>): Playlist {
         created += "$name:${trackIds.joinToString(",") { it.value }}"
         return Playlist("created", name, trackIds.size)

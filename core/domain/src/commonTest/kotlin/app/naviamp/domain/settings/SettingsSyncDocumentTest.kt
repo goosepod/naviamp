@@ -42,6 +42,8 @@ class SettingsSyncDocumentTest {
             preferences = SettingsSyncPreferences(
                 interfaceSettings = InterfaceSettings(
                     startPlayingOnLaunch = true,
+                    showArtistInformation = false,
+                    showAlbumInformation = false,
                     appBackgroundStyle = AppBackgroundStyle.AlbumBlur,
                     auroraTone = AuroraTone.Light,
                     albumBlurRadiusDp = 40,
@@ -96,6 +98,8 @@ class SettingsSyncDocumentTest {
         assertEquals("Road DJ", decoded.preferences.playback.radioDjs.single().name)
         assertEquals("Waveform", decoded.preferences.visualizer.selectedVisualizer)
         assertTrue(decoded.preferences.interfaceSettings.startPlayingOnLaunch)
+        assertFalse(decoded.preferences.interfaceSettings.showArtistInformation)
+        assertFalse(decoded.preferences.interfaceSettings.showAlbumInformation)
         assertEquals(AppBackgroundStyle.AlbumBlur, decoded.preferences.interfaceSettings.appBackgroundStyle)
         assertEquals(AuroraTone.Light, decoded.preferences.interfaceSettings.auroraTone)
         assertEquals(40, decoded.preferences.interfaceSettings.albumBlurRadiusDp)

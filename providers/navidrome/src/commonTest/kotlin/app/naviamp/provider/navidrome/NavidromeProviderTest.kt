@@ -547,6 +547,116 @@ class NavidromeProviderTest {
     }
 
     @Test
+    fun albumMapsScalarPrimaryArtistCredit() = runTest {
+        val provider = NavidromeProvider(
+            connection = connection("https://music.example.test"),
+            httpClient = FakeHttpClient(
+                """{"subsonic-response":{"status":"ok","album":{"id":"album-1","name":"Album","artist":"Artist","artistId":"artist-1"}}}""",
+            ),
+        )
+
+        val album = provider.album(AlbumId("album-1")).album
+
+        assertEquals(listOf("artist-1"), album.artistCredits.mapNotNull { it.id?.value })
+        assertEquals(listOf("Artist"), album.artistCredits.map { it.name })
+    }
+
+    @Test
+    fun albumMapsOptionalAlbumInformation() = runTest {
+        val http = SequencedHttpClient(
+            listOf(
+                """{"subsonic-response":{"status":"ok","album":{"id":"album-1","name":"Low-Life","artist":"New Order"}}}""",
+                """
+                {
+                  "subsonic-response": {
+                    "status": "ok",
+                    "albumInfo": {
+                      "notes": "The third studio album by New Order.",
+                      "musicBrainzId": "release-group-1",
+                      "smallImageUrl": "https://images.test/small.jpg",
+                      "mediumImageUrl": "https://images.test/medium.jpg",
+                      "largeImageUrl": "https://images.test/large.jpg"
+                    }
+                  }
+                }
+                """.trimIndent(),
+            ),
+        )
+        val provider = NavidromeProvider(connection("https://music.example.test"), http)
+
+        val details = provider.album(AlbumId("album-1"))
+        val info = provider.albumInfo(AlbumId("album-1"))
+
+        assertEquals("Low-Life", details.album.title)
+        assertEquals("The third studio album by New Order.", info?.notes)
+        assertEquals("release-group-1", info?.musicBrainzId)
+        assertEquals("https://images.test/large.jpg", info?.largeImageUrl)
+        assertTrue(http.urls.last().contains("/rest/getAlbumInfo.view"))
+        assertTrue(http.urls.last().contains("id=album-1"))
+    }
+
+    @Test
+    fun albumInformationFallsBackToId3Endpoint() = runTest {
+        val http = SequencedHttpClient(
+            listOf(
+                """{"subsonic-response":{"status":"failed","error":{"code":70,"message":"Not supported"}}}""",
+                """{"subsonic-response":{"status":"ok","albumInfo":{"notes":"Fallback album notes."}}}""",
+            ),
+        )
+        val provider = NavidromeProvider(connection("https://music.example.test"), http)
+
+        val info = provider.albumInfo(AlbumId("album-1"))
+
+        assertEquals("Fallback album notes.", info?.notes)
+        assertTrue(http.urls.first().contains("/rest/getAlbumInfo.view"))
+        assertTrue(http.urls.last().contains("/rest/getAlbumInfo2.view"))
+    }
+
+    @Test
+    fun unavailableEmptyAndMalformedAlbumInformationDoNotFailAlbumLoading() = runTest {
+        val albumResponse =
+            """{"subsonic-response":{"status":"ok","album":{"id":"album-1","name":"Low-Life","artist":"New Order"}}}"""
+        val informationResponses = listOf(
+            """{"subsonic-response":{"status":"failed","error":{"code":70,"message":"Not supported"}}}""",
+            """{"subsonic-response":{"status":"ok"}}""",
+            """{"subsonic-response":{"status":"ok","albumInfo":{"notes":42,"largeImageUrl":false}}}""",
+        )
+
+        informationResponses.forEach { informationResponse ->
+            val provider = NavidromeProvider(
+                connection("https://music.example.test"),
+                SequencedHttpClient(listOf(albumResponse, informationResponse)),
+            )
+
+            val details = provider.album(AlbumId("album-1"))
+            val info = runCatching { provider.albumInfo(AlbumId("album-1")) }.getOrNull()
+
+            assertEquals("Low-Life", details.album.title)
+            assertEquals(null, info)
+        }
+    }
+
+    @Test
+    fun partialAlbumInformationKeepsAvailableFields() = runTest {
+        val provider = NavidromeProvider(
+            connection("https://music.example.test"),
+            SequencedHttpClient(
+                listOf(
+                    """{"subsonic-response":{"status":"ok","album":{"id":"album-1","name":"Low-Life","artist":"New Order"}}}""",
+                    """{"subsonic-response":{"status":"ok","albumInfo":{"notes":"Album notes only."}}}""",
+                ),
+            ),
+        )
+
+        provider.album(AlbumId("album-1"))
+        val info = provider.albumInfo(AlbumId("album-1"))
+
+        assertEquals("Album notes only.", info?.notes)
+        assertEquals(null, info?.musicBrainzId)
+        assertEquals(null, info?.largeImageUrl)
+    }
+
+    @Test
     fun artistMapsAlbumsAndInfo() = runTest {
         val provider = NavidromeProvider(
             connection = connection("https://music.example.test"),

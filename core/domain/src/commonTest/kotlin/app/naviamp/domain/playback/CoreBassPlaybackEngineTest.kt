@@ -12,6 +12,7 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
@@ -109,6 +110,47 @@ class CoreBassPlaybackEngineTest {
         assertEquals("96 kHz (96000 Hz)", diagnostics["Active output sample rate"])
         assertEquals(96_000, backend.initializedSampleRateHz)
         assertEquals(4, backend.sampleRateConverterQuality)
+    }
+
+    @Test
+    fun diagnosticsNeverRetainPlaybackRequestValues() = runTest {
+        val engine = CoreBassPlaybackEngine(
+            backendResult = Result.failure(IllegalStateException("BASS unavailable")),
+            runtime = FakeBassPlaybackEngineRuntime,
+        )
+        val syntheticUsername = "diagnostic-user"
+        val syntheticToken = "synthetic-token-value"
+        val syntheticSalt = "synthetic-salt-value"
+
+        engine.play(
+            scope = this,
+            request = PlaybackRequest(
+                url = "https://embedded-user:embedded-password@example.test/rest/stream.view" +
+                    "?u=$syntheticUsername&t=$syntheticToken&s=$syntheticSalt&id=track-123" +
+                    "#synthetic-fragment-secret",
+                mediaId = "track-123",
+            ),
+            onStateChanged = {},
+            onProgressChanged = {},
+        )
+
+        val lastRequest = engine.statsRows().toMap().getValue("Last request")
+        assertEquals(
+            "https://<redacted>@example.test/rest/stream.view" +
+                "?u=<redacted>&t=<redacted>&s=<redacted>&id=<redacted>#<redacted>",
+            lastRequest,
+        )
+        listOf(
+            syntheticUsername,
+            syntheticToken,
+            syntheticSalt,
+            "embedded-user",
+            "embedded-password",
+            "track-123",
+            "synthetic-fragment-secret",
+        ).forEach { secret ->
+            assertFalse(secret in lastRequest)
+        }
     }
 }
 

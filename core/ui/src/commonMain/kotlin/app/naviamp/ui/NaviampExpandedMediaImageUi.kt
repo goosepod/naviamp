@@ -50,6 +50,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import app.naviamp.domain.settings.ConnectionFormHeader
 import app.naviamp.domain.settings.ConnectionFormMusicFolder
 import app.naviamp.domain.settings.ConnectionFormSecondaryUrl
@@ -66,13 +67,14 @@ fun ExpandedMediaImageDialog(
     colors: NaviampColors,
     onDismissRequest: () -> Unit,
 ) {
-    Dialog(onDismissRequest = onDismissRequest) {
+    Dialog(
+        onDismissRequest = onDismissRequest,
+        properties = DialogProperties(usePlatformDefaultWidth = false),
+    ) {
         Box(
             modifier = Modifier
                 .clip(RoundedCornerShape(8.dp))
-                .background(colors.controlSurface)
-                .clickable(onClick = onDismissRequest)
-                .padding(4.dp),
+                .clickable(onClick = onDismissRequest),
         ) {
             NaviampExpandedMediaImage(
                 url = imageUrl,

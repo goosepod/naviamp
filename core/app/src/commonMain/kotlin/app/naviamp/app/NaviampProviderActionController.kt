@@ -1,6 +1,7 @@
 package app.naviamp.app
 
 import app.naviamp.domain.AlbumId
+import app.naviamp.domain.AlbumInfo
 import app.naviamp.domain.ArtistId
 import app.naviamp.domain.TrackId
 import app.naviamp.domain.provider.MediaProvider
@@ -37,6 +38,9 @@ class NaviampProviderActionController(
 
     fun offlineCapable(provider: MediaProvider, sourceId: String?): MediaProvider =
         object : MediaProvider by provider {
+            override suspend fun albumInfo(albumId: AlbumId): AlbumInfo? =
+                provider.albumInfo(albumId)
+
             override suspend fun replacePlaylistTracks(
                 playlistId: String,
                 currentTrackIds: List<TrackId>,

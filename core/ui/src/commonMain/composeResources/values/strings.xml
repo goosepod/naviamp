@@ -454,4 +454,8 @@
     <string name="playlists_name">Playlist name</string>
     <string name="playlists_delete_title">Delete playlist</string>
     <string name="playlists_delete_message">Delete %1$s? This removes the server playlist.</string>
+    <string name="settings_show_artist_information">Show artist information</string>
+    <string name="settings_show_artist_information_subtitle">Show biographies and provider artwork on artist detail pages.</string>
+    <string name="settings_show_album_information">Show album information</string>
+    <string name="settings_show_album_information_subtitle">Show notes and provider artwork on album detail pages.</string>
 </resources>

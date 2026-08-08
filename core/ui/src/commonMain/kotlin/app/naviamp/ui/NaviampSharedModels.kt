@@ -266,6 +266,8 @@ data class SharedAlbumDetailUi(
     val album: SharedMediaItemUi,
     val tracks: List<SharedTrackRowUi>,
     val totalDurationLabel: String = "",
+    val information: String? = null,
+    val artist: SharedMediaItemUi? = null,
 )
 
 data class NaviampDownloadJobUi(
@@ -348,6 +350,7 @@ data class NaviampAlbumDetailActions(
     val onBack: () -> Unit,
     val onAlbumAction: (NaviampAlbumDetailActionRequest) -> Unit,
     val onTrackAction: (SharedTrackRowActionRequest) -> Unit,
+    val onArtistSelected: (SharedMediaItemUi) -> Unit = {},
 )
 
 data class SharedArtistDetailUi(

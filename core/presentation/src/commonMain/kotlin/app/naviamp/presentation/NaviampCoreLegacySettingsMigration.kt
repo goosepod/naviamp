@@ -228,6 +228,8 @@ private fun legacyInterfaceSettings(values: NaviampCoreLegacySettingsValueStore)
         checkForUpdates = values.boolean("check_for_updates", defaults.checkForUpdates),
         startPlayingOnLaunch = values.boolean("start_playing_on_launch", defaults.startPlayingOnLaunch),
         showDesktopTooltips = values.boolean("show_desktop_tooltips", defaults.showDesktopTooltips),
+        showArtistInformation = values.boolean("show_artist_information", defaults.showArtistInformation),
+        showAlbumInformation = values.boolean("show_album_information", defaults.showAlbumInformation),
         appBackgroundStyle = values.enum("app_background_style", defaults.appBackgroundStyle),
         auroraTone = values.enum("aurora_tone", defaults.auroraTone),
         albumBlurRadiusDp = values.int("album_blur_radius_dp", defaults.albumBlurRadiusDp),

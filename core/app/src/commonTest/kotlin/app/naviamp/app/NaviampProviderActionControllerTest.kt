@@ -3,6 +3,7 @@ package app.naviamp.app
 import app.naviamp.domain.Album
 import app.naviamp.domain.AlbumDetails
 import app.naviamp.domain.AlbumId
+import app.naviamp.domain.AlbumInfo
 import app.naviamp.domain.Artist
 import app.naviamp.domain.ArtistDetails
 import app.naviamp.domain.ArtistId
@@ -48,6 +49,18 @@ class NaviampProviderActionControllerTest {
         )
 
         assertEquals(listOf("playlist:old:new"), provider.playlistReplacements)
+    }
+
+    @Test
+    fun offlineCapableProviderForwardsAlbumInformation() = runTest {
+        val provider = RecordingProvider(failReports = false)
+        val wrapped = NaviampProviderActionController(RecordingPendingActions())
+            .offlineCapable(provider, "source")
+
+        val info = wrapped.albumInfo(AlbumId("album"))
+
+        assertEquals("Album notes", info?.notes)
+        assertEquals(listOf("album"), provider.albumInfoRequests)
     }
 
     @Test
@@ -173,10 +186,15 @@ internal class RecordingProvider(private val failReports: Boolean) : MediaProvid
     override val capabilities = ProviderCapabilities(false, false, false, false, false)
     val nowPlayingReports = mutableListOf<String>()
     val playlistReplacements = mutableListOf<String>()
+    val albumInfoRequests = mutableListOf<String>()
 
     override suspend fun validateConnection(): ConnectionValidation = error("Not used")
     override suspend fun recentlyAddedAlbums(limit: Int): List<Album> = error("Not used")
     override suspend fun album(albumId: AlbumId): AlbumDetails = error("Not used")
+    override suspend fun albumInfo(albumId: AlbumId): AlbumInfo {
+        albumInfoRequests += albumId.value
+        return AlbumInfo(notes = "Album notes")
+    }
     override suspend fun artist(artistId: ArtistId): ArtistDetails = error("Not used")
     override suspend fun artists(limit: Int): List<Artist> = error("Not used")
     override suspend fun tracks(limit: Int): List<Track> = error("Not used")

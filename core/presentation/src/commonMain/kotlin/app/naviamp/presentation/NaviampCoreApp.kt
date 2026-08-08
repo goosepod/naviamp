@@ -10,6 +10,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import app.naviamp.ui.NaviampApplicationUpdateChecker
+import app.naviamp.ui.NaviampBusyDialog
 import app.naviamp.ui.defaultNaviampApplicationUpdateChecker
 import app.naviamp.ui.NaviampDiagnosticsUi
 import app.naviamp.ui.NaviampSharedAppShell
@@ -96,6 +97,9 @@ fun NaviampCoreApp(
         syncActions = core.actions.settingsSync,
         applicationUpdateChecker = applicationUpdateChecker,
     )
+    state.overlays.busyMessage?.let { message ->
+        NaviampBusyDialog(message)
+    }
     if (state.overlays.statsForNerdsVisible) {
         LaunchedEffect(core) {
             while (true) {

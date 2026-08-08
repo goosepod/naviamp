@@ -756,6 +756,7 @@ fun SharedAlbumGridTile(
     menuItems: List<NaviampRowMenuItem> = emptyList(),
     onFavoriteToggled: ((SharedMediaItemUi) -> Unit)? = null,
     modifier: Modifier = Modifier,
+    tileSize: Dp = 144.dp,
 ) {
     val favoriteMenuItem = if (item.canFavorite && onFavoriteToggled != null) {
         NaviampRowMenuItem(
@@ -768,14 +769,14 @@ fun SharedAlbumGridTile(
     }
     Column(
         verticalArrangement = Arrangement.spacedBy(4.dp),
-        modifier = modifier.width(144.dp),
+        modifier = modifier.width(tileSize),
     ) {
         Box(
             modifier = Modifier
                 .clip(RoundedCornerShape(8.dp))
                 .clickable(onClick = onClick),
         ) {
-            NaviampCoverArt(item.coverArtUrl, colors, 144.dp, 8.dp)
+            NaviampCoverArt(item.coverArtUrl, colors, tileSize, 8.dp)
             if (item.favoriteActive) {
                 Icon(
                     imageVector = NaviampTransportIcons.Heart,

@@ -3,6 +3,7 @@ package app.naviamp.domain.provider
 import app.naviamp.domain.Album
 import app.naviamp.domain.AlbumDetails
 import app.naviamp.domain.AlbumId
+import app.naviamp.domain.AlbumInfo
 import app.naviamp.domain.Artist
 import app.naviamp.domain.ArtistDetails
 import app.naviamp.domain.ArtistId
@@ -32,6 +33,7 @@ interface MediaProvider {
     suspend fun libraryScanStatus(): LibraryScanStatus? = null
     suspend fun recentlyAddedAlbums(limit: Int = 20): List<Album>
     suspend fun album(albumId: AlbumId): AlbumDetails
+    suspend fun albumInfo(albumId: AlbumId): AlbumInfo? = null
     suspend fun artist(artistId: ArtistId): ArtistDetails
     suspend fun artists(limit: Int = 50): List<Artist>
     suspend fun artistsPage(request: MediaPageRequest = MediaPageRequest()): MediaPage<Artist> =

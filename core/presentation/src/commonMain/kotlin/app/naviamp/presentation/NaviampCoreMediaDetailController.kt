@@ -27,6 +27,7 @@ import app.naviamp.ui.toSharedArtistDetailUi
 import app.naviamp.ui.toSharedMediaItemUi
 import app.naviamp.ui.toSharedSimilarArtistUi
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.launch
 
 data class NaviampCoreArtistDiscoveryServices(
@@ -149,6 +150,52 @@ class NaviampCoreMediaDetailController(
         loadArtist(item, pushCurrentArtist = true)
     }
 
+    internal fun interfaceSettingsChanged(settings: app.naviamp.domain.settings.InterfaceSettings) {
+        val provider = providerSource.current() ?: return
+        stateStore.updateShell { shell ->
+            val coverArtUrl = { id: String? -> id?.let(provider::coverArtUrl) }
+            val albumDetail = mediaRegistry.albumDetails?.let { details ->
+                val popularTrackIds = shell.albumDetail.detail?.tracks
+                    .orEmpty()
+                    .filter { it.popular }
+                    .mapTo(mutableSetOf()) { it.id }
+                shell.albumDetail.copy(
+                    selectedAlbum = details.album.toSharedMediaItemUi(
+                        coverArtUrl = coverArtUrl,
+                        canFavorite = provider.capabilities.supportsAlbumFavorites,
+                    ),
+                    detail = details.toSharedAlbumDetailUi(
+                        coverArtUrl = coverArtUrl,
+                        popularTrackIds = popularTrackIds,
+                        canFavoriteAlbum = provider.capabilities.supportsAlbumFavorites,
+                        showAlbumInformation = settings.showAlbumInformation,
+                    ),
+                )
+            } ?: shell.albumDetail
+            val artistDetail = mediaRegistry.artistDetails?.let { details ->
+                val current = shell.artistDetail.detail
+                val nameOnlyCredit = details.artist.isNameOnlyArtistCredit()
+                val artistCoverArtUrl = { id: String? ->
+                    id?.takeUnless { nameOnlyCredit && it == details.artist.id.value }?.let(provider::coverArtUrl)
+                }
+                shell.artistDetail.copy(
+                    detail = details.toSharedArtistDetailUi(
+                        coverArtUrl = artistCoverArtUrl,
+                        popularTracks = mediaRegistry.artistPopularTracks,
+                        popularTracksStatus = current?.popularTracksStatus,
+                        similarArtists = mediaRegistry.artistSimilarArtists,
+                        similarArtistsStatus = current?.similarArtistsStatus,
+                        similarArtistsExpanded = current?.similarArtistsExpanded == true,
+                        canFavoriteArtist = provider.capabilities.supportsArtistFavorites && !nameOnlyCredit,
+                        canFavoriteAlbums = provider.capabilities.supportsAlbumFavorites,
+                        showArtistInformation = settings.showArtistInformation,
+                    ),
+                )
+            } ?: shell.artistDetail
+            shell.copy(albumDetail = albumDetail, artistDetail = artistDetail)
+        }
+    }
+
     internal suspend fun toggleSimilarArtists(item: SharedMediaItemUi) {
         val current = stateStore.state.value.shell.artistDetail
         if (current.selectedArtist?.id != item.id || current.detail == null) {
@@ -225,21 +272,14 @@ class NaviampCoreMediaDetailController(
             return
         }
         val coverArtUrl = { id: String? -> id?.let(provider::coverArtUrl) }
-        runCatching { provider.album(AlbumId(item.id)) }
+        val albumId = AlbumId(item.id)
+        runCatching { provider.album(albumId) }
             .onSuccess { detail ->
                 if (generation != albumGeneration) return@onSuccess
                 val albumArtist = detail.tracks.firstOrNull()?.let { track ->
                     track.artistId?.let { Artist(it, track.artistName) }
                         ?: track.artistName.takeIf(String::isNotBlank)?.let(::nameOnlyArtistCredit)
                 }
-                val popularTrackIds = albumArtist?.let { artist ->
-                    loadArtistPopularTracksUpdate(
-                        sourceId = discovery.sourceId(),
-                        artist = artist,
-                        loadPopularTracks = discovery.popularTracks,
-                    ).tracks.mapTo(mutableSetOf()) { track -> track.id.value }
-                }.orEmpty()
-                if (generation != albumGeneration) return@onSuccess
                 mediaRegistry.updateAlbum(detail)
                 stateStore.updateShell { shell ->
                     shell.copy(
@@ -250,10 +290,60 @@ class NaviampCoreMediaDetailController(
                             ),
                             detail = detail.toSharedAlbumDetailUi(
                                 coverArtUrl = coverArtUrl,
-                                popularTrackIds = popularTrackIds,
+                                popularTrackIds = emptySet(),
                                 canFavoriteAlbum = provider.capabilities.supportsAlbumFavorites,
+                                showAlbumInformation = shell.general.interfaceSettings.showAlbumInformation,
                             ),
                             status = "Connected.",
+                        ),
+                    )
+                }
+                scope.launch(start = CoroutineStart.UNDISPATCHED) {
+                    val info = runCatching { provider.albumInfo(albumId) }.getOrNull() ?: return@launch
+                    if (generation != albumGeneration) return@launch
+                    val enrichedDetail = detail.copy(info = info)
+                    mediaRegistry.updateAlbum(enrichedDetail)
+                    stateStore.updateShell { shell ->
+                        if (generation != albumGeneration) {
+                            shell
+                        } else {
+                            val popularTrackIds = shell.albumDetail.detail?.tracks
+                                .orEmpty()
+                                .filter { it.popular }
+                                .mapTo(mutableSetOf()) { it.id }
+                            shell.copy(
+                                albumDetail = shell.albumDetail.copy(
+                                    detail = enrichedDetail.toSharedAlbumDetailUi(
+                                        coverArtUrl = coverArtUrl,
+                                        popularTrackIds = popularTrackIds,
+                                        canFavoriteAlbum = provider.capabilities.supportsAlbumFavorites,
+                                        showAlbumInformation = shell.general.interfaceSettings.showAlbumInformation,
+                                    ),
+                                ),
+                            )
+                        }
+                    }
+                }
+                val popularTrackIds = albumArtist?.let { artist ->
+                    loadArtistPopularTracksUpdate(
+                        sourceId = discovery.sourceId(),
+                        artist = artist,
+                        loadPopularTracks = discovery.popularTracks,
+                    ).tracks.mapTo(mutableSetOf()) { track -> track.id.value }
+                }.orEmpty()
+                if (generation != albumGeneration) return@onSuccess
+                val latestDetail = mediaRegistry.albumDetails
+                    ?.takeIf { loaded -> loaded.album.id == detail.album.id }
+                    ?: detail
+                stateStore.updateShell { shell ->
+                    shell.copy(
+                        albumDetail = shell.albumDetail.copy(
+                            detail = latestDetail.toSharedAlbumDetailUi(
+                                coverArtUrl = coverArtUrl,
+                                popularTrackIds = popularTrackIds,
+                                canFavoriteAlbum = provider.capabilities.supportsAlbumFavorites,
+                                showAlbumInformation = shell.general.interfaceSettings.showAlbumInformation,
+                            ),
                         ),
                     )
                 }
@@ -318,6 +408,7 @@ class NaviampCoreMediaDetailController(
                                 similarArtistsExpanded = loadSimilar,
                                 canFavoriteArtist = provider.capabilities.supportsArtistFavorites && !nameOnlyCredit,
                                 canFavoriteAlbums = provider.capabilities.supportsAlbumFavorites,
+                                showArtistInformation = shell.general.interfaceSettings.showArtistInformation,
                             ),
                             status = if (detail.albums.isEmpty()) {
                                 "No albums found for ${detail.artist.name}."

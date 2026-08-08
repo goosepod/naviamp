@@ -18,6 +18,7 @@ data class NaviampCoreState(
 data class NaviampCoreOverlayState(
     val statsForNerdsVisible: Boolean = false,
     val status: String? = null,
+    val busyMessage: String? = null,
 )
 
 data class NaviampCoreViewportState(

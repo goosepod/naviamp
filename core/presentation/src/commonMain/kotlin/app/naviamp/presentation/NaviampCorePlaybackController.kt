@@ -25,6 +25,7 @@ import app.naviamp.domain.settings.PlaybackSessionRestorePlan
 import app.naviamp.domain.settings.PlaybackSessionSavePlan
 import app.naviamp.domain.radio.internetRadioTrack
 import app.naviamp.domain.queue.PlaybackQueue
+import app.naviamp.domain.sonicautoplay.SonicAutoplayService
 import app.naviamp.ui.NowPlayingPlaybackAction
 import app.naviamp.ui.NowPlayingPlaybackActionRequest
 import app.naviamp.ui.NowPlayingQueueAction
@@ -62,6 +63,8 @@ class NaviampCorePlaybackController(
     private var reportedNowPlayingSessionId = -1L
     private var sidecarTrackId: app.naviamp.domain.TrackId? = null
     private var sidecarLoadJob: Job? = null
+    private var sonicAutoplayJob: Job? = null
+    private val sonicAutoplay = SonicAutoplayService(providerSource::current)
     private var persistedQueue = PlaybackQueue()
     private var persistedStationId: String? = null
     private var sourceTransitionTargetId: String? = null
@@ -110,12 +113,21 @@ class NaviampCorePlaybackController(
             override fun onStateChanged(state: PlaybackState) {
                 val repeatedFinished = state == PlaybackState.Finished &&
                     playback.state.value.playbackState == PlaybackState.Finished
+                if (state != PlaybackState.Finished) {
+                    sonicAutoplayJob?.cancel()
+                    sonicAutoplayJob = null
+                }
                 playback.updatePlaybackState(state)
                 reportPlayback(state, playback.state.value.progress)
                 persistSession(force = state == PlaybackState.Paused || state == PlaybackState.Stopped)
                 if (state == PlaybackState.Playing) loadCurrentTrackSidecars()
                 if (state == PlaybackState.Finished && !repeatedFinished) {
-                    navigate(queue.nextCommand(), automatic = true)
+                    val command = queue.nextCommand()
+                    if (command == PlaybackQueueNavigationCommand.None) {
+                        startSonicAutoplayContinuation()
+                    } else {
+                        navigate(command, automatic = true)
+                    }
                 }
                 presenter.publish(display)
             }
@@ -146,6 +158,8 @@ class NaviampCorePlaybackController(
     }
 
     fun resetAfterDatabaseClear() {
+        sonicAutoplayJob?.cancel()
+        sonicAutoplayJob = null
         sidecarLoadJob?.cancel()
         sidecarLoadJob = null
         sidecarTrackId = null
@@ -166,6 +180,8 @@ class NaviampCorePlaybackController(
 
     /** Enforces single-source playback until deliberate multi-server playback is implemented. */
     fun resetForSourceChange(previousSourceId: String?, newSourceId: String) {
+        sonicAutoplayJob?.cancel()
+        sonicAutoplayJob = null
         sourceTransitionTargetId = newSourceId
         sidecarLoadJob?.cancel()
         sidecarLoadJob = null
@@ -270,6 +286,33 @@ class NaviampCorePlaybackController(
         sidecarLoadJob = scope.launch {
             loadTrackSidecars(track)
             if (playback.state.value.currentTrack?.id == track.id) presenter.publish(display)
+        }
+    }
+
+    private fun startSonicAutoplayContinuation() {
+        val expectedState = playback.state.value
+        val expectedQueue = expectedState.queue
+        val expectedProvider = providerSource.current()
+        val expectedSourceId = stateStore.state.value.shell.connectionSettings.currentSourceId
+        if (!stateStore.state.value.shell.playback.settings.sonicAutoplayEnabled) return
+        if (expectedProvider?.capabilities?.supportsSonicSimilarity != true) return
+
+        sonicAutoplayJob?.cancel()
+        sonicAutoplayJob = scope.launch {
+            val tracks = sonicAutoplay.continuationTracks(expectedQueue)
+            val currentState = playback.state.value
+            val currentShell = stateStore.state.value.shell
+            val requestIsCurrent =
+                currentState.playbackState == PlaybackState.Finished &&
+                    currentState.queue == expectedQueue &&
+                    currentShell.connectionSettings.currentSourceId == expectedSourceId &&
+                    currentShell.playback.settings.sonicAutoplayEnabled
+            if (!requestIsCurrent) return@launch
+
+            val update = queue.appendSonicContinuationTracks(tracks)
+            if (!update.tracksChanged) return@launch
+            effects.applyQueue(update.queue, clearPreparedNext = true)
+            navigate(queue.nextCommand(), automatic = true)
         }
     }
 

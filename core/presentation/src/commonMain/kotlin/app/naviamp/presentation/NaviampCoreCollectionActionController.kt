@@ -115,8 +115,7 @@ class NaviampCoreCollectionActionController(
             is NaviampArtistDetailCommand.CreatePlaylistAndAdd -> transactions.createPlaylist(catalogTracks(), command.name)
             NaviampArtistDetailCommand.ToggleFavorite -> transactions.toggleFavorite(artist)
             NaviampArtistDetailCommand.PlayPopular -> transactions.play(registry.artistPopularTracks)
-            NaviampArtistDetailCommand.StartPopularRadio -> registry.artistPopularTracks.firstOrNull()?.let { transactions.startTrackRadio(it) }
-                ?: transactions.publish("No popular tracks are available.")
+            NaviampArtistDetailCommand.StartPopularRadio -> transactions.startPopularTracksRadio(registry.artistPopularTracks)
             NaviampArtistDetailCommand.AddPopularToQueue -> transactions.addToQueue(registry.artistPopularTracks)
             NaviampArtistDetailCommand.FindSimilar -> mediaDetails.toggleSimilarArtists(item)
             is NaviampArtistDetailCommand.SelectSimilar -> {

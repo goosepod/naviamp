@@ -3,6 +3,7 @@ package app.naviamp.domain.cache
 import app.naviamp.domain.Album
 import app.naviamp.domain.AlbumDetails
 import app.naviamp.domain.AlbumId
+import app.naviamp.domain.AlbumInfo
 import app.naviamp.domain.AlbumExplicitStatus
 import app.naviamp.domain.Artist
 import app.naviamp.domain.ArtistDetails
@@ -153,6 +154,24 @@ class ProviderResponseService(
             fetch = { provider.album(albumId) },
         )
 
+    suspend fun albumInfo(
+        provider: MediaProvider,
+        albumId: AlbumId,
+    ): AlbumInfo? {
+        val info = cacheRepository.cachedProviderResponse(
+            provider = provider,
+            resourceType = AlbumInfoResourceType,
+            resourceId = albumId.value,
+            decode = { json.decodeFromString<AlbumInfoDto?>(it)?.toAlbumInfo() },
+            encode = { json.encodeToString(it?.let(AlbumInfoDto::fromAlbumInfo)) },
+            fetch = { provider.albumInfo(albumId) },
+        )
+        if (info == null) {
+            cacheRepository.invalidateProviderResponse(provider, AlbumInfoResourceType, albumId.value)
+        }
+        return info
+    }
+
     suspend fun artist(
         provider: MediaProvider,
         artistId: ArtistId,
@@ -210,6 +229,7 @@ private val ProviderResponseJson = Json {
 
 private const val SearchResourceType = "search"
 private const val AlbumResourceType = "album"
+private const val AlbumInfoResourceType = "albumInfo"
 private const val ArtistResourceType = "artist"
 private const val ArtistsResourceType = "artists"
 private const val PlaylistsResourceType = "playlists"
@@ -260,6 +280,33 @@ private data class AlbumDetailsDto(
                 album = AlbumDto.fromAlbum(details.album),
                 tracks = details.tracks.map { TrackDto.fromTrack(it) },
             )
+    }
+}
+
+@Serializable
+private data class AlbumInfoDto(
+    val notes: String? = null,
+    val musicBrainzId: String? = null,
+    val smallImageUrl: String? = null,
+    val mediumImageUrl: String? = null,
+    val largeImageUrl: String? = null,
+) {
+    fun toAlbumInfo(): app.naviamp.domain.AlbumInfo = app.naviamp.domain.AlbumInfo(
+        notes = notes,
+        musicBrainzId = musicBrainzId,
+        smallImageUrl = smallImageUrl,
+        mediumImageUrl = mediumImageUrl,
+        largeImageUrl = largeImageUrl,
+    )
+
+    companion object {
+        fun fromAlbumInfo(info: app.naviamp.domain.AlbumInfo): AlbumInfoDto = AlbumInfoDto(
+            notes = info.notes,
+            musicBrainzId = info.musicBrainzId,
+            smallImageUrl = info.smallImageUrl,
+            mediumImageUrl = info.mediumImageUrl,
+            largeImageUrl = info.largeImageUrl,
+        )
     }
 }
 

@@ -149,6 +149,8 @@ data class InterfaceSettings(
     val checkForUpdates: Boolean = true,
     val startPlayingOnLaunch: Boolean = false,
     val showDesktopTooltips: Boolean = true,
+    val showArtistInformation: Boolean = true,
+    val showAlbumInformation: Boolean = true,
     val appBackgroundStyle: AppBackgroundStyle = AppBackgroundStyle.Aurora,
     val auroraTone: AuroraTone = AuroraTone.Dark,
     val albumBlurRadiusDp: Int = DefaultAlbumBlurRadiusDp,
