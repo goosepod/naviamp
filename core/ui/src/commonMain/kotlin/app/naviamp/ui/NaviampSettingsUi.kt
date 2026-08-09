@@ -5,6 +5,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.focusable
 import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.Arrangement
@@ -35,8 +36,21 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.key
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEvent
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.isAltPressed
+import androidx.compose.ui.input.key.isCtrlPressed
+import androidx.compose.ui.input.key.isMetaPressed
+import androidx.compose.ui.input.key.isShiftPressed
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.geometry.Offset
@@ -82,6 +96,13 @@ import app.naviamp.domain.settings.InterfaceSettings
 import app.naviamp.domain.settings.HomeSectionLayout
 import app.naviamp.domain.settings.HomeSectionPageLayout
 import app.naviamp.domain.settings.HomeSectionIds
+import app.naviamp.domain.settings.DesktopShortcutPlatform
+import app.naviamp.domain.settings.GlobalShortcutAction
+import app.naviamp.domain.settings.KeyboardShortcutBinding
+import app.naviamp.domain.settings.KeyboardShortcutKey
+import app.naviamp.domain.settings.resolvedBindings
+import app.naviamp.domain.settings.resetBindings
+import app.naviamp.domain.settings.withBinding
 import app.naviamp.domain.settings.homeSectionPresentation
 import app.naviamp.domain.settings.resolvedHomeSectionOrder
 import app.naviamp.domain.settings.withHomeSectionPresentation
@@ -224,6 +245,8 @@ fun NaviampSharedSettingsContent(
     showDebugLogging: Boolean = true,
     showSoftwareVolumePreference: Boolean = true,
     showTooltipPreference: Boolean = false,
+    desktopShortcutPlatform: DesktopShortcutPlatform? = null,
+    globalShortcutStatuses: Map<GlobalShortcutAction, GlobalShortcutRegistrationUi> = emptyMap(),
     showMobileNetworkQuality: Boolean = false,
     downloadLocations: List<NaviampStorageLocationUi> = emptyList(),
     audioCacheLocations: List<NaviampStorageLocationUi> = emptyList(),
@@ -242,7 +265,9 @@ fun NaviampSharedSettingsContent(
         verticalArrangement = Arrangement.spacedBy(
             if (selectedCategory == null) 2.dp else SettingsDetailItemSpacing,
         ),
-        modifier = modifier,
+        modifier = modifier
+            .background(colors.background.copy(alpha = 0.82f), RoundedCornerShape(12.dp))
+            .padding(vertical = 4.dp),
     ) {
         selectedCategory?.let { category ->
             SettingsDetailHeader(
@@ -297,6 +322,8 @@ fun NaviampSharedSettingsContent(
                     showLrclibLyrics = true,
                     showSoftwareVolumePreference = showSoftwareVolumePreference,
                     showTooltipPreference = showTooltipPreference,
+                    desktopShortcutPlatform = desktopShortcutPlatform,
+                    globalShortcutStatuses = globalShortcutStatuses,
                     supportsSonicSimilarity = supportsSonicSimilarity,
                     onInterfaceSettingsChanged = onInterfaceSettingsChanged,
                     onPlaybackSettingsChanged = onPlaybackSettingsChanged,
@@ -423,6 +450,8 @@ fun NaviampExperienceSettingsSection(
     showLrclibLyrics: Boolean,
     showSoftwareVolumePreference: Boolean,
     showTooltipPreference: Boolean = false,
+    desktopShortcutPlatform: DesktopShortcutPlatform? = null,
+    globalShortcutStatuses: Map<GlobalShortcutAction, GlobalShortcutRegistrationUi> = emptyMap(),
     supportsSonicSimilarity: Boolean,
     onInterfaceSettingsChanged: (InterfaceSettings) -> Unit,
     onPlaybackSettingsChanged: (PlaybackSettings) -> Unit,
@@ -476,6 +505,15 @@ fun NaviampExperienceSettingsSection(
                 interfaceSettings = interfaceSettings,
                 onInterfaceSettingsChanged = onInterfaceSettingsChanged,
             )
+            ExperienceSettingsPage.KeyboardShortcuts -> desktopShortcutPlatform?.let { platform ->
+                GlobalKeyboardShortcutsSettingsPage(
+                    colors = colors,
+                    interfaceSettings = interfaceSettings,
+                    platform = platform,
+                    statuses = globalShortcutStatuses,
+                    onInterfaceSettingsChanged = onInterfaceSettingsChanged,
+                )
+            }
         }
     } ?: run {
         if (showQueueBehavior) {
@@ -530,6 +568,16 @@ fun NaviampExperienceSettingsSection(
             value = "${HomeScreenSectionOptions.size} sections",
         ) {
             selectedSection = ExperienceSettingsPage.HomeScreen
+        }
+        if (desktopShortcutPlatform != null) {
+            SettingsRow(
+                title = ExperienceSettingsPage.KeyboardShortcuts.title(),
+                subtitle = ExperienceSettingsPage.KeyboardShortcuts.subtitle(),
+                colors = colors,
+                value = if (interfaceSettings.globalKeyboardShortcuts.enabled) "On" else "Off",
+            ) {
+                selectedSection = ExperienceSettingsPage.KeyboardShortcuts
+            }
         }
         SettingsCheckboxRow(
             colors = colors,
@@ -597,6 +645,7 @@ private enum class ExperienceSettingsPage(
     AppBackground("App Background", "Choose Aurora, blurred album art, or a solid color"),
     Albums("Albums", "Choose list or album-art grid presentation"),
     HomeScreen("Home Screen", "Choose how each Home section is presented"),
+    KeyboardShortcuts("Keyboard Shortcuts", "Global Desktop playback and window shortcuts"),
     SwipeActions("Swipe Actions", "Track gestures by list type"),
 }
 
@@ -609,6 +658,7 @@ private fun ExperienceSettingsPage.title(): String =
         ExperienceSettingsPage.AppBackground -> "App Background"
         ExperienceSettingsPage.Albums -> "Albums"
         ExperienceSettingsPage.HomeScreen -> "Home Screen"
+        ExperienceSettingsPage.KeyboardShortcuts -> "Keyboard Shortcuts"
         ExperienceSettingsPage.SwipeActions -> "Swipe Actions"
     }
 
@@ -621,6 +671,7 @@ private fun ExperienceSettingsPage.subtitle(): String =
         ExperienceSettingsPage.AppBackground -> "Choose the canvas behind Naviamp"
         ExperienceSettingsPage.Albums -> "Choose how album collections are presented"
         ExperienceSettingsPage.HomeScreen -> "Choose List, Grid, or Carousel for each Home section"
+        ExperienceSettingsPage.KeyboardShortcuts -> "Customize global Desktop shortcuts"
         ExperienceSettingsPage.SwipeActions -> "Choose gesture shortcuts; actions stay available in each track's More actions menu"
     }
 
@@ -710,7 +761,7 @@ private fun AppBackgroundSettings(
                 singleLine = true,
                 label = { Text("Color (hex)") },
                 supportingText = { Text("Use a dark color to keep text readable") },
-                modifier = Modifier.weight(1f),
+                modifier = Modifier.weight(1f).naviampTextInputFocus(),
             )
         }
         val selectedColor = naviampColorFromHex(interfaceSettings.singleColorHex) ?: colors.background
@@ -928,6 +979,221 @@ private fun HomeScreenExperienceSettings(
         return
     }
 
+    HomeScreenSectionPresentationSettings(
+        colors = colors,
+        interfaceSettings = interfaceSettings,
+        orderedSections = orderedSections,
+        selectedSectionId = selectedSectionId,
+        onSelectedSectionChanged = { selectedSectionId = it },
+        onInterfaceSettingsChanged = onInterfaceSettingsChanged,
+    )
+}
+
+@Composable
+private fun GlobalKeyboardShortcutsSettingsPage(
+    colors: NaviampColors,
+    interfaceSettings: InterfaceSettings,
+    platform: DesktopShortcutPlatform,
+    statuses: Map<GlobalShortcutAction, GlobalShortcutRegistrationUi>,
+    onInterfaceSettingsChanged: (InterfaceSettings) -> Unit,
+) {
+    val settings = interfaceSettings.globalKeyboardShortcuts
+    val bindings = settings.resolvedBindings(platform)
+    var capturingAction by remember { mutableStateOf<GlobalShortcutAction?>(null) }
+
+    SettingsCheckboxRow(
+        colors = colors,
+        checked = settings.enabled,
+        label = "Global keyboard shortcuts",
+        subtitle = "Allow these shortcuts while Naviamp is running, even when its window is not focused",
+        onCheckedChange = { enabled ->
+            onInterfaceSettingsChanged(
+                interfaceSettings.copy(globalKeyboardShortcuts = settings.copy(enabled = enabled)).normalized(),
+            )
+        },
+    )
+    GlobalShortcutAction.entries.forEach { action ->
+        val binding = bindings[action]
+        val status = statuses[action]
+        val registrationStatus = when {
+            !settings.enabled -> "Global shortcuts are off"
+            binding == null -> "Disabled"
+            status == null -> "Waiting for registration"
+            status.state == GlobalShortcutRegistrationState.Registered -> "Registered"
+            status.detail.isNotBlank() -> status.detail
+            status.state == GlobalShortcutRegistrationState.Conflict -> "Unavailable because another app or the operating system uses it"
+            else -> "Unavailable on this desktop session"
+        }
+        SettingsRow(
+            title = action.label,
+            subtitle = "$registrationStatus\nShortcut: ${binding?.label(platform) ?: "None"}",
+            colors = colors,
+        ) {
+            capturingAction = action
+        }
+    }
+    TextButton(
+        onClick = {
+            onInterfaceSettingsChanged(
+                interfaceSettings.copy(
+                    globalKeyboardShortcuts = settings.resetBindings(platform),
+                ).normalized(),
+            )
+        },
+        modifier = Modifier.padding(horizontal = SettingsRowHorizontalPadding),
+    ) {
+        Text("Reset ${platform.label} defaults")
+    }
+
+    capturingAction?.let { action ->
+        KeyboardShortcutCaptureDialog(
+            action = action,
+            colors = colors,
+            onCaptured = { binding ->
+                onInterfaceSettingsChanged(
+                    interfaceSettings.copy(
+                        globalKeyboardShortcuts = settings.withBinding(platform, action, binding),
+                    ).normalized(),
+                )
+                capturingAction = null
+            },
+            onDismiss = { capturingAction = null },
+        )
+    }
+}
+
+@Composable
+private fun KeyboardShortcutCaptureDialog(
+    action: GlobalShortcutAction,
+    colors: NaviampColors,
+    onCaptured: (KeyboardShortcutBinding?) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val focusRequester = remember { FocusRequester() }
+    var message by remember { mutableStateOf("Press a key together with at least one modifier") }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(action.label) },
+        text = {
+            Box(
+                contentAlignment = Alignment.Center,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(100.dp)
+                    .background(Color.Black.copy(alpha = 0.12f), RoundedCornerShape(8.dp))
+                    .focusRequester(focusRequester)
+                    .focusable()
+                    .onKeyEvent { event ->
+                        if (event.type != KeyEventType.KeyDown) return@onKeyEvent true
+                        if (event.key == Key.Escape) {
+                            onDismiss()
+                            return@onKeyEvent true
+                        }
+                        val key = event.toKeyboardShortcutKey()
+                        if (key == null) {
+                            message = "That key is not supported. Use a letter, number, arrow, navigation key, Space, or F1–F12."
+                            return@onKeyEvent true
+                        }
+                        val binding = KeyboardShortcutBinding(
+                            key = key,
+                            control = event.isCtrlPressed,
+                            alt = event.isAltPressed,
+                            shift = event.isShiftPressed,
+                            meta = event.isMetaPressed,
+                        )
+                        if (!binding.hasModifier) {
+                            message = "Global shortcuts require at least one modifier key"
+                        } else {
+                            onCaptured(binding)
+                        }
+                        true
+                    },
+            ) {
+                Text(message, color = colors.primaryText, fontSize = 13.sp)
+            }
+            LaunchedEffect(Unit) { focusRequester.requestFocus() }
+        },
+        confirmButton = {
+            TextButton(onClick = { onCaptured(null) }) { Text("Disable shortcut") }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("Cancel") }
+        },
+    )
+}
+
+private fun KeyEvent.toKeyboardShortcutKey(): KeyboardShortcutKey? = when (key) {
+    Key.Spacebar -> KeyboardShortcutKey.Space
+    Key.DirectionLeft -> KeyboardShortcutKey.Left
+    Key.DirectionRight -> KeyboardShortcutKey.Right
+    Key.DirectionUp -> KeyboardShortcutKey.Up
+    Key.DirectionDown -> KeyboardShortcutKey.Down
+    Key.MoveHome -> KeyboardShortcutKey.Home
+    Key.MoveEnd -> KeyboardShortcutKey.End
+    Key.PageUp -> KeyboardShortcutKey.PageUp
+    Key.PageDown -> KeyboardShortcutKey.PageDown
+    Key.A -> KeyboardShortcutKey.A
+    Key.B -> KeyboardShortcutKey.B
+    Key.C -> KeyboardShortcutKey.C
+    Key.D -> KeyboardShortcutKey.D
+    Key.E -> KeyboardShortcutKey.E
+    Key.F -> KeyboardShortcutKey.F
+    Key.G -> KeyboardShortcutKey.G
+    Key.H -> KeyboardShortcutKey.H
+    Key.I -> KeyboardShortcutKey.I
+    Key.J -> KeyboardShortcutKey.J
+    Key.K -> KeyboardShortcutKey.K
+    Key.L -> KeyboardShortcutKey.L
+    Key.M -> KeyboardShortcutKey.M
+    Key.N -> KeyboardShortcutKey.N
+    Key.O -> KeyboardShortcutKey.O
+    Key.P -> KeyboardShortcutKey.P
+    Key.Q -> KeyboardShortcutKey.Q
+    Key.R -> KeyboardShortcutKey.R
+    Key.S -> KeyboardShortcutKey.S
+    Key.T -> KeyboardShortcutKey.T
+    Key.U -> KeyboardShortcutKey.U
+    Key.V -> KeyboardShortcutKey.V
+    Key.W -> KeyboardShortcutKey.W
+    Key.X -> KeyboardShortcutKey.X
+    Key.Y -> KeyboardShortcutKey.Y
+    Key.Z -> KeyboardShortcutKey.Z
+    Key.Zero -> KeyboardShortcutKey.Digit0
+    Key.One -> KeyboardShortcutKey.Digit1
+    Key.Two -> KeyboardShortcutKey.Digit2
+    Key.Three -> KeyboardShortcutKey.Digit3
+    Key.Four -> KeyboardShortcutKey.Digit4
+    Key.Five -> KeyboardShortcutKey.Digit5
+    Key.Six -> KeyboardShortcutKey.Digit6
+    Key.Seven -> KeyboardShortcutKey.Digit7
+    Key.Eight -> KeyboardShortcutKey.Digit8
+    Key.Nine -> KeyboardShortcutKey.Digit9
+    Key.Minus -> KeyboardShortcutKey.Minus
+    Key.Equals -> KeyboardShortcutKey.Equals
+    Key.F1 -> KeyboardShortcutKey.F1
+    Key.F2 -> KeyboardShortcutKey.F2
+    Key.F3 -> KeyboardShortcutKey.F3
+    Key.F4 -> KeyboardShortcutKey.F4
+    Key.F5 -> KeyboardShortcutKey.F5
+    Key.F6 -> KeyboardShortcutKey.F6
+    Key.F7 -> KeyboardShortcutKey.F7
+    Key.F8 -> KeyboardShortcutKey.F8
+    Key.F9 -> KeyboardShortcutKey.F9
+    Key.F10 -> KeyboardShortcutKey.F10
+    Key.F11 -> KeyboardShortcutKey.F11
+    Key.F12 -> KeyboardShortcutKey.F12
+    else -> null
+}
+
+@Composable
+private fun HomeScreenSectionPresentationSettings(
+    colors: NaviampColors,
+    interfaceSettings: InterfaceSettings,
+    orderedSections: List<HomeScreenSectionOption>,
+    selectedSectionId: String?,
+    onSelectedSectionChanged: (String?) -> Unit,
+    onInterfaceSettingsChanged: (InterfaceSettings) -> Unit,
+) {
     val selectedSection = orderedSections.firstOrNull { it.id == selectedSectionId }
     if (selectedSection == null) {
         SettingsRow(
@@ -936,7 +1202,7 @@ private fun HomeScreenExperienceSettings(
             colors = colors,
             value = "${orderedSections.size} sections",
         ) {
-            selectedSectionId = HomeScreenOrderPageId
+            onSelectedSectionChanged(HomeScreenOrderPageId)
         }
         orderedSections.forEach { section ->
             val presentation = interfaceSettings.homeSectionPresentation(section.id)
@@ -946,7 +1212,7 @@ private fun HomeScreenExperienceSettings(
                 colors = colors,
                 value = presentation.homeLayout.label,
             ) {
-                selectedSectionId = section.id
+                onSelectedSectionChanged(section.id)
             }
         }
         return
@@ -957,7 +1223,7 @@ private fun HomeScreenExperienceSettings(
         title = selectedSection.title,
         subtitle = "Choose separate layouts for Home and its dedicated page",
         colors = colors,
-    ) { selectedSectionId = null }
+    ) { onSelectedSectionChanged(null) }
 
     SettingsSectionTitle("Home screen", colors)
     HomeSectionLayout.entries.forEach { layout ->
@@ -3772,7 +4038,7 @@ private fun RadioDjSettingsSection(
             onValueChange = { draftName = it },
             singleLine = true,
             label = { Text(stringResource(Res.string.settings_radio_dj_name)) },
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier.fillMaxWidth().naviampTextInputFocus(),
         )
         RadioTuningControls(
             colors = colors,
@@ -4424,6 +4690,7 @@ private fun EqualizerSettings(
                     onValueChange = { profileName = it },
                     singleLine = true,
                     label = { Text(stringResource(Res.string.settings_equalizer_profile_name)) },
+                    modifier = Modifier.naviampTextInputFocus(),
                 )
             },
             confirmButton = {

@@ -219,6 +219,7 @@ kotlin {
                 implementation(libs.kotlinx.serialization.json)
                 implementation(libs.ktor.client.core)
                 implementation(libs.sqldelight.sqlite.driver)
+                implementation(libs.jna.platform)
             }
         }
         val desktopTest by getting {

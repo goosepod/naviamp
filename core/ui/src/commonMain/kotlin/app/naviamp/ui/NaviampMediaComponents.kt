@@ -1924,9 +1924,9 @@ private fun InternetRadioStationDialog(
         title = { Text(if (initialStation == null) "New station" else "Edit station") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text("Name") }, singleLine = true)
-                OutlinedTextField(value = streamUrl, onValueChange = { streamUrl = it }, label = { Text("Stream URL") }, singleLine = true)
-                OutlinedTextField(value = homePageUrl, onValueChange = { homePageUrl = it }, label = { Text("Home page URL") }, singleLine = true)
+                OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text("Name") }, singleLine = true, modifier = Modifier.naviampTextInputFocus())
+                OutlinedTextField(value = streamUrl, onValueChange = { streamUrl = it }, label = { Text("Stream URL") }, singleLine = true, modifier = Modifier.naviampTextInputFocus())
+                OutlinedTextField(value = homePageUrl, onValueChange = { homePageUrl = it }, label = { Text("Home page URL") }, singleLine = true, modifier = Modifier.naviampTextInputFocus())
             }
         },
         confirmButton = {

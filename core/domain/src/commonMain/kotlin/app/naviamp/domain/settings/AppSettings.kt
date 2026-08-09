@@ -160,6 +160,7 @@ data class InterfaceSettings(
     val groupAlbumsByReleaseType: Boolean = true,
     val homeSectionPresentations: Map<String, HomeSectionPresentationSettings> = emptyMap(),
     val homeSectionOrder: List<String> = emptyList(),
+    val globalKeyboardShortcuts: GlobalKeyboardShortcutSettings = GlobalKeyboardShortcutSettings(),
     val nowPlaying: NowPlayingDisplaySettings = NowPlayingDisplaySettings(),
     val trackSwipes: TrackSwipeSettings = TrackSwipeSettings(),
 ) {
@@ -171,6 +172,7 @@ data class InterfaceSettings(
             .filterKeys { it.isNotBlank() }
             .mapKeys { (id, _) -> id.trim() },
         homeSectionOrder = homeSectionOrder.map(String::trim).filter(String::isNotBlank).distinct(),
+        globalKeyboardShortcuts = globalKeyboardShortcuts.normalized(),
     )
 }
 

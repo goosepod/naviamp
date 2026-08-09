@@ -251,17 +251,11 @@ This document tracks useful ideas that come up during the v2 migration but are n
 
 ### Configurable Keyboard Playback Controls
 
-- **Status:** Idea
-- **Concept:** Add keyboard shortcuts for controlling playback and provide settings that let users view and customize those bindings.
-- **Why it may fit:** Keyboard control makes Desktop playback faster without requiring the Naviamp window or a specific control to have pointer focus. A shared command-to-binding model could also support physical keyboards on Android and iOS while leaving operating-system media keys and remote-control integrations with their platform hosts.
-- **Controls to consider:** Play/pause, previous, next, stop, seek backward/forward, volume up/down, mute, shuffle, repeat, favorite, and opening or focusing Now Playing.
-- **Questions to answer:**
-  - Which shortcuts should work globally while Naviamp is running, and which should require the app to have focus?
-  - What default bindings avoid common operating-system and text-entry conflicts?
-  - Should media keys be fixed platform integrations, configurable alongside keyboard shortcuts, or both?
-  - How should duplicate bindings, unsupported keys, modifier-only input, and restoring defaults behave?
-  - Can shortcut definitions and validation live in shared code while each host supplies key-event capture and global-hotkey capabilities?
-- **Settings notes:** Add a Keyboard Controls settings area that lists commands and current bindings, supports recording or clearing a binding, detects conflicts before saving, and provides a restore-defaults action. Capability-gate global shortcuts on platforms where they cannot be registered safely or consistently.
+- **Status:** Done (August 8, 2026)
+- **Delivered:** Desktop users can enable one global-shortcut master switch and customize Play/Pause, Previous, Next, Volume Up, Volume Down, and Bring to Front from Experience > Keyboard Shortcuts. Defaults are platform-specific, duplicate bindings are resolved when saved, unavailable/conflicting registrations are shown beside the affected command, individual bindings can be disabled, and each platform can be reset to its defaults.
+- **Playback behavior:** Previous enters the existing shared Previous-button policy, volume moves in five-percent increments, and every command other than native window activation is interpreted by Core.
+- **Focused-window behavior:** Space always toggles playback while the Naviamp window is focused. It is fixed and cannot be disabled; shared text-entry focus tracking prevents it from firing while the user is typing, and held-key repeats are ignored.
+- **Platform boundary:** Core owns binding models, defaults, normalization, persistence/settings sync, settings UI, statuses, and command routing. Desktop contains only Windows `RegisterHotKey`, macOS Carbon hot-key registration, Linux X11 grabs, and AWT window activation/key delivery.
 
 ### Android and iOS Player Widgets
 

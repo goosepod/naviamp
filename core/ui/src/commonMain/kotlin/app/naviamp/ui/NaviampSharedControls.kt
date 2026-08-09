@@ -74,6 +74,7 @@ internal fun NaviampCompactSearchField(
         cursorBrush = SolidColor(colors.primaryText),
         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
         modifier = modifier
+            .naviampTextInputFocus()
             .fillMaxWidth()
             .height(40.dp)
             .clip(RoundedCornerShape(7.dp))
@@ -139,7 +140,7 @@ internal fun NaviampTextField(
         },
         keyboardOptions = KeyboardOptions(imeAction = if (onSubmit != null) ImeAction.Search else ImeAction.Default),
         keyboardActions = KeyboardActions(onSearch = { onSubmit?.invoke() }),
-        modifier = modifier.then(
+        modifier = modifier.naviampTextInputFocus().then(
             if (onSubmit != null) {
                 Modifier.onPreviewKeyEvent { event ->
                     if (event.type == KeyEventType.KeyUp && event.key == Key.Enter) {

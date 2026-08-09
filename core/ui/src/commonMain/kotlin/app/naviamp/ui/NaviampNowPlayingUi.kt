@@ -2190,7 +2190,7 @@ fun AddToPlaylistDialog(
                         onValueChange = { playlistName = it },
                         label = { Text("Playlist name") },
                         singleLine = true,
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier.fillMaxWidth().naviampTextInputFocus(),
                     )
                 } else {
                     if (playlists.isEmpty()) {
@@ -2301,7 +2301,7 @@ fun SaveQueueAsPlaylistDialog(
                     onValueChange = { playlistName = it },
                     label = { Text("Playlist name") },
                     singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier.fillMaxWidth().naviampTextInputFocus(),
                 )
             }
         },

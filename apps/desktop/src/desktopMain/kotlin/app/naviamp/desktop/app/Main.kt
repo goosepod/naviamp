@@ -71,7 +71,7 @@ fun main() {
                 MinDesktopWindowWidthDp.toInt(),
                 MinDesktopWindowHeightDp.toInt(),
             )
-            DesktopNaviampCoreHost(composition.environment)
+            DesktopNaviampCoreHost(composition.environment, window)
         }
     }
 }

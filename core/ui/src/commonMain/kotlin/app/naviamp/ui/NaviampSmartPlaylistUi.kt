@@ -168,7 +168,7 @@ fun SmartPlaylistBuilderDialog(
                             minLines = 4,
                             maxLines = 8,
                             textStyle = TextStyle(fontSize = 12.sp),
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier.fillMaxWidth().naviampTextInputFocus(),
                         )
                         TextButton(
                             enabled = importJson.isNotBlank(),
@@ -276,7 +276,7 @@ fun SmartPlaylistBuilderDialog(
                         fontSize = 12.sp,
                     )
                     OutlinedTextField(
-                        modifier = Modifier.fillMaxWidth().testTag(SmartPlaylistPasswordFieldTestTag),
+                        modifier = Modifier.fillMaxWidth().testTag(SmartPlaylistPasswordFieldTestTag).naviampTextInputFocus(),
                         value = password,
                         onValueChange = {
                             password = it
@@ -371,7 +371,7 @@ internal fun SmartPlaylistLoadPasswordDialog(
                     fontSize = 12.sp,
                 )
                 OutlinedTextField(
-                    modifier = Modifier.fillMaxWidth().testTag(SmartPlaylistLoadPasswordFieldTestTag),
+                    modifier = Modifier.fillMaxWidth().testTag(SmartPlaylistLoadPasswordFieldTestTag).naviampTextInputFocus(),
                     value = password,
                     onValueChange = {
                         password = it
@@ -789,7 +789,7 @@ private fun SmartPlaylistTextField(
         label = { Text(label, color = colors.secondaryText) },
         singleLine = true,
         textStyle = TextStyle(fontSize = 13.sp),
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier.fillMaxWidth().naviampTextInputFocus(),
     )
 }
 
@@ -818,6 +818,7 @@ private fun <T> SmartPlaylistDropdown(
             textStyle = TextStyle(fontSize = 13.sp),
             modifier = Modifier
                 .fillMaxWidth()
+                .naviampTextInputFocus()
                 .onFocusChanged { focusState ->
                     if (focusState.isFocused) {
                         expanded = true

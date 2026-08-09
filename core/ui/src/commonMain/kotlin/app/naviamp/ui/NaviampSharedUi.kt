@@ -466,6 +466,7 @@ private fun ConnectedContent(
         )
         selectedRoute == SharedRoute.Settings -> NaviampSettingsContent(
             colors = colors,
+            desktopShortcutPlatform = uiState.capabilities.desktopShortcutPlatform,
             connectionSettings = connectionSettings,
             general = general,
             playback = playback,
@@ -743,6 +744,7 @@ private fun FullNowPlaying(
 fun NaviampSettingsContent(
     colors: NaviampColors,
     modifier: Modifier = Modifier,
+    desktopShortcutPlatform: app.naviamp.domain.settings.DesktopShortcutPlatform? = null,
     connectionSettings: NaviampConnectionSettingsUi,
     general: NaviampGeneralSettingsUi,
     playback: NaviampPlaybackSettingsUi,
@@ -816,6 +818,8 @@ fun NaviampSettingsContent(
         onOpenStatsForNerds = maintenanceActions.onOpenStatsForNerds,
         showSoftwareVolumePreference = playback.softwareVolumeControlAvailable,
         showTooltipPreference = playback.hoverTooltipsAvailable,
+        desktopShortcutPlatform = desktopShortcutPlatform,
+        globalShortcutStatuses = general.globalShortcutStatuses,
     )
 }
 

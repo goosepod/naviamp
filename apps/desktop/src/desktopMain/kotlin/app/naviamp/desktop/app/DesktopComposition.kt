@@ -167,7 +167,7 @@ internal class DesktopComposition private constructor(
             val shellCapabilities = DesktopCapabilityPresentation.toShellCapabilitiesUi(
                 playbackEngine = engine,
                 sonicSimilarityAvailable = false,
-            )
+            ).copy(desktopShortcutPlatform = desktopShortcutPlatform())
             val settingsSyncPort = DesktopCoreSettingsSyncPort(settingsValues)
             val downloadLocation = NaviampStorageLocationUi(
                 id = "active-download-directory",

@@ -13,6 +13,11 @@ import app.naviamp.domain.app.NaviampNavigationState
 import app.naviamp.domain.playback.AudioOutputDevice
 import app.naviamp.domain.settings.toConnectionFormState
 import app.naviamp.domain.settings.toSettingsSyncServerProfile
+import app.naviamp.domain.settings.GlobalShortcutAction
+import app.naviamp.domain.settings.GlobalShortcutVolumeStepPercent
+import app.naviamp.ui.GlobalShortcutRegistrationUi
+import app.naviamp.ui.NowPlayingPlaybackAction
+import app.naviamp.ui.NowPlayingPlaybackActionRequest
 import app.naviamp.ui.NaviampShellCapabilitiesUi
 import app.naviamp.ui.SharedRoute
 import kotlinx.coroutines.CoroutineScope
@@ -86,6 +91,38 @@ class NaviampCore private constructor(
     val state: StateFlow<NaviampCoreState> = stateStore.state
 
     fun dispatch(command: NaviampCoreCommand) = commands.dispatch(command)
+
+    fun handleGlobalShortcut(action: GlobalShortcutAction): NaviampCoreHostShortcutEffect? {
+        if (action == GlobalShortcutAction.BringToFront) return NaviampCoreHostShortcutEffect.BringToFront
+        val request = when (action) {
+            GlobalShortcutAction.PlayPause -> NowPlayingPlaybackActionRequest(NowPlayingPlaybackAction.PlayCurrent)
+            GlobalShortcutAction.NextTrack -> NowPlayingPlaybackActionRequest(NowPlayingPlaybackAction.Next)
+            GlobalShortcutAction.Previous -> NowPlayingPlaybackActionRequest(NowPlayingPlaybackAction.Previous)
+            GlobalShortcutAction.VolumeUp,
+            GlobalShortcutAction.VolumeDown,
+            -> {
+                val current = state.value.shell.playback.settings.volumePercent
+                val delta = if (action == GlobalShortcutAction.VolumeUp) {
+                    GlobalShortcutVolumeStepPercent
+                } else {
+                    -GlobalShortcutVolumeStepPercent
+                }
+                NowPlayingPlaybackActionRequest(
+                    NowPlayingPlaybackAction.ChangeVolume,
+                    volumePercent = (current + delta).coerceIn(0, 100),
+                )
+            }
+            GlobalShortcutAction.BringToFront -> error("Handled above")
+        }
+        dispatch(NaviampCoreCommand.NowPlaying.Playback(request))
+        return null
+    }
+
+    fun updateGlobalShortcutStatuses(statuses: Map<GlobalShortcutAction, GlobalShortcutRegistrationUi>) {
+        stateStore.updateShell { shell ->
+            shell.copy(general = shell.general.copy(globalShortcutStatuses = statuses))
+        }
+    }
 
     suspend fun execute(command: NaviampCoreCommand): NaviampCoreCommandResult =
         commands.execute(command)
@@ -506,6 +543,8 @@ class NaviampCore private constructor(
         }
     }
 }
+
+enum class NaviampCoreHostShortcutEffect { BringToFront }
 
 private class DeferredArtistNavigator : NaviampCoreArtistNavigator {
     lateinit var target: NaviampCoreArtistNavigator

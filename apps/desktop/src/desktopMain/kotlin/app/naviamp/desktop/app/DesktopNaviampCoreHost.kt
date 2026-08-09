@@ -1,11 +1,21 @@
 package app.naviamp.desktop
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
+import app.naviamp.desktop.platform.desktopGlobalShortcutRegistrar
 import app.naviamp.presentation.NaviampCoreCommand
+import app.naviamp.presentation.NaviampCoreApp
+import app.naviamp.presentation.NaviampCoreHostShortcutEffect
 import app.naviamp.presentation.NaviampCoreExternalUriPort
 import app.naviamp.presentation.NaviampCoreEnvironment
-import app.naviamp.presentation.NaviampCoreHost
+import app.naviamp.presentation.rememberNaviampCore
 import app.naviamp.presentation.NaviampCoreInitialState
 import app.naviamp.presentation.NaviampCoreServices
 import app.naviamp.presentation.NaviampCoreProviderSessionPort
@@ -15,6 +25,18 @@ import app.naviamp.presentation.withShellCapabilities
 import app.naviamp.domain.playback.AudioOutputDevice
 import app.naviamp.ui.NaviampApplicationUpdateChecker
 import app.naviamp.ui.NaviampShellCapabilitiesUi
+import app.naviamp.ui.LocalNaviampTextInputFocusRegistry
+import app.naviamp.ui.rememberNaviampTextInputFocusRegistry
+import app.naviamp.domain.settings.resolvedBindings
+import java.awt.EventQueue
+import java.awt.Frame
+import java.awt.KeyEventDispatcher
+import java.awt.KeyboardFocusManager
+import java.awt.Window
+import java.awt.event.KeyEvent
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 /**
  * Complete input boundary for the replacement Desktop host.
@@ -69,13 +91,86 @@ internal fun desktopNaviampCoreEnvironment(
 @Composable
 internal fun DesktopNaviampCoreHost(
     environment: DesktopNaviampCoreEnvironment,
+    window: Window,
     modifier: Modifier = Modifier,
 ) {
-    NaviampCoreHost(
-        environment = environment,
-        modifier = modifier,
-        statsForNerdsPresenter = { diagnostics, close ->
-            DesktopStatsForNerdsWindow(diagnostics, close)
-        },
+    val core = rememberNaviampCore(
+        services = environment.services,
+        initialState = environment.initialState,
+        actionAvailability = environment.actionAvailability,
+        onAsyncFailure = environment.onAsyncFailure,
     )
+    val state by core.state.collectAsState()
+    val scope = rememberCoroutineScope()
+    val platform = state.shell.capabilities.desktopShortcutPlatform
+    val registrar = remember(platform) { platform?.let(::desktopGlobalShortcutRegistrar) }
+    val shortcutSettings = state.shell.general.interfaceSettings.globalKeyboardShortcuts
+    val bindings = platform?.let(shortcutSettings::resolvedBindings).orEmpty()
+    DisposableEffect(registrar) { onDispose { registrar?.close() } }
+    LaunchedEffect(registrar, shortcutSettings.enabled, bindings) {
+        if (registrar == null || !shortcutSettings.enabled) {
+            withContext(Dispatchers.IO) { registrar?.close() }
+            core.updateGlobalShortcutStatuses(emptyMap())
+        } else {
+            val statuses = withContext(Dispatchers.IO) {
+                registrar.register(bindings) { action ->
+                    scope.launch {
+                        if (core.handleGlobalShortcut(action) == NaviampCoreHostShortcutEffect.BringToFront) {
+                            bringDesktopWindowToFront(window)
+                        }
+                    }
+                }
+            }
+            core.updateGlobalShortcutStatuses(statuses)
+        }
+    }
+    val textInputFocusRegistry = rememberNaviampTextInputFocusRegistry()
+    DisposableEffect(window, core, textInputFocusRegistry) {
+        var spaceHeld = false
+        val focusManager = KeyboardFocusManager.getCurrentKeyboardFocusManager()
+        val dispatcher = KeyEventDispatcher { event ->
+            val focusedWindow = focusManager.focusedWindow
+            if (textInputFocusRegistry.hasFocusedTextInput || !focusedWindow.belongsTo(window) ||
+                event.keyCode != KeyEvent.VK_SPACE || event.modifiersEx != 0
+            ) {
+                return@KeyEventDispatcher false
+            }
+            when (event.id) {
+                KeyEvent.KEY_PRESSED -> if (!spaceHeld) {
+                    spaceHeld = true
+                    core.handleGlobalShortcut(app.naviamp.domain.settings.GlobalShortcutAction.PlayPause)
+                }
+                KeyEvent.KEY_RELEASED -> spaceHeld = false
+                else -> return@KeyEventDispatcher false
+            }
+            event.consume()
+            true
+        }
+        focusManager.addKeyEventDispatcher(dispatcher)
+        onDispose { focusManager.removeKeyEventDispatcher(dispatcher) }
+    }
+    CompositionLocalProvider(LocalNaviampTextInputFocusRegistry provides textInputFocusRegistry) {
+        NaviampCoreApp(
+            core = core,
+            modifier = modifier,
+            applicationUpdateChecker = environment.applicationUpdateChecker,
+            statsForNerdsPresenter = { diagnostics, close ->
+                DesktopStatsForNerdsWindow(diagnostics, close)
+            },
+        )
+    }
+}
+
+private fun Window?.belongsTo(owner: Window): Boolean =
+    generateSequence(this) { window -> window.owner }.any { window -> window == owner }
+
+private fun bringDesktopWindowToFront(window: Window) {
+    EventQueue.invokeLater {
+        (window as? Frame)?.let { frame ->
+            frame.extendedState = frame.extendedState and Frame.ICONIFIED.inv()
+        }
+        window.isVisible = true
+        window.toFront()
+        window.requestFocus()
+    }
 }

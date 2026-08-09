@@ -12,6 +12,8 @@ import app.naviamp.domain.settings.ConnectionFormState
 import app.naviamp.domain.settings.PlaybackSettings
 import app.naviamp.domain.settings.CacheSettings
 import app.naviamp.domain.settings.InterfaceSettings
+import app.naviamp.domain.settings.DesktopShortcutPlatform
+import app.naviamp.domain.settings.GlobalShortcutAction
 import app.naviamp.domain.settings.HomeSectionLayout
 import app.naviamp.domain.settings.HomeSectionPageLayout
 import app.naviamp.domain.smartplaylist.SmartPlaylistDefinition
@@ -1110,6 +1112,14 @@ data class NaviampSettingsMaintenanceActions(
 data class NaviampGeneralSettingsUi(
     val interfaceSettings: InterfaceSettings = InterfaceSettings(),
     val about: NaviampAboutUi = NaviampAboutUi(),
+    val globalShortcutStatuses: Map<GlobalShortcutAction, GlobalShortcutRegistrationUi> = emptyMap(),
+)
+
+enum class GlobalShortcutRegistrationState { Registered, Conflict, Unavailable }
+
+data class GlobalShortcutRegistrationUi(
+    val state: GlobalShortcutRegistrationState,
+    val detail: String = "",
 )
 
 data class NaviampPlaybackSettingsUi(
@@ -1152,6 +1162,7 @@ data class NaviampShellCapabilitiesUi(
     val applicationUpdates: Boolean = false,
     val fileSelection: Boolean = false,
     val showMobileNetworkQuality: Boolean = false,
+    val desktopShortcutPlatform: DesktopShortcutPlatform? = null,
     val connection: NaviampConnectionCapabilitiesUi = NaviampConnectionCapabilitiesUi(),
 )
 

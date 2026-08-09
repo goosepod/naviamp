@@ -55,6 +55,18 @@ class SettingsSyncDocumentTest {
                         ),
                     ),
                     homeSectionOrder = listOf("navibeat-mixes", "mixes-for-you", "future-section"),
+                    globalKeyboardShortcuts = GlobalKeyboardShortcutSettings(
+                        enabled = true,
+                        bindingsByPlatform = mapOf(
+                            DesktopShortcutPlatform.Windows to mapOf(
+                                GlobalShortcutAction.PlayPause to KeyboardShortcutBinding(
+                                    key = KeyboardShortcutKey.F8,
+                                    control = true,
+                                    alt = true,
+                                ),
+                            ),
+                        ),
+                    ),
                     nowPlaying = NowPlayingDisplaySettings(
                         showAlbumYear = false,
                         showAudioInfo = false,
@@ -112,6 +124,12 @@ class SettingsSyncDocumentTest {
         assertEquals(
             listOf("navibeat-mixes", "mixes-for-you", "future-section"),
             decoded.preferences.interfaceSettings.homeSectionOrder,
+        )
+        assertTrue(decoded.preferences.interfaceSettings.globalKeyboardShortcuts.enabled)
+        assertEquals(
+            KeyboardShortcutBinding(KeyboardShortcutKey.F8, control = true, alt = true),
+            decoded.preferences.interfaceSettings.globalKeyboardShortcuts
+                .resolvedBindings(DesktopShortcutPlatform.Windows)[GlobalShortcutAction.PlayPause],
         )
         assertFalse(decoded.preferences.interfaceSettings.showArtistInformation)
         assertFalse(decoded.preferences.interfaceSettings.showAlbumInformation)

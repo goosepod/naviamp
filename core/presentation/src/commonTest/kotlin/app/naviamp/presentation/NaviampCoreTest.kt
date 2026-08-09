@@ -65,6 +65,34 @@ import kotlin.test.assertTrue
 @OptIn(ExperimentalCoroutinesApi::class)
 class NaviampCoreTest {
     @Test
+    fun globalShortcutsRouteThroughSharedPlaybackPolicy() = runTest {
+        val effects = FakeCorePlaybackEffects()
+        val core = NaviampCore.create(this, fakeCoreServices(playbackEffects = effects))
+        val tracks = listOf(coreTrack("one"), coreTrack("two"))
+        core.updateLivePlayback { live ->
+            live.copy(
+                currentTrack = tracks.first(),
+                queue = PlaybackQueue(tracks, 0),
+            )
+        }
+        assertNotNull(effects.observer).onStateChanged(app.naviamp.domain.playback.PlaybackState.Paused)
+
+        assertEquals(
+            NaviampCoreHostShortcutEffect.BringToFront,
+            core.handleGlobalShortcut(app.naviamp.domain.settings.GlobalShortcutAction.BringToFront),
+        )
+        assertEquals(null, core.handleGlobalShortcut(app.naviamp.domain.settings.GlobalShortcutAction.PlayPause))
+        core.handleGlobalShortcut(app.naviamp.domain.settings.GlobalShortcutAction.Previous)
+        core.handleGlobalShortcut(app.naviamp.domain.settings.GlobalShortcutAction.NextTrack)
+        core.handleGlobalShortcut(app.naviamp.domain.settings.GlobalShortcutAction.VolumeDown)
+        advanceUntilIdle()
+
+        assertEquals(1, effects.resumeCount)
+        assertTrue(effects.navigationCommands.contains(PlaybackQueueNavigationCommand.Next))
+        assertEquals(listOf(95), effects.volumes)
+    }
+
+    @Test
     fun failedNowPlayingReportEntersTheSharedPendingActionQueue() = runTest {
         val provider = FakeCoreMediaProvider(
             supportsPlayReporting = true,
@@ -681,21 +709,34 @@ private class FakeCorePlaybackEffects : NaviampCorePlaybackEffectPort {
     override val playbackSource = PlaybackSource.ProviderStream
     val selections = mutableListOf<PlaybackQueue>()
     val appliedQueues = mutableListOf<PlaybackQueue>()
+    val navigationCommands = mutableListOf<PlaybackQueueNavigationCommand>()
+    val volumes = mutableListOf<Int>()
+    var startOrRestoreCount = 0
+    var resumeCount = 0
     var observer: NaviampCorePlaybackObserver? = null
     override fun attach(observer: NaviampCorePlaybackObserver) {
         this.observer = observer
     }
     override fun pause() = Unit
-    override fun resume() = Unit
-    override fun startOrRestore() = false
+    override fun resume() {
+        resumeCount += 1
+    }
+    override fun startOrRestore(): Boolean {
+        startOrRestoreCount += 1
+        return false
+    }
     override fun seek(positionSeconds: Double) = Unit
     override fun replayCurrent(positionSeconds: Double) = Unit
-    override fun setVolume(percent: Int) = Unit
+    override fun setVolume(percent: Int) {
+        volumes += percent
+    }
     override fun stop() = Unit
     override fun applyQueue(queue: PlaybackQueue, clearPreparedNext: Boolean) {
         appliedQueues += queue
     }
-    override fun applyNavigation(command: PlaybackQueueNavigationCommand) = Unit
+    override fun applyNavigation(command: PlaybackQueueNavigationCommand) {
+        navigationCommands += command
+    }
     override fun applyRepeatMode(mode: RepeatMode) = Unit
     override fun playQueueSelection(queue: PlaybackQueue, index: Int) {
         selections += queue.jumpTo(index)

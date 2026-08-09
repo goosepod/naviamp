@@ -909,6 +909,7 @@ private fun PlaylistBulkToolsDialog(
                     onValueChange = { copyName = it },
                     label = { Text(stringResource(Res.string.playlists_new_name)) },
                     singleLine = true,
+                    modifier = Modifier.naviampTextInputFocus(),
                 )
                 TextButton(
                     enabled = detail.tracks.isNotEmpty() && copyName.isNotBlank(),
@@ -994,6 +995,7 @@ fun RenamePlaylistDialog(
                 onValueChange = { name = it },
                 label = { Text(stringResource(Res.string.playlists_name)) },
                 singleLine = true,
+                modifier = Modifier.naviampTextInputFocus(),
             )
         },
         confirmButton = {
