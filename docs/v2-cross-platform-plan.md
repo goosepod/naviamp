@@ -7,14 +7,28 @@ Ideas discovered during the migration that should not interrupt the active check
 ## Project Status
 
 - **Target release:** `2.0.0`
-- **Current development version:** `v2.0.0-alpha.1` (build 36), shown in About on every host so migration builds are unmistakable during testing.
-- **Working branch:** `feature/v2-cross-platform-app`
-- **Beta platforms:** Android, macOS, Windows, Linux, and iOS.
-- **Status:** Desktop, Android, and iOS mount the same Core product, BASS engine, and portable storage owners. The final file-by-file boundary audit is accepted on all three hosts; large-library/accessibility and target-OS packaging checks, release automation, and the original icon redesign remain.
-- **Release policy:** Feature development for the v1 line is frozen. Only bug fixes should be released from v1 while this work is underway.
-- **Versioning rule:** Keep migration builds on an explicit `v2.0.0-alpha.*` prerelease label. Do not change `VERSION` to the final `v2.0.0` until the release-preparation milestone.
+- **Current development version:** `v2.0.0-beta.1` (build 40), shown in About and package metadata on every host.
+- **Working branch:** `release/v2.0.0-beta.1`
+- **Beta platforms:** Android, macOS, Windows, and Linux. iOS remains an unsigned preview during beta stabilization.
+- **Status:** Feature freeze began on August 9, 2026. Desktop, Android, and iOS mount the same Core product, BASS engine, and portable storage owners; stabilization now focuses on acceptance, regressions, packaging, documentation, and release automation rather than new product scope.
+- **Release policy:** Feature development for both the v1 maintenance line and the v2 beta line is frozen. V1 accepts bug fixes only. V2 accepts release blockers, regressions, acceptance coverage, diagnostics, packaging, documentation, and narrowly required compatibility fixes.
+- **Versioning rule:** Keep stabilization builds on explicit `v2.0.0-beta.*` or `v2.0.0-rc.*` prerelease labels. Do not change `VERSION` to final `v2.0.0` until the release-preparation milestone is complete.
 - **Primary objective:** One shared Naviamp application, UI, and behavior hosted by thin Android, Desktop, and iOS applications.
 - **Playback objective:** All three platforms use the shared Core BASS engine. iOS supplies a direct Kotlin/Native ABI adapter; the temporary AVPlayer path was not promoted and has been removed.
+
+### Feature Freeze Policy
+
+- New feature ideas remain in `v2-follow-up-ideas.md` and do not enter the beta stabilization branch.
+- A change is eligible only when it fixes a reproduced regression or release blocker, completes an existing acceptance or packaging gate, improves diagnostics needed to make a release decision, or corrects release documentation and metadata.
+- Any eligibility exception must be recorded in this plan before implementation and must still satisfy the Core-first architecture gate.
+- Stabilization commits should be small, independently verifiable, and tied to an unchecked short-form beta gate or a documented beta regression.
+- `2.0.0-rc.1` begins only after every beta gate is either accepted with evidence or explicitly deferred with user-visible scope and limitations.
+
+**Beta 1 stabilization baseline (2026-08-09):** the full Gradle `check` gate and Core-first
+architecture verification pass on Windows. The same source revision produces the Windows release
+ZIP, MSI, and EXE plus an Android debug APK whose manifest reports `v2.0.0-beta.1` build 40. The
+baseline also corrected a stale Android BASS inventory assertion from 13 to the 12 codec plug-ins
+that are actually bundled after excluding the unsupported Speex and WMA libraries.
 
 ## 2.0 Beta Readiness Checklist
 
@@ -58,24 +72,24 @@ this current list. Check an item only in the same commit that records its verifi
 - [ ] Verify very-large-library paging on supported beta platforms.
 - [ ] Verify accessibility, touch targets, keyboard behavior where applicable, safe areas, and compact layouts.
 - [ ] Verify migration of existing Android and Desktop data and settings.
-- [ ] Complete Windows install/launch/login/playback/download/update/uninstall smoke testing.
+- [ ] Complete Windows install/launch/login/playback/download/update/uninstall smoke testing. The local Beta 1 packaging gate produced and verified the standalone release ZIP plus normalized `Naviamp-2.0.0.exe` and `Naviamp-2.0.0.msi`; installed upgrade and product-flow acceptance remain.
 - [ ] Complete Linux install/launch/login/playback/download/update/uninstall smoke testing.
 - [ ] Complete the remaining required performance-audit scenarios or explicitly document a justified beta-only deferral.
 
 ### iOS beta scope
 
-- [x] Decide and document whether the first beta includes iOS distribution or treats iOS as an undistributed preview. iOS is included in the first beta alongside Android, macOS, Windows, and Linux.
-- [ ] If included, configure release signing/entitlements and pass physical-iPhone launch, playback, interruption, route-change, lifecycle, and performance acceptance.
-- [ ] If included, add archive/IPA verification and document the TestFlight signing/distribution process. GitHub tag builds now produce and validate a credential-free unsigned arm64 device IPA for testers who re-sign locally, with its signing limitations documented; signed archive export and TestFlight remain open.
-- [ ] Document simulator-only MediaRemote glyph/process-audio-tap limitations without presenting them as Naviamp failures.
-- [ ] Decide whether CarPlay is included in the first beta or explicitly deferred to a future release.
+- [x] Decide and document whether the first beta includes iOS distribution or treats iOS as an undistributed preview. Beta 1 publishes the existing credential-free unsigned arm64 IPA as a preview for testers who re-sign locally; Android, macOS, Windows, and Linux are the supported beta targets.
+- [ ] Before iOS becomes a supported RC target, configure release signing/entitlements and pass physical-iPhone launch, playback, interruption, route-change, lifecycle, and performance acceptance.
+- [ ] Before iOS becomes a supported RC target, add signed archive verification and document the TestFlight signing/distribution process. GitHub tag builds already produce and validate the unsigned preview IPA.
+- [x] Document simulator-only MediaRemote glyph/process-audio-tap limitations without presenting them as Naviamp failures. Beta 1 release notes classify iOS as an unsigned preview, and the detailed simulator limitations remain recorded in the final performance gate below.
+- [x] Defer CarPlay to a future release. The first beta and RC stabilization scope includes no CarPlay entitlement, templates, or acceptance requirement.
 
 ### Identity, release automation, and documentation
 
 - [x] Select the final original Naviamp icon and derive Android, Desktop, iOS, installer, Dock/taskbar, repository, website, notification, and in-app assets from one canonical SVG source. The selected original mark lives at `design/naviamp-icon.svg`; `scripts/generate-icons.sh` reproducibly generates legacy/adaptive/themed Android assets, the opaque iOS AppIcon, Desktop PNG/ICO/ICNS packages, the shared About image, repository artwork, and—when `NAVIAMP_WEBSITE_ROOT` is set—the separate Goosepod Pages assets.
-- [ ] Choose the first beta version (for example `2.0.0-beta.1`) and verify version scripts plus package-version normalization.
-- [ ] Add beta release notes and update the user-facing changelog.
-- [ ] Ensure CI builds every supported beta artifact from the same tag and document signing inputs without committing secrets.
+- [x] Choose `v2.0.0-beta.1` build 40 and verify explicit-prerelease version bumping, v-prefixed SemVer validation, build-code advancement, and Desktop/iOS package-version normalization.
+- [x] Add Beta 1 release notes and update the user-facing changelog with the feature-freeze policy and known limitations.
+- [x] Ensure CI builds every supported beta artifact from the same tag and document signing inputs without committing secrets. The tag workflow validates `VERSION`, builds the signed Android APK, Windows ZIP/MSI/EXE, macOS ZIP/DMG, Linux ZIP/DEB/RPM, and unsigned iOS preview IPA, then creates one draft release; Beta and RC limitation sections now enter the generated notes.
 - [ ] Build, install, and inspect every beta artifact on its target operating system.
 - [ ] Reconcile or explicitly defer every remaining checklist item required for the agreed beta scope.
 
@@ -558,7 +572,7 @@ Use this table to track contract and implementation coverage. Add rows when new 
 Before starting work on any computer:
 
 1. Fetch `origin`.
-2. Check out `feature/v2-cross-platform-app`.
+2. Check out `release/v2.0.0-beta.1`.
 3. Pull with fast-forward only.
 4. Read this document and choose the first unchecked item whose prerequisites are complete.
 5. Confirm the worktree is clean and inspect recent commits before editing.

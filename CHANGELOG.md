@@ -2,6 +2,44 @@
 
 Release changes are grouped into user-facing Features, Bug Fixes, and deployment or infrastructure-related System Settings. Internal task-tracking notes are intentionally not included.
 
+## v2.0.0-beta.1
+
+This first beta begins the Naviamp 2.0 feature freeze. It combines the shared cross-platform product with the final discovery, playback-continuity, Home customization, media-detail, and Desktop keyboard work completed after Alpha 4.
+
+### Features
+
+- Added Sonic Autoplay replenishment for ordinary queues, so playback can continue after manually queued tracks when the active provider supports sonic similarity.
+- Added album information to the shared album-detail page, with independent artist/album information visibility settings and lightweight provider-text formatting.
+- Added Navibeat Mixes as a dedicated Home section while keeping generated plugin playlists out of the normal Playlists view.
+- Added configurable Home section order and independent List, Grid, or Carousel layouts, plus dedicated collection pages and Desktop carousel controls.
+- Added customizable Desktop global shortcuts for playback, volume, and bringing Naviamp forward, with focused-window Space always controlling Play/Pause outside text entry.
+- Replaced the removed direct Musixmatch client with the documented, keyless LRCMUse API for plain, line-synchronized, and word-synchronized online lyrics.
+
+### Bug Fixes
+
+- Fixed Sonic Autoplay stopping at the end of manually assembled queues even when sonic similarity was available.
+- Fixed artist popular-track radio so the first popular track starts the queue and the remaining popular tracks are interspersed without duplication.
+- Added shared busy feedback for longer-running radio and collection actions.
+- Fixed album and artist artwork expansion letterboxing, narrow artist-album grids, album-detail metadata duplication, artist navigation, and formatted information rendering.
+- Fixed Stats for Nerds so the last playback request receives the same credential redaction as recent API calls.
+- Fixed Home section ordering persistence and preserved the correct scroll position when opening and returning from dedicated section pages.
+- Fixed Settings contrast and focused-window Space handling after navigating or interacting with other controls.
+
+### System Settings
+
+- Kept queue continuation, Home composition, media details, online-lyrics selection, keyboard command routing, settings persistence, and user-facing status policy in shared Core code.
+- Extended the versioning script to accept an explicit prerelease SemVer while continuing to advance the cross-platform build number.
+- Updated tag release-note extraction so Alpha, Beta, and Release Candidate limitations are included consistently.
+
+### Beta Notes and Known Limitations
+
+- Feature development is frozen for the 2.0 beta line. Only release blockers, regressions, acceptance coverage, diagnostics, packaging, documentation, and narrowly required compatibility fixes are accepted.
+- Back up important playlists and settings before testing this beta.
+- Android, macOS, Windows, and Linux are the supported beta targets. The iOS artifact remains an unsigned preview that testers must sign themselves; release signing, TestFlight, and physical-iPhone acceptance remain open before iOS can be treated as a supported RC target.
+- Windows, Linux, multi-provider edge cases, Android download/offline interactions, accessibility, migration, and the final performance matrix still require stabilization acceptance before RC1.
+- Windows and macOS packages are not yet distributed with trusted publisher signing, so their operating systems may display security warnings.
+- LRCMUse aggregates results from upstream lyric sources. Availability, attribution, and lyric rights remain source-dependent; Naviamp does not claim ownership of returned lyrics.
+
 ## v2.0.0-alpha.4
 
 This alpha expands Naviamp beyond Navidrome with shared Subsonic, Jellyfin, and Bandcamp connections across desktop, Android, and iOS.

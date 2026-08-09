@@ -117,7 +117,7 @@ The desktop app is built with Compose Multiplatform. The Android app shares the 
 
 Naviamp 2.0 is planned as one shared application hosted by thin Android, Desktop, and iOS platform applications. Feature releases on the v1 line are frozen during this work; v1 maintenance releases are limited to bug fixes.
 
-The architecture, milestones, progress checklist, BASS playback target, and multi-computer working agreement are maintained in the [Naviamp 2.0 cross-platform plan](docs/v2-cross-platform-plan.md). Active v2 development takes place on `feature/v2-cross-platform-app`; the version files remain on the current released version until the v2 release-preparation milestone.
+The architecture, milestones, progress checklist, BASS playback target, and multi-computer working agreement are maintained in the [Naviamp 2.0 cross-platform plan](docs/v2-cross-platform-plan.md). Naviamp 2.0 is now feature-frozen on `release/v2.0.0-beta.1`; only stabilization and release-preparation changes belong on that branch.
 
 ## Requirements
 

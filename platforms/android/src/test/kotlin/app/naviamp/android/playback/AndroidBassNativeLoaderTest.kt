@@ -8,7 +8,7 @@ import kotlin.test.assertTrue
 class AndroidBassNativeLoaderTest {
     @Test
     fun codecInventoryMatchesBundledAndroidPlugins() {
-        assertEquals(13, AndroidBassNativeLoader.codecLibraries.size)
+        assertEquals(12, AndroidBassNativeLoader.codecLibraries.size)
         assertTrue("bassflac" in AndroidBassNativeLoader.codecLibraries)
         assertTrue("bassopus" in AndroidBassNativeLoader.codecLibraries)
         assertFalse("bass_spx" in AndroidBassNativeLoader.codecLibraries)
