@@ -1,0 +1,74 @@
+{
+  "lines": [
+    {
+      "start": 1000,
+      "end": 3400,
+      "text": "Under the neon sky",
+      "words": [
+        { "start": 1000, "end": 1480, "text": "Under" },
+        { "start": 1480, "end": 1580, "text": " " },
+        { "start": 1580, "end": 1960, "text": "the" },
+        { "start": 1960, "end": 2050, "text": " " },
+        { "start": 2050, "end": 2680, "text": "neon" },
+        { "start": 2680, "end": 2800, "text": " " },
+        { "start": 2800, "end": 3400, "text": "sky" }
+      ]
+    },
+    {
+      "start": 4100,
+      "end": 7350,
+      "text": "We follow the rhythm home",
+      "words": [
+        { "start": 4100, "end": 4380, "text": "We" },
+        { "start": 4380, "end": 4480, "text": " " },
+        { "start": 4480, "end": 5140, "text": "follow" },
+        { "start": 5140, "end": 5260, "text": " " },
+        { "start": 5260, "end": 5580, "text": "the" },
+        { "start": 5580, "end": 5680, "text": " " },
+        { "start": 5680, "end": 6380, "text": "rhythm" },
+        { "start": 6380, "end": 6500, "text": " " },
+        { "start": 6500, "end": 7350, "text": "home" }
+      ]
+    },
+    {
+      "start": 8200,
+      "end": 12400,
+      "text": "Oh",
+      "words": [
+        { "start": 8200, "end": 12400, "text": "Oh" }
+      ]
+    },
+    {
+      "start": 13100,
+      "end": 16800,
+      "text": "Hold on, let the moment glow",
+      "words": [
+        { "start": 13100, "end": 13520, "text": "Hold" },
+        { "start": 13520, "end": 13620, "text": " " },
+        { "start": 13620, "end": 14000, "text": "on," },
+        { "start": 14000, "end": 14120, "text": " " },
+        { "start": 14120, "end": 14420, "text": "let" },
+        { "start": 14420, "end": 14520, "text": " " },
+        { "start": 14520, "end": 14820, "text": "the" },
+        { "start": 14820, "end": 14920, "text": " " },
+        { "start": 14920, "end": 15650, "text": "moment" },
+        { "start": 15650, "end": 15780, "text": " " },
+        { "start": 15780, "end": 16800, "text": "glow" }
+      ]
+    }
+  ],
+  "meta": {
+    "instrumental": false,
+    "level": "word",
+    "source": {
+      "id": "naviamp-fixture",
+      "name": "Naviamp fixture"
+    }
+  },
+  "track": {
+    "title": "Neon Home",
+    "artist": "Naviamp Test Ensemble",
+    "album": "Core Fixtures",
+    "duration": 20
+  }
+}

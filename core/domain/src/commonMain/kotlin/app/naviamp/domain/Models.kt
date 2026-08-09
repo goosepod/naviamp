@@ -204,7 +204,7 @@ enum class LyricsSource {
     Provider,
     Embedded,
     Lrclib,
-    Musixmatch,
+    Lrcmux,
 }
 
 data class Playlist(

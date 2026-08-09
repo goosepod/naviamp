@@ -201,7 +201,7 @@ class NaviampIosApplication(
         audioTagReader = IosAudioTagReader(),
         lyricsRepository = CachedLyricsSidecarRepository(
             cache = LyricsSidecarCacheService(repositories.lyricsSidecars, ::naviampNowEpochMillis),
-            onlineProviders = naviampOnlineLyricsProviders(httpClient, ::naviampNowEpochMillis),
+            onlineProviders = naviampOnlineLyricsProviders(httpClient),
         ),
         lyricsOffsetRepository = repositories.lyricsOffsets,
         sidecarStatusRepository = SidecarStatusService(repositories.sidecarStatuses, ::naviampNowEpochMillis),

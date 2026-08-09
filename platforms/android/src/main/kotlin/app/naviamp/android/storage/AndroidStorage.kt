@@ -188,7 +188,7 @@ private class AndroidStorageGraph(
     )
     val lyricsSidecars = CachedLyricsSidecarRepository(
         cache = LyricsSidecarCacheService(repositories.lyricsSidecars, ::nowMillis),
-        onlineProviders = naviampOnlineLyricsProviders(lyricsHttpClient, ::nowMillis),
+        onlineProviders = naviampOnlineLyricsProviders(lyricsHttpClient),
     )
     val sidecarStatuses = SidecarStatusService(repositories.sidecarStatuses, ::nowMillis)
 

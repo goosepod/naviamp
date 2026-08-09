@@ -222,7 +222,7 @@ class LyricsSidecarServiceTest {
     @Test
     fun cachedWordSyncedLyricsSatisfyLinePreferenceBeforeAnyLookupAndAreProjected() = runTest {
         val cached = Lyrics(
-            source = LyricsSource.Musixmatch,
+            source = LyricsSource.Lrcmux,
             synced = true,
             lines = listOf(LyricLine(1_000, "Two words")),
             cueLines = listOf(
@@ -264,7 +264,7 @@ class LyricsSidecarServiceTest {
     @Test
     fun plainPreferenceRemovesAllTimingFromRicherCachedLyrics() = runTest {
         val cached = Lyrics(
-            source = LyricsSource.Musixmatch,
+            source = LyricsSource.Lrcmux,
             synced = true,
             lines = listOf(LyricLine(1_000, "Two words")),
             cueLines = listOf(
@@ -310,7 +310,7 @@ class LyricsSidecarServiceTest {
             requests = requests,
         )
         val wordLyrics = Lyrics(
-            source = LyricsSource.Musixmatch,
+            source = LyricsSource.Lrcmux,
             synced = true,
             lines = listOf(LyricLine(0, "Word")),
             cueLines = listOf(LyricCueLine(0, 0, 500, "Word", cues = listOf(LyricCue(0, 500, "Word", 0, 3)))),
@@ -342,7 +342,7 @@ class LyricsSidecarServiceTest {
     fun wordDownloadPreferenceCanBeDisplayedAsLineSyncedLyrics() = runTest {
         val requests = mutableListOf<String>()
         val wordLyrics = Lyrics(
-            source = LyricsSource.Musixmatch,
+            source = LyricsSource.Lrcmux,
             synced = true,
             lines = listOf(LyricLine(0, "Two words")),
             cueLines = listOf(

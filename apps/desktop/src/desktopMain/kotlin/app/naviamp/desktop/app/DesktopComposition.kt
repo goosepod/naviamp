@@ -132,7 +132,7 @@ internal class DesktopComposition private constructor(
                 audioTagReader = DesktopAudioTagReader(),
                 lyricsRepository = CachedLyricsSidecarRepository(
                     cache = LyricsSidecarCacheService(storage.lyricsSidecars, nowEpochMillis),
-                    onlineProviders = naviampOnlineLyricsProviders(sharedHttpClient, nowEpochMillis),
+                    onlineProviders = naviampOnlineLyricsProviders(sharedHttpClient),
                 ),
                 lyricsOffsetRepository = storage.lyricsOffsets,
                 sidecarStatusRepository = SidecarStatusService(storage.sidecarStatuses, nowEpochMillis),

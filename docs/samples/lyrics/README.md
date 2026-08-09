@@ -3,9 +3,9 @@
 These copyright-safe fixtures use original text created for Naviamp testing. They may be copied,
 modified, and redistributed with the project.
 
-- `naviamp-karaoke-richsync.json` mirrors the useful fields in a Musixmatch rich-sync payload.
-  Each line has an absolute start (`ts`), absolute end (`te`), full text (`x`), and fragments (`l`).
-  Fragment offsets (`o`) are relative to the line start.
+- `naviamp-karaoke-lrcmux.json` mirrors LRCMUse's native JSON response. Each line and word has
+  absolute millisecond start/end timing, and the metadata records the available synchronization
+  level and selected upstream source.
 - `naviamp-karaoke-enhanced.lrc` represents the same timing with absolute inline timestamps. A
   timestamp after the final fragment records the line's explicit end, which is important for a
   sustained final word.
