@@ -10,7 +10,17 @@ This document tracks useful ideas that come up during the v2 migration but are n
 - `Implemented`: Shipped and verified.
 - `Rejected`: Deliberately declined, with rationale.
 
-## Ideas
+## Promotion Checklist
+
+Before moving an idea into the active v2 plan or a release branch:
+
+- Confirm the provider or local-data source is available.
+- Confirm the feature can behave consistently across Android, Desktop, and iOS or document capability-gated differences.
+- Identify the shared owner module and the host-specific work, if any.
+- Add focused tests or prototype evidence before committing to implementation.
+- Record the decision in the main plan or a dedicated issue.
+
+## Ideas Not Yet Completed
 
 ### Weblate Translation Management
 
@@ -31,26 +41,6 @@ This document tracks useful ideas that come up during the v2 migration but are n
   - How will CI validate placeholder compatibility, locale completeness, encoding, fallback behavior, and compilation across Android, Desktop, and iOS?
 - **Implementation output:** Confirm Libre-plan eligibility, create the Weblate project and component configuration, document translator and maintainer workflows, import the existing catalogs, add automated validation, and verify a complete translation round trip from Weblate through review to all three clients.
 - **Source:** [Weblate hosting and Libre plan](https://weblate.org/en/hosting/)
-
-### Cross-Platform BASS Add-On Usage Audit
-
-- **Status:** Done
-- **Concept:** Audit which vendored BASS add-ons Naviamp actually loads and uses for real playback, analysis, effects, and supported library formats, then remove add-ons that provide no product value.
-- **Scope:** Compare Android, Desktop, and iOS as one playback product. Record each add-on's call sites, dynamic-load result, formats or features it enables, representative test media, package-size cost, and whether the operating system already supplies an equivalent codec.
-- **Important constraint:** Do not remove a library merely because a narrow acceptance library does not contain its format. A removal needs evidence from the supported-format contract and tests showing that Core capability claims, provider transcoding/original-stream behavior, offline playback, waveform analysis, crossfade/mixing, EQ, and visualizers remain correct.
-- **Desired outcome:** Define one intentional cross-platform base inventory plus documented platform substitutions, remove unused binaries/load attempts/build metadata, and add package verification that prevents the inventories from drifting accidentally.
-- **Completed so far:** Defined the shared decoder inventory; separated codec plugins from directly linked feature libraries; added Android plugin registration and diagnostics; enforced Android, Desktop, and iOS package inventories; removed unused effects/loudness components and a license-problematic niche decoder; added BASS/OpenSSL disclosures and the GPL linking exception; and refreshed BASSWEBM, BASS_SSL, and BASSOPUS from verified upstream archives.
-- **Verified so far:** Clean Core tests, Android package/runtime loading, Desktop native inventory/plugin tests, and iOS simulator inventory/plugin tests all pass with the reduced dependency set.
-- **Completion:** The add-on usage audit and resulting inventory cleanup are complete. The remaining supported-format fixtures, release-platform playback matrix, and artifact-size comparisons are ongoing release acceptance coverage rather than unfinished add-on-usage work. Further optional codec removals remain separate decisions and must follow the supported-format evidence rule above.
-- **Audit record:** See [`bass-addon-usage-audit.md`](bass-addon-usage-audit.md) for the evidence, platform matrix, findings, decisions, and follow-on acceptance checklist.
-
-### F-Droid Distribution
-
-- **Status:** Rejected
-- **Decision:** Do not pursue inclusion in the official F-Droid repository.
-- **Rationale:** Naviamp's supported Android playback product depends on proprietary, prebuilt BASS and BASS add-on libraries. F-Droid requires a fully FLOSS dependency chain that its infrastructure can build from source; its upstream-binary and reproducible-build paths do not waive that requirement.
-- **Reconsider only if:** Naviamp adopts and commits to maintaining a fully FLOSS playback backend that can provide an acceptable Android product without any BASS binaries. That would be a substantial playback-engine and product-parity project, not distribution packaging work.
-- **Alternative:** Publish signed Android APKs through Naviamp's GitHub releases for installation and updates with Obtainium.
 
 ### Google Cast and Apple AirPlay
 
@@ -112,30 +102,6 @@ This document tracks useful ideas that come up during the v2 migration but are n
 - **Investigation output:** Build an endpoint/capability matrix from current official documentation and captured test responses, define authentication and credential-storage requirements, create contract tests and representative fixtures, and implement in the accepted order: generic Subsonic/OpenSubsonic, Jellyfin, then Bandcamp. Bandcamp beta behavior must be reverified before development because it may change.
 - **Source:** [Bandcamp: Discover Improvements and Subsonic Implementation](https://blog.bandcamp.com/2026/07/16/discover-improvements-and-subsonic-implementation/)
 
-### Navidrome Album Information on Album Detail
-
-- **Status:** Implemented
-- **Concept:** When Navidrome provides album information analogous to its artist information, add that metadata to the shared album detail page.
-- **Independent visibility controls:** Add separate settings for showing artist information and showing album information. Each entity must be independently enabled or disabled; changing one setting must not affect the other.
-- **Investigation first:** Identify the Navidrome/OpenSubsonic endpoint, response fields, capability/version requirements, attribution, and empty or partial response behavior. Confirm which data is server-owned and which may originate from external metadata services before defining the provider-neutral model.
-- **Presentation questions:** Decide which available fields belong in the primary album detail layout, which should be expandable, how links and attribution should appear, where the two visibility controls belong in Settings, and how detail pages should degrade when information is disabled or unavailable.
-- **Shared-architecture requirement:** Map Navidrome-specific responses in the provider's `commonMain` code, expose optional album information through shared provider-neutral contracts, and render it in the Core-owned album detail UI so Android, Desktop, and iOS receive the feature together. Store and validate the two visibility preferences independently in shared settings, including Settings Sync if applicable.
-- **Acceptance shape:** Verify complete, partial, missing, malformed, and unavailable album-information responses; all four combinations of the artist and album information settings; source switching and stale-request cancellation; preference persistence and synchronization; and consistent rendering and accessibility across all three hosts.
-- **Implemented:** Naviamp loads `getAlbumInfo2` alongside album details, maps and caches its optional notes, MusicBrainz ID, and artwork URLs in shared provider-neutral models, and renders notes with expandable text plus provider artwork on the shared album detail page. Failures or malformed/missing information do not fail the album itself. Independent shared interface settings control artist and album information, persist through the normal settings store, and participate in Settings Sync.
-
-### NaviBeat Mixes Home Shelf
-
-- **Status:** Done on `feature/navibeat-mixes`
-- **Concept:** Recognize playlists generated by the [NaviBeat Mixes Navidrome plugin](https://github.com/nenadjokic/navibeat-mixes), remove recognized plugin mixes from Naviamp's normal Playlists collection, and present them in a dedicated shared Home shelf similar to NaviBeat.
-- **Plugin behavior:** The server plugin creates and refreshes up to 23 ordinary Subsonic playlists, including time-of-day, Rediscover, New Music, loved, repeat, essentials, discovery, genre, artist, daily, decade, and Wrapped mixes. It requires Navidrome 0.63.1 or newer and exposes no client-specific endpoint.
-- **Canonical detection:** Parse the machine-readable line in the playlist comment, keyed strictly by the `nb1:` schema prefix. Its colon-separated fields identify the schema version, mix kind, slot, generation date, mode, and track count. Never identify a mix by playlist name or configurable prefix. Malformed, unknown-version, or truncated markers must remain ordinary playlists so Naviamp never hides a user-created playlist accidentally.
-- **Home behavior:** Show the shelf only when at least one valid plugin mix exists. Put the mix for the user's current part of day first, use stable generated artwork for each mix instead of the normal playlist mosaic, hide the machine line, and show a concise state such as `Still learning you`, `Updated today`, or `Updated yesterday` derived from the marker and human-readable description. Opening and playing a tile should continue to use Naviamp's standard shared playlist detail, queue, download, favorite, and offline behavior.
-- **Playlist behavior:** Filter only positively identified `nb1:` playlists out of the normal Playlists screen and playlist summaries. Preserve their normal provider IDs and server ownership; Naviamp must not copy, rename, or create a second local representation. Define whether playlist selection dialogs should include these mixes even though the browsing screen does not.
-- **Shared-architecture requirement:** Add provider-neutral playlist provenance/mix metadata in Core, parse the Navidrome comment in the provider's `commonMain` mapping, partition normal and recognized playlists in shared controllers, and render the Home shelf in shared UI. Hosts must not reproduce marker parsing, ordering, cover generation, or visibility rules.
-- **Investigation and acceptance:** Confirm that Naviamp currently receives the full playlist comment through its OpenSubsonic mapping and cache, document every `nb1` kind/mode and forward-compatibility rule from representative plugin fixtures, and compare Naviamp against NaviBeat for time-zone/daypart ordering, stable covers, learning/freshness labels, empty or disabled mixes, plugin removal, source switching, refreshes, offline cache, localization, accessibility, and malformed markers.
-- **Source:** [NaviBeat Mixes repository and client-recognition format](https://github.com/nenadjokic/navibeat-mixes)
-- **Implemented:** Naviamp recognizes valid `nb1:` playlist markers in the shared Navidrome mapping, preserves their provider identity, excludes them from ordinary playlist browsing, and presents them as a dedicated shared Home section with stable generated artwork and freshness/learning labels. Malformed and unknown markers remain ordinary playlists. Mix selection continues through the standard shared playlist detail and playback behavior.
-
 ### Classical Work and Movement Grouping
 
 - **Status:** Idea
@@ -182,6 +148,88 @@ This document tracks useful ideas that come up during the v2 migration but are n
 - **Remaining discrepancy:** Desktop's separate native Stats for Nerds window creates its own `MaterialTheme` without the shared typography. Its window shell is legitimately Desktop-owned, but it should consume the Core typography rather than falling back to the Compose default.
 - **Remaining scope:** Keep only the visual acceptance and spacing work open: representative cross-platform screenshots, spacing and responsive-size review, accessibility minimums, text truncation, mobile safe areas, narrow Desktop layouts, and dynamic type or system font scaling. Shared composition prevents policy duplication, but it does not by itself prove that different font renderers, viewport sizes, and accessibility settings produce acceptable layouts.
 - **Next step:** Route the Desktop diagnostics window through the shared typography, then either complete the visual-acceptance checklist in `v2-cross-platform-plan.md` or split that acceptance work into its own focused follow-up item.
+
+### Android and iOS Player Widgets
+
+- **Status:** Idea
+- **Concept:** Provide home-screen player widgets on Android and iOS that show the current track and artwork and offer useful playback controls without opening Naviamp.
+- **Why it may fit:** A glanceable player is a natural extension of Naviamp's shared Now Playing state and makes common controls available when the full app is not visible. Widget presentation must be native to each platform, but the displayed snapshot, action meanings, fallback state, and artwork policy should come from shared application contracts where practical.
+- **Layouts and actions to consider:** Compact and expanded layouts; artwork, title, artist, playback state, progress where platform refresh rules permit it, play/pause, previous, next, favorite, and an action that opens Now Playing.
+- **Questions to answer:**
+  - Which controls can Android App Widgets and iOS WidgetKit widgets invoke reliably while playback is owned by a background service or suspended app?
+  - How should widget actions reconnect to the active shared playback session without constructing a second runtime or playback engine?
+  - What state should be displayed before login, while disconnected, when playback is stopped, and after the operating system has terminated the host?
+  - How should authenticated artwork be cached and shared safely with an iOS widget extension and Android widget process/lifecycle?
+  - Which widget sizes, themes, backgrounds, and accessibility variants should be supported on each platform?
+  - Should lock-screen widgets, Live Activities, or platform-specific equivalents be separate later enhancements rather than part of the initial home-screen widget scope?
+- **Implementation notes to investigate later:** Define a small shared, serializable widget snapshot and playback-action vocabulary. Keep Android App Widget/Glance and iOS WidgetKit timelines, intents, storage sharing, refresh scheduling, deep links, and rendering in their native hosts. Prototype action delivery and stale-state recovery on physical devices before committing to feature parity claims.
+
+### Apple CarPlay
+
+- **Status:** Idea
+- **Timing:** Begin after the thin iOS application can connect, browse, and play reliably. CarPlay must not become a prerequisite for proving the initial iOS host.
+- **Concept:** Add a CarPlay experience for safely browsing and searching the Naviamp library, starting albums, artists, playlists, radio, and downloads, viewing the active queue and Now Playing information, and controlling playback.
+- **Shared-architecture requirement:** Reuse the shared catalog-selection intents, browse/search policies, queue paging and limits, playback commands, and application runtime already consumed by the normal app and Android Auto. Do not build a separate CarPlay product model or second iOS runtime. Apple-specific templates, scene/session lifecycle, entitlement and capability handling, Now Playing integration, and vehicle-safe presentation remain thin iOS host adapters.
+- **Questions to answer:**
+  - Which CarPlay audio-app capabilities, templates, entitlements, review requirements, and simulator or physical-head-unit testing are required when implementation begins?
+  - Which Android Auto browse/search contracts can become genuinely vehicle-platform-neutral, and which remain Android-specific because of `MediaBrowserCompat` or stable media IDs?
+  - How should CarPlay reconnect to playback that began in the phone app, recover after process termination, and avoid constructing another playback engine or application runtime?
+  - Which library, playlist, radio, downloaded/offline, search, queue, favorite, and related-track actions are safe and permitted while driving?
+  - How should authenticated artwork, connection failures, offline state, multiple servers, and source switching appear without exposing phone-oriented dialogs in the vehicle UI?
+- **Implementation notes to investigate later:** First validate the shared vehicle catalog and playback contracts with the thin iOS host. Then prototype the smallest supported CarPlay browse-to-play flow, Now Playing synchronization, remote commands, lifecycle reattachment, and offline behavior before expanding the surface.
+
+### Desktop Dock and Taskbar Player Controls
+
+- **Status:** Idea
+- **Concept:** Add playback controls and useful status actions to Naviamp's desktop application icon through the native macOS Dock, Windows taskbar, and supported Linux desktop integrations.
+- **Why it may fit:** Dock or taskbar controls provide quick access to playback without bringing the full window forward. The command meanings can reuse Naviamp's shared playback controller, while registration, menus, icon badges, previews, and operating-system lifecycle handling remain Desktop host responsibilities.
+- **Controls and information to consider:** Play/pause, previous, next, stop, favorite, current track and artist, open or focus Now Playing, show or hide the main window, and quit Naviamp without accidentally terminating background playback where the platform distinguishes those actions.
+- **Questions to answer:**
+  - Which native surfaces are appropriate on macOS, Windows, and the Linux desktop environments Naviamp supports?
+  - Should controls appear in a right-click icon menu, taskbar thumbnail toolbar, jump list, badge or progress indicator, system tray menu, or some combination?
+  - How should actions behave when no track is loaded, the server is disconnected, or the main window has been closed while playback continues?
+  - Can every action route into the existing shared playback command controller without creating a second application runtime?
+  - Which dynamic metadata can be updated reliably without excessive operating-system calls or stale menus?
+  - Should users be able to choose which commands appear, disable dynamic dock/taskbar content, or keep only standard window actions?
+- **Implementation notes to investigate later:** Define a shared snapshot and action vocabulary that can also support mobile widgets and keyboard controls. Implement each operating system's icon/menu/taskbar adapter in the Desktop host, capability-gate unsupported presentation features, and test packaged applications rather than relying only on development launches.
+
+## Completed Ideas
+
+### Cross-Platform BASS Add-On Usage Audit
+
+- **Status:** Done
+- **Concept:** Audit which vendored BASS add-ons Naviamp actually loads and uses for real playback, analysis, effects, and supported library formats, then remove add-ons that provide no product value.
+- **Scope:** Compare Android, Desktop, and iOS as one playback product. Record each add-on's call sites, dynamic-load result, formats or features it enables, representative test media, package-size cost, and whether the operating system already supplies an equivalent codec.
+- **Important constraint:** Do not remove a library merely because a narrow acceptance library does not contain its format. A removal needs evidence from the supported-format contract and tests showing that Core capability claims, provider transcoding/original-stream behavior, offline playback, waveform analysis, crossfade/mixing, EQ, and visualizers remain correct.
+- **Desired outcome:** Define one intentional cross-platform base inventory plus documented platform substitutions, remove unused binaries/load attempts/build metadata, and add package verification that prevents the inventories from drifting accidentally.
+- **Completed so far:** Defined the shared decoder inventory; separated codec plugins from directly linked feature libraries; added Android plugin registration and diagnostics; enforced Android, Desktop, and iOS package inventories; removed unused effects/loudness components and a license-problematic niche decoder; added BASS/OpenSSL disclosures and the GPL linking exception; and refreshed BASSWEBM, BASS_SSL, and BASSOPUS from verified upstream archives.
+- **Verified so far:** Clean Core tests, Android package/runtime loading, Desktop native inventory/plugin tests, and iOS simulator inventory/plugin tests all pass with the reduced dependency set.
+- **Completion:** The add-on usage audit and resulting inventory cleanup are complete. The remaining supported-format fixtures, release-platform playback matrix, and artifact-size comparisons are ongoing release acceptance coverage rather than unfinished add-on-usage work. Further optional codec removals remain separate decisions and must follow the supported-format evidence rule above.
+- **Audit record:** See [`bass-addon-usage-audit.md`](bass-addon-usage-audit.md) for the evidence, platform matrix, findings, decisions, and follow-on acceptance checklist.
+
+### Navidrome Album Information on Album Detail
+
+- **Status:** Implemented
+- **Concept:** When Navidrome provides album information analogous to its artist information, add that metadata to the shared album detail page.
+- **Independent visibility controls:** Add separate settings for showing artist information and showing album information. Each entity must be independently enabled or disabled; changing one setting must not affect the other.
+- **Investigation first:** Identify the Navidrome/OpenSubsonic endpoint, response fields, capability/version requirements, attribution, and empty or partial response behavior. Confirm which data is server-owned and which may originate from external metadata services before defining the provider-neutral model.
+- **Presentation questions:** Decide which available fields belong in the primary album detail layout, which should be expandable, how links and attribution should appear, where the two visibility controls belong in Settings, and how detail pages should degrade when information is disabled or unavailable.
+- **Shared-architecture requirement:** Map Navidrome-specific responses in the provider's `commonMain` code, expose optional album information through shared provider-neutral contracts, and render it in the Core-owned album detail UI so Android, Desktop, and iOS receive the feature together. Store and validate the two visibility preferences independently in shared settings, including Settings Sync if applicable.
+- **Acceptance shape:** Verify complete, partial, missing, malformed, and unavailable album-information responses; all four combinations of the artist and album information settings; source switching and stale-request cancellation; preference persistence and synchronization; and consistent rendering and accessibility across all three hosts.
+- **Implemented:** Naviamp loads `getAlbumInfo2` alongside album details, maps and caches its optional notes, MusicBrainz ID, and artwork URLs in shared provider-neutral models, and renders notes with expandable text plus provider artwork on the shared album detail page. Failures or malformed/missing information do not fail the album itself. Independent shared interface settings control artist and album information, persist through the normal settings store, and participate in Settings Sync.
+
+### NaviBeat Mixes Home Shelf
+
+- **Status:** Done on `feature/navibeat-mixes`
+- **Concept:** Recognize playlists generated by the [NaviBeat Mixes Navidrome plugin](https://github.com/nenadjokic/navibeat-mixes), remove recognized plugin mixes from Naviamp's normal Playlists collection, and present them in a dedicated shared Home shelf similar to NaviBeat.
+- **Plugin behavior:** The server plugin creates and refreshes up to 23 ordinary Subsonic playlists, including time-of-day, Rediscover, New Music, loved, repeat, essentials, discovery, genre, artist, daily, decade, and Wrapped mixes. It requires Navidrome 0.63.1 or newer and exposes no client-specific endpoint.
+- **Canonical detection:** Parse the machine-readable line in the playlist comment, keyed strictly by the `nb1:` schema prefix. Its colon-separated fields identify the schema version, mix kind, slot, generation date, mode, and track count. Never identify a mix by playlist name or configurable prefix. Malformed, unknown-version, or truncated markers must remain ordinary playlists so Naviamp never hides a user-created playlist accidentally.
+- **Home behavior:** Show the shelf only when at least one valid plugin mix exists. Put the mix for the user's current part of day first, use stable generated artwork for each mix instead of the normal playlist mosaic, hide the machine line, and show a concise state such as `Still learning you`, `Updated today`, or `Updated yesterday` derived from the marker and human-readable description. Opening and playing a tile should continue to use Naviamp's standard shared playlist detail, queue, download, favorite, and offline behavior.
+- **Playlist behavior:** Filter only positively identified `nb1:` playlists out of the normal Playlists screen and playlist summaries. Preserve their normal provider IDs and server ownership; Naviamp must not copy, rename, or create a second local representation. Define whether playlist selection dialogs should include these mixes even though the browsing screen does not.
+- **Shared-architecture requirement:** Add provider-neutral playlist provenance/mix metadata in Core, parse the Navidrome comment in the provider's `commonMain` mapping, partition normal and recognized playlists in shared controllers, and render the Home shelf in shared UI. Hosts must not reproduce marker parsing, ordering, cover generation, or visibility rules.
+- **Investigation and acceptance:** Confirm that Naviamp currently receives the full playlist comment through its OpenSubsonic mapping and cache, document every `nb1` kind/mode and forward-compatibility rule from representative plugin fixtures, and compare Naviamp against NaviBeat for time-zone/daypart ordering, stable covers, learning/freshness labels, empty or disabled mixes, plugin removal, source switching, refreshes, offline cache, localization, accessibility, and malformed markers.
+- **Source:** [NaviBeat Mixes repository and client-recognition format](https://github.com/nenadjokic/navibeat-mixes)
+- **Implemented:** Naviamp recognizes valid `nb1:` playlist markers in the shared Navidrome mapping, preserves their provider identity, excludes them from ordinary playlist browsing, and presents them as a dedicated shared Home section with stable generated artwork and freshness/learning labels. Malformed and unknown markers remain ordinary playlists. Mix selection continues through the standard shared playlist detail and playback behavior.
 
 ### Word-by-Word Karaoke Lyrics
 
@@ -249,62 +297,18 @@ This document tracks useful ideas that come up during the v2 migration but are n
 - **Focused-window behavior:** Space always toggles playback while the Naviamp window is focused. It is fixed and cannot be disabled; shared text-entry focus tracking prevents it from firing while the user is typing, and held-key repeats are ignored.
 - **Platform boundary:** Core owns binding models, defaults, normalization, persistence/settings sync, settings UI, statuses, and command routing. Desktop contains only Windows `RegisterHotKey`, macOS Carbon hot-key registration, Linux X11 grabs, and AWT window activation/key delivery.
 
-### Android and iOS Player Widgets
+## Ideas Not Planned
 
-- **Status:** Idea
-- **Concept:** Provide home-screen player widgets on Android and iOS that show the current track and artwork and offer useful playback controls without opening Naviamp.
-- **Why it may fit:** A glanceable player is a natural extension of Naviamp's shared Now Playing state and makes common controls available when the full app is not visible. Widget presentation must be native to each platform, but the displayed snapshot, action meanings, fallback state, and artwork policy should come from shared application contracts where practical.
-- **Layouts and actions to consider:** Compact and expanded layouts; artwork, title, artist, playback state, progress where platform refresh rules permit it, play/pause, previous, next, favorite, and an action that opens Now Playing.
-- **Questions to answer:**
-  - Which controls can Android App Widgets and iOS WidgetKit widgets invoke reliably while playback is owned by a background service or suspended app?
-  - How should widget actions reconnect to the active shared playback session without constructing a second runtime or playback engine?
-  - What state should be displayed before login, while disconnected, when playback is stopped, and after the operating system has terminated the host?
-  - How should authenticated artwork be cached and shared safely with an iOS widget extension and Android widget process/lifecycle?
-  - Which widget sizes, themes, backgrounds, and accessibility variants should be supported on each platform?
-  - Should lock-screen widgets, Live Activities, or platform-specific equivalents be separate later enhancements rather than part of the initial home-screen widget scope?
-- **Implementation notes to investigate later:** Define a small shared, serializable widget snapshot and playback-action vocabulary. Keep Android App Widget/Glance and iOS WidgetKit timelines, intents, storage sharing, refresh scheduling, deep links, and rendering in their native hosts. Prototype action delivery and stale-state recovery on physical devices before committing to feature parity claims.
+### F-Droid Distribution
 
-### Apple CarPlay
-
-- **Status:** Idea
-- **Timing:** Begin after the thin iOS application can connect, browse, and play reliably. CarPlay must not become a prerequisite for proving the initial iOS host.
-- **Concept:** Add a CarPlay experience for safely browsing and searching the Naviamp library, starting albums, artists, playlists, radio, and downloads, viewing the active queue and Now Playing information, and controlling playback.
-- **Shared-architecture requirement:** Reuse the shared catalog-selection intents, browse/search policies, queue paging and limits, playback commands, and application runtime already consumed by the normal app and Android Auto. Do not build a separate CarPlay product model or second iOS runtime. Apple-specific templates, scene/session lifecycle, entitlement and capability handling, Now Playing integration, and vehicle-safe presentation remain thin iOS host adapters.
-- **Questions to answer:**
-  - Which CarPlay audio-app capabilities, templates, entitlements, review requirements, and simulator or physical-head-unit testing are required when implementation begins?
-  - Which Android Auto browse/search contracts can become genuinely vehicle-platform-neutral, and which remain Android-specific because of `MediaBrowserCompat` or stable media IDs?
-  - How should CarPlay reconnect to playback that began in the phone app, recover after process termination, and avoid constructing another playback engine or application runtime?
-  - Which library, playlist, radio, downloaded/offline, search, queue, favorite, and related-track actions are safe and permitted while driving?
-  - How should authenticated artwork, connection failures, offline state, multiple servers, and source switching appear without exposing phone-oriented dialogs in the vehicle UI?
-- **Implementation notes to investigate later:** First validate the shared vehicle catalog and playback contracts with the thin iOS host. Then prototype the smallest supported CarPlay browse-to-play flow, Now Playing synchronization, remote commands, lifecycle reattachment, and offline behavior before expanding the surface.
-
-### Desktop Dock and Taskbar Player Controls
-
-- **Status:** Idea
-- **Concept:** Add playback controls and useful status actions to Naviamp's desktop application icon through the native macOS Dock, Windows taskbar, and supported Linux desktop integrations.
-- **Why it may fit:** Dock or taskbar controls provide quick access to playback without bringing the full window forward. The command meanings can reuse Naviamp's shared playback controller, while registration, menus, icon badges, previews, and operating-system lifecycle handling remain Desktop host responsibilities.
-- **Controls and information to consider:** Play/pause, previous, next, stop, favorite, current track and artist, open or focus Now Playing, show or hide the main window, and quit Naviamp without accidentally terminating background playback where the platform distinguishes those actions.
-- **Questions to answer:**
-  - Which native surfaces are appropriate on macOS, Windows, and the Linux desktop environments Naviamp supports?
-  - Should controls appear in a right-click icon menu, taskbar thumbnail toolbar, jump list, badge or progress indicator, system tray menu, or some combination?
-  - How should actions behave when no track is loaded, the server is disconnected, or the main window has been closed while playback continues?
-  - Can every action route into the existing shared playback command controller without creating a second application runtime?
-  - Which dynamic metadata can be updated reliably without excessive operating-system calls or stale menus?
-  - Should users be able to choose which commands appear, disable dynamic dock/taskbar content, or keep only standard window actions?
-- **Implementation notes to investigate later:** Define a shared snapshot and action vocabulary that can also support mobile widgets and keyboard controls. Implement each operating system's icon/menu/taskbar adapter in the Desktop host, capability-gate unsupported presentation features, and test packaged applications rather than relying only on development launches.
+- **Status:** Rejected
+- **Decision:** Do not pursue inclusion in the official F-Droid repository.
+- **Rationale:** Naviamp's supported Android playback product depends on proprietary, prebuilt BASS and BASS add-on libraries. F-Droid requires a fully FLOSS dependency chain that its infrastructure can build from source; its upstream-binary and reproducible-build paths do not waive that requirement.
+- **Reconsider only if:** Naviamp adopts and commits to maintaining a fully FLOSS playback backend that can provide an acceptable Android product without any BASS binaries. That would be a substantial playback-engine and product-parity project, not distribution packaging work.
+- **Alternative:** Publish signed Android APKs through Naviamp's GitHub releases for installation and updates with Obtainium.
 
 ### BlurHash versus ThumbHash Artwork Placeholders and Backgrounds
 
 - **Status:** Rejected
 - **Decision:** Do not add BlurHash or ThumbHash.
 - **Rationale:** Naviamp does not need another generated artwork representation or cache layer. The existing artwork loading, caching, transition, Aurora, and Album Blur behavior already covers the intended product experience, while either hash would add implementation and maintenance complexity without a demonstrated user problem.
-
-## Promotion Checklist
-
-Before moving an idea into the active v2 plan or a release branch:
-
-- Confirm the provider or local-data source is available.
-- Confirm the feature can behave consistently across Android, Desktop, and iOS or document capability-gated differences.
-- Identify the shared owner module and the host-specific work, if any.
-- Add focused tests or prototype evidence before committing to implementation.
-- Record the decision in the main plan or a dedicated issue.
