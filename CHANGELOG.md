@@ -2,6 +2,29 @@
 
 Release changes are grouped into user-facing Features, Bug Fixes, and deployment or infrastructure-related System Settings. Internal task-tracking notes are intentionally not included.
 
+## v2.0.0-beta.3
+
+This third beta restores the selected waveform detail, corrects Desktop process identity, and modernizes release automation.
+
+### Bug Fixes
+
+- Restored every configured waveform sample instead of silently limiting the visible waveform to 180 bars, including the 500-bar display option.
+- Fixed the Windows Task Manager application name so packaged builds identify themselves as Naviamp instead of using the former long description.
+- Fixed the macOS Activity Monitor process icon by packaging and explicitly selecting a compatible Naviamp application icon.
+
+### System Settings
+
+- Migrated Desktop window icons to Compose Multiplatform resources and updated GitHub release actions to current Node.js 24-compatible versions.
+- Added package verification for the Windows executable description and packaged macOS JVM icon.
+
+### Beta Notes and Known Limitations
+
+- Feature development remains frozen for the 2.0 beta line. Only release blockers, regressions, acceptance coverage, diagnostics, packaging, documentation, and narrowly required compatibility fixes are accepted.
+- Back up important playlists and settings before testing this beta.
+- Android, macOS, Windows, and Linux are the supported beta targets. The iOS artifact remains an unsigned preview that testers must sign themselves; release signing, TestFlight, and physical-iPhone acceptance remain open before iOS can be treated as a supported RC target.
+- Bandcamp's Subsonic beta currently serves collection audio as MP3 256 kbps and does not reliably apply playlist track reordering; Naviamp blocks unsupported reorder mutations.
+- Windows and macOS packages are not yet distributed with trusted publisher signing, so their operating systems may display security warnings.
+
 ## v2.0.0-beta.2
 
 This second beta focuses on playback efficiency, accurate shared Now Playing behavior, platform packaging, and issues found during Android, Desktop, iOS, Jellyfin, Bandcamp, and Subsonic acceptance testing.

@@ -1550,14 +1550,7 @@ private fun WaveformScrubber(
             }
 
             val centerY = size.height / 2f
-            // Drawing one rounded line per physical pixel can exceed a 120 Hz frame budget on
-            // high-density phones. A few hundred bars already exceed the display's visual
-            // resolution at this height, so keep the waveform detailed without overdraw.
-            val visibleBars = minOf(
-                displayAmplitudes.size,
-                (size.width / MinimumWaveformBarStepPx).roundToInt().coerceAtLeast(MinimumWaveformBars),
-                MaximumWaveformBars,
-            )
+            val visibleBars = waveformVisibleBarCount(displayAmplitudes.size)
             val step = size.width / visibleBars.toFloat()
             val strokeWidth = (step * 0.72f).coerceIn(0.75f, 2.4f)
             val minBarHeight = 2.5f
@@ -1814,9 +1807,8 @@ private val WideNowPlayingDetailsMinHeight = 232.dp
 private val WideNowPlayingDetailsTopPadding = 8.dp
 private const val LyricsActiveLineTargetIndex = 2
 private val VolumeThumbRadius = 6.dp
-private const val MinimumWaveformBars = 24
-private const val MaximumWaveformBars = 180
-private const val MinimumWaveformBarStepPx = 3f
+
+internal fun waveformVisibleBarCount(amplitudeCount: Int): Int = amplitudeCount.coerceAtLeast(0)
 
 @Composable
 private fun NowPlayingSidePanel(

@@ -33,6 +33,13 @@ val copyDesktopBassAppResources by tasks.registering(Copy::class) {
     onlyIf { desktopBassVendorDir.get().asFile.isDirectory }
 }
 
+val copyDesktopApplicationIconAppResource by tasks.registering(Copy::class) {
+    from(layout.projectDirectory.file("src/desktopMain/resources/icons/naviamp.png"))
+    into(generatedDesktopNativeAppResources.zip(desktopNativePlatform) { resources, platform ->
+        resources.dir("$platform/icons")
+    })
+}
+
 fun desktopNativeBuild(
     name: String,
     sourceDirectory: String,
@@ -137,6 +144,7 @@ val prepareDesktopNativeAppResources by tasks.registering {
     group = "build"
     description = "Builds and stages Desktop native playback resources for Compose app packaging."
     dependsOn(
+        copyDesktopApplicationIconAppResource,
         copyDesktopBassAppResources,
         copyDesktopBassJniAppResources,
         copyDesktopVisualizerMetalAppResources,

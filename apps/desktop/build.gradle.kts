@@ -15,6 +15,7 @@ val naviampVersionCode = rootProject.file("VERSION_CODE").readText().trim().toIn
 val naviampNativePackageVersion = nativeDistributionPackageVersion(naviampVersionName)
 val naviampWindowsPackageVersion = windowsDistributionPackageVersion(naviampVersionName, naviampVersionCode)
 val naviampLinuxPackageVersion = linuxDistributionPackageVersion(naviampVersionName)
+val desktopExecutableDescription = "Naviamp"
 val desktopNativePlatform = providers.gradleProperty("naviamp.bass.platform")
     .orElse(providers.provider(::desktopNativePlatformId))
 val generatedDesktopNativeAppResources =
@@ -100,6 +101,7 @@ compose.desktop {
             desktopNativePlatform.get().startsWith("macos-") -> {
                 jvmArgs += "-Dskiko.renderApi=METAL"
                 jvmArgs += "-Dnaviamp.visualizer.macosMetal=true"
+                jvmArgs += "-Xdock:icon=\$APPDIR/resources/icons/naviamp.png"
             }
         }
 
@@ -114,7 +116,9 @@ compose.desktop {
         nativeDistributions {
             packageName = "Naviamp"
             packageVersion = naviampNativePackageVersion
-            description = "A native Navidrome music client with BASS-backed playback."
+            // jpackage maps this value to the Windows executable's FileDescription, which is
+            // what Task Manager displays as the application name.
+            description = desktopExecutableDescription
             vendor = "Naviamp"
             copyright = "Copyright 2026 Naviamp contributors"
             licenseFile.set(rootProject.file("LICENSE"))
@@ -242,6 +246,7 @@ tasks.register("verifyReleaseVersionMetadata") {
         check(linuxDistributionPackageVersion("v2.0.0-beta.1") == "2.0.0~beta.1")
         check(linuxDistributionPackageVersion("v2.0.0-beta.2") == "2.0.0~beta.2")
         check(nativeDistributionPackageVersion("v2.0.0-beta.1") == "2.0.0")
+        check(desktopExecutableDescription == "Naviamp")
         check("Naviamp-$naviampVersionName-${desktopNativePlatform.get()}.msi".contains(naviampVersionName))
         if (desktopNativePlatform.get().startsWith("linux-")) {
             val packageDependencies = tasks.withType<AbstractJPackageTask>()
@@ -282,6 +287,15 @@ tasks.register("verifyDesktopDistributable") {
             "Desktop package is missing native playback resources in ${bassResourcesDirectory.absolutePath}: ${missing.joinToString()}"
         }
         if (platform.startsWith("macos-")) {
+            val applicationIcon = desktopPackagedResourcesDir(platform, appDirectory)
+                .resolve("icons/naviamp.png")
+            check(applicationIcon.isFile && applicationIcon.length() > 0L) {
+                "Desktop package is missing its macOS JVM application icon: ${applicationIcon.absolutePath}"
+            }
+            val launcherConfig = appDirectory.resolve("Contents/app/Naviamp.cfg")
+            check(launcherConfig.readText().contains("-Xdock:icon=\$APPDIR/resources/icons/naviamp.png")) {
+                "Desktop package does not configure the macOS JVM application icon."
+            }
             val visualizer = bassResourcesDirectory.resolve(desktopLibraryName("naviamp_visualizer_metal", platform))
             check(visualizer.canExecute()) {
                 "Desktop package Metal visualizer library is not executable: ${visualizer.absolutePath}"
