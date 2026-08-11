@@ -138,7 +138,10 @@ private fun PlaylistsContent(
     }
     val sortedPlaylists = playlists.sortedForPlaylistScreen(sortMode, recentPlaylistIds)
 
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    Column(
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+        modifier = Modifier.fillMaxSize(),
+    ) {
         Row(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
@@ -146,18 +149,6 @@ private fun PlaylistsContent(
         ) {
             NaviampPageTitle(stringResource(Res.string.playlists_title), colors)
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                IconButton(
-                    onClick = onRefresh,
-                    enabled = !refreshing,
-                    modifier = Modifier.size(44.dp),
-                ) {
-                    Icon(
-                        NaviampIcons.Refresh,
-                        contentDescription = "Refresh playlists",
-                        tint = colors.primaryText,
-                        modifier = Modifier.size(24.dp),
-                    )
-                }
                 IconButton(
                     onClick = { smartPlaylistBuilderOpen = true },
                     modifier = Modifier.size(44.dp),
@@ -177,31 +168,42 @@ private fun PlaylistsContent(
                         onClick = { onSortModeChanged(mode) },
                     )
                 }
+                NaviampRowOverflowMenu(
+                    colors = colors,
+                    items = listOf(
+                        NaviampRowMenuItem("Refresh", NaviampIcons.Refresh, onRefresh, enabled = !refreshing),
+                    ),
+                )
             }
         }
-        if (sortedPlaylists.isEmpty()) {
-            Text(stringResource(Res.string.playlists_empty), color = colors.secondaryText, fontSize = 12.sp)
-        }
-        status?.let {
-            Text(it, color = colors.secondaryText, fontSize = 12.sp)
-        }
-        smartPlaylistLoadMessage?.let { message ->
-            Text(
-                message.ifBlank { stringResource(Res.string.playlists_load_smart_failed) },
-                color = colors.secondaryText,
-                fontSize = 12.sp,
-            )
-        }
-        sortedPlaylists.forEach { playlist ->
-            PlaylistListRow(
-                playlist = playlist,
-                colors = colors,
-                onAction = handlePlaylistAction,
-                capabilities = capabilities,
-                onRename = { playlistToRename = playlist },
-                onDelete = { playlistToDelete = playlist },
-                onAddToPlaylist = { playlistToAddToPlaylist = playlist },
-            )
+        Column(
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier.weight(1f).verticalScroll(rememberScrollState()),
+        ) {
+            if (sortedPlaylists.isEmpty()) {
+                Text(stringResource(Res.string.playlists_empty), color = colors.secondaryText, fontSize = 12.sp)
+            }
+            status?.let {
+                Text(it, color = colors.secondaryText, fontSize = 12.sp)
+            }
+            smartPlaylistLoadMessage?.let { message ->
+                Text(
+                    message.ifBlank { stringResource(Res.string.playlists_load_smart_failed) },
+                    color = colors.secondaryText,
+                    fontSize = 12.sp,
+                )
+            }
+            sortedPlaylists.forEach { playlist ->
+                PlaylistListRow(
+                    playlist = playlist,
+                    colors = colors,
+                    onAction = handlePlaylistAction,
+                    capabilities = capabilities,
+                    onRename = { playlistToRename = playlist },
+                    onDelete = { playlistToDelete = playlist },
+                    onAddToPlaylist = { playlistToAddToPlaylist = playlist },
+                )
+            }
         }
     }
 

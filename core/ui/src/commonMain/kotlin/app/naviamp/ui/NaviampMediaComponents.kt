@@ -7,6 +7,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -52,6 +53,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -95,6 +97,8 @@ fun TrackRow(
     metaStyle: TextStyle = TextStyle(fontSize = 13.sp, lineHeight = 16.sp),
     titleSubtitleSpacing: Dp = 0.dp,
     showMenu: Boolean = false,
+    trackNumber: Int? = null,
+    trackNumberWidth: Dp = trackNumberColumnWidth(1),
     leadingContent: (@Composable RowScope.() -> Unit)? = null,
     trailingContent: (@Composable RowScope.() -> Unit)? = null,
     swipeContext: TrackSwipeContext = TrackSwipeContext.Library,
@@ -154,7 +158,7 @@ fun TrackRow(
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         leadingContent?.invoke(this)
-        if (reservePopularIndicatorSpace || track.meta.isNotBlank()) {
+        if (reservePopularIndicatorSpace || trackNumber != null || track.meta.isNotBlank()) {
             Row(
                 horizontalArrangement = Arrangement.spacedBy(3.dp),
                 verticalAlignment = Alignment.CenterVertically,
@@ -172,7 +176,16 @@ fun TrackRow(
                         )
                     }
                 }
-                Text(track.meta, color = colors.mutedText, style = metaStyle)
+                if (trackNumber != null) {
+                    TrackNumberColumn(
+                        number = trackNumber,
+                        width = trackNumberWidth,
+                        color = colors.mutedText,
+                        style = metaStyle,
+                    )
+                } else {
+                    Text(track.meta, color = colors.mutedText, style = metaStyle)
+                }
             }
         }
         if (showCoverArt) {
@@ -356,6 +369,33 @@ fun TrackRow(
         )
     }
 }
+
+internal fun trackNumberLabel(number: Int): String = "${number.coerceAtLeast(1)}."
+
+internal fun trackNumberColumnWidth(maxTrackNumber: Int): Dp {
+    val digitCount = maxTrackNumber.coerceAtLeast(1).toString().length
+    return (TrackNumberBaseWidthValue + (digitCount - 2).coerceAtLeast(0) * TrackNumberExtraDigitWidthValue).dp
+}
+
+@Composable
+internal fun TrackNumberColumn(
+    number: Int,
+    width: Dp,
+    color: Color,
+    style: TextStyle = TextStyle(fontSize = 11.sp),
+) {
+    Text(
+        text = trackNumberLabel(number),
+        color = color,
+        style = style,
+        maxLines = 1,
+        textAlign = TextAlign.End,
+        modifier = Modifier.width(width),
+    )
+}
+
+private const val TrackNumberBaseWidthValue = 18
+private const val TrackNumberExtraDigitWidthValue = 6
 
 private fun trackSwipeActionVisual(
     action: TrackSwipeAction,
@@ -836,6 +876,7 @@ fun ArtistMixBuilderContent(
     builder: SharedArtistMixBuilderUi,
     actions: SharedArtistMixBuilderActions,
     showPlayMixButton: Boolean = true,
+    showTitle: Boolean = true,
 ) {
     val onQueryChanged = actions.onQueryChanged
     val onSearch = actions.onSearch
@@ -849,7 +890,7 @@ fun ArtistMixBuilderContent(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier.fillMaxWidth(),
         ) {
-            NaviampPageTitle(stringResource(Res.string.mix_artist_builder_title), colors)
+            if (showTitle) NaviampPageTitle(stringResource(Res.string.mix_artist_builder_title), colors)
             if (builder.query.isNotBlank() || builder.selectedArtists.isNotEmpty()) {
                 TextButton(onClick = onReset) {
                     Text(stringResource(Res.string.common_reset), fontSize = 12.sp)
@@ -921,6 +962,7 @@ fun AlbumMixBuilderContent(
     builder: SharedAlbumMixBuilderUi,
     actions: SharedAlbumMixBuilderActions,
     showPlayMixButton: Boolean = true,
+    showTitle: Boolean = true,
 ) {
     val onQueryChanged = actions.onQueryChanged
     val onSearch = actions.onSearch
@@ -934,7 +976,7 @@ fun AlbumMixBuilderContent(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier.fillMaxWidth(),
         ) {
-            NaviampPageTitle(stringResource(Res.string.mix_album_builder_title), colors)
+            if (showTitle) NaviampPageTitle(stringResource(Res.string.mix_album_builder_title), colors)
             if (builder.query.isNotBlank() || builder.selectedAlbums.isNotEmpty()) {
                 TextButton(onClick = onReset) {
                     Text(stringResource(Res.string.common_reset), fontSize = 12.sp)
@@ -1006,6 +1048,7 @@ fun GenreMixBuilderContent(
     builder: SharedGenreMixBuilderUi,
     actions: SharedGenreMixBuilderActions,
     showPlayMixButton: Boolean = true,
+    showTitle: Boolean = true,
 ) {
     val onQueryChanged = actions.onQueryChanged
     val onSearch = actions.onSearch
@@ -1019,7 +1062,7 @@ fun GenreMixBuilderContent(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier.fillMaxWidth(),
         ) {
-            NaviampPageTitle(stringResource(Res.string.mix_genre_builder_title), colors)
+            if (showTitle) NaviampPageTitle(stringResource(Res.string.mix_genre_builder_title), colors)
             if (builder.query.isNotBlank() || builder.selectedGenres.isNotEmpty()) {
                 TextButton(onClick = onReset) {
                     Text(stringResource(Res.string.common_reset), fontSize = 12.sp)
@@ -1082,6 +1125,7 @@ fun SonicPathBuilderContent(
     builder: SharedSonicPathBuilderUi,
     actions: SharedSonicPathBuilderActions,
     showPathActions: Boolean = true,
+    showTitle: Boolean = true,
 ) {
     val onStartQueryChanged = actions.onStartQueryChanged
     val onEndQueryChanged = actions.onEndQueryChanged
@@ -1102,7 +1146,7 @@ fun SonicPathBuilderContent(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier.fillMaxWidth(),
         ) {
-            NaviampPageTitle(stringResource(Res.string.sonic_path_title), colors)
+            if (showTitle) NaviampPageTitle(stringResource(Res.string.sonic_path_title), colors)
             if (
                 builder.startQuery.isNotBlank() ||
                 builder.endQuery.isNotBlank() ||
@@ -1219,6 +1263,7 @@ fun SonicMixBuilderContent(
     builder: SharedSonicMixBuilderUi,
     actions: SharedSonicMixBuilderActions,
     showMixActions: Boolean = true,
+    showTitle: Boolean = true,
 ) {
     val onQueryChanged = actions.onQueryChanged
     val onSearch = actions.onSearch
@@ -1237,7 +1282,7 @@ fun SonicMixBuilderContent(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier.fillMaxWidth(),
         ) {
-            NaviampPageTitle(stringResource(Res.string.nav_sonic_mix), colors)
+            if (showTitle) NaviampPageTitle(stringResource(Res.string.nav_sonic_mix), colors)
             if (
                 builder.query.isNotBlank() ||
                 builder.selectedTracks.isNotEmpty() ||
@@ -1759,13 +1804,12 @@ fun NaviampInternetRadioContent(
         onStationAction = actions.onStationAction,
         onSaveStation = actions.onSaveStation,
         headerActions = {
-            IconButton(onClick = actions.onRefresh, enabled = !screen.refreshing) {
-                Icon(
-                    NaviampIcons.Refresh,
-                    contentDescription = "Refresh internet radio stations",
-                    tint = colors.primaryText,
-                )
-            }
+            NaviampRowOverflowMenu(
+                colors = colors,
+                items = listOf(
+                    NaviampRowMenuItem("Refresh", NaviampIcons.Refresh, actions.onRefresh, enabled = !screen.refreshing),
+                ),
+            )
         },
     )
 }
@@ -1794,7 +1838,10 @@ fun InternetRadioContent(
         )
     }
 
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    Column(
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+        modifier = Modifier.fillMaxSize(),
+    ) {
         Row(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
@@ -1818,43 +1865,48 @@ fun InternetRadioContent(
                 headerActions()
             }
         }
-        screen.status?.let { Text(it, color = colors.secondaryText, fontSize = 12.sp) }
-        if (stations.isEmpty()) {
-            Text("Saved internet radio stations will appear here.", color = colors.secondaryText, fontSize = 12.sp)
-        }
-        stations.sortedBy { it.item.title.lowercase() }.forEach { station ->
-            val stationItem = station.item
-            SharedMediaRow(
-                item = stationItem,
-                colors = colors,
-                onClick = {
-                    handleStationAction(StationRowActionRequest(stationItem, StationRowAction.Select))
-                },
-                menuItems = stationRowActions(
-                    canEdit = onSaveStation != null,
-                    canDelete = true,
-                ).mapNotNull { action ->
-                    when (action.action) {
-                        NaviampAction.EditStation -> NaviampRowMenuItem(
-                            label = action.label,
-                            icon = action.icon,
-                            onClick = {
-                                handleStationAction(StationRowActionRequest(stationItem, StationRowAction.Edit))
-                            },
-                            enabled = action.enabled,
-                        )
-                        NaviampAction.DeleteStation -> NaviampRowMenuItem(
-                            label = action.label,
-                            icon = action.icon,
-                            onClick = {
-                                handleStationAction(StationRowActionRequest(stationItem, StationRowAction.Delete))
-                            },
-                            enabled = action.enabled,
-                        )
-                        else -> null
-                    }
-                },
-            )
+        Column(
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier.weight(1f).verticalScroll(rememberScrollState()),
+        ) {
+            screen.status?.let { Text(it, color = colors.secondaryText, fontSize = 12.sp) }
+            if (stations.isEmpty()) {
+                Text("Saved internet radio stations will appear here.", color = colors.secondaryText, fontSize = 12.sp)
+            }
+            stations.sortedBy { it.item.title.lowercase() }.forEach { station ->
+                val stationItem = station.item
+                SharedMediaRow(
+                    item = stationItem,
+                    colors = colors,
+                    onClick = {
+                        handleStationAction(StationRowActionRequest(stationItem, StationRowAction.Select))
+                    },
+                    menuItems = stationRowActions(
+                        canEdit = onSaveStation != null,
+                        canDelete = true,
+                    ).mapNotNull { action ->
+                        when (action.action) {
+                            NaviampAction.EditStation -> NaviampRowMenuItem(
+                                label = action.label,
+                                icon = action.icon,
+                                onClick = {
+                                    handleStationAction(StationRowActionRequest(stationItem, StationRowAction.Edit))
+                                },
+                                enabled = action.enabled,
+                            )
+                            NaviampAction.DeleteStation -> NaviampRowMenuItem(
+                                label = action.label,
+                                icon = action.icon,
+                                onClick = {
+                                    handleStationAction(StationRowActionRequest(stationItem, StationRowAction.Delete))
+                                },
+                                enabled = action.enabled,
+                            )
+                            else -> null
+                        }
+                    },
+                )
+            }
         }
     }
 

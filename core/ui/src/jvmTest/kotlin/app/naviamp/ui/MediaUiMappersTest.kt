@@ -68,7 +68,7 @@ class MediaUiMappersTest {
     }
 
     @Test
-    fun homeMapsNavibeatMixStatusAndPlaylistNavigationItem() {
+    fun homeMapsNavibeatMixStatusAndDirectPlaybackItem() {
         val playlist = Playlist(
             id = "mix-evening",
             name = "🟠 Evening",
@@ -92,7 +92,7 @@ class MediaUiMappersTest {
         ).toSharedHomeUi(coverArtUrl = { null }).collectionSections
             .single { it.id == SharedHomeCollectionSectionIds.NavibeatMixes }
         assertEquals(SharedHomeCollectionSectionIds.NavibeatMixes, section.id)
-        assertEquals(SharedHomeCollectionItemAction.OpenPlaylist, section.items.single().action)
+        assertEquals(SharedHomeCollectionItemAction.PlayPlaylist, section.items.single().action)
         assertEquals(SharedHomeCollectionArtwork.NavibeatGenerated, section.items.single().artwork)
         assertEquals(HomeSectionLayout.Carousel, section.homeLayout)
         assertEquals(

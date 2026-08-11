@@ -154,7 +154,9 @@ class NaviampCoreMediaDetailController(
         val provider = providerSource.current() ?: return
         stateStore.updateShell { shell ->
             val coverArtUrl = { id: String? -> id?.let(provider::coverArtUrl) }
-            val albumDetail = mediaRegistry.albumDetails?.let { details ->
+            val albumDetail = mediaRegistry.albumDetails
+                ?.takeIf { shell.albumDetail.selectedAlbum != null }
+                ?.let { details ->
                 val popularTrackIds = shell.albumDetail.detail?.tracks
                     .orEmpty()
                     .filter { it.popular }
@@ -172,7 +174,9 @@ class NaviampCoreMediaDetailController(
                     ),
                 )
             } ?: shell.albumDetail
-            val artistDetail = mediaRegistry.artistDetails?.let { details ->
+            val artistDetail = mediaRegistry.artistDetails
+                ?.takeIf { shell.artistDetail.selectedArtist != null }
+                ?.let { details ->
                 val current = shell.artistDetail.detail
                 val nameOnlyCredit = details.artist.isNameOnlyArtistCredit()
                 val artistCoverArtUrl = { id: String? ->

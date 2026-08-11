@@ -42,6 +42,7 @@ class SettingsSyncMappingTest {
         )
 
         assertEquals(ProviderIdNavidrome, document.serverProfiles.single().providerId)
+        assertTrue(document.serverProfiles.single().selectedMusicFolderIds.isEmpty())
         assertEquals(
             ProviderIdNavidrome,
             document.serverProfiles.single().toConnectionFormState().providerId,
@@ -82,6 +83,7 @@ class SettingsSyncMappingTest {
         assertEquals("https://navidrome.lan", profile.primaryUrl)
         assertEquals("https://navidrome.tailnet", profile.secondaryUrls.single().url)
         assertEquals("Tailscale", profile.secondaryUrls.single().label)
+        assertEquals(listOf("folder-one", "folder-two"), profile.selectedMusicFolderIds)
         val nonSecretHeader = profile.customHeaders.first { it.name == "X-Proxy-User" }
         assertEquals("ursasmar", nonSecretHeader.value)
         assertEquals(null, profile.customHeaders.first { it.name == "X-Secret" }.value)
@@ -117,6 +119,7 @@ class SettingsSyncMappingTest {
         assertEquals("", form.clientCertificatePassword)
         assertEquals("https://navidrome.tailnet", form.secondaryUrls.single().url)
         assertEquals("X-Proxy-User", form.customHeaders.first().name)
+        assertEquals(listOf("folder-one", "folder-two"), form.selectedMusicFolderIds)
     }
 
     @Test
@@ -158,6 +161,7 @@ class SettingsSyncMappingTest {
         assertTrue(repository.connections.all { it.token.isEmpty() })
         assertTrue(repository.connections.all { it.salt.isEmpty() })
         assertTrue(repository.connections.all { it.nativeToken == null })
+        assertTrue(repository.connections.all { it.selectedMusicFolderIds == listOf("folder-one", "folder-two") })
         assertTrue(repository.connections.all { it.tlsSettings.clientCertificateKeyStorePassword == null })
     }
 
@@ -232,6 +236,7 @@ class SettingsSyncMappingTest {
                     valueIsSecret = true,
                 ),
             ),
+            selectedMusicFolderIds = listOf(" folder-one ", "folder-two", "folder-one"),
             tlsSettings = ConnectionTlsSettings(
                 insecureSkipTlsVerification = true,
                 customCertificatePath = "/certs/navidrome.pem",

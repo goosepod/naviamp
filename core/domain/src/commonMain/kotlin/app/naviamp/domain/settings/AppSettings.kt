@@ -144,9 +144,16 @@ fun selectedMusicFolderSummary(
         .ifBlank { emptyLabel }
 
 @Serializable
+enum class ApplicationUpdateChannel {
+    Stable,
+    Beta,
+}
+
+@Serializable
 data class InterfaceSettings(
     val language: InterfaceLanguage = InterfaceLanguage.System,
     val checkForUpdates: Boolean = true,
+    val applicationUpdateChannel: ApplicationUpdateChannel? = null,
     val startPlayingOnLaunch: Boolean = false,
     val showDesktopTooltips: Boolean = true,
     val showArtistInformation: Boolean = true,

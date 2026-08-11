@@ -41,6 +41,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
@@ -114,6 +115,7 @@ fun StandardPlaylistEditorDialog(
     var saving by remember(initialTracks) { mutableStateOf(false) }
     var errorMessage by remember(initialTracks) { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
+    val trackNumberWidth = trackNumberColumnWidth(tracks.size)
 
     fun apply(index: Int, action: TrackSwipeAction) {
         val updated = applyPlaylistEditTrackAction(tracks, index, action)
@@ -175,10 +177,10 @@ fun StandardPlaylistEditorDialog(
                                     verticalAlignment = Alignment.CenterVertically,
                                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                                 ) {
-                                    Text(
-                                        "${index + 1}",
+                                    TrackNumberColumn(
+                                        number = index + 1,
+                                        width = trackNumberWidth,
                                         color = colors.mutedText,
-                                        fontSize = 11.sp,
                                     )
                                     Column(modifier = Modifier.weight(1f)) {
                                         Text(
@@ -287,6 +289,7 @@ fun StandardPlaylistManagementList(
     val minimumAutoScrollPx = with(density) { PlaylistDragMinimumAutoScroll.toPx() }
     val maximumAutoScrollPx = with(density) { PlaylistDragMaximumAutoScroll.toPx() }
     val rowStepPx = with(density) { PlaylistManagementRowStep.toPx() }
+    val trackNumberWidth = trackNumberColumnWidth(entries.size)
     val dragTargetIndex = draggingIndex?.let { fromIndex ->
         playlistDragTargetIndex(fromIndex, dragOffsetY, rowStepPx, entries.lastIndex)
     }
@@ -413,6 +416,7 @@ fun StandardPlaylistManagementList(
                             colors = colors,
                             track = entry.track,
                             index = index,
+                            trackNumberWidth = trackNumberWidth,
                             modifier = swipeModifier,
                             isDragging = isDragging,
                             dragEnabled = !saving,
@@ -464,6 +468,7 @@ fun SmartPlaylistTrackList(
     tracks: List<SharedTrackRowUi>,
     onTrackSelected: (SharedTrackRowUi) -> Unit,
 ) {
+    val trackNumberWidth = trackNumberColumnWidth(tracks.size)
     Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
         Text(
             "Generated tracks - edit the smart playlist rules to change this list",
@@ -479,7 +484,11 @@ fun SmartPlaylistTrackList(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                Text("${index + 1}", color = colors.mutedText, fontSize = 11.sp)
+                TrackNumberColumn(
+                    number = index + 1,
+                    width = trackNumberWidth,
+                    color = colors.mutedText,
+                )
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         track.title,
@@ -508,6 +517,7 @@ private fun PlaylistManagementTrackRow(
     colors: NaviampColors,
     track: SharedTrackRowUi,
     index: Int,
+    trackNumberWidth: Dp,
     modifier: Modifier,
     isDragging: Boolean,
     dragEnabled: Boolean,
@@ -528,7 +538,11 @@ private fun PlaylistManagementTrackRow(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        Text("${index + 1}", color = colors.mutedText, fontSize = 11.sp)
+        TrackNumberColumn(
+            number = index + 1,
+            width = trackNumberWidth,
+            color = colors.mutedText,
+        )
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 track.title,

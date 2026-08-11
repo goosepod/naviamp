@@ -281,9 +281,10 @@ private fun AlbumDetailContent(
                     }
                 }
             val reservePopularIndicatorSpace = detail.tracks.any { it.popular }
+            val trackNumberWidth = trackNumberColumnWidth(detail.tracks.size)
             detail.tracks.forEachIndexed { index, track ->
                 TrackRow(
-                    track.copy(meta = (index + 1).toString()),
+                    track,
                     colors,
                     onTrackAction = handleTrackAction,
                     canSelect = true,
@@ -296,6 +297,8 @@ private fun AlbumDetailContent(
                     showCoverArt = false,
                     showMenu = true,
                     reservePopularIndicatorSpace = reservePopularIndicatorSpace,
+                    trackNumber = index + 1,
+                    trackNumberWidth = trackNumberWidth,
                 )
             }
         }

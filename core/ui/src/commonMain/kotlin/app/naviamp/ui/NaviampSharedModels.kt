@@ -547,11 +547,13 @@ data class SharedNavibeatMixUi(
 enum class SharedHomeCollectionArtwork {
     CoverArt,
     NavibeatGenerated,
+    StationGenerated,
 }
 
 enum class SharedHomeCollectionItemAction {
     PlayAlbum,
     OpenAlbum,
+    PlayPlaylist,
     OpenPlaylist,
     SelectRecentRadio,
     SelectInternetRadio,

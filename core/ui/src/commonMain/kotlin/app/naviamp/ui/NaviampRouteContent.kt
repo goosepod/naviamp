@@ -2,7 +2,6 @@ package app.naviamp.ui
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.animateScrollBy
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -14,6 +13,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
@@ -70,20 +70,6 @@ fun SharedHome(
     mediaActions: NaviampMediaActions,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.fillMaxWidth(),
-        ) {
-            NaviampPageTitle(
-                title = stringResource(Res.string.home_music_title),
-                colors = colors,
-                modifier = Modifier.weight(1f),
-            )
-            NaviampRowOverflowMenu(
-                colors = colors,
-                items = listOf(NaviampRowMenuItem("Refresh", NaviampIcons.Refresh, actions.onRefresh)),
-            )
-        }
         if (home.isEmpty) {
             PlaceholderTile(stringResource(Res.string.home_empty), colors)
         }
@@ -116,6 +102,7 @@ private fun HomeCollectionSection(
             HomeSectionLayout.Carousel -> HomeCollectionCarousel(
                 section = section,
                 colors = colors,
+                mediaActions = mediaActions,
                 onTitleSelected = onTitleSelected,
                 onItemSelected = onItemSelected,
             )
@@ -140,6 +127,7 @@ private fun HomeCollectionSection(
                             colors = colors,
                             width = HomeCollectionHomeGridCardWidth,
                             onClick = { onItemSelected(item) },
+                            menuItems = navibeatMixMenuItems(item, mediaActions),
                         )
                     }
                 }
@@ -152,12 +140,13 @@ private fun HomeCollectionSection(
 private fun HomeCollectionCarousel(
     section: SharedHomeCollectionSectionUi,
     colors: NaviampColors,
+    mediaActions: NaviampMediaActions,
     onTitleSelected: () -> Unit,
     onItemSelected: (SharedHomeCollectionItemUi) -> Unit,
 ) {
     val scrollState = rememberScrollState()
     val scope = rememberCoroutineScope()
-    val scrollStep = with(LocalDensity.current) { HomeRailScrollStep.toPx() }
+    val itemStride = with(LocalDensity.current) { HomeCollectionCarouselItemStride.roundToPx() }
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier.fillMaxWidth(),
@@ -172,28 +161,82 @@ private fun HomeCollectionCarousel(
             pointsRight = false,
             enabled = scrollState.canScrollBackward,
             colors = colors,
-            onClick = { scope.launch { scrollState.animateScrollBy(-scrollStep) } },
+            onClick = {
+                scope.launch {
+                    scrollState.animateScrollTo(
+                        homeCarouselScrollTarget(
+                            current = scrollState.value,
+                            viewport = scrollState.viewportSize,
+                            itemStride = itemStride,
+                            maximum = scrollState.maxValue,
+                            forward = false,
+                        ),
+                    )
+                }
+            },
         )
         HomeRailArrow(
             pointsRight = true,
             enabled = scrollState.canScrollForward,
             colors = colors,
-            onClick = { scope.launch { scrollState.animateScrollBy(scrollStep) } },
+            onClick = {
+                scope.launch {
+                    scrollState.animateScrollTo(
+                        homeCarouselScrollTarget(
+                            current = scrollState.value,
+                            viewport = scrollState.viewportSize,
+                            itemStride = itemStride,
+                            maximum = scrollState.maxValue,
+                            forward = true,
+                        ),
+                    )
+                }
+            },
         )
     }
-    Row(
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
-        modifier = Modifier.horizontalScroll(scrollState),
-    ) {
-        section.items.forEach { item ->
-            HomeCollectionGridCard(
-                item = item,
-                colors = colors,
-                width = 128.dp,
-                onClick = { onItemSelected(item) },
-            )
+    BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
+        val trailingSpace = (maxWidth - HomeCollectionCarouselCardWidth).coerceAtLeast(0.dp)
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(HomeCollectionCarouselSpacing),
+            modifier = Modifier
+                .horizontalScroll(scrollState)
+                .padding(end = trailingSpace),
+        ) {
+            section.items.forEach { item ->
+                HomeCollectionGridCard(
+                    item = item,
+                    colors = colors,
+                    width = HomeCollectionCarouselCardWidth,
+                    onClick = { onItemSelected(item) },
+                    menuItems = navibeatMixMenuItems(item, mediaActions),
+                )
+            }
         }
     }
+}
+
+internal fun homeCarouselScrollTarget(
+    current: Int,
+    viewport: Int,
+    itemStride: Int,
+    maximum: Int,
+    forward: Boolean,
+): Int {
+    if (itemStride <= 0 || maximum <= 0) return 0
+    val target = if (forward) {
+        val firstItemAtRightEdge = (current + viewport) / itemStride
+        maxOf(current + itemStride, firstItemAtRightEdge * itemStride)
+    } else {
+        val precedingPartialItem = current % itemStride
+        if (precedingPartialItem != 0) {
+            current - precedingPartialItem
+        } else {
+            val previousViewportStart = (current - viewport).coerceAtLeast(0)
+            val previousItem = (previousViewportStart + itemStride - 1) / itemStride
+            previousItem * itemStride
+        }
+    }
+    return target.coerceIn(0, maximum)
 }
 
 @Composable
@@ -249,6 +292,7 @@ private fun HomeCollectionGridCard(
     colors: NaviampColors,
     width: androidx.compose.ui.unit.Dp,
     onClick: () -> Unit,
+    menuItems: List<NaviampRowMenuItem> = emptyList(),
 ) {
     Column(
         verticalArrangement = Arrangement.spacedBy(3.dp),
@@ -258,7 +302,14 @@ private fun HomeCollectionGridCard(
             .clickable(onClick = onClick)
             .padding(bottom = 4.dp),
     ) {
-        HomeCollectionArtwork(item, colors, width)
+        Box {
+            HomeCollectionArtwork(item, colors, width)
+            NaviampRowOverflowMenu(
+                colors = colors,
+                items = menuItems,
+                modifier = Modifier.align(Alignment.BottomEnd).padding(4.dp),
+            )
+        }
         Text(
             text = item.title,
             color = colors.primaryText,
@@ -285,11 +336,14 @@ private fun HomeCollectionArtwork(
     colors: NaviampColors,
     size: androidx.compose.ui.unit.Dp,
 ) {
-    if (item.artwork == SharedHomeCollectionArtwork.CoverArt) {
-        NaviampCoverArt(item.mediaItem.coverArtUrl, colors, size, 7.dp)
-        return
+    val artwork = when (item.artwork) {
+        SharedHomeCollectionArtwork.CoverArt -> {
+            NaviampCoverArt(item.mediaItem.coverArtUrl, colors, size, 7.dp)
+            return
+        }
+        SharedHomeCollectionArtwork.NavibeatGenerated -> navibeatMixArtwork(item.artworkKey.orEmpty())
+        SharedHomeCollectionArtwork.StationGenerated -> stationArtwork(item.artworkKey.orEmpty())
     }
-    val artwork = navibeatMixArtwork(item.artworkKey.orEmpty())
     Box(
         contentAlignment = Alignment.Center,
         modifier = Modifier
@@ -301,15 +355,31 @@ private fun HomeCollectionArtwork(
             imageVector = artwork.icon,
             contentDescription = null,
             tint = Color.White.copy(alpha = 0.94f),
-            modifier = Modifier.size(size * 0.36f),
+            modifier = Modifier
+                .offset(
+                    y = if (item.artwork == SharedHomeCollectionArtwork.NavibeatGenerated) {
+                        NavibeatMixIconVerticalOffset
+                    } else {
+                        0.dp
+                    },
+                )
+                .size(
+                    if (item.artwork == SharedHomeCollectionArtwork.NavibeatGenerated) {
+                        navibeatMixIconSize(size)
+                    } else {
+                        size * 0.46f
+                    },
+                ),
         )
-        Text(
-            text = "NAVIBEAT MIX",
-            color = Color.White.copy(alpha = 0.72f),
-            fontSize = 8.sp,
-            fontWeight = FontWeight.Bold,
-            modifier = Modifier.align(Alignment.BottomStart).padding(8.dp),
-        )
+        if (item.artwork == SharedHomeCollectionArtwork.NavibeatGenerated) {
+            Text(
+                text = "NAVIBEAT MIX",
+                color = Color.White.copy(alpha = 0.72f),
+                fontSize = 8.sp,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.align(Alignment.BottomStart).padding(8.dp),
+            )
+        }
     }
 }
 
@@ -318,6 +388,8 @@ private data class NavibeatMixArtwork(
     val colors: List<Color>,
 )
 
+internal fun navibeatMixIconSize(artworkSize: androidx.compose.ui.unit.Dp) = artworkSize * 0.54f
+
 private fun navibeatMixArtwork(kind: String): NavibeatMixArtwork = when (kind) {
     "timeofday" -> NavibeatMixArtwork(NaviampIcons.Clock, listOf(Color(0xFFFF8A3D), Color(0xFF9B3CE8)))
     "rediscover", "discovery" -> NavibeatMixArtwork(NaviampIcons.Refresh, listOf(Color(0xFF1FB7A6), Color(0xFF315B9E)))
@@ -325,6 +397,13 @@ private fun navibeatMixArtwork(kind: String): NavibeatMixArtwork = when (kind) {
     "artistradio", "dailymix" -> NavibeatMixArtwork(NaviampIcons.Brain, listOf(Color(0xFFB45CFF), Color(0xFF315BFF)))
     "genreradio", "decade" -> NavibeatMixArtwork(NaviampTransportIcons.Radio, listOf(Color(0xFF1BC779), Color(0xFF167BC2)))
     else -> NavibeatMixArtwork(NaviampIcons.Playlist, listOf(Color(0xFF607D8B), Color(0xFF37474F)))
+}
+
+private fun stationArtwork(id: String): NavibeatMixArtwork = when {
+    id == "library" -> NavibeatMixArtwork(NaviampIcons.Library, listOf(Color(0xFF526DFF), Color(0xFF6E3BB8)))
+    id == "random-album" -> NavibeatMixArtwork(NaviampIcons.Album, listOf(Color(0xFFFF9A3D), Color(0xFFCF3F72)))
+    id.startsWith("decade:") -> NavibeatMixArtwork(NaviampIcons.Clock, listOf(Color(0xFFFFB13B), Color(0xFF8B46C7)))
+    else -> NavibeatMixArtwork(NaviampTransportIcons.Radio, listOf(Color(0xFF20BFA9), Color(0xFF2374C6)))
 }
 
 private fun dispatchHomeCollectionItem(
@@ -336,6 +415,12 @@ private fun dispatchHomeCollectionItem(
         SharedHomeCollectionItemAction.PlayAlbum -> mediaActions.onMediaItemAction(item.mediaItem.playAlbumRequest())
         SharedHomeCollectionItemAction.OpenAlbum ->
             mediaActions.onMediaItemAction(item.mediaItem.albumActionRequest(NaviampArtistAlbumCommand.Select))
+        SharedHomeCollectionItemAction.PlayPlaylist ->
+            mediaActions.onMediaItemAction(
+                item.mediaItem.playlistActionRequest(
+                    NaviampPlaylistMediaCommand.Detail(NaviampPlaylistDetailCommand.Play(shuffle = false)),
+                ),
+            )
         SharedHomeCollectionItemAction.OpenPlaylist ->
             mediaActions.onMediaItemAction(item.mediaItem.playlistActionRequest(NaviampPlaylistMediaCommand.Select))
         SharedHomeCollectionItemAction.SelectRecentRadio -> actions.onRecentRadioSelected(item.mediaItem)
@@ -357,6 +442,28 @@ private fun dispatchHomeCollectionItem(
     }
 }
 
+private fun navibeatMixMenuItems(
+    item: SharedHomeCollectionItemUi,
+    mediaActions: NaviampMediaActions,
+): List<NaviampRowMenuItem> = if (item.artwork == SharedHomeCollectionArtwork.NavibeatGenerated) {
+    listOf(
+        NaviampRowMenuItem("Shuffle mix", NaviampTransportIcons.Shuffle, {
+            mediaActions.onMediaItemAction(
+                item.mediaItem.playlistActionRequest(
+                    NaviampPlaylistMediaCommand.Detail(NaviampPlaylistDetailCommand.Play(shuffle = true)),
+                ),
+            )
+        }),
+        NaviampRowMenuItem("View", NaviampIcons.Playlist, {
+            mediaActions.onMediaItemAction(
+                item.mediaItem.playlistActionRequest(NaviampPlaylistMediaCommand.Select),
+            )
+        }),
+    )
+} else {
+    emptyList()
+}
+
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun SharedHomeCollectionPage(
@@ -369,7 +476,6 @@ private fun SharedHomeCollectionPage(
         verticalArrangement = Arrangement.spacedBy(10.dp),
         modifier = Modifier.fillMaxWidth(),
     ) {
-        HomeCollectionPageHeader(page, colors, actions)
         when (page.layout) {
             HomeSectionPageLayout.List -> Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
                 page.section.items.forEach { item ->
@@ -392,6 +498,7 @@ private fun SharedHomeCollectionPage(
                             colors = colors,
                             width = tileWidth,
                             onClick = { dispatchHomeCollectionItem(item, actions, mediaActions) },
+                            menuItems = navibeatMixMenuItems(item, mediaActions),
                         )
                     }
                 }
@@ -476,7 +583,7 @@ private fun HomeCollectionLayoutButtons(
 ) {
     if (HomeSectionPageLayout.List in page.section.supportedPageLayouts) {
         HomeCollectionLayoutButton(
-            label = "List",
+            label = HomeSectionPageLayout.List.label,
             selected = page.layout == HomeSectionPageLayout.List,
             colors = colors,
             onClick = { actions.onCollectionPageLayoutChanged(page.section.id, HomeSectionPageLayout.List) },
@@ -484,7 +591,7 @@ private fun HomeCollectionLayoutButtons(
     }
     if (HomeSectionPageLayout.Grid in page.section.supportedPageLayouts) {
         HomeCollectionLayoutButton(
-            label = "Thumbnails",
+            label = HomeSectionPageLayout.Grid.label,
             selected = page.layout == HomeSectionPageLayout.Grid,
             colors = colors,
             onClick = { actions.onCollectionPageLayoutChanged(page.section.id, HomeSectionPageLayout.Grid) },
@@ -598,10 +705,16 @@ private fun HomeCollectionItemListRow(
         SharedHomeCollectionItemAction.SelectMixBuilder -> item.mixBuilder?.let { builder ->
             MixBuilderRow(builder, colors) { actions.onMixBuilderSelected(builder) }
         }
+        SharedHomeCollectionItemAction.SelectStation -> HomeCollectionListRow(
+            item = item,
+            colors = colors,
+            onClick = { dispatchHomeCollectionItem(item, actions, mediaActions) },
+        )
         else -> SharedMediaRow(
             item = item.mediaItem,
             colors = colors,
             onClick = { dispatchHomeCollectionItem(item, actions, mediaActions) },
+            menuItems = navibeatMixMenuItems(item, mediaActions),
             onFavoriteToggled = if (item.mediaKind == SharedMediaItemKind.Album) {
                 { album ->
                     mediaActions.onMediaItemAction(
@@ -626,52 +739,75 @@ fun SharedHomeRoute(
 ) {
     val collectionScrollState = remember(home.collectionPage?.section?.id) { ScrollState(0) }
     home.collectionPage?.let { page ->
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .verticalScroll(collectionScrollState),
-        ) {
-            SharedHomeCollectionPage(
-                page = page,
-                colors = colors,
-                actions = actions,
-                mediaActions = mediaActions,
-            )
+        Column(modifier = Modifier.fillMaxSize()) {
+            HomeCollectionPageHeader(page, colors, actions)
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth()
+                    .verticalScroll(collectionScrollState),
+            ) {
+                SharedHomeCollectionPage(
+                    page = page,
+                    colors = colors,
+                    actions = actions,
+                    mediaActions = mediaActions,
+                )
+            }
         }
         return
     }
-    PullToRefreshBox(
-        isRefreshing = home.refreshing,
-        onRefresh = actions.onRefresh,
-        modifier = Modifier.fillMaxSize(),
-        indicator = {
-            if (home.refreshing) {
-                LinearProgressIndicator(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .align(Alignment.TopCenter),
-                    color = colors.primaryText,
-                    trackColor = colors.mutedText.copy(alpha = 0.25f),
+    Column(modifier = Modifier.fillMaxSize()) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            NaviampPageTitle(
+                title = stringResource(Res.string.home_music_title),
+                colors = colors,
+                modifier = Modifier.weight(1f),
+            )
+            NaviampRowOverflowMenu(
+                colors = colors,
+                items = listOf(NaviampRowMenuItem("Refresh", NaviampIcons.Refresh, actions.onRefresh)),
+            )
+        }
+        PullToRefreshBox(
+            isRefreshing = home.refreshing,
+            onRefresh = actions.onRefresh,
+            modifier = Modifier.weight(1f).fillMaxWidth(),
+            indicator = {
+                if (home.refreshing) {
+                    LinearProgressIndicator(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .align(Alignment.TopCenter),
+                        color = colors.primaryText,
+                        trackColor = colors.mutedText.copy(alpha = 0.25f),
+                    )
+                }
+            },
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .verticalScroll(scrollState),
+            ) {
+                SharedHome(
+                    colors = colors,
+                    home = home.content,
+                    actions = actions,
+                    mediaActions = mediaActions,
                 )
             }
-        },
-    ) {
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .verticalScroll(scrollState),
-        ) {
-            SharedHome(
-                colors = colors,
-                home = home.content,
-                actions = actions,
-                mediaActions = mediaActions,
-            )
         }
     }
 }
 
-private val HomeRailScrollStep = 310.dp
+private val HomeCollectionCarouselCardWidth = 128.dp
+private val HomeCollectionCarouselSpacing = 10.dp
+private val HomeCollectionCarouselItemStride = HomeCollectionCarouselCardWidth + HomeCollectionCarouselSpacing
+private val NavibeatMixIconVerticalOffset = (-5).dp
 private val HomeCollectionGridSpacing = 8.dp
 private val HomeCollectionHomeGridCardWidth = 128.dp
 private val HomeCollectionSingleRowHeaderMinWidth = 430.dp
@@ -920,37 +1056,42 @@ fun NaviampSearchContent(
             showClear = query.isNotBlank() || !results.isEmpty || screen.status != null || screen.searching,
             modifier = Modifier.padding(horizontal = 8.dp).focusRequester(searchFocusRequester),
         )
-        screen.status?.let { status ->
-            Text(status, color = colors.secondaryText, fontSize = 12.sp)
-        }
-        if (screen.searching) {
-            Text("Searching...", color = colors.secondaryText, fontSize = 12.sp)
-        } else if (query.isNotBlank() && results.isEmpty && screen.status == null) {
-            Text(stringResource(Res.string.search_no_matches), color = colors.secondaryText, fontSize = 12.sp)
-        }
-        if (results.artists.isNotEmpty()) {
-            SectionHeader(stringResource(Res.string.search_artists), colors)
-            results.artists.forEach { artist -> sharedMediaRow(artist, SharedMediaItemKind.Artist) }
-        }
-        if (results.albums.isNotEmpty()) {
-            SectionHeader(stringResource(Res.string.search_albums), colors)
-            results.albums.forEach { album -> sharedMediaRow(album, SharedMediaItemKind.Album) }
-        }
-        if (results.tracks.isNotEmpty()) {
-            SectionHeader(stringResource(Res.string.search_tracks_section), colors)
-            results.tracks.forEach { track ->
-                TrackRow(
-                    track = track,
-                    colors = colors,
-                    onTrackAction = mediaActions.onTrackAction,
-                    canSelect = true,
-                    canStartRadio = true,
-                    canAddToQueue = true,
-                    canDownload = true,
-                    canAddToPlaylist = true,
-                    background = true,
-                    horizontalPadding = 6.dp,
-                )
+        Column(
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier.weight(1f).verticalScroll(rememberScrollState()),
+        ) {
+            screen.status?.let { status ->
+                Text(status, color = colors.secondaryText, fontSize = 12.sp)
+            }
+            if (screen.searching) {
+                Text("Searching...", color = colors.secondaryText, fontSize = 12.sp)
+            } else if (query.isNotBlank() && results.isEmpty && screen.status == null) {
+                Text(stringResource(Res.string.search_no_matches), color = colors.secondaryText, fontSize = 12.sp)
+            }
+            if (results.artists.isNotEmpty()) {
+                SectionHeader(stringResource(Res.string.search_artists), colors)
+                results.artists.forEach { artist -> sharedMediaRow(artist, SharedMediaItemKind.Artist) }
+            }
+            if (results.albums.isNotEmpty()) {
+                SectionHeader(stringResource(Res.string.search_albums), colors)
+                results.albums.forEach { album -> sharedMediaRow(album, SharedMediaItemKind.Album) }
+            }
+            if (results.tracks.isNotEmpty()) {
+                SectionHeader(stringResource(Res.string.search_tracks_section), colors)
+                results.tracks.forEach { track ->
+                    TrackRow(
+                        track = track,
+                        colors = colors,
+                        onTrackAction = mediaActions.onTrackAction,
+                        canSelect = true,
+                        canStartRadio = true,
+                        canAddToQueue = true,
+                        canDownload = true,
+                        canAddToPlaylist = true,
+                        background = true,
+                        horizontalPadding = 6.dp,
+                    )
+                }
             }
         }
     }
@@ -1020,40 +1161,39 @@ fun NaviampLibraryContent(
         val boundary = if (letter == '#') "" else letter.lowercaseChar().toString()
         val index = filteredItems.indexOfFirst { item -> item.title.lowercase() >= boundary }
         if (index >= 0) {
-            val headerCount = 2 + if (syncStatus.message != null) 1 else 0
+            val headerCount = 1 + if (syncStatus.message != null) 1 else 0
             listState.scrollToItem(index + headerCount)
             pendingJump = null
         }
     }
-    Row(
-        modifier = Modifier.fillMaxSize(),
-        horizontalArrangement = Arrangement.spacedBy(4.dp),
-    ) {
-        LazyColumn(
-            state = listState,
-            modifier = Modifier.weight(1f),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
+    Column(modifier = Modifier.fillMaxSize()) {
+        Row(
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.fillMaxWidth(),
         ) {
-            item {
-                Row(
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    NaviampPageTitle(stringResource(Res.string.library_title), colors)
-                    NaviampRowOverflowMenu(
-                        colors = colors,
-                        items = listOf(
-                            NaviampRowMenuItem(
-                                label = stringResource(Res.string.library_refresh),
-                                icon = NaviampIcons.Refresh,
-                                onClick = actions.onRefresh,
-                                enabled = !syncStatus.isSyncing,
-                            ),
-                        ),
-                    )
-                }
-            }
+            NaviampPageTitle(stringResource(Res.string.library_title), colors)
+            NaviampRowOverflowMenu(
+                colors = colors,
+                items = listOf(
+                    NaviampRowMenuItem(
+                        label = stringResource(Res.string.library_refresh),
+                        icon = NaviampIcons.Refresh,
+                        onClick = actions.onRefresh,
+                        enabled = !syncStatus.isSyncing,
+                    ),
+                ),
+            )
+        }
+        Row(
+            modifier = Modifier.weight(1f).fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            LazyColumn(
+                state = listState,
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
             item {
             NaviampCompactSearchField(
                 value = query,
@@ -1080,17 +1220,6 @@ fun NaviampLibraryContent(
                         fontSize = 12.sp,
                         modifier = Modifier.weight(1f),
                     )
-                    if (syncStatus.showRefresh) {
-                        TextButton(
-                            enabled = !syncStatus.isSyncing,
-                            onClick = actions.onRefresh,
-                        ) {
-                            Text(
-                                if (syncStatus.isSyncing) stringResource(Res.string.library_refreshing) else stringResource(Res.string.library_refresh),
-                                fontSize = 12.sp,
-                            )
-                        }
-                    }
                 }
                 }
             }
@@ -1149,21 +1278,22 @@ fun NaviampLibraryContent(
                 }
             }
         }
-        if (query.isBlank()) {
-            Column(
-                verticalArrangement = Arrangement.spacedBy(2.dp),
-                modifier = Modifier.width(18.dp).verticalScroll(rememberScrollState()),
-            ) {
-                (listOf('#') + ('A'..'Z')).forEach { letter ->
-                    Text(
-                        text = letter.toString(),
-                        color = colors.secondaryText,
-                        fontSize = 10.sp,
-                        modifier = Modifier.clickable {
-                            pendingJump = letter
-                            actions.onJumpToLetter(letter)
-                        },
-                    )
+            if (query.isBlank()) {
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(2.dp),
+                    modifier = Modifier.width(18.dp).verticalScroll(rememberScrollState()),
+                ) {
+                    (listOf('#') + ('A'..'Z')).forEach { letter ->
+                        Text(
+                            text = letter.toString(),
+                            color = colors.secondaryText,
+                            fontSize = 10.sp,
+                            modifier = Modifier.clickable {
+                                pendingJump = letter
+                                actions.onJumpToLetter(letter)
+                            },
+                        )
+                    }
                 }
             }
         }
@@ -1203,48 +1333,47 @@ fun NaviampDownloadsContent(
     } else {
         0.0
     }
-    LazyColumn(
-        modifier = Modifier.fillMaxSize(),
-        verticalArrangement = Arrangement.spacedBy(10.dp),
-    ) {
-        item {
-            Row(verticalAlignment = Alignment.Top, modifier = Modifier.fillMaxWidth()) {
-                Column(verticalArrangement = Arrangement.spacedBy(2.dp), modifier = Modifier.weight(1f)) {
-                    NaviampPageTitle(stringResource(Res.string.downloads_offline_title), colors)
-                    Text(
-                        stringResource(
-                            Res.string.downloads_summary,
-                            downloads.size,
-                            visibleDownloadBytes.storageBytesLabel(),
-                            screen.maxDownloadBytes.storageBytesLabel(),
-                        ),
-                        color = colors.secondaryText,
-                        fontSize = 12.sp,
-                    )
-                    Text(
-                        stringResource(
-                            Res.string.downloads_remaining,
-                            remainingBytes.storageBytesLabel(),
-                            usedPercent.oneDecimalLabel() + "%",
-                        ),
-                        color = colors.mutedText,
-                        fontSize = 11.sp,
-                    )
-                }
-                NaviampRowOverflowMenu(
-                    colors = colors,
-                    items = listOf(
-                        NaviampRowMenuItem("Refresh", NaviampIcons.Refresh, actions.onRefresh),
-                        NaviampRowMenuItem(
-                            if (screen.keepFavoritesDownloaded) "Stop keeping favorites downloaded" else "Keep favorites downloaded",
-                            NaviampTransportIcons.Heart,
-                            actions.onToggleKeepFavoritesDownloaded,
-                        ),
-                        NaviampRowMenuItem("Delete All", NaviampIcons.Trash, { confirmDeleteAll = true }, downloads.isNotEmpty()),
+    Column(modifier = Modifier.fillMaxSize()) {
+        Row(verticalAlignment = Alignment.Top, modifier = Modifier.fillMaxWidth()) {
+            Column(verticalArrangement = Arrangement.spacedBy(2.dp), modifier = Modifier.weight(1f)) {
+                NaviampPageTitle(stringResource(Res.string.downloads_offline_title), colors)
+                Text(
+                    stringResource(
+                        Res.string.downloads_summary,
+                        downloads.size,
+                        visibleDownloadBytes.storageBytesLabel(),
+                        screen.maxDownloadBytes.storageBytesLabel(),
                     ),
+                    color = colors.secondaryText,
+                    fontSize = 12.sp,
+                )
+                Text(
+                    stringResource(
+                        Res.string.downloads_remaining,
+                        remainingBytes.storageBytesLabel(),
+                        usedPercent.oneDecimalLabel() + "%",
+                    ),
+                    color = colors.mutedText,
+                    fontSize = 11.sp,
                 )
             }
+            NaviampRowOverflowMenu(
+                colors = colors,
+                items = listOf(
+                    NaviampRowMenuItem("Refresh", NaviampIcons.Refresh, actions.onRefresh),
+                    NaviampRowMenuItem(
+                        if (screen.keepFavoritesDownloaded) "Stop keeping favorites downloaded" else "Keep favorites downloaded",
+                        NaviampTransportIcons.Heart,
+                        actions.onToggleKeepFavoritesDownloaded,
+                    ),
+                    NaviampRowMenuItem("Delete All", NaviampIcons.Trash, { confirmDeleteAll = true }, downloads.isNotEmpty()),
+                ),
+            )
         }
+        LazyColumn(
+            modifier = Modifier.weight(1f).fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
         item {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
@@ -1359,6 +1488,7 @@ fun NaviampDownloadsContent(
                 }
             }
         }
+    }
     }
 
     downloadForPlaylist?.let { download ->

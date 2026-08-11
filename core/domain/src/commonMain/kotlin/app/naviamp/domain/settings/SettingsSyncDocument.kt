@@ -1,6 +1,7 @@
 package app.naviamp.domain.settings
 
 import app.naviamp.domain.provider.ProviderIdNavidrome
+import app.naviamp.domain.source.normalizedMusicFolderIds
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 
@@ -33,6 +34,7 @@ data class SettingsSyncServerProfile(
     val secondaryUrls: List<SettingsSyncServerEndpoint> = emptyList(),
     val tls: SettingsSyncTlsSettings = SettingsSyncTlsSettings(),
     val customHeaders: List<SettingsSyncHeaderDefinition> = emptyList(),
+    val selectedMusicFolderIds: List<String> = emptyList(),
 ) {
     fun normalized(): SettingsSyncServerProfile? {
         val normalizedId = id.trim()
@@ -52,6 +54,7 @@ data class SettingsSyncServerProfile(
             customHeaders = customHeaders
                 .mapNotNull { it.normalized() }
                 .distinctBy { it.name.lowercase() },
+            selectedMusicFolderIds = normalizedMusicFolderIds(selectedMusicFolderIds),
         )
     }
 }

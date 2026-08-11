@@ -60,7 +60,10 @@ import app.naviamp.domain.settings.AppBackgroundStyle
 import app.naviamp.domain.settings.DefaultSingleColorHex
 import app.naviamp.domain.settings.toggleSelectedMusicFolderId
 import app.naviamp.domain.playback.PlaybackProgress
+import app.naviamp.ui.generated.resources.Res
+import app.naviamp.ui.generated.resources.*
 import kotlinx.coroutines.flow.StateFlow
+import org.jetbrains.compose.resources.stringResource
 
 @Composable
 expect fun NaviampTooltip(
@@ -166,6 +169,7 @@ fun NaviampSharedAppShell(
     NaviampApplicationUpdateEffect(
         enabled = supportsApplicationUpdates && interfaceSettings.checkForUpdates,
         currentVersion = about.version,
+        channel = interfaceSettings.applicationUpdateChannel ?: defaultApplicationUpdateChannel(about.version),
         checker = applicationUpdateChecker,
     )
     val showFullNowPlaying = connected && !editingConnection && !restoringConnection && nowPlayingOpen && nowPlaying != null
@@ -189,6 +193,7 @@ fun NaviampSharedAppShell(
                 artistDetail.selectedArtist != null ||
                 playlistDetail.selectedPlaylist != null ||
                 selectedRoute == SharedRoute.Home ||
+                selectedRoute == SharedRoute.Search ||
                 selectedRoute == SharedRoute.Playlists ||
                 selectedRoute == SharedRoute.Library ||
                 selectedRoute == SharedRoute.ArtistMix ||
@@ -197,7 +202,8 @@ fun NaviampSharedAppShell(
                 selectedRoute == SharedRoute.SonicPath ||
                 selectedRoute == SharedRoute.SonicMix ||
                 selectedRoute == SharedRoute.Radio ||
-                selectedRoute == SharedRoute.Downloads
+                selectedRoute == SharedRoute.Downloads ||
+                selectedRoute == SharedRoute.Settings
             )
     val albumPlayerColors = rememberNaviampCoverArtPlayerColors(nowPlaying?.coverArtUrl, colors)
     val singleBackgroundColor = naviampColorFromHex(interfaceSettings.singleColorHex)
@@ -422,7 +428,6 @@ private fun ConnectedContent(
     }
     val nowPlayingPlayerColors = animatedNaviampPlayerColors(targetNowPlayingPlayerColors)
     val homeScrollState = rememberScrollState()
-    val playlistsScrollState = rememberScrollState()
     val libraryListState = rememberLazyListState()
     val artistDetailScrollState = rememberScrollState()
     val playlistDetailScrollState = rememberScrollState()
@@ -494,8 +499,6 @@ private fun ConnectedContent(
             SharedRoute.Playlists -> PullToRefreshRoute(
                 isRefreshing = playlists.refreshing,
                 onRefresh = playlistsActions.onRefresh,
-                useScrollContainer = true,
-                scrollState = playlistsScrollState,
             ) {
                 NaviampPlaylistsContent(
                     colors = colors,
@@ -527,6 +530,7 @@ private fun ConnectedContent(
                 modifier = Modifier.fillMaxSize(),
                 verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
+                NaviampPageTitle(stringResource(Res.string.mix_artist_builder_title), colors)
                 Column(
                     modifier = Modifier
                         .weight(1f)
@@ -537,6 +541,7 @@ private fun ConnectedContent(
                         builder = artistMixBuilder,
                         actions = artistMixActions,
                         showPlayMixButton = false,
+                        showTitle = false,
                     )
                 }
                 if (artistMixBuilder.selectedArtists.isNotEmpty()) {
@@ -547,6 +552,7 @@ private fun ConnectedContent(
                 modifier = Modifier.fillMaxSize(),
                 verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
+                NaviampPageTitle(stringResource(Res.string.mix_album_builder_title), colors)
                 Column(
                     modifier = Modifier
                         .weight(1f)
@@ -557,6 +563,7 @@ private fun ConnectedContent(
                         builder = albumMixBuilder,
                         actions = albumMixActions,
                         showPlayMixButton = false,
+                        showTitle = false,
                     )
                 }
                 if (albumMixBuilder.selectedAlbums.isNotEmpty()) {
@@ -567,6 +574,7 @@ private fun ConnectedContent(
                 modifier = Modifier.fillMaxSize(),
                 verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
+                NaviampPageTitle(stringResource(Res.string.mix_genre_builder_title), colors)
                 Column(
                     modifier = Modifier
                         .weight(1f)
@@ -577,6 +585,7 @@ private fun ConnectedContent(
                         builder = genreMixBuilder,
                         actions = genreMixActions,
                         showPlayMixButton = false,
+                        showTitle = false,
                     )
                 }
                 if (genreMixBuilder.selectedGenres.isNotEmpty()) {
@@ -587,6 +596,7 @@ private fun ConnectedContent(
                 modifier = Modifier.fillMaxSize(),
                 verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
+                NaviampPageTitle(stringResource(Res.string.sonic_path_title), colors)
                 Column(
                     modifier = Modifier
                         .weight(1f)
@@ -597,6 +607,7 @@ private fun ConnectedContent(
                         builder = sonicPathBuilder,
                         actions = sonicPathActions,
                         showPathActions = false,
+                        showTitle = false,
                     )
                 }
                 if (sonicPathBuilder.hasPath) {
@@ -617,6 +628,7 @@ private fun ConnectedContent(
                 modifier = Modifier.fillMaxSize(),
                 verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
+                NaviampPageTitle(stringResource(Res.string.nav_sonic_mix), colors)
                 Column(
                     modifier = Modifier
                         .weight(1f)
@@ -627,6 +639,7 @@ private fun ConnectedContent(
                         builder = sonicMixBuilder,
                         actions = sonicMixActions,
                         showMixActions = false,
+                        showTitle = false,
                     )
                 }
                 if (sonicMixBuilder.hasMix) {
@@ -646,7 +659,6 @@ private fun ConnectedContent(
             SharedRoute.Radio -> PullToRefreshRoute(
                 isRefreshing = radio.refreshing,
                 onRefresh = radioActions.onRefresh,
-                useScrollContainer = true,
             ) {
                 NaviampInternetRadioContent(
                     colors = colors,

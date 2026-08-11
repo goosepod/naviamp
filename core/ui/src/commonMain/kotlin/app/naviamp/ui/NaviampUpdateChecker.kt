@@ -12,8 +12,11 @@ import androidx.compose.material3.TextButton
 import androidx.compose.ui.platform.LocalUriHandler
 import app.naviamp.domain.network.KtorSharedHttpClient
 import app.naviamp.domain.network.SharedHttpClient
+import app.naviamp.domain.settings.ApplicationUpdateChannel
 import kotlinx.coroutines.delay
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.booleanOrNull
+import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 
@@ -24,20 +27,25 @@ data class NaviampAvailableUpdate(
 )
 
 fun interface NaviampApplicationUpdateChecker {
-    suspend fun latestUpdate(currentVersion: String): NaviampAvailableUpdate?
+    suspend fun latestUpdate(
+        currentVersion: String,
+        channel: ApplicationUpdateChannel,
+    ): NaviampAvailableUpdate?
 }
 
 class HttpNaviampApplicationUpdateChecker(
     private val client: SharedHttpClient,
 ) : NaviampApplicationUpdateChecker {
-    override suspend fun latestUpdate(currentVersion: String): NaviampAvailableUpdate? =
-        checkForNaviampUpdate(currentVersion, client)
+    override suspend fun latestUpdate(
+        currentVersion: String,
+        channel: ApplicationUpdateChannel,
+    ): NaviampAvailableUpdate? = checkForNaviampUpdate(currentVersion, channel, client)
 }
 
 /** Update discovery is portable product behavior; every host gets the same checker by default. */
 fun defaultNaviampApplicationUpdateChecker(): NaviampApplicationUpdateChecker =
-    NaviampApplicationUpdateChecker { currentVersion ->
-        DefaultNaviampApplicationUpdateChecker.latestUpdate(currentVersion)
+    NaviampApplicationUpdateChecker { currentVersion, channel ->
+        DefaultNaviampApplicationUpdateChecker.latestUpdate(currentVersion, channel)
     }
 
 private val DefaultNaviampApplicationUpdateChecker by lazy {
@@ -48,6 +56,7 @@ private val DefaultNaviampApplicationUpdateChecker by lazy {
 fun NaviampApplicationUpdateEffect(
     enabled: Boolean,
     currentVersion: String,
+    channel: ApplicationUpdateChannel,
     checker: NaviampApplicationUpdateChecker?,
 ) {
     var availableUpdate by remember { mutableStateOf<NaviampAvailableUpdate?>(null) }
@@ -55,6 +64,7 @@ fun NaviampApplicationUpdateEffect(
     NaviampUpdateCheckEffect(
         enabled = enabled,
         currentVersion = currentVersion,
+        channel = channel,
         checker = checker,
         onUpdateAvailable = { availableUpdate = it },
     )
@@ -91,13 +101,14 @@ fun NaviampApplicationUpdateEffect(
 fun NaviampUpdateCheckEffect(
     enabled: Boolean,
     currentVersion: String,
+    channel: ApplicationUpdateChannel,
     checker: NaviampApplicationUpdateChecker?,
     onUpdateAvailable: (NaviampAvailableUpdate) -> Unit,
 ) {
-    LaunchedEffect(enabled, currentVersion, checker) {
+    LaunchedEffect(enabled, currentVersion, channel, checker) {
         if (!enabled || checker == null) return@LaunchedEffect
         while (true) {
-            runCatching { checker.latestUpdate(currentVersion) }
+            runCatching { checker.latestUpdate(currentVersion, channel) }
                 .getOrNull()
                 ?.let(onUpdateAvailable)
             delay(NaviampUpdateCheckIntervalMillis)
@@ -107,42 +118,88 @@ fun NaviampUpdateCheckEffect(
 
 internal suspend fun checkForNaviampUpdate(
     currentVersion: String,
+    channel: ApplicationUpdateChannel,
     client: SharedHttpClient,
 ): NaviampAvailableUpdate? {
     val body = client.get(
         NaviampLatestReleaseApiUrl,
         headers = mapOf("Accept" to "application/vnd.github+json"),
     ) ?: return null
-    val release = Json.parseToJsonElement(body).jsonObject
-    val tag = release["tag_name"]?.jsonPrimitive?.content ?: return null
-    if (!isNewerNaviampVersion(tag, currentVersion)) return null
+    val release = Json.parseToJsonElement(body).jsonArray
+        .map { it.jsonObject }
+        .filterNot { it["draft"]?.jsonPrimitive?.booleanOrNull == true }
+        .filter { channel == ApplicationUpdateChannel.Beta || it["prerelease"]?.jsonPrimitive?.booleanOrNull != true }
+        .mapNotNull { candidate ->
+            val tag = candidate["tag_name"]?.jsonPrimitive?.content ?: return@mapNotNull null
+            val version = tag.naviampVersion() ?: return@mapNotNull null
+            Triple(candidate, tag, version)
+        }
+        .filter { (_, tag, _) -> isNewerNaviampVersion(tag, currentVersion) }
+        .maxByOrNull { (_, _, version) -> version }
+        ?: return null
+    val (releaseJson, tag) = release
     return NaviampAvailableUpdate(
         version = tag,
-        name = release["name"]?.jsonPrimitive?.content?.takeIf { it.isNotBlank() } ?: tag,
-        releaseUrl = release["html_url"]?.jsonPrimitive?.content ?: NaviampReleasesUrl,
+        name = releaseJson["name"]?.jsonPrimitive?.content?.takeIf { it.isNotBlank() } ?: tag,
+        releaseUrl = releaseJson["html_url"]?.jsonPrimitive?.content ?: NaviampReleasesUrl,
     )
 }
 
 internal fun isNewerNaviampVersion(candidate: String, current: String): Boolean {
-    val candidateParts = candidate.versionParts() ?: return false
-    val currentParts = current.versionParts() ?: return false
-    val size = maxOf(candidateParts.size, currentParts.size)
-    return (0 until size)
-        .map { index -> candidateParts.getOrElse(index) { 0 } to currentParts.getOrElse(index) { 0 } }
-        .firstOrNull { (next, installed) -> next != installed }
-        ?.let { (next, installed) -> next > installed }
-        ?: false
+    val candidateVersion = candidate.naviampVersion() ?: return false
+    val currentVersion = current.naviampVersion() ?: return false
+    return candidateVersion > currentVersion
 }
 
-private fun String.versionParts(): List<Int>? =
-    trim()
-        .removePrefix("v")
-        .removePrefix("V")
-        .substringBefore('-')
-        .split('.')
-        .takeIf { it.isNotEmpty() }
-        ?.map { it.toIntOrNull() ?: return null }
+fun defaultApplicationUpdateChannel(currentVersion: String): ApplicationUpdateChannel =
+    if (currentVersion.naviampVersion()?.prerelease != null) {
+        ApplicationUpdateChannel.Beta
+    } else {
+        ApplicationUpdateChannel.Stable
+    }
+
+private data class NaviampVersion(
+    val numbers: List<Int>,
+    val prerelease: List<String>?,
+) : Comparable<NaviampVersion> {
+    override fun compareTo(other: NaviampVersion): Int {
+        val numberCount = maxOf(numbers.size, other.numbers.size)
+        repeat(numberCount) { index ->
+            val comparison = numbers.getOrElse(index) { 0 }.compareTo(other.numbers.getOrElse(index) { 0 })
+            if (comparison != 0) return comparison
+        }
+        if (prerelease == null) return if (other.prerelease == null) 0 else 1
+        if (other.prerelease == null) return -1
+        repeat(maxOf(prerelease.size, other.prerelease.size)) { index ->
+            val left = prerelease.getOrNull(index) ?: return -1
+            val right = other.prerelease.getOrNull(index) ?: return 1
+            val leftNumber = left.toIntOrNull()
+            val rightNumber = right.toIntOrNull()
+            val comparison = when {
+                leftNumber != null && rightNumber != null -> leftNumber.compareTo(rightNumber)
+                leftNumber != null -> -1
+                rightNumber != null -> 1
+                else -> left.compareTo(right)
+            }
+            if (comparison != 0) return comparison
+        }
+        return 0
+    }
+}
+
+private fun String.naviampVersion(): NaviampVersion? {
+    val value = trim().removePrefix("v").removePrefix("V").substringBefore('+')
+    val numberText = value.substringBefore('-')
+    val numbers = numberText.split('.').map { it.toIntOrNull() ?: return null }
+    if (numbers.isEmpty()) return null
+    val prerelease = value.substringAfter('-', missingDelimiterValue = "")
+        .takeIf { it.isNotBlank() }
+        ?.split('.', '-')
+        ?.takeIf { parts -> parts.all { it.isNotBlank() } }
+        ?: if ('-' in value) return null else null
+    return NaviampVersion(numbers, prerelease)
+}
 
 const val NaviampReleasesUrl = "https://github.com/goosepod/naviamp/releases"
-private const val NaviampLatestReleaseApiUrl = "https://api.github.com/repos/goosepod/naviamp/releases/latest"
+private const val NaviampLatestReleaseApiUrl = "https://api.github.com/repos/goosepod/naviamp/releases?per_page=30"
 private const val NaviampUpdateCheckIntervalMillis = 24L * 60L * 60L * 1_000L

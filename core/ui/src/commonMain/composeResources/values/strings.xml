@@ -347,7 +347,7 @@
     <string name="transport_next">Next</string>
     <string name="transport_repeat">Repeat</string>
 
-    <string name="home_music_title">Music</string>
+    <string name="home_music_title">Home</string>
     <string name="home_empty">Home sections will appear after connection.</string>
     <string name="home_mixes_for_you">MIXES FOR YOU</string>
     <string name="home_recently_played_radio">Recently Played Radio</string>

@@ -7,6 +7,8 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.border
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -80,6 +82,7 @@ import app.naviamp.domain.radio.RadioArtistRunMode
 import app.naviamp.domain.radio.RadioTuningSettings
 import app.naviamp.domain.settings.CacheSettings
 import app.naviamp.domain.settings.AppBackgroundStyle
+import app.naviamp.domain.settings.ApplicationUpdateChannel
 import app.naviamp.domain.settings.AuroraTone
 import app.naviamp.domain.settings.MaxAlbumBlurRadiusDp
 import app.naviamp.domain.settings.MinAlbumBlurRadiusDp
@@ -256,16 +259,17 @@ fun NaviampSharedSettingsContent(
     onAudioCacheLocationChanged: (NaviampStorageLocationUi) -> Unit,
 ) {
     var selectedCategory by remember { mutableStateOf<NaviampSettingsCategory?>(null) }
+    val contentScrollState = rememberScrollState()
+    LaunchedEffect(selectedCategory) { contentScrollState.scrollTo(0) }
     NaviampSystemBackHandler(enabled = selectedCategory != null) { selectedCategory = null }
     val languagePack = remember(interfaceSettings.language) {
         naviampLanguagePack(interfaceSettings.language)
     }
 
     Column(
-        verticalArrangement = Arrangement.spacedBy(
-            if (selectedCategory == null) 2.dp else SettingsDetailItemSpacing,
-        ),
+        verticalArrangement = Arrangement.spacedBy(2.dp),
         modifier = modifier
+            .fillMaxSize()
             .background(colors.background.copy(alpha = 0.82f), RoundedCornerShape(12.dp))
             .padding(vertical = 4.dp),
     ) {
@@ -276,6 +280,17 @@ fun NaviampSharedSettingsContent(
                 colors = colors,
                 onBack = { selectedCategory = null },
             )
+        } ?: NaviampPageTitle(languagePack.settingsTitle(), colors)
+        Column(
+            verticalArrangement = Arrangement.spacedBy(
+                if (selectedCategory == null) 2.dp else SettingsDetailItemSpacing,
+            ),
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxWidth()
+                .verticalScroll(contentScrollState),
+        ) {
+        selectedCategory?.let { category ->
             when (category) {
                 NaviampSettingsCategory.Source -> {
                     NaviampConnectionsSettingsSection(
@@ -315,6 +330,7 @@ fun NaviampSharedSettingsContent(
                 )
                 NaviampSettingsCategory.Experience -> NaviampExperienceSettingsSection(
                     colors = colors,
+                    installedVersion = about.version,
                     interfaceSettings = interfaceSettings,
                     playbackSettings = playbackSettings,
                     cacheSettings = cacheSettings,
@@ -401,7 +417,6 @@ fun NaviampSharedSettingsContent(
                 )
             }
         } ?: run {
-            NaviampPageTitle(languagePack.settingsTitle(), colors)
             val currentConnection = savedConnections.firstOrNull { it.current }
             NaviampSettingsCategory.entries.forEach { category ->
                 SettingsCategoryRow(
@@ -417,6 +432,7 @@ fun NaviampSharedSettingsContent(
                     onClick = { selectedCategory = category },
                 )
             }
+        }
         }
     }
 }
@@ -443,6 +459,7 @@ private fun SettingsPlaceholderSection(
 @Composable
 fun NaviampExperienceSettingsSection(
     colors: NaviampColors,
+    installedVersion: String,
     interfaceSettings: InterfaceSettings,
     playbackSettings: PlaybackSettings,
     cacheSettings: CacheSettings,
@@ -514,6 +531,12 @@ fun NaviampExperienceSettingsSection(
                     onInterfaceSettingsChanged = onInterfaceSettingsChanged,
                 )
             }
+            ExperienceSettingsPage.Updates -> UpdateNotificationSettings(
+                colors = colors,
+                installedVersion = installedVersion,
+                interfaceSettings = interfaceSettings,
+                onInterfaceSettingsChanged = onInterfaceSettingsChanged,
+            )
         }
     } ?: run {
         if (showQueueBehavior) {
@@ -624,14 +647,16 @@ fun NaviampExperienceSettingsSection(
                 },
             )
         }
-        SettingsCheckboxRow(
+        val updateChannel = interfaceSettings.applicationUpdateChannel
+            ?: defaultApplicationUpdateChannel(installedVersion)
+        SettingsRow(
+            title = ExperienceSettingsPage.Updates.title(),
+            subtitle = ExperienceSettingsPage.Updates.subtitle(),
             colors = colors,
-            checked = interfaceSettings.checkForUpdates,
-            label = "Check for Updates",
-            onCheckedChange = { enabled ->
-                onInterfaceSettingsChanged(interfaceSettings.copy(checkForUpdates = enabled))
-            },
-        )
+            value = if (interfaceSettings.checkForUpdates) updateChannel.label else "Off",
+        ) {
+            selectedSection = ExperienceSettingsPage.Updates
+        }
     }
 }
 
@@ -647,6 +672,7 @@ private enum class ExperienceSettingsPage(
     HomeScreen("Home Screen", "Choose how each Home section is presented"),
     KeyboardShortcuts("Keyboard Shortcuts", "Global Desktop playback and window shortcuts"),
     SwipeActions("Swipe Actions", "Track gestures by list type"),
+    Updates("Update Notifications", "Choose whether and which releases to announce"),
 }
 
 @Composable
@@ -660,6 +686,7 @@ private fun ExperienceSettingsPage.title(): String =
         ExperienceSettingsPage.HomeScreen -> "Home Screen"
         ExperienceSettingsPage.KeyboardShortcuts -> "Keyboard Shortcuts"
         ExperienceSettingsPage.SwipeActions -> "Swipe Actions"
+        ExperienceSettingsPage.Updates -> "Update Notifications"
     }
 
 @Composable
@@ -673,7 +700,68 @@ private fun ExperienceSettingsPage.subtitle(): String =
         ExperienceSettingsPage.HomeScreen -> "Choose List, Grid, or Carousel for each Home section"
         ExperienceSettingsPage.KeyboardShortcuts -> "Customize global Desktop shortcuts"
         ExperienceSettingsPage.SwipeActions -> "Choose gesture shortcuts; actions stay available in each track's More actions menu"
+        ExperienceSettingsPage.Updates -> "Choose whether Naviamp announces stable or beta releases"
     }
+
+private val ApplicationUpdateChannel.label: String
+    get() = when (this) {
+        ApplicationUpdateChannel.Stable -> "Stable"
+        ApplicationUpdateChannel.Beta -> "Beta"
+    }
+
+@Composable
+private fun UpdateNotificationSettings(
+    colors: NaviampColors,
+    installedVersion: String,
+    interfaceSettings: InterfaceSettings,
+    onInterfaceSettingsChanged: (InterfaceSettings) -> Unit,
+) {
+    SettingsCheckboxRow(
+        colors = colors,
+        checked = interfaceSettings.checkForUpdates,
+        label = "Notify me about updates",
+        subtitle = "Check once a day and show a message when a newer release is available.",
+        onCheckedChange = { enabled ->
+            onInterfaceSettingsChanged(interfaceSettings.copy(checkForUpdates = enabled))
+        },
+    )
+    if (interfaceSettings.checkForUpdates) {
+        val selectedChannel = interfaceSettings.applicationUpdateChannel
+            ?: defaultApplicationUpdateChannel(installedVersion)
+        Text(
+            "Release channel",
+            color = colors.primaryText,
+            fontSize = 14.sp,
+            fontWeight = FontWeight.SemiBold,
+            modifier = Modifier.padding(
+                start = SettingsRowHorizontalPadding,
+                end = SettingsRowHorizontalPadding,
+                top = 12.dp,
+                bottom = 4.dp,
+            ),
+        )
+        SelectableSettingsRow(
+            colors = colors,
+            title = ApplicationUpdateChannel.Stable.label,
+            subtitle = "Notify only when a finished public release is available.",
+            selected = selectedChannel == ApplicationUpdateChannel.Stable,
+        ) {
+            onInterfaceSettingsChanged(
+                interfaceSettings.copy(applicationUpdateChannel = ApplicationUpdateChannel.Stable),
+            )
+        }
+        SelectableSettingsRow(
+            colors = colors,
+            title = ApplicationUpdateChannel.Beta.label,
+            subtitle = "Notify about beta releases as well as finished public releases.",
+            selected = selectedChannel == ApplicationUpdateChannel.Beta,
+        ) {
+            onInterfaceSettingsChanged(
+                interfaceSettings.copy(applicationUpdateChannel = ApplicationUpdateChannel.Beta),
+            )
+        }
+    }
+}
 
 @Composable
 private fun AppBackgroundSettings(

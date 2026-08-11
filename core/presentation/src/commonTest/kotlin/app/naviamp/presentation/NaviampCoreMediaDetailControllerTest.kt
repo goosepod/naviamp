@@ -182,6 +182,27 @@ class NaviampCoreMediaDetailControllerTest {
     }
 
     @Test
+    fun interfaceChangesDoNotReopenAClosedCachedAlbumDetail() = runTest {
+        val provider = MediaDetailTestProvider()
+        val (store, controller) = controller(provider)
+
+        controller.execute(
+            NaviampCoreCommand.Media.ItemAction(
+                mediaItem("album-1", "Album").albumActionRequest(NaviampArtistAlbumCommand.Select),
+            ),
+        )
+        assertNotNull(store.state.value.shell.albumDetail.selectedAlbum)
+
+        controller.navigation.dispatch(NaviampCoreCommand.Navigation.BackFromAlbum)
+        assertNull(store.state.value.shell.albumDetail.selectedAlbum)
+
+        controller.media.interfaceSettingsChanged(InterfaceSettings(showAlbumInformation = false))
+
+        assertNull(store.state.value.shell.albumDetail.selectedAlbum)
+        assertNull(store.state.value.shell.albumDetail.detail)
+    }
+
+    @Test
     fun albumInformationEnrichesAnAlreadyVisibleAlbumAfterAProviderDelay() = runTest {
         val albumInfoGate = CompletableDeferred<Unit>()
         val provider = MediaDetailTestProvider(albumInfoGate = albumInfoGate)

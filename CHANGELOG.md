@@ -2,6 +2,38 @@
 
 Release changes are grouped into user-facing Features, Bug Fixes, and deployment or infrastructure-related System Settings. Internal task-tracking notes are intentionally not included.
 
+## v2.0.0-beta.4
+
+This fourth beta polishes shared navigation and Home interactions, adds selectable update channels, and completes portable settings synchronization for multi-library providers.
+
+### Features
+
+- Added a dedicated Update Notifications settings page with Stable and Beta release channels. Stable builds default to stable notifications, while prerelease builds default to beta notifications unless the user chooses otherwise.
+- Changed NAVIBEAT Mix cards to play immediately, with a card menu for shuffling or opening the mix details.
+- Kept page titles and detail back buttons visible while scrolling, and kept the Search field pinned with its title.
+
+### Bug Fixes
+
+- Right-aligned album and playlist track numbers in a fixed column so titles remain aligned after track 9.
+- Fixed Home collection List/Grid switches reopening the most recently viewed album or artist detail.
+- Fixed carousel arrows so partially visible cards snap fully into view, and refined NAVIBEAT and generated-station artwork sizing and alignment.
+- Standardized page refresh actions behind overflow menus and renamed the Home title from Music to Home, including the Spanish Inicio translation.
+- Fixed update discovery so beta releases are visible on the Beta channel and prerelease versions such as beta.2 and beta.3 compare correctly.
+- Preserved selected Bandcamp collections and Jellyfin music libraries when exporting and importing settings-sync files.
+
+### System Settings
+
+- Expanded settings-sync regression coverage to round-trip the complete shared interface and playback settings models while continuing to exclude credentials and device-local values.
+- Added shared navigation, carousel, media-row, update-version, server-library, and settings-sync regression coverage across Android, Desktop, and iOS compilation targets.
+
+### Beta Notes and Known Limitations
+
+- Feature development remains frozen for the 2.0 beta line. Only release blockers, regressions, acceptance coverage, diagnostics, packaging, documentation, and narrowly required compatibility fixes are accepted.
+- Back up important playlists and settings before testing this beta.
+- Android, macOS, Windows, and Linux are the supported beta targets. The iOS artifact remains an unsigned preview that testers must sign themselves; release signing, TestFlight, and physical-iPhone acceptance remain open before iOS can be treated as a supported RC target.
+- Bandcamp's Subsonic beta currently serves collection audio as MP3 256 kbps and does not reliably apply playlist track reordering; Naviamp blocks unsupported reorder mutations.
+- Windows and macOS packages are not yet distributed with trusted publisher signing, so their operating systems may display security warnings.
+
 ## v2.0.0-beta.3
 
 This third beta restores the selected waveform detail, corrects Desktop process identity, and modernizes release automation.

@@ -2,6 +2,7 @@ package app.naviamp.desktop
 
 import app.naviamp.domain.network.SharedHttpClient
 import app.naviamp.domain.network.SharedHttpResponse
+import app.naviamp.domain.settings.ApplicationUpdateChannel
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -12,7 +13,7 @@ class DesktopApplicationUpdateCheckerTest {
         val checker = desktopApplicationUpdateChecker(
             client = object : SharedHttpClient {
                 override suspend fun get(url: String, headers: Map<String, String>): String =
-                    """{"tag_name":"v9.0.0","name":"Naviamp 9","html_url":"https://example.test/v9"}"""
+                    """[{"tag_name":"v9.0.0","name":"Naviamp 9","html_url":"https://example.test/v9","draft":false,"prerelease":false}]"""
 
                 override suspend fun getBytes(url: String, headers: Map<String, String>): ByteArray? = null
 
@@ -29,7 +30,7 @@ class DesktopApplicationUpdateCheckerTest {
             },
         )
 
-        val update = checker.latestUpdate("v2.0.0-alpha")
+        val update = checker.latestUpdate("v2.0.0-alpha", ApplicationUpdateChannel.Beta)
 
         assertEquals("v9.0.0", update?.version)
         assertEquals("https://example.test/v9", update?.releaseUrl)

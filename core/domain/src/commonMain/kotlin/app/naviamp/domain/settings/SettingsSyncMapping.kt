@@ -99,6 +99,7 @@ fun SavedMediaSource.toSettingsSyncServerProfile(): SettingsSyncServerProfile =
                 valueIsSecret = header.valueIsSecret,
             )
         },
+        selectedMusicFolderIds = selectedMusicFolderIds,
     )
 
 fun SettingsSyncServerProfile.toConnectionFormState(
@@ -129,6 +130,7 @@ fun SettingsSyncServerProfile.toConnectionFormState(
                         valueIsSecret = header.valueIsSecret,
                     )
                 },
+                selectedMusicFolderIds = profile.selectedMusicFolderIds,
             )
         }
         ?: ConnectionFormState(password = password)
@@ -181,6 +183,7 @@ private fun SettingsSyncServerProfile.toProviderMediaSourceConnection(): Provide
                 valueIsSecret = it.valueIsSecret,
             )
         },
+        selectedMusicFolderIds = selectedMusicFolderIds,
     )
 
 private val SettingsSyncServerProfile.cacheNamespace: String

@@ -225,7 +225,7 @@ fun HomeContent.toSharedHomeUi(
                 subtitle = mix.statusLabel(date),
                 artwork = SharedHomeCollectionArtwork.NavibeatGenerated,
                 artworkKey = mix.metadata.kind,
-                action = SharedHomeCollectionItemAction.OpenPlaylist,
+                action = SharedHomeCollectionItemAction.PlayPlaylist,
             )
         })
         addSection(HomeSectionIds.RecentRadio, "RECENTLY PLAYED RADIO", recentRadioItems.map { item ->
@@ -289,6 +289,8 @@ fun HomeContent.toSharedHomeUi(
             SharedHomeCollectionItemUi(
                 mediaItem = SharedMediaItemUi(station.id, station.title, station.subtitle),
                 mediaKind = SharedMediaItemKind.RadioStation,
+                artwork = SharedHomeCollectionArtwork.StationGenerated,
+                artworkKey = station.id,
                 action = SharedHomeCollectionItemAction.SelectStation,
                 station = station,
             )

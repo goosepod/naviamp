@@ -37,10 +37,13 @@ class SettingsSyncDocumentTest {
                             value = " ursasmar ",
                         ),
                     ),
+                    selectedMusicFolderIds = listOf(" collection ", "music", "collection"),
                 ),
             ),
             preferences = SettingsSyncPreferences(
                 interfaceSettings = InterfaceSettings(
+                    checkForUpdates = true,
+                    applicationUpdateChannel = ApplicationUpdateChannel.Beta,
                     startPlayingOnLaunch = true,
                     showArtistInformation = false,
                     showAlbumInformation = false,
@@ -90,6 +93,8 @@ class SettingsSyncDocumentTest {
                     sampleRateConverter = SampleRateConverter.Sinc32,
                     sampleRateMatching = SampleRateMatching.Strict,
                     crossfadeDurationSeconds = 6,
+                    lyricsTimingPreference = LyricsTimingPreference.WordSynced,
+                    lyricsDisplayPreference = LyricsDisplayPreference.LineSynced,
                     radioDjs = listOf(RadioDjPreset(id = "dj", name = " Road DJ ")),
                 ),
                 visualizer = VisualizerSettings(selectedVisualizer = "Waveform"),
@@ -97,6 +102,7 @@ class SettingsSyncDocumentTest {
         )
 
         val decoded = SettingsSyncJson.decode(SettingsSyncJson.encode(document))
+        val expected = document.normalized()
         val profile = decoded.serverProfiles.single()
 
         assertEquals(CurrentSettingsSyncSchemaVersion, decoded.schemaVersion)
@@ -111,11 +117,14 @@ class SettingsSyncDocumentTest {
         assertEquals("/certs/navidrome.pem", profile.tls.customCertificatePath)
         assertEquals("X-Proxy-User", profile.customHeaders.single().name)
         assertEquals("ursasmar", profile.customHeaders.single().value)
+        assertEquals(listOf("collection", "music"), profile.selectedMusicFolderIds)
         assertEquals(ReplayGainMode.Album, decoded.preferences.playback.replayGainMode)
         assertEquals(SampleRateConverter.Sinc32, decoded.preferences.playback.sampleRateConverter)
         assertEquals(SampleRateMatching.Strict, decoded.preferences.playback.sampleRateMatching)
         assertEquals("Road DJ", decoded.preferences.playback.radioDjs.single().name)
         assertEquals("Waveform", decoded.preferences.visualizer.selectedVisualizer)
+        assertTrue(decoded.preferences.interfaceSettings.checkForUpdates)
+        assertEquals(ApplicationUpdateChannel.Beta, decoded.preferences.interfaceSettings.applicationUpdateChannel)
         assertTrue(decoded.preferences.interfaceSettings.startPlayingOnLaunch)
         assertEquals(
             HomeSectionPresentationSettings(HomeSectionLayout.Grid, HomeSectionPageLayout.List),
@@ -150,6 +159,10 @@ class SettingsSyncDocumentTest {
         assertEquals(TrackSwipeAction.GoToArtist, decoded.preferences.interfaceSettings.trackSwipes.relatedLeft)
         assertEquals(TrackSwipeAction.MoveDown, decoded.preferences.interfaceSettings.trackSwipes.playlistEditRight)
         assertEquals(TrackSwipeAction.MoveToBottom, decoded.preferences.interfaceSettings.trackSwipes.playlistEditLeft)
+        assertEquals(LyricsTimingPreference.WordSynced, decoded.preferences.playback.lyricsTimingPreference)
+        assertEquals(LyricsDisplayPreference.LineSynced, decoded.preferences.playback.lyricsDisplayPreference)
+        assertEquals(expected.preferences.interfaceSettings, decoded.preferences.interfaceSettings)
+        assertEquals(expected.preferences.playback, decoded.preferences.playback)
     }
 
     @Test

@@ -106,6 +106,7 @@ fun ColumnScope.NaviampProductRouteContent(
                     modifier = Modifier.fillMaxSize(),
                     verticalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
+                    NaviampPageTitle("Artist Mix", colors)
                     Column(
                         modifier = Modifier
                             .weight(1f)
@@ -116,6 +117,7 @@ fun ColumnScope.NaviampProductRouteContent(
                             builder = shellState.artistMixBuilder,
                             actions = shellActions.artistMixActions,
                             showPlayMixButton = false,
+                            showTitle = false,
                         )
                     }
                     if (shellState.artistMixBuilder.selectedArtists.isNotEmpty()) {
@@ -135,6 +137,7 @@ fun ColumnScope.NaviampProductRouteContent(
                     modifier = Modifier.fillMaxSize(),
                     verticalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
+                    NaviampPageTitle("Album Mix", colors)
                     Column(
                         modifier = Modifier
                             .weight(1f)
@@ -145,6 +148,7 @@ fun ColumnScope.NaviampProductRouteContent(
                             builder = shellState.albumMixBuilder,
                             actions = shellActions.albumMixActions,
                             showPlayMixButton = false,
+                            showTitle = false,
                         )
                     }
                     if (shellState.albumMixBuilder.selectedAlbums.isNotEmpty()) {
@@ -164,6 +168,7 @@ fun ColumnScope.NaviampProductRouteContent(
                     modifier = Modifier.fillMaxSize(),
                     verticalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
+                    NaviampPageTitle("Genre Mix", colors)
                     Column(
                         modifier = Modifier
                             .weight(1f)
@@ -174,6 +179,7 @@ fun ColumnScope.NaviampProductRouteContent(
                             builder = shellState.genreMixBuilder,
                             actions = shellActions.genreMixActions,
                             showPlayMixButton = false,
+                            showTitle = false,
                         )
                     }
                     if (shellState.genreMixBuilder.selectedGenres.isNotEmpty()) {
@@ -193,6 +199,7 @@ fun ColumnScope.NaviampProductRouteContent(
                     modifier = Modifier.fillMaxSize(),
                     verticalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
+                    NaviampPageTitle("Sonic Path", colors)
                     Column(
                         modifier = Modifier
                             .weight(1f)
@@ -203,6 +210,7 @@ fun ColumnScope.NaviampProductRouteContent(
                             builder = shellState.sonicPathBuilder,
                             actions = shellActions.sonicPathActions,
                             showPathActions = false,
+                            showTitle = false,
                         )
                     }
                     if (shellState.sonicPathBuilder.hasPath) {
@@ -239,6 +247,7 @@ fun ColumnScope.NaviampProductRouteContent(
                     modifier = Modifier.fillMaxSize(),
                     verticalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
+                    NaviampPageTitle("Sonic Mix", colors)
                     Column(
                         modifier = Modifier
                             .weight(1f)
@@ -249,6 +258,7 @@ fun ColumnScope.NaviampProductRouteContent(
                             builder = shellState.sonicMixBuilder,
                             actions = shellActions.sonicMixActions,
                             showMixActions = false,
+                            showTitle = false,
                         )
                     }
                     if (shellState.sonicMixBuilder.hasMix) {
@@ -325,24 +335,4 @@ fun ColumnScope.NaviampProductRouteContent(
     }
 }
 
-internal fun naviampProductRouteUsesOuterVerticalScroll(route: NaviampRoute): Boolean =
-    when (route) {
-        NaviampRoute.Search,
-        NaviampRoute.Playlists,
-        NaviampRoute.Radio,
-        NaviampRoute.Settings,
-        -> true
-        NaviampRoute.Player,
-        NaviampRoute.Home,
-        NaviampRoute.Library,
-        NaviampRoute.ArtistMix,
-        NaviampRoute.AlbumMix,
-        NaviampRoute.GenreMix,
-        NaviampRoute.SonicPath,
-        NaviampRoute.SonicMix,
-        NaviampRoute.Downloads,
-        NaviampRoute.AlbumDetail,
-        NaviampRoute.ArtistDetail,
-        NaviampRoute.PlaylistDetail,
-        -> false
-    }
+internal fun naviampProductRouteUsesOuterVerticalScroll(route: NaviampRoute): Boolean = false
