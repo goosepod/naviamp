@@ -2,6 +2,12 @@
 
 Release changes are grouped into user-facing Features, Bug Fixes, and deployment or infrastructure-related System Settings. Internal task-tracking notes are intentionally not included.
 
+## Unreleased
+
+### System Settings
+
+- Disabled unsupported Kotlin/Native KLIB cross-compilation in Android, Windows, and Linux release jobs so Apple C-interop warnings are not emitted while building unrelated artifacts; macOS retains the complete iOS interop build path.
+
 ## v2.0.0-beta.4
 
 This fourth beta polishes shared navigation and Home interactions, adds selectable update channels, and completes portable settings synchronization for multi-library providers.

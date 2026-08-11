@@ -8,13 +8,26 @@ Ideas discovered during the migration that should not interrupt the active check
 
 - **Target release:** `2.0.0`
 - **Current development version:** `v2.0.0-beta.4` (build 43), shown in About and package metadata on every host.
-- **Working branch:** `release/v2.0.0-beta.4`
+- **Working branch:** `release/v2.0.0`
 - **Beta platforms:** Android, macOS, Windows, and Linux. iOS remains an unsigned preview during beta stabilization.
-- **Status:** Feature freeze began on August 9, 2026. Desktop, Android, and iOS mount the same Core product, BASS engine, and portable storage owners; stabilization now focuses on acceptance, regressions, packaging, documentation, and release automation rather than new product scope.
+- **Status:** Beta 4 is the v2.0.0 release-candidate soak build. Feature freeze began on August 9, 2026; stabilization now focuses on multi-machine acceptance, release blockers, packaging, documentation, and final release automation rather than new product scope.
 - **Release policy:** Feature development for both the v1 maintenance line and the v2 beta line is frozen. V1 accepts bug fixes only. V2 accepts release blockers, regressions, acceptance coverage, diagnostics, packaging, documentation, and narrowly required compatibility fixes.
 - **Versioning rule:** Keep stabilization builds on explicit `v2.0.0-beta.*` or `v2.0.0-rc.*` prerelease labels. Do not change `VERSION` to final `v2.0.0` until the release-preparation milestone is complete.
 - **Primary objective:** One shared Naviamp application, UI, and behavior hosted by thin Android, Desktop, and iOS applications.
 - **Playback objective:** All three platforms use the shared Core BASS engine. iOS supplies a direct Kotlin/Native ABI adapter; the temporary AVPlayer path was not promoted and has been removed.
+
+### v2.0.0 Release-Preparation Acceptance
+
+Use the published Beta 4 artifacts for the multi-day soak. Record failures with the operating system, package type, upgrade source, provider, media format, and whether the failure reproduces after a cold relaunch.
+
+- [ ] Android: install or upgrade the signed APK; test connection restoration, browsing/search, queue and radio playback, background controls, downloads, offline playback, settings sync, and a short screen-on/screen-off performance pass.
+- [ ] macOS: install or replace the DMG app; test cold restoration, all configured providers, queue/navigation, lyrics and waveforms, downloads/offline playback, update notification channels, settings sync, and idle/active resource behavior.
+- [ ] Windows: test MSI and EXE installation plus upgrade from an existing v1 or v2 prerelease; verify process identity, connection/login, playback/scrubbing, downloads/offline playback, secure credentials, update discovery, and uninstall behavior.
+- [ ] Linux: test DEB and RPM installation or upgrade where available; verify secure credential storage, connection/login, playback/scrubbing, downloads/offline playback, update discovery, and uninstall behavior.
+- [ ] Providers: complete at least one focused Navidrome, generic Subsonic, Jellyfin, and Bandcamp pass, including selected-library restoration and provider-capability-specific actions.
+- [ ] Portability: export settings on one platform and import or sync them on another; verify provider types, selected music libraries, update channel, Home layouts, lyrics preferences, and other shared settings without transferring credentials or device-local paths.
+- [ ] Packaging: verify every filename and installed About screen reports `v2.0.0-beta.4`, and preserve screenshots or notes for any installer warning or upgrade refusal.
+- [ ] Triage every discovered issue as a final-release blocker, explicit deferral, or post-v2 follow-up before changing `VERSION` to `v2.0.0`.
 
 ### Feature Freeze Policy
 
@@ -572,7 +585,7 @@ Use this table to track contract and implementation coverage. Add rows when new 
 Before starting work on any computer:
 
 1. Fetch `origin`.
-2. Check out `release/v2.0.0-beta.4`.
+2. Check out `release/v2.0.0`.
 3. Pull with fast-forward only.
 4. Read this document and choose the first unchecked item whose prerequisites are complete.
 5. Confirm the worktree is clean and inspect recent commits before editing.

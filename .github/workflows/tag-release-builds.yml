@@ -64,7 +64,7 @@ jobs:
           NAVIAMP_ANDROID_KEY_PASSWORD: ${{ secrets.NAVIAMP_ANDROID_KEY_PASSWORD }}
         run: |
           scripts/require-android-signing.sh
-          ./gradlew :apps:android:stageReleaseApk
+          ./gradlew -Pkotlin.native.enableKlibsCrossCompilation=false :apps:android:stageReleaseApk
 
       - name: Upload Android APK artifact
         uses: actions/upload-artifact@v7
@@ -99,7 +99,7 @@ jobs:
         shell: powershell
         env:
           CMAKE_EXE: cmake
-        run: .\gradlew.bat "-Pnaviamp.bass.platform=windows-x64" :apps:desktop:stageReleaseArtifacts
+        run: .\gradlew.bat "-Pkotlin.native.enableKlibsCrossCompilation=false" "-Pnaviamp.bass.platform=windows-x64" :apps:desktop:stageReleaseArtifacts
 
       - name: List Windows release outputs
         shell: powershell
@@ -157,7 +157,7 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y fakeroot rpm libsecret-tools
 
       - name: Build Linux standalone zip and installers
-        run: ./gradlew -Pnaviamp.bass.platform=linux-x64 :apps:desktop:stageReleaseArtifacts
+        run: ./gradlew -Pkotlin.native.enableKlibsCrossCompilation=false -Pnaviamp.bass.platform=linux-x64 :apps:desktop:stageReleaseArtifacts
 
       - name: Upload Linux artifacts
         uses: actions/upload-artifact@v7
