@@ -42,6 +42,7 @@ class NaviampCoreDownloadsControllerTest {
         val screen = fixture.store.state.value.shell.downloads
 
         assertEquals(listOf("file-one", "file-two"), screen.downloads.map { it.id })
+        assertEquals("OPUS · 128 kbps", screen.downloads.first().qualityLabel)
         assertEquals(3_000L, screen.downloadBytes)
         assertEquals(4L, screen.offlineDashboard.audioCacheCount)
         assertEquals(8_000L, screen.offlineDashboard.audioCacheBytes)
@@ -237,7 +238,7 @@ private data class DownloadsFixture(
 
 private class DownloadsTestStorage : NaviampCoreDownloadStoragePort {
     val downloads = mutableListOf(
-        NaviampCoreDownloadedTrack("file-one", downloadTrack("one"), 1_000, "FLAC"),
+        NaviampCoreDownloadedTrack("file-one", downloadTrack("one"), 1_000, "transcoded:opus:128"),
         NaviampCoreDownloadedTrack("file-two", downloadTrack("two"), 2_000, "MP3"),
     )
     val removed = mutableListOf<String>()

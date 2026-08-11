@@ -1,6 +1,7 @@
 package app.naviamp.presentation
 
 import app.naviamp.domain.playback.PlaybackEngine
+import app.naviamp.domain.playback.DownloadFallbackAwarePlaybackEngine
 import app.naviamp.domain.playback.PlaybackProgress
 import app.naviamp.domain.playback.PlaybackRequest
 import app.naviamp.domain.playback.PlaybackState
@@ -88,6 +89,15 @@ class NaviampCorePlaybackEngineAdapterTest {
             activeSourceId = { "source" },
             audioAssets = audioAssets,
         )
+        val sourceEvents = mutableListOf<Pair<PlaybackSource, StreamQuality?>>()
+        adapter.attach(object : NaviampCorePlaybackObserver {
+            override fun onStateChanged(state: PlaybackState) = Unit
+            override fun onProgressChanged(progress: PlaybackProgress) = Unit
+            override fun onMetadataChanged(metadata: PlaybackStreamMetadata) = Unit
+            override fun onSourceChanged(source: PlaybackSource, quality: StreamQuality?) {
+                sourceEvents += source to quality
+            }
+        })
         val next = provider.track.copy(id = TrackId("next"), title = "Next")
 
         adapter.playQueueSelection(PlaybackQueue(listOf(provider.track, next), 0), 0)
@@ -97,6 +107,61 @@ class NaviampCorePlaybackEngineAdapterTest {
         assertEquals("file:///downloads/next.ogg", engine.preparedRequest?.url)
         assertEquals(PlaybackSource.DownloadedFile, adapter.playbackSource)
         assertEquals(downloadedQuality, adapter.playbackQuality)
+        val expectedSourceEvents: List<Pair<PlaybackSource, StreamQuality?>> =
+            listOf(PlaybackSource.DownloadedFile to downloadedQuality)
+        assertEquals(expectedSourceEvents, sourceEvents)
+    }
+
+    @Test
+    fun serverPreferredPlaybackPublishesDownloadedQualityWhenEngineUsesFallback() = runTest {
+        val provider = FakeCoreMediaProvider()
+        val engine = RecordingPlaybackEngine()
+        val downloadedQuality = StreamQuality.Transcoded(AudioCodec.Opus, 128)
+        val audioAssets = object : PlaybackAudioAssetRepository {
+            override suspend fun downloadedAudio(sourceId: String, trackId: TrackId) =
+                PlaybackLocalAudio(
+                    path = "/downloads/${trackId.value}.ogg",
+                    uri = "file:///downloads/${trackId.value}.ogg",
+                    quality = downloadedQuality,
+                )
+
+            override suspend fun downloadedAudio(sourceId: String, trackId: TrackId, quality: StreamQuality) =
+                downloadedAudio(sourceId, trackId)
+
+            override suspend fun cachedAudio(sourceId: String, trackId: TrackId, quality: StreamQuality) = null
+        }
+        val adapter = NaviampCorePlaybackEngineAdapter(
+            scope = this,
+            engine = engine,
+            providerSource = NaviampCoreMediaProviderSource { provider },
+            settings = {
+                PlaybackSettings(downloadedTrackPlayback = DownloadedTrackPlayback.PreferServer)
+            },
+            activeSourceId = { "source" },
+            audioAssets = audioAssets,
+        )
+        val sourceEvents = mutableListOf<Pair<PlaybackSource, StreamQuality?>>()
+        adapter.attach(object : NaviampCorePlaybackObserver {
+            override fun onStateChanged(state: PlaybackState) = Unit
+            override fun onProgressChanged(progress: PlaybackProgress) = Unit
+            override fun onMetadataChanged(metadata: PlaybackStreamMetadata) = Unit
+            override fun onSourceChanged(source: PlaybackSource, quality: StreamQuality?) {
+                sourceEvents += source to quality
+            }
+        })
+
+        adapter.playQueueSelection(PlaybackQueue(listOf(provider.track), 0), 0)
+        advanceUntilIdle()
+        assertEquals(StreamQuality.Original, adapter.playbackQuality)
+
+        engine.emitDownloadFallback()
+
+        assertEquals(PlaybackSource.DownloadedFile, adapter.playbackSource)
+        assertEquals(downloadedQuality, adapter.playbackQuality)
+        assertEquals(
+            PlaybackSource.DownloadedFile to downloadedQuality,
+            sourceEvents.last(),
+        )
     }
 
     @Test
@@ -744,7 +809,8 @@ private class RecordingPlaybackEngine :
     PlaybackEngine,
     QueueAwarePlaybackEngine,
     VisualizerPlaybackEngine,
-    NetworkCertificateVerificationPlaybackEngine {
+    NetworkCertificateVerificationPlaybackEngine,
+    DownloadFallbackAwarePlaybackEngine {
     override val name = "Recording"
     override val supportsPause = true
     override val supportsSeek = true
@@ -759,6 +825,7 @@ private class RecordingPlaybackEngine :
     var appliedVolume = -1
     var emittedProgress = PlaybackProgress(12.0, 180.0)
     private var progressCallback: ((PlaybackProgress) -> Unit)? = null
+    private var downloadFallbackListener: (() -> Unit)? = null
     var visualizerReads = 0
     var recordCertificatePolicy = false
     val events = mutableListOf<String>()
@@ -786,6 +853,9 @@ private class RecordingPlaybackEngine :
     override fun setNetworkCertificateVerification(enabled: Boolean) {
         if (recordCertificatePolicy) events += "verify:$enabled"
     }
+    override fun setDownloadFallbackListener(listener: (() -> Unit)?) {
+        downloadFallbackListener = listener
+    }
     override fun visualizerFrame(): PlaybackVisualizerFrame {
         visualizerReads += 1
         return PlaybackVisualizerFrame(listOf(0.5f), 1L)
@@ -802,5 +872,9 @@ private class RecordingPlaybackEngine :
 
     fun emitProgress(progress: PlaybackProgress) {
         progressCallback?.invoke(progress)
+    }
+
+    fun emitDownloadFallback() {
+        downloadFallbackListener?.invoke()
     }
 }

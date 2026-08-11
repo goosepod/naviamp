@@ -36,6 +36,18 @@ class NaviampLivePlaybackControllerTest {
         controller.updateCurrentTrack(track("new"))
 
         assertEquals(PlaybackProgress.Unknown, controller.state.value.progress)
+        assertEquals(PlaybackProgress.Unknown, controller.progress.value)
+    }
+
+    @Test
+    fun progressHasADedicatedObservableState() {
+        val controller = NaviampLivePlaybackController()
+        val progress = PlaybackProgress(positionSeconds = 12.0, durationSeconds = 180.0)
+
+        controller.updateProgress(progress)
+
+        assertEquals(progress, controller.progress.value)
+        assertEquals(progress, controller.state.value.progress)
     }
 
     @Test
@@ -75,6 +87,7 @@ class NaviampLivePlaybackControllerTest {
         controller.replace(restored)
 
         assertEquals(restored, controller.state.value)
+        assertEquals(restored.progress, controller.progress.value)
     }
 
     @Test

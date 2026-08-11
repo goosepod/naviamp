@@ -1,6 +1,7 @@
 package app.naviamp.presentation
 
 import app.naviamp.domain.playback.AudioOutputDevicePlaybackEngine
+import app.naviamp.domain.playback.DownloadFallbackAwarePlaybackEngine
 import app.naviamp.domain.playback.AudioPrefetchCompletionLedger
 import app.naviamp.domain.playback.DefaultVisualizerFrameIntervalMillis
 import app.naviamp.domain.playback.EqualizerPlaybackEngine
@@ -185,10 +186,10 @@ class NaviampCorePlaybackEngineAdapter(
         cancelAudioPrefetch()
         clearAudioPrefetchCompletions()
         (engine as? QueueAwarePlaybackEngine)?.clearPreparedNext()
+        (engine as? DownloadFallbackAwarePlaybackEngine)?.setDownloadFallbackListener(null)
         engine.stop()
         playbackState = PlaybackState.Stopped
-        playbackSource = PlaybackSource.Unknown
-        playbackQuality = null
+        publishPlaybackSource(PlaybackSource.Unknown, null)
     }
 
     override fun applyQueue(queue: PlaybackQueue, clearPreparedNext: Boolean) {
@@ -339,11 +340,9 @@ class NaviampCorePlaybackEngineAdapter(
             }
             if (requestGeneration != generation) return@launch
             if (audioSource == null) {
-                playbackSource = PlaybackSource.ProviderStream
-                playbackQuality = null
+                publishPlaybackSource(PlaybackSource.ProviderStream, null)
             } else {
-                playbackSource = audioSource.source
-                playbackQuality = audioSource.effectiveQuality
+                publishPlaybackSource(audioSource.source, audioSource.effectiveQuality)
             }
 
             val request = if (externalStreamUrl != null) {
@@ -371,6 +370,18 @@ class NaviampCorePlaybackEngineAdapter(
                     enabled = externalStreamUrl != null || verifyProviderNetworkCertificates(),
                 )
             observedTransitionSettings = playbackSettings.transitionSettings()
+            (engine as? DownloadFallbackAwarePlaybackEngine)?.setDownloadFallbackListener(
+                audioSource?.fallbackLocalAudio?.let { fallback ->
+                    {
+                        if (requestGeneration == generation) {
+                            publishPlaybackSource(
+                                PlaybackSource.DownloadedFile,
+                                fallback.quality ?: quality,
+                            )
+                        }
+                    }
+                },
+            )
             engine.play(
                 scope = scope,
                 request = request,
@@ -411,6 +422,12 @@ class NaviampCorePlaybackEngineAdapter(
                 },
             )
         }
+    }
+
+    private fun publishPlaybackSource(source: PlaybackSource, quality: StreamQuality?) {
+        playbackSource = source
+        playbackQuality = quality
+        observer?.onSourceChanged(source, quality)
     }
 
     private fun startAudioPrefetch(

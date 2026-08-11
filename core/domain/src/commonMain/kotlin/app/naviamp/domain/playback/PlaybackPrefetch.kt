@@ -122,6 +122,7 @@ fun <Provider> planAudioPrefetchWork(
     completedSidecars: AudioPrefetchCompletionLedger? = null,
     sidecarDepth: Int = DefaultAudioSidecarPrefetchDepth,
     includeCurrentTrack: Boolean = false,
+    maximumItemsPerRun: Int = DefaultAudioPrefetchBatchSize,
 ): AudioPrefetchWork<Provider>? {
     val stats = initialAudioPrefetchStats(
         enabled = enabled,
@@ -151,7 +152,7 @@ fun <Provider> planAudioPrefetchWork(
                 prepareSidecars = prepareSidecars,
             )
         }
-    }
+    }.take(maximumItemsPerRun.coerceAtLeast(0))
     if (items.isEmpty()) return null
     return AudioPrefetchWork(
         sourceId = activeSourceId,
@@ -218,7 +219,7 @@ suspend fun <CachedAudio> runAudioPrefetch(
     return currentStats
 }
 
-const val DefaultAudioPrefetchDepth = 10
+const val DefaultAudioPrefetchBatchSize = 2
 const val MaxAudioPrefetchDepth = 25
 const val DefaultAudioSidecarPrefetchDepth = 1
 const val DefaultAudioPrefetchCompletionCapacity = 64

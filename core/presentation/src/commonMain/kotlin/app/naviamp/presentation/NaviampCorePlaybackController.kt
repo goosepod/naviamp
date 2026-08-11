@@ -12,6 +12,8 @@ import app.naviamp.app.NaviampPlaybackQueueCoordinator
 import app.naviamp.app.NaviampPlaybackRepeatCommandController
 import app.naviamp.app.NaviampPlaybackSeekRequest
 import app.naviamp.domain.playback.PlaybackQueueNavigationCommand
+import app.naviamp.domain.playback.PlaybackQueueFinishedCommand
+import app.naviamp.domain.playback.PlaybackSource
 import app.naviamp.domain.playback.SleepTimerRequest
 import app.naviamp.domain.playback.sleepTimerSelection
 import app.naviamp.domain.playback.PlaybackQueueSelectionUpdate
@@ -20,6 +22,7 @@ import app.naviamp.domain.playback.PlaybackProgress
 import app.naviamp.domain.playback.PlaybackStreamMetadata
 import app.naviamp.domain.playback.PlaybackVisualizerFrame
 import app.naviamp.domain.isInternetRadioTrack
+import app.naviamp.domain.StreamQuality
 import app.naviamp.domain.settings.streamQualityForNetwork
 import app.naviamp.domain.settings.PlaybackSessionRestorePlan
 import app.naviamp.domain.settings.PlaybackSessionSavePlan
@@ -122,11 +125,14 @@ class NaviampCorePlaybackController(
                 persistSession(force = state == PlaybackState.Paused || state == PlaybackState.Stopped)
                 if (state == PlaybackState.Playing) loadCurrentTrackSidecars()
                 if (state == PlaybackState.Finished && !repeatedFinished) {
-                    val command = queue.nextCommand()
-                    if (command == PlaybackQueueNavigationCommand.None) {
-                        startSonicAutoplayContinuation()
-                    } else {
-                        navigate(command, automatic = true)
+                    val finished = queue.finishCurrentTrack()
+                    when (finished.command) {
+                        PlaybackQueueFinishedCommand.ReplayCurrent -> effects.replayCurrent(0.0)
+                        PlaybackQueueFinishedCommand.PlayNext -> {
+                            playback.updateCurrentTrack(finished.queue.current)
+                            effects.applyAutomaticNavigation(PlaybackQueueNavigationCommand.Next)
+                        }
+                        PlaybackQueueFinishedCommand.None -> startSonicAutoplayContinuation()
                     }
                 }
                 presenter.publish(display)
@@ -136,7 +142,6 @@ class NaviampCorePlaybackController(
                 playback.updateProgress(progress)
                 reportPlayback(playback.state.value.playbackState, progress)
                 persistSession(force = false)
-                presenter.publish(display)
             }
 
             override fun onMetadataChanged(metadata: PlaybackStreamMetadata) {
@@ -148,6 +153,10 @@ class NaviampCorePlaybackController(
                         presenter.publish(display)
                     }
                 }
+            }
+
+            override fun onSourceChanged(source: PlaybackSource, quality: StreamQuality?) {
+                presenter.publish(display)
             }
 
             override fun onVisualizerFrameChanged(frame: PlaybackVisualizerFrame?) {

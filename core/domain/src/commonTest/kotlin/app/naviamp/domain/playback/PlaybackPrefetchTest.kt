@@ -82,6 +82,31 @@ class PlaybackPrefetchTest {
     }
 
     @Test
+    fun planBoundsEachPrefetchRunWhileRetainingTheConfiguredHorizon() {
+        val work = planAudioPrefetchWork(
+            sourceId = "server",
+            provider = "provider",
+            quality = StreamQuality.Original,
+            queue = PlaybackQueue(
+                tracks = listOf(
+                    prefetchTrack("current"),
+                    prefetchTrack("next-1"),
+                    prefetchTrack("next-2"),
+                    prefetchTrack("next-3"),
+                    prefetchTrack("next-4"),
+                ),
+                currentIndex = 0,
+            ),
+            enabled = true,
+            configuredDepth = 4,
+        )
+
+        requireNotNull(work)
+        assertEquals(4, work.stats.configuredDepth)
+        assertEquals(listOf("next-1", "next-2"), work.tracks.map { it.id.value })
+    }
+
+    @Test
     fun incrementalPlanOnlyCachesNewHorizonTracksAndLimitsSidecarsToNext() {
         val completedAudio = AudioPrefetchCompletionLedger()
         val completedSidecars = AudioPrefetchCompletionLedger()

@@ -6,6 +6,9 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
@@ -38,12 +41,12 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Slider
-import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.State
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -67,6 +70,11 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.ui.input.pointer.isSecondaryPressed
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.ProgressBarRangeInfo
+import androidx.compose.ui.semantics.progressBarRangeInfo
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.setProgress
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
@@ -77,17 +85,20 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.DpOffset
+import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.naviamp.domain.waveform.playbackFraction
 import app.naviamp.domain.waveform.cleanWaveformAmplitudes
 import app.naviamp.domain.waveform.seekSecondsForFraction
 import app.naviamp.domain.lyrics.LyricsTiming
+import app.naviamp.domain.playback.PlaybackProgress
 import app.naviamp.domain.playback.SleepTimerRequest
 import app.naviamp.domain.settings.LyricsDisplayPreference
 import app.naviamp.domain.settings.NowPlayingDisplaySettings
 import app.naviamp.domain.settings.TrackSwipeAction
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.StateFlow
 import org.jetbrains.compose.resources.stringResource
 import app.naviamp.ui.generated.resources.Res
 import app.naviamp.ui.generated.resources.lyrics_display_text
@@ -233,6 +244,7 @@ data class NaviampNowPlayingActions(
 @Composable
 fun NaviampNowPlayingPanel(
     nowPlaying: NowPlayingUi,
+    playbackProgress: StateFlow<PlaybackProgress>? = null,
     colors: NaviampColors,
     actions: NaviampNowPlayingActions,
     displaySettings: NowPlayingDisplaySettings = NowPlayingDisplaySettings(),
@@ -303,6 +315,7 @@ fun NaviampNowPlayingPanel(
                 ) {
                     NowPlayingArtSurface(
                         nowPlaying = if (nowPlaying.visualizerVisible) nowPlaying else progressStableNowPlaying,
+                        playbackProgress = playbackProgress,
                         coverArtUrl = nowPlaying.coverArtUrl,
                         colors = colors,
                         size = artSize,
@@ -319,6 +332,7 @@ fun NaviampNowPlayingPanel(
                     )
                     NowPlayingDetails(
                         nowPlaying = nowPlaying,
+                        playbackProgress = playbackProgress,
                         colors = colors,
                         playerColors = visualizerColors,
                         actions = actions,
@@ -337,6 +351,7 @@ fun NaviampNowPlayingPanel(
                 }
                 NowPlayingSidePanel(
                     nowPlaying = if (nowPlaying.lyricsVisible) nowPlaying else progressStableNowPlaying,
+                    playbackProgress = playbackProgress,
                     colors = colors,
                     selectedTab = selectedTab,
                     onTabSelected = { selectedTab = it },
@@ -391,6 +406,7 @@ fun NaviampNowPlayingPanel(
                             ) {
                                 LyricsPanel(
                                     nowPlaying = nowPlaying,
+                                    playbackProgress = playbackProgress,
                                     colors = colors,
                                     onSeek = actions::seek,
                                     onOffsetChanged = actions::changeLyricsOffset,
@@ -403,6 +419,7 @@ fun NaviampNowPlayingPanel(
                         } else {
                             NowPlayingArtSurface(
                                 nowPlaying = if (nowPlaying.visualizerVisible) nowPlaying else progressStableNowPlaying,
+                                playbackProgress = playbackProgress,
                                 coverArtUrl = nowPlaying.coverArtUrl,
                                 colors = colors,
                                 size = artSize,
@@ -420,6 +437,7 @@ fun NaviampNowPlayingPanel(
                         }
                         NowPlayingDetails(
                             nowPlaying = nowPlaying,
+                            playbackProgress = playbackProgress,
                             colors = colors,
                             playerColors = visualizerColors,
                             actions = actions,
@@ -446,6 +464,7 @@ fun NaviampNowPlayingPanel(
                         if (nowPlaying.lyricsVisible && !showStationList) {
                             LyricsPanel(
                                 nowPlaying = nowPlaying,
+                                playbackProgress = playbackProgress,
                             colors = colors,
                             onSeek = actions::seek,
                             onOffsetChanged = actions::changeLyricsOffset,
@@ -457,6 +476,7 @@ fun NaviampNowPlayingPanel(
                         } else {
                             NowPlayingArtSurface(
                                 nowPlaying = if (nowPlaying.visualizerVisible) nowPlaying else progressStableNowPlaying,
+                                playbackProgress = playbackProgress,
                                 coverArtUrl = nowPlaying.coverArtUrl,
                                 colors = colors,
                                 size = artSize,
@@ -475,6 +495,7 @@ fun NaviampNowPlayingPanel(
                     }
                     NowPlayingDetails(
                         nowPlaying = nowPlaying,
+                        playbackProgress = playbackProgress,
                         colors = colors,
                         playerColors = visualizerColors,
                         actions = actions,
@@ -492,6 +513,7 @@ fun NaviampNowPlayingPanel(
                 }
                 NowPlayingSidePanel(
                     nowPlaying = progressStableNowPlaying,
+                    playbackProgress = playbackProgress,
                     colors = colors,
                     selectedTab = selectedTab,
                     onTabSelected = { selectedTab = it },
@@ -575,6 +597,7 @@ private fun rememberProgressStableNowPlaying(nowPlaying: NowPlayingUi): NowPlayi
 @Composable
 private fun NowPlayingArtSurface(
     nowPlaying: NowPlayingUi,
+    playbackProgress: StateFlow<PlaybackProgress>?,
     coverArtUrl: String?,
     colors: NaviampColors,
     size: Dp,
@@ -594,6 +617,11 @@ private fun NowPlayingArtSurface(
     var visualizerMenuExpanded by remember { mutableStateOf(false) }
 
     if (visualizerVisible && visualizerAvailable) {
+        val progress = currentPlaybackProgress(nowPlaying, playbackProgress)
+        val progressNowPlaying = nowPlaying.copy(
+            positionSeconds = progress.positionSeconds ?: nowPlaying.positionSeconds,
+            durationSeconds = nowPlaying.durationSeconds ?: progress.durationSeconds,
+        )
         Box(
             contentAlignment = Alignment.Center,
             modifier = Modifier
@@ -610,7 +638,7 @@ private fun NowPlayingArtSurface(
                 active = visualizerActive,
                 tempoBpm = tempoBpm,
                 colors = colors,
-                lyricStage = nowPlaying.currentLyricMirrorTunnelStage(),
+                lyricStage = progressNowPlaying.currentLyricMirrorTunnelStage(),
                 modifier = Modifier
                     .fillMaxSize(),
             )
@@ -664,6 +692,7 @@ private fun VisualizerDropdownMenuItems(
 @Composable
 private fun NowPlayingDetails(
     nowPlaying: NowPlayingUi,
+    playbackProgress: StateFlow<PlaybackProgress>?,
     colors: NaviampColors,
     playerColors: NaviampPlayerColors,
     actions: NaviampNowPlayingActions,
@@ -683,8 +712,6 @@ private fun NowPlayingDetails(
     var trackDetailsOpen by remember { mutableStateOf(false) }
     var sleepTimerDialogOpen by remember { mutableStateOf(false) }
     var emptyQueueDialogOpen by remember { mutableStateOf(false) }
-    var scrubberValue by remember(nowPlaying.id) { mutableFloatStateOf(nowPlaying.progressFraction.toFloat()) }
-    var isScrubbing by remember { mutableStateOf(false) }
     var volumeValue by remember { mutableFloatStateOf(nowPlaying.volumePercent.coerceIn(0, 100) / 100f) }
     var isChangingVolume by remember { mutableStateOf(false) }
     val canSeek = nowPlaying.canSeek && nowPlaying.durationSeconds != null && !nowPlaying.isLive
@@ -720,11 +747,6 @@ private fun NowPlayingDetails(
     val prominentTransportButtonSize = if (useLargeSizing) 56.dp else 44.dp
     val prominentTransportIconSize = if (useLargeSizing) 30.dp else 24.dp
 
-    LaunchedEffect(nowPlaying.progressFraction) {
-        if (!isScrubbing) {
-            scrubberValue = nowPlaying.progressFraction.toFloat()
-        }
-    }
     LaunchedEffect(nowPlaying.volumePercent) {
         if (!isChangingVolume) {
             volumeValue = nowPlaying.volumePercent.coerceIn(0, 100) / 100f
@@ -746,60 +768,16 @@ private fun NowPlayingDetails(
             },
         ),
     ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(6.dp),
-            modifier = Modifier.fillMaxWidth(),
-        ) {
-            Text(
-                if (nowPlaying.isLive) "LIVE" else secondsLabel(nowPlaying.positionSeconds),
-                color = colors.primaryText,
-                fontSize = scrubberTimeFontSize,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.width(scrubberTimeWidth),
-            )
-            if (nowPlaying.isLive) {
-                Box(
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(22.dp),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(2.dp)
-                            .background(controlColors.accent.copy(alpha = 0.7f)),
-                    )
-                }
-            } else {
-                WaveformScrubber(
-                    amplitudes = nowPlaying.waveform?.amplitudes.orEmpty(),
-                    value = scrubberValue.coerceIn(0f, 1f),
-                    enabled = canSeek,
-                    colors = controlColors,
-                    onValueChange = {
-                        isScrubbing = true
-                        scrubberValue = it
-                    },
-                    onValueChangeFinished = { seekFraction ->
-                        scrubberValue = seekFraction
-                        seekSecondsForFraction(seekFraction, nowPlaying.durationSeconds)?.let(actions::seek)
-                        isScrubbing = false
-                    },
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(28.dp),
-                )
-            }
-            Text(
-                if (nowPlaying.isLive) "Radio" else secondsLabel(nowPlaying.durationSeconds),
-                color = colors.primaryText,
-                textAlign = TextAlign.Center,
-                fontSize = scrubberTimeFontSize,
-                modifier = Modifier.width(scrubberTimeWidth),
-            )
-        }
+        NowPlayingProgressRow(
+            nowPlaying = nowPlaying,
+            playbackProgress = playbackProgress,
+            canSeek = canSeek,
+            colors = colors,
+            controlColors = controlColors,
+            timeFontSize = scrubberTimeFontSize,
+            timeWidth = scrubberTimeWidth,
+            onSeek = actions::seek,
+        )
         if (showTrackIdentity) {
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
@@ -1432,16 +1410,129 @@ private fun Modifier.visualizerContextMenu(onOpen: () -> Unit): Modifier =
     }
 
 @Composable
+private fun NowPlayingProgressRow(
+    nowPlaying: NowPlayingUi,
+    playbackProgress: StateFlow<PlaybackProgress>?,
+    canSeek: Boolean,
+    colors: NaviampColors,
+    controlColors: NaviampColors,
+    timeFontSize: TextUnit,
+    timeWidth: Dp,
+    onSeek: (Double) -> Unit,
+) {
+    // Keep the rapidly changing playback value out of this layout's composition scope. The
+    // position label observes it in its own small scope, while the waveform observes it during
+    // drawing. That prevents the invisible Material slider and the entire row from being
+    // recomposed once per second during playback.
+    val progressState = playbackProgress?.collectAsState()
+    val durationSeconds = remember(nowPlaying.id, nowPlaying.durationSeconds) {
+        nowPlaying.durationSeconds ?: playbackProgress?.value?.durationSeconds
+    }
+    val structuralProgressFraction = playbackFraction(nowPlaying.positionSeconds, durationSeconds)
+    var scrubberOverride by remember(nowPlaying.id) { mutableStateOf<Float?>(null) }
+    val scrubberValue = scrubberOverride ?: structuralProgressFraction.toFloat()
+
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        NowPlayingPositionLabel(
+            nowPlaying = nowPlaying,
+            progressState = progressState,
+            colors = colors,
+            fontSize = timeFontSize,
+            width = timeWidth,
+        )
+        if (nowPlaying.isLive) {
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .height(22.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(2.dp)
+                        .background(controlColors.accent.copy(alpha = 0.7f)),
+                )
+            }
+        } else {
+            WaveformScrubber(
+                amplitudes = nowPlaying.waveform?.amplitudes.orEmpty(),
+                value = scrubberValue.coerceIn(0f, 1f),
+                drawValue = {
+                    scrubberOverride ?: playbackFraction(
+                        progressState?.value?.positionSeconds ?: nowPlaying.positionSeconds,
+                        durationSeconds,
+                    ).toFloat()
+                },
+                enabled = canSeek && durationSeconds != null,
+                colors = controlColors,
+                onValueChange = {
+                    scrubberOverride = it
+                },
+                onValueChangeFinished = { seekFraction ->
+                    seekSecondsForFraction(seekFraction, durationSeconds)?.let(onSeek)
+                    scrubberOverride = null
+                },
+                modifier = Modifier
+                    .weight(1f)
+                    .height(28.dp),
+            )
+        }
+        Text(
+            if (nowPlaying.isLive) "Radio" else secondsLabel(durationSeconds),
+            color = colors.primaryText,
+            textAlign = TextAlign.Center,
+            fontSize = timeFontSize,
+            modifier = Modifier.width(timeWidth),
+        )
+    }
+}
+
+@Composable
+private fun NowPlayingPositionLabel(
+    nowPlaying: NowPlayingUi,
+    progressState: State<PlaybackProgress>?,
+    colors: NaviampColors,
+    fontSize: TextUnit,
+    width: Dp,
+) {
+    val positionSeconds = progressState?.value?.positionSeconds ?: nowPlaying.positionSeconds
+    Text(
+        if (nowPlaying.isLive) "LIVE" else secondsLabel(positionSeconds),
+        color = colors.primaryText,
+        fontSize = fontSize,
+        textAlign = TextAlign.Center,
+        modifier = Modifier.width(width),
+    )
+}
+
+@Composable
+private fun currentPlaybackProgress(
+    nowPlaying: NowPlayingUi,
+    playbackProgress: StateFlow<PlaybackProgress>?,
+): PlaybackProgress {
+    if (playbackProgress == null) {
+        return PlaybackProgress(nowPlaying.positionSeconds, nowPlaying.durationSeconds)
+    }
+    val progress by playbackProgress.collectAsState()
+    return progress
+}
+
+@Composable
 private fun WaveformScrubber(
     amplitudes: List<Float>,
     value: Float,
+    drawValue: () -> Float = { value },
     enabled: Boolean,
     colors: NaviampColors,
     onValueChange: (Float) -> Unit,
     onValueChangeFinished: (Float) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    var latestValue by remember(value) { mutableFloatStateOf(value.coerceIn(0f, 1f)) }
     val displayAmplitudes = remember(amplitudes) { cleanWaveformAmplitudes(amplitudes) }
     val readableAccent = colors.accent.mix(colors.primaryText, 0.48f)
 
@@ -1452,13 +1543,21 @@ private fun WaveformScrubber(
         Canvas(
             modifier = Modifier.fillMaxSize(),
         ) {
+            val currentDrawValue = drawValue().coerceIn(0f, 1f)
             if (displayAmplitudes.isEmpty()) {
-                drawFallbackScrubLine(value, enabled, colors)
+                drawFallbackScrubLine(currentDrawValue, enabled, colors)
                 return@Canvas
             }
 
             val centerY = size.height / 2f
-            val visibleBars = minOf(displayAmplitudes.size, size.width.toInt().coerceAtLeast(24))
+            // Drawing one rounded line per physical pixel can exceed a 120 Hz frame budget on
+            // high-density phones. A few hundred bars already exceed the display's visual
+            // resolution at this height, so keep the waveform detailed without overdraw.
+            val visibleBars = minOf(
+                displayAmplitudes.size,
+                (size.width / MinimumWaveformBarStepPx).roundToInt().coerceAtLeast(MinimumWaveformBars),
+                MaximumWaveformBars,
+            )
             val step = size.width / visibleBars.toFloat()
             val strokeWidth = (step * 0.72f).coerceIn(0.75f, 2.4f)
             val minBarHeight = 2.5f
@@ -1476,7 +1575,7 @@ private fun WaveformScrubber(
                 val ratio = if (visibleBars == 1) 0f else index / (visibleBars - 1f)
                 val color = when {
                     !enabled -> colors.mutedText.copy(alpha = 0.28f)
-                    ratio <= value -> readableAccent.copy(alpha = 0.98f)
+                    ratio <= currentDrawValue -> readableAccent.copy(alpha = 0.98f)
                     else -> colors.primaryText.copy(alpha = 0.42f)
                 }
                 val x = index * step + step / 2f
@@ -1490,24 +1589,45 @@ private fun WaveformScrubber(
             }
         }
 
-        Slider(
-            value = value.coerceIn(0f, 1f),
-            onValueChange = { nextValue ->
-                latestValue = nextValue.coerceIn(0f, 1f)
-                onValueChange(latestValue)
-            },
-            onValueChangeFinished = {
-                onValueChangeFinished(latestValue)
-            },
-            enabled = enabled,
-            colors = SliderDefaults.colors(
-                thumbColor = Color.Transparent,
-                activeTrackColor = Color.Transparent,
-                inactiveTrackColor = Color.Transparent,
-                disabledThumbColor = Color.Transparent,
-                disabledActiveTrackColor = Color.Transparent,
-                disabledInactiveTrackColor = Color.Transparent,
-            )
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .semantics {
+                    progressBarRangeInfo = ProgressBarRangeInfo(
+                        current = drawValue().coerceIn(0f, 1f),
+                        range = 0f..1f,
+                    )
+                    if (enabled) {
+                        setProgress { targetValue ->
+                            val boundedValue = targetValue.coerceIn(0f, 1f)
+                            onValueChange(boundedValue)
+                            onValueChangeFinished(boundedValue)
+                            true
+                        }
+                    }
+                }
+                .pointerInput(enabled) {
+                    if (!enabled) return@pointerInput
+                    awaitEachGesture {
+                        val down = awaitFirstDown(requireUnconsumed = false)
+                        fun fractionForX(x: Float): Float =
+                            (x / size.width.coerceAtLeast(1)).coerceIn(0f, 1f)
+
+                        var latestValue = fractionForX(down.position.x)
+                        onValueChange(latestValue)
+                        down.consume()
+
+                        while (true) {
+                            val event = awaitPointerEvent()
+                            val change = event.changes.firstOrNull { it.id == down.id } ?: break
+                            latestValue = fractionForX(change.position.x)
+                            change.consume()
+                            if (!change.pressed) break
+                            onValueChange(latestValue)
+                        }
+                        onValueChangeFinished(latestValue)
+                    }
+                },
         )
     }
 }
@@ -1694,10 +1814,14 @@ private val WideNowPlayingDetailsMinHeight = 232.dp
 private val WideNowPlayingDetailsTopPadding = 8.dp
 private const val LyricsActiveLineTargetIndex = 2
 private val VolumeThumbRadius = 6.dp
+private const val MinimumWaveformBars = 24
+private const val MaximumWaveformBars = 180
+private const val MinimumWaveformBarStepPx = 3f
 
 @Composable
 private fun NowPlayingSidePanel(
     nowPlaying: NowPlayingUi,
+    playbackProgress: StateFlow<PlaybackProgress>?,
     colors: NaviampColors,
     selectedTab: NaviampNowPlayingTab,
     onTabSelected: (NaviampNowPlayingTab) -> Unit,
@@ -1810,6 +1934,7 @@ private fun NowPlayingSidePanel(
         if (showLyrics) {
             LyricsPanel(
                 nowPlaying = nowPlaying,
+                playbackProgress = playbackProgress,
                 colors = colors,
                 onSeek = actions::seek,
                 onOffsetChanged = actions::changeLyricsOffset,
@@ -1823,6 +1948,7 @@ private fun NowPlayingSidePanel(
 @Composable
 private fun LyricsPanel(
     nowPlaying: NowPlayingUi,
+    playbackProgress: StateFlow<PlaybackProgress>?,
     colors: NaviampColors,
     onSeek: (Double) -> Unit,
     onOffsetChanged: (Int) -> Unit,
@@ -1830,7 +1956,8 @@ private fun LyricsPanel(
     modifier: Modifier = Modifier,
 ) {
     val listState = remember(nowPlaying.id) { LazyListState() }
-    val basePositionMillis = nowPlaying.positionSeconds?.times(1000)?.toLong()
+    val progress = currentPlaybackProgress(nowPlaying, playbackProgress)
+    val basePositionMillis = (progress.positionSeconds ?: nowPlaying.positionSeconds)?.times(1000)?.toLong()
     var localPositionAnchor by remember(nowPlaying.id) { mutableStateOf<LyricPositionAnchor?>(null) }
     var localNowMillis by remember { mutableStateOf(currentTimeMillis()) }
 
@@ -1956,7 +2083,7 @@ private fun LyricsPanel(
 }
 
 @Composable
-private fun LyricsDisplayTimingControls(
+internal fun LyricsDisplayTimingControls(
     availableTiming: LyricsTiming?,
     selectedTiming: LyricsTiming?,
     colors: NaviampColors,
@@ -1994,7 +2121,13 @@ private fun LyricsDisplayTimingControls(
                     .weight(1f)
                     .clip(RoundedCornerShape(5.dp))
                     .background(if (selected) colors.accent.copy(alpha = 0.28f) else Color.Transparent)
-                    .clickable(enabled = available && !selected) { onSelected(preference) }
+                    .selectable(
+                        selected = selected,
+                        enabled = available,
+                        role = Role.RadioButton,
+                    ) {
+                        if (!selected) onSelected(preference)
+                    }
                     .padding(vertical = 5.dp),
             )
         }
@@ -2994,9 +3127,6 @@ private fun NowPlayingIdentityText(
         }
     }
 }
-
-private val NowPlayingUi.progressFraction: Double
-    get() = playbackFraction(positionSeconds, durationSeconds)
 
 private fun secondsLabel(seconds: Double?): String {
     val total = seconds?.roundToInt() ?: return "--:--"

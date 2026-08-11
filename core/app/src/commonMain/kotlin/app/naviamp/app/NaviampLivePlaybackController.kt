@@ -28,9 +28,12 @@ class NaviampLivePlaybackController(
     initialState: NaviampLivePlaybackState = NaviampLivePlaybackState(),
 ) {
     private val mutableState = MutableStateFlow(initialState)
+    private val mutableProgress = MutableStateFlow(initialState.progress)
     private val observers = mutableListOf<(NaviampLivePlaybackState) -> Unit>()
 
     val state: StateFlow<NaviampLivePlaybackState> = mutableState.asStateFlow()
+    /** High-frequency playback clock isolated from the structural playback snapshot. */
+    val progress: StateFlow<PlaybackProgress> = mutableProgress.asStateFlow()
 
     fun replace(state: NaviampLivePlaybackState) {
         publish(state)
@@ -114,6 +117,7 @@ class NaviampLivePlaybackController(
     private fun publish(updated: NaviampLivePlaybackState) {
         if (updated == mutableState.value) return
         mutableState.value = updated
+        mutableProgress.value = updated.progress
         observers.toList().forEach { it(updated) }
     }
 }

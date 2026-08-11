@@ -16,6 +16,7 @@ import app.naviamp.domain.Track
 import app.naviamp.domain.cache.DownloadJobUpdate
 import app.naviamp.domain.cache.KeepDownloadedCollectionPolicy
 import app.naviamp.domain.cache.KeepDownloadedCollectionKind
+import app.naviamp.domain.cache.downloadedAudioQualityLabel
 import app.naviamp.domain.provider.MediaProvider
 import app.naviamp.domain.settings.downloadStreamQuality
 import app.naviamp.domain.provider.effectiveDownloadQuality
@@ -361,4 +362,16 @@ class NaviampCoreDownloadsController(
 
 private fun NaviampCoreDownloadedTrack.toUi(
     coverArtUrl: (String?) -> String?,
-): NaviampDownloadedTrackUi = track.toDownloadedTrackUi(storageId, sizeBytes, qualityLabel, coverArtUrl)
+): NaviampDownloadedTrackUi = track.toDownloadedTrackUi(
+    id = storageId,
+    sizeBytes = sizeBytes,
+    qualityLabel = qualityLabel.toDownloadedDisplayQuality(track),
+    coverArtUrl = coverArtUrl,
+)
+
+private fun String.toDownloadedDisplayQuality(track: Track): String =
+    if (this == "original" || startsWith("transcoded:")) {
+        downloadedAudioQualityLabel(this, track.audioInfo, contentType = null)
+    } else {
+        this
+    }

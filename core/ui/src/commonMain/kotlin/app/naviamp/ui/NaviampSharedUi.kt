@@ -59,6 +59,8 @@ import app.naviamp.domain.settings.AlbumSortOrder
 import app.naviamp.domain.settings.AppBackgroundStyle
 import app.naviamp.domain.settings.DefaultSingleColorHex
 import app.naviamp.domain.settings.toggleSelectedMusicFolderId
+import app.naviamp.domain.playback.PlaybackProgress
+import kotlinx.coroutines.flow.StateFlow
 
 @Composable
 expect fun NaviampTooltip(
@@ -73,6 +75,7 @@ fun NaviampSharedAppShell(
     modifier: Modifier = Modifier,
     uiState: NaviampAppShellUiState,
     settingsSync: NaviampSettingsSyncUi = NaviampSettingsSyncUi(),
+    playbackProgress: StateFlow<PlaybackProgress>? = null,
     visualizerBandsProvider: () -> List<Float> = { uiState.nowPlaying?.visualizerFrame?.bands.orEmpty() },
     actions: NaviampAppShellActions,
     syncActions: NaviampSettingsSyncActions,
@@ -291,6 +294,7 @@ fun NaviampSharedAppShell(
                         ConnectedContent(
                             colors = colors,
                             uiState = uiState,
+                            playbackProgress = playbackProgress,
                             visualizerBandsProvider = visualizerBandsProvider,
                             settingsSync = settingsSync,
                             actions = actions,
@@ -328,6 +332,7 @@ fun NaviampSharedAppShell(
 private fun ConnectedContent(
     colors: NaviampColors,
     uiState: NaviampAppShellUiState,
+    playbackProgress: StateFlow<PlaybackProgress>?,
     visualizerBandsProvider: () -> List<Float>,
     settingsSync: NaviampSettingsSyncUi,
     actions: NaviampAppShellActions,
@@ -431,6 +436,7 @@ private fun ConnectedContent(
     when {
         nowPlayingOpen && nowPlaying != null -> FullNowPlaying(
             nowPlaying = nowPlaying,
+            playbackProgress = playbackProgress,
             colors = colors,
             playerColors = nowPlayingPlayerColors,
             visualizerBandsProvider = visualizerBandsProvider,
@@ -717,6 +723,7 @@ private fun PullToRefreshRoute(
 @Composable
 private fun FullNowPlaying(
     nowPlaying: NowPlayingUi,
+    playbackProgress: StateFlow<PlaybackProgress>?,
     colors: NaviampColors,
     playerColors: NaviampPlayerColors,
     visualizerBandsProvider: () -> List<Float>,
@@ -727,6 +734,7 @@ private fun FullNowPlaying(
     Column(modifier = Modifier.fillMaxSize()) {
         NaviampNowPlayingPanel(
             nowPlaying = nowPlaying,
+            playbackProgress = playbackProgress,
             colors = colors,
             visualizerBandsProvider = visualizerBandsProvider,
             selectedVisualizer = selectedVisualizer,

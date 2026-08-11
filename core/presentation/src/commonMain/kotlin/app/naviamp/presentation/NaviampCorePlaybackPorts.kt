@@ -58,6 +58,7 @@ interface NaviampCorePlaybackObserver {
     fun onStateChanged(state: PlaybackState)
     fun onProgressChanged(progress: PlaybackProgress)
     fun onMetadataChanged(metadata: PlaybackStreamMetadata)
+    fun onSourceChanged(source: PlaybackSource, quality: StreamQuality?) = Unit
     fun onVisualizerFrameChanged(frame: PlaybackVisualizerFrame?) = Unit
 }
 

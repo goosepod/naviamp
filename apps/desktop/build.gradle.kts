@@ -1,6 +1,7 @@
 import org.gradle.api.tasks.Sync
 import org.gradle.api.tasks.bundling.Zip
 import org.jetbrains.compose.desktop.application.dsl.TargetFormat
+import org.jetbrains.compose.desktop.application.tasks.AbstractJPackageTask
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
@@ -10,8 +11,9 @@ plugins {
 }
 
 val naviampVersionName = rootProject.file("VERSION").readText().trim()
+val naviampVersionCode = rootProject.file("VERSION_CODE").readText().trim().toInt()
 val naviampNativePackageVersion = nativeDistributionPackageVersion(naviampVersionName)
-val naviampWindowsPackageVersion = windowsDistributionPackageVersion(naviampVersionName)
+val naviampWindowsPackageVersion = windowsDistributionPackageVersion(naviampVersionName, naviampVersionCode)
 val naviampLinuxPackageVersion = linuxDistributionPackageVersion(naviampVersionName)
 val desktopNativePlatform = providers.gradleProperty("naviamp.bass.platform")
     .orElse(providers.provider(::desktopNativePlatformId))
@@ -23,12 +25,16 @@ val desktopPackagedAppName = desktopNativePlatform.map { platform ->
 val desktopPackagedAppDir = desktopPackagedAppName.flatMap { appName ->
     layout.buildDirectory.dir("compose/binaries/main/app/$appName")
 }
+val desktopReleasePackagedAppDir = desktopPackagedAppName.flatMap { appName ->
+    layout.buildDirectory.dir("compose/binaries/main-release/app/$appName")
+}
 val desktopLocalTestAppDir = desktopPackagedAppName.flatMap { appName ->
     rootProject.layout.buildDirectory.dir("local-test/$appName")
 }
 val desktopReleaseAppDir = desktopPackagedAppName.flatMap { appName ->
     rootProject.layout.buildDirectory.dir("release/$appName")
 }
+val desktopReleaseArtifactsDir = layout.buildDirectory.dir("release-artifacts")
 
 kotlin {
     jvm("desktop") {
@@ -144,6 +150,20 @@ compose.desktop {
     }
 }
 
+tasks.withType<AbstractJPackageTask>().configureEach {
+    when (targetFormat) {
+        TargetFormat.Deb -> freeArgs.addAll(
+            "--linux-package-deps",
+            "libsecret-tools,gnome-keyring",
+        )
+        TargetFormat.Rpm -> freeArgs.addAll(
+            "--linux-package-deps",
+            "libsecret,gnome-keyring",
+        )
+        else -> Unit
+    }
+}
+
 tasks.matching {
     it.name in setOf(
         "run",
@@ -167,19 +187,29 @@ tasks.matching {
     )
 }.configureEach {
     doLast {
-        syncDesktopNativeAppResources()
-        markDesktopVisualizerMetalExecutable()
-        patchMacAppBundleVersion()
-        sealMacAppBundle()
+        val appDirectory = if (name.contains("Release")) {
+            desktopReleasePackagedAppDir.get().asFile
+        } else {
+            desktopPackagedAppDir.get().asFile
+        }
+        syncDesktopNativeAppResources(appDirectory)
+        markDesktopVisualizerMetalExecutable(appDirectory)
+        patchMacAppBundleVersion(appDirectory)
+        sealMacAppBundle(appDirectory)
     }
 }
 
-fun Zip.packageDesktopApp(archiveNameSuffix: String) {
+fun Zip.packageDesktopApp(
+    archiveNameSuffix: String,
+    release: Boolean = false,
+) {
     group = "distribution"
-    dependsOn("verifyDesktopDistributable")
-    archiveFileName.set(desktopNativePlatform.map { platform -> "Naviamp-$platform-$archiveNameSuffix.zip" })
+    dependsOn(if (release) "createReleaseDistributable" else "verifyDesktopDistributable")
+    archiveFileName.set(
+        desktopNativePlatform.map { platform -> "Naviamp-$naviampVersionName-$platform-$archiveNameSuffix.zip" },
+    )
     destinationDirectory.set(layout.buildDirectory.dir("compose/distributions"))
-    from(desktopPackagedAppDir) {
+    from(if (release) desktopReleasePackagedAppDir else desktopPackagedAppDir) {
         into(desktopPackagedAppName)
     }
 }
@@ -201,6 +231,29 @@ tasks.register("verifyDesktopPackagingInputs") {
     }
 }
 
+tasks.register("verifyReleaseVersionMetadata") {
+    group = "verification"
+    description = "Verifies prerelease package versions remain installable and release filenames remain descriptive."
+    doLast {
+        check(windowsDistributionPackageVersion("v2.0.0-alpha.3", 38) == "2.0.38")
+        check(windowsDistributionPackageVersion("v2.0.0-beta.1", 40) == "2.0.40")
+        check(windowsDistributionPackageVersion("v2.0.0", 41) == "2.0.41")
+        check(linuxDistributionPackageVersion("v2.0.0-beta.1") == "2.0.0~beta.1")
+        check(nativeDistributionPackageVersion("v2.0.0-beta.1") == "2.0.0")
+        check("Naviamp-$naviampVersionName-${desktopNativePlatform.get()}.msi".contains(naviampVersionName))
+        if (desktopNativePlatform.get().startsWith("linux-")) {
+            val packageDependencies = tasks.withType<AbstractJPackageTask>()
+                .associate { it.targetFormat to it.freeArgs.get() }
+            check(packageDependencies[TargetFormat.Deb].orEmpty().contains("libsecret-tools,gnome-keyring"))
+            check(packageDependencies[TargetFormat.Rpm].orEmpty().contains("libsecret,gnome-keyring"))
+        }
+        logger.lifecycle(
+            "Release version metadata: semantic=$naviampVersionName windows=$naviampWindowsPackageVersion " +
+                "native=$naviampNativePackageVersion linux=$naviampLinuxPackageVersion",
+        )
+    }
+}
+
 tasks.register("verifyDesktopDistributable") {
     group = "verification"
     description = "Verifies that the Desktop app image contains every required native playback resource."
@@ -208,10 +261,11 @@ tasks.register("verifyDesktopDistributable") {
     dependsOn("createDistributable")
 
     doLast {
-        syncDesktopNativeAppResources()
-        markDesktopVisualizerMetalExecutable()
+        val appDirectory = desktopPackagedAppDir.get().asFile
+        syncDesktopNativeAppResources(appDirectory)
+        markDesktopVisualizerMetalExecutable(appDirectory)
         val platform = desktopNativePlatform.get()
-        val bassResourcesDirectory = desktopPackagedResourcesDir(platform).resolve("playback/bass/$platform")
+        val bassResourcesDirectory = desktopPackagedResourcesDir(platform, appDirectory).resolve("playback/bass/$platform")
         val requiredLibraries = buildList {
             add(desktopLibraryName("bass", platform))
             add(desktopLibraryName("bassmix", platform))
@@ -230,8 +284,8 @@ tasks.register("verifyDesktopDistributable") {
             check(visualizer.canExecute()) {
                 "Desktop package Metal visualizer library is not executable: ${visualizer.absolutePath}"
             }
-            sealMacAppBundle()
-            verifyMacAppBundleSeal()
+            sealMacAppBundle(appDirectory)
+            verifyMacAppBundleSeal(appDirectory)
         }
     }
 }
@@ -243,7 +297,47 @@ tasks.register<Zip>("packageLocalDistributable") {
 
 tasks.register<Zip>("packageReleaseDistributable") {
     description = "Builds and zips the release Desktop app image."
-    packageDesktopApp("release")
+    packageDesktopApp("release", release = true)
+}
+
+tasks.register("stageReleaseArtifacts") {
+    group = "distribution"
+    description = "Builds and stages release packages with the complete semantic version in every filename."
+    dependsOn("packageReleaseDistributable", "packageReleaseDistributionForCurrentOS")
+    outputs.dir(desktopReleaseArtifactsDir)
+
+    doLast {
+        val platform = desktopNativePlatform.get()
+        val destination = desktopReleaseArtifactsDir.get().asFile
+        delete(destination)
+        destination.mkdirs()
+
+        val zip = layout.buildDirectory
+            .file("compose/distributions/Naviamp-$naviampVersionName-$platform-release.zip")
+            .get()
+            .asFile
+        check(zip.isFile) { "Versioned Desktop release zip was not produced: ${zip.absolutePath}" }
+        copy { from(zip); into(destination) }
+
+        val extensions = when {
+            platform.startsWith("windows-") -> listOf("msi", "exe")
+            platform.startsWith("macos-") -> listOf("dmg")
+            platform.startsWith("linux-") -> listOf("deb", "rpm")
+            else -> error("Unsupported Desktop release platform: $platform")
+        }
+        val binaries = layout.buildDirectory.dir("compose/binaries").get().asFile
+        extensions.forEach { extension ->
+            val source = binaries.walkTopDown()
+                .filter { it.isFile && it.extension.equals(extension, ignoreCase = true) }
+                .maxByOrNull(File::lastModified)
+                ?: error("Desktop .$extension release package was not produced under ${binaries.absolutePath}")
+            copy {
+                from(source)
+                into(destination)
+                rename { "Naviamp-$naviampVersionName-$platform.$extension" }
+            }
+        }
+    }
 }
 
 tasks.register<Sync>("stageLocalTestApp") {
@@ -268,12 +362,12 @@ tasks.register<Sync>("stageReleaseApp") {
     }
 }
 
-fun syncDesktopNativeAppResources() {
+fun syncDesktopNativeAppResources(appDirectory: File) {
     val platform = desktopNativePlatform.get()
     val sourceDirectory = generatedDesktopNativeAppResources.dir(platform).asFile
     if (!sourceDirectory.isDirectory) return
-    val resourcesDirectory = desktopPackagedResourcesDir(platform)
-    staleDesktopPackagedResourcesDirs(platform).forEach { staleDirectory ->
+    val resourcesDirectory = desktopPackagedResourcesDir(platform, appDirectory)
+    staleDesktopPackagedResourcesDirs(platform, appDirectory).forEach { staleDirectory ->
         delete(staleDirectory.resolve("playback/bass/$platform"))
     }
     copy {
@@ -282,41 +376,40 @@ fun syncDesktopNativeAppResources() {
     }
 }
 
-fun desktopPackagedResourcesDir(platform: String) = when {
-    platform.startsWith("macos-") -> desktopPackagedAppDir.get().dir("Contents/app/resources").asFile
-    platform.startsWith("linux-") -> desktopPackagedAppDir.get().dir("lib/app/resources").asFile
-    else -> desktopPackagedAppDir.get().dir("app/resources").asFile
+fun desktopPackagedResourcesDir(platform: String, appDirectory: File) = when {
+    platform.startsWith("macos-") -> appDirectory.resolve("Contents/app/resources")
+    platform.startsWith("linux-") -> appDirectory.resolve("lib/app/resources")
+    else -> appDirectory.resolve("app/resources")
 }
 
-fun staleDesktopPackagedResourcesDirs(platform: String) = when {
-    platform.startsWith("linux-") -> listOf(desktopPackagedAppDir.get().dir("app/resources").asFile)
+fun staleDesktopPackagedResourcesDirs(platform: String, appDirectory: File) = when {
+    platform.startsWith("linux-") -> listOf(appDirectory.resolve("app/resources"))
     else -> emptyList()
 }
 
-fun markDesktopVisualizerMetalExecutable() {
+fun markDesktopVisualizerMetalExecutable(appDirectory: File) {
     val platform = desktopNativePlatform.get()
     if (!platform.startsWith("macos-")) return
-    val visualizer = desktopPackagedAppDir.get()
-        .dir("Contents/app/resources/playback/bass/$platform")
-        .file(desktopLibraryName("naviamp_visualizer_metal", platform))
-        .asFile
+    val visualizer = appDirectory
+        .resolve("Contents/app/resources/playback/bass/$platform")
+        .resolve(desktopLibraryName("naviamp_visualizer_metal", platform))
     if (visualizer.isFile) visualizer.setExecutable(true, false)
 }
 
-fun patchMacAppBundleVersion() {
+fun patchMacAppBundleVersion(appDirectory: File) {
     val platform = desktopNativePlatform.get()
     if (!platform.startsWith("macos-")) return
-    val infoPlist = desktopPackagedAppDir.get().file("Contents/Info.plist").asFile
+    val infoPlist = appDirectory.resolve("Contents/Info.plist")
     if (!infoPlist.isFile) return
     infoPlist.writeText(
         infoPlist.readText()
             .replacePlistStringValue("CFBundleShortVersionString", naviampNativePackageVersion)
-            .replacePlistStringValue("CFBundleVersion", naviampNativePackageVersion),
+            .replacePlistStringValue("CFBundleVersion", naviampVersionCode.toString()),
     )
-    refreshMacAppBundleModificationTime(desktopPackagedAppDir.get().asFile)
+    refreshMacAppBundleModificationTime(appDirectory)
 }
 
-fun sealMacAppBundle() {
+fun sealMacAppBundle(appDirectory: File) {
     val platform = desktopNativePlatform.get()
     if (!platform.startsWith("macos-")) return
     project.exec {
@@ -329,12 +422,12 @@ fun sealMacAppBundle() {
             "runtime",
             "--entitlements",
             rootProject.file("apps/desktop/packaging/macos-entitlements.plist").absolutePath,
-            desktopPackagedAppDir.get().asFile.absolutePath,
+            appDirectory.absolutePath,
         )
     }.assertNormalExitValue()
 }
 
-fun verifyMacAppBundleSeal() {
+fun verifyMacAppBundleSeal(appDirectory: File) {
     project.exec {
         commandLine(
             "/usr/bin/codesign",
@@ -342,7 +435,7 @@ fun verifyMacAppBundleSeal() {
             "--deep",
             "--strict",
             "--verbose=2",
-            desktopPackagedAppDir.get().asFile.absolutePath,
+            appDirectory.absolutePath,
         )
     }.assertNormalExitValue()
 }
@@ -391,12 +484,20 @@ fun nativeDistributionPackageVersion(version: String): String {
     return "$major.${parts[1].toInt()}.${parts[2].toInt()}"
 }
 
-fun windowsDistributionPackageVersion(version: String): String =
-    numericDistributionPackageVersion(version).substringBefore('-').substringBefore('+').also { coreVersion ->
-        val parts = coreVersion.split('.')
-        require(parts.size == 3) { "VERSION must be major.minor.patch for Windows packaging, got: $version" }
-        parts.forEach { it.toInt() }
+fun windowsDistributionPackageVersion(version: String, versionCode: Int): String {
+    val parts = numericDistributionPackageVersion(version).substringBefore('-').substringBefore('+').split('.')
+    require(parts.size == 3) { "VERSION must be major.minor.patch for Windows packaging, got: $version" }
+    val major = parts[0].toInt()
+    val minor = parts[1].toInt()
+    parts[2].toInt()
+    require(major in 0..255 && minor in 0..255) {
+        "Windows installer major/minor must be between 0 and 255, got: $version"
     }
+    require(versionCode in 1..65_535) {
+        "VERSION_CODE must be between 1 and 65535 for Windows installers, got: $versionCode"
+    }
+    return "$major.$minor.$versionCode"
+}
 
 fun linuxDistributionPackageVersion(version: String): String =
     numericDistributionPackageVersion(version).substringBefore('+').replace('-', '~')

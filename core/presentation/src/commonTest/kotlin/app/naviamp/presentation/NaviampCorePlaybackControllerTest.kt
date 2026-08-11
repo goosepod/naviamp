@@ -44,6 +44,7 @@ import kotlinx.coroutines.CompletableDeferred
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
 @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
@@ -59,6 +60,20 @@ class NaviampCorePlaybackControllerTest {
         assertEquals(listOf("one", "two", "three", "four", "five"), saved.toTracks().map { it.id.value })
         assertEquals(1, saved.currentIndex)
         assertEquals(31.0, saved.positionSeconds)
+    }
+
+    @Test
+    fun nativeProgressDoesNotRepublishStructuralNowPlayingState() = runTest {
+        val fixture = playbackFixture(this)
+        val before = requireNotNull(fixture.store.state.value.shell.nowPlaying)
+        fixture.controller.attachNativePlayback()
+
+        val progress = PlaybackProgress(31.0, 180.0)
+        fixture.effects.observer?.onProgressChanged(progress)
+
+        val after = requireNotNull(fixture.store.state.value.shell.nowPlaying)
+        assertSame(before, after)
+        assertEquals(progress, fixture.live.progress.value)
     }
 
     @Test
@@ -94,6 +109,20 @@ class NaviampCorePlaybackControllerTest {
             listOf<PlaybackQueueNavigationCommand>(PlaybackQueueNavigationCommand.Next),
             fixture.effects.navigation,
         )
+    }
+
+    @Test
+    fun nativeFinishedReplaysCurrentTrackWhenRepeatTrackIsEnabled() = runTest {
+        val fixture = playbackFixture(this)
+        fixture.live.updateRepeatMode(RepeatMode.Track)
+        fixture.controller.attachNativePlayback()
+
+        fixture.effects.observer?.onStateChanged(PlaybackState.Finished)
+        fixture.effects.observer?.onStateChanged(PlaybackState.Finished)
+
+        assertEquals("two", fixture.live.state.value.currentTrack?.id?.value)
+        assertEquals(listOf(0.0), fixture.effects.replays)
+        assertEquals(emptyList(), fixture.effects.navigation)
     }
 
     @Test
@@ -480,6 +509,7 @@ private class PlaybackTestEffects : NaviampCorePlaybackEffectPort {
     var starts = 0
     var stops = 0
     val seeks = mutableListOf<Double>()
+    val replays = mutableListOf<Double>()
     val volumes = mutableListOf<Int>()
     val navigation = mutableListOf<PlaybackQueueNavigationCommand>()
     val queues = mutableListOf<PlaybackQueue>()
@@ -494,7 +524,7 @@ private class PlaybackTestEffects : NaviampCorePlaybackEffectPort {
     override fun resume() { resumes += 1 }
     override fun startOrRestore(): Boolean { starts += 1; return true }
     override fun seek(positionSeconds: Double) { seeks += positionSeconds }
-    override fun replayCurrent(positionSeconds: Double) { seeks += positionSeconds }
+    override fun replayCurrent(positionSeconds: Double) { replays += positionSeconds }
     override fun setVolume(percent: Int) { volumes += percent }
     override fun stop() { stops += 1 }
     override fun applyQueue(queue: PlaybackQueue, clearPreparedNext: Boolean) { queues += queue }

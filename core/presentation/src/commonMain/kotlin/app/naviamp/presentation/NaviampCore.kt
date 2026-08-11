@@ -11,6 +11,7 @@ import app.naviamp.domain.Artist
 import app.naviamp.domain.Track
 import app.naviamp.domain.app.NaviampNavigationState
 import app.naviamp.domain.playback.AudioOutputDevice
+import app.naviamp.domain.playback.PlaybackProgress
 import app.naviamp.domain.settings.toConnectionFormState
 import app.naviamp.domain.settings.toSettingsSyncServerProfile
 import app.naviamp.domain.settings.GlobalShortcutAction
@@ -78,6 +79,7 @@ fun NaviampCoreInitialState.withShellCapabilities(
  */
 class NaviampCore private constructor(
     val stateStore: NaviampCoreStateStore,
+    val playbackProgress: StateFlow<PlaybackProgress>,
     val actions: NaviampCoreActions,
     val commands: NaviampCoreCommandHandler,
     private val playbackController: NaviampCorePlaybackController,
@@ -530,6 +532,7 @@ class NaviampCore private constructor(
             scope.launch { connection.restoreInitialConnection() }
             return NaviampCore(
                 stateStore = stateStore,
+                playbackProgress = livePlayback.progress,
                 actions = createNaviampCoreActions(router, actionAvailability),
                 commands = router,
                 playbackController = playback,

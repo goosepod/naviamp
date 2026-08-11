@@ -21,6 +21,7 @@ import app.naviamp.domain.queue.RepeatMode
 import app.naviamp.domain.radio.RadioDjPreset
 import app.naviamp.domain.settings.NowPlayingDisplaySettings
 import app.naviamp.domain.waveform.AudioWaveform
+import kotlinx.coroutines.flow.StateFlow
 
 data class NaviampNowPlayingPresentationUi(
     val nowPlaying: NowPlayingUi,
@@ -237,10 +238,12 @@ fun NaviampNowPlayingContent(
     colors: NaviampColors,
     actions: NaviampNowPlayingActions,
     modifier: Modifier = Modifier,
+    playbackProgress: StateFlow<PlaybackProgress>? = null,
 ) {
     NaviampNowPlayingPanel(
         modifier = modifier,
         nowPlaying = presentation.nowPlaying,
+        playbackProgress = playbackProgress,
         colors = colors,
         displaySettings = presentation.displaySettings,
         visualizerBandsProvider = { presentation.visualizerFrame?.bands.orEmpty() },

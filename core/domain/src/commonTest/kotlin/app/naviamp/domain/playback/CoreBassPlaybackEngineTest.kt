@@ -81,6 +81,32 @@ class CoreBassPlaybackEngineTest {
     }
 
     @Test
+    fun reportsWhenProviderPlaybackSwitchesToDownloadedFallback() = runTest {
+        val backend = RecordingPlaybackBackend()
+        val engine = CoreBassPlaybackEngine(
+            backendResult = Result.success(backend),
+            runtime = FakeBassPlaybackEngineRuntime,
+        )
+        var fallbackNotifications = 0
+        engine.setDownloadFallbackListener { fallbackNotifications += 1 }
+
+        engine.play(
+            scope = this,
+            request = PlaybackRequest(
+                url = "https://offline.example/track.flac",
+                fallbackUrl = "file:///downloads/track.opus",
+                mediaId = "track-1",
+            ),
+            onStateChanged = {},
+            onProgressChanged = {},
+        )
+        advanceUntilIdle()
+
+        assertEquals(1, fallbackNotifications)
+        assertEquals("/downloads/track.opus", backend.openedPath)
+    }
+
+    @Test
     fun diagnosticsReportSampleRatePolicyAndActiveOutput() = runTest {
         val backend = RecordingPlaybackBackend()
         val engine = CoreBassPlaybackEngine(

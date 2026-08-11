@@ -8,7 +8,7 @@ class CacheSettingsTest {
     fun defaultsUseTheSmallestActiveCacheAndDownloadChoices() {
         val settings = CacheSettings()
 
-        assertEquals(3, settings.audioPrefetchDepth)
+        assertEquals(2, settings.audioPrefetchDepth)
         assertEquals(256L * 1024L * 1024L, settings.maxAudioCacheBytes)
         assertEquals(512L * 1024L * 1024L, settings.maxDownloadBytes)
     }

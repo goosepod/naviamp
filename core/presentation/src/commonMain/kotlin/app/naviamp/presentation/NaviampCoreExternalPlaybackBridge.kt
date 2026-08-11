@@ -1,5 +1,6 @@
 package app.naviamp.presentation
 
+import app.naviamp.domain.playback.PlaybackProgress
 import app.naviamp.ui.NaviampNowPlayingItemUi
 import app.naviamp.ui.NaviampMediaItemActionRequest
 import app.naviamp.ui.NaviampMediaItemCommand
@@ -19,6 +20,7 @@ import app.naviamp.ui.NowPlayingSelectionAction
 import app.naviamp.ui.NowPlayingSelectionActionRequest
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.transformLatest
@@ -183,12 +185,16 @@ class NaviampExternalPlaybackLifecycleCoordinator(
 class NaviampCoreExternalPlaybackBridge internal constructor(
     private val state: StateFlow<NaviampCoreState>,
     private val dispatch: (NaviampCoreCommand) -> Unit,
+    private val progress: StateFlow<PlaybackProgress>? = null,
 ) {
-    val snapshots: Flow<NaviampExternalPlaybackSnapshot> = state
-        .map(NaviampCoreState::toExternalPlaybackSnapshot)
+    val snapshots: Flow<NaviampExternalPlaybackSnapshot> = (progress?.let { progressFlow ->
+        state.combine(progressFlow) { currentState, currentProgress ->
+            currentState.toExternalPlaybackSnapshot(currentProgress)
+        }
+    } ?: state.map(NaviampCoreState::toExternalPlaybackSnapshot))
         .distinctUntilChanged()
 
-    fun snapshot(): NaviampExternalPlaybackSnapshot = state.value.toExternalPlaybackSnapshot()
+    fun snapshot(): NaviampExternalPlaybackSnapshot = state.value.toExternalPlaybackSnapshot(progress?.value)
 
     fun play() = playback(
         if (snapshot().state == NaviampExternalPlaybackState.Paused) {
@@ -463,12 +469,14 @@ private fun <T> List<T>.findByMediaId(
 ): T? = firstOrNull { item -> id(item) == mediaId.removePrefix(prefix) }
 
 fun NaviampCore.externalPlaybackBridge(): NaviampCoreExternalPlaybackBridge =
-    NaviampCoreExternalPlaybackBridge(state, ::dispatch)
+    NaviampCoreExternalPlaybackBridge(state, ::dispatch, playbackProgress)
 
 fun NaviampCoreExternalPlaybackBridge.lifecycleCoordinator(): NaviampExternalPlaybackLifecycleCoordinator =
     NaviampExternalPlaybackLifecycleCoordinator(::snapshot, ::play, ::pause)
 
-internal fun NaviampCoreState.toExternalPlaybackSnapshot(): NaviampExternalPlaybackSnapshot {
+internal fun NaviampCoreState.toExternalPlaybackSnapshot(
+    progress: PlaybackProgress? = null,
+): NaviampExternalPlaybackSnapshot {
     val nowPlaying = shell.nowPlaying ?: return NaviampExternalPlaybackSnapshot()
     val queueRows = nowPlaying.backTo + NaviampNowPlayingItemUi(
         id = nowPlaying.id,
@@ -500,8 +508,8 @@ internal fun NaviampCoreState.toExternalPlaybackSnapshot(): NaviampExternalPlayb
         current = queue.getOrNull(currentIndex),
         queue = queue,
         currentQueueIndex = currentIndex,
-        positionMillis = nowPlaying.positionSeconds?.times(1_000.0)?.toLong(),
-        durationMillis = nowPlaying.durationSeconds?.times(1_000.0)?.toLong(),
+        positionMillis = (progress?.positionSeconds ?: nowPlaying.positionSeconds)?.times(1_000.0)?.toLong(),
+        durationMillis = (progress?.durationSeconds ?: nowPlaying.durationSeconds)?.times(1_000.0)?.toLong(),
         canPlayPause = nowPlaying.canPlayPause,
         hasPrevious = nowPlaying.hasPrevious,
         hasNext = nowPlaying.hasNext,

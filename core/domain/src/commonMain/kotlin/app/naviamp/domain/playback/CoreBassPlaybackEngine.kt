@@ -85,6 +85,7 @@ open class CoreBassPlaybackEngine(
     private val bufferPolicy: BassPlaybackBufferPolicy = BassPlaybackBufferPolicy(),
 ) : QueueAwarePlaybackEngine,
     BassPlaybackEngine,
+    DownloadFallbackAwarePlaybackEngine,
     AudioOutputDevicePlaybackEngine,
     PlaybackEngineDiagnostics {
     private val backend: BassAudioBackend? = backendResult.getOrNull()
@@ -146,6 +147,11 @@ open class CoreBassPlaybackEngine(
     private var transientOutputVolumeFactor: Float = 1f
     private var verifyNetworkCertificates: Boolean = true
     private var currentVisualizerFrame: PlaybackVisualizerFrame? = null
+    private var downloadFallbackListener: (() -> Unit)? = null
+
+    override fun setDownloadFallbackListener(listener: (() -> Unit)?) {
+        downloadFallbackListener = listener
+    }
 
     override open fun play(
         scope: CoroutineScope,
@@ -287,6 +293,7 @@ open class CoreBassPlaybackEngine(
                             retriedAfterBassReset = false
                             activeRequest = fallbackRequest
                             execution.updateRequest(activeRequest)
+                            downloadFallbackListener?.invoke()
                             lastRequestDiagnosticUrl = activeRequest.url.sanitizedPlaybackDiagnosticUrl()
                             resetBassAfterPlaybackFailure(bass)
                             onStateChanged(PlaybackState.Loading)

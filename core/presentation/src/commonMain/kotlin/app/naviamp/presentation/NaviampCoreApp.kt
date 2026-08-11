@@ -92,6 +92,7 @@ fun NaviampCoreApp(
         modifier = modifier,
         uiState = state.shell,
         settingsSync = state.settingsSync,
+        playbackProgress = core.playbackProgress,
         visualizerBandsProvider = visualizerBandsProvider,
         actions = core.actions.shell,
         syncActions = core.actions.settingsSync,

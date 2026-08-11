@@ -75,6 +75,11 @@ interface NetworkCertificateVerificationPlaybackEngine : PlaybackEngine {
     fun setNetworkCertificateVerification(enabled: Boolean)
 }
 
+/** Reports when an engine switches from a provider request to its saved-file fallback. */
+interface DownloadFallbackAwarePlaybackEngine : PlaybackEngine {
+    fun setDownloadFallbackListener(listener: (() -> Unit)?)
+}
+
 /**
  * Complete platform-neutral feature contract for every Naviamp BASS engine.
  *

@@ -720,7 +720,7 @@ data class CacheSettings(
         )
 }
 
-const val DefaultAudioPrefetchDepth = 3
+const val DefaultAudioPrefetchDepth = 2
 const val DefaultAudioCacheBytes = 256L * 1024L * 1024L
 const val DefaultDownloadStorageBytes = 512L * 1024L * 1024L
 const val DefaultWaveformBucketCount = 180

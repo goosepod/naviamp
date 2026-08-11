@@ -1,8 +1,6 @@
 package app.naviamp.android
 
-import android.Manifest
 import android.content.Intent
-import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
@@ -11,7 +9,6 @@ import androidx.activity.SystemBarStyle
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.runtime.Composable
@@ -53,7 +50,6 @@ class MainActivity : ComponentActivity() {
             BackHandler(enabled = sharedUiBackHandler != null || systemBackCommand != null) {
                 sharedUiBackHandler?.invoke() ?: systemBackCommand?.let(runtime.core::dispatch)
             }
-            AndroidNotificationPermissionEffect()
             LaunchedEffect(runtime, openNowPlayingRequest) {
                 if (openNowPlayingRequest > 0) {
                     runtime.core.dispatch(NaviampCoreCommand.Navigation.OpenNowPlaying)
@@ -105,20 +101,6 @@ class MainActivity : ComponentActivity() {
 private fun rememberAndroidNaviampRuntime(): AndroidNaviampApplicationRuntime {
     val context = LocalContext.current.applicationContext
     return remember(context) { AndroidNaviampApplicationRuntime.get(context) }
-}
-
-@Composable
-private fun AndroidNotificationPermissionEffect() {
-    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return
-    val context = LocalContext.current
-    val launcher = androidx.activity.compose.rememberLauncherForActivityResult(
-        ActivityResultContracts.RequestPermission(),
-    ) {}
-    LaunchedEffect(context) {
-        if (context.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
-            launcher.launch(Manifest.permission.POST_NOTIFICATIONS)
-        }
-    }
 }
 
 const val IntentExtraOpenNowPlaying = "app.naviamp.android.OPEN_NOW_PLAYING"

@@ -1,4 +1,5 @@
 import java.util.zip.ZipFile
+import org.gradle.api.tasks.Sync
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 val composeVersion = libs.versions.compose.get()
@@ -169,5 +170,20 @@ tasks.register("verifyDebugBassNativePackage") {
         check(unexpected.isEmpty()) {
             "Debug APK contains unexpected BASS libraries: ${unexpected.joinToString()}"
         }
+    }
+}
+
+tasks.register<Sync>("stageReleaseApk") {
+    group = "distribution"
+    description = "Builds and stages the signed Android APK with the complete semantic version in its filename."
+    dependsOn("assembleRelease")
+    from(layout.buildDirectory.dir("outputs/apk/release")) {
+        include("*.apk")
+        rename { "Naviamp-$naviampVersionName-android.apk" }
+    }
+    into(layout.buildDirectory.dir("release-artifacts"))
+    doLast {
+        val artifact = layout.buildDirectory.file("release-artifacts/Naviamp-$naviampVersionName-android.apk").get().asFile
+        check(artifact.isFile) { "Versioned Android release APK was not produced: ${artifact.absolutePath}" }
     }
 }

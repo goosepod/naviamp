@@ -1,5 +1,6 @@
 package app.naviamp.presentation
 
+import app.naviamp.domain.playback.PlaybackProgress
 import app.naviamp.ui.NaviampAppShellUiState
 import app.naviamp.ui.NaviampNowPlayingItemUi
 import app.naviamp.ui.NaviampRepeatMode
@@ -128,6 +129,21 @@ class NaviampCoreExternalPlaybackBridgeTest {
     }
 
     @Test
+    fun dedicatedProgressOverridesTheStructuralSnapshotForNativeSurfaces() {
+        val commands = mutableListOf<NaviampCoreCommand>()
+        val progress = MutableStateFlow(PlaybackProgress(42.0, 180.0))
+        val bridge = bridge(commands, progress)
+
+        assertEquals(42_000L, bridge.snapshot().positionMillis)
+        bridge.fastForward()
+
+        assertEquals(
+            52.0,
+            assertIs<NaviampCoreCommand.NowPlaying.Playback>(commands.single()).request.seekSeconds,
+        )
+    }
+
+    @Test
     fun automotiveShuffleDispatchesTheSharedPlaybackCommand() {
         val commands = mutableListOf<NaviampCoreCommand>()
         val bridge = bridge(commands)
@@ -161,7 +177,7 @@ class NaviampCoreExternalPlaybackBridgeTest {
     @Test
     fun idleProjectionDoesNotRetainNativePlaybackService() {
         val state = MutableStateFlow(NaviampCoreState())
-        val snapshot = NaviampCoreExternalPlaybackBridge(state) {}.snapshot()
+        val snapshot = NaviampCoreExternalPlaybackBridge(state, dispatch = {}).snapshot()
 
         assertFalse(snapshot.shouldRetainPlaybackService)
         assertEquals(emptyList(), snapshot.queue)
@@ -276,6 +292,7 @@ class NaviampCoreExternalPlaybackBridgeTest {
 
 private fun bridge(
     commands: MutableList<NaviampCoreCommand> = mutableListOf(),
+    progress: MutableStateFlow<PlaybackProgress>? = null,
 ): NaviampCoreExternalPlaybackBridge {
     val nowPlaying = NowPlayingUi(
         id = "current",
@@ -295,5 +312,5 @@ private fun bridge(
     val state = MutableStateFlow(
         NaviampCoreState(shell = NaviampAppShellUiState(nowPlaying = nowPlaying)),
     )
-    return NaviampCoreExternalPlaybackBridge(state, commands::add)
+    return NaviampCoreExternalPlaybackBridge(state, commands::add, progress)
 }
