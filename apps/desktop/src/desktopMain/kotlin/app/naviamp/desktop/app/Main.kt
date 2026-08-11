@@ -6,7 +6,6 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.snapshotFlow
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Window
@@ -24,6 +23,7 @@ import app.naviamp.desktop.platform.configureDesktopApplicationIcon
 import app.naviamp.desktop.platform.configureDesktopWindowAppearance
 import app.naviamp.desktop.platform.configureDesktopWindowIcon
 import app.naviamp.domain.network.NaviampAppVersion
+import app.naviamp.ui.naviampAppIconPainter
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -60,7 +60,7 @@ fun main() {
             state = windowState,
             onCloseRequest = ::exitApplication,
             title = "Naviamp ${NaviampAppVersion.removePrefix("v")}",
-            icon = painterResource("icons/naviamp.png"),
+            icon = naviampAppIconPainter(),
         ) {
             val darkTitleBar = isSystemInDarkTheme()
             LaunchedEffect(window, darkTitleBar) {

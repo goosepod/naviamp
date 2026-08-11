@@ -15,7 +15,6 @@ import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
@@ -26,6 +25,7 @@ import app.naviamp.desktop.platform.configureDesktopWindowAppearance
 import app.naviamp.desktop.platform.configureDesktopWindowIcon
 import app.naviamp.ui.NaviampDiagnosticsUi
 import app.naviamp.ui.NaviampStatsForNerdsContent
+import app.naviamp.ui.naviampAppIconPainter
 
 /** Desktop window shell around the authoritative Core diagnostics model and shared content. */
 @Composable
@@ -37,7 +37,7 @@ internal fun DesktopStatsForNerdsWindow(
         state = rememberWindowState(size = DpSize(760.dp, 780.dp)),
         title = "Naviamp - Stats for Nerds",
         onCloseRequest = onClose,
-        icon = painterResource("icons/naviamp.png"),
+        icon = naviampAppIconPainter(),
     ) {
         val darkTitleBar = androidx.compose.foundation.isSystemInDarkTheme()
         LaunchedEffect(window, darkTitleBar) {
