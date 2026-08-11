@@ -2,6 +2,38 @@
 
 Release changes are grouped into user-facing Features, Bug Fixes, and deployment or infrastructure-related System Settings. Internal task-tracking notes are intentionally not included.
 
+## v2.0.0-beta.2
+
+This second beta focuses on playback efficiency, accurate shared Now Playing behavior, platform packaging, and issues found during Android, Desktop, iOS, Jellyfin, Bandcamp, and Subsonic acceptance testing.
+
+### Features
+
+- Added an in-player lyrics timing selector for plain, line-synchronized, and word-synchronized lyrics, kept in sync with the shared display preference.
+- Improved downloaded-track quality labels so saved originals and transcodes show their actual format and bitrate when available.
+
+### Bug Fixes
+
+- Fixed queue completion so repeat-track, automatic next-track navigation, and Sonic Autoplay continuation follow the shared finished-track policy without duplicate navigation.
+- Fixed playback-source reporting when a provider stream falls back to a downloaded file, including the quality shown by native media controls and Stats for Nerds.
+- Reduced active-playback CPU and battery use by limiting speculative audio prefetch work and isolating the high-frequency playback clock from structural application state.
+- Reduced Now Playing frame work by localizing progress observation, limiting waveform overdraw, and replacing the hidden recomposing slider with exact tap, drag, and accessibility seek handling.
+- Removed Android's unused notification permission prompt while retaining the foreground media-playback service behavior required by the operating system.
+
+### System Settings
+
+- Added the complete semantic version to Android, ZIP, MSI, EXE, DMG, DEB, and RPM release filenames so prerelease upgrades can be identified and installed correctly.
+- Gave Windows installers monotonically increasing package versions based on the shared build code and preserved prerelease ordering for Linux packages.
+- Added explicit Linux secure-credential runtime dependencies for DEB and RPM packages.
+- Staged every platform's release outputs in a consistent artifact directory before GitHub release publication.
+
+### Beta Notes and Known Limitations
+
+- Feature development remains frozen for the 2.0 beta line. Only release blockers, regressions, acceptance coverage, diagnostics, packaging, documentation, and narrowly required compatibility fixes are accepted.
+- Back up important playlists and settings before testing this beta.
+- Android, macOS, Windows, and Linux are the supported beta targets. The iOS artifact remains an unsigned preview that testers must sign themselves; release signing, TestFlight, and physical-iPhone acceptance remain open before iOS can be treated as a supported RC target.
+- Bandcamp's Subsonic beta currently serves collection audio as MP3 256 kbps and does not reliably apply playlist track reordering; Naviamp blocks unsupported reorder mutations.
+- Windows and macOS packages are not yet distributed with trusted publisher signing, so their operating systems may display security warnings.
+
 ## v2.0.0-beta.1
 
 This first beta begins the Naviamp 2.0 feature freeze. It combines the shared cross-platform product with the final discovery, playback-continuity, Home customization, media-detail, and Desktop keyboard work completed after Alpha 4.

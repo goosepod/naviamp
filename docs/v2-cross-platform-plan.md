@@ -7,8 +7,8 @@ Ideas discovered during the migration that should not interrupt the active check
 ## Project Status
 
 - **Target release:** `2.0.0`
-- **Current development version:** `v2.0.0-beta.1` (build 40), shown in About and package metadata on every host.
-- **Working branch:** `release/v2.0.0-beta.1`
+- **Current development version:** `v2.0.0-beta.2` (build 41), shown in About and package metadata on every host.
+- **Working branch:** `release/v2.0.0-beta.2`
 - **Beta platforms:** Android, macOS, Windows, and Linux. iOS remains an unsigned preview during beta stabilization.
 - **Status:** Feature freeze began on August 9, 2026. Desktop, Android, and iOS mount the same Core product, BASS engine, and portable storage owners; stabilization now focuses on acceptance, regressions, packaging, documentation, and release automation rather than new product scope.
 - **Release policy:** Feature development for both the v1 maintenance line and the v2 beta line is frozen. V1 accepts bug fixes only. V2 accepts release blockers, regressions, acceptance coverage, diagnostics, packaging, documentation, and narrowly required compatibility fixes.
@@ -572,7 +572,7 @@ Use this table to track contract and implementation coverage. Add rows when new 
 Before starting work on any computer:
 
 1. Fetch `origin`.
-2. Check out `release/v2.0.0-beta.1`.
+2. Check out `release/v2.0.0-beta.2`.
 3. Pull with fast-forward only.
 4. Read this document and choose the first unchecked item whose prerequisites are complete.
 5. Confirm the worktree is clean and inspect recent commits before editing.

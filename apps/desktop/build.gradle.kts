@@ -237,8 +237,10 @@ tasks.register("verifyReleaseVersionMetadata") {
     doLast {
         check(windowsDistributionPackageVersion("v2.0.0-alpha.3", 38) == "2.0.38")
         check(windowsDistributionPackageVersion("v2.0.0-beta.1", 40) == "2.0.40")
-        check(windowsDistributionPackageVersion("v2.0.0", 41) == "2.0.41")
+        check(windowsDistributionPackageVersion("v2.0.0-beta.2", 41) == "2.0.41")
+        check(windowsDistributionPackageVersion("v2.0.0", 42) == "2.0.42")
         check(linuxDistributionPackageVersion("v2.0.0-beta.1") == "2.0.0~beta.1")
+        check(linuxDistributionPackageVersion("v2.0.0-beta.2") == "2.0.0~beta.2")
         check(nativeDistributionPackageVersion("v2.0.0-beta.1") == "2.0.0")
         check("Naviamp-$naviampVersionName-${desktopNativePlatform.get()}.msi".contains(naviampVersionName))
         if (desktopNativePlatform.get().startsWith("linux-")) {
