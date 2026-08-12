@@ -37,6 +37,7 @@ android {
         versionCode = naviampVersionCode
         versionName = naviampVersionName
         resValue("string", "app_name", "Naviamp")
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         externalNativeBuild {
             cmake { arguments += "-DANDROID_STL=c++_shared" }
         }
@@ -122,6 +123,10 @@ dependencies {
     testImplementation(project(":core:testkit"))
     testImplementation(kotlin("test"))
     testImplementation(libs.kotlinx.coroutines.test)
+    androidTestImplementation(libs.androidx.test.core)
+    androidTestImplementation(libs.androidx.test.runner)
+    androidTestImplementation(libs.androidx.test.ext.junit)
+    androidTestImplementation(kotlin("test"))
 }
 
 tasks.register("verifyDebugBassNativePackage") {

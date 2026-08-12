@@ -14,6 +14,10 @@ env:
   TZ: America/Los_Angeles
 
 jobs:
+  verification:
+    name: Verification gate
+    uses: ./.github/workflows/verify.yml
+
   version:
     name: Validate release tag
     runs-on: ubuntu-latest
@@ -30,7 +34,9 @@ jobs:
 
   android:
     name: Android signed APK
-    needs: version
+    needs:
+      - verification
+      - version
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository
@@ -75,7 +81,9 @@ jobs:
 
   windows:
     name: Windows zip and installers
-    needs: version
+    needs:
+      - verification
+      - version
     runs-on: windows-latest
     steps:
       - name: Check out repository
@@ -116,7 +124,9 @@ jobs:
 
   macos:
     name: macOS zip and DMG
-    needs: version
+    needs:
+      - verification
+      - version
     runs-on: macos-latest
     steps:
       - name: Check out repository
@@ -141,7 +151,9 @@ jobs:
 
   linux:
     name: Linux zip, DEB, and RPM
-    needs: version
+    needs:
+      - verification
+      - version
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository
@@ -169,7 +181,9 @@ jobs:
 
   ios-unsigned:
     name: iOS unsigned device IPA
-    needs: version
+    needs:
+      - verification
+      - version
     runs-on: macos-latest
     timeout-minutes: 45
     steps:

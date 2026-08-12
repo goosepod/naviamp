@@ -1,9 +1,11 @@
 import org.gradle.api.tasks.Copy
 import org.gradle.api.tasks.Exec
+import org.gradle.api.tasks.testing.Test
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
     alias(libs.plugins.kotlin.multiplatform)
+    alias(libs.plugins.kover)
 }
 
 val desktopNativePlatform = providers.gradleProperty("naviamp.bass.platform")
@@ -241,6 +243,16 @@ kotlin {
 
 tasks.matching { it.name == "desktopProcessResources" || it.name == "processDesktopMainResources" }
     .configureEach { dependsOn(prepareDesktopNativeResources) }
+
+tasks.named<Test>("desktopTest") {
+    dependsOn(prepareDesktopNativeResources)
+    systemProperty(
+        "naviamp.bass.dir",
+        generatedDesktopNativeResources.zip(desktopNativePlatform) { resources, platform ->
+            resources.dir("playback/bass/$platform").asFile.absolutePath
+        }.get(),
+    )
+}
 
 fun desktopNativePlatformId(): String {
     val os = System.getProperty("os.name").lowercase().let { name ->

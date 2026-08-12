@@ -35,6 +35,8 @@ help:
 	@printf "  make android-auto-logs   Follow Naviamp Android Auto logs\n"
 	@printf "  make android-auto-status Show connected device and package state\n\n"
 	@printf "Verification:\n"
+	@printf "  make test                Run the complete local, non-device verification suite\n"
+	@printf "  make coverage            Verify 60%% line coverage and write HTML/XML reports\n"
 	@printf "  make version-check       Validate VERSION and VERSION_CODE\n"
 	@printf "  make bump-version PART=patch|minor|major\n"
 	@printf "  make clean               Run Gradle clean\n"
@@ -170,3 +172,13 @@ android-auto-stop:
 desktop-test:
 	ANDROID_HOME="$(ANDROID_HOME)" $(GRADLE) jvmTest desktopTest
 	scripts/summarize-gradle-tests.sh jvmTest desktopTest
+
+.PHONY: test
+test:
+	ANDROID_HOME="$(ANDROID_HOME)" $(GRADLE) verifyCoreFirstArchitecture :core:storage:verifySqlDelightMigration :koverVerify :apps:android:testDebugUnitTest :apps:android:testReleaseUnitTest :apps:android:verifyDebugBassNativePackage
+	scripts/summarize-gradle-tests.sh jvmTest desktopTest testDebugUnitTest testReleaseUnitTest
+
+.PHONY: coverage
+coverage:
+	ANDROID_HOME="$(ANDROID_HOME)" $(GRADLE) :koverVerify :koverHtmlReport :koverXmlReport
+	@printf "Coverage report: build/reports/kover/html/index.html\n"

@@ -20,30 +20,30 @@ CREATE TABLE media_source (
   id TEXT NOT NULL PRIMARY KEY,
   provider_id TEXT NOT NULL,
   cache_namespace TEXT NOT NULL UNIQUE,
-  server_connection_key TEXT,
-  library_scope_key TEXT,
   display_name TEXT NOT NULL,
   base_url TEXT NOT NULL,
   username TEXT NOT NULL,
   token TEXT NOT NULL,
   salt TEXT NOT NULL,
-  native_token TEXT,
   insecure_skip_tls_verification INTEGER NOT NULL DEFAULT 0,
   custom_certificate_path TEXT,
   client_certificate_keystore_path TEXT,
   client_certificate_keystore_password TEXT,
-  secondary_urls_json TEXT,
-  custom_headers_json TEXT,
-  selected_music_folder_ids_json TEXT,
   created_at_epoch_millis INTEGER NOT NULL,
   last_connected_at_epoch_millis INTEGER,
   last_sync_started_at_epoch_millis INTEGER,
   last_sync_completed_at_epoch_millis INTEGER,
   last_library_scan_signature TEXT,
   last_library_scan_checked_at_epoch_millis INTEGER,
+  native_token TEXT,
+  secondary_urls_json TEXT,
+  custom_headers_json TEXT,
+  server_connection_key TEXT,
+  library_scope_key TEXT,
   provider_identity_version INTEGER NOT NULL DEFAULT 0,
   provider_identity_probe_target_version INTEGER,
-  provider_identity_probe_server_version TEXT
+  provider_identity_probe_server_version TEXT,
+  selected_music_folder_ids_json TEXT
 );
 
 CREATE TABLE library_artist (
@@ -77,7 +77,6 @@ CREATE TABLE library_track (
   title TEXT NOT NULL,
   artist_name TEXT NOT NULL,
   album_title TEXT,
-  genre_names TEXT,
   search_title TEXT NOT NULL,
   search_artist_name TEXT NOT NULL,
   search_album_title TEXT,
@@ -90,9 +89,10 @@ CREATE TABLE library_track (
   audio_sampling_rate_hz INTEGER,
   favorited_at_iso8601 TEXT,
   user_rating INTEGER,
+  updated_at_epoch_millis INTEGER NOT NULL,
   play_count INTEGER,
   last_played_at_iso8601 TEXT,
-  updated_at_epoch_millis INTEGER NOT NULL,
+  genre_names TEXT,
   PRIMARY KEY(source_id, remote_track_id)
 );
 

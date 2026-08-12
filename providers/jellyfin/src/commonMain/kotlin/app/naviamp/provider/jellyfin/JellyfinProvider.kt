@@ -265,7 +265,7 @@ class JellyfinProvider(
 
     private suspend fun trackPage(
         request: MediaPageRequest,
-        parentId: String? = null,
+        parentId: String? = selectedMusicFolderIds.singleOrNull(),
         searchTerm: String? = null,
     ): MediaPage<Track> = itemPage(
         request = request,

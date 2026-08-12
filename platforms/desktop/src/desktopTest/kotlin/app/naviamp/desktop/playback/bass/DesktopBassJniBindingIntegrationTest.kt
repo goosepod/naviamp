@@ -13,19 +13,18 @@ import kotlin.test.assertTrue
 
 class DesktopBassJniBindingIntegrationTest {
     @Test
-    fun loadsBundledJniBindingWhenAvailable() {
-        val libraryDirectory = DesktopBassLibraryResolver().resolve() ?: return
-        val binding = DesktopBassJniBinding.loadFrom(libraryDirectory).getOrNull() ?: return
+    fun loadsBundledJniBinding() {
+        val binding = requireBinding()
 
         assertTrue(binding.version > 0)
     }
 
     @Test
-    fun controlsGeneratedWavThroughJniWhenBassIsAvailable() {
-        val binding = loadBindingOrSkip() ?: return
+    fun controlsGeneratedWavThroughJni() {
+        val binding = requireBinding()
         val wav = createSilentWavFile()
         try {
-            if (!binding.init()) return
+            assertTrue(binding.init(), "BASS should initialize: ${binding.lastErrorCode}")
             val stream = binding.createFileStream(wav.absolutePath)
             assertTrue(stream != 0, "BASS stream should be created: ${binding.lastErrorCode}")
 
@@ -51,10 +50,11 @@ class DesktopBassJniBindingIntegrationTest {
     }
 
     @Test
-    fun readsGeneratedWavDecodeDataThroughJniWhenBassIsAvailable() {
-        val binding = loadBindingOrSkip() ?: return
+    fun readsGeneratedWavDecodeDataThroughJni() {
+        val binding = requireBinding()
         val wav = createSilentWavFile()
         try {
+            assertTrue(binding.init(), "BASS should initialize: ${binding.lastErrorCode}")
             val stream = binding.createFileDecodeStream(wav.absolutePath)
             assertTrue(stream != 0, "BASS decode stream should be created: ${binding.lastErrorCode}")
 
@@ -63,14 +63,15 @@ class DesktopBassJniBindingIntegrationTest {
             assertTrue(binding.readFloatData(stream, buffer) >= 0)
             assertTrue(binding.freeStream(stream))
         } finally {
+            binding.free()
             wav.delete()
         }
     }
 
     @Test
-    fun createsMixerAndReadsFftThroughJniWhenBassIsAvailable() {
-        val binding = loadBindingOrSkip() ?: return
-        if (!binding.init()) return
+    fun createsMixerAndReadsFftThroughJni() {
+        val binding = requireBinding()
+        assertTrue(binding.init(), "BASS should initialize: ${binding.lastErrorCode}")
         try {
             val mixer = binding.createMixer(frequency = 44_100, channels = 2, queueSources = false)
             assertTrue(mixer != 0, "BASS mixer should be created: ${binding.lastErrorCode}")
@@ -82,11 +83,11 @@ class DesktopBassJniBindingIntegrationTest {
     }
 
     @Test
-    fun receivesEndSyncCallbackThroughJniWhenBassIsAvailable() {
-        val binding = loadBindingOrSkip() ?: return
+    fun receivesEndSyncCallbackThroughJni() {
+        val binding = requireBinding()
         val wav = createSilentWavFile(seconds = 1)
         try {
-            if (!binding.init()) return
+            assertTrue(binding.init(), "BASS should initialize: ${binding.lastErrorCode}")
             val stream = binding.createFileStream(wav.absolutePath)
             assertTrue(stream != 0, "BASS stream should be created: ${binding.lastErrorCode}")
 
@@ -106,7 +107,9 @@ class DesktopBassJniBindingIntegrationTest {
 
     @Test
     fun desktopBackendLoadsJniBinding() {
-        val backend = loadDesktopBassAudioBackend().getOrNull() ?: return
+        val backend = loadDesktopBassAudioBackend().getOrElse { failure ->
+            throw AssertionError("Desktop BASS backend should load", failure)
+        }
 
         assertTrue((backend.version ?: 0) > 0)
         assertTrue(
@@ -115,9 +118,14 @@ class DesktopBassJniBindingIntegrationTest {
         )
     }
 
-    private fun loadBindingOrSkip(): DesktopBassJniBinding? {
-        val libraryDirectory = DesktopBassLibraryResolver().resolve() ?: return null
-        return DesktopBassJniBinding.loadFrom(libraryDirectory).getOrNull()
+    private fun requireBinding(): DesktopBassJniBinding {
+        val libraryDirectory = assertNotNull(
+            DesktopBassLibraryResolver().resolveWithLibraries("bass", "naviamp_bass"),
+            "Bundled Desktop BASS libraries should resolve",
+        )
+        return DesktopBassJniBinding.loadFrom(libraryDirectory).getOrElse { failure ->
+            throw AssertionError("Bundled Desktop BASS JNI binding should load from $libraryDirectory", failure)
+        }
     }
 
     private fun createSilentWavFile(seconds: Int = 1): File =

@@ -50,7 +50,7 @@ internal class AesGcmCredentialProtector(
         value?.startsWith(CredentialPrefix) == true
 }
 
-internal class AndroidKeystoreCredentialProtector : AndroidCredentialProtector by AesGcmCredentialProtector(
+class AndroidKeystoreCredentialProtector : AndroidCredentialProtector by AesGcmCredentialProtector(
     key = ::loadOrCreateCredentialKey,
 )
 

@@ -50,3 +50,5 @@ DROP TABLE cached_lrclib_lyrics;
 
 CREATE INDEX cached_online_lyrics_access
 ON cached_online_lyrics(last_accessed_epoch_millis);
+
+ALTER TABLE media_source ADD COLUMN selected_music_folder_ids_json TEXT;

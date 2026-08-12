@@ -4,7 +4,7 @@ import android.content.Context
 import android.database.sqlite.SQLiteDatabase
 import app.cash.sqldelight.db.SqlDriver
 import app.cash.sqldelight.driver.android.AndroidSqliteDriver
-import app.naviamp.storage.NaviampStorageDatabase
+import app.naviamp.storage.NaviampStorageSchema
 import app.naviamp.storage.StorageDatabaseDriverFactory
 import app.naviamp.storage.StorageDatabaseLocation
 import app.naviamp.storage.prepareNaviampStorageDriver
@@ -24,7 +24,7 @@ internal class AndroidStorageDatabaseDriverFactory(context: Context) : StorageDa
         val existedBeforeOpen = databaseFile.exists()
         replaceUnsupportedFutureSchema(databaseFile, location.fileName)
         return AndroidSqliteDriver(
-            schema = NaviampStorageDatabase.Schema,
+            schema = NaviampStorageSchema,
             context = context,
             name = location.fileName,
         ).also { driver ->

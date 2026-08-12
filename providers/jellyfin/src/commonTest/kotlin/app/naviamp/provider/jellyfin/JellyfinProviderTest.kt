@@ -18,8 +18,49 @@ import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
+import kotlin.test.assertFailsWith
 
 class JellyfinProviderTest {
+    @Test
+    fun searchUsesSelectedLibraryPaginationAndUrlEncodingAcrossMediaTypes() = runTest {
+        val fixture = fixture(
+            responses = mapOf(
+                "includeItemTypes=MusicArtist" to """{"Items":[{"Id":"artist-1","Name":"AC/DC"}],"TotalRecordCount":2}""",
+                "includeItemTypes=MusicAlbum" to """{"Items":[{"Id":"album-1","Name":"Back in Black"}],"TotalRecordCount":2}""",
+                "includeItemTypes=Audio" to """{"Items":[{"Id":"track-1","Name":"Hells Bells"}],"TotalRecordCount":2}""",
+            ),
+            selectedMusicFolderIds = listOf("library-1"),
+        )
+
+        val results = fixture.provider.search("  AC/DC & live  ", 1)
+
+        assertEquals("AC/DC", results.artists.single().name)
+        assertEquals("Back in Black", results.albums.single().title)
+        assertEquals("Hells Bells", results.tracks.single().title)
+        assertEquals(3, fixture.http.requestedUrls.size)
+        fixture.http.requestedUrls.forEach { url ->
+            assertTrue(url.contains("parentId=library-1"), url)
+            assertTrue(url.contains("limit=1"), url)
+            assertTrue(url.contains("searchTerm=AC%2FDC+%26+live"), url)
+        }
+    }
+
+    @Test
+    fun requestFailuresAndMalformedPayloadsAreActionable() = runTest {
+        val rejected = fixture(
+            responses = mapOf("includeItemTypes=MusicAlbum" to "{}"),
+            responseStatus = 401,
+        )
+        val authorization = assertFailsWith<JellyfinException> { rejected.provider.albums(10, 0) }
+        assertTrue(authorization.message.orEmpty().contains("session is no longer valid"))
+        assertTrue(authorization.message.orEmpty().contains("reconnect"))
+
+        val malformed = fixture(responses = mapOf("includeItemTypes=MusicAlbum" to "not-json"))
+        val invalid = assertFailsWith<JellyfinException> { malformed.provider.albums(10, 0) }
+        assertTrue(invalid.message.orEmpty().contains("invalid response"))
+        assertFalse(invalid.message.orEmpty().contains("not-json"), "Raw server bodies must not leak into UI errors")
+    }
+
     @Test
     fun mapsMusicLibrariesAndPagedAlbumsFromJellyfinItems() = runTest {
         val fixture = fixture(
@@ -314,8 +355,10 @@ class JellyfinProviderTest {
     private fun fixture(
         responses: Map<String, String> = emptyMap(),
         binaryResponse: JellyfinBinaryResponse = JellyfinBinaryResponse(404, byteArrayOf()),
+        responseStatus: Int = 200,
+        selectedMusicFolderIds: List<String> = emptyList(),
     ): Fixture {
-        val http = FixtureJellyfinHttpClient(responses, binaryResponse)
+        val http = FixtureJellyfinHttpClient(responses, binaryResponse, responseStatus)
         val service = JellyfinSessionService(
             httpClient = http,
             identity = JellyfinClientIdentity("device-id", "Test", clientVersion = "1.0"),
@@ -330,6 +373,7 @@ class JellyfinProviderTest {
                     userId = "user-id",
                     deviceId = "device-id",
                     serverVersion = "10.11.11",
+                    selectedMusicFolderIds = selectedMusicFolderIds,
                 ),
                 sessionServices = factory,
             ),
@@ -346,6 +390,7 @@ private data class Fixture(
 private class FixtureJellyfinHttpClient(
     private val responses: Map<String, String>,
     private val binaryResponse: JellyfinBinaryResponse,
+    private val responseStatus: Int,
 ) : JellyfinHttpClient {
     val requestedUrls = mutableListOf<String>()
     val mutations = mutableListOf<Pair<String, String>>()
@@ -357,7 +402,7 @@ private class FixtureJellyfinHttpClient(
     override suspend fun get(url: String, headers: Map<String, String>): JellyfinHttpResponse {
         requestedUrls += url
         val body = responses.entries.firstOrNull { (key, _) -> url.contains(key) }?.value
-        return if (body == null) JellyfinHttpResponse(404, "") else JellyfinHttpResponse(200, body)
+        return if (body == null) JellyfinHttpResponse(404, "") else JellyfinHttpResponse(responseStatus, body)
     }
 
     override suspend fun postJson(

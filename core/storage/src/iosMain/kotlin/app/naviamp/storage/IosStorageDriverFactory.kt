@@ -20,7 +20,7 @@ class IosStorageDriverFactory(
     }
 
     fun createDriver(): SqlDriver = NativeSqliteDriver(
-        schema = NaviampStorageDatabase.Schema,
+        schema = NaviampStorageSchema,
         name = location.fileName,
         onConfiguration = { configuration ->
             configuration.copy(

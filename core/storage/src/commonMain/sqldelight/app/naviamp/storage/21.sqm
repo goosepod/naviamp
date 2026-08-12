@@ -1,0 +1,6 @@
+-- Version 21 fresh databases already contained this column. Older databases receive it in
+-- 20.sqm, while the shared runtime schema wrapper repairs version-21 databases created by the
+-- former incomplete migration chain before this assertion runs.
+UPDATE media_source
+SET selected_music_folder_ids_json = selected_music_folder_ids_json
+WHERE 0;

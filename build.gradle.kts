@@ -7,6 +7,37 @@ plugins {
     alias(libs.plugins.compose.compiler) apply false
     alias(libs.plugins.kotlin.serialization) apply false
     alias(libs.plugins.sqldelight) apply false
+    alias(libs.plugins.kover)
+}
+
+dependencies {
+    kover(project(":core:app"))
+    kover(project(":core:domain"))
+    kover(project(":core:presentation"))
+    kover(project(":core:storage"))
+    kover(project(":core:testkit"))
+    kover(project(":core:ui"))
+    kover(project(":providers:jellyfin"))
+    kover(project(":providers:navidrome"))
+    kover(project(":platforms:desktop"))
+    kover(project(":apps:desktop"))
+}
+
+kover {
+    reports {
+        filters {
+            excludes {
+                classes("app.naviamp.storage.NaviampStorageDatabase*")
+                classes("app.naviamp.storage.*Queries*")
+                classes("*.generated.resources.*")
+            }
+        }
+        verify {
+            rule("Aggregate line coverage") {
+                minBound(60)
+            }
+        }
+    }
 }
 
 val commonProductionSources = fileTree(layout.projectDirectory) {

@@ -151,6 +151,7 @@ Common development commands are exposed through `make`:
 
 ```shell
 make help
+make test
 make desktop-test
 make macos-test
 make android-debug
@@ -158,6 +159,11 @@ make android-debug
 
 Useful build targets:
 
+- `make test` runs the complete local non-device gate: Core-first architecture checks, SQLDelight
+  migration verification, shared/provider/desktop/Android unit tests, native Desktop BASS tests,
+  Android BASS package verification, and the aggregate coverage floor.
+- `make coverage` verifies the aggregate 60% line-coverage floor and writes the browsable report to
+  `build/reports/kover/html/index.html`.
 - `make macos-test` builds, stages, and opens a local macOS app at `build/local-test/Naviamp.app`.
 - `make macos-standalone` creates a macOS release zip under `apps/desktop/build/compose/distributions`.
 - `make android-debug` builds the Android debug APK.
@@ -169,6 +175,9 @@ Useful build targets:
   securely store the native provider token.
 - `scripts/build-ios-unsigned-ipa.sh` creates an unsigned physical-device IPA on macOS with Xcode;
   see [Sideloading Naviamp on iPhone or iPad](docs/ios-sideloading.md) before distributing or installing it.
+
+The full test matrix, including Android emulator, iOS Simulator/Keychain, and three-desktop-OS CI
+coverage, is documented in [Testing Naviamp](docs/testing.md).
 
 Windows and Linux installer targets must run on their target operating system because `jpackage` packages for the current OS:
 

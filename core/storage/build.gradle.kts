@@ -4,6 +4,7 @@ plugins {
     alias(libs.plugins.android.library)
     alias(libs.plugins.kotlin.multiplatform)
     alias(libs.plugins.sqldelight)
+    alias(libs.plugins.kover)
 }
 
 kotlin {
@@ -51,6 +52,8 @@ sqldelight {
     databases {
         create("NaviampStorageDatabase") {
             packageName.set("app.naviamp.storage")
+            schemaOutputDirectory.set(file("src/commonMain/sqldelight/app/naviamp/storage"))
+            verifyMigrations.set(true)
         }
     }
 }

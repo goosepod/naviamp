@@ -11,6 +11,11 @@
 		A10000000000000000000004 /* Naviamp.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Naviamp.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		A10000000000000000000005 /* IosKeychainCredentialProtector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IosKeychainCredentialProtector.swift; sourceTree = "<group>"; };
 		A10000000000000000000006 /* IosApplicationDirectories.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IosApplicationDirectories.swift; sourceTree = "<group>"; };
+		B10000000000000000000001 /* IosKeychainCredentialProtectorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IosKeychainCredentialProtectorTests.swift; sourceTree = "<group>"; };
+		B10000000000000000000002 /* NaviampTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = NaviampTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		B10000000000000000000014 /* IosKeychainVault.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IosKeychainVault.swift; sourceTree = "<group>"; };
+		C10000000000000000000001 /* KeychainTestHost.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainTestHost.swift; sourceTree = "<group>"; };
+		C10000000000000000000002 /* NaviampKeychainTestHost.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = NaviampKeychainTestHost.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		A30000000000000000000001 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		A1000000000000000000000A /* bass.xcframework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcframework; name = bass.xcframework; path = ../../platforms/ios/vendor/bass/bass.xcframework; sourceTree = SOURCE_ROOT; };
 		A1000000000000000000000B /* bassmix.xcframework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcframework; name = bassmix.xcframework; path = ../../platforms/ios/vendor/bass/bassmix.xcframework; sourceTree = SOURCE_ROOT; };
@@ -27,6 +32,10 @@
 		A10000000000000000000012 /* NaviampRootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000002 /* NaviampRootView.swift */; };
 		A10000000000000000000013 /* IosKeychainCredentialProtector.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000005 /* IosKeychainCredentialProtector.swift */; };
 		A10000000000000000000014 /* IosApplicationDirectories.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000006 /* IosApplicationDirectories.swift */; };
+		B10000000000000000000003 /* IosKeychainCredentialProtectorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000001 /* IosKeychainCredentialProtectorTests.swift */; };
+		B10000000000000000000015 /* IosKeychainVault.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000014 /* IosKeychainVault.swift */; };
+		B10000000000000000000016 /* IosKeychainVault.swift in Test Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000014 /* IosKeychainVault.swift */; };
+		C10000000000000000000003 /* KeychainTestHost.swift in Sources */ = {isa = PBXBuildFile; fileRef = C10000000000000000000001 /* KeychainTestHost.swift */; };
 		A30000000000000000000002 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A30000000000000000000001 /* Assets.xcassets */; };
 		A10000000000000000000016 /* bass.xcframework in Frameworks */ = {isa = PBXBuildFile; fileRef = A1000000000000000000000A /* bass.xcframework */; };
 		A10000000000000000000017 /* bassmix.xcframework in Frameworks */ = {isa = PBXBuildFile; fileRef = A1000000000000000000000B /* bassmix.xcframework */; };
@@ -55,9 +64,16 @@
 			isa = PBXGroup;
 			children = (
 				A10000000000000000000021 /* iosApp */,
+				B10000000000000000000004 /* iosAppTests */,
 				A10000000000000000000023 /* Frameworks */,
 				A10000000000000000000022 /* Products */,
 			);
+			sourceTree = "<group>";
+		};
+		B10000000000000000000004 /* iosAppTests */ = {
+			isa = PBXGroup;
+			children = (B10000000000000000000001 /* IosKeychainCredentialProtectorTests.swift */, C10000000000000000000001 /* KeychainTestHost.swift */);
+			path = iosAppTests;
 			sourceTree = "<group>";
 		};
 		A10000000000000000000021 /* iosApp */ = {
@@ -68,6 +84,7 @@
 				A10000000000000000000003 /* Info.plist */,
 				A10000000000000000000005 /* IosKeychainCredentialProtector.swift */,
 				A10000000000000000000006 /* IosApplicationDirectories.swift */,
+				B10000000000000000000014 /* IosKeychainVault.swift */,
 				A30000000000000000000001 /* Assets.xcassets */,
 			);
 			path = iosApp;
@@ -75,7 +92,7 @@
 		};
 		A10000000000000000000022 /* Products */ = {
 			isa = PBXGroup;
-			children = (A10000000000000000000004 /* Naviamp.app */);
+			children = (A10000000000000000000004 /* Naviamp.app */, B10000000000000000000002 /* NaviampTests.xctest */, C10000000000000000000002 /* NaviampKeychainTestHost.app */);
 			name = Products;
 			sourceTree = "<group>";
 		};
@@ -106,6 +123,7 @@
 				A10000000000000000000012 /* NaviampRootView.swift in Sources */,
 				A10000000000000000000013 /* IosKeychainCredentialProtector.swift in Sources */,
 				A10000000000000000000014 /* IosApplicationDirectories.swift in Sources */,
+				B10000000000000000000015 /* IosKeychainVault.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -124,6 +142,13 @@
 			shellPath = /bin/sh;
 			shellScript = "cd \"$SRCROOT/../..\"\n./gradlew :apps:ios:embedAndSignAppleFrameworkForXcode\n";
 		};
+		B10000000000000000000005 /* Sources */ = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (B10000000000000000000003 /* IosKeychainCredentialProtectorTests.swift in Sources */, B10000000000000000000016 /* IosKeychainVault.swift in Test Sources */); runOnlyForDeploymentPostprocessing = 0; };
+		B10000000000000000000006 /* Frameworks */ = {isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
+		C10000000000000000000004 /* Sources */ = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (C10000000000000000000003 /* KeychainTestHost.swift in Sources */); runOnlyForDeploymentPostprocessing = 0; };
+		C10000000000000000000005 /* Frameworks */ = {isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
+		C10000000000000000000006 /* Resources */ = {isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
+		C10000000000000000000007 /* Keychain test host proxy */ = {isa = PBXContainerItemProxy; containerPortal = A10000000000000000000060 /* Project object */; proxyType = 1; remoteGlobalIDString = C10000000000000000000009; remoteInfo = NaviampKeychainTestHost; };
+		C10000000000000000000008 /* Keychain test host dependency */ = {isa = PBXTargetDependency; target = C10000000000000000000009 /* NaviampKeychainTestHost */; targetProxy = C10000000000000000000007 /* Keychain test host proxy */; };
 
 		A10000000000000000000040 /* Naviamp */ = {
 			isa = PBXNativeTarget;
@@ -142,10 +167,32 @@
 			productReference = A10000000000000000000004 /* Naviamp.app */;
 			productType = "com.apple.product-type.application";
 		};
+		C10000000000000000000009 /* NaviampKeychainTestHost */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = C10000000000000000000010;
+			buildPhases = (C10000000000000000000004 /* Sources */, C10000000000000000000005 /* Frameworks */, C10000000000000000000006 /* Resources */);
+			buildRules = ();
+			dependencies = ();
+			name = NaviampKeychainTestHost;
+			productName = NaviampKeychainTestHost;
+			productReference = C10000000000000000000002 /* NaviampKeychainTestHost.app */;
+			productType = "com.apple.product-type.application";
+		};
+		B10000000000000000000009 /* NaviampTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = B10000000000000000000010;
+			buildPhases = (B10000000000000000000005 /* Sources */, B10000000000000000000006 /* Frameworks */);
+			buildRules = ();
+			dependencies = (C10000000000000000000008 /* Keychain test host dependency */);
+			name = NaviampTests;
+			productName = NaviampTests;
+			productReference = B10000000000000000000002 /* NaviampTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
 
 		A10000000000000000000060 /* Project object */ = {
 			isa = PBXProject;
-			attributes = {BuildIndependentTargetsInParallel = 1; LastSwiftUpdateCheck = 2660; LastUpgradeCheck = 2660; TargetAttributes = {A10000000000000000000040 = {CreatedOnToolsVersion = 26.6; }; }; };
+			attributes = {BuildIndependentTargetsInParallel = 1; LastSwiftUpdateCheck = 2660; LastUpgradeCheck = 2660; TargetAttributes = {A10000000000000000000040 = {CreatedOnToolsVersion = 26.6; }; B10000000000000000000009 = {CreatedOnToolsVersion = 26.6; TestTargetID = C10000000000000000000009; }; C10000000000000000000009 = {CreatedOnToolsVersion = 26.6; }; }; };
 			buildConfigurationList = A10000000000000000000051;
 			compatibilityVersion = "Xcode 14.0";
 			developmentRegion = en;
@@ -155,15 +202,21 @@
 			productRefGroup = A10000000000000000000022 /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
-			targets = (A10000000000000000000040 /* Naviamp */);
+			targets = (A10000000000000000000040 /* Naviamp */, B10000000000000000000009 /* NaviampTests */, C10000000000000000000009 /* NaviampKeychainTestHost */);
 		};
 
-		A10000000000000000000070 /* Debug */ = {isa = XCBuildConfiguration; buildSettings = {ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon; CLANG_ENABLE_MODULES = YES; CODE_SIGN_STYLE = Automatic; CURRENT_PROJECT_VERSION = 1; DEVELOPMENT_TEAM = ""; ENABLE_PREVIEWS = YES; FRAMEWORK_SEARCH_PATHS = ("$(inherited)", "$(SRCROOT)/build/xcode-frameworks/$(CONFIGURATION)/$(SDK_NAME)"); GENERATE_INFOPLIST_FILE = NO; INFOPLIST_FILE = iosApp/Info.plist; IPHONEOS_DEPLOYMENT_TARGET = 17.2; LD_RUNPATH_SEARCH_PATHS = ("$(inherited)", "@executable_path/Frameworks"); MARKETING_VERSION = 2.0.0; OTHER_LDFLAGS = ("$(inherited)", "-framework", NaviampShared, "-lsqlite3"); PRODUCT_BUNDLE_IDENTIFIER = app.naviamp.ios; PRODUCT_NAME = "$(TARGET_NAME)"; SDKROOT = iphoneos; SUPPORTED_PLATFORMS = "iphoneos iphonesimulator"; SWIFT_EMIT_LOC_STRINGS = YES; SWIFT_VERSION = 5.0; TARGETED_DEVICE_FAMILY = "1,2"; }; name = Debug; };
+		A10000000000000000000070 /* Debug */ = {isa = XCBuildConfiguration; buildSettings = {ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon; CLANG_ENABLE_MODULES = YES; CODE_SIGN_STYLE = Automatic; CURRENT_PROJECT_VERSION = 1; DEVELOPMENT_TEAM = ""; ENABLE_PREVIEWS = YES; FRAMEWORK_SEARCH_PATHS = ("$(inherited)", "$(SRCROOT)/build/xcode-frameworks/$(CONFIGURATION)/$(SDK_NAME)"); GENERATE_INFOPLIST_FILE = NO; INFOPLIST_FILE = iosApp/Info.plist; IPHONEOS_DEPLOYMENT_TARGET = 17.2; LD_RUNPATH_SEARCH_PATHS = ("$(inherited)", "@executable_path/Frameworks"); MARKETING_VERSION = 2.0.0; ONLY_ACTIVE_ARCH = YES; OTHER_LDFLAGS = ("$(inherited)", "-framework", NaviampShared, "-lsqlite3"); PRODUCT_BUNDLE_IDENTIFIER = app.naviamp.ios; PRODUCT_NAME = "$(TARGET_NAME)"; SDKROOT = iphoneos; SUPPORTED_PLATFORMS = "iphoneos iphonesimulator"; SWIFT_EMIT_LOC_STRINGS = YES; SWIFT_VERSION = 5.0; TARGETED_DEVICE_FAMILY = "1,2"; }; name = Debug; };
 		A10000000000000000000071 /* Release */ = {isa = XCBuildConfiguration; buildSettings = {ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon; CLANG_ENABLE_MODULES = YES; CODE_SIGN_STYLE = Automatic; CURRENT_PROJECT_VERSION = 1; DEVELOPMENT_TEAM = ""; FRAMEWORK_SEARCH_PATHS = ("$(inherited)", "$(SRCROOT)/build/xcode-frameworks/$(CONFIGURATION)/$(SDK_NAME)"); GENERATE_INFOPLIST_FILE = NO; INFOPLIST_FILE = iosApp/Info.plist; IPHONEOS_DEPLOYMENT_TARGET = 17.2; LD_RUNPATH_SEARCH_PATHS = ("$(inherited)", "@executable_path/Frameworks"); MARKETING_VERSION = 2.0.0; OTHER_LDFLAGS = ("$(inherited)", "-framework", NaviampShared, "-lsqlite3"); PRODUCT_BUNDLE_IDENTIFIER = app.naviamp.ios; PRODUCT_NAME = "$(TARGET_NAME)"; SDKROOT = iphoneos; SUPPORTED_PLATFORMS = "iphoneos iphonesimulator"; SWIFT_COMPILATION_MODE = wholemodule; SWIFT_EMIT_LOC_STRINGS = YES; SWIFT_OPTIMIZATION_LEVEL = "-O"; SWIFT_VERSION = 5.0; TARGETED_DEVICE_FAMILY = "1,2"; VALIDATE_PRODUCT = YES; }; name = Release; };
 		A10000000000000000000072 /* Debug */ = {isa = XCBuildConfiguration; buildSettings = {ALWAYS_SEARCH_USER_PATHS = NO; CLANG_ENABLE_MODULES = YES; IPHONEOS_DEPLOYMENT_TARGET = 17.2; SDKROOT = iphoneos; }; name = Debug; };
 		A10000000000000000000073 /* Release */ = {isa = XCBuildConfiguration; buildSettings = {ALWAYS_SEARCH_USER_PATHS = NO; CLANG_ENABLE_MODULES = YES; IPHONEOS_DEPLOYMENT_TARGET = 17.2; SDKROOT = iphoneos; }; name = Release; };
+		B10000000000000000000011 /* Debug */ = {isa = XCBuildConfiguration; buildSettings = {BUNDLE_LOADER = "$(TEST_HOST)"; CODE_SIGN_STYLE = Automatic; DEVELOPMENT_TEAM = ""; GENERATE_INFOPLIST_FILE = YES; IPHONEOS_DEPLOYMENT_TARGET = 17.2; PRODUCT_BUNDLE_IDENTIFIER = app.naviamp.ios.tests; PRODUCT_NAME = "$(TARGET_NAME)"; SDKROOT = iphoneos; SUPPORTED_PLATFORMS = "iphoneos iphonesimulator"; SWIFT_VERSION = 5.0; TARGETED_DEVICE_FAMILY = "1,2"; TEST_HOST = "$(BUILT_PRODUCTS_DIR)/NaviampKeychainTestHost.app/NaviampKeychainTestHost"; }; name = Debug; };
+		B10000000000000000000012 /* Release */ = {isa = XCBuildConfiguration; buildSettings = {BUNDLE_LOADER = "$(TEST_HOST)"; CODE_SIGN_STYLE = Automatic; DEVELOPMENT_TEAM = ""; GENERATE_INFOPLIST_FILE = YES; IPHONEOS_DEPLOYMENT_TARGET = 17.2; PRODUCT_BUNDLE_IDENTIFIER = app.naviamp.ios.tests; PRODUCT_NAME = "$(TARGET_NAME)"; SDKROOT = iphoneos; SUPPORTED_PLATFORMS = "iphoneos iphonesimulator"; SWIFT_VERSION = 5.0; TARGETED_DEVICE_FAMILY = "1,2"; TEST_HOST = "$(BUILT_PRODUCTS_DIR)/NaviampKeychainTestHost.app/NaviampKeychainTestHost"; }; name = Release; };
+		C10000000000000000000011 /* Debug */ = {isa = XCBuildConfiguration; buildSettings = {CODE_SIGN_STYLE = Automatic; DEVELOPMENT_TEAM = ""; GENERATE_INFOPLIST_FILE = YES; IPHONEOS_DEPLOYMENT_TARGET = 17.2; PRODUCT_BUNDLE_IDENTIFIER = app.naviamp.ios.keychain-test-host; PRODUCT_NAME = "$(TARGET_NAME)"; SDKROOT = iphoneos; SUPPORTED_PLATFORMS = "iphoneos iphonesimulator"; SWIFT_VERSION = 5.0; TARGETED_DEVICE_FAMILY = "1,2"; }; name = Debug; };
+		C10000000000000000000012 /* Release */ = {isa = XCBuildConfiguration; buildSettings = {CODE_SIGN_STYLE = Automatic; DEVELOPMENT_TEAM = ""; GENERATE_INFOPLIST_FILE = YES; IPHONEOS_DEPLOYMENT_TARGET = 17.2; PRODUCT_BUNDLE_IDENTIFIER = app.naviamp.ios.keychain-test-host; PRODUCT_NAME = "$(TARGET_NAME)"; SDKROOT = iphoneos; SUPPORTED_PLATFORMS = "iphoneos iphonesimulator"; SWIFT_VERSION = 5.0; TARGETED_DEVICE_FAMILY = "1,2"; }; name = Release; };
 		A10000000000000000000050 = {isa = XCConfigurationList; buildConfigurations = (A10000000000000000000070, A10000000000000000000071); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
 		A10000000000000000000051 = {isa = XCConfigurationList; buildConfigurations = (A10000000000000000000072, A10000000000000000000073); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
+		B10000000000000000000010 = {isa = XCConfigurationList; buildConfigurations = (B10000000000000000000011, B10000000000000000000012); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
+		C10000000000000000000010 = {isa = XCConfigurationList; buildConfigurations = (C10000000000000000000011, C10000000000000000000012); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
 	};
 	rootObject = A10000000000000000000060 /* Project object */;
 }
