@@ -27,6 +27,7 @@ Use the published Beta 4 artifacts for the multi-day soak. Record failures with 
 - [ ] Providers: complete at least one focused Navidrome, generic Subsonic, Jellyfin, and Bandcamp pass, including selected-library restoration and provider-capability-specific actions.
 - [ ] Portability: export settings on one platform and import or sync them on another; verify provider types, selected music libraries, update channel, Home layouts, lyrics preferences, and other shared settings without transferring credentials or device-local paths.
 - [ ] Packaging: verify every filename and installed About screen reports `v2.0.0-beta.4`, and preserve screenshots or notes for any installer warning or upgrade refusal.
+- [ ] About changelog: replace the prerelease entries shown under About > Changelog with the final, user-facing v2.0.0 features and fixes; verify the rendered content before tagging the release.
 - [ ] Triage every discovered issue as a final-release blocker, explicit deferral, or post-v2 follow-up before changing `VERSION` to `v2.0.0`.
 
 ### Feature Freeze Policy
@@ -547,7 +548,7 @@ This milestone was deliberately temporary. On 2026-07-24, the project chose to p
 - [ ] Complete physical-device testing on Android and iOS.
 - [ ] Complete macOS, Windows, and Linux Desktop smoke testing.
 - [ ] Write migration notes and user-facing release notes.
-- [ ] Update the in-app changelog.
+- [ ] Update the About-page in-app changelog (`DefaultNaviampChangelog`) with the final v2.0.0 entries and update its shared tests.
 - [ ] Change `VERSION` to `2.0.0` using the project versioning script.
 - [ ] Update `VERSION_CODE`, changelog, build metadata, and documentation.
 - [ ] Build and inspect every release artifact.
