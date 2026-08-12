@@ -39,7 +39,7 @@ help:
 	@printf "  make bump-version PART=patch|minor|major\n"
 	@printf "  make clean               Run Gradle clean\n"
 	@printf "  make clean-generated     Run Gradle clean and remove root generated staging outputs\n"
-	@printf "  make desktop-test        Run desktop tests\n"
+	@printf "  make desktop-test        Run shared/provider JVM and Desktop tests\n"
 
 .PHONY: version-check
 version-check:
@@ -168,4 +168,5 @@ android-auto-stop:
 
 .PHONY: desktop-test
 desktop-test:
-	ANDROID_HOME="$(ANDROID_HOME)" $(GRADLE) desktopTest
+	ANDROID_HOME="$(ANDROID_HOME)" $(GRADLE) jvmTest desktopTest
+	scripts/summarize-gradle-tests.sh jvmTest desktopTest
