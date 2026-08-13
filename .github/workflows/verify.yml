@@ -44,6 +44,11 @@ jobs:
           :apps:android:testReleaseUnitTest
           :apps:android:verifyDebugBassNativePackage
 
+      - name: Configure headless ALSA output for coverage aggregation
+        run: |
+          printf '%s\n' 'pcm.!default { type null }' > "$RUNNER_TEMP/naviamp-asound.conf"
+          echo "ALSA_CONFIG_PATH=$RUNNER_TEMP/naviamp-asound.conf" >> "$GITHUB_ENV"
+
       - name: Verify and publish JVM coverage reports
         run: ./gradlew -Pkotlin.native.enableKlibsCrossCompilation=false :koverVerify :koverHtmlReport :koverXmlReport
 
