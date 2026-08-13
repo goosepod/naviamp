@@ -24,7 +24,7 @@ class DesktopBassJniBindingIntegrationTest {
         val binding = requireBinding()
         val wav = createSilentWavFile()
         try {
-            assertTrue(binding.init(), "BASS should initialize: ${binding.lastErrorCode}")
+            assertTrue(binding.initForIntegrationTest(), "BASS should initialize: ${binding.lastErrorCode}")
             val stream = binding.createFileStream(wav.absolutePath)
             assertTrue(stream != 0, "BASS stream should be created: ${binding.lastErrorCode}")
 
@@ -54,7 +54,7 @@ class DesktopBassJniBindingIntegrationTest {
         val binding = requireBinding()
         val wav = createSilentWavFile()
         try {
-            assertTrue(binding.init(), "BASS should initialize: ${binding.lastErrorCode}")
+            assertTrue(binding.initForIntegrationTest(), "BASS should initialize: ${binding.lastErrorCode}")
             val stream = binding.createFileDecodeStream(wav.absolutePath)
             assertTrue(stream != 0, "BASS decode stream should be created: ${binding.lastErrorCode}")
 
@@ -71,7 +71,7 @@ class DesktopBassJniBindingIntegrationTest {
     @Test
     fun createsMixerAndReadsFftThroughJni() {
         val binding = requireBinding()
-        assertTrue(binding.init(), "BASS should initialize: ${binding.lastErrorCode}")
+        assertTrue(binding.initForIntegrationTest(), "BASS should initialize: ${binding.lastErrorCode}")
         try {
             val mixer = binding.createMixer(frequency = 44_100, channels = 2, queueSources = false)
             assertTrue(mixer != 0, "BASS mixer should be created: ${binding.lastErrorCode}")
@@ -87,7 +87,7 @@ class DesktopBassJniBindingIntegrationTest {
         val binding = requireBinding()
         val wav = createSilentWavFile(seconds = 1)
         try {
-            assertTrue(binding.init(), "BASS should initialize: ${binding.lastErrorCode}")
+            assertTrue(binding.initForIntegrationTest(), "BASS should initialize: ${binding.lastErrorCode}")
             val stream = binding.createFileStream(wav.absolutePath)
             assertTrue(stream != 0, "BASS stream should be created: ${binding.lastErrorCode}")
 
@@ -128,6 +128,11 @@ class DesktopBassJniBindingIntegrationTest {
         }
     }
 
+    private fun DesktopBassJniBinding.initForIntegrationTest(): Boolean =
+        System.getProperty(TestOutputDeviceProperty)
+            ?.let(::init)
+            ?: init()
+
     private fun createSilentWavFile(seconds: Int = 1): File =
         File.createTempFile("naviamp-jni-test", ".wav").also { file ->
             file.writeBytes(silentWavBytes(seconds = seconds))
@@ -164,4 +169,8 @@ class DesktopBassJniBindingIntegrationTest {
 
     private fun ByteBuffer.putAscii(value: String): ByteBuffer =
         put(value.toByteArray(Charsets.US_ASCII))
+
+    private companion object {
+        const val TestOutputDeviceProperty = "naviamp.bass.test.outputDevice"
+    }
 }

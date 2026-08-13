@@ -138,7 +138,7 @@ jobs:
 
       - name: Run Desktop tests with Windows native libraries
         shell: powershell
-        run: .\gradlew.bat "-Pkotlin.native.enableKlibsCrossCompilation=false" "-Pnaviamp.bass.platform=windows-x64" desktopTest
+        run: .\gradlew.bat "-Pkotlin.native.enableKlibsCrossCompilation=false" "-Pnaviamp.bass.platform=windows-x64" "-Pnaviamp.bass.test.outputDevice=0" desktopTest
 
       - name: Upload test reports
         if: always()

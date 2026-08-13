@@ -245,6 +245,9 @@ tasks.matching { it.name == "desktopProcessResources" || it.name == "processDesk
 
 tasks.named<Test>("desktopTest") {
     dependsOn(prepareDesktopNativeResources)
+    providers.gradleProperty("naviamp.bass.test.outputDevice").orNull?.let { outputDevice ->
+        systemProperty("naviamp.bass.test.outputDevice", outputDevice)
+    }
     systemProperty(
         "naviamp.bass.dir",
         generatedDesktopNativeResources.zip(desktopNativePlatform) { resources, platform ->
