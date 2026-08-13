@@ -32,10 +32,6 @@ class DesktopBassJniBindingIntegrationTest {
             assertTrue(binding.channelInfoFrequency(stream) > 0)
             assertTrue(binding.channelInfoChannels(stream) > 0)
             assertTrue(binding.setVolume(stream, 0.25f))
-            assertTrue(
-                binding.applyEqualizer(stream, FloatArray(10) { index -> index - 5.0f }),
-                "BASS core equalizer should work without the BASS FX add-on: ${binding.lastErrorCode}",
-            )
             assertTrue(binding.seek(stream, 0.1))
             assertTrue((binding.positionSeconds(stream) ?: -1.0) >= 0.0)
             assertTrue(binding.play(stream))
@@ -58,6 +54,10 @@ class DesktopBassJniBindingIntegrationTest {
             val stream = binding.createFileDecodeStream(wav.absolutePath)
             assertTrue(stream != 0, "BASS decode stream should be created: ${binding.lastErrorCode}")
 
+            assertTrue(
+                binding.applyEqualizer(stream, FloatArray(10) { index -> index - 5.0f }),
+                "BASS core equalizer should process a decode stream without the BASS FX add-on: ${binding.lastErrorCode}",
+            )
             assertNotNull(binding.lengthBytes(stream))
             val buffer = FloatArray(1024)
             assertTrue(binding.readFloatData(stream, buffer) >= 0)
