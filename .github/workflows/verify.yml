@@ -138,7 +138,7 @@ jobs:
 
       - name: Run Desktop tests with Windows native libraries
         shell: powershell
-        run: .\gradlew.bat "-Pnaviamp.bass.platform=windows-x64" desktopTest
+        run: .\gradlew.bat "-Pkotlin.native.enableKlibsCrossCompilation=false" "-Pnaviamp.bass.platform=windows-x64" desktopTest
 
       - name: Upload test reports
         if: always()
@@ -163,6 +163,11 @@ jobs:
 
       - name: Install native test dependencies
         run: sudo apt-get update && sudo apt-get install -y libgl1-mesa-dev libsecret-tools
+
+      - name: Configure headless ALSA output
+        run: |
+          printf '%s\n' 'pcm.!default { type null }' > "$RUNNER_TEMP/naviamp-asound.conf"
+          echo "ALSA_CONFIG_PATH=$RUNNER_TEMP/naviamp-asound.conf" >> "$GITHUB_ENV"
 
       - name: Run Desktop tests with Linux native libraries
         run: ./gradlew -Pkotlin.native.enableKlibsCrossCompilation=false -Pnaviamp.bass.platform=linux-x64 desktopTest

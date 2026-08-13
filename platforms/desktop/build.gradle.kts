@@ -16,7 +16,6 @@ val desktopBassVendorDir = desktopNativePlatform.map { platform ->
 val generatedDesktopNativeResources = layout.buildDirectory.dir("generated/desktopNativeResources")
 val generatedDesktopNativeAppResources = layout.buildDirectory.dir("generated/desktopNativeAppResources")
 val desktopCmakeExecutable = providers.environmentVariable("CMAKE_EXE")
-    .orElse(providers.environmentVariable("LOCALAPPDATA").map { "$it/Android/Sdk/cmake/3.22.1/bin/cmake.exe" })
     .orElse(providers.provider { "cmake" })
 
 val copyDesktopBassResources by tasks.registering(Copy::class) {
