@@ -4,9 +4,49 @@ Release changes are grouped into user-facing Features, Bug Fixes, and deployment
 
 ## Unreleased
 
+No changes yet.
+
+## v2.0.0
+
+Naviamp 2.0 is a complete cross-platform rebuild around one shared application, with thin Android,
+Desktop, and iOS hosts. Android, macOS, Windows, and Linux are release targets. iOS is provided as
+an unsigned preview for people who can sign and sideload it themselves.
+
+### Features
+
+- Added a shared Naviamp application and responsive interface across Android, macOS, Windows, Linux, and the iOS preview, including shared navigation, settings, queues, restoration, and provider behavior.
+- Added generic Subsonic/OpenSubsonic, Jellyfin, and Bandcamp connections alongside Navidrome, with provider-specific capabilities, library selection, authentication, and restoration.
+- Added shared BASS playback with gapless transitions, crossfade, ReplayGain, equalization, sample-rate matching, waveform seeking, visualizers, output-quality controls, and native media integration where supported.
+- Added persistent downloads, cache limits, keep-downloaded collections, offline playback, authenticated artwork and sidecars, and settings synchronization without exporting credentials or device-local paths.
+- Added Home customization, Navibeat and provider mixes, configurable List/Grid/Carousel layouts, generated stations, internet radio, smart playlists, Sonic Mix, Sonic Path, and Sonic Autoplay.
+- Added plain, line-synchronized, and word-synchronized lyrics with independent download and display preferences plus an in-player timing selector.
+- Added shared update notifications with Stable and Beta channels and correctly versioned upgrade packages for every supported release platform.
+- Added Android Auto, Android background playback and system media controls, Apple Now Playing controls in the iOS preview, Desktop global shortcuts, and cross-platform Stats for Nerds diagnostics.
+
+### Bug Fixes
+
+- Fixed queue, repeat, automatic transition, seek, scrub, waveform, downloaded-source, and cold-start restoration behavior across providers and hosts.
+- Fixed excessive Android background network, CPU, and battery use by bounding prefetch and publication work and isolating high-frequency progress updates.
+- Fixed Jellyfin transcoding, libraries, favorites, playlists, recently played reporting, lyrics, authenticated downloads, offline fallback, and selected-library track lookup.
+- Fixed Bandcamp collection discovery, queue-to-playlist saves, playlist saving state, and unsupported playlist-reordering behavior.
+- Fixed secure credential storage and actionable connection errors on Android Keystore, macOS Keychain, Windows credential protection, Linux Secret Service, and iOS Keychain.
+- Fixed provider-aware offline restoration, settings-sync coverage, selected music-library persistence, playlist operations, Android Back behavior, and responsive navigation state.
+- Fixed aligned track-number columns, Home collection layout switching, carousel snapping, pinned page headers and Search field, refresh-menu consistency, and generated station/mix artwork.
+- Fixed package identity, icons, semantic prerelease versions, installer upgrade ordering, and release filenames on Android, macOS, Windows, and Linux.
+
 ### System Settings
 
-- Disabled unsupported Kotlin/Native KLIB cross-compilation in Android, Windows, and Linux release jobs so Apple C-interop warnings are not emitted while building unrelated artifacts; macOS retains the complete iOS interop build path.
+- Added mandatory shared, Android, Desktop, iOS, native BASS, Keychain/Keystore, SQLDelight migration, provider-contract, and responsive UI verification before release packaging.
+- Added aggregate JVM coverage reporting with a 60% line-coverage floor and the `make test` complete local verification command.
+- Updated compatible stable dependencies while deferring Compose Multiplatform 1.11 and Android Gradle Plugin 9.2 to a dedicated post-v2 migration.
+
+### Release Notes and Known Limitations
+
+- Existing v1 and v2 prerelease installations can be upgraded in place. Back up important playlists and settings before any major upgrade.
+- Bandcamp's current Subsonic beta serves collection audio as MP3 256 kbps and does not reliably apply playlist track reordering; Naviamp blocks that unsupported mutation.
+- The iOS artifact is an unsigned preview. Physical-iPhone, signed distribution, route-change, and TestFlight acceptance are explicitly deferred because no signing identity or physical iPhone is available.
+- Windows and macOS packages are not yet distributed with trusted publisher signing, so their operating systems may display security warnings.
+- Linux secure credential storage requires Secret Service and `secret-tool`; packaged DEB and RPM installers declare the required runtime integration.
 
 ## v2.0.0-beta.4
 

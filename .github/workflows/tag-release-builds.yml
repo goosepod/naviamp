@@ -228,7 +228,7 @@ jobs:
               release && /^## / { exit }
               release && $0 == "### Features" { public = 1; print; next }
               release && $0 == "### Bug Fixes" { public = 1; print; next }
-              release && $0 ~ /^### (Alpha|Beta|Release Candidate) Notes and Known Limitations$/ { public = 1; print; next }
+              release && $0 ~ /^### (Alpha Notes|Beta Notes|Release Candidate Notes|Release Notes) and Known Limitations$/ { public = 1; print; next }
               release && /^### / { public = 0; next }
               release && public { print }
             ' CHANGELOG.md > "$RUNNER_TEMP/release-notes.md"

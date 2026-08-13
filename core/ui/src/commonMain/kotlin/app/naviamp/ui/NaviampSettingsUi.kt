@@ -2366,19 +2366,25 @@ private val DefaultNaviampChangelog = listOf(
     NaviampChangelogSectionUi(
         title = "Features",
         entries = listOf(
-            "Added connections for generic Subsonic/OpenSubsonic, Jellyfin, and Bandcamp.",
-            "Added Jellyfin libraries, mixes, favorites, playlists, lyrics, transcoding, downloads, and offline playback.",
-            "Added Bandcamp collection browsing, playback, downloads, and supported playlist operations.",
-            "Added provider-specific connection guidance and editable provider types.",
+            "Rebuilt Naviamp as one shared application for Android, macOS, Windows, Linux, and the iOS preview.",
+            "Added generic Subsonic/OpenSubsonic, Jellyfin, and Bandcamp connections alongside Navidrome.",
+            "Added shared BASS playback with gapless transitions, crossfade, ReplayGain, equalization, sample-rate matching, waveforms, and visualizers.",
+            "Added persistent downloads, keep-downloaded collections, cache controls, offline playback, and credential-free settings sync.",
+            "Added customizable Home layouts, Navibeat and provider mixes, generated stations, internet radio, smart playlists, Sonic Mix, Sonic Path, and Sonic Autoplay.",
+            "Added plain, line-synchronized, and word-synchronized lyrics with independent download and display preferences.",
+            "Added Stable and Beta update channels plus correctly versioned upgrade packages for every supported release platform.",
         ),
     ),
     NaviampChangelogSectionUi(
         title = "Bug Fixes",
         entries = listOf(
-            "Fixed Jellyfin transcoding, seeking, waveforms, authenticated downloads, and offline fallback.",
-            "Fixed complete queue saves and playlist updates that could remain stuck on Saving.",
-            "Blocked unreliable Bandcamp playlist reordering with one clear explanation.",
-            "Fixed Android Back navigation and multi-provider cold-start restoration.",
+            "Fixed queue transitions, repeat, seeking, waveforms, downloaded-source playback, and cross-provider cold restoration.",
+            "Reduced Android background network, CPU, and battery use by bounding prefetch and publication work.",
+            "Fixed Jellyfin libraries, transcoding, playlists, recently played reporting, lyrics, downloads, and offline fallback.",
+            "Fixed Bandcamp collection discovery, complete queue saves, playlist saving state, and unsupported reordering feedback.",
+            "Fixed secure credential storage and prominent connection errors across supported operating systems.",
+            "Fixed responsive navigation, aligned track numbers, Home layout switching, carousel snapping, pinned headers, and refresh menus.",
+            "Fixed package identity, icons, semantic versions, installer upgrade ordering, and release filenames.",
         ),
     ),
 )
