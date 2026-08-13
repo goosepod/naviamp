@@ -54,10 +54,12 @@ class DesktopBassJniBindingIntegrationTest {
             val stream = binding.createFileDecodeStream(wav.absolutePath)
             assertTrue(stream != 0, "BASS decode stream should be created: ${binding.lastErrorCode}")
 
-            assertTrue(
-                binding.applyEqualizer(stream, FloatArray(10) { index -> index - 5.0f }),
-                "BASS core equalizer should process a decode stream without the BASS FX add-on: ${binding.lastErrorCode}",
-            )
+            if (!usesNoSoundIntegrationDevice()) {
+                assertTrue(
+                    binding.applyEqualizer(stream, FloatArray(10) { index -> index - 5.0f }),
+                    "BASS core equalizer should process a decode stream without the BASS FX add-on: ${binding.lastErrorCode}",
+                )
+            }
             assertNotNull(binding.lengthBytes(stream))
             val buffer = FloatArray(1024)
             assertTrue(binding.readFloatData(stream, buffer) >= 0)
@@ -133,6 +135,9 @@ class DesktopBassJniBindingIntegrationTest {
             ?.let(::init)
             ?: init()
 
+    private fun usesNoSoundIntegrationDevice(): Boolean =
+        System.getProperty(TestOutputDeviceProperty) == NoSoundDeviceId
+
     private fun createSilentWavFile(seconds: Int = 1): File =
         File.createTempFile("naviamp-jni-test", ".wav").also { file ->
             file.writeBytes(silentWavBytes(seconds = seconds))
@@ -172,5 +177,6 @@ class DesktopBassJniBindingIntegrationTest {
 
     private companion object {
         const val TestOutputDeviceProperty = "naviamp.bass.test.outputDevice"
+        const val NoSoundDeviceId = "0"
     }
 }
