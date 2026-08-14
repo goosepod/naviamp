@@ -115,7 +115,7 @@ jobs:
 
       - name: Start emulator
         run: |
-          emulator -avd naviamp-ci -no-window -no-audio -no-boot-anim -no-snapshot -no-metrics -gpu swiftshader_indirect >/tmp/naviamp-emulator.log 2>&1 &
+          "$ANDROID_HOME/emulator/emulator" -avd naviamp-ci -no-window -no-audio -no-boot-anim -no-snapshot -no-metrics -gpu swiftshader_indirect >/tmp/naviamp-emulator.log 2>&1 &
           emulator_pid=$!
           booted=false
           for _ in $(seq 1 120); do
