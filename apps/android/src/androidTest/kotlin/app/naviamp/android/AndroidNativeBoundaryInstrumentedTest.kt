@@ -40,6 +40,7 @@ class AndroidNativeBoundaryInstrumentedTest {
         assertTrue(bass.mixerVersion > 0)
         assertTrue(bass.pluginDiagnostics.isNotEmpty())
         assertTrue(bass.pluginDiagnostics.all { it.loaded }, bass.pluginDiagnostics.joinToString())
+        assertTrue(bass.init(), "BASS initialization failed: error=${bass.lastErrorCode}")
 
         val wav = File.createTempFile("naviamp-bass-", ".wav")
         try {
@@ -59,6 +60,7 @@ class AndroidNativeBoundaryInstrumentedTest {
             }
         } finally {
             wav.delete()
+            bass.free()
         }
     }
 }
